@@ -25,20 +25,22 @@ internal sealed class BilibiliApi(HttpClient http, TimeProvider timeProvider)
         return buvid;
     }
 
-    public async Task<(long Mid, string MixinKey)> GetNavigationAsync(CancellationToken cancellationToken)
+    public async Task<(long Mid, string MixinKey)> GetNavigationAsync(
+        CancellationToken cancellationToken, bool allowAnonymous = false)
     {
         using var nav = await GetAsync("https://api.bilibili.com/x/web-interface/nav", LiveReferer, cancellationToken);
-        if (nav.RootElement.GetProperty("code").GetInt32() == -101) return (0, "");
-        CheckCode(nav, "检查登录状态");
+        var code = nav.RootElement.GetProperty("code").GetInt32();
+        if (code != -101) CheckCode(nav, "检查登录状态");
+        var loggedIn = code == 0 && nav.RootElement.GetProperty("data").GetProperty("isLogin").GetBoolean();
+        if (!loggedIn && !allowAnonymous) return (0, "");
         var data = nav.RootElement.GetProperty("data");
-        if (!data.GetProperty("isLogin").GetBoolean()) return (0, "");
         var images = data.GetProperty("wbi_img");
         var keys = Path.GetFileNameWithoutExtension(images.GetProperty("img_url").GetString())
             + Path.GetFileNameWithoutExtension(images.GetProperty("sub_url").GetString());
         int[] permutation = [46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35,
             27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13];
         var mixinKey = new string(permutation.Select(i => keys[i]).ToArray());
-        return (data.GetProperty("mid").GetInt64(), mixinKey);
+        return (loggedIn ? data.GetProperty("mid").GetInt64() : 0, mixinKey);
     }
 
     public async Task<(long RoomId, string Buvid, string Token, Uri Server)> GetConnectionAsync(

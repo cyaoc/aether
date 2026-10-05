@@ -9,7 +9,7 @@ public sealed class LifecycleTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task Aborted_socket_ends_normally_only_when_caller_cancelled(bool cancel)
+    public async Task Aborted_socket_reconnects_unless_caller_cancelled(bool cancel)
     {
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         await using var server = new FakeDanmakuServer();
@@ -24,7 +24,11 @@ public sealed class LifecycleTests
         await using var updates = h.Client.WatchAsync(6, stop.Token).GetAsyncEnumerator(stop.Token);
         Assert.True(await updates.MoveNextAsync());
         if (cancel) Assert.False(await updates.MoveNextAsync());
-        else await Assert.ThrowsAsync<WebSocketException>(async () => await updates.MoveNextAsync());
+        else
+        {
+            Assert.True(await updates.MoveNextAsync());
+            Assert.IsType<Reconnecting>(updates.Current);
+        }
         await server.WaitForDisconnectAsync();
     }
 
@@ -64,7 +68,7 @@ public sealed class LifecycleTests
     }
 
     [Fact]
-    public async Task Server_disconnect_ends_with_error()
+    public async Task Server_disconnect_reports_reconnecting()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -72,8 +76,8 @@ public sealed class LifecycleTests
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
         await h.Server.DisconnectAsync();
-        var error = await Assert.ThrowsAsync<IOException>(async () => await updates.MoveNextAsync());
-        Assert.Contains("断开", error.Message);
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Reconnecting>(updates.Current);
         await h.Server.WaitForDisconnectAsync();
     }
 

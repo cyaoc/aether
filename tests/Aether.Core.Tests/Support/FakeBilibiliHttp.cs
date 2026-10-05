@@ -8,6 +8,19 @@ internal sealed class FakeBilibiliHttp : HttpMessageHandler
     public List<(Uri Uri, string? Cookie)> Requests { get; } = [];
     public Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? Respond { get; set; }
 
+    /// <summary>Throws <paramref name="error"/> for the first request to <paramref name="path"/>; later requests go to <see cref="Respond"/> as before.</summary>
+    public void FailOnce(string path, Exception error)
+    {
+        var respond = Respond!;
+        var failed = false;
+        Respond = (request, token) =>
+        {
+            if (failed || request.RequestUri!.AbsolutePath != path) return respond(request, token);
+            failed = true;
+            throw error;
+        };
+    }
+
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var uri = request.RequestUri!;

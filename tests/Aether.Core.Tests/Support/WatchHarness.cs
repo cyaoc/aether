@@ -68,6 +68,27 @@ internal sealed class WatchHarness : IAsyncDisposable
         return await next.WaitAsync(TimeSpan.FromSeconds(5), Stop.Token);
     }
 
+    /// <summary>Proves the next update waits exactly <paramref name="seconds"/> of reconnect backoff.</summary>
+    public async Task AdvanceRetryAsync<T>(IAsyncEnumerator<T> updates, int seconds)
+    {
+        var next = updates.MoveNextAsync().AsTask();
+        try
+        {
+            Time.Advance(TimeSpan.FromSeconds(seconds) - TimeSpan.FromMilliseconds(1));
+            Assert.False(next.IsCompleted);
+            Time.Advance(TimeSpan.FromMilliseconds(1));
+            Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), Stop.Token));
+        }
+        finally
+        {
+            if (!next.IsCompleted)
+            {
+                await Stop.CancelAsync();
+                await next;
+            }
+        }
+    }
+
     public (Dictionary<string, string> Cookies, string RefreshToken, DateTimeOffset SavedAt) SavedCredential()
     {
         using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
