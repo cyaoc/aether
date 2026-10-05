@@ -13,72 +13,96 @@ public sealed class AetherClient(
     ILogger<AetherClient> logger,
     string dataDirectory) : IDisposable
 {
-    private readonly CredentialStore credentials = new(dataDirectory);
     private readonly HttpClient http = new(httpHandler);
 
+    // BilibiliApi keeps cookies per flow; a handler-wide jar would leak login cookies into anonymous watching.
     public AetherClient(TimeProvider timeProvider, ILogger<AetherClient> logger)
         : this(new HttpClientHandler { UseCookies = false }, ConnectWebSocketAsync, timeProvider, logger,
-            CredentialStore.GetDataDirectory()) { }
+            LocateDataDirectory()) { }
 
-    public async IAsyncEnumerable<LoginUpdate> LoginAsync(
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<LoginUpdate> LoginAsync(CancellationToken cancellationToken = default) =>
+        EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
+
+    /// <summary>Signs out on B站 when possible; the local credential is deleted either way unless the caller cancels.</summary>
+    public async Task LogoutAsync(CancellationToken cancellationToken = default)
     {
-        await using var updates = LoginCoreAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
+        var credentials = new CredentialStore(new Database(dataDirectory));
+        try
+        {
+            if (credentials.Load() is { } credential)
+            {
+                var api = new BilibiliApi(http, timeProvider);
+                api.AddCookies(credential.Cookies);
+                await api.LogoutAsync(cancellationToken);
+            }
+        }
+        catch (Exception error) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning("B站退出登录失败，仍删除本地登录凭据：{Error}", error.Message);
+        }
+        credentials.Delete();
+    }
+
+    public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(roomId);
+        return EndOnCancellation(WatchCoreAsync(roomId, cancellationToken), cancellationToken);
+    }
+
+    /// <summary>Ends the stream normally, instead of throwing, once the caller cancels.</summary>
+    private static async IAsyncEnumerable<T> EndOnCancellation<T>(
+        IAsyncEnumerable<T> source, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await using var updates = source.GetAsyncEnumerator(cancellationToken);
         while (!cancellationToken.IsCancellationRequested)
         {
             bool hasNext;
             try { hasNext = await updates.MoveNextAsync(); }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { yield break; }
+            catch (Exception error) when (cancellationToken.IsCancellationRequested
+                && error is OperationCanceledException or WebSocketException) { yield break; }
             if (!hasNext) yield break;
             yield return updates.Current;
         }
     }
 
-    public Task LogoutAsync(CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        credentials.Delete();
-        return Task.CompletedTask;
-    }
-
     private async IAsyncEnumerable<LoginUpdate> LoginCoreAsync(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var login = new BilibiliLogin(http);
+        // Everything that can fail on its own runs before the first QR code, so no scan is wasted.
+        var credentials = new CredentialStore(new Database(dataDirectory));
+        var api = new BilibiliApi(http, timeProvider);
+        await RetryAsync(() => api.GetBuvidAsync(cancellationToken), cancellationToken);
         while (true)
         {
-            var qr = await login.GenerateAsync(cancellationToken);
-            yield return new LoginQrCode(qr.Content);
+            var qr = await RetryAsync(() => api.GenerateQrCodeAsync(cancellationToken), cancellationToken);
+            yield return new LoginQrCode(qr.Url);
             while (true)
             {
                 await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, cancellationToken);
-                var (code, refreshToken) = await login.PollAsync(qr.Key, cancellationToken);
-                if (code == 86038) break;
-                if (code is 86101 or 86090) continue;
-                if (code != 0) throw new InvalidOperationException($"扫码登录失败（{code}）。");
-                var cookies = await login.GetCookiesAsync(cancellationToken);
+                var (state, refreshToken) = await RetryAsync(() => api.PollQrCodeAsync(qr.Key, cancellationToken), cancellationToken);
+                if (state == QrCodeState.Waiting) continue;
+                if (state == QrCodeState.Expired) break;
                 cancellationToken.ThrowIfCancellationRequested();
-                credentials.Save(cookies, refreshToken!, timeProvider.GetUtcNow());
+                credentials.Save(new Credential(api.GetCookies(), refreshToken!, timeProvider.GetUtcNow()));
                 yield return new LoggedIn();
                 yield break;
             }
         }
     }
 
-    public async IAsyncEnumerable<WatchUpdate> WatchAsync(
-        long roomId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    /// <summary>Retries network failures (not B站 error codes) until the request succeeds or the caller cancels.</summary>
+    private async Task<T> RetryAsync<T>(Func<Task<T>> request, CancellationToken cancellationToken)
     {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(roomId);
-        await using var updates = WatchCoreAsync(roomId, cancellationToken).GetAsyncEnumerator(cancellationToken);
         while (true)
         {
-            if (cancellationToken.IsCancellationRequested) yield break;
-            bool hasNext;
-            try { hasNext = await updates.MoveNextAsync(); }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { yield break; }
-            catch (WebSocketException) when (cancellationToken.IsCancellationRequested) { yield break; }
-            if (!hasNext) yield break;
-            yield return updates.Current;
+            try { return await request(); }
+            catch (Exception error) when (error is HttpRequestException
+                || (error is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+            {
+                // ponytail: fixed 2s retry with no cap; add backoff if B站 starts rate-limiting retries.
+                logger.LogWarning("登录请求失败，2 秒后重试：{Error}", error.Message);
+                await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, cancellationToken);
+            }
         }
     }
 
@@ -192,6 +216,21 @@ public sealed class AetherClient(
         socket.Options.SetRequestHeader("Origin", "https://live.bilibili.com");
         try { await socket.ConnectAsync(uri, cancellationToken); return socket; }
         catch { socket.Dispose(); throw; }
+    }
+
+    /// <summary>ADR 0002: Release uses the executable's directory; Debug prefers the directory holding Aether.slnx.</summary>
+    private static string LocateDataDirectory()
+    {
+        var root = AppContext.BaseDirectory;
+#if DEBUG
+        for (var directory = new DirectoryInfo(root); directory is not null; directory = directory.Parent)
+        {
+            if (!File.Exists(Path.Combine(directory.FullName, "Aether.slnx"))) continue;
+            root = directory.FullName;
+            break;
+        }
+#endif
+        return Path.Combine(root, "data");
     }
 
     public void Dispose() => http.Dispose();
