@@ -1,10 +1,32 @@
 using System.Buffers.Binary;
+using System.Net.WebSockets;
 using Aether.Core.Tests.Support;
 
 namespace Aether.Core.Tests;
 
 public sealed class LifecycleTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Aborted_socket_ends_normally_only_when_caller_cancelled(bool cancel)
+    {
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        await using var server = new FakeDanmakuServer();
+        await using var h = new WatchHarness(async (uri, token) =>
+        {
+            var socket = await server.ConnectAsync(uri, token);
+            if (cancel) await stop.CancelAsync();
+            socket.Abort();
+            return socket;
+        });
+        await using var updates = h.Client.WatchAsync(6, stop.Token).GetAsyncEnumerator(stop.Token);
+        Assert.True(await updates.MoveNextAsync());
+        if (cancel) Assert.False(await updates.MoveNextAsync());
+        else await Assert.ThrowsAsync<WebSocketException>(async () => await updates.MoveNextAsync());
+        await server.WaitForDisconnectAsync();
+    }
+
     [Fact]
     public async Task Cancellation_discards_buffered_danmaku_and_closes_connection()
     {

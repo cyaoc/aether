@@ -28,6 +28,7 @@ public sealed class AetherClient(
             bool hasNext;
             try { hasNext = await updates.MoveNextAsync(); }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { yield break; }
+            catch (WebSocketException) when (cancellationToken.IsCancellationRequested) { yield break; }
             if (!hasNext) yield break;
             yield return updates.Current;
         }
