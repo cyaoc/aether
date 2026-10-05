@@ -1,6 +1,4 @@
 using Aether.Core.Tests.Support;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Core.Tests;
 
@@ -53,18 +51,16 @@ public sealed class WatchTests
     [Fact]
     public async Task Nonexistent_room_ends_with_clear_error_without_connecting_or_retrying()
     {
-        var http = new FakeBilibiliHttp();
-        http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
+        await using var h = new WatchHarness((_, _) => throw new Xunit.Sdk.XunitException("Must not connect"));
+        h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
             """{"code":60004,"message":"直播间不存在"}""";
-        using var client = new AetherClient(http, (_, _) => throw new Xunit.Sdk.XunitException("Must not connect"),
-            new FakeTimeProvider(), NullLogger<AetherClient>.Instance);
-        await using var updates = client.WatchAsync(999, TestContext.Current.CancellationToken).GetAsyncEnumerator(TestContext.Current.CancellationToken);
+        await using var updates = h.Client.WatchAsync(999, TestContext.Current.CancellationToken).GetAsyncEnumerator(TestContext.Current.CancellationToken);
 
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Connecting>(updates.Current);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
         Assert.Contains("直播间 999 查询失败", error.Message);
         Assert.Contains("直播间不存在", error.Message);
-        Assert.Single(http.Requests);
+        Assert.Single(h.Http.Requests);
     }
 }

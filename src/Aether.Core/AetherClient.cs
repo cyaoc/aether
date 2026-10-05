@@ -10,12 +10,60 @@ public sealed class AetherClient(
     HttpMessageHandler httpHandler,
     Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket,
     TimeProvider timeProvider,
-    ILogger<AetherClient> logger) : IDisposable
+    ILogger<AetherClient> logger,
+    string dataDirectory) : IDisposable
 {
+    private readonly CredentialStore credentials = new(dataDirectory);
     private readonly HttpClient http = new(httpHandler);
 
     public AetherClient(TimeProvider timeProvider, ILogger<AetherClient> logger)
-        : this(new HttpClientHandler(), ConnectWebSocketAsync, timeProvider, logger) { }
+        : this(new HttpClientHandler { UseCookies = false }, ConnectWebSocketAsync, timeProvider, logger,
+            CredentialStore.GetDataDirectory()) { }
+
+    public async IAsyncEnumerable<LoginUpdate> LoginAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await using var updates = LoginCoreAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            bool hasNext;
+            try { hasNext = await updates.MoveNextAsync(); }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { yield break; }
+            if (!hasNext) yield break;
+            yield return updates.Current;
+        }
+    }
+
+    public Task LogoutAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        credentials.Delete();
+        return Task.CompletedTask;
+    }
+
+    private async IAsyncEnumerable<LoginUpdate> LoginCoreAsync(
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var login = new BilibiliLogin(http);
+        while (true)
+        {
+            var qr = await login.GenerateAsync(cancellationToken);
+            yield return new LoginQrCode(qr.Content);
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, cancellationToken);
+                var (code, refreshToken) = await login.PollAsync(qr.Key, cancellationToken);
+                if (code == 86038) break;
+                if (code is 86101 or 86090) continue;
+                if (code != 0) throw new InvalidOperationException($"扫码登录失败（{code}）。");
+                var cookies = await login.GetCookiesAsync(cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                credentials.Save(cookies, refreshToken!, timeProvider.GetUtcNow());
+                yield return new LoggedIn();
+                yield break;
+            }
+        }
+    }
 
     public async IAsyncEnumerable<WatchUpdate> WatchAsync(
         long roomId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
