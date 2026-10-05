@@ -45,6 +45,7 @@ public sealed class WatchTests
         Assert.Equal("?id=6", h.Http.Requests[0].Uri.Query);
         var request = Assert.Single(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("getDanmuInfo"));
         Assert.Equal("buvid3=anonymous-buvid", request.Cookie);
+        Assert.False(Directory.Exists(h.DataDirectory)); // Anonymous watching never touches stored credentials.
         Assert.Equal("?id=7734200&type=0&web_location=444.8&wts=1702204169&w_rid=1bb9dceebb99493b57a534797732eba7", request.Uri.Query);
     }
 

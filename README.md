@@ -24,16 +24,21 @@ Ctrl+C 关闭连接并正常退出，错误返回非零退出码。匿名观看�
 部分直播间会返回真实昵称。`watch` 当前仍匿名连接、不重连，服务器断开后命令报错退出；
 观看时使用登录凭据由后续任务接入。
 
-`login` 在 stderr 显示字符画二维码，用 B站 App 扫码并确认。每两秒轮询一次，
-过期后自动打印新二维码，成功保存凭据后提示“已登录”。Ctrl+C 取消并正常退出。
-`logout` 删除本地登录凭据，可重复执行。
+`login` 先打开数据库、获取 buvid3，再在 stderr 显示字符画二维码，用 B站 App 扫码并确认。
+每两秒轮询一次，过期后自动打印新二维码，成功保存凭据后提示“已登录”。网络错误（连不上、
+HTTP 非 2xx、超时）记一条警告，两秒后重试，直到成功或 Ctrl+C；B站返回的错误码直接报错退出。
+Ctrl+C 取消并正常退出。`logout` 先调用 B站 退出登录接口，让服务器端的 SESSDATA 失效，再删除本地登录凭据，可重复执行。
+B站 端退出失败（网络错误、错误码、cookie 已失效）时记一条警告，仍删除本地凭据；
+Ctrl+C 取消则保留本地凭据。
 
 数据目录遵循 [ADR 0002](docs/adr/0002-portable-data-directory.md)：Release 用程序目录下的 `data/`；
 Debug 从程序目录向上寻找 `Aether.slnx`，用其所在目录下的 `data/`，找不到则退回程序目录。
 与启动命令所在目录无关。SQLite 文件是 `data/aether.db`，使用 WAL；`PRAGMA user_version`
 记录表结构版本，当前为 1。后续升级使用手写 SQL，并与版本号在同一事务中提交。
 `credential` 表只存一行，保存完整 cookie 名值 JSON、refresh_token 和 UTC 保存时间。
-凭据暂存明文，`data/` 已被 Git 忽略。CLI 与未来 GUI 放在同一发布目录时共用这些数据。
+凭据暂存明文，`data/` 已被 Git 忽略；连接开启 `secure_delete`，删除或覆盖的凭据不会残留在文件里。
+macOS 上数据库文件（含 `-wal` / `-shm`）权限为 0600，只有当前用户可读写；Windows 依赖目录继承的 ACL。
+只有 `login` / `logout` 才打开数据库，匿名 `watch` 不读写 `data/`。CLI 与未来 GUI 放在同一发布目录时共用这些数据。
 
 Core 的业务入口都在 `AetherClient`：`LoginAsync` 返回 `LoginQrCode`、`LoggedIn` 更新流；
 `LogoutAsync` 删除凭据；`WatchAsync` 返回 `Connecting`、`Connected`、`Danmaku` 更新流。

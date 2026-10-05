@@ -4,7 +4,7 @@ namespace Aether.Core.Tests.Support;
 
 internal sealed class WatchHarness : IAsyncDisposable
 {
-    private readonly string dataDirectory = Path.Combine(Path.GetTempPath(), "aether-tests-" + Guid.NewGuid());
+    public string DataDirectory { get; } = Path.Combine(Path.GetTempPath(), "aether-tests-" + Guid.NewGuid());
     public FakeBilibiliHttp Http { get; } = new();
     public FakeDanmakuServer Server { get; } = new();
     public FakeTimeProvider Time { get; } = new(DateTimeOffset.FromUnixTimeSeconds(1702204169));
@@ -22,7 +22,7 @@ internal sealed class WatchHarness : IAsyncDisposable
             """{"code":-101,"data":{"wbi_img":{"img_url":"https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png","sub_url":"https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png"}}}""";
         Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
             """{"code":0,"data":{"token":"anonymous-token","host_list":[{"host":"danmaku.example","wss_port":443}]}}""";
-        Client = new AetherClient(Http, connectWebSocket ?? Server.ConnectAsync, Time, Logger, dataDirectory);
+        Client = new AetherClient(Http, connectWebSocket ?? Server.ConnectAsync, Time, Logger, DataDirectory);
     }
 
     public async ValueTask DisposeAsync()
@@ -31,6 +31,5 @@ internal sealed class WatchHarness : IAsyncDisposable
         Client.Dispose();
         await Server.DisposeAsync();
         Stop.Dispose();
-        Directory.Delete(dataDirectory, recursive: true);
     }
 }

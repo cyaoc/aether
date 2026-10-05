@@ -2,6 +2,7 @@ using Aether.Core.Tests.Support;
 using System.Net;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Core.Tests;
@@ -11,22 +12,25 @@ public sealed class LoginTests : IDisposable
     private readonly string dataDirectory = Path.Combine(Path.GetTempPath(), "aether-tests-" + Guid.NewGuid());
     private readonly FakeTimeProvider time = new(DateTimeOffset.FromUnixTimeSeconds(1702204169));
     private readonly FakeBilibiliHttp http = new();
+    private readonly RecordingLogger logger = new();
     private const string Generate = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate";
     private const string Poll = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll";
     private const string Spi = "https://api.bilibili.com/x/frontend/finger/spi";
+    private const string Exit = "https://passport.bilibili.com/login/exit/v2";
 
-    private void SuccessfulLogin(string session)
+    private void SuccessfulLogin(string sessdata)
     {
         http.Respond = (request, _) => Task.FromResult(request.RequestUri!.GetLeftPart(UriPartial.Path) switch
         {
             Generate => Json("""{"code":0,"data":{"url":"https://example.test/scan","qrcode_key":"test-key"}}"""),
             Poll => Json("""{"code":0,"data":{"code":0,"refresh_token":"refresh-token"}}""",
-                $"SESSDATA={session}; Path=/; Domain=.bilibili.com; HttpOnly; Secure",
+                $"SESSDATA={sessdata}; Path=/; Domain=.bilibili.com; HttpOnly; Secure",
                 "bili_jct=csrf; Path=/; Domain=.bilibili.com",
                 "DedeUserID=123; Path=/; Domain=.bilibili.com",
                 "DedeUserID__ckMd5=checksum; Path=/; Domain=.bilibili.com",
                 "sid=extra-cookie; Path=/; Domain=.bilibili.com"),
             Spi => Json("""{"code":0,"data":{"b_3":"device-buvid"}}"""),
+            Exit => Json("""{"code":0,"status":true,"ts":1702204169,"data":{"redirectUrl":"https://www.bilibili.com/"}}"""),
             _ => throw new InvalidOperationException("Unexpected login request.")
         });
     }
@@ -40,7 +44,7 @@ public sealed class LoginTests : IDisposable
 
     private AetherClient CreateClient() => new(http,
         (_, _) => throw new InvalidOperationException("Login must not connect a WebSocket."),
-        time, new RecordingLogger(), dataDirectory);
+        time, logger, dataDirectory);
 
     private SqliteConnection OpenDatabase()
     {
@@ -53,9 +57,11 @@ public sealed class LoginTests : IDisposable
     }
 
     [Fact]
-    public void First_run_creates_version_one_database_in_wal_mode()
+    public async Task First_credential_operation_creates_version_one_database_in_wal_mode()
     {
         using var client = CreateClient();
+        Assert.False(Directory.Exists(dataDirectory));
+        await client.LogoutAsync(TestContext.Current.CancellationToken);
         Assert.True(File.Exists(Path.Combine(dataDirectory, "aether.db")));
         using var connection = OpenDatabase();
         using var command = connection.CreateCommand();
@@ -68,9 +74,9 @@ public sealed class LoginTests : IDisposable
     }
 
     [Fact]
-    public async Task Login_saves_all_cookies_refresh_token_and_local_save_time_before_reporting_success()
+    public async Task Login_saves_all_cookies_refresh_token_and_save_time_before_reporting_success()
     {
-        SuccessfulLogin("encoded%2Csession");
+        SuccessfulLogin("encoded%2Csessdata");
         using var client = CreateClient();
         await using var updates = client.LoginAsync(TestContext.Current.CancellationToken).GetAsyncEnumerator(TestContext.Current.CancellationToken);
         Assert.True(await updates.MoveNextAsync());
@@ -86,7 +92,7 @@ public sealed class LoginTests : IDisposable
         Assert.True(reader.Read());
         var cookies = JsonSerializer.Deserialize<Dictionary<string, string>>(reader.GetString(0))!;
         Assert.Equal(6, cookies.Count);
-        Assert.Equal("encoded%2Csession", cookies["SESSDATA"]);
+        Assert.Equal("encoded%2Csessdata", cookies["SESSDATA"]);
         Assert.Equal("csrf", cookies["bili_jct"]);
         Assert.Equal("123", cookies["DedeUserID"]);
         Assert.Equal("checksum", cookies["DedeUserID__ckMd5"]);
@@ -96,13 +102,15 @@ public sealed class LoginTests : IDisposable
         Assert.Equal(time.GetUtcNow(), DateTimeOffset.Parse(reader.GetString(2)));
         Assert.False(reader.Read());
         Assert.False(await updates.MoveNextAsync());
-        Assert.Contains(http.Requests, r => r.Uri.AbsoluteUri == Poll + "?qrcode_key=test-key");
+        var poll = Assert.Single(http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Poll);
+        Assert.Equal("?qrcode_key=test-key", poll.Uri.Query);
+        Assert.Equal("buvid3=device-buvid", poll.Cookie);
     }
 
     [Fact]
     public async Task Expired_qr_codes_are_replaced_repeatedly_until_login_succeeds()
     {
-        SuccessfulLogin("session");
+        SuccessfulLogin("sessdata");
         var success = http.Respond!;
         var generated = 0;
         http.Respond = (request, token) =>
@@ -134,14 +142,14 @@ public sealed class LoginTests : IDisposable
     public async Task Logging_in_again_replaces_the_entire_credential()
     {
         using var client = CreateClient();
-        SuccessfulLogin("old-session");
+        SuccessfulLogin("old-sessdata");
         await CompleteLoginAsync(client);
         time.Advance(TimeSpan.FromMinutes(5));
-        SuccessfulLogin("new-session");
+        SuccessfulLogin("new-sessdata");
         var success = http.Respond!;
         http.Respond = (request, token) => request.RequestUri!.GetLeftPart(UriPartial.Path) == Poll
             ? Task.FromResult(Json("""{"code":0,"data":{"code":0,"refresh_token":"new-refresh"}}""",
-                "SESSDATA=new-session; Path=/; Domain=.bilibili.com",
+                "SESSDATA=new-sessdata; Path=/; Domain=.bilibili.com",
                 "bili_jct=new-csrf; Path=/; Domain=.bilibili.com",
                 "DedeUserID=456; Path=/; Domain=.bilibili.com",
                 "buvid3=new-buvid; Path=/; Domain=.bilibili.com"))
@@ -154,7 +162,7 @@ public sealed class LoginTests : IDisposable
         Assert.True(reader.Read());
         var cookies = JsonSerializer.Deserialize<Dictionary<string, string>>(reader.GetString(0))!;
         Assert.Equal(4, cookies.Count);
-        Assert.Equal("new-session", cookies["SESSDATA"]);
+        Assert.Equal("new-sessdata", cookies["SESSDATA"]);
         Assert.Equal("new-csrf", cookies["bili_jct"]);
         Assert.Equal("456", cookies["DedeUserID"]);
         Assert.Equal("new-buvid", cookies["buvid3"]);
@@ -164,17 +172,108 @@ public sealed class LoginTests : IDisposable
     }
 
     [Fact]
-    public async Task Logout_removes_persisted_credentials_even_in_a_new_client_and_is_repeatable()
+    public async Task Logout_signs_out_on_bilibili_then_removes_credentials_and_is_repeatable()
     {
-        SuccessfulLogin("session");
+        SuccessfulLogin("logout-sessdata");
         using (var client = CreateClient()) await CompleteLoginAsync(client);
+        var success = http.Respond!;
+        HttpMethod? method = null;
+        string? form = null;
+        http.Respond = async (request, token) =>
+        {
+            if (request.RequestUri!.AbsoluteUri == Exit)
+                (method, form) = (request.Method, await request.Content!.ReadAsStringAsync(token));
+            return await success(request, token);
+        };
         using var nextClient = CreateClient();
         await nextClient.LogoutAsync(TestContext.Current.CancellationToken);
         await nextClient.LogoutAsync(TestContext.Current.CancellationToken);
+        var exit = Assert.Single(http.Requests, r => r.Uri.AbsoluteUri == Exit);
+        Assert.Equal(HttpMethod.Post, method);
+        Assert.Equal("biliCSRF=csrf", form);
+        Assert.Contains("SESSDATA=logout-sessdata", exit.Cookie);
+        Assert.Contains("DedeUserID=123", exit.Cookie);
+        Assert.Contains("bili_jct=csrf", exit.Cookie);
+        Assert.DoesNotContain(logger.Entries, e => e.Level == LogLevel.Warning);
+        AssertNoCredential();
+        // A deleted row must not leave readable cookie or token bytes in the database files.
+        foreach (var file in Directory.GetFiles(dataDirectory))
+        {
+            var bytes = File.ReadAllText(file, System.Text.Encoding.Latin1);
+            Assert.DoesNotContain("logout-sessdata", bytes);
+            Assert.DoesNotContain("refresh-token", bytes);
+        }
+    }
+
+    [Theory]
+    [InlineData("http")]
+    [InlineData("api")]
+    [InlineData("expired")]
+    public async Task Failed_bilibili_logout_still_removes_local_credentials_with_a_warning(string failure)
+    {
+        SuccessfulLogin("sessdata");
+        using var client = CreateClient();
+        await CompleteLoginAsync(client);
+        var success = http.Respond!;
+        http.Respond = (request, token) => request.RequestUri!.AbsoluteUri != Exit
+            ? success(request, token)
+            : Task.FromResult(failure switch
+            {
+                "http" => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable),
+                "api" => Json("""{"code":2202,"message":"csrf 请求非法"}"""),
+                // B站 answers an already-expired cookie with its login page instead of JSON.
+                _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<!DOCTYPE html><html></html>") }
+            });
+        await client.LogoutAsync(TestContext.Current.CancellationToken);
+        Assert.Contains(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("仍删除本地登录凭据"));
+        AssertNoCredential();
+    }
+
+    [Fact]
+    public async Task Cancelling_logout_during_bilibili_sign_out_keeps_local_credentials()
+    {
+        SuccessfulLogin("sessdata");
+        using var client = CreateClient();
+        await CompleteLoginAsync(client);
+        var success = http.Respond!;
+        var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        http.Respond = async (request, token) =>
+        {
+            if (request.RequestUri!.AbsoluteUri != Exit) return await success(request, token);
+            requested.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            throw new InvalidOperationException("Cancelled request must not complete.");
+        };
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var logout = client.LogoutAsync(stop.Token);
+        await requested.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await stop.CancelAsync();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            () => logout.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(logger.Entries, e => e.Level == LogLevel.Warning);
         using var connection = OpenDatabase();
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM credential";
-        Assert.Equal(0L, command.ExecuteScalar());
+        Assert.Equal(1L, command.ExecuteScalar());
+    }
+
+    [Fact, System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    public async Task Database_files_are_readable_only_by_their_owner()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Unix file modes only.");
+        using var client = CreateClient();
+        await client.LogoutAsync(TestContext.Current.CancellationToken);
+        var database = Path.Combine(dataDirectory, "aether.db");
+        // A database left world-readable (e.g. by an older build) is tightened on the next open.
+        File.SetUnixFileMode(database, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        await client.LogoutAsync(TestContext.Current.CancellationToken);
+        using var connection = OpenDatabase();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM credential";
+        command.ExecuteScalar();
+        var files = Directory.GetFiles(dataDirectory);
+        Assert.Equal(3, files.Length); // The open connection keeps -wal and -shm, created after the tightening.
+        Assert.All(files, file => Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(file)));
     }
 
     [Theory]
@@ -182,7 +281,7 @@ public sealed class LoginTests : IDisposable
     [InlineData(86090)]
     public async Task Waiting_for_scan_or_confirmation_is_paced_and_can_be_cancelled(int status)
     {
-        SuccessfulLogin("session");
+        SuccessfulLogin("sessdata");
         var success = http.Respond!;
         var polled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         http.Respond = (request, token) =>
@@ -215,7 +314,7 @@ public sealed class LoginTests : IDisposable
     [InlineData(Spi)]
     public async Task Cancellation_during_http_ends_normally_without_saving(string endpoint)
     {
-        SuccessfulLogin("session");
+        SuccessfulLogin("sessdata");
         var success = http.Respond!;
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         http.Respond = async (request, token) =>
@@ -229,7 +328,7 @@ public sealed class LoginTests : IDisposable
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         await using var updates = client.LoginAsync(stop.Token).GetAsyncEnumerator(stop.Token);
         Task<bool> next;
-        if (endpoint == Generate) next = updates.MoveNextAsync().AsTask();
+        if (endpoint is Spi or Generate) next = updates.MoveNextAsync().AsTask();
         else
         {
             Assert.True(await updates.MoveNextAsync());
@@ -245,47 +344,105 @@ public sealed class LoginTests : IDisposable
     [Fact]
     public async Task Disposing_qr_stream_stops_login_without_polling()
     {
-        SuccessfulLogin("session");
+        SuccessfulLogin("sessdata");
         using var client = CreateClient();
         await using (var updates = client.LoginAsync(TestContext.Current.CancellationToken).GetAsyncEnumerator(TestContext.Current.CancellationToken))
             Assert.True(await updates.MoveNextAsync());
         time.Advance(TimeSpan.FromMinutes(10));
-        Assert.Single(http.Requests);
+        Assert.DoesNotContain(http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Poll);
         AssertNoCredential();
     }
 
     [Theory]
-    [InlineData("http")]
-    [InlineData("api")]
-    [InlineData("status")]
-    [InlineData("cookies")]
-    public async Task Failed_login_keeps_previous_credential_and_never_reports_success(string failure)
+    [InlineData("api", typeof(InvalidOperationException))]
+    [InlineData("status", typeof(InvalidOperationException))]
+    [InlineData("cookies", typeof(InvalidDataException))]
+    [InlineData("token", typeof(InvalidDataException))]
+    public async Task Failed_login_keeps_previous_credential_and_never_reports_success(string failure, Type expected)
     {
-        SuccessfulLogin("old-session");
+        SuccessfulLogin("old-sessdata");
         using var client = CreateClient();
         await CompleteLoginAsync(client);
         var success = http.Respond!;
         http.Respond = (request, token) => request.RequestUri!.GetLeftPart(UriPartial.Path) == Poll
             ? Task.FromResult(failure switch
             {
-                "http" => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable),
                 "api" => Json("""{"code":-400,"message":"bad request"}"""),
-                "status" => Json("""{"code":0,"data":{"code":12345}}"""),
-                _ => Json("""{"code":0,"data":{"code":0,"refresh_token":"new-refresh"}}""",
-                    "bili_jct=new-csrf; Path=/; Domain=.bilibili.com")
+                "status" => Json("""{"code":0,"data":{"code":12345,"message":"unknown"}}"""),
+                "cookies" => Json("""{"code":0,"data":{"code":0,"refresh_token":"new-refresh"}}""",
+                    "bili_jct=new-csrf; Path=/; Domain=.bilibili.com"),
+                _ => Json("""{"code":0,"data":{"code":0,"refresh_token":""}}""",
+                    "SESSDATA=new-sessdata; Path=/; Domain=.bilibili.com",
+                    "bili_jct=new-csrf; Path=/; Domain=.bilibili.com",
+                    "DedeUserID=456; Path=/; Domain=.bilibili.com")
             })
             : success(request, token);
         await using var updates = client.LoginAsync(TestContext.Current.CancellationToken).GetAsyncEnumerator(TestContext.Current.CancellationToken);
         Assert.True(await updates.MoveNextAsync());
         var error = await Record.ExceptionAsync(async () => await AdvancePollAsync(updates));
-        if (failure == "http") Assert.IsType<HttpRequestException>(error);
-        else if (failure == "cookies") Assert.IsType<InvalidDataException>(error);
-        else Assert.IsType<InvalidOperationException>(error);
+        Assert.IsType(expected, error);
         using var connection = OpenDatabase();
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT cookies FROM credential";
         var cookies = JsonSerializer.Deserialize<Dictionary<string, string>>((string)command.ExecuteScalar()!)!;
-        Assert.Equal("old-session", cookies["SESSDATA"]);
+        Assert.Equal("old-sessdata", cookies["SESSDATA"]);
+    }
+
+    [Theory]
+    [InlineData(Spi, false)]
+    [InlineData(Generate, false)]
+    [InlineData(Poll, false)]
+    [InlineData(Poll, true)]
+    public async Task Network_failures_are_retried_until_login_succeeds(string endpoint, bool timeout)
+    {
+        SuccessfulLogin("sessdata");
+        var success = http.Respond!;
+        var failed = false;
+        http.Respond = (request, token) =>
+        {
+            if (failed || request.RequestUri!.GetLeftPart(UriPartial.Path) != endpoint) return success(request, token);
+            failed = true;
+            return timeout
+                ? Task.FromException<HttpResponseMessage>(new TaskCanceledException("timeout", new TimeoutException()))
+                : Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        };
+        using var client = CreateClient();
+        await using var updates = client.LoginAsync(TestContext.Current.CancellationToken).GetAsyncEnumerator(TestContext.Current.CancellationToken);
+        var next = updates.MoveNextAsync().AsTask();
+        if (endpoint == Poll)
+        {
+            Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+            next = updates.MoveNextAsync().AsTask();
+            time.Advance(TimeSpan.FromSeconds(2));
+        }
+        Assert.False(next.IsCompleted);
+        Assert.Contains(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("2 秒后重试"));
+        time.Advance(TimeSpan.FromSeconds(2));
+        Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        if (endpoint != Poll)
+        {
+            Assert.IsType<LoginQrCode>(updates.Current);
+            Assert.True(await AdvancePollAsync(updates));
+        }
+        Assert.IsType<LoggedIn>(updates.Current);
+        using var connection = OpenDatabase();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*) FROM credential";
+        Assert.Equal(1L, command.ExecuteScalar());
+    }
+
+    [Fact]
+    public async Task Buvid_failure_ends_login_before_any_qr_code_is_shown()
+    {
+        SuccessfulLogin("sessdata");
+        var success = http.Respond!;
+        http.Respond = (request, token) => request.RequestUri!.GetLeftPart(UriPartial.Path) == Spi
+            ? Task.FromResult(Json("""{"code":-352,"message":"risk control"}"""))
+            : success(request, token);
+        using var client = CreateClient();
+        await using var updates = client.LoginAsync(TestContext.Current.CancellationToken).GetAsyncEnumerator(TestContext.Current.CancellationToken);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
+        Assert.DoesNotContain(http.Requests, r => r.Uri.AbsoluteUri == Generate);
     }
 
     private void AssertNoCredential()
