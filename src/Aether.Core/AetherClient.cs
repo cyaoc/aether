@@ -127,7 +127,14 @@ public sealed class AetherClient(
         }
         yield return new Connecting();
         var connection = await api.GetConnectionAsync(roomId, navigation.MixinKey, cancellationToken);
-        using var socket = await connectWebSocket(connection.Server, cancellationToken);
+        WebSocket socket;
+        try { socket = await connectWebSocket(connection.Server, cancellationToken); }
+        catch (WebSocketException error) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new WebSocketException(error.WebSocketErrorCode,
+                $"连接弹幕服务器 {connection.Server.Host}:{connection.Server.Port} 失败：{error.GetBaseException().Message}", error);
+        }
+        using var ownedSocket = socket;
         var authentication = JsonSerializer.SerializeToUtf8Bytes(new
         {
             uid = navigation.Mid, roomid = connection.RoomId, protover = 3, platform = "web", type = 2,
