@@ -1,5 +1,7 @@
+using System.Net;
 using System.Net.WebSockets;
 using Aether.Core.Tests.Support;
+using Microsoft.Data.Sqlite;
 
 namespace Aether.Core.Tests;
 
@@ -8,22 +10,26 @@ public sealed class ReconnectionTests
     [Fact]
     public async Task Opening_a_socket_without_successful_authentication_does_not_reset_backoff()
     {
-        await using var rejected = new FakeDanmakuServer { AuthenticationCode = -101 };
+        await using var silent = new FakeDanmakuServer { ReplyToAuthentication = false };
         await using var accepted = new FakeDanmakuServer();
         var attempts = 0;
         await using var h = new WatchHarness((uri, token) => ++attempts switch
         {
             1 => throw new WebSocketException("offline"),
-            2 => rejected.ConnectAsync(uri, token),
+            2 => silent.ConnectAsync(uri, token),
             _ => accepted.ConnectAsync(uri, token)
         });
         await h.LoginAsync();
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
-        await AdvanceRetryAsync(h, updates, 1);
+        var next = updates.MoveNextAsync().AsTask();
+        h.Time.Advance(TimeSpan.FromSeconds(1));
+        await silent.NextRequestAsync();
+        await silent.DisconnectAsync();
+        Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.IsType<Reconnecting>(updates.Current);
-        await AdvanceRetryAsync(h, updates, 2);
+        await h.AdvanceRetryAsync(updates, 2);
         Assert.IsType<Connected>(updates.Current);
     }
 
@@ -90,28 +96,23 @@ public sealed class ReconnectionTests
     }
 
     [Theory]
-    [InlineData("/x/web-interface/nav", false)]
-    [InlineData("/room/v1/Room/room_init", false)]
-    [InlineData("/xlive/web-room/v1/index/getDanmuInfo", false)]
-    [InlineData("/x/web-interface/nav", true)]
-    [InlineData("/room/v1/Room/room_init", true)]
-    [InlineData("/xlive/web-room/v1/index/getDanmuInfo", true)]
-    public async Task Http_network_failure_or_timeout_reports_reconnecting_and_recovers(string path, bool timeout)
+    [InlineData("/x/web-interface/nav", "offline")]
+    [InlineData("/room/v1/Room/room_init", "offline")]
+    [InlineData("/xlive/web-room/v1/index/getDanmuInfo", "offline")]
+    [InlineData("/x/web-interface/nav", "timeout")]
+    [InlineData("/room/v1/Room/room_init", "timeout")]
+    [InlineData("/xlive/web-room/v1/index/getDanmuInfo", "timeout")]
+    [InlineData("/xlive/web-room/v1/index/getDanmuInfo", "server error")]
+    public async Task Http_network_failure_timeout_or_server_error_reports_reconnecting_and_recovers(string path, string failure)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        var respond = h.Http.Respond!;
-        var failed = false;
-        h.Http.Respond = (request, token) =>
+        h.Http.FailOnce(path, failure switch
         {
-            if (!failed && request.RequestUri!.AbsolutePath == path)
-            {
-                failed = true;
-                if (timeout) throw new TaskCanceledException("HTTP timeout");
-                throw new HttpRequestException("offline");
-            }
-            return respond(request, token);
-        };
+            "timeout" => new TaskCanceledException("HTTP timeout"),
+            "server error" => new HttpRequestException("unavailable", null, HttpStatusCode.ServiceUnavailable),
+            _ => new HttpRequestException("offline")
+        });
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         if (!path.EndsWith("/nav"))
         {
@@ -120,44 +121,81 @@ public sealed class ReconnectionTests
         }
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
-        await AdvanceRetryAsync(h, updates, 1);
+        await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(HttpStatusCode.PreconditionFailed)]
+    public async Task Bilibili_refusal_on_reconnect_ends_watch_instead_of_retrying(HttpStatusCode? status)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await updates.MoveNextAsync();
+        await updates.MoveNextAsync();
+        if (status is { } code)
+            h.Http.FailOnce("/xlive/web-room/v1/index/getDanmuInfo", new HttpRequestException("risk control", null, code));
+        else h.Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
+            """{"code":-352,"message":"风控校验失败"}""";
+        await h.Server.DisconnectAsync();
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Reconnecting>(updates.Current);
+        var next = updates.MoveNextAsync().AsTask();
+        h.Time.Advance(TimeSpan.FromSeconds(1));
+        var error = await Record.ExceptionAsync(() => next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        Assert.IsType(status is null ? typeof(InvalidOperationException) : typeof(HttpRequestException), error);
+        Assert.Equal(2, h.Http.Requests.Count(r => r.Uri.AbsolutePath.EndsWith("getDanmuInfo")));
+    }
+
+    [Fact]
+    public async Task Local_failure_ends_watch_instead_of_reconnecting_forever()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+            { DataSource = Path.Combine(h.DataDirectory, "aether.db"), Pooling = false }.ToString()))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "PRAGMA user_version = 2";
+            command.ExecuteNonQuery();
+        }
+        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
+        Assert.Contains("数据库版本", error.Message);
+        Assert.Empty(h.Http.Requests);
     }
 
     [Theory]
     [InlineData("/x/frontend/finger/spi")]
     [InlineData("/x/passport-login/web/qrcode/generate")]
     [InlineData("/x/passport-login/web/qrcode/poll")]
-    public async Task Network_failure_while_logging_in_through_watch_reports_reconnecting(string path)
+    public async Task Network_failure_while_logging_in_through_watch_retries_in_place_without_wasting_the_qr_code(string path)
     {
         await using var h = new WatchHarness();
-        var respond = h.Http.Respond!;
-        var failed = false;
-        h.Http.Respond = (request, token) =>
-        {
-            if (!failed && request.RequestUri!.AbsolutePath == path)
-            {
-                failed = true;
-                throw new HttpRequestException("offline");
-            }
-            return respond(request, token);
-        };
+        h.Http.FailOnce(path, new HttpRequestException("offline"));
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        if (path.EndsWith("/poll"))
+        var polling = path.EndsWith("/poll");
+        if (polling)
         {
             Assert.True(await updates.MoveNextAsync());
             Assert.IsType<WatchQrCode>(updates.Current);
         }
         var next = updates.MoveNextAsync().AsTask();
-        if (path.EndsWith("/poll")) h.Time.Advance(TimeSpan.FromSeconds(2));
         try
         {
+            if (polling) h.Time.Advance(TimeSpan.FromSeconds(2));
+            Assert.False(next.IsCompleted);
+            h.Time.Advance(TimeSpan.FromSeconds(2));
             Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
-            Assert.IsType<Reconnecting>(updates.Current);
-            await AdvanceRetryAsync(h, updates, 1);
-            Assert.IsType<WatchQrCode>(updates.Current);
-            Assert.True(await h.AdvancePollAsync(updates));
-            Assert.IsType<Connected>(updates.Current);
+            if (!polling)
+            {
+                Assert.IsType<WatchQrCode>(updates.Current);
+                Assert.True(await h.AdvancePollAsync(updates));
+            }
+            Assert.IsType<Connecting>(updates.Current); // Same QR code, no 重连中 in between.
         }
         finally
         {
@@ -167,9 +205,11 @@ public sealed class ReconnectionTests
     }
 
     [Theory]
-    [InlineData(-101)]
-    [InlineData(0)]
-    public async Task Reconnect_refreshes_wbi_key_and_token_without_requiring_expired_credentials_to_login(int code)
+    [InlineData(-101, false)]
+    [InlineData(0, false)]
+    [InlineData(-101, true)]
+    public async Task Reconnect_refreshes_wbi_key_and_token_without_requiring_expired_or_deleted_credentials_to_login(
+        int code, bool loggedOut)
     {
         await using var first = new FakeDanmakuServer();
         await using var second = new FakeDanmakuServer();
@@ -187,13 +227,16 @@ public sealed class ReconnectionTests
             """;
         h.Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
             """{"code":0,"data":{"token":"fresh-token","host_list":[{"host":"fresh.example","wss_port":443}]}}""";
+        if (loggedOut) await h.Client.LogoutAsync(h.Stop.Token);
         await first.DisconnectAsync();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
-        await AdvanceRetryAsync(h, updates, 1);
+        await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
         using var auth = System.Text.Json.JsonDocument.Parse((await second.NextRequestAsync()).AsMemory(16));
         Assert.Equal(0, auth.RootElement.GetProperty("uid").GetInt64());
+        Assert.Equal("saved-buvid", auth.RootElement.GetProperty("buvid").GetString());
+        Assert.Contains(h.Logger.Entries, e => e.Message.Contains("以匿名身份重连"));
         Assert.Equal("fresh-token", auth.RootElement.GetProperty("key").GetString());
         Assert.Equal(new Uri("wss://fresh.example/sub"), second.ConnectedUri);
         Assert.Equal(2, h.Http.Requests.Count(r => r.Uri.AbsolutePath.EndsWith("/nav")));
@@ -279,14 +322,14 @@ public sealed class ReconnectionTests
         await updates.MoveNextAsync();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
-        await AdvanceRetryAsync(h, updates, 1);
+        await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Reconnecting>(updates.Current);
-        await AdvanceRetryAsync(h, updates, 2);
+        await h.AdvanceRetryAsync(updates, 2);
         Assert.IsType<Connected>(updates.Current);
         await first.DisconnectAsync();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
-        await AdvanceRetryAsync(h, updates, 1);
+        await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
         await second.PushAsync(FakeDanmakuServer.Packet(5,
             System.Text.Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"恢复了",[0,"观众"]]}"""), 0));
@@ -324,25 +367,5 @@ public sealed class ReconnectionTests
         var pending = updates.MoveNextAsync().AsTask();
         await h.Stop.CancelAsync();
         Assert.False(await pending.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
-    }
-
-    private static async Task AdvanceRetryAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates, int seconds)
-    {
-        var next = updates.MoveNextAsync().AsTask();
-        try
-        {
-            h.Time.Advance(TimeSpan.FromSeconds(seconds) - TimeSpan.FromMilliseconds(1));
-            Assert.False(next.IsCompleted);
-            h.Time.Advance(TimeSpan.FromMilliseconds(1));
-            Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
-        }
-        finally
-        {
-            if (!next.IsCompleted)
-            {
-                await h.Stop.CancelAsync();
-                await next;
-            }
-        }
     }
 }

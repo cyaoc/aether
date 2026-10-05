@@ -62,8 +62,8 @@ public sealed class LifecycleTests
         else h.Server.AuthenticationCode = -101;
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<Reconnecting>(updates.Current);
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
+        Assert.Contains("认证失败", error.Message);
         await h.Server.WaitForDisconnectAsync();
     }
 

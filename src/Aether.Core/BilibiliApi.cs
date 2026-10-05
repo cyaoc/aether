@@ -30,11 +30,10 @@ internal sealed class BilibiliApi(HttpClient http, TimeProvider timeProvider)
     {
         using var nav = await GetAsync("https://api.bilibili.com/x/web-interface/nav", LiveReferer, cancellationToken);
         var code = nav.RootElement.GetProperty("code").GetInt32();
-        if (code == -101 && !allowAnonymous) return (0, "");
         if (code != -101) CheckCode(nav, "检查登录状态");
-        var data = nav.RootElement.GetProperty("data");
-        var loggedIn = code == 0 && data.GetProperty("isLogin").GetBoolean();
+        var loggedIn = code == 0 && nav.RootElement.GetProperty("data").GetProperty("isLogin").GetBoolean();
         if (!loggedIn && !allowAnonymous) return (0, "");
+        var data = nav.RootElement.GetProperty("data");
         var images = data.GetProperty("wbi_img");
         var keys = Path.GetFileNameWithoutExtension(images.GetProperty("img_url").GetString())
             + Path.GetFileNameWithoutExtension(images.GetProperty("sub_url").GetString());
