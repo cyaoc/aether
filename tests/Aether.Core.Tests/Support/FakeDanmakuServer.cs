@@ -20,6 +20,8 @@ internal sealed class FakeDanmakuServer : IAsyncDisposable
     public int AuthenticationCode { get; set; }
     public byte[]? AuthenticationReply { get; set; }
     public bool FragmentAuthentication { get; set; }
+    public bool ReplyToHeartbeats { get; set; } = true;
+    public bool ReplyToAuthentication { get; set; } = true;
     public Task WaitForDisconnectAsync() => receiveTask!.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
     public async Task<WebSocket> ConnectAsync(Uri uri, CancellationToken cancellationToken)
@@ -75,7 +77,7 @@ internal sealed class FakeDanmakuServer : IAsyncDisposable
                 await received.Writer.WriteAsync(packet, stop.Token);
                 switch (BinaryPrimitives.ReadInt32BigEndian(packet.AsSpan(8)))
                 {
-                    case 7:
+                    case 7 when ReplyToAuthentication:
                         var auth = !IsValidAuthentication(packet) ? AuthenticationPacket(-101)
                             : AuthenticationReply ?? AuthenticationPacket(AuthenticationCode);
                         if (FragmentAuthentication)
@@ -85,7 +87,7 @@ internal sealed class FakeDanmakuServer : IAsyncDisposable
                         }
                         else await PushAsync(auth);
                         break;
-                    case 2:
+                    case 2 when ReplyToHeartbeats:
                         await PushAsync(Packet(3, [0, 0, 0, 1]));
                         break;
                 }

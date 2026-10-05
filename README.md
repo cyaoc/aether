@@ -24,7 +24,11 @@ Ctrl+C 关闭连接并正常退出，错误返回非零退出码。每次 `watch
 先用保存的 cookie 调 nav 检查登录状态；没有凭据或已失效时，直接在 stderr 显示二维码，
 扫码成功后保存凭据并继续连接，无需先运行 `login`。二维码过期自动换新，扫码期间也可按
 Ctrl+C 取消。连接使用 nav 返回的 mid 和凭据中的 buvid3，HTTP 请求携带保存的 cookie，
-以接收观众的真实昵称。`watch` 当前不重连，服务器断开后命令报错退出。
+以接收观众的真实昵称。网络失败、服务器断开或认证拒绝时，`watch` 提示“重连中”，
+按 1、2、4、8、16、30、30…… 秒自动重试；收到认证成功回复后重置为 1 秒。
+60 秒没有收到任何数据也会重连；心跳回复正常的安静直播间不会断开。
+每次重连重新获取 wbi key 和弹幕 token，中途凭据失效时允许匿名连接（昵称可能被打码），
+不要求重新扫码。房间号不存在仍直接报错退出。重连等待期间 Ctrl+C 也会立即结束。
 
 `login` 先打开数据库、获取 buvid3，再在 stderr 显示字符画二维码，用 B站 App 扫码并确认。
 每两秒轮询一次，过期后自动打印新二维码，成功保存凭据后提示“已登录”。网络错误（连不上、
@@ -43,7 +47,7 @@ macOS 上数据库文件（含 `-wal` / `-shm`）权限为 0600，只有当前�
 `login` / `logout` / `watch` 都会打开数据库。CLI 与未来 GUI 放在同一发布目录时共用这些数据。
 
 Core 的业务入口都在 `AetherClient`：`LoginAsync` 返回 `LoginQrCode`、`LoggedIn` 更新流；
-`LogoutAsync` 删除凭据；`WatchAsync` 返回 `WatchQrCode`（需要登录时）、`Connecting`、`Connected`、`Danmaku` 更新流。
+`LogoutAsync` 删除凭据；`WatchAsync` 返回 `WatchQrCode`（需要登录时）、`Connecting`、`Connected`、`Reconnecting`、`Danmaku` 更新流。
 取消或释放更新流会结束对应操作。测试从这些入口驱动，注入假的 HTTP、真实 BCL WebSocket 的本地对端、
 `FakeTimeProvider` 和独立临时数据目录，使用真实 SQLite，不访问 B站。真实捕获测试帧的来源与脱敏方式见
 [Fixtures/README.md](tests/Aether.Core.Tests/Fixtures/README.md)。
@@ -62,6 +66,8 @@ sqlite3 data/aether.db 'SELECT count(*) FROM credential;'
 观看手动验收：运行 `watch <房间号>`，没有凭据时应直接显示二维码，扫码后依次提示
 “连接中”“已连接”，收到的弹幕显示真实昵称。取消后再次运行 `watch` 应直接连接；
 运行 `logout` 后再运行 `watch` 应重新显示二维码，扫码阶段按 Ctrl+C 应正常退出。
+重连手动验收：观看期间断开网络，确认 stderr 出现“重连中”；等待后恢复网络，
+确认再次出现“已连接”并继续打印弹幕。再次断网，在等待重连时按 Ctrl+C，应立即正常退出。
 
 测试使用 xUnit v3 的 Microsoft Testing Platform 运行器（由 `global.json` 选择）：
 

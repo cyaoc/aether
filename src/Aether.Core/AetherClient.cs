@@ -66,20 +66,20 @@ public sealed class AetherClient(
     }
 
     private async IAsyncEnumerable<LoginUpdate> LoginCoreAsync(
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        [EnumeratorCancellation] CancellationToken cancellationToken, bool retryNetworkFailures = true)
     {
         // Everything that can fail on its own runs before the first QR code, so no scan is wasted.
         var credentials = new CredentialStore(new Database(dataDirectory));
         var api = new BilibiliApi(http, timeProvider);
-        await RetryAsync(() => api.GetBuvidAsync(cancellationToken), cancellationToken);
+        await RetryAsync(() => api.GetBuvidAsync(cancellationToken), cancellationToken, retryNetworkFailures);
         while (true)
         {
-            var qr = await RetryAsync(() => api.GenerateQrCodeAsync(cancellationToken), cancellationToken);
+            var qr = await RetryAsync(() => api.GenerateQrCodeAsync(cancellationToken), cancellationToken, retryNetworkFailures);
             yield return new LoginQrCode(qr.Url);
             while (true)
             {
                 await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, cancellationToken);
-                var (state, refreshToken) = await RetryAsync(() => api.PollQrCodeAsync(qr.Key, cancellationToken), cancellationToken);
+                var (state, refreshToken) = await RetryAsync(() => api.PollQrCodeAsync(qr.Key, cancellationToken), cancellationToken, retryNetworkFailures);
                 if (state == QrCodeState.Waiting) continue;
                 if (state == QrCodeState.Expired) break;
                 cancellationToken.ThrowIfCancellationRequested();
@@ -91,13 +91,13 @@ public sealed class AetherClient(
     }
 
     /// <summary>Retries network failures (not B站 error codes) until the request succeeds or the caller cancels.</summary>
-    private async Task<T> RetryAsync<T>(Func<Task<T>> request, CancellationToken cancellationToken)
+    private async Task<T> RetryAsync<T>(Func<Task<T>> request, CancellationToken cancellationToken, bool retryNetworkFailures = true)
     {
         while (true)
         {
             try { return await request(); }
-            catch (Exception error) when (error is HttpRequestException
-                || (error is OperationCanceledException && !cancellationToken.IsCancellationRequested))
+            catch (Exception error) when (retryNetworkFailures && (error is HttpRequestException
+                || (error is OperationCanceledException && !cancellationToken.IsCancellationRequested)))
             {
                 // ponytail: fixed 2s retry with no cap; add backoff if B站 starts rate-limiting retries.
                 logger.LogWarning("登录请求失败，2 秒后重试：{Error}", error.Message);
@@ -109,12 +109,46 @@ public sealed class AetherClient(
     private async IAsyncEnumerable<WatchUpdate> WatchCoreAsync(
         long roomId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        var reconnecting = false;
+        var loginCompleted = false;
+        var retrySeconds = 1;
+        while (true)
+        {
+            await using (var updates = WatchAttemptAsync(roomId, loginCompleted, cancellationToken).GetAsyncEnumerator(cancellationToken))
+            {
+                while (true)
+                {
+                    bool hasNext;
+                    try { hasNext = await updates.MoveNextAsync(); }
+                    catch (Exception error) when (!cancellationToken.IsCancellationRequested
+                        && error is HttpRequestException or WebSocketException or IOException or OperationCanceledException)
+                    {
+                        logger.LogWarning("直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, error.Message);
+                        break;
+                    }
+                    if (!hasNext) yield break;
+                    if (updates.Current is Connecting) loginCompleted = true;
+                    if (reconnecting && updates.Current is Connecting) continue;
+                    if (updates.Current is Connected) retrySeconds = 1;
+                    yield return updates.Current;
+                }
+            }
+            reconnecting = true;
+            yield return new Reconnecting();
+            await Task.Delay(TimeSpan.FromSeconds(retrySeconds), timeProvider, cancellationToken);
+            retrySeconds = Math.Min(retrySeconds * 2, 30);
+        }
+    }
+
+    private async IAsyncEnumerable<WatchUpdate> WatchAttemptAsync(
+        long roomId, bool loginCompleted, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
         var credentials = new CredentialStore(new Database(dataDirectory));
-        var (api, mid, mixinKey) = await CheckCredentialAsync(credentials.Load(), cancellationToken);
-        if (mid == 0)
+        var (api, mid, mixinKey) = await CheckCredentialAsync(credentials.Load(), cancellationToken, loginCompleted);
+        if (mid == 0 && !loginCompleted)
         {
-            await foreach (var update in LoginCoreAsync(cancellationToken))
+            await foreach (var update in LoginCoreAsync(cancellationToken, retryNetworkFailures: false))
                 if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
             (api, mid, mixinKey) = await CheckCredentialAsync(credentials.Load(), cancellationToken);
             if (mid == 0) throw new InvalidOperationException("扫码后登录凭据未生效，请重新扫码登录。");
@@ -127,15 +161,16 @@ public sealed class AetherClient(
             uid = mid, roomid = connection.RoomId, protover = 3, platform = "web", type = 2,
             key = connection.Token, buvid = connection.Buvid
         });
-        await socket.SendAsync(DanmakuProtocol.Pack(7, authentication), WebSocketMessageType.Binary, true, cancellationToken);
-        using var connectionStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var idleTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60), timeProvider);
+        using var connectionStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, idleTimeout.Token);
+        await socket.SendAsync(DanmakuProtocol.Pack(7, authentication), WebSocketMessageType.Binary, true, connectionStop.Token);
         Task heartbeat = Task.CompletedTask;
         try
         {
             var connected = false;
             while (true)
             {
-                var bytes = await ReceiveMessageAsync(socket, connectionStop.Token);
+                var bytes = await ReceiveMessageAsync(socket, idleTimeout, connectionStop.Token);
                 var receivedAt = timeProvider.GetLocalNow();
                 foreach (var packet in DanmakuProtocol.Unpack(bytes))
                 {
@@ -143,7 +178,7 @@ public sealed class AetherClient(
                     {
                         using var auth = JsonDocument.Parse(packet.Body);
                         if (auth.RootElement.GetProperty("code").GetInt32() != 0)
-                            throw new InvalidOperationException("弹幕服务器认证失败。");
+                            throw new WebSocketException("弹幕服务器认证失败。");
                         if (!connected)
                         {
                             connected = true;
@@ -185,12 +220,12 @@ public sealed class AetherClient(
 
     /// <summary>Asks nav whether the credential still logs in; mid 0 means there is none or B站 rejected it.</summary>
     private async Task<(BilibiliApi Api, long Mid, string MixinKey)> CheckCredentialAsync(
-        Credential? credential, CancellationToken cancellationToken)
+        Credential? credential, CancellationToken cancellationToken, bool allowAnonymous = false)
     {
         var api = new BilibiliApi(http, timeProvider);
         if (credential is null) return (api, 0, "");
         api.AddCookies(credential.Cookies);
-        var (mid, mixinKey) = await api.GetNavigationAsync(cancellationToken);
+        var (mid, mixinKey) = await api.GetNavigationAsync(cancellationToken, allowAnonymous);
         return (api, mid, mixinKey);
     }
 
@@ -210,7 +245,8 @@ public sealed class AetherClient(
         }
     }
 
-    private static async Task<byte[]> ReceiveMessageAsync(WebSocket socket, CancellationToken cancellationToken)
+    private static async Task<byte[]> ReceiveMessageAsync(
+        WebSocket socket, CancellationTokenSource idleTimeout, CancellationToken cancellationToken)
     {
         using var message = new MemoryStream();
         var buffer = new byte[16384];
@@ -218,6 +254,7 @@ public sealed class AetherClient(
         do
         {
             result = await socket.ReceiveAsync(buffer, cancellationToken);
+            if (result.Count > 0) idleTimeout.CancelAfter(TimeSpan.FromSeconds(60));
             if (result.MessageType == WebSocketMessageType.Close)
                 throw new IOException("弹幕服务器已断开连接。");
             if (result.MessageType != WebSocketMessageType.Binary)
