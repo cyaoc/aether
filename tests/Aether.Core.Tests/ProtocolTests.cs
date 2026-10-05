@@ -59,7 +59,7 @@ public sealed class ProtocolTests
         await h.Server.PushAsync(await FixtureAsync("multiple-zlib.bin"));
         await h.Server.PushAsync(await FixtureAsync("danmaku-brotli.bin"));
         Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<Danmaku>(updates.Current);
+        Assert.Equal("达***", Assert.IsType<Danmaku>(updates.Current).Nickname);
         Assert.Collection(h.Logger.Entries,
             entry => { Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Debug, entry.Level); Assert.Contains("ENTRY_EFFECT", entry.Message); },
             entry => { Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Debug, entry.Level); Assert.Contains("ENTRY_EFFECT", entry.Message); });

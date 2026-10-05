@@ -32,7 +32,7 @@ watch.SetAction(async (result, cancellationToken) =>
                     await Console.Error.WriteLineAsync("已连接");
                     break;
                 case Danmaku danmaku:
-                    await Console.Out.WriteLineAsync($"[{danmaku.ReceivedAt:HH:mm:ss}] {OneLine(danmaku.Nickname)}: {OneLine(danmaku.Content)}");
+                    await Console.Out.WriteLineAsync(FormattableString.Invariant($"[{danmaku.ReceivedAt:HH:mm:ss}] {OneLine(danmaku.Nickname)}: {OneLine(danmaku.Content)}"));
                     break;
             }
         }

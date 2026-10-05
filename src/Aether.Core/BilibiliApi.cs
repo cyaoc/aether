@@ -10,7 +10,7 @@ internal sealed class BilibiliApi(HttpClient http, TimeProvider timeProvider)
     public async Task<(long RoomId, string Buvid, string Token, Uri Server)> GetConnectionAsync(long roomId, CancellationToken cancellationToken)
     {
         using var room = await GetAsync($"https://api.live.bilibili.com/room/v1/Room/room_init?id={roomId.ToString(CultureInfo.InvariantCulture)}", null, cancellationToken);
-        CheckCode(room, $"直播间 {roomId}");
+        CheckCode(room, $"直播间 {roomId} 查询");
         var realRoomId = room.RootElement.GetProperty("data").GetProperty("room_id").GetInt64();
 
         using var spi = await GetAsync("https://api.bilibili.com/x/frontend/finger/spi", null, cancellationToken);

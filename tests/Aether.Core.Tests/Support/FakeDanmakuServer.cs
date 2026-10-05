@@ -2,6 +2,7 @@ using System.Buffers.Binary;
 using System.Net;
 using System.Net.Sockets;
 using System.Net.WebSockets;
+using System.Text.Json;
 using System.Threading.Channels;
 
 namespace Aether.Core.Tests.Support;
@@ -19,7 +20,6 @@ internal sealed class FakeDanmakuServer : IAsyncDisposable
     public int AuthenticationCode { get; set; }
     public byte[]? AuthenticationReply { get; set; }
     public bool FragmentAuthentication { get; set; }
-    public bool HasPendingRequest => received.Reader.TryPeek(out _);
     public Task WaitForDisconnectAsync() => receiveTask!.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
     public async Task<WebSocket> ConnectAsync(Uri uri, CancellationToken cancellationToken)
@@ -38,6 +38,13 @@ internal sealed class FakeDanmakuServer : IAsyncDisposable
 
     public async Task<byte[]> NextRequestAsync() =>
         await received.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+
+    // Waits instead of peeking, so a request still in flight on loopback is not missed. Does not consume it.
+    public async Task<bool> ReceivesRequestWithinAsync(TimeSpan timeout)
+    {
+        try { return await received.Reader.WaitToReadAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(timeout); }
+        catch (TimeoutException) { return false; }
+    }
 
     public async Task PushAsync(byte[] bytes, bool endOfMessage = true)
     {
@@ -69,7 +76,8 @@ internal sealed class FakeDanmakuServer : IAsyncDisposable
                 switch (BinaryPrimitives.ReadInt32BigEndian(packet.AsSpan(8)))
                 {
                     case 7:
-                        var auth = AuthenticationReply ?? Packet(8, System.Text.Encoding.UTF8.GetBytes($"{{\"code\":{AuthenticationCode}}}"));
+                        var auth = !IsValidAuthentication(packet) ? AuthenticationPacket(-101)
+                            : AuthenticationReply ?? AuthenticationPacket(AuthenticationCode);
                         if (FragmentAuthentication)
                         {
                             await PushAsync(auth[..5], false);
@@ -86,6 +94,28 @@ internal sealed class FakeDanmakuServer : IAsyncDisposable
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
         catch (WebSocketException) { } // Client cancellation aborts an in-flight receive.
         finally { Disconnected = true; received.Writer.TryComplete(); }
+    }
+
+    private static byte[] AuthenticationPacket(int code) =>
+        Packet(8, System.Text.Encoding.UTF8.GetBytes($"{{\"code\":{code}}}"));
+
+    private static bool IsValidAuthentication(byte[] packet)
+    {
+        try
+        {
+            using var auth = JsonDocument.Parse(packet.AsMemory(16));
+            var root = auth.RootElement;
+            return BinaryPrimitives.ReadInt32BigEndian(packet) == packet.Length
+                && BinaryPrimitives.ReadUInt16BigEndian(packet.AsSpan(4)) == 16
+                && root.GetProperty("uid").GetInt64() >= 0
+                && root.GetProperty("roomid").GetInt64() > 0
+                && root.GetProperty("protover").GetInt32() == 3
+                && root.GetProperty("platform").GetString() == "web"
+                && root.GetProperty("type").GetInt32() == 2
+                && !string.IsNullOrEmpty(root.GetProperty("key").GetString())
+                && !string.IsNullOrEmpty(root.GetProperty("buvid").GetString());
+        }
+        catch { return false; } // Malformed JSON, missing fields and wrong value kinds are all invalid.
     }
 
     public static byte[] Packet(int operation, byte[] body, ushort version = 1)

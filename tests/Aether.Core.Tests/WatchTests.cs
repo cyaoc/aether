@@ -63,6 +63,7 @@ public sealed class WatchTests
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Connecting>(updates.Current);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
+        Assert.Contains("直播间 999 查询失败", error.Message);
         Assert.Contains("直播间不存在", error.Message);
         Assert.Single(http.Requests);
     }

@@ -43,11 +43,16 @@ public sealed class LifecycleTests
         await h.Server.WaitForDisconnectAsync();
     }
 
-    [Fact]
-    public async Task Rejected_authentication_never_reports_connected()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Rejected_authentication_never_reports_connected(bool invalidPacket)
     {
         await using var h = new WatchHarness();
-        h.Server.AuthenticationCode = -101;
+        if (invalidPacket)
+            h.Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
+                """{"code":0,"data":{"token":"","host_list":[{"host":"danmaku.example","wss_port":443}]}}""";
+        else h.Server.AuthenticationCode = -101;
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
@@ -93,7 +98,7 @@ public sealed class LifecycleTests
         for (var i = 0; i < 2; i++)
         {
             h.Time.Advance(TimeSpan.FromSeconds(29));
-            Assert.False(h.Server.HasPendingRequest);
+            Assert.False(await h.Server.ReceivesRequestWithinAsync(TimeSpan.FromMilliseconds(200)));
             h.Time.Advance(TimeSpan.FromSeconds(1));
             var heartbeat = await h.Server.NextRequestAsync();
             Assert.Equal(2, BinaryPrimitives.ReadInt32BigEndian(heartbeat.AsSpan(8)));
@@ -102,6 +107,6 @@ public sealed class LifecycleTests
         Assert.False(await next.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         await h.Server.WaitForDisconnectAsync();
         h.Time.Advance(TimeSpan.FromMinutes(2));
-        Assert.False(h.Server.HasPendingRequest);
+        Assert.False(await h.Server.ReceivesRequestWithinAsync(TimeSpan.FromMilliseconds(200)));
     }
 }
