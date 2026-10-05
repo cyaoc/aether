@@ -6,11 +6,13 @@ internal sealed class FakeBilibiliHttp : HttpMessageHandler
 {
     public Dictionary<string, string> Responses { get; } = new();
     public List<(Uri Uri, string? Cookie)> Requests { get; } = [];
+    public Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? Respond { get; set; }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var uri = request.RequestUri!;
         Requests.Add((uri, request.Headers.TryGetValues("Cookie", out var cookies) ? string.Join("; ", cookies) : null));
+        if (Respond is not null) return Respond(request, cancellationToken);
         var body = Responses.TryGetValue(uri.GetLeftPart(UriPartial.Path), out var response)
             ? response
             : throw new InvalidOperationException($"Unexpected HTTP request: {uri}");

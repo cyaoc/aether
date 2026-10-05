@@ -7,5 +7,6 @@
     <ProjectReference Include="../Aether.Core/Aether.Core.csproj" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="System.CommandLine" />
+    <PackageReference Include="QRCoder" />
   </ItemGroup>
 </Project>
