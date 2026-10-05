@@ -47,8 +47,7 @@ internal sealed class BilibiliApi(HttpClient http, TimeProvider timeProvider)
         using var room = await GetAsync($"https://api.live.bilibili.com/room/v1/Room/room_init?id={roomId.ToString(CultureInfo.InvariantCulture)}", LiveReferer, cancellationToken);
         CheckCode(room, $"直播间 {roomId} 查询");
         var realRoomId = room.RootElement.GetProperty("data").GetProperty("room_id").GetInt64();
-        var buvid = GetCookies().TryGetValue("buvid3", out var saved) && !string.IsNullOrWhiteSpace(saved)
-            ? saved : await GetBuvidAsync(cancellationToken);
+        var buvid = GetCookies()["buvid3"]; // Every saved credential has it; PollQrCodeAsync refuses logins without one.
         // These parameters are all numeric; their sorted query needs no escaping or character filtering.
         var query = FormattableString.Invariant($"id={realRoomId}&type=0&web_location=444.8&wts={timeProvider.GetUtcNow().ToUnixTimeSeconds()}");
         var signature = Convert.ToHexStringLower(MD5.HashData(Encoding.UTF8.GetBytes(query + mixinKey)));

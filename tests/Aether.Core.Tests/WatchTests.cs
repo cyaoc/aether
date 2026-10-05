@@ -5,23 +5,6 @@ namespace Aether.Core.Tests;
 public sealed class WatchTests
 {
     [Fact]
-    public async Task Websocket_connection_failure_reports_server_and_underlying_reason()
-    {
-        var cause = new HttpRequestException("The proxy tunnel request failed with status code '403'.");
-        var failure = new System.Net.WebSockets.WebSocketException("Unable to connect to the remote server", cause);
-        await using var h = new WatchHarness((_, _) => throw failure);
-        await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<Connecting>(updates.Current);
-        var error = await Assert.ThrowsAsync<System.Net.WebSockets.WebSocketException>(async () => await updates.MoveNextAsync());
-        Assert.Contains("danmaku.example:443", error.Message);
-        Assert.Contains("403", error.Message);
-        Assert.Same(failure, error.InnerException);
-        Assert.DoesNotContain("saved-session", error.Message);
-    }
-
-    [Fact]
     public async Task Danmaku_stream_uses_local_receive_time_and_emoticon_text_and_ends_normally_on_cancellation()
     {
         await using var h = new WatchHarness();
@@ -60,7 +43,7 @@ public sealed class WatchTests
         Assert.Equal(3, root.GetProperty("protover").GetInt32());
         Assert.Equal("web", root.GetProperty("platform").GetString());
         Assert.Equal(2, root.GetProperty("type").GetInt32());
-        Assert.Equal("anonymous-token", root.GetProperty("key").GetString());
+        Assert.Equal("room-token", root.GetProperty("key").GetString());
         Assert.Equal("saved-buvid", root.GetProperty("buvid").GetString());
         Assert.Equal(new Uri("wss://danmaku.example/sub"), h.Server.ConnectedUri);
         Assert.Equal("/x/web-interface/nav", h.Http.Requests[0].Uri.AbsolutePath);

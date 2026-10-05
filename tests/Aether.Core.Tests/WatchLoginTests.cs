@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Aether.Core.Tests.Support;
-using Microsoft.Data.Sqlite;
 
 namespace Aether.Core.Tests;
 
@@ -9,38 +8,28 @@ public sealed class WatchLoginTests
     private const string Nav = "https://api.bilibili.com/x/web-interface/nav";
     private const string Generate = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate";
     private const string Poll = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll";
+    private const string LoggedOutNav = """{"code":-101,"data":{"isLogin":false}}""";
 
     [Fact]
     public async Task Missing_credential_prompts_for_qr_saves_login_and_continues_connecting()
     {
         await using var h = new WatchHarness();
         var authenticated = h.Http.Responses[Nav];
-        h.Http.Responses[Nav] = """{"code":-101,"data":{"isLogin":false}}""";
+        h.Http.Responses[Nav] = LoggedOutNav;
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
         Assert.Equal("https://example.test/scan", Assert.IsType<WatchQrCode>(updates.Current).Content);
-        Assert.Equal(Nav, h.Http.Requests[0].Uri.AbsoluteUri);
+        Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsoluteUri == Nav);
         Assert.Null(h.Server.ConnectedUri);
         h.Http.Responses[Nav] = authenticated;
-        Assert.True(await PollAsync(h, updates));
+        Assert.True(await h.AdvancePollAsync(updates));
         Assert.IsType<Connecting>(updates.Current);
-        using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        {
-            DataSource = Path.Combine(h.DataDirectory, "aether.db"), Pooling = false
-        }.ToString()))
-        {
-            connection.Open();
-            using var command = connection.CreateCommand();
-            command.CommandText = "SELECT cookies, refresh_token, saved_at FROM credential";
-            using var reader = command.ExecuteReader();
-            Assert.True(reader.Read());
-            var cookies = JsonSerializer.Deserialize<Dictionary<string, string>>(reader.GetString(0))!;
-            Assert.Equal("saved-session", cookies["SESSDATA"]);
-            Assert.Equal("saved-buvid", cookies["buvid3"]);
-            Assert.Equal("refresh-token", reader.GetString(1));
-            Assert.Equal(h.Time.GetUtcNow(), DateTimeOffset.Parse(reader.GetString(2)));
-            Assert.False(reader.Read());
-        }
+        var credential = h.SavedCredential();
+        Assert.Equal("saved-session", credential.Cookies["SESSDATA"]);
+        Assert.Equal("saved-buvid", credential.Cookies["buvid3"]);
+        Assert.Equal("refresh-token", credential.RefreshToken);
+        Assert.Equal(h.Time.GetUtcNow(), credential.SavedAt);
+        Assert.Contains("SESSDATA=saved-session", Assert.Single(h.Http.Requests, r => r.Uri.AbsoluteUri == Nav).Cookie);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Connected>(updates.Current);
         using var auth = JsonDocument.Parse((await h.Server.NextRequestAsync()).AsMemory(16));
@@ -68,21 +57,22 @@ public sealed class WatchLoginTests
         {
             h.Http.Responses[Poll] = """{"code":0,"data":{"code":86038}}""";
             h.Http.Responses[Generate] = $$$"""{"code":0,"data":{"url":"https://example.test/scan-{{{i}}}","qrcode_key":"key-{{{i}}}"}}""";
-            Assert.True(await PollAsync(h, updates));
+            Assert.True(await h.AdvancePollAsync(updates));
             Assert.Equal($"https://example.test/scan-{i}", Assert.IsType<WatchQrCode>(updates.Current).Content);
             Assert.Null(h.Server.ConnectedUri);
         }
         h.Http.Responses[Poll] = """{"code":0,"data":{"code":0,"refresh_token":"refresh-token"}}""";
         h.Http.Responses[Nav] = authenticated;
-        Assert.True(await PollAsync(h, updates));
+        Assert.True(await h.AdvancePollAsync(updates));
         Assert.IsType<Connecting>(updates.Current);
         Assert.Equal("?qrcode_key=key-2", h.Http.Requests.Last(r => r.Uri.GetLeftPart(UriPartial.Path) == Poll).Uri.Query);
+        Assert.Equal(h.Time.GetUtcNow(), h.SavedCredential().SavedAt);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Connected>(updates.Current);
     }
 
     [Fact]
-    public async Task Every_watch_checks_nav_and_logout_makes_next_watch_prompt_for_qr()
+    public async Task Every_room_connection_checks_nav_and_logout_makes_the_next_prompt_for_qr()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -94,11 +84,11 @@ public sealed class WatchLoginTests
         }
         Assert.Equal(2, h.Http.Requests.Count(r => r.Uri.AbsoluteUri == Nav));
         await h.Client.LogoutAsync(h.Stop.Token);
-        h.Http.Responses[Nav] = """{"code":-101,"data":{"isLogin":false}}""";
+        h.Http.Responses[Nav] = LoggedOutNav;
         await using var loggedOut = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await loggedOut.MoveNextAsync());
         Assert.IsType<WatchQrCode>(loggedOut.Current);
-        Assert.Null(h.Http.Requests.Last(r => r.Uri.AbsoluteUri == Nav).Cookie);
+        Assert.Equal(2, h.Http.Requests.Count(r => r.Uri.AbsoluteUri == Nav)); // No credential, so no nav before the QR code.
     }
 
     [Theory]
@@ -108,6 +98,7 @@ public sealed class WatchLoginTests
     public async Task Cancellation_during_login_ends_watch_without_connecting(string endpoint)
     {
         await using var h = new WatchHarness();
+        if (endpoint == Nav) await h.LoginAsync();
         var respond = h.Http.Respond!;
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         h.Http.Respond = async (request, token) =>
@@ -170,20 +161,13 @@ public sealed class WatchLoginTests
     public async Task Unauthenticated_nav_after_scan_never_connects_anonymously()
     {
         await using var h = new WatchHarness();
-        h.Http.Responses[Nav] = """{"code":-101,"data":{"isLogin":false}}""";
+        h.Http.Responses[Nav] = LoggedOutNav;
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<WatchQrCode>(updates.Current);
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => PollAsync(h, updates));
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => h.AdvancePollAsync(updates));
         Assert.Contains("登录凭据未生效", error.Message);
         Assert.Null(h.Server.ConnectedUri);
         Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("room_init"));
-    }
-
-    private static async Task<bool> PollAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates)
-    {
-        var next = updates.MoveNextAsync().AsTask();
-        h.Time.Advance(TimeSpan.FromSeconds(2));
-        return await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
     }
 }

@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Core.Tests.Support;
@@ -7,6 +10,7 @@ internal sealed class WatchHarness : IAsyncDisposable
     public string DataDirectory { get; } = Path.Combine(Path.GetTempPath(), "aether-tests-" + Guid.NewGuid());
     public FakeBilibiliHttp Http { get; } = new();
     public FakeDanmakuServer Server { get; } = new();
+    // LoginAsync advances 2s, so watching after it signs with the captured wts=1702204169.
     public FakeTimeProvider Time { get; } = new(DateTimeOffset.FromUnixTimeSeconds(1702204167));
     public RecordingLogger Logger { get; } = new();
     public CancellationTokenSource Stop { get; } = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
@@ -29,7 +33,8 @@ internal sealed class WatchHarness : IAsyncDisposable
         {
             var path = request.RequestUri!.GetLeftPart(UriPartial.Path);
             var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-                { Content = new StringContent(Http.Responses[path]) };
+                { Content = new StringContent(Http.Responses.TryGetValue(path, out var body)
+                    ? body : throw new InvalidOperationException($"Unexpected HTTP request: {request.RequestUri}")) };
             if (path.EndsWith("/qrcode/poll", StringComparison.Ordinal))
                 response.Headers.Add("Set-Cookie", new[]
                 {
@@ -41,7 +46,7 @@ internal sealed class WatchHarness : IAsyncDisposable
             return Task.FromResult(response);
         };
         Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
-            """{"code":0,"data":{"token":"anonymous-token","host_list":[{"host":"danmaku.example","wss_port":443}]}}""";
+            """{"code":0,"data":{"token":"room-token","host_list":[{"host":"danmaku.example","wss_port":443}]}}""";
         Client = new AetherClient(Http, connectWebSocket ?? Server.ConnectAsync, Time, Logger, DataDirectory);
     }
 
@@ -50,12 +55,34 @@ internal sealed class WatchHarness : IAsyncDisposable
         await using var updates = Client.LoginAsync(Stop.Token).GetAsyncEnumerator(Stop.Token);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<LoginQrCode>(updates.Current);
-        var next = updates.MoveNextAsync().AsTask();
-        Time.Advance(TimeSpan.FromSeconds(2));
-        Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), Stop.Token));
+        Assert.True(await AdvancePollAsync(updates));
         Assert.IsType<LoggedIn>(updates.Current);
         Assert.False(await updates.MoveNextAsync());
         Http.Requests.Clear();
+    }
+
+    public async Task<bool> AdvancePollAsync<T>(IAsyncEnumerator<T> updates)
+    {
+        var next = updates.MoveNextAsync().AsTask();
+        Time.Advance(TimeSpan.FromSeconds(2));
+        return await next.WaitAsync(TimeSpan.FromSeconds(5), Stop.Token);
+    }
+
+    public (Dictionary<string, string> Cookies, string RefreshToken, DateTimeOffset SavedAt) SavedCredential()
+    {
+        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
+        {
+            DataSource = Path.Combine(DataDirectory, "aether.db"), Pooling = false
+        }.ToString());
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT cookies, refresh_token, saved_at FROM credential";
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        var credential = (JsonSerializer.Deserialize<Dictionary<string, string>>(reader.GetString(0))!,
+            reader.GetString(1), DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture));
+        Assert.False(reader.Read());
+        return credential;
     }
 
     public async ValueTask DisposeAsync()

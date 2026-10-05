@@ -111,33 +111,20 @@ public sealed class AetherClient(
     {
         cancellationToken.ThrowIfCancellationRequested();
         var credentials = new CredentialStore(new Database(dataDirectory));
-        var api = new BilibiliApi(http, timeProvider);
-        var credential = credentials.Load();
-        if (credential is not null) api.AddCookies(credential.Cookies);
-        var navigation = await api.GetNavigationAsync(cancellationToken);
-        if (credential is null || navigation.Mid == 0)
+        var (api, mid, mixinKey) = await CheckCredentialAsync(credentials.Load(), cancellationToken);
+        if (mid == 0)
         {
-            await foreach (var update in LoginAsync(cancellationToken))
+            await foreach (var update in LoginCoreAsync(cancellationToken))
                 if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
-            cancellationToken.ThrowIfCancellationRequested();
-            api = new BilibiliApi(http, timeProvider);
-            api.AddCookies(credentials.Load()!.Cookies);
-            navigation = await api.GetNavigationAsync(cancellationToken);
-            if (navigation.Mid == 0) throw new InvalidOperationException("扫码后登录凭据未生效，请重新扫码登录。");
+            (api, mid, mixinKey) = await CheckCredentialAsync(credentials.Load(), cancellationToken);
+            if (mid == 0) throw new InvalidOperationException("扫码后登录凭据未生效，请重新扫码登录。");
         }
         yield return new Connecting();
-        var connection = await api.GetConnectionAsync(roomId, navigation.MixinKey, cancellationToken);
-        WebSocket socket;
-        try { socket = await connectWebSocket(connection.Server, cancellationToken); }
-        catch (WebSocketException error) when (!cancellationToken.IsCancellationRequested)
-        {
-            throw new WebSocketException(error.WebSocketErrorCode,
-                $"连接弹幕服务器 {connection.Server.Host}:{connection.Server.Port} 失败：{error.GetBaseException().Message}", error);
-        }
-        using var ownedSocket = socket;
+        var connection = await api.GetConnectionAsync(roomId, mixinKey, cancellationToken);
+        using var socket = await connectWebSocket(connection.Server, cancellationToken);
         var authentication = JsonSerializer.SerializeToUtf8Bytes(new
         {
-            uid = navigation.Mid, roomid = connection.RoomId, protover = 3, platform = "web", type = 2,
+            uid = mid, roomid = connection.RoomId, protover = 3, platform = "web", type = 2,
             key = connection.Token, buvid = connection.Buvid
         });
         await socket.SendAsync(DanmakuProtocol.Pack(7, authentication), WebSocketMessageType.Binary, true, cancellationToken);
@@ -194,6 +181,17 @@ public sealed class AetherClient(
                 }
             }
         }
+    }
+
+    /// <summary>Asks nav whether the credential still logs in; mid 0 means there is none or B站 rejected it.</summary>
+    private async Task<(BilibiliApi Api, long Mid, string MixinKey)> CheckCredentialAsync(
+        Credential? credential, CancellationToken cancellationToken)
+    {
+        var api = new BilibiliApi(http, timeProvider);
+        if (credential is null) return (api, 0, "");
+        api.AddCookies(credential.Cookies);
+        var (mid, mixinKey) = await api.GetNavigationAsync(cancellationToken);
+        return (api, mid, mixinKey);
     }
 
     private async Task SendHeartbeatsAsync(WebSocket socket, CancellationTokenSource stop)
