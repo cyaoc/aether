@@ -8,6 +8,7 @@ public sealed class WatchTests
     public async Task Danmaku_stream_uses_local_receive_time_and_emoticon_text_and_ends_normally_on_cancellation()
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
@@ -22,9 +23,12 @@ public sealed class WatchTests
     }
 
     [Fact]
-    public async Task Short_room_id_authenticates_anonymously_with_real_room_and_signed_request()
+    public async Task Valid_credential_skips_qr_and_uses_nav_mid_saved_cookies_and_signed_real_room()
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
+        h.Http.Responses["https://api.bilibili.com/x/frontend/finger/spi"] =
+            """{"code":0,"data":{"b_3":"must-not-replace-saved-buvid"}}""";
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Connecting>(updates.Current);
@@ -34,18 +38,26 @@ public sealed class WatchTests
         Assert.Equal(7, System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(packet.AsSpan(8)));
         using var auth = System.Text.Json.JsonDocument.Parse(packet.AsMemory(16));
         var root = auth.RootElement;
-        Assert.Equal(0, root.GetProperty("uid").GetInt64());
+        Assert.Equal(9876543210, root.GetProperty("uid").GetInt64());
         Assert.Equal(7734200, root.GetProperty("roomid").GetInt64());
         Assert.Equal(3, root.GetProperty("protover").GetInt32());
         Assert.Equal("web", root.GetProperty("platform").GetString());
         Assert.Equal(2, root.GetProperty("type").GetInt32());
         Assert.Equal("anonymous-token", root.GetProperty("key").GetString());
-        Assert.Equal("anonymous-buvid", root.GetProperty("buvid").GetString());
+        Assert.Equal("saved-buvid", root.GetProperty("buvid").GetString());
         Assert.Equal(new Uri("wss://danmaku.example/sub"), h.Server.ConnectedUri);
-        Assert.Equal("?id=6", h.Http.Requests[0].Uri.Query);
+        Assert.Equal("/x/web-interface/nav", h.Http.Requests[0].Uri.AbsolutePath);
+        Assert.Equal("?id=6", Assert.Single(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("room_init")).Uri.Query);
         var request = Assert.Single(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("getDanmuInfo"));
-        Assert.Equal("buvid3=anonymous-buvid", request.Cookie);
-        Assert.False(Directory.Exists(h.DataDirectory)); // Anonymous watching never touches stored credentials.
+        Assert.All(h.Http.Requests, r =>
+        {
+            Assert.Contains("SESSDATA=saved-session", r.Cookie);
+            Assert.Contains("bili_jct=saved-csrf", r.Cookie);
+            Assert.Contains("DedeUserID=123", r.Cookie);
+            Assert.Contains("buvid3=saved-buvid", r.Cookie);
+            Assert.Contains("sid=extra-cookie", r.Cookie);
+        });
+        Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("/spi"));
         Assert.Equal("?id=7734200&type=0&web_location=444.8&wts=1702204169&w_rid=1bb9dceebb99493b57a534797732eba7", request.Uri.Query);
     }
 
@@ -53,6 +65,7 @@ public sealed class WatchTests
     public async Task Nonexistent_room_ends_with_clear_error_without_connecting_or_retrying()
     {
         await using var h = new WatchHarness((_, _) => throw new Xunit.Sdk.XunitException("Must not connect"));
+        await h.LoginAsync();
         h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
             """{"code":60004,"message":"直播间不存在"}""";
         await using var updates = h.Client.WatchAsync(999, TestContext.Current.CancellationToken).GetAsyncEnumerator(TestContext.Current.CancellationToken);
@@ -62,6 +75,6 @@ public sealed class WatchTests
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
         Assert.Contains("直播间 999 查询失败", error.Message);
         Assert.Contains("直播间不存在", error.Message);
-        Assert.Single(h.Http.Requests);
+        Assert.Equal(new[] { "/x/web-interface/nav", "/room/v1/Room/room_init" }, h.Http.Requests.Select(r => r.Uri.AbsolutePath));
     }
 }

@@ -1,6 +1,6 @@
 # Aether
 
-macOS / Windows 上的 B站直播 bot。支持扫码登录、退出登录和匿名观看直播间弹幕。
+macOS / Windows 上的 B站直播 bot。支持扫码登录、退出登录和以登录账号身份观看直播间弹幕。
 
 需要 .NET 10 SDK：
 
@@ -20,9 +20,11 @@ dotnet publish src/Aether.Cli -c Release -o artifacts/cli
 ```
 
 弹幕以 UTF-8 写到 stdout：`[HH:mm:ss] 昵称: 内容`；状态和日志写到 stderr。
-Ctrl+C 关闭连接并正常退出，错误返回非零退出码。匿名观看通常显示打码昵称；
-部分直播间会返回真实昵称。`watch` 当前仍匿名连接、不重连，服务器断开后命令报错退出；
-观看时使用登录凭据由后续任务接入。
+Ctrl+C 关闭连接并正常退出，错误返回非零退出码。每次 `watch` 开始直播间连接前，
+先用保存的 cookie 调 nav 检查登录状态；没有凭据或已失效时，直接在 stderr 显示二维码，
+扫码成功后保存凭据并继续连接，无需先运行 `login`。二维码过期自动换新，扫码期间也可按
+Ctrl+C 取消。连接使用 nav 返回的 mid 和凭据中的 buvid3，HTTP 请求携带保存的 cookie，
+以接收观众的真实昵称。`watch` 当前不重连，服务器断开后命令报错退出。
 
 `login` 先打开数据库、获取 buvid3，再在 stderr 显示字符画二维码，用 B站 App 扫码并确认。
 每两秒轮询一次，过期后自动打印新二维码，成功保存凭据后提示“已登录”。网络错误（连不上、
@@ -38,10 +40,10 @@ Debug 从程序目录向上寻找 `Aether.slnx`，用其所在目录下的 `data
 `credential` 表只存一行，保存完整 cookie 名值 JSON、refresh_token 和 UTC 保存时间。
 凭据暂存明文，`data/` 已被 Git 忽略；连接开启 `secure_delete`，删除或覆盖的凭据不会残留在文件里。
 macOS 上数据库文件（含 `-wal` / `-shm`）权限为 0600，只有当前用户可读写；Windows 依赖目录继承的 ACL。
-只有 `login` / `logout` 才打开数据库，匿名 `watch` 不读写 `data/`。CLI 与未来 GUI 放在同一发布目录时共用这些数据。
+`login` / `logout` / `watch` 都会打开数据库。CLI 与未来 GUI 放在同一发布目录时共用这些数据。
 
 Core 的业务入口都在 `AetherClient`：`LoginAsync` 返回 `LoginQrCode`、`LoggedIn` 更新流；
-`LogoutAsync` 删除凭据；`WatchAsync` 返回 `Connecting`、`Connected`、`Danmaku` 更新流。
+`LogoutAsync` 删除凭据；`WatchAsync` 返回 `WatchQrCode`（需要登录时）、`Connecting`、`Connected`、`Danmaku` 更新流。
 取消或释放更新流会结束对应操作。测试从这些入口驱动，注入假的 HTTP、真实 BCL WebSocket 的本地对端、
 `FakeTimeProvider` 和独立临时数据目录，使用真实 SQLite，不访问 B站。真实捕获测试帧的来源与脱敏方式见
 [Fixtures/README.md](tests/Aether.Core.Tests/Fixtures/README.md)。
@@ -56,6 +58,10 @@ sqlite3 data/aether.db 'SELECT count(*) FROM credential;'
 ```
 
 登录后应为 1 行，退出后应为 0 行。
+
+观看手动验收：运行 `watch <房间号>`，没有凭据时应直接显示二维码，扫码后依次提示
+“连接中”“已连接”，收到的弹幕显示真实昵称。取消后再次运行 `watch` 应直接连接；
+运行 `logout` 后再运行 `watch` 应重新显示二维码，扫码阶段按 Ctrl+C 应正常退出。
 
 测试使用 xUnit v3 的 Microsoft Testing Platform 运行器（由 `global.json` 选择）：
 

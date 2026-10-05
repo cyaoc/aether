@@ -9,13 +9,16 @@ using QRCoder;
 
 Console.OutputEncoding = new UTF8Encoding(false);
 var room = new Argument<long>("房间号") { Description = "直播间短号或真实房间号" };
-var watch = new Command("watch", "匿名观看直播间弹幕") { room };
+var watch = new Command("watch", "观看直播间弹幕，需要时扫码登录") { room };
 watch.SetAction((result, cancellationToken) => RunAsync(async client =>
 {
     await foreach (var update in client.WatchAsync(result.GetValue(room), cancellationToken))
     {
         switch (update)
         {
+            case WatchQrCode qr:
+                await ShowQrCodeAsync(qr.Content);
+                break;
             case Connecting:
                 await Console.Error.WriteLineAsync("连接中");
                 break;
@@ -36,10 +39,7 @@ login.SetAction((_, cancellationToken) => RunAsync(async client =>
         switch (update)
         {
             case LoginQrCode qr:
-                await Console.Error.WriteLineAsync("请用 B站 App 扫码并确认登录（Ctrl+C 取消；过期后自动换码）");
-                using (var data = QRCodeGenerator.GenerateQrCode(qr.Content, QRCodeGenerator.ECCLevel.M))
-                using (var code = new AsciiQRCode(data))
-                    await Console.Error.WriteLineAsync(code.GetGraphicSmall());
+                await ShowQrCodeAsync(qr.Content);
                 break;
             case LoggedIn:
                 await Console.Error.WriteLineAsync("已登录");
@@ -79,3 +79,11 @@ static async Task<int> RunAsync(Func<AetherClient, Task> action, CancellationTok
 }
 
 static string OneLine(string text) => text.Replace('\r', ' ').Replace('\n', ' ');
+
+static async Task ShowQrCodeAsync(string content)
+{
+    await Console.Error.WriteLineAsync("请用 B站 App 扫码并确认登录（Ctrl+C 取消；过期后自动换码）");
+    using var data = QRCodeGenerator.GenerateQrCode(content, QRCodeGenerator.ECCLevel.M);
+    using var code = new AsciiQRCode(data);
+    await Console.Error.WriteLineAsync(code.GetGraphicSmall());
+}

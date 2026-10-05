@@ -20,6 +20,7 @@ public sealed class LifecycleTests
             socket.Abort();
             return socket;
         });
+        await h.LoginAsync();
         await using var updates = h.Client.WatchAsync(6, stop.Token).GetAsyncEnumerator(stop.Token);
         Assert.True(await updates.MoveNextAsync());
         if (cancel) Assert.False(await updates.MoveNextAsync());
@@ -31,6 +32,7 @@ public sealed class LifecycleTests
     public async Task Cancellation_discards_buffered_danmaku_and_closes_connection()
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
@@ -49,6 +51,7 @@ public sealed class LifecycleTests
     public async Task Rejected_authentication_never_reports_connected(bool invalidPacket)
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
         if (invalidPacket)
             h.Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
                 """{"code":0,"data":{"token":"","host_list":[{"host":"danmaku.example","wss_port":443}]}}""";
@@ -64,6 +67,7 @@ public sealed class LifecycleTests
     public async Task Server_disconnect_ends_with_error()
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
@@ -77,6 +81,7 @@ public sealed class LifecycleTests
     public async Task Disposing_stream_closes_connection_even_without_cancelling_token()
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
         await using (var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
         {
             await updates.MoveNextAsync();
@@ -90,6 +95,7 @@ public sealed class LifecycleTests
     public async Task Heartbeats_are_sent_every_thirty_seconds_and_stop_on_cancellation()
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();

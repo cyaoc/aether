@@ -13,6 +13,7 @@ public sealed class ProtocolTests
     public async Task Invalid_protocol_frames_fail_without_hanging(string kind)
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
@@ -30,6 +31,7 @@ public sealed class ProtocolTests
     public async Task Captured_frames_produce_expected_danmaku(string fixture, string nickname, string content)
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
         h.Server.AuthenticationReply = await FixtureAsync("authentication.bin");
         h.Server.FragmentAuthentication = true;
         h.Time.SetLocalTimeZone(TimeZoneInfo.CreateCustomTimeZone("test+8", TimeSpan.FromHours(8), "test+8", "test+8"));
@@ -53,6 +55,7 @@ public sealed class ProtocolTests
     public async Task Captured_multi_packet_frame_logs_each_unknown_command_at_debug_without_updates()
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
@@ -74,6 +77,7 @@ public sealed class ProtocolTests
     public async Task Compressed_multi_packet_frames_deliver_every_danmaku_even_across_websocket_fragments(int version)
     {
         await using var h = new WatchHarness();
+        await h.LoginAsync();
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();

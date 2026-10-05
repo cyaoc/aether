@@ -15,7 +15,7 @@ public sealed class AetherClient(
 {
     private readonly HttpClient http = new(httpHandler);
 
-    // BilibiliApi keeps cookies per flow; a handler-wide jar would leak login cookies into anonymous watching.
+    // BilibiliApi keeps cookies per flow so a fresh login cannot inherit another flow's credential.
     public AetherClient(TimeProvider timeProvider, ILogger<AetherClient> logger)
         : this(new HttpClientHandler { UseCookies = false }, ConnectWebSocketAsync, timeProvider, logger,
             LocateDataDirectory()) { }
@@ -110,12 +110,27 @@ public sealed class AetherClient(
         long roomId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var credentials = new CredentialStore(new Database(dataDirectory));
+        var api = new BilibiliApi(http, timeProvider);
+        var credential = credentials.Load();
+        if (credential is not null) api.AddCookies(credential.Cookies);
+        var navigation = await api.GetNavigationAsync(cancellationToken);
+        if (credential is null || navigation.Mid == 0)
+        {
+            await foreach (var update in LoginAsync(cancellationToken))
+                if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
+            cancellationToken.ThrowIfCancellationRequested();
+            api = new BilibiliApi(http, timeProvider);
+            api.AddCookies(credentials.Load()!.Cookies);
+            navigation = await api.GetNavigationAsync(cancellationToken);
+            if (navigation.Mid == 0) throw new InvalidOperationException("扫码后登录凭据未生效，请重新扫码登录。");
+        }
         yield return new Connecting();
-        var connection = await new BilibiliApi(http, timeProvider).GetConnectionAsync(roomId, cancellationToken);
+        var connection = await api.GetConnectionAsync(roomId, navigation.MixinKey, cancellationToken);
         using var socket = await connectWebSocket(connection.Server, cancellationToken);
         var authentication = JsonSerializer.SerializeToUtf8Bytes(new
         {
-            uid = 0, roomid = connection.RoomId, protover = 3, platform = "web", type = 2,
+            uid = navigation.Mid, roomid = connection.RoomId, protover = 3, platform = "web", type = 2,
             key = connection.Token, buvid = connection.Buvid
         });
         await socket.SendAsync(DanmakuProtocol.Pack(7, authentication), WebSocketMessageType.Binary, true, cancellationToken);
