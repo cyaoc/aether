@@ -15,7 +15,7 @@ public sealed class AetherClient(
 {
     private readonly HttpClient http = new(httpHandler);
 
-    // BilibiliApi keeps cookies per flow; a handler-wide jar would leak login cookies into anonymous watching.
+    // BilibiliApi keeps cookies per flow so a fresh login cannot inherit another flow's credential.
     public AetherClient(TimeProvider timeProvider, ILogger<AetherClient> logger)
         : this(new HttpClientHandler { UseCookies = false }, ConnectWebSocketAsync, timeProvider, logger,
             LocateDataDirectory()) { }
@@ -110,12 +110,21 @@ public sealed class AetherClient(
         long roomId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var credentials = new CredentialStore(new Database(dataDirectory));
+        var (api, mid, mixinKey) = await CheckCredentialAsync(credentials.Load(), cancellationToken);
+        if (mid == 0)
+        {
+            await foreach (var update in LoginCoreAsync(cancellationToken))
+                if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
+            (api, mid, mixinKey) = await CheckCredentialAsync(credentials.Load(), cancellationToken);
+            if (mid == 0) throw new InvalidOperationException("扫码后登录凭据未生效，请重新扫码登录。");
+        }
         yield return new Connecting();
-        var connection = await new BilibiliApi(http, timeProvider).GetConnectionAsync(roomId, cancellationToken);
+        var connection = await api.GetConnectionAsync(roomId, mixinKey, cancellationToken);
         using var socket = await connectWebSocket(connection.Server, cancellationToken);
         var authentication = JsonSerializer.SerializeToUtf8Bytes(new
         {
-            uid = 0, roomid = connection.RoomId, protover = 3, platform = "web", type = 2,
+            uid = mid, roomid = connection.RoomId, protover = 3, platform = "web", type = 2,
             key = connection.Token, buvid = connection.Buvid
         });
         await socket.SendAsync(DanmakuProtocol.Pack(7, authentication), WebSocketMessageType.Binary, true, cancellationToken);
@@ -172,6 +181,17 @@ public sealed class AetherClient(
                 }
             }
         }
+    }
+
+    /// <summary>Asks nav whether the credential still logs in; mid 0 means there is none or B站 rejected it.</summary>
+    private async Task<(BilibiliApi Api, long Mid, string MixinKey)> CheckCredentialAsync(
+        Credential? credential, CancellationToken cancellationToken)
+    {
+        var api = new BilibiliApi(http, timeProvider);
+        if (credential is null) return (api, 0, "");
+        api.AddCookies(credential.Cookies);
+        var (mid, mixinKey) = await api.GetNavigationAsync(cancellationToken);
+        return (api, mid, mixinKey);
     }
 
     private async Task SendHeartbeatsAsync(WebSocket socket, CancellationTokenSource stop)
