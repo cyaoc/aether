@@ -28,13 +28,23 @@ Ctrl+C 取消。连接使用 nav 返回的 mid 和凭据中的 buvid3，HTTP 请
 以接收观众的真实昵称。网络失败、超时、B站 服务器 5xx 或弹幕服务器断开时，`watch`
 提示“重连中”，按 1、2、4、8、16、30、30…… 秒自动重试；收到认证成功回复后重置为 1 秒。
 60 秒没有收到任何数据也会重连；心跳回复正常的安静直播间不会断开。
-每次重连重新获取 wbi key 和弹幕 token，中途凭据失效或被 `logout` 删除时以匿名身份重连
-（stderr 警告，昵称可能被打码），不要求重新扫码。扫码阶段的网络失败仍每 2 秒原地重试，
+每次重连重新获取 wbi key 和弹幕 token，中途凭据失效或被 `logout` 删除时暂停接收弹幕，
+显示二维码重新登录，成功后继续连接同一个直播间。等待扫码时也会检查本地数据库，
+可在另一个终端运行 `login` 或在 GUI 登录，经 nav 确认有效后恢复连接；新凭据未生效时记一条警告并重新显示二维码。扫码阶段的网络失败仍每 2 秒原地重试，
 不提示“重连中”，也不作废已显示的二维码。B站 明确拒绝（错误码含房间号不存在、HTTP 4xx、
 弹幕认证失败）、无法解析的 HTTP 或认证响应、损坏的弹幕帧、本地错误（如数据库）和程序缺陷，
 重试也不会好转，反复请求还会加重风控，所以直接报错退出。单条直播间消息不是合法 JSON、
 缺少有效 cmd，或 DANMU_MSG 取不到昵称或内容时，只跳过该条并记一条警告，能读取 cmd 时一同记录；
 后续弹幕继续接收。包头无效、解压失败和协议版本不支持仍直接报错退出。重连等待期间 Ctrl+C 也会立即结束。
+
+连接、重连前和连接期间，距上次检查满 24 小时才检查是否需要刷新登录凭据；
+只在 B站 返回 `refresh=true` 时刷新。新凭据保存后才确认作废旧凭据，确认失败只记警告。
+已发出的刷新请求不随直播间连接结束而取消，连接等它保存完再重连。
+检查或刷新遇到临时网络错误时保留原检查时间，连接照常，连接期间 30 秒后再试；
+`cookie/info` 返回错误码、刷新页面结构变化等其他失败记一条警告，24 小时后再查，连接照常，
+凭据是否有效仍由每次连接前的 nav 判断。B站 拒绝刷新请求时删除仍匹配旧 refresh_token 的凭据，
+结束当前连接，转入重新登录。连接期间凭据被另一个进程删除（如 `logout`）时停止检查，当前连接照常，
+下次重连时要求扫码。刷新结果不会覆盖另一个进程刚保存的凭据，也不会把已经退出的登录写回来。
 
 `login` 先打开数据库、获取 buvid3，再在 stderr 显示字符画二维码，用 B站 App 扫码并确认。
 每两秒轮询一次，过期后自动打印新二维码，成功保存凭据后提示“已登录”。网络错误（连不上、
@@ -46,8 +56,9 @@ Ctrl+C 取消则保留本地凭据。
 数据目录遵循 [ADR 0002](docs/adr/0002-portable-data-directory.md)：Release 用程序目录下的 `data/`；
 Debug 从程序目录向上寻找 `Aether.slnx`，用其所在目录下的 `data/`，找不到则退回程序目录。
 与启动命令所在目录无关。SQLite 文件是 `data/aether.db`，使用 WAL；`PRAGMA user_version`
-记录表结构版本，当前为 1。后续升级使用手写 SQL，并与版本号在同一事务中提交。
-`credential` 表只存一行，保存完整 cookie 名值 JSON、refresh_token 和 UTC 保存时间。
+记录表结构版本，当前为 2。升级使用手写 SQL，并与版本号在同一事务中提交。
+`credential` 表只存一行，保存完整 cookie 名值 JSON、refresh_token、UTC 保存时间和检查时间 `checked_at`。
+v1 升级后保留原凭据，检查时间为空，下次连接立即检查；扫码或刷新保存时检查时间等于保存时间。
 凭据暂存明文，`data/` 已被 Git 忽略；连接开启 `secure_delete`，删除或覆盖的凭据不会残留在文件里。
 macOS 上数据库文件（含 `-wal` / `-shm`）权限为 0600，只有当前用户可读写；Windows 依赖目录继承的 ACL。
 `login` / `logout` / `watch` 都会打开数据库。CLI 与 GUI 放在同一发布目录时共用这些数据。
@@ -114,4 +125,5 @@ dotnet test --project tests/Aether.Core.Tests --filter-class Aether.Core.Tests.P
 [弹幕流](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/message_stream.md)、
 [直播间信息](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/info.md)、
 [扫码登录](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/login/login_action/QR.md)、
+[刷新登录凭据](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/login/cookie_refresh.md)、
 [wbi 签名](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/misc/sign/wbi.md)。

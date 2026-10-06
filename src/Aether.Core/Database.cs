@@ -20,7 +20,7 @@ internal sealed class Database
         command.Transaction = transaction;
         command.CommandText = "PRAGMA user_version";
         var version = (long)command.ExecuteScalar()!;
-        if (version > 1) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
+        if (version > 2) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
         if (version == 0)
         {
             // Schema upgrades are handwritten and committed with user_version in the same transaction.
@@ -29,10 +29,16 @@ internal sealed class Database
                     id INTEGER PRIMARY KEY CHECK (id = 1),
                     cookies TEXT NOT NULL,
                     refresh_token TEXT NOT NULL,
-                    saved_at TEXT NOT NULL
+                    saved_at TEXT NOT NULL,
+                    checked_at TEXT
                 );
-                PRAGMA user_version = 1;
+                PRAGMA user_version = 2;
                 """;
+            command.ExecuteNonQuery();
+        }
+        if (version == 1)
+        {
+            command.CommandText = "ALTER TABLE credential ADD COLUMN checked_at TEXT; PRAGMA user_version = 2;";
             command.ExecuteNonQuery();
         }
         transaction.Commit();

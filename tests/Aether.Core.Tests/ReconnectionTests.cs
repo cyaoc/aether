@@ -159,7 +159,7 @@ public sealed class ReconnectionTests
         {
             connection.Open();
             using var command = connection.CreateCommand();
-            command.CommandText = "PRAGMA user_version = 2";
+            command.CommandText = "PRAGMA user_version = 3";
             command.ExecuteNonQuery();
         }
         using var client = new AetherClient(h.Http, h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
@@ -209,7 +209,7 @@ public sealed class ReconnectionTests
     [InlineData(-101, false)]
     [InlineData(0, false)]
     [InlineData(-101, true)]
-    public async Task Reconnect_refreshes_wbi_key_and_token_without_requiring_expired_or_deleted_credentials_to_login(
+    public async Task Reconnect_requires_login_when_credentials_expire_or_are_deleted(
         int code, bool loggedOut)
     {
         await using var first = new FakeDanmakuServer();
@@ -221,6 +221,7 @@ public sealed class ReconnectionTests
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
+        var validNav = h.Http.Responses["https://api.bilibili.com/x/web-interface/nav"];
         h.Http.Responses["https://api.bilibili.com/x/web-interface/nav"] = $$$$"""
             {"code":{{{{code}}}},"data":{"isLogin":false,"wbi_img":{
                 "img_url":"https://example.test/00000000000000000000000000000000.png",
@@ -233,18 +234,20 @@ public sealed class ReconnectionTests
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
         await h.AdvanceRetryAsync(updates, 1);
+        Assert.IsType<WatchQrCode>(updates.Current);
+        Assert.Null(second.ConnectedUri);
+        h.Http.Responses["https://api.bilibili.com/x/web-interface/nav"] = validNav
+            .Replace("7cd084941338484aae1ad9425b84077c", "00000000000000000000000000000000")
+            .Replace("4932caff0ff746eab6f01bf08b70ac45", "00000000000000000000000000000000");
+        Assert.True(await h.AdvancePollAsync(updates));
         Assert.IsType<Connected>(updates.Current);
         using var auth = System.Text.Json.JsonDocument.Parse((await second.NextRequestAsync()).AsMemory(16));
-        Assert.Equal(0, auth.RootElement.GetProperty("uid").GetInt64());
-        Assert.Equal("saved-buvid", auth.RootElement.GetProperty("buvid").GetString());
-        Assert.Contains(h.Logger.Entries, e => e.Message.Contains("以匿名身份重连"));
+        Assert.Equal(9876543210, auth.RootElement.GetProperty("uid").GetInt64());
+        Assert.Equal(7734200, auth.RootElement.GetProperty("roomid").GetInt64());
         Assert.Equal("fresh-token", auth.RootElement.GetProperty("key").GetString());
         Assert.Equal(new Uri("wss://fresh.example/sub"), second.ConnectedUri);
-        Assert.Equal(2, h.Http.Requests.Count(r => r.Uri.AbsolutePath.EndsWith("/nav")));
-        Assert.Equal(2, h.Http.Requests.Count(r => r.Uri.AbsolutePath.EndsWith("getDanmuInfo")));
-        Assert.Equal("?id=7734200&type=0&web_location=444.8&wts=1702204170&w_rid=817b38e14f2980306b2c3c29404ddcde",
+        Assert.Equal("?id=7734200&type=0&web_location=444.8&wts=1702204172&w_rid=5660475c010ecde13174639524a1f287",
             h.Http.Requests.Last(r => r.Uri.AbsolutePath.EndsWith("getDanmuInfo")).Uri.Query);
-        Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("/qrcode/generate"));
     }
 
     [Theory]
