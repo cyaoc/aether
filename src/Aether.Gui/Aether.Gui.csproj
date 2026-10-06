@@ -11,5 +11,6 @@
     <PackageReference Include="CommunityToolkit.Mvvm" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="QRCoder" />
+    <PackageReference Include="YamlDotNet" />
   </ItemGroup>
 </Project>

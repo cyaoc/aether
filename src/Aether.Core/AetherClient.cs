@@ -289,7 +289,7 @@ public sealed class AetherClient(
     }
 
     /// <summary>ADR 0002: Release uses the executable's directory; Debug prefers the directory holding Aether.slnx.</summary>
-    private static string LocateDataDirectory()
+    public static string LocateDataDirectory()
     {
         var root = AppContext.BaseDirectory;
 #if DEBUG
