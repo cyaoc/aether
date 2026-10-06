@@ -226,6 +226,18 @@ public sealed class LoginTests : IDisposable
         Assert.Equal(1L, command.ExecuteScalar());
     }
 
+    [Fact]
+    public async Task Failed_database_open_is_retried_by_the_next_operation_on_the_same_client()
+    {
+        using (var setup = CreateClient()) await setup.LogoutAsync(TestContext.Current.CancellationToken);
+        SetUserVersion(2);
+        using var client = CreateClient();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.LogoutAsync(TestContext.Current.CancellationToken));
+        SetUserVersion(1);
+        await client.LogoutAsync(TestContext.Current.CancellationToken);
+        AssertNoCredential();
+    }
+
     [Fact, System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
     public async Task Database_files_are_readable_only_by_their_owner()
     {
@@ -233,9 +245,10 @@ public sealed class LoginTests : IDisposable
         using var client = CreateClient();
         await client.LogoutAsync(TestContext.Current.CancellationToken);
         var database = Path.Combine(dataDirectory, "aether.db");
-        // A database left world-readable (e.g. by an older build) is tightened on the next open.
+        // A database left world-readable (e.g. by an older build) is tightened on a client's first use.
         File.SetUnixFileMode(database, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
-        await client.LogoutAsync(TestContext.Current.CancellationToken);
+        using var nextClient = CreateClient();
+        await nextClient.LogoutAsync(TestContext.Current.CancellationToken);
         using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM credential";
@@ -412,6 +425,14 @@ public sealed class LoginTests : IDisposable
         await using var updates = client.LoginAsync(TestContext.Current.CancellationToken).GetAsyncEnumerator(TestContext.Current.CancellationToken);
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
         Assert.DoesNotContain(http.Requests, r => r.Uri.AbsoluteUri == Generate);
+    }
+
+    private void SetUserVersion(int version)
+    {
+        using var connection = TestDatabase.Open(dataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA user_version = {version}";
+        command.ExecuteNonQuery();
     }
 
     private void AssertNoCredential()
