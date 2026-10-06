@@ -1,7 +1,7 @@
 using Aether.Core.Tests.Support;
 using System.Net;
 using System.Text.Json;
-using Microsoft.Data.Sqlite;
+using static Aether.Core.Tests.Support.FakeBilibiliHttp;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 
@@ -18,43 +18,12 @@ public sealed class LoginTests : IDisposable
     private const string Spi = "https://api.bilibili.com/x/frontend/finger/spi";
     private const string Exit = "https://passport.bilibili.com/login/exit/v2";
 
-    private void SuccessfulLogin(string sessdata)
-    {
-        http.Respond = (request, _) => Task.FromResult(request.RequestUri!.GetLeftPart(UriPartial.Path) switch
-        {
-            Generate => Json("""{"code":0,"data":{"url":"https://example.test/scan","qrcode_key":"test-key"}}"""),
-            Poll => Json("""{"code":0,"data":{"code":0,"refresh_token":"refresh-token"}}""",
-                $"SESSDATA={sessdata}; Path=/; Domain=.bilibili.com; HttpOnly; Secure",
-                "bili_jct=csrf; Path=/; Domain=.bilibili.com",
-                "DedeUserID=123; Path=/; Domain=.bilibili.com",
-                "DedeUserID__ckMd5=checksum; Path=/; Domain=.bilibili.com",
-                "sid=extra-cookie; Path=/; Domain=.bilibili.com"),
-            Spi => Json("""{"code":0,"data":{"b_3":"device-buvid"}}"""),
-            Exit => Json("""{"code":0,"status":true,"ts":1702204169,"data":{"redirectUrl":"https://www.bilibili.com/"}}"""),
-            _ => throw new InvalidOperationException("Unexpected login request.")
-        });
-    }
-
-    private static HttpResponseMessage Json(string body, params string[] cookies)
-    {
-        var response = new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };
-        if (cookies.Length > 0) response.Headers.Add("Set-Cookie", cookies);
-        return response;
-    }
+    private void SuccessfulLogin(string sessdata) => http.ConfigureLogin(sessdata, "csrf", "device-buvid",
+        "DedeUserID__ckMd5=checksum; Path=/; Domain=.bilibili.com");
 
     private AetherClient CreateClient() => new(http,
         (_, _) => throw new InvalidOperationException("Login must not connect a WebSocket."),
         time, logger, dataDirectory);
-
-    private SqliteConnection OpenDatabase()
-    {
-        var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        {
-            DataSource = Path.Combine(dataDirectory, "aether.db"), Pooling = false
-        }.ToString());
-        connection.Open();
-        return connection;
-    }
 
     [Fact]
     public async Task First_credential_operation_creates_version_one_database_in_wal_mode()
@@ -63,7 +32,7 @@ public sealed class LoginTests : IDisposable
         Assert.False(Directory.Exists(dataDirectory));
         await client.LogoutAsync(TestContext.Current.CancellationToken);
         Assert.True(File.Exists(Path.Combine(dataDirectory, "aether.db")));
-        using var connection = OpenDatabase();
+        using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
         Assert.Equal(1L, command.ExecuteScalar());
@@ -85,7 +54,7 @@ public sealed class LoginTests : IDisposable
         time.Advance(TimeSpan.FromSeconds(2));
         Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         Assert.IsType<LoggedIn>(updates.Current);
-        using var connection = OpenDatabase();
+        using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT cookies, refresh_token, saved_at FROM credential";
         using var reader = command.ExecuteReader();
@@ -155,7 +124,7 @@ public sealed class LoginTests : IDisposable
                 "buvid3=new-buvid; Path=/; Domain=.bilibili.com"))
             : success(request, token);
         await CompleteLoginAsync(client);
-        using var connection = OpenDatabase();
+        using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT cookies, refresh_token, saved_at FROM credential";
         using var reader = command.ExecuteReader();
@@ -251,7 +220,7 @@ public sealed class LoginTests : IDisposable
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => logout.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         Assert.DoesNotContain(logger.Entries, e => e.Level == LogLevel.Warning);
-        using var connection = OpenDatabase();
+        using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM credential";
         Assert.Equal(1L, command.ExecuteScalar());
@@ -267,7 +236,7 @@ public sealed class LoginTests : IDisposable
         // A database left world-readable (e.g. by an older build) is tightened on the next open.
         File.SetUnixFileMode(database, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
         await client.LogoutAsync(TestContext.Current.CancellationToken);
-        using var connection = OpenDatabase();
+        using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM credential";
         command.ExecuteScalar();
@@ -381,7 +350,7 @@ public sealed class LoginTests : IDisposable
         Assert.True(await updates.MoveNextAsync());
         var error = await Record.ExceptionAsync(async () => await AdvancePollAsync(updates));
         Assert.IsType(expected, error);
-        using var connection = OpenDatabase();
+        using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT cookies FROM credential";
         var cookies = JsonSerializer.Deserialize<Dictionary<string, string>>((string)command.ExecuteScalar()!)!;
@@ -425,7 +394,7 @@ public sealed class LoginTests : IDisposable
             Assert.True(await AdvancePollAsync(updates));
         }
         Assert.IsType<LoggedIn>(updates.Current);
-        using var connection = OpenDatabase();
+        using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM credential";
         Assert.Equal(1L, command.ExecuteScalar());
@@ -447,7 +416,7 @@ public sealed class LoginTests : IDisposable
 
     private void AssertNoCredential()
     {
-        using var connection = OpenDatabase();
+        using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM credential";
         Assert.Equal(0L, command.ExecuteScalar());

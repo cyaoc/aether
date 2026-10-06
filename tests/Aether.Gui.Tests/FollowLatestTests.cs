@@ -1,6 +1,7 @@
 using Aether.Gui.Tests.Support;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -9,7 +10,7 @@ namespace Aether.Gui.Tests;
 
 public sealed class FollowLatestTests : IDisposable
 {
-    private readonly GuiHarness h = new();
+    private readonly GuiHarness harness = new();
 
     private static void Flush()
     {
@@ -23,7 +24,7 @@ public sealed class FollowLatestTests : IDisposable
 
     private (MainWindow Window, MainWindowViewModel ViewModel) ShowWindow()
     {
-        var viewModel = h.CreateViewModel();
+        var viewModel = harness.CreateViewModel();
         var window = new MainWindow { DataContext = viewModel };
         window.Show();
         Flush();
@@ -33,8 +34,15 @@ public sealed class FollowLatestTests : IDisposable
     private static ScrollViewer Viewer(MainWindow window) =>
         window.DanmakuList.GetVisualDescendants().OfType<ScrollViewer>().First();
 
-    private static bool AtBottom(ScrollViewer viewer) =>
-        viewer.Offset.Y >= viewer.Extent.Height - viewer.Viewport.Height - 1;
+    private static bool LatestDanmakuIsVisible(MainWindow window)
+    {
+        var list = window.DanmakuList;
+        var latest = list.ContainerFromIndex(list.ItemCount - 1);
+        if (latest is null) return false;
+        var viewport = Viewer(window).GetVisualDescendants().OfType<ScrollContentPresenter>().First();
+        var topLeft = latest.TranslatePoint(default, viewport)!.Value;
+        return new Rect(viewport.Bounds.Size).Contains(new Rect(topLeft, latest.Bounds.Size));
+    }
 
     private static void Wheel(MainWindow window, double deltaY)
     {
@@ -46,7 +54,7 @@ public sealed class FollowLatestTests : IDisposable
 
     private void Receive(MainWindowViewModel viewModel, int count)
     {
-        h.Receive(viewModel, count);
+        harness.Receive(viewModel, count);
         Flush();
     }
 
@@ -60,8 +68,7 @@ public sealed class FollowLatestTests : IDisposable
 
         var viewer = Viewer(window);
         Assert.True(viewer.Extent.Height > viewer.Viewport.Height);
-        Assert.True(AtBottom(viewer));
-        Assert.NotNull(window.DanmakuList.ContainerFromIndex(viewModel.Danmaku.Count - 1));
+        Assert.True(LatestDanmakuIsVisible(window));
     }, TestContext.Current.CancellationToken);
 
     [Theory]
@@ -71,19 +78,16 @@ public sealed class FollowLatestTests : IDisposable
     {
         var (window, viewModel) = ShowWindow();
         Receive(viewModel, count);
-        var viewer = Viewer(window);
-
         Wheel(window, 5);
-        Assert.False(AtBottom(viewer));
+        Assert.False(LatestDanmakuIsVisible(window));
         Receive(viewModel, 20);
-        Assert.False(AtBottom(viewer));
+        Assert.False(LatestDanmakuIsVisible(window));
 
         Wheel(window, -10_000);
-        Assert.True(AtBottom(viewer));
+        Assert.True(LatestDanmakuIsVisible(window));
         Receive(viewModel, 20);
-        Assert.True(AtBottom(viewer));
-        Assert.NotNull(window.DanmakuList.ContainerFromIndex(viewModel.Danmaku.Count - 1));
+        Assert.True(LatestDanmakuIsVisible(window));
     }, TestContext.Current.CancellationToken);
 
-    public void Dispose() => h.Dispose();
+    public void Dispose() => harness.Dispose();
 }

@@ -4,13 +4,13 @@ namespace Aether.Gui.Tests;
 
 public sealed class DanmakuRetentionTests : IDisposable
 {
-    private readonly GuiHarness h = new();
+    private readonly GuiHarness harness = new();
 
     [Fact]
     public void Checked_list_drops_the_oldest_beyond_one_thousand()
     {
-        var viewModel = h.CreateViewModel();
-        h.Receive(viewModel, 1001);
+        var viewModel = harness.CreateViewModel();
+        harness.Receive(viewModel, 1001);
         Assert.Equal(1000, viewModel.Danmaku.Count);
         Assert.Equal("1", viewModel.Danmaku[0].Content);
         Assert.Equal("1000", viewModel.Danmaku[^1].Content);
@@ -19,9 +19,9 @@ public sealed class DanmakuRetentionTests : IDisposable
     [Fact]
     public void Unchecked_list_keeps_everything_and_rechecking_keeps_only_the_latest_thousand()
     {
-        var viewModel = h.CreateViewModel();
+        var viewModel = harness.CreateViewModel();
         viewModel.KeepRecentDanmaku = false;
-        h.Receive(viewModel, 1500);
+        harness.Receive(viewModel, 1500);
         Assert.Equal(1500, viewModel.Danmaku.Count);
 
         viewModel.KeepRecentDanmaku = true;
@@ -31,5 +31,5 @@ public sealed class DanmakuRetentionTests : IDisposable
         Assert.Equal("1499", viewModel.Danmaku[^1].Content);
     }
 
-    public void Dispose() => h.Dispose();
+    public void Dispose() => harness.Dispose();
 }

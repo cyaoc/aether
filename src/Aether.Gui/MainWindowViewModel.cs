@@ -9,13 +9,16 @@ using QRCoder;
 
 namespace Aether.Gui;
 
+public enum RoomConnectionState { Disconnected, Connecting, Connected, Reconnecting }
+
 public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings) : ObservableObject
 {
     [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
     [ObservableProperty] private string roomNumber = "";
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Status))]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
-    private string status = "未连接";
+    private RoomConnectionState connectionState = RoomConnectionState.Disconnected;
 
     [ObservableProperty] private string message = "";
     [ObservableProperty]
@@ -28,7 +31,15 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     private bool isLoggingOut;
 
     private bool CanConnect => !IsLoggingOut;
-    public bool IsConnected => Status == "已连接";
+    public bool IsConnected => ConnectionState == RoomConnectionState.Connected;
+    public string Status => ConnectionState switch
+    {
+        RoomConnectionState.Disconnected => "未连接",
+        RoomConnectionState.Connecting => "连接中",
+        RoomConnectionState.Connected => "已连接",
+        RoomConnectionState.Reconnecting => "重连中",
+        _ => throw new ArgumentOutOfRangeException(nameof(ConnectionState))
+    };
     public bool HasQrCode => QrCode is not null;
     [ObservableProperty] private ObservableCollection<Danmaku> danmaku = [];
 
@@ -56,7 +67,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
             Message = "请输入有效的房间号（正整数）。";
             return;
         }
-        Status = "连接中";
+        ConnectionState = RoomConnectionState.Connecting;
         Message = "";
         Danmaku.Clear();
         try
@@ -74,13 +85,13 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception error)
         {
-            logger.LogError(error, "观看直播间失败");
+            logger.LogError(error, "直播间连接失败");
             Message = $"连接失败：{error.Message}";
         }
         finally
         {
             ClearQrCode();
-            Status = "未连接";
+            ConnectionState = RoomConnectionState.Disconnected;
         }
     }
 
@@ -100,14 +111,14 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                 break;
             case Connecting:
                 ClearQrCode();
-                Status = "连接中";
+                ConnectionState = RoomConnectionState.Connecting;
                 break;
             case Connected:
                 ClearQrCode();
-                Status = "已连接";
+                ConnectionState = RoomConnectionState.Connected;
                 break;
             case Reconnecting:
-                Status = "重连中";
+                ConnectionState = RoomConnectionState.Reconnecting;
                 break;
             case Danmaku danmaku:
                 Danmaku.Add(danmaku);

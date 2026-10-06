@@ -6,9 +6,10 @@ namespace Aether.Gui.Tests.Support;
 internal sealed class GuiHarness : IDisposable
 {
     private readonly AetherClient client;
+    private readonly RejectHttpRequests http = new();
     private int received;
 
-    public GuiHarness() => client = new AetherClient(new HttpClientHandler(),
+    public GuiHarness() => client = new AetherClient(http,
         (_, _) => throw new InvalidOperationException("GUI tests must not connect a WebSocket."),
         TimeProvider.System, NullLogger<AetherClient>.Instance, DataDirectory);
 
@@ -30,5 +31,17 @@ internal sealed class GuiHarness : IDisposable
     {
         client.Dispose();
         if (Directory.Exists(DataDirectory)) Directory.Delete(DataDirectory, recursive: true);
+        Assert.False(http.WasRequested, "GUI tests must not send HTTP requests, even if the view model catches the error.");
+    }
+
+    private sealed class RejectHttpRequests : HttpMessageHandler
+    {
+        public bool WasRequested { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            WasRequested = true;
+            throw new InvalidOperationException($"GUI tests must not send HTTP requests: {request.RequestUri}");
+        }
     }
 }

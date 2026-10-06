@@ -58,6 +58,7 @@ internal sealed class BilibiliApi(HttpClient http, TimeProvider timeProvider)
         var data = info.RootElement.GetProperty("data");
         if (!data.TryGetProperty("host_list", out var hosts) || hosts.GetArrayLength() == 0)
             throw new InvalidOperationException("B站未返回弹幕服务器，可能触发了风控。");
+        // ponytail: Only the first server is tried; if it stays unavailable, add failover across host_list.
         var host = hosts[0];
         var uri = new UriBuilder("wss", host.GetProperty("host").GetString()!, host.GetProperty("wss_port").GetInt32(), "/sub").Uri;
         return (realRoomId, buvid, data.GetProperty("token").GetString()!, uri);

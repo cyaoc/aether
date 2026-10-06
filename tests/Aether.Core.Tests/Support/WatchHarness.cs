@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Core.Tests.Support;
@@ -20,31 +19,9 @@ internal sealed class WatchHarness : IAsyncDisposable
     {
         Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
             """{"code":0,"data":{"room_id":7734200}}""";
-        Http.Responses["https://api.bilibili.com/x/frontend/finger/spi"] =
-            """{"code":0,"data":{"b_3":"saved-buvid"}}""";
+        Http.ConfigureLogin();
         Http.Responses["https://api.bilibili.com/x/web-interface/nav"] =
             """{"code":0,"data":{"isLogin":true,"mid":9876543210,"wbi_img":{"img_url":"https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png","sub_url":"https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png"}}}""";
-        Http.Responses["https://passport.bilibili.com/x/passport-login/web/qrcode/generate"] =
-            """{"code":0,"data":{"url":"https://example.test/scan","qrcode_key":"test-key"}}""";
-        Http.Responses["https://passport.bilibili.com/x/passport-login/web/qrcode/poll"] =
-            """{"code":0,"data":{"code":0,"refresh_token":"refresh-token"}}""";
-        Http.Responses["https://passport.bilibili.com/login/exit/v2"] = """{"code":0}""";
-        Http.Respond = (request, _) =>
-        {
-            var path = request.RequestUri!.GetLeftPart(UriPartial.Path);
-            var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK)
-                { Content = new StringContent(Http.Responses.TryGetValue(path, out var body)
-                    ? body : throw new InvalidOperationException($"Unexpected HTTP request: {request.RequestUri}")) };
-            if (path.EndsWith("/qrcode/poll", StringComparison.Ordinal))
-                response.Headers.Add("Set-Cookie", new[]
-                {
-                    "SESSDATA=saved-session; Path=/; Domain=.bilibili.com",
-                    "bili_jct=saved-csrf; Path=/; Domain=.bilibili.com",
-                    "DedeUserID=123; Path=/; Domain=.bilibili.com",
-                    "sid=extra-cookie; Path=/; Domain=.bilibili.com"
-                });
-            return Task.FromResult(response);
-        };
         Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
             """{"code":0,"data":{"token":"room-token","host_list":[{"host":"danmaku.example","wss_port":443}]}}""";
         Client = new AetherClient(Http, connectWebSocket ?? Server.ConnectAsync, Time, Logger, DataDirectory);
@@ -91,11 +68,7 @@ internal sealed class WatchHarness : IAsyncDisposable
 
     public (Dictionary<string, string> Cookies, string RefreshToken, DateTimeOffset SavedAt) SavedCredential()
     {
-        using var connection = new SqliteConnection(new SqliteConnectionStringBuilder
-        {
-            DataSource = Path.Combine(DataDirectory, "aether.db"), Pooling = false
-        }.ToString());
-        connection.Open();
+        using var connection = TestDatabase.Open(DataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT cookies, refresh_token, saved_at FROM credential";
         using var reader = command.ExecuteReader();
