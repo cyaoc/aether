@@ -44,13 +44,16 @@
             IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
       <TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
     </Border>
+    <CheckBox DockPanel.Dock="Bottom" Margin="0,8,0,0" Content="{x:Static local:MainWindowViewModel.KeepRecentDanmakuLabel}"
+              IsChecked="{Binding KeepRecentDanmaku, Mode=TwoWay}" />
     <Border CornerRadius="8" BorderThickness="1" ClipToBounds="True"
             BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
       <Panel>
         <Panel IsVisible="{Binding !HasQrCode}">
           <TextBlock Classes="muted" Text="连接后，弹幕会显示在这里" IsVisible="{Binding !Danmaku.Count}"
                      HorizontalAlignment="Center" VerticalAlignment="Center" />
-          <ListBox ItemsSource="{Binding Danmaku}" Background="Transparent" IsVisible="{Binding !!Danmaku.Count}"
+          <ListBox x:Name="DanmakuList" ItemsSource="{Binding Danmaku}" Background="Transparent" IsVisible="{Binding !!Danmaku.Count}"
+                   AutoScrollToSelectedItem="False"
                    AutomationProperties.Name="弹幕列表" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.Styles>
               <Style Selector="ListBoxItem">

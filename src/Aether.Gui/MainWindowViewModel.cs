@@ -9,8 +9,9 @@ using QRCoder;
 
 namespace Aether.Gui;
 
-public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger) : ObservableObject
+public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings) : ObservableObject
 {
+    [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
     [ObservableProperty] private string roomNumber = "";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
@@ -29,7 +30,23 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     private bool CanConnect => !IsLoggingOut;
     public bool IsConnected => Status == "已连接";
     public bool HasQrCode => QrCode is not null;
-    public ObservableCollection<Danmaku> Danmaku { get; } = [];
+    [ObservableProperty] private ObservableCollection<Danmaku> danmaku = [];
+
+    private const int RecentDanmakuLimit = 1000;
+    public static string KeepRecentDanmakuLabel { get; } = $"只保留最近 {RecentDanmakuLimit} 条";
+
+    partial void OnKeepRecentDanmakuChanged(bool value)
+    {
+        // One Reset instead of a RemoveAt(0) event per dropped item after hours unchecked.
+        if (value && Danmaku.Count > RecentDanmakuLimit) Danmaku = new(Danmaku.TakeLast(RecentDanmakuLimit));
+        settings.KeepRecentDanmaku = value;
+        try { settings.Save(); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            logger.LogError(error, "保存 GUI 设置失败");
+            Message = $"保存设置失败：{error.Message}";
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(CanConnect), IncludeCancelCommand = true)]
     private async Task ConnectAsync(CancellationToken cancellationToken)
@@ -67,7 +84,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         }
     }
 
-    private void Apply(WatchUpdate update)
+    internal void Apply(WatchUpdate update)
     {
         switch (update)
         {
@@ -94,6 +111,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                 break;
             case Danmaku danmaku:
                 Danmaku.Add(danmaku);
+                if (KeepRecentDanmaku && Danmaku.Count > RecentDanmakuLimit) Danmaku.RemoveAt(0);
                 break;
         }
     }

@@ -24,6 +24,8 @@ public sealed class AetherClient(
         : this(new HttpClientHandler { UseCookies = false }, ConnectWebSocketAsync, timeProvider, logger,
             LocateDataDirectory()) { }
 
+    public string DataDirectory => dataDirectory;
+
     public IAsyncEnumerable<LoginUpdate> LoginAsync(CancellationToken cancellationToken = default) =>
         EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
 

@@ -21,6 +21,8 @@ public partial class App : Application
             builder.Logging.AddDebug();
             builder.Services.AddSingleton(TimeProvider.System);
             builder.Services.AddSingleton<AetherClient>();
+            builder.Services.AddSingleton(services => GuiSettings.Load(
+                services.GetRequiredService<AetherClient>().DataDirectory, services.GetRequiredService<ILogger<GuiSettings>>()));
             builder.Services.AddSingleton<MainWindowViewModel>();
             var host = builder.Build();
             desktop.MainWindow = new MainWindow { DataContext = host.Services.GetRequiredService<MainWindowViewModel>() };
