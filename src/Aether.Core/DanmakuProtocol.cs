@@ -1,5 +1,7 @@
 using System.Buffers.Binary;
 using System.IO.Compression;
+using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
 
@@ -7,7 +9,81 @@ internal static class DanmakuProtocol
 {
     public const int MaxPacketSize = 8 * 1024 * 1024;
 
-    public static IEnumerable<(int Operation, ReadOnlyMemory<byte> Body)> Unpack(byte[] bytes, int depth = 0)
+    private enum Operation
+    {
+        Heartbeat = 2,
+        RoomMessage = 5,
+        Authentication = 7,
+        AuthenticationReply = 8
+    }
+
+    internal abstract record DecodedEvent;
+    internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
+    internal sealed record DanmakuReceived(Danmaku Danmaku) : DecodedEvent;
+    internal sealed record IgnoredEvent : DecodedEvent;
+
+    private static readonly IgnoredEvent Ignored = new();
+
+    public static byte[] CreateAuthentication(long mid, long roomId, string token, string buvid) =>
+        Pack(Operation.Authentication, JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            uid = mid, roomid = roomId, protover = 3, platform = "web", type = 2,
+            key = token, buvid
+        }));
+
+    public static byte[] CreateHeartbeat() => Pack(Operation.Heartbeat, []);
+
+    public static IEnumerable<DecodedEvent> Decode(
+        byte[] bytes, DateTimeOffset receivedAt, bool authenticated, ILogger logger)
+    {
+        foreach (var packet in Unpack(bytes))
+        {
+            if (packet.Operation == Operation.AuthenticationReply)
+            {
+                using var auth = JsonDocument.Parse(packet.Body);
+                var success = auth.RootElement.GetProperty("code").GetInt32() == 0;
+                // Authentication and room messages can share one (possibly compressed) frame.
+                if (success) authenticated = true;
+                yield return new AuthenticationReply(success);
+            }
+            else if (packet.Operation == Operation.RoomMessage && authenticated)
+            {
+                yield return ParseRoomMessage(packet.Body, receivedAt, logger) is { } danmaku
+                    ? new DanmakuReceived(danmaku)
+                    : Ignored;
+            }
+            else yield return Ignored;
+        }
+    }
+
+    private static Danmaku? ParseRoomMessage(ReadOnlyMemory<byte> body, DateTimeOffset receivedAt, ILogger logger)
+    {
+        string? command = null;
+        try
+        {
+            using var message = JsonDocument.Parse(body);
+            var root = message.RootElement;
+            command = root.GetProperty("cmd").GetString() ?? throw new JsonException("缺少 cmd。");
+            if (command == "DANMU_MSG" || command.StartsWith("DANMU_MSG:", StringComparison.Ordinal))
+            {
+                var info = root.GetProperty("info");
+                var nickname = info[2][1].GetString() ?? throw new JsonException("缺少弹幕昵称。");
+                var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
+                return new Danmaku(receivedAt, nickname, content);
+            }
+        }
+        // Only JSON parsing and field access are inside this boundary; frame errors still end the stream.
+        catch (Exception error) when (error is JsonException or KeyNotFoundException
+            or InvalidOperationException or IndexOutOfRangeException)
+        {
+            logger.LogWarning("跳过无法解析的直播间消息（cmd: {Command}）：{Error}", command, error.Message);
+            return null;
+        }
+        logger.LogDebug("忽略直播间事件 {Command}", command);
+        return null;
+    }
+
+    private static IEnumerable<(Operation Operation, ReadOnlyMemory<byte> Body)> Unpack(byte[] bytes, int depth = 0)
     {
         if (depth > 4) throw new InvalidDataException("弹幕压缩包嵌套过深。");
         for (var offset = 0; offset < bytes.Length;)
@@ -17,7 +93,7 @@ internal static class DanmakuProtocol
             var headerLength = BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(offset + 4));
             if (headerLength < 16 || length < headerLength || length > bytes.Length - offset)
                 throw new InvalidDataException("弹幕包长度无效。");
-            var operation = BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(offset + 8));
+            var operation = (Operation)BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(offset + 8));
             var version = BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(offset + 6));
             var body = bytes.AsMemory(offset + headerLength, length - headerLength);
             if (version is 2 or 3)
@@ -43,13 +119,13 @@ internal static class DanmakuProtocol
         }
     }
 
-    public static byte[] Pack(int operation, byte[] body)
+    private static byte[] Pack(Operation operation, byte[] body)
     {
         var packet = new byte[16 + body.Length];
         BinaryPrimitives.WriteInt32BigEndian(packet, packet.Length);
         BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(4), 16);
         BinaryPrimitives.WriteUInt16BigEndian(packet.AsSpan(6), 1);
-        BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(8), operation);
+        BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(8), (int)operation);
         BinaryPrimitives.WriteInt32BigEndian(packet.AsSpan(12), 1);
         body.CopyTo(packet, 16);
         return packet;
