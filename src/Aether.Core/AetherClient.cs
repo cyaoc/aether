@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
@@ -167,14 +166,10 @@ public sealed class AetherClient(
         yield return new Connecting();
         var connection = await api.GetConnectionAsync(roomId, mixinKey, cancellationToken);
         using var socket = await connectWebSocket(connection.Server, cancellationToken);
-        var authentication = JsonSerializer.SerializeToUtf8Bytes(new
-        {
-            uid = mid, roomid = connection.RoomId, protover = 3, platform = "web", type = 2,
-            key = connection.Token, buvid = connection.Buvid
-        });
+        var authentication = DanmakuProtocol.CreateAuthentication(mid, connection.RoomId, connection.Token, connection.Buvid);
         using var idleTimeout = new CancellationTokenSource(IdleTimeout, timeProvider);
         using var connectionStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, idleTimeout.Token);
-        await socket.SendAsync(DanmakuProtocol.Pack(7, authentication), WebSocketMessageType.Binary, true, connectionStop.Token);
+        await socket.SendAsync(authentication, WebSocketMessageType.Binary, true, connectionStop.Token);
         Task heartbeat = Task.CompletedTask;
         try
         {
@@ -183,12 +178,11 @@ public sealed class AetherClient(
             {
                 var bytes = await ReceiveMessageAsync(socket, idleTimeout, connectionStop.Token);
                 var receivedAt = timeProvider.GetLocalNow();
-                foreach (var packet in DanmakuProtocol.Unpack(bytes))
+                foreach (var decoded in DanmakuProtocol.Decode(bytes, receivedAt, connected, logger))
                 {
-                    if (packet.Operation == 8)
+                    if (decoded is DanmakuProtocol.AuthenticationReply auth)
                     {
-                        using var auth = JsonDocument.Parse(packet.Body);
-                        if (auth.RootElement.GetProperty("code").GetInt32() != 0)
+                        if (!auth.Success)
                             throw new InvalidOperationException("弹幕服务器认证失败。");
                         if (!connected)
                         {
@@ -197,11 +191,8 @@ public sealed class AetherClient(
                             yield return new Connected();
                         }
                     }
-                    else if (packet.Operation == 5 && connected)
-                    {
-                        if (ParseRoomMessage(packet.Body, receivedAt) is { } danmaku)
-                            yield return danmaku;
-                    }
+                    else if (decoded is DanmakuProtocol.DanmakuReceived danmaku)
+                        yield return danmaku.Danmaku;
                 }
             }
         }
@@ -220,33 +211,6 @@ public sealed class AetherClient(
                 }
             }
         }
-    }
-
-    private Danmaku? ParseRoomMessage(ReadOnlyMemory<byte> body, DateTimeOffset receivedAt)
-    {
-        string? command = null;
-        try
-        {
-            using var message = JsonDocument.Parse(body);
-            var root = message.RootElement;
-            command = root.GetProperty("cmd").GetString() ?? throw new JsonException("缺少 cmd。");
-            if (command == "DANMU_MSG" || command.StartsWith("DANMU_MSG:", StringComparison.Ordinal))
-            {
-                var info = root.GetProperty("info");
-                var nickname = info[2][1].GetString() ?? throw new JsonException("缺少弹幕昵称。");
-                var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
-                return new Danmaku(receivedAt, nickname, content);
-            }
-        }
-        // Only JSON parsing and field access are inside this boundary; frame errors still end the stream.
-        catch (Exception error) when (error is JsonException or KeyNotFoundException
-            or InvalidOperationException or IndexOutOfRangeException)
-        {
-            logger.LogWarning("跳过无法解析的直播间消息（cmd: {Command}）：{Error}", command, error.Message);
-            return null;
-        }
-        logger.LogDebug("忽略直播间事件 {Command}", command);
-        return null;
     }
 
     /// <summary>Asks nav whether the credential still logs in; mid 0 means there is none or B站 rejected it.
@@ -268,7 +232,7 @@ public sealed class AetherClient(
         try
         {
             while (await timer.WaitForNextTickAsync(stop.Token))
-                await socket.SendAsync(DanmakuProtocol.Pack(2, []), WebSocketMessageType.Binary, true, stop.Token);
+                await socket.SendAsync(DanmakuProtocol.CreateHeartbeat(), WebSocketMessageType.Binary, true, stop.Token);
         }
         catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
         catch
