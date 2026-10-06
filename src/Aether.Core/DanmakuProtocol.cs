@@ -20,9 +20,6 @@ internal static class DanmakuProtocol
     internal abstract record DecodedEvent;
     internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
     internal sealed record DanmakuReceived(Danmaku Danmaku) : DecodedEvent;
-    internal sealed record IgnoredEvent : DecodedEvent;
-
-    private static readonly IgnoredEvent Ignored = new();
 
     public static byte[] CreateAuthentication(long mid, long roomId, string token, string buvid) =>
         Pack(Operation.Authentication, JsonSerializer.SerializeToUtf8Bytes(new
@@ -46,13 +43,9 @@ internal static class DanmakuProtocol
                 if (success) authenticated = true;
                 yield return new AuthenticationReply(success);
             }
-            else if (packet.Operation == Operation.RoomMessage && authenticated)
-            {
-                yield return ParseRoomMessage(packet.Body, receivedAt, logger) is { } danmaku
-                    ? new DanmakuReceived(danmaku)
-                    : Ignored;
-            }
-            else yield return Ignored;
+            else if (packet.Operation == Operation.RoomMessage && authenticated
+                && ParseRoomMessage(packet.Body, receivedAt, logger) is { } danmaku)
+                yield return new DanmakuReceived(danmaku);
         }
     }
 

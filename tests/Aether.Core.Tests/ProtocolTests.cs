@@ -22,7 +22,7 @@ public sealed class ProtocolTests
     [InlineData("""{"cmd":"DANMU_MSG","info":[[],"内容",[0,123]]}""", "DANMU_MSG")]
     [InlineData("""{"cmd":"DANMU_MSG","info":[[],null,[0,"观众"]]}""", "DANMU_MSG")]
     [InlineData("""{"cmd":"DANMU_MSG:4:0:2:2:2:0","info":[[],{},[0,"观众"]]}""", "DANMU_MSG:4:0:2:2:2:0")]
-    public async Task Malformed_room_message_is_warned_and_skipped_while_watch_continues(string body, string? command)
+    public async Task Malformed_room_message_is_warned_and_skipped_while_room_connection_continues(string body, string? command)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();

@@ -14,7 +14,9 @@ public sealed class AetherClient(
     string dataDirectory) : IDisposable
 {
     private readonly HttpClient http = new(httpHandler);
-    private readonly Lazy<CredentialStore> credentialStore = new(() => new CredentialStore(new Database(dataDirectory)));
+    // PublicationOnly does not cache a failed open, so a transient database error does not poison a long-lived client.
+    private readonly Lazy<CredentialStore> credentialStore = new(
+        () => new CredentialStore(new Database(dataDirectory)), LazyThreadSafetyMode.PublicationOnly);
 
     // No data at all for this long, not even a heartbeat reply, means the room connection is dead.
     private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(60);
