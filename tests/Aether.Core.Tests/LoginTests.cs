@@ -233,9 +233,10 @@ public sealed class LoginTests : IDisposable
         using var client = CreateClient();
         await client.LogoutAsync(TestContext.Current.CancellationToken);
         var database = Path.Combine(dataDirectory, "aether.db");
-        // A database left world-readable (e.g. by an older build) is tightened on the next open.
+        // A database left world-readable (e.g. by an older build) is tightened on a client's first use.
         File.SetUnixFileMode(database, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
-        await client.LogoutAsync(TestContext.Current.CancellationToken);
+        using var nextClient = CreateClient();
+        await nextClient.LogoutAsync(TestContext.Current.CancellationToken);
         using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT COUNT(*) FROM credential";

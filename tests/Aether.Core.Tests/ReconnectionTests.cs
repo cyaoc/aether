@@ -162,7 +162,8 @@ public sealed class ReconnectionTests
             command.CommandText = "PRAGMA user_version = 2";
             command.ExecuteNonQuery();
         }
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        using var client = new AetherClient(h.Http, h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
+        await using var updates = client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
         Assert.Contains("数据库版本", error.Message);
         Assert.Empty(h.Http.Requests);

@@ -14,6 +14,7 @@ public sealed class AetherClient(
     string dataDirectory) : IDisposable
 {
     private readonly HttpClient http = new(httpHandler);
+    private readonly Lazy<CredentialStore> credentialStore = new(() => new CredentialStore(new Database(dataDirectory)));
 
     // No data at all for this long, not even a heartbeat reply, means the room connection is dead.
     private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(60);
@@ -27,15 +28,16 @@ public sealed class AetherClient(
         EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
 
     /// <summary>Signs out on B站 when possible; the local credential is deleted either way unless the caller cancels.</summary>
+    /// <remarks>Disconnect any room connection before signing out, and do not start a new one until sign-out completes.
+    /// CLI and GUI may share the data directory across processes; this ordering is the caller's responsibility.</remarks>
     public async Task LogoutAsync(CancellationToken cancellationToken = default)
     {
-        var credentials = new CredentialStore(new Database(dataDirectory));
+        var credentials = credentialStore.Value;
         try
         {
             if (credentials.Load() is { } credential)
             {
-                var api = new BilibiliApi(http, timeProvider);
-                api.AddCookies(credential.Cookies);
+                var api = new BilibiliApi(http, timeProvider, credential);
                 await api.LogoutAsync(cancellationToken);
             }
         }
@@ -49,7 +51,7 @@ public sealed class AetherClient(
     public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(roomId);
-        return EndOnCancellation(WatchCoreAsync(roomId, cancellationToken), cancellationToken);
+        return EndOnCancellation(WatchWithReconnectAsync(roomId, cancellationToken), cancellationToken);
     }
 
     /// <summary>Ends the stream normally, instead of throwing, once the caller cancels.</summary>
@@ -72,9 +74,8 @@ public sealed class AetherClient(
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // Everything that can fail on its own runs before the first QR code, so no scan is wasted.
-        var credentials = new CredentialStore(new Database(dataDirectory));
-        var api = new BilibiliApi(http, timeProvider);
-        await RetryAsync(() => api.GetBuvidAsync(cancellationToken), cancellationToken);
+        var credentials = credentialStore.Value;
+        var api = new BilibiliApi(http, timeProvider, credential: null);
         while (true)
         {
             var qr = await RetryAsync(() => api.GenerateQrCodeAsync(cancellationToken), cancellationToken);
@@ -82,11 +83,11 @@ public sealed class AetherClient(
             while (true)
             {
                 await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, cancellationToken);
-                var (state, refreshToken) = await RetryAsync(() => api.PollQrCodeAsync(qr.Key, cancellationToken), cancellationToken);
+                var (state, credential) = await RetryAsync(() => api.PollQrCodeAsync(qr.Key, cancellationToken), cancellationToken);
                 if (state == QrCodeState.Waiting) continue;
                 if (state == QrCodeState.Expired) break;
                 cancellationToken.ThrowIfCancellationRequested();
-                credentials.Save(new Credential(api.GetCookies(), refreshToken!, timeProvider.GetUtcNow()));
+                credentials.Save(credential!);
                 yield return new LoggedIn();
                 yield break;
             }
@@ -114,17 +115,17 @@ public sealed class AetherClient(
         }
     }
 
-    private async IAsyncEnumerable<WatchUpdate> WatchCoreAsync(
+    private async IAsyncEnumerable<WatchUpdate> WatchWithReconnectAsync(
         long roomId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var reconnecting = false;
         // Past the first credential check, a credential that expired or was deleted reconnects
         // anonymously instead of asking for a QR scan in the middle of the room connection.
-        var allowAnonymous = false;
+        var needsInitialLogin = true;
         var retrySeconds = 1;
         while (true)
         {
-            await using (var updates = WatchAttemptAsync(roomId, allowAnonymous, cancellationToken).GetAsyncEnumerator(cancellationToken))
+            await using (var updates = WatchAttemptAsync().GetAsyncEnumerator(cancellationToken))
             {
                 while (true)
                 {
@@ -136,7 +137,6 @@ public sealed class AetherClient(
                         break;
                     }
                     if (!hasNext) yield break;
-                    if (updates.Current is Connecting) allowAnonymous = true;
                     if (reconnecting && updates.Current is Connecting) continue;
                     if (updates.Current is Connected) retrySeconds = 1;
                     yield return updates.Current;
@@ -147,26 +147,37 @@ public sealed class AetherClient(
             await Task.Delay(TimeSpan.FromSeconds(retrySeconds), timeProvider, cancellationToken);
             retrySeconds = Math.Min(retrySeconds * 2, 30);
         }
+
+        async IAsyncEnumerable<WatchUpdate> WatchAttemptAsync()
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var credentials = credentialStore.Value;
+            var api = new BilibiliApi(http, timeProvider, credentials.Load());
+            if (!await api.IsLoggedInAsync(cancellationToken))
+            {
+                if (needsInitialLogin)
+                {
+                    await foreach (var update in LoginCoreAsync(cancellationToken))
+                        if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
+                    api = new BilibiliApi(http, timeProvider, credentials.Load());
+                    if (!await api.IsLoggedInAsync(cancellationToken))
+                        throw new InvalidOperationException("扫码后登录凭据未生效，请重新扫码登录。");
+                }
+                else logger.LogWarning("登录凭据已失效，以匿名身份重连，观众昵称可能被打码。");
+            }
+            needsInitialLogin = false;
+            yield return new Connecting();
+            await foreach (var update in ReceiveRoomUpdatesAsync(roomId, api, cancellationToken))
+                yield return update;
+        }
     }
 
-    private async IAsyncEnumerable<WatchUpdate> WatchAttemptAsync(
-        long roomId, bool allowAnonymous, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private async IAsyncEnumerable<WatchUpdate> ReceiveRoomUpdatesAsync(
+        long roomId, BilibiliApi api, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-        var credentials = new CredentialStore(new Database(dataDirectory));
-        var (api, mid, mixinKey) = await CheckCredentialAsync(credentials.Load(), cancellationToken, allowAnonymous);
-        if (mid == 0 && allowAnonymous) logger.LogWarning("登录凭据已失效，以匿名身份重连，观众昵称可能被打码。");
-        else if (mid == 0)
-        {
-            await foreach (var update in LoginCoreAsync(cancellationToken))
-                if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
-            (api, mid, mixinKey) = await CheckCredentialAsync(credentials.Load(), cancellationToken);
-            if (mid == 0) throw new InvalidOperationException("扫码后登录凭据未生效，请重新扫码登录。");
-        }
-        yield return new Connecting();
-        var connection = await api.GetConnectionAsync(roomId, mixinKey, cancellationToken);
+        var connection = await api.GetConnectionAsync(roomId, cancellationToken);
         using var socket = await connectWebSocket(connection.Server, cancellationToken);
-        var authentication = DanmakuProtocol.CreateAuthentication(mid, connection.RoomId, connection.Token, connection.Buvid);
+        var authentication = DanmakuProtocol.CreateAuthentication(connection.Mid, connection.RoomId, connection.Token, connection.Buvid);
         using var idleTimeout = new CancellationTokenSource(IdleTimeout, timeProvider);
         using var connectionStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, idleTimeout.Token);
         await socket.SendAsync(authentication, WebSocketMessageType.Binary, true, connectionStop.Token);
@@ -211,19 +222,6 @@ public sealed class AetherClient(
                 }
             }
         }
-    }
-
-    /// <summary>Asks nav whether the credential still logs in; mid 0 means there is none or B站 rejected it.
-    /// With <paramref name="allowAnonymous"/>, mid 0 still comes with a wbi key and buvid3 for an anonymous connection.</summary>
-    private async Task<(BilibiliApi Api, long Mid, string MixinKey)> CheckCredentialAsync(
-        Credential? credential, CancellationToken cancellationToken, bool allowAnonymous = false)
-    {
-        var api = new BilibiliApi(http, timeProvider);
-        if (credential is not null) api.AddCookies(credential.Cookies);
-        else if (allowAnonymous) await api.GetBuvidAsync(cancellationToken);
-        else return (api, 0, "");
-        var (mid, mixinKey) = await api.GetNavigationAsync(cancellationToken, allowAnonymous);
-        return (api, mid, mixinKey);
     }
 
     private async Task SendHeartbeatsAsync(WebSocket socket, CancellationTokenSource stop)
