@@ -7,5 +7,5 @@ bot 要能连接任意直播间，以后还要以账号身份发弹幕。直播�
 ## Consequences
 
 - 协议随时可能被 B站改掉。2025 年就新增过 wbi 签名（5 月）和 buvid3（6 月）的要求，以后改了要跟着修。
-- 社区文档 bilibili-API-collect 收到 B站律师函后，于 2026-01 关闭。当时的内容有存档快照 pskdje/bilibili-API-collect，只读，可以作为起点；之后协议的变化，只能靠读开源实现、自己抓包来跟进。
+- 协议资料先查 pskdje/bilibili-API-collect 的 master 分支（README 链接的就是它）。它是原仓库 SocialSisterYi/bilibili-API-collect 收到 B站律师函、于 2026-01 关闭前的存档，只读，内容停在 2026-01-25；之后的协议变化，靠读开源实现、自己抓包来跟进。
 - 发弹幕有风控：发得太快会被禁言（错误码 10031），所以需要发送队列控制节奏。
