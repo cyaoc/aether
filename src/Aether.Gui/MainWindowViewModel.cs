@@ -12,30 +12,23 @@ namespace Aether.Gui;
 public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger) : ObservableObject
 {
     [ObservableProperty] private string roomNumber = "";
-    [ObservableProperty] private string status = "未连接";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsConnected))]
+    private string status = "未连接";
+
     [ObservableProperty] private string message = "";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasQrCode))]
     private Bitmap? qrCode;
 
+    // A room connection started mid-logout would load the credential that logout is deleting.
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanConnect))]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
-    private bool isWatching;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanConnect))]
-    [NotifyCanExecuteChangedFor(nameof(ConnectCommand), nameof(LogoutCommand))]
     private bool isLoggingOut;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanConnect))]
-    [NotifyCanExecuteChangedFor(nameof(ConnectCommand), nameof(LogoutCommand))]
-    private bool isClosing;
-
-    public bool CanConnect => !IsWatching && !IsLoggingOut && !IsClosing;
+    private bool CanConnect => !IsLoggingOut;
+    public bool IsConnected => Status == "已连接";
     public bool HasQrCode => QrCode is not null;
-    private bool CanLogout => !IsLoggingOut && !IsClosing;
     public ObservableCollection<Danmaku> Danmaku { get; } = [];
 
     [RelayCommand(CanExecute = nameof(CanConnect), IncludeCancelCommand = true)]
@@ -46,7 +39,6 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
             Message = "请输入有效的房间号（正整数）。";
             return;
         }
-        IsWatching = true;
         Status = "连接中";
         Message = "";
         Danmaku.Clear();
@@ -72,7 +64,6 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         {
             ClearQrCode();
             Status = "未连接";
-            IsWatching = false;
         }
     }
 
@@ -107,7 +98,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         }
     }
 
-    [RelayCommand(CanExecute = nameof(CanLogout))]
+    [RelayCommand]
     private async Task LogoutAsync(CancellationToken cancellationToken)
     {
         IsLoggingOut = true;
@@ -135,7 +126,6 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
 
     public async Task ShutdownAsync()
     {
-        IsClosing = true;
         LogoutCommand.Cancel();
         await StopWatchingAsync();
         if (LogoutCommand.ExecutionTask is { } task) await task;

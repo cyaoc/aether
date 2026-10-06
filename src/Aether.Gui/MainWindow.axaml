@@ -5,52 +5,84 @@
         x:Class="Aether.Gui.MainWindow"
         x:DataType="local:MainWindowViewModel"
         Title="Aether" Width="800" Height="600" MinWidth="560" MinHeight="480">
-  <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="12">
-    <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="12">
-      <TextBlock Text="房间号" VerticalAlignment="Center" />
-      <TextBox Grid.Column="1" Text="{Binding RoomNumber}" PlaceholderText="输入直播间短号或真实房间号"
-               IsEnabled="{Binding CanConnect}" AutomationProperties.Name="房间号" />
-      <Button Grid.Column="2" Content="连接" Command="{Binding ConnectCommand}" IsVisible="{Binding !IsWatching}" />
-      <Button Grid.Column="2" Content="断开" Command="{Binding ConnectCancelCommand}" IsVisible="{Binding IsWatching}" />
-      <Button Grid.Column="3" Content="退出登录" Command="{Binding LogoutCommand}" />
+  <Window.Styles>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+    </Style>
+    <Style Selector="Ellipse.status">
+      <Setter Property="Fill" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+    </Style>
+    <Style Selector="Ellipse.status.watching">
+      <Setter Property="Fill" Value="#F59E0B" />
+    </Style>
+    <Style Selector="Ellipse.status.connected">
+      <Setter Property="Fill" Value="#22C55E" />
+    </Style>
+  </Window.Styles>
+  <!-- DockPanel, not Grid spacing: the hidden message bar must not leave a gap. -->
+  <DockPanel Margin="16">
+    <Grid DockPanel.Dock="Top" Margin="0,0,0,12" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+      <TextBox Text="{Binding RoomNumber}" PlaceholderText="房间号（短号或真实房间号），回车连接"
+               IsEnabled="{Binding !ConnectCommand.IsRunning}" AutomationProperties.Name="房间号" />
+      <Button Grid.Column="1" Classes="accent" Content="连接" MinWidth="80" HorizontalContentAlignment="Center" IsDefault="True"
+              Command="{Binding ConnectCommand}" IsVisible="{Binding !ConnectCommand.IsRunning}" />
+      <Button Grid.Column="1" Content="断开" MinWidth="80" HorizontalContentAlignment="Center"
+              Command="{Binding ConnectCancelCommand}" IsVisible="{Binding ConnectCommand.IsRunning}" />
+      <Button Grid.Column="2" Content="退出登录" Background="Transparent" Command="{Binding LogoutCommand}" />
     </Grid>
-    <TextBlock Grid.Row="1" Text="{Binding Status}" AutomationProperties.LiveSetting="Polite" />
-    <TextBlock Grid.Row="2" Text="{Binding Message}" TextWrapping="Wrap"
-               AutomationProperties.LiveSetting="Polite" />
-    <Grid Grid.Row="3">
-      <Grid RowDefinitions="Auto,*" IsVisible="{Binding !HasQrCode}">
-        <Grid ColumnDefinitions="90,160,*" Margin="12,0,12,8" ColumnSpacing="12">
-          <TextBlock Text="时间" />
-          <TextBlock Grid.Column="1" Text="昵称" />
-          <TextBlock Grid.Column="2" Text="内容" />
-        </Grid>
-        <ListBox Grid.Row="1" ItemsSource="{Binding Danmaku}"
-                 AutomationProperties.Name="弹幕列表" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-          <ListBox.Styles>
-            <Style Selector="ListBoxItem">
-              <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            </Style>
-          </ListBox.Styles>
-          <ListBox.ItemsPanel>
-            <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
-          </ListBox.ItemsPanel>
-          <ListBox.ItemTemplate>
-            <DataTemplate x:DataType="core:Danmaku">
-              <Grid ColumnDefinitions="90,160,*" ColumnSpacing="12" Margin="0,4">
-                <TextBlock Text="{Binding ReceivedAt, StringFormat={}{0:HH:mm:ss}}" />
-                <TextBlock Grid.Column="1" Text="{Binding Nickname}" TextWrapping="Wrap" />
-                <TextBlock Grid.Column="2" Text="{Binding Content}" TextWrapping="Wrap" />
-              </Grid>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
-      </Grid>
-      <StackPanel IsVisible="{Binding HasQrCode}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
-        <Image Source="{Binding QrCode}" Width="240" Height="240" Stretch="Uniform"
-               RenderOptions.BitmapInterpolationMode="None" AutomationProperties.Name="B站登录二维码" />
-        <TextBlock Text="请用 B站 App 扫码并确认登录" HorizontalAlignment="Center" />
-        <TextBlock Text="过期后自动换码，点“断开”取消" HorizontalAlignment="Center" />
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+      <TextBlock DockPanel.Dock="Right" Classes="muted" IsVisible="{Binding !!Danmaku.Count}"
+                 Text="{Binding Danmaku.Count, StringFormat={}{0} 条弹幕}" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Ellipse Classes="status" Width="8" Height="8" VerticalAlignment="Center"
+                 Classes.watching="{Binding ConnectCommand.IsRunning}" Classes.connected="{Binding IsConnected}" />
+        <TextBlock Text="{Binding Status}" AutomationProperties.LiveSetting="Polite" />
       </StackPanel>
-    </Grid>
-  </Grid>
+    </DockPanel>
+    <Border DockPanel.Dock="Top" Margin="0,0,0,12" Padding="12,8" CornerRadius="6"
+            Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+            IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+      <TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+    </Border>
+    <Border CornerRadius="8" BorderThickness="1" ClipToBounds="True"
+            BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+      <Panel>
+        <Panel IsVisible="{Binding !HasQrCode}">
+          <TextBlock Classes="muted" Text="连接后，弹幕会显示在这里" IsVisible="{Binding !Danmaku.Count}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center" />
+          <ListBox ItemsSource="{Binding Danmaku}" Background="Transparent" IsVisible="{Binding !!Danmaku.Count}"
+                   AutomationProperties.Name="弹幕列表" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="Padding" Value="12,6" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+              </Style>
+            </ListBox.Styles>
+            <ListBox.ItemsPanel>
+              <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="core:Danmaku">
+                <Grid ColumnDefinitions="64,140,*" ColumnSpacing="12">
+                  <TextBlock Classes="muted" Text="{Binding ReceivedAt, StringFormat={}{0:HH:mm:ss}}" />
+                  <TextBlock Grid.Column="1" Text="{Binding Nickname}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                             ToolTip.Tip="{Binding Nickname}" />
+                  <TextBlock Grid.Column="2" Text="{Binding Content}" TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Panel>
+        <StackPanel IsVisible="{Binding HasQrCode}" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="8">
+          <!-- Scanners want dark modules on light, so the code stays white in dark mode too. -->
+          <Border Background="White" CornerRadius="12" Padding="8" Margin="0,0,0,8" HorizontalAlignment="Center">
+            <Image Source="{Binding QrCode}" Width="240" Height="240" Stretch="Uniform"
+                   RenderOptions.BitmapInterpolationMode="None" AutomationProperties.Name="B站登录二维码" />
+          </Border>
+          <TextBlock Text="用 B站 App 扫码并确认登录" FontWeight="SemiBold" HorizontalAlignment="Center" />
+          <TextBlock Classes="muted" Text="过期后自动换码，点“断开”取消" HorizontalAlignment="Center" />
+        </StackPanel>
+      </Panel>
+    </Border>
+  </DockPanel>
 </Window>
