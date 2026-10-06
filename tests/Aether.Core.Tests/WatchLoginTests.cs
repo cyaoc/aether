@@ -185,8 +185,8 @@ public sealed class WatchLoginTests
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<WatchQrCode>(updates.Current);
-        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => h.AdvancePollAsync(updates));
-        Assert.Contains("登录凭据未生效", error.Message);
+        Assert.True(await h.AdvancePollAsync(updates));
+        Assert.IsType<WatchQrCode>(updates.Current);
         Assert.Null(h.Server.ConnectedUri);
         Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("room_init"));
     }

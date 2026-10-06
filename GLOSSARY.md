@@ -12,6 +12,10 @@ _Avoid_: bot 账户、登录用户
 扫码登录后得到的 cookie，代表账号的身份，会持久保存。
 _Avoid_: 会话、session、登录态
 
+**刷新登录凭据 (Credential Refresh)**:
+B站 要求时，用 refresh_token 换一组新 cookie 和新 refresh_token，旧的随即作废。每天最多检查一次是否需要刷新。
+_Avoid_: 续期
+
 **直播间连接 (Room Connection)**:
 和一个直播间之间的弹幕连接。从用户选定直播间、开始观看起，到用户主动断开或换直播间为止；中途断线又自动重连成功，仍算同一个直播间连接。
 _Avoid_: 会话、session、"一次观看"（"观看直播间"只指开始直播间连接这个动作，不是另一个概念）

@@ -3,6 +3,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Aether.Core;
 
@@ -103,7 +104,63 @@ internal sealed class BilibiliApi
         foreach (var name in new[] { "SESSDATA", "bili_jct", "DedeUserID", "buvid3" })
             if (!received.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))
                 throw new InvalidDataException($"登录响应缺少 {name} cookie。");
-        return (QrCodeState.Confirmed, new Credential(received, refreshToken, timeProvider.GetUtcNow()));
+        var now = timeProvider.GetUtcNow();
+        return (QrCodeState.Confirmed, new Credential(received, refreshToken, now, now));
+    }
+
+    public async Task<long?> CheckCredentialAsync(CancellationToken cancellationToken)
+    {
+        var (_, data) = await SendAsync(new HttpRequestMessage(HttpMethod.Get,
+            $"https://passport.bilibili.com/x/passport-login/web/cookie/info?csrf={Uri.EscapeDataString(credential!.Cookies["bili_jct"])}"),
+            LoginReferer, "检查登录凭据刷新", cancellationToken, credentialRefresh: true);
+        return data.GetProperty("refresh").GetBoolean() ? data.GetProperty("timestamp").GetInt64() : null;
+    }
+
+    public async Task<Credential> RefreshCredentialAsync(long timestamp, CancellationToken cancellationToken)
+    {
+        // Protocol key: bilibili-API-collect/docs/login/cookie_refresh.md (archived master).
+        using var rsa = RSA.Create();
+        rsa.ImportFromPem("""
+            -----BEGIN PUBLIC KEY-----
+            MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDLgd2OAkcGVtoE3ThUREbio0Eg
+            Uc/prcajMKXvkCKFCWhJYJcLkcM2DKKcSeFpD/j6Boy538YXnR6VhcuUJOhH2x71
+            nzPjfdTcqMz7djHum0qSZA0AyCBDABUqCrfNgCiJ00Ra7GmRj+YCK1NJEuewlb40
+            JNrRuoEUXpabUzGB8QIDAQAB
+            -----END PUBLIC KEY-----
+            """);
+        var path = Convert.ToHexStringLower(rsa.Encrypt(
+            Encoding.UTF8.GetBytes(FormattableString.Invariant($"refresh_{timestamp}")), RSAEncryptionPadding.OaepSHA256));
+        var html = await SendTextAsync(new HttpRequestMessage(HttpMethod.Get,
+            $"https://www.bilibili.com/correspond/1/{path}"), LoginReferer, cancellationToken);
+        var match = Regex.Match(html, """<div\b[^>]*\sid\s*=\s*["']1-name["'][^>]*>([^<]+)</div\s*>""",
+            RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
+        var refreshCsrf = WebUtility.HtmlDecode(match.Groups[1].Value).Trim();
+        if (refreshCsrf.Length == 0) throw new InvalidDataException("刷新页面缺少 refresh_csrf。");
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://passport.bilibili.com/x/passport-login/web/cookie/refresh")
+        {
+            Content = new FormUrlEncodedContent([
+                new("csrf", credential!.Cookies["bili_jct"]), new("refresh_csrf", refreshCsrf),
+                new("source", "main_web"), new("refresh_token", credential.RefreshToken)])
+        };
+        var (_, data) = await SendAsync(request, LoginReferer, "刷新登录凭据", cancellationToken, credentialRefresh: true);
+        var token = data.GetProperty("refresh_token").GetString();
+        if (string.IsNullOrWhiteSpace(token)) throw new InvalidDataException("刷新响应缺少 refresh_token。");
+        var received = GetCookies();
+        foreach (var name in new[] { "SESSDATA", "bili_jct", "DedeUserID", "buvid3" })
+            if (!received.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))
+                throw new InvalidDataException($"刷新响应缺少 {name} cookie。");
+        var now = timeProvider.GetUtcNow();
+        return new Credential(received, token, now, now);
+    }
+
+    public async Task ConfirmCredentialRefreshAsync(string previousToken, CancellationToken cancellationToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://passport.bilibili.com/x/passport-login/web/confirm/refresh")
+        {
+            Content = new FormUrlEncodedContent([
+                new("csrf", credential!.Cookies["bili_jct"]), new("refresh_token", previousToken)])
+        };
+        await SendAsync(request, LoginReferer, "确认登录凭据刷新", cancellationToken);
     }
 
     /// <summary>Invalidates the supplied credential on B站; an anonymous identity has nothing to sign out.</summary>
@@ -129,7 +186,17 @@ internal sealed class BilibiliApi
         SendAsync(new HttpRequestMessage(HttpMethod.Get, url), referer, operation, cancellationToken, acceptedCode);
 
     private async Task<(int Code, JsonElement Data)> SendAsync(HttpRequestMessage request, string referer, string operation,
-        CancellationToken cancellationToken, int? acceptedCode = null)
+        CancellationToken cancellationToken, int? acceptedCode = null, bool credentialRefresh = false)
+    {
+        using var document = JsonDocument.Parse(await SendTextAsync(request, referer, cancellationToken));
+        var root = document.RootElement;
+        if (credentialRefresh && root.GetProperty("code").GetInt32() != 0)
+            throw new CredentialRejectedException($"{operation}被拒绝（{root.GetProperty("code").GetInt32()}）。");
+        var code = CheckCode(root, operation, acceptedCode);
+        return (code, root.TryGetProperty("data", out var data) ? data.Clone() : default);
+    }
+
+    private async Task<string> SendTextAsync(HttpRequestMessage request, string referer, CancellationToken cancellationToken)
     {
         using var owned = request;
         request.Headers.UserAgent.ParseAdd("Mozilla/5.0");
@@ -140,10 +207,7 @@ internal sealed class BilibiliApi
         response.EnsureSuccessStatusCode();
         if (response.Headers.TryGetValues("Set-Cookie", out var values))
             foreach (var value in values) cookies.SetCookies(request.RequestUri!, value);
-        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
-        var root = document.RootElement;
-        var code = CheckCode(root, operation, acceptedCode);
-        return (code, root.TryGetProperty("data", out var data) ? data.Clone() : default);
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     private static int CheckCode(JsonElement root, string operation, int? acceptedCode = null)
@@ -154,3 +218,5 @@ internal sealed class BilibiliApi
         return code;
     }
 }
+
+internal sealed class CredentialRejectedException(string message) : Exception(message);

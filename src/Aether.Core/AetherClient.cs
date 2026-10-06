@@ -23,7 +23,8 @@ public sealed class AetherClient(
 
     // BilibiliApi keeps cookies per flow so a fresh login cannot inherit another flow's credential.
     public AetherClient(ILogger<AetherClient> logger, string dataDirectory)
-        : this(new HttpClientHandler { UseCookies = false }, ConnectWebSocketAsync, TimeProvider.System, logger,
+        : this(new HttpClientHandler { UseCookies = false, AutomaticDecompression = DecompressionMethods.All },
+            ConnectWebSocketAsync, TimeProvider.System, logger,
             dataDirectory) { }
 
     public IAsyncEnumerable<LoginUpdate> LoginAsync(CancellationToken cancellationToken = default) =>
@@ -73,7 +74,8 @@ public sealed class AetherClient(
     }
 
     private async IAsyncEnumerable<LoginUpdate> LoginCoreAsync(
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+        [EnumeratorCancellation] CancellationToken cancellationToken, bool acceptExternalCredential = false,
+        string? previousToken = null)
     {
         // Everything that can fail on its own runs before the first QR code, so no scan is wasted.
         var credentials = credentialStore.Value;
@@ -85,7 +87,19 @@ public sealed class AetherClient(
             while (true)
             {
                 await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, cancellationToken);
-                var (state, credential) = await RetryAsync(() => api.PollQrCodeAsync(qr.Key, cancellationToken), cancellationToken);
+                if (acceptExternalCredential && credentials.Load() is { } external && external.RefreshToken != previousToken)
+                {
+                    yield return new LoggedIn(); // The watch flow validates it with nav; do not save over another process.
+                    yield break;
+                }
+                QrCodeState state;
+                Credential? credential;
+                try { (state, credential) = await api.PollQrCodeAsync(qr.Key, cancellationToken); }
+                catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
+                {
+                    logger.LogWarning("登录请求失败，2 秒后重试：{Error}", error.Message);
+                    continue;
+                }
                 if (state == QrCodeState.Waiting) continue;
                 if (state == QrCodeState.Expired) break;
                 cancellationToken.ThrowIfCancellationRequested();
@@ -121,9 +135,6 @@ public sealed class AetherClient(
         long roomId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var reconnecting = false;
-        // Past the first credential check, a credential that expired or was deleted reconnects
-        // anonymously instead of asking for a QR scan in the middle of the room connection.
-        var needsInitialLogin = true;
         var retrySeconds = 1;
         while (true)
         {
@@ -154,24 +165,60 @@ public sealed class AetherClient(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var credentials = credentialStore.Value;
-            var api = new BilibiliApi(http, timeProvider, credentials.Load());
-            if (!await api.IsLoggedInAsync(cancellationToken))
+            var credential = await CheckCredentialAsync(cancellationToken);
+            var api = new BilibiliApi(http, timeProvider, credential);
+            while (!await api.IsLoggedInAsync(cancellationToken))
             {
-                if (needsInitialLogin)
-                {
-                    await foreach (var update in LoginCoreAsync(cancellationToken))
-                        if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
-                    api = new BilibiliApi(http, timeProvider, credentials.Load());
-                    if (!await api.IsLoggedInAsync(cancellationToken))
-                        throw new InvalidOperationException("扫码后登录凭据未生效，请重新扫码登录。");
-                }
-                else logger.LogWarning("登录凭据已失效，以匿名身份重连，观众昵称可能被打码。");
+                await foreach (var update in LoginCoreAsync(cancellationToken,
+                    acceptExternalCredential: true, previousToken: credential?.RefreshToken))
+                    if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
+                credential = credentials.Load();
+                api = new BilibiliApi(http, timeProvider, credential);
             }
-            needsInitialLogin = false;
             yield return new Connecting();
             await foreach (var update in ReceiveRoomUpdatesAsync(roomId, api, cancellationToken))
                 yield return update;
         }
+    }
+
+    private async Task<Credential?> CheckCredentialAsync(CancellationToken cancellationToken)
+    {
+        var credentials = credentialStore.Value;
+        var credential = credentials.Load();
+        if (credential is null || credential.CheckedAt is { } checkedAt
+            && timeProvider.GetUtcNow() - checkedAt < TimeSpan.FromHours(24)) return credential;
+        try
+        {
+            var api = new BilibiliApi(http, timeProvider, credential);
+            if (await api.CheckCredentialAsync(cancellationToken) is { } timestamp)
+            {
+                var refreshed = await api.RefreshCredentialAsync(timestamp, cancellationToken);
+                if (credentials.Save(refreshed, credential.RefreshToken))
+                {
+                    try
+                    {
+                        await new BilibiliApi(http, timeProvider, refreshed)
+                            .ConfirmCredentialRefreshAsync(credential.RefreshToken, cancellationToken);
+                    }
+                    catch (Exception error) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        logger.LogWarning("确认登录凭据刷新失败，保留新登录凭据：{Error}", error.Message);
+                    }
+                }
+            }
+            else
+                credentials.MarkChecked(credential.RefreshToken, timeProvider.GetUtcNow());
+        }
+        catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
+        {
+            logger.LogWarning("检查或刷新登录凭据时网络失败，下次再试：{Error}", error.Message);
+        }
+        catch (CredentialRejectedException error)
+        {
+            if (credentials.Load()?.RefreshToken == credential.RefreshToken && credentials.Delete(credential.RefreshToken))
+                logger.LogWarning("{Error} 请重新扫码登录。", error.Message);
+        }
+        return credentials.Load();
     }
 
     private async IAsyncEnumerable<WatchUpdate> ReceiveRoomUpdatesAsync(
@@ -184,6 +231,7 @@ public sealed class AetherClient(
         using var connectionStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, idleTimeout.Token);
         await socket.SendAsync(authentication, WebSocketMessageType.Binary, true, connectionStop.Token);
         Task heartbeat = Task.CompletedTask;
+        Task credentialChecks = Task.CompletedTask;
         try
         {
             var connected = false;
@@ -193,6 +241,7 @@ public sealed class AetherClient(
                 var receivedAt = timeProvider.GetLocalNow();
                 foreach (var decoded in DanmakuProtocol.Decode(bytes, receivedAt, connected, logger))
                 {
+                    connectionStop.Token.ThrowIfCancellationRequested();
                     if (decoded is DanmakuProtocol.AuthenticationReply auth)
                     {
                         if (!auth.Success)
@@ -201,6 +250,7 @@ public sealed class AetherClient(
                         {
                             connected = true;
                             heartbeat = SendHeartbeatsAsync(socket, connectionStop);
+                            credentialChecks = CheckCredentialsWhileConnectedAsync(connectionStop);
                             yield return new Connected();
                         }
                     }
@@ -212,7 +262,7 @@ public sealed class AetherClient(
         finally
         {
             await connectionStop.CancelAsync();
-            try { await heartbeat; }
+            try { await Task.WhenAll(heartbeat, credentialChecks); }
             finally
             {
                 if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
@@ -223,6 +273,32 @@ public sealed class AetherClient(
                     { logger.LogDebug(error, "关闭弹幕连接时传输已不可用"); }
                 }
             }
+        }
+    }
+
+    private async Task CheckCredentialsWhileConnectedAsync(CancellationTokenSource stop)
+    {
+        try
+        {
+            while (true)
+            {
+                var checkedAt = credentialStore.Value.Load()?.CheckedAt;
+                var delay = checkedAt + TimeSpan.FromHours(24) - timeProvider.GetUtcNow();
+                // An overdue check failed transiently; give it another opportunity without a busy loop.
+                await Task.Delay(delay is { } remaining && remaining > TimeSpan.Zero
+                    ? remaining : TimeSpan.FromSeconds(30), timeProvider, stop.Token);
+                if (await CheckCredentialAsync(stop.Token) is null)
+                {
+                    await stop.CancelAsync();
+                    return;
+                }
+            }
+        }
+        catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+        catch
+        {
+            await stop.CancelAsync();
+            throw;
         }
     }
 
