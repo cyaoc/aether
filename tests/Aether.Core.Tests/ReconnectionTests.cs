@@ -128,7 +128,7 @@ public sealed class ReconnectionTests
     [Theory]
     [InlineData(null)]
     [InlineData(HttpStatusCode.PreconditionFailed)]
-    public async Task Bilibili_refusal_on_reconnect_ends_watch_instead_of_retrying(HttpStatusCode? status)
+    public async Task Bilibili_refusal_on_reconnect_ends_room_connection_instead_of_retrying(HttpStatusCode? status)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -150,7 +150,7 @@ public sealed class ReconnectionTests
     }
 
     [Fact]
-    public async Task Local_failure_ends_watch_instead_of_reconnecting_forever()
+    public async Task Local_failure_ends_room_connection_instead_of_reconnecting_forever()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();

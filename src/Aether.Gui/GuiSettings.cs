@@ -40,6 +40,7 @@ public sealed class GuiSettings
     public void Save()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        // ponytail: A crash during this non-atomic write can lose settings; use a temp file + atomic replacement if needed.
         File.WriteAllText(path, Serializer.Serialize(this));
     }
 }

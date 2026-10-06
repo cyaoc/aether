@@ -115,7 +115,7 @@ public sealed class WatchLoginTests
     [InlineData(Nav)]
     [InlineData(Generate)]
     [InlineData(Poll)]
-    public async Task Cancellation_during_login_ends_watch_without_connecting(string endpoint)
+    public async Task Cancellation_during_login_ends_room_connection_without_connecting(string endpoint)
     {
         await using var h = new WatchHarness();
         if (endpoint == Nav) await h.LoginAsync();
@@ -145,7 +145,7 @@ public sealed class WatchLoginTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Disposing_or_cancelling_watch_at_qr_stops_polling_and_never_connects(bool cancel)
+    public async Task Disposing_or_cancelling_room_connection_at_qr_stops_polling_and_never_connects(bool cancel)
     {
         await using var h = new WatchHarness();
         await using (var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
