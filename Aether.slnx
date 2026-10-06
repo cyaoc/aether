@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/Aether.Core/Aether.Core.csproj" />
     <Project Path="src/Aether.Cli/Aether.Cli.csproj" />
+    <Project Path="src/Aether.Gui/Aether.Gui.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Aether.Core.Tests/Aether.Core.Tests.csproj" />

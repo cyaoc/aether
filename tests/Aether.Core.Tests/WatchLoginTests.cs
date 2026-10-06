@@ -11,6 +11,26 @@ public sealed class WatchLoginTests
     private const string LoggedOutNav = """{"code":-101,"data":{"isLogin":false}}""";
 
     [Fact]
+    public async Task Clients_sharing_a_data_directory_share_login_and_logout()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        using var other = new AetherClient(new FakeBilibiliHttp { Respond = h.Http.Respond },
+            h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
+        await using (var updates = other.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
+        {
+            Assert.True(await updates.MoveNextAsync());
+            Assert.IsType<Connecting>(updates.Current); // The other shell uses the saved credential, without a QR code.
+            Assert.True(await updates.MoveNextAsync());
+            Assert.IsType<Connected>(updates.Current);
+        }
+        await other.LogoutAsync(h.Stop.Token);
+        await using var loggedOut = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        Assert.True(await loggedOut.MoveNextAsync());
+        Assert.IsType<WatchQrCode>(loggedOut.Current);
+    }
+
+    [Fact]
     public async Task Missing_credential_prompts_for_qr_saves_login_and_continues_connecting()
     {
         await using var h = new WatchHarness();
