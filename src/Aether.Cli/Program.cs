@@ -67,8 +67,9 @@ static async Task<int> RunAsync(Func<AetherClient, Task> action, CancellationTok
         builder.Logging.ClearProviders();
         builder.Logging.AddSimpleConsole(options => options.SingleLine = true);
         builder.Services.Configure<ConsoleLoggerOptions>(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
-        builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.AddSingleton<AetherClient>();
+        var dataDirectory = DataDirectory.Locate();
+        builder.Services.AddSingleton(services => new AetherClient(
+            services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
         using var host = builder.Build();
         await action(host.Services.GetRequiredService<AetherClient>());
         return 0;

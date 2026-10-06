@@ -58,6 +58,10 @@ Core 的业务入口都在 `AetherClient`：`LoginAsync` 返回 `LoginQrCode`、
 `FakeTimeProvider` 和独立临时数据目录，使用真实 SQLite，不访问 B站。真实捕获测试帧的来源与脱敏方式见
 [Fixtures/README.md](tests/Aether.Core.Tests/Fixtures/README.md)。
 
+CLI 和 GUI 启动时各调用一次 `DataDirectory.Locate()`，把路径传给 `AetherClient`，GUI 同时把它传给
+`GuiSettings.Load`。生产环境统一使用 `AetherClient(logger, dataDirectory)` 构造函数组装 HTTP、WebSocket
+和系统时间；测试继续使用可注入这些依赖的构造函数。
+
 macOS 手动验收：运行 `login` 并用手机扫码，确认提示“已登录”；
 下面的查询只输出凭据行数与保存时间，不输出 cookie 或 token：
 

@@ -20,11 +20,9 @@ public sealed class AetherClient(
     private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(60);
 
     // BilibiliApi keeps cookies per flow so a fresh login cannot inherit another flow's credential.
-    public AetherClient(TimeProvider timeProvider, ILogger<AetherClient> logger)
-        : this(new HttpClientHandler { UseCookies = false }, ConnectWebSocketAsync, timeProvider, logger,
-            LocateDataDirectory()) { }
-
-    public string DataDirectory => dataDirectory;
+    public AetherClient(ILogger<AetherClient> logger, string dataDirectory)
+        : this(new HttpClientHandler { UseCookies = false }, ConnectWebSocketAsync, TimeProvider.System, logger,
+            dataDirectory) { }
 
     public IAsyncEnumerable<LoginUpdate> LoginAsync(CancellationToken cancellationToken = default) =>
         EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
@@ -308,21 +306,6 @@ public sealed class AetherClient(
         socket.Options.SetRequestHeader("Origin", "https://live.bilibili.com");
         try { await socket.ConnectAsync(uri, cancellationToken); return socket; }
         catch { socket.Dispose(); throw; }
-    }
-
-    /// <summary>ADR 0002: Release uses the executable's directory; Debug prefers the directory holding Aether.slnx.</summary>
-    private static string LocateDataDirectory()
-    {
-        var root = AppContext.BaseDirectory;
-#if DEBUG
-        for (var directory = new DirectoryInfo(root); directory is not null; directory = directory.Parent)
-        {
-            if (!File.Exists(Path.Combine(directory.FullName, "Aether.slnx"))) continue;
-            root = directory.FullName;
-            break;
-        }
-#endif
-        return Path.Combine(root, "data");
     }
 
     public void Dispose() => http.Dispose();

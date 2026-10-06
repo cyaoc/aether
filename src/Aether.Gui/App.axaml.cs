@@ -19,10 +19,11 @@ public partial class App : Application
             var builder = Host.CreateApplicationBuilder();
             builder.Logging.ClearProviders();
             builder.Logging.AddDebug();
-            builder.Services.AddSingleton(TimeProvider.System);
-            builder.Services.AddSingleton<AetherClient>();
+            var dataDirectory = DataDirectory.Locate();
+            builder.Services.AddSingleton(services => new AetherClient(
+                services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
             builder.Services.AddSingleton(services => GuiSettings.Load(
-                services.GetRequiredService<AetherClient>().DataDirectory, services.GetRequiredService<ILogger<GuiSettings>>()));
+                dataDirectory, services.GetRequiredService<ILogger<GuiSettings>>()));
             builder.Services.AddSingleton<MainWindowViewModel>();
             var host = builder.Build();
             desktop.MainWindow = new MainWindow { DataContext = host.Services.GetRequiredService<MainWindowViewModel>() };
