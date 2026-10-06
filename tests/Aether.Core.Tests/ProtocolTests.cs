@@ -7,9 +7,51 @@ namespace Aether.Core.Tests;
 public sealed class ProtocolTests
 {
     [Theory]
+    [InlineData("{", null)]
+    [InlineData("{}", null)]
+    [InlineData("null", null)]
+    [InlineData("[]", null)]
+    [InlineData("""{"cmd":null}""", null)]
+    [InlineData("""{"cmd":123}""", null)]
+    [InlineData("""{"cmd":"DANMU_MSG"}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":[]}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":{}}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":[[],"内容",[]]}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":[[],"内容",null]}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":[[],"内容",[0,null]]}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":[[],"内容",[0,123]]}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":[[],null,[0,"观众"]]}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG:4:0:2:2:2:0","info":[[],{},[0,"观众"]]}""", "DANMU_MSG:4:0:2:2:2:0")]
+    public async Task Malformed_room_message_is_warned_and_skipped_while_watch_continues(string body, string? command)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await updates.MoveNextAsync();
+        await updates.MoveNextAsync();
+        await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
+            Encoding.UTF8.GetBytes(body), 0));
+        await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
+            Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"正常弹幕",[0,"观众"]]}"""), 0));
+
+        Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        Assert.Equal(new Danmaku(h.Time.GetLocalNow(), "观众", "正常弹幕"), updates.Current);
+        var warning = Assert.Single(h.Logger.Entries);
+        Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, warning.Level);
+        if (command is not null) Assert.Contains(command, warning.Message);
+
+        var next = updates.MoveNextAsync().AsTask();
+        Assert.False(next.IsCompleted);
+        await h.Stop.CancelAsync();
+        Assert.False(await next.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
     [InlineData("truncated-header")]
     [InlineData("zero-length")]
     [InlineData("unsupported-version")]
+    [InlineData("invalid-zlib")]
+    [InlineData("invalid-brotli")]
     public async Task Invalid_protocol_frames_fail_without_hanging(string kind)
     {
         await using var h = new WatchHarness();
@@ -20,9 +62,13 @@ public sealed class ProtocolTests
         var frame = FakeDanmakuServer.Packet(5, [], kind == "unsupported-version" ? (ushort)4 : (ushort)0);
         if (kind == "truncated-header") frame = frame[..7];
         if (kind == "zero-length") Array.Clear(frame, 0, 4);
+        if (kind == "invalid-zlib") frame = FakeDanmakuServer.Packet(5, [255, 255, 255, 255], 2);
+        if (kind == "invalid-brotli") frame = FakeDanmakuServer.Packet(5, [255, 255, 255, 255], 3);
         await h.Server.PushAsync(frame);
-        await Assert.ThrowsAsync<InvalidDataException>(async () =>
+        var error = await Record.ExceptionAsync(async () =>
             await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        Assert.IsType(kind == "invalid-brotli" ? typeof(InvalidOperationException) : typeof(InvalidDataException), error);
+        Assert.Empty(h.Logger.Entries);
     }
 
     [Theory]
@@ -96,5 +142,39 @@ public sealed class ProtocolTests
         Assert.Equal("第一条", Assert.IsType<Danmaku>(updates.Current).Content);
         Assert.True(await updates.MoveNextAsync());
         Assert.Equal("[dog]", Assert.IsType<Danmaku>(updates.Current).Content);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task Every_bad_message_in_a_multi_packet_frame_is_warned_without_losing_later_danmaku(int version)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await updates.MoveNextAsync();
+        await updates.MoveNextAsync();
+        var packets = new[]
+        {
+            "{",
+            """{"cmd":"DANMU_MSG","info":[]}""",
+            """{"cmd":"DANMU_MSG","info":[[],"正常弹幕",[0,"观众"]]}"""
+        }.SelectMany(body => FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(body), 0)).ToArray();
+        if (version != 0)
+        {
+            using var output = new MemoryStream();
+            using (Stream compressor = version == 2
+                ? new ZLibStream(output, CompressionLevel.Optimal, true)
+                : new BrotliStream(output, CompressionLevel.Optimal, true))
+                compressor.Write(packets);
+            packets = FakeDanmakuServer.Packet(5, output.ToArray(), (ushort)version);
+        }
+        await h.Server.PushAsync(packets);
+
+        Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        Assert.Equal(new Danmaku(h.Time.GetLocalNow(), "观众", "正常弹幕"), updates.Current);
+        Assert.Equal(2, h.Logger.Entries.Count);
+        Assert.All(h.Logger.Entries, entry => Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, entry.Level));
     }
 }
