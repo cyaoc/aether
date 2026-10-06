@@ -24,6 +24,8 @@ public sealed class AetherClient(
         : this(new HttpClientHandler { UseCookies = false }, ConnectWebSocketAsync, timeProvider, logger,
             LocateDataDirectory()) { }
 
+    public string DataDirectory => dataDirectory;
+
     public IAsyncEnumerable<LoginUpdate> LoginAsync(CancellationToken cancellationToken = default) =>
         EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
 
@@ -289,7 +291,7 @@ public sealed class AetherClient(
     }
 
     /// <summary>ADR 0002: Release uses the executable's directory; Debug prefers the directory holding Aether.slnx.</summary>
-    public static string LocateDataDirectory()
+    private static string LocateDataDirectory()
     {
         var root = AppContext.BaseDirectory;
 #if DEBUG

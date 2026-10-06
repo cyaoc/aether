@@ -12,5 +12,6 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="QRCoder" />
     <PackageReference Include="YamlDotNet" />
+    <InternalsVisibleTo Include="Aether.Gui.Tests" />
   </ItemGroup>
 </Project>

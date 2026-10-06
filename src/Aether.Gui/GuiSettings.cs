@@ -1,4 +1,3 @@
-using Aether.Core;
 using Microsoft.Extensions.Logging;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
@@ -7,27 +6,40 @@ namespace Aether.Gui;
 
 public sealed class GuiSettings
 {
-    private static string FilePath => Path.Combine(AetherClient.LocateDataDirectory(), "gui.yml");
+    private static readonly IDeserializer Deserializer =
+        new DeserializerBuilder().IncludeNonPublicProperties().IgnoreUnmatchedProperties().Build();
+    private static readonly ISerializer Serializer = new SerializerBuilder().IncludeNonPublicProperties().Build();
+    private string path = "";
 
-    public bool KeepRecentDanmaku { get; set; } = true;
+    [YamlIgnore] public bool KeepRecentDanmaku { get; set; } = true;
 
-    public static GuiSettings Load(ILogger<GuiSettings> logger)
+    // A blank or `~` value keeps the default; deserializing straight into bool would turn it into false.
+    [YamlMember(Alias = nameof(KeepRecentDanmaku))]
+    private bool? KeepRecentDanmakuYaml
     {
+        get => KeepRecentDanmaku;
+        set { if (value is { } keep) KeepRecentDanmaku = keep; }
+    }
+
+    public static GuiSettings Load(string dataDirectory, ILogger<GuiSettings> logger)
+    {
+        var path = Path.Combine(dataDirectory, "gui.yml");
+        var settings = new GuiSettings();
         try
         {
-            if (!File.Exists(FilePath)) return new();
-            return new DeserializerBuilder().Build().Deserialize<GuiSettings>(File.ReadAllText(FilePath)) ?? new();
+            if (File.Exists(path)) settings = Deserializer.Deserialize<GuiSettings?>(File.ReadAllText(path)) ?? settings;
         }
         catch (Exception error) when (error is YamlException or IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(error, "读取 GUI 设置失败，使用默认值");
-            return new();
         }
+        settings.path = path;
+        return settings;
     }
 
     public void Save()
     {
-        Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-        File.WriteAllText(FilePath, new SerializerBuilder().Build().Serialize(this));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, Serializer.Serialize(this));
     }
 }

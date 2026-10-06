@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
@@ -23,7 +24,7 @@ public partial class MainWindow : Window
         DanmakuList.AddHandler(PointerWheelChangedEvent, (_, _) => PauseFollowingForInput(), RoutingStrategies.Tunnel);
         DanmakuList.AddHandler(PointerPressedEvent, (_, e) =>
         {
-            if (e.Source is Avalonia.Visual visual &&
+            if (e.Source is Visual visual &&
                 visual.GetSelfAndVisualAncestors().OfType<ScrollBar>().Any()) PauseFollowingForInput();
         }, RoutingStrategies.Tunnel);
         DanmakuList.AddHandler(KeyDownEvent, (_, e) =>
