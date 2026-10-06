@@ -98,21 +98,15 @@ internal sealed class BilibiliApi
         if (code is 86101 or 86090) return (QrCodeState.Waiting, null); // Not scanned; scanned but not confirmed.
         if (code == 86038) return (QrCodeState.Expired, null);
         CheckCode(data, "扫码登录");
-        var refreshToken = data.TryGetProperty("refresh_token", out var token) ? token.GetString() : null;
-        if (string.IsNullOrWhiteSpace(refreshToken)) throw new InvalidDataException("登录响应缺少 refresh_token。");
-        var received = GetCookies();
-        foreach (var name in new[] { "SESSDATA", "bili_jct", "DedeUserID", "buvid3" })
-            if (!received.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))
-                throw new InvalidDataException($"登录响应缺少 {name} cookie。");
-        var now = timeProvider.GetUtcNow();
-        return (QrCodeState.Confirmed, new Credential(received, refreshToken, now, now));
+        return (QrCodeState.Confirmed, IssuedCredential(data, "登录响应"));
     }
 
-    public async Task<long?> CheckCredentialAsync(CancellationToken cancellationToken)
+    /// <summary>Returns the timestamp to refresh with, or null when B站 does not ask for a refresh.</summary>
+    public async Task<long?> GetRefreshTimestampAsync(CancellationToken cancellationToken)
     {
         var (_, data) = await SendAsync(new HttpRequestMessage(HttpMethod.Get,
             $"https://passport.bilibili.com/x/passport-login/web/cookie/info?csrf={Uri.EscapeDataString(credential!.Cookies["bili_jct"])}"),
-            LoginReferer, "检查登录凭据刷新", cancellationToken, credentialRefresh: true);
+            LoginReferer, "检查登录凭据刷新", cancellationToken);
         return data.GetProperty("refresh").GetBoolean() ? data.GetProperty("timestamp").GetInt64() : null;
     }
 
@@ -143,14 +137,20 @@ internal sealed class BilibiliApi
                 new("source", "main_web"), new("refresh_token", credential.RefreshToken)])
         };
         var (_, data) = await SendAsync(request, LoginReferer, "刷新登录凭据", cancellationToken, credentialRefresh: true);
-        var token = data.GetProperty("refresh_token").GetString();
-        if (string.IsNullOrWhiteSpace(token)) throw new InvalidDataException("刷新响应缺少 refresh_token。");
+        return IssuedCredential(data, "刷新响应");
+    }
+
+    /// <summary>The credential B站 just issued: its refresh_token plus this flow's cookies, which keep any it did not resend.</summary>
+    private Credential IssuedCredential(JsonElement data, string response)
+    {
+        var refreshToken = data.TryGetProperty("refresh_token", out var token) ? token.GetString() : null;
+        if (string.IsNullOrWhiteSpace(refreshToken)) throw new InvalidDataException($"{response}缺少 refresh_token。");
         var received = GetCookies();
         foreach (var name in new[] { "SESSDATA", "bili_jct", "DedeUserID", "buvid3" })
             if (!received.TryGetValue(name, out var value) || string.IsNullOrWhiteSpace(value))
-                throw new InvalidDataException($"刷新响应缺少 {name} cookie。");
+                throw new InvalidDataException($"{response}缺少 {name} cookie。");
         var now = timeProvider.GetUtcNow();
-        return new Credential(received, token, now, now);
+        return new Credential(received, refreshToken, now, now);
     }
 
     public async Task ConfirmCredentialRefreshAsync(string previousToken, CancellationToken cancellationToken)

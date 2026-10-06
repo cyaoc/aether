@@ -20,6 +20,7 @@ public sealed class AetherClient(
 
     // No data at all for this long, not even a heartbeat reply, means the room connection is dead.
     private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan CredentialCheckInterval = TimeSpan.FromHours(24);
 
     // BilibiliApi keeps cookies per flow so a fresh login cannot inherit another flow's credential.
     public AetherClient(ILogger<AetherClient> logger, string dataDirectory)
@@ -165,7 +166,7 @@ public sealed class AetherClient(
         {
             cancellationToken.ThrowIfCancellationRequested();
             var credentials = credentialStore.Value;
-            var credential = await CheckCredentialAsync(cancellationToken);
+            var credential = await RefreshCredentialIfDueAsync(cancellationToken, cancellationToken);
             var api = new BilibiliApi(http, timeProvider, credential);
             while (!await api.IsLoggedInAsync(cancellationToken))
             {
@@ -174,6 +175,8 @@ public sealed class AetherClient(
                     if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
                 credential = credentials.Load();
                 api = new BilibiliApi(http, timeProvider, credential);
+                if (!await api.IsLoggedInAsync(cancellationToken)) // Cached, so the loop condition sends no second nav.
+                    logger.LogWarning("新的登录凭据未生效，请重新扫码登录。");
             }
             yield return new Connecting();
             await foreach (var update in ReceiveRoomUpdatesAsync(roomId, api, cancellationToken))
@@ -181,18 +184,21 @@ public sealed class AetherClient(
         }
     }
 
-    private async Task<Credential?> CheckCredentialAsync(CancellationToken cancellationToken)
+    /// <param name="refreshCancellation">Abandons a refresh B站 may already have issued, dropping the new credential unsaved;
+    /// so only the caller cancels it, never the end of a room connection.</param>
+    private async Task<Credential?> RefreshCredentialIfDueAsync(
+        CancellationToken cancellationToken, CancellationToken refreshCancellation)
     {
         var credentials = credentialStore.Value;
         var credential = credentials.Load();
         if (credential is null || credential.CheckedAt is { } checkedAt
-            && timeProvider.GetUtcNow() - checkedAt < TimeSpan.FromHours(24)) return credential;
+            && timeProvider.GetUtcNow() - checkedAt < CredentialCheckInterval) return credential;
         try
         {
             var api = new BilibiliApi(http, timeProvider, credential);
-            if (await api.CheckCredentialAsync(cancellationToken) is { } timestamp)
+            if (await api.GetRefreshTimestampAsync(cancellationToken) is { } timestamp)
             {
-                var refreshed = await api.RefreshCredentialAsync(timestamp, cancellationToken);
+                var refreshed = await api.RefreshCredentialAsync(timestamp, refreshCancellation);
                 if (credentials.Save(refreshed, credential.RefreshToken))
                 {
                     try
@@ -215,8 +221,15 @@ public sealed class AetherClient(
         }
         catch (CredentialRejectedException error)
         {
-            if (credentials.Load()?.RefreshToken == credential.RefreshToken && credentials.Delete(credential.RefreshToken))
+            if (credentials.Delete(credential.RefreshToken))
                 logger.LogWarning("{Error} 请重新扫码登录。", error.Message);
+        }
+        catch (Exception error) when (!cancellationToken.IsCancellationRequested)
+        {
+            // Refresh is upkeep, and nav still vets the credential on every connect, so an unexpected answer
+            // (an error code from cookie/info, a changed correspond page) neither deletes it nor ends the room connection.
+            logger.LogWarning("检查或刷新登录凭据失败，24 小时后再试：{Error}", error.Message);
+            credentials.MarkChecked(credential.RefreshToken, timeProvider.GetUtcNow());
         }
         return credentials.Load();
     }
@@ -250,7 +263,7 @@ public sealed class AetherClient(
                         {
                             connected = true;
                             heartbeat = SendHeartbeatsAsync(socket, connectionStop);
-                            credentialChecks = CheckCredentialsWhileConnectedAsync(connectionStop);
+                            credentialChecks = RefreshCredentialWhileConnectedAsync(connectionStop, cancellationToken);
                             yield return new Connected();
                         }
                     }
@@ -276,25 +289,29 @@ public sealed class AetherClient(
         }
     }
 
-    private async Task CheckCredentialsWhileConnectedAsync(CancellationTokenSource stop)
+    private async Task RefreshCredentialWhileConnectedAsync(CancellationTokenSource stop, CancellationToken cancellationToken)
     {
         try
         {
             while (true)
             {
                 var checkedAt = credentialStore.Value.Load()?.CheckedAt;
-                var delay = checkedAt + TimeSpan.FromHours(24) - timeProvider.GetUtcNow();
+                var delay = checkedAt + CredentialCheckInterval - timeProvider.GetUtcNow();
                 // An overdue check failed transiently; give it another opportunity without a busy loop.
                 await Task.Delay(delay is { } remaining && remaining > TimeSpan.Zero
                     ? remaining : TimeSpan.FromSeconds(30), timeProvider, stop.Token);
-                if (await CheckCredentialAsync(stop.Token) is null)
+                // Signed out elsewhere: this connection keeps going and the next reconnect asks for a scan.
+                if (credentialStore.Value.Load() is null) return;
+                // Gone after the check means B站 rejected the refresh and the credential was deleted.
+                if (await RefreshCredentialIfDueAsync(stop.Token, cancellationToken) is null)
                 {
                     await stop.CancelAsync();
                     return;
                 }
             }
         }
-        catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+        // The connection is ending anyway; checked_at is unchanged, so the reconnect checks again and meets any real error there.
+        catch when (stop.IsCancellationRequested) { }
         catch
         {
             await stop.CancelAsync();

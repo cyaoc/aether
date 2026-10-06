@@ -11,7 +11,7 @@ public sealed class CredentialRefreshTests
     private const string Nav = "https://api.bilibili.com/x/web-interface/nav";
 
     [Fact]
-    public async Task Login_saved_while_old_credential_nav_is_pending_is_adopted_during_qr_wait()
+    public async Task Credential_saved_elsewhere_while_old_credential_nav_is_pending_is_adopted_during_qr_wait()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -42,12 +42,11 @@ public sealed class CredentialRefreshTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
-        h.Http.Responses[Info] = """{"code":-101,"message":"not logged in"}""";
+        ConfigureRefresh(h, refreshCode: 86095);
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
-        var packet = FakeDanmakuServer.Packet(5, System.Text.Encoding.UTF8.GetBytes(
-            """{"cmd":"DANMU_MSG","info":[[],"hello",[123,"viewer"]]}"""), 0);
+        var packet = DanmakuPacket();
         await h.Server.PushAsync([.. packet, .. packet]);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Danmaku>(updates.Current);
@@ -108,11 +107,7 @@ public sealed class CredentialRefreshTests
         await using var h = new WatchHarness((uri, token) => (++attempts == 1 ? first : second).ConnectAsync(uri, token));
         await h.LoginAsync();
         h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
-        ConfigureRefresh(h);
-        var respond = h.Http.Respond!;
-        h.Http.Respond = (request, token) => request.RequestUri!.AbsoluteUri == Refresh
-            ? Task.FromResult(FakeBilibiliHttp.Json($$"""{"code":{{code}},"message":"rejected"}"""))
-            : respond(request, token);
+        ConfigureRefresh(h, refreshCode: code);
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
@@ -143,7 +138,7 @@ public sealed class CredentialRefreshTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Waiting_for_qr_adopts_another_login_only_after_nav_validates_it(bool valid)
+    public async Task Waiting_for_qr_adopts_another_process_credential_only_after_nav_validates_it(bool valid)
     {
         await using var h = new WatchHarness();
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
@@ -153,6 +148,7 @@ public sealed class CredentialRefreshTests
         if (!valid) h.Http.Responses[Nav] = """{"code":-101,"data":{"isLogin":false}}""";
         Assert.True(await h.AdvancePollAsync(updates));
         Assert.IsType(valid ? typeof(Connecting) : typeof(WatchQrCode), updates.Current);
+        Assert.Equal(!valid, h.Logger.Entries.Any(e => e.Message.Contains("新的登录凭据未生效")));
         Assert.Contains("SESSDATA=external-session", Assert.Single(h.Http.Requests, r => r.Uri.AbsoluteUri == Nav).Cookie);
         Assert.DoesNotContain(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Poll);
         Assert.DoesNotContain(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Info);
@@ -160,7 +156,7 @@ public sealed class CredentialRefreshTests
     }
 
     [Fact]
-    public async Task Logout_during_qr_wait_does_not_complete_login_and_network_retry_can_adopt_external_login()
+    public async Task Logout_during_qr_wait_does_not_complete_login_and_network_retry_can_adopt_external_credential()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -336,6 +332,40 @@ public sealed class CredentialRefreshTests
         Assert.Equal(requests, h.Http.Requests.Count);
     }
 
+    [Fact]
+    public async Task Ending_connection_lets_an_inflight_refresh_save_the_new_credential()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
+        ConfigureRefresh(h);
+        var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var respond = h.Http.Respond!;
+        h.Http.Respond = async (request, token) =>
+        {
+            if (request.RequestUri!.AbsoluteUri == Refresh)
+            {
+                requested.SetResult();
+                await release.Task.WaitAsync(token);
+            }
+            return await respond(request, token);
+        };
+        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await updates.MoveNextAsync();
+        await updates.MoveNextAsync();
+        h.Time.Advance(TimeSpan.FromSeconds(10));
+        await requested.Task.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
+        var ending = updates.MoveNextAsync().AsTask();
+        await h.Server.DisconnectAsync();
+        await Task.Delay(100, h.Stop.Token); // Let the disconnect reach the connection's finally before B站 answers.
+        Assert.False(ending.IsCompleted);
+        release.SetResult();
+        Assert.True(await ending.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        Assert.IsType<Reconnecting>(updates.Current);
+        Assert.Equal("new-token", h.SavedCredential().RefreshToken);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -437,7 +467,7 @@ public sealed class CredentialRefreshTests
         Assert.Equal(confirmFails, h.Logger.Entries.Any(e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning));
     }
 
-    private static void ConfigureRefresh(WatchHarness h)
+    private static void ConfigureRefresh(WatchHarness h, int refreshCode = 0)
     {
         h.Http.Responses[Info] = """{"code":0,"data":{"refresh":true,"timestamp":1702204169000}}""";
         h.Http.Responses[Confirm] = """{"code":0}""";
@@ -445,10 +475,104 @@ public sealed class CredentialRefreshTests
         h.Http.Respond = (request, token) => request.RequestUri!.AbsolutePath.StartsWith("/correspond/", StringComparison.Ordinal)
             ? Task.FromResult(FakeBilibiliHttp.Json("""<html><div id="1-name">page-csrf</div></html>"""))
             : request.RequestUri.AbsoluteUri == Refresh
-                ? Task.FromResult(FakeBilibiliHttp.Json("""{"code":0,"data":{"refresh_token":"new-token"}}""",
-                    "SESSDATA=new-session; Path=/; Domain=bilibili.com",
-                    "bili_jct=new-csrf; Path=/; Domain=bilibili.com"))
+                ? Task.FromResult(refreshCode != 0
+                    ? FakeBilibiliHttp.Json($$"""{"code":{{refreshCode}},"message":"rejected"}""")
+                    : FakeBilibiliHttp.Json("""{"code":0,"data":{"refresh_token":"new-token"}}""",
+                        "SESSDATA=new-session; Path=/; Domain=bilibili.com",
+                        "bili_jct=new-csrf; Path=/; Domain=bilibili.com"))
                 : respond(request, token);
+    }
+
+    private static byte[] DanmakuPacket() => FakeDanmakuServer.Packet(5, System.Text.Encoding.UTF8.GetBytes(
+        """{"cmd":"DANMU_MSG","info":[[],"hello",[123,"viewer"]]}"""), 0);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Unexpected_check_or_refresh_failure_keeps_credential_and_waits_a_day(bool infoFails)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        h.Time.Advance(TimeSpan.FromDays(1));
+        ConfigureRefresh(h);
+        if (infoFails) h.Http.Responses[Info] = """{"code":-101,"message":"账号未登录"}""";
+        else
+        {
+            var respond = h.Http.Respond!;
+            h.Http.Respond = (request, token) => request.RequestUri!.AbsolutePath.StartsWith("/correspond/", StringComparison.Ordinal)
+                ? Task.FromResult(FakeBilibiliHttp.Json("<html></html>"))
+                : respond(request, token);
+        }
+        await CheckConnectingAsync(h);
+        Assert.Equal("refresh-token", h.SavedCredential().RefreshToken);
+        Assert.Equal(h.Time.GetUtcNow(), CheckedAt(h));
+        Assert.Contains(h.Logger.Entries, e => e.Message.Contains("24 小时后再试"));
+        Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsoluteUri == Refresh);
+        await CheckConnectingAsync(h);
+        Assert.Single(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Info);
+    }
+
+    [Fact]
+    public async Task Connected_room_keeps_going_when_a_rejected_refresh_finds_another_process_credential()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
+        ConfigureRefresh(h, refreshCode: 86095);
+        var respond = h.Http.Respond!;
+        h.Http.Respond = async (request, token) =>
+        {
+            if (request.RequestUri!.AbsoluteUri == Refresh) await LoginElsewhereAsync(h);
+            return await respond(request, token);
+        };
+        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await updates.MoveNextAsync();
+        await updates.MoveNextAsync();
+        var next = updates.MoveNextAsync().AsTask();
+        try
+        {
+            h.Time.Advance(TimeSpan.FromSeconds(10));
+            await WaitUntilAsync(() => h.Http.Requests.Any(r => r.Uri.AbsoluteUri == Refresh));
+            await Task.Delay(100, h.Stop.Token); // Let the rejection settle before proving the connection outlived it.
+            await h.Server.PushAsync(DanmakuPacket());
+            Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+            Assert.IsType<Danmaku>(updates.Current);
+            Assert.Equal("external-token", h.SavedCredential().RefreshToken);
+            Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("请重新扫码"));
+        }
+        finally
+        {
+            await h.Stop.CancelAsync();
+            await next;
+        }
+    }
+
+    [Fact]
+    public async Task Logout_elsewhere_during_connection_neither_checks_nor_disconnects()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
+        ConfigureRefresh(h);
+        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await updates.MoveNextAsync();
+        await updates.MoveNextAsync();
+        await h.Client.LogoutAsync(h.Stop.Token);
+        var next = updates.MoveNextAsync().AsTask();
+        try
+        {
+            h.Time.Advance(TimeSpan.FromSeconds(10));
+            await Task.Delay(100, h.Stop.Token); // Let the due check wake before proving the connection outlived it.
+            await h.Server.PushAsync(DanmakuPacket());
+            Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+            Assert.IsType<Danmaku>(updates.Current);
+            Assert.DoesNotContain(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Info);
+        }
+        finally
+        {
+            await h.Stop.CancelAsync();
+            await next;
+        }
     }
 
     [Fact]

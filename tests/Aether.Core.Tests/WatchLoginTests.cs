@@ -187,6 +187,7 @@ public sealed class WatchLoginTests
         Assert.IsType<WatchQrCode>(updates.Current);
         Assert.True(await h.AdvancePollAsync(updates));
         Assert.IsType<WatchQrCode>(updates.Current);
+        Assert.Contains(h.Logger.Entries, e => e.Message.Contains("新的登录凭据未生效"));
         Assert.Null(h.Server.ConnectedUri);
         Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("room_init"));
     }
