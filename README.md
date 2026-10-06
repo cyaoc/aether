@@ -10,6 +10,7 @@ dotnet test
 dotnet run --project src/Aether.Cli -- login
 dotnet run --project src/Aether.Cli -- logout
 dotnet run --project src/Aether.Cli -- watch 1768506153
+dotnet run --project src/Aether.Gui
 ```
 
 发布 CLI 后，可执行文件名为 `aether`：
@@ -47,7 +48,7 @@ Debug 从程序目录向上寻找 `Aether.slnx`，用其所在目录下的 `data
 `credential` 表只存一行，保存完整 cookie 名值 JSON、refresh_token 和 UTC 保存时间。
 凭据暂存明文，`data/` 已被 Git 忽略；连接开启 `secure_delete`，删除或覆盖的凭据不会残留在文件里。
 macOS 上数据库文件（含 `-wal` / `-shm`）权限为 0600，只有当前用户可读写；Windows 依赖目录继承的 ACL。
-`login` / `logout` / `watch` 都会打开数据库。CLI 与未来 GUI 放在同一发布目录时共用这些数据。
+`login` / `logout` / `watch` 都会打开数据库。CLI 与 GUI 放在同一发布目录时共用这些数据。
 
 Core 的业务入口都在 `AetherClient`：`LoginAsync` 返回 `LoginQrCode`、`LoggedIn` 更新流；
 `LogoutAsync` 删除凭据；`WatchAsync` 返回 `WatchQrCode`（需要登录时）、`Connecting`、`Connected`、`Reconnecting`、`Danmaku` 更新流。
@@ -71,6 +72,21 @@ sqlite3 data/aether.db 'SELECT count(*) FROM credential;'
 运行 `logout` 后再运行 `watch` 应重新显示二维码，扫码阶段按 Ctrl+C 应正常退出。
 重连手动验收：观看期间断开网络，确认 stderr 出现“重连中”；等待后恢复网络，
 确认再次出现“已连接”并继续打印弹幕。再次断网，在等待重连时按 Ctrl+C，应立即正常退出。
+
+GUI 使用 Fluent 主题并跟随系统深色／浅色。输入房间号后点“连接”，需要时在弹幕列表的位置
+显示二维码；扫码过期自动换码，成功后继续连接。点“断开”可取消扫码或结束连接，再输入新的
+房间号。“退出登录”先结束当前连接或扫码，再删除凭据；关闭窗口也会先取消并等待当前操作结束。
+窗口显示错误提示，日志仅写到调试控制台。列表开启虚拟化；自动滚动、保留条数和设置持久化留给 #7。
+GUI 加入解决方案后，现有 macOS／Windows CI 的 `dotnet build` 会一同构建它。
+
+GUI 手动验收（macOS）：
+
+1. 运行 CLI `login` 并扫码，再启动 GUI，连接同一直播间应直接显示“已连接”，不出现二维码。
+2. 点“退出登录”后再次连接，应显示二维码；等待过期应换码，扫码成功后显示弹幕的时间、昵称和内容。
+3. 分别在扫码、已连接和重连中点“断开”，应回到“未连接”，房间号恢复可编辑；扫码期间关闭窗口应退出进程。
+4. 输入非正整数应提示房间号格式错误；已登录时输入不存在的房间号应显示 Core 返回的错误。
+5. 连接后断网，等待出现“重连中”，恢复网络应回到“已连接”并继续显示弹幕。
+6. 切换系统深色／浅色，确认窗口跟随；缩小窗口后列表仍可滚动，中文提示和二维码可读。
 
 测试使用 xUnit v3 的 Microsoft Testing Platform 运行器（由 `global.json` 选择）：
 
