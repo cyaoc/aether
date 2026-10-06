@@ -1,6 +1,6 @@
 # Aether
 
-运行在 macOS 和 Windows 上的 B站直播 bot：以登录账号的身份连接直播间，接收并处理直播间里的事件。
+B站直播 bot：以登录账号的身份连接直播间，接收并处理直播间里的事件。CLI 运行在 macOS、Windows 和 Linux 上，GUI 运行在 macOS 和 Windows 上。
 
 ## 账号与直播间
 
@@ -53,3 +53,9 @@ _Avoid_: 资源
 
 **文字模板 (Text Template)**:
 一种素材：带占位符的回复文字，例如"感谢 {观众} 送的 {礼物}"。
+
+## 设置
+
+**设置 (Settings)**:
+决定 bot 行为的选项，写在设置文件里，CLI 和 GUI 共用。只影响 GUI 显示的选项叫"GUI 设置"，不能省掉前缀。
+_Avoid_: 配置
