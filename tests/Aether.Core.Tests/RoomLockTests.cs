@@ -15,7 +15,7 @@ public sealed class RoomLockTests
         // Initialize each client's credential store before racing only room-lock acquisition/release.
         foreach (var client in clients)
         {
-            await using var warmup = client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+            await using var warmup = h.Watch(client);
             Assert.True(await warmup.MoveNextAsync());
         }
         var owners = 0;
@@ -26,7 +26,7 @@ public sealed class RoomLockTests
             await start.Task;
             for (var i = 0; i < 300; i++)
             {
-                await using var updates = client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+                await using var updates = h.Watch(client);
                 try { Assert.True(await updates.MoveNextAsync()); }
                 catch (InvalidOperationException error) when (error.Message.Contains("已有直播间连接")) { continue; }
                 try
@@ -58,14 +58,8 @@ public sealed class RoomLockTests
     {
         await using var h = new WatchHarness();
         if (loggedIn) await h.LoginAsync();
-        await using var first = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.True(await first.MoveNextAsync());
-        if (loggedIn)
-        {
-            Assert.True(await first.MoveNextAsync());
-            Assert.IsType<Connected>(first.Current);
-        }
-        else Assert.IsType<WatchQrCode>(first.Current);
+        await using var first = h.Watch();
+        await AdvanceUntilWaitingAsync(first, loggedIn);
 
         var http = new FakeBilibiliHttp { Respond = h.Http.Respond };
         using var other = h.ClientSharingData(
@@ -101,13 +95,7 @@ public sealed class RoomLockTests
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(h.Stop.Token);
         await using (var first = h.Client.WatchAsync(6, stop.Token).GetAsyncEnumerator(stop.Token))
         {
-            Assert.True(await first.MoveNextAsync());
-            if (loggedIn)
-            {
-                Assert.True(await first.MoveNextAsync());
-                Assert.IsType<Connected>(first.Current);
-            }
-            else Assert.IsType<WatchQrCode>(first.Current);
+            await AdvanceUntilWaitingAsync(first, loggedIn);
             if (cancel)
             {
                 var next = first.MoveNextAsync().AsTask();
@@ -115,7 +103,7 @@ public sealed class RoomLockTests
                 Assert.False(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
                 // Assert release on cancellation before DisposeAsync runs.
                 using var contender = h.ClientSharingData(h.Server.ConnectAsync);
-                await using var probe = contender.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+                await using var probe = h.Watch(contender);
                 Assert.True(await probe.MoveNextAsync());
             }
         }
@@ -141,16 +129,13 @@ public sealed class RoomLockTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         h.Server.AuthenticationCode = -101;
-        await using var first = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var first = h.Watch();
         Assert.True(await first.MoveNextAsync());
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await first.MoveNextAsync());
 
         await using var secondServer = new FakeDanmakuServer();
         using var other = h.ClientSharingData(secondServer.ConnectAsync);
-        await using var second = other.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.True(await second.MoveNextAsync());
-        Assert.True(await second.MoveNextAsync());
-        Assert.IsType<Connected>(second.Current);
+        await using var second = await h.WatchConnectedAsync(other);
     }
 
     [Theory]
@@ -167,7 +152,7 @@ public sealed class RoomLockTests
             $$$"""{"code":0,"data":{"room_id":{{{secondRoomId}}}}}""";
         using var other = new AetherClient(secondHarness.Http, secondHarness.Server.ConnectAsync,
             secondHarness.Time, secondHarness.Logger, sharedDirectory ? h.DataDirectory : secondHarness.DataDirectory);
-        await using var first = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var first = h.Watch();
         await using var second = other.WatchAsync(secondRoomId, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await first.MoveNextAsync());
         Assert.True(await first.MoveNextAsync());
@@ -191,21 +176,18 @@ public sealed class RoomLockTests
         await h.LoginAsync();
         await using var secondServer = new FakeDanmakuServer();
         using var other = h.ClientSharingData(secondServer.ConnectAsync);
-        await using (var first = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
+        await using (var first = h.Watch())
         {
             Assert.True(await first.MoveNextAsync());
             Assert.True(await first.MoveNextAsync());
             await h.Server.DisconnectAsync();
             Assert.True(await first.MoveNextAsync());
             Assert.IsType<Reconnecting>(first.Current);
-            await using var blocked = other.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+            await using var blocked = h.Watch(other);
             var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await blocked.MoveNextAsync());
             Assert.Contains("直播间 7734200 已有直播间连接", error.Message);
         }
-        await using var second = other.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.True(await second.MoveNextAsync());
-        Assert.True(await second.MoveNextAsync());
-        Assert.IsType<Connected>(second.Current);
+        await using var second = await h.WatchConnectedAsync(other);
     }
 
     [Fact]
@@ -213,9 +195,7 @@ public sealed class RoomLockTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var first = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.True(await first.MoveNextAsync());
-        Assert.True(await first.MoveNextAsync());
+        await using var first = await h.WatchConnectedAsync();
         using var other = h.ClientSharingData(h.Server.ConnectAsync);
         await using (var login = other.LoginAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
         {
@@ -225,12 +205,24 @@ public sealed class RoomLockTests
             Assert.IsType<LoggedIn>(login.Current);
         }
         await other.LogoutAsync(h.Stop.Token);
-        await using var blocked = other.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var blocked = h.Watch(other);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await blocked.MoveNextAsync());
         Assert.Contains("直播间 7734200 已有直播间连接", error.Message);
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
             Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"仍在接收",[0,"观众"]]}"""), 0));
         Assert.True(await first.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.Equal("仍在接收", Assert.IsType<Danmaku>(first.Current).Content);
+    }
+
+    /// <summary>Advances to where the room connection waits: connected when logged in, otherwise on the QR code.</summary>
+    private static async Task AdvanceUntilWaitingAsync(IAsyncEnumerator<WatchUpdate> updates, bool loggedIn)
+    {
+        Assert.True(await updates.MoveNextAsync());
+        if (loggedIn)
+        {
+            Assert.True(await updates.MoveNextAsync());
+            Assert.IsType<Connected>(updates.Current);
+        }
+        else Assert.IsType<WatchQrCode>(updates.Current);
     }
 }

@@ -113,18 +113,7 @@ public sealed class Settings
         var text = current.source;
         foreach (var edit in edits.OrderByDescending(edit => edit.Start))
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
-        var temporary = path + "." + Guid.NewGuid() + ".tmp";
-        try
-        {
-            using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write))
-            {
-                output.Write(current.encoding.GetPreamble());
-                output.Write(current.encoding.GetBytes(text));
-                output.Flush(flushToDisk: true);
-            }
-            File.Move(temporary, path, overwrite: true);
-        }
-        finally { File.Delete(temporary); }
+        AtomicFile.Write(path, [.. current.encoding.GetPreamble(), .. current.encoding.GetBytes(text)]);
 
         int IndentOf(YamlMappingNode mapping)
         {
@@ -146,14 +135,8 @@ public sealed class Settings
             if (!File.Exists(path))
             {
                 Directory.CreateDirectory(dataDirectory);
-                var temporary = path + "." + Guid.NewGuid() + ".tmp";
-                try
-                {
-                    File.WriteAllText(temporary, Template);
-                    try { File.Move(temporary, path); }
-                    catch (IOException) when (File.Exists(path)) { } // Another process created it first.
-                }
-                finally { File.Delete(temporary); }
+                try { AtomicFile.Write(path, Encoding.UTF8.GetBytes(Template), overwrite: false); }
+                catch (IOException) when (File.Exists(path)) { } // Another process created it first.
             }
             var bytes = File.ReadAllBytes(path);
             using var reader = new StreamReader(new MemoryStream(bytes), new UTF8Encoding(false));

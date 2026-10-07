@@ -9,8 +9,9 @@ namespace Aether.Core;
 public static class FileLogging
 {
     /// <summary>Adds the Core-owned file logs and exception handlers; the host owns their lifetime.</summary>
-    public static ILoggingBuilder AddAetherFileLogging(this ILoggingBuilder logging, string dataDirectory, Settings settings)
+    public static ILoggingBuilder AddAetherFileLogging(this ILoggingBuilder logging, string dataDirectory)
     {
+        var settings = Settings.Load(dataDirectory);
         logging.Services.AddSingleton(_ => new FileLog(dataDirectory, settings));
         logging.Services.AddSingleton<ILoggerProvider>(services =>
             new SerilogLoggerProvider(services.GetRequiredService<FileLog>().Logger));

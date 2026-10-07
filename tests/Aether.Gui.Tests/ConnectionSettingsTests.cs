@@ -15,7 +15,7 @@ public sealed class ConnectionSettingsTests
         {
             using var harness = new GuiHarness();
             Directory.CreateDirectory(harness.DataDirectory);
-            var path = Path.Combine(harness.DataDirectory, "aether.yml");
+            var path = Aether.Core.Settings.FilePath(harness.DataDirectory);
             File.WriteAllText(path, yaml);
             using (App.CreateHost(harness.DataDirectory)) { }
             Assert.Contains("读取设置失败", File.ReadAllText(

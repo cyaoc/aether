@@ -15,18 +15,13 @@ public sealed class CredentialRefreshTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        var respond = h.Http.Respond!;
-        h.Http.Respond = async (request, token) =>
+        h.Http.Intercept(Nav, async (request, _, next) =>
         {
-            if (request.RequestUri!.AbsoluteUri == Nav
-                && request.Headers.GetValues("Cookie").Single().Contains("SESSDATA=saved-session"))
-            {
-                await LoginElsewhereAsync(h);
-                return FakeBilibiliHttp.Json("""{"code":-101,"data":{"isLogin":false}}""");
-            }
-            return await respond(request, token);
-        };
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+            if (!request.Headers.GetValues("Cookie").Single().Contains("SESSDATA=saved-session")) return await next();
+            await LoginElsewhereAsync(h);
+            return FakeBilibiliHttp.Json("""{"code":-101,"data":{"isLogin":false}}""");
+        });
+        await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<WatchQrCode>(updates.Current);
         Assert.True(await h.AdvancePollAsync(updates));
@@ -43,9 +38,7 @@ public sealed class CredentialRefreshTests
         await h.LoginAsync();
         h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
         ConfigureRefresh(h, refreshCode: 86095);
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         var packet = DanmakuPacket();
         await h.Server.PushAsync([.. packet, .. packet]);
         Assert.True(await updates.MoveNextAsync());
@@ -67,18 +60,13 @@ public sealed class CredentialRefreshTests
         await h.LoginAsync();
         h.Time.Advance(TimeSpan.FromDays(1));
         ConfigureRefresh(h);
-        var respond = h.Http.Respond!;
-        h.Http.Respond = async (request, token) =>
+        h.Http.Intercept(Refresh, async (_, token, next) =>
         {
-            if (request.RequestUri!.AbsoluteUri == Refresh)
-            {
-                if (deleted) await h.Client.LogoutAsync(token);
-                else await LoginElsewhereAsync(h);
-                if (rejected) return FakeBilibiliHttp.Json("""{"code":86095,"message":"mismatch"}""");
-            }
-            return await respond(request, token);
-        };
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+            if (deleted) await h.Client.LogoutAsync(token);
+            else await LoginElsewhereAsync(h);
+            return rejected ? FakeBilibiliHttp.Json("""{"code":86095,"message":"mismatch"}""") : await next();
+        });
+        await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         if (deleted)
         {
@@ -108,9 +96,7 @@ public sealed class CredentialRefreshTests
         await h.LoginAsync();
         h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
         ConfigureRefresh(h, refreshCode: code);
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         var next = updates.MoveNextAsync().AsTask();
         h.Time.Advance(TimeSpan.FromSeconds(10));
         try
@@ -141,7 +127,7 @@ public sealed class CredentialRefreshTests
     public async Task Waiting_for_qr_adopts_another_process_credential_only_after_nav_validates_it(bool valid)
     {
         await using var h = new WatchHarness();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<WatchQrCode>(updates.Current);
         await LoginElsewhereAsync(h);
@@ -162,7 +148,7 @@ public sealed class CredentialRefreshTests
         await h.LoginAsync();
         var validNav = h.Http.Responses[Nav];
         h.Http.Responses[Nav] = """{"code":-101,"data":{"isLogin":false}}""";
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         await updates.MoveNextAsync();
         Assert.IsType<WatchQrCode>(updates.Current);
         await h.Client.LogoutAsync(h.Stop.Token);
@@ -244,19 +230,8 @@ public sealed class CredentialRefreshTests
         var saved = h.SavedCredential();
         h.Time.Advance(TimeSpan.FromDays(1));
         ConfigureRefresh(h);
-        var respond = h.Http.Respond!;
-        var failed = false;
-        h.Http.Respond = (request, token) =>
-        {
-            if (!failed && request.RequestUri!.AbsolutePath.StartsWith(path, StringComparison.Ordinal))
-            {
-                failed = true;
-                throw new HttpRequestException("unavailable", null, System.Net.HttpStatusCode.ServiceUnavailable);
-            }
-            return respond(request, token);
-        };
+        h.Http.FailOnce(path, new HttpRequestException("unavailable", null, System.Net.HttpStatusCode.ServiceUnavailable));
         await CheckConnectingAsync(h);
-        Assert.True(failed);
         Assert.Equal(saved.SavedAt, CheckedAt(h));
         Assert.Equal(saved.RefreshToken, h.SavedCredential().RefreshToken);
         Assert.Contains(h.Logger.Entries, e => e.Message.Contains("下次再试"));
@@ -272,7 +247,7 @@ public sealed class CredentialRefreshTests
         await h.LoginAsync();
         h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(1));
         h.Http.Responses[Info] = """{"code":0,"data":{"refresh":false,"timestamp":1702204169000}}""";
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
         Assert.IsType<Reconnecting>(updates.Current);
@@ -294,10 +269,8 @@ public sealed class CredentialRefreshTests
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var respond = h.Http.Respond!;
-        h.Http.Respond = async (request, token) =>
+        h.Http.Intercept(Info, async (_, token, _) =>
         {
-            if (request.RequestUri!.GetLeftPart(UriPartial.Path) != Info) return await respond(request, token);
             requested.SetResult();
             try { await Task.Delay(Timeout.InfiniteTimeSpan, token); }
             finally
@@ -306,10 +279,8 @@ public sealed class CredentialRefreshTests
                 await release.Task;
             }
             throw new InvalidOperationException("Cancelled request must not complete.");
-        };
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        });
+        await using var updates = await h.WatchConnectedAsync();
         h.Time.Advance(TimeSpan.FromSeconds(10));
         await requested.Task.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
         Task ending;
@@ -341,19 +312,13 @@ public sealed class CredentialRefreshTests
         ConfigureRefresh(h);
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var respond = h.Http.Respond!;
-        h.Http.Respond = async (request, token) =>
+        h.Http.Intercept(Refresh, async (_, token, next) =>
         {
-            if (request.RequestUri!.AbsoluteUri == Refresh)
-            {
-                requested.SetResult();
-                await release.Task.WaitAsync(token);
-            }
-            return await respond(request, token);
-        };
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+            requested.SetResult();
+            await release.Task.WaitAsync(token);
+            return await next();
+        });
+        await using var updates = await h.WatchConnectedAsync();
         h.Time.Advance(TimeSpan.FromSeconds(10));
         await requested.Task.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
         var ending = updates.MoveNextAsync().AsTask();
@@ -380,11 +345,7 @@ public sealed class CredentialRefreshTests
         h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
         ConfigureRefresh(h);
         if (networkFailure) h.Http.FailOnce("/x/passport-login/web/cookie/info", new HttpRequestException("offline"));
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<Connecting>(updates.Current);
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<Connected>(updates.Current);
+        await using var updates = await h.WatchConnectedAsync();
         var next = updates.MoveNextAsync().AsTask();
         try
         {
@@ -426,40 +387,36 @@ public sealed class CredentialRefreshTests
         h.Time.Advance(TimeSpan.FromDays(1));
         var steps = new List<string>();
         ConfigureRefresh(h);
-        var respond = h.Http.Respond!;
-        h.Http.Respond = async (request, token) =>
+        h.Http.Intercept("/correspond/", (request, _, next) =>
         {
-            var path = request.RequestUri!.AbsolutePath;
-            if (path.Contains("/correspond/"))
-            {
-                steps.Add("correspond");
-                Assert.Matches("^/correspond/1/[0-9a-f]{256}$", path);
-                Assert.Contains("SESSDATA=saved-session", request.Headers.GetValues("Cookie").Single());
-            }
-            if (request.RequestUri.AbsoluteUri == Refresh)
-            {
-                steps.Add("refresh");
-                Assert.Equal(HttpMethod.Post, request.Method);
-                Assert.Equal("csrf=saved-csrf&refresh_csrf=page-csrf&source=main_web&refresh_token=refresh-token",
-                    await request.Content!.ReadAsStringAsync(token));
-                Assert.Equal("refresh-token", h.SavedCredential().RefreshToken);
-            }
-            if (request.RequestUri.AbsoluteUri == Confirm)
-            {
-                steps.Add("confirm");
-                Assert.Equal(HttpMethod.Post, request.Method);
-                Assert.Equal("csrf=new-csrf&refresh_token=refresh-token", await request.Content!.ReadAsStringAsync(token));
-                Assert.Contains("SESSDATA=new-session", request.Headers.GetValues("Cookie").Single());
-                var saved = h.SavedCredential();
-                Assert.Equal("new-session", saved.Cookies["SESSDATA"]);
-                Assert.Equal("saved-buvid", saved.Cookies["buvid3"]);
-                Assert.Equal("new-token", saved.RefreshToken);
-                Assert.Equal(h.Time.GetUtcNow(), saved.SavedAt);
-                Assert.Equal(saved.SavedAt, CheckedAt(h));
-                if (confirmFails) return FakeBilibiliHttp.Json("""{"code":-111,"message":"failed"}""");
-            }
-            return await respond(request, token);
-        };
+            steps.Add("correspond");
+            Assert.Matches("^/correspond/1/[0-9a-f]{256}$", request.RequestUri!.AbsolutePath);
+            Assert.Contains("SESSDATA=saved-session", request.Headers.GetValues("Cookie").Single());
+            return next();
+        });
+        h.Http.Intercept(Refresh, async (request, token, next) =>
+        {
+            steps.Add("refresh");
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("csrf=saved-csrf&refresh_csrf=page-csrf&source=main_web&refresh_token=refresh-token",
+                await request.Content!.ReadAsStringAsync(token));
+            Assert.Equal("refresh-token", h.SavedCredential().RefreshToken);
+            return await next();
+        });
+        h.Http.Intercept(Confirm, async (request, token, next) =>
+        {
+            steps.Add("confirm");
+            Assert.Equal(HttpMethod.Post, request.Method);
+            Assert.Equal("csrf=new-csrf&refresh_token=refresh-token", await request.Content!.ReadAsStringAsync(token));
+            Assert.Contains("SESSDATA=new-session", request.Headers.GetValues("Cookie").Single());
+            var saved = h.SavedCredential();
+            Assert.Equal("new-session", saved.Cookies["SESSDATA"]);
+            Assert.Equal("saved-buvid", saved.Cookies["buvid3"]);
+            Assert.Equal("new-token", saved.RefreshToken);
+            Assert.Equal(h.Time.GetUtcNow(), saved.SavedAt);
+            Assert.Equal(saved.SavedAt, CheckedAt(h));
+            return confirmFails ? FakeBilibiliHttp.Json("""{"code":-111,"message":"failed"}""") : await next();
+        });
         await CheckConnectingAsync(h);
         Assert.Equal(new[] { "correspond", "refresh", "confirm" }, steps);
         Assert.Contains("SESSDATA=new-session", h.Http.Requests.Last(r => r.Uri.AbsolutePath.EndsWith("/nav")).Cookie);
@@ -471,16 +428,13 @@ public sealed class CredentialRefreshTests
     {
         h.Http.Responses[Info] = """{"code":0,"data":{"refresh":true,"timestamp":1702204169000}}""";
         h.Http.Responses[Confirm] = """{"code":0}""";
-        var respond = h.Http.Respond!;
-        h.Http.Respond = (request, token) => request.RequestUri!.AbsolutePath.StartsWith("/correspond/", StringComparison.Ordinal)
-            ? Task.FromResult(FakeBilibiliHttp.Json("""<html><div id="1-name">page-csrf</div></html>"""))
-            : request.RequestUri.AbsoluteUri == Refresh
-                ? Task.FromResult(refreshCode != 0
-                    ? FakeBilibiliHttp.Json($$"""{"code":{{refreshCode}},"message":"rejected"}""")
-                    : FakeBilibiliHttp.Json("""{"code":0,"data":{"refresh_token":"new-token"}}""",
-                        "SESSDATA=new-session; Path=/; Domain=bilibili.com",
-                        "bili_jct=new-csrf; Path=/; Domain=bilibili.com"))
-                : respond(request, token);
+        h.Http.Intercept("/correspond/", (_, _, _) =>
+            Task.FromResult(FakeBilibiliHttp.Json("""<html><div id="1-name">page-csrf</div></html>""")));
+        h.Http.Intercept(Refresh, (_, _, _) => Task.FromResult(refreshCode != 0
+            ? FakeBilibiliHttp.Json($$"""{"code":{{refreshCode}},"message":"rejected"}""")
+            : FakeBilibiliHttp.Json("""{"code":0,"data":{"refresh_token":"new-token"}}""",
+                "SESSDATA=new-session; Path=/; Domain=bilibili.com",
+                "bili_jct=new-csrf; Path=/; Domain=bilibili.com")));
     }
 
     private static byte[] DanmakuPacket() => FakeDanmakuServer.Packet(5, System.Text.Encoding.UTF8.GetBytes(
@@ -498,10 +452,7 @@ public sealed class CredentialRefreshTests
         if (infoFails) h.Http.Responses[Info] = """{"code":-101,"message":"账号未登录"}""";
         else
         {
-            var respond = h.Http.Respond!;
-            h.Http.Respond = (request, token) => request.RequestUri!.AbsolutePath.StartsWith("/correspond/", StringComparison.Ordinal)
-                ? Task.FromResult(FakeBilibiliHttp.Json("<html></html>"))
-                : respond(request, token);
+            h.Http.Intercept("/correspond/", (_, _, _) => Task.FromResult(FakeBilibiliHttp.Json("<html></html>")));
         }
         await CheckConnectingAsync(h);
         Assert.Equal("refresh-token", h.SavedCredential().RefreshToken);
@@ -519,15 +470,12 @@ public sealed class CredentialRefreshTests
         await h.LoginAsync();
         h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
         ConfigureRefresh(h, refreshCode: 86095);
-        var respond = h.Http.Respond!;
-        h.Http.Respond = async (request, token) =>
+        h.Http.Intercept(Refresh, async (_, _, next) =>
         {
-            if (request.RequestUri!.AbsoluteUri == Refresh) await LoginElsewhereAsync(h);
-            return await respond(request, token);
-        };
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+            await LoginElsewhereAsync(h);
+            return await next();
+        });
+        await using var updates = await h.WatchConnectedAsync();
         var next = updates.MoveNextAsync().AsTask();
         try
         {
@@ -554,9 +502,7 @@ public sealed class CredentialRefreshTests
         await h.LoginAsync();
         h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
         ConfigureRefresh(h);
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         await h.Client.LogoutAsync(h.Stop.Token);
         var next = updates.MoveNextAsync().AsTask();
         try
@@ -595,7 +541,7 @@ public sealed class CredentialRefreshTests
 
     private static async Task CheckConnectingAsync(WatchHarness h)
     {
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Connecting>(updates.Current);
     }

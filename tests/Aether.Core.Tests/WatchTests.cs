@@ -9,9 +9,7 @@ public sealed class WatchTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         var next = updates.MoveNextAsync().AsTask();
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
             System.Text.Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"[dog]你好",[0,"观***"]]}"""), 0));
@@ -29,11 +27,7 @@ public sealed class WatchTests
         await h.LoginAsync();
         h.Http.Responses["https://api.bilibili.com/x/frontend/finger/spi"] =
             """{"code":0,"data":{"b_3":"must-not-replace-saved-buvid"}}""";
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<Connecting>(updates.Current);
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<Connected>(updates.Current);
+        await using var updates = await h.WatchConnectedAsync();
         var packet = await h.Server.NextRequestAsync();
         Assert.Equal(7, System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(packet.AsSpan(8)));
         using var auth = System.Text.Json.JsonDocument.Parse(packet.AsMemory(16));

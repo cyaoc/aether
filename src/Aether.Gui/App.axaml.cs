@@ -34,15 +34,12 @@ public partial class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
-    /// <summary>A settings error does not stop startup; Core refuses the next room connection with it.</summary>
     internal static IHost CreateHost(string dataDirectory)
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();
         builder.Logging.AddDebug();
-        builder.Logging.AddAetherFileLogging(dataDirectory, Settings.Load(dataDirectory));
-        builder.Services.AddSingleton(services => new AetherClient(
-            services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
+        builder.AddAether(dataDirectory);
         builder.Services.AddSingleton(services => GuiSettings.Load(
             dataDirectory, services.GetRequiredService<ILogger<GuiSettings>>()));
         builder.Services.AddSingleton<MainWindowViewModel>();

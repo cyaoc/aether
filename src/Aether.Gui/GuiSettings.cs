@@ -1,3 +1,5 @@
+using System.Text;
+using Aether.Core;
 using Microsoft.Extensions.Logging;
 using YamlDotNet.Core;
 using YamlDotNet.Serialization;
@@ -40,7 +42,6 @@ public sealed class GuiSettings
     public void Save()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        // ponytail: A crash during this non-atomic write can lose settings; use a temp file + atomic replacement if needed.
-        File.WriteAllText(path, Serializer.Serialize(this));
+        AtomicFile.Write(path, Encoding.UTF8.GetBytes(Serializer.Serialize(this)));
     }
 }

@@ -110,8 +110,8 @@ internal sealed class BilibiliApi
     /// <summary>Returns the timestamp to refresh with, or null when B站 does not ask for a refresh.</summary>
     public async Task<long?> GetRefreshTimestampAsync(CancellationToken cancellationToken)
     {
-        var (_, data) = await SendAsync(new HttpRequestMessage(HttpMethod.Get,
-            $"https://passport.bilibili.com/x/passport-login/web/cookie/info?csrf={Uri.EscapeDataString(credential!.Cookies["bili_jct"])}"),
+        var (_, data) = await GetAsync(
+            $"https://passport.bilibili.com/x/passport-login/web/cookie/info?csrf={Uri.EscapeDataString(credential!.Cookies["bili_jct"])}",
             LoginReferer, "检查登录凭据刷新", cancellationToken);
         return data.GetProperty("refresh").GetBoolean() ? data.GetProperty("timestamp").GetInt64() : null;
     }
@@ -136,13 +136,10 @@ internal sealed class BilibiliApi
             RegexOptions.IgnoreCase, TimeSpan.FromSeconds(1));
         var refreshCsrf = WebUtility.HtmlDecode(match.Groups[1].Value).Trim();
         if (refreshCsrf.Length == 0) throw new InvalidDataException("刷新页面缺少 refresh_csrf。");
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://passport.bilibili.com/x/passport-login/web/cookie/refresh")
-        {
-            Content = new FormUrlEncodedContent([
-                new("csrf", credential!.Cookies["bili_jct"]), new("refresh_csrf", refreshCsrf),
-                new("source", "main_web"), new("refresh_token", credential.RefreshToken)])
-        };
-        var (_, data) = await SendAsync(request, LoginReferer, "刷新登录凭据", cancellationToken, credentialRefresh: true);
+        var (_, data) = await PostAsync("https://passport.bilibili.com/x/passport-login/web/cookie/refresh", [
+            new("csrf", credential!.Cookies["bili_jct"]), new("refresh_csrf", refreshCsrf),
+            new("source", "main_web"), new("refresh_token", credential.RefreshToken)],
+            "刷新登录凭据", cancellationToken, credentialRefresh: true);
         return IssuedCredential(data, "刷新响应");
     }
 
@@ -161,23 +158,17 @@ internal sealed class BilibiliApi
 
     public async Task ConfirmCredentialRefreshAsync(string previousToken, CancellationToken cancellationToken)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://passport.bilibili.com/x/passport-login/web/confirm/refresh")
-        {
-            Content = new FormUrlEncodedContent([
-                new("csrf", credential!.Cookies["bili_jct"]), new("refresh_token", previousToken)])
-        };
-        await SendAsync(request, LoginReferer, "确认登录凭据刷新", cancellationToken);
+        await PostAsync("https://passport.bilibili.com/x/passport-login/web/confirm/refresh", [
+            new("csrf", credential!.Cookies["bili_jct"]), new("refresh_token", previousToken)],
+            "确认登录凭据刷新", cancellationToken);
     }
 
     /// <summary>Invalidates the supplied credential on B站; an anonymous identity has nothing to sign out.</summary>
     public async Task LogoutAsync(CancellationToken cancellationToken)
     {
         if (credential is null) return;
-        var request = new HttpRequestMessage(HttpMethod.Post, "https://passport.bilibili.com/login/exit/v2")
-        {
-            Content = new FormUrlEncodedContent([new("biliCSRF", GetCookies()["bili_jct"])])
-        };
-        await SendAsync(request, LoginReferer, "B站退出登录", cancellationToken);
+        await PostAsync("https://passport.bilibili.com/login/exit/v2", [new("biliCSRF", GetCookies()["bili_jct"])],
+            "B站退出登录", cancellationToken);
     }
 
     private Dictionary<string, string> GetCookies()
@@ -190,6 +181,12 @@ internal sealed class BilibiliApi
     private Task<(int Code, JsonElement Data)> GetAsync(string url, string referer, string operation,
         CancellationToken cancellationToken, int? acceptedCode = null) =>
         SendAsync(new HttpRequestMessage(HttpMethod.Get, url), referer, operation, cancellationToken, acceptedCode);
+
+    /// <summary>Every form post goes to passport, so it always carries the login referer.</summary>
+    private Task<(int Code, JsonElement Data)> PostAsync(string url, IEnumerable<KeyValuePair<string, string>> form,
+        string operation, CancellationToken cancellationToken, bool credentialRefresh = false) =>
+        SendAsync(new HttpRequestMessage(HttpMethod.Post, url) { Content = new FormUrlEncodedContent(form) },
+            LoginReferer, operation, cancellationToken, credentialRefresh: credentialRefresh);
 
     private async Task<(int Code, JsonElement Data)> SendAsync(HttpRequestMessage request, string referer, string operation,
         CancellationToken cancellationToken, int? acceptedCode = null, bool credentialRefresh = false)

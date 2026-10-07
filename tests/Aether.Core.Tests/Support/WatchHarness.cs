@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Text.Json;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Core.Tests.Support;
@@ -31,6 +29,21 @@ internal sealed class WatchHarness : IAsyncDisposable
     public AetherClient ClientSharingData(
         Func<Uri, CancellationToken, Task<System.Net.WebSockets.WebSocket>> connectWebSocket, FakeBilibiliHttp? http = null) =>
         new(http ?? new FakeBilibiliHttp { Respond = Http.Respond }, connectWebSocket, Time, Logger, DataDirectory);
+
+    /// <summary>Watches room 6 on <paramref name="client"/> (this harness's own by default) until <see cref="Stop"/>.</summary>
+    public IAsyncEnumerator<WatchUpdate> Watch(AetherClient? client = null) =>
+        (client ?? Client).WatchAsync(6, Stop.Token).GetAsyncEnumerator(Stop.Token);
+
+    /// <summary>Watches room 6 and returns once the room connection reports Connected.</summary>
+    public async Task<IAsyncEnumerator<WatchUpdate>> WatchConnectedAsync(AetherClient? client = null)
+    {
+        var updates = Watch(client);
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Connecting>(updates.Current);
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Connected>(updates.Current);
+        return updates;
+    }
 
     public async Task LoginAsync()
     {
@@ -71,18 +84,8 @@ internal sealed class WatchHarness : IAsyncDisposable
         }
     }
 
-    public (Dictionary<string, string> Cookies, string RefreshToken, DateTimeOffset SavedAt) SavedCredential()
-    {
-        using var connection = TestDatabase.Open(DataDirectory);
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT cookies, refresh_token, saved_at FROM credential";
-        using var reader = command.ExecuteReader();
-        Assert.True(reader.Read());
-        var credential = (JsonSerializer.Deserialize<Dictionary<string, string>>(reader.GetString(0))!,
-            reader.GetString(1), DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture));
-        Assert.False(reader.Read());
-        return credential;
-    }
+    public (Dictionary<string, string> Cookies, string RefreshToken, DateTimeOffset SavedAt) SavedCredential() =>
+        TestDatabase.SavedCredential(DataDirectory);
 
     public async ValueTask DisposeAsync()
     {
