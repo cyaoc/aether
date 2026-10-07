@@ -9,26 +9,32 @@ namespace Aether.Core;
 public static class FileLogging
 {
     /// <summary>Adds the Core-owned file logs and exception handlers; the host owns their lifetime.</summary>
-    public static ILoggingBuilder AddAetherFileLogging(this ILoggingBuilder logging, string dataDirectory)
+    public static ILoggingBuilder AddAetherFileLogging(this ILoggingBuilder logging, string dataDirectory, Settings settings)
     {
-        logging.Services.AddSingleton(_ => new FileLog(dataDirectory));
+        logging.Services.AddSingleton(_ => new FileLog(dataDirectory, settings));
         logging.Services.AddSingleton<ILoggerProvider>(services =>
             new SerilogLoggerProvider(services.GetRequiredService<FileLog>().Logger));
-        logging.AddFilter<SerilogLoggerProvider>(null, LogLevel.Information);
+        // Let every event reach the file log, which applies log.level itself, whatever the host's own minimum.
+        logging.AddFilter<SerilogLoggerProvider>(null, LogLevel.Trace);
         return logging;
     }
 
     private sealed class FileLog : IDisposable
     {
-        private static readonly TimeSpan Retention = TimeSpan.FromDays(30);
+        // Null keeps logs forever: a retention reaching back past DateTime.MinValue would overflow date subtraction.
+        private readonly TimeSpan? retention;
 
         public Serilog.Core.Logger Logger { get; }
 
-        public FileLog(string dataDirectory)
+        /// <remarks>Records settings problems found at startup; a settings error falls back to the default log settings.</remarks>
+        public FileLog(string dataDirectory, Settings settings)
         {
+            var effective = settings.Error is null ? settings : new Settings();
+            var days = effective.LogRetentionDays.Value;
+            retention = days < (DateTime.Now - DateTime.MinValue).TotalDays ? TimeSpan.FromDays(days) : null;
             var logs = Path.Combine(dataDirectory, "logs");
             Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
+                .MinimumLevel.Is(Serilog.Extensions.Logging.LevelConvert.ToSerilogLevel(effective.LogLevel.Value))
                 .Enrich.FromLogContext()
                 .Enrich.WithProperty("ProcessId", Environment.ProcessId)
                 .WriteTo.Map("RoomId", 0L, (roomId, write) => write.File(
@@ -36,7 +42,7 @@ public static class FileLogging
                         "aether-.log"),
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: null,
-                    retainedFileTimeLimit: Retention,
+                    retainedFileTimeLimit: retention,
                     fileSizeLimitBytes: null,
                     shared: roomId <= 0,
                     buffered: false,
@@ -46,6 +52,11 @@ public static class FileLogging
                     // tie cached sinks to room-lock lifetime only if logging throughput needs it.
                     sinkMapCountLimit: 0)
                 .CreateLogger();
+            var settingsLog = Logger.ForContext("SourceContext", "Aether.Core.Settings");
+            if (settings.Error is { } error)
+                settingsLog.Error(error, "读取设置失败，日志使用默认值；开始直播间连接前需修正设置");
+            if (settings.UnknownKeys.Count > 0)
+                settingsLog.Warning("未知设置键：{Keys}", string.Join("、", settings.UnknownKeys));
             DeleteExpiredLogs(logs);
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
@@ -54,8 +65,8 @@ public static class FileLogging
         // Serilog prunes only the folder it writes to, so a room never reconnected would keep its logs forever.
         private void DeleteExpiredLogs(string logs)
         {
-            if (!Directory.Exists(logs)) return;
-            var expired = DateTime.Now - Retention;
+            if (retention is not { } limit || !Directory.Exists(logs)) return;
+            var expired = DateTime.Now - limit;
             try
             {
                 foreach (var file in Directory.EnumerateFiles(logs, "aether-*.log", new EnumerationOptions { RecurseSubdirectories = true }))

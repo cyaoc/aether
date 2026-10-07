@@ -17,17 +17,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var builder = Host.CreateApplicationBuilder();
-            builder.Logging.ClearProviders();
-            builder.Logging.AddDebug();
-            var dataDirectory = DataDirectory.Locate();
-            builder.Logging.AddAetherFileLogging(dataDirectory);
-            builder.Services.AddSingleton(services => new AetherClient(
-                services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
-            builder.Services.AddSingleton(services => GuiSettings.Load(
-                dataDirectory, services.GetRequiredService<ILogger<GuiSettings>>()));
-            builder.Services.AddSingleton<MainWindowViewModel>();
-            var host = builder.Build();
+            var host = CreateHost(DataDirectory.Locate());
             var logger = host.Services.GetRequiredService<ILogger<App>>();
             void LogUiException(object? sender, DispatcherUnhandledExceptionEventArgs args) =>
                 logger.LogCritical(args.Exception, "UI 线程未处理异常");
@@ -41,5 +31,20 @@ public partial class App : Application
             };
         }
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>A settings error does not stop startup; Core refuses the next room connection with it.</summary>
+    internal static IHost CreateHost(string dataDirectory)
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Logging.ClearProviders();
+        builder.Logging.AddDebug();
+        builder.Logging.AddAetherFileLogging(dataDirectory, Settings.Load(dataDirectory));
+        builder.Services.AddSingleton(services => new AetherClient(
+            services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
+        builder.Services.AddSingleton(services => GuiSettings.Load(
+            dataDirectory, services.GetRequiredService<ILogger<GuiSettings>>()));
+        builder.Services.AddSingleton<MainWindowViewModel>();
+        return builder.Build();
     }
 }

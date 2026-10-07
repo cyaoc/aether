@@ -9,6 +9,64 @@ namespace Aether.Core.Tests;
 
 public sealed class FileLoggingTests
 {
+    [Theory]
+    [InlineData(LogLevel.Trace, 7)]
+    [InlineData(LogLevel.Debug, 7)]
+    [InlineData(LogLevel.Warning, 7)]
+    [InlineData(LogLevel.Critical, int.MaxValue)]
+    public void Startup_settings_control_file_levels_and_retention(LogLevel level, int days)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aether-logs-" + Guid.NewGuid());
+        var abandoned = Path.Combine(directory, "logs", "1");
+        Directory.CreateDirectory(abandoned);
+        var old = Path.Combine(abandoned, "aether-20000101.log");
+        File.WriteAllText(old, "old");
+        File.SetLastWriteTime(old, DateTime.Now.AddDays(-10));
+        File.WriteAllText(Path.Combine(directory, "aether.yml"), $"log:\n  retention_days: {days}\n  level: {level}\n");
+        try
+        {
+            using (var host = FileLoggingHost(directory))
+            {
+                // Editing the file does not change the snapshot passed to logging at startup.
+                File.WriteAllText(Path.Combine(directory, "aether.yml"), "log:\n  level: bad\n");
+                var logger = host.Services.GetRequiredService<ILogger<FileLoggingTests>>();
+                using var scope = logger.BeginScope(new Dictionary<string, object> { ["RoomId"] = 1L });
+                foreach (var candidate in Enum.GetValues<LogLevel>().Where(value => value != LogLevel.None))
+                    logger.Log(candidate, "marker-{Candidate}", candidate.ToString());
+            }
+            var content = File.ReadAllText(Assert.Single(Directory.GetFiles(abandoned, "*.log"), path => path != old));
+            foreach (var candidate in Enum.GetValues<LogLevel>().Where(value => value != LogLevel.None))
+                Assert.True((candidate >= level) == content.Contains($"marker-{candidate}"), content);
+            Assert.Equal(days == int.MaxValue, File.Exists(old));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
+    public void Invalid_startup_settings_use_default_logging_and_unknown_keys_are_warned()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aether-logs-" + Guid.NewGuid());
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "aether.yml"), "log:\n  level: Critical\n  retention_days: 0\n  extra: true\n");
+        try
+        {
+            using (var host = FileLoggingHost(directory))
+            {
+                var logger = host.Services.GetRequiredService<ILogger<FileLoggingTests>>();
+                logger.LogDebug("hidden-debug");
+                logger.LogInformation("default-information");
+            }
+            var content = File.ReadAllText(Assert.Single(Directory.GetFiles(Path.Combine(directory, "logs"), "*.log")));
+            Assert.Contains("default-information", content);
+            Assert.DoesNotContain("hidden-debug", content);
+            Assert.Contains("log.extra", content);
+            Assert.Contains("[WRN]", content);
+            Assert.Contains("读取设置失败", content);
+            Assert.Contains("log.retention_days", content);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     [Fact]
     public void Host_writes_room_and_common_logs_with_levels_categories_and_exception_stacks()
     {
@@ -51,13 +109,13 @@ public sealed class FileLoggingTests
 
     private static void ThrowForLog() => throw new InvalidOperationException("log-stack-marker");
 
-    // Trace on the host shows the file keeps its own Information floor.
+    // Trace on the host shows the file keeps its independently configured floor.
     private static IHost FileLoggingHost(string dataDirectory)
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();
         builder.Logging.SetMinimumLevel(LogLevel.Trace);
-        builder.Logging.AddAetherFileLogging(dataDirectory);
+        builder.Logging.AddAetherFileLogging(dataDirectory, Settings.Load(dataDirectory));
         return builder.Build();
     }
 
@@ -131,7 +189,7 @@ public sealed class FileLoggingTests
             start.SignalAndWait(TestContext.Current.CancellationToken);
             while (Volatile.Read(ref finished) == 0)
             {
-                using var other = LoggerFactory.Create(logging => logging.AddAetherFileLogging(directory));
+                using var other = LoggerFactory.Create(logging => logging.AddAetherFileLogging(directory, Settings.Load(directory)));
                 other.CreateLogger("Startup");
                 Interlocked.Increment(ref cleanups);
             }
