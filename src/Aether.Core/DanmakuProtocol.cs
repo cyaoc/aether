@@ -9,6 +9,7 @@ namespace Aether.Core;
 internal static class DanmakuProtocol
 {
     public const int MaxPacketSize = 8 * 1024 * 1024;
+    private const int MaxLoggedJsonBytes = 2048;
 
     private enum Operation
     {
@@ -70,12 +71,12 @@ internal static class DanmakuProtocol
         catch (Exception error) when (error is JsonException or KeyNotFoundException
             or InvalidOperationException or IndexOutOfRangeException)
         {
-            var length = Math.Min(body.Length, 2048);
+            var length = Math.Min(body.Length, MaxLoggedJsonBytes);
             // Keep a complete UTF-8 prefix when the byte limit lands inside a character.
             while (length < body.Length && length > 0 && (body.Span[length] & 0xC0) == 0x80) length--;
             var json = Encoding.UTF8.GetString(body.Span[..length]);
             logger.LogWarning("跳过无法解析的直播间消息（cmd: {Command}）：{Error}；原始 JSON：{Json}{Truncated}",
-                command, error.Message, json, body.Length > 2048 ? "（已截断，最多 2KB）" : "");
+                command, error.Message, json, length < body.Length ? "（已截断，最多 2KB）" : "");
             return null;
         }
         logger.LogDebug("忽略直播间事件 {Command}", command);

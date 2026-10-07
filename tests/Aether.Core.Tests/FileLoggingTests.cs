@@ -15,11 +15,7 @@ public sealed class FileLoggingTests
         var directory = Path.Combine(Path.GetTempPath(), "aether-logs-" + Guid.NewGuid());
         try
         {
-            var builder = Host.CreateApplicationBuilder();
-            builder.Logging.ClearProviders();
-            builder.Logging.SetMinimumLevel(LogLevel.Trace);
-            builder.Logging.AddAetherFileLogging(directory);
-            using (var host = builder.Build())
+            using (var host = FileLoggingHost(directory))
             {
                 var logger = host.Services.GetRequiredService<ILogger<FileLoggingTests>>();
                 logger.LogTrace("hidden-trace");
@@ -44,7 +40,7 @@ public sealed class FileLoggingTests
             Assert.DoesNotContain("room-message", common);
             Assert.DoesNotContain("common-", room);
             Assert.DoesNotContain("hidden-", common + room);
-            Assert.Contains("[INF] Aether.Core.Tests.FileLoggingTests", room);
+            Assert.Contains($"[INF] ({Environment.ProcessId}) Aether.Core.Tests.FileLoggingTests", room);
             Assert.Contains("room-message", room);
             Assert.Contains("[ERR]", room);
             Assert.Contains("System.InvalidOperationException: log-stack-marker", room);
@@ -54,6 +50,16 @@ public sealed class FileLoggingTests
     }
 
     private static void ThrowForLog() => throw new InvalidOperationException("log-stack-marker");
+
+    // Trace on the host shows the file keeps its own Information floor.
+    private static IHost FileLoggingHost(string dataDirectory)
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Logging.ClearProviders();
+        builder.Logging.SetMinimumLevel(LogLevel.Trace);
+        builder.Logging.AddAetherFileLogging(dataDirectory);
+        return builder.Build();
+    }
 
     [Theory]
     [InlineData(0L)]
@@ -69,10 +75,7 @@ public sealed class FileLoggingTests
         File.WriteAllText(recent, "recent");
         try
         {
-            var builder = Host.CreateApplicationBuilder();
-            builder.Logging.ClearProviders();
-            builder.Logging.AddAetherFileLogging(directory);
-            using (var host = builder.Build())
+            using (var host = FileLoggingHost(directory))
             {
                 var logger = host.Services.GetRequiredService<ILogger<FileLoggingTests>>();
                 using var scope = logger.BeginScope(new Dictionary<string, object> { ["RoomId"] = roomId });
@@ -85,24 +88,46 @@ public sealed class FileLoggingTests
     }
 
     [Fact]
+    public void Startup_removes_expired_logs_and_emptied_folders_of_rooms_never_reconnected()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aether-logs-" + Guid.NewGuid());
+        var room = Path.Combine(directory, "logs", "7734200");
+        var abandoned = Path.Combine(directory, "logs", "1");
+        Directory.CreateDirectory(room);
+        Directory.CreateDirectory(abandoned);
+        var old = Path.Combine(room, $"aether-{DateTime.Today.AddDays(-40):yyyyMMdd}.log");
+        var recent = Path.Combine(room, $"aether-{DateTime.Today.AddDays(-7):yyyyMMdd}.log");
+        var abandonedOld = Path.Combine(abandoned, $"aether-{DateTime.Today.AddDays(-40):yyyyMMdd}.log");
+        File.WriteAllText(old, "old");
+        File.WriteAllText(recent, "recent");
+        File.WriteAllText(abandonedOld, "old");
+        File.SetLastWriteTime(old, DateTime.Now.AddDays(-40));
+        File.SetLastWriteTime(recent, DateTime.Now.AddDays(-7));
+        File.SetLastWriteTime(abandonedOld, DateTime.Now.AddDays(-40));
+        try
+        {
+            using (var host = FileLoggingHost(directory))
+                host.Services.GetRequiredService<ILoggerFactory>();
+            Assert.False(File.Exists(old));
+            Assert.Equal("recent", File.ReadAllText(recent));
+            Assert.False(Directory.Exists(abandoned));
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public void Hosts_share_common_file_and_switching_rooms_releases_old_file_handles()
     {
         var directory = Path.Combine(Path.GetTempPath(), "aether-logs-" + Guid.NewGuid());
         try
         {
-            var first = Host.CreateApplicationBuilder();
-            first.Logging.ClearProviders();
-            first.Logging.AddAetherFileLogging(directory);
-            using (var host = first.Build())
+            using (var host = FileLoggingHost(directory))
             {
                 var logger = host.Services.GetRequiredService<ILogger<FileLoggingTests>>();
                 logger.LogInformation("first-host");
                 using (logger.BeginScope(new Dictionary<string, object> { ["RoomId"] = 1L }))
                     logger.LogInformation("first-room-owner");
-                var second = Host.CreateApplicationBuilder();
-                second.Logging.ClearProviders();
-                second.Logging.AddAetherFileLogging(directory);
-                using (var other = second.Build())
+                using (var other = FileLoggingHost(directory))
                 {
                     var otherLogger = other.Services.GetRequiredService<ILogger<FileLoggingTests>>();
                     otherLogger.LogInformation("second-host");
@@ -130,34 +155,27 @@ public sealed class FileLoggingTests
     }
 
     [Fact]
-    public async Task Rejected_room_connection_logs_to_common_file_without_writing_the_owned_room()
+    public async Task Rejected_room_connection_leaves_recording_the_failure_to_the_caller()
     {
         await using var h = new WatchHarness();
         await using var owner = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await owner.MoveNextAsync());
-        var builder = Host.CreateApplicationBuilder();
-        builder.Logging.ClearProviders();
-        builder.Logging.AddAetherFileLogging(h.DataDirectory);
-        using (var host = builder.Build())
+        using (var host = FileLoggingHost(h.DataDirectory))
         {
             using var client = new AetherClient(h.Http, h.Server.ConnectAsync, h.Time,
                 host.Services.GetRequiredService<ILogger<AetherClient>>(), h.DataDirectory);
             await using var rejected = client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
             await Assert.ThrowsAsync<InvalidOperationException>(async () => await rejected.MoveNextAsync());
         }
-        var logs = Path.Combine(h.DataDirectory, "logs");
-        Assert.Empty(Directory.GetDirectories(logs));
-        Assert.Contains("已有直播间连接", File.ReadAllText(Assert.Single(Directory.GetFiles(logs, "*.log"))));
+        // The room is not known as ours yet, so nothing goes near the owner's file or duplicates the caller's record.
+        Assert.False(Directory.Exists(Path.Combine(h.DataDirectory, "logs")));
     }
 
     [Fact]
     public async Task Room_connection_logs_keep_real_room_id_through_qr_polling_reconnect_and_messages()
     {
         await using var h = new WatchHarness();
-        var builder = Host.CreateApplicationBuilder();
-        builder.Logging.ClearProviders();
-        builder.Logging.AddAetherFileLogging(h.DataDirectory);
-        using (var host = builder.Build())
+        using (var host = FileLoggingHost(h.DataDirectory))
         {
             var logger = host.Services.GetRequiredService<ILogger<AetherClient>>();
             var respond = h.Http.Respond!;

@@ -163,7 +163,8 @@ public sealed class AetherClient(
                             logger.LogWarning("直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, error.Message);
                             break;
                         }
-                        catch (Exception error) when (!cancellationToken.IsCancellationRequested)
+                        // The caller records every failure for the process; this copy only tells the room's file how it ended.
+                        catch (Exception error) when (roomLock is not null && !cancellationToken.IsCancellationRequested)
                         {
                             logger.LogError(error, "直播间连接失败");
                             throw;
@@ -211,11 +212,20 @@ public sealed class AetherClient(
 
     // ponytail: On Unix this is a best-effort flock: .NET silently skips it when DOTNET_SYSTEM_IO_DISABLEFILELOCKING is set
     // or the filesystem rejects flock (some network mounts). Fine while data/ sits on a local disk, as the README asks.
+    // DeleteOnClose is emulated there as unlink by path at close: an open landing in that same microsecond can lock the
+    // unlinked file while the next process creates a fresh one. Verify the inode after locking if that ever matters.
     private FileStream AcquireRoomLock(long realRoomId)
     {
         Directory.CreateDirectory(dataDirectory);
         var path = Path.Combine(dataDirectory, FormattableString.Invariant($"room-{realRoomId}.lock"));
-        try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+        try
+        {
+            return new FileStream(path, new FileStreamOptions
+            {
+                Mode = FileMode.OpenOrCreate, Access = FileAccess.ReadWrite, Share = FileShare.None,
+                Options = FileOptions.DeleteOnClose,
+            });
+        }
         catch (IOException error) when (error.HResult == RoomLockHeldHResult)
         {
             throw new InvalidOperationException($"直播间 {realRoomId} 已有直播间连接（可能在另一个 CLI 或 GUI 里）。", error);

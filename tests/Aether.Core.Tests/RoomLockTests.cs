@@ -31,6 +31,10 @@ public sealed class RoomLockTests
         Assert.Contains("直播间 7734200 已有直播间连接", error.Message);
         Assert.Equal("/room/v1/Room/room_init", Assert.Single(http.Requests).Uri.AbsolutePath);
         Assert.False(await second.MoveNextAsync());
+        // The lock deletes itself on close; a refused open must not take the owner's file with it.
+        Assert.True(File.Exists(Path.Combine(h.DataDirectory, "room-7734200.lock")));
+        await using var third = other.WatchAsync(secondRoomId, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await third.MoveNextAsync());
 
         if (loggedIn)
         {
@@ -71,6 +75,7 @@ public sealed class RoomLockTests
                 Assert.True(await probe.MoveNextAsync());
             }
         }
+        Assert.False(File.Exists(Path.Combine(h.DataDirectory, "room-7734200.lock")));
 
         await using var secondServer = new FakeDanmakuServer();
         using var other = h.ClientSharingData(secondServer.ConnectAsync);
