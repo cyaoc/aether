@@ -44,26 +44,23 @@ public partial class SettingsWindow : Window
 
     private void Validate()
     {
-        var error = settings.Error?.Message;
-        if (error is null && settings.LogRetentionDays.CanEdit
-            && Settings.Validate("log.retention_days", RetentionInput.Text) is { } daysError)
-            error = $"log.retention_days：{daysError}";
-        if (error is null && settings.LogLevel.CanEdit
-            && Settings.Validate("log.level", LevelInput.SelectedItem?.ToString()) is { } levelError)
-            error = $"log.level：{levelError}";
+        var error = settings.Error?.Message ?? InputError(settings.LogRetentionDays, RetentionInput.Text)
+            ?? InputError(settings.LogLevel, LevelInput.SelectedItem?.ToString());
         Message.Text = error ?? "";
         SaveButton.IsEnabled = error is null && (settings.LogRetentionDays.CanEdit || settings.LogLevel.CanEdit);
     }
+
+    /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
+    private static string? InputError<T>(Setting<T> setting, string? input) =>
+        setting.CanEdit && Settings.Validate(setting.Name, input) is { } reason ? $"{setting.Name}：{reason}" : null;
 
     private void Save(object? sender, RoutedEventArgs e)
     {
         Validate();
         if (!SaveButton.IsEnabled) return;
         var changes = new Dictionary<string, string>();
-        if (settings.LogRetentionDays.CanEdit && int.Parse(RetentionInput.Text!, CultureInfo.InvariantCulture) != settings.LogRetentionDays.Value)
-            changes["log.retention_days"] = RetentionInput.Text!;
-        if (settings.LogLevel.CanEdit && (LogLevel)LevelInput.SelectedItem! != settings.LogLevel.Value)
-            changes["log.level"] = LevelInput.SelectedItem.ToString()!;
+        AddChange(settings.LogRetentionDays, int.Parse(RetentionInput.Text!, CultureInfo.InvariantCulture), RetentionInput.Text!);
+        AddChange(settings.LogLevel, (LogLevel)LevelInput.SelectedItem!, LevelInput.SelectedItem.ToString()!);
         try
         {
             Settings.Save(dataDirectory, changes);
@@ -74,6 +71,12 @@ public partial class SettingsWindow : Window
         {
             LoadSettings();
             Message.Text = error.Message;
+        }
+
+        // Only what the user can edit and actually changed, so an untouched value keeps its spelling in the file.
+        void AddChange<T>(Setting<T> setting, T input, string text)
+        {
+            if (setting.CanEdit && !EqualityComparer<T>.Default.Equals(input, setting.Value)) changes[setting.Name] = text;
         }
     }
 
