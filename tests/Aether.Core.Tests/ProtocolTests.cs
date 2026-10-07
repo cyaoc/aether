@@ -39,11 +39,35 @@ public sealed class ProtocolTests
         var warning = Assert.Single(h.Logger.Entries);
         Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, warning.Level);
         if (command is not null) Assert.Contains(command, warning.Message);
+        Assert.Contains(body, warning.Message);
 
         var next = updates.MoveNextAsync().AsTask();
         Assert.False(next.IsCompleted);
         await h.Stop.CancelAsync();
         Assert.False(await next.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData(2048, false)]
+    [InlineData(2049, true)]
+    public async Task Skipped_message_warning_limits_raw_json_to_2KB_without_splitting_utf8(int byteCount, bool truncated)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await updates.MoveNextAsync();
+        await updates.MoveNextAsync();
+        // 2046 ASCII bytes followed by a 3-byte character straddles the byte limit.
+        var body = byteCount == 2048 ? new string('x', 2048) : new string('x', 2046) + "中";
+        await h.Server.PushAsync(FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(body), 0));
+        await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
+            Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"正常",[0,"观众"]]}"""), 0));
+        Assert.True(await updates.MoveNextAsync());
+        var warning = Assert.Single(h.Logger.Entries).Message;
+        Assert.Contains(truncated ? new string('x', 2046) : body, warning);
+        Assert.Equal(truncated, warning.Contains("已截断"));
+        Assert.DoesNotContain("中", warning);
+        Assert.DoesNotContain("�", warning);
     }
 
     [Theory]
@@ -68,7 +92,9 @@ public sealed class ProtocolTests
         var error = await Record.ExceptionAsync(async () =>
             await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         Assert.IsType(kind == "invalid-brotli" ? typeof(InvalidOperationException) : typeof(InvalidDataException), error);
-        Assert.Empty(h.Logger.Entries);
+        var logged = Assert.Single(h.Logger.Entries);
+        Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Error, logged.Level);
+        Assert.Contains("直播间连接失败", logged.Message);
     }
 
     [Theory]

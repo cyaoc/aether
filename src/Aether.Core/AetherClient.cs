@@ -148,12 +148,27 @@ public sealed class AetherClient(
                     while (true)
                     {
                         bool hasNext;
-                        try { hasNext = await updates.MoveNextAsync(); }
+                        IDisposable? roomScope = null;
+                        try
+                        {
+                            realRoomId ??= await new BilibiliApi(http, timeProvider, credential: null)
+                                .ResolveRoomIdAsync(roomId, cancellationToken);
+                            roomLock ??= AcquireRoomLock(realRoomId.Value);
+                            // Async iterator yields restore the caller's context; re-enter the scope on every move.
+                            roomScope = logger.BeginScope(new Dictionary<string, object> { ["RoomId"] = realRoomId.Value });
+                            hasNext = await updates.MoveNextAsync();
+                        }
                         catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
                         {
                             logger.LogWarning("直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, error.Message);
                             break;
                         }
+                        catch (Exception error) when (!cancellationToken.IsCancellationRequested)
+                        {
+                            logger.LogError(error, "直播间连接失败");
+                            throw;
+                        }
+                        finally { roomScope?.Dispose(); }
                         if (!hasNext) yield break;
                         if (reconnecting && updates.Current is Connecting) continue;
                         if (updates.Current is Connected) retrySeconds = 1;
@@ -171,9 +186,6 @@ public sealed class AetherClient(
         async IAsyncEnumerable<WatchUpdate> WatchAttemptAsync()
         {
             cancellationToken.ThrowIfCancellationRequested();
-            realRoomId ??= await new BilibiliApi(http, timeProvider, credential: null)
-                .ResolveRoomIdAsync(roomId, cancellationToken);
-            roomLock ??= AcquireRoomLock(realRoomId.Value);
             var credentials = credentialStore.Value;
             var credential = await RefreshCredentialIfDueAsync(cancellationToken, cancellationToken);
             var api = new BilibiliApi(http, timeProvider, credential);
@@ -188,7 +200,7 @@ public sealed class AetherClient(
                     logger.LogWarning("新的登录凭据未生效，请重新扫码登录。");
             }
             yield return new Connecting();
-            await foreach (var update in ReceiveRoomUpdatesAsync(realRoomId.Value, api, cancellationToken))
+            await foreach (var update in ReceiveRoomUpdatesAsync(realRoomId!.Value, api, cancellationToken))
                 yield return update;
         }
     }
