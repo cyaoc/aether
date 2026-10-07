@@ -17,13 +17,14 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            var host = CreateHost(DataDirectory.Locate());
+            var dataDirectory = DataDirectory.Locate();
+            var host = CreateHost(dataDirectory);
             var logger = host.Services.GetRequiredService<ILogger<App>>();
             void LogUiException(object? sender, DispatcherUnhandledExceptionEventArgs args) =>
                 logger.LogCritical(args.Exception, "UI 线程未处理异常");
             Dispatcher.UIThread.UnhandledException += LogUiException;
             logger.LogInformation("GUI 已启动");
-            desktop.MainWindow = new MainWindow { DataContext = host.Services.GetRequiredService<MainWindowViewModel>() };
+            desktop.MainWindow = new MainWindow(dataDirectory) { DataContext = host.Services.GetRequiredService<MainWindowViewModel>() };
             desktop.Exit += (_, _) =>
             {
                 Dispatcher.UIThread.UnhandledException -= LogUiException;

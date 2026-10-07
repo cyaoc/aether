@@ -16,9 +16,12 @@ public partial class MainWindow : Window
     private bool followLatest = true;
     private bool scrollPending;
 
-    public MainWindow()
+    public MainWindow() : this(Aether.Core.DataDirectory.Locate()) { }
+
+    public MainWindow(string dataDirectory)
     {
         InitializeComponent();
+        this.dataDirectory = dataDirectory;
         DanmakuList.Items.CollectionChanged += OnDanmakuChanged;
         DanmakuList.AddHandler(ScrollViewer.ScrollChangedEvent, OnScrollChanged);
         DanmakuList.AddHandler(PointerWheelChangedEvent, (_, _) => PauseFollowingForInput(), RoutingStrategies.Tunnel);
@@ -32,6 +35,17 @@ public partial class MainWindow : Window
             if (e.Key is Key.Up or Key.Down or Key.PageUp or Key.PageDown or Key.Home or Key.End)
                 PauseFollowingForInput();
         }, RoutingStrategies.Tunnel);
+    }
+
+    private readonly string dataDirectory;
+    private SettingsWindow? settingsWindow;
+
+    private void OpenSettings(object? sender, RoutedEventArgs e)
+    {
+        if (settingsWindow is not null) { settingsWindow.Activate(); return; }
+        settingsWindow = new SettingsWindow(dataDirectory);
+        settingsWindow.Closed += (_, _) => settingsWindow = null;
+        settingsWindow.Show(this);
     }
 
     private void PauseFollowingForInput()
