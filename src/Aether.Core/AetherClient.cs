@@ -32,8 +32,8 @@ public sealed class AetherClient(
         EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
 
     /// <summary>Signs out on B站 when possible; the local credential is deleted either way unless the caller cancels.</summary>
-    /// <remarks>Disconnect any room connection before signing out, and do not start a new one until sign-out completes.
-    /// CLI and GUI may share the data directory across processes; this ordering is the caller's responsibility.</remarks>
+    /// <remarks>Takes no room lock. A room connection running elsewhere on this data directory keeps going,
+    /// and its next reconnect asks for a scan.</remarks>
     public async Task LogoutAsync(CancellationToken cancellationToken = default)
     {
         var credentials = credentialStore.Value;
@@ -193,16 +193,20 @@ public sealed class AetherClient(
         }
     }
 
-    private FileStream AcquireRoomLock(long roomId)
+    // .NET exposes ERROR_SHARING_VIOLATION on Windows, but raw EWOULDBLOCK on Unix (35 on macOS, 11 on Linux).
+    private static readonly int RoomLockHeldHResult = OperatingSystem.IsWindows()
+        ? unchecked((int)0x80070020) : OperatingSystem.IsMacOS() ? 35 : 11;
+
+    // ponytail: On Unix this is a best-effort flock: .NET silently skips it when DOTNET_SYSTEM_IO_DISABLEFILELOCKING is set
+    // or the filesystem rejects flock (some network mounts). Fine while data/ sits on a local disk, as the README asks.
+    private FileStream AcquireRoomLock(long realRoomId)
     {
         Directory.CreateDirectory(dataDirectory);
-        var path = Path.Combine(dataDirectory, FormattableString.Invariant($"room-{roomId}.lock"));
+        var path = Path.Combine(dataDirectory, FormattableString.Invariant($"room-{realRoomId}.lock"));
         try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
-        // .NET exposes ERROR_SHARING_VIOLATION on Windows, but raw EWOULDBLOCK on Unix (35 on macOS, 11 on Linux).
-        catch (IOException error) when (error.HResult == (OperatingSystem.IsWindows()
-            ? unchecked((int)0x80070020) : OperatingSystem.IsMacOS() ? 35 : 11))
+        catch (IOException error) when (error.HResult == RoomLockHeldHResult)
         {
-            throw new InvalidOperationException($"直播间 {roomId} 已有直播间连接（可能在另一个 CLI 或 GUI 里）。", error);
+            throw new InvalidOperationException($"直播间 {realRoomId} 已有直播间连接（可能在另一个 CLI 或 GUI 里）。", error);
         }
     }
 
@@ -257,11 +261,11 @@ public sealed class AetherClient(
     }
 
     private async IAsyncEnumerable<WatchUpdate> ReceiveRoomUpdatesAsync(
-        long roomId, BilibiliApi api, [EnumeratorCancellation] CancellationToken cancellationToken)
+        long realRoomId, BilibiliApi api, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var connection = await api.GetConnectionAsync(roomId, cancellationToken);
+        var connection = await api.GetConnectionAsync(realRoomId, cancellationToken);
         using var socket = await connectWebSocket(connection.Server, cancellationToken);
-        var authentication = DanmakuProtocol.CreateAuthentication(connection.Mid, connection.RoomId, connection.Token, connection.Buvid);
+        var authentication = DanmakuProtocol.CreateAuthentication(connection.Mid, realRoomId, connection.Token, connection.Buvid);
         using var idleTimeout = new CancellationTokenSource(IdleTimeout, timeProvider);
         using var connectionStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, idleTimeout.Token);
         await socket.SendAsync(authentication, WebSocketMessageType.Binary, true, connectionStop.Token);

@@ -24,9 +24,8 @@ public sealed class RoomLockTests
         else Assert.IsType<WatchQrCode>(first.Current);
 
         var http = new FakeBilibiliHttp { Respond = h.Http.Respond };
-        using var other = new AetherClient(http,
-            (_, _) => throw new Xunit.Sdk.XunitException("Conflicting connection must not open a socket"),
-            h.Time, h.Logger, h.DataDirectory);
+        using var other = h.ClientSharingData(
+            (_, _) => throw new Xunit.Sdk.XunitException("Conflicting connection must not open a socket"), http);
         await using var second = other.WatchAsync(secondRoomId, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await second.MoveNextAsync());
         Assert.Contains("直播间 7734200 已有直播间连接", error.Message);
@@ -47,7 +46,7 @@ public sealed class RoomLockTests
     [InlineData(false, true)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public async Task Ending_the_stream_releases_the_lock_even_while_waiting_for_qr(bool loggedIn, bool cancel)
+    public async Task Ending_the_stream_releases_the_lock_whether_connected_or_waiting_for_qr(bool loggedIn, bool cancel)
     {
         await using var h = new WatchHarness();
         if (loggedIn) await h.LoginAsync();
@@ -67,16 +66,14 @@ public sealed class RoomLockTests
                 await stop.CancelAsync();
                 Assert.False(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
                 // Assert release on cancellation before DisposeAsync runs.
-                using var contender = new AetherClient(new FakeBilibiliHttp { Respond = h.Http.Respond },
-                    h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
+                using var contender = h.ClientSharingData(h.Server.ConnectAsync);
                 await using var probe = contender.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
                 Assert.True(await probe.MoveNextAsync());
             }
         }
 
         await using var secondServer = new FakeDanmakuServer();
-        using var other = new AetherClient(new FakeBilibiliHttp { Respond = h.Http.Respond },
-            secondServer.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
+        using var other = h.ClientSharingData(secondServer.ConnectAsync);
         await using var second = other.WatchAsync(7734200, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await second.MoveNextAsync());
         if (!loggedIn)
@@ -100,8 +97,7 @@ public sealed class RoomLockTests
         await Assert.ThrowsAsync<InvalidOperationException>(async () => await first.MoveNextAsync());
 
         await using var secondServer = new FakeDanmakuServer();
-        using var other = new AetherClient(new FakeBilibiliHttp { Respond = h.Http.Respond },
-            secondServer.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
+        using var other = h.ClientSharingData(secondServer.ConnectAsync);
         await using var second = other.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await second.MoveNextAsync());
         Assert.True(await second.MoveNextAsync());
@@ -145,8 +141,7 @@ public sealed class RoomLockTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var secondServer = new FakeDanmakuServer();
-        using var other = new AetherClient(new FakeBilibiliHttp { Respond = h.Http.Respond },
-            secondServer.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
+        using var other = h.ClientSharingData(secondServer.ConnectAsync);
         await using (var first = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
         {
             Assert.True(await first.MoveNextAsync());
@@ -172,8 +167,7 @@ public sealed class RoomLockTests
         await using var first = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await first.MoveNextAsync());
         Assert.True(await first.MoveNextAsync());
-        using var other = new AetherClient(new FakeBilibiliHttp { Respond = h.Http.Respond },
-            h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
+        using var other = h.ClientSharingData(h.Server.ConnectAsync);
         await using (var login = other.LoginAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
         {
             Assert.True(await login.MoveNextAsync());

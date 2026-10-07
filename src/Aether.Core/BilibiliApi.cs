@@ -62,8 +62,8 @@ internal sealed class BilibiliApi
         return realRoomId;
     }
 
-    public async Task<(long Mid, long RoomId, string Buvid, string Token, Uri Server)> GetConnectionAsync(
-        long roomId, CancellationToken cancellationToken)
+    public async Task<(long Mid, string Buvid, string Token, Uri Server)> GetConnectionAsync(
+        long realRoomId, CancellationToken cancellationToken)
     {
         var buvid = await EnsureBuvidAsync(cancellationToken);
         var (mid, loginData) = await GetLoginStatusAndWbiKeysAsync(cancellationToken);
@@ -74,7 +74,7 @@ internal sealed class BilibiliApi
             27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13];
         var mixinKey = new string(permutation.Select(i => keys[i]).ToArray());
         // These parameters are all numeric; their sorted query needs no escaping or character filtering.
-        var query = FormattableString.Invariant($"id={roomId}&type=0&web_location=444.8&wts={timeProvider.GetUtcNow().ToUnixTimeSeconds()}");
+        var query = FormattableString.Invariant($"id={realRoomId}&type=0&web_location=444.8&wts={timeProvider.GetUtcNow().ToUnixTimeSeconds()}");
         var signature = Convert.ToHexStringLower(MD5.HashData(Encoding.UTF8.GetBytes(query + mixinKey)));
         var (_, data) = await GetAsync($"https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?{query}&w_rid={signature}",
             LiveReferer, "获取弹幕服务器", cancellationToken);
@@ -83,7 +83,7 @@ internal sealed class BilibiliApi
         // ponytail: Only the first server is tried; if it stays unavailable, add failover across host_list.
         var host = hosts[0];
         var uri = new UriBuilder("wss", host.GetProperty("host").GetString()!, host.GetProperty("wss_port").GetInt32(), "/sub").Uri;
-        return (mid, roomId, buvid, data.GetProperty("token").GetString()!, uri);
+        return (mid, buvid, data.GetProperty("token").GetString()!, uri);
     }
 
     public async Task<(string Url, string Key)> GenerateQrCodeAsync(CancellationToken cancellationToken)

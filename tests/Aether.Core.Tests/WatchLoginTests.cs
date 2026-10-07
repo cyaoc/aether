@@ -15,8 +15,7 @@ public sealed class WatchLoginTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        using var other = new AetherClient(new FakeBilibiliHttp { Respond = h.Http.Respond },
-            h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
+        using var other = h.ClientSharingData(h.Server.ConnectAsync);
         await using (var updates = other.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
         {
             Assert.True(await updates.MoveNextAsync());

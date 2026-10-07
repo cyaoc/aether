@@ -27,6 +27,11 @@ internal sealed class WatchHarness : IAsyncDisposable
         Client = new AetherClient(Http, connectWebSocket ?? Server.ConnectAsync, Time, Logger, DataDirectory);
     }
 
+    /// <summary>Another shell's client on this data directory, with its own cookies and request log.</summary>
+    public AetherClient ClientSharingData(
+        Func<Uri, CancellationToken, Task<System.Net.WebSockets.WebSocket>> connectWebSocket, FakeBilibiliHttp? http = null) =>
+        new(http ?? new FakeBilibiliHttp { Respond = Http.Respond }, connectWebSocket, Time, Logger, DataDirectory);
+
     public async Task LoginAsync()
     {
         await using var updates = Client.LoginAsync(Stop.Token).GetAsyncEnumerator(Stop.Token);
