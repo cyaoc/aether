@@ -74,7 +74,11 @@ public sealed class Settings
                 }
                 // Every setting under `log:` commented out leaves a blank value; the settings keep their defaults.
                 if (groupValue is YamlScalarNode { Style: ScalarStyle.Plain, Value: "" }) continue;
-                var group = RequireMapping(groupValue, "log");
+                if (groupValue is not YamlMappingNode group)
+                {
+                    settings.Error ??= new(path, groupValue.Start.Line, "log", "必须是设置分组。");
+                    continue;
+                }
                 var groupEditable = rootEditable && group.Style == MappingStyle.Block && group.Anchor.IsEmpty;
                 settings.LogRetentionDays = settings.LogRetentionDays with { CanEdit = groupEditable };
                 settings.LogLevel = settings.LogLevel with { CanEdit = groupEditable };

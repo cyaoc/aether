@@ -101,6 +101,22 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Theory]
+    [InlineData("future: true\nlog: false")]
+    [InlineData("log: false\nfuture: true")]
+    public void Invalid_log_group_preserves_unknown_key_diagnostics(string yaml)
+    {
+        Write(yaml);
+
+        var settings = Settings.Load(harness.DataDirectory, harness.Logger);
+
+        Assert.Equal("log", Assert.IsType<SettingsException>(settings.Error).SettingName);
+        Assert.Equal(["future"], settings.UnknownKeys);
+        var warning = Assert.Single(harness.Logger.Entries);
+        Assert.Equal(LogLevel.Warning, warning.Level);
+        Assert.Contains("future", warning.Message);
+    }
+
+    [Theory]
     [InlineData("", 30, true, false)]
     [InlineData("log:\n  level: Debug", 30, true, false)]
     [InlineData("log:\n  # retention_days: 7\n  # level: Debug\n", 30, true, false)]
