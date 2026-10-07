@@ -135,6 +135,8 @@ public sealed class AetherClient(
     private async IAsyncEnumerable<WatchUpdate> WatchWithReconnectAsync(
         long roomId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        var settings = Settings.Load(dataDirectory, logger);
+        if (settings.Error is { } settingsError) throw settingsError;
         long? realRoomId = null;
         var reconnecting = false;
         var retrySeconds = 1;

@@ -21,7 +21,8 @@ public partial class App : Application
             builder.Logging.ClearProviders();
             builder.Logging.AddDebug();
             var dataDirectory = DataDirectory.Locate();
-            builder.Logging.AddAetherFileLogging(dataDirectory);
+            var settings = Settings.Load(dataDirectory);
+            builder.Logging.AddAetherFileLogging(dataDirectory, settings);
             builder.Services.AddSingleton(services => new AetherClient(
                 services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
             builder.Services.AddSingleton(services => GuiSettings.Load(
@@ -29,6 +30,8 @@ public partial class App : Application
             builder.Services.AddSingleton<MainWindowViewModel>();
             var host = builder.Build();
             var logger = host.Services.GetRequiredService<ILogger<App>>();
+            if (settings.Error is { } settingsError)
+                logger.LogError(settingsError, "读取设置失败，日志使用默认值；开始直播间连接前需修正设置");
             void LogUiException(object? sender, DispatcherUnhandledExceptionEventArgs args) =>
                 logger.LogCritical(args.Exception, "UI 线程未处理异常");
             Dispatcher.UIThread.UnhandledException += LogUiException;

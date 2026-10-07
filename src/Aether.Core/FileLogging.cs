@@ -9,26 +9,29 @@ namespace Aether.Core;
 public static class FileLogging
 {
     /// <summary>Adds the Core-owned file logs and exception handlers; the host owns their lifetime.</summary>
-    public static ILoggingBuilder AddAetherFileLogging(this ILoggingBuilder logging, string dataDirectory)
+    public static ILoggingBuilder AddAetherFileLogging(this ILoggingBuilder logging, string dataDirectory, Settings settings)
     {
-        logging.Services.AddSingleton(_ => new FileLog(dataDirectory));
+        var effective = settings.Error is null ? settings : new Settings();
+        logging.Services.AddSingleton(_ => new FileLog(dataDirectory, effective, settings.UnknownKeys));
         logging.Services.AddSingleton<ILoggerProvider>(services =>
             new SerilogLoggerProvider(services.GetRequiredService<FileLog>().Logger));
-        logging.AddFilter<SerilogLoggerProvider>(null, LogLevel.Information);
+        logging.AddFilter<SerilogLoggerProvider>(null, effective.LogLevel.Value);
         return logging;
     }
 
     private sealed class FileLog : IDisposable
     {
-        private static readonly TimeSpan Retention = TimeSpan.FromDays(30);
+        private readonly TimeSpan retention;
 
         public Serilog.Core.Logger Logger { get; }
 
-        public FileLog(string dataDirectory)
+        public FileLog(string dataDirectory, Settings settings, IReadOnlyList<string> unknownKeys)
         {
+            var days = settings.LogRetentionDays.Value;
+            retention = days > TimeSpan.MaxValue.Days ? TimeSpan.MaxValue : TimeSpan.FromDays(days);
             var logs = Path.Combine(dataDirectory, "logs");
             Logger = new LoggerConfiguration()
-                .MinimumLevel.Information()
+                .MinimumLevel.Is(Serilog.Extensions.Logging.LevelConvert.ToSerilogLevel(settings.LogLevel.Value))
                 .Enrich.FromLogContext()
                 .Enrich.WithProperty("ProcessId", Environment.ProcessId)
                 .WriteTo.Map("RoomId", 0L, (roomId, write) => write.File(
@@ -36,7 +39,8 @@ public static class FileLogging
                         "aether-.log"),
                     rollingInterval: RollingInterval.Day,
                     retainedFileCountLimit: null,
-                    retainedFileTimeLimit: Retention,
+                    // No representable timestamp is this old; avoid overflowing Serilog's date subtraction.
+                    retainedFileTimeLimit: retention.Ticks < DateTime.Now.Ticks ? retention : null,
                     fileSizeLimitBytes: null,
                     shared: roomId <= 0,
                     buffered: false,
@@ -46,6 +50,9 @@ public static class FileLogging
                     // tie cached sinks to room-lock lifetime only if logging throughput needs it.
                     sinkMapCountLimit: 0)
                 .CreateLogger();
+            if (unknownKeys.Count > 0)
+                Logger.ForContext("SourceContext", "Aether.Core.Settings")
+                    .Warning("未知设置键：{Keys}", string.Join("、", unknownKeys));
             DeleteExpiredLogs(logs);
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
@@ -55,7 +62,8 @@ public static class FileLogging
         private void DeleteExpiredLogs(string logs)
         {
             if (!Directory.Exists(logs)) return;
-            var expired = DateTime.Now - Retention;
+            var now = DateTime.Now;
+            var expired = now.Ticks > retention.Ticks ? now - retention : DateTime.MinValue;
             try
             {
                 foreach (var file in Directory.EnumerateFiles(logs, "aether-*.log", new EnumerationOptions { RecurseSubdirectories = true }))
