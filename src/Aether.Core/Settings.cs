@@ -35,10 +35,11 @@ public sealed class Settings
     public Setting<LogLevel> LogLevel { get; private set; } = new(Microsoft.Extensions.Logging.LogLevel.Information);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
-    private byte[] bytes = [];
     private string source = "";
     private Encoding encoding = Encoding.UTF8;
     private YamlMappingNode? root;
+
+    public static string FilePath(string dataDirectory) => Path.Combine(dataDirectory, "aether.yml");
 
     /// <summary>The same validation used when loading and saving; null means the input is valid.</summary>
     public static string? Validate(string name, string? value) => name switch
@@ -54,7 +55,7 @@ public sealed class Settings
     /// <summary>Reload the file and change only the requested values, then atomically replace it.</summary>
     public static void Save(string dataDirectory, IReadOnlyDictionary<string, string> changes)
     {
-        var path = Path.Combine(dataDirectory, "aether.yml");
+        var path = FilePath(dataDirectory);
         foreach (var (name, value) in changes)
             if (Validate(name, value) is { } reason) throw new SettingsException(path, 1, name, reason);
         var current = Load(dataDirectory);
@@ -74,27 +75,36 @@ public sealed class Settings
         var indent = new string(' ', group is { Children.Count: > 0 } ? IndentOf(group) : rootIndent + 2);
         foreach (var (name, value) in changes)
         {
+            var key = name["log.".Length..];
+            // Match by name like Load does, so a tagged key such as `!!str level` is still found.
+            var node = group?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: var text } && text == key).Value;
             var canEdit = name == "log.retention_days" ? current.LogRetentionDays.CanEdit : current.LogLevel.CanEdit;
-            if (!canEdit) throw new SettingsException(path, 1, name, "不能逐行编辑，请在设置文件里修改。");
-            var node = group is not null && group.Children.TryGetValue(name[4..], out var valueNode) ? valueNode : null;
+            if (!canEdit)
+                throw new SettingsException(path, node?.Start.Line ?? groupEntry?.Key?.Start.Line ?? 1, name, "不能逐行编辑，请在设置文件里修改。");
             var scalar = name == "log.retention_days"
                 ? int.Parse(value, CultureInfo.InvariantCulture).ToString(CultureInfo.InvariantCulture) : value.Trim();
             // Both supported settings validate to plain YAML scalars (an integer or a level name).
-            if (node is null) missing.Append(indent).Append(name[4..]).Append(": ").Append(scalar).Append(newline);
+            if (node is null) missing.Append(indent).Append(key).Append(": ").Append(scalar).Append(newline);
             else edits.Add(((int)node.Start.Index, (int)(node.End.Index - node.Start.Index), scalar));
         }
         if (missing.Length > 0)
         {
-            var at = (int)(tokens.OfType<Tokens.DocumentEnd>().SingleOrDefault()?.Start.Index ?? current.source.Length);
-            if (groupEntry?.Key is { } groupKey)
+            var at = (int)(tokens.OfType<Tokens.DocumentEnd>().FirstOrDefault()?.Start.Index ?? current.source.Length);
+            if (group?.Children.LastOrDefault() is { Key: { } lastKey, Value: var lastValue } && lastKey.Start.Line == lastValue.End.Line)
             {
-                var next = current.root!.Children.Keys.FirstOrDefault(key => key.Start.Index > groupKey.Start.Index);
-                if (next is not null)
-                    at = (int)tokens.OfType<Tokens.Key>().Last(key => key.Start.Index <= next.Start.Index).Start.Index;
+                // Right after the group's last one-line setting, so blank lines and comments before the next group stay with it.
+                var end = (int)lastValue.End.Index;
+                var lineBreak = current.source.AsSpan(end).IndexOfAny(lineBreaks);
+                at = lineBreak < 0 ? current.source.Length
+                    : end + lineBreak + (current.source.AsSpan(end + lineBreak).StartsWith("\r\n") ? 2 : 1);
             }
-            // Insert before the next top-level key or document-end marker, including its indentation.
-            if (at < current.source.Length)
+            else if (groupEntry?.Key is { } groupKey
+                && current.root!.Children.Keys.FirstOrDefault(key => key.Start.Index > groupKey.Start.Index) is { } next)
+            {
+                // Insert before the next top-level key, including its indentation.
+                at = (int)tokens.OfType<Tokens.Key>().Last(key => key.Start.Index <= next.Start.Index).Start.Index;
                 while (at > 0 && !lineBreaks.Contains(current.source[at - 1])) at--;
+            }
             var prefix = at > 0 && !lineBreaks.Contains(current.source[at - 1]) ? newline : "";
             if (groupEntry?.Key is null) prefix += new string(' ', rootIndent) + "log:" + newline;
             edits.Add((at, 0, prefix + missing));
@@ -103,13 +113,12 @@ public sealed class Settings
         var text = current.source;
         foreach (var edit in edits.OrderByDescending(edit => edit.Start))
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
-        var preamble = current.encoding.GetPreamble();
         var temporary = path + "." + Guid.NewGuid() + ".tmp";
         try
         {
             using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write))
             {
-                if (current.bytes.AsSpan().StartsWith(preamble)) output.Write(preamble);
+                output.Write(current.encoding.GetPreamble());
                 output.Write(current.encoding.GetBytes(text));
                 output.Flush(flushToDisk: true);
             }
@@ -130,7 +139,7 @@ public sealed class Settings
 
     public static Settings Load(string dataDirectory, ILogger? logger = null)
     {
-        var path = Path.Combine(dataDirectory, "aether.yml");
+        var path = FilePath(dataDirectory);
         var settings = new Settings();
         try
         {
@@ -146,14 +155,14 @@ public sealed class Settings
                 }
                 finally { File.Delete(temporary); }
             }
-            settings.bytes = File.ReadAllBytes(path);
-            using var reader = new StreamReader(new MemoryStream(settings.bytes), new UTF8Encoding(false, true));
+            var bytes = File.ReadAllBytes(path);
+            using var reader = new StreamReader(new MemoryStream(bytes), new UTF8Encoding(false));
             settings.source = reader.ReadToEnd();
-            settings.encoding = reader.CurrentEncoding;
-            var preamble = settings.encoding.GetPreamble();
-            var content = settings.bytes.AsSpan(settings.bytes.AsSpan().StartsWith(preamble) ? preamble.Length : 0);
-            if (!content.SequenceEqual(settings.encoding.GetBytes(settings.source)))
-                throw new SettingsException(path, 1, "文件", "文件编码无效。");
+            settings.encoding = reader.CurrentEncoding; // Has a preamble only when the file starts with that BOM.
+            // A file that doesn't round-trip (e.g. GBK) still loads; only rewriting it would change bytes.
+            var lossless = bytes.AsSpan(settings.encoding.GetPreamble().Length)
+                .SequenceEqual(settings.encoding.GetBytes(settings.source));
+            MarkEditable(lossless);
             var yaml = new YamlStream();
             yaml.Load(new StringReader(settings.source));
             if (yaml.Documents.Count == 0) return settings;
@@ -161,9 +170,8 @@ public sealed class Settings
                 throw new SettingsException(path, yaml.Documents[1].RootNode.Start.Line, "YAML", "只允许一个设置文档。");
             var root = RequireMapping(yaml.Documents[0].RootNode, "YAML");
             settings.root = root;
-            var rootEditable = root.Style == MappingStyle.Block && root.Anchor.IsEmpty;
-            settings.LogRetentionDays = settings.LogRetentionDays with { CanEdit = rootEditable };
-            settings.LogLevel = settings.LogLevel with { CanEdit = rootEditable };
+            var rootEditable = lossless && root.Style == MappingStyle.Block && root.Anchor.IsEmpty;
+            MarkEditable(rootEditable);
             var unknown = new List<string>();
             foreach (var (groupKey, groupValue) in root.Children)
             {
@@ -178,9 +186,7 @@ public sealed class Settings
                 // Every setting under `log:` commented out leaves a blank value; the settings keep their defaults.
                 if (groupValue is YamlScalarNode { Style: ScalarStyle.Plain, Value: "" })
                 {
-                    var editable = rootEditable && groupValue.Anchor.IsEmpty;
-                    settings.LogRetentionDays = settings.LogRetentionDays with { CanEdit = editable };
-                    settings.LogLevel = settings.LogLevel with { CanEdit = editable };
+                    MarkEditable(rootEditable && groupValue.Anchor.IsEmpty);
                     continue;
                 }
                 if (groupValue is not YamlMappingNode group)
@@ -189,8 +195,7 @@ public sealed class Settings
                     continue;
                 }
                 var groupEditable = rootEditable && group.Style == MappingStyle.Block && group.Anchor.IsEmpty;
-                settings.LogRetentionDays = settings.LogRetentionDays with { CanEdit = groupEditable };
-                settings.LogLevel = settings.LogLevel with { CanEdit = groupEditable };
+                MarkEditable(groupEditable);
                 foreach (var (key, value) in group.Children)
                 {
                     var name = "log." + KeyName(key);
@@ -223,7 +228,7 @@ public sealed class Settings
         }
         catch (SettingsException error) { settings.Error = error; }
         catch (YamlException error) { settings.Error = new(path, error.Start.Line, "YAML", error.Message); }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or DecoderFallbackException)
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
             settings.Error = new(path, 1, "文件", error.Message);
         }
@@ -236,5 +241,11 @@ public sealed class Settings
 
         string KeyName(YamlNode key) => key is YamlScalarNode { Value: { } name } ? name
             : throw new SettingsException(path, key.Start.Line, "YAML", "设置键必须是文字。");
+
+        void MarkEditable(bool editable)
+        {
+            settings.LogRetentionDays = settings.LogRetentionDays with { CanEdit = editable };
+            settings.LogLevel = settings.LogLevel with { CanEdit = editable };
+        }
     }
 }

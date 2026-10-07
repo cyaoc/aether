@@ -22,7 +22,11 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("log:\n  level: Debug\n\nfuture: true\n", "log:\n  level: Debug\n\n  retention_days: 14\nfuture: true\n")]
+    [InlineData("log:\n  level: Debug\n\nfuture: true\n", "log:\n  level: Debug\n  retention_days: 14\n\nfuture: true\n")]
+    [InlineData("log:\n  level: Debug # 级别\n\n# 其他分组\nfuture: true\n",
+        "log:\n  level: Debug # 级别\n  retention_days: 14\n\n# 其他分组\nfuture: true\n")]
+    [InlineData("log:\n  level: Debug\n# 末尾\n", "log:\n  level: Debug\n  retention_days: 14\n# 末尾\n")]
+    [InlineData("future: true\n...\n...\n", "future: true\nlog:\n  retention_days: 14\n...\n...\n")]
     [InlineData("log:\n    level: Debug", "log:\n    level: Debug\n    retention_days: 14\n")]
     [InlineData("log: # 日志\n  # 我的注释\nfuture: true\n", "log: # 日志\n  # 我的注释\n  retention_days: 14\nfuture: true\n")]
     [InlineData("# 开头\nfuture: true", "# 开头\nfuture: true\nlog:\n  retention_days: 14\n")]
@@ -109,13 +113,25 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Invalid_utf8_is_reported_and_save_does_not_change_its_bytes()
+    public void Save_finds_a_tagged_key_by_name_instead_of_adding_a_second_line()
+    {
+        Write("log:\n  !!str retention_days: 7\n");
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["log.retention_days"] = "14" });
+        Assert.Equal("log:\n  !!str retention_days: 14\n", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Non_utf8_file_still_loads_but_is_read_only_and_save_does_not_change_its_bytes()
     {
         Write("log:\n  level: Debug\n# ");
         var bytes = File.ReadAllBytes(SettingsPath).Concat(new byte[] { 0xff }).ToArray();
         File.WriteAllBytes(SettingsPath, bytes);
 
-        Assert.NotNull(Settings.Load(harness.DataDirectory).Error);
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(LogLevel.Debug, settings.LogLevel.Value);
+        Assert.False(settings.LogLevel.CanEdit);
+        Assert.False(settings.LogRetentionDays.CanEdit);
         Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
             new Dictionary<string, string> { ["log.level"] = "Warning" }));
         Assert.Equal(bytes, File.ReadAllBytes(SettingsPath));

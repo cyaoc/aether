@@ -21,7 +21,7 @@ public partial class SettingsWindow : Window
         LevelInput.ItemsSource = Enum.GetValues<LogLevel>().Where(level => level != LogLevel.None).ToArray();
         RetentionInput.PropertyChanged += (_, e) =>
         {
-            if (e.Property == NumericUpDown.TextProperty && settings is not null) Validate();
+            if (e.Property == NumericUpDown.TextProperty) Validate();
         };
         LevelInput.SelectionChanged += (_, _) => Validate();
         LoadSettings();
@@ -81,7 +81,7 @@ public partial class SettingsWindow : Window
     {
         try
         {
-            Process.Start(new ProcessStartInfo(Path.Combine(dataDirectory, "aether.yml")) { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(Settings.FilePath(dataDirectory)) { UseShellExecute = true });
         }
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException)
         {

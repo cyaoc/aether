@@ -15,6 +15,8 @@ public partial class MainWindow : Window
     private bool canClose;
     private bool followLatest = true;
     private bool scrollPending;
+    private readonly string dataDirectory;
+    private SettingsWindow? settingsWindow;
 
     public MainWindow() : this(Aether.Core.DataDirectory.Locate()) { }
 
@@ -36,9 +38,6 @@ public partial class MainWindow : Window
                 PauseFollowingForInput();
         }, RoutingStrategies.Tunnel);
     }
-
-    private readonly string dataDirectory;
-    private SettingsWindow? settingsWindow;
 
     private void OpenSettings(object? sender, RoutedEventArgs e)
     {
