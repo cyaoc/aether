@@ -88,7 +88,7 @@ public sealed class FileLoggingTests
     }
 
     [Fact]
-    public void Startup_removes_expired_logs_and_emptied_folders_of_rooms_never_reconnected()
+    public void Startup_removes_expired_logs_but_preserves_room_directories_for_writers()
     {
         var directory = Path.Combine(Path.GetTempPath(), "aether-logs-" + Guid.NewGuid());
         var room = Path.Combine(directory, "logs", "7734200");
@@ -110,7 +110,8 @@ public sealed class FileLoggingTests
                 host.Services.GetRequiredService<ILoggerFactory>();
             Assert.False(File.Exists(old));
             Assert.Equal("recent", File.ReadAllText(recent));
-            Assert.False(Directory.Exists(abandoned));
+            Assert.True(Directory.Exists(abandoned));
+            Assert.Empty(Directory.GetFileSystemEntries(abandoned));
         }
         finally { Directory.Delete(directory, true); }
     }

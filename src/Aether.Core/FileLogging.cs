@@ -60,9 +60,7 @@ public static class FileLogging
             {
                 foreach (var file in Directory.EnumerateFiles(logs, "aether-*.log", new EnumerationOptions { RecurseSubdirectories = true }))
                     if (File.GetLastWriteTime(file) < expired) File.Delete(file);
-                // ponytail: a process creating this folder right now may lose one line; rooms rarely start in the same instant.
-                foreach (var room in Directory.EnumerateDirectories(logs))
-                    if (!Directory.EnumerateFileSystemEntries(room).Any()) Directory.Delete(room);
+                // Keep directories: a writer may have ensured its directory exists but not opened the file yet.
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException)
             {
