@@ -53,6 +53,15 @@ internal sealed class BilibiliApi
         return status;
     }
 
+    public async Task<long> ResolveRoomIdAsync(long roomId, CancellationToken cancellationToken)
+    {
+        var (_, room) = await GetAsync($"https://api.live.bilibili.com/room/v1/Room/room_init?id={roomId.ToString(CultureInfo.InvariantCulture)}",
+            LiveReferer, $"直播间 {roomId} 查询", cancellationToken);
+        var realRoomId = room.GetProperty("room_id").GetInt64();
+        if (realRoomId <= 0) throw new InvalidDataException("B站未返回有效的真实房间号。");
+        return realRoomId;
+    }
+
     public async Task<(long Mid, long RoomId, string Buvid, string Token, Uri Server)> GetConnectionAsync(
         long roomId, CancellationToken cancellationToken)
     {
@@ -64,11 +73,8 @@ internal sealed class BilibiliApi
         int[] permutation = [46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35,
             27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13];
         var mixinKey = new string(permutation.Select(i => keys[i]).ToArray());
-        var (_, room) = await GetAsync($"https://api.live.bilibili.com/room/v1/Room/room_init?id={roomId.ToString(CultureInfo.InvariantCulture)}",
-            LiveReferer, $"直播间 {roomId} 查询", cancellationToken);
-        var realRoomId = room.GetProperty("room_id").GetInt64();
         // These parameters are all numeric; their sorted query needs no escaping or character filtering.
-        var query = FormattableString.Invariant($"id={realRoomId}&type=0&web_location=444.8&wts={timeProvider.GetUtcNow().ToUnixTimeSeconds()}");
+        var query = FormattableString.Invariant($"id={roomId}&type=0&web_location=444.8&wts={timeProvider.GetUtcNow().ToUnixTimeSeconds()}");
         var signature = Convert.ToHexStringLower(MD5.HashData(Encoding.UTF8.GetBytes(query + mixinKey)));
         var (_, data) = await GetAsync($"https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?{query}&w_rid={signature}",
             LiveReferer, "获取弹幕服务器", cancellationToken);
@@ -77,7 +83,7 @@ internal sealed class BilibiliApi
         // ponytail: Only the first server is tried; if it stays unavailable, add failover across host_list.
         var host = hosts[0];
         var uri = new UriBuilder("wss", host.GetProperty("host").GetString()!, host.GetProperty("wss_port").GetInt32(), "/sub").Uri;
-        return (mid, realRoomId, buvid, data.GetProperty("token").GetString()!, uri);
+        return (mid, roomId, buvid, data.GetProperty("token").GetString()!, uri);
     }
 
     public async Task<(string Url, string Key)> GenerateQrCodeAsync(CancellationToken cancellationToken)

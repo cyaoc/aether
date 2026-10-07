@@ -135,36 +135,45 @@ public sealed class AetherClient(
     private async IAsyncEnumerable<WatchUpdate> WatchWithReconnectAsync(
         long roomId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        long? realRoomId = null;
         var reconnecting = false;
         var retrySeconds = 1;
-        while (true)
+        FileStream? roomLock = null;
+        try
         {
-            await using (var updates = WatchAttemptAsync().GetAsyncEnumerator(cancellationToken))
+            while (true)
             {
-                while (true)
+                await using (var updates = WatchAttemptAsync().GetAsyncEnumerator(cancellationToken))
                 {
-                    bool hasNext;
-                    try { hasNext = await updates.MoveNextAsync(); }
-                    catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
+                    while (true)
                     {
-                        logger.LogWarning("直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, error.Message);
-                        break;
+                        bool hasNext;
+                        try { hasNext = await updates.MoveNextAsync(); }
+                        catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
+                        {
+                            logger.LogWarning("直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, error.Message);
+                            break;
+                        }
+                        if (!hasNext) yield break;
+                        if (reconnecting && updates.Current is Connecting) continue;
+                        if (updates.Current is Connected) retrySeconds = 1;
+                        yield return updates.Current;
                     }
-                    if (!hasNext) yield break;
-                    if (reconnecting && updates.Current is Connecting) continue;
-                    if (updates.Current is Connected) retrySeconds = 1;
-                    yield return updates.Current;
                 }
+                reconnecting = true;
+                yield return new Reconnecting();
+                await Task.Delay(TimeSpan.FromSeconds(retrySeconds), timeProvider, cancellationToken);
+                retrySeconds = Math.Min(retrySeconds * 2, 30);
             }
-            reconnecting = true;
-            yield return new Reconnecting();
-            await Task.Delay(TimeSpan.FromSeconds(retrySeconds), timeProvider, cancellationToken);
-            retrySeconds = Math.Min(retrySeconds * 2, 30);
         }
+        finally { roomLock?.Dispose(); }
 
         async IAsyncEnumerable<WatchUpdate> WatchAttemptAsync()
         {
             cancellationToken.ThrowIfCancellationRequested();
+            realRoomId ??= await new BilibiliApi(http, timeProvider, credential: null)
+                .ResolveRoomIdAsync(roomId, cancellationToken);
+            roomLock ??= AcquireRoomLock(realRoomId.Value);
             var credentials = credentialStore.Value;
             var credential = await RefreshCredentialIfDueAsync(cancellationToken, cancellationToken);
             var api = new BilibiliApi(http, timeProvider, credential);
@@ -179,8 +188,21 @@ public sealed class AetherClient(
                     logger.LogWarning("新的登录凭据未生效，请重新扫码登录。");
             }
             yield return new Connecting();
-            await foreach (var update in ReceiveRoomUpdatesAsync(roomId, api, cancellationToken))
+            await foreach (var update in ReceiveRoomUpdatesAsync(realRoomId.Value, api, cancellationToken))
                 yield return update;
+        }
+    }
+
+    private FileStream AcquireRoomLock(long roomId)
+    {
+        Directory.CreateDirectory(dataDirectory);
+        var path = Path.Combine(dataDirectory, FormattableString.Invariant($"room-{roomId}.lock"));
+        try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+        // .NET exposes ERROR_SHARING_VIOLATION on Windows, but raw EWOULDBLOCK on Unix (35 on macOS, 11 on Linux).
+        catch (IOException error) when (error.HResult == (OperatingSystem.IsWindows()
+            ? unchecked((int)0x80070020) : OperatingSystem.IsMacOS() ? 35 : 11))
+        {
+            throw new InvalidOperationException($"直播间 {roomId} 已有直播间连接（可能在另一个 CLI 或 GUI 里）。", error);
         }
     }
 
