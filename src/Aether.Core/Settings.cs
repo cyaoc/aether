@@ -345,9 +345,9 @@ public sealed class Settings
             }
         }
 
-        private static Definition<T> ScalarSetting<T>(string name, T initial, string rule, Func<string, (bool, T)> parse, Func<T, string> text) =>
+        private static Definition<T> ScalarSetting<T>(string name, T initial, string rule, Func<string, (bool, T)> parse, Func<T, string> toText) =>
             new(name, initial, rule, node => node is YamlScalarNode { Value: var value } ? parse(value ?? "") : default, parse,
-                value => Emit([text(value)])[1..^1]);
+                value => Emit([toText(value)])[1..^1]);
 
         private static bool OneLine(string text) => text.AsSpan().IndexOfAny(LineBreaks) < 0;
 

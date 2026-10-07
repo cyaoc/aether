@@ -30,7 +30,7 @@ public sealed class FileLoggingTests
                 // Editing the file does not change the snapshot passed to logging at startup.
                 File.WriteAllText(Path.Combine(directory, "aether.yml"), "log:\n  level: bad\n");
                 var logger = host.Services.GetRequiredService<ILogger<FileLoggingTests>>();
-                using var scope = logger.BeginScope(new Dictionary<string, object> { [FileLogging.RoomIdProperty] = 1L });
+                using var scope = logger.BeginRoomScope(1L);
                 foreach (var candidate in Enum.GetValues<LogLevel>().Where(value => value != LogLevel.None))
                     logger.Log(candidate, "marker-{Candidate}", candidate.ToString());
             }
@@ -79,7 +79,7 @@ public sealed class FileLoggingTests
                 logger.LogTrace("hidden-trace");
                 logger.LogDebug("hidden-debug");
                 logger.LogInformation("common-before");
-                using (logger.BeginScope(new Dictionary<string, object> { [FileLogging.RoomIdProperty] = 7734200L }))
+                using (logger.BeginRoomScope(7734200L))
                 {
                     logger.LogInformation("room-message");
                     try { ThrowForLog(); }
@@ -136,7 +136,7 @@ public sealed class FileLoggingTests
             using (var host = FileLoggingHost(directory))
             {
                 var logger = host.Services.GetRequiredService<ILogger<FileLoggingTests>>();
-                using var scope = logger.BeginScope(new Dictionary<string, object> { [FileLogging.RoomIdProperty] = roomId });
+                using var scope = logger.BeginRoomScope(roomId);
                 logger.LogInformation("today");
             }
             Assert.False(File.Exists(old));
@@ -202,7 +202,7 @@ public sealed class FileLoggingTests
                 var roomId = 7734200L + i;
                 var room = Path.Combine(directory, "logs", roomId.ToString(System.Globalization.CultureInfo.InvariantCulture));
                 Directory.CreateDirectory(room);
-                using var scope = logger.BeginScope(new Dictionary<string, object> { [FileLogging.RoomIdProperty] = roomId });
+                using var scope = logger.BeginRoomScope(roomId);
                 logger.LogInformation("first-event-{Index}", i);
                 var file = Assert.Single(Directory.GetFiles(room, "*.log"));
                 Assert.Contains($"first-event-{i}", File.ReadAllText(file));
@@ -229,19 +229,19 @@ public sealed class FileLoggingTests
             {
                 var logger = host.Services.GetRequiredService<ILogger<FileLoggingTests>>();
                 logger.LogInformation("first-host");
-                using (logger.BeginScope(new Dictionary<string, object> { [FileLogging.RoomIdProperty] = 1L }))
+                using (logger.BeginRoomScope(1L))
                     logger.LogInformation("first-room-owner");
                 using (var other = FileLoggingHost(directory))
                 {
                     var otherLogger = other.Services.GetRequiredService<ILogger<FileLoggingTests>>();
                     otherLogger.LogInformation("second-host");
-                    using (otherLogger.BeginScope(new Dictionary<string, object> { [FileLogging.RoomIdProperty] = 1L }))
+                    using (otherLogger.BeginRoomScope(1L))
                         otherLogger.LogInformation("second-room-owner");
                 }
                 logger.LogInformation("first-still-alive");
                 foreach (var room in new[] { 1L, 2L, 3L, 4L })
                 {
-                    using var scope = logger.BeginScope(new Dictionary<string, object> { [FileLogging.RoomIdProperty] = room });
+                    using var scope = logger.BeginRoomScope(room);
                     logger.LogInformation("switch-room");
                 }
                 var released = Assert.Single(Directory.GetFiles(Path.Combine(directory, "logs", "1"), "*.log"));

@@ -21,11 +21,13 @@ public sealed partial class AetherClient
         /// <summary>The settings this room connection started with; reconnects keep them.</summary>
         public Settings Settings { get; } = settings;
 
+        // Each is set once and kept across reconnects.
+        private long? realRoomId;
+        private FileStream? roomLock;
+        private IDisposable? roomScope;
+
         public async Task RunAsync(CancellationToken cancellationToken)
         {
-            long? realRoomId = null;
-            FileStream? roomLock = null;
-            IDisposable? roomScope = null;
             var reconnecting = false;
             var retrySeconds = 1;
             try
@@ -37,12 +39,12 @@ public sealed partial class AetherClient
                         realRoomId ??= await new BilibiliApi(client.http, client.timeProvider, credential: null)
                             .ResolveRoomIdAsync(roomId, cancellationToken);
                         roomLock ??= AcquireRoomLock(realRoomId.Value);
-                        roomScope ??= client.logger.BeginScope(
-                            new Dictionary<string, object> { [FileLogging.RoomIdProperty] = realRoomId.Value });
+                        roomScope ??= client.logger.BeginRoomScope(realRoomId.Value);
                         await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {
                             if (reconnecting && update is Connecting) continue;
                             if (update is Connected) retrySeconds = 1;
+                            // Never wait here on the reader or on anything slow: the idle deadline only moves as packets arrive.
                             await output.WriteAsync(update, cancellationToken);
                         }
                         return;
