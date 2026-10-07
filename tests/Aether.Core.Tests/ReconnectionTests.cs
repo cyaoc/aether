@@ -324,6 +324,37 @@ public sealed class ReconnectionTests
     }
 
     [Fact]
+    public async Task Core_keeps_the_room_connection_off_the_thread_the_shell_reads_on()
+    {
+        using var shell = new SingleThreadContext();
+        await using var first = new FakeDanmakuServer();
+        await using var second = new FakeDanmakuServer();
+        var connectedOn = new List<int>();
+        await using var h = new WatchHarness((uri, token) =>
+        {
+            lock (connectedOn)
+            {
+                connectedOn.Add(Environment.CurrentManagedThreadId);
+                return (connectedOn.Count == 1 ? first : second).ConnectAsync(uri, token);
+            }
+        });
+        await h.LoginAsync();
+        await shell.RunAsync(async () =>
+        {
+            await using var updates = await h.WatchConnectedAsync();
+            await first.DisconnectAsync();
+            Assert.True(await updates.MoveNextAsync());
+            Assert.IsType<Reconnecting>(updates.Current);
+            var next = updates.MoveNextAsync().AsTask();
+            await Task.Run(() => h.Time.Advance(TimeSpan.FromSeconds(1)), h.Stop.Token); // A timer fires off the UI thread.
+            Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+            Assert.IsType<Connected>(updates.Current);
+        }).WaitAsync(TimeSpan.FromSeconds(10), h.Stop.Token);
+        Assert.Equal(2, connectedOn.Count);
+        Assert.NotEqual(shell.ThreadId, connectedOn[1]);
+    }
+
+    [Fact]
     public async Task Heartbeat_replies_keep_a_quiet_room_connected()
     {
         await using var h = new WatchHarness();
