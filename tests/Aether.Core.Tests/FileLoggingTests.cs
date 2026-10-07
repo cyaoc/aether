@@ -116,6 +116,51 @@ public sealed class FileLoggingTests
     }
 
     [Fact]
+    public async Task Startup_cleanup_does_not_lose_the_first_event_in_a_room_directory()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "aether-logs-" + Guid.NewGuid());
+        Directory.CreateDirectory(Path.Combine(directory, "logs"));
+        var finished = 0;
+        var cleanups = 0;
+        using var start = new Barrier(2);
+        using var host = FileLoggingHost(directory);
+        var logger = host.Services.GetRequiredService<ILogger<FileLoggingTests>>();
+        var cleanup = Task.Run(() =>
+        {
+            start.SignalAndWait(TestContext.Current.CancellationToken);
+            while (Volatile.Read(ref finished) == 0)
+            {
+                using var other = LoggerFactory.Create(logging => logging.AddAetherFileLogging(directory));
+                other.CreateLogger("Startup");
+                Interlocked.Increment(ref cleanups);
+            }
+        }, TestContext.Current.CancellationToken);
+        try
+        {
+            start.SignalAndWait(TestContext.Current.CancellationToken);
+            for (var i = 0; i < 1000; i++)
+            {
+                var roomId = 7734200L + i;
+                var room = Path.Combine(directory, "logs", roomId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                Directory.CreateDirectory(room);
+                using var scope = logger.BeginScope(new Dictionary<string, object> { ["RoomId"] = roomId });
+                logger.LogInformation("first-event-{Index}", i);
+                var file = Assert.Single(Directory.GetFiles(room, "*.log"));
+                Assert.Contains($"first-event-{i}", File.ReadAllText(file));
+                // Recreate the empty-directory condition after verifying each event reached disk.
+                File.Delete(file);
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref finished, 1);
+            await cleanup;
+            Directory.Delete(directory, true);
+        }
+        Assert.True(cleanups > 0);
+    }
+
+    [Fact]
     public void Hosts_share_common_file_and_switching_rooms_releases_old_file_handles()
     {
         var directory = Path.Combine(Path.GetTempPath(), "aether-logs-" + Guid.NewGuid());

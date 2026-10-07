@@ -212,8 +212,8 @@ public sealed class AetherClient(
 
     // ponytail: On Unix this is a best-effort flock: .NET silently skips it when DOTNET_SYSTEM_IO_DISABLEFILELOCKING is set
     // or the filesystem rejects flock (some network mounts). Fine while data/ sits on a local disk, as the README asks.
-    // DeleteOnClose is emulated there as unlink by path at close: an open landing in that same microsecond can lock the
-    // unlinked file while the next process creates a fresh one. Verify the inode after locking if that ever matters.
+    // For OpenOrCreate + FileShare.None + DeleteOnClose, .NET verifies the inode after locking on Unix
+    // and reopens if another owner deleted/replaced the path during handoff.
     private FileStream AcquireRoomLock(long realRoomId)
     {
         Directory.CreateDirectory(dataDirectory);
