@@ -1,4 +1,5 @@
 using Aether.Core.Tests.Support;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Core.Tests;
 
@@ -32,7 +33,7 @@ public sealed class CredentialRefreshTests
     }
 
     [Fact]
-    public async Task Rejected_credential_discards_danmaku_buffered_before_the_check()
+    public async Task Rejected_credential_ends_the_connection_after_danmaku_received_before_the_check()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -41,6 +42,9 @@ public sealed class CredentialRefreshTests
         await using var updates = await h.WatchConnectedAsync();
         var packet = DanmakuPacket();
         await h.Server.PushAsync([.. packet, .. packet]);
+        // Core hands over what it received while the credential still stood, read or not.
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Danmaku>(updates.Current);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Danmaku>(updates.Current);
         h.Time.Advance(TimeSpan.FromSeconds(10));
@@ -180,10 +184,14 @@ public sealed class CredentialRefreshTests
         var http = new FakeBilibiliHttp();
         http.ConfigureLogin("external-session");
         http.Responses[Poll] = """{"code":0,"data":{"code":0,"refresh_token":"external-token"}}""";
-        using var client = new AetherClient(http, h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
+        // Another process keeps its own clock; advancing the harness's would also run this room connection's timers.
+        var time = new FakeTimeProvider(h.Time.GetUtcNow());
+        using var client = new AetherClient(http, h.Server.ConnectAsync, time, h.Logger, h.DataDirectory);
         await using var login = client.LoginAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await login.MoveNextAsync());
-        Assert.True(await h.AdvancePollAsync(login));
+        var next = login.MoveNextAsync().AsTask();
+        time.Advance(TimeSpan.FromSeconds(2));
+        Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.IsType<LoggedIn>(login.Current);
     }
 
@@ -297,7 +305,12 @@ public sealed class CredentialRefreshTests
         }
         finally { release.TrySetResult(); }
         await ending.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
-        if (!dispose) Assert.IsType<Reconnecting>(updates.Current);
+        if (!dispose)
+        {
+            Assert.IsType<Reconnecting>(updates.Current);
+            // Core reconnects on its own now, so end the room connection before checking nothing was left running.
+            await updates.DisposeAsync();
+        }
         var requests = h.Http.Requests.Count;
         h.Time.Advance(TimeSpan.FromDays(1));
         Assert.Equal(requests, h.Http.Requests.Count);

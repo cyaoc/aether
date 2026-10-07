@@ -363,6 +363,145 @@ public sealed class SettingsTests : IAsyncDisposable
         await Assert.ThrowsAsync<SettingsException>(async () => await next.MoveNextAsync());
     }
 
+    [Theory]
+    [InlineData("log:\n  retention_days: '7'\n  level: Debug\n", "7", "Debug")]
+    [InlineData("log:\n  retention_days: 007 # 一周\n", " 7 ", "Information")]
+    [InlineData("log:\n  level: \"Debug\"\n", "30", "Debug")]
+    public void Save_leaves_values_equal_to_the_current_ones_untouched(string yaml, string days, string level)
+    {
+        Write(yaml);
+
+        Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["log.retention_days"] = days, ["log.level"] = level });
+
+        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Save_keeps_an_external_edit_to_a_value_unchanged_since_the_snapshot()
+    {
+        Write("log:\n  level: Information\n");
+        var snapshot = Settings.Load(harness.DataDirectory);
+        Write("# 外部修改\nlog:\n  level: Warning\n");
+
+        Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["log.retention_days"] = "7", ["log.level"] = "Information" }, snapshot);
+
+        Assert.Equal("# 外部修改\nlog:\n  level: Warning\n  retention_days: 7\n", File.ReadAllText(SettingsPath));
+    }
+
+    // No shipped setting is text or a list yet; these stand in for the coming welcome settings.
+    private static readonly Settings.Definition<string> Greeting = Settings.Definition.Text("welcome.greeting", "");
+
+    [Theory]
+    [InlineData("{观众} 欢迎", "'{观众} 欢迎'")]
+    [InlineData("欢迎 # 新朋友", "'欢迎 # 新朋友'")]
+    [InlineData(" 前后空格 ", "' 前后空格 '")]
+    [InlineData("it's", "it's")]
+    [InlineData("", "''")]
+    [InlineData("你好", "你好")]
+    public void Text_settings_are_quoted_only_when_yaml_needs_it_and_read_back_as_typed(string text, string written)
+    {
+        Write("# 欢迎\nwelcome:\n  greeting: 旧的  # 行尾\nlog:\n  level: Debug\n");
+
+        Settings.Save(harness.DataDirectory, [Greeting], new Dictionary<string, string> { ["welcome.greeting"] = text });
+
+        Assert.Equal($"# 欢迎\nwelcome:\n  greeting: {written}  # 行尾\nlog:\n  level: Debug\n", File.ReadAllText(SettingsPath));
+        var loaded = Settings.Load(harness.DataDirectory, [Greeting]);
+        Assert.Null(loaded.Error);
+        Assert.Equal(new Setting<string>("welcome.greeting", text), loaded.Get(Greeting));
+    }
+
+    private static readonly Settings.Definition<IReadOnlyList<string>> Viewers = Settings.Definition.TextList("welcome.viewers", []);
+
+    [Fact]
+    public void One_line_lists_are_rewritten_in_place_while_block_lists_stay_read_only()
+    {
+        Write("welcome:\n  viewers: [甲, '乙']  # 名单\n");
+        var loaded = Settings.Load(harness.DataDirectory, [Viewers]);
+        Assert.Equal(["甲", "乙"], loaded.Get(Viewers).Value);
+        Assert.True(loaded.Get(Viewers).CanEdit);
+
+        Settings.Save(harness.DataDirectory, [Viewers], new Dictionary<string, string> { ["welcome.viewers"] = "[甲, '{丙}', 'a, b']" });
+
+        Assert.Equal("welcome:\n  viewers: [甲, '{丙}', 'a, b']  # 名单\n", File.ReadAllText(SettingsPath));
+        Assert.Equal(["甲", "{丙}", "a, b"], Settings.Load(harness.DataDirectory, [Viewers]).Get(Viewers).Value);
+
+        Write("welcome:\n  viewers:\n    - 甲\n");
+        loaded = Settings.Load(harness.DataDirectory, [Viewers]);
+        Assert.Null(loaded.Error);
+        Assert.Equal(["甲"], loaded.Get(Viewers).Value);
+        Assert.False(loaded.Get(Viewers).CanEdit);
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory, [Viewers],
+            new Dictionary<string, string> { ["welcome.viewers"] = "[乙]" }));
+        Assert.Equal("welcome:\n  viewers:\n    - 甲\n", File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("welcome.viewers", "甲")]
+    [InlineData("welcome.viewers", "[[甲]]")]
+    [InlineData("welcome.viewers", "[甲")]
+    [InlineData("welcome.greeting", "两\n行")]
+    [InlineData("welcome.viewers", "[[a],\n  b: 7\n    c]")]
+    public void Invalid_text_or_list_input_is_rejected_without_writing(string name, string value)
+    {
+        const string yaml = "welcome:\n  greeting: 你好\n  viewers: [甲]\n";
+        Write(yaml);
+
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory, [Greeting, Viewers],
+            new Dictionary<string, string> { [name] = value }));
+
+        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("welcome:\n  greeting: 你好\n", "welcome.viewers", "[甲, 乙]", "welcome:\n  greeting: 你好\n  viewers: [甲, 乙]\n")]
+    [InlineData("welcome:\n  viewers: [甲]  # 名单\nlog: {}\n", "welcome.greeting", "你好",
+        "welcome:\n  viewers: [甲]  # 名单\n  greeting: 你好\nlog: {}\n")]
+    public void Missing_text_or_list_settings_are_added_after_the_groups_last_line(string yaml, string name, string value, string expected)
+    {
+        Write(yaml);
+
+        Settings.Save(harness.DataDirectory, [Greeting, Viewers], new Dictionary<string, string> { [name] = value });
+
+        Assert.Equal(expected, File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("log:\n  level: Debug\n  extra: [[a],\n    b]\n", "log:\n  level: Debug\n  extra: [[a],\n    b]\n  retention_days: 7\n")]
+    [InlineData("log:\n  level: Debug\n  extra: {a: 1,\n    b: 2}\n", "log:\n  level: Debug\n  extra: {a: 1,\n    b: 2}\n  retention_days: 7\n")]
+    [InlineData("log:\n  level: Debug\n  extra: [a, ']']\n", "log:\n  level: Debug\n  extra: [a, ']']\n  retention_days: 7\n")]
+    public void A_missing_setting_goes_after_a_flow_collection_that_ends_the_group(string yaml, string expected)
+    {
+        Write(yaml);
+
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["log.retention_days"] = "7" });
+
+        Assert.Equal(expected, File.ReadAllText(SettingsPath));
+        Assert.Equal(7, Settings.Load(harness.DataDirectory).LogRetentionDays.Value);
+    }
+
+    [Fact]
+    public void Yaml_that_the_parser_rejects_outside_its_syntax_errors_is_still_a_settings_error()
+    {
+        Write("log:\n  level: Debug\n  extra: [[a],\n  retention_days: 7\n    b]\n");
+
+        var loaded = Settings.Load(harness.DataDirectory);
+
+        Assert.Equal("YAML", loaded.Error?.SettingName);
+    }
+
+    [Fact]
+    public void A_flow_list_spread_over_lines_is_read_only()
+    {
+        Write("welcome:\n  viewers: [甲,\n    乙]\n");
+
+        var loaded = Settings.Load(harness.DataDirectory, [Viewers]);
+
+        Assert.Equal(["甲", "乙"], loaded.Get(Viewers).Value);
+        Assert.False(loaded.Get(Viewers).CanEdit);
+    }
+
     private void Write(string yaml)
     {
         Directory.CreateDirectory(harness.DataDirectory);

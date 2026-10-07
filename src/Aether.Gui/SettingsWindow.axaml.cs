@@ -3,7 +3,6 @@ using System.Globalization;
 using Aether.Core;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Microsoft.Extensions.Logging;
 
 namespace Aether.Gui;
 
@@ -18,7 +17,7 @@ public partial class SettingsWindow : Window
     {
         this.dataDirectory = dataDirectory;
         InitializeComponent();
-        LevelInput.ItemsSource = Enum.GetValues<LogLevel>().Where(level => level != LogLevel.None).ToArray();
+        LevelInput.ItemsSource = Settings.LogLevels;
         RetentionInput.PropertyChanged += (_, e) =>
         {
             if (e.Property == NumericUpDown.TextProperty) Validate();
@@ -58,12 +57,13 @@ public partial class SettingsWindow : Window
     {
         Validate();
         if (!SaveButton.IsEnabled) return;
+        // Core leaves alone what this form was filled with, so an untouched setting keeps its spelling and any edit made elsewhere.
         var changes = new Dictionary<string, string>();
-        AddChange(settings.LogRetentionDays, int.Parse(RetentionInput.Text!, CultureInfo.InvariantCulture), RetentionInput.Text!);
-        AddChange(settings.LogLevel, (LogLevel)LevelInput.SelectedItem!, LevelInput.SelectedItem.ToString()!);
+        if (settings.LogRetentionDays.CanEdit) changes[settings.LogRetentionDays.Name] = RetentionInput.Text!;
+        if (settings.LogLevel.CanEdit) changes[settings.LogLevel.Name] = LevelInput.SelectedItem!.ToString()!;
         try
         {
-            Settings.Save(dataDirectory, changes);
+            Settings.Save(dataDirectory, changes, settings);
             LoadSettings();
             if (settings.Error is null) Message.Text = "已保存，日志设置重启后生效。";
         }
@@ -71,12 +71,6 @@ public partial class SettingsWindow : Window
         {
             LoadSettings();
             Message.Text = error.Message;
-        }
-
-        // Only what the user can edit and actually changed, so an untouched value keeps its spelling in the file.
-        void AddChange<T>(Setting<T> setting, T input, string text)
-        {
-            if (setting.CanEdit && !EqualityComparer<T>.Default.Equals(input, setting.Value)) changes[setting.Name] = text;
         }
     }
 

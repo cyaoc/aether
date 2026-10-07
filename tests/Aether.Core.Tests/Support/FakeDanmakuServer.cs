@@ -74,7 +74,9 @@ internal sealed class FakeDanmakuServer : IAsyncDisposable
                     message.Write(buffer, 0, result.Count);
                 } while (!result.EndOfMessage);
                 var packet = message.ToArray();
-                await received.Writer.WriteAsync(packet, stop.Token);
+                // Core may reconnect here after an earlier connection ended and completed the channel; that connection's
+                // requests go unrecorded, but the server still answers them instead of failing.
+                received.Writer.TryWrite(packet);
                 switch (BinaryPrimitives.ReadInt32BigEndian(packet.AsSpan(8)))
                 {
                     case 7 when ReplyToAuthentication:

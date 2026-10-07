@@ -31,23 +31,26 @@ public sealed class Settings
 
         """;
 
-    private static readonly Definition<int> RetentionDays = new("log.retention_days", 30, "必须为正整数。",
-        text => int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var days) && days > 0 ? days : null,
-        days => days.ToString(CultureInfo.InvariantCulture),
-        settings => settings.LogRetentionDays, (settings, setting) => settings.LogRetentionDays = setting);
-    private static readonly Definition<LogLevel> Level = new("log.level", Microsoft.Extensions.Logging.LogLevel.Information,
-        "必须为 Trace、Debug、Information、Warning、Error、Critical 之一。",
-        text => Enum.TryParse<LogLevel>(text, out var level) && level is >= Microsoft.Extensions.Logging.LogLevel.Trace
-            and <= Microsoft.Extensions.Logging.LogLevel.Critical && text == level.ToString() ? level : null,
-        level => level.ToString(),
-        settings => settings.LogLevel, (settings, setting) => settings.LogLevel = setting);
+    private const string LineBreaks = "\r\n\u0085\u2028\u2029"; // YAML also accepts Unicode line breaks.
+
+    private static readonly Definition<int> RetentionDays = Definition.Number("log.retention_days", 30, "必须为正整数。", days => days > 0);
+    /// <summary>The values log.level accepts, in order.</summary>
+    public static IReadOnlyList<LogLevel> LogLevels { get; } =
+    [
+        Microsoft.Extensions.Logging.LogLevel.Trace, Microsoft.Extensions.Logging.LogLevel.Debug,
+        Microsoft.Extensions.Logging.LogLevel.Information, Microsoft.Extensions.Logging.LogLevel.Warning,
+        Microsoft.Extensions.Logging.LogLevel.Error, Microsoft.Extensions.Logging.LogLevel.Critical,
+    ];
+    private static readonly Definition<LogLevel> Level =
+        Definition.Choice("log.level", Microsoft.Extensions.Logging.LogLevel.Information, LogLevels);
     /// <summary>Every setting this version knows; adding one is a definition here plus its property.</summary>
     private static readonly Definition[] Definitions = [RetentionDays, Level];
 
-    public Setting<int> LogRetentionDays { get; private set; } = RetentionDays.Initial;
-    public Setting<LogLevel> LogLevel { get; private set; } = Level.Initial;
+    public Setting<int> LogRetentionDays => Get(RetentionDays);
+    public Setting<LogLevel> LogLevel => Get(Level);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
+    private readonly Dictionary<Definition, object> values = [];
     private string source = "";
     private Encoding encoding = Encoding.UTF8;
     private YamlMappingNode? root;
@@ -55,29 +58,45 @@ public sealed class Settings
     public static string FilePath(string dataDirectory) => Path.Combine(dataDirectory, "aether.yml");
 
     /// <summary>The same validation used when loading and saving; null means the input is valid.</summary>
-    public static string? Validate(string name, string? value) =>
-        Find(name) is { } definition ? definition.Validate(value) : "未知设置，不能修改。";
+    public static string? Validate(string name, string? value) => Validate(Definitions, name, value);
 
-    private static Definition? Find(string name) => Definitions.FirstOrDefault(definition => definition.Name == name);
+    private static string? Validate(IReadOnlyList<Definition> definitions, string name, string? value) =>
+        Find(definitions, name) is { } definition ? definition.Validate(value) : "未知设置，不能修改。";
+
+    private static Definition? Find(IReadOnlyList<Definition> definitions, string name) =>
+        definitions.FirstOrDefault(definition => definition.Name == name);
+
+    internal Setting<T> Get<T>(Definition<T> definition) =>
+        values.TryGetValue(definition, out var setting) ? (Setting<T>)setting : definition.Initial;
 
     /// <summary>Reload the file and change only the requested values, then atomically replace it.</summary>
-    public static void Save(string dataDirectory, IReadOnlyDictionary<string, string> changes)
+    /// <param name="snapshot">The settings a form was filled from. A value it already held was not changed by the user,
+    /// so it is left alone even if the file has since been edited elsewhere.</param>
+    public static void Save(string dataDirectory, IReadOnlyDictionary<string, string> changes, Settings? snapshot = null) =>
+        Save(dataDirectory, Definitions, changes, snapshot);
+
+    /// <param name="definitions">The settings this file may hold; only tests pass anything but <see cref="Definitions"/>.</param>
+    internal static void Save(string dataDirectory, IReadOnlyList<Definition> definitions,
+        IReadOnlyDictionary<string, string> changes, Settings? snapshot = null)
     {
         var path = FilePath(dataDirectory);
         foreach (var (name, value) in changes)
-            if (Validate(name, value) is { } reason) throw new SettingsException(path, 1, name, reason);
-        var current = Load(dataDirectory);
+            if (Validate(definitions, name, value) is { } reason) throw new SettingsException(path, 1, name, reason);
+        var current = Load(dataDirectory, definitions);
         if (current.Error is { } error) throw error;
-        var scanner = new Scanner(new StringReader(current.source));
-        var tokens = new List<Tokens.Token>();
-        while (scanner.MoveNext()) tokens.Add(scanner.Current!);
+        // A value the file or the snapshot already holds is no change, and keeps its spelling: '7', 007 and 7 are the same.
+        changes = changes.Where(change =>
+        {
+            var definition = Find(definitions, change.Key)!;
+            return !definition.Holds(current, change.Value) && !(snapshot is not null && definition.Holds(snapshot, change.Value));
+        }).ToDictionary();
+        var tokens = Scan(current.source);
         var edits = new List<(int Start, int Length, string Value)>();
-        const string lineBreaks = "\r\n\u0085\u2028\u2029"; // YAML also accepts Unicode line breaks.
-        var firstBreak = current.source.AsSpan().IndexOfAny(lineBreaks);
+        var firstBreak = current.source.AsSpan().IndexOfAny(LineBreaks);
         var newline = firstBreak < 0 ? "\n" : current.source.AsSpan(firstBreak).StartsWith("\r\n")
             ? "\r\n" : current.source[firstBreak].ToString();
         var rootIndent = current.root is { Children.Count: > 0 } ? IndentOf(current.root) : 0;
-        foreach (var groupChanges in changes.Select(change => (Definition: Find(change.Key)!, change.Value))
+        foreach (var groupChanges in changes.Select(change => (Definition: Find(definitions, change.Key)!, change.Value))
             .GroupBy(change => change.Definition.Group))
             EditGroup(groupChanges.Key, groupChanges);
         if (edits.Count == 0) return;
@@ -102,15 +121,16 @@ public sealed class Settings
                         "不能逐行编辑，请在设置文件里修改。");
                 var scalar = definition.Format(value);
                 if (node is null) missing.Append(indent).Append(definition.Key).Append(": ").Append(scalar).Append(newline);
-                else edits.Add(((int)node.Start.Index, (int)(node.End.Index - node.Start.Index), scalar));
+                else edits.Add(((int)node.Start.Index, (int)(EndOf(tokens, node).Index - node.Start.Index), scalar));
             }
             if (missing.Length == 0) return;
             var at = (int)(tokens.OfType<Tokens.DocumentEnd>().FirstOrDefault()?.Start.Index ?? current.source.Length);
-            if (group?.Children.LastOrDefault() is { Key: { } lastKey, Value: var lastValue } && lastKey.Start.Line == lastValue.End.Line)
+            if (group?.Children.LastOrDefault() is { Key: { } lastKey, Value: var lastValue }
+                && lastKey.Start.Line == EndOf(tokens, lastValue).Line)
             {
                 // Right after the group's last one-line setting, so blank lines and comments before the next group stay with it.
-                var end = (int)lastValue.End.Index;
-                var lineBreak = current.source.AsSpan(end).IndexOfAny(lineBreaks);
+                var end = (int)EndOf(tokens, lastValue).Index;
+                var lineBreak = current.source.AsSpan(end).IndexOfAny(LineBreaks);
                 at = lineBreak < 0 ? current.source.Length
                     : end + lineBreak + (current.source.AsSpan(end + lineBreak).StartsWith("\r\n") ? 2 : 1);
             }
@@ -119,9 +139,9 @@ public sealed class Settings
             {
                 // Insert before the next top-level key, including its indentation.
                 at = (int)tokens.OfType<Tokens.Key>().Last(key => key.Start.Index <= next.Start.Index).Start.Index;
-                while (at > 0 && !lineBreaks.Contains(current.source[at - 1])) at--;
+                while (at > 0 && !LineBreaks.Contains(current.source[at - 1])) at--;
             }
-            var prefix = at > 0 && !lineBreaks.Contains(current.source[at - 1]) ? newline : "";
+            var prefix = at > 0 && !LineBreaks.Contains(current.source[at - 1]) ? newline : "";
             if (groupEntry?.Key is null) prefix += new string(' ', rootIndent) + groupName + ":" + newline;
             edits.Add((at, 0, prefix + missing));
         }
@@ -137,7 +157,38 @@ public sealed class Settings
         }
     }
 
-    public static Settings Load(string dataDirectory, ILogger? logger = null)
+    /// <summary>YamlDotNet rejects some malformed input with InvalidOperationException instead of YamlException;
+    /// either way the text is not YAML we can read, and never a reason to crash.</summary>
+    private static bool IsYamlFailure(Exception error) => error is YamlException
+        || error is InvalidOperationException && error.TargetSite?.DeclaringType?.Namespace?.StartsWith("YamlDotNet") == true;
+
+    private static List<Tokens.Token> Scan(string source)
+    {
+        var scanner = new Scanner(new StringReader(source));
+        var tokens = new List<Tokens.Token>();
+        while (scanner.MoveNext()) tokens.Add(scanner.Current!);
+        return tokens;
+    }
+
+    /// <summary>Where a node's text ends. YamlDotNet ends a collection node at its opening bracket,
+    /// so a flow list or map ends just past the bracket that closes it.</summary>
+    private static Mark EndOf(List<Tokens.Token> tokens, YamlNode node)
+    {
+        if (node is not (YamlSequenceNode { Style: SequenceStyle.Flow } or YamlMappingNode { Style: MappingStyle.Flow })) return node.End;
+        var depth = 0;
+        foreach (var token in tokens.SkipWhile(token => token.Start.Index < node.Start.Index))
+        {
+            if (token is Tokens.FlowSequenceStart or Tokens.FlowMappingStart) depth++;
+            else if (token is Tokens.FlowSequenceEnd or Tokens.FlowMappingEnd && --depth == 0)
+                return new Mark(token.Start.Index + 1, token.Start.Line, token.Start.Column + 1);
+        }
+        return node.End;
+    }
+
+    public static Settings Load(string dataDirectory, ILogger? logger = null) => Load(dataDirectory, Definitions, logger);
+
+    /// <param name="definitions">The settings this file may hold; only tests pass anything but <see cref="Definitions"/>.</param>
+    internal static Settings Load(string dataDirectory, IReadOnlyList<Definition> definitions, ILogger? logger = null)
     {
         var path = FilePath(dataDirectory);
         var settings = new Settings();
@@ -156,23 +207,24 @@ public sealed class Settings
             // A file that doesn't round-trip (e.g. GBK) still loads; only rewriting it would change bytes.
             var lossless = bytes.AsSpan(settings.encoding.GetPreamble().Length)
                 .SequenceEqual(settings.encoding.GetBytes(settings.source));
-            MarkEditable(Definitions, lossless);
+            MarkEditable(definitions, lossless);
             var yaml = new YamlStream();
             yaml.Load(new StringReader(settings.source));
+            var tokens = Scan(settings.source);
             if (yaml.Documents.Count == 0) return settings;
             if (yaml.Documents.Count != 1)
                 throw new SettingsException(path, yaml.Documents[1].RootNode.Start.Line, "YAML", "只允许一个设置文档。");
             var root = RequireMapping(yaml.Documents[0].RootNode, "YAML");
             settings.root = root;
             var rootEditable = lossless && root.Style == MappingStyle.Block && root.Anchor.IsEmpty;
-            MarkEditable(Definitions, rootEditable);
+            MarkEditable(definitions, rootEditable);
             var unknown = new List<string>();
             // Load and Save match names without YAML tags, so known names must be unique on that basis.
             var seenNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var (groupKey, groupValue) in root.Children)
             {
                 var groupName = KeyName(groupKey);
-                var known = Definitions.Where(definition => definition.Group == groupName).ToArray();
+                var known = definitions.Where(definition => definition.Group == groupName).ToArray();
                 if (known.Length == 0)
                 {
                     if (groupValue is YamlMappingNode { Children.Count: > 0 } other)
@@ -198,22 +250,29 @@ public sealed class Settings
                 foreach (var (key, value) in group.Children)
                 {
                     var name = groupName + "." + KeyName(key);
-                    var text = (value as YamlScalarNode)?.Value?.Trim();
-                    var canEdit = groupEditable && value is YamlScalarNode scalar
-                        && scalar.Style is not (ScalarStyle.Literal or ScalarStyle.Folded)
-                        && scalar.Anchor.IsEmpty && key.Start.Line == key.End.Line
-                        && key.Start.Line == value.Start.Line && value.Start.Line == value.End.Line;
+                    // One line holding a scalar or a flow list of scalars, as ADR 0004 allows.
+                    var canEdit = groupEditable && value.Anchor.IsEmpty && key.Start.Line == key.End.Line
+                        && key.Start.Line == value.Start.Line && value.Start.Line == EndOf(tokens, value).Line && value switch
+                        {
+                            YamlScalarNode scalar => scalar.Style is not (ScalarStyle.Literal or ScalarStyle.Folded),
+                            YamlSequenceNode { Style: SequenceStyle.Flow } list =>
+                                list.Children.All(item => item is YamlScalarNode { Anchor.IsEmpty: true }),
+                            _ => false,
+                        };
                     if (known.FirstOrDefault(definition => definition.Name == name) is not { } definition) unknown.Add(name);
                     else if (!seenNames.Add(name))
                         settings.Error ??= new(path, key.Start.Line, name, "设置名重复，请只保留一项。");
-                    else if (definition.Read(settings, text, canEdit) is { } reason)
+                    else if (definition.Read(settings, value, canEdit) is { } reason)
                         settings.Error ??= new(path, key.Start.Line, name, reason);
                 }
             }
             settings.UnknownKeys = unknown.AsReadOnly();
         }
         catch (SettingsException error) { settings.Error = error; }
-        catch (YamlException error) { settings.Error = new(path, error.Start.Line, "YAML", error.Message); }
+        catch (Exception error) when (IsYamlFailure(error))
+        {
+            settings.Error = new(path, (error as YamlException)?.Start.Line ?? 1, "YAML", error.Message);
+        }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
             settings.Error = new(path, 1, "文件", error.Message);
@@ -234,38 +293,95 @@ public sealed class Settings
         }
     }
 
-    /// <summary>A setting this version knows: its name in the file (group.key) and how its text becomes a value.</summary>
-    private abstract class Definition(string name)
+    /// <summary>A setting this version knows: its name in the file (group.key), how its text becomes a value,
+    /// and how a value is written back on one line.</summary>
+    internal abstract class Definition(string name)
     {
         public string Name => name;
         public string Group => name[..name.IndexOf('.')];
         public string Key => name[(name.IndexOf('.') + 1)..];
         /// <summary>Null when the text is valid; otherwise why not.</summary>
         public abstract string? Validate(string? text);
-        /// <summary>The scalar written for valid text; every definition yields a plain YAML scalar, so none needs quotes.</summary>
+        /// <summary>The one-line YAML written for valid text, quoted wherever YAML needs it.</summary>
         public abstract string Format(string text);
         public abstract bool CanEdit(Settings settings);
+        /// <summary>Whether <paramref name="settings"/> already holds the value of this valid text.</summary>
+        public abstract bool Holds(Settings settings, string text);
         public abstract void MarkEditable(Settings settings, bool canEdit);
-        /// <summary>Records whether the line can be edited, and the value when the text is valid; returns why it is not.</summary>
-        public abstract string? Read(Settings settings, string? text, bool canEdit);
-    }
+        /// <summary>Records whether the line can be edited, and the value when the node is valid; returns why it is not.</summary>
+        public abstract string? Read(Settings settings, YamlNode node, bool canEdit);
 
-    private sealed class Definition<T>(string name, T initial, string rule, Func<string, T?> parse, Func<T, string> format,
-        Func<Settings, Setting<T>> get, Action<Settings, Setting<T>> set) : Definition(name) where T : struct
-    {
-        public Setting<T> Initial => new(Name, initial);
-        public override string? Validate(string? text) => Parse(text) is null ? rule : null;
-        public override string Format(string text) => format(Parse(text)!.Value);
-        public override bool CanEdit(Settings settings) => get(settings).CanEdit;
-        public override void MarkEditable(Settings settings, bool canEdit) => set(settings, get(settings) with { CanEdit = canEdit });
+        public static Definition<int> Number(string name, int initial, string rule, Func<int, bool> valid) => ScalarSetting(name, initial, rule,
+            text => int.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) && valid(number)
+                ? (true, number) : default,
+            number => number.ToString(CultureInfo.InvariantCulture));
 
-        public override string? Read(Settings settings, string? text, bool canEdit)
+        /// <summary>One of <paramref name="choices"/>, written exactly as its name.</summary>
+        public static Definition<T> Choice<T>(string name, T initial, IReadOnlyList<T> choices) where T : struct, Enum =>
+            ScalarSetting(name, initial, $"必须为 {string.Join("、", choices)} 之一。",
+                text => choices.Where(choice => choice.ToString() == text.Trim()).Select(choice => (true, choice)).FirstOrDefault(),
+                choice => choice.ToString());
+
+        /// <summary>One line of text, kept exactly as typed.</summary>
+        public static Definition<string> Text(string name, string initial) => ScalarSetting(name, initial, "必须是一行文字。",
+            text => OneLine(text) ? (true, text) : default, text => text);
+
+        /// <summary>One-line texts, written as <c>[a, b]</c>; the input text uses the same form.</summary>
+        public static Definition<IReadOnlyList<string>> TextList(string name, IReadOnlyList<string> initial)
         {
-            var value = Parse(text);
-            set(settings, get(settings) with { Value = value ?? get(settings).Value, CanEdit = canEdit });
-            return value is null ? rule : null;
+            const string rule = "必须是 [a, b] 形式的一行文字列表。";
+            return new(name, initial, rule, ReadList, ParseList, Emit);
+
+            static (bool, IReadOnlyList<string>) ReadList(YamlNode node) =>
+                node is YamlSequenceNode list && list.Children.All(item => item is YamlScalarNode { Value: { } text } && OneLine(text))
+                    ? (true, list.Children.Select(item => ((YamlScalarNode)item).Value!).ToArray()) : default;
+
+            static (bool, IReadOnlyList<string>) ParseList(string text)
+            {
+                var yaml = new YamlStream();
+                try { yaml.Load(new StringReader(text)); }
+                catch (Exception error) when (IsYamlFailure(error)) { return default; }
+                return yaml.Documents.Count == 1 ? ReadList(yaml.Documents[0].RootNode) : default;
+            }
         }
 
-        private T? Parse(string? text) => parse(text?.Trim() ?? "");
+        private static Definition<T> ScalarSetting<T>(string name, T initial, string rule, Func<string, (bool, T)> parse, Func<T, string> toText) =>
+            new(name, initial, rule, node => node is YamlScalarNode { Value: var value } ? parse(value ?? "") : default, parse,
+                value => Emit([toText(value)])[1..^1]);
+
+        private static bool OneLine(string text) => text.AsSpan().IndexOfAny(LineBreaks) < 0;
+
+        /// <summary>A one-line flow list, letting YamlDotNet decide which items need quotes.</summary>
+        private static string Emit(IEnumerable<string> items)
+        {
+            using var writer = new StringWriter();
+            var emitter = new Emitter(writer, new EmitterSettings().WithBestWidth(int.MaxValue));
+            emitter.Emit(new StreamStart());
+            emitter.Emit(new DocumentStart(null, null, true));
+            emitter.Emit(new SequenceStart(null, null, true, SequenceStyle.Flow));
+            foreach (var item in items) emitter.Emit(new Scalar(null, null, item, ScalarStyle.Any, true, true));
+            emitter.Emit(new SequenceEnd());
+            emitter.Emit(new DocumentEnd(true));
+            emitter.Emit(new StreamEnd());
+            return writer.ToString().TrimEnd(LineBreaks.ToCharArray());
+        }
+    }
+
+    internal sealed class Definition<T>(string name, T initial, string rule,
+        Func<YamlNode, (bool Valid, T Value)> read, Func<string, (bool Valid, T Value)> parse, Func<T, string> format) : Definition(name)
+    {
+        public Setting<T> Initial => new(Name, initial);
+        public override string? Validate(string? text) => parse(text ?? "").Valid ? null : rule;
+        public override string Format(string text) => format(parse(text).Value);
+        public override bool CanEdit(Settings settings) => settings.Get(this).CanEdit;
+        public override bool Holds(Settings settings, string text) => Format(text) == format(settings.Get(this).Value);
+        public override void MarkEditable(Settings settings, bool canEdit) => settings.values[this] = settings.Get(this) with { CanEdit = canEdit };
+
+        public override string? Read(Settings settings, YamlNode node, bool canEdit)
+        {
+            var (valid, value) = read(node);
+            settings.values[this] = new Setting<T>(Name, valid ? value : settings.Get(this).Value, canEdit);
+            return valid ? null : rule;
+        }
     }
 }

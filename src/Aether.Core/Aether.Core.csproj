@@ -7,4 +7,7 @@
     <PackageReference Include="Serilog.Sinks.Map" />
     <PackageReference Include="YamlDotNet" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Aether.Core.Tests" />
+  </ItemGroup>
 </Project>

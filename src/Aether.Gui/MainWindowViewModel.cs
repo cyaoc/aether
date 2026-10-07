@@ -1,7 +1,6 @@
 using System.Collections.ObjectModel;
 using Aether.Core;
 using Avalonia.Media.Imaging;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -72,15 +71,9 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         Danmaku.Clear();
         try
         {
-            // Core also does synchronous SQLite/protocol work; keep it off the UI thread.
-            await Task.Run(async () =>
-            {
-                await foreach (var update in client.WatchAsync(roomId, cancellationToken))
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        if (!cancellationToken.IsCancellationRequested) Apply(update);
-                    });
-            }, cancellationToken);
+            // Core runs the room connection off the UI thread; this loop only shows what it reports.
+            await foreach (var update in client.WatchAsync(roomId, cancellationToken))
+                Apply(update);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception error)

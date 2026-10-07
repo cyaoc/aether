@@ -49,30 +49,34 @@ login.SetAction((_, cancellationToken) => RunAsync(async client =>
                 break;
         }
     }
-}, cancellationToken));
+}, cancellationToken, warnAboutSettings: true));
 var logout = new Command("logout", "退出登录并删除本地登录凭据");
 logout.SetAction((_, cancellationToken) => RunAsync(async client =>
 {
     await client.LogoutAsync(cancellationToken);
     await Console.Error.WriteLineAsync("已退出登录");
-}, cancellationToken));
+}, cancellationToken, warnAboutSettings: true));
 var root = new RootCommand("Aether B站直播弹幕") { login, watch, logout };
 return await root.Parse(args).InvokeAsync(new InvocationConfiguration { Output = Console.Error });
 
-static async Task<int> RunAsync(Func<AetherClient, Task> action, CancellationToken cancellationToken)
+/// <param name="warnAboutSettings">For commands that run despite a settings error; watch reports it as its error instead.</param>
+static async Task<int> RunAsync(Func<AetherClient, Task> action, CancellationToken cancellationToken, bool warnAboutSettings = false)
 {
+    var dataDirectory = DataDirectory.Locate();
     var builder = Host.CreateApplicationBuilder();
     builder.Logging.ClearProviders();
     builder.Logging.AddSimpleConsole(options => options.SingleLine = true);
     builder.Services.Configure<ConsoleLoggerOptions>(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
     // The CLI prints its own status and errors to stderr; its log records only go to the file.
     builder.Logging.AddFilter<ConsoleLoggerProvider>("Aether.Cli", LogLevel.None);
-    builder.AddAether(DataDirectory.Locate());
+    builder.AddAether(dataDirectory);
     using var host = builder.Build();
     var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aether.Cli");
     try
     {
         logger.LogInformation("CLI 已启动");
+        if (warnAboutSettings && Settings.Load(dataDirectory).Error is { } settingsError)
+            await Console.Error.WriteLineAsync($"警告：设置文件有错，日志按默认设置记录：{settingsError.Message}");
         await action(host.Services.GetRequiredService<AetherClient>());
         return 0;
     }

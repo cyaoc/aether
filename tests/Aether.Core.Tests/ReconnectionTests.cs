@@ -304,6 +304,57 @@ public sealed class ReconnectionTests
     }
 
     [Fact]
+    public async Task A_shell_that_stops_reading_updates_does_not_time_out_the_room_connection()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        await h.Server.NextRequestAsync();
+        for (var i = 0; i < 5; i++)
+        {
+            h.Time.Advance(TimeSpan.FromSeconds(30));
+            await h.Server.NextRequestAsync();
+            // Real time for the heartbeat reply to reach Core before the next deadline is checked.
+            await Task.Delay(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
+        }
+        await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
+            System.Text.Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"还在",[0,"观众"]]}"""), 0));
+        Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        Assert.Equal("还在", Assert.IsType<Danmaku>(updates.Current).Content);
+    }
+
+    [Fact]
+    public async Task Core_keeps_the_room_connection_off_the_thread_the_shell_reads_on()
+    {
+        using var shell = new SingleThreadContext();
+        await using var first = new FakeDanmakuServer();
+        await using var second = new FakeDanmakuServer();
+        var connectedOn = new List<int>();
+        await using var h = new WatchHarness((uri, token) =>
+        {
+            lock (connectedOn)
+            {
+                connectedOn.Add(Environment.CurrentManagedThreadId);
+                return (connectedOn.Count == 1 ? first : second).ConnectAsync(uri, token);
+            }
+        });
+        await h.LoginAsync();
+        await shell.RunAsync(async () =>
+        {
+            await using var updates = await h.WatchConnectedAsync();
+            await first.DisconnectAsync();
+            Assert.True(await updates.MoveNextAsync());
+            Assert.IsType<Reconnecting>(updates.Current);
+            var next = updates.MoveNextAsync().AsTask();
+            await Task.Run(() => h.Time.Advance(TimeSpan.FromSeconds(1)), h.Stop.Token); // A timer fires off the UI thread.
+            Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+            Assert.IsType<Connected>(updates.Current);
+        }).WaitAsync(TimeSpan.FromSeconds(10), h.Stop.Token);
+        Assert.Equal(2, connectedOn.Count);
+        Assert.NotEqual(shell.ThreadId, connectedOn[1]);
+    }
+
+    [Fact]
     public async Task Heartbeat_replies_keep_a_quiet_room_connected()
     {
         await using var h = new WatchHarness();
