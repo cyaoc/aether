@@ -167,6 +167,8 @@ public sealed class Settings
             var rootEditable = lossless && root.Style == MappingStyle.Block && root.Anchor.IsEmpty;
             MarkEditable(Definitions, rootEditable);
             var unknown = new List<string>();
+            // Load and Save match names without YAML tags, so known names must be unique on that basis.
+            var seenNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var (groupKey, groupValue) in root.Children)
             {
                 var groupName = KeyName(groupKey);
@@ -178,6 +180,8 @@ public sealed class Settings
                     else unknown.Add(groupName);
                     continue;
                 }
+                if (!seenNames.Add(groupName))
+                    settings.Error ??= new(path, groupKey.Start.Line, groupName, "分组名重复，请只保留一组。");
                 // Every setting under a group commented out leaves a blank value; the settings keep their defaults.
                 if (groupValue is YamlScalarNode { Style: ScalarStyle.Plain, Value: "" })
                 {
@@ -200,6 +204,8 @@ public sealed class Settings
                         && scalar.Anchor.IsEmpty && key.Start.Line == key.End.Line
                         && key.Start.Line == value.Start.Line && value.Start.Line == value.End.Line;
                     if (known.FirstOrDefault(definition => definition.Name == name) is not { } definition) unknown.Add(name);
+                    else if (!seenNames.Add(name))
+                        settings.Error ??= new(path, key.Start.Line, name, "设置名重复，请只保留一项。");
                     else if (definition.Read(settings, text, canEdit) is { } reason)
                         settings.Error ??= new(path, key.Start.Line, name, reason);
                 }

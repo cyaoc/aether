@@ -120,6 +120,42 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal("log:\n  !!str retention_days: 14\n", File.ReadAllText(SettingsPath));
     }
 
+    [Theory]
+    [InlineData("log:\n  !!str level: Debug\n  level: Warning\n", "log.level")]
+    [InlineData("log:\n  level: Warning\n  !!str level: Debug\n", "log.level")]
+    [InlineData("log:\n  !!str retention_days: 7\n  retention_days: 14\n", "log.retention_days")]
+    public void Duplicate_setting_names_are_rejected_even_when_the_yaml_tags_differ(string yaml, string name)
+    {
+        Write(yaml);
+        var before = File.ReadAllBytes(SettingsPath);
+
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(name, error.SettingName);
+        Assert.Equal(3, error.LineNumber);
+        Assert.Contains("重复", error.Message);
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["log.level"] = "Error" }));
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("!!str log:\n  level: Debug\nlog:\n  retention_days: 7\n")]
+    [InlineData("log:\n  level: Debug\n!!str log:\n  retention_days: 7\n")]
+    [InlineData("log: # 默认值\n# 注释\n!!str log:\n  level: Debug\n")]
+    public void Duplicate_known_groups_are_rejected_even_with_different_or_missing_settings(string yaml)
+    {
+        Write(yaml);
+        var before = File.ReadAllBytes(SettingsPath);
+
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal("log", error.SettingName);
+        Assert.Equal(3, error.LineNumber);
+        Assert.Contains("重复", error.Message);
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["log.level"] = "Error" }));
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+    }
+
     [Fact]
     public void Non_utf8_file_still_loads_but_is_read_only_and_save_does_not_change_its_bytes()
     {

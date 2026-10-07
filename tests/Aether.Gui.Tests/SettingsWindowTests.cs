@@ -63,6 +63,8 @@ public sealed class SettingsWindowTests
     [Theory]
     [InlineData("log:\n  level: @bad\n", "第 2 行")]
     [InlineData("log:\n  retention_days: 0\n", "log.retention_days")]
+    [InlineData("log:\n  !!str level: Debug\n  level: Warning\n", "第 3 行（log.level）：设置名重复")]
+    [InlineData("!!str log:\n  level: Debug\nlog:\n  retention_days: 7\n", "第 3 行（log）：分组名重复")]
     public Task File_errors_display_core_location_and_disable_save(string yaml, string expected) =>
         WithSettingsWindow(yaml, (window, path) =>
         {
