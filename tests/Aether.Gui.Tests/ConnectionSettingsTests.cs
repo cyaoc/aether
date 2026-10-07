@@ -1,11 +1,7 @@
-using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 namespace Aether.Gui.Tests;
 
@@ -21,11 +17,10 @@ public sealed class ConnectionSettingsTests
             Directory.CreateDirectory(harness.DataDirectory);
             var path = Path.Combine(harness.DataDirectory, "aether.yml");
             File.WriteAllText(path, yaml);
-            var builder = Host.CreateApplicationBuilder();
-            builder.Logging.ClearProviders();
-            builder.Logging.AddAetherFileLogging(harness.DataDirectory, Settings.Load(harness.DataDirectory));
-            using var host = builder.Build();
-            host.Services.GetRequiredService<ILogger<ConnectionSettingsTests>>().LogInformation("GUI startup");
+            using (App.CreateHost(harness.DataDirectory)) { }
+            Assert.Contains("读取设置失败", File.ReadAllText(
+                Assert.Single(Directory.GetFiles(Path.Combine(harness.DataDirectory, "logs"), "*.log"))));
+            // The harness view model's client fails any HTTP request, so a missed refusal cannot reach B站.
             var viewModel = harness.CreateViewModel();
             var window = new MainWindow { DataContext = viewModel };
             window.Show();

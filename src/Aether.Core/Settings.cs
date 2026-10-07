@@ -65,18 +65,16 @@ public sealed class Settings
             foreach (var (groupKey, groupValue) in root.Children)
             {
                 var groupName = KeyName(groupKey);
-                if (groupValue is YamlMappingNode { Children.Count: > 0 } group)
-                    foreach (var key in group.Children.Keys)
-                    {
-                        var name = groupName + "." + KeyName(key);
-                        if (name is not ("log.retention_days" or "log.level")) unknown.Add(name);
-                    }
-                else if (groupName != "log") unknown.Add(groupName);
-            }
-            settings.UnknownKeys = unknown.AsReadOnly();
-            if (root.Children.TryGetValue(new YamlScalarNode("log"), out var log))
-            {
-                var group = RequireMapping(log, "log");
+                if (groupName != "log")
+                {
+                    if (groupValue is YamlMappingNode { Children.Count: > 0 } other)
+                        unknown.AddRange(other.Children.Keys.Select(key => groupName + "." + KeyName(key)));
+                    else unknown.Add(groupName);
+                    continue;
+                }
+                // Every setting under `log:` commented out leaves a blank value; the settings keep their defaults.
+                if (groupValue is YamlScalarNode { Style: ScalarStyle.Plain, Value: "" }) continue;
+                var group = RequireMapping(groupValue, "log");
                 var groupEditable = rootEditable && group.Style == MappingStyle.Block && group.Anchor.IsEmpty;
                 settings.LogRetentionDays = settings.LogRetentionDays with { CanEdit = groupEditable };
                 settings.LogLevel = settings.LogLevel with { CanEdit = groupEditable };
@@ -104,9 +102,13 @@ public sealed class Settings
                                     "必须为 Trace、Debug、Information、Warning、Error、Critical 之一。");
                             else settings.LogLevel = new(level, canEdit);
                             break;
+                        default:
+                            unknown.Add(name);
+                            break;
                     }
                 }
             }
+            settings.UnknownKeys = unknown.AsReadOnly();
         }
         catch (SettingsException error) { settings.Error = error; }
         catch (YamlException error) { settings.Error = new(path, error.Start.Line, "YAML", error.Message); }

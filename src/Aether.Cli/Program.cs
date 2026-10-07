@@ -68,15 +68,13 @@ static async Task<int> RunAsync(Func<AetherClient, Task> action, CancellationTok
     // The CLI prints its own status and errors to stderr; its log records only go to the file.
     builder.Logging.AddFilter<ConsoleLoggerProvider>("Aether.Cli", LogLevel.None);
     var dataDirectory = DataDirectory.Locate();
-    var settings = Settings.Load(dataDirectory);
-    builder.Logging.AddAetherFileLogging(dataDirectory, settings);
+    builder.Logging.AddAetherFileLogging(dataDirectory, Settings.Load(dataDirectory));
     builder.Services.AddSingleton(services => new AetherClient(
         services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
     using var host = builder.Build();
     var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aether.Cli");
     try
     {
-        if (settings.Error is { } settingsError) throw settingsError;
         logger.LogInformation("CLI 已启动");
         await action(host.Services.GetRequiredService<AetherClient>());
         return 0;

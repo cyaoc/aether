@@ -49,12 +49,6 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
     }
 
-    private void Write(string yaml)
-    {
-        Directory.CreateDirectory(harness.DataDirectory);
-        File.WriteAllText(SettingsPath, yaml);
-    }
-
     [Theory]
     [InlineData("log:\n  retention_days: 0", "log.retention_days", 2)]
     [InlineData("log:\n  retention_days: -1", "log.retention_days", 2)]
@@ -109,6 +103,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [Theory]
     [InlineData("", 30, true, false)]
     [InlineData("log:\n  level: Debug", 30, true, false)]
+    [InlineData("log:\n  # retention_days: 7\n  # level: Debug\n", 30, true, false)]
     [InlineData("log:\n  retention_days: |-\n    7", 7, false, false)]
     [InlineData("log:\n  retention_days: >-\n    7", 7, false, false)]
     [InlineData("log:\n  retention_days:\n    7", 7, false, false)]
@@ -184,6 +179,12 @@ public sealed class SettingsTests : IAsyncDisposable
         }
         await using var next = client.WatchAsync(6, harness.Stop.Token).GetAsyncEnumerator(harness.Stop.Token);
         await Assert.ThrowsAsync<SettingsException>(async () => await next.MoveNextAsync());
+    }
+
+    private void Write(string yaml)
+    {
+        Directory.CreateDirectory(harness.DataDirectory);
+        File.WriteAllText(SettingsPath, yaml);
     }
 
     public ValueTask DisposeAsync() => harness.DisposeAsync();

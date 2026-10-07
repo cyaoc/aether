@@ -61,6 +61,8 @@ public sealed class FileLoggingTests
             Assert.DoesNotContain("hidden-debug", content);
             Assert.Contains("log.extra", content);
             Assert.Contains("[WRN]", content);
+            Assert.Contains("读取设置失败", content);
+            Assert.Contains("log.retention_days", content);
         }
         finally { Directory.Delete(directory, true); }
     }
