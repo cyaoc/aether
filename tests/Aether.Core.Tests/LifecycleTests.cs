@@ -33,6 +33,18 @@ public sealed class LifecycleTests
     }
 
     [Fact]
+    public async Task Watching_the_room_again_after_ending_connects_to_the_server_again()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        for (var i = 0; i < 2; i++)
+        {
+            await using (await h.WatchConnectedAsync().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token)) { }
+            await h.Server.WaitForDisconnectAsync();
+        }
+    }
+
+    [Fact]
     public async Task Cancellation_discards_buffered_danmaku_and_closes_connection()
     {
         await using var h = new WatchHarness();
