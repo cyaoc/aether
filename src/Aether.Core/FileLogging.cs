@@ -8,6 +8,9 @@ namespace Aether.Core;
 
 public static class FileLogging
 {
+    /// <summary>The log scope property that routes an event to its room's folder; its value is the real room ID.</summary>
+    internal const string RoomIdProperty = "RealRoomId";
+
     /// <summary>Adds the Core-owned file logs and exception handlers; the host owns their lifetime.</summary>
     public static ILoggingBuilder AddAetherFileLogging(this ILoggingBuilder logging, string dataDirectory)
     {
@@ -38,7 +41,7 @@ public static class FileLogging
                 .MinimumLevel.Is(Serilog.Extensions.Logging.LevelConvert.ToSerilogLevel(effective.LogLevel.Value))
                 .Enrich.FromLogContext()
                 .Enrich.WithProperty("ProcessId", Environment.ProcessId)
-                .WriteTo.Map("RoomId", 0L, (roomId, write) => write.File(
+                .WriteTo.Map(RoomIdProperty, 0L, (roomId, write) => write.File(
                     Path.Combine(roomId > 0 ? Path.Combine(logs, roomId.ToString(CultureInfo.InvariantCulture)) : logs,
                         "aether-.log"),
                     rollingInterval: RollingInterval.Day,
