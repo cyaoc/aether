@@ -363,6 +363,33 @@ public sealed class SettingsTests : IAsyncDisposable
         await Assert.ThrowsAsync<SettingsException>(async () => await next.MoveNextAsync());
     }
 
+    [Theory]
+    [InlineData("log:\n  retention_days: '7'\n  level: Debug\n", "7", "Debug")]
+    [InlineData("log:\n  retention_days: 007 # 一周\n", " 7 ", "Information")]
+    [InlineData("log:\n  level: \"Debug\"\n", "30", "Debug")]
+    public void Save_leaves_values_equal_to_the_current_ones_untouched(string yaml, string days, string level)
+    {
+        Write(yaml);
+
+        Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["log.retention_days"] = days, ["log.level"] = level });
+
+        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Save_keeps_an_external_edit_to_a_value_unchanged_since_the_snapshot()
+    {
+        Write("log:\n  level: Information\n");
+        var snapshot = Settings.Load(harness.DataDirectory);
+        Write("# 外部修改\nlog:\n  level: Warning\n");
+
+        Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["log.retention_days"] = "7", ["log.level"] = "Information" }, snapshot);
+
+        Assert.Equal("# 外部修改\nlog:\n  level: Warning\n  retention_days: 7\n", File.ReadAllText(SettingsPath));
+    }
+
     // No shipped setting is text or a list yet; these stand in for the coming welcome settings.
     private static readonly Settings.Definition<string> Greeting = Settings.Definition.Text("welcome.greeting", "");
 

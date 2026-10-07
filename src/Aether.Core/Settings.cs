@@ -34,12 +34,15 @@ public sealed class Settings
     private const string LineBreaks = "\r\n\u0085\u2028\u2029"; // YAML also accepts Unicode line breaks.
 
     private static readonly Definition<int> RetentionDays = Definition.Number("log.retention_days", 30, "必须为正整数。", days => days > 0);
-    private static readonly Definition<LogLevel> Level = Definition.Choice("log.level", Microsoft.Extensions.Logging.LogLevel.Information,
-        [
-            Microsoft.Extensions.Logging.LogLevel.Trace, Microsoft.Extensions.Logging.LogLevel.Debug,
-            Microsoft.Extensions.Logging.LogLevel.Information, Microsoft.Extensions.Logging.LogLevel.Warning,
-            Microsoft.Extensions.Logging.LogLevel.Error, Microsoft.Extensions.Logging.LogLevel.Critical,
-        ]);
+    /// <summary>The values log.level accepts, in order.</summary>
+    public static IReadOnlyList<LogLevel> LogLevels { get; } =
+    [
+        Microsoft.Extensions.Logging.LogLevel.Trace, Microsoft.Extensions.Logging.LogLevel.Debug,
+        Microsoft.Extensions.Logging.LogLevel.Information, Microsoft.Extensions.Logging.LogLevel.Warning,
+        Microsoft.Extensions.Logging.LogLevel.Error, Microsoft.Extensions.Logging.LogLevel.Critical,
+    ];
+    private static readonly Definition<LogLevel> Level =
+        Definition.Choice("log.level", Microsoft.Extensions.Logging.LogLevel.Information, LogLevels);
     /// <summary>Every setting this version knows; adding one is a definition here plus its property.</summary>
     private static readonly Definition[] Definitions = [RetentionDays, Level];
 
@@ -67,17 +70,26 @@ public sealed class Settings
         values.TryGetValue(definition, out var setting) ? (Setting<T>)setting : definition.Initial;
 
     /// <summary>Reload the file and change only the requested values, then atomically replace it.</summary>
-    public static void Save(string dataDirectory, IReadOnlyDictionary<string, string> changes) =>
-        Save(dataDirectory, Definitions, changes);
+    /// <param name="snapshot">The settings a form was filled from. A value it already held was not changed by the user,
+    /// so it is left alone even if the file has since been edited elsewhere.</param>
+    public static void Save(string dataDirectory, IReadOnlyDictionary<string, string> changes, Settings? snapshot = null) =>
+        Save(dataDirectory, Definitions, changes, snapshot);
 
     /// <param name="definitions">The settings this file may hold; only tests pass anything but <see cref="Definitions"/>.</param>
-    internal static void Save(string dataDirectory, IReadOnlyList<Definition> definitions, IReadOnlyDictionary<string, string> changes)
+    internal static void Save(string dataDirectory, IReadOnlyList<Definition> definitions,
+        IReadOnlyDictionary<string, string> changes, Settings? snapshot = null)
     {
         var path = FilePath(dataDirectory);
         foreach (var (name, value) in changes)
             if (Validate(definitions, name, value) is { } reason) throw new SettingsException(path, 1, name, reason);
         var current = Load(dataDirectory, definitions);
         if (current.Error is { } error) throw error;
+        // A value the file or the snapshot already holds is no change, and keeps its spelling: '7', 007 and 7 are the same.
+        changes = changes.Where(change =>
+        {
+            var definition = Find(definitions, change.Key)!;
+            return !definition.Holds(current, change.Value) && !(snapshot is not null && definition.Holds(snapshot, change.Value));
+        }).ToDictionary();
         var tokens = Scan(current.source);
         var edits = new List<(int Start, int Length, string Value)>();
         var firstBreak = current.source.AsSpan().IndexOfAny(LineBreaks);
@@ -278,6 +290,8 @@ public sealed class Settings
         /// <summary>The one-line YAML written for valid text, quoted wherever YAML needs it.</summary>
         public abstract string Format(string text);
         public abstract bool CanEdit(Settings settings);
+        /// <summary>Whether <paramref name="settings"/> already holds the value of this valid text.</summary>
+        public abstract bool Holds(Settings settings, string text);
         public abstract void MarkEditable(Settings settings, bool canEdit);
         /// <summary>Records whether the line can be edited, and the value when the node is valid; returns why it is not.</summary>
         public abstract string? Read(Settings settings, YamlNode node, bool canEdit);
@@ -345,6 +359,7 @@ public sealed class Settings
         public override string? Validate(string? text) => parse(text ?? "").Valid ? null : rule;
         public override string Format(string text) => format(parse(text).Value);
         public override bool CanEdit(Settings settings) => settings.Get(this).CanEdit;
+        public override bool Holds(Settings settings, string text) => Format(text) == format(settings.Get(this).Value);
         public override void MarkEditable(Settings settings, bool canEdit) => settings.values[this] = settings.Get(this) with { CanEdit = canEdit };
 
         public override string? Read(Settings settings, YamlNode node, bool canEdit)
