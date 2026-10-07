@@ -67,10 +67,7 @@ static async Task<int> RunAsync(Func<AetherClient, Task> action, CancellationTok
     builder.Services.Configure<ConsoleLoggerOptions>(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
     // The CLI prints its own status and errors to stderr; its log records only go to the file.
     builder.Logging.AddFilter<ConsoleLoggerProvider>("Aether.Cli", LogLevel.None);
-    var dataDirectory = DataDirectory.Locate();
-    builder.Logging.AddAetherFileLogging(dataDirectory, Settings.Load(dataDirectory));
-    builder.Services.AddSingleton(services => new AetherClient(
-        services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
+    builder.AddAether(DataDirectory.Locate());
     using var host = builder.Build();
     var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aether.Cli");
     try

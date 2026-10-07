@@ -37,9 +37,7 @@ public sealed class LifecycleTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         var packet = FakeDanmakuServer.Packet(5, System.Text.Encoding.UTF8.GetBytes(
             """{"cmd":"DANMU_MSG","info":[[],"你好",[0,"观***"]]}"""), 0);
         await h.Server.PushAsync([.. packet, .. packet]);
@@ -60,7 +58,7 @@ public sealed class LifecycleTests
             h.Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
                 """{"code":0,"data":{"token":"","host_list":[{"host":"danmaku.example","wss_port":443}]}}""";
         else h.Server.AuthenticationCode = -101;
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
         Assert.Contains("认证失败", error.Message);
@@ -72,9 +70,7 @@ public sealed class LifecycleTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         await h.Server.DisconnectAsync();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
@@ -86,7 +82,7 @@ public sealed class LifecycleTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using (var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
+        await using (var updates = h.Watch())
         {
             await updates.MoveNextAsync();
             await updates.MoveNextAsync();
@@ -100,9 +96,7 @@ public sealed class LifecycleTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         await h.Server.NextRequestAsync(); // Authentication.
         var next = updates.MoveNextAsync().AsTask();
         for (var i = 0; i < 2; i++)

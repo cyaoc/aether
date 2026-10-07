@@ -9,6 +9,171 @@ public sealed class SettingsTests : IAsyncDisposable
     private string SettingsPath => Path.Combine(harness.DataDirectory, "aether.yml");
 
     [Fact]
+    public void Save_changes_only_the_requested_scalar_bytes()
+    {
+        const string yaml = "# 我的注释 🌙\r\nlog:\r\n  retention_days: '7'  # 一周\r\n  level: Debug\r\n\r\nfuture: {option: true}\r\n";
+        Write(yaml);
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["log.retention_days"] = "14" });
+
+        Assert.Equal(System.Text.Encoding.UTF8.GetBytes(
+            "# 我的注释 🌙\r\nlog:\r\n  retention_days: 14  # 一周\r\n  level: Debug\r\n\r\nfuture: {option: true}\r\n"), File.ReadAllBytes(SettingsPath));
+        Assert.Equal(14, Settings.Load(harness.DataDirectory).LogRetentionDays.Value);
+        Assert.Equal([SettingsPath], Directory.GetFiles(harness.DataDirectory));
+    }
+
+    [Theory]
+    [InlineData("log:\n  level: Debug\n\nfuture: true\n", "log:\n  level: Debug\n  retention_days: 14\n\nfuture: true\n")]
+    [InlineData("log:\n  level: Debug # 级别\n\n# 其他分组\nfuture: true\n",
+        "log:\n  level: Debug # 级别\n  retention_days: 14\n\n# 其他分组\nfuture: true\n")]
+    [InlineData("log:\n  level: Debug\n# 末尾\n", "log:\n  level: Debug\n  retention_days: 14\n# 末尾\n")]
+    [InlineData("future: true\n...\n...\n", "future: true\nlog:\n  retention_days: 14\n...\n...\n")]
+    [InlineData("log:\n    level: Debug", "log:\n    level: Debug\n    retention_days: 14\n")]
+    [InlineData("log: # 日志\n  # 我的注释\nfuture: true\n", "log: # 日志\n  # 我的注释\n  retention_days: 14\nfuture: true\n")]
+    [InlineData("# 开头\nfuture: true", "# 开头\nfuture: true\nlog:\n  retention_days: 14\n")]
+    [InlineData("", "log:\n  retention_days: 14\n")]
+    [InlineData("log:\r\n  level: Debug\r\n", "log:\r\n  level: Debug\r\n  retention_days: 14\r\n")]
+    [InlineData("---\nfuture: true\n...\n# 末尾\n", "---\nfuture: true\nlog:\n  retention_days: 14\n...\n# 末尾\n")]
+    [InlineData("  log:\n  future: true\n", "  log:\n    retention_days: 14\n  future: true\n")]
+    [InlineData("  future: true\n", "  future: true\n  log:\n    retention_days: 14\n")]
+    [InlineData("log: !!map\n  level: Debug\n", "log: !!map\n  level: Debug\n  retention_days: 14\n")]
+    [InlineData("!!map\n  future: true\n", "!!map\n  future: true\n  log:\n    retention_days: 14\n")]
+    [InlineData("log:\n  ? future\n  : true\n", "log:\n  ? future\n  : true\n  retention_days: 14\n")]
+    [InlineData("? future\n: true\n", "? future\n: true\nlog:\n  retention_days: 14\n")]
+    [InlineData("log:\n  ?\n    future\n  : true\n", "log:\n  ?\n    future\n  : true\n  retention_days: 14\n")]
+    [InlineData("?\n  future\n: true\n", "?\n  future\n: true\nlog:\n  retention_days: 14\n")]
+    [InlineData("log:\n  level: Debug\n?\n  future\n: true\n", "log:\n  level: Debug\n  retention_days: 14\n?\n  future\n: true\n")]
+    [InlineData("log:\u0085  level: Debug\u0085future: true\u0085", "log:\u0085  level: Debug\u0085  retention_days: 14\u0085future: true\u0085")]
+    [InlineData("log:\u2028  level: Debug\u2028future: true\u2028", "log:\u2028  level: Debug\u2028  retention_days: 14\u2028future: true\u2028")]
+    [InlineData("log:\u2029  level: Debug\u2029future: true\u2029", "log:\u2029  level: Debug\u2029  retention_days: 14\u2029future: true\u2029")]
+    public void Save_inserts_missing_settings_at_group_end_or_missing_groups_at_document_end(string yaml, string expected)
+    {
+        Write(yaml);
+
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["log.retention_days"] = "14" });
+
+        Assert.Equal(expected, File.ReadAllText(SettingsPath));
+        var loaded = Settings.Load(harness.DataDirectory);
+        Assert.Null(loaded.Error);
+        Assert.Equal(14, loaded.LogRetentionDays.Value);
+    }
+
+    [Theory]
+    [InlineData("log:\n  retention_days: 7\n", "log.retention_days", "0")]
+    [InlineData("log:\n  retention_days: 7\n", "log.retention_days", "1.5")]
+    [InlineData("log:\n  retention_days: 7\n", "log.retention_days", "2147483648")]
+    [InlineData("log:\n  level: Debug\n", "log.level", "None")]
+    [InlineData("log:\n  level: Debug\n", "log.level", "Debug\nfuture: yes")]
+    [InlineData("log:\n  level: @bad\n", "log.level", "Warning")]
+    [InlineData("log:\n  retention_days: 0\n", "log.level", "Warning")]
+    [InlineData("log:\n  level: |-\n    Debug\n", "log.level", "Warning")]
+    [InlineData("log: {level: Debug}\n", "log.level", "Warning")]
+    [InlineData("log:\n  level: &level Debug\n", "log.level", "Warning")]
+    [InlineData("log:\n  level: Debug\n", "future.option", "yes")]
+    public void Save_rejects_invalid_input_invalid_files_and_read_only_settings_without_writing(string yaml, string name, string value)
+    {
+        Write(yaml);
+        var before = File.ReadAllBytes(SettingsPath);
+
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { [name] = value }));
+
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+        Assert.Equal([SettingsPath], Directory.GetFiles(harness.DataDirectory));
+    }
+
+    [Theory]
+    [InlineData("utf-8")]
+    [InlineData("utf-16")]
+    [InlineData("utf-16BE")]
+    public void Save_preserves_encoding_bom_and_untouched_values(string encodingName)
+    {
+        Directory.CreateDirectory(harness.DataDirectory);
+        var encoding = System.Text.Encoding.GetEncoding(encodingName);
+        File.WriteAllText(SettingsPath, "# 🌙\r\nlog:\r\n  level: 'Debug' # 注释\r\n  retention_days: 7\r\n", encoding);
+
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["log.retention_days"] = "14" });
+
+        Assert.Equal(encoding.GetPreamble().Concat(encoding.GetBytes(
+            "# 🌙\r\nlog:\r\n  level: 'Debug' # 注释\r\n  retention_days: 14\r\n")), File.ReadAllBytes(SettingsPath));
+    }
+
+    [Fact]
+    public void Save_can_insert_both_missing_settings_and_leave_a_multiline_sibling_unchanged()
+    {
+        Write("# 设置\n");
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string>
+        {
+            ["log.retention_days"] = "7", ["log.level"] = "Warning"
+        });
+        Assert.Equal("# 设置\nlog:\n  retention_days: 7\n  level: Warning\n", File.ReadAllText(SettingsPath));
+
+        Write("log:\n  retention_days: |-\n    7\n  level: Debug\n");
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["log.level"] = "Warning" });
+        Assert.Equal("log:\n  retention_days: |-\n    7\n  level: Warning\n", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Save_finds_a_tagged_key_by_name_instead_of_adding_a_second_line()
+    {
+        Write("log:\n  !!str retention_days: 7\n");
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["log.retention_days"] = "14" });
+        Assert.Equal("log:\n  !!str retention_days: 14\n", File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("log:\n  !!str level: Debug\n  level: Warning\n", "log.level")]
+    [InlineData("log:\n  level: Warning\n  !!str level: Debug\n", "log.level")]
+    [InlineData("log:\n  !!str retention_days: 7\n  retention_days: 14\n", "log.retention_days")]
+    public void Duplicate_setting_names_are_rejected_even_when_the_yaml_tags_differ(string yaml, string name)
+    {
+        Write(yaml);
+        var before = File.ReadAllBytes(SettingsPath);
+
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(name, error.SettingName);
+        Assert.Equal(3, error.LineNumber);
+        Assert.Contains("重复", error.Message);
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["log.level"] = "Error" }));
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("!!str log:\n  level: Debug\nlog:\n  retention_days: 7\n")]
+    [InlineData("log:\n  level: Debug\n!!str log:\n  retention_days: 7\n")]
+    [InlineData("log: # 默认值\n# 注释\n!!str log:\n  level: Debug\n")]
+    public void Duplicate_known_groups_are_rejected_even_with_different_or_missing_settings(string yaml)
+    {
+        Write(yaml);
+        var before = File.ReadAllBytes(SettingsPath);
+
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal("log", error.SettingName);
+        Assert.Equal(3, error.LineNumber);
+        Assert.Contains("重复", error.Message);
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["log.level"] = "Error" }));
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+    }
+
+    [Fact]
+    public void Non_utf8_file_still_loads_but_is_read_only_and_save_does_not_change_its_bytes()
+    {
+        Write("log:\n  level: Debug\n# ");
+        var bytes = File.ReadAllBytes(SettingsPath).Concat(new byte[] { 0xff }).ToArray();
+        File.WriteAllBytes(SettingsPath, bytes);
+
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(LogLevel.Debug, settings.LogLevel.Value);
+        Assert.False(settings.LogLevel.CanEdit);
+        Assert.False(settings.LogRetentionDays.CanEdit);
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["log.level"] = "Warning" }));
+        Assert.Equal(bytes, File.ReadAllBytes(SettingsPath));
+    }
+
+    [Fact]
     public void Missing_file_creates_commented_template_with_active_defaults()
     {
         var settings = Settings.Load(harness.DataDirectory);
@@ -130,6 +295,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("{future: true}", 30, false, false)]
     [InlineData("log:\n  retention_days: &days 7", 7, false, false)]
     [InlineData("log: &logging\n  retention_days: 7", 7, false, false)]
+    [InlineData("log: &logging\n", 30, false, false)]
     public void Missing_settings_keep_defaults_and_non_line_editable_values_are_marked(
         string yaml, int days, bool canEdit, bool hasError)
     {

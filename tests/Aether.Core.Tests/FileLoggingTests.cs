@@ -115,7 +115,7 @@ public sealed class FileLoggingTests
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();
         builder.Logging.SetMinimumLevel(LogLevel.Trace);
-        builder.Logging.AddAetherFileLogging(dataDirectory, Settings.Load(dataDirectory));
+        builder.Logging.AddAetherFileLogging(dataDirectory);
         return builder.Build();
     }
 
@@ -189,7 +189,7 @@ public sealed class FileLoggingTests
             start.SignalAndWait(TestContext.Current.CancellationToken);
             while (Volatile.Read(ref finished) == 0)
             {
-                using var other = LoggerFactory.Create(logging => logging.AddAetherFileLogging(directory, Settings.Load(directory)));
+                using var other = LoggerFactory.Create(logging => logging.AddAetherFileLogging(directory));
                 other.CreateLogger("Startup");
                 Interlocked.Increment(ref cleanups);
             }
@@ -262,13 +262,13 @@ public sealed class FileLoggingTests
     public async Task Rejected_room_connection_leaves_recording_the_failure_to_the_caller()
     {
         await using var h = new WatchHarness();
-        await using var owner = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var owner = h.Watch();
         Assert.True(await owner.MoveNextAsync());
         using (var host = FileLoggingHost(h.DataDirectory))
         {
             using var client = new AetherClient(h.Http, h.Server.ConnectAsync, h.Time,
                 host.Services.GetRequiredService<ILogger<AetherClient>>(), h.DataDirectory);
-            await using var rejected = client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+            await using var rejected = h.Watch(client);
             await Assert.ThrowsAsync<InvalidOperationException>(async () => await rejected.MoveNextAsync());
         }
         // The room is not known as ours yet, so nothing goes near the owner's file or duplicates the caller's record.
@@ -292,7 +292,7 @@ public sealed class FileLoggingTests
             using var client = new AetherClient(h.Http, (uri, token) => ++attempts == 1
                 ? throw new WebSocketException("reconnect-marker") : h.Server.ConnectAsync(uri, token),
                 h.Time, logger, h.DataDirectory);
-            await using (var updates = client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
+            await using (var updates = h.Watch(client))
             {
                 Assert.True(await updates.MoveNextAsync());
                 Assert.IsType<WatchQrCode>(updates.Current);

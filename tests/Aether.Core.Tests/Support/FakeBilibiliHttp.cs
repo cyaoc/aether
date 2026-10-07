@@ -42,17 +42,38 @@ internal sealed class FakeBilibiliHttp : HttpMessageHandler
         return response;
     }
 
-    /// <summary>Throws <paramref name="error"/> for the first request to <paramref name="path"/>; later requests go to <see cref="Respond"/> as before.</summary>
-    public void FailOnce(string path, Exception error)
+    /// <summary>Sends requests for <paramref name="url"/> to <paramref name="handler"/>, which may pass one on with next;
+    /// other requests go to <see cref="Respond"/> as before. A full URL matches without its query, a path ("/…") as a prefix on any host.</summary>
+    public void Intercept(string url,
+        Func<HttpRequestMessage, CancellationToken, Func<Task<HttpResponseMessage>>, Task<HttpResponseMessage>> handler)
     {
         var respond = Respond!;
+        Respond = (request, token) => Matches(request.RequestUri!)
+            ? handler(request, token, () => respond(request, token))
+            : respond(request, token);
+
+        bool Matches(Uri uri) => url.StartsWith('/')
+            ? uri.AbsolutePath.StartsWith(url, StringComparison.Ordinal) : uri.GetLeftPart(UriPartial.Path) == url;
+    }
+
+    /// <summary>Throws <paramref name="error"/> for the first request to <paramref name="url"/>; later requests go to <see cref="Respond"/> as before.</summary>
+    public void FailOnce(string url, Exception error)
+    {
         var failed = false;
-        Respond = (request, token) =>
+        Intercept(url, (_, _, next) =>
         {
-            if (failed || request.RequestUri!.AbsolutePath != path) return respond(request, token);
+            if (failed) return next();
             failed = true;
             throw error;
-        };
+        });
+    }
+
+    /// <summary>Signals <paramref name="requested"/>, then waits until the request is cancelled.</summary>
+    public static async Task<HttpResponseMessage> HangUntilCancelledAsync(TaskCompletionSource requested, CancellationToken token)
+    {
+        requested.SetResult();
+        await Task.Delay(Timeout.InfiniteTimeSpan, token);
+        throw new InvalidOperationException("Cancelled request must not complete.");
     }
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)

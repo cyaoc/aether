@@ -1,0 +1,33 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Aether.Gui.SettingsWindow"
+        Title="设置 · Aether" Width="480" Height="480" MinWidth="400" MinHeight="420"
+        WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="TextBlock.hint">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+  </Window.Styles>
+  <DockPanel Margin="24">
+    <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,20,0,0">
+      <Button Content="打开设置文件" Click="OpenFile" />
+      <Button Grid.Column="1" x:Name="SaveButton" Content="保存" Classes="accent" MinWidth="80"
+              HorizontalContentAlignment="Center" Click="Save" />
+    </Grid>
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Spacing="10">
+        <TextBlock Text="日志" FontSize="22" FontWeight="SemiBold" Margin="0,0,0,8" />
+        <TextBlock Text="保留天数（重启后生效）" />
+        <NumericUpDown x:Name="RetentionInput" FormatString="0.############################"
+                       HorizontalAlignment="Stretch" AutomationProperties.Name="日志保留天数" />
+        <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
+        <TextBlock Text="级别（重启后生效）" Margin="0,8,0,0" />
+        <ComboBox x:Name="LevelInput" HorizontalAlignment="Stretch" AutomationProperties.Name="日志级别" />
+        <TextBlock x:Name="LevelReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
+        <TextBlock x:Name="UnknownKeysMessage" Classes="hint" Margin="0,8,0,0" />
+        <TextBlock x:Name="Message" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</Window>

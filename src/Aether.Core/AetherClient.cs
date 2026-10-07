@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
@@ -93,14 +95,9 @@ public sealed class AetherClient(
                     yield return new LoggedIn(); // The watch flow validates it with nav; do not save over another process.
                     yield break;
                 }
-                QrCodeState state;
-                Credential? credential;
-                try { (state, credential) = await api.PollQrCodeAsync(qr.Key, cancellationToken); }
-                catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
-                {
-                    logger.LogWarning("登录请求失败，2 秒后重试：{Error}", error.Message);
-                    continue;
-                }
+                // A failed poll goes round the loop, so the retry still checks for an external credential first.
+                if (await TryLoginRequestAsync(() => api.PollQrCodeAsync(qr.Key, cancellationToken), cancellationToken)
+                    is not (var state, var credential)) continue;
                 if (state == QrCodeState.Waiting) continue;
                 if (state == QrCodeState.Expired) break;
                 cancellationToken.ThrowIfCancellationRequested();
@@ -111,24 +108,33 @@ public sealed class AetherClient(
         }
     }
 
-    /// <summary>Only a failed connection is worth retrying. Once B站 answers with a refusal (an error code, HTTP 4xx, rejected
-    /// authentication) the same request gets the same answer and hammering it deepens risk control; local errors and bugs never heal.</summary>
-    private static bool IsTransient(Exception error) => error
-        is HttpRequestException { StatusCode: null or >= HttpStatusCode.InternalServerError }
-        or WebSocketException or OperationCanceledException;
+    /// <summary>Only a failed connection is worth retrying, and only while the caller still wants the result. Once B站 answers
+    /// with a refusal (an error code, HTTP 4xx, rejected authentication) the same request gets the same answer and hammering it
+    /// deepens risk control; local errors and bugs never heal.</summary>
+    private static bool IsRetryable(Exception error, CancellationToken cancellationToken) =>
+        !cancellationToken.IsCancellationRequested && error
+            is HttpRequestException { StatusCode: null or >= HttpStatusCode.InternalServerError }
+            or WebSocketException or OperationCanceledException;
 
-    /// <summary>Retries <see cref="IsTransient"/> failures until the request succeeds or the caller cancels.</summary>
-    private async Task<T> RetryAsync<T>(Func<Task<T>> request, CancellationToken cancellationToken)
+    /// <summary>Retries <see cref="IsRetryable"/> failures until the request succeeds or the caller cancels.</summary>
+    private async Task<T> RetryAsync<T>(Func<Task<T>> request, CancellationToken cancellationToken) where T : struct
     {
         while (true)
         {
-            try { return await request(); }
-            catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
-            {
-                // ponytail: fixed 2s retry with no cap; add backoff if B站 starts rate-limiting retries.
-                logger.LogWarning("登录请求失败，2 秒后重试：{Error}", error.Message);
-                await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, cancellationToken);
-            }
+            if (await TryLoginRequestAsync(request, cancellationToken) is { } result) return result;
+            // ponytail: fixed 2s retry with no cap; add backoff if B站 starts rate-limiting retries.
+            await Task.Delay(TimeSpan.FromSeconds(2), timeProvider, cancellationToken);
+        }
+    }
+
+    /// <summary>One login request; an <see cref="IsRetryable"/> failure is logged and returns null, leaving the retry to the caller.</summary>
+    private async Task<T?> TryLoginRequestAsync<T>(Func<Task<T>> request, CancellationToken cancellationToken) where T : struct
+    {
+        try { return await request(); }
+        catch (Exception error) when (IsRetryable(error, cancellationToken))
+        {
+            logger.LogWarning("登录请求失败，2 秒后重试：{Error}", error.Message);
+            return null;
         }
     }
 
@@ -160,7 +166,7 @@ public sealed class AetherClient(
                             roomScope = logger.BeginScope(new Dictionary<string, object> { ["RoomId"] = realRoomId.Value });
                             hasNext = await updates.MoveNextAsync();
                         }
-                        catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
+                        catch (Exception error) when (IsRetryable(error, cancellationToken))
                         {
                             logger.LogWarning("直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, error.Message);
                             break;
@@ -265,7 +271,7 @@ public sealed class AetherClient(
             else
                 credentials.MarkChecked(credential.RefreshToken, timeProvider.GetUtcNow());
         }
-        catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
+        catch (Exception error) when (IsRetryable(error, cancellationToken))
         {
             logger.LogWarning("检查或刷新登录凭据时网络失败，下次再试：{Error}", error.Message);
         }
@@ -339,9 +345,9 @@ public sealed class AetherClient(
         }
     }
 
-    private async Task RefreshCredentialWhileConnectedAsync(CancellationTokenSource stop, CancellationToken cancellationToken)
-    {
-        try
+    // A refresh cut short by the connection ending leaves checked_at unchanged, so the reconnect checks again.
+    private Task RefreshCredentialWhileConnectedAsync(CancellationTokenSource stop, CancellationToken cancellationToken) =>
+        RunWhileConnectedAsync(stop, async () =>
         {
             while (true)
             {
@@ -359,28 +365,24 @@ public sealed class AetherClient(
                     return;
                 }
             }
-        }
-        // The connection is ending anyway; checked_at is unchanged, so the reconnect checks again and meets any real error there.
+        });
+
+    private Task SendHeartbeatsAsync(WebSocket socket, CancellationTokenSource stop) => RunWhileConnectedAsync(stop, async () =>
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30), timeProvider);
+        while (await timer.WaitForNextTickAsync(stop.Token))
+            await socket.SendAsync(DanmakuProtocol.CreateHeartbeat(), WebSocketMessageType.Binary, true, stop.Token);
+    });
+
+    /// <summary>Runs one of the room connection's background loops. Anything after the connection stops is just the
+    /// connection ending; any other failure stops it too, so the receive loop wakes instead of leaving WatchAsync hanging.</summary>
+    private static async Task RunWhileConnectedAsync(CancellationTokenSource stop, Func<Task> loop)
+    {
+        try { await loop(); }
         catch when (stop.IsCancellationRequested) { }
         catch
         {
             await stop.CancelAsync();
-            throw;
-        }
-    }
-
-    private async Task SendHeartbeatsAsync(WebSocket socket, CancellationTokenSource stop)
-    {
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30), timeProvider);
-        try
-        {
-            while (await timer.WaitForNextTickAsync(stop.Token))
-                await socket.SendAsync(DanmakuProtocol.CreateHeartbeat(), WebSocketMessageType.Binary, true, stop.Token);
-        }
-        catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
-        catch
-        {
-            await stop.CancelAsync(); // Wake the receive loop so a send failure cannot leave WatchAsync hanging.
             throw;
         }
     }
@@ -416,4 +418,17 @@ public sealed class AetherClient(
     }
 
     public void Dispose() => http.Dispose();
+}
+
+public static class AetherHosting
+{
+    /// <summary>What both shells host: Core's file logs and one client on the data directory.
+    /// A settings error does not stop startup; Core refuses the next room connection with it.</summary>
+    public static IHostApplicationBuilder AddAether(this IHostApplicationBuilder builder, string dataDirectory)
+    {
+        builder.Logging.AddAetherFileLogging(dataDirectory);
+        builder.Services.AddSingleton(services => new AetherClient(
+            services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
+        return builder;
+    }
 }

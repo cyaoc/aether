@@ -16,7 +16,7 @@ public sealed class WatchLoginTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         using var other = h.ClientSharingData(h.Server.ConnectAsync);
-        await using (var updates = other.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
+        await using (var updates = h.Watch(other))
         {
             Assert.True(await updates.MoveNextAsync());
             Assert.IsType<Connecting>(updates.Current); // The other shell uses the saved credential, without a QR code.
@@ -24,7 +24,7 @@ public sealed class WatchLoginTests
             Assert.IsType<Connected>(updates.Current);
         }
         await other.LogoutAsync(h.Stop.Token);
-        await using var loggedOut = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var loggedOut = h.Watch();
         Assert.True(await loggedOut.MoveNextAsync());
         Assert.IsType<WatchQrCode>(loggedOut.Current);
     }
@@ -35,7 +35,7 @@ public sealed class WatchLoginTests
         await using var h = new WatchHarness();
         var authenticated = h.Http.Responses[Nav];
         h.Http.Responses[Nav] = LoggedOutNav;
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         Assert.Equal("https://example.test/scan", Assert.IsType<WatchQrCode>(updates.Current).Content);
         Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsoluteUri == Nav);
@@ -67,7 +67,7 @@ public sealed class WatchLoginTests
         await h.LoginAsync();
         var authenticated = h.Http.Responses[Nav];
         h.Http.Responses[Nav] = $$$"""{"code":{{{code}}},"data":{"isLogin":false}}""";
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<WatchQrCode>(updates.Current);
         Assert.Contains("SESSDATA=saved-session", Assert.Single(h.Http.Requests, r => r.Uri.AbsoluteUri == Nav).Cookie);
@@ -97,14 +97,14 @@ public sealed class WatchLoginTests
         await h.LoginAsync();
         for (var i = 0; i < 2; i++)
         {
-            await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+            await using var updates = h.Watch();
             Assert.True(await updates.MoveNextAsync());
             Assert.IsType<Connecting>(updates.Current);
         }
         Assert.Equal(2, h.Http.Requests.Count(r => r.Uri.AbsoluteUri == Nav));
         await h.Client.LogoutAsync(h.Stop.Token);
         h.Http.Responses[Nav] = LoggedOutNav;
-        await using var loggedOut = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var loggedOut = h.Watch();
         Assert.True(await loggedOut.MoveNextAsync());
         Assert.IsType<WatchQrCode>(loggedOut.Current);
         Assert.Equal(2, h.Http.Requests.Count(r => r.Uri.AbsoluteUri == Nav)); // No credential, so no nav before the QR code.
@@ -118,16 +118,9 @@ public sealed class WatchLoginTests
     {
         await using var h = new WatchHarness();
         if (endpoint == Nav) await h.LoginAsync();
-        var respond = h.Http.Respond!;
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        h.Http.Respond = async (request, token) =>
-        {
-            if (request.RequestUri!.GetLeftPart(UriPartial.Path) != endpoint) return await respond(request, token);
-            requested.SetResult();
-            await Task.Delay(Timeout.InfiniteTimeSpan, token);
-            throw new InvalidOperationException("Cancelled request must not complete.");
-        };
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        h.Http.Intercept(endpoint, (_, token, _) => FakeBilibiliHttp.HangUntilCancelledAsync(requested, token));
+        await using var updates = h.Watch();
         if (endpoint == Poll)
         {
             Assert.True(await updates.MoveNextAsync());
@@ -147,7 +140,7 @@ public sealed class WatchLoginTests
     public async Task Disposing_or_cancelling_room_connection_at_qr_stops_polling_and_never_connects(bool cancel)
     {
         await using var h = new WatchHarness();
-        await using (var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
+        await using (var updates = h.Watch())
         {
             Assert.True(await updates.MoveNextAsync());
             Assert.IsType<WatchQrCode>(updates.Current);
@@ -169,7 +162,7 @@ public sealed class WatchLoginTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         h.Http.Responses[Nav] = """{"code":-352,"message":"risk control"}""";
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
         Assert.Contains("-352", error.Message);
         Assert.Equal(new[] { "/room/v1/Room/room_init", "/x/web-interface/nav" }, h.Http.Requests.Select(r => r.Uri.AbsolutePath));
@@ -181,7 +174,7 @@ public sealed class WatchLoginTests
     {
         await using var h = new WatchHarness();
         h.Http.Responses[Nav] = LoggedOutNav;
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<WatchQrCode>(updates.Current);
         Assert.True(await h.AdvancePollAsync(updates));

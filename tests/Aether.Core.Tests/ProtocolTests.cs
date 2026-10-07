@@ -26,9 +26,7 @@ public sealed class ProtocolTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
             Encoding.UTF8.GetBytes(body), 0));
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
@@ -54,9 +52,7 @@ public sealed class ProtocolTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         // 2046 ASCII bytes followed by a 3-byte character straddles the byte limit.
         var body = byteCount == 2048 ? new string('x', 2048) : new string('x', 2046) + "中";
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(body), 0));
@@ -80,9 +76,7 @@ public sealed class ProtocolTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         var frame = FakeDanmakuServer.Packet(5, [], kind == "unsupported-version" ? (ushort)4 : (ushort)0);
         if (kind == "truncated-header") frame = frame[..7];
         if (kind == "zero-length") Array.Clear(frame, 0, 4);
@@ -107,11 +101,7 @@ public sealed class ProtocolTests
         h.Server.AuthenticationReply = await FixtureAsync("authentication.bin");
         h.Server.FragmentAuthentication = true;
         h.Time.SetLocalTimeZone(TimeZoneInfo.CreateCustomTimeZone("test+8", TimeSpan.FromHours(8), "test+8", "test+8"));
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<Connecting>(updates.Current);
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<Connected>(updates.Current);
+        await using var updates = await h.WatchConnectedAsync();
         h.Time.Advance(TimeSpan.FromSeconds(7));
         await h.Server.PushAsync(await FixtureAsync("heartbeat.bin"));
         await h.Server.PushAsync(await FixtureAsync(fixture));
@@ -128,9 +118,7 @@ public sealed class ProtocolTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         await h.Server.PushAsync(await FixtureAsync("multiple-zlib.bin"));
         await h.Server.PushAsync(await FixtureAsync("danmaku-brotli.bin"));
         Assert.True(await updates.MoveNextAsync());
@@ -150,17 +138,10 @@ public sealed class ProtocolTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         var packets = new[] { "第一条", "[dog]" }.SelectMany(text => FakeDanmakuServer.Packet(5,
             Encoding.UTF8.GetBytes($$"""{"cmd":"DANMU_MSG:4:0:2:2:2:0","info":[[],"{{text}}",[0,"观***"]]}"""), 0)).ToArray();
-        using var output = new MemoryStream();
-        using (Stream compressor = version == 2
-            ? new ZLibStream(output, CompressionLevel.Optimal, true)
-            : new BrotliStream(output, CompressionLevel.Optimal, true))
-            compressor.Write(packets);
-        var frame = FakeDanmakuServer.Packet(5, output.ToArray(), (ushort)version);
+        var frame = Compress(packets, version);
         var next = updates.MoveNextAsync().AsTask();
         await h.Server.PushAsync(frame[..7], false);
         await h.Server.PushAsync(frame[7..]);
@@ -178,29 +159,30 @@ public sealed class ProtocolTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         var packets = new[]
         {
             "{",
             """{"cmd":"DANMU_MSG","info":[]}""",
             """{"cmd":"DANMU_MSG","info":[[],"正常弹幕",[0,"观众"]]}"""
         }.SelectMany(body => FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(body), 0)).ToArray();
-        if (version != 0)
-        {
-            using var output = new MemoryStream();
-            using (Stream compressor = version == 2
-                ? new ZLibStream(output, CompressionLevel.Optimal, true)
-                : new BrotliStream(output, CompressionLevel.Optimal, true))
-                compressor.Write(packets);
-            packets = FakeDanmakuServer.Packet(5, output.ToArray(), (ushort)version);
-        }
+        if (version != 0) packets = Compress(packets, version);
         await h.Server.PushAsync(packets);
 
         Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.Equal(new Danmaku(h.Time.GetLocalNow(), "观众", "正常弹幕"), updates.Current);
         Assert.Equal(2, h.Logger.Entries.Count);
         Assert.All(h.Logger.Entries, entry => Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, entry.Level));
+    }
+
+    /// <summary>Wraps packets in one frame compressed the way protocol version 2 (zlib) or 3 (brotli) does.</summary>
+    private static byte[] Compress(byte[] packets, int version)
+    {
+        using var output = new MemoryStream();
+        using (Stream compressor = version == 2
+            ? new ZLibStream(output, CompressionLevel.Optimal, true)
+            : new BrotliStream(output, CompressionLevel.Optimal, true))
+            compressor.Write(packets);
+        return FakeDanmakuServer.Packet(5, output.ToArray(), (ushort)version);
     }
 }

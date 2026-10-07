@@ -15,7 +15,7 @@ public sealed class ReconnectionTests
         var offline = true;
         h.Http.Respond = (request, token) => offline
             ? throw new HttpRequestException("offline") : respond(request, token);
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
         foreach (var seconds in new[] { 1, 2, 4, 8, 16, 30 })
@@ -50,7 +50,7 @@ public sealed class ReconnectionTests
             _ => accepted.ConnectAsync(uri, token)
         });
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
         var next = updates.MoveNextAsync().AsTask();
@@ -78,17 +78,12 @@ public sealed class ReconnectionTests
             throw new InvalidOperationException("Cancelled connection must not complete.");
         });
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         await updates.MoveNextAsync();
         await updates.MoveNextAsync();
         Assert.IsType<Reconnecting>(updates.Current);
         if (duringHttp)
-            h.Http.Respond = async (_, token) =>
-            {
-                requested.SetResult();
-                await Task.Delay(Timeout.InfiniteTimeSpan, token);
-                throw new InvalidOperationException("Cancelled request must not complete.");
-            };
+            h.Http.Respond = (_, token) => FakeBilibiliHttp.HangUntilCancelledAsync(requested, token);
         var next = updates.MoveNextAsync().AsTask();
         h.Time.Advance(TimeSpan.FromSeconds(1));
         try { await requested.Task.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token); }
@@ -102,9 +97,7 @@ public sealed class ReconnectionTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         h.Server.ReplyToHeartbeats = false;
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         var next = updates.MoveNextAsync().AsTask();
         var packet = FakeDanmakuServer.Packet(5,
             System.Text.Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"分片消息",[0,"观众"]]}"""), 0);
@@ -144,7 +137,7 @@ public sealed class ReconnectionTests
             "server error" => new HttpRequestException("unavailable", null, HttpStatusCode.ServiceUnavailable),
             _ => new HttpRequestException("offline")
         });
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         if (path.EndsWith("getDanmuInfo"))
         {
             Assert.True(await updates.MoveNextAsync());
@@ -163,9 +156,7 @@ public sealed class ReconnectionTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         if (status is { } code)
             h.Http.FailOnce("/xlive/web-room/v1/index/getDanmuInfo", new HttpRequestException("risk control", null, code));
         else h.Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
@@ -194,7 +185,7 @@ public sealed class ReconnectionTests
             command.ExecuteNonQuery();
         }
         using var client = new AetherClient(h.Http, h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
-        await using var updates = client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch(client);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
         Assert.Contains("数据库版本", error.Message);
         Assert.Equal("/room/v1/Room/room_init", Assert.Single(h.Http.Requests).Uri.AbsolutePath);
@@ -208,7 +199,7 @@ public sealed class ReconnectionTests
     {
         await using var h = new WatchHarness();
         h.Http.FailOnce(path, new HttpRequestException("offline"));
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         var polling = path.EndsWith("/poll");
         if (polling)
         {
@@ -249,9 +240,7 @@ public sealed class ReconnectionTests
         await using var h = new WatchHarness((uri, token) =>
             (++attempts == 1 ? first : second).ConnectAsync(uri, token));
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         var validNav = h.Http.Responses["https://api.bilibili.com/x/web-interface/nav"];
         h.Http.Responses["https://api.bilibili.com/x/web-interface/nav"] = $$$$"""
             {"code":{{{{code}}}},"data":{"isLogin":false,"wbi_img":{
@@ -290,7 +279,7 @@ public sealed class ReconnectionTests
         await h.LoginAsync();
         h.Server.ReplyToHeartbeats = false;
         h.Server.ReplyToAuthentication = authenticated;
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         await updates.MoveNextAsync();
         if (authenticated)
         {
@@ -319,9 +308,7 @@ public sealed class ReconnectionTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await updates.MoveNextAsync();
-        await updates.MoveNextAsync();
+        await using var updates = await h.WatchConnectedAsync();
         await h.Server.NextRequestAsync();
         var next = updates.MoveNextAsync().AsTask();
         try
@@ -353,7 +340,7 @@ public sealed class ReconnectionTests
             _ => throw new WebSocketException("offline")
         });
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         await updates.MoveNextAsync();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
@@ -385,7 +372,7 @@ public sealed class ReconnectionTests
             throw new WebSocketException("offline");
         });
         await h.LoginAsync();
-        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Connecting>(updates.Current);
         Assert.True(await updates.MoveNextAsync());
