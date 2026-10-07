@@ -5,7 +5,7 @@ using Avalonia.VisualTree;
 
 namespace Aether.Gui.Tests;
 
-public sealed class ConnectionSettingsTests
+public sealed class InvalidSettingsTests
 {
     [Theory]
     [InlineData("log:\n  level: @bad", "第 2 行")]
