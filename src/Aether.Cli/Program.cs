@@ -61,22 +61,28 @@ return await root.Parse(args).InvokeAsync(new InvocationConfiguration { Output =
 
 static async Task<int> RunAsync(Func<AetherClient, Task> action, CancellationToken cancellationToken)
 {
+    var builder = Host.CreateApplicationBuilder();
+    builder.Logging.ClearProviders();
+    builder.Logging.AddSimpleConsole(options => options.SingleLine = true);
+    builder.Services.Configure<ConsoleLoggerOptions>(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+    // The CLI prints its own status and errors to stderr; its log records only go to the file.
+    builder.Logging.AddFilter<ConsoleLoggerProvider>("Aether.Cli", LogLevel.None);
+    var dataDirectory = DataDirectory.Locate();
+    builder.Logging.AddAetherFileLogging(dataDirectory);
+    builder.Services.AddSingleton(services => new AetherClient(
+        services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
+    using var host = builder.Build();
+    var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aether.Cli");
     try
     {
-        var builder = Host.CreateApplicationBuilder();
-        builder.Logging.ClearProviders();
-        builder.Logging.AddSimpleConsole(options => options.SingleLine = true);
-        builder.Services.Configure<ConsoleLoggerOptions>(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
-        var dataDirectory = DataDirectory.Locate();
-        builder.Services.AddSingleton(services => new AetherClient(
-            services.GetRequiredService<ILogger<AetherClient>>(), dataDirectory));
-        using var host = builder.Build();
+        logger.LogInformation("CLI 已启动");
         await action(host.Services.GetRequiredService<AetherClient>());
         return 0;
     }
     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { return 0; }
     catch (Exception error)
     {
+        logger.LogError(error, "CLI 操作失败");
         await Console.Error.WriteLineAsync($"错误：{error.Message}");
         return 1;
     }

@@ -5,6 +5,50 @@ namespace Aether.Core.Tests;
 
 public sealed class RoomLockTests
 {
+    [Fact]
+    public async Task Concurrent_watch_attempts_keep_room_connection_exclusive()
+    {
+        await using var h = new WatchHarness();
+        using var second = h.ClientSharingData(h.Server.ConnectAsync);
+        using var third = h.ClientSharingData(h.Server.ConnectAsync);
+        var clients = new[] { h.Client, second, third };
+        // Initialize each client's credential store before racing only room-lock acquisition/release.
+        foreach (var client in clients)
+        {
+            await using var warmup = client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+            Assert.True(await warmup.MoveNextAsync());
+        }
+        var owners = 0;
+        var accepted = 0;
+        var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var contenders = clients.Select(client => Task.Run(async () =>
+        {
+            await start.Task;
+            for (var i = 0; i < 300; i++)
+            {
+                await using var updates = client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+                try { Assert.True(await updates.MoveNextAsync()); }
+                catch (InvalidOperationException error) when (error.Message.Contains("已有直播间连接")) { continue; }
+                try
+                {
+                    Assert.Equal(1, Interlocked.Increment(ref owners));
+                    Interlocked.Increment(ref accepted);
+                    Assert.IsType<WatchQrCode>(updates.Current);
+                    await Task.Yield();
+                }
+                finally { Interlocked.Decrement(ref owners); }
+            }
+        }, h.Stop.Token)).ToArray();
+        start.SetResult();
+        try { await Task.WhenAll(contenders).WaitAsync(TimeSpan.FromSeconds(20), h.Stop.Token); }
+        finally
+        {
+            await h.Stop.CancelAsync();
+            await Task.WhenAll(contenders);
+        }
+        Assert.True(accepted > 1);
+    }
+
     [Theory]
     [InlineData(6, false)]
     [InlineData(7734200, false)]
@@ -31,6 +75,10 @@ public sealed class RoomLockTests
         Assert.Contains("直播间 7734200 已有直播间连接", error.Message);
         Assert.Equal("/room/v1/Room/room_init", Assert.Single(http.Requests).Uri.AbsolutePath);
         Assert.False(await second.MoveNextAsync());
+        // The lock deletes itself on close; a refused open must not take the owner's file with it.
+        Assert.True(File.Exists(Path.Combine(h.DataDirectory, "room-7734200.lock")));
+        await using var third = other.WatchAsync(secondRoomId, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await third.MoveNextAsync());
 
         if (loggedIn)
         {
@@ -71,6 +119,7 @@ public sealed class RoomLockTests
                 Assert.True(await probe.MoveNextAsync());
             }
         }
+        Assert.False(File.Exists(Path.Combine(h.DataDirectory, "room-7734200.lock")));
 
         await using var secondServer = new FakeDanmakuServer();
         using var other = h.ClientSharingData(secondServer.ConnectAsync);
