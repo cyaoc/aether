@@ -15,8 +15,7 @@ public sealed class WatchLoginTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        using var other = new AetherClient(new FakeBilibiliHttp { Respond = h.Http.Respond },
-            h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);
+        using var other = h.ClientSharingData(h.Server.ConnectAsync);
         await using (var updates = other.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
         {
             Assert.True(await updates.MoveNextAsync());
@@ -71,7 +70,7 @@ public sealed class WatchLoginTests
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<WatchQrCode>(updates.Current);
-        Assert.Contains("SESSDATA=saved-session", h.Http.Requests[0].Cookie);
+        Assert.Contains("SESSDATA=saved-session", Assert.Single(h.Http.Requests, r => r.Uri.AbsoluteUri == Nav).Cookie);
         Assert.DoesNotContain("SESSDATA", Assert.Single(h.Http.Requests, r => r.Uri.AbsoluteUri == Generate).Cookie ?? "");
         for (var i = 1; i <= 2; i++)
         {
@@ -173,7 +172,7 @@ public sealed class WatchLoginTests
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
         Assert.Contains("-352", error.Message);
-        Assert.Single(h.Http.Requests);
+        Assert.Equal(new[] { "/room/v1/Room/room_init", "/x/web-interface/nav" }, h.Http.Requests.Select(r => r.Uri.AbsolutePath));
         Assert.Null(h.Server.ConnectedUri);
     }
 
@@ -189,6 +188,7 @@ public sealed class WatchLoginTests
         Assert.IsType<WatchQrCode>(updates.Current);
         Assert.Contains(h.Logger.Entries, e => e.Message.Contains("新的登录凭据未生效"));
         Assert.Null(h.Server.ConnectedUri);
-        Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("room_init"));
+        Assert.Single(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("room_init"));
+        Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("getDanmuInfo"));
     }
 }

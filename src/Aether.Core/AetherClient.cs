@@ -32,8 +32,8 @@ public sealed class AetherClient(
         EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
 
     /// <summary>Signs out on B站 when possible; the local credential is deleted either way unless the caller cancels.</summary>
-    /// <remarks>Disconnect any room connection before signing out, and do not start a new one until sign-out completes.
-    /// CLI and GUI may share the data directory across processes; this ordering is the caller's responsibility.</remarks>
+    /// <remarks>Takes no room lock. A room connection running elsewhere on this data directory keeps going,
+    /// and its next reconnect asks for a scan.</remarks>
     public async Task LogoutAsync(CancellationToken cancellationToken = default)
     {
         var credentials = credentialStore.Value;
@@ -135,36 +135,45 @@ public sealed class AetherClient(
     private async IAsyncEnumerable<WatchUpdate> WatchWithReconnectAsync(
         long roomId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        long? realRoomId = null;
         var reconnecting = false;
         var retrySeconds = 1;
-        while (true)
+        FileStream? roomLock = null;
+        try
         {
-            await using (var updates = WatchAttemptAsync().GetAsyncEnumerator(cancellationToken))
+            while (true)
             {
-                while (true)
+                await using (var updates = WatchAttemptAsync().GetAsyncEnumerator(cancellationToken))
                 {
-                    bool hasNext;
-                    try { hasNext = await updates.MoveNextAsync(); }
-                    catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
+                    while (true)
                     {
-                        logger.LogWarning("直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, error.Message);
-                        break;
+                        bool hasNext;
+                        try { hasNext = await updates.MoveNextAsync(); }
+                        catch (Exception error) when (!cancellationToken.IsCancellationRequested && IsTransient(error))
+                        {
+                            logger.LogWarning("直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, error.Message);
+                            break;
+                        }
+                        if (!hasNext) yield break;
+                        if (reconnecting && updates.Current is Connecting) continue;
+                        if (updates.Current is Connected) retrySeconds = 1;
+                        yield return updates.Current;
                     }
-                    if (!hasNext) yield break;
-                    if (reconnecting && updates.Current is Connecting) continue;
-                    if (updates.Current is Connected) retrySeconds = 1;
-                    yield return updates.Current;
                 }
+                reconnecting = true;
+                yield return new Reconnecting();
+                await Task.Delay(TimeSpan.FromSeconds(retrySeconds), timeProvider, cancellationToken);
+                retrySeconds = Math.Min(retrySeconds * 2, 30);
             }
-            reconnecting = true;
-            yield return new Reconnecting();
-            await Task.Delay(TimeSpan.FromSeconds(retrySeconds), timeProvider, cancellationToken);
-            retrySeconds = Math.Min(retrySeconds * 2, 30);
         }
+        finally { roomLock?.Dispose(); }
 
         async IAsyncEnumerable<WatchUpdate> WatchAttemptAsync()
         {
             cancellationToken.ThrowIfCancellationRequested();
+            realRoomId ??= await new BilibiliApi(http, timeProvider, credential: null)
+                .ResolveRoomIdAsync(roomId, cancellationToken);
+            roomLock ??= AcquireRoomLock(realRoomId.Value);
             var credentials = credentialStore.Value;
             var credential = await RefreshCredentialIfDueAsync(cancellationToken, cancellationToken);
             var api = new BilibiliApi(http, timeProvider, credential);
@@ -179,8 +188,25 @@ public sealed class AetherClient(
                     logger.LogWarning("新的登录凭据未生效，请重新扫码登录。");
             }
             yield return new Connecting();
-            await foreach (var update in ReceiveRoomUpdatesAsync(roomId, api, cancellationToken))
+            await foreach (var update in ReceiveRoomUpdatesAsync(realRoomId.Value, api, cancellationToken))
                 yield return update;
+        }
+    }
+
+    // .NET exposes ERROR_SHARING_VIOLATION on Windows, but raw EWOULDBLOCK on Unix (35 on macOS, 11 on Linux).
+    private static readonly int RoomLockHeldHResult = OperatingSystem.IsWindows()
+        ? unchecked((int)0x80070020) : OperatingSystem.IsMacOS() ? 35 : 11;
+
+    // ponytail: On Unix this is a best-effort flock: .NET silently skips it when DOTNET_SYSTEM_IO_DISABLEFILELOCKING is set
+    // or the filesystem rejects flock (some network mounts). Fine while data/ sits on a local disk, as the README asks.
+    private FileStream AcquireRoomLock(long realRoomId)
+    {
+        Directory.CreateDirectory(dataDirectory);
+        var path = Path.Combine(dataDirectory, FormattableString.Invariant($"room-{realRoomId}.lock"));
+        try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+        catch (IOException error) when (error.HResult == RoomLockHeldHResult)
+        {
+            throw new InvalidOperationException($"直播间 {realRoomId} 已有直播间连接（可能在另一个 CLI 或 GUI 里）。", error);
         }
     }
 
@@ -235,11 +261,11 @@ public sealed class AetherClient(
     }
 
     private async IAsyncEnumerable<WatchUpdate> ReceiveRoomUpdatesAsync(
-        long roomId, BilibiliApi api, [EnumeratorCancellation] CancellationToken cancellationToken)
+        long realRoomId, BilibiliApi api, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var connection = await api.GetConnectionAsync(roomId, cancellationToken);
+        var connection = await api.GetConnectionAsync(realRoomId, cancellationToken);
         using var socket = await connectWebSocket(connection.Server, cancellationToken);
-        var authentication = DanmakuProtocol.CreateAuthentication(connection.Mid, connection.RoomId, connection.Token, connection.Buvid);
+        var authentication = DanmakuProtocol.CreateAuthentication(connection.Mid, realRoomId, connection.Token, connection.Buvid);
         using var idleTimeout = new CancellationTokenSource(IdleTimeout, timeProvider);
         using var connectionStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, idleTimeout.Token);
         await socket.SendAsync(authentication, WebSocketMessageType.Binary, true, connectionStop.Token);

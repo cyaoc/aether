@@ -46,10 +46,11 @@ public sealed class WatchTests
         Assert.Equal("room-token", root.GetProperty("key").GetString());
         Assert.Equal("saved-buvid", root.GetProperty("buvid").GetString());
         Assert.Equal(new Uri("wss://danmaku.example/sub"), h.Server.ConnectedUri);
-        Assert.Equal("/x/web-interface/nav", h.Http.Requests[0].Uri.AbsolutePath);
+        Assert.Equal("/room/v1/Room/room_init", h.Http.Requests[0].Uri.AbsolutePath);
+        Assert.Null(h.Http.Requests[0].Cookie);
         Assert.Equal("?id=6", Assert.Single(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("room_init")).Uri.Query);
         var request = Assert.Single(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("getDanmuInfo"));
-        Assert.All(h.Http.Requests, r =>
+        Assert.All(h.Http.Requests.Skip(1), r =>
         {
             Assert.Contains("SESSDATA=saved-session", r.Cookie);
             Assert.Contains("bili_jct=saved-csrf", r.Cookie);
@@ -61,20 +62,20 @@ public sealed class WatchTests
         Assert.Equal("?id=7734200&type=0&web_location=444.8&wts=1702204169&w_rid=1bb9dceebb99493b57a534797732eba7", request.Uri.Query);
     }
 
-    [Fact]
-    public async Task Nonexistent_room_ends_with_clear_error_without_connecting_or_retrying()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Nonexistent_room_ends_before_login_without_connecting_or_retrying(bool loggedIn)
     {
         await using var h = new WatchHarness((_, _) => throw new Xunit.Sdk.XunitException("Must not connect"));
-        await h.LoginAsync();
+        if (loggedIn) await h.LoginAsync();
         h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
             """{"code":60004,"message":"直播间不存在"}""";
         await using var updates = h.Client.WatchAsync(999, TestContext.Current.CancellationToken).GetAsyncEnumerator(TestContext.Current.CancellationToken);
 
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<Connecting>(updates.Current);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
         Assert.Contains("直播间 999 查询失败", error.Message);
         Assert.Contains("直播间不存在", error.Message);
-        Assert.Equal(new[] { "/x/web-interface/nav", "/room/v1/Room/room_init" }, h.Http.Requests.Select(r => r.Uri.AbsolutePath));
+        Assert.Equal("/room/v1/Room/room_init", Assert.Single(h.Http.Requests).Uri.AbsolutePath);
     }
 }

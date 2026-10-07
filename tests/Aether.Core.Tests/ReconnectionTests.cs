@@ -8,6 +8,36 @@ namespace Aether.Core.Tests;
 public sealed class ReconnectionTests
 {
     [Fact]
+    public async Task Room_resolution_retries_with_backoff_before_login_and_keeps_the_resolved_id()
+    {
+        await using var h = new WatchHarness();
+        var respond = h.Http.Respond!;
+        var offline = true;
+        h.Http.Respond = (request, token) => offline
+            ? throw new HttpRequestException("offline") : respond(request, token);
+        await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Reconnecting>(updates.Current);
+        foreach (var seconds in new[] { 1, 2, 4, 8, 16, 30 })
+        {
+            await h.AdvanceRetryAsync(updates, seconds);
+            Assert.IsType<Reconnecting>(updates.Current);
+        }
+        Assert.Equal(7, h.Http.Requests.Count);
+        Assert.All(h.Http.Requests, r => Assert.Equal("/room/v1/Room/room_init", r.Uri.AbsolutePath));
+        offline = false;
+        await h.AdvanceRetryAsync(updates, 30);
+        Assert.IsType<WatchQrCode>(updates.Current);
+        // Once resolved, even a changed short-number mapping must not change this room connection.
+        h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
+            """{"code":0,"data":{"room_id":999}}""";
+        Assert.True(await h.AdvancePollAsync(updates));
+        Assert.IsType<Connected>(updates.Current);
+        Assert.Equal(8, h.Http.Requests.Count(r => r.Uri.AbsolutePath.EndsWith("room_init")));
+        Assert.StartsWith("?id=7734200&", Assert.Single(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("getDanmuInfo")).Uri.Query);
+    }
+
+    [Fact]
     public async Task Opening_a_socket_without_successful_authentication_does_not_reset_backoff()
     {
         await using var silent = new FakeDanmakuServer { ReplyToAuthentication = false };
@@ -101,6 +131,7 @@ public sealed class ReconnectionTests
     [InlineData("/xlive/web-room/v1/index/getDanmuInfo", "offline")]
     [InlineData("/x/web-interface/nav", "timeout")]
     [InlineData("/room/v1/Room/room_init", "timeout")]
+    [InlineData("/room/v1/Room/room_init", "server error")]
     [InlineData("/xlive/web-room/v1/index/getDanmuInfo", "timeout")]
     [InlineData("/xlive/web-room/v1/index/getDanmuInfo", "server error")]
     public async Task Http_network_failure_timeout_or_server_error_reports_reconnecting_and_recovers(string path, string failure)
@@ -114,7 +145,7 @@ public sealed class ReconnectionTests
             _ => new HttpRequestException("offline")
         });
         await using var updates = h.Client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        if (!path.EndsWith("/nav"))
+        if (path.EndsWith("getDanmuInfo"))
         {
             Assert.True(await updates.MoveNextAsync());
             Assert.IsType<Connecting>(updates.Current);
@@ -166,7 +197,7 @@ public sealed class ReconnectionTests
         await using var updates = client.WatchAsync(6, h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () => await updates.MoveNextAsync());
         Assert.Contains("数据库版本", error.Message);
-        Assert.Empty(h.Http.Requests);
+        Assert.Equal("/room/v1/Room/room_init", Assert.Single(h.Http.Requests).Uri.AbsolutePath);
     }
 
     [Theory]
@@ -339,6 +370,9 @@ public sealed class ReconnectionTests
             System.Text.Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"恢复了",[0,"观众"]]}"""), 0));
         Assert.True(await updates.MoveNextAsync());
         Assert.Equal("恢复了", Assert.IsType<Danmaku>(updates.Current).Content);
+        Assert.Single(h.Http.Requests, r => r.Uri.AbsolutePath.EndsWith("room_init"));
+        Assert.All(h.Http.Requests.Where(r => r.Uri.AbsolutePath.EndsWith("getDanmuInfo")),
+            r => Assert.StartsWith("?id=7734200&", r.Uri.Query));
     }
 
     [Fact]
