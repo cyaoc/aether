@@ -442,6 +442,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("welcome.viewers", "[[甲]]")]
     [InlineData("welcome.viewers", "[甲")]
     [InlineData("welcome.greeting", "两\n行")]
+    [InlineData("welcome.viewers", "[[a],\n  b: 7\n    c]")]
     public void Invalid_text_or_list_input_is_rejected_without_writing(string name, string value)
     {
         const string yaml = "welcome:\n  greeting: 你好\n  viewers: [甲]\n";
@@ -464,6 +465,30 @@ public sealed class SettingsTests : IAsyncDisposable
         Settings.Save(harness.DataDirectory, [Greeting, Viewers], new Dictionary<string, string> { [name] = value });
 
         Assert.Equal(expected, File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("log:\n  level: Debug\n  extra: [[a],\n    b]\n", "log:\n  level: Debug\n  extra: [[a],\n    b]\n  retention_days: 7\n")]
+    [InlineData("log:\n  level: Debug\n  extra: {a: 1,\n    b: 2}\n", "log:\n  level: Debug\n  extra: {a: 1,\n    b: 2}\n  retention_days: 7\n")]
+    [InlineData("log:\n  level: Debug\n  extra: [a, ']']\n", "log:\n  level: Debug\n  extra: [a, ']']\n  retention_days: 7\n")]
+    public void A_missing_setting_goes_after_a_flow_collection_that_ends_the_group(string yaml, string expected)
+    {
+        Write(yaml);
+
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["log.retention_days"] = "7" });
+
+        Assert.Equal(expected, File.ReadAllText(SettingsPath));
+        Assert.Equal(7, Settings.Load(harness.DataDirectory).LogRetentionDays.Value);
+    }
+
+    [Fact]
+    public void Yaml_that_the_parser_rejects_outside_its_syntax_errors_is_still_a_settings_error()
+    {
+        Write("log:\n  level: Debug\n  extra: [[a],\n  retention_days: 7\n    b]\n");
+
+        var loaded = Settings.Load(harness.DataDirectory);
+
+        Assert.Equal("YAML", loaded.Error?.SettingName);
     }
 
     [Fact]

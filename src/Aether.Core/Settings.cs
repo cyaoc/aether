@@ -157,6 +157,11 @@ public sealed class Settings
         }
     }
 
+    /// <summary>YamlDotNet rejects some malformed input with InvalidOperationException instead of YamlException;
+    /// either way the text is not YAML we can read, and never a reason to crash.</summary>
+    private static bool IsYamlFailure(Exception error) => error is YamlException
+        || error is InvalidOperationException && error.TargetSite?.DeclaringType?.Namespace?.StartsWith("YamlDotNet") == true;
+
     private static List<Tokens.Token> Scan(string source)
     {
         var scanner = new Scanner(new StringReader(source));
@@ -165,13 +170,20 @@ public sealed class Settings
         return tokens;
     }
 
-    /// <summary>Where a node's text ends. YamlDotNet ends a sequence node at its opening bracket, so a flow list
-    /// of scalars ends just past the first closing bracket after it.</summary>
-    private static Mark EndOf(List<Tokens.Token> tokens, YamlNode node) =>
-        node is YamlSequenceNode { Style: SequenceStyle.Flow }
-        && tokens.OfType<Tokens.FlowSequenceEnd>().FirstOrDefault(token => token.Start.Index >= node.Start.Index) is { Start: var bracket }
-            ? new Mark(bracket.Index + 1, bracket.Line, bracket.Column + 1)
-            : node.End;
+    /// <summary>Where a node's text ends. YamlDotNet ends a collection node at its opening bracket,
+    /// so a flow list or map ends just past the bracket that closes it.</summary>
+    private static Mark EndOf(List<Tokens.Token> tokens, YamlNode node)
+    {
+        if (node is not (YamlSequenceNode { Style: SequenceStyle.Flow } or YamlMappingNode { Style: MappingStyle.Flow })) return node.End;
+        var depth = 0;
+        foreach (var token in tokens.SkipWhile(token => token.Start.Index < node.Start.Index))
+        {
+            if (token is Tokens.FlowSequenceStart or Tokens.FlowMappingStart) depth++;
+            else if (token is Tokens.FlowSequenceEnd or Tokens.FlowMappingEnd && --depth == 0)
+                return new Mark(token.Start.Index + 1, token.Start.Line, token.Start.Column + 1);
+        }
+        return node.End;
+    }
 
     public static Settings Load(string dataDirectory, ILogger? logger = null) => Load(dataDirectory, Definitions, logger);
 
@@ -257,7 +269,10 @@ public sealed class Settings
             settings.UnknownKeys = unknown.AsReadOnly();
         }
         catch (SettingsException error) { settings.Error = error; }
-        catch (YamlException error) { settings.Error = new(path, error.Start.Line, "YAML", error.Message); }
+        catch (Exception error) when (IsYamlFailure(error))
+        {
+            settings.Error = new(path, (error as YamlException)?.Start.Line ?? 1, "YAML", error.Message);
+        }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
             settings.Error = new(path, 1, "文件", error.Message);
@@ -325,7 +340,7 @@ public sealed class Settings
             {
                 var yaml = new YamlStream();
                 try { yaml.Load(new StringReader(text)); }
-                catch (YamlException) { return default; }
+                catch (Exception error) when (IsYamlFailure(error)) { return default; }
                 return yaml.Documents.Count == 1 ? ReadList(yaml.Documents[0].RootNode) : default;
             }
         }
