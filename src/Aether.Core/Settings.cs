@@ -37,7 +37,8 @@ public sealed class Settings
 
     private const string LineBreaks = "\r\n\u0085\u2028\u2029"; // YAML also accepts Unicode line breaks.
 
-    private static readonly Definition<int> RetentionDays = Definition.Number("log.retention_days", 30, "必须为正整数。", days => days > 0);
+    private static readonly List<Definition> Definitions = [];
+    private static readonly Definition<int> RetentionDays = Register(Definition.Number("log.retention_days", 30, "必须为正整数。", days => days > 0));
     /// <summary>The values log.level accepts, in order.</summary>
     public static IReadOnlyList<LogLevel> LogLevels { get; } =
     [
@@ -46,11 +47,15 @@ public sealed class Settings
         Microsoft.Extensions.Logging.LogLevel.Error, Microsoft.Extensions.Logging.LogLevel.Critical,
     ];
     private static readonly Definition<LogLevel> Level =
-        Definition.Choice("log.level", Microsoft.Extensions.Logging.LogLevel.Information, LogLevels);
-    private static readonly Definition<bool> BlindBox = Definition.Boolean("blind_box.enabled", true);
-    /// <summary>Every setting this version knows; adding one is a definition here, its property and its line in Template
+        Register(Definition.Choice("log.level", Microsoft.Extensions.Logging.LogLevel.Information, LogLevels));
+    private static readonly Definition<bool> BlindBox = Register(Definition.Boolean("blind_box.enabled", true));
+    /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, its control and one entry in SettingsWindow.Fields).</summary>
-    private static readonly Definition[] Definitions = [RetentionDays, Level, BlindBox];
+    private static Definition<T> Register<T>(Definition<T> definition)
+    {
+        Definitions.Add(definition);
+        return definition;
+    }
 
     public Setting<int> LogRetentionDays => Get(RetentionDays);
     public Setting<LogLevel> LogLevel => Get(Level);
