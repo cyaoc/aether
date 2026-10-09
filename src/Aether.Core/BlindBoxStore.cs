@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
@@ -10,6 +11,31 @@ internal sealed record BlindBox(long Uid, string Nickname, long BlindGiftId, str
 
 internal sealed class BlindBoxStore(Database database, ILogger logger)
 {
+    public string Reply(long roomId, long uid, DateTimeOffset receivedAt)
+    {
+        var day = receivedAt.ToOffset(TimeSpan.FromHours(8));
+        var start = new DateTimeOffset(day.Year, day.Month, day.Day, 0, 0, 0, day.Offset);
+        using var connection = database.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT SUM(spend), SUM(opened_value) FROM blind_box
+            WHERE room_id = $roomId AND uid = $uid AND timestamp >= $start AND timestamp < $end;
+            """;
+        command.Parameters.AddWithValue("$roomId", roomId);
+        command.Parameters.AddWithValue("$uid", uid);
+        command.Parameters.AddWithValue("$start", start.ToUnixTimeSeconds());
+        command.Parameters.AddWithValue("$end", start.AddDays(1).ToUnixTimeSeconds());
+        using var reader = command.ExecuteReader();
+        reader.Read();
+        if (reader.IsDBNull(0)) return "今日没有盲盒记录";
+        var spend = (decimal)reader.GetInt64(0);
+        var profit = reader.GetInt64(1) - spend;
+        var result = profit == 0 ? "不赚不亏" : $"{(profit > 0 ? "赚" : "亏")}{Battery(Math.Abs(profit))}电池";
+        return $"投入{Battery(spend)}电池 {result}";
+
+        static string Battery(decimal coins) => (coins / 100).ToString(coins % 100 == 0 ? "0" : "0.0", CultureInfo.InvariantCulture);
+    }
+
     public void Save(long roomId, BlindBox blindBox)
     {
         if (blindBox.Uid == 0)

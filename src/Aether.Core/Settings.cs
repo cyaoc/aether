@@ -32,6 +32,13 @@ public sealed class Settings
         # 盲盒统计开关，下次观看直播间时生效
         blind_box:
           enabled: true
+          # 查询关键字，非空文字，下次观看直播间时生效
+          keyword: 今日盲盒
+
+        # 发送队列，下次观看直播间时生效
+        send:
+          # 两次发送之间的秒数，必须为正整数
+          interval_seconds: 5
 
         """;
 
@@ -49,6 +56,8 @@ public sealed class Settings
     private static readonly Definition<LogLevel> Level =
         Register(Definition.Choice("log.level", Microsoft.Extensions.Logging.LogLevel.Information, LogLevels));
     private static readonly Definition<bool> BlindBox = Register(Definition.Boolean("blind_box.enabled", true));
+    private static readonly Definition<string> Keyword = Register(Definition.RequiredText("blind_box.keyword", "今日盲盒"));
+    private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 5, "必须为正整数。", seconds => seconds > 0));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, its control and one entry in SettingsWindow.Fields).</summary>
     private static Definition<T> Register<T>(Definition<T> definition)
@@ -60,6 +69,8 @@ public sealed class Settings
     public Setting<int> LogRetentionDays => Get(RetentionDays);
     public Setting<LogLevel> LogLevel => Get(Level);
     public Setting<bool> BlindBoxEnabled => Get(BlindBox);
+    public Setting<string> BlindBoxKeyword => Get(Keyword);
+    public Setting<int> SendIntervalSeconds => Get(SendInterval);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
     private readonly Dictionary<Definition, object> values = [];
@@ -344,6 +355,9 @@ public sealed class Settings
         /// <summary>One line of text, kept exactly as typed.</summary>
         public static Definition<string> Text(string name, string initial) => ScalarSetting(name, initial, "必须是一行文字。",
             text => OneLine(text) ? (true, text) : default, text => text);
+
+        public static Definition<string> RequiredText(string name, string initial) => ScalarSetting(name, initial, "必须是非空的一行文字。",
+            text => OneLine(text) && !string.IsNullOrWhiteSpace(text) ? (true, text) : default, text => text);
 
         /// <summary>One-line texts, written as <c>[a, b]</c>; the input text uses the same form.</summary>
         public static Definition<IReadOnlyList<string>> TextList(string name, IReadOnlyList<string> initial)

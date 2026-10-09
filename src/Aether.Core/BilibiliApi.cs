@@ -182,7 +182,26 @@ internal sealed class BilibiliApi
         CancellationToken cancellationToken, int? acceptedCode = null) =>
         SendAsync(new HttpRequestMessage(HttpMethod.Get, url), referer, operation, cancellationToken, acceptedCode);
 
-    /// <summary>Every form post goes to passport, so it always carries the login referer.</summary>
+    public async Task ReplyAsync(long roomId, Danmaku trigger, string message, CancellationToken cancellationToken)
+    {
+        var csrf = credential?.Cookies["bili_jct"] ?? throw new InvalidOperationException("缺少登录凭据。");
+        var request = new HttpRequestMessage(HttpMethod.Post, "https://api.live.bilibili.com/msg/send")
+        {
+            Content = new FormUrlEncodedContent([
+                new("roomid", roomId.ToString(CultureInfo.InvariantCulture)), new("msg", message),
+                new("rnd", timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
+                new("fontsize", "25"), new("color", "16777215"), new("mode", "1"), new("bubble", "0"),
+                new("csrf", csrf), new("csrf_token", csrf), new("reply_mid", trigger.Uid.ToString(CultureInfo.InvariantCulture)),
+                new("replay_dmid", trigger.Id), new("reply_uname", ""), new("reply_attr", "0"),
+            ]),
+        };
+        using var document = JsonDocument.Parse(await SendTextAsync(request, LiveReferer, cancellationToken));
+        CheckCode(document.RootElement, "发送弹幕");
+        if (document.RootElement.GetProperty("message").GetString() is not "")
+            throw new InvalidOperationException($"发送弹幕失败：{document.RootElement.GetProperty("message")}");
+    }
+
+    /// <summary>Passport form posts always carry the login referer.</summary>
     private Task<(int Code, JsonElement Data)> PostAsync(string url, IEnumerable<KeyValuePair<string, string>> form,
         string operation, CancellationToken cancellationToken, bool credentialRefresh = false) =>
         SendAsync(new HttpRequestMessage(HttpMethod.Post, url) { Content = new FormUrlEncodedContent(form) },

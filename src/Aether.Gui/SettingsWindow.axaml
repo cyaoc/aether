@@ -28,6 +28,14 @@
         <TextBlock Text="盲盒统计" FontSize="22" FontWeight="SemiBold" Margin="0,16,0,0" />
         <CheckBox x:Name="BlindBoxInput" Content="记录盲盒（下次观看直播间时生效）" />
         <TextBlock x:Name="BlindBoxReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
+        <TextBlock Text="查询关键字（下次观看直播间时生效）" />
+        <TextBox x:Name="KeywordInput" AutomationProperties.Name="盲盒查询关键字" />
+        <TextBlock x:Name="KeywordReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
+        <TextBlock Text="发送队列" FontSize="22" FontWeight="SemiBold" Margin="0,16,0,0" />
+        <TextBlock Text="发送间隔秒数（下次观看直播间时生效）" />
+        <NumericUpDown x:Name="SendIntervalInput" FormatString="0.############################"
+                       HorizontalAlignment="Stretch" AutomationProperties.Name="发送间隔秒数" />
+        <TextBlock x:Name="SendIntervalReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
         <TextBlock x:Name="UnknownKeysMessage" Classes="hint" Margin="0,8,0,0" />
         <TextBlock x:Name="Message" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
       </StackPanel>

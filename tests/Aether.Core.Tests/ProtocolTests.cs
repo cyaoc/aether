@@ -22,6 +22,10 @@ public sealed class ProtocolTests
     [InlineData("""{"cmd":"DANMU_MSG","info":[[],"内容",[0,123]]}""", "DANMU_MSG")]
     [InlineData("""{"cmd":"DANMU_MSG","info":[[],null,[0,"观众"]]}""", "DANMU_MSG")]
     [InlineData("""{"cmd":"DANMU_MSG:4:0:2:2:2:0","info":[[],{},[0,"观众"]]}""", "DANMU_MSG:4:0:2:2:2:0")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":[[],"内容",[-1,"观众"]]}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":[[],"内容",[null,"观众"]]}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{"extra":null}],"内容",[1,"观众"]]}""", "DANMU_MSG")]
+    [InlineData("""{"cmd":"DANMU_MSG","info":[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,{"extra":"{"}],"内容",[1,"观众"]]}""", "DANMU_MSG")]
     public async Task Malformed_room_message_is_warned_and_skipped_while_room_connection_continues(string body, string? command)
     {
         await using var h = new WatchHarness();
@@ -86,7 +90,7 @@ public sealed class ProtocolTests
         var error = await Record.ExceptionAsync(async () =>
             await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         Assert.IsType(kind == "invalid-brotli" ? typeof(InvalidOperationException) : typeof(InvalidDataException), error);
-        var logged = Assert.Single(h.Logger.Entries);
+        var logged = Assert.Single(h.Logger.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Error);
         Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Error, logged.Level);
         Assert.Contains("直播间连接失败", logged.Message);
     }

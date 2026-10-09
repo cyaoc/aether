@@ -92,7 +92,16 @@ internal static class DanmakuProtocol
                 var info = root.GetProperty("info");
                 var nickname = info[2][1].GetString() ?? throw new JsonException("缺少弹幕昵称。");
                 var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
-                decoded = new DanmakuReceived(new Danmaku(receivedAt, nickname, content));
+                var uid = info[2][0].GetInt64();
+                if (uid < 0) throw new JsonException("弹幕 uid 无效。");
+                var id = "";
+                // Older messages have no extra; keep displaying them and send an empty replay_dmid.
+                if (info[0].GetArrayLength() > 15 && info[0][15].TryGetProperty("extra", out var extra))
+                {
+                    using var details = JsonDocument.Parse(extra.GetString() ?? throw new JsonException("弹幕 extra 无效。"));
+                    if (details.RootElement.TryGetProperty("id_str", out var value)) id = value.GetString() ?? "";
+                }
+                decoded = new DanmakuReceived(new Danmaku(receivedAt, nickname, content) { Uid = uid, Id = id });
             }
             else if (command == "SEND_GIFT" && ParseBlindBox(root.GetProperty("data"), body, logger) is { } blindBox)
                 decoded = new BlindBoxReceived(blindBox);

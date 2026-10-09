@@ -23,6 +23,11 @@ public partial class SettingsWindow : Window
             if (e.Property == NumericUpDown.TextProperty) Validate();
         };
         LevelInput.SelectionChanged += (_, _) => Validate();
+        KeywordInput.TextChanged += (_, _) => Validate();
+        SendIntervalInput.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == NumericUpDown.TextProperty) Validate();
+        };
         LoadSettings();
     }
 
@@ -39,6 +44,13 @@ public partial class SettingsWindow : Window
         BlindBoxInput.IsChecked = settings.BlindBoxEnabled.Value;
         BlindBoxInput.IsEnabled = settings.BlindBoxEnabled.CanEdit;
         BlindBoxReadOnly.IsVisible = !settings.BlindBoxEnabled.CanEdit;
+        KeywordInput.Text = settings.BlindBoxKeyword.Value;
+        KeywordInput.IsReadOnly = !settings.BlindBoxKeyword.CanEdit;
+        KeywordReadOnly.IsVisible = !settings.BlindBoxKeyword.CanEdit;
+        SendIntervalInput.Text = settings.SendIntervalSeconds.Value.ToString(CultureInfo.InvariantCulture);
+        SendIntervalInput.IsReadOnly = !settings.SendIntervalSeconds.CanEdit;
+        SendIntervalInput.AllowSpin = settings.SendIntervalSeconds.CanEdit;
+        SendIntervalReadOnly.IsVisible = !settings.SendIntervalSeconds.CanEdit;
         UnknownKeysMessage.IsVisible = settings.UnknownKeys.Count > 0;
         UnknownKeysMessage.Text = $"未知设置键：{string.Join("、", settings.UnknownKeys)}。保存后会原样保留。";
         Validate();
@@ -51,6 +63,8 @@ public partial class SettingsWindow : Window
         (settings.LogRetentionDays.Name, settings.LogRetentionDays.CanEdit, RetentionInput.Text),
         (settings.LogLevel.Name, settings.LogLevel.CanEdit, LevelInput.SelectedItem?.ToString()),
         (settings.BlindBoxEnabled.Name, settings.BlindBoxEnabled.CanEdit, Settings.BooleanText(BlindBoxInput.IsChecked == true)),
+        (settings.BlindBoxKeyword.Name, settings.BlindBoxKeyword.CanEdit, KeywordInput.Text),
+        (settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text),
     ];
 
     private void Validate()
