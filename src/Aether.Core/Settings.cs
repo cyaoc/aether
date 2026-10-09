@@ -44,6 +44,7 @@ public sealed class Settings
 
     private const string LineBreaks = "\r\n\u0085\u2028\u2029"; // YAML also accepts Unicode line breaks.
 
+    // Static fields initialise in text order: this list must stay above every Register(...) below.
     private static readonly List<Definition> Definitions = [];
     private static readonly Definition<int> RetentionDays = Register(Definition.Number("log.retention_days", 30, "必须为正整数。", days => days > 0));
     /// <summary>The values log.level accepts, in order.</summary>
@@ -59,7 +60,7 @@ public sealed class Settings
     private static readonly Definition<string> Keyword = Register(Definition.RequiredText("blind_box.keyword", "今日盲盒"));
     private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 5, "必须为正整数。", seconds => seconds > 0));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
-    /// (plus, for the GUI, its control and one entry in SettingsWindow.Fields).</summary>
+    /// (plus, for the GUI, its controls in SettingsWindow.axaml, one Show call and one Fields entry).</summary>
     private static Definition<T> Register<T>(Definition<T> definition)
     {
         Definitions.Add(definition);

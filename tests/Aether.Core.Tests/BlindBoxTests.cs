@@ -7,8 +7,7 @@ namespace Aether.Core.Tests;
 
 public sealed class BlindBoxTests
 {
-    // Reconstructed BAC SEND_GIFT + third-party blind_gift fields, not our own capture; see Fixtures/README.md.
-    private static string Gift => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "blind-gift-v1.json"));
+    private static string Gift => BlindGiftFixture.Json;
 
     [Fact]
     public async Task V1_blind_box_is_saved_with_real_room_integer_amounts_and_original_message()
@@ -60,10 +59,10 @@ public sealed class BlindBoxTests
         await using var updates = await h.WatchConnectedAsync();
         await PushAndSyncAsync(h, updates,
             Gift,
-            ChangeGift(d => { d["tid"] = "test-v1-2"; d["num"] = 3; d["total_coin"] = 15000; }),
-            ChangeGift(d => { d["tid"] = "test-v1-3"; d["num"] = 6; d["total_coin"] = 30000; }),
-            ChangeGift(d => d["tid"] = "test-v1-4"),
-            ChangeGift(d => d["tid"] = "test-v1-5"),
+            BlindGiftFixture.With(d => { d["tid"] = "test-v1-2"; d["num"] = 3; d["total_coin"] = 15000; }),
+            BlindGiftFixture.With(d => { d["tid"] = "test-v1-3"; d["num"] = 6; d["total_coin"] = 30000; }),
+            BlindGiftFixture.With(d => d["tid"] = "test-v1-4"),
+            BlindGiftFixture.With(d => d["tid"] = "test-v1-5"),
             Gift.Replace("SEND_GIFT", "COMBO_SEND"), Gift.Replace("SEND_GIFT", "COMBO_END"));
 
         Assert.Equal(new (long, long, long, string?)[] { (1L, 5000L, 1500L, "test-v1-1"), (3L, 15000L, 4500L, "test-v1-2"),
@@ -83,7 +82,7 @@ public sealed class BlindBoxTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, ChangeGift(d =>
+        await PushAndSyncAsync(h, updates, BlindGiftFixture.With(d =>
         {
             if (kind == "ordinary") d["blind_gift"] = null;
             if (kind == "missing-blind") d.Remove("blind_gift");
@@ -107,7 +106,7 @@ public sealed class BlindBoxTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, ChangeGift(d =>
+        await PushAndSyncAsync(h, updates, BlindGiftFixture.With(d =>
         {
             d["num"] = 3; d["total_coin"] = spend; d["blind_gift"]!["original_gift_price"] = blindPrice;
         }));
@@ -149,7 +148,7 @@ public sealed class BlindBoxTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, Gift, Gift, ChangeGift(d =>
+        await PushAndSyncAsync(h, updates, Gift, Gift, BlindGiftFixture.With(d =>
         {
             d["giftId"] = 32126; d["giftName"] = "棉花糖"; d["price"] = 9000; d["num"] = 2; d["total_coin"] = 10000;
         }));
@@ -175,7 +174,7 @@ public sealed class BlindBoxTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, ChangeGift(d => d["tid"] = JsonNode.Parse("4578879044749173248")));
+        await PushAndSyncAsync(h, updates, BlindGiftFixture.With(d => d["tid"] = JsonNode.Parse("4578879044749173248")));
         Assert.Equal((1L, 5000L, 1500L, "4578879044749173248"), Assert.Single(Amounts(h)));
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Warning);
     }
@@ -186,7 +185,7 @@ public sealed class BlindBoxTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, ChangeGift(d => d["switch"] = false));
+        await PushAndSyncAsync(h, updates, BlindGiftFixture.With(d => d["switch"] = false));
         Assert.Single(Amounts(h));
         var warning = Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning).Message;
         Assert.Contains("switch", warning);
@@ -202,7 +201,7 @@ public sealed class BlindBoxTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        var gift = ChangeGift(d =>
+        var gift = BlindGiftFixture.With(d =>
         {
             if (kind == "missing") d.Remove("tid");
             else d["tid"] = kind == "empty" ? "" : null;
@@ -227,7 +226,7 @@ public sealed class BlindBoxTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, ChangeGift(d => d[field] = JsonNode.Parse(json)), Gift);
+        await PushAndSyncAsync(h, updates, BlindGiftFixture.With(d => d[field] = JsonNode.Parse(json)), Gift);
         Assert.Single(Amounts(h));
         var warning = Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning);
         Assert.Contains("跳过无法解析的直播间消息", warning.Message);
@@ -276,13 +275,6 @@ public sealed class BlindBoxTests
         Assert.Contains(h.Logger.Entries, e => e.Level == LogLevel.Error && e.Message.Contains("直播间连接失败"));
     }
 
-    private static string ChangeGift(Action<JsonObject> edit)
-    {
-        var root = JsonNode.Parse(Gift)!;
-        edit(root["data"]!.AsObject());
-        return root.ToJsonString();
-    }
-
     private static List<(long Num, long Spend, long OpenedValue, string? Tid)> Amounts(WatchHarness h)
     {
         using var connection = TestDatabase.Open(h.DataDirectory);
@@ -298,9 +290,8 @@ public sealed class BlindBoxTests
     private static async Task PushAndSyncAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates, params string[] messages)
     {
         foreach (var message in messages)
-            await h.Server.PushAsync(FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(message), 0));
-        await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
-            Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}"""), 0));
+            await h.Server.PushRoomMessageAsync(message);
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""");
         Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.Equal("同步", Assert.IsType<Danmaku>(updates.Current).Content);
     }

@@ -18,42 +18,57 @@ public partial class SettingsWindow : Window
         this.dataDirectory = dataDirectory;
         InitializeComponent();
         LevelInput.ItemsSource = Settings.LogLevels;
-        RetentionInput.PropertyChanged += (_, e) =>
-        {
-            if (e.Property == NumericUpDown.TextProperty) Validate();
-        };
+        foreach (var number in new[] { RetentionInput, SendIntervalInput })
+            number.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == NumericUpDown.TextProperty) Validate();
+            };
         LevelInput.SelectionChanged += (_, _) => Validate();
         KeywordInput.TextChanged += (_, _) => Validate();
-        SendIntervalInput.PropertyChanged += (_, e) =>
-        {
-            if (e.Property == NumericUpDown.TextProperty) Validate();
-        };
         LoadSettings();
     }
 
     private void LoadSettings()
     {
         settings = Settings.Load(dataDirectory);
-        RetentionInput.Text = settings.LogRetentionDays.Value.ToString(CultureInfo.InvariantCulture);
-        RetentionInput.IsReadOnly = !settings.LogRetentionDays.CanEdit;
-        RetentionInput.AllowSpin = settings.LogRetentionDays.CanEdit;
-        RetentionReadOnly.IsVisible = !settings.LogRetentionDays.CanEdit;
-        LevelInput.SelectedItem = settings.LogLevel.Value;
-        LevelInput.IsEnabled = settings.LogLevel.CanEdit;
-        LevelReadOnly.IsVisible = !settings.LogLevel.CanEdit;
-        BlindBoxInput.IsChecked = settings.BlindBoxEnabled.Value;
-        BlindBoxInput.IsEnabled = settings.BlindBoxEnabled.CanEdit;
-        BlindBoxReadOnly.IsVisible = !settings.BlindBoxEnabled.CanEdit;
-        KeywordInput.Text = settings.BlindBoxKeyword.Value;
-        KeywordInput.IsReadOnly = !settings.BlindBoxKeyword.CanEdit;
-        KeywordReadOnly.IsVisible = !settings.BlindBoxKeyword.CanEdit;
-        SendIntervalInput.Text = settings.SendIntervalSeconds.Value.ToString(CultureInfo.InvariantCulture);
-        SendIntervalInput.IsReadOnly = !settings.SendIntervalSeconds.CanEdit;
-        SendIntervalInput.AllowSpin = settings.SendIntervalSeconds.CanEdit;
-        SendIntervalReadOnly.IsVisible = !settings.SendIntervalSeconds.CanEdit;
+        Show(RetentionInput, RetentionReadOnly, settings.LogRetentionDays);
+        Show(LevelInput, LevelReadOnly, settings.LogLevel);
+        Show(BlindBoxInput, BlindBoxReadOnly, settings.BlindBoxEnabled);
+        Show(KeywordInput, KeywordReadOnly, settings.BlindBoxKeyword);
+        Show(SendIntervalInput, SendIntervalReadOnly, settings.SendIntervalSeconds);
         UnknownKeysMessage.IsVisible = settings.UnknownKeys.Count > 0;
         UnknownKeysMessage.Text = $"未知设置键：{string.Join("、", settings.UnknownKeys)}。保存后会原样保留。";
         Validate();
+    }
+
+    // Each control shows its setting; a line that cannot be edited safely leaves it read-only beside its hint.
+    private static void Show(NumericUpDown input, TextBlock readOnly, Setting<int> setting)
+    {
+        input.Text = setting.Value.ToString(CultureInfo.InvariantCulture);
+        input.IsReadOnly = !setting.CanEdit;
+        input.AllowSpin = setting.CanEdit;
+        readOnly.IsVisible = !setting.CanEdit;
+    }
+
+    private static void Show(TextBox input, TextBlock readOnly, Setting<string> setting)
+    {
+        input.Text = setting.Value;
+        input.IsReadOnly = !setting.CanEdit;
+        readOnly.IsVisible = !setting.CanEdit;
+    }
+
+    private static void Show<T>(ComboBox input, TextBlock readOnly, Setting<T> setting)
+    {
+        input.SelectedItem = setting.Value;
+        input.IsEnabled = setting.CanEdit;
+        readOnly.IsVisible = !setting.CanEdit;
+    }
+
+    private static void Show(CheckBox input, TextBlock readOnly, Setting<bool> setting)
+    {
+        input.IsChecked = setting.Value;
+        input.IsEnabled = setting.CanEdit;
+        readOnly.IsVisible = !setting.CanEdit;
     }
 
     /// <summary>Each setting this form edits and the text its control now holds; validating, enabling Save

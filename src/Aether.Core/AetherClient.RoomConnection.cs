@@ -26,7 +26,7 @@ public sealed partial class AetherClient
         private FileStream? roomLock;
         private IDisposable? roomScope;
         private readonly DanmakuProtocol.FormatNotices formatNotices = new();
-        // shortcut: unbounded in-memory replies; add a capacity policy if keyword floods become a problem.
+        // ponytail: an unbounded send queue in memory; add a capacity policy if keyword floods become a problem.
         private readonly Channel<Danmaku> sendQueue = Channel.CreateUnbounded<Danmaku>(
             new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
         private long? lastSendFinished;
@@ -158,13 +158,15 @@ public sealed partial class AetherClient
                                 connected = true;
                                 heartbeat = SendHeartbeatsAsync(socket, connectionStop);
                                 credentialChecks = RefreshCredentialWhileConnectedAsync(connectionStop, cancellationToken);
+                                // On the thread pool: a send queue left over from before a reconnect would otherwise run its
+                                // first SQLite query right here on the receive loop.
                                 sending = Task.Run(() => SendRepliesAsync(realRoomId, connectionStop), CancellationToken.None);
                                 yield return new Connected();
                             }
                         }
                         else if (decoded is DanmakuProtocol.DanmakuReceived danmaku)
                         {
-                            if (Settings.BlindBoxEnabled.Value && danmaku.Danmaku.Content.Trim() == Settings.BlindBoxKeyword.Value)
+                            if (Settings.BlindBoxEnabled.Value && danmaku.Danmaku.Content.Trim() == Settings.BlindBoxKeyword.Value.Trim())
                             {
                                 if (danmaku.Danmaku.Uid == 0)
                                     client.logger.LogDebug("uid 为 0 的观众发出盲盒关键字，未回复");
@@ -210,18 +212,17 @@ public sealed partial class AetherClient
                             client.timeProvider, stop.Token);
                     }
                 }
-                // Leave waiting items in the queue until sending, so reconnects retain them.
+                // Peek, and take the reply off the send queue only once its send has ended: a reconnect keeps an
+                // interrupted one for the next connection, and the end of the room connection counts it as dropped.
                 stop.Token.ThrowIfCancellationRequested();
-                if (!sendQueue.Reader.TryRead(out var trigger)) continue;
-                string? reply = null;
+                if (!sendQueue.Reader.TryPeek(out var trigger)) continue;
+                // Local reads fail the room connection, as blind box writes do; only the send itself can fail a reply.
+                var reply = BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, trigger.Uid, trigger.ReceivedAt));
+                var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
                 Exception? failure = null;
-                try
-                {
-                    reply = client.stores.Value.BlindBoxes.Reply(roomId, trigger.Uid, trigger.ReceivedAt);
-                    var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
-                    await api.ReplyAsync(roomId, trigger, reply, stop.Token);
-                }
-                catch (Exception error) { failure = error; } // A failed or interrupted send is never retried.
+                try { await api.ReplyAsync(roomId, trigger, reply, stop.Token); }
+                catch (Exception error) when (!stop.IsCancellationRequested) { failure = error; } // Never retried.
+                sendQueue.Reader.TryRead(out _);
                 lastSendFinished = client.timeProvider.GetTimestamp();
                 if (failure is null)
                     client.logger.LogInformation("发送弹幕成功：回复观众 {Nickname}（{Uid}）：{Message}", trigger.Nickname, trigger.Uid, reply);

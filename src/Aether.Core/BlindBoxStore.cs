@@ -9,11 +9,30 @@ internal sealed record BlindBox(long Uid, string Nickname, long BlindGiftId, str
     long BlindGiftPrice, long OpenedGiftId, string OpenedGiftName, long OpenedGiftPrice, long Num, long Spend,
     long OpenedValue, long Timestamp, string? Tid, bool Shown, string RawMessage);
 
+/// <summary>One viewer's 盲盒统计: their 投入 and 开出价值 in 金瓜子.</summary>
+internal sealed record BlindBoxTally(long Spend, long OpenedValue)
+{
+    /// <summary>The reply danmaku; a null tally means no blind box was recorded.</summary>
+    public static string Reply(BlindBoxTally? tally)
+    {
+        if (tally is null) return "今日没有盲盒记录";
+        var spend = Batteries(tally.Spend);
+        var profit = Batteries(tally.OpenedValue - tally.Spend);
+        var result = profit == 0 ? "不赚不亏" : $"{(profit > 0 ? "赚" : "亏")}{Text(Math.Abs(profit))}电池";
+        return $"投入{Text(spend)}电池 {result}";
+
+        // Round to one decimal first, so whole numbers drop the ".0" and the words always match the number shown.
+        static decimal Batteries(long coins) => Math.Round(coins / 100m, 1, MidpointRounding.AwayFromZero);
+        static string Text(decimal batteries) => batteries.ToString(batteries % 1 == 0 ? "0" : "0.0", CultureInfo.InvariantCulture);
+    }
+}
+
 internal sealed class BlindBoxStore(Database database, ILogger logger)
 {
-    public string Reply(long roomId, long uid, DateTimeOffset receivedAt)
+    /// <summary>The viewer's 盲盒统计 in this room for the Beijing day containing <paramref name="at"/>; null when they have none.</summary>
+    public BlindBoxTally? Tally(long roomId, long uid, DateTimeOffset at)
     {
-        var day = receivedAt.ToOffset(TimeSpan.FromHours(8));
+        var day = at.ToOffset(TimeSpan.FromHours(8));
         var start = new DateTimeOffset(day.Year, day.Month, day.Day, 0, 0, 0, day.Offset);
         using var connection = database.Open();
         using var command = connection.CreateCommand();
@@ -27,13 +46,7 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
         command.Parameters.AddWithValue("$end", start.AddDays(1).ToUnixTimeSeconds());
         using var reader = command.ExecuteReader();
         reader.Read();
-        if (reader.IsDBNull(0)) return "今日没有盲盒记录";
-        var spend = (decimal)reader.GetInt64(0);
-        var profit = reader.GetInt64(1) - spend;
-        var result = profit == 0 ? "不赚不亏" : $"{(profit > 0 ? "赚" : "亏")}{Battery(Math.Abs(profit))}电池";
-        return $"投入{Battery(spend)}电池 {result}";
-
-        static string Battery(decimal coins) => (coins / 100).ToString(coins % 100 == 0 ? "0" : "0.0", CultureInfo.InvariantCulture);
+        return reader.IsDBNull(0) ? null : new BlindBoxTally(reader.GetInt64(0), reader.GetInt64(1));
     }
 
     public void Save(long roomId, BlindBox blindBox)

@@ -9,12 +9,30 @@ public sealed class SettingsTests : IAsyncDisposable
     private string SettingsPath => Path.Combine(harness.DataDirectory, "aether.yml");
 
     [Fact]
+    public void Template_defaults_match_the_defaults_used_when_a_setting_is_missing()
+    {
+        // Each default is written twice, in Template and in its definition; this keeps the two from drifting apart.
+        var fromTemplate = Settings.Load(harness.DataDirectory);
+        Write("");
+        var missing = Settings.Load(harness.DataDirectory);
+        Assert.Equal(missing.LogRetentionDays.Value, fromTemplate.LogRetentionDays.Value);
+        Assert.Equal(missing.LogLevel.Value, fromTemplate.LogLevel.Value);
+        Assert.Equal(missing.BlindBoxEnabled.Value, fromTemplate.BlindBoxEnabled.Value);
+        Assert.Equal(missing.BlindBoxKeyword.Value, fromTemplate.BlindBoxKeyword.Value);
+        Assert.Equal(missing.SendIntervalSeconds.Value, fromTemplate.SendIntervalSeconds.Value);
+    }
+
+    [Fact]
     public void Reply_settings_have_defaults_and_save_missing_keys_without_rewriting_other_lines()
     {
         Settings.Load(harness.DataDirectory);
         var template = File.ReadAllText(SettingsPath);
         Assert.Contains("keyword: 今日盲盒", template);
         Assert.Contains("interval_seconds: 5", template);
+        // Each new item tells file editors when it applies, on its own comment line.
+        var lines = template.ReplaceLineEndings("\n").Split('\n');
+        Assert.Contains("下次观看直播间时生效", lines[Array.FindIndex(lines, line => line.Contains("keyword: 今日盲盒")) - 1]);
+        Assert.Contains("下次观看直播间时生效", lines[Array.FindIndex(lines, line => line == "send:") - 1]);
         Assert.Null(Settings.Validate("blind_box.keyword", "查盲盒"));
         Assert.Null(Settings.Validate("send.interval_seconds", "7"));
         Write("# 保留\nblind_box:\n  enabled: true\n");

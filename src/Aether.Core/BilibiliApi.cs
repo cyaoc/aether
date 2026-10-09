@@ -178,10 +178,7 @@ internal sealed class BilibiliApi
         return result;
     }
 
-    private Task<(int Code, JsonElement Data)> GetAsync(string url, string referer, string operation,
-        CancellationToken cancellationToken, int? acceptedCode = null) =>
-        SendAsync(new HttpRequestMessage(HttpMethod.Get, url), referer, operation, cancellationToken, acceptedCode);
-
+    /// <summary>Sends <paramref name="message"/> as a reply to <paramref name="trigger"/>'s sender.</summary>
     public async Task ReplyAsync(long roomId, Danmaku trigger, string message, CancellationToken cancellationToken)
     {
         var csrf = credential?.Cookies["bili_jct"] ?? throw new InvalidOperationException("缺少登录凭据。");
@@ -195,11 +192,12 @@ internal sealed class BilibiliApi
                 new("replay_dmid", trigger.Id), new("reply_uname", ""), new("reply_attr", "0"),
             ]),
         };
-        using var document = JsonDocument.Parse(await SendTextAsync(request, LiveReferer, cancellationToken));
-        CheckCode(document.RootElement, "发送弹幕");
-        if (document.RootElement.GetProperty("message").GetString() is not "")
-            throw new InvalidOperationException($"发送弹幕失败：{document.RootElement.GetProperty("message")}");
+        await SendAsync(request, LiveReferer, "发送弹幕", cancellationToken, rejectMessage: true);
     }
+
+    private Task<(int Code, JsonElement Data)> GetAsync(string url, string referer, string operation,
+        CancellationToken cancellationToken, int? acceptedCode = null) =>
+        SendAsync(new HttpRequestMessage(HttpMethod.Get, url), referer, operation, cancellationToken, acceptedCode);
 
     /// <summary>Passport form posts always carry the login referer.</summary>
     private Task<(int Code, JsonElement Data)> PostAsync(string url, IEnumerable<KeyValuePair<string, string>> form,
@@ -207,14 +205,17 @@ internal sealed class BilibiliApi
         SendAsync(new HttpRequestMessage(HttpMethod.Post, url) { Content = new FormUrlEncodedContent(form) },
             LoginReferer, operation, cancellationToken, credentialRefresh: credentialRefresh);
 
+    /// <param name="rejectMessage">msg/send reports a filtered or refused danmaku as code 0 with a non-empty message.</param>
     private async Task<(int Code, JsonElement Data)> SendAsync(HttpRequestMessage request, string referer, string operation,
-        CancellationToken cancellationToken, int? acceptedCode = null, bool credentialRefresh = false)
+        CancellationToken cancellationToken, int? acceptedCode = null, bool credentialRefresh = false, bool rejectMessage = false)
     {
         using var document = JsonDocument.Parse(await SendTextAsync(request, referer, cancellationToken));
         var root = document.RootElement;
         if (credentialRefresh && root.GetProperty("code").GetInt32() != 0)
             throw new CredentialRejectedException($"{operation}被拒绝（{root.GetProperty("code").GetInt32()}）。");
         var code = CheckCode(root, operation, acceptedCode);
+        if (rejectMessage && root.GetProperty("message").GetString() is not "")
+            throw new InvalidOperationException($"{operation}失败：{root.GetProperty("message")}");
         return (code, root.TryGetProperty("data", out var data) ? data.Clone() : default);
     }
 
