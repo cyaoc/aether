@@ -23,6 +23,27 @@ internal static class DanmakuProtocol
     internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
     internal sealed record DanmakuReceived(Danmaku Danmaku) : DecodedEvent;
 
+    /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
+    internal sealed class FormatNotices
+    {
+        private string? giftCommand;
+        private readonly HashSet<string> unknownCommands = [];
+
+        public void Observe(string command, ILogger logger)
+        {
+            if (command is "SEND_GIFT" or "SEND_GIFT_V2")
+            {
+                if (command == giftCommand) return;
+                giftCommand = command;
+                logger.LogInformation("本直播间的礼物消息为 {Version}（{Command}）", command == "SEND_GIFT" ? "V1" : "V2", command);
+            }
+            // B站 moves message kinds to new formats room by room without notice; say so instead of silently missing them.
+            else if ((command.StartsWith("DANMU_MSG", StringComparison.Ordinal) || command.StartsWith("SEND_GIFT", StringComparison.Ordinal))
+                && !IsDanmaku(command) && command != "DANMU_MSG_MIRROR" && unknownCommands.Add(command))
+                logger.LogWarning("收到不认识的直播间消息 {Command}，弹幕或礼物的消息格式可能变了", command);
+        }
+    }
+
     public static byte[] CreateAuthentication(long mid, long roomId, string token, string buvid) =>
         Pack(Operation.Authentication, JsonSerializer.SerializeToUtf8Bytes(new
         {
@@ -33,7 +54,7 @@ internal static class DanmakuProtocol
     public static byte[] CreateHeartbeat() => Pack(Operation.Heartbeat, []);
 
     public static IEnumerable<DecodedEvent> Decode(
-        byte[] bytes, DateTimeOffset receivedAt, bool authenticated, ILogger logger)
+        byte[] bytes, DateTimeOffset receivedAt, bool authenticated, FormatNotices notices, ILogger logger)
     {
         foreach (var packet in Unpack(bytes))
         {
@@ -46,25 +67,31 @@ internal static class DanmakuProtocol
                 yield return new AuthenticationReply(success);
             }
             else if (packet.Operation == Operation.RoomMessage && authenticated
-                && ParseRoomMessage(packet.Body, receivedAt, logger) is { } danmaku)
+                && ParseRoomMessage(packet.Body, receivedAt, notices, logger) is { } danmaku)
                 yield return new DanmakuReceived(danmaku);
         }
     }
 
-    private static Danmaku? ParseRoomMessage(ReadOnlyMemory<byte> body, DateTimeOffset receivedAt, ILogger logger)
+    private static bool IsDanmaku(string command) =>
+        command == "DANMU_MSG" || command.StartsWith("DANMU_MSG:", StringComparison.Ordinal);
+
+    private static Danmaku? ParseRoomMessage(
+        ReadOnlyMemory<byte> body, DateTimeOffset receivedAt, FormatNotices notices, ILogger logger)
     {
         string? command = null;
+        Danmaku? danmaku = null;
         try
         {
             using var message = JsonDocument.Parse(body);
             var root = message.RootElement;
             command = root.GetProperty("cmd").GetString() ?? throw new JsonException("缺少 cmd。");
-            if (command == "DANMU_MSG" || command.StartsWith("DANMU_MSG:", StringComparison.Ordinal))
+            notices.Observe(command, logger);
+            if (IsDanmaku(command))
             {
                 var info = root.GetProperty("info");
                 var nickname = info[2][1].GetString() ?? throw new JsonException("缺少弹幕昵称。");
                 var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
-                return new Danmaku(receivedAt, nickname, content);
+                danmaku = new Danmaku(receivedAt, nickname, content);
             }
         }
         // Only JSON parsing and field access are inside this boundary; frame errors still end the stream.
@@ -79,8 +106,11 @@ internal static class DanmakuProtocol
                 command, error.Message, json, length < body.Length ? "（已截断，最多 2KB）" : "");
             return null;
         }
-        logger.LogDebug("忽略直播间事件 {Command}", command);
-        return null;
+        // Valid JSON only has literal CR/LF outside strings; keep each capture on one line.
+        if (logger.IsEnabled(LogLevel.Trace))
+            logger.LogTrace("直播间消息原始 JSON：{Json}", Encoding.UTF8.GetString(body.Span).Replace("\r", "").Replace("\n", ""));
+        if (danmaku is null) logger.LogDebug("忽略直播间事件 {Command}", command);
+        return danmaku;
     }
 
     private static IEnumerable<(Operation Operation, ReadOnlyMemory<byte> Body)> Unpack(byte[] bytes, int depth = 0)

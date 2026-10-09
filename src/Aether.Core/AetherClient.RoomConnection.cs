@@ -25,6 +25,7 @@ public sealed partial class AetherClient
         private long? realRoomId;
         private FileStream? roomLock;
         private IDisposable? roomScope;
+        private readonly DanmakuProtocol.FormatNotices formatNotices = new();
 
         public async Task RunAsync(CancellationToken cancellationToken)
         {
@@ -136,7 +137,7 @@ public sealed partial class AetherClient
                 {
                     var bytes = await ReceiveMessageAsync(socket, idleTimeout, connectionStop.Token);
                     var receivedAt = client.timeProvider.GetLocalNow();
-                    foreach (var decoded in DanmakuProtocol.Decode(bytes, receivedAt, connected, client.logger))
+                    foreach (var decoded in DanmakuProtocol.Decode(bytes, receivedAt, connected, formatNotices, client.logger))
                     {
                         connectionStop.Token.ThrowIfCancellationRequested();
                         if (decoded is DanmakuProtocol.AuthenticationReply auth)

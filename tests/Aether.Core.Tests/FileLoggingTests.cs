@@ -10,6 +10,69 @@ namespace Aether.Core.Tests;
 public sealed class FileLoggingTests
 {
     [Theory]
+    [InlineData(LogLevel.Trace)]
+    [InlineData(LogLevel.Debug)]
+    [InlineData(LogLevel.Information)]
+    [InlineData(LogLevel.Warning)]
+    [InlineData(LogLevel.Error)]
+    [InlineData(LogLevel.Critical)]
+    public async Task Only_trace_records_each_valid_room_message_as_one_raw_json_line(LogLevel level)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        File.WriteAllText(Path.Combine(h.DataDirectory, "aether.yml"), $"log:\n  level: {level}\n");
+        using var host = FileLoggingHost(h.DataDirectory);
+        using var client = new AetherClient(h.Http, h.Server.ConnectAsync, h.Time,
+            host.Services.GetRequiredService<ILogger<AetherClient>>(), h.DataDirectory);
+        await using var updates = await h.WatchConnectedAsync(client);
+        const string body = """{"cmd":"DANMU_MSG","info":[[],"内容",[0,"观众"]]}""";
+        var ignored = new[]
+        {
+            """{"cmd":"SEND_GIFT","data":{"uid":0,"uname":"测试观众"}}""",
+            """{"cmd":"SEND_GIFT_V2","data":{"pb":"synthetic"}}""",
+            """{"cmd":"COMBO_SEND","data":{}}""",
+            "{\r\n  \"cmd\": \"FUTURE_EVENT\",\n  \"text\": \"escaped\\nline\"\r\n}",
+            "{\"cmd\":\"FUTURE_LARGE_EVENT\",\"text\":\"" + new string('中', 2048) + "\"}"
+        };
+        foreach (var message in ignored)
+            await h.Server.PushAsync(FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(message), 0));
+        const string malformed = """{"cmd":"DANMU_MSG","info":[]}""";
+        await h.Server.PushAsync(FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(malformed), 0));
+        await h.Server.PushAsync(FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(body), 0));
+        Assert.True(await updates.MoveNextAsync());
+        Assert.Equal(new Danmaku(h.Time.GetLocalNow(), "观众", "内容"), updates.Current);
+
+        var room = Path.Combine(h.DataDirectory, "logs", "7734200");
+        var lines = Directory.Exists(room)
+            ? File.ReadAllLines(Assert.Single(Directory.GetFiles(room, "*.log"))) : [];
+        const string prefix = "直播间消息原始 JSON：";
+        var captures = lines.Where(line => line.Contains(prefix)).ToArray();
+        if (level == LogLevel.Trace)
+        {
+            Assert.Equal(new[]
+            {
+                ignored[0], ignored[1], ignored[2],
+                """{  "cmd": "FUTURE_EVENT",  "text": "escaped\nline"}""",
+                ignored[4], body
+            }, captures.Select(line => line[(line.IndexOf(prefix, StringComparison.Ordinal) + prefix.Length)..]));
+            Assert.All(captures, line => Assert.Contains("[VRB]", line));
+        }
+        else Assert.Empty(captures);
+        if (level <= LogLevel.Warning)
+            Assert.Contains(malformed, Assert.Single(lines, line => line.Contains("[WRN]")));
+        // The SEND_GIFT then SEND_GIFT_V2 above report the gift message version, then its switch.
+        var notices = lines.Where(line => line.Contains("[INF]")).ToArray();
+        if (level <= LogLevel.Information)
+            Assert.Collection(notices, line => Assert.Contains("V1", line), line => Assert.Contains("V2", line));
+        else Assert.Empty(notices);
+        Assert.Equal(ignored.Length * (level <= LogLevel.Debug ? 1 : 0)
+            + (level <= LogLevel.Warning ? 1 : 0) + notices.Length + captures.Length, lines.Length);
+        Assert.False(Directory.Exists(Path.Combine(h.DataDirectory, "logs", "6")));
+        var logs = Path.Combine(h.DataDirectory, "logs");
+        if (Directory.Exists(logs)) Assert.Empty(Directory.GetFiles(logs, "*.log"));
+    }
+
+    [Theory]
     [InlineData(LogLevel.Trace, 7)]
     [InlineData(LogLevel.Debug, 7)]
     [InlineData(LogLevel.Warning, 7)]
