@@ -54,6 +54,7 @@ internal static class DanmakuProtocol
     private static Danmaku? ParseRoomMessage(ReadOnlyMemory<byte> body, DateTimeOffset receivedAt, ILogger logger)
     {
         string? command = null;
+        Danmaku? danmaku = null;
         try
         {
             using var message = JsonDocument.Parse(body);
@@ -64,7 +65,7 @@ internal static class DanmakuProtocol
                 var info = root.GetProperty("info");
                 var nickname = info[2][1].GetString() ?? throw new JsonException("缺少弹幕昵称。");
                 var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
-                return new Danmaku(receivedAt, nickname, content);
+                danmaku = new Danmaku(receivedAt, nickname, content);
             }
         }
         // Only JSON parsing and field access are inside this boundary; frame errors still end the stream.
@@ -79,8 +80,11 @@ internal static class DanmakuProtocol
                 command, error.Message, json, length < body.Length ? "（已截断，最多 2KB）" : "");
             return null;
         }
-        logger.LogDebug("忽略直播间事件 {Command}", command);
-        return null;
+        if (logger.IsEnabled(LogLevel.Trace))
+            // Valid JSON only has literal CR/LF outside strings; keep each capture on one line.
+            logger.LogTrace("直播间消息原始 JSON：{Json}", Encoding.UTF8.GetString(body.Span).Replace("\r", "").Replace("\n", ""));
+        if (danmaku is null) logger.LogDebug("忽略直播间事件 {Command}", command);
+        return danmaku;
     }
 
     private static IEnumerable<(Operation Operation, ReadOnlyMemory<byte> Body)> Unpack(byte[] bytes, int depth = 0)

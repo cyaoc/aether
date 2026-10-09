@@ -34,7 +34,7 @@ public sealed class ProtocolTests
 
         Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.Equal(new Danmaku(h.Time.GetLocalNow(), "观众", "正常弹幕"), updates.Current);
-        var warning = Assert.Single(h.Logger.Entries);
+        var warning = Assert.Single(h.Logger.Entries, entry => entry.Level != Microsoft.Extensions.Logging.LogLevel.Trace);
         Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, warning.Level);
         if (command is not null) Assert.Contains(command, warning.Message);
         Assert.Contains(body, warning.Message);
@@ -59,7 +59,7 @@ public sealed class ProtocolTests
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
             Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"正常",[0,"观众"]]}"""), 0));
         Assert.True(await updates.MoveNextAsync());
-        var warning = Assert.Single(h.Logger.Entries).Message;
+        var warning = Assert.Single(h.Logger.Entries, entry => entry.Level != Microsoft.Extensions.Logging.LogLevel.Trace).Message;
         Assert.Contains(truncated ? new string('x', 2046) : body, warning);
         Assert.Equal(truncated, warning.Contains("已截断"));
         Assert.DoesNotContain("中", warning);
@@ -123,7 +123,7 @@ public sealed class ProtocolTests
         await h.Server.PushAsync(await FixtureAsync("danmaku-brotli.bin"));
         Assert.True(await updates.MoveNextAsync());
         Assert.Equal("达***", Assert.IsType<Danmaku>(updates.Current).Nickname);
-        Assert.Collection(h.Logger.Entries,
+        Assert.Collection(h.Logger.Entries.Where(entry => entry.Level != Microsoft.Extensions.Logging.LogLevel.Trace),
             entry => { Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Debug, entry.Level); Assert.Contains("ENTRY_EFFECT", entry.Message); },
             entry => { Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Debug, entry.Level); Assert.Contains("ENTRY_EFFECT", entry.Message); });
     }
@@ -171,8 +171,10 @@ public sealed class ProtocolTests
 
         Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.Equal(new Danmaku(h.Time.GetLocalNow(), "观众", "正常弹幕"), updates.Current);
-        Assert.Equal(2, h.Logger.Entries.Count);
-        Assert.All(h.Logger.Entries, entry => Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, entry.Level));
+        Assert.Collection(h.Logger.Entries,
+            entry => Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, entry.Level),
+            entry => Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, entry.Level),
+            entry => Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Trace, entry.Level));
     }
 
     /// <summary>Wraps packets in one frame compressed the way protocol version 2 (zlib) or 3 (brotli) does.</summary>
