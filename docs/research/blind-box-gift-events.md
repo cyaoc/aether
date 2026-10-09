@@ -89,7 +89,7 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
   - [文档] "该值/1000的单位为元"（[gift.md#L36](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/gift.md#L36)）
   - [文档] "20 电池 (2 CNY) 对应 2000 金瓜子"（[message_stream.md#L3266](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L3266)）
   - [文档] 官方开放平台："(1000 = 1元 = 10电池)"（[长链命令说明](https://open-live.bilibili.com/document/f9ce25be-312e-1f4a-85fd-fef21f1637f8)）
-- **银瓜子**：`coin_type = "silver"`，此时 `price` 是银瓜子数（[live_bill.md#L28](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/live_bill.md#L28)）。2024 年的实测里，`人气票` 是 `silver`，price 和 total_coin 都为 0（Pcrab 日志）。
+- **银瓜子**：`coin_type = "silver"`，此时 `price` 是银瓜子数（[live_bill.md#L28](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/live_bill.md#L28)）。2024 年的实测里，`人气票` 是 `silver`，price 和 total_coin 都为 0（Pcrab 日志）；2026-10-09 实测已变为 `gold`，单价 100，即 1 电池（#48）。所以 gold 不代表是盲盒，判断盲盒要看有没有 `blind_gift`。
   - 没有任何来源出现过 silver 盲盒，所有盲盒样本都是 `gold`。BAC 写的是 `coin_type` "一般为gold，即电池"（[gift.md#L38](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/gift.md#L38)）。[推断] 盲盒只用电池购买。
 - **盲盒价格与概率接口**：`GET https://api.live.bilibili.com/xlive/general-interface/v1/blindFirstWin/getInfo?gift_id=<盲盒id>`，返回 `blind_price`，以及各爆出礼物的 `price` 和 `chance`。例如心动盲盒 `blind_price: 15000`，即 150 电池（[gift.md#L54-L117](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/gift.md#L54-L117)）。
 
