@@ -118,7 +118,11 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
   - blivedm：tid "可能是事务ID，有时和rnd相同"；rnd "有时是时间戳+去重ID，有时是UUID"（[web.py#L288-L295](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py#L288-L295)）
   - lovelyyoshino：tid 是"交易流水号（字符串大数）"
   - 类型：BAC 字段表写 num，但示例、实测和 V2 proto 里都是字符串（[pb.py#L71](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/pb.py#L71)）
-- **盲盒批量时，多条消息（V1）或多项（V2）是否共用同一个 tid：没有真实数据。** blivedm-go 的十连测试数据里 3 项共用 `"test-ten-draw-transaction"`，但这是作者构造的合成数据（[ten_blind_gift_v2.json](https://github.com/Akegarasu/blivedm-go/blob/957b543d2bfa8c2ac8a7af2fb42ae73eb92443b2/message/testdata/ten_blind_gift_v2.json)），不能当证据。
+- **`tid` 的结构：[实测] Snowflake 式 ID，右移 22 位是从固定起点算起的毫秒数，低 22 位是序号。** BAC 的"前 10 位是秒级时间戳"已过时：把 2024 年样本的前 10 位当秒，得到的是 2115 年。
+  - 2024 年 Pcrab 日志的 7 个 V1 `tid`：相邻两个右移 22 位后的差，与消息 `timestamp` 的差在秒级吻合（如 58.7 秒对 59 秒、3826.7 秒对 3827 秒）。
+  - 2026-10-09 的 V2 `tid`（#48 本地原始抓包，不提交原值）反推出的起点与 2024 年在 `timestamp` 的秒级精度内一致，V1 和 V2 用的是同一个生成器。
+  - 起点约为 1990-04-24（北京时间），只是从样本反推，不影响去重。
+- **盲盒批量时 `tid` 是否共用：[实测] V2 不共用，按礼物项分配。** 2026-10-09 一次送 10 个心动盲盒的三项，`tid` 是同一毫秒里的连续序号（末位依次加 1）；两次连击的 `tid` 也不同。V1 一次送多个盲盒的多条 `SEND_GIFT` 未实测，但用的是同一个按项分配的生成器，共用的可能性很低。blivedm-go 十连测试数据里 3 项共用 `"test-ten-draw-transaction"` 是作者构造的合成数据（[ten_blind_gift_v2.json](https://github.com/Akegarasu/blivedm-go/blob/957b543d2bfa8c2ac8a7af2fb42ae73eb92443b2/message/testdata/ten_blind_gift_v2.json)），与实测不符。
 - **重连重放**：认证包只有 `uid/roomid/protover/platform/type/key` 几个字段，没有偏移量或续传字段；包头的 sequence 只写"每次发包时向上递增"（[BAC#L154](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L154)、[#L180-L190](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L180-L190)）。[推断] 重连后服务端不会补发断线期间的消息，那段时间的礼物会**丢失**，而不是重复到达。
 - 同一份礼物会不会被推两次（同一连接内，或 V1 和 V2 同时推）：没有来源记载。实测里，切到 V2 的房间只推 V2。
 
@@ -236,7 +240,7 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
 3. 金额一律用整数**金瓜子**存储，展示时再除以 100 换成电池。盈亏 = `price × num − total_coin`。入库时校验 `total_coin == original_gift_price × num`，不等就记日志：未解决第 4 项可能导致两者不一致。
 4. 只有 `blind_gift` 非空且 `coin_type == "gold"` 的礼物才入库。V2 中通过 `blind_gift.original_gift_id != 0` 判断是否有盲盒信息。
 5. 不要计入 `COMBO_SEND` 和 `COMBO_END`，也不要用 `combo_total_coin`，否则会重复计算，或者把爆出价值当成实付。
-6. 暂不加去重唯一键，沿用 #41。[实测] 2026-10-09 的 V2 十连三项各有不同 `tid`，两次连击的 `tid` 也不同，见下方实测记录。先前建议 `UNIQUE(tid, opened_gift_id)` 基于“批量可能共用 tid、同种礼物总会合并”的推断，充分性尚未证实；本次也不能证明单独 `tid` 全局唯一。获得重推或标识碰撞样本后再定。
+6. 用 `UNIQUE(tid)` 去重（2026-10-09 决定，取代先前"暂不加唯一键"和 `UNIQUE(tid, opened_gift_id)` 的建议）。依据是第 5 节：`tid` 是按礼物项分配的 Snowflake 式 ID。重复推送的同一项冲突时忽略，并写 Warning；万一 V1 批量共用 `tid`，这条 Warning 会立刻暴露出来，不会悄悄少算。`tid` 为空存 NULL，不参与去重。
 7. 必须以登录身份连接，否则 `uid = 0`，无法按观众统计。`uid = 0` 的事件不计入任何观众。
 8. 断线期间的礼物会丢。统计结果只代表"bot 在线期间看到的"，回复文案不要声称精确。
 9. 回复弹幕要控制在 20 字以内。要处理 `1003212`、`10031`（以及可能的 `10030`），还要处理 code 0 但 message 为 `"f"` 或 `"k"` 的情况。发送间隔需要实测后再定，经过已有的发送队列控制。
@@ -249,7 +253,7 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
 共收到 5 条 V2、7 个礼物项，其中 6 项对应 13 个盲盒。全部为 `data.pb`、`switch = true`。
 完整操作、脱敏样本与金额见 [抓包报告](2026-10-09-gift-capture.md)。
 
-- 第 1、2 项：[实测] V2 十连为 `num = 1、3、6` 的三项，tid 和字段 12 各不相同；同种礼物在本批次合并。V1 未完成自主现场验证；“总是合并”仍未证实。
+- 第 1、2 项：[实测] V2 十连为 `num = 1、3、6` 的三项，tid 和字段 12 各不相同；同种礼物在本批次合并。三项的 `tid` 是同一毫秒里的连续序号，说明按项分配（见第 5 节）。V1 未完成自主现场验证；“总是合并”仍未证实。
 - 第 3、8 项：[实测] 用户确认的两击分别推一条 V2；全观察窗口没有 `COMBO_SEND`、`COMBO_END`。其他版本和场景仍未验证。
 - 第 4、6 项：[实测] 普通购买的所有盲盒项满足 `total_coin = 15000 × num`；`discount_price = price = GiftItem.gift_tip_price`，都是开出单价；`combo_total_coin = price × num`，是开出价值。广播级 blind_gift 未提供 gift_tip_price。用户没有包裹、折扣或首抽条件，这些投入边界仍未验证。
 - 第 5 项：[实测] 未发现重复推送，五条消息都为 `switch = true`；不能据此排除重推，`switch = false` 是否计入仍未验证。
