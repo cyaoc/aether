@@ -44,32 +44,38 @@ public partial class SettingsWindow : Window
         Validate();
     }
 
+    /// <summary>Each setting this form edits and the text its control now holds; validating, enabling Save
+    /// and saving all read this one list.</summary>
+    private (string Name, bool CanEdit, string? Input)[] Fields() =>
+    [
+        (settings.LogRetentionDays.Name, settings.LogRetentionDays.CanEdit, RetentionInput.Text),
+        (settings.LogLevel.Name, settings.LogLevel.CanEdit, LevelInput.SelectedItem?.ToString()),
+        (settings.BlindBoxEnabled.Name, settings.BlindBoxEnabled.CanEdit, Settings.BooleanText(BlindBoxInput.IsChecked == true)),
+    ];
+
     private void Validate()
     {
-        var error = settings.Error?.Message ?? InputError(settings.LogRetentionDays, RetentionInput.Text)
-            ?? InputError(settings.LogLevel, LevelInput.SelectedItem?.ToString());
+        var fields = Fields();
+        var error = settings.Error?.Message ?? fields.Select(InputError).FirstOrDefault(reason => reason is not null);
         Message.Text = error ?? "";
-        SaveButton.IsEnabled = error is null && (settings.LogRetentionDays.CanEdit || settings.LogLevel.CanEdit || settings.BlindBoxEnabled.CanEdit);
+        SaveButton.IsEnabled = error is null && fields.Any(field => field.CanEdit);
     }
 
     /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
-    private static string? InputError<T>(Setting<T> setting, string? input) =>
-        setting.CanEdit && Settings.Validate(setting.Name, input) is { } reason ? $"{setting.Name}：{reason}" : null;
+    private static string? InputError((string Name, bool CanEdit, string? Input) field) =>
+        field.CanEdit && Settings.Validate(field.Name, field.Input) is { } reason ? $"{field.Name}：{reason}" : null;
 
     private void Save(object? sender, RoutedEventArgs e)
     {
         Validate();
         if (!SaveButton.IsEnabled) return;
         // Core leaves alone what this form was filled with, so an untouched setting keeps its spelling and any edit made elsewhere.
-        var changes = new Dictionary<string, string>();
-        if (settings.LogRetentionDays.CanEdit) changes[settings.LogRetentionDays.Name] = RetentionInput.Text!;
-        if (settings.LogLevel.CanEdit) changes[settings.LogLevel.Name] = LevelInput.SelectedItem!.ToString()!;
-        if (settings.BlindBoxEnabled.CanEdit) changes[settings.BlindBoxEnabled.Name] = BlindBoxInput.IsChecked == true ? "true" : "false";
+        var changes = Fields().Where(field => field.CanEdit).ToDictionary(field => field.Name, field => field.Input!);
         try
         {
             Settings.Save(dataDirectory, changes, settings);
             LoadSettings();
-            if (settings.Error is null) Message.Text = "已保存，日志设置重启后生效，盲盒统计开关下次观看直播间时生效。";
+            if (settings.Error is null) Message.Text = "已保存，各项按标注的时机生效。";
         }
         catch (Exception error) when (error is SettingsException or IOException or UnauthorizedAccessException)
         {

@@ -52,7 +52,7 @@ blind_box:
 可选 Trace、Debug、Information、Warning、Error、Critical，默认 Information。日志设置在进程启动时读取，修改后重启生效。
 `blind_box.enabled` 只接受 `true` 或 `false`，默认 `true`，下次观看直播间时生效，自动重连不重新读取。
 启用时把 V1 `SEND_GIFT` 的 gold 盲盒记入 `data/aether.db`，保存原始消息；金额为整数金瓜子，
-投入按 `total_coin`、开出价值按 `price × num`。相同 `tid` 只记录一次并写警告，uid 为 0 的礼物不记录。
+投入按 `total_coin`、开出价值按 `price × num`。相同 `tid` 只记录一次：内容也相同时视为重复推送，警告里带上被忽略的开出礼物、个数和投入；内容不同时警告 `tid` 可能不是按礼物项唯一，金额可从警告补回。数字形式的 `tid` 按其数字文本保存。以下情况都未实测确认，所以在默认日志级别下可见：uid 为 0 的盲盒（可能是神秘人）不记录，记一条 Information；带 `blind_gift` 但不是 gold 的礼物不记录并警告；`switch` 为 false 的盲盒照常记录并警告。
 当前不记录 `SEND_GIFT_V2`，也不累计 `COMBO_SEND` / `COMBO_END`。每条记录的观众、礼物和金额可在 Information 日志中查看。
 缺少的项使用默认值；未知键会列在警告中，仍照常运行。设置格式遵循 [ADR 0004](docs/adr/0004-settings-file-line-editing.md)：
 英文 snake_case 键，分组下每个设置占一行。有效的多行标量仍可读取，但多行写法、嵌套结构和行内分组标为不能逐行编辑；

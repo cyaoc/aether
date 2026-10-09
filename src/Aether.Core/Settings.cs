@@ -48,7 +48,8 @@ public sealed class Settings
     private static readonly Definition<LogLevel> Level =
         Definition.Choice("log.level", Microsoft.Extensions.Logging.LogLevel.Information, LogLevels);
     private static readonly Definition<bool> BlindBox = Definition.Boolean("blind_box.enabled", true);
-    /// <summary>Every setting this version knows; adding one is a definition here plus its property.</summary>
+    /// <summary>Every setting this version knows; adding one is a definition here, its property and its line in Template
+    /// (plus, for the GUI, its control and one entry in SettingsWindow.Fields).</summary>
     private static readonly Definition[] Definitions = [RetentionDays, Level, BlindBox];
 
     public Setting<int> LogRetentionDays => Get(RetentionDays);
@@ -62,6 +63,9 @@ public sealed class Settings
     private YamlMappingNode? root;
 
     public static string FilePath(string dataDirectory) => Path.Combine(dataDirectory, "aether.yml");
+
+    /// <summary>How a switch is written in the file, for forms that hold it as a bool.</summary>
+    public static string BooleanText(bool value) => value ? "true" : "false";
 
     /// <summary>The same validation used when loading and saving; null means the input is valid.</summary>
     public static string? Validate(string name, string? value) => Validate(Definitions, name, value);
@@ -324,7 +328,7 @@ public sealed class Settings
 
         public static Definition<bool> Boolean(string name, bool initial) => ScalarSetting(name, initial, "必须为 true 或 false。",
             text => text.Trim() switch { "true" => (true, true), "false" => (true, false), _ => default },
-            value => value ? "true" : "false");
+            BooleanText);
 
         /// <summary>One of <paramref name="choices"/>, written exactly as its name.</summary>
         public static Definition<T> Choice<T>(string name, T initial, IReadOnlyList<T> choices) where T : struct, Enum =>

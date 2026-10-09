@@ -22,7 +22,7 @@ internal static class DanmakuProtocol
     internal abstract record DecodedEvent;
     internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
     internal sealed record DanmakuReceived(Danmaku Danmaku) : DecodedEvent;
-    internal sealed record BlindBoxReceived(BlindBox Gift) : DecodedEvent;
+    internal sealed record BlindBoxReceived(BlindBox BlindBox) : DecodedEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
     internal sealed class FormatNotices
@@ -94,8 +94,8 @@ internal static class DanmakuProtocol
                 var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
                 decoded = new DanmakuReceived(new Danmaku(receivedAt, nickname, content));
             }
-            else if (command == "SEND_GIFT" && ParseBlindBox(root.GetProperty("data"), body) is { } gift)
-                decoded = new BlindBoxReceived(gift);
+            else if (command == "SEND_GIFT" && ParseBlindBox(root.GetProperty("data"), body, logger) is { } blindBox)
+                decoded = new BlindBoxReceived(blindBox);
         }
         // Only JSON parsing and field access are inside this boundary; frame errors still end the stream.
         catch (Exception error) when (error is JsonException or KeyNotFoundException
@@ -116,10 +116,15 @@ internal static class DanmakuProtocol
         return decoded;
     }
 
-    private static BlindBox? ParseBlindBox(JsonElement data, ReadOnlyMemory<byte> body)
+    private static BlindBox? ParseBlindBox(JsonElement data, ReadOnlyMemory<byte> body, ILogger logger)
     {
-        if (!data.TryGetProperty("blind_gift", out var blind) || blind.ValueKind == JsonValueKind.Null
-            || data.GetProperty("coin_type").GetString() != "gold") return null;
+        if (!data.TryGetProperty("blind_gift", out var blind) || blind.ValueKind == JsonValueKind.Null) return null;
+        if (data.GetProperty("coin_type").GetString() is var coinType && coinType != "gold")
+        {
+            // No source has ever shown a non-gold blind box; skip it, but loudly.
+            logger.LogWarning("收到 coin_type 为 {CoinType} 的盲盒，从未见过这种情况，未记录", coinType);
+            return null;
+        }
         var uid = data.GetProperty("uid").GetInt64();
         var blindId = blind.GetProperty("original_gift_id").GetInt64();
         var blindPrice = blind.GetProperty("original_gift_price").GetInt64();
@@ -130,12 +135,24 @@ internal static class DanmakuProtocol
         var timestamp = data.GetProperty("timestamp").GetInt64();
         if (uid < 0 || blindId <= 0 || giftId <= 0 || blindPrice < 0 || price < 0 || num <= 0 || spend < 0 || timestamp < 0)
             throw new JsonException("盲盒的标识、金额、个数或送出时间无效。");
-        var tid = data.TryGetProperty("tid", out var id) ? id.GetString() : null;
-        return new BlindBox(uid, data.GetProperty("uname").GetString() ?? throw new JsonException("缺少观众昵称。"),
-            blindId, blind.GetProperty("original_gift_name").GetString() ?? throw new JsonException("缺少盲盒名称。"),
-            blindPrice, giftId, data.GetProperty("giftName").GetString() ?? throw new JsonException("缺少开出礼物名称。"),
-            price, num, spend, checked(price * num), timestamp, string.IsNullOrEmpty(tid) ? null : tid,
-            Encoding.UTF8.GetString(body.Span));
+        var tid = !data.TryGetProperty("tid", out var id) ? null
+            : id.ValueKind == JsonValueKind.Number ? id.GetRawText() : id.GetString(); // BAC types it as num; samples are strings.
+        return new BlindBox(
+            Uid: uid,
+            Nickname: data.GetProperty("uname").GetString() ?? throw new JsonException("缺少观众昵称。"),
+            BlindGiftId: blindId,
+            BlindGiftName: blind.GetProperty("original_gift_name").GetString() ?? throw new JsonException("缺少盲盒名称。"),
+            BlindGiftPrice: blindPrice,
+            OpenedGiftId: giftId,
+            OpenedGiftName: data.GetProperty("giftName").GetString() ?? throw new JsonException("缺少开出礼物名称。"),
+            OpenedGiftPrice: price,
+            Num: num,
+            Spend: spend,
+            OpenedValue: checked(price * num),
+            Timestamp: timestamp,
+            Tid: string.IsNullOrEmpty(tid) ? null : tid,
+            Shown: !data.TryGetProperty("switch", out var shown) || shown.ValueKind != JsonValueKind.False,
+            RawMessage: Encoding.UTF8.GetString(body.Span));
     }
 
     private static IEnumerable<(Operation Operation, ReadOnlyMemory<byte> Body)> Unpack(byte[] bytes, int depth = 0)

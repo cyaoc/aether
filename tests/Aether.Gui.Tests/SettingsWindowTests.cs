@@ -33,7 +33,8 @@ public sealed class SettingsWindowTests
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal("# 保留\nblind_box:\n  enabled: true # 开关\n", File.ReadAllText(path));
             Assert.True(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);
-            Assert.Contains("下次观看直播间时生效", window.FindControl<TextBlock>("Message")!.Text);
+            Assert.StartsWith("已保存", window.FindControl<TextBlock>("Message")!.Text);
+            Assert.Contains("下次观看直播间时生效", input.Content as string);
             input.IsChecked = false;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);

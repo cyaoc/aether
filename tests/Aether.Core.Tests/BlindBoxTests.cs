@@ -23,7 +23,7 @@ public sealed class BlindBoxTests
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT room_id, uid, nickname, blind_gift_id, blind_gift_name, blind_gift_price,
-                gift_id, gift_name, gift_price, num, spend, opened_value, timestamp, tid, raw_message
+                opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid, raw_message
             FROM blind_box;
             """;
         using var reader = command.ExecuteReader();
@@ -92,8 +92,11 @@ public sealed class BlindBoxTests
         }));
         Assert.Empty(Amounts(h));
         Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("记录盲盒"));
+        // Never-seen or unverified cases must show at the default Information level, not hide in Debug.
         if (kind == "anonymous")
-            Assert.Contains(h.Logger.Entries, e => e.Level == LogLevel.Debug && e.Message.Contains("uid 为 0"));
+            Assert.Contains(h.Logger.Entries, e => e.Level == LogLevel.Information && e.Message.Contains("uid 为 0"));
+        if (kind == "silver")
+            Assert.Contains(h.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("silver"));
     }
 
     [Theory]
@@ -140,6 +143,56 @@ public sealed class BlindBoxTests
         Assert.All(warnings, e => Assert.Contains("test-v1-1", e.Message));
     }
 
+    [Fact]
+    public async Task Duplicate_tid_warning_keeps_the_ignored_amounts_and_tells_a_repush_from_a_shared_tid()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        await PushAndSyncAsync(h, updates, Gift, Gift, ChangeGift(d =>
+        {
+            d["giftId"] = 32126; d["giftName"] = "棉花糖"; d["price"] = 9000; d["num"] = 2; d["total_coin"] = 10000;
+        }));
+
+        Assert.Equal((1L, 5000L, 1500L, "test-v1-1"), Assert.Single(Amounts(h)));
+        Assert.Collection(h.Logger.Entries.Where(e => e.Level == LogLevel.Warning).Select(e => e.Message),
+            repush =>
+            {
+                Assert.Contains("重复推送的礼物，已忽略", repush);
+                foreach (var expected in new[] { "test-v1-1", "小蛋糕", "5000" }) Assert.Contains(expected, repush);
+            },
+            shared =>
+            {
+                Assert.Contains("不是按礼物项唯一", shared);
+                foreach (var expected in new[] { "test-v1-1", "棉花糖", "个数 2", "10000", "18000" }) Assert.Contains(expected, shared);
+            });
+    }
+
+    [Fact]
+    public async Task Numeric_tid_is_kept_as_its_digits_instead_of_dropping_the_blind_box()
+    {
+        // BAC's field table types tid as num although every sample so far is a string.
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        await PushAndSyncAsync(h, updates, ChangeGift(d => d["tid"] = JsonNode.Parse("4578879044749173248")));
+        Assert.Equal((1L, 5000L, 1500L, "4578879044749173248"), Assert.Single(Amounts(h)));
+        Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Warning);
+    }
+
+    [Fact]
+    public async Task Blind_box_with_switch_false_is_still_saved_but_warned()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        await PushAndSyncAsync(h, updates, ChangeGift(d => d["switch"] = false));
+        Assert.Single(Amounts(h));
+        var warning = Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning).Message;
+        Assert.Contains("switch", warning);
+        Assert.Contains("test-v1-1", warning);
+    }
+
     [Theory]
     [InlineData("empty")]
     [InlineData("missing")]
@@ -169,7 +222,6 @@ public sealed class BlindBoxTests
     [InlineData("total_coin", "null")]
     [InlineData("blind_gift", "{}")]
     [InlineData("uname", "null")]
-    [InlineData("tid", "123")]
     public async Task Malformed_blind_box_is_warned_without_losing_later_messages(string field, string json)
     {
         await using var h = new WatchHarness();
