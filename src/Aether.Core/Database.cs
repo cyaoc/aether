@@ -20,7 +20,7 @@ internal sealed class Database
         command.Transaction = transaction;
         command.CommandText = "PRAGMA user_version";
         var version = (long)command.ExecuteScalar()!;
-        if (version > 2) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
+        if (version > 3) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
         if (version == 0)
         {
             // Schema upgrades are handwritten and committed with user_version in the same transaction.
@@ -39,6 +39,32 @@ internal sealed class Database
         if (version == 1)
         {
             command.CommandText = "ALTER TABLE credential ADD COLUMN checked_at TEXT; PRAGMA user_version = 2;";
+            command.ExecuteNonQuery();
+        }
+        if (version < 3)
+        {
+            command.CommandText = """
+                CREATE TABLE blind_box (
+                    id INTEGER PRIMARY KEY,
+                    room_id INTEGER NOT NULL,
+                    uid INTEGER NOT NULL,
+                    nickname TEXT NOT NULL,
+                    blind_gift_id INTEGER NOT NULL,
+                    blind_gift_name TEXT NOT NULL,
+                    blind_gift_price INTEGER NOT NULL,
+                    gift_id INTEGER NOT NULL,
+                    gift_name TEXT NOT NULL,
+                    gift_price INTEGER NOT NULL,
+                    num INTEGER NOT NULL,
+                    spend INTEGER NOT NULL,
+                    opened_value INTEGER NOT NULL,
+                    timestamp INTEGER NOT NULL,
+                    tid TEXT UNIQUE,
+                    raw_message TEXT NOT NULL
+                );
+                CREATE INDEX blind_box_room_viewer_time ON blind_box (room_id, uid, timestamp);
+                PRAGMA user_version = 3;
+                """;
             command.ExecuteNonQuery();
         }
         transaction.Commit();

@@ -1,0 +1,29 @@
+{
+  "cmd": "SEND_GIFT",
+  "data": {
+    "action": "投喂",
+    "coin_type": "gold",
+    "uid": 10001,
+    "uname": "测试观众",
+    "giftId": 32698,
+    "giftName": "小蛋糕",
+    "num": 1,
+    "price": 1500,
+    "discount_price": 1500,
+    "total_coin": 5000,
+    "combo_total_coin": 1500,
+    "tid": "test-v1-1",
+    "rnd": "test-v1-1",
+    "timestamp": 1732634266,
+    "switch": true,
+    "blind_gift": {
+      "blind_gift_config_id": 67,
+      "from": 0,
+      "gift_action": "爆出",
+      "gift_tip_price": 1500,
+      "original_gift_id": 32649,
+      "original_gift_name": "星月盲盒",
+      "original_gift_price": 5000
+    }
+  }
+}

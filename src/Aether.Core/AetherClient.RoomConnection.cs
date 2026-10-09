@@ -26,6 +26,7 @@ public sealed partial class AetherClient
         private FileStream? roomLock;
         private IDisposable? roomScope;
         private readonly DanmakuProtocol.FormatNotices formatNotices = new();
+        private BlindBoxStore? blindBoxes;
 
         public async Task RunAsync(CancellationToken cancellationToken)
         {
@@ -154,6 +155,9 @@ public sealed partial class AetherClient
                         }
                         else if (decoded is DanmakuProtocol.DanmakuReceived danmaku)
                             yield return danmaku.Danmaku;
+                        else if (decoded is DanmakuProtocol.BlindBoxReceived blindBox && Settings.BlindBoxEnabled.Value)
+                            (blindBoxes ??= new BlindBoxStore(new Database(client.dataDirectory), client.logger))
+                                .Save(realRoomId, blindBox.Gift);
                     }
                 }
             }

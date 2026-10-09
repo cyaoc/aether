@@ -22,6 +22,7 @@ internal static class DanmakuProtocol
     internal abstract record DecodedEvent;
     internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
     internal sealed record DanmakuReceived(Danmaku Danmaku) : DecodedEvent;
+    internal sealed record BlindBoxReceived(BlindBox Gift) : DecodedEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
     internal sealed class FormatNotices
@@ -67,19 +68,19 @@ internal static class DanmakuProtocol
                 yield return new AuthenticationReply(success);
             }
             else if (packet.Operation == Operation.RoomMessage && authenticated
-                && ParseRoomMessage(packet.Body, receivedAt, notices, logger) is { } danmaku)
-                yield return new DanmakuReceived(danmaku);
+                && ParseRoomMessage(packet.Body, receivedAt, notices, logger) is { } decoded)
+                yield return decoded;
         }
     }
 
     private static bool IsDanmaku(string command) =>
         command == "DANMU_MSG" || command.StartsWith("DANMU_MSG:", StringComparison.Ordinal);
 
-    private static Danmaku? ParseRoomMessage(
+    private static DecodedEvent? ParseRoomMessage(
         ReadOnlyMemory<byte> body, DateTimeOffset receivedAt, FormatNotices notices, ILogger logger)
     {
         string? command = null;
-        Danmaku? danmaku = null;
+        DecodedEvent? decoded = null;
         try
         {
             using var message = JsonDocument.Parse(body);
@@ -91,12 +92,14 @@ internal static class DanmakuProtocol
                 var info = root.GetProperty("info");
                 var nickname = info[2][1].GetString() ?? throw new JsonException("缺少弹幕昵称。");
                 var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
-                danmaku = new Danmaku(receivedAt, nickname, content);
+                decoded = new DanmakuReceived(new Danmaku(receivedAt, nickname, content));
             }
+            else if (command == "SEND_GIFT" && ParseBlindBox(root.GetProperty("data"), body) is { } gift)
+                decoded = new BlindBoxReceived(gift);
         }
         // Only JSON parsing and field access are inside this boundary; frame errors still end the stream.
         catch (Exception error) when (error is JsonException or KeyNotFoundException
-            or InvalidOperationException or IndexOutOfRangeException)
+            or InvalidOperationException or IndexOutOfRangeException or FormatException or OverflowException)
         {
             var length = Math.Min(body.Length, MaxLoggedJsonBytes);
             // Keep a complete UTF-8 prefix when the byte limit lands inside a character.
@@ -109,8 +112,30 @@ internal static class DanmakuProtocol
         // Valid JSON only has literal CR/LF outside strings; keep each capture on one line.
         if (logger.IsEnabled(LogLevel.Trace))
             logger.LogTrace("直播间消息原始 JSON：{Json}", Encoding.UTF8.GetString(body.Span).Replace("\r", "").Replace("\n", ""));
-        if (danmaku is null) logger.LogDebug("忽略直播间事件 {Command}", command);
-        return danmaku;
+        if (decoded is null) logger.LogDebug("忽略直播间事件 {Command}", command);
+        return decoded;
+    }
+
+    private static BlindBox? ParseBlindBox(JsonElement data, ReadOnlyMemory<byte> body)
+    {
+        if (!data.TryGetProperty("blind_gift", out var blind) || blind.ValueKind == JsonValueKind.Null
+            || data.GetProperty("coin_type").GetString() != "gold") return null;
+        var uid = data.GetProperty("uid").GetInt64();
+        var blindId = blind.GetProperty("original_gift_id").GetInt64();
+        var blindPrice = blind.GetProperty("original_gift_price").GetInt64();
+        var giftId = data.GetProperty("giftId").GetInt64();
+        var price = data.GetProperty("price").GetInt64();
+        var num = data.GetProperty("num").GetInt64();
+        var spend = data.GetProperty("total_coin").GetInt64();
+        var timestamp = data.GetProperty("timestamp").GetInt64();
+        if (uid < 0 || blindId <= 0 || giftId <= 0 || blindPrice < 0 || price < 0 || num <= 0 || spend < 0 || timestamp < 0)
+            throw new JsonException("盲盒的标识、金额、个数或送出时间无效。");
+        var tid = data.TryGetProperty("tid", out var id) ? id.GetString() : null;
+        return new BlindBox(uid, data.GetProperty("uname").GetString() ?? throw new JsonException("缺少观众昵称。"),
+            blindId, blind.GetProperty("original_gift_name").GetString() ?? throw new JsonException("缺少盲盒名称。"),
+            blindPrice, giftId, data.GetProperty("giftName").GetString() ?? throw new JsonException("缺少开出礼物名称。"),
+            price, num, spend, checked(price * num), timestamp, string.IsNullOrEmpty(tid) ? null : tid,
+            Encoding.UTF8.GetString(body.Span));
     }
 
     private static IEnumerable<(Operation Operation, ReadOnlyMemory<byte> Body)> Unpack(byte[] bytes, int depth = 0)

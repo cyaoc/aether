@@ -195,8 +195,10 @@ public sealed class CredentialRefreshTests
         Assert.IsType<LoggedIn>(login.Current);
     }
 
-    [Fact]
-    public async Task Version_one_database_preserves_credential_and_checks_immediately_after_migration()
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task Older_database_preserves_credential_and_checks_immediately_after_migration(int oldVersion)
     {
         await using var h = new WatchHarness();
         Directory.CreateDirectory(h.DataDirectory);
@@ -212,6 +214,11 @@ public sealed class CredentialRefreshTests
                 PRAGMA user_version = 1;
                 """;
             command.ExecuteNonQuery();
+            if (oldVersion == 2)
+            {
+                command.CommandText = "ALTER TABLE credential ADD COLUMN checked_at TEXT; PRAGMA user_version = 2;";
+                command.ExecuteNonQuery();
+            }
         }
         h.Http.Responses[Info] = """{"code":0,"data":{"refresh":false,"timestamp":1702204169000}}""";
         await CheckConnectingAsync(h);
@@ -224,7 +231,9 @@ public sealed class CredentialRefreshTests
         using var migrated = TestDatabase.Open(h.DataDirectory);
         using var version = migrated.CreateCommand();
         version.CommandText = "PRAGMA user_version";
-        Assert.Equal(2L, version.ExecuteScalar());
+        Assert.Equal(3L, version.ExecuteScalar());
+        version.CommandText = "SELECT COUNT(*) FROM blind_box";
+        Assert.Equal(0L, version.ExecuteScalar());
     }
 
     [Theory]

@@ -9,6 +9,67 @@ public sealed class SettingsTests : IAsyncDisposable
     private string SettingsPath => Path.Combine(harness.DataDirectory, "aether.yml");
 
     [Fact]
+    public void Blind_box_template_and_boolean_save_use_single_line_values()
+    {
+        Assert.Null(Settings.Load(harness.DataDirectory).Error);
+        var template = File.ReadAllText(SettingsPath);
+        Assert.Contains("下次观看直播间时生效", template);
+        Assert.Contains("blind_box:\n  enabled: true", template);
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
+        Assert.Equal(template.Replace("enabled: true", "enabled: false"), File.ReadAllText(SettingsPath));
+        Assert.Empty(Settings.Load(harness.DataDirectory).UnknownKeys);
+        Assert.False(Settings.Load(harness.DataDirectory).BlindBoxEnabled.Value);
+    }
+
+    [Theory]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    [InlineData("|-\n    false", false)]
+    public void Blind_box_boolean_loads_and_marks_multiline_as_read_only(string scalar, bool expected)
+    {
+        Write($"blind_box:\n  enabled: {scalar}\n");
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(expected, settings.BlindBoxEnabled.Value);
+        Assert.Equal(!scalar.Contains('\n'), settings.BlindBoxEnabled.CanEdit);
+    }
+
+    [Theory]
+    [InlineData("True")]
+    [InlineData("FALSE")]
+    [InlineData("yes")]
+    [InlineData("no")]
+    [InlineData("on")]
+    [InlineData("off")]
+    [InlineData("1")]
+    [InlineData("0")]
+    [InlineData("null")]
+    [InlineData("")]
+    [InlineData("[]")]
+    public void Blind_box_boolean_rejects_everything_except_true_and_false(string scalar)
+    {
+        Write($"blind_box:\n  enabled: {scalar}\n");
+        var before = File.ReadAllText(SettingsPath);
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal("blind_box.enabled", error.SettingName);
+        Assert.Equal(2, error.LineNumber);
+        Assert.NotNull(Settings.Validate("blind_box.enabled", scalar));
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["blind_box.enabled"] = scalar }));
+        Assert.Equal(before, File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Missing_blind_box_group_defaults_to_enabled_and_is_appended_when_changed()
+    {
+        const string yaml = "# 保留\r\nlog:\r\n  level: Debug\r\n";
+        Write(yaml);
+        Assert.True(Settings.Load(harness.DataDirectory).BlindBoxEnabled.Value);
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
+        Assert.Equal(yaml + "blind_box:\r\n  enabled: false\r\n", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
     public void Save_changes_only_the_requested_scalar_bytes()
     {
         const string yaml = "# 我的注释 🌙\r\nlog:\r\n  retention_days: '7'  # 一周\r\n  level: Debug\r\n\r\nfuture: {option: true}\r\n";

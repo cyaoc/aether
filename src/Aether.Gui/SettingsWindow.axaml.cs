@@ -36,6 +36,9 @@ public partial class SettingsWindow : Window
         LevelInput.SelectedItem = settings.LogLevel.Value;
         LevelInput.IsEnabled = settings.LogLevel.CanEdit;
         LevelReadOnly.IsVisible = !settings.LogLevel.CanEdit;
+        BlindBoxInput.IsChecked = settings.BlindBoxEnabled.Value;
+        BlindBoxInput.IsEnabled = settings.BlindBoxEnabled.CanEdit;
+        BlindBoxReadOnly.IsVisible = !settings.BlindBoxEnabled.CanEdit;
         UnknownKeysMessage.IsVisible = settings.UnknownKeys.Count > 0;
         UnknownKeysMessage.Text = $"未知设置键：{string.Join("、", settings.UnknownKeys)}。保存后会原样保留。";
         Validate();
@@ -46,7 +49,7 @@ public partial class SettingsWindow : Window
         var error = settings.Error?.Message ?? InputError(settings.LogRetentionDays, RetentionInput.Text)
             ?? InputError(settings.LogLevel, LevelInput.SelectedItem?.ToString());
         Message.Text = error ?? "";
-        SaveButton.IsEnabled = error is null && (settings.LogRetentionDays.CanEdit || settings.LogLevel.CanEdit);
+        SaveButton.IsEnabled = error is null && (settings.LogRetentionDays.CanEdit || settings.LogLevel.CanEdit || settings.BlindBoxEnabled.CanEdit);
     }
 
     /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
@@ -61,11 +64,12 @@ public partial class SettingsWindow : Window
         var changes = new Dictionary<string, string>();
         if (settings.LogRetentionDays.CanEdit) changes[settings.LogRetentionDays.Name] = RetentionInput.Text!;
         if (settings.LogLevel.CanEdit) changes[settings.LogLevel.Name] = LevelInput.SelectedItem!.ToString()!;
+        if (settings.BlindBoxEnabled.CanEdit) changes[settings.BlindBoxEnabled.Name] = BlindBoxInput.IsChecked == true ? "true" : "false";
         try
         {
             Settings.Save(dataDirectory, changes, settings);
             LoadSettings();
-            if (settings.Error is null) Message.Text = "已保存，日志设置重启后生效。";
+            if (settings.Error is null) Message.Text = "已保存，日志设置重启后生效，盲盒统计开关下次观看直播间时生效。";
         }
         catch (Exception error) when (error is SettingsException or IOException or UnauthorizedAccessException)
         {
