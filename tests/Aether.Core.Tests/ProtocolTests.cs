@@ -34,7 +34,7 @@ public sealed class ProtocolTests
 
         Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.Equal(new Danmaku(h.Time.GetLocalNow(), "观众", "正常弹幕"), updates.Current);
-        var warning = Assert.Single(h.Logger.Entries, entry => entry.Level != Microsoft.Extensions.Logging.LogLevel.Trace);
+        var warning = Assert.Single(EntriesAboveTrace(h));
         Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, warning.Level);
         if (command is not null) Assert.Contains(command, warning.Message);
         Assert.Contains(body, warning.Message);
@@ -59,7 +59,7 @@ public sealed class ProtocolTests
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
             Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"正常",[0,"观众"]]}"""), 0));
         Assert.True(await updates.MoveNextAsync());
-        var warning = Assert.Single(h.Logger.Entries, entry => entry.Level != Microsoft.Extensions.Logging.LogLevel.Trace).Message;
+        var warning = Assert.Single(EntriesAboveTrace(h)).Message;
         Assert.Contains(truncated ? new string('x', 2046) : body, warning);
         Assert.Equal(truncated, warning.Contains("已截断"));
         Assert.DoesNotContain("中", warning);
@@ -123,10 +123,86 @@ public sealed class ProtocolTests
         await h.Server.PushAsync(await FixtureAsync("danmaku-brotli.bin"));
         Assert.True(await updates.MoveNextAsync());
         Assert.Equal("达***", Assert.IsType<Danmaku>(updates.Current).Nickname);
-        Assert.Collection(h.Logger.Entries.Where(entry => entry.Level != Microsoft.Extensions.Logging.LogLevel.Trace),
+        Assert.Collection(EntriesAboveTrace(h),
             entry => { Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Debug, entry.Level); Assert.Contains("ENTRY_EFFECT", entry.Message); },
             entry => { Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Debug, entry.Level); Assert.Contains("ENTRY_EFFECT", entry.Message); });
     }
+
+    [Fact]
+    public async Task Gift_message_version_is_reported_when_first_seen_and_again_when_it_switches()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        await PushRoomMessagesAsync(h, GiftV1, GiftV1, GiftV2, GiftV2, GiftV1, SyncDanmaku);
+        Assert.True(await updates.MoveNextAsync());
+        Assert.Collection(GiftVersionNotices(h),
+            message => Assert.Contains("V1", message),
+            message => Assert.Contains("V2", message),
+            message => Assert.Contains("V1", message));
+    }
+
+    [Fact]
+    public async Task Unknown_danmaku_or_gift_command_is_warned_once_per_command()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        await PushRoomMessagesAsync(h, UnknownDanmaku, UnknownDanmaku, """{"cmd":"SEND_GIFT_V3","data":{}}""",
+            """{"cmd":"DANMU_MSG_MIRROR","info":[[],"对方直播间",[0,"观众"]]}""", """{"cmd":"INTERACT_WORD_V2","data":{}}""",
+            GiftV1, GiftV2, """{"cmd":"DANMU_MSG:4:0:2:2:2:0","info":[[],"同步",[0,"观众"]]}""");
+        Assert.True(await updates.MoveNextAsync());
+        Assert.Collection(Warnings(h),
+            message => Assert.Contains("DANMU_MSG_V2", message),
+            message => Assert.Contains("SEND_GIFT_V3", message));
+    }
+
+    [Fact]
+    public async Task Format_notices_survive_reconnects_and_restart_with_the_next_room_connection()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using (var updates = await h.WatchConnectedAsync())
+        {
+            await PushRoomMessagesAsync(h, GiftV1, UnknownDanmaku, SyncDanmaku);
+            Assert.True(await updates.MoveNextAsync());
+            await h.Server.DisconnectAsync();
+            Assert.True(await updates.MoveNextAsync());
+            Assert.IsType<Reconnecting>(updates.Current);
+            await h.AdvanceRetryAsync(updates, 1);
+            Assert.IsType<Connected>(updates.Current);
+            await PushRoomMessagesAsync(h, GiftV1, UnknownDanmaku, SyncDanmaku);
+            Assert.True(await updates.MoveNextAsync());
+            Assert.Single(GiftVersionNotices(h));
+            Assert.Single(Warnings(h), message => message.Contains("DANMU_MSG_V2"));
+        }
+
+        await using var next = await h.WatchConnectedAsync();
+        await PushRoomMessagesAsync(h, GiftV1, UnknownDanmaku, SyncDanmaku);
+        Assert.True(await next.MoveNextAsync());
+        Assert.Equal(2, GiftVersionNotices(h).Length);
+        Assert.Equal(2, Warnings(h).Count(message => message.Contains("DANMU_MSG_V2")));
+    }
+
+    private const string UnknownDanmaku ="""{"cmd":"DANMU_MSG_V2","data":{}}""";
+    private const string GiftV1 ="""{"cmd":"SEND_GIFT","data":{}}""";
+    private const string GiftV2 = """{"cmd":"SEND_GIFT_V2","data":{}}""";
+    private const string SyncDanmaku = """{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""";
+
+    /// <summary>Pushes room messages in one frame; end with a danmaku and read it to know every earlier one was handled.</summary>
+    private static Task PushRoomMessagesAsync(WatchHarness h, params string[] bodies) =>
+        h.Server.PushAsync(bodies.SelectMany(body => FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(body), 0)).ToArray());
+
+    private static string[] GiftVersionNotices(WatchHarness h) => h.Logger.Entries
+        .Where(entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Information && entry.Message.Contains("礼物消息"))
+        .Select(entry => entry.Message).ToArray();
+
+    /// <summary>Everything logged except the Trace captures of raw room messages.</summary>
+    private static IEnumerable<(Microsoft.Extensions.Logging.LogLevel Level, string Message)> EntriesAboveTrace(WatchHarness h) =>
+        h.Logger.Entries.Where(entry => entry.Level != Microsoft.Extensions.Logging.LogLevel.Trace);
+
+    private static string[] Warnings(WatchHarness h) => h.Logger.Entries
+        .Where(entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Warning).Select(entry => entry.Message).ToArray();
 
     private static Task<byte[]> FixtureAsync(string name) =>
         File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Fixtures", name), TestContext.Current.CancellationToken);

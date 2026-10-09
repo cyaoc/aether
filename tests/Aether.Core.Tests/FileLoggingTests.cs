@@ -60,8 +60,13 @@ public sealed class FileLoggingTests
         else Assert.Empty(captures);
         if (level <= LogLevel.Warning)
             Assert.Contains(malformed, Assert.Single(lines, line => line.Contains("[WRN]")));
+        // The SEND_GIFT then SEND_GIFT_V2 above report the gift message version, then its switch.
+        var notices = lines.Where(line => line.Contains("[INF]")).ToArray();
+        if (level <= LogLevel.Information)
+            Assert.Collection(notices, line => Assert.Contains("V1", line), line => Assert.Contains("V2", line));
+        else Assert.Empty(notices);
         Assert.Equal(ignored.Length * (level <= LogLevel.Debug ? 1 : 0)
-            + (level <= LogLevel.Warning ? 1 : 0) + captures.Length, lines.Length);
+            + (level <= LogLevel.Warning ? 1 : 0) + notices.Length + captures.Length, lines.Length);
         Assert.False(Directory.Exists(Path.Combine(h.DataDirectory, "logs", "6")));
         var logs = Path.Combine(h.DataDirectory, "logs");
         if (Directory.Exists(logs)) Assert.Empty(Directory.GetFiles(logs, "*.log"));

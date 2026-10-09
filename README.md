@@ -76,6 +76,11 @@ CLI 和 GUI 的文件日志位于 `data/logs/`，默认记录 Information 及以
 进程未处理异常、未观察到的 Task 异常和 GUI UI 线程未处理异常立即记录，不标记为已处理，
 仍遵循运行时原本的退出行为（未观察到的 Task 异常默认不终止 .NET 进程）。
 跳过无法解析的直播间消息时，警告附原始 JSON；超过 2KB 按 UTF-8 字节截断并注明。
+`log.level` 设为 `Trace` 时，每条直播间消息另记一条完整的原始 JSON，不截断，含观众的 uid、昵称等个人信息，
+只在抓包时临时开启，步骤见 [测试数据说明](tests/Aether.Core.Tests/Fixtures/README.md)。
+每个直播间连接第一次收到礼物消息时记一条 Information，写明是 V1（`SEND_GIFT`）还是 V2（`SEND_GIFT_V2`），版本切换时再记一条；
+收到不认识、以 `DANMU_MSG` 或 `SEND_GIFT` 开头的 cmd 时记一条警告，提示消息格式可能变了，同一直播间连接中每个 cmd 只记一次。
+自动重连不重新提示。
 
 弹幕以 UTF-8 写到 stdout：`[HH:mm:ss] 昵称: 内容`；状态和日志写到 stderr。
 Ctrl+C 关闭连接并正常退出，错误返回非零退出码。每次 `watch` 开始直播间连接时，

@@ -35,7 +35,7 @@
 
 2. 重启程序，正常连接目标直播间。开发时可在仓库根目录运行
    `dotnet run --project src/Aether.Cli -- watch <房间号>`，也可用 GUI 连接。
-   开发构建的数据目录位于仓库根目录；发布构建位于程序旁边。
+   数据目录见 ADR 0002：Debug 构建用仓库根目录下的 `data/`，Release 构建用程序目录下的 `data/`。
 3. 查看 `data/logs/<真实房间号>/aether-yyyyMMdd.log`（日期按本地时间）。
    即使输入短房间号，目录名也是解析后的真实房间号。先用普通弹幕确认出现
    `[VRB] ... 直播间消息原始 JSON：{...}`，再采集所需事件。
@@ -68,6 +68,8 @@ PY
 ```
 
 参数可只保留需要的 cmd，例如 `SEND_GIFT_V2`。`DANMU_MSG` 也会匹配带版本后缀的 cmd。
+脚本按日志类别 `Aether.Core.AetherClient` 匹配；有原始 JSON 却提取不到时，先确认日志里的类别名没变。
+只想知道直播间当前推 V1 还是 V2 礼物消息时不必开 Trace：Information 日志会写明。
 此方法得到 JSON，不是带包头的 WebSocket 二进制帧；保存为测试数据时应注明捕获日期、
 事件背景、cmd 和脱敏范围，合成样本须明确标为合成。
 
