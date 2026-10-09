@@ -10,6 +10,37 @@ namespace Aether.Gui.Tests;
 public sealed class SettingsWindowTests
 {
     [Fact]
+    public Task Multiline_blind_box_switch_is_read_only_and_preserved_when_saving() =>
+        WithSettingsWindow("blind_box:\n  enabled: |-\n    false\nlog:\n  level: Debug\n", (window, path) =>
+        {
+            var input = window.FindControl<CheckBox>("BlindBoxInput")!;
+            Assert.False(input.IsChecked);
+            Assert.False(input.IsEnabled);
+            Assert.True(window.FindControl<TextBlock>("BlindBoxReadOnly")!.IsVisible);
+            window.FindControl<ComboBox>("LevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
+            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("blind_box:\n  enabled: |-\n    false\nlog:\n  level: Warning\n", File.ReadAllText(path));
+        });
+
+    [Fact]
+    public Task Blind_box_switch_loads_changes_and_saves_without_touching_other_lines() =>
+        WithSettingsWindow("# 保留\nblind_box:\n  enabled: false # 开关\n", (window, path) =>
+        {
+            var input = window.FindControl<CheckBox>("BlindBoxInput");
+            Assert.NotNull(input);
+            Assert.False(input.IsChecked);
+            input.IsChecked = true;
+            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("# 保留\nblind_box:\n  enabled: true # 开关\n", File.ReadAllText(path));
+            Assert.True(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);
+            Assert.StartsWith("已保存", window.FindControl<TextBlock>("Message")!.Text);
+            Assert.Contains("下次观看直播间时生效", input.Content as string);
+            input.IsChecked = false;
+            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);
+        });
+
+    [Fact]
     public Task Multiline_level_is_read_only() =>
         WithSettingsWindow("log:\n  level: |-\n    Debug\n", (window, _) =>
         {

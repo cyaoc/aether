@@ -79,7 +79,7 @@ public sealed partial class AetherClient
             long realRoomId, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var credentials = client.credentialStore.Value;
+            var credentials = client.stores.Value.Credentials;
             var credential = await client.RefreshCredentialIfDueAsync(cancellationToken, cancellationToken);
             var api = new BilibiliApi(client.http, client.timeProvider, credential);
             while (!await api.IsLoggedInAsync(cancellationToken))
@@ -154,6 +154,10 @@ public sealed partial class AetherClient
                         }
                         else if (decoded is DanmakuProtocol.DanmakuReceived danmaku)
                             yield return danmaku.Danmaku;
+                        // ponytail: a synchronous SQLite write on the receive loop (busy waits up to Microsoft.Data.Sqlite's 30 s
+                        // command timeout, well inside the 60 s idle deadline); hand it to a background writer if a room ever stalls on it.
+                        else if (decoded is DanmakuProtocol.BlindBoxReceived received && Settings.BlindBoxEnabled.Value)
+                            client.stores.Value.BlindBoxes.Save(realRoomId, received.BlindBox);
                     }
                 }
             }
@@ -180,13 +184,13 @@ public sealed partial class AetherClient
             {
                 while (true)
                 {
-                    var checkedAt = client.credentialStore.Value.Load()?.CheckedAt;
+                    var checkedAt = client.stores.Value.Credentials.Load()?.CheckedAt;
                     var delay = checkedAt + CredentialCheckInterval - client.timeProvider.GetUtcNow();
                     // An overdue check failed transiently; give it another opportunity without a busy loop.
                     await Task.Delay(delay is { } remaining && remaining > TimeSpan.Zero
                         ? remaining : TimeSpan.FromSeconds(30), client.timeProvider, stop.Token);
                     // Signed out elsewhere: this connection keeps going and the next reconnect asks for a scan.
-                    if (client.credentialStore.Value.Load() is null) return;
+                    if (client.stores.Value.Credentials.Load() is null) return;
                     // Gone after the check means B站 rejected the refresh and the credential was deleted.
                     if (await client.RefreshCredentialIfDueAsync(stop.Token, cancellationToken) is null)
                     {

@@ -22,9 +22,15 @@ public sealed partial class AetherClient(
     private readonly TimeProvider timeProvider = timeProvider;
     private readonly ILogger<AetherClient> logger = logger;
     private readonly string dataDirectory = dataDirectory;
-    // PublicationOnly does not cache a failed open, so a transient database error does not poison a long-lived client.
-    private readonly Lazy<CredentialStore> credentialStore = new(
-        () => new CredentialStore(new Database(dataDirectory)), LazyThreadSafetyMode.PublicationOnly);
+    // One database for the whole client, opened on first use. PublicationOnly does not cache a failed open,
+    // so a transient database error does not poison a long-lived client.
+    private readonly Lazy<Stores> stores = new(() =>
+    {
+        var database = new Database(dataDirectory);
+        return new Stores(new CredentialStore(database), new BlindBoxStore(database, logger));
+    }, LazyThreadSafetyMode.PublicationOnly);
+
+    private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes);
 
     private static readonly TimeSpan CredentialCheckInterval = TimeSpan.FromHours(24);
 
@@ -42,7 +48,7 @@ public sealed partial class AetherClient(
     /// and its next reconnect asks for a scan.</remarks>
     public async Task LogoutAsync(CancellationToken cancellationToken = default)
     {
-        var credentials = credentialStore.Value;
+        var credentials = stores.Value.Credentials;
         try
         {
             if (credentials.Load() is { } credential)
@@ -130,7 +136,7 @@ public sealed partial class AetherClient(
         string? previousToken = null)
     {
         // Everything that can fail on its own runs before the first QR code, so no scan is wasted.
-        var credentials = credentialStore.Value;
+        var credentials = stores.Value.Credentials;
         var api = new BilibiliApi(http, timeProvider, credential: null);
         while (true)
         {
@@ -195,7 +201,7 @@ public sealed partial class AetherClient(
     private async Task<Credential?> RefreshCredentialIfDueAsync(
         CancellationToken cancellationToken, CancellationToken refreshCancellation)
     {
-        var credentials = credentialStore.Value;
+        var credentials = stores.Value.Credentials;
         var credential = credentials.Load();
         if (credential is null || credential.CheckedAt is { } checkedAt
             && timeProvider.GetUtcNow() - checkedAt < CredentialCheckInterval) return credential;

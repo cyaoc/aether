@@ -1,4 +1,17 @@
-# 真实流量测试数据
+# 协议测试数据
+
+## V1 盲盒重建样本
+
+`blind-gift-v1.json` **不是自己的抓包**。以
+[BAC 的 SEND_GIFT 示例](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L1612-L1714)
+为骨架（其中 `blind_gift` 原为 null），按
+[调研笔记第 2.1 节](../../../docs/research/blind-box-gift-events.md#21-v1-真实样本)
+引用的 Pcrab 第三方日志补入星月盲盒、小蛋糕、单价、投入和时间戳。
+仅保留解析和金额核对相关字段；uid、昵称、tid/rnd 换成固定测试值，头像、勋章、接收者及连击嵌套个人信息已裁掉。
+测试代码中的多条投递、连击、重复 tid、缺失 tid 和异常字段是合成边界，不能代替真实 V1 验证。
+以后获得真实 V1 样本，按下文隐私处理要求另加文件并记录来源，不覆盖此重建样本。
+
+## 2026-10-05 真实流量
 
 2026-10-05 从用户指定的直播间 `1768506153` 匿名抓取；认证 uid 为 0，
 无 SESSDATA。分别用 protover 3 和 2 协商 brotli / zlib。

@@ -36,36 +36,46 @@ public partial class SettingsWindow : Window
         LevelInput.SelectedItem = settings.LogLevel.Value;
         LevelInput.IsEnabled = settings.LogLevel.CanEdit;
         LevelReadOnly.IsVisible = !settings.LogLevel.CanEdit;
+        BlindBoxInput.IsChecked = settings.BlindBoxEnabled.Value;
+        BlindBoxInput.IsEnabled = settings.BlindBoxEnabled.CanEdit;
+        BlindBoxReadOnly.IsVisible = !settings.BlindBoxEnabled.CanEdit;
         UnknownKeysMessage.IsVisible = settings.UnknownKeys.Count > 0;
         UnknownKeysMessage.Text = $"未知设置键：{string.Join("、", settings.UnknownKeys)}。保存后会原样保留。";
         Validate();
     }
 
+    /// <summary>Each setting this form edits and the text its control now holds; validating, enabling Save
+    /// and saving all read this one list.</summary>
+    private (string Name, bool CanEdit, string? Input)[] Fields() =>
+    [
+        (settings.LogRetentionDays.Name, settings.LogRetentionDays.CanEdit, RetentionInput.Text),
+        (settings.LogLevel.Name, settings.LogLevel.CanEdit, LevelInput.SelectedItem?.ToString()),
+        (settings.BlindBoxEnabled.Name, settings.BlindBoxEnabled.CanEdit, Settings.BooleanText(BlindBoxInput.IsChecked == true)),
+    ];
+
     private void Validate()
     {
-        var error = settings.Error?.Message ?? InputError(settings.LogRetentionDays, RetentionInput.Text)
-            ?? InputError(settings.LogLevel, LevelInput.SelectedItem?.ToString());
+        var fields = Fields();
+        var error = settings.Error?.Message ?? fields.Select(InputError).FirstOrDefault(reason => reason is not null);
         Message.Text = error ?? "";
-        SaveButton.IsEnabled = error is null && (settings.LogRetentionDays.CanEdit || settings.LogLevel.CanEdit);
+        SaveButton.IsEnabled = error is null && fields.Any(field => field.CanEdit);
     }
 
     /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
-    private static string? InputError<T>(Setting<T> setting, string? input) =>
-        setting.CanEdit && Settings.Validate(setting.Name, input) is { } reason ? $"{setting.Name}：{reason}" : null;
+    private static string? InputError((string Name, bool CanEdit, string? Input) field) =>
+        field.CanEdit && Settings.Validate(field.Name, field.Input) is { } reason ? $"{field.Name}：{reason}" : null;
 
     private void Save(object? sender, RoutedEventArgs e)
     {
         Validate();
         if (!SaveButton.IsEnabled) return;
         // Core leaves alone what this form was filled with, so an untouched setting keeps its spelling and any edit made elsewhere.
-        var changes = new Dictionary<string, string>();
-        if (settings.LogRetentionDays.CanEdit) changes[settings.LogRetentionDays.Name] = RetentionInput.Text!;
-        if (settings.LogLevel.CanEdit) changes[settings.LogLevel.Name] = LevelInput.SelectedItem!.ToString()!;
+        var changes = Fields().Where(field => field.CanEdit).ToDictionary(field => field.Name, field => field.Input!);
         try
         {
             Settings.Save(dataDirectory, changes, settings);
             LoadSettings();
-            if (settings.Error is null) Message.Text = "已保存，日志设置重启后生效。";
+            if (settings.Error is null) Message.Text = "已保存，各项按标注的时机生效。";
         }
         catch (Exception error) when (error is SettingsException or IOException or UnauthorizedAccessException)
         {

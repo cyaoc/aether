@@ -44,16 +44,22 @@ CLI 和 GUI 共用 bot 设置文件 `data/aether.yml`（数据目录位置见下
 log:
   retention_days: 30
   level: Information
+blind_box:
+  enabled: true
 ```
 
 `log.retention_days` 是日志保留天数，必须为正整数，默认 30；`log.level` 是文件日志最低级别，
 可选 Trace、Debug、Information、Warning、Error、Critical，默认 Information。日志设置在进程启动时读取，修改后重启生效。
+`blind_box.enabled` 只接受 `true` 或 `false`，默认 `true`，下次观看直播间时生效，自动重连不重新读取。
+启用时把 V1 `SEND_GIFT` 的 gold 盲盒记入 `data/aether.db`，保存原始消息；金额为整数金瓜子，
+投入按 `total_coin`、开出价值按 `price × num`。相同 `tid` 只记录一次：内容也相同时视为重复推送，警告里带上被忽略的开出礼物、个数和投入；内容不同时警告 `tid` 可能不是按礼物项唯一，金额可从警告补回。数字形式的 `tid` 按其数字文本保存。以下情况都未实测确认，所以在默认日志级别下可见：uid 为 0 的盲盒（可能是神秘人）不记录，记一条 Information；带 `blind_gift` 但不是 gold 的礼物不记录并警告；`switch` 为 false 的盲盒照常记录并警告。
+当前不记录 `SEND_GIFT_V2`，也不累计 `COMBO_SEND` / `COMBO_END`。每条记录的观众、礼物和金额可在 Information 日志中查看。
 缺少的项使用默认值；未知键会列在警告中，仍照常运行。设置格式遵循 [ADR 0004](docs/adr/0004-settings-file-line-editing.md)：
 英文 snake_case 键，分组下每个设置占一行。有效的多行标量仍可读取，但多行写法、嵌套结构和行内分组标为不能逐行编辑；
-这两项只接受整数或级别名，不接受嵌套对象。
+日志两项只接受整数或级别名，盲盒开关只接受布尔值，不接受嵌套对象。
 已知分组和设置名不能重复，即使键使用了不同的 YAML 标签；错误会定位到重复项，保存时文件保持不变。
 
-GUI 主窗口点“设置”打开独立窗口，可修改日志保留天数和级别，点“保存”写入 `aether.yml`，重启程序后生效。
+GUI 主窗口点“设置”打开独立窗口，可修改日志保留天数、级别和盲盒统计开关，点“保存”写入 `aether.yml`，按各项提示的时机生效。
 保存只修改改过的值；手动添加的注释、行尾注释、未知键和空行会原样保留。缺少的设置追加到分组末尾，
 缺少的分组追加到文档末尾。输入不合法时立即显示 Core 的提示并禁用保存；文件有错时显示路径和行号，修好后重新打开设置窗口。
 多行等不能逐行编辑的项显示为只读，可点“打开设置文件”用系统默认程序手改。
@@ -129,7 +135,8 @@ Ctrl+C 取消则保留本地凭据。
 数据目录遵循 [ADR 0002](docs/adr/0002-portable-data-directory.md)：Release 用程序目录下的 `data/`；
 Debug 从程序目录向上寻找 `Aether.slnx`，用其所在目录下的 `data/`，找不到则退回程序目录。
 与启动命令所在目录无关。SQLite 文件是 `data/aether.db`，使用 WAL；`PRAGMA user_version`
-记录表结构版本，当前为 2。升级使用手写 SQL，并与版本号在同一事务中提交。
+记录表结构版本，当前为 3。升级使用手写 SQL，并与版本号在同一事务中提交。
+v2 升级到 v3 保留登录凭据，新增 `blind_box` 表，按真实房间号、观众 uid 和送出时间建立索引。
 `credential` 表只存一行，保存完整 cookie 名值 JSON、refresh_token、UTC 保存时间和检查时间 `checked_at`。
 v1 升级后保留原凭据，检查时间为空，下次连接立即检查；扫码或刷新保存时检查时间等于保存时间。
 凭据暂存明文，`data/` 已被 Git 忽略；连接开启 `secure_delete`，删除或覆盖的凭据不会残留在文件里。
@@ -187,7 +194,7 @@ GUI 手动验收（macOS）：
    修改复选框后重启，确认状态保留。
 9. 关闭 GUI，备份 `data/gui.yml` 并把内容改为 `KeepRecentDanmaku: [`，重新启动仍应正常，且默认勾选。
    验证后恢复备份。
-10. 点“设置”，检查日志分组、两项“重启后生效”提示及深色／浅色下的可读性；改值并保存应显示成功。
+10. 点“设置”，检查日志分组、两项“重启后生效”提示、盲盒统计开关的“下次观看直播间时生效”提示及深色／浅色下的可读性；改值并保存应显示成功。
     点“打开设置文件”，确认系统默认程序打开的是同一份 `data/aether.yml`，手加的注释仍在。
 
 测试使用 xUnit v3 的 Microsoft Testing Platform 运行器（由 `global.json` 选择）：
