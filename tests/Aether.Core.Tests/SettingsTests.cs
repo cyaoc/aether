@@ -14,7 +14,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
         var template = File.ReadAllText(SettingsPath);
         Assert.Contains("下次观看直播间时生效", template);
-        Assert.Contains("blind_box:\n  enabled: true", template);
+        Assert.Contains("blind_box:\n  enabled: true", template.ReplaceLineEndings("\n"));
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
         Assert.Equal(template.Replace("enabled: true", "enabled: false"), File.ReadAllText(SettingsPath));
         Assert.Empty(Settings.Load(harness.DataDirectory).UnknownKeys);
