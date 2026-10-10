@@ -18,8 +18,8 @@ public sealed class BlindBoxTests
         var raw = Gift;
         await h.PushAndSyncAsync(updates, raw);
 
-        Assert.Equal(new object[] { 7734200L, 10001L, "测试观众", 32649L, "星月盲盒", 5000L,
-            32698L, "小蛋糕", 1500L, 1L, 5000L, 1500L, 1732634266L, "test-v1-1", raw },
+        Assert.Equal(new TestDatabase.BlindBoxRow(7734200L, 10001L, "测试观众", 32649L, "星月盲盒", 5000L,
+            32698L, "小蛋糕", 1500L, 1L, 5000L, 1500L, 1732634266L, "test-v1-1", raw),
             Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory)));
         var logged = Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Information && e.Message.Contains("记录盲盒"));
         foreach (var expected in new[] { "测试观众", "星月盲盒", "小蛋糕", "1", "5000", "1500" })
@@ -265,15 +265,6 @@ public sealed class BlindBoxTests
         Assert.Contains(h.Logger.Entries, e => e.Level == LogLevel.Error && e.Message.Contains("直播间连接失败"));
     }
 
-    private static List<(long Num, long Spend, long OpenedValue, string? Tid)> Amounts(WatchHarness h)
-    {
-        using var connection = TestDatabase.Open(h.DataDirectory);
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT num, spend, opened_value, tid FROM blind_box ORDER BY id";
-        using var reader = command.ExecuteReader();
-        List<(long, long, long, string?)> result = [];
-        while (reader.Read())
-            result.Add((reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2), reader.IsDBNull(3) ? null : reader.GetString(3)));
-        return result;
-    }
+    private static List<(long Num, long Spend, long OpenedValue, string? Tid)> Amounts(WatchHarness h) =>
+        TestDatabase.BlindBoxRows(h.DataDirectory).Select(row => (row.Num, row.Spend, row.OpenedValue, row.Tid)).ToList();
 }

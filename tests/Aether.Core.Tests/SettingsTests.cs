@@ -13,7 +13,7 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         // Each default is written twice, in Template and in its definition; this keeps the two from drifting apart.
         var fromTemplate = Settings.Load(harness.DataDirectory);
-        Write("");
+        Write("log:\nblind_box:\nsend:\n");
         var missing = Settings.Load(harness.DataDirectory);
         Assert.Equal(missing.LogRetentionDays.Value, fromTemplate.LogRetentionDays.Value);
         Assert.Equal(missing.LogLevel.Value, fromTemplate.LogLevel.Value);
@@ -23,15 +23,16 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Reply_settings_have_defaults_and_save_missing_keys_without_rewriting_other_lines()
+    public void Blind_box_tally_and_send_queue_settings_have_defaults_and_save_missing_keys_without_rewriting_other_lines()
     {
         Settings.Load(harness.DataDirectory);
         var template = File.ReadAllText(SettingsPath);
         Assert.Contains("keyword: 今日盲盒", template);
         Assert.Contains("interval_seconds: 5", template);
-        // Each new item tells file editors when it applies, on its own comment line.
+        // Group comments say when settings apply; each item describes its accepted values.
         var lines = template.ReplaceLineEndings("\n").Split('\n');
-        Assert.Contains("下次观看直播间时生效", lines[Array.FindIndex(lines, line => line.Contains("keyword: 今日盲盒")) - 1]);
+        Assert.Equal("# 盲盒统计，下次观看直播间时生效", lines[Array.FindIndex(lines, line => line == "blind_box:") - 1]);
+        Assert.Equal("  # 查询关键字，非空文字", lines[Array.FindIndex(lines, line => line.Contains("keyword: 今日盲盒")) - 1]);
         Assert.Contains("下次观看直播间时生效", lines[Array.FindIndex(lines, line => line == "send:") - 1]);
         Assert.Null(Settings.Validate("blind_box.keyword", "查盲盒"));
         Assert.Null(Settings.Validate("send.interval_seconds", "7"));
@@ -56,7 +57,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("send", "interval_seconds", "1.5")]
     [InlineData("send", "interval_seconds", "abc")]
     [InlineData("send", "interval_seconds", "2147483648")]
-    public async Task Invalid_reply_settings_refuse_watching_with_the_setting_location(string group, string key, string value)
+    public async Task Invalid_blind_box_tally_and_send_queue_settings_refuse_watching_with_the_setting_location(string group, string key, string value)
     {
         Write($"{group}:\n  {key}: {value}\n");
         await using var updates = harness.Watch();
@@ -73,7 +74,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("blind_box.keyword", "两行\n文字")]
     [InlineData("send.interval_seconds", "0")]
     [InlineData("send.interval_seconds", "1.5")]
-    public void Reply_settings_validate_and_reject_saving_invalid_input(string name, string value)
+    public void Blind_box_tally_and_send_queue_settings_validate_and_reject_saving_invalid_input(string name, string value)
     {
         Settings.Load(harness.DataDirectory);
         var before = File.ReadAllBytes(SettingsPath);
@@ -84,7 +85,7 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Missing_reply_settings_use_defaults_and_keywords_round_trip_as_Yaml_text()
+    public void Missing_blind_box_tally_and_send_queue_settings_use_defaults_and_keywords_round_trip_as_Yaml_text()
     {
         Write("log:\n  level: Debug\n");
         var settings = Settings.Load(harness.DataDirectory);
@@ -101,7 +102,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
         var template = File.ReadAllText(SettingsPath);
         Assert.Contains("下次观看直播间时生效", template);
-        Assert.Contains("blind_box:\n  enabled: true", template.ReplaceLineEndings("\n"));
+        Assert.Contains("blind_box:\n  # true 或 false，false 时既不记录也不回复\n  enabled: true", template.ReplaceLineEndings("\n"));
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
         Assert.Equal(template.Replace("enabled: true", "enabled: false"), File.ReadAllText(SettingsPath));
         Assert.Empty(Settings.Load(harness.DataDirectory).UnknownKeys);
@@ -146,14 +147,90 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(before, File.ReadAllText(SettingsPath));
     }
 
-    [Fact]
-    public void Missing_blind_box_group_defaults_to_enabled_and_is_appended_when_changed()
+    [Theory]
+    [InlineData("utf-8", "\n", true)]
+    [InlineData("utf-16", "\r\n", true)]
+    [InlineData("utf-16BE", "\r\n", false)]
+    public void Load_appends_commented_missing_groups_without_changing_existing_bytes(string encodingName, string newline, bool finalNewline)
     {
-        const string yaml = "# 保留\r\nlog:\r\n  level: Debug\r\n";
-        Write(yaml);
-        Assert.True(Settings.Load(harness.DataDirectory).BlindBoxEnabled.Value);
+        Directory.CreateDirectory(harness.DataDirectory);
+        var encoding = System.Text.Encoding.GetEncoding(encodingName);
+        var yaml = "# 保留 🌙\nlog:\n  level: Debug # 级别".ReplaceLineEndings(newline) + (finalNewline ? newline : "");
+        File.WriteAllText(SettingsPath, yaml, encoding);
+        var before = File.ReadAllBytes(SettingsPath);
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Null(settings.Error);
+        Assert.True(settings.BlindBoxEnabled.Value);
+        Assert.Equal(LogLevel.Debug, settings.LogLevel.Value);
+        var after = File.ReadAllBytes(SettingsPath);
+        Assert.Equal(before, after[..before.Length]);
+        var appended = encoding.GetString(after[before.Length..]).ReplaceLineEndings("\n");
+        Assert.StartsWith(finalNewline ? "\n# " : "\n\n# ", appended); // A blank line, as between the template's groups.
+        Assert.Contains("# 盲盒统计，下次观看直播间时生效\nblind_box:\n  # true 或 false，false 时既不记录也不回复\n  enabled: true\n  # 查询关键字，非空文字\n  keyword: 今日盲盒\n", appended);
+        Assert.Contains("# 发送队列，下次观看直播间时生效\nsend:\n  # 两次发送之间的秒数，必须为正整数\n  interval_seconds: 5\n", appended);
+        Assert.DoesNotContain("retention_days", appended);
+        Assert.Null(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(after, File.ReadAllBytes(SettingsPath));
+
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
-        Assert.Equal(yaml + "blind_box:\r\n  enabled: false\r\n", File.ReadAllText(SettingsPath));
+        Assert.Equal(encoding.GetPreamble().Concat(encoding.GetBytes(
+            encoding.GetString(after[encoding.GetPreamble().Length..]).Replace("enabled: true", "enabled: false"))),
+            File.ReadAllBytes(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("# 只有注释\n")]
+    [InlineData("  log:\n    level: Debug\n")]
+    [InlineData("!!map\n  log:\n    level: Debug\n")]
+    [InlineData("?\n  log\n: {level: Debug}\n")]
+    [InlineData("log:\u2028  level: Debug\u2028")]
+    public void Load_appends_groups_to_empty_or_indented_documents(string yaml)
+    {
+        Write(yaml);
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        var after = File.ReadAllText(SettingsPath);
+        Assert.StartsWith(yaml, after);
+        Assert.Contains("blind_box:", after);
+        Assert.Contains("send:", after);
+        Assert.True(settings.BlindBoxEnabled.CanEdit);
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
+        Assert.Equal(after.Replace("enabled: true", "enabled: false"), File.ReadAllText(SettingsPath));
+    }
+
+    [Fact, System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    public void Settings_still_load_when_missing_groups_cannot_be_appended()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Unix file modes only.");
+        Write("log:\n  level: Debug\n");
+        var before = File.ReadAllBytes(SettingsPath);
+        var directoryMode = File.GetUnixFileMode(harness.DataDirectory);
+        // A read-only data directory: the appended groups are a convenience, so watching and file logging carry on.
+        File.SetUnixFileMode(harness.DataDirectory, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        try
+        {
+            var settings = Settings.Load(harness.DataDirectory, harness.Logger);
+            Assert.Null(settings.Error);
+            Assert.Equal(LogLevel.Debug, settings.LogLevel.Value);
+            Assert.True(settings.BlindBoxEnabled.Value);
+        }
+        finally { File.SetUnixFileMode(harness.DataDirectory, directoryMode); }
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+        Assert.Contains(harness.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("未能补写"));
+    }
+
+    [Theory]
+    [InlineData("{log: {level: Debug}}\n")]
+    [InlineData("log:\n  level: Debug\n...\n# 末尾\n")]
+    public void Load_leaves_documents_that_cannot_accept_appended_groups_untouched(string yaml)
+    {
+        Write(yaml);
+        var before = File.ReadAllBytes(SettingsPath);
+        Assert.Null(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
     }
 
     [Fact]
@@ -316,6 +393,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(LogLevel.Debug, settings.LogLevel.Value);
         Assert.False(settings.LogLevel.CanEdit);
         Assert.False(settings.LogRetentionDays.CanEdit);
+        Assert.Equal(bytes, File.ReadAllBytes(SettingsPath));
         Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
             new Dictionary<string, string> { ["log.level"] = "Warning" }));
         Assert.Equal(bytes, File.ReadAllBytes(SettingsPath));
@@ -349,8 +427,9 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("Critical", LogLevel.Critical)]
     public void Reads_known_values_without_rewriting_the_file(string level, LogLevel expected)
     {
-        var yaml = $"# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\n";
+        var yaml = $"# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\n";
         Write(yaml);
+        var before = File.ReadAllBytes(SettingsPath);
 
         var settings = Settings.Load(harness.DataDirectory);
 
@@ -359,7 +438,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(expected, settings.LogLevel.Value);
         Assert.True(settings.LogRetentionDays.CanEdit);
         Assert.True(settings.LogLevel.CanEdit);
-        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
     }
 
     [Theory]
@@ -374,6 +453,7 @@ public sealed class SettingsTests : IAsyncDisposable
     public void Invalid_values_report_file_line_and_setting(string yaml, string name, long line)
     {
         Write(yaml);
+        var before = File.ReadAllBytes(SettingsPath);
 
         var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
 
@@ -383,17 +463,20 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Contains(SettingsPath, error.Message);
         Assert.Contains($"第 {line} 行", error.Message);
         Assert.Contains(name, error.Message);
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
     }
 
     [Fact]
     public void Malformed_yaml_reports_the_parser_line()
     {
         Write("log:\n  level: @bad\n");
+        var before = File.ReadAllBytes(SettingsPath);
 
         var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
 
         Assert.Equal(SettingsPath, error.FilePath);
         Assert.Equal(2, error.LineNumber);
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
     }
 
     [Fact]

@@ -182,15 +182,17 @@ internal sealed class BilibiliApi
     public async Task ReplyAsync(long roomId, Danmaku trigger, string message, CancellationToken cancellationToken)
     {
         var csrf = credential?.Cookies["bili_jct"] ?? throw new InvalidOperationException("缺少登录凭据。");
+        List<KeyValuePair<string, string>> form = [
+            new("roomid", roomId.ToString(CultureInfo.InvariantCulture)), new("msg", message),
+            new("rnd", timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
+            new("fontsize", "25"), new("color", "16777215"), new("mode", "1"), new("bubble", "0"),
+            new("csrf", csrf), new("csrf_token", csrf), new("reply_mid", trigger.Uid.ToString(CultureInfo.InvariantCulture)),
+            new("reply_uname", ""), new("reply_attr", "0"),
+        ];
+        if (trigger.Id.Length > 0) form.Add(new("replay_dmid", trigger.Id));
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.live.bilibili.com/msg/send")
         {
-            Content = new FormUrlEncodedContent([
-                new("roomid", roomId.ToString(CultureInfo.InvariantCulture)), new("msg", message),
-                new("rnd", timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
-                new("fontsize", "25"), new("color", "16777215"), new("mode", "1"), new("bubble", "0"),
-                new("csrf", csrf), new("csrf_token", csrf), new("reply_mid", trigger.Uid.ToString(CultureInfo.InvariantCulture)),
-                new("replay_dmid", trigger.Id), new("reply_uname", ""), new("reply_attr", "0"),
-            ]),
+            Content = new FormUrlEncodedContent(form),
         };
         await SendAsync(request, LiveReferer, "发送弹幕", cancellationToken, sendingDanmaku: true);
     }

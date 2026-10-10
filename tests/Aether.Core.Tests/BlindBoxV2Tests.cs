@@ -19,12 +19,12 @@ public sealed class BlindBoxV2Tests
 
         var rows = TestDatabase.BlindBoxRows(h.DataDirectory);
         Assert.Equal(3, rows.Count);
-        Assert.Equal(new object[] { 7734200L, 10001L, "测试观众", 35206L, "幸运盲盒", 5000L,
-            35311L, "好运柚叶", 2500L, 1L, 5000L, 2500L, 1732634266L, "test-v2-1", raw }, rows[0]);
-        Assert.Equal(new object[] { 7734200L, 10001L, "测试观众", 35206L, "幸运盲盒", 5000L,
-            35208L, "星光铃铛", 5200L, 8L, 40000L, 41600L, 1732634266L, "test-v2-2", raw }, rows[1]);
-        Assert.Equal(new object[] { 7734200L, 10001L, "测试观众", 35206L, "幸运盲盒", 5000L,
-            35207L, "幸运泡泡", 1500L, 1L, 5000L, 1500L, 1732634266L, "test-v2-3", raw }, rows[2]);
+        Assert.Equal(new TestDatabase.BlindBoxRow(7734200L, 10001L, "测试观众", 35206L, "幸运盲盒", 5000L,
+            35311L, "好运柚叶", 2500L, 1L, 5000L, 2500L, 1732634266L, "test-v2-1", raw), rows[0]);
+        Assert.Equal(new TestDatabase.BlindBoxRow(7734200L, 10001L, "测试观众", 35206L, "幸运盲盒", 5000L,
+            35208L, "星光铃铛", 5200L, 8L, 40000L, 41600L, 1732634266L, "test-v2-2", raw), rows[1]);
+        Assert.Equal(new TestDatabase.BlindBoxRow(7734200L, 10001L, "测试观众", 35206L, "幸运盲盒", 5000L,
+            35207L, "幸运泡泡", 1500L, 1L, 5000L, 1500L, 1732634266L, "test-v2-3", raw), rows[2]);
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Warning);
         Assert.Equal(3, h.Logger.Entries.Count(e => e.Message.StartsWith("记录盲盒")));
         Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Trace && e.Message.Contains("SEND_GIFT_V2"));
@@ -40,21 +40,21 @@ public sealed class BlindBoxV2Tests
         await h.PushAndSyncAsync(updates, messages);
 
         var rows = TestDatabase.BlindBoxRows(h.DataDirectory);
-        Assert.Equal(new long[] { 1, 1, 3, 6, 1, 1 }, rows.Select(row => (long)row[9]));
-        Assert.Equal(new long[] { 15000, 15000, 45000, 90000, 15000, 15000 }, rows.Select(row => (long)row[10]));
-        Assert.Equal(new long[] { 9000, 2000, 48000, 54000, 9000, 16000 }, rows.Select(row => (long)row[11]));
+        Assert.Equal(new long[] { 1, 1, 3, 6, 1, 1 }, rows.Select(row => row.Num));
+        Assert.Equal(new long[] { 15000, 15000, 45000, 90000, 15000, 15000 }, rows.Select(row => row.Spend));
+        Assert.Equal(new long[] { 9000, 2000, 48000, 54000, 9000, 16000 }, rows.Select(row => row.OpenedValue));
         Assert.Equal(new[] { "test-id-03", "test-id-05", "test-id-07", "test-id-09", "test-id-11", "test-id-13" },
-            rows.Select(row => (string)row[13]));
+            rows.Select(row => row.Tid));
         Assert.Equal(new[] { messages[1], messages[2], messages[2], messages[2], messages[3], messages[4] },
-            rows.Select(row => (string)row[14]));
-        Assert.All(rows, row => { Assert.Equal(32251L, row[3]); Assert.Equal(15000L, row[5]); });
+            rows.Select(row => row.RawMessage));
+        Assert.All(rows, row => { Assert.Equal(32251L, row.BlindGiftId); Assert.Equal(15000L, row.BlindGiftPrice); });
         // Expected values decoded independently from the same capture (see docs/research/2026-10-09-gift-capture.md).
-        Assert.All(rows, row => { Assert.Equal(10001L, row[1]); Assert.Equal("测试观众", row[2]); Assert.Equal("心动盲盒", row[4]); });
-        Assert.Equal(new long[] { 32126, 32125, 32128, 32126, 32126, 32128 }, rows.Select(row => (long)row[6]));
-        Assert.Equal(new[] { "棉花糖", "电影票", "爱心抱枕", "棉花糖", "棉花糖", "爱心抱枕" }, rows.Select(row => (string)row[7]));
+        Assert.All(rows, row => { Assert.Equal(10001L, row.Uid); Assert.Equal("测试观众", row.Nickname); Assert.Equal("心动盲盒", row.BlindGiftName); });
+        Assert.Equal(new long[] { 32126, 32125, 32128, 32126, 32126, 32128 }, rows.Select(row => row.OpenedGiftId));
+        Assert.Equal(new[] { "棉花糖", "电影票", "爱心抱枕", "棉花糖", "棉花糖", "爱心抱枕" }, rows.Select(row => row.OpenedGiftName));
         // The send time decides which Beijing day a viewer's 盲盒统计 counts the item in.
         Assert.Equal(new long[] { 1791554681, 1791554956, 1791554956, 1791554956, 1791555128, 1791555129 },
-            rows.Select(row => (long)row[12]));
+            rows.Select(row => row.Timestamp));
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Warning);
     }
 
@@ -128,7 +128,7 @@ public sealed class BlindBoxV2Tests
         await h.PushAndSyncAsync(updates, Message(Broadcast([Item(tid: tid), Item(tid: tid)])));
         var rows = TestDatabase.BlindBoxRows(h.DataDirectory);
         Assert.Equal(2, rows.Count);
-        Assert.All(rows, row => Assert.Equal(DBNull.Value, row[13]));
+        Assert.All(rows, row => Assert.Null(row.Tid));
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Warning);
     }
 
@@ -139,7 +139,7 @@ public sealed class BlindBoxV2Tests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, Message(Broadcast([Item(spend: 4999)])));
-        Assert.Equal(4999L, Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory))[10]);
+        Assert.Equal(4999L, Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory)).Spend);
         Assert.Contains("total_coin", Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning).Message);
     }
 
@@ -168,7 +168,7 @@ public sealed class BlindBoxV2Tests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, Message(bytes));
-        Assert.Equal(2500L, Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory))[11]);
+        Assert.Equal(2500L, Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory)).OpenedValue);
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Warning);
     }
 
@@ -226,7 +226,7 @@ public sealed class BlindBoxV2Tests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, raw, Message(Broadcast([Item()])));
-        Assert.Equal("test-v2-1", Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory))[13]);
+        Assert.Equal("test-v2-1", Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory)).Tid);
         var warning = Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning).Message;
         Assert.Contains("跳过无法解析的直播间消息", warning);
         Assert.Contains("SEND_GIFT_V2", warning);
