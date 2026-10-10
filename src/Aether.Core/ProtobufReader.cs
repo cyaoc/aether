@@ -3,7 +3,9 @@ using System.Text;
 namespace Aether.Core;
 
 /// <summary>Only protobuf wire framing; field numbers and message meaning belong to the caller.</summary>
-internal struct ProtobufReader(ReadOnlyMemory<byte> data)
+// ponytail: reads what B站's gift messages use (plain varints, strings, nested messages, skipped fields); zigzag sint and
+// packed repeated fields would read wrong values, so add readers for them when a message first needs one.
+internal sealed class ProtobufReader(ReadOnlyMemory<byte> data)
 {
     private static readonly UTF8Encoding Utf8 = new(false, true);
     private ReadOnlyMemory<byte> remaining = data;

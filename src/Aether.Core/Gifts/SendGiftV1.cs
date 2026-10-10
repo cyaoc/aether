@@ -20,8 +20,10 @@ internal static class SendGiftV1
             Spend: data.GetProperty("total_coin").GetInt64(),
             OpenedValue: 0,
             Timestamp: data.GetProperty("timestamp").GetInt64(),
+            // BAC types tid as num although every sample so far is a string; either way it is kept as text.
             Tid: !data.TryGetProperty("tid", out var id) ? null
                 : id.ValueKind == JsonValueKind.Number ? id.GetRawText() : id.GetString(),
+            // JSON spells false out, so only an explicit false hides the gift; a message without switch counts as shown.
             Shown: !data.TryGetProperty("switch", out var shown) || shown.ValueKind != JsonValueKind.False,
             RawMessage: ""));
     }

@@ -14,7 +14,8 @@ internal static class GiftMessages
 
     public static string? Version(string command) => Decoders.TryGetValue(command, out var decoder) ? decoder.Version : null;
 
-    // Defer detail reads so ignored ordinary/non-gold gifts need not have valid blind box fields.
+    // A decoder's Read runs only for gold blind boxes: V1 reads lazily so an ordinary gift need not carry blind box fields;
+    // V2 has already parsed every item of its message.
     internal sealed record Gift(bool IsBlindBox, Func<string?> CoinType, Func<BlindBox> Read);
 
     public static BlindBox[] Decode(string command, JsonElement root, ReadOnlyMemory<byte> body, ILogger logger)
@@ -25,15 +26,19 @@ internal static class GiftMessages
         foreach (var gift in decoder.Decode(root.GetProperty("data")))
         {
             if (!gift.IsBlindBox) continue;
+            // No source has ever shown a non-gold blind box; skip it, but loudly.
             if (gift.CoinType() is var coinType && coinType != "gold")
             {
                 logger.LogWarning("收到 coin_type 为 {CoinType} 的盲盒，从未见过这种情况，未记录", coinType);
                 continue;
             }
             var box = gift.Read();
+            // Checked here for every version: protobuf leaves zero and empty fields out, so a missing send time or name
+            // arrives as 0 or "" rather than failing to parse.
             if (box.Uid < 0 || box.BlindGiftId <= 0 || box.OpenedGiftId <= 0 || box.BlindGiftPrice < 0
-                || box.OpenedGiftPrice < 0 || box.Num <= 0 || box.Spend < 0 || box.Timestamp < 0)
-                throw new JsonException("盲盒的标识、金额、个数或送出时间无效。");
+                || box.OpenedGiftPrice < 0 || box.Num <= 0 || box.Spend < 0 || box.Timestamp <= 0
+                || box.BlindGiftName.Length == 0 || box.OpenedGiftName.Length == 0)
+                throw new FormatException("盲盒的标识、名称、金额、个数或送出时间无效。");
             result.Add(box with
             {
                 OpenedValue = checked(box.OpenedGiftPrice * box.Num),

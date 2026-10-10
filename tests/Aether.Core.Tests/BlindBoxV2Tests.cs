@@ -15,9 +15,9 @@ public sealed class BlindBoxV2Tests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var raw = Message(nested: nested);
-        await PushAndSyncAsync(h, updates, raw);
+        await h.PushAndSyncAsync(updates, raw);
 
-        var rows = Rows(h);
+        var rows = TestDatabase.BlindBoxRows(h.DataDirectory);
         Assert.Equal(3, rows.Count);
         Assert.Equal(new object[] { 7734200L, 10001L, "测试观众", 35206L, "幸运盲盒", 5000L,
             35311L, "好运柚叶", 2500L, 1L, 5000L, 2500L, 1732634266L, "test-v2-1", raw }, rows[0]);
@@ -37,9 +37,9 @@ public sealed class BlindBoxV2Tests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var messages = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "gifts-v2-20261009.jsonl"));
-        await PushAndSyncAsync(h, updates, messages);
+        await h.PushAndSyncAsync(updates, messages);
 
-        var rows = Rows(h);
+        var rows = TestDatabase.BlindBoxRows(h.DataDirectory);
         Assert.Equal(new long[] { 1, 1, 3, 6, 1, 1 }, rows.Select(row => (long)row[9]));
         Assert.Equal(new long[] { 15000, 15000, 45000, 90000, 15000, 15000 }, rows.Select(row => (long)row[10]));
         Assert.Equal(new long[] { 9000, 2000, 48000, 54000, 9000, 16000 }, rows.Select(row => (long)row[11]));
@@ -48,6 +48,13 @@ public sealed class BlindBoxV2Tests
         Assert.Equal(new[] { messages[1], messages[2], messages[2], messages[2], messages[3], messages[4] },
             rows.Select(row => (string)row[14]));
         Assert.All(rows, row => { Assert.Equal(32251L, row[3]); Assert.Equal(15000L, row[5]); });
+        // Expected values decoded independently from the same capture (see docs/research/2026-10-09-gift-capture.md).
+        Assert.All(rows, row => { Assert.Equal(10001L, row[1]); Assert.Equal("测试观众", row[2]); Assert.Equal("心动盲盒", row[4]); });
+        Assert.Equal(new long[] { 32126, 32125, 32128, 32126, 32126, 32128 }, rows.Select(row => (long)row[6]));
+        Assert.Equal(new[] { "棉花糖", "电影票", "爱心抱枕", "棉花糖", "棉花糖", "爱心抱枕" }, rows.Select(row => (string)row[7]));
+        // The send time decides which Beijing day a viewer's 盲盒统计 counts the item in.
+        Assert.Equal(new long[] { 1791554681, 1791554956, 1791554956, 1791554956, 1791555128, 1791555129 },
+            rows.Select(row => (long)row[12]));
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Warning);
     }
 
@@ -66,8 +73,8 @@ public sealed class BlindBoxV2Tests
         var bytes = kind == "missing-blind" ? Bytes(10, Item())
             : Broadcast([Item(coin: kind == "silver" ? "silver" : "gold")], uid: kind == "anonymous" ? 0 : 10001,
                 blindId: kind == "ordinary" ? 0 : 35206);
-        await PushAndSyncAsync(h, updates, Message(bytes));
-        Assert.Empty(Rows(h));
+        await h.PushAndSyncAsync(updates, Message(bytes));
+        Assert.Empty(TestDatabase.BlindBoxRows(h.DataDirectory));
         Assert.DoesNotContain(h.Logger.Entries, e => e.Message.StartsWith("记录盲盒"));
         if (kind == "anonymous")
             Assert.Contains(h.Logger.Entries, e => e.Level == LogLevel.Information && e.Message.Contains("uid 为 0"));
@@ -84,8 +91,8 @@ public sealed class BlindBoxV2Tests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, Message(Broadcast(shown: shown)));
-        Assert.Equal(3, Rows(h).Count);
+        await h.PushAndSyncAsync(updates, Message(Broadcast(shown: shown)));
+        Assert.Equal(3, TestDatabase.BlindBoxRows(h.DataDirectory).Count);
         var warnings = h.Logger.Entries.Where(e => e.Level == LogLevel.Warning).ToArray();
         Assert.Equal(3, warnings.Length);
         Assert.All(warnings, e => Assert.Contains("switch", e.Message));
@@ -97,8 +104,8 @@ public sealed class BlindBoxV2Tests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, Message(Broadcast([Item(), Item(), Item(num: 2, spend: 10000)])));
-        Assert.Single(Rows(h));
+        await h.PushAndSyncAsync(updates, Message(Broadcast([Item(), Item(), Item(num: 2, spend: 10000)])));
+        Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory));
         Assert.Collection(h.Logger.Entries.Where(e => e.Level == LogLevel.Warning),
             e => Assert.Contains("重复推送的礼物，已忽略", e.Message),
             e =>
@@ -118,8 +125,8 @@ public sealed class BlindBoxV2Tests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, Message(Broadcast([Item(tid: tid), Item(tid: tid)])));
-        var rows = Rows(h);
+        await h.PushAndSyncAsync(updates, Message(Broadcast([Item(tid: tid), Item(tid: tid)])));
+        var rows = TestDatabase.BlindBoxRows(h.DataDirectory);
         Assert.Equal(2, rows.Count);
         Assert.All(rows, row => Assert.Equal(DBNull.Value, row[13]));
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Warning);
@@ -131,8 +138,8 @@ public sealed class BlindBoxV2Tests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, Message(Broadcast([Item(spend: 4999)])));
-        Assert.Equal(4999L, Assert.Single(Rows(h))[10]);
+        await h.PushAndSyncAsync(updates, Message(Broadcast([Item(spend: 4999)])));
+        Assert.Equal(4999L, Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory))[10]);
         Assert.Contains("total_coin", Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning).Message);
     }
 
@@ -142,9 +149,9 @@ public sealed class BlindBoxV2Tests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, BlindGiftFixture.Json, Message(),
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Json, Message(),
             BlindGiftFixture.With(data => data["tid"] = "test-v1-2"), Message(Broadcast([Item(tid: "test-v1-1")])));
-        Assert.Equal(5, Rows(h).Count);
+        Assert.Equal(5, TestDatabase.BlindBoxRows(h.DataDirectory).Count);
         Assert.Collection(h.Logger.Entries.Where(e => e.Message.Contains("礼物消息为")),
             e => Assert.Contains("V1", e.Message), e => Assert.Contains("V2", e.Message),
             e => Assert.Contains("V1", e.Message), e => Assert.Contains("V2", e.Message));
@@ -160,8 +167,8 @@ public sealed class BlindBoxV2Tests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, Message(bytes));
-        Assert.Equal(2500L, Assert.Single(Rows(h))[11]);
+        await h.PushAndSyncAsync(updates, Message(bytes));
+        Assert.Equal(2500L, Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory))[11]);
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Warning);
     }
 
@@ -173,12 +180,15 @@ public sealed class BlindBoxV2Tests
     [InlineData("negative-id")]
     [InlineData("negative-time")]
     [InlineData("overflow")]
+    // proto3 leaves zero and empty fields out, so a missing send time or name reads as 0 or "" and must not pass.
+    [InlineData("missing-time")]
+    [InlineData("missing-name")]
     public async Task Invalid_item_rejects_the_whole_message_without_losing_the_next_message(string kind)
     {
-        var bad = Item(id: kind == "negative-id" ? -1 : 35311,
+        var bad = Item(id: kind == "negative-id" ? -1 : 35311, name: kind == "missing-name" ? "" : "好运柚叶",
             num: kind == "zero-num" ? 0 : kind == "negative-num" ? -1 : kind == "overflow" ? long.MaxValue : 1,
             price: kind == "negative-price" ? -1 : 2500, spend: kind == "negative-spend" ? -1 : 5000,
-            timestamp: kind == "negative-time" ? -1 : 1732634266, tid: "bad");
+            timestamp: kind == "negative-time" ? -1 : kind == "missing-time" ? 0 : 1732634266, tid: "bad");
         await AssertMalformedAsync(Message(Broadcast([Item(tid: "must-not-be-saved"), bad])));
     }
 
@@ -215,34 +225,11 @@ public sealed class BlindBoxV2Tests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushAndSyncAsync(h, updates, raw, Message(Broadcast([Item()])));
-        Assert.Equal("test-v2-1", Assert.Single(Rows(h))[13]);
+        await h.PushAndSyncAsync(updates, raw, Message(Broadcast([Item()])));
+        Assert.Equal("test-v2-1", Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory))[13]);
         var warning = Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning).Message;
         Assert.Contains("跳过无法解析的直播间消息", warning);
         Assert.Contains("SEND_GIFT_V2", warning);
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Trace && e.Message.Contains(raw));
-    }
-
-    private static List<object[]> Rows(WatchHarness h)
-    {
-        using var connection = TestDatabase.Open(h.DataDirectory);
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT room_id, uid, nickname, blind_gift_id, blind_gift_name, blind_gift_price,
-                opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid, raw_message
-            FROM blind_box ORDER BY id;
-            """;
-        using var reader = command.ExecuteReader();
-        List<object[]> rows = [];
-        while (reader.Read()) rows.Add(Enumerable.Range(0, reader.FieldCount).Select(reader.GetValue).ToArray());
-        return rows;
-    }
-
-    private static async Task PushAndSyncAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates, params string[] messages)
-    {
-        foreach (var message in messages) await h.Server.PushRoomMessageAsync(message);
-        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""");
-        Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
-        Assert.Equal("同步", Assert.IsType<Danmaku>(updates.Current).Content);
     }
 }

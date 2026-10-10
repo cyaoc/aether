@@ -31,6 +31,22 @@ internal static class TestDatabase
         return credential;
     }
 
+    /// <summary>Every blind_box row in insertion order, all columns but id.</summary>
+    public static List<object[]> BlindBoxRows(string dataDirectory)
+    {
+        using var connection = Open(dataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT room_id, uid, nickname, blind_gift_id, blind_gift_name, blind_gift_price,
+                opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid, raw_message
+            FROM blind_box ORDER BY id;
+            """;
+        using var reader = command.ExecuteReader();
+        List<object[]> rows = [];
+        while (reader.Read()) rows.Add(Enumerable.Range(0, reader.FieldCount).Select(reader.GetValue).ToArray());
+        return rows;
+    }
+
     public static long CredentialCount(string dataDirectory)
     {
         using var connection = Open(dataDirectory);

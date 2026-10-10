@@ -9,7 +9,11 @@ internal static class SendGiftV2
     {
         var pb = data.TryGetProperty("pb", out var direct) ? direct : data.GetProperty("data").GetProperty("pb");
         var reader = new ProtobufReader(Convert.FromBase64String(pb.GetString() ?? throw new JsonException("缺少 pb。")));
-        var box = new BlindBox(0, "", 0, "", 0, 0, "", 0, 0, 0, 0, 0, null, false, "");
+        // proto3 leaves zero, empty and false fields out, so these defaults are what an absent field means; in particular
+        // an absent switch (field 11) is false. GiftMessages fills OpenedValue and RawMessage and rejects missing ones.
+        var box = new BlindBox(Uid: 0, Nickname: "", BlindGiftId: 0, BlindGiftName: "", BlindGiftPrice: 0,
+            OpenedGiftId: 0, OpenedGiftName: "", OpenedGiftPrice: 0, Num: 0, Spend: 0, OpenedValue: 0, Timestamp: 0,
+            Tid: null, Shown: false, RawMessage: "");
         List<ReadOnlyMemory<byte>> items = [];
         while (reader.TryRead(out var field, out var type))
         {
