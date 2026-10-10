@@ -1,6 +1,6 @@
 # 盲盒礼物事件调研
 
-调研日期：2026-10-07。用途：设计"盲盒统计"。观众送盲盒时，记录每次送达的实付金额和爆出礼物的价值，再按观众按天汇总盈亏（电池）。
+调研日期：2026-10-07。用途：设计"盲盒统计"。观众送盲盒时，记录每次送达的实付金额和开出礼物的价值，再按观众按天汇总盈亏（电池）。
 
 标记说明：
 
@@ -13,7 +13,7 @@
 ## 0. 先看这条：SEND_GIFT_V2
 
 - 2026-07 起，B站对送礼事件灰度推送新的 `SEND_GIFT_V2`。外层仍是 JSON，礼物数据在 `data.pb` 里（base64 + protobuf）。[源码] blivedm 的注释：`# 礼物（2026-07 灰度的新协议，protobuf 编码）`，见 [handlers.py#L149-L152](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/handlers.py#L149-L152)；另见 [blivedm issue #85](https://github.com/xfgryujk/blivedm/issues/85)。
-- 已切到 V2 的房间只发 V2，不再发 `SEND_GIFT`；房间还会在 V1 和 V2 之间来回切换，机制未知。[实测] PR 作者原话："切换到了V2的直播间，礼物只会发V2，不会发原版信息"（[PR #86 评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5101811876)）；"有时候前一天是V2的直播间，第二天又改回V1了，机制未知"（[PR #86 评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5231530390)）。
+- 已切到 V2 的直播间只发 V2，不再发 `SEND_GIFT`；直播间还会在 V1 和 V2 之间来回切换，机制未知。[实测] PR 作者原话："切换到了V2的直播间，礼物只会发V2，不会发原版信息"（[PR #86 评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5101811876)）；"有时候前一天是V2的直播间，第二天又改回V1了，机制未知"（[PR #86 评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5231530390)）。
 - 一条 V2 消息里有 `repeated gift_list`，每项是一种礼物（[pb.py#L81-L88](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/pb.py#L81-L88)）。BAC 存档停在 2026-01，完全没有提到 V2。
 - 弹幕姬 Bilibili_Danmuji 也已经解析 V2，并逐项遍历 `gift_list`（[ParseMessageThread.java#L261-L279](https://github.com/BanqiJane/Bilibili_Danmuji/blob/d659cbc511f44f36ac54c2880f0d6687570ca1bf/src/main/java/xyz/acproject/danmuji/thread/core/ParseMessageThread.java#L261-L279)）。
 
@@ -24,12 +24,12 @@ BAC 的字段表见 [message_stream.md#L1495-L1606](https://github.com/pskdje/bi
 | 字段 | 含义 | 单件还是合计 | 来源 |
 | --- | --- | --- | --- |
 | `uid` / `uname` | 送礼者。连接未登录时 uid 为 0，昵称打码 | — | [文档] [BAC#L126](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L126)；[源码] blivedm 的"不填也可以连接，但是收到弹幕的用户名会打码，UID会变成0"（[sample.py#L21-L22](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/sample.py#L21-L22)）；[实测] [Pcrab 日志](https://github.com/Pcrab/bili-welcome/blob/5600c7be57ec5fe8b6a6a2c0c6702026ec575914/log.json)里有 `"uid":0`, `"uname":"南***"` |
-| `giftId` / `giftName` | 盲盒时是**爆出的礼物**，不是盲盒本身 | — | [文档] 官方开放平台："道具id(盲盒:爆出道具id)"（[开放平台 长链命令说明](https://open-live.bilibili.com/document/f9ce25be-312e-1f4a-85fd-fef21f1637f8)，LIVE_OPEN_PLATFORM_SEND_GIFT 一节）；[实测] Pcrab 日志：`giftId 32698 小蛋糕`，`blind_gift.original_gift_id 32649 星月盲盒` |
+| `giftId` / `giftName` | 盲盒时是**开出的礼物**，不是盲盒本身 | — | [文档] 官方开放平台："道具id(盲盒:爆出道具id)"（[开放平台 长链命令说明](https://open-live.bilibili.com/document/f9ce25be-312e-1f4a-85fd-fef21f1637f8)，LIVE_OPEN_PLATFORM_SEND_GIFT 一节）；[实测] Pcrab 日志：`giftId 32698 小蛋糕`，`blind_gift.original_gift_id 32649 星月盲盒` |
 | `num` | 该次投喂的数量 | — | [文档] [BAC#L1545](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L1545) |
-| `price` | 单价（瓜子）。盲盒时是爆出礼物的单价 | 单件 | [源码] "礼物单价瓜子数，送盲盒则是爆出礼物的单价"（[web.py#L286-L287](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py#L286-L287)）；[文档] 开放平台："礼物爆出单价…盲盒:爆出道具的价值" |
+| `price` | 单价（瓜子）。盲盒时是开出礼物的单价 | 单件 | [源码] "礼物单价瓜子数，送盲盒则是爆出礼物的单价"（[web.py#L286-L287](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py#L286-L287)）；[文档] 开放平台："礼物爆出单价…盲盒:爆出道具的价值" |
 | `total_coin` | **实付**总价。普通礼物 = 折后单价 × num；盲盒 = 盲盒单价 × num | 合计 | [源码] [web.py#L292-L293](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py#L292-L293)；[文档] "实际金银瓜子总价值，不是总等于 num*price"（[BAC#L1563](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L1563)）；[实测] 见第 2 节 |
-| `discount_price` | 普通礼物时等于 price；盲盒时实测也等于爆出单价 | 单件 | [文档] BAC 写"待调查"，示例为 `100`（[BAC#L1651](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L1651)）；[实测] Pcrab 日志中盲盒礼物 `discount_price 1500 = price 1500`。**[冲突]** lovelyyoshino 的逆向文档写的是"盲盒场景下的盲盒原价"，后经证实是字段号对调造成的误读（见第 2.3 节） |
-| `combo_total_coin` | 连击累计；实测是按**爆出价值**计算的 | 合计 | [文档] BAC 写"待调查"（[#L1521](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L1521)）；[实测] Pcrab 日志：盲盒 num=1 时为 `1500`（等于爆出价值，不是 5000），10 个小花花时为 `1000`。[推断] 盈亏计算不要用这个字段 |
+| `discount_price` | 普通礼物时等于 price；盲盒时实测也等于开出单价 | 单件 | [文档] BAC 写"待调查"，示例为 `100`（[BAC#L1651](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L1651)）；[实测] Pcrab 日志中盲盒礼物 `discount_price 1500 = price 1500`。**[冲突]** lovelyyoshino 的逆向文档写的是"盲盒场景下的盲盒原价"，后经证实是字段号对调造成的误读（见第 2.3 节） |
+| `combo_total_coin` | 连击累计；实测是按**开出价值**计算的 | 合计 | [文档] BAC 写"待调查"（[#L1521](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L1521)）；[实测] Pcrab 日志：盲盒 num=1 时为 `1500`（等于开出价值，不是 5000），10 个小花花时为 `1000`。[推断] 盈亏计算不要用这个字段 |
 | `coin_type` | `gold`（付费）或 `silver` | — | [源码] "'silver'或'gold'，1000金瓜子 = 1元"（[web.py#L290-L291](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py#L290-L291)） |
 | `tid` / `rnd` | 见第 5 节 | — | |
 | `timestamp` | 送礼时间，Unix 秒 | — | [文档] [BAC#L1561](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L1561) |
@@ -55,7 +55,7 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
                 "original_gift_id":32649,"original_gift_name":"星月盲盒","original_gift_price":5000}}}
 ```
 
-同一份日志里还有一条：爆出 `冲鸭`，`price 9900`、`gift_tip_price 9900`、`total_coin 5000`。
+同一份日志里还有一条：开出 `冲鸭`，`price 9900`、`gift_tip_price 9900`、`total_coin 5000`。
 
 ### 2.2 字段含义
 
@@ -63,14 +63,14 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
 | --- | --- | --- |
 | `original_gift_id` / `original_gift_name` | 盲盒本身的礼物 id 和名字 | [实测] 上面的样本；[源码] blivedm 取 `original_gift_name` 作盲盒名（[web.py#L323-L329](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py#L323-L329)） |
 | `original_gift_price` | 盲盒**单价**（金瓜子） | [源码] "盲盒单价瓜子数"（[web.py#L306-L307](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py#L306-L307)）；[实测] 一条 V1 消息 `num=3` 时 `total_coin=15000`，而幸运盲盒单价是 5000（[PR #86 评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5102189761)），所以是单件；lovelyyoshino："一次性送多个盲盒时仅显示该盲盒一个的原价"（[API.live_websocket.md#L255](https://github.com/lovelyyoshino/Bilibili-Live-API/blob/b7766edfe486787f0167fd4bee80738bbf936419/API.live_websocket.md#L255)） |
-| `gift_tip_price` | 爆出礼物的**单价**；样本里等于 `price` | [实测] 上面的样本；[源码] Ayabot 因为没有乘 num 出过 bug，修复脚本写道："gift_tip_price 是单个物品价格（金瓜子），×num 得总价"（[repair_blindbox_values.py#L1-L7, L38](https://github.com/yujianke100/Ayabot/blob/5cfff691a50a20937e0bcc023be1722e426efcd4/scripts/repair_blindbox_values.py#L1-L40)）；blivedm-go："RevealedTotalCoin is the revealed gift value; TotalCoin remains the paid cost"，按 `GiftTipPrice * num` 计算（[gift.go#L217-L231](https://github.com/Akegarasu/blivedm-go/blob/957b543d2bfa8c2ac8a7af2fb42ae73eb92443b2/message/gift.go#L217-L231)） |
+| `gift_tip_price` | 开出礼物的**单价**；样本里等于 `price` | [实测] 上面的样本；[源码] Ayabot 因为没有乘 num 出过 bug，修复脚本写道："gift_tip_price 是单个物品价格（金瓜子），×num 得总价"（[repair_blindbox_values.py#L1-L7, L38](https://github.com/yujianke100/Ayabot/blob/5cfff691a50a20937e0bcc023be1722e426efcd4/scripts/repair_blindbox_values.py#L1-L40)）；blivedm-go："RevealedTotalCoin is the revealed gift value; TotalCoin remains the paid cost"，按 `GiftTipPrice * num` 计算（[gift.go#L217-L231](https://github.com/Akegarasu/blivedm-go/blob/957b543d2bfa8c2ac8a7af2fb42ae73eb92443b2/message/gift.go#L217-L231)） |
 | `gift_action` | 恒为 `"爆出"` | [实测] |
 | `blind_gift_config_id`, `from` | 含义未记载 | — |
 
 **结论**（单位都是金瓜子）：
 
 - 实付 = `total_coin` = `original_gift_price × num`
-- 爆出价值 = `price × num` = `gift_tip_price × num`
+- 开出价值 = `price × num` = `gift_tip_price × num`
 - 两者在一条消息里都能取到。
 
 ### 2.3 V2 中的盲盒字段
@@ -79,7 +79,7 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
   - `SendGiftBroadcast`：`uid=1, uname=2, blind_gift=9, gift_list=10 (repeated)`
   - `BlindGift`：`blind_gift_config_id=1, original_gift_id=2, original_gift_name=3, from=4, gift_action=5, original_gift_price=6, gift_tip_price=7`
   - `GiftItem`：`gift_id=1, gift_name=2, num=3, price=5, discount_price=6, total_coin=7, coin_type=8, tid=9, timestamp=10, super_batch_gift_num=11, batch_combo_id=12, combo_total_coin=14, gift_tip_price=36`
-- `blind_gift` 在**整条广播**上只有一份；爆出单价放在每个 `gift_list` 项的 `gift_tip_price` 里。前端代码会把它拷进 blindGift：`if (gift.gift_tip_price) { giftItem.blindGift = {...giftItem.blindGift, gift_tip_price: ...} }`（同一条评论）。
+- `blind_gift` 在**整条广播**上只有一份；开出单价放在每个 `gift_list` 项的 `gift_tip_price` 里。前端代码会把它拷进 blindGift：`if (gift.gift_tip_price) { giftItem.blindGift = {...giftItem.blindGift, gift_tip_price: ...} }`（同一条评论）。
 - **[冲突]** lovelyyoshino 的逆向文档写的是 `total_coin = 6`、`discount_price = 7`，`gift = 10` 也不是 repeated（[API.live_websocket.md#L250-L270](https://github.com/lovelyyoshino/Bilibili-Live-API/blob/b7766edfe486787f0167fd4bee80738bbf936419/API.live_websocket.md#L250-L270)）。该文件已在 2026-08-03 的提交 `d9fd5f30` 中从仓库删除。实测支持 blivedm 的版本：按 lovelyyoshino 字段号解出来的一项是 `"星光铃铛" num 8, price 5200, "total_coin" 5200, "discount_price" 40000`，而 40000 = 5000 × 8 正是实付，说明 6 和 7 两个字段号标反了（[评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5103541545)，[更正](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5105694004)）。同一 PR 早先的 `[v2] ... total_coin=1500` 日志也是在标反的字段号下得出的。
 
 ## 3. 单位
@@ -91,7 +91,7 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
   - [文档] 官方开放平台："(1000 = 1元 = 10电池)"（[长链命令说明](https://open-live.bilibili.com/document/f9ce25be-312e-1f4a-85fd-fef21f1637f8)）
 - **银瓜子**：`coin_type = "silver"`，此时 `price` 是银瓜子数（[live_bill.md#L28](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/live_bill.md#L28)）。2024 年的实测里，`人气票` 是 `silver`，price 和 total_coin 都为 0（Pcrab 日志）；2026-10-09 实测已变为 `gold`，单价 100，即 1 电池（#48）。所以 gold 不代表是盲盒，判断盲盒要看有没有 `blind_gift`。
   - 没有任何来源出现过 silver 盲盒，所有盲盒样本都是 `gold`。BAC 写的是 `coin_type` "一般为gold，即电池"（[gift.md#L38](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/gift.md#L38)）。[推断] 盲盒只用电池购买。
-- **盲盒价格与概率接口**：`GET https://api.live.bilibili.com/xlive/general-interface/v1/blindFirstWin/getInfo?gift_id=<盲盒id>`，返回 `blind_price`，以及各爆出礼物的 `price` 和 `chance`。例如心动盲盒 `blind_price: 15000`，即 150 电池（[gift.md#L54-L117](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/gift.md#L54-L117)）。
+- **盲盒价格与概率接口**：`GET https://api.live.bilibili.com/xlive/general-interface/v1/blindFirstWin/getInfo?gift_id=<盲盒id>`，返回 `blind_price`，以及各开出礼物的 `price` 和 `chance`。例如心动盲盒 `blind_price: 15000`，即 150 电池（[gift.md#L54-L117](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/gift.md#L54-L117)）。
 
 ## 4. 批量与连击
 
@@ -99,8 +99,8 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
 
 **盲盒批量**：
 
-- **V1**：每种爆出礼物各一条 `SEND_GIFT`，`num` 是该礼物的个数，`total_coin` = 盲盒单价 × 该条的 num。[实测] PR 作者"送了几个盒子"后收到三条：`好运柚叶 num=3 total_coin=15000`、`幸运泡泡 num=2 total_coin=10000`、`星光铃铛 num=5 total_coin=25000`（[评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5102189761)）。[推断] 三条的数量合计正好是 10，很可能来自同一次送 10 个；评论里没有明说。
-- **V2**：只来一条 `SEND_GIFT_V2`，`gift_list` 中每种爆出礼物一项。[实测] 一次性送 10 个幸运盲盒，得到 3 项：1 + 8 + 1（[评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5103541545)）。前端代码也是 `for` 循环遍历 `gift_list`。
+- **V1**：每种开出礼物各一条 `SEND_GIFT`，`num` 是该礼物的个数，`total_coin` = 盲盒单价 × 该条的 num。[实测] PR 作者"送了几个盒子"后收到三条：`好运柚叶 num=3 total_coin=15000`、`幸运泡泡 num=2 total_coin=10000`、`星光铃铛 num=5 total_coin=25000`（[评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5102189761)）。[推断] 三条的数量合计正好是 10，很可能来自同一次送 10 个；评论里没有明说。
+- **V2**：只来一条 `SEND_GIFT_V2`，`gift_list` 中每种开出礼物一项。[实测] 一次性送 10 个幸运盲盒，得到 3 项：1 + 8 + 1（[评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5103541545)）。前端代码也是 `for` 循环遍历 `gift_list`。
 - 所以一行记录既不等于一个盒子，也不等于一次投喂。一次投喂的盒子数 = 各项 `num` 之和。
 
 **连击**：
@@ -124,7 +124,7 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
   - 起点约为 1990-04-24（北京时间），只是从样本反推，不影响去重。
 - **盲盒批量时 `tid` 是否共用：[实测] V2 不共用，按礼物项分配。** 2026-10-09 一次送 10 个心动盲盒的三项，`tid` 是同一毫秒里的连续序号（末位依次加 1）；两次连击的 `tid` 也不同。V1 一次送多个盲盒的多条 `SEND_GIFT` 未实测，但用的是同一个按项分配的生成器，共用的可能性很低。blivedm-go 十连测试数据里 3 项共用 `"test-ten-draw-transaction"` 是作者构造的合成数据（[ten_blind_gift_v2.json](https://github.com/Akegarasu/blivedm-go/blob/957b543d2bfa8c2ac8a7af2fb42ae73eb92443b2/message/testdata/ten_blind_gift_v2.json)），与实测不符。
 - **重连重放**：认证包只有 `uid/roomid/protover/platform/type/key` 几个字段，没有偏移量或续传字段；包头的 sequence 只写"每次发包时向上递增"（[BAC#L154](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L154)、[#L180-L190](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L180-L190)）。[推断] 重连后服务端不会补发断线期间的消息，那段时间的礼物会**丢失**，而不是重复到达。
-- 同一份礼物会不会被推两次（同一连接内，或 V1 和 V2 同时推）：没有来源记载。实测里，切到 V2 的房间只推 V2。
+- 同一份礼物会不会被推两次（同一连接内，或 V1 和 V2 同时推）：没有来源记载。实测里，切到 V2 的直播间只推 V2。
 
 ## 6. 发弹幕：msg/send
 
@@ -191,7 +191,7 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
 
 ### 7.4 重复内容
 
-- [源码·泄露] `//LimitSameMsg 同一个用户同一房间5s 只能发送一条相同弹幕`。键是 `房间号 + md5(uid + msg)`，命中时返回 `ecode.Error(0, "msg repeat")`，即 **code 0** 加 message `"msg repeat"`（[ratelimit.go#L46-L60](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/dao/ratelimit.go#L46-L60)）。键里没有任何回复字段。[推断] 如果现在还是这个逻辑，5 秒内用同一段文字 @ 不同观众也算重复。
+- [源码·泄露] `//LimitSameMsg 同一个用户同一房间5s 只能发送一条相同弹幕`。键是 `直播间号 + md5(uid + msg)`，命中时返回 `ecode.Error(0, "msg repeat")`，即 **code 0** 加 message `"msg repeat"`（[ratelimit.go#L46-L60](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/dao/ratelimit.go#L46-L60)）。键里没有任何回复字段。[推断] 如果现在还是这个逻辑，5 秒内用同一段文字 @ 不同观众也算重复。
 - [源码] 客户端的处理与此一致：
   - 弹幕姬在 `code == 0` 时检查 `message` 是否为 `"msg in 1s"` 或 `"msg repeat"`，是就重新排队（[HttpUserData.java#L575-L584](https://github.com/BanqiJane/Bilibili_Danmuji/blob/d659cbc511f44f36ac54c2880f0d6687570ca1bf/src/main/java/xyz/acproject/danmuji/http/HttpUserData.java#L575-L584)）
   - MagicalDanmaku 遇到 `"msg repeat"` 或 `"频率过快"`，4.2 秒后重试（[bili_liveservice.cpp#L4900-L4911](https://github.com/iwxyi/MagicalDanmaku/blob/db912bc1518e82a8bf12276cce6963de16f9ba6d/services/live_services/bilibili/bili_liveservice.cpp#L4900-L4911)）
@@ -205,15 +205,15 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
 ### 7.5 频率、禁言、长度上限
 
 - **频率**：
-  - [源码·泄露] 同一 uid 每秒 1 条，超出时返回 `ecode.Error(0, "msg in 1s")`（[ratelimit.go#L30-L44](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/dao/ratelimit.go#L30-L44)）；整个房间每秒也有总条数上限，超出返回 `"max limit"`（[#L62-L111](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/dao/ratelimit.go#L62-L111)）
+  - [源码·泄露] 同一 uid 每秒 1 条，超出时返回 `ecode.Error(0, "msg in 1s")`（[ratelimit.go#L30-L44](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/dao/ratelimit.go#L30-L44)）；整个直播间每秒也有总条数上限，超出返回 `"max limit"`（[#L62-L111](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/dao/ratelimit.go#L62-L111)）
   - [实测] 2018 年有人截图报告收到 `msg in 1s`（[YjMonitor issue #5](https://github.com/yjqiang/YjMonitor/issues/5)）
   - [文档] BAC 只记了 `10031` "发送频率过快"
   - [源码] 各客户端的发送间隔：弹幕姬 `Thread.sleep(1455)`（[SendBarrageThread.java#L53](https://github.com/BanqiJane/Bilibili_Danmuji/blob/d659cbc511f44f36ac54c2880f0d6687570ca1bf/src/main/java/xyz/acproject/danmuji/thread/SendBarrageThread.java#L53)、[#L77](https://github.com/BanqiJane/Bilibili_Danmuji/blob/d659cbc511f44f36ac54c2880f0d6687570ca1bf/src/main/java/xyz/acproject/danmuji/thread/SendBarrageThread.java#L77)）；MagicalDanmaku `#define AUTO_MSG_CD 1500`（[coderunner.h#L22](https://github.com/iwxyi/MagicalDanmaku/blob/db912bc1518e82a8bf12276cce6963de16f9ba6d/services/code_runner/coderunner.h#L22)）；BilibiliDanmuRobot-Core `time.Sleep(1 * time.Second) // 防止弹幕发送过快`（[send_bullet.go#L63](https://github.com/xbclub/BilibiliDanmuRobot-Core/blob/bc8da47dbcf104b04100a3693307abad263b8ddb/logic/send_bullet.go#L63)）
   - [推断] 每两条之间隔 1.5 秒左右，可以避开每秒 1 条的限制。没有来源提到更长时间窗口的上限，比如每分钟多少条。
 - **禁言**：
   - 没有任何来源记载"发得太快会被自动禁言"。**未知**。
-  - 房间级禁言：`ROOM_SILENT_ON` 的 `type` 可以是 `level`、`medal` 或 `member`（[文档] [message_stream.md#L5038-L5075](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L5038-L5075)）；`ROOM_BLOCK_MSG` 是"指定观众禁言"（[#L5112](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L5112)）。
-  - [源码·泄露] 主播本人和房管不受房间禁言限制：`if sdm.SendMsgReq.Uid == sdm.RoomConf.UID || sdm.UserInfo.RoomAdmin { return nil }`（[dmcheck.go#L219-L224](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/service/v1/dmcheck.go#L219-L224)）。被主播禁言时返回 `ecode.Error(1003, "你在本房间被禁言至 …")`（[#L331-L362](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/service/v1/dmcheck.go#L331-L362)）。在全站黑名单里时返回 code 0 加 `"你被禁言啦"`（[#L85-L131](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/service/v1/dmcheck.go#L85-L131)）。[推断] 把 bot 账号设为房管，开了等级禁言或全员禁言也能照常回复。这是 2019 年的逻辑。
+  - 直播间级禁言：`ROOM_SILENT_ON` 的 `type` 可以是 `level`、`medal` 或 `member`（[文档] [message_stream.md#L5038-L5075](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L5038-L5075)）；`ROOM_BLOCK_MSG` 是"指定观众禁言"（[#L5112](https://github.com/pskdje/bilibili-API-collect/blob/cfc5fddcc8a94b74d91970bb5b4eaeb349addc47/docs/live/message_stream.md#L5112)）。
+  - [源码·泄露] 主播本人和房管不受直播间禁言限制：`if sdm.SendMsgReq.Uid == sdm.RoomConf.UID || sdm.UserInfo.RoomAdmin { return nil }`（[dmcheck.go#L219-L224](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/service/v1/dmcheck.go#L219-L224)）。被主播禁言时返回 `ecode.Error(1003, "你在本房间被禁言至 …")`（[#L331-L362](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/service/v1/dmcheck.go#L331-L362)）。在全站黑名单里时返回 code 0 加 `"你被禁言啦"`（[#L85-L131](https://github.com/changwh/go-common/blob/beccf3fe4313be190d655c9f0620a6b4fac0b522/app/service/live/live-dm/service/v1/dmcheck.go#L85-L131)）。[推断] 把 bot 账号设为房管，开了等级禁言或全员禁言也能照常回复。这是 2019 年的逻辑。
 - **长度上限**：
   - [源码] MagicalDanmaku 原先按身份推算：`// UL等级：20级30字`，`// 大航海：舰长20，提督/总督40`，默认 20。这段代码现已注释掉（[bili_liveservice.cpp#L4682-L4697](https://github.com/iwxyi/MagicalDanmaku/blob/db912bc1518e82a8bf12276cce6963de16f9ba6d/services/live_services/bilibili/bili_liveservice.cpp#L4682-L4697)），改为读 `getInfoByUser` 的 `property.danmu.length`（[#L926-L942](https://github.com/iwxyi/MagicalDanmaku/blob/db912bc1518e82a8bf12276cce6963de16f9ba6d/services/live_services/bilibili/bili_liveservice.cpp#L926-L942)）
   - [源码] BilibiliDanmuRobot-Core 默认 `DanmuLen … default=20`（[config.go#L16](https://github.com/xbclub/BilibiliDanmuRobot-Core/blob/bc8da47dbcf104b04100a3693307abad263b8ddb/config/config.go#L16)），超长时按 rune 切成多条（[send_bullet.go#L40-L55](https://github.com/xbclub/BilibiliDanmuRobot-Core/blob/bc8da47dbcf104b04100a3693307abad263b8ddb/logic/send_bullet.go#L40-L55)）
@@ -229,17 +229,17 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
 
 ## 对设计的影响
 
-1. 必须同时处理 `SEND_GIFT`（JSON）和 `SEND_GIFT_V2`（`data.pb` 是 base64 编码的 protobuf）。一条 V2 消息要展开成多条礼物项。房间会在两种协议间切换，所以不能只实现其中一种。
+1. 必须同时处理 `SEND_GIFT`（JSON）和 `SEND_GIFT_V2`（`data.pb` 是 base64 编码的 protobuf）。一条 V2 消息要展开成多条礼物项。直播间会在两种协议间切换，所以不能只实现其中一种。
 2. 一行记录 = 一个礼物项：V1 是一条消息，V2 是 `gift_list` 中的一项。它不等于一个盒子，也不等于一次投喂。建议的列：
    - 观众：`uid`、`uname`
    - 时间与标识：`timestamp`（秒）、`tid`（TEXT）、`rnd`（TEXT）
    - 盲盒：`blind_box_gift_id`（`original_gift_id`）、`blind_box_name`、`blind_box_unit_price`（`original_gift_price`）
-   - 爆出礼物：`opened_gift_id`（`giftId`）、`opened_gift_name`、`opened_unit_price`（`price`）
+   - 开出礼物：`opened_gift_id`（`giftId`）、`opened_gift_name`、`opened_unit_price`（`price`）
    - 数量与金额：`num`、`paid_total`（`total_coin`）
    - 原始消息（便于以后重算）
 3. 金额一律用整数**金瓜子**存储，展示时再除以 100 换成电池。盈亏 = `price × num − total_coin`。入库时校验 `total_coin == original_gift_price × num`，不等就记日志：未解决第 4 项可能导致两者不一致。
 4. 只有 `blind_gift` 非空且 `coin_type == "gold"` 的礼物才入库。V2 中通过 `blind_gift.original_gift_id != 0` 判断是否有盲盒信息。
-5. 不要计入 `COMBO_SEND` 和 `COMBO_END`，也不要用 `combo_total_coin`，否则会重复计算，或者把爆出价值当成实付。
+5. 不要计入 `COMBO_SEND` 和 `COMBO_END`，也不要用 `combo_total_coin`，否则会重复计算，或者把开出价值当成实付。
 6. 用 `UNIQUE(tid)` 去重（2026-10-09 决定，取代先前"暂不加唯一键"和 `UNIQUE(tid, opened_gift_id)` 的建议）。依据是第 5 节：`tid` 是按礼物项分配的 Snowflake 式 ID。重复推送的同一项冲突时忽略，并写 Warning；万一 V1 批量共用 `tid`，这条 Warning 会立刻暴露出来，不会悄悄少算。`tid` 为空存 NULL，不参与去重。
 7. 必须以登录身份连接，否则 `uid = 0`，无法按观众统计。`uid = 0` 的事件不计入任何观众。
 8. 断线期间的礼物会丢。统计结果只代表"bot 在线期间看到的"，回复文案不要声称精确。
@@ -266,11 +266,11 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
 ### 待补证问题
 
 1. V1 一次送 N 个盲盒时，多条 `SEND_GIFT` 是否共用 `tid`、`rnd` 和 `batch_combo_id`；V2 `gift_list` 各项的 `tid` 是否相同。
-2. 同一批次爆出同一种礼物时，是否总是合并成一条 `num > 1` 的记录。
+2. 同一批次开出同一种礼物时，是否总是合并成一条 `num > 1` 的记录。
 3. 盲盒连击（多次点击）时，每次点击是否各推一组 `SEND_GIFT`；盲盒是否会推 `COMBO_SEND`，内容是什么。
 4. `total_coin` 是否可能不等于 `original_gift_price × num`，例如打折、首抽福利（`is_first`）、从包裹里送出的盲盒（V2 有 `bag_gift` 字段）。从包裹送出时，"实付"应该算多少。
 5. 同一礼物是否会被推两次（同一连接内，或 V1 与 V2 同时推）；`switch = false` 的消息是否应该计入。
-6. 盲盒场景下 `discount_price` 的确切含义。目前只有一份实测，值等于爆出单价。
+6. 盲盒场景下 `discount_price` 的确切含义。目前只有一份实测，值等于开出单价。
 7. 是否存在 silver 盲盒。
 8. `COMBO_END` 现在是否还推送。
 9. `msg/send` 的安全发送间隔；`10030` 和 `10031` 的确切含义；不同用户等级或大航海身份的长度上限。

@@ -29,10 +29,11 @@ public sealed class Settings
           # 日志级别：Trace、Debug、Information、Warning、Error、Critical
           level: Information
 
-        # 盲盒统计开关，下次观看直播间时生效
+        # 盲盒统计，下次观看直播间时生效
         blind_box:
+          # true 或 false，false 时既不记录也不回复
           enabled: true
-          # 查询关键字，非空文字，下次观看直播间时生效
+          # 查询关键字，非空文字
           keyword: 今日盲盒
 
         # 发送队列，下次观看直播间时生效
@@ -56,7 +57,7 @@ public sealed class Settings
     ];
     private static readonly Definition<LogLevel> Level =
         Register(Definition.Choice("log.level", Microsoft.Extensions.Logging.LogLevel.Information, LogLevels));
-    private static readonly Definition<bool> BlindBox = Register(Definition.Boolean("blind_box.enabled", true));
+    private static readonly Definition<bool> Enabled = Register(Definition.Boolean("blind_box.enabled", true));
     private static readonly Definition<string> Keyword = Register(Definition.RequiredText("blind_box.keyword", "今日盲盒"));
     private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 5, "必须为正整数。", seconds => seconds > 0));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
@@ -69,7 +70,7 @@ public sealed class Settings
 
     public Setting<int> LogRetentionDays => Get(RetentionDays);
     public Setting<LogLevel> LogLevel => Get(Level);
-    public Setting<bool> BlindBoxEnabled => Get(BlindBox);
+    public Setting<bool> BlindBoxEnabled => Get(Enabled);
     public Setting<string> BlindBoxKeyword => Get(Keyword);
     public Setting<int> SendIntervalSeconds => Get(SendInterval);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
@@ -119,9 +120,7 @@ public sealed class Settings
         }).ToDictionary();
         var tokens = Scan(current.source);
         var edits = new List<(int Start, int Length, string Value)>();
-        var firstBreak = current.source.AsSpan().IndexOfAny(LineBreaks);
-        var newline = firstBreak < 0 ? "\n" : current.source.AsSpan(firstBreak).StartsWith("\r\n")
-            ? "\r\n" : current.source[firstBreak].ToString();
+        var newline = NewlineOf(current.source);
         var rootIndent = current.root is { Children.Count: > 0 } ? IndentOf(current.root) : 0;
         foreach (var groupChanges in changes.Select(change => (Definition: Find(definitions, change.Key)!, change.Value))
             .GroupBy(change => change.Definition.Group))
@@ -212,7 +211,42 @@ public sealed class Settings
         return node.End;
     }
 
-    public static Settings Load(string dataDirectory, ILogger? logger = null) => Load(dataDirectory, Definitions, logger);
+    public static Settings Load(string dataDirectory, ILogger? logger = null)
+    {
+        var settings = Load(dataDirectory, Definitions, logger);
+        if (settings.Error is not null) return settings;
+        var missing = Definitions.Where(definition => definition.CanEdit(settings)
+            && settings.root?.Children.Keys.Any(key => key is YamlScalarNode { Value: var name } && name == definition.Group) != true)
+            .Select(definition => definition.Group).ToHashSet();
+        if (missing.Count == 0) return settings;
+        var tokens = Scan(settings.source);
+        // Appending after an explicit document end would create a second document.
+        if (tokens.OfType<Tokens.DocumentEnd>().Any()) return settings;
+        var sections = Template.ReplaceLineEndings("\n").Split("\n\n")
+            .Where(section => missing.Any(group => section.Contains("\n" + group + ":\n")));
+        var indent = new string(' ', (int)(tokens.OfType<Tokens.BlockMappingStart>().FirstOrDefault()?.Start.Column ?? 1) - 1);
+        var newline = NewlineOf(settings.source);
+        var appended = string.Join("\n\n", sections).TrimEnd('\n');
+        appended = string.Join(newline, appended.Split('\n').Select(line => indent + line)) + newline;
+        if (settings.source.Length > 0 && !LineBreaks.Contains(settings.source[^1])) appended = newline + appended;
+        try
+        {
+            AtomicFile.Write(FilePath(dataDirectory), [.. settings.encoding.GetPreamble(), .. settings.encoding.GetBytes(settings.source + appended)]);
+            // Refresh node offsets as well as values, so Save can edit the appended defaults in place.
+            return Load(dataDirectory, Definitions);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            settings.Error = new(FilePath(dataDirectory), 1, "文件", error.Message);
+            return settings;
+        }
+    }
+
+    private static string NewlineOf(string source)
+    {
+        var firstBreak = source.AsSpan().IndexOfAny(LineBreaks);
+        return firstBreak < 0 ? "\n" : source.AsSpan(firstBreak).StartsWith("\r\n") ? "\r\n" : source[firstBreak].ToString();
+    }
 
     /// <param name="definitions">The settings this file may hold; only tests pass anything but <see cref="Definitions"/>.</param>
     internal static Settings Load(string dataDirectory, IReadOnlyList<Definition> definitions, ILogger? logger = null)

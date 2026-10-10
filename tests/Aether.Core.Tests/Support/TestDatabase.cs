@@ -31,8 +31,12 @@ internal static class TestDatabase
         return credential;
     }
 
+    public sealed record BlindBoxRow(long RoomId, long Uid, string Nickname, long BlindGiftId, string BlindGiftName,
+        long BlindGiftPrice, long OpenedGiftId, string OpenedGiftName, long OpenedGiftPrice, long Num, long Spend,
+        long OpenedValue, long Timestamp, string? Tid, string RawMessage);
+
     /// <summary>Every blind_box row in insertion order, all columns but id.</summary>
-    public static List<object[]> BlindBoxRows(string dataDirectory)
+    public static List<BlindBoxRow> BlindBoxRows(string dataDirectory)
     {
         using var connection = Open(dataDirectory);
         using var command = connection.CreateCommand();
@@ -42,8 +46,12 @@ internal static class TestDatabase
             FROM blind_box ORDER BY id;
             """;
         using var reader = command.ExecuteReader();
-        List<object[]> rows = [];
-        while (reader.Read()) rows.Add(Enumerable.Range(0, reader.FieldCount).Select(reader.GetValue).ToArray());
+        List<BlindBoxRow> rows = [];
+        while (reader.Read()) rows.Add(new(
+            reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2), reader.GetInt64(3), reader.GetString(4),
+            reader.GetInt64(5), reader.GetInt64(6), reader.GetString(7), reader.GetInt64(8), reader.GetInt64(9),
+            reader.GetInt64(10), reader.GetInt64(11), reader.GetInt64(12), reader.IsDBNull(13) ? null : reader.GetString(13),
+            reader.GetString(14)));
         return rows;
     }
 

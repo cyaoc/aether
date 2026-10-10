@@ -10,9 +10,10 @@ namespace Aether.Gui.Tests;
 public sealed class SettingsWindowTests
 {
     [Fact]
-    public Task Reply_fields_load_defaults_validate_and_save_missing_settings() =>
+    public Task Blind_box_tally_and_send_queue_fields_load_defaults_validate_and_save_missing_settings() =>
         WithSettingsWindow("# 保留\nblind_box:\n  enabled: true\n", (window, path) =>
         {
+            var before = File.ReadAllText(path);
             var keyword = window.FindControl<TextBox>("KeywordInput");
             var interval = window.FindControl<NumericUpDown>("SendIntervalInput");
             Assert.NotNull(keyword);
@@ -35,7 +36,8 @@ public sealed class SettingsWindowTests
             Dispatcher.UIThread.RunJobs();
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal("# 保留\nblind_box:\n  enabled: true\n  keyword: 查盲盒\nsend:\n  interval_seconds: 7\n", File.ReadAllText(path));
+            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  keyword: 查盲盒\n")
+                .Replace("interval_seconds: 5", "interval_seconds: 7"), File.ReadAllText(path));
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
             Assert.Equal("查盲盒", settings.BlindBoxKeyword.Value);
             Assert.Equal(7, settings.SendIntervalSeconds.Value);
@@ -45,6 +47,7 @@ public sealed class SettingsWindowTests
     public Task Multiline_reply_fields_are_read_only_and_preserved() =>
         WithSettingsWindow("blind_box:\n  keyword: |-\n    查盲盒\nsend:\n  interval_seconds: |-\n    7\n", (window, path) =>
         {
+            var before = File.ReadAllText(path);
             var keyword = window.FindControl<TextBox>("KeywordInput");
             var interval = window.FindControl<NumericUpDown>("SendIntervalInput");
             Assert.NotNull(keyword);
@@ -57,32 +60,34 @@ public sealed class SettingsWindowTests
             Assert.True(window.FindControl<TextBlock>("SendIntervalReadOnly")!.IsVisible);
             window.FindControl<CheckBox>("BlindBoxInput")!.IsChecked = false;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal("blind_box:\n  keyword: |-\n    查盲盒\n  enabled: false\nsend:\n  interval_seconds: |-\n    7\n", File.ReadAllText(path));
+            Assert.Equal(before.Replace("\nsend:", "\n  enabled: false\nsend:"), File.ReadAllText(path));
         });
 
     [Fact]
     public Task Multiline_blind_box_switch_is_read_only_and_preserved_when_saving() =>
         WithSettingsWindow("blind_box:\n  enabled: |-\n    false\nlog:\n  level: Debug\n", (window, path) =>
         {
+            var before = File.ReadAllText(path);
             var input = window.FindControl<CheckBox>("BlindBoxInput")!;
             Assert.False(input.IsChecked);
             Assert.False(input.IsEnabled);
             Assert.True(window.FindControl<TextBlock>("BlindBoxReadOnly")!.IsVisible);
             window.FindControl<ComboBox>("LevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal("blind_box:\n  enabled: |-\n    false\nlog:\n  level: Warning\n", File.ReadAllText(path));
+            Assert.Equal(before.Replace("level: Debug", "level: Warning"), File.ReadAllText(path));
         });
 
     [Fact]
     public Task Blind_box_switch_loads_changes_and_saves_without_touching_other_lines() =>
         WithSettingsWindow("# 保留\nblind_box:\n  enabled: false # 开关\n", (window, path) =>
         {
+            var before = File.ReadAllText(path);
             var input = window.FindControl<CheckBox>("BlindBoxInput");
             Assert.NotNull(input);
             Assert.False(input.IsChecked);
             input.IsChecked = true;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal("# 保留\nblind_box:\n  enabled: true # 开关\n", File.ReadAllText(path));
+            Assert.Equal(before.Replace("enabled: false", "enabled: true"), File.ReadAllText(path));
             Assert.True(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);
             Assert.StartsWith("已保存", window.FindControl<TextBlock>("Message")!.Text);
             Assert.Contains("下次观看直播间时生效", input.Content as string);
@@ -109,8 +114,10 @@ public sealed class SettingsWindowTests
             var save = window.FindControl<Button>("SaveButton")!;
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, window.FindControl<ComboBox>("LevelInput")!.SelectedItem);
+            var after = File.ReadAllText(path);
+            Assert.StartsWith("# 外部修改\nlog:\n  retention_days: 7\n  level: Warning\n", after);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal("# 外部修改\nlog:\n  retention_days: 7\n  level: Warning\n", File.ReadAllText(path));
+            Assert.Equal(after, File.ReadAllText(path));
 
             File.WriteAllText(path, "log:\n  level: @bad\n");
             window.FindControl<NumericUpDown>("RetentionInput")!.Text = "14";
@@ -161,12 +168,13 @@ public sealed class SettingsWindowTests
     public Task Multiline_settings_are_read_only_and_do_not_block_editing_other_settings() =>
         WithSettingsWindow("log:\n  retention_days: |-\n    7\n  level: Debug\n", (window, path) =>
         {
+            var before = File.ReadAllText(path);
             Assert.True(window.FindControl<NumericUpDown>("RetentionInput")!.IsReadOnly);
             Assert.False(window.FindControl<NumericUpDown>("RetentionInput")!.AllowSpin);
             Assert.True(window.FindControl<TextBlock>("RetentionReadOnly")!.IsVisible);
             window.FindControl<ComboBox>("LevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal("log:\n  retention_days: |-\n    7\n  level: Warning\n", File.ReadAllText(path));
+            Assert.Equal(before.Replace("level: Debug", "level: Warning"), File.ReadAllText(path));
         });
 
     [Fact]
@@ -184,14 +192,14 @@ public sealed class SettingsWindowTests
             {
                 main.FindControl<Button>("SettingsButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 var window = Assert.IsType<SettingsWindow>(Assert.Single(main.OwnedWindows));
+                var before = File.ReadAllText(path);
                 Assert.Contains("原样保留", window.FindControl<TextBlock>("UnknownKeysMessage")!.Text);
                 window.FindControl<NumericUpDown>("RetentionInput")!.Text = "14";
                 Dispatcher.UIThread.RunJobs();
                 var save = window.FindControl<Button>("SaveButton")!;
                 Assert.True(save.IsEnabled);
                 save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                Assert.Equal("# 我的设置\nlog:\n  retention_days: 14 # 保留\n  level: 'Debug' # 级别\n  future: yes\n",
-                    File.ReadAllText(path));
+                Assert.Equal(before.Replace("retention_days: '7'", "retention_days: 14"), File.ReadAllText(path));
                 Assert.Equal(14, Settings.Load(harness.DataDirectory).LogRetentionDays.Value);
                 window.Close();
             }

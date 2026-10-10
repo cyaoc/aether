@@ -11,7 +11,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     private static readonly TimeSpan RateLimitPause = TimeSpan.FromSeconds(60);
 
     // ponytail: unbounded in memory; add a capacity policy if keyword floods become a problem.
-    private readonly Channel<Danmaku> replies = Channel.CreateUnbounded<Danmaku>(
+    private readonly Channel<Danmaku> triggers = Channel.CreateUnbounded<Danmaku>(
         new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
     // The receive loop enqueues while the sender takes, so these two are only touched under the gate.
     private readonly object gate = new();
@@ -33,7 +33,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                 logger.LogDebug("观众 {Uid} 的回复仍在 {Seconds} 秒冷却内，忽略关键字", trigger.Uid, ViewerCooldown.TotalSeconds);
                 return;
             }
-            if (waitingViewers.Add(trigger.Uid)) replies.Writer.TryWrite(trigger);
+            if (waitingViewers.Add(trigger.Uid)) triggers.Writer.TryWrite(trigger);
         }
     }
 
@@ -43,7 +43,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         lock (gate)
         {
             var dropped = 0;
-            while (replies.Reader.TryRead(out _)) dropped++;
+            while (triggers.Reader.TryRead(out _)) dropped++;
             waitingViewers.Clear();
             return dropped;
         }
@@ -55,13 +55,13 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     public async Task SendAsync(Func<Danmaku, (string Reply, Func<CancellationToken, Task> Send)> prepare,
         CancellationToken cancellationToken)
     {
-        while (await replies.Reader.WaitToReadAsync(cancellationToken))
+        while (await triggers.Reader.WaitToReadAsync(cancellationToken))
         {
             await WaitForTurnAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             // Peek, and take the reply off only once its send has ended: a reconnect keeps an interrupted one, the end of
             // the room connection counts it as dropped, and a first rate limit keeps it at the head for its one retry.
-            if (!replies.Reader.TryPeek(out var trigger)) continue;
+            if (!triggers.Reader.TryPeek(out var trigger)) continue;
             var (reply, send) = prepare(trigger);
             Exception? failure = null;
             try { await send(cancellationToken); }
@@ -103,7 +103,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     {
         lock (gate)
         {
-            replies.Reader.TryRead(out _);
+            triggers.Reader.TryRead(out _);
             waitingViewers.Remove(trigger.Uid);
             if (!succeeded) return;
             // Forget expired cooldowns on the way; removing while enumerating is allowed since .NET Core 3.0.

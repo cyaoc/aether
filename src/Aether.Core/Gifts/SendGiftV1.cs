@@ -4,10 +4,10 @@ namespace Aether.Core.Gifts;
 
 internal static class SendGiftV1
 {
-    public static IEnumerable<GiftMessages.Gift> Decode(JsonElement data)
+    public static IEnumerable<(string? CoinType, BlindBox Box)> Decode(JsonElement data)
     {
-        var hasBlind = data.TryGetProperty("blind_gift", out var blind) && blind.ValueKind != JsonValueKind.Null;
-        yield return new GiftMessages.Gift(hasBlind, () => data.GetProperty("coin_type").GetString(), () => new BlindBox(
+        if (!data.TryGetProperty("blind_gift", out var blind) || blind.ValueKind == JsonValueKind.Null) yield break;
+        yield return (data.GetProperty("coin_type").GetString(), new BlindBox(
             Uid: data.GetProperty("uid").GetInt64(),
             Nickname: data.GetProperty("uname").GetString() ?? throw new JsonException("缺少观众昵称。"),
             BlindGiftId: blind.GetProperty("original_gift_id").GetInt64(),

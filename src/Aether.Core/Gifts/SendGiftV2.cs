@@ -5,7 +5,7 @@ namespace Aether.Core.Gifts;
 internal static class SendGiftV2
 {
     // Field numbers: blivedm PR #86, issuecomment-5104705486 (SendGiftBroadcast, BlindGift, GiftItem).
-    public static IEnumerable<GiftMessages.Gift> Decode(JsonElement data)
+    public static IEnumerable<(string? CoinType, BlindBox Box)> Decode(JsonElement data)
     {
         var pb = data.TryGetProperty("pb", out var direct) ? direct : data.GetProperty("data").GetProperty("pb");
         var reader = new ProtobufReader(Convert.FromBase64String(pb.GetString() ?? throw new JsonException("缺少 pb。")));
@@ -27,11 +27,8 @@ internal static class SendGiftV2
                 default: reader.Skip(field, type); break;
             }
         }
-        foreach (var item in items)
-        {
-            var (coinType, opened) = ReadItem(box, item);
-            yield return new GiftMessages.Gift(box.BlindGiftId != 0, () => coinType, () => opened);
-        }
+        if (box.BlindGiftId == 0) yield break;
+        foreach (var item in items) yield return ReadItem(box, item);
     }
 
     private static BlindBox ReadBlindGift(BlindBox box, ReadOnlyMemory<byte> bytes)

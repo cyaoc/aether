@@ -295,7 +295,7 @@ public sealed class BlindBoxReplyTests
     [InlineData("今日盲盒呢", 10001, true)]
     [InlineData("今日盲盒", 0, true)]
     [InlineData("今日盲盒", 10001, false)]
-    public async Task Only_exact_keywords_with_known_viewers_and_enabled_statistics_trigger(string text, long uid, bool enabled)
+    public async Task Only_exact_keywords_with_known_viewers_and_enabled_tally_trigger(string text, long uid, bool enabled)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -455,7 +455,7 @@ public sealed class BlindBoxReplyTests
         await h.Server.PushRoomMessageAsync($$"""{"cmd":"DANMU_MSG","info":[{{meta}},"今日盲盒",[{{uid}},"观众"]]}""");
         Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.Equal("今日盲盒", Assert.IsType<Danmaku>(updates.Current).Content);
-        if (replies) Assert.Equal("", (await NextReplyAsync(sent))["replay_dmid"]);
+        if (replies) Assert.DoesNotContain("replay_dmid", await NextReplyAsync(sent));
         else await AssertNoReplyAsync(sent);
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level >= LogLevel.Warning);
     }
