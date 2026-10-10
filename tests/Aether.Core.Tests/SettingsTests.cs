@@ -57,7 +57,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("send", "interval_seconds", "1.5")]
     [InlineData("send", "interval_seconds", "abc")]
     [InlineData("send", "interval_seconds", "2147483648")]
-    public async Task Invalid_reply_settings_refuse_watching_with_the_setting_location(string group, string key, string value)
+    public async Task Invalid_blind_box_tally_and_send_queue_settings_refuse_watching_with_the_setting_location(string group, string key, string value)
     {
         Write($"{group}:\n  {key}: {value}\n");
         await using var updates = harness.Watch();
@@ -85,7 +85,7 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Missing_reply_settings_use_defaults_and_keywords_round_trip_as_Yaml_text()
+    public void Missing_blind_box_tally_and_send_queue_settings_use_defaults_and_keywords_round_trip_as_Yaml_text()
     {
         Write("log:\n  level: Debug\n");
         var settings = Settings.Load(harness.DataDirectory);
@@ -167,6 +167,7 @@ public sealed class SettingsTests : IAsyncDisposable
         var after = File.ReadAllBytes(SettingsPath);
         Assert.Equal(before, after[..before.Length]);
         var appended = encoding.GetString(after[before.Length..]).ReplaceLineEndings("\n");
+        Assert.StartsWith(finalNewline ? "\n# " : "\n\n# ", appended); // A blank line, as between the template's groups.
         Assert.Contains("# 盲盒统计，下次观看直播间时生效\nblind_box:\n  # true 或 false，false 时既不记录也不回复\n  enabled: true\n  # 查询关键字，非空文字\n  keyword: 今日盲盒\n", appended);
         Assert.Contains("# 发送队列，下次观看直播间时生效\nsend:\n  # 两次发送之间的秒数，必须为正整数\n  interval_seconds: 5\n", appended);
         Assert.DoesNotContain("retention_days", appended);
@@ -198,6 +199,27 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.True(settings.BlindBoxEnabled.CanEdit);
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
         Assert.Equal(after.Replace("enabled: true", "enabled: false"), File.ReadAllText(SettingsPath));
+    }
+
+    [Fact, System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    public void Settings_still_load_when_missing_groups_cannot_be_appended()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Unix file modes only.");
+        Write("log:\n  level: Debug\n");
+        var before = File.ReadAllBytes(SettingsPath);
+        var directoryMode = File.GetUnixFileMode(harness.DataDirectory);
+        // A read-only data directory: the appended groups are a convenience, so watching and file logging carry on.
+        File.SetUnixFileMode(harness.DataDirectory, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        try
+        {
+            var settings = Settings.Load(harness.DataDirectory, harness.Logger);
+            Assert.Null(settings.Error);
+            Assert.Equal(LogLevel.Debug, settings.LogLevel.Value);
+            Assert.True(settings.BlindBoxEnabled.Value);
+        }
+        finally { File.SetUnixFileMode(harness.DataDirectory, directoryMode); }
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+        Assert.Contains(harness.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("未能补写"));
     }
 
     [Theory]

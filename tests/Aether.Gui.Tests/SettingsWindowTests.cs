@@ -44,7 +44,7 @@ public sealed class SettingsWindowTests
         });
 
     [Fact]
-    public Task Multiline_reply_fields_are_read_only_and_preserved() =>
+    public Task Multiline_blind_box_tally_and_send_queue_fields_are_read_only_and_preserved() =>
         WithSettingsWindow("blind_box:\n  keyword: |-\n    查盲盒\nsend:\n  interval_seconds: |-\n    7\n", (window, path) =>
         {
             var before = File.ReadAllText(path);

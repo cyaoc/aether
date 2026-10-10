@@ -211,6 +211,8 @@ public sealed class Settings
         return node.End;
     }
 
+    /// <summary>Reads the settings file, appending the template's section for each group a valid file lacks entirely,
+    /// so file editors see settings added by an upgrade. Failing to append leaves the file and the defaults as they are.</summary>
     public static Settings Load(string dataDirectory, ILogger? logger = null)
     {
         var settings = Load(dataDirectory, Definitions, logger);
@@ -228,7 +230,9 @@ public sealed class Settings
         var newline = NewlineOf(settings.source);
         var appended = string.Join("\n\n", sections).TrimEnd('\n');
         appended = string.Join(newline, appended.Split('\n').Select(line => indent + line)) + newline;
-        if (settings.source.Length > 0 && !LineBreaks.Contains(settings.source[^1])) appended = newline + appended;
+        // A blank line before the appended groups, as between the template's groups.
+        if (settings.source.Length > 0)
+            appended = (LineBreaks.Contains(settings.source[^1]) ? newline : newline + newline) + appended;
         try
         {
             AtomicFile.Write(FilePath(dataDirectory), [.. settings.encoding.GetPreamble(), .. settings.encoding.GetBytes(settings.source + appended)]);
@@ -237,7 +241,8 @@ public sealed class Settings
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            settings.Error = new(FilePath(dataDirectory), 1, "文件", error.Message);
+            // The defaults already apply, so a read-only file or directory must not stop watching or file logging.
+            logger?.LogWarning("设置文件缺少的分组未能补写，按默认值运行：{Error}", error.Message);
             return settings;
         }
     }
