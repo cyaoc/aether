@@ -109,6 +109,9 @@ public sealed class CredentialRefreshTests
             Assert.IsType<Reconnecting>(updates.Current);
             Assert.Null(CheckedAt(h));
             Assert.Contains(h.Logger.Entries, e => e.Message.Contains("请重新扫码"));
+            var warning = Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试"));
+            Assert.Contains("登录凭据已被删除，停止当前连接", warning.Message);
+            Assert.DoesNotContain("The operation was canceled", warning.Message);
             await h.AdvanceRetryAsync(updates, 1);
             Assert.IsType<WatchQrCode>(updates.Current);
             Assert.Null(second.ConnectedUri);
@@ -247,11 +250,12 @@ public sealed class CredentialRefreshTests
         var saved = h.SavedCredential();
         h.Time.Advance(TimeSpan.FromDays(1));
         ConfigureRefresh(h);
-        h.Http.FailOnce(path, new HttpRequestException("unavailable", null, System.Net.HttpStatusCode.ServiceUnavailable));
+        var failure = new HttpRequestException("unavailable", new IOException("connection reset"), System.Net.HttpStatusCode.ServiceUnavailable);
+        h.Http.FailOnce(path, failure);
         await CheckConnectingAsync(h);
         Assert.Equal(saved.SavedAt, CheckedAt(h));
         Assert.Equal(saved.RefreshToken, h.SavedCredential().RefreshToken);
-        Assert.Contains(h.Logger.Entries, e => e.Message.Contains("下次再试"));
+        Assert.Same(failure, Assert.Single(h.Logger.Entries, e => e.Message.Contains("下次再试")).Exception);
         await CheckConnectingAsync(h);
         Assert.Equal("new-token", h.SavedCredential().RefreshToken);
         Assert.Equal(2, h.Http.Requests.Count(r => r.Uri.GetLeftPart(UriPartial.Path) == Info));
@@ -325,13 +329,15 @@ public sealed class CredentialRefreshTests
         Assert.Equal(requests, h.Http.Requests.Count);
     }
 
-    [Fact]
-    public async Task Ending_connection_lets_an_inflight_refresh_save_the_new_credential()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Ending_connection_waits_for_inflight_refresh_without_overwriting_disconnect_reason(bool rejected)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
         h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
-        ConfigureRefresh(h);
+        ConfigureRefresh(h, refreshCode: rejected ? 86095 : 0);
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         h.Http.Intercept(Refresh, async (_, token, next) =>
@@ -345,12 +351,19 @@ public sealed class CredentialRefreshTests
         await requested.Task.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
         var ending = updates.MoveNextAsync().AsTask();
         await h.Server.DisconnectAsync();
-        await Task.Delay(100, h.Stop.Token); // Let the disconnect reach the connection's finally before B站 answers.
-        Assert.False(ending.IsCompleted);
-        release.SetResult();
+        try
+        {
+            await Task.Delay(100, h.Stop.Token); // Let the disconnect reach the connection's finally before B站 answers.
+            h.Time.Advance(TimeSpan.FromSeconds(60)); // Cleanup must not replace the disconnect reason with an idle timeout either.
+            Assert.False(ending.IsCompleted);
+        }
+        finally { release.TrySetResult(); }
         Assert.True(await ending.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.IsType<Reconnecting>(updates.Current);
-        Assert.Equal("new-token", h.SavedCredential().RefreshToken);
+        if (rejected) Assert.Null(CheckedAt(h));
+        else Assert.Equal("new-token", h.SavedCredential().RefreshToken);
+        var warning = Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试"));
+        Assert.Contains("弹幕服务器已断开连接", warning.Message);
     }
 
     [Theory]

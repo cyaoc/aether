@@ -25,6 +25,7 @@ public sealed partial class AetherClient
         private long? realRoomId;
         private FileStream? roomLock;
         private IDisposable? roomScope;
+        private string? stopReason;
         private readonly DanmakuProtocol.FormatNotices formatNotices = new();
         private readonly SendQueue sendQueue =
             new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value));
@@ -37,16 +38,26 @@ public sealed partial class AetherClient
             {
                 while (true)
                 {
+                    var connected = false;
+                    stopReason = null;
                     try
                     {
                         realRoomId ??= await new BilibiliApi(client.http, client.timeProvider, credential: null)
                             .ResolveRoomIdAsync(roomId, cancellationToken);
-                        roomLock ??= AcquireRoomLock(realRoomId.Value);
-                        roomScope ??= client.logger.BeginRoomScope(realRoomId.Value);
+                        if (roomLock is null)
+                        {
+                            roomLock = AcquireRoomLock(realRoomId.Value);
+                            roomScope = client.logger.BeginRoomScope(realRoomId.Value);
+                            client.logger.LogInformation("直播间连接开始");
+                        }
                         await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {
                             if (reconnecting && update is Connecting) continue;
-                            if (update is Connected) retrySeconds = 1;
+                            if (update is Connected)
+                            {
+                                connected = true;
+                                retrySeconds = 1;
+                            }
                             // Never wait here on the reader or on anything slow: the idle deadline only moves as packets arrive.
                             await output.WriteAsync(update, cancellationToken);
                         }
@@ -54,7 +65,10 @@ public sealed partial class AetherClient
                     }
                     catch (Exception error) when (IsRetryable(error, cancellationToken))
                     {
-                        client.logger.LogWarning("直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, error.Message);
+                        if (connected)
+                            client.logger.LogWarning(error, "直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, stopReason ?? error.Message);
+                        else
+                            client.logger.LogWarning(error, "连接弹幕服务器失败，{Seconds} 秒后重试：{Error}", retrySeconds, stopReason ?? error.Message);
                     }
                     // The caller records every failure for the process; this copy only tells the room's file how it ended.
                     catch (Exception error) when (roomLock is not null && !cancellationToken.IsCancellationRequested)
@@ -132,6 +146,7 @@ public sealed partial class AetherClient
             var authentication = DanmakuProtocol.CreateAuthentication(connection.Mid, realRoomId, connection.Token, connection.Buvid);
             using var idleTimeout = new CancellationTokenSource(IdleTimeout, client.timeProvider);
             using var connectionStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, idleTimeout.Token);
+            using var idleReason = idleTimeout.Token.Register(() => stopReason = "60 秒未收到任何数据，包括心跳回复");
             await socket.SendAsync(authentication, WebSocketMessageType.Binary, true, connectionStop.Token);
             Task heartbeat = Task.CompletedTask;
             Task credentialChecks = Task.CompletedTask;
@@ -158,6 +173,7 @@ public sealed partial class AetherClient
                                 // On the thread pool: a send queue left over from before a reconnect would otherwise run its
                                 // first SQLite query right here on the receive loop.
                                 sending = Task.Run(() => SendRepliesAsync(realRoomId, connectionStop), CancellationToken.None);
+                                client.logger.LogInformation("已连接弹幕服务器 {Server}", connection.Server);
                                 yield return new Connected();
                             }
                         }
@@ -180,6 +196,8 @@ public sealed partial class AetherClient
             }
             finally
             {
+                // Teardown can outlast the idle deadline; it must not change why receiving stopped.
+                idleReason.Dispose();
                 await connectionStop.CancelAsync();
                 try { await Task.WhenAll(heartbeat, credentialChecks, sending); }
                 finally
@@ -219,6 +237,8 @@ public sealed partial class AetherClient
                     // Gone after the check means B站 rejected the refresh and the credential was deleted.
                     if (await client.RefreshCredentialIfDueAsync(stop.Token, cancellationToken) is null)
                     {
+                        if (!stop.IsCancellationRequested)
+                            stopReason = "登录凭据已被删除，停止当前连接并重新登录";
                         await stop.CancelAsync();
                         return;
                     }

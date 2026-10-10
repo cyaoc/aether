@@ -9,6 +9,70 @@ namespace Aether.Core.Tests;
 
 public sealed class FileLoggingTests
 {
+    [Fact]
+    public async Task Retry_logs_distinguish_failed_attempts_from_disconnects_and_keep_inner_exceptions()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        using var host = FileLoggingHost(h.DataDirectory);
+        var attempts = 0;
+        using var client = new AetherClient(h.Http, (uri, token) => ++attempts == 2
+            ? h.Server.ConnectAsync(uri, token)
+            : throw new WebSocketException("Unable to connect to the remote server",
+                new HttpRequestException("proxy CONNECT rejected: 403")), h.Time,
+            host.Services.GetRequiredService<ILogger<AetherClient>>(), h.DataDirectory);
+        await using var updates = h.Watch(client);
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Connecting>(updates.Current);
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Reconnecting>(updates.Current);
+        await h.AdvanceRetryAsync(updates, 1);
+        Assert.IsType<Connected>(updates.Current);
+        await h.Server.DisconnectAsync();
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Reconnecting>(updates.Current);
+        await h.AdvanceRetryAsync(updates, 1);
+        Assert.IsType<Reconnecting>(updates.Current);
+
+        var lines = File.ReadAllLines(Assert.Single(Directory.GetFiles(
+            Path.Combine(h.DataDirectory, "logs", "7734200"), "*.log")));
+        Assert.Collection(lines.Where(line => line.Contains("[WRN]")),
+            line => Assert.Contains("连接弹幕服务器失败，1 秒后重试", line),
+            line => Assert.Contains("直播间连接中断，1 秒后重试", line),
+            line => Assert.Contains("连接弹幕服务器失败，2 秒后重试", line));
+        Assert.Contains(lines, line => line.Contains("System.Net.Http.HttpRequestException: proxy CONNECT rejected: 403"));
+        Assert.Contains(lines, line => line.Contains(nameof(Retry_logs_distinguish_failed_attempts_from_disconnects_and_keep_inner_exceptions)));
+    }
+
+    [Fact]
+    public async Task Room_logs_start_once_and_each_authenticated_server_across_reconnects()
+    {
+        await using var h = new WatchHarness();
+        await using var second = new FakeDanmakuServer();
+        await h.LoginAsync();
+        using var host = FileLoggingHost(h.DataDirectory);
+        var attempts = 0;
+        using var client = new AetherClient(h.Http, (uri, token) =>
+            (++attempts == 1 ? h.Server : second).ConnectAsync(uri, token), h.Time,
+            host.Services.GetRequiredService<ILogger<AetherClient>>(), h.DataDirectory);
+        await using var updates = await h.WatchConnectedAsync(client);
+        await h.Server.DisconnectAsync();
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Reconnecting>(updates.Current);
+        h.Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
+            """{"code":0,"data":{"token":"fresh-token","host_list":[{"host":"fresh.example","wss_port":443}]}}""";
+        await h.AdvanceRetryAsync(updates, 1);
+        Assert.IsType<Connected>(updates.Current);
+
+        var logs = Path.Combine(h.DataDirectory, "logs");
+        var lines = File.ReadAllLines(Assert.Single(Directory.GetFiles(Path.Combine(logs, "7734200"), "*.log")));
+        Assert.Collection(lines.Where(line => line.Contains("[INF]")),
+            line => Assert.Contains("直播间连接开始", line),
+            line => { Assert.Contains("已连接弹幕服务器", line); Assert.Contains("wss://danmaku.example/sub", line); },
+            line => { Assert.Contains("已连接弹幕服务器", line); Assert.Contains("wss://fresh.example/sub", line); });
+        Assert.Empty(Directory.GetFiles(logs, "*.log"));
+    }
+
     [Theory]
     [InlineData(LogLevel.Trace)]
     [InlineData(LogLevel.Debug)]
@@ -63,7 +127,10 @@ public sealed class FileLoggingTests
         // The SEND_GIFT then SEND_GIFT_V2 above report the gift message version, then its switch.
         var notices = lines.Where(line => line.Contains("[INF]")).ToArray();
         if (level <= LogLevel.Information)
-            Assert.Collection(notices, line => Assert.Contains("V1", line), line => Assert.Contains("V2", line));
+            Assert.Collection(notices,
+                line => Assert.Contains("直播间连接开始", line),
+                line => Assert.Contains("已连接弹幕服务器", line),
+                line => Assert.Contains("V1", line), line => Assert.Contains("V2", line));
         else Assert.Empty(notices);
         Assert.Equal(ignored.Length * (level <= LogLevel.Debug ? 1 : 0)
             + (level <= LogLevel.Warning ? 1 : 0) + notices.Length + captures.Length, lines.Length);

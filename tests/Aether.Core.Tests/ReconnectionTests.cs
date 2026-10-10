@@ -295,6 +295,12 @@ public sealed class ReconnectionTests
         {
             Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
             Assert.IsType<Reconnecting>(updates.Current);
+            var warning = Assert.Single(h.Logger.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Warning);
+            Assert.Contains("60 秒未收到任何数据，包括心跳回复", warning.Message);
+            Assert.DoesNotContain("The operation was canceled", warning.Message);
+            h.Server.ReplyToAuthentication = true;
+            await h.AdvanceRetryAsync(updates, 1);
+            Assert.IsType<Connected>(updates.Current);
         }
         finally
         {

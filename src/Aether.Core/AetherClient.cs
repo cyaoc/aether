@@ -191,7 +191,7 @@ public sealed partial class AetherClient(
         try { return await request(); }
         catch (Exception error) when (IsRetryable(error, cancellationToken))
         {
-            logger.LogWarning("登录请求失败，2 秒后重试：{Error}", error.Message);
+            logger.LogWarning(error, "登录请求失败，2 秒后重试：{Error}", error.Message);
             return null;
         }
     }
@@ -229,7 +229,7 @@ public sealed partial class AetherClient(
         }
         catch (Exception error) when (IsRetryable(error, cancellationToken))
         {
-            logger.LogWarning("检查或刷新登录凭据时网络失败，下次再试：{Error}", error.Message);
+            logger.LogWarning(error, "检查或刷新登录凭据时网络失败，下次再试：{Error}", error.Message);
         }
         catch (CredentialRejectedException error)
         {
