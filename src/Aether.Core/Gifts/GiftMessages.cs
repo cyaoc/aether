@@ -6,19 +6,23 @@ namespace Aether.Core.Gifts;
 
 internal static class GiftMessages
 {
-    private static readonly Dictionary<string, Func<JsonElement, IEnumerable<Gift>>> Decoders = new()
+    private static readonly Dictionary<string, (string Version, Func<JsonElement, IEnumerable<Gift>> Decode)> Decoders = new()
     {
-        ["SEND_GIFT"] = SendGiftV1.Decode
+        ["SEND_GIFT"] = ("V1", SendGiftV1.Decode),
+        ["SEND_GIFT_V2"] = ("V2", SendGiftV2.Decode)
     };
+
+    public static string? Version(string command) => Decoders.TryGetValue(command, out var decoder) ? decoder.Version : null;
 
     // Defer detail reads so ignored ordinary/non-gold gifts need not have valid blind box fields.
     internal sealed record Gift(bool IsBlindBox, Func<string?> CoinType, Func<BlindBox> Read);
 
     public static BlindBox[] Decode(string command, JsonElement root, ReadOnlyMemory<byte> body, ILogger logger)
     {
-        if (!Decoders.TryGetValue(command, out var decode)) return [];
+        if (!Decoders.TryGetValue(command, out var decoder)) return [];
         List<BlindBox> result = [];
-        foreach (var gift in decode(root.GetProperty("data")))
+        string? rawMessage = null;
+        foreach (var gift in decoder.Decode(root.GetProperty("data")))
         {
             if (!gift.IsBlindBox) continue;
             if (gift.CoinType() is var coinType && coinType != "gold")
@@ -34,7 +38,7 @@ internal static class GiftMessages
             {
                 OpenedValue = checked(box.OpenedGiftPrice * box.Num),
                 Tid = string.IsNullOrEmpty(box.Tid) ? null : box.Tid,
-                RawMessage = Encoding.UTF8.GetString(body.Span)
+                RawMessage = rawMessage ??= Encoding.UTF8.GetString(body.Span)
             });
         }
         return result.ToArray();

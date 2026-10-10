@@ -33,11 +33,11 @@ internal static class DanmakuProtocol
 
         public void Observe(string command, ILogger logger)
         {
-            if (command is "SEND_GIFT" or "SEND_GIFT_V2")
+            if (GiftMessages.Version(command) is { } version)
             {
                 if (command == giftCommand) return;
                 giftCommand = command;
-                logger.LogInformation("本直播间的礼物消息为 {Version}（{Command}）", command == "SEND_GIFT" ? "V1" : "V2", command);
+                logger.LogInformation("本直播间的礼物消息为 {Version}（{Command}）", version, command);
             }
             // B站 moves message kinds to new formats room by room without notice; say so instead of silently missing them.
             else if ((command.StartsWith("DANMU_MSG", StringComparison.Ordinal) || command.StartsWith("SEND_GIFT", StringComparison.Ordinal))
@@ -118,7 +118,7 @@ internal static class DanmakuProtocol
             else
                 decoded = GiftMessages.Decode(command, root, body, logger).Select(box => (DecodedEvent)new BlindBoxReceived(box)).ToArray();
         }
-        // Only JSON parsing and field access are inside this boundary; frame errors still end the stream.
+        // Only message decoding is inside this boundary; frame errors still end the stream.
         catch (Exception error) when (error is JsonException or KeyNotFoundException
             or InvalidOperationException or IndexOutOfRangeException or FormatException or OverflowException)
         {

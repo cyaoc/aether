@@ -185,7 +185,7 @@ public sealed class ProtocolTests
 
     private const string UnknownDanmaku ="""{"cmd":"DANMU_MSG_V2","data":{}}""";
     private const string GiftV1 ="""{"cmd":"SEND_GIFT","data":{}}""";
-    private const string GiftV2 = """{"cmd":"SEND_GIFT_V2","data":{}}""";
+    private const string GiftV2 = """{"cmd":"SEND_GIFT_V2","data":{"pb":""}}""";
     private const string SyncDanmaku = """{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""";
 
     /// <summary>Pushes room messages in one frame; end with a danmaku and read it to know every earlier one was handled.</summary>
