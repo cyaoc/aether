@@ -31,6 +31,7 @@ public sealed class BlindBoxReplyTests
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
         // The retry is still owed, so the full 60 s pause runs again from the interruption.
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(59));
         h.Time.Advance(TimeSpan.FromSeconds(30));
         await DanmakuAsync(h, updates, "保持连接");
         h.Time.Advance(TimeSpan.FromMilliseconds(28999));
@@ -63,6 +64,7 @@ public sealed class BlindBoxReplyTests
             await h.AdvanceRetryAsync(updates, 1);
             Assert.IsType<Connected>(updates.Current);
             await DanmakuAsync(h, updates);
+            await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(39));
             h.Time.Advance(TimeSpan.FromMilliseconds(38999));
             await AssertNoReplyAsync(sent);
             h.Time.Advance(TimeSpan.FromMilliseconds(1));
@@ -480,6 +482,7 @@ public sealed class BlindBoxReplyTests
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
         // The interrupted request may have reached B站, so it counts as a send: the 5 s interval runs from the interruption.
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
         h.Time.Advance(TimeSpan.FromMilliseconds(3999));
         await AssertNoReplyAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
