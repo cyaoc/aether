@@ -23,6 +23,7 @@ public sealed class BlindBoxReplyTests
         await DanmakuAsync(h, updates);
         await NextReplyAsync(sent);
         await WaitForLogAsync(h, LogLevel.Warning, "暂停 60 秒");
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(60), count: 2);
         await AdvanceAMinuteAsync(h, updates);
         await retryStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
         await h.Server.DisconnectAsync();
@@ -38,7 +39,7 @@ public sealed class BlindBoxReplyTests
         await AssertNoReplyAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal("10001", (await NextReplyAsync(sent))["reply_mid"]);
-        await WaitForLogAsync(h, LogLevel.Warning, "（10001）");
+        await WaitForLogAsync(h, LogLevel.Warning, "发送弹幕失败");
         // The interrupted HTTP attempt is resent under #46; its completed failure still exhausts the single retry.
         Assert.Single(h.Logger.Entries, e => e.Message.Contains("暂停"));
         await AdvanceAMinuteAsync(h, updates, silent: sent);
@@ -69,7 +70,8 @@ public sealed class BlindBoxReplyTests
             await AssertNoReplyAsync(sent);
             h.Time.Advance(TimeSpan.FromMilliseconds(1));
             Assert.Equal("10001", (await NextReplyAsync(sent))["reply_mid"]);
-            await WaitForLogAsync(h, LogLevel.Warning, "（10001）");
+            await WaitForLogAsync(h, LogLevel.Warning, "发送弹幕失败");
+            await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5));
             h.Time.Advance(TimeSpan.FromSeconds(5));
             Assert.Equal("20002", (await NextReplyAsync(sent))["reply_mid"]);
             await Eventually.TrueAsync(() => h.Logger.Entries.Count(e => e.Message.Contains("暂停")) == 2);
@@ -96,6 +98,7 @@ public sealed class BlindBoxReplyTests
         await NextReplyAsync(sent);
         await WaitForLogAsync(h, LogLevel.Warning, "发送弹幕失败");
         await DanmakuAsync(h, updates);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
         h.Time.Advance(TimeSpan.FromMilliseconds(999));
         await AssertNoReplyAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
@@ -115,6 +118,7 @@ public sealed class BlindBoxReplyTests
         await DanmakuAsync(h, updates);
         await NextReplyAsync(sent);
         await WaitForLogAsync(h, LogLevel.Warning, "暂停 60 秒");
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(70));
         await AdvanceAMinuteAsync(h, updates, silent: sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(9999));
         await AssertNoReplyAsync(sent);
@@ -141,6 +145,7 @@ public sealed class BlindBoxReplyTests
         await DanmakuAsync(h, updates);
         var first = await NextReplyAsync(sent);
         await WaitForLogAsync(h, LogLevel.Warning, "暂停 60 秒");
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(60), count: 2);
         // Hitting a rate limit means the account is close to being muted, so it shows at the default level with B站's reason.
         Assert.Contains(message, Assert.Single(h.Logger.Entries, e => e.Message.Contains("暂停 60 秒")).Message);
         await DanmakuAsync(h, updates, uid: 20002);
@@ -153,7 +158,9 @@ public sealed class BlindBoxReplyTests
         var retry = await NextReplyAsync(sent);
         Assert.Equal(first["reply_mid"], retry["reply_mid"]);
         Assert.Equal(first["replay_dmid"], retry["replay_dmid"]);
-        await WaitForLogAsync(h, retrySucceeds ? LogLevel.Information : LogLevel.Warning, "（10001）");
+        await WaitForLogAsync(h, retrySucceeds ? LogLevel.Information : LogLevel.Warning,
+            retrySucceeds ? "发送弹幕成功" : "发送弹幕失败");
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5));
         h.Time.Advance(TimeSpan.FromMilliseconds(4999));
         await AssertNoReplyAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
@@ -184,6 +191,7 @@ public sealed class BlindBoxReplyTests
         await WaitForLogAsync(h, LogLevel.Debug, "冷却");
         await DanmakuAsync(h, updates, uid: 20002);
         await AssertNoReplyAsync(sent);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
         h.Time.Advance(TimeSpan.FromSeconds(1));
         Assert.Equal("20002", (await NextReplyAsync(sent))["reply_mid"]);
         await WaitForLogAsync(h, LogLevel.Information, "（20002）");
@@ -216,9 +224,11 @@ public sealed class BlindBoxReplyTests
             await DanmakuAsync(h, updates, uid: 30003);
             release.SetResult();
             await WaitForLogAsync(h, LogLevel.Information, "（10001）");
+            await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5));
             h.Time.Advance(TimeSpan.FromSeconds(5));
             Assert.Equal("20002", (await NextReplyAsync(sent))["reply_mid"]);
             await WaitForLogAsync(h, LogLevel.Information, "（20002）");
+            await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5), count: 2);
             h.Time.Advance(TimeSpan.FromSeconds(5));
             Assert.Equal("30003", (await NextReplyAsync(sent))["reply_mid"]);
             await WaitForLogAsync(h, LogLevel.Information, "（30003）");
@@ -338,6 +348,7 @@ public sealed class BlindBoxReplyTests
         await h.Server.PushRoomMessageAsync(Gift(beforeMidnight, price: 5010, spend: 4010));
         await h.Server.PushRoomMessageAsync(Gift(beforeMidnight.AddSeconds(1), price: 99900));
         await DanmakuAsync(h, updates, "同步");
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(7));
         h.Time.Advance(TimeSpan.FromMilliseconds(6999));
         await AssertNoReplyAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));

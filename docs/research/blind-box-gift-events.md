@@ -222,7 +222,7 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
 
 ### 7.6 小结（给"今日盲盒"回复用）
 
-- 参数：`reply_mid` = 触发弹幕的 `info[2][0]`；`replay_dmid` = 触发弹幕 `extra.id_str`（[推断] 非必需，但网页端和 PiliPlus 都会带）；`reply_uname` 传空；`reply_attr` 和 `reply_type` 传 `0`。
+- 参数：`reply_mid` = 触发弹幕的 `info[2][0]`；`replay_dmid` = 触发弹幕 `extra.id_str`（[推断] 非必需，但网页端和 PiliPlus 都会带）；`reply_uname` 传空；`reply_attr` 和 `reply_type` 传 `0`。[实测] 不带 `reply_type` 时网页端和 App 的聊天列表也显示 @（"未解决"第 11 项），bot 现在就不带。
 - 正文不写昵称，20 字（以 `getInfoByUser` 为准）全部给正文。
 - 判断成功：要 `code == 0` 且 `message` 为空。`"msg in 1s"`、`"msg repeat"`、`"f"`、`"k"` 等非空 message 都表示没发出去。
 - 同一 bot 账号 5 秒内不要发两条相同正文，即使 @ 的人不同。经发送队列控制，每条间隔不少于 1.5 秒。
@@ -275,8 +275,8 @@ BAC 对 `blind_gift` 只写了"待调查"，示例里是 `null`（[#L1515](https
 8. `COMBO_END` 现在是否还推送。
 9. `msg/send` 的安全发送间隔；`10030` 和 `10031` 的确切含义；不同用户等级或大航海身份的长度上限。
 10. V2 的灰度规则；`data.pb` 和 `data.data.pb` 两种路径是否都存在。lovelyyoshino 文档写的是 `data.data.pb`，blivedm PR 作者实测只见过 `data.pb`（[评论](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5103018495)）。
-11. 回复弹幕只传 `reply_mid`、不传 `replay_dmid` 时，官方 Web 和 App 是否照样显示 @。`replay_dmid` 有什么作用，`reply_dmid` 这种拼写是否也有效。`reply_attr`、`reply_type` 和回显里 `reply_type_enum` 的含义。
-12. 官方 Web 和 App 的聊天列表、画面上的滚动弹幕是否都显示"@昵称"；@ 部分是否计入长度上限。
-13. 现在重复弹幕返回的是 `10030` 还是 code 0 加 `"msg repeat"`；去重窗口是否仍是 5 秒；同一段文字 @ 不同观众是否算重复。
-14. 每秒 1 条之外，账号是否还有更长时间窗口的发送上限；发得太频繁会不会触发自动禁言或风控，返回什么。
+11. 回复弹幕只传 `reply_mid`、不传 `replay_dmid` 时，官方 Web 和 App 是否照样显示 @。`replay_dmid` 有什么作用，`reply_dmid` 这种拼写是否也有效。`reply_attr`、`reply_type` 和回显里 `reply_type_enum` 的含义。[部分实测，2026-10-10，#49]：bot 带 `reply_mid` 和触发弹幕的 `replay_dmid`，`reply_uname` 留空、`reply_attr=0`、不带 `reply_type` 时，用户确认官方网页端和 App 的聊天列表都显示 @观众。只传 `reply_mid` 的效果、`reply_dmid` 拼写和各字段含义仍未验证。
+12. 官方 Web 和 App 的聊天列表、画面上的滚动弹幕是否都显示"@昵称"；@ 部分是否计入长度上限。[部分实测，2026-10-10，#49]：网页端和 App 的聊天列表显示 @，见第 11 项；画面上的滚动弹幕没有专门确认，@ 部分是否计入长度上限仍未验证。
+13. 现在重复弹幕返回的是 `10030` 还是 code 0 加 `"msg repeat"`；去重窗口是否仍是 5 秒；同一段文字 @ 不同观众是否算重复。[部分实测，2026-10-10](2026-10-10-danmaku-send-probe.md)：同一文字、同一回复对象，上一条返回后等待 2 秒，第二条得到 `10031 / 您发送弹幕的频率过快`；第二条取消回复字段、等待 2 秒，以及同一回复对象、等待 6 秒的两组均成功。缺少不同正文的同间隔对照和不同观众样本，且包含网络耗时，仍不能确定重复专用返回码、精确窗口或回复对象是否参与去重。
+14. 每秒 1 条之外，账号是否还有更长时间窗口的发送上限；发得太频繁会不会触发自动禁言或风控，返回什么。[部分实测，2026-10-10](2026-10-10-danmaku-send-probe.md)：向同一观众连续回复 12 条不同内容，每条完成后等待 5 秒，完整一轮均为 `code=0, message=''`；实际完成间隔为 6.0–6.4 秒。此前两轮分别在第 7 次和第 2 次尝试时发生 TLS 握手异常，不计为业务限流。多人、长期发送上限及禁言仍未验证。
 15. 被回复的观众开了神秘人（`reply_is_mystery`）时能否回复，显示成什么。
