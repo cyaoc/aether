@@ -45,6 +45,15 @@ internal sealed class WatchHarness : IAsyncDisposable
         return updates;
     }
 
+    /// <summary>Pushes room messages, then a danmaku, and returns once that danmaku arrives: every earlier message has been handled.</summary>
+    public async Task PushAndSyncAsync(IAsyncEnumerator<WatchUpdate> updates, params string[] messages)
+    {
+        foreach (var message in messages) await Server.PushRoomMessageAsync(message);
+        await Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""");
+        Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), Stop.Token));
+        Assert.Equal("同步", Assert.IsType<Danmaku>(updates.Current).Content);
+    }
+
     public async Task LoginAsync()
     {
         await using var updates = Client.LoginAsync(Stop.Token).GetAsyncEnumerator(Stop.Token);
