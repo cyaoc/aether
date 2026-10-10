@@ -168,7 +168,7 @@ public sealed class LoginTests : IDisposable
             _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<!DOCTYPE html><html></html>") }
         }));
         await client.LogoutAsync(TestContext.Current.CancellationToken);
-        Assert.Contains(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("仍删除本地登录凭据"));
+        Assert.NotNull(Assert.Single(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("仍删除本地登录凭据")).Exception);
         AssertNoCredential();
     }
 

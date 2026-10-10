@@ -200,7 +200,7 @@ public sealed class ProtocolTests
         .Select(entry => entry.Message).ToArray();
 
     /// <summary>Everything logged except the Trace captures of raw room messages.</summary>
-    private static IEnumerable<(Microsoft.Extensions.Logging.LogLevel Level, string Message, Exception? Exception)> EntriesAboveTrace(WatchHarness h) =>
+    private static IEnumerable<LogEntry> EntriesAboveTrace(WatchHarness h) =>
         h.Logger.Entries.Where(entry => entry.Level != Microsoft.Extensions.Logging.LogLevel.Trace);
 
     private static string[] Warnings(WatchHarness h) => h.Logger.Entries

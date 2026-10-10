@@ -112,6 +112,7 @@ public sealed class CredentialRefreshTests
             var warning = Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试"));
             Assert.Contains("登录凭据已被删除，停止当前连接", warning.Message);
             Assert.DoesNotContain("The operation was canceled", warning.Message);
+            Assert.Null(warning.Exception);
             await h.AdvanceRetryAsync(updates, 1);
             Assert.IsType<WatchQrCode>(updates.Current);
             Assert.Null(second.ConnectedUri);
@@ -364,6 +365,7 @@ public sealed class CredentialRefreshTests
         else Assert.Equal("new-token", h.SavedCredential().RefreshToken);
         var warning = Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试"));
         Assert.Contains("弹幕服务器已断开连接", warning.Message);
+        Assert.IsType<System.Net.WebSockets.WebSocketException>(warning.Exception);
     }
 
     [Theory]
@@ -450,6 +452,7 @@ public sealed class CredentialRefreshTests
         Assert.Contains("SESSDATA=new-session", h.Http.Requests.Last(r => r.Uri.AbsolutePath.EndsWith("/nav")).Cookie);
         Assert.Equal("new-token", h.SavedCredential().RefreshToken);
         Assert.Equal(confirmFails, h.Logger.Entries.Any(e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning));
+        if (confirmFails) Assert.NotNull(Assert.Single(h.Logger.Entries, e => e.Message.Contains("保留新登录凭据")).Exception);
     }
 
     private static void ConfigureRefresh(WatchHarness h, int refreshCode = 0)
@@ -485,7 +488,7 @@ public sealed class CredentialRefreshTests
         await CheckConnectingAsync(h);
         Assert.Equal("refresh-token", h.SavedCredential().RefreshToken);
         Assert.Equal(h.Time.GetUtcNow(), CheckedAt(h));
-        Assert.Contains(h.Logger.Entries, e => e.Message.Contains("24 小时后再试"));
+        Assert.NotNull(Assert.Single(h.Logger.Entries, e => e.Message.Contains("24 小时后再试")).Exception);
         Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsoluteUri == Refresh);
         await CheckConnectingAsync(h);
         Assert.Single(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Info);

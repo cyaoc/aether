@@ -25,10 +25,12 @@ public sealed partial class AetherClient
         private long? realRoomId;
         private FileStream? roomLock;
         private IDisposable? roomScope;
-        private string? stopReason;
         private readonly DanmakuProtocol.FormatNotices formatNotices = new();
         private readonly SendQueue sendQueue =
             new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value));
+
+        // Why the current attempt was stopped, where its exception would only say it was canceled; cleared before each attempt.
+        private string? stopReason;
 
         public async Task RunAsync(CancellationToken cancellationToken)
         {
@@ -65,10 +67,14 @@ public sealed partial class AetherClient
                     }
                     catch (Exception error) when (IsRetryable(error, cancellationToken))
                     {
+                        // A stop this attempt made itself surfaces as a cancellation the reason fully explains;
+                        // any other failure is its own cause, even if a stop was requested at the same moment.
+                        var reason = error is OperationCanceledException ? stopReason : null;
+                        var exception = reason is null ? error : null;
                         if (connected)
-                            client.logger.LogWarning(error, "直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, stopReason ?? error.Message);
+                            client.logger.LogWarning(exception, "直播间连接中断，{Seconds} 秒后重试：{Error}", retrySeconds, reason ?? error.Message);
                         else
-                            client.logger.LogWarning(error, "连接弹幕服务器失败，{Seconds} 秒后重试：{Error}", retrySeconds, stopReason ?? error.Message);
+                            client.logger.LogWarning(exception, "连接弹幕服务器失败，{Seconds} 秒后重试：{Error}", retrySeconds, reason ?? error.Message);
                     }
                     // The caller records every failure for the process; this copy only tells the room's file how it ended.
                     catch (Exception error) when (roomLock is not null && !cancellationToken.IsCancellationRequested)
@@ -146,13 +152,12 @@ public sealed partial class AetherClient
             var authentication = DanmakuProtocol.CreateAuthentication(connection.Mid, realRoomId, connection.Token, connection.Buvid);
             using var idleTimeout = new CancellationTokenSource(IdleTimeout, client.timeProvider);
             using var connectionStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, idleTimeout.Token);
-            using var idleReason = idleTimeout.Token.Register(() => stopReason = "60 秒未收到任何数据，包括心跳回复");
-            await socket.SendAsync(authentication, WebSocketMessageType.Binary, true, connectionStop.Token);
             Task heartbeat = Task.CompletedTask;
             Task credentialChecks = Task.CompletedTask;
             Task sending = Task.CompletedTask;
             try
             {
+                await socket.SendAsync(authentication, WebSocketMessageType.Binary, true, connectionStop.Token);
                 var connected = false;
                 while (true)
                 {
@@ -196,8 +201,9 @@ public sealed partial class AetherClient
             }
             finally
             {
-                // Teardown can outlast the idle deadline; it must not change why receiving stopped.
-                idleReason.Dispose();
+                // Read before teardown, which can outlast the idle deadline; a stop already explained keeps its reason.
+                if (idleTimeout.IsCancellationRequested)
+                    stopReason ??= FormattableString.Invariant($"{IdleTimeout.TotalSeconds} 秒未收到任何数据，包括心跳回复。");
                 await connectionStop.CancelAsync();
                 try { await Task.WhenAll(heartbeat, credentialChecks, sending); }
                 finally
@@ -238,7 +244,7 @@ public sealed partial class AetherClient
                     if (await client.RefreshCredentialIfDueAsync(stop.Token, cancellationToken) is null)
                     {
                         if (!stop.IsCancellationRequested)
-                            stopReason = "登录凭据已被删除，停止当前连接并重新登录";
+                            stopReason = "登录凭据已被删除，停止当前连接并重新登录。";
                         await stop.CancelAsync();
                         return;
                     }

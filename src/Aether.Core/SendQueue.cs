@@ -81,7 +81,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             if (failure is null)
                 logger.LogInformation("发送弹幕成功：回复观众 {Nickname}（{Uid}）：{Message}", trigger.Nickname, trigger.Uid, reply);
             else
-                logger.LogWarning("发送弹幕失败，已丢弃：回复观众 {Nickname}（{Uid}）：{Message}；{Error}",
+                logger.LogWarning(failure, "发送弹幕失败，已丢弃：回复观众 {Nickname}（{Uid}）：{Message}；{Error}",
                     trigger.Nickname, trigger.Uid, reply, failure.Message);
         }
     }

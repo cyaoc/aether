@@ -45,7 +45,7 @@ public sealed class FileLoggingTests
     }
 
     [Fact]
-    public async Task Room_logs_start_once_and_each_authenticated_server_across_reconnects()
+    public async Task Room_connection_logs_start_once_and_each_authenticated_server_across_reconnects()
     {
         await using var h = new WatchHarness();
         await using var second = new FakeDanmakuServer();
