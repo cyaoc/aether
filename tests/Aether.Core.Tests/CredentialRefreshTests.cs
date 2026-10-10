@@ -48,7 +48,7 @@ public sealed class CredentialRefreshTests
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Danmaku>(updates.Current);
         h.Time.Advance(TimeSpan.FromSeconds(10));
-        await WaitUntilAsync(() => h.Logger.Entries.Any(e => e.Message.Contains("请重新扫码")));
+        await Eventually.TrueAsync(() => h.Logger.Entries.Any(e => e.Message.Contains("请重新扫码")));
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
     }
@@ -162,7 +162,7 @@ public sealed class CredentialRefreshTests
         try
         {
             h.Time.Advance(TimeSpan.FromSeconds(2));
-            await WaitUntilAsync(() => h.Logger.Entries.Any(e => e.Message.Contains("2 秒后重试")));
+            await Eventually.TrueAsync(() => h.Logger.Entries.Any(e => e.Message.Contains("2 秒后重试")));
             Assert.False(next.IsCompleted);
             Assert.Null(h.Server.ConnectedUri);
             h.Http.Responses[Nav] = validNav;
@@ -372,7 +372,7 @@ public sealed class CredentialRefreshTests
         try
         {
             h.Time.Advance(TimeSpan.FromSeconds(10));
-            await WaitUntilAsync(() => networkFailure
+            await Eventually.TrueAsync(() => networkFailure
                 ? h.Logger.Entries.Any(e => e.Message.Contains("下次再试"))
                 : h.SavedCredential().RefreshToken == "new-token");
             Assert.False(next.IsCompleted);
@@ -390,13 +390,6 @@ public sealed class CredentialRefreshTests
             await h.Stop.CancelAsync();
             await next;
         }
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        timeout.CancelAfter(TimeSpan.FromSeconds(5));
-        while (!condition()) await Task.Delay(10, timeout.Token);
     }
 
     [Theory]
@@ -502,7 +495,7 @@ public sealed class CredentialRefreshTests
         try
         {
             h.Time.Advance(TimeSpan.FromSeconds(10));
-            await WaitUntilAsync(() => h.Http.Requests.Any(r => r.Uri.AbsoluteUri == Refresh));
+            await Eventually.TrueAsync(() => h.Http.Requests.Any(r => r.Uri.AbsoluteUri == Refresh));
             await Task.Delay(100, h.Stop.Token); // Let the rejection settle before proving the connection outlived it.
             await h.Server.PushAsync(DanmakuPacket());
             Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));

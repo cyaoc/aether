@@ -86,8 +86,7 @@ public sealed class ProtocolTests
         var error = await Record.ExceptionAsync(async () =>
             await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         Assert.IsType(kind == "invalid-brotli" ? typeof(InvalidOperationException) : typeof(InvalidDataException), error);
-        var logged = Assert.Single(h.Logger.Entries);
-        Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Error, logged.Level);
+        var logged = Assert.Single(h.Logger.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Error);
         Assert.Contains("直播间连接失败", logged.Message);
     }
 

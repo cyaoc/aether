@@ -9,6 +9,93 @@ public sealed class SettingsTests : IAsyncDisposable
     private string SettingsPath => Path.Combine(harness.DataDirectory, "aether.yml");
 
     [Fact]
+    public void Template_defaults_match_the_defaults_used_when_a_setting_is_missing()
+    {
+        // Each default is written twice, in Template and in its definition; this keeps the two from drifting apart.
+        var fromTemplate = Settings.Load(harness.DataDirectory);
+        Write("");
+        var missing = Settings.Load(harness.DataDirectory);
+        Assert.Equal(missing.LogRetentionDays.Value, fromTemplate.LogRetentionDays.Value);
+        Assert.Equal(missing.LogLevel.Value, fromTemplate.LogLevel.Value);
+        Assert.Equal(missing.BlindBoxEnabled.Value, fromTemplate.BlindBoxEnabled.Value);
+        Assert.Equal(missing.BlindBoxKeyword.Value, fromTemplate.BlindBoxKeyword.Value);
+        Assert.Equal(missing.SendIntervalSeconds.Value, fromTemplate.SendIntervalSeconds.Value);
+    }
+
+    [Fact]
+    public void Reply_settings_have_defaults_and_save_missing_keys_without_rewriting_other_lines()
+    {
+        Settings.Load(harness.DataDirectory);
+        var template = File.ReadAllText(SettingsPath);
+        Assert.Contains("keyword: 今日盲盒", template);
+        Assert.Contains("interval_seconds: 5", template);
+        // Each new item tells file editors when it applies, on its own comment line.
+        var lines = template.ReplaceLineEndings("\n").Split('\n');
+        Assert.Contains("下次观看直播间时生效", lines[Array.FindIndex(lines, line => line.Contains("keyword: 今日盲盒")) - 1]);
+        Assert.Contains("下次观看直播间时生效", lines[Array.FindIndex(lines, line => line == "send:") - 1]);
+        Assert.Null(Settings.Validate("blind_box.keyword", "查盲盒"));
+        Assert.Null(Settings.Validate("send.interval_seconds", "7"));
+        Write("# 保留\nblind_box:\n  enabled: true\n");
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string>
+        {
+            ["blind_box.keyword"] = "查盲盒", ["send.interval_seconds"] = "7",
+        });
+        Assert.Equal("# 保留\nblind_box:\n  enabled: true\n  keyword: 查盲盒\nsend:\n  interval_seconds: 7\n", File.ReadAllText(SettingsPath));
+        Assert.Empty(Settings.Load(harness.DataDirectory).UnknownKeys);
+        Assert.Equal("查盲盒", Settings.Load(harness.DataDirectory).BlindBoxKeyword.Value);
+        Assert.Equal(7, Settings.Load(harness.DataDirectory).SendIntervalSeconds.Value);
+    }
+
+    [Theory]
+    [InlineData("blind_box", "keyword", "''")]
+    [InlineData("blind_box", "keyword", "'   '")]
+    [InlineData("blind_box", "keyword", "")]
+    [InlineData("blind_box", "keyword", "[]")]
+    [InlineData("send", "interval_seconds", "0")]
+    [InlineData("send", "interval_seconds", "-1")]
+    [InlineData("send", "interval_seconds", "1.5")]
+    [InlineData("send", "interval_seconds", "abc")]
+    [InlineData("send", "interval_seconds", "2147483648")]
+    public async Task Invalid_reply_settings_refuse_watching_with_the_setting_location(string group, string key, string value)
+    {
+        Write($"{group}:\n  {key}: {value}\n");
+        await using var updates = harness.Watch();
+        var error = await Assert.ThrowsAsync<SettingsException>(() => updates.MoveNextAsync().AsTask());
+        Assert.Equal(group + "." + key, error.SettingName);
+        Assert.Equal(2, error.LineNumber);
+        Assert.Equal(SettingsPath, error.FilePath);
+        Assert.Empty(harness.Http.Requests);
+    }
+
+    [Theory]
+    [InlineData("blind_box.keyword", "")]
+    [InlineData("blind_box.keyword", " \t ")]
+    [InlineData("blind_box.keyword", "两行\n文字")]
+    [InlineData("send.interval_seconds", "0")]
+    [InlineData("send.interval_seconds", "1.5")]
+    public void Reply_settings_validate_and_reject_saving_invalid_input(string name, string value)
+    {
+        Settings.Load(harness.DataDirectory);
+        var before = File.ReadAllBytes(SettingsPath);
+        Assert.NotNull(Settings.Validate(name, value));
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { [name] = value }));
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+    }
+
+    [Fact]
+    public void Missing_reply_settings_use_defaults_and_keywords_round_trip_as_Yaml_text()
+    {
+        Write("log:\n  level: Debug\n");
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Equal("今日盲盒", settings.BlindBoxKeyword.Value);
+        Assert.Equal(5, settings.SendIntervalSeconds.Value);
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.keyword"] = "#盲盒: 查询" });
+        Assert.Equal("#盲盒: 查询", Settings.Load(harness.DataDirectory).BlindBoxKeyword.Value);
+        Assert.Null(Settings.Load(harness.DataDirectory).Error);
+    }
+
+    [Fact]
     public void Blind_box_template_and_boolean_save_use_single_line_values()
     {
         Assert.Null(Settings.Load(harness.DataDirectory).Error);

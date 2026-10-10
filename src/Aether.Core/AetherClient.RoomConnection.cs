@@ -26,6 +26,10 @@ public sealed partial class AetherClient
         private FileStream? roomLock;
         private IDisposable? roomScope;
         private readonly DanmakuProtocol.FormatNotices formatNotices = new();
+        // ponytail: an unbounded send queue in memory; add a capacity policy if keyword floods become a problem.
+        private readonly Channel<Danmaku> sendQueue = Channel.CreateUnbounded<Danmaku>(
+            new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+        private long? lastSendFinished;
 
         public async Task RunAsync(CancellationToken cancellationToken)
         {
@@ -70,6 +74,10 @@ public sealed partial class AetherClient
             }
             finally
             {
+                var discarded = 0;
+                while (sendQueue.Reader.TryRead(out _)) discarded++;
+                if (roomLock is not null)
+                    client.logger.LogInformation("直播间连接结束，发送队列丢掉 {Count} 条待发弹幕", discarded);
                 roomScope?.Dispose();
                 roomLock?.Dispose();
             }
@@ -130,6 +138,7 @@ public sealed partial class AetherClient
             await socket.SendAsync(authentication, WebSocketMessageType.Binary, true, connectionStop.Token);
             Task heartbeat = Task.CompletedTask;
             Task credentialChecks = Task.CompletedTask;
+            Task sending = Task.CompletedTask;
             try
             {
                 var connected = false;
@@ -149,11 +158,22 @@ public sealed partial class AetherClient
                                 connected = true;
                                 heartbeat = SendHeartbeatsAsync(socket, connectionStop);
                                 credentialChecks = RefreshCredentialWhileConnectedAsync(connectionStop, cancellationToken);
+                                // On the thread pool: a send queue left over from before a reconnect would otherwise run its
+                                // first SQLite query right here on the receive loop.
+                                sending = Task.Run(() => SendRepliesAsync(realRoomId, connectionStop), CancellationToken.None);
                                 yield return new Connected();
                             }
                         }
                         else if (decoded is DanmakuProtocol.DanmakuReceived danmaku)
+                        {
+                            if (Settings.BlindBoxEnabled.Value && danmaku.Danmaku.Content.Trim() == Settings.BlindBoxKeyword.Value.Trim())
+                            {
+                                if (danmaku.Danmaku.Uid == 0)
+                                    client.logger.LogDebug("uid 为 0 的观众发出盲盒关键字，未回复");
+                                else sendQueue.Writer.TryWrite(danmaku.Danmaku);
+                            }
                             yield return danmaku.Danmaku;
+                        }
                         // ponytail: a synchronous SQLite write on the receive loop (busy waits up to Microsoft.Data.Sqlite's 30 s
                         // command timeout, well inside the 60 s idle deadline); hand it to a background writer if a room ever stalls on it.
                         else if (decoded is DanmakuProtocol.BlindBoxReceived received && Settings.BlindBoxEnabled.Value)
@@ -164,7 +184,7 @@ public sealed partial class AetherClient
             finally
             {
                 await connectionStop.CancelAsync();
-                try { await Task.WhenAll(heartbeat, credentialChecks); }
+                try { await Task.WhenAll(heartbeat, credentialChecks, sending); }
                 finally
                 {
                     if (socket.State is WebSocketState.Open or WebSocketState.CloseReceived)
@@ -177,6 +197,40 @@ public sealed partial class AetherClient
                 }
             }
         }
+
+        private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) => RunWhileConnectedAsync(stop, async () =>
+        {
+            while (await sendQueue.Reader.WaitToReadAsync(stop.Token))
+            {
+                if (lastSendFinished is { } last)
+                {
+                    var interval = TimeSpan.FromSeconds(Settings.SendIntervalSeconds.Value);
+                    while (interval - client.timeProvider.GetElapsedTime(last) is var remaining && remaining > TimeSpan.Zero)
+                    {
+                        // A timer accepts at most uint.MaxValue - 1 milliseconds, even for a valid longer setting.
+                        await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(remaining.TotalMilliseconds, uint.MaxValue - 1)),
+                            client.timeProvider, stop.Token);
+                    }
+                }
+                // Peek, and take the reply off the send queue only once its send has ended: a reconnect keeps an
+                // interrupted one for the next connection, and the end of the room connection counts it as dropped.
+                stop.Token.ThrowIfCancellationRequested();
+                if (!sendQueue.Reader.TryPeek(out var trigger)) continue;
+                // Local reads fail the room connection, as blind box writes do; only the send itself can fail a reply.
+                var reply = BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, trigger.Uid, trigger.ReceivedAt));
+                var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
+                Exception? failure = null;
+                try { await api.ReplyAsync(roomId, trigger, reply, stop.Token); }
+                catch (Exception error) when (!stop.IsCancellationRequested) { failure = error; } // Never retried.
+                sendQueue.Reader.TryRead(out _);
+                lastSendFinished = client.timeProvider.GetTimestamp();
+                if (failure is null)
+                    client.logger.LogInformation("发送弹幕成功：回复观众 {Nickname}（{Uid}）：{Message}", trigger.Nickname, trigger.Uid, reply);
+                else
+                    client.logger.LogWarning("发送弹幕失败，已丢弃：回复观众 {Nickname}（{Uid}）：{Message}；{Error}",
+                        trigger.Nickname, trigger.Uid, reply, failure.Message);
+            }
+        });
 
         // A refresh cut short by the connection ending leaves checked_at unchanged, so the reconnect checks again.
         private Task RefreshCredentialWhileConnectedAsync(CancellationTokenSource stop, CancellationToken cancellationToken) =>

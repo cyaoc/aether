@@ -55,6 +55,9 @@ internal sealed class FakeDanmakuServer : IAsyncDisposable
         finally { sendLock.Release(); }
     }
 
+    /// <summary>Pushes one room message (op 5) in a frame of its own.</summary>
+    public Task PushRoomMessageAsync(string json) => PushAsync(Packet(5, System.Text.Encoding.UTF8.GetBytes(json), 0));
+
     public async Task DisconnectAsync() =>
         await server!.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, "test disconnect", stop.Token);
 

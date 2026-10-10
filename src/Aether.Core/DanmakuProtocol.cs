@@ -73,6 +73,25 @@ internal static class DanmakuProtocol
         }
     }
 
+    /// <summary>The sender uid and danmaku id that only a reply needs. An unreadable uid becomes 0 (no reply) and an
+    /// unreadable id "" (a reply without replay_dmid), so a format change there never hides the danmaku itself.</summary>
+    private static (long Uid, string Id) ReplyDetails(JsonElement info)
+    {
+        var uid = info[2][0] is { ValueKind: JsonValueKind.Number } sender && sender.TryGetInt64(out var number) && number > 0
+            ? number : 0;
+        if (info[0] is not { ValueKind: JsonValueKind.Array } meta || meta.GetArrayLength() <= 15
+            || meta[15] is not { ValueKind: JsonValueKind.Object } details
+            || !details.TryGetProperty("extra", out var extra) || extra.ValueKind != JsonValueKind.String)
+            return (uid, ""); // Older messages have no extra.
+        try
+        {
+            using var parsed = JsonDocument.Parse(extra.GetString()!);
+            return (uid, parsed.RootElement is { ValueKind: JsonValueKind.Object } root
+                && root.TryGetProperty("id_str", out var id) && id.ValueKind == JsonValueKind.String ? id.GetString()! : "");
+        }
+        catch (JsonException) { return (uid, ""); }
+    }
+
     private static bool IsDanmaku(string command) =>
         command == "DANMU_MSG" || command.StartsWith("DANMU_MSG:", StringComparison.Ordinal);
 
@@ -92,7 +111,8 @@ internal static class DanmakuProtocol
                 var info = root.GetProperty("info");
                 var nickname = info[2][1].GetString() ?? throw new JsonException("缺少弹幕昵称。");
                 var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
-                decoded = new DanmakuReceived(new Danmaku(receivedAt, nickname, content));
+                var (uid, id) = ReplyDetails(info);
+                decoded = new DanmakuReceived(new Danmaku(receivedAt, nickname, content) { Uid = uid, Id = id });
             }
             else if (command == "SEND_GIFT" && ParseBlindBox(root.GetProperty("data"), body, logger) is { } blindBox)
                 decoded = new BlindBoxReceived(blindBox);

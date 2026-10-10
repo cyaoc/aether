@@ -10,6 +10,57 @@ namespace Aether.Gui.Tests;
 public sealed class SettingsWindowTests
 {
     [Fact]
+    public Task Reply_fields_load_defaults_validate_and_save_missing_settings() =>
+        WithSettingsWindow("# 保留\nblind_box:\n  enabled: true\n", (window, path) =>
+        {
+            var keyword = window.FindControl<TextBox>("KeywordInput");
+            var interval = window.FindControl<NumericUpDown>("SendIntervalInput");
+            Assert.NotNull(keyword);
+            Assert.NotNull(interval);
+            Assert.Equal("今日盲盒", keyword.Text);
+            Assert.Equal("5", interval.Text);
+            var save = window.FindControl<Button>("SaveButton")!;
+            keyword.Text = " ";
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(save.IsEnabled);
+            Assert.Contains("blind_box.keyword", window.FindControl<TextBlock>("Message")!.Text);
+            keyword.Text = "查盲盒";
+            Dispatcher.UIThread.RunJobs();
+            var numberText = Assert.Single(interval.GetVisualDescendants().OfType<TextBox>());
+            numberText.Text = "1.5";
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(save.IsEnabled);
+            Assert.Contains("send.interval_seconds", window.FindControl<TextBlock>("Message")!.Text);
+            numberText.Text = "7";
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(save.IsEnabled);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("# 保留\nblind_box:\n  enabled: true\n  keyword: 查盲盒\nsend:\n  interval_seconds: 7\n", File.ReadAllText(path));
+            var settings = Settings.Load(Path.GetDirectoryName(path)!);
+            Assert.Equal("查盲盒", settings.BlindBoxKeyword.Value);
+            Assert.Equal(7, settings.SendIntervalSeconds.Value);
+        });
+
+    [Fact]
+    public Task Multiline_reply_fields_are_read_only_and_preserved() =>
+        WithSettingsWindow("blind_box:\n  keyword: |-\n    查盲盒\nsend:\n  interval_seconds: |-\n    7\n", (window, path) =>
+        {
+            var keyword = window.FindControl<TextBox>("KeywordInput");
+            var interval = window.FindControl<NumericUpDown>("SendIntervalInput");
+            Assert.NotNull(keyword);
+            Assert.NotNull(interval);
+            Assert.True(keyword.IsReadOnly);
+            Assert.Equal("查盲盒", keyword.Text);
+            Assert.True(interval.IsReadOnly);
+            Assert.False(interval.AllowSpin);
+            Assert.True(window.FindControl<TextBlock>("KeywordReadOnly")!.IsVisible);
+            Assert.True(window.FindControl<TextBlock>("SendIntervalReadOnly")!.IsVisible);
+            window.FindControl<CheckBox>("BlindBoxInput")!.IsChecked = false;
+            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("blind_box:\n  keyword: |-\n    查盲盒\n  enabled: false\nsend:\n  interval_seconds: |-\n    7\n", File.ReadAllText(path));
+        });
+
+    [Fact]
     public Task Multiline_blind_box_switch_is_read_only_and_preserved_when_saving() =>
         WithSettingsWindow("blind_box:\n  enabled: |-\n    false\nlog:\n  level: Debug\n", (window, path) =>
         {
