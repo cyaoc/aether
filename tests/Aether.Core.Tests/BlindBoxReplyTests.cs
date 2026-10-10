@@ -22,33 +22,30 @@ public sealed class BlindBoxReplyTests
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates);
         await NextReplyAsync(sent);
-        await WaitForLogAsync(h, LogLevel.Debug, "暂停");
-        for (var i = 0; i < 2; i++)
-        {
-            h.Time.Advance(TimeSpan.FromSeconds(30));
-            await DanmakuAsync(h, updates, "保持连接");
-        }
+        await WaitForLogAsync(h, LogLevel.Warning, "暂停 60 秒");
+        await AdvanceAMinuteAsync(h, updates);
         await retryStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
         await h.Server.DisconnectAsync();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
+        // The retry is still owed, so the full 60 s pause runs again from the interruption.
+        h.Time.Advance(TimeSpan.FromSeconds(30));
+        await DanmakuAsync(h, updates, "保持连接");
+        h.Time.Advance(TimeSpan.FromMilliseconds(28999));
+        await AssertNoReplyAsync(sent);
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal("10001", (await NextReplyAsync(sent))["reply_mid"]);
         await WaitForLogAsync(h, LogLevel.Warning, "（10001）");
         // The interrupted HTTP attempt is resent under #46; its completed failure still exhausts the single retry.
         Assert.Single(h.Logger.Entries, e => e.Message.Contains("暂停"));
-        for (var i = 0; i < 2; i++)
-        {
-            h.Time.Advance(TimeSpan.FromSeconds(30));
-            await DanmakuAsync(h, updates, "保持连接");
-            await AssertNoReplyAsync(sent);
-        }
+        await AdvanceAMinuteAsync(h, updates, silent: sent);
         Assert.Equal(3, h.Http.Requests.Count(r => r.Uri.AbsolutePath == "/msg/send"));
     }
 
     [Fact]
-    public async Task Reconnect_keeps_the_rate_limit_deadline_and_retry_budget_and_disconnect_clears_them()
+    public async Task Reconnect_keeps_the_rate_limit_deadline_and_retry_budget_and_the_room_connection_end_clears_them()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -57,7 +54,7 @@ public sealed class BlindBoxReplyTests
         {
             await DanmakuAsync(h, updates);
             await NextReplyAsync(sent);
-            await WaitForLogAsync(h, LogLevel.Debug, "暂停");
+            await WaitForLogAsync(h, LogLevel.Warning, "暂停 60 秒");
             await DanmakuAsync(h, updates, uid: 20002);
             h.Time.Advance(TimeSpan.FromSeconds(20));
             await h.Server.DisconnectAsync();
@@ -91,7 +88,7 @@ public sealed class BlindBoxReplyTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "1" });
-        var sent = CaptureReplies(h, failure, "{\"code\":0,\"message\":\"\"}");
+        var sent = CaptureReplies(h, failure, Accepted);
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates);
         await NextReplyAsync(sent);
@@ -111,17 +108,12 @@ public sealed class BlindBoxReplyTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "70" });
-        var sent = CaptureReplies(h, "{\"code\":0,\"message\":\"msg repeat\"}", "{\"code\":0,\"message\":\"\"}");
+        var sent = CaptureReplies(h, "{\"code\":0,\"message\":\"msg repeat\"}", Accepted);
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates);
         await NextReplyAsync(sent);
-        await WaitForLogAsync(h, LogLevel.Debug, "暂停");
-        for (var i = 0; i < 2; i++)
-        {
-            h.Time.Advance(TimeSpan.FromSeconds(30));
-            await DanmakuAsync(h, updates, "保持连接");
-            await AssertNoReplyAsync(sent);
-        }
+        await WaitForLogAsync(h, LogLevel.Warning, "暂停 60 秒");
+        await AdvanceAMinuteAsync(h, updates, silent: sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(9999));
         await AssertNoReplyAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
@@ -142,12 +134,13 @@ public sealed class BlindBoxReplyTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         var limited = JsonSerializer.Serialize(new { code, message });
-        const string success = "{\"code\":0,\"message\":\"\"}";
-        var sent = CaptureReplies(h, limited, retrySucceeds ? success : limited, success);
+        var sent = CaptureReplies(h, limited, retrySucceeds ? Accepted : limited, Accepted);
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates);
         var first = await NextReplyAsync(sent);
-        await WaitForLogAsync(h, LogLevel.Debug, "暂停");
+        await WaitForLogAsync(h, LogLevel.Warning, "暂停 60 秒");
+        // Hitting a rate limit means the account is close to being muted, so it shows at the default level with B站's reason.
+        Assert.Contains(message, Assert.Single(h.Logger.Entries, e => e.Message.Contains("暂停 60 秒")).Message);
         await DanmakuAsync(h, updates, uid: 20002);
         await DanmakuAsync(h, updates);
         h.Time.Advance(TimeSpan.FromSeconds(30));
@@ -164,13 +157,10 @@ public sealed class BlindBoxReplyTests
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal("20002", (await NextReplyAsync(sent))["reply_mid"]);
         await WaitForLogAsync(h, LogLevel.Information, "（20002）");
-        for (var i = 0; i < 2; i++)
-        {
-            h.Time.Advance(TimeSpan.FromSeconds(30));
-            await DanmakuAsync(h, updates, "保持连接");
-            await AssertNoReplyAsync(sent);
-        }
+        await AdvanceAMinuteAsync(h, updates, silent: sent);
         Assert.Equal(retrySucceeds ? 0 : 1, h.Logger.Entries.Count(e => e.Level == LogLevel.Warning && e.Message.Contains("发送弹幕失败")));
+        if (!retrySucceeds)
+            Assert.Contains(message, Assert.Single(h.Logger.Entries, e => e.Message.Contains("发送弹幕失败")).Message);
         Assert.Equal(3, h.Http.Requests.Count(r => r.Uri.AbsolutePath == "/msg/send"));
     }
 
@@ -181,13 +171,7 @@ public sealed class BlindBoxReplyTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "1" });
         var sent = CaptureReplies(h);
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        h.Http.Intercept("/msg/send", async (_, token, next) =>
-        {
-            var response = await next();
-            await release.Task.WaitAsync(token);
-            return response;
-        });
+        var release = HoldReplies(h);
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates);
         await NextReplyAsync(sent);
@@ -217,13 +201,7 @@ public sealed class BlindBoxReplyTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         var sent = CaptureReplies(h);
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        h.Http.Intercept("/msg/send", async (_, token, next) =>
-        {
-            var response = await next();
-            await release.Task.WaitAsync(token);
-            return response;
-        });
+        var release = HoldReplies(h);
         await using (var updates = await h.WatchConnectedAsync())
         {
             await DanmakuAsync(h, updates);
@@ -390,7 +368,7 @@ public sealed class BlindBoxReplyTests
     }
 
     [Fact]
-    public async Task Waiting_replies_survive_reconnect_and_are_counted_and_cleared_on_disconnect()
+    public async Task Waiting_replies_survive_reconnect_and_are_counted_and_cleared_when_the_room_connection_ends()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -424,7 +402,7 @@ public sealed class BlindBoxReplyTests
     }
 
     [Fact]
-    public async Task Hung_send_does_not_block_receiving_or_heartbeats_and_cancels_on_disconnect()
+    public async Task Hung_send_does_not_block_receiving_or_heartbeats_and_cancels_when_the_room_connection_ends()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -480,7 +458,7 @@ public sealed class BlindBoxReplyTests
     }
 
     [Fact]
-    public async Task Reply_interrupted_by_reconnect_stays_in_the_send_queue_and_is_sent_after_it()
+    public async Task Reply_interrupted_by_reconnect_stays_in_the_send_queue_and_is_resent_one_interval_after_it()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -501,6 +479,10 @@ public sealed class BlindBoxReplyTests
         Assert.IsType<Reconnecting>(updates.Current);
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
+        // The interrupted request may have reached B站, so it counts as a send: the 5 s interval runs from the interruption.
+        h.Time.Advance(TimeSpan.FromMilliseconds(3999));
+        await AssertNoReplyAsync(sent);
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal("10001", (await NextReplyAsync(sent))["reply_mid"]);
         await WaitForLogAsync(h, LogLevel.Information, "发送弹幕成功");
         Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("发送弹幕失败"));
@@ -522,6 +504,34 @@ public sealed class BlindBoxReplyTests
         await DanmakuAsync(h, updates, "长间隔期间仍能接收");
     }
 
+    private const string Accepted = "{\"code\":0,\"message\":\"\"}";
+
+    /// <summary>Holds each msg/send response until the returned source is set, so the send stays in flight.</summary>
+    private static TaskCompletionSource HoldReplies(WatchHarness h)
+    {
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Http.Intercept("/msg/send", async (_, token, next) =>
+        {
+            var response = await next();
+            await release.Task.WaitAsync(token);
+            return response;
+        });
+        return release;
+    }
+
+    /// <summary>Advances a minute in half-minute steps, with a danmaku each step so the room connection does not idle out;
+    /// with <paramref name="silent"/>, also checks that no reply goes out meanwhile.</summary>
+    private static async Task AdvanceAMinuteAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates,
+        Channel<Dictionary<string, string>>? silent = null)
+    {
+        for (var i = 0; i < 2; i++)
+        {
+            h.Time.Advance(TimeSpan.FromSeconds(30));
+            await DanmakuAsync(h, updates, "保持连接");
+            if (silent is not null) await AssertNoReplyAsync(silent);
+        }
+    }
+
     private static Channel<Dictionary<string, string>> CaptureReplies(WatchHarness h, params string[] responses)
     {
         var sent = Channel.CreateUnbounded<Dictionary<string, string>>();
@@ -537,7 +547,7 @@ public sealed class BlindBoxReplyTests
             var body = await request.Content!.ReadAsStringAsync(token);
             sent.Writer.TryWrite(body.Split('&').Select(pair => pair.Split('=', 2))
                 .ToDictionary(pair => Decode(pair[0]), pair => Decode(pair[1])));
-            return FakeBilibiliHttp.Json(responses.Length == 0 ? "{\"code\":0,\"message\":\"\"}"
+            return FakeBilibiliHttp.Json(responses.Length == 0 ? Accepted
                 : responses[Math.Min(attempt++, responses.Length - 1)]);
         });
         return sent;
