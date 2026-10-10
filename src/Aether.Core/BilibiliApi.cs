@@ -192,7 +192,7 @@ internal sealed class BilibiliApi
                 new("replay_dmid", trigger.Id), new("reply_uname", ""), new("reply_attr", "0"),
             ]),
         };
-        await SendAsync(request, LiveReferer, "发送弹幕", cancellationToken, rejectMessage: true);
+        await SendAsync(request, LiveReferer, "发送弹幕", cancellationToken, sendingDanmaku: true);
     }
 
     private Task<(int Code, JsonElement Data)> GetAsync(string url, string referer, string operation,
@@ -205,18 +205,31 @@ internal sealed class BilibiliApi
         SendAsync(new HttpRequestMessage(HttpMethod.Post, url) { Content = new FormUrlEncodedContent(form) },
             LoginReferer, operation, cancellationToken, credentialRefresh: credentialRefresh);
 
-    /// <param name="rejectMessage">msg/send reports a filtered or refused danmaku as code 0 with a non-empty message.</param>
+    /// <param name="sendingDanmaku">msg/send's own failure rules apply: see <see cref="CheckDanmakuSent"/>.</param>
     private async Task<(int Code, JsonElement Data)> SendAsync(HttpRequestMessage request, string referer, string operation,
-        CancellationToken cancellationToken, int? acceptedCode = null, bool credentialRefresh = false, bool rejectMessage = false)
+        CancellationToken cancellationToken, int? acceptedCode = null, bool credentialRefresh = false, bool sendingDanmaku = false)
     {
         using var document = JsonDocument.Parse(await SendTextAsync(request, referer, cancellationToken));
         var root = document.RootElement;
-        if (credentialRefresh && root.GetProperty("code").GetInt32() != 0)
-            throw new CredentialRejectedException($"{operation}被拒绝（{root.GetProperty("code").GetInt32()}）。");
-        var code = CheckCode(root, operation, acceptedCode);
-        if (rejectMessage && root.GetProperty("message").GetString() is not "")
-            throw new InvalidOperationException($"{operation}失败：{root.GetProperty("message")}");
+        var code = root.GetProperty("code").GetInt32();
+        if (credentialRefresh && code != 0)
+            throw new CredentialRejectedException($"{operation}被拒绝（{code}）。");
+        if (sendingDanmaku) CheckDanmakuSent(root, code, operation);
+        CheckCode(root, operation, acceptedCode);
         return (code, root.TryGetProperty("data", out var data) ? data.Clone() : default);
+    }
+
+    /// <summary>A rate limit throws <see cref="DanmakuRateLimitedException"/>; code 0 with a non-empty message is a
+    /// filtered or refused danmaku. Sources: docs/research/blind-box-gift-events.md sections 6 and 7.</summary>
+    private static void CheckDanmakuSent(JsonElement root, int code, string operation)
+    {
+        var message = root.TryGetProperty("message", out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+        // 10031 is BAC's "too frequent"; sources disagree whether 10030 or 10031 means a repeat, so both count.
+        // B站's 2019 backend answers code 0 with "msg in 1s" or "msg repeat"; Danmuji and MagicalDanmaku handle the same.
+        if (code is 10031 or 10030 || code == 0 && message is "msg in 1s" or "msg repeat")
+            throw new DanmakuRateLimitedException($"{operation}受频率限制（{code}）：{message}");
+        if (code == 0 && message is not "")
+            throw new InvalidOperationException($"{operation}失败：{message}");
     }
 
     private async Task<string> SendTextAsync(HttpRequestMessage request, string referer, CancellationToken cancellationToken)
@@ -243,3 +256,4 @@ internal sealed class BilibiliApi
 }
 
 internal sealed class CredentialRejectedException(string message) : Exception(message);
+internal sealed class DanmakuRateLimitedException(string message) : Exception(message);

@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Time.Testing;
-
 namespace Aether.Core.Tests.Support;
 
 internal sealed class WatchHarness : IAsyncDisposable
@@ -8,7 +6,7 @@ internal sealed class WatchHarness : IAsyncDisposable
     public FakeBilibiliHttp Http { get; } = new();
     public FakeDanmakuServer Server { get; } = new();
     // LoginAsync advances 2s, so watching after it signs with the captured wts=1702204169.
-    public FakeTimeProvider Time { get; } = new(DateTimeOffset.FromUnixTimeSeconds(1702204167));
+    public RecordingTimeProvider Time { get; } = new(DateTimeOffset.FromUnixTimeSeconds(1702204167));
     public RecordingLogger Logger { get; } = new();
     public CancellationTokenSource Stop { get; } = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
     public AetherClient Client { get; }
