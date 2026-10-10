@@ -13,6 +13,8 @@ public sealed partial class AetherClient
     {
         // No data at all for this long, not even a heartbeat reply, means the room connection is dead.
         private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(60);
+        private static readonly TimeSpan ViewerCooldown = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan RateLimitPause = TimeSpan.FromSeconds(60);
 
         // .NET exposes ERROR_SHARING_VIOLATION on Windows, but raw EWOULDBLOCK on Unix (35 on macOS, 11 on Linux).
         private static readonly int RoomLockHeldHResult = OperatingSystem.IsWindows()
@@ -29,7 +31,11 @@ public sealed partial class AetherClient
         // ponytail: an unbounded send queue in memory; add a capacity policy if keyword floods become a problem.
         private readonly Channel<Danmaku> sendQueue = Channel.CreateUnbounded<Danmaku>(
             new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+        private readonly object sendQueueGate = new();
+        private readonly HashSet<long> pendingViewers = [];
+        private readonly Dictionary<long, long> recentlyReplied = [];
         private long? lastSendFinished;
+        private bool retryPending;
 
         public async Task RunAsync(CancellationToken cancellationToken)
         {
@@ -170,7 +176,7 @@ public sealed partial class AetherClient
                             {
                                 if (danmaku.Danmaku.Uid == 0)
                                     client.logger.LogDebug("uid 为 0 的观众发出盲盒关键字，未回复");
-                                else sendQueue.Writer.TryWrite(danmaku.Danmaku);
+                                else EnqueueReply(danmaku.Danmaku);
                             }
                             yield return danmaku.Danmaku;
                         }
@@ -198,6 +204,20 @@ public sealed partial class AetherClient
             }
         }
 
+        private void EnqueueReply(Danmaku trigger)
+        {
+            lock (sendQueueGate)
+            {
+                if (recentlyReplied.TryGetValue(trigger.Uid, out var sentAt)
+                    && client.timeProvider.GetElapsedTime(sentAt) < ViewerCooldown)
+                {
+                    client.logger.LogDebug("观众 {Uid} 的回复仍在 5 秒冷却内，忽略关键字", trigger.Uid);
+                    return;
+                }
+                if (pendingViewers.Add(trigger.Uid)) sendQueue.Writer.TryWrite(trigger);
+            }
+        }
+
         private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) => RunWhileConnectedAsync(stop, async () =>
         {
             while (await sendQueue.Reader.WaitToReadAsync(stop.Token))
@@ -205,6 +225,7 @@ public sealed partial class AetherClient
                 if (lastSendFinished is { } last)
                 {
                     var interval = TimeSpan.FromSeconds(Settings.SendIntervalSeconds.Value);
+                    if (retryPending && interval < RateLimitPause) interval = RateLimitPause;
                     while (interval - client.timeProvider.GetElapsedTime(last) is var remaining && remaining > TimeSpan.Zero)
                     {
                         // A timer accepts at most uint.MaxValue - 1 milliseconds, even for a valid longer setting.
@@ -221,9 +242,26 @@ public sealed partial class AetherClient
                 var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
                 Exception? failure = null;
                 try { await api.ReplyAsync(roomId, trigger, reply, stop.Token); }
-                catch (Exception error) when (!stop.IsCancellationRequested) { failure = error; } // Never retried.
-                sendQueue.Reader.TryRead(out _);
+                catch (Exception error) when (!stop.IsCancellationRequested) { failure = error; }
                 lastSendFinished = client.timeProvider.GetTimestamp();
+                if (failure is DanmakuRateLimitedException && !retryPending)
+                {
+                    retryPending = true;
+                    client.logger.LogDebug("发送弹幕受频率限制，发送队列暂停 60 秒后重试观众 {Uid} 的回复", trigger.Uid);
+                    continue;
+                }
+                retryPending = false;
+                lock (sendQueueGate)
+                {
+                    sendQueue.Reader.TryRead(out _);
+                    pendingViewers.Remove(trigger.Uid);
+                    if (failure is null)
+                    {
+                        foreach (var (uid, sentAt) in recentlyReplied)
+                            if (client.timeProvider.GetElapsedTime(sentAt) >= ViewerCooldown) recentlyReplied.Remove(uid);
+                        recentlyReplied[trigger.Uid] = client.timeProvider.GetTimestamp();
+                    }
+                }
                 if (failure is null)
                     client.logger.LogInformation("发送弹幕成功：回复观众 {Nickname}（{Uid}）：{Message}", trigger.Nickname, trigger.Uid, reply);
                 else

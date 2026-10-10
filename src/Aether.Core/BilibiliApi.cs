@@ -211,6 +211,10 @@ internal sealed class BilibiliApi
     {
         using var document = JsonDocument.Parse(await SendTextAsync(request, referer, cancellationToken));
         var root = document.RootElement;
+        if (rejectMessage && (root.GetProperty("code").GetInt32() is 10031 or 10030
+            || root.GetProperty("code").GetInt32() == 0 && root.TryGetProperty("message", out var message)
+                && message.ValueKind == JsonValueKind.String && message.GetString() is "msg in 1s" or "msg repeat"))
+            throw new DanmakuRateLimitedException($"发送弹幕受频率限制（{root.GetProperty("code")}）");
         if (credentialRefresh && root.GetProperty("code").GetInt32() != 0)
             throw new CredentialRejectedException($"{operation}被拒绝（{root.GetProperty("code").GetInt32()}）。");
         var code = CheckCode(root, operation, acceptedCode);
@@ -243,3 +247,4 @@ internal sealed class BilibiliApi
 }
 
 internal sealed class CredentialRejectedException(string message) : Exception(message);
+internal sealed class DanmakuRateLimitedException(string message) : Exception(message);
