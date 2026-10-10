@@ -391,6 +391,7 @@ public sealed class BlindBoxReplyTests
             h.Time.Advance(TimeSpan.FromMilliseconds(1));
             Assert.True(await updates.MoveNextAsync());
             Assert.IsType<Connected>(updates.Current);
+            await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
             h.Time.Advance(TimeSpan.FromMilliseconds(3999));
             await AssertNoReplyAsync(sent);
             h.Time.Advance(TimeSpan.FromMilliseconds(1));
