@@ -88,7 +88,8 @@ public sealed class Settings
     private static readonly Definition<int> WelcomeLimit = Register(Definition.Number("welcome.max_length", 20, "必须为正整数。", length => length > 0));
     private static readonly Definition<IReadOnlyList<long>> WelcomeViewers = Register(Definition.NumberList("welcome.uids", []));
     private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", 0, "必须为非负整数。", level => level >= 0));
-    private static readonly Definition<string> WelcomeThreshold = Register(Definition.Choice<string>("welcome.guard", "舰长", ["关闭", "舰长", "提督", "总督"]));
+    public static IReadOnlyList<string> WelcomeGuards { get; } = ["关闭", "舰长", "提督", "总督"];
+    private static readonly Definition<string> WelcomeThreshold = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", 0, "必须为非负整数。", level => level >= 0));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, its controls in SettingsWindow.axaml, one Show call and one Fields entry).</summary>
@@ -125,6 +126,9 @@ public sealed class Settings
 
     /// <summary>The same validation used when loading and saving; null means the input is valid.</summary>
     public static string? Validate(string name, string? value) => Validate(Definitions, name, value);
+
+    /// <summary>Checks welcome placeholders and fixed text against the form's current length limit.</summary>
+    public static string? ValidateWelcomeText(string text, int maxLength) => Core.WelcomeText.Validate(text, maxLength);
 
     private static string? Validate(IReadOnlyList<Definition> definitions, string name, string? value) =>
         Find(definitions, name) is { } definition ? definition.Validate(value) : "未知设置，不能修改。";
@@ -409,7 +413,7 @@ public sealed class Settings
     /// <summary>Checks the text against the limit, reported at the text's line, else the welcome group's.</summary>
     private SettingsException? WelcomeError(string path, string text, int limit)
     {
-        if (Core.WelcomeText.Validate(text, limit) is not { } reason) return null;
+        if (ValidateWelcomeText(text, limit) is not { } reason) return null;
         var group = root?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "welcome" }) ?? default;
         var key = (group.Value as YamlMappingNode)?.Children.Keys.FirstOrDefault(key => key is YamlScalarNode { Value: "text" });
         return new(path, key?.Start.Line ?? group.Key?.Start.Line ?? 1, "welcome.text", reason);
