@@ -54,8 +54,14 @@ public sealed class Settings
           # 弹幕字数上限：英文、数字、半角符号算 1，其他字符算 2，必须为正整数
           # B站 默认 20（约 10 个汉字）；大航海、荣耀等级高的账号更多。填多了，超出的欢迎会被 B站 拒绝
           max_length: 20
+          # 指定观众的 UID，例如 [12345, 67890]；[] 表示不按 UID 欢迎
+          uids: []
+          # 本直播间粉丝团等级达到多少就欢迎，0 表示不按粉丝团等级欢迎
+          fan_club_level: 0
           # 大航海身份达到哪一档就欢迎：关闭、舰长、提督、总督；提督表示提督和总督
           guard: 舰长
+          # 荣耀等级达到多少就欢迎，0 表示不按荣耀等级欢迎
+          wealth_level: 0
 
         """;
 
@@ -80,7 +86,10 @@ public sealed class Settings
     private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome.enabled", false));
     private static readonly Definition<string> WelcomeTemplate = Register(Definition.RequiredText("welcome.text", "欢迎{大航海}{昵称}"));
     private static readonly Definition<int> WelcomeLimit = Register(Definition.Number("welcome.max_length", 20, "必须为正整数。", length => length > 0));
+    private static readonly Definition<IReadOnlyList<long>> WelcomeViewers = Register(Definition.NumberList("welcome.uids", []));
+    private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", 0, "必须为非负整数。", level => level >= 0));
     private static readonly Definition<string> WelcomeThreshold = Register(Definition.Choice<string>("welcome.guard", "舰长", ["关闭", "舰长", "提督", "总督"]));
+    private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", 0, "必须为非负整数。", level => level >= 0));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, its controls in SettingsWindow.axaml, one Show call and one Fields entry).</summary>
     private static Definition<T> Register<T>(Definition<T> definition)
@@ -98,7 +107,10 @@ public sealed class Settings
     public Setting<bool> WelcomeEnabled => Get(WelcomeOn);
     public Setting<string> WelcomeText => Get(WelcomeTemplate);
     public Setting<int> WelcomeMaxLength => Get(WelcomeLimit);
+    public Setting<IReadOnlyList<long>> WelcomeUids => Get(WelcomeViewers);
+    public Setting<int> WelcomeFanClubLevel => Get(WelcomeFanClub);
     public Setting<string> WelcomeGuard => Get(WelcomeThreshold);
+    public Setting<int> WelcomeWealthLevel => Get(WelcomeWealth);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
     private readonly Dictionary<Definition, object> values = [];
@@ -349,8 +361,9 @@ public sealed class Settings
                 {
                     var name = groupName + "." + KeyName(key);
                     // One line holding a scalar or a flow list of scalars, as ADR 0004 allows.
-                    var canEdit = groupEditable && value.Anchor.IsEmpty && key.Start.Line == key.End.Line
-                        && key.Start.Line == value.Start.Line && value.Start.Line == EndOf(tokens, value).Line && value switch
+                    var singleLine = key.Start.Line == key.End.Line && key.Start.Line == value.Start.Line
+                        && value.Start.Line == EndOf(tokens, value).Line;
+                    var canEdit = groupEditable && value.Anchor.IsEmpty && singleLine && value switch
                         {
                             YamlScalarNode scalar => scalar.Style is not (ScalarStyle.Literal or ScalarStyle.Folded),
                             YamlSequenceNode { Style: SequenceStyle.Flow } list =>
@@ -360,7 +373,7 @@ public sealed class Settings
                     if (known.FirstOrDefault(definition => definition.Name == name) is not { } definition) unknown.Add(name);
                     else if (!seenNames.Add(name))
                         settings.Error ??= new(path, key.Start.Line, name, "设置名重复，请只保留一项。");
-                    else if (definition.Read(settings, value, canEdit) is { } reason)
+                    else if (definition.Read(settings, value, canEdit, singleLine) is { } reason)
                         settings.Error ??= new(path, key.Start.Line, name, reason);
                 }
             }
@@ -418,7 +431,7 @@ public sealed class Settings
         public abstract bool Holds(Settings settings, string text);
         public abstract void MarkEditable(Settings settings, bool canEdit);
         /// <summary>Records whether the line can be edited, and the value when the node is valid; returns why it is not.</summary>
-        public abstract string? Read(Settings settings, YamlNode node, bool canEdit);
+        public abstract string? Read(Settings settings, YamlNode node, bool canEdit, bool singleLine);
 
         public static Definition<int> Number(string name, int initial, string rule, Func<int, bool> valid) => ScalarSetting(name, initial, rule,
             text => int.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) && valid(number)
@@ -446,7 +459,7 @@ public sealed class Settings
         public static Definition<IReadOnlyList<string>> TextList(string name, IReadOnlyList<string> initial)
         {
             const string rule = "必须是 [a, b] 形式的一行文字列表。";
-            return new(name, initial, rule, ReadList, ParseList, Emit);
+            return new(name, initial, rule, (node, _) => ReadList(node), ParseList, Emit);
 
             static (bool, IReadOnlyList<string>) ReadList(YamlNode node) =>
                 node is YamlSequenceNode list && list.Children.All(item => item is YamlScalarNode { Value: { } text } && OneLine(text))
@@ -461,8 +474,39 @@ public sealed class Settings
             }
         }
 
+        /// <summary>Positive int64 values, written and entered as a single-line <c>[12345, 67890]</c> list.</summary>
+        public static Definition<IReadOnlyList<long>> NumberList(string name, IReadOnlyList<long> initial)
+        {
+            const string rule = "必须是 [12345, 67890] 形式的单行数字列表，每项为 int64 范围内的正整数；[] 表示空列表。";
+            return new(name, initial, rule, ReadList, ParseList,
+                numbers => Emit(numbers.Select(number => number.ToString(CultureInfo.InvariantCulture))));
+
+            static (bool, IReadOnlyList<long>) ReadList(YamlNode node, bool singleLine)
+            {
+                if (!singleLine || node is not YamlSequenceNode { Style: SequenceStyle.Flow } list) return default;
+                var numbers = new List<long>();
+                foreach (var item in list.Children)
+                {
+                    if (item is not YamlScalarNode { Value: { } text }
+                        || !long.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
+                        || number <= 0) return default;
+                    numbers.Add(number);
+                }
+                return (true, numbers.AsReadOnly());
+            }
+
+            static (bool, IReadOnlyList<long>) ParseList(string text)
+            {
+                if (!OneLine(text)) return default;
+                var yaml = new YamlStream();
+                try { yaml.Load(new StringReader(text)); }
+                catch (Exception error) when (IsYamlFailure(error)) { return default; }
+                return yaml.Documents.Count == 1 ? ReadList(yaml.Documents[0].RootNode, true) : default;
+            }
+        }
+
         private static Definition<T> ScalarSetting<T>(string name, T initial, string rule, Func<string, (bool, T)> parse, Func<T, string> toText) =>
-            new(name, initial, rule, node => node is YamlScalarNode { Value: var value } ? parse(value ?? "") : default, parse,
+            new(name, initial, rule, (node, _) => node is YamlScalarNode { Value: var value } ? parse(value ?? "") : default, parse,
                 value => Emit([toText(value)])[1..^1]);
 
         private static bool OneLine(string text) => text.AsSpan().IndexOfAny(LineBreaks) < 0;
@@ -484,7 +528,7 @@ public sealed class Settings
     }
 
     internal sealed class Definition<T>(string name, T initial, string rule,
-        Func<YamlNode, (bool Valid, T Value)> read, Func<string, (bool Valid, T Value)> parse, Func<T, string> format) : Definition(name)
+        Func<YamlNode, bool, (bool Valid, T Value)> read, Func<string, (bool Valid, T Value)> parse, Func<T, string> format) : Definition(name)
     {
         public Setting<T> Initial => new(Name, initial);
         public override string? Validate(string? text) => parse(text ?? "").Valid ? null : rule;
@@ -495,9 +539,9 @@ public sealed class Settings
         public override bool Holds(Settings settings, string text) => Format(text) == format(settings.Get(this).Value);
         public override void MarkEditable(Settings settings, bool canEdit) => settings.values[this] = settings.Get(this) with { CanEdit = canEdit };
 
-        public override string? Read(Settings settings, YamlNode node, bool canEdit)
+        public override string? Read(Settings settings, YamlNode node, bool canEdit, bool singleLine)
         {
-            var (valid, value) = read(node);
+            var (valid, value) = read(node, singleLine);
             settings.values[this] = new Setting<T>(Name, valid ? value : settings.Get(this).Value, canEdit);
             return valid ? null : rule;
         }
