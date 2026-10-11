@@ -35,7 +35,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     private readonly Dictionary<long, Round> rounds = [];
     // Only the sender touches these.
     private long? lastSendEnded;
-    private readonly Dictionary<string, long> recentSends = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> sendEndedByText = [];
     private bool rateLimitRetryOwed;
 
     /// <summary>Queues a 盲盒查询 reply to <paramref name="trigger"/>'s viewer, unless one is already waiting (the asks merge
@@ -105,8 +105,9 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     }
 
     /// <summary>Sends queries' replies and announcements one at a time until cancelled. <paramref name="prepare"/> gets an
-    /// announcement's round as it stands at this attempt (null for a query), does the local reads (their failures end the
-    /// room connection) and returns the text with the send itself, the only step that can fail it.</summary>
+    /// announcement's round as it stands (null for a query) and runs again after each wait, so the text sent is current;
+    /// it does the local reads (their failures end the room connection) and returns the text with the send itself, the
+    /// only step that can fail it.</summary>
     public async Task SendAsync(Func<Item, BlindBoxTally?, (string Text, Func<CancellationToken, Task> Send)> prepare,
         CancellationToken cancellationToken)
     {
@@ -125,7 +126,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                 }
             var (text, send) = prepare(item, reported?.Tally);
             // Waiting can change a query's tally or an announcement's round; prepare and check the new text again.
-            if (await WaitForTurnAsync(text, cancellationToken)) continue;
+            if (await WaitedForTurnAsync(text, cancellationToken)) continue;
             var action = reported is null ? "回复" : "播报";
             Exception? failure = null;
             try { await send(cancellationToken); }
@@ -135,11 +136,11 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             {
                 var ended = time.GetTimestamp();
                 lastSendEnded = ended;
-                foreach (var (previousText, previousEnd) in recentSends.ToArray())
-                    if (time.GetElapsedTime(previousEnd, ended) >= SameTextWindow) recentSends.Remove(previousText);
-                recentSends[text] = ended;
+                foreach (var (previousText, previousEnd) in sendEndedByText.ToArray())
+                    if (time.GetElapsedTime(previousEnd, ended) >= SameTextWindow) sendEndedByText.Remove(previousText);
+                sendEndedByText[text] = ended;
             }
-            // shortcut: one retry with no backoff, revisit if B站's limits outlast both pacing windows.
+            // ponytail: one retry, no backoff; back off if B站's limits turn out to outlast both pacing rules.
             if (failure is DanmakuRateLimitedException && !rateLimitRetryOwed)
             {
                 rateLimitRetryOwed = true;
@@ -157,10 +158,10 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         }
     }
 
-    private async Task<bool> WaitForTurnAsync(string text, CancellationToken cancellationToken)
+    private async Task<bool> WaitedForTurnAsync(string text, CancellationToken cancellationToken)
     {
         var remaining = lastSendEnded is { } last ? interval - time.GetElapsedTime(last) : TimeSpan.Zero;
-        if (recentSends.TryGetValue(text, out var previousEnd))
+        if (sendEndedByText.TryGetValue(text, out var previousEnd))
         {
             var sameTextRemaining = SameTextWindow - time.GetElapsedTime(previousEnd);
             if (sameTextRemaining > remaining) remaining = sameTextRemaining;

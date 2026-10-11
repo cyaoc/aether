@@ -17,10 +17,10 @@ public sealed class BlindBoxReplyTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
+        var settings = new Dictionary<string, string> { ["blind_box.announce"] = "false" };
         // Leave the default interval in place to exercise it through WatchAsync.
-        if (interval != 1)
-            Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = interval.ToString(CultureInfo.InvariantCulture) });
+        if (interval != 1) settings["send.interval_seconds"] = interval.ToString(CultureInfo.InvariantCulture);
+        Settings.Save(h.DataDirectory, settings);
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), uid: 20002), Gift(h.Time.GetUtcNow(), uid: 40004, price: 9000));
@@ -228,7 +228,9 @@ public sealed class BlindBoxReplyTests
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal("10001", (await NextSendAsync(sent))["reply_mid"]);
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(wait), count: 2);
-        h.Time.Advance(TimeSpan.FromSeconds(wait));
+        h.Time.Advance(TimeSpan.FromMilliseconds(wait * 1000 - 1));
+        await AssertNoSendAsync(sent);
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal("20002", (await NextSendAsync(sent))["reply_mid"]);
         await h.WaitForLogAsync(LogLevel.Information, "（20002）");
         h.Time.Advance(TimeSpan.FromSeconds(wait));

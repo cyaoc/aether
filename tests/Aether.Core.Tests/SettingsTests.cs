@@ -45,7 +45,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(missing.BlindBoxEnabled.Value, fromTemplate.BlindBoxEnabled.Value);
         Assert.Equal(missing.BlindBoxKeyword.Value, fromTemplate.BlindBoxKeyword.Value);
         Assert.Equal(missing.BlindBoxAnnounce.Value, fromTemplate.BlindBoxAnnounce.Value);
-        Assert.Equal(1, fromTemplate.SendIntervalSeconds.Value);
+        Assert.Equal(missing.SendIntervalSeconds.Value, fromTemplate.SendIntervalSeconds.Value);
         Assert.Equal(1, missing.SendIntervalSeconds.Value);
     }
 
