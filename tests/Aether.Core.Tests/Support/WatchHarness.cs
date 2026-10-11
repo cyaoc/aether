@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+
 namespace Aether.Core.Tests.Support;
 
 internal sealed class WatchHarness : IAsyncDisposable
@@ -22,6 +24,12 @@ internal sealed class WatchHarness : IAsyncDisposable
             """{"code":0,"data":{"token":"room-token","host_list":[{"host":"danmaku.example","wss_port":443}]}}""";
         Client = new AetherClient(Http, connectWebSocket ?? Server.ConnectAsync, Time, Logger, DataDirectory);
     }
+
+    /// <summary>Waits for a log entry containing <paramref name="text"/>, at <paramref name="level"/> when one is given.</summary>
+    public Task WaitForLogAsync(LogLevel? level, string text) =>
+        Eventually.TrueAsync(() => Logger.Entries.Any(e => (level is null || e.Level == level) && e.Message.Contains(text)));
+
+    public Task WaitForLogAsync(string text) => WaitForLogAsync(null, text);
 
     /// <summary>Another shell's client on this data directory, with its own cookies and request log.</summary>
     public AetherClient ClientSharingData(

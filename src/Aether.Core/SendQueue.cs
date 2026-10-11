@@ -49,7 +49,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     public void Record(BlindBox[] boxes, long receivedAt, Func<BlindBox, bool> save)
     {
         // A SQLite write can wait for another process; neither a deadline nor a send snapshot may split this message.
-        // shortcut: the sender's snapshot and the quiet-window timers wait with the receive loop, up to SQLite's 30 s
+        // ponytail: the sender's snapshot and the quiet-window timers wait with the receive loop, up to SQLite's 30 s
         // busy timeout; mark the message as arriving under the gate and save outside it if that stall ever matters.
         lock (gate)
             foreach (var box in boxes)
@@ -129,6 +129,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             catch (Exception error) when (!cancellationToken.IsCancellationRequested) { failure = error; }
             // Even an interrupted request may have reached B站, so the next send still waits its interval.
             finally { lastSendEnded = time.GetTimestamp(); }
+            // ponytail: one retry after one send interval, no backoff; back off if B站's limits turn out to outlast the interval.
             if (failure is DanmakuRateLimitedException && !rateLimitRetryOwed)
             {
                 rateLimitRetryOwed = true;
