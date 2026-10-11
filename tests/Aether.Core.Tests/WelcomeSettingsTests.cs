@@ -14,11 +14,18 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Assert.False(settings.WelcomeEnabled.Value);
         Assert.Equal("欢迎{大航海}{昵称}", settings.WelcomeText.Value);
         Assert.Equal(20, settings.WelcomeMaxLength.Value);
+        Assert.Empty(settings.WelcomeUids.Value);
+        Assert.Equal(0, settings.WelcomeFanClubLevel.Value);
         Assert.Equal("舰长", settings.WelcomeGuard.Value);
+        Assert.Equal(0, settings.WelcomeWealthLevel.Value);
         var template = File.ReadAllText(Settings.FilePath(h.DataDirectory)).ReplaceLineEndings("\n");
         var section = template[template.IndexOf("# 进场欢迎", StringComparison.Ordinal)..];
         Assert.Contains("用 {{ 和 }}", section);
         Assert.Contains("以 { 开头时要加引号", section);
+        Assert.Contains("# 指定观众的 UID，例如 [12345, 67890]；[] 表示不按 UID 欢迎\n  uids: []", section);
+        Assert.Contains("# 本直播间粉丝团等级达到多少就欢迎，0 表示不按粉丝团等级欢迎\n  fan_club_level: 0", section);
+        Assert.Contains("# 荣耀等级达到多少就欢迎，0 表示不按荣耀等级欢迎\n  wealth_level: 0", section);
+        Assert.Empty(settings.UnknownKeys);
         const string before = "# 保留\r\nlog:\r\nblind_box:\r\nsend:\r\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
         Assert.Null(Settings.Load(h.DataDirectory).Error);
@@ -30,8 +37,110 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         var missing = Settings.Load(h.DataDirectory);
         Assert.Equal(settings.WelcomeText.Value, missing.WelcomeText.Value);
         Assert.Equal(settings.WelcomeMaxLength.Value, missing.WelcomeMaxLength.Value);
+        Assert.Empty(missing.WelcomeUids.Value);
+        Assert.Equal(0, missing.WelcomeFanClubLevel.Value);
         Assert.Equal(settings.WelcomeGuard.Value, missing.WelcomeGuard.Value);
+        Assert.Equal(0, missing.WelcomeWealthLevel.Value);
         Assert.Equal(settings.WelcomeEnabled.Value, missing.WelcomeEnabled.Value);
+    }
+
+    [Fact]
+    public void Welcome_conditions_save_on_their_lines_and_preserve_comments_and_other_settings()
+    {
+        Settings.Load(h.DataDirectory);
+        const string before = "# 保留\r\nlog:\r\nblind_box:\r\nsend:\r\nwelcome:\r\n  uids: [42]  # 老朋友\r\n  fan_club_level: 0 # 老粉\r\n  guard: 舰长\r\n  wealth_level: 0 # 荣耀\r\nfuture: 保留\r\n";
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
+        var changes = new Dictionary<string, string>
+        {
+            ["welcome.uids"] = "[2147483648, 9223372036854775807]",
+            ["welcome.fan_club_level"] = "21", ["welcome.wealth_level"] = "45"
+        };
+        Settings.Save(h.DataDirectory, changes);
+        var expected = before.Replace("[42]", "[2147483648, 9223372036854775807]")
+            .Replace("fan_club_level: 0", "fan_club_level: 21").Replace("wealth_level: 0", "wealth_level: 45");
+        Assert.Equal(expected, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
+        var loaded = Settings.Load(h.DataDirectory);
+        Assert.Null(loaded.Error);
+        Assert.Equal([2147483648L, long.MaxValue], loaded.WelcomeUids.Value);
+        Assert.True(loaded.WelcomeUids.CanEdit);
+        Assert.Equal(21, loaded.WelcomeFanClubLevel.Value);
+        Assert.Equal(45, loaded.WelcomeWealthLevel.Value);
+        // Equal numeric values keep the original spelling, as scalar settings do.
+        changes["welcome.uids"] = "[ 02147483648, +9223372036854775807 ]";
+        Settings.Save(h.DataDirectory, changes);
+        Assert.Equal(expected, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.uids"] = "[]" });
+        Assert.Empty(Settings.Load(h.DataDirectory).WelcomeUids.Value);
+    }
+
+    [Fact]
+    public void Save_inserts_missing_welcome_conditions_after_existing_settings()
+    {
+        Settings.Load(h.DataDirectory);
+        const string before = "welcome:\n  guard: 提督 # 保留\nfuture: 保留\n";
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string>
+        {
+            ["welcome.uids"] = "[12345, 67890]", ["welcome.fan_club_level"] = "21", ["welcome.wealth_level"] = "45"
+        });
+        Assert.Equal("welcome:\n  guard: 提督 # 保留\n  uids: [12345, 67890]\n  fan_club_level: 21\n  wealth_level: 45\nfuture: 保留\n",
+            File.ReadAllText(Settings.FilePath(h.DataDirectory)));
+    }
+
+    [Theory]
+    [InlineData("uids", "12345")]
+    [InlineData("uids", "'[12345]'")]
+    [InlineData("uids", "[abc]")]
+    [InlineData("uids", "[0]")]
+    [InlineData("uids", "[-1]")]
+    [InlineData("uids", "[1.5]")]
+    [InlineData("uids", "[9223372036854775808]")]
+    [InlineData("uids", "[[12345]]")]
+    [InlineData("uids", "[true]")]
+    [InlineData("uids", "{uid: 12345}")]
+    [InlineData("uids", "\n    - 12345")]
+    [InlineData("uids", "[12345,\n    67890]")]
+    [InlineData("uids", "[12345\n  ]")]
+    [InlineData("uids", "[\n  ]")]
+    [InlineData("uids", "\n    [12345]")]
+    [InlineData("fan_club_level", "-1")]
+    [InlineData("fan_club_level", "1.5")]
+    [InlineData("wealth_level", "-1")]
+    [InlineData("wealth_level", "[]")]
+    public void Invalid_welcome_conditions_report_their_line_and_leave_the_file_unchanged(string key, string value)
+    {
+        Settings.Load(h.DataDirectory);
+        var path = Settings.FilePath(h.DataDirectory);
+        var yaml = $"# 保留\nwelcome:\n  {key}: {value}\n";
+        File.WriteAllText(path, yaml);
+        var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
+        Assert.Equal("welcome." + key, error.SettingName);
+        Assert.Equal(3, error.LineNumber);
+        Assert.Contains(key == "uids" ? "单行数字列表" : "非负整数", error.Message);
+        Assert.Equal(yaml, File.ReadAllText(path));
+
+        const string valid = "welcome:\n  uids: []\n  fan_club_level: 0\n  wealth_level: 0\n";
+        File.WriteAllText(path, valid);
+        var saveError = Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory,
+            new Dictionary<string, string> { ["welcome." + key] = value }));
+        Assert.Equal("welcome." + key, saveError.SettingName);
+        Assert.Equal(1, saveError.LineNumber); // Invalid form input has no source line yet.
+        Assert.Equal(valid, File.ReadAllText(path));
+    }
+
+    [Fact]
+    public void A_single_line_uid_list_in_a_flow_group_loads_but_cannot_be_line_edited()
+    {
+        Settings.Load(h.DataDirectory);
+        const string yaml = "log:\nblind_box:\nsend:\nwelcome: {uids: [12345]}\n";
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
+        var loaded = Settings.Load(h.DataDirectory);
+        Assert.Null(loaded.Error);
+        Assert.Equal([12345L], loaded.WelcomeUids.Value);
+        Assert.False(loaded.WelcomeUids.CanEdit);
+        Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory,
+            new Dictionary<string, string> { ["welcome.uids"] = "[67890]" }));
+        Assert.Equal(yaml, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
     }
 
     [Fact]

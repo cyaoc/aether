@@ -203,9 +203,14 @@ public sealed partial class AetherClient
                                 box => client.stores.Value.BlindBoxes.Save(realRoomId, box) && Settings.BlindBoxAnnounce.Value);
                         else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry })
                         {
-                            if (entry.Guard <= 0 || entry.Guard > Entry.GuardLevel(Settings.WelcomeGuard.Value)) continue;
+                            var condition = Settings.WelcomeUids.Value.Contains(entry.Uid) ? "UID"
+                                : Settings.WelcomeFanClubLevel.Value > 0 && entry.FanClubLevel >= Settings.WelcomeFanClubLevel.Value ? "粉丝团等级"
+                                : entry.Guard > 0 && entry.Guard <= Entry.GuardLevel(Settings.WelcomeGuard.Value) ? "大航海身份"
+                                : Settings.WelcomeWealthLevel.Value > 0 && entry.WealthLevel >= Settings.WelcomeWealthLevel.Value ? "荣耀等级"
+                                : null;
+                            if (condition is null) continue;
                             var text = welcomeText.Render(entry.Nickname, entry.Guard, Settings.WelcomeMaxLength.Value);
-                            client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中大航海身份", entry.Nickname, entry.Uid);
+                            client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中{Condition}", entry.Nickname, entry.Uid, condition);
                             sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, text, welcomeText.Mention, receivedTimestamp);
                         }
                     }
