@@ -41,30 +41,35 @@
         <TextBlock Text="进场欢迎" FontSize="22" FontWeight="SemiBold" Margin="0,16,0,0" />
         <CheckBox x:Name="WelcomeInput" Content="进场欢迎（下次观看直播间时生效）" />
         <TextBlock x:Name="WelcomeReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
-        <TextBlock Text="欢迎语" />
+        <TextBlock Text="欢迎语（下次观看直播间时生效）" />
         <TextBox x:Name="WelcomeTextInput" AutomationProperties.Name="欢迎语" />
         <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
         <TextBlock x:Name="WelcomeTextHint" Classes="hint"
                    Text="英文、数字、半角符号算 1，其他字符算 2。可用 {@}（只能放开头）、{昵称}、{大航海}；用 {{ 和 }} 转义花括号。固定部分计数：{大航海} 算 4，{昵称} 和 {@} 算 0。" />
-        <TextBlock Text="弹幕字数上限（正整数，默认 20，约 10 个汉字）" />
+        <TextBlock Text="弹幕字数上限（下次观看直播间时生效）" />
         <NumericUpDown x:Name="WelcomeMaxLengthInput" FormatString="0.############################"
                        HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎弹幕字数上限" />
         <TextBlock x:Name="WelcomeMaxLengthReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
+        <TextBlock Classes="hint" Text="正整数，默认 20，约 10 个汉字。" />
         <TextBlock Classes="hint" Text="满足下面任意一个欢迎条件就欢迎。" />
-        <TextBlock Text="指定观众的 UID（例如 [12345, 67890]，[] 表示关闭）" />
+        <TextBlock Text="指定观众的 UID（下次观看直播间时生效）" />
         <TextBox x:Name="WelcomeUidsInput" AutomationProperties.Name="欢迎指定观众的 UID" />
         <TextBlock x:Name="WelcomeUidsReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
-        <TextBlock Text="本直播间粉丝团等级门槛（0 表示关闭）" />
+        <TextBlock Classes="hint" Text="例如 [12345, 67890]，[] 表示关闭。" />
+        <TextBlock Text="本直播间粉丝团等级门槛（下次观看直播间时生效）" />
         <NumericUpDown x:Name="WelcomeFanClubInput" FormatString="0.############################"
                        HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎粉丝团等级门槛" />
         <TextBlock x:Name="WelcomeFanClubReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
-        <TextBlock Text="大航海身份门槛（例如提督表示提督和总督）" />
+        <TextBlock Classes="hint" Text="0 表示关闭。" />
+        <TextBlock Text="大航海身份门槛（下次观看直播间时生效）" />
         <ComboBox x:Name="WelcomeGuardInput" HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎大航海身份门槛" />
         <TextBlock x:Name="WelcomeGuardReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
-        <TextBlock Text="荣耀等级门槛（0 表示关闭）" />
+        <TextBlock Classes="hint" Text="例如提督表示提督和总督。" />
+        <TextBlock Text="荣耀等级门槛（下次观看直播间时生效）" />
         <NumericUpDown x:Name="WelcomeWealthInput" FormatString="0.############################"
                        HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎荣耀等级门槛" />
         <TextBlock x:Name="WelcomeWealthReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
+        <TextBlock Classes="hint" Text="0 表示关闭。" />
         <TextBlock x:Name="UnknownKeysMessage" Classes="hint" Margin="0,8,0,0" />
         <TextBlock x:Name="Message" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
       </StackPanel>

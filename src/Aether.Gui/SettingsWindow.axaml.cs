@@ -78,7 +78,7 @@ public partial class SettingsWindow : Window
 
     private static void Show(TextBox input, TextBlock readOnly, Setting<IReadOnlyList<long>> setting)
     {
-        input.Text = $"[{string.Join(", ", setting.Value.Select(uid => uid.ToString(CultureInfo.InvariantCulture)))}]";
+        input.Text = Settings.NumberListText(setting.Value);
         input.IsReadOnly = !setting.CanEdit;
         readOnly.IsVisible = !setting.CanEdit;
     }
@@ -113,12 +113,8 @@ public partial class SettingsWindow : Window
     {
         var fields = Fields();
         var error = settings.Error?.Message ?? fields.Select(InputError).FirstOrDefault(reason => reason is not null);
-        if (error is null && Settings.ValidateWelcomeText(
-                settings.WelcomeText.CanEdit ? WelcomeTextInput.Text! : settings.WelcomeText.Value,
-                settings.WelcomeMaxLength.CanEdit
-                    ? int.Parse(WelcomeMaxLengthInput.Text!.Trim(), CultureInfo.InvariantCulture)
-                    : settings.WelcomeMaxLength.Value) is { } reason)
-            error = $"{settings.WelcomeText.Name}：{reason}";
+        // Only once every input is valid: the welcome text is checked against the limit the form now holds.
+        if (error is null && settings.ValidateWelcomeText(Changes(fields)) is { } reason) error = $"{settings.WelcomeText.Name}：{reason}";
         Message.Text = error ?? "";
         SaveButton.IsEnabled = error is null && fields.Any(field => field.CanEdit);
     }
@@ -127,12 +123,16 @@ public partial class SettingsWindow : Window
     private static string? InputError((string Name, bool CanEdit, string? Input) field) =>
         field.CanEdit && Settings.Validate(field.Name, field.Input) is { } reason ? $"{field.Name}：{reason}" : null;
 
+    /// <summary>The inputs Save would write; read-only settings keep the snapshot's values.</summary>
+    private static Dictionary<string, string> Changes(IEnumerable<(string Name, bool CanEdit, string? Input)> fields) =>
+        fields.Where(field => field.CanEdit).ToDictionary(field => field.Name, field => field.Input!);
+
     private void Save(object? sender, RoutedEventArgs e)
     {
         Validate();
         if (!SaveButton.IsEnabled) return;
         // Core leaves alone what this form was filled with, so an untouched setting keeps its spelling and any edit made elsewhere.
-        var changes = Fields().Where(field => field.CanEdit).ToDictionary(field => field.Name, field => field.Input!);
+        var changes = Changes(Fields());
         try
         {
             Settings.Save(dataDirectory, changes, settings);
