@@ -168,7 +168,7 @@ public sealed class LoginTests : IDisposable
             _ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("<!DOCTYPE html><html></html>") }
         }));
         await client.LogoutAsync(TestContext.Current.CancellationToken);
-        Assert.Contains(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("仍删除本地登录凭据"));
+        Assert.NotNull(Assert.Single(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("仍删除本地登录凭据")).Exception);
         AssertNoCredential();
     }
 
@@ -345,7 +345,7 @@ public sealed class LoginTests : IDisposable
             time.Advance(TimeSpan.FromSeconds(2));
         }
         Assert.False(next.IsCompleted);
-        Assert.Contains(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("2 秒后重试"));
+        var warning = Assert.Single(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("2 秒后重试"));
         time.Advance(TimeSpan.FromSeconds(2));
         Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
         if (endpoint != Poll)
@@ -355,6 +355,8 @@ public sealed class LoginTests : IDisposable
         }
         Assert.IsType<LoggedIn>(updates.Current);
         Assert.Equal(1, TestDatabase.CredentialCount(dataDirectory));
+        if (timeout) Assert.IsType<TimeoutException>(Assert.IsType<TaskCanceledException>(warning.Exception).InnerException);
+        else Assert.IsType<HttpRequestException>(warning.Exception);
     }
 
     [Fact]

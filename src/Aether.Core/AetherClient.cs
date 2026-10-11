@@ -59,7 +59,7 @@ public sealed partial class AetherClient(
         }
         catch (Exception error) when (!cancellationToken.IsCancellationRequested)
         {
-            logger.LogWarning("B站退出登录失败，仍删除本地登录凭据：{Error}", error.Message);
+            logger.LogWarning(error, "B站退出登录失败，仍删除本地登录凭据：{Error}", error.Message);
         }
         credentials.Delete();
     }
@@ -191,7 +191,7 @@ public sealed partial class AetherClient(
         try { return await request(); }
         catch (Exception error) when (IsRetryable(error, cancellationToken))
         {
-            logger.LogWarning("登录请求失败，2 秒后重试：{Error}", error.Message);
+            logger.LogWarning(error, "登录请求失败，2 秒后重试：{Error}", error.Message);
             return null;
         }
     }
@@ -220,7 +220,7 @@ public sealed partial class AetherClient(
                     }
                     catch (Exception error) when (!cancellationToken.IsCancellationRequested)
                     {
-                        logger.LogWarning("确认登录凭据刷新失败，保留新登录凭据：{Error}", error.Message);
+                        logger.LogWarning(error, "确认登录凭据刷新失败，保留新登录凭据：{Error}", error.Message);
                     }
                 }
             }
@@ -229,7 +229,7 @@ public sealed partial class AetherClient(
         }
         catch (Exception error) when (IsRetryable(error, cancellationToken))
         {
-            logger.LogWarning("检查或刷新登录凭据时网络失败，下次再试：{Error}", error.Message);
+            logger.LogWarning(error, "检查或刷新登录凭据时网络失败，下次再试：{Error}", error.Message);
         }
         catch (CredentialRejectedException error)
         {
@@ -240,7 +240,7 @@ public sealed partial class AetherClient(
         {
             // Refresh is upkeep, and nav still vets the credential on every connect, so an unexpected answer
             // (an error code from cookie/info, a changed correspond page) neither deletes it nor ends the room connection.
-            logger.LogWarning("检查或刷新登录凭据失败，24 小时后再试：{Error}", error.Message);
+            logger.LogWarning(error, "检查或刷新登录凭据失败，24 小时后再试：{Error}", error.Message);
             credentials.MarkChecked(credential.RefreshToken, timeProvider.GetUtcNow());
         }
         return credentials.Load();

@@ -376,7 +376,9 @@ public sealed class BlindBoxReplyTests
         h.Time.Advance(TimeSpan.FromSeconds(10));
         await AssertNoReplyAsync(sent);
         Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("发送弹幕成功"));
-        Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("发送弹幕失败"));
+        var warning = Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("发送弹幕失败"));
+        if (response == "network") Assert.IsType<HttpRequestException>(warning.Exception);
+        else Assert.NotNull(warning.Exception);
         Assert.Single(h.Http.Requests, r => r.Uri.AbsolutePath == "/msg/send");
     }
 

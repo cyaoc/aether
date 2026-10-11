@@ -27,6 +27,7 @@ public sealed class ProtocolTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
+        h.Logger.Entries.Clear();
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
             Encoding.UTF8.GetBytes(body), 0));
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5,
@@ -53,6 +54,7 @@ public sealed class ProtocolTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
+        h.Logger.Entries.Clear();
         // 2046 ASCII bytes followed by a 3-byte character straddles the byte limit.
         var body = byteCount == 2048 ? new string('x', 2048) : new string('x', 2046) + "中";
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(body), 0));
@@ -118,6 +120,7 @@ public sealed class ProtocolTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
+        h.Logger.Entries.Clear();
         await h.Server.PushAsync(await FixtureAsync("multiple-zlib.bin"));
         await h.Server.PushAsync(await FixtureAsync("danmaku-brotli.bin"));
         Assert.True(await updates.MoveNextAsync());
@@ -197,7 +200,7 @@ public sealed class ProtocolTests
         .Select(entry => entry.Message).ToArray();
 
     /// <summary>Everything logged except the Trace captures of raw room messages.</summary>
-    private static IEnumerable<(Microsoft.Extensions.Logging.LogLevel Level, string Message)> EntriesAboveTrace(WatchHarness h) =>
+    private static IEnumerable<LogEntry> EntriesAboveTrace(WatchHarness h) =>
         h.Logger.Entries.Where(entry => entry.Level != Microsoft.Extensions.Logging.LogLevel.Trace);
 
     private static string[] Warnings(WatchHarness h) => h.Logger.Entries
@@ -235,6 +238,7 @@ public sealed class ProtocolTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
+        h.Logger.Entries.Clear();
         var packets = new[]
         {
             "{",
