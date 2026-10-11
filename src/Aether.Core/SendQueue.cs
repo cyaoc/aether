@@ -48,6 +48,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             if (waitingQueries.Add(trigger.Uid)) pending.Writer.TryWrite(new(trigger.Uid, trigger.Nickname, trigger));
     }
 
+    /// <summary>Queues a 进场欢迎 whose text is fixed now; unlike queries, welcomes never merge.</summary>
     public void EnqueueWelcome(long uid, string nickname, string text, bool mention, long receivedAt)
     {
         lock (gate) pending.Writer.TryWrite(new(uid, nickname, Welcome: new(text, mention, receivedAt)));
@@ -112,8 +113,8 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         }
     }
 
-    /// <summary>Sends queries' replies and announcements one at a time until cancelled. <paramref name="prepare"/> gets an
-    /// announcement's round as it stands (null for a query) and runs again after each wait, so the text sent is current;
+    /// <summary>Sends queries' replies, announcements and welcomes one at a time until cancelled. <paramref name="prepare"/>
+    /// gets an announcement's round as it stands (null otherwise) and runs again after each wait, so the text sent is current;
     /// it does the local reads (their failures end the room connection) and returns the text with the send itself, the
     /// only step that can fail it.</summary>
     public async Task SendAsync(Func<Item, BlindBoxTally?, (string Text, Func<CancellationToken, Task> Send)> prepare,
@@ -173,7 +174,8 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         if (item.Welcome is not { } welcome || time.GetElapsedTime(welcome.ReceivedAt) < WelcomeLifetime) return false;
         rateLimitRetryOwed = false;
         Finish(item, null);
-        logger.LogInformation("欢迎已过期，进场已满 30 秒，已丢弃：欢迎观众 {Nickname}（{Uid}）", item.Nickname, item.Uid);
+        logger.LogInformation("欢迎已过期，进场已满 {Seconds} 秒，已丢弃：欢迎观众 {Nickname}（{Uid}）",
+            WelcomeLifetime.TotalSeconds, item.Nickname, item.Uid);
         return true;
     }
 

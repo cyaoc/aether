@@ -64,6 +64,28 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Assert.Equal(beforeInvalid, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
     }
 
+    [Fact]
+    public void Save_checks_text_against_the_limit_as_the_setting_reads_it()
+    {
+        Settings.Load(h.DataDirectory);
+        // Trim drops a full-width space that int.Parse rejects.
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.max_length"] = "　30" });
+        Assert.Equal(30, Settings.Load(h.DataDirectory).WelcomeMaxLength.Value);
+        var error = Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory,
+            new Dictionary<string, string> { ["welcome.max_length"] = "　7" }));
+        Assert.Equal("welcome.text", error.SettingName);
+    }
+
+    [Fact]
+    public void A_default_text_over_the_limit_reports_the_welcome_group_line()
+    {
+        Directory.CreateDirectory(h.DataDirectory);
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  enabled: true\n  max_length: 7\n");
+        var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
+        Assert.Equal("welcome.text", error.SettingName);
+        Assert.Equal(1, error.LineNumber);
+    }
+
     [Theory]
     [InlineData("enabled", "yes")]
     [InlineData("enabled", "[]")]
@@ -75,6 +97,8 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     [InlineData("max_length", "1.5")]
     [InlineData("max_length", "2147483648")]
     [InlineData("text", "[]")]
+    [InlineData("text", "''")]
+    [InlineData("text", "' '")]
     public async Task Invalid_values_refuse_watching_at_their_line(string key, string value)
     {
         Directory.CreateDirectory(h.DataDirectory);
@@ -110,6 +134,8 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     [InlineData("'欢迎{'", 20, "可用")]
     [InlineData("'欢迎}'", 20, "可用")]
     [InlineData("'欢迎{大航海}{昵称}'", 7, "8")]
+    [InlineData("'{@}'", 20, "不能只有")]
+    [InlineData("'{@} '", 20, "不能只有")]
     public void Invalid_text_reports_its_line_and_keeps_the_file(string text, int limit, string reason)
     {
         Directory.CreateDirectory(h.DataDirectory);

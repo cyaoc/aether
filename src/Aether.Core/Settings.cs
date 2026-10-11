@@ -47,7 +47,7 @@ public sealed class Settings
         welcome:
           # true 或 false，满足下面任意一个欢迎条件的观众进场时，发一条欢迎弹幕
           enabled: false
-          # 欢迎语。可用 {@}（@ 这位观众，只能放开头，不算字数）、{昵称}（太长时自动截短）、
+          # 欢迎语，非空文字。可用 {@}（@ 这位观众，只能放开头，不算字数）、{昵称}（太长时自动截短）、
           # {大航海}（舰长/提督/总督，不是大航海身份时为空）；要写花括号本身，用 {{ 和 }}
           # 以 { 开头时要加引号，例如："{@}欢迎回家"、"欢迎{大航海}{昵称}"、"欢迎{昵称}光临"
           text: "欢迎{大航海}{昵称}"
@@ -78,7 +78,7 @@ public sealed class Settings
     private static readonly Definition<bool> Announce = Register(Definition.Boolean("blind_box.announce", true));
     private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 1, "必须为正整数。", seconds => seconds > 0));
     private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome.enabled", false));
-    private static readonly Definition<string> WelcomeTemplate = Register(Definition.Text("welcome.text", "欢迎{大航海}{昵称}"));
+    private static readonly Definition<string> WelcomeTemplate = Register(Definition.RequiredText("welcome.text", "欢迎{大航海}{昵称}"));
     private static readonly Definition<int> WelcomeLimit = Register(Definition.Number("welcome.max_length", 20, "必须为正整数。", length => length > 0));
     private static readonly Definition<string> WelcomeThreshold = Register(Definition.Choice<string>("welcome.guard", "舰长", ["关闭", "舰长", "提督", "总督"]));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
@@ -144,14 +144,9 @@ public sealed class Settings
             var definition = Find(definitions, change.Key)!;
             return !definition.Holds(current, change.Value) && !(snapshot is not null && definition.Holds(snapshot, change.Value));
         }).ToDictionary();
-        if (definitions.Contains(WelcomeTemplate))
-        {
-            var welcomeText = changes.GetValueOrDefault(WelcomeTemplate.Name, current.WelcomeText.Value);
-            var limit = changes.TryGetValue(WelcomeLimit.Name, out var input)
-                ? int.Parse(input, CultureInfo.InvariantCulture) : current.WelcomeMaxLength.Value;
-            current.CheckWelcome(path, welcomeText, limit);
-            if (current.Error is { } invalid) throw invalid;
-        }
+        if (definitions.Contains(WelcomeTemplate)
+            && current.WelcomeError(path, Saved(WelcomeTemplate), Saved(WelcomeLimit)) is { } invalid)
+            throw invalid;
         var tokens = Scan(current.source);
         var edits = new List<(int Start, int Length, string Value)>();
         var newline = NewlineOf(current.source);
@@ -165,6 +160,9 @@ public sealed class Settings
         foreach (var (_, edit) in edits.Index().OrderByDescending(edit => edit.Item.Start).ThenByDescending(edit => edit.Index))
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
         AtomicFile.Write(path, [.. current.encoding.GetPreamble(), .. current.encoding.GetBytes(text)]);
+
+        T Saved<T>(Definition<T> definition) =>
+            changes.TryGetValue(definition.Name, out var input) ? definition.Parse(input) : current.Get(definition).Value;
 
         void EditGroup(string groupName, IEnumerable<(Definition Definition, string Value)> groupChanges)
         {
@@ -367,8 +365,8 @@ public sealed class Settings
                 }
             }
             settings.UnknownKeys = unknown.AsReadOnly();
-            if (definitions.Contains(WelcomeTemplate) && settings.Error is null)
-                settings.CheckWelcome(path, settings.WelcomeText.Value, settings.WelcomeMaxLength.Value);
+            if (definitions.Contains(WelcomeTemplate))
+                settings.Error ??= settings.WelcomeError(path, settings.WelcomeText.Value, settings.WelcomeMaxLength.Value);
         }
         catch (SettingsException error) { settings.Error = error; }
         catch (Exception error) when (IsYamlFailure(error))
@@ -395,12 +393,13 @@ public sealed class Settings
         }
     }
 
-    private void CheckWelcome(string path, string text, int limit)
+    /// <summary>Checks the text against the limit, reported at the text's line, else the welcome group's.</summary>
+    private SettingsException? WelcomeError(string path, string text, int limit)
     {
-        if (Core.WelcomeText.Validate(text, limit) is not { } reason) return;
-        var group = root?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "welcome" }).Value;
-        var key = (group as YamlMappingNode)?.Children.Keys.FirstOrDefault(key => key is YamlScalarNode { Value: "text" });
-        Error = new(path, key?.Start.Line ?? group?.Start.Line ?? 1, "welcome.text", reason);
+        if (Core.WelcomeText.Validate(text, limit) is not { } reason) return null;
+        var group = root?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "welcome" }) ?? default;
+        var key = (group.Value as YamlMappingNode)?.Children.Keys.FirstOrDefault(key => key is YamlScalarNode { Value: "text" });
+        return new(path, key?.Start.Line ?? group.Key?.Start.Line ?? 1, "welcome.text", reason);
     }
 
     /// <summary>A setting this version knows: its name in the file (group.key), how its text becomes a value,
@@ -489,7 +488,9 @@ public sealed class Settings
     {
         public Setting<T> Initial => new(Name, initial);
         public override string? Validate(string? text) => parse(text ?? "").Valid ? null : rule;
-        public override string Format(string text) => format(parse(text).Value);
+        /// <summary>The value of valid text.</summary>
+        public T Parse(string text) => parse(text).Value;
+        public override string Format(string text) => format(Parse(text));
         public override bool CanEdit(Settings settings) => settings.Get(this).CanEdit;
         public override bool Holds(Settings settings, string text) => Format(text) == format(settings.Get(this).Value);
         public override void MarkEditable(Settings settings, bool canEdit) => settings.values[this] = settings.Get(this) with { CanEdit = canEdit };

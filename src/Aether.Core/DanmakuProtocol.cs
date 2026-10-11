@@ -35,15 +35,17 @@ internal static class DanmakuProtocol
         private bool entryVersionSeen;
         private bool unknownEntrySeen;
 
-        public void Observe(string command, ILogger logger)
+        public void Observe(string command, ILogger logger, bool welcomeEnabled)
         {
-            if (EntryMessages.Version(command) is { } entryVersion)
+            // Entry messages are only decoded while welcomes are on, so only then do their formats matter.
+            if (welcomeEnabled && EntryMessages.Version(command) is { } entryVersion)
             {
                 if (entryVersionSeen) return;
                 entryVersionSeen = true;
                 logger.LogInformation("本直播间的进场消息为 {Version}（{Command}）", entryVersion, command);
             }
-            else if ((command == "INTERACT_WORD" || command.StartsWith("INTERACT_WORD_", StringComparison.Ordinal)) && !unknownEntrySeen)
+            else if (welcomeEnabled && !unknownEntrySeen
+                && (command == "INTERACT_WORD" || command.StartsWith("INTERACT_WORD_", StringComparison.Ordinal)))
             {
                 unknownEntrySeen = true;
                 logger.LogWarning("收到不认识的进场消息 {Command}，进场消息格式可能变了", command);
@@ -122,7 +124,7 @@ internal static class DanmakuProtocol
             using var message = JsonDocument.Parse(body);
             var root = message.RootElement;
             command = root.GetProperty("cmd").GetString() ?? throw new JsonException("缺少 cmd。");
-            notices.Observe(command, logger);
+            notices.Observe(command, logger, welcomeEnabled);
             if (IsDanmaku(command))
             {
                 var info = root.GetProperty("info");

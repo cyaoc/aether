@@ -2,7 +2,16 @@ using System.Text.Json;
 
 namespace Aether.Core.Entries;
 
-internal sealed record Entry(long Uid, string Nickname, long MessageType, long Guard, long? FanClubLevel, long WealthLevel);
+internal sealed record Entry(long Uid, string Nickname, long MessageType, long Guard, long? FanClubLevel, long WealthLevel)
+{
+    // B站's privilege_type: 1 总督, 2 提督, 3 舰长; 0 is none.
+    private static readonly string[] GuardNames = ["总督", "提督", "舰长"];
+
+    public static string GuardName(long guard) => guard is >= 1 and <= 3 ? GuardNames[guard - 1] : "";
+
+    /// <summary>The privilege_type a 大航海身份 name stands for; 0 for anything else, such as 关闭.</summary>
+    public static long GuardLevel(string name) => Array.IndexOf(GuardNames, name) + 1;
+}
 
 internal static class EntryMessages
 {

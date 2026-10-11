@@ -299,6 +299,17 @@ public sealed class WelcomeTests
         Assert.Equal(2, h.Logger.Entries.Count(entry => entry.Message.Contains("进场消息格式可能变了")));
     }
 
+    [Fact]
+    public async Task Disabled_welcomes_say_nothing_about_entry_formats()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using (var updates = await h.WatchConnectedAsync())
+            await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(), "{\"cmd\":\"INTERACT_WORD\"}", "{\"cmd\":\"INTERACT_WORD_V3\"}");
+        Assert.DoesNotContain(h.Logger.Entries, entry => entry.Message.Contains("进场消息"));
+        Assert.Equal(0, SendAttempts(h));
+    }
+
     private static void Enable(WatchHarness h, string text = "欢迎{大航海}{昵称}", int limit = 20) =>
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {

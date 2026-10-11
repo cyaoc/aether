@@ -1,4 +1,5 @@
 using System.Text;
+using Aether.Core.Entries;
 
 namespace Aether.Core;
 
@@ -29,6 +30,8 @@ internal sealed class WelcomeText
             i = end + 1;
         }
         parts.Add(("", literal.ToString()));
+        if (parts.All(part => part.Kind == "" && string.IsNullOrWhiteSpace(part.Text)))
+            throw new FormatException("欢迎语不能只有 {@}，还要写上发出去的文字。");
         FixedLength = parts.Sum(part => part.Kind == "大航海" ? 4 : Length(part.Text));
     }
 
@@ -44,15 +47,15 @@ internal sealed class WelcomeText
 
     public string Render(string nickname, long guard, int limit)
     {
-        var guardName = guard switch { 1 => "总督", 2 => "提督", 3 => "舰长", _ => "" };
+        var guardName = Entry.GuardName(guard);
         var fixedLength = parts.Sum(part => Length(part.Kind == "大航海" ? guardName : part.Text));
         var occurrences = parts.Count(part => part.Kind == "昵称");
         var budget = occurrences == 0 ? 0 : (limit - fixedLength) / occurrences;
         var end = 0;
-        // shortcut: truncate code points, which may split a ZWJ emoji; use grapheme clusters if that matters in practice.
+        // ponytail: truncates code points, which may split a ZWJ emoji; use grapheme clusters if that matters in practice.
         foreach (var rune in nickname.EnumerateRunes())
         {
-            budget -= rune.Value is >= 0x20 and <= 0x7e ? 1 : 2;
+            budget -= Weight(rune);
             if (budget < 0) break;
             end += rune.Utf16SequenceLength;
         }
@@ -63,5 +66,7 @@ internal sealed class WelcomeText
         }));
     }
 
-    private static int Length(string text) => text.EnumerateRunes().Sum(rune => rune.Value is >= 0x20 and <= 0x7e ? 1 : 2);
+    private static int Length(string text) => text.EnumerateRunes().Sum(Weight);
+
+    private static int Weight(Rune rune) => rune.Value is >= 0x20 and <= 0x7e ? 1 : 2;
 }

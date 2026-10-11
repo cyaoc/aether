@@ -2,6 +2,7 @@ using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
+using Aether.Core.Entries;
 
 namespace Aether.Core;
 
@@ -202,8 +203,7 @@ public sealed partial class AetherClient
                                 box => client.stores.Value.BlindBoxes.Save(realRoomId, box) && Settings.BlindBoxAnnounce.Value);
                         else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry })
                         {
-                            var threshold = Settings.WelcomeGuard.Value switch { "总督" => 1, "提督" => 2, "舰长" => 3, _ => 0 };
-                            if (entry.Guard <= 0 || entry.Guard > threshold) continue;
+                            if (entry.Guard <= 0 || entry.Guard > Entry.GuardLevel(Settings.WelcomeGuard.Value)) continue;
                             var text = welcomeText.Render(entry.Nickname, entry.Guard, Settings.WelcomeMaxLength.Value);
                             client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中大航海身份", entry.Nickname, entry.Uid);
                             sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, text, welcomeText.Mention, receivedTimestamp);
