@@ -49,14 +49,14 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
         return reader.IsDBNull(0) ? null : new BlindBoxTally(reader.GetInt64(0), reader.GetInt64(1));
     }
 
-    public void Save(long roomId, BlindBox blindBox)
+    public bool Save(long roomId, BlindBox blindBox)
     {
         if (blindBox.Uid == 0)
         {
             // Shown at Information: whether 神秘人 gifts arrive with uid 0 is unverified, and these go uncounted.
             logger.LogInformation("uid 为 0 的盲盒未记录（可能是神秘人），盲盒 {BlindGift}，开出礼物 {Gift}，个数 {Num}，投入 {Spend} 金瓜子，tid：{Tid}",
                 blindBox.BlindGiftName, blindBox.OpenedGiftName, blindBox.Num, blindBox.Spend, blindBox.Tid);
-            return;
+            return false;
         }
         using var connection = database.Open();
         using var command = connection.CreateCommand();
@@ -96,7 +96,7 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
                 logger.LogWarning("tid {Tid} 已记录过另一份不同的盲盒，这一条未记录，tid 可能不是按礼物项唯一："
                     + "观众 {Nickname}（{Uid}），盲盒 {BlindGift}，开出礼物 {Gift}，个数 {Num}，投入 {Spend} 金瓜子，开出价值 {OpenedValue} 金瓜子",
                     blindBox.Tid, blindBox.Nickname, blindBox.Uid, blindBox.BlindGiftName, blindBox.OpenedGiftName, blindBox.Num, blindBox.Spend, blindBox.OpenedValue);
-            return;
+            return false;
         }
         // Compare without overflowing on an untrusted unit price times quantity.
         if (blindBox.Spend / blindBox.Num != blindBox.BlindGiftPrice || blindBox.Spend % blindBox.Num != 0)
@@ -107,5 +107,6 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
             logger.LogWarning("盲盒消息的 switch 为 false，含义未验证，仍照常记录，tid：{Tid}", blindBox.Tid);
         logger.LogInformation("记录盲盒：观众 {Nickname}（{Uid}），盲盒 {BlindGift}，开出礼物 {Gift}，个数 {Num}，投入 {Spend} 金瓜子，开出价值 {OpenedValue} 金瓜子",
             blindBox.Nickname, blindBox.Uid, blindBox.BlindGiftName, blindBox.OpenedGiftName, blindBox.Num, blindBox.Spend, blindBox.OpenedValue);
+        return true;
     }
 }

@@ -35,6 +35,7 @@ public partial class SettingsWindow : Window
         Show(LevelInput, LevelReadOnly, settings.LogLevel);
         Show(BlindBoxInput, BlindBoxReadOnly, settings.BlindBoxEnabled);
         Show(KeywordInput, KeywordReadOnly, settings.BlindBoxKeyword);
+        Show(AnnounceInput, AnnounceReadOnly, settings.BlindBoxAnnounce);
         Show(SendIntervalInput, SendIntervalReadOnly, settings.SendIntervalSeconds);
         UnknownKeysMessage.IsVisible = settings.UnknownKeys.Count > 0;
         UnknownKeysMessage.Text = $"未知设置键：{string.Join("、", settings.UnknownKeys)}。保存后会原样保留。";
@@ -79,6 +80,7 @@ public partial class SettingsWindow : Window
         (settings.LogLevel.Name, settings.LogLevel.CanEdit, LevelInput.SelectedItem?.ToString()),
         (settings.BlindBoxEnabled.Name, settings.BlindBoxEnabled.CanEdit, Settings.BooleanText(BlindBoxInput.IsChecked == true)),
         (settings.BlindBoxKeyword.Name, settings.BlindBoxKeyword.CanEdit, KeywordInput.Text),
+        (settings.BlindBoxAnnounce.Name, settings.BlindBoxAnnounce.CanEdit, Settings.BooleanText(AnnounceInput.IsChecked == true)),
         (settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text),
     ];
 

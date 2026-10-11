@@ -163,6 +163,7 @@ public sealed partial class AetherClient
                 {
                     var bytes = await ReceiveMessageAsync(socket, idleTimeout, connectionStop.Token);
                     var receivedAt = client.timeProvider.GetLocalNow();
+                    var receivedTimestamp = client.timeProvider.GetTimestamp();
                     foreach (var decoded in DanmakuProtocol.Decode(bytes, receivedAt, connected, formatNotices, client.logger))
                     {
                         connectionStop.Token.ThrowIfCancellationRequested();
@@ -194,8 +195,9 @@ public sealed partial class AetherClient
                         }
                         // ponytail: a synchronous SQLite write on the receive loop (busy waits up to Microsoft.Data.Sqlite's 30 s
                         // command timeout, well inside the 60 s idle deadline); hand it to a background writer if a room ever stalls on it.
-                        else if (decoded is DanmakuProtocol.BlindBoxReceived received && Settings.BlindBoxEnabled.Value)
-                            client.stores.Value.BlindBoxes.Save(realRoomId, received.BlindBox);
+                        else if (decoded is DanmakuProtocol.BlindBoxesReceived received && Settings.BlindBoxEnabled.Value)
+                            sendQueue.Record(received.BlindBoxes, receivedTimestamp,
+                                box => client.stores.Value.BlindBoxes.Save(realRoomId, box) && Settings.BlindBoxAnnounce.Value);
                     }
                 }
             }
@@ -220,11 +222,13 @@ public sealed partial class AetherClient
         }
 
         private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) => RunWhileConnectedAsync(stop, () =>
-            sendQueue.SendAsync(trigger =>
+            sendQueue.SendAsync((item, tally) =>
             {
-                var reply = BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, trigger.Uid, trigger.ReceivedAt));
+                var reply = item.Trigger is { } trigger
+                    ? BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, trigger.ReceivedAt))
+                    : "本次" + BlindBoxTally.Reply(tally);
                 var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
-                return (reply, token => api.ReplyAsync(roomId, trigger, reply, token));
+                return (reply, token => api.ReplyAsync(roomId, item.Uid, item.Trigger?.Id, reply, token));
             }, stop.Token));
 
         // A refresh cut short by the connection ending leaves checked_at unchanged, so the reconnect checks again.

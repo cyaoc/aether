@@ -9,6 +9,40 @@ namespace Aether.Gui.Tests;
 
 public sealed class SettingsWindowTests
 {
+    [Theory]
+    [InlineData(null)]
+    [InlineData("  announce: true # 开关\n")]
+    public Task Announcement_switch_defaults_on_and_saves_only_its_line(string? line) =>
+        WithSettingsWindow("blind_box:\n  enabled: true\n" + line, (window, path) =>
+        {
+            var before = File.ReadAllText(path);
+            var input = window.FindControl<CheckBox>("AnnounceInput");
+            Assert.NotNull(input);
+            Assert.True(input.IsChecked);
+            Assert.True(input.IsEnabled);
+            Assert.Contains("下次观看直播间时生效", input.Content as string);
+            input.IsChecked = false;
+            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(line is null ? before.Replace("  enabled: true\n", "  enabled: true\n  announce: false\n")
+                : before.Replace("announce: true", "announce: false"), File.ReadAllText(path));
+            Assert.False(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxAnnounce.Value);
+        });
+
+    [Fact]
+    public Task Multiline_announcement_switch_is_read_only_and_preserved() =>
+        WithSettingsWindow("blind_box:\n  announce: |-\n    false\n  enabled: true\n", (window, path) =>
+        {
+            var before = File.ReadAllText(path);
+            var input = window.FindControl<CheckBox>("AnnounceInput");
+            Assert.NotNull(input);
+            Assert.False(input.IsChecked);
+            Assert.False(input.IsEnabled);
+            Assert.True(window.FindControl<TextBlock>("AnnounceReadOnly")!.IsVisible);
+            window.FindControl<CheckBox>("BlindBoxInput")!.IsChecked = false;
+            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before.Replace("enabled: true", "enabled: false"), File.ReadAllText(path));
+        });
+
     [Fact]
     public Task Blind_box_tally_and_send_queue_fields_load_defaults_validate_and_save_missing_settings() =>
         WithSettingsWindow("# 保留\nblind_box:\n  enabled: true\n", (window, path) =>

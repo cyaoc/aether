@@ -178,18 +178,18 @@ internal sealed class BilibiliApi
         return result;
     }
 
-    /// <summary>Sends <paramref name="message"/> as a reply to <paramref name="trigger"/>'s sender.</summary>
-    public async Task ReplyAsync(long roomId, Danmaku trigger, string message, CancellationToken cancellationToken)
+    /// <summary>Sends an @ to a viewer, optionally pointing to the danmaku that triggered a query.</summary>
+    public async Task ReplyAsync(long roomId, long uid, string? triggerId, string message, CancellationToken cancellationToken)
     {
         var csrf = credential?.Cookies["bili_jct"] ?? throw new InvalidOperationException("缺少登录凭据。");
         List<KeyValuePair<string, string>> form = [
             new("roomid", roomId.ToString(CultureInfo.InvariantCulture)), new("msg", message),
             new("rnd", timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
             new("fontsize", "25"), new("color", "16777215"), new("mode", "1"), new("bubble", "0"),
-            new("csrf", csrf), new("csrf_token", csrf), new("reply_mid", trigger.Uid.ToString(CultureInfo.InvariantCulture)),
+            new("csrf", csrf), new("csrf_token", csrf), new("reply_mid", uid.ToString(CultureInfo.InvariantCulture)),
             new("reply_uname", ""), new("reply_attr", "0"),
         ];
-        if (trigger.Id.Length > 0) form.Add(new("replay_dmid", trigger.Id));
+        if (!string.IsNullOrEmpty(triggerId)) form.Add(new("replay_dmid", triggerId));
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.live.bilibili.com/msg/send")
         {
             Content = new FormUrlEncodedContent(form),
