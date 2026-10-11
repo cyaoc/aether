@@ -8,6 +8,47 @@ namespace Aether.Core.Tests;
 
 public sealed class BlindBoxAnnouncementTests
 {
+    [Theory]
+    [InlineData(0, false, "本次投入50电池 亏35电池")]
+    [InlineData(7000, false, "本次投入120电池 亏90电池")]
+    [InlineData(5000, true, "本次投入100电池 亏70电池")]
+    public async Task Same_text_wait_recalculates_the_round_and_checks_the_new_text_again(
+        int extraSpend, bool matchesSecond, string expected)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        var sent = CaptureSends(h);
+        await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
+        h.Time.Advance(TimeSpan.FromSeconds(1));
+        await h.PushAndSyncAsync(updates,
+            Gift(h.Time.GetUtcNow(), uid: 20002, spend: 10000, price: 3000),
+            Gift(h.Time.GetUtcNow(), uid: 30003));
+        h.Time.Advance(TimeSpan.FromSeconds(2));
+        AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
+        await h.WaitForLogAsync("（10001）");
+        h.Time.Advance(TimeSpan.FromSeconds(1));
+        AssertAnnouncement(await NextSendAsync(sent), "本次投入100电池 亏70电池", uid: 20002);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
+        if (extraSpend > 0)
+            await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), uid: 30003, spend: extraSpend));
+        h.Time.Advance(TimeSpan.FromMilliseconds(3999));
+        await AssertNoSendAsync(sent);
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
+        if (matchesSecond)
+        {
+            // The new text matches the second announcement, whose deadline is one second later.
+            await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
+            h.Time.Advance(TimeSpan.FromMilliseconds(999));
+            await AssertNoSendAsync(sent);
+            h.Time.Advance(TimeSpan.FromMilliseconds(1));
+        }
+        AssertAnnouncement(await NextSendAsync(sent), expected, uid: 30003);
+        await h.WaitForLogAsync("（30003）");
+        h.Time.Advance(TimeSpan.FromSeconds(5));
+        await AssertNoSendAsync(sent);
+    }
+
     [Fact]
     public async Task Captured_boxes_1_3_seconds_apart_restart_the_quiet_window_and_ten_boxes_form_one_announcement()
     {
@@ -119,6 +160,7 @@ public sealed class BlindBoxAnnouncementTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "5" });
         var sent = CaptureSends(h);
         var release = HoldSends(h, attempt: 1);
         await using var updates = await h.WatchConnectedAsync();
@@ -215,6 +257,7 @@ public sealed class BlindBoxAnnouncementTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "5" });
         var limited = JsonSerializer.Serialize(new { code, message });
         var sent = CaptureSends(h, limited, retrySucceeds ? Accepted : limited, Accepted);
         await using var updates = await h.WatchConnectedAsync();
@@ -355,6 +398,7 @@ public sealed class BlindBoxAnnouncementTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "5" });
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates);
@@ -379,6 +423,7 @@ public sealed class BlindBoxAnnouncementTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "5" });
         var sent = CaptureSends(h);
         HoldSends(h, attempt: 1);
         await using var updates = await h.WatchConnectedAsync();
@@ -407,6 +452,7 @@ public sealed class BlindBoxAnnouncementTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "5" });
         const string limited = "{\"code\":10031,\"message\":\"太快\"}";
         var sent = CaptureSends(h, limited, Accepted, retrySucceeds ? Accepted : limited, Accepted);
         HoldSends(h, attempt: 2);

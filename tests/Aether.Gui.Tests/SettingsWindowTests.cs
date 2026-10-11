@@ -53,7 +53,7 @@ public sealed class SettingsWindowTests
             Assert.NotNull(keyword);
             Assert.NotNull(interval);
             Assert.Equal("今日盲盒", keyword.Text);
-            Assert.Equal("5", interval.Text);
+            Assert.Equal("1", interval.Text);
             var save = window.FindControl<Button>("SaveButton")!;
             keyword.Text = " ";
             Dispatcher.UIThread.RunJobs();
@@ -71,7 +71,7 @@ public sealed class SettingsWindowTests
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  keyword: 查盲盒\n")
-                .Replace("interval_seconds: 5", "interval_seconds: 7"), File.ReadAllText(path));
+                .Replace("interval_seconds: 1", "interval_seconds: 7"), File.ReadAllText(path));
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
             Assert.Equal("查盲盒", settings.BlindBoxKeyword.Value);
             Assert.Equal(7, settings.SendIntervalSeconds.Value);

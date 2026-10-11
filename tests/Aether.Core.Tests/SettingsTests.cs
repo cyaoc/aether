@@ -9,6 +9,15 @@ public sealed class SettingsTests : IAsyncDisposable
     private string SettingsPath => Path.Combine(harness.DataDirectory, "aether.yml");
 
     [Fact]
+    public void An_existing_five_second_interval_is_preserved()
+    {
+        const string yaml = "log:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
+        Write(yaml);
+        Assert.Equal(5, Settings.Load(harness.DataDirectory).SendIntervalSeconds.Value);
+        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
     public void Announcement_setting_defaults_on_and_saves_only_its_line_or_appends_to_existing_group()
     {
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
@@ -36,7 +45,8 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(missing.BlindBoxEnabled.Value, fromTemplate.BlindBoxEnabled.Value);
         Assert.Equal(missing.BlindBoxKeyword.Value, fromTemplate.BlindBoxKeyword.Value);
         Assert.Equal(missing.BlindBoxAnnounce.Value, fromTemplate.BlindBoxAnnounce.Value);
-        Assert.Equal(missing.SendIntervalSeconds.Value, fromTemplate.SendIntervalSeconds.Value);
+        Assert.Equal(1, fromTemplate.SendIntervalSeconds.Value);
+        Assert.Equal(1, missing.SendIntervalSeconds.Value);
     }
 
     [Fact]
@@ -45,7 +55,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Settings.Load(harness.DataDirectory);
         var template = File.ReadAllText(SettingsPath);
         Assert.Contains("keyword: 今日盲盒", template);
-        Assert.Contains("interval_seconds: 5", template);
+        Assert.Contains("interval_seconds: 1", template);
         // Group comments say when settings apply; each item describes its accepted values.
         var lines = template.ReplaceLineEndings("\n").Split('\n');
         Assert.Equal("# 盲盒统计，下次观看直播间时生效", lines[Array.FindIndex(lines, line => line == "blind_box:") - 1]);
@@ -114,7 +124,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Write("log:\n  level: Debug\n");
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Equal("今日盲盒", settings.BlindBoxKeyword.Value);
-        Assert.Equal(5, settings.SendIntervalSeconds.Value);
+        Assert.Equal(1, settings.SendIntervalSeconds.Value);
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.keyword"] = "#盲盒: 查询" });
         Assert.Equal("#盲盒: 查询", Settings.Load(harness.DataDirectory).BlindBoxKeyword.Value);
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
@@ -193,7 +203,7 @@ public sealed class SettingsTests : IAsyncDisposable
         var appended = encoding.GetString(after[before.Length..]).ReplaceLineEndings("\n");
         Assert.StartsWith(finalNewline ? "\n# " : "\n\n# ", appended); // A blank line, as between the template's groups.
         Assert.Contains("# 盲盒统计，下次观看直播间时生效\nblind_box:\n  # true 或 false，false 时既不记录，也不回复和播报\n  enabled: true\n  # 查询关键字，非空文字\n  keyword: 今日盲盒\n", appended);
-        Assert.Contains("# 发送队列，下次观看直播间时生效\nsend:\n  # 两次发送之间的秒数，必须为正整数\n  interval_seconds: 5\n", appended);
+        Assert.Contains("# 发送队列，下次观看直播间时生效\nsend:\n  # 两次发送之间的秒数，必须为正整数\n  interval_seconds: 1\n", appended);
         Assert.DoesNotContain("retention_days", appended);
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
         Assert.Equal(after, File.ReadAllBytes(SettingsPath));

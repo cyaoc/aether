@@ -10,6 +10,46 @@ namespace Aether.Core.Tests;
 
 public sealed class BlindBoxReplyTests
 {
+    [Theory]
+    [InlineData(1, 4)]
+    [InlineData(3, 3)]
+    public async Task Text_X_Y_X_waits_for_both_deadlines_and_later_different_text_cannot_pass(int interval, int remaining)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
+        // Leave the default interval in place to exercise it through WatchAsync.
+        if (interval != 1)
+            Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = interval.ToString(CultureInfo.InvariantCulture) });
+        var sent = CaptureSends(h);
+        await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), uid: 20002), Gift(h.Time.GetUtcNow(), uid: 40004, price: 9000));
+        await DanmakuAsync(h, updates);
+        var first = await NextSendAsync(sent);
+        await h.WaitForLogAsync("发送弹幕成功");
+        await DanmakuAsync(h, updates, uid: 20002);
+        await DanmakuAsync(h, updates, uid: 30003);
+        await DanmakuAsync(h, updates, uid: 40004);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(interval));
+        h.Time.Advance(TimeSpan.FromMilliseconds(interval * 1000 - 1));
+        await AssertNoSendAsync(sent);
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
+        var second = await NextSendAsync(sent);
+        Assert.Equal("20002", second["reply_mid"]);
+        Assert.NotEqual(first["msg"], second["msg"]);
+        await h.WaitForLogAsync("（20002）");
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(remaining), count: interval == remaining ? 2 : 1);
+        h.Time.Advance(TimeSpan.FromMilliseconds(remaining * 1000 - 1));
+        await AssertNoSendAsync(sent);
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
+        var third = await NextSendAsync(sent);
+        Assert.Equal("30003", third["reply_mid"]);
+        Assert.Equal(first["msg"], third["msg"]);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(interval), count: interval == remaining ? 3 : 2);
+        h.Time.Advance(TimeSpan.FromSeconds(interval));
+        Assert.Equal("40004", (await NextSendAsync(sent))["reply_mid"]);
+    }
+
     [Fact]
     public async Task Reconnect_interrupting_the_retry_does_not_grant_another_rate_limit_retry()
     {
@@ -30,7 +70,7 @@ public sealed class BlindBoxReplyTests
         Assert.IsType<Reconnecting>(updates.Current);
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
-        // The interrupted retry still waits a full send interval from the interruption.
+        // The interrupted retry still waits five seconds for the same text from the interruption.
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
         h.Time.Advance(TimeSpan.FromMilliseconds(3999));
         await AssertNoSendAsync(sent);
@@ -86,19 +126,19 @@ public sealed class BlindBoxReplyTests
     [Theory]
     [InlineData("{\"code\":0,\"message\":\"f\"}")]
     [InlineData("{\"code\":1003212,\"message\":\"超长\"}")]
-    public async Task Ordinary_failure_allows_the_viewer_to_query_again_after_one_send_interval(string failure)
+    [InlineData(NetworkFailure)]
+    public async Task Ordinary_failure_still_delays_the_same_text_for_five_seconds(string failure)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "1" });
         var sent = CaptureSends(h, failure, Accepted);
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates);
         await NextSendAsync(sent);
         await h.WaitForLogAsync(LogLevel.Warning, "发送弹幕失败");
         await DanmakuAsync(h, updates);
-        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
-        h.Time.Advance(TimeSpan.FromMilliseconds(999));
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5));
+        h.Time.Advance(TimeSpan.FromMilliseconds(4999));
         await AssertNoSendAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal("10001", (await NextSendAsync(sent))["reply_mid"]);
@@ -115,12 +155,14 @@ public sealed class BlindBoxReplyTests
     [InlineData(10030, "太快", false)]
     [InlineData(0, "msg in 1s", false)]
     [InlineData(0, "msg repeat", false)]
-    public async Task Rate_limits_wait_one_send_interval_and_retry_the_head_only_once(int code, string message, bool retrySucceeds)
+    [InlineData(10031, "太快", true, 7)]
+    public async Task Rate_limits_wait_for_both_pacing_rules_and_retry_the_head_only_once(int code, string message, bool retrySucceeds, int interval = 3)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        // Not the default, so the retry is shown to wait the configured interval.
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "3" });
+        // A longer configured interval still wins over the same-text window.
+        var wait = Math.Max(interval, 5);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = interval.ToString(CultureInfo.InvariantCulture) });
         var limited = JsonSerializer.Serialize(new { code, message });
         var sent = CaptureSends(h, limited, retrySucceeds ? Accepted : limited, Accepted);
         var release = HoldSends(h);
@@ -130,14 +172,14 @@ public sealed class BlindBoxReplyTests
         h.Time.Advance(TimeSpan.FromSeconds(2));
         release.SetResult();
         await h.WaitForLogAsync(LogLevel.Warning, "受频率限制");
-        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(3));
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(wait));
         var warning = Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("受频率限制"));
         Assert.Contains($"（{code}）：{message}", warning.Message);
-        Assert.Contains("3 秒后重试", warning.Message);
+        Assert.Contains($"{wait} 秒后重试", warning.Message);
         Assert.Contains("的回复", warning.Message);
         await DanmakuAsync(h, updates, uid: 20002);
         await DanmakuAsync(h, updates, id: "second-question");
-        h.Time.Advance(TimeSpan.FromMilliseconds(2999));
+        h.Time.Advance(TimeSpan.FromMilliseconds(wait * 1000 - 1));
         await AssertNoSendAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         var retry = await NextSendAsync(sent);
@@ -145,13 +187,13 @@ public sealed class BlindBoxReplyTests
         Assert.Equal(first["replay_dmid"], retry["replay_dmid"]);
         await h.WaitForLogAsync(retrySucceeds ? LogLevel.Information : LogLevel.Warning,
             retrySucceeds ? "发送弹幕成功" : "发送弹幕失败");
-        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(3), count: 2);
-        h.Time.Advance(TimeSpan.FromMilliseconds(2999));
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(wait), count: 2);
+        h.Time.Advance(TimeSpan.FromMilliseconds(wait * 1000 - 1));
         await AssertNoSendAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal("20002", (await NextSendAsync(sent))["reply_mid"]);
         await h.WaitForLogAsync(LogLevel.Information, "（20002）");
-        h.Time.Advance(TimeSpan.FromSeconds(3));
+        h.Time.Advance(TimeSpan.FromSeconds(wait));
         await AssertNoSendAsync(sent);
         Assert.Equal(retrySucceeds ? 0 : 1, h.Logger.Entries.Count(e => e.Level == LogLevel.Warning && e.Message.Contains("发送弹幕失败")));
         if (!retrySucceeds)
@@ -162,8 +204,10 @@ public sealed class BlindBoxReplyTests
     [Theory]
     [InlineData(1)]
     [InlineData(5)]
-    public async Task Viewer_can_query_again_immediately_after_success_and_waits_one_interval_from_send_end(int interval)
+    [InlineData(7)]
+    public async Task Same_text_queries_wait_from_send_end_even_for_different_viewers(int interval)
     {
+        var wait = Math.Max(interval, 5);
         await using var h = new WatchHarness();
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = interval.ToString(CultureInfo.InvariantCulture) });
@@ -178,16 +222,16 @@ public sealed class BlindBoxReplyTests
         await DanmakuAsync(h, updates);
         await DanmakuAsync(h, updates);
         await DanmakuAsync(h, updates, uid: 20002);
-        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(interval));
-        h.Time.Advance(TimeSpan.FromMilliseconds(interval * 1000 - 1));
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(wait));
+        h.Time.Advance(TimeSpan.FromMilliseconds(wait * 1000 - 1));
         await AssertNoSendAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal("10001", (await NextSendAsync(sent))["reply_mid"]);
-        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(interval), count: 2);
-        h.Time.Advance(TimeSpan.FromSeconds(interval));
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(wait), count: 2);
+        h.Time.Advance(TimeSpan.FromSeconds(wait));
         Assert.Equal("20002", (await NextSendAsync(sent))["reply_mid"]);
         await h.WaitForLogAsync(LogLevel.Information, "（20002）");
-        h.Time.Advance(TimeSpan.FromSeconds(interval));
+        h.Time.Advance(TimeSpan.FromSeconds(wait));
         await AssertNoSendAsync(sent);
         Assert.Equal(3, SendAttempts(h));
     }
@@ -462,7 +506,7 @@ public sealed class BlindBoxReplyTests
     }
 
     [Fact]
-    public async Task Reply_interrupted_by_reconnect_stays_in_the_send_queue_and_is_resent_one_interval_after_it()
+    public async Task Reply_interrupted_by_reconnect_keeps_the_same_text_deadline()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -476,7 +520,7 @@ public sealed class BlindBoxReplyTests
         Assert.IsType<Reconnecting>(updates.Current);
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
-        // The interrupted request may have reached B站, so it counts as a send: the 5 s interval runs from the interruption.
+        // The interrupted request may have reached B站, so its same-text window runs from the interruption.
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
         h.Time.Advance(TimeSpan.FromMilliseconds(3999));
         await AssertNoSendAsync(sent);

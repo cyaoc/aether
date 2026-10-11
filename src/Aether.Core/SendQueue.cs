@@ -8,6 +8,7 @@ namespace Aether.Core;
 internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan interval)
 {
     private static readonly TimeSpan QuietWindow = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan SameTextWindow = TimeSpan.FromSeconds(5);
 
     /// <summary>A queued 盲盒查询, carrying the keyword danmaku it answers, or a 盲盒播报, which has none.</summary>
     internal sealed record Item(long Uid, string Nickname, Danmaku? Query = null);
@@ -34,6 +35,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     private readonly Dictionary<long, Round> rounds = [];
     // Only the sender touches these.
     private long? lastSendEnded;
+    private readonly Dictionary<string, long> recentSends = new(StringComparer.Ordinal);
     private bool rateLimitRetryOwed;
 
     /// <summary>Queues a 盲盒查询 reply to <paramref name="trigger"/>'s viewer, unless one is already waiting (the asks merge
@@ -110,7 +112,6 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     {
         while (await pending.Reader.WaitToReadAsync(cancellationToken))
         {
-            await WaitForTurnAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             // Peek, and take the item off only once its send has ended: a reconnect keeps an interrupted one, the end of
             // the room connection counts it as dropped, and a first rate limit keeps it at the head for its one retry.
@@ -123,18 +124,27 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                     (item, reported) = (round.Item, new Reported(round.Tally, round.Count));
                 }
             var (text, send) = prepare(item, reported?.Tally);
+            // Waiting can change a query's tally or an announcement's round; prepare and check the new text again.
+            if (await WaitForTurnAsync(text, cancellationToken)) continue;
             var action = reported is null ? "回复" : "播报";
             Exception? failure = null;
             try { await send(cancellationToken); }
             catch (Exception error) when (!cancellationToken.IsCancellationRequested) { failure = error; }
-            // Even an interrupted request may have reached B站, so the next send still waits its interval.
-            finally { lastSendEnded = time.GetTimestamp(); }
-            // ponytail: one retry after one send interval, no backoff; back off if B站's limits turn out to outlast the interval.
+            // Even failed or interrupted requests may have reached B站; both pacing rules count them.
+            finally
+            {
+                var ended = time.GetTimestamp();
+                lastSendEnded = ended;
+                foreach (var (previousText, previousEnd) in recentSends.ToArray())
+                    if (time.GetElapsedTime(previousEnd, ended) >= SameTextWindow) recentSends.Remove(previousText);
+                recentSends[text] = ended;
+            }
+            // shortcut: one retry with no backoff, revisit if B站's limits outlast both pacing windows.
             if (failure is DanmakuRateLimitedException && !rateLimitRetryOwed)
             {
                 rateLimitRetryOwed = true;
                 logger.LogWarning("{Error}，{Seconds} 秒后重试观众 {Nickname}（{Uid}）的{Action}",
-                    failure.Message, interval.TotalSeconds, item.Nickname, item.Uid, action);
+                    failure.Message, Math.Max(interval.TotalSeconds, SameTextWindow.TotalSeconds), item.Nickname, item.Uid, action);
                 continue;
             }
             rateLimitRetryOwed = false;
@@ -147,15 +157,19 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         }
     }
 
-    private async Task WaitForTurnAsync(CancellationToken cancellationToken)
+    private async Task<bool> WaitForTurnAsync(string text, CancellationToken cancellationToken)
     {
-        if (lastSendEnded is not { } last) return;
-        while (interval - time.GetElapsedTime(last) is var remaining && remaining > TimeSpan.Zero)
+        var remaining = lastSendEnded is { } last ? interval - time.GetElapsedTime(last) : TimeSpan.Zero;
+        if (recentSends.TryGetValue(text, out var previousEnd))
         {
-            // A timer accepts at most uint.MaxValue - 1 milliseconds, even for a valid longer setting.
-            await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(remaining.TotalMilliseconds, uint.MaxValue - 1)),
-                time, cancellationToken);
+            var sameTextRemaining = SameTextWindow - time.GetElapsedTime(previousEnd);
+            if (sameTextRemaining > remaining) remaining = sameTextRemaining;
         }
+        if (remaining <= TimeSpan.Zero) return false;
+        // A timer accepts at most uint.MaxValue - 1 milliseconds, even for a valid longer setting.
+        await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(remaining.TotalMilliseconds, uint.MaxValue - 1)),
+            time, cancellationToken);
+        return true;
     }
 
     private void Finish(Item item, Reported? reported)

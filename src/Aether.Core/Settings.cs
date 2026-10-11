@@ -41,7 +41,7 @@ public sealed class Settings
         # 发送队列，下次观看直播间时生效
         send:
           # 两次发送之间的秒数，必须为正整数
-          interval_seconds: 5
+          interval_seconds: 1
 
         """;
 
@@ -62,7 +62,7 @@ public sealed class Settings
     private static readonly Definition<bool> Enabled = Register(Definition.Boolean("blind_box.enabled", true));
     private static readonly Definition<string> Keyword = Register(Definition.RequiredText("blind_box.keyword", "今日盲盒"));
     private static readonly Definition<bool> Announce = Register(Definition.Boolean("blind_box.announce", true));
-    private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 5, "必须为正整数。", seconds => seconds > 0));
+    private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 1, "必须为正整数。", seconds => seconds > 0));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, its controls in SettingsWindow.axaml, one Show call and one Fields entry).</summary>
     private static Definition<T> Register<T>(Definition<T> definition)
