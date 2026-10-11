@@ -48,7 +48,7 @@ public sealed class CredentialRefreshTests
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Danmaku>(updates.Current);
         h.Time.Advance(TimeSpan.FromSeconds(10));
-        await Eventually.TrueAsync(() => h.Logger.Entries.Any(e => e.Message.Contains("请重新扫码")));
+        await h.WaitForLogAsync("请重新扫码");
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
     }
@@ -166,7 +166,7 @@ public sealed class CredentialRefreshTests
         try
         {
             h.Time.Advance(TimeSpan.FromSeconds(2));
-            await Eventually.TrueAsync(() => h.Logger.Entries.Any(e => e.Message.Contains("2 秒后重试")));
+            await h.WaitForLogAsync("2 秒后重试");
             Assert.False(next.IsCompleted);
             Assert.Null(h.Server.ConnectedUri);
             h.Http.Responses[Nav] = validNav;

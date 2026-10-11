@@ -3,12 +3,10 @@ using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
 
-/// <summary>One room connection's 发送队列: blind box queries and announcements, paced so B站 does not mute the account.
+/// <summary>One room connection's 发送队列: blind box queries and announcements, paced to avoid B站's rate limits.
 /// Reconnects keep it, pacing included; the end of the room connection clears it.</summary>
 internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan interval)
 {
-    private static readonly TimeSpan ViewerCooldown = TimeSpan.FromSeconds(5);
-    private static readonly TimeSpan RateLimitPause = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan QuietWindow = TimeSpan.FromSeconds(3);
 
     /// <summary>A queued 盲盒查询, carrying the keyword danmaku it answers, or a 盲盒播报, which has none.</summary>
@@ -34,25 +32,16 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     private readonly object gate = new();
     private readonly HashSet<long> waitingQueries = [];
     private readonly Dictionary<long, Round> rounds = [];
-    /// <summary>Viewer uid → TimeProvider timestamp of that viewer's last successful reply.</summary>
-    private readonly Dictionary<long, long> lastReplyAt = [];
     // Only the sender touches these.
     private long? lastSendEnded;
     private bool rateLimitRetryOwed;
 
     /// <summary>Queues a 盲盒查询 reply to <paramref name="trigger"/>'s viewer, unless one is already waiting (the asks merge
-    /// into the first) or the viewer was replied to within the cooldown.</summary>
+    /// into the first).</summary>
     public void Enqueue(Danmaku trigger)
     {
         lock (gate)
-        {
-            if (lastReplyAt.TryGetValue(trigger.Uid, out var repliedAt) && time.GetElapsedTime(repliedAt) < ViewerCooldown)
-            {
-                logger.LogDebug("观众 {Uid} 的回复仍在 {Seconds} 秒冷却内，忽略关键字", trigger.Uid, ViewerCooldown.TotalSeconds);
-                return;
-            }
             if (waitingQueries.Add(trigger.Uid)) pending.Writer.TryWrite(new(trigger.Uid, trigger.Nickname, trigger));
-        }
     }
 
     /// <summary>Records a whole gift message; <paramref name="save"/> returns whether a box was newly recorded and joins
@@ -60,7 +49,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     public void Record(BlindBox[] boxes, long receivedAt, Func<BlindBox, bool> save)
     {
         // A SQLite write can wait for another process; neither a deadline nor a send snapshot may split this message.
-        // shortcut: the sender's snapshot and the quiet-window timers wait with the receive loop, up to SQLite's 30 s
+        // ponytail: the sender's snapshot and the quiet-window timers wait with the receive loop, up to SQLite's 30 s
         // busy timeout; mark the message as arriving under the gate and save outside it if that stall ever matters.
         lock (gate)
             foreach (var box in boxes)
@@ -138,18 +127,18 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             Exception? failure = null;
             try { await send(cancellationToken); }
             catch (Exception error) when (!cancellationToken.IsCancellationRequested) { failure = error; }
-            // Even an interrupted request may have reached B站, so the next send still waits its interval or pause.
+            // Even an interrupted request may have reached B站, so the next send still waits its interval.
             finally { lastSendEnded = time.GetTimestamp(); }
+            // ponytail: one retry after one send interval, no backoff; back off if B站's limits turn out to outlast the interval.
             if (failure is DanmakuRateLimitedException && !rateLimitRetryOwed)
             {
                 rateLimitRetryOwed = true;
-                // Shown by default: a rate limit means the account is close to being muted.
-                logger.LogWarning("{Error}，发送队列暂停 {Seconds} 秒后重试观众 {Nickname}（{Uid}）的{Action}",
-                    failure.Message, RateLimitPause.TotalSeconds, item.Nickname, item.Uid, action);
+                logger.LogWarning("{Error}，{Seconds} 秒后重试观众 {Nickname}（{Uid}）的{Action}",
+                    failure.Message, interval.TotalSeconds, item.Nickname, item.Uid, action);
                 continue;
             }
             rateLimitRetryOwed = false;
-            Finish(item, reported, succeeded: failure is null);
+            Finish(item, reported);
             if (failure is null)
                 logger.LogInformation("发送弹幕成功：{Action}观众 {Nickname}（{Uid}）：{Message}", action, item.Nickname, item.Uid, text);
             else
@@ -161,9 +150,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     private async Task WaitForTurnAsync(CancellationToken cancellationToken)
     {
         if (lastSendEnded is not { } last) return;
-        // While a rate limit retry is owed, the pause stands in for any shorter interval.
-        var wait = rateLimitRetryOwed && interval < RateLimitPause ? RateLimitPause : interval;
-        while (wait - time.GetElapsedTime(last) is var remaining && remaining > TimeSpan.Zero)
+        while (interval - time.GetElapsedTime(last) is var remaining && remaining > TimeSpan.Zero)
         {
             // A timer accepts at most uint.MaxValue - 1 milliseconds, even for a valid longer setting.
             await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(remaining.TotalMilliseconds, uint.MaxValue - 1)),
@@ -171,7 +158,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         }
     }
 
-    private void Finish(Item item, Reported? reported, bool succeeded)
+    private void Finish(Item item, Reported? reported)
     {
         lock (gate)
         {
@@ -196,11 +183,6 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                 return;
             }
             waitingQueries.Remove(item.Uid);
-            if (!succeeded) return;
-            // Forget expired cooldowns on the way; removing while enumerating is allowed since .NET Core 3.0.
-            foreach (var (uid, repliedAt) in lastReplyAt)
-                if (time.GetElapsedTime(repliedAt) >= ViewerCooldown) lastReplyAt.Remove(uid);
-            lastReplyAt[item.Uid] = lastSendEnded!.Value;
         }
     }
 }

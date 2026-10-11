@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Aether.Core.Tests.Support;
 using Microsoft.Extensions.Logging;
+using static Aether.Core.Tests.Support.BlindGiftFixture;
 using static Aether.Core.Tests.Support.SentDanmaku;
 
 namespace Aether.Core.Tests;
@@ -22,7 +23,7 @@ public sealed class BlindBoxAnnouncementTests
         await AssertNoSendAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入300电池 亏50电池");
-        await WaitForLogAsync(h, "发送弹幕成功：播报观众 测试观众（10001）");
+        await h.WaitForLogAsync("发送弹幕成功：播报观众 测试观众（10001）");
 
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await h.PushAndSyncAsync(updates, messages[2]);
@@ -38,16 +39,16 @@ public sealed class BlindBoxAnnouncementTests
         await h.LoginAsync();
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
-        await h.PushAndSyncAsync(updates, Gift(h));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromMilliseconds(2900));
         using var database = TestDatabase.Open(h.DataDirectory);
         using var writer = database.BeginTransaction();
-        var gift = Gift(h);
+        var gift = Gift(h.Time.GetUtcNow());
         var receiving = h.PushAndSyncAsync(updates, gift);
         Task advancing = Task.CompletedTask;
         try
         {
-            await WaitForLogAsync(h, gift); // The message arrived even though SQLite cannot record it yet.
+            await h.WaitForLogAsync(gift); // The message arrived even though SQLite cannot record it yet.
             await AssertNoSendAsync(sent);
             advancing = Task.Run(() => h.Time.Advance(TimeSpan.FromMilliseconds(100)), h.Stop.Token);
             await AssertNoSendAsync(sent);
@@ -77,7 +78,7 @@ public sealed class BlindBoxAnnouncementTests
         var receiving = h.PushAndSyncAsync(updates, message);
         try
         {
-            await WaitForLogAsync(h, message);
+            await h.WaitForLogAsync(message);
             h.Time.Advance(TimeSpan.FromSeconds(4));
             await AssertNoSendAsync(sent);
         }
@@ -87,7 +88,7 @@ public sealed class BlindBoxAnnouncementTests
             await receiving;
         }
         AssertAnnouncement(await NextSendAsync(sent), "本次投入1500电池 亏460电池");
-        await WaitForLogAsync(h, "发送弹幕成功：播报");
+        await h.WaitForLogAsync("发送弹幕成功：播报");
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
     }
@@ -105,7 +106,7 @@ public sealed class BlindBoxAnnouncementTests
         await h.LoginAsync();
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
-        await h.PushAndSyncAsync(updates, Gift(h, uid: 9876543210, spend: spend, price: price));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), uid: 9876543210, spend: spend, price: price));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         AssertAnnouncement(await NextSendAsync(sent), expected, 9876543210);
         await AssertNoSendAsync(sent);
@@ -119,18 +120,18 @@ public sealed class BlindBoxAnnouncementTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         var sent = CaptureSends(h);
-        var release = HoldFirst(h);
+        var release = HoldSends(h, attempt: 1);
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates, uid: 20002);
         await NextSendAsync(sent); // Hold another viewer's reply to keep both kinds queued.
         if (queryFirst) await DanmakuAsync(h, updates);
-        await h.PushAndSyncAsync(updates, Gift(h));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         if (!queryFirst) await DanmakuAsync(h, updates);
         await DanmakuAsync(h, updates);
-        await h.PushAndSyncAsync(updates, Gift(h, nickname: "新昵称", blindId: 32650));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), nickname: "新昵称", blindId: 32650));
         release.SetResult();
-        await WaitForLogAsync(h, "发送弹幕成功：回复观众 观众（20002）");
+        await h.WaitForLogAsync("发送弹幕成功：回复观众 观众（20002）");
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5));
         h.Time.Advance(TimeSpan.FromSeconds(5));
         var first = await NextSendAsync(sent);
@@ -146,7 +147,7 @@ public sealed class BlindBoxAnnouncementTests
     }
 
     [Fact]
-    public async Task Query_cooldown_neither_blocks_announcements_nor_starts_when_an_announcement_succeeds()
+    public async Task Same_viewer_queries_and_announcements_share_only_the_send_interval()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -155,15 +156,17 @@ public sealed class BlindBoxAnnouncementTests
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates);
         await NextSendAsync(sent);
-        await WaitForLogAsync(h, "发送弹幕成功：回复");
-        await h.PushAndSyncAsync(updates, Gift(h));
+        await h.WaitForLogAsync("发送弹幕成功：回复");
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
-        await WaitForLogAsync(h, "发送弹幕成功：播报");
-        h.Time.Advance(TimeSpan.FromSeconds(2)); // The query's cooldown ends; the announcement was only 2 s ago.
+        await h.WaitForLogAsync("发送弹幕成功：播报");
         await DanmakuAsync(h, updates);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
+        h.Time.Advance(TimeSpan.FromMilliseconds(999));
+        await AssertNoSendAsync(sent);
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal("投入50电池 亏35电池", (await NextSendAsync(sent))["msg"]);
-        Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("冷却"));
     }
 
     [Theory]
@@ -177,16 +180,16 @@ public sealed class BlindBoxAnnouncementTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "1" });
         var sent = CaptureSends(h, response, Accepted);
-        var release = HoldFirst(h);
+        var release = HoldSends(h, attempt: 1);
         await using var updates = await h.WatchConnectedAsync();
-        await h.PushAndSyncAsync(updates, Gift(h));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
         h.Time.Advance(TimeSpan.FromSeconds(1));
-        await h.PushAndSyncAsync(updates, Gift(h, spend: 7000, price: 9000));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), spend: 7000, price: 9000));
         if (alreadyQuiet) h.Time.Advance(TimeSpan.FromSeconds(3));
         release.SetResult();
-        await WaitForLogAsync(h, response == Accepted ? "发送弹幕成功：播报" : "发送弹幕失败，已丢弃：播报");
+        await h.WaitForLogAsync(response == Accepted ? "发送弹幕成功：播报" : "发送弹幕失败，已丢弃：播报");
         if (response != Accepted)
             Assert.Contains(h.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("发送弹幕失败，已丢弃：播报"));
         var remaining = alreadyQuiet ? 1000 : 3000;
@@ -215,25 +218,62 @@ public sealed class BlindBoxAnnouncementTests
         var limited = JsonSerializer.Serialize(new { code, message });
         var sent = CaptureSends(h, limited, retrySucceeds ? Accepted : limited, Accepted);
         await using var updates = await h.WatchConnectedAsync();
-        await h.PushAndSyncAsync(updates, Gift(h));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
-        await WaitForLogAsync(h, "的播报");
-        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(60), count: 2);
-        await h.PushAndSyncAsync(updates, Gift(h));
-        h.Time.Advance(TimeSpan.FromSeconds(30));
-        await h.PushAndSyncAsync(updates);
-        h.Time.Advance(TimeSpan.FromMilliseconds(29999));
+        await h.WaitForLogAsync("的播报");
+        var warning = Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("的播报"));
+        Assert.Contains($"（{code}）：{message}", warning.Message);
+        Assert.Contains("5 秒后重试", warning.Message);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
+        await DanmakuAsync(h, updates, uid: 20002);
+        h.Time.Advance(TimeSpan.FromMilliseconds(4999));
         await AssertNoSendAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入100电池 亏70电池");
-        await WaitForLogAsync(h, retrySucceeds ? "发送弹幕成功：播报" : "发送弹幕失败，已丢弃：播报");
-        await h.PushAndSyncAsync(updates, Gift(h));
-        h.Time.Advance(TimeSpan.FromSeconds(3));
-        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(2), count: 3); // Login armed two polling timers.
-        h.Time.Advance(TimeSpan.FromSeconds(2));
+        await h.WaitForLogAsync(retrySucceeds ? "发送弹幕成功：播报" : "发送弹幕失败，已丢弃：播报");
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5), count: 2);
+        h.Time.Advance(TimeSpan.FromMilliseconds(4999));
+        await AssertNoSendAsync(sent);
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
+        Assert.Equal("20002", (await NextSendAsync(sent))["reply_mid"]);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5), count: 3);
+        h.Time.Advance(TimeSpan.FromSeconds(5));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
-        Assert.Single(h.Logger.Entries, e => e.Message.Contains("暂停"));
+        await h.WaitForLogAsync("发送弹幕成功：播报");
+        h.Time.Advance(TimeSpan.FromSeconds(5));
+        await AssertNoSendAsync(sent);
+        Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试观众"));
+        Assert.Equal(retrySucceeds ? 0 : 1,
+            h.Logger.Entries.Count(e => e.Level == LogLevel.Warning && e.Message.Contains("发送弹幕失败，已丢弃：播报")));
+        Assert.Equal(4, SendAttempts(h));
+    }
+
+    [Theory]
+    [InlineData("{\"code\":0,\"message\":\"f\"}")]
+    [InlineData("{\"code\":1003212,\"message\":\"超长\"}")]
+    [InlineData(NetworkFailure)]
+    public async Task Ordinary_announcement_failure_ends_the_round_without_retry_or_carrying_amounts_forward(string response)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        var sent = CaptureSends(h, response, Accepted);
+        await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
+        await h.WaitForLogAsync("发送弹幕失败，已丢弃：播报");
+        Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("发送弹幕失败，已丢弃：播报"));
+        h.Time.Advance(TimeSpan.FromSeconds(5));
+        await AssertNoSendAsync(sent);
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), spend: 7000, price: 9000));
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        AssertAnnouncement(await NextSendAsync(sent), "本次投入70电池 赚20电池");
+        await h.WaitForLogAsync("发送弹幕成功：播报");
+        Assert.Equal(2, SendAttempts(h));
+        Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("秒后重试观众"));
     }
 
     [Fact]
@@ -243,12 +283,12 @@ public sealed class BlindBoxAnnouncementTests
         await h.LoginAsync();
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
-        var gift = Gift(h);
+        var gift = Gift(h.Time.GetUtcNow());
         var conflicting = System.Text.Json.Nodes.JsonNode.Parse(gift)!;
         conflicting["data"]!["total_coin"] = 9000;
         await h.PushAndSyncAsync(updates, gift);
         h.Time.Advance(TimeSpan.FromSeconds(2));
-        await h.PushAndSyncAsync(updates, gift, conflicting.ToJsonString(), Gift(h, uid: 0));
+        await h.PushAndSyncAsync(updates, gift, conflicting.ToJsonString(), Gift(h.Time.GetUtcNow(), uid: 0));
         h.Time.Advance(TimeSpan.FromSeconds(1));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
         h.Time.Advance(TimeSpan.FromSeconds(5));
@@ -268,7 +308,7 @@ public sealed class BlindBoxAnnouncementTests
         });
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
-        await h.PushAndSyncAsync(updates, Gift(h));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         await AssertNoSendAsync(sent);
         await DanmakuAsync(h, updates);
@@ -288,7 +328,7 @@ public sealed class BlindBoxAnnouncementTests
         var sent = CaptureSends(h);
         await using (var updates = await h.WatchConnectedAsync())
         {
-            await h.PushAndSyncAsync(updates, Gift(h));
+            await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
             h.Time.Advance(TimeSpan.FromSeconds(1));
             Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
             await h.Server.DisconnectAsync();
@@ -300,10 +340,10 @@ public sealed class BlindBoxAnnouncementTests
             await AssertNoSendAsync(sent);
             h.Time.Advance(TimeSpan.FromMilliseconds(1));
             AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
-            await WaitForLogAsync(h, "发送弹幕成功：播报");
+            await h.WaitForLogAsync("发送弹幕成功：播报");
         }
         await using var next = await h.WatchConnectedAsync();
-        await h.PushAndSyncAsync(next, Gift(h));
+        await h.PushAndSyncAsync(next, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         await AssertNoSendAsync(sent);
         await DanmakuAsync(h, next);
@@ -319,8 +359,8 @@ public sealed class BlindBoxAnnouncementTests
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates);
         await NextSendAsync(sent);
-        await WaitForLogAsync(h, "发送弹幕成功：回复");
-        await h.PushAndSyncAsync(updates, Gift(h));
+        await h.WaitForLogAsync("发送弹幕成功：回复");
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         await h.Server.DisconnectAsync();
         Assert.True(await updates.MoveNextAsync());
@@ -340,9 +380,9 @@ public sealed class BlindBoxAnnouncementTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         var sent = CaptureSends(h);
-        HoldFirst(h);
+        HoldSends(h, attempt: 1);
         await using var updates = await h.WatchConnectedAsync();
-        await h.PushAndSyncAsync(updates, Gift(h));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
         await h.Server.DisconnectAsync();
@@ -350,12 +390,56 @@ public sealed class BlindBoxAnnouncementTests
         Assert.IsType<Reconnecting>(updates.Current);
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
-        await h.PushAndSyncAsync(updates, Gift(h));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
-        h.Time.Advance(TimeSpan.FromSeconds(4));
+        h.Time.Advance(TimeSpan.FromMilliseconds(3999));
+        await AssertNoSendAsync(sent);
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入100电池 亏70电池");
-        await WaitForLogAsync(h, "发送弹幕成功：播报");
+        await h.WaitForLogAsync("发送弹幕成功：播报");
         Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("发送弹幕失败"));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Interrupted_announcement_retry_waits_from_interruption_and_recalculates_without_spending_its_retry(bool retrySucceeds)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        const string limited = "{\"code\":10031,\"message\":\"太快\"}";
+        var sent = CaptureSends(h, limited, Accepted, retrySucceeds ? Accepted : limited, Accepted);
+        HoldSends(h, attempt: 2);
+        await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
+        await h.WaitForLogAsync("5 秒后重试");
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5));
+        h.Time.Advance(TimeSpan.FromSeconds(5));
+        AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
+        h.Time.Advance(TimeSpan.FromSeconds(2));
+        await h.Server.DisconnectAsync();
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Reconnecting>(updates.Current);
+        await h.AdvanceRetryAsync(updates, 1);
+        Assert.IsType<Connected>(updates.Current);
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
+        h.Time.Advance(TimeSpan.FromMilliseconds(3999));
+        await AssertNoSendAsync(sent);
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
+        AssertAnnouncement(await NextSendAsync(sent), "本次投入100电池 亏70电池");
+        await h.WaitForLogAsync(retrySucceeds ? "发送弹幕成功：播报" : "发送弹幕失败，已丢弃：播报");
+        h.Time.Advance(TimeSpan.FromSeconds(5));
+        await AssertNoSendAsync(sent);
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), spend: 7000, price: 9000));
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        AssertAnnouncement(await NextSendAsync(sent), "本次投入70电池 赚20电池");
+        Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试观众"));
+        Assert.Equal(retrySucceeds ? 0 : 1,
+            h.Logger.Entries.Count(e => e.Level == LogLevel.Warning && e.Message.Contains("发送弹幕失败，已丢弃：播报")));
+        Assert.Equal(4, SendAttempts(h));
     }
 
     [Fact]
@@ -364,20 +448,20 @@ public sealed class BlindBoxAnnouncementTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         var sent = CaptureSends(h);
-        HoldFirst(h);
+        HoldSends(h, attempt: 1);
         await using (var updates = await h.WatchConnectedAsync())
         {
             await DanmakuAsync(h, updates, uid: 30003);
             await NextSendAsync(sent);
-            await h.PushAndSyncAsync(updates, Gift(h));
+            await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
             h.Time.Advance(TimeSpan.FromSeconds(3));
-            await h.PushAndSyncAsync(updates, Gift(h, uid: 20002));
+            await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), uid: 20002));
         }
         Assert.Contains(h.Logger.Entries, e => e.Level == LogLevel.Information && e.Message.Contains("丢掉 3 条待发弹幕"));
         await using var next = await h.WatchConnectedAsync();
         h.Time.Advance(TimeSpan.FromSeconds(10));
         await AssertNoSendAsync(sent);
-        await h.PushAndSyncAsync(next, Gift(h));
+        await h.PushAndSyncAsync(next, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
     }
@@ -388,10 +472,10 @@ public sealed class BlindBoxAnnouncementTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         var sent = CaptureSends(h);
-        HoldFirst(h);
+        HoldSends(h, attempt: 1);
         await using var updates = await h.WatchConnectedAsync();
         await h.Server.NextRequestAsync(); // Authentication.
-        await h.PushAndSyncAsync(updates, Gift(h));
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         await NextSendAsync(sent);
         h.Server.ReplyToHeartbeats = false;
@@ -405,35 +489,6 @@ public sealed class BlindBoxAnnouncementTests
         Assert.Contains(h.Logger.Entries, e => e.Message.Contains("60 秒未收到任何数据"));
     }
 
-    private static string Gift(WatchHarness h, long uid = 10001, long spend = 5000, long price = 1500,
-        string nickname = "测试观众", long blindId = 32649) => BlindGiftFixture.With(data =>
-    {
-        data["uid"] = uid;
-        data["uname"] = nickname;
-        data["total_coin"] = spend;
-        data["price"] = price;
-        data["timestamp"] = h.Time.GetUtcNow().ToUnixTimeSeconds();
-        data["tid"] = Guid.NewGuid().ToString();
-        data["blind_gift"]!["original_gift_id"] = blindId;
-    });
-
-    private static TaskCompletionSource HoldFirst(WatchHarness h)
-    {
-        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var first = true;
-        h.Http.Intercept("/msg/send", async (_, token, next) =>
-        {
-            var response = await next();
-            if (first)
-            {
-                first = false;
-                await release.Task.WaitAsync(token);
-            }
-            return response;
-        });
-        return release;
-    }
-
     private static void AssertAnnouncement(Dictionary<string, string> form, string message, long uid = 10001)
     {
         Assert.Equal(message, form["msg"]);
@@ -442,7 +497,4 @@ public sealed class BlindBoxAnnouncementTests
         Assert.Equal("0", form["reply_attr"]);
         Assert.DoesNotContain("replay_dmid", form);
     }
-
-    private static Task WaitForLogAsync(WatchHarness h, string text) =>
-        Eventually.TrueAsync(() => h.Logger.Entries.Any(e => e.Message.Contains(text)));
 }

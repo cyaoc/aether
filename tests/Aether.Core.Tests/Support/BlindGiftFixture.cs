@@ -15,4 +15,18 @@ internal static class BlindGiftFixture
         edit(root["data"]!.AsObject());
         return root.ToJsonString();
     }
+
+    /// <summary>One fresh blind box (its own tid) sent at <paramref name="sentAt"/>; the rest keeps the fixture's values
+    /// unless given.</summary>
+    public static string Gift(DateTimeOffset sentAt, long uid = 10001, long spend = 5000, long price = 1500,
+        string? nickname = null, long? blindId = null) => With(data =>
+    {
+        data["uid"] = uid;
+        data["total_coin"] = spend;
+        data["price"] = price;
+        data["timestamp"] = sentAt.ToUnixTimeSeconds();
+        data["tid"] = Guid.NewGuid().ToString();
+        if (nickname is not null) data["uname"] = nickname;
+        if (blindId is not null) data["blind_gift"]!["original_gift_id"] = blindId;
+    });
 }
