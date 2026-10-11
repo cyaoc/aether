@@ -178,18 +178,23 @@ internal sealed class BilibiliApi
         return result;
     }
 
-    /// <summary>Sends an @ to a viewer, optionally pointing to the danmaku that triggered a query.</summary>
-    public async Task ReplyAsync(long roomId, long uid, string? triggerId, string message, CancellationToken cancellationToken)
+    /// <summary>Sends a danmaku, optionally mentioning a viewer and pointing to the danmaku that triggered a query.</summary>
+    public async Task SendDanmakuAsync(long roomId, long? replyUid, string? triggerId, string message, CancellationToken cancellationToken)
     {
         var csrf = credential?.Cookies["bili_jct"] ?? throw new InvalidOperationException("缺少登录凭据。");
         List<KeyValuePair<string, string>> form = [
             new("roomid", roomId.ToString(CultureInfo.InvariantCulture)), new("msg", message),
             new("rnd", timeProvider.GetUtcNow().ToUnixTimeSeconds().ToString(CultureInfo.InvariantCulture)),
             new("fontsize", "25"), new("color", "16777215"), new("mode", "1"), new("bubble", "0"),
-            new("csrf", csrf), new("csrf_token", csrf), new("reply_mid", uid.ToString(CultureInfo.InvariantCulture)),
-            new("reply_uname", ""), new("reply_attr", "0"),
+            new("csrf", csrf), new("csrf_token", csrf),
         ];
-        if (!string.IsNullOrEmpty(triggerId)) form.Add(new("replay_dmid", triggerId));
+        if (replyUid is { } uid)
+        {
+            form.Add(new("reply_mid", uid.ToString(CultureInfo.InvariantCulture)));
+            form.Add(new("reply_uname", ""));
+            form.Add(new("reply_attr", "0"));
+            if (!string.IsNullOrEmpty(triggerId)) form.Add(new("replay_dmid", triggerId));
+        }
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.live.bilibili.com/msg/send")
         {
             Content = new FormUrlEncodedContent(form),

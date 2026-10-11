@@ -3,15 +3,17 @@ using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
 
-/// <summary>One room connection's 发送队列: blind box queries and announcements, paced to avoid B站's rate limits.
+/// <summary>One room connection's 发送队列: blind box queries, announcements and welcomes, paced to avoid B站's rate limits.
 /// Reconnects keep it, pacing included; the end of the room connection clears it.</summary>
 internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan interval)
 {
     private static readonly TimeSpan QuietWindow = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan SameTextWindow = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan WelcomeLifetime = TimeSpan.FromSeconds(30);
 
-    /// <summary>A queued 盲盒查询, carrying the keyword danmaku it answers, or a 盲盒播报, which has none.</summary>
-    internal sealed record Item(long Uid, string Nickname, Danmaku? Query = null);
+    /// <summary>A queued 盲盒查询, a prepared 进场欢迎, or a 盲盒播报, which carries neither.</summary>
+    internal sealed record Item(long Uid, string Nickname, Danmaku? Query = null, Welcome? Welcome = null);
+    internal sealed record Welcome(string Text, bool Mention, long ReceivedAt);
 
     /// <summary>The part of a 一轮盲盒 one announcement reports; a Count, since a box can be worth nothing.</summary>
     private readonly record struct Reported(BlindBoxTally Tally, long Count);
@@ -44,6 +46,12 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     {
         lock (gate)
             if (waitingQueries.Add(trigger.Uid)) pending.Writer.TryWrite(new(trigger.Uid, trigger.Nickname, trigger));
+    }
+
+    /// <summary>Queues a 进场欢迎 whose text is fixed now; unlike queries, welcomes never merge.</summary>
+    public void EnqueueWelcome(long uid, string nickname, string text, bool mention, long receivedAt)
+    {
+        lock (gate) pending.Writer.TryWrite(new(uid, nickname, Welcome: new(text, mention, receivedAt)));
     }
 
     /// <summary>Records a whole gift message; <paramref name="save"/> returns whether a box was newly recorded and joins
@@ -90,13 +98,14 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         }
     }
 
-    /// <summary>Counts and clears pending queries and rounds, including rounds still waiting for silence.</summary>
+    /// <summary>Counts and clears pending queries, welcomes and rounds, including rounds still waiting for silence.</summary>
     public int Clear()
     {
         lock (gate)
         {
             var dropped = waitingQueries.Count + rounds.Count;
-            while (pending.Reader.TryRead(out _)) { }
+            while (pending.Reader.TryRead(out var item))
+                if (item.Welcome is not null) dropped++;
             waitingQueries.Clear();
             foreach (var round in rounds.Values) round.Timer.Dispose();
             rounds.Clear();
@@ -104,8 +113,8 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         }
     }
 
-    /// <summary>Sends queries' replies and announcements one at a time until cancelled. <paramref name="prepare"/> gets an
-    /// announcement's round as it stands (null for a query) and runs again after each wait, so the text sent is current;
+    /// <summary>Sends queries' replies, announcements and welcomes one at a time until cancelled. <paramref name="prepare"/>
+    /// gets an announcement's round as it stands (null otherwise) and runs again after each wait, so the text sent is current;
     /// it does the local reads (their failures end the room connection) and returns the text with the send itself, the
     /// only step that can fail it.</summary>
     public async Task SendAsync(Func<Item, BlindBoxTally?, (string Text, Func<CancellationToken, Task> Send)> prepare,
@@ -117,8 +126,9 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             // Peek, and take the item off only once its send has ended: a reconnect keeps an interrupted one, the end of
             // the room connection counts it as dropped, and a first rate limit keeps it at the head for its one retry.
             if (!pending.Reader.TryPeek(out var item)) continue;
+            if (DiscardExpiredWelcome(item)) continue;
             Reported? reported = null;
-            if (item.Query is null)
+            if (item.Query is null && item.Welcome is null)
                 lock (gate)
                 {
                     var round = rounds[item.Uid];
@@ -127,7 +137,8 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             var (text, send) = prepare(item, reported?.Tally);
             // Waiting can change a query's tally or an announcement's round; prepare and check the new text again.
             if (await WaitedForTurnAsync(text, cancellationToken)) continue;
-            var action = reported is null ? "回复" : "播报";
+            if (DiscardExpiredWelcome(item)) continue;
+            var action = item.Welcome is not null ? "欢迎" : reported is null ? "回复" : "播报";
             Exception? failure = null;
             try { await send(cancellationToken); }
             catch (Exception error) when (!cancellationToken.IsCancellationRequested) { failure = error; }
@@ -156,6 +167,16 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                 logger.LogWarning(failure, "发送弹幕失败，已丢弃：{Action}观众 {Nickname}（{Uid}）：{Message}；{Error}",
                     action, item.Nickname, item.Uid, text, failure.Message);
         }
+    }
+
+    private bool DiscardExpiredWelcome(Item item)
+    {
+        if (item.Welcome is not { } welcome || time.GetElapsedTime(welcome.ReceivedAt) < WelcomeLifetime) return false;
+        rateLimitRetryOwed = false;
+        Finish(item, null);
+        logger.LogInformation("欢迎已过期，进场已满 {Seconds} 秒，已丢弃：欢迎观众 {Nickname}（{Uid}）",
+            WelcomeLifetime.TotalSeconds, item.Nickname, item.Uid);
+        return true;
     }
 
     private async Task<bool> WaitedForTurnAsync(string text, CancellationToken cancellationToken)
@@ -197,7 +218,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                 }
                 return;
             }
-            waitingQueries.Remove(item.Uid);
+            if (item.Welcome is null) waitingQueries.Remove(item.Uid);
         }
     }
 }
