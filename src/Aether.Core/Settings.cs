@@ -31,10 +31,12 @@ public sealed class Settings
 
         # 盲盒统计，下次观看直播间时生效
         blind_box:
-          # true 或 false，false 时既不记录也不回复
+          # true 或 false，false 时既不记录，也不回复和播报
           enabled: true
           # 查询关键字，非空文字
           keyword: 今日盲盒
+          # true 或 false，送完一轮盲盒后主动 @ 播报这一轮的投入和盈亏
+          announce: true
 
         # 发送队列，下次观看直播间时生效
         send:
@@ -59,6 +61,7 @@ public sealed class Settings
         Register(Definition.Choice("log.level", Microsoft.Extensions.Logging.LogLevel.Information, LogLevels));
     private static readonly Definition<bool> Enabled = Register(Definition.Boolean("blind_box.enabled", true));
     private static readonly Definition<string> Keyword = Register(Definition.RequiredText("blind_box.keyword", "今日盲盒"));
+    private static readonly Definition<bool> Announce = Register(Definition.Boolean("blind_box.announce", true));
     private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 5, "必须为正整数。", seconds => seconds > 0));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, its controls in SettingsWindow.axaml, one Show call and one Fields entry).</summary>
@@ -72,6 +75,7 @@ public sealed class Settings
     public Setting<LogLevel> LogLevel => Get(Level);
     public Setting<bool> BlindBoxEnabled => Get(Enabled);
     public Setting<string> BlindBoxKeyword => Get(Keyword);
+    public Setting<bool> BlindBoxAnnounce => Get(Announce);
     public Setting<int> SendIntervalSeconds => Get(SendInterval);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }

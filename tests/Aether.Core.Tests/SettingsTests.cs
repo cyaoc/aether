@@ -9,6 +9,22 @@ public sealed class SettingsTests : IAsyncDisposable
     private string SettingsPath => Path.Combine(harness.DataDirectory, "aether.yml");
 
     [Fact]
+    public void Announcement_setting_defaults_on_and_saves_only_its_line_or_appends_to_existing_group()
+    {
+        Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
+        Assert.Contains("announce: true", File.ReadAllText(SettingsPath));
+        Write("log:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  keyword: 今日盲盒 # 关键字\n");
+        var before = File.ReadAllText(SettingsPath);
+        Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
+        Assert.Equal(before + "  announce: false\n", File.ReadAllText(SettingsPath));
+        Assert.False(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
+        Write(before + "  announce: false # 开关\n");
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "true" });
+        Assert.Equal(before + "  announce: true # 开关\n", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
     public void Template_defaults_match_the_defaults_used_when_a_setting_is_missing()
     {
         // Each default is written twice, in Template and in its definition; this keeps the two from drifting apart.
@@ -19,6 +35,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(missing.LogLevel.Value, fromTemplate.LogLevel.Value);
         Assert.Equal(missing.BlindBoxEnabled.Value, fromTemplate.BlindBoxEnabled.Value);
         Assert.Equal(missing.BlindBoxKeyword.Value, fromTemplate.BlindBoxKeyword.Value);
+        Assert.Equal(missing.BlindBoxAnnounce.Value, fromTemplate.BlindBoxAnnounce.Value);
         Assert.Equal(missing.SendIntervalSeconds.Value, fromTemplate.SendIntervalSeconds.Value);
     }
 
@@ -52,6 +69,12 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("blind_box", "keyword", "'   '")]
     [InlineData("blind_box", "keyword", "")]
     [InlineData("blind_box", "keyword", "[]")]
+    [InlineData("blind_box", "announce", "yes")]
+    [InlineData("blind_box", "announce", "True")]
+    [InlineData("blind_box", "announce", "0")]
+    [InlineData("blind_box", "announce", "null")]
+    [InlineData("blind_box", "announce", "[]")]
+    [InlineData("blind_box", "announce", "")]
     [InlineData("send", "interval_seconds", "0")]
     [InlineData("send", "interval_seconds", "-1")]
     [InlineData("send", "interval_seconds", "1.5")]
@@ -72,6 +95,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("blind_box.keyword", "")]
     [InlineData("blind_box.keyword", " \t ")]
     [InlineData("blind_box.keyword", "两行\n文字")]
+    [InlineData("blind_box.announce", "False")]
     [InlineData("send.interval_seconds", "0")]
     [InlineData("send.interval_seconds", "1.5")]
     public void Blind_box_tally_and_send_queue_settings_validate_and_reject_saving_invalid_input(string name, string value)
@@ -102,7 +126,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
         var template = File.ReadAllText(SettingsPath);
         Assert.Contains("下次观看直播间时生效", template);
-        Assert.Contains("blind_box:\n  # true 或 false，false 时既不记录也不回复\n  enabled: true", template.ReplaceLineEndings("\n"));
+        Assert.Contains("blind_box:\n  # true 或 false，false 时既不记录，也不回复和播报\n  enabled: true", template.ReplaceLineEndings("\n"));
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
         Assert.Equal(template.Replace("enabled: true", "enabled: false"), File.ReadAllText(SettingsPath));
         Assert.Empty(Settings.Load(harness.DataDirectory).UnknownKeys);
@@ -168,7 +192,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(before, after[..before.Length]);
         var appended = encoding.GetString(after[before.Length..]).ReplaceLineEndings("\n");
         Assert.StartsWith(finalNewline ? "\n# " : "\n\n# ", appended); // A blank line, as between the template's groups.
-        Assert.Contains("# 盲盒统计，下次观看直播间时生效\nblind_box:\n  # true 或 false，false 时既不记录也不回复\n  enabled: true\n  # 查询关键字，非空文字\n  keyword: 今日盲盒\n", appended);
+        Assert.Contains("# 盲盒统计，下次观看直播间时生效\nblind_box:\n  # true 或 false，false 时既不记录，也不回复和播报\n  enabled: true\n  # 查询关键字，非空文字\n  keyword: 今日盲盒\n", appended);
         Assert.Contains("# 发送队列，下次观看直播间时生效\nsend:\n  # 两次发送之间的秒数，必须为正整数\n  interval_seconds: 5\n", appended);
         Assert.DoesNotContain("retention_days", appended);
         Assert.Null(Settings.Load(harness.DataDirectory).Error);

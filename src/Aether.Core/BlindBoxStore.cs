@@ -9,13 +9,17 @@ internal sealed record BlindBox(long Uid, string Nickname, long BlindGiftId, str
     long BlindGiftPrice, long OpenedGiftId, string OpenedGiftName, long OpenedGiftPrice, long Num, long Spend,
     long OpenedValue, long Timestamp, string? Tid, bool Shown, string RawMessage);
 
-/// <summary>One viewer's 盲盒统计: their 投入 and 开出价值 in 金瓜子.</summary>
+/// <summary>投入 and 开出价值 in 金瓜子: one viewer's 盲盒统计, or the part of a 一轮盲盒 one announcement reports.</summary>
 internal sealed record BlindBoxTally(long Spend, long OpenedValue)
 {
-    /// <summary>The reply danmaku; a null tally means no blind box was recorded.</summary>
-    public static string Reply(BlindBoxTally? tally)
+    /// <summary>The 盲盒查询 reply; a null tally means no blind box was recorded.</summary>
+    public static string Reply(BlindBoxTally? tally) => tally is null ? "今日没有盲盒记录" : Amounts(tally);
+
+    /// <summary>The 盲盒播报 for a 一轮盲盒's amounts, worded like the reply so viewers can compare the two.</summary>
+    public static string Announcement(BlindBoxTally round) => "本次" + Amounts(round);
+
+    private static string Amounts(BlindBoxTally tally)
     {
-        if (tally is null) return "今日没有盲盒记录";
         var spend = Batteries(tally.Spend);
         var profit = Batteries(tally.OpenedValue - tally.Spend);
         var result = profit == 0 ? "不赚不亏" : $"{(profit > 0 ? "赚" : "亏")}{Text(Math.Abs(profit))}电池";
@@ -49,14 +53,15 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
         return reader.IsDBNull(0) ? null : new BlindBoxTally(reader.GetInt64(0), reader.GetInt64(1));
     }
 
-    public void Save(long roomId, BlindBox blindBox)
+    /// <summary>True only when <paramref name="blindBox"/> is newly recorded: not uid 0 and not a tid seen before.</summary>
+    public bool Save(long roomId, BlindBox blindBox)
     {
         if (blindBox.Uid == 0)
         {
             // Shown at Information: whether 神秘人 gifts arrive with uid 0 is unverified, and these go uncounted.
             logger.LogInformation("uid 为 0 的盲盒未记录（可能是神秘人），盲盒 {BlindGift}，开出礼物 {Gift}，个数 {Num}，投入 {Spend} 金瓜子，tid：{Tid}",
                 blindBox.BlindGiftName, blindBox.OpenedGiftName, blindBox.Num, blindBox.Spend, blindBox.Tid);
-            return;
+            return false;
         }
         using var connection = database.Open();
         using var command = connection.CreateCommand();
@@ -96,7 +101,7 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
                 logger.LogWarning("tid {Tid} 已记录过另一份不同的盲盒，这一条未记录，tid 可能不是按礼物项唯一："
                     + "观众 {Nickname}（{Uid}），盲盒 {BlindGift}，开出礼物 {Gift}，个数 {Num}，投入 {Spend} 金瓜子，开出价值 {OpenedValue} 金瓜子",
                     blindBox.Tid, blindBox.Nickname, blindBox.Uid, blindBox.BlindGiftName, blindBox.OpenedGiftName, blindBox.Num, blindBox.Spend, blindBox.OpenedValue);
-            return;
+            return false;
         }
         // Compare without overflowing on an untrusted unit price times quantity.
         if (blindBox.Spend / blindBox.Num != blindBox.BlindGiftPrice || blindBox.Spend % blindBox.Num != 0)
@@ -107,5 +112,6 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
             logger.LogWarning("盲盒消息的 switch 为 false，含义未验证，仍照常记录，tid：{Tid}", blindBox.Tid);
         logger.LogInformation("记录盲盒：观众 {Nickname}（{Uid}），盲盒 {BlindGift}，开出礼物 {Gift}，个数 {Num}，投入 {Spend} 金瓜子，开出价值 {OpenedValue} 金瓜子",
             blindBox.Nickname, blindBox.Uid, blindBox.BlindGiftName, blindBox.OpenedGiftName, blindBox.Num, blindBox.Spend, blindBox.OpenedValue);
+        return true;
     }
 }
