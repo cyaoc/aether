@@ -222,13 +222,13 @@ public sealed partial class AetherClient
         }
 
         private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) => RunWhileConnectedAsync(stop, () =>
-            sendQueue.SendAsync((item, tally) =>
+            sendQueue.SendAsync((item, round) =>
             {
-                var reply = item.Trigger is { } trigger
-                    ? BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, trigger.ReceivedAt))
-                    : "本次" + BlindBoxTally.Reply(tally);
+                var text = item.Query is { } query
+                    ? BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, query.ReceivedAt))
+                    : BlindBoxTally.Announcement(round!);
                 var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
-                return (reply, token => api.ReplyAsync(roomId, item.Uid, item.Trigger?.Id, reply, token));
+                return (text, token => api.ReplyAsync(roomId, item.Uid, item.Query?.Id, text, token));
             }, stop.Token));
 
         // A refresh cut short by the connection ending leaves checked_at unchanged, so the reconnect checks again.
