@@ -43,10 +43,10 @@ internal static class SentDanmaku
 
     /// <summary>Pushes a danmaku carrying a reply id, by default the blind box keyword, and waits until it is reported.</summary>
     public static async Task DanmakuAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates,
-        string text = "今日盲盒", long uid = 10001)
+        string text = "今日盲盒", long uid = 10001, string id = "12345678901234567890")
     {
         object?[] meta = new object?[16];
-        meta[15] = new { extra = JsonSerializer.Serialize(new { id_str = "12345678901234567890" }) };
+        meta[15] = new { extra = JsonSerializer.Serialize(new { id_str = id }) };
         await h.Server.PushRoomMessageAsync(JsonSerializer.Serialize(new { cmd = "DANMU_MSG", info = new object[] { meta, text, new object[] { uid, "观众" } } }));
         Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)));
         Assert.Equal(text, Assert.IsType<Danmaku>(updates.Current).Content);
