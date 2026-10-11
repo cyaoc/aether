@@ -28,6 +28,7 @@ public sealed partial class AetherClient
         private readonly DanmakuProtocol.FormatNotices formatNotices = new();
         private readonly SendQueue sendQueue =
             new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value));
+        private readonly WelcomeText welcomeText = new(settings.WelcomeText.Value);
 
         // Why the current attempt was stopped, where its exception would only say it was canceled; cleared before each attempt.
         private string? stopReason;
@@ -164,7 +165,8 @@ public sealed partial class AetherClient
                     var bytes = await ReceiveMessageAsync(socket, idleTimeout, connectionStop.Token);
                     var receivedAt = client.timeProvider.GetLocalNow();
                     var receivedTimestamp = client.timeProvider.GetTimestamp();
-                    foreach (var decoded in DanmakuProtocol.Decode(bytes, receivedAt, connected, formatNotices, client.logger))
+                    foreach (var decoded in DanmakuProtocol.Decode(bytes, receivedAt, connected, formatNotices, client.logger,
+                        Settings.WelcomeEnabled.Value, realRoomId))
                     {
                         connectionStop.Token.ThrowIfCancellationRequested();
                         if (decoded is DanmakuProtocol.AuthenticationReply auth)
@@ -198,6 +200,14 @@ public sealed partial class AetherClient
                         else if (decoded is DanmakuProtocol.BlindBoxesReceived received && Settings.BlindBoxEnabled.Value)
                             sendQueue.Record(received.BlindBoxes, receivedTimestamp,
                                 box => client.stores.Value.BlindBoxes.Save(realRoomId, box) && Settings.BlindBoxAnnounce.Value);
+                        else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry })
+                        {
+                            var threshold = Settings.WelcomeGuard.Value switch { "总督" => 1, "提督" => 2, "舰长" => 3, _ => 0 };
+                            if (entry.Guard <= 0 || entry.Guard > threshold) continue;
+                            var text = welcomeText.Render(entry.Nickname, entry.Guard, Settings.WelcomeMaxLength.Value);
+                            client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中大航海身份", entry.Nickname, entry.Uid);
+                            sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, text, welcomeText.Mention, receivedTimestamp);
+                        }
                     }
                 }
             }
@@ -224,11 +234,12 @@ public sealed partial class AetherClient
         private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) => RunWhileConnectedAsync(stop, () =>
             sendQueue.SendAsync((item, round) =>
             {
-                var text = item.Query is { } query
+                var text = item.Welcome is { } welcome ? welcome.Text : item.Query is { } query
                     ? BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, query.ReceivedAt))
                     : BlindBoxTally.Announcement(round!);
                 var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
-                return (text, token => api.ReplyAsync(roomId, item.Uid, item.Query?.Id, text, token));
+                return (text, token => api.SendDanmakuAsync(roomId, item.Welcome is { Mention: false } ? null : item.Uid,
+                    item.Query?.Id, text, token));
             }, stop.Token));
 
         // A refresh cut short by the connection ending leaves checked_at unchanged, so the reconnect checks again.

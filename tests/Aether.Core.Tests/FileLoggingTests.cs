@@ -70,7 +70,8 @@ public sealed class FileLoggingTests
             line => Assert.Contains("直播间连接开始", line),
             line => { Assert.Contains("已连接弹幕服务器", line); Assert.Contains("wss://danmaku.example/sub", line); },
             line => { Assert.Contains("已连接弹幕服务器", line); Assert.Contains("wss://fresh.example/sub", line); });
-        Assert.Empty(Directory.GetFiles(logs, "*.log"));
+        var common = Directory.GetFiles(logs, "*.log");
+        Assert.True(common.Length == 0, string.Join("\n", common.Select(File.ReadAllText)));
     }
 
     [Theory]

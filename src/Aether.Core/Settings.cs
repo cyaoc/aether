@@ -43,6 +43,20 @@ public sealed class Settings
           # 两次发送之间的秒数，必须为正整数
           interval_seconds: 1
 
+        # 进场欢迎，下次观看直播间时生效
+        welcome:
+          # true 或 false，满足下面任意一个欢迎条件的观众进场时，发一条欢迎弹幕
+          enabled: false
+          # 欢迎语。可用 {@}（@ 这位观众，只能放开头，不算字数）、{昵称}（太长时自动截短）、
+          # {大航海}（舰长/提督/总督，不是大航海身份时为空）；要写花括号本身，用 {{ 和 }}
+          # 以 { 开头时要加引号，例如："{@}欢迎回家"、"欢迎{大航海}{昵称}"、"欢迎{昵称}光临"
+          text: "欢迎{大航海}{昵称}"
+          # 弹幕字数上限：英文、数字、半角符号算 1，其他字符算 2，必须为正整数
+          # B站 默认 20（约 10 个汉字）；大航海、荣耀等级高的账号更多。填多了，超出的欢迎会被 B站 拒绝
+          max_length: 20
+          # 大航海身份达到哪一档就欢迎：关闭、舰长、提督、总督；提督表示提督和总督
+          guard: 舰长
+
         """;
 
     private const string LineBreaks = "\r\n\u0085\u2028\u2029"; // YAML also accepts Unicode line breaks.
@@ -63,6 +77,10 @@ public sealed class Settings
     private static readonly Definition<string> Keyword = Register(Definition.RequiredText("blind_box.keyword", "今日盲盒"));
     private static readonly Definition<bool> Announce = Register(Definition.Boolean("blind_box.announce", true));
     private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 1, "必须为正整数。", seconds => seconds > 0));
+    private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome.enabled", false));
+    private static readonly Definition<string> WelcomeTemplate = Register(Definition.Text("welcome.text", "欢迎{大航海}{昵称}"));
+    private static readonly Definition<int> WelcomeLimit = Register(Definition.Number("welcome.max_length", 20, "必须为正整数。", length => length > 0));
+    private static readonly Definition<string> WelcomeThreshold = Register(Definition.Choice<string>("welcome.guard", "舰长", ["关闭", "舰长", "提督", "总督"]));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, its controls in SettingsWindow.axaml, one Show call and one Fields entry).</summary>
     private static Definition<T> Register<T>(Definition<T> definition)
@@ -77,6 +95,10 @@ public sealed class Settings
     public Setting<string> BlindBoxKeyword => Get(Keyword);
     public Setting<bool> BlindBoxAnnounce => Get(Announce);
     public Setting<int> SendIntervalSeconds => Get(SendInterval);
+    public Setting<bool> WelcomeEnabled => Get(WelcomeOn);
+    public Setting<string> WelcomeText => Get(WelcomeTemplate);
+    public Setting<int> WelcomeMaxLength => Get(WelcomeLimit);
+    public Setting<string> WelcomeGuard => Get(WelcomeThreshold);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
     private readonly Dictionary<Definition, object> values = [];
@@ -122,6 +144,14 @@ public sealed class Settings
             var definition = Find(definitions, change.Key)!;
             return !definition.Holds(current, change.Value) && !(snapshot is not null && definition.Holds(snapshot, change.Value));
         }).ToDictionary();
+        if (definitions.Contains(WelcomeTemplate))
+        {
+            var welcomeText = changes.GetValueOrDefault(WelcomeTemplate.Name, current.WelcomeText.Value);
+            var limit = changes.TryGetValue(WelcomeLimit.Name, out var input)
+                ? int.Parse(input, CultureInfo.InvariantCulture) : current.WelcomeMaxLength.Value;
+            current.CheckWelcome(path, welcomeText, limit);
+            if (current.Error is { } invalid) throw invalid;
+        }
         var tokens = Scan(current.source);
         var edits = new List<(int Start, int Length, string Value)>();
         var newline = NewlineOf(current.source);
@@ -337,6 +367,8 @@ public sealed class Settings
                 }
             }
             settings.UnknownKeys = unknown.AsReadOnly();
+            if (definitions.Contains(WelcomeTemplate) && settings.Error is null)
+                settings.CheckWelcome(path, settings.WelcomeText.Value, settings.WelcomeMaxLength.Value);
         }
         catch (SettingsException error) { settings.Error = error; }
         catch (Exception error) when (IsYamlFailure(error))
@@ -361,6 +393,14 @@ public sealed class Settings
         {
             foreach (var definition in definitions) definition.MarkEditable(settings, editable);
         }
+    }
+
+    private void CheckWelcome(string path, string text, int limit)
+    {
+        if (Core.WelcomeText.Validate(text, limit) is not { } reason) return;
+        var group = root?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "welcome" }).Value;
+        var key = (group as YamlMappingNode)?.Children.Keys.FirstOrDefault(key => key is YamlScalarNode { Value: "text" });
+        Error = new(path, key?.Start.Line ?? group?.Start.Line ?? 1, "welcome.text", reason);
     }
 
     /// <summary>A setting this version knows: its name in the file (group.key), how its text becomes a value,
@@ -391,10 +431,10 @@ public sealed class Settings
             BooleanText);
 
         /// <summary>One of <paramref name="choices"/>, written exactly as its name.</summary>
-        public static Definition<T> Choice<T>(string name, T initial, IReadOnlyList<T> choices) where T : struct, Enum =>
+        public static Definition<T> Choice<T>(string name, T initial, IReadOnlyList<T> choices) where T : notnull =>
             ScalarSetting(name, initial, $"必须为 {string.Join("、", choices)} 之一。",
                 text => choices.Where(choice => choice.ToString() == text.Trim()).Select(choice => (true, choice)).FirstOrDefault(),
-                choice => choice.ToString());
+                choice => choice.ToString()!);
 
         /// <summary>One line of text, kept exactly as typed.</summary>
         public static Definition<string> Text(string name, string initial) => ScalarSetting(name, initial, "必须是一行文字。",

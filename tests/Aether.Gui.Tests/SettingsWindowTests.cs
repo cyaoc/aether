@@ -121,7 +121,7 @@ public sealed class SettingsWindowTests
             Assert.False(input.IsChecked);
             input.IsChecked = true;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("enabled: false", "enabled: true"), File.ReadAllText(path));
+            Assert.Equal(before.Replace("enabled: false # 开关", "enabled: true # 开关"), File.ReadAllText(path));
             Assert.True(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);
             Assert.StartsWith("已保存", window.FindControl<TextBlock>("Message")!.Text);
             Assert.Contains("下次观看直播间时生效", input.Content as string);

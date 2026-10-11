@@ -11,7 +11,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [Fact]
     public void An_existing_five_second_interval_is_preserved()
     {
-        const string yaml = "log:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
+        const string yaml = "welcome:\nlog:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
         Write(yaml);
         Assert.Equal(5, Settings.Load(harness.DataDirectory).SendIntervalSeconds.Value);
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
@@ -22,7 +22,7 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Assert.Contains("announce: true", File.ReadAllText(SettingsPath));
-        Write("log:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  keyword: 今日盲盒 # 关键字\n");
+        Write("welcome:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  keyword: 今日盲盒 # 关键字\n");
         var before = File.ReadAllText(SettingsPath);
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
@@ -461,7 +461,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("Critical", LogLevel.Critical)]
     public void Reads_known_values_without_rewriting_the_file(string level, LogLevel expected)
     {
-        var yaml = $"# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\n";
+        var yaml = $"# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\nwelcome:\n";
         Write(yaml);
         var before = File.ReadAllBytes(SettingsPath);
 
@@ -655,7 +655,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal("# 外部修改\nlog:\n  level: Warning\n  retention_days: 7\n", File.ReadAllText(SettingsPath));
     }
 
-    // No shipped setting is text or a list yet; these stand in for the coming welcome settings.
+    // Isolated definitions exercise text and list editing independently of the shipped settings' validation.
     private static readonly Settings.Definition<string> Greeting = Settings.Definition.Text("welcome.greeting", "");
 
     [Theory]

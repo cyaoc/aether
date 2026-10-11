@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Aether.Core.Gifts;
+using Aether.Core.Entries;
 
 namespace Aether.Core;
 
@@ -24,15 +25,29 @@ internal static class DanmakuProtocol
     internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
     internal sealed record DanmakuReceived(Danmaku Danmaku) : DecodedEvent;
     internal sealed record BlindBoxesReceived(BlindBox[] BlindBoxes) : DecodedEvent;
+    internal sealed record EntryReceived(Entry Entry) : DecodedEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
     internal sealed class FormatNotices
     {
         private string? giftCommand;
         private readonly HashSet<string> unknownCommands = [];
+        private bool entryVersionSeen;
+        private bool unknownEntrySeen;
 
         public void Observe(string command, ILogger logger)
         {
+            if (EntryMessages.Version(command) is { } entryVersion)
+            {
+                if (entryVersionSeen) return;
+                entryVersionSeen = true;
+                logger.LogInformation("本直播间的进场消息为 {Version}（{Command}）", entryVersion, command);
+            }
+            else if ((command == "INTERACT_WORD" || command.StartsWith("INTERACT_WORD_", StringComparison.Ordinal)) && !unknownEntrySeen)
+            {
+                unknownEntrySeen = true;
+                logger.LogWarning("收到不认识的进场消息 {Command}，进场消息格式可能变了", command);
+            }
             if (GiftMessages.Version(command) is { } version)
             {
                 if (command == giftCommand) return;
@@ -56,7 +71,8 @@ internal static class DanmakuProtocol
     public static byte[] CreateHeartbeat() => Pack(Operation.Heartbeat, []);
 
     public static IEnumerable<DecodedEvent> Decode(
-        byte[] bytes, DateTimeOffset receivedAt, bool authenticated, FormatNotices notices, ILogger logger)
+        byte[] bytes, DateTimeOffset receivedAt, bool authenticated, FormatNotices notices, ILogger logger,
+        bool welcomeEnabled, long roomId)
     {
         foreach (var packet in Unpack(bytes))
         {
@@ -69,7 +85,7 @@ internal static class DanmakuProtocol
                 yield return new AuthenticationReply(success);
             }
             else if (packet.Operation == Operation.RoomMessage && authenticated)
-                foreach (var decoded in ParseRoomMessage(packet.Body, receivedAt, notices, logger))
+                foreach (var decoded in ParseRoomMessage(packet.Body, receivedAt, notices, logger, welcomeEnabled, roomId))
                     yield return decoded;
         }
     }
@@ -97,7 +113,7 @@ internal static class DanmakuProtocol
         command == "DANMU_MSG" || command.StartsWith("DANMU_MSG:", StringComparison.Ordinal);
 
     private static DecodedEvent[] ParseRoomMessage(
-        ReadOnlyMemory<byte> body, DateTimeOffset receivedAt, FormatNotices notices, ILogger logger)
+        ReadOnlyMemory<byte> body, DateTimeOffset receivedAt, FormatNotices notices, ILogger logger, bool welcomeEnabled, long roomId)
     {
         string? command = null;
         DecodedEvent[] decoded = [];
@@ -117,6 +133,8 @@ internal static class DanmakuProtocol
             }
             else if (GiftMessages.Decode(command, root, body, logger) is { Length: > 0 } boxes)
                 decoded = [new BlindBoxesReceived(boxes)];
+            else if (welcomeEnabled && EntryMessages.Decode(command, root, roomId) is { } entry)
+                decoded = [new EntryReceived(entry)];
         }
         // Only message decoding is inside this boundary; frame errors still end the stream.
         catch (Exception error) when (error is JsonException or KeyNotFoundException
