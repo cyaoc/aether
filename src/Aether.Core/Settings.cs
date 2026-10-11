@@ -465,13 +465,7 @@ public sealed class Settings
                 node is YamlSequenceNode list && list.Children.All(item => item is YamlScalarNode { Value: { } text } && OneLine(text))
                     ? (true, list.Children.Select(item => ((YamlScalarNode)item).Value!).ToArray()) : default;
 
-            static (bool, IReadOnlyList<string>) ParseList(string text)
-            {
-                var yaml = new YamlStream();
-                try { yaml.Load(new StringReader(text)); }
-                catch (Exception error) when (IsYamlFailure(error)) { return default; }
-                return yaml.Documents.Count == 1 ? ReadList(yaml.Documents[0].RootNode) : default;
-            }
+            static (bool, IReadOnlyList<string>) ParseList(string text) => ParseNode(text) is { } node ? ReadList(node) : default;
         }
 
         /// <summary>Positive int64 values, written and entered as a single-line <c>[12345, 67890]</c> list.</summary>
@@ -495,14 +489,17 @@ public sealed class Settings
                 return (true, numbers.AsReadOnly());
             }
 
-            static (bool, IReadOnlyList<long>) ParseList(string text)
-            {
-                if (!OneLine(text)) return default;
-                var yaml = new YamlStream();
-                try { yaml.Load(new StringReader(text)); }
-                catch (Exception error) when (IsYamlFailure(error)) { return default; }
-                return yaml.Documents.Count == 1 ? ReadList(yaml.Documents[0].RootNode, true) : default;
-            }
+            static (bool, IReadOnlyList<long>) ParseList(string text) =>
+                OneLine(text) && ParseNode(text) is { } node ? ReadList(node, true) : default;
+        }
+
+        /// <summary>The root node of text holding exactly one YAML document; null otherwise.</summary>
+        private static YamlNode? ParseNode(string text)
+        {
+            var yaml = new YamlStream();
+            try { yaml.Load(new StringReader(text)); }
+            catch (Exception error) when (IsYamlFailure(error)) { return null; }
+            return yaml.Documents.Count == 1 ? yaml.Documents[0].RootNode : null;
         }
 
         private static Definition<T> ScalarSetting<T>(string name, T initial, string rule, Func<string, (bool, T)> parse, Func<T, string> toText) =>

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Aether.Core.Tests.Support;
 using Microsoft.Extensions.Logging;
 using static Aether.Core.Tests.Support.SentDanmaku;
@@ -24,7 +25,7 @@ public sealed class WelcomeConditionTests
     [InlineData(21, 21, 7734200, false, "粉丝团等级")]
     public Task Fan_club_threshold_uses_only_this_rooms_medal_regardless_of_its_light(
         int threshold, long level, long room, bool lit, string? condition) =>
-        CheckAsync(new() { ["welcome.fan_club_level"] = threshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+        CheckAsync(new() { ["welcome.fan_club_level"] = threshold.ToString(CultureInfo.InvariantCulture) },
             EntryV2Fixture.Message(guard: 0, fanClubLevel: level, medalRoom: room, medalLit: lit), condition);
 
     [Theory]
@@ -33,7 +34,7 @@ public sealed class WelcomeConditionTests
     [InlineData(45, 46, "荣耀等级")]
     [InlineData(0, 45, null)]
     public Task Wealth_alone_can_welcome_a_viewer_without_guard_status(int threshold, long level, string? condition) =>
-        CheckAsync(new() { ["welcome.wealth_level"] = threshold.ToString(System.Globalization.CultureInfo.InvariantCulture) },
+        CheckAsync(new() { ["welcome.wealth_level"] = threshold.ToString(CultureInfo.InvariantCulture) },
             EntryV2Fixture.Message(guard: 0, wealthLevel: level), condition);
 
     [Theory]
@@ -45,7 +46,7 @@ public sealed class WelcomeConditionTests
         string uids, int fanClub, string guard, string condition) =>
         CheckAsync(new()
         {
-            ["welcome.uids"] = uids, ["welcome.fan_club_level"] = fanClub.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["welcome.uids"] = uids, ["welcome.fan_club_level"] = fanClub.ToString(CultureInfo.InvariantCulture),
             ["welcome.guard"] = guard, ["welcome.wealth_level"] = "45"
         }, EntryV2Fixture.Message(), condition, "欢迎舰长测试观众");
 
