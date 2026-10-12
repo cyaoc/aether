@@ -1,0 +1,13 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Aether.Gui.ConfirmLogoutWindow"
+        Title="退出登录" Width="380" SizeToContent="Height" CanResize="False"
+        WindowStartupLocation="CenterOwner">
+  <StackPanel Margin="24" Spacing="24">
+    <TextBlock Text="退出后需要重新扫码登录；正在连接的直播间会断开。" TextWrapping="Wrap" />
+    <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
+      <Button Content="取消" IsCancel="True" IsDefault="True" Click="Cancel" />
+      <Button Content="退出登录" Click="Confirm" />
+    </StackPanel>
+  </StackPanel>
+</Window>

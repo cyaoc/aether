@@ -1,5 +1,7 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -22,8 +24,10 @@ public sealed class AccountPanelTests
         {
             await WaitForAsync(() => VisibleText(window).Contains("账号信息读取失败"));
             Assert.True(viewModel.ConnectCommand.CanExecute(null));
-            harness.NavResponse = _ => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"isLogin":true,"mid":123,"uname":"测试账号"}}"""));
-            window.FindControl<Button>("RetryAccountButton")!.Command!.Execute(null);
+            harness.NavResponse = _ => Task.FromResult(GuiHarness.AccountResponse());
+            var retry = window.FindControl<Button>("RetryAccountButton")!;
+            Assert.True(retry.IsEffectivelyVisible);
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(retry)).Invoke();
             await WaitForAsync(() => VisibleText(window).Contains("测试账号"));
             Assert.Equal(2, harness.NavRequests);
 
@@ -41,8 +45,8 @@ public sealed class AccountPanelTests
             Dispatcher.UIThread.RunJobs();
             Assert.Empty(harness.RejectedRequests);
             Assert.Contains("测试账号", VisibleText(window));
-            await viewModel.ReadAccountAsync();
-            Assert.Equal("测试账号", viewModel.AccountText);
+            await viewModel.ReadAccountCommand.ExecuteAsync(null);
+            Assert.Equal("测试账号", viewModel.AccountStatus.Text);
 
             menu.ShowAt(window.FindControl<Button>("AccountMenuButton")!);
             Assert.Single(menu.Items.OfType<MenuItem>()).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
@@ -53,9 +57,9 @@ public sealed class AccountPanelTests
             await WaitForAsync(() => VisibleText(window).Contains("未登录"));
             Assert.Equal("https://passport.bilibili.com/login/exit/v2", Assert.Single(harness.RejectedRequests).AbsoluteUri);
             harness.RejectedRequests.Clear(); // The real logout attempted HTTP; the fake still rejected it and Core removed the local credential.
-            await viewModel.ReadAccountAsync();
-            Assert.Null(viewModel.Account);
-            Assert.Equal("未登录", viewModel.AccountText);
+            await viewModel.ReadAccountCommand.ExecuteAsync(null);
+            Assert.Null(viewModel.AccountStatus.Account);
+            Assert.Equal("未登录", viewModel.AccountStatus.Text);
             Assert.Equal(3, harness.NavRequests);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
@@ -74,14 +78,14 @@ public sealed class AccountPanelTests
         try
         {
             await viewModel.ReadAccountCommand.ExecutionTask!;
-            Assert.Equal("未登录", viewModel.AccountText);
+            Assert.Equal("未登录", viewModel.AccountStatus.Text);
             if (reconnecting)
             {
                 viewModel.Apply(new Connected());
                 viewModel.Apply(new Reconnecting());
             }
             await harness.SaveCredentialAsync();
-            harness.NavResponse = _ => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"isLogin":true,"mid":123,"uname":"扫码后的账号"}}"""));
+            harness.NavResponse = _ => Task.FromResult(GuiHarness.AccountResponse("扫码后的账号"));
             viewModel.Apply(new WatchQrCode("https://example.test/login"));
             Assert.True(viewModel.HasQrCode);
             viewModel.Apply(reconnecting ? new Connected() : new Connecting());
@@ -111,13 +115,37 @@ public sealed class AccountPanelTests
             await WaitForAsync(() => harness.NavRequests == 1);
             var logout = viewModel.LogoutCommand.ExecuteAsync(null);
             Assert.False(viewModel.ConnectCommand.CanExecute(null));
-            response.SetResult(GuiHarness.Json("""{"code":0,"data":{"isLogin":true,"mid":123,"uname":"过期结果"}}"""));
+            response.SetResult(GuiHarness.AccountResponse("过期结果"));
             await logout;
             Dispatcher.UIThread.RunJobs();
             Assert.Contains("未登录", VisibleText(window));
-            Assert.Null(viewModel.Account);
+            Assert.Null(viewModel.AccountStatus.Account);
             Assert.Equal("https://passport.bilibili.com/login/exit/v2", Assert.Single(harness.RejectedRequests).AbsoluteUri);
             harness.RejectedRequests.Clear();
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Unfinished_logout_rereads_account_instead_of_staying_on_loading() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+        harness.NavResponse = token => response.Task.WaitAsync(token);
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            await WaitForAsync(() => harness.NavRequests == 1);
+            harness.NavResponse = _ => Task.FromResult(GuiHarness.AccountResponse());
+            var logout = viewModel.LogoutCommand.ExecuteAsync(null);
+            viewModel.LogoutCommand.Cancel(); // Stops logout after it cancelled the read, before Core deletes anything.
+            await logout;
+            await WaitForAsync(() => VisibleText(window).Contains("测试账号"));
+            Assert.Equal(2, harness.NavRequests);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
         return true;
@@ -138,7 +166,7 @@ public sealed class AccountPanelTests
             Assert.True(window.IsVisible);
             Assert.Contains("读取中", VisibleText(window));
             Assert.True(viewModel.ConnectCommand.CanExecute(null));
-            response.SetResult(GuiHarness.Json("""{"code":0,"data":{"isLogin":true,"mid":123,"uname":"测试账号"}}"""));
+            response.SetResult(GuiHarness.AccountResponse());
             await WaitForAsync(() => VisibleText(window).Contains("测试账号"));
             Assert.Equal(1, harness.NavRequests);
         }

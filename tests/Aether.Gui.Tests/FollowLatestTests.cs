@@ -12,22 +12,12 @@ public sealed class FollowLatestTests : IDisposable
 {
     private readonly GuiHarness harness = new();
 
-    private static void Flush()
-    {
-        // The window defers scrolling through nested Loaded-priority posts, so settle a few rounds.
-        for (var i = 0; i < 5; i++)
-        {
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-            Dispatcher.UIThread.RunJobs();
-        }
-    }
-
     private (MainWindow Window, MainWindowViewModel ViewModel) ShowWindow()
     {
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow { DataContext = viewModel };
         window.Show();
-        Flush();
+        GuiHarness.Flush();
         return (window, viewModel);
     }
 
@@ -49,13 +39,13 @@ public sealed class FollowLatestTests : IDisposable
         var list = window.DanmakuList;
         var center = list.TranslatePoint(new Point(list.Bounds.Width / 2, list.Bounds.Height / 2), window)!.Value;
         window.MouseWheel(center, new Vector(0, deltaY));
-        Flush();
+        GuiHarness.Flush();
     }
 
     private void Receive(MainWindowViewModel viewModel, int count)
     {
         harness.Receive(viewModel, count);
-        Flush();
+        GuiHarness.Flush();
     }
 
     [Theory]
@@ -71,7 +61,7 @@ public sealed class FollowLatestTests : IDisposable
             Assert.True(viewer.Extent.Height > viewer.Viewport.Height);
             Assert.True(LatestDanmakuIsVisible(window));
         }
-        finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
 
@@ -94,7 +84,7 @@ public sealed class FollowLatestTests : IDisposable
             Receive(viewModel, 20);
             Assert.True(LatestDanmakuIsVisible(window));
         }
-        finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
 

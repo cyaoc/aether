@@ -1,7 +1,6 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
-using Avalonia.Headless;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -30,20 +29,20 @@ public sealed class DanmakuPageTests
             try
             {
                 if (accountState == "failed") response.SetException(new HttpRequestException("offline"));
-                if (accountState == "known") response.SetResult(AccountResponse());
+                if (accountState == "known") response.SetResult(GuiHarness.AccountResponse());
                 if (accountState != "loading") await viewModel.ReadAccountCommand.ExecutionTask!;
                 viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "同名观众", "账号发的") { Uid = 123 });
                 viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "同名观众", "别人发的") { Uid = 999 });
-                Flush();
+                GuiHarness.Flush();
                 AssertRow(0, accountState == "known");
                 AssertRow(1, false);
                 if (accountState == "missing")
                     Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), x => x.Text == "未登录" && x.IsEffectivelyVisible);
                 if (accountState == "loading")
                 {
-                    response.SetResult(AccountResponse());
+                    response.SetResult(GuiHarness.AccountResponse());
                     await viewModel.ReadAccountCommand.ExecutionTask!;
-                    Flush();
+                    GuiHarness.Flush();
                     AssertRow(0, true);
                     AssertRow(1, false);
                 }
@@ -67,16 +66,4 @@ public sealed class DanmakuPageTests
                 Assert.Contains(row.GetVisualDescendants().OfType<TextBlock>(), x => x.Text == "00:00:00");
             }
         }, TestContext.Current.CancellationToken);
-
-    private static HttpResponseMessage AccountResponse() =>
-        GuiHarness.Json("""{"code":0,"data":{"isLogin":true,"mid":123,"uname":"测试账号"}}""");
-
-    private static void Flush()
-    {
-        for (var i = 0; i < 5; i++)
-        {
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-            Dispatcher.UIThread.RunJobs();
-        }
-    }
 }

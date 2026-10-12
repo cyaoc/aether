@@ -1,5 +1,7 @@
 using Aether.Core;
 using System.Net;
+using Avalonia.Headless;
+using Avalonia.Threading;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -21,7 +23,7 @@ internal sealed class GuiHarness : IDisposable
     public GuiSettings LoadSettings() => GuiSettings.Load(DataDirectory, NullLogger<GuiSettings>.Instance);
 
     public MainWindowViewModel CreateViewModel(TimeProvider? timeProvider = null) =>
-        new(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings(), timeProvider);
+        new(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings(), timeProvider ?? TimeProvider.System);
 
     public Func<CancellationToken, Task<HttpResponseMessage>> NavResponse
     {
@@ -31,6 +33,10 @@ internal sealed class GuiHarness : IDisposable
     public List<Uri> RejectedRequests => http.RejectedRequests;
 
     public static HttpResponseMessage Json(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
+
+    /// <summary>A nav response for the account that <see cref="SaveCredentialAsync"/> saves (UID 123).</summary>
+    public static HttpResponseMessage AccountResponse(string nickname = "测试账号") =>
+        Json($$$"""{"code":0,"data":{"isLogin":true,"mid":123,"uname":"{{{nickname}}}"}}""");
 
     public async Task SaveCredentialAsync()
     {
@@ -52,6 +58,16 @@ internal sealed class GuiHarness : IDisposable
     {
         for (var i = 0; i < count; i++)
             viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "viewer", (received++).ToString()));
+    }
+
+    public static void Flush()
+    {
+        // The window defers scrolling through nested Loaded-priority posts, so settle a few rounds.
+        for (var i = 0; i < 5; i++)
+        {
+            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+        }
     }
 
     public void Dispose()

@@ -12,68 +12,28 @@ namespace Aether.Gui;
 
 public enum RoomConnectionState { Disconnected, Connecting, Connected, Reconnecting }
 
-public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
-    TimeProvider? timeProvider = null) : ObservableObject
+/// <summary>What the sidebar shows for the account; Account is set only when a read finds one.</summary>
+public sealed record AccountStatus(string Text, Account? Account = null)
 {
-    private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
-    private long? connectedAt;
-    private ITimer? connectionTimer;
-    public static IMultiValueConverter IsAccountDanmaku { get; } = new FuncMultiValueConverter<object?, bool>(
-        values => values.ToArray() is [long uid, Account account] && uid == account.Uid);
-    [ObservableProperty] private Account? account;
-    [ObservableProperty] private string accountText = "读取中";
-    [ObservableProperty] private bool accountReadFailed;
-    private CancellationTokenSource? accountReadStop;
-    private Task accountReadTask = Task.CompletedTask;
-    private bool shuttingDown;
+    public static AccountStatus Reading { get; } = new("读取中");
+    public static AccountStatus LoggedOut { get; } = new("未登录");
+    public static AccountStatus Failed { get; } = new("账号信息读取失败");
+    public static AccountStatus Of(Account? account) => account is null ? LoggedOut : new(account.Nickname, account);
+    public bool ReadFailed => this == Failed;
+}
 
-    [RelayCommand(AllowConcurrentExecutions = true)]
-    public Task ReadAccountAsync()
-    {
-        if (IsLoggingOut || shuttingDown) return Task.CompletedTask;
-        accountReadStop?.Cancel();
-        var previous = accountReadTask;
-        var stop = new CancellationTokenSource();
-        accountReadStop = stop;
-        Account = null;
-        AccountText = "读取中";
-        AccountReadFailed = false;
-        return accountReadTask = ReadAsync();
-
-        async Task ReadAsync()
-        {
-            try
-            {
-                await previous;
-                // Loading the saved credential can open SQLite, so even the synchronous part runs off the UI thread.
-                var result = await Task.Run(() => client.GetAccountAsync(stop.Token), stop.Token);
-                stop.Token.ThrowIfCancellationRequested();
-                Account = result;
-                AccountText = result?.Nickname ?? "未登录";
-            }
-            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
-            catch (Exception error)
-            {
-                if (stop.IsCancellationRequested) return;
-                logger.LogError(error, "账号信息读取失败");
-                AccountText = "账号信息读取失败";
-                AccountReadFailed = true;
-            }
-            finally
-            {
-                if (ReferenceEquals(accountReadStop, stop)) accountReadStop = null;
-                stop.Dispose();
-            }
-        }
-    }
-
+public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
+    TimeProvider clock) : ObservableObject
+{
     [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
     [ObservableProperty] private string roomNumber = "";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Status))]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
-    [NotifyPropertyChangedFor(nameof(IsWatching))]
+    [NotifyPropertyChangedFor(nameof(HasRoomConnection))]
     private RoomConnectionState connectionState = RoomConnectionState.Disconnected;
+    private long? connectedAt;
+    private ITimer? connectionTimer;
 
     [ObservableProperty] private string message = "";
     [ObservableProperty]
@@ -85,9 +45,14 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     private bool isLoggingOut;
 
+    [ObservableProperty] private AccountStatus accountStatus = AccountStatus.Reading;
+    private CancellationTokenSource? accountReadStop;
+    private Task accountReadTask = Task.CompletedTask;
+    private bool shuttingDown;
+
     private bool CanConnect => !IsLoggingOut;
     public bool IsConnected => ConnectionState == RoomConnectionState.Connected;
-    public bool IsWatching => ConnectionState != RoomConnectionState.Disconnected;
+    public bool HasRoomConnection => ConnectionState != RoomConnectionState.Disconnected;
     public string Status => ConnectionState switch
     {
         RoomConnectionState.Disconnected => "未连接",
@@ -101,6 +66,8 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
 
     private const int RecentDanmakuLimit = 1000;
     public static string KeepRecentDanmakuLabel { get; } = $"只保留最近 {RecentDanmakuLimit} 条";
+    public static IMultiValueConverter IsAccountDanmaku { get; } = new FuncMultiValueConverter<object?, bool>(
+        values => values.ToArray() is [long uid, Account account] && uid == account.Uid);
 
     partial void OnConnectionStateChanged(RoomConnectionState value)
     {
@@ -168,13 +135,11 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                 }
                 break;
             case Connecting:
-                if (HasQrCode) _ = ReadAccountAsync();
-                ClearQrCode();
+                EndQrLogin();
                 ConnectionState = RoomConnectionState.Connecting;
                 break;
             case Connected:
-                if (HasQrCode) _ = ReadAccountAsync();
-                ClearQrCode();
+                EndQrLogin();
                 connectedAt ??= clock.GetTimestamp();
                 connectionTimer ??= clock.CreateTimer(_ => Dispatcher.UIThread.Post(() =>
                 {
@@ -192,21 +157,56 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         }
     }
 
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    private Task ReadAccountAsync()
+    {
+        if (IsLoggingOut || shuttingDown) return Task.CompletedTask;
+        accountReadStop?.Cancel();
+        var previous = accountReadTask;
+        var stop = new CancellationTokenSource();
+        accountReadStop = stop;
+        AccountStatus = AccountStatus.Reading;
+        return accountReadTask = ReadAsync();
+
+        async Task ReadAsync()
+        {
+            try
+            {
+                await previous;
+                // Loading the saved credential can open SQLite, so even the synchronous part runs off the UI thread.
+                var result = await Task.Run(() => client.GetAccountAsync(stop.Token), stop.Token);
+                stop.Token.ThrowIfCancellationRequested();
+                AccountStatus = AccountStatus.Of(result);
+            }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+            catch (Exception error)
+            {
+                if (stop.IsCancellationRequested) return;
+                logger.LogError(error, "账号信息读取失败");
+                AccountStatus = AccountStatus.Failed;
+            }
+            finally
+            {
+                if (ReferenceEquals(accountReadStop, stop)) accountReadStop = null;
+                stop.Dispose();
+            }
+        }
+    }
+
     [RelayCommand]
     private async Task LogoutAsync(CancellationToken cancellationToken)
     {
         IsLoggingOut = true;
         Message = "";
+        var loggedOut = false;
         try
         {
-            accountReadStop?.Cancel();
+            await StopAccountReadAsync();
             await StopWatchingAsync();
-            await accountReadTask;
             await Task.Run(() => client.LogoutAsync(cancellationToken), cancellationToken);
-            Account = null;
-            AccountText = "未登录";
-            AccountReadFailed = false;
+            AccountStatus = AccountStatus.LoggedOut;
             Message = "已退出登录，下次连接时请重新扫码。";
+            loggedOut = true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception error)
@@ -215,6 +215,14 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
             Message = $"退出登录失败：{error.Message}";
         }
         finally { IsLoggingOut = false; }
+        // The stopped read left the panel on 读取中, and a failed logout may have kept the credential.
+        if (!loggedOut) _ = ReadAccountAsync();
+    }
+
+    private async Task StopAccountReadAsync()
+    {
+        accountReadStop?.Cancel();
+        await accountReadTask;
     }
 
     private async Task StopWatchingAsync()
@@ -227,11 +235,15 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     {
         shuttingDown = true;
         LogoutCommand.Cancel();
-        accountReadStop?.Cancel();
+        await StopAccountReadAsync();
         await StopWatchingAsync();
-        await accountReadTask;
         if (LogoutCommand.ExecutionTask is { } task) await task;
-        ConnectionState = RoomConnectionState.Disconnected;
+    }
+
+    // Reconnects skip Connecting, so a QR login can end at either update.
+    private void EndQrLogin()
+    {
+        if (HasQrCode) _ = ReadAccountAsync();
         ClearQrCode();
     }
 
