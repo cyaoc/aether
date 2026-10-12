@@ -1,5 +1,4 @@
 using System.Text;
-using Aether.Core.Entries;
 
 namespace Aether.Core;
 
@@ -44,9 +43,8 @@ internal sealed class WelcomeText
         catch (FormatException error) { return error.Message; }
     }
 
-    public string Render(string nickname, long guard, int limit)
+    public string Render(string nickname, string guardName, int limit)
     {
-        var guardName = Entry.GuardName(guard);
         var fixedLength = FixedLength(guardName);
         var occurrences = parts.Count(part => part.Kind == "昵称");
         var budget = occurrences == 0 ? 0 : (limit - fixedLength) / occurrences;

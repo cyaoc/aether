@@ -88,7 +88,7 @@ public sealed class Settings
     private static readonly Definition<int> WelcomeLimit = Register(Definition.Number("welcome.max_length", 20, "必须为正整数。", length => length > 0));
     private static readonly Definition<IReadOnlyList<long>> WelcomeUidList = Register(Definition.NumberList("welcome.uids", []));
     private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", 0, "必须为非负整数。", level => level >= 0));
-    /// <summary>The values welcome.guard accepts, in order.</summary>
+    /// <summary>The values welcome.guard accepts: 关闭, then 大航海身份 from low to high, so each one's index is its tier.</summary>
     public static IReadOnlyList<string> WelcomeGuards { get; } = ["关闭", "舰长", "提督", "总督"];
     private static readonly Definition<string> WelcomeGuardTier = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", 0, "必须为非负整数。", level => level >= 0));

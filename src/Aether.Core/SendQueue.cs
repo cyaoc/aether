@@ -11,16 +11,21 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     private static readonly TimeSpan SameTextWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan WelcomeLifetime = TimeSpan.FromSeconds(30);
 
-    /// <summary>A queued 盲盒查询, a prepared 进场欢迎, or a 盲盒播报, which carries neither.</summary>
-    internal sealed record Item(long Uid, string Nickname, Danmaku? Query = null, Welcome? Welcome = null);
-    internal sealed record Welcome(string Text, bool Mention, long ReceivedAt);
+    /// <summary>One queued send, addressed to a viewer.</summary>
+    internal abstract record Item(long Uid, string Nickname);
+    /// <summary>A 盲盒查询 reply, pointing to the keyword danmaku it answers.</summary>
+    internal sealed record Query(Danmaku Trigger) : Item(Trigger.Uid, Trigger.Nickname);
+    /// <summary>A 盲盒播报, whose text comes from the viewer's 一轮盲盒 as it stands when sent.</summary>
+    internal sealed record Announcement(long Uid, string Nickname) : Item(Uid, Nickname);
+    /// <summary>A 进场欢迎, whose text was fixed when queued.</summary>
+    internal sealed record Welcome(long Uid, string Nickname, string Text, bool Mention, long ReceivedAt) : Item(Uid, Nickname);
 
     /// <summary>The part of a 一轮盲盒 one announcement reports; a Count, since a box can be worth nothing.</summary>
     private readonly record struct Reported(BlindBoxTally Tally, long Count);
 
-    private sealed class Round(Item item)
+    private sealed class Round(Announcement item)
     {
-        public Item Item = item;
+        public Announcement Item = item;
         public BlindBoxTally Tally = new(0, 0);
         public long Count;
         public long LastReceived;
@@ -45,13 +50,13 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     public void Enqueue(Danmaku trigger)
     {
         lock (gate)
-            if (waitingQueries.Add(trigger.Uid)) pending.Writer.TryWrite(new(trigger.Uid, trigger.Nickname, trigger));
+            if (waitingQueries.Add(trigger.Uid)) pending.Writer.TryWrite(new Query(trigger));
     }
 
     /// <summary>Queues a 进场欢迎 whose text is fixed now; unlike queries, welcomes never merge.</summary>
     public void EnqueueWelcome(long uid, string nickname, string text, bool mention, long receivedAt)
     {
-        lock (gate) pending.Writer.TryWrite(new(uid, nickname, Welcome: new(text, mention, receivedAt)));
+        lock (gate) pending.Writer.TryWrite(new Welcome(uid, nickname, text, mention, receivedAt));
     }
 
     /// <summary>Records a whole gift message; <paramref name="save"/> returns whether a box was newly recorded and joins
@@ -105,7 +110,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         {
             var dropped = waitingQueries.Count + rounds.Count;
             while (pending.Reader.TryRead(out var item))
-                if (item.Welcome is not null) dropped++;
+                if (item is Welcome) dropped++;
             waitingQueries.Clear();
             foreach (var round in rounds.Values) round.Timer.Dispose();
             rounds.Clear();
@@ -128,7 +133,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             if (!pending.Reader.TryPeek(out var item)) continue;
             if (DiscardExpiredWelcome(item)) continue;
             Reported? reported = null;
-            if (item.Query is null && item.Welcome is null)
+            if (item is Announcement)
                 lock (gate)
                 {
                     var round = rounds[item.Uid];
@@ -138,7 +143,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             // Waiting can change a query's tally or an announcement's round; prepare and check the new text again.
             if (await WaitedForTurnAsync(text, cancellationToken)) continue;
             if (DiscardExpiredWelcome(item)) continue;
-            var action = item.Welcome is not null ? "欢迎" : reported is null ? "回复" : "播报";
+            var action = item switch { Query => "回复", Welcome => "欢迎", _ => "播报" };
             Exception? failure = null;
             try { await send(cancellationToken); }
             catch (Exception error) when (!cancellationToken.IsCancellationRequested) { failure = error; }
@@ -171,7 +176,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
 
     private bool DiscardExpiredWelcome(Item item)
     {
-        if (item.Welcome is not { } welcome || time.GetElapsedTime(welcome.ReceivedAt) < WelcomeLifetime) return false;
+        if (item is not Welcome welcome || time.GetElapsedTime(welcome.ReceivedAt) < WelcomeLifetime) return false;
         rateLimitRetryOwed = false;
         Finish(item, null);
         logger.LogInformation("欢迎已过期，进场已满 {Seconds} 秒，已丢弃：欢迎观众 {Nickname}（{Uid}）",
@@ -218,7 +223,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                 }
                 return;
             }
-            if (item.Welcome is null) waitingQueries.Remove(item.Uid);
+            if (item is Query) waitingQueries.Remove(item.Uid);
         }
     }
 }
