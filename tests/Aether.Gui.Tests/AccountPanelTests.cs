@@ -12,10 +12,53 @@ namespace Aether.Gui.Tests;
 public sealed class AccountPanelTests
 {
     [Fact]
+    public Task Confirming_logout_after_background_account_read_starts_login_cancels_that_login() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var account = new TaskCompletionSource<HttpResponseMessage>();
+        harness.NavResponse = token => account.Task.WaitAsync(token);
+        var logins = 0;
+        var cancelled = false;
+        harness.LoginResponse = async (_, token) =>
+        {
+            var first = ++logins == 1;
+            try { return await new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token); }
+            finally { if (first) cancelled = token.IsCancellationRequested; }
+        };
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            var menuButton = window.FindControl<Button>("AccountMenuButton")!;
+            var menu = Assert.IsType<MenuFlyout>(menuButton.Flyout);
+            menu.ShowAt(menuButton);
+            Assert.Single(menu.Items.OfType<MenuItem>()).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Dispatcher.UIThread.RunJobs();
+            var dialog = Assert.Single(window.OwnedWindows);
+            account.SetResult(GuiHarness.Json("""{"code":-101}"""));
+            await WaitForAsync(() => logins == 1);
+            Assert.Single(dialog.GetVisualDescendants().OfType<Button>(), x => Equals(x.Content, "退出登录"))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await WaitForAsync(() => viewModel.LogoutCommand.ExecutionTask is not null);
+            await viewModel.LogoutCommand.ExecutionTask!;
+            Assert.Equal("https://passport.bilibili.com/login/exit/v2", Assert.Single(harness.RejectedRequests).AbsoluteUri);
+            harness.RejectedRequests.Clear();
+            Assert.True(cancelled);
+            Assert.Equal(2, logins);
+            Assert.Contains("扫码登录 B站", VisibleText(window));
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task Failed_account_read_can_be_retried_and_logout_requires_confirmation() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
+        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
         harness.NavResponse = _ => throw new HttpRequestException("offline");
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
@@ -54,7 +97,8 @@ public sealed class AccountPanelTests
             dialog = Assert.Single(window.OwnedWindows);
             Assert.Single(dialog.GetVisualDescendants().OfType<Button>(), x => Equals(x.Content, "退出登录"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await WaitForAsync(() => VisibleText(window).Contains("未登录"));
+            await WaitForAsync(() => VisibleText(window).Contains("扫码登录 B站"));
+            Assert.False(window.FindControl<ListBox>("Navigation")!.IsEffectivelyVisible);
             Assert.Equal("https://passport.bilibili.com/login/exit/v2", Assert.Single(harness.RejectedRequests).AbsoluteUri);
             harness.RejectedRequests.Clear(); // The real logout attempted HTTP; the fake still rejected it and Core removed the local credential.
             await viewModel.ReadAccountCommand.ExecuteAsync(null);
@@ -72,19 +116,19 @@ public sealed class AccountPanelTests
     public Task Successful_qr_login_rereads_account_in_initial_connection_and_reconnect(bool reconnecting) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
         {
             await viewModel.ReadAccountCommand.ExecutionTask!;
-            Assert.Equal("未登录", viewModel.AccountStatus.Text);
+            Assert.Equal("测试账号", viewModel.AccountStatus.Text);
             if (reconnecting)
             {
                 viewModel.Apply(new Connected());
                 viewModel.Apply(new Reconnecting());
             }
-            await harness.SaveCredentialAsync();
             harness.NavResponse = _ => Task.FromResult(GuiHarness.AccountResponse("扫码后的账号"));
             viewModel.Apply(new WatchQrCode("https://example.test/login"));
             Assert.True(viewModel.HasQrCode);
@@ -94,7 +138,7 @@ public sealed class AccountPanelTests
             viewModel.Apply(new Connected());
             viewModel.Apply(new Reconnecting());
             viewModel.Apply(new Connected());
-            Assert.Equal(1, harness.NavRequests);
+            Assert.Equal(2, harness.NavRequests);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
         return true;
@@ -105,6 +149,7 @@ public sealed class AccountPanelTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
+        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         harness.NavResponse = _ => response.Task;
         var viewModel = harness.CreateViewModel();
@@ -118,7 +163,7 @@ public sealed class AccountPanelTests
             response.SetResult(GuiHarness.AccountResponse("过期结果"));
             await logout;
             Dispatcher.UIThread.RunJobs();
-            Assert.Contains("未登录", VisibleText(window));
+            Assert.Contains("扫码登录 B站", VisibleText(window));
             Assert.Null(viewModel.AccountStatus.Account);
             Assert.Equal("https://passport.bilibili.com/login/exit/v2", Assert.Single(harness.RejectedRequests).AbsoluteUri);
             harness.RejectedRequests.Clear();

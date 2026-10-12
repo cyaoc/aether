@@ -12,8 +12,9 @@ public sealed class FollowLatestTests : IDisposable
 {
     private readonly GuiHarness harness = new();
 
-    private (MainWindow Window, MainWindowViewModel ViewModel) ShowWindow()
+    private async Task<(MainWindow Window, MainWindowViewModel ViewModel)> ShowWindowAsync()
     {
+        await harness.SaveCredentialAsync();
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
@@ -53,7 +54,7 @@ public sealed class FollowLatestTests : IDisposable
     [InlineData(1100)]
     public Task New_danmaku_scroll_to_the_latest_while_at_the_bottom(int count) => HeadlessApp.Session.Dispatch(async () =>
     {
-        var (window, viewModel) = ShowWindow();
+        var (window, viewModel) = await ShowWindowAsync();
         try
         {
             Receive(viewModel, count);
@@ -70,7 +71,7 @@ public sealed class FollowLatestTests : IDisposable
     [InlineData(1000)]
     public Task Scrolling_up_pauses_following_until_the_user_returns_to_the_bottom(int count) => HeadlessApp.Session.Dispatch(async () =>
     {
-        var (window, viewModel) = ShowWindow();
+        var (window, viewModel) = await ShowWindowAsync();
         try
         {
             Receive(viewModel, count);

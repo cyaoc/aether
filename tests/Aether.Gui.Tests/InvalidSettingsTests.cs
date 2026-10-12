@@ -14,6 +14,7 @@ public sealed class InvalidSettingsTests
         HeadlessApp.Session.Dispatch(async () =>
         {
             using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
             Directory.CreateDirectory(harness.DataDirectory);
             var path = Aether.Core.Settings.FilePath(harness.DataDirectory);
             File.WriteAllText(path, yaml);

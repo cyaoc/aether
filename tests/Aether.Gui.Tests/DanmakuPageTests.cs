@@ -15,12 +15,11 @@ public sealed class DanmakuPageTests
     [InlineData("known", true)]
     [InlineData("loading", false)]
     [InlineData("failed", false)]
-    [InlineData("missing", false)]
     public Task Only_known_account_danmaku_are_marked_and_late_account_reads_update_existing_rows(string accountState, bool dark) =>
         HeadlessApp.Session.Dispatch(async () =>
         {
             using var harness = new GuiHarness();
-            if (accountState != "missing") await harness.SaveCredentialAsync();
+            await harness.SaveCredentialAsync();
             var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
             harness.NavResponse = token => response.Task.WaitAsync(token);
             var viewModel = harness.CreateViewModel();
@@ -36,8 +35,6 @@ public sealed class DanmakuPageTests
                 GuiHarness.Flush();
                 AssertRow(0, accountState == "known");
                 AssertRow(1, false);
-                if (accountState == "missing")
-                    Assert.Contains(window.GetVisualDescendants().OfType<TextBlock>(), x => x.Text == "未登录" && x.IsEffectivelyVisible);
                 if (accountState == "loading")
                 {
                     response.SetResult(GuiHarness.AccountResponse());
