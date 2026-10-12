@@ -22,12 +22,16 @@
       <Grid ColumnDefinitions="*,Auto">
         <TextBlock x:Name="PageTitle" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center" />
         <StackPanel Grid.Column="1">
-          <CheckBox x:Name="BlindBoxInput" Content="记录盲盒" />
-          <TextBlock x:Name="BlindBoxReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-          <TextBlock x:Name="BlindBoxError" Classes="error" />
-          <CheckBox x:Name="WelcomeInput" Content="进场欢迎" />
-          <TextBlock x:Name="WelcomeReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-          <TextBlock x:Name="WelcomeError" Classes="error" />
+          <StackPanel x:Name="BlindBoxHeader">
+            <CheckBox x:Name="BlindBoxInput" Content="记录盲盒" />
+            <TextBlock x:Name="BlindBoxReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+            <TextBlock x:Name="BlindBoxError" Classes="error" />
+          </StackPanel>
+          <StackPanel x:Name="WelcomeHeader">
+            <CheckBox x:Name="WelcomeInput" Content="进场欢迎" />
+            <TextBlock x:Name="WelcomeReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+            <TextBlock x:Name="WelcomeError" Classes="error" />
+          </StackPanel>
         </StackPanel>
       </Grid>
       <TextBlock x:Name="TimingHint" Classes="hint" />

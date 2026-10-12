@@ -62,7 +62,7 @@
           </Border>
           <TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"
                      IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-          <ListBox x:Name="Navigation" Background="Transparent" SelectionChanged="Navigate" Margin="0,8,0,0"
+          <ListBox x:Name="Navigation" Background="Transparent" SelectionMode="AlwaysSelected" SelectionChanged="Navigate" Margin="0,8,0,0"
                    AutomationProperties.Name="功能导航">
             <ListBox.Styles>
               <Style Selector="ListBoxItem">

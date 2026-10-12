@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using Aether.Core;
@@ -15,14 +16,17 @@ public enum SettingsSection { BlindBox, Welcome, Send, General }
 public partial class SettingsPage : UserControl
 {
     private readonly string dataDirectory;
+    private readonly string group;
     private Settings settings = null!;
 
     private Dictionary<string, string?> original = [];
     private bool loading;
     private SettingsException? fileError;
     private List<long> welcomeUids = [];
+    private MainWindowViewModel? viewModel;
     public SettingsSection Section { get; }
-    public event Action<bool>? SaveCompleted;
+    /// <summary>Raised once Save has written the file or failed to, so other views can reread it.</summary>
+    public event Action? SaveCompleted;
 
     public SettingsPage() : this(DataDirectory.Locate(), SettingsSection.General) { }
 
@@ -31,16 +35,16 @@ public partial class SettingsPage : UserControl
         this.dataDirectory = dataDirectory;
         Section = section;
         InitializeComponent();
-        PageTitle.Text = section switch
+        (PageTitle.Text, group) = section switch
         {
-            SettingsSection.BlindBox => "盲盒统计",
-            SettingsSection.Welcome => "进场欢迎",
-            SettingsSection.Send => "发送队列",
-            _ => "通用设置"
+            SettingsSection.BlindBox => ("盲盒统计", "blind_box."),
+            SettingsSection.Welcome => ("进场欢迎", "welcome."),
+            SettingsSection.Send => ("发送队列", "send."),
+            _ => ("通用设置", "log.")
         };
-        TimingHint.Text = section == SettingsSection.General ? "重启后生效" : "下次连接直播间时生效";
-        BlindBoxFields.IsVisible = BlindBoxInput.IsVisible = BlindBoxReadOnly.IsVisible = section == SettingsSection.BlindBox;
-        WelcomeFields.IsVisible = WelcomeInput.IsVisible = WelcomeReadOnly.IsVisible = section == SettingsSection.Welcome;
+        TimingHint.Text = AppliesOnRestart ? "重启后生效" : "下次观看直播间时生效";
+        BlindBoxHeader.IsVisible = BlindBoxFields.IsVisible = section == SettingsSection.BlindBox;
+        WelcomeHeader.IsVisible = WelcomeFields.IsVisible = section == SettingsSection.Welcome;
         SendFields.IsVisible = section == SettingsSection.Send;
         GeneralFields.IsVisible = section == SettingsSection.General;
         LevelInput.ItemsSource = Settings.LogLevels;
@@ -63,11 +67,14 @@ public partial class SettingsPage : UserControl
         LoadSettings();
     }
 
+    /// <summary>Log settings are read at startup; every other page's settings when watching a room.</summary>
+    private bool AppliesOnRestart => Section == SettingsSection.General;
+
     private void LoadSettings(Settings? current = null)
     {
         loading = true;
         settings = current ?? Settings.Load(dataDirectory);
-        fileError = settings.Error;
+        ShowFileStatus(settings);
         Show(RetentionInput, RetentionReadOnly, settings.LogRetentionDays);
         Show(LevelInput, LevelReadOnly, settings.LogLevel);
         Show(BlindBoxInput, BlindBoxReadOnly, settings.BlindBoxEnabled);
@@ -86,26 +93,29 @@ public partial class SettingsPage : UserControl
         Show(WelcomeFanClubInput, WelcomeFanClubReadOnly, settings.WelcomeFanClubLevel);
         Show(WelcomeGuardInput, WelcomeGuardReadOnly, settings.WelcomeGuard);
         Show(WelcomeWealthInput, WelcomeWealthReadOnly, settings.WelcomeWealthLevel);
-        UnknownKeysMessage.IsVisible = settings.UnknownKeys.Count > 0;
-        UnknownKeysMessage.Text = $"未知设置键：{string.Join("、", settings.UnknownKeys)}。保存后会原样保留。";
-        BlindBoxReadOnly.IsVisible &= Section == SettingsSection.BlindBox;
-        WelcomeReadOnly.IsVisible &= Section == SettingsSection.Welcome;
         original = Fields().ToDictionary(field => field.Name, field => field.Input);
         loading = false;
         Validate();
     }
 
+    /// <summary>Rereads an untouched page; a draft keeps its inputs and only takes the file's status.</summary>
     public void RefreshFileStatus(Settings current)
     {
-        if (!DirtyMessage.IsVisible && string.IsNullOrEmpty(WelcomeUidsInput.Text))
+        // A snapshot with an error filled the inputs with values that must not be used, so a draft over it is dropped.
+        if (settings.Error is not null || !DirtyMessage.IsVisible && string.IsNullOrEmpty(WelcomeUidsInput.Text))
         {
             LoadSettings(current);
             return;
         }
+        ShowFileStatus(current);
+        Validate();
+    }
+
+    private void ShowFileStatus(Settings current)
+    {
         fileError = current.Error;
         UnknownKeysMessage.IsVisible = current.UnknownKeys.Count > 0;
         UnknownKeysMessage.Text = $"未知设置键：{string.Join("、", current.UnknownKeys)}。保存后会原样保留。";
-        Validate();
     }
 
     // Each control shows its setting; a line that cannot be edited safely leaves it read-only beside its hint.
@@ -139,30 +149,26 @@ public partial class SettingsPage : UserControl
         readOnly.IsVisible = !setting.CanEdit;
     }
 
-    /// <summary>Each setting this form edits and the text its control now holds; validating, enabling Save
+    private readonly record struct Field(string Name, bool CanEdit, string? Input, TextBlock Error);
+
+    /// <summary>Each setting this page edits and the text its control now holds; validating, enabling Save
     /// and saving all read this one list.</summary>
-    private (string Name, bool CanEdit, string? Input, TextBlock Error)[] Fields() =>
-    new (string Name, bool CanEdit, string? Input, TextBlock Error)[]
+    private Field[] Fields() =>
+    new Field[]
     {
-        (settings.LogRetentionDays.Name, settings.LogRetentionDays.CanEdit, RetentionInput.Text, RetentionError),
-        (settings.LogLevel.Name, settings.LogLevel.CanEdit, LevelInput.SelectedItem?.ToString(), LevelError),
-        (settings.BlindBoxEnabled.Name, settings.BlindBoxEnabled.CanEdit, Settings.BooleanText(BlindBoxInput.IsChecked == true), BlindBoxError),
-        (settings.BlindBoxKeyword.Name, settings.BlindBoxKeyword.CanEdit, KeywordInput.Text, KeywordError),
-        (settings.BlindBoxAnnounce.Name, settings.BlindBoxAnnounce.CanEdit, Settings.BooleanText(AnnounceInput.IsChecked == true), AnnounceError),
-        (settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text, SendIntervalError),
-        (settings.WelcomeEnabled.Name, settings.WelcomeEnabled.CanEdit, Settings.BooleanText(WelcomeInput.IsChecked == true), WelcomeError),
-        (settings.WelcomeText.Name, settings.WelcomeText.CanEdit, WelcomeTextInput.Text, WelcomeTextError),
-        (settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, Settings.NumberListText(welcomeUids), WelcomeUidsError),
-        (settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, WelcomeFanClubInput.Text, WelcomeFanClubError),
-        (settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, WelcomeGuardInput.SelectedItem?.ToString(), WelcomeGuardError),
-        (settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, WelcomeWealthInput.Text, WelcomeWealthError),
-    }.Where(field => field.Name.StartsWith(Section switch
-    {
-        SettingsSection.BlindBox => "blind_box.",
-        SettingsSection.Welcome => "welcome.",
-        SettingsSection.Send => "send.",
-        _ => "log."
-    }, StringComparison.Ordinal)).ToArray();
+        new(settings.LogRetentionDays.Name, settings.LogRetentionDays.CanEdit, RetentionInput.Text, RetentionError),
+        new(settings.LogLevel.Name, settings.LogLevel.CanEdit, LevelInput.SelectedItem?.ToString(), LevelError),
+        new(settings.BlindBoxEnabled.Name, settings.BlindBoxEnabled.CanEdit, Settings.BooleanText(BlindBoxInput.IsChecked == true), BlindBoxError),
+        new(settings.BlindBoxKeyword.Name, settings.BlindBoxKeyword.CanEdit, KeywordInput.Text, KeywordError),
+        new(settings.BlindBoxAnnounce.Name, settings.BlindBoxAnnounce.CanEdit, Settings.BooleanText(AnnounceInput.IsChecked == true), AnnounceError),
+        new(settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text, SendIntervalError),
+        new(settings.WelcomeEnabled.Name, settings.WelcomeEnabled.CanEdit, Settings.BooleanText(WelcomeInput.IsChecked == true), WelcomeError),
+        new(settings.WelcomeText.Name, settings.WelcomeText.CanEdit, WelcomeTextInput.Text, WelcomeTextError),
+        new(settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, Settings.NumberListText(welcomeUids), WelcomeUidsError),
+        new(settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, WelcomeFanClubInput.Text, WelcomeFanClubError),
+        new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, WelcomeGuardInput.SelectedItem?.ToString(), WelcomeGuardError),
+        new(settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, WelcomeWealthInput.Text, WelcomeWealthError),
+    }.Where(field => field.Name.StartsWith(group, StringComparison.Ordinal)).ToArray();
 
     private void Validate()
     {
@@ -180,7 +186,7 @@ public partial class SettingsPage : UserControl
         if (Section == SettingsSection.Welcome && settings.WelcomeUids.CanEdit
             && !string.IsNullOrWhiteSpace(WelcomeUidsInput.Text) && !TryUid(out _))
         {
-            error = "welcome.uids：" + Settings.Validate("welcome.uids", "[0]");
+            error = $"{settings.WelcomeUids.Name}：UID 必须是正整数。";
             WelcomeUidsError.Text = error;
             WelcomeUidsError.IsVisible = true;
         }
@@ -190,11 +196,11 @@ public partial class SettingsPage : UserControl
     }
 
     /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
-    private static string? InputError((string Name, bool CanEdit, string? Input, TextBlock Error) field) =>
+    private static string? InputError(Field field) =>
         field.CanEdit && Settings.Validate(field.Name, field.Input) is { } reason ? $"{field.Name}：{reason}" : null;
 
     /// <summary>The inputs Save would write; read-only settings keep the snapshot's values.</summary>
-    private static Dictionary<string, string> Changes(IEnumerable<(string Name, bool CanEdit, string? Input, TextBlock Error)> fields) =>
+    private static Dictionary<string, string> Changes(IEnumerable<Field> fields) =>
         fields.Where(field => field.CanEdit).ToDictionary(field => field.Name, field => field.Input!);
 
     private void Save(object? sender, RoutedEventArgs e)
@@ -209,16 +215,32 @@ public partial class SettingsPage : UserControl
             LoadSettings();
             if (settings.Error is null)
             {
-                SaveCompleted?.Invoke(true);
+                SaveCompleted?.Invoke();
                 Message.Text = "已保存。";
+                ReconnectNotice.IsVisible = !AppliesOnRestart && viewModel?.HasRoomConnection == true;
             }
         }
         catch (Exception error) when (error is SettingsException or IOException or UnauthorizedAccessException)
         {
             LoadSettings();
-            SaveCompleted?.Invoke(false);
+            SaveCompleted?.Invoke();
             Message.Text = error.Message;
         }
+    }
+
+    protected override void OnDataContextChanged(EventArgs e)
+    {
+        base.OnDataContextChanged(e);
+        if (viewModel is not null) viewModel.PropertyChanged -= OnRoomStateChanged;
+        viewModel = DataContext as MainWindowViewModel;
+        if (viewModel is not null) viewModel.PropertyChanged += OnRoomStateChanged;
+    }
+
+    // The room connection the notice warned about has ended (disconnected, reconnected or failed).
+    private void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(MainWindowViewModel.HasRoomConnection) && viewModel?.HasRoomConnection != true)
+            ReconnectNotice.IsVisible = false;
     }
 
     private bool TryUid(out long uid) =>

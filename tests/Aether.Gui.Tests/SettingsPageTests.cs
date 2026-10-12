@@ -33,7 +33,7 @@ public sealed class SettingsPageTests
             Assert.NotNull(wealth);
             Assert.False(enabled.IsChecked);
             Assert.True(enabled.IsEnabled);
-            Assert.Equal("下次连接直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
+            Assert.Equal("下次观看直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
             Assert.Equal("欢迎{昵称}", text.Text);
             Assert.False(text.IsReadOnly);
             Assert.Equal(["42"], UidLabels(window));
@@ -207,7 +207,7 @@ public sealed class SettingsPageTests
             Assert.NotNull(input);
             Assert.True(input.IsChecked);
             Assert.True(input.IsEnabled);
-            Assert.Equal("下次连接直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
+            Assert.Equal("下次观看直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
             input.IsChecked = false;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(line is null ? before.Replace("  enabled: true\n", "  enabled: true\n  announce: false\n")
@@ -318,7 +318,7 @@ public sealed class SettingsPageTests
             Assert.Equal(before.Replace("enabled: false # 开关", "enabled: true # 开关"), File.ReadAllText(path));
             Assert.True(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);
             Assert.StartsWith("已保存", window.FindControl<TextBlock>("Message")!.Text);
-            Assert.Equal("下次连接直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
+            Assert.Equal("下次观看直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
             input.IsChecked = false;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);
@@ -458,6 +458,77 @@ public sealed class SettingsPageTests
             input.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
         }
     }
+
+    [Fact]
+    public Task Welcome_uid_tags_validate_add_remove_and_save_a_single_line() => WithSettingsPage(SettingsSection.Welcome, null, (page, path) =>
+    {
+        var input = page.FindControl<TextBox>("WelcomeUidsInput")!;
+        var tags = page.FindControl<WrapPanel>("UidTags");
+        Assert.NotNull(tags);
+        foreach (var invalid in new[] { "0", "-1", "abc", "1.5", "1, 2", "9223372036854775808" })
+        {
+            Enter(invalid);
+            Assert.Empty(tags.Children);
+            Assert.Contains("正整数", page.FindControl<TextBlock>("WelcomeUidsError")!.Text);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+        }
+        Enter("42");
+        Enter("42");
+        Assert.Single(tags.Children);
+        Enter("9223372036854775807");
+        Enter("2147483648");
+        Assert.Equal(3, tags.Children.Count);
+        tags.Children[0].GetVisualDescendants().OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal(2, tags.Children.Count);
+
+        void Enter(string value)
+        {
+            input.Text = value;
+            Dispatcher.UIThread.RunJobs();
+            var key = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter };
+            input.RaiseEvent(key);
+            Assert.True(key.Handled);
+            GuiHarness.Flush();
+        }
+        Assert.Equal([long.MaxValue, 2147483648L], Settings.Load(Path.GetDirectoryName(path)!).WelcomeUids.Value);
+        Assert.Contains("  uids: [9223372036854775807, 2147483648]", File.ReadAllText(path));
+    });
+
+    [Fact]
+    public Task Welcome_insert_buttons_use_caret_and_at_viewer_is_inserted_only_once() => WithSettingsPage(SettingsSection.Welcome, null, (page, path) =>
+    {
+        var text = page.FindControl<TextBox>("WelcomeTextInput")!;
+        text.Text = "欢迎回家";
+        text.CaretIndex = 2;
+        Click("InsertNicknameButton");
+        Assert.Equal("欢迎{昵称}回家", text.Text);
+        Assert.Equal(6, text.CaretIndex);
+        Click("InsertGuardButton");
+        Assert.Equal("欢迎{昵称}{大航海}回家", text.Text);
+        Click("InsertAtButton");
+        Click("InsertAtButton");
+        Assert.Equal("{@}欢迎{昵称}{大航海}回家", text.Text);
+
+        void Click(string name)
+        {
+            var button = page.FindControl<Button>(name);
+            Assert.NotNull(button);
+            button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        }
+    });
+
+    [Fact]
+    public Task Escaped_at_text_does_not_block_inserting_an_at_placeholder() => WithSettingsPage(SettingsSection.Welcome, null, (page, path) =>
+    {
+        var text = page.FindControl<TextBox>("WelcomeTextInput")!;
+        text.Text = "欢迎{{@}}";
+        var button = page.FindControl<Button>("InsertAtButton")!;
+        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal("{@}欢迎{{@}}", text.Text);
+        Assert.Null(Settings.Validate("welcome.text", text.Text));
+    });
 
     private static Task WithSettingsPage(SettingsSection section, string? yaml, Action<SettingsPage, string> test) =>
         HeadlessApp.Session.Dispatch(() =>
