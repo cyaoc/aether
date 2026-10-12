@@ -21,7 +21,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     internal sealed record Announcement(long Id, long Uid, string Nickname) : Item(Id, Uid, Nickname);
     /// <summary>A 进场欢迎, whose text was fixed when queued.</summary>
     internal sealed record Welcome(long Id, long Uid, string Nickname, string Text, bool Mention, long ReceivedAt,
-        string Condition, string? Value) : Item(Id, Uid, Nickname);
+        WelcomeCondition Condition, string? Value) : Item(Id, Uid, Nickname);
 
     /// <summary>The part of a 一轮盲盒 one announcement reports; a Count, since a box can be worth nothing.</summary>
     private readonly record struct Reported(BlindBoxTally Tally, long Count);
@@ -58,7 +58,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
 
     /// <summary>Reports a rejected 进场欢迎 or queues one whose text is fixed now; welcomes never merge.</summary>
     public void EnqueueWelcome(long uid, string nickname, string text, bool mention, long receivedAt,
-        string condition, string? value, string? rejectionReason)
+        WelcomeCondition condition, string? value, string? rejectionReason)
     {
         var item = new Welcome(Interlocked.Increment(ref nextId), uid, nickname, text, mention, receivedAt, condition, value);
         if (rejectionReason is not null) Report(item, SendQueueItemState.NotQueued, text, reason: rejectionReason);
@@ -212,10 +212,9 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     {
         if (item is not Welcome welcome || time.GetElapsedTime(welcome.ReceivedAt) < WelcomeLifetime) return false;
         rateLimitRetryOwed = false;
-        Finish(item, null, SendQueueItemState.Discarded,
-            reason: FormattableString.Invariant($"欢迎已过期，进场已满 {WelcomeLifetime.TotalSeconds} 秒"));
-        logger.LogInformation("欢迎已过期，进场已满 {Seconds} 秒，已丢弃：欢迎观众 {Nickname}（{Uid}）",
-            WelcomeLifetime.TotalSeconds, item.Nickname, item.Uid);
+        var reason = FormattableString.Invariant($"欢迎已过期，进场已满 {WelcomeLifetime.TotalSeconds} 秒");
+        Finish(item, null, SendQueueItemState.Discarded, reason: reason);
+        logger.LogInformation("{Reason}，已丢弃：欢迎观众 {Nickname}（{Uid}）", reason, item.Nickname, item.Uid);
         return true;
     }
 

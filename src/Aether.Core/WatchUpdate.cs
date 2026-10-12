@@ -20,6 +20,9 @@ public enum SendQueueItemKind { BlindBoxQuery, BlindBoxAnnouncement, Welcome }
 
 public enum SendQueueItemState { Queued, Sending, Sent, WaitingToRetry, Discarded, NotQueued }
 
+/// <summary>The 欢迎条件 a welcome matched, in the order they are checked.</summary>
+public enum WelcomeCondition { Uid, FanClubLevel, Guard, WealthLevel }
+
 /// <summary>One item's progress in a room connection. Id survives reconnects and is never reused in this process, so a
 /// shell can keep items across room connections. A connection ending leaves unfinished items for the shell to mark; it
 /// emits no individual discards.</summary>
@@ -28,8 +31,8 @@ public sealed record SendQueueUpdate(long Id, DateTimeOffset OccurredAt, SendQue
 {
     /// <summary>Present on Queued/NotQueued welcomes and on every Sending/Sent update; otherwise null, not a text reset.</summary>
     public string? Text { get; init; }
-    /// <summary>The matched welcome condition: UID, 粉丝团等级, 大航海身份 or 荣耀等级.</summary>
-    public string? WelcomeCondition { get; init; }
+    /// <summary>Present on welcomes only.</summary>
+    public WelcomeCondition? WelcomeCondition { get; init; }
     /// <summary>The viewer's matched level or guard name; null for UID matches and non-welcomes.</summary>
     public string? WelcomeValue { get; init; }
     /// <summary>Present on WaitingToRetry, Discarded and NotQueued.</summary>

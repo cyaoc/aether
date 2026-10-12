@@ -26,7 +26,7 @@ public sealed class BlindBoxAnnouncementTests
             Gift(h.Time.GetUtcNow(), uid: 30003));
         h.Time.Advance(TimeSpan.FromSeconds(2));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
-        await h.WaitForLogAsync("（10001）");
+        await h.WaitForLogAsync("发送弹幕成功：播报观众 测试观众（10001）");
         h.Time.Advance(TimeSpan.FromSeconds(1));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入100电池 亏70电池", uid: 20002);
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
@@ -44,7 +44,7 @@ public sealed class BlindBoxAnnouncementTests
             h.Time.Advance(TimeSpan.FromMilliseconds(1));
         }
         AssertAnnouncement(await NextSendAsync(sent), expected, uid: 30003);
-        await h.WaitForLogAsync("（30003）");
+        await h.WaitForLogAsync("发送弹幕成功：播报观众 测试观众（30003）");
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
     }

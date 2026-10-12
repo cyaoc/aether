@@ -11,12 +11,12 @@ public sealed class SendQueueUpdateTests
     private const string Query = """{"cmd":"DANMU_MSG","info":[[],"今日盲盒",[10001,"查询观众"]]}""";
 
     [Theory]
-    [InlineData("welcome.uids", "[10001]", "UID", null)]
-    [InlineData("welcome.fan_club_level", "21", "粉丝团等级", "47")]
-    [InlineData("welcome.guard", "舰长", "大航海身份", "舰长")]
-    [InlineData("welcome.wealth_level", "30", "荣耀等级", "45")]
+    [InlineData("welcome.uids", "[10001]", WelcomeCondition.Uid, null)]
+    [InlineData("welcome.fan_club_level", "21", WelcomeCondition.FanClubLevel, "47")]
+    [InlineData("welcome.guard", "舰长", WelcomeCondition.Guard, "舰长")]
+    [InlineData("welcome.wealth_level", "30", WelcomeCondition.WealthLevel, "45")]
     public async Task Welcome_reports_queued_sending_and_sent_with_the_same_id_and_local_time(
-        string setting, string threshold, string condition, string? value)
+        string setting, string threshold, WelcomeCondition condition, string? value)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -95,11 +95,11 @@ public sealed class SendQueueUpdateTests
     }
 
     [Theory]
-    [InlineData("{大航海}", 20, "welcome.uids", "[10001]", "UID", null, "欢迎语拼出来是空的", "")]
-    [InlineData("{大航海}", 20, "welcome.fan_club_level", "21", "粉丝团等级", "47", "欢迎语拼出来是空的", "")]
-    [InlineData("欢迎回家", 1, "welcome.wealth_level", "30", "荣耀等级", "45", "欢迎语超过弹幕字数上限 1", "欢迎回家")]
+    [InlineData("{大航海}", 20, "welcome.uids", "[10001]", WelcomeCondition.Uid, null, "欢迎语拼出来是空的", "")]
+    [InlineData("{大航海}", 20, "welcome.fan_club_level", "21", WelcomeCondition.FanClubLevel, "47", "欢迎语拼出来是空的", "")]
+    [InlineData("欢迎回家", 1, "welcome.wealth_level", "30", WelcomeCondition.WealthLevel, "45", "欢迎语超过弹幕字数上限 1", "欢迎回家")]
     public async Task Rejected_welcome_reports_only_not_queued_with_its_text_condition_and_reason(
-        string text, int limit, string setting, string threshold, string condition, string? value, string reason, string expectedText)
+        string text, int limit, string setting, string threshold, WelcomeCondition condition, string? value, string reason, string expectedText)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();

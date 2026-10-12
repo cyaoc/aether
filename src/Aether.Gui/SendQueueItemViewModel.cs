@@ -27,10 +27,10 @@ public partial class SendQueueItemViewModel(SendQueueUpdate first) : ObservableO
         SendQueueItemKind.BlindBoxAnnouncement => "播报",
         _ => first.WelcomeCondition switch
         {
-            "UID" => "指定 UID",
-            "粉丝团等级" => $"粉丝团 {first.WelcomeValue}",
-            "大航海身份" => first.WelcomeValue ?? "",
-            "荣耀等级" => $"荣耀 {first.WelcomeValue}",
+            WelcomeCondition.Uid => "指定 UID",
+            WelcomeCondition.FanClubLevel => $"粉丝团 {first.WelcomeValue}",
+            WelcomeCondition.Guard => first.WelcomeValue ?? "",
+            WelcomeCondition.WealthLevel => $"荣耀 {first.WelcomeValue}",
             _ => ""
         }
     };
