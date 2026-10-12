@@ -43,6 +43,14 @@ public sealed partial class AetherClient(
     public IAsyncEnumerable<LoginUpdate> LoginAsync(CancellationToken cancellationToken = default) =>
         EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
 
+    /// <summary>Reads the saved credential's account; returns null when not logged in.
+    /// Does not refresh or delete the credential, or take a room lock. Request failures propagate to the caller.</summary>
+    public async Task<Account?> GetAccountAsync(CancellationToken cancellationToken = default)
+    {
+        if (stores.Value.Credentials.Load() is not { } credential) return null;
+        return await new BilibiliApi(http, timeProvider, credential).GetAccountAsync(cancellationToken);
+    }
+
     /// <summary>Signs out on B站 when possible; the local credential is deleted either way unless the caller cancels.</summary>
     /// <remarks>Takes no room lock. A room connection running elsewhere on this data directory keeps going,
     /// and its next reconnect asks for a scan.</remarks>

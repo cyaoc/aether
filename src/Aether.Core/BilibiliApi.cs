@@ -42,6 +42,13 @@ internal sealed class BilibiliApi
     public async Task<bool> IsLoggedInAsync(CancellationToken cancellationToken) =>
         credential is not null && (await GetLoginStatusAndWbiKeysAsync(cancellationToken)).Mid != 0;
 
+    public async Task<Account?> GetAccountAsync(CancellationToken cancellationToken)
+    {
+        var (mid, data) = await GetLoginStatusAndWbiKeysAsync(cancellationToken);
+        return mid == 0 ? null : new Account(mid,
+            data.GetProperty("uname").GetString() ?? throw new InvalidDataException("B站未返回账号昵称。"));
+    }
+
     private async Task<(long Mid, JsonElement Data)> GetLoginStatusAndWbiKeysAsync(CancellationToken cancellationToken)
     {
         if (loginStatus is { } cached) return cached;
