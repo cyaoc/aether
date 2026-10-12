@@ -10,6 +10,8 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     private static readonly TimeSpan QuietWindow = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan SameTextWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan WelcomeLifetime = TimeSpan.FromSeconds(30);
+    // Process-wide, so a shell that keeps items across room connections never sees an id twice.
+    private static long nextId;
 
     /// <summary>One queued send, addressed to a viewer.</summary>
     internal abstract record Item(long Id, long Uid, string Nickname);
@@ -41,7 +43,6 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     private readonly object gate = new();
     private readonly HashSet<long> waitingQueries = [];
     private readonly Dictionary<long, Round> rounds = [];
-    private long nextId;
     // Only the sender touches these.
     private long? lastSendEnded;
     private readonly Dictionary<string, long> sendEndedByText = [];
@@ -72,13 +73,17 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     }
 
     private void Report(Item item, SendQueueItemState state, string? text = null, string? reason = null,
-        double? retrySeconds = null) => output.TryWrite(new SendQueueUpdate(item.Id, time.GetLocalNow(),
+        double? retrySeconds = null)
+    {
+        var welcome = item as Welcome;
+        output.TryWrite(new SendQueueUpdate(item.Id, time.GetLocalNow(),
             item switch { Query => SendQueueItemKind.BlindBoxQuery, Welcome => SendQueueItemKind.Welcome,
                 _ => SendQueueItemKind.BlindBoxAnnouncement }, state, item.Uid, item.Nickname)
         {
-            Text = text, WelcomeCondition = (item as Welcome)?.Condition, WelcomeValue = (item as Welcome)?.Value,
+            Text = text, WelcomeCondition = welcome?.Condition, WelcomeValue = welcome?.Value,
             Reason = reason, RetrySeconds = retrySeconds
         });
+    }
 
     /// <summary>Records a whole gift message; <paramref name="save"/> returns whether a box was newly recorded and joins
     /// its viewer's 一轮盲盒.</summary>
@@ -189,15 +194,14 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                 continue;
             }
             rateLimitRetryOwed = false;
-            Finish(item, reported);
             if (failure is null)
             {
-                Report(item, SendQueueItemState.Sent, text);
+                Finish(item, reported, SendQueueItemState.Sent, text);
                 logger.LogInformation("发送弹幕成功：{Action}观众 {Nickname}（{Uid}）：{Message}", action, item.Nickname, item.Uid, text);
             }
             else
             {
-                Report(item, SendQueueItemState.Discarded, reason: failure.Message);
+                Finish(item, reported, SendQueueItemState.Discarded, reason: failure.Message);
                 logger.LogWarning(failure, "发送弹幕失败，已丢弃：{Action}观众 {Nickname}（{Uid}）：{Message}；{Error}",
                     action, item.Nickname, item.Uid, text, failure.Message);
             }
@@ -208,8 +212,8 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     {
         if (item is not Welcome welcome || time.GetElapsedTime(welcome.ReceivedAt) < WelcomeLifetime) return false;
         rateLimitRetryOwed = false;
-        Finish(item, null);
-        Report(item, SendQueueItemState.Discarded, reason: "欢迎已过期，进场已满 30 秒");
+        Finish(item, null, SendQueueItemState.Discarded,
+            reason: FormattableString.Invariant($"欢迎已过期，进场已满 {WelcomeLifetime.TotalSeconds} 秒"));
         logger.LogInformation("欢迎已过期，进场已满 {Seconds} 秒，已丢弃：欢迎观众 {Nickname}（{Uid}）",
             WelcomeLifetime.TotalSeconds, item.Nickname, item.Uid);
         return true;
@@ -230,11 +234,13 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         return true;
     }
 
-    private void Finish(Item item, Reported? reported)
+    private void Finish(Item item, Reported? reported, SendQueueItemState outcome, string? text = null, string? reason = null)
     {
         lock (gate)
         {
             pending.Reader.TryRead(out _);
+            // Under the gate, so the outcome precedes the next round's Queued and a later ask gets an item of its own.
+            Report(item, outcome, text, reason);
             if (reported is { } done)
             {
                 // Sent or given up, what this attempt reported is over either way; nothing carries into the next round.

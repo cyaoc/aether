@@ -322,8 +322,7 @@ public sealed class BlindBoxReplyTests
         h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] = """{"code":0,"data":{"room_id":999}}""";
         await using (var otherRoom = await h.WatchConnectedAsync())
         {
-            await h.Server.PushRoomMessageAsync(Gift(midnight, price: 99900));
-            await DanmakuAsync(h, otherRoom, "同步");
+            await h.PushAndSyncAsync(otherRoom, Gift(midnight, price: 99900));
         }
         h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] = """{"code":0,"data":{"room_id":7734200}}""";
         await using var updates = await h.WatchConnectedAsync();
@@ -380,9 +379,7 @@ public sealed class BlindBoxReplyTests
         Assert.Equal("今日没有盲盒记录", (await NextSendAsync(sent))["msg"]);
         await h.WaitForLogAsync(LogLevel.Information, "发送弹幕成功");
         await DanmakuAsync(h, updates);
-        await h.Server.PushRoomMessageAsync(Gift(beforeMidnight, price: 5010, spend: 4010));
-        await h.Server.PushRoomMessageAsync(Gift(beforeMidnight.AddSeconds(1), price: 99900));
-        await DanmakuAsync(h, updates, "同步");
+        await h.PushAndSyncAsync(updates, Gift(beforeMidnight, price: 5010, spend: 4010), Gift(beforeMidnight.AddSeconds(1), price: 99900));
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(7));
         h.Time.Advance(TimeSpan.FromMilliseconds(6999));
         await AssertNoSendAsync(sent);

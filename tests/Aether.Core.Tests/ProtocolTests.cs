@@ -136,7 +136,7 @@ public sealed class ProtocolTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        await PushRoomMessagesAsync(h, GiftV1, GiftV1, GiftV2, GiftV2, GiftV1, SyncDanmaku);
+        await PushRoomMessagesAsync(h, GiftV1, GiftV1, GiftV2, GiftV2, GiftV1, WatchHarness.SyncDanmaku);
         Assert.True(await updates.MoveNextAsync());
         Assert.Collection(GiftVersionNotices(h),
             message => Assert.Contains("V1", message),
@@ -166,21 +166,21 @@ public sealed class ProtocolTests
         await h.LoginAsync();
         await using (var updates = await h.WatchConnectedAsync())
         {
-            await PushRoomMessagesAsync(h, GiftV1, UnknownDanmaku, SyncDanmaku);
+            await PushRoomMessagesAsync(h, GiftV1, UnknownDanmaku, WatchHarness.SyncDanmaku);
             Assert.True(await updates.MoveNextAsync());
             await h.Server.DisconnectAsync();
             Assert.True(await updates.MoveNextAsync());
             Assert.IsType<Reconnecting>(updates.Current);
             await h.AdvanceRetryAsync(updates, 1);
             Assert.IsType<Connected>(updates.Current);
-            await PushRoomMessagesAsync(h, GiftV1, UnknownDanmaku, SyncDanmaku);
+            await PushRoomMessagesAsync(h, GiftV1, UnknownDanmaku, WatchHarness.SyncDanmaku);
             Assert.True(await updates.MoveNextAsync());
             Assert.Single(GiftVersionNotices(h));
             Assert.Single(Warnings(h), message => message.Contains("DANMU_MSG_V2"));
         }
 
         await using var next = await h.WatchConnectedAsync();
-        await PushRoomMessagesAsync(h, GiftV1, UnknownDanmaku, SyncDanmaku);
+        await PushRoomMessagesAsync(h, GiftV1, UnknownDanmaku, WatchHarness.SyncDanmaku);
         Assert.True(await next.MoveNextAsync());
         Assert.Equal(2, GiftVersionNotices(h).Length);
         Assert.Equal(2, Warnings(h).Count(message => message.Contains("DANMU_MSG_V2")));
@@ -189,7 +189,6 @@ public sealed class ProtocolTests
     private const string UnknownDanmaku ="""{"cmd":"DANMU_MSG_V2","data":{}}""";
     private const string GiftV1 ="""{"cmd":"SEND_GIFT","data":{}}""";
     private const string GiftV2 = """{"cmd":"SEND_GIFT_V2","data":{"pb":""}}""";
-    private const string SyncDanmaku = """{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""";
 
     /// <summary>Pushes room messages in one frame; end with a danmaku and read it to know every earlier one was handled.</summary>
     private static Task PushRoomMessagesAsync(WatchHarness h, params string[] bodies) =>

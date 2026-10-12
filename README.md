@@ -184,8 +184,8 @@ macOS / Linux 上数据库文件（含 `-wal` / `-shm`）权限为 0600，只有
 
 Core 的业务入口都在 `AetherClient`：`LoginAsync` 返回 `LoginQrCode`、`LoggedIn` 更新流；
 `LogoutAsync` 删除凭据；`WatchAsync` 返回 `WatchQrCode`（需要登录时）、`Connecting`、`Connected`、`Reconnecting`、`Danmaku`、`SendQueueUpdate` 更新流。
-`SendQueueUpdate` 报告盲盒查询、盲盒播报和进场欢迎的进队、开始发送、成功、等待重试、丢弃，以及欢迎命中却没进队的原因。
-每项编号在同一个直播间连接中唯一，自动重连后沿用；连接结束不逐项报告丢弃，由外壳标记未完成的项。CLI 忽略这些更新，继续使用现有日志。
+`SendQueueUpdate` 报告盲盒查询、盲盒播报和进场欢迎进入发送队列、开始发送、成功、等待重试、丢弃，以及欢迎命中却没进入发送队列的原因。
+每项编号在进程内不重复，自动重连后沿用；连接结束不逐项报告丢弃，由外壳标记未完成的项。CLI 忽略这些更新，继续使用现有日志。
 取消或释放更新流会结束对应操作。测试从这些入口驱动，注入假的 HTTP、真实 BCL WebSocket 的本地对端、
 `FakeTimeProvider` 和独立临时数据目录，使用真实 SQLite，不访问 B站。真实捕获测试帧的来源与脱敏方式见
 [Fixtures/README.md](tests/Aether.Core.Tests/Fixtures/README.md)。

@@ -20,8 +20,9 @@ public enum SendQueueItemKind { BlindBoxQuery, BlindBoxAnnouncement, Welcome }
 
 public enum SendQueueItemState { Queued, Sending, Sent, WaitingToRetry, Discarded, NotQueued }
 
-/// <summary>One item's progress in a room connection. Id survives reconnects and is unique within that connection.
-/// A connection ending leaves unfinished items for the shell to mark; it emits no individual discards.</summary>
+/// <summary>One item's progress in a room connection. Id survives reconnects and is never reused in this process, so a
+/// shell can keep items across room connections. A connection ending leaves unfinished items for the shell to mark; it
+/// emits no individual discards.</summary>
 public sealed record SendQueueUpdate(long Id, DateTimeOffset OccurredAt, SendQueueItemKind Kind,
     SendQueueItemState State, long Uid, string Nickname) : WatchUpdate
 {

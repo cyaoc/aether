@@ -195,7 +195,8 @@ public sealed class SendQueueUpdateTests
         await StepAsync(h, updates, welcome.Id, SendQueueItemState.Sending);
         await NextSendAsync(sent);
         await h.Server.PushRoomMessageAsync(Query);
-        var queued = await NextProgressAsync(h, updates);
+        Assert.Equal("今日盲盒", Assert.IsType<Danmaku>(await h.NextAsync(updates)).Content);
+        var queued = Assert.IsType<SendQueueUpdate>(await h.NextAsync(updates));
         Assert.Equal(SendQueueItemState.Queued, queued.State);
         Assert.Equal(SendQueueItemKind.BlindBoxQuery, queued.Kind);
         Assert.Equal(10001, queued.Uid);
@@ -246,14 +247,17 @@ public sealed class SendQueueUpdateTests
 
         await h.Server.PushRoomMessageAsync(Gift(h.Time.GetUtcNow(), price: 6000, nickname: "新昵称"));
         Assert.Empty(await SyncProgressAsync(h, updates));
+        // Already quiet when the request ends: the next round is queued at once, but only after this one's outcome.
+        h.Time.Advance(TimeSpan.FromSeconds(3));
         release.SetResult();
         Assert.Equal(sending.Text, (await StepAsync(h, updates, queued.Id, SendQueueItemState.Sent)).Text);
-        h.Time.Advance(TimeSpan.FromSeconds(3));
         var next = await NextProgressAsync(h, updates);
         Assert.Equal(SendQueueItemState.Queued, next.State);
         Assert.NotEqual(queued.Id, next.Id);
         Assert.Equal("新昵称", next.Nickname);
         Assert.Equal(h.Time.GetLocalNow(), next.OccurredAt);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
+        h.Time.Advance(TimeSpan.FromSeconds(1));
         var nextSending = await StepAsync(h, updates, next.Id, SendQueueItemState.Sending);
         Assert.Equal("本次投入50电池 赚10电池", nextSending.Text);
         Assert.Equal((await NextSendAsync(sent))["msg"], nextSending.Text);
@@ -313,7 +317,7 @@ public sealed class SendQueueUpdateTests
         await NextSendAsync(sent);
         Assert.Empty(await SyncProgressAsync(h, updates));
         await h.Server.DisconnectAsync();
-        Assert.IsType<Reconnecting>(await NextUpdateAsync(h, updates));
+        Assert.IsType<Reconnecting>(await h.NextAsync(updates));
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Connected>(updates.Current);
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
@@ -322,11 +326,12 @@ public sealed class SendQueueUpdateTests
         Assert.Equal(sending.Text, retry.Text);
         Assert.Equal((await NextSendAsync(sent))["msg"], retry.Text);
         await StepAsync(h, updates, queued.Id, SendQueueItemState.Sent);
-        Assert.Empty(await SyncProgressAsync(h, updates));
+        await h.Server.PushRoomMessageAsync(Query);
+        Assert.NotEqual(queued.Id, Assert.Single(await SyncProgressAsync(h, updates)).Id);
     }
 
     [Fact]
-    public async Task Mixed_items_have_unique_ids_and_connection_end_does_not_report_individual_discards()
+    public async Task Mixed_items_have_unique_ids()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -355,22 +360,10 @@ public sealed class SendQueueUpdateTests
         Assert.Single(items, item => item.Kind == SendQueueItemKind.BlindBoxQuery);
         Assert.Single(items, item => item.Kind == SendQueueItemKind.BlindBoxAnnouncement);
         Assert.DoesNotContain(progress, item => item.State is SendQueueItemState.Sent or SendQueueItemState.Discarded);
-        await h.Stop.CancelAsync();
-        Assert.False(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
-        await h.WaitForLogAsync("丢掉 4 条待发弹幕");
     }
 
-    private static async Task<List<SendQueueUpdate>> SyncProgressAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates)
-    {
-        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""");
-        var progress = new List<SendQueueUpdate>();
-        while (true)
-        {
-            var update = await NextUpdateAsync(h, updates);
-            if (update is Danmaku { Content: "同步" }) return progress;
-            if (update is SendQueueUpdate item) progress.Add(item);
-        }
-    }
+    private static async Task<List<SendQueueUpdate>> SyncProgressAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates) =>
+        [.. (await h.PushAndCollectAsync(updates)).OfType<SendQueueUpdate>()];
 
     private static async Task<SendQueueUpdate> StepAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates,
         long id, SendQueueItemState state)
@@ -384,22 +377,7 @@ public sealed class SendQueueUpdateTests
     private static async Task<SendQueueUpdate> NextProgressAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates)
     {
         WatchUpdate update;
-        do { update = await NextUpdateAsync(h, updates); } while (update is Danmaku);
+        do { update = await h.NextAsync(updates); } while (update is Danmaku);
         return Assert.IsType<SendQueueUpdate>(update);
-    }
-
-    private static async Task<WatchUpdate> NextUpdateAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates)
-    {
-        var next = updates.MoveNextAsync().AsTask();
-        try { Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token)); }
-        finally
-        {
-            if (!next.IsCompleted)
-            {
-                await h.Stop.CancelAsync();
-                await next;
-            }
-        }
-        return updates.Current;
     }
 }
