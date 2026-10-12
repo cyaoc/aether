@@ -50,10 +50,8 @@ public sealed class Settings
           # 欢迎语，非空文字。可用 {@}（@ 这位观众，只能放开头，不算字数）、{昵称}（太长时自动截短）、
           # {大航海}（舰长/提督/总督，不是大航海身份时为空）；要写花括号本身，用 {{ 和 }}
           # 以 { 开头时要加引号，例如："{@}欢迎回家"、"欢迎{大航海}{昵称}"、"欢迎{昵称}光临"
+          # 英文、数字、半角符号算 1，其他字符算 2。上限自动读取账号的
           text: "欢迎{大航海}{昵称}"
-          # 弹幕字数上限：英文、数字、半角符号算 1，其他字符算 2，必须为正整数
-          # B站 默认 20（约 10 个汉字）；大航海、荣耀等级高的账号更多。填多了，超出的欢迎会被 B站 拒绝
-          max_length: 20
           # 指定观众的 UID，例如 [12345, 67890]；[] 表示不按 UID 欢迎
           uids: []
           # 本直播间粉丝团等级达到多少就欢迎，0 表示不按粉丝团等级欢迎
@@ -85,7 +83,6 @@ public sealed class Settings
     private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 1, "必须为正整数。", seconds => seconds > 0));
     private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome.enabled", false));
     private static readonly Definition<string> WelcomeTemplate = Register(Definition.RequiredText("welcome.text", "欢迎{大航海}{昵称}"));
-    private static readonly Definition<int> WelcomeLimit = Register(Definition.Number("welcome.max_length", 20, "必须为正整数。", length => length > 0));
     private static readonly Definition<IReadOnlyList<long>> WelcomeUidList = Register(Definition.NumberList("welcome.uids", []));
     private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", 0, "必须为非负整数。", level => level >= 0));
     /// <summary>The values welcome.guard accepts: 关闭, then 大航海身份 from low to high, so each one's index is its tier.</summary>
@@ -108,7 +105,6 @@ public sealed class Settings
     public Setting<int> SendIntervalSeconds => Get(SendInterval);
     public Setting<bool> WelcomeEnabled => Get(WelcomeOn);
     public Setting<string> WelcomeText => Get(WelcomeTemplate);
-    public Setting<int> WelcomeMaxLength => Get(WelcomeLimit);
     public Setting<IReadOnlyList<long>> WelcomeUids => Get(WelcomeUidList);
     public Setting<int> WelcomeFanClubLevel => Get(WelcomeFanClub);
     public Setting<string> WelcomeGuard => Get(WelcomeGuardTier);
@@ -132,15 +128,11 @@ public sealed class Settings
     /// <summary>The same validation used when loading and saving; null means the input is valid.</summary>
     public static string? Validate(string name, string? value) => Validate(Definitions, name, value);
 
-    /// <summary>Why the welcome text would misuse placeholders or exceed its length limit once <paramref name="changes"/>
+    /// <summary>Why the welcome text would misuse placeholders once <paramref name="changes"/>
     /// apply; null when it would not. Every change must already be valid; settings left out keep this snapshot's values.</summary>
-    public string? ValidateWelcomeText(IReadOnlyDictionary<string, string> changes)
-    {
-        return Core.WelcomeText.Validate(Changed(WelcomeTemplate), Changed(WelcomeLimit));
-
-        T Changed<T>(Definition<T> definition) =>
-            changes.TryGetValue(definition.Name, out var input) ? definition.Parse(input) : Get(definition).Value;
-    }
+    public string? ValidateWelcomeText(IReadOnlyDictionary<string, string> changes) =>
+        Core.WelcomeText.Validate(changes.TryGetValue(WelcomeTemplate.Name, out var input)
+            ? WelcomeTemplate.Parse(input) : WelcomeText.Value);
 
     private static string? Validate(IReadOnlyList<Definition> definitions, string name, string? value) =>
         Find(definitions, name) is { } definition ? definition.Validate(value) : "未知设置，不能修改。";

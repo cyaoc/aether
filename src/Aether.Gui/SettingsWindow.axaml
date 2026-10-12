@@ -45,12 +45,7 @@
         <TextBox x:Name="WelcomeTextInput" AutomationProperties.Name="欢迎语" />
         <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
         <TextBlock x:Name="WelcomeTextHint" Classes="hint"
-                   Text="英文、数字、半角符号算 1，其他字符算 2。可用 {@}（只能放开头）、{昵称}、{大航海}；用 {{ 和 }} 转义花括号。固定部分计数：{大航海} 算 4，{昵称} 和 {@} 算 0。" />
-        <TextBlock Text="弹幕字数上限（下次观看直播间时生效）" />
-        <NumericUpDown x:Name="WelcomeMaxLengthInput" FormatString="0.############################"
-                       HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎弹幕字数上限" />
-        <TextBlock x:Name="WelcomeMaxLengthReadOnly" Classes="hint" Text="此项不能逐行编辑，请在设置文件里修改。" />
-        <TextBlock Classes="hint" Text="正整数，默认 20，约 10 个汉字。" />
+                   Text="英文、数字、半角符号算 1，其他字符算 2。上限自动读取账号的。可用 {@}（只能放开头）、{昵称}、{大航海}；用 {{ 和 }} 转义花括号。" />
         <TextBlock Classes="hint" Text="满足下面任意一个欢迎条件就欢迎。" />
         <TextBlock Text="指定观众的 UID（下次观看直播间时生效）" />
         <TextBox x:Name="WelcomeUidsInput" AutomationProperties.Name="欢迎指定观众的 UID" />

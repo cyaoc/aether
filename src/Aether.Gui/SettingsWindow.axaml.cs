@@ -19,7 +19,7 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         LevelInput.ItemsSource = Settings.LogLevels;
         WelcomeGuardInput.ItemsSource = Settings.WelcomeGuards;
-        foreach (var number in new[] { RetentionInput, SendIntervalInput, WelcomeMaxLengthInput, WelcomeFanClubInput, WelcomeWealthInput })
+        foreach (var number in new[] { RetentionInput, SendIntervalInput, WelcomeFanClubInput, WelcomeWealthInput })
             number.PropertyChanged += (_, e) =>
             {
                 if (e.Property == NumericUpDown.TextProperty) Validate();
@@ -43,7 +43,6 @@ public partial class SettingsWindow : Window
         Show(SendIntervalInput, SendIntervalReadOnly, settings.SendIntervalSeconds);
         Show(WelcomeInput, WelcomeReadOnly, settings.WelcomeEnabled);
         Show(WelcomeTextInput, WelcomeTextReadOnly, settings.WelcomeText);
-        Show(WelcomeMaxLengthInput, WelcomeMaxLengthReadOnly, settings.WelcomeMaxLength);
         Show(WelcomeUidsInput, WelcomeUidsReadOnly, settings.WelcomeUids);
         Show(WelcomeFanClubInput, WelcomeFanClubReadOnly, settings.WelcomeFanClubLevel);
         Show(WelcomeGuardInput, WelcomeGuardReadOnly, settings.WelcomeGuard);
@@ -102,7 +101,6 @@ public partial class SettingsWindow : Window
         (settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text),
         (settings.WelcomeEnabled.Name, settings.WelcomeEnabled.CanEdit, Settings.BooleanText(WelcomeInput.IsChecked == true)),
         (settings.WelcomeText.Name, settings.WelcomeText.CanEdit, WelcomeTextInput.Text),
-        (settings.WelcomeMaxLength.Name, settings.WelcomeMaxLength.CanEdit, WelcomeMaxLengthInput.Text),
         (settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, WelcomeUidsInput.Text),
         (settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, WelcomeFanClubInput.Text),
         (settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, WelcomeGuardInput.SelectedItem?.ToString()),
@@ -113,7 +111,6 @@ public partial class SettingsWindow : Window
     {
         var fields = Fields();
         var error = settings.Error?.Message ?? fields.Select(InputError).FirstOrDefault(reason => reason is not null);
-        // Only once every input is valid: the welcome text is checked against the limit the form now holds.
         if (error is null && settings.ValidateWelcomeText(Changes(fields)) is { } reason) error = $"{settings.WelcomeText.Name}：{reason}";
         Message.Text = error ?? "";
         SaveButton.IsEnabled = error is null && fields.Any(field => field.CanEdit);

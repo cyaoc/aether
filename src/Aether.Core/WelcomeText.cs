@@ -32,13 +32,12 @@ internal sealed class WelcomeText
             throw new FormatException("欢迎语不能只有 {@}，还要写上发出去的文字。");
     }
 
-    public static string? Validate(string text, int limit)
+    public static string? Validate(string text)
     {
         try
         {
-            // Every guard name counts 4, so any one stands in for {大航海}.
-            var length = new WelcomeText(text).FixedLength("舰长");
-            return length > limit ? $"欢迎语固定部分计数为 {length}，超过上限 {limit}。" : null;
+            _ = new WelcomeText(text);
+            return null;
         }
         catch (FormatException error) { return error.Message; }
     }
@@ -66,7 +65,7 @@ internal sealed class WelcomeText
     /// <summary>Everything but the nicknames, which share what is left; {@} counts nothing.</summary>
     private int FixedLength(string guardName) => parts.Sum(part => Length(part.Kind == "大航海" ? guardName : part.Text));
 
-    private static int Length(string text) => text.EnumerateRunes().Sum(Weight);
+    public static int Length(string text) => text.EnumerateRunes().Sum(Weight);
 
     private static int Weight(Rune rune) => rune.Value is >= 0x20 and <= 0x7e ? 1 : 2;
 }

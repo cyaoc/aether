@@ -13,7 +13,6 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Assert.Null(settings.Error);
         Assert.False(settings.WelcomeEnabled.Value);
         Assert.Equal("欢迎{大航海}{昵称}", settings.WelcomeText.Value);
-        Assert.Equal(20, settings.WelcomeMaxLength.Value);
         Assert.Empty(settings.WelcomeUids.Value);
         Assert.Equal(0, settings.WelcomeFanClubLevel.Value);
         Assert.Equal("舰长", settings.WelcomeGuard.Value);
@@ -21,6 +20,9 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         var template = File.ReadAllText(Settings.FilePath(h.DataDirectory)).ReplaceLineEndings("\n");
         var section = template[template.IndexOf("# 进场欢迎", StringComparison.Ordinal)..];
         Assert.Contains("用 {{ 和 }}", section);
+        Assert.Contains("英文、数字、半角符号算 1，其他字符算 2", section);
+        Assert.Contains("上限自动读取账号的", section);
+        Assert.DoesNotContain("max_length", section);
         Assert.Contains("以 { 开头时要加引号", section);
         Assert.Contains("# 指定观众的 UID，例如 [12345, 67890]；[] 表示不按 UID 欢迎\n  uids: []", section);
         Assert.Contains("# 本直播间粉丝团等级达到多少就欢迎，0 表示不按粉丝团等级欢迎\n  fan_club_level: 0", section);
@@ -36,7 +38,6 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before + "welcome:\n");
         var missing = Settings.Load(h.DataDirectory);
         Assert.Equal(settings.WelcomeText.Value, missing.WelcomeText.Value);
-        Assert.Equal(settings.WelcomeMaxLength.Value, missing.WelcomeMaxLength.Value);
         Assert.Empty(missing.WelcomeUids.Value);
         Assert.Equal(0, missing.WelcomeFanClubLevel.Value);
         Assert.Equal(settings.WelcomeGuard.Value, missing.WelcomeGuard.Value);
@@ -144,55 +145,41 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Save_changes_only_requested_lines_and_checks_text_against_the_new_limit()
+    public void Save_changes_only_requested_welcome_lines()
     {
         Settings.Load(h.DataDirectory);
-        const string before = "welcome:\n  enabled: false # 开关\n  text: '欢迎{昵称}' # 正文\n  max_length: 20 # 上限\n  guard: 舰长 # 档位\nfuture: 保留\n";
+        const string before = "welcome:\n  enabled: false # 开关\n  text: '欢迎{昵称}' # 正文\n  guard: 舰长 # 档位\nfuture: 保留\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
             ["welcome.enabled"] = "true", ["welcome.text"] = "欢迎{大航海}{昵称}",
-            ["welcome.max_length"] = "8", ["welcome.guard"] = "提督"
+            ["welcome.guard"] = "提督"
         });
         var expected = before.Replace("false", "true").Replace("'欢迎{昵称}'", "'欢迎{大航海}{昵称}'")
-            .Replace("20 #", "8 #").Replace("舰长", "提督");
+            .Replace("舰长", "提督");
         Assert.Equal(expected, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
         var loaded = Settings.Load(h.DataDirectory);
         Assert.Null(loaded.Error);
         Assert.True(loaded.WelcomeEnabled.Value);
         Assert.Equal("欢迎{大航海}{昵称}", loaded.WelcomeText.Value);
-        Assert.Equal(8, loaded.WelcomeMaxLength.Value);
         Assert.Equal("提督", loaded.WelcomeGuard.Value);
-        var beforeInvalid = File.ReadAllText(Settings.FilePath(h.DataDirectory));
-        var error = Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory,
-            new Dictionary<string, string> { ["welcome.max_length"] = "7" }));
-        Assert.Equal("welcome.text", error.SettingName);
-        Assert.Equal(3, error.LineNumber);
-        Assert.Contains("8", error.Message);
-        Assert.Contains("7", error.Message);
-        Assert.Equal(beforeInvalid, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
     }
 
-    [Fact]
-    public void Save_checks_text_against_the_limit_as_the_setting_reads_it()
+    [Theory]
+    [InlineData("80")]
+    [InlineData("invalid")]
+    public void Old_max_length_is_only_an_unknown_key_and_is_preserved(string value)
     {
         Settings.Load(h.DataDirectory);
-        // Trim drops a full-width space that int.Parse rejects.
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.max_length"] = "　30" });
-        Assert.Equal(30, Settings.Load(h.DataDirectory).WelcomeMaxLength.Value);
-        var error = Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory,
-            new Dictionary<string, string> { ["welcome.max_length"] = "　7" }));
-        Assert.Equal("welcome.text", error.SettingName);
-    }
-
-    [Fact]
-    public void A_default_text_over_the_limit_reports_the_welcome_group_line()
-    {
-        Directory.CreateDirectory(h.DataDirectory);
-        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  enabled: true\n  max_length: 7\n");
-        var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
-        Assert.Equal("welcome.text", error.SettingName);
-        Assert.Equal(1, error.LineNumber);
+        var yaml = $"log:\nblind_box:\nsend:\nwelcome:\n  max_length: {value} # 保留\n";
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
+        var settings = Settings.Load(h.DataDirectory, h.Logger);
+        Assert.Null(settings.Error);
+        Assert.Equal(["welcome.max_length"], settings.UnknownKeys);
+        var warning = Assert.Single(h.Logger.Entries);
+        Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, warning.Level);
+        Assert.Contains("未知设置键：welcome.max_length", warning.Message);
+        Assert.Equal(yaml, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
     }
 
     [Theory]
@@ -201,10 +188,6 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     [InlineData("guard", "船长")]
     [InlineData("guard", "3")]
     [InlineData("guard", "[]")]
-    [InlineData("max_length", "0")]
-    [InlineData("max_length", "-1")]
-    [InlineData("max_length", "1.5")]
-    [InlineData("max_length", "2147483648")]
     [InlineData("text", "[]")]
     [InlineData("text", "''")]
     [InlineData("text", "' '")]
@@ -220,15 +203,16 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("{@}欢迎{大航海}{昵称}", 8)]
-    [InlineData("{{{昵称}}}🌙", 4)]
-    [InlineData("ABC xyz!~", 9)]
-    [InlineData("{大航海}{大航海}", 8)]
-    public void Fixed_text_at_the_exact_limit_is_valid(string text, int limit)
+    [InlineData("{@}欢迎{大航海}{昵称}")]
+    [InlineData("{{{昵称}}}🌙")]
+    [InlineData("ABC xyz!~")]
+    [InlineData("{大航海}{大航海}")]
+    [InlineData("一二三四五六七八九十百{昵称}")]
+    public void Valid_placeholders_can_be_saved_without_a_known_length_limit(string text)
     {
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.text"] = text, ["welcome.max_length"] = limit.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            ["welcome.text"] = text
         });
         var settings = Settings.Load(h.DataDirectory);
         Assert.Null(settings.Error);
@@ -236,19 +220,18 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("'{舰长}'", 20, "可用")]
-    [InlineData("'欢迎{@}'", 20, "可用")]
-    [InlineData("' {@}欢迎'", 20, "可用")]
-    [InlineData("'{@}{@}欢迎'", 20, "可用")]
-    [InlineData("'欢迎{'", 20, "可用")]
-    [InlineData("'欢迎}'", 20, "可用")]
-    [InlineData("'欢迎{大航海}{昵称}'", 7, "8")]
-    [InlineData("'{@}'", 20, "不能只有")]
-    [InlineData("'{@} '", 20, "不能只有")]
-    public void Invalid_text_reports_its_line_and_keeps_the_file(string text, int limit, string reason)
+    [InlineData("'{舰长}'", "可用")]
+    [InlineData("'欢迎{@}'", "可用")]
+    [InlineData("' {@}欢迎'", "可用")]
+    [InlineData("'{@}{@}欢迎'", "可用")]
+    [InlineData("'欢迎{'", "可用")]
+    [InlineData("'欢迎}'", "可用")]
+    [InlineData("'{@}'", "不能只有")]
+    [InlineData("'{@} '", "不能只有")]
+    public void Invalid_text_reports_its_line_and_keeps_the_file(string text, string reason)
     {
         Directory.CreateDirectory(h.DataDirectory);
-        var yaml = $"welcome:\n  max_length: {limit}\n  text: {text}\n";
+        var yaml = $"welcome:\n  enabled: true\n  text: {text}\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
         var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
         Assert.Equal("welcome.text", error.SettingName);
@@ -259,7 +242,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         var beforeSave = File.ReadAllText(Settings.FilePath(h.DataDirectory));
         var saveError = Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.text"] = text[1..^1], ["welcome.max_length"] = limit.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            ["welcome.text"] = text[1..^1]
         }));
         Assert.Equal("welcome.text", saveError.SettingName);
         Assert.Equal(2, saveError.LineNumber);

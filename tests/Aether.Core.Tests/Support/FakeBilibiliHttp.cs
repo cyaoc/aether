@@ -11,6 +11,8 @@ internal sealed class FakeBilibiliHttp : HttpMessageHandler
     public void ConfigureLogin(string sessdata = "saved-session", string csrf = "saved-csrf",
         string buvid = "saved-buvid", params string[] extraCookies)
     {
+        Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser"] =
+            """{"code":0,"data":{"property":{"danmu":{"length":20}}}}""";
         Responses["https://api.bilibili.com/x/frontend/finger/spi"] =
             System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { b_3 = buvid } });
         Responses["https://passport.bilibili.com/x/passport-login/web/qrcode/generate"] =
