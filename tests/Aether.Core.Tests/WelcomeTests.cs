@@ -347,4 +347,20 @@ public sealed class WelcomeTests
         }
         else await AssertNoSendAsync(sent);
     }
+
+    [Theory]
+    [InlineData("{大航海}", 20)] // Not a guard, so nothing is left.
+    [InlineData("{@}{昵称}", 1)] // The nickname's first character already exceeds the limit.
+    public async Task Welcomes_that_render_blank_are_not_sent(string text, int limit)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        Enable(h, text, limit);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.uids"] = "[10001]" });
+        var sent = CaptureSends(h);
+        await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(guard: 0));
+        await h.WaitForLogAsync(LogLevel.Warning, "进场欢迎：测试观众（10001），命中UID，但欢迎语拼出来是空的，未发送");
+        await AssertNoSendAsync(sent);
+    }
 }

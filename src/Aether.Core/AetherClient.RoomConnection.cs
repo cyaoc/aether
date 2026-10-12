@@ -210,6 +210,13 @@ public sealed partial class AetherClient
                                 : null;
                             if (condition is null) continue;
                             var text = welcomeText.Render(entry.Nickname, entry.Guard, Settings.WelcomeMaxLength.Value);
+                            // B站 refuses an empty danmaku, as "{大航海}" for a non-guard or a fully truncated nickname gives.
+                            if (string.IsNullOrWhiteSpace(text))
+                            {
+                                client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语拼出来是空的，未发送",
+                                    entry.Nickname, entry.Uid, condition);
+                                continue;
+                            }
                             client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中{Condition}", entry.Nickname, entry.Uid, condition);
                             sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, text, welcomeText.Mention, receivedTimestamp);
                         }
