@@ -86,11 +86,11 @@ public sealed class Settings
     private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome.enabled", false));
     private static readonly Definition<string> WelcomeTemplate = Register(Definition.RequiredText("welcome.text", "欢迎{大航海}{昵称}"));
     private static readonly Definition<int> WelcomeLimit = Register(Definition.Number("welcome.max_length", 20, "必须为正整数。", length => length > 0));
-    private static readonly Definition<IReadOnlyList<long>> WelcomeViewers = Register(Definition.NumberList("welcome.uids", []));
+    private static readonly Definition<IReadOnlyList<long>> WelcomeUidList = Register(Definition.NumberList("welcome.uids", []));
     private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", 0, "必须为非负整数。", level => level >= 0));
     /// <summary>The values welcome.guard accepts, in order.</summary>
     public static IReadOnlyList<string> WelcomeGuards { get; } = ["关闭", "舰长", "提督", "总督"];
-    private static readonly Definition<string> WelcomeThreshold = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
+    private static readonly Definition<string> WelcomeGuardTier = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", 0, "必须为非负整数。", level => level >= 0));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, its controls in SettingsWindow.axaml, one Show call and one Fields entry).</summary>
@@ -109,9 +109,9 @@ public sealed class Settings
     public Setting<bool> WelcomeEnabled => Get(WelcomeOn);
     public Setting<string> WelcomeText => Get(WelcomeTemplate);
     public Setting<int> WelcomeMaxLength => Get(WelcomeLimit);
-    public Setting<IReadOnlyList<long>> WelcomeUids => Get(WelcomeViewers);
+    public Setting<IReadOnlyList<long>> WelcomeUids => Get(WelcomeUidList);
     public Setting<int> WelcomeFanClubLevel => Get(WelcomeFanClub);
-    public Setting<string> WelcomeGuard => Get(WelcomeThreshold);
+    public Setting<string> WelcomeGuard => Get(WelcomeGuardTier);
     public Setting<int> WelcomeWealthLevel => Get(WelcomeWealth);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }

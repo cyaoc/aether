@@ -10,15 +10,15 @@ public sealed class EntryDecodingTests
     [Theory]
     [InlineData(7734200, 47L)]
     [InlineData(999, null)]
-    public void Only_the_current_rooms_fan_club_counts_and_wealth_is_decoded(long medalRoom, long? expectedLevel)
+    public void Only_the_current_rooms_fan_club_counts_and_wealth_is_decoded(long fanClubRoom, long? expectedLevel)
     {
-        using var message = JsonDocument.Parse(EntryV2Fixture.Message(uid: 9876543210, guard: 2, medalRoom: medalRoom));
+        using var message = JsonDocument.Parse(EntryV2Fixture.Message(uid: 9876543210, guard: 2, fanClubRoom: fanClubRoom));
         var entry = Assert.IsType<Entry>(EntryMessages.Decode("INTERACT_WORD_V2", message.RootElement, 7734200));
         Assert.Equal(9876543210, entry.Uid);
         Assert.Equal("测试观众", entry.Nickname);
         Assert.Equal(1, entry.MessageType);
-        Assert.Equal(2, entry.Guard); // The medal's guard field is 1; it belongs to another identity.
-        Assert.Equal(expectedLevel, entry.FanClubLevel); // No lit flag: an unlit medal still counts.
+        Assert.Equal(2, entry.Guard); // The fan club's own guard field is 1; it is toward another anchor.
+        Assert.Equal(expectedLevel, entry.FanClubLevel); // No lit flag: an unlit fan club still counts.
         Assert.Equal(45, entry.WealthLevel);
     }
 

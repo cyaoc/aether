@@ -27,7 +27,7 @@ internal static class EntryMessages
         if (!Decoders.TryGetValue(command, out var decoder)) return null;
         var (entry, fanClubRoom) = decoder.Decode(root.GetProperty("data"));
         if (entry.Uid < 0 || entry.MessageType < 0 || entry.Guard < 0 || entry.FanClubLevel < 0 || entry.WealthLevel < 0)
-            throw new FormatException("进场消息的 uid、类型、身份或等级无效。");
+            throw new FormatException("进场消息的 uid、类型、大航海身份、粉丝团等级或荣耀等级无效。");
         if (entry.MessageType != 1 || entry.Uid == 0) return null;
         return entry with { FanClubLevel = fanClubRoom == roomId && entry.FanClubLevel > 0 ? entry.FanClubLevel : null };
     }
