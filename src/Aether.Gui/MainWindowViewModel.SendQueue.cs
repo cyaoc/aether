@@ -8,72 +8,65 @@ public partial class MainWindowViewModel
 {
     // ponytail: each page keeps 100 finished items; add history storage only if older records are needed.
     private const int FinishedSendLimit = 100;
-    private readonly Dictionary<long, SendQueueItemViewModel> sendQueueItems = [];
+    // Each feature page's finished items, earliest-finished first, so trimming drops the oldest by when they finished.
+    private readonly Queue<SendQueueItemViewModel> finishedWelcomes = new();
+    private readonly Queue<SendQueueItemViewModel> finishedQueriesAndAnnouncements = new();
     public ObservableCollection<SendQueueItemViewModel> PendingSends { get; } = [];
     public ObservableCollection<SendQueueItemViewModel> RecentSends { get; } = [];
     public ObservableCollection<SendQueueItemViewModel> RecentWelcomes { get; } = [];
-    public ObservableCollection<SendQueueItemViewModel> RecentBlindBoxes { get; } = [];
+    public ObservableCollection<SendQueueItemViewModel> RecentQueriesAndAnnouncements { get; } = [];
     [ObservableProperty] private long welcomeCount;
 
     private void ApplySendQueue(SendQueueUpdate update)
     {
-        if (!sendQueueItems.TryGetValue(update.Id, out var item))
+        // Core reports nothing after an item's outcome, so only pending items can be updated.
+        var item = PendingSends.FirstOrDefault(pending => pending.Id == update.Id);
+        if (item is null)
         {
             item = new(update);
-            sendQueueItems.Add(item.Id, item);
             if (item.Kind == SendQueueItemKind.Welcome)
             {
                 RecentWelcomes.Insert(0, item);
                 WelcomeCount++;
             }
-            else RecentBlindBoxes.Insert(0, item);
+            else RecentQueriesAndAnnouncements.Insert(0, item);
             if (!item.IsFinished) PendingSends.Add(item);
         }
         else item.Apply(update);
 
-        if (item.IsFinished)
-        {
-            PendingSends.Remove(item);
-            if (!RecentSends.Contains(item)) RecentSends.Insert(0, item);
-            TrimFinished(RecentSends);
-            TrimFinished(item.Kind == SendQueueItemKind.Welcome ? RecentWelcomes : RecentBlindBoxes);
-        }
+        if (item.IsFinished) Finish(item);
         for (var index = 0; index < PendingSends.Count; index++) PendingSends[index].Position = index + 1;
     }
 
     private void EndPendingSends()
     {
-        foreach (var item in PendingSends)
+        foreach (var item in PendingSends.ToArray())
         {
             item.EndConnection();
-            RecentSends.Insert(0, item);
+            Finish(item);
         }
-        PendingSends.Clear();
-        TrimFinished(RecentSends);
-        TrimFinished(RecentWelcomes);
-        TrimFinished(RecentBlindBoxes);
+    }
+
+    private void Finish(SendQueueItemViewModel item)
+    {
+        PendingSends.Remove(item);
+        RecentSends.Insert(0, item);
+        if (RecentSends.Count > FinishedSendLimit) RecentSends.RemoveAt(FinishedSendLimit);
+        var (page, finished) = item.Kind == SendQueueItemKind.Welcome
+            ? (RecentWelcomes, finishedWelcomes)
+            : (RecentQueriesAndAnnouncements, finishedQueriesAndAnnouncements);
+        finished.Enqueue(item);
+        if (finished.Count > FinishedSendLimit) page.Remove(finished.Dequeue());
     }
 
     private void ClearSendHistory()
     {
-        sendQueueItems.Clear();
         PendingSends.Clear();
         RecentSends.Clear();
         RecentWelcomes.Clear();
-        RecentBlindBoxes.Clear();
+        RecentQueriesAndAnnouncements.Clear();
+        finishedWelcomes.Clear();
+        finishedQueriesAndAnnouncements.Clear();
         WelcomeCount = 0;
-    }
-
-    private void TrimFinished(ObservableCollection<SendQueueItemViewModel> items)
-    {
-        var finished = 0;
-        for (var index = 0; index < items.Count; index++)
-        {
-            var item = items[index];
-            if (!item.IsFinished || ++finished <= FinishedSendLimit) continue;
-            items.RemoveAt(index--);
-            if (!RecentSends.Contains(item) && !RecentWelcomes.Contains(item) && !RecentBlindBoxes.Contains(item))
-                sendQueueItems.Remove(item.Id);
-        }
     }
 }

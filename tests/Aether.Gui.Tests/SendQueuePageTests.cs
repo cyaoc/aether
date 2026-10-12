@@ -62,16 +62,17 @@ public sealed class SendQueuePageTests
         Assert.Equal(210, viewModel.RecentWelcomes.Count);
         Assert.Equal(220, viewModel.RecentWelcomes[0].Id);
         Assert.DoesNotContain(viewModel.RecentWelcomes, item => item.Id is >= 111 and <= 120);
-        Assert.Equal(210, viewModel.RecentBlindBoxes.Count);
-        Assert.Equal(440, viewModel.RecentBlindBoxes[0].Id);
-        Assert.Equal(231, viewModel.RecentBlindBoxes[^1].Id);
+        Assert.Equal(210, viewModel.RecentQueriesAndAnnouncements.Count);
+        Assert.Equal(440, viewModel.RecentQueriesAndAnnouncements[0].Id);
+        Assert.Equal(231, viewModel.RecentQueriesAndAnnouncements[^1].Id);
         Assert.Equal(220, viewModel.WelcomeCount);
         viewModel.ConnectionState = RoomConnectionState.Connected;
         viewModel.ConnectionState = RoomConnectionState.Disconnected;
         Assert.Empty(viewModel.PendingSends);
         Assert.Equal(100, viewModel.RecentSends.Count);
         Assert.Equal(100, viewModel.RecentWelcomes.Count);
-        Assert.Equal(100, viewModel.RecentBlindBoxes.Count);
+        Assert.Equal(110, viewModel.RecentWelcomes[0].Id); // The items that just ended outlast those that finished earlier.
+        Assert.Equal(100, viewModel.RecentQueriesAndAnnouncements.Count);
         Assert.Equal(220, viewModel.WelcomeCount);
         return true;
     }, TestContext.Current.CancellationToken);
@@ -79,7 +80,7 @@ public sealed class SendQueuePageTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public Task Connection_end_finishes_pending_items_and_a_new_connect_clears_history(bool fails) => HeadlessApp.Session.Dispatch(async () =>
+    public Task Connection_end_finishes_pending_items_and_a_new_room_connection_clears_history(bool fails) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
@@ -120,7 +121,7 @@ public sealed class SendQueuePageTests
             Assert.Empty(viewModel.PendingSends);
             Assert.Empty(viewModel.RecentSends);
             Assert.Empty(viewModel.RecentWelcomes);
-            Assert.Empty(viewModel.RecentBlindBoxes);
+            Assert.Empty(viewModel.RecentQueriesAndAnnouncements);
             Assert.Equal(0, viewModel.WelcomeCount);
         }
         finally { await viewModel.ShutdownAsync(); }
@@ -149,7 +150,7 @@ public sealed class SendQueuePageTests
             Assert.Equal("没发出：欢迎语超过弹幕字数上限 20", item.Status);
             Assert.True(item.IsUnsent);
             Assert.Empty(viewModel.PendingSends);
-            Assert.Empty(viewModel.RecentBlindBoxes);
+            Assert.Empty(viewModel.RecentQueriesAndAnnouncements);
             Assert.Same(item, Assert.Single(viewModel.RecentSends));
             Assert.Equal(1, viewModel.WelcomeCount);
             return true;
@@ -211,14 +212,14 @@ public sealed class SendQueuePageTests
             Assert.Contains("播报", GuiHarness.VisibleText(window));
             Assert.Equal(2, GuiHarness.VisibleText(window).Count(text => text == "发送时计算金额"));
             Assert.DoesNotContain("观众1", GuiHarness.VisibleText(window));
-            Assert.Equal(new long[] { 3, 2 }, viewModel.RecentBlindBoxes.Select(item => item.Id));
+            Assert.Equal(new long[] { 3, 2 }, viewModel.RecentQueriesAndAnnouncements.Select(item => item.Id));
 
             viewModel.Apply(welcome with { State = SendQueueItemState.Sent });
             viewModel.Apply(query with { State = SendQueueItemState.Sending, Text = "今日赚 10 电池" });
             GuiHarness.Flush();
             Assert.Contains("今日赚 10 电池", GuiHarness.VisibleText(window));
             viewModel.Apply(query with { State = SendQueueItemState.WaitingToRetry, RetrySeconds = 5 });
-            Assert.Equal("今日赚 10 电池", viewModel.RecentBlindBoxes[1].Text);
+            Assert.Equal("今日赚 10 电池", viewModel.RecentQueriesAndAnnouncements[1].Text);
             viewModel.Apply(query with { State = SendQueueItemState.Sending, Text = "今日赚 20 电池" });
             viewModel.Apply(query with { State = SendQueueItemState.Discarded, Reason = "发送被拒绝" });
 

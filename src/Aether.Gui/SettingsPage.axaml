@@ -12,7 +12,7 @@
             <TextBlock Grid.Column="1" Classes="hint" Text="{Binding Detail}" FontSize="12" />
             <TextBlock Grid.Column="2" Classes="hint" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" FontSize="12" />
           </Grid>
-          <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding TextOrPlaceholder}" TextWrapping="Wrap" />
           <TextBlock Classes="sendStatus" Classes.sent="{Binding IsSent}" Classes.unsent="{Binding IsUnsent}" Text="{Binding Status}" />
         </StackPanel>
       </Border>
@@ -20,12 +20,11 @@
     <DataTemplate x:Key="SendActivityTemplate" x:DataType="local:SendQueueItemViewModel">
       <Border Padding="0,12" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
         <StackPanel Spacing="6">
-          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
             <TextBlock Text="{Binding KindText}" FontWeight="SemiBold" />
             <TextBlock Grid.Column="1" Text="{Binding Nickname}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Nickname}" />
-            <TextBlock Grid.Column="2" Classes="hint" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" FontSize="12" />
           </Grid>
-          <TextBlock Text="{Binding SendText}" TextWrapping="Wrap" IsVisible="{Binding SendText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock Text="{Binding Text}" TextWrapping="Wrap" IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
           <TextBlock Classes="sendStatus" Classes.sent="{Binding IsSent}" Classes.unsent="{Binding IsUnsent}" Text="{Binding Status}" />
         </StackPanel>
       </Border>
@@ -90,7 +89,7 @@
         <Button x:Name="ReconnectButton" Content="重新连接" Command="{Binding ReconnectCommand}" />
       </StackPanel>
     </StackPanel>
-    <Grid x:Name="FieldsAndQueue" Grid.Row="1" RowDefinitions="*,0">
+    <Grid x:Name="FieldsAndSendActivity" Grid.Row="1" RowDefinitions="*,0">
     <ScrollViewer HorizontalScrollBarVisibility="Disabled">
       <StackPanel>
         <StackPanel x:Name="GeneralFields" Spacing="10">
@@ -200,7 +199,7 @@
       <Panel Grid.Row="1">
         <ListBox x:Name="RecentWelcomesList" Classes="activity" ItemsSource="{Binding RecentWelcomes}"
                  ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近欢迎" />
-        <ListBox x:Name="RecentBlindBoxesList" Classes="activity" ItemsSource="{Binding RecentBlindBoxes}"
+        <ListBox x:Name="RecentQueriesAndAnnouncementsList" Classes="activity" ItemsSource="{Binding RecentQueriesAndAnnouncements}"
                  ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近回复和播报" />
       </Panel>
     </Grid>

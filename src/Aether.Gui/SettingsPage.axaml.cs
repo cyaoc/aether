@@ -50,13 +50,13 @@ public partial class SettingsPage : UserControl
         SendActivity.IsVisible = section == SettingsSection.Send;
         if (SendActivity.IsVisible)
         {
-            FieldsAndQueue.RowDefinitions[0].Height = GridLength.Auto;
-            FieldsAndQueue.RowDefinitions[1].Height = GridLength.Star;
+            FieldsAndSendActivity.RowDefinitions[0].Height = GridLength.Auto;
+            FieldsAndSendActivity.RowDefinitions[1].Height = GridLength.Star;
         }
         RecentActivity.IsVisible = section is SettingsSection.Welcome or SettingsSection.BlindBox;
         RecentActivityTitle.Text = section == SettingsSection.Welcome ? "最近欢迎" : "最近回复和播报";
         RecentWelcomesList.IsVisible = WelcomeTotal.IsVisible = section == SettingsSection.Welcome;
-        RecentBlindBoxesList.IsVisible = section == SettingsSection.BlindBox;
+        RecentQueriesAndAnnouncementsList.IsVisible = section == SettingsSection.BlindBox;
         SizeChanged += (_, _) => ArrangeActivity();
         LevelInput.ItemsSource = Settings.LogLevels;
         WelcomeGuardInput.ItemsSource = Settings.WelcomeGuards;
