@@ -31,6 +31,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     [NotifyPropertyChangedFor(nameof(Status))]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
     [NotifyPropertyChangedFor(nameof(HasRoomConnection))]
+    [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
     private RoomConnectionState connectionState = RoomConnectionState.Disconnected;
     private long? connectedAt;
     private ITimer? connectionTimer;
@@ -43,14 +44,23 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     // A room connection started mid-logout would load the credential that logout is deleting.
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
     private bool isLoggingOut;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
+    private bool isRestarting;
+    private bool preserveDanmaku;
+    private string? activeRoomNumber;
 
     [ObservableProperty] private AccountStatus accountStatus = AccountStatus.Reading;
     private CancellationTokenSource? accountReadStop;
     private Task accountReadTask = Task.CompletedTask;
     private bool shuttingDown;
 
-    private bool CanConnect => !IsLoggingOut;
+    private bool CanConnect => !IsLoggingOut && !IsRestarting && !shuttingDown;
+    private bool CanReconnect => CanConnect && HasRoomConnection;
     public bool IsConnected => ConnectionState == RoomConnectionState.Connected;
     public bool HasRoomConnection => ConnectionState != RoomConnectionState.Disconnected;
     public string Status => ConnectionState switch
@@ -99,8 +109,10 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
             return;
         }
         ConnectionState = RoomConnectionState.Connecting;
+        activeRoomNumber = RoomNumber;
         Message = "";
-        Danmaku.Clear();
+        if (!preserveDanmaku) Danmaku.Clear();
+        preserveDanmaku = false;
         try
         {
             // Core runs the room connection off the UI thread; this loop only shows what it reports.
@@ -117,7 +129,21 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         {
             ClearQrCode();
             ConnectionState = RoomConnectionState.Disconnected;
+            activeRoomNumber = null;
         }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanReconnect))]
+    private async Task ReconnectAsync()
+    {
+        if (!CanReconnect || activeRoomNumber is not { } room) return;
+        IsRestarting = true;
+        try { await StopWatchingAsync(); }
+        finally { IsRestarting = false; }
+        if (!CanConnect) return;
+        RoomNumber = room;
+        preserveDanmaku = true;
+        ConnectCommand.Execute(null);
     }
 
     internal void Apply(WatchUpdate update)
@@ -203,6 +229,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         {
             await StopAccountReadAsync();
             await StopWatchingAsync();
+            if (ReconnectCommand.ExecutionTask is { } restart) await restart;
             await Task.Run(() => client.LogoutAsync(cancellationToken), cancellationToken);
             AccountStatus = AccountStatus.LoggedOut;
             Message = "已退出登录，下次连接时请重新扫码。";
@@ -234,9 +261,12 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     public async Task ShutdownAsync()
     {
         shuttingDown = true;
+        ConnectCommand.NotifyCanExecuteChanged();
+        ReconnectCommand.NotifyCanExecuteChanged();
         LogoutCommand.Cancel();
         await StopAccountReadAsync();
         await StopWatchingAsync();
+        if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
     }
 

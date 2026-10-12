@@ -24,7 +24,7 @@ public sealed class DanmakuPageTests
             var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
             harness.NavResponse = token => response.Task.WaitAsync(token);
             var viewModel = harness.CreateViewModel();
-            var window = new MainWindow { DataContext = viewModel, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
             window.Show();
             try
             {

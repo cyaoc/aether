@@ -1,4 +1,6 @@
 using System.Collections.Specialized;
+using System.ComponentModel;
+using Aether.Core;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
@@ -16,7 +18,8 @@ public partial class MainWindow : Window
     private bool followLatest = true;
     private bool scrollPending;
     private readonly string dataDirectory;
-    private SettingsWindow? settingsWindow;
+    private readonly SettingsPage[] settingsPages;
+    private MainWindowViewModel? observedViewModel;
 
     public MainWindow() : this(Aether.Core.DataDirectory.Locate()) { }
 
@@ -24,6 +27,26 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         this.dataDirectory = dataDirectory;
+        settingsPages = Enum.GetValues<SettingsSection>().Select(section => new SettingsPage(dataDirectory, section)).ToArray();
+        foreach (var page in settingsPages)
+        {
+            page.IsVisible = false;
+            page.SaveCompleted += saved =>
+            {
+                RefreshSettingsStatus();
+                if (saved && page.Section != SettingsSection.General && observedViewModel?.HasRoomConnection == true)
+                    page.FindControl<StackPanel>("ReconnectNotice")!.IsVisible = true;
+            };
+            PageHost.Children.Add(page);
+        }
+        RefreshSettingsStatus();
+        Navigation.SelectedIndex = 0;
+        DataContextChanged += (_, _) =>
+        {
+            if (observedViewModel is not null) observedViewModel.PropertyChanged -= OnRoomStateChanged;
+            observedViewModel = DataContext as MainWindowViewModel;
+            if (observedViewModel is not null) observedViewModel.PropertyChanged += OnRoomStateChanged;
+        };
         DanmakuList.Items.CollectionChanged += OnDanmakuChanged;
         DanmakuList.AddHandler(ScrollViewer.ScrollChangedEvent, OnScrollChanged);
         DanmakuList.AddHandler(PointerWheelChangedEvent, (_, _) => PauseFollowingForInput(), RoutingStrategies.Tunnel);
@@ -45,12 +68,35 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel viewModel) viewModel.ReadAccountCommand.Execute(null);
     }
 
-    private void OpenSettings(object? sender, RoutedEventArgs e)
+    private void Navigate(object? sender, SelectionChangedEventArgs e)
     {
-        if (settingsWindow is not null) { settingsWindow.Activate(); return; }
-        settingsWindow = new SettingsWindow(dataDirectory);
-        settingsWindow.Closed += (_, _) => settingsWindow = null;
-        settingsWindow.Show(this);
+        if (settingsPages is null) return;
+        for (var index = 0; index < PageHost.Children.Count; index++)
+            PageHost.Children[index].IsVisible = index == Navigation.SelectedIndex;
+        RefreshSettingsStatus();
+        if (Navigation.SelectedIndex == 0) QueueScrollToLatest();
+    }
+
+    private void RefreshSettingsStatus()
+    {
+        var current = Settings.Load(dataDirectory);
+        // An invalid file has no usable saved values to advertise.
+        BlindBoxStatus.Text = current.Error is null ? (current.BlindBoxEnabled.Value ? "开" : "关") : "";
+        WelcomeStatus.Text = current.Error is null ? (current.WelcomeEnabled.Value ? "开" : "关") : "";
+        foreach (var page in settingsPages) page.RefreshFileStatus(current);
+    }
+
+    private void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(MainWindowViewModel.ConnectionState) || observedViewModel?.HasRoomConnection == true) return;
+        foreach (var page in settingsPages) page.FindControl<StackPanel>("ReconnectNotice")!.IsVisible = false;
+    }
+
+    private void ConnectRoom(object? sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || DataContext is not MainWindowViewModel viewModel) return;
+        e.Handled = true;
+        if (viewModel.ConnectCommand.CanExecute(null)) viewModel.ConnectCommand.Execute(null);
     }
 
     private async void ConfirmLogout(object? sender, RoutedEventArgs e)
