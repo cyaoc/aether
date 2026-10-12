@@ -410,6 +410,7 @@ public sealed class SettingsPageTests
         HeadlessApp.Session.Dispatch(async () =>
         {
             using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
             Directory.CreateDirectory(harness.DataDirectory);
             var path = Settings.FilePath(harness.DataDirectory);
             const string yaml = "# 我的设置\nlog:\n  retention_days: '7' # 保留\n  level: 'Debug' # 级别\n  future: yes\n";

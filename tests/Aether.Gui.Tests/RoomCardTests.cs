@@ -13,6 +13,7 @@ public sealed class RoomCardTests
     public Task Card_shows_room_and_elapsed_minutes_without_resetting_on_reconnect() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
         var time = new FakeTimeProvider();
         var viewModel = harness.CreateViewModel(time);
         viewModel.RoomNumber = "7734200";

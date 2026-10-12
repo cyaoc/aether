@@ -19,6 +19,7 @@ public sealed class SettingsReconnectTests
         HeadlessApp.Session.Dispatch(async () =>
         {
             using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
             var viewModel = harness.CreateViewModel();
             var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
             window.Show();
@@ -53,6 +54,7 @@ public sealed class SettingsReconnectTests
         HeadlessApp.Session.Dispatch(async () =>
         {
             using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
             var firstStarted = new TaskCompletionSource();
             var firstCancelled = new TaskCompletionSource();
             var releaseFirst = new TaskCompletionSource();

@@ -1,7 +1,9 @@
 using Aether.Core;
 using System.Net;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -13,9 +15,9 @@ internal sealed class GuiHarness : IDisposable
     private readonly GuiHttp http = new();
     private int received;
 
-    public GuiHarness() => client = new AetherClient(http,
+    public GuiHarness(TimeProvider? timeProvider = null) => client = new AetherClient(http,
         (_, _) => throw new InvalidOperationException("GUI tests must not connect a WebSocket."),
-        TimeProvider.System, NullLogger<AetherClient>.Instance, DataDirectory);
+        timeProvider ?? TimeProvider.System, NullLogger<AetherClient>.Instance, DataDirectory);
 
     public string DataDirectory { get; } = Path.Combine(Path.GetTempPath(), "aether-gui-tests-" + Guid.NewGuid());
     public string SettingsFile => Path.Combine(DataDirectory, "gui.yml");
@@ -30,6 +32,10 @@ internal sealed class GuiHarness : IDisposable
         set => http.NavResponse = value;
     }
     public int NavRequests => http.NavRequests;
+    public Func<Uri, CancellationToken, Task<HttpResponseMessage>> LoginResponse
+    {
+        set => http.LoginResponse = value;
+    }
     public Func<Uri, CancellationToken, Task<HttpResponseMessage>> RoomResponse
     {
         set => http.RoomResponse = value;
@@ -44,14 +50,14 @@ internal sealed class GuiHarness : IDisposable
 
     public async Task SaveCredentialAsync()
     {
-        // Initialize the real store, then seed a saved credential without permitting login HTTP in GUI tests.
+        // Seed the real store so tests unrelated to login can enter the main window.
         await client.GetAccountAsync();
         using var connection = new SqliteConnection($"Data Source={Path.Combine(DataDirectory, "aether.db")};Pooling=False");
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO credential (id, cookies, refresh_token, saved_at)
-            VALUES (1, '{"SESSDATA":"test-session","bili_jct":"test-csrf","DedeUserID":"123"}', 'test-token', $savedAt)
+            INSERT INTO credential (id, cookies, refresh_token, saved_at, checked_at)
+            VALUES (1, '{"SESSDATA":"test-session","bili_jct":"test-csrf","DedeUserID":"123"}', 'test-token', $savedAt, $savedAt)
             """;
         command.Parameters.AddWithValue("$savedAt", DateTimeOffset.UtcNow.ToString("O"));
         command.ExecuteNonQuery();
@@ -74,6 +80,19 @@ internal sealed class GuiHarness : IDisposable
         }
     }
 
+    public static IEnumerable<string?> VisibleText(MainWindow window) =>
+        window.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).Select(x => x.Text);
+
+    public static async Task WaitForAsync(Func<bool> condition)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!condition())
+        {
+            await Task.Delay(10, timeout.Token);
+            Dispatcher.UIThread.RunJobs();
+        }
+    }
+
     public void Dispose()
     {
         client.Dispose();
@@ -84,13 +103,21 @@ internal sealed class GuiHarness : IDisposable
     private sealed class GuiHttp : HttpMessageHandler
     {
         public Func<CancellationToken, Task<HttpResponseMessage>> NavResponse { get; set; } =
-            _ => Task.FromResult(Json("""{"code":-101}"""));
+            _ => Task.FromResult(AccountResponse());
         public int NavRequests;
+        public Func<Uri, CancellationToken, Task<HttpResponseMessage>>? LoginResponse { get; set; }
         public Func<Uri, CancellationToken, Task<HttpResponseMessage>>? RoomResponse { get; set; }
         public List<Uri> RejectedRequests { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            if (request.Method == HttpMethod.Get && request.RequestUri is { } uri &&
+                (uri.GetLeftPart(UriPartial.Path) is "https://api.bilibili.com/x/frontend/finger/spi"
+                    or "https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
+                    or "https://passport.bilibili.com/x/passport-login/web/qrcode/poll") && LoginResponse is { } loginResponse)
+            {
+                return loginResponse(uri, cancellationToken);
+            }
             if (request.Method == HttpMethod.Get && request.RequestUri?.GetLeftPart(UriPartial.Path) ==
                 "https://api.live.bilibili.com/room/v1/Room/room_init" && RoomResponse is { } roomResponse)
                 return roomResponse(request.RequestUri, cancellationToken);

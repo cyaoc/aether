@@ -17,6 +17,7 @@ public sealed class SettingsNavigationTests
     public Task Enter_connects_only_from_the_room_input(int index, string field) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
         var requested = new TaskCompletionSource();
         harness.RoomResponse = async (_, token) =>
         {
@@ -49,6 +50,7 @@ public sealed class SettingsNavigationTests
     public Task Returning_to_an_unchanged_page_rereads_external_values_and_read_only_state() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
         Directory.CreateDirectory(harness.DataDirectory);
         var path = Settings.FilePath(harness.DataDirectory);
         File.WriteAllText(path, "send:\n  interval_seconds: |-\n    7\n");
@@ -83,6 +85,7 @@ public sealed class SettingsNavigationTests
     public Task A_draft_made_over_a_file_error_gives_way_to_the_fixed_file() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
         Directory.CreateDirectory(harness.DataDirectory);
         var path = Settings.FilePath(harness.DataDirectory);
         File.WriteAllText(path, "send:\n  interval_seconds: 8\nlog:\n  level: @bad\n");
@@ -114,6 +117,7 @@ public sealed class SettingsNavigationTests
     public Task Every_page_shows_file_errors_and_disables_save(string yaml, string expected) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
         Directory.CreateDirectory(harness.DataDirectory);
         var path = Settings.FilePath(harness.DataDirectory);
         File.WriteAllText(path, yaml);
@@ -143,6 +147,7 @@ public sealed class SettingsNavigationTests
     public Task Navigation_keeps_drafts_and_saves_only_the_selected_page() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();

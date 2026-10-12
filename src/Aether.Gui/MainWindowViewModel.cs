@@ -10,7 +10,7 @@ using QRCoder;
 
 namespace Aether.Gui;
 
-public enum RoomConnectionState { Disconnected, Connecting, Connected, Reconnecting }
+public enum RoomConnectionState { Disconnected, Connecting, Connected, Reconnecting, WaitingForScan }
 
 /// <summary>What the sidebar shows for the account; Account is set only when a read finds one.</summary>
 public sealed record AccountStatus(string Text, Account? Account = null)
@@ -45,6 +45,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
     private bool isLoggingOut;
 
     [ObservableProperty]
@@ -54,13 +55,23 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     private bool preserveDanmaku;
     private string? activeRoomNumber;
 
-    [ObservableProperty] private AccountStatus accountStatus = AccountStatus.Reading;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
+    private AccountStatus accountStatus = AccountStatus.Reading;
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
+    private bool isLoginPage;
+    [ObservableProperty] private string loginError = "";
     private CancellationTokenSource? accountReadStop;
     private Task accountReadTask = Task.CompletedTask;
     private bool shuttingDown;
 
-    private bool CanConnect => !IsLoggingOut && !IsRestarting && !shuttingDown;
+    private bool CanConnect => AccountStatus != AccountStatus.LoggedOut && !IsLoginPage && !IsLoggingOut && !IsRestarting && !shuttingDown;
     private bool CanReconnect => CanConnect && HasRoomConnection;
+    private bool CanLogin => IsLoginPage && !IsLoggingOut && !shuttingDown;
     public bool IsConnected => ConnectionState == RoomConnectionState.Connected;
     public bool HasRoomConnection => ConnectionState != RoomConnectionState.Disconnected;
     public string Status => ConnectionState switch
@@ -69,6 +80,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         RoomConnectionState.Connecting => "连接中",
         RoomConnectionState.Connected => $"已连接 · {(connectedAt is { } start ? (int)clock.GetElapsedTime(start).TotalMinutes : 0)} 分钟",
         RoomConnectionState.Reconnecting => "重连中",
+        RoomConnectionState.WaitingForScan => "等待扫码",
         _ => throw new ArgumentOutOfRangeException(nameof(ConnectionState))
     };
     public bool HasQrCode => QrCode is not null;
@@ -133,6 +145,32 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         }
     }
 
+    [RelayCommand(CanExecute = nameof(CanLogin))]
+    private async Task LoginAsync(CancellationToken cancellationToken)
+    {
+        LoginError = "";
+        try
+        {
+            // Logging in saves the credential to SQLite, so the stream is read off the UI thread too.
+            await Task.Run(async () =>
+            {
+                await foreach (var update in client.LoginAsync(cancellationToken))
+                    if (update is LoginQrCode qr) await Dispatcher.UIThread.InvokeAsync(() => ShowQrCode(qr.Content));
+            }, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested(); // Core ends the stream quietly when cancelled.
+            IsLoginPage = false;
+            // A read that still finds no account brings the login page back with a fresh code.
+            _ = ReadAccountAsync();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
+        catch (Exception error)
+        {
+            logger.LogError(error, "扫码登录失败");
+            LoginError = $"登录失败：{error.Message}";
+        }
+        finally { ClearQrCode(); }
+    }
+
     [RelayCommand(CanExecute = nameof(CanReconnect))]
     private async Task ReconnectAsync()
     {
@@ -151,14 +189,8 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         switch (update)
         {
             case WatchQrCode qr:
-                using (var data = QRCodeGenerator.GenerateQrCode(qr.Content, QRCodeGenerator.ECCLevel.M))
-                using (var code = new PngByteQRCode(data))
-                using (var png = new MemoryStream(code.GetGraphic(8)))
-                {
-                    var bitmap = new Bitmap(png);
-                    ClearQrCode();
-                    QrCode = bitmap;
-                }
+                ShowQrCode(qr.Content);
+                ConnectionState = RoomConnectionState.WaitingForScan;
                 break;
             case Connecting:
                 EndQrLogin();
@@ -203,6 +235,12 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                 var result = await Task.Run(() => client.GetAccountAsync(stop.Token), stop.Token);
                 stop.Token.ThrowIfCancellationRequested();
                 AccountStatus = AccountStatus.Of(result);
+                if (result is null)
+                {
+                    await StopWatchingAsync();
+                    stop.Token.ThrowIfCancellationRequested();
+                    ShowLoginPage();
+                }
             }
             catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
             catch (Exception error)
@@ -219,6 +257,13 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         }
     }
 
+    private void ShowLoginPage()
+    {
+        if (shuttingDown) return;
+        IsLoginPage = true;
+        if (LoginCommand.CanExecute(null)) LoginCommand.Execute(null);
+    }
+
     [RelayCommand]
     private async Task LogoutAsync(CancellationToken cancellationToken)
     {
@@ -227,12 +272,13 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         var loggedOut = false;
         try
         {
+            LoginCommand.Cancel();
             await StopAccountReadAsync();
+            if (LoginCommand.ExecutionTask is { } login) await login;
             await StopWatchingAsync();
             if (ReconnectCommand.ExecutionTask is { } restart) await restart;
             await Task.Run(() => client.LogoutAsync(cancellationToken), cancellationToken);
             AccountStatus = AccountStatus.LoggedOut;
-            Message = "已退出登录，下次连接时请重新扫码。";
             loggedOut = true;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
@@ -243,7 +289,8 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         }
         finally { IsLoggingOut = false; }
         // The stopped read left the panel on 读取中, and a failed logout may have kept the credential.
-        if (!loggedOut) _ = ReadAccountAsync();
+        if (loggedOut) ShowLoginPage();
+        else _ = ReadAccountAsync();
     }
 
     private async Task StopAccountReadAsync()
@@ -263,11 +310,14 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         shuttingDown = true;
         ConnectCommand.NotifyCanExecuteChanged();
         ReconnectCommand.NotifyCanExecuteChanged();
+        LoginCommand.NotifyCanExecuteChanged();
+        LoginCommand.Cancel();
         LogoutCommand.Cancel();
         await StopAccountReadAsync();
         await StopWatchingAsync();
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
+        if (LoginCommand.ExecutionTask is { } login) await login;
     }
 
     // Reconnects skip Connecting, so a QR login can end at either update.
@@ -282,5 +332,15 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         var previous = QrCode;
         QrCode = null;
         previous?.Dispose();
+    }
+
+    private void ShowQrCode(string content)
+    {
+        using var data = QRCodeGenerator.GenerateQrCode(content, QRCodeGenerator.ECCLevel.M);
+        using var code = new PngByteQRCode(data);
+        using var png = new MemoryStream(code.GetGraphic(8));
+        var bitmap = new Bitmap(png);
+        ClearQrCode();
+        QrCode = bitmap;
     }
 }
