@@ -3,6 +3,34 @@
   xmlns:local="using:Aether.Gui"
   x:DataType="local:MainWindowViewModel"
   x:Class="Aether.Gui.SettingsPage">
+  <UserControl.Resources>
+    <DataTemplate x:Key="FeatureActivityTemplate" x:DataType="local:SendQueueItemViewModel">
+      <Border Padding="0,12" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+        <StackPanel Spacing="6">
+          <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+            <TextBlock Text="{Binding Nickname}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Nickname}" />
+            <TextBlock Grid.Column="1" Classes="hint" Text="{Binding Detail}" FontSize="12" />
+            <TextBlock Grid.Column="2" Classes="hint" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" FontSize="12" />
+          </Grid>
+          <TextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+          <TextBlock Classes="sendStatus" Classes.sent="{Binding IsSent}" Classes.unsent="{Binding IsUnsent}" Text="{Binding Status}" />
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="SendActivityTemplate" x:DataType="local:SendQueueItemViewModel">
+      <Border Padding="0,12" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
+        <StackPanel Spacing="6">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+            <TextBlock Text="{Binding KindText}" FontWeight="SemiBold" />
+            <TextBlock Grid.Column="1" Text="{Binding Nickname}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Nickname}" />
+            <TextBlock Grid.Column="2" Classes="hint" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" FontSize="12" />
+          </Grid>
+          <TextBlock Text="{Binding SendText}" TextWrapping="Wrap" IsVisible="{Binding SendText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock Classes="sendStatus" Classes.sent="{Binding IsSent}" Classes.unsent="{Binding IsUnsent}" Text="{Binding Status}" />
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+  </UserControl.Resources>
   <UserControl.Styles>
     <Style Selector="TextBlock.hint">
       <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
@@ -16,7 +44,28 @@
     <Style Selector="Border.uid">
       <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseLowBrush}" />
     </Style>
+    <Style Selector="TextBlock.sendStatus">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlHighlightAccentBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="TextBlock.sendStatus.sent">
+      <Setter Property="Foreground" Value="{DynamicResource ConnectionReadyBrush}" />
+    </Style>
+    <Style Selector="TextBlock.sendStatus.unsent">
+      <Setter Property="Foreground" Value="{DynamicResource ConnectionPendingBrush}" />
+    </Style>
+    <Style Selector="ListBox.activity">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="AutoScrollToSelectedItem" Value="False" />
+      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    </Style>
+    <Style Selector="ListBox.activity ListBoxItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    </Style>
   </UserControl.Styles>
+  <Grid x:Name="PageLayout" ColumnDefinitions="*,Auto" RowDefinitions="*,0">
   <Grid RowDefinitions="Auto,*,Auto" RowSpacing="16">
     <StackPanel Spacing="8">
       <Grid ColumnDefinitions="*,Auto">
@@ -41,7 +90,8 @@
         <Button x:Name="ReconnectButton" Content="重新连接" Command="{Binding ReconnectCommand}" />
       </StackPanel>
     </StackPanel>
-    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+    <Grid x:Name="FieldsAndQueue" Grid.Row="1" RowDefinitions="*,0">
+    <ScrollViewer HorizontalScrollBarVisibility="Disabled">
       <StackPanel>
         <StackPanel x:Name="GeneralFields" Spacing="10">
           <TextBlock Text="保留天数" />
@@ -117,6 +167,21 @@
         </StackPanel>
       </StackPanel>
     </ScrollViewer>
+    <Grid x:Name="SendActivity" Grid.Row="1" RowDefinitions="Auto,*,Auto,*" RowSpacing="8" Margin="0,16,0,0">
+      <TextBlock Text="待发" FontSize="18" FontWeight="SemiBold" />
+      <Panel Grid.Row="1">
+        <TextBlock Classes="hint" Text="暂无待发弹幕" IsVisible="{Binding !PendingSends.Count}" />
+        <ListBox x:Name="PendingSendsList" Classes="activity" ItemsSource="{Binding PendingSends}"
+                 ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="待发弹幕" IsVisible="{Binding !!PendingSends.Count}" />
+      </Panel>
+      <TextBlock Grid.Row="2" Text="最近发送" FontSize="18" FontWeight="SemiBold" />
+      <Panel Grid.Row="3">
+        <TextBlock Classes="hint" Text="暂无发送记录" IsVisible="{Binding !RecentSends.Count}" />
+        <ListBox x:Name="RecentSendsList" Classes="activity" ItemsSource="{Binding RecentSends}"
+                 ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="最近发送" IsVisible="{Binding !!RecentSends.Count}" />
+      </Panel>
+    </Grid>
+    </Grid>
     <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
       <StackPanel VerticalAlignment="Center" Spacing="4">
         <TextBlock x:Name="DirtyMessage" Text="有未保存的修改" />
@@ -125,5 +190,20 @@
       <Button Grid.Column="1" x:Name="SaveButton" Content="保存" Classes="accent" MinWidth="80"
         HorizontalContentAlignment="Center" Click="Save" />
     </Grid>
+  </Grid>
+  <Border x:Name="RecentActivity" Grid.Column="1" Width="300">
+    <Grid RowDefinitions="Auto,*" RowSpacing="8">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBlock x:Name="RecentActivityTitle" FontSize="18" FontWeight="SemiBold" />
+        <TextBlock Grid.Column="1" x:Name="WelcomeTotal" Classes="hint" Text="{Binding WelcomeCount, StringFormat=共 {0} 次}" VerticalAlignment="Center" />
+      </Grid>
+      <Panel Grid.Row="1">
+        <ListBox x:Name="RecentWelcomesList" Classes="activity" ItemsSource="{Binding RecentWelcomes}"
+                 ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近欢迎" />
+        <ListBox x:Name="RecentBlindBoxesList" Classes="activity" ItemsSource="{Binding RecentBlindBoxes}"
+                 ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近回复和播报" />
+      </Panel>
+    </Grid>
+  </Border>
   </Grid>
 </UserControl>

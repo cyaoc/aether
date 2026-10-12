@@ -1,3 +1,4 @@
+using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using Avalonia.Automation.Peers;
@@ -84,6 +85,8 @@ public sealed class SettingsReconnectTests
                 await firstStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
                 viewModel.ConnectionState = state;
                 harness.Receive(viewModel, 3);
+                viewModel.Apply(new SendQueueUpdate(1, DateTimeOffset.Now, SendQueueItemKind.Welcome,
+                    SendQueueItemState.Queued, 42, "观众") { Text = "欢迎" });
                 window.FindControl<ListBox>("Navigation")!.SelectedIndex = 1;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
@@ -101,6 +104,14 @@ public sealed class SettingsReconnectTests
                 Assert.Equal(requests[0], requests[1]);
                 Assert.Equal("6", viewModel.RoomNumber);
                 Assert.Equal(3, viewModel.Danmaku.Count);
+                Assert.Empty(viewModel.PendingSends);
+                Assert.Equal("连接结束，没发出", Assert.Single(viewModel.RecentWelcomes).Status);
+                Assert.Equal(1, viewModel.WelcomeCount);
+                viewModel.Apply(new SendQueueUpdate(2, DateTimeOffset.Now, SendQueueItemKind.Welcome,
+                    SendQueueItemState.Queued, 42, "观众") { Text = "又见面了" });
+                Assert.Equal(2, viewModel.WelcomeCount);
+                Assert.Equal(2, viewModel.RecentWelcomes.Count);
+                Assert.Equal("排队中 · 第 1 条", Assert.Single(viewModel.PendingSends).Status);
                 Assert.False(page.FindControl<StackPanel>("ReconnectNotice")!.IsVisible);
             }
             finally
