@@ -5,20 +5,21 @@ namespace Aether.Core;
 
 /// <summary>One room connection's 发送队列: blind box queries, announcements and welcomes, paced to avoid B站's rate limits.
 /// Reconnects keep it, pacing included; the end of the room connection clears it.</summary>
-internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan interval)
+internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan interval, ChannelWriter<WatchUpdate> output)
 {
     private static readonly TimeSpan QuietWindow = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan SameTextWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan WelcomeLifetime = TimeSpan.FromSeconds(30);
 
     /// <summary>One queued send, addressed to a viewer.</summary>
-    internal abstract record Item(long Uid, string Nickname);
+    internal abstract record Item(long Id, long Uid, string Nickname);
     /// <summary>A 盲盒查询 reply, pointing to the keyword danmaku it answers.</summary>
-    internal sealed record Query(Danmaku Trigger) : Item(Trigger.Uid, Trigger.Nickname);
+    internal sealed record Query(long Id, Danmaku Trigger) : Item(Id, Trigger.Uid, Trigger.Nickname);
     /// <summary>A 盲盒播报, whose text comes from the viewer's 一轮盲盒 as it stands when sent.</summary>
-    internal sealed record Announcement(long Uid, string Nickname) : Item(Uid, Nickname);
+    internal sealed record Announcement(long Id, long Uid, string Nickname) : Item(Id, Uid, Nickname);
     /// <summary>A 进场欢迎, whose text was fixed when queued.</summary>
-    internal sealed record Welcome(long Uid, string Nickname, string Text, bool Mention, long ReceivedAt) : Item(Uid, Nickname);
+    internal sealed record Welcome(long Id, long Uid, string Nickname, string Text, bool Mention, long ReceivedAt,
+        string Condition, string? Value) : Item(Id, Uid, Nickname);
 
     /// <summary>The part of a 一轮盲盒 one announcement reports; a Count, since a box can be worth nothing.</summary>
     private readonly record struct Reported(BlindBoxTally Tally, long Count);
@@ -40,6 +41,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     private readonly object gate = new();
     private readonly HashSet<long> waitingQueries = [];
     private readonly Dictionary<long, Round> rounds = [];
+    private long nextId;
     // Only the sender touches these.
     private long? lastSendEnded;
     private readonly Dictionary<string, long> sendEndedByText = [];
@@ -50,14 +52,33 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     public void Enqueue(Danmaku trigger)
     {
         lock (gate)
-            if (waitingQueries.Add(trigger.Uid)) pending.Writer.TryWrite(new Query(trigger));
+            if (waitingQueries.Add(trigger.Uid)) Queue(new Query(Interlocked.Increment(ref nextId), trigger));
     }
 
-    /// <summary>Queues a 进场欢迎 whose text is fixed now; unlike queries, welcomes never merge.</summary>
-    public void EnqueueWelcome(long uid, string nickname, string text, bool mention, long receivedAt)
+    /// <summary>Reports a rejected 进场欢迎 or queues one whose text is fixed now; welcomes never merge.</summary>
+    public void EnqueueWelcome(long uid, string nickname, string text, bool mention, long receivedAt,
+        string condition, string? value, string? rejectionReason)
     {
-        lock (gate) pending.Writer.TryWrite(new Welcome(uid, nickname, text, mention, receivedAt));
+        var item = new Welcome(Interlocked.Increment(ref nextId), uid, nickname, text, mention, receivedAt, condition, value);
+        if (rejectionReason is not null) Report(item, SendQueueItemState.NotQueued, reason: rejectionReason);
+        else lock (gate) Queue(item);
     }
+
+    // Report before exposing the item to the sender, so Queued always precedes Sending.
+    private void Queue(Item item)
+    {
+        Report(item, SendQueueItemState.Queued, (item as Welcome)?.Text);
+        pending.Writer.TryWrite(item);
+    }
+
+    private void Report(Item item, SendQueueItemState state, string? text = null, string? reason = null,
+        double? retrySeconds = null) => output.TryWrite(new SendQueueUpdate(item.Id, time.GetLocalNow(),
+            item switch { Query => SendQueueItemKind.BlindBoxQuery, Welcome => SendQueueItemKind.Welcome,
+                _ => SendQueueItemKind.BlindBoxAnnouncement }, state, item.Uid, item.Nickname)
+        {
+            Text = text, WelcomeCondition = (item as Welcome)?.Condition, WelcomeValue = (item as Welcome)?.Value,
+            Reason = reason, RetrySeconds = retrySeconds
+        });
 
     /// <summary>Records a whole gift message; <paramref name="save"/> returns whether a box was newly recorded and joins
     /// its viewer's 一轮盲盒.</summary>
@@ -75,7 +96,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     {
         if (!rounds.TryGetValue(box.Uid, out var round))
         {
-            round = new(new(box.Uid, box.Nickname));
+            round = new(new(Interlocked.Increment(ref nextId), box.Uid, box.Nickname));
             rounds.Add(box.Uid, round);
             round.Timer = time.CreateTimer(_ =>
             {
@@ -99,7 +120,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         else
         {
             round.Queued = true;
-            pending.Writer.TryWrite(round.Item);
+            Queue(round.Item);
         }
     }
 
@@ -145,6 +166,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             if (DiscardExpiredWelcome(item)) continue;
             var action = item switch { Query => "回复", Welcome => "欢迎", _ => "播报" };
             Exception? failure = null;
+            Report(item, SendQueueItemState.Sending, text);
             try { await send(cancellationToken); }
             catch (Exception error) when (!cancellationToken.IsCancellationRequested) { failure = error; }
             // Even failed or interrupted requests may have reached B站; both pacing rules count them.
@@ -160,17 +182,25 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             if (failure is DanmakuRateLimitedException && !rateLimitRetryOwed)
             {
                 rateLimitRetryOwed = true;
+                var retrySeconds = Math.Max(interval.TotalSeconds, SameTextWindow.TotalSeconds);
+                Report(item, SendQueueItemState.WaitingToRetry, reason: failure.Message, retrySeconds: retrySeconds);
                 logger.LogWarning("{Error}，{Seconds} 秒后重试观众 {Nickname}（{Uid}）的{Action}",
-                    failure.Message, Math.Max(interval.TotalSeconds, SameTextWindow.TotalSeconds), item.Nickname, item.Uid, action);
+                    failure.Message, retrySeconds, item.Nickname, item.Uid, action);
                 continue;
             }
             rateLimitRetryOwed = false;
             Finish(item, reported);
             if (failure is null)
+            {
+                Report(item, SendQueueItemState.Sent, text);
                 logger.LogInformation("发送弹幕成功：{Action}观众 {Nickname}（{Uid}）：{Message}", action, item.Nickname, item.Uid, text);
+            }
             else
+            {
+                Report(item, SendQueueItemState.Discarded, reason: failure.Message);
                 logger.LogWarning(failure, "发送弹幕失败，已丢弃：{Action}观众 {Nickname}（{Uid}）：{Message}；{Error}",
                     action, item.Nickname, item.Uid, text, failure.Message);
+            }
         }
     }
 
@@ -179,6 +209,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         if (item is not Welcome welcome || time.GetElapsedTime(welcome.ReceivedAt) < WelcomeLifetime) return false;
         rateLimitRetryOwed = false;
         Finish(item, null);
+        Report(item, SendQueueItemState.Discarded, reason: "欢迎已过期，进场已满 30 秒");
         logger.LogInformation("欢迎已过期，进场已满 {Seconds} 秒，已丢弃：欢迎观众 {Nickname}（{Uid}）",
             WelcomeLifetime.TotalSeconds, item.Nickname, item.Uid);
         return true;
@@ -218,6 +249,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                 {
                     // Gifts received while the request was in flight start the next round.
                     round.Tally = new(round.Tally.Spend - done.Tally.Spend, round.Tally.OpenedValue - done.Tally.OpenedValue);
+                    round.Item = round.Item with { Id = Interlocked.Increment(ref nextId) };
                     round.Queued = false;
                     QueueWhenQuiet(round);
                 }

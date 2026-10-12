@@ -37,13 +37,20 @@ internal sealed class WatchHarness : IAsyncDisposable
         new(http ?? new FakeBilibiliHttp { Respond = Http.Respond }, connectWebSocket, Time, Logger, DataDirectory);
 
     /// <summary>Watches room 6 on <paramref name="client"/> (this harness's own by default) until <see cref="Stop"/>.</summary>
-    public IAsyncEnumerator<WatchUpdate> Watch(AetherClient? client = null) =>
-        (client ?? Client).WatchAsync(6, Stop.Token).GetAsyncEnumerator(Stop.Token);
+    public IAsyncEnumerator<WatchUpdate> Watch(AetherClient? client = null, bool includeSendQueueUpdates = false) =>
+        WatchUpdates(client ?? Client, includeSendQueueUpdates).GetAsyncEnumerator(Stop.Token);
+
+    // Tests of receiving and sending HTTP keep their existing stream; progress tests opt into the full stream.
+    private async IAsyncEnumerable<WatchUpdate> WatchUpdates(AetherClient client, bool includeSendQueueUpdates)
+    {
+        await foreach (var update in client.WatchAsync(6, Stop.Token))
+            if (includeSendQueueUpdates || update is not SendQueueUpdate) yield return update;
+    }
 
     /// <summary>Watches room 6 and returns once the room connection reports Connected.</summary>
-    public async Task<IAsyncEnumerator<WatchUpdate>> WatchConnectedAsync(AetherClient? client = null)
+    public async Task<IAsyncEnumerator<WatchUpdate>> WatchConnectedAsync(AetherClient? client = null, bool includeSendQueueUpdates = false)
     {
-        var updates = Watch(client);
+        var updates = Watch(client, includeSendQueueUpdates);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Connecting>(updates.Current);
         Assert.True(await updates.MoveNextAsync());

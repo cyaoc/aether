@@ -30,7 +30,7 @@ public sealed partial class AetherClient
         private IDisposable? roomScope;
         private readonly DanmakuProtocol.FormatNotices formatNotices = new();
         private readonly SendQueue sendQueue =
-            new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value));
+            new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value), output);
         private readonly WelcomeText welcomeText = new(settings.WelcomeText.Value);
         // On the same scale as Entry.GuardTier; 0 is 关闭.
         private readonly int guardThreshold = Settings.WelcomeGuards.ToList().IndexOf(settings.WelcomeGuard.Value);
@@ -226,23 +226,32 @@ public sealed partial class AetherClient
                                 : Settings.WelcomeWealthLevel.Value > 0 && entry.WealthLevel >= Settings.WelcomeWealthLevel.Value ? "荣耀等级"
                                 : null;
                             if (condition is null) continue;
+                            var conditionValue = condition switch
+                            {
+                                "粉丝团等级" => entry.FanClubLevel?.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                "大航海身份" => entry.GuardName,
+                                "荣耀等级" => entry.WealthLevel.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                _ => null
+                            };
                             var text = welcomeText.Render(entry.Nickname, entry.GuardName, danmakuLengthLimit);
+                            var length = WelcomeText.Length(text);
+                            string? rejectionReason = null;
                             // B站 refuses an empty danmaku, as "{大航海}" for a non-guard or a fully truncated nickname gives.
                             if (string.IsNullOrWhiteSpace(text))
                             {
                                 client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语拼出来是空的，未发送",
                                     entry.Nickname, entry.Uid, condition);
-                                continue;
+                                rejectionReason = "欢迎语拼出来是空的";
                             }
-                            var length = WelcomeText.Length(text);
-                            if (length > danmakuLengthLimit)
+                            else if (length > danmakuLengthLimit)
                             {
                                 client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语固定部分计数为 {Length}，超过上限 {Limit}，未发送",
                                     entry.Nickname, entry.Uid, condition, length, danmakuLengthLimit);
-                                continue;
+                                rejectionReason = $"欢迎语超过弹幕字数上限 {danmakuLengthLimit}";
                             }
-                            client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中{Condition}", entry.Nickname, entry.Uid, condition);
-                            sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, text, welcomeText.Mention, receivedTimestamp);
+                            else client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中{Condition}", entry.Nickname, entry.Uid, condition);
+                            sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, text, welcomeText.Mention, receivedTimestamp,
+                                condition, conditionValue, rejectionReason);
                         }
                     }
                 }

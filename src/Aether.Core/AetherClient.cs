@@ -81,7 +81,7 @@ public sealed partial class AetherClient(
         long roomId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // ponytail: unbounded, so a reader that stops for good grows memory; bound it if a stalled shell ever matters.
-        var updates = Channel.CreateUnbounded<WatchUpdate>(new UnboundedChannelOptions { SingleReader = true, SingleWriter = true });
+        var updates = Channel.CreateUnbounded<WatchUpdate>(new UnboundedChannelOptions { SingleReader = true });
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         // Started inline, so it runs on the caller's first read up to its first real wait; but without the caller's
         // SynchronizationContext, so everything after that runs on the thread pool instead of a shell's UI thread.
