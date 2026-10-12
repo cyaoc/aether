@@ -33,7 +33,7 @@ public sealed class SettingsPageTests
             Assert.NotNull(wealth);
             Assert.False(enabled.IsChecked);
             Assert.True(enabled.IsEnabled);
-            Assert.Equal("下次观看直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
+            Assert.Equal("下次连接直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
             Assert.Equal("欢迎{昵称}", text.Text);
             Assert.False(text.IsReadOnly);
             Assert.Equal(["42"], UidLabels(window));
@@ -207,7 +207,7 @@ public sealed class SettingsPageTests
             Assert.NotNull(input);
             Assert.True(input.IsChecked);
             Assert.True(input.IsEnabled);
-            Assert.Equal("下次观看直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
+            Assert.Equal("下次连接直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
             input.IsChecked = false;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(line is null ? before.Replace("  enabled: true\n", "  enabled: true\n  announce: false\n")
@@ -318,7 +318,7 @@ public sealed class SettingsPageTests
             Assert.Equal(before.Replace("enabled: false # 开关", "enabled: true # 开关"), File.ReadAllText(path));
             Assert.True(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);
             Assert.StartsWith("已保存", window.FindControl<TextBlock>("Message")!.Text);
-            Assert.Equal("下次观看直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
+            Assert.Equal("下次连接直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
             input.IsChecked = false;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);

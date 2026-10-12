@@ -221,13 +221,15 @@ public sealed partial class AetherClient
                                 box => client.stores.Value.BlindBoxes.Save(realRoomId, box) && Settings.BlindBoxAnnounce.Value);
                         else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry })
                         {
-                            var (condition, conditionValue) = Settings.WelcomeUids.Value.Contains(entry.Uid) ? ("UID", null)
+                            // The name is for the log; shells get the enum and the value.
+                            var (condition, conditionName, conditionValue) = Settings.WelcomeUids.Value.Contains(entry.Uid)
+                                    ? (WelcomeCondition.Uid, "UID", null)
                                 : Settings.WelcomeFanClubLevel.Value > 0 && entry.FanClubLevel >= Settings.WelcomeFanClubLevel.Value
-                                    ? ("粉丝团等级", FormattableString.Invariant($"{entry.FanClubLevel}"))
-                                : guardThreshold > 0 && entry.GuardTier >= guardThreshold ? ("大航海身份", entry.GuardName)
+                                    ? (WelcomeCondition.FanClubLevel, "粉丝团等级", FormattableString.Invariant($"{entry.FanClubLevel}"))
+                                : guardThreshold > 0 && entry.GuardTier >= guardThreshold ? (WelcomeCondition.Guard, "大航海身份", entry.GuardName)
                                 : Settings.WelcomeWealthLevel.Value > 0 && entry.WealthLevel >= Settings.WelcomeWealthLevel.Value
-                                    ? ("荣耀等级", FormattableString.Invariant($"{entry.WealthLevel}"))
-                                : ((string?)null, (string?)null);
+                                    ? (WelcomeCondition.WealthLevel, "荣耀等级", FormattableString.Invariant($"{entry.WealthLevel}"))
+                                : ((WelcomeCondition?)null, "", (string?)null);
                             if (condition is null) continue;
                             var text = welcomeText.Render(entry.Nickname, entry.GuardName, danmakuLengthLimit);
                             var length = WelcomeText.Length(text);
@@ -236,18 +238,18 @@ public sealed partial class AetherClient
                             if (string.IsNullOrWhiteSpace(text))
                             {
                                 client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语拼出来是空的，未发送",
-                                    entry.Nickname, entry.Uid, condition);
+                                    entry.Nickname, entry.Uid, conditionName);
                                 rejectionReason = "欢迎语拼出来是空的";
                             }
                             else if (length > danmakuLengthLimit)
                             {
                                 client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语固定部分计数为 {Length}，超过上限 {Limit}，未发送",
-                                    entry.Nickname, entry.Uid, condition, length, danmakuLengthLimit);
+                                    entry.Nickname, entry.Uid, conditionName, length, danmakuLengthLimit);
                                 rejectionReason = FormattableString.Invariant($"欢迎语超过弹幕字数上限 {danmakuLengthLimit}");
                             }
-                            else client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中{Condition}", entry.Nickname, entry.Uid, condition);
+                            else client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中{Condition}", entry.Nickname, entry.Uid, conditionName);
                             sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, text, welcomeText.Mention, receivedTimestamp,
-                                condition, conditionValue, rejectionReason);
+                                condition.Value, conditionValue, rejectionReason);
                         }
                     }
                 }

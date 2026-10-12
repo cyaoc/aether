@@ -42,7 +42,7 @@ public partial class SettingsPage : UserControl
             SettingsSection.Send => ("发送队列", "send."),
             _ => ("通用设置", "log.")
         };
-        TimingHint.Text = AppliesOnRestart ? "重启后生效" : "下次观看直播间时生效";
+        TimingHint.Text = AppliesOnRestart ? "重启后生效" : "下次连接直播间时生效";
         BlindBoxHeader.IsVisible = BlindBoxFields.IsVisible = section == SettingsSection.BlindBox;
         WelcomeHeader.IsVisible = WelcomeFields.IsVisible = section == SettingsSection.Welcome;
         SendFields.IsVisible = section == SettingsSection.Send;

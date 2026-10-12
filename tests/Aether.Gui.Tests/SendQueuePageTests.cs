@@ -18,7 +18,7 @@ public sealed class SendQueuePageTests
     {
         using var harness = new GuiHarness();
         var viewModel = harness.CreateViewModel();
-        var first = Update(1, SendQueueItemKind.Welcome) with { Text = "欢迎回来", WelcomeCondition = "UID" };
+        var first = Update(1, SendQueueItemKind.Welcome) with { Text = "欢迎回来", WelcomeCondition = WelcomeCondition.Uid };
         var second = Update(2, SendQueueItemKind.BlindBoxQuery);
         viewModel.Apply(first);
         viewModel.Apply(second);
@@ -129,13 +129,13 @@ public sealed class SendQueuePageTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData("UID", null, "指定 UID")]
-    [InlineData("粉丝团等级", "12", "粉丝团 12")]
-    [InlineData("大航海身份", "舰长", "舰长")]
-    [InlineData("大航海身份", "提督", "提督")]
-    [InlineData("大航海身份", "总督", "总督")]
-    [InlineData("荣耀等级", "34", "荣耀 34")]
-    public Task Rejected_welcomes_show_the_matched_condition_and_reason(string condition, string? value, string expected) =>
+    [InlineData(WelcomeCondition.Uid, null, "指定 UID")]
+    [InlineData(WelcomeCondition.FanClubLevel, "12", "粉丝团 12")]
+    [InlineData(WelcomeCondition.Guard, "舰长", "舰长")]
+    [InlineData(WelcomeCondition.Guard, "提督", "提督")]
+    [InlineData(WelcomeCondition.Guard, "总督", "总督")]
+    [InlineData(WelcomeCondition.WealthLevel, "34", "荣耀 34")]
+    public Task Rejected_welcomes_show_the_matched_condition_and_reason(WelcomeCondition condition, string? value, string expected) =>
         HeadlessApp.Session.Dispatch(() =>
         {
             using var harness = new GuiHarness();
@@ -176,7 +176,7 @@ public sealed class SendQueuePageTests
             var badge = window.FindControl<TextBlock>("PendingSendCount");
             Assert.NotNull(badge);
             Assert.False(badge.IsVisible);
-            var welcome = Update(1, SendQueueItemKind.Welcome) with { Text = "欢迎回来", WelcomeCondition = "UID" };
+            var welcome = Update(1, SendQueueItemKind.Welcome) with { Text = "欢迎回来", WelcomeCondition = WelcomeCondition.Uid };
             var query = Update(2, SendQueueItemKind.BlindBoxQuery);
             var announcement = Update(3, SendQueueItemKind.BlindBoxAnnouncement);
             viewModel.Apply(welcome);
