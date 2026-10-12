@@ -241,8 +241,8 @@ public sealed class ReconnectionTests
             (++attempts == 1 ? first : second).ConnectAsync(uri, token));
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        var validNav = h.Http.Responses["https://api.bilibili.com/x/web-interface/nav"];
-        h.Http.Responses["https://api.bilibili.com/x/web-interface/nav"] = $$$$"""
+        var validNav = h.Http.Responses[FakeBilibiliHttp.NavUrl];
+        h.Http.Responses[FakeBilibiliHttp.NavUrl] = $$$$"""
             {"code":{{{{code}}}},"data":{"isLogin":false,"wbi_img":{
                 "img_url":"https://example.test/00000000000000000000000000000000.png",
                 "sub_url":"https://example.test/00000000000000000000000000000000.png"}}}
@@ -256,7 +256,7 @@ public sealed class ReconnectionTests
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<WatchQrCode>(updates.Current);
         Assert.Null(second.ConnectedUri);
-        h.Http.Responses["https://api.bilibili.com/x/web-interface/nav"] = validNav
+        h.Http.Responses[FakeBilibiliHttp.NavUrl] = validNav
             .Replace("7cd084941338484aae1ad9425b84077c", "00000000000000000000000000000000")
             .Replace("4932caff0ff746eab6f01bf08b70ac45", "00000000000000000000000000000000");
         Assert.True(await h.AdvancePollAsync(updates));

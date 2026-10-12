@@ -18,7 +18,7 @@ internal sealed class WatchHarness : IAsyncDisposable
         Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
             """{"code":0,"data":{"room_id":7734200}}""";
         Http.ConfigureLogin();
-        Http.Responses["https://api.bilibili.com/x/web-interface/nav"] =
+        Http.Responses[FakeBilibiliHttp.NavUrl] =
             """{"code":0,"data":{"isLogin":true,"mid":9876543210,"wbi_img":{"img_url":"https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png","sub_url":"https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png"}}}""";
         Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
             """{"code":0,"data":{"token":"room-token","host_list":[{"host":"danmaku.example","wss_port":443}]}}""";
@@ -101,6 +101,8 @@ internal sealed class WatchHarness : IAsyncDisposable
 
     public (Dictionary<string, string> Cookies, string RefreshToken, DateTimeOffset SavedAt) SavedCredential() =>
         TestDatabase.SavedCredential(DataDirectory);
+
+    public DateTimeOffset? CheckedAt() => TestDatabase.CheckedAt(DataDirectory);
 
     public async ValueTask DisposeAsync()
     {

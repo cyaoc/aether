@@ -42,6 +42,15 @@ internal sealed class BilibiliApi
     public async Task<bool> IsLoggedInAsync(CancellationToken cancellationToken) =>
         credential is not null && (await GetLoginStatusAndWbiKeysAsync(cancellationToken)).Mid != 0;
 
+    public async Task<Account?> GetAccountAsync(CancellationToken cancellationToken)
+    {
+        if (!await IsLoggedInAsync(cancellationToken)) return null;
+        var (mid, data) = await GetLoginStatusAndWbiKeysAsync(cancellationToken); // Cached by IsLoggedInAsync.
+        if (!data.TryGetProperty("uname", out var uname) || uname.ValueKind != JsonValueKind.String)
+            throw new InvalidDataException("B站返回的 data.uname 缺失或不是字符串。");
+        return new Account(mid, uname.GetString()!);
+    }
+
     private async Task<(long Mid, JsonElement Data)> GetLoginStatusAndWbiKeysAsync(CancellationToken cancellationToken)
     {
         if (loginStatus is { } cached) return cached;

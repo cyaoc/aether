@@ -5,7 +5,7 @@ namespace Aether.Core.Tests;
 
 public sealed class WatchLoginTests
 {
-    private const string Nav = "https://api.bilibili.com/x/web-interface/nav";
+    private const string Nav = FakeBilibiliHttp.NavUrl;
     private const string Generate = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate";
     private const string Poll = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll";
     private const string LoggedOutNav = """{"code":-101,"data":{"isLogin":false}}""";
