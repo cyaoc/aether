@@ -86,6 +86,19 @@ internal sealed class BilibiliApi
         return (mid, buvid, data.GetProperty("token").GetString()!, uri);
     }
 
+    public async Task<int> GetDanmakuLengthLimitAsync(long realRoomId, CancellationToken cancellationToken)
+    {
+        var (_, data) = await GetAsync(FormattableString.Invariant(
+            $"https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser?room_id={realRoomId}&from=0"),
+            LiveReferer, "读取弹幕字数上限", cancellationToken);
+        if (data.ValueKind != JsonValueKind.Object || !data.TryGetProperty("property", out var property)
+            || property.ValueKind != JsonValueKind.Object || !property.TryGetProperty("danmu", out var danmu)
+            || danmu.ValueKind != JsonValueKind.Object || !danmu.TryGetProperty("length", out var length)
+            || length.ValueKind != JsonValueKind.Number || !length.TryGetInt32(out var limit) || limit <= 0)
+            throw new InvalidDataException("B站返回的 data.property.danmu.length 缺失或不是正整数。");
+        return limit;
+    }
+
     public async Task<(string Url, string Key)> GenerateQrCodeAsync(CancellationToken cancellationToken)
     {
         await EnsureBuvidAsync(cancellationToken);

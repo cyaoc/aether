@@ -307,15 +307,18 @@ public sealed class WelcomeTests
         await using (var updates = await h.WatchConnectedAsync())
             await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(), "{\"cmd\":\"INTERACT_WORD\"}", "{\"cmd\":\"INTERACT_WORD_V3\"}");
         Assert.DoesNotContain(h.Logger.Entries, entry => entry.Message.Contains("进场消息"));
+        Assert.DoesNotContain(h.Http.Requests, request => request.Uri.AbsolutePath.EndsWith("getInfoByUser"));
         Assert.Equal(0, SendAttempts(h));
     }
 
-    private static void Enable(WatchHarness h, string text = "欢迎{大航海}{昵称}", int limit = 20) =>
+    private static void Enable(WatchHarness h, string text = "欢迎{大航海}{昵称}", int limit = 20)
+    {
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.text"] = text,
-            ["welcome.max_length"] = limit.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            ["welcome.enabled"] = "true", ["welcome.text"] = text
         });
+        h.Http.SetDanmakuLengthLimit(limit);
+    }
 
     [Theory]
     [InlineData("提督", 3, false)]

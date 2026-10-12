@@ -14,6 +14,9 @@ public sealed partial class AetherClient
         // No data at all for this long, not even a heartbeat reply, means the room connection is dead.
         private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(60);
 
+        // The web player's own fallback (danmu_length||20) when getInfoByUser gives no 弹幕字数上限.
+        private const int FallbackDanmakuLengthLimit = 20;
+
         // .NET exposes ERROR_SHARING_VIOLATION on Windows, but raw EWOULDBLOCK on Unix (35 on macOS, 11 on Linux).
         private static readonly int RoomLockHeldHResult = OperatingSystem.IsWindows()
             ? unchecked((int)0x80070020) : OperatingSystem.IsMacOS() ? 35 : 11;
@@ -151,6 +154,19 @@ public sealed partial class AetherClient
             long realRoomId, BilibiliApi api, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var connection = await api.GetConnectionAsync(realRoomId, cancellationToken);
+            var danmakuLengthLimit = FallbackDanmakuLengthLimit;
+            if (Settings.WelcomeEnabled.Value)
+            {
+                try
+                {
+                    danmakuLengthLimit = await api.GetDanmakuLengthLimitAsync(realRoomId, cancellationToken);
+                    client.logger.LogInformation("弹幕字数上限：{Limit}", danmakuLengthLimit);
+                }
+                catch (Exception error) when (!cancellationToken.IsCancellationRequested)
+                {
+                    client.logger.LogWarning(error, "读取弹幕字数上限失败，按 {Limit} 处理：{Error}", danmakuLengthLimit, error.Message);
+                }
+            }
             using var socket = await client.connectWebSocket(connection.Server, cancellationToken);
             var authentication = DanmakuProtocol.CreateAuthentication(connection.Mid, realRoomId, connection.Token, connection.Buvid);
             using var idleTimeout = new CancellationTokenSource(IdleTimeout, client.timeProvider);
@@ -210,12 +226,19 @@ public sealed partial class AetherClient
                                 : Settings.WelcomeWealthLevel.Value > 0 && entry.WealthLevel >= Settings.WelcomeWealthLevel.Value ? "荣耀等级"
                                 : null;
                             if (condition is null) continue;
-                            var text = welcomeText.Render(entry.Nickname, entry.GuardName, Settings.WelcomeMaxLength.Value);
+                            var text = welcomeText.Render(entry.Nickname, entry.GuardName, danmakuLengthLimit);
                             // B站 refuses an empty danmaku, as "{大航海}" for a non-guard or a fully truncated nickname gives.
                             if (string.IsNullOrWhiteSpace(text))
                             {
                                 client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语拼出来是空的，未发送",
                                     entry.Nickname, entry.Uid, condition);
+                                continue;
+                            }
+                            var length = WelcomeText.Length(text);
+                            if (length > danmakuLengthLimit)
+                            {
+                                client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语固定部分计数为 {Length}，超过上限 {Limit}，未发送",
+                                    entry.Nickname, entry.Uid, condition, length, danmakuLengthLimit);
                                 continue;
                             }
                             client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中{Condition}", entry.Nickname, entry.Uid, condition);

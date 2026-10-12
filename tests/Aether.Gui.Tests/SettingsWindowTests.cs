@@ -20,14 +20,12 @@ public sealed class SettingsWindowTests
             var before = File.ReadAllText(path);
             var enabled = window.FindControl<CheckBox>("WelcomeInput");
             var text = window.FindControl<TextBox>("WelcomeTextInput");
-            var limit = window.FindControl<NumericUpDown>("WelcomeMaxLengthInput");
             var uids = window.FindControl<TextBox>("WelcomeUidsInput");
             var fanClub = window.FindControl<NumericUpDown>("WelcomeFanClubInput");
             var threshold = window.FindControl<ComboBox>("WelcomeGuardInput");
             var wealth = window.FindControl<NumericUpDown>("WelcomeWealthInput");
             Assert.NotNull(enabled);
             Assert.NotNull(text);
-            Assert.NotNull(limit);
             Assert.NotNull(uids);
             Assert.NotNull(fanClub);
             Assert.NotNull(threshold);
@@ -39,10 +37,9 @@ public sealed class SettingsWindowTests
             Assert.False(text.IsReadOnly);
             Assert.Equal("[42]", uids.Text);
             Assert.False(uids.IsReadOnly);
-            Assert.Equal("20", limit.Text);
             Assert.Equal("1", fanClub.Text);
             Assert.Equal("2", wealth.Text);
-            foreach (var number in new[] { limit, fanClub, wealth })
+            foreach (var number in new[] { fanClub, wealth })
             {
                 Assert.False(number.IsReadOnly);
                 Assert.True(number.AllowSpin);
@@ -53,7 +50,6 @@ public sealed class SettingsWindowTests
 
             enabled.IsChecked = true;
             text.Text = "{@}欢迎{大航海}{昵称}回家";
-            limit.Text = "30";
             uids.Text = "[2147483648, 9223372036854775807]";
             fanClub.Text = "21";
             threshold.SelectedItem = guard;
@@ -64,7 +60,6 @@ public sealed class SettingsWindowTests
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("enabled: false # 开关", "enabled: true # 开关")
                 .Replace("text: '欢迎{昵称}'", "text: '{@}欢迎{大航海}{昵称}回家'")
-                .Replace("max_length: 20", "max_length: 30")
                 .Replace("uids: [42]", "uids: [2147483648, 9223372036854775807]")
                 .Replace("fan_club_level: 1", "fan_club_level: 21")
                 .Replace("guard: 舰长", $"guard: {guard}")
@@ -73,37 +68,11 @@ public sealed class SettingsWindowTests
             Assert.Null(settings.Error);
             Assert.True(settings.WelcomeEnabled.Value);
             Assert.Equal("{@}欢迎{大航海}{昵称}回家", settings.WelcomeText.Value);
-            Assert.Equal(30, settings.WelcomeMaxLength.Value);
+            Assert.Contains("welcome.max_length", settings.UnknownKeys);
             Assert.Equal([2147483648L, long.MaxValue], settings.WelcomeUids.Value);
             Assert.Equal(21, settings.WelcomeFanClubLevel.Value);
             Assert.Equal(guard, settings.WelcomeGuard.Value);
             Assert.Equal(45, settings.WelcomeWealthLevel.Value);
-        });
-
-    [Theory]
-    [InlineData("'欢迎{大航海}{昵称}'")]
-    [InlineData("|-\n    欢迎{大航海}{昵称}")]
-    public Task Lowering_only_the_welcome_limit_rejects_the_current_text_with_its_count(string text) =>
-        WithSettingsWindow($"welcome:\n  text: {text}\n  max_length: 20\n", (window, path) =>
-        {
-            var before = File.ReadAllText(path);
-            var limit = window.FindControl<NumericUpDown>("WelcomeMaxLengthInput")!;
-            var input = Assert.Single(limit.GetVisualDescendants().OfType<TextBox>());
-            input.Text = "7";
-            Dispatcher.UIThread.RunJobs();
-            var save = window.FindControl<Button>("SaveButton")!;
-            Assert.False(save.IsEnabled);
-            Assert.Contains("welcome.text", window.FindControl<TextBlock>("Message")!.Text);
-            Assert.Contains("计数为 8，超过上限 7", window.FindControl<TextBlock>("Message")!.Text);
-            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before, File.ReadAllText(path));
-            Assert.Equal("7", limit.Text);
-
-            input.Text = "8";
-            Dispatcher.UIThread.RunJobs();
-            Assert.True(save.IsEnabled);
-            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("max_length: 20", "max_length: 8"), File.ReadAllText(path));
         });
 
     [Theory]
@@ -134,22 +103,17 @@ public sealed class SettingsWindowTests
         });
 
     [Fact]
-    public Task Welcome_text_uses_the_increased_form_limit_instead_of_the_saved_limit() =>
+    public Task Long_welcome_text_can_be_saved_before_the_accounts_limit_is_known() =>
         WithSettingsWindow(null, (window, path) =>
         {
             window.FindControl<TextBox>("WelcomeTextInput")!.Text = "一二三四五六七八九十百";
             Dispatcher.UIThread.RunJobs();
             var save = window.FindControl<Button>("SaveButton")!;
-            Assert.False(save.IsEnabled);
-            Assert.Contains("计数为 22，超过上限 20", window.FindControl<TextBlock>("Message")!.Text);
-            window.FindControl<NumericUpDown>("WelcomeMaxLengthInput")!.Text = "22";
-            Dispatcher.UIThread.RunJobs();
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
             Assert.Null(settings.Error);
             Assert.Equal("一二三四五六七八九十百", settings.WelcomeText.Value);
-            Assert.Equal(22, settings.WelcomeMaxLength.Value);
         });
 
     [Fact]
@@ -159,13 +123,14 @@ public sealed class SettingsWindowTests
             var before = File.ReadAllText(path);
             Assert.False(window.FindControl<CheckBox>("WelcomeInput")!.IsChecked);
             Assert.Equal("欢迎{大航海}{昵称}", window.FindControl<TextBox>("WelcomeTextInput")!.Text);
-            Assert.Equal("20", window.FindControl<NumericUpDown>("WelcomeMaxLengthInput")!.Text);
+            Assert.Null(window.FindControl<NumericUpDown>("WelcomeMaxLengthInput"));
             Assert.Equal("[]", window.FindControl<TextBox>("WelcomeUidsInput")!.Text);
             Assert.Equal("0", window.FindControl<NumericUpDown>("WelcomeFanClubInput")!.Text);
             Assert.Equal("舰长", window.FindControl<ComboBox>("WelcomeGuardInput")!.SelectedItem);
             Assert.Equal("0", window.FindControl<NumericUpDown>("WelcomeWealthInput")!.Text);
             var hint = window.FindControl<TextBlock>("WelcomeTextHint")!.Text;
             Assert.Contains("英文、数字、半角符号算 1，其他字符算 2", hint);
+            Assert.Contains("上限自动读取账号的", hint);
             Assert.Contains("{@}（只能放开头）、{昵称}、{大航海}", hint);
             Assert.Contains("{{ 和 }}", hint);
             window.FindControl<TextBox>("WelcomeUidsInput")!.Text = "[12345, 67890]";
@@ -179,7 +144,7 @@ public sealed class SettingsWindowTests
 
     [Fact]
     public Task Flow_welcome_group_is_read_only_and_preserved_when_other_settings_are_saved() =>
-        WithSettingsWindow("welcome: {enabled: true, text: '欢迎{昵称}', max_length: 30, uids: [12345, 67890], fan_club_level: 21, guard: 提督, wealth_level: 45}\n", (window, path) =>
+        WithSettingsWindow("welcome: {enabled: true, text: '欢迎{昵称}', uids: [12345, 67890], fan_club_level: 21, guard: 提督, wealth_level: 45}\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
             Assert.True(window.FindControl<CheckBox>("WelcomeInput")!.IsChecked);
@@ -190,14 +155,14 @@ public sealed class SettingsWindowTests
             Assert.True(window.FindControl<TextBox>("WelcomeUidsInput")!.IsReadOnly);
             Assert.Equal("提督", window.FindControl<ComboBox>("WelcomeGuardInput")!.SelectedItem);
             Assert.False(window.FindControl<ComboBox>("WelcomeGuardInput")!.IsEnabled);
-            foreach (var (name, value) in new[] { ("WelcomeMaxLength", "30"), ("WelcomeFanClub", "21"), ("WelcomeWealth", "45") })
+            foreach (var (name, value) in new[] { ("WelcomeFanClub", "21"), ("WelcomeWealth", "45") })
             {
                 var number = window.FindControl<NumericUpDown>(name + "Input")!;
                 Assert.Equal(value, number.Text);
                 Assert.True(number.IsReadOnly);
                 Assert.False(number.AllowSpin);
             }
-            foreach (var name in new[] { "Welcome", "WelcomeText", "WelcomeMaxLength", "WelcomeUids", "WelcomeFanClub", "WelcomeGuard", "WelcomeWealth" })
+            foreach (var name in new[] { "Welcome", "WelcomeText", "WelcomeUids", "WelcomeFanClub", "WelcomeGuard", "WelcomeWealth" })
                 Assert.True(window.FindControl<TextBlock>(name + "ReadOnly")!.IsVisible);
             window.FindControl<ComboBox>("LevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
             Dispatcher.UIThread.RunJobs();
@@ -208,10 +173,6 @@ public sealed class SettingsWindowTests
         });
 
     [Theory]
-    [InlineData("WelcomeMaxLength", "max_length", "0")]
-    [InlineData("WelcomeMaxLength", "max_length", "1.5")]
-    [InlineData("WelcomeMaxLength", "max_length", "")]
-    [InlineData("WelcomeMaxLength", "max_length", "2147483648")]
     [InlineData("WelcomeFanClub", "fan_club_level", "-1")]
     [InlineData("WelcomeWealth", "wealth_level", "-1")]
     [InlineData("WelcomeUids", "uids", "12345, 67890")]
