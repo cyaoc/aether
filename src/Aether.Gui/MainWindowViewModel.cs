@@ -52,7 +52,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
     private bool isRestarting;
-    private bool preserveDanmaku;
+    private bool preserveHistory;
     private string? activeRoomNumber;
 
     [ObservableProperty]
@@ -97,6 +97,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         connectionTimer?.Dispose();
         connectionTimer = null;
         connectedAt = null;
+        EndPendingSends();
     }
 
     partial void OnKeepRecentDanmakuChanged(bool value)
@@ -123,8 +124,12 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         ConnectionState = RoomConnectionState.Connecting;
         activeRoomNumber = RoomNumber;
         Message = "";
-        if (!preserveDanmaku) Danmaku.Clear();
-        preserveDanmaku = false;
+        if (!preserveHistory)
+        {
+            Danmaku.Clear();
+            ClearSendHistory();
+        }
+        preserveHistory = false;
         try
         {
             // Core runs the room connection off the UI thread; this loop only shows what it reports.
@@ -180,7 +185,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         finally { IsRestarting = false; }
         if (!CanConnect) return;
         RoomNumber = room;
-        preserveDanmaku = true;
+        preserveHistory = true;
         ConnectCommand.Execute(null);
     }
 
@@ -211,6 +216,9 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
             case Danmaku danmaku:
                 Danmaku.Add(danmaku);
                 if (KeepRecentDanmaku && Danmaku.Count > RecentDanmakuLimit) Danmaku.RemoveAt(0);
+                break;
+            case SendQueueUpdate progress:
+                ApplySendQueue(progress);
                 break;
         }
     }

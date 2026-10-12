@@ -136,7 +136,13 @@
                 <TextBlock Grid.Column="1" x:Name="WelcomeStatus" Classes="muted" />
               </Grid>
             </ListBoxItem>
-            <ListBoxItem Content="发送队列" />
+            <ListBoxItem>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                <TextBlock Text="发送队列" />
+                <TextBlock Grid.Column="1" x:Name="PendingSendCount" Classes="muted" FontSize="12" VerticalAlignment="Center"
+                           Text="{Binding PendingSends.Count, StringFormat={}{0} 条待发}" IsVisible="{Binding !!PendingSends.Count}" />
+              </Grid>
+            </ListBoxItem>
             <ListBoxItem Content="通用设置" />
           </ListBox>
         </StackPanel>

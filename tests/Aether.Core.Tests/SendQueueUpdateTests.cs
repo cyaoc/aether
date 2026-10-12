@@ -95,11 +95,11 @@ public sealed class SendQueueUpdateTests
     }
 
     [Theory]
-    [InlineData("{大航海}", 20, "welcome.uids", "[10001]", "UID", null, "欢迎语拼出来是空的")]
-    [InlineData("{大航海}", 20, "welcome.fan_club_level", "21", "粉丝团等级", "47", "欢迎语拼出来是空的")]
-    [InlineData("欢迎回家", 1, "welcome.wealth_level", "30", "荣耀等级", "45", "欢迎语超过弹幕字数上限 1")]
-    public async Task Rejected_welcome_reports_only_not_queued_with_its_condition_and_reason(
-        string text, int limit, string setting, string threshold, string condition, string? value, string reason)
+    [InlineData("{大航海}", 20, "welcome.uids", "[10001]", "UID", null, "欢迎语拼出来是空的", "")]
+    [InlineData("{大航海}", 20, "welcome.fan_club_level", "21", "粉丝团等级", "47", "欢迎语拼出来是空的", "")]
+    [InlineData("欢迎回家", 1, "welcome.wealth_level", "30", "荣耀等级", "45", "欢迎语超过弹幕字数上限 1", "欢迎回家")]
+    public async Task Rejected_welcome_reports_only_not_queued_with_its_text_condition_and_reason(
+        string text, int limit, string setting, string threshold, string condition, string? value, string reason, string expectedText)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -119,6 +119,7 @@ public sealed class SendQueueUpdateTests
         Assert.Equal(condition, rejected.WelcomeCondition);
         Assert.Equal(value, rejected.WelcomeValue);
         Assert.Equal(reason, rejected.Reason);
+        Assert.Equal(expectedText, rejected.Text);
         Assert.Equal(h.Time.GetLocalNow(), rejected.OccurredAt);
         // The receive loop has handled the rejection; nothing was queued behind it.
         await h.PushAndSyncAsync(updates);

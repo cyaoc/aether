@@ -61,7 +61,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         string condition, string? value, string? rejectionReason)
     {
         var item = new Welcome(Interlocked.Increment(ref nextId), uid, nickname, text, mention, receivedAt, condition, value);
-        if (rejectionReason is not null) Report(item, SendQueueItemState.NotQueued, reason: rejectionReason);
+        if (rejectionReason is not null) Report(item, SendQueueItemState.NotQueued, text, reason: rejectionReason);
         else lock (gate) Queue(item);
     }
 

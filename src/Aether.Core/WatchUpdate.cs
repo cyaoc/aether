@@ -26,7 +26,7 @@ public enum SendQueueItemState { Queued, Sending, Sent, WaitingToRetry, Discarde
 public sealed record SendQueueUpdate(long Id, DateTimeOffset OccurredAt, SendQueueItemKind Kind,
     SendQueueItemState State, long Uid, string Nickname) : WatchUpdate
 {
-    /// <summary>Present on Queued welcomes and on every Sending/Sent update; otherwise null, not a text reset.</summary>
+    /// <summary>Present on Queued/NotQueued welcomes and on every Sending/Sent update; otherwise null, not a text reset.</summary>
     public string? Text { get; init; }
     /// <summary>The matched welcome condition: UID, 粉丝团等级, 大航海身份 or 荣耀等级.</summary>
     public string? WelcomeCondition { get; init; }

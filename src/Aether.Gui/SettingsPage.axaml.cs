@@ -47,6 +47,17 @@ public partial class SettingsPage : UserControl
         WelcomeHeader.IsVisible = WelcomeFields.IsVisible = section == SettingsSection.Welcome;
         SendFields.IsVisible = section == SettingsSection.Send;
         GeneralFields.IsVisible = section == SettingsSection.General;
+        SendActivity.IsVisible = section == SettingsSection.Send;
+        if (SendActivity.IsVisible)
+        {
+            FieldsAndSendActivity.RowDefinitions[0].Height = GridLength.Auto;
+            FieldsAndSendActivity.RowDefinitions[1].Height = GridLength.Star;
+        }
+        RecentActivity.IsVisible = section is SettingsSection.Welcome or SettingsSection.BlindBox;
+        RecentActivityTitle.Text = section == SettingsSection.Welcome ? "最近欢迎" : "最近回复和播报";
+        RecentWelcomesList.IsVisible = WelcomeTotal.IsVisible = section == SettingsSection.Welcome;
+        RecentQueriesAndAnnouncementsList.IsVisible = section == SettingsSection.BlindBox;
+        SizeChanged += (_, _) => ArrangeActivity();
         LevelInput.ItemsSource = Settings.LogLevels;
         WelcomeGuardInput.ItemsSource = Settings.WelcomeGuards;
         foreach (var number in new[] { RetentionInput, SendIntervalInput, WelcomeFanClubInput, WelcomeWealthInput })
@@ -65,6 +76,18 @@ public partial class SettingsPage : UserControl
                 if (e.Property == ToggleButton.IsCheckedProperty) Validate();
             };
         LoadSettings();
+    }
+
+    private void ArrangeActivity()
+    {
+        if (!RecentActivity.IsVisible) return;
+        var stacked = Bounds.Width < 680;
+        Grid.SetColumn(RecentActivity, stacked ? 0 : 1);
+        Grid.SetRow(RecentActivity, stacked ? 1 : 0);
+        RecentActivity.Width = stacked ? double.NaN : 300;
+        PageLayout.ColumnSpacing = stacked ? 0 : 24;
+        PageLayout.RowSpacing = stacked ? 16 : 0;
+        PageLayout.RowDefinitions[1].Height = stacked ? GridLength.Star : new GridLength(0);
     }
 
     /// <summary>Log settings are read at startup; every other page's settings when watching a room.</summary>
