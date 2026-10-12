@@ -111,7 +111,6 @@ public partial class SettingsWindow : Window
     {
         var fields = Fields();
         var error = settings.Error?.Message ?? fields.Select(InputError).FirstOrDefault(reason => reason is not null);
-        if (error is null && settings.ValidateWelcomeText(Changes(fields)) is { } reason) error = $"{settings.WelcomeText.Name}：{reason}";
         Message.Text = error ?? "";
         SaveButton.IsEnabled = error is null && fields.Any(field => field.CanEdit);
     }

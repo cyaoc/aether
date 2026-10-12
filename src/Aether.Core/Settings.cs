@@ -82,7 +82,7 @@ public sealed class Settings
     private static readonly Definition<bool> Announce = Register(Definition.Boolean("blind_box.announce", true));
     private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 1, "必须为正整数。", seconds => seconds > 0));
     private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome.enabled", false));
-    private static readonly Definition<string> WelcomeTemplate = Register(Definition.RequiredText("welcome.text", "欢迎{大航海}{昵称}"));
+    private static readonly Definition<string> WelcomeTemplate = Register(Definition.RequiredText("welcome.text", "欢迎{大航海}{昵称}", Core.WelcomeText.Validate));
     private static readonly Definition<IReadOnlyList<long>> WelcomeUidList = Register(Definition.NumberList("welcome.uids", []));
     private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", 0, "必须为非负整数。", level => level >= 0));
     /// <summary>The values welcome.guard accepts: 关闭, then 大航海身份 from low to high, so each one's index is its tier.</summary>
@@ -128,12 +128,6 @@ public sealed class Settings
     /// <summary>The same validation used when loading and saving; null means the input is valid.</summary>
     public static string? Validate(string name, string? value) => Validate(Definitions, name, value);
 
-    /// <summary>Why the welcome text would misuse placeholders once <paramref name="changes"/>
-    /// apply; null when it would not. Every change must already be valid; settings left out keep this snapshot's values.</summary>
-    public string? ValidateWelcomeText(IReadOnlyDictionary<string, string> changes) =>
-        Core.WelcomeText.Validate(changes.TryGetValue(WelcomeTemplate.Name, out var input)
-            ? WelcomeTemplate.Parse(input) : WelcomeText.Value);
-
     private static string? Validate(IReadOnlyList<Definition> definitions, string name, string? value) =>
         Find(definitions, name) is { } definition ? definition.Validate(value) : "未知设置，不能修改。";
 
@@ -164,7 +158,6 @@ public sealed class Settings
             var definition = Find(definitions, change.Key)!;
             return !definition.Holds(current, change.Value) && !(snapshot is not null && definition.Holds(snapshot, change.Value));
         }).ToDictionary();
-        if (definitions.Contains(WelcomeTemplate) && current.WelcomeError(path, changes) is { } invalid) throw invalid;
         var tokens = Scan(current.source);
         var edits = new List<(int Start, int Length, string Value)>();
         var newline = NewlineOf(current.source);
@@ -381,8 +374,6 @@ public sealed class Settings
                 }
             }
             settings.UnknownKeys = unknown.AsReadOnly();
-            if (definitions.Contains(WelcomeTemplate))
-                settings.Error ??= settings.WelcomeError(path, new Dictionary<string, string>());
         }
         catch (SettingsException error) { settings.Error = error; }
         catch (Exception error) when (IsYamlFailure(error))
@@ -407,15 +398,6 @@ public sealed class Settings
         {
             foreach (var definition in definitions) definition.MarkEditable(settings, editable);
         }
-    }
-
-    /// <summary>Checks the welcome text once these changes apply, reported at the text's line, else the welcome group's.</summary>
-    private SettingsException? WelcomeError(string path, IReadOnlyDictionary<string, string> changes)
-    {
-        if (ValidateWelcomeText(changes) is not { } reason) return null;
-        var group = root?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "welcome" }) ?? default;
-        var key = (group.Value as YamlMappingNode)?.Children.Keys.FirstOrDefault(key => key is YamlScalarNode { Value: "text" });
-        return new(path, key?.Start.Line ?? group.Key?.Start.Line ?? 1, "welcome.text", reason);
     }
 
     /// <summary>A setting this version knows: its name in the file (group.key), how its text becomes a value,
@@ -455,8 +437,10 @@ public sealed class Settings
         public static Definition<string> Text(string name, string initial) => ScalarSetting(name, initial, "必须是一行文字。",
             text => OneLine(text) ? (true, text) : default, text => text);
 
-        public static Definition<string> RequiredText(string name, string initial) => ScalarSetting(name, initial, "必须是非空的一行文字。",
-            text => OneLine(text) && !string.IsNullOrWhiteSpace(text) ? (true, text) : default, text => text);
+        /// <param name="check">Why a non-empty line is still invalid; null when it is valid.</param>
+        public static Definition<string> RequiredText(string name, string initial, Func<string, string?>? check = null) =>
+            ScalarSetting(name, initial, "必须是非空的一行文字。",
+                text => OneLine(text) && !string.IsNullOrWhiteSpace(text) ? (true, text) : default, text => text, check);
 
         /// <summary>One-line texts, written as <c>[a, b]</c>; the input text uses the same form.</summary>
         public static Definition<IReadOnlyList<string>> TextList(string name, IReadOnlyList<string> initial)
@@ -504,9 +488,10 @@ public sealed class Settings
             return yaml.Documents.Count == 1 ? yaml.Documents[0].RootNode : null;
         }
 
-        private static Definition<T> ScalarSetting<T>(string name, T initial, string rule, Func<string, (bool, T)> parse, Func<T, string> toText) =>
+        private static Definition<T> ScalarSetting<T>(string name, T initial, string rule, Func<string, (bool, T)> parse,
+            Func<T, string> toText, Func<T, string?>? check = null) =>
             new(name, initial, rule, (node, _) => node is YamlScalarNode { Value: var value } ? parse(value ?? "") : default, parse,
-                value => Emit([toText(value)])[1..^1]);
+                value => Emit([toText(value)])[1..^1], check);
 
         private static bool OneLine(string text) => text.AsSpan().IndexOfAny(LineBreaks) < 0;
 
@@ -526,11 +511,12 @@ public sealed class Settings
         }
     }
 
-    internal sealed class Definition<T>(string name, T initial, string rule,
-        Func<YamlNode, bool, (bool Valid, T Value)> read, Func<string, (bool Valid, T Value)> parse, Func<T, string> format) : Definition(name)
+    /// <param name="check">Why a value that reads and parses is still invalid, such as a welcome text misusing placeholders.</param>
+    internal sealed class Definition<T>(string name, T initial, string rule, Func<YamlNode, bool, (bool Valid, T Value)> read,
+        Func<string, (bool Valid, T Value)> parse, Func<T, string> format, Func<T, string?>? check = null) : Definition(name)
     {
         public Setting<T> Initial => new(Name, initial);
-        public override string? Validate(string? text) => parse(text ?? "").Valid ? null : rule;
+        public override string? Validate(string? text) => parse(text ?? "") is (true, var value) ? check?.Invoke(value) : rule;
         /// <summary>The value of valid text.</summary>
         public T Parse(string text) => parse(text).Value;
         public override string Format(string text) => format(Parse(text));
@@ -541,8 +527,9 @@ public sealed class Settings
         public override string? Read(Settings settings, YamlNode node, bool canEdit, bool singleLine)
         {
             var (valid, value) = read(node, singleLine);
+            // A value only check rejects is still kept, so the GUI shows what the file holds.
             settings.values[this] = new Setting<T>(Name, valid ? value : settings.Get(this).Value, canEdit);
-            return valid ? null : rule;
+            return valid ? check?.Invoke(value) : rule;
         }
     }
 }

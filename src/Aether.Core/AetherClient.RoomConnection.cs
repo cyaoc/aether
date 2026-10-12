@@ -14,6 +14,9 @@ public sealed partial class AetherClient
         // No data at all for this long, not even a heartbeat reply, means the room connection is dead.
         private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(60);
 
+        // The web player's own fallback (danmu_length||20) when getInfoByUser gives no 弹幕字数上限.
+        private const int FallbackDanmakuLengthLimit = 20;
+
         // .NET exposes ERROR_SHARING_VIOLATION on Windows, but raw EWOULDBLOCK on Unix (35 on macOS, 11 on Linux).
         private static readonly int RoomLockHeldHResult = OperatingSystem.IsWindows()
             ? unchecked((int)0x80070020) : OperatingSystem.IsMacOS() ? 35 : 11;
@@ -151,7 +154,7 @@ public sealed partial class AetherClient
             long realRoomId, BilibiliApi api, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var connection = await api.GetConnectionAsync(realRoomId, cancellationToken);
-            var danmakuLengthLimit = 20;
+            var danmakuLengthLimit = FallbackDanmakuLengthLimit;
             if (Settings.WelcomeEnabled.Value)
             {
                 try
@@ -161,7 +164,7 @@ public sealed partial class AetherClient
                 }
                 catch (Exception error) when (!cancellationToken.IsCancellationRequested)
                 {
-                    client.logger.LogWarning(error, "读取弹幕字数上限失败，按 20 处理：{Error}", error.Message);
+                    client.logger.LogWarning(error, "读取弹幕字数上限失败，按 {Limit} 处理：{Error}", danmakuLengthLimit, error.Message);
                 }
             }
             using var socket = await client.connectWebSocket(connection.Server, cancellationToken);

@@ -8,11 +8,16 @@ internal sealed class FakeBilibiliHttp : HttpMessageHandler
     public List<(Uri Uri, string? Cookie)> Requests { get; } = [];
     public Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? Respond { get; set; }
 
+    public const string DanmakuLengthLimitUrl = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser";
+
+    /// <summary>Makes getInfoByUser report this 弹幕字数上限.</summary>
+    public void SetDanmakuLengthLimit(int limit) => Responses[DanmakuLengthLimitUrl] =
+        System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { property = new { danmu = new { length = limit } } } });
+
     public void ConfigureLogin(string sessdata = "saved-session", string csrf = "saved-csrf",
         string buvid = "saved-buvid", params string[] extraCookies)
     {
-        Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser"] =
-            """{"code":0,"data":{"property":{"danmu":{"length":20}}}}""";
+        SetDanmakuLengthLimit(20);
         Responses["https://api.bilibili.com/x/frontend/finger/spi"] =
             System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { b_3 = buvid } });
         Responses["https://passport.bilibili.com/x/passport-login/web/qrcode/generate"] =

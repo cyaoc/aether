@@ -317,8 +317,7 @@ public sealed class WelcomeTests
         {
             ["welcome.enabled"] = "true", ["welcome.text"] = text
         });
-        h.Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser"] =
-            System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { property = new { danmu = new { length = limit } } } });
+        h.Http.SetDanmakuLengthLimit(limit);
     }
 
     [Theory]

@@ -233,10 +233,13 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Directory.CreateDirectory(h.DataDirectory);
         var yaml = $"welcome:\n  enabled: true\n  text: {text}\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
-        var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
+        var loaded = Settings.Load(h.DataDirectory);
+        var error = Assert.IsType<SettingsException>(loaded.Error);
         Assert.Equal("welcome.text", error.SettingName);
         Assert.Equal(3, error.LineNumber);
         Assert.Contains(reason, error.Message);
+        // Kept as written, so the settings window shows the text the error is about.
+        Assert.Equal(text[1..^1], loaded.WelcomeText.Value);
         Assert.Equal(yaml, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
         File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  text: '欢迎'\n");
         var beforeSave = File.ReadAllText(Settings.FilePath(h.DataDirectory));
@@ -245,7 +248,9 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
             ["welcome.text"] = text[1..^1]
         }));
         Assert.Equal("welcome.text", saveError.SettingName);
-        Assert.Equal(2, saveError.LineNumber);
+        // Like every other rejected input, reported at line 1: the input is wrong, not the file.
+        Assert.Equal(1, saveError.LineNumber);
+        Assert.Contains(reason, saveError.Message);
         Assert.Equal(beforeSave, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
     }
 

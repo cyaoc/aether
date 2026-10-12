@@ -6,7 +6,7 @@ namespace Aether.Core.Tests;
 
 public sealed class WelcomeLengthTests
 {
-    private const string InfoUrl = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser";
+    private const string InfoUrl = FakeBilibiliHttp.DanmakuLengthLimitUrl;
 
     [Theory]
     [InlineData(80, 36)]
@@ -16,7 +16,7 @@ public sealed class WelcomeLengthTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true" });
-        h.Http.Responses[InfoUrl] = System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { property = new { danmu = new { length = limit } } } });
+        h.Http.SetDanmakuLengthLimit(limit);
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(nickname: new string('名', 50)));
@@ -69,7 +69,7 @@ public sealed class WelcomeLengthTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true" });
-        h.Http.Responses[InfoUrl] = """{"code":0,"data":{"property":{"danmu":{"length":80}}}}""";
+        h.Http.SetDanmakuLengthLimit(80);
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(nickname: new string('名', 50)));
@@ -115,7 +115,7 @@ public sealed class WelcomeLengthTests
         {
             ["welcome.enabled"] = "true", ["welcome.text"] = text
         });
-        h.Http.Responses[InfoUrl] = System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { property = new { danmu = new { length = limit } } } });
+        h.Http.SetDanmakuLengthLimit(limit);
         var sent = CaptureSends(h);
         await using (var updates = await h.WatchConnectedAsync())
         {
