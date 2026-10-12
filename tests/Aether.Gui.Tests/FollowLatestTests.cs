@@ -61,32 +61,41 @@ public sealed class FollowLatestTests : IDisposable
     [Theory]
     [InlineData(200)]
     [InlineData(1100)]
-    public Task New_danmaku_scroll_to_the_latest_while_at_the_bottom(int count) => HeadlessApp.Session.Dispatch(() =>
+    public Task New_danmaku_scroll_to_the_latest_while_at_the_bottom(int count) => HeadlessApp.Session.Dispatch(async () =>
     {
         var (window, viewModel) = ShowWindow();
-        Receive(viewModel, count);
-
-        var viewer = Viewer(window);
-        Assert.True(viewer.Extent.Height > viewer.Viewport.Height);
-        Assert.True(LatestDanmakuIsVisible(window));
+        try
+        {
+            Receive(viewModel, count);
+            var viewer = Viewer(window);
+            Assert.True(viewer.Extent.Height > viewer.Viewport.Height);
+            Assert.True(LatestDanmakuIsVisible(window));
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
+        return true;
     }, TestContext.Current.CancellationToken);
 
     [Theory]
     [InlineData(200)]
     [InlineData(1000)]
-    public Task Scrolling_up_pauses_following_until_the_user_returns_to_the_bottom(int count) => HeadlessApp.Session.Dispatch(() =>
+    public Task Scrolling_up_pauses_following_until_the_user_returns_to_the_bottom(int count) => HeadlessApp.Session.Dispatch(async () =>
     {
         var (window, viewModel) = ShowWindow();
-        Receive(viewModel, count);
-        Wheel(window, 5);
-        Assert.False(LatestDanmakuIsVisible(window));
-        Receive(viewModel, 20);
-        Assert.False(LatestDanmakuIsVisible(window));
+        try
+        {
+            Receive(viewModel, count);
+            Wheel(window, 5);
+            Assert.False(LatestDanmakuIsVisible(window));
+            Receive(viewModel, 20);
+            Assert.False(LatestDanmakuIsVisible(window));
 
-        Wheel(window, -10_000);
-        Assert.True(LatestDanmakuIsVisible(window));
-        Receive(viewModel, 20);
-        Assert.True(LatestDanmakuIsVisible(window));
+            Wheel(window, -10_000);
+            Assert.True(LatestDanmakuIsVisible(window));
+            Receive(viewModel, 20);
+            Assert.True(LatestDanmakuIsVisible(window));
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
+        return true;
     }, TestContext.Current.CancellationToken);
 
     public void Dispose() => harness.Dispose();

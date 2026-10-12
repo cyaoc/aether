@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using Aether.Core;
+using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -10,13 +12,67 @@ namespace Aether.Gui;
 
 public enum RoomConnectionState { Disconnected, Connecting, Connected, Reconnecting }
 
-public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings) : ObservableObject
+public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
+    TimeProvider? timeProvider = null) : ObservableObject
 {
+    private readonly TimeProvider clock = timeProvider ?? TimeProvider.System;
+    private long? connectedAt;
+    private ITimer? connectionTimer;
+    public static IMultiValueConverter IsAccountDanmaku { get; } = new FuncMultiValueConverter<object?, bool>(
+        values => values.ToArray() is [long uid, Account account] && uid == account.Uid);
+    [ObservableProperty] private Account? account;
+    [ObservableProperty] private string accountText = "读取中";
+    [ObservableProperty] private bool accountReadFailed;
+    private CancellationTokenSource? accountReadStop;
+    private Task accountReadTask = Task.CompletedTask;
+    private bool shuttingDown;
+
+    [RelayCommand(AllowConcurrentExecutions = true)]
+    public Task ReadAccountAsync()
+    {
+        if (IsLoggingOut || shuttingDown) return Task.CompletedTask;
+        accountReadStop?.Cancel();
+        var previous = accountReadTask;
+        var stop = new CancellationTokenSource();
+        accountReadStop = stop;
+        Account = null;
+        AccountText = "读取中";
+        AccountReadFailed = false;
+        return accountReadTask = ReadAsync();
+
+        async Task ReadAsync()
+        {
+            try
+            {
+                await previous;
+                // Loading the saved credential can open SQLite, so even the synchronous part runs off the UI thread.
+                var result = await Task.Run(() => client.GetAccountAsync(stop.Token), stop.Token);
+                stop.Token.ThrowIfCancellationRequested();
+                Account = result;
+                AccountText = result?.Nickname ?? "未登录";
+            }
+            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+            catch (Exception error)
+            {
+                if (stop.IsCancellationRequested) return;
+                logger.LogError(error, "账号信息读取失败");
+                AccountText = "账号信息读取失败";
+                AccountReadFailed = true;
+            }
+            finally
+            {
+                if (ReferenceEquals(accountReadStop, stop)) accountReadStop = null;
+                stop.Dispose();
+            }
+        }
+    }
+
     [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
     [ObservableProperty] private string roomNumber = "";
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Status))]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
+    [NotifyPropertyChangedFor(nameof(IsWatching))]
     private RoomConnectionState connectionState = RoomConnectionState.Disconnected;
 
     [ObservableProperty] private string message = "";
@@ -31,11 +87,12 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
 
     private bool CanConnect => !IsLoggingOut;
     public bool IsConnected => ConnectionState == RoomConnectionState.Connected;
+    public bool IsWatching => ConnectionState != RoomConnectionState.Disconnected;
     public string Status => ConnectionState switch
     {
         RoomConnectionState.Disconnected => "未连接",
         RoomConnectionState.Connecting => "连接中",
-        RoomConnectionState.Connected => "已连接",
+        RoomConnectionState.Connected => $"已连接 · {(connectedAt is { } start ? (int)clock.GetElapsedTime(start).TotalMinutes : 0)} 分钟",
         RoomConnectionState.Reconnecting => "重连中",
         _ => throw new ArgumentOutOfRangeException(nameof(ConnectionState))
     };
@@ -44,6 +101,14 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
 
     private const int RecentDanmakuLimit = 1000;
     public static string KeepRecentDanmakuLabel { get; } = $"只保留最近 {RecentDanmakuLimit} 条";
+
+    partial void OnConnectionStateChanged(RoomConnectionState value)
+    {
+        if (value != RoomConnectionState.Disconnected) return;
+        connectionTimer?.Dispose();
+        connectionTimer = null;
+        connectedAt = null;
+    }
 
     partial void OnKeepRecentDanmakuChanged(bool value)
     {
@@ -103,11 +168,18 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                 }
                 break;
             case Connecting:
+                if (HasQrCode) _ = ReadAccountAsync();
                 ClearQrCode();
                 ConnectionState = RoomConnectionState.Connecting;
                 break;
             case Connected:
+                if (HasQrCode) _ = ReadAccountAsync();
                 ClearQrCode();
+                connectedAt ??= clock.GetTimestamp();
+                connectionTimer ??= clock.CreateTimer(_ => Dispatcher.UIThread.Post(() =>
+                {
+                    if (connectedAt is not null) OnPropertyChanged(nameof(Status));
+                }), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
                 ConnectionState = RoomConnectionState.Connected;
                 break;
             case Reconnecting:
@@ -127,8 +199,13 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         Message = "";
         try
         {
+            accountReadStop?.Cancel();
             await StopWatchingAsync();
+            await accountReadTask;
             await Task.Run(() => client.LogoutAsync(cancellationToken), cancellationToken);
+            Account = null;
+            AccountText = "未登录";
+            AccountReadFailed = false;
             Message = "已退出登录，下次连接时请重新扫码。";
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
@@ -148,9 +225,14 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
 
     public async Task ShutdownAsync()
     {
+        shuttingDown = true;
         LogoutCommand.Cancel();
+        accountReadStop?.Cancel();
         await StopWatchingAsync();
+        await accountReadTask;
         if (LogoutCommand.ExecutionTask is { } task) await task;
+        ConnectionState = RoomConnectionState.Disconnected;
+        ClearQrCode();
     }
 
     private void ClearQrCode()

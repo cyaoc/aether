@@ -398,14 +398,15 @@ public sealed class SettingsWindowTests
 
     [Fact]
     public Task Main_window_opens_settings_and_saves_only_the_changed_line() =>
-        HeadlessApp.Session.Dispatch(() =>
+        HeadlessApp.Session.Dispatch(async () =>
         {
             using var harness = new GuiHarness();
             Directory.CreateDirectory(harness.DataDirectory);
             var path = Settings.FilePath(harness.DataDirectory);
             const string yaml = "# 我的设置\nlog:\n  retention_days: '7' # 保留\n  level: 'Debug' # 级别\n  future: yes\n";
             File.WriteAllText(path, yaml);
-            var main = new MainWindow(harness.DataDirectory) { DataContext = harness.CreateViewModel() };
+            var viewModel = harness.CreateViewModel();
+            var main = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
             main.Show();
             try
             {
@@ -424,9 +425,11 @@ public sealed class SettingsWindowTests
             }
             finally
             {
+                await viewModel.ShutdownAsync();
                 main.Close();
                 Dispatcher.UIThread.RunJobs();
             }
+            return true;
         }, TestContext.Current.CancellationToken);
 
     /// <summary>Opens a settings window on a fresh data directory; writes aether.yml first unless yaml is null.</summary>

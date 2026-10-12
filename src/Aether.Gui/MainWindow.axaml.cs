@@ -18,6 +18,12 @@ public partial class MainWindow : Window
     private readonly string dataDirectory;
     private SettingsWindow? settingsWindow;
 
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        if (DataContext is MainWindowViewModel viewModel) viewModel.ReadAccountCommand.Execute(null);
+    }
+
     public MainWindow() : this(Aether.Core.DataDirectory.Locate()) { }
 
     public MainWindow(string dataDirectory)
@@ -45,6 +51,34 @@ public partial class MainWindow : Window
         settingsWindow = new SettingsWindow(dataDirectory);
         settingsWindow.Closed += (_, _) => settingsWindow = null;
         settingsWindow.Show(this);
+    }
+
+    private async void ConfirmLogout(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel || viewModel.IsLoggingOut) return;
+        var dialog = new Window
+        {
+            Title = "退出登录", Width = 380, SizeToContent = SizeToContent.Height,
+            CanResize = false, WindowStartupLocation = WindowStartupLocation.CenterOwner
+        };
+        var cancel = new Button { Content = "取消", IsCancel = true, IsDefault = true };
+        var confirm = new Button { Content = "退出登录" };
+        cancel.Click += (_, _) => dialog.Close(false);
+        confirm.Click += (_, _) => dialog.Close(true);
+        dialog.Content = new StackPanel
+        {
+            Margin = new Thickness(24), Spacing = 24,
+            Children =
+            {
+                new TextBlock { Text = "退出后需要重新扫码登录；正在连接的直播间会断开。", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
+                new StackPanel
+                {
+                    Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12,
+                    HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, Children = { cancel, confirm }
+                }
+            }
+        };
+        if (await dialog.ShowDialog<bool>(this)) await viewModel.LogoutCommand.ExecuteAsync(null);
     }
 
     private void PauseFollowingForInput()

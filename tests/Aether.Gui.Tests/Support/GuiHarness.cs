@@ -1,4 +1,6 @@
 using Aether.Core;
+using System.Net;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Aether.Gui.Tests.Support;
@@ -6,7 +8,7 @@ namespace Aether.Gui.Tests.Support;
 internal sealed class GuiHarness : IDisposable
 {
     private readonly AetherClient client;
-    private readonly RejectHttpRequests http = new();
+    private readonly GuiHttp http = new();
     private int received;
 
     public GuiHarness() => client = new AetherClient(http,
@@ -18,7 +20,32 @@ internal sealed class GuiHarness : IDisposable
 
     public GuiSettings LoadSettings() => GuiSettings.Load(DataDirectory, NullLogger<GuiSettings>.Instance);
 
-    public MainWindowViewModel CreateViewModel() => new(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings());
+    public MainWindowViewModel CreateViewModel(TimeProvider? timeProvider = null) =>
+        new(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings(), timeProvider);
+
+    public Func<CancellationToken, Task<HttpResponseMessage>> NavResponse
+    {
+        set => http.NavResponse = value;
+    }
+    public int NavRequests => http.NavRequests;
+    public List<Uri> RejectedRequests => http.RejectedRequests;
+
+    public static HttpResponseMessage Json(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
+
+    public async Task SaveCredentialAsync()
+    {
+        // Initialize the real store, then seed a saved credential without permitting login HTTP in GUI tests.
+        await client.GetAccountAsync();
+        using var connection = new SqliteConnection($"Data Source={Path.Combine(DataDirectory, "aether.db")};Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO credential (id, cookies, refresh_token, saved_at)
+            VALUES (1, '{"SESSDATA":"test-session","bili_jct":"test-csrf","DedeUserID":"123"}', 'test-token', $savedAt)
+            """;
+        command.Parameters.AddWithValue("$savedAt", DateTimeOffset.UtcNow.ToString("O"));
+        command.ExecuteNonQuery();
+    }
 
     /// <summary>Delivers numbered danmaku the way a watch stream would; Content is the running number.</summary>
     public void Receive(MainWindowViewModel viewModel, int count)
@@ -31,16 +58,24 @@ internal sealed class GuiHarness : IDisposable
     {
         client.Dispose();
         if (Directory.Exists(DataDirectory)) Directory.Delete(DataDirectory, recursive: true);
-        Assert.False(http.WasRequested, "GUI tests must not send HTTP requests, even if the view model catches the error.");
+        Assert.Empty(http.RejectedRequests);
     }
 
-    private sealed class RejectHttpRequests : HttpMessageHandler
+    private sealed class GuiHttp : HttpMessageHandler
     {
-        public bool WasRequested { get; private set; }
+        public Func<CancellationToken, Task<HttpResponseMessage>> NavResponse { get; set; } =
+            _ => Task.FromResult(Json("""{"code":-101}"""));
+        public int NavRequests;
+        public List<Uri> RejectedRequests { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
-            WasRequested = true;
+            if (request.Method == HttpMethod.Get && request.RequestUri?.AbsoluteUri == "https://api.bilibili.com/x/web-interface/nav")
+            {
+                Interlocked.Increment(ref NavRequests);
+                return NavResponse(cancellationToken);
+            }
+            RejectedRequests.Add(request.RequestUri!);
             throw new InvalidOperationException($"GUI tests must not send HTTP requests: {request.RequestUri}");
         }
     }
