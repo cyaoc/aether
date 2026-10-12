@@ -16,7 +16,7 @@ public sealed class RoomCardTests
         var time = new FakeTimeProvider();
         var viewModel = harness.CreateViewModel(time);
         viewModel.RoomNumber = "7734200";
-        var window = new MainWindow { DataContext = viewModel };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
         {

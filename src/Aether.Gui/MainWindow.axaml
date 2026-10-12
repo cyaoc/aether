@@ -46,9 +46,9 @@
             <StackPanel Spacing="12">
               <TextBlock Classes="muted" Text="直播间" />
               <StackPanel x:Name="RoomInputPanel" Spacing="8" IsVisible="{Binding !HasRoomConnection}">
-                <TextBox Text="{Binding RoomNumber}" PlaceholderText="房间号" AutomationProperties.Name="房间号" />
+                <TextBox Text="{Binding RoomNumber}" PlaceholderText="房间号" AutomationProperties.Name="房间号" KeyDown="ConnectRoom" />
                 <Button Classes="accent" Content="连接" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                        IsDefault="True" Command="{Binding ConnectCommand}" />
+                        Command="{Binding ConnectCommand}" />
               </StackPanel>
               <StackPanel x:Name="RoomStatusPanel" Spacing="10" IsVisible="{Binding HasRoomConnection}">
                 <TextBlock Text="{Binding RoomNumber}" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
@@ -62,13 +62,35 @@
           </Border>
           <TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"
                      IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-          <Border Background="{DynamicResource SubtleAccentBrush}" CornerRadius="6" Padding="12,10" Margin="0,12,0,0">
-            <Grid ColumnDefinitions="*,Auto">
-              <TextBlock Text="弹幕" FontWeight="SemiBold" />
-              <TextBlock Grid.Column="1" Text="{Binding Danmaku.Count}" Classes="muted" />
-            </Grid>
-          </Border>
-          <Button x:Name="SettingsButton" Content="设置" Click="OpenSettings" HorizontalAlignment="Stretch" />
+          <ListBox x:Name="Navigation" Background="Transparent" SelectionMode="AlwaysSelected" SelectionChanged="Navigate" Margin="0,8,0,0"
+                   AutomationProperties.Name="功能导航">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="Padding" Value="12,10" />
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+              </Style>
+            </ListBox.Styles>
+            <ListBoxItem>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="弹幕" />
+                <TextBlock Grid.Column="1" Text="{Binding Danmaku.Count}" Classes="muted" />
+              </Grid>
+            </ListBoxItem>
+            <ListBoxItem>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="盲盒统计" />
+                <TextBlock Grid.Column="1" x:Name="BlindBoxStatus" Classes="muted" />
+              </Grid>
+            </ListBoxItem>
+            <ListBoxItem>
+              <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="进场欢迎" />
+                <TextBlock Grid.Column="1" x:Name="WelcomeStatus" Classes="muted" />
+              </Grid>
+            </ListBoxItem>
+            <ListBoxItem Content="发送队列" />
+            <ListBoxItem Content="通用设置" />
+          </ListBox>
         </StackPanel>
         <Border Grid.Row="2" BorderThickness="0,1,0,0" Padding="4,16,0,0"
                 BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
@@ -90,7 +112,8 @@
         </Border>
       </Grid>
     </Border>
-    <Grid Grid.Column="1" RowDefinitions="Auto,*" Margin="24,24,24,16" RowSpacing="16">
+    <Panel Grid.Column="1" x:Name="PageHost" Margin="24,24,24,16">
+    <Grid x:Name="DanmakuPage" RowDefinitions="Auto,*" RowSpacing="16">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
         <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
           <TextBlock Text="弹幕" FontSize="24" FontWeight="SemiBold" />
@@ -151,5 +174,6 @@
         </Panel>
       </Border>
     </Grid>
+    </Panel>
   </Grid>
 </Window>

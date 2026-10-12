@@ -90,7 +90,7 @@ public sealed class Settings
     private static readonly Definition<string> WelcomeGuardTier = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", 0, "必须为非负整数。", level => level >= 0));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
-    /// (plus, for the GUI, its controls in SettingsWindow.axaml, one Show call and one Fields entry).</summary>
+    /// (plus, for the GUI, its controls in SettingsPage.axaml, one Show call and one Fields entry).</summary>
     private static Definition<T> Register<T>(Definition<T> definition)
     {
         Definitions.Add(definition);

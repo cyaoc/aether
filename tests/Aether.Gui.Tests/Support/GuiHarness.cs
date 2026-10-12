@@ -30,6 +30,10 @@ internal sealed class GuiHarness : IDisposable
         set => http.NavResponse = value;
     }
     public int NavRequests => http.NavRequests;
+    public Func<Uri, CancellationToken, Task<HttpResponseMessage>> RoomResponse
+    {
+        set => http.RoomResponse = value;
+    }
     public List<Uri> RejectedRequests => http.RejectedRequests;
 
     public static HttpResponseMessage Json(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
@@ -82,10 +86,14 @@ internal sealed class GuiHarness : IDisposable
         public Func<CancellationToken, Task<HttpResponseMessage>> NavResponse { get; set; } =
             _ => Task.FromResult(Json("""{"code":-101}"""));
         public int NavRequests;
+        public Func<Uri, CancellationToken, Task<HttpResponseMessage>>? RoomResponse { get; set; }
         public List<Uri> RejectedRequests { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            if (request.Method == HttpMethod.Get && request.RequestUri?.GetLeftPart(UriPartial.Path) ==
+                "https://api.live.bilibili.com/room/v1/Room/room_init" && RoomResponse is { } roomResponse)
+                return roomResponse(request.RequestUri, cancellationToken);
             if (request.Method == HttpMethod.Get && request.RequestUri?.AbsoluteUri == "https://api.bilibili.com/x/web-interface/nav")
             {
                 Interlocked.Increment(ref NavRequests);

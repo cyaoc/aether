@@ -18,7 +18,7 @@ public sealed class AccountPanelTests
         await harness.SaveCredentialAsync();
         harness.NavResponse = _ => throw new HttpRequestException("offline");
         var viewModel = harness.CreateViewModel();
-        var window = new MainWindow { DataContext = viewModel };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
         {
@@ -73,7 +73,7 @@ public sealed class AccountPanelTests
     {
         using var harness = new GuiHarness();
         var viewModel = harness.CreateViewModel();
-        var window = new MainWindow { DataContext = viewModel };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
         {
@@ -108,7 +108,7 @@ public sealed class AccountPanelTests
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         harness.NavResponse = _ => response.Task;
         var viewModel = harness.CreateViewModel();
-        var window = new MainWindow { DataContext = viewModel };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
         {
@@ -135,7 +135,7 @@ public sealed class AccountPanelTests
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         harness.NavResponse = token => response.Task.WaitAsync(token);
         var viewModel = harness.CreateViewModel();
-        var window = new MainWindow { DataContext = viewModel };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
         {
@@ -159,7 +159,7 @@ public sealed class AccountPanelTests
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         harness.NavResponse = token => response.Task.WaitAsync(token);
         var viewModel = harness.CreateViewModel();
-        var window = new MainWindow { DataContext = viewModel };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
         {

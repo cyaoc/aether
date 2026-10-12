@@ -15,7 +15,7 @@ public sealed class FollowLatestTests : IDisposable
     private (MainWindow Window, MainWindowViewModel ViewModel) ShowWindow()
     {
         var viewModel = harness.CreateViewModel();
-        var window = new MainWindow { DataContext = viewModel };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         GuiHarness.Flush();
         return (window, viewModel);

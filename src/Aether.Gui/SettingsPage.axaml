@@ -1,0 +1,129 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui"
+  x:DataType="local:MainWindowViewModel"
+  x:Class="Aether.Gui.SettingsPage">
+  <UserControl.Styles>
+    <Style Selector="TextBlock.hint">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="TextBlock.error">
+      <Setter Property="Foreground" Value="{DynamicResource SystemControlErrorTextForegroundBrush}" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+      <Setter Property="AutomationProperties.LiveSetting" Value="Polite" />
+    </Style>
+    <Style Selector="Border.uid">
+      <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseLowBrush}" />
+    </Style>
+  </UserControl.Styles>
+  <Grid RowDefinitions="Auto,*,Auto" RowSpacing="16">
+    <StackPanel Spacing="8">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="PageTitle" FontSize="24" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <StackPanel Grid.Column="1">
+          <StackPanel x:Name="BlindBoxHeader">
+            <CheckBox x:Name="BlindBoxInput" Content="记录盲盒" />
+            <TextBlock x:Name="BlindBoxReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+            <TextBlock x:Name="BlindBoxError" Classes="error" />
+          </StackPanel>
+          <StackPanel x:Name="WelcomeHeader">
+            <CheckBox x:Name="WelcomeInput" Content="进场欢迎" />
+            <TextBlock x:Name="WelcomeReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+            <TextBlock x:Name="WelcomeError" Classes="error" />
+          </StackPanel>
+        </StackPanel>
+      </Grid>
+      <TextBlock x:Name="TimingHint" Classes="hint" />
+      <TextBlock x:Name="FileMessage" Classes="error" />
+      <StackPanel x:Name="ReconnectNotice" IsVisible="False" Spacing="8">
+        <TextBlock Text="已保存。当前连接还在用旧设置，重新连接后生效。" TextWrapping="Wrap" />
+        <Button x:Name="ReconnectButton" Content="重新连接" Command="{Binding ReconnectCommand}" />
+      </StackPanel>
+    </StackPanel>
+    <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel>
+        <StackPanel x:Name="GeneralFields" Spacing="10">
+          <TextBlock Text="保留天数" />
+          <NumericUpDown x:Name="RetentionInput" FormatString="0.############################"
+            HorizontalAlignment="Stretch" AutomationProperties.Name="日志保留天数" />
+          <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+          <TextBlock x:Name="RetentionError" Classes="error" />
+          <TextBlock Text="级别" Margin="0,8,0,0" />
+          <ComboBox x:Name="LevelInput" HorizontalAlignment="Stretch" AutomationProperties.Name="日志级别" />
+          <TextBlock x:Name="LevelReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+          <TextBlock x:Name="LevelError" Classes="error" />
+          <Button Content="打开设置文件" Click="OpenFile" />
+          <TextBlock x:Name="UnknownKeysMessage" Classes="hint" />
+        </StackPanel>
+        <StackPanel x:Name="BlindBoxFields" Spacing="10">
+          <TextBlock Text="查询关键字" />
+          <TextBox x:Name="KeywordInput" AutomationProperties.Name="盲盒查询关键字" />
+          <TextBlock x:Name="KeywordReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+          <TextBlock x:Name="KeywordError" Classes="error" />
+          <CheckBox x:Name="AnnounceInput" Content="盲盒播报" />
+          <TextBlock x:Name="AnnounceReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+          <TextBlock x:Name="AnnounceError" Classes="error" />
+        </StackPanel>
+        <StackPanel x:Name="SendFields" Spacing="10">
+          <TextBlock Text="发送间隔秒数" />
+          <NumericUpDown x:Name="SendIntervalInput" FormatString="0.############################"
+            HorizontalAlignment="Stretch" AutomationProperties.Name="发送间隔秒数" />
+          <TextBlock x:Name="SendIntervalReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+          <TextBlock x:Name="SendIntervalError" Classes="error" />
+        </StackPanel>
+        <StackPanel x:Name="WelcomeFields" Spacing="10">
+          <TextBlock Text="欢迎语" />
+          <TextBox x:Name="WelcomeTextInput" AutomationProperties.Name="欢迎语" />
+          <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+          <TextBlock x:Name="WelcomeTextError" Classes="error" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="InsertAtButton" Content="@观众" Tag="{}{@}" Click="InsertPlaceholder" />
+            <Button x:Name="InsertNicknameButton" Content="昵称" Tag="{}{昵称}" Click="InsertPlaceholder" />
+            <Button x:Name="InsertGuardButton" Content="大航海身份" Tag="{}{大航海}" Click="InsertPlaceholder" />
+          </StackPanel>
+          <TextBlock x:Name="WelcomeTextHint" Classes="hint"
+            Text="英文、数字、半角符号算 1，其他字符算 2。上限自动读取账号的。可用 {@}（只能放开头）、{昵称}、{大航海}；用 {{ 和 }} 转义花括号。" />
+          <TextBlock Text="欢迎条件" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,0" />
+          <TextBlock Classes="hint" Text="满足任意一个就欢迎；等级填 0 表示不按这一项" />
+          <TextBlock Text="指定观众的 UID" />
+          <WrapPanel x:Name="UidTags" />
+          <TextBox x:Name="WelcomeUidsInput" AutomationProperties.Name="欢迎指定观众的 UID" PlaceholderText="输入 UID，回车添加" KeyDown="AddUid" />
+          <TextBlock x:Name="WelcomeUidsReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+          <TextBlock x:Name="WelcomeUidsError" Classes="error" />
+          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="12">
+            <StackPanel Spacing="8">
+              <TextBlock Text="粉丝团等级" />
+              <NumericUpDown x:Name="WelcomeFanClubInput" FormatString="0.############################"
+                HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎粉丝团等级门槛" />
+              <TextBlock x:Name="WelcomeFanClubReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+              <TextBlock x:Name="WelcomeFanClubError" Classes="error" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Spacing="8">
+              <TextBlock Text="大航海身份" />
+              <ComboBox x:Name="WelcomeGuardInput" HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎大航海身份门槛" />
+              <TextBlock x:Name="WelcomeGuardReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+              <TextBlock x:Name="WelcomeGuardError" Classes="error" />
+              <TextBlock Classes="hint" Text="提督含总督" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Spacing="8">
+              <TextBlock Text="荣耀等级" />
+              <NumericUpDown x:Name="WelcomeWealthInput" FormatString="0.############################"
+                HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎荣耀等级门槛" />
+              <TextBlock x:Name="WelcomeWealthReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+              <TextBlock x:Name="WelcomeWealthError" Classes="error" />
+            </StackPanel>
+          </Grid>
+        </StackPanel>
+      </StackPanel>
+    </ScrollViewer>
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <StackPanel VerticalAlignment="Center" Spacing="4">
+        <TextBlock x:Name="DirtyMessage" Text="有未保存的修改" />
+        <TextBlock x:Name="Message" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+      </StackPanel>
+      <Button Grid.Column="1" x:Name="SaveButton" Content="保存" Classes="accent" MinWidth="80"
+        HorizontalContentAlignment="Center" Click="Save" />
+    </Grid>
+  </Grid>
+</UserControl>

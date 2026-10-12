@@ -22,7 +22,7 @@ public sealed class InvalidSettingsTests
                 Assert.Single(Directory.GetFiles(Path.Combine(harness.DataDirectory, "logs"), "*.log"))));
             // The harness view model's client fails any HTTP request, so a missed refusal cannot reach B站.
             var viewModel = harness.CreateViewModel();
-            var window = new MainWindow { DataContext = viewModel };
+            var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
             window.Show();
             try
             {
