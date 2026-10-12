@@ -47,7 +47,7 @@ public sealed class AccountPanelTests
             Assert.Equal("https://passport.bilibili.com/login/exit/v2", Assert.Single(harness.RejectedRequests).AbsoluteUri);
             harness.RejectedRequests.Clear();
             Assert.True(cancelled);
-            Assert.Equal(2, logins);
+            await WaitForAsync(() => logins == 2);
             Assert.Contains("扫码登录 B站", VisibleText(window));
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
