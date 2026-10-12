@@ -8,6 +8,7 @@ internal sealed class FakeBilibiliHttp : HttpMessageHandler
     public List<(Uri Uri, string? Cookie)> Requests { get; } = [];
     public Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>? Respond { get; set; }
 
+    public const string NavUrl = "https://api.bilibili.com/x/web-interface/nav";
     public const string DanmakuLengthLimitUrl = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser";
 
     /// <summary>Makes getInfoByUser report this 弹幕字数上限.</summary>

@@ -44,9 +44,11 @@ internal sealed class BilibiliApi
 
     public async Task<Account?> GetAccountAsync(CancellationToken cancellationToken)
     {
-        var (mid, data) = await GetLoginStatusAndWbiKeysAsync(cancellationToken);
-        return mid == 0 ? null : new Account(mid,
-            data.GetProperty("uname").GetString() ?? throw new InvalidDataException("B站未返回账号昵称。"));
+        if (!await IsLoggedInAsync(cancellationToken)) return null;
+        var (mid, data) = await GetLoginStatusAndWbiKeysAsync(cancellationToken); // Cached by IsLoggedInAsync.
+        if (!data.TryGetProperty("uname", out var uname) || uname.ValueKind != JsonValueKind.String)
+            throw new InvalidDataException("B站返回的 data.uname 缺失或不是字符串。");
+        return new Account(mid, uname.GetString()!);
     }
 
     private async Task<(long Mid, JsonElement Data)> GetLoginStatusAndWbiKeysAsync(CancellationToken cancellationToken)

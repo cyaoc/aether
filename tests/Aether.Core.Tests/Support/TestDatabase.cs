@@ -31,6 +31,14 @@ internal static class TestDatabase
         return credential;
     }
 
+    public static DateTimeOffset? CheckedAt(string dataDirectory)
+    {
+        using var connection = Open(dataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT checked_at FROM credential";
+        return command.ExecuteScalar() is string value ? DateTimeOffset.Parse(value, CultureInfo.InvariantCulture) : null;
+    }
+
     public sealed record BlindBoxRow(long RoomId, long Uid, string Nickname, long BlindGiftId, string BlindGiftName,
         long BlindGiftPrice, long OpenedGiftId, string OpenedGiftName, long OpenedGiftPrice, long Num, long Spend,
         long OpenedValue, long Timestamp, string? Tid, string RawMessage);

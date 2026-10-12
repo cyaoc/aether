@@ -4,7 +4,7 @@ namespace Aether.Core.Tests;
 
 public sealed class AccountTests
 {
-    private const string Nav = "https://api.bilibili.com/x/web-interface/nav";
+    private const string Nav = FakeBilibiliHttp.NavUrl;
 
     [Fact]
     public async Task Missing_credential_returns_null_without_any_request()
@@ -56,10 +56,7 @@ public sealed class AccountTests
         Assert.Equal(saved.Cookies, after.Cookies);
         Assert.Equal(saved.RefreshToken, after.RefreshToken);
         Assert.Equal(saved.SavedAt, after.SavedAt);
-        using var connection = TestDatabase.Open(h.DataDirectory);
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT checked_at FROM credential";
-        Assert.Equal(saved.SavedAt.ToString("O"), command.ExecuteScalar());
+        Assert.Equal(saved.SavedAt, h.CheckedAt());
     }
 
     [Fact]
@@ -81,6 +78,8 @@ public sealed class AccountTests
     [InlineData("""{"code":-400,"message":"bad request"}""", typeof(InvalidOperationException))]
     [InlineData("not json", typeof(System.Text.Json.JsonException))]
     [InlineData("""{"code":0,"data":{"isLogin":true,"mid":123,"uname":null}}""", typeof(InvalidDataException))]
+    [InlineData("""{"code":0,"data":{"isLogin":true,"mid":123}}""", typeof(InvalidDataException))]
+    [InlineData("""{"code":0,"data":{"isLogin":true,"mid":123,"uname":42}}""", typeof(InvalidDataException))]
     public async Task Other_errors_propagate_instead_of_reporting_logged_out(string response, Type expected)
     {
         await using var h = new WatchHarness();
@@ -107,6 +106,15 @@ public sealed class AccountTests
 
         Assert.Equal(new Account(456, "新账号"), await h.Client.GetAccountAsync(h.Stop.Token));
         Assert.Contains("SESSDATA=new-session", Assert.Single(h.Http.Requests).Cookie);
+    }
+
+    [Fact]
+    public async Task Read_after_logout_returns_null_without_any_request()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        h.Http.Responses[Nav] = """{"code":0,"data":{"isLogin":true,"mid":123,"uname":"原账号"}}""";
+        Assert.NotNull(await h.Client.GetAccountAsync(h.Stop.Token));
 
         await h.Client.LogoutAsync(h.Stop.Token);
         h.Http.Requests.Clear();

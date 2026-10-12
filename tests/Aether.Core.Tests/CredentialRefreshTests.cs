@@ -9,7 +9,7 @@ public sealed class CredentialRefreshTests
     private const string Refresh = "https://passport.bilibili.com/x/passport-login/web/cookie/refresh";
     private const string Confirm = "https://passport.bilibili.com/x/passport-login/web/confirm/refresh";
     private const string Poll = "https://passport.bilibili.com/x/passport-login/web/qrcode/poll";
-    private const string Nav = "https://api.bilibili.com/x/web-interface/nav";
+    private const string Nav = FakeBilibiliHttp.NavUrl;
 
     [Fact]
     public async Task Credential_saved_elsewhere_while_old_credential_nav_is_pending_is_adopted_during_qr_wait()
@@ -75,7 +75,7 @@ public sealed class CredentialRefreshTests
         if (deleted)
         {
             Assert.IsType<WatchQrCode>(updates.Current);
-            Assert.Null(CheckedAt(h));
+            Assert.Null(h.CheckedAt());
         }
         else
         {
@@ -107,7 +107,7 @@ public sealed class CredentialRefreshTests
         {
             Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
             Assert.IsType<Reconnecting>(updates.Current);
-            Assert.Null(CheckedAt(h));
+            Assert.Null(h.CheckedAt());
             Assert.Contains(h.Logger.Entries, e => e.Message.Contains("请重新扫码"));
             var warning = Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试"));
             Assert.Contains("登录凭据已被删除，停止当前连接", warning.Message);
@@ -231,7 +231,7 @@ public sealed class CredentialRefreshTests
         Assert.Equal("v1-session", saved.Cookies["SESSDATA"]);
         Assert.Equal("v1-token", saved.RefreshToken);
         Assert.Equal(DateTimeOffset.Parse("2023-12-10T00:00:00Z"), saved.SavedAt);
-        Assert.Equal(h.Time.GetUtcNow(), CheckedAt(h));
+        Assert.Equal(h.Time.GetUtcNow(), h.CheckedAt());
         using var migrated = TestDatabase.Open(h.DataDirectory);
         using var version = migrated.CreateCommand();
         version.CommandText = "PRAGMA user_version";
@@ -254,7 +254,7 @@ public sealed class CredentialRefreshTests
         var failure = new HttpRequestException("unavailable", new IOException("connection reset"), System.Net.HttpStatusCode.ServiceUnavailable);
         h.Http.FailOnce(path, failure);
         await CheckConnectingAsync(h);
-        Assert.Equal(saved.SavedAt, CheckedAt(h));
+        Assert.Equal(saved.SavedAt, h.CheckedAt());
         Assert.Equal(saved.RefreshToken, h.SavedCredential().RefreshToken);
         Assert.Same(failure, Assert.Single(h.Logger.Entries, e => e.Message.Contains("下次再试")).Exception);
         await CheckConnectingAsync(h);
@@ -277,7 +277,7 @@ public sealed class CredentialRefreshTests
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Reconnecting>(updates.Current);
         Assert.Single(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Info);
-        Assert.Equal(h.Time.GetUtcNow(), CheckedAt(h));
+        Assert.Equal(h.Time.GetUtcNow(), h.CheckedAt());
     }
 
     [Theory]
@@ -361,7 +361,7 @@ public sealed class CredentialRefreshTests
         finally { release.TrySetResult(); }
         Assert.True(await ending.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.IsType<Reconnecting>(updates.Current);
-        if (rejected) Assert.Null(CheckedAt(h));
+        if (rejected) Assert.Null(h.CheckedAt());
         else Assert.Equal("new-token", h.SavedCredential().RefreshToken);
         var warning = Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试"));
         Assert.Contains("弹幕服务器已断开连接", warning.Message);
@@ -391,7 +391,7 @@ public sealed class CredentialRefreshTests
                 ? h.Logger.Entries.Any(e => e.Message.Contains("下次再试"))
                 : h.SavedCredential().RefreshToken == "new-token");
             Assert.False(next.IsCompleted);
-            Assert.Equal(networkFailure ? savedAt : h.Time.GetUtcNow(), CheckedAt(h));
+            Assert.Equal(networkFailure ? savedAt : h.Time.GetUtcNow(), h.CheckedAt());
             await first.DisconnectAsync();
             Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
             Assert.IsType<Reconnecting>(updates.Current);
@@ -444,7 +444,7 @@ public sealed class CredentialRefreshTests
             Assert.Equal("saved-buvid", saved.Cookies["buvid3"]);
             Assert.Equal("new-token", saved.RefreshToken);
             Assert.Equal(h.Time.GetUtcNow(), saved.SavedAt);
-            Assert.Equal(saved.SavedAt, CheckedAt(h));
+            Assert.Equal(saved.SavedAt, h.CheckedAt());
             return confirmFails ? FakeBilibiliHttp.Json("""{"code":-111,"message":"failed"}""") : await next();
         });
         await CheckConnectingAsync(h);
@@ -487,7 +487,7 @@ public sealed class CredentialRefreshTests
         }
         await CheckConnectingAsync(h);
         Assert.Equal("refresh-token", h.SavedCredential().RefreshToken);
-        Assert.Equal(h.Time.GetUtcNow(), CheckedAt(h));
+        Assert.Equal(h.Time.GetUtcNow(), h.CheckedAt());
         Assert.NotNull(Assert.Single(h.Logger.Entries, e => e.Message.Contains("24 小时后再试")).Exception);
         Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsoluteUri == Refresh);
         await CheckConnectingAsync(h);
@@ -564,7 +564,7 @@ public sealed class CredentialRefreshTests
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         await CheckConnectingAsync(h);
         Assert.Single(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Info);
-        Assert.Equal(h.Time.GetUtcNow(), CheckedAt(h));
+        Assert.Equal(h.Time.GetUtcNow(), h.CheckedAt());
         await CheckConnectingAsync(h);
         Assert.Single(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Info);
         Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsolutePath.Contains("correspond"));
@@ -575,13 +575,5 @@ public sealed class CredentialRefreshTests
         await using var updates = h.Watch();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Connecting>(updates.Current);
-    }
-
-    private static DateTimeOffset? CheckedAt(WatchHarness h)
-    {
-        using var connection = TestDatabase.Open(h.DataDirectory);
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT checked_at FROM credential";
-        return command.ExecuteScalar() is string value ? DateTimeOffset.Parse(value) : null;
     }
 }
