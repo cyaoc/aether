@@ -12,22 +12,12 @@ public sealed class FollowLatestTests : IDisposable
 {
     private readonly GuiHarness harness = new();
 
-    private static void Flush()
-    {
-        // The window defers scrolling through nested Loaded-priority posts, so settle a few rounds.
-        for (var i = 0; i < 5; i++)
-        {
-            AvaloniaHeadlessPlatform.ForceRenderTimerTick();
-            Dispatcher.UIThread.RunJobs();
-        }
-    }
-
     private (MainWindow Window, MainWindowViewModel ViewModel) ShowWindow()
     {
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow { DataContext = viewModel };
         window.Show();
-        Flush();
+        GuiHarness.Flush();
         return (window, viewModel);
     }
 
@@ -49,44 +39,53 @@ public sealed class FollowLatestTests : IDisposable
         var list = window.DanmakuList;
         var center = list.TranslatePoint(new Point(list.Bounds.Width / 2, list.Bounds.Height / 2), window)!.Value;
         window.MouseWheel(center, new Vector(0, deltaY));
-        Flush();
+        GuiHarness.Flush();
     }
 
     private void Receive(MainWindowViewModel viewModel, int count)
     {
         harness.Receive(viewModel, count);
-        Flush();
+        GuiHarness.Flush();
     }
 
     [Theory]
     [InlineData(200)]
     [InlineData(1100)]
-    public Task New_danmaku_scroll_to_the_latest_while_at_the_bottom(int count) => HeadlessApp.Session.Dispatch(() =>
+    public Task New_danmaku_scroll_to_the_latest_while_at_the_bottom(int count) => HeadlessApp.Session.Dispatch(async () =>
     {
         var (window, viewModel) = ShowWindow();
-        Receive(viewModel, count);
-
-        var viewer = Viewer(window);
-        Assert.True(viewer.Extent.Height > viewer.Viewport.Height);
-        Assert.True(LatestDanmakuIsVisible(window));
+        try
+        {
+            Receive(viewModel, count);
+            var viewer = Viewer(window);
+            Assert.True(viewer.Extent.Height > viewer.Viewport.Height);
+            Assert.True(LatestDanmakuIsVisible(window));
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
     }, TestContext.Current.CancellationToken);
 
     [Theory]
     [InlineData(200)]
     [InlineData(1000)]
-    public Task Scrolling_up_pauses_following_until_the_user_returns_to_the_bottom(int count) => HeadlessApp.Session.Dispatch(() =>
+    public Task Scrolling_up_pauses_following_until_the_user_returns_to_the_bottom(int count) => HeadlessApp.Session.Dispatch(async () =>
     {
         var (window, viewModel) = ShowWindow();
-        Receive(viewModel, count);
-        Wheel(window, 5);
-        Assert.False(LatestDanmakuIsVisible(window));
-        Receive(viewModel, 20);
-        Assert.False(LatestDanmakuIsVisible(window));
+        try
+        {
+            Receive(viewModel, count);
+            Wheel(window, 5);
+            Assert.False(LatestDanmakuIsVisible(window));
+            Receive(viewModel, 20);
+            Assert.False(LatestDanmakuIsVisible(window));
 
-        Wheel(window, -10_000);
-        Assert.True(LatestDanmakuIsVisible(window));
-        Receive(viewModel, 20);
-        Assert.True(LatestDanmakuIsVisible(window));
+            Wheel(window, -10_000);
+            Assert.True(LatestDanmakuIsVisible(window));
+            Receive(viewModel, 20);
+            Assert.True(LatestDanmakuIsVisible(window));
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
     }, TestContext.Current.CancellationToken);
 
     public void Dispose() => harness.Dispose();

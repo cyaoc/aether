@@ -39,12 +39,25 @@ public partial class MainWindow : Window
         }, RoutingStrategies.Tunnel);
     }
 
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        if (DataContext is MainWindowViewModel viewModel) viewModel.ReadAccountCommand.Execute(null);
+    }
+
     private void OpenSettings(object? sender, RoutedEventArgs e)
     {
         if (settingsWindow is not null) { settingsWindow.Activate(); return; }
         settingsWindow = new SettingsWindow(dataDirectory);
         settingsWindow.Closed += (_, _) => settingsWindow = null;
         settingsWindow.Show(this);
+    }
+
+    private async void ConfirmLogout(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel || viewModel.IsLoggingOut) return;
+        // Closing the window meanwhile has already started shutdown; a late confirm must not log out under it.
+        if (await new ConfirmLogoutWindow().ShowDialog<bool>(this) && !closing) await viewModel.LogoutCommand.ExecuteAsync(null);
     }
 
     private void PauseFollowingForInput()

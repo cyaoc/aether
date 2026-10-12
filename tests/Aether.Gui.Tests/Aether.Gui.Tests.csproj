@@ -9,6 +9,7 @@
     <ProjectReference Include="../../src/Aether.Gui/Aether.Gui.csproj" />
     <PackageReference Include="xunit.v3" />
     <PackageReference Include="Avalonia.Headless" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>

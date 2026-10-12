@@ -39,8 +39,10 @@ public sealed class InvalidSettingsTests
             }
             finally
             {
+                await viewModel.ShutdownAsync();
                 window.Close();
                 Dispatcher.UIThread.RunJobs();
             }
+            return true;
         }, TestContext.Current.CancellationToken);
 }
