@@ -2,7 +2,6 @@ using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
-using Aether.Core.Entries;
 
 namespace Aether.Core;
 
@@ -30,6 +29,8 @@ public sealed partial class AetherClient
         private readonly SendQueue sendQueue =
             new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value));
         private readonly WelcomeText welcomeText = new(settings.WelcomeText.Value);
+        // On the same scale as Entry.GuardTier; 0 is 关闭.
+        private readonly int guardThreshold = Settings.WelcomeGuards.ToList().IndexOf(settings.WelcomeGuard.Value);
 
         // Why the current attempt was stopped, where its exception would only say it was canceled; cleared before each attempt.
         private string? stopReason;
@@ -205,11 +206,18 @@ public sealed partial class AetherClient
                         {
                             var condition = Settings.WelcomeUids.Value.Contains(entry.Uid) ? "UID"
                                 : Settings.WelcomeFanClubLevel.Value > 0 && entry.FanClubLevel >= Settings.WelcomeFanClubLevel.Value ? "粉丝团等级"
-                                : entry.Guard > 0 && entry.Guard <= Entry.GuardLevel(Settings.WelcomeGuard.Value) ? "大航海身份"
+                                : guardThreshold > 0 && entry.GuardTier >= guardThreshold ? "大航海身份"
                                 : Settings.WelcomeWealthLevel.Value > 0 && entry.WealthLevel >= Settings.WelcomeWealthLevel.Value ? "荣耀等级"
                                 : null;
                             if (condition is null) continue;
-                            var text = welcomeText.Render(entry.Nickname, entry.Guard, Settings.WelcomeMaxLength.Value);
+                            var text = welcomeText.Render(entry.Nickname, entry.GuardName, Settings.WelcomeMaxLength.Value);
+                            // B站 refuses an empty danmaku, as "{大航海}" for a non-guard or a fully truncated nickname gives.
+                            if (string.IsNullOrWhiteSpace(text))
+                            {
+                                client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语拼出来是空的，未发送",
+                                    entry.Nickname, entry.Uid, condition);
+                                continue;
+                            }
                             client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中{Condition}", entry.Nickname, entry.Uid, condition);
                             sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, text, welcomeText.Mention, receivedTimestamp);
                         }
@@ -239,12 +247,16 @@ public sealed partial class AetherClient
         private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) => RunWhileConnectedAsync(stop, () =>
             sendQueue.SendAsync((item, round) =>
             {
-                var text = item.Welcome is { } welcome ? welcome.Text : item.Query is { } query
-                    ? BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, query.ReceivedAt))
-                    : BlindBoxTally.Announcement(round!);
+                var text = item switch
+                {
+                    SendQueue.Query query =>
+                        BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, query.Trigger.ReceivedAt)),
+                    SendQueue.Welcome welcome => welcome.Text,
+                    _ => BlindBoxTally.Announcement(round!)
+                };
                 var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
-                return (text, token => api.SendDanmakuAsync(roomId, item.Welcome is { Mention: false } ? null : item.Uid,
-                    item.Query?.Id, text, token));
+                return (text, token => api.SendDanmakuAsync(roomId, item is SendQueue.Welcome { Mention: false } ? null : item.Uid,
+                    (item as SendQueue.Query)?.Trigger.Id, text, token));
             }, stop.Token));
 
         // A refresh cut short by the connection ending leaves checked_at unchanged, so the reconnect checks again.

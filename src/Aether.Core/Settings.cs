@@ -86,9 +86,11 @@ public sealed class Settings
     private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome.enabled", false));
     private static readonly Definition<string> WelcomeTemplate = Register(Definition.RequiredText("welcome.text", "欢迎{大航海}{昵称}"));
     private static readonly Definition<int> WelcomeLimit = Register(Definition.Number("welcome.max_length", 20, "必须为正整数。", length => length > 0));
-    private static readonly Definition<IReadOnlyList<long>> WelcomeViewers = Register(Definition.NumberList("welcome.uids", []));
+    private static readonly Definition<IReadOnlyList<long>> WelcomeUidList = Register(Definition.NumberList("welcome.uids", []));
     private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", 0, "必须为非负整数。", level => level >= 0));
-    private static readonly Definition<string> WelcomeThreshold = Register(Definition.Choice<string>("welcome.guard", "舰长", ["关闭", "舰长", "提督", "总督"]));
+    /// <summary>The values welcome.guard accepts: 关闭, then 大航海身份 from low to high, so each one's index is its tier.</summary>
+    public static IReadOnlyList<string> WelcomeGuards { get; } = ["关闭", "舰长", "提督", "总督"];
+    private static readonly Definition<string> WelcomeGuardTier = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", 0, "必须为非负整数。", level => level >= 0));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, its controls in SettingsWindow.axaml, one Show call and one Fields entry).</summary>
@@ -107,9 +109,9 @@ public sealed class Settings
     public Setting<bool> WelcomeEnabled => Get(WelcomeOn);
     public Setting<string> WelcomeText => Get(WelcomeTemplate);
     public Setting<int> WelcomeMaxLength => Get(WelcomeLimit);
-    public Setting<IReadOnlyList<long>> WelcomeUids => Get(WelcomeViewers);
+    public Setting<IReadOnlyList<long>> WelcomeUids => Get(WelcomeUidList);
     public Setting<int> WelcomeFanClubLevel => Get(WelcomeFanClub);
-    public Setting<string> WelcomeGuard => Get(WelcomeThreshold);
+    public Setting<string> WelcomeGuard => Get(WelcomeGuardTier);
     public Setting<int> WelcomeWealthLevel => Get(WelcomeWealth);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
@@ -123,8 +125,22 @@ public sealed class Settings
     /// <summary>How a switch is written in the file, for forms that hold it as a bool.</summary>
     public static string BooleanText(bool value) => value ? "true" : "false";
 
+    /// <summary>How a number list is written in the file, which is also the text forms take for it.</summary>
+    public static string NumberListText(IEnumerable<long> numbers) =>
+        Definition.Emit(numbers.Select(number => number.ToString(CultureInfo.InvariantCulture)));
+
     /// <summary>The same validation used when loading and saving; null means the input is valid.</summary>
     public static string? Validate(string name, string? value) => Validate(Definitions, name, value);
+
+    /// <summary>Why the welcome text would misuse placeholders or exceed its length limit once <paramref name="changes"/>
+    /// apply; null when it would not. Every change must already be valid; settings left out keep this snapshot's values.</summary>
+    public string? ValidateWelcomeText(IReadOnlyDictionary<string, string> changes)
+    {
+        return Core.WelcomeText.Validate(Changed(WelcomeTemplate), Changed(WelcomeLimit));
+
+        T Changed<T>(Definition<T> definition) =>
+            changes.TryGetValue(definition.Name, out var input) ? definition.Parse(input) : Get(definition).Value;
+    }
 
     private static string? Validate(IReadOnlyList<Definition> definitions, string name, string? value) =>
         Find(definitions, name) is { } definition ? definition.Validate(value) : "未知设置，不能修改。";
@@ -156,9 +172,7 @@ public sealed class Settings
             var definition = Find(definitions, change.Key)!;
             return !definition.Holds(current, change.Value) && !(snapshot is not null && definition.Holds(snapshot, change.Value));
         }).ToDictionary();
-        if (definitions.Contains(WelcomeTemplate)
-            && current.WelcomeError(path, Saved(WelcomeTemplate), Saved(WelcomeLimit)) is { } invalid)
-            throw invalid;
+        if (definitions.Contains(WelcomeTemplate) && current.WelcomeError(path, changes) is { } invalid) throw invalid;
         var tokens = Scan(current.source);
         var edits = new List<(int Start, int Length, string Value)>();
         var newline = NewlineOf(current.source);
@@ -172,9 +186,6 @@ public sealed class Settings
         foreach (var (_, edit) in edits.Index().OrderByDescending(edit => edit.Item.Start).ThenByDescending(edit => edit.Index))
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
         AtomicFile.Write(path, [.. current.encoding.GetPreamble(), .. current.encoding.GetBytes(text)]);
-
-        T Saved<T>(Definition<T> definition) =>
-            changes.TryGetValue(definition.Name, out var input) ? definition.Parse(input) : current.Get(definition).Value;
 
         void EditGroup(string groupName, IEnumerable<(Definition Definition, string Value)> groupChanges)
         {
@@ -379,7 +390,7 @@ public sealed class Settings
             }
             settings.UnknownKeys = unknown.AsReadOnly();
             if (definitions.Contains(WelcomeTemplate))
-                settings.Error ??= settings.WelcomeError(path, settings.WelcomeText.Value, settings.WelcomeMaxLength.Value);
+                settings.Error ??= settings.WelcomeError(path, new Dictionary<string, string>());
         }
         catch (SettingsException error) { settings.Error = error; }
         catch (Exception error) when (IsYamlFailure(error))
@@ -406,10 +417,10 @@ public sealed class Settings
         }
     }
 
-    /// <summary>Checks the text against the limit, reported at the text's line, else the welcome group's.</summary>
-    private SettingsException? WelcomeError(string path, string text, int limit)
+    /// <summary>Checks the welcome text once these changes apply, reported at the text's line, else the welcome group's.</summary>
+    private SettingsException? WelcomeError(string path, IReadOnlyDictionary<string, string> changes)
     {
-        if (Core.WelcomeText.Validate(text, limit) is not { } reason) return null;
+        if (ValidateWelcomeText(changes) is not { } reason) return null;
         var group = root?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "welcome" }) ?? default;
         var key = (group.Value as YamlMappingNode)?.Children.Keys.FirstOrDefault(key => key is YamlScalarNode { Value: "text" });
         return new(path, key?.Start.Line ?? group.Key?.Start.Line ?? 1, "welcome.text", reason);
@@ -472,8 +483,7 @@ public sealed class Settings
         public static Definition<IReadOnlyList<long>> NumberList(string name, IReadOnlyList<long> initial)
         {
             const string rule = "必须是 [12345, 67890] 形式的单行数字列表，每项为 int64 范围内的正整数；[] 表示空列表。";
-            return new(name, initial, rule, ReadList, ParseList,
-                numbers => Emit(numbers.Select(number => number.ToString(CultureInfo.InvariantCulture))));
+            return new(name, initial, rule, ReadList, ParseList, NumberListText);
 
             static (bool, IReadOnlyList<long>) ReadList(YamlNode node, bool singleLine)
             {
@@ -509,7 +519,7 @@ public sealed class Settings
         private static bool OneLine(string text) => text.AsSpan().IndexOfAny(LineBreaks) < 0;
 
         /// <summary>A one-line flow list, letting YamlDotNet decide which items need quotes.</summary>
-        private static string Emit(IEnumerable<string> items)
+        internal static string Emit(IEnumerable<string> items)
         {
             using var writer = new StringWriter();
             var emitter = new Emitter(writer, new EmitterSettings().WithBestWidth(int.MaxValue));

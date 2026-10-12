@@ -10,6 +10,230 @@ namespace Aether.Gui.Tests;
 public sealed class SettingsWindowTests
 {
     [Theory]
+    [InlineData("关闭")]
+    [InlineData("舰长")]
+    [InlineData("提督")]
+    [InlineData("总督")]
+    public Task Welcome_fields_display_and_save_only_changed_lines(string guard) =>
+        WithSettingsWindow("# 保留\r\nwelcome:\r\n  enabled: false # 开关\r\n  text: '欢迎{昵称}' # 正文\r\n  max_length: 20 # 上限\r\n  uids: [42] # 老朋友\r\n  fan_club_level: 1 # 老粉\r\n  guard: 舰长 # 档位\r\n  wealth_level: 2 # 荣耀\r\nfuture: 保留\r\n", (window, path) =>
+        {
+            var before = File.ReadAllText(path);
+            var enabled = window.FindControl<CheckBox>("WelcomeInput");
+            var text = window.FindControl<TextBox>("WelcomeTextInput");
+            var limit = window.FindControl<NumericUpDown>("WelcomeMaxLengthInput");
+            var uids = window.FindControl<TextBox>("WelcomeUidsInput");
+            var fanClub = window.FindControl<NumericUpDown>("WelcomeFanClubInput");
+            var threshold = window.FindControl<ComboBox>("WelcomeGuardInput");
+            var wealth = window.FindControl<NumericUpDown>("WelcomeWealthInput");
+            Assert.NotNull(enabled);
+            Assert.NotNull(text);
+            Assert.NotNull(limit);
+            Assert.NotNull(uids);
+            Assert.NotNull(fanClub);
+            Assert.NotNull(threshold);
+            Assert.NotNull(wealth);
+            Assert.False(enabled.IsChecked);
+            Assert.True(enabled.IsEnabled);
+            Assert.Contains("下次观看直播间时生效", enabled.Content as string);
+            Assert.Equal("欢迎{昵称}", text.Text);
+            Assert.False(text.IsReadOnly);
+            Assert.Equal("[42]", uids.Text);
+            Assert.False(uids.IsReadOnly);
+            Assert.Equal("20", limit.Text);
+            Assert.Equal("1", fanClub.Text);
+            Assert.Equal("2", wealth.Text);
+            foreach (var number in new[] { limit, fanClub, wealth })
+            {
+                Assert.False(number.IsReadOnly);
+                Assert.True(number.AllowSpin);
+            }
+            Assert.Equal(new[] { "关闭", "舰长", "提督", "总督" }, threshold.Items.Cast<string>());
+            Assert.Equal("舰长", threshold.SelectedItem);
+            Assert.True(threshold.IsEnabled);
+
+            enabled.IsChecked = true;
+            text.Text = "{@}欢迎{大航海}{昵称}回家";
+            limit.Text = "30";
+            uids.Text = "[2147483648, 9223372036854775807]";
+            fanClub.Text = "21";
+            threshold.SelectedItem = guard;
+            wealth.Text = "45";
+            Dispatcher.UIThread.RunJobs();
+            var save = window.FindControl<Button>("SaveButton")!;
+            Assert.True(save.IsEnabled);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before.Replace("enabled: false # 开关", "enabled: true # 开关")
+                .Replace("text: '欢迎{昵称}'", "text: '{@}欢迎{大航海}{昵称}回家'")
+                .Replace("max_length: 20", "max_length: 30")
+                .Replace("uids: [42]", "uids: [2147483648, 9223372036854775807]")
+                .Replace("fan_club_level: 1", "fan_club_level: 21")
+                .Replace("guard: 舰长", $"guard: {guard}")
+                .Replace("wealth_level: 2", "wealth_level: 45"), File.ReadAllText(path));
+            var settings = Settings.Load(Path.GetDirectoryName(path)!);
+            Assert.Null(settings.Error);
+            Assert.True(settings.WelcomeEnabled.Value);
+            Assert.Equal("{@}欢迎{大航海}{昵称}回家", settings.WelcomeText.Value);
+            Assert.Equal(30, settings.WelcomeMaxLength.Value);
+            Assert.Equal([2147483648L, long.MaxValue], settings.WelcomeUids.Value);
+            Assert.Equal(21, settings.WelcomeFanClubLevel.Value);
+            Assert.Equal(guard, settings.WelcomeGuard.Value);
+            Assert.Equal(45, settings.WelcomeWealthLevel.Value);
+        });
+
+    [Theory]
+    [InlineData("'欢迎{大航海}{昵称}'")]
+    [InlineData("|-\n    欢迎{大航海}{昵称}")]
+    public Task Lowering_only_the_welcome_limit_rejects_the_current_text_with_its_count(string text) =>
+        WithSettingsWindow($"welcome:\n  text: {text}\n  max_length: 20\n", (window, path) =>
+        {
+            var before = File.ReadAllText(path);
+            var limit = window.FindControl<NumericUpDown>("WelcomeMaxLengthInput")!;
+            var input = Assert.Single(limit.GetVisualDescendants().OfType<TextBox>());
+            input.Text = "7";
+            Dispatcher.UIThread.RunJobs();
+            var save = window.FindControl<Button>("SaveButton")!;
+            Assert.False(save.IsEnabled);
+            Assert.Contains("welcome.text", window.FindControl<TextBlock>("Message")!.Text);
+            Assert.Contains("计数为 8，超过上限 7", window.FindControl<TextBlock>("Message")!.Text);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before, File.ReadAllText(path));
+            Assert.Equal("7", limit.Text);
+
+            input.Text = "8";
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(save.IsEnabled);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before.Replace("max_length: 20", "max_length: 8"), File.ReadAllText(path));
+        });
+
+    [Theory]
+    [InlineData("欢迎{舰长}")]
+    [InlineData("欢迎{@}")]
+    [InlineData("欢迎{昵称")]
+    [InlineData("欢迎}")]
+    public Task Invalid_welcome_placeholders_disable_save_and_can_be_corrected(string text) =>
+        WithSettingsWindow(null, (window, path) =>
+        {
+            var before = File.ReadAllText(path);
+            var input = window.FindControl<TextBox>("WelcomeTextInput")!;
+            input.Text = text;
+            Dispatcher.UIThread.RunJobs();
+            var save = window.FindControl<Button>("SaveButton")!;
+            Assert.False(save.IsEnabled);
+            Assert.Contains("welcome.text", window.FindControl<TextBlock>("Message")!.Text);
+            Assert.Contains("可用占位符为 {@}（只能放开头）、{昵称}、{大航海}", window.FindControl<TextBlock>("Message")!.Text);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before, File.ReadAllText(path));
+            Assert.Equal(text, input.Text);
+
+            input.Text = "{@}欢迎{{{昵称}}}";
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(save.IsEnabled);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("{@}欢迎{{{昵称}}}", Settings.Load(Path.GetDirectoryName(path)!).WelcomeText.Value);
+        });
+
+    [Fact]
+    public Task Welcome_text_uses_the_increased_form_limit_instead_of_the_saved_limit() =>
+        WithSettingsWindow(null, (window, path) =>
+        {
+            window.FindControl<TextBox>("WelcomeTextInput")!.Text = "一二三四五六七八九十百";
+            Dispatcher.UIThread.RunJobs();
+            var save = window.FindControl<Button>("SaveButton")!;
+            Assert.False(save.IsEnabled);
+            Assert.Contains("计数为 22，超过上限 20", window.FindControl<TextBlock>("Message")!.Text);
+            window.FindControl<NumericUpDown>("WelcomeMaxLengthInput")!.Text = "22";
+            Dispatcher.UIThread.RunJobs();
+            Assert.True(save.IsEnabled);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var settings = Settings.Load(Path.GetDirectoryName(path)!);
+            Assert.Null(settings.Error);
+            Assert.Equal("一二三四五六七八九十百", settings.WelcomeText.Value);
+            Assert.Equal(22, settings.WelcomeMaxLength.Value);
+        });
+
+    [Fact]
+    public Task Welcome_defaults_and_help_are_shown_and_missing_values_can_be_saved() =>
+        WithSettingsWindow("welcome:\n", (window, path) =>
+        {
+            var before = File.ReadAllText(path);
+            Assert.False(window.FindControl<CheckBox>("WelcomeInput")!.IsChecked);
+            Assert.Equal("欢迎{大航海}{昵称}", window.FindControl<TextBox>("WelcomeTextInput")!.Text);
+            Assert.Equal("20", window.FindControl<NumericUpDown>("WelcomeMaxLengthInput")!.Text);
+            Assert.Equal("[]", window.FindControl<TextBox>("WelcomeUidsInput")!.Text);
+            Assert.Equal("0", window.FindControl<NumericUpDown>("WelcomeFanClubInput")!.Text);
+            Assert.Equal("舰长", window.FindControl<ComboBox>("WelcomeGuardInput")!.SelectedItem);
+            Assert.Equal("0", window.FindControl<NumericUpDown>("WelcomeWealthInput")!.Text);
+            var hint = window.FindControl<TextBlock>("WelcomeTextHint")!.Text;
+            Assert.Contains("英文、数字、半角符号算 1，其他字符算 2", hint);
+            Assert.Contains("{@}（只能放开头）、{昵称}、{大航海}", hint);
+            Assert.Contains("{{ 和 }}", hint);
+            window.FindControl<TextBox>("WelcomeUidsInput")!.Text = "[12345, 67890]";
+            Dispatcher.UIThread.RunJobs();
+            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var after = File.ReadAllText(path);
+            Assert.Contains("  uids: [12345, 67890]\n", after);
+            Assert.Equal(before, after.Replace("  uids: [12345, 67890]\n", ""));
+            Assert.Equal([12345L, 67890L], Settings.Load(Path.GetDirectoryName(path)!).WelcomeUids.Value);
+        });
+
+    [Fact]
+    public Task Flow_welcome_group_is_read_only_and_preserved_when_other_settings_are_saved() =>
+        WithSettingsWindow("welcome: {enabled: true, text: '欢迎{昵称}', max_length: 30, uids: [12345, 67890], fan_club_level: 21, guard: 提督, wealth_level: 45}\n", (window, path) =>
+        {
+            var before = File.ReadAllText(path);
+            Assert.True(window.FindControl<CheckBox>("WelcomeInput")!.IsChecked);
+            Assert.False(window.FindControl<CheckBox>("WelcomeInput")!.IsEnabled);
+            Assert.Equal("欢迎{昵称}", window.FindControl<TextBox>("WelcomeTextInput")!.Text);
+            Assert.True(window.FindControl<TextBox>("WelcomeTextInput")!.IsReadOnly);
+            Assert.Equal("[12345, 67890]", window.FindControl<TextBox>("WelcomeUidsInput")!.Text);
+            Assert.True(window.FindControl<TextBox>("WelcomeUidsInput")!.IsReadOnly);
+            Assert.Equal("提督", window.FindControl<ComboBox>("WelcomeGuardInput")!.SelectedItem);
+            Assert.False(window.FindControl<ComboBox>("WelcomeGuardInput")!.IsEnabled);
+            foreach (var (name, value) in new[] { ("WelcomeMaxLength", "30"), ("WelcomeFanClub", "21"), ("WelcomeWealth", "45") })
+            {
+                var number = window.FindControl<NumericUpDown>(name + "Input")!;
+                Assert.Equal(value, number.Text);
+                Assert.True(number.IsReadOnly);
+                Assert.False(number.AllowSpin);
+            }
+            foreach (var name in new[] { "Welcome", "WelcomeText", "WelcomeMaxLength", "WelcomeUids", "WelcomeFanClub", "WelcomeGuard", "WelcomeWealth" })
+                Assert.True(window.FindControl<TextBlock>(name + "ReadOnly")!.IsVisible);
+            window.FindControl<ComboBox>("LevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
+            Dispatcher.UIThread.RunJobs();
+            var save = window.FindControl<Button>("SaveButton")!;
+            Assert.True(save.IsEnabled);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before.Replace("level: Information", "level: Warning"), File.ReadAllText(path));
+        });
+
+    [Theory]
+    [InlineData("WelcomeMaxLength", "max_length", "0")]
+    [InlineData("WelcomeMaxLength", "max_length", "1.5")]
+    [InlineData("WelcomeMaxLength", "max_length", "")]
+    [InlineData("WelcomeMaxLength", "max_length", "2147483648")]
+    [InlineData("WelcomeFanClub", "fan_club_level", "-1")]
+    [InlineData("WelcomeWealth", "wealth_level", "-1")]
+    [InlineData("WelcomeUids", "uids", "12345, 67890")]
+    [InlineData("WelcomeUids", "uids", "[0]")]
+    [InlineData("WelcomeUids", "uids", "[9223372036854775808]")]
+    public Task Invalid_welcome_values_disable_save_without_changing_the_file(string name, string key, string value) =>
+        WithSettingsWindow(null, (window, path) =>
+        {
+            var before = File.ReadAllText(path);
+            var control = window.FindControl<Control>(name + "Input")!;
+            var input = control is NumericUpDown number
+                ? Assert.Single(number.GetVisualDescendants().OfType<TextBox>()) : Assert.IsType<TextBox>(control);
+            input.Text = value;
+            Dispatcher.UIThread.RunJobs();
+            var save = window.FindControl<Button>("SaveButton")!;
+            Assert.False(save.IsEnabled);
+            Assert.Contains("welcome." + key, window.FindControl<TextBlock>("Message")!.Text);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before, File.ReadAllText(path));
+        });
+
+    [Theory]
     [InlineData(null)]
     [InlineData("  announce: true # 开关\n")]
     public Task Announcement_switch_defaults_on_and_saves_only_its_line(string? line) =>

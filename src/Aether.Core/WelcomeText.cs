@@ -1,5 +1,4 @@
 using System.Text;
-using Aether.Core.Entries;
 
 namespace Aether.Core;
 
@@ -8,7 +7,6 @@ internal sealed class WelcomeText
     private const string PlaceholderError = "可用占位符为 {@}（只能放开头）、{昵称}、{大航海}；花括号本身用 {{ 和 }}。";
     private readonly List<(string Kind, string Text)> parts = [];
     public bool Mention { get; }
-    private int FixedLength { get; }
 
     public WelcomeText(string text)
     {
@@ -32,23 +30,22 @@ internal sealed class WelcomeText
         parts.Add(("", literal.ToString()));
         if (parts.All(part => part.Kind == "" && string.IsNullOrWhiteSpace(part.Text)))
             throw new FormatException("欢迎语不能只有 {@}，还要写上发出去的文字。");
-        FixedLength = parts.Sum(part => part.Kind == "大航海" ? 4 : Length(part.Text));
     }
 
     public static string? Validate(string text, int limit)
     {
         try
         {
-            var length = new WelcomeText(text).FixedLength;
+            // Every guard name counts 4, so any one stands in for {大航海}.
+            var length = new WelcomeText(text).FixedLength("舰长");
             return length > limit ? $"欢迎语固定部分计数为 {length}，超过上限 {limit}。" : null;
         }
         catch (FormatException error) { return error.Message; }
     }
 
-    public string Render(string nickname, long guard, int limit)
+    public string Render(string nickname, string guardName, int limit)
     {
-        var guardName = Entry.GuardName(guard);
-        var fixedLength = parts.Sum(part => Length(part.Kind == "大航海" ? guardName : part.Text));
+        var fixedLength = FixedLength(guardName);
         var occurrences = parts.Count(part => part.Kind == "昵称");
         var budget = occurrences == 0 ? 0 : (limit - fixedLength) / occurrences;
         var end = 0;
@@ -65,6 +62,9 @@ internal sealed class WelcomeText
             "昵称" => nickname, "大航海" => guardName, _ => part.Text
         }));
     }
+
+    /// <summary>Everything but the nicknames, which share what is left; {@} counts nothing.</summary>
+    private int FixedLength(string guardName) => parts.Sum(part => Length(part.Kind == "大航海" ? guardName : part.Text));
 
     private static int Length(string text) => text.EnumerateRunes().Sum(Weight);
 

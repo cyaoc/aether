@@ -18,13 +18,17 @@ public partial class SettingsWindow : Window
         this.dataDirectory = dataDirectory;
         InitializeComponent();
         LevelInput.ItemsSource = Settings.LogLevels;
-        foreach (var number in new[] { RetentionInput, SendIntervalInput })
+        WelcomeGuardInput.ItemsSource = Settings.WelcomeGuards;
+        foreach (var number in new[] { RetentionInput, SendIntervalInput, WelcomeMaxLengthInput, WelcomeFanClubInput, WelcomeWealthInput })
             number.PropertyChanged += (_, e) =>
             {
                 if (e.Property == NumericUpDown.TextProperty) Validate();
             };
         LevelInput.SelectionChanged += (_, _) => Validate();
+        WelcomeGuardInput.SelectionChanged += (_, _) => Validate();
         KeywordInput.TextChanged += (_, _) => Validate();
+        WelcomeTextInput.TextChanged += (_, _) => Validate();
+        WelcomeUidsInput.TextChanged += (_, _) => Validate();
         LoadSettings();
     }
 
@@ -37,6 +41,13 @@ public partial class SettingsWindow : Window
         Show(KeywordInput, KeywordReadOnly, settings.BlindBoxKeyword);
         Show(AnnounceInput, AnnounceReadOnly, settings.BlindBoxAnnounce);
         Show(SendIntervalInput, SendIntervalReadOnly, settings.SendIntervalSeconds);
+        Show(WelcomeInput, WelcomeReadOnly, settings.WelcomeEnabled);
+        Show(WelcomeTextInput, WelcomeTextReadOnly, settings.WelcomeText);
+        Show(WelcomeMaxLengthInput, WelcomeMaxLengthReadOnly, settings.WelcomeMaxLength);
+        Show(WelcomeUidsInput, WelcomeUidsReadOnly, settings.WelcomeUids);
+        Show(WelcomeFanClubInput, WelcomeFanClubReadOnly, settings.WelcomeFanClubLevel);
+        Show(WelcomeGuardInput, WelcomeGuardReadOnly, settings.WelcomeGuard);
+        Show(WelcomeWealthInput, WelcomeWealthReadOnly, settings.WelcomeWealthLevel);
         UnknownKeysMessage.IsVisible = settings.UnknownKeys.Count > 0;
         UnknownKeysMessage.Text = $"未知设置键：{string.Join("、", settings.UnknownKeys)}。保存后会原样保留。";
         Validate();
@@ -65,6 +76,13 @@ public partial class SettingsWindow : Window
         readOnly.IsVisible = !setting.CanEdit;
     }
 
+    private static void Show(TextBox input, TextBlock readOnly, Setting<IReadOnlyList<long>> setting)
+    {
+        input.Text = Settings.NumberListText(setting.Value);
+        input.IsReadOnly = !setting.CanEdit;
+        readOnly.IsVisible = !setting.CanEdit;
+    }
+
     private static void Show(CheckBox input, TextBlock readOnly, Setting<bool> setting)
     {
         input.IsChecked = setting.Value;
@@ -82,12 +100,21 @@ public partial class SettingsWindow : Window
         (settings.BlindBoxKeyword.Name, settings.BlindBoxKeyword.CanEdit, KeywordInput.Text),
         (settings.BlindBoxAnnounce.Name, settings.BlindBoxAnnounce.CanEdit, Settings.BooleanText(AnnounceInput.IsChecked == true)),
         (settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text),
+        (settings.WelcomeEnabled.Name, settings.WelcomeEnabled.CanEdit, Settings.BooleanText(WelcomeInput.IsChecked == true)),
+        (settings.WelcomeText.Name, settings.WelcomeText.CanEdit, WelcomeTextInput.Text),
+        (settings.WelcomeMaxLength.Name, settings.WelcomeMaxLength.CanEdit, WelcomeMaxLengthInput.Text),
+        (settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, WelcomeUidsInput.Text),
+        (settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, WelcomeFanClubInput.Text),
+        (settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, WelcomeGuardInput.SelectedItem?.ToString()),
+        (settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, WelcomeWealthInput.Text),
     ];
 
     private void Validate()
     {
         var fields = Fields();
         var error = settings.Error?.Message ?? fields.Select(InputError).FirstOrDefault(reason => reason is not null);
+        // Only once every input is valid: the welcome text is checked against the limit the form now holds.
+        if (error is null && settings.ValidateWelcomeText(Changes(fields)) is { } reason) error = $"{settings.WelcomeText.Name}：{reason}";
         Message.Text = error ?? "";
         SaveButton.IsEnabled = error is null && fields.Any(field => field.CanEdit);
     }
@@ -96,12 +123,16 @@ public partial class SettingsWindow : Window
     private static string? InputError((string Name, bool CanEdit, string? Input) field) =>
         field.CanEdit && Settings.Validate(field.Name, field.Input) is { } reason ? $"{field.Name}：{reason}" : null;
 
+    /// <summary>The inputs Save would write; read-only settings keep the snapshot's values.</summary>
+    private static Dictionary<string, string> Changes(IEnumerable<(string Name, bool CanEdit, string? Input)> fields) =>
+        fields.Where(field => field.CanEdit).ToDictionary(field => field.Name, field => field.Input!);
+
     private void Save(object? sender, RoutedEventArgs e)
     {
         Validate();
         if (!SaveButton.IsEnabled) return;
         // Core leaves alone what this form was filled with, so an untouched setting keeps its spelling and any edit made elsewhere.
-        var changes = Fields().Where(field => field.CanEdit).ToDictionary(field => field.Name, field => field.Input!);
+        var changes = Changes(Fields());
         try
         {
             Settings.Save(dataDirectory, changes, settings);

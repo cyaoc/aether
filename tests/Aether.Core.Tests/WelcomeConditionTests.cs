@@ -23,10 +23,10 @@ public sealed class WelcomeConditionTests
     [InlineData(0, 47, 7734200, true, null)]
     [InlineData(21, 47, 1234567, true, null)]
     [InlineData(21, 21, 7734200, false, "粉丝团等级")]
-    public Task Fan_club_threshold_uses_only_this_rooms_medal_regardless_of_its_light(
+    public Task Fan_club_threshold_counts_only_this_rooms_fan_club_lit_or_not(
         int threshold, long level, long room, bool lit, string? condition) =>
         CheckAsync(new() { ["welcome.fan_club_level"] = threshold.ToString(CultureInfo.InvariantCulture) },
-            EntryV2Fixture.Message(guard: 0, fanClubLevel: level, medalRoom: room, medalLit: lit), condition);
+            EntryV2Fixture.Message(guard: 0, fanClubLevel: level, fanClubRoom: room, fanClubLit: lit), condition);
 
     [Theory]
     [InlineData(45, 45, "荣耀等级")]

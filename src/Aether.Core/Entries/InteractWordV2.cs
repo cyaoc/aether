@@ -12,7 +12,7 @@ internal static class InteractWordV2
             ?? throw new JsonException("缺少 pb。")));
         // proto3 omits zero and empty values, including a missing medal or wealth message.
         var entry = new Entry(0, "", 0, 0, 0, 0);
-        long fanClubRoom = 0;
+        long fanClubLevel = 0, fanClubRoom = 0;
         while (reader.TryRead(out var field, out var type))
         {
             switch (field)
@@ -20,22 +20,28 @@ internal static class InteractWordV2
                 case 1: entry = entry with { Uid = reader.Int64(type) }; break;
                 case 2: entry = entry with { Nickname = reader.Text(type) }; break;
                 case 5: entry = entry with { MessageType = reader.Int64(type) }; break;
-                case 9:
-                    var medal = new ProtobufReader(reader.Bytes(type));
-                    while (medal.TryRead(out var medalField, out var medalType))
-                        switch (medalField)
-                        {
-                            case 2: entry = entry with { FanClubLevel = medal.Int64(medalType) }; break;
-                            case 12: fanClubRoom = medal.Int64(medalType); break;
-                            default: medal.Skip(medalField, medalType); break;
-                        }
-                    break;
-                case 16: entry = entry with { Guard = reader.Int64(type) }; break;
+                case 9: (fanClubLevel, fanClubRoom) = ReadFanClub(reader.Bytes(type)); break;
+                case 16: entry = entry with { PrivilegeType = reader.Int64(type) }; break;
                 case 22: entry = entry with { WealthLevel = ReadWealth(reader.Bytes(type)) }; break;
                 default: reader.Skip(field, type); break;
             }
         }
-        return (entry, fanClubRoom);
+        return (entry with { FanClubLevel = fanClubLevel }, fanClubRoom);
+    }
+
+    /// <summary>The worn fan club's level and its room.</summary>
+    private static (long Level, long Room) ReadFanClub(ReadOnlyMemory<byte> bytes)
+    {
+        long level = 0, room = 0;
+        var medal = new ProtobufReader(bytes);
+        while (medal.TryRead(out var field, out var type))
+            switch (field)
+            {
+                case 2: level = medal.Int64(type); break;
+                case 12: room = medal.Int64(type); break;
+                default: medal.Skip(field, type); break;
+            }
+        return (level, room);
     }
 
     private static long ReadWealth(ReadOnlyMemory<byte> bytes)
