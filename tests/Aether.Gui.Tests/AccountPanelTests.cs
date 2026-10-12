@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
+using static Aether.Gui.Tests.Support.GuiHarness;
 
 namespace Aether.Gui.Tests;
 
@@ -218,17 +219,4 @@ public sealed class AccountPanelTests
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
         return true;
     }, TestContext.Current.CancellationToken);
-
-    private static IEnumerable<string?> VisibleText(MainWindow window) =>
-        window.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).Select(x => x.Text);
-
-    private static async Task WaitForAsync(Func<bool> condition)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        while (!condition())
-        {
-            await Task.Delay(10, timeout.Token);
-            Dispatcher.UIThread.RunJobs();
-        }
-    }
 }

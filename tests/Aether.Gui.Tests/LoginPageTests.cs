@@ -7,6 +7,7 @@ using Avalonia.Styling;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.Time.Testing;
+using static Aether.Gui.Tests.Support.GuiHarness;
 
 namespace Aether.Gui.Tests;
 
@@ -246,9 +247,6 @@ public sealed class LoginPageTests
         return true;
     }, TestContext.Current.CancellationToken);
 
-    private static IEnumerable<string?> VisibleText(MainWindow window) =>
-        window.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).Select(x => x.Text);
-
     private static HttpResponseMessage LoginResponse(Uri uri) => uri.AbsolutePath switch
     {
         "/x/frontend/finger/spi" => GuiHarness.Json("""{"code":0,"data":{"b_3":"test-buvid"}}"""),
@@ -267,15 +265,5 @@ public sealed class LoginPageTests
             "DedeUserID=123; Path=/; Domain=.bilibili.com"
         });
         return response;
-    }
-
-    private static async Task WaitForAsync(Func<bool> condition)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        while (!condition())
-        {
-            await Task.Delay(10, timeout.Token);
-            Dispatcher.UIThread.RunJobs();
-        }
     }
 }

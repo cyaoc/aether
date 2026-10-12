@@ -151,16 +151,16 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         LoginError = "";
         try
         {
-            do
+            // Logging in saves the credential to SQLite, so the stream is read off the UI thread too.
+            await Task.Run(async () =>
             {
                 await foreach (var update in client.LoginAsync(cancellationToken))
-                    if (update is LoginQrCode qr) ShowQrCode(qr.Content);
-                ClearQrCode();
-                cancellationToken.ThrowIfCancellationRequested();
-                IsLoginPage = false;
-                await ReadAccountAsync();
-                // The new credential may already be invalid when nav checks it.
-            } while (IsLoginPage && !cancellationToken.IsCancellationRequested);
+                    if (update is LoginQrCode qr) await Dispatcher.UIThread.InvokeAsync(() => ShowQrCode(qr.Content));
+            }, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested(); // Core ends the stream quietly when cancelled.
+            IsLoginPage = false;
+            // A read that still finds no account brings the login page back with a fresh code.
+            _ = ReadAccountAsync();
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
         catch (Exception error)
@@ -168,10 +168,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
             logger.LogError(error, "扫码登录失败");
             LoginError = $"登录失败：{error.Message}";
         }
-        finally
-        {
-            if (IsLoginPage) ClearQrCode();
-        }
+        finally { ClearQrCode(); }
     }
 
     [RelayCommand(CanExecute = nameof(CanReconnect))]
@@ -321,7 +318,6 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
         if (LoginCommand.ExecutionTask is { } login) await login;
-        ClearQrCode();
     }
 
     // Reconnects skip Connecting, so a QR login can end at either update.

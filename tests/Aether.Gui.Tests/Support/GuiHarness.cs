@@ -1,7 +1,9 @@
 using Aether.Core;
 using System.Net;
+using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -74,6 +76,19 @@ internal sealed class GuiHarness : IDisposable
         for (var i = 0; i < 5; i++)
         {
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
+            Dispatcher.UIThread.RunJobs();
+        }
+    }
+
+    public static IEnumerable<string?> VisibleText(MainWindow window) =>
+        window.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).Select(x => x.Text);
+
+    public static async Task WaitForAsync(Func<bool> condition)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (!condition())
+        {
+            await Task.Delay(10, timeout.Token);
             Dispatcher.UIThread.RunJobs();
         }
     }
