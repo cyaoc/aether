@@ -93,9 +93,9 @@ public sealed class WelcomeConditionTests : IDisposable
         await using (var updates = await h.WatchConnectedAsync())
         {
             await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
-            var log = Assert.Single(h.Logger.Entries, log => log.Message.Contains("进场欢迎："));
+            var log = Assert.Single(h.Logger.Entries, log => log.Message.Contains("] 进队："));
             Assert.Equal(LogLevel.Information, log.Level);
-            Assert.EndsWith("进场欢迎：测试观众（10001），命中UID", log.Message);
+            Assert.EndsWith("进场欢迎] 进队：观众 测试观众（10001），命中UID", log.Message);
             var form = await NextSendAsync(sent);
             Assert.Equal("欢迎舰长测试观众", form["msg"]);
             Assert.Equal("10001", form["reply_mid"]);

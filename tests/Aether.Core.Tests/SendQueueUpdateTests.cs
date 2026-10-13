@@ -63,7 +63,7 @@ public sealed class SendQueueUpdateTests
         Assert.Equal(queuedAt, queued.OccurredAt);
         Assert.Equal(TimeSpan.FromHours(8), queued.OccurredAt.Offset);
         var matched = Assert.Single(ItemLogs(h, queued.Id, "进场欢迎", "测试观众"), log => log.Level == LogLevel.Information);
-        Assert.Contains($"进场欢迎：测试观众（10001），命中{conditionName}", matched.Message);
+        Assert.Contains($"进队：观众 测试观众（10001），命中{conditionName}", matched.Message);
         Assert.Equal(value ?? "", matched.Properties["Value"]);
         if (value is not null) Assert.Contains(value, matched.Message);
 
@@ -164,10 +164,10 @@ public sealed class SendQueueUpdateTests
         // The receive loop has handled the rejection; nothing was queued behind it.
         await h.PushAndSyncAsync(updates);
         await AssertNoSendAsync(sent);
-        Assert.Single(h.Logger.Entries, log => log.Level == LogLevel.Warning && log.Message.Contains("未发送"));
+        Assert.Single(h.Logger.Entries, log => log.Level == LogLevel.Warning && log.Message.Contains("没进队"));
         var warning = Assert.Single(ItemLogs(h, rejected.Id, "进场欢迎", "测试观众"));
         Assert.Equal(LogLevel.Warning, warning.Level);
-        Assert.Contains("未发送", warning.Message);
+        Assert.Contains("没进队：观众 测试观众（10001）", warning.Message);
         if (expectedText.Length == 0) Assert.Contains("欢迎语拼出来是空的", warning.Message);
         else Assert.Contains("欢迎语固定部分计数为 8，超过上限 1", warning.Message);
     }
@@ -271,6 +271,7 @@ public sealed class SendQueueUpdateTests
         Assert.Empty(await SyncProgressAsync(h, updates));
         var merged = Assert.Single(h.Logger.Entries, log => log.Message.Contains("合并"));
         Assert.Equal(LogLevel.Debug, merged.Level);
+        Assert.Equal(queued.Id, merged.Properties["ItemId"]);
         Assert.Equal("查询观众", merged.Properties["Nickname"]);
         Assert.Equal(10001L, merged.Properties["Uid"]);
         releaseWelcome.SetResult();
