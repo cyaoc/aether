@@ -221,7 +221,7 @@ public sealed partial class AetherClient
                         else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry })
                         {
                             if (welcome.Evaluate(entry, danmakuLengthLimit) is not { } result) continue;
-                            LogWelcome(entry, result, danmakuLengthLimit);
+                            LogWelcome(entry, result);
                             sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, result.Text, result.Mention, receivedTimestamp,
                                 result.Condition, result.Value, result.RejectionReason);
                         }
@@ -248,7 +248,7 @@ public sealed partial class AetherClient
             }
         }
 
-        private void LogWelcome(Entry entry, Welcome.Result result, int danmakuLengthLimit)
+        private void LogWelcome(Entry entry, Welcome.Result result)
         {
             switch (result.RejectedBecause)
             {
@@ -258,7 +258,7 @@ public sealed partial class AetherClient
                     break;
                 case Welcome.Rejection.TooLong:
                     client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语固定部分计数为 {Length}，超过上限 {Limit}，未发送",
-                        entry.Nickname, entry.Uid, result.ConditionName, WelcomeText.Length(result.Text), danmakuLengthLimit);
+                        entry.Nickname, entry.Uid, result.ConditionName, result.Length, result.DanmakuLengthLimit);
                     break;
                 default:
                     client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中{Condition}", entry.Nickname, entry.Uid, result.ConditionName);
@@ -273,7 +273,7 @@ public sealed partial class AetherClient
                 {
                     SendQueue.Query query =>
                         BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, query.Trigger.ReceivedAt)),
-                    SendQueue.Welcome welcome => welcome.Text,
+                    SendQueue.Welcome queued => queued.Text,
                     _ => BlindBoxTally.Announcement(round!)
                 };
                 var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());

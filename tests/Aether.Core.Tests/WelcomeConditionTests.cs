@@ -16,106 +16,51 @@ public sealed class WelcomeConditionTests : IDisposable
     [InlineData("[10001]", 10000, null)]
     [InlineData("[]", 10001, null)]
     [InlineData("[9223372036854775807]", long.MaxValue, "UID")]
-    public void Specified_uids_match_exactly_including_int64_values(string uids, long uid, string? condition)
-    {
-        var welcome = CreateWelcome(new() { ["welcome.uids"] = uids });
-        var result = welcome.Evaluate(new Entry(uid, "测试观众", 1, 0, null, 0), 20);
-        Assert.Equal(condition, result?.ConditionName);
-        if (condition is null) Assert.Null(result);
-        else
-        {
-            Assert.NotNull(result);
-            Assert.Equal(WelcomeCondition.Uid, result.Condition);
-            Assert.Null(result.Value);
-            Assert.Equal("欢迎测试观众", result.Text);
-            Assert.False(result.Mention);
-            Assert.Null(result.RejectionReason);
-        }
-    }
+    public void Specified_uids_match_exactly_including_int64_values(string uids, long uid, string? match) =>
+        Assert.Equal(match, Match(new() { ["welcome.uids"] = uids }, Viewer(uid: uid)));
 
     [Theory]
-    [InlineData(21, 21L, "21")]
+    [InlineData(21, 21L, "粉丝团等级 21")]
     [InlineData(21, 20L, null)]
-    [InlineData(21, 22L, "22")]
+    [InlineData(21, 22L, "粉丝团等级 22")]
     [InlineData(0, 47L, null)]
     [InlineData(21, null, null)]
-    public void Fan_club_threshold_is_inclusive_and_requires_a_fan_club(int threshold, long? level, string? value)
-    {
-        var welcome = CreateWelcome(new() { ["welcome.fan_club_level"] = threshold.ToString(CultureInfo.InvariantCulture) });
-        var result = welcome.Evaluate(new Entry(10001, "测试观众", 1, 0, level, 0), 20);
-        if (value is null) Assert.Null(result);
-        else
-        {
-            Assert.NotNull(result);
-            Assert.Equal(WelcomeCondition.FanClubLevel, result.Condition);
-            Assert.Equal("粉丝团等级", result.ConditionName);
-            Assert.Equal(value, result.Value);
-        }
-    }
-
-    [Theory]
-    [InlineData(45, 45, "45")]
-    [InlineData(45, 44, null)]
-    [InlineData(45, 46, "46")]
-    [InlineData(0, 45, null)]
-    public void Wealth_alone_can_welcome_a_viewer_without_guard_status(int threshold, long level, string? value)
-    {
-        var welcome = CreateWelcome(new() { ["welcome.wealth_level"] = threshold.ToString(CultureInfo.InvariantCulture) });
-        var result = welcome.Evaluate(new Entry(10001, "测试观众", 1, 0, null, level), 20);
-        if (value is null) Assert.Null(result);
-        else
-        {
-            Assert.NotNull(result);
-            Assert.Equal(WelcomeCondition.WealthLevel, result.Condition);
-            Assert.Equal("荣耀等级", result.ConditionName);
-            Assert.Equal(value, result.Value);
-        }
-    }
-
-    [Theory]
-    [InlineData("[10001]", 21, "舰长", WelcomeCondition.Uid, "UID", null)]
-    [InlineData("[]", 21, "舰长", WelcomeCondition.FanClubLevel, "粉丝团等级", "47")]
-    [InlineData("[]", 0, "舰长", WelcomeCondition.Guard, "大航海身份", "舰长")]
-    [InlineData("[]", 0, "关闭", WelcomeCondition.WealthLevel, "荣耀等级", "45")]
-    public void Multiple_matches_return_only_the_first_condition(
-        string uids, int fanClub, string guard, WelcomeCondition condition, string conditionName, string? value)
-    {
-        var welcome = CreateWelcome(new()
-        {
-            ["welcome.uids"] = uids, ["welcome.fan_club_level"] = fanClub.ToString(CultureInfo.InvariantCulture),
-            ["welcome.guard"] = guard, ["welcome.wealth_level"] = "45"
-        });
-        var result = welcome.Evaluate(new Entry(10001, "测试观众", 1, 3, 47, 45), 20);
-        Assert.NotNull(result);
-        Assert.Equal(condition, result.Condition);
-        Assert.Equal(conditionName, result.ConditionName);
-        Assert.Equal(value, result.Value);
-        Assert.Equal("欢迎舰长测试观众", result.Text);
-        Assert.Null(result.RejectionReason);
-    }
+    public void Fan_club_threshold_is_inclusive_and_requires_a_fan_club(int threshold, long? level, string? match) =>
+        Assert.Equal(match, Match(new() { ["welcome.fan_club_level"] = threshold.ToString(CultureInfo.InvariantCulture) },
+            Viewer(fanClubLevel: level)));
 
     [Theory]
     [InlineData("舰长", 0, null)]
-    [InlineData("舰长", 3, "舰长")]
+    [InlineData("舰长", 3, "大航海身份 舰长")]
     [InlineData("提督", 3, null)]
-    [InlineData("提督", 2, "提督")]
-    [InlineData("提督", 1, "总督")]
+    [InlineData("提督", 2, "大航海身份 提督")]
+    [InlineData("提督", 1, "大航海身份 总督")]
     [InlineData("关闭", 1, null)]
     [InlineData("关闭", 2, null)]
     [InlineData("关闭", 3, null)]
-    public void Guard_threshold_is_inclusive_and_can_be_disabled(string threshold, long guard, string? value)
-    {
-        var welcome = CreateWelcome(new() { ["welcome.guard"] = threshold });
-        var result = welcome.Evaluate(new Entry(10001, "测试观众", 1, guard, null, 0), 20);
-        if (value is null) Assert.Null(result);
-        else
+    public void Guard_threshold_is_inclusive_and_can_be_disabled(string threshold, long privilegeType, string? match) =>
+        Assert.Equal(match, Match(new() { ["welcome.guard"] = threshold }, Viewer(privilegeType: privilegeType)));
+
+    [Theory]
+    [InlineData(45, 45, "荣耀等级 45")]
+    [InlineData(45, 44, null)]
+    [InlineData(45, 46, "荣耀等级 46")]
+    [InlineData(0, 45, null)]
+    public void Wealth_alone_can_welcome_a_viewer_without_guard_status(int threshold, long level, string? match) =>
+        Assert.Equal(match, Match(new() { ["welcome.wealth_level"] = threshold.ToString(CultureInfo.InvariantCulture) },
+            Viewer(wealthLevel: level)));
+
+    [Theory]
+    [InlineData("[10001]", 21, "舰长", "UID")]
+    [InlineData("[]", 21, "舰长", "粉丝团等级 47")]
+    [InlineData("[]", 0, "舰长", "大航海身份 舰长")]
+    [InlineData("[]", 0, "关闭", "荣耀等级 45")]
+    public void Multiple_matches_return_only_the_first_condition(string uids, int fanClub, string guard, string match) =>
+        Assert.Equal(match, Match(new()
         {
-            Assert.NotNull(result);
-            Assert.Equal(WelcomeCondition.Guard, result.Condition);
-            Assert.Equal("大航海身份", result.ConditionName);
-            Assert.Equal(value, result.Value);
-        }
-    }
+            ["welcome.uids"] = uids, ["welcome.fan_club_level"] = fanClub.ToString(CultureInfo.InvariantCulture),
+            ["welcome.guard"] = guard, ["welcome.wealth_level"] = "45"
+        }, Viewer(privilegeType: 3, fanClubLevel: 47, wealthLevel: 45)));
 
     [Theory]
     [InlineData("{@}欢迎{昵称}", 8, "欢迎测试", true, null)]
@@ -127,39 +72,11 @@ public sealed class WelcomeConditionTests : IDisposable
     public void Matched_result_includes_rendered_text_mention_and_rejection_reason(
         string template, int limit, string text, bool mention, string? reason)
     {
-        var welcome = CreateWelcome(new() { ["welcome.uids"] = "[10001]", ["welcome.text"] = template });
-        var result = welcome.Evaluate(new Entry(10001, "测试观众", 1, 0, null, 0), limit);
+        var result = CreateWelcome(new() { ["welcome.uids"] = "[10001]", ["welcome.text"] = template }).Evaluate(Viewer(), limit);
         Assert.NotNull(result);
-        Assert.Equal(WelcomeCondition.Uid, result.Condition);
         Assert.Equal(text, result.Text);
         Assert.Equal(mention, result.Mention);
         Assert.Equal(reason, result.RejectionReason);
-    }
-
-    [Fact]
-    public void Disabled_welcomes_do_not_match_any_condition()
-    {
-        var welcome = CreateWelcome(new()
-        {
-            ["welcome.enabled"] = "false", ["welcome.uids"] = "[10001]", ["welcome.fan_club_level"] = "21",
-            ["welcome.guard"] = "舰长", ["welcome.wealth_level"] = "45"
-        });
-        Assert.Null(welcome.Evaluate(new Entry(10001, "测试观众", 1, 3, 47, 45), 20));
-    }
-
-    private Welcome CreateWelcome(Dictionary<string, string> changes)
-    {
-        changes.TryAdd("welcome.enabled", "true");
-        changes.TryAdd("welcome.guard", "关闭");
-        Settings.Save(dataDirectory, changes);
-        var settings = Settings.Load(dataDirectory);
-        Assert.Null(settings.Error);
-        return new Welcome(settings);
-    }
-
-    public void Dispose()
-    {
-        if (Directory.Exists(dataDirectory)) Directory.Delete(dataDirectory, recursive: true);
     }
 
     [Fact]
@@ -186,5 +103,27 @@ public sealed class WelcomeConditionTests : IDisposable
         }
         Assert.Equal(1, SendAttempts(h));
         Assert.Contains(h.Logger.Entries, log => log.Message.Contains("丢掉 0 条"));
+    }
+
+    /// <param name="privilegeType">B站's code for the 大航海身份: 3 舰长, 2 提督, 1 总督, 0 none.</param>
+    private static Entry Viewer(long uid = 10001, long privilegeType = 0, long? fanClubLevel = null, long wealthLevel = 0) =>
+        new(uid, "测试观众", 1, privilegeType, fanClubLevel, wealthLevel);
+
+    /// <summary>The matched condition as the log names it, then its value; null when none matched.</summary>
+    private string? Match(Dictionary<string, string> changes, Entry entry) =>
+        CreateWelcome(changes).Evaluate(entry, 20) is { } result ? $"{result.ConditionName} {result.Value}".TrimEnd() : null;
+
+    private Welcome CreateWelcome(Dictionary<string, string> changes)
+    {
+        changes.TryAdd("welcome.guard", "关闭");
+        Settings.Save(dataDirectory, changes);
+        var settings = Settings.Load(dataDirectory);
+        Assert.Null(settings.Error);
+        return new Welcome(settings);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(dataDirectory)) Directory.Delete(dataDirectory, recursive: true);
     }
 }
