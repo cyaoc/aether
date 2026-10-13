@@ -5,9 +5,7 @@ using Aether.Core;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
-using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Layout;
 
 namespace Aether.Gui;
 
@@ -22,7 +20,6 @@ public partial class SettingsPage : UserControl
     private Dictionary<string, string?> original = [];
     private bool loading;
     private SettingsException? fileError;
-    private List<long> welcomeUids = [];
     private MainWindowViewModel? viewModel;
     public SettingsSection Section { get; }
     /// <summary>Raised once Save has written the file or failed to, so other views can reread it.</summary>
@@ -58,18 +55,15 @@ public partial class SettingsPage : UserControl
         RecentWelcomesList.IsVisible = WelcomeTotal.IsVisible = section == SettingsSection.Welcome;
         RecentQueriesAndAnnouncementsList.IsVisible = section == SettingsSection.BlindBox;
         SizeChanged += (_, _) => ArrangeActivity();
-        LevelInput.ItemsSource = Settings.LogLevels;
-        WelcomeGuardInput.ItemsSource = Settings.WelcomeGuards;
-        foreach (var number in new[] { RetentionInput, SendIntervalInput, WelcomeFanClubInput, WelcomeWealthInput })
+        LogLevelInput.ItemsSource = Settings.LogLevels;
+        foreach (var number in new[] { RetentionInput, SendIntervalInput })
             number.PropertyChanged += (_, e) =>
             {
                 if (e.Property == NumericUpDown.TextProperty) Validate();
             };
-        LevelInput.SelectionChanged += (_, _) => Validate();
-        WelcomeGuardInput.SelectionChanged += (_, _) => Validate();
+        LogLevelInput.SelectionChanged += (_, _) => Validate();
         KeywordInput.TextChanged += (_, _) => Validate();
         WelcomeTextInput.TextChanged += (_, _) => Validate();
-        WelcomeUidsInput.TextChanged += (_, _) => Validate();
         foreach (var toggle in new[] { BlindBoxInput, AnnounceInput, WelcomeInput })
             toggle.PropertyChanged += (_, e) =>
             {
@@ -98,23 +92,16 @@ public partial class SettingsPage : UserControl
         settings = current ?? Settings.Load(dataDirectory);
         ShowFileStatus(settings);
         Show(RetentionInput, RetentionReadOnly, settings.LogRetentionDays);
-        Show(LevelInput, LevelReadOnly, settings.LogLevel);
+        Show(LogLevelInput, LogLevelReadOnly, settings.LogLevel);
         Show(BlindBoxInput, BlindBoxReadOnly, settings.BlindBoxEnabled);
         Show(KeywordInput, KeywordReadOnly, settings.BlindBoxKeyword);
         Show(AnnounceInput, AnnounceReadOnly, settings.BlindBoxAnnounce);
         Show(SendIntervalInput, SendIntervalReadOnly, settings.SendIntervalSeconds);
         Show(WelcomeInput, WelcomeReadOnly, settings.WelcomeEnabled);
         Show(WelcomeTextInput, WelcomeTextReadOnly, settings.WelcomeText);
-        welcomeUids = settings.WelcomeUids.Value.ToList();
-        WelcomeUidsInput.Text = "";
-        WelcomeUidsInput.IsReadOnly = !settings.WelcomeUids.CanEdit;
-        WelcomeUidsReadOnly.IsVisible = !settings.WelcomeUids.CanEdit;
-        RenderUidTags();
+        LoadWelcomeConditions();
         foreach (var button in new[] { InsertAtButton, InsertNicknameButton, InsertGuardButton })
             button.IsEnabled = settings.WelcomeText.CanEdit;
-        Show(WelcomeFanClubInput, WelcomeFanClubReadOnly, settings.WelcomeFanClubLevel);
-        Show(WelcomeGuardInput, WelcomeGuardReadOnly, settings.WelcomeGuard);
-        Show(WelcomeWealthInput, WelcomeWealthReadOnly, settings.WelcomeWealthLevel);
         original = Fields().ToDictionary(field => field.Name, field => field.Input);
         loading = false;
         Validate();
@@ -124,7 +111,7 @@ public partial class SettingsPage : UserControl
     public void RefreshFileStatus(Settings current)
     {
         // A snapshot with an error filled the inputs with values that must not be used, so a draft over it is dropped.
-        if (settings.Error is not null || !DirtyMessage.IsVisible && string.IsNullOrEmpty(WelcomeUidsInput.Text))
+        if (settings.Error is not null || !DirtyMessage.IsVisible)
         {
             LoadSettings(current);
             return;
@@ -171,7 +158,7 @@ public partial class SettingsPage : UserControl
         readOnly.IsVisible = !setting.CanEdit;
     }
 
-    private readonly record struct Field(string Name, bool CanEdit, string? Input, TextBlock Error);
+    private readonly record struct Field(string Name, bool CanEdit, string? Input, TextBlock? Error = null);
 
     /// <summary>Each setting this page edits and the text its control now holds; validating, enabling Save
     /// and saving all read this one list.</summary>
@@ -179,17 +166,17 @@ public partial class SettingsPage : UserControl
     new Field[]
     {
         new(settings.LogRetentionDays.Name, settings.LogRetentionDays.CanEdit, RetentionInput.Text, RetentionError),
-        new(settings.LogLevel.Name, settings.LogLevel.CanEdit, LevelInput.SelectedItem?.ToString(), LevelError),
+        new(settings.LogLevel.Name, settings.LogLevel.CanEdit, LogLevelInput.SelectedItem?.ToString(), LogLevelError),
         new(settings.BlindBoxEnabled.Name, settings.BlindBoxEnabled.CanEdit, Settings.BooleanText(BlindBoxInput.IsChecked == true), BlindBoxError),
         new(settings.BlindBoxKeyword.Name, settings.BlindBoxKeyword.CanEdit, KeywordInput.Text, KeywordError),
         new(settings.BlindBoxAnnounce.Name, settings.BlindBoxAnnounce.CanEdit, Settings.BooleanText(AnnounceInput.IsChecked == true), AnnounceError),
         new(settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text, SendIntervalError),
         new(settings.WelcomeEnabled.Name, settings.WelcomeEnabled.CanEdit, Settings.BooleanText(WelcomeInput.IsChecked == true), WelcomeError),
         new(settings.WelcomeText.Name, settings.WelcomeText.CanEdit, WelcomeTextInput.Text, WelcomeTextError),
-        new(settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, Settings.NumberListText(welcomeUids), WelcomeUidsError),
-        new(settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, WelcomeFanClubInput.Text, WelcomeFanClubError),
-        new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, WelcomeGuardInput.SelectedItem?.ToString(), WelcomeGuardError),
-        new(settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, WelcomeWealthInput.Text, WelcomeWealthError),
+        new(settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, WelcomeUidsText()),
+        new(settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, ConditionValue(WelcomeCondition.FanClubLevel, "0")),
+        new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, ConditionValue(WelcomeCondition.Guard, Settings.WelcomeGuards[0])),
+        new(settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, ConditionValue(WelcomeCondition.WealthLevel, "0")),
     }.Where(field => field.Name.StartsWith(group, StringComparison.Ordinal)).ToArray();
 
     private void Validate()
@@ -201,19 +188,15 @@ public partial class SettingsPage : UserControl
         FileMessage.IsVisible = fileError is not null;
         foreach (var field in fields)
         {
-            var label = field.Error;
+            if (field.Error is not { } label) continue;
             label.Text = InputError(field) ?? "";
             label.IsVisible = label.Text.Length > 0;
         }
-        if (Section == SettingsSection.Welcome && settings.WelcomeUids.CanEdit
-            && !string.IsNullOrWhiteSpace(WelcomeUidsInput.Text) && !TryUid(out _))
-        {
-            error = $"{settings.WelcomeUids.Name}：UID 必须是正整数。";
-            WelcomeUidsError.Text = error;
-            WelcomeUidsError.IsVisible = true;
-        }
-        DirtyMessage.IsVisible = fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
-        SaveButton.IsEnabled = fileError is null && error is null && DirtyMessage.IsVisible;
+        var welcome = Section == SettingsSection.Welcome;
+        var invalidCondition = welcome && ShowConditionErrors();
+        DirtyMessage.IsVisible = welcome && ConditionsAddedOrRemoved
+            || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
+        SaveButton.IsEnabled = fileError is null && error is null && !invalidCondition && DirtyMessage.IsVisible;
         Message.Text = "";
     }
 
@@ -263,43 +246,6 @@ public partial class SettingsPage : UserControl
     {
         if (e.PropertyName == nameof(MainWindowViewModel.HasRoomConnection) && viewModel?.HasRoomConnection != true)
             ReconnectNotice.IsVisible = false;
-    }
-
-    private bool TryUid(out long uid) =>
-        long.TryParse(WelcomeUidsInput.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out uid) && uid > 0;
-
-    private void AddUid(object? sender, KeyEventArgs e)
-    {
-        if (e.Key != Key.Enter) return;
-        e.Handled = true;
-        if (!settings.WelcomeUids.CanEdit || !TryUid(out var uid)) { Validate(); return; }
-        if (!welcomeUids.Contains(uid)) welcomeUids.Add(uid);
-        WelcomeUidsInput.Text = "";
-        RenderUidTags();
-        Validate();
-    }
-
-    private void RenderUidTags()
-    {
-        foreach (var tag in UidTags.Children.OfType<Border>().ToArray()) UidTags.Children.Remove(tag);
-        foreach (var uid in welcomeUids)
-        {
-            var remove = new Button { Content = "×", Classes = { "ghost" }, IsEnabled = settings.WelcomeUids.CanEdit };
-            Avalonia.Automation.AutomationProperties.SetName(remove, $"删除 UID {uid}");
-            remove.Click += (_, _) =>
-            {
-                welcomeUids.Remove(uid);
-                RenderUidTags();
-                Validate();
-            };
-            var label = new TextBlock { Text = uid.ToString(CultureInfo.InvariantCulture), VerticalAlignment = VerticalAlignment.Center };
-            // Tags go before the input, which shares their WrapPanel so it wraps along with them.
-            UidTags.Children.Insert(UidTags.Children.IndexOf(WelcomeUidsInput), new Border
-            {
-                Classes = { "uid" },
-                Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { label, remove } }
-            });
-        }
     }
 
     private void InsertPlaceholder(object? sender, RoutedEventArgs e)

@@ -1,5 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.SettingsPage">
+  xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.SettingsPage">
   <UserControl.Resources>
     <DataTemplate x:Key="FeatureActivityTemplate" x:DataType="local:SendQueueItemViewModel">
       <Border Padding="16,10" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Border.Subtle}">
@@ -82,9 +82,9 @@
                 <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <TextBlock x:Name="RetentionError" Classes="error" />
                 <TextBlock Classes="label" Text="级别" Margin="0,8,0,0" />
-                <ComboBox x:Name="LevelInput" HorizontalAlignment="Stretch" AutomationProperties.Name="日志级别" />
-                <TextBlock x:Name="LevelReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-                <TextBlock x:Name="LevelError" Classes="error" />
+                <ComboBox x:Name="LogLevelInput" HorizontalAlignment="Stretch" AutomationProperties.Name="日志级别" />
+                <TextBlock x:Name="LogLevelReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+                <TextBlock x:Name="LogLevelError" Classes="error" />
                 <Button Content="打开设置文件" Click="OpenFile" />
                 <TextBlock x:Name="UnknownKeysMessage" Classes="hint" />
               </StackPanel>
@@ -123,41 +123,69 @@
                 </WrapPanel>
                 <TextBlock x:Name="WelcomeTextHint" Classes="caption muted" TextWrapping="Wrap"
                   Text="英文、数字、半角符号算 1，其他字符算 2。上限自动读取账号的。可用 {@}（只能放开头）、{昵称}、{大航海}；用 {{ 和 }} 转义花括号。" />
-                <WrapPanel Margin="0,10,0,0">
-                  <TextBlock Classes="section" Text="欢迎条件" Margin="0,0,10,0" />
-                  <TextBlock Classes="hint" Text="满足任意一个就欢迎；等级填 0 表示不按这一项" />
-                </WrapPanel>
-                <TextBlock Classes="label" Text="指定观众的 UID" />
-                <Border BorderBrush="{DynamicResource Border.Control}" BorderThickness="1" CornerRadius="6" Padding="6,3" MinHeight="36">
-                  <WrapPanel x:Name="UidTags">
-                    <TextBox Classes="uidInput" x:Name="WelcomeUidsInput" AutomationProperties.Name="欢迎指定观众的 UID" PlaceholderText="输入 UID，回车添加" KeyDown="AddUid" />
+                <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+                  <WrapPanel>
+                    <TextBlock Classes="section" Text="欢迎条件" Margin="0,0,10,0" />
+                    <TextBlock Classes="hint" Text="满足任意一条就欢迎" />
                   </WrapPanel>
-                </Border>
-                <TextBlock x:Name="WelcomeUidsReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-                <TextBlock x:Name="WelcomeUidsError" Classes="error" />
-                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-                  <StackPanel Spacing="8">
-                    <TextBlock Classes="label" Text="粉丝团等级" />
-                    <NumericUpDown x:Name="WelcomeFanClubInput" FormatString="0.############################"
-                      HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎粉丝团等级门槛" />
-                    <TextBlock x:Name="WelcomeFanClubReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-                    <TextBlock x:Name="WelcomeFanClubError" Classes="error" />
-                  </StackPanel>
-                  <StackPanel Grid.Column="1" Spacing="8">
-                    <TextBlock Classes="label" Text="大航海身份" />
-                    <ComboBox x:Name="WelcomeGuardInput" HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎大航海身份门槛" />
-                    <TextBlock x:Name="WelcomeGuardReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-                    <TextBlock x:Name="WelcomeGuardError" Classes="error" />
-                    <TextBlock Classes="hint" Text="提督含总督" />
-                  </StackPanel>
-                  <StackPanel Grid.Column="2" Spacing="8">
-                    <TextBlock Classes="label" Text="荣耀等级" />
-                    <NumericUpDown x:Name="WelcomeWealthInput" FormatString="0.############################"
-                      HorizontalAlignment="Stretch" AutomationProperties.Name="欢迎荣耀等级门槛" />
-                    <TextBlock x:Name="WelcomeWealthReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-                    <TextBlock x:Name="WelcomeWealthError" Classes="error" />
+                  <TextBlock Grid.Column="1" x:Name="ConditionCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+                </Grid>
+                <StackPanel x:Name="ConditionRows" />
+                <Grid x:Name="EmptyConditions">
+                  <Rectangle Stroke="{DynamicResource Border.Control}" StrokeThickness="1" StrokeDashArray="4,3" RadiusX="8" RadiusY="8" />
+                  <StackPanel Margin="18" Spacing="6">
+                    <TextBlock Classes="label" Text="还没有欢迎条件" FontWeight="SemiBold" />
+                    <TextBlock Classes="hint" Text="现在不会欢迎任何人。点下面的“添加条件”，选要欢迎哪些观众。" />
                   </StackPanel>
                 </Grid>
+                <TextBlock x:Name="ConditionsReadOnly" Classes="hint" TextWrapping="Wrap" />
+                <Button x:Name="AddConditionButton" Content="＋ 添加条件" HorizontalAlignment="Left">
+                  <Button.Flyout>
+                    <MenuFlyout Placement="BottomEdgeAlignedLeft">
+                      <MenuItem Tag="{x:Static core:WelcomeCondition.Uid}" Click="AddConditionFromMenu" AutomationProperties.Name="添加指定观众条件">
+                        <MenuItem.Header>
+                          <StackPanel Spacing="3" Margin="0,3">
+                            <TextBlock Classes="label" Text="指定观众" />
+                            <TextBlock Classes="caption muted" Text="按 UID 欢迎，可以添加多条" />
+                          </StackPanel>
+                        </MenuItem.Header>
+                      </MenuItem>
+                      <MenuItem Tag="{x:Static core:WelcomeCondition.FanClubLevel}" Click="AddConditionFromMenu" AutomationProperties.Name="添加粉丝团等级条件">
+                        <MenuItem.Header>
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,3">
+                            <StackPanel Spacing="3">
+                              <TextBlock Classes="label" Text="粉丝团等级" />
+                              <TextBlock Classes="caption muted" Text="本直播间粉丝团达到某一级" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" x:Name="FanClubAdded" Classes="caption muted" Text="已添加" VerticalAlignment="Center" />
+                          </Grid>
+                        </MenuItem.Header>
+                      </MenuItem>
+                      <MenuItem Tag="{x:Static core:WelcomeCondition.Guard}" Click="AddConditionFromMenu" AutomationProperties.Name="添加大航海身份条件">
+                        <MenuItem.Header>
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,3">
+                            <StackPanel Spacing="3">
+                              <TextBlock Classes="label" Text="大航海身份" />
+                              <TextBlock Classes="caption muted" Text="舰长、提督或总督，含更高身份" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" x:Name="GuardAdded" Classes="caption muted" Text="已添加" VerticalAlignment="Center" />
+                          </Grid>
+                        </MenuItem.Header>
+                      </MenuItem>
+                      <MenuItem Tag="{x:Static core:WelcomeCondition.WealthLevel}" Click="AddConditionFromMenu" AutomationProperties.Name="添加荣耀等级条件">
+                        <MenuItem.Header>
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,3">
+                            <StackPanel Spacing="3">
+                              <TextBlock Classes="label" Text="荣耀等级" />
+                              <TextBlock Classes="caption muted" Text="全站荣耀等级达到某一级" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" x:Name="WealthAdded" Classes="caption muted" Text="已添加" VerticalAlignment="Center" />
+                          </Grid>
+                        </MenuItem.Header>
+                      </MenuItem>
+                    </MenuFlyout>
+                  </Button.Flyout>
+                </Button>
               </StackPanel>
             </StackPanel>
           </ScrollViewer>

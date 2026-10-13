@@ -1,5 +1,6 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using static Aether.Gui.Tests.Support.ConditionList;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Interactivity;
@@ -82,6 +83,26 @@ public sealed class VisualReviewTests
             GuiHarness.Flush();
             welcome.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Capture("welcome-reconnect");
+            var add = welcome.FindControl<Button>("AddConditionButton")!;
+            var menu = Menu(welcome);
+            add.BringIntoView();
+            GuiHarness.Flush();
+            menu.ShowAt(add);
+            Capture("welcome-menu");
+            menu.Hide();
+            foreach (var row in Rows(welcome)) Remove(row);
+            Capture("welcome-empty");
+            add.BringIntoView();
+            GuiHarness.Flush();
+            menu.ShowAt(add);
+            Capture("welcome-empty-menu");
+            menu.Hide();
+            Add(welcome, WelcomeCondition.Uid);
+            Capture("welcome-invalid");
+            Remove(Rows(welcome).Single());
+            foreach (var kind in new[] { WelcomeCondition.FanClubLevel, WelcomeCondition.Guard, WelcomeCondition.WealthLevel })
+                Add(welcome, kind);
+            Capture("welcome-levels");
             File.WriteAllText(path, "log:\n  level: @bad\n");
             navigation.SelectedIndex = 4;
             Capture("settings-error");

@@ -1,5 +1,6 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using static Aether.Gui.Tests.Support.ConditionList;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Input;
@@ -11,6 +12,48 @@ namespace Aether.Gui.Tests;
 
 public sealed class SettingsNavigationTests
 {
+    [Fact]
+    public Task An_unfilled_condition_survives_navigation_and_another_pages_save() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            var navigation = window.FindControl<ListBox>("Navigation")!;
+            navigation.SelectedIndex = 2;
+            GuiHarness.Flush();
+            var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+            var row = Add(page, WelcomeCondition.Uid);
+            Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
+            Assert.True(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
+            Assert.False(viewModel.HasRoomConnection);
+            navigation.SelectedIndex = 4;
+            GuiHarness.Flush();
+            var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+            general.FindControl<NumericUpDown>("RetentionInput")!.Text = "14";
+            general.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            navigation.SelectedIndex = 2;
+            GuiHarness.Flush();
+            Assert.Same(row, Rows(page)[0]);
+            Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
+            Assert.Equal("填一个 UID，或删掉这条", row.FindControl<TextBlock>("ErrorMessage")!.Text);
+            var settings = Settings.Load(harness.DataDirectory);
+            Assert.Equal(14, settings.LogRetentionDays.Value);
+            Assert.Empty(settings.WelcomeUids.Value);
+            row.FindControl<TextBox>("UidInput")!.Text = "42";
+            GuiHarness.Flush();
+            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal([42L], Settings.Load(harness.DataDirectory).WelcomeUids.Value);
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(1, "KeywordInput")]
     [InlineData(2, "WelcomeTextInput")]
@@ -161,7 +204,7 @@ public sealed class SettingsNavigationTests
             var before = File.ReadAllText(path);
             navigation.SelectedIndex = 1;
             GuiHarness.Flush();
-            var blindBox = window.GetVisualDescendants().OfType<UserControl>().Single(x => x.IsEffectivelyVisible);
+            var blindBox = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var save = blindBox.FindControl<Button>("SaveButton")!;
             Assert.False(save.IsEnabled);
             blindBox.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
@@ -171,7 +214,7 @@ public sealed class SettingsNavigationTests
 
             navigation.SelectedIndex = 2;
             GuiHarness.Flush();
-            var welcome = window.GetVisualDescendants().OfType<UserControl>().Single(x => x.IsEffectivelyVisible);
+            var welcome = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Equal("关", window.FindControl<TextBlock>("WelcomeStatus")!.Text);
             welcome.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked = true;
             Assert.Equal("关", window.FindControl<TextBlock>("WelcomeStatus")!.Text);
@@ -188,7 +231,7 @@ public sealed class SettingsNavigationTests
 
             navigation.SelectedIndex = 1;
             GuiHarness.Flush();
-            Assert.Same(blindBox, window.GetVisualDescendants().OfType<UserControl>().Single(x => x.IsEffectivelyVisible));
+            Assert.Same(blindBox, window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible));
             Assert.False(blindBox.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(Settings.Load(harness.DataDirectory).BlindBoxEnabled.Value);
