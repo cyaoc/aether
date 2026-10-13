@@ -67,6 +67,8 @@ public sealed class Settings
 
     // Static fields initialise in text order: this list must stay above every Register(...) below.
     private static readonly List<Definition> Definitions = [];
+    /// <summary>Every setting this version knows; only tests read it.</summary>
+    internal static IReadOnlyList<Definition> AllDefinitions => Definitions;
     private static readonly Definition<int> RetentionDays = Register(Definition.Number("log.retention_days", 30, "必须为正整数。", days => days > 0));
     /// <summary>The values log.level accepts, in order.</summary>
     public static IReadOnlyList<LogLevel> LogLevels { get; } =
@@ -412,9 +414,11 @@ public sealed class Settings
         public abstract string? Validate(string? text);
         /// <summary>The one-line YAML written for valid text, quoted wherever YAML needs it.</summary>
         public abstract string Format(string text);
+        /// <summary>The value <paramref name="settings"/> holds, written as its one-line YAML.</summary>
+        public abstract string ValueText(Settings settings);
         public abstract bool CanEdit(Settings settings);
         /// <summary>Whether <paramref name="settings"/> already holds the value of this valid text.</summary>
-        public abstract bool Holds(Settings settings, string text);
+        public bool Holds(Settings settings, string text) => Format(text) == ValueText(settings);
         public abstract void MarkEditable(Settings settings, bool canEdit);
         /// <summary>Records whether the line can be edited, and the value when the node is valid; returns why it is not.</summary>
         public abstract string? Read(Settings settings, YamlNode node, bool canEdit, bool singleLine);
@@ -521,8 +525,8 @@ public sealed class Settings
         /// <summary>The value of valid text.</summary>
         public T Parse(string text) => parse(text).Value;
         public override string Format(string text) => format(Parse(text));
+        public override string ValueText(Settings settings) => format(settings.Get(this).Value);
         public override bool CanEdit(Settings settings) => settings.Get(this).CanEdit;
-        public override bool Holds(Settings settings, string text) => Format(text) == format(settings.Get(this).Value);
         public override void MarkEditable(Settings settings, bool canEdit) => settings.values[this] = settings.Get(this) with { CanEdit = canEdit };
 
         public override string? Read(Settings settings, YamlNode node, bool canEdit, bool singleLine)

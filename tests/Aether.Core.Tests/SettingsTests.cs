@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Aether.Core.Tests.Support;
 using Microsoft.Extensions.Logging;
 
@@ -38,15 +39,23 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         // Each default is written twice, in Template and in its definition; this keeps the two from drifting apart.
         var fromTemplate = Settings.Load(harness.DataDirectory);
-        Write("log:\nblind_box:\nsend:\n");
+        Assert.Null(fromTemplate.Error);
+        // A definition without its line in Template would read its own default on both sides below.
+        string? templateGroup = null;
+        var templateNames = new List<string>();
+        foreach (var line in File.ReadAllText(SettingsPath).ReplaceLineEndings("\n").Split('\n'))
+            if (Regex.Match(line, @"^(\w+):$") is { Success: true } header) templateGroup = header.Groups[1].Value;
+            else if (Regex.Match(line, @"^  (\w+):") is { Success: true } key) templateNames.Add(templateGroup + "." + key.Groups[1].Value);
+        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name).Order(), templateNames.Order());
+        // Keep every group present so Load cannot fill it from Template and hide a mismatched definition default.
+        Write(string.Concat(Settings.AllDefinitions.Select(definition => definition.Group).Distinct().Select(group => group + ":\n")));
         var missing = Settings.Load(harness.DataDirectory);
-        Assert.Equal(missing.LogRetentionDays.Value, fromTemplate.LogRetentionDays.Value);
-        Assert.Equal(missing.LogLevel.Value, fromTemplate.LogLevel.Value);
-        Assert.Equal(missing.BlindBoxEnabled.Value, fromTemplate.BlindBoxEnabled.Value);
-        Assert.Equal(missing.BlindBoxKeyword.Value, fromTemplate.BlindBoxKeyword.Value);
-        Assert.Equal(missing.BlindBoxAnnounce.Value, fromTemplate.BlindBoxAnnounce.Value);
-        Assert.Equal(missing.SendIntervalSeconds.Value, fromTemplate.SendIntervalSeconds.Value);
-        Assert.Equal(1, missing.SendIntervalSeconds.Value);
+        Assert.Null(missing.Error);
+        // Paired with each name, so a failure says which setting drifted.
+        Assert.Equal(Values(fromTemplate), Values(missing));
+
+        static IEnumerable<(string, string)> Values(Settings settings) =>
+            Settings.AllDefinitions.Select(definition => (definition.Name, definition.ValueText(settings)));
     }
 
     [Fact]
