@@ -14,6 +14,30 @@ dotnet run --project src/Aether.Cli -- watch 1768506153
 dotnet run --project src/Aether.Gui
 ```
 
+GUI 使用蓝白气泡图标：Windows 的窗口、任务栏和发布后的 EXE 使用同一图标；
+macOS 在程序运行期间设置 Dock 图标，开发启动和 Release 发布均生效。
+图标嵌入程序，不依赖启动时的工作目录。macOS 尚不提供 `.app`、Finder 静态图标
+或退出后固定在 Dock 的图标；数据目录仍遵循 ADR 0002。
+矢量母版与导出方法见 [应用图标素材](docs/design/app-icon/README.md)。
+
+发布 GUI（目标机器需要 .NET 10 运行时；把输出目录整体复制到可写位置）：
+
+```sh
+dotnet publish src/Aether.Gui -c Release -r osx-arm64 --self-contained false -o artifacts/gui-osx-arm64
+dotnet publish src/Aether.Gui -c Release -r win-x64 --self-contained false -o artifacts/gui-win-x64
+```
+
+Intel Mac 将 `osx-arm64` 换成 `osx-x64`。启动对应目录中的 `Aether.Gui` 或 `Aether.Gui.exe`。
+
+图标验收（Windows 和 macOS 分别进行）：
+
+1. 开发启动 GUI；Windows 检查主窗口、任务栏和退出确认窗口，macOS 检查 Dock。
+   只取消退出确认，不执行退出登录。关闭 GUI 后重新启动，再检查图标。
+2. 将 Release 输出目录复制到仓库外，从另一个工作目录启动可执行文件，重复上述检查；
+   Windows 另在资源管理器检查 EXE 的图标。
+3. 在浅色／深色桌面上确认边缘透明、没有纹理或杂点，小尺寸下能辨认气泡与双眼。
+   静态多尺寸预览见 [preview.png](docs/design/app-icon/preview.png)。
+
 发布 CLI 后，可执行文件名为 `aether`：
 
 ```sh

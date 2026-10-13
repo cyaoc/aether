@@ -1,9 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
+    <ApplicationIcon>../../docs/design/app-icon/aether.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
   <ItemGroup>
+    <AvaloniaResource Include="../../docs/design/app-icon/aether.ico" Link="Assets/aether.ico" />
+    <AvaloniaResource Include="../../docs/design/app-icon/aether.icns" Link="Assets/aether.icns" />
     <None Update="ThirdPartyNotices.txt" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="../Aether.Core/Aether.Core.csproj" />
     <PackageReference Include="Avalonia" />

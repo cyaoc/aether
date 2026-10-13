@@ -17,6 +17,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            if (OperatingSystem.IsMacOS()) MacOSDockIcon.Apply();
             var dataDirectory = DataDirectory.Locate();
             var host = CreateHost(dataDirectory);
             var logger = host.Services.GetRequiredService<ILogger<App>>();
