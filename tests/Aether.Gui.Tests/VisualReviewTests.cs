@@ -82,6 +82,28 @@ public sealed class VisualReviewTests
             GuiHarness.Flush();
             welcome.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Capture("welcome-reconnect");
+            var add = welcome.FindControl<Button>("AddConditionButton")!;
+            var menu = (MenuFlyout)add.Flyout!;
+            add.BringIntoView();
+            GuiHarness.Flush();
+            menu.ShowAt(add);
+            Capture("welcome-menu");
+            menu.Hide();
+            foreach (var row in welcome.FindControl<StackPanel>("ConditionRows")!.Children.OfType<WelcomeConditionRow>().ToArray())
+                row.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Capture("welcome-empty");
+            add.BringIntoView();
+            GuiHarness.Flush();
+            menu.ShowAt(add);
+            Capture("welcome-empty-menu");
+            menu.Hide();
+            menu.Items.Cast<MenuItem>().First().RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Capture("welcome-invalid");
+            welcome.FindControl<StackPanel>("ConditionRows")!.Children.OfType<WelcomeConditionRow>().Single()
+                .FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            foreach (var item in menu.Items.Cast<MenuItem>().Skip(1))
+                item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Capture("welcome-levels");
             File.WriteAllText(path, "log:\n  level: @bad\n");
             navigation.SelectedIndex = 4;
             Capture("settings-error");

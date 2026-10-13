@@ -10,6 +10,21 @@ namespace Aether.Gui.Tests;
 
 public sealed class SettingsPageTests
 {
+    [Fact]
+    public Task Default_template_shows_only_the_guard_condition() =>
+        WithSettingsPage(SettingsSection.Welcome, null, (page, _) =>
+        {
+            var rows = page.FindControl<StackPanel>("ConditionRows");
+            Assert.NotNull(rows);
+            var row = Assert.Single(rows.Children);
+            Assert.Contains(row.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "大航海身份");
+            var guard = Assert.Single(row.GetVisualDescendants().OfType<ComboBox>());
+            Assert.Equal("舰长", guard.SelectedItem);
+            Assert.Equal(new[] { "舰长", "提督", "总督" }, guard.Items.Cast<string>());
+            Assert.Equal("1 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+        });
+
     [Theory]
     [InlineData("关闭")]
     [InlineData("舰长")]
@@ -21,10 +36,10 @@ public sealed class SettingsPageTests
             var before = File.ReadAllText(path);
             var enabled = window.FindControl<ToggleSwitch>("WelcomeInput");
             var text = window.FindControl<TextBox>("WelcomeTextInput");
-            var uids = window.FindControl<TextBox>("WelcomeUidsInput");
-            var fanClub = window.FindControl<NumericUpDown>("WelcomeFanClubInput");
-            var threshold = window.FindControl<ComboBox>("WelcomeGuardInput");
-            var wealth = window.FindControl<NumericUpDown>("WelcomeWealthInput");
+            var uids = Row(window, WelcomeCondition.Uid).FindControl<TextBox>("UidInput");
+            var fanClub = Row(window, WelcomeCondition.FanClubLevel).FindControl<NumericUpDown>("LevelInput");
+            var threshold = Row(window, WelcomeCondition.Guard).FindControl<ComboBox>("GuardInput");
+            var wealth = Row(window, WelcomeCondition.WealthLevel).FindControl<NumericUpDown>("LevelInput");
             Assert.NotNull(enabled);
             Assert.NotNull(text);
             Assert.NotNull(uids);
@@ -45,7 +60,7 @@ public sealed class SettingsPageTests
                 Assert.False(number.IsReadOnly);
                 Assert.True(number.AllowSpin);
             }
-            Assert.Equal(new[] { "关闭", "舰长", "提督", "总督" }, threshold.Items.Cast<string>());
+            Assert.Equal(new[] { "舰长", "提督", "总督" }, threshold.Items.Cast<string>());
             Assert.Equal("舰长", threshold.SelectedItem);
             Assert.True(threshold.IsEnabled);
 
@@ -53,7 +68,8 @@ public sealed class SettingsPageTests
             text.Text = "{@}欢迎{大航海}{昵称}回家";
             SetUids(window, "2147483648", "9223372036854775807");
             fanClub.Text = "21";
-            threshold.SelectedItem = guard;
+            if (guard == "关闭") Remove(Row(window, WelcomeCondition.Guard));
+            else threshold.SelectedItem = guard;
             wealth.Text = "45";
             Dispatcher.UIThread.RunJobs();
             var save = window.FindControl<Button>("SaveButton")!;
@@ -74,6 +90,188 @@ public sealed class SettingsPageTests
             Assert.Equal(21, settings.WelcomeFanClubLevel.Value);
             Assert.Equal(guard, settings.WelcomeGuard.Value);
             Assert.Equal(45, settings.WelcomeWealthLevel.Value);
+        });
+
+    [Fact]
+    public Task Add_menu_inserts_defaults_in_setting_order_and_disables_existing_thresholds() =>
+        WithSettingsPage(SettingsSection.Welcome, null, (page, _) =>
+        {
+            var button = page.FindControl<Button>("AddConditionButton");
+            Assert.NotNull(button);
+            var menu = Assert.IsType<MenuFlyout>(button.Flyout);
+            Assert.Equal(4, menu.Items.Count);
+            Assert.False(MenuItem(WelcomeCondition.Guard).IsEnabled);
+            Assert.Contains(Assert.IsAssignableFrom<Control>(MenuItem(WelcomeCondition.Guard).Header).GetVisualDescendants()
+                .OfType<TextBlock>(), text => text.Text == "已添加" && text.IsVisible);
+            Add(WelcomeCondition.WealthLevel);
+            Add(WelcomeCondition.Uid);
+            Add(WelcomeCondition.FanClubLevel);
+            Add(WelcomeCondition.Uid);
+            var rows = page.FindControl<StackPanel>("ConditionRows")!.Children.Cast<WelcomeConditionRow>().ToArray();
+            Assert.Equal(new[] { WelcomeCondition.Uid, WelcomeCondition.Uid, WelcomeCondition.FanClubLevel, WelcomeCondition.Guard, WelcomeCondition.WealthLevel }, rows.Select(row => row.Kind));
+            Assert.Equal(new[] { "", "", "1", "舰长", "10" }, rows.Select(row => row.Value));
+            Assert.True(MenuItem(WelcomeCondition.Uid).IsEnabled);
+            Assert.All(menu.Items.Cast<MenuItem>().Skip(1), item => Assert.False(item.IsEnabled));
+            Assert.True(rows[1].FindControl<TextBox>("UidInput")!.IsFocused);
+            Assert.Equal("5 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
+            Assert.False(rows[0].FindControl<Grid>("OrSeparator")!.IsVisible);
+            Assert.All(rows.Skip(1), row => Assert.True(row.FindControl<Grid>("OrSeparator")!.IsVisible));
+
+            MenuItem MenuItem(WelcomeCondition kind) => menu.Items.Cast<MenuItem>().Single(item => Equals(item.Tag, kind));
+            void Add(WelcomeCondition kind)
+            {
+                menu.ShowAt(button);
+                GuiHarness.Flush();
+                MenuItem(kind).RaiseEvent(new RoutedEventArgs(Avalonia.Controls.MenuItem.ClickEvent));
+                GuiHarness.Flush();
+                Assert.False(menu.IsOpen);
+                var row = Rows(page).Last(row => row.Kind == kind);
+                Assert.True(row.IsKeyboardFocusWithin);
+            }
+        });
+
+    [Fact]
+    public Task Removing_all_conditions_saves_disabled_values_and_shows_empty_state() =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome:\n  uids: [42, 43] # 观众\n  fan_club_level: 1 # 粉丝团\n  guard: 舰长 # 大航海\n  wealth_level: 10 # 荣耀\n", (page, path) =>
+        {
+            var before = File.ReadAllText(path);
+            Assert.Equal(new[] { WelcomeCondition.Uid, WelcomeCondition.Uid, WelcomeCondition.FanClubLevel, WelcomeCondition.Guard, WelcomeCondition.WealthLevel }, Rows(page).Select(row => row.Kind));
+            foreach (var row in Rows(page)) Remove(row);
+            Assert.True(page.FindControl<Grid>("EmptyConditions")!.IsVisible);
+            Assert.False(page.FindControl<TextBlock>("ConditionCount")!.IsVisible);
+            Assert.True(page.FindControl<Button>("AddConditionButton")!.IsVisible);
+            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before.Replace("uids: [42, 43]", "uids: []").Replace("fan_club_level: 1", "fan_club_level: 0")
+                .Replace("guard: 舰长", "guard: 关闭").Replace("wealth_level: 10", "wealth_level: 0"), File.ReadAllText(path));
+            Assert.Empty(Rows(page));
+            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+        });
+
+    [Fact]
+    public Task Removing_and_restoring_equivalent_conditions_is_not_a_change() =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome:\n  uids: [42]\n  fan_club_level: 1\n  guard: 舰长\n  wealth_level: 10\n", (page, path) =>
+        {
+            var before = File.ReadAllText(path);
+            foreach (var row in Rows(page)) Remove(row);
+            Add(page, WelcomeCondition.WealthLevel);
+            Add(page, WelcomeCondition.Guard);
+            Add(page, WelcomeCondition.FanClubLevel);
+            Add(page, WelcomeCondition.Uid).FindControl<TextBox>("UidInput")!.Text = "0042";
+            GuiHarness.Flush();
+            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.Equal(before, File.ReadAllText(path));
+        });
+
+    [Theory]
+    [InlineData("", "填一个 UID，或删掉这条")]
+    [InlineData(" ", "填一个 UID，或删掉这条")]
+    [InlineData("0", "UID 必须是正整数")]
+    [InlineData("-1", "UID 必须是正整数")]
+    [InlineData("1.5", "UID 必须是正整数")]
+    [InlineData("abc", "UID 必须是正整数")]
+    [InlineData("12345, 67890", "UID 必须是正整数")]
+    [InlineData("[0]", "UID 必须是正整数")]
+    [InlineData("9223372036854775808", "UID 必须是正整数")]
+    [InlineData("0042", "和上面那条重复了")]
+    public Task Invalid_uid_is_reported_on_its_row_and_can_be_corrected(string value, string message) =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome:\n  uids: [42]\n", (page, path) =>
+        {
+            var before = File.ReadAllText(path);
+            var originalRow = Row(page, WelcomeCondition.Uid);
+            var row = Add(page, WelcomeCondition.Uid);
+            row.FindControl<TextBox>("UidInput")!.Text = value;
+            GuiHarness.Flush();
+            Assert.Equal(message, row.FindControl<TextBlock>("ErrorMessage")!.Text);
+            Assert.True(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.False(originalRow.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.True(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            var save = page.FindControl<Button>("SaveButton")!;
+            Assert.False(save.IsEnabled);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before, File.ReadAllText(path));
+            row.FindControl<TextBox>("UidInput")!.Text = "9223372036854775807";
+            GuiHarness.Flush();
+            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.True(save.IsEnabled);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before.Replace("uids: [42]", "uids: [42, 9223372036854775807]"), File.ReadAllText(path));
+        });
+
+    [Fact]
+    public Task Removing_the_first_duplicate_clears_the_remaining_rows_error() =>
+        WithSettingsPage(SettingsSection.Welcome, null, (page, _) =>
+        {
+            SetUids(page, "42", "42");
+            var rows = Rows(page).Where(row => row.Kind == WelcomeCondition.Uid).ToArray();
+            Assert.True(rows[1].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Remove(rows[0]);
+            Assert.False(rows[1].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+        });
+
+    [Theory]
+    [InlineData(WelcomeCondition.FanClubLevel, "0")]
+    [InlineData(WelcomeCondition.WealthLevel, "0")]
+    [InlineData(WelcomeCondition.FanClubLevel, "-1")]
+    [InlineData(WelcomeCondition.WealthLevel, "-1")]
+    [InlineData(WelcomeCondition.FanClubLevel, "1.5")]
+    [InlineData(WelcomeCondition.WealthLevel, "")]
+    [InlineData(WelcomeCondition.WealthLevel, "abc")]
+    [InlineData(WelcomeCondition.WealthLevel, "2147483648")]
+    public Task Invalid_level_is_reported_on_its_row_and_can_be_corrected(WelcomeCondition kind, string value) =>
+        WithSettingsPage(SettingsSection.Welcome, null, (page, path) =>
+        {
+            var before = File.ReadAllText(path);
+            var row = Add(page, kind);
+            var number = row.FindControl<NumericUpDown>("LevelInput")!;
+            var input = Assert.Single(number.GetVisualDescendants().OfType<TextBox>());
+            input.Text = value;
+            GuiHarness.Flush();
+            Assert.Equal("至少 1 级", row.FindControl<TextBlock>("ErrorMessage")!.Text);
+            var save = page.FindControl<Button>("SaveButton")!;
+            Assert.False(save.IsEnabled);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before, File.ReadAllText(path));
+            input.Text = "21";
+            GuiHarness.Flush();
+            Assert.True(save.IsEnabled);
+            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var key = kind == WelcomeCondition.FanClubLevel ? "fan_club_level" : "wealth_level";
+            Assert.Equal(before.Replace(key + ": 0", key + ": 21"), File.ReadAllText(path));
+        });
+
+    [Fact]
+    public Task Read_only_disabled_conditions_cannot_be_added() =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome: {uids: [], fan_club_level: 0, guard: 关闭, wealth_level: 0}\n", (page, _) =>
+        {
+            Assert.Empty(Rows(page));
+            Assert.True(page.FindControl<Grid>("EmptyConditions")!.IsVisible);
+            Assert.True(page.FindControl<TextBlock>("ConditionsReadOnly")!.IsVisible);
+            Assert.All(Menu(page).Items.Cast<MenuItem>(), item =>
+            {
+                Assert.False(item.IsEnabled);
+                item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            });
+            Assert.Empty(Rows(page));
+        });
+
+    [Fact]
+    public Task A_multiline_threshold_is_read_only_while_other_conditions_can_be_saved() =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome:\n  fan_club_level: |-\n    21\n  guard: 舰长\n", (page, path) =>
+        {
+            var before = File.ReadAllText(path);
+            var row = Row(page, WelcomeCondition.FanClubLevel);
+            Assert.True(row.FindControl<NumericUpDown>("LevelInput")!.IsReadOnly);
+            Assert.False(row.FindControl<NumericUpDown>("LevelInput")!.AllowSpin);
+            Assert.False(row.FindControl<Button>("RemoveButton")!.IsVisible);
+            Assert.True(row.FindControl<TextBlock>("ReadOnlyMessage")!.IsVisible);
+            Remove(row);
+            Assert.Same(row, Row(page, WelcomeCondition.FanClubLevel));
+            Remove(Row(page, WelcomeCondition.Guard));
+            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before.Replace("guard: 舰长", "guard: 关闭"), File.ReadAllText(path));
         });
 
     [Theory]
@@ -126,9 +324,9 @@ public sealed class SettingsPageTests
             Assert.Equal("欢迎{大航海}{昵称}", window.FindControl<TextBox>("WelcomeTextInput")!.Text);
             Assert.Null(window.FindControl<NumericUpDown>("WelcomeMaxLengthInput"));
             Assert.Empty(UidLabels(window));
-            Assert.Equal("0", window.FindControl<NumericUpDown>("WelcomeFanClubInput")!.Text);
-            Assert.Equal("舰长", window.FindControl<ComboBox>("WelcomeGuardInput")!.SelectedItem);
-            Assert.Equal("0", window.FindControl<NumericUpDown>("WelcomeWealthInput")!.Text);
+            Assert.DoesNotContain(Rows(window), row => row.Kind == WelcomeCondition.FanClubLevel);
+            Assert.Equal("舰长", Row(window, WelcomeCondition.Guard).FindControl<ComboBox>("GuardInput")!.SelectedItem);
+            Assert.DoesNotContain(Rows(window), row => row.Kind == WelcomeCondition.WealthLevel);
             var hint = window.FindControl<TextBlock>("WelcomeTextHint")!.Text;
             Assert.Contains("英文、数字、半角符号算 1，其他字符算 2", hint);
             Assert.Contains("上限自动读取账号的", hint);
@@ -153,18 +351,24 @@ public sealed class SettingsPageTests
             Assert.Equal("欢迎{昵称}", window.FindControl<TextBox>("WelcomeTextInput")!.Text);
             Assert.True(window.FindControl<TextBox>("WelcomeTextInput")!.IsReadOnly);
             Assert.Equal(["12345", "67890"], UidLabels(window));
-            Assert.True(window.FindControl<TextBox>("WelcomeUidsInput")!.IsReadOnly);
-            Assert.Equal("提督", window.FindControl<ComboBox>("WelcomeGuardInput")!.SelectedItem);
-            Assert.False(window.FindControl<ComboBox>("WelcomeGuardInput")!.IsEnabled);
-            foreach (var (name, value) in new[] { ("WelcomeFanClub", "21"), ("WelcomeWealth", "45") })
+            Assert.All(Rows(window).Where(row => row.Kind == WelcomeCondition.Uid), row => Assert.True(row.FindControl<TextBox>("UidInput")!.IsReadOnly));
+            Assert.Equal("提督", Row(window, WelcomeCondition.Guard).FindControl<ComboBox>("GuardInput")!.SelectedItem);
+            Assert.False(Row(window, WelcomeCondition.Guard).FindControl<ComboBox>("GuardInput")!.IsEnabled);
+            foreach (var (name, value) in new[] { (WelcomeCondition.FanClubLevel, "21"), (WelcomeCondition.WealthLevel, "45") })
             {
-                var number = window.FindControl<NumericUpDown>(name + "Input")!;
+                var number = Row(window, name).FindControl<NumericUpDown>("LevelInput")!;
                 Assert.Equal(value, number.Text);
                 Assert.True(number.IsReadOnly);
                 Assert.False(number.AllowSpin);
             }
-            foreach (var name in new[] { "Welcome", "WelcomeText", "WelcomeUids", "WelcomeFanClub", "WelcomeGuard", "WelcomeWealth" })
+            foreach (var name in new[] { "Welcome", "WelcomeText" })
                 Assert.True(window.FindControl<TextBlock>(name + "ReadOnly")!.IsVisible);
+            Assert.All(Rows(window), row =>
+            {
+                Assert.True(row.FindControl<TextBlock>("ReadOnlyMessage")!.IsVisible);
+                Assert.False(row.FindControl<Button>("RemoveButton")!.IsVisible);
+            });
+            Assert.All(Menu(window).Items.Cast<MenuItem>(), item => Assert.False(item.IsEnabled));
             var general = new SettingsPage(Path.GetDirectoryName(path)!, SettingsSection.General);
             general.FindControl<ComboBox>("LevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
             Dispatcher.UIThread.RunJobs();
@@ -172,28 +376,6 @@ public sealed class SettingsPageTests
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("level: Information", "level: Warning"), File.ReadAllText(path));
-        });
-
-    [Theory]
-    [InlineData("WelcomeFanClub", "fan_club_level", "-1")]
-    [InlineData("WelcomeWealth", "wealth_level", "-1")]
-    [InlineData("WelcomeUids", "uids", "12345, 67890")]
-    [InlineData("WelcomeUids", "uids", "[0]")]
-    [InlineData("WelcomeUids", "uids", "[9223372036854775808]")]
-    public Task Invalid_welcome_values_disable_save_without_changing_the_file(string name, string key, string value) =>
-        WithSettingsPage(SettingsSection.Welcome, null, (window, path) =>
-        {
-            var before = File.ReadAllText(path);
-            var control = window.FindControl<Control>(name + "Input")!;
-            var input = control is NumericUpDown number
-                ? Assert.Single(number.GetVisualDescendants().OfType<TextBox>()) : Assert.IsType<TextBox>(control);
-            input.Text = value;
-            Dispatcher.UIThread.RunJobs();
-            var save = window.FindControl<Button>("SaveButton")!;
-            Assert.False(save.IsEnabled);
-            Assert.Contains("welcome." + key, window.FindControl<TextBlock>(name + "Error")!.Text);
-            save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before, File.ReadAllText(path));
         });
 
     [Theory]
@@ -444,57 +626,30 @@ public sealed class SettingsPageTests
             return true;
         }, TestContext.Current.CancellationToken);
 
-    private static IEnumerable<string?> UidLabels(SettingsPage page) => page.FindControl<WrapPanel>("UidTags")!
-        .Children.OfType<Border>().Select(tag => ((StackPanel)tag.Child!).Children.OfType<TextBlock>().Single().Text);
+    private static WelcomeConditionRow[] Rows(SettingsPage page) => page.FindControl<StackPanel>("ConditionRows")!
+        .Children.Cast<WelcomeConditionRow>().ToArray();
+
+    private static WelcomeConditionRow Row(SettingsPage page, WelcomeCondition kind) => Rows(page).First(row => row.Kind == kind);
+    private static MenuFlyout Menu(SettingsPage page) => Assert.IsType<MenuFlyout>(page.FindControl<Button>("AddConditionButton")!.Flyout);
+    private static IEnumerable<string?> UidLabels(SettingsPage page) => Rows(page)
+        .Where(row => row.Kind == WelcomeCondition.Uid).Select(row => row.FindControl<TextBox>("UidInput")!.Text);
+
+    private static WelcomeConditionRow Add(SettingsPage page, WelcomeCondition kind)
+    {
+        Menu(page).Items.Cast<MenuItem>().Single(item => Equals(item.Tag, kind))
+            .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        GuiHarness.Flush();
+        return Rows(page).Last(row => row.Kind == kind);
+    }
+
+    private static void Remove(WelcomeConditionRow row) => row.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
     private static void SetUids(SettingsPage page, params string[] values)
     {
-        var tags = page.FindControl<WrapPanel>("UidTags")!;
-        foreach (var tag in tags.Children.OfType<Border>().ToArray())
-            ((StackPanel)tag.Child!).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        var input = page.FindControl<TextBox>("WelcomeUidsInput")!;
-        foreach (var value in values)
-        {
-            input.Text = value;
-            input.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
-        }
+        foreach (var row in Rows(page).Where(row => row.Kind == WelcomeCondition.Uid)) Remove(row);
+        foreach (var value in values) Add(page, WelcomeCondition.Uid).FindControl<TextBox>("UidInput")!.Text = value;
+        GuiHarness.Flush();
     }
-
-    [Fact]
-    public Task Welcome_uid_tags_validate_add_remove_and_save_a_single_line() => WithSettingsPage(SettingsSection.Welcome, null, (page, path) =>
-    {
-        var input = page.FindControl<TextBox>("WelcomeUidsInput")!;
-        var tags = page.FindControl<WrapPanel>("UidTags");
-        Assert.NotNull(tags);
-        foreach (var invalid in new[] { "0", "-1", "abc", "1.5", "1, 2", "9223372036854775808" })
-        {
-            Enter(invalid);
-            Assert.Empty(tags.Children.OfType<Border>());
-            Assert.Contains("正整数", page.FindControl<TextBlock>("WelcomeUidsError")!.Text);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
-        }
-        Enter("42");
-        Enter("42");
-        Assert.Single(tags.Children.OfType<Border>());
-        Enter("9223372036854775807");
-        Enter("2147483648");
-        Assert.Equal(3, tags.Children.OfType<Border>().Count());
-        tags.Children.OfType<Border>().First().GetVisualDescendants().OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Assert.Equal(2, tags.Children.OfType<Border>().Count());
-
-        void Enter(string value)
-        {
-            input.Text = value;
-            Dispatcher.UIThread.RunJobs();
-            var key = new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter };
-            input.RaiseEvent(key);
-            Assert.True(key.Handled);
-            GuiHarness.Flush();
-        }
-        Assert.Equal([long.MaxValue, 2147483648L], Settings.Load(Path.GetDirectoryName(path)!).WelcomeUids.Value);
-        Assert.Contains("  uids: [9223372036854775807, 2147483648]", File.ReadAllText(path));
-    });
 
     [Fact]
     public Task Welcome_insert_buttons_use_caret_and_at_viewer_is_inserted_only_once() => WithSettingsPage(SettingsSection.Welcome, null, (page, path) =>
