@@ -451,7 +451,7 @@ public sealed class SettingsPageTests
     {
         var tags = page.FindControl<WrapPanel>("UidTags")!;
         foreach (var tag in tags.Children.OfType<Border>().ToArray())
-            ((StackPanel)((Border)tag).Child!).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            ((StackPanel)tag.Child!).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         var input = page.FindControl<TextBox>("WelcomeUidsInput")!;
         foreach (var value in values)
         {
@@ -479,7 +479,7 @@ public sealed class SettingsPageTests
         Enter("9223372036854775807");
         Enter("2147483648");
         Assert.Equal(3, tags.Children.OfType<Border>().Count());
-        tags.Children[0].GetVisualDescendants().OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        tags.Children.OfType<Border>().First().GetVisualDescendants().OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.Equal(2, tags.Children.OfType<Border>().Count());
 

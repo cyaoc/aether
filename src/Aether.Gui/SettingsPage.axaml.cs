@@ -281,7 +281,7 @@ public partial class SettingsPage : UserControl
 
     private void RenderUidTags()
     {
-        while (UidTags.Children.Count > 1) UidTags.Children.RemoveAt(0);
+        foreach (var tag in UidTags.Children.OfType<Border>().ToArray()) UidTags.Children.Remove(tag);
         foreach (var uid in welcomeUids)
         {
             var remove = new Button { Content = "×", Classes = { "ghost" }, IsEnabled = settings.WelcomeUids.CanEdit };
@@ -293,7 +293,8 @@ public partial class SettingsPage : UserControl
                 Validate();
             };
             var label = new TextBlock { Text = uid.ToString(CultureInfo.InvariantCulture), VerticalAlignment = VerticalAlignment.Center };
-            UidTags.Children.Insert(UidTags.Children.Count - 1, new Border
+            // Tags go before the input, which shares their WrapPanel so it wraps along with them.
+            UidTags.Children.Insert(UidTags.Children.IndexOf(WelcomeUidsInput), new Border
             {
                 Classes = { "uid" },
                 Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { label, remove } }

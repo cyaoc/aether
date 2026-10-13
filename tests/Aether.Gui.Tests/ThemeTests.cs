@@ -17,7 +17,7 @@ namespace Aether.Gui.Tests;
 public sealed class ThemeTests
 {
     [Fact]
-    public Task Switches_are_named_save_at_the_existing_boundary_and_disable_for_file_errors() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Switches_are_named_show_no_on_off_text_save_with_their_page_and_disable_for_file_errors() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
@@ -85,7 +85,7 @@ public sealed class ThemeTests
             viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "夜航船", "晚上好") { Uid = 999 });
             GuiHarness.Flush();
             var row = Assert.IsType<ListBoxItem>(window.DanmakuList.ContainerFromIndex(0));
-            var avatar = row.GetVisualDescendants().OfType<Border>().Single(x => x.CornerRadius.TopLeft == 15);
+            var avatar = row.GetVisualDescendants().OfType<Border>().Single(x => x.Name == "Avatar");
             var original = ColorOf(avatar.Background);
             var origin = row.TranslatePoint(new Point(10, 10), window)!.Value;
             window.MouseMove(origin);

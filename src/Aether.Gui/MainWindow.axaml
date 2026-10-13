@@ -13,21 +13,21 @@
           </StackPanel>
           <StackPanel Grid.Row="1" Spacing="26" VerticalAlignment="Top" Margin="0,28,0,0">
             <Grid ColumnDefinitions="20,*" ColumnSpacing="14">
-              <Path Classes="icon" Width="20" Height="20" Data="{StaticResource Icon.BlindBox}" Stroke="{DynamicResource Accent}" VerticalAlignment="Top" Margin="0,2,0,0" />
+              <Viewbox Classes="icon" Width="20" Height="20" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.BlindBox}" Stroke="{DynamicResource Accent}" /></Viewbox>
               <StackPanel Grid.Column="1" Spacing="5">
                 <TextBlock Text="盲盒统计" FontWeight="SemiBold" />
                 <TextBlock Classes="label" Text="观众发关键字查今天的盈亏，送完一轮自动播报" TextWrapping="Wrap" />
               </StackPanel>
             </Grid>
             <Grid ColumnDefinitions="20,*" ColumnSpacing="14">
-              <Path Classes="icon" Width="20" Height="20" Data="{StaticResource Icon.Welcome}" Stroke="{DynamicResource Accent}" VerticalAlignment="Top" Margin="0,2,0,0" />
+              <Viewbox Classes="icon" Width="20" Height="20" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Welcome}" Stroke="{DynamicResource Accent}" /></Viewbox>
               <StackPanel Grid.Column="1" Spacing="5">
                 <TextBlock Text="进场欢迎" FontWeight="SemiBold" />
                 <TextBlock Classes="label" Text="舰长、粉丝团、指定观众进场时发欢迎弹幕" TextWrapping="Wrap" />
               </StackPanel>
             </Grid>
             <Grid ColumnDefinitions="20,*" ColumnSpacing="14">
-              <Path Classes="icon" Width="20" Height="20" Data="{StaticResource Icon.Danmaku}" Stroke="{DynamicResource Accent}" VerticalAlignment="Top" Margin="0,2,0,0" />
+              <Viewbox Classes="icon" Width="20" Height="20" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Danmaku}" Stroke="{DynamicResource Accent}" /></Viewbox>
               <StackPanel Grid.Column="1" Spacing="5">
                 <TextBlock Text="实时弹幕" FontWeight="SemiBold" />
                 <TextBlock Classes="label" Text="断线自动重连，账号发的弹幕单独标出" TextWrapping="Wrap" />
@@ -94,35 +94,35 @@
             <ListBox x:Name="Navigation" Classes="nav" SelectionMode="AlwaysSelected" SelectionChanged="Navigate" Margin="0,4,0,0" AutomationProperties.Name="功能导航">
               <ListBoxItem>
                 <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
-                  <Path Classes="icon" Data="{StaticResource Icon.Danmaku}" />
+                  <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Danmaku}" /></Viewbox>
                   <TextBlock Grid.Column="1" Text="弹幕" VerticalAlignment="Center" />
                   <TextBlock Grid.Column="2" Classes="caption muted numeric" Text="{Binding Danmaku.Count, StringFormat={}{0:N0}}" />
                 </Grid>
               </ListBoxItem>
               <ListBoxItem>
                 <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
-                  <Path Classes="icon" Data="{StaticResource Icon.BlindBox}" />
+                  <Viewbox Classes="icon"><Path Data="{StaticResource Icon.BlindBox}" /></Viewbox>
                   <TextBlock Grid.Column="1" Text="盲盒统计" VerticalAlignment="Center" />
                   <TextBlock Grid.Column="2" x:Name="BlindBoxStatus" Classes="caption muted" />
                 </Grid>
               </ListBoxItem>
               <ListBoxItem>
                 <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
-                  <Path Classes="icon" Data="{StaticResource Icon.Welcome}" />
+                  <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Welcome}" /></Viewbox>
                   <TextBlock Grid.Column="1" Text="进场欢迎" VerticalAlignment="Center" />
                   <TextBlock Grid.Column="2" x:Name="WelcomeStatus" Classes="caption muted" />
                 </Grid>
               </ListBoxItem>
               <ListBoxItem>
                 <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
-                  <Path Classes="icon" Data="{StaticResource Icon.Send}" />
+                  <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Send}" /></Viewbox>
                   <TextBlock Grid.Column="1" Text="发送队列" VerticalAlignment="Center" />
                   <TextBlock Grid.Column="2" x:Name="PendingSendCount" Classes="caption muted numeric" Text="{Binding PendingSends.Count, StringFormat={}{0:N0} 条待发}" IsVisible="{Binding !!PendingSends.Count}" />
                 </Grid>
               </ListBoxItem>
               <ListBoxItem>
                 <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
-                  <Path Classes="icon" Data="{StaticResource Icon.Settings}" />
+                  <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Settings}" /></Viewbox>
                   <TextBlock Grid.Column="1" Text="通用设置" VerticalAlignment="Center" />
 
                 </Grid>
@@ -131,16 +131,16 @@
           </StackPanel>
           <Grid Grid.Row="2" ColumnDefinitions="32,*,Auto" ColumnSpacing="10" Margin="6,12,0,0">
             <Border Width="32" Height="32" CornerRadius="16" Background="{DynamicResource Accent}" VerticalAlignment="Center" IsVisible="{Binding AccountStatus.Account, Converter={x:Static ObjectConverters.IsNotNull}}">
-              <TextBlock Text="{Binding AccountStatus.Account.Nickname, Converter={x:Static local:AvatarBrushConverter.Initial}}" Foreground="{DynamicResource Accent.OnSolid}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding AccountStatus.Account.Nickname, Converter={x:Static local:AvatarConverter.Initial}}" Foreground="{DynamicResource Accent.OnSolid}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
               <TextBlock Classes="secondary" Text="{Binding AccountStatus.Text}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding AccountStatus.Text}" AutomationProperties.LiveSetting="Polite" />
               <TextBlock Classes="caption muted" Text="已登录" IsVisible="{Binding AccountStatus.Account, Converter={x:Static ObjectConverters.IsNotNull}}" />
               <Button x:Name="RetryAccountButton" Content="重试" Command="{Binding ReadAccountCommand}" IsVisible="{Binding AccountStatus.ReadFailed}" />
             </StackPanel>
-            <Button Grid.Column="2" x:Name="AccountMenuButton" Classes="ghost" VerticalAlignment="Center" AutomationProperties.Name="账号菜单" IsEnabled="{Binding !IsLoggingOut}">
-              <Path Width="18" Height="18" Stretch="Uniform" Data="{StaticResource Icon.More}" Fill="{DynamicResource Text.Muted}" />
-              <Button.Flyout><MenuFlyout><MenuItem Header="退出登录…" Classes="danger" Click="ConfirmLogout" /></MenuFlyout></Button.Flyout>
+            <Button Grid.Column="2" x:Name="LogoutButton" Classes="ghost danger" Padding="6" VerticalAlignment="Center" Click="ConfirmLogout"
+                    ToolTip.Tip="退出登录" AutomationProperties.Name="退出登录" IsEnabled="{Binding !IsLoggingOut}">
+              <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Logout}" /></Viewbox>
             </Button>
           </Grid>
         </Grid>
@@ -168,15 +168,15 @@
                   <DataTemplate x:DataType="core:Danmaku">
                     <Border Classes.account="{Binding #AccountBadge.IsVisible}" Padding="20,7">
                       <Grid ColumnDefinitions="30,*" ColumnSpacing="10">
-                        <Border Width="30" Height="30" CornerRadius="15" VerticalAlignment="Top" Margin="0,2,0,0">
+                        <Border x:Name="Avatar" Width="30" Height="30" CornerRadius="15" VerticalAlignment="Top" Margin="0,2,0,0">
                           <Border.Background>
-                            <MultiBinding Converter="{x:Static local:AvatarBrushConverter.Instance}" ConverterParameter="Background">
+                            <MultiBinding Converter="{x:Static local:AvatarConverter.Instance}" ConverterParameter="Background">
                               <Binding Path="Nickname" /><Binding Path="$parent[Window].ActualThemeVariant" /><Binding ElementName="AccountBadge" Path="IsVisible" />
                             </MultiBinding>
                           </Border.Background>
-                          <TextBlock Text="{Binding Nickname, Converter={x:Static local:AvatarBrushConverter.Initial}}" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Nickname, Converter={x:Static local:AvatarConverter.Initial}}" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <TextBlock.Foreground>
-                              <MultiBinding Converter="{x:Static local:AvatarBrushConverter.Instance}" ConverterParameter="Foreground">
+                              <MultiBinding Converter="{x:Static local:AvatarConverter.Instance}" ConverterParameter="Foreground">
                                 <Binding Path="Nickname" /><Binding Path="$parent[Window].ActualThemeVariant" /><Binding ElementName="AccountBadge" Path="IsVisible" />
                               </MultiBinding>
                             </TextBlock.Foreground>

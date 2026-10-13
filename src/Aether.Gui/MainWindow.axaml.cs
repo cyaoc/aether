@@ -69,9 +69,16 @@ public partial class MainWindow : Window
     {
         var current = Settings.Load(dataDirectory);
         // An invalid file has no usable saved values to advertise.
-        BlindBoxStatus.Text = current.Error is null ? (current.BlindBoxEnabled.Value ? "开" : "关") : "";
-        WelcomeStatus.Text = current.Error is null ? (current.WelcomeEnabled.Value ? "开" : "关") : "";
+        ShowEnabled(BlindBoxStatus, current.Error is null ? current.BlindBoxEnabled.Value : null);
+        ShowEnabled(WelcomeStatus, current.Error is null ? current.WelcomeEnabled.Value : null);
         foreach (var page in settingsPages) page.RefreshFileStatus(current);
+    }
+
+    private static void ShowEnabled(TextBlock status, bool? enabled)
+    {
+        status.Text = enabled switch { true => "开", false => "关", null => "" };
+        status.Classes.Set("success", enabled == true);
+        status.Classes.Set("muted", enabled != true);
     }
 
     private void ConnectRoom(object? sender, KeyEventArgs e)

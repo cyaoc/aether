@@ -1,5 +1,6 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
@@ -32,10 +33,7 @@ public sealed class AccountPanelTests
         window.Show();
         try
         {
-            var menuButton = window.FindControl<Button>("AccountMenuButton")!;
-            var menu = Assert.IsType<MenuFlyout>(menuButton.Flyout);
-            menu.ShowAt(menuButton);
-            Assert.Single(menu.Items.OfType<MenuItem>()).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            window.FindControl<Button>("LogoutButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs();
             var dialog = Assert.Single(window.OwnedWindows);
             account.SetResult(GuiHarness.Json("""{"code":-101}"""));
@@ -75,10 +73,9 @@ public sealed class AccountPanelTests
             await WaitForAsync(() => VisibleText(window).Contains("测试账号"));
             Assert.Equal(2, harness.NavRequests);
 
-            window.FindControl<Button>("AccountMenuButton")!.Flyout!.ShowAt(window.FindControl<Button>("AccountMenuButton")!);
-            Dispatcher.UIThread.RunJobs();
-            var menu = Assert.IsType<MenuFlyout>(window.FindControl<Button>("AccountMenuButton")!.Flyout);
-            Assert.Single(menu.Items.OfType<MenuItem>()).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            var logout = window.FindControl<Button>("LogoutButton")!;
+            Assert.Equal("退出登录", AutomationProperties.GetName(logout));
+            logout.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs();
             var dialog = Assert.Single(window.OwnedWindows);
             Assert.Contains(dialog.GetVisualDescendants().OfType<TextBlock>(), x =>
@@ -92,8 +89,7 @@ public sealed class AccountPanelTests
             await viewModel.ReadAccountCommand.ExecuteAsync(null);
             Assert.Equal("测试账号", viewModel.AccountStatus.Text);
 
-            menu.ShowAt(window.FindControl<Button>("AccountMenuButton")!);
-            Assert.Single(menu.Items.OfType<MenuItem>()).RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            logout.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Dispatcher.UIThread.RunJobs();
             dialog = Assert.Single(window.OwnedWindows);
             Assert.Single(dialog.GetVisualDescendants().OfType<Button>(), x => Equals(x.Content, "退出登录"))

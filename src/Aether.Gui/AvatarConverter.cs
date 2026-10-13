@@ -5,10 +5,13 @@ using Avalonia.Styling;
 
 namespace Aether.Gui;
 
-/// <summary>Nickname, current theme and account marker determine a local, request-free avatar.</summary>
-public sealed class AvatarBrushConverter : IMultiValueConverter
+/// <summary>A local, request-free avatar: the nickname's first character, colored by nickname, theme and account marker.</summary>
+public sealed class AvatarConverter : IMultiValueConverter
 {
-    public static AvatarBrushConverter Instance { get; } = new();
+    /// <summary>How many Avatar.N.Background/Foreground pairs Theme.axaml defines per theme.</summary>
+    private const int PaletteSize = 5;
+
+    public static AvatarConverter Instance { get; } = new();
     public static FuncValueConverter<string?, string> Initial { get; } =
         new(name => string.IsNullOrEmpty(name) ? "" : StringInfo.GetNextTextElement(name));
 
@@ -22,7 +25,7 @@ public sealed class AvatarBrushConverter : IMultiValueConverter
         foreach (var character in name) hash = unchecked(hash * 31 + character);
         var key = values[2] is true
             ? parameter is "Foreground" ? "Accent.OnSolid" : "Accent"
-            : $"Avatar.{hash % 5}.{parameter}";
+            : $"Avatar.{hash % PaletteSize}.{parameter}";
         return Application.Current!.TryGetResource(key, theme, out var brush) ? brush : AvaloniaProperty.UnsetValue;
     }
 }

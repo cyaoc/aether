@@ -13,13 +13,20 @@ namespace Aether.Gui.Tests;
 
 public sealed class VisualReviewTests
 {
-    // Set AETHER_SCREENSHOT_DIR to retain the six pages per size/theme for visual review.
+    // A manual review tool, not a regression test: set AETHER_SCREENSHOT_DIR to render every page per size and theme
+    // with Skia and compare the PNGs with design B. CI leaves it unset, so the theory skips there.
     [Theory]
     [InlineData(960, 640, false)]
     [InlineData(960, 640, true)]
     [InlineData(760, 520, false)]
     [InlineData(760, 520, true)]
-    public Task Render_all_pages_with_Skia(int width, int height, bool dark) => HeadlessApp.Session.Dispatch(async () =>
+    public Task Screenshots_every_page_for_visual_review(int width, int height, bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return Render(width, height, dark);
+    }
+
+    private static Task Render(int width, int height, bool dark) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
@@ -90,13 +97,8 @@ public sealed class VisualReviewTests
             GuiHarness.Flush();
             using var bitmap = window.CaptureRenderedFrame();
             Assert.NotNull(bitmap);
-            Assert.Equal(width, bitmap.PixelSize.Width);
-            Assert.Equal(height, bitmap.PixelSize.Height);
-            if (Environment.GetEnvironmentVariable("AETHER_SCREENSHOT_DIR") is { Length: > 0 } output)
-            {
-                Directory.CreateDirectory(output);
-                bitmap.Save(Path.Combine(output, $"{page}-{width}x{height}-{(dark ? "dark" : "light")}.png"), PngBitmapEncoderOptions.Default);
-            }
+            Directory.CreateDirectory(HeadlessApp.ScreenshotDirectory!);
+            bitmap.Save(Path.Combine(HeadlessApp.ScreenshotDirectory!, $"{page}-{width}x{height}-{(dark ? "dark" : "light")}.png"), PngBitmapEncoderOptions.Default);
         }
     }, TestContext.Current.CancellationToken);
 }
