@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>Aether</title>
+  <rect x="32" y="32" width="960" height="960" rx="200" fill="#4255FF"/>
+  <path d="M422 280H602C710 280 798 368 798 476V540C798 646 712 732 606 732H428Q423 732 418 735L278 795Q256 803 262 781L299 706Q302 698 295 693C251 657 226 603 226 545V476C226 368 314 280 422 280Z" fill="#FFFFFF"/>
+  <g fill="#4255FF">
+    <rect x="378" y="434" width="74" height="166" rx="37"/>
+    <rect x="572" y="434" width="74" height="166" rx="37"/>
+  </g>
+</svg>
