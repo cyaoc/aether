@@ -346,7 +346,7 @@ public sealed class WelcomeTests
             Assert.DoesNotContain(form.Keys, key => key.StartsWith("reply") || key.StartsWith("replay"));
             await h.WaitForLogAsync(LogLevel.Information, "发送弹幕成功：欢迎观众 测试观众（10001）");
             Assert.Contains(h.Logger.Entries, entry => entry.Level == LogLevel.Information
-                && entry.Message == "进场欢迎：测试观众（10001），命中大航海身份");
+                && entry.Message.EndsWith($"进场欢迎：测试观众（10001），命中大航海身份{(guard == 1 ? "总督" : "提督")}"));
         }
         else await AssertNoSendAsync(sent);
     }
