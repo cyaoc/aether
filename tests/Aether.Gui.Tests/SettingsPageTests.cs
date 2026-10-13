@@ -19,7 +19,7 @@ public sealed class SettingsPageTests
         WithSettingsPage(SettingsSection.Welcome, "# 保留\r\nwelcome:\r\n  enabled: false # 开关\r\n  text: '欢迎{昵称}' # 正文\r\n  max_length: 20 # 上限\r\n  uids: [42] # 老朋友\r\n  fan_club_level: 1 # 老粉\r\n  guard: 舰长 # 档位\r\n  wealth_level: 2 # 荣耀\r\nfuture: 保留\r\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
-            var enabled = window.FindControl<CheckBox>("WelcomeInput");
+            var enabled = window.FindControl<ToggleSwitch>("WelcomeInput");
             var text = window.FindControl<TextBox>("WelcomeTextInput");
             var uids = window.FindControl<TextBox>("WelcomeUidsInput");
             var fanClub = window.FindControl<NumericUpDown>("WelcomeFanClubInput");
@@ -122,7 +122,7 @@ public sealed class SettingsPageTests
         WithSettingsPage(SettingsSection.Welcome, "welcome:\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
-            Assert.False(window.FindControl<CheckBox>("WelcomeInput")!.IsChecked);
+            Assert.False(window.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked);
             Assert.Equal("欢迎{大航海}{昵称}", window.FindControl<TextBox>("WelcomeTextInput")!.Text);
             Assert.Null(window.FindControl<NumericUpDown>("WelcomeMaxLengthInput"));
             Assert.Empty(UidLabels(window));
@@ -148,8 +148,8 @@ public sealed class SettingsPageTests
         WithSettingsPage(SettingsSection.Welcome, "welcome: {enabled: true, text: '欢迎{昵称}', uids: [12345, 67890], fan_club_level: 21, guard: 提督, wealth_level: 45}\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
-            Assert.True(window.FindControl<CheckBox>("WelcomeInput")!.IsChecked);
-            Assert.False(window.FindControl<CheckBox>("WelcomeInput")!.IsEnabled);
+            Assert.True(window.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked);
+            Assert.False(window.FindControl<ToggleSwitch>("WelcomeInput")!.IsEnabled);
             Assert.Equal("欢迎{昵称}", window.FindControl<TextBox>("WelcomeTextInput")!.Text);
             Assert.True(window.FindControl<TextBox>("WelcomeTextInput")!.IsReadOnly);
             Assert.Equal(["12345", "67890"], UidLabels(window));
@@ -203,7 +203,7 @@ public sealed class SettingsPageTests
         WithSettingsPage(SettingsSection.BlindBox, "blind_box:\n  enabled: true\n" + line, (window, path) =>
         {
             var before = File.ReadAllText(path);
-            var input = window.FindControl<CheckBox>("AnnounceInput");
+            var input = window.FindControl<ToggleSwitch>("AnnounceInput");
             Assert.NotNull(input);
             Assert.True(input.IsChecked);
             Assert.True(input.IsEnabled);
@@ -220,12 +220,12 @@ public sealed class SettingsPageTests
         WithSettingsPage(SettingsSection.BlindBox, "blind_box:\n  announce: |-\n    false\n  enabled: true\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
-            var input = window.FindControl<CheckBox>("AnnounceInput");
+            var input = window.FindControl<ToggleSwitch>("AnnounceInput");
             Assert.NotNull(input);
             Assert.False(input.IsChecked);
             Assert.False(input.IsEnabled);
             Assert.True(window.FindControl<TextBlock>("AnnounceReadOnly")!.IsVisible);
-            window.FindControl<CheckBox>("BlindBoxInput")!.IsChecked = false;
+            window.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("enabled: true", "enabled: false"), File.ReadAllText(path));
         });
@@ -285,7 +285,7 @@ public sealed class SettingsPageTests
             Assert.False(interval.AllowSpin);
             Assert.True(window.FindControl<TextBlock>("KeywordReadOnly")!.IsVisible);
             Assert.True(window.FindControl<TextBlock>("SendIntervalReadOnly")!.IsVisible);
-            window.FindControl<CheckBox>("BlindBoxInput")!.IsChecked = false;
+            window.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("\nsend:", "\n  enabled: false\nsend:"), File.ReadAllText(path));
         });
@@ -295,7 +295,7 @@ public sealed class SettingsPageTests
         WithSettingsPage(SettingsSection.BlindBox, "blind_box:\n  enabled: |-\n    false\nlog:\n  level: Debug\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
-            var input = window.FindControl<CheckBox>("BlindBoxInput")!;
+            var input = window.FindControl<ToggleSwitch>("BlindBoxInput")!;
             Assert.False(input.IsChecked);
             Assert.False(input.IsEnabled);
             Assert.True(window.FindControl<TextBlock>("BlindBoxReadOnly")!.IsVisible);
@@ -310,7 +310,7 @@ public sealed class SettingsPageTests
         WithSettingsPage(SettingsSection.BlindBox, "# 保留\nblind_box:\n  enabled: false # 开关\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
-            var input = window.FindControl<CheckBox>("BlindBoxInput");
+            var input = window.FindControl<ToggleSwitch>("BlindBoxInput");
             Assert.NotNull(input);
             Assert.False(input.IsChecked);
             input.IsChecked = true;
@@ -450,7 +450,7 @@ public sealed class SettingsPageTests
     private static void SetUids(SettingsPage page, params string[] values)
     {
         var tags = page.FindControl<WrapPanel>("UidTags")!;
-        foreach (var tag in tags.Children.ToArray())
+        foreach (var tag in tags.Children.OfType<Border>().ToArray())
             ((StackPanel)((Border)tag).Child!).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         var input = page.FindControl<TextBox>("WelcomeUidsInput")!;
         foreach (var value in values)
@@ -469,19 +469,19 @@ public sealed class SettingsPageTests
         foreach (var invalid in new[] { "0", "-1", "abc", "1.5", "1, 2", "9223372036854775808" })
         {
             Enter(invalid);
-            Assert.Empty(tags.Children);
+            Assert.Empty(tags.Children.OfType<Border>());
             Assert.Contains("正整数", page.FindControl<TextBlock>("WelcomeUidsError")!.Text);
             Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
         }
         Enter("42");
         Enter("42");
-        Assert.Single(tags.Children);
+        Assert.Single(tags.Children.OfType<Border>());
         Enter("9223372036854775807");
         Enter("2147483648");
-        Assert.Equal(3, tags.Children.Count);
+        Assert.Equal(3, tags.Children.OfType<Border>().Count());
         tags.Children[0].GetVisualDescendants().OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Assert.Equal(2, tags.Children.Count);
+        Assert.Equal(2, tags.Children.OfType<Border>().Count());
 
         void Enter(string value)
         {

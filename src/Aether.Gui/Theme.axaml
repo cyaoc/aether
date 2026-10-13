@@ -1,0 +1,362 @@
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Styles.Resources>
+    <ResourceDictionary>
+      <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
+      <SolidColorBrush x:Key="Transparent" Color="Transparent" />
+      <BoxShadows x:Key="QrShadow">0 8 28 0 #18000000</BoxShadows>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="Surface.Content" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Surface.Sidebar" Color="#F6F7F9" />
+          <SolidColorBrush x:Key="Surface.Card" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Surface.Aside" Color="#FAFBFC" />
+          <SolidColorBrush x:Key="Border" Color="#E3E6EB" />
+          <SolidColorBrush x:Key="Border.Subtle" Color="#EEF0F3" />
+          <SolidColorBrush x:Key="Border.Control" Color="#D5D9E0" />
+          <SolidColorBrush x:Key="Text.Primary" Color="#16181D" />
+          <SolidColorBrush x:Key="Text.Secondary" Color="#3D4350" />
+          <SolidColorBrush x:Key="Text.Muted" Color="#5B6270" />
+          <SolidColorBrush x:Key="Accent" Color="#3358D4" />
+          <SolidColorBrush x:Key="Accent.Text" Color="#2A47B0" />
+          <SolidColorBrush x:Key="Accent.Tint" Color="#E6EBFA" />
+          <SolidColorBrush x:Key="Accent.OnSolid" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="Account.Row" Color="#F5F7FE" />
+          <SolidColorBrush x:Key="Success" Color="#166534" />
+          <SolidColorBrush x:Key="Warning.Background" Color="#FEF8EC" />
+          <SolidColorBrush x:Key="Warning.Border" Color="#F5D9A8" />
+          <SolidColorBrush x:Key="Warning.Text" Color="#78350F" />
+          <SolidColorBrush x:Key="Danger" Color="#B91C1C" />
+          <SolidColorBrush x:Key="Danger.Tint" Color="#FEF2F2" />
+          <SolidColorBrush x:Key="Danger.Border" Color="#FECACA" />
+          <SolidColorBrush x:Key="Avatar.0.Background" Color="#E8EEF9" />
+          <SolidColorBrush x:Key="Avatar.0.Foreground" Color="#34558B" />
+          <SolidColorBrush x:Key="Avatar.1.Background" Color="#F5EBDD" />
+          <SolidColorBrush x:Key="Avatar.1.Foreground" Color="#795427" />
+          <SolidColorBrush x:Key="Avatar.2.Background" Color="#E5F1EC" />
+          <SolidColorBrush x:Key="Avatar.2.Foreground" Color="#32654E" />
+          <SolidColorBrush x:Key="Avatar.3.Background" Color="#EEE9F7" />
+          <SolidColorBrush x:Key="Avatar.3.Foreground" Color="#654B88" />
+          <SolidColorBrush x:Key="Avatar.4.Background" Color="#F6E8EC" />
+          <SolidColorBrush x:Key="Avatar.4.Foreground" Color="#8B435D" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="Surface.Content" Color="#1B1C1F" />
+          <SolidColorBrush x:Key="Surface.Sidebar" Color="#141518" />
+          <SolidColorBrush x:Key="Surface.Card" Color="#222428" />
+          <SolidColorBrush x:Key="Surface.Aside" Color="#18191C" />
+          <SolidColorBrush x:Key="Border" Color="#2E3136" />
+          <SolidColorBrush x:Key="Border.Subtle" Color="#26282C" />
+          <SolidColorBrush x:Key="Border.Control" Color="#3A3E45" />
+          <SolidColorBrush x:Key="Text.Primary" Color="#E8EAED" />
+          <SolidColorBrush x:Key="Text.Secondary" Color="#C2C6CE" />
+          <SolidColorBrush x:Key="Text.Muted" Color="#9097A3" />
+          <SolidColorBrush x:Key="Accent" Color="#8DA2FB" />
+          <SolidColorBrush x:Key="Accent.Text" Color="#B4C3FF" />
+          <SolidColorBrush x:Key="Accent.Tint" Color="#262F52" />
+          <SolidColorBrush x:Key="Accent.OnSolid" Color="#141518" />
+          <SolidColorBrush x:Key="Account.Row" Color="#1E2333" />
+          <SolidColorBrush x:Key="Success" Color="#6FD08C" />
+          <SolidColorBrush x:Key="Warning.Background" Color="#2A2114" />
+          <SolidColorBrush x:Key="Warning.Border" Color="#5A4318" />
+          <SolidColorBrush x:Key="Warning.Text" Color="#F2C46D" />
+          <SolidColorBrush x:Key="Danger" Color="#F87171" />
+          <SolidColorBrush x:Key="Danger.Tint" Color="#321E22" />
+          <SolidColorBrush x:Key="Danger.Border" Color="#673238" />
+          <SolidColorBrush x:Key="Avatar.0.Background" Color="#25314A" />
+          <SolidColorBrush x:Key="Avatar.0.Foreground" Color="#BED2FC" />
+          <SolidColorBrush x:Key="Avatar.1.Background" Color="#3B3023" />
+          <SolidColorBrush x:Key="Avatar.1.Foreground" Color="#E8CA9F" />
+          <SolidColorBrush x:Key="Avatar.2.Background" Color="#223B32" />
+          <SolidColorBrush x:Key="Avatar.2.Foreground" Color="#AFDDC5" />
+          <SolidColorBrush x:Key="Avatar.3.Background" Color="#332C45" />
+          <SolidColorBrush x:Key="Avatar.3.Foreground" Color="#D7C5F4" />
+          <SolidColorBrush x:Key="Avatar.4.Background" Color="#402A33" />
+          <SolidColorBrush x:Key="Avatar.4.Foreground" Color="#F0BCCD" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <!-- Lucide paths from design B; ISC license in ThirdPartyNotices.txt. -->
+      <StreamGeometry x:Key="Icon.Danmaku">M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.BlindBox">M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Welcome">M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Send">M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Settings">M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6</StreamGeometry>
+      <StreamGeometry x:Key="Icon.More">M6.6 12a1.6 1.6 0 1 1-3.2 0a1.6 1.6 0 1 1 3.2 0 M13.6 12a1.6 1.6 0 1 1-3.2 0a1.6 1.6 0 1 1 3.2 0 M20.6 12a1.6 1.6 0 1 1-3.2 0a1.6 1.6 0 1 1 3.2 0</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Notice">M12 8v5 M12 16v.01 M22 12a10 10 0 1 1-20 0a10 10 0 1 1 20 0</StreamGeometry>
+    </ResourceDictionary>
+  </Styles.Resources>
+  <Style Selector="Window">
+    <Setter Property="Background" Value="{DynamicResource Surface.Content}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+    <Setter Property="FontSize" Value="14" />
+  </Style>
+  <Style Selector="TextBlock.h1">
+    <Setter Property="FontSize" Value="18" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.section">
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.label">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+  </Style>
+  <Style Selector="TextBlock.caption">
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="TextBlock.secondary">
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+  <Style Selector="TextBlock.muted, TextBlock.hint">
+    <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="TextBlock.hint">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style Selector="TextBlock.numeric, TextBox.numeric, NumericUpDown">
+    <Setter Property="TextElement.FontFeatures" Value="tnum" />
+  </Style>
+  <Style Selector="TextBlock.error">
+    <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="AutomationProperties.LiveSetting" Value="Polite" />
+  </Style>
+  <Style Selector="TextBlock.success">
+    <Setter Property="Foreground" Value="{DynamicResource Success}" />
+  </Style>
+  <Style Selector="TextBlock.accent">
+    <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+  </Style>
+  <Style Selector="Button">
+    <Setter Property="Background" Value="{DynamicResource Transparent}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="MinHeight" Value="30" />
+    <Setter Property="Padding" Value="10,4" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+    <Setter Property="HorizontalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Button:pointerover /template/ ContentPresenter, Button:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Surface.Sidebar}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+  </Style>
+  <Style Selector="Button.accent">
+    <Setter Property="Background" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.OnSolid}" />
+  </Style>
+  <Style Selector="Button.accent:pointerover /template/ ContentPresenter, Button.accent:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.OnSolid}" />
+  </Style>
+  <Style Selector="Button.accent:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent.Tint}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+  </Style>
+  <Style Selector="Button.ghost">
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="Padding" Value="4" />
+    <Setter Property="Background" Value="{DynamicResource Transparent}" />
+  </Style>
+  <Style Selector="Button.chip">
+    <Setter Property="Height" Value="26" />
+    <Setter Property="MinHeight" Value="26" />
+    <Setter Property="CornerRadius" Value="13" />
+    <Setter Property="Padding" Value="10,2" />
+    <Setter Property="FontSize" Value="12" />
+  </Style>
+  <Style Selector="Button.danger, MenuItem.danger">
+    <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+  </Style>
+  <Style Selector="Button.danger">
+    <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+  </Style>
+  <Style Selector="Button.danger:pointerover /template/ ContentPresenter, Button.danger:pressed /template/ ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+    <Setter Property="Background" Value="{DynamicResource Danger.Tint}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+  </Style>
+  <Style Selector="ToggleSwitch.plain">
+    <Setter Property="OnContent" Value="" />
+    <Setter Property="OffContent" Value="" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="ToggleSwitch.plain /template/ ContentPresenter#PART_OnContentPresenter, ToggleSwitch.plain /template/ ContentPresenter#PART_OffContentPresenter">
+    <Setter Property="IsVisible" Value="False" />
+  </Style>
+  <Style Selector="TextBox, NumericUpDown, ComboBox">
+    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="FontSize" Value="14" />
+    <Setter Property="Background" Value="{DynamicResource Surface.Content}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
+  </Style>
+  <Style Selector="NumericUpDown">
+    <Setter Property="ShowButtonSpinner" Value="False" />
+  </Style>
+  <Style Selector="TextBox.uidInput">
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="MinWidth" Value="140" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="4,2" />
+    <Setter Property="Background" Value="{DynamicResource Transparent}" />
+    <Setter Property="FontSize" Value="13" />
+  </Style>
+  <Style Selector="TextBox.uidInput:focus /template/ Border#PART_BorderElement">
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="ListBox.nav, ListBox.plain">
+    <Setter Property="Background" Value="{DynamicResource Transparent}" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="AutoScrollToSelectedItem" Value="False" />
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+  </Style>
+  <Style Selector="ListBox.nav ListBoxItem">
+    <Setter Property="Height" Value="36" />
+    <Setter Property="Padding" Value="12,0" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+    <Setter Property="Margin" Value="0,1" />
+  </Style>
+  <Style Selector="ListBox.nav ListBoxItem /template/ ContentPresenter">
+    <Setter Property="CornerRadius" Value="8" />
+  </Style>
+  <Style Selector="ListBox.nav ListBoxItem:pointerover /template/ ContentPresenter, ListBox.nav ListBoxItem:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+  </Style>
+  <Style Selector="ListBox.nav ListBoxItem:selected /template/ ContentPresenter, ListBox.nav ListBoxItem:selected:pointerover /template/ ContentPresenter, ListBox.nav ListBoxItem:selected:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="ListBox.nav ListBoxItem:selected TextBlock.muted">
+    <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+  </Style>
+  <Style Selector="ListBox.plain ListBoxItem">
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Margin" Value="0" />
+    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+  </Style>
+  <Style Selector="ListBox.plain ListBoxItem /template/ ContentPresenter, ListBox.plain ListBoxItem:selected /template/ ContentPresenter, ListBox.plain ListBoxItem:pointerover /template/ ContentPresenter, ListBox.plain ListBoxItem:pressed /template/ ContentPresenter, ListBox.plain ListBoxItem:selected:pointerover /template/ ContentPresenter, ListBox.plain ListBoxItem:selected:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Transparent}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Transparent}" />
+  </Style>
+  <Style Selector="Border.card">
+    <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="10" />
+    <Setter Property="Padding" Value="12" />
+  </Style>
+  <Style Selector="Border.qr">
+    <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+    <Setter Property="CornerRadius" Value="14" />
+    <Setter Property="Padding" Value="14" />
+    <Setter Property="BoxShadow" Value="{DynamicResource QrShadow}" />
+  </Style>
+  <Style Selector="Border.pageHeader">
+    <Setter Property="Height" Value="60" />
+    <Setter Property="Padding" Value="20,0" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+  </Style>
+  <Style Selector="Border.notice">
+    <Setter Property="Padding" Value="12,10" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="BorderThickness" Value="1" />
+  </Style>
+  <Style Selector="Border.notice.warning">
+    <Setter Property="Background" Value="{DynamicResource Warning.Background}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Warning.Border}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Warning.Text}" />
+  </Style>
+  <Style Selector="Border.notice.error">
+    <Setter Property="Background" Value="{DynamicResource Danger.Tint}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Danger.Border}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Danger}" />
+  </Style>
+  <Style Selector="Border.badge">
+    <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Padding" Value="5,1" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
+    <Setter Property="TextElement.FontSize" Value="11" />
+  </Style>
+  <Style Selector="Border.account">
+    <Setter Property="Background" Value="{DynamicResource Account.Row}" />
+  </Style>
+  <Style Selector="Border.uid">
+    <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+    <Setter Property="CornerRadius" Value="4" />
+    <Setter Property="Height" Value="26" />
+    <Setter Property="Padding" Value="6,0" />
+    <Setter Property="Margin" Value="0,2,6,2" />
+  </Style>
+  <Style Selector="Border.uid TextBlock">
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="TextElement.FontFeatures" Value="tnum" />
+  </Style>
+  <Style Selector="Border.uid Button">
+    <Setter Property="MinHeight" Value="24" />
+    <Setter Property="Height" Value="24" />
+    <Setter Property="Padding" Value="4,0" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBlock.sendStatus">
+    <Setter Property="TextElement.FontFeatures" Value="tnum" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.sendStatus.sent">
+    <Setter Property="Foreground" Value="{DynamicResource Success}" />
+  </Style>
+  <Style Selector="TextBlock.sendStatus.unsent">
+    <Setter Property="Foreground" Value="{DynamicResource Warning.Text}" />
+  </Style>
+  <Style Selector="Ellipse.status">
+    <Setter Property="Fill" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="Ellipse.status.connected">
+    <Setter Property="Fill" Value="{DynamicResource Success}" />
+  </Style>
+  <Style Selector="TextBlock.connection">
+    <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="TextElement.FontFeatures" Value="tnum" />
+  </Style>
+  <Style Selector="TextBlock.connection.connected">
+    <Setter Property="Foreground" Value="{DynamicResource Success}" />
+  </Style>
+  <Style Selector="Path.icon">
+    <Setter Property="Width" Value="18" />
+    <Setter Property="Height" Value="18" />
+    <Setter Property="Stretch" Value="Uniform" />
+    <Setter Property="StrokeThickness" Value="1.8" />
+    <Setter Property="StrokeLineCap" Value="Round" />
+    <Setter Property="StrokeJoin" Value="Round" />
+    <Setter Property="Stroke" Value="{Binding (TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="TextBlock#BlindBoxStatus[Text=开], TextBlock#WelcomeStatus[Text=开]">
+    <Setter Property="Foreground" Value="{DynamicResource Success}" />
+  </Style>
+</Styles>

@@ -1,239 +1,222 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="using:Aether.Gui"
-        xmlns:core="using:Aether.Core"
-        x:Class="Aether.Gui.MainWindow"
-        x:DataType="local:MainWindowViewModel"
+        xmlns:local="using:Aether.Gui" xmlns:core="using:Aether.Core"
+        x:Class="Aether.Gui.MainWindow" x:DataType="local:MainWindowViewModel"
         Title="Aether" Width="960" Height="640" MinWidth="760" MinHeight="520">
-  <Window.Resources>
-    <ResourceDictionary>
-      <SolidColorBrush x:Key="SubtleAccentBrush" Color="{DynamicResource SystemAccentColor}" Opacity="0.12" />
-      <ResourceDictionary.ThemeDictionaries>
-        <ResourceDictionary x:Key="Light">
-          <SolidColorBrush x:Key="ConnectionPendingBrush" Color="#9D6500" />
-          <SolidColorBrush x:Key="ConnectionReadyBrush" Color="#0F7B0F" />
-        </ResourceDictionary>
-        <ResourceDictionary x:Key="Dark">
-          <SolidColorBrush x:Key="ConnectionPendingBrush" Color="#FCE100" />
-          <SolidColorBrush x:Key="ConnectionReadyBrush" Color="#6CCB5F" />
-        </ResourceDictionary>
-      </ResourceDictionary.ThemeDictionaries>
-    </ResourceDictionary>
-  </Window.Resources>
-  <Window.Styles>
-    <Style Selector="TextBlock.muted">
-      <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
-    </Style>
-    <Style Selector="Ellipse.status">
-      <Setter Property="Fill" Value="{DynamicResource ConnectionPendingBrush}" />
-    </Style>
-    <Style Selector="Ellipse.status.connected">
-      <Setter Property="Fill" Value="{DynamicResource ConnectionReadyBrush}" />
-    </Style>
-    <Style Selector="Border.account">
-      <Setter Property="Background" Value="{DynamicResource SubtleAccentBrush}" />
-    </Style>
-  </Window.Styles>
   <Panel>
-  <Grid x:Name="LoginPage" ColumnDefinitions="*,*" Margin="40" ColumnSpacing="40" IsVisible="{Binding IsLoginPage}">
-    <StackPanel Spacing="24" VerticalAlignment="Center">
-      <StackPanel Spacing="12">
-        <TextBlock Text="Aether" FontSize="36" FontWeight="SemiBold" />
-        <TextBlock Classes="muted" Text="陪你照看直播间的 B站直播 bot" TextWrapping="Wrap" />
-      </StackPanel>
-      <StackPanel Spacing="18">
-        <StackPanel Spacing="4">
-          <TextBlock Text="盲盒统计" FontSize="18" FontWeight="SemiBold" />
-          <TextBlock Classes="muted" Text="记录观众的盲盒投入与盈亏，自动回复和播报。" TextWrapping="Wrap" />
-        </StackPanel>
-        <StackPanel Spacing="4">
-          <TextBlock Text="进场欢迎" FontSize="18" FontWeight="SemiBold" />
-          <TextBlock Classes="muted" Text="按你设定的条件，欢迎进入直播间的观众。" TextWrapping="Wrap" />
-        </StackPanel>
-        <StackPanel Spacing="4">
-          <TextBlock Text="实时弹幕" FontSize="18" FontWeight="SemiBold" />
-          <TextBlock Classes="muted" Text="查看直播间弹幕，认出账号发出的消息。" TextWrapping="Wrap" />
-        </StackPanel>
-      </StackPanel>
-      <TextBlock Text="① 登录账号 → ② 选择直播间" TextWrapping="Wrap" />
-    </StackPanel>
-    <Border Grid.Column="1" Padding="20" CornerRadius="12" VerticalAlignment="Center"
-            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}" BorderThickness="1">
-      <StackPanel Spacing="16">
-        <TextBlock Text="扫码登录 B站" FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" />
-        <Panel MinHeight="240">
-          <Panel IsVisible="{Binding LoginCommand.IsRunning}">
-            <TextBlock Classes="muted" Text="正在获取二维码…" HorizontalAlignment="Center" VerticalAlignment="Center"
-                       IsVisible="{Binding !HasQrCode}" />
-          </Panel>
-          <!-- Scanners want dark modules on light, even in dark mode. -->
-          <Border Background="White" Padding="8" CornerRadius="8" HorizontalAlignment="Center" IsVisible="{Binding HasQrCode}">
-            <Image x:Name="LoginQrImage" Source="{Binding QrCode}" Width="224" Height="224" Stretch="Uniform"
-                   RenderOptions.BitmapInterpolationMode="None" AutomationProperties.Name="B站登录二维码" />
-          </Border>
-          <StackPanel Spacing="12" VerticalAlignment="Center" IsVisible="{Binding LoginError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding LoginError}" TextWrapping="Wrap" TextAlignment="Center" AutomationProperties.LiveSetting="Polite" />
-            <Button x:Name="RetryLoginButton" Content="重试" Command="{Binding LoginCommand}" HorizontalAlignment="Center" />
+    <Grid x:Name="LoginPage" ColumnDefinitions="400,*" IsVisible="{Binding IsLoginPage}">
+      <Border Background="{DynamicResource Accent.Tint}" Padding="44,56">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <StackPanel Spacing="14">
+            <TextBlock Text="Aether" FontSize="30" FontWeight="Bold" Foreground="{DynamicResource Accent.Text}" />
+            <TextBlock Text="B站直播 bot，以你的账号守着直播间" FontSize="15" TextWrapping="Wrap" />
           </StackPanel>
-        </Panel>
-        <TextBlock Text="打开 B站 App 扫一扫，在手机上确认" TextWrapping="Wrap" TextAlignment="Center" />
-        <TextBlock Classes="muted" Text="二维码过期后会自动换新" TextWrapping="Wrap" TextAlignment="Center" />
-      </StackPanel>
-    </Border>
-  </Grid>
-  <Grid ColumnDefinitions="224,*" IsVisible="{Binding !IsLoginPage}">
-    <Border Padding="16,24,16,16" BorderThickness="0,0,1,0"
-            BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-            Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
-      <Grid RowDefinitions="Auto,*,Auto">
-        <StackPanel Spacing="12">
-          <TextBlock Text="Aether" FontSize="22" FontWeight="SemiBold" Margin="4,0,0,12" />
-          <Border Padding="12" CornerRadius="8" BorderThickness="1"
-                  BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
-            <StackPanel Spacing="12">
-              <TextBlock Classes="muted" Text="直播间" />
-              <StackPanel x:Name="RoomInputPanel" Spacing="8" IsVisible="{Binding !HasRoomConnection}">
-                <TextBox Text="{Binding RoomNumber}" PlaceholderText="房间号" AutomationProperties.Name="房间号" KeyDown="ConnectRoom" />
-                <Button Classes="accent" Content="连接" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                        Command="{Binding ConnectCommand}" />
+          <StackPanel Grid.Row="1" Spacing="26" VerticalAlignment="Top" Margin="0,28,0,0">
+            <Grid ColumnDefinitions="20,*" ColumnSpacing="14">
+              <Path Classes="icon" Width="20" Height="20" Data="{StaticResource Icon.BlindBox}" Stroke="{DynamicResource Accent}" VerticalAlignment="Top" Margin="0,2,0,0" />
+              <StackPanel Grid.Column="1" Spacing="5">
+                <TextBlock Text="盲盒统计" FontWeight="SemiBold" />
+                <TextBlock Classes="label" Text="观众发关键字查今天的盈亏，送完一轮自动播报" TextWrapping="Wrap" />
               </StackPanel>
-              <StackPanel x:Name="RoomStatusPanel" Spacing="10" IsVisible="{Binding HasRoomConnection}">
-                <TextBlock Text="{Binding RoomNumber}" FontSize="20" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Ellipse Classes="status" Width="8" Height="8" VerticalAlignment="Center" Classes.connected="{Binding IsConnected}" />
-                  <TextBlock Text="{Binding Status}" FontSize="12" AutomationProperties.LiveSetting="Polite" />
-                </StackPanel>
-                <Button Content="断开" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Command="{Binding ConnectCancelCommand}" />
+            </Grid>
+            <Grid ColumnDefinitions="20,*" ColumnSpacing="14">
+              <Path Classes="icon" Width="20" Height="20" Data="{StaticResource Icon.Welcome}" Stroke="{DynamicResource Accent}" VerticalAlignment="Top" Margin="0,2,0,0" />
+              <StackPanel Grid.Column="1" Spacing="5">
+                <TextBlock Text="进场欢迎" FontWeight="SemiBold" />
+                <TextBlock Classes="label" Text="舰长、粉丝团、指定观众进场时发欢迎弹幕" TextWrapping="Wrap" />
               </StackPanel>
+            </Grid>
+            <Grid ColumnDefinitions="20,*" ColumnSpacing="14">
+              <Path Classes="icon" Width="20" Height="20" Data="{StaticResource Icon.Danmaku}" Stroke="{DynamicResource Accent}" VerticalAlignment="Top" Margin="0,2,0,0" />
+              <StackPanel Grid.Column="1" Spacing="5">
+                <TextBlock Text="实时弹幕" FontWeight="SemiBold" />
+                <TextBlock Classes="label" Text="断线自动重连，账号发的弹幕单独标出" TextWrapping="Wrap" />
+              </StackPanel>
+            </Grid>
+          </StackPanel>
+          <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8">
+            <Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource Accent}">
+              <TextBlock Text="1" Classes="caption numeric" Foreground="{DynamicResource Accent.OnSolid}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Text="登录账号" Classes="secondary accent" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Border Width="18" Height="1" Background="{DynamicResource Border.Control}" VerticalAlignment="Center" />
+            <Border Width="24" Height="24" CornerRadius="12" BorderBrush="{DynamicResource Text.Muted}" BorderThickness="1">
+              <TextBlock Text="2" Classes="caption numeric" Foreground="{DynamicResource Text.Secondary}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Text="选择直播间" Classes="label" VerticalAlignment="Center" />
+          </StackPanel>
+        </Grid>
+      </Border>
+      <StackPanel Grid.Column="1" Spacing="12" Margin="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+        <TextBlock Text="扫码登录 B站" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
+        <TextBlock Classes="secondary muted" Text="登录后选择直播间，下次打开直接进入" TextAlignment="Center" TextWrapping="Wrap" />
+        <Border Classes="qr" Margin="0,14" HorizontalAlignment="Center">
+          <Panel Width="224" Height="224">
+            <Panel IsVisible="{Binding LoginCommand.IsRunning}">
+              <TextBlock Classes="hint" Text="正在获取二维码…" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding !HasQrCode}" />
+            </Panel>
+            <!-- Scanners require dark modules on a light background in either theme. -->
+            <Border Background="White" IsVisible="{Binding HasQrCode}">
+              <Image x:Name="LoginQrImage" Source="{Binding QrCode}" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="None" AutomationProperties.Name="B站登录二维码" />
+            </Border>
+            <StackPanel Spacing="12" VerticalAlignment="Center" IsVisible="{Binding LoginError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+              <TextBlock Classes="error" Text="{Binding LoginError}" TextAlignment="Center" />
+              <Button x:Name="RetryLoginButton" Content="重试" Command="{Binding LoginCommand}" HorizontalAlignment="Center" />
             </StackPanel>
-          </Border>
-          <TextBlock Text="{Binding Message}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"
-                     IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-          <ListBox x:Name="Navigation" Background="Transparent" SelectionMode="AlwaysSelected" SelectionChanged="Navigate" Margin="0,8,0,0"
-                   AutomationProperties.Name="功能导航">
-            <ListBox.Styles>
-              <Style Selector="ListBoxItem">
-                <Setter Property="Padding" Value="12,10" />
-                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-              </Style>
-            </ListBox.Styles>
-            <ListBoxItem>
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="弹幕" />
-                <TextBlock Grid.Column="1" Text="{Binding Danmaku.Count}" Classes="muted" />
-              </Grid>
-            </ListBoxItem>
-            <ListBoxItem>
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="盲盒统计" />
-                <TextBlock Grid.Column="1" x:Name="BlindBoxStatus" Classes="muted" />
-              </Grid>
-            </ListBoxItem>
-            <ListBoxItem>
-              <Grid ColumnDefinitions="*,Auto">
-                <TextBlock Text="进场欢迎" />
-                <TextBlock Grid.Column="1" x:Name="WelcomeStatus" Classes="muted" />
-              </Grid>
-            </ListBoxItem>
-            <ListBoxItem>
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
-                <TextBlock Text="发送队列" />
-                <TextBlock Grid.Column="1" x:Name="PendingSendCount" Classes="muted" FontSize="12" VerticalAlignment="Center"
-                           Text="{Binding PendingSends.Count, StringFormat={}{0} 条待发}" IsVisible="{Binding !!PendingSends.Count}" />
-              </Grid>
-            </ListBoxItem>
-            <ListBoxItem Content="通用设置" />
-          </ListBox>
-        </StackPanel>
-        <Border Grid.Row="2" BorderThickness="0,1,0,0" Padding="4,16,0,0"
-                BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <StackPanel VerticalAlignment="Center" Spacing="6">
-              <TextBlock Text="{Binding AccountStatus.Text}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding AccountStatus.Text}"
-                         AutomationProperties.LiveSetting="Polite" />
+          </Panel>
+        </Border>
+        <TextBlock Classes="secondary" Text="打开 B站 App 扫一扫，在手机上确认" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center" />
+        <TextBlock Classes="caption muted" Text="二维码过期后会自动换新" TextWrapping="Wrap" TextAlignment="Center" />
+      </StackPanel>
+    </Grid>
+    <Grid ColumnDefinitions="224,*" IsVisible="{Binding !IsLoginPage}">
+      <Border Padding="12,14" BorderThickness="0,0,1,0" BorderBrush="{DynamicResource Border}" Background="{DynamicResource Surface.Sidebar}">
+        <Grid RowDefinitions="Auto,*,Auto">
+          <StackPanel Spacing="12">
+            <Border Classes="card">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="caption muted" Text="直播间" />
+                <StackPanel x:Name="RoomInputPanel" Spacing="8" IsVisible="{Binding !HasRoomConnection}">
+                  <TextBox Classes="numeric" Text="{Binding RoomNumber}" PlaceholderText="房间号" AutomationProperties.Name="房间号" KeyDown="ConnectRoom" />
+                  <Button Classes="accent" Content="连接" HorizontalAlignment="Stretch" Command="{Binding ConnectCommand}" />
+                </StackPanel>
+                <StackPanel x:Name="RoomStatusPanel" Spacing="8" IsVisible="{Binding HasRoomConnection}">
+                  <TextBlock Classes="numeric" Text="{Binding RoomNumber}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Ellipse Classes="status" Width="7" Height="7" VerticalAlignment="Center" Classes.connected="{Binding IsConnected}" />
+                    <TextBlock Classes="connection" Classes.connected="{Binding IsConnected}" Text="{Binding Status}" AutomationProperties.LiveSetting="Polite" />
+                  </StackPanel>
+                  <Button Content="断开" HorizontalAlignment="Stretch" Command="{Binding ConnectCancelCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+            <TextBlock Classes="error" Text="{Binding Message}" IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            <ListBox x:Name="Navigation" Classes="nav" SelectionMode="AlwaysSelected" SelectionChanged="Navigate" Margin="0,4,0,0" AutomationProperties.Name="功能导航">
+              <ListBoxItem>
+                <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                  <Path Classes="icon" Data="{StaticResource Icon.Danmaku}" />
+                  <TextBlock Grid.Column="1" Text="弹幕" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" Classes="caption muted numeric" Text="{Binding Danmaku.Count, StringFormat={}{0:N0}}" />
+                </Grid>
+              </ListBoxItem>
+              <ListBoxItem>
+                <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                  <Path Classes="icon" Data="{StaticResource Icon.BlindBox}" />
+                  <TextBlock Grid.Column="1" Text="盲盒统计" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" x:Name="BlindBoxStatus" Classes="caption muted" />
+                </Grid>
+              </ListBoxItem>
+              <ListBoxItem>
+                <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                  <Path Classes="icon" Data="{StaticResource Icon.Welcome}" />
+                  <TextBlock Grid.Column="1" Text="进场欢迎" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" x:Name="WelcomeStatus" Classes="caption muted" />
+                </Grid>
+              </ListBoxItem>
+              <ListBoxItem>
+                <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                  <Path Classes="icon" Data="{StaticResource Icon.Send}" />
+                  <TextBlock Grid.Column="1" Text="发送队列" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" x:Name="PendingSendCount" Classes="caption muted numeric" Text="{Binding PendingSends.Count, StringFormat={}{0:N0} 条待发}" IsVisible="{Binding !!PendingSends.Count}" />
+                </Grid>
+              </ListBoxItem>
+              <ListBoxItem>
+                <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                  <Path Classes="icon" Data="{StaticResource Icon.Settings}" />
+                  <TextBlock Grid.Column="1" Text="通用设置" VerticalAlignment="Center" />
+
+                </Grid>
+              </ListBoxItem>
+            </ListBox>
+          </StackPanel>
+          <Grid Grid.Row="2" ColumnDefinitions="32,*,Auto" ColumnSpacing="10" Margin="6,12,0,0">
+            <Border Width="32" Height="32" CornerRadius="16" Background="{DynamicResource Accent}" VerticalAlignment="Center" IsVisible="{Binding AccountStatus.Account, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <TextBlock Text="{Binding AccountStatus.Account.Nickname, Converter={x:Static local:AvatarBrushConverter.Initial}}" Foreground="{DynamicResource Accent.OnSolid}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            </Border>
+            <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+              <TextBlock Classes="secondary" Text="{Binding AccountStatus.Text}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding AccountStatus.Text}" AutomationProperties.LiveSetting="Polite" />
+              <TextBlock Classes="caption muted" Text="已登录" IsVisible="{Binding AccountStatus.Account, Converter={x:Static ObjectConverters.IsNotNull}}" />
               <Button x:Name="RetryAccountButton" Content="重试" Command="{Binding ReadAccountCommand}" IsVisible="{Binding AccountStatus.ReadFailed}" />
             </StackPanel>
-            <Button Grid.Column="1" x:Name="AccountMenuButton" Content="⋯" VerticalAlignment="Center"
-                    AutomationProperties.Name="账号菜单" IsEnabled="{Binding !IsLoggingOut}">
-              <Button.Flyout>
-                <MenuFlyout>
-                  <MenuItem Header="退出登录…" Click="ConfirmLogout" />
-                </MenuFlyout>
-              </Button.Flyout>
+            <Button Grid.Column="2" x:Name="AccountMenuButton" Classes="ghost" VerticalAlignment="Center" AutomationProperties.Name="账号菜单" IsEnabled="{Binding !IsLoggingOut}">
+              <Path Width="18" Height="18" Stretch="Uniform" Data="{StaticResource Icon.More}" Fill="{DynamicResource Text.Muted}" />
+              <Button.Flyout><MenuFlyout><MenuItem Header="退出登录…" Classes="danger" Click="ConfirmLogout" /></MenuFlyout></Button.Flyout>
             </Button>
           </Grid>
-        </Border>
-      </Grid>
-    </Border>
-    <Panel Grid.Column="1" Margin="24,24,24,16">
-    <Panel x:Name="PageHost" IsVisible="{Binding !HasQrCode}">
-    <Grid x:Name="DanmakuPage" RowDefinitions="Auto,*" RowSpacing="16">
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-          <TextBlock Text="弹幕" FontSize="24" FontWeight="SemiBold" />
-          <TextBlock Classes="muted" Text="{Binding Danmaku.Count, StringFormat={}{0} 条}" VerticalAlignment="Center" />
-        </StackPanel>
-        <CheckBox Grid.Column="1" Content="{x:Static local:MainWindowViewModel.KeepRecentDanmakuLabel}"
-                  IsChecked="{Binding KeepRecentDanmaku, Mode=TwoWay}" />
-      </Grid>
-      <Border Grid.Row="1" CornerRadius="8" BorderThickness="1" ClipToBounds="True"
-              BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
-          <Panel>
-            <TextBlock Classes="muted" Text="连接后，弹幕会显示在这里" IsVisible="{Binding !Danmaku.Count}"
-                       HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <ListBox x:Name="DanmakuList" ItemsSource="{Binding Danmaku}" Background="Transparent" IsVisible="{Binding !!Danmaku.Count}"
-                     AutoScrollToSelectedItem="False" AutomationProperties.Name="弹幕列表" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
-              <ListBox.Styles>
-                <Style Selector="ListBoxItem">
-                  <Setter Property="Padding" Value="4,2" />
-                  <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                </Style>
-              </ListBox.Styles>
-              <ListBox.ItemsPanel>
-                <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
-              </ListBox.ItemsPanel>
-              <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="core:Danmaku">
-                  <Border Classes.account="{Binding #AccountBadge.IsVisible}" Padding="12,10" CornerRadius="6">
-                    <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
-                      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                        <TextBlock Text="{Binding Nickname}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Nickname}" />
-                        <TextBlock Grid.Column="1" x:Name="AccountBadge" Classes="muted" Text="账号" FontSize="12">
-                          <TextBlock.IsVisible>
-                            <MultiBinding Converter="{x:Static local:MainWindowViewModel.IsAccountDanmaku}">
-                              <Binding Path="Uid" />
-                              <Binding Path="$parent[Window].((local:MainWindowViewModel)DataContext).AccountStatus.Account" />
-                            </MultiBinding>
-                          </TextBlock.IsVisible>
-                        </TextBlock>
-                        <TextBlock Grid.Column="2" Classes="muted" Text="{Binding ReceivedAt, StringFormat={}{0:HH:mm:ss}}" FontSize="12" />
-                      </Grid>
-                      <TextBlock Grid.Row="1" Text="{Binding Content}" TextWrapping="Wrap" />
-                    </Grid>
-                  </Border>
-                </DataTemplate>
-              </ListBox.ItemTemplate>
-            </ListBox>
-          </Panel>
+        </Grid>
       </Border>
+      <Panel Grid.Column="1">
+        <Panel x:Name="PageHost" IsVisible="{Binding !HasQrCode}">
+          <Grid x:Name="DanmakuPage" RowDefinitions="60,*">
+            <Border Classes="pageHeader">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                  <TextBlock Text="弹幕" Classes="h1" />
+                  <TextBlock Classes="caption muted numeric" Text="{Binding Danmaku.Count, StringFormat={}{0:N0} 条}" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                  <TextBlock Classes="caption muted" Text="{x:Static local:MainWindowViewModel.KeepRecentDanmakuLabel}" VerticalAlignment="Center" />
+                  <ToggleSwitch Classes="plain" IsChecked="{Binding KeepRecentDanmaku, Mode=TwoWay}" AutomationProperties.Name="只保留最近 1000 条" />
+                </StackPanel>
+              </Grid>
+            </Border>
+            <Panel Grid.Row="1">
+              <TextBlock Classes="hint" Text="连接后，弹幕会显示在这里" IsVisible="{Binding !Danmaku.Count}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+              <ListBox x:Name="DanmakuList" Classes="plain" ItemsSource="{Binding Danmaku}" IsVisible="{Binding !!Danmaku.Count}" AutomationProperties.Name="弹幕列表">
+                <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="core:Danmaku">
+                    <Border Classes.account="{Binding #AccountBadge.IsVisible}" Padding="20,7">
+                      <Grid ColumnDefinitions="30,*" ColumnSpacing="10">
+                        <Border Width="30" Height="30" CornerRadius="15" VerticalAlignment="Top" Margin="0,2,0,0">
+                          <Border.Background>
+                            <MultiBinding Converter="{x:Static local:AvatarBrushConverter.Instance}" ConverterParameter="Background">
+                              <Binding Path="Nickname" /><Binding Path="$parent[Window].ActualThemeVariant" /><Binding ElementName="AccountBadge" Path="IsVisible" />
+                            </MultiBinding>
+                          </Border.Background>
+                          <TextBlock Text="{Binding Nickname, Converter={x:Static local:AvatarBrushConverter.Initial}}" FontSize="13" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <TextBlock.Foreground>
+                              <MultiBinding Converter="{x:Static local:AvatarBrushConverter.Instance}" ConverterParameter="Foreground">
+                                <Binding Path="Nickname" /><Binding Path="$parent[Window].ActualThemeVariant" /><Binding ElementName="AccountBadge" Path="IsVisible" />
+                              </MultiBinding>
+                            </TextBlock.Foreground>
+                          </TextBlock>
+                        </Border>
+                        <StackPanel Grid.Column="1" Spacing="3">
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Classes="secondary" Classes.accent="{Binding #AccountBadge.IsVisible}" Text="{Binding Nickname}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="250" ToolTip.Tip="{Binding Nickname}" />
+                            <Border Classes="badge" IsVisible="{Binding #AccountBadge.IsVisible}">
+                              <TextBlock x:Name="AccountBadge" Text="账号">
+                                <TextBlock.IsVisible>
+                                  <MultiBinding Converter="{x:Static local:MainWindowViewModel.IsAccountDanmaku}">
+                                    <Binding Path="Uid" /><Binding Path="$parent[Window].((local:MainWindowViewModel)DataContext).AccountStatus.Account" />
+                                  </MultiBinding>
+                                </TextBlock.IsVisible>
+                              </TextBlock>
+                            </Border>
+                            <TextBlock Classes="caption muted numeric" Text="{Binding ReceivedAt, StringFormat={}{0:HH:mm:ss}}" VerticalAlignment="Center" />
+                          </StackPanel>
+                          <TextBlock Text="{Binding Content}" FontSize="14" LineHeight="21" TextWrapping="Wrap" />
+                        </StackPanel>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Panel>
+          </Grid>
+        </Panel>
+        <StackPanel x:Name="WatchLoginCard" IsVisible="{Binding HasQrCode}" Spacing="16" Margin="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+          <TextBlock Classes="h1" Text="登录已失效，请重新扫码" TextAlignment="Center" TextWrapping="Wrap" />
+          <Border Classes="qr" HorizontalAlignment="Center">
+            <Border Background="White">
+              <Image Source="{Binding QrCode}" Width="224" Height="224" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="None" AutomationProperties.Name="B站登录二维码" />
+            </Border>
+          </Border>
+          <TextBlock Classes="secondary" Text="打开 B站 App 扫一扫，在手机上确认" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" />
+          <TextBlock Classes="caption muted" Text="二维码过期后会自动换新" TextAlignment="Center" TextWrapping="Wrap" />
+        </StackPanel>
+      </Panel>
     </Grid>
-    </Panel>
-    <Border x:Name="WatchLoginCard" IsVisible="{Binding HasQrCode}" Padding="24" CornerRadius="12"
-            HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="1"
-            Background="{DynamicResource SystemControlBackgroundAltHighBrush}"
-            BorderBrush="{DynamicResource SystemControlBackgroundBaseLowBrush}">
-      <StackPanel Spacing="16">
-        <TextBlock Text="登录已失效，请重新扫码" FontSize="22" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" />
-        <Border Background="White" CornerRadius="8" Padding="8" HorizontalAlignment="Center">
-          <Image Source="{Binding QrCode}" Width="224" Height="224" Stretch="Uniform"
-                 RenderOptions.BitmapInterpolationMode="None" AutomationProperties.Name="B站登录二维码" />
-        </Border>
-        <TextBlock Text="打开 B站 App 扫一扫，在手机上确认" TextAlignment="Center" TextWrapping="Wrap" />
-        <TextBlock Classes="muted" Text="二维码过期后会自动换新" TextAlignment="Center" TextWrapping="Wrap" />
-      </StackPanel>
-    </Border>
-    </Panel>
-  </Grid>
   </Panel>
 </Window>

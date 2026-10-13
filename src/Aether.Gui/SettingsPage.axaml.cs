@@ -85,8 +85,7 @@ public partial class SettingsPage : UserControl
         Grid.SetColumn(RecentActivity, stacked ? 0 : 1);
         Grid.SetRow(RecentActivity, stacked ? 1 : 0);
         RecentActivity.Width = stacked ? double.NaN : 300;
-        PageLayout.ColumnSpacing = stacked ? 0 : 24;
-        PageLayout.RowSpacing = stacked ? 16 : 0;
+        RecentActivity.BorderThickness = stacked ? new Thickness(0, 1, 0, 0) : new Thickness(1, 0, 0, 0);
         PageLayout.RowDefinitions[1].Height = stacked ? GridLength.Star : new GridLength(0);
     }
 
@@ -165,7 +164,7 @@ public partial class SettingsPage : UserControl
         readOnly.IsVisible = !setting.CanEdit;
     }
 
-    private static void Show(CheckBox input, TextBlock readOnly, Setting<bool> setting)
+    private static void Show(ToggleSwitch input, TextBlock readOnly, Setting<bool> setting)
     {
         input.IsChecked = setting.Value;
         input.IsEnabled = setting.CanEdit;
@@ -282,10 +281,10 @@ public partial class SettingsPage : UserControl
 
     private void RenderUidTags()
     {
-        UidTags.Children.Clear();
+        while (UidTags.Children.Count > 1) UidTags.Children.RemoveAt(0);
         foreach (var uid in welcomeUids)
         {
-            var remove = new Button { Content = "×", Padding = new Thickness(6, 0), IsEnabled = settings.WelcomeUids.CanEdit };
+            var remove = new Button { Content = "×", Classes = { "ghost" }, IsEnabled = settings.WelcomeUids.CanEdit };
             Avalonia.Automation.AutomationProperties.SetName(remove, $"删除 UID {uid}");
             remove.Click += (_, _) =>
             {
@@ -294,9 +293,9 @@ public partial class SettingsPage : UserControl
                 Validate();
             };
             var label = new TextBlock { Text = uid.ToString(CultureInfo.InvariantCulture), VerticalAlignment = VerticalAlignment.Center };
-            UidTags.Children.Add(new Border
+            UidTags.Children.Insert(UidTags.Children.Count - 1, new Border
             {
-                Classes = { "uid" }, Padding = new Thickness(8, 4), Margin = new Thickness(0, 0, 8, 8), CornerRadius = new CornerRadius(6),
+                Classes = { "uid" },
                 Child = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 6, Children = { label, remove } }
             });
         }

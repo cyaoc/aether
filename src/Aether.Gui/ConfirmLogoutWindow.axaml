@@ -7,7 +7,7 @@
     <TextBlock Text="退出后需要重新扫码登录；正在连接的直播间会断开。" TextWrapping="Wrap" />
     <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Right">
       <Button Content="取消" IsCancel="True" IsDefault="True" Click="Cancel" />
-      <Button Content="退出登录" Click="Confirm" />
+      <Button Content="退出登录" Classes="danger" Click="Confirm" />
     </StackPanel>
   </StackPanel>
 </Window>

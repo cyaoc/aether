@@ -164,7 +164,7 @@ public sealed class SettingsNavigationTests
             var blindBox = window.GetVisualDescendants().OfType<UserControl>().Single(x => x.IsEffectivelyVisible);
             var save = blindBox.FindControl<Button>("SaveButton")!;
             Assert.False(save.IsEnabled);
-            blindBox.FindControl<CheckBox>("BlindBoxInput")!.IsChecked = false;
+            blindBox.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
             Assert.True(save.IsEnabled);
             Assert.True(blindBox.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
             Assert.Equal("开", window.FindControl<TextBlock>("BlindBoxStatus")!.Text);
@@ -173,7 +173,7 @@ public sealed class SettingsNavigationTests
             GuiHarness.Flush();
             var welcome = window.GetVisualDescendants().OfType<UserControl>().Single(x => x.IsEffectivelyVisible);
             Assert.Equal("关", window.FindControl<TextBlock>("WelcomeStatus")!.Text);
-            welcome.FindControl<CheckBox>("WelcomeInput")!.IsChecked = true;
+            welcome.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked = true;
             Assert.Equal("关", window.FindControl<TextBlock>("WelcomeStatus")!.Text);
             welcome.FindControl<TextBox>("WelcomeTextInput")!.Text = "欢迎回家{昵称}";
             Dispatcher.UIThread.RunJobs();
@@ -189,7 +189,7 @@ public sealed class SettingsNavigationTests
             navigation.SelectedIndex = 1;
             GuiHarness.Flush();
             Assert.Same(blindBox, window.GetVisualDescendants().OfType<UserControl>().Single(x => x.IsEffectivelyVisible));
-            Assert.False(blindBox.FindControl<CheckBox>("BlindBoxInput")!.IsChecked);
+            Assert.False(blindBox.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(Settings.Load(harness.DataDirectory).BlindBoxEnabled.Value);
             Assert.Equal("关", window.FindControl<TextBlock>("BlindBoxStatus")!.Text);
