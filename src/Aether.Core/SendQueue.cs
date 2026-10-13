@@ -1,5 +1,7 @@
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
+using WelcomeRejection = Aether.Core.Welcome.Rejection;
+using WelcomeResult = Aether.Core.Welcome.Result;
 
 namespace Aether.Core;
 
@@ -20,8 +22,8 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     /// <summary>A 盲盒播报, whose text comes from the viewer's 一轮盲盒 as it stands when sent.</summary>
     internal sealed record Announcement(long Id, long Uid, string Nickname) : Item(Id, Uid, Nickname);
     /// <summary>A 进场欢迎, whose text was fixed when queued.</summary>
-    internal sealed record Welcome(long Id, long Uid, string Nickname, string Text, bool Mention, long ReceivedAt,
-        WelcomeCondition Condition, string? Value) : Item(Id, Uid, Nickname);
+    internal sealed record Welcome(long Id, long Uid, string Nickname, long ReceivedAt, WelcomeResult Result)
+        : Item(Id, Uid, Nickname);
 
     /// <summary>The part of a 一轮盲盒 one announcement reports; a Count, since a box can be worth nothing.</summary>
     private readonly record struct Reported(BlindBoxTally Tally, long Count);
@@ -41,7 +43,8 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         new UnboundedChannelOptions { SingleReader = true });
     // Receiving, quiet-window timers and sending share these under the gate.
     private readonly object gate = new();
-    private readonly HashSet<long> waitingQueries = [];
+    // Each viewer's waiting 盲盒查询, which later asks merge into.
+    private readonly Dictionary<long, Query> waitingQueries = [];
     private readonly Dictionary<long, Round> rounds = [];
     // Only the sender touches these.
     private long? lastSendEnded;
@@ -53,34 +56,91 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     public void Enqueue(Danmaku trigger)
     {
         lock (gate)
-            if (waitingQueries.Add(trigger.Uid)) Queue(new Query(Interlocked.Increment(ref nextId), trigger));
+        {
+            if (waitingQueries.TryGetValue(trigger.Uid, out var waiting))
+            {
+                logger.LogDebug("[发送队列 {ItemId}，{Kind}] 观众 {Nickname}（{Uid}）再次触发，合并到这一项",
+                    waiting.Id, Describe(waiting).Name, trigger.Nickname, trigger.Uid);
+                return;
+            }
+            var query = new Query(Interlocked.Increment(ref nextId), trigger);
+            waitingQueries.Add(trigger.Uid, query);
+            Queue(query);
+        }
     }
 
     /// <summary>Reports a rejected 进场欢迎 or queues one whose text is fixed now; welcomes never merge.</summary>
-    public void EnqueueWelcome(long uid, string nickname, string text, bool mention, long receivedAt,
-        WelcomeCondition condition, string? value, string? rejectionReason)
+    public void EnqueueWelcome(long uid, string nickname, long receivedAt, WelcomeResult result)
     {
-        var item = new Welcome(Interlocked.Increment(ref nextId), uid, nickname, text, mention, receivedAt, condition, value);
-        if (rejectionReason is not null) Report(item, SendQueueItemState.NotQueued, text, reason: rejectionReason);
+        var item = new Welcome(Interlocked.Increment(ref nextId), uid, nickname, receivedAt, result);
+        if (result.RejectionReason is { } reason) Report(item, SendQueueItemState.NotQueued, result.Text, reason: reason);
         else lock (gate) Queue(item);
     }
 
     // Report before exposing the item to the sender, so Queued always precedes Sending.
     private void Queue(Item item)
     {
-        Report(item, SendQueueItemState.Queued, (item as Welcome)?.Text);
+        Report(item, SendQueueItemState.Queued, (item as Welcome)?.Result.Text);
         pending.Writer.TryWrite(item);
     }
 
-    private void Report(Item item, SendQueueItemState state, string? text = null, string? reason = null,
-        double? retrySeconds = null)
+    /// <summary>The kind shells get, and the names the log gives it and its send.</summary>
+    private static (SendQueueItemKind Kind, string Name, string Action) Describe(Item item) => item switch
     {
-        var welcome = item as Welcome;
-        output.TryWrite(new SendQueueUpdate(item.Id, time.GetLocalNow(),
-            item switch { Query => SendQueueItemKind.BlindBoxQuery, Welcome => SendQueueItemKind.Welcome,
-                _ => SendQueueItemKind.BlindBoxAnnouncement }, state, item.Uid, item.Nickname)
+        Query => (SendQueueItemKind.BlindBoxQuery, "盲盒查询", "回复"),
+        Welcome => (SendQueueItemKind.Welcome, "进场欢迎", "欢迎"),
+        _ => (SendQueueItemKind.BlindBoxAnnouncement, "盲盒播报", "播报")
+    };
+
+    /// <summary>Reports one step of the item's progress to shells and writes its log line, both carrying the item's id.</summary>
+    /// <param name="text">The text queued, sent or tried; a Discarded update leaves it out, so shells keep what Sending showed.</param>
+    private void Report(Item item, SendQueueItemState state, string? text = null, string? reason = null,
+        double? retrySeconds = null, Exception? failure = null)
+    {
+        var (kind, name, action) = Describe(item);
+        var welcome = (item as Welcome)?.Result;
+        switch (state)
         {
-            Text = text, WelcomeCondition = welcome?.Condition, WelcomeValue = welcome?.Value,
+            case SendQueueItemState.Queued when welcome is not null:
+                logger.LogInformation("[发送队列 {ItemId}，{Kind}] 进队：观众 {Nickname}（{Uid}），命中{Condition}{Value}",
+                    item.Id, name, item.Nickname, item.Uid, welcome.ConditionName, welcome.Value ?? "");
+                break;
+            case SendQueueItemState.Queued:
+                logger.LogInformation("[发送队列 {ItemId}，{Kind}] 进队：观众 {Nickname}（{Uid}）", item.Id, name, item.Nickname, item.Uid);
+                break;
+            case SendQueueItemState.NotQueued when welcome?.RejectedBecause == WelcomeRejection.EmptyText:
+                logger.LogWarning("[发送队列 {ItemId}，{Kind}] 没进队：观众 {Nickname}（{Uid}），命中{Condition}{Value}，但欢迎语拼出来是空的",
+                    item.Id, name, item.Nickname, item.Uid, welcome.ConditionName, welcome.Value ?? "");
+                break;
+            case SendQueueItemState.NotQueued when welcome?.RejectedBecause == WelcomeRejection.TooLong:
+                logger.LogWarning("[发送队列 {ItemId}，{Kind}] 没进队：观众 {Nickname}（{Uid}），命中{Condition}{Value}，但欢迎语固定部分计数为 {Length}，超过上限 {Limit}",
+                    item.Id, name, item.Nickname, item.Uid, welcome.ConditionName, welcome.Value ?? "", welcome.Length, welcome.DanmakuLengthLimit);
+                break;
+            case SendQueueItemState.Sending:
+                logger.LogDebug("[发送队列 {ItemId}，{Kind}] 开始发送：{Action}观众 {Nickname}（{Uid}）：{Message}",
+                    item.Id, name, action, item.Nickname, item.Uid, text);
+                break;
+            case SendQueueItemState.Sent:
+                logger.LogInformation("[发送队列 {ItemId}，{Kind}] 发送弹幕成功：{Action}观众 {Nickname}（{Uid}）：{Message}",
+                    item.Id, name, action, item.Nickname, item.Uid, text);
+                break;
+            case SendQueueItemState.WaitingToRetry:
+                logger.LogWarning("[发送队列 {ItemId}，{Kind}] {Error}，{Seconds} 秒后重试观众 {Nickname}（{Uid}）的{Action}",
+                    item.Id, name, reason, retrySeconds, item.Nickname, item.Uid, action);
+                break;
+            case SendQueueItemState.Discarded when failure is not null:
+                logger.LogWarning(failure, "[发送队列 {ItemId}，{Kind}] 发送弹幕失败，已丢弃：{Action}观众 {Nickname}（{Uid}）：{Message}；{Error}",
+                    item.Id, name, action, item.Nickname, item.Uid, text, reason);
+                break;
+            case SendQueueItemState.Discarded:
+                logger.LogInformation("[发送队列 {ItemId}，{Kind}] {Reason}，已丢弃：{Action}观众 {Nickname}（{Uid}）",
+                    item.Id, name, reason, action, item.Nickname, item.Uid);
+                break;
+        }
+        output.TryWrite(new SendQueueUpdate(item.Id, time.GetLocalNow(), kind, state, item.Uid, item.Nickname)
+        {
+            Text = state == SendQueueItemState.Discarded ? null : text,
+            WelcomeCondition = welcome?.Condition, WelcomeValue = welcome?.Value,
             Reason = reason, RetrySeconds = retrySeconds
         });
     }
@@ -169,7 +229,6 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             // Waiting can change a query's tally or an announcement's round; prepare and check the new text again.
             if (await WaitedForTurnAsync(text, cancellationToken)) continue;
             if (DiscardExpiredWelcome(item)) continue;
-            var action = item switch { Query => "回复", Welcome => "欢迎", _ => "播报" };
             Exception? failure = null;
             Report(item, SendQueueItemState.Sending, text);
             try { await send(cancellationToken); }
@@ -189,22 +248,13 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                 rateLimitRetryOwed = true;
                 var retrySeconds = Math.Max(interval.TotalSeconds, SameTextWindow.TotalSeconds);
                 Report(item, SendQueueItemState.WaitingToRetry, reason: failure.Message, retrySeconds: retrySeconds);
-                logger.LogWarning("{Error}，{Seconds} 秒后重试观众 {Nickname}（{Uid}）的{Action}",
-                    failure.Message, retrySeconds, item.Nickname, item.Uid, action);
                 continue;
             }
             rateLimitRetryOwed = false;
             if (failure is null)
-            {
                 Finish(item, reported, SendQueueItemState.Sent, text);
-                logger.LogInformation("发送弹幕成功：{Action}观众 {Nickname}（{Uid}）：{Message}", action, item.Nickname, item.Uid, text);
-            }
             else
-            {
-                Finish(item, reported, SendQueueItemState.Discarded, reason: failure.Message);
-                logger.LogWarning(failure, "发送弹幕失败，已丢弃：{Action}观众 {Nickname}（{Uid}）：{Message}；{Error}",
-                    action, item.Nickname, item.Uid, text, failure.Message);
-            }
+                Finish(item, reported, SendQueueItemState.Discarded, text, failure.Message, failure);
         }
     }
 
@@ -214,7 +264,6 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         rateLimitRetryOwed = false;
         var reason = FormattableString.Invariant($"欢迎已过期，进场已满 {WelcomeLifetime.TotalSeconds} 秒");
         Finish(item, null, SendQueueItemState.Discarded, reason: reason);
-        logger.LogInformation("{Reason}，已丢弃：欢迎观众 {Nickname}（{Uid}）", reason, item.Nickname, item.Uid);
         return true;
     }
 
@@ -233,13 +282,14 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         return true;
     }
 
-    private void Finish(Item item, Reported? reported, SendQueueItemState outcome, string? text = null, string? reason = null)
+    private void Finish(Item item, Reported? reported, SendQueueItemState outcome, string? text = null, string? reason = null,
+        Exception? failure = null)
     {
         lock (gate)
         {
             pending.Reader.TryRead(out _);
             // Under the gate, so the outcome precedes the next round's Queued and a later ask gets an item of its own.
-            Report(item, outcome, text, reason);
+            Report(item, outcome, text, reason, failure: failure);
             if (reported is { } done)
             {
                 // Sent or given up, what this attempt reported is over either way; nothing carries into the next round.

@@ -10,13 +10,34 @@ public sealed class SendQueueUpdateTests
     private const string RateLimited = "{\"code\":10031,\"message\":\"太快\"}";
     private const string Query = """{"cmd":"DANMU_MSG","info":[[],"今日盲盒",[10001,"查询观众"]]}""";
 
+    [Fact]
+    public async Task Query_logs_each_progress_with_the_same_item_id_and_viewer()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        var sent = CaptureSends(h);
+        await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
+        await h.Server.PushRoomMessageAsync(Query);
+        var queued = await NextProgressAsync(h, updates);
+        var sending = await StepAsync(h, updates, queued.Id, SendQueueItemState.Sending);
+        await NextSendAsync(sent);
+        await StepAsync(h, updates, queued.Id, SendQueueItemState.Sent);
+        await h.WaitForLogAsync("发送弹幕成功");
+
+        var logs = ItemLogs(h, queued.Id, "盲盒查询", "查询观众");
+        Assert.Collection(logs,
+            log => { Assert.Equal(LogLevel.Information, log.Level); Assert.Contains("进队", log.Message); },
+            log => { Assert.Equal(LogLevel.Debug, log.Level); Assert.Contains("开始发送", log.Message); Assert.Contains(sending.Text!, log.Message); },
+            log => { Assert.Equal(LogLevel.Information, log.Level); Assert.Contains("发送弹幕成功：回复观众", log.Message); });
+    }
+
     [Theory]
-    [InlineData("welcome.uids", "[10001]", WelcomeCondition.Uid, null)]
-    [InlineData("welcome.fan_club_level", "21", WelcomeCondition.FanClubLevel, "47")]
-    [InlineData("welcome.guard", "舰长", WelcomeCondition.Guard, "舰长")]
-    [InlineData("welcome.wealth_level", "30", WelcomeCondition.WealthLevel, "45")]
+    [InlineData("welcome.uids", "[10001]", WelcomeCondition.Uid, null, "UID")]
+    [InlineData("welcome.fan_club_level", "21", WelcomeCondition.FanClubLevel, "47", "粉丝团等级")]
+    [InlineData("welcome.guard", "舰长", WelcomeCondition.Guard, "舰长", "大航海身份")]
+    [InlineData("welcome.wealth_level", "30", WelcomeCondition.WealthLevel, "45", "荣耀等级")]
     public async Task Welcome_reports_queued_sending_and_sent_with_the_same_id_and_local_time(
-        string setting, string threshold, WelcomeCondition condition, string? value)
+        string setting, string threshold, WelcomeCondition condition, string? value, string conditionName)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -41,6 +62,10 @@ public sealed class SendQueueUpdateTests
         Assert.Equal(value, queued.WelcomeValue);
         Assert.Equal(queuedAt, queued.OccurredAt);
         Assert.Equal(TimeSpan.FromHours(8), queued.OccurredAt.Offset);
+        var matched = Assert.Single(ItemLogs(h, queued.Id, "进场欢迎", "测试观众"), log => log.Level == LogLevel.Information);
+        Assert.Contains($"进队：观众 测试观众（10001），命中{conditionName}", matched.Message);
+        Assert.Equal(value ?? "", matched.Properties["Value"]);
+        if (value is not null) Assert.Contains(value, matched.Message);
 
         var sending = await NextProgressAsync(h, updates);
         Assert.Equal(SendQueueItemState.Sending, sending.State);
@@ -56,6 +81,7 @@ public sealed class SendQueueUpdateTests
         Assert.Equal(sending.Text, success.Text);
         Assert.Equal(queuedAt.AddSeconds(2), success.OccurredAt);
         Assert.Equal(queuedAt.Offset, success.OccurredAt.Offset);
+        Assert.Equal(3, ItemLogs(h, queued.Id, "进场欢迎", "测试观众").Length);
     }
 
     [Theory]
@@ -92,6 +118,20 @@ public sealed class SendQueueUpdateTests
         Assert.Equal(succeeds ? null : waiting.Reason, result.Reason);
         if (succeeds) Assert.Equal(sending.Text, result.Text);
         Assert.Equal(2, SendAttempts(h));
+        await h.WaitForLogAsync(succeeds ? "发送弹幕成功" : "发送弹幕失败");
+        var logs = ItemLogs(h, queued.Id, "进场欢迎", "测试观众");
+        Assert.Equal(new[] { LogLevel.Information, LogLevel.Debug, LogLevel.Warning, LogLevel.Debug,
+            succeeds ? LogLevel.Information : LogLevel.Warning }, logs.Select(log => log.Level));
+        Assert.Contains($"{seconds} 秒后重试观众", logs[2].Message);
+        Assert.Contains(waiting.Reason!, logs[2].Message);
+        Assert.Equal(2, logs.Count(log => log.Message.Contains("开始发送") && log.Message.Contains(sending.Text!)));
+        Assert.Contains(succeeds ? "发送弹幕成功" : "发送弹幕失败，已丢弃", logs[^1].Message);
+        if (!succeeds)
+        {
+            Assert.NotNull(logs[^1].Exception);
+            Assert.Contains(sending.Text!, logs[^1].Message);
+            Assert.Null(result.Text);
+        }
     }
 
     [Theory]
@@ -124,7 +164,12 @@ public sealed class SendQueueUpdateTests
         // The receive loop has handled the rejection; nothing was queued behind it.
         await h.PushAndSyncAsync(updates);
         await AssertNoSendAsync(sent);
-        Assert.Single(h.Logger.Entries, log => log.Level == LogLevel.Warning && log.Message.Contains("未发送"));
+        Assert.Single(h.Logger.Entries, log => log.Level == LogLevel.Warning && log.Message.Contains("没进队"));
+        var warning = Assert.Single(ItemLogs(h, rejected.Id, "进场欢迎", "测试观众"));
+        Assert.Equal(LogLevel.Warning, warning.Level);
+        Assert.Contains("没进队：观众 测试观众（10001）", warning.Message);
+        if (expectedText.Length == 0) Assert.Contains("欢迎语拼出来是空的", warning.Message);
+        else Assert.Contains("欢迎语固定部分计数为 8，超过上限 1", warning.Message);
     }
 
     [Fact]
@@ -154,6 +199,15 @@ public sealed class SendQueueUpdateTests
         Assert.Equal(waiting.OccurredAt.AddSeconds(30), discarded.OccurredAt);
         Assert.Equal(1, SendAttempts(h));
         await AssertNoSendAsync(sent);
+        var logs = ItemLogs(h, waiting.Id, "进场欢迎", "排队观众", 20002);
+        Assert.Collection(logs,
+            log => Assert.Contains("命中大航海身份舰长", log.Message),
+            log =>
+            {
+                Assert.Equal(LogLevel.Information, log.Level);
+                Assert.Contains("欢迎已过期，进场已满 30 秒，已丢弃", log.Message);
+                Assert.Null(log.Exception);
+            });
     }
 
     [Theory]
@@ -176,6 +230,14 @@ public sealed class SendQueueUpdateTests
         Assert.Null(discarded.RetrySeconds);
         Assert.Empty(await SyncProgressAsync(h, updates));
         Assert.Equal(1, SendAttempts(h));
+        await h.WaitForLogAsync("发送弹幕失败");
+        var logs = ItemLogs(h, queued.Id, "盲盒查询", "查询观众");
+        Assert.Equal(3, logs.Length);
+        Assert.Equal(LogLevel.Warning, logs[^1].Level);
+        Assert.Contains("发送弹幕失败，已丢弃：回复观众", logs[^1].Message);
+        Assert.Contains(reason, logs[^1].Message);
+        Assert.NotNull(logs[^1].Exception);
+        Assert.Null(discarded.Text);
     }
 
     [Fact]
@@ -207,6 +269,11 @@ public sealed class SendQueueUpdateTests
         await h.Server.PushRoomMessageAsync(Query);
         await h.Server.PushRoomMessageAsync(Gift(h.Time.GetUtcNow()));
         Assert.Empty(await SyncProgressAsync(h, updates));
+        var merged = Assert.Single(h.Logger.Entries, log => log.Message.Contains("合并"));
+        Assert.Equal(LogLevel.Debug, merged.Level);
+        Assert.Equal(queued.Id, merged.Properties["ItemId"]);
+        Assert.Equal("查询观众", merged.Properties["Nickname"]);
+        Assert.Equal(10001L, merged.Properties["Uid"]);
         releaseWelcome.SetResult();
         await StepAsync(h, updates, welcome.Id, SendQueueItemState.Sent);
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
@@ -216,6 +283,7 @@ public sealed class SendQueueUpdateTests
         Assert.Equal((await NextSendAsync(sent))["msg"], sending.Text);
         await h.Server.PushRoomMessageAsync(Query);
         Assert.Empty(await SyncProgressAsync(h, updates));
+        Assert.Equal(2, h.Logger.Entries.Count(log => log.Level == LogLevel.Debug && log.Message.Contains("合并")));
         releaseQuery.SetResult();
         var success = await StepAsync(h, updates, queued.Id, SendQueueItemState.Sent);
         Assert.Equal(sending.Text, success.Text);
@@ -232,8 +300,10 @@ public sealed class SendQueueUpdateTests
         await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
         await h.Server.PushRoomMessageAsync(Gift(h.Time.GetUtcNow(), nickname: "盲盒观众"));
         Assert.Empty(await SyncProgressAsync(h, updates));
+        Assert.DoesNotContain(h.Logger.Entries, log => log.Properties.ContainsKey("ItemId"));
         h.Time.Advance(TimeSpan.FromMilliseconds(2999));
         Assert.Empty(await SyncProgressAsync(h, updates));
+        Assert.DoesNotContain(h.Logger.Entries, log => log.Properties.ContainsKey("ItemId"));
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         var queued = await NextProgressAsync(h, updates);
         Assert.Equal(SendQueueItemState.Queued, queued.State);
@@ -242,6 +312,8 @@ public sealed class SendQueueUpdateTests
         Assert.Equal("盲盒观众", queued.Nickname);
         Assert.Equal(h.Time.GetLocalNow(), queued.OccurredAt);
         Assert.Null(queued.Text);
+        var queuedLog = Assert.Single(ItemLogs(h, queued.Id, "盲盒播报", "盲盒观众"), log => log.Level == LogLevel.Information);
+        Assert.Contains("进队", queuedLog.Message);
         var sending = await StepAsync(h, updates, queued.Id, SendQueueItemState.Sending);
         Assert.Equal("本次投入50电池 亏35电池", sending.Text);
         Assert.Equal((await NextSendAsync(sent))["msg"], sending.Text);
@@ -252,6 +324,8 @@ public sealed class SendQueueUpdateTests
         h.Time.Advance(TimeSpan.FromSeconds(3));
         release.SetResult();
         Assert.Equal(sending.Text, (await StepAsync(h, updates, queued.Id, SendQueueItemState.Sent)).Text);
+        Assert.Equal(new[] { LogLevel.Information, LogLevel.Debug, LogLevel.Information },
+            ItemLogs(h, queued.Id, "盲盒播报", "盲盒观众").Select(log => log.Level));
         var next = await NextProgressAsync(h, updates);
         Assert.Equal(SendQueueItemState.Queued, next.State);
         Assert.NotEqual(queued.Id, next.Id);
@@ -264,6 +338,8 @@ public sealed class SendQueueUpdateTests
         Assert.Equal((await NextSendAsync(sent))["msg"], nextSending.Text);
         Assert.Equal(nextSending.Text, (await StepAsync(h, updates, next.Id, SendQueueItemState.Sent)).Text);
         Assert.Empty(await SyncProgressAsync(h, updates));
+        Assert.Equal(new[] { LogLevel.Information, LogLevel.Debug, LogLevel.Information },
+            ItemLogs(h, next.Id, "盲盒播报", "新昵称").Select(log => log.Level));
     }
 
     [Theory]
@@ -365,6 +441,20 @@ public sealed class SendQueueUpdateTests
 
     private static async Task<List<SendQueueUpdate>> SyncProgressAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates) =>
         [.. (await h.PushAndCollectAsync(updates)).OfType<SendQueueUpdate>()];
+
+    private static LogEntry[] ItemLogs(WatchHarness h, long id, string kind, string nickname, long uid = 10001)
+    {
+        var logs = h.Logger.Entries.Where(log => log.Properties.TryGetValue("ItemId", out var value) && Equals(value, id)).ToArray();
+        Assert.All(logs, log =>
+        {
+            Assert.Equal(kind, log.Properties["Kind"]);
+            Assert.Equal(nickname, log.Properties["Nickname"]);
+            Assert.Equal(uid, log.Properties["Uid"]);
+            Assert.Contains($"发送队列 {id}，{kind}", log.Message);
+            Assert.Contains($"{nickname}（{uid}）", log.Message);
+        });
+        return logs;
+    }
 
     private static async Task<SendQueueUpdate> StepAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates,
         long id, SendQueueItemState state)

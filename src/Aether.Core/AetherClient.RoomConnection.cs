@@ -1,7 +1,6 @@
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
-using Aether.Core.Entries;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
@@ -221,9 +220,7 @@ public sealed partial class AetherClient
                         else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry })
                         {
                             if (welcome.Evaluate(entry, danmakuLengthLimit) is not { } result) continue;
-                            LogWelcome(entry, result);
-                            sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, result.Text, result.Mention, receivedTimestamp,
-                                result.Condition, result.Value, result.RejectionReason);
+                            sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, receivedTimestamp, result);
                         }
                     }
                 }
@@ -248,24 +245,6 @@ public sealed partial class AetherClient
             }
         }
 
-        private void LogWelcome(Entry entry, Welcome.Result result)
-        {
-            switch (result.RejectedBecause)
-            {
-                case Welcome.Rejection.EmptyText:
-                    client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语拼出来是空的，未发送",
-                        entry.Nickname, entry.Uid, result.ConditionName);
-                    break;
-                case Welcome.Rejection.TooLong:
-                    client.logger.LogWarning("进场欢迎：{Nickname}（{Uid}），命中{Condition}，但欢迎语固定部分计数为 {Length}，超过上限 {Limit}，未发送",
-                        entry.Nickname, entry.Uid, result.ConditionName, result.Length, result.DanmakuLengthLimit);
-                    break;
-                default:
-                    client.logger.LogInformation("进场欢迎：{Nickname}（{Uid}），命中{Condition}", entry.Nickname, entry.Uid, result.ConditionName);
-                    break;
-            }
-        }
-
         private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) => RunWhileConnectedAsync(stop, () =>
             sendQueue.SendAsync((item, round) =>
             {
@@ -273,11 +252,11 @@ public sealed partial class AetherClient
                 {
                     SendQueue.Query query =>
                         BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, query.Trigger.ReceivedAt)),
-                    SendQueue.Welcome queued => queued.Text,
+                    SendQueue.Welcome queued => queued.Result.Text,
                     _ => BlindBoxTally.Announcement(round!)
                 };
                 var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
-                return (text, token => api.SendDanmakuAsync(roomId, item is SendQueue.Welcome { Mention: false } ? null : item.Uid,
+                return (text, token => api.SendDanmakuAsync(roomId, item is SendQueue.Welcome { Result.Mention: false } ? null : item.Uid,
                     (item as SendQueue.Query)?.Trigger.Id, text, token));
             }, stop.Token));
 
