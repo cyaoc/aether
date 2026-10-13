@@ -13,13 +13,13 @@
         <TextBox x:Name="UidInput" Classes="numeric" PlaceholderText="输入 UID" AutomationProperties.Name="指定观众 UID" />
         <Grid x:Name="ThresholdInput" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
           <TextBlock Classes="label" Text="达到" VerticalAlignment="Center" />
-          <NumericUpDown Grid.Column="1" x:Name="LevelInput" FormatString="0.############################" HorizontalAlignment="Stretch" />
+          <NumericUpDown Grid.Column="1" x:Name="LevelInput" Minimum="1" FormatString="0.############################" HorizontalAlignment="Stretch" />
           <ComboBox Grid.Column="1" x:Name="GuardInput" HorizontalAlignment="Stretch" AutomationProperties.Name="大航海身份" />
           <TextBlock Grid.Column="2" x:Name="LevelUnit" Classes="label" Text="级" VerticalAlignment="Center" />
         </Grid>
       </Grid>
       <Button Grid.Column="3" x:Name="RemoveButton" Classes="ghost danger" Content="×" Width="28" VerticalAlignment="Center" />
-      <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" x:Name="ErrorMessage" Classes="error" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+      <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" x:Name="ErrorMessage" Classes="error" IsVisible="False" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
       <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="ReadOnlyMessage" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
     </Grid>
   </StackPanel>

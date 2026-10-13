@@ -1,5 +1,6 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using static Aether.Gui.Tests.Support.ConditionList;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Input;
@@ -25,10 +26,7 @@ public sealed class SettingsNavigationTests
             navigation.SelectedIndex = 2;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            var menu = Assert.IsType<MenuFlyout>(page.FindControl<Button>("AddConditionButton")!.Flyout);
-            menu.Items.Cast<MenuItem>().First().RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-            GuiHarness.Flush();
-            var row = page.FindControl<StackPanel>("ConditionRows")!.Children.OfType<WelcomeConditionRow>().First();
+            var row = Add(page, WelcomeCondition.Uid);
             Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
             Assert.True(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
             Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
@@ -41,7 +39,7 @@ public sealed class SettingsNavigationTests
             general.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             navigation.SelectedIndex = 2;
             GuiHarness.Flush();
-            Assert.Same(row, page.FindControl<StackPanel>("ConditionRows")!.Children[0]);
+            Assert.Same(row, Rows(page)[0]);
             Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
             Assert.Equal("填一个 UID，或删掉这条", row.FindControl<TextBlock>("ErrorMessage")!.Text);
             var settings = Settings.Load(harness.DataDirectory);

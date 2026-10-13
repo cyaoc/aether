@@ -1,5 +1,6 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using static Aether.Gui.Tests.Support.ConditionList;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Input;
@@ -164,6 +165,30 @@ public sealed class SettingsPageTests
             Assert.Equal(before, File.ReadAllText(path));
         });
 
+    [Fact]
+    public Task A_uid_removed_and_added_back_after_the_others_is_not_a_change() =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome:\n  uids: [42, 43]\n", (page, _) =>
+        {
+            Remove(Rows(page)[0]);
+            Add(page, WelcomeCondition.Uid).FindControl<TextBox>("UidInput")!.Text = "42";
+            GuiHarness.Flush();
+            Assert.Equal(["43", "42"], UidLabels(page));
+            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+        });
+
+    [Fact]
+    public Task Duplicate_uids_in_the_file_are_reported_without_making_a_draft() =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome:\n  uids: [42, 42]\n", (page, path) =>
+        {
+            Assert.Equal("和上面那条重复了", Rows(page)[1].FindControl<TextBlock>("ErrorMessage")!.Text);
+            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            File.WriteAllText(path, "welcome:\n  uids: [42]\n");
+            page.RefreshFileStatus(Settings.Load(Path.GetDirectoryName(path)!));
+            Assert.Equal(["42"], UidLabels(page));
+            Assert.False(Rows(page)[0].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+        });
+
     [Theory]
     [InlineData("", "填一个 UID，或删掉这条")]
     [InlineData(" ", "填一个 UID，或删掉这条")]
@@ -248,13 +273,29 @@ public sealed class SettingsPageTests
         {
             Assert.Empty(Rows(page));
             Assert.True(page.FindControl<Grid>("EmptyConditions")!.IsVisible);
-            Assert.True(page.FindControl<TextBlock>("ConditionsReadOnly")!.IsVisible);
+            var hint = page.FindControl<TextBlock>("ConditionsReadOnly")!;
+            Assert.True(hint.IsVisible);
+            Assert.Equal("指定观众、粉丝团等级、大航海身份、荣耀等级是多行写法，请在设置文件里改", hint.Text);
             Assert.All(Menu(page).Items.Cast<MenuItem>(), item =>
             {
                 Assert.False(item.IsEnabled);
                 item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             });
             Assert.Empty(Rows(page));
+        });
+
+    [Fact]
+    public Task A_multiline_threshold_without_a_row_is_named_and_cannot_be_added() =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome:\n  wealth_level: |-\n    0\n", (page, _) =>
+        {
+            var hint = page.FindControl<TextBlock>("ConditionsReadOnly")!;
+            Assert.True(hint.IsVisible);
+            Assert.Equal("荣耀等级是多行写法，请在设置文件里改", hint.Text);
+            Assert.Equal(new[] { true, true, false, false },
+                Menu(page).Items.Cast<MenuItem>().Select(item => item.IsEnabled));
+            Remove(Row(page, WelcomeCondition.Guard));
+            Assert.True(Menu(page).Items.Cast<MenuItem>().Single(item => Equals(item.Tag, WelcomeCondition.Guard)).IsEnabled);
+            Assert.Equal("荣耀等级是多行写法，请在设置文件里改", hint.Text);
         });
 
     [Fact]
@@ -267,6 +308,7 @@ public sealed class SettingsPageTests
             Assert.False(row.FindControl<NumericUpDown>("LevelInput")!.AllowSpin);
             Assert.False(row.FindControl<Button>("RemoveButton")!.IsVisible);
             Assert.True(row.FindControl<TextBlock>("ReadOnlyMessage")!.IsVisible);
+            Assert.False(page.FindControl<TextBlock>("ConditionsReadOnly")!.IsVisible);
             Remove(row);
             Assert.Same(row, Row(page, WelcomeCondition.FanClubLevel));
             Remove(Row(page, WelcomeCondition.Guard));
@@ -370,7 +412,7 @@ public sealed class SettingsPageTests
             });
             Assert.All(Menu(window).Items.Cast<MenuItem>(), item => Assert.False(item.IsEnabled));
             var general = new SettingsPage(Path.GetDirectoryName(path)!, SettingsSection.General);
-            general.FindControl<ComboBox>("LevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
+            general.FindControl<ComboBox>("LogLevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
             Dispatcher.UIThread.RunJobs();
             var save = general.FindControl<Button>("SaveButton")!;
             Assert.True(save.IsEnabled);
@@ -482,7 +524,7 @@ public sealed class SettingsPageTests
             Assert.False(input.IsEnabled);
             Assert.True(window.FindControl<TextBlock>("BlindBoxReadOnly")!.IsVisible);
             var general = new SettingsPage(Path.GetDirectoryName(path)!, SettingsSection.General);
-            general.FindControl<ComboBox>("LevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
+            general.FindControl<ComboBox>("LogLevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
             general.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("level: Debug", "level: Warning"), File.ReadAllText(path));
         });
@@ -510,8 +552,8 @@ public sealed class SettingsPageTests
     public Task Multiline_level_is_read_only() =>
         WithSettingsPage(SettingsSection.General, "log:\n  level: |-\n    Debug\n", (window, _) =>
         {
-            Assert.False(window.FindControl<ComboBox>("LevelInput")!.IsEnabled);
-            Assert.True(window.FindControl<TextBlock>("LevelReadOnly")!.IsVisible);
+            Assert.False(window.FindControl<ComboBox>("LogLevelInput")!.IsEnabled);
+            Assert.True(window.FindControl<TextBlock>("LogLevelReadOnly")!.IsVisible);
             Assert.False(window.FindControl<Button>("SaveButton")!.IsEnabled);
         });
 
@@ -523,7 +565,7 @@ public sealed class SettingsPageTests
             window.FindControl<NumericUpDown>("RetentionInput")!.Text = "7";
             var save = window.FindControl<Button>("SaveButton")!;
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, window.FindControl<ComboBox>("LevelInput")!.SelectedItem);
+            Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, window.FindControl<ComboBox>("LogLevelInput")!.SelectedItem);
             var after = File.ReadAllText(path);
             Assert.StartsWith("# 外部修改\nlog:\n  retention_days: 7\n  level: Warning\n", after);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -582,7 +624,7 @@ public sealed class SettingsPageTests
             Assert.True(window.FindControl<NumericUpDown>("RetentionInput")!.IsReadOnly);
             Assert.False(window.FindControl<NumericUpDown>("RetentionInput")!.AllowSpin);
             Assert.True(window.FindControl<TextBlock>("RetentionReadOnly")!.IsVisible);
-            window.FindControl<ComboBox>("LevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
+            window.FindControl<ComboBox>("LogLevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("level: Debug", "level: Warning"), File.ReadAllText(path));
         });
@@ -626,23 +668,9 @@ public sealed class SettingsPageTests
             return true;
         }, TestContext.Current.CancellationToken);
 
-    private static WelcomeConditionRow[] Rows(SettingsPage page) => page.FindControl<StackPanel>("ConditionRows")!
-        .Children.Cast<WelcomeConditionRow>().ToArray();
-
     private static WelcomeConditionRow Row(SettingsPage page, WelcomeCondition kind) => Rows(page).First(row => row.Kind == kind);
-    private static MenuFlyout Menu(SettingsPage page) => Assert.IsType<MenuFlyout>(page.FindControl<Button>("AddConditionButton")!.Flyout);
     private static IEnumerable<string?> UidLabels(SettingsPage page) => Rows(page)
         .Where(row => row.Kind == WelcomeCondition.Uid).Select(row => row.FindControl<TextBox>("UidInput")!.Text);
-
-    private static WelcomeConditionRow Add(SettingsPage page, WelcomeCondition kind)
-    {
-        Menu(page).Items.Cast<MenuItem>().Single(item => Equals(item.Tag, kind))
-            .RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
-        GuiHarness.Flush();
-        return Rows(page).Last(row => row.Kind == kind);
-    }
-
-    private static void Remove(WelcomeConditionRow row) => row.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
     private static void SetUids(SettingsPage page, params string[] values)
     {

@@ -55,13 +55,13 @@ public partial class SettingsPage : UserControl
         RecentWelcomesList.IsVisible = WelcomeTotal.IsVisible = section == SettingsSection.Welcome;
         RecentQueriesAndAnnouncementsList.IsVisible = section == SettingsSection.BlindBox;
         SizeChanged += (_, _) => ArrangeActivity();
-        LevelInput.ItemsSource = Settings.LogLevels;
+        LogLevelInput.ItemsSource = Settings.LogLevels;
         foreach (var number in new[] { RetentionInput, SendIntervalInput })
             number.PropertyChanged += (_, e) =>
             {
                 if (e.Property == NumericUpDown.TextProperty) Validate();
             };
-        LevelInput.SelectionChanged += (_, _) => Validate();
+        LogLevelInput.SelectionChanged += (_, _) => Validate();
         KeywordInput.TextChanged += (_, _) => Validate();
         WelcomeTextInput.TextChanged += (_, _) => Validate();
         foreach (var toggle in new[] { BlindBoxInput, AnnounceInput, WelcomeInput })
@@ -92,7 +92,7 @@ public partial class SettingsPage : UserControl
         settings = current ?? Settings.Load(dataDirectory);
         ShowFileStatus(settings);
         Show(RetentionInput, RetentionReadOnly, settings.LogRetentionDays);
-        Show(LevelInput, LevelReadOnly, settings.LogLevel);
+        Show(LogLevelInput, LogLevelReadOnly, settings.LogLevel);
         Show(BlindBoxInput, BlindBoxReadOnly, settings.BlindBoxEnabled);
         Show(KeywordInput, KeywordReadOnly, settings.BlindBoxKeyword);
         Show(AnnounceInput, AnnounceReadOnly, settings.BlindBoxAnnounce);
@@ -166,16 +166,16 @@ public partial class SettingsPage : UserControl
     new Field[]
     {
         new(settings.LogRetentionDays.Name, settings.LogRetentionDays.CanEdit, RetentionInput.Text, RetentionError),
-        new(settings.LogLevel.Name, settings.LogLevel.CanEdit, LevelInput.SelectedItem?.ToString(), LevelError),
+        new(settings.LogLevel.Name, settings.LogLevel.CanEdit, LogLevelInput.SelectedItem?.ToString(), LogLevelError),
         new(settings.BlindBoxEnabled.Name, settings.BlindBoxEnabled.CanEdit, Settings.BooleanText(BlindBoxInput.IsChecked == true), BlindBoxError),
         new(settings.BlindBoxKeyword.Name, settings.BlindBoxKeyword.CanEdit, KeywordInput.Text, KeywordError),
         new(settings.BlindBoxAnnounce.Name, settings.BlindBoxAnnounce.CanEdit, Settings.BooleanText(AnnounceInput.IsChecked == true), AnnounceError),
         new(settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text, SendIntervalError),
         new(settings.WelcomeEnabled.Name, settings.WelcomeEnabled.CanEdit, Settings.BooleanText(WelcomeInput.IsChecked == true), WelcomeError),
         new(settings.WelcomeText.Name, settings.WelcomeText.CanEdit, WelcomeTextInput.Text, WelcomeTextError),
-        new(settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, "[" + string.Join(", ", Conditions.Where(row => row.Kind == WelcomeCondition.Uid).Select(row => row.Value)) + "]"),
+        new(settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, WelcomeUidsText()),
         new(settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, ConditionValue(WelcomeCondition.FanClubLevel, "0")),
-        new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, ConditionValue(WelcomeCondition.Guard, "关闭")),
+        new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, ConditionValue(WelcomeCondition.Guard, Settings.WelcomeGuards[0])),
         new(settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, ConditionValue(WelcomeCondition.WealthLevel, "0")),
     }.Where(field => field.Name.StartsWith(group, StringComparison.Ordinal)).ToArray();
 
@@ -192,8 +192,10 @@ public partial class SettingsPage : UserControl
             label.Text = InputError(field) ?? "";
             label.IsVisible = label.Text.Length > 0;
         }
-        var invalidCondition = Section == SettingsSection.Welcome && ValidateWelcomeConditions();
-        DirtyMessage.IsVisible = invalidCondition || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
+        var welcome = Section == SettingsSection.Welcome;
+        var invalidCondition = welcome && ShowConditionErrors();
+        DirtyMessage.IsVisible = welcome && ConditionsAddedOrRemoved
+            || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
         SaveButton.IsEnabled = fileError is null && error is null && !invalidCondition && DirtyMessage.IsVisible;
         Message.Text = "";
     }

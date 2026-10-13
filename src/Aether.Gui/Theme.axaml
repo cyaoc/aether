@@ -202,8 +202,13 @@
     <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
   </Style>
+  <!-- Fluent tops text in a box taller than its default; the 36 above would leave it sitting high. -->
+  <Style Selector="TextBox">
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
   <Style Selector="NumericUpDown">
     <Setter Property="ShowButtonSpinner" Value="False" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <Style Selector="MenuFlyoutPresenter">
     <Setter Property="Background" Value="{DynamicResource Surface.Card}" />

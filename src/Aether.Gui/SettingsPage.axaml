@@ -82,9 +82,9 @@
                 <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <TextBlock x:Name="RetentionError" Classes="error" />
                 <TextBlock Classes="label" Text="级别" Margin="0,8,0,0" />
-                <ComboBox x:Name="LevelInput" HorizontalAlignment="Stretch" AutomationProperties.Name="日志级别" />
-                <TextBlock x:Name="LevelReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-                <TextBlock x:Name="LevelError" Classes="error" />
+                <ComboBox x:Name="LogLevelInput" HorizontalAlignment="Stretch" AutomationProperties.Name="日志级别" />
+                <TextBlock x:Name="LogLevelReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+                <TextBlock x:Name="LogLevelError" Classes="error" />
                 <Button Content="打开设置文件" Click="OpenFile" />
                 <TextBlock x:Name="UnknownKeysMessage" Classes="hint" />
               </StackPanel>
@@ -138,11 +138,11 @@
                     <TextBlock Classes="hint" Text="现在不会欢迎任何人。点下面的“添加条件”，选要欢迎哪些观众。" />
                   </StackPanel>
                 </Grid>
-                <TextBlock x:Name="ConditionsReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+                <TextBlock x:Name="ConditionsReadOnly" Classes="hint" TextWrapping="Wrap" />
                 <Button x:Name="AddConditionButton" Content="＋ 添加条件" HorizontalAlignment="Left">
                   <Button.Flyout>
                     <MenuFlyout Placement="BottomEdgeAlignedLeft">
-                      <MenuItem Tag="{x:Static core:WelcomeCondition.Uid}" Click="AddWelcomeCondition" AutomationProperties.Name="添加指定观众条件">
+                      <MenuItem Tag="{x:Static core:WelcomeCondition.Uid}" Click="AddConditionFromMenu" AutomationProperties.Name="添加指定观众条件">
                         <MenuItem.Header>
                           <StackPanel Spacing="3" Margin="0,3">
                             <TextBlock Classes="label" Text="指定观众" />
@@ -150,7 +150,7 @@
                           </StackPanel>
                         </MenuItem.Header>
                       </MenuItem>
-                      <MenuItem Tag="{x:Static core:WelcomeCondition.FanClubLevel}" Click="AddWelcomeCondition" AutomationProperties.Name="添加粉丝团等级条件">
+                      <MenuItem Tag="{x:Static core:WelcomeCondition.FanClubLevel}" Click="AddConditionFromMenu" AutomationProperties.Name="添加粉丝团等级条件">
                         <MenuItem.Header>
                           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,3">
                             <StackPanel Spacing="3">
@@ -161,7 +161,7 @@
                           </Grid>
                         </MenuItem.Header>
                       </MenuItem>
-                      <MenuItem Tag="{x:Static core:WelcomeCondition.Guard}" Click="AddWelcomeCondition" AutomationProperties.Name="添加大航海身份条件">
+                      <MenuItem Tag="{x:Static core:WelcomeCondition.Guard}" Click="AddConditionFromMenu" AutomationProperties.Name="添加大航海身份条件">
                         <MenuItem.Header>
                           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,3">
                             <StackPanel Spacing="3">
@@ -172,7 +172,7 @@
                           </Grid>
                         </MenuItem.Header>
                       </MenuItem>
-                      <MenuItem Tag="{x:Static core:WelcomeCondition.WealthLevel}" Click="AddWelcomeCondition" AutomationProperties.Name="添加荣耀等级条件">
+                      <MenuItem Tag="{x:Static core:WelcomeCondition.WealthLevel}" Click="AddConditionFromMenu" AutomationProperties.Name="添加荣耀等级条件">
                         <MenuItem.Header>
                           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,3">
                             <StackPanel Spacing="3">
