@@ -38,15 +38,13 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         // Each default is written twice, in Template and in its definition; this keeps the two from drifting apart.
         var fromTemplate = Settings.Load(harness.DataDirectory);
-        Write("log:\nblind_box:\nsend:\n");
+        Assert.Null(fromTemplate.Error);
+        // Keep every group present so Load cannot fill it from Template and hide a mismatched definition default.
+        Write(string.Concat(Settings.AllDefinitions.Select(definition => definition.Group).Distinct().Select(group => group + ":\n")));
         var missing = Settings.Load(harness.DataDirectory);
-        Assert.Equal(missing.LogRetentionDays.Value, fromTemplate.LogRetentionDays.Value);
-        Assert.Equal(missing.LogLevel.Value, fromTemplate.LogLevel.Value);
-        Assert.Equal(missing.BlindBoxEnabled.Value, fromTemplate.BlindBoxEnabled.Value);
-        Assert.Equal(missing.BlindBoxKeyword.Value, fromTemplate.BlindBoxKeyword.Value);
-        Assert.Equal(missing.BlindBoxAnnounce.Value, fromTemplate.BlindBoxAnnounce.Value);
-        Assert.Equal(missing.SendIntervalSeconds.Value, fromTemplate.SendIntervalSeconds.Value);
-        Assert.Equal(1, missing.SendIntervalSeconds.Value);
+        Assert.Null(missing.Error);
+        foreach (var definition in Settings.AllDefinitions)
+            Assert.Equal(definition.GetValue(missing), definition.GetValue(fromTemplate));
     }
 
     [Fact]

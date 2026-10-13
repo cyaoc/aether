@@ -67,6 +67,7 @@ public sealed class Settings
 
     // Static fields initialise in text order: this list must stay above every Register(...) below.
     private static readonly List<Definition> Definitions = [];
+    internal static IReadOnlyList<Definition> AllDefinitions => Definitions;
     private static readonly Definition<int> RetentionDays = Register(Definition.Number("log.retention_days", 30, "必须为正整数。", days => days > 0));
     /// <summary>The values log.level accepts, in order.</summary>
     public static IReadOnlyList<LogLevel> LogLevels { get; } =
@@ -412,6 +413,7 @@ public sealed class Settings
         public abstract string? Validate(string? text);
         /// <summary>The one-line YAML written for valid text, quoted wherever YAML needs it.</summary>
         public abstract string Format(string text);
+        public abstract object? GetValue(Settings settings);
         public abstract bool CanEdit(Settings settings);
         /// <summary>Whether <paramref name="settings"/> already holds the value of this valid text.</summary>
         public abstract bool Holds(Settings settings, string text);
@@ -521,6 +523,7 @@ public sealed class Settings
         /// <summary>The value of valid text.</summary>
         public T Parse(string text) => parse(text).Value;
         public override string Format(string text) => format(Parse(text));
+        public override object? GetValue(Settings settings) => settings.Get(this).Value;
         public override bool CanEdit(Settings settings) => settings.Get(this).CanEdit;
         public override bool Holds(Settings settings, string text) => Format(text) == format(settings.Get(this).Value);
         public override void MarkEditable(Settings settings, bool canEdit) => settings.values[this] = settings.Get(this) with { CanEdit = canEdit };
