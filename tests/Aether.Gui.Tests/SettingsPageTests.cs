@@ -459,22 +459,30 @@ public sealed class SettingsPageTests
         WithSettingsPage(SettingsSection.BlindBox, "# 保留\nblind_box:\n  enabled: true\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
-            var keyword = window.FindControl<TextBox>("KeywordInput");
+            var keyword = window.FindControl<TextBox>("DailyKeywordInput");
+            var monthly = window.FindControl<TextBox>("MonthlyKeywordInput");
             var send = new SettingsPage(Path.GetDirectoryName(path)!, SettingsSection.Send);
             var interval = send.FindControl<NumericUpDown>("SendIntervalInput");
             Assert.NotNull(keyword);
+            Assert.NotNull(monthly);
             Assert.NotNull(interval);
             Assert.Equal("今日盲盒", keyword.Text);
+            Assert.Equal("本月盲盒", monthly.Text);
             Assert.Equal("1", interval.Text);
             var save = window.FindControl<Button>("SaveButton")!;
             keyword.Text = " ";
             Dispatcher.UIThread.RunJobs();
             Assert.False(save.IsEnabled);
-            Assert.Contains("blind_box.keyword", window.FindControl<TextBlock>("KeywordError")!.Text);
+            Assert.Contains("blind_box.daily_keyword", window.FindControl<TextBlock>("DailyKeywordError")!.Text);
             keyword.Text = "查盲盒";
+            monthly.Text = " ";
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(save.IsEnabled);
+            Assert.Contains("blind_box.monthly_keyword", window.FindControl<TextBlock>("MonthlyKeywordError")!.Text);
+            monthly.Text = "查月盲盒";
             Dispatcher.UIThread.RunJobs();
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  keyword: 查盲盒\n"), File.ReadAllText(path));
+            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n"), File.ReadAllText(path));
             ((Window)TopLevel.GetTopLevel(window)!).Content = send;
             GuiHarness.Flush();
             save = send.FindControl<Button>("SaveButton")!;
@@ -487,19 +495,20 @@ public sealed class SettingsPageTests
             Dispatcher.UIThread.RunJobs();
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  keyword: 查盲盒\n")
+            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n")
                 .Replace("interval_seconds: 1", "interval_seconds: 7"), File.ReadAllText(path));
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
-            Assert.Equal("查盲盒", settings.BlindBoxKeyword.Value);
+            Assert.Equal("查盲盒", settings.BlindBoxDailyKeyword.Value);
+            Assert.Equal("查月盲盒", settings.BlindBoxMonthlyKeyword.Value);
             Assert.Equal(7, settings.SendIntervalSeconds.Value);
         });
 
     [Fact]
     public Task Multiline_blind_box_tally_and_send_queue_fields_are_read_only_and_preserved() =>
-        WithSettingsPage(SettingsSection.BlindBox, "blind_box:\n  keyword: |-\n    查盲盒\nsend:\n  interval_seconds: |-\n    7\n", (window, path) =>
+        WithSettingsPage(SettingsSection.BlindBox, "blind_box:\n  daily_keyword: |-\n    查盲盒\n  monthly_keyword: |-\n    查月盲盒\nsend:\n  interval_seconds: |-\n    7\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
-            var keyword = window.FindControl<TextBox>("KeywordInput");
+            var keyword = window.FindControl<TextBox>("DailyKeywordInput");
             var interval = window.FindControl<NumericUpDown>("SendIntervalInput");
             Assert.NotNull(keyword);
             Assert.NotNull(interval);
@@ -507,7 +516,11 @@ public sealed class SettingsPageTests
             Assert.Equal("查盲盒", keyword.Text);
             Assert.True(interval.IsReadOnly);
             Assert.False(interval.AllowSpin);
-            Assert.True(window.FindControl<TextBlock>("KeywordReadOnly")!.IsVisible);
+            Assert.True(window.FindControl<TextBlock>("DailyKeywordReadOnly")!.IsVisible);
+            var monthly = window.FindControl<TextBox>("MonthlyKeywordInput")!;
+            Assert.True(monthly.IsReadOnly);
+            Assert.Equal("查月盲盒", monthly.Text);
+            Assert.True(window.FindControl<TextBlock>("MonthlyKeywordReadOnly")!.IsVisible);
             Assert.True(window.FindControl<TextBlock>("SendIntervalReadOnly")!.IsVisible);
             window.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
             window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

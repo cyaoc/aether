@@ -10,6 +10,48 @@ namespace Aether.Core.Tests;
 
 public sealed class BlindBoxReplyTests
 {
+    [Fact]
+    public async Task Daily_and_monthly_queries_queue_separately_and_only_duplicates_of_the_same_period_merge()
+    {
+        await using var h = new WatchHarness();
+        h.Time.SetUtcNow(new DateTimeOffset(2024, 12, 1, 12, 0, 0, TimeSpan.FromHours(8)));
+        await h.LoginAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
+        var sent = CaptureSends(h);
+        var release = HoldSends(h, attempt: 1);
+        await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
+        await DanmakuAsync(h, updates, uid: 20002);
+        await NextSendAsync(sent);
+        await DanmakuAsync(h, updates, id: "daily");
+        await DanmakuAsync(h, updates, "本月盲盒", id: "monthly");
+        await DanmakuAsync(h, updates, id: "daily-duplicate");
+        await DanmakuAsync(h, updates, "本月盲盒", id: "monthly-duplicate");
+        await h.PushAndSyncAsync(updates);
+        release.SetResult();
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
+        h.Time.Advance(TimeSpan.FromSeconds(1));
+        var daily = await NextSendAsync(sent);
+        Assert.Equal("daily", daily["replay_dmid"]);
+        Assert.Equal("今日投入50电池 亏35电池", daily["msg"]);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1), count: 2);
+        h.Time.Advance(TimeSpan.FromSeconds(1));
+        var monthly = await NextSendAsync(sent);
+        Assert.Equal("monthly", monthly["replay_dmid"]);
+        Assert.Equal("本月投入50电池 亏35电池", monthly["msg"]);
+        await h.WaitForLogAsync("发送弹幕成功：回复观众 观众（10001）：本月");
+        Assert.Equal(2, h.Logger.Entries.Count(e => e.Level == LogLevel.Debug && e.Message.Contains("合并到这一项")));
+        foreach (var period in new[] { "今日", "本月" })
+        {
+            Assert.Contains(h.Logger.Entries, e => e.Message.Contains(period) && e.Message.Contains("进队：观众 观众（10001）"));
+            Assert.Contains(h.Logger.Entries, e => e.Level == LogLevel.Debug && e.Message.Contains(period) && e.Message.Contains("合并到这一项"));
+        }
+        h.Time.Advance(TimeSpan.FromSeconds(5));
+        await AssertNoSendAsync(sent);
+        await DanmakuAsync(h, updates, "本月盲盒", id: "monthly-next");
+        Assert.Equal("monthly-next", (await NextSendAsync(sent))["replay_dmid"]);
+    }
+
     [Theory]
     [InlineData(1, 4)]
     [InlineData(3, 3)]
@@ -274,15 +316,15 @@ public sealed class BlindBoxReplyTests
     }
 
     [Theory]
-    [InlineData(6500, "投入50电池 赚15电池")]
-    [InlineData(1500, "投入50电池 亏35电池")]
-    [InlineData(5000, "投入50电池 不赚不亏")]
+    [InlineData(6500, "今日投入50电池 赚15电池")]
+    [InlineData(1500, "今日投入50电池 亏35电池")]
+    [InlineData(5000, "今日投入50电池 不赚不亏")]
     [InlineData(-1, "今日没有盲盒记录")]
-    [InlineData(6510, "投入50电池 赚15.1电池")]
+    [InlineData(6510, "今日投入50电池 赚15.1电池")]
     // Amounts are rounded to one decimal first, so the words always match the number shown.
-    [InlineData(5003, "投入50电池 不赚不亏")]
-    [InlineData(5095, "投入50电池 赚1电池")]
-    [InlineData(1095, "投入11电池 不赚不亏", 1095)]
+    [InlineData(5003, "今日投入50电池 不赚不亏")]
+    [InlineData(5095, "今日投入50电池 赚1电池")]
+    [InlineData(1095, "今日投入11电池 不赚不亏", 1095)]
     public async Task Keyword_replies_to_the_viewer_with_todays_tally(int price, string expected, int spend = 5000)
     {
         await using var h = new WatchHarness();
@@ -310,12 +352,17 @@ public sealed class BlindBoxReplyTests
             && e.Message.Contains("10001") && e.Message.Contains(expected));
     }
 
-    [Fact]
-    public async Task Tally_uses_only_this_viewer_this_room_and_the_received_Beijing_day()
+    [Theory]
+    [InlineData("今日盲盒", "今日", 2024, 11, 27)]
+    [InlineData("本月盲盒", "本月", 2024, 2, 1)]
+    [InlineData("本月盲盒", "本月", 2024, 12, 1)]
+    public async Task Tally_uses_only_this_viewer_this_room_and_the_received_Beijing_period(
+        string keyword, string prefix, int year, int month, int day)
     {
         await using var h = new WatchHarness();
-        var midnight = new DateTimeOffset(2024, 11, 27, 0, 0, 0, TimeSpan.FromHours(8));
-        h.Time.SetUtcNow(midnight.AddHours(12).AddSeconds(-2));
+        var midnight = new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.FromHours(8));
+        var end = prefix == "今日" ? midnight.AddDays(1) : midnight.AddMonths(1);
+        h.Time.SetUtcNow(midnight.AddDays(prefix == "本月" ? 14 : 0).AddHours(12).AddSeconds(-2));
         h.Time.SetLocalTimeZone(TimeZoneInfo.CreateCustomTimeZone("test", TimeSpan.FromHours(-7), "test", "test"));
         await h.LoginAsync();
         var sent = CaptureSends(h);
@@ -328,17 +375,20 @@ public sealed class BlindBoxReplyTests
         await using var updates = await h.WatchConnectedAsync();
         await h.Server.PushRoomMessageAsync(Gift(midnight.AddSeconds(-1), price: 99900));
         await h.Server.PushRoomMessageAsync(Gift(midnight, price: 6000));
-        await h.Server.PushRoomMessageAsync(Gift(midnight.AddDays(1).AddSeconds(-1), price: 7000));
-        await h.Server.PushRoomMessageAsync(Gift(midnight.AddDays(1), price: 99900));
+        await h.Server.PushRoomMessageAsync(Gift(end.AddSeconds(-1), price: 7000));
+        await h.Server.PushRoomMessageAsync(Gift(end, price: 99900));
         await h.Server.PushRoomMessageAsync(Gift(midnight, uid: 20002, price: 99900));
-        await DanmakuAsync(h, updates);
-        Assert.Equal("投入100电池 赚30电池", (await NextSendAsync(sent))["msg"]);
+        await DanmakuAsync(h, updates, keyword);
+        Assert.Equal($"{prefix}投入100电池 赚30电池", (await NextSendAsync(sent))["msg"]);
     }
 
     [Theory]
     [InlineData("今日盲盒呢", 10001, true)]
     [InlineData("今日盲盒", 0, true)]
     [InlineData("今日盲盒", 10001, false)]
+    [InlineData("本月盲盒呢", 10001, true)]
+    [InlineData("本月盲盒", 0, true)]
+    [InlineData("本月盲盒", 10001, false)]
     public async Task Only_exact_keywords_with_known_viewers_and_enabled_tally_trigger(string text, long uid, bool enabled)
     {
         await using var h = new WatchHarness();
@@ -356,7 +406,7 @@ public sealed class BlindBoxReplyTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.keyword"] = "查盲盒" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.daily_keyword"] = "查盲盒" });
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates, "今日盲盒");
@@ -365,26 +415,28 @@ public sealed class BlindBoxReplyTests
         Assert.False(sent.Reader.TryRead(out _));
     }
 
-    [Fact]
-    public async Task Send_queue_waits_the_configured_interval_and_queries_at_send_time_but_keeps_the_trigger_day()
+    [Theory]
+    [InlineData("今日盲盒", "今日")]
+    [InlineData("本月盲盒", "本月")]
+    public async Task Send_queue_waits_the_configured_interval_and_queries_at_send_time_but_keeps_the_trigger_period(string keyword, string prefix)
     {
         await using var h = new WatchHarness();
-        var beforeMidnight = new DateTimeOffset(2024, 11, 27, 23, 59, 59, TimeSpan.FromHours(8));
+        var beforeMidnight = new DateTimeOffset(2024, 12, 31, 23, 59, 59, TimeSpan.FromHours(8));
         h.Time.SetUtcNow(beforeMidnight.AddSeconds(-2));
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["send.interval_seconds"] = "7" });
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
-        await DanmakuAsync(h, updates, uid: 20002);
-        Assert.Equal("今日没有盲盒记录", (await NextSendAsync(sent))["msg"]);
+        await DanmakuAsync(h, updates, keyword, uid: 20002);
+        Assert.Equal($"{prefix}没有盲盒记录", (await NextSendAsync(sent))["msg"]);
         await h.WaitForLogAsync(LogLevel.Information, "发送弹幕成功");
-        await DanmakuAsync(h, updates);
+        await DanmakuAsync(h, updates, keyword);
         await h.PushAndSyncAsync(updates, Gift(beforeMidnight, price: 5010, spend: 4010), Gift(beforeMidnight.AddSeconds(1), price: 99900));
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(7));
         h.Time.Advance(TimeSpan.FromMilliseconds(6999));
         await AssertNoSendAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
-        Assert.Equal("投入40.1电池 赚10电池", (await NextSendAsync(sent))["msg"]);
+        Assert.Equal($"{prefix}投入40.1电池 赚10电池", (await NextSendAsync(sent))["msg"]);
     }
 
     [Theory]
@@ -471,16 +523,37 @@ public sealed class BlindBoxReplyTests
         Assert.Contains(h.Logger.Entries, e => e.Level == LogLevel.Information && e.Message.Contains("丢掉 1 条"));
     }
 
-    [Fact]
-    public async Task Keyword_saved_with_surrounding_spaces_still_matches_the_trimmed_danmaku()
+    [Theory]
+    [InlineData("daily_keyword", "今日")]
+    [InlineData("monthly_keyword", "本月")]
+    public async Task Keyword_saved_with_surrounding_spaces_still_matches_the_trimmed_danmaku(string key, string prefix)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.keyword"] = " 查盲盒 " });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { [$"blind_box.{key}"] = " 查盲盒 " });
+        var sent = CaptureSends(h);
+        await using var updates = await h.WatchConnectedAsync();
+        await DanmakuAsync(h, updates, " \t查盲盒 \n");
+        Assert.Equal($"{prefix}没有盲盒记录", (await NextSendAsync(sent))["msg"]);
+    }
+
+    [Fact]
+    public async Task Identical_keywords_only_trigger_the_daily_query()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string>
+        {
+            ["blind_box.daily_keyword"] = " 查盲盒 ", ["blind_box.monthly_keyword"] = "查盲盒"
+        });
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates, "查盲盒");
         Assert.Equal("今日没有盲盒记录", (await NextSendAsync(sent))["msg"]);
+        await h.WaitForLogAsync("发送弹幕成功");
+        h.Time.Advance(TimeSpan.FromSeconds(5));
+        await AssertNoSendAsync(sent);
+        Assert.Single(h.Logger.Entries, e => e.Message.Contains("进队："));
     }
 
     [Theory]

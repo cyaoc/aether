@@ -23,7 +23,7 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Assert.Contains("announce: true", File.ReadAllText(SettingsPath));
-        Write("welcome:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  keyword: 今日盲盒 # 关键字\n");
+        Write("welcome:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 今日盲盒 # 关键字\n");
         var before = File.ReadAllText(SettingsPath);
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
@@ -63,31 +63,41 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         Settings.Load(harness.DataDirectory);
         var template = File.ReadAllText(SettingsPath);
-        Assert.Contains("keyword: 今日盲盒", template);
+        Assert.Contains("daily_keyword: 今日盲盒", template);
+        Assert.Contains("monthly_keyword: 本月盲盒", template);
         Assert.Contains("interval_seconds: 1", template);
         // Group comments say when settings apply; each item describes its accepted values.
         var lines = template.ReplaceLineEndings("\n").Split('\n');
         Assert.Equal("# 盲盒统计，下次观看直播间时生效", lines[Array.FindIndex(lines, line => line == "blind_box:") - 1]);
-        Assert.Equal("  # 查询关键字，非空文字", lines[Array.FindIndex(lines, line => line.Contains("keyword: 今日盲盒")) - 1]);
+        Assert.Equal("  # 今日查询关键字，非空文字", lines[Array.FindIndex(lines, line => line.Contains("daily_keyword: 今日盲盒")) - 1]);
+        Assert.Equal("  # 本月查询关键字，非空文字；和今日关键字相同时只回复今日", lines[Array.FindIndex(lines, line => line.Contains("monthly_keyword: 本月盲盒")) - 1]);
         Assert.Contains("下次观看直播间时生效", lines[Array.FindIndex(lines, line => line == "send:") - 1]);
-        Assert.Null(Settings.Validate("blind_box.keyword", "查盲盒"));
+        Assert.Null(Settings.Validate("blind_box.daily_keyword", "查盲盒"));
+        Assert.Null(Settings.Validate("blind_box.monthly_keyword", "查月盲盒"));
         Assert.Null(Settings.Validate("send.interval_seconds", "7"));
         Write("# 保留\nblind_box:\n  enabled: true\n");
         Settings.Save(harness.DataDirectory, new Dictionary<string, string>
         {
-            ["blind_box.keyword"] = "查盲盒", ["send.interval_seconds"] = "7",
+            ["blind_box.daily_keyword"] = "查盲盒", ["blind_box.monthly_keyword"] = "查月盲盒", ["send.interval_seconds"] = "7",
         });
-        Assert.Equal("# 保留\nblind_box:\n  enabled: true\n  keyword: 查盲盒\nsend:\n  interval_seconds: 7\n", File.ReadAllText(SettingsPath));
+        Assert.Equal("# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\nsend:\n  interval_seconds: 7\n", File.ReadAllText(SettingsPath));
         Assert.Empty(Settings.Load(harness.DataDirectory).UnknownKeys);
-        Assert.Equal("查盲盒", Settings.Load(harness.DataDirectory).BlindBoxKeyword.Value);
+        Assert.Equal("查盲盒", Settings.Load(harness.DataDirectory).BlindBoxDailyKeyword.Value);
+        Assert.Equal("查月盲盒", Settings.Load(harness.DataDirectory).BlindBoxMonthlyKeyword.Value);
         Assert.Equal(7, Settings.Load(harness.DataDirectory).SendIntervalSeconds.Value);
     }
 
     [Theory]
-    [InlineData("blind_box", "keyword", "''")]
-    [InlineData("blind_box", "keyword", "'   '")]
-    [InlineData("blind_box", "keyword", "")]
-    [InlineData("blind_box", "keyword", "[]")]
+    [InlineData("blind_box", "daily_keyword", "''")]
+    [InlineData("blind_box", "daily_keyword", "'   '")]
+    [InlineData("blind_box", "daily_keyword", "")]
+    [InlineData("blind_box", "daily_keyword", "[]")]
+    [InlineData("blind_box", "daily_keyword", "\"两行\\n文字\"")]
+    [InlineData("blind_box", "monthly_keyword", "''")]
+    [InlineData("blind_box", "monthly_keyword", "'   '")]
+    [InlineData("blind_box", "monthly_keyword", "")]
+    [InlineData("blind_box", "monthly_keyword", "[]")]
+    [InlineData("blind_box", "monthly_keyword", "\"两行\\n文字\"")]
     [InlineData("blind_box", "announce", "yes")]
     [InlineData("blind_box", "announce", "True")]
     [InlineData("blind_box", "announce", "0")]
@@ -111,9 +121,12 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("blind_box.keyword", "")]
-    [InlineData("blind_box.keyword", " \t ")]
-    [InlineData("blind_box.keyword", "两行\n文字")]
+    [InlineData("blind_box.daily_keyword", "")]
+    [InlineData("blind_box.daily_keyword", " \t ")]
+    [InlineData("blind_box.daily_keyword", "两行\n文字")]
+    [InlineData("blind_box.monthly_keyword", "")]
+    [InlineData("blind_box.monthly_keyword", " \t ")]
+    [InlineData("blind_box.monthly_keyword", "两行\n文字")]
     [InlineData("blind_box.announce", "False")]
     [InlineData("send.interval_seconds", "0")]
     [InlineData("send.interval_seconds", "1.5")]
@@ -132,10 +145,15 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         Write("log:\n  level: Debug\n");
         var settings = Settings.Load(harness.DataDirectory);
-        Assert.Equal("今日盲盒", settings.BlindBoxKeyword.Value);
+        Assert.Equal("今日盲盒", settings.BlindBoxDailyKeyword.Value);
+        Assert.Equal("本月盲盒", settings.BlindBoxMonthlyKeyword.Value);
         Assert.Equal(1, settings.SendIntervalSeconds.Value);
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.keyword"] = "#盲盒: 查询" });
-        Assert.Equal("#盲盒: 查询", Settings.Load(harness.DataDirectory).BlindBoxKeyword.Value);
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string>
+        {
+            ["blind_box.daily_keyword"] = "#盲盒: 查询", ["blind_box.monthly_keyword"] = "#本月: 查询"
+        });
+        Assert.Equal("#盲盒: 查询", Settings.Load(harness.DataDirectory).BlindBoxDailyKeyword.Value);
+        Assert.Equal("#本月: 查询", Settings.Load(harness.DataDirectory).BlindBoxMonthlyKeyword.Value);
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
     }
 
@@ -211,7 +229,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(before, after[..before.Length]);
         var appended = encoding.GetString(after[before.Length..]).ReplaceLineEndings("\n");
         Assert.StartsWith(finalNewline ? "\n# " : "\n\n# ", appended); // A blank line, as between the template's groups.
-        Assert.Contains("# 盲盒统计，下次观看直播间时生效\nblind_box:\n  # true 或 false，false 时既不记录，也不回复和播报\n  enabled: true\n  # 查询关键字，非空文字\n  keyword: 今日盲盒\n", appended);
+        Assert.Contains("# 盲盒统计，下次观看直播间时生效\nblind_box:\n  # true 或 false，false 时既不记录，也不回复和播报\n  enabled: true\n  # 今日查询关键字，非空文字\n  daily_keyword: 今日盲盒\n", appended);
         Assert.Contains("# 发送队列，下次观看直播间时生效\nsend:\n  # 两次发送之间的秒数，必须为正整数\n  interval_seconds: 1\n", appended);
         Assert.DoesNotContain("retention_days", appended);
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
@@ -537,6 +555,18 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(LogLevel.Warning, warning.Level);
         Assert.Contains("log.leve", warning.Message);
         Assert.Contains("future.option", warning.Message);
+    }
+
+    [Fact]
+    public void Old_blind_box_keyword_is_warned_as_unknown_and_new_keywords_keep_their_defaults()
+    {
+        Write("blind_box:\n  keyword: 旧查询\n");
+        var settings = Settings.Load(harness.DataDirectory, harness.Logger);
+        Assert.Null(settings.Error);
+        Assert.Equal("今日盲盒", settings.BlindBoxDailyKeyword.Value);
+        Assert.Equal("本月盲盒", settings.BlindBoxMonthlyKeyword.Value);
+        Assert.Equal(["blind_box.keyword"], settings.UnknownKeys);
+        Assert.Contains(harness.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("blind_box.keyword"));
     }
 
     [Theory]

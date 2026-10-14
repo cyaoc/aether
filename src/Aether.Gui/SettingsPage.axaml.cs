@@ -62,7 +62,8 @@ public partial class SettingsPage : UserControl
                 if (e.Property == NumericUpDown.TextProperty) Validate();
             };
         LogLevelInput.SelectionChanged += (_, _) => Validate();
-        KeywordInput.TextChanged += (_, _) => Validate();
+        DailyKeywordInput.TextChanged += (_, _) => Validate();
+        MonthlyKeywordInput.TextChanged += (_, _) => Validate();
         WelcomeTextInput.TextChanged += (_, _) => Validate();
         foreach (var toggle in new[] { BlindBoxInput, AnnounceInput, WelcomeInput })
             toggle.PropertyChanged += (_, e) =>
@@ -94,7 +95,8 @@ public partial class SettingsPage : UserControl
         Show(RetentionInput, RetentionReadOnly, settings.LogRetentionDays);
         Show(LogLevelInput, LogLevelReadOnly, settings.LogLevel);
         Show(BlindBoxInput, BlindBoxReadOnly, settings.BlindBoxEnabled);
-        Show(KeywordInput, KeywordReadOnly, settings.BlindBoxKeyword);
+        Show(DailyKeywordInput, DailyKeywordReadOnly, settings.BlindBoxDailyKeyword);
+        Show(MonthlyKeywordInput, MonthlyKeywordReadOnly, settings.BlindBoxMonthlyKeyword);
         Show(AnnounceInput, AnnounceReadOnly, settings.BlindBoxAnnounce);
         Show(SendIntervalInput, SendIntervalReadOnly, settings.SendIntervalSeconds);
         Show(WelcomeInput, WelcomeReadOnly, settings.WelcomeEnabled);
@@ -168,7 +170,8 @@ public partial class SettingsPage : UserControl
         new(settings.LogRetentionDays.Name, settings.LogRetentionDays.CanEdit, RetentionInput.Text, RetentionError),
         new(settings.LogLevel.Name, settings.LogLevel.CanEdit, LogLevelInput.SelectedItem?.ToString(), LogLevelError),
         new(settings.BlindBoxEnabled.Name, settings.BlindBoxEnabled.CanEdit, Settings.BooleanText(BlindBoxInput.IsChecked == true), BlindBoxError),
-        new(settings.BlindBoxKeyword.Name, settings.BlindBoxKeyword.CanEdit, KeywordInput.Text, KeywordError),
+        new(settings.BlindBoxDailyKeyword.Name, settings.BlindBoxDailyKeyword.CanEdit, DailyKeywordInput.Text, DailyKeywordError),
+        new(settings.BlindBoxMonthlyKeyword.Name, settings.BlindBoxMonthlyKeyword.CanEdit, MonthlyKeywordInput.Text, MonthlyKeywordError),
         new(settings.BlindBoxAnnounce.Name, settings.BlindBoxAnnounce.CanEdit, Settings.BooleanText(AnnounceInput.IsChecked == true), AnnounceError),
         new(settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text, SendIntervalError),
         new(settings.WelcomeEnabled.Name, settings.WelcomeEnabled.CanEdit, Settings.BooleanText(WelcomeInput.IsChecked == true), WelcomeError),

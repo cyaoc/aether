@@ -33,8 +33,10 @@ public sealed class Settings
         blind_box:
           # true 或 false，false 时既不记录，也不回复和播报
           enabled: true
-          # 查询关键字，非空文字
-          keyword: 今日盲盒
+          # 今日查询关键字，非空文字
+          daily_keyword: 今日盲盒
+          # 本月查询关键字，非空文字；和今日关键字相同时只回复今日
+          monthly_keyword: 本月盲盒
           # true 或 false，送完一轮盲盒后主动 @ 播报这一轮的投入和盈亏
           announce: true
 
@@ -80,7 +82,8 @@ public sealed class Settings
     private static readonly Definition<LogLevel> Level =
         Register(Definition.Choice("log.level", Microsoft.Extensions.Logging.LogLevel.Information, LogLevels));
     private static readonly Definition<bool> Enabled = Register(Definition.Boolean("blind_box.enabled", true));
-    private static readonly Definition<string> Keyword = Register(Definition.RequiredText("blind_box.keyword", "今日盲盒"));
+    private static readonly Definition<string> DailyKeyword = Register(Definition.RequiredText("blind_box.daily_keyword", "今日盲盒"));
+    private static readonly Definition<string> MonthlyKeyword = Register(Definition.RequiredText("blind_box.monthly_keyword", "本月盲盒"));
     private static readonly Definition<bool> Announce = Register(Definition.Boolean("blind_box.announce", true));
     private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 1, "必须为正整数。", seconds => seconds > 0));
     private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome.enabled", false));
@@ -103,7 +106,8 @@ public sealed class Settings
     public Setting<int> LogRetentionDays => Get(RetentionDays);
     public Setting<LogLevel> LogLevel => Get(Level);
     public Setting<bool> BlindBoxEnabled => Get(Enabled);
-    public Setting<string> BlindBoxKeyword => Get(Keyword);
+    public Setting<string> BlindBoxDailyKeyword => Get(DailyKeyword);
+    public Setting<string> BlindBoxMonthlyKeyword => Get(MonthlyKeyword);
     public Setting<bool> BlindBoxAnnounce => Get(Announce);
     public Setting<int> SendIntervalSeconds => Get(SendInterval);
     public Setting<bool> WelcomeEnabled => Get(WelcomeOn);
