@@ -115,15 +115,16 @@ public sealed class SendQueuePageTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(2)]
-    [InlineData(30)]
-    public Task Two_pending_records_fit_in_full_and_larger_queues_use_at_most_half_the_space(int count) => HeadlessApp.Session.Dispatch(async () =>
+    [InlineData(760, 520, 0)]
+    [InlineData(760, 520, 2)]
+    [InlineData(760, 520, 30)]
+    [InlineData(960, 640, 30)]
+    public Task The_first_two_pending_records_stay_whole_and_longer_queues_take_at_most_half_when_it_fits(int width, int height, int count) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
         var viewModel = harness.CreateViewModel();
-        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, Width = 760, Height = 520 };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, Width = width, Height = height };
         window.Show();
         try
         {
@@ -135,35 +136,42 @@ public sealed class SendQueuePageTests
             var activity = page.FindControl<Grid>("SendActivity")!;
             var list = page.FindControl<ListBox>("PendingSendsList")!;
             var recent = activity.GetVisualDescendants().OfType<TextBlock>().Single(x => x.Text == "最近发送");
-            var recentTop = recent.TranslatePoint(default, activity)!.Value.Y;
             if (count == 0)
             {
                 var empty = activity.GetVisualDescendants().OfType<TextBlock>().Single(x => x.Text == "暂无待发弹幕");
+                var recentTop = recent.TranslatePoint(default, activity)!.Value.Y;
                 Assert.InRange(recentTop - empty.TranslatePoint(new Point(0, empty.Bounds.Height), activity)!.Value.Y, 12, 26);
             }
-            else if (count == 2) AssertTwoVisible();
+            else if (count == 2) AssertFirstTwoWhole(trailingSpace: 12);
             else
             {
-                Assert.True(list.TranslatePoint(new Point(0, list.Bounds.Height), activity)!.Value.Y <= activity.Bounds.Height / 2 + 1);
+                AssertFirstTwoWhole(trailingSpace: 0);
                 var viewer = list.GetVisualDescendants().OfType<ScrollViewer>().First();
                 Assert.True(viewer.Extent.Height > viewer.Viewport.Height);
+                // At the default size half the area already holds two records, so the queue stops there.
+                if (height == 640) AssertAtMostHalf();
                 for (var id = 1; id <= count - 2; id++)
                     viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxQuery, SendQueueItemState.Sent));
                 GuiHarness.Flush();
-                AssertTwoVisible();
+                AssertFirstTwoWhole(trailingSpace: 12);
+                // Going from two to three records keeps both visible instead of shrinking the area.
                 viewModel.Apply(Update(count + 1, SendQueueItemKind.Welcome));
                 GuiHarness.Flush();
-                Assert.True(list.TranslatePoint(new Point(0, list.Bounds.Height), activity)!.Value.Y <= activity.Bounds.Height / 2 + 1);
+                AssertFirstTwoWhole(trailingSpace: 0);
+                if (height == 640) AssertAtMostHalf();
             }
 
-            void AssertTwoVisible()
+            void AssertAtMostHalf() =>
+                Assert.True(list.TranslatePoint(new Point(0, list.Bounds.Height), activity)!.Value.Y <= activity.Bounds.Height / 2 + 1);
+
+            void AssertFirstTwoWhole(double trailingSpace)
             {
                 var first = list.ContainerFromIndex(0)!;
-                var last = list.ContainerFromIndex(1)!;
+                var second = list.ContainerFromIndex(1)!;
                 Assert.True(first.TranslatePoint(default, list)!.Value.Y >= 8);
-                var bottom = last.TranslatePoint(new Point(0, last.Bounds.Height), list)!.Value.Y;
-                Assert.True(bottom <= list.Bounds.Height - 12, $"Last row bottom {bottom}, list height {list.Bounds.Height}");
-                Assert.True(recent.TranslatePoint(default, activity)!.Value.Y > last.TranslatePoint(new Point(0, last.Bounds.Height), activity)!.Value.Y);
+                var bottom = second.TranslatePoint(new Point(0, second.Bounds.Height), list)!.Value.Y;
+                Assert.True(bottom <= list.Bounds.Height - trailingSpace + 0.5, $"Second row bottom {bottom}, list height {list.Bounds.Height}");
+                Assert.True(recent.TranslatePoint(default, activity)!.Value.Y > second.TranslatePoint(new Point(0, second.Bounds.Height), activity)!.Value.Y);
                 Assert.True(recent.TranslatePoint(new Point(0, recent.Bounds.Height), activity)!.Value.Y < activity.Bounds.Height);
             }
         }

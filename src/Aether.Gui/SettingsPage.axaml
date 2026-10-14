@@ -78,7 +78,7 @@
               <StackPanel x:Name="GeneralFields" Spacing="8">
                 <TextBlock Classes="label" Text="日志保留" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <NumericUpDown x:Name="RetentionInput" Classes.invalid="{Binding #RetentionError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日志保留天数" />
+                  <NumericUpDown x:Name="RetentionInput" Minimum="1" Classes.invalid="{Binding #RetentionError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日志保留天数" />
                   <TextBlock Classes="label" Text="天" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
@@ -112,7 +112,7 @@
               <StackPanel x:Name="SendFields" Spacing="8">
                 <TextBlock Classes="label" Text="发送间隔" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                  <NumericUpDown x:Name="SendIntervalInput" Classes.invalid="{Binding #SendIntervalError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="发送间隔秒数" />
+                  <NumericUpDown x:Name="SendIntervalInput" Minimum="1" Classes.invalid="{Binding #SendIntervalError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="发送间隔秒数" />
                   <TextBlock Classes="label" Text="秒" VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock x:Name="SendIntervalReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
@@ -208,7 +208,7 @@
                 <ListBox x:Name="PendingSendsList" Classes="plain" ItemsSource="{Binding PendingSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="待发弹幕" IsVisible="{Binding !!PendingSends.Count}" />
               </Panel>
             </Grid>
-            <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="0,12,0,0">
+            <Grid x:Name="RecentSendsActivity" Grid.Row="1" RowDefinitions="Auto,*" Margin="0,12,0,0">
               <Grid x:Name="RecentSendsHeader" ColumnDefinitions="*,Auto" Margin="20,0,20,2">
                 <TextBlock Text="最近发送" Classes="section" />
                 <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding RecentSends.Count, StringFormat={}{0:N0} 条}" />

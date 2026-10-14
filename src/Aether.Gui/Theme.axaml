@@ -232,8 +232,6 @@
     <Setter Property="ShowButtonSpinner" Value="True" />
     <Setter Property="Width" Value="120" />
     <Setter Property="HorizontalAlignment" Value="Left" />
-    <Setter Property="Minimum" Value="1" />
-    <Setter Property="Increment" Value="1" />
     <Setter Property="Padding" Value="6,0" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -273,10 +271,10 @@
     <Setter Property="BorderThickness" Value="1,0,0,0" />
     <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
   </Style>
-  <Style Selector="NumericUpDown[ShowButtonSpinner=True] /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton#PART_IncreaseButton" x:CompileBindings="False">
+  <Style Selector="NumericUpDown[ShowButtonSpinner=True] /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton#PART_IncreaseButton">
     <Setter Property="AutomationProperties.Name" Value="{Binding $parent[NumericUpDown].(AutomationProperties.Name), StringFormat={}{0}加 1}" />
   </Style>
-  <Style Selector="NumericUpDown[ShowButtonSpinner=True] /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton#PART_DecreaseButton" x:CompileBindings="False">
+  <Style Selector="NumericUpDown[ShowButtonSpinner=True] /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton#PART_DecreaseButton">
     <Setter Property="AutomationProperties.Name" Value="{Binding $parent[NumericUpDown].(AutomationProperties.Name), StringFormat={}{0}减 1}" />
   </Style>
   <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:pointerover /template/ ContentPresenter, NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:pressed /template/ ContentPresenter">
