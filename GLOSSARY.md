@@ -126,3 +126,16 @@ _Avoid_: 单说"等级"、用户等级、财富等级
 **设置 (Settings)**:
 决定 bot 行为的选项，写在设置文件里，CLI 和 GUI 共用。只影响 GUI 显示的选项叫"GUI 设置"，不能省掉前缀。
 _Avoid_: 配置
+
+## 发布
+
+**发布包 (Release Package)**:
+上传到 GitHub Release 的一个压缩包，装着 CLI 或 GUI 在一个平台上运行所需的全部文件，解压到可写的目录就能用，没有安装步骤。分独立版和需运行时版两种。
+_Avoid_: 安装包
+
+**独立版 (Self-contained Package)**:
+自带 .NET 运行时的发布包，解压就能运行，不用另装任何东西。一般用户下载这种。
+
+**需运行时版 (Framework-dependent Package)**:
+不带 .NET 运行时的发布包，体积小，要先装好 .NET 10 Runtime。
+_Avoid_: 普通版、精简版

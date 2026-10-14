@@ -1,0 +1,124 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  TAG: ${{ github.ref_name }}
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rids: win-x64
+            apps: cli gui
+          - os: ubuntu-latest
+            rids: linux-x64
+            apps: cli
+          - os: macos-latest
+            rids: osx-x64 osx-arm64
+            apps: cli gui
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+      - name: Validate version tag
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a version tag like v0.1.0, got: $TAG" >&2
+            exit 1
+          fi
+      - run: dotnet test -c Release
+      - name: Publish and package
+        env:
+          RIDS: ${{ matrix.rids }}
+          APPS: ${{ matrix.apps }}
+        run: |
+          version="${TAG#v}"
+          runner_arch=$(printf '%s' "$RUNNER_ARCH" | tr '[:upper:]' '[:lower:]')
+          mkdir -p artifacts/packages
+          for rid in $RIDS; do
+            for app in $APPS; do
+              project=src/Aether.Cli
+              if [[ "$app" == gui ]]; then project=src/Aether.Gui; fi
+              for self_contained in true false; do
+                package="aether-$app-$TAG-$rid"
+                if [[ "$self_contained" == false ]]; then package+="-framework-dependent"; fi
+                output="artifacts/staging/$package"
+                dotnet publish "$project" -c Release -r "$rid" --self-contained "$self_contained" \
+                  -p:Version="$version" -p:IncludeSourceRevisionInInformationalVersion=false -o "$output"
+                cp LICENSE "$output/"
+                if [[ "$app" == cli && "$rid" == *-"$runner_arch" ]]; then
+                  executable="$output/aether"
+                  if [[ "$rid" == win-* ]]; then executable+=".exe"; fi
+                  if ! actual_version=$("$executable" --version 2>&1 | tr -d '\r') || [[ "$actual_version" != "$version" ]]; then
+                    echo "Expected CLI version $version, got: $actual_version" >&2
+                    exit 1
+                  fi
+                fi
+                if [[ "$rid" == win-* ]]; then
+                  (cd artifacts/staging && python -m zipfile -c "../packages/$package.zip" "$package")
+                else
+                  COPYFILE_DISABLE=1 tar -czf "artifacts/packages/$package.tar.gz" -C artifacts/staging "$package"
+                fi
+              done
+            done
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages-${{ matrix.os }}
+          path: artifacts/packages/*
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: packages-*
+          path: artifacts/packages
+          merge-multiple: true
+      - name: Create release with all packages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          packages=(artifacts/packages/*)
+          if [[ "${#packages[@]}" != 14 ]]; then
+            echo "Expected 14 release packages, got: ${#packages[@]}" >&2
+            exit 1
+          fi
+          url="https://github.com/$GH_REPO/releases/download/$TAG"
+          cat > release-notes.md <<EOF
+          ## 该下载哪个包
+
+          | 系统 | 外壳 | 独立版（推荐，无需安装 .NET） | 需运行时版（需 .NET 10 Runtime） |
+          | --- | --- | --- | --- |
+          | Windows x64 | CLI | [下载]($url/aether-cli-$TAG-win-x64.zip) | [下载]($url/aether-cli-$TAG-win-x64-framework-dependent.zip) |
+          | Windows x64 | GUI | [下载]($url/aether-gui-$TAG-win-x64.zip) | [下载]($url/aether-gui-$TAG-win-x64-framework-dependent.zip) |
+          | Linux x64 | CLI | [下载]($url/aether-cli-$TAG-linux-x64.tar.gz) | [下载]($url/aether-cli-$TAG-linux-x64-framework-dependent.tar.gz) |
+          | macOS Intel | CLI | [下载]($url/aether-cli-$TAG-osx-x64.tar.gz) | [下载]($url/aether-cli-$TAG-osx-x64-framework-dependent.tar.gz) |
+          | macOS Intel | GUI | [下载]($url/aether-gui-$TAG-osx-x64.tar.gz) | [下载]($url/aether-gui-$TAG-osx-x64-framework-dependent.tar.gz) |
+          | macOS Apple Silicon | CLI | [下载]($url/aether-cli-$TAG-osx-arm64.tar.gz) | [下载]($url/aether-cli-$TAG-osx-arm64-framework-dependent.tar.gz) |
+          | macOS Apple Silicon | GUI | [下载]($url/aether-gui-$TAG-osx-arm64.tar.gz) | [下载]($url/aether-gui-$TAG-osx-arm64-framework-dependent.tar.gz) |
+
+          解压到可写目录。首次启动、macOS/Windows 放行和拷贝 data/ 升级的方法见 [下载说明](https://github.com/$GH_REPO/blob/$TAG/README.md#下载)。
+
+          EOF
+          gh release create "$TAG" "${packages[@]}" --verify-tag --title "$TAG" \
+            --notes-file release-notes.md --generate-notes
