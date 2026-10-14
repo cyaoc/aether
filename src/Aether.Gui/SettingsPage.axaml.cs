@@ -49,6 +49,11 @@ public partial class SettingsPage : UserControl
         {
             FieldsAndSendActivity.RowDefinitions[0].Height = GridLength.Auto;
             FieldsAndSendActivity.RowDefinitions[1].Height = GridLength.Star;
+            SendActivity.SizeChanged += (_, _) => ArrangePendingActivity();
+            PendingSendsList.PropertyChanged += (_, e) =>
+            {
+                if (e.Property == ItemsControl.ItemCountProperty) ArrangePendingActivity();
+            };
         }
         RecentActivity.IsVisible = section is SettingsSection.Welcome or SettingsSection.BlindBox;
         RecentActivityTitle.Text = section == SettingsSection.Welcome ? "最近欢迎" : "最近回复和播报";
@@ -71,6 +76,14 @@ public partial class SettingsPage : UserControl
                 if (e.Property == ToggleButton.IsCheckedProperty) Validate();
             };
         LoadSettings();
+    }
+
+    private void ArrangePendingActivity()
+    {
+        // One or two records may exceed half-height; always leave the history heading visible.
+        PendingActivity.MaxHeight = PendingSendsList.ItemCount <= 2
+            ? Math.Max(0, SendActivity.Bounds.Height - RecentSendsHeader.DesiredSize.Height - 12)
+            : SendActivity.Bounds.Height / 2;
     }
 
     private void ArrangeActivity()

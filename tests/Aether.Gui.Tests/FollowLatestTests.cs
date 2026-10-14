@@ -1,3 +1,4 @@
+using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia;
 using Avalonia.Controls;
@@ -61,6 +62,11 @@ public sealed class FollowLatestTests : IDisposable
             var viewer = Viewer(window);
             Assert.True(viewer.Extent.Height > viewer.Viewport.Height);
             Assert.True(LatestDanmakuIsVisible(window));
+            Assert.Equal(viewer.Extent.Height - viewer.Viewport.Height, viewer.Offset.Y, precision: 1);
+            var latest = window.DanmakuList.ContainerFromIndex(window.DanmakuList.ItemCount - 1)!;
+            var viewport = viewer.GetVisualDescendants().OfType<ScrollContentPresenter>().First();
+            var bottom = latest.TranslatePoint(new Point(0, latest.Bounds.Height), viewport)!.Value.Y;
+            Assert.True(viewport.Bounds.Height - bottom >= 12, $"Bottom space: {viewport.Bounds.Height - bottom}");
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
@@ -87,6 +93,40 @@ public sealed class FollowLatestTests : IDisposable
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(200)]
+    [InlineData(1100)]
+    public Task Following_reaches_the_padded_bottom_with_variable_height_rows_and_resizing(int count) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        var (window, viewModel) = await ShowWindowAsync();
+        try
+        {
+            window.Width = 760;
+            window.Height = 520;
+            for (var i = 0; i < count; i++)
+                viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "观众", new string('长', 1 + i % 7 * 25)));
+            AssertBottom();
+            viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "观众", "最新\n另一行"));
+            AssertBottom();
+            window.Width = 960;
+            window.Height = 640;
+            AssertBottom();
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+
+        void AssertBottom()
+        {
+            GuiHarness.Flush();
+            var viewer = Viewer(window);
+            Assert.Equal(viewer.Extent.Height - viewer.Viewport.Height, viewer.Offset.Y, precision: 1);
+            Assert.True(LatestDanmakuIsVisible(window));
+            var latest = window.DanmakuList.ContainerFromIndex(window.DanmakuList.ItemCount - 1)!;
+            var viewport = viewer.GetVisualDescendants().OfType<ScrollContentPresenter>().First();
+            Assert.True(viewport.Bounds.Height - latest.TranslatePoint(new Point(0, latest.Bounds.Height), viewport)!.Value.Y >= 12);
+        }
     }, TestContext.Current.CancellationToken);
 
     public void Dispose() => harness.Dispose();

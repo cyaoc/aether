@@ -46,7 +46,7 @@ public partial class WelcomeConditionRow : UserControl
         }
         LevelInput.IsReadOnly = !canEdit;
         LevelInput.AllowSpin = canEdit;
-        AutomationProperties.SetName(LevelInput, TypeName.Text);
+        AutomationProperties.SetName(LevelInput, TypeName.Text + "门槛");
         GuardInput.ItemsSource = Settings.WelcomeGuards.Skip(1).ToArray();
         GuardInput.SelectedItem = value;
         GuardInput.IsEnabled = canEdit;

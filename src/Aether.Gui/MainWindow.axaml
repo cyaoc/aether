@@ -166,7 +166,7 @@
                 <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
                 <ListBox.ItemTemplate>
                   <DataTemplate x:DataType="core:Danmaku">
-                    <Border x:Name="DanmakuRow" Classes.account="{Binding #AccountBadge.IsVisible}" Padding="20,7"
+                    <Border x:Name="DanmakuRow" Classes.account="{Binding #AccountBadge.IsVisible}" Margin="8,0,8,2" Padding="12,8" CornerRadius="8"
                             Classes.captain="{Binding GuardTier, Converter={x:Static local:MainWindowViewModel.IsCaptain}}"
                             Classes.admiral="{Binding GuardTier, Converter={x:Static local:MainWindowViewModel.IsAdmiral}}"
                             Classes.governor="{Binding GuardTier, Converter={x:Static local:MainWindowViewModel.IsGovernor}}">

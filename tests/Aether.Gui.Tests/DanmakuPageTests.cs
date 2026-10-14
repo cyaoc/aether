@@ -14,6 +14,41 @@ namespace Aether.Gui.Tests;
 public sealed class DanmakuPageTests
 {
     [Theory]
+    [InlineData(960)]
+    [InlineData(760)]
+    public Task Rows_have_separate_highlights_and_align_with_the_page_title(int width) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, Width = width };
+        window.Show();
+        try
+        {
+            for (var i = 0; i < 3; i++)
+                viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "观众", "晚上好") { GuardTier = i < 2 ? 1 : 0 });
+            GuiHarness.Flush();
+            var page = window.FindControl<Grid>("DanmakuPage")!;
+            var title = page.GetVisualDescendants().OfType<TextBlock>().Single(x => x.Text == "弹幕");
+            double previousBottom = 0;
+            for (var i = 0; i < 3; i++)
+            {
+                var item = window.DanmakuList.ContainerFromIndex(i)!;
+                var row = item.GetVisualDescendants().OfType<Border>().Single(x => x.Name == "DanmakuRow");
+                var origin = row.TranslatePoint(default, window.DanmakuList)!.Value;
+                Assert.Equal(8, origin.X);
+                Assert.Equal(window.DanmakuList.Bounds.Width - 16, row.Bounds.Width);
+                Assert.True(origin.Y >= (i == 0 ? 8 : previousBottom + 2));
+                var avatar = item.GetVisualDescendants().OfType<Border>().Single(x => x.Name == "Avatar");
+                Assert.Equal(title.TranslatePoint(default, window)!.Value.X, avatar.TranslatePoint(default, window)!.Value.X);
+                previousBottom = origin.Y + row.Bounds.Height;
+            }
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Theory]
     [InlineData(1, "舰长", false, "#E0FDFC", "#B9EFEE", "#006E70")]
     [InlineData(2, "提督", false, "#FFEFFF", "#F8D7F6", "#7E3F7C")]
     [InlineData(3, "总督", false, "#FFF4E0", "#F7E0BA", "#7D5100")]
