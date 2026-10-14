@@ -100,7 +100,7 @@ public sealed class NumericInputTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        File.WriteAllText(Settings.FilePath(harness.DataDirectory), readOnly ? SettingsText.Replace(": 1\n", ": |-\n    1\n") : SettingsText);
+        File.WriteAllText(Settings.FilePath(harness.DataDirectory), readOnly ? SettingsText.ReplaceLineEndings("\n").Replace(": 1\n", ": |-\n    1\n") : SettingsText);
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory)
         {
