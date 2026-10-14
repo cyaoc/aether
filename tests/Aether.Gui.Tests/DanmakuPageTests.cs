@@ -20,10 +20,10 @@ public sealed class DanmakuPageTests
     [InlineData(1, "舰长", true, "#0B2828", "#004848", "#8BE3E2")]
     [InlineData(2, "提督", true, "#2C1D2B", "#512F50", "#F0BEEE")]
     [InlineData(3, "总督", true, "#2B210F", "#503807", "#EFCB91")]
-    public Task Identity_badges_reply_prefix_and_row_colors_follow_the_danmaku(int tier, string guard, bool dark,
+    public Task Guard_fan_club_and_wealth_badges_reply_prefix_and_row_colors_follow_the_danmaku(int tier, string guard, bool dark,
         string rowColor, string guardBackground, string guardForeground) => HeadlessApp.Session.Dispatch(async () =>
     {
-        const string accountNickname = "昵称很长也不应该把身份徽章挤出弹幕列表";
+        const string accountNickname = "昵称很长也不应该把徽章挤出弹幕列表";
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
         var viewModel = harness.CreateViewModel();
@@ -142,13 +142,9 @@ public sealed class DanmakuPageTests
                 if (!marked && guardTier > 0)
                 {
                     var guardRow = row.GetVisualDescendants().OfType<Border>().Single(x => x.Name == "DanmakuRow");
-                    var expected = (guardTier, dark) switch
-                    {
-                        (1, false) => "#E0FDFC", (1, true) => "#0B2828",
-                        (2, false) => "#FFEFFF", (2, true) => "#2C1D2B",
-                        _ => dark ? "#2B210F" : "#FFF4E0"
-                    };
-                    Assert.Equal(Color.Parse(expected), ColorOf(guardRow.Background));
+                    var resource = $"Guard.{new[] { "", "Captain", "Admiral", "Governor" }[guardTier]}.Row";
+                    Assert.True(window.TryFindResource(resource, window.ActualThemeVariant, out var expected));
+                    Assert.Equal(ColorOf(expected as IBrush), ColorOf(guardRow.Background));
                 }
                 Assert.Contains(row.GetVisualDescendants().OfType<TextBlock>(), x => x.Text == "00:00:00");
             }

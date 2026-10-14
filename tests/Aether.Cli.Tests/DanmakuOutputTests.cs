@@ -12,7 +12,7 @@ public sealed class DanmakuOutputTests
     [InlineData(3, null, 0, "", "观众", "来了", "观众 [总督]: 来了")]
     [InlineData(0, 5L, 0, "", "观众", "来了", "观众 [粉丝团 5]: 来了")]
     [InlineData(0, null, 0, "被\r@\n的人", "观\r众\n名", "内\r容\n", "观 众 名: @被 @ 的人 内 容 ")]
-    public void Formats_identity_and_reply_as_one_plain_text_line(int tier, long? fanClub, long wealth,
+    public void Formats_guard_fan_club_wealth_and_reply_as_one_plain_text_line(int tier, long? fanClub, long wealth,
         string reply, string nickname, string content, string expected)
     {
         var danmaku = new Danmaku(new DateTimeOffset(2026, 10, 14, 20, 15, 3, TimeSpan.FromHours(8)), nickname, content)

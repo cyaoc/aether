@@ -118,7 +118,7 @@ public sealed class ThemeTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task Identity_rows_and_badges_keep_readable_contrast_across_theme_changes() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Guard_rows_and_badges_keep_readable_contrast_across_theme_changes() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();

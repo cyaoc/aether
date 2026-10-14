@@ -338,15 +338,15 @@
   <Style Selector="Border.badge.guardBadge">
     <Setter Property="TextElement.FontWeight" Value="SemiBold" />
   </Style>
-  <Style Selector="Border.badge.captain">
+  <Style Selector="Border.captain Border.guardBadge">
     <Setter Property="Background" Value="{DynamicResource Guard.Captain.Badge}" />
     <Setter Property="TextElement.Foreground" Value="{DynamicResource Guard.Captain.BadgeText}" />
   </Style>
-  <Style Selector="Border.badge.admiral">
+  <Style Selector="Border.admiral Border.guardBadge">
     <Setter Property="Background" Value="{DynamicResource Guard.Admiral.Badge}" />
     <Setter Property="TextElement.Foreground" Value="{DynamicResource Guard.Admiral.BadgeText}" />
   </Style>
-  <Style Selector="Border.badge.governor">
+  <Style Selector="Border.governor Border.guardBadge">
     <Setter Property="Background" Value="{DynamicResource Guard.Governor.Badge}" />
     <Setter Property="TextElement.Foreground" Value="{DynamicResource Guard.Governor.BadgeText}" />
   </Style>

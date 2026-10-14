@@ -63,7 +63,7 @@ public sealed class ProtocolTests
     [InlineData(16, "[-1]")]
     [InlineData(16, "[1.5]")]
     [InlineData(16, "[9223372036854775808]")]
-    public async Task Unreadable_danmaku_identity_defaults_only_that_field_without_warning(int index, string value)
+    public async Task Unreadable_fan_club_guard_or_wealth_defaults_only_that_field_without_warning(int index, string value)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -88,7 +88,7 @@ public sealed class ProtocolTests
     [InlineData(3, null, 0, 0)]
     [InlineData(7, 47L, 0, 0)]
     [InlineData(16, 47L, 1, 0)]
-    public async Task Missing_danmaku_identity_fields_do_not_drop_the_message(int length, long? fanClub, int tier, long wealth)
+    public async Task Missing_fan_club_guard_and_wealth_fields_do_not_drop_the_message(int length, long? fanClub, int tier, long wealth)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();

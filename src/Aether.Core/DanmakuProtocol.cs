@@ -92,11 +92,12 @@ internal static class DanmakuProtocol
         }
     }
 
-    /// <summary>Reply metadata is optional; unreadable fields never hide the danmaku itself.</summary>
+    /// <summary>The sender uid and danmaku id that only a reply needs, plus the nickname this danmaku itself @s. An
+    /// unreadable uid becomes 0 (no reply), an unreadable id "" (a reply without replay_dmid) and an unreadable nickname
+    /// "" (no @), so a format change there never hides the danmaku itself.</summary>
     private static (long Uid, string Id, string ReplyName) ReplyDetails(JsonElement info)
     {
-        var uid = info[2][0] is { ValueKind: JsonValueKind.Number } sender && sender.TryGetInt64(out var number) && number > 0
-            ? number : 0;
+        var uid = NumberAt(ArrayItem(info, 2), 0);
         if (info[0] is not { ValueKind: JsonValueKind.Array } meta || meta.GetArrayLength() <= 15
             || meta[15] is not { ValueKind: JsonValueKind.Object } details
             || !details.TryGetProperty("extra", out var extra) || extra.ValueKind != JsonValueKind.String)
