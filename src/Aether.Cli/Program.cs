@@ -1,5 +1,6 @@
 using System.CommandLine;
 using System.Text;
+using Aether.Cli;
 using Aether.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -29,7 +30,7 @@ watch.SetAction((result, cancellationToken) => RunAsync(async client =>
                 await Console.Error.WriteLineAsync("重连中");
                 break;
             case Danmaku danmaku:
-                await Console.Out.WriteLineAsync(FormattableString.Invariant($"[{danmaku.ReceivedAt:HH:mm:ss}] {OneLine(danmaku.Nickname)}: {OneLine(danmaku.Content)}"));
+                await Console.Out.WriteLineAsync(DanmakuOutput.Format(danmaku));
                 break;
         }
     }
@@ -88,8 +89,6 @@ static async Task<int> RunAsync(Func<AetherClient, Task> action, CancellationTok
         return 1;
     }
 }
-
-static string OneLine(string text) => text.Replace('\r', ' ').Replace('\n', ' ');
 
 static async Task ShowQrCodeAsync(string content)
 {

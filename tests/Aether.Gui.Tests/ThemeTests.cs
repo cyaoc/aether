@@ -117,6 +117,45 @@ public sealed class ThemeTests
         return true;
     }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public Task Identity_rows_and_badges_keep_readable_contrast_across_theme_changes() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            await viewModel.ReadAccountCommand.ExecutionTask!;
+            for (var i = 0; i < 4; i++)
+                viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "观众", "晚上好")
+                    { Uid = i == 0 ? 123 : 1000 + i, GuardTier = i, FanClubLevel = 47, WealthLevel = 45 });
+            foreach (var theme in new[] { ThemeVariant.Light, ThemeVariant.Dark })
+            {
+                window.RequestedThemeVariant = theme;
+                GuiHarness.Flush();
+                for (var i = 0; i < 4; i++)
+                {
+                    var row = Assert.IsType<ListBoxItem>(window.DanmakuList.ContainerFromIndex(i));
+                    var borders = row.GetVisualDescendants().OfType<Border>().ToArray();
+                    var background = borders.Single(x => x.Name == "DanmakuRow");
+                    var timestamp = row.GetVisualDescendants().OfType<TextBlock>().Single(x => x.Text == "00:00:00");
+                    Assert.True(Contrast(ColorOf(timestamp.Foreground), ColorOf(background.Background)) >= 4.5,
+                        $"{theme}, row {i}: timestamp contrast");
+                    foreach (var badge in borders.Where(x => x.Classes.Contains("badge") && x.IsEffectivelyVisible))
+                    {
+                        var text = Assert.IsType<TextBlock>(badge.Child);
+                        Assert.True(Contrast(ColorOf(text.Foreground), ColorOf(badge.Background)) >= 4.5,
+                            $"{theme}, {text.Text}: badge contrast");
+                    }
+                }
+            }
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     private static Color ColorOf(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
 
     private static double Contrast(Color first, Color second)

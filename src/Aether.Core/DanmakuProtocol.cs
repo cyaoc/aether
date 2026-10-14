@@ -92,24 +92,32 @@ internal static class DanmakuProtocol
         }
     }
 
-    /// <summary>The sender uid and danmaku id that only a reply needs. An unreadable uid becomes 0 (no reply) and an
-    /// unreadable id "" (a reply without replay_dmid), so a format change there never hides the danmaku itself.</summary>
-    private static (long Uid, string Id) ReplyDetails(JsonElement info)
+    /// <summary>Reply metadata is optional; unreadable fields never hide the danmaku itself.</summary>
+    private static (long Uid, string Id, string ReplyName) ReplyDetails(JsonElement info)
     {
         var uid = info[2][0] is { ValueKind: JsonValueKind.Number } sender && sender.TryGetInt64(out var number) && number > 0
             ? number : 0;
         if (info[0] is not { ValueKind: JsonValueKind.Array } meta || meta.GetArrayLength() <= 15
             || meta[15] is not { ValueKind: JsonValueKind.Object } details
             || !details.TryGetProperty("extra", out var extra) || extra.ValueKind != JsonValueKind.String)
-            return (uid, ""); // Older messages have no extra.
+            return (uid, "", ""); // Older messages have no extra.
         try
         {
             using var parsed = JsonDocument.Parse(extra.GetString()!);
-            return (uid, parsed.RootElement is { ValueKind: JsonValueKind.Object } root
-                && root.TryGetProperty("id_str", out var id) && id.ValueKind == JsonValueKind.String ? id.GetString()! : "");
+            if (parsed.RootElement is not { ValueKind: JsonValueKind.Object } root) return (uid, "", "");
+            return (uid,
+                root.TryGetProperty("id_str", out var id) && id.ValueKind == JsonValueKind.String ? id.GetString()! : "",
+                root.TryGetProperty("reply_uname", out var name) && name.ValueKind == JsonValueKind.String ? name.GetString()! : "");
         }
-        catch (JsonException) { return (uid, ""); }
+        catch (JsonException) { return (uid, "", ""); }
     }
+
+    private static JsonElement ArrayItem(JsonElement array, int index) =>
+        array.ValueKind == JsonValueKind.Array && array.GetArrayLength() > index ? array[index] : default;
+
+    private static long NumberAt(JsonElement array, int index) =>
+        ArrayItem(array, index) is { ValueKind: JsonValueKind.Number } value && value.TryGetInt64(out var number) && number > 0
+            ? number : 0;
 
     private static bool IsDanmaku(string command) =>
         command == "DANMU_MSG" || command.StartsWith("DANMU_MSG:", StringComparison.Ordinal);
@@ -130,8 +138,16 @@ internal static class DanmakuProtocol
                 var info = root.GetProperty("info");
                 var nickname = info[2][1].GetString() ?? throw new JsonException("缺少弹幕昵称。");
                 var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
-                var (uid, id) = ReplyDetails(info);
-                decoded = [new DanmakuReceived(new Danmaku(receivedAt, nickname, content) { Uid = uid, Id = id })];
+                var (uid, id, replyName) = ReplyDetails(info);
+                var fanClub = ArrayItem(info, 3);
+                var fanClubLevel = NumberAt(fanClub, 0);
+                decoded = [new DanmakuReceived(new Danmaku(receivedAt, nickname, content)
+                {
+                    Uid = uid, Id = id, ReplyName = replyName,
+                    FanClubLevel = NumberAt(fanClub, 3) == roomId && fanClubLevel > 0 ? fanClubLevel : null,
+                    GuardTier = Guard.TierFromPrivilegeType(NumberAt(info, 7)),
+                    WealthLevel = NumberAt(ArrayItem(info, 16), 0)
+                })];
             }
             else if (GiftMessages.Decode(command, root, body, logger) is { Length: > 0 } boxes)
                 decoded = [new BlindBoxesReceived(boxes)];

@@ -15,7 +15,7 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     // A manual review tool, not a regression test: set AETHER_SCREENSHOT_DIR to render every page per size and theme
-    // with Skia and compare the PNGs with design B. CI leaves it unset, so the theory skips there.
+    // with Skia and compare the PNGs with designs B and E. CI leaves it unset, so the theory skips there.
     [Theory]
     [InlineData(960, 640, false)]
     [InlineData(960, 640, true)]
@@ -55,10 +55,18 @@ public sealed class VisualReviewTests
             viewModel.Apply(new Connected());
             clock.Advance(TimeSpan.FromMinutes(42));
             var time = new DateTimeOffset(2026, 10, 12, 20, 41, 0, TimeSpan.FromHours(8));
-            var names = new[] { "一只小鹿", "柚子不酸", "Aether助手", "晚风吹过山岗", "Aether助手", "是阿橙呀", "momo_7", "夜航船" };
-            var messages = new[] { "来了来了", "今日盲盒", "@柚子不酸 投入52电池 亏12.6电池", "哈哈哈哈哈哈这个反应", "欢迎舰长晚风吹过山岗", "刚下班，今天播到几点？", "这首歌叫什么名字", "晚上好！这是一条用来检查自动换行的较长弹幕，窄窗口也应该能完整阅读。" };
+            var names = new[] { "一只小鹿", "柚子不酸", "Aether助手", "晚风吹过山岗", "夜航船", "是阿橙呀", "momo_7", "路过的猫" };
+            var messages = new[] { "来了来了", "今日盲盒", "投入52电池 亏12.6电池", "哈哈哈哈哈哈这个反应", "主播今天状态好好", "刚下班，今天播到几点？", "这首歌叫什么名字", "晚上好！这是一条用来检查自动换行的较长弹幕，窄窗口也应该能完整阅读。" };
+            var tiers = new[] { 0, 1, 1, 2, 3, 0, 1, 0 };
+            long?[] fanClubs = [null, 21, 47, 33, 40, null, 12, null];
+            var wealth = new[] { 12, 30, 45, 41, 52, 8, 18, 0 };
             for (var i = 0; i < names.Length; i++)
-                viewModel.Apply(new Danmaku(time.AddSeconds(i * 3), names[i], messages[i]) { Uid = names[i] == "Aether助手" ? 123 : 1000 + i });
+                viewModel.Apply(new Danmaku(time.AddSeconds(i * 3), names[i], messages[i])
+                {
+                    Uid = names[i] == "Aether助手" ? 123 : 1000 + i,
+                    GuardTier = tiers[i], FanClubLevel = fanClubs[i], WealthLevel = wealth[i],
+                    ReplyName = i == 2 ? "柚子不酸" : i == 6 ? "夜航船" : ""
+                });
             for (var i = 0; i < 6; i++)
             {
                 viewModel.Apply(new SendQueueUpdate(i + 1, time.AddSeconds(-i * 12), SendQueueItemKind.Welcome,
