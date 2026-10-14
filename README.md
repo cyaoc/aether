@@ -3,7 +3,45 @@
 CLI 支持 macOS / Windows / Linux，GUI 支持 macOS / Windows 的 B站直播 bot。
 支持扫码登录、退出登录和以登录账号身份观看直播间弹幕。
 
-需要 .NET 10 SDK：
+## 下载
+
+从 [GitHub Releases](https://github.com/cyaoc/aether/releases/latest) 下载发布包。
+一般用户选**独立版**，自带 .NET 运行时；**需运行时版**体积小，需要先安装对应架构的
+[.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)（不需要 SDK）。
+GUI 提供图形界面，CLI 在终端运行。
+
+| 系统 | CLI 独立版 | GUI 独立版 |
+| --- | --- | --- |
+| Windows x64 | `aether-cli-v<版本>-win-x64.zip` | `aether-gui-v<版本>-win-x64.zip` |
+| Linux x64 | `aether-cli-v<版本>-linux-x64.tar.gz` | 不支持 |
+| macOS Intel | `aether-cli-v<版本>-osx-x64.tar.gz` | `aether-gui-v<版本>-osx-x64.tar.gz` |
+| macOS Apple Silicon | `aether-cli-v<版本>-osx-arm64.tar.gz` | `aether-gui-v<版本>-osx-arm64.tar.gz` |
+
+需运行时版的文件名在 `.zip` 或 `.tar.gz` 前多一个 `-framework-dependent`，
+例如 `aether-gui-v0.1.0-win-x64-framework-dependent.zip`。
+
+解压后得到与发布包同名的目录（不含压缩后缀），里面是程序和 `LICENSE`。
+请放在自己的可写目录，例如用户目录下；不要放进 `Program Files`，程序需要在旁边写入 `data/`。
+CLI 和 GUI 分别解压到各自目录，各自保存 `data/`，登录凭据和设置不会自动共享。
+
+- **Windows**：GUI 双击 `Aether.Gui.exe`；CLI 在终端运行 `aether.exe watch <房间号>`。
+  SmartScreen 拦截时点“更多信息 → 仍要运行”。
+- **macOS**：发布包未做 Developer ID 签名和公证。首次启动前在终端对解压目录执行
+  `xattr -dr com.apple.quarantine <目录>`，解除 Gatekeeper 对可执行文件及 Avalonia dylib 的隔离。
+  GUI 是目录里的 `Aether.Gui` 裸可执行文件，Finder 双击会同时打开终端窗口；
+  CLI 在该目录运行 `./aether watch <房间号>`。
+- **Linux**：在解压目录运行 `./aether watch <房间号>`，压缩包保留可执行权限。
+
+首次连接直播间时，用 B站 App 扫码登录。
+
+**升级**：先关闭旧版本，再把新版本解压到新目录，将旧目录的整个 `data/` **拷贝**到新目录，
+然后启动新版本。不要移动或删除旧目录中的 `data/`，回滚时关闭新版本并启动旧目录里的程序。
+从 v0.1.0 起，升级保留登录凭据、设置和数据库；只保证升级，不保证旧程序能读取新版本处理过的 `data/`，
+见 [ADR 0005](docs/adr/0005-data-directory-upgrade-compat.md)。
+
+## 从源码运行与发布
+
+开发需要 .NET 10 SDK：
 
 ```sh
 dotnet build
@@ -55,7 +93,6 @@ dotnet publish src/Aether.Cli -c Release -r linux-x64 --self-contained true -o a
 然后在服务器终端运行（首次需要用手机扫描终端里的二维码）：
 
 ```sh
-chmod +x ~/aether/aether
 ~/aether/aether watch 1768506153
 ```
 
