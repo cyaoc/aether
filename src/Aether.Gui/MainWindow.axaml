@@ -16,7 +16,7 @@
               <Viewbox Classes="icon" Width="20" Height="20" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.BlindBox}" Stroke="{DynamicResource Accent}" /></Viewbox>
               <StackPanel Grid.Column="1" Spacing="5">
                 <TextBlock Text="盲盒统计" FontWeight="SemiBold" />
-                <TextBlock Classes="label" Text="观众发关键字查今天或本月的盈亏" TextWrapping="Wrap" />
+                <TextBlock Classes="label" Text="观众发关键字查今天或本月的盈亏，送完一轮自动播报" TextWrapping="Wrap" />
               </StackPanel>
             </Grid>
             <Grid ColumnDefinitions="20,*" ColumnSpacing="14">

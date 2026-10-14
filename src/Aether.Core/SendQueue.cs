@@ -87,7 +87,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     /// <summary>The kind shells get, and the names the log gives it and its send.</summary>
     private static (SendQueueItemKind Kind, string Name, string Action) Describe(Item item) => item switch
     {
-        Query query => (SendQueueItemKind.BlindBoxQuery, query.Period == BlindBoxPeriod.Daily ? "今日盲盒查询" : "本月盲盒查询", "回复"),
+        Query query => (SendQueueItemKind.BlindBoxQuery, query.Period.Name() + "盲盒查询", "回复"),
         Welcome => (SendQueueItemKind.Welcome, "进场欢迎", "欢迎"),
         _ => (SendQueueItemKind.BlindBoxAnnouncement, "盲盒播报", "播报")
     };

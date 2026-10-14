@@ -5,6 +5,12 @@ namespace Aether.Core;
 
 internal enum BlindBoxPeriod { Daily, Monthly }
 
+internal static class BlindBoxPeriodName
+{
+    /// <summary>How replies and logs name the period.</summary>
+    public static string Name(this BlindBoxPeriod period) => period == BlindBoxPeriod.Daily ? "今日" : "本月";
+}
+
 /// <summary>One blind box gift item: the box bought (BlindGift*) and the gift it opened (OpenedGift*). Amounts are
 /// integer 金瓜子, Timestamp is B站's send time in Unix seconds, and Shown is the message's switch.</summary>
 internal sealed record BlindBox(long Uid, string Nickname, long BlindGiftId, string BlindGiftName,
@@ -16,7 +22,7 @@ internal sealed record BlindBoxTally(long Spend, long OpenedValue)
 {
     /// <summary>The 盲盒查询 reply; a null tally means no blind box was recorded.</summary>
     public static string Reply(BlindBoxTally? tally, BlindBoxPeriod period) =>
-        (period == BlindBoxPeriod.Daily ? "今日" : "本月") + (tally is null ? "没有盲盒记录" : Amounts(tally));
+        period.Name() + (tally is null ? "没有盲盒记录" : Amounts(tally));
 
     /// <summary>The 盲盒播报 for a 一轮盲盒's amounts, worded like the reply so viewers can compare the two.</summary>
     public static string Announcement(BlindBoxTally round) => "本次" + Amounts(round);
@@ -39,8 +45,8 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
     /// <summary>The viewer's 盲盒统计 in this room for the Beijing day or month containing <paramref name="at"/>; null when they have none.</summary>
     public BlindBoxTally? Tally(long roomId, long uid, DateTimeOffset at, BlindBoxPeriod period)
     {
-        var day = at.ToOffset(TimeSpan.FromHours(8));
-        var start = new DateTimeOffset(day.Year, day.Month, period == BlindBoxPeriod.Daily ? day.Day : 1, 0, 0, 0, day.Offset);
+        var beijing = at.ToOffset(TimeSpan.FromHours(8));
+        var start = new DateTimeOffset(beijing.Year, beijing.Month, period == BlindBoxPeriod.Daily ? beijing.Day : 1, 0, 0, 0, beijing.Offset);
         var end = period == BlindBoxPeriod.Daily ? start.AddDays(1) : start.AddMonths(1);
         using var connection = database.Open();
         using var command = connection.CreateCommand();
