@@ -77,7 +77,7 @@
               <StackPanel Spacing="8">
                 <TextBlock Classes="caption muted" Text="直播间" />
                 <StackPanel x:Name="RoomInputPanel" Spacing="8" IsVisible="{Binding !HasRoomConnection}">
-                  <TextBox Classes="numeric" Text="{Binding RoomNumber}" PlaceholderText="房间号" AutomationProperties.Name="房间号" KeyDown="ConnectRoom" />
+                  <ComboBox x:Name="RoomInput" Classes="numeric" IsEditable="True" ItemsSource="{Binding RecentRooms}" Text="{Binding RoomNumber}" HorizontalAlignment="Stretch" PlaceholderText="房间号" AutomationProperties.Name="房间号" />
                   <Button Classes="accent" Content="连接" HorizontalAlignment="Stretch" Command="{Binding ConnectCommand}" />
                 </StackPanel>
                 <StackPanel x:Name="RoomStatusPanel" Spacing="8" IsVisible="{Binding HasRoomConnection}">

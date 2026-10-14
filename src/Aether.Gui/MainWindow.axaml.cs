@@ -34,6 +34,8 @@ public partial class MainWindow : Window
         }
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
+        // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
+        RoomInput.AddHandler(KeyDownEvent, ConnectRoom, RoutingStrategies.Tunnel);
         DanmakuList.Items.CollectionChanged += OnDanmakuChanged;
         DanmakuList.AddHandler(ScrollViewer.ScrollChangedEvent, OnScrollChanged);
         DanmakuList.AddHandler(PointerWheelChangedEvent, (_, _) => PauseFollowingForInput(), RoutingStrategies.Tunnel);
@@ -83,6 +85,22 @@ public partial class MainWindow : Window
 
     private void ConnectRoom(object? sender, KeyEventArgs e)
     {
+        if (RoomInput.IsDropDownOpen)
+        {
+            // Editable ComboBox keeps focus in its TextBox, which consumes arrow keys before list navigation.
+            if (e.KeyModifiers == KeyModifiers.None && e.Key is Key.Up or Key.Down)
+            {
+                if (RoomInput.ItemCount > 0)
+                    RoomInput.SelectedIndex = Math.Clamp(RoomInput.SelectedIndex + (e.Key == Key.Down ? 1 : -1), 0, RoomInput.ItemCount - 1);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Enter)
+            {
+                RoomInput.IsDropDownOpen = false;
+                e.Handled = true;
+            }
+            return;
+        }
         if (e.Key != Key.Enter || DataContext is not MainWindowViewModel viewModel) return;
         e.Handled = true;
         if (viewModel.ConnectCommand.CanExecute(null)) viewModel.ConnectCommand.Execute(null);

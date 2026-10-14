@@ -14,6 +14,15 @@ public sealed class GuiSettings
     private string path = "";
 
     [YamlIgnore] public bool KeepRecentDanmaku { get; set; } = true;
+    [YamlIgnore] public string[] RecentRooms { get; set; } = [];
+
+    [YamlMember(Alias = nameof(RecentRooms))]
+    private string[]? RecentRoomsYaml
+    {
+        get => RecentRooms;
+        set => RecentRooms = (value ?? []).Where(room => long.TryParse(room, out var id) && id > 0)
+            .Distinct().Take(5).ToArray();
+    }
 
     // A blank or `~` value keeps the default; deserializing straight into bool would turn it into false.
     [YamlMember(Alias = nameof(KeepRecentDanmaku))]

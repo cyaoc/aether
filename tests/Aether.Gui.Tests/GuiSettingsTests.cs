@@ -36,12 +36,37 @@ public sealed class GuiSettingsTests : IDisposable
         Assert.False(harness.LoadSettings().KeepRecentDanmaku);
     }
 
+    [Theory]
+    [InlineData("KeepRecentDanmaku: false", new string[0])]
+    [InlineData("RecentRooms:", new string[0])]
+    [InlineData("RecentRooms: ~", new string[0])]
+    [InlineData("RecentRooms: ['6', '006', invalid, '0', '-1', ~, '6', '42', '123', '456', '789']",
+        new[] { "6", "006", "42", "123", "456" })]
+    public void Recent_rooms_load_valid_unique_numbers_in_order(string yaml, string[] expected)
+    {
+        Directory.CreateDirectory(harness.DataDirectory);
+        File.WriteAllText(harness.SettingsFile, yaml);
+        Assert.Equal(expected, harness.LoadSettings().RecentRooms);
+    }
+
     [Fact]
     public void Toggling_the_checkbox_writes_gui_yml_that_survives_a_restart()
     {
         harness.CreateViewModel().KeepRecentDanmaku = false;
-        Assert.Equal("KeepRecentDanmaku: false", File.ReadAllText(harness.SettingsFile).Trim());
+        Assert.Contains("KeepRecentDanmaku: false", File.ReadAllText(harness.SettingsFile));
         Assert.False(harness.CreateViewModel().KeepRecentDanmaku);
+    }
+
+    [Fact]
+    public void Recent_rooms_survive_a_save_and_reload_with_other_settings()
+    {
+        var settings = harness.LoadSettings();
+        settings.RecentRooms = ["006", "42"];
+        settings.KeepRecentDanmaku = false;
+        settings.Save();
+        var reloaded = harness.LoadSettings();
+        Assert.Equal(["006", "42"], reloaded.RecentRooms);
+        Assert.False(reloaded.KeepRecentDanmaku);
     }
 
     public void Dispose() => harness.Dispose();

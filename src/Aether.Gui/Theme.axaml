@@ -137,7 +137,7 @@
     <Setter Property="FontSize" Value="13" />
     <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
-  <Style Selector="TextBlock.numeric, TextBox.numeric, NumericUpDown">
+  <Style Selector="TextBlock.numeric, TextBox.numeric, ComboBox.numeric, NumericUpDown">
     <Setter Property="TextElement.FontFeatures" Value="tnum" />
   </Style>
   <Style Selector="TextBlock.error">
@@ -227,6 +227,11 @@
   <!-- Fluent tops text in a box taller than its default; the 36 above would leave it sitting high. -->
   <Style Selector="TextBox">
     <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="ComboBox[IsEditable=True]:focus-within /template/ Border#Background">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="2" />
+    <Setter Property="Background" Value="{DynamicResource Surface.Content}" />
   </Style>
   <Style Selector="NumericUpDown">
     <Setter Property="ShowButtonSpinner" Value="True" />

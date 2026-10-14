@@ -26,7 +26,8 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     TimeProvider clock) : ObservableObject
 {
     [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
-    [ObservableProperty] private string roomNumber = "";
+    [ObservableProperty] private string roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
+    [ObservableProperty] private string[] recentRooms = settings.RecentRooms;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Status))]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
@@ -109,6 +110,11 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         // One Reset instead of a RemoveAt(0) event per dropped item after hours unchecked.
         if (value && Danmaku.Count > RecentDanmakuLimit) Danmaku = new(Danmaku.TakeLast(RecentDanmakuLimit));
         settings.KeepRecentDanmaku = value;
+        SaveGuiSettings();
+    }
+
+    private void SaveGuiSettings()
+    {
         try { settings.Save(); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
@@ -213,6 +219,12 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                     if (connectedAt is not null) OnPropertyChanged(nameof(Status));
                 }), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
                 ConnectionState = RoomConnectionState.Connected;
+                if (activeRoomNumber is { } room && !ConnectCommand.IsCancellationRequested)
+                {
+                    RecentRooms = [.. RecentRooms.Prepend(room).Distinct().Take(5)];
+                    settings.RecentRooms = RecentRooms;
+                    SaveGuiSettings();
+                }
                 break;
             case Reconnecting:
                 ConnectionState = RoomConnectionState.Reconnecting;

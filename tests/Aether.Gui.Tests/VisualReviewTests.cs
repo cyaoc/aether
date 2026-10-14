@@ -4,6 +4,7 @@ using static Aether.Gui.Tests.Support.ConditionList;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
@@ -26,6 +27,53 @@ public sealed class VisualReviewTests
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
         return Render(width, height, dark);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_recent_room_input_and_dropdown(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            var settings = harness.LoadSettings();
+            settings.RecentRooms = ["1768506153", "6", "7734200", "123456", "42"];
+            settings.Save();
+            var viewModel = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
+                Capture(window, "normal");
+                var input = window.FindControl<ComboBox>("RoomInput")!;
+                input.GetVisualDescendants().OfType<TextBox>().Single().Focus();
+                Capture(window, "focus");
+                var arrow = input.TranslatePoint(new Point(input.Bounds.Width - 16, input.Bounds.Height / 2), window)!.Value;
+                window.MouseDown(arrow, MouseButton.Left);
+                window.MouseUp(arrow, MouseButton.Left);
+                Capture(window, "open");
+                Assert.True(input.IsDropDownOpen);
+                Capture(TopLevel.GetTopLevel(input.ContainerFromIndex(0)!)!, "list");
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+
+            void Capture(TopLevel topLevel, string state)
+            {
+                GuiHarness.Flush();
+                using var bitmap = topLevel.CaptureRenderedFrame();
+                Assert.NotNull(bitmap);
+                Directory.CreateDirectory(HeadlessApp.ScreenshotDirectory!);
+                bitmap.Save(Path.Combine(HeadlessApp.ScreenshotDirectory!, $"room-{state}-{(dark ? "dark" : "light")}.png"), PngBitmapEncoderOptions.Default);
+            }
+        }, TestContext.Current.CancellationToken);
     }
 
     [Theory]
