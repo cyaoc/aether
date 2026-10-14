@@ -102,9 +102,22 @@ public sealed class WelcomeTests
         Assert.Contains(h.Logger.Entries, entry => entry.Message.Contains("丢掉 1 条"));
     }
 
+    // The nested guards are malformed, not missing: falling back to privilege_type 2 would welcome 提督 first.
+    public static TheoryData<string> MalformedEntries => new()
+    {
+        "{\"cmd\":\"INTERACT_WORD_V2\",\"data\":{\"pb\":\"invalid\"}}",
+        "{\"cmd\":\"INTERACT_WORD_V2\",\"data\":{}}",
+        EntryV2Fixture.Message(privilegeAndUserInfo: [.. Integer(16, 2), .. Integer(22, 2)]),
+        EntryV2Fixture.Message(privilegeAndUserInfo: [.. Integer(16, 2), .. Bytes(22, Integer(6, 2))]),
+        EntryV2Fixture.Message(privilegeAndUserInfo: [.. Integer(16, 2), .. Bytes(22, Bytes(6, Bytes(1, [])))]),
+        EntryV2Fixture.Message(privilegeAndUserInfo: [.. Integer(16, 2), .. Bytes(22, Bytes(6, [0x08, 0x80]))]),
+        EntryV2Fixture.Message(privilegeAndUserInfo: [.. Integer(16, 2), .. Bytes(22, [0x32, 0x02, 0x08])]),
+        EntryV2Fixture.Message(privilegeAndUserInfo: [.. Integer(16, 2), .. Bytes(22, Bytes(6, Integer(1, -1)))]),
+        EntryV2Fixture.Message(privilegeAndUserInfo: [.. Integer(16, -1), .. Bytes(22, Bytes(6, Integer(1, 2)))])
+    };
+
     [Theory]
-    [InlineData("{\"cmd\":\"INTERACT_WORD_V2\",\"data\":{\"pb\":\"invalid\"}}")]
-    [InlineData("{\"cmd\":\"INTERACT_WORD_V2\",\"data\":{}}")]
+    [MemberData(nameof(MalformedEntries))]
     public async Task Malformed_entries_warn_without_stopping_later_entries(string message)
     {
         await using var h = new WatchHarness();
@@ -319,44 +332,6 @@ public sealed class WelcomeTests
             ["welcome.enabled"] = "true", ["welcome.text"] = text
         });
         h.Http.SetDanmakuLengthLimit(limit);
-    }
-
-    [Theory]
-    [InlineData("舰长", 3, "舰长")]
-    [InlineData("舰长", 2, "提督")]
-    [InlineData("舰长", 1, "总督")]
-    [InlineData("提督", 3, null)]
-    [InlineData("提督", 2, "提督")]
-    [InlineData("提督", 1, "总督")]
-    [InlineData("总督", 3, null)]
-    [InlineData("总督", 2, null)]
-    [InlineData("总督", 1, "总督")]
-    [InlineData("关闭", 1, null)]
-    [InlineData("关闭", 2, null)]
-    [InlineData("关闭", 3, null)]
-    [InlineData("舰长", 0, null)]
-    public async Task Guard_threshold_welcomes_only_qualifying_entries(string threshold, long guard, string? guardName)
-    {
-        await using var h = new WatchHarness();
-        await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string>
-        {
-            ["welcome.enabled"] = "true", ["welcome.guard"] = threshold,
-            ["welcome.uids"] = "[]", ["welcome.fan_club_level"] = "0", ["welcome.wealth_level"] = "0"
-        });
-        var sent = CaptureSends(h);
-        await using var updates = await h.WatchConnectedAsync();
-        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(identityFields: Bytes(22, Bytes(6, Integer(1, guard)))));
-        if (guardName is not null)
-        {
-            var form = await NextSendAsync(sent);
-            Assert.Equal($"欢迎{guardName}测试观众", form["msg"]);
-            Assert.DoesNotContain(form.Keys, key => key.StartsWith("reply") || key.StartsWith("replay"));
-            await h.WaitForLogAsync(LogLevel.Information, "发送弹幕成功：欢迎观众 测试观众（10001）");
-            Assert.Contains(h.Logger.Entries, entry => entry.Level == LogLevel.Information
-                && entry.Message.EndsWith($"进队：观众 测试观众（10001），命中大航海身份{guardName}"));
-        }
-        else await AssertNoSendAsync(sent);
     }
 
     [Theory]

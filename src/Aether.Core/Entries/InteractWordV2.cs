@@ -13,7 +13,7 @@ internal static class InteractWordV2
         // proto3 omits zero and empty values, including a missing medal or wealth message.
         var entry = new Entry(0, "", 0, 0, 0, 0);
         long fanClubLevel = 0, fanClubRoom = 0, wealthLevel = 0;
-        long? userGuard = null;
+        long? nestedGuard = null;
         while (reader.TryRead(out var field, out var type))
         {
             switch (field)
@@ -21,23 +21,23 @@ internal static class InteractWordV2
                 case 1: entry = entry with { Uid = reader.Int64(type) }; break;
                 case 2: entry = entry with { Nickname = reader.Text(type) }; break;
                 case 5: entry = entry with { MessageType = reader.Int64(type) }; break;
-                case 9: (fanClubLevel, fanClubRoom) = ReadFanClub(reader.Bytes(type)); break;
+                case 9: (fanClubLevel, fanClubRoom) = ReadFanClub(reader.Bytes(type), fanClubLevel, fanClubRoom); break;
                 case 16: entry = entry with { PrivilegeType = reader.Int64(type) }; break;
-                case 22: (wealthLevel, userGuard) = ReadUser(reader.Bytes(type), wealthLevel, userGuard); break;
+                case 22: (wealthLevel, nestedGuard) = ReadUser(reader.Bytes(type), wealthLevel, nestedGuard); break;
                 default: reader.Skip(field, type); break;
             }
         }
+        // A present uinfo.guard wins even at level 0 (#117); a negative privilege_type is kept so validation rejects it.
         return (entry with
         {
             FanClubLevel = fanClubLevel, WealthLevel = wealthLevel,
-            PrivilegeType = userGuard ?? entry.PrivilegeType
+            PrivilegeType = entry.PrivilegeType < 0 ? entry.PrivilegeType : nestedGuard ?? entry.PrivilegeType
         }, fanClubRoom);
     }
 
-    /// <summary>The worn fan club's level and its room.</summary>
-    private static (long Level, long Room) ReadFanClub(ReadOnlyMemory<byte> bytes)
+    /// <summary>The worn fan club's level and its room, merged over earlier fans_medal.</summary>
+    private static (long Level, long Room) ReadFanClub(ReadOnlyMemory<byte> bytes, long level, long room)
     {
-        long level = 0, room = 0;
         var medal = new ProtobufReader(bytes);
         while (medal.TryRead(out var field, out var type))
             switch (field)
@@ -49,6 +49,7 @@ internal static class InteractWordV2
         return (level, room);
     }
 
+    /// <summary>uinfo's wealth and guard levels merged over earlier uinfo; Guard stays null without a guard message.</summary>
     private static (long WealthLevel, long? Guard) ReadUser(ReadOnlyMemory<byte> bytes, long wealthLevel, long? guard)
     {
         var user = new ProtobufReader(bytes);
@@ -62,6 +63,7 @@ internal static class InteractWordV2
         return (wealthLevel, guard);
     }
 
+    /// <summary>Field 1 of a wealth or guard message, merged over <paramref name="level"/>.</summary>
     private static long ReadLevel(ReadOnlyMemory<byte> bytes, long level)
     {
         var reader = new ProtobufReader(bytes);
