@@ -1,334 +1,111 @@
 # Aether
 
-CLI 支持 macOS / Windows / Linux，GUI 支持 macOS / Windows 的 B站直播 bot。
-支持扫码登录、退出登录和以登录账号身份观看直播间弹幕。
+[![CI](https://github.com/cyaoc/aether/actions/workflows/ci.yml/badge.svg)](https://github.com/cyaoc/aether/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/cyaoc/aether)](https://github.com/cyaoc/aether/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+B站直播 bot：用你的 B站账号连接直播间，看弹幕、统计盲盒盈亏、欢迎进场观众。
+图形界面（GUI）支持 macOS / Windows，命令行（CLI）支持 macOS / Windows / Linux。
+
+## 功能
+
+- **扫码登录**：用 B站 App 扫码，登录凭据保存在本地并自动刷新。
+- **弹幕**：显示真实昵称、大航海身份、粉丝团和荣耀等级；断线自动重连。
+- **盲盒统计**：记录观众的盲盒投入和开出价值；观众发“今日盲盒”“本月盲盒”时 @回复盈亏，送完一轮后主动播报。
+- **进场欢迎**：指定观众，或粉丝团等级、大航海身份、荣耀等级达到门槛的观众进场时，发一条欢迎弹幕。
+- **发送队列**：所有弹幕排队发送，控制间隔，相同内容至少隔 5 秒，被限流时重试一次。
+- **便携**：数据都在程序旁边的 `data/` 里，整个目录拷走即可。
 
 ## 下载
 
-从 [GitHub Releases](https://github.com/cyaoc/aether/releases/latest) 下载发布包。
-一般用户选**独立版**，自带 .NET 运行时；**需运行时版**体积小，需要先安装对应架构的
-[.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0)（不需要 SDK）。
-GUI 提供图形界面，CLI 在终端运行。
+从 [Releases](https://github.com/cyaoc/aether/releases/latest) 下载对应系统的包：`aether-gui-*` 是图形界面，`aether-cli-*` 是命令行。
 
-| 系统 | CLI 独立版 | GUI 独立版 |
-| --- | --- | --- |
-| Windows x64 | `aether-cli-v<版本>-win-x64.zip` | `aether-gui-v<版本>-win-x64.zip` |
-| Linux x64 | `aether-cli-v<版本>-linux-x64.tar.gz` | 不支持 |
-| macOS Intel | `aether-cli-v<版本>-osx-x64.tar.gz` | `aether-gui-v<版本>-osx-x64.tar.gz` |
-| macOS Apple Silicon | `aether-cli-v<版本>-osx-arm64.tar.gz` | `aether-gui-v<版本>-osx-arm64.tar.gz` |
+| 系统 | 包名中的平台 | GUI | .NET 10 运行时（仅需运行时版） |
+| --- | --- | --- | --- |
+| Windows x64 | `win-x64` | ✓ | [dotnet-runtime-win-x64.exe](https://aka.ms/dotnet/10.0/dotnet-runtime-win-x64.exe) |
+| macOS Apple 芯片 | `osx-arm64` | ✓ | [dotnet-runtime-osx-arm64.pkg](https://aka.ms/dotnet/10.0/dotnet-runtime-osx-arm64.pkg) |
+| macOS Intel | `osx-x64` | ✓ | [dotnet-runtime-osx-x64.pkg](https://aka.ms/dotnet/10.0/dotnet-runtime-osx-x64.pkg) |
+| Linux x64 | `linux-x64` | — | 用包管理器装 `dotnet-runtime-10.0`，见[安装说明](https://learn.microsoft.com/dotnet/core/install/linux) |
 
-需运行时版的文件名在 `.zip` 或 `.tar.gz` 前多一个 `-framework-dependent`，
-例如 `aether-gui-v0.1.0-win-x64-framework-dependent.zip`。
+**一般选独立版**（文件名不带 `-framework-dependent`），自带 .NET，解压即用。
+带 `-framework-dependent` 的是需运行时版，体积小，要先装 .NET 10 运行时：上表链接下载的是最新的 10.0 运行时，
+只要 Runtime，不需要 SDK；其他安装方式见 [.NET 10 下载页](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
-解压后得到与发布包同名的目录（不含压缩后缀），里面是程序和 `LICENSE`。
-请放在自己的可写目录，例如用户目录下；不要放进 `Program Files`，程序需要在旁边写入 `data/`。
-CLI 和 GUI 分别解压到各自目录，各自保存 `data/`，登录凭据和设置不会自动共享。
+解压到自己的可写目录，例如用户目录下；不要放进 `Program Files`，程序要在旁边写 `data/`。
 
-- **Windows**：GUI 双击 `Aether.Gui.exe`；CLI 在终端运行 `aether.exe watch <房间号>`。
+### 首次启动
+
+- **Windows**：双击 `Aether.Gui.exe`；CLI 在终端运行 `aether.exe watch <房间号>`。
   SmartScreen 拦截时点“更多信息 → 仍要运行”。
-- **macOS**：发布包未做 Developer ID 签名和公证。首次启动前在终端对解压目录执行
-  `xattr -dr com.apple.quarantine <目录>`，解除 Gatekeeper 对可执行文件及 Avalonia dylib 的隔离。
-  GUI 是目录里的 `Aether.Gui` 裸可执行文件，Finder 双击会同时打开终端窗口；
-  CLI 在该目录运行 `./aether watch <房间号>`。
-- **Linux**：在解压目录运行 `./aether watch <房间号>`，压缩包保留可执行权限。
+- **macOS**：发布包没有签名和公证，先在终端解除隔离：`xattr -dr com.apple.quarantine <解压目录>`。
+  GUI 是目录里的 `Aether.Gui`（Finder 双击会同时打开一个终端窗口）；CLI 运行 `./aether watch <房间号>`。
+- **Linux**：在解压目录运行 `./aether watch <房间号>`。
 
-首次连接直播间时，用 B站 App 扫码登录。
+第一次连接直播间时，用 B站 App 扫码登录。
 
-**升级**：先关闭旧版本，再把新版本解压到新目录，将旧目录的整个 `data/` **拷贝**到新目录，
-然后启动新版本。不要移动或删除旧目录中的 `data/`，回滚时关闭新版本并启动旧目录里的程序。
-从 v0.1.0 起，升级保留登录凭据、设置和数据库；只保证升级，不保证旧程序能读取新版本处理过的 `data/`，
-见 [ADR 0005](docs/adr/0005-data-directory-upgrade-compat.md)。
+### 升级
 
-## 从源码运行与发布
+1. 关闭旧版本，把新版本解压到新目录。
+2. 把旧目录的整个 `data/` **复制**到新目录，再启动新版本。
 
-开发需要 .NET 10 SDK：
+旧目录保持不动，回滚时直接运行旧程序。从 v0.1.0 起，升级保留登录凭据、设置和数据；
+不保证旧版本能读取新版本用过的 `data/`，见 [ADR 0005](docs/adr/0005-data-directory-upgrade-compat.md)。
+
+## 使用
+
+**GUI**：扫码登录后输入房间号，点“连接”。左侧栏切换弹幕、盲盒统计、进场欢迎、发送队列和通用设置。
+
+**CLI**：
+
+```sh
+aether watch <房间号>   # 观看直播间；没登录时在终端显示二维码
+aether login            # 只扫码登录
+aether logout           # 退出登录，删除本地凭据
+```
+
+弹幕写到 stdout，例如 `[20:15:03] 昵称 [舰长][粉丝团 21]: 内容`，可以重定向成记录文件；状态和日志写到 stderr。按 Ctrl+C 退出。
+
+## 配置
+
+第一次运行时生成 `data/aether.yml`，每一项都有中文注释；也可以在 GUI 的设置页里改。
+
+| 分组 | 内容 | 默认 | 生效时机 |
+| --- | --- | --- | --- |
+| `blind_box` | 盲盒统计开关、查询关键字、播报开关 | 开启 | 下次连接直播间 |
+| `welcome` | 进场欢迎开关、欢迎语、欢迎条件 | 关闭 | 下次连接直播间 |
+| `send` | 两次发送之间的秒数 | 1 | 下次连接直播间 |
+| `log` | 日志保留天数、日志级别 | 30 天、Information | 重启 |
+
+`data/` 里还有：
+
+- `aether.db`：登录凭据（**明文**）和盲盒记录。不要分享 `data/`；macOS / Linux 上权限为 0600。
+- `logs/`：按天滚动的日志。`log.level` 设为 `Trace` 会记下每条原始消息，含观众个人信息，只在抓包时临时开启。
+
+CLI 和 GUI 放在同一目录时共用 `data/`，分开放则各自登录。同一个 `data/` 里，一个直播间同时只能有一个连接。
+`data/` 请放在本地磁盘，部分网络文件系统不支持直播间锁。
+
+各项设置和程序行为的细节见 [行为参考](docs/reference.md)。
+
+## 开发
+
+需要 [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 ```sh
 dotnet build
 dotnet test
-dotnet run --project src/Aether.Cli -- login
-dotnet run --project src/Aether.Cli -- logout
-dotnet run --project src/Aether.Cli -- watch 1768506153
+dotnet run --project src/Aether.Cli -- watch <房间号>
 dotnet run --project src/Aether.Gui
 ```
 
-GUI 使用蓝白气泡图标：Windows 的窗口、任务栏和发布后的 EXE 使用同一图标；
-macOS 在程序运行期间设置 Dock 图标，开发启动和 Release 发布均生效。
-图标嵌入程序，不依赖启动时的工作目录。macOS 尚不提供 `.app`、Finder 静态图标
-或退出后固定在 Dock 的图标；数据目录仍遵循 ADR 0002。
-矢量母版与导出方法见 [应用图标素材](docs/design/app-icon/README.md)。
+Debug 版使用仓库根目录的 `data/`。推送 `v*` tag 后，[Release 工作流](.github/workflows/release.yml) 构建发布包并上传到 GitHub Release。
 
-发布 GUI（目标机器需要 .NET 10 运行时；把输出目录整体复制到可写位置）：
+- [术语表](GLOSSARY.md) · [架构决策](docs/adr/) · [行为参考](docs/reference.md) · [协议测试数据](tests/Aether.Core.Tests/Fixtures/README.md)
+- 任务和人工验证清单在 [Issues](https://github.com/cyaoc/aether/issues)：Windows [#15](https://github.com/cyaoc/aether/issues/15)、Linux [#34](https://github.com/cyaoc/aether/issues/34)、macOS [#121](https://github.com/cyaoc/aether/issues/121)
 
-```sh
-dotnet publish src/Aether.Gui -c Release -r osx-arm64 --self-contained false -o artifacts/gui-osx-arm64
-dotnet publish src/Aether.Gui -c Release -r win-x64 --self-contained false -o artifacts/gui-win-x64
-```
+## 致谢
 
-Intel Mac 将 `osx-arm64` 换成 `osx-x64`。启动对应目录中的 `Aether.Gui` 或 `Aether.Gui.exe`。
+B站 协议参考 [bilibili-API-collect](https://github.com/pskdje/bilibili-API-collect)。
 
-图标验收（Windows 和 macOS 分别进行）：
+## 许可证
 
-1. 开发启动 GUI；Windows 检查主窗口、任务栏和退出确认窗口，macOS 检查 Dock。
-   只取消退出确认，不执行退出登录。关闭 GUI 后重新启动，再检查图标。
-2. 将 Release 输出目录复制到仓库外，从另一个工作目录启动可执行文件，重复上述检查；
-   Windows 另在资源管理器检查 EXE 的图标。
-3. 在浅色／深色桌面上确认边缘透明、没有纹理或杂点，小尺寸下能辨认气泡与双眼。
-   静态多尺寸预览见 [preview.png](docs/design/app-icon/preview.png)。
-
-发布 CLI 后，可执行文件名为 `aether`：
-
-```sh
-dotnet publish src/Aether.Cli -c Release -o artifacts/cli
-./artifacts/cli/aether watch 1768506153
-```
-
-发布 Linux x64 的独立 CLI（服务器无需安装 .NET SDK 或运行时）：
-
-```sh
-dotnet publish src/Aether.Cli -c Release -r linux-x64 --self-contained true -o artifacts/linux-x64
-```
-
-把 `artifacts/linux-x64/` 整个目录复制到 Linux x64 服务器上可写的目录，例如 `~/aether/`，
-然后在服务器终端运行（首次需要用手机扫描终端里的二维码）：
-
-```sh
-~/aether/aether watch 1768506153
-```
-
-数据保存在程序旁边的 `~/aether/data/`，与终端当前目录无关，遵循 ADR 0002。
-迁移已有登录凭据时，一同复制原来的 `data/`；它包含明文凭据，应仅允许自己的账号访问。
-
-CLI 和 GUI 共用 bot 设置文件 `data/aether.yml`（数据目录位置见下文 ADR 0002）。首次运行时自动生成带中文注释的模板，默认值是生效的行：
-
-```yaml
-log:
-  retention_days: 30
-  level: Information
-blind_box:
-  enabled: true
-  daily_keyword: 今日盲盒
-  monthly_keyword: 本月盲盒
-  announce: true
-send:
-  interval_seconds: 1
-welcome:
-  enabled: false
-  text: "欢迎{大航海}{昵称}"
-  uids: []
-  fan_club_level: 0
-  guard: 舰长
-  wealth_level: 0
-```
-
-`log.retention_days` 是日志保留天数，必须为正整数，默认 30；`log.level` 是文件日志最低级别，
-可选 Trace、Debug、Information、Warning、Error、Critical，默认 Information。日志设置在进程启动时读取，修改后重启生效。
-`blind_box.enabled` 只接受 `true` 或 `false`，默认 `true`，关闭后既不记录，也不回复和播报；下次观看直播间时生效，自动重连不重新读取。
-启用时把 V1 `SEND_GIFT` 和 V2 `SEND_GIFT_V2` 的 gold 盲盒记入 `data/aether.db`，保存原始外层 JSON（V2 包含 `pb` 原文）；金额为整数金瓜子，
-投入按 `total_coin`、开出价值按 `price × num`。相同 `tid` 只记录一次：内容也相同时视为重复推送，警告里带上被忽略的开出礼物、个数和投入；内容不同时警告 `tid` 可能不是按礼物项唯一，金额可从警告补回。数字形式的 `tid` 按其数字文本保存。以下情况都未实测确认，所以在默认日志级别下可见：uid 为 0 的盲盒（可能是神秘人）不记录，记一条 Information；带 `blind_gift` 但不是 gold 的礼物不记录并警告；`switch` 为 false 的盲盒照常记录并警告。
-每条消息按 cmd 选择版本，V2 的每个 `gift_list` 项各记一行，兼容 `data.pb` 和 `data.data.pb`；损坏消息写 Warning 后跳过，继续接收后续消息。不累计 `COMBO_SEND` / `COMBO_END`。每条记录的观众、礼物和金额可在 Information 日志中查看。
-
-启用盲盒统计时，观众发送整条关键字（默认“今日盲盒”或“本月盲盒”，忽略弹幕首尾空白），bot 会 @回复这位观众在本直播间、
-收到关键字时的北京时间自然日或自然月内的投入与盈亏。本月范围从 1 日 0 点到下个月 1 日 0 点，不含结束时刻。
-只统计连接期间记录的盲盒，日期按固定 UTC+8 和礼物送出时间计算。
-今日回复为“今日投入X电池 赚Y电池”“今日投入X电池 亏Y电池”“今日投入X电池 不赚不亏”或“今日没有盲盒记录”，
-本月回复使用“本月”前缀，例如“本月投入X电池 赚Y电池”或“本月没有盲盒记录”。
-1 电池 = 100 金瓜子，先四舍五入到一位小数，整数不带小数点；盈亏四舍五入后为 0 时写“不赚不亏”。账号自己发关键字也会触发；uid 为 0 时跳过并写 Debug 日志。
-`blind_box.daily_keyword` 和 `blind_box.monthly_keyword` 必须为非空的一行文字，不能通过留空单独关闭一种查询；要关闭查询，用 `blind_box.enabled` 全部关闭。
-`send.interval_seconds` 必须为正整数，默认 1 秒。关键字和弹幕都先去掉首尾空白再比较；两个关键字相同时只回复今日。
-这些设置均在下次观看直播间时生效。回复在发送时才查询金额，所以排队期间收到的同一天或同一个月的盲盒也会计入；查询范围仍由收到关键字的时间决定。
-发送队列不阻塞接收和心跳，自动重连时保留待发弹幕，连正在发送、被重连打断的那条也会在重连后重发；直播间连接结束时清空并记录丢弃条数，被打断的那条也计入，不算发送失败。弹幕的 uid 或回复用的 id 读不出时，弹幕照常显示：uid 读不出就不触发回复，id 读不出就不带 `replay_dmid` 回复。
-同一观众最多同时排着一条今日查询和一条本月查询；同一种查询在排队或发送时再次触发会合并，保留第一次触发的信息；查询回复成功后可立即再次触发，照常排队。
-发送间隔从上一条发送结束时算起。相同正文（`msg`，不看 @ 的对象）还要距上次发送结束满 5 秒，两条规则取较晚的时刻；5 秒固定，不另设设置项。失败、被限流和被重连打断的尝试也计时，因为请求可能已经到了 B站。等待后重新计算正文，并按新正文再次检查；后面的不同正文不插队。
-成功写 Information；遇到频率类失败（code 为 `10031`、`10030`，或 code 为 0 且 message 为 `msg in 1s`、`msg repeat`），写一条 Warning（带 B站 返回的 code、message 和重试等待秒数），这条保留在队首，等一个发送间隔后重试一次，重试也受相同正文规则约束。Warning 的秒数按正文不变计算，即发送间隔与 5 秒中较大的值。重试仍失败则写 Warning 并丢弃，再按两条规则继续后面的弹幕。发送间隔、相同正文计时和重试状态在自动重连后保留，直播间连接结束时清空；被重连打断的尝试不占用重试次数。其他接口拒绝（如 `1003212`）、code 为 0 时的其他非空 message（如 `f`）或网络失败直接写 Warning 并丢弃，不重试。
-
-`blind_box.announce` 只接受 `true` 或 `false`，默认 `true`，下次观看直播间时生效。开启时，观众停手 3 秒没再送盲盒，
-bot 主动 @播报这一轮的投入和盈亏，例如“本次投入300电池 亏50电池”。不同种类的盲盒合并计算，金额口径和取整与查询一致；
-只计入新记录的盲盒，重复 `tid` 和 uid 为 0 的礼物不计入，账号自己送的也会播报。只关闭 `announce` 仍会记录和回复查询。
-播报和查询共用发送队列，按进入队列的先后发送、遵守相同的发送间隔和失败规则；同一观众最多各有一条今日查询、本月查询和播报在排队，互不合并。
-播报在每次实际发送前计算金额，排队、等待重试或被重连打断后补发时都会计入新收到的盲盒；成功或最终放弃后，本次报出的金额结束，放弃的金额不进下一轮，发送请求进行中收到的新盲盒按自己的到达时间开始下一轮。
-静默等待和排队都跨自动重连保留；主动断开或换直播间时一起清空，未满 3 秒的轮次也计入丢弃条数。
-成功日志写“播报观众”，以便与“回复观众”区分；正文超长时按接口失败放弃，不截断。
-播报只带观众的 `reply_mid`，不带 `replay_dmid`；网页端和 App 的 @显示仍需真实直播间人工验收（[#65](https://github.com/cyaoc/aether/issues/65)）。
-
-`welcome.enabled` 默认 `false`，开启后，观众进场时满足任意一个欢迎条件就发一条欢迎弹幕：UID 在 `uids` 中、本直播间粉丝团等级达到 `fan_club_level`、大航海身份达到 `guard` 档位，或荣耀等级达到 `wealth_level`。同时命中多个条件也只欢迎一次，日志按 UID > 粉丝团等级 > 大航海身份 > 荣耀等级记录第一个命中的条件。
-`uids` 是正整数（int64）的单行列表，例如 `[12345, 67890]`，默认 `[]`，表示不按 UID 欢迎。`fan_club_level` 和 `wealth_level` 是非负整数，达到门槛（含门槛本身）就命中，默认 `0`，表示不按该等级欢迎。粉丝团只认进场时佩戴的本直播间主播的粉丝团，灯牌熄灭也算；戴着别的主播粉丝团的观众不按粉丝团等级欢迎。`guard` 可选 `关闭`、`舰长`、`提督`、`总督`，默认 `舰长`；选 `提督` 时欢迎提督和总督。
-只处理 `INTERACT_WORD_V2` 的进场事件，uid 为 0 时不欢迎；开启时，每个直播间连接记录一次进场版本，遇到旧版或未知版本时警告一次“进场消息格式可能变了”；关闭时既不解码进场消息，也不记录或警告进场消息格式。
-欢迎语必填，不能只有 `{@}`；支持 `{@}`（只能放开头，发送时 @观众）、`{昵称}`、`{大航海}`；花括号本身用 `{{` 和 `}}`。以 `{` 开头的值须加引号，例如 `"{@}欢迎回家"`。英文、数字、半角符号算 1，其他字符算 2（按 Unicode 码点计数）。上限自动读取账号的：开启进场欢迎时，每次连接直播间（包括重连）从 B站 读取，失败时按 20 处理并记一条警告。`{@}` 不占字数；昵称太长时从尾部按码点截短，不加省略号。昵称截到空后正文仍超过上限，或拼出来的正文为空时（例如只写 `{大航海}` 而观众不是大航海身份），不进入发送队列，记一条警告。
-欢迎在进队时定好正文，和查询、播报按进队顺序发送，沿用发送间隔、同正文 5 秒等待和失败规则；不按观众合并。每次尝试（含重试）前，距进场到达已满 30 秒的欢迎会丢弃并记日志。跨重连保留，直播间连接结束时清空并计数。CLI 的 stderr 日志显示“进场欢迎”和“发送弹幕成功：欢迎观众”；这些设置在下次观看直播间时生效，可在设置文件或 GUI 侧栏的“进场欢迎”页修改。
-
-缺少的项使用默认值；未知键会列在警告中，仍照常运行。设置格式遵循 [ADR 0004](docs/adr/0004-settings-file-line-editing.md)：
-英文 snake_case 键，分组下每个设置占一行。有效的多行标量仍可读取，但多行写法、嵌套结构和行内分组标为不能逐行编辑；
-日志两项只接受整数或级别名，盲盒开关只接受布尔值，不接受嵌套对象。
-已知分组和设置名不能重复，即使键使用了不同的 YAML 标签；错误会定位到重复项，保存时文件保持不变。
-
-GUI 侧栏有“盲盒统计”“进场欢迎”“发送队列”“通用设置”四页；导航的“开 / 关”显示设置文件里已保存的开关。
-每页只保存本页改过的值到 `aether.yml`，未修改时“保存”不可用，切换页面保留未保存的修改。
-进场欢迎点“＋ 添加条件”选择指定观众、粉丝团等级、大航海身份或荣耀等级；指定观众一行一个 UID，可以添加多条，其余每类只能一条，点 × 删除。满足任意一条就欢迎，没有条件时不会欢迎任何人。输入有误时在对应行提示，修正后才能保存。欢迎语下面的按钮可插入 `{@}`、`{昵称}`、`{大航海}`。
-前三页在下次连接直播间时生效，通用设置里的日志保留天数和级别在重启后生效。
-连接中保存前三页时会提示当前连接仍在用旧设置，点“重新连接”会等旧连接结束，再连接同一直播间，保留弹幕列表。
-保存前重新读取文件；手动添加的注释、行尾注释、未知键和空行会原样保留。缺少的设置追加到分组末尾，
-缺少的分组追加到文档末尾。输入不合法时在该项下显示 Core 的提示并禁用保存；文件有错时各页顶部显示路径和行号。
-多行等不能逐行编辑的项显示为只读，可在“通用设置”点“打开设置文件”用系统默认程序手改；修好文件后切换页面重新检查。
-文件不是 UTF-8（或带 BOM 的 UTF-16/32）编码时仍能读取，但所有项都只读，另存为 UTF-8 后即可在 GUI 里修改。
-“只保留最近 1000 条”仍在主窗口，仍单独保存在 `gui.yml`。
-
-进场欢迎页的“最近欢迎”显示观众、命中的条件、正文和发送结果；盲盒统计页的“最近回复和播报”在开始发送后显示计算出的正文。
-发送队列页按发送顺序列出“待发”，并显示“最近发送”；侧栏的待发数包含正在发送和等待重试的项。
-点“连接”清空这些动态，“重新连接”保留；连接结束时未完成的项标为“连接结束，没发出”。每页保留最近 100 条已结束的项，未结束的全部保留。
-
-每次开始新的直播间连接前，Core 重新读取并校验设置。有错就返回文件路径、行号和设置名，不发起网络请求、不重试；
-同一个直播间连接中的重连不重新读取。YAML 语法或整体结构错误标为 `YAML`，文件读写错误标为 `文件`（第 1 行）。
-启动时文件有错，日志仍按默认值接入，并在日志中记下错误。CLI 的 `login` 和 `logout` 在 stderr 输出一行警告后照常运行，
-`watch` 输出错误并以非零退出码结束；GUI 照常启动，点“连接”时显示拒绝原因。修好文件后可以再次连接。`data/gui.yml` 仍只保存 GUI 显示设置，行为不变。
-
-CLI 和 GUI 的文件日志位于 `data/logs/`，默认记录 Information 及以上级别，由 `log.level` 控制。
-公共日志写到 `aether-yyyyMMdd.log`，允许多个进程共享写入；解析到真实房间号后，
-包括扫码和重连在内的 Core 日志写到 `<真实房间号>/aether-yyyyMMdd.log`。
-直播间连接因错误结束时，该直播间的日志记下错误；CLI 或 GUI 另在公共日志记一条，房间号确定前的失败只记在公共日志。
-文件按本地日期每天滚动，默认保留 30 天，由 `log.retention_days` 控制：启动时清理所有目录的过期文件，打开或滚动某组日志时再清理该组；
-空直播间目录保留，避免与其他进程创建日志文件发生竞态而丢失日志。
-每条写完即关闭文件，切换直播间不会积累句柄，其他进程可在断开后接管同一直播间。
-每条包含时间、级别、进程号、类别和消息，异常附完整堆栈。日志同步写入，不在内存中缓冲。
-进程未处理异常、未观察到的 Task 异常和 GUI UI 线程未处理异常立即记录，不标记为已处理，
-仍遵循运行时原本的退出行为（未观察到的 Task 异常默认不终止 .NET 进程）。
-跳过无法解析的直播间消息时，警告附原始 JSON；超过 2KB 按 UTF-8 字节截断并注明。
-`log.level` 设为 `Trace` 时，每条直播间消息另记一条完整的原始 JSON，不截断，含观众的 uid、昵称等个人信息，
-只在抓包时临时开启，步骤见 [测试数据说明](tests/Aether.Core.Tests/Fixtures/README.md)。
-每个直播间连接第一次收到礼物消息时记一条 Information，写明是 V1（`SEND_GIFT`）还是 V2（`SEND_GIFT_V2`），版本切换时再记一条；
-收到不认识、以 `DANMU_MSG` 或 `SEND_GIFT` 开头的 cmd 时记一条警告，提示消息格式可能变了，同一直播间连接中每个 cmd 只记一次。
-自动重连不重新提示。
-
-弹幕以 UTF-8 写到 stdout：`[HH:mm:ss] 昵称 [舰长][粉丝团 47][荣耀 45]: @被回复的昵称 内容`；粉丝团等级、荣耀等级、大航海身份没有时不写对应的方括号，大航海身份按实际显示舰长、提督或总督，没有被 @ 的观众时也不加 `@昵称 `。输出不使用 ANSI 颜色；状态和日志写到 stderr。
-Ctrl+C 关闭连接并正常退出，错误返回非零退出码。每次 `watch` 开始直播间连接时，
-先解析短号或真实房间号，成功后只使用这个真实房间号，重连不再请求 room_init。
-解析时的临时网络失败按下面的重连节奏重试；不存在的直播间立即报错，不扫码、不连接、不重试。
-随后获取直播间锁，再用保存的 cookie 调 nav 检查登录状态；没有凭据或已失效时，在 stderr 显示二维码，
-扫码成功后保存凭据并继续连接，无需先运行 `login`。二维码过期自动换新，扫码期间也可按
-Ctrl+C 取消。连接使用 nav 返回的 mid 和凭据中的 buvid3，HTTP 请求携带保存的 cookie，
-以接收观众的真实昵称。网络失败、超时、B站 服务器 5xx 或弹幕服务器断开时，`watch`
-提示“重连中”，按 1、2、4、8、16、30、30…… 秒自动重试；收到认证成功回复后重置为 1 秒。
-60 秒没有收到任何数据也会重连；心跳回复正常的安静直播间不会断开。
-每次重连重新获取 wbi key 和弹幕 token，中途凭据失效或被 `logout` 删除时暂停接收弹幕，
-显示二维码重新登录，成功后继续连接同一个直播间。等待扫码时也会检查本地数据库，
-可在另一个终端运行 `login` 或在 GUI 登录，经 nav 确认有效后恢复连接；新凭据未生效时记一条警告并重新显示二维码。扫码阶段的网络失败仍每 2 秒原地重试，
-不提示“重连中”，也不作废已显示的二维码。B站 明确拒绝（错误码含房间号不存在、HTTP 4xx、
-弹幕认证失败）、无法解析的 HTTP 或认证响应、损坏的弹幕帧、本地错误（如数据库）和程序缺陷，
-重试也不会好转，反复请求还会加重风控，所以直接报错退出。单条直播间消息不是合法 JSON、
-缺少有效 cmd，或 DANMU_MSG 取不到昵称或内容时，只跳过该条并记一条警告，能读取 cmd 时一同记录；
-后续弹幕继续接收。包头无效、解压失败和协议版本不支持仍直接报错退出。重连等待期间 Ctrl+C 也会立即结束。
-
-同一个 `data/` 中，同一个真实房间号只允许一个直播间连接（短号和真实房间号也会冲突）。
-Core 独占打开 `data/room-<真实房间号>.lock`，在扫码和断线重连期间持续持有；
-第二个 CLI 或 GUI 会在检查登录、显示二维码之前报“直播间 … 已有直播间连接”，不会重试。
-CLI 输出“错误：……”并以非零退出码结束；GUI 显示连接错误，状态回到“未连接”。
-取消、出错或释放更新流都会释放锁并删除锁文件；进程崩溃时由操作系统释放锁，
-留下的锁文件在下次连接同一直播间时复用。不要在连接运行期间删除它。同一目录可同时连接不同直播间；不同数据目录互不影响。
-macOS / Linux 上的锁是 flock，`data/` 应放在本地磁盘上，部分网络文件系统不支持。
-`login` 和 `logout` 不获取直播间锁，观看期间可在另一个终端执行。
-
-连接、重连前和连接期间，距上次检查满 24 小时才检查是否需要刷新登录凭据；
-只在 B站 返回 `refresh=true` 时刷新。新凭据保存后才确认作废旧凭据，确认失败只记警告。
-已发出的刷新请求不随直播间连接结束而取消，连接等它保存完再重连。
-检查或刷新遇到临时网络错误时保留原检查时间，连接照常，连接期间 30 秒后再试；
-`cookie/info` 返回错误码、刷新页面结构变化等其他失败记一条警告，24 小时后再查，连接照常，
-凭据是否有效仍由每次连接前的 nav 判断。B站 拒绝刷新请求时删除仍匹配旧 refresh_token 的凭据，
-结束当前连接，转入重新登录。连接期间凭据被另一个进程删除（如 `logout`）时停止检查，当前连接照常，
-下次重连时要求扫码。刷新结果不会覆盖另一个进程刚保存的凭据，也不会把已经退出的登录写回来。
-
-`login` 先打开数据库、获取 buvid3，再在 stderr 显示字符画二维码，用 B站 App 扫码并确认。
-每两秒轮询一次，过期后自动打印新二维码，成功保存凭据后提示“已登录”。网络错误（连不上、
-HTTP 非 2xx、超时）记一条警告，两秒后重试，直到成功或 Ctrl+C；B站返回的错误码直接报错退出。
-Ctrl+C 取消并正常退出。`logout` 先调用 B站 退出登录接口，让服务器端的 SESSDATA 失效，再删除本地登录凭据，可重复执行。
-B站 端退出失败（网络错误、错误码、cookie 已失效）时记一条警告，仍删除本地凭据；
-Ctrl+C 取消则保留本地凭据。
-
-数据目录遵循 [ADR 0002](docs/adr/0002-portable-data-directory.md)：Release 用程序目录下的 `data/`；
-Debug 从程序目录向上寻找 `Aether.slnx`，用其所在目录下的 `data/`，找不到则退回程序目录。
-与启动命令所在目录无关。SQLite 文件是 `data/aether.db`，使用 WAL；`PRAGMA user_version`
-记录表结构版本，当前为 3。升级使用手写 SQL，并与版本号在同一事务中提交。
-v2 升级到 v3 保留登录凭据，新增 `blind_box` 表，按真实房间号、观众 uid 和送出时间建立索引。
-`credential` 表只存一行，保存完整 cookie 名值 JSON、refresh_token、UTC 保存时间和检查时间 `checked_at`。
-v1 升级后保留原凭据，检查时间为空，下次连接立即检查；扫码或刷新保存时检查时间等于保存时间。
-凭据暂存明文，`data/` 已被 Git 忽略；连接开启 `secure_delete`，删除或覆盖的凭据不会残留在文件里。
-macOS / Linux 上数据库文件（含 `-wal` / `-shm`）权限为 0600，只有当前用户可读写；Windows 依赖目录继承的 ACL。
-`login` / `logout` / `watch` 都会打开数据库。CLI 与 GUI 放在同一发布目录时共用这些数据。
-
-Core 的业务入口都在 `AetherClient`：`LoginAsync` 返回 `LoginQrCode`、`LoggedIn` 更新流；
-`LogoutAsync` 删除凭据；`WatchAsync` 返回 `WatchQrCode`（需要登录时）、`Connecting`、`Connected`、`Reconnecting`、`Danmaku`、`SendQueueUpdate` 更新流。
-`SendQueueUpdate` 报告盲盒查询、盲盒播报和进场欢迎进入发送队列、开始发送、成功、等待重试、丢弃，以及欢迎命中却没进入发送队列的原因。
-每项编号在进程内不重复，自动重连后沿用；连接结束不逐项报告丢弃，由外壳标记未完成的项。CLI 忽略这些更新，继续使用现有日志。
-取消或释放更新流会结束对应操作。测试从这些入口驱动，注入假的 HTTP、真实 BCL WebSocket 的本地对端、
-`FakeTimeProvider` 和独立临时数据目录，使用真实 SQLite，不访问 B站。真实捕获测试帧的来源与脱敏方式见
-[Fixtures/README.md](tests/Aether.Core.Tests/Fixtures/README.md)。
-
-CLI 和 GUI 启动时各调用一次 `DataDirectory.Locate()`，把路径传给 `AetherClient`，GUI 同时把它传给
-`GuiSettings.Load`。生产环境统一使用 `AetherClient(logger, dataDirectory)` 构造函数组装 HTTP、WebSocket
-和系统时间；测试继续使用可注入这些依赖的构造函数。
-
-macOS 手动验收：运行 `login` 并用手机扫码，确认提示“已登录”；
-下面的查询只输出凭据行数与保存时间，不输出 cookie 或 token：
-
-```sh
-sqlite3 data/aether.db 'SELECT count(*), max(saved_at) FROM credential;'
-dotnet run --project src/Aether.Cli -- logout
-sqlite3 data/aether.db 'SELECT count(*) FROM credential;'
-```
-
-登录后应为 1 行，退出后应为 0 行。
-
-观看手动验收：运行 `watch <房间号>`，没有凭据时应直接显示二维码，扫码后依次提示
-“连接中”“已连接”，收到的弹幕显示真实昵称。取消后再次运行 `watch` 应直接连接；
-运行 `logout` 后再运行 `watch` 应重新显示二维码，扫码阶段按 Ctrl+C 应正常退出。
-重连手动验收：观看期间断开网络，确认 stderr 出现“重连中”；等待后恢复网络，
-确认再次出现“已连接”并继续打印弹幕。再次断网，在等待重连时按 Ctrl+C，应立即正常退出。
-
-GUI 使用 Fluent 主题并跟随系统深色／浅色，默认 960×640，最小 760×520。左侧栏放直播间卡片、功能导航和账号。
-没有登录凭据或读到“未登录”时，整个窗口显示扫码登录页，登录完才进主界面；二维码过期自动换码，出错时显示原因和“重试”。
-账号在后台读取，失败时可点“重试”，不影响连接直播间。输入房间号后点“连接”或回车；连接中途登录凭据失效时，内容区显示扫码卡片，
-侧栏保留，扫码成功后继续连接。点“断开”可取消扫码或结束连接，再输入新的
-房间号。卡片显示从首次连上开始的分钟数，自动重连不会清零。账号的 ⋯ 菜单里点“退出登录…”并确认后，
-先结束当前连接或扫码，再删除凭据，然后回到扫码登录页；关闭窗口也会先取消并等待当前操作结束。
-窗口显示错误提示，日志写到文件和调试控制台。列表开启虚拟化，在底部时跟随新弹幕；往上翻看历史时暂停，
-滚回底部后恢复。每条弹幕分两行：第一行是昵称、徽章和时间，徽章依次是“账号”、大航海身份、粉丝团等级、荣耀等级，没有的不显示；
-第二行是正文，弹幕 @ 了别人时正文前显示 `@昵称`。已知账号 UID 对应的弹幕用强调底色和实心“账号”标签标记，
-即使账号有大航海身份也一样；舰长、提督、总督发的弹幕各用一种淡底色。
-默认勾选“只保留最近 1000 条”，超出时丢弃最旧的弹幕；取消勾选后保留全部，
-重新勾选立即裁剪到最新 1000 条。已丢弃的弹幕不会恢复。
-该设置一改就写入 `data/gui.yml`，重启后恢复；文件缺失、为空、解析失败或值留空时使用默认值，未知的键会被忽略。
-macOS / Windows / Ubuntu CI 的 `dotnet build` 都会构建 GUI，`dotnet test` 运行 Core、CLI 和 GUI 无头测试；GUI 不支持 Linux 桌面运行。
-`tests/Aether.Gui.Tests` 用 Avalonia.Headless 覆盖登录页、账号读取／重试／标记、退出确认、重连计时、设置页读写、发送队列动态、保留条数和跟随最新弹幕；真实窗口的观感仍按下面步骤手动验收。
-
-GUI 手动验收（macOS 和 Windows，浅色和深色各一次）：
-
-1. 运行 CLI `login` 并扫码，再启动 GUI，连接同一直播间应直接显示“已连接”，不出现二维码。
-2. 在账号 ⋯ 菜单点“退出登录…”，取消应保留账号和连接；确认后回到扫码登录页；等待过期应换码，扫码成功后进入主界面并显示账号昵称，再连接应显示弹幕的时间、昵称和内容。
-3. 分别在扫码、已连接和重连中点“断开”，应回到“未连接”，房间号恢复可编辑；扫码期间关闭窗口应退出进程。
-4. 输入非正整数应提示房间号格式错误；输入不存在的房间号应在扫码前显示 Core 返回的错误。
-5. 连接超过一分钟后断网，等待出现“重连中”，恢复网络应回到“已连接”并继续显示弹幕，分钟数不清零。
-6. 切换系统深色／浅色，确认窗口跟随；缩小窗口后列表仍可滚动，中文提示和二维码可读。
-7. 持续接收弹幕，在底部时确认跟随；往上翻后新弹幕不能拉回底部，滚回底部后恢复跟随。
-   收到超过 1000 条后重复验证，包含多行弹幕。
-8. 默认最多保留 1000 条；取消勾选后确认能超过 1000 条，再勾选应立即只留下最新 1000 条。
-   修改复选框后重启，确认状态保留。
-9. 关闭 GUI，备份 `data/gui.yml` 并把内容改为 `KeepRecentDanmaku: [`，重新启动仍应正常，且默认勾选。
-   验证后恢复备份。
-10. 依次打开侧栏的四个设置页，检查每页顶部的生效时机、浅色／深色下的可读性，以及最小窗口下能否滚动查看全部字段。
-    改值后切页再回来，草稿应保留；仅当前页保存，导航开关在保存后更新。关键字为空或发送间隔为非正整数时，该项下应立即提示并禁用保存。
-    在“进场欢迎”打开“＋ 添加条件”，检查四类菜单、默认值、固定顺序与输入焦点；指定观众可连续添加，已有等级类标“已添加”且不能重复添加。删除全部条件应显示空状态，删除后加回同样的值不算修改。试输空、非法、超出 int64 和重复 UID，以及等级 0，确认对应行报错且不能保存，改对后恢复；切换页面后未填的 UID 行仍保留。检查只读行不能改、不能删，相应菜单禁用；保存保留注释并将 UID 写成单行列表。检查三个欢迎语按钮的插入位置与 @ 判重。在设置文本框按回车不应连接直播间。
-    在“通用设置”点“打开设置文件”，确认打开同一份 `data/aether.yml`，保存后手加的注释仍在。把未修改页的一项改成多行再改回单行，切页后应更新只读状态。
-11. 用账号和另一个账号各发一条弹幕，只有当前账号的弹幕带“账号”标签和强调底色；账号读取失败时不标记，点“重试”成功后恢复标记。
-12. 已连接时保存盲盒、欢迎或发送间隔，应出现重新连接提示；点“重新连接”应回到同一直播间且保留弹幕。断开后提示消失，未连接或只保存日志设置时不显示该提示。
-
-测试使用 xUnit v3 的 Microsoft Testing Platform 运行器（由 `global.json` 选择）：
-
-```sh
-dotnet test --project tests/Aether.Core.Tests --filter-class Aether.Core.Tests.ProtocolTests
-```
-
-协议依据：[ADR 0001](docs/adr/0001-web-danmaku-protocol-with-qr-login.md)、
-[弹幕流](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/message_stream.md)、
-[直播间信息](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/info.md)、
-[扫码登录](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/login/login_action/QR.md)、
-[刷新登录凭据](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/login/cookie_refresh.md)、
-[wbi 签名](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/misc/sign/wbi.md)。
+[MIT](LICENSE)
