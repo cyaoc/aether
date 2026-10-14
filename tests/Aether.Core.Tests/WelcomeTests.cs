@@ -1,5 +1,6 @@
 using Aether.Core.Tests.Support;
 using Microsoft.Extensions.Logging;
+using static Aether.Core.Tests.Support.BlindGiftV2Fixture;
 using static Aether.Core.Tests.Support.SentDanmaku;
 
 namespace Aether.Core.Tests;
@@ -321,32 +322,39 @@ public sealed class WelcomeTests
     }
 
     [Theory]
-    [InlineData("提督", 3, false)]
-    [InlineData("提督", 2, true)]
-    [InlineData("提督", 1, true)]
-    [InlineData("关闭", 1, false)]
-    [InlineData("关闭", 2, false)]
-    [InlineData("关闭", 3, false)]
-    [InlineData("舰长", 0, false)]
-    public async Task Guard_threshold_welcomes_only_qualifying_entries(string threshold, long guard, bool welcomes)
+    [InlineData("舰长", 3, "舰长")]
+    [InlineData("舰长", 2, "提督")]
+    [InlineData("舰长", 1, "总督")]
+    [InlineData("提督", 3, null)]
+    [InlineData("提督", 2, "提督")]
+    [InlineData("提督", 1, "总督")]
+    [InlineData("总督", 3, null)]
+    [InlineData("总督", 2, null)]
+    [InlineData("总督", 1, "总督")]
+    [InlineData("关闭", 1, null)]
+    [InlineData("关闭", 2, null)]
+    [InlineData("关闭", 3, null)]
+    [InlineData("舰长", 0, null)]
+    public async Task Guard_threshold_welcomes_only_qualifying_entries(string threshold, long guard, string? guardName)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.guard"] = threshold
+            ["welcome.enabled"] = "true", ["welcome.guard"] = threshold,
+            ["welcome.uids"] = "[]", ["welcome.fan_club_level"] = "0", ["welcome.wealth_level"] = "0"
         });
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
-        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(guard: guard));
-        if (welcomes)
+        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(identityFields: Bytes(22, Bytes(6, Integer(1, guard)))));
+        if (guardName is not null)
         {
             var form = await NextSendAsync(sent);
-            Assert.Equal(guard == 1 ? "欢迎总督测试观众" : "欢迎提督测试观众", form["msg"]);
+            Assert.Equal($"欢迎{guardName}测试观众", form["msg"]);
             Assert.DoesNotContain(form.Keys, key => key.StartsWith("reply") || key.StartsWith("replay"));
             await h.WaitForLogAsync(LogLevel.Information, "发送弹幕成功：欢迎观众 测试观众（10001）");
             Assert.Contains(h.Logger.Entries, entry => entry.Level == LogLevel.Information
-                && entry.Message.EndsWith($"进队：观众 测试观众（10001），命中大航海身份{(guard == 1 ? "总督" : "提督")}"));
+                && entry.Message.EndsWith($"进队：观众 测试观众（10001），命中大航海身份{guardName}"));
         }
         else await AssertNoSendAsync(sent);
     }
