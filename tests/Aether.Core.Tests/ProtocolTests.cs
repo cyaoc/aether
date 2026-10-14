@@ -30,7 +30,7 @@ public sealed class ProtocolTests
         Assert.Equal("深蓝色的机器人", danmaku.ReplyName);
         Assert.Equal(123, danmaku.Uid);
         Assert.Equal("message-id", danmaku.Id);
-        Assert.Equal("今日盲盒", danmaku.Content);
+        Assert.Equal("晚上好", danmaku.Content);
     }
 
     [Theory]
@@ -80,7 +80,7 @@ public sealed class ProtocolTests
         Assert.Equal(index == 7 ? "" : "舰长", danmaku.GuardName);
         Assert.Equal(index == 16 ? 0 : 45, danmaku.WealthLevel);
         Assert.Equal("深蓝色的机器人", danmaku.ReplyName);
-        Assert.Equal("今日盲盒", danmaku.Content);
+        Assert.Equal("晚上好", danmaku.Content);
         Assert.Empty(Warnings(h));
     }
 
@@ -104,7 +104,7 @@ public sealed class ProtocolTests
         Assert.Equal(fanClub, danmaku.FanClubLevel);
         Assert.Equal(tier, danmaku.GuardTier);
         Assert.Equal(wealth, danmaku.WealthLevel);
-        Assert.Equal("今日盲盒", danmaku.Content);
+        Assert.Equal("晚上好", danmaku.Content);
         Assert.Empty(Warnings(h));
     }
 
@@ -133,7 +133,7 @@ public sealed class ProtocolTests
         Assert.Equal(47, danmaku.FanClubLevel);
         Assert.Equal(1, danmaku.GuardTier);
         Assert.Equal(45, danmaku.WealthLevel);
-        Assert.Equal("今日盲盒", danmaku.Content);
+        Assert.Equal("晚上好", danmaku.Content);
         Assert.Empty(Warnings(h));
     }
 
@@ -143,7 +143,8 @@ public sealed class ProtocolTests
         meta[15] = new { extra = JsonSerializer.Serialize(new { id_str = "message-id", reply_uname = "深蓝色的机器人" }) };
         var info = new object?[17];
         info[0] = meta;
-        info[1] = "今日盲盒";
+        // A query keyword would trigger background replies and race the no-warning assertions.
+        info[1] = "晚上好";
         info[2] = new object[] { 123, "观众" };
         info[3] = new object[] { 47, "粉丝牌", "主播", 7734200 };
         info[7] = 3;
