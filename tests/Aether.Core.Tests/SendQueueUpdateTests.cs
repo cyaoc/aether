@@ -24,7 +24,7 @@ public sealed class SendQueueUpdateTests
         await StepAsync(h, updates, queued.Id, SendQueueItemState.Sent);
         await h.WaitForLogAsync("发送弹幕成功");
 
-        var logs = ItemLogs(h, queued.Id, "盲盒查询", "查询观众");
+        var logs = ItemLogs(h, queued.Id, "今日盲盒查询", "查询观众");
         Assert.Collection(logs,
             log => { Assert.Equal(LogLevel.Information, log.Level); Assert.Contains("进队", log.Message); },
             log => { Assert.Equal(LogLevel.Debug, log.Level); Assert.Contains("开始发送", log.Message); Assert.Contains(sending.Text!, log.Message); },
@@ -231,7 +231,7 @@ public sealed class SendQueueUpdateTests
         Assert.Empty(await SyncProgressAsync(h, updates));
         Assert.Equal(1, SendAttempts(h));
         await h.WaitForLogAsync("发送弹幕失败");
-        var logs = ItemLogs(h, queued.Id, "盲盒查询", "查询观众");
+        var logs = ItemLogs(h, queued.Id, "今日盲盒查询", "查询观众");
         Assert.Equal(3, logs.Length);
         Assert.Equal(LogLevel.Warning, logs[^1].Level);
         Assert.Contains("发送弹幕失败，已丢弃：回复观众", logs[^1].Message);
@@ -279,7 +279,7 @@ public sealed class SendQueueUpdateTests
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
         h.Time.Advance(TimeSpan.FromSeconds(1));
         var sending = await StepAsync(h, updates, queued.Id, SendQueueItemState.Sending);
-        Assert.Equal("投入50电池 亏35电池", sending.Text);
+        Assert.Equal("今日投入50电池 亏35电池", sending.Text);
         Assert.Equal((await NextSendAsync(sent))["msg"], sending.Text);
         await h.Server.PushRoomMessageAsync(Query);
         Assert.Empty(await SyncProgressAsync(h, updates));
@@ -343,7 +343,7 @@ public sealed class SendQueueUpdateTests
     }
 
     [Theory]
-    [InlineData(false, "投入50电池 亏35电池", "投入100电池 亏70电池")]
+    [InlineData(false, "今日投入50电池 亏35电池", "今日投入100电池 亏70电池")]
     [InlineData(true, "本次投入50电池 亏35电池", "本次投入100电池 亏70电池")]
     public async Task Retry_reports_the_current_amounts_under_the_original_id(bool announcement, string firstText, string retryText)
     {

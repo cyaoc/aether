@@ -55,7 +55,8 @@ public sealed class SettingsNavigationTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(1, "KeywordInput")]
+    [InlineData(1, "DailyKeywordInput")]
+    [InlineData(1, "MonthlyKeywordInput")]
     [InlineData(2, "WelcomeTextInput")]
     public Task Enter_connects_only_from_the_room_input(int index, string field) => HeadlessApp.Session.Dispatch(async () =>
     {
@@ -208,6 +209,9 @@ public sealed class SettingsNavigationTests
             var save = blindBox.FindControl<Button>("SaveButton")!;
             Assert.False(save.IsEnabled);
             blindBox.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
+            blindBox.FindControl<TextBox>("DailyKeywordInput")!.Text = "查今天";
+            blindBox.FindControl<TextBox>("MonthlyKeywordInput")!.Text = "查本月";
+            GuiHarness.Flush();
             Assert.True(save.IsEnabled);
             Assert.True(blindBox.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
             Assert.Equal("开", window.FindControl<TextBlock>("BlindBoxStatus")!.Text);
@@ -233,8 +237,12 @@ public sealed class SettingsNavigationTests
             GuiHarness.Flush();
             Assert.Same(blindBox, window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible));
             Assert.False(blindBox.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked);
+            Assert.Equal("查今天", blindBox.FindControl<TextBox>("DailyKeywordInput")!.Text);
+            Assert.Equal("查本月", blindBox.FindControl<TextBox>("MonthlyKeywordInput")!.Text);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(Settings.Load(harness.DataDirectory).BlindBoxEnabled.Value);
+            Assert.Equal("查今天", Settings.Load(harness.DataDirectory).BlindBoxDailyKeyword.Value);
+            Assert.Equal("查本月", Settings.Load(harness.DataDirectory).BlindBoxMonthlyKeyword.Value);
             Assert.Equal("关", window.FindControl<TextBlock>("BlindBoxStatus")!.Text);
             Assert.False(save.IsEnabled);
             Assert.False(blindBox.FindControl<TextBlock>("DirtyMessage")!.IsVisible);

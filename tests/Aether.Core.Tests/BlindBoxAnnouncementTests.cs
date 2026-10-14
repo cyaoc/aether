@@ -177,12 +177,12 @@ public sealed class BlindBoxAnnouncementTests
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5));
         h.Time.Advance(TimeSpan.FromSeconds(5));
         var first = await NextSendAsync(sent);
-        Assert.Equal(queryFirst ? "投入100电池 亏70电池" : "本次投入100电池 亏70电池", first["msg"]);
+        Assert.Equal(queryFirst ? "今日投入100电池 亏70电池" : "本次投入100电池 亏70电池", first["msg"]);
         Assert.Equal(queryFirst, first.ContainsKey("replay_dmid"));
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5), count: 2);
         h.Time.Advance(TimeSpan.FromSeconds(5));
         var second = await NextSendAsync(sent);
-        Assert.Equal(queryFirst ? "本次投入100电池 亏70电池" : "投入100电池 亏70电池", second["msg"]);
+        Assert.Equal(queryFirst ? "本次投入100电池 亏70电池" : "今日投入100电池 亏70电池", second["msg"]);
         Assert.Equal(!queryFirst, second.ContainsKey("replay_dmid"));
         Assert.Contains(h.Logger.Entries, e => e.Message.Contains("播报观众 新昵称（10001）"));
         await AssertNoSendAsync(sent);
@@ -208,7 +208,7 @@ public sealed class BlindBoxAnnouncementTests
         h.Time.Advance(TimeSpan.FromMilliseconds(999));
         await AssertNoSendAsync(sent);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
-        Assert.Equal("投入50电池 亏35电池", (await NextSendAsync(sent))["msg"]);
+        Assert.Equal("今日投入50电池 亏35电池", (await NextSendAsync(sent))["msg"]);
     }
 
     [Theory]
@@ -355,7 +355,7 @@ public sealed class BlindBoxAnnouncementTests
         h.Time.Advance(TimeSpan.FromSeconds(3));
         await AssertNoSendAsync(sent);
         await DanmakuAsync(h, updates);
-        if (enabled) Assert.Equal("投入50电池 亏35电池", (await NextSendAsync(sent))["msg"]);
+        if (enabled) Assert.Equal("今日投入50电池 亏35电池", (await NextSendAsync(sent))["msg"]);
         else
         {
             await AssertNoSendAsync(sent);
@@ -390,7 +390,7 @@ public sealed class BlindBoxAnnouncementTests
         h.Time.Advance(TimeSpan.FromSeconds(3));
         await AssertNoSendAsync(sent);
         await DanmakuAsync(h, next);
-        Assert.Equal("投入100电池 亏70电池", (await NextSendAsync(sent))["msg"]);
+        Assert.Equal("今日投入100电池 亏70电池", (await NextSendAsync(sent))["msg"]);
     }
 
     [Fact]

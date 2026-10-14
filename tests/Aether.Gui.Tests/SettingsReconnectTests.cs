@@ -15,6 +15,7 @@ public sealed class SettingsReconnectTests
     [InlineData(RoomConnectionState.Disconnected, 1, false)]
     [InlineData(RoomConnectionState.Connected, 4, false)]
     [InlineData(RoomConnectionState.Connected, 2, true)]
+    [InlineData(RoomConnectionState.Connected, 1, true)]
     [InlineData(RoomConnectionState.Reconnecting, 3, true)]
     public Task Only_room_settings_saved_during_a_connection_show_a_notice(RoomConnectionState state, int index, bool notice) =>
         HeadlessApp.Session.Dispatch(async () =>
@@ -32,7 +33,11 @@ public sealed class SettingsReconnectTests
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 switch (index)
                 {
-                    case 1: page.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false; break;
+                    case 1:
+                        page.FindControl<TextBox>("DailyKeywordInput")!.Text = "查今天";
+                        page.FindControl<TextBox>("MonthlyKeywordInput")!.Text = "查本月";
+                        GuiHarness.Flush();
+                        break;
                     case 2: page.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked = true; break;
                     case 3: page.FindControl<NumericUpDown>("SendIntervalInput")!.Text = "7"; break;
                     case 4: page.FindControl<NumericUpDown>("RetentionInput")!.Text = "7"; break;

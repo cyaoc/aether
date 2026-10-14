@@ -89,10 +89,14 @@
                 <TextBlock x:Name="UnknownKeysMessage" Classes="hint" />
               </StackPanel>
               <StackPanel x:Name="BlindBoxFields" Spacing="8">
-                <TextBlock Classes="label" Text="查询关键字" />
-                <TextBox x:Name="KeywordInput" AutomationProperties.Name="盲盒查询关键字" />
-                <TextBlock x:Name="KeywordReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-                <TextBlock x:Name="KeywordError" Classes="error" />
+                <TextBlock Classes="label" Text="今日查询关键字" />
+                <TextBox x:Name="DailyKeywordInput" AutomationProperties.Name="今日查询关键字" />
+                <TextBlock x:Name="DailyKeywordReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+                <TextBlock x:Name="DailyKeywordError" Classes="error" />
+                <TextBlock Classes="label" Text="本月查询关键字" Margin="0,8,0,0" />
+                <TextBox x:Name="MonthlyKeywordInput" AutomationProperties.Name="本月查询关键字" />
+                <TextBlock x:Name="MonthlyKeywordReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+                <TextBlock x:Name="MonthlyKeywordError" Classes="error" />
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,10,0,0" IsEnabled="{Binding !#FileMessage.IsVisible}">
                   <StackPanel Spacing="4">
                     <TextBlock Classes="label" Text="盲盒播报" />

@@ -205,11 +205,17 @@ public sealed partial class AetherClient
                         {
                             // Reported first, so a shell sees the keyword before the 盲盒查询 it queues.
                             yield return danmaku.Danmaku;
-                            if (Settings.BlindBoxEnabled.Value && danmaku.Danmaku.Content.Trim() == Settings.BlindBoxKeyword.Value.Trim())
+                            if (Settings.BlindBoxEnabled.Value)
                             {
-                                if (danmaku.Danmaku.Uid == 0)
-                                    client.logger.LogDebug("uid 为 0 的观众发出盲盒关键字，未回复");
-                                else sendQueue.Enqueue(danmaku.Danmaku);
+                                var text = danmaku.Danmaku.Content.Trim();
+                                BlindBoxPeriod? period = text == Settings.BlindBoxDailyKeyword.Value.Trim() ? BlindBoxPeriod.Daily
+                                    : text == Settings.BlindBoxMonthlyKeyword.Value.Trim() ? BlindBoxPeriod.Monthly : null;
+                                if (period is { } matched)
+                                {
+                                    if (danmaku.Danmaku.Uid == 0)
+                                        client.logger.LogDebug("uid 为 0 的观众发出盲盒关键字，未回复");
+                                    else sendQueue.Enqueue(danmaku.Danmaku, matched);
+                                }
                             }
                         }
                         // ponytail: a synchronous SQLite write on the receive loop (busy waits up to Microsoft.Data.Sqlite's 30 s
@@ -251,7 +257,7 @@ public sealed partial class AetherClient
                 var text = item switch
                 {
                     SendQueue.Query query =>
-                        BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, query.Trigger.ReceivedAt)),
+                        BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, query.Trigger.ReceivedAt, query.Period), query.Period),
                     SendQueue.Welcome queued => queued.Result.Text,
                     _ => BlindBoxTally.Announcement(round!)
                 };

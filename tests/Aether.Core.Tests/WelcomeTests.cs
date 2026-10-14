@@ -82,7 +82,7 @@ public sealed class WelcomeTests
             await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
             await DanmakuAsync(h, updates); // Still merges with the waiting query after the welcome finishes.
             h.Time.Advance(TimeSpan.FromSeconds(1));
-            Assert.Equal("投入50电池 赚15电池", (await NextSendAsync(sent))["msg"]);
+            Assert.Equal("今日投入50电池 赚15电池", (await NextSendAsync(sent))["msg"]);
             await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1), count: 2);
             h.Time.Advance(TimeSpan.FromSeconds(1));
             Assert.Equal("本次投入50电池 赚15电池", (await NextSendAsync(sent))["msg"]);

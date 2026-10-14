@@ -18,7 +18,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     /// <summary>One queued send, addressed to a viewer.</summary>
     internal abstract record Item(long Id, long Uid, string Nickname);
     /// <summary>A 盲盒查询 reply, pointing to the keyword danmaku it answers.</summary>
-    internal sealed record Query(long Id, Danmaku Trigger) : Item(Id, Trigger.Uid, Trigger.Nickname);
+    internal sealed record Query(long Id, Danmaku Trigger, BlindBoxPeriod Period) : Item(Id, Trigger.Uid, Trigger.Nickname);
     /// <summary>A 盲盒播报, whose text comes from the viewer's 一轮盲盒 as it stands when sent.</summary>
     internal sealed record Announcement(long Id, long Uid, string Nickname) : Item(Id, Uid, Nickname);
     /// <summary>A 进场欢迎, whose text was fixed when queued.</summary>
@@ -43,28 +43,28 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         new UnboundedChannelOptions { SingleReader = true });
     // Receiving, quiet-window timers and sending share these under the gate.
     private readonly object gate = new();
-    // Each viewer's waiting 盲盒查询, which later asks merge into.
-    private readonly Dictionary<long, Query> waitingQueries = [];
+    // Each viewer's waiting 盲盒查询 per period, which later asks for that period merge into.
+    private readonly Dictionary<(long Uid, BlindBoxPeriod Period), Query> waitingQueries = [];
     private readonly Dictionary<long, Round> rounds = [];
     // Only the sender touches these.
     private long? lastSendEnded;
     private readonly Dictionary<string, long> sendEndedByText = [];
     private bool rateLimitRetryOwed;
 
-    /// <summary>Queues a 盲盒查询 reply to <paramref name="trigger"/>'s viewer, unless one is already waiting (the asks merge
+    /// <summary>Queues a 盲盒查询 reply to <paramref name="trigger"/>'s viewer, unless one for this period is already waiting (the asks merge
     /// into the first).</summary>
-    public void Enqueue(Danmaku trigger)
+    public void Enqueue(Danmaku trigger, BlindBoxPeriod period)
     {
         lock (gate)
         {
-            if (waitingQueries.TryGetValue(trigger.Uid, out var waiting))
+            if (waitingQueries.TryGetValue((trigger.Uid, period), out var waiting))
             {
                 logger.LogDebug("[发送队列 {ItemId}，{Kind}] 观众 {Nickname}（{Uid}）再次触发，合并到这一项",
                     waiting.Id, Describe(waiting).Name, trigger.Nickname, trigger.Uid);
                 return;
             }
-            var query = new Query(Interlocked.Increment(ref nextId), trigger);
-            waitingQueries.Add(trigger.Uid, query);
+            var query = new Query(Interlocked.Increment(ref nextId), trigger, period);
+            waitingQueries.Add((trigger.Uid, period), query);
             Queue(query);
         }
     }
@@ -87,7 +87,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     /// <summary>The kind shells get, and the names the log gives it and its send.</summary>
     private static (SendQueueItemKind Kind, string Name, string Action) Describe(Item item) => item switch
     {
-        Query => (SendQueueItemKind.BlindBoxQuery, "盲盒查询", "回复"),
+        Query query => (SendQueueItemKind.BlindBoxQuery, query.Period.Name() + "盲盒查询", "回复"),
         Welcome => (SendQueueItemKind.Welcome, "进场欢迎", "欢迎"),
         _ => (SendQueueItemKind.BlindBoxAnnouncement, "盲盒播报", "播报")
     };
@@ -310,7 +310,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                 }
                 return;
             }
-            if (item is Query) waitingQueries.Remove(item.Uid);
+            if (item is Query query) waitingQueries.Remove((query.Uid, query.Period));
         }
     }
 }
