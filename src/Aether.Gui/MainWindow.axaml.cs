@@ -35,7 +35,7 @@ public partial class MainWindow : Window
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
         // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
-        RoomInput.AddHandler(KeyDownEvent, ConnectRoom, RoutingStrategies.Tunnel);
+        RoomInput.AddHandler(KeyDownEvent, OnRoomInputKeyDown, RoutingStrategies.Tunnel);
         DanmakuList.Items.CollectionChanged += OnDanmakuChanged;
         DanmakuList.AddHandler(ScrollViewer.ScrollChangedEvent, OnScrollChanged);
         DanmakuList.AddHandler(PointerWheelChangedEvent, (_, _) => PauseFollowingForInput(), RoutingStrategies.Tunnel);
@@ -83,7 +83,7 @@ public partial class MainWindow : Window
         status.Classes.Set("muted", enabled != true);
     }
 
-    private void ConnectRoom(object? sender, KeyEventArgs e)
+    private void OnRoomInputKeyDown(object? sender, KeyEventArgs e)
     {
         if (RoomInput.IsDropDownOpen)
         {

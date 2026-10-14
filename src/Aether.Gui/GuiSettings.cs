@@ -8,29 +8,20 @@ namespace Aether.Gui;
 
 public sealed class GuiSettings
 {
-    private static readonly IDeserializer Deserializer =
-        new DeserializerBuilder().IncludeNonPublicProperties().IgnoreUnmatchedProperties().Build();
-    private static readonly ISerializer Serializer = new SerializerBuilder().IncludeNonPublicProperties().Build();
+    private static readonly IDeserializer Deserializer = new DeserializerBuilder().Build();
+    private static readonly ISerializer Serializer = new SerializerBuilder().Build();
     private string path = "";
 
-    [YamlIgnore] public bool KeepRecentDanmaku { get; set; } = true;
-    [YamlIgnore] public string[] RecentRooms { get; set; } = [];
+    private const int RecentRoomLimit = 5;
 
-    [YamlMember(Alias = nameof(RecentRooms))]
-    private string[]? RecentRoomsYaml
-    {
-        get => RecentRooms;
-        set => RecentRooms = (value ?? []).Where(room => long.TryParse(room, out var id) && id > 0)
-            .Distinct().Take(5).ToArray();
-    }
+    public bool KeepRecentDanmaku { get; set; } = true;
 
-    // A blank or `~` value keeps the default; deserializing straight into bool would turn it into false.
-    [YamlMember(Alias = nameof(KeepRecentDanmaku))]
-    private bool? KeepRecentDanmakuYaml
+    // Most recent first. Every write goes through here, so a hand-edited gui.yml and a new connection follow one rule.
+    public string[] RecentRooms
     {
-        get => KeepRecentDanmaku;
-        set { if (value is { } keep) KeepRecentDanmaku = keep; }
-    }
+        get;
+        set => field = [.. value.Where(room => long.TryParse(room, out var id) && id > 0).Distinct().Take(RecentRoomLimit)];
+    } = [];
 
     public static GuiSettings Load(string dataDirectory, ILogger<GuiSettings> logger)
     {
@@ -38,7 +29,19 @@ public sealed class GuiSettings
         var settings = new GuiSettings();
         try
         {
-            if (File.Exists(path)) settings = Deserializer.Deserialize<GuiSettings?>(File.ReadAllText(path)) ?? settings;
+            // Read key by key: one hand-broken value falls back alone instead of resetting the others,
+            // which the next save would then overwrite. Blank, `~` and wrongly shaped values keep the default.
+            var values = File.Exists(path)
+                ? Deserializer.Deserialize<Dictionary<string, object?>?>(File.ReadAllText(path)) ?? []
+                : [];
+            if (values.GetValueOrDefault(nameof(KeepRecentDanmaku)) is string keep && bool.TryParse(keep, out var value))
+                settings.KeepRecentDanmaku = value;
+            settings.RecentRooms = values.GetValueOrDefault(nameof(RecentRooms)) switch
+            {
+                List<object?> rooms => [.. rooms.OfType<string>()],
+                string room => [room],
+                _ => []
+            };
         }
         catch (Exception error) when (error is YamlException or IOException or UnauthorizedAccessException)
         {

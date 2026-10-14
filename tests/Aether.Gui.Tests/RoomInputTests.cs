@@ -1,3 +1,4 @@
+using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia;
 using Avalonia.Automation;
@@ -19,9 +20,7 @@ public sealed class RoomInputTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        var settings = harness.LoadSettings();
-        settings.RecentRooms = ["6", "42"];
-        settings.Save();
+        harness.SaveRecentRooms("6", "42");
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
@@ -66,17 +65,12 @@ public sealed class RoomInputTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task Typing_a_new_room_connects_with_enter() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Choosing_a_recent_room_only_fills_the_input_and_closed_enter_connects() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        var requested = new TaskCompletionSource<Uri>();
-        harness.RoomResponse = async (uri, token) =>
-        {
-            requested.TrySetResult(uri);
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
-        };
+        harness.SaveRecentRooms("6", "42");
+        var requested = harness.HoldRoomRequest();
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
@@ -85,13 +79,49 @@ public sealed class RoomInputTests
             await viewModel.ReadAccountCommand.ExecutionTask!;
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
-            var text = input.GetVisualDescendants().OfType<TextBox>().Single();
+            Assert.True(input.IsEditable);
+            Assert.Equal("6", input.Text);
+            input.SelectedIndex = 1;
+            GuiHarness.Flush();
+            Assert.Equal("42", viewModel.RoomNumber);
+            Assert.False(viewModel.HasRoomConnection);
+            Assert.False(requested.IsCompleted);
+            EditorOf(input).Focus();
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
+            var uri = await requested.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal("?id=42", uri.Query);
+            viewModel.Apply(new Connected());
+            viewModel.ConnectCommand.Cancel();
+            await viewModel.ConnectCommand.ExecutionTask!;
+            GuiHarness.Flush();
+            Assert.Equal("42", input.Text);
+            Assert.Equal(["42", "6"], input.Items.Cast<string>());
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Typing_a_new_room_connects_with_enter() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var requested = harness.HoldRoomRequest();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            await viewModel.ReadAccountCommand.ExecutionTask!;
+            var input = window.FindControl<ComboBox>("RoomInput")!;
+            GuiHarness.Flush();
+            var text = EditorOf(input);
             text.Focus();
             window.KeyTextInput("12345");
             Assert.Equal("12345", viewModel.RoomNumber);
             Assert.False(viewModel.HasRoomConnection);
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
-            Assert.Equal("?id=12345", (await requested.Task.WaitAsync(TimeSpan.FromSeconds(5))).Query);
+            Assert.Equal("?id=12345", (await requested.WaitAsync(TimeSpan.FromSeconds(5))).Query);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
@@ -104,9 +134,7 @@ public sealed class RoomInputTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        var settings = harness.LoadSettings();
-        settings.RecentRooms = hasHistory ? ["6"] : [];
-        settings.Save();
+        harness.SaveRecentRooms(hasHistory ? ["6"] : []);
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
@@ -115,7 +143,7 @@ public sealed class RoomInputTests
             await viewModel.ReadAccountCommand.ExecutionTask!;
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
-            var text = input.GetVisualDescendants().OfType<TextBox>().Single();
+            var text = EditorOf(input);
             text.Focus();
             text.SelectAll();
             window.KeyTextInput("12345");
@@ -150,7 +178,7 @@ public sealed class RoomInputTests
             GuiHarness.Flush();
             Assert.Equal("房间号", AutomationProperties.GetName(input));
             Assert.Equal("房间号", input.PlaceholderText);
-            var text = input.GetVisualDescendants().OfType<TextBox>().Single();
+            var text = EditorOf(input);
             var outline = input.GetVisualDescendants().OfType<Border>().Single(x => x.Name == "Background");
             text.Focus();
             GuiHarness.Flush();
@@ -165,6 +193,8 @@ public sealed class RoomInputTests
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
+
+    private static TextBox EditorOf(ComboBox input) => input.GetVisualDescendants().OfType<TextBox>().Single();
 
     private static Color ColorOf(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
 }

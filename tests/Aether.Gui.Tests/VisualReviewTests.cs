@@ -39,9 +39,7 @@ public sealed class VisualReviewTests
         {
             using var harness = new GuiHarness();
             await harness.SaveCredentialAsync();
-            var settings = harness.LoadSettings();
-            settings.RecentRooms = ["1768506153", "6", "7734200", "123456", "42"];
-            settings.Save();
+            harness.SaveRecentRooms("1768506153", "6", "7734200", "123456", "42");
             var viewModel = harness.CreateViewModel();
             var window = new MainWindow(harness.DataDirectory)
             {

@@ -49,6 +49,20 @@ public sealed class GuiSettingsTests : IDisposable
         Assert.Equal(expected, harness.LoadSettings().RecentRooms);
     }
 
+    [Theory]
+    [InlineData("KeepRecentDanmaku: false\nRecentRooms: 6", false, new[] { "6" })]
+    [InlineData("KeepRecentDanmaku: false\nRecentRooms: {a: 1}", false, new string[0])]
+    [InlineData("KeepRecentDanmaku: abc\nRecentRooms: ['6']", true, new[] { "6" })]
+    [InlineData("KeepRecentDanmaku: [false]\nRecentRooms: ['6']", true, new[] { "6" })]
+    public void A_wrongly_shaped_value_falls_back_alone(string yaml, bool keepRecentDanmaku, string[] recentRooms)
+    {
+        Directory.CreateDirectory(harness.DataDirectory);
+        File.WriteAllText(harness.SettingsFile, yaml);
+        var settings = harness.LoadSettings();
+        Assert.Equal(keepRecentDanmaku, settings.KeepRecentDanmaku);
+        Assert.Equal(recentRooms, settings.RecentRooms);
+    }
+
     [Fact]
     public void Toggling_the_checkbox_writes_gui_yml_that_survives_a_restart()
     {

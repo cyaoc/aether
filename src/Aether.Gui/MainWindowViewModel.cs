@@ -27,7 +27,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
 {
     [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
     [ObservableProperty] private string roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
-    [ObservableProperty] private string[] recentRooms = settings.RecentRooms;
+    public string[] RecentRooms => settings.RecentRooms;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Status))]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
@@ -119,7 +119,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
             logger.LogError(error, "保存 GUI 设置失败");
-            Message = $"保存设置失败：{error.Message}";
+            Message = $"保存 GUI 设置失败：{error.Message}";
         }
     }
 
@@ -219,10 +219,11 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                     if (connectedAt is not null) OnPropertyChanged(nameof(Status));
                 }), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
                 ConnectionState = RoomConnectionState.Connected;
-                if (activeRoomNumber is { } room && !ConnectCommand.IsCancellationRequested)
+                // Auto-reconnects land here too; they leave the room first, so gui.yml is not rewritten each time.
+                if (activeRoomNumber is { } room && !ConnectCommand.IsCancellationRequested && RecentRooms.FirstOrDefault() != room)
                 {
-                    RecentRooms = [.. RecentRooms.Prepend(room).Distinct().Take(5)];
-                    settings.RecentRooms = RecentRooms;
+                    settings.RecentRooms = [room, .. RecentRooms];
+                    OnPropertyChanged(nameof(RecentRooms));
                     SaveGuiSettings();
                 }
                 break;

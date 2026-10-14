@@ -96,7 +96,7 @@ GUI 使用 Fluent 主题并跟随系统深色／浅色，默认 960×640，最�
 即使账号有大航海身份也一样；舰长、提督、总督发的弹幕各用一种淡底色。
 默认勾选“只保留最近 1000 条”，超出时丢弃最旧的弹幕；取消勾选后保留全部，
 重新勾选立即裁剪到最新 1000 条。已丢弃的弹幕不会恢复。
-该设置一改就写入 `data/gui.yml`，重启后恢复；文件缺失、为空、解析失败或值留空时使用默认值，未知的键会被忽略。
+该设置一改就写入 `data/gui.yml`，重启后恢复；文件缺失、为空或整份解析失败时使用默认值；某一项的值留空或写错时只有这一项用默认值，其他项照常读取，未知的键会被忽略。
 macOS / Windows / Ubuntu CI 的 `dotnet build` 都会构建 GUI，`dotnet test` 运行 Core、CLI 和 GUI 无头测试；GUI 不支持 Linux 桌面运行。
 `tests/Aether.Gui.Tests` 用 Avalonia.Headless 覆盖登录页、账号读取／重试／标记、退出确认、重连计时、设置页读写、发送队列动态、保留条数和跟随最新弹幕；真实窗口的观感按 [#15](https://github.com/cyaoc/aether/issues/15)（Windows）和 [#121](https://github.com/cyaoc/aether/issues/121)（macOS）手动验收。
 

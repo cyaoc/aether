@@ -1,9 +1,5 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
-using Avalonia.Controls;
-using Avalonia.Headless;
-using Avalonia.Input;
-using Avalonia.VisualTree;
 
 namespace Aether.Gui.Tests;
 
@@ -14,20 +10,14 @@ public sealed class RecentRoomsTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        var started = new TaskCompletionSource();
-        harness.RoomResponse = async (_, token) =>
-        {
-            started.TrySetResult();
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
-        };
+        var requested = harness.HoldRoomRequest();
         var viewModel = harness.CreateViewModel();
         try
         {
             Assert.Equal("", viewModel.RoomNumber);
             viewModel.RoomNumber = "006";
             viewModel.ConnectCommand.Execute(null);
-            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await requested.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Empty(harness.LoadSettings().RecentRooms);
             viewModel.RoomNumber = "999";
             viewModel.Apply(new Connected());
@@ -47,22 +37,15 @@ public sealed class RecentRoomsTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        var started = new TaskCompletionSource();
-        harness.RoomResponse = async (_, token) =>
-        {
-            started.TrySetResult();
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
-        };
         var viewModel = harness.CreateViewModel();
         try
         {
             foreach (var room in new[] { "1", "2", "3", "4", "5", "6", "3" })
             {
-                started = new TaskCompletionSource();
+                var requested = harness.HoldRoomRequest();
                 viewModel.RoomNumber = room;
                 viewModel.ConnectCommand.Execute(null);
-                await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                await requested.WaitAsync(TimeSpan.FromSeconds(5));
                 viewModel.Apply(new Connected());
                 viewModel.Apply(new Reconnecting());
                 viewModel.Apply(new Connected());
@@ -77,6 +60,51 @@ public sealed class RecentRoomsTests
         return true;
     }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public Task Reconnecting_to_the_latest_room_does_not_rewrite_gui_yml() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var requested = harness.HoldRoomRequest();
+        var viewModel = harness.CreateViewModel();
+        try
+        {
+            viewModel.RoomNumber = "6";
+            viewModel.ConnectCommand.Execute(null);
+            await requested.WaitAsync(TimeSpan.FromSeconds(5));
+            viewModel.Apply(new Connected());
+            File.Delete(harness.SettingsFile);
+            viewModel.Apply(new Reconnecting());
+            viewModel.Apply(new Connected());
+            Assert.False(File.Exists(harness.SettingsFile));
+            Assert.Equal(["6"], viewModel.RecentRooms);
+        }
+        finally { await viewModel.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Saving_history_keeps_a_setting_next_to_a_broken_recent_rooms_value() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        File.WriteAllText(harness.SettingsFile, "KeepRecentDanmaku: false\nRecentRooms: {a: 1}");
+        var requested = harness.HoldRoomRequest();
+        var viewModel = harness.CreateViewModel();
+        try
+        {
+            viewModel.RoomNumber = "6";
+            viewModel.ConnectCommand.Execute(null);
+            await requested.WaitAsync(TimeSpan.FromSeconds(5));
+            viewModel.Apply(new Connected());
+            var reloaded = harness.LoadSettings();
+            Assert.False(reloaded.KeepRecentDanmaku);
+            Assert.Equal(["6"], reloaded.RecentRooms);
+        }
+        finally { await viewModel.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData("invalid")]
     [InlineData("0")]
@@ -86,9 +114,7 @@ public sealed class RecentRoomsTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        var settings = harness.LoadSettings();
-        settings.RecentRooms = ["6"];
-        settings.Save();
+        harness.SaveRecentRooms("6");
         harness.RoomResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":1,"message":"房间不存在"}"""));
         var viewModel = harness.CreateViewModel();
         try
@@ -109,19 +135,13 @@ public sealed class RecentRoomsTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        var started = new TaskCompletionSource();
-        harness.RoomResponse = async (_, token) =>
-        {
-            started.TrySetResult();
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
-        };
+        var requested = harness.HoldRoomRequest();
         var viewModel = harness.CreateViewModel();
         try
         {
             viewModel.RoomNumber = "6";
             viewModel.ConnectCommand.Execute(null);
-            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await requested.WaitAsync(TimeSpan.FromSeconds(5));
             viewModel.ConnectCommand.Cancel();
             viewModel.Apply(new Connected());
             await viewModel.ConnectCommand.ExecutionTask!;
@@ -138,73 +158,21 @@ public sealed class RecentRoomsTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        var started = new TaskCompletionSource();
-        harness.RoomResponse = async (_, token) =>
-        {
-            started.TrySetResult();
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
-        };
+        var requested = harness.HoldRoomRequest();
         var viewModel = harness.CreateViewModel();
         Directory.CreateDirectory(harness.SettingsFile);
         try
         {
             viewModel.RoomNumber = "6";
             viewModel.ConnectCommand.Execute(null);
-            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await requested.WaitAsync(TimeSpan.FromSeconds(5));
             viewModel.Apply(new Connected());
             Assert.True(viewModel.IsConnected);
             Assert.True(viewModel.ConnectCommand.IsRunning);
             Assert.Equal(["6"], viewModel.RecentRooms);
-            Assert.StartsWith("保存设置失败：", viewModel.Message);
+            Assert.StartsWith("保存 GUI 设置失败：", viewModel.Message);
         }
         finally { await viewModel.ShutdownAsync(); }
-        return true;
-    }, TestContext.Current.CancellationToken);
-
-    [Fact]
-    public Task Choosing_a_recent_room_only_fills_the_input_and_closed_enter_connects() => HeadlessApp.Session.Dispatch(async () =>
-    {
-        using var harness = new GuiHarness();
-        await harness.SaveCredentialAsync();
-        var settings = harness.LoadSettings();
-        settings.RecentRooms = ["6", "42"];
-        settings.Save();
-        var requested = new TaskCompletionSource<Uri>();
-        harness.RoomResponse = async (uri, token) =>
-        {
-            requested.TrySetResult(uri);
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
-        };
-        var viewModel = harness.CreateViewModel();
-        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
-        window.Show();
-        try
-        {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
-            var input = Assert.Single(window.FindControl<StackPanel>("RoomInputPanel")!.GetVisualDescendants().OfType<ComboBox>());
-            GuiHarness.Flush();
-            Assert.True(input.IsEditable);
-            Assert.Equal("6", input.Text);
-            input.SelectedIndex = 1;
-            GuiHarness.Flush();
-            Assert.Equal("42", viewModel.RoomNumber);
-            Assert.False(viewModel.HasRoomConnection);
-            Assert.False(requested.Task.IsCompleted);
-            var text = input.GetVisualDescendants().OfType<TextBox>().Single();
-            text.Focus();
-            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
-            var uri = await requested.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.Equal("?id=42", uri.Query);
-            viewModel.Apply(new Connected());
-            viewModel.ConnectCommand.Cancel();
-            await viewModel.ConnectCommand.ExecutionTask!;
-            GuiHarness.Flush();
-            Assert.Equal("42", input.Text);
-            Assert.Equal(["42", "6"], input.Items.Cast<string>());
-        }
-        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
 }

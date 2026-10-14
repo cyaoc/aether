@@ -228,6 +228,7 @@
   <Style Selector="TextBox">
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
+  <!-- An editable ComboBox takes focus in its borderless inner TextBox; ring the whole box, ▾ included, as other inputs do. -->
   <Style Selector="ComboBox[IsEditable=True]:focus-within /template/ Border#Background">
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
     <Setter Property="BorderThickness" Value="2" />
