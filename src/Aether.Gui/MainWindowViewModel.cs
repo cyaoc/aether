@@ -90,6 +90,10 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     public static string KeepRecentDanmakuLabel { get; } = $"只保留最近 {RecentDanmakuLimit} 条";
     public static IMultiValueConverter IsAccountDanmaku { get; } = new FuncMultiValueConverter<object?, bool>(
         values => values.ToArray() is [long uid, Account account] && uid == account.Uid);
+    public static FuncValueConverter<int, bool> IsCaptain { get; } = new(tier => tier == 1);
+    public static FuncValueConverter<int, bool> IsAdmiral { get; } = new(tier => tier == 2);
+    public static FuncValueConverter<int, bool> IsGovernor { get; } = new(tier => tier == 3);
+    public static FuncValueConverter<string?, string> ReplyPrefix { get; } = new(name => string.IsNullOrEmpty(name) ? "" : $"@{name} ");
 
     partial void OnConnectionStateChanged(RoomConnectionState value)
     {

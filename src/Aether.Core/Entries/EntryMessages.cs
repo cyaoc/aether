@@ -6,11 +6,10 @@ namespace Aether.Core.Entries;
 internal sealed record Entry(long Uid, string Nickname, long MessageType, long PrivilegeType, long? FanClubLevel, long WealthLevel)
 {
     /// <summary>The 大航海身份 as its index in Settings.WelcomeGuards: 0 for none, then 舰长, 提督, 总督.</summary>
-    // B站's privilege_type: 1 总督, 2 提督, 3 舰长; 0 is none.
-    public int GuardTier => PrivilegeType is >= 1 and <= 3 ? 4 - (int)PrivilegeType : 0;
+    public int GuardTier => Guard.TierFromPrivilegeType(PrivilegeType);
 
     /// <summary>What {大航海} stands for; empty without a 大航海身份.</summary>
-    public string GuardName => GuardTier > 0 ? Settings.WelcomeGuards[GuardTier] : "";
+    public string GuardName => Guard.Name(GuardTier);
 }
 
 internal static class EntryMessages

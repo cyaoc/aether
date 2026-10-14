@@ -4,6 +4,7 @@
     <AssemblyName>aether</AssemblyName>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="Aether.Cli.Tests" />
     <ProjectReference Include="../Aether.Core/Aether.Core.csproj" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="System.CommandLine" />

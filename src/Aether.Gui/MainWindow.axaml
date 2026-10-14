@@ -166,7 +166,10 @@
                 <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
                 <ListBox.ItemTemplate>
                   <DataTemplate x:DataType="core:Danmaku">
-                    <Border Classes.account="{Binding #AccountBadge.IsVisible}" Padding="20,7">
+                    <Border x:Name="DanmakuRow" Classes.account="{Binding #AccountBadge.IsVisible}" Padding="20,7"
+                            Classes.captain="{Binding GuardTier, Converter={x:Static local:MainWindowViewModel.IsCaptain}}"
+                            Classes.admiral="{Binding GuardTier, Converter={x:Static local:MainWindowViewModel.IsAdmiral}}"
+                            Classes.governor="{Binding GuardTier, Converter={x:Static local:MainWindowViewModel.IsGovernor}}">
                       <Grid ColumnDefinitions="30,*" ColumnSpacing="10">
                         <Border x:Name="Avatar" Width="30" Height="30" CornerRadius="15" VerticalAlignment="Top" Margin="0,2,0,0">
                           <Border.Background>
@@ -183,9 +186,9 @@
                           </TextBlock>
                         </Border>
                         <StackPanel Grid.Column="1" Spacing="3">
-                          <StackPanel Orientation="Horizontal" Spacing="8">
+                          <WrapPanel x:Name="DanmakuHeader" Orientation="Horizontal" ItemSpacing="8" LineSpacing="3">
                             <TextBlock Classes="secondary" Classes.accent="{Binding #AccountBadge.IsVisible}" Text="{Binding Nickname}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="250" ToolTip.Tip="{Binding Nickname}" />
-                            <Border Classes="badge" IsVisible="{Binding #AccountBadge.IsVisible}">
+                            <Border Classes="badge accountBadge" IsVisible="{Binding #AccountBadge.IsVisible}">
                               <TextBlock x:Name="AccountBadge" Text="账号">
                                 <TextBlock.IsVisible>
                                   <MultiBinding Converter="{x:Static local:MainWindowViewModel.IsAccountDanmaku}">
@@ -194,9 +197,18 @@
                                 </TextBlock.IsVisible>
                               </TextBlock>
                             </Border>
+                            <Border Classes="badge guardBadge" IsVisible="{Binding !!GuardTier}">
+                              <TextBlock Text="{Binding GuardName}" />
+                            </Border>
+                            <Border Classes="badge neutralBadge" IsVisible="{Binding FanClubLevel, Converter={x:Static ObjectConverters.IsNotNull}}">
+                              <TextBlock Text="{Binding FanClubLevel, StringFormat=粉丝团 {0}}" />
+                            </Border>
+                            <Border Classes="badge neutralBadge" IsVisible="{Binding !!WealthLevel}">
+                              <TextBlock Text="{Binding WealthLevel, StringFormat=荣耀 {0}}" />
+                            </Border>
                             <TextBlock Classes="caption muted numeric" Text="{Binding ReceivedAt, StringFormat={}{0:HH:mm:ss}}" VerticalAlignment="Center" />
-                          </StackPanel>
-                          <TextBlock Text="{Binding Content}" FontSize="14" LineHeight="21" TextWrapping="Wrap" />
+                          </WrapPanel>
+                          <TextBlock x:Name="DanmakuContent" FontSize="14" LineHeight="21" TextWrapping="Wrap"><Run Text="{Binding ReplyName, Converter={x:Static local:MainWindowViewModel.ReplyPrefix}}" Foreground="{DynamicResource Accent.Text}" FontWeight="SemiBold" /><Run Text="{Binding Content}" /></TextBlock>
                         </StackPanel>
                       </Grid>
                     </Border>

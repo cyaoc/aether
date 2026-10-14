@@ -20,7 +20,17 @@
           <SolidColorBrush x:Key="Accent.Text" Color="#2A47B0" />
           <SolidColorBrush x:Key="Accent.Tint" Color="#E6EBFA" />
           <SolidColorBrush x:Key="Accent.OnSolid" Color="#FFFFFF" />
-          <SolidColorBrush x:Key="Account.Row" Color="#F5F7FE" />
+          <SolidColorBrush x:Key="Account.Row" Color="#E3ECFF" />
+          <SolidColorBrush x:Key="Guard.Captain.Row" Color="#E0FDFC" />
+          <SolidColorBrush x:Key="Guard.Admiral.Row" Color="#FFEFFF" />
+          <SolidColorBrush x:Key="Guard.Governor.Row" Color="#FFF4E0" />
+          <SolidColorBrush x:Key="Guard.Captain.Badge" Color="#B9EFEE" />
+          <SolidColorBrush x:Key="Guard.Captain.BadgeText" Color="#006E70" />
+          <SolidColorBrush x:Key="Guard.Admiral.Badge" Color="#F8D7F6" />
+          <SolidColorBrush x:Key="Guard.Admiral.BadgeText" Color="#7E3F7C" />
+          <SolidColorBrush x:Key="Guard.Governor.Badge" Color="#F7E0BA" />
+          <SolidColorBrush x:Key="Guard.Governor.BadgeText" Color="#7D5100" />
+          <SolidColorBrush x:Key="Badge.Neutral" Color="#EEF0F3" />
           <SolidColorBrush x:Key="Success" Color="#166534" />
           <SolidColorBrush x:Key="Warning.Background" Color="#FEF8EC" />
           <SolidColorBrush x:Key="Warning.Border" Color="#F5D9A8" />
@@ -55,7 +65,17 @@
           <SolidColorBrush x:Key="Accent.Text" Color="#B4C3FF" />
           <SolidColorBrush x:Key="Accent.Tint" Color="#262F52" />
           <SolidColorBrush x:Key="Accent.OnSolid" Color="#141518" />
-          <SolidColorBrush x:Key="Account.Row" Color="#1E2333" />
+          <SolidColorBrush x:Key="Account.Row" Color="#232B46" />
+          <SolidColorBrush x:Key="Guard.Captain.Row" Color="#0B2828" />
+          <SolidColorBrush x:Key="Guard.Admiral.Row" Color="#2C1D2B" />
+          <SolidColorBrush x:Key="Guard.Governor.Row" Color="#2B210F" />
+          <SolidColorBrush x:Key="Guard.Captain.Badge" Color="#004848" />
+          <SolidColorBrush x:Key="Guard.Captain.BadgeText" Color="#8BE3E2" />
+          <SolidColorBrush x:Key="Guard.Admiral.Badge" Color="#512F50" />
+          <SolidColorBrush x:Key="Guard.Admiral.BadgeText" Color="#F0BEEE" />
+          <SolidColorBrush x:Key="Guard.Governor.Badge" Color="#503807" />
+          <SolidColorBrush x:Key="Guard.Governor.BadgeText" Color="#EFCB91" />
+          <SolidColorBrush x:Key="Badge.Neutral" Color="#2E3136" />
           <SolidColorBrush x:Key="Success" Color="#6FD08C" />
           <SolidColorBrush x:Key="Warning.Background" Color="#2A2114" />
           <SolidColorBrush x:Key="Warning.Border" Color="#5A4318" />
@@ -293,14 +313,46 @@
     <Setter Property="TextElement.Foreground" Value="{DynamicResource Danger}" />
   </Style>
   <Style Selector="Border.badge">
-    <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
     <Setter Property="CornerRadius" Value="4" />
     <Setter Property="Padding" Value="5,1" />
-    <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
     <Setter Property="TextElement.FontSize" Value="11" />
   </Style>
+  <Style Selector="Border.captain">
+    <Setter Property="Background" Value="{DynamicResource Guard.Captain.Row}" />
+  </Style>
+  <Style Selector="Border.admiral">
+    <Setter Property="Background" Value="{DynamicResource Guard.Admiral.Row}" />
+  </Style>
+  <Style Selector="Border.governor">
+    <Setter Property="Background" Value="{DynamicResource Guard.Governor.Row}" />
+  </Style>
+  <!-- Account rows take precedence over every guard tier. -->
   <Style Selector="Border.account">
     <Setter Property="Background" Value="{DynamicResource Account.Row}" />
+  </Style>
+  <Style Selector="Border.badge.accountBadge">
+    <Setter Property="Background" Value="{DynamicResource Accent}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.OnSolid}" />
+    <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Border.badge.guardBadge">
+    <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Border.captain Border.guardBadge">
+    <Setter Property="Background" Value="{DynamicResource Guard.Captain.Badge}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Guard.Captain.BadgeText}" />
+  </Style>
+  <Style Selector="Border.admiral Border.guardBadge">
+    <Setter Property="Background" Value="{DynamicResource Guard.Admiral.Badge}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Guard.Admiral.BadgeText}" />
+  </Style>
+  <Style Selector="Border.governor Border.guardBadge">
+    <Setter Property="Background" Value="{DynamicResource Guard.Governor.Badge}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Guard.Governor.BadgeText}" />
+  </Style>
+  <Style Selector="Border.badge.neutralBadge">
+    <Setter Property="Background" Value="{DynamicResource Badge.Neutral}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Secondary}" />
   </Style>
   <Style Selector="TextBlock.sendStatus">
     <Setter Property="TextElement.FontFeatures" Value="tnum" />

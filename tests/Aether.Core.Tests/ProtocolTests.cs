@@ -1,11 +1,157 @@
 using System.IO.Compression;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Aether.Core.Tests.Support;
 
 namespace Aether.Core.Tests;
 
 public sealed class ProtocolTests
 {
+    [Theory]
+    [InlineData(1, 3, "总督")]
+    [InlineData(2, 2, "提督")]
+    [InlineData(3, 1, "舰长")]
+    public async Task Danmaku_includes_room_fan_club_guard_wealth_and_reply_name(int privilege, int tier, string guard)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        var message = DetailedDanmaku();
+        message["info"]![7] = privilege;
+        await PushRoomMessagesAsync(h, message.ToJsonString());
+
+        Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        var danmaku = Assert.IsType<Danmaku>(updates.Current);
+        Assert.Equal(47, danmaku.FanClubLevel);
+        Assert.Equal(tier, danmaku.GuardTier);
+        Assert.Equal(guard, danmaku.GuardName);
+        Assert.Equal(45, danmaku.WealthLevel);
+        Assert.Equal("深蓝色的机器人", danmaku.ReplyName);
+        Assert.Equal(123, danmaku.Uid);
+        Assert.Equal("message-id", danmaku.Id);
+        Assert.Equal("晚上好", danmaku.Content);
+    }
+
+    [Theory]
+    [InlineData(3, "[]")]
+    [InlineData(3, "null")]
+    [InlineData(3, "{}")]
+    [InlineData(3, "47")]
+    [InlineData(3, "[47]")]
+    [InlineData(3, "[47,\"牌子\",\"主播\",999]")]
+    [InlineData(3, "[0,\"牌子\",\"主播\",7734200]")]
+    [InlineData(3, "[-1,\"牌子\",\"主播\",7734200]")]
+    [InlineData(3, "[\"47\",\"牌子\",\"主播\",7734200]")]
+    [InlineData(3, "[47,\"牌子\",\"主播\",\"7734200\"]")]
+    [InlineData(3, "[9223372036854775808,\"牌子\",\"主播\",7734200]")]
+    [InlineData(7, "null")]
+    [InlineData(7, "[]")]
+    [InlineData(7, "{}")]
+    [InlineData(7, "\"3\"")]
+    [InlineData(7, "0")]
+    [InlineData(7, "-1")]
+    [InlineData(7, "4")]
+    [InlineData(7, "1.5")]
+    [InlineData(7, "9223372036854775808")]
+    [InlineData(16, "null")]
+    [InlineData(16, "[]")]
+    [InlineData(16, "{}")]
+    [InlineData(16, "45")]
+    [InlineData(16, "[\"45\"]")]
+    [InlineData(16, "[null]")]
+    [InlineData(16, "[-1]")]
+    [InlineData(16, "[1.5]")]
+    [InlineData(16, "[9223372036854775808]")]
+    public async Task Unreadable_fan_club_guard_or_wealth_defaults_only_that_field_without_warning(int index, string value)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        h.Logger.Entries.Clear();
+        var message = DetailedDanmaku();
+        message["info"]![index] = JsonNode.Parse(value);
+        await PushRoomMessagesAsync(h, message.ToJsonString());
+
+        Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        var danmaku = Assert.IsType<Danmaku>(updates.Current);
+        Assert.Equal(index == 3 ? null : (long?)47, danmaku.FanClubLevel);
+        Assert.Equal(index == 7 ? 0 : 1, danmaku.GuardTier);
+        Assert.Equal(index == 7 ? "" : "舰长", danmaku.GuardName);
+        Assert.Equal(index == 16 ? 0 : 45, danmaku.WealthLevel);
+        Assert.Equal("深蓝色的机器人", danmaku.ReplyName);
+        Assert.Equal("晚上好", danmaku.Content);
+        Assert.Empty(Warnings(h));
+    }
+
+    [Theory]
+    [InlineData(3, null, 0, 0)]
+    [InlineData(7, 47L, 0, 0)]
+    [InlineData(16, 47L, 1, 0)]
+    public async Task Missing_fan_club_guard_and_wealth_fields_do_not_drop_the_message(int length, long? fanClub, int tier, long wealth)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        h.Logger.Entries.Clear();
+        var message = DetailedDanmaku();
+        var info = message["info"]!.AsArray();
+        while (info.Count > length) info.RemoveAt(info.Count - 1);
+        await PushRoomMessagesAsync(h, message.ToJsonString());
+
+        Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        var danmaku = Assert.IsType<Danmaku>(updates.Current);
+        Assert.Equal(fanClub, danmaku.FanClubLevel);
+        Assert.Equal(tier, danmaku.GuardTier);
+        Assert.Equal(wealth, danmaku.WealthLevel);
+        Assert.Equal("晚上好", danmaku.Content);
+        Assert.Empty(Warnings(h));
+    }
+
+    [Theory]
+    [InlineData("{\"id_str\":\"message-id\"}", "message-id")]
+    [InlineData("{\"id_str\":\"message-id\",\"reply_uname\":null}", "message-id")]
+    [InlineData("{\"id_str\":\"message-id\",\"reply_uname\":123}", "message-id")]
+    [InlineData("{\"id_str\":\"message-id\",\"reply_uname\":{}}", "message-id")]
+    [InlineData("{", "")]
+    [InlineData("[]", "")]
+    [InlineData("null", "")]
+    public async Task Unreadable_reply_name_preserves_danmaku_and_other_metadata(string extra, string id)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        h.Logger.Entries.Clear();
+        var message = DetailedDanmaku();
+        message["info"]![0]![15]!["extra"] = extra;
+        await PushRoomMessagesAsync(h, message.ToJsonString());
+
+        Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        var danmaku = Assert.IsType<Danmaku>(updates.Current);
+        Assert.Equal("", danmaku.ReplyName);
+        Assert.Equal(id, danmaku.Id);
+        Assert.Equal(47, danmaku.FanClubLevel);
+        Assert.Equal(1, danmaku.GuardTier);
+        Assert.Equal(45, danmaku.WealthLevel);
+        Assert.Equal("晚上好", danmaku.Content);
+        Assert.Empty(Warnings(h));
+    }
+
+    private static JsonObject DetailedDanmaku()
+    {
+        var meta = new object?[16];
+        meta[15] = new { extra = JsonSerializer.Serialize(new { id_str = "message-id", reply_uname = "深蓝色的机器人" }) };
+        var info = new object?[17];
+        info[0] = meta;
+        // A query keyword would trigger background replies and race the no-warning assertions.
+        info[1] = "晚上好";
+        info[2] = new object[] { 123, "观众" };
+        info[3] = new object[] { 47, "粉丝牌", "主播", 7734200 };
+        info[7] = 3;
+        info[16] = new[] { 45 };
+        return JsonSerializer.SerializeToNode(new { cmd = "DANMU_MSG", info })!.AsObject();
+    }
+
     [Theory]
     [InlineData("{", null)]
     [InlineData("{}", null)]

@@ -14,6 +14,11 @@ public sealed record Danmaku(DateTimeOffset ReceivedAt, string Nickname, string 
 {
     public long Uid { get; init; }
     public string Id { get; init; } = "";
+    public long? FanClubLevel { get; init; }
+    public int GuardTier { get; init; }
+    public string GuardName => Guard.Name(GuardTier);
+    public long WealthLevel { get; init; }
+    public string ReplyName { get; init; } = "";
 }
 
 public enum SendQueueItemKind { BlindBoxQuery, BlindBoxAnnouncement, Welcome }
