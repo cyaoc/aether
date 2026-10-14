@@ -18,7 +18,9 @@
           <TextBlock Grid.Column="2" x:Name="LevelUnit" Classes="label" Text="级" VerticalAlignment="Center" Margin="8,0,0,0" />
         </Grid>
       </Grid>
-      <Button Grid.Column="3" x:Name="RemoveButton" Classes="ghost danger" Content="×" Width="28" VerticalAlignment="Center" />
+      <Button Grid.Column="3" x:Name="RemoveButton" Classes="ghost danger" Width="28" VerticalAlignment="Center">
+        <Viewbox Classes="icon remove"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
+      </Button>
       <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" x:Name="ErrorMessage" Classes="error" IsVisible="False" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
       <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="ReadOnlyMessage" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
     </Grid>

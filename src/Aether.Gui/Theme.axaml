@@ -3,6 +3,8 @@
     <ResourceDictionary>
       <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
       <BoxShadows x:Key="QrShadow">0 8 28 0 #18000000</BoxShadows>
+      <!-- Room for PopupShadow around a popup card; Popup discounts its child's margin, so the card does not shift. -->
+      <Thickness x:Key="PopupShadowSpace">24,16,24,32</Thickness>
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
           <BoxShadows x:Key="PopupShadow">0 8 24 0 #1F16181D, 0 1 2 0 #1416181D</BoxShadows>
@@ -106,6 +108,7 @@
       <StreamGeometry x:Key="Icon.Send">M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z</StreamGeometry>
       <StreamGeometry x:Key="Icon.Settings">M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6</StreamGeometry>
       <StreamGeometry x:Key="Icon.Logout">M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Remove">M18 6L6 18M6 6l12 12</StreamGeometry>
       <StreamGeometry x:Key="Icon.Notice">M12 8v5 M12 16v.01 M22 12a10 10 0 1 1-20 0a10 10 0 1 1 20 0</StreamGeometry>
     </ResourceDictionary>
   </Styles.Resources>
@@ -230,13 +233,14 @@
   <Style Selector="TextBox">
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
-  <!-- An editable ComboBox takes focus in its borderless inner TextBox; ring the whole box, ▾ included, as other inputs do. -->
-  <Style Selector="ComboBox[IsEditable=True]:focus-within /template/ Border#Background">
+  <!-- An editable ComboBox takes focus in its borderless inner TextBox; ring the whole box, ▾ included, as other inputs do.
+       An open list rings it the same way. -->
+  <Style Selector="ComboBox[IsEditable=True]:focus-within /template/ Border#Background, ComboBox:dropdownopen /template/ Border#Background">
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
     <Setter Property="BorderThickness" Value="2" />
     <Setter Property="Background" Value="{DynamicResource Surface.Content}" />
   </Style>
-  <Style Selector="ComboBox#RoomInput[ItemCount=0] /template/ PathIcon#DropDownGlyph">
+  <Style Selector="ComboBox.history[ItemCount=0] /template/ PathIcon#DropDownGlyph">
     <Setter Property="IsVisible" Value="False" />
   </Style>
   <Style Selector="ComboBox">
@@ -247,6 +251,8 @@
   <Style Selector="ComboBox /template/ Popup#PART_Popup">
     <Setter Property="VerticalOffset" Value="4" />
   </Style>
+  <!-- :dropdownopen and [IsVisible=True] below always hold while the card shows; as conditional selectors they outrank
+       the values Fluent's templates set. -->
   <Style Selector="ComboBox:dropdownopen /template/ Border#PopupBorder">
     <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
@@ -254,8 +260,7 @@
     <Setter Property="CornerRadius" Value="8" />
     <Setter Property="Padding" Value="4" />
     <Setter Property="BoxShadow" Value="{DynamicResource PopupShadow}" />
-    <!-- Popup discounts its child's margin when positioning; reserve shadow space without shifting the card. -->
-    <Setter Property="Margin" Value="24,16,24,32" />
+    <Setter Property="Margin" Value="{StaticResource PopupShadowSpace}" />
     <Setter Property="Width" Value="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}" />
   </Style>
   <Style Selector="ComboBox:dropdownopen /template/ ItemsPresenter#PART_ItemsPresenter">
@@ -273,7 +278,7 @@
     <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
     <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
   </Style>
-  <Style Selector="ComboBox#RoomInput ComboBoxItem">
+  <Style Selector="ComboBox.history ComboBoxItem">
     <Setter Property="Padding" Value="10,0,4,0" />
   </Style>
   <Style Selector="ComboBoxItem:selected /template/ ContentPresenter, ComboBoxItem:selected:pointerover /template/ ContentPresenter, ComboBoxItem:selected:pressed /template/ ContentPresenter">
@@ -281,15 +286,13 @@
     <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
     <Setter Property="FontWeight" Value="SemiBold" />
   </Style>
-  <Style Selector="ComboBox:dropdownopen /template/ Border#Background">
-    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
-    <Setter Property="BorderThickness" Value="2" />
-  </Style>
   <Style Selector="ComboBox:dropdownopen /template/ Border#HighlightBackground">
     <Setter Property="IsVisible" Value="False" />
   </Style>
-  <Style Selector="ComboBox:dropdownopen /template/ PathIcon#DropDownGlyph">
+  <Style Selector="ComboBox:not(:disabled) /template/ PathIcon#DropDownGlyph">
     <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="ComboBox:dropdownopen /template/ PathIcon#DropDownGlyph">
     <Setter Property="RenderTransform"><RotateTransform Angle="180" /></Setter>
   </Style>
   <Style Selector="NumericUpDown">
@@ -359,8 +362,7 @@
     <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="8" />
-    <Setter Property="Padding" Value="4" />
-    <Setter Property="Margin" Value="24,16,24,32" />
+    <Setter Property="Margin" Value="{StaticResource PopupShadowSpace}" />
   </Style>
   <Style Selector="MenuFlyoutPresenter[IsVisible=True] /template/ Border#LayoutRoot">
     <Setter Property="Padding" Value="4" />
@@ -541,6 +543,10 @@
     <Setter Property="Width" Value="18" />
     <Setter Property="Height" Value="18" />
     <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Viewbox.icon.remove">
+    <Setter Property="Width" Value="14" />
+    <Setter Property="Height" Value="14" />
   </Style>
   <Style Selector="Viewbox.icon > Path">
     <Setter Property="Width" Value="24" />

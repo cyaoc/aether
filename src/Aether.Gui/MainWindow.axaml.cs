@@ -36,8 +36,10 @@ public partial class MainWindow : Window
         Navigation.SelectedIndex = 0;
         // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
         RoomInput.AddHandler(KeyDownEvent, OnRoomInputKeyDown, RoutingStrategies.Tunnel);
-        RoomInput.DropDownOpened += OnRoomDropDownChanged;
-        RoomInput.DropDownClosed += OnRoomDropDownChanged;
+        RoomInput.DropDownOpened += (_, _) => MoveRoomCaretToEnd();
+        RoomInput.DropDownClosed += (_, _) => MoveRoomCaretToEnd();
+        // No history, no ▾: stop the click (here) and keys (OnRoomInputKeyDown) that would open an empty list,
+        // instead of closing a native popup after it has already appeared.
         RoomInput.AddHandler(PointerReleasedEvent, (_, e) =>
         {
             if (RoomInput.ItemCount == 0 && e.Source is Visual source &&
@@ -45,8 +47,10 @@ public partial class MainWindow : Window
         }, RoutingStrategies.Tunnel);
         RoomInput.PropertyChanged += (_, e) =>
         {
-            if (e.Property == ItemsControl.ItemCountProperty && RoomInput.ItemCount == 0)
-                RoomInput.IsDropDownOpen = false;
+            if (e.Property != ItemsControl.ItemCountProperty) return;
+            // Deleting the room in the box clears and restores its Text, which leaves the caret at the start.
+            MoveRoomCaretToEnd();
+            if (RoomInput.ItemCount == 0) RoomInput.IsDropDownOpen = false;
         };
         DanmakuList.Items.CollectionChanged += OnDanmakuChanged;
         DanmakuList.AddHandler(ScrollViewer.ScrollChangedEvent, OnScrollChanged);
@@ -97,21 +101,22 @@ public partial class MainWindow : Window
 
     private void OnRoomInputKeyDown(object? sender, KeyEventArgs e)
     {
-        if (RoomInput.ItemCount == 0 && (e.Key == Key.F4 ||
-            e.KeyModifiers.HasFlag(KeyModifiers.Alt) && e.Key is Key.Up or Key.Down))
+        if (DataContext is not MainWindowViewModel viewModel) return;
+        var alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
+        // The keys ComboBox opens on; a handled Alt+F4 would stop Windows from closing the window.
+        if (RoomInput.ItemCount == 0 && (e.Key == Key.F4 && !alt || alt && e.Key is Key.Up or Key.Down))
         {
             e.Handled = true;
             return;
         }
         if (RoomInput.IsDropDownOpen)
         {
-            // Editable ComboBox keeps focus in its TextBox, which consumes arrow keys before list navigation.
             if (e.Key == Key.Delete && e.KeyModifiers == KeyModifiers.Shift)
             {
-                if (RoomInput.SelectedItem is string room && DataContext is MainWindowViewModel model)
-                    model.RemoveRecentRoomCommand.Execute(room);
+                if (RoomInput.SelectedItem is string room) viewModel.RemoveRecentRoomCommand.Execute(room);
                 e.Handled = true;
             }
+            // Editable ComboBox keeps focus in its TextBox, which consumes arrow keys before list navigation.
             else if (e.KeyModifiers == KeyModifiers.None && e.Key is Key.Up or Key.Down)
             {
                 if (RoomInput.ItemCount > 0)
@@ -125,12 +130,12 @@ public partial class MainWindow : Window
             }
             return;
         }
-        if (e.Key != Key.Enter || DataContext is not MainWindowViewModel viewModel) return;
+        if (e.Key != Key.Enter) return;
         e.Handled = true;
         if (viewModel.ConnectCommand.CanExecute(null)) viewModel.ConnectCommand.Execute(null);
     }
 
-    private void OnRoomDropDownChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    private void MoveRoomCaretToEnd() => Dispatcher.UIThread.Post(() =>
     {
         // Deleting the last item closes the popup before its Text binding has finished updating.
         if (RoomInput.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() is { } text)

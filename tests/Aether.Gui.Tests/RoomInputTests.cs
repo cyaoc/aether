@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
@@ -30,6 +31,7 @@ public sealed class RoomInputTests
             await viewModel.ReadAccountCommand.ExecutionTask!;
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
+            EditorOf(input).Focus();
             input.IsDropDownOpen = true;
             GuiHarness.Flush();
             var remove = input.ContainerFromIndex(index)!.GetVisualDescendants().OfType<Button>().Single();
@@ -43,9 +45,13 @@ public sealed class RoomInputTests
             Assert.Equal("6", input.Text);
             Assert.True(input.IsDropDownOpen);
             Assert.Equal("", EditorOf(input).SelectedText);
+            Assert.True(EditorOf(input).IsFocused);
             Assert.Equal(index == 0 ? new[] { "42" } : ["6"], viewModel.RecentRooms);
             Assert.Equal(viewModel.RecentRooms, harness.LoadSettings().RecentRooms);
             Assert.Null(viewModel.ConnectCommand.ExecutionTask);
+            // Typing goes on at the end of the box, even after the room it shows was deleted.
+            window.KeyTextInput("7");
+            Assert.Equal("67", viewModel.RoomNumber);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
@@ -270,9 +276,15 @@ public sealed class RoomInputTests
             window.MouseUp(point, MouseButton.Left);
             GuiHarness.Flush();
             Assert.False(input.IsDropDownOpen);
+            EditorOf(input).Focus();
             window.KeyPress(Key.F4, RawInputModifiers.None, PhysicalKey.F4, null);
             GuiHarness.Flush();
             Assert.False(input.IsDropDownOpen);
+            // Windows closes the window on Alt+F4 only while the key event stays unhandled.
+            var altF4Unhandled = false;
+            window.AddHandler(InputElement.KeyDownEvent, (_, e) => altF4Unhandled |= e.Key == Key.F4, RoutingStrategies.Bubble);
+            window.KeyPress(Key.F4, RawInputModifiers.Alt, PhysicalKey.F4, null);
+            Assert.True(altF4Unhandled);
             Assert.Null(viewModel.ConnectCommand.ExecutionTask);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -295,13 +307,23 @@ public sealed class RoomInputTests
             var text = EditorOf(input);
             text.Focus(NavigationMethod.Tab);
             Assert.Equal("12345", text.SelectedText);
-            input.IsDropDownOpen = true;
+            text.Focus();
+            // Clicking ▾ and then a row both run ComboBox's SelectAll on focus.
+            var arrow = input.TranslatePoint(new Point(input.Bounds.Width - 16, input.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(arrow, MouseButton.Left);
+            window.MouseUp(arrow, MouseButton.Left);
             GuiHarness.Flush();
+            Assert.True(input.IsDropDownOpen);
             Assert.Equal("", text.SelectedText);
             Assert.Equal(5, text.CaretIndex);
-            input.SelectedIndex = 1;
-            input.IsDropDownOpen = false;
+            var row = input.ContainerFromIndex(1)!;
+            var popup = TopLevel.GetTopLevel(row)!;
+            var point = row.TranslatePoint(new Point(10, 16), popup)!.Value;
+            popup.MouseDown(point, MouseButton.Left);
+            popup.MouseUp(point, MouseButton.Left);
             GuiHarness.Flush();
+            Assert.False(input.IsDropDownOpen);
+            Assert.Equal("42", text.Text);
             Assert.Equal("", text.SelectedText);
             Assert.Equal(2, text.CaretIndex);
         }

@@ -126,11 +126,16 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     [RelayCommand]
     private void RemoveRecentRoom(string room)
     {
-        var input = RoomNumber;
-        settings.RecentRooms = [.. RecentRooms.Where(value => value != room)];
-        OnPropertyChanged(nameof(RecentRooms));
         // Removing the selected item can clear the editable ComboBox's two-way Text binding.
+        var input = RoomNumber;
+        SaveRecentRooms([.. RecentRooms.Where(value => value != room)]);
         RoomNumber = input;
+    }
+
+    private void SaveRecentRooms(string[] rooms)
+    {
+        settings.RecentRooms = rooms;
+        OnPropertyChanged(nameof(RecentRooms));
         SaveGuiSettings();
     }
 
@@ -232,11 +237,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                 ConnectionState = RoomConnectionState.Connected;
                 // Auto-reconnects land here too; they leave the room first, so gui.yml is not rewritten each time.
                 if (activeRoomNumber is { } room && !ConnectCommand.IsCancellationRequested && RecentRooms.FirstOrDefault() != room)
-                {
-                    settings.RecentRooms = [room, .. RecentRooms];
-                    OnPropertyChanged(nameof(RecentRooms));
-                    SaveGuiSettings();
-                }
+                    SaveRecentRooms([room, .. RecentRooms]);
                 break;
             case Reconnecting:
                 ConnectionState = RoomConnectionState.Reconnecting;

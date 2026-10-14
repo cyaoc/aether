@@ -12,6 +12,17 @@ internal static class ConditionList
 
     public static MenuFlyout Menu(SettingsPage page) => Assert.IsType<MenuFlyout>(page.FindControl<Button>("AddConditionButton")!.Flyout);
 
+    public static MenuFlyout ShowMenu(SettingsPage page)
+    {
+        var add = page.FindControl<Button>("AddConditionButton")!;
+        add.BringIntoView();
+        GuiHarness.Flush();
+        var menu = Menu(page);
+        menu.ShowAt(add);
+        GuiHarness.Flush();
+        return menu;
+    }
+
     public static WelcomeConditionRow Add(SettingsPage page, WelcomeCondition kind)
     {
         Menu(page).Items.Cast<MenuItem>().Single(item => Equals(item.Tag, kind))

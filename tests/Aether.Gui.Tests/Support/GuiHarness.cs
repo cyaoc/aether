@@ -100,6 +100,16 @@ internal sealed class GuiHarness : IDisposable
         }
     }
 
+    /// <summary>Shows a navigation page and returns its visible ComboBox, scrolled into view.</summary>
+    public static ComboBox VisibleComboBox(MainWindow window, int page, string name)
+    {
+        window.Navigation.SelectedIndex = page;
+        Flush();
+        var input = window.GetVisualDescendants().OfType<ComboBox>().Single(x => x.Name == name && x.IsEffectivelyVisible);
+        input.BringIntoView();
+        return input;
+    }
+
     public static IEnumerable<string?> VisibleText(MainWindow window) =>
         window.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).Select(x => x.Text);
 
