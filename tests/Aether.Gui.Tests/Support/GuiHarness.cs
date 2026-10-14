@@ -63,6 +63,26 @@ internal sealed class GuiHarness : IDisposable
         command.ExecuteNonQuery();
     }
 
+    /// <summary>Holds room_init until cancelled, so a connection stays at "connecting"; completes with the request.</summary>
+    public Task<Uri> HoldRoomRequest()
+    {
+        var requested = new TaskCompletionSource<Uri>();
+        RoomResponse = async (uri, token) =>
+        {
+            requested.TrySetResult(uri);
+            await Task.Delay(Timeout.Infinite, token);
+            throw new InvalidOperationException();
+        };
+        return requested.Task;
+    }
+
+    public void SaveRecentRooms(params string[] rooms)
+    {
+        var settings = LoadSettings();
+        settings.RecentRooms = rooms;
+        settings.Save();
+    }
+
     /// <summary>Delivers numbered danmaku the way a watch stream would; Content is the running number.</summary>
     public void Receive(MainWindowViewModel viewModel, int count)
     {
@@ -78,6 +98,16 @@ internal sealed class GuiHarness : IDisposable
             AvaloniaHeadlessPlatform.ForceRenderTimerTick();
             Dispatcher.UIThread.RunJobs();
         }
+    }
+
+    /// <summary>Shows a navigation page and returns its visible ComboBox, scrolled into view.</summary>
+    public static ComboBox VisibleComboBox(MainWindow window, int page, string name)
+    {
+        window.Navigation.SelectedIndex = page;
+        Flush();
+        var input = window.GetVisualDescendants().OfType<ComboBox>().Single(x => x.Name == name && x.IsEffectivelyVisible);
+        input.BringIntoView();
+        return input;
     }
 
     public static IEnumerable<string?> VisibleText(MainWindow window) =>

@@ -26,7 +26,8 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     TimeProvider clock) : ObservableObject
 {
     [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
-    [ObservableProperty] private string roomNumber = "";
+    [ObservableProperty] private string roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
+    public string[] RecentRooms => settings.RecentRooms;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Status))]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
@@ -109,12 +110,33 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         // One Reset instead of a RemoveAt(0) event per dropped item after hours unchecked.
         if (value && Danmaku.Count > RecentDanmakuLimit) Danmaku = new(Danmaku.TakeLast(RecentDanmakuLimit));
         settings.KeepRecentDanmaku = value;
+        SaveGuiSettings();
+    }
+
+    private void SaveGuiSettings()
+    {
         try { settings.Save(); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
             logger.LogError(error, "保存 GUI 设置失败");
-            Message = $"保存设置失败：{error.Message}";
+            Message = $"保存 GUI 设置失败：{error.Message}";
         }
+    }
+
+    [RelayCommand]
+    private void RemoveRecentRoom(string room)
+    {
+        // Removing the selected item can clear the editable ComboBox's two-way Text binding.
+        var input = RoomNumber;
+        SaveRecentRooms([.. RecentRooms.Where(value => value != room)]);
+        RoomNumber = input;
+    }
+
+    private void SaveRecentRooms(string[] rooms)
+    {
+        settings.RecentRooms = rooms;
+        OnPropertyChanged(nameof(RecentRooms));
+        SaveGuiSettings();
     }
 
     [RelayCommand(CanExecute = nameof(CanConnect), IncludeCancelCommand = true)]
@@ -213,6 +235,9 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                     if (connectedAt is not null) OnPropertyChanged(nameof(Status));
                 }), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
                 ConnectionState = RoomConnectionState.Connected;
+                // Auto-reconnects land here too; they leave the room first, so gui.yml is not rewritten each time.
+                if (activeRoomNumber is { } room && !ConnectCommand.IsCancellationRequested && RecentRooms.FirstOrDefault() != room)
+                    SaveRecentRooms([room, .. RecentRooms]);
                 break;
             case Reconnecting:
                 ConnectionState = RoomConnectionState.Reconnecting;

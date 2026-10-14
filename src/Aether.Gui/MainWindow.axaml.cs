@@ -34,6 +34,24 @@ public partial class MainWindow : Window
         }
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
+        // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
+        RoomInput.AddHandler(KeyDownEvent, OnRoomInputKeyDown, RoutingStrategies.Tunnel);
+        RoomInput.DropDownOpened += (_, _) => MoveRoomCaretToEnd();
+        RoomInput.DropDownClosed += (_, _) => MoveRoomCaretToEnd();
+        // No history, no ▾: stop the click (here) and keys (OnRoomInputKeyDown) that would open an empty list,
+        // instead of closing a native popup after it has already appeared.
+        RoomInput.AddHandler(PointerReleasedEvent, (_, e) =>
+        {
+            if (RoomInput.ItemCount == 0 && e.Source is Visual source &&
+                !source.GetSelfAndVisualAncestors().OfType<TextBox>().Any()) e.Handled = true;
+        }, RoutingStrategies.Tunnel);
+        RoomInput.PropertyChanged += (_, e) =>
+        {
+            if (e.Property != ItemsControl.ItemCountProperty) return;
+            // Deleting the room in the box clears and restores its Text, which leaves the caret at the start.
+            MoveRoomCaretToEnd();
+            if (RoomInput.ItemCount == 0) RoomInput.IsDropDownOpen = false;
+        };
         DanmakuList.Items.CollectionChanged += OnDanmakuChanged;
         DanmakuList.AddHandler(ScrollViewer.ScrollChangedEvent, OnScrollChanged);
         DanmakuList.AddHandler(PointerWheelChangedEvent, (_, _) => PauseFollowingForInput(), RoutingStrategies.Tunnel);
@@ -81,12 +99,52 @@ public partial class MainWindow : Window
         status.Classes.Set("muted", enabled != true);
     }
 
-    private void ConnectRoom(object? sender, KeyEventArgs e)
+    private void OnRoomInputKeyDown(object? sender, KeyEventArgs e)
     {
-        if (e.Key != Key.Enter || DataContext is not MainWindowViewModel viewModel) return;
+        if (DataContext is not MainWindowViewModel viewModel) return;
+        var alt = e.KeyModifiers.HasFlag(KeyModifiers.Alt);
+        // The keys ComboBox opens on; a handled Alt+F4 would stop Windows from closing the window.
+        if (RoomInput.ItemCount == 0 && (e.Key == Key.F4 && !alt || alt && e.Key is Key.Up or Key.Down))
+        {
+            e.Handled = true;
+            return;
+        }
+        if (RoomInput.IsDropDownOpen)
+        {
+            if (e.Key == Key.Delete && e.KeyModifiers == KeyModifiers.Shift)
+            {
+                if (RoomInput.SelectedItem is string room) viewModel.RemoveRecentRoomCommand.Execute(room);
+                e.Handled = true;
+            }
+            // Editable ComboBox keeps focus in its TextBox, which consumes arrow keys before list navigation.
+            else if (e.KeyModifiers == KeyModifiers.None && e.Key is Key.Up or Key.Down)
+            {
+                if (RoomInput.ItemCount > 0)
+                    RoomInput.SelectedIndex = Math.Clamp(RoomInput.SelectedIndex + (e.Key == Key.Down ? 1 : -1), 0, RoomInput.ItemCount - 1);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.Enter)
+            {
+                RoomInput.IsDropDownOpen = false;
+                e.Handled = true;
+            }
+            return;
+        }
+        if (e.Key != Key.Enter) return;
         e.Handled = true;
         if (viewModel.ConnectCommand.CanExecute(null)) viewModel.ConnectCommand.Execute(null);
     }
+
+    private void MoveRoomCaretToEnd() => Dispatcher.UIThread.Post(() =>
+    {
+        // Deleting the last item closes the popup before its Text binding has finished updating.
+        if (RoomInput.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() is { } text)
+        {
+            // Reset both ends: temporary empty Text can coerce only the presenter's selection to zero.
+            text.SelectionStart = text.SelectionEnd = 0;
+            text.SelectionStart = text.SelectionEnd = text.CaretIndex = text.Text?.Length ?? 0;
+        }
+    });
 
     private async void ConfirmLogout(object? sender, RoutedEventArgs e)
     {
