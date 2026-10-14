@@ -26,6 +26,21 @@ public sealed class EntryDecodingTests
         Assert.Equal(45, entry.WealthLevel);
     }
 
+    public static TheoryData<byte[]> SplitFanClubs => new()
+    {
+        { [.. Bytes(9, Integer(2, 47)), .. Bytes(9, Integer(12, 7734200))] },
+        { [.. Bytes(9, Integer(12, 7734200)), .. Bytes(9, Integer(2, 47))] }
+    };
+
+    [Theory]
+    [MemberData(nameof(SplitFanClubs))]
+    public void Repeated_fan_club_messages_merge_independent_of_order(byte[] fanClubs)
+    {
+        using var message = JsonDocument.Parse(EntryV2Fixture.Wrap([.. Integer(1, 10001), .. Integer(5, 1), .. fanClubs]));
+        var entry = Assert.IsType<Entry>(EntryMessages.Decode("INTERACT_WORD_V2", message.RootElement, 7734200));
+        Assert.Equal(47, entry.FanClubLevel);
+    }
+
     [Fact]
     public void Omitted_proto3_fields_are_zero_or_empty()
     {
