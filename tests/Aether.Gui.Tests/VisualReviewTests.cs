@@ -1,6 +1,7 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
 using static Aether.Gui.Tests.Support.ConditionList;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Interactivity;
@@ -15,7 +16,7 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     // A manual review tool, not a regression test: set AETHER_SCREENSHOT_DIR to render every page per size and theme
-    // with Skia and compare the PNGs with designs B and E. CI leaves it unset, so the theory skips there.
+    // with Skia and compare the PNGs with designs B, E and F. CI leaves it unset, so the theory skips there.
     [Theory]
     [InlineData(960, 640, false)]
     [InlineData(960, 640, true)]
@@ -25,6 +26,62 @@ public sealed class VisualReviewTests
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
         return Render(width, height, dark);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_numeric_input_states_with_real_font_metrics(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            var viewModel = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                window.Navigation.SelectedIndex = 3;
+                GuiHarness.Flush();
+                var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+                var number = page.FindControl<NumericUpDown>("SendIntervalInput")!;
+                var text = number.GetVisualDescendants().OfType<TextBox>().Single();
+                Capture("minimum");
+                text.Text = "12345";
+                Capture("normal");
+                var increase = number.GetVisualDescendants().OfType<Button>().Single(x => x.Name == "PART_IncreaseButton");
+                window.MouseMove(increase.TranslatePoint(new Point(10, 10), window)!.Value);
+                Capture("hover");
+                window.MouseMove(default);
+                text.Focus();
+                Capture("focus");
+                var viewer = text.GetVisualDescendants().OfType<ScrollViewer>().Single();
+                Assert.True(viewer.Extent.Width <= viewer.Viewport.Width, $"Five digits need {viewer.Extent.Width}, available {viewer.Viewport.Width}");
+                text.Text = "1.5";
+                Capture("error");
+                text.Text = "1";
+                File.WriteAllText(Settings.FilePath(harness.DataDirectory), "send:\n  interval_seconds: |-\n    1\n");
+                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 3;
+                Capture("readonly");
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+
+            void Capture(string state)
+            {
+                GuiHarness.Flush();
+                using var bitmap = window.CaptureRenderedFrame();
+                Assert.NotNull(bitmap);
+                Directory.CreateDirectory(HeadlessApp.ScreenshotDirectory!);
+                bitmap.Save(Path.Combine(HeadlessApp.ScreenshotDirectory!, $"numeric-{state}-{(dark ? "dark" : "light")}.png"), PngBitmapEncoderOptions.Default);
+            }
+        }, TestContext.Current.CancellationToken);
     }
 
     private static Task Render(int width, int height, bool dark) => HeadlessApp.Session.Dispatch(async () =>
@@ -41,7 +98,7 @@ public sealed class VisualReviewTests
         };
         Settings.Load(harness.DataDirectory);
         var path = Settings.FilePath(harness.DataDirectory);
-        File.WriteAllText(path, File.ReadAllText(path).Replace("enabled: false", "enabled: true").Replace("uids: []", "uids: [12345, 67890]"));
+        File.WriteAllText(path, File.ReadAllText(path).Replace("enabled: false", "enabled: true").Replace("uids: []", "uids: [1234567890123456, 67890]"));
         var clock = new FakeTimeProvider();
         var viewModel = harness.CreateViewModel(clock);
         viewModel.RoomNumber = "1768506153";
@@ -83,6 +140,12 @@ public sealed class VisualReviewTests
             {
                 navigation.SelectedIndex = i;
                 Capture(pages[i]);
+                if (i == 2)
+                {
+                    var uid = window.GetVisualDescendants().OfType<TextBox>().Single(x => x.IsEffectivelyVisible && x.Text == "1234567890123456");
+                    var viewer = uid.GetVisualDescendants().OfType<ScrollViewer>().Single();
+                    Assert.True(viewer.Extent.Width <= viewer.Viewport.Width);
+                }
             }
             navigation.SelectedIndex = 2;
             GuiHarness.Flush();

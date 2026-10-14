@@ -15,6 +15,7 @@
           <SolidColorBrush x:Key="Text.Primary" Color="#16181D" />
           <SolidColorBrush x:Key="Text.Secondary" Color="#3D4350" />
           <SolidColorBrush x:Key="Text.Muted" Color="#5B6270" />
+          <SolidColorBrush x:Key="Text.Disabled" Color="#B4BAC4" />
           <!-- Same hex as the Light palette Accent in App.axaml, which Fluent controls read. -->
           <SolidColorBrush x:Key="Accent" Color="#3358D4" />
           <SolidColorBrush x:Key="Accent.Text" Color="#2A47B0" />
@@ -60,6 +61,7 @@
           <SolidColorBrush x:Key="Text.Primary" Color="#E8EAED" />
           <SolidColorBrush x:Key="Text.Secondary" Color="#C2C6CE" />
           <SolidColorBrush x:Key="Text.Muted" Color="#9097A3" />
+          <SolidColorBrush x:Key="Text.Disabled" Color="#4A4F57" />
           <!-- Same hex as the Dark palette Accent in App.axaml, which Fluent controls read. -->
           <SolidColorBrush x:Key="Accent" Color="#8DA2FB" />
           <SolidColorBrush x:Key="Accent.Text" Color="#B4C3FF" />
@@ -227,8 +229,65 @@
     <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <Style Selector="NumericUpDown">
-    <Setter Property="ShowButtonSpinner" Value="False" />
+    <Setter Property="ShowButtonSpinner" Value="True" />
+    <Setter Property="Width" Value="120" />
+    <Setter Property="HorizontalAlignment" Value="Left" />
+    <Setter Property="Padding" Value="6,0" />
+    <Setter Property="BorderThickness" Value="1" />
     <Setter Property="VerticalContentAlignment" Value="Center" />
+  </Style>
+  <Style Selector="NumericUpDown[ShowButtonSpinner=True] /template/ TextBox#PART_TextBox">
+    <Setter Property="Margin" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <!-- Conditional selectors override Fluent's template-local sizes and focused TextBox surface. -->
+  <Style Selector="NumericUpDown[ShowButtonSpinner=True] /template/ TextBox#PART_TextBox /template/ Border#PART_BorderElement">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="NumericUpDown:focus-within[IsReadOnly=False]">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="NumericUpDown.invalid">
+    <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+    <Setter Property="BorderThickness" Value="2" />
+  </Style>
+  <Style Selector="NumericUpDown[IsReadOnly=True]">
+    <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="NumericUpDown[IsReadOnly=True] /template/ TextBox#PART_TextBox">
+    <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="NumericUpDown[ShowButtonSpinner=True] /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton">
+    <Setter Property="Width" Value="28" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1,0,0,0" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="NumericUpDown[ShowButtonSpinner=True] /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton#PART_IncreaseButton">
+    <Setter Property="AutomationProperties.Name" Value="{Binding $parent[NumericUpDown].(AutomationProperties.Name), StringFormat={}{0}加 1}" />
+  </Style>
+  <Style Selector="NumericUpDown[ShowButtonSpinner=True] /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton#PART_DecreaseButton">
+    <Setter Property="AutomationProperties.Name" Value="{Binding $parent[NumericUpDown].(AutomationProperties.Name), StringFormat={}{0}减 1}" />
+  </Style>
+  <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:pointerover /template/ ContentPresenter, NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Badge.Neutral}" />
+  </Style>
+  <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:pointerover PathIcon, NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:pressed PathIcon">
+    <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+  </Style>
+  <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:disabled PathIcon">
+    <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
   </Style>
   <Style Selector="MenuFlyoutPresenter">
     <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
@@ -241,6 +300,9 @@
     <Setter Property="Padding" Value="0" />
     <Setter Property="AutoScrollToSelectedItem" Value="False" />
     <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+  </Style>
+  <Style Selector="ListBox.plain">
+    <Setter Property="Padding" Value="0,8,0,12" />
   </Style>
   <Style Selector="ListBox.nav ListBoxItem">
     <Setter Property="Height" Value="36" />
@@ -272,6 +334,18 @@
     <Setter Property="Margin" Value="0" />
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+  </Style>
+  <Style Selector="ListBox.plain Border.activityRow">
+    <Setter Property="Margin" Value="20,0" />
+    <Setter Property="Padding" Value="0,10" />
+    <Setter Property="BorderThickness" Value="0,0,0,1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
+  </Style>
+  <Style Selector="ListBox.aside Border.activityRow">
+    <Setter Property="Margin" Value="16,0" />
+  </Style>
+  <Style Selector="ListBox.plain ListBoxItem:nth-last-child(1) Border.activityRow">
+    <Setter Property="BorderThickness" Value="0" />
   </Style>
   <Style Selector="ListBox.plain ListBoxItem /template/ ContentPresenter, ListBox.plain ListBoxItem:selected /template/ ContentPresenter, ListBox.plain ListBoxItem:pointerover /template/ ContentPresenter, ListBox.plain ListBoxItem:pressed /template/ ContentPresenter, ListBox.plain ListBoxItem:selected:pointerover /template/ ContentPresenter, ListBox.plain ListBoxItem:selected:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="Transparent" />

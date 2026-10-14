@@ -2,7 +2,7 @@
   xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.SettingsPage">
   <UserControl.Resources>
     <DataTemplate x:Key="FeatureActivityTemplate" x:DataType="local:SendQueueItemViewModel">
-      <Border Padding="16,10" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Border.Subtle}">
+      <Border Classes="activityRow">
         <StackPanel Spacing="4">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
@@ -17,7 +17,7 @@
       </Border>
     </DataTemplate>
     <DataTemplate x:Key="SendActivityTemplate" x:DataType="local:SendQueueItemViewModel">
-      <Border Padding="16,10" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource Border.Subtle}">
+      <Border Classes="activityRow">
         <StackPanel Spacing="4">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
@@ -76,13 +76,15 @@
           <ScrollViewer HorizontalScrollBarVisibility="Disabled" Padding="20,18">
             <StackPanel>
               <StackPanel x:Name="GeneralFields" Spacing="8">
-                <TextBlock Classes="label" Text="保留天数" />
-                <NumericUpDown x:Name="RetentionInput" FormatString="0.############################"
-                  HorizontalAlignment="Stretch" AutomationProperties.Name="日志保留天数" />
+                <TextBlock Classes="label" Text="日志保留" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <NumericUpDown x:Name="RetentionInput" Minimum="1" Classes.invalid="{Binding #RetentionError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日志保留天数" />
+                  <TextBlock Classes="label" Text="天" VerticalAlignment="Center" />
+                </StackPanel>
                 <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <TextBlock x:Name="RetentionError" Classes="error" />
                 <TextBlock Classes="label" Text="级别" Margin="0,8,0,0" />
-                <ComboBox x:Name="LogLevelInput" HorizontalAlignment="Stretch" AutomationProperties.Name="日志级别" />
+                <ComboBox x:Name="LogLevelInput" Width="200" HorizontalAlignment="Left" AutomationProperties.Name="日志级别" />
                 <TextBlock x:Name="LogLevelReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <TextBlock x:Name="LogLevelError" Classes="error" />
                 <Button Content="打开设置文件" Click="OpenFile" />
@@ -90,11 +92,11 @@
               </StackPanel>
               <StackPanel x:Name="BlindBoxFields" Spacing="8">
                 <TextBlock Classes="label" Text="今日查询关键字" />
-                <TextBox x:Name="DailyKeywordInput" AutomationProperties.Name="今日查询关键字" />
+                <TextBox x:Name="DailyKeywordInput" Width="240" HorizontalAlignment="Left" AutomationProperties.Name="今日查询关键字" />
                 <TextBlock x:Name="DailyKeywordReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <TextBlock x:Name="DailyKeywordError" Classes="error" />
                 <TextBlock Classes="label" Text="本月查询关键字" Margin="0,8,0,0" />
-                <TextBox x:Name="MonthlyKeywordInput" AutomationProperties.Name="本月查询关键字" />
+                <TextBox x:Name="MonthlyKeywordInput" Width="240" HorizontalAlignment="Left" AutomationProperties.Name="本月查询关键字" />
                 <TextBlock x:Name="MonthlyKeywordReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <TextBlock x:Name="MonthlyKeywordError" Classes="error" />
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,10,0,0" IsEnabled="{Binding !#FileMessage.IsVisible}">
@@ -108,9 +110,11 @@
                 <TextBlock x:Name="AnnounceError" Classes="error" />
               </StackPanel>
               <StackPanel x:Name="SendFields" Spacing="8">
-                <TextBlock Classes="label" Text="发送间隔秒数" />
-                <NumericUpDown x:Name="SendIntervalInput" FormatString="0.############################"
-                  HorizontalAlignment="Stretch" AutomationProperties.Name="发送间隔秒数" />
+                <TextBlock Classes="label" Text="发送间隔" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <NumericUpDown x:Name="SendIntervalInput" Minimum="1" Classes.invalid="{Binding #SendIntervalError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="发送间隔秒数" />
+                  <TextBlock Classes="label" Text="秒" VerticalAlignment="Center" />
+                </StackPanel>
                 <TextBlock x:Name="SendIntervalReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <TextBlock x:Name="SendIntervalError" Classes="error" />
               </StackPanel>
@@ -193,37 +197,43 @@
               </StackPanel>
             </StackPanel>
           </ScrollViewer>
-          <Grid x:Name="SendActivity" Grid.Row="1" RowDefinitions="Auto,*,Auto,*" RowSpacing="8" Margin="0,0,0,12">
-            <Grid ColumnDefinitions="*,Auto" Margin="20,0">
-              <TextBlock Text="待发" Classes="section" />
-              <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding PendingSends.Count, StringFormat={}{0:N0} 条}" />
+          <Grid x:Name="SendActivity" Grid.Row="1" RowDefinitions="Auto,*">
+            <Grid x:Name="PendingActivity" RowDefinitions="Auto,*">
+              <Grid ColumnDefinitions="*,Auto" Margin="20,0,20,2">
+                <TextBlock Text="待发" Classes="section" />
+                <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding PendingSends.Count, StringFormat={}{0:N0} 条}" />
+              </Grid>
+              <Panel Grid.Row="1">
+                <TextBlock Classes="hint" Text="暂无待发弹幕" Margin="20,8,20,12" IsVisible="{Binding !PendingSends.Count}" />
+                <ListBox x:Name="PendingSendsList" Classes="plain" ItemsSource="{Binding PendingSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="待发弹幕" IsVisible="{Binding !!PendingSends.Count}" />
+              </Panel>
             </Grid>
-            <Panel Grid.Row="1">
-              <TextBlock Classes="hint" Text="暂无待发弹幕" Margin="20,10" IsVisible="{Binding !PendingSends.Count}" />
-              <ListBox x:Name="PendingSendsList" Classes="plain" ItemsSource="{Binding PendingSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="待发弹幕" IsVisible="{Binding !!PendingSends.Count}" />
-            </Panel>
-            <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="20,0">
-              <TextBlock Text="最近发送" Classes="section" />
-              <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding RecentSends.Count, StringFormat={}{0:N0} 条}" />
+            <Grid x:Name="RecentSendsActivity" Grid.Row="1" RowDefinitions="Auto,*" Margin="0,12,0,0">
+              <Grid x:Name="RecentSendsHeader" ColumnDefinitions="*,Auto" Margin="20,0,20,2">
+                <TextBlock Text="最近发送" Classes="section" />
+                <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding RecentSends.Count, StringFormat={}{0:N0} 条}" />
+              </Grid>
+              <Panel Grid.Row="1">
+                <TextBlock Classes="hint" Text="暂无发送记录" Margin="20,8,20,12" IsVisible="{Binding !RecentSends.Count}" />
+                <ListBox x:Name="RecentSendsList" Classes="plain" ItemsSource="{Binding RecentSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="最近发送" IsVisible="{Binding !!RecentSends.Count}" />
+              </Panel>
             </Grid>
-            <Panel Grid.Row="3">
-              <TextBlock Classes="hint" Text="暂无发送记录" Margin="20,10" IsVisible="{Binding !RecentSends.Count}" />
-              <ListBox x:Name="RecentSendsList" Classes="plain" ItemsSource="{Binding RecentSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="最近发送" IsVisible="{Binding !!RecentSends.Count}" />
-            </Panel>
           </Grid>
         </Grid>
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="20,12,20,18">
-          <StackPanel VerticalAlignment="Center" Spacing="4">
-            <TextBlock Classes="caption muted" Text="没有未保存的修改" IsVisible="{Binding !#DirtyMessage.IsVisible}" />
-            <TextBlock x:Name="DirtyMessage" Classes="caption accent" Text="有未保存的修改" />
-            <TextBlock x:Name="Message" Classes="caption" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" IsVisible="{Binding #Message.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
-          </StackPanel>
-          <Button Grid.Column="1" x:Name="SaveButton" Content="保存" Classes="accent" MinWidth="80" Height="34" Click="Save" VerticalAlignment="Center" />
-        </Grid>
+        <Border Grid.Row="1" BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="20,12,20,18">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel VerticalAlignment="Center" Spacing="4">
+              <TextBlock Classes="caption muted" Text="没有未保存的修改" IsVisible="{Binding !#DirtyMessage.IsVisible}" />
+              <TextBlock x:Name="DirtyMessage" Classes="caption accent" Text="有未保存的修改" />
+              <TextBlock x:Name="Message" Classes="caption" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" IsVisible="{Binding #Message.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+            <Button Grid.Column="1" x:Name="SaveButton" Content="保存" Classes="accent" MinWidth="80" Height="34" Click="Save" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
       </Grid>
       <Border x:Name="RecentActivity" Grid.Column="1" Width="300" Background="{DynamicResource Surface.Aside}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
         <Grid RowDefinitions="Auto,*">
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,18,16,10">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,18,16,2">
             <TextBlock x:Name="RecentActivityTitle" Classes="section" />
             <Panel Grid.Column="1">
               <TextBlock x:Name="WelcomeTotal" Classes="caption muted numeric" Text="{Binding WelcomeCount, StringFormat=共 {0:N0} 次}" VerticalAlignment="Center" />
@@ -231,8 +241,8 @@
             </Panel>
           </Grid>
           <Panel Grid.Row="1">
-            <ListBox x:Name="RecentWelcomesList" Classes="plain" ItemsSource="{Binding RecentWelcomes}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近欢迎" />
-            <ListBox x:Name="RecentQueriesAndAnnouncementsList" Classes="plain" ItemsSource="{Binding RecentQueriesAndAnnouncements}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近回复和播报" />
+            <ListBox x:Name="RecentWelcomesList" Classes="plain aside" ItemsSource="{Binding RecentWelcomes}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近欢迎" />
+            <ListBox x:Name="RecentQueriesAndAnnouncementsList" Classes="plain aside" ItemsSource="{Binding RecentQueriesAndAnnouncements}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近回复和播报" />
           </Panel>
         </Grid>
       </Border>

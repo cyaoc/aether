@@ -13,6 +13,172 @@ public sealed class SendQueuePageTests
 {
     private static readonly DateTimeOffset OccurredAt = new(2026, 10, 12, 14, 30, 0, TimeSpan.FromHours(8));
 
+    [Theory]
+    [InlineData(960)]
+    [InlineData(760)]
+    public Task Activity_rows_align_with_their_headings_and_leave_space_at_both_ends(int width) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, Width = width };
+        window.Show();
+        try
+        {
+            viewModel.Apply(Update(1, SendQueueItemKind.Welcome) with { Text = "欢迎回来" });
+            viewModel.Apply(Update(2, SendQueueItemKind.Welcome, SendQueueItemState.Sent) with { Text = "欢迎回来" });
+            viewModel.Apply(Update(3, SendQueueItemKind.BlindBoxQuery, SendQueueItemState.Sent));
+            viewModel.Apply(Update(4, SendQueueItemKind.BlindBoxAnnouncement, SendQueueItemState.Sent));
+            foreach (var (index, listName, heading) in new[]
+            {
+                (3, "PendingSendsList", "待发"), (3, "RecentSendsList", "最近发送"),
+                (2, "RecentWelcomesList", "最近欢迎"), (1, "RecentQueriesAndAnnouncementsList", "最近回复和播报")
+            })
+            {
+                window.Navigation.SelectedIndex = index;
+                GuiHarness.Flush();
+                var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+                var list = page.FindControl<ListBox>(listName)!;
+                var title = page.GetVisualDescendants().OfType<TextBlock>().Single(x => x.Text == heading);
+                var count = Assert.IsType<Grid>(title.Parent).GetVisualDescendants().OfType<TextBlock>().Last(x => x.IsEffectivelyVisible);
+                var first = list.ContainerFromIndex(0)!;
+                var text = first.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).ToArray();
+                var time = text.Single(x => x.Text == "14:30:00");
+                Assert.Equal(title.TranslatePoint(default, window)!.Value.X, text[0].TranslatePoint(default, window)!.Value.X);
+                Assert.Equal(count.TranslatePoint(new Point(count.Bounds.Width, 0), window)!.Value.X,
+                    time.TranslatePoint(new Point(time.Bounds.Width, 0), window)!.Value.X);
+                Assert.True(first.TranslatePoint(default, list)!.Value.Y >= 8);
+                // The separator shares the text edges, and only non-final rows have a bottom stroke.
+                for (var i = 0; i < list.ItemCount; i++)
+                {
+                    var item = list.ContainerFromIndex(i)!;
+                    var border = item.GetVisualDescendants().OfType<Border>().Single(x => x.Child is StackPanel);
+                    Assert.Equal(text[0].TranslatePoint(default, window)!.Value.X, border.TranslatePoint(default, window)!.Value.X);
+                    Assert.Equal(time.TranslatePoint(new Point(time.Bounds.Width, 0), window)!.Value.X,
+                        border.TranslatePoint(new Point(border.Bounds.Width, 0), window)!.Value.X);
+                    var content = Assert.IsType<StackPanel>(border.Child);
+                    var contentBottom = content.TranslatePoint(new Point(0, content.Bounds.Height), border)!.Value.Y;
+                    Assert.Equal(i == list.ItemCount - 1 ? 10 : 11, border.Bounds.Height - contentBottom);
+                }
+                var viewer = list.GetVisualDescendants().OfType<ScrollViewer>().First();
+                viewer.ScrollToEnd();
+                GuiHarness.Flush();
+                var last = list.ContainerFromIndex(list.ItemCount - 1)!;
+                Assert.True(list.Bounds.Height - last.TranslatePoint(new Point(0, last.Bounds.Height), list)!.Value.Y >= 12);
+            }
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Only_the_actual_last_record_loses_its_separator_after_scrolling_and_completion() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, Width = 760, Height = 520 };
+        window.Show();
+        try
+        {
+            for (var id = 1; id <= 100; id++) viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxQuery));
+            window.Navigation.SelectedIndex = 3;
+            GuiHarness.Flush();
+            var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+            var list = page.FindControl<ListBox>("PendingSendsList")!;
+            var viewer = list.GetVisualDescendants().OfType<ScrollViewer>().First();
+            for (var remaining = 100; remaining >= 99; remaining--)
+            {
+                viewer.ScrollToEnd();
+                GuiHarness.Flush();
+                AssertSeparator(Assert.IsType<ListBoxItem>(list.ContainerFromIndex(remaining - 1)), last: true);
+                AssertSeparator(Assert.IsType<ListBoxItem>(list.ContainerFromIndex(remaining - 2)), last: false);
+                viewer.ScrollToHome();
+                GuiHarness.Flush();
+                var realized = list.GetVisualDescendants().OfType<ListBoxItem>().ToArray();
+                Assert.InRange(realized.Length, 1, remaining - 1);
+                Assert.All(realized, item => AssertSeparator(item, last: false));
+                viewModel.Apply(Update(remaining, SendQueueItemKind.BlindBoxQuery, SendQueueItemState.Sent));
+                GuiHarness.Flush();
+            }
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+
+        static void AssertSeparator(ListBoxItem item, bool last)
+        {
+            var border = item.GetVisualDescendants().OfType<Border>().Single(x => x.Child is StackPanel);
+            var content = Assert.IsType<StackPanel>(border.Child);
+            var bottom = content.TranslatePoint(new Point(0, content.Bounds.Height), border)!.Value.Y;
+            Assert.Equal(last ? 10 : 11, border.Bounds.Height - bottom);
+        }
+    }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(760, 520, 0)]
+    [InlineData(760, 520, 2)]
+    [InlineData(760, 520, 30)]
+    [InlineData(960, 640, 30)]
+    public Task The_first_two_pending_records_stay_whole_and_longer_queues_take_at_most_half_when_it_fits(int width, int height, int count) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, Width = width, Height = height };
+        window.Show();
+        try
+        {
+            for (var id = 1; id <= count; id++)
+                viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxQuery) with { Text = "投入52电池 亏12.6电池" });
+            window.Navigation.SelectedIndex = 3;
+            GuiHarness.Flush();
+            var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+            var activity = page.FindControl<Grid>("SendActivity")!;
+            var list = page.FindControl<ListBox>("PendingSendsList")!;
+            var recent = activity.GetVisualDescendants().OfType<TextBlock>().Single(x => x.Text == "最近发送");
+            if (count == 0)
+            {
+                var empty = activity.GetVisualDescendants().OfType<TextBlock>().Single(x => x.Text == "暂无待发弹幕");
+                var recentTop = recent.TranslatePoint(default, activity)!.Value.Y;
+                Assert.InRange(recentTop - empty.TranslatePoint(new Point(0, empty.Bounds.Height), activity)!.Value.Y, 12, 26);
+            }
+            else if (count == 2) AssertFirstTwoWhole(trailingSpace: 12);
+            else
+            {
+                AssertFirstTwoWhole(trailingSpace: 0);
+                var viewer = list.GetVisualDescendants().OfType<ScrollViewer>().First();
+                Assert.True(viewer.Extent.Height > viewer.Viewport.Height);
+                // At the default size half the area already holds two records, so the queue stops there.
+                if (height == 640) AssertAtMostHalf();
+                for (var id = 1; id <= count - 2; id++)
+                    viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxQuery, SendQueueItemState.Sent));
+                GuiHarness.Flush();
+                AssertFirstTwoWhole(trailingSpace: 12);
+                // Going from two to three records keeps both visible instead of shrinking the area.
+                viewModel.Apply(Update(count + 1, SendQueueItemKind.Welcome));
+                GuiHarness.Flush();
+                AssertFirstTwoWhole(trailingSpace: 0);
+                if (height == 640) AssertAtMostHalf();
+            }
+
+            void AssertAtMostHalf() =>
+                Assert.True(list.TranslatePoint(new Point(0, list.Bounds.Height), activity)!.Value.Y <= activity.Bounds.Height / 2 + 1);
+
+            void AssertFirstTwoWhole(double trailingSpace)
+            {
+                var first = list.ContainerFromIndex(0)!;
+                var second = list.ContainerFromIndex(1)!;
+                Assert.True(first.TranslatePoint(default, list)!.Value.Y >= 8);
+                var bottom = second.TranslatePoint(new Point(0, second.Bounds.Height), list)!.Value.Y;
+                Assert.True(bottom <= list.Bounds.Height - trailingSpace + 0.5, $"Second row bottom {bottom}, list height {list.Bounds.Height}");
+                Assert.True(recent.TranslatePoint(default, activity)!.Value.Y > second.TranslatePoint(new Point(0, second.Bounds.Height), activity)!.Value.Y);
+                Assert.True(recent.TranslatePoint(new Point(0, recent.Bounds.Height), activity)!.Value.Y < activity.Bounds.Height);
+            }
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task Updates_keep_the_same_item_and_advance_waiting_positions() => HeadlessApp.Session.Dispatch(() =>
     {

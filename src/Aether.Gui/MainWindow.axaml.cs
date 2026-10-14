@@ -137,14 +137,13 @@ public partial class MainWindow : Window
     {
         if (!followLatest || scrollPending || DanmakuList.ItemCount == 0) return;
         scrollPending = true;
-        // Wait for collection changes and virtualization layout before locating the last item.
+        // Wait for virtualization layout, then include the list's trailing padding in the scroll.
         Dispatcher.UIThread.Post(() =>
         {
             var latest = DanmakuList.ItemCount > 0 ? DanmakuList.Items[^1] : null;
-            if (followLatest && DanmakuList.ItemCount > 0)
-                DanmakuList.ScrollIntoView(DanmakuList.ItemCount - 1);
-            // ScrollIntoView can trigger another virtualization layout. Its offset correction
-            // must not be mistaken for the user leaving the bottom.
+            if (followLatest && DanmakuList.GetVisualDescendants().OfType<ScrollViewer>().FirstOrDefault() is { } viewer)
+                viewer.ScrollToEnd();
+            // Virtualization's offset correction must not be mistaken for user input.
             Dispatcher.UIThread.Post(() =>
             {
                 scrollPending = false;
