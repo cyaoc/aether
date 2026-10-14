@@ -3,6 +3,7 @@ using Aether.Gui.Tests.Support;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Media;
@@ -13,6 +14,43 @@ namespace Aether.Gui.Tests;
 
 public sealed class RoomInputTests
 {
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public Task Delete_button_keeps_input_and_popup_without_selecting_its_row(int index) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        harness.SaveRecentRooms("6", "42");
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            await viewModel.ReadAccountCommand.ExecutionTask!;
+            var input = window.FindControl<ComboBox>("RoomInput")!;
+            GuiHarness.Flush();
+            input.IsDropDownOpen = true;
+            GuiHarness.Flush();
+            var remove = input.ContainerFromIndex(index)!.GetVisualDescendants().OfType<Button>().Single();
+            Assert.Equal($"从最近列表中删除 {(index == 0 ? "6" : "42")}", AutomationProperties.GetName(remove));
+            var popup = TopLevel.GetTopLevel(remove)!;
+            var point = remove.TranslatePoint(new Point(12, 12), popup)!.Value;
+            popup.MouseDown(point, MouseButton.Left);
+            popup.MouseUp(point, MouseButton.Left);
+            GuiHarness.Flush();
+            Assert.Equal("6", viewModel.RoomNumber);
+            Assert.Equal("6", input.Text);
+            Assert.True(input.IsDropDownOpen);
+            Assert.Equal("", EditorOf(input).SelectedText);
+            Assert.Equal(index == 0 ? new[] { "42" } : ["6"], viewModel.RecentRooms);
+            Assert.Equal(viewModel.RecentRooms, harness.LoadSettings().RecentRooms);
+            Assert.Null(viewModel.ConnectCommand.ExecutionTask);
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -127,14 +165,12 @@ public sealed class RoomInputTests
         return true;
     }, TestContext.Current.CancellationToken);
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public Task Enter_with_no_selected_recent_room_only_closes_the_open_list(bool hasHistory) => HeadlessApp.Session.Dispatch(async () =>
+    [Fact]
+    public Task Enter_with_no_selected_recent_room_only_closes_the_open_list() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        harness.SaveRecentRooms(hasHistory ? ["6"] : []);
+        harness.SaveRecentRooms("6");
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
@@ -154,6 +190,120 @@ public sealed class RoomInputTests
             Assert.False(input.IsDropDownOpen);
             Assert.Equal("12345", viewModel.RoomNumber);
             Assert.Null(viewModel.ConnectCommand.ExecutionTask);
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Shift_delete_only_removes_history_while_open_and_plain_delete_edits_text() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        harness.SaveRecentRooms("6", "42");
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            var input = window.FindControl<ComboBox>("RoomInput")!;
+            GuiHarness.Flush();
+            input.IsDropDownOpen = true;
+            GuiHarness.Flush();
+            window.KeyPress(Key.Delete, RawInputModifiers.Shift, PhysicalKey.Delete, null);
+            GuiHarness.Flush();
+            Assert.Equal(["42"], viewModel.RecentRooms);
+            Assert.Equal("6", viewModel.RoomNumber);
+            Assert.True(input.IsDropDownOpen);
+            var text = EditorOf(input);
+            text.SelectionStart = text.SelectionEnd = text.CaretIndex = 0;
+            window.KeyPress(Key.Delete, RawInputModifiers.None, PhysicalKey.Delete, null);
+            Assert.Equal("", viewModel.RoomNumber);
+            Assert.Equal(["42"], viewModel.RecentRooms);
+            input.IsDropDownOpen = false;
+            input.SelectedIndex = 0;
+            window.KeyPress(Key.Delete, RawInputModifiers.Shift, PhysicalKey.Delete, null);
+            Assert.Equal(["42"], viewModel.RecentRooms);
+            Assert.Equal(["42"], harness.LoadSettings().RecentRooms);
+            Assert.Null(viewModel.ConnectCommand.ExecutionTask);
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(5)]
+    public Task Empty_history_hides_the_arrow_and_cannot_open_even_after_deleting_the_last_room(int count) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        harness.SaveRecentRooms([.. new[] { "6", "42", "123", "456", "789" }.Take(count)]);
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            var input = window.FindControl<ComboBox>("RoomInput")!;
+            GuiHarness.Flush();
+            if (count > 0)
+            {
+                input.IsDropDownOpen = true;
+                GuiHarness.Flush();
+                if (count == 1)
+                    window.KeyPress(Key.Delete, RawInputModifiers.Shift, PhysicalKey.Delete, null);
+                else
+                    foreach (var room in viewModel.RecentRooms.ToArray()) viewModel.RemoveRecentRoomCommand.Execute(room);
+                GuiHarness.Flush();
+                Assert.Equal("6", input.Text);
+                Assert.Equal("", EditorOf(input).SelectedText);
+                var presenter = EditorOf(input).GetVisualDescendants().OfType<TextPresenter>().Single();
+                Assert.Equal(presenter.SelectionStart, presenter.SelectionEnd);
+                Assert.Empty(harness.LoadSettings().RecentRooms);
+            }
+            Assert.Empty(viewModel.RecentRooms);
+            Assert.False(input.IsDropDownOpen);
+            Assert.False(input.GetVisualDescendants().OfType<PathIcon>().Single(x => x.Name == "DropDownGlyph").IsVisible);
+            var point = input.TranslatePoint(new Point(input.Bounds.Width - 16, input.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            GuiHarness.Flush();
+            Assert.False(input.IsDropDownOpen);
+            window.KeyPress(Key.F4, RawInputModifiers.None, PhysicalKey.F4, null);
+            GuiHarness.Flush();
+            Assert.False(input.IsDropDownOpen);
+            Assert.Null(viewModel.ConnectCommand.ExecutionTask);
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Opening_and_closing_clears_text_selection_but_tab_focus_keeps_select_all() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        harness.SaveRecentRooms("12345", "42");
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            var input = window.FindControl<ComboBox>("RoomInput")!;
+            GuiHarness.Flush();
+            var text = EditorOf(input);
+            text.Focus(NavigationMethod.Tab);
+            Assert.Equal("12345", text.SelectedText);
+            input.IsDropDownOpen = true;
+            GuiHarness.Flush();
+            Assert.Equal("", text.SelectedText);
+            Assert.Equal(5, text.CaretIndex);
+            input.SelectedIndex = 1;
+            input.IsDropDownOpen = false;
+            GuiHarness.Flush();
+            Assert.Equal("", text.SelectedText);
+            Assert.Equal(2, text.CaretIndex);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;

@@ -123,6 +123,17 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         }
     }
 
+    [RelayCommand]
+    private void RemoveRecentRoom(string room)
+    {
+        var input = RoomNumber;
+        settings.RecentRooms = [.. RecentRooms.Where(value => value != room)];
+        OnPropertyChanged(nameof(RecentRooms));
+        // Removing the selected item can clear the editable ComboBox's two-way Text binding.
+        RoomNumber = input;
+        SaveGuiSettings();
+    }
+
     [RelayCommand(CanExecute = nameof(CanConnect), IncludeCancelCommand = true)]
     private async Task ConnectAsync(CancellationToken cancellationToken)
     {

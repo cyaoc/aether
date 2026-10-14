@@ -77,7 +77,18 @@
               <StackPanel Spacing="8">
                 <TextBlock Classes="caption muted" Text="直播间" />
                 <StackPanel x:Name="RoomInputPanel" Spacing="8" IsVisible="{Binding !HasRoomConnection}">
-                  <ComboBox x:Name="RoomInput" Classes="numeric" IsEditable="True" ItemsSource="{Binding RecentRooms}" Text="{Binding RoomNumber}" HorizontalAlignment="Stretch" PlaceholderText="房间号" AutomationProperties.Name="房间号" />
+                  <ComboBox x:Name="RoomInput" Classes="numeric" IsEditable="True" ItemsSource="{Binding RecentRooms}" Text="{Binding RoomNumber}" HorizontalAlignment="Stretch" PlaceholderText="房间号" AutomationProperties.Name="房间号">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="x:String">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                          <TextBlock Classes="numeric" Text="{Binding}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                          <Button Grid.Column="1" Classes="ghost danger" Content="×" Width="24" Height="24" MinHeight="24" Padding="0" VerticalAlignment="Center"
+                                  Command="{Binding $parent[ComboBox].((local:MainWindowViewModel)DataContext).RemoveRecentRoomCommand}" CommandParameter="{Binding}"
+                                  AutomationProperties.Name="{Binding StringFormat=从最近列表中删除 {0}}" ToolTip.Tip="从最近列表中删除" />
+                        </Grid>
+                      </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
                   <Button Classes="accent" Content="连接" HorizontalAlignment="Stretch" Command="{Binding ConnectCommand}" />
                 </StackPanel>
                 <StackPanel x:Name="RoomStatusPanel" Spacing="8" IsVisible="{Binding HasRoomConnection}">

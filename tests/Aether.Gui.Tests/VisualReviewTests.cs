@@ -3,6 +3,7 @@ using Aether.Gui.Tests.Support;
 using static Aether.Gui.Tests.Support.ConditionList;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -59,6 +60,16 @@ public sealed class VisualReviewTests
                 Capture(window, "open");
                 Assert.True(input.IsDropDownOpen);
                 Capture(TopLevel.GetTopLevel(input.ContainerFromIndex(0)!)!, "list");
+                var remove = input.ContainerFromIndex(1)!.GetVisualDescendants().OfType<Button>().Single();
+                var popup = TopLevel.GetTopLevel(remove)!;
+                popup.MouseMove(remove.TranslatePoint(new Point(12, 12), popup)!.Value);
+                Capture(popup, "delete-hover");
+                foreach (var room in viewModel.RecentRooms.ToArray()) viewModel.RemoveRecentRoomCommand.Execute(room);
+                Capture(window, "empty");
+                var editor = input.GetVisualDescendants().OfType<TextBox>().Single();
+                Assert.Equal("", editor.SelectedText);
+                var presenter = editor.GetVisualDescendants().OfType<TextPresenter>().Single();
+                Assert.Equal(presenter.SelectionStart, presenter.SelectionEnd);
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
             return true;
@@ -70,6 +81,62 @@ public sealed class VisualReviewTests
                 Assert.NotNull(bitmap);
                 Directory.CreateDirectory(HeadlessApp.ScreenshotDirectory!);
                 bitmap.Save(Path.Combine(HeadlessApp.ScreenshotDirectory!, $"room-{state}-{(dark ? "dark" : "light")}.png"), PngBitmapEncoderOptions.Default);
+            }
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_settings_dropdowns_and_condition_menu(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            var viewModel = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                foreach (var (pageIndex, name) in new[] { (4, "LogLevelInput"), (2, "GuardInput") })
+                {
+                    window.Navigation.SelectedIndex = pageIndex;
+                    GuiHarness.Flush();
+                    var input = window.GetVisualDescendants().OfType<ComboBox>().Single(x => x.Name == name && x.IsEffectivelyVisible);
+                    input.BringIntoView();
+                    input.IsDropDownOpen = true;
+                    GuiHarness.Flush();
+                    Capture(TopLevel.GetTopLevel(input.ContainerFromIndex(0)!)!, name);
+                    input.IsDropDownOpen = false;
+                }
+                var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+                var add = page.FindControl<Button>("AddConditionButton")!;
+                add.BringIntoView();
+                GuiHarness.Flush();
+                var menu = Menu(page);
+                menu.ShowAt(add);
+                GuiHarness.Flush();
+                var item = menu.Items.Cast<MenuItem>().First(x => x.IsEnabled);
+                var popup = TopLevel.GetTopLevel(item)!;
+                popup.MouseMove(item.TranslatePoint(new Point(10, 10), popup)!.Value);
+                Capture(popup, "condition-menu");
+                menu.Hide();
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+
+            void Capture(TopLevel topLevel, string name)
+            {
+                GuiHarness.Flush();
+                using var bitmap = topLevel.CaptureRenderedFrame();
+                Assert.NotNull(bitmap);
+                Directory.CreateDirectory(HeadlessApp.ScreenshotDirectory!);
+                bitmap.Save(Path.Combine(HeadlessApp.ScreenshotDirectory!, $"{name}-{(dark ? "dark" : "light")}.png"), PngBitmapEncoderOptions.Default);
             }
         }, TestContext.Current.CancellationToken);
     }

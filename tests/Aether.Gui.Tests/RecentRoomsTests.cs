@@ -5,6 +5,36 @@ namespace Aether.Gui.Tests;
 
 public sealed class RecentRoomsTests
 {
+    [Theory]
+    [InlineData("6", new[] { "42", "123" })]
+    [InlineData("42", new[] { "6", "123" })]
+    public async Task Deleting_a_recent_room_saves_the_remaining_rooms_and_keeps_the_input(string room, string[] expected)
+    {
+        using var harness = new GuiHarness();
+        harness.SaveRecentRooms("6", "42", "123");
+        var viewModel = harness.CreateViewModel();
+        viewModel.RemoveRecentRoomCommand.Execute(room);
+        Assert.Equal("6", viewModel.RoomNumber);
+        Assert.Equal(expected, viewModel.RecentRooms);
+        Assert.Equal(expected, harness.LoadSettings().RecentRooms);
+        await viewModel.ShutdownAsync();
+    }
+
+    [Fact]
+    public async Task Deleting_reports_a_save_failure_and_keeps_the_input()
+    {
+        using var harness = new GuiHarness();
+        harness.SaveRecentRooms("6", "42");
+        var viewModel = harness.CreateViewModel();
+        File.Delete(harness.SettingsFile);
+        Directory.CreateDirectory(harness.SettingsFile);
+        viewModel.RemoveRecentRoomCommand.Execute("6");
+        Assert.Equal("6", viewModel.RoomNumber);
+        Assert.Equal(["42"], viewModel.RecentRooms);
+        Assert.StartsWith("保存 GUI 设置失败：", viewModel.Message);
+        await viewModel.ShutdownAsync();
+    }
+
     [Fact]
     public Task Connected_room_is_saved_as_typed_and_prefilled_after_restart() => HeadlessApp.Session.Dispatch(async () =>
     {

@@ -36,6 +36,18 @@ public partial class MainWindow : Window
         Navigation.SelectedIndex = 0;
         // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
         RoomInput.AddHandler(KeyDownEvent, OnRoomInputKeyDown, RoutingStrategies.Tunnel);
+        RoomInput.DropDownOpened += OnRoomDropDownChanged;
+        RoomInput.DropDownClosed += OnRoomDropDownChanged;
+        RoomInput.AddHandler(PointerReleasedEvent, (_, e) =>
+        {
+            if (RoomInput.ItemCount == 0 && e.Source is Visual source &&
+                !source.GetSelfAndVisualAncestors().OfType<TextBox>().Any()) e.Handled = true;
+        }, RoutingStrategies.Tunnel);
+        RoomInput.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == ItemsControl.ItemCountProperty && RoomInput.ItemCount == 0)
+                RoomInput.IsDropDownOpen = false;
+        };
         DanmakuList.Items.CollectionChanged += OnDanmakuChanged;
         DanmakuList.AddHandler(ScrollViewer.ScrollChangedEvent, OnScrollChanged);
         DanmakuList.AddHandler(PointerWheelChangedEvent, (_, _) => PauseFollowingForInput(), RoutingStrategies.Tunnel);
@@ -85,10 +97,22 @@ public partial class MainWindow : Window
 
     private void OnRoomInputKeyDown(object? sender, KeyEventArgs e)
     {
+        if (RoomInput.ItemCount == 0 && (e.Key == Key.F4 ||
+            e.KeyModifiers.HasFlag(KeyModifiers.Alt) && e.Key is Key.Up or Key.Down))
+        {
+            e.Handled = true;
+            return;
+        }
         if (RoomInput.IsDropDownOpen)
         {
             // Editable ComboBox keeps focus in its TextBox, which consumes arrow keys before list navigation.
-            if (e.KeyModifiers == KeyModifiers.None && e.Key is Key.Up or Key.Down)
+            if (e.Key == Key.Delete && e.KeyModifiers == KeyModifiers.Shift)
+            {
+                if (RoomInput.SelectedItem is string room && DataContext is MainWindowViewModel model)
+                    model.RemoveRecentRoomCommand.Execute(room);
+                e.Handled = true;
+            }
+            else if (e.KeyModifiers == KeyModifiers.None && e.Key is Key.Up or Key.Down)
             {
                 if (RoomInput.ItemCount > 0)
                     RoomInput.SelectedIndex = Math.Clamp(RoomInput.SelectedIndex + (e.Key == Key.Down ? 1 : -1), 0, RoomInput.ItemCount - 1);
@@ -105,6 +129,17 @@ public partial class MainWindow : Window
         e.Handled = true;
         if (viewModel.ConnectCommand.CanExecute(null)) viewModel.ConnectCommand.Execute(null);
     }
+
+    private void OnRoomDropDownChanged(object? sender, EventArgs e) => Dispatcher.UIThread.Post(() =>
+    {
+        // Deleting the last item closes the popup before its Text binding has finished updating.
+        if (RoomInput.GetVisualDescendants().OfType<TextBox>().FirstOrDefault() is { } text)
+        {
+            // Reset both ends: temporary empty Text can coerce only the presenter's selection to zero.
+            text.SelectionStart = text.SelectionEnd = 0;
+            text.SelectionStart = text.SelectionEnd = text.CaretIndex = text.Text?.Length ?? 0;
+        }
+    });
 
     private async void ConfirmLogout(object? sender, RoutedEventArgs e)
     {
