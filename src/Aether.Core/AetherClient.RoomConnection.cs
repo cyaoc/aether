@@ -231,7 +231,7 @@ public sealed partial class AetherClient
                         else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry })
                         {
                             if (Settings.WelcomeAnimationEnabled.Value)
-                                client.AnimationPage.Enqueue(entry.Uid, receivedTimestamp, animationLastPlayed, roomStopped);
+                                client.AnimationPage.Enqueue(entry.Uid, entry.Nickname, receivedTimestamp, animationLastPlayed, roomStopped);
                             if (!Settings.WelcomeEnabled.Value || welcome.Evaluate(entry, danmakuLengthLimit) is not { } result) continue;
                             sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, receivedTimestamp, result);
                         }

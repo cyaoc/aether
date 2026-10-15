@@ -132,7 +132,7 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Animation_page_save_updates_switch_port_and_mapping_together_or_not_at_all()
+    public void Welcome_animation_form_save_updates_switch_port_and_mapping_together_or_not_at_all()
     {
         Write("welcome_animation:\n  enabled: false # 开关\n  port: 17890\nwelcome_animation_videos:\n  42: old.mp4\n  43: shared.webm\n");
         var snapshot = Settings.Load(harness.DataDirectory);

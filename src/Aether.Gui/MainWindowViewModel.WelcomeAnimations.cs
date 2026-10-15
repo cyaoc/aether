@@ -14,13 +14,15 @@ public partial class MainWindowViewModel
     private Settings? animationSettings;
     private int pendingAnimationReloads;
     internal bool AnimationReloading => pendingAnimationReloads > 0;
+    /// <summary>Raised when anything an animation row shows may have changed: page status, playback, failures or a reload.</summary>
+    internal event Action? AnimationRowsChanged;
     public ObservableCollection<WelcomeAnimationItem> RecentAnimations { get; } = [];
     private readonly Queue<string> finishedAnimations = new();
     private readonly HashSet<string> pendingAnimations = [];
     private readonly HashSet<(long Uid, string FileName)> failedAnimationVideos = [];
     private WelcomeAnimationPlayback? playingAnimation;
     private bool testPlayPending;
-    [ObservableProperty] private bool animationBusy;
+    internal bool AnimationBusy => testPlayPending || pendingAnimations.Count > 0;
 
     internal Task RefreshAnimationPageAsync(Settings snapshot)
     {
@@ -39,7 +41,7 @@ public partial class MainWindowViewModel
         if (shuttingDown) return Task.CompletedTask;
         animationSettings = snapshot;
         pendingAnimationReloads++;
-        OnPropertyChanged(nameof(AnimationReloading));
+        AnimationRowsChanged?.Invoke();
         if (animationUpdateStop is null)
         {
             animationUpdateStop = new();
@@ -68,7 +70,7 @@ public partial class MainWindowViewModel
             finally
             {
                 pendingAnimationReloads--;
-                OnPropertyChanged(nameof(AnimationReloading));
+                AnimationRowsChanged?.Invoke();
             }
         }
     }
@@ -111,15 +113,21 @@ public partial class MainWindowViewModel
     [NotifyPropertyChangedFor(nameof(HasAnimationPages))]
     [NotifyPropertyChangedFor(nameof(HasAnimationError))]
     [NotifyPropertyChangedFor(nameof(ShowAnimationSetup))]
+    [NotifyPropertyChangedFor(nameof(IsAnimationPageOff))]
+    [NotifyPropertyChangedFor(nameof(AnimationPageHelp))]
     private AnimationPageStatus animationPageStatus = new(false, 17890, 0);
 
     public bool HasAnimationPages => AnimationPageStatus.Running && AnimationPageStatus.ConnectedPages > 0;
     public bool HasAnimationError => AnimationPageStatus.Error is not null;
-    public bool ShowAnimationSetup => !HasAnimationPages && !HasAnimationError;
+    public bool ShowAnimationSetup => AnimationPageStatus is { Running: true, ConnectedPages: 0 };
+    public bool IsAnimationPageOff => AnimationPageStatus is { Running: false, Error: null };
     public string AnimationAddressText => $"http://localhost:{AnimationPageStatus.Port}/";
-    public string AnimationPageText => AnimationPageStatus.Error is { } error ? "✕ " + error
-        : HasAnimationPages ? $"✓ 已有 {AnimationPageStatus.ConnectedPages} 个推流软件连着动画页"
-        : "⚠ 还没有推流软件连着动画页";
+    public string AnimationPageText => AnimationPageStatus.Error is { } error ? "动画页没打开：" + error
+        : !AnimationPageStatus.Running ? "动画页没开，打开开关并保存后启动"
+        : HasAnimationPages ? $"已有 {AnimationPageStatus.ConnectedPages} 个推流软件连着动画页"
+        : "还没有推流软件连着动画页";
+    public string AnimationPageHelp => HasAnimationError ? "换一个端口并保存，再把直播姬里浏览器素材的地址改成新的。"
+        : ShowAnimationSetup ? "在直播姬里添加浏览器素材，地址填下面这个，尺寸 1920 × 1080。已经加过的，右键素材 → 刷新。" : "";
 
     internal void Apply(AnimationPageUpdate update)
     {
@@ -146,7 +154,7 @@ public partial class MainWindowViewModel
             {
                 pendingAnimations.Remove(playback.Id);
                 finishedAnimations.Enqueue(playback.Id);
-                if (finishedAnimations.Count > FinishedSendLimit)
+                if (finishedAnimations.Count > FinishedItemLimit)
                 {
                     var oldest = finishedAnimations.Dequeue();
                     if (RecentAnimations.FirstOrDefault(value => value.Playback.Id == oldest) is { } old) RecentAnimations.Remove(old);
@@ -154,29 +162,30 @@ public partial class MainWindowViewModel
             }
             if (playback.State == WelcomeAnimationState.Playing) playingAnimation = playback;
             else if (playingAnimation?.Id == playback.Id) playingAnimation = null;
+            // #125: the failure hint stays until the video is replaced, even if a later playback works.
             if (playback.State == WelcomeAnimationState.Failed) failedAnimationVideos.Add((playback.Uid, playback.FileName));
         }
-        AnimationBusy = testPlayPending || pendingAnimations.Count > 0;
-        OnPropertyChanged(nameof(RecentAnimations));
+        AnimationRowsChanged?.Invoke();
     }
 
     internal bool AnimationFailed(long uid, string fileName) => failedAnimationVideos.Contains((uid, fileName));
     internal void ForgetAnimationFailures(IReadOnlyCollection<long> replaced)
     {
         failedAnimationVideos.RemoveWhere(video => replaced.Contains(video.Uid));
-        OnPropertyChanged(nameof(RecentAnimations));
+        AnimationRowsChanged?.Invoke();
     }
     internal bool AnimationPlaying(long uid, string fileName) => playingAnimation is { } playing && playing.Uid == uid && playing.FileName == fileName;
 
     internal bool AnimationVideoSaved(long uid, string fileName) => animationSettings is { } snapshot
         && snapshot.WelcomeAnimationVideos.TryGetValue(uid, out var video) && video.Value == fileName;
 
-    internal void TestAnimation(long uid, string fileName)
+    internal void TestPlay(long uid, string fileName)
     {
         if (AnimationReloading || AnimationBusy || !HasAnimationPages || shuttingDown
             || !AnimationVideoSaved(uid, fileName)) return;
         // Disable immediately, before the queued update crosses back to the UI thread.
-        testPlayPending = AnimationBusy = true;
+        testPlayPending = true;
+        AnimationRowsChanged?.Invoke();
         client.AnimationPage.TestPlay(uid);
     }
 
@@ -189,16 +198,15 @@ public partial class MainWindowViewModel
 
 public sealed record WelcomeAnimationItem(WelcomeAnimationPlayback Playback, DateTimeOffset OccurredAt)
 {
-    public string Status => Playback.State switch
-    {
-        WelcomeAnimationState.Queued => "排队中",
-        WelcomeAnimationState.Playing => "播放中",
-        WelcomeAnimationState.Completed => "已播放",
-        WelcomeAnimationState.Failed => "播放失败" + Detail,
-        WelcomeAnimationState.NoReport => "没收到播放回报",
-        _ => "没播" + Detail
-    };
-    private string Detail => Playback.Reason is { } reason ? " · " + reason : "";
+    public string Name => Playback.IsTest ? "试播" : Playback.Nickname ?? $"UID {Playback.Uid}";
+    public string Detail => Playback.IsTest || Playback.Nickname is null ? "" : $"UID {Playback.Uid}";
+    public string Status => Playback is { State: WelcomeAnimationState.Failed or WelcomeAnimationState.Skipped, Reason: { } reason }
+        ? $"{Playback.Progress}：{reason}" : Playback.Progress;
+    public bool Playing => Playback.State == WelcomeAnimationState.Playing;
+    public bool Failed => Playback.State == WelcomeAnimationState.Failed;
+    /// <summary>A viewer played within the interval: the queue working as intended, so it stays quiet.</summary>
+    public bool RecentlyPlayed => Playback is { State: WelcomeAnimationState.Skipped, Reason: AnimationPage.RecentlyPlayed };
     public bool Completed => Playback.State == WelcomeAnimationState.Completed;
-    public bool Unplayed => Playback.State is WelcomeAnimationState.Failed or WelcomeAnimationState.NoReport or WelcomeAnimationState.Skipped;
+    /// <summary>Not played for a reason the streamer may want to act on.</summary>
+    public bool Unplayed => Playback.State == WelcomeAnimationState.NoReport || Playback.State == WelcomeAnimationState.Skipped && !RecentlyPlayed;
 }

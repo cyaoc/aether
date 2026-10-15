@@ -208,9 +208,9 @@ public sealed class WelcomeAnimationTests
         await using var observed = new Observations(h);
         h.Client.AnimationPage.Start(Settings.Load(h.DataDirectory));
         // Each platform reports a taken port with its own error code; an unrecognised one would fall back to the raw error.
-        await observed.WaitAsync(u => u is AnimationPageStatus { Running: false } status && status.Error == $"端口 {port} 被占用");
+        await observed.WaitAsync(u => u is AnimationPageStatus { Running: false } status && status.Error == $"端口 {port} 被别的程序占用");
         await using var updates = await h.WatchConnectedAsync();
-        Assert.Contains(h.Logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning && e.Message.Contains($"端口 {port} 被占用"));
+        Assert.Contains(h.Logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning && e.Message.Contains($"端口 {port} 被别的程序占用"));
     }
 
     [Fact]

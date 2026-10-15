@@ -54,7 +54,7 @@ public sealed class VisualReviewTests
                 Capture("connected");
                 viewModel.Apply(new AnimationPageStatus(true, 17890, 0));
                 Capture("setup");
-                viewModel.Apply(new AnimationPageStatus(false, 17890, 0, "端口 17890 被占用"));
+                viewModel.Apply(new AnimationPageStatus(false, 17890, 0, "端口 17890 被别的程序占用"));
                 Capture("port-occupied");
                 viewModel.Apply(new AnimationPageStatus(true, 17890, 1));
                 viewModel.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, WelcomeAnimationState.Playing));

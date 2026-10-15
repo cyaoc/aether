@@ -7,7 +7,7 @@ namespace Aether.Gui;
 public partial class MainWindowViewModel
 {
     // ponytail: each page keeps 100 finished items; add history storage only if older records are needed.
-    private const int FinishedSendLimit = 100;
+    private const int FinishedItemLimit = 100;
     // Each feature page's finished items, earliest-finished first, so trimming drops the oldest by when they finished.
     private readonly Queue<SendQueueItemViewModel> finishedWelcomes = new();
     private readonly Queue<SendQueueItemViewModel> finishedQueriesAndAnnouncements = new();
@@ -51,12 +51,12 @@ public partial class MainWindowViewModel
     {
         PendingSends.Remove(item);
         RecentSends.Insert(0, item);
-        if (RecentSends.Count > FinishedSendLimit) RecentSends.RemoveAt(FinishedSendLimit);
+        if (RecentSends.Count > FinishedItemLimit) RecentSends.RemoveAt(FinishedItemLimit);
         var (page, finished) = item.Kind == SendQueueItemKind.Welcome
             ? (RecentWelcomes, finishedWelcomes)
             : (RecentQueriesAndAnnouncements, finishedQueriesAndAnnouncements);
         finished.Enqueue(item);
-        if (finished.Count > FinishedSendLimit) page.Remove(finished.Dequeue());
+        if (finished.Count > FinishedItemLimit) page.Remove(finished.Dequeue());
     }
 
     private void ClearSendHistory()

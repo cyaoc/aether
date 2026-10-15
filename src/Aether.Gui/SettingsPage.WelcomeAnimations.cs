@@ -1,6 +1,8 @@
 using System.Globalization;
 using Aether.Core;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Input.Platform;
 using Avalonia.Threading;
@@ -21,13 +23,20 @@ public partial class SettingsPage
             if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
             await clipboard.SetTextAsync(AnimationAddress.Text ?? "");
             copyFeedback?.Dispose();
-            CopyAnimationAddressButton.Content = "已复制";
-            copyFeedback = DispatcherTimer.RunOnce(() => CopyAnimationAddressButton.Content = "复制", TimeSpan.FromSeconds(2));
+            ShowCopied(true);
+            copyFeedback = DispatcherTimer.RunOnce(() => ShowCopied(false), TimeSpan.FromSeconds(2));
         }
         catch (Exception error)
         {
             Message.Text = $"复制地址失败：{error.Message}";
         }
+    }
+
+    private void ShowCopied(bool copied)
+    {
+        CopyContent.Classes.Set("copied", copied);
+        CopyIcon.Data = (Geometry)Application.Current!.FindResource(copied ? "Icon.Check" : "Icon.Copy")!;
+        CopyText.Text = copied ? "已复制" : "复制";
     }
 
     private void LoadAnimations()
@@ -49,31 +58,36 @@ public partial class SettingsPage
         row.TestRequested += () =>
         {
             RefreshAnimations();
-            if (row.FindControl<Button>("TestButton")!.IsEnabled && row.Uid is { } uid) viewModel?.TestAnimation(uid, row.FileName);
+            if (row.CanTest && row.Uid is { } uid) viewModel?.TestPlay(uid, row.FileName);
         };
         return row;
     }
 
-    private bool AnimationDraft => Animations.Count() != settings.WelcomeAnimationVideos.Count
-        || Animations.Any(row => row.SourcePath is not null || row.Uid is not { } uid
-            || !settings.WelcomeAnimationVideos.TryGetValue(uid, out var video) || video.Value != row.FileName);
+    /// <summary>The row holds the video the settings file maps its UID to, with no new file picked.</summary>
+    private bool MatchesFile(WelcomeAnimationRow row) => row.SourcePath is null && row.Uid is { } uid
+        && settings.WelcomeAnimationVideos.TryGetValue(uid, out var video) && video.Value == row.FileName;
+
+    private bool AnimationDraft => Animations.Count() != settings.WelcomeAnimationVideos.Count || !Animations.All(MatchesFile);
 
     private bool RefreshAnimations()
     {
         var invalid = false;
         var uids = new HashSet<long>();
+        var first = true;
         foreach (var row in Animations)
         {
-            var saved = row.SourcePath is null && row.Uid is { } uid
-                && settings.WelcomeAnimationVideos.TryGetValue(uid, out var video) && video.Value == row.FileName
-                && (viewModel is null || viewModel.AnimationVideoSaved(uid, row.FileName));
+            row.ShowDivider(!first);
+            first = false;
+            var saved = MatchesFile(row) && (viewModel is null || viewModel.AnimationVideoSaved(row.Uid!.Value, row.FileName));
             invalid |= row.Refresh(uids, AnimationDirectory, saved, viewModel?.HasAnimationPages == true,
                 viewModel?.AnimationBusy == true || viewModel?.AnimationReloading == true,
                 saved && row.Uid is { } playingUid && viewModel?.AnimationPlaying(playingUid, row.FileName) == true,
                 row.SourcePath is null && row.Uid is { } failedUid && viewModel?.AnimationFailed(failedUid, row.FileName) == true);
         }
-        AnimationCount.Text = $"{AnimationRows.Children.Count} 位";
-        EmptyAnimations.IsVisible = AnimationRows.Children.Count == 0;
+        var count = AnimationRows.Children.Count;
+        AnimationCount.Text = count > 0 ? $"{count} 位" : "";
+        AnimationRowsBorder.IsVisible = count > 0;
+        EmptyAnimations.IsVisible = count == 0;
         return invalid;
     }
 
@@ -84,7 +98,7 @@ public partial class SettingsPage
         {
             var path = pickAnimationVideo is not null ? await pickAnimationVideo() : await PickVideoAsync();
             if (path is null) return;
-            if (Settings.Validate("welcome_animation_videos.1", Path.GetFileName(path)) is { } reason)
+            if (Settings.ValidateVideoFileName(Path.GetFileName(path)) is { } reason)
             {
                 Message.Text = reason;
                 return;
@@ -92,8 +106,7 @@ public partial class SettingsPage
             row ??= InsertAnimation("", Path.GetFileName(path), true);
             row.SelectVideo(path);
             Validate();
-            row.FindControl<TextBox>("UidInput")!.Focus();
-            row.BringIntoView();
+            row.FocusInput();
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
         {
@@ -178,22 +191,24 @@ public partial class SettingsPage
             if (errors.Count > 0) throw new IOException($"{failure.Message}；恢复文件时出错：{string.Join("；", errors)}", failure);
             throw;
         }
-        var saved = Settings.Load(dataDirectory);
-        if (saved.Error is not null) return "已保存；设置文件随后发生变化，未清理旧视频。";
+        // The mapping is committed, so backups go whatever happens next; each cleanup failure is reported, not fatal.
+        var warnings = new List<string>();
         foreach (var (_, backup) in backups)
             try { File.Delete(backup); }
-            catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException) { return $"已保存；旧视频备份未删除：{cleanup.Message}"; }
-        var used = saved.WelcomeAnimationVideos.Values.Select(video => video.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        foreach (var name in settings.WelcomeAnimationVideos.Values.Select(video => video.Value).Distinct(StringComparer.OrdinalIgnoreCase))
+            catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException) { warnings.Add($"旧视频备份未删除：{cleanup.Message}"); }
+        var saved = Settings.Load(dataDirectory);
+        if (saved.Error is not null) warnings.Add("设置文件随后发生变化，未清理旧视频");
+        else
         {
-            var path = Path.Combine(AnimationDirectory, name);
-            if (used.Contains(name) || sources.Contains(Path.GetFullPath(path))) continue;
-            try { File.Delete(path); }
-            catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException)
+            var used = saved.WelcomeAnimationVideos.Values.Select(video => video.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            foreach (var name in settings.WelcomeAnimationVideos.Values.Select(video => video.Value).Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                return $"已保存；旧视频未删除：{cleanup.Message}";
+                var path = Path.Combine(AnimationDirectory, name);
+                if (used.Contains(name) || sources.Contains(Path.GetFullPath(path))) continue;
+                try { File.Delete(path); }
+                catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException) { warnings.Add($"旧视频未删除：{cleanup.Message}"); }
             }
         }
-        return "已保存。";
+        return warnings.Count == 0 ? "已保存。" : $"已保存；{string.Join("；", warnings)}";
     }
 }

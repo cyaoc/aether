@@ -11,7 +11,7 @@ using System.Text.Json;
 
 namespace Aether.Gui.Tests;
 
-public sealed class WelcomeAnimationPageTests
+public sealed class WelcomeAnimationSettingsTests
 {
     [Fact]
     public Task History_keeps_one_hundred_finished_items_and_clears_only_for_a_new_room_connection() => HeadlessApp.Session.Dispatch(async () =>
@@ -46,14 +46,19 @@ public sealed class WelcomeAnimationPageTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData("没有推流软件连着")]
-    [InlineData("排队超过 30 秒")]
-    public Task Skipped_playback_keeps_its_specific_reason(string reason) => HeadlessApp.Session.Dispatch(async () =>
+    [InlineData("没有推流软件连着", true)]
+    [InlineData("排队超过 30 秒", true)]
+    [InlineData(AnimationPage.RecentlyPlayed, false)]
+    public Task Skipped_playback_keeps_its_specific_reason(string reason, bool unplayed) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         var viewModel = harness.CreateViewModel();
-        viewModel.Apply(new WelcomeAnimationPlayback("skip", 42, "a.mp4", false, WelcomeAnimationState.Skipped, reason));
-        Assert.Equal("没播 · " + reason, viewModel.RecentAnimations.Single().Status);
+        viewModel.Apply(new WelcomeAnimationPlayback("skip", 42, "a.mp4", false, WelcomeAnimationState.Skipped, reason, "小鹿"));
+        var item = viewModel.RecentAnimations.Single();
+        Assert.Equal("没播：" + reason, item.Status);
+        Assert.Equal(("小鹿", "UID 42"), (item.Name, item.Detail));
+        Assert.Equal(unplayed, item.Unplayed);
+        Assert.Equal(!unplayed, item.RecentlyPlayed);
         await viewModel.ShutdownAsync();
         return true;
     }, TestContext.Current.CancellationToken);
@@ -102,12 +107,12 @@ public sealed class WelcomeAnimationPageTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData("", "UID 没填")]
-    [InlineData("0", "UID 不合法")]
-    [InlineData("-1", "UID 不合法")]
-    [InlineData("abc", "UID 不合法")]
-    [InlineData("9223372036854775808", "UID 不合法")]
-    [InlineData("00042", "UID 重复")]
+    [InlineData("", "填一个 UID")]
+    [InlineData("0", "UID 必须是正整数")]
+    [InlineData("-1", "UID 必须是正整数")]
+    [InlineData("abc", "UID 必须是正整数")]
+    [InlineData("9223372036854775808", "UID 必须是正整数")]
+    [InlineData("00042", "和上面那条重复了")]
     public Task Invalid_uids_show_inline_hints_and_cannot_be_saved(string uid, string hint) => HeadlessApp.Session.Dispatch(() =>
     {
         using var harness = new GuiHarness();
@@ -128,7 +133,7 @@ public sealed class WelcomeAnimationPageTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task Trial_is_gated_by_saved_video_connection_file_and_other_playback() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Test_play_is_gated_by_saved_video_connection_file_and_other_playback() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         var path = Video(harness, "welcome-animations", "video.mp4");
@@ -151,8 +156,8 @@ public sealed class WelcomeAnimationPageTests
             viewModel.Apply(new WelcomeAnimationPlayback("other", 43, "other.mp4", false, WelcomeAnimationState.Completed));
             Assert.True(button.IsEnabled);
             viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "video.mp4", true, WelcomeAnimationState.Playing));
-            Assert.Equal("播放中", button.Content);
-            Assert.Contains("正在播放", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Equal("播放中", row.FindControl<TextBlock>("TestText")!.Text);
+            Assert.Contains("正在直播姬里播放", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.False(button.IsEnabled);
             viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "video.mp4", true, WelcomeAnimationState.NoReport));
             Assert.DoesNotContain("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
@@ -160,6 +165,9 @@ public sealed class WelcomeAnimationPageTests
             viewModel.Apply(new WelcomeAnimationPlayback("failure", 42, "video.mp4", true, WelcomeAnimationState.Failed));
             Assert.Contains("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.Contains("H.264", row.FindControl<TextBlock>("RowMessage")!.Text);
+            viewModel.Apply(new WelcomeAnimationPlayback("success", 42, "video.mp4", true, WelcomeAnimationState.Playing));
+            Assert.Equal("播放中", row.FindControl<TextBlock>("TestText")!.Text);
+            Assert.Contains("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
             viewModel.Apply(new WelcomeAnimationPlayback("success", 42, "video.mp4", true, WelcomeAnimationState.Completed));
             Assert.Contains("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
             File.Delete(path);
@@ -312,9 +320,10 @@ public sealed class WelcomeAnimationPageTests
             GuiHarness.Flush();
             var button = page.FindControl<Button>("CopyAnimationAddressButton")!;
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await GuiHarness.WaitForAsync(() => Equals(button.Content, "已复制"));
+            var text = page.FindControl<TextBlock>("CopyText")!;
+            await GuiHarness.WaitForAsync(() => text.Text == "已复制");
             Assert.Equal("http://localhost:17891/", await window.Clipboard!.TryGetTextAsync());
-            await GuiHarness.WaitForAsync(() => Equals(button.Content, "复制"));
+            await GuiHarness.WaitForAsync(() => text.Text == "复制");
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
@@ -326,7 +335,7 @@ public sealed class WelcomeAnimationPageTests
     [InlineData(WelcomeAnimationState.Completed, "已播放", false)]
     [InlineData(WelcomeAnimationState.Failed, "播放失败", false)]
     [InlineData(WelcomeAnimationState.NoReport, "没收到播放回报", false)]
-    [InlineData(WelcomeAnimationState.Skipped, "没播 · 10 分钟内播过", false)]
+    [InlineData(WelcomeAnimationState.Skipped, "没播：10 分钟内播过", false)]
     public Task Recent_playback_shows_progress_reason_and_test_marker(WelcomeAnimationState state, string expected, bool busy) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -421,7 +430,7 @@ public sealed class WelcomeAnimationPageTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public Task Navigation_applies_external_animation_mappings_before_trial_without_restarting_unchanged_settings(bool draft) => HeadlessApp.Session.Dispatch(async () =>
+    public Task Navigation_applies_external_animation_mappings_before_test_play_without_restarting_unchanged_settings(bool draft) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
@@ -518,9 +527,10 @@ public sealed class WelcomeAnimationPageTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(true, 2, null, "✓ 已有 2 个推流软件连着动画页")]
-    [InlineData(true, 0, null, "⚠ 还没有推流软件连着动画页")]
-    [InlineData(false, 0, "端口 17891 被占用", "✕ 端口 17891 被占用")]
+    [InlineData(true, 2, null, "已有 2 个推流软件连着动画页")]
+    [InlineData(true, 0, null, "还没有推流软件连着动画页")]
+    [InlineData(false, 0, "端口 17891 被别的程序占用", "动画页没打开：端口 17891 被别的程序占用")]
+    [InlineData(false, 0, null, "动画页没开，打开开关并保存后启动")]
     public Task Animation_card_shows_connection_count_or_error(bool running, int pages, string? error, string expected) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -534,14 +544,14 @@ public sealed class WelcomeAnimationPageTests
             GuiHarness.Flush();
             Assert.Equal(expected, page.FindControl<TextBlock>("AnimationPageStatusText")!.Text);
             Assert.Equal("http://localhost:17891/", page.FindControl<TextBox>("AnimationAddress")!.Text);
-            Assert.Equal(pages == 0 && error is null, page.FindControl<TextBlock>("AnimationSetupHint")!.IsVisible);
+            Assert.Equal(running && pages == 0 || error is not null, page.FindControl<TextBlock>("AnimationPageHelpText")!.IsVisible);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task Animation_page_follows_welcome_and_starts_with_an_empty_viewer_list() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Welcome_animation_settings_follow_welcome_and_start_with_an_empty_viewer_list() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();

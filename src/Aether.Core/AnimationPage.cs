@@ -68,7 +68,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
                 // EADDRINUSE (macOS 48, Linux 98, WSA 10048); http.sys 32 (port held by another program) and
                 // 183 (prefix already registered); managed HttpListener 400 (prefix already registered).
                 var reason = exception.ErrorCode is 48 or 98 or 10048 or 32 or 183 or 400
-                    ? $"端口 {status.Port} 被占用" : $"动画页启动失败（端口 {status.Port}，错误码 {exception.ErrorCode}）：{exception.Message}";
+                    ? $"端口 {status.Port} 被别的程序占用" : $"动画页启动失败（端口 {status.Port}，错误码 {exception.ErrorCode}）：{exception.Message}";
                 status = status with { Error = reason };
                 logger.LogWarning("动画页没有运行：{Reason}", reason);
                 Publish(status);
@@ -86,15 +86,18 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
     }
 
     /// <summary>Uses the normal playback queue, without checking or updating any room's ten-minute interval.</summary>
-    public void TestPlay(long uid) => Enqueue(uid, timeProvider.GetTimestamp(), null, CancellationToken.None);
+    public void TestPlay(long uid) => Enqueue(uid, null, timeProvider.GetTimestamp(), null, CancellationToken.None);
 
-    internal void Enqueue(long uid, long receivedAt, Dictionary<long, long>? lastPlayed, CancellationToken roomStopped)
+    /// <summary>The skip reason for a viewer played within the interval: the one skip that needs no attention.</summary>
+    public const string RecentlyPlayed = "10 分钟内播过";
+
+    internal void Enqueue(long uid, string? nickname, long receivedAt, Dictionary<long, long>? lastPlayed, CancellationToken roomStopped)
     {
         lock (gate)
         {
             if (settings is null || !settings.WelcomeAnimationVideos.TryGetValue(uid, out var video)) return;
             var item = new Playback(new(Guid.NewGuid().ToString("N"), uid, video.Value, lastPlayed is null,
-                WelcomeAnimationState.Queued), receivedAt, lastPlayed, roomStopped);
+                WelcomeAnimationState.Queued, Nickname: nickname), receivedAt, lastPlayed, roomStopped);
             if (!status.Running) Report(item, WelcomeAnimationState.Skipped, status.Error ?? "动画页未运行");
             else if (pages.Count == 0) Report(item, WelcomeAnimationState.Skipped, "没有推流软件连着");
             else
@@ -151,7 +154,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
                         : pages.Count == 0 ? "没有推流软件连着"
                         : !File.Exists(VideoPath(item.Update.FileName)) ? "视频文件不存在"
                         : item.LastPlayed?.TryGetValue(item.Update.Uid, out var last) == true
-                            && timeProvider.GetElapsedTime(last) < TimeSpan.FromMinutes(10) ? "10 分钟内播过" : null;
+                            && timeProvider.GetElapsedTime(last) < TimeSpan.FromMinutes(10) ? RecentlyPlayed : null;
                     if (reason is not null) { Report(item, WelcomeAnimationState.Skipped, reason); continue; }
                     current = item;
                     reported = completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -187,15 +190,9 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
     private void Report(Playback item, WelcomeAnimationState state, string? reason = null)
     {
         var update = item.Update with { State = state, Reason = reason };
-        var progress = state switch
-        {
-            WelcomeAnimationState.Queued => "排队中", WelcomeAnimationState.Playing => "播放中",
-            WelcomeAnimationState.Completed => "已播放", WelcomeAnimationState.Failed => "播放失败",
-            WelcomeAnimationState.NoReport => "没收到播放回报", _ => "没播"
-        };
         logger.Log(state is WelcomeAnimationState.Failed or WelcomeAnimationState.NoReport ? LogLevel.Warning : LogLevel.Information,
             "[欢迎动画 {PlaybackId}] 观众 {Uid}，{FileName}，试播={IsTest}：{Progress} {Reason}",
-            update.Id, update.Uid, update.FileName, update.IsTest, progress, reason);
+            update.Id, update.Uid, update.FileName, update.IsTest, update.Progress, reason);
         lock (gate) Publish(update);
     }
 

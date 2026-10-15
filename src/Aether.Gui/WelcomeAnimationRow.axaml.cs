@@ -1,4 +1,6 @@
 using System.Globalization;
+using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Media;
 
@@ -33,6 +35,17 @@ public partial class WelcomeAnimationRow : UserControl
         TestButton.Click += (_, _) => { if (TestButton.IsEnabled) TestRequested?.Invoke(); };
     }
 
+    public bool CanTest => TestButton.IsEnabled;
+
+    /// <summary>Rows share one bordered list; every row but the first draws the line above it.</summary>
+    public void ShowDivider(bool visible) => RowBorder.BorderThickness = new Thickness(0, visible ? 1 : 0, 0, 0);
+
+    public void FocusInput()
+    {
+        UidInput.Focus();
+        this.BringIntoView();
+    }
+
     public void SelectVideo(string path)
     {
         SourcePath = path;
@@ -43,23 +56,37 @@ public partial class WelcomeAnimationRow : UserControl
 
     public bool Refresh(ISet<long> uids, string directory, bool saved, bool hasPages, bool busy, bool playing, bool failed)
     {
-        var error = string.IsNullOrWhiteSpace(UidInput.Text) ? "UID 没填，填一个 UID 或删掉这条"
-            : Uid is not { } uid ? "UID 不合法，必须是正整数"
-            : !uids.Add(uid) ? "UID 重复，和上面那条重复了" : null;
+        var error = string.IsNullOrWhiteSpace(UidInput.Text) ? "填一个 UID，或删掉这条"
+            : Uid is not { } uid ? "UID 必须是正整数"
+            : !uids.Add(uid) ? "和上面那条重复了" : null;
         var exists = File.Exists(SourcePath ?? Path.Combine(directory, FileName));
+        UidInput.Classes.Set("invalid", error is not null);
+        FileButton.Classes.Set("missing", !exists);
+        FileIcon.Data = Icon(exists ? "Icon.Animation" : "Icon.Alert");
         FileNameText.TextDecorations = exists ? null : TextDecorations.Strikethrough;
-        ToolTip.SetTip(FileButton, FileName);
-        var message = error is not null ? "⚠ " + error
-            : !exists ? "⚠ 找不到视频文件，请重新选择"
-            : playing ? "▶ 正在播放"
-            : !saved ? "⚠ 保存后才能试播"
-            : failed ? "✕ 上次播放失败，请换成 H.264 编码的 MP4" : "";
-        if (!CanEdit) message += (message.Length > 0 ? "\n" : "") + "这项不能逐行编辑，请在设置文件里改";
-        RowMessage.Text = message;
-        RowMessage.IsVisible = message.Length > 0;
-        RowMessage.Classes.Set("error", error is not null || !exists || failed && saved);
-        TestButton.Content = playing ? "播放中" : "试播";
+        ToolTip.SetTip(FileButton, "点击更换视频");
+        // The canvas's order: what blocks saving or playing first, then why the last playback failed, then progress.
+        var (note, tone, icon) = error is not null ? (error, "error", "Icon.Alert")
+            : !exists ? ("找不到视频文件，点文件名重新选择", "error", "Icon.Alert")
+            : failed ? ("上次播放失败：格式不支持，换成 H.264 编码的 MP4", "error", "Icon.Fail")
+            : !saved ? ("保存后才能试播", null, "Icon.Info")
+            : playing ? ("正在直播姬里播放", "playing", "Icon.Wave") : ("", null, "Icon.Info");
+        if (!CanEdit) note += (note.Length > 0 ? "\n" : "") + "这项不能逐行编辑，请在设置文件里改";
+        RowMessage.Text = note;
+        NoteIcon.Data = Icon(icon);
+        RowNote.IsVisible = note.Length > 0;
+        RowNote.Classes.Set("error", tone == "error");
+        RowNote.Classes.Set("playing", tone == "playing");
+        var who = Uid is { } owner ? $"{owner} 的" : "";
+        AutomationProperties.SetName(FileButton, $"更换{who}视频：{FileName}");
+        AutomationProperties.SetName(TestButton, (playing ? "正在试播" : "试播") + who + "欢迎动画");
+        AutomationProperties.SetName(RemoveButton, $"删除{who}欢迎动画");
+        TestButton.Classes.Set("playing", playing);
+        TestIcon.Data = Icon(playing ? "Icon.Wave" : "Icon.Play");
+        TestText.Text = playing ? "播放中" : "试播";
         TestButton.IsEnabled = error is null && saved && hasPages && exists && !busy;
         return error is not null;
     }
+
+    private static Geometry Icon(string key) => (Geometry)Application.Current!.FindResource(key)!;
 }

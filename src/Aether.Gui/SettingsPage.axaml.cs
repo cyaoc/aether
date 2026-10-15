@@ -82,7 +82,7 @@ public partial class SettingsPage : UserControl
             };
         AddAnimationButton.Click += async (_, _) => await ChooseAnimationAsync();
         CopyAnimationAddressButton.Click += async (_, _) => await CopyAnimationAddressAsync();
-        DetachedFromVisualTree += (_, _) => { copyFeedback?.Dispose(); CopyAnimationAddressButton.Content = "复制"; };
+        DetachedFromVisualTree += (_, _) => { copyFeedback?.Dispose(); ShowCopied(false); };
         LoadSettings();
     }
 
@@ -297,16 +297,25 @@ public partial class SettingsPage : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (viewModel is not null) viewModel.PropertyChanged -= OnRoomStateChanged;
+        if (viewModel is not null)
+        {
+            viewModel.PropertyChanged -= OnRoomStateChanged;
+            viewModel.AnimationRowsChanged -= OnAnimationRowsChanged;
+        }
         viewModel = DataContext as MainWindowViewModel;
-        if (viewModel is not null) viewModel.PropertyChanged += OnRoomStateChanged;
+        if (viewModel is not null)
+        {
+            viewModel.PropertyChanged += OnRoomStateChanged;
+            if (Section == SettingsSection.WelcomeAnimation) viewModel.AnimationRowsChanged += OnAnimationRowsChanged;
+        }
         if (Section == SettingsSection.WelcomeAnimation && settings is not null) RefreshAnimations();
     }
+
+    private void OnAnimationRowsChanged() => RefreshAnimations();
 
     // The room connection the notice warned about has ended (disconnected, reconnected or failed).
     private void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (Section == SettingsSection.WelcomeAnimation) RefreshAnimations();
         if (e.PropertyName == nameof(MainWindowViewModel.HasRoomConnection) && viewModel?.HasRoomConnection != true)
             ReconnectNotice.IsVisible = false;
     }

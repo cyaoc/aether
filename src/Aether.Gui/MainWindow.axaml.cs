@@ -81,7 +81,7 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel viewModel) return;
         await viewModel.OpenAnimationSettingsCommand.ExecuteAsync(null);
-        Navigation.SelectedIndex = 3;
+        Navigation.SelectedIndex = 1 + (int)SettingsSection.WelcomeAnimation;
     }
 
     private void Navigate(object? sender, SelectionChangedEventArgs e)

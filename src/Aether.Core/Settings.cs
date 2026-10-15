@@ -175,7 +175,7 @@ public sealed class Settings
     private static Definition<string> VideoDefinition(long uid) =>
         Definition.RequiredText(VideoGroup + "." + uid.ToString(CultureInfo.InvariantCulture), "", ValidateVideoFileName);
 
-    private static string? ValidateVideoFileName(string name) =>
+    public static string? ValidateVideoFileName(string name) =>
         name is "." or ".." || name.IndexOfAny(['/', '\\', ':', '\0']) >= 0
             || name.Any(char.IsControl) || !new[] { ".mp4", ".webm" }.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase)
             ? "必须是纯文件名，扩展名为 .mp4 或 .webm，不能带路径。" : null;
