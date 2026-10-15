@@ -10,9 +10,131 @@ public sealed class SettingsTests : IAsyncDisposable
     private string SettingsPath => Path.Combine(harness.DataDirectory, "aether.yml");
 
     [Fact]
+    public void Welcome_animation_defaults_and_empty_video_group_are_appended_once()
+    {
+        Write("# 保留\nwelcome:\n  enabled: true\n");
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.False(settings.WelcomeAnimationEnabled.Value);
+        Assert.Equal(17890, settings.WelcomeAnimationPort.Value);
+        Assert.Empty(settings.WelcomeAnimationVideos);
+        Assert.Null(Settings.Validate("welcome_animation.enabled", "false"));
+        Assert.Null(Settings.Validate("welcome_animation.port", "17890"));
+        var text = File.ReadAllText(SettingsPath);
+        Assert.StartsWith("# 保留\nwelcome:\n  enabled: true\n", text);
+        Assert.Contains("welcome_animation:\n", text);
+        Assert.Contains("port: 17890", text);
+        Assert.Contains("welcome_animation_videos:\n", text);
+        Assert.Null(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(text, File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("0", "x.mp4")]
+    [InlineData("-1", "x.mp4")]
+    [InlineData("x", "x.mp4")]
+    [InlineData("9223372036854775808", "x.mp4")]
+    [InlineData("1", "../x.mp4")]
+    [InlineData("1", "'..\\x.mp4'")]
+    [InlineData("1", "..")]
+    [InlineData("1", "x.gif")]
+    [InlineData("1", "'C:x.mp4'")]
+    [InlineData("1", "[]")]
+    [InlineData("1", "|\n    x.mp4")]
+    public void Invalid_animation_mapping_reports_its_line_and_leaves_the_file_untouched(string uid, string value)
+    {
+        var yaml = $"# 视频\nwelcome_animation_videos:\n  {uid}: {value}\n";
+        Write(yaml);
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(3, error.LineNumber);
+        Assert.Equal("welcome_animation_videos." + uid, error.SettingName);
+        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("65536")]
+    [InlineData("abc")]
+    public void Invalid_animation_port_reports_its_line(string port)
+    {
+        Write($"welcome_animation:\n  port: {port}\n");
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(2, error.LineNumber);
+        Assert.NotNull(Settings.Validate("welcome_animation.port", port));
+    }
+
+    [Fact]
+    public void Missing_animation_files_warn_without_invalidating_or_removing_the_mapping()
+    {
+        Write("welcome_animation_videos:\n  42: 找不到.mp4\n");
+        var loaded = Settings.Load(harness.DataDirectory, harness.Logger);
+        Assert.Null(loaded.Error);
+        Assert.Equal("找不到.mp4", loaded.WelcomeAnimationVideos[42].Value);
+        Assert.Empty(loaded.UnknownKeys);
+        Assert.Contains(harness.Logger.Entries, entry => entry.Level == LogLevel.Warning
+            && entry.Message.Contains("42") && entry.Message.Contains("找不到.mp4"));
+    }
+
+    [Fact]
+    public void Numeric_aliases_of_the_same_uid_are_rejected()
+    {
+        Write("welcome_animation_videos:\n  01: a.mp4\n  1: b.mp4\n");
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(3, error.LineNumber);
+        Assert.Contains("重复", error.Message);
+    }
+
+    [Fact]
+    public void Flow_mapping_is_readable_but_cannot_be_line_edited()
+    {
+        const string yaml = "welcome_animation_videos: {42: a.mp4}\n...\n";
+        Write(yaml);
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.False(settings.CanEditWelcomeAnimationVideos);
+        Assert.Equal("a.mp4", settings.WelcomeAnimationVideos[42].Value);
+        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, null));
+        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 43, "b.mp4"));
+        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Deleting_a_uid_key_with_an_anchor_must_not_break_aliases_elsewhere()
+    {
+        const string yaml = "welcome_animation_videos:\n  &who 42: a.mp4\nother:\n  uid: *who\n...\n";
+        Write(yaml);
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.False(settings.WelcomeAnimationVideos[42].CanEdit);
+        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, null));
+        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Animation_mapping_add_replace_delete_preserves_other_lines_and_encoding()
+    {
+        const string yaml = "# 我的文件\r\nwelcome_animation_videos:\r\n  # 观众\r\n  00042: 原片.mp4 # 保留\r\nlog:\r\n  level: Debug\r\n...\r\n";
+        Directory.CreateDirectory(harness.DataDirectory);
+        File.WriteAllText(SettingsPath, yaml, System.Text.Encoding.Unicode);
+        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, "新片.webm");
+        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 43, "# 进场.mp4");
+        var replaced = yaml.Replace("原片.mp4", "新片.webm").Replace("log:", "  43: '# 进场.mp4'\r\nlog:");
+        Assert.Equal(replaced, File.ReadAllText(SettingsPath));
+        Assert.Equal("新片.webm", Settings.Load(harness.DataDirectory).WelcomeAnimationVideos[42].Value);
+        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, null);
+        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 43, null);
+        var deleted = yaml.Replace("  00042: 原片.mp4 # 保留\r\n", "");
+        Assert.Equal(deleted, File.ReadAllText(SettingsPath));
+        Assert.Empty(Settings.Load(harness.DataDirectory).WelcomeAnimationVideos);
+        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 44, "最后.mp4");
+        Assert.Equal(deleted.Replace("log:", "  44: 最后.mp4\r\nlog:"), File.ReadAllText(SettingsPath));
+        Assert.True(File.ReadAllBytes(SettingsPath).AsSpan().StartsWith(System.Text.Encoding.Unicode.GetPreamble()));
+    }
+
+    [Fact]
     public void An_existing_five_second_interval_is_preserved()
     {
-        const string yaml = "welcome:\nlog:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
+        const string yaml = "welcome_animation:\nwelcome_animation_videos:\nwelcome:\nlog:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
         Write(yaml);
         Assert.Equal(5, Settings.Load(harness.DataDirectory).SendIntervalSeconds.Value);
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
@@ -23,7 +145,7 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Assert.Contains("announce: true", File.ReadAllText(SettingsPath));
-        Write("welcome:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 今日盲盒 # 关键字\n");
+        Write("welcome_animation:\nwelcome_animation_videos:\nwelcome:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 今日盲盒 # 关键字\n");
         var before = File.ReadAllText(SettingsPath);
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
@@ -488,7 +610,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("Critical", LogLevel.Critical)]
     public void Reads_known_values_without_rewriting_the_file(string level, LogLevel expected)
     {
-        var yaml = $"# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\nwelcome:\n";
+        var yaml = $"welcome_animation:\nwelcome_animation_videos:\n# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\nwelcome:\n";
         Write(yaml);
         var before = File.ReadAllBytes(SettingsPath);
 

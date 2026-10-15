@@ -32,12 +32,16 @@ public sealed partial class AetherClient
         private readonly SendQueue sendQueue =
             new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value), output);
         private readonly Welcome welcome = new(settings);
+        private readonly Dictionary<long, long> animationLastPlayed = [];
+        private CancellationToken roomStopped;
 
         // Why the current attempt was stopped, where its exception would only say it was canceled; cleared before each attempt.
         private string? stopReason;
 
         public async Task RunAsync(CancellationToken cancellationToken)
         {
+            using var animationStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            roomStopped = animationStop.Token;
             var reconnecting = false;
             var retrySeconds = 1;
             try
@@ -96,6 +100,7 @@ public sealed partial class AetherClient
             }
             finally
             {
+                animationStop.Cancel();
                 var discarded = sendQueue.Clear();
                 if (roomLock is not null)
                     client.logger.LogInformation("直播间连接结束，发送队列丢掉 {Count} 条待发弹幕", discarded);
@@ -182,7 +187,7 @@ public sealed partial class AetherClient
                     var receivedAt = client.timeProvider.GetLocalNow();
                     var receivedTimestamp = client.timeProvider.GetTimestamp();
                     foreach (var decoded in DanmakuProtocol.Decode(bytes, receivedAt, connected, formatNotices, client.logger,
-                        Settings.WelcomeEnabled.Value, realRoomId))
+                        Settings.WelcomeEnabled.Value || Settings.WelcomeAnimationEnabled.Value, realRoomId))
                     {
                         connectionStop.Token.ThrowIfCancellationRequested();
                         if (decoded is DanmakuProtocol.AuthenticationReply auth)
@@ -225,7 +230,9 @@ public sealed partial class AetherClient
                                 box => client.stores.Value.BlindBoxes.Save(realRoomId, box) && Settings.BlindBoxAnnounce.Value);
                         else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry })
                         {
-                            if (welcome.Evaluate(entry, danmakuLengthLimit) is not { } result) continue;
+                            if (Settings.WelcomeAnimationEnabled.Value)
+                                client.AnimationPage.Enqueue(entry.Uid, receivedTimestamp, animationLastPlayed, roomStopped);
+                            if (!Settings.WelcomeEnabled.Value || welcome.Evaluate(entry, danmakuLengthLimit) is not { } result) continue;
                             sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, receivedTimestamp, result);
                         }
                     }
