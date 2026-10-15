@@ -114,8 +114,9 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             stopping = stop;
             if (stopping is null) return;
             stopping.Cancel();
-            listener!.Close();
+            // Abort before Close: on Windows, Close releases the request queue that Abort needs.
             foreach (var page in pages) page.Response.Abort();
+            listener!.Close();
             pages.Clear();
             queue!.Writer.TryComplete();
             status = status with { Running = false, ConnectedPages = 0 };
@@ -236,7 +237,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             lock (gate)
             {
                 if (pages.Remove(page)) PageCountChanged();
-                page.Response.Abort();
+                Abort(page.Response);
             }
             return false;
         }
@@ -324,14 +325,21 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             else response.StatusCode = 404;
         }
         catch (Exception error) when (error is IOException or HttpListenerException or ObjectDisposedException or OperationCanceledException or UnauthorizedAccessException)
-        { response.Abort(); }
+        { Abort(response); }
         finally
         {
             // http.sys can still fail the final write here once the client has gone.
             if (!keepOpen)
                 try { response.Close(); }
-                catch (Exception error) when (error is IOException or HttpListenerException or ObjectDisposedException) { response.Abort(); }
+                catch (Exception error) when (error is IOException or HttpListenerException or ObjectDisposedException) { Abort(response); }
         }
+    }
+
+    /// <summary>A request still finishing after StopAsync closed the listener has nothing left to abort on Windows.</summary>
+    private static void Abort(HttpListenerResponse response)
+    {
+        try { response.Abort(); }
+        catch (ObjectDisposedException) { }
     }
 
     private sealed record PageReport(string? Id, bool? Success, string? Reason);
