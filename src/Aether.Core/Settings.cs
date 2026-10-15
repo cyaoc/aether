@@ -63,6 +63,18 @@ public sealed class Settings
           # 荣耀等级达到多少就欢迎，0 表示不按荣耀等级欢迎
           wealth_level: 0
 
+        # 欢迎动画，下次观看直播间时生效；先开 Aether，再开推流软件
+        welcome_animation:
+          # true 或 false，映射里有这位观众时，进场在直播画面上播放
+          enabled: false
+          # 端口 1–65535；直播姬浏览器素材 / OBS 浏览器来源填 http://localhost:端口/
+          port: 17890
+
+        # 欢迎动画的视频，放在 data/welcome-animations/ 里，每行一位观众：UID: 文件名
+        # UID 必须为正整数；文件名只能是 .mp4 或 .webm，不能带路径；空分组表示没有观众
+        welcome_animation_videos:
+          # 12345: 小明进场.mp4
+
         """;
 
     private const string LineBreaks = "\r\n\u0085\u2028\u2029"; // YAML also accepts Unicode line breaks.
@@ -94,6 +106,9 @@ public sealed class Settings
     public static IReadOnlyList<string> WelcomeGuards { get; } = ["关闭", "舰长", "提督", "总督"];
     private static readonly Definition<string> WelcomeGuardTier = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", 0, "必须为非负整数。", level => level >= 0));
+    private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("welcome_animation.enabled", false));
+    private static readonly Definition<int> AnimationPort = Register(Definition.Number("welcome_animation.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
+    private const string VideoGroup = "welcome_animation_videos";
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, one Fields entry in SettingsPage and the controls that show it: in SettingsPage.axaml with
     /// one Show call, or for a 欢迎条件 a WelcomeConditionRow kind).</summary>
@@ -116,9 +131,14 @@ public sealed class Settings
     public Setting<int> WelcomeFanClubLevel => Get(WelcomeFanClub);
     public Setting<string> WelcomeGuard => Get(WelcomeGuardTier);
     public Setting<int> WelcomeWealthLevel => Get(WelcomeWealth);
+    public Setting<bool> WelcomeAnimationEnabled => Get(AnimationOn);
+    public Setting<int> WelcomeAnimationPort => Get(AnimationPort);
+    public IReadOnlyDictionary<long, Setting<string>> WelcomeAnimationVideos => videos;
+    public bool CanEditWelcomeAnimationVideos { get; private set; } = true;
+    private readonly Dictionary<long, Setting<string>> videos = [];
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
-    private readonly Dictionary<Definition, object> values = [];
+    private readonly Dictionary<string, object> values = [];
     private string source = "";
     private Encoding encoding = Encoding.UTF8;
     private YamlMappingNode? root;
@@ -136,13 +156,28 @@ public sealed class Settings
     public static string? Validate(string name, string? value) => Validate(Definitions, name, value);
 
     private static string? Validate(IReadOnlyList<Definition> definitions, string name, string? value) =>
-        Find(definitions, name) is { } definition ? definition.Validate(value) : "未知设置，不能修改。";
+        Find(definitions, name) is { } definition
+            ? value is null && definition.Group == VideoGroup ? null : definition.Validate(value)
+            : "未知设置或无效 UID，不能修改。";
 
     private static Definition? Find(IReadOnlyList<Definition> definitions, string name) =>
-        definitions.FirstOrDefault(definition => definition.Name == name);
+        definitions.FirstOrDefault(definition => definition.Name == name)
+        ?? (ReferenceEquals(definitions, Definitions) && name.StartsWith(VideoGroup + ".", StringComparison.Ordinal)
+            && TryUid(name[(VideoGroup.Length + 1)..], out var uid) ? VideoDefinition(uid) : null);
+
+    private static bool TryUid(string text, out long uid) =>
+        long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out uid) && uid > 0;
+
+    private static Definition<string> VideoDefinition(long uid) =>
+        Definition.RequiredText(VideoGroup + "." + uid.ToString(CultureInfo.InvariantCulture), "", ValidateVideoFileName);
+
+    private static string? ValidateVideoFileName(string name) =>
+        name is "." or ".." || name.IndexOfAny(['/', '\\', ':', '\0']) >= 0
+            || name.Any(char.IsControl) || !new[] { ".mp4", ".webm" }.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase)
+            ? "必须是纯文件名，扩展名为 .mp4 或 .webm，不能带路径。" : null;
 
     internal Setting<T> Get<T>(Definition<T> definition) =>
-        values.TryGetValue(definition, out var setting) ? (Setting<T>)setting : definition.Initial;
+        values.TryGetValue(definition.Name, out var setting) ? (Setting<T>)setting : definition.Initial;
 
     /// <summary>Reload the file and change only the requested values, then atomically replace it.</summary>
     /// <param name="snapshot">The settings a form was filled from. A value it already held was not changed by the user,
@@ -150,9 +185,20 @@ public sealed class Settings
     public static void Save(string dataDirectory, IReadOnlyDictionary<string, string> changes, Settings? snapshot = null) =>
         Save(dataDirectory, Definitions, changes, snapshot);
 
+    /// <summary>Adds or replaces one viewer's video; null removes the whole line, leaving surrounding comments intact.</summary>
+    public static void SaveWelcomeAnimationVideo(string dataDirectory, long uid, string? fileName, Settings? snapshot = null)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(uid);
+        SaveChanges(dataDirectory, Definitions, new Dictionary<string, string?> { [VideoDefinition(uid).Name] = fileName }, snapshot);
+    }
+
     /// <param name="definitions">The settings this file may hold; only tests pass anything but <see cref="Definitions"/>.</param>
     internal static void Save(string dataDirectory, IReadOnlyList<Definition> definitions,
-        IReadOnlyDictionary<string, string> changes, Settings? snapshot = null)
+        IReadOnlyDictionary<string, string> changes, Settings? snapshot = null) =>
+        SaveChanges(dataDirectory, definitions, changes.ToDictionary(pair => pair.Key, pair => (string?)pair.Value), snapshot);
+
+    private static void SaveChanges(string dataDirectory, IReadOnlyList<Definition> definitions,
+        IReadOnlyDictionary<string, string?> changes, Settings? snapshot = null)
     {
         var path = FilePath(dataDirectory);
         foreach (var (name, value) in changes)
@@ -163,6 +209,7 @@ public sealed class Settings
         changes = changes.Where(change =>
         {
             var definition = Find(definitions, change.Key)!;
+            if (change.Value is null) return current.values.ContainsKey(definition.Name);
             return !definition.Holds(current, change.Value) && !(snapshot is not null && definition.Holds(snapshot, change.Value));
         }).ToDictionary();
         var tokens = Scan(current.source);
@@ -179,7 +226,7 @@ public sealed class Settings
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
         AtomicFile.Write(path, [.. current.encoding.GetPreamble(), .. current.encoding.GetBytes(text)]);
 
-        void EditGroup(string groupName, IEnumerable<(Definition Definition, string Value)> groupChanges)
+        void EditGroup(string groupName, IEnumerable<(Definition Definition, string? Value)> groupChanges)
         {
             var groupEntry = current.root?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: var key } && key == groupName);
             var group = groupEntry?.Value as YamlMappingNode;
@@ -188,10 +235,23 @@ public sealed class Settings
             foreach (var (definition, value) in groupChanges)
             {
                 // Match by name like Load does, so a tagged key such as `!!str level` is still found.
-                var node = group?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: var key } && key == definition.Key).Value;
-                if (!definition.CanEdit(current))
+                var entry = group?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: var key }
+                    && (key == definition.Key || groupName == VideoGroup && TryUid(key ?? "", out var uid) && VideoDefinition(uid).Name == definition.Name));
+                var node = entry?.Value;
+                if (!definition.CanEdit(current) || groupName == VideoGroup && !current.CanEditWelcomeAnimationVideos)
                     throw new SettingsException(path, node?.Start.Line ?? groupEntry?.Key?.Start.Line ?? 1, definition.Name,
                         "不能逐行编辑，请在设置文件里修改。");
+                if (value is null)
+                {
+                    if (node is null) continue;
+                    var start = (int)entry!.Value.Key.Start.Index;
+                    while (start > 0 && !LineBreaks.Contains(current.source[start - 1])) start--;
+                    var end = (int)EndOf(tokens, node).Index;
+                    while (end < current.source.Length && !LineBreaks.Contains(current.source[end])) end++;
+                    if (end < current.source.Length) end += current.source.AsSpan(end).StartsWith("\r\n") ? 2 : 1;
+                    edits.Add((start, end - start, ""));
+                    continue;
+                }
                 var scalar = definition.Format(value);
                 if (node is null) missing.Append(indent).Append(definition.Key).Append(": ").Append(scalar).Append(newline);
                 else edits.Add(((int)node.Start.Index, (int)(EndOf(tokens, node).Index - node.Start.Index), scalar));
@@ -267,6 +327,9 @@ public sealed class Settings
         var missing = Definitions.Where(definition => definition.CanEdit(settings)
             && settings.root?.Children.Keys.Any(key => key is YamlScalarNode { Value: var name } && name == definition.Group) != true)
             .Select(definition => definition.Group).ToHashSet();
+        if (settings.CanEditWelcomeAnimationVideos
+            && settings.root?.Children.Keys.Any(key => key is YamlScalarNode { Value: VideoGroup }) != true)
+            missing.Add(VideoGroup);
         if (missing.Count == 0) return settings;
         var tokens = Scan(settings.source);
         // Appending after an explicit document end would create a second document.
@@ -321,6 +384,7 @@ public sealed class Settings
             var lossless = bytes.AsSpan(settings.encoding.GetPreamble().Length)
                 .SequenceEqual(settings.encoding.GetBytes(settings.source));
             MarkEditable(definitions, lossless);
+            settings.CanEditWelcomeAnimationVideos = lossless;
             var yaml = new YamlStream();
             yaml.Load(new StringReader(settings.source));
             var tokens = Scan(settings.source);
@@ -331,6 +395,7 @@ public sealed class Settings
             settings.root = root;
             var rootEditable = lossless && root.Style == MappingStyle.Block && root.Anchor.IsEmpty;
             MarkEditable(definitions, rootEditable);
+            settings.CanEditWelcomeAnimationVideos = rootEditable;
             var unknown = new List<string>();
             // Load and Save match names without YAML tags, so known names must be unique on that basis.
             var seenNames = new HashSet<string>(StringComparer.Ordinal);
@@ -338,7 +403,8 @@ public sealed class Settings
             {
                 var groupName = KeyName(groupKey);
                 var known = definitions.Where(definition => definition.Group == groupName).ToArray();
-                if (known.Length == 0)
+                var videoGroup = ReferenceEquals(definitions, Definitions) && groupName == VideoGroup;
+                if (known.Length == 0 && !videoGroup)
                 {
                     if (groupValue is YamlMappingNode { Children.Count: > 0 } other)
                         unknown.AddRange(other.Children.Keys.Select(key => groupName + "." + KeyName(key)));
@@ -351,6 +417,7 @@ public sealed class Settings
                 if (groupValue is YamlScalarNode { Style: ScalarStyle.Plain, Value: "" })
                 {
                     MarkEditable(known, rootEditable && groupValue.Anchor.IsEmpty);
+                    if (videoGroup) settings.CanEditWelcomeAnimationVideos = rootEditable && groupValue.Anchor.IsEmpty;
                     continue;
                 }
                 if (groupValue is not YamlMappingNode group)
@@ -360,6 +427,7 @@ public sealed class Settings
                 }
                 var groupEditable = rootEditable && group.Style == MappingStyle.Block && group.Anchor.IsEmpty;
                 MarkEditable(known, groupEditable);
+                if (videoGroup) settings.CanEditWelcomeAnimationVideos = groupEditable;
                 foreach (var (key, value) in group.Children)
                 {
                     var name = groupName + "." + KeyName(key);
@@ -373,7 +441,21 @@ public sealed class Settings
                                 list.Children.All(item => item is YamlScalarNode { Anchor.IsEmpty: true }),
                             _ => false,
                         };
-                    if (known.FirstOrDefault(definition => definition.Name == name) is not { } definition) unknown.Add(name);
+                    if (videoGroup)
+                    {
+                        if (!TryUid(KeyName(key), out var uid))
+                        {
+                            settings.Error ??= new(path, key.Start.Line, name, "UID 必须为 int64 范围内的正整数。");
+                            continue;
+                        }
+                        var video = VideoDefinition(uid);
+                        if (!seenNames.Add(video.Name))
+                            settings.Error ??= new(path, key.Start.Line, name, "UID 重复，请只保留一项。");
+                        else if (!singleLine || video.Read(settings, value, canEdit && key.Anchor.IsEmpty, singleLine) is { })
+                            settings.Error ??= new(path, key.Start.Line, name, "必须是单行的纯文件名，扩展名为 .mp4 或 .webm，不能带路径。");
+                        settings.videos[uid] = settings.Get(video);
+                    }
+                    else if (known.FirstOrDefault(definition => definition.Name == name) is not { } definition) unknown.Add(name);
                     else if (!seenNames.Add(name))
                         settings.Error ??= new(path, key.Start.Line, name, "设置名重复，请只保留一项。");
                     else if (definition.Read(settings, value, canEdit, singleLine) is { } reason)
@@ -393,6 +475,10 @@ public sealed class Settings
         }
         if (settings.UnknownKeys.Count > 0)
             logger?.LogWarning("未知设置键：{Keys}", string.Join("、", settings.UnknownKeys));
+        if (settings.Error is null)
+            foreach (var (uid, video) in settings.videos)
+                if (!File.Exists(Path.Combine(dataDirectory, "welcome-animations", video.Value)))
+                    logger?.LogWarning("观众 {Uid} 的欢迎动画文件不存在：{FileName}，这位观众不播", uid, video.Value);
         return settings;
 
         YamlMappingNode RequireMapping(YamlNode node, string name) => node as YamlMappingNode
@@ -531,13 +617,13 @@ public sealed class Settings
         public override string Format(string text) => format(Parse(text));
         public override string ValueText(Settings settings) => format(settings.Get(this).Value);
         public override bool CanEdit(Settings settings) => settings.Get(this).CanEdit;
-        public override void MarkEditable(Settings settings, bool canEdit) => settings.values[this] = settings.Get(this) with { CanEdit = canEdit };
+        public override void MarkEditable(Settings settings, bool canEdit) => settings.values[Name] = settings.Get(this) with { CanEdit = canEdit };
 
         public override string? Read(Settings settings, YamlNode node, bool canEdit, bool singleLine)
         {
             var (valid, value) = read(node, singleLine);
             // A value only check rejects is still kept, so the GUI shows what the file holds.
-            settings.values[this] = new Setting<T>(Name, valid ? value : settings.Get(this).Value, canEdit);
+            settings.values[Name] = new Setting<T>(Name, valid ? value : settings.Get(this).Value, canEdit);
             return valid ? check?.Invoke(value) : rule;
         }
     }

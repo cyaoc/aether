@@ -11,30 +11,9 @@ using QRCoder;
 Console.OutputEncoding = new UTF8Encoding(false);
 var room = new Argument<long>("房间号") { Description = "直播间短号或真实房间号" };
 var watch = new Command("watch", "观看直播间弹幕，需要时扫码登录") { room };
-watch.SetAction((result, cancellationToken) => RunAsync(async client =>
-{
-    await foreach (var update in client.WatchAsync(result.GetValue(room), cancellationToken))
-    {
-        switch (update)
-        {
-            case WatchQrCode qr:
-                await ShowQrCodeAsync(qr.Content);
-                break;
-            case Connecting:
-                await Console.Error.WriteLineAsync("连接中");
-                break;
-            case Connected:
-                await Console.Error.WriteLineAsync("已连接");
-                break;
-            case Reconnecting:
-                await Console.Error.WriteLineAsync("重连中");
-                break;
-            case Danmaku danmaku:
-                await Console.Out.WriteLineAsync(DanmakuOutput.Format(danmaku));
-                break;
-        }
-    }
-}, cancellationToken));
+watch.SetAction((result, cancellationToken) => RunAsync(client =>
+    WatchCommand.RunAsync(client, Settings.Load(DataDirectory.Locate()), result.GetValue(room), ShowQrCodeAsync, cancellationToken),
+    cancellationToken));
 var login = new Command("login", "扫码登录 B站账号");
 login.SetAction((_, cancellationToken) => RunAsync(async client =>
 {

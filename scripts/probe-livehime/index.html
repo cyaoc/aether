@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>直播姬探针</title>
+<style>
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+  #panel { position: fixed; left: 8px; top: 8px; max-width: 46%; z-index: 1; padding: 8px 10px;
+    font: 14px/1.5 Consolas, Menlo, monospace; color: #fff; background: rgba(0, 0, 0, .65); white-space: pre-wrap; }
+  video, canvas { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; display: none; }
+</style>
+</head>
+<body>
+<div id="panel"></div>
+<video id="video" playsinline></video>
+<canvas id="canvas"></canvas>
+<script>
+const panel = document.getElementById('panel');
+const video = document.getElementById('video');
+const canvas = document.getElementById('canvas');
+const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true });
+const lines = new Map();
+
+function show(key, text) {
+  lines.set(key, text);
+  panel.textContent = [...lines.values()].join('\n');
+}
+
+function report(data) {
+  fetch('/report', { method: 'POST', body: JSON.stringify(data) }).catch(() => {});
+}
+
+// What the browser claims before anything plays.
+const debug = gl && gl.getExtension('WEBGL_debug_renderer_info');
+const env = {
+  type: 'env',
+  loadedAt: new Date().toLocaleTimeString(),
+  userAgent: navigator.userAgent,
+  secureContext: isSecureContext,
+  h264: video.canPlayType('video/mp4; codecs="avc1.640028"'),
+  aac: video.canPlayType('audio/mp4; codecs="mp4a.40.2"'),
+  vp9: video.canPlayType('video/webm; codecs="vp9"'),
+  opus: video.canPlayType('audio/webm; codecs="opus"'),
+  hevc: video.canPlayType('video/mp4; codecs="hvc1.1.6.L93.B0"'),
+  av1: video.canPlayType('video/mp4; codecs="av01.0.05M.08"'),
+  webgl: !!gl,
+  gpu: debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : '',
+  viewport: `${innerWidth}x${innerHeight}@${devicePixelRatio}`,
+};
+const yes = v => (v === true || v === 'probably' || v === 'maybe') ? `是（${v}）` : `否（${v || '空'}）`;
+show('env', [
+  `页面加载 ${env.loadedAt}，${env.viewport}`,
+  `Chromium ${(env.userAgent.match(/Chrome\/([\d.]+)/) || [])[1] || '未知'}，安全来源 ${yes(env.secureContext)}`,
+  `H.264 ${yes(env.h264)}  AAC ${yes(env.aac)}`,
+  `VP9 ${yes(env.vp9)}  Opus ${yes(env.opus)}`,
+  `WebGL ${yes(env.webgl)}  ${env.gpu}`,
+].join('\n'));
+report(env);
+
+// The 动画页 plays one clip at a time; pushes that arrive meanwhile wait their turn.
+const queue = [];
+let playing = false;
+const events = new EventSource('/events');
+events.onopen = () => show('sse', 'SSE：已连接');
+events.onerror = () => show('sse', 'SSE：断开，自动重连中');
+events.onmessage = e => {
+  queue.push(JSON.parse(e.data).clip);
+  if (!playing) playNext();
+};
+
+async function playNext() {
+  playing = true;
+  while (queue.length) await play(queue.shift());
+  playing = false;
+}
+
+// The keying mode comes from the file name in this probe: x.green.mp4, x.black.mp4, x.split.mp4.
+function modeOf(clip) {
+  return (clip.match(/\.(green|black|split)\.\w+$/) || [, 'none'])[1];
+}
+
+async function play(clip) {
+  const mode = modeOf(clip);
+  const result = { type: 'play', clip, mode };
+  show('play', `播放 ${clip}（${mode}）…`);
+  let url;
+  try {
+    // A whole-file blob avoids depending on Range support and starts without buffering.
+    url = URL.createObjectURL(await (await fetch('/clips/' + encodeURIComponent(clip))).blob());
+    video.src = url;
+    const ended = new Promise((resolve, reject) => {
+      video.onended = resolve;
+      video.onerror = () => reject(new Error(`MediaError ${video.error.code} ${video.error.message}`));
+    });
+    video.muted = false;
+    try {
+      await video.play();
+      result.sound = true;
+    } catch (e) {
+      if (e.name !== 'NotAllowedError') throw e;
+      result.sound = false; // Sound autoplay blocked; retry muted to see whether the picture plays at all.
+      video.muted = true;
+      await video.play();
+    }
+    result.size = `${video.videoWidth}x${video.videoHeight}`;
+    if (mode === 'none') video.style.display = 'block';
+    else drawKeyed(mode);
+    await ended;
+    const quality = video.getVideoPlaybackQuality();
+    result.frames = { total: quality.totalVideoFrames, dropped: quality.droppedVideoFrames };
+    result.ok = true;
+  } catch (e) {
+    result.ok = false;
+    result.error = `${e.name}: ${e.message}`;
+  } finally {
+    stopDrawing();
+    video.style.display = 'none';
+    video.removeAttribute('src');
+    video.load();
+    if (url) URL.revokeObjectURL(url);
+  }
+  show('play', result.ok
+    ? `${clip}：播完，${result.size}，声音${result.sound ? '自动播放' : '被拦，已静音播放'}，丢帧 ${result.frames.dropped}/${result.frames.total}`
+    : `${clip}：失败，${result.error}`);
+  report(result);
+}
+
+// MP4 has no alpha, so keyed modes draw each frame through a shader that outputs premultiplied alpha.
+const vertex = `
+attribute vec2 p;
+varying vec2 uv;
+void main() { uv = vec2((p.x + 1.0) / 2.0, (1.0 - p.y) / 2.0); gl_Position = vec4(p, 0.0, 1.0); }`;
+const fragments = {
+  // Green screen: the more green dominates red and blue, the more transparent; leftover green on edges is clamped.
+  green: `
+    vec4 c = texture2D(t, uv);
+    float a = 1.0 - smoothstep(0.08, 0.3, c.g - max(c.r, c.b));
+    c.g = min(c.g, max(c.r, c.b));
+    gl_FragColor = vec4(c.rgb * a, a);`,
+  // Black background: brightness becomes opacity, close to a screen blend.
+  black: `
+    vec4 c = texture2D(t, uv);
+    gl_FragColor = vec4(c.rgb, max(c.r, max(c.g, c.b)));`,
+  // Left half is the picture, right half carries its alpha in the red channel.
+  split: `
+    vec3 c = texture2D(t, vec2(uv.x * 0.5, uv.y)).rgb;
+    float a = texture2D(t, vec2(uv.x * 0.5 + 0.5, uv.y)).r;
+    gl_FragColor = vec4(c * a, a);`,
+};
+const programs = {};
+let drawing = false;
+
+function program(mode) {
+  if (programs[mode]) return programs[mode];
+  const compile = (type, source) => {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));
+    return shader;
+  };
+  const p = gl.createProgram();
+  gl.attachShader(p, compile(gl.VERTEX_SHADER, vertex));
+  gl.attachShader(p, compile(gl.FRAGMENT_SHADER,
+    `precision mediump float; varying vec2 uv; uniform sampler2D t; void main() { ${fragments[mode]} }`));
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return programs[mode] = p;
+}
+
+function drawKeyed(mode) {
+  if (!gl) throw new Error('WebGL 不可用，无法抠图');
+  const p = program(mode);
+  canvas.width = mode === 'split' ? video.videoWidth / 2 : video.videoWidth;
+  canvas.height = video.videoHeight;
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.useProgram(p);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const position = gl.getAttribLocation(p, 'p');
+  gl.enableVertexAttribArray(position);
+  gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+  gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  canvas.style.display = 'block';
+  drawing = true;
+  const frame = () => {
+    if (!drawing) return;
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(frame);
+  };
+  frame();
+}
+
+function stopDrawing() {
+  drawing = false;
+  canvas.style.display = 'none';
+  if (gl) {
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+}
+</script>
+</body>
+</html>

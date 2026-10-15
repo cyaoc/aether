@@ -22,6 +22,7 @@ public sealed partial class AetherClient(
     private readonly TimeProvider timeProvider = timeProvider;
     private readonly ILogger<AetherClient> logger = logger;
     private readonly string dataDirectory = dataDirectory;
+    public AnimationPage AnimationPage { get; } = new(dataDirectory, timeProvider, logger);
     // One database for the whole client, opened on first use. PublicationOnly does not cache a failed open,
     // so a transient database error does not poison a long-lived client.
     private readonly Lazy<Stores> stores = new(() =>
@@ -260,7 +261,7 @@ public sealed partial class AetherClient(
         catch { socket.Dispose(); throw; }
     }
 
-    public void Dispose() => http.Dispose();
+    public void Dispose() { AnimationPage.Dispose(); http.Dispose(); }
 }
 
 public static class AetherHosting

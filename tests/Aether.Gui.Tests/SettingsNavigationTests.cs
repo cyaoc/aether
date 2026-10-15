@@ -230,7 +230,7 @@ public sealed class SettingsNavigationTests
             welcome.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal("欢迎回家{昵称}", Settings.Load(harness.DataDirectory).WelcomeText.Value);
             Assert.Equal("开", window.FindControl<TextBlock>("WelcomeStatus")!.Text);
-            Assert.Equal(before.Replace("enabled: false", "enabled: true").Split('\n').Where(line => !line.StartsWith("  text:")),
+            Assert.Equal(new System.Text.RegularExpressions.Regex("enabled: false").Replace(before, "enabled: true", 1).Split('\n').Where(line => !line.StartsWith("  text:")),
                 File.ReadAllText(path).Split('\n').Where(line => !line.StartsWith("  text:")));
 
             navigation.SelectedIndex = 1;
