@@ -14,7 +14,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
     private readonly object gate = new();
     private readonly List<Channel<AnimationPageUpdate>> subscribers = [];
     private readonly HashSet<Page> pages = [];
-    private AnimationPageStatus status = new(false, 17890, 0);
+    private AnimationPageStatus status = new(false, Settings.AnimationPort.Initial.Value, 0);
     private Settings? settings;
     private HttpListener? listener;
     private CancellationTokenSource? stop;
@@ -33,6 +33,8 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
     }
 
     public string Address { get { lock (gate) return $"http://localhost:{status.Port}/"; } }
+
+    public AnimationPageStatus Status { get { lock (gate) return status; } }
 
     /// <summary>Subscribe independently of WatchAsync. The first update is the current page status.</summary>
     public async IAsyncEnumerable<AnimationPageUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -63,11 +65,12 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             catch (HttpListenerException exception)
             {
                 server.Close();
-                // Managed HttpListener uses 400 for an already registered localhost prefix.
-                var reason = exception.ErrorCode is 48 or 98 or 10048 or 183 or 400
-                    ? $"端口 {status.Port} 被占用" : $"动画页启动失败（端口 {status.Port}）：{exception.Message}";
+                // EADDRINUSE (macOS 48, Linux 98, WSA 10048); http.sys 32 (port held by another program) and
+                // 183 (prefix already registered); managed HttpListener 400 (prefix already registered).
+                var reason = exception.ErrorCode is 48 or 98 or 10048 or 32 or 183 or 400
+                    ? $"端口 {status.Port} 被占用" : $"动画页启动失败（端口 {status.Port}，错误码 {exception.ErrorCode}）：{exception.Message}";
                 status = status with { Error = reason };
-                logger.LogWarning("{Reason}", reason);
+                logger.LogWarning("动画页没有运行：{Reason}", reason);
                 Publish(status);
                 return;
             }
@@ -119,13 +122,17 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             Publish(status);
             pending = running;
         }
-        await pending.ConfigureAwait(false);
-        lock (gate)
+        try { await pending.ConfigureAwait(false); }
+        finally
         {
-            if (stop != stopping) return;
-            stop = null;
-            listener = null;
-            stopping.Dispose();
+            // Clear even after a fault, or Start would refuse forever.
+            lock (gate)
+                if (stop == stopping)
+                {
+                    stop = null;
+                    listener = null;
+                    stopping.Dispose();
+                }
         }
     }
 
@@ -148,22 +155,22 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
                     current = item;
                     reported = completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 }
+                // Once pushed, the room ending does not cut the video short: pages outlive room connections (ADR 0006).
                 try
                 {
-                    using var itemStop = CancellationTokenSource.CreateLinkedTokenSource(token, item.RoomStopped);
                     var payload = JsonSerializer.Serialize(new { id = item.Update.Id, uid = item.Update.Uid.ToString(CultureInfo.InvariantCulture) });
-                    var sent = await BroadcastAsync("data: " + payload + "\n\n", itemStop.Token);
+                    var sent = await BroadcastAsync("data: " + payload + "\n\n", token);
                     if (sent == 0) { Report(item, WelcomeAnimationState.Skipped, "没有推流软件连着"); continue; }
                     if (item.LastPlayed is { } played) played[item.Update.Uid] = timeProvider.GetTimestamp();
                     Report(item, WelcomeAnimationState.Playing);
                     try
                     {
-                        var result = await completion.Task.WaitAsync(TimeSpan.FromMinutes(2), timeProvider, itemStop.Token);
+                        var result = await completion.Task.WaitAsync(TimeSpan.FromMinutes(2), timeProvider, token);
                         Report(item, result.State, result.Reason);
                     }
                     catch (TimeoutException) { Report(item, WelcomeAnimationState.Failed, "等待播放回报超过 2 分钟"); }
                 }
-                catch (OperationCanceledException) { Report(item, WelcomeAnimationState.Skipped, token.IsCancellationRequested ? "动画页已停止" : "直播间连接结束"); }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { Report(item, WelcomeAnimationState.Skipped, "动画页已停止"); }
                 finally { lock (gate) { current = null; reported = null; } }
             }
         }
@@ -174,7 +181,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
         }
     }
 
-    private string VideoPath(string fileName) => Path.Combine(dataDirectory, "welcome-animations", fileName);
+    private string VideoPath(string fileName) => Settings.WelcomeAnimationFile(dataDirectory, fileName);
 
     private void Report(Playback item, WelcomeAnimationState state, string? reason = null)
     {
@@ -318,7 +325,13 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
         }
         catch (Exception error) when (error is IOException or HttpListenerException or ObjectDisposedException or OperationCanceledException or UnauthorizedAccessException)
         { response.Abort(); }
-        finally { if (!keepOpen) response.Close(); }
+        finally
+        {
+            // http.sys can still fail the final write here once the client has gone.
+            if (!keepOpen)
+                try { response.Close(); }
+                catch (Exception error) when (error is IOException or HttpListenerException or ObjectDisposedException) { response.Abort(); }
+        }
     }
 
     private sealed record PageReport(string? Id, bool? Success, string? Reason);
@@ -331,8 +344,8 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             || request.ContentType?.Split(';')[0] != "application/json") { response.StatusCode = 400; return; }
         try
         {
-            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-            timeout.CancelAfter(TimeSpan.FromSeconds(5));
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5), timeProvider);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
             var body = new byte[4097];
             var length = await request.InputStream.ReadAtLeastAsync(body, body.Length, throwOnEndOfStream: false, timeout.Token);
             if (length > 4096) { response.StatusCode = 400; return; }

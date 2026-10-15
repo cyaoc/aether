@@ -107,11 +107,12 @@ public sealed class Settings
     private static readonly Definition<string> WelcomeGuardTier = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", 0, "必须为非负整数。", level => level >= 0));
     private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("welcome_animation.enabled", false));
-    private static readonly Definition<int> AnimationPort = Register(Definition.Number("welcome_animation.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
+    internal static readonly Definition<int> AnimationPort = Register(Definition.Number("welcome_animation.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private const string VideoGroup = "welcome_animation_videos";
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, one Fields entry in SettingsPage and the controls that show it: in SettingsPage.axaml with
-    /// one Show call, or for a 欢迎条件 a WelcomeConditionRow kind).</summary>
+    /// one Show call, or for a 欢迎条件 a WelcomeConditionRow kind). The UID-keyed welcome_animation_videos group is the
+    /// exception: its keys come from the file, so it is handled wherever VideoGroup appears.</summary>
     private static Definition<T> Register<T>(Definition<T> definition)
     {
         Definitions.Add(definition);
@@ -145,6 +146,9 @@ public sealed class Settings
 
     public static string FilePath(string dataDirectory) => Path.Combine(dataDirectory, "aether.yml");
 
+    internal static string WelcomeAnimationFile(string dataDirectory, string fileName) =>
+        Path.Combine(dataDirectory, "welcome-animations", fileName);
+
     /// <summary>How a switch is written in the file, for forms that hold it as a bool.</summary>
     public static string BooleanText(bool value) => value ? "true" : "false";
 
@@ -158,7 +162,7 @@ public sealed class Settings
     private static string? Validate(IReadOnlyList<Definition> definitions, string name, string? value) =>
         Find(definitions, name) is { } definition
             ? value is null && definition.Group == VideoGroup ? null : definition.Validate(value)
-            : "未知设置或无效 UID，不能修改。";
+            : "未知设置，不能修改。";
 
     private static Definition? Find(IReadOnlyList<Definition> definitions, string name) =>
         definitions.FirstOrDefault(definition => definition.Name == name)
@@ -477,7 +481,7 @@ public sealed class Settings
             logger?.LogWarning("未知设置键：{Keys}", string.Join("、", settings.UnknownKeys));
         if (settings.Error is null)
             foreach (var (uid, video) in settings.videos)
-                if (!File.Exists(Path.Combine(dataDirectory, "welcome-animations", video.Value)))
+                if (!File.Exists(WelcomeAnimationFile(dataDirectory, video.Value)))
                     logger?.LogWarning("观众 {Uid} 的欢迎动画文件不存在：{FileName}，这位观众不播", uid, video.Value);
         return settings;
 

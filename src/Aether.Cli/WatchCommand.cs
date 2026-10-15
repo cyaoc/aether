@@ -10,7 +10,7 @@ internal static class WatchCommand
         try
         {
             client.AnimationPage.Start(settings);
-            if (settings.WelcomeAnimationEnabled.Value)
+            if (client.AnimationPage.Status.Running)
                 await Console.Out.WriteLineAsync($"动画页：{client.AnimationPage.Address}");
             await foreach (var update in client.WatchAsync(roomId, cancellationToken))
             {

@@ -172,12 +172,17 @@ public sealed class WelcomeAnimationTests
         await h.LoginAsync();
         Start(h, 10001, 20002);
         using var page = await Page.ConnectAsync(h);
+        await using var observed = new Observations(h);
+        Play playing;
         await using (var updates = await h.WatchConnectedAsync())
         {
             await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(), EntryV2Fixture.Message(uid: 20002));
-            await page.NextAsync();
+            playing = await page.NextAsync();
         }
         await h.WaitForLogAsync("直播间连接结束");
+        // The page outlives the room connection, so what it is already playing still finishes.
+        await page.ReportAsync(playing);
+        await observed.WaitAsync(u => u is WelcomeAnimationPlayback { Uid: 10001, State: WelcomeAnimationState.Completed });
         await using var nextRoom = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(nextRoom, EntryV2Fixture.Message());
         Assert.Equal("10001", (await page.NextAsync()).Uid);
@@ -194,16 +199,17 @@ public sealed class WelcomeAnimationTests
         tcp.Start();
         await using var h = new WatchHarness();
         await h.LoginAsync();
+        var port = rawSocket ? ((IPEndPoint)tcp.LocalEndpoint).Port : new Uri(first.Client.AnimationPage.Address).Port;
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation.enabled"] = "true", ["welcome_animation.port"] =
-                (rawSocket ? ((IPEndPoint)tcp.LocalEndpoint).Port : new Uri(first.Client.AnimationPage.Address).Port).ToString()
+            ["welcome_animation.enabled"] = "true", ["welcome_animation.port"] = port.ToString()
         });
         await using var observed = new Observations(h);
         h.Client.AnimationPage.Start(Settings.Load(h.DataDirectory));
-        await observed.WaitAsync(u => u is AnimationPageStatus { Running: false, Error: not null });
+        // Each platform reports a taken port with its own error code; an unrecognised one would fall back to the raw error.
+        await observed.WaitAsync(u => u is AnimationPageStatus { Running: false } status && status.Error == $"端口 {port} 被占用");
         await using var updates = await h.WatchConnectedAsync();
-        Assert.Contains(h.Logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning && e.Message.Contains("被占用"));
+        Assert.Contains(h.Logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning && e.Message.Contains($"端口 {port} 被占用"));
     }
 
     [Fact]
