@@ -169,7 +169,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
                         var result = await completion.Task.WaitAsync(TimeSpan.FromMinutes(2), timeProvider, token);
                         Report(item, result.State, result.Reason);
                     }
-                    catch (TimeoutException) { Report(item, WelcomeAnimationState.Failed, "等待播放回报超过 2 分钟"); }
+                    catch (TimeoutException) { Report(item, WelcomeAnimationState.NoReport, "等待播放回报超过 2 分钟"); }
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { Report(item, WelcomeAnimationState.Skipped, "动画页已停止"); }
                 finally { lock (gate) { current = null; reported = null; } }
@@ -190,9 +190,10 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
         var progress = state switch
         {
             WelcomeAnimationState.Queued => "排队中", WelcomeAnimationState.Playing => "播放中",
-            WelcomeAnimationState.Completed => "已播放", WelcomeAnimationState.Failed => "播放失败", _ => "没播"
+            WelcomeAnimationState.Completed => "已播放", WelcomeAnimationState.Failed => "播放失败",
+            WelcomeAnimationState.NoReport => "没收到播放回报", _ => "没播"
         };
-        logger.Log(state == WelcomeAnimationState.Failed ? LogLevel.Warning : LogLevel.Information,
+        logger.Log(state is WelcomeAnimationState.Failed or WelcomeAnimationState.NoReport ? LogLevel.Warning : LogLevel.Information,
             "[欢迎动画 {PlaybackId}] 观众 {Uid}，{FileName}，试播={IsTest}：{Progress} {Reason}",
             update.Id, update.Uid, update.FileName, update.IsTest, progress, reason);
         lock (gate) Publish(update);

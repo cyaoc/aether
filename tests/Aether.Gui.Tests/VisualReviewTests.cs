@@ -16,6 +16,73 @@ namespace Aether.Gui.Tests;
 
 public sealed class VisualReviewTests
 {
+    [Theory]
+    [InlineData(960, 640, false)]
+    [InlineData(960, 640, true)]
+    [InlineData(760, 520, false)]
+    [InlineData(760, 520, true)]
+    public Task Screenshots_welcome_animation_states(int width, int height, bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            var videos = new Dictionary<long, string> { [1234567890123456] = "小鹿的欢迎动画.mp4", [67890] = "星光入场.webm", [24680] = "很长的专属欢迎动画文件名.mp4", [13579] = "找不到的视频.mp4" };
+            Directory.CreateDirectory(Path.Combine(harness.DataDirectory, "welcome-animations"));
+            foreach (var (uid, file) in videos)
+            {
+                Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, uid, file);
+                if (uid != 13579) File.WriteAllText(Path.Combine(harness.DataDirectory, "welcome-animations", file), "video");
+            }
+            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
+            var viewModel = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, Width = width, Height = height,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = 3;
+                var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.Section == SettingsSection.WelcomeAnimation);
+                viewModel.Apply(new AnimationPageStatus(true, 17890, 2));
+                foreach (var (state, index) in new[] { WelcomeAnimationState.Completed, WelcomeAnimationState.Failed, WelcomeAnimationState.NoReport, WelcomeAnimationState.Skipped, WelcomeAnimationState.Queued }.Select((state, index) => (state, index)))
+                    viewModel.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == WelcomeAnimationState.Skipped ? "10 分钟内播过" : null));
+                Capture("connected");
+                viewModel.Apply(new AnimationPageStatus(true, 17890, 0));
+                Capture("setup");
+                viewModel.Apply(new AnimationPageStatus(false, 17890, 0, "端口 17890 被占用"));
+                Capture("port-occupied");
+                viewModel.Apply(new AnimationPageStatus(true, 17890, 1));
+                viewModel.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, WelcomeAnimationState.Playing));
+                Capture("playing");
+                var rows = page.FindControl<StackPanel>("AnimationRows")!.Children.Cast<WelcomeAnimationRow>().ToArray();
+                rows[0].FindControl<TextBox>("UidInput")!.Text = "";
+                rows[1].FindControl<TextBox>("UidInput")!.Text = "not-a-uid";
+                rows[2].FindControl<TextBox>("UidInput")!.Text = "13579";
+                Capture("row-errors");
+                // Reload after deleting the fixture mappings to show the first-use state.
+                foreach (var row in rows) row.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                page.FindControl<ToggleSwitch>("AnimationInput")!.IsChecked = false;
+                page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await GuiHarness.WaitForAsync(() => page.IsEnabled);
+                viewModel.RecentAnimations.Clear();
+                page.FindControl<TextBlock>("Message")!.Text = "";
+                viewModel.Apply(new AnimationPageStatus(false, 17890, 0));
+                Capture("empty");
+                page.FindControl<Control>("EmptyAnimations")!.BringIntoView();
+                Capture("empty-list");
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+
+            void Capture(string state) => Save(window, $"animation-{state}-{width}x{height}-{(dark ? "dark" : "light")}");
+        }, TestContext.Current.CancellationToken);
+    }
+
     // A manual review tool, not a regression test: set AETHER_SCREENSHOT_DIR to render every page per size and theme
     // with Skia and compare the PNGs with designs B, E and F. CI leaves it unset, so the theory skips there.
     [Theory]
@@ -91,7 +158,7 @@ public sealed class VisualReviewTests
             window.Show();
             try
             {
-                foreach (var (pageIndex, name) in new[] { (4, "LogLevelInput"), (2, "GuardInput") })
+                foreach (var (pageIndex, name) in new[] { (5, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
                     input.IsDropDownOpen = true;
@@ -131,7 +198,7 @@ public sealed class VisualReviewTests
             window.Show();
             try
             {
-                window.Navigation.SelectedIndex = 3;
+                window.Navigation.SelectedIndex = 4;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 var number = page.FindControl<NumericUpDown>("SendIntervalInput")!;
@@ -151,8 +218,8 @@ public sealed class VisualReviewTests
                 Capture("error");
                 text.Text = "1";
                 File.WriteAllText(Settings.FilePath(harness.DataDirectory), "send:\n  interval_seconds: |-\n    1\n");
+                window.Navigation.SelectedIndex = 5;
                 window.Navigation.SelectedIndex = 4;
-                window.Navigation.SelectedIndex = 3;
                 Capture("readonly");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -213,7 +280,7 @@ public sealed class VisualReviewTests
                 { Text = "@" + names[i] + " 投入52电池 亏12.6电池", RetrySeconds = 1 });
             }
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            var pages = new[] { "danmaku", "blind-box", "welcome", "send-queue", "general" };
+            var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "send-queue", "general" };
             for (var i = 0; i < pages.Length; i++)
             {
                 navigation.SelectedIndex = i;
@@ -253,7 +320,7 @@ public sealed class VisualReviewTests
                 Add(welcome, kind);
             Capture("welcome-levels");
             File.WriteAllText(path, "log:\n  level: @bad\n");
-            navigation.SelectedIndex = 4;
+            navigation.SelectedIndex = 5;
             Capture("settings-error");
             viewModel.IsLoginPage = true;
             viewModel.Apply(new WatchQrCode("https://example.test/visual-review"));

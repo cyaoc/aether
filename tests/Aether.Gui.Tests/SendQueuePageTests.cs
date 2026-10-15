@@ -31,7 +31,7 @@ public sealed class SendQueuePageTests
             viewModel.Apply(Update(4, SendQueueItemKind.BlindBoxAnnouncement, SendQueueItemState.Sent));
             foreach (var (index, listName, heading) in new[]
             {
-                (3, "PendingSendsList", "待发"), (3, "RecentSendsList", "最近发送"),
+                (4, "PendingSendsList", "待发"), (4, "RecentSendsList", "最近发送"),
                 (2, "RecentWelcomesList", "最近欢迎"), (1, "RecentQueriesAndAnnouncementsList", "最近回复和播报")
             })
             {
@@ -82,7 +82,7 @@ public sealed class SendQueuePageTests
         try
         {
             for (var id = 1; id <= 100; id++) viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxQuery));
-            window.Navigation.SelectedIndex = 3;
+            window.Navigation.SelectedIndex = 4;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var list = page.FindControl<ListBox>("PendingSendsList")!;
@@ -130,7 +130,7 @@ public sealed class SendQueuePageTests
         {
             for (var id = 1; id <= count; id++)
                 viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxQuery) with { Text = "投入52电池 亏12.6电池" });
-            window.Navigation.SelectedIndex = 3;
+            window.Navigation.SelectedIndex = 4;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var activity = page.FindControl<Grid>("SendActivity")!;
@@ -389,7 +389,7 @@ public sealed class SendQueuePageTests
             viewModel.Apply(query with { State = SendQueueItemState.Sending, Text = "今日赚 20 电池" });
             viewModel.Apply(query with { State = SendQueueItemState.Discarded, Reason = "发送被拒绝" });
 
-            navigation.SelectedIndex = 3;
+            navigation.SelectedIndex = 4;
             GuiHarness.Flush();
             Assert.Contains("待发", GuiHarness.VisibleText(window));
             Assert.Contains("最近发送", GuiHarness.VisibleText(window));

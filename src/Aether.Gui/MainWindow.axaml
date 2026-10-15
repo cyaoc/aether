@@ -67,6 +67,7 @@
         </Border>
         <TextBlock Classes="secondary" Text="打开 B站 App 扫一扫，在手机上确认" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center" />
         <TextBlock Classes="caption muted" Text="二维码过期后会自动换新" TextWrapping="Wrap" TextAlignment="Center" />
+        <Button x:Name="OpenAnimationsWithoutLoginButton" Content="先设置欢迎动画，无需登录" Classes="ghost" HorizontalAlignment="Center" Click="OpenAnimationsWithoutLogin" />
       </StackPanel>
     </Grid>
     <Grid ColumnDefinitions="224,*" IsVisible="{Binding !IsLoginPage}">
@@ -128,6 +129,13 @@
               </ListBoxItem>
               <ListBoxItem>
                 <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                  <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Animation}" /></Viewbox>
+                  <TextBlock Grid.Column="1" Text="欢迎动画" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" x:Name="AnimationStatus" Classes="caption muted" />
+                </Grid>
+              </ListBoxItem>
+              <ListBoxItem>
+                <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
                   <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Send}" /></Viewbox>
                   <TextBlock Grid.Column="1" Text="发送队列" VerticalAlignment="Center" />
                   <TextBlock Grid.Column="2" x:Name="PendingSendCount" Classes="caption muted numeric" Text="{Binding PendingSends.Count, StringFormat={}{0:N0} 条待发}" IsVisible="{Binding !!PendingSends.Count}" />
@@ -150,9 +158,10 @@
               <TextBlock Classes="secondary" Text="{Binding AccountStatus.Text}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding AccountStatus.Text}" AutomationProperties.LiveSetting="Polite" />
               <TextBlock Classes="caption muted" Text="已登录" IsVisible="{Binding AccountStatus.Account, Converter={x:Static ObjectConverters.IsNotNull}}" />
               <Button x:Name="RetryAccountButton" Content="重试" Command="{Binding ReadAccountCommand}" IsVisible="{Binding AccountStatus.ReadFailed}" />
+              <Button Content="登录账号" Command="{Binding OpenLoginPageCommand}" IsVisible="{Binding IsLoggedOut}" />
             </StackPanel>
             <Button Grid.Column="2" x:Name="LogoutButton" Classes="ghost danger" Padding="6" VerticalAlignment="Center" Click="ConfirmLogout"
-                    ToolTip.Tip="退出登录" AutomationProperties.Name="退出登录" IsEnabled="{Binding !IsLoggingOut}">
+                    ToolTip.Tip="退出登录" AutomationProperties.Name="退出登录" IsEnabled="{Binding !IsLoggingOut}" IsVisible="{Binding !IsLoggedOut}">
               <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Logout}" /></Viewbox>
             </Button>
           </Grid>

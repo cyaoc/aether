@@ -196,6 +196,21 @@ public sealed class Settings
         SaveChanges(dataDirectory, Definitions, new Dictionary<string, string?> { [VideoDefinition(uid).Name] = fileName }, snapshot);
     }
 
+    /// <summary>Commits the animation form in one write; mappings added outside the form are left alone.</summary>
+    public static void SaveWelcomeAnimations(string dataDirectory, IReadOnlyDictionary<string, string> changes,
+        IReadOnlyDictionary<long, string> videos, Settings snapshot)
+    {
+        var edits = changes.ToDictionary(pair => pair.Key, pair => (string?)pair.Value);
+        foreach (var uid in snapshot.WelcomeAnimationVideos.Keys.Except(videos.Keys))
+            edits[VideoDefinition(uid).Name] = null;
+        foreach (var (uid, fileName) in videos)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(uid);
+            edits[VideoDefinition(uid).Name] = fileName;
+        }
+        SaveChanges(dataDirectory, Definitions, edits, snapshot);
+    }
+
     /// <param name="definitions">The settings this file may hold; only tests pass anything but <see cref="Definitions"/>.</param>
     internal static void Save(string dataDirectory, IReadOnlyList<Definition> definitions,
         IReadOnlyDictionary<string, string> changes, Settings? snapshot = null) =>

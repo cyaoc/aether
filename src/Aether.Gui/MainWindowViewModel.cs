@@ -59,6 +59,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
+    [NotifyPropertyChangedFor(nameof(IsLoggedOut))]
     private AccountStatus accountStatus = AccountStatus.Reading;
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
@@ -85,6 +86,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         _ => throw new ArgumentOutOfRangeException(nameof(ConnectionState))
     };
     public bool HasQrCode => QrCode is not null;
+    public bool IsLoggedOut => AccountStatus == AccountStatus.LoggedOut;
     [ObservableProperty] private ObservableCollection<Danmaku> danmaku = [];
 
     private const int RecentDanmakuLimit = 1000;
@@ -154,6 +156,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         {
             Danmaku.Clear();
             ClearSendHistory();
+            ClearAnimationHistory();
         }
         preserveHistory = false;
         try
@@ -355,6 +358,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
         if (LoginCommand.ExecutionTask is { } login) await login;
+        await StopAnimationsAsync();
     }
 
     // Reconnects skip Connecting, so a QR login can end at either update.

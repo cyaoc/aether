@@ -160,7 +160,8 @@ public sealed class WelcomeAnimationTests
         await page.NextAsync();
         await h.Time.WaitForTimerAsync(TimeSpan.FromMinutes(2));
         h.Time.Advance(TimeSpan.FromMinutes(2));
-        await observed.WaitAsync(u => u is WelcomeAnimationPlayback { State: WelcomeAnimationState.Failed, Reason: "等待播放回报超过 2 分钟" });
+        await observed.WaitAsync(u => u is WelcomeAnimationPlayback { State: WelcomeAnimationState.NoReport, Reason: "等待播放回报超过 2 分钟" });
+        Assert.Contains(h.Logger.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Warning && entry.Message.Contains("没收到播放回报"));
         h.Client.AnimationPage.TestPlay(10001);
         Assert.Equal("10001", (await page.NextAsync()).Uid);
     }
