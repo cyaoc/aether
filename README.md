@@ -29,8 +29,10 @@ B站直播 bot：用你的 B站账号连接直播间，看弹幕、统计盲盒�
 | Linux x64 | `linux-x64` | — | 用包管理器装 `dotnet-runtime-10.0`，见[安装说明](https://learn.microsoft.com/dotnet/core/install/linux) |
 
 **一般选独立版**（文件名不带 `-framework-dependent`），自带 .NET，解压即用。
-带 `-framework-dependent` 的是需运行时版，体积小，要先装 .NET 10 运行时：上表链接下载的是最新的 10.0 运行时，
+带 `-framework-dependent` 的是需运行时版，体积小，要先装 **.NET 10 运行时 10.0.13 或更新版本**：上表链接下载的是最新的 10.0 运行时，
 只要 Runtime，不需要 SDK；其他安装方式见 [.NET 10 下载页](https://dotnet.microsoft.com/download/dotnet/10.0)。
+旧运行时在 macOS 上有连接处理缺陷：本机程序连上动画页后立即重置连接，可能让整个 Aether 进程退出；
+该问题已在 .NET 10.0.13 [修复](https://github.com/dotnet/runtime/pull/133567)。独立版自带修复后的运行时。
 
 解压到自己的可写目录，例如用户目录下；不要放进 `Program Files`，程序要在旁边写 `data/`。
 
@@ -113,7 +115,7 @@ welcome_animation_videos:
 
 ## 开发
 
-需要 [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)。
+需要 [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) **10.0.402 或更新版本**，最低版本由 `global.json` 指定，CI 和发布构建也从该文件安装 SDK。
 
 ```sh
 dotnet build

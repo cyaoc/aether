@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 10.0.x
+          global-json-file: global.json
       - name: Validate version tag
         run: |
           if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -107,7 +107,7 @@ jobs:
           cat > release-notes.md <<EOF
           ## 该下载哪个包
 
-          | 系统 | 外壳 | 独立版（推荐，无需安装 .NET） | 需运行时版（需 .NET 10 Runtime） |
+          | 系统 | 外壳 | 独立版（推荐，无需安装 .NET） | 需运行时版（需 .NET 10 Runtime 10.0.13 或更新） |
           | --- | --- | --- | --- |
           | Windows x64 | CLI | [下载]($url/aether-cli-$TAG-win-x64.zip) | [下载]($url/aether-cli-$TAG-win-x64-framework-dependent.zip) |
           | Windows x64 | GUI | [下载]($url/aether-gui-$TAG-win-x64.zip) | [下载]($url/aether-gui-$TAG-win-x64-framework-dependent.zip) |
