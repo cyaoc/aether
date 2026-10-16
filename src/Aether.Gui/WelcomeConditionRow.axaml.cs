@@ -55,7 +55,6 @@ public partial class WelcomeConditionRow : UserControl
         GuardInput.IsEnabled = canEdit;
         RemoveButton.IsVisible = canEdit;
         AutomationProperties.SetName(RemoveButton, kind == WelcomeCondition.Uid ? "删除指定观众 UID" : $"删除{TypeName.Text}条件");
-        ReadOnlyMessage.IsVisible = !canEdit;
         UidInput.TextChanged += (_, _) => Changed?.Invoke();
         UidInput.LostFocus += (_, _) => { errorsRevealed = true; Changed?.Invoke(); };
         LevelInput.PropertyChanged += (_, e) =>
@@ -83,6 +82,7 @@ public partial class WelcomeConditionRow : UserControl
 
     public void ShowSeparator(bool visible) => OrSeparator.IsVisible = visible;
 
+    /// <summary>The first row of a kind carries its icon, name and read-only hint; the rest of a UID group align under it.</summary>
     public void ShowHeading(bool visible)
     {
         TypeName.IsVisible = TypeIconBox.IsVisible = visible;

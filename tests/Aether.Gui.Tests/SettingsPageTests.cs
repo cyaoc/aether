@@ -6,6 +6,7 @@ using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Interactivity;
 using Avalonia.Input;
@@ -88,6 +89,26 @@ public sealed class SettingsPageTests
             provider.Collapse();
             Assert.Equal(uids ? "还有 1 位" : "还有 1 条", AutomationProperties.GetName(fold));
             Assert.DoesNotContain("danger", fold.Classes);
+        });
+
+    [Fact]
+    public Task Fold_button_keeps_its_tone_when_hovered() =>
+        WithSettingsPage(SettingsSection.Welcome, WelcomeListYaml(false, 4), (page, _) =>
+        {
+            GuiHarness.Flush();
+            var fold = page.FindControl<Button>("WelcomeTextFold")!;
+            var window = (Window)TopLevel.GetTopLevel(page)!;
+            window.MouseMove(fold.TranslatePoint(new Point(10, 10), window)!.Value);
+            GuiHarness.Flush();
+            Assert.Equal(Resource("Accent.Text"), Shown());
+            WelcomeTextList.Input(page, 3).Text = "";
+            GuiHarness.Flush();
+            Assert.Contains("danger", fold.Classes);
+            Assert.Equal(Resource("Danger"), Shown());
+
+            Color Shown() => Assert.IsAssignableFrom<ISolidColorBrush>(fold.GetVisualDescendants().OfType<ContentPresenter>().First().Foreground).Color;
+            Color Resource(string key) =>
+                Assert.IsAssignableFrom<ISolidColorBrush>(fold.TryFindResource(key, fold.ActualThemeVariant, out var brush) ? brush : null).Color;
         });
 
     [Theory]

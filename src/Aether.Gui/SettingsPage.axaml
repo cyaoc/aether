@@ -277,6 +277,7 @@
                 <StackPanel>
                   <StackPanel x:Name="UidGroup" AutomationProperties.Name="指定观众">
                     <StackPanel x:Name="UidRows" />
+                    <!-- 120 = WelcomeConditionRow's icon and name columns with their spacing (18 + 8 + 90 + 8), less the button's padding of 4, so the text lines up with the UID inputs. -->
                     <local:ListFoldButton x:Name="UidFold" Margin="120,0,0,8" />
                   </StackPanel>
                   <StackPanel x:Name="ConditionRows" />

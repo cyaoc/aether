@@ -51,13 +51,11 @@ public partial class SettingsPage
         WelcomeInsertTarget.IsVisible = count > 1 && settings.WelcomeTexts.CanEdit;
         WelcomeInsertTarget.Text = $"到第 {WelcomeTextRows.Children.IndexOf(editedWelcomeText!) + 1} 条";
         var index = 0;
-        foreach (var row in WelcomeTexts)
-        {
-            row.IsVisible = WelcomeTextFold.IsExpanded || index < 3;
-            row.Refresh(index++, count);
-        }
-        WelcomeTextFold.Refresh(count, WelcomeTexts.Skip(3).Count(row => row.HasVisibleError), "条");
+        foreach (var row in WelcomeTexts) row.Refresh(index++, count);
+        RefreshWelcomeTextFold();
     }
+
+    private void RefreshWelcomeTextFold() => WelcomeTextFold.ApplyTo(WelcomeTexts, row => row.HasVisibleError, "条");
 
     private void AddWelcomeText(object? sender, RoutedEventArgs e)
     {
@@ -75,7 +73,11 @@ public partial class SettingsPage
         if (sender is Button { Tag: string token } && editedWelcomeText is { } row)
         {
             var hidden = !row.IsVisible;
-            if (hidden) WelcomeTextFold.IsExpanded = true;
+            if (hidden)
+            {
+                WelcomeTextFold.IsExpanded = true;
+                RefreshWelcomeTextFold();
+            }
             row.Insert(token);
             if (hidden) Dispatcher.UIThread.Post(row.FocusInput, DispatcherPriority.Loaded);
         }
@@ -99,7 +101,7 @@ public partial class SettingsPage
                 : Settings.Validate(settings.WelcomeTexts.Name, Settings.TextListText([row.Value]));
             invalid |= row.ShowError(error);
         }
-        WelcomeTextFold.Refresh(WelcomeTextRows.Children.Count, WelcomeTexts.Skip(3).Count(row => row.HasVisibleError), "条");
+        RefreshWelcomeTextFold();
         return invalid;
     }
 }

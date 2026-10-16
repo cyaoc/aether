@@ -22,7 +22,7 @@
         <Viewbox Classes="icon remove"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
       </Button>
       <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" x:Name="ErrorMessage" Classes="error" IsVisible="False" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-      <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="ReadOnlyMessage" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="ReadOnlyMessage" Classes="hint" IsVisible="False" Text="这项是多行写法，请在设置文件里改" />
     </Grid>
   </StackPanel>
 </UserControl>

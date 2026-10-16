@@ -45,7 +45,7 @@ public partial class SettingsPage
         return row;
     }
 
-    /// <summary>Updates what depends on which rows exist: the count, the empty state, the menu and the "或" separators.</summary>
+    /// <summary>Updates what depends on which rows exist: the count, the empty state, the menu, each kind's heading and "或" separator, and the UID fold.</summary>
     private void RefreshConditionList()
     {
         var count = Conditions.Select(row => row.Kind).Distinct().Count();
@@ -68,13 +68,10 @@ public partial class SettingsPage
             item.IsEnabled = CanEditCondition(kind) && (kind == WelcomeCondition.Uid || !Conditions.Any(row => row.Kind == kind));
         }
         WelcomeCondition? previous = null;
-        var uidIndex = 0;
         foreach (var row in Conditions)
         {
             row.ShowSeparator(previous is not null && previous != row.Kind);
             row.ShowHeading(previous != row.Kind);
-            if (row.Kind == WelcomeCondition.Uid)
-                row.IsVisible = uidIndex++ < 3 || UidFold.IsExpanded;
             previous = row.Kind;
         }
         RefreshUidFold();
@@ -133,6 +130,5 @@ public partial class SettingsPage
         return invalid;
     }
 
-    private void RefreshUidFold() => UidFold.Refresh(UidRows.Children.Count,
-        UidRows.Children.Cast<WelcomeConditionRow>().Skip(3).Count(row => row.HasVisibleError), "位");
+    private void RefreshUidFold() => UidFold.ApplyTo(UidRows.Children.Cast<WelcomeConditionRow>(), row => row.HasVisibleError, "位");
 }

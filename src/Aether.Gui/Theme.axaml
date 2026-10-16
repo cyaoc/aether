@@ -230,6 +230,13 @@
   <Style Selector="Button.listFold.danger">
     <Setter Property="Foreground" Value="{DynamicResource Danger}" />
   </Style>
+  <!-- A text toggle keeps its tone when hovered, as the animation row's file link does. -->
+  <Style Selector="Button.listFold:pointerover /template/ ContentPresenter, Button.listFold:pressed /template/ ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+  </Style>
+  <Style Selector="Button.listFold.danger:pointerover /template/ ContentPresenter, Button.listFold.danger:pressed /template/ ContentPresenter">
+    <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+  </Style>
   <Style Selector="ToggleSwitch.plain">
     <Setter Property="OnContent" Value="" />
     <Setter Property="OffContent" Value="" />
