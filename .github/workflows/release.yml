@@ -117,7 +117,7 @@ jobs:
           | macOS Apple Silicon | CLI | [下载]($url/aether-cli-$TAG-osx-arm64.tar.gz) | [下载]($url/aether-cli-$TAG-osx-arm64-framework-dependent.tar.gz) |
           | macOS Apple Silicon | GUI | [下载]($url/aether-gui-$TAG-osx-arm64.tar.gz) | [下载]($url/aether-gui-$TAG-osx-arm64-framework-dependent.tar.gz) |
 
-          解压到可写目录。首次启动、macOS/Windows 放行和拷贝 data/ 升级的方法见 [下载说明](https://github.com/$GH_REPO/blob/$TAG/README.md#下载)。
+          解压到可写目录。首次启动、macOS/Windows 放行和升级方法见 [下载说明](https://github.com/$GH_REPO/blob/$TAG/README.md#下载)。
 
           EOF
           gh release create "$TAG" "${packages[@]}" --verify-tag --title "$TAG" \

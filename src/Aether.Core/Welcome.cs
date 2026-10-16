@@ -3,9 +3,10 @@ using Aether.Core.Entries;
 namespace Aether.Core;
 
 /// <summary>One room connection's 进场欢迎 decisions, without logging or sending.</summary>
-internal sealed class Welcome(Settings settings)
+internal sealed class Welcome(Settings settings, Random? random = null)
 {
-    private readonly WelcomeText welcomeText = new(settings.WelcomeText.Value);
+    private readonly WelcomeText[] welcomeTexts = settings.WelcomeTexts.Value.Select(text => new WelcomeText(text)).ToArray();
+    private readonly Random random = random ?? Random.Shared;
     // On the same scale as Entry.GuardTier; 0 is 关闭.
     private readonly int guardThreshold = Settings.WelcomeGuards.ToList().IndexOf(settings.WelcomeGuard.Value);
 
@@ -50,6 +51,7 @@ internal sealed class Welcome(Settings settings)
             match = (WelcomeCondition.WealthLevel, FormattableString.Invariant($"{entry.WealthLevel}"));
         else return null;
 
+        var welcomeText = welcomeTexts[random.Next(welcomeTexts.Length)];
         var text = welcomeText.Render(entry.Nickname, entry.GuardName, danmakuLengthLimit);
         // B站 refuses an empty danmaku, as "{大航海}" for a non-guard or a fully truncated nickname gives.
         Rejection? rejection = string.IsNullOrWhiteSpace(text) ? Rejection.EmptyText

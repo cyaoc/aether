@@ -245,18 +245,30 @@
                 <TextBlock x:Name="SendIntervalError" Classes="error" />
               </StackPanel>
               <StackPanel x:Name="WelcomeFields" Spacing="8">
-                <TextBlock Classes="section" Text="欢迎语" />
-                <TextBox x:Name="WelcomeTextInput" AutomationProperties.Name="欢迎语" />
+                <Grid ColumnDefinitions="*,Auto">
+                  <WrapPanel>
+                    <TextBlock Classes="section" Text="欢迎语" Margin="0,0,8,0" />
+                    <TextBlock x:Name="WelcomeRandomHint" Classes="hint" />
+                  </WrapPanel>
+                  <TextBlock Grid.Column="1" x:Name="WelcomeTextCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+                </Grid>
+                <StackPanel x:Name="WelcomeTextRows" Spacing="8" />
                 <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-                <TextBlock x:Name="WelcomeTextError" Classes="error" />
                 <WrapPanel Orientation="Horizontal">
                   <TextBlock Classes="caption muted" Text="插入" VerticalAlignment="Center" Margin="0,0,8,0" />
                   <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertAtButton" Content="@观众" Tag="{}{@}" Click="InsertPlaceholder" />
                   <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertNicknameButton" Content="昵称" Tag="{}{昵称}" Click="InsertPlaceholder" />
                   <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertGuardButton" Content="大航海身份" Tag="{}{大航海}" Click="InsertPlaceholder" />
+                  <TextBlock x:Name="WelcomeInsertTarget" Classes="caption muted" VerticalAlignment="Center" />
                 </WrapPanel>
                 <TextBlock x:Name="WelcomeTextHint" Classes="caption muted" TextWrapping="Wrap"
                   Text="英文、数字、半角符号算 1，其他字符算 2。上限自动读取账号的。可用 {@}（只能放开头）、{昵称}、{大航海}；用 {{ 和 }} 转义花括号。" />
+                <Button x:Name="AddWelcomeTextButton" HorizontalAlignment="Left" Padding="10,0,12,0" Click="AddWelcomeText">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" /></Viewbox>
+                    <TextBlock Text="添加欢迎语" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
                 <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
                   <WrapPanel>
                     <TextBlock Classes="section" Text="欢迎条件" Margin="0,0,10,0" />

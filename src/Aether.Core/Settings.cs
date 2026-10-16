@@ -49,11 +49,12 @@ public sealed class Settings
         welcome:
           # true 或 false，满足下面任意一个欢迎条件的观众进场时，发一条欢迎弹幕
           enabled: false
-          # 欢迎语，非空文字。可用 {@}（@ 这位观众，只能放开头，不算字数）、{昵称}（太长时自动截短）、
+          # 欢迎语列表，可以写多条，每次随机发一条；列表和每一条都不能为空
+          # 可用 {@}（@ 这位观众，只能放开头，不算字数）、{昵称}（太长时自动截短）、
           # {大航海}（舰长/提督/总督，不是大航海身份时为空）；要写花括号本身，用 {{ 和 }}
-          # 以 { 开头时要加引号，例如："{@}欢迎回家"、"欢迎{大航海}{昵称}"、"欢迎{昵称}光临"
+          # 用 ["欢迎{大航海}{昵称}", "{@}欢迎回家"] 的单行写法；每条加双引号，双引号和反斜杠写成 \" 和 \\
           # 英文、数字、半角符号算 1，其他字符算 2。上限自动读取账号的
-          text: "欢迎{大航海}{昵称}"
+          texts: ["欢迎{大航海}{昵称}"]
           # 指定观众的 UID，例如 [12345, 67890]；[] 表示不按 UID 欢迎
           uids: []
           # 本直播间粉丝团等级达到多少就欢迎，0 表示不按粉丝团等级欢迎
@@ -99,7 +100,8 @@ public sealed class Settings
     private static readonly Definition<bool> Announce = Register(Definition.Boolean("blind_box.announce", true));
     private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 1, "必须为正整数。", seconds => seconds > 0));
     private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome.enabled", false));
-    private static readonly Definition<string> WelcomeTemplate = Register(Definition.RequiredText("welcome.text", "欢迎{大航海}{昵称}", Core.WelcomeText.Validate));
+    private static readonly Definition<IReadOnlyList<string>> WelcomeTextList = Register(Definition.TextList("welcome.texts", ["欢迎{大航海}{昵称}"],
+        texts => texts.Count == 0 ? "欢迎语列表不能为空。" : texts.Select(Core.WelcomeText.Validate).FirstOrDefault(error => error is not null)));
     private static readonly Definition<IReadOnlyList<long>> WelcomeUidList = Register(Definition.NumberList("welcome.uids", []));
     private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", 0, "必须为非负整数。", level => level >= 0));
     /// <summary>The values welcome.guard accepts: 关闭, then 大航海身份 from low to high, so each one's index is its tier.</summary>
@@ -127,7 +129,7 @@ public sealed class Settings
     public Setting<bool> BlindBoxAnnounce => Get(Announce);
     public Setting<int> SendIntervalSeconds => Get(SendInterval);
     public Setting<bool> WelcomeEnabled => Get(WelcomeOn);
-    public Setting<string> WelcomeText => Get(WelcomeTemplate);
+    public Setting<IReadOnlyList<string>> WelcomeTexts => Get(WelcomeTextList);
     public Setting<IReadOnlyList<long>> WelcomeUids => Get(WelcomeUidList);
     public Setting<int> WelcomeFanClubLevel => Get(WelcomeFanClub);
     public Setting<string> WelcomeGuard => Get(WelcomeGuardTier);
@@ -158,6 +160,9 @@ public sealed class Settings
     /// <summary>How a number list is written in the file, which is also the text forms take for it.</summary>
     public static string NumberListText(IEnumerable<long> numbers) =>
         Definition.Emit(numbers.Select(number => number.ToString(CultureInfo.InvariantCulture)));
+
+    /// <summary>A single-line text list, quoting every item and escaping quotes and backslashes.</summary>
+    public static string TextListText(IEnumerable<string> texts) => Definition.Emit(texts, ScalarStyle.DoubleQuoted);
 
     /// <summary>The same validation used when loading and saving; null means the input is valid.</summary>
     public static string? Validate(string name, string? value) => Validate(Definitions, name, value);
@@ -560,10 +565,10 @@ public sealed class Settings
                 text => OneLine(text) && !string.IsNullOrWhiteSpace(text) ? (true, text) : default, text => text, check);
 
         /// <summary>One-line texts, written as <c>[a, b]</c>; the input text uses the same form.</summary>
-        public static Definition<IReadOnlyList<string>> TextList(string name, IReadOnlyList<string> initial)
+        public static Definition<IReadOnlyList<string>> TextList(string name, IReadOnlyList<string> initial, Func<IReadOnlyList<string>, string?>? check = null)
         {
             const string rule = "必须是 [a, b] 形式的一行文字列表。";
-            return new(name, initial, rule, (node, _) => ReadList(node), ParseList, Emit);
+            return new(name, initial, rule, (node, _) => ReadList(node), ParseList, TextListText, check);
 
             static (bool, IReadOnlyList<string>) ReadList(YamlNode node) =>
                 node is YamlSequenceNode list && list.Children.All(item => item is YamlScalarNode { Value: { } text } && OneLine(text))
@@ -612,15 +617,15 @@ public sealed class Settings
 
         private static bool OneLine(string text) => text.AsSpan().IndexOfAny(LineBreaks) < 0;
 
-        /// <summary>A one-line flow list, letting YamlDotNet decide which items need quotes.</summary>
-        internal static string Emit(IEnumerable<string> items)
+        /// <summary>A one-line flow list; by default YamlDotNet decides which items need quotes.</summary>
+        internal static string Emit(IEnumerable<string> items, ScalarStyle style = ScalarStyle.Any)
         {
             using var writer = new StringWriter();
             var emitter = new Emitter(writer, new EmitterSettings().WithBestWidth(int.MaxValue));
             emitter.Emit(new StreamStart());
             emitter.Emit(new DocumentStart(null, null, true));
             emitter.Emit(new SequenceStart(null, null, true, SequenceStyle.Flow));
-            foreach (var item in items) emitter.Emit(new Scalar(null, null, item, ScalarStyle.Any, true, true));
+            foreach (var item in items) emitter.Emit(new Scalar(null, null, item, style, true, true));
             emitter.Emit(new SequenceEnd());
             emitter.Emit(new DocumentEnd(true));
             emitter.Emit(new StreamEnd());

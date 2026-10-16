@@ -72,7 +72,7 @@ public sealed class WelcomeConditionTests : IDisposable
     public void Matched_result_includes_rendered_text_mention_and_rejection_reason(
         string template, int limit, string text, bool mention, string? reason)
     {
-        var result = CreateWelcome(new() { ["welcome.uids"] = "[10001]", ["welcome.text"] = template }).Evaluate(Viewer(), limit);
+        var result = CreateWelcome(new() { ["welcome.uids"] = "[10001]", ["welcome.texts"] = Settings.TextListText([template]) }).Evaluate(Viewer(), limit);
         Assert.NotNull(result);
         Assert.Equal(text, result.Text);
         Assert.Equal(mention, result.Mention);
@@ -87,7 +87,7 @@ public sealed class WelcomeConditionTests : IDisposable
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
             ["welcome.enabled"] = "true", ["welcome.uids"] = "[10001]", ["welcome.fan_club_level"] = "21",
-            ["welcome.guard"] = "舰长", ["welcome.wealth_level"] = "45", ["welcome.text"] = "{@}欢迎{大航海}{昵称}"
+            ["welcome.guard"] = "舰长", ["welcome.wealth_level"] = "45", ["welcome.texts"] = Settings.TextListText(["{@}欢迎{大航海}{昵称}"])
         });
         var sent = CaptureSends(h);
         await using (var updates = await h.WatchConnectedAsync())

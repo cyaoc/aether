@@ -7,6 +7,39 @@ namespace Aether.Core.Tests;
 
 public sealed class WelcomeTests
 {
+    [Theory]
+    [InlineData(0, "欢迎测试观众", false, null)]
+    [InlineData(1, "欢迎回家", true, null)]
+    [InlineData(2, "", false, "欢迎语拼出来是空的")]
+    [InlineData(3, "这条欢迎语肯定超过十个汉字", false, "欢迎语超过弹幕字数上限 20")]
+    public async Task Each_match_uses_the_selected_text_and_mention_without_redrawing_rejected_texts(
+        int selected, string text, bool mention, string? reason)
+    {
+        await using var h = new WatchHarness();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string>
+        {
+            ["welcome.uids"] = "[10001]",
+            ["welcome.texts"] = Settings.TextListText(["欢迎{昵称}", "{@}欢迎回家", "{大航海}", "这条欢迎语肯定超过十个汉字"])
+        });
+        var random = new FixedRandom(selected);
+        var welcome = new Welcome(Settings.Load(h.DataDirectory), random);
+        for (var i = 0; i < 2; i++)
+        {
+            var result = welcome.Evaluate(new(10001, "测试观众", 1, 0, null, 0), 20);
+            Assert.NotNull(result);
+            Assert.Equal(text, result.Text);
+            Assert.Equal(mention, result.Mention);
+            Assert.Equal(reason, result.RejectionReason);
+        }
+        Assert.Equal([4, 4], random.Bounds);
+    }
+
+    private sealed class FixedRandom(int selected) : Random
+    {
+        public List<int> Bounds { get; } = [];
+        public override int Next(int maxValue) { Bounds.Add(maxValue); return selected; }
+    }
+
     [Fact]
     public async Task An_expired_retry_does_not_consume_the_next_welcomes_retry()
     {
@@ -329,7 +362,7 @@ public sealed class WelcomeTests
     {
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.text"] = text
+            ["welcome.enabled"] = "true", ["welcome.texts"] = Settings.TextListText([text])
         });
         h.Http.SetDanmakuLengthLimit(limit);
     }
