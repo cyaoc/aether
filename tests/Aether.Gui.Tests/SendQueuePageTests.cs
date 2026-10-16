@@ -1,7 +1,9 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
+using Avalonia.Controls.Documents;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -14,9 +16,13 @@ public sealed class SendQueuePageTests
     private static readonly DateTimeOffset OccurredAt = new(2026, 10, 12, 14, 30, 0, TimeSpan.FromHours(8));
 
     [Theory]
-    [InlineData(960)]
-    [InlineData(760)]
-    public Task Activity_rows_align_with_their_headings_and_leave_space_at_both_ends(int width) => HeadlessApp.Session.Dispatch(async () =>
+    [InlineData(960, "momo_7")]
+    [InlineData(760, "momo_7")]
+    [InlineData(960, "观众")]
+    [InlineData(760, "观众")]
+    [InlineData(960, "观众bili")]
+    [InlineData(760, "观众bili")]
+    public Task Activity_rows_align_with_their_headings_and_leave_space_at_both_ends(int width, string nickname) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
@@ -25,26 +31,25 @@ public sealed class SendQueuePageTests
         window.Show();
         try
         {
-            viewModel.Apply(Update(1, SendQueueItemKind.Welcome) with { Text = "欢迎回来" });
-            viewModel.Apply(Update(2, SendQueueItemKind.Welcome, SendQueueItemState.Sent) with { Text = "欢迎回来" });
-            viewModel.Apply(Update(3, SendQueueItemKind.BlindBoxQuery, SendQueueItemState.Sent));
-            viewModel.Apply(Update(4, SendQueueItemKind.BlindBoxAnnouncement, SendQueueItemState.Sent));
-            foreach (var (index, listName, heading) in new[]
+            viewModel.Apply(Update(1, SendQueueItemKind.Welcome) with { Nickname = nickname, Text = "欢迎回来" });
+            viewModel.Apply(Update(2, SendQueueItemKind.Welcome, SendQueueItemState.Sent) with
             {
-                (4, "PendingSendsList", "待发"), (4, "RecentSendsList", "最近发送"),
-                (2, "RecentWelcomesList", "最近欢迎"), (1, "RecentQueriesAndAnnouncementsList", "最近回复和播报")
+                Nickname = nickname, Text = "欢迎回来", WelcomeCondition = WelcomeCondition.Guard, WelcomeValue = "舰长"
+            });
+            viewModel.Apply(Update(3, SendQueueItemKind.BlindBoxQuery, SendQueueItemState.Sent) with { Nickname = nickname });
+            viewModel.Apply(Update(4, SendQueueItemKind.BlindBoxAnnouncement, SendQueueItemState.Sent) with { Nickname = nickname });
+            foreach (var (index, listName, heading, detail) in new[]
+            {
+                (4, "PendingSendsList", "待发", "进场欢迎"), (4, "RecentSendsList", "最近发送", "盲盒播报"),
+                (2, "RecentWelcomesList", "最近欢迎", "舰长"), (1, "RecentQueriesAndAnnouncementsList", "最近回复和播报", "播报")
             })
             {
-                window.Navigation.SelectedIndex = index;
-                GuiHarness.Flush();
-                var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-                var list = page.FindControl<ListBox>(listName)!;
+                var (page, list, header, time) = FirstRecordHeader(window, index, listName, $"{nickname} {detail}");
                 var title = page.GetVisualDescendants().OfType<TextBlock>().Single(x => x.Text == heading);
                 var count = Assert.IsType<Grid>(title.Parent).GetVisualDescendants().OfType<TextBlock>().Last(x => x.IsEffectivelyVisible);
                 var first = list.ContainerFromIndex(0)!;
-                var text = first.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).ToArray();
-                var time = text.Single(x => x.Text == "14:30:00");
-                Assert.Equal(title.TranslatePoint(default, window)!.Value.X, text[0].TranslatePoint(default, window)!.Value.X);
+                Assert.Single(header.TextLayout.TextLines);
+                Assert.Equal(title.TranslatePoint(default, window)!.Value.X, header.TranslatePoint(default, window)!.Value.X);
                 Assert.Equal(count.TranslatePoint(new Point(count.Bounds.Width, 0), window)!.Value.X,
                     time.TranslatePoint(new Point(time.Bounds.Width, 0), window)!.Value.X);
                 Assert.True(first.TranslatePoint(default, list)!.Value.Y >= 8);
@@ -53,7 +58,7 @@ public sealed class SendQueuePageTests
                 {
                     var item = list.ContainerFromIndex(i)!;
                     var border = item.GetVisualDescendants().OfType<Border>().Single(x => x.Child is StackPanel);
-                    Assert.Equal(text[0].TranslatePoint(default, window)!.Value.X, border.TranslatePoint(default, window)!.Value.X);
+                    Assert.Equal(header.TranslatePoint(default, window)!.Value.X, border.TranslatePoint(default, window)!.Value.X);
                     Assert.Equal(time.TranslatePoint(new Point(time.Bounds.Width, 0), window)!.Value.X,
                         border.TranslatePoint(new Point(border.Bounds.Width, 0), window)!.Value.X);
                     var content = Assert.IsType<StackPanel>(border.Child);
@@ -65,6 +70,59 @@ public sealed class SendQueuePageTests
                 GuiHarness.Flush();
                 var last = list.ContainerFromIndex(list.ItemCount - 1)!;
                 Assert.True(list.Bounds.Height - last.TranslatePoint(new Point(0, last.Bounds.Height), list)!.Value.Y >= 12);
+            }
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(760, false)]
+    [InlineData(760, true)]
+    [InlineData(960, false)]
+    [InlineData(960, true)]
+    public Task Long_viewer_nicknames_wrap_in_full_beside_the_time(int width, bool dark) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        const string nickname = GuiHarness.LongEnglishNickname;
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory)
+        {
+            DataContext = viewModel, Width = width, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+        };
+        window.Show();
+        try
+        {
+            viewModel.Apply(Update(1, SendQueueItemKind.Welcome) with { Nickname = nickname });
+            viewModel.Apply(Update(2, SendQueueItemKind.Welcome, SendQueueItemState.Sent) with
+            {
+                Nickname = nickname, WelcomeCondition = WelcomeCondition.FanClubLevel, WelcomeValue = "12"
+            });
+            viewModel.Apply(Update(3, SendQueueItemKind.BlindBoxAnnouncement, SendQueueItemState.Sent) with { Nickname = nickname });
+            foreach (var (index, listName, detail) in new[]
+            {
+                (4, "PendingSendsList", "进场欢迎"), (4, "RecentSendsList", "盲盒播报"),
+                (2, "RecentWelcomesList", "粉丝团 12"), (1, "RecentQueriesAndAnnouncementsList", "播报")
+            })
+            {
+                var (_, _, header, time) = FirstRecordHeader(window, index, listName, $"{nickname} {detail}");
+                var lines = header.TextLayout.TextLines;
+                Assert.True(lines.Count > 1);
+                Assert.True(header.Bounds.Height > lines[0].Height);
+                Assert.All(lines, line =>
+                {
+                    Assert.False(line.HasCollapsed);
+                    Assert.True(line.Width <= header.Bounds.Width + 0.5);
+                });
+                Assert.True(header.TranslatePoint(new Point(header.Bounds.Width, 0), window)!.Value.X <= time.TranslatePoint(default, window)!.Value.X - 8);
+                Assert.Null(ToolTip.GetTip(header));
+                var runs = header.Inlines!.OfType<Run>().ToArray();
+                Assert.Equal(FontWeight.SemiBold, runs.First().FontWeight);
+                Assert.Equal(FontWeight.Normal, runs.Last().FontWeight);
+                Assert.All(runs, run => Assert.Equal(13, run.FontSize));
+                Assert.Equal(Color.Parse(dark ? "#E8EAED" : "#16181D"), ColorOf(runs.First().Foreground));
+                Assert.Equal(Color.Parse(dark ? "#9097A3" : "#5B6270"), ColorOf(runs.Last().Foreground));
             }
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -355,9 +413,9 @@ public sealed class SendQueuePageTests
             GuiHarness.Flush();
             Assert.Contains("最近欢迎", GuiHarness.VisibleText(window));
             Assert.Contains("共 1 次", GuiHarness.VisibleText(window));
-            Assert.Contains("指定 UID", GuiHarness.VisibleText(window));
+            Assert.Contains("观众1 指定 UID", GuiHarness.VisibleText(window));
             Assert.Contains("欢迎回来", GuiHarness.VisibleText(window));
-            Assert.DoesNotContain("观众2", GuiHarness.VisibleText(window));
+            Assert.DoesNotContain(GuiHarness.VisibleText(window), text => text?.StartsWith("观众2") == true);
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(control => control.IsEffectivelyVisible);
             var activity = page.FindControl<Border>("RecentActivity")!;
             var activityOrigin = activity.TranslatePoint(new Point(), page)!.Value;
@@ -374,10 +432,10 @@ public sealed class SendQueuePageTests
             navigation.SelectedIndex = 1;
             GuiHarness.Flush();
             Assert.Contains("最近回复和播报", GuiHarness.VisibleText(window));
-            Assert.Contains("查询", GuiHarness.VisibleText(window));
-            Assert.Contains("播报", GuiHarness.VisibleText(window));
+            Assert.Contains("观众2 查询", GuiHarness.VisibleText(window));
+            Assert.Contains("观众3 播报", GuiHarness.VisibleText(window));
             Assert.Equal(2, GuiHarness.VisibleText(window).Count(text => text == "发送时计算金额"));
-            Assert.DoesNotContain("观众1", GuiHarness.VisibleText(window));
+            Assert.DoesNotContain(GuiHarness.VisibleText(window), text => text?.StartsWith("观众1") == true);
             Assert.Equal(new long[] { 3, 2 }, viewModel.RecentQueriesAndAnnouncements.Select(item => item.Id));
 
             viewModel.Apply(welcome with { State = SendQueueItemState.Sent });
@@ -393,9 +451,9 @@ public sealed class SendQueuePageTests
             GuiHarness.Flush();
             Assert.Contains("待发", GuiHarness.VisibleText(window));
             Assert.Contains("最近发送", GuiHarness.VisibleText(window));
-            Assert.Contains("盲盒播报", GuiHarness.VisibleText(window));
-            Assert.Contains("盲盒查询", GuiHarness.VisibleText(window));
-            Assert.Contains("进场欢迎", GuiHarness.VisibleText(window));
+            Assert.Contains("观众3 盲盒播报", GuiHarness.VisibleText(window));
+            Assert.Contains("观众2 盲盒查询", GuiHarness.VisibleText(window));
+            Assert.Contains("观众1 进场欢迎", GuiHarness.VisibleText(window));
             Assert.Contains("今日赚 20 电池", GuiHarness.VisibleText(window));
             Assert.Contains("没发出：发送被拒绝", GuiHarness.VisibleText(window));
             Assert.DoesNotContain("发送时计算金额", GuiHarness.VisibleText(window));
@@ -405,7 +463,7 @@ public sealed class SendQueuePageTests
             var pending = Assert.Single(statuses, control => control.Text == "排队中 · 第 1 条");
             var sent = Assert.Single(statuses, control => control.Text == "已发送 14:30:00");
             var unsent = Assert.Single(statuses, control => control.Text == "没发出：发送被拒绝");
-            var colors = new[] { pending, sent, unsent }.Select(control => Assert.IsAssignableFrom<ISolidColorBrush>(control.Foreground).Color).ToArray();
+            var colors = new[] { pending, sent, unsent }.Select(control => ColorOf(control.Foreground)).ToArray();
             Assert.Equal(3, colors.Distinct().Count());
             Assert.DoesNotContain(Colors.Transparent, colors);
             viewModel.Apply(announcement with { State = SendQueueItemState.Sent, Text = "本轮赚 30 电池" });
@@ -414,6 +472,23 @@ public sealed class SendQueuePageTests
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
         return true;
     }, TestContext.Current.CancellationToken);
+
+    /// <summary>Shows a page and finds the header and time of the first record in one of its activity lists.</summary>
+    private static (SettingsPage Page, ListBox List, TextBlock Header, TextBlock Time) FirstRecordHeader(
+        MainWindow window, int page, string listName, string header)
+    {
+        window.Navigation.SelectedIndex = page;
+        GuiHarness.Flush();
+        var settings = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+        var list = settings.FindControl<ListBox>(listName)!;
+        var text = list.ContainerFromIndex(0)!.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).ToArray();
+        var found = Assert.Single(text, x => new TextBlockAutomationPeer(x).GetName() == header);
+        var time = text.Single(x => x.Text == "14:30:00");
+        GuiHarness.AssertSameBaseline(found, time, window);
+        return (settings, list, found, time);
+    }
+
+    private static Color ColorOf(IBrush? brush) => Assert.IsAssignableFrom<ISolidColorBrush>(brush).Color;
 
     private static SendQueueUpdate Update(long id, SendQueueItemKind kind,
         SendQueueItemState state = SendQueueItemState.Queued) => new(id, OccurredAt, kind, state, id, $"观众{id}");
