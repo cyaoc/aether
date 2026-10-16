@@ -870,7 +870,7 @@ public sealed class SettingsTests : IAsyncDisposable
 
         Settings.Save(harness.DataDirectory, [Viewers], new Dictionary<string, string> { ["welcome.viewers"] = "[甲, '{丙}', 'a, b']" });
 
-        Assert.Equal("welcome:\n  viewers: [甲, '{丙}', 'a, b']  # 名单\n", File.ReadAllText(SettingsPath));
+        Assert.Equal("welcome:\n  viewers: [\"甲\", \"{丙}\", \"a, b\"]  # 名单\n", File.ReadAllText(SettingsPath));
         Assert.Equal(["甲", "{丙}", "a, b"], Settings.Load(harness.DataDirectory, [Viewers]).Get(Viewers).Value);
 
         Write("welcome:\n  viewers:\n    - 甲\n");
@@ -901,7 +901,7 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("welcome:\n  greeting: 你好\n", "welcome.viewers", "[甲, 乙]", "welcome:\n  greeting: 你好\n  viewers: [甲, 乙]\n")]
+    [InlineData("welcome:\n  greeting: 你好\n", "welcome.viewers", "[甲, 乙]", "welcome:\n  greeting: 你好\n  viewers: [\"甲\", \"乙\"]\n")]
     [InlineData("welcome:\n  viewers: [甲]  # 名单\nlog: {}\n", "welcome.greeting", "你好",
         "welcome:\n  viewers: [甲]  # 名单\n  greeting: 你好\nlog: {}\n")]
     public void Missing_text_or_list_settings_are_added_after_the_groups_last_line(string yaml, string name, string value, string expected)

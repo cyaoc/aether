@@ -17,6 +17,52 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     [Theory]
+    [InlineData(960, false)]
+    [InlineData(960, true)]
+    [InlineData(904, false)]
+    [InlineData(904, true)]
+    public Task Screenshots_welcome_text_lists(int width, bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            Settings.Save(harness.DataDirectory, new Dictionary<string, string>
+            {
+                ["welcome.enabled"] = "true", ["welcome.fan_club_level"] = "12",
+                ["welcome.texts"] = Settings.TextListText(["欢迎{大航海}{昵称}", "{@}欢迎回家", "晚上好{昵称}，今天也来啦"])
+            });
+            var viewModel = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, Width = width, Height = 640,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = 2;
+                GuiHarness.Flush();
+                var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.Section == SettingsSection.Welcome);
+                Capture("three");
+                page.FindControl<Button>("AddWelcomeTextButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Capture("empty-row");
+                WelcomeTextList.Input(page, 3).Text = "欢迎回到直播间";
+                Capture("four");
+                foreach (var row in WelcomeTextList.Rows(page).Skip(1))
+                    row.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Capture("one");
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+
+            void Capture(string state) => Save(window, $"welcome-texts-{state}-{width}-{(dark ? "dark" : "light")}");
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
     [InlineData(960, 640, false)]
     [InlineData(960, 640, true)]
     [InlineData(760, 520, false)]
@@ -299,7 +345,7 @@ public sealed class VisualReviewTests
             navigation.SelectedIndex = 2;
             GuiHarness.Flush();
             var welcome = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            welcome.FindControl<TextBox>("WelcomeTextInput")!.Text = "欢迎{昵称}回到直播间";
+            WelcomeTextList.Input(welcome).Text = "欢迎{昵称}回到直播间";
             GuiHarness.Flush();
             welcome.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Capture("welcome-reconnect");

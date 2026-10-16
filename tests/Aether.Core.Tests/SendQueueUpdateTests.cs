@@ -145,7 +145,7 @@ public sealed class SendQueueUpdateTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.text"] = text, [setting] = threshold
+            ["welcome.enabled"] = "true", ["welcome.texts"] = Settings.TextListText([text]), [setting] = threshold
         });
         h.Http.SetDanmakuLengthLimit(limit);
         var sent = CaptureSends(h);
@@ -414,7 +414,7 @@ public sealed class SendQueueUpdateTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.text"] = "{大航海}", ["welcome.uids"] = "[10001]"
+            ["welcome.enabled"] = "true", ["welcome.texts"] = Settings.TextListText(["{大航海}"]), ["welcome.uids"] = "[10001]"
         });
         var sent = CaptureSends(h);
         HoldSends(h, attempt: 1);

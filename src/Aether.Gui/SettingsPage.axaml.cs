@@ -74,7 +74,6 @@ public partial class SettingsPage : UserControl
         LogLevelInput.SelectionChanged += (_, _) => Validate();
         DailyKeywordInput.TextChanged += (_, _) => Validate();
         MonthlyKeywordInput.TextChanged += (_, _) => Validate();
-        WelcomeTextInput.TextChanged += (_, _) => Validate();
         foreach (var toggle in new[] { BlindBoxInput, AnnounceInput, WelcomeInput, AnimationInput })
             toggle.PropertyChanged += (_, e) =>
             {
@@ -128,13 +127,11 @@ public partial class SettingsPage : UserControl
         Show(AnnounceInput, AnnounceReadOnly, settings.BlindBoxAnnounce);
         Show(SendIntervalInput, SendIntervalReadOnly, settings.SendIntervalSeconds);
         Show(WelcomeInput, WelcomeReadOnly, settings.WelcomeEnabled);
-        Show(WelcomeTextInput, WelcomeTextReadOnly, settings.WelcomeText);
+        LoadWelcomeTexts();
         Show(AnimationInput, AnimationReadOnly, settings.WelcomeAnimationEnabled);
         Show(AnimationPortInput, AnimationPortReadOnly, settings.WelcomeAnimationPort);
         LoadWelcomeConditions();
         if (Section == SettingsSection.WelcomeAnimation) LoadAnimations();
-        foreach (var button in new[] { InsertAtButton, InsertNicknameButton, InsertGuardButton })
-            button.IsEnabled = settings.WelcomeText.CanEdit;
         original = Fields().ToDictionary(field => field.Name, field => field.Input);
         loading = false;
         Validate();
@@ -207,7 +204,7 @@ public partial class SettingsPage : UserControl
         new(settings.BlindBoxAnnounce.Name, settings.BlindBoxAnnounce.CanEdit, Settings.BooleanText(AnnounceInput.IsChecked == true), AnnounceError),
         new(settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text, SendIntervalError),
         new(settings.WelcomeEnabled.Name, settings.WelcomeEnabled.CanEdit, Settings.BooleanText(WelcomeInput.IsChecked == true), WelcomeError),
-        new(settings.WelcomeText.Name, settings.WelcomeText.CanEdit, WelcomeTextInput.Text, WelcomeTextError),
+        new(settings.WelcomeTexts.Name, settings.WelcomeTexts.CanEdit, Settings.TextListText(WelcomeTexts.Select(row => row.Value))),
         new(settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, WelcomeUidsText()),
         new(settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, ConditionValue(WelcomeCondition.FanClubLevel, "0")),
         new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, ConditionValue(WelcomeCondition.Guard, Settings.WelcomeGuards[0])),
@@ -231,12 +228,13 @@ public partial class SettingsPage : UserControl
         }
         var welcome = Section == SettingsSection.Welcome;
         var invalidCondition = welcome && ShowConditionErrors();
+        var invalidWelcomeText = welcome && ShowWelcomeTextErrors();
         var animation = Section == SettingsSection.WelcomeAnimation;
         var invalidAnimation = animation && RefreshAnimations();
         DirtyMessage.IsVisible = welcome && ConditionsAddedOrRemoved
             || animation && AnimationDraft
             || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
-        SaveButton.IsEnabled = fileError is null && error is null && !invalidCondition && !invalidAnimation && DirtyMessage.IsVisible;
+        SaveButton.IsEnabled = fileError is null && error is null && !invalidCondition && !invalidWelcomeText && !invalidAnimation && DirtyMessage.IsVisible;
         if (Section != SettingsSection.WelcomeAnimation || DirtyMessage.IsVisible) Message.Text = "";
     }
 
@@ -319,23 +317,6 @@ public partial class SettingsPage : UserControl
     {
         if (e.PropertyName == nameof(MainWindowViewModel.HasRoomConnection) && viewModel?.HasRoomConnection != true)
             ReconnectNotice.IsVisible = false;
-    }
-
-    private void InsertPlaceholder(object? sender, RoutedEventArgs e)
-    {
-        if (!settings.WelcomeText.CanEdit || sender is not Button { Tag: string token }) return;
-        var text = WelcomeTextInput.Text ?? "";
-        if (token == "{@}")
-            for (var at = 0; at < text.Length; at++)
-            {
-                if (text.AsSpan(at).StartsWith("{{", StringComparison.Ordinal)) at++;
-                else if (text.AsSpan(at).StartsWith(token, StringComparison.Ordinal)) return;
-            }
-        var index = token == "{@}" ? 0 : WelcomeTextInput.CaretIndex;
-        WelcomeTextInput.Text = text.Insert(index, token);
-        WelcomeTextInput.CaretIndex = WelcomeTextInput.SelectionStart = WelcomeTextInput.SelectionEnd = index + token.Length;
-        WelcomeTextInput.Focus();
-        Validate();
     }
 
     private void OpenFile(object? sender, RoutedEventArgs e)

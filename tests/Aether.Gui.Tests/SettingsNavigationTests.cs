@@ -57,7 +57,7 @@ public sealed class SettingsNavigationTests
     [Theory]
     [InlineData(1, "DailyKeywordInput")]
     [InlineData(1, "MonthlyKeywordInput")]
-    [InlineData(2, "WelcomeTextInput")]
+    [InlineData(2, "ValueInput")]
     public Task Enter_connects_only_from_the_room_input(int index, string field) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -78,7 +78,7 @@ public sealed class SettingsNavigationTests
             window.FindControl<ListBox>("Navigation")!.SelectedIndex = index;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            page.FindControl<TextBox>(field)!.Focus();
+            (index == 2 ? WelcomeTextList.Input(page) : page.FindControl<TextBox>(field)!).Focus();
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
             GuiHarness.Flush();
             Assert.False(requested.Task.IsCompleted);
@@ -222,16 +222,16 @@ public sealed class SettingsNavigationTests
             Assert.Equal("关", window.FindControl<TextBlock>("WelcomeStatus")!.Text);
             welcome.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked = true;
             Assert.Equal("关", window.FindControl<TextBlock>("WelcomeStatus")!.Text);
-            welcome.FindControl<TextBox>("WelcomeTextInput")!.Text = "欢迎回家{昵称}";
+            WelcomeTextList.Input(welcome).Text = "欢迎回家{昵称}";
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(SettingsSection.Welcome, Assert.IsType<SettingsPage>(welcome).Section);
             Assert.True(welcome.FindControl<Button>("SaveButton")!.IsEnabled,
                 string.Join(" | ", welcome.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsVisible).Select(x => x.Text)));
             welcome.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal("欢迎回家{昵称}", Settings.Load(harness.DataDirectory).WelcomeText.Value);
+            Assert.Equal("欢迎回家{昵称}", Settings.Load(harness.DataDirectory).WelcomeTexts.Value[0]);
             Assert.Equal("开", window.FindControl<TextBlock>("WelcomeStatus")!.Text);
-            Assert.Equal(new System.Text.RegularExpressions.Regex("enabled: false").Replace(before, "enabled: true", 1).Split('\n').Where(line => !line.StartsWith("  text:")),
-                File.ReadAllText(path).Split('\n').Where(line => !line.StartsWith("  text:")));
+            Assert.Equal(new System.Text.RegularExpressions.Regex("enabled: false").Replace(before, "enabled: true", 1).Split('\n').Where(line => !line.StartsWith("  texts:")),
+                File.ReadAllText(path).Split('\n').Where(line => !line.StartsWith("  texts:")));
 
             navigation.SelectedIndex = 1;
             GuiHarness.Flush();

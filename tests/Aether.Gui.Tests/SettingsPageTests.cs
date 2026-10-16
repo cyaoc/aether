@@ -12,6 +12,115 @@ namespace Aether.Gui.Tests;
 public sealed class SettingsPageTests
 {
     [Fact]
+    public Task Welcome_texts_can_be_added_and_the_new_empty_row_blocks_save() =>
+        WithSettingsPage(SettingsSection.Welcome, null, (page, _) =>
+        {
+            var add = page.FindControl<Button>("AddWelcomeTextButton");
+            Assert.NotNull(add);
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.Equal("2 条", page.FindControl<TextBlock>("WelcomeTextCount")!.Text);
+            Assert.True(WelcomeTextList.Input(page, 1).IsFocused);
+            Assert.Equal("welcome.texts：欢迎语不能为空。", WelcomeTextList.Error(page, 1).Text);
+            Assert.False(WelcomeTextList.Error(page).IsVisible);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+        });
+
+    [Fact]
+    public Task Welcome_rows_save_in_order_and_removing_back_to_the_original_list_clears_the_draft() =>
+        WithSettingsPage(SettingsSection.Welcome, null, (page, path) =>
+        {
+            var before = File.ReadAllText(path);
+            var first = Assert.Single(WelcomeTextList.Rows(page));
+            var remove = first.FindControl<Button>("RemoveButton")!;
+            Assert.False(remove.IsEnabled);
+            remove.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Single(WelcomeTextList.Rows(page));
+            Assert.Equal("写多条时，每次随机发一条", page.FindControl<TextBlock>("WelcomeRandomHint")!.Text);
+            Assert.False(page.FindControl<TextBlock>("WelcomeInsertTarget")!.IsVisible);
+
+            page.FindControl<Button>("AddWelcomeTextButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            WelcomeTextList.Input(page, 1).Text = "欢迎{舰长}";
+            GuiHarness.Flush();
+            Assert.True(WelcomeTextList.Error(page, 1).IsVisible);
+            Assert.False(WelcomeTextList.Error(page).IsVisible);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            WelcomeTextList.Input(page, 1).Text = "{@}欢迎\"老朋友\"\\回家,{{花}}";
+            GuiHarness.Flush();
+            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.Equal("每次随机发一条", page.FindControl<TextBlock>("WelcomeRandomHint")!.Text);
+            WelcomeTextList.Rows(page)[1].FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.Equal(before, File.ReadAllText(path));
+
+            page.FindControl<Button>("AddWelcomeTextButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            WelcomeTextList.Input(page, 1).Text = "{@}欢迎\"老朋友\"\\回家,{{花}}";
+            GuiHarness.Flush();
+            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var settings = Settings.Load(Path.GetDirectoryName(path)!);
+            Assert.Null(settings.Error);
+            Assert.Equal(["欢迎{大航海}{昵称}", "{@}欢迎\"老朋友\"\\回家,{{花}}"], settings.WelcomeTexts.Value);
+            Assert.True(settings.WelcomeTexts.CanEdit);
+            Assert.Contains("  texts: [\"欢迎{大航海}{昵称}\", \"{@}欢迎\\\"老朋友\\\"\\\\回家,{{花}}\"]", File.ReadAllText(path));
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+        });
+
+    [Fact]
+    public Task Insert_buttons_remember_the_last_edited_row_and_follow_it_after_deletion() =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome:\n  texts: [欢迎, 回家, 晚上好]\n", (page, _) =>
+        {
+            var input = WelcomeTextList.Input(page, 1);
+            input.Focus();
+            input.CaretIndex = 1;
+            var insert = page.FindControl<Button>("InsertNicknameButton")!;
+            insert.Focus();
+            insert.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("回{昵称}家", input.Text);
+            Assert.Equal("欢迎", WelcomeTextList.Input(page).Text);
+            Assert.Equal("到第 2 条", page.FindControl<TextBlock>("WelcomeInsertTarget")!.Text);
+            WelcomeTextList.Rows(page)[0].FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("到第 1 条", page.FindControl<TextBlock>("WelcomeInsertTarget")!.Text);
+            page.FindControl<Button>("InsertAtButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal("{@}回{昵称}家", input.Text);
+            WelcomeTextList.Rows(page)[0].FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            insert.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Contains("{昵称}", WelcomeTextList.Input(page).Text);
+            Assert.False(page.FindControl<TextBlock>("WelcomeInsertTarget")!.IsVisible);
+        });
+
+    [Theory]
+    [InlineData("\n    - 欢迎\n    - '{@}欢迎回家'")]
+    [InlineData("[欢迎,\n    '{@}欢迎回家']")]
+    public Task Multiline_welcome_texts_are_all_read_only_and_other_settings_can_be_saved(string value) =>
+        WithSettingsPage(SettingsSection.Welcome, $"welcome:\n  enabled: false\n  texts: {value}\n", (page, path) =>
+        {
+            var before = File.ReadAllText(path);
+            Assert.Equal(2, WelcomeTextList.Rows(page).Length);
+            Assert.All(WelcomeTextList.Rows(page), row =>
+            {
+                Assert.True(row.FindControl<TextBox>("ValueInput")!.IsReadOnly);
+                Assert.False(row.FindControl<Button>("RemoveButton")!.IsVisible);
+            });
+            Assert.True(page.FindControl<TextBlock>("WelcomeTextReadOnly")!.IsVisible);
+            Assert.False(page.FindControl<Button>("AddWelcomeTextButton")!.IsVisible);
+            Assert.False(page.FindControl<TextBlock>("WelcomeInsertTarget")!.IsVisible);
+            foreach (var name in new[] { "InsertAtButton", "InsertNicknameButton", "InsertGuardButton" })
+                Assert.False(page.FindControl<Button>(name)!.IsEnabled);
+            page.FindControl<Button>("AddWelcomeTextButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            page.FindControl<Button>("InsertAtButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(2, WelcomeTextList.Rows(page).Length);
+            Assert.Equal("欢迎", WelcomeTextList.Input(page).Text);
+            page.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked = true;
+            GuiHarness.Flush();
+            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(before.Replace("welcome:\n  enabled: false", "welcome:\n  enabled: true"), File.ReadAllText(path));
+        });
+
+    [Fact]
     public Task Default_template_shows_only_the_guard_condition() =>
         WithSettingsPage(SettingsSection.Welcome, null, (page, _) =>
         {
@@ -32,11 +141,11 @@ public sealed class SettingsPageTests
     [InlineData("提督")]
     [InlineData("总督")]
     public Task Welcome_fields_display_and_save_only_changed_lines(string guard) =>
-        WithSettingsPage(SettingsSection.Welcome, "# 保留\r\nwelcome:\r\n  enabled: false # 开关\r\n  text: '欢迎{昵称}' # 正文\r\n  max_length: 20 # 上限\r\n  uids: [42] # 老朋友\r\n  fan_club_level: 1 # 老粉\r\n  guard: 舰长 # 档位\r\n  wealth_level: 2 # 荣耀\r\nfuture: 保留\r\n", (window, path) =>
+        WithSettingsPage(SettingsSection.Welcome, "# 保留\r\nwelcome:\r\n  enabled: false # 开关\r\n  texts: ['欢迎{昵称}'] # 正文\r\n  max_length: 20 # 上限\r\n  uids: [42] # 老朋友\r\n  fan_club_level: 1 # 老粉\r\n  guard: 舰长 # 档位\r\n  wealth_level: 2 # 荣耀\r\nfuture: 保留\r\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
             var enabled = window.FindControl<ToggleSwitch>("WelcomeInput");
-            var text = window.FindControl<TextBox>("WelcomeTextInput");
+            var text = WelcomeTextList.Input(window);
             var uids = Row(window, WelcomeCondition.Uid).FindControl<TextBox>("UidInput");
             var fanClub = Row(window, WelcomeCondition.FanClubLevel).FindControl<NumericUpDown>("LevelInput");
             var threshold = Row(window, WelcomeCondition.Guard).FindControl<ComboBox>("GuardInput");
@@ -77,7 +186,7 @@ public sealed class SettingsPageTests
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("enabled: false # 开关", "enabled: true # 开关")
-                .Replace("text: '欢迎{昵称}'", "text: '{@}欢迎{大航海}{昵称}回家'")
+                .Replace("texts: ['欢迎{昵称}']", "texts: [\"{@}欢迎{大航海}{昵称}回家\"]")
                 .Replace("uids: [42]", "uids: [2147483648, 9223372036854775807]")
                 .Replace("fan_club_level: 1", "fan_club_level: 21")
                 .Replace("guard: 舰长", $"guard: {guard}")
@@ -85,7 +194,7 @@ public sealed class SettingsPageTests
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
             Assert.Null(settings.Error);
             Assert.True(settings.WelcomeEnabled.Value);
-            Assert.Equal("{@}欢迎{大航海}{昵称}回家", settings.WelcomeText.Value);
+            Assert.Equal("{@}欢迎{大航海}{昵称}回家", settings.WelcomeTexts.Value[0]);
             Assert.Contains("welcome.max_length", settings.UnknownKeys);
             Assert.Equal([2147483648L, long.MaxValue], settings.WelcomeUids.Value);
             Assert.Equal(21, settings.WelcomeFanClubLevel.Value);
@@ -325,13 +434,13 @@ public sealed class SettingsPageTests
         WithSettingsPage(SettingsSection.Welcome, null, (window, path) =>
         {
             var before = File.ReadAllText(path);
-            var input = window.FindControl<TextBox>("WelcomeTextInput")!;
+            var input = WelcomeTextList.Input(window);
             input.Text = text;
             Dispatcher.UIThread.RunJobs();
             var save = window.FindControl<Button>("SaveButton")!;
             Assert.False(save.IsEnabled);
-            Assert.Contains("welcome.text", window.FindControl<TextBlock>("WelcomeTextError")!.Text);
-            Assert.Contains("可用占位符为 {@}（只能放开头）、{昵称}、{大航海}", window.FindControl<TextBlock>("WelcomeTextError")!.Text);
+            Assert.Contains("welcome.texts", WelcomeTextList.Error(window).Text);
+            Assert.Contains("可用占位符为 {@}（只能放开头）、{昵称}、{大航海}", WelcomeTextList.Error(window).Text);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before, File.ReadAllText(path));
             Assert.Equal(text, input.Text);
@@ -340,21 +449,21 @@ public sealed class SettingsPageTests
             Dispatcher.UIThread.RunJobs();
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal("{@}欢迎{{{昵称}}}", Settings.Load(Path.GetDirectoryName(path)!).WelcomeText.Value);
+            Assert.Equal("{@}欢迎{{{昵称}}}", Settings.Load(Path.GetDirectoryName(path)!).WelcomeTexts.Value[0]);
         });
 
     [Fact]
     public Task Long_welcome_text_can_be_saved_before_the_accounts_limit_is_known() =>
         WithSettingsPage(SettingsSection.Welcome, null, (window, path) =>
         {
-            window.FindControl<TextBox>("WelcomeTextInput")!.Text = "一二三四五六七八九十百";
+            WelcomeTextList.Input(window).Text = "一二三四五六七八九十百";
             Dispatcher.UIThread.RunJobs();
             var save = window.FindControl<Button>("SaveButton")!;
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
             Assert.Null(settings.Error);
-            Assert.Equal("一二三四五六七八九十百", settings.WelcomeText.Value);
+            Assert.Equal("一二三四五六七八九十百", settings.WelcomeTexts.Value[0]);
         });
 
     [Fact]
@@ -363,7 +472,7 @@ public sealed class SettingsPageTests
         {
             var before = File.ReadAllText(path);
             Assert.False(window.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked);
-            Assert.Equal("欢迎{大航海}{昵称}", window.FindControl<TextBox>("WelcomeTextInput")!.Text);
+            Assert.Equal("欢迎{大航海}{昵称}", WelcomeTextList.Input(window).Text);
             Assert.Null(window.FindControl<NumericUpDown>("WelcomeMaxLengthInput"));
             Assert.Empty(UidLabels(window));
             Assert.DoesNotContain(Rows(window), row => row.Kind == WelcomeCondition.FanClubLevel);
@@ -385,13 +494,13 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Flow_welcome_group_is_read_only_and_preserved_when_other_settings_are_saved() =>
-        WithSettingsPage(SettingsSection.Welcome, "welcome: {enabled: true, text: '欢迎{昵称}', uids: [12345, 67890], fan_club_level: 21, guard: 提督, wealth_level: 45}\n", (window, path) =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome: {enabled: true, texts: ['欢迎{昵称}'], uids: [12345, 67890], fan_club_level: 21, guard: 提督, wealth_level: 45}\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
             Assert.True(window.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked);
             Assert.False(window.FindControl<ToggleSwitch>("WelcomeInput")!.IsEnabled);
-            Assert.Equal("欢迎{昵称}", window.FindControl<TextBox>("WelcomeTextInput")!.Text);
-            Assert.True(window.FindControl<TextBox>("WelcomeTextInput")!.IsReadOnly);
+            Assert.Equal("欢迎{昵称}", WelcomeTextList.Input(window).Text);
+            Assert.True(WelcomeTextList.Input(window).IsReadOnly);
             Assert.Equal(["12345", "67890"], UidLabels(window));
             Assert.All(Rows(window).Where(row => row.Kind == WelcomeCondition.Uid), row => Assert.True(row.FindControl<TextBox>("UidInput")!.IsReadOnly));
             Assert.Equal("提督", Row(window, WelcomeCondition.Guard).FindControl<ComboBox>("GuardInput")!.SelectedItem);
@@ -695,7 +804,7 @@ public sealed class SettingsPageTests
     [Fact]
     public Task Welcome_insert_buttons_use_caret_and_at_viewer_is_inserted_only_once() => WithSettingsPage(SettingsSection.Welcome, null, (page, path) =>
     {
-        var text = page.FindControl<TextBox>("WelcomeTextInput")!;
+        var text = WelcomeTextList.Input(page);
         text.Text = "欢迎回家";
         text.CaretIndex = 2;
         Click("InsertNicknameButton");
@@ -718,13 +827,13 @@ public sealed class SettingsPageTests
     [Fact]
     public Task Escaped_at_text_does_not_block_inserting_an_at_placeholder() => WithSettingsPage(SettingsSection.Welcome, null, (page, path) =>
     {
-        var text = page.FindControl<TextBox>("WelcomeTextInput")!;
+        var text = WelcomeTextList.Input(page);
         text.Text = "欢迎{{@}}";
         var button = page.FindControl<Button>("InsertAtButton")!;
         button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.Equal("{@}欢迎{{@}}", text.Text);
-        Assert.Null(Settings.Validate("welcome.text", text.Text));
+        Assert.Null(Settings.Validate("welcome.texts", Settings.TextListText([text.Text!])));
     });
 
     private static Task WithSettingsPage(SettingsSection section, string? yaml, Action<SettingsPage, string> test) =>

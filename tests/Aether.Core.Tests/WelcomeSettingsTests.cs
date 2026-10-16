@@ -7,12 +7,109 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     private readonly WatchHarness h = new();
 
     [Fact]
+    public void Multiple_welcome_texts_are_valid_setting_input()
+    {
+        Assert.Null(Settings.Validate("welcome.texts", "[\"欢迎{昵称}\", \"{@}欢迎回家\"]"));
+    }
+
+    [Theory]
+    [InlineData("['欢迎{昵称}']", new[] { "欢迎{昵称}" })]
+    [InlineData("['欢迎{昵称}', '{@}欢迎回家', '欢迎{昵称}']", new[] { "欢迎{昵称}", "{@}欢迎回家", "欢迎{昵称}" })]
+    public void Single_line_lists_preserve_each_text_and_its_order(string value, string[] expected)
+    {
+        Directory.CreateDirectory(h.DataDirectory);
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), $"welcome:\n  texts: {value}\n");
+        var settings = Settings.Load(h.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(expected, settings.WelcomeTexts.Value);
+        Assert.True(settings.WelcomeTexts.CanEdit);
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("['']")]
+    [InlineData("['欢迎', ' ']")]
+    [InlineData("['欢迎', '{舰长}']")]
+    [InlineData("['欢迎', '欢迎{@}']")]
+    [InlineData("欢迎{昵称}")]
+    [InlineData("[欢迎, [回家]]")]
+    public void Invalid_list_or_item_reports_the_setting_and_line(string value)
+    {
+        Directory.CreateDirectory(h.DataDirectory);
+        var yaml = $"# 保留\nwelcome:\n  texts: {value}\n";
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
+        var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
+        Assert.Equal("welcome.texts", error.SettingName);
+        Assert.Equal(3, error.LineNumber);
+        Assert.Equal(yaml, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
+        Assert.NotNull(Settings.Validate("welcome.texts", value));
+    }
+
+    [Theory]
+    [InlineData("\n    - 欢迎{昵称}\n    - '{@}欢迎回家'")]
+    [InlineData("['欢迎{昵称}',\n    '{@}欢迎回家']")]
+    public void Multiline_lists_load_but_cannot_be_edited_in_place(string value)
+    {
+        Directory.CreateDirectory(h.DataDirectory);
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), $"welcome:\n  texts: {value}\n");
+        var settings = Settings.Load(h.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(["欢迎{昵称}", "{@}欢迎回家"], settings.WelcomeTexts.Value);
+        Assert.False(settings.WelcomeTexts.CanEdit);
+        var before = File.ReadAllText(Settings.FilePath(h.DataDirectory));
+        Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory,
+            new Dictionary<string, string> { ["welcome.texts"] = "['欢迎']" }));
+        Assert.Equal(before, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
+    }
+
+    [Fact]
+    public void Text_list_writer_quotes_every_item_and_round_trips_special_characters()
+    {
+        string[] texts = ["他说\"你好\"\\来啦,{{花}}", "{@}欢迎", "{昵称}#你好"];
+        var value = Settings.TextListText(texts);
+        Assert.Equal("""["他说\"你好\"\\来啦,{{花}}", "{@}欢迎", "{昵称}#你好"]""", value);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.texts"] = value });
+        var settings = Settings.Load(h.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(texts, settings.WelcomeTexts.Value);
+        Assert.True(settings.WelcomeTexts.CanEdit);
+    }
+
+    [Fact]
+    public void Saving_the_same_texts_keeps_spelling_but_changing_order_is_a_change()
+    {
+        Settings.Load(h.DataDirectory);
+        var path = Settings.FilePath(h.DataDirectory);
+        File.WriteAllText(path, "welcome:\n  texts: ['回来啦', '欢迎'] # 保留\n");
+        var settings = Settings.Load(h.DataDirectory);
+        var before = File.ReadAllText(path);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.texts"] = "[回来啦, 欢迎]" }, settings);
+        Assert.Equal(before, File.ReadAllText(path));
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.texts"] = "[欢迎, 回来啦]" }, settings);
+        Assert.Equal(before.Replace("['回来啦', '欢迎']", "[\"欢迎\", \"回来啦\"]"), File.ReadAllText(path));
+    }
+
+    [Fact]
+    public void Old_text_is_only_an_unknown_key_and_does_not_supply_the_list()
+    {
+        Directory.CreateDirectory(h.DataDirectory);
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  text: '欢迎回来'\n");
+        var settings = Settings.Load(h.DataDirectory, h.Logger);
+        Assert.Null(settings.Error);
+        Assert.Equal(["welcome.text"], settings.UnknownKeys);
+        Assert.Equal(["欢迎{大航海}{昵称}"], settings.WelcomeTexts.Value);
+        var warning = Assert.Single(h.Logger.Entries);
+        Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, warning.Level);
+        Assert.Contains("未知设置键：welcome.text", warning.Message);
+    }
+
+    [Fact]
     public void Defaults_are_written_and_missing_group_is_appended_without_changing_existing_bytes()
     {
         var settings = Settings.Load(h.DataDirectory);
         Assert.Null(settings.Error);
         Assert.False(settings.WelcomeEnabled.Value);
-        Assert.Equal("欢迎{大航海}{昵称}", settings.WelcomeText.Value);
+        Assert.Equal("欢迎{大航海}{昵称}", settings.WelcomeTexts.Value[0]);
         Assert.Empty(settings.WelcomeUids.Value);
         Assert.Equal(0, settings.WelcomeFanClubLevel.Value);
         Assert.Equal("舰长", settings.WelcomeGuard.Value);
@@ -23,7 +120,8 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Assert.Contains("英文、数字、半角符号算 1，其他字符算 2", section);
         Assert.Contains("上限自动读取账号的", section);
         Assert.DoesNotContain("max_length", section);
-        Assert.Contains("以 { 开头时要加引号", section);
+        Assert.Contains("每次随机发一条", section);
+        Assert.Contains("每条加双引号", section);
         Assert.Contains("# 指定观众的 UID，例如 [12345, 67890]；[] 表示不按 UID 欢迎\n  uids: []", section);
         Assert.Contains("# 本直播间粉丝团等级达到多少就欢迎，0 表示不按粉丝团等级欢迎\n  fan_club_level: 0", section);
         Assert.Contains("# 荣耀等级达到多少就欢迎，0 表示不按荣耀等级欢迎\n  wealth_level: 0", section);
@@ -37,7 +135,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Assert.Equal(after, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before + "welcome:\n");
         var missing = Settings.Load(h.DataDirectory);
-        Assert.Equal(settings.WelcomeText.Value, missing.WelcomeText.Value);
+        Assert.Equal(settings.WelcomeTexts.Value[0], missing.WelcomeTexts.Value[0]);
         Assert.Empty(missing.WelcomeUids.Value);
         Assert.Equal(0, missing.WelcomeFanClubLevel.Value);
         Assert.Equal(settings.WelcomeGuard.Value, missing.WelcomeGuard.Value);
@@ -148,20 +246,20 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Save_changes_only_requested_welcome_lines()
     {
         Settings.Load(h.DataDirectory);
-        const string before = "welcome:\n  enabled: false # 开关\n  text: '欢迎{昵称}' # 正文\n  guard: 舰长 # 档位\nfuture: 保留\n";
+        const string before = "welcome:\n  enabled: false # 开关\n  texts: ['欢迎{昵称}'] # 正文\n  guard: 舰长 # 档位\nfuture: 保留\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.text"] = "欢迎{大航海}{昵称}",
+            ["welcome.enabled"] = "true", ["welcome.texts"] = Settings.TextListText(["欢迎{大航海}{昵称}"]),
             ["welcome.guard"] = "提督"
         });
-        var expected = before.Replace("false", "true").Replace("'欢迎{昵称}'", "'欢迎{大航海}{昵称}'")
+        var expected = before.Replace("false", "true").Replace("['欢迎{昵称}']", "[\"欢迎{大航海}{昵称}\"]")
             .Replace("舰长", "提督");
         Assert.Equal(expected, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
         var loaded = Settings.Load(h.DataDirectory);
         Assert.Null(loaded.Error);
         Assert.True(loaded.WelcomeEnabled.Value);
-        Assert.Equal("欢迎{大航海}{昵称}", loaded.WelcomeText.Value);
+        Assert.Equal("欢迎{大航海}{昵称}", loaded.WelcomeTexts.Value[0]);
         Assert.Equal("提督", loaded.WelcomeGuard.Value);
     }
 
@@ -188,9 +286,9 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     [InlineData("guard", "船长")]
     [InlineData("guard", "3")]
     [InlineData("guard", "[]")]
-    [InlineData("text", "[]")]
-    [InlineData("text", "''")]
-    [InlineData("text", "' '")]
+    [InlineData("texts", "[]")]
+    [InlineData("texts", "''")]
+    [InlineData("texts", "' '")]
     public async Task Invalid_values_refuse_watching_at_their_line(string key, string value)
     {
         Directory.CreateDirectory(h.DataDirectory);
@@ -212,11 +310,11 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     {
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.text"] = text
+            ["welcome.texts"] = Settings.TextListText([text])
         });
         var settings = Settings.Load(h.DataDirectory);
         Assert.Null(settings.Error);
-        Assert.Equal(text, settings.WelcomeText.Value);
+        Assert.Equal(text, settings.WelcomeTexts.Value[0]);
     }
 
     [Theory]
@@ -228,26 +326,28 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     [InlineData("'欢迎}'", "可用")]
     [InlineData("'{@}'", "不能只有")]
     [InlineData("'{@} '", "不能只有")]
+    [InlineData("''", "不能为空")]
+    [InlineData("' '", "不能为空")]
     public void Invalid_text_reports_its_line_and_keeps_the_file(string text, string reason)
     {
         Directory.CreateDirectory(h.DataDirectory);
-        var yaml = $"welcome:\n  enabled: true\n  text: {text}\n";
+        var yaml = $"welcome:\n  enabled: true\n  texts: [{text}]\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
         var loaded = Settings.Load(h.DataDirectory);
         var error = Assert.IsType<SettingsException>(loaded.Error);
-        Assert.Equal("welcome.text", error.SettingName);
+        Assert.Equal("welcome.texts", error.SettingName);
         Assert.Equal(3, error.LineNumber);
         Assert.Contains(reason, error.Message);
         // Kept as written, so the settings window shows the text the error is about.
-        Assert.Equal(text[1..^1], loaded.WelcomeText.Value);
+        Assert.Equal(text[1..^1], loaded.WelcomeTexts.Value[0]);
         Assert.Equal(yaml, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
-        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  text: '欢迎'\n");
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  texts: ['欢迎']\n");
         var beforeSave = File.ReadAllText(Settings.FilePath(h.DataDirectory));
         var saveError = Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.text"] = text[1..^1]
+            ["welcome.texts"] = Settings.TextListText([text[1..^1]])
         }));
-        Assert.Equal("welcome.text", saveError.SettingName);
+        Assert.Equal("welcome.texts", saveError.SettingName);
         // Like every other rejected input, reported at line 1: the input is wrong, not the file.
         Assert.Equal(1, saveError.LineNumber);
         Assert.Contains(reason, saveError.Message);

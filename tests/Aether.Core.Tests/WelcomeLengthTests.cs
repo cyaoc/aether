@@ -113,7 +113,7 @@ public sealed class WelcomeLengthTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.text"] = text
+            ["welcome.enabled"] = "true", ["welcome.texts"] = Settings.TextListText([text])
         });
         h.Http.SetDanmakuLengthLimit(limit);
         var sent = CaptureSends(h);
