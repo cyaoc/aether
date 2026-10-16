@@ -150,12 +150,12 @@ public sealed class WelcomeAnimationTests
         await page.NextAsync();
         h.Client.AnimationPage.TestPlay(20002);
         page.Dispose();
-        // TCP may discover a graceful close on its next write, or on the write after that.
-        for (var i = 0; i < 3 && observed.Items.OfType<AnimationPageStatus>().Last().ConnectedPages != 0; i++)
+        // How many heartbeats TCP needs to notice the close varies by OS (Windows can take more), and a write that hangs
+        // only ends on its 5-second timeout, so keep advancing; seven 15-second steps stay under the 2-minute report timeout.
+        for (var i = 0; i < 7 && observed.Items.OfType<AnimationPageStatus>().Last().ConnectedPages != 0; i++)
         {
-            await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(15), i + 1);
             h.Time.Advance(TimeSpan.FromSeconds(15));
-            await Task.Delay(50, h.Stop.Token);
+            await Task.Delay(200, h.Stop.Token);
         }
         // Already pushed and counted in the interval, so it reads as unreported, not as a skip.
         await observed.WaitAsync(u => u is WelcomeAnimationPlayback { State: WelcomeAnimationState.NoReport, Reason: "推流软件已全部断开" });
