@@ -28,10 +28,12 @@ public sealed class SettingsNavigationTests
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var row = Add(page, WelcomeCondition.Uid);
             Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
+            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
             Assert.True(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
             Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
             Assert.False(viewModel.HasRoomConnection);
+            navigation.Focus();
             navigation.SelectedIndex = 5;
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);

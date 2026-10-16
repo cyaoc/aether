@@ -1,7 +1,9 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
 using static Aether.Gui.Tests.Support.ConditionList;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Headless;
 using Avalonia.Interactivity;
 using Avalonia.Input;
 using Avalonia.Threading;
@@ -12,7 +14,7 @@ namespace Aether.Gui.Tests;
 public sealed class SettingsPageTests
 {
     [Fact]
-    public Task Welcome_texts_can_be_added_and_the_new_empty_row_blocks_save() =>
+    public Task New_welcome_text_waits_for_blur_then_validates_while_editing() =>
         WithSettingsPage(SettingsSection.Welcome, null, (page, _) =>
         {
             var add = page.FindControl<Button>("AddWelcomeTextButton");
@@ -20,10 +22,88 @@ public sealed class SettingsPageTests
             add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             Assert.Equal("2 条", page.FindControl<TextBlock>("WelcomeTextCount")!.Text);
-            Assert.True(WelcomeTextList.Input(page, 1).IsFocused);
-            Assert.Equal("welcome.texts：欢迎语不能为空。", WelcomeTextList.Error(page, 1).Text);
+            var input = WelcomeTextList.Input(page, 1);
+            var error = WelcomeTextList.Error(page, 1);
+            Assert.True(input.IsFocused);
+            Assert.False(error.IsVisible);
+            Assert.DoesNotContain("invalid", input.Classes);
             Assert.False(WelcomeTextList.Error(page).IsVisible);
             Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            foreach (var name in new[] { "InsertAtButton", "InsertNicknameButton", "InsertGuardButton" })
+            {
+                var button = page.FindControl<Button>(name)!;
+                button.BringIntoView();
+                GuiHarness.Flush();
+                var window = (Window)TopLevel.GetTopLevel(page)!;
+                var point = button.TranslatePoint(new Point(button.Bounds.Width / 2, button.Bounds.Height / 2), window)!.Value;
+                window.MouseDown(point, MouseButton.Left);
+                window.MouseUp(point, MouseButton.Left);
+                GuiHarness.Flush();
+                Assert.True(input.IsFocused);
+                Assert.Contains(button.Tag!.ToString()!, input.Text);
+                input.Text = " ";
+                GuiHarness.Flush();
+                Assert.False(error.IsVisible);
+                Assert.DoesNotContain("invalid", input.Classes);
+            }
+            WelcomeTextList.Input(page).Focus();
+            GuiHarness.Flush();
+            Assert.Equal("填上欢迎语，或删掉这条", error.Text);
+            Assert.True(error.IsVisible);
+            Assert.Contains("invalid", input.Classes);
+            input.Focus();
+            input.Text = "欢迎回家";
+            GuiHarness.Flush();
+            Assert.False(error.IsVisible);
+            Assert.DoesNotContain("invalid", input.Classes);
+            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            input.Text = "{@}";
+            GuiHarness.Flush();
+            Assert.True(error.IsVisible);
+            Assert.Equal("欢迎语不能只有 {@}，还要写上发出去的文字。", error.Text);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+        });
+
+    [Theory]
+    [InlineData("", "填上欢迎语，或删掉这条")]
+    [InlineData(" \t", "填上欢迎语，或删掉这条")]
+    [InlineData("{@}", "欢迎语不能只有 {@}，还要写上发出去的文字。")]
+    public Task Existing_welcome_text_validates_without_waiting_for_blur(string value, string message) =>
+        WithSettingsPage(SettingsSection.Welcome, null, (page, _) =>
+        {
+            var input = WelcomeTextList.Input(page);
+            input.Focus();
+            input.Text = value;
+            GuiHarness.Flush();
+            Assert.Equal(message, WelcomeTextList.Error(page).Text);
+            Assert.True(WelcomeTextList.Error(page).IsVisible);
+            Assert.Contains("invalid", input.Classes);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            input.Text = "欢迎回来";
+            GuiHarness.Flush();
+            Assert.False(WelcomeTextList.Error(page).IsVisible);
+            Assert.DoesNotContain("invalid", input.Classes);
+            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+        });
+
+    [Fact]
+    public Task Existing_uid_validates_without_waiting_for_blur() =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome:\n  uids: [42]\n", (page, _) =>
+        {
+            var row = Row(page, WelcomeCondition.Uid);
+            var input = row.FindControl<TextBox>("UidInput")!;
+            input.Focus();
+            input.Text = "0";
+            GuiHarness.Flush();
+            Assert.Equal("UID 必须是正整数", row.FindControl<TextBlock>("ErrorMessage")!.Text);
+            Assert.True(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.Contains("invalid", input.Classes);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            input.Text = "43";
+            GuiHarness.Flush();
+            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.DoesNotContain("invalid", input.Classes);
+            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
         });
 
     [Fact]
@@ -42,6 +122,7 @@ public sealed class SettingsPageTests
             page.FindControl<Button>("AddWelcomeTextButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             WelcomeTextList.Input(page, 1).Text = "欢迎{舰长}";
+            WelcomeTextList.Input(page).Focus();
             GuiHarness.Flush();
             Assert.True(WelcomeTextList.Error(page, 1).IsVisible);
             Assert.False(WelcomeTextList.Error(page).IsVisible);
@@ -76,8 +157,12 @@ public sealed class SettingsPageTests
             input.Focus();
             input.CaretIndex = 1;
             var insert = page.FindControl<Button>("InsertNicknameButton")!;
-            insert.Focus();
-            insert.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(insert.Focus(NavigationMethod.Tab));
+            var window = (Window)TopLevel.GetTopLevel(page)!;
+            window.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+            window.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+            GuiHarness.Flush();
+            Assert.True(input.IsFocused);
             Assert.Equal("回{昵称}家", input.Text);
             Assert.Equal("欢迎", WelcomeTextList.Input(page).Text);
             Assert.Equal("到第 2 条", page.FindControl<TextBlock>("WelcomeInsertTarget")!.Text);
@@ -315,19 +400,39 @@ public sealed class SettingsPageTests
             var before = File.ReadAllText(path);
             var originalRow = Row(page, WelcomeCondition.Uid);
             var row = Add(page, WelcomeCondition.Uid);
-            row.FindControl<TextBox>("UidInput")!.Text = value;
+            var input = row.FindControl<TextBox>("UidInput")!;
+            Assert.True(input.IsFocused);
+            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.DoesNotContain("invalid", input.Classes);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            input.Text = value;
+            GuiHarness.Flush();
+            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            originalRow.FocusInput();
             GuiHarness.Flush();
             Assert.Equal(message, row.FindControl<TextBlock>("ErrorMessage")!.Text);
             Assert.True(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.Contains("invalid", input.Classes);
             Assert.False(originalRow.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
             Assert.True(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
             var save = page.FindControl<Button>("SaveButton")!;
             Assert.False(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before, File.ReadAllText(path));
-            row.FindControl<TextBox>("UidInput")!.Text = "9223372036854775807";
+            input.Focus();
+            input.Text = "43";
             GuiHarness.Flush();
             Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.DoesNotContain("invalid", input.Classes);
+            Assert.True(save.IsEnabled);
+            input.Text = value;
+            GuiHarness.Flush();
+            Assert.True(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.Contains("invalid", input.Classes);
+            Assert.False(save.IsEnabled);
+            input.Text = "9223372036854775807";
+            GuiHarness.Flush();
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("uids: [42]", "uids: [42, 9223372036854775807]"), File.ReadAllText(path));
@@ -339,6 +444,8 @@ public sealed class SettingsPageTests
         {
             SetUids(page, "42", "42");
             var rows = Rows(page).Where(row => row.Kind == WelcomeCondition.Uid).ToArray();
+            rows[0].FocusInput();
+            GuiHarness.Flush();
             Assert.True(rows[1].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
             Remove(rows[0]);
             Assert.False(rows[1].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
@@ -439,8 +546,7 @@ public sealed class SettingsPageTests
             Dispatcher.UIThread.RunJobs();
             var save = window.FindControl<Button>("SaveButton")!;
             Assert.False(save.IsEnabled);
-            Assert.Contains("welcome.texts", WelcomeTextList.Error(window).Text);
-            Assert.Contains("可用占位符为 {@}（只能放开头）、{昵称}、{大航海}", WelcomeTextList.Error(window).Text);
+            Assert.Equal("可用占位符为 {@}（只能放开头）、{昵称}、{大航海}；花括号本身用 {{ 和 }}。", WelcomeTextList.Error(window).Text);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before, File.ReadAllText(path));
             Assert.Equal(text, input.Text);

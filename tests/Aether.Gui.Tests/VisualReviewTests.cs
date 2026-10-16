@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
 using Avalonia.Threading;
@@ -16,6 +17,68 @@ namespace Aether.Gui.Tests;
 
 public sealed class VisualReviewTests
 {
+    [Theory]
+    [InlineData("text", false)]
+    [InlineData("text", true)]
+    [InlineData("condition", false)]
+    [InlineData("condition", true)]
+    [InlineData("animation", false)]
+    [InlineData("animation", true)]
+    public Task Screenshots_list_row_validation_states(string kind, bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(() =>
+        {
+            using var harness = new GuiHarness();
+            Directory.CreateDirectory(harness.DataDirectory);
+            var video = Path.Combine(harness.DataDirectory, "欢迎动画.mp4");
+            File.WriteAllText(video, "video");
+            var page = new SettingsPage(harness.DataDirectory,
+                kind == "animation" ? SettingsSection.WelcomeAnimation : SettingsSection.Welcome,
+                () => Task.FromResult<string?>(video));
+            var window = new Window
+            {
+                Content = page, Width = 736, Height = 640,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                Control row;
+                if (kind == "condition") row = Add(page, WelcomeCondition.Uid);
+                else
+                {
+                    page.FindControl<Button>(kind == "text" ? "AddWelcomeTextButton" : "AddAnimationButton")!
+                        .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    GuiHarness.Flush();
+                    row = kind == "text" ? WelcomeTextList.Rows(page)[1]
+                        : page.FindControl<StackPanel>("AnimationRows")!.Children.Single();
+                }
+                var input = row.FindControl<TextBox>(kind == "text" ? "ValueInput" : "UidInput")!;
+                Capture("new", false);
+                page.FindControl<Button>(kind == "animation" ? "AddAnimationButton" : "AddWelcomeTextButton")!.Focus();
+                Capture("empty-blurred", true);
+                input.Focus();
+                input.Text = kind == "text" ? "{@}" : "0";
+                Capture("invalid-editing", true);
+                input.Text = kind == "text" ? "欢迎回来{昵称}" : "12345";
+                Capture("corrected", false);
+
+                void Capture(string state, bool invalid)
+                {
+                    row.BringIntoView();
+                    GuiHarness.Flush();
+                    var border = input.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "PART_BorderElement");
+                    var color = Assert.IsAssignableFrom<ISolidColorBrush>(border.BorderBrush).Color;
+                    Assert.Equal(invalid, color == Color.Parse(dark ? "#F87171" : "#B91C1C"));
+                    Save(window, $"list-row-{kind}-{state}-{(dark ? "dark" : "light")}");
+                }
+            }
+            finally { window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
     [Theory]
     [InlineData(960, false)]
     [InlineData(960, true)]

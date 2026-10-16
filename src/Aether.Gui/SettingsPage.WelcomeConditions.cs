@@ -27,9 +27,9 @@ public partial class SettingsPage
         RefreshConditionList();
     }
 
-    private WelcomeConditionRow InsertCondition(WelcomeCondition kind, string value, bool canEdit)
+    private WelcomeConditionRow InsertCondition(WelcomeCondition kind, string value, bool canEdit, bool isNew = false)
     {
-        var row = new WelcomeConditionRow(kind, value, canEdit);
+        var row = new WelcomeConditionRow(kind, value, canEdit, isNew);
         var index = Conditions.TakeWhile(existing => existing.Kind <= kind).Count();
         ConditionRows.Children.Insert(index, row);
         row.Changed += Validate;
@@ -89,7 +89,7 @@ public partial class SettingsPage
             WelcomeCondition.Guard => "舰长",
             _ => "10"
         };
-        var row = InsertCondition(kind, value, true);
+        var row = InsertCondition(kind, value, true, isNew: true);
         RefreshConditionList();
         Validate();
         AddConditionButton.Flyout!.Hide();

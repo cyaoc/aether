@@ -124,10 +124,69 @@ public sealed class WelcomeAnimationSettingsTests
         try
         {
             Add(page, "42");
-            Add(page, uid);
-            Assert.Contains(hint, Rows(page)[1].FindControl<TextBlock>("RowMessage")!.Text);
+            Click(page, "AddAnimationButton");
+            var row = Rows(page)[1];
+            var input = row.FindControl<TextBox>("UidInput")!;
+            Assert.True(input.IsFocused);
+            Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.DoesNotContain("error", row.FindControl<Grid>("RowNote")!.Classes);
+            Assert.DoesNotContain("invalid", input.Classes);
             Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
-            Assert.False(Rows(page)[1].FindControl<Button>("TestButton")!.IsEnabled);
+            input.Text = uid;
+            GuiHarness.Flush();
+            Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(row.CanTest);
+            Rows(page)[0].FocusInput();
+            GuiHarness.Flush();
+            Assert.Contains(hint, row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Contains("error", row.FindControl<Grid>("RowNote")!.Classes);
+            Assert.Contains("invalid", input.Classes);
+            input.Focus();
+            input.Text = "43";
+            GuiHarness.Flush();
+            Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.DoesNotContain("error", row.FindControl<Grid>("RowNote")!.Classes);
+            Assert.DoesNotContain("invalid", input.Classes);
+            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            input.Text = uid;
+            GuiHarness.Flush();
+            Assert.Contains(hint, row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Contains("invalid", input.Classes);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(row.CanTest);
+        }
+        finally { window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Existing_animation_uid_validates_without_waiting_for_blur() => HeadlessApp.Session.Dispatch(() =>
+    {
+        using var harness = new GuiHarness();
+        Video(harness, "welcome-animations", "video.mp4");
+        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, "video.mp4");
+        var page = new SettingsPage(harness.DataDirectory, SettingsSection.WelcomeAnimation);
+        var window = new Window { Content = page };
+        window.Show();
+        try
+        {
+            var row = Assert.Single(Rows(page));
+            var input = row.FindControl<TextBox>("UidInput")!;
+            input.Focus();
+            input.Text = "";
+            GuiHarness.Flush();
+            Assert.Equal("填一个 UID，或删掉这条", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Contains("error", row.FindControl<Grid>("RowNote")!.Classes);
+            Assert.Contains("invalid", input.Classes);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(row.CanTest);
+            input.Text = "43";
+            GuiHarness.Flush();
+            Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.DoesNotContain("error", row.FindControl<Grid>("RowNote")!.Classes);
+            Assert.DoesNotContain("invalid", input.Classes);
+            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
         }
         finally { window.Close(); GuiHarness.Flush(); }
         return true;
@@ -551,7 +610,7 @@ public sealed class WelcomeAnimationSettingsTests
             GuiHarness.Flush();
             var row = Assert.Single(page.FindControl<StackPanel>("AnimationRows")!.Children);
             Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
-            Assert.Contains("UID", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
             Assert.False(Directory.Exists(Path.Combine(harness.DataDirectory, "welcome-animations")));
             row.FindControl<TextBox>("UidInput")!.Text = "42";

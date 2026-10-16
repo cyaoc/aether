@@ -5,6 +5,7 @@ namespace Aether.Gui;
 
 public partial class WelcomeTextRow : UserControl
 {
+    private bool showErrors;
     public event Action? Changed;
     public event Action? Editing;
     public event Action? RemoveRequested;
@@ -12,14 +13,16 @@ public partial class WelcomeTextRow : UserControl
 
     public WelcomeTextRow() : this("", true) { }
 
-    public WelcomeTextRow(string text, bool canEdit)
+    public WelcomeTextRow(string text, bool canEdit, bool isNew = false)
     {
+        showErrors = !isNew;
         InitializeComponent();
         ValueInput.Text = text;
         ValueInput.IsReadOnly = !canEdit;
         RemoveButton.IsVisible = canEdit;
         ValueInput.TextChanged += (_, _) => Changed?.Invoke();
         ValueInput.GotFocus += (_, _) => Editing?.Invoke();
+        ValueInput.LostFocus += (_, _) => { showErrors = true; Changed?.Invoke(); };
         RemoveButton.Click += (_, _) => { if (RemoveButton.IsEnabled && canEdit) RemoveRequested?.Invoke(); };
     }
 
@@ -32,8 +35,8 @@ public partial class WelcomeTextRow : UserControl
 
     public bool ShowError(string? error)
     {
-        ErrorMessage.Text = error;
-        ErrorMessage.IsVisible = error is not null;
+        ErrorMessage.Text = showErrors ? error : null;
+        ErrorMessage.IsVisible = showErrors && error is not null;
         return error is not null;
     }
 

@@ -8,6 +8,7 @@ namespace Aether.Gui;
 
 public partial class WelcomeConditionRow : UserControl
 {
+    private bool showErrors;
     public WelcomeCondition Kind { get; }
     public bool CanEdit { get; }
     public event Action? Changed;
@@ -26,8 +27,9 @@ public partial class WelcomeConditionRow : UserControl
         _ => ("荣耀等级", "M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9z")
     };
 
-    public WelcomeConditionRow(WelcomeCondition kind, string value, bool canEdit)
+    public WelcomeConditionRow(WelcomeCondition kind, string value, bool canEdit, bool isNew = false)
     {
+        showErrors = !isNew || kind != WelcomeCondition.Uid;
         Kind = kind;
         CanEdit = canEdit;
         InitializeComponent();
@@ -54,6 +56,7 @@ public partial class WelcomeConditionRow : UserControl
         AutomationProperties.SetName(RemoveButton, $"删除{TypeName.Text}条件");
         ReadOnlyMessage.IsVisible = !canEdit;
         UidInput.TextChanged += (_, _) => Changed?.Invoke();
+        UidInput.LostFocus += (_, _) => { showErrors = true; Changed?.Invoke(); };
         LevelInput.PropertyChanged += (_, e) =>
         {
             if (e.Property == NumericUpDown.TextProperty) Changed?.Invoke();
@@ -93,8 +96,8 @@ public partial class WelcomeConditionRow : UserControl
         else if (CanEdit && Kind is WelcomeCondition.FanClubLevel or WelcomeCondition.WealthLevel
             && (!int.TryParse(Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var level) || level < 1))
             error = "至少 1 级";
-        ErrorMessage.Text = error;
-        ErrorMessage.IsVisible = error is not null;
+        ErrorMessage.Text = showErrors ? error : null;
+        ErrorMessage.IsVisible = showErrors && error is not null;
         return error is not null;
     }
 

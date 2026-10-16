@@ -256,9 +256,9 @@
                 <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <WrapPanel Orientation="Horizontal">
                   <TextBlock Classes="caption muted" Text="插入" VerticalAlignment="Center" Margin="0,0,8,0" />
-                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertAtButton" Content="@观众" Tag="{}{@}" Click="InsertPlaceholder" />
-                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertNicknameButton" Content="昵称" Tag="{}{昵称}" Click="InsertPlaceholder" />
-                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertGuardButton" Content="大航海身份" Tag="{}{大航海}" Click="InsertPlaceholder" />
+                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertAtButton" GettingFocus="InsertButtonGettingFocus" Content="@观众" Tag="{}{@}" Click="InsertPlaceholder" />
+                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertNicknameButton" GettingFocus="InsertButtonGettingFocus" Content="昵称" Tag="{}{昵称}" Click="InsertPlaceholder" />
+                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertGuardButton" GettingFocus="InsertButtonGettingFocus" Content="大航海身份" Tag="{}{大航海}" Click="InsertPlaceholder" />
                   <TextBlock x:Name="WelcomeInsertTarget" Classes="caption muted" VerticalAlignment="Center" />
                 </WrapPanel>
                 <TextBlock x:Name="WelcomeTextHint" Classes="caption muted" TextWrapping="Wrap"
