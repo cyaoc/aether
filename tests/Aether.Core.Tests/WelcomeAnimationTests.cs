@@ -257,6 +257,29 @@ public sealed class WelcomeAnimationTests
     }
 
     [Fact]
+    public async Task Reset_clients_do_not_prevent_the_page_from_restarting_and_playing()
+    {
+        await using var h = new WatchHarness();
+        Start(h, 10001);
+        var address = new Uri(h.Client.AnimationPage.Address);
+        // A bodyless 404 writes its headers in Close(), after the client may have reset the connection.
+        var request = System.Text.Encoding.ASCII.GetBytes($"GET /missing HTTP/1.1\r\nHost: {address.Authority}\r\nConnection: close\r\n\r\n");
+        for (var i = 0; i < 20; i++)
+        {
+            using var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { LingerState = new LingerOption(true, 0) };
+            await socket.ConnectAsync(address.Host, address.Port, h.Stop.Token);
+            using var stream = new NetworkStream(socket);
+            await stream.WriteAsync(request, h.Stop.Token);
+        }
+
+        await h.Client.AnimationPage.StopAsync();
+        h.Client.AnimationPage.Start(Settings.Load(h.DataDirectory));
+        using var page = await Page.ConnectAsync(h);
+        h.Client.AnimationPage.TestPlay(10001);
+        Assert.Equal("10001", (await page.NextAsync()).Uid);
+    }
+
+    [Fact]
     public async Task Http_serves_only_mapped_videos_rejects_other_hosts_and_validates_reports()
     {
         await using var h = new WatchHarness();
