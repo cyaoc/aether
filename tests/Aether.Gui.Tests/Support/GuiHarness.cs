@@ -1,5 +1,7 @@
 using Aether.Core;
 using System.Net;
+using Avalonia;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Threading;
@@ -11,6 +13,9 @@ namespace Aether.Gui.Tests.Support;
 
 internal sealed class GuiHarness : IDisposable
 {
+    /// <summary>A viewer nickname with no break opportunity, wider than any activity list.</summary>
+    public const string LongEnglishNickname = "VeryLongEnglishViewerNameWithoutAnySpaces0123456789VeryLongEnglishViewerNameWithoutAnySpaces0123456789";
+
     private readonly AetherClient client;
     private readonly GuiHttp http = new();
     private int received;
@@ -110,8 +115,15 @@ internal sealed class GuiHarness : IDisposable
         return input;
     }
 
+    /// <summary>What a screen reader reads for each visible TextBlock, so text split into Runs still counts.</summary>
     public static IEnumerable<string?> VisibleText(Window window) =>
-        window.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).Select(x => x.Text);
+        window.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).Select(x => new TextBlockAutomationPeer(x).GetName());
+
+    /// <summary>An activity record's time sits on its header's first baseline, whatever font each text falls back to.</summary>
+    // Layout rounding puts each text on whole pixels, so the baselines can differ by up to half a pixel.
+    public static void AssertSameBaseline(TextBlock header, TextBlock time, Visual root) =>
+        Assert.Equal(header.TranslatePoint(new Point(0, header.TextLayout.Baseline), root)!.Value.Y,
+            time.TranslatePoint(new Point(0, time.TextLayout.Baseline), root)!.Value.Y, 0.5);
 
     public static async Task WaitForAsync(Func<bool> condition)
     {

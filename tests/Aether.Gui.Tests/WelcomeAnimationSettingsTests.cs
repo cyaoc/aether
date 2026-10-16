@@ -1,5 +1,6 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -353,6 +354,30 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Contains(expected, GuiHarness.VisibleText(window));
             Assert.Contains("试播", GuiHarness.VisibleText(window));
             Assert.Equal(busy, viewModel.AnimationBusy);
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Recent_playback_header_reads_nickname_and_uid_as_one_line_on_the_time_baseline() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        const string nickname = "小鹿";
+        using var harness = new GuiHarness();
+        var viewModel = harness.CreateViewModel();
+        var page = new SettingsPage(harness.DataDirectory, SettingsSection.WelcomeAnimation) { DataContext = viewModel };
+        var window = new Window { Content = page };
+        window.Show();
+        try
+        {
+            viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "欢迎.mp4", false, WelcomeAnimationState.Completed, Nickname: nickname));
+            GuiHarness.Flush();
+            var list = page.FindControl<ListBox>("RecentAnimationsList")!;
+            var text = list.ContainerFromIndex(0)!.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).ToArray();
+            var header = Assert.Single(text, x => new TextBlockAutomationPeer(x).GetName() == $"{nickname} UID 42");
+            var time = text.Single(x => x.Text == viewModel.RecentAnimations.Single().OccurredAt.ToString("HH:mm:ss"));
+            Assert.Single(header.TextLayout.TextLines);
+            GuiHarness.AssertSameBaseline(header, time, window);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;

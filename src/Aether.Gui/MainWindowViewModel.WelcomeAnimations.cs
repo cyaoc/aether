@@ -216,7 +216,8 @@ public partial class MainWindowViewModel
 public sealed record WelcomeAnimationItem(WelcomeAnimationPlayback Playback, DateTimeOffset OccurredAt, int Position = 0)
 {
     public string Name => Playback.IsTest ? "试播" : Playback.Nickname ?? $"UID {Playback.Uid}";
-    public string Detail => Playback.IsTest || Playback.Nickname is null ? "" : $"UID {Playback.Uid}";
+    /// <summary>Null when Name already says it all, so the header gets no separating space.</summary>
+    public string? Detail => Playback.IsTest || Playback.Nickname is null ? null : $"UID {Playback.Uid}";
     public string Status => Playback switch
     {
         { State: WelcomeAnimationState.Queued } when Position > 0 => $"{Playback.Progress} · 第 {Position} 个",

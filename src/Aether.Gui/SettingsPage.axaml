@@ -4,13 +4,10 @@
     <DataTemplate x:Key="AnimationActivityTemplate" x:DataType="local:WelcomeAnimationItem">
       <Border Classes="activityRow">
         <StackPanel Spacing="4">
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
-              <TextBlock Classes="secondary" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="130" ToolTip.Tip="{Binding Name}" />
-              <TextBlock Grid.Column="1" Classes="secondary muted numeric" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
-            </Grid>
-            <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" VerticalAlignment="Center" />
-          </Grid>
+          <local:ActivityHeader>
+            <TextBlock Classes="secondary" TextWrapping="Wrap"><Run Text="{Binding Name}" FontWeight="SemiBold" /><Run Text="{Binding Detail, StringFormat=' {0}', TargetNullValue=''}" Foreground="{DynamicResource Text.Muted}" FontFeatures="tnum" /></TextBlock>
+            <TextBlock Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" />
+          </local:ActivityHeader>
           <TextBlock Classes="label" Text="{Binding Playback.FileName}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Playback.FileName}" />
           <Grid Classes="playbackStatus" Classes.playing="{Binding Playing}" Classes.completed="{Binding Completed}" Classes.failed="{Binding Failed}"
             Classes.unplayed="{Binding Unplayed}" Classes.skipped="{Binding RecentlyPlayed}" ColumnDefinitions="Auto,*" ColumnSpacing="5">
@@ -23,10 +20,10 @@
     <DataTemplate x:Key="FeatureActivityTemplate" x:DataType="local:SendQueueItemViewModel">
       <Border Classes="activityRow">
         <StackPanel Spacing="4">
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <local:ActivityHeader>
             <TextBlock Classes="secondary" TextWrapping="Wrap"><Run Text="{Binding Nickname}" FontWeight="SemiBold" /><Run Text=" " /><Run Text="{Binding Detail}" Foreground="{DynamicResource Text.Muted}" /></TextBlock>
-            <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" VerticalAlignment="Top" />
-          </Grid>
+            <TextBlock Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" />
+          </local:ActivityHeader>
           <TextBlock Classes="label" Text="{Binding TextOrPlaceholder}" TextWrapping="Wrap" />
           <TextBlock Classes="sendStatus" Classes.sent="{Binding IsSent}" Classes.unsent="{Binding IsUnsent}" Text="{Binding Status}" />
         </StackPanel>
@@ -35,10 +32,10 @@
     <DataTemplate x:Key="SendActivityTemplate" x:DataType="local:SendQueueItemViewModel">
       <Border Classes="activityRow">
         <StackPanel Spacing="4">
-          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+          <local:ActivityHeader>
             <TextBlock Classes="secondary" TextWrapping="Wrap"><Run Text="{Binding Nickname}" FontWeight="SemiBold" /><Run Text=" " /><Run Text="{Binding KindText}" Foreground="{DynamicResource Text.Muted}" /></TextBlock>
-            <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" VerticalAlignment="Top" />
-          </Grid>
+            <TextBlock Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" />
+          </local:ActivityHeader>
           <TextBlock Classes="label" Text="{Binding Text}" TextWrapping="Wrap" IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
           <TextBlock Classes="sendStatus" Classes.sent="{Binding IsSent}" Classes.unsent="{Binding IsUnsent}" Text="{Binding Status}" />
         </StackPanel>

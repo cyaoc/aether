@@ -50,7 +50,8 @@ public sealed class VisualReviewTests
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.Section == SettingsSection.WelcomeAnimation);
                 viewModel.Apply(new AnimationPageStatus(true, 17890, 2));
                 foreach (var (state, index) in new[] { WelcomeAnimationState.Completed, WelcomeAnimationState.Failed, WelcomeAnimationState.NoReport, WelcomeAnimationState.Skipped, WelcomeAnimationState.Queued }.Select((state, index) => (state, index)))
-                    viewModel.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == WelcomeAnimationState.Skipped ? "10 分钟内播过" : null));
+                    viewModel.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == WelcomeAnimationState.Skipped ? "10 分钟内播过" : null,
+                        Nickname: index switch { 1 => "柚子不酸", 2 => "bili_6508617762", _ => null }));
                 Capture("connected");
                 viewModel.Apply(new AnimationPageStatus(true, 17890, 0));
                 Capture("setup");
@@ -269,9 +270,11 @@ public sealed class VisualReviewTests
                     GuardTier = tiers[i], FanClubLevel = fanClubs[i], WealthLevel = wealth[i],
                     ReplyName = i == 2 ? "柚子不酸" : i == 6 ? "夜航船" : ""
                 });
-            for (var i = 0; i < 6; i++)
+            // Pure-English nicknames are the ones whose baselines drifted (#124); the last one has no break opportunity.
+            var queueNames = new[] { names[0], "bili_6508617762", names[2], names[3], "bili_6508617762", GuiHarness.LongEnglishNickname };
+            for (var i = 0; i < queueNames.Length; i++)
             {
-                var nickname = i is 1 or 4 ? "bili_6508617762" : i == 5 ? "VeryLongEnglishViewerNameWithoutAnySpaces0123456789VeryLongEnglishViewerNameWithoutAnySpaces0123456789" : names[i];
+                var nickname = queueNames[i];
                 viewModel.Apply(new SendQueueUpdate(i + 1, time.AddSeconds(-i * 12), SendQueueItemKind.Welcome,
                     i == 1 ? SendQueueItemState.Queued : i == 3 ? SendQueueItemState.Discarded : SendQueueItemState.Sent, 1000 + i, nickname)
                 { Text = "欢迎" + nickname, WelcomeCondition = i % 2 == 0 ? WelcomeCondition.Guard : WelcomeCondition.FanClubLevel,
