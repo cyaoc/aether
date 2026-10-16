@@ -7,7 +7,7 @@ namespace Aether.Cli.Tests;
 public sealed class WelcomeTextsTests
 {
     [Fact]
-    public async Task Watch_sends_a_configured_welcome_text_with_that_texts_mention()
+    public async Task Watch_sends_one_of_the_welcome_texts_with_its_own_mention()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();

@@ -1,4 +1,3 @@
-using Aether.Core;
 using Avalonia.Automation;
 using Avalonia.Controls;
 
@@ -31,10 +30,9 @@ public partial class WelcomeTextRow : UserControl
         AutomationProperties.SetName(RemoveButton, $"删除第 {index + 1} 条欢迎语");
     }
 
-    public bool ShowError()
+    public bool ShowError(string? error)
     {
-        var error = ValueInput.IsReadOnly ? null : Settings.Validate("welcome.texts", Settings.TextListText([Value]));
-        ErrorMessage.Text = error is null ? "" : $"welcome.texts：{error}";
+        ErrorMessage.Text = error;
         ErrorMessage.IsVisible = error is not null;
         return error is not null;
     }

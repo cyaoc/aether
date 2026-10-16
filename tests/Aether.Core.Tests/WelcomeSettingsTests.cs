@@ -326,6 +326,8 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     [InlineData("'欢迎}'", "可用")]
     [InlineData("'{@}'", "不能只有")]
     [InlineData("'{@} '", "不能只有")]
+    [InlineData("''", "不能为空")]
+    [InlineData("' '", "不能为空")]
     public void Invalid_text_reports_its_line_and_keeps_the_file(string text, string reason)
     {
         Directory.CreateDirectory(h.DataDirectory);

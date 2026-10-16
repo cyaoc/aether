@@ -113,7 +113,7 @@ public sealed class Settings
     private const string VideoGroup = "welcome_animation_videos";
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, one Fields entry in SettingsPage and the controls that show it: in SettingsPage.axaml with
-    /// one Show call, or for a 欢迎条件 a WelcomeConditionRow kind). The UID-keyed welcome_animation_videos group is the
+    /// one Show call, for a 欢迎条件 a WelcomeConditionRow kind, or for a list of texts rows like WelcomeTextRow). The UID-keyed welcome_animation_videos group is the
     /// exception: its keys come from the file, so it is handled wherever VideoGroup appears.</summary>
     private static Definition<T> Register<T>(Definition<T> definition)
     {

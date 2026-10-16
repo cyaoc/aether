@@ -21,7 +21,7 @@ public sealed class SettingsPageTests
             GuiHarness.Flush();
             Assert.Equal("2 条", page.FindControl<TextBlock>("WelcomeTextCount")!.Text);
             Assert.True(WelcomeTextList.Input(page, 1).IsFocused);
-            Assert.True(WelcomeTextList.Error(page, 1).IsVisible);
+            Assert.Equal("welcome.texts：欢迎语不能为空。", WelcomeTextList.Error(page, 1).Text);
             Assert.False(WelcomeTextList.Error(page).IsVisible);
             Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
         });
@@ -106,6 +106,7 @@ public sealed class SettingsPageTests
             });
             Assert.True(page.FindControl<TextBlock>("WelcomeTextReadOnly")!.IsVisible);
             Assert.False(page.FindControl<Button>("AddWelcomeTextButton")!.IsVisible);
+            Assert.False(page.FindControl<TextBlock>("WelcomeInsertTarget")!.IsVisible);
             foreach (var name in new[] { "InsertAtButton", "InsertNicknameButton", "InsertGuardButton" })
                 Assert.False(page.FindControl<Button>(name)!.IsEnabled);
             page.FindControl<Button>("AddWelcomeTextButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

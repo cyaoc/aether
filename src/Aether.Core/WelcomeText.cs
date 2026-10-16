@@ -29,7 +29,7 @@ internal sealed class WelcomeText
         }
         parts.Add(("", literal.ToString()));
         if (parts.All(part => part.Kind == "" && string.IsNullOrWhiteSpace(part.Text)))
-            throw new FormatException("欢迎语不能只有 {@}，还要写上发出去的文字。");
+            throw new FormatException(Mention ? "欢迎语不能只有 {@}，还要写上发出去的文字。" : "欢迎语不能为空。");
     }
 
     public static string? Validate(string text)

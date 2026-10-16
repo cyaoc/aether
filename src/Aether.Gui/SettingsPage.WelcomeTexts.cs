@@ -40,12 +40,13 @@ public partial class SettingsPage
         return row;
     }
 
+    /// <summary>Updates what depends on which rows exist: the count, the hints, the insert target and each row's ×.</summary>
     private void RefreshWelcomeTexts()
     {
         var count = WelcomeTextRows.Children.Count;
         WelcomeTextCount.Text = $"{count} 条";
         WelcomeRandomHint.Text = count == 1 ? "写多条时，每次随机发一条" : "每次随机发一条";
-        WelcomeInsertTarget.IsVisible = count > 1;
+        WelcomeInsertTarget.IsVisible = count > 1 && settings.WelcomeTexts.CanEdit;
         WelcomeInsertTarget.Text = $"到第 {WelcomeTextRows.Children.IndexOf(editedWelcomeText!) + 1} 条";
         var index = 0;
         foreach (var row in WelcomeTexts) row.Refresh(index++, count);
@@ -67,10 +68,12 @@ public partial class SettingsPage
         Validate();
     }
 
+    /// <summary>Shows each row's error, checked as a one-text list; true when any row cannot be saved.</summary>
     private bool ShowWelcomeTextErrors()
     {
         var invalid = false;
-        foreach (var row in WelcomeTexts) invalid |= row.ShowError();
+        foreach (var row in WelcomeTexts)
+            invalid |= row.ShowError(InputError(new(settings.WelcomeTexts.Name, settings.WelcomeTexts.CanEdit, Settings.TextListText([row.Value]))));
         return invalid;
     }
 }
