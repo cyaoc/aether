@@ -14,6 +14,7 @@ public partial class SettingsPage
     private void LoadWelcomeTexts()
     {
         WelcomeTextRows.Children.Clear();
+        WelcomeTextFold.IsExpanded = false;
         foreach (var text in settings.WelcomeTexts.Value) InsertWelcomeText(text);
         editedWelcomeText = WelcomeTexts.FirstOrDefault();
         WelcomeTextReadOnly.IsVisible = !settings.WelcomeTexts.CanEdit;
@@ -50,7 +51,12 @@ public partial class SettingsPage
         WelcomeInsertTarget.IsVisible = count > 1 && settings.WelcomeTexts.CanEdit;
         WelcomeInsertTarget.Text = $"到第 {WelcomeTextRows.Children.IndexOf(editedWelcomeText!) + 1} 条";
         var index = 0;
-        foreach (var row in WelcomeTexts) row.Refresh(index++, count);
+        foreach (var row in WelcomeTexts)
+        {
+            row.IsVisible = WelcomeTextFold.IsExpanded || index < 3;
+            row.Refresh(index++, count);
+        }
+        WelcomeTextFold.Refresh(count, WelcomeTexts.Skip(3).Count(row => row.HasVisibleError), "条");
     }
 
     private void AddWelcomeText(object? sender, RoutedEventArgs e)
@@ -58,6 +64,7 @@ public partial class SettingsPage
         if (!settings.WelcomeTexts.CanEdit) return;
         var row = InsertWelcomeText("", isNew: true);
         editedWelcomeText = row;
+        WelcomeTextFold.IsExpanded = true;
         RefreshWelcomeTexts();
         Validate();
         Dispatcher.UIThread.Post(row.FocusInput, DispatcherPriority.Loaded);
@@ -65,7 +72,13 @@ public partial class SettingsPage
 
     private void InsertPlaceholder(object? sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string token }) editedWelcomeText?.Insert(token);
+        if (sender is Button { Tag: string token } && editedWelcomeText is { } row)
+        {
+            var hidden = !row.IsVisible;
+            if (hidden) WelcomeTextFold.IsExpanded = true;
+            row.Insert(token);
+            if (hidden) Dispatcher.UIThread.Post(row.FocusInput, DispatcherPriority.Loaded);
+        }
         Validate();
     }
 
@@ -86,6 +99,7 @@ public partial class SettingsPage
                 : Settings.Validate(settings.WelcomeTexts.Name, Settings.TextListText([row.Value]));
             invalid |= row.ShowError(error);
         }
+        WelcomeTextFold.Refresh(WelcomeTextRows.Children.Count, WelcomeTexts.Skip(3).Count(row => row.HasVisibleError), "条");
         return invalid;
     }
 }

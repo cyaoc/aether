@@ -224,6 +224,12 @@
   <Style Selector="Button.ghost.danger">
     <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
   </Style>
+  <Style Selector="Button.listFold">
+    <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+  </Style>
+  <Style Selector="Button.listFold.danger">
+    <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+  </Style>
   <Style Selector="ToggleSwitch.plain">
     <Setter Property="OnContent" Value="" />
     <Setter Property="OffContent" Value="" />

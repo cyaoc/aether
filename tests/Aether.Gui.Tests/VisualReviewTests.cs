@@ -18,6 +18,61 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     [Theory]
+    [InlineData(904, false)]
+    [InlineData(904, true)]
+    [InlineData(960, false)]
+    [InlineData(960, true)]
+    public Task Welcome_large_lists_keep_conditions_in_the_first_screen(int width, bool dark) =>
+        HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            File.WriteAllText(Settings.FilePath(harness.DataDirectory),
+                $"welcome:\n  texts: {Settings.TextListText(Enumerable.Range(1, 12).Select(i => $"欢迎{{昵称}}回到直播间 · {i}"))}\n  uids: [{string.Join(", ", Enumerable.Range(12345670, 20))}]\n  fan_club_level: 21\n  guard: 舰长\n  wealth_level: 45\n");
+            var viewModel = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, Width = width, Height = 640,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = 2;
+                GuiHarness.Flush();
+                var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);
+                var heading = page.FindControl<TextBlock>("ConditionsHeading")!;
+                var scroll = heading.GetVisualAncestors().OfType<ScrollViewer>().First();
+                Assert.Equal(0, scroll.Offset.Y);
+                Assert.InRange(heading.TranslatePoint(default, scroll)!.Value.Y, 0, scroll.Bounds.Height - heading.Bounds.Height);
+                Assert.Equal(3, WelcomeTextList.Rows(page).Count(row => row.IsVisible));
+                Assert.Equal(3, Rows(page).Count(row => row.Kind == WelcomeCondition.Uid && row.IsVisible));
+                foreach (var row in Rows(page).Where(row => row.Kind == WelcomeCondition.Uid && row.IsVisible))
+                {
+                    var input = row.FindControl<TextBox>("UidInput")!;
+                    var remove = row.FindControl<Button>("RemoveButton")!;
+                    Assert.True(input.TranslatePoint(default, row)!.Value.X + input.Bounds.Width <= remove.TranslatePoint(default, row)!.Value.X);
+                }
+                Capture("collapsed");
+                page.FindControl<Button>("UidFold")!.BringIntoView();
+                GuiHarness.Flush();
+                Capture("uids");
+                ShowMenu(page);
+                Capture("menu");
+                Menu(page).Hide();
+                return true;
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+
+            void Capture(string state)
+            {
+                if (HeadlessApp.ScreenshotDirectory is not null)
+                    Save(window, $"welcome-lists-{state}-{width}-{(dark ? "dark" : "light")}");
+            }
+        }, TestContext.Current.CancellationToken);
+
+    [Theory]
     [InlineData("text", false)]
     [InlineData("text", true)]
     [InlineData("condition", false)]

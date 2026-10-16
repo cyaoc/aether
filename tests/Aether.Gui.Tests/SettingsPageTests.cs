@@ -2,6 +2,9 @@ using Aether.Core;
 using Aether.Gui.Tests.Support;
 using static Aether.Gui.Tests.Support.ConditionList;
 using Avalonia;
+using Avalonia.Automation;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Interactivity;
@@ -14,6 +17,147 @@ namespace Aether.Gui.Tests;
 
 public sealed class SettingsPageTests
 {
+    [Theory]
+    [InlineData(false, 3)]
+    [InlineData(false, 4)]
+    [InlineData(true, 3)]
+    [InlineData(true, 4)]
+    public Task Welcome_lists_show_three_rows_until_expanded(bool uids, int count) =>
+        WithSettingsPage(SettingsSection.Welcome, WelcomeListYaml(uids, count), (page, _) =>
+        {
+            GuiHarness.Flush();
+            var fold = page.FindControl<Button>(uids ? "UidFold" : "WelcomeTextFold");
+            Assert.NotNull(fold);
+            Assert.Equal(count > 3, fold.IsVisible);
+            Assert.Equal(3, WelcomeListRows(page, uids).Count(row => row.IsVisible));
+            if (count == 3) return;
+            Assert.Equal(uids ? "还有 1 位" : "还有 1 条", AutomationProperties.GetName(fold));
+            var provider = Assert.IsAssignableFrom<IExpandCollapseProvider>(ControlAutomationPeer.CreatePeerForElement(fold));
+            Assert.Equal(ExpandCollapseState.Collapsed, provider.ExpandCollapseState);
+            fold.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.Equal(4, WelcomeListRows(page, uids).Count(row => row.IsVisible));
+            Assert.Equal(uids ? "收起，只看前 3 位" : "收起，只看前 3 条", AutomationProperties.GetName(fold));
+            Assert.Equal(ExpandCollapseState.Expanded, provider.ExpandCollapseState);
+            provider.Collapse();
+            GuiHarness.Flush();
+            Assert.Equal(3, WelcomeListRows(page, uids).Count(row => row.IsVisible));
+            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+        });
+
+    private static string WelcomeListYaml(bool uids, int count) => "welcome:\n  " + (uids
+        ? $"uids: [{string.Join(", ", Enumerable.Range(1, count))}]"
+        : $"texts: {Settings.TextListText(Enumerable.Range(1, count).Select(i => $"欢迎{i}"))}") + "\n";
+
+    private static Control[] WelcomeListRows(SettingsPage page, bool uids) => uids
+        ? Rows(page).Where(row => row.Kind == WelcomeCondition.Uid).ToArray()
+        : WelcomeTextList.Rows(page);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Collapsed_welcome_lists_report_only_hidden_errors(bool uids) =>
+        WithSettingsPage(SettingsSection.Welcome, WelcomeListYaml(uids, 5), (page, _) =>
+        {
+            GuiHarness.Flush();
+            var fold = page.FindControl<Button>(uids ? "UidFold" : "WelcomeTextFold")!;
+            var provider = Assert.IsAssignableFrom<IExpandCollapseProvider>(ControlAutomationPeer.CreatePeerForElement(fold));
+            provider.Expand();
+            var rows = WelcomeListRows(page, uids);
+            foreach (var index in new[] { 0, 3, 4 })
+                rows[index].FindControl<TextBox>(uids ? "UidInput" : "ValueInput")!.Text = "";
+            GuiHarness.Flush();
+            provider.Collapse();
+            GuiHarness.Flush();
+            Assert.Equal(uids ? "还有 2 位，其中 2 位有错" : "还有 2 条，其中 2 条有错", AutomationProperties.GetName(fold));
+            Assert.Contains("danger", fold.Classes);
+            Assert.True(fold.TryFindResource("Danger", fold.ActualThemeVariant, out var danger));
+            Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(danger).Color, Assert.IsAssignableFrom<ISolidColorBrush>(fold.Foreground).Color);
+            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+
+            rows[0].FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.Equal(uids ? "还有 1 位，其中 1 位有错" : "还有 1 条，其中 1 条有错", AutomationProperties.GetName(fold));
+            Assert.True(rows[3].IsVisible);
+            provider.Expand();
+            GuiHarness.Flush();
+            Assert.DoesNotContain("danger", fold.Classes);
+            Assert.True(rows[4].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            rows[4].FindControl<TextBox>(uids ? "UidInput" : "ValueInput")!.Text = uids ? "42" : "欢迎";
+            GuiHarness.Flush();
+            provider.Collapse();
+            Assert.Equal(uids ? "还有 1 位" : "还有 1 条", AutomationProperties.GetName(fold));
+            Assert.DoesNotContain("danger", fold.Classes);
+        });
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Adding_to_a_collapsed_welcome_list_expands_and_focuses_the_new_row(bool uids) =>
+        WithSettingsPage(SettingsSection.Welcome, WelcomeListYaml(uids, 20), (page, _) =>
+        {
+            GuiHarness.Flush();
+            var fold = page.FindControl<Button>(uids ? "UidFold" : "WelcomeTextFold")!;
+            if (uids) Add(page, WelcomeCondition.Uid);
+            else page.FindControl<Button>("AddWelcomeTextButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            var rows = WelcomeListRows(page, uids);
+            Assert.Equal(21, rows.Length);
+            Assert.All(rows, row => Assert.True(row.IsVisible));
+            var input = rows[^1].FindControl<TextBox>(uids ? "UidInput" : "ValueInput")!;
+            Assert.True(input.IsFocused);
+            Assert.False(rows[^1].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            var scroll = input.GetVisualAncestors().OfType<ScrollViewer>().First();
+            var top = input.TranslatePoint(default, scroll)!.Value.Y;
+            Assert.InRange(top, 0, scroll.Bounds.Height - input.Bounds.Height);
+            Assert.Equal(ExpandCollapseState.Expanded, Assert.IsAssignableFrom<IExpandCollapseProvider>(ControlAutomationPeer.CreatePeerForElement(fold)).ExpandCollapseState);
+        });
+
+    [Fact]
+    public Task Uid_group_disappears_when_empty_and_menu_reuses_the_group() =>
+        WithSettingsPage(SettingsSection.Welcome, "welcome:\n  uids: [42, 43]\n  guard: 关闭\n", (page, _) =>
+        {
+            GuiHarness.Flush();
+            var group = page.FindControl<StackPanel>("UidGroup");
+            Assert.NotNull(group);
+            Assert.Equal("1 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
+            var first = Rows(page)[0].FindControl<TextBox>("UidInput")!;
+            var second = Rows(page)[1].FindControl<TextBox>("UidInput")!;
+            Assert.Equal(first.TranslatePoint(default, page)!.Value.X, second.TranslatePoint(default, page)!.Value.X);
+            Remove(Rows(page)[0]);
+            Assert.True(Rows(page)[0].FindControl<TextBlock>("TypeName")!.IsVisible);
+            Remove(Rows(page)[0]);
+            Assert.False(group.IsVisible);
+            Assert.True(page.FindControl<Grid>("EmptyConditions")!.IsVisible);
+            Add(page, WelcomeCondition.Uid);
+            Add(page, WelcomeCondition.Uid);
+            Assert.True(group.IsVisible);
+            Assert.Equal(2, Rows(page).Length);
+            Assert.Equal("1 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
+            Assert.All(Rows(page), row => Assert.Contains(group, row.GetVisualAncestors()));
+            Assert.All(Rows(page), row => Assert.False(row.FindControl<Grid>("OrSeparator")!.IsVisible));
+        });
+
+    [Fact]
+    public Task Inserting_into_a_hidden_welcome_text_reveals_the_last_edited_row() =>
+        WithSettingsPage(SettingsSection.Welcome, WelcomeListYaml(false, 4), (page, _) =>
+        {
+            var fold = page.FindControl<Button>("WelcomeTextFold")!;
+            var provider = Assert.IsAssignableFrom<IExpandCollapseProvider>(ControlAutomationPeer.CreatePeerForElement(fold));
+            provider.Expand();
+            GuiHarness.Flush();
+            WelcomeTextList.Input(page, 3).Focus();
+            GuiHarness.Flush();
+            Assert.True(WelcomeTextList.Input(page, 3).IsFocused);
+            PressAndRelease(page, fold);
+            Assert.False(WelcomeTextList.Rows(page)[3].IsVisible);
+            page.FindControl<Button>("InsertNicknameButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.Contains("{昵称}", WelcomeTextList.Input(page, 3).Text);
+            Assert.True(WelcomeTextList.Rows(page)[3].IsVisible);
+            Assert.True(WelcomeTextList.Input(page, 3).IsFocused);
+        });
+
     [Fact]
     public Task New_welcome_text_waits_for_blur_then_validates_while_editing() =>
         WithSettingsPage(SettingsSection.Welcome, null, (page, _) =>
@@ -344,15 +488,18 @@ public sealed class SettingsPageTests
             Add(WelcomeCondition.Uid);
             Add(WelcomeCondition.FanClubLevel);
             Add(WelcomeCondition.Uid);
-            var rows = page.FindControl<StackPanel>("ConditionRows")!.Children.Cast<WelcomeConditionRow>().ToArray();
+            var rows = Rows(page);
             Assert.Equal(new[] { WelcomeCondition.Uid, WelcomeCondition.Uid, WelcomeCondition.FanClubLevel, WelcomeCondition.Guard, WelcomeCondition.WealthLevel }, rows.Select(row => row.Kind));
             Assert.Equal(new[] { "", "", "1", "舰长", "10" }, rows.Select(row => row.Value));
             Assert.True(MenuItem(WelcomeCondition.Uid).IsEnabled);
             Assert.All(menu.Items.Cast<MenuItem>().Skip(1), item => Assert.False(item.IsEnabled));
             Assert.True(rows[1].FindControl<TextBox>("UidInput")!.IsFocused);
-            Assert.Equal("5 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
+            Assert.Equal("4 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
             Assert.False(rows[0].FindControl<Grid>("OrSeparator")!.IsVisible);
-            Assert.All(rows.Skip(1), row => Assert.True(row.FindControl<Grid>("OrSeparator")!.IsVisible));
+            Assert.False(rows[1].FindControl<Grid>("OrSeparator")!.IsVisible);
+            Assert.True(rows[0].FindControl<TextBlock>("TypeName")!.IsVisible);
+            Assert.False(rows[1].FindControl<TextBlock>("TypeName")!.IsVisible);
+            Assert.All(rows.Skip(2), row => Assert.True(row.FindControl<Grid>("OrSeparator")!.IsVisible));
 
             MenuItem MenuItem(WelcomeCondition kind) => menu.Items.Cast<MenuItem>().Single(item => Equals(item.Tag, kind));
             void Add(WelcomeCondition kind)
@@ -664,7 +811,7 @@ public sealed class SettingsPageTests
                 Assert.True(window.FindControl<TextBlock>(name + "ReadOnly")!.IsVisible);
             Assert.All(Rows(window), row =>
             {
-                Assert.True(row.FindControl<TextBlock>("ReadOnlyMessage")!.IsVisible);
+                Assert.Equal(row == Rows(window).First(r => r.Kind == row.Kind), row.FindControl<TextBlock>("ReadOnlyMessage")!.IsVisible);
                 Assert.False(row.FindControl<Button>("RemoveButton")!.IsVisible);
             });
             Assert.All(Menu(window).Items.Cast<MenuItem>(), item => Assert.False(item.IsEnabled));

@@ -7,8 +7,8 @@ namespace Aether.Gui.Tests.Support;
 /// <summary>Drives the 欢迎条件 list on a 进场欢迎 page the way its menu and × buttons do.</summary>
 internal static class ConditionList
 {
-    public static WelcomeConditionRow[] Rows(SettingsPage page) => page.FindControl<StackPanel>("ConditionRows")!
-        .Children.Cast<WelcomeConditionRow>().ToArray();
+    public static WelcomeConditionRow[] Rows(SettingsPage page) => page.FindControl<StackPanel>("UidRows")!.Children
+        .Concat(page.FindControl<StackPanel>("ConditionRows")!.Children).Cast<WelcomeConditionRow>().ToArray();
 
     public static MenuFlyout Menu(SettingsPage page) => Assert.IsType<MenuFlyout>(page.FindControl<Button>("AddConditionButton")!.Flyout);
 

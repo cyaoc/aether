@@ -253,6 +253,7 @@
                   <TextBlock Grid.Column="1" x:Name="WelcomeTextCount" Classes="caption muted numeric" VerticalAlignment="Center" />
                 </Grid>
                 <StackPanel x:Name="WelcomeTextRows" Spacing="8" />
+                <local:ListFoldButton x:Name="WelcomeTextFold" />
                 <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <WrapPanel Orientation="Horizontal">
                   <TextBlock Classes="caption muted" Text="插入" VerticalAlignment="Center" Margin="0,0,8,0" />
@@ -268,12 +269,18 @@
                 <Button x:Name="AddWelcomeTextButton" Content="＋ 添加欢迎语" HorizontalAlignment="Left" ClickMode="Press" Click="AddWelcomeText" />
                 <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
                   <WrapPanel>
-                    <TextBlock Classes="section" Text="欢迎条件" Margin="0,0,10,0" />
+                    <TextBlock x:Name="ConditionsHeading" Classes="section" Text="欢迎条件" Margin="0,0,10,0" />
                     <TextBlock Classes="hint" Text="满足任意一条就欢迎" />
                   </WrapPanel>
                   <TextBlock Grid.Column="1" x:Name="ConditionCount" Classes="caption muted numeric" VerticalAlignment="Center" />
                 </Grid>
-                <StackPanel x:Name="ConditionRows" />
+                <StackPanel>
+                  <StackPanel x:Name="UidGroup" AutomationProperties.Name="指定观众">
+                    <StackPanel x:Name="UidRows" />
+                    <local:ListFoldButton x:Name="UidFold" Margin="120,0,0,8" />
+                  </StackPanel>
+                  <StackPanel x:Name="ConditionRows" />
+                </StackPanel>
                 <Grid x:Name="EmptyConditions">
                   <Rectangle Stroke="{DynamicResource Border.Control}" StrokeThickness="1" StrokeDashArray="4,3" RadiusX="8" RadiusY="8" />
                   <StackPanel Margin="18" Spacing="6">

@@ -37,6 +37,8 @@ public partial class SettingsPage : UserControl
         this.pickAnimationVideo = pickAnimationVideo;
         Section = section;
         InitializeComponent();
+        WelcomeTextFold.ExpandedChanged += RefreshWelcomeTexts;
+        UidFold.ExpandedChanged += RefreshConditionList;
         (PageTitle.Text, group) = section switch
         {
             SettingsSection.BlindBox => ("盲盒统计", "blind_box."),
