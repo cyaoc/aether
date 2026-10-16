@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
@@ -325,7 +326,8 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
                 await ReceiveReportAsync(request, response, token);
             else response.StatusCode = 404;
         }
-        catch (Exception error) when (error is IOException or HttpListenerException or ObjectDisposedException or OperationCanceledException or UnauthorizedAccessException)
+        // On macOS, RemoteEndPoint throws SocketException once the client has reset the connection.
+        catch (Exception error) when (error is IOException or HttpListenerException or SocketException or ObjectDisposedException or OperationCanceledException or UnauthorizedAccessException)
         { Abort(response); }
         finally
         {

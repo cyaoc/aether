@@ -264,7 +264,8 @@ public sealed class WelcomeAnimationTests
         var address = new Uri(h.Client.AnimationPage.Address);
         // A bodyless 404 writes its headers in Close(), after the client may have reset the connection.
         var request = System.Text.Encoding.ASCII.GetBytes($"GET /missing HTTP/1.1\r\nHost: {address.Authority}\r\nConnection: close\r\n\r\n");
-        for (var i = 0; i < 20; i++)
+        // 20 resets crashed .NET 10.0.12 on macOS (dotnet/runtime#121848) only 4 runs in 5; 100 crashed it every run.
+        for (var i = 0; i < 100; i++)
         {
             using var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { LingerState = new LingerOption(true, 0) };
             await socket.ConnectAsync(address.Host, address.Port, h.Stop.Token);
