@@ -8,7 +8,7 @@ namespace Aether.Gui;
 
 public partial class WelcomeAnimationRow : UserControl
 {
-    private bool showErrors;
+    private bool errorsRevealed;
     public bool CanEdit { get; }
     public string FileName { get; private set; }
     public string? SourcePath { get; private set; }
@@ -22,7 +22,7 @@ public partial class WelcomeAnimationRow : UserControl
 
     public WelcomeAnimationRow(string uid, string fileName, bool canEdit, bool isNew = false)
     {
-        showErrors = !isNew;
+        errorsRevealed = !isNew;
         InitializeComponent();
         CanEdit = canEdit;
         FileName = fileName;
@@ -32,7 +32,7 @@ public partial class WelcomeAnimationRow : UserControl
         FileButton.IsEnabled = canEdit;
         RemoveButton.IsVisible = canEdit;
         UidInput.TextChanged += (_, _) => Changed?.Invoke();
-        UidInput.LostFocus += (_, _) => { showErrors = true; Changed?.Invoke(); };
+        UidInput.LostFocus += (_, _) => { errorsRevealed = true; Changed?.Invoke(); };
         RemoveButton.Click += (_, _) => { if (CanEdit) RemoveRequested?.Invoke(); };
         FileButton.Click += (_, _) => { if (CanEdit) ChooseRequested?.Invoke(); };
         TestButton.Click += (_, _) => { if (TestButton.IsEnabled) TestRequested?.Invoke(); };
@@ -63,7 +63,7 @@ public partial class WelcomeAnimationRow : UserControl
             : Uid is not { } uid ? "UID 必须是正整数"
             : !uids.Add(uid) ? "和上面那条重复了" : null;
         var exists = File.Exists(SourcePath ?? Path.Combine(directory, FileName));
-        var visibleError = showErrors ? error : null;
+        var visibleError = errorsRevealed ? error : null;
         UidInput.Classes.Set("invalid", visibleError is not null);
         FileButton.Classes.Set("missing", !exists);
         FileIcon.Data = Icon(exists ? "Icon.Animation" : "Icon.Alert");

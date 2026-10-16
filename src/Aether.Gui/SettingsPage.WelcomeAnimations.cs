@@ -106,6 +106,7 @@ public partial class SettingsPage
             row ??= InsertAnimation("", Path.GetFileName(path), true, isNew: true);
             row.SelectVideo(path);
             Validate();
+            // After the picker hands focus back, or that would count as leaving the new row.
             Dispatcher.UIThread.Post(row.FocusInput, DispatcherPriority.Loaded);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)

@@ -6,6 +6,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Interactivity;
 using Avalonia.Input;
+using Avalonia.Media;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -51,6 +52,7 @@ public sealed class SettingsPageTests
             Assert.Equal("填上欢迎语，或删掉这条", error.Text);
             Assert.True(error.IsVisible);
             Assert.Contains("invalid", input.Classes);
+            AssertDangerBorder(input);
             input.Focus();
             input.Text = "欢迎回家";
             GuiHarness.Flush();
@@ -61,8 +63,48 @@ public sealed class SettingsPageTests
             GuiHarness.Flush();
             Assert.True(error.IsVisible);
             Assert.Equal("欢迎语不能只有 {@}，还要写上发出去的文字。", error.Text);
+            AssertDangerBorder(input);
             Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
         });
+
+    /// <summary>The invalid outline wins over the focus outline too.</summary>
+    private static void AssertDangerBorder(TextBox input)
+    {
+        var border = input.GetVisualDescendants().OfType<Border>().Single(b => b.Name == "PART_BorderElement");
+        Assert.True(input.TryFindResource("Danger", input.ActualThemeVariant, out var danger));
+        Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(danger).Color, Assert.IsAssignableFrom<ISolidColorBrush>(border.BorderBrush).Color);
+    }
+
+    [Fact]
+    public Task Add_buttons_still_click_when_leaving_a_new_row_pushes_them_down() =>
+        WithSettingsPage(SettingsSection.Welcome, null, (page, _) =>
+        {
+            var addText = page.FindControl<Button>("AddWelcomeTextButton")!;
+            addText.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            PressAndRelease(page, addText);
+            Assert.True(WelcomeTextList.Error(page, 1).IsVisible);
+            Assert.Equal(3, WelcomeTextList.Rows(page).Length);
+
+            var uid = Add(page, WelcomeCondition.Uid);
+            Assert.True(uid.FindControl<TextBox>("UidInput")!.IsFocused);
+            PressAndRelease(page, page.FindControl<Button>("AddConditionButton")!);
+            Assert.True(uid.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.True(Menu(page).IsOpen);
+        });
+
+    /// <summary>A mouse click near the button's top edge, letting layout run between press and release as it does on screen.</summary>
+    private static void PressAndRelease(SettingsPage page, Button button)
+    {
+        button.BringIntoView();
+        GuiHarness.Flush();
+        var window = (Window)TopLevel.GetTopLevel(page)!;
+        var point = button.TranslatePoint(new Point(button.Bounds.Width / 2, 2), window)!.Value;
+        window.MouseDown(point, MouseButton.Left);
+        GuiHarness.Flush();
+        window.MouseUp(point, MouseButton.Left);
+        GuiHarness.Flush();
+    }
 
     [Theory]
     [InlineData("", "填上欢迎语，或删掉这条")]

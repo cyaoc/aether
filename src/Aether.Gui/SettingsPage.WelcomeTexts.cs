@@ -69,6 +69,7 @@ public partial class SettingsPage
         Validate();
     }
 
+    /// <summary>A click on an insert button leaves focus in the row, so inserting does not count as leaving a new row.</summary>
     private void InsertButtonGettingFocus(object? sender, FocusChangingEventArgs e)
     {
         if (e.NavigationMethod == NavigationMethod.Pointer) e.TryCancel();
