@@ -233,7 +233,7 @@
                     <TextBlock Classes="caption muted" Text="点下面的“添加观众”，选一个视频、填上 UID，这位观众进场时就会播放。" TextWrapping="Wrap" TextAlignment="Center" LineHeight="18" />
                   </StackPanel>
                 </Grid>
-                <TextBlock x:Name="AnimationsReadOnly" Classes="hint" IsVisible="False" Text="这些映射不能逐行编辑，请在设置文件里改" />
+                <TextBlock x:Name="AnimationVideosReadOnly" Classes="hint" IsVisible="False" Text="这些映射不能逐行编辑，请在设置文件里改" />
                 <WrapPanel>
                   <Button x:Name="AddAnimationButton" HorizontalAlignment="Left" Padding="10,0,12,0" Margin="0,0,10,0">
                     <StackPanel Orientation="Horizontal" Spacing="6">

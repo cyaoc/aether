@@ -2,7 +2,11 @@ namespace Aether.Core;
 
 public abstract record AnimationPageUpdate;
 
-public sealed record AnimationPageStatus(bool Running, int Port, int ConnectedPages, string? Error = null) : AnimationPageUpdate;
+public sealed record AnimationPageStatus(bool Running, int Port, int ConnectedPages, string? Error = null) : AnimationPageUpdate
+{
+    /// <summary>What a browser source is given; ADR 0006 binds the page to localhost only.</summary>
+    public string Address => $"http://localhost:{Port}/";
+}
 
 public enum WelcomeAnimationState { Queued, Playing, Completed, Failed, Skipped, NoReport }
 

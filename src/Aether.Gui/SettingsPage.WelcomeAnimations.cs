@@ -14,7 +14,7 @@ public partial class SettingsPage
     private readonly Func<Task<string?>>? pickAnimationVideo;
     private IDisposable? copyFeedback;
     private IEnumerable<WelcomeAnimationRow> Animations => AnimationRows.Children.Cast<WelcomeAnimationRow>();
-    private string AnimationDirectory => Path.Combine(dataDirectory, "welcome-animations");
+    private string AnimationDirectory => Settings.WelcomeAnimationDirectory(dataDirectory);
 
     private async Task CopyAnimationAddressAsync()
     {
@@ -45,7 +45,7 @@ public partial class SettingsPage
         foreach (var (uid, video) in settings.WelcomeAnimationVideos)
             InsertAnimation(uid.ToString(CultureInfo.InvariantCulture), video.Value, settings.CanEditWelcomeAnimationVideos && video.CanEdit);
         AddAnimationButton.IsEnabled = settings.CanEditWelcomeAnimationVideos;
-        AnimationsReadOnly.IsVisible = !settings.CanEditWelcomeAnimationVideos;
+        AnimationVideosReadOnly.IsVisible = !settings.CanEditWelcomeAnimationVideos;
     }
 
     private WelcomeAnimationRow InsertAnimation(string uid, string fileName, bool canEdit)
@@ -126,7 +126,8 @@ public partial class SettingsPage
         return file?.TryGetLocalPath();
     }
 
-    private string SaveAnimationFiles(Dictionary<string, string> changes, Dictionary<long, (string FileName, string? Source)> rows)
+    /// <param name="snapshot">The settings the form was filled from; runs off the UI thread, so it does not read the field.</param>
+    private string SaveAnimationFiles(Dictionary<string, string> changes, Dictionary<long, (string FileName, string? Source)> rows, Settings snapshot)
     {
         var created = new List<string>();
         var backups = new List<(string Destination, string Backup)>();
@@ -177,7 +178,7 @@ public partial class SettingsPage
                 }
                 videos[uid] = name;
             }
-            Settings.SaveWelcomeAnimations(dataDirectory, changes, videos, settings);
+            Settings.SaveWelcomeAnimations(dataDirectory, changes, videos, snapshot);
         }
         catch (Exception failure)
         {
@@ -201,7 +202,7 @@ public partial class SettingsPage
         else
         {
             var used = saved.WelcomeAnimationVideos.Values.Select(video => video.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            foreach (var name in settings.WelcomeAnimationVideos.Values.Select(video => video.Value).Distinct(StringComparer.OrdinalIgnoreCase))
+            foreach (var name in snapshot.WelcomeAnimationVideos.Values.Select(video => video.Value).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 var path = Path.Combine(AnimationDirectory, name);
                 if (used.Contains(name) || sources.Contains(Path.GetFullPath(path))) continue;

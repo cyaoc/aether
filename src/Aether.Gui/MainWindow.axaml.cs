@@ -72,7 +72,7 @@ public partial class MainWindow : Window
         base.OnOpened(e);
         if (DataContext is MainWindowViewModel viewModel)
         {
-            _ = viewModel.ReloadAnimationPageAsync(Settings.Load(dataDirectory));
+            _ = viewModel.StartAnimationPageAsync(dataDirectory);
             viewModel.ReadAccountCommand.Execute(null);
         }
     }

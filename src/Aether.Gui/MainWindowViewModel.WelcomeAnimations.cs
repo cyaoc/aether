@@ -24,6 +24,9 @@ public partial class MainWindowViewModel
     private bool testPlayPending;
     internal bool AnimationBusy => testPlayPending || pendingAnimations.Count > 0;
 
+    /// <summary>Starts the page when the window opens, logging mapped videos that are missing as the CLI does.</summary>
+    internal Task StartAnimationPageAsync(string dataDirectory) => ReloadAnimationPageAsync(Settings.Load(dataDirectory, logger));
+
     internal Task RefreshAnimationPageAsync(Settings snapshot)
     {
         if (animationSettings is { } previous
@@ -115,13 +118,13 @@ public partial class MainWindowViewModel
     [NotifyPropertyChangedFor(nameof(ShowAnimationSetup))]
     [NotifyPropertyChangedFor(nameof(IsAnimationPageOff))]
     [NotifyPropertyChangedFor(nameof(AnimationPageHelp))]
-    private AnimationPageStatus animationPageStatus = new(false, 17890, 0);
+    private AnimationPageStatus animationPageStatus = client.AnimationPage.Status;
 
     public bool HasAnimationPages => AnimationPageStatus.Running && AnimationPageStatus.ConnectedPages > 0;
     public bool HasAnimationError => AnimationPageStatus.Error is not null;
     public bool ShowAnimationSetup => AnimationPageStatus is { Running: true, ConnectedPages: 0 };
     public bool IsAnimationPageOff => AnimationPageStatus is { Running: false, Error: null };
-    public string AnimationAddressText => $"http://localhost:{AnimationPageStatus.Port}/";
+    public string AnimationAddressText => AnimationPageStatus.Address;
     public string AnimationPageText => AnimationPageStatus.Error is { } error ? "动画页没打开：" + error
         : !AnimationPageStatus.Running ? "动画页没开，打开开关并保存后启动"
         : HasAnimationPages ? $"已有 {AnimationPageStatus.ConnectedPages} 个推流软件连着动画页"
@@ -160,12 +163,25 @@ public partial class MainWindowViewModel
                     if (RecentAnimations.FirstOrDefault(value => value.Playback.Id == oldest) is { } old) RecentAnimations.Remove(old);
                 }
             }
+            NumberQueuedAnimations();
             if (playback.State == WelcomeAnimationState.Playing) playingAnimation = playback;
             else if (playingAnimation?.Id == playback.Id) playingAnimation = null;
             // #125: the failure hint stays until the video is replaced, even if a later playback works.
             if (playback.State == WelcomeAnimationState.Failed) failedAnimationVideos.Add((playback.Uid, playback.FileName));
         }
         AnimationRowsChanged?.Invoke();
+    }
+
+    /// <summary>Core plays in arrival order and the list is newest first, so queued items count up from the bottom.</summary>
+    private void NumberQueuedAnimations()
+    {
+        var position = 0;
+        for (var index = RecentAnimations.Count - 1; index >= 0; index--)
+        {
+            if (RecentAnimations[index] is not { Playback.State: WelcomeAnimationState.Queued } queued) continue;
+            position++;
+            if (queued.Position != position) RecentAnimations[index] = queued with { Position = position };
+        }
     }
 
     internal bool AnimationFailed(long uid, string fileName) => failedAnimationVideos.Contains((uid, fileName));
@@ -196,12 +212,18 @@ public partial class MainWindowViewModel
     }
 }
 
-public sealed record WelcomeAnimationItem(WelcomeAnimationPlayback Playback, DateTimeOffset OccurredAt)
+/// <param name="Position">Place among the queued items, from 1; 0 once it is no longer queued.</param>
+public sealed record WelcomeAnimationItem(WelcomeAnimationPlayback Playback, DateTimeOffset OccurredAt, int Position = 0)
 {
     public string Name => Playback.IsTest ? "试播" : Playback.Nickname ?? $"UID {Playback.Uid}";
     public string Detail => Playback.IsTest || Playback.Nickname is null ? "" : $"UID {Playback.Uid}";
-    public string Status => Playback is { State: WelcomeAnimationState.Failed or WelcomeAnimationState.Skipped, Reason: { } reason }
-        ? $"{Playback.Progress}：{reason}" : Playback.Progress;
+    public string Status => Playback switch
+    {
+        { State: WelcomeAnimationState.Queued } when Position > 0 => $"{Playback.Progress} · 第 {Position} 个",
+        { State: WelcomeAnimationState.Failed or WelcomeAnimationState.Skipped or WelcomeAnimationState.NoReport, Reason: { } reason }
+            => $"{Playback.Progress}：{reason}",
+        _ => Playback.Progress
+    };
     public bool Playing => Playback.State == WelcomeAnimationState.Playing;
     public bool Failed => Playback.State == WelcomeAnimationState.Failed;
     /// <summary>A viewer played within the interval: the queue working as intended, so it stays quiet.</summary>

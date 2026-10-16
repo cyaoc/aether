@@ -330,13 +330,13 @@ public sealed class WelcomeAnimationSettingsTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(WelcomeAnimationState.Queued, "排队中", true)]
-    [InlineData(WelcomeAnimationState.Playing, "播放中", true)]
-    [InlineData(WelcomeAnimationState.Completed, "已播放", false)]
-    [InlineData(WelcomeAnimationState.Failed, "播放失败", false)]
-    [InlineData(WelcomeAnimationState.NoReport, "没收到播放回报", false)]
-    [InlineData(WelcomeAnimationState.Skipped, "没播：10 分钟内播过", false)]
-    public Task Recent_playback_shows_progress_reason_and_test_marker(WelcomeAnimationState state, string expected, bool busy) => HeadlessApp.Session.Dispatch(async () =>
+    [InlineData(WelcomeAnimationState.Queued, null, "排队中 · 第 1 个", true)]
+    [InlineData(WelcomeAnimationState.Playing, null, "播放中", true)]
+    [InlineData(WelcomeAnimationState.Completed, null, "已播放", false)]
+    [InlineData(WelcomeAnimationState.Failed, "视频无法播放", "播放失败：视频无法播放", false)]
+    [InlineData(WelcomeAnimationState.NoReport, "推流软件已全部断开", "没收到播放回报：推流软件已全部断开", false)]
+    [InlineData(WelcomeAnimationState.Skipped, "10 分钟内播过", "没播：10 分钟内播过", false)]
+    public Task Recent_playback_shows_progress_reason_and_test_marker(WelcomeAnimationState state, string? reason, string expected, bool busy) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         var viewModel = harness.CreateViewModel();
@@ -346,7 +346,7 @@ public sealed class WelcomeAnimationSettingsTests
         try
         {
             viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "欢迎.mp4", true, WelcomeAnimationState.Queued));
-            viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "欢迎.mp4", true, state, state == WelcomeAnimationState.Skipped ? "10 分钟内播过" : null));
+            viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "欢迎.mp4", true, state, reason));
             GuiHarness.Flush();
             var list = page.FindControl<ListBox>("RecentAnimationsList")!;
             Assert.Equal(1, list.ItemCount);
@@ -355,6 +355,24 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal(busy, viewModel.AnimationBusy);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Queued_playbacks_are_numbered_in_arrival_order_and_move_up() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        var viewModel = harness.CreateViewModel();
+        try
+        {
+            foreach (var id in new[] { "a", "b", "c" })
+                viewModel.Apply(new WelcomeAnimationPlayback(id, 42, "欢迎.mp4", false, WelcomeAnimationState.Queued, Nickname: id));
+            string Status(string id) => viewModel.RecentAnimations.Single(item => item.Playback.Id == id).Status;
+            Assert.Equal(["排队中 · 第 1 个", "排队中 · 第 2 个", "排队中 · 第 3 个"], new[] { Status("a"), Status("b"), Status("c") });
+            viewModel.Apply(new WelcomeAnimationPlayback("a", 42, "欢迎.mp4", false, WelcomeAnimationState.Playing, Nickname: "a"));
+            Assert.Equal(["播放中", "排队中 · 第 1 个", "排队中 · 第 2 个"], new[] { Status("a"), Status("b"), Status("c") });
+        }
+        finally { await viewModel.ShutdownAsync(); }
         return true;
     }, TestContext.Current.CancellationToken);
 

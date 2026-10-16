@@ -146,8 +146,11 @@ public sealed class Settings
 
     public static string FilePath(string dataDirectory) => Path.Combine(dataDirectory, "aether.yml");
 
+    /// <summary>Where 欢迎动画 videos live; the mapping holds bare file names inside it.</summary>
+    public static string WelcomeAnimationDirectory(string dataDirectory) => Path.Combine(dataDirectory, "welcome-animations");
+
     internal static string WelcomeAnimationFile(string dataDirectory, string fileName) =>
-        Path.Combine(dataDirectory, "welcome-animations", fileName);
+        Path.Combine(WelcomeAnimationDirectory(dataDirectory), fileName);
 
     /// <summary>How a switch is written in the file, for forms that hold it as a bool.</summary>
     public static string BooleanText(bool value) => value ? "true" : "false";

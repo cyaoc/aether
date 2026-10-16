@@ -265,7 +265,8 @@ public partial class SettingsPage : UserControl
                 saveCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
                 saving = true;
                 IsEnabled = false;
-                result = await Task.Run(() => SaveAnimationFiles(changes, rows));
+                var snapshot = settings;
+                result = await Task.Run(() => SaveAnimationFiles(changes, rows, snapshot));
                 saving = false;
             }
             else Settings.Save(dataDirectory, changes, settings);

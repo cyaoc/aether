@@ -32,14 +32,14 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
         public SemaphoreSlim WriteLock { get; } = new(1);
     }
 
-    public string Address { get { lock (gate) return $"http://localhost:{status.Port}/"; } }
+    public string Address => Status.Address;
 
     public AnimationPageStatus Status { get { lock (gate) return status; } }
 
     /// <summary>Subscribe independently of WatchAsync. The first update is the current page status.</summary>
     public async IAsyncEnumerable<AnimationPageUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // shortcut: unbounded like WatchAsync; bound this if a shell ever keeps a subscription without reading it.
+        // ponytail: unbounded like WatchAsync; bound this if a shell ever keeps a subscription without reading it.
         var updates = Channel.CreateUnbounded<AnimationPageUpdate>();
         lock (gate) { subscribers.Add(updates); updates.Writer.TryWrite(status); }
         try
@@ -76,7 +76,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             }
             listener = server;
             stop = new CancellationTokenSource();
-            // shortcut: pending entries are unbounded; add a capacity if mapped viewers can flood the queue.
+            // ponytail: pending entries are unbounded; add a capacity if mapped viewers can flood the queue.
             queue = Channel.CreateUnbounded<Playback>(new UnboundedChannelOptions { SingleReader = true });
             status = status with { Running = true };
             Publish(status);
@@ -95,7 +95,8 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
     {
         lock (gate)
         {
-            if (settings is null || !settings.WelcomeAnimationVideos.TryGetValue(uid, out var video)) return;
+            // Saved off while a room connection still runs on older settings: off, not a skip to report.
+            if (settings is not { WelcomeAnimationEnabled.Value: true } || !settings.WelcomeAnimationVideos.TryGetValue(uid, out var video)) return;
             var item = new Playback(new(Guid.NewGuid().ToString("N"), uid, video.Value, lastPlayed is null,
                 WelcomeAnimationState.Queued, Nickname: nickname), receivedAt, lastPlayed, roomStopped);
             if (!status.Running) Report(item, WelcomeAnimationState.Skipped, status.Error ?? "动画页未运行");
@@ -118,7 +119,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             if (stopping is null) return;
             stopping.Cancel();
             // Abort before Close: on Windows, Close releases the request queue that Abort needs.
-            foreach (var page in pages) page.Response.Abort();
+            foreach (var page in pages) Abort(page.Response);
             listener!.Close();
             pages.Clear();
             queue!.Writer.TryComplete();
@@ -147,12 +148,13 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             await foreach (var item in reader.ReadAllAsync(token))
             {
                 TaskCompletionSource<(WelcomeAnimationState State, string? Reason)> completion;
+                var exists = File.Exists(VideoPath(item.Update.FileName));
                 lock (gate)
                 {
                     var reason = item.RoomStopped.IsCancellationRequested ? "直播间连接结束"
                         : timeProvider.GetElapsedTime(item.ReceivedAt) > TimeSpan.FromSeconds(30) ? "排队超过 30 秒"
                         : pages.Count == 0 ? "没有推流软件连着"
-                        : !File.Exists(VideoPath(item.Update.FileName)) ? "视频文件不存在"
+                        : !exists ? "视频文件不存在"
                         : item.LastPlayed?.TryGetValue(item.Update.Uid, out var last) == true
                             && timeProvider.GetElapsedTime(last) < TimeSpan.FromMinutes(10) ? RecentlyPlayed : null;
                     if (reason is not null) { Report(item, WelcomeAnimationState.Skipped, reason); continue; }
@@ -172,7 +174,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
                         var result = await completion.Task.WaitAsync(TimeSpan.FromMinutes(2), timeProvider, token);
                         Report(item, result.State, result.Reason);
                     }
-                    catch (TimeoutException) { Report(item, WelcomeAnimationState.NoReport, "等待播放回报超过 2 分钟"); }
+                    catch (TimeoutException) { Report(item, WelcomeAnimationState.NoReport, "等了 2 分钟"); }
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { Report(item, WelcomeAnimationState.Skipped, "动画页已停止"); }
                 finally { lock (gate) { current = null; reported = null; } }
@@ -206,7 +208,8 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
         status = status with { ConnectedPages = pages.Count };
         logger.LogInformation("动画页：已有 {Count} 个推流软件连着", pages.Count);
         Publish(status);
-        if (pages.Count == 0) reported?.TrySetResult((WelcomeAnimationState.Skipped, "推流软件已全部断开"));
+        // Already pushed and counted in the interval, so this is an unreported playback rather than a skip.
+        if (pages.Count == 0) reported?.TrySetResult((WelcomeAnimationState.NoReport, "推流软件已全部断开"));
     }
 
     private async Task<int> BroadcastAsync(string text, CancellationToken token)
