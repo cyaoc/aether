@@ -69,6 +69,27 @@ public sealed class ThemeTests
         return true;
     }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public Task Button_text_is_centered_in_taller_buttons() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            window.FindControl<ListBox>("Navigation")!.SelectedIndex = 1;
+            GuiHarness.Flush();
+            var save = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible).FindControl<Button>("SaveButton")!;
+            var text = save.GetVisualDescendants().OfType<TextBlock>().Single();
+            var center = text.TranslatePoint(new Point(0, text.TextLayout.Height / 2), save)!.Value.Y;
+            Assert.InRange(center, save.Bounds.Height / 2 - 1, save.Bounds.Height / 2 + 1);
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -178,6 +178,7 @@
     <Setter Property="FontSize" Value="13" />
     <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
     <Setter Property="HorizontalContentAlignment" Value="Center" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
   </Style>
   <Style Selector="Button:pointerover /template/ ContentPresenter, Button:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource Surface.Sidebar}" />
