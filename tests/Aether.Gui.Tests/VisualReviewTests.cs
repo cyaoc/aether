@@ -271,13 +271,14 @@ public sealed class VisualReviewTests
                 });
             for (var i = 0; i < 6; i++)
             {
+                var nickname = i is 1 or 4 ? "bili_6508617762" : i == 5 ? "VeryLongEnglishViewerNameWithoutAnySpaces0123456789VeryLongEnglishViewerNameWithoutAnySpaces0123456789" : names[i];
                 viewModel.Apply(new SendQueueUpdate(i + 1, time.AddSeconds(-i * 12), SendQueueItemKind.Welcome,
-                    i == 1 ? SendQueueItemState.Queued : i == 3 ? SendQueueItemState.Discarded : SendQueueItemState.Sent, 1000 + i, names[i])
-                { Text = "欢迎" + names[i], WelcomeCondition = i % 2 == 0 ? WelcomeCondition.Guard : WelcomeCondition.FanClubLevel,
+                    i == 1 ? SendQueueItemState.Queued : i == 3 ? SendQueueItemState.Discarded : SendQueueItemState.Sent, 1000 + i, nickname)
+                { Text = "欢迎" + nickname, WelcomeCondition = i % 2 == 0 ? WelcomeCondition.Guard : WelcomeCondition.FanClubLevel,
                     WelcomeValue = i % 2 == 0 ? "舰长" : "12", Reason = i == 3 ? "进场超过 30 秒" : null });
                 viewModel.Apply(new SendQueueUpdate(i + 10, time.AddSeconds(-i * 12), i % 2 == 0 ? SendQueueItemKind.BlindBoxQuery : SendQueueItemKind.BlindBoxAnnouncement,
-                    i == 1 ? SendQueueItemState.WaitingToRetry : SendQueueItemState.Sent, 1000 + i, names[i])
-                { Text = "@" + names[i] + " 投入52电池 亏12.6电池", RetrySeconds = 1 });
+                    i == 1 ? SendQueueItemState.WaitingToRetry : SendQueueItemState.Sent, 1000 + i, nickname)
+                { Text = "@" + nickname + " 投入52电池 亏12.6电池", RetrySeconds = 1 });
             }
             var navigation = window.FindControl<ListBox>("Navigation")!;
             var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "send-queue", "general" };
