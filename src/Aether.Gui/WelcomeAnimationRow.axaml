@@ -1,8 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.WelcomeAnimationRow">
   <UserControl.Styles>
-    <Style Selector="TextBox#UidInput.invalid">
-      <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
-    </Style>
     <Style Selector="Button#FileButton">
       <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
     </Style>

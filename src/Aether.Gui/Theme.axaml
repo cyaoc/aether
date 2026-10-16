@@ -329,6 +329,9 @@
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
     <Setter Property="BorderThickness" Value="2" />
   </Style>
+  <Style Selector="TextBox.invalid /template/ Border#PART_BorderElement">
+    <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+  </Style>
   <Style Selector="NumericUpDown.invalid">
     <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
     <Setter Property="BorderThickness" Value="2" />

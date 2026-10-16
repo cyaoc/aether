@@ -48,9 +48,9 @@ public partial class SettingsPage
         AnimationVideosReadOnly.IsVisible = !settings.CanEditWelcomeAnimationVideos;
     }
 
-    private WelcomeAnimationRow InsertAnimation(string uid, string fileName, bool canEdit)
+    private WelcomeAnimationRow InsertAnimation(string uid, string fileName, bool canEdit, bool isNew = false)
     {
-        var row = new WelcomeAnimationRow(uid, fileName, canEdit);
+        var row = new WelcomeAnimationRow(uid, fileName, canEdit, isNew);
         AnimationRows.Children.Add(row);
         row.Changed += Validate;
         row.RemoveRequested += () => { AnimationRows.Children.Remove(row); Validate(); };
@@ -103,10 +103,11 @@ public partial class SettingsPage
                 Message.Text = reason;
                 return;
             }
-            row ??= InsertAnimation("", Path.GetFileName(path), true);
+            row ??= InsertAnimation("", Path.GetFileName(path), true, isNew: true);
             row.SelectVideo(path);
             Validate();
-            row.FocusInput();
+            // After the picker hands focus back, or that would count as leaving the new row.
+            Dispatcher.UIThread.Post(row.FocusInput, DispatcherPriority.Loaded);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
         {

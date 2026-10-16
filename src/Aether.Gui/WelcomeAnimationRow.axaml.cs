@@ -8,6 +8,7 @@ namespace Aether.Gui;
 
 public partial class WelcomeAnimationRow : UserControl
 {
+    private bool errorsRevealed;
     public bool CanEdit { get; }
     public string FileName { get; private set; }
     public string? SourcePath { get; private set; }
@@ -19,8 +20,9 @@ public partial class WelcomeAnimationRow : UserControl
 
     public WelcomeAnimationRow() : this("", "", true) { }
 
-    public WelcomeAnimationRow(string uid, string fileName, bool canEdit)
+    public WelcomeAnimationRow(string uid, string fileName, bool canEdit, bool isNew = false)
     {
+        errorsRevealed = !isNew;
         InitializeComponent();
         CanEdit = canEdit;
         FileName = fileName;
@@ -30,6 +32,7 @@ public partial class WelcomeAnimationRow : UserControl
         FileButton.IsEnabled = canEdit;
         RemoveButton.IsVisible = canEdit;
         UidInput.TextChanged += (_, _) => Changed?.Invoke();
+        UidInput.LostFocus += (_, _) => { errorsRevealed = true; Changed?.Invoke(); };
         RemoveButton.Click += (_, _) => { if (CanEdit) RemoveRequested?.Invoke(); };
         FileButton.Click += (_, _) => { if (CanEdit) ChooseRequested?.Invoke(); };
         TestButton.Click += (_, _) => { if (TestButton.IsEnabled) TestRequested?.Invoke(); };
@@ -60,13 +63,14 @@ public partial class WelcomeAnimationRow : UserControl
             : Uid is not { } uid ? "UID 必须是正整数"
             : !uids.Add(uid) ? "和上面那条重复了" : null;
         var exists = File.Exists(SourcePath ?? Path.Combine(directory, FileName));
-        UidInput.Classes.Set("invalid", error is not null);
+        var visibleError = errorsRevealed ? error : null;
+        UidInput.Classes.Set("invalid", visibleError is not null);
         FileButton.Classes.Set("missing", !exists);
         FileIcon.Data = Icon(exists ? "Icon.Animation" : "Icon.Alert");
         FileNameText.TextDecorations = exists ? null : TextDecorations.Strikethrough;
         ToolTip.SetTip(FileButton, "点击更换视频");
         // The canvas's order: what blocks saving or playing first, then why the last playback failed, then progress.
-        var (note, tone, icon) = error is not null ? (error, "error", "Icon.Alert")
+        var (note, tone, icon) = visibleError is not null ? (visibleError, "error", "Icon.Alert")
             : !exists ? ("找不到视频文件，点文件名重新选择", "error", "Icon.Alert")
             : failed ? ("上次播放失败：格式不支持，换成 H.264 编码的 MP4", "error", "Icon.Fail")
             : !saved ? ("保存后才能试播", null, "Icon.Info")

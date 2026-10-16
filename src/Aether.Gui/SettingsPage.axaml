@@ -256,14 +256,16 @@
                 <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <WrapPanel Orientation="Horizontal">
                   <TextBlock Classes="caption muted" Text="插入" VerticalAlignment="Center" Margin="0,0,8,0" />
-                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertAtButton" Content="@观众" Tag="{}{@}" Click="InsertPlaceholder" />
-                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertNicknameButton" Content="昵称" Tag="{}{昵称}" Click="InsertPlaceholder" />
-                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertGuardButton" Content="大航海身份" Tag="{}{大航海}" Click="InsertPlaceholder" />
+                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertAtButton" GettingFocus="InsertButtonGettingFocus" Content="@观众" Tag="{}{@}" Click="InsertPlaceholder" />
+                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertNicknameButton" GettingFocus="InsertButtonGettingFocus" Content="昵称" Tag="{}{昵称}" Click="InsertPlaceholder" />
+                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertGuardButton" GettingFocus="InsertButtonGettingFocus" Content="大航海身份" Tag="{}{大航海}" Click="InsertPlaceholder" />
                   <TextBlock x:Name="WelcomeInsertTarget" Classes="caption muted" VerticalAlignment="Center" />
                 </WrapPanel>
                 <TextBlock x:Name="WelcomeTextHint" Classes="caption muted" TextWrapping="Wrap"
                   Text="英文、数字、半角符号算 1，其他字符算 2。上限自动读取账号的。可用 {@}（只能放开头）、{昵称}、{大航海}；用 {{ 和 }} 转义花括号。" />
-                <Button x:Name="AddWelcomeTextButton" Content="＋ 添加欢迎语" HorizontalAlignment="Left" Click="AddWelcomeText" />
+                <!-- Click on press: leaving a new row above shows its error and pushes this button down before the release.
+                     shortcut: other buttons below a new row can still lose that one click; defer the reveal to pointer release if it matters. -->
+                <Button x:Name="AddWelcomeTextButton" Content="＋ 添加欢迎语" HorizontalAlignment="Left" ClickMode="Press" Click="AddWelcomeText" />
                 <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
                   <WrapPanel>
                     <TextBlock Classes="section" Text="欢迎条件" Margin="0,0,10,0" />
@@ -280,7 +282,7 @@
                   </StackPanel>
                 </Grid>
                 <TextBlock x:Name="ConditionsReadOnly" Classes="hint" TextWrapping="Wrap" />
-                <Button x:Name="AddConditionButton" Content="＋ 添加条件" HorizontalAlignment="Left">
+                <Button x:Name="AddConditionButton" Content="＋ 添加条件" HorizontalAlignment="Left" ClickMode="Press">
                   <Button.Flyout>
                     <MenuFlyout Placement="BottomEdgeAlignedLeft">
                       <MenuItem Tag="{x:Static core:WelcomeCondition.Uid}" Click="AddConditionFromMenu" AutomationProperties.Name="添加指定观众条件">

@@ -1,5 +1,6 @@
 using Aether.Core;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 
@@ -22,9 +23,9 @@ public partial class SettingsPage
         RefreshWelcomeTexts();
     }
 
-    private WelcomeTextRow InsertWelcomeText(string text)
+    private WelcomeTextRow InsertWelcomeText(string text, bool isNew = false)
     {
-        var row = new WelcomeTextRow(text, settings.WelcomeTexts.CanEdit);
+        var row = new WelcomeTextRow(text, settings.WelcomeTexts.CanEdit, isNew);
         WelcomeTextRows.Children.Add(row);
         row.Changed += Validate;
         row.Editing += () => { editedWelcomeText = row; RefreshWelcomeTexts(); };
@@ -55,7 +56,7 @@ public partial class SettingsPage
     private void AddWelcomeText(object? sender, RoutedEventArgs e)
     {
         if (!settings.WelcomeTexts.CanEdit) return;
-        var row = InsertWelcomeText("");
+        var row = InsertWelcomeText("", isNew: true);
         editedWelcomeText = row;
         RefreshWelcomeTexts();
         Validate();
@@ -68,12 +69,23 @@ public partial class SettingsPage
         Validate();
     }
 
+    /// <summary>A click on an insert button leaves focus in the row, so inserting does not count as leaving a new row.</summary>
+    private void InsertButtonGettingFocus(object? sender, FocusChangingEventArgs e)
+    {
+        if (e.NavigationMethod == NavigationMethod.Pointer) e.TryCancel();
+    }
+
     /// <summary>Shows each row's error, checked as a one-text list; true when any row cannot be saved.</summary>
     private bool ShowWelcomeTextErrors()
     {
         var invalid = false;
         foreach (var row in WelcomeTexts)
-            invalid |= row.ShowError(InputError(new(settings.WelcomeTexts.Name, settings.WelcomeTexts.CanEdit, Settings.TextListText([row.Value]))));
+        {
+            var error = !settings.WelcomeTexts.CanEdit ? null
+                : string.IsNullOrWhiteSpace(row.Value) ? "填上欢迎语，或删掉这条"
+                : Settings.Validate(settings.WelcomeTexts.Name, Settings.TextListText([row.Value]));
+            invalid |= row.ShowError(error);
+        }
         return invalid;
     }
 }
