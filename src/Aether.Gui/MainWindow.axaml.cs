@@ -70,7 +70,18 @@ public partial class MainWindow : Window
     protected override void OnOpened(EventArgs e)
     {
         base.OnOpened(e);
-        if (DataContext is MainWindowViewModel viewModel) viewModel.ReadAccountCommand.Execute(null);
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            _ = viewModel.StartAnimationPageAsync(dataDirectory);
+            viewModel.ReadAccountCommand.Execute(null);
+        }
+    }
+
+    private async void OpenAnimationsWithoutLogin(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel viewModel) return;
+        await viewModel.OpenAnimationSettingsCommand.ExecuteAsync(null);
+        Navigation.SelectedIndex = 1 + (int)SettingsSection.WelcomeAnimation;
     }
 
     private void Navigate(object? sender, SelectionChangedEventArgs e)
@@ -89,6 +100,8 @@ public partial class MainWindow : Window
         // An invalid file has no usable saved values to advertise.
         ShowEnabled(BlindBoxStatus, current.Error is null ? current.BlindBoxEnabled.Value : null);
         ShowEnabled(WelcomeStatus, current.Error is null ? current.WelcomeEnabled.Value : null);
+        ShowEnabled(AnimationStatus, current.Error is null ? current.WelcomeAnimationEnabled.Value : null);
+        if (IsVisible && DataContext is MainWindowViewModel viewModel) _ = viewModel.RefreshAnimationPageAsync(current);
         foreach (var page in settingsPages) page.RefreshFileStatus(current);
     }
 
@@ -219,6 +232,7 @@ public partial class MainWindow : Window
         if (closing) return;
         closing = true;
         IsEnabled = false;
+        await Task.WhenAll(settingsPages.Select(page => page.PendingSave));
         if (DataContext is MainWindowViewModel viewModel) await viewModel.ShutdownAsync();
         canClose = true;
         Dispatcher.UIThread.Post(Close);

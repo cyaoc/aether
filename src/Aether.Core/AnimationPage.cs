@@ -32,14 +32,14 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
         public SemaphoreSlim WriteLock { get; } = new(1);
     }
 
-    public string Address { get { lock (gate) return $"http://localhost:{status.Port}/"; } }
+    public string Address => Status.Address;
 
     public AnimationPageStatus Status { get { lock (gate) return status; } }
 
     /// <summary>Subscribe independently of WatchAsync. The first update is the current page status.</summary>
     public async IAsyncEnumerable<AnimationPageUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // shortcut: unbounded like WatchAsync; bound this if a shell ever keeps a subscription without reading it.
+        // ponytail: unbounded like WatchAsync; bound this if a shell ever keeps a subscription without reading it.
         var updates = Channel.CreateUnbounded<AnimationPageUpdate>();
         lock (gate) { subscribers.Add(updates); updates.Writer.TryWrite(status); }
         try
@@ -68,7 +68,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
                 // EADDRINUSE (macOS 48, Linux 98, WSA 10048); http.sys 32 (port held by another program) and
                 // 183 (prefix already registered); managed HttpListener 400 (prefix already registered).
                 var reason = exception.ErrorCode is 48 or 98 or 10048 or 32 or 183 or 400
-                    ? $"端口 {status.Port} 被占用" : $"动画页启动失败（端口 {status.Port}，错误码 {exception.ErrorCode}）：{exception.Message}";
+                    ? $"端口 {status.Port} 被别的程序占用" : $"动画页启动失败（端口 {status.Port}，错误码 {exception.ErrorCode}）：{exception.Message}";
                 status = status with { Error = reason };
                 logger.LogWarning("动画页没有运行：{Reason}", reason);
                 Publish(status);
@@ -76,7 +76,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             }
             listener = server;
             stop = new CancellationTokenSource();
-            // shortcut: pending entries are unbounded; add a capacity if mapped viewers can flood the queue.
+            // ponytail: pending entries are unbounded; add a capacity if mapped viewers can flood the queue.
             queue = Channel.CreateUnbounded<Playback>(new UnboundedChannelOptions { SingleReader = true });
             status = status with { Running = true };
             Publish(status);
@@ -86,15 +86,19 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
     }
 
     /// <summary>Uses the normal playback queue, without checking or updating any room's ten-minute interval.</summary>
-    public void TestPlay(long uid) => Enqueue(uid, timeProvider.GetTimestamp(), null, CancellationToken.None);
+    public void TestPlay(long uid) => Enqueue(uid, null, timeProvider.GetTimestamp(), null, CancellationToken.None);
 
-    internal void Enqueue(long uid, long receivedAt, Dictionary<long, long>? lastPlayed, CancellationToken roomStopped)
+    /// <summary>The skip reason for a viewer played within the interval: the one skip that needs no attention.</summary>
+    public const string RecentlyPlayed = "10 分钟内播过";
+
+    internal void Enqueue(long uid, string? nickname, long receivedAt, Dictionary<long, long>? lastPlayed, CancellationToken roomStopped)
     {
         lock (gate)
         {
-            if (settings is null || !settings.WelcomeAnimationVideos.TryGetValue(uid, out var video)) return;
+            // Saved off while a room connection still runs on older settings: off, not a skip to report.
+            if (settings is not { WelcomeAnimationEnabled.Value: true } || !settings.WelcomeAnimationVideos.TryGetValue(uid, out var video)) return;
             var item = new Playback(new(Guid.NewGuid().ToString("N"), uid, video.Value, lastPlayed is null,
-                WelcomeAnimationState.Queued), receivedAt, lastPlayed, roomStopped);
+                WelcomeAnimationState.Queued, Nickname: nickname), receivedAt, lastPlayed, roomStopped);
             if (!status.Running) Report(item, WelcomeAnimationState.Skipped, status.Error ?? "动画页未运行");
             else if (pages.Count == 0) Report(item, WelcomeAnimationState.Skipped, "没有推流软件连着");
             else
@@ -115,7 +119,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             if (stopping is null) return;
             stopping.Cancel();
             // Abort before Close: on Windows, Close releases the request queue that Abort needs.
-            foreach (var page in pages) page.Response.Abort();
+            foreach (var page in pages) Abort(page.Response);
             listener!.Close();
             pages.Clear();
             queue!.Writer.TryComplete();
@@ -144,14 +148,15 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
             await foreach (var item in reader.ReadAllAsync(token))
             {
                 TaskCompletionSource<(WelcomeAnimationState State, string? Reason)> completion;
+                var exists = File.Exists(VideoPath(item.Update.FileName));
                 lock (gate)
                 {
                     var reason = item.RoomStopped.IsCancellationRequested ? "直播间连接结束"
                         : timeProvider.GetElapsedTime(item.ReceivedAt) > TimeSpan.FromSeconds(30) ? "排队超过 30 秒"
                         : pages.Count == 0 ? "没有推流软件连着"
-                        : !File.Exists(VideoPath(item.Update.FileName)) ? "视频文件不存在"
+                        : !exists ? "视频文件不存在"
                         : item.LastPlayed?.TryGetValue(item.Update.Uid, out var last) == true
-                            && timeProvider.GetElapsedTime(last) < TimeSpan.FromMinutes(10) ? "10 分钟内播过" : null;
+                            && timeProvider.GetElapsedTime(last) < TimeSpan.FromMinutes(10) ? RecentlyPlayed : null;
                     if (reason is not null) { Report(item, WelcomeAnimationState.Skipped, reason); continue; }
                     current = item;
                     reported = completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -169,7 +174,7 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
                         var result = await completion.Task.WaitAsync(TimeSpan.FromMinutes(2), timeProvider, token);
                         Report(item, result.State, result.Reason);
                     }
-                    catch (TimeoutException) { Report(item, WelcomeAnimationState.Failed, "等待播放回报超过 2 分钟"); }
+                    catch (TimeoutException) { Report(item, WelcomeAnimationState.NoReport, "等了 2 分钟"); }
                 }
                 catch (OperationCanceledException) when (token.IsCancellationRequested) { Report(item, WelcomeAnimationState.Skipped, "动画页已停止"); }
                 finally { lock (gate) { current = null; reported = null; } }
@@ -187,14 +192,9 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
     private void Report(Playback item, WelcomeAnimationState state, string? reason = null)
     {
         var update = item.Update with { State = state, Reason = reason };
-        var progress = state switch
-        {
-            WelcomeAnimationState.Queued => "排队中", WelcomeAnimationState.Playing => "播放中",
-            WelcomeAnimationState.Completed => "已播放", WelcomeAnimationState.Failed => "播放失败", _ => "没播"
-        };
-        logger.Log(state == WelcomeAnimationState.Failed ? LogLevel.Warning : LogLevel.Information,
+        logger.Log(state is WelcomeAnimationState.Failed or WelcomeAnimationState.NoReport ? LogLevel.Warning : LogLevel.Information,
             "[欢迎动画 {PlaybackId}] 观众 {Uid}，{FileName}，试播={IsTest}：{Progress} {Reason}",
-            update.Id, update.Uid, update.FileName, update.IsTest, progress, reason);
+            update.Id, update.Uid, update.FileName, update.IsTest, update.Progress, reason);
         lock (gate) Publish(update);
     }
 
@@ -208,7 +208,8 @@ public sealed class AnimationPage(string dataDirectory, TimeProvider timeProvide
         status = status with { ConnectedPages = pages.Count };
         logger.LogInformation("动画页：已有 {Count} 个推流软件连着", pages.Count);
         Publish(status);
-        if (pages.Count == 0) reported?.TrySetResult((WelcomeAnimationState.Skipped, "推流软件已全部断开"));
+        // Already pushed and counted in the interval, so this is an unreported playback rather than a skip.
+        if (pages.Count == 0) reported?.TrySetResult((WelcomeAnimationState.NoReport, "推流软件已全部断开"));
     }
 
     private async Task<int> BroadcastAsync(string text, CancellationToken token)

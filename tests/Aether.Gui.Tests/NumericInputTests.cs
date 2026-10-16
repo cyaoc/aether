@@ -41,7 +41,7 @@ public sealed class NumericInputTests
         {
             foreach (var (index, name, unit) in new[]
             {
-                (3, "发送间隔秒数", "秒"), (4, "日志保留天数", "天"),
+                (4, "发送间隔秒数", "秒"), (5, "日志保留天数", "天"),
                 (2, "粉丝团等级门槛", "级"), (2, "荣耀等级门槛", "级")
             })
             {
@@ -109,7 +109,7 @@ public sealed class NumericInputTests
         window.Show();
         try
         {
-            foreach (var index in new[] { 3, 4, 2 })
+            foreach (var index in new[] { 4, 5, 2 })
             {
                 window.Navigation.SelectedIndex = index;
                 GuiHarness.Flush();
@@ -186,7 +186,7 @@ public sealed class NumericInputTests
         {
             foreach (var (index, name, expectedWidth) in new[]
             {
-                (1, "DailyKeywordInput", 240), (1, "MonthlyKeywordInput", 240), (4, "LogLevelInput", 200),
+                (1, "DailyKeywordInput", 240), (1, "MonthlyKeywordInput", 240), (5, "LogLevelInput", 200),
                 (2, "UidInput", 200), (2, "GuardInput", 132)
             })
             {

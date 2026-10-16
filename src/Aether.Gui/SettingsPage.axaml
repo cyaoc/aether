@@ -1,6 +1,25 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.SettingsPage">
   <UserControl.Resources>
+    <DataTemplate x:Key="AnimationActivityTemplate" x:DataType="local:WelcomeAnimationItem">
+      <Border Classes="activityRow">
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+              <TextBlock Classes="secondary" Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="130" ToolTip.Tip="{Binding Name}" />
+              <TextBlock Grid.Column="1" Classes="secondary muted numeric" Text="{Binding Detail}" TextTrimming="CharacterEllipsis" />
+            </Grid>
+            <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" VerticalAlignment="Center" />
+          </Grid>
+          <TextBlock Classes="label" Text="{Binding Playback.FileName}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Playback.FileName}" />
+          <Grid Classes="playbackStatus" Classes.playing="{Binding Playing}" Classes.completed="{Binding Completed}" Classes.failed="{Binding Failed}"
+            Classes.unplayed="{Binding Unplayed}" Classes.skipped="{Binding RecentlyPlayed}" ColumnDefinitions="Auto,*" ColumnSpacing="5">
+            <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path StrokeThickness="2" /></Viewbox>
+            <TextBlock Grid.Column="1" x:Name="PlaybackStatus" Text="{Binding Status}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+          </Grid>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
     <DataTemplate x:Key="FeatureActivityTemplate" x:DataType="local:SendQueueItemViewModel">
       <Border Classes="activityRow">
         <StackPanel Spacing="4">
@@ -32,6 +51,52 @@
       </Border>
     </DataTemplate>
   </UserControl.Resources>
+  <UserControl.Styles>
+    <!-- 最近播放: one tone and icon per playback state, as on canvas I1. -->
+    <Style Selector="Grid.playbackStatus">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Clock}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.playing Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Wave}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.completed">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.completed Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Check}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.failed">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Danger}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.failed Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Fail}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.unplayed">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Warning.Text}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.unplayed Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Alert}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.skipped">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.skipped Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Skip}" />
+    </Style>
+    <Style Selector="StackPanel#CopyContent.copied">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="TextBox.address">
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontFamily" Value="Menlo, Consolas" />
+      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+    </Style>
+  </UserControl.Styles>
   <Grid RowDefinitions="60,Auto,*">
     <Border Classes="pageHeader">
       <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="12">
@@ -42,6 +107,9 @@
           </StackPanel>
           <StackPanel x:Name="WelcomeHeader" VerticalAlignment="Center">
             <ToggleSwitch Classes="plain" x:Name="WelcomeInput" AutomationProperties.Name="进场欢迎" />
+          </StackPanel>
+          <StackPanel x:Name="AnimationHeader" VerticalAlignment="Center">
+            <ToggleSwitch Classes="plain" x:Name="AnimationInput" AutomationProperties.Name="欢迎动画" />
           </StackPanel>
         </Panel>
         <TextBlock Grid.Column="2" x:Name="TimingHint" Classes="caption muted" VerticalAlignment="Center" TextWrapping="Wrap" />
@@ -108,6 +176,73 @@
                 </Grid>
                 <TextBlock x:Name="AnnounceReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <TextBlock x:Name="AnnounceError" Classes="error" />
+              </StackPanel>
+              <StackPanel x:Name="AnimationFields" Spacing="10">
+                <TextBlock x:Name="AnimationReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+                <WrapPanel>
+                  <TextBlock Classes="section" Text="动画页" Margin="0,0,8,0" />
+                  <TextBlock Classes="hint" Text="直播姬里的浏览器素材显示这个网页" />
+                </WrapPanel>
+                <Border Classes="card notice" Classes.warning="{Binding ShowAnimationSetup}" Classes.error="{Binding HasAnimationError}">
+                  <StackPanel Spacing="10">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                      <Panel VerticalAlignment="Top" Margin="0,1,0,0">
+                        <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding HasAnimationPages}"><Path Data="{StaticResource Icon.Ok}" Stroke="{DynamicResource Success}" StrokeThickness="2" /></Viewbox>
+                        <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding ShowAnimationSetup}"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
+                        <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding HasAnimationError}"><Path Data="{StaticResource Icon.Fail}" StrokeThickness="2" /></Viewbox>
+                        <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding IsAnimationPageOff}"><Path Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
+                      </Panel>
+                      <StackPanel Grid.Column="1" Spacing="4">
+                        <TextBlock x:Name="AnimationPageStatusText" Classes="secondary" Classes.success="{Binding HasAnimationPages}" Classes.muted="{Binding IsAnimationPageOff}" FontWeight="SemiBold" Text="{Binding AnimationPageText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                        <TextBlock x:Name="AnimationPageHelpText" Classes="caption" Foreground="{DynamicResource Text.Secondary}" LineHeight="18" Text="{Binding AnimationPageHelp}" TextWrapping="Wrap"
+                          IsVisible="{Binding AnimationPageHelp, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                      </StackPanel>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                      <TextBox x:Name="AnimationAddress" Classes="address" Text="{Binding AnimationAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="动画页地址" />
+                      <Button Grid.Column="1" x:Name="CopyAnimationAddressButton" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制动画页地址">
+                        <StackPanel x:Name="CopyContent" Orientation="Horizontal" Spacing="6">
+                          <Viewbox Classes="icon" Width="14" Height="14"><Path x:Name="CopyIcon" Data="{StaticResource Icon.Copy}" StrokeThickness="2" /></Viewbox>
+                          <TextBlock x:Name="CopyText" Text="复制" VerticalAlignment="Center" />
+                        </StackPanel>
+                      </Button>
+                    </Grid>
+                  </StackPanel>
+                </Border>
+                <TextBlock Classes="label" Text="端口" Margin="0,6,0,0" />
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <NumericUpDown x:Name="AnimationPortInput" Minimum="1" Maximum="65535" Classes.invalid="{Binding #AnimationPortError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="动画页端口" />
+                  <TextBlock Classes="caption muted" Text="被占用时换一个，直播姬里的地址也要跟着改" VerticalAlignment="Center" TextWrapping="Wrap" />
+                </StackPanel>
+                <TextBlock x:Name="AnimationPortReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+                <TextBlock x:Name="AnimationPortError" Classes="error" />
+                <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+                  <WrapPanel>
+                    <TextBlock Classes="section" Text="观众" Margin="0,0,8,0" />
+                    <TextBlock Classes="hint" Text="进场时在直播画面上播放各自的视频" />
+                  </WrapPanel>
+                  <TextBlock Grid.Column="1" x:Name="AnimationCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+                </Grid>
+                <Border x:Name="AnimationRowsBorder" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8">
+                  <StackPanel x:Name="AnimationRows" />
+                </Border>
+                <Grid x:Name="EmptyAnimations">
+                  <Rectangle Stroke="{DynamicResource Border.Control}" StrokeThickness="1" StrokeDashArray="4,3" RadiusX="8" RadiusY="8" />
+                  <StackPanel Margin="16,22" Spacing="4" HorizontalAlignment="Center">
+                    <TextBlock Classes="label" Text="还没有观众" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                    <TextBlock Classes="caption muted" Text="点下面的“添加观众”，选一个视频、填上 UID，这位观众进场时就会播放。" TextWrapping="Wrap" TextAlignment="Center" LineHeight="18" />
+                  </StackPanel>
+                </Grid>
+                <TextBlock x:Name="AnimationVideosReadOnly" Classes="hint" IsVisible="False" Text="这些映射不能逐行编辑，请在设置文件里改" />
+                <WrapPanel>
+                  <Button x:Name="AddAnimationButton" HorizontalAlignment="Left" Padding="10,0,12,0" Margin="0,0,10,0">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" /></Viewbox>
+                      <TextBlock Text="添加观众" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Button>
+                  <TextBlock Classes="caption muted" Text="选 MP4 或 WebM，保存时复制到数据目录" VerticalAlignment="Center" />
+                </WrapPanel>
               </StackPanel>
               <StackPanel x:Name="SendFields" Spacing="8">
                 <TextBlock Classes="label" Text="发送间隔" />
@@ -237,11 +372,18 @@
             <TextBlock x:Name="RecentActivityTitle" Classes="section" />
             <Panel Grid.Column="1">
               <TextBlock x:Name="WelcomeTotal" Classes="caption muted numeric" Text="{Binding WelcomeCount, StringFormat=共 {0:N0} 次}" VerticalAlignment="Center" />
+              <Panel IsVisible="{Binding #RecentAnimationsList.IsVisible}">
+                <TextBlock x:Name="AnimationTotal" Classes="caption muted numeric" Text="{Binding RecentAnimations.Count, StringFormat=共 {0:N0} 次}" IsVisible="{Binding !!RecentAnimations.Count}" VerticalAlignment="Center" />
+              </Panel>
               <TextBlock Classes="caption muted numeric" Text="{Binding RecentQueriesAndAnnouncements.Count, StringFormat={}{0:N0} 条}" IsVisible="{Binding #RecentQueriesAndAnnouncementsList.IsVisible}" VerticalAlignment="Center" />
             </Panel>
           </Grid>
           <Panel Grid.Row="1">
             <ListBox x:Name="RecentWelcomesList" Classes="plain aside" ItemsSource="{Binding RecentWelcomes}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近欢迎" />
+            <ListBox x:Name="RecentAnimationsList" Classes="plain aside" ItemsSource="{Binding RecentAnimations}" ItemTemplate="{StaticResource AnimationActivityTemplate}" AutomationProperties.Name="最近播放" />
+            <Panel IsVisible="{Binding #RecentAnimationsList.IsVisible}">
+              <TextBlock Classes="hint" Text="暂无播放记录" Margin="16,8" IsVisible="{Binding !RecentAnimations.Count}" />
+            </Panel>
             <ListBox x:Name="RecentQueriesAndAnnouncementsList" Classes="plain aside" ItemsSource="{Binding RecentQueriesAndAnnouncements}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近回复和播报" />
           </Panel>
         </Grid>

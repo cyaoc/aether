@@ -110,7 +110,7 @@ internal sealed class GuiHarness : IDisposable
         return input;
     }
 
-    public static IEnumerable<string?> VisibleText(MainWindow window) =>
+    public static IEnumerable<string?> VisibleText(Window window) =>
         window.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).Select(x => x.Text);
 
     public static async Task WaitForAsync(Func<bool> condition)

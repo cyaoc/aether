@@ -146,8 +146,11 @@ public sealed class Settings
 
     public static string FilePath(string dataDirectory) => Path.Combine(dataDirectory, "aether.yml");
 
+    /// <summary>Where 欢迎动画 videos live; the mapping holds bare file names inside it.</summary>
+    public static string WelcomeAnimationDirectory(string dataDirectory) => Path.Combine(dataDirectory, "welcome-animations");
+
     internal static string WelcomeAnimationFile(string dataDirectory, string fileName) =>
-        Path.Combine(dataDirectory, "welcome-animations", fileName);
+        Path.Combine(WelcomeAnimationDirectory(dataDirectory), fileName);
 
     /// <summary>How a switch is written in the file, for forms that hold it as a bool.</summary>
     public static string BooleanText(bool value) => value ? "true" : "false";
@@ -175,7 +178,7 @@ public sealed class Settings
     private static Definition<string> VideoDefinition(long uid) =>
         Definition.RequiredText(VideoGroup + "." + uid.ToString(CultureInfo.InvariantCulture), "", ValidateVideoFileName);
 
-    private static string? ValidateVideoFileName(string name) =>
+    public static string? ValidateVideoFileName(string name) =>
         name is "." or ".." || name.IndexOfAny(['/', '\\', ':', '\0']) >= 0
             || name.Any(char.IsControl) || !new[] { ".mp4", ".webm" }.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase)
             ? "必须是纯文件名，扩展名为 .mp4 或 .webm，不能带路径。" : null;
@@ -194,6 +197,21 @@ public sealed class Settings
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(uid);
         SaveChanges(dataDirectory, Definitions, new Dictionary<string, string?> { [VideoDefinition(uid).Name] = fileName }, snapshot);
+    }
+
+    /// <summary>Commits the animation form in one write; mappings added outside the form are left alone.</summary>
+    public static void SaveWelcomeAnimations(string dataDirectory, IReadOnlyDictionary<string, string> changes,
+        IReadOnlyDictionary<long, string> videos, Settings snapshot)
+    {
+        var edits = changes.ToDictionary(pair => pair.Key, pair => (string?)pair.Value);
+        foreach (var uid in snapshot.WelcomeAnimationVideos.Keys.Except(videos.Keys))
+            edits[VideoDefinition(uid).Name] = null;
+        foreach (var (uid, fileName) in videos)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(uid);
+            edits[VideoDefinition(uid).Name] = fileName;
+        }
+        SaveChanges(dataDirectory, Definitions, edits, snapshot);
     }
 
     /// <param name="definitions">The settings this file may hold; only tests pass anything but <see cref="Definitions"/>.</param>

@@ -132,6 +132,26 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Fact]
+    public void Welcome_animation_form_save_updates_switch_port_and_mapping_together_or_not_at_all()
+    {
+        Write("welcome_animation:\n  enabled: false # 开关\n  port: 17890\nwelcome_animation_videos:\n  42: old.mp4\n  43: shared.webm\n");
+        var snapshot = Settings.Load(harness.DataDirectory);
+        var before = File.ReadAllText(SettingsPath);
+        var changes = new Dictionary<string, string> { ["welcome_animation.enabled"] = "true", ["welcome_animation.port"] = "17891" };
+        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimations(harness.DataDirectory, changes,
+            new Dictionary<long, string> { [44] = "../bad.mp4" }, snapshot));
+        Assert.Equal(before, File.ReadAllText(SettingsPath));
+        Settings.SaveWelcomeAnimations(harness.DataDirectory, changes,
+            new Dictionary<long, string> { [43] = "shared.webm", [44] = "new.mp4" }, snapshot);
+        var saved = Settings.Load(harness.DataDirectory);
+        Assert.True(saved.WelcomeAnimationEnabled.Value);
+        Assert.Equal(17891, saved.WelcomeAnimationPort.Value);
+        Assert.Equal(new long[] { 43, 44 }, saved.WelcomeAnimationVideos.Keys.Order());
+        Assert.Equal("new.mp4", saved.WelcomeAnimationVideos[44].Value);
+        Assert.Contains("enabled: true # 开关", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
     public void An_existing_five_second_interval_is_preserved()
     {
         const string yaml = "welcome_animation:\nwelcome_animation_videos:\nwelcome:\nlog:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";

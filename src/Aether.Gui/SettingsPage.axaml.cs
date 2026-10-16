@@ -9,7 +9,7 @@ using Avalonia.Interactivity;
 
 namespace Aether.Gui;
 
-public enum SettingsSection { BlindBox, Welcome, Send, General }
+public enum SettingsSection { BlindBox, Welcome, WelcomeAnimation, Send, General }
 
 public partial class SettingsPage : UserControl
 {
@@ -19,6 +19,9 @@ public partial class SettingsPage : UserControl
 
     private Dictionary<string, string?> original = [];
     private bool loading;
+    private bool saving;
+    private TaskCompletionSource? saveCompletion;
+    internal Task PendingSave => saveCompletion?.Task ?? Task.CompletedTask;
     private SettingsException? fileError;
     private MainWindowViewModel? viewModel;
     private double firstPendingRowsHeight;
@@ -28,21 +31,24 @@ public partial class SettingsPage : UserControl
 
     public SettingsPage() : this(DataDirectory.Locate(), SettingsSection.General) { }
 
-    public SettingsPage(string dataDirectory, SettingsSection section)
+    public SettingsPage(string dataDirectory, SettingsSection section, Func<Task<string?>>? pickAnimationVideo = null)
     {
         this.dataDirectory = dataDirectory;
+        this.pickAnimationVideo = pickAnimationVideo;
         Section = section;
         InitializeComponent();
         (PageTitle.Text, group) = section switch
         {
             SettingsSection.BlindBox => ("盲盒统计", "blind_box."),
             SettingsSection.Welcome => ("进场欢迎", "welcome."),
+            SettingsSection.WelcomeAnimation => ("欢迎动画", "welcome_animation."),
             SettingsSection.Send => ("发送队列", "send."),
             _ => ("通用设置", "log.")
         };
         TimingHint.Text = AppliesOnRestart ? "重启后生效" : "下次连接直播间时生效";
         BlindBoxHeader.IsVisible = BlindBoxFields.IsVisible = section == SettingsSection.BlindBox;
         WelcomeHeader.IsVisible = WelcomeFields.IsVisible = section == SettingsSection.Welcome;
+        AnimationHeader.IsVisible = AnimationFields.IsVisible = section == SettingsSection.WelcomeAnimation;
         SendFields.IsVisible = section == SettingsSection.Send;
         GeneralFields.IsVisible = section == SettingsSection.General;
         SendActivity.IsVisible = section == SettingsSection.Send;
@@ -53,13 +59,14 @@ public partial class SettingsPage : UserControl
             // Row heights are only known after layout, so the cap follows every layout pass.
             SendActivity.LayoutUpdated += (_, _) => ArrangePendingActivity();
         }
-        RecentActivity.IsVisible = section is SettingsSection.Welcome or SettingsSection.BlindBox;
-        RecentActivityTitle.Text = section == SettingsSection.Welcome ? "最近欢迎" : "最近回复和播报";
+        RecentActivity.IsVisible = section is SettingsSection.Welcome or SettingsSection.BlindBox or SettingsSection.WelcomeAnimation;
+        RecentActivityTitle.Text = section switch { SettingsSection.Welcome => "最近欢迎", SettingsSection.WelcomeAnimation => "最近播放", _ => "最近回复和播报" };
         RecentWelcomesList.IsVisible = WelcomeTotal.IsVisible = section == SettingsSection.Welcome;
         RecentQueriesAndAnnouncementsList.IsVisible = section == SettingsSection.BlindBox;
+        RecentAnimationsList.IsVisible = section == SettingsSection.WelcomeAnimation;
         SizeChanged += (_, _) => ArrangeActivity();
         LogLevelInput.ItemsSource = Settings.LogLevels;
-        foreach (var number in new[] { RetentionInput, SendIntervalInput })
+        foreach (var number in new[] { RetentionInput, SendIntervalInput, AnimationPortInput })
             number.PropertyChanged += (_, e) =>
             {
                 if (e.Property == NumericUpDown.TextProperty) Validate();
@@ -68,11 +75,14 @@ public partial class SettingsPage : UserControl
         DailyKeywordInput.TextChanged += (_, _) => Validate();
         MonthlyKeywordInput.TextChanged += (_, _) => Validate();
         WelcomeTextInput.TextChanged += (_, _) => Validate();
-        foreach (var toggle in new[] { BlindBoxInput, AnnounceInput, WelcomeInput })
+        foreach (var toggle in new[] { BlindBoxInput, AnnounceInput, WelcomeInput, AnimationInput })
             toggle.PropertyChanged += (_, e) =>
             {
                 if (e.Property == ToggleButton.IsCheckedProperty) Validate();
             };
+        AddAnimationButton.Click += async (_, _) => await ChooseAnimationAsync();
+        CopyAnimationAddressButton.Click += async (_, _) => await CopyAnimationAddressAsync();
+        DetachedFromVisualTree += (_, _) => { copyFeedback?.Dispose(); ShowCopied(false); };
         LoadSettings();
     }
 
@@ -102,7 +112,7 @@ public partial class SettingsPage : UserControl
         PageLayout.RowDefinitions[1].Height = stacked ? GridLength.Star : new GridLength(0);
     }
 
-    /// <summary>Log settings are read at startup; every other page's settings when watching a room.</summary>
+    /// <summary>Only log settings require restarting the app.</summary>
     private bool AppliesOnRestart => Section == SettingsSection.General;
 
     private void LoadSettings(Settings? current = null)
@@ -119,7 +129,10 @@ public partial class SettingsPage : UserControl
         Show(SendIntervalInput, SendIntervalReadOnly, settings.SendIntervalSeconds);
         Show(WelcomeInput, WelcomeReadOnly, settings.WelcomeEnabled);
         Show(WelcomeTextInput, WelcomeTextReadOnly, settings.WelcomeText);
+        Show(AnimationInput, AnimationReadOnly, settings.WelcomeAnimationEnabled);
+        Show(AnimationPortInput, AnimationPortReadOnly, settings.WelcomeAnimationPort);
         LoadWelcomeConditions();
+        if (Section == SettingsSection.WelcomeAnimation) LoadAnimations();
         foreach (var button in new[] { InsertAtButton, InsertNicknameButton, InsertGuardButton })
             button.IsEnabled = settings.WelcomeText.CanEdit;
         original = Fields().ToDictionary(field => field.Name, field => field.Input);
@@ -130,6 +143,7 @@ public partial class SettingsPage : UserControl
     /// <summary>Rereads an untouched page; a draft keeps its inputs and only takes the file's status.</summary>
     public void RefreshFileStatus(Settings current)
     {
+        if (saving) return;
         // A snapshot with an error filled the inputs with values that must not be used, so a draft over it is dropped.
         if (settings.Error is not null || !DirtyMessage.IsVisible)
         {
@@ -198,11 +212,13 @@ public partial class SettingsPage : UserControl
         new(settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, ConditionValue(WelcomeCondition.FanClubLevel, "0")),
         new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, ConditionValue(WelcomeCondition.Guard, Settings.WelcomeGuards[0])),
         new(settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, ConditionValue(WelcomeCondition.WealthLevel, "0")),
+        new(settings.WelcomeAnimationEnabled.Name, settings.WelcomeAnimationEnabled.CanEdit, Settings.BooleanText(AnimationInput.IsChecked == true)),
+        new(settings.WelcomeAnimationPort.Name, settings.WelcomeAnimationPort.CanEdit, AnimationPortInput.Text, AnimationPortError),
     }.Where(field => field.Name.StartsWith(group, StringComparison.Ordinal)).ToArray();
 
     private void Validate()
     {
-        if (loading || settings is null) return;
+        if (loading || saving || settings is null) return;
         var fields = Fields();
         var error = fields.Select(InputError).FirstOrDefault(reason => reason is not null);
         FileMessage.Text = fileError?.Message ?? "";
@@ -215,10 +231,13 @@ public partial class SettingsPage : UserControl
         }
         var welcome = Section == SettingsSection.Welcome;
         var invalidCondition = welcome && ShowConditionErrors();
+        var animation = Section == SettingsSection.WelcomeAnimation;
+        var invalidAnimation = animation && RefreshAnimations();
         DirtyMessage.IsVisible = welcome && ConditionsAddedOrRemoved
+            || animation && AnimationDraft
             || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
-        SaveButton.IsEnabled = fileError is null && error is null && !invalidCondition && DirtyMessage.IsVisible;
-        Message.Text = "";
+        SaveButton.IsEnabled = fileError is null && error is null && !invalidCondition && !invalidAnimation && DirtyMessage.IsVisible;
+        if (Section != SettingsSection.WelcomeAnimation || DirtyMessage.IsVisible) Message.Text = "";
     }
 
     /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
@@ -229,38 +248,71 @@ public partial class SettingsPage : UserControl
     private static Dictionary<string, string> Changes(IEnumerable<Field> fields) =>
         fields.Where(field => field.CanEdit).ToDictionary(field => field.Name, field => field.Input!);
 
-    private void Save(object? sender, RoutedEventArgs e)
+    private async void Save(object? sender, RoutedEventArgs e)
     {
         Validate();
         if (!SaveButton.IsEnabled) return;
         // Core leaves alone what this form was filled with, so an untouched setting keeps its spelling and any edit made elsewhere.
         var changes = Changes(Fields());
+        var result = "已保存。";
+        long[] replaced = [];
         try
         {
-            Settings.Save(dataDirectory, changes, settings);
+            if (Section == SettingsSection.WelcomeAnimation)
+            {
+                var rows = Animations.ToDictionary(row => row.Uid!.Value, row => (row.FileName, row.SourcePath));
+                replaced = rows.Where(pair => pair.Value.SourcePath is not null).Select(pair => pair.Key).ToArray();
+                saveCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                saving = true;
+                IsEnabled = false;
+                var snapshot = settings;
+                result = await Task.Run(() => SaveAnimationFiles(changes, rows, snapshot));
+                saving = false;
+            }
+            else Settings.Save(dataDirectory, changes, settings);
             LoadSettings();
             if (settings.Error is null)
             {
+                if (Section == SettingsSection.WelcomeAnimation && viewModel is not null)
+                {
+                    await viewModel.ReloadAnimationPageAsync(settings);
+                    viewModel.ForgetAnimationFailures(replaced);
+                }
                 SaveCompleted?.Invoke();
-                Message.Text = "已保存。";
+                Message.Text = result;
                 ReconnectNotice.IsVisible = !AppliesOnRestart && viewModel?.HasRoomConnection == true;
             }
         }
         catch (Exception error) when (error is SettingsException or IOException or UnauthorizedAccessException)
         {
-            LoadSettings();
+            saving = false;
+            // Keep selected source paths after a failed import, so the user can retry or replace the video.
+            if (Section != SettingsSection.WelcomeAnimation) LoadSettings();
+            else { ShowFileStatus(Settings.Load(dataDirectory)); Validate(); }
             SaveCompleted?.Invoke();
             Message.Text = error.Message;
         }
+        finally { saving = false; IsEnabled = true; saveCompletion?.TrySetResult(); }
     }
 
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (viewModel is not null) viewModel.PropertyChanged -= OnRoomStateChanged;
+        if (viewModel is not null)
+        {
+            viewModel.PropertyChanged -= OnRoomStateChanged;
+            viewModel.AnimationRowsChanged -= OnAnimationRowsChanged;
+        }
         viewModel = DataContext as MainWindowViewModel;
-        if (viewModel is not null) viewModel.PropertyChanged += OnRoomStateChanged;
+        if (viewModel is not null)
+        {
+            viewModel.PropertyChanged += OnRoomStateChanged;
+            if (Section == SettingsSection.WelcomeAnimation) viewModel.AnimationRowsChanged += OnAnimationRowsChanged;
+        }
+        if (Section == SettingsSection.WelcomeAnimation && settings is not null) RefreshAnimations();
     }
+
+    private void OnAnimationRowsChanged() => RefreshAnimations();
 
     // The room connection the notice warned about has ended (disconnected, reconnected or failed).
     private void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)

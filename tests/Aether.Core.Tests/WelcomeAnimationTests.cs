@@ -26,6 +26,21 @@ public sealed class WelcomeAnimationTests
         Assert.DoesNotContain(h.Http.Requests, request => request.Uri.AbsolutePath.EndsWith("/send"));
     }
 
+    [Fact]
+    public async Task Saving_the_switch_off_mid_connection_hands_over_nothing_and_logs_no_skips()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        Start(h, 10001);
+        await using var updates = await h.WatchConnectedAsync();
+        await h.Client.AnimationPage.StopAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "false" });
+        h.Client.AnimationPage.Start(Settings.Load(h.DataDirectory));
+        // The room connection still runs on the settings it started with, where the switch was on.
+        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
+        Assert.DoesNotContain(h.Logger.Entries, entry => entry.Message.Contains("[欢迎动画"));
+    }
+
     [Theory]
     [InlineData(599999, false)]
     [InlineData(600000, true)]
@@ -135,14 +150,15 @@ public sealed class WelcomeAnimationTests
         await page.NextAsync();
         h.Client.AnimationPage.TestPlay(20002);
         page.Dispose();
-        // TCP may discover a graceful close on its next write, or on the write after that.
-        for (var i = 0; i < 3 && observed.Items.OfType<AnimationPageStatus>().Last().ConnectedPages != 0; i++)
+        // How many heartbeats TCP needs to notice the close varies by OS (Windows can take more), and a write that hangs
+        // only ends on its 5-second timeout, so keep advancing; seven 15-second steps stay under the 2-minute report timeout.
+        for (var i = 0; i < 7 && observed.Items.OfType<AnimationPageStatus>().Last().ConnectedPages != 0; i++)
         {
-            await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(15), i + 1);
             h.Time.Advance(TimeSpan.FromSeconds(15));
-            await Task.Delay(50, h.Stop.Token);
+            await Task.Delay(200, h.Stop.Token);
         }
-        await observed.WaitAsync(u => u is WelcomeAnimationPlayback { State: WelcomeAnimationState.Skipped, Reason: "推流软件已全部断开" });
+        // Already pushed and counted in the interval, so it reads as unreported, not as a skip.
+        await observed.WaitAsync(u => u is WelcomeAnimationPlayback { State: WelcomeAnimationState.NoReport, Reason: "推流软件已全部断开" });
         await observed.WaitAsync(u => u is AnimationPageStatus { Running: true, ConnectedPages: 0 });
         using var replacement = await Page.ConnectAsync(h);
         h.Client.AnimationPage.TestPlay(20002);
@@ -160,7 +176,8 @@ public sealed class WelcomeAnimationTests
         await page.NextAsync();
         await h.Time.WaitForTimerAsync(TimeSpan.FromMinutes(2));
         h.Time.Advance(TimeSpan.FromMinutes(2));
-        await observed.WaitAsync(u => u is WelcomeAnimationPlayback { State: WelcomeAnimationState.Failed, Reason: "等待播放回报超过 2 分钟" });
+        await observed.WaitAsync(u => u is WelcomeAnimationPlayback { State: WelcomeAnimationState.NoReport, Reason: "等了 2 分钟" });
+        Assert.Contains(h.Logger.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Warning && entry.Message.Contains("没收到播放回报"));
         h.Client.AnimationPage.TestPlay(10001);
         Assert.Equal("10001", (await page.NextAsync()).Uid);
     }
@@ -207,9 +224,9 @@ public sealed class WelcomeAnimationTests
         await using var observed = new Observations(h);
         h.Client.AnimationPage.Start(Settings.Load(h.DataDirectory));
         // Each platform reports a taken port with its own error code; an unrecognised one would fall back to the raw error.
-        await observed.WaitAsync(u => u is AnimationPageStatus { Running: false } status && status.Error == $"端口 {port} 被占用");
+        await observed.WaitAsync(u => u is AnimationPageStatus { Running: false } status && status.Error == $"端口 {port} 被别的程序占用");
         await using var updates = await h.WatchConnectedAsync();
-        Assert.Contains(h.Logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning && e.Message.Contains($"端口 {port} 被占用"));
+        Assert.Contains(h.Logger.Entries, e => e.Level == Microsoft.Extensions.Logging.LogLevel.Warning && e.Message.Contains($"端口 {port} 被别的程序占用"));
     }
 
     [Fact]
