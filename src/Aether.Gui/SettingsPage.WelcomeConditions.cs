@@ -10,11 +10,13 @@ public partial class SettingsPage
 {
     private WelcomeCondition[] loadedConditionKinds = [];
 
-    private IEnumerable<WelcomeConditionRow> Conditions => ConditionRows.Children.Cast<WelcomeConditionRow>();
+    private IEnumerable<WelcomeConditionRow> Conditions => UidRows.Children.Concat(ConditionRows.Children).Cast<WelcomeConditionRow>();
 
     private void LoadWelcomeConditions()
     {
         ConditionRows.Children.Clear();
+        UidRows.Children.Clear();
+        UidFold.IsExpanded = false;
         foreach (var uid in settings.WelcomeUids.Value)
             InsertCondition(WelcomeCondition.Uid, uid.ToString(CultureInfo.InvariantCulture), settings.WelcomeUids.CanEdit);
         if (settings.WelcomeFanClubLevel.Value > 0)
@@ -30,22 +32,24 @@ public partial class SettingsPage
     private WelcomeConditionRow InsertCondition(WelcomeCondition kind, string value, bool canEdit, bool isNew = false)
     {
         var row = new WelcomeConditionRow(kind, value, canEdit, isNew);
-        var index = Conditions.TakeWhile(existing => existing.Kind <= kind).Count();
-        ConditionRows.Children.Insert(index, row);
+        var rows = kind == WelcomeCondition.Uid ? UidRows : ConditionRows;
+        var index = rows.Children.Cast<WelcomeConditionRow>().TakeWhile(existing => existing.Kind <= kind).Count();
+        rows.Children.Insert(index, row);
         row.Changed += Validate;
         row.RemoveRequested += () =>
         {
-            ConditionRows.Children.Remove(row);
+            rows.Children.Remove(row);
             RefreshConditionList();
             Validate();
         };
         return row;
     }
 
-    /// <summary>Updates what depends on which rows exist: the count, the empty state, the menu and the "或" separators.</summary>
+    /// <summary>Updates what depends on which rows exist: the count, the empty state, the menu, each kind's heading and "或" separator, and the UID fold.</summary>
     private void RefreshConditionList()
     {
-        var count = ConditionRows.Children.Count;
+        var count = Conditions.Select(row => row.Kind).Distinct().Count();
+        UidGroup.IsVisible = UidRows.Children.Count > 0;
         ConditionCount.Text = $"{count} 条";
         ConditionCount.IsVisible = count > 0;
         EmptyConditions.IsVisible = count == 0;
@@ -63,12 +67,14 @@ public partial class SettingsPage
             var kind = (WelcomeCondition)item.Tag!;
             item.IsEnabled = CanEditCondition(kind) && (kind == WelcomeCondition.Uid || !Conditions.Any(row => row.Kind == kind));
         }
-        var first = true;
+        WelcomeCondition? previous = null;
         foreach (var row in Conditions)
         {
-            row.ShowSeparator(!first);
-            first = false;
+            row.ShowSeparator(previous is not null && previous != row.Kind);
+            row.ShowHeading(previous != row.Kind);
+            previous = row.Kind;
         }
+        RefreshUidFold();
     }
 
     private bool CanEditCondition(WelcomeCondition kind) => kind switch
@@ -90,6 +96,7 @@ public partial class SettingsPage
             _ => "10"
         };
         var row = InsertCondition(kind, value, true, isNew: true);
+        if (kind == WelcomeCondition.Uid) UidFold.IsExpanded = true;
         RefreshConditionList();
         Validate();
         AddConditionButton.Flyout!.Hide();
@@ -119,6 +126,9 @@ public partial class SettingsPage
         var invalid = false;
         var uidsAbove = new HashSet<long>();
         foreach (var row in Conditions) invalid |= row.ShowError(uidsAbove);
+        RefreshUidFold();
         return invalid;
     }
+
+    private void RefreshUidFold() => UidFold.ApplyTo(UidRows.Children.Cast<WelcomeConditionRow>(), row => row.HasVisibleError, "位");
 }

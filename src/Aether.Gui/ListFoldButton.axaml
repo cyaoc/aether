@@ -1,0 +1,9 @@
+<Button xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  x:Class="Aether.Gui.ListFoldButton" Classes="ghost listFold" HorizontalAlignment="Left" ClickMode="Press">
+  <StackPanel Orientation="Horizontal" Spacing="6">
+    <TextBlock x:Name="Label" VerticalAlignment="Center" />
+    <Viewbox Classes="icon" Width="14" Height="14">
+      <Path x:Name="Arrow" Data="M6 9l6 6 6-6" RenderTransformOrigin="50%,50%" />
+    </Viewbox>
+  </StackPanel>
+</Button>

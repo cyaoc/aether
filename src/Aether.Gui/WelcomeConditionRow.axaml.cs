@@ -11,6 +11,7 @@ public partial class WelcomeConditionRow : UserControl
     private bool errorsRevealed;
     public WelcomeCondition Kind { get; }
     public bool CanEdit { get; }
+    public bool HasVisibleError => ErrorMessage.IsVisible;
     public event Action? Changed;
     public event Action? RemoveRequested;
 
@@ -53,8 +54,7 @@ public partial class WelcomeConditionRow : UserControl
         GuardInput.SelectedItem = value;
         GuardInput.IsEnabled = canEdit;
         RemoveButton.IsVisible = canEdit;
-        AutomationProperties.SetName(RemoveButton, $"删除{TypeName.Text}条件");
-        ReadOnlyMessage.IsVisible = !canEdit;
+        AutomationProperties.SetName(RemoveButton, kind == WelcomeCondition.Uid ? "删除指定观众 UID" : $"删除{TypeName.Text}条件");
         UidInput.TextChanged += (_, _) => Changed?.Invoke();
         UidInput.LostFocus += (_, _) => { errorsRevealed = true; Changed?.Invoke(); };
         LevelInput.PropertyChanged += (_, e) =>
@@ -81,6 +81,13 @@ public partial class WelcomeConditionRow : UserControl
     }
 
     public void ShowSeparator(bool visible) => OrSeparator.IsVisible = visible;
+
+    /// <summary>The first row of a kind carries its icon, name and read-only hint; the rest of a UID group align under it.</summary>
+    public void ShowHeading(bool visible)
+    {
+        TypeName.IsVisible = TypeIconBox.IsVisible = visible;
+        ReadOnlyMessage.IsVisible = visible && !CanEdit;
+    }
 
     /// <summary>Shows why this row cannot be saved, given the UIDs of the rows above it; true when it cannot.</summary>
     public bool ShowError(ISet<long> uidsAbove)

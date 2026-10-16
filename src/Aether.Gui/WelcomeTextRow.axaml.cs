@@ -10,6 +10,7 @@ public partial class WelcomeTextRow : UserControl
     public event Action? Editing;
     public event Action? RemoveRequested;
     public string Value => ValueInput.Text ?? "";
+    public bool HasVisibleError => ErrorMessage.IsVisible;
 
     public WelcomeTextRow() : this("", true) { }
 
@@ -40,7 +41,11 @@ public partial class WelcomeTextRow : UserControl
         return error is not null;
     }
 
-    public void FocusInput() => ValueInput.Focus();
+    public void FocusInput()
+    {
+        ValueInput.Focus();
+        this.BringIntoView();
+    }
 
     public void Insert(string token)
     {
