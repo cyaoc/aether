@@ -96,6 +96,7 @@ public partial class LotteryPanel : UserControl
             PhaseText.Text = MainWindowViewModel.EntryPhaseText(entry);
             PhaseChip.Classes.Set("spinning", entry.Phase == EntryLotteryPhase.Open);
             PhaseChip.Classes.Set("drawing", entry.Phase == EntryLotteryPhase.Closed);
+            PhaseChip.Classes.Set("ended", entry.Phase == EntryLotteryPhase.Ended);
             NewButton.IsEnabled = !busy && state!.Connected && entry.Phase is EntryLotteryPhase.Preparing or EntryLotteryPhase.Ended;
             return;
         }
@@ -121,6 +122,7 @@ public partial class LotteryPanel : UserControl
         PhaseText.Text = viewModel?.LotteryPhaseText is { Length: > 0 } text ? text : "待机";
         PhaseChip.Classes.Set("spinning", spinning);
         PhaseChip.Classes.Set("drawing", drawing);
+        PhaseChip.Classes.Set("ended", false);
 
         var rows = Rows.ToArray();
         var total = rows.Sum(row => (long)Math.Max(0, row.Value.Weight));

@@ -90,7 +90,7 @@ public sealed class PoolLotteryTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.New(Prizes, "停");
+        lottery.New(LotteryMode.Pool);
         await h.PushAndCollectAsync(updates, Message(42, "小明", "你好"));
         lottery.Start(Prizes, "停", 42);
         lottery.Cancel();
@@ -103,7 +103,7 @@ public sealed class PoolLotteryTests
         Assert.Equal("小明", draw.Nickname);
         Assert.Equal(42, draw.Uid);
         Assert.True(draw.StoppedByHost);
-        Assert.Throws<InvalidOperationException>(() => lottery.New(Prizes, "停"));
+        Assert.Throws<InvalidOperationException>(() => lottery.New(LotteryMode.Pool));
         h.Time.Advance(LotteryController.DrawDuration);
         lottery.Start(Prizes, "停", 99);
         lottery.Stop();
@@ -178,7 +178,7 @@ public sealed class PoolLotteryTests
         lottery.Start(Prizes, "停", 42);
         var first = lottery.State.Lottery!.Id;
         await h.PushAndCollectAsync(updates, Message(42, "小明", "你好"));
-        lottery.New(Prizes, "开");
+        lottery.New(LotteryMode.Pool);
         Assert.NotEqual(first, lottery.State.Lottery.Id);
         Assert.Empty(lottery.State.Lottery.Draws);
         Assert.Empty(lottery.State.Lottery.Viewers);
@@ -334,7 +334,7 @@ public sealed class PoolLotteryTests
         await using var h = new WatchHarness(enableLottery: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        h.Client.Lottery.New(Prizes, "停");
+        h.Client.Lottery.New(LotteryMode.Pool);
         using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False"))
         {
             connection.Open();

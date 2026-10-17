@@ -58,6 +58,10 @@ public sealed class VisualReviewTests
                         Draws = [.. draws], DrawUntil = phase == EntryLotteryPhase.Closed ? at.AddSeconds(7) : null,
                     })));
                     Save(window, $"entry-{phase}-{width}-{(dark ? "dark" : "light")}");
+                    if (phase != EntryLotteryPhase.Closed) continue;
+                    vm.Apply(new LotteryUpdate(vm.LotteryState with { EntryLottery = vm.LotteryState.EntryLottery! with { DrawUntil = null } }));
+                    window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "EndEntryButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Save(window, $"entry-Closed-confirm-{width}-{(dark ? "dark" : "light")}");
                 }
                 var picker = new NewLotteryWindow { RequestedThemeVariant = window.RequestedThemeVariant };
                 var picked = picker.ShowDialog<LotteryMode?>(window);

@@ -44,7 +44,6 @@ public partial class EntryAwardRow : UserControl
         AutomationProperties.SetName(CapacityInput, $"第 {index + 1} 个奖项名额");
         AutomationProperties.SetName(GradeInput, $"第 {index + 1} 个奖项档次");
         AutomationProperties.SetName(RemoveButton, $"删除第 {index + 1} 个奖项");
-        AutomationProperties.SetName(DrawButton, $"抽一位{value.Name}");
         NameInput.IsReadOnly = PrizeInput.IsReadOnly = CapacityInput.IsReadOnly = !editable || busy;
         CapacityPanel.IsVisible = GradeInput.IsVisible = RemoveButton.IsVisible = editable;
         GradeInput.IsEnabled = !busy;
@@ -52,10 +51,14 @@ public partial class EntryAwardRow : UserControl
         GradeBadge.IsVisible = DrawCount.IsVisible = DrawButton.IsVisible = !editable;
         LotteryPanel.SetGrade(GradeBadge, GradeText, value.Grade);
         var drawn = lottery.Draws.Count(draw => draw.AwardIndex == index);
+        var full = drawn >= value.Capacity;
         DrawCount.Text = $"已抽 {drawn} / {value.Capacity}";
-        DrawButton.Content = drawn >= value.Capacity ? "抽满了" : lottery.Phase == EntryLotteryPhase.Open ? "截止后抽" : "抽一个";
+        DrawCount.Classes.Set("full", full);
+        DrawButton.Classes.Set("full", full);
+        DrawText.Text = full ? "抽完了" : lottery.Phase == EntryLotteryPhase.Open ? "截止后抽" : "抽一个";
+        AutomationProperties.SetName(DrawButton, full ? $"{value.Name}已抽完" : $"抽一位{value.Name}");
         DrawButton.IsEnabled = !busy && canControl && lottery.Phase == EntryLotteryPhase.Closed && lottery.DrawUntil is null
-            && drawn < value.Capacity && lottery.Entries.Length > lottery.Draws.Length;
+            && !full && lottery.Entries.Length > lottery.Draws.Length;
         ToolTip.SetTip(DrawButton, lottery.Entries.Length <= lottery.Draws.Length ? "没有还没中奖的报名观众可抽" : null);
         var error = LotteryController.ValidateAward(value);
         var shown = editable && errorsRevealed ? error : null;

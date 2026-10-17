@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPanel">
   <UserControl.Styles>
-    <!-- Phase chip, as on canvas V1: neutral while idle, accent while spinning, warning while drawing. -->
+    <!-- Phase chip, as on canvases V1 and O1: neutral while idle, accent while spinning or open, warning while drawing, success once ended. -->
     <Style Selector="Border#PhaseChip">
       <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
       <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
@@ -25,6 +25,14 @@
     </Style>
     <Style Selector="Border#PhaseChip.drawing Ellipse">
       <Setter Property="Fill" Value="{DynamicResource Warning.Dot}" />
+    </Style>
+    <Style Selector="Border#PhaseChip.ended">
+      <Setter Property="Background" Value="{DynamicResource Success.Tint}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Success.Tint}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="Border#PhaseChip.ended Ellipse">
+      <Setter Property="Fill" Value="{DynamicResource Success}" />
     </Style>
     <Style Selector="Button#NewButton, Button#CancelButton">
       <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />

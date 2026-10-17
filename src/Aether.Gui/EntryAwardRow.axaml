@@ -1,8 +1,28 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.EntryAwardRow">
+  <UserControl.Styles>
+    <!-- 抽一个 as canvas O1: a draw that cannot run is an outline, green with a check once the award is full. -->
+    <Style Selector="Button#DrawButton Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Dice}" />
+    </Style>
+    <Style Selector="Button#DrawButton.full Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Check}" />
+    </Style>
+    <Style Selector="Button#DrawButton:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
+    </Style>
+    <Style Selector="Button#DrawButton.full:disabled /template/ ContentPresenter">
+      <Setter Property="Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="TextBlock#DrawCount.full">
+      <Setter Property="Foreground" Value="{DynamicResource Success}" />
+    </Style>
+  </UserControl.Styles>
   <Border x:Name="RowBorder" BorderBrush="{DynamicResource Border.Subtle}" Padding="12,8,6,8" MinHeight="48">
     <StackPanel Spacing="4">
-      <Grid ColumnDefinitions="82,*,Auto,Auto,Auto" ColumnSpacing="8">
-        <TextBox x:Name="NameInput" Height="32" MinHeight="32" FontSize="13" PlaceholderText="奖项名称" />
+      <Grid ColumnDefinitions="88,*,Auto,Auto,Auto" ColumnSpacing="8">
+        <TextBox x:Name="NameInput" Height="32" MinHeight="32" FontSize="13" FontWeight="SemiBold" PlaceholderText="奖项名称" />
         <TextBox Grid.Column="1" x:Name="PrizeInput" Height="32" MinHeight="32" FontSize="13" PlaceholderText="奖品" />
         <StackPanel Grid.Column="2" x:Name="CapacityPanel" Orientation="Horizontal" Spacing="6">
           <TextBox x:Name="CapacityInput" Classes="numeric" Width="44" Height="32" MinHeight="32" FontSize="13" Padding="6,0" TextAlignment="Right" />
@@ -12,11 +32,16 @@
         <Button Grid.Column="4" x:Name="RemoveButton" Classes="ghost danger" Width="30" Height="30">
           <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
         </Button>
-        <Border Grid.Column="2" x:Name="GradeBadge" Classes="badge" Height="20" Padding="6,0" VerticalAlignment="Center" IsVisible="False">
+        <Border Grid.Column="2" x:Name="GradeBadge" Classes="badge" Height="20" Padding="5,0" VerticalAlignment="Center" IsVisible="False">
           <TextBlock x:Name="GradeText" VerticalAlignment="Center" />
         </Border>
-        <TextBlock Grid.Column="3" x:Name="DrawCount" Classes="caption muted numeric" VerticalAlignment="Center" IsVisible="False" />
-        <Button Grid.Column="4" x:Name="DrawButton" Classes="accent" Content="抽一个" Height="32" Padding="10,0" IsVisible="False" />
+        <TextBlock Grid.Column="3" x:Name="DrawCount" Classes="caption muted numeric" MinWidth="54" TextAlignment="Right" VerticalAlignment="Center" IsVisible="False" />
+        <Button Grid.Column="4" x:Name="DrawButton" Classes="accent" Width="84" Height="30" Padding="0" FontWeight="SemiBold" HorizontalContentAlignment="Center" IsVisible="False">
+          <StackPanel Orientation="Horizontal" Spacing="4">
+            <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
+            <TextBlock x:Name="DrawText" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
       </Grid>
       <TextBlock x:Name="ErrorMessage" Classes="error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
     </StackPanel>

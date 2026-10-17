@@ -11,19 +11,24 @@ public partial class MainWindowViewModel
     [ObservableProperty, NotifyPropertyChangedFor(nameof(LotteryPhaseText))] private LotteryState lotteryState = new(null, false, null);
 
     /// <summary>The sidebar shows the phase only while a draw is under way.</summary>
-    public string LotteryPhaseText => LotteryState.EntryLottery is { Phase: EntryLotteryPhase.Open or EntryLotteryPhase.Closed } entry
-        ? EntryPhaseText(entry) : LotteryState.Lottery?.Phase switch
+    public string LotteryPhaseText => LotteryState.EntryLottery?.Phase switch
     {
-        PoolLotteryPhase.Spinning => "转动中",
-        PoolLotteryPhase.Drawing => "开奖中",
-        _ => "",
+        EntryLotteryPhase.Open => "报名中",
+        EntryLotteryPhase.Closed => "开奖中",
+        _ => LotteryState.Lottery?.Phase switch
+        {
+            PoolLotteryPhase.Spinning => "转动中",
+            PoolLotteryPhase.Drawing => "开奖中",
+            _ => "",
+        },
     };
 
+    /// <summary>The 抽奖 page's phase chip for 报名抽奖, as on canvas O1.</summary>
     internal static string EntryPhaseText(EntryLottery lottery) => lottery.Phase switch
     {
-        EntryLotteryPhase.Preparing => "准备",
+        EntryLotteryPhase.Preparing => "准备中",
         EntryLotteryPhase.Open => "报名中",
-        EntryLotteryPhase.Closed => lottery.DrawUntil is not null ? "已截止 · 开奖中" : "已截止",
+        EntryLotteryPhase.Closed => "已截止 · 开奖中",
         _ => "已结束",
     };
 

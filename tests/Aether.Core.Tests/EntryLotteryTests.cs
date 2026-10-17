@@ -254,7 +254,7 @@ public sealed class EntryLotteryTests
         lottery.StartEntry(Awards, "抽奖");
         Assert.Throws<InvalidOperationException>(() => lottery.StartEntry(Awards, "改了"));
         Assert.Throws<InvalidOperationException>(() => lottery.Start([new("手办", 1, PrizeGrade.Grand)], "停"));
-        Assert.Throws<InvalidOperationException>(() => lottery.New([new("手办", 1, PrizeGrade.Grand)], "停"));
+        Assert.Throws<InvalidOperationException>(() => lottery.New(LotteryMode.Pool));
         Assert.Throws<InvalidOperationException>(lottery.EndEntry);
         lottery.CloseEntries();
         Assert.Contains("没有", Assert.Throws<InvalidOperationException>(() => lottery.DrawEntry(0)).Message);

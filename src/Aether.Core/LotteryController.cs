@@ -98,23 +98,6 @@ public sealed partial class LotteryController : IDisposable
         }
     }
 
-    public void New(IReadOnlyCollection<PoolPrize> prizes, string stopWord)
-    {
-        Validate(prizes, stopWord, null);
-        lock (gate)
-        {
-            RequireConnection();
-            RequireNew();
-            if (state.Lottery is { Phase: PoolLotteryPhase.Drawing }) throw new InvalidOperationException("请等本次开奖结束。");
-            var next = NewLottery(prizes, stopWord);
-            store().Save(next, endCurrentAt: time.GetUtcNow());
-            drawTimer?.Dispose();
-            state = state with { Lottery = next, EntryLottery = null };
-            Publish();
-            logger.LogInformation("奖池抽奖新开一场：直播间 {RoomId}，抽奖 {LotteryId}", state.RoomId, next.Id);
-        }
-    }
-
     private Lottery NewLottery(IReadOnlyCollection<PoolPrize> prizes, string stopWord) =>
         new(Guid.NewGuid().ToString("N"), state.RoomId!.Value, stopWord.Trim(), time.GetUtcNow(),
             prizes.ToImmutableArray(), [], ImmutableDictionary<long, string>.Empty);

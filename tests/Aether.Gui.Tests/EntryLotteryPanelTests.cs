@@ -31,7 +31,7 @@ public sealed class EntryLotteryPanelTests
             vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery)));
             Assert.True(start.IsEnabled);
             Assert.Equal("报名抽奖", panel.FindControl<TextBlock>("ModeText")!.Text);
-            Assert.Equal("准备", panel.FindControl<TextBlock>("PhaseText")!.Text);
+            Assert.Equal("准备中", panel.FindControl<TextBlock>("PhaseText")!.Text);
             var keyword = entry.FindControl<TextBox>("KeywordInput")!;
             keyword.Text = " ";
             GuiHarness.Flush();
@@ -54,6 +54,7 @@ public sealed class EntryLotteryPanelTests
             vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery)));
             Assert.True(row.FindControl<Button>("DrawButton")!.IsEnabled);
             Assert.True(entry.FindControl<Button>("EndEntryButton")!.IsEnabled);
+            Assert.Equal("开奖中", vm.LotteryPhaseText);
             var draw = new EntryDraw("draw", 0, lottery.Awards[0], lottery.Entries[0], DateTimeOffset.UnixEpoch, []);
             lottery = lottery with { Draws = [draw], DrawUntil = DateTimeOffset.UnixEpoch.AddSeconds(7) };
             vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery)));
@@ -66,6 +67,7 @@ public sealed class EntryLotteryPanelTests
             lottery = lottery with { Phase = EntryLotteryPhase.Ended, DrawUntil = null };
             vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery)));
             Assert.True(panel.FindControl<Button>("NewButton")!.IsEnabled);
+            Assert.Equal("抽完了", row.FindControl<TextBlock>("DrawText")!.Text);
             Assert.Equal("收起画面", entry.FindControl<Button>("VisibilityButton")!.Content);
             Assert.DoesNotContain(winners.GetVisualDescendants().OfType<Border>(), chip => chip.Classes.Contains("fresh"));
             vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery with { Hidden = true })));
@@ -128,7 +130,7 @@ public sealed class EntryLotteryPanelTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task New_picker_and_end_confirmation_allow_cancel_and_explicit_choice() => HeadlessApp.Session.Dispatch(async () =>
+    public Task New_picker_and_inline_end_confirmation_allow_cancel_and_explicit_choice() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();
         var vm = h.CreateViewModel();
@@ -151,14 +153,24 @@ public sealed class EntryLotteryPanelTests
                 Assert.Equal(mode, await result);
             }
             vm.Apply(new LotteryUpdate(new(7734200, true, null, TestLottery(EntryLotteryPhase.Closed))));
-            panel.FindControl<EntryLotteryPanel>("EntryContent")!.FindControl<Button>("EndEntryButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            var confirm = Assert.IsType<ConfirmEndLotteryWindow>(Assert.Single(window.OwnedWindows));
-            confirm.FindControl<Button>("CancelButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var entry = panel.FindControl<EntryLotteryPanel>("EntryContent")!;
+            var end = entry.FindControl<Button>("EndEntryButton")!;
+            var confirm = entry.FindControl<Button>("ConfirmEndButton")!;
+            end.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.False(end.IsVisible);
+            Assert.True(confirm.IsVisible);
+            Assert.True(entry.FindControl<TextBlock>("ConfirmEndText")!.IsVisible);
+            entry.FindControl<Button>("CancelEndButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(end.IsVisible);
+            Assert.False(confirm.IsVisible);
             Assert.Equal(EntryLotteryPhase.Closed, vm.LotteryState.EntryLottery!.Phase);
-            var dialog = new ConfirmEndLotteryWindow();
-            var confirmed = dialog.ShowDialog<bool>(window);
-            dialog.FindControl<Button>("ConfirmButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.True(await confirmed);
+            end.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            // The harness is not connected, so reaching EndEntry shows its error instead of ending.
+            var error = entry.FindControl<TextBlock>("ErrorMessage")!;
+            await GuiHarness.WaitForAsync(() => error.IsVisible);
+            Assert.Equal("请先连接直播间。", error.Text);
+            Assert.True(end.IsVisible);
         }
         finally { foreach (var child in window.OwnedWindows.ToArray()) child.Close(); window.Close(); await vm.ShutdownAsync(); }
         return true;

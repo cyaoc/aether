@@ -36,6 +36,7 @@
           <SolidColorBrush x:Key="Guard.Governor.BadgeText" Color="#7D5100" />
           <SolidColorBrush x:Key="Badge.Neutral" Color="#EEF0F3" />
           <SolidColorBrush x:Key="Success" Color="#166534" />
+          <SolidColorBrush x:Key="Success.Tint" Color="#EAF6EE" />
           <SolidColorBrush x:Key="Warning.Background" Color="#FEF8EC" />
           <SolidColorBrush x:Key="Warning.Border" Color="#F5D9A8" />
           <SolidColorBrush x:Key="Warning.Text" Color="#78350F" />
@@ -92,6 +93,7 @@
           <SolidColorBrush x:Key="Guard.Governor.BadgeText" Color="#EFCB91" />
           <SolidColorBrush x:Key="Badge.Neutral" Color="#2E3136" />
           <SolidColorBrush x:Key="Success" Color="#6FD08C" />
+          <SolidColorBrush x:Key="Success.Tint" Color="#1A2B20" />
           <SolidColorBrush x:Key="Warning.Background" Color="#2A2114" />
           <SolidColorBrush x:Key="Warning.Border" Color="#5A4318" />
           <SolidColorBrush x:Key="Warning.Text" Color="#F2C46D" />
@@ -124,6 +126,8 @@
       <StreamGeometry x:Key="Icon.Welcome">M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3</StreamGeometry>
       <StreamGeometry x:Key="Icon.Animation">M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4</StreamGeometry>
       <StreamGeometry x:Key="Icon.Play">M7 4l13 8-13 8z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Users">M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Dice">M4 4h16v16H4zM8.5 8.5h.01M15.5 15.5h.01M15.5 8.5h.01M8.5 15.5h.01M12 12h.01</StreamGeometry>
       <StreamGeometry x:Key="Icon.Lottery">M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4zM14 5v2M14 11v2M14 17v2</StreamGeometry>
       <StreamGeometry x:Key="Icon.Next">M9 6l6 6-6 6</StreamGeometry>
       <StreamGeometry x:Key="Icon.Wave">M3 10v4M7 7v10M11 4v16M15 8v8M19 11v2</StreamGeometry>
@@ -628,51 +632,50 @@
     <Setter Property="StrokeJoin" Value="Round" />
     <Setter Property="Stroke" Value="{Binding (TextElement.Foreground), RelativeSource={RelativeSource Self}}" />
   </Style>
-    <!-- 档次 as canvas V1's segmented control: one bordered strip, the picked segment in its grade's tone. -->
-    <Style Selector="ListBox.prizeGrade">
-      <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="0" />
-      <Setter Property="ClipToBounds" Value="True" />
-      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
-      <Setter Property="ItemsPanel">
-        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-      </Setter>
-    </Style>
-    <Style Selector="ListBox.prizeGrade ListBoxItem">
-      <Setter Property="Height" Value="30" />
-      <Setter Property="MinHeight" Value="0" />
-      <Setter Property="Padding" Value="9,0" />
-      <Setter Property="FontSize" Value="12" />
-      <Setter Property="CornerRadius" Value="0" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
-      <Setter Property="BorderThickness" Value="1,0,0,0" />
-    </Style>
-    <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(1)">
-      <Setter Property="BorderThickness" Value="0" />
-    </Style>
-    <Style Selector="ListBox.prizeGrade ListBoxItem:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:pressed /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
-      <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
-    </Style>
-    <Style Selector="ListBox.prizeGrade ListBoxItem:selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:selected:pressed /template/ ContentPresenter">
-      <Setter Property="FontWeight" Value="Bold" />
-    </Style>
-    <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(1):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(1):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(1):selected:pressed /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource Grade.Grand.Tint}" />
-      <Setter Property="Foreground" Value="{DynamicResource Grade.Grand}" />
-    </Style>
-    <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(2):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(2):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(2):selected:pressed /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource Grade.Second.Tint}" />
-      <Setter Property="Foreground" Value="{DynamicResource Grade.Second}" />
-    </Style>
-    <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(3):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(3):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(3):selected:pressed /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource Grade.Third.Tint}" />
-      <Setter Property="Foreground" Value="{DynamicResource Grade.Third}" />
-    </Style>
-
+  <!-- 档次 as canvas V1's segmented control: one bordered strip, the picked segment in its grade's tone. -->
+  <Style Selector="ListBox.prizeGrade">
+    <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="ClipToBounds" Value="True" />
+    <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="ItemsPanel">
+      <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ListBox.prizeGrade ListBoxItem">
+    <Setter Property="Height" Value="30" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Padding" Value="9,0" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="VerticalContentAlignment" Value="Center" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
+    <Setter Property="BorderThickness" Value="1,0,0,0" />
+  </Style>
+  <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(1)">
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="ListBox.prizeGrade ListBoxItem:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+  </Style>
+  <Style Selector="ListBox.prizeGrade ListBoxItem:selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:selected:pressed /template/ ContentPresenter">
+    <Setter Property="FontWeight" Value="Bold" />
+  </Style>
+  <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(1):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(1):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(1):selected:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Grade.Grand.Tint}" />
+    <Setter Property="Foreground" Value="{DynamicResource Grade.Grand}" />
+  </Style>
+  <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(2):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(2):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(2):selected:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Grade.Second.Tint}" />
+    <Setter Property="Foreground" Value="{DynamicResource Grade.Second}" />
+  </Style>
+  <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(3):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(3):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(3):selected:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Grade.Third.Tint}" />
+    <Setter Property="Foreground" Value="{DynamicResource Grade.Third}" />
+  </Style>
 </Styles>
