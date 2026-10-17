@@ -78,7 +78,7 @@ public sealed class LotteryHistoryPanelTests
             Assert.Contains("晚风 ×2", GuiHarness.VisibleText(window));
             Assert.Contains("UID 88", GuiHarness.VisibleText(window));
             Assert.Contains("主播点停", GuiHarness.VisibleText(window));
-            Assert.Contains("口令「停」", GuiHarness.VisibleText(window));
+            Assert.Contains("口令「停」，每次点名一位观众喊停，或主播点停", GuiHarness.VisibleText(window));
             Assert.False(back.IsVisible);
             Assert.Equal("entry", vm.LotteryState.EntryLottery!.Id);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBox>(), control => control.IsEffectivelyVisible);

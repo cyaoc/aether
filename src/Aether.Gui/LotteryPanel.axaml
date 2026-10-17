@@ -1,22 +1,27 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPanel">
   <UserControl.Styles>
+    <!-- 本场 / 历史 as on canvases O1 and O4: a subtle strip, the picked view raised as a card. -->
     <Style Selector="ListBox#ViewTabs">
       <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
       <Setter Property="Padding" Value="3" />
-      <Setter Property="CornerRadius" Value="7" />
-      <Setter Property="ItemsPanel"><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></Setter>
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="ItemsPanel"><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="2" /></ItemsPanelTemplate></Setter>
     </Style>
     <Style Selector="ListBox#ViewTabs ListBoxItem">
+      <Setter Property="Height" Value="28" />
       <Setter Property="MinHeight" Value="0" />
-      <Setter Property="Padding" Value="10,4" />
-      <Setter Property="CornerRadius" Value="5" />
-      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
     </Style>
     <Style Selector="ListBox#ViewTabs ListBoxItem:selected /template/ ContentPresenter, ListBox#ViewTabs ListBoxItem:selected:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
       <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
       <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="BoxShadow" Value="0 1 2 0 #1F000000" />
     </Style>
     <!-- Phase chip, as on canvases V1 and O1: neutral while idle, accent while spinning or open, warning while drawing, success once ended. -->
     <Style Selector="Border#PhaseChip">

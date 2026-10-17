@@ -8,6 +8,7 @@
       <ResourceDictionary.ThemeDictionaries>
         <ResourceDictionary x:Key="Light">
           <BoxShadows x:Key="PopupShadow">0 8 24 0 #1F16181D, 0 1 2 0 #1416181D</BoxShadows>
+          <BoxShadows x:Key="SelectedRowRing">inset 3 0 0 0 #3358D4</BoxShadows>
           <SolidColorBrush x:Key="Surface.Content" Color="#FFFFFF" />
           <SolidColorBrush x:Key="Surface.Sidebar" Color="#F6F7F9" />
           <SolidColorBrush x:Key="Surface.Card" Color="#FFFFFF" />
@@ -65,6 +66,7 @@
         </ResourceDictionary>
         <ResourceDictionary x:Key="Dark">
           <BoxShadows x:Key="PopupShadow">0 8 24 0 #73000000</BoxShadows>
+          <BoxShadows x:Key="SelectedRowRing">inset 3 0 0 0 #8DA2FB</BoxShadows>
           <SolidColorBrush x:Key="Surface.Content" Color="#1B1C1F" />
           <SolidColorBrush x:Key="Surface.Sidebar" Color="#141518" />
           <SolidColorBrush x:Key="Surface.Card" Color="#222428" />
@@ -495,6 +497,21 @@
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
     <Setter Property="BorderBrush" Value="Transparent" />
+  </Style>
+  <!-- 中奖名单 chips and award names, shared by 本场 and 历史 as on canvases O1 and O4. -->
+  <Style Selector="Border.winner">
+    <Setter Property="Height" Value="24" />
+    <Setter Property="Padding" Value="8,0" />
+    <Setter Property="Margin" Value="0,0,4,4" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+    <Setter Property="TextElement.FontSize" Value="12" />
+    <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="TextBlock.awardName">
+    <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
   </Style>
   <Style Selector="Border.card">
     <Setter Property="Background" Value="{DynamicResource Surface.Card}" />

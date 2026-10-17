@@ -149,30 +149,12 @@ public partial class EntryLotteryPanel : UserControl
             var winners = lottery.Draws.Where(draw => draw.AwardIndex == index).ToArray();
             if (winners.Length == 0) continue;
             var award = lottery.Awards[index];
-            // Centred, as the 报名 rows are: CJK and digit fonts have different line boxes.
-            var name = new TextBlock { Text = award.Name, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
-            var prize = new TextBlock { Text = award.Prize, VerticalAlignment = VerticalAlignment.Center };
-            var progress = new TextBlock { Text = $"{winners.Length} / {award.Capacity}", VerticalAlignment = VerticalAlignment.Center };
-            name.Classes.AddRange(["caption", "awardName", "singleLine"]);
-            prize.Classes.AddRange(["caption", "muted", "singleLine"]);
-            progress.Classes.AddRange(["caption", "muted", "numeric"]);
-            Grid.SetColumn(prize, 1);
-            Grid.SetColumn(progress, 2);
-            var people = new WrapPanel();
-            foreach (var winner in winners)
+            WinnerGroups.Children.Add(WinnerGroup(award.Name, award.Prize, $"{winners.Length} / {award.Capacity}", winners.Select(winner =>
             {
-                var text = new TextBlock { Text = winner.Winner.Nickname, MaxWidth = 210, VerticalAlignment = VerticalAlignment.Center };
-                text.Classes.Add("singleLine");
-                var chip = new Border { Child = text };
-                chip.Classes.Add("winner");
+                var chip = WinnerChip(winner.Winner.Nickname);
                 chip.Classes.Set("fresh", winner == fresh);
-                people.Children.Add(chip);
-            }
-            WinnerGroups.Children.Add(new StackPanel
-            {
-                Spacing = 4,
-                Children = { new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 6, Children = { name, prize, progress } }, people },
-            });
+                return (Control)chip;
+            })));
         }
         // Entries only grow while 报名中, so a busy room adds rows instead of redrawing the list; a draw changes the badges and rebuilds it.
         if (previous?.Id != lottery.Id || previous.Draws != lottery.Draws || previous.DrawUntil != lottery.DrawUntil
@@ -180,6 +162,36 @@ public partial class EntryLotteryPanel : UserControl
         var won = lottery.Draws.ToDictionary(draw => draw.Winner.Uid);
         for (var index = EntryRows.Children.Count; index < lottery.Entries.Length; index++)
             EntryRows.Children.Insert(0, EntryRow(lottery.Entries[index], won.GetValueOrDefault(lottery.Entries[index].Uid), fresh));
+    }
+
+    /// <summary>One 中奖名单 group as on canvases O1 and O4: award, prize and progress over the people.</summary>
+    internal static StackPanel WinnerGroup(string award, string prize, string progress, IEnumerable<Control> people)
+    {
+        // Centred, as the 报名 rows are: CJK and digit fonts have different line boxes.
+        var name = new TextBlock { Text = award, FontWeight = FontWeight.SemiBold, VerticalAlignment = VerticalAlignment.Center };
+        var detail = new TextBlock { Text = prize, VerticalAlignment = VerticalAlignment.Center };
+        var count = new TextBlock { Text = progress, VerticalAlignment = VerticalAlignment.Center };
+        name.Classes.AddRange(["caption", "awardName", "singleLine"]);
+        detail.Classes.AddRange(["caption", "muted", "singleLine"]);
+        count.Classes.AddRange(["caption", "muted", "numeric"]);
+        Grid.SetColumn(detail, 1);
+        Grid.SetColumn(count, 2);
+        var chips = new WrapPanel();
+        chips.Children.AddRange(people);
+        return new StackPanel
+        {
+            Spacing = 4,
+            Children = { new Grid { ColumnDefinitions = new("Auto,*,Auto"), ColumnSpacing = 6, Children = { name, detail, count } }, chips },
+        };
+    }
+
+    internal static Border WinnerChip(string nickname)
+    {
+        var text = new TextBlock { Text = nickname, MaxWidth = 210, VerticalAlignment = VerticalAlignment.Center };
+        text.Classes.Add("singleLine");
+        var chip = new Border { Child = text };
+        chip.Classes.Add("winner");
+        return chip;
     }
 
     /// <summary>One 报名 row as on canvas O1: name, the award it won, time.</summary>

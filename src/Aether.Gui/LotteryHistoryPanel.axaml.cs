@@ -59,6 +59,8 @@ public partial class LotteryHistoryPanel : UserControl
             foreach (var item in displayed) LotteryList.Items.Add(Row(item));
             RoomText.Text = displayed.FirstOrDefault() is { } first ? $"直播间 {first.RoomId}" : "";
         }
+        // Connected, the sidebar already names the room; offline, this says whose history is shown.
+        RoomText.IsVisible = viewModel.LotteryState.RoomId is null && RoomText.Text != "";
         var selected = viewModel.SelectedLotteryHistory;
         if (!viewModel.LotteryHistoryLoading)
             LotteryList.SelectedItem = LotteryList.Items.OfType<ListBoxItem>().FirstOrDefault(row => row.Tag is LotteryHistory item && item.Id == selected?.Lottery.Id);
@@ -74,17 +76,18 @@ public partial class LotteryHistoryPanel : UserControl
         if (selected is null) return;
         var lottery = selected.Lottery;
         DetailDate.Text = Date(lottery);
-        DetailSummary.Text = $"{Mode(lottery)} · {Count(lottery)}";
+        DetailSummary.Text = $"{Mode(lottery)} · {(lottery.Mode == LotteryMode.Entry ? $"报名 {lottery.EntryCount} 人" : $"抽了 {lottery.DrawCount} 次")}";
         ConditionTitle.Text = lottery.Mode == LotteryMode.Entry ? "报名条件" : "谁来喊停";
-        ConditionText.Text = lottery.Mode == LotteryMode.Entry ? $"发弹幕「{lottery.Keyword}」" : $"口令「{lottery.StopWord}」";
+        ConditionText.Text = lottery.Mode == LotteryMode.Entry
+            ? $"发弹幕「{lottery.Keyword}」" : $"口令「{lottery.StopWord}」，每次点名一位观众喊停，或主播点停";
         if (lottery.Mode == LotteryMode.Entry)
         {
             for (var index = 0; index < lottery.Awards.Length; index++)
             {
                 var award = lottery.Awards[index];
                 var winners = selected.EntryDraws.Where(draw => draw.AwardIndex == index).ToArray();
-                AddWinners($"{award.Name}  {award.Prize}", $"已抽 {winners.Length} / {award.Capacity}",
-                    winners.Select(draw => (draw.Winner.Nickname, $"UID {draw.Winner.Uid}")), "还没抽");
+                AddWinners(award.Name, award.Prize, $"已抽 {winners.Length} / {award.Capacity}",
+                    winners.Select(draw => (draw.Winner.Nickname, $"UID {draw.Winner.Uid}")));
             }
         }
         else
@@ -102,60 +105,52 @@ public partial class LotteryHistoryPanel : UserControl
                     return (group.Count() > 1 ? $"{who} ×{group.Count()}" : who,
                         group.Key is { } viewer ? $"UID {viewer}" : "未指定观众");
                 });
-                AddWinners($"{LotteryPanel.GradeNames[(int)grade]}  {name}", $"{draws.Length} 次", winners, "还没抽到");
+                AddWinners(LotteryPanel.GradeNames[(int)grade], name, $"{draws.Length} 次", winners);
             }
         }
     }
 
-    private static string Date(LotteryHistory item) => $"{item.StartedAt.ToLocalTime():yyyy年M月d日 HH:mm}";
+    // O4 drops the year; an older year keeps it so rows stay unambiguous.
+    private static string Date(LotteryHistory item) => item.StartedAt.ToLocalTime() is var at && at.Year == DateTimeOffset.Now.Year
+        ? $"{at:M月d日 HH:mm}" : $"{at:yyyy年M月d日 HH:mm}";
     private static string Mode(LotteryHistory item) => item.Mode == LotteryMode.Entry ? "报名抽奖" : "奖池抽奖";
     private static string Count(LotteryHistory item) => item.Mode == LotteryMode.Entry
         ? $"报名 {item.EntryCount} · 中奖 {item.DrawCount}" : $"抽了 {item.DrawCount} 次";
 
     private static ListBoxItem Row(LotteryHistory item)
     {
-        var date = Text(Date(item), "singleLine");
+        var date = Text(Date(item), "numeric");
         date.FontWeight = FontWeight.SemiBold;
-        var status = new Border { Child = Text(item.EndedAt is null ? "进行中" : "已结束", "caption"), Padding = new(5, 2), CornerRadius = new(4) };
-        status.Classes.Add("historyStatus");
+        var status = new Border { Child = Text(item.EndedAt is null ? "进行中" : "已结束") };
+        status.Classes.AddRange(["badge", "historyTag"]);
         status.Classes.Set("active", item.EndedAt is null);
-        var mode = new Border { Child = Text(Mode(item), "caption"), Padding = new(5, 2) };
-        mode.Classes.Add("historyMode");
-        var count = Text(Count(item), "caption", "muted");
+        var mode = new Border { Child = Text(Mode(item)) };
+        mode.Classes.AddRange(["badge", "historyTag", "mode"]);
+        var count = Text(Count(item), "caption", "muted", "numeric");
         Grid.SetColumn(status, 1);
         Grid.SetColumn(mode, 2);
-        Grid.SetColumn(count, 3);
-        var top = new Grid { ColumnDefinitions = new("*,Auto,Auto,Auto"), ColumnSpacing = 8, Children = { date, status, mode, count } };
+        Grid.SetColumn(count, 4);
+        var top = new Grid { ColumnDefinitions = new("Auto,Auto,Auto,*,Auto"), ColumnSpacing = 8, Children = { date, status, mode, count } };
         var summary = item.Mode == LotteryMode.Entry
             ? string.Join(" · ", item.Awards.Select(award => $"{award.Name} {award.Prize} ×{award.Capacity}"))
             : string.Join(" · ", item.Prizes.Select(prize => $"{LotteryPanel.GradeNames[(int)prize.Grade]} {prize.Name}"));
-        var description = Text(summary, "caption", "singleLine");
-        var row = new ListBoxItem { Tag = item, Content = new StackPanel { Spacing = 4, Children = { top, description } } };
+        var description = Text(summary, "label", "singleLine");
+        var content = new Border { Child = new StackPanel { Spacing = 6, Children = { top, description } } };
+        content.Classes.Add("historyRow");
+        var row = new ListBoxItem { Tag = item, Content = content };
         AutomationProperties.SetName(row, $"{Date(item)} · {(item.EndedAt is null ? "进行中" : "已结束")} · {Mode(item)} · {Count(item)} · {summary}");
         return row;
     }
 
-    private void AddWinners(string title, string count, IEnumerable<(string Name, string Hint)> winners, string empty)
+    private void AddWinners(string award, string prize, string progress, IEnumerable<(string Name, string Hint)> winners)
     {
-        var name = Text(title, "caption", "singleLine");
-        var progress = Text(count, "caption", "muted", "numeric");
-        Grid.SetColumn(progress, 1);
-        var people = new WrapPanel();
-        foreach (var (nickname, hint) in winners)
+        var people = winners.Select(winner =>
         {
-            var text = Text(nickname, "singleLine");
-            text.MaxWidth = 230;
-            var chip = new Border { Child = text };
-            chip.Classes.Add("winner");
-            ToolTip.SetTip(chip, $"{nickname} · {hint}");
-            people.Children.Add(chip);
-        }
-        if (people.Children.Count == 0) people.Children.Add(Text(empty, "caption", "muted"));
-        WinnerGroups.Children.Add(new StackPanel
-        {
-            Spacing = 4,
-            Children = { new Grid { ColumnDefinitions = new("*,Auto"), ColumnSpacing = 6, Children = { name, progress } }, people },
-        });
+            var chip = EntryLotteryPanel.WinnerChip(winner.Name);
+            ToolTip.SetTip(chip.Child!, $"{winner.Name} · {winner.Hint}");
+            return (Control)chip;
+        }).DefaultIfEmpty(Text("还没抽", "caption", "muted"));
+        WinnerGroups.Children.Add(EntryLotteryPanel.WinnerGroup(award, prize, progress, people));
     }
 
     private static TextBlock Text(string value, params string[] classes)
