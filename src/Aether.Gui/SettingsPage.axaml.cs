@@ -245,7 +245,7 @@ public partial class SettingsPage : UserControl
             || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
         DirtyMessage.Text = PortChanged ? "保存后网页服务换到新端口，直播姬里的地址要跟着改" : "有未保存的修改";
         SaveButton.IsEnabled = fileError is null && error is null && !invalidCondition && !invalidWelcomeText && !invalidAnimation && DirtyMessage.IsVisible;
-        if (Section != SettingsSection.WelcomeAnimation || DirtyMessage.IsVisible) Message.Text = "";
+        if (Section is not (SettingsSection.WelcomeAnimation or SettingsSection.General) || DirtyMessage.IsVisible) Message.Text = "";
     }
 
     private bool PortChanged => Section == SettingsSection.General && settings.WebServicePort.CanEdit

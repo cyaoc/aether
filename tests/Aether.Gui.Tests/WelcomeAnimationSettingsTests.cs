@@ -520,11 +520,17 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("保存后网页服务换到新端口，直播姬里的地址要跟着改", general.FindControl<TextBlock>("DirtyMessage")!.Text);
             Click(general, "SaveButton");
             await GuiHarness.WaitForAsync(() => general.IsEnabled);
+            // Hidden fields also notify after a saved snapshot is loaded; they are not edits to this page.
+            general.FindControl<TextBox>("DailyKeywordInput")!.Text = "延迟的文本通知";
+            GuiHarness.Flush();
             Assert.Equal("已保存，网页服务已换到新端口", general.FindControl<TextBlock>("Message")!.Text);
             Assert.Equal(nextPort, viewModel.WebServiceStatus.Port);
             Assert.Equal(0, viewModel.WebServiceStatus.VideoConnections);
             Assert.Contains("<video", await http.GetStringAsync(viewModel.VideoAddressText));
             await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync($"http://localhost:{port}/video", TestContext.Current.CancellationToken));
+            general.FindControl<NumericUpDown>("RetentionInput")!.Text = "31";
+            GuiHarness.Flush();
+            Assert.Equal("", general.FindControl<TextBlock>("Message")!.Text);
             var externalPort = FreePort();
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = externalPort.ToString() });
             window.Navigation.SelectedIndex = 0;
