@@ -1,6 +1,8 @@
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using System.Threading.Channels;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
@@ -201,7 +203,7 @@ public sealed partial class AetherClient
                                 heartbeat = SendHeartbeatsAsync(socket, connectionStop);
                                 credentialChecks = RefreshCredentialWhileConnectedAsync(connectionStop, cancellationToken);
                                 client.logger.LogInformation("已连接弹幕服务器 {Server}", connection.Server);
-                                if (enableLottery) client.Lottery.Connect(realRoomId);
+                                RunLottery(realRoomId);
                                 yield return new Connected();
                                 // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it;
                                 // on the thread pool, as it would otherwise run its first SQLite query right here on the receive loop.
@@ -212,7 +214,7 @@ public sealed partial class AetherClient
                         {
                             // Reported first, so a shell sees the keyword before the 盲盒查询 it queues.
                             yield return danmaku.Danmaku;
-                            if (enableLottery) client.Lottery.Receive(realRoomId, danmaku.Danmaku);
+                            RunLottery(realRoomId, danmaku.Danmaku);
                             if (Settings.BlindBoxEnabled.Value)
                             {
                                 var text = danmaku.Danmaku.Content.Trim();
@@ -307,6 +309,21 @@ public sealed partial class AetherClient
             while (await timer.WaitForNextTickAsync(stop.Token))
                 await socket.SendAsync(DanmakuProtocol.CreateHeartbeat(), WebSocketMessageType.Binary, true, stop.Token);
         });
+
+        /// <summary>The lottery rides along: its database failing is logged, and danmaku keep coming.</summary>
+        private void RunLottery(long roomId, Danmaku? danmaku = null)
+        {
+            if (!enableLottery) return;
+            try
+            {
+                // Retry a failed initial load when the next danmaku arrives, without reconnecting the room.
+                var state = client.Lottery.State;
+                if (!state.Connected || state.RoomId != roomId) client.Lottery.Connect(roomId);
+                if (danmaku is not null) client.Lottery.Receive(roomId, danmaku);
+            }
+            catch (Exception error) when (error is SqliteException or JsonException or IOException)
+            { client.logger.LogError(error, "奖池抽奖读写数据库失败，弹幕照常接收：{Error}", error.Message); }
+        }
 
         /// <summary>Runs one of the room connection's background loops. Anything after the connection stops is just the
         /// connection ending; any other failure stops it too, so the receive loop wakes instead of leaving the room connection hanging.</summary>

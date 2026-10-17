@@ -162,7 +162,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         try
         {
             // Core runs the room connection off the UI thread; this loop only shows what it reports.
-            await foreach (var update in client.WatchAsync(roomId, cancellationToken, enableLottery: true))
+            await foreach (var update in client.WatchAsync(roomId, enableLottery: true, cancellationToken))
                 Apply(update);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }

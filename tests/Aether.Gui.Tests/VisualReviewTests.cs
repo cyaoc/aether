@@ -36,9 +36,20 @@ public sealed class VisualReviewTests
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
                 window.Navigation.SelectedIndex = 4;
-                var session = PoolLotteryPageTests.Session();
-                var draw = new PoolDraw("draw", session.Prizes[0], 42, "小明", true, DateTimeOffset.Now, session.Prizes);
-                session = session with { Draws = [draw] };
+                // Canvas V1's pool and records: a viewer's stop, a host stop with no UID, and a host stop for a named viewer.
+                PoolPrize[] prizes = [new("机械键盘", 1, PrizeGrade.Grand), new("周边抱枕", 3, PrizeGrade.Second),
+                    new("签名照", 4, PrizeGrade.Third), new("贴纸套装", 2, PrizeGrade.Third)];
+                var at = new DateTimeOffset(2026, 10, 17, 20, 30, 0, TimeSpan.FromHours(8));
+                var session = LotteryPanelTests.TestLottery() with
+                {
+                    Prizes = [.. prizes],
+                    Draws =
+                    [
+                        new("d1", prizes[3], 42, "小明", false, at, []),
+                        new("d2", prizes[1], null, null, true, at.AddMinutes(2), []),
+                        new("d3", prizes[2], 42, "小明", true, at.AddMinutes(6), []),
+                    ],
+                };
                 foreach (var phase in Enum.GetValues<PoolLotteryPhase>())
                 {
                     vm.Apply(new PoolLotteryUpdate(new(7734200, true, session with { Phase = phase })));
@@ -119,7 +130,7 @@ public sealed class VisualReviewTests
                 foreach (var text in texts)
                 {
                     // These are multi-sentence help, not single-line captions.
-                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" or "LatestResult" ||
+                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" ||
                         text.GetVisualAncestors().OfType<Control>().Any(c =>
                             c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "EmptyConditions")) continue;
                     Assert.True(text.TextWrapping == TextWrapping.NoWrap, $"Wrapping: {text.Text}");

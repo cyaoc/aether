@@ -83,7 +83,7 @@ public sealed class WelcomeAnimationTests
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var time = new PausedTimerProvider(() => { entered.SetResult(); release.Wait(); });
-        using var service = new WebService(h.DataDirectory, time, h.Logger);
+        using var service = new WebService(h.DataDirectory, time, h.Logger, h.Client.Lottery);
         var ports = new HashSet<int>();
         while (ports.Count < 3) ports.Add(FreePort());
         var candidates = ports.ToArray();
@@ -473,7 +473,7 @@ public sealed class WelcomeAnimationTests
         public async ValueTask DisposeAsync() { await stop.CancelAsync(); await reading; stop.Dispose(); }
     }
 
-    private static int FreePort()
+    internal static int FreePort()
     {
         using var port = new TcpListener(IPAddress.Loopback, 0);
         port.Start();

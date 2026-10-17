@@ -47,7 +47,7 @@ internal sealed class WatchHarness : IAsyncDisposable
     // Tests of receiving and sending HTTP keep their existing stream; progress tests opt into the full stream.
     private async IAsyncEnumerable<WatchUpdate> WatchUpdates(AetherClient client, bool includeSendQueueUpdates)
     {
-        await foreach (var update in client.WatchAsync(6, Stop.Token, enableLottery))
+        await foreach (var update in client.WatchAsync(6, enableLottery, Stop.Token))
             if (includeSendQueueUpdates || update is not SendQueueUpdate) yield return update;
     }
 

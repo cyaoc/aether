@@ -30,10 +30,10 @@ public partial class MainWindow : Window
         {
             page.IsVisible = false;
             page.SaveCompleted += RefreshSettingsStatus;
-            page.GeneralSettingsRequested += () => Navigation.SelectedIndex = 6;
+            page.GeneralSettingsRequested += ShowGeneralSettings;
             PageHost.Children.Add(page);
+            if (page.Section == SettingsSection.WelcomeAnimation) PageHost.Children.Add(new LotteryPanel { IsVisible = false });
         }
-        PageHost.Children.Insert(4, new LotteryPage { IsVisible = false });
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
         // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
@@ -83,8 +83,10 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel viewModel) return;
         await viewModel.OpenSettingsCommand.ExecuteAsync(null);
-        Navigation.SelectedIndex = 6;
+        ShowGeneralSettings();
     }
+
+    private void ShowGeneralSettings() => Navigation.SelectedIndex = PageHost.Children.IndexOf(settingsPages[(int)SettingsSection.General]);
 
     private void Navigate(object? sender, SelectionChangedEventArgs e)
     {

@@ -8,7 +8,15 @@ public partial class MainWindowViewModel
     private CancellationTokenSource? lotteryStop;
     private Task lotteryUpdates = Task.CompletedTask;
     private Task lotteryChange = Task.CompletedTask;
-    [ObservableProperty] private PoolLotteryState lotteryState = new(null, false, null);
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(LotteryPhaseText))] private PoolLotteryState lotteryState = new(null, false, null);
+
+    /// <summary>The sidebar shows the phase only while a draw is under way.</summary>
+    public string LotteryPhaseText => LotteryState.Lottery?.Phase switch
+    {
+        PoolLotteryPhase.Spinning => "转动中",
+        PoolLotteryPhase.Drawing => "开奖中",
+        _ => "",
+    };
 
     internal void Apply(PoolLotteryUpdate update) => LotteryState = update.State;
 

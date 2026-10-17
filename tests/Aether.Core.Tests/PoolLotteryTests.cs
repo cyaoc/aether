@@ -1,6 +1,5 @@
 using Aether.Core.Tests.Support;
 using System.Net;
-using System.Net.Sockets;
 using System.Text.Json;
 
 namespace Aether.Core.Tests;
@@ -17,8 +16,8 @@ public sealed class PoolLotteryTests
         var first = await h.WatchConnectedAsync();
         h.Client.Lottery.Start(Prizes, "停");
         h.Client.Lottery.Stop();
-        h.Time.HoldCallbacksFor = PoolLottery.RevealDuration;
-        h.Time.Advance(PoolLottery.RevealDuration);
+        h.Time.HoldCallbacksFor = PoolLottery.DrawDuration;
+        h.Time.Advance(PoolLottery.DrawDuration);
         await first.DisposeAsync();
         await using var reconnected = await h.WatchConnectedAsync();
         Assert.Equal(PoolLotteryPhase.Idle, h.Client.Lottery.State.Lottery!.Phase);
@@ -26,33 +25,33 @@ public sealed class PoolLotteryTests
         h.Client.Lottery.Stop();
         h.Time.HoldCallbacksFor = null;
         h.Time.RunHeldCallbacks();
-        Assert.Equal(PoolLotteryPhase.Revealing, h.Client.Lottery.State.Lottery.Phase);
-        h.Time.Advance(PoolLottery.RevealDuration);
+        Assert.Equal(PoolLotteryPhase.Drawing, h.Client.Lottery.State.Lottery.Phase);
+        h.Time.Advance(PoolLottery.DrawDuration);
         Assert.Equal(PoolLotteryPhase.Idle, h.Client.Lottery.State.Lottery.Phase);
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Ended_room_connection_cannot_overwrite_the_next_owners_lottery(bool revealing)
+    public async Task Ended_room_connection_cannot_overwrite_the_next_owners_lottery(bool drawing)
     {
         await using var h = new WatchHarness(enableLottery: true);
         await h.LoginAsync();
         var first = await h.WatchConnectedAsync();
         h.Client.Lottery.Start(Prizes, "停", 42);
-        if (revealing) h.Client.Lottery.Stop();
+        if (drawing) h.Client.Lottery.Stop();
         await first.DisposeAsync();
         Assert.False(h.Client.Lottery.State.CanControl);
         var nextTime = new RecordingTimeProvider(h.Time.GetUtcNow());
         using var next = new AetherClient(new FakeBilibiliHttp { Respond = h.Http.Respond }, h.Server.ConnectAsync,
             nextTime, h.Logger, h.DataDirectory);
         var second = await h.WatchConnectedAsync(next);
-        if (revealing) nextTime.Advance(PoolLottery.RevealDuration);
+        if (drawing) nextTime.Advance(PoolLottery.DrawDuration);
         else next.Lottery.Cancel();
         next.Lottery.Start([new("新奖品", 1, PrizeGrade.Second)], "开", 99);
         Assert.Throws<InvalidOperationException>(h.Client.Lottery.Stop);
         Assert.Throws<InvalidOperationException>(h.Client.Lottery.Cancel);
-        h.Time.Advance(PoolLottery.RevealDuration);
+        h.Time.Advance(PoolLottery.DrawDuration);
         await second.DisposeAsync();
         await using var refreshed = await h.WatchConnectedAsync(next);
         Assert.Equal(PoolLotteryPhase.Spinning, next.Lottery.State.Lottery!.Phase);
@@ -105,12 +104,12 @@ public sealed class PoolLotteryTests
         Assert.Equal(42, draw.Uid);
         Assert.True(draw.StoppedByHost);
         Assert.Throws<InvalidOperationException>(() => lottery.New(Prizes, "停"));
-        h.Time.Advance(PoolLottery.RevealDuration);
+        h.Time.Advance(PoolLottery.DrawDuration);
         lottery.Start(Prizes, "停", 99);
         lottery.Stop();
         Assert.Null(lottery.State.Lottery.Draws[^1].Nickname);
         Assert.Equal(99, lottery.State.Lottery.Draws[^1].Uid);
-        h.Time.Advance(PoolLottery.RevealDuration);
+        h.Time.Advance(PoolLottery.DrawDuration);
         lottery.Start(Prizes, "停");
         await h.PushAndCollectAsync(updates, Message(42, "小明", "停"));
         Assert.Equal(PoolLotteryPhase.Spinning, lottery.State.Lottery.Phase);
@@ -119,12 +118,17 @@ public sealed class PoolLotteryTests
         Assert.Null(lottery.State.Lottery.Draws[^1].Nickname);
         Assert.Equal(Prizes, lottery.State.Lottery.Prizes);
         Assert.Equal(0, SentDanmaku.SendAttempts(h));
-        Assert.Contains(h.Logger.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Information && entry.Message.Contains("取消"));
-        Assert.Contains(h.Logger.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Information && entry.Message.Contains("开奖"));
+        foreach (var logged in new[] { "新开一场", "开始", "取消", "开奖" })
+            Assert.Contains(h.Logger.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Information && entry.Message.Contains(logged));
+        h.Time.Advance(PoolLottery.DrawDuration);
+        lottery.Start([new("头奖", 1, PrizeGrade.Grand), new("贴纸", 99, PrizeGrade.Third)], "停");
+        lottery.Stop();
+        // A prize far below a tenth of the pool still gets its one cell, so a theme can stop on it.
+        Assert.Equal(["头奖", .. Enumerable.Repeat("贴纸", 9)], lottery.State.Lottery.Draws[^1].Candidates.Select(prize => prize.Name));
     }
 
     [Fact]
-    public async Task Reconnect_and_restart_restore_active_lottery_draws_viewers_and_reveal_deadline()
+    public async Task Reconnect_and_restart_restore_active_lottery_draws_viewers_and_draw_deadline()
     {
         await using var h = new WatchHarness(random: new FixedRandom(0), enableLottery: true);
         await h.LoginAsync();
@@ -142,13 +146,13 @@ public sealed class PoolLotteryTests
         {
             Assert.Equal(id, lottery.State.Lottery.Id);
             Assert.Single(lottery.State.Lottery.Draws);
-            Assert.Equal(PoolLotteryPhase.Revealing, lottery.State.Lottery.Phase);
+            Assert.Equal(PoolLotteryPhase.Drawing, lottery.State.Lottery.Phase);
         }
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
         await using var resumed = await h.WatchConnectedAsync(restarted);
         Assert.Equal(id, restarted.Lottery.State.Lottery!.Id);
         Assert.Equal("小明", restarted.Lottery.State.Lottery.Viewers[42]);
-        Assert.Equal(PoolLotteryPhase.Revealing, restarted.Lottery.State.Lottery.Phase);
+        Assert.Equal(PoolLotteryPhase.Drawing, restarted.Lottery.State.Lottery.Phase);
         h.Time.Advance(TimeSpan.FromSeconds(5));
         Assert.Equal(PoolLotteryPhase.Idle, restarted.Lottery.State.Lottery.Phase);
         restarted.Lottery.Start(Prizes, "停", 42);
@@ -192,11 +196,7 @@ public sealed class PoolLotteryTests
     public async Task Browser_gets_snapshot_changes_and_one_draw_event_and_cannot_control_the_lottery()
     {
         await using var h = new WatchHarness(random: new FixedRandom(1), enableLottery: true);
-        using var port = new TcpListener(IPAddress.Loopback, 0);
-        port.Start();
-        var number = ((IPEndPoint)port.LocalEndpoint).Port;
-        port.Stop();
-        await h.Client.WebService.StartAsync(number);
+        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Address) };
         using var response = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(h.Stop.Token));
@@ -209,17 +209,19 @@ public sealed class PoolLotteryTests
         h.Client.Lottery.Start(Prizes, "停");
         Assert.Equal("Spinning", (await Event(reader)).Data.GetProperty("lottery").GetProperty("phase").GetString());
         h.Client.Lottery.Stop();
-        Assert.Equal("Revealing", (await Event(reader)).Data.GetProperty("lottery").GetProperty("phase").GetString());
+        Assert.Equal("Drawing", (await Event(reader)).Data.GetProperty("lottery").GetProperty("phase").GetString());
         var draw = await Event(reader);
         Assert.Equal("draw", draw.Name);
         Assert.Equal("贴纸", draw.Data.GetProperty("prize").GetProperty("name").GetString());
-        Assert.Equal(10, draw.Data.GetProperty("candidates").GetArrayLength());
+        Assert.Equal([.. Enumerable.Repeat("抱枕", 2), .. Enumerable.Repeat("贴纸", 8)],
+            draw.Data.GetProperty("candidates").EnumerateArray().Select(prize => prize.GetProperty("name").GetString()));
         using var reconnected = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var reconnectedReader = new StreamReader(await reconnected.Content.ReadAsStreamAsync(h.Stop.Token));
         var snapshot = (await Event(reconnectedReader)).Data.GetProperty("lottery");
-        Assert.Equal("Revealing", snapshot.GetProperty("phase").GetString());
+        Assert.Equal("Drawing", snapshot.GetProperty("phase").GetString());
+        Assert.False(snapshot.TryGetProperty("viewers", out _));
         Assert.Equal(draw.Data.GetProperty("id").GetString(), snapshot.GetProperty("draws")[0].GetProperty("id").GetString());
-        h.Time.Advance(PoolLottery.RevealDuration);
+        h.Time.Advance(PoolLottery.DrawDuration);
         Assert.Equal("Idle", (await Event(reader)).Data.GetProperty("lottery").GetProperty("phase").GetString());
         using var post = await http.PostAsync("lottery/stop", new StringContent(""), h.Stop.Token);
         Assert.Equal(HttpStatusCode.NotFound, post.StatusCode);
@@ -238,7 +240,7 @@ public sealed class PoolLotteryTests
     }
 
     [Fact]
-    public async Task Only_the_named_viewer_can_stop_and_reveal_locks_the_next_draw_for_seven_seconds()
+    public async Task Only_the_named_viewer_can_stop_and_a_draw_locks_the_next_draw_for_seven_seconds()
     {
         await using var h = new WatchHarness(random: new FixedRandom(0), enableLottery: true);
         var lottery = h.Client.Lottery;
@@ -257,7 +259,7 @@ public sealed class PoolLotteryTests
         Assert.False(result.StoppedByHost);
         Assert.Throws<InvalidOperationException>(() => lottery.Start(Prizes, "停", 42));
         h.Time.Advance(TimeSpan.FromMilliseconds(6999));
-        Assert.Equal(PoolLotteryPhase.Revealing, lottery.State.Lottery.Phase);
+        Assert.Equal(PoolLotteryPhase.Drawing, lottery.State.Lottery.Phase);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         Assert.Equal(PoolLotteryPhase.Idle, lottery.State.Lottery.Phase);
         lottery.Start(Prizes, "停", 42);
@@ -265,6 +267,84 @@ public sealed class PoolLotteryTests
         Assert.Equal(2, lottery.State.Lottery.Draws.Length);
         Assert.Equal(2, lottery.State.Lottery.Prizes.Length);
         Assert.Equal(0, SentDanmaku.SendAttempts(h));
+    }
+
+    [Fact]
+    public async Task Failed_expired_draw_recovery_retries_on_the_next_danmaku()
+    {
+        await using var h = new WatchHarness(enableLottery: true);
+        await h.LoginAsync();
+        var first = await h.WatchConnectedAsync();
+        var lottery = h.Client.Lottery;
+        lottery.Start(Prizes, "停");
+        lottery.Stop();
+        await first.DisposeAsync();
+        h.Time.Advance(PoolLottery.DrawDuration);
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "CREATE TRIGGER fail_recovery BEFORE UPDATE ON lottery BEGIN SELECT RAISE(FAIL, 'unavailable'); END";
+        command.ExecuteNonQuery();
+        await using var reconnected = await h.WatchConnectedAsync();
+        Assert.False(lottery.State.Connected);
+        command.CommandText = "DROP TRIGGER fail_recovery";
+        command.ExecuteNonQuery();
+        await h.PushAndCollectAsync(reconnected, Message(42, "小明", "你好"));
+        Assert.True(lottery.State.Connected);
+        Assert.Equal(PoolLotteryPhase.Idle, lottery.State.Lottery!.Phase);
+        Assert.Single(lottery.State.Lottery.Draws);
+        lottery.Start(Prizes, "停");
+    }
+
+    [Fact]
+    public async Task Failed_reconnect_load_keeps_the_draw_timer_and_retries_on_the_next_danmaku()
+    {
+        await using var h = new WatchHarness(enableLottery: true);
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        var lottery = h.Client.Lottery;
+        lottery.Start(Prizes, "停", 42);
+        lottery.Stop();
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "ALTER TABLE lottery_viewer RENAME TO unavailable_viewer";
+        command.ExecuteNonQuery();
+        await h.Server.DisconnectAsync();
+        Assert.IsType<Reconnecting>(await h.NextAsync(updates));
+        h.Time.Advance(TimeSpan.FromSeconds(1));
+        Assert.IsType<Connected>(await h.NextAsync(updates));
+        Assert.False(lottery.State.Connected);
+        Assert.Contains(h.Logger.Entries, entry => entry.Message.Contains("奖池抽奖读写数据库失败"));
+        h.Time.Advance(TimeSpan.FromSeconds(6));
+        Assert.Equal(PoolLotteryPhase.Idle, lottery.State.Lottery!.Phase);
+        command.CommandText = "ALTER TABLE unavailable_viewer RENAME TO lottery_viewer";
+        command.ExecuteNonQuery();
+        await h.PushAndCollectAsync(updates, Message(42, "小明", "你好"));
+        Assert.True(lottery.State.Connected);
+        Assert.Single(lottery.State.Lottery.Draws);
+        lottery.Start(Prizes, "停", 42);
+        await h.PushAndCollectAsync(updates, Message(42, "小明", "停"));
+        Assert.Equal(2, lottery.State.Lottery.Draws.Length);
+    }
+
+    [Fact]
+    public async Task A_broken_lottery_database_is_logged_and_danmaku_keep_coming()
+    {
+        await using var h = new WatchHarness(enableLottery: true);
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        h.Client.Lottery.New(Prizes, "停");
+        using (var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False"))
+        {
+            connection.Open();
+            using var drop = connection.CreateCommand();
+            drop.CommandText = "DROP TABLE lottery_viewer";
+            drop.ExecuteNonQuery();
+        }
+        var arrived = await h.PushAndCollectAsync(updates, Message(42, "小明", "你好"));
+        Assert.Equal("你好", Assert.IsType<Danmaku>(Assert.Single(arrived)).Content);
+        Assert.Contains(h.Logger.Entries, entry => entry.Level == Microsoft.Extensions.Logging.LogLevel.Error && entry.Message.Contains("奖池抽奖读写数据库失败"));
     }
 
     private static string Message(long uid, string name, string text) =>

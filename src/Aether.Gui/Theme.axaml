@@ -43,6 +43,14 @@
           <SolidColorBrush x:Key="Danger" Color="#B91C1C" />
           <SolidColorBrush x:Key="Danger.Tint" Color="#FEF2F2" />
           <SolidColorBrush x:Key="Danger.Border" Color="#FECACA" />
+          <!-- 抽奖档次 and the just-drawn highlight, as on canvas V1. -->
+          <SolidColorBrush x:Key="Grade.Grand" Color="#8A5A00" />
+          <SolidColorBrush x:Key="Grade.Grand.Tint" Color="#FDF1D6" />
+          <SolidColorBrush x:Key="Grade.Second" Color="#5B3AB0" />
+          <SolidColorBrush x:Key="Grade.Second.Tint" Color="#EFE8FF" />
+          <SolidColorBrush x:Key="Grade.Third" Color="#1F5FA8" />
+          <SolidColorBrush x:Key="Grade.Third.Tint" Color="#E3F0FC" />
+          <SolidColorBrush x:Key="Accent.Flash" Color="#DCE4FB" />
           <SolidColorBrush x:Key="Avatar.0.Background" Color="#E8EEF9" />
           <SolidColorBrush x:Key="Avatar.0.Foreground" Color="#34558B" />
           <SolidColorBrush x:Key="Avatar.1.Background" Color="#F5EBDD" />
@@ -91,6 +99,13 @@
           <SolidColorBrush x:Key="Danger" Color="#F87171" />
           <SolidColorBrush x:Key="Danger.Tint" Color="#321E22" />
           <SolidColorBrush x:Key="Danger.Border" Color="#673238" />
+          <SolidColorBrush x:Key="Grade.Grand" Color="#F2C46D" />
+          <SolidColorBrush x:Key="Grade.Grand.Tint" Color="#33280F" />
+          <SolidColorBrush x:Key="Grade.Second" Color="#C9B2FF" />
+          <SolidColorBrush x:Key="Grade.Second.Tint" Color="#2B2244" />
+          <SolidColorBrush x:Key="Grade.Third" Color="#8FC8FF" />
+          <SolidColorBrush x:Key="Grade.Third.Tint" Color="#16283D" />
+          <SolidColorBrush x:Key="Accent.Flash" Color="#2D3A63" />
           <SolidColorBrush x:Key="Avatar.0.Background" Color="#25314A" />
           <SolidColorBrush x:Key="Avatar.0.Foreground" Color="#BED2FC" />
           <SolidColorBrush x:Key="Avatar.1.Background" Color="#3B3023" />
@@ -228,6 +243,11 @@
     <Setter Property="Foreground" Value="{DynamicResource Danger}" />
     <Setter Property="Background" Value="{DynamicResource Danger.Tint}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+  </Style>
+  <!-- A borderless button that cannot act just dims, without Fluent's grey plate (e.g. × on the only row left). -->
+  <Style Selector="Button.ghost:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
   </Style>
   <!-- An icon-only danger action stays quiet until hovered. -->
   <Style Selector="Button.ghost.danger">
@@ -543,6 +563,21 @@
   <Style Selector="Border.governor Border.guardBadge">
     <Setter Property="Background" Value="{DynamicResource Guard.Governor.Badge}" />
     <Setter Property="TextElement.Foreground" Value="{DynamicResource Guard.Governor.BadgeText}" />
+  </Style>
+  <Style Selector="Border.badge.grand, Border.badge.second, Border.badge.third">
+    <Setter Property="TextElement.FontWeight" Value="Bold" />
+  </Style>
+  <Style Selector="Border.badge.grand">
+    <Setter Property="Background" Value="{DynamicResource Grade.Grand.Tint}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Grade.Grand}" />
+  </Style>
+  <Style Selector="Border.badge.second">
+    <Setter Property="Background" Value="{DynamicResource Grade.Second.Tint}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Grade.Second}" />
+  </Style>
+  <Style Selector="Border.badge.third">
+    <Setter Property="Background" Value="{DynamicResource Grade.Third.Tint}" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Grade.Third}" />
   </Style>
   <Style Selector="Border.badge.neutralBadge">
     <Setter Property="Background" Value="{DynamicResource Badge.Neutral}" />

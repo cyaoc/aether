@@ -2,8 +2,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
@@ -12,8 +10,6 @@ namespace Aether.Core;
 /// <summary>The shell owns the service lifetime; each page has its own connections.</summary>
 public sealed class WebService : IDisposable
 {
-    private static readonly JsonSerializerOptions LotteryJson = new(JsonSerializerDefaults.Web)
-        { Converters = { new JsonStringEnumConverter() } };
     internal object Gate { get; } = new();
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
@@ -24,14 +20,14 @@ public sealed class WebService : IDisposable
     private CancellationTokenSource? stop;
     private Task running = Task.CompletedTask;
     public VideoPage Video { get; }
-    public PoolLottery Lottery { get; }
+    public LotteryPage Lottery { get; }
 
-    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, Random? random = null)
+    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, PoolLottery lottery)
     {
         this.timeProvider = timeProvider;
         this.logger = logger;
         Video = new(this, dataDirectory, timeProvider);
-        Lottery = new(dataDirectory, timeProvider, logger, random ?? Random.Shared);
+        Lottery = new(lottery);
     }
 
     /// <summary>One streaming software's event stream to a page.</summary>
@@ -227,39 +223,32 @@ public sealed class WebService : IDisposable
                 var connection = new Connection(response, path);
                 using var streamStop = path == "/lottery/events" ? CancellationTokenSource.CreateLinkedTokenSource(token) : null;
                 connection.StreamStop = streamStop;
-                lock (Gate) { token.ThrowIfCancellationRequested(); connections.Add(connection); ConnectionsChanged(); }
-                keepOpen = await SendAsync(connection, "retry: 2000\n\n", token);
-                if (keepOpen && path == "/lottery/events")
+                try
                 {
-                    try
+                    lock (Gate) { token.ThrowIfCancellationRequested(); connections.Add(connection); ConnectionsChanged(); }
+                    keepOpen = await SendAsync(connection, "retry: 2000\n\n", token);
+                    if (keepOpen && streamStop is not null)
                     {
-                        await foreach (var update in Lottery.GetUpdatesAsync(streamStop!.Token))
-                        {
-                            if (!await SendAsync(connection, "event: state\ndata: " + JsonSerializer.Serialize(update.State, LotteryJson) + "\n\n", token)) break;
-                            if (update.Draw is { } draw && !await SendAsync(connection,
-                                "event: draw\ndata: " + JsonSerializer.Serialize(draw, LotteryJson) + "\n\n", token)) break;
-                        }
-                    }
-                    finally
-                    {
+                        // The lottery stream lives in this request, so the response closes when it ends.
                         keepOpen = false;
-                        lock (Gate)
-                        {
-                            connection.StreamStop = null;
-                            if (connections.Remove(connection)) ConnectionsChanged();
-                        }
+                        await foreach (var frame in Lottery.EventsAsync(streamStop.Token))
+                            if (!await SendAsync(connection, frame, token)) break;
+                    }
+                }
+                finally
+                {
+                    // A heartbeat that fails on this connection cancels StreamStop under Gate; clear it before the using disposes it.
+                    lock (Gate)
+                    {
+                        connection.StreamStop = null;
+                        if (streamStop is not null && connections.Remove(connection)) ConnectionsChanged();
                     }
                 }
             }
             else if (path.StartsWith("/video", StringComparison.Ordinal))
                 await Video.HandleAsync(request, response, token);
-            else if (request.HttpMethod == "GET" && path == "/lottery")
-            {
-                response.ContentType = "text/html; charset=utf-8";
-                using var html = typeof(WebService).Assembly.GetManifestResourceStream("Aether.Core.LotteryPage.html")!;
-                response.ContentLength64 = html.Length;
-                await html.CopyToAsync(response.OutputStream, token);
-            }
+            else if (path.StartsWith("/lottery", StringComparison.Ordinal))
+                await Lottery.HandleAsync(request, response, token);
             else response.StatusCode = 404;
         }
         // On macOS, RemoteEndPoint throws SocketException once the client has reset the connection.
@@ -283,7 +272,6 @@ public sealed class WebService : IDisposable
 
     public void Dispose()
     {
-        Lottery.Dispose();
         StopAsync().GetAwaiter().GetResult();
         lock (Gate)
         {

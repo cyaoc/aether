@@ -18,7 +18,7 @@ public sealed partial class AetherClient : IDisposable
     private readonly string dataDirectory;
     public WebService WebService { get; }
     public WelcomeAnimation WelcomeAnimation { get; }
-    public PoolLottery Lottery => WebService.Lottery;
+    public PoolLottery Lottery { get; }
     private readonly Lazy<Stores> stores;
 
     public AetherClient(HttpMessageHandler httpHandler, Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket,
@@ -29,14 +29,15 @@ public sealed partial class AetherClient : IDisposable
         this.timeProvider = timeProvider;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
-        WebService = new(dataDirectory, timeProvider, logger, random);
-        WelcomeAnimation = new(WebService, timeProvider, logger);
         // PublicationOnly does not cache a failed open, so a transient database error can be retried.
         stores = new(() =>
         {
             var database = new Database(dataDirectory);
-            return new Stores(new CredentialStore(database), new BlindBoxStore(database, logger));
+            return new Stores(new CredentialStore(database), new BlindBoxStore(database, logger), new LotteryStore(database));
         }, LazyThreadSafetyMode.PublicationOnly);
+        Lottery = new(() => stores.Value.Lotteries, timeProvider, logger, random ?? Random.Shared);
+        WebService = new(dataDirectory, timeProvider, logger, Lottery);
+        WelcomeAnimation = new(WebService, timeProvider, logger);
     }
 
     /// <summary>Applies feature settings immediately; only a port change restarts the web service.</summary>
@@ -47,7 +48,7 @@ public sealed partial class AetherClient : IDisposable
         await WebService.StartAsync(settings.WebServicePort.Value).ConfigureAwait(false);
     }
 
-    private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes);
+    private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes, LotteryStore Lotteries);
 
     private static readonly TimeSpan CredentialCheckInterval = TimeSpan.FromHours(24);
 
@@ -86,7 +87,11 @@ public sealed partial class AetherClient : IDisposable
         credentials.Delete();
     }
 
-    public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, CancellationToken cancellationToken = default, bool enableLottery = false)
+    public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, CancellationToken cancellationToken = default) =>
+        WatchAsync(roomId, enableLottery: false, cancellationToken);
+
+    /// <summary>The GUI opts in to the pool lottery; the CLI watches without one.</summary>
+    public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, bool enableLottery, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(roomId);
         return EndOnCancellation(RunRoomConnectionAsync(roomId, enableLottery, cancellationToken), cancellationToken);
@@ -277,7 +282,7 @@ public sealed partial class AetherClient : IDisposable
         catch { socket.Dispose(); throw; }
     }
 
-    public void Dispose() { WebService.Dispose(); http.Dispose(); }
+    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); http.Dispose(); }
 }
 
 public static class AetherHosting

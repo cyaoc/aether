@@ -8,20 +8,21 @@ namespace Aether.Core;
 /// <summary>One room's active pool lottery, independent of the browser and the room transport lifetime.</summary>
 public sealed class PoolLottery : IDisposable
 {
-    public static readonly TimeSpan RevealDuration = TimeSpan.FromSeconds(7);
+    public static readonly TimeSpan DrawDuration = TimeSpan.FromSeconds(7);
+    public const int MaxPrizes = 10;
     private readonly object gate = new();
-    private readonly Lazy<LotteryStore> store;
+    private readonly Func<LotteryStore> store;
     private readonly TimeProvider time;
     private readonly ILogger logger;
     private readonly Random random;
     private readonly List<Channel<PoolLotteryUpdate>> subscribers = [];
     private PoolLotteryState state = new(null, false, null);
-    private ITimer? revealTimer;
+    private ITimer? drawTimer;
     private bool disposed;
 
-    internal PoolLottery(string dataDirectory, TimeProvider time, ILogger logger, Random random)
+    internal PoolLottery(Func<LotteryStore> store, TimeProvider time, ILogger logger, Random random)
     {
-        store = new(() => new LotteryStore(new Database(dataDirectory)), LazyThreadSafetyMode.PublicationOnly);
+        this.store = store;
         this.time = time;
         this.logger = logger;
         this.random = random;
@@ -48,9 +49,12 @@ public sealed class PoolLottery : IDisposable
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            revealTimer?.Dispose();
-            state = new(roomId, true, store.Value.Load(roomId));
-            ResumeReveal();
+            var lottery = store().Load(roomId);
+            drawTimer?.Dispose();
+            // Recovery may write an expired draw; a failed write must leave the next danmaku able to retry.
+            state = new(roomId, false, lottery) { CanControl = true };
+            ResumeDraw();
+            state = state with { Connected = true };
             Publish();
         }
     }
@@ -72,7 +76,7 @@ public sealed class PoolLottery : IDisposable
 
     private static void Validate(IReadOnlyCollection<PoolPrize> prizes, string stopWord, long? uid)
     {
-        if (prizes.Count is < 1 or > 10) throw new ArgumentException("奖品须为 1 至 10 件。");
+        if (prizes.Count is < 1 or > MaxPrizes) throw new ArgumentException($"奖品须为 1 至 {MaxPrizes} 件。");
         foreach (var prize in prizes)
             if (ValidatePrize(prize) is { } error) throw new ArgumentException(error);
         if (string.IsNullOrWhiteSpace(stopWord)) throw new ArgumentException("口令不能为空。");
@@ -86,7 +90,7 @@ public sealed class PoolLottery : IDisposable
         {
             RequireConnection();
             if (state.Lottery is { Phase: not PoolLotteryPhase.Idle }) throw new InvalidOperationException("请等本次抽奖结束。");
-            var lottery = state.Lottery ?? NewSession(prizes, stopWord);
+            var lottery = state.Lottery ?? NewLottery(prizes, stopWord);
             Save(lottery with { Prizes = prizes.ToImmutableArray(), StopWord = stopWord.Trim(), Uid = uid, Phase = PoolLotteryPhase.Spinning });
             logger.LogInformation("奖池抽奖开始：直播间 {RoomId}，抽奖 {LotteryId}，观众 {Uid}", state.RoomId, lottery.Id, uid);
         }
@@ -98,18 +102,18 @@ public sealed class PoolLottery : IDisposable
         lock (gate)
         {
             RequireConnection();
-            if (state.Lottery is { Phase: PoolLotteryPhase.Revealing }) throw new InvalidOperationException("请等本次开奖结束。");
-            var next = NewSession(prizes, stopWord);
-            store.Value.Save(next, endCurrentAt: time.GetUtcNow());
-            revealTimer?.Dispose();
+            if (state.Lottery is { Phase: PoolLotteryPhase.Drawing }) throw new InvalidOperationException("请等本次开奖结束。");
+            var next = NewLottery(prizes, stopWord);
+            store().Save(next, endCurrentAt: time.GetUtcNow());
+            drawTimer?.Dispose();
             state = state with { Lottery = next };
             Publish();
             logger.LogInformation("奖池抽奖新开一场：直播间 {RoomId}，抽奖 {LotteryId}", state.RoomId, next.Id);
         }
     }
 
-    private PoolLotterySession NewSession(IReadOnlyCollection<PoolPrize> prizes, string stopWord) =>
-        new(Guid.NewGuid().ToString("N"), state.RoomId!.Value, stopWord.Trim(), time.GetUtcNow(), null,
+    private Lottery NewLottery(IReadOnlyCollection<PoolPrize> prizes, string stopWord) =>
+        new(Guid.NewGuid().ToString("N"), state.RoomId!.Value, stopWord.Trim(), time.GetUtcNow(),
             prizes.ToImmutableArray(), [], ImmutableDictionary<long, string>.Empty);
 
     private void RequireConnection()
@@ -146,7 +150,7 @@ public sealed class PoolLottery : IDisposable
             if (state.RoomId != roomId || state.Lottery is not { } lottery || danmaku.Uid <= 0) return;
             if (!lottery.Viewers.TryGetValue(danmaku.Uid, out var name) || name != danmaku.Nickname)
             {
-                store.Value.RememberViewer(lottery.Id, danmaku.Uid, danmaku.Nickname);
+                store().RememberViewer(lottery.Id, danmaku.Uid, danmaku.Nickname);
                 lottery = lottery with { Viewers = lottery.Viewers.SetItem(danmaku.Uid, danmaku.Nickname) };
                 state = state with { Lottery = lottery };
                 Publish();
@@ -167,56 +171,57 @@ public sealed class PoolLottery : IDisposable
             if (pick < prize.Weight) { winner = prize; break; }
             pick -= prize.Weight;
         }
-        // Ten midpoint samples represent the pool's weights without changing the actual draw odds.
-        var candidates = ImmutableArray.CreateBuilder<PoolPrize>(10);
-        for (var index = 0; index < 10; index++)
+        // Every prize gets a cell, so a theme can always stop on the winner; the other cells go by weight (D'Hondt).
+        // The cells only show the pool and never change the actual draw odds.
+        var cells = lottery.Prizes.Select(_ => 1).ToArray();
+        for (var filled = cells.Length; filled < 10; filled++)
         {
-            var position = (2L * index + 1) * total / 20;
-            foreach (var prize in lottery.Prizes)
-            {
-                if (position < prize.Weight) { candidates.Add(prize); break; }
-                position -= prize.Weight;
-            }
+            var next = 0;
+            for (var index = 1; index < cells.Length; index++)
+                if ((long)lottery.Prizes[index].Weight * (cells[next] + 1) > (long)lottery.Prizes[next].Weight * (cells[index] + 1)) next = index;
+            cells[next]++;
         }
+        var candidates = ImmutableArray.CreateBuilder<PoolPrize>(10);
+        for (var index = 0; index < cells.Length; index++) candidates.AddRange(Enumerable.Repeat(lottery.Prizes[index], cells[index]));
         var now = time.GetUtcNow();
         var draw = new PoolDraw(Guid.NewGuid().ToString("N"), winner, lottery.Uid,
             lottery.Uid is { } uid ? lottery.Viewers.GetValueOrDefault(uid) : null, stoppedByHost, now, candidates.MoveToImmutable());
-        Save(lottery with { Draws = lottery.Draws.Add(draw), Phase = PoolLotteryPhase.Revealing, RevealUntil = now + RevealDuration }, draw);
-        ResumeReveal();
+        Save(lottery with { Draws = lottery.Draws.Add(draw), Phase = PoolLotteryPhase.Drawing, DrawUntil = now + DrawDuration }, draw);
+        ResumeDraw();
         logger.LogInformation("奖池抽奖开奖：抽奖 {LotteryId}，{Grade} {Prize}，观众 {Uid} {Nickname}，主播点停 {Host}",
             lottery.Id, winner.Grade, winner.Name, draw.Uid, draw.Nickname, stoppedByHost);
     }
 
-    private void ResumeReveal()
+    private void ResumeDraw()
     {
-        if (state.Lottery is not { Phase: PoolLotteryPhase.Revealing, RevealUntil: { } until } lottery) return;
+        if (state.Lottery is not { Phase: PoolLotteryPhase.Drawing, DrawUntil: { } until } lottery) return;
         var remaining = until - time.GetUtcNow();
-        if (remaining <= TimeSpan.Zero) { FinishReveal(lottery.Id, until); return; }
-        revealTimer?.Dispose();
-        revealTimer = time.CreateTimer(_ =>
+        if (remaining <= TimeSpan.Zero) { FinishDraw(lottery.Id, until); return; }
+        drawTimer?.Dispose();
+        drawTimer = time.CreateTimer(_ =>
         {
             lock (gate)
             {
-                try { FinishReveal(lottery.Id, until); }
+                try { FinishDraw(lottery.Id, until); }
                 catch (Exception error) { logger.LogError(error, "保存开奖结束状态失败"); }
             }
         }, null, remaining, Timeout.InfiniteTimeSpan);
     }
 
-    private void FinishReveal(string id, DateTimeOffset until)
+    private void FinishDraw(string id, DateTimeOffset until)
     {
-        if (!disposed && state.Lottery is { Phase: PoolLotteryPhase.Revealing } lottery && lottery.Id == id && lottery.RevealUntil == until)
+        if (!disposed && state.Lottery is { Phase: PoolLotteryPhase.Drawing } lottery && lottery.Id == id && lottery.DrawUntil == until)
         {
-            var finished = lottery with { Phase = PoolLotteryPhase.Idle, RevealUntil = null };
+            var finished = lottery with { Phase = PoolLotteryPhase.Idle, DrawUntil = null };
             if (state.CanControl) Save(finished);
-            // A different process may own the room now; its next load uses the persisted reveal deadline.
+            // A different process may own the room now; its next load uses the persisted draw deadline.
             else { state = state with { Lottery = finished }; Publish(); }
         }
     }
 
-    private void Save(PoolLotterySession lottery, PoolDraw? draw = null)
+    private void Save(Lottery lottery, PoolDraw? draw = null)
     {
-        store.Value.Save(lottery, draw: draw);
+        store().Save(lottery, draw: draw);
         state = state with { Lottery = lottery };
         Publish(draw);
     }
@@ -231,7 +236,7 @@ public sealed class PoolLottery : IDisposable
         lock (gate)
         {
             disposed = true;
-            revealTimer?.Dispose();
+            drawTimer?.Dispose();
             foreach (var subscriber in subscribers) subscriber.Writer.TryComplete();
             subscribers.Clear();
         }

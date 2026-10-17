@@ -71,7 +71,7 @@ internal sealed class Database
             CREATE TABLE IF NOT EXISTS lottery (
                 id TEXT PRIMARY KEY, room_id INTEGER NOT NULL, mode TEXT NOT NULL,
                 stop_word TEXT NOT NULL, started_at TEXT NOT NULL, ended_at TEXT,
-                phase INTEGER NOT NULL, uid INTEGER, reveal_until TEXT
+                phase INTEGER NOT NULL, uid INTEGER, draw_until TEXT
             );
             CREATE UNIQUE INDEX IF NOT EXISTS lottery_active_room ON lottery(room_id) WHERE ended_at IS NULL;
             CREATE TABLE IF NOT EXISTS lottery_prize (

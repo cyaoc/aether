@@ -7,17 +7,17 @@ namespace Aether.Core;
 
 internal sealed class LotteryStore(Database database)
 {
-    public PoolLotterySession? Load(long roomId)
+    public Lottery? Load(long roomId)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id, stop_word, started_at, phase, uid, reveal_until FROM lottery WHERE room_id = $room AND ended_at IS NULL";
+        command.CommandText = "SELECT id, stop_word, started_at, phase, uid, draw_until FROM lottery WHERE room_id = $room AND ended_at IS NULL";
         command.Parameters.AddWithValue("$room", roomId);
-        PoolLotterySession lottery;
+        Lottery lottery;
         using (var reader = command.ExecuteReader())
         {
             if (!reader.Read()) return null;
-            lottery = new(reader.GetString(0), roomId, reader.GetString(1), DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture), null,
+            lottery = new(reader.GetString(0), roomId, reader.GetString(1), DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture),
                 [], [], ImmutableDictionary<long, string>.Empty, (PoolLotteryPhase)reader.GetInt32(3),
                 reader.IsDBNull(4) ? null : reader.GetInt64(4), reader.IsDBNull(5) ? null : DateTimeOffset.Parse(reader.GetString(5), CultureInfo.InvariantCulture));
         }
@@ -38,7 +38,7 @@ internal sealed class LotteryStore(Database database)
         return lottery with { Prizes = prizes.ToImmutable(), Draws = draws.ToImmutable(), Viewers = viewers.ToImmutable() };
     }
 
-    public void Save(PoolLotterySession lottery, DateTimeOffset? endCurrentAt = null, PoolDraw? draw = null)
+    public void Save(Lottery lottery, DateTimeOffset? endCurrentAt = null, PoolDraw? draw = null)
     {
         using var connection = database.Open();
         using var transaction = connection.BeginTransaction();
@@ -53,9 +53,9 @@ internal sealed class LotteryStore(Database database)
             command.Parameters.Clear();
         }
         command.CommandText = """
-            INSERT INTO lottery (id, room_id, mode, stop_word, started_at, phase, uid, reveal_until)
+            INSERT INTO lottery (id, room_id, mode, stop_word, started_at, phase, uid, draw_until)
             VALUES ($id, $room, 'pool', $word, $started, $phase, $uid, $until)
-            ON CONFLICT(id) DO UPDATE SET stop_word = $word, phase = $phase, uid = $uid, reveal_until = $until;
+            ON CONFLICT(id) DO UPDATE SET stop_word = $word, phase = $phase, uid = $uid, draw_until = $until;
             DELETE FROM lottery_prize WHERE lottery_id = $id;
             """;
         command.Parameters.AddWithValue("$id", lottery.Id);
@@ -64,7 +64,7 @@ internal sealed class LotteryStore(Database database)
         command.Parameters.AddWithValue("$started", lottery.StartedAt.ToString("O"));
         command.Parameters.AddWithValue("$phase", (int)lottery.Phase);
         command.Parameters.AddWithValue("$uid", (object?)lottery.Uid ?? DBNull.Value);
-        command.Parameters.AddWithValue("$until", (object?)lottery.RevealUntil?.ToString("O") ?? DBNull.Value);
+        command.Parameters.AddWithValue("$until", (object?)lottery.DrawUntil?.ToString("O") ?? DBNull.Value);
         command.ExecuteNonQuery();
         for (var index = 0; index < lottery.Prizes.Length; index++)
         {
