@@ -55,19 +55,19 @@ public sealed class VisualReviewTests
                     CheckFixedText();
                 }
                 var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);
-                var hint = general.FindControl<TextBlock>("WebServiceStatusText")!;
-                hint.Text = string.Concat(Enumerable.Repeat("端口保存后立即生效；日志设置重启后生效。", 4));
+                var status = general.FindControl<TextBlock>("WebServiceStatusText")!;
+                status.Text = string.Concat(Enumerable.Repeat("没打开：端口 17890 被别的程序占用。", 4));
                 GuiHarness.Flush();
-                Assert.True(Assert.Single(hint.TextLayout.TextLines).HasCollapsed);
-                Assert.Equal(hint.Text, ToolTip.GetTip(hint));
+                Assert.True(Assert.Single(status.TextLayout.TextLines).HasCollapsed);
+                Assert.Equal(status.Text, ToolTip.GetTip(status));
                 // Headless drawing does not hit-test glyphs; exercise hover with the Skia screenshot run.
                 if (HeadlessApp.ScreenshotDirectory is not null)
                 {
-                    ToolTip.SetShowDelay(hint, 0);
-                    var hoverPoint = hint.TranslatePoint(new Point(3, 3), window)!.Value;
-                    Assert.Same(hint, window.InputHitTest(hoverPoint));
+                    ToolTip.SetShowDelay(status, 0);
+                    var hoverPoint = status.TranslatePoint(new Point(3, 3), window)!.Value;
+                    Assert.Same(status, window.InputHitTest(hoverPoint));
                     window.MouseMove(hoverPoint);
-                    await GuiHarness.WaitForAsync(() => ToolTip.GetIsOpen(hint));
+                    await GuiHarness.WaitForAsync(() => ToolTip.GetIsOpen(status));
                     window.MouseMove(default);
                 }
                 viewModel.IsLoginPage = true;

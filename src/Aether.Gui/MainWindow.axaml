@@ -23,14 +23,14 @@
               <Viewbox Classes="icon" Width="20" Height="20" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Welcome}" Stroke="{DynamicResource Accent}" /></Viewbox>
               <StackPanel Grid.Column="1" Spacing="5">
                 <TextBlock Text="进场欢迎" FontWeight="SemiBold" />
-                <TextBlock Classes="label singleLine" Text="满足条件的观众进场时，发送欢迎弹幕" />
+                <TextBlock Classes="label singleLine" Text="舰长、粉丝团、指定观众进场时发欢迎弹幕" />
               </StackPanel>
             </Grid>
             <Grid ColumnDefinitions="20,*" ColumnSpacing="14">
               <Viewbox Classes="icon" Width="20" Height="20" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Danmaku}" Stroke="{DynamicResource Accent}" /></Viewbox>
               <StackPanel Grid.Column="1" Spacing="5">
                 <TextBlock Text="实时弹幕" FontWeight="SemiBold" />
-                <TextBlock Classes="label singleLine" Text="断线自动重连，单独标出账号弹幕" />
+                <TextBlock Classes="label singleLine" Text="断线自动重连，账号发的弹幕单独标出" />
               </StackPanel>
             </Grid>
           </StackPanel>
@@ -155,7 +155,7 @@
               <TextBlock Text="{Binding AccountStatus.Account.Nickname, Converter={x:Static local:AvatarConverter.Initial}}" Foreground="{DynamicResource Accent.OnSolid}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
-              <TextBlock Classes="secondary" Text="{Binding AccountStatus.Text}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding AccountStatus.Text}" AutomationProperties.LiveSetting="Polite" />
+              <TextBlock Classes="secondary singleLine" Text="{Binding AccountStatus.Text}" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
               <TextBlock Classes="caption muted" Text="已登录" IsVisible="{Binding AccountStatus.Account, Converter={x:Static ObjectConverters.IsNotNull}}" />
               <Button x:Name="RetryAccountButton" Content="重试" Command="{Binding ReadAccountCommand}" IsVisible="{Binding AccountStatus.ReadFailed}" />
               <Button Content="登录账号" Command="{Binding OpenLoginPageCommand}" IsVisible="{Binding IsLoggedOut}" />
@@ -209,7 +209,7 @@
                         </Border>
                         <StackPanel Grid.Column="1" Spacing="3">
                           <WrapPanel x:Name="DanmakuHeader" Orientation="Horizontal" ItemSpacing="8" LineSpacing="3">
-                            <TextBlock Classes="secondary" Classes.accent="{Binding #AccountBadge.IsVisible}" Text="{Binding Nickname}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="250" ToolTip.Tip="{Binding Nickname}" />
+                            <TextBlock Classes="secondary singleLine" Classes.accent="{Binding #AccountBadge.IsVisible}" Text="{Binding Nickname}" FontWeight="SemiBold" MaxWidth="250" />
                             <Border Classes="badge accountBadge" IsVisible="{Binding #AccountBadge.IsVisible}">
                               <TextBlock x:Name="AccountBadge" Text="账号">
                                 <TextBlock.IsVisible>

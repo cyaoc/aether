@@ -83,7 +83,8 @@ public sealed class SendQueuePageTests
     [InlineData(1200, true)]
     public Task Long_viewer_nicknames_wrap_in_full_beside_the_time(int width, bool dark) => HeadlessApp.Session.Dispatch(async () =>
     {
-        const string nickname = GuiHarness.LongEnglishNickname;
+        // Doubled so it still wraps in the wide pending column at 1200 with Skia fonts.
+        const string nickname = GuiHarness.LongEnglishNickname + GuiHarness.LongEnglishNickname;
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
         var viewModel = harness.CreateViewModel();
