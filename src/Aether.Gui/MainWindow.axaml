@@ -2,35 +2,35 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:Aether.Gui" xmlns:core="using:Aether.Core"
         x:Class="Aether.Gui.MainWindow" x:DataType="local:MainWindowViewModel"
-        Title="Aether" Width="960" Height="640" MinWidth="760" MinHeight="520">
+        Title="Aether" Width="1200" Height="720" MinWidth="1040" MinHeight="600">
   <Panel>
     <Grid x:Name="LoginPage" ColumnDefinitions="400,*" IsVisible="{Binding IsLoginPage}">
       <Border Background="{DynamicResource Accent.Tint}" Padding="44,56">
         <Grid RowDefinitions="Auto,*,Auto">
           <StackPanel Spacing="14">
             <TextBlock Text="Aether" FontSize="30" FontWeight="Bold" Foreground="{DynamicResource Accent.Text}" />
-            <TextBlock Text="B站直播 bot，以你的账号守着直播间" FontSize="15" TextWrapping="Wrap" />
+            <TextBlock Classes="singleLine" Text="B站直播 bot，以你的账号守着直播间" FontSize="15" />
           </StackPanel>
           <StackPanel Grid.Row="1" Spacing="26" VerticalAlignment="Top" Margin="0,28,0,0">
             <Grid ColumnDefinitions="20,*" ColumnSpacing="14">
               <Viewbox Classes="icon" Width="20" Height="20" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.BlindBox}" Stroke="{DynamicResource Accent}" /></Viewbox>
               <StackPanel Grid.Column="1" Spacing="5">
                 <TextBlock Text="盲盒统计" FontWeight="SemiBold" />
-                <TextBlock Classes="label" Text="观众发关键字查今天或本月的盈亏，送完一轮自动播报" TextWrapping="Wrap" />
+                <TextBlock Classes="label singleLine" Text="查今日或本月盈亏，送完一轮自动播报" />
               </StackPanel>
             </Grid>
             <Grid ColumnDefinitions="20,*" ColumnSpacing="14">
               <Viewbox Classes="icon" Width="20" Height="20" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Welcome}" Stroke="{DynamicResource Accent}" /></Viewbox>
               <StackPanel Grid.Column="1" Spacing="5">
                 <TextBlock Text="进场欢迎" FontWeight="SemiBold" />
-                <TextBlock Classes="label" Text="舰长、粉丝团、指定观众进场时发欢迎弹幕" TextWrapping="Wrap" />
+                <TextBlock Classes="label singleLine" Text="满足条件的观众进场时，发送欢迎弹幕" />
               </StackPanel>
             </Grid>
             <Grid ColumnDefinitions="20,*" ColumnSpacing="14">
               <Viewbox Classes="icon" Width="20" Height="20" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Danmaku}" Stroke="{DynamicResource Accent}" /></Viewbox>
               <StackPanel Grid.Column="1" Spacing="5">
                 <TextBlock Text="实时弹幕" FontWeight="SemiBold" />
-                <TextBlock Classes="label" Text="断线自动重连，账号发的弹幕单独标出" TextWrapping="Wrap" />
+                <TextBlock Classes="label singleLine" Text="断线自动重连，单独标出账号弹幕" />
               </StackPanel>
             </Grid>
           </StackPanel>
@@ -49,7 +49,7 @@
       </Border>
       <StackPanel Grid.Column="1" Spacing="12" Margin="20" VerticalAlignment="Center" HorizontalAlignment="Center">
         <TextBlock Text="扫码登录 B站" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
-        <TextBlock Classes="secondary muted" Text="登录后选择直播间，下次打开直接进入" TextAlignment="Center" TextWrapping="Wrap" />
+        <TextBlock Classes="singleLine secondary muted" Text="登录后选择直播间，下次打开直接进入" TextAlignment="Center" />
         <Border Classes="qr" Margin="0,14" HorizontalAlignment="Center">
           <Panel Width="224" Height="224">
             <Panel IsVisible="{Binding LoginCommand.IsRunning}">
@@ -65,8 +65,8 @@
             </StackPanel>
           </Panel>
         </Border>
-        <TextBlock Classes="secondary" Text="打开 B站 App 扫一扫，在手机上确认" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center" />
-        <TextBlock Classes="caption muted" Text="二维码过期后会自动换新" TextWrapping="Wrap" TextAlignment="Center" />
+        <TextBlock Classes="singleLine secondary" Text="打开 B站 App 扫一扫，在手机上确认" FontWeight="SemiBold" TextAlignment="Center" />
+        <TextBlock Classes="singleLine caption muted" Text="二维码过期后会自动换新" TextAlignment="Center" />
         <Button x:Name="OpenSettingsWithoutLoginButton" Content="先设置，无需登录" Classes="ghost" HorizontalAlignment="Center" Click="OpenSettingsWithoutLogin" />
       </StackPanel>
     </Grid>
@@ -241,14 +241,14 @@
           </Grid>
         </Panel>
         <StackPanel x:Name="WatchLoginCard" IsVisible="{Binding HasQrCode}" Spacing="16" Margin="20" HorizontalAlignment="Center" VerticalAlignment="Center">
-          <TextBlock Classes="h1" Text="登录已失效，请重新扫码" TextAlignment="Center" TextWrapping="Wrap" />
+          <TextBlock Classes="singleLine h1" Text="登录已失效，请重新扫码" TextAlignment="Center" />
           <Border Classes="qr" HorizontalAlignment="Center">
             <Border Background="White">
               <Image Source="{Binding QrCode}" Width="224" Height="224" Stretch="Uniform" RenderOptions.BitmapInterpolationMode="None" AutomationProperties.Name="B站登录二维码" />
             </Border>
           </Border>
-          <TextBlock Classes="secondary" Text="打开 B站 App 扫一扫，在手机上确认" FontWeight="SemiBold" TextAlignment="Center" TextWrapping="Wrap" />
-          <TextBlock Classes="caption muted" Text="二维码过期后会自动换新" TextAlignment="Center" TextWrapping="Wrap" />
+          <TextBlock Classes="singleLine secondary" Text="打开 B站 App 扫一扫，在手机上确认" FontWeight="SemiBold" TextAlignment="Center" />
+          <TextBlock Classes="singleLine caption muted" Text="二维码过期后会自动换新" TextAlignment="Center" />
         </StackPanel>
       </Panel>
     </Grid>

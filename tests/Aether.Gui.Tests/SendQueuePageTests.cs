@@ -16,12 +16,12 @@ public sealed class SendQueuePageTests
     private static readonly DateTimeOffset OccurredAt = new(2026, 10, 12, 14, 30, 0, TimeSpan.FromHours(8));
 
     [Theory]
-    [InlineData(960, "momo_7")]
-    [InlineData(760, "momo_7")]
-    [InlineData(960, "观众")]
-    [InlineData(760, "观众")]
-    [InlineData(960, "观众bili")]
-    [InlineData(760, "观众bili")]
+    [InlineData(1200, "momo_7")]
+    [InlineData(1040, "momo_7")]
+    [InlineData(1200, "观众")]
+    [InlineData(1040, "观众")]
+    [InlineData(1200, "观众bili")]
+    [InlineData(1040, "观众bili")]
     public Task Activity_rows_align_with_their_headings_and_leave_space_at_both_ends(int width, string nickname) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -77,10 +77,10 @@ public sealed class SendQueuePageTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(760, false)]
-    [InlineData(760, true)]
-    [InlineData(960, false)]
-    [InlineData(960, true)]
+    [InlineData(1040, false)]
+    [InlineData(1040, true)]
+    [InlineData(1200, false)]
+    [InlineData(1200, true)]
     public Task Long_viewer_nicknames_wrap_in_full_beside_the_time(int width, bool dark) => HeadlessApp.Session.Dispatch(async () =>
     {
         const string nickname = GuiHarness.LongEnglishNickname;
@@ -135,7 +135,7 @@ public sealed class SendQueuePageTests
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
         var viewModel = harness.CreateViewModel();
-        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, Width = 760, Height = 520 };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, Width = 1040, Height = 600 };
         window.Show();
         try
         {
@@ -173,10 +173,10 @@ public sealed class SendQueuePageTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(760, 520, 0)]
-    [InlineData(760, 520, 2)]
-    [InlineData(760, 520, 30)]
-    [InlineData(960, 640, 30)]
+    [InlineData(1040, 600, 0)]
+    [InlineData(1040, 600, 2)]
+    [InlineData(1040, 600, 30)]
+    [InlineData(1200, 720, 30)]
     public Task The_first_two_pending_records_stay_whole_and_longer_queues_take_at_most_half_when_it_fits(int width, int height, int count) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -207,7 +207,7 @@ public sealed class SendQueuePageTests
                 var viewer = list.GetVisualDescendants().OfType<ScrollViewer>().First();
                 Assert.True(viewer.Extent.Height > viewer.Viewport.Height);
                 // At the default size half the area already holds two records, so the queue stops there.
-                if (height == 640) AssertAtMostHalf();
+                if (height == 720) AssertAtMostHalf();
                 for (var id = 1; id <= count - 2; id++)
                     viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxQuery, SendQueueItemState.Sent));
                 GuiHarness.Flush();
@@ -216,7 +216,7 @@ public sealed class SendQueuePageTests
                 viewModel.Apply(Update(count + 1, SendQueueItemKind.Welcome));
                 GuiHarness.Flush();
                 AssertFirstTwoWhole(trailingSpace: 0);
-                if (height == 640) AssertAtMostHalf();
+                if (height == 720) AssertAtMostHalf();
             }
 
             void AssertAtMostHalf() =>
@@ -381,10 +381,10 @@ public sealed class SendQueuePageTests
         }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(false, 960)]
-    [InlineData(true, 960)]
-    [InlineData(false, 760)]
-    [InlineData(true, 760)]
+    [InlineData(false, 1200)]
+    [InlineData(true, 1200)]
+    [InlineData(false, 1040)]
+    [InlineData(true, 1040)]
     public Task Pages_show_their_own_items_and_the_sidebar_shows_the_pending_count(bool dark, int width) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -421,12 +421,8 @@ public sealed class SendQueuePageTests
             var activityOrigin = activity.TranslatePoint(new Point(), page)!.Value;
             var save = page.FindControl<Button>("SaveButton")!;
             var saveOrigin = save.TranslatePoint(new Point(), page)!.Value;
-            if (width == 960)
-            {
-                Assert.Equal(300, activity.Bounds.Width);
-                Assert.True(activityOrigin.X >= saveOrigin.X + save.Bounds.Width);
-            }
-            else Assert.True(activityOrigin.Y >= saveOrigin.Y + save.Bounds.Height);
+            Assert.Equal(300, activity.Bounds.Width);
+            Assert.True(activityOrigin.X >= saveOrigin.X + save.Bounds.Width);
             Assert.True(activityOrigin.X + activity.Bounds.Width <= page.Bounds.Width);
 
             navigation.SelectedIndex = 1;

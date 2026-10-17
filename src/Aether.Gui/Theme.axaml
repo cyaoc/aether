@@ -156,7 +156,11 @@
   </Style>
   <Style Selector="TextBlock.hint">
     <Setter Property="FontSize" Value="13" />
-    <Setter Property="TextWrapping" Value="Wrap" />
+  </Style>
+  <Style Selector="TextBlock.singleLine, TextBlock.hint">
+    <Setter Property="TextWrapping" Value="NoWrap" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+    <Setter Property="ToolTip.Tip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
   </Style>
   <Style Selector="TextBlock.numeric, TextBox.numeric, ComboBox.numeric, NumericUpDown">
     <Setter Property="TextElement.FontFeatures" Value="tnum" />

@@ -134,7 +134,7 @@
             <ToggleSwitch Classes="plain" x:Name="AnimationInput" AutomationProperties.Name="欢迎动画" />
           </StackPanel>
         </Panel>
-        <TextBlock Grid.Column="2" x:Name="TimingHint" Classes="caption muted" VerticalAlignment="Center" TextWrapping="Wrap" />
+        <TextBlock Grid.Column="2" x:Name="TimingHint" Classes="caption muted singleLine" VerticalAlignment="Center" />
       </Grid>
     </Border>
     <StackPanel Grid.Row="1">
@@ -147,7 +147,7 @@
       <Border x:Name="ReconnectNotice" Classes="notice warning" IsVisible="False" Margin="20,14,20,0">
         <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
           <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Notice}" Stroke="{DynamicResource Warning.Text}" /></Viewbox>
-          <TextBlock Grid.Column="1" Classes="secondary" Text="已保存。当前连接还在用旧设置，重新连接后生效。" TextWrapping="Wrap" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="secondary singleLine" Text="已保存，重新连接后生效。" VerticalAlignment="Center" />
           <Button Grid.Column="2" x:Name="ReconnectButton" Content="重新连接" Command="{Binding ReconnectCommand}" VerticalAlignment="Center" />
         </Grid>
       </Border>
@@ -179,7 +179,7 @@
                         <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding IsWebServiceOff}"><Path Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
                       </Panel>
                       <StackPanel Grid.Column="1" Spacing="4">
-                        <TextBlock x:Name="WebServiceStatusText" Classes="secondary" Classes.success="{Binding WebServiceStatus.Running}" Classes.muted="{Binding IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding ServiceStatusText}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                        <TextBlock x:Name="WebServiceStatusText" Classes="secondary singleLine" Classes.success="{Binding WebServiceStatus.Running}" Classes.muted="{Binding IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding ServiceStatusText}" AutomationProperties.LiveSetting="Polite" />
                         <TextBlock x:Name="WebServiceHelp" Classes="caption" Foreground="{DynamicResource Text.Secondary}" LineHeight="18" TextWrapping="Wrap" Text="{Binding ServiceHelpText}"
                           IsVisible="{Binding ServiceHelpText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                       </StackPanel>
@@ -268,7 +268,7 @@
                 <TextBlock x:Name="LogLevelReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
                 <TextBlock x:Name="LogLevelError" Classes="error" />
                 <Button Content="打开设置文件" Click="OpenFile" />
-                <TextBlock x:Name="UnknownKeysMessage" Classes="hint" />
+                <TextBlock x:Name="UnknownKeysMessage" Classes="secondary muted" TextWrapping="Wrap" />
               </StackPanel>
               <StackPanel x:Name="BlindBoxFields" Spacing="8">
                 <TextBlock Classes="label" Text="今日查询关键字" />
@@ -282,7 +282,7 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,10,0,0" IsEnabled="{Binding !#FileMessage.IsVisible}">
                   <StackPanel Spacing="4">
                     <TextBlock Classes="label" Text="盲盒播报" />
-                    <TextBlock Classes="hint" Text="观众送完一轮盲盒后，自动播报这一轮的盈亏。" />
+                    <TextBlock Classes="hint" Text="送完一轮后，自动播报本轮盈亏" />
                   </StackPanel>
                   <ToggleSwitch Grid.Column="1" Classes="plain" x:Name="AnnounceInput" AutomationProperties.Name="盲盒播报" />
                 </Grid>
@@ -299,20 +299,20 @@
                       <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding HasWebServiceError}"><Path Data="{StaticResource Icon.Fail}" StrokeThickness="2" /></Viewbox>
                       <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding IsWebServiceOff}"><Path Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
                     </Panel>
-                    <TextBlock Grid.Column="1" x:Name="VideoPageStatusText" Classes="secondary" Classes.success="{Binding HasVideoConnections}" Classes.muted="{Binding IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding VideoPageText}" VerticalAlignment="Center" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                    <TextBlock Grid.Column="1" x:Name="VideoPageStatusText" Classes="secondary singleLine" Classes.success="{Binding HasVideoConnections}" Classes.muted="{Binding IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding VideoPageText}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
                     <Button Grid.Column="2" x:Name="OpenGeneralSettingsButton" Classes="ghost" Height="30" Padding="8,0" Foreground="{DynamicResource Accent.Text}" Click="OpenGeneralSettings">
                       <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="地址和端口在通用设置" FontSize="13" VerticalAlignment="Center" />
+                        <TextBlock Text="通用设置" FontSize="13" VerticalAlignment="Center" />
                         <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Next}" StrokeThickness="2" /></Viewbox>
                       </StackPanel>
                     </Button>
                   </Grid>
                 </Border>
-                <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
-                  <WrapPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,12,0,0">
+                  <Grid ColumnDefinitions="Auto,*">
                     <TextBlock Classes="section" Text="观众" Margin="0,0,8,0" />
-                    <TextBlock Classes="hint" Text="进场时在直播画面上播放各自的视频" />
-                  </WrapPanel>
+                    <TextBlock Grid.Column="1" Classes="hint" Text="进场时播放各自的视频" />
+                  </Grid>
                   <TextBlock Grid.Column="1" x:Name="AnimationCount" Classes="caption muted numeric" VerticalAlignment="Center" />
                 </Grid>
                 <Border x:Name="AnimationRowsBorder" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8">
@@ -322,19 +322,19 @@
                   <Rectangle Stroke="{DynamicResource Border.Control}" StrokeThickness="1" StrokeDashArray="4,3" RadiusX="8" RadiusY="8" />
                   <StackPanel Margin="16,22" Spacing="4" HorizontalAlignment="Center">
                     <TextBlock Classes="label" Text="还没有观众" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                    <TextBlock Classes="caption muted" Text="点下面的“添加观众”，选一个视频、填上 UID，这位观众进场时就会播放。" TextWrapping="Wrap" TextAlignment="Center" LineHeight="18" />
+                    <TextBlock Classes="caption muted singleLine" Text="添加观众，选择视频并填写 UID" TextAlignment="Center" LineHeight="18" />
                   </StackPanel>
                 </Grid>
                 <TextBlock x:Name="AnimationVideosReadOnly" Classes="hint" IsVisible="False" Text="这些映射不能逐行编辑，请在设置文件里改" />
-                <WrapPanel>
-                  <Button x:Name="AddAnimationButton" HorizontalAlignment="Left" Padding="10,0,12,0" Margin="0,0,10,0">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                  <Button x:Name="AddAnimationButton" HorizontalAlignment="Left" Padding="10,0,12,0">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                       <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" /></Viewbox>
                       <TextBlock Text="添加观众" VerticalAlignment="Center" />
                     </StackPanel>
                   </Button>
-                  <TextBlock Classes="caption muted" Text="选 MP4 或 WebM，保存时复制到数据目录" VerticalAlignment="Center" />
-                </WrapPanel>
+                  <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="MP4 / WebM，保存时复制到数据目录" VerticalAlignment="Center" />
+                </Grid>
               </StackPanel>
               <StackPanel x:Name="SendFields" Spacing="8">
                 <TextBlock Classes="label" Text="发送间隔" />
@@ -346,33 +346,33 @@
                 <TextBlock x:Name="SendIntervalError" Classes="error" />
               </StackPanel>
               <StackPanel x:Name="WelcomeFields" Spacing="8">
-                <Grid ColumnDefinitions="*,Auto">
-                  <WrapPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <Grid ColumnDefinitions="Auto,*">
                     <TextBlock Classes="section" Text="欢迎语" Margin="0,0,8,0" />
-                    <TextBlock x:Name="WelcomeRandomHint" Classes="hint" />
-                  </WrapPanel>
+                    <TextBlock Grid.Column="1" x:Name="WelcomeRandomHint" Classes="hint" />
+                  </Grid>
                   <TextBlock Grid.Column="1" x:Name="WelcomeTextCount" Classes="caption muted numeric" VerticalAlignment="Center" />
                 </Grid>
                 <StackPanel x:Name="WelcomeTextRows" Spacing="8" />
                 <local:ListFoldButton x:Name="WelcomeTextFold" />
                 <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-                <WrapPanel Orientation="Horizontal">
+                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*">
                   <TextBlock Classes="caption muted" Text="插入" VerticalAlignment="Center" Margin="0,0,8,0" />
-                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertAtButton" GettingFocus="InsertButtonGettingFocus" Content="@观众" Tag="{}{@}" Click="InsertPlaceholder" />
-                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertNicknameButton" GettingFocus="InsertButtonGettingFocus" Content="昵称" Tag="{}{昵称}" Click="InsertPlaceholder" />
-                  <Button Classes="chip" Margin="0,0,6,0" x:Name="InsertGuardButton" GettingFocus="InsertButtonGettingFocus" Content="大航海身份" Tag="{}{大航海}" Click="InsertPlaceholder" />
-                  <TextBlock x:Name="WelcomeInsertTarget" Classes="caption muted" VerticalAlignment="Center" />
-                </WrapPanel>
+                  <Button Grid.Column="1" Classes="chip" Margin="0,0,6,0" x:Name="InsertAtButton" GettingFocus="InsertButtonGettingFocus" Content="@观众" Tag="{}{@}" Click="InsertPlaceholder" />
+                  <Button Grid.Column="2" Classes="chip" Margin="0,0,6,0" x:Name="InsertNicknameButton" GettingFocus="InsertButtonGettingFocus" Content="昵称" Tag="{}{昵称}" Click="InsertPlaceholder" />
+                  <Button Grid.Column="3" Classes="chip" Margin="0,0,6,0" x:Name="InsertGuardButton" GettingFocus="InsertButtonGettingFocus" Content="大航海身份" Tag="{}{大航海}" Click="InsertPlaceholder" />
+                  <TextBlock Grid.Column="4" x:Name="WelcomeInsertTarget" Classes="caption muted singleLine" VerticalAlignment="Center" />
+                </Grid>
                 <TextBlock x:Name="WelcomeTextHint" Classes="caption muted" TextWrapping="Wrap"
                   Text="英文、数字、半角符号算 1，其他字符算 2。上限自动读取账号的。可用 {@}（只能放开头）、{昵称}、{大航海}；用 {{ 和 }} 转义花括号。" />
                 <!-- Click on press: leaving a new row above shows its error and pushes this button down before the release.
                      shortcut: other buttons below a new row can still lose that one click; defer the reveal to pointer release if it matters. -->
                 <Button x:Name="AddWelcomeTextButton" Content="＋ 添加欢迎语" HorizontalAlignment="Left" ClickMode="Press" Click="AddWelcomeText" />
-                <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
-                  <WrapPanel>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,10,0,0">
+                  <Grid ColumnDefinitions="Auto,*">
                     <TextBlock x:Name="ConditionsHeading" Classes="section" Text="欢迎条件" Margin="0,0,10,0" />
-                    <TextBlock Classes="hint" Text="满足任意一条就欢迎" />
-                  </WrapPanel>
+                    <TextBlock Grid.Column="1" Classes="hint" Text="满足任意一条就欢迎" />
+                  </Grid>
                   <TextBlock Grid.Column="1" x:Name="ConditionCount" Classes="caption muted numeric" VerticalAlignment="Center" />
                 </Grid>
                 <StackPanel>
@@ -387,10 +387,10 @@
                   <Rectangle Stroke="{DynamicResource Border.Control}" StrokeThickness="1" StrokeDashArray="4,3" RadiusX="8" RadiusY="8" />
                   <StackPanel Margin="18" Spacing="6">
                     <TextBlock Classes="label" Text="还没有欢迎条件" FontWeight="SemiBold" />
-                    <TextBlock Classes="hint" Text="现在不会欢迎任何人。点下面的“添加条件”，选要欢迎哪些观众。" />
+                    <TextBlock Classes="secondary muted" Text="现在不会欢迎任何人。点下面的“添加条件”，选要欢迎哪些观众。" TextWrapping="Wrap" />
                   </StackPanel>
                 </Grid>
-                <TextBlock x:Name="ConditionsReadOnly" Classes="hint" TextWrapping="Wrap" />
+                <TextBlock x:Name="ConditionsReadOnly" Classes="hint" />
                 <Button x:Name="AddConditionButton" Content="＋ 添加条件" HorizontalAlignment="Left" ClickMode="Press">
                   <Button.Flyout>
                     <MenuFlyout Placement="BottomEdgeAlignedLeft">

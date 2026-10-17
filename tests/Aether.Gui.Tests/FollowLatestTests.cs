@@ -103,15 +103,15 @@ public sealed class FollowLatestTests : IDisposable
         var (window, viewModel) = await ShowWindowAsync();
         try
         {
-            window.Width = 760;
-            window.Height = 520;
+            window.Width = 1040;
+            window.Height = 600;
             for (var i = 0; i < count; i++)
                 viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "观众", new string('长', 1 + i % 7 * 25)));
             AssertBottom();
             viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "观众", "最新\n另一行"));
             AssertBottom();
-            window.Width = 960;
-            window.Height = 640;
+            window.Width = 1200;
+            window.Height = 720;
             AssertBottom();
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
