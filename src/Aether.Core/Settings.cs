@@ -68,10 +68,13 @@ public sealed class Settings
         welcome_animation:
           # true 或 false，映射里有这位观众时，进场在直播画面上播放
           enabled: false
-          # 端口 1–65535；直播姬浏览器素材 / OBS 浏览器来源填 http://localhost:端口/
+
+        # 网页服务，视频页 /video、抽奖页 /lottery 都从这里打开；先开 Aether 再开推流软件
+        web_service:
+          # 端口 1–65535；GUI 保存后立即生效，所有浏览器素材的地址都要跟着改
           port: 17890
 
-        # 欢迎动画的视频，放在 data/welcome-animations/ 里，每行一位观众：UID: 文件名
+        # 欢迎动画的视频，放在 data/videos/ 里，每行一位观众：UID: 文件名
         # UID 必须为正整数；文件名只能是 .mp4 或 .webm，不能带路径；空分组表示没有观众
         welcome_animation_videos:
           # 12345: 小明进场.mp4
@@ -109,7 +112,7 @@ public sealed class Settings
     private static readonly Definition<string> WelcomeGuardTier = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", 0, "必须为非负整数。", level => level >= 0));
     private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("welcome_animation.enabled", false));
-    internal static readonly Definition<int> AnimationPort = Register(Definition.Number("welcome_animation.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
+    internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private const string VideoGroup = "welcome_animation_videos";
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, one Fields entry in SettingsPage and the controls that show it: in SettingsPage.axaml with
@@ -135,7 +138,7 @@ public sealed class Settings
     public Setting<string> WelcomeGuard => Get(WelcomeGuardTier);
     public Setting<int> WelcomeWealthLevel => Get(WelcomeWealth);
     public Setting<bool> WelcomeAnimationEnabled => Get(AnimationOn);
-    public Setting<int> WelcomeAnimationPort => Get(AnimationPort);
+    public Setting<int> WebServicePort => Get(WebPort);
     public IReadOnlyDictionary<long, Setting<string>> WelcomeAnimationVideos => videos;
     public bool CanEditWelcomeAnimationVideos { get; private set; } = true;
     private readonly Dictionary<long, Setting<string>> videos = [];
@@ -148,11 +151,11 @@ public sealed class Settings
 
     public static string FilePath(string dataDirectory) => Path.Combine(dataDirectory, "aether.yml");
 
-    /// <summary>Where 欢迎动画 videos live; the mapping holds bare file names inside it.</summary>
-    public static string WelcomeAnimationDirectory(string dataDirectory) => Path.Combine(dataDirectory, "welcome-animations");
+    /// <summary>Where shared videos live; the mapping holds bare file names inside it.</summary>
+    public static string VideoDirectory(string dataDirectory) => Path.Combine(dataDirectory, "videos");
 
-    internal static string WelcomeAnimationFile(string dataDirectory, string fileName) =>
-        Path.Combine(WelcomeAnimationDirectory(dataDirectory), fileName);
+    internal static string VideoFile(string dataDirectory, string fileName) =>
+        Path.Combine(VideoDirectory(dataDirectory), fileName);
 
     /// <summary>How a switch is written in the file, for forms that hold it as a bool.</summary>
     public static string BooleanText(bool value) => value ? "true" : "false";
@@ -504,7 +507,7 @@ public sealed class Settings
             logger?.LogWarning("未知设置键：{Keys}", string.Join("、", settings.UnknownKeys));
         if (settings.Error is null)
             foreach (var (uid, video) in settings.videos)
-                if (!File.Exists(WelcomeAnimationFile(dataDirectory, video.Value)))
+                if (!File.Exists(VideoFile(dataDirectory, video.Value)))
                     logger?.LogWarning("观众 {Uid} 的欢迎动画文件不存在：{FileName}，这位观众不播", uid, video.Value);
         return settings;
 

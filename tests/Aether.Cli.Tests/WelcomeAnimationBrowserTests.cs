@@ -8,6 +8,21 @@ namespace Aether.Cli.Tests;
 
 public sealed class WelcomeAnimationBrowserTests
 {
+    [Fact]
+    public async Task Watch_leaves_web_service_stopped_when_welcome_animation_is_off()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        var watching = WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,
+            _ => throw new InvalidOperationException("Already logged in"), h.Stop.Token);
+        try
+        {
+            await h.WaitForLogAsync("已连接弹幕服务器");
+            Assert.False(h.Client.WebService.Status.Running);
+        }
+        finally { await h.Stop.CancelAsync(); await watching; }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -25,9 +40,9 @@ public sealed class WelcomeAnimationBrowserTests
         availablePort.Stop();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation.enabled"] = "true", ["welcome_animation.port"] = port.ToString()
+            ["welcome_animation.enabled"] = "true", ["web_service.port"] = port.ToString()
         });
-        var videos = Path.Combine(h.DataDirectory, "welcome-animations");
+        var videos = Path.Combine(h.DataDirectory, "videos");
         Directory.CreateDirectory(videos);
         File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(videos, "welcome.mp4"));
         Settings.SaveWelcomeAnimationVideo(h.DataDirectory, 10001, "welcome.mp4");
@@ -36,26 +51,32 @@ public sealed class WelcomeAnimationBrowserTests
         Console.SetOut(TextWriter.Synchronized(captured));
         Task watching = Task.CompletedTask;
         Process? browser = null;
+        var browserErrors = new System.Collections.Concurrent.ConcurrentQueue<string>();
         try
         {
             watching = WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,
                 _ => throw new InvalidOperationException("Already logged in"), h.Stop.Token);
             await h.WaitForLogAsync("已连接弹幕服务器");
-            await using var statusUpdates = h.Client.AnimationPage.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+            await using var statusUpdates = h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
             Assert.True(await statusUpdates.MoveNextAsync());
-            var status = Assert.IsType<AnimationPageStatus>(statusUpdates.Current);
+            var status = Assert.IsType<WebServiceStatus>(statusUpdates.Current);
             Assert.True(status.Running, status.Error);
             var start = new ProcessStartInfo(chrome) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true };
             foreach (var argument in new[] { "--headless", "--no-first-run", "--no-default-browser-check",
-                "--autoplay-policy=no-user-gesture-required", "--user-data-dir=" + Path.Combine(h.DataDirectory, "chrome"), h.Client.AnimationPage.Address })
+                "--autoplay-policy=no-user-gesture-required", "--user-data-dir=" + Path.Combine(h.DataDirectory, "chrome"), h.Client.WebService.Status.VideoAddress })
                 start.ArgumentList.Add(argument);
             browser = Process.Start(start)!;
+            browser.ErrorDataReceived += (_, e) => { if (e.Data is { } line) browserErrors.Enqueue(line); };
             browser.BeginErrorReadLine();
             browser.BeginOutputReadLine();
-            await h.WaitForLogAsync("已有 1 个推流软件连着");
+            try { await h.WaitForLogAsync("视频页 1 个推流软件"); }
+            catch (OperationCanceledException error)
+            {
+                throw new InvalidOperationException("Chrome did not connect: " + string.Join("\n", browserErrors), error);
+            }
             await h.Server.PushRoomMessageAsync(EntryV2Fixture.Message());
             await h.WaitForLogAsync("已播放");
-            Assert.Contains($"动画页：http://localhost:{port}/", captured.ToString());
+            Assert.Contains($"视频页：http://localhost:{port}/video", captured.ToString());
             Assert.DoesNotContain(h.Logger.Entries, entry => entry.Message.Contains("播放失败"));
             Assert.Contains(h.Logger.Entries, entry => entry.Message.Contains("试播=False") && entry.Message.Contains("已播放"));
         }

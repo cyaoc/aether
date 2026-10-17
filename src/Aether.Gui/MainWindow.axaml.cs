@@ -30,6 +30,7 @@ public partial class MainWindow : Window
         {
             page.IsVisible = false;
             page.SaveCompleted += RefreshSettingsStatus;
+            page.GeneralSettingsRequested += () => Navigation.SelectedIndex = 1 + (int)SettingsSection.General;
             PageHost.Children.Add(page);
         }
         RefreshSettingsStatus();
@@ -72,7 +73,7 @@ public partial class MainWindow : Window
         base.OnOpened(e);
         if (DataContext is MainWindowViewModel viewModel)
         {
-            _ = viewModel.StartAnimationPageAsync(dataDirectory);
+            _ = viewModel.StartWebServiceAsync(dataDirectory);
             viewModel.ReadAccountCommand.Execute(null);
         }
     }
@@ -81,7 +82,7 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel viewModel) return;
         await viewModel.OpenAnimationSettingsCommand.ExecuteAsync(null);
-        Navigation.SelectedIndex = 1 + (int)SettingsSection.WelcomeAnimation;
+        Navigation.SelectedIndex = 1 + (int)SettingsSection.General;
     }
 
     private void Navigate(object? sender, SelectionChangedEventArgs e)
@@ -101,7 +102,7 @@ public partial class MainWindow : Window
         ShowEnabled(BlindBoxStatus, current.Error is null ? current.BlindBoxEnabled.Value : null);
         ShowEnabled(WelcomeStatus, current.Error is null ? current.WelcomeEnabled.Value : null);
         ShowEnabled(AnimationStatus, current.Error is null ? current.WelcomeAnimationEnabled.Value : null);
-        if (IsVisible && DataContext is MainWindowViewModel viewModel) _ = viewModel.RefreshAnimationPageAsync(current);
+        if (IsVisible && DataContext is MainWindowViewModel viewModel) _ = viewModel.RefreshWebServiceAsync(current);
         foreach (var page in settingsPages) page.RefreshFileStatus(current);
     }
 
