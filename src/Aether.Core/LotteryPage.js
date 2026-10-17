@@ -8,11 +8,10 @@ let shown = '', hiding, paging, frame, fitting = [], portrait = false;
 const canvas = byId('particles'), context = canvas.getContext('2d');
 function resize() {
   portrait = window.innerWidth < window.innerHeight;
+  const [width, height] = portrait ? [1080, 1920] : [1920, 1080];
   scene.dataset.orientation = portrait ? 'portrait' : 'landscape';
-  const scale = Math.min(window.innerWidth / (portrait ? 1080 : 1920), window.innerHeight / (portrait ? 1920 : 1080));
-  scene.style.transform = `scale(${scale}) translate(-50%,-50%)`;
-  const width = portrait ? 1080 : 1920, height = portrait ? 1920 : 1080;
-  if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
+  scene.style.transform = `scale(${Math.min(window.innerWidth / width, window.innerHeight / height)}) translate(-50%,-50%)`;
+  if (canvas.width !== width) { canvas.width = width; canvas.height = height; }
   fitAll();
 }
 window.addEventListener('resize', resize);
@@ -58,6 +57,7 @@ function show(state) {
     count.textContent = entry.entryCount;
     // Restart the board's pop on every new entry; the newest name slides in by CSS.
     count.className = 'gold'; void count.offsetWidth; count.className = 'gold pop';
+    byId('registration').dataset.awards = entry.awards.length;
     byId('latestEntries').replaceChildren(...entry.latestEntries.slice(0,3).map(item => text('',item.nickname)));
     byId('awardRows').replaceChildren(...entry.awards.map(award => {
       const row = text(`awardRow ${award.grade}`, '');
@@ -158,6 +158,11 @@ function star(x, y, r) {
   }
   context.closePath(); context.fill();
 }
+// Canvas geometry of boards W1 and PW1: burst centre, idle motes and rising sparkles (left, spread, y), star field height, meteor path and burst spread.
+const stages = {
+  landscape:{cx:960,cy:520,idle:[660,600,880],rise:[560,800,900],skyHeight:820,meteor:{dx:840,y:820,dy:860},spread:[1,.7]},
+  portrait:{cx:459,cy:760,idle:[199,520,1140],rise:[159,600,1180],skyHeight:1500,meteor:{dx:600,y:1100,dy:1100},spread:[.8,1]},
+};
 // Board W1's canvas on this page's timeline: spinning motes, or sky stars, meteor trail, the burst at the 28% hit and rising sparkles.
 function particles(start, grade) {
   const power = grade === 'Grand' ? 3 : grade === 'Second' ? 2 : 1;
@@ -168,28 +173,28 @@ function particles(start, grade) {
   const add = mote => motes.push({drag:1,grav:0,max:mote.life,...mote});
   function paint() {
     const now = Date.now(), age = start === null ? 0 : now - start;
-    const cx = portrait ? 459 : 960, cy = portrait ? 760 : 520;
+    const {cx,cy,idle,rise,skyHeight,meteor,spread} = stages[scene.dataset.orientation];
     const dt = Math.min(3,(now - previous) / 16.667); previous = now;
     context.clearRect(0,0,canvas.width,canvas.height); context.globalCompositeOperation = 'lighter';
     if (start === null) {
-      if (Math.random() < .35 * dt) add({x:cx-(portrait?260:300)+Math.random()*(portrait?520:600),y:portrait?1140:880,vx:(Math.random()-.5)*.6,vy:-1.2-Math.random()*1.6,life:220,s:2+Math.random()*3,c:pick(),star:true,twinkle:true});
+      if (Math.random() < .35 * dt) add({x:idle[0]+Math.random()*idle[1],y:idle[2],vx:(Math.random()-.5)*.6,vy:-1.2-Math.random()*1.6,life:220,s:2+Math.random()*3,c:pick(),star:true,twinkle:true});
     } else {
       const fade = Math.min(1, age / 280);
       context.fillStyle = '#fff';
-      for (const s of sky) { context.globalAlpha = fade * (.35 + .65 * Math.abs(Math.sin(s.p + now * .0016))); context.fillRect(s.x*canvas.width,s.y*(portrait?1500:820),s.s,s.s); }
+      for (const s of sky) { context.globalAlpha = fade * (.35 + .65 * Math.abs(Math.sin(s.p + now * .0016))); context.fillRect(s.x*canvas.width,s.y*skyHeight,s.s,s.s); }
       if (power > 1 && age > 1540 && age < 1960) {
-        const eased = 1 - (1 - (age - 1540) / 420) ** 2, x = cx + (portrait?600:840) * (1 - eased), y = portrait ? 1100*eased : 820 - 860 * (1 - eased);
+        const eased = 1 - (1 - (age - 1540) / 420) ** 2, x = cx + meteor.dx * (1 - eased), y = meteor.y - meteor.dy * (1 - eased);
         for (let j = 0; j < 6 * dt; j++) add({x,y,vx:(Math.random()-.3)*3,vy:(Math.random()-.7)*3,life:40,s:1.5+Math.random()*3,c:colors[j%colors.length],drag:.96,grav:.02});
       }
       if (!fired && age >= 1960) {
         fired = true;
         for (let j = 0; j < 90 + 165 * (power - 1); j++) {
           const angle = Math.random() * Math.PI * 2, speed = 3 + Math.random() * (8 + 7 * power);
-          add({x:cx,y:cy,vx:Math.cos(angle)*speed*(portrait?.8:1),vy:Math.sin(angle)*speed*(portrait?1:.7)-3,life:70+Math.random()*90,max:160,s:2+Math.random()*(2+power),c:colors[j%colors.length],drag:.95,grav:.06,star:j%4===0});
+          add({x:cx,y:cy,vx:Math.cos(angle)*speed*spread[0],vy:Math.sin(angle)*speed*spread[1]-3,life:70+Math.random()*90,max:160,s:2+Math.random()*(2+power),c:colors[j%colors.length],drag:.95,grav:.06,star:j%4===0});
         }
       }
       if (power > 1 && age > 2300 && age < 6500 && Math.random() < .3 * power * dt)
-        add({x:cx-(portrait?300:400)+Math.random()*(portrait?600:800),y:portrait?1180:900,vx:(Math.random()-.5)*.8,vy:-1.5-Math.random()*2.5,life:200,s:3+Math.random()*5,c:pick(),star:true,twinkle:true});
+        add({x:rise[0]+Math.random()*rise[1],y:rise[2],vx:(Math.random()-.5)*.8,vy:-1.5-Math.random()*2.5,life:200,s:3+Math.random()*5,c:pick(),star:true,twinkle:true});
     }
     for (const p of motes) {
       const drag = p.drag ** dt;

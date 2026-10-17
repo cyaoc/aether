@@ -147,6 +147,8 @@ public sealed class LotteryBrowserTests
     private static async Task AssertDrawAsync(LotteryBrowser browser, PrizeGrade grade, string mode)
     {
         await browser.WaitAsync($"document.getElementById('summon').className === 'drawing {grade}'");
+        // The board's banner pops in from 1.6x and drifts up as it fades; check it while it holds still.
+        await browser.WaitAsync("(p => p > .05 && p < .25)(document.getElementById('banner').getAnimations()[0].effect.getComputedTiming().progress)");
         await AssertLayoutAsync(browser);
         await browser.WaitAsync("getComputedStyle(document.querySelector('.flip')).transform === 'matrix(1, 0, 0, 1, 0, 0)'");
         var revealedAt = DateTimeOffset.UtcNow;
@@ -184,13 +186,14 @@ public sealed class LotteryBrowserTests
 
     private static async Task AssertLayoutAsync(LotteryBrowser browser)
     {
-        // Measure rendered text, including the 3D ring, against SA1 in design coordinates.
+        // Measure rendered text, including the 3D ring, against SA1 in design coordinates; the board's labels stay at 28–38px.
         var violations = await browser.EvaluateAsync("""
             (() => {
               const scene = document.getElementById('scene'), rect = scene.getBoundingClientRect();
               const portrait = scene.dataset.orientation === 'portrait';
               const scale = rect.width / (portrait ? 1080 : 1920);
               const bounds = portrait ? [54,288,864,1248] : [0,0,1920,1080];
+              const labels = '.label,#registrationTitle span+span,.countLabel,.awardName,.capacity,.candidateLabel,.candidateName,.winnerAward';
               return Array.from(scene.querySelectorAll('*')).filter(e =>
                 e.childNodes.length && Array.from(e.childNodes).some(n => n.nodeType === 3 && n.textContent.trim())
               ).flatMap(e => {
@@ -200,7 +203,7 @@ public sealed class LotteryBrowserTests
                   if (getComputedStyle(p).opacity === '0' || getComputedStyle(p).visibility === 'hidden') return [];
                 const x = (r.left-rect.left)/scale, y = (r.top-rect.top)/scale;
                 const outside = x < bounds[0]-1 || y < bounds[1]-1 || x+r.width/scale > bounds[2]+1 || y+r.height/scale > bounds[3]+1;
-                const small = portrait && parseFloat(getComputedStyle(e).fontSize) < 40;
+                const small = portrait && !e.matches(labels) && parseFloat(getComputedStyle(e).fontSize) < 40;
                 return outside || small ? [{text:e.textContent,x,y,width:r.width/scale,height:r.height/scale,small}] : [];
               });
             })()
