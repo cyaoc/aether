@@ -98,8 +98,10 @@ internal sealed class LotteryBrowser : IAsyncDisposable
     {
         if (Environment.GetEnvironmentVariable("AETHER_TEST_SCREENSHOTS") is not { Length: > 0 } directory) return;
         Directory.CreateDirectory(directory);
+        var theme = (await EvaluateAsync("document.getElementById('scene').dataset.theme")).GetString();
+        var width = (await EvaluateAsync("window.innerWidth")).GetInt32();
         var result = await CommandAsync("Page.captureScreenshot", new { format = "png" });
-        await File.WriteAllBytesAsync(Path.Combine(directory, name + ".png"), Convert.FromBase64String(result.GetProperty("data").GetString()!), TestContext.Current.CancellationToken);
+        await File.WriteAllBytesAsync(Path.Combine(directory, $"{theme}-{width}-{name}.png"), Convert.FromBase64String(result.GetProperty("data").GetString()!), TestContext.Current.CancellationToken);
     }
 
     public async ValueTask DisposeAsync()

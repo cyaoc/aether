@@ -3,26 +3,33 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Aether 抽奖页 · 星辰召唤</title>
+  <title>Aether 抽奖页</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/lottery/style.css">
+  <link rel="stylesheet" href="/lottery/mecha.css">
   <script src="/lottery/page.js" defer></script>
 </head>
 <body>
 <main id="scene" data-theme="StarSummon" hidden>
   <section id="registration" hidden>
-    <h1 id="registrationTitle"><span class="gold">星辰召唤</span><span>报名中</span></h1>
+    <h1 id="registrationTitle"><span id="themeTitle" class="gold">星辰召唤</span><span id="registrationPhase">报名中</span></h1>
     <div id="entryBar">
-      <div class="condition"><span class="label">召唤条件</span><span id="keyword"></span></div>
+      <div class="condition"><span id="joinLabel" class="label">召唤条件</span><span id="keyword"></span></div>
       <span class="divider"></span>
-      <div class="count"><span id="entryCount" class="gold"></span><span class="countLabel">位召唤师已报名</span></div>
+      <div class="count"><span id="entryCount" class="gold"></span><span id="countLabel" class="countLabel">位召唤师已报名</span></div>
       <span class="divider"></span>
-      <div class="latest"><span class="label">刚刚加入</span><div id="latestEntries"></div></div>
+      <div class="latest"><span id="latestLabel" class="label">刚刚加入</span><div id="latestEntries"></div></div>
     </div>
-    <aside id="awards"><div class="gold">奖品</div><div id="awardRows"></div></aside>
+    <aside id="awards"><div id="awardsTitle" class="gold">奖品</div><div id="awardRows"></div></aside>
   </section>
   <section id="summon" hidden>
     <div class="sky"></div>
+    <div class="mechaAlert" aria-hidden="true"></div>
+    <div class="hazard top"><span id="warning"></span></div><div class="hazard bottom" aria-hidden="true"></div>
+    <svg class="reticle" viewBox="0 0 200 200" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width=".8"><circle cx="100" cy="100" r="96" stroke-dasharray="2 4"/><circle cx="100" cy="100" r="84"/><path d="M100 0v18M100 182v18M0 100h18M182 100h18"/></g>
+      <g fill="none" stroke="#fff" stroke-width="1.2"><path d="M100 10a90 90 0 0 1 66 29M100 190a90 90 0 0 1-66-29"/></g>
+    </svg>
     <div class="circleSpace" aria-hidden="true"><div class="circlePlane">
       <svg class="circle" viewBox="0 0 400 400" width="900" height="900">
         <g fill="none" stroke="currentColor" stroke-width="2.4">

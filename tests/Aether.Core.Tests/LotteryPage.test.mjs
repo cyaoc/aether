@@ -48,6 +48,26 @@ const entry = {id:'entry',phase:'Open',keyword:'<img onerror=alert(1)>',entryCou
 const draws = Array.from({length:7},(_,i)=>({id:`d${i}`,awardIndex:0,award,winner:{uid:i+1,nickname:`观众${i+1}`},
   candidates:['甲','乙'],drawnAt:'2026-10-17T12:00:00Z'}));
 
+test('switching to Mecha Lock refreshes a live draw, locks the winning cell and keeps the deadline',()=>{
+  const p=page(), prize={name:'键盘',grade:'Grand'}, other={name:'签名照',grade:'Third'};
+  const lottery={id:'pool',phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
+    draws:[{id:'d',prize,uid:42,candidates:[other,prize],drawnAt:'2026-10-17T12:00:00Z'}]};
+  p.state({lottery}); p.advance(1000);
+  p.state({lottery,theme:'MechaLock'});
+  assert.equal(p.element('rank').textContent,'S 级 · 大奖 · 目标确认');
+  assert.equal(p.element('summon').style['--elapsed'],'-1s');
+  assert.equal(p.element('prize').textContent,'键盘');
+  p.advance(1100);
+  const locked=p.element('ring').children.filter(c=>c.dataset.lock==='LOCK ON');
+  assert.equal(locked.length,1);
+  assert.match(locked[0].textContent,/键盘/);
+  p.state({lottery,theme:'MechaLock'});
+  assert.equal(p.element('summon').style['--elapsed'],'-1s');
+  p.resize(1080,1920);
+  p.advance(4899); assert.equal(p.element('scene').hidden,false);
+  p.advance(1); assert.equal(p.element('scene').hidden,true);
+});
+
 test('viewport selects portrait only when taller than wide and resizing keeps the draw deadline',()=>{
   const p=page(1080,1920);
   assert.equal(p.element('scene').dataset.orientation,'portrait');

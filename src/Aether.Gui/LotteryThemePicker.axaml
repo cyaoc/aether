@@ -52,6 +52,28 @@
           </Grid>
         </StackPanel>
       </RadioButton>
+      <RadioButton x:Name="MechaLockCard" Grid.Column="1" Classes="themeCard" AutomationProperties.Name="机甲锁定">
+        <StackPanel Spacing="8">
+          <Viewbox Stretch="Uniform">
+            <Border Width="160" Height="90" CornerRadius="4" Background="#0A0C10" ClipToBounds="True">
+              <Grid RowDefinitions="6,*,6" Margin="8,12">
+                <Border Background="#FF7A1A" />
+                <Border Grid.Row="1" Margin="25,10" BorderBrush="#FF3D3D" BorderThickness="2">
+                  <TextBlock Text="LOCK ON" FontSize="10" FontWeight="Bold" Foreground="#FFB067" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                </Border>
+                <Border Grid.Row="2" Background="#FF7A1A" />
+              </Grid>
+            </Border>
+          </Viewbox>
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="6">
+            <TextBlock Text="机甲锁定" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="警报风" Classes="caption muted" VerticalAlignment="Center" />
+            <Viewbox Grid.Column="3" Classes="icon check" Width="16" Height="16">
+              <Path Data="{StaticResource Icon.Check}" StrokeThickness="2.2" Stroke="{DynamicResource Accent.Text}" />
+            </Viewbox>
+          </Grid>
+        </StackPanel>
+      </RadioButton>
     </Grid>
     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
       <Button x:Name="ExampleButton" Height="30" Padding="10,0,12,0">

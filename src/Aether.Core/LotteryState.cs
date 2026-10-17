@@ -7,7 +7,7 @@ public enum PrizeGrade { Grand, Second, Third }
 public enum PoolLotteryPhase { Idle, Spinning, Drawing }
 public enum LotteryMode { Pool, Entry }
 public enum EntryLotteryPhase { Preparing, Open, Closed, Ended }
-public enum LotteryTheme { StarSummon }
+public enum LotteryTheme { StarSummon, MechaLock }
 
 public sealed record LotteryAward(string Name, string Prize, int Capacity, PrizeGrade Grade);
 public sealed record LotteryEntry(long Uid, string Nickname, DateTimeOffset EnteredAt);
