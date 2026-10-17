@@ -33,6 +33,9 @@ public sealed class WelcomeAnimationTests
         using var lottery = await http.GetAsync("/lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var lotteryReader = new StreamReader(await lottery.Content.ReadAsStreamAsync(h.Stop.Token));
         Assert.StartsWith("retry:", await lotteryReader.ReadLineAsync(h.Stop.Token));
+        Assert.Equal("", await lotteryReader.ReadLineAsync(h.Stop.Token));
+        Assert.Equal("event: state", await lotteryReader.ReadLineAsync(h.Stop.Token));
+        Assert.StartsWith("data:", await lotteryReader.ReadLineAsync(h.Stop.Token));
         Assert.Equal(0, h.Client.WebService.Status.VideoConnections);
         Assert.Equal(1, h.Client.WebService.Status.LotteryConnections);
         using var video = await Page.ConnectAsync(h);
@@ -80,7 +83,7 @@ public sealed class WelcomeAnimationTests
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var time = new PausedTimerProvider(() => { entered.SetResult(); release.Wait(); });
-        using var service = new WebService(h.DataDirectory, time, h.Logger);
+        using var service = new WebService(h.DataDirectory, time, h.Logger, h.Client.Lottery);
         var ports = new HashSet<int>();
         while (ports.Count < 3) ports.Add(FreePort());
         var candidates = ports.ToArray();
@@ -470,7 +473,7 @@ public sealed class WelcomeAnimationTests
         public async ValueTask DisposeAsync() { await stop.CancelAsync(); await reading; stop.Dispose(); }
     }
 
-    private static int FreePort()
+    internal static int FreePort()
     {
         using var port = new TcpListener(IPAddress.Loopback, 0);
         port.Start();

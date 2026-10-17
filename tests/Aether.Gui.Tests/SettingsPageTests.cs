@@ -1082,7 +1082,7 @@ public sealed class SettingsPageTests
             main.Show();
             try
             {
-                main.FindControl<ListBox>("Navigation")!.SelectedIndex = 5;
+                main.FindControl<ListBox>("Navigation")!.SelectedIndex = 6;
                 GuiHarness.Flush();
                 var window = main.GetVisualDescendants().OfType<SettingsPage>().Single(page => page.IsEffectivelyVisible);
                 Assert.Empty(main.OwnedWindows);

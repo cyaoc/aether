@@ -162,7 +162,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         try
         {
             // Core runs the room connection off the UI thread; this loop only shows what it reports.
-            await foreach (var update in client.WatchAsync(roomId, cancellationToken))
+            await foreach (var update in client.WatchAsync(roomId, enableLottery: true, cancellationToken))
                 Apply(update);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
@@ -354,11 +354,13 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         LoginCommand.Cancel();
         LogoutCommand.Cancel();
         await StopAccountReadAsync();
+        await FinishLotteryChangeAsync();
         await StopWatchingAsync();
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
         if (LoginCommand.ExecutionTask is { } login) await login;
         await StopAnimationsAsync();
+        await StopLotteryAsync();
     }
 
     // Reconnects skip Connecting, so a QR login can end at either update.

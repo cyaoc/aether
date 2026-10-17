@@ -18,6 +18,49 @@ namespace Aether.Gui.Tests;
 
 public sealed class VisualReviewTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_pool_lottery(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            var vm = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+                { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = 4;
+                // Canvas V1's pool and records: a viewer's stop, a host stop with no UID, and a host stop for a named viewer.
+                PoolPrize[] prizes = [new("机械键盘", 1, PrizeGrade.Grand), new("周边抱枕", 3, PrizeGrade.Second),
+                    new("签名照", 4, PrizeGrade.Third), new("贴纸套装", 2, PrizeGrade.Third)];
+                var at = new DateTimeOffset(2026, 10, 17, 20, 30, 0, TimeSpan.FromHours(8));
+                var session = LotteryPanelTests.TestLottery() with
+                {
+                    Prizes = [.. prizes],
+                    Draws =
+                    [
+                        new("d1", prizes[3], 42, "小明", false, at, []),
+                        new("d2", prizes[1], null, null, true, at.AddMinutes(2), []),
+                        new("d3", prizes[2], 42, "小明", true, at.AddMinutes(6), []),
+                    ],
+                };
+                foreach (var phase in Enum.GetValues<PoolLotteryPhase>())
+                {
+                    vm.Apply(new PoolLotteryUpdate(new(7734200, true, session with { Phase = phase })));
+                    Save(window, $"lottery-{phase}-{(dark ? "dark" : "light")}");
+                }
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
     [Fact]
     public Task Main_window_has_desktop_default_and_minimum_size() => HeadlessApp.Session.Dispatch(() =>
     {
@@ -130,7 +173,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 GuiHarness.Flush();
                 foreach (var (name, state) in new[]
                 {
@@ -459,7 +502,7 @@ public sealed class VisualReviewTests
             window.Show();
             try
             {
-                foreach (var (pageIndex, name) in new[] { (5, "LogLevelInput"), (2, "GuardInput") })
+                foreach (var (pageIndex, name) in new[] { (6, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
                     input.IsDropDownOpen = true;
@@ -499,7 +542,7 @@ public sealed class VisualReviewTests
             window.Show();
             try
             {
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 var number = page.FindControl<NumericUpDown>("SendIntervalInput")!;
@@ -519,8 +562,8 @@ public sealed class VisualReviewTests
                 Capture("error");
                 text.Text = "1";
                 File.WriteAllText(Settings.FilePath(harness.DataDirectory), "send:\n  interval_seconds: |-\n    1\n");
+                window.Navigation.SelectedIndex = 6;
                 window.Navigation.SelectedIndex = 5;
-                window.Navigation.SelectedIndex = 4;
                 Capture("readonly");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -584,7 +627,7 @@ public sealed class VisualReviewTests
                 { Text = "@" + nickname + " 投入52电池 亏12.6电池", RetrySeconds = 1 });
             }
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "send-queue", "general" };
+            var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "lottery", "send-queue", "general" };
             for (var i = 0; i < pages.Length; i++)
             {
                 navigation.SelectedIndex = i;
@@ -624,7 +667,7 @@ public sealed class VisualReviewTests
                 Add(welcome, kind);
             Capture("welcome-levels");
             File.WriteAllText(path, "log:\n  level: @bad\n");
-            navigation.SelectedIndex = 5;
+            navigation.SelectedIndex = 6;
             Capture("settings-error");
             viewModel.IsLoginPage = true;
             viewModel.Apply(new WatchQrCode("https://example.test/visual-review"));

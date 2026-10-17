@@ -240,7 +240,7 @@ public sealed class RoomInputTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
-    [InlineData(5)]
+    [InlineData(6)]
     public Task Empty_history_hides_the_arrow_and_cannot_open_even_after_deleting_the_last_room(int count) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();

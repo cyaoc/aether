@@ -25,7 +25,12 @@ public partial class MainWindowViewModel
     internal bool AnimationBusy => testPlayPending || pendingAnimations.Count > 0;
 
     /// <summary>Starts the web service when the window opens, logging mapped videos that are missing as the CLI does.</summary>
-    internal Task StartWebServiceAsync(string dataDirectory) => ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
+    internal Task StartWebServiceAsync(string dataDirectory)
+    {
+        // The 抽奖页 and the GUI read the same lottery, so the GUI starts following it with the web service.
+        if (!shuttingDown) ObserveLottery();
+        return ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
+    }
 
     internal Task RefreshWebServiceAsync(Settings snapshot)
     {

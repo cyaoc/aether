@@ -483,7 +483,7 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Contains("/lottery/events", await http.GetStringAsync(viewModel.LotteryAddressText));
             window.FindControl<Button>("OpenSettingsWithoutLoginButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => !viewModel.IsLoginPage);
-            Assert.Equal(5, window.Navigation.SelectedIndex);
+            Assert.Equal(6, window.Navigation.SelectedIndex);
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Equal("端口保存后立即生效；日志设置重启后生效", general.FindControl<TextBlock>("TimingHint")!.Text);
             using var response = await http.GetAsync(viewModel.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
@@ -512,7 +512,7 @@ public sealed class WelcomeAnimationSettingsTests
             using var report = await http.PostAsJsonAsync(viewModel.VideoAddressText + "/report", new { id, success = true });
             await GuiHarness.WaitForAsync(() => viewModel.RecentAnimations.Single().Playback.State == PlaybackState.Completed);
             Click(animation, "OpenGeneralSettingsButton");
-            Assert.Equal(5, window.Navigation.SelectedIndex);
+            Assert.Equal(6, window.Navigation.SelectedIndex);
             var nextPort = FreePort();
             general.FindControl<NumericUpDown>("WebPortInput")!.Text = nextPort.ToString();
             GuiHarness.Flush();
@@ -727,7 +727,7 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            Assert.Equal(6, window.Navigation.ItemCount);
+            Assert.Equal(7, window.Navigation.ItemCount);
             window.Navigation.SelectedIndex = 3;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);

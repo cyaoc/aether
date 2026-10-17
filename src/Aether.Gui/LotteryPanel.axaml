@@ -1,0 +1,169 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPanel">
+  <UserControl.Styles>
+    <!-- Phase chip, as on canvas V1: neutral while idle, accent while spinning, warning while drawing. -->
+    <Style Selector="Border#PhaseChip">
+      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Secondary}" />
+    </Style>
+    <Style Selector="Border#PhaseChip Ellipse">
+      <Setter Property="Fill" Value="{DynamicResource Text.Disabled}" />
+    </Style>
+    <Style Selector="Border#PhaseChip.spinning">
+      <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent.Tint}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
+    </Style>
+    <Style Selector="Border#PhaseChip.spinning Ellipse">
+      <Setter Property="Fill" Value="{DynamicResource Accent}" />
+    </Style>
+    <Style Selector="Border#PhaseChip.drawing">
+      <Setter Property="Background" Value="{DynamicResource Warning.Background}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Warning.Border}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Warning.Text}" />
+    </Style>
+    <Style Selector="Border#PhaseChip.drawing Ellipse">
+      <Setter Property="Fill" Value="{DynamicResource Warning.Dot}" />
+    </Style>
+    <Style Selector="Button#NewButton, Button#CancelButton">
+      <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+    </Style>
+    <Style Selector="Button#NewButton:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
+    </Style>
+    <!-- Locked while a draw runs: the canvas greys the boxes but keeps the text readable. -->
+    <Style Selector="TextBox[IsReadOnly=True] /template/ Border#PART_BorderElement, TextBox[IsReadOnly=True]:pointerover /template/ Border#PART_BorderElement, TextBox[IsReadOnly=True]:focus /template/ Border#PART_BorderElement">
+      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="StackPanel#HistoryRows > Border">
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <Style Selector="StackPanel#HistoryRows > Border.fresh">
+      <Setter Property="Background" Value="{DynamicResource Accent.Flash}" />
+    </Style>
+    <Style Selector="StackPanel#StatusPanel TextBlock.caption">
+      <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+    </Style>
+    <Style Selector="StackPanel#StatusPanel TextBlock.caption.error">
+      <Setter Property="Foreground" Value="{DynamicResource Danger}" />
+    </Style>
+  </UserControl.Styles>
+  <Grid RowDefinitions="60,*">
+    <Border Classes="pageHeader">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="12">
+        <TextBlock Classes="h1" Text="抽奖" VerticalAlignment="Center" />
+        <Border Grid.Column="1" Height="24" Padding="8,0" CornerRadius="6" Background="{DynamicResource Border.Subtle}" VerticalAlignment="Center">
+          <TextBlock Classes="caption" Text="奖池抽奖" Foreground="{DynamicResource Text.Secondary}" FontWeight="SemiBold" VerticalAlignment="Center" />
+        </Border>
+        <Border Grid.Column="2" x:Name="PhaseChip" Height="24" Padding="10,0" CornerRadius="12" BorderThickness="1" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
+            <TextBlock x:Name="PhaseText" Classes="caption" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+          </StackPanel>
+        </Border>
+        <Button Grid.Column="4" x:Name="NewButton" Height="32" Padding="10,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" StrokeThickness="2" /></Viewbox>
+            <TextBlock Text="新开一场" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </Border>
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+      <Grid RowDefinitions="*,Auto">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" Padding="20,18">
+          <StackPanel Spacing="22">
+            <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Classes="section" Text="奖品" Margin="0,0,8,0" />
+                <TextBlock Grid.Column="1" Classes="hint" Text="按占比随机抽一件，不会抽完；档次决定开奖特效" />
+              </Grid>
+              <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8">
+                <StackPanel x:Name="PrizeRows" />
+              </Border>
+              <!-- Click on press, as 添加欢迎语 does: leaving a new row above reveals its error before the release. -->
+              <Grid x:Name="AddPrizeBar" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                <Button x:Name="AddButton" HorizontalAlignment="Left" Padding="10,0,12,0" ClickMode="Press">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" /></Viewbox>
+                    <TextBlock Text="添加奖品" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+                <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="最多 10 件；新开一场会带出上一场的奖品、口令和 UID" VerticalAlignment="Center" />
+              </Grid>
+            </StackPanel>
+            <StackPanel Spacing="10">
+              <Grid ColumnDefinitions="Auto,*">
+                <TextBlock Classes="section" Text="谁来喊停" Margin="0,0,8,0" />
+                <TextBlock Grid.Column="1" Classes="hint" Text="每次只认一位观众，别人发了不算；不填就只能主播点“停”" />
+              </Grid>
+              <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="10">
+                <TextBlock Classes="label" Text="这次谁来喊" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                  <TextBox x:Name="UidInput" Classes="numeric" Width="150" Height="32" MinHeight="32" FontSize="13" PlaceholderText="观众 UID" AutomationProperties.Name="喊停观众 UID" Classes.invalid="{Binding #UidError.IsVisible}" />
+                  <TextBlock x:Name="ViewerHint" Classes="caption muted singleLine" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="UidError" Classes="error" Text="UID 必须是正整数或留空" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+                <TextBlock Grid.Row="2" Classes="label" Text="口令" VerticalAlignment="Center" Margin="0,10,0,0" />
+                <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
+                  <TextBox x:Name="StopWordInput" Width="150" Height="32" MinHeight="32" FontSize="13" AutomationProperties.Name="口令" Classes.invalid="{Binding #StopWordError.IsVisible}" />
+                  <TextBlock Classes="caption muted singleLine" Text="弹幕内容和口令完全一样才算" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="StopWordError" Classes="error" Text="口令不能为空" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+              </Grid>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="1" BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="20,12,20,18">
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <StackPanel x:Name="StatusPanel" VerticalAlignment="Center" Spacing="4">
+              <TextBlock x:Name="StatusText" Classes="caption singleLine" AutomationProperties.LiveSetting="Polite" />
+              <TextBlock x:Name="ErrorMessage" Classes="caption error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+              <Button x:Name="CancelButton" Content="取消" Height="34" Padding="14,0" />
+              <Button x:Name="StopButton" Classes="accent" Height="34" MinWidth="120" Padding="18,0" FontWeight="Bold">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Border Width="8" Height="8" CornerRadius="1" Background="{Binding $parent[Button].Foreground}" VerticalAlignment="Center" />
+                  <TextBlock Text="停" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <Button x:Name="StartButton" Classes="accent" Content="开始" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
+              <Button x:Name="DrawingButton" Classes="accent" Content="开奖中…" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsEnabled="False" />
+            </StackPanel>
+          </Grid>
+        </Border>
+      </Grid>
+      <Border Grid.Column="1" Width="280" Background="{DynamicResource Surface.Aside}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
+        <Grid RowDefinitions="Auto,Auto,*">
+          <Border x:Name="LatestCard" Margin="16,16,16,4" Padding="12" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource Accent}" Background="{DynamicResource Accent.Flash}">
+            <StackPanel Spacing="4">
+              <TextBlock x:Name="LatestHead" Classes="caption muted singleLine" />
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                <Border x:Name="LatestGrade" Classes="badge" Height="20" Padding="6,0" VerticalAlignment="Center"><TextBlock x:Name="LatestGradeText" VerticalAlignment="Center" /></Border>
+                <TextBlock Grid.Column="1" x:Name="LatestPrize" Classes="singleLine" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+              </Grid>
+            </StackPanel>
+          </Border>
+          <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,14,16,8">
+            <TextBlock Classes="section" Text="开奖记录" />
+            <TextBlock Grid.Column="1" x:Name="DrawCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+          </Grid>
+          <Panel Grid.Row="2">
+            <TextBlock x:Name="EmptyHistory" Classes="hint" Text="暂无开奖记录" Margin="16,0" />
+            <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+              <StackPanel x:Name="HistoryRows" />
+            </ScrollViewer>
+          </Panel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

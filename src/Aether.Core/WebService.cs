@@ -20,12 +20,14 @@ public sealed class WebService : IDisposable
     private CancellationTokenSource? stop;
     private Task running = Task.CompletedTask;
     public VideoPage Video { get; }
+    public LotteryPage Lottery { get; }
 
-    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger)
+    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, PoolLottery lottery)
     {
         this.timeProvider = timeProvider;
         this.logger = logger;
         Video = new(this, dataDirectory, timeProvider);
+        Lottery = new(lottery);
     }
 
     /// <summary>One streaming software's event stream to a page.</summary>
@@ -34,6 +36,7 @@ public sealed class WebService : IDisposable
         public HttpListenerResponse Response { get; } = response;
         public string Path { get; } = path;
         public SemaphoreSlim WriteLock { get; } = new(1);
+        public CancellationTokenSource? StreamStop { get; set; }
     }
 
     public string Address => $"http://localhost:{Status.Port}/";
@@ -159,6 +162,7 @@ public sealed class WebService : IDisposable
             lock (Gate)
             {
                 if (connections.Remove(connection)) ConnectionsChanged();
+                connection.StreamStop?.Cancel();
                 Abort(connection.Response);
             }
             return false;
@@ -217,18 +221,34 @@ public sealed class WebService : IDisposable
                 response.ContentType = "text/event-stream";
                 response.SendChunked = true;
                 var connection = new Connection(response, path);
-                lock (Gate) { token.ThrowIfCancellationRequested(); connections.Add(connection); ConnectionsChanged(); }
-                keepOpen = await SendAsync(connection, "retry: 2000\n\n", token);
+                using var streamStop = path == "/lottery/events" ? CancellationTokenSource.CreateLinkedTokenSource(token) : null;
+                connection.StreamStop = streamStop;
+                try
+                {
+                    lock (Gate) { token.ThrowIfCancellationRequested(); connections.Add(connection); ConnectionsChanged(); }
+                    keepOpen = await SendAsync(connection, "retry: 2000\n\n", token);
+                    if (keepOpen && streamStop is not null)
+                    {
+                        // The lottery stream lives in this request, so the response closes when it ends.
+                        keepOpen = false;
+                        await foreach (var frame in Lottery.EventsAsync(streamStop.Token))
+                            if (!await SendAsync(connection, frame, token)) break;
+                    }
+                }
+                finally
+                {
+                    // A heartbeat that fails on this connection cancels StreamStop under Gate; clear it before the using disposes it.
+                    lock (Gate)
+                    {
+                        connection.StreamStop = null;
+                        if (streamStop is not null && connections.Remove(connection)) ConnectionsChanged();
+                    }
+                }
             }
             else if (path.StartsWith("/video", StringComparison.Ordinal))
                 await Video.HandleAsync(request, response, token);
-            else if (request.HttpMethod == "GET" && path == "/lottery")
-            {
-                response.ContentType = "text/html; charset=utf-8";
-                var html = Encoding.UTF8.GetBytes("<!doctype html><html><meta charset=\"utf-8\"><title>Aether 抽奖页</title><body style=\"margin:0;background:transparent\"><script>new EventSource('/lottery/events');</script></body></html>");
-                response.ContentLength64 = html.Length;
-                await response.OutputStream.WriteAsync(html, token);
-            }
+            else if (path.StartsWith("/lottery", StringComparison.Ordinal))
+                await Lottery.HandleAsync(request, response, token);
             else response.StatusCode = 404;
         }
         // On macOS, RemoteEndPoint throws SocketException once the client has reset the connection.

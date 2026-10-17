@@ -10,5 +10,6 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Aether.Core.Tests" />
     <EmbeddedResource Include="VideoPage.html" />
+    <EmbeddedResource Include="LotteryPage.html" />
   </ItemGroup>
 </Project>

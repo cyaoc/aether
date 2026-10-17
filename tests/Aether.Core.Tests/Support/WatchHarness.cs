@@ -14,9 +14,11 @@ internal sealed class WatchHarness : IAsyncDisposable
     /// <summary>A danmaku whose arrival shows every room message pushed before it has been handled.</summary>
     public const string SyncDanmaku = """{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""";
     public AetherClient Client { get; }
+    private readonly bool enableLottery;
 
-    public WatchHarness(Func<Uri, CancellationToken, Task<System.Net.WebSockets.WebSocket>>? connectWebSocket = null)
+    public WatchHarness(Func<Uri, CancellationToken, Task<System.Net.WebSockets.WebSocket>>? connectWebSocket = null, Random? random = null, bool enableLottery = false)
     {
+        this.enableLottery = enableLottery;
         Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
             """{"code":0,"data":{"room_id":7734200}}""";
         Http.ConfigureLogin();
@@ -24,7 +26,7 @@ internal sealed class WatchHarness : IAsyncDisposable
             """{"code":0,"data":{"isLogin":true,"mid":9876543210,"wbi_img":{"img_url":"https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png","sub_url":"https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png"}}}""";
         Http.Responses["https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"] =
             """{"code":0,"data":{"token":"room-token","host_list":[{"host":"danmaku.example","wss_port":443}]}}""";
-        Client = new AetherClient(Http, connectWebSocket ?? Server.ConnectAsync, Time, Logger, DataDirectory);
+        Client = new AetherClient(Http, connectWebSocket ?? Server.ConnectAsync, Time, Logger, DataDirectory, random);
     }
 
     /// <summary>Waits for a log entry containing <paramref name="text"/>, at <paramref name="level"/> when one is given.</summary>
@@ -45,7 +47,7 @@ internal sealed class WatchHarness : IAsyncDisposable
     // Tests of receiving and sending HTTP keep their existing stream; progress tests opt into the full stream.
     private async IAsyncEnumerable<WatchUpdate> WatchUpdates(AetherClient client, bool includeSendQueueUpdates)
     {
-        await foreach (var update in client.WatchAsync(6, Stop.Token))
+        await foreach (var update in client.WatchAsync(6, enableLottery, Stop.Token))
             if (includeSendQueueUpdates || update is not SendQueueUpdate) yield return update;
     }
 

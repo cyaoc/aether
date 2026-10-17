@@ -60,7 +60,7 @@ public sealed class ThemeTests
                 GuiHarness.Flush();
                 Assert.All(window.GetVisualDescendants().OfType<ToggleSwitch>().Where(x => x.IsEffectivelyVisible), x => Assert.False(x.IsEffectivelyEnabled));
             }
-            navigation.SelectedIndex = 5;
+            navigation.SelectedIndex = 6;
             GuiHarness.Flush();
             var openFile = Assert.Single(window.GetVisualDescendants().OfType<Button>(), x => x.IsEffectivelyVisible && Equals(x.Content, "打开设置文件"));
             Assert.True(openFile.IsEffectivelyEnabled);

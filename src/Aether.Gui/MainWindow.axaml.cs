@@ -30,8 +30,9 @@ public partial class MainWindow : Window
         {
             page.IsVisible = false;
             page.SaveCompleted += RefreshSettingsStatus;
-            page.GeneralSettingsRequested += () => Navigation.SelectedIndex = 1 + (int)SettingsSection.General;
+            page.GeneralSettingsRequested += ShowGeneralSettings;
             PageHost.Children.Add(page);
+            if (page.Section == SettingsSection.WelcomeAnimation) PageHost.Children.Add(new LotteryPanel { IsVisible = false });
         }
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
@@ -82,13 +83,15 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel viewModel) return;
         await viewModel.OpenSettingsCommand.ExecuteAsync(null);
-        Navigation.SelectedIndex = 1 + (int)SettingsSection.General;
+        ShowGeneralSettings();
     }
+
+    private void ShowGeneralSettings() => Navigation.SelectedIndex = PageHost.Children.IndexOf(settingsPages[(int)SettingsSection.General]);
 
     private void Navigate(object? sender, SelectionChangedEventArgs e)
     {
         if (settingsPages is null) return;
-        // Navigation items and PageHost children share one order: 弹幕, then the settings pages in SettingsSection order.
+        // Navigation items and PageHost children share one order, with 抽奖 after 欢迎动画.
         for (var index = 0; index < PageHost.Children.Count; index++)
             PageHost.Children[index].IsVisible = index == Navigation.SelectedIndex;
         RefreshSettingsStatus();

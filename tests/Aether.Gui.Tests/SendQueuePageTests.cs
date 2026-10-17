@@ -40,7 +40,7 @@ public sealed class SendQueuePageTests
             viewModel.Apply(Update(4, SendQueueItemKind.BlindBoxAnnouncement, SendQueueItemState.Sent) with { Nickname = nickname });
             foreach (var (index, listName, heading, detail) in new[]
             {
-                (4, "PendingSendsList", "待发", "进场欢迎"), (4, "RecentSendsList", "最近发送", "盲盒播报"),
+                (5, "PendingSendsList", "待发", "进场欢迎"), (5, "RecentSendsList", "最近发送", "盲盒播报"),
                 (2, "RecentWelcomesList", "最近欢迎", "舰长"), (1, "RecentQueriesAndAnnouncementsList", "最近回复和播报", "播报")
             })
             {
@@ -103,7 +103,7 @@ public sealed class SendQueuePageTests
             viewModel.Apply(Update(3, SendQueueItemKind.BlindBoxAnnouncement, SendQueueItemState.Sent) with { Nickname = nickname });
             foreach (var (index, listName, detail) in new[]
             {
-                (4, "PendingSendsList", "进场欢迎"), (4, "RecentSendsList", "盲盒播报"),
+                (5, "PendingSendsList", "进场欢迎"), (5, "RecentSendsList", "盲盒播报"),
                 (2, "RecentWelcomesList", "粉丝团 12"), (1, "RecentQueriesAndAnnouncementsList", "播报")
             })
             {
@@ -141,7 +141,7 @@ public sealed class SendQueuePageTests
         try
         {
             for (var id = 1; id <= 100; id++) viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxQuery));
-            window.Navigation.SelectedIndex = 4;
+            window.Navigation.SelectedIndex = 5;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var list = page.FindControl<ListBox>("PendingSendsList")!;
@@ -189,7 +189,7 @@ public sealed class SendQueuePageTests
         {
             for (var id = 1; id <= count; id++)
                 viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxQuery) with { Text = "投入52电池 亏12.6电池" });
-            window.Navigation.SelectedIndex = 4;
+            window.Navigation.SelectedIndex = 5;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var activity = page.FindControl<Grid>("SendActivity")!;
@@ -444,7 +444,7 @@ public sealed class SendQueuePageTests
             viewModel.Apply(query with { State = SendQueueItemState.Sending, Text = "今日赚 20 电池" });
             viewModel.Apply(query with { State = SendQueueItemState.Discarded, Reason = "发送被拒绝" });
 
-            navigation.SelectedIndex = 4;
+            navigation.SelectedIndex = 5;
             GuiHarness.Flush();
             Assert.Contains("待发", GuiHarness.VisibleText(window));
             Assert.Contains("最近发送", GuiHarness.VisibleText(window));

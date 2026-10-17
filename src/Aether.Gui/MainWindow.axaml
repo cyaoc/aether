@@ -136,6 +136,13 @@
               </ListBoxItem>
               <ListBoxItem>
                 <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                  <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Lottery}" /></Viewbox>
+                  <TextBlock Grid.Column="1" Text="抽奖" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" x:Name="LotteryStatus" Classes="caption accent" Text="{Binding LotteryPhaseText}" />
+                </Grid>
+              </ListBoxItem>
+              <ListBoxItem>
+                <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
                   <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Send}" /></Viewbox>
                   <TextBlock Grid.Column="1" Text="发送队列" VerticalAlignment="Center" />
                   <TextBlock Grid.Column="2" x:Name="PendingSendCount" Classes="caption muted numeric" Text="{Binding PendingSends.Count, StringFormat={}{0:N0} 条待发}" IsVisible="{Binding !!PendingSends.Count}" />
