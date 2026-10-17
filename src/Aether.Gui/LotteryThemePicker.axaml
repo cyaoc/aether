@@ -1,16 +1,32 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.LotteryThemePicker">
   <UserControl.Styles>
+    <!-- Theme cards as on canvas O1/V1: a 16:9 preview, name and style, and a check on the selected card. -->
     <Style Selector="RadioButton.themeCard">
+      <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Padding" Value="8" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
       <Setter Property="Template">
         <ControlTemplate>
-          <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Accent}" BorderThickness="2" CornerRadius="8" Padding="3">
+          <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
             <ContentPresenter Content="{TemplateBinding Content}" />
           </Border>
         </ControlTemplate>
       </Setter>
     </Style>
+    <Style Selector="RadioButton.themeCard:checked">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+      <Setter Property="BorderThickness" Value="2" />
+    </Style>
     <Style Selector="RadioButton.themeCard:focus-visible">
       <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+    </Style>
+    <Style Selector="RadioButton.themeCard Viewbox.check">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="RadioButton.themeCard:checked Viewbox.check">
+      <Setter Property="IsVisible" Value="True" />
     </Style>
   </UserControl.Styles>
   <StackPanel Spacing="10">
@@ -18,20 +34,33 @@
       <TextBlock Classes="section" Text="直播画面主题" />
       <TextBlock Grid.Column="1" Classes="hint" Text="两种抽奖共用 · 素材 1920×1080 是横屏，1080×1920 是竖屏" />
     </Grid>
-    <RadioButton x:Name="StarSummonCard" Classes="themeCard" IsChecked="True" HorizontalAlignment="Left" AutomationProperties.Name="星辰召唤">
-      <StackPanel Width="156">
-        <Border Height="64" CornerRadius="5" Background="#171036">
-          <TextBlock Text="SSR" FontSize="22" Foreground="#FFD36B" HorizontalAlignment="Center" VerticalAlignment="Center" />
-        </Border>
-        <Grid ColumnDefinitions="*,Auto" Margin="8,6">
-          <TextBlock Text="星辰召唤" FontSize="13" FontWeight="SemiBold" />
-          <TextBlock Grid.Column="1" Text="抽卡风" Classes="caption muted" VerticalAlignment="Center" />
-        </Grid>
-      </StackPanel>
-    </RadioButton>
+    <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
+      <RadioButton x:Name="StarSummonCard" Classes="themeCard" IsChecked="True" AutomationProperties.Name="星辰召唤">
+        <StackPanel Spacing="8">
+          <!-- Scales a 160 × 90 preview to the card width, keeping 16:9. -->
+          <Viewbox Stretch="Uniform">
+            <Border Width="160" Height="90" CornerRadius="4" Background="#120E3A" ClipToBounds="True">
+              <Border Margin="32,27" CornerRadius="4" BorderBrush="#FFD36B" BorderThickness="1" BoxShadow="0 0 10 0 #FFD36B" />
+            </Border>
+          </Viewbox>
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="6">
+            <TextBlock Text="星辰召唤" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="抽卡风" Classes="caption muted" VerticalAlignment="Center" />
+            <Viewbox Grid.Column="3" Classes="icon check" Width="16" Height="16">
+              <Path Data="{StaticResource Icon.Check}" StrokeThickness="2.2" Stroke="{DynamicResource Accent.Text}" />
+            </Viewbox>
+          </Grid>
+        </StackPanel>
+      </RadioButton>
+    </Grid>
     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-      <Button x:Name="ExampleButton" Content="试一下" Padding="12,0" />
-      <TextBlock Grid.Column="1" x:Name="ExampleHint" Classes="hint" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+      <Button x:Name="ExampleButton" Height="30" Padding="10,0,12,0">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Play}" StrokeThickness="2" /></Viewbox>
+          <TextBlock x:Name="ExampleText" Text="试一下" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
+      <TextBlock Grid.Column="1" x:Name="ExampleHint" Classes="caption muted singleLine" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
     </Grid>
     <TextBlock x:Name="ErrorText" Classes="error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
   </StackPanel>

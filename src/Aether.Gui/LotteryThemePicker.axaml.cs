@@ -41,11 +41,13 @@ public partial class LotteryThemePicker : UserControl
     {
         if (ExampleButton is null) return;
         var playing = viewModel?.LotteryState.IsExamplePlaying == true;
+        var running = viewModel?.WebServiceStatus.Running == true;
         StarSummonCard.IsChecked = viewModel is null || viewModel.LotteryState.Theme == LotteryTheme.StarSummon;
-        ExampleButton.Content = playing ? "示例播放中…" : "试一下";
-        ExampleButton.IsEnabled = !playing && viewModel?.WebServiceStatus.Running == true;
-        ExampleHint.Text = viewModel?.WebServiceStatus is not { Running: true }
-            ? "网页服务未运行：" + (viewModel?.WebServiceStatus.Error ?? "请检查通用设置")
-            : "用示例数据播约 20 秒；直播中观众也会看到";
+        ExampleText.Text = playing ? "示例播放中…" : "试一下";
+        ExampleButton.IsEnabled = !playing && running;
+        ExampleHint.Text = !running ? "网页服务未运行：" + (viewModel?.WebServiceStatus.Error ?? "请检查通用设置")
+            : playing ? "抽奖页正在用示例数据播一遍，约 20 秒" : "用示例数据在抽奖页播一遍；直播中观众也会看到";
+        ExampleHint.Classes.Set("muted", !playing);
+        ExampleHint.Classes.Set("accent", playing);
     }
 }

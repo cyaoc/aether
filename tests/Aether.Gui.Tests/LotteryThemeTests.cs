@@ -37,15 +37,21 @@ public sealed class LotteryThemeTests
             Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
             await vm.StartWebServiceAsync(h.DataDirectory);
             GuiHarness.Flush();
-            Assert.All(pickers, picker => Assert.True(picker.FindControl<Button>("ExampleButton")!.IsEnabled));
+            foreach (var picker in pickers)
+            {
+                Assert.True(picker.FindControl<Button>("ExampleButton")!.IsEnabled);
+                Assert.Contains("直播中观众也会看到", picker.FindControl<TextBlock>("ExampleHint")!.Text);
+            }
             pickers[0].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             Assert.True(vm.LotteryState.IsExamplePlaying);
             foreach (var picker in pickers)
             {
                 Assert.False(picker.FindControl<Button>("ExampleButton")!.IsEnabled);
-                Assert.Equal("示例播放中…", picker.FindControl<Button>("ExampleButton")!.Content);
-                Assert.Contains("直播中观众也会看到", picker.FindControl<TextBlock>("ExampleHint")!.Text);
+                Assert.Equal("示例播放中…", picker.FindControl<TextBlock>("ExampleText")!.Text);
+                var hint = picker.FindControl<TextBlock>("ExampleHint")!;
+                Assert.Contains("约 20 秒", hint.Text);
+                Assert.Contains("accent", hint.Classes);
             }
             time.Advance(TimeSpan.FromSeconds(21));
             await GuiHarness.WaitForAsync(() => !vm.LotteryState.IsExamplePlaying);

@@ -62,6 +62,8 @@ test('registration uses text nodes, closed and ended results page by six and hid
   assert.equal(p.element('winnerCards').children.length,1);
   p.state({entryLottery:{...entry,phase:'Ended',draws}});
   assert.equal(p.element('winnerTitle').textContent,'召唤结果');
+  assert.equal(p.element('remaining').hidden,true);
+  assert.doesNotMatch(p.element('winnerCards').textContent,/键盘/);
   p.state({entryLottery:{...entry,phase:'Ended',draws,hidden:true}});
   assert.equal(p.element('scene').hidden,true);
   p.advance(5000);
@@ -102,6 +104,8 @@ test('pool spinning has only prizes, each grade reveals the drawn prize, then be
     assert.equal(p.element('summon').className,`drawing ${grade}`);
     assert.equal(p.element('prize').textContent,'手办');
     assert.equal(p.element('viewer').textContent,'UID 42');
+    assert.equal(p.element('banner').textContent,'UID 42 发起召唤！');
+    assert.equal(p.element('rank').textContent,{Grand:'大奖',Second:'二奖',Third:'三奖'}[grade]);
     p.advance(7000); assert.equal(p.element('scene').hidden,true);
     p.advance(7000); assert.equal(p.element('scene').hidden,true);
   }

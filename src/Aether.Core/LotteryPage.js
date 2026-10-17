@@ -3,6 +3,7 @@ const byId = id => document.getElementById(id);
 const scene = byId('scene'), summon = byId('summon'), ring = byId('ring');
 const grades = { Grand:'大奖', Second:'二奖', Third:'三奖' };
 const ranks = { Grand:'SSR', Second:'SR', Third:'R' };
+const starIcon = '<svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3-6.2-4.5-6.2 4.5 2.4-7.3L2 9.2h7.6z"/></svg>';
 let shown = '', hiding, paging, frame, fitting = [];
 const canvas = byId('particles'), context = canvas.getContext('2d');
 function resize() {
@@ -48,7 +49,10 @@ function show(state) {
   if (entry?.phase === 'Open') {
     view('registration');
     byId('keyword').textContent = `发弹幕「${entry.keyword}」`;
-    byId('entryCount').textContent = entry.entryCount;
+    const count = byId('entryCount');
+    count.textContent = entry.entryCount;
+    // Restart the board's pop on every new entry; the newest name slides in by CSS.
+    count.className = 'gold'; void count.offsetWidth; count.className = 'gold pop';
     byId('latestEntries').replaceChildren(...entry.latestEntries.slice(0,2).map(item => text('',item.nickname)));
     byId('awardRows').replaceChildren(...entry.awards.map(award => {
       const row = text(`awardRow ${award.grade}`, '');
@@ -59,10 +63,10 @@ function show(state) {
     return;
   }
   if (pool?.phase === 'Spinning') {
-    view('spinning'); summon.className = 'Second';
+    view('spinning'); summon.className = 'spinning';
     byId('banner').textContent = '';
     makeRing(pool.prizes);
-    particles(null, 'Second');
+    particles(null);
     return;
   }
   const draw = lottery.draws.at(-1), remaining = Date.parse(lottery.drawUntil) - Date.now();
@@ -80,7 +84,7 @@ function makeRing(candidates) {
   // Ten visual cells fill the circle; Core has already chosen the result.
   const cells = Array.from({length:10},(_,index) => candidates[index % candidates.length]);
   ring.replaceChildren(...cells.map((candidate,index) => {
-    const card = text(`candidate ${candidate.grade}`, '');
+    const card = text(`candidate ${candidate.grade}${candidate.viewer ? ' viewer' : ''}`, '');
     card.style.transform = `rotateY(${index * 36}deg) translateZ(430px)`;
     card.append(text('candidateLabel',candidate.label || grades[candidate.grade]),text('candidateName',candidate.name));
     return card;
@@ -92,20 +96,20 @@ function drawResult(draw, entry) {
   const elapsed = Math.max(0, Date.now() - Date.parse(draw.drawnAt));
   view('drawing');
   summon.className = grade;
-  const candidates = entry ? draw.candidates.map(name => ({name,grade,label:'★'})) : draw.candidates;
+  const candidates = entry ? draw.candidates.map(name => ({name,grade,label:'★',viewer:true})) : draw.candidates;
   const cells = makeRing(candidates.length ? candidates : [{name:entry ? draw.winner.nickname : draw.prize.name,grade}]);
   const name = entry ? draw.winner.nickname : draw.prize.name;
   const winnerIndex = Math.max(0, cells.findIndex(candidate => candidate.name === name));
   summon.style.setProperty('--stop', `${-720 - winnerIndex * 36}deg`);
   summon.style.setProperty('--elapsed', `${-elapsed / 1000}s`);
-  byId('rank').textContent = ranks[grade];
-  byId('grade').textContent = entry ? draw.award.name : grades[grade];
-  byId('stars').textContent = '★'.repeat(grade === 'Grand' ? 5 : grade === 'Second' ? 4 : 3);
+  const viewer = draw.nickname || (draw.uid ? `UID ${draw.uid}` : '');
+  byId('rank').textContent = entry ? draw.award.name : grades[grade];
+  byId('stars').innerHTML = starIcon.repeat(grade === 'Grand' ? 5 : grade === 'Second' ? 4 : 3);
   byId('prize').textContent = name;
-  byId('viewer').textContent = entry ? draw.award.prize : draw.nickname || (draw.uid ? `UID ${draw.uid}` : '');
-  byId('banner').textContent = entry ? `正在召唤 · ${draw.award.name}` : '星辰召唤';
+  byId('viewer').textContent = entry ? draw.award.prize : viewer;
+  byId('banner').textContent = entry ? `正在召唤 · ${draw.award.name}` : viewer ? `${viewer} 发起召唤！` : '星辰召唤';
   byId('shout').textContent = entry ? '★ 恭喜召唤成功 ★' : '★ 大奖降临 ★';
-  fitting = [[byId('prize'),112],[byId('viewer'),58]];
+  fitting = [[byId('rank'),84],[byId('prize'),112],[byId('viewer'),58]];
   // Flush the previous draw's animation before applying the same grade again.
   void summon.offsetWidth;
   summon.className = `drawing ${grade}`;
@@ -115,19 +119,22 @@ function drawResult(draw, entry) {
 function showWinners(lottery) {
   view('winners');
   byId('winnerTitle').textContent = lottery.phase === 'Ended' ? '召唤结果' : '目前的召唤结果';
-  byId('remaining').textContent = lottery.phase === 'Ended' ? '抽奖已结束' : `报名已截止 · 还剩 ${lottery.remaining} 个名额`;
+  byId('remaining').hidden = lottery.phase === 'Ended';
+  byId('remaining').textContent = `报名已截止 · 还剩 ${lottery.remaining} 个名额`;
   const winners = lottery.awards.flatMap((_, index) => lottery.draws.filter(draw => draw.awardIndex === index));
   if (!winners.length) {
-    byId('winnerCards').replaceChildren(); byId('pageNumber').textContent = '等待开奖'; return;
+    byId('winnerCards').replaceChildren();
+    byId('pageNumber').textContent = lottery.phase === 'Ended' ? '本场没有开奖' : '等待开奖'; return;
   }
   let page = 0;
   const count = Math.ceil(winners.length / 6);
   const render = () => {
     fitting = [];
-    byId('winnerCards').replaceChildren(...winners.slice(page * 6,page * 6 + 6).map(draw => {
+    byId('winnerCards').replaceChildren(...winners.slice(page * 6,page * 6 + 6).map((draw,index) => {
       const card = text(`winnerCard ${draw.award.grade}`, '');
       const name = text('winnerName',draw.winner.nickname);
-      card.append(text('rank',ranks[draw.award.grade]),name,text('winnerAward',draw.award.name),text('winnerPrize',draw.award.prize));
+      card.style.animationDelay = `${index * .14}s`;
+      card.append(text('rank',ranks[draw.award.grade]),name,text('winnerAward',draw.award.name));
       fitting.push([name,72]);
       return card;
     }));
@@ -136,49 +143,62 @@ function showWinners(lottery) {
   };
   render(); if (count > 1) paging = setInterval(render,5000);
 }
+const idleColors = ['#ffe7a8','#c59bff','#7cc4ff'];
+const burstColors = { Grand:['#fff','#fff1c2','#ffd36b','#e8a93a'], Second:['#fff','#e3d2ff','#c59bff','#9f7bff'], Third:['#fff','#cdebff','#7cc4ff'] };
+function star(x, y, r) {
+  context.beginPath();
+  for (let k = 0; k < 8; k++) {
+    const angle = k * Math.PI / 4, radius = k % 2 === 0 ? r : r * .32;
+    context.lineTo(x + Math.cos(angle) * radius, y + Math.sin(angle) * radius);
+  }
+  context.closePath(); context.fill();
+}
+// Board W1's canvas on this page's timeline: spinning motes, or sky stars, meteor trail, the burst at the 28% hit and rising sparkles.
 function particles(start, grade) {
   const power = grade === 'Grand' ? 3 : grade === 'Second' ? 2 : 1;
-  const colors = grade === 'Grand' ? ['#fff','#fff1c2','#ffd36b','#e8a93a']
-    : grade === 'Second' ? ['#fff','#e3d2ff','#c59bff'] : ['#fff','#cdebff','#7cc4ff'];
-  const stars = Array.from({length:power * 50},() => ({x:Math.random()*1920,y:Math.random()*1080,r:1+Math.random()*2,phase:Math.random()*6.28}));
-  let motes = [], fired = start !== null && Date.now() - start >= 2800, previous = Date.now();
-  const add = (x,y,vx,vy,life) => motes.push({x,y,vx,vy,life,max:life,r:2+Math.random()*power*2,color:colors[Math.floor(Math.random()*colors.length)]});
+  const colors = start === null ? idleColors : burstColors[grade];
+  const sky = start === null ? [] : Array.from({length:160},() => ({x:Math.random()*1920,y:Math.random()*820,s:.6+Math.random()*1.8,p:Math.random()*6.28}));
+  let motes = [], fired = start !== null && Date.now() - start >= 2600, previous = Date.now();
+  const pick = () => colors[Math.floor(Math.random()*colors.length)];
+  const add = mote => motes.push({drag:1,grav:0,max:mote.life,...mote});
   function paint() {
-    const now = Date.now(), age = start === null ? 0 : now-start;
-    const dt = Math.min(3,(now-previous)/16.667); previous=now;
-    context.clearRect(0,0,1920,1080); context.globalCompositeOperation='lighter';
-    if (start !== null) {
-      for (const star of stars) {
-        context.globalAlpha=.25+.65*Math.abs(Math.sin(star.phase+now*.0016)); context.fillStyle='#fff';
-        context.fillRect(star.x,star.y,star.r,star.r);
+    const now = Date.now(), age = start === null ? 0 : now - start;
+    const dt = Math.min(3,(now - previous) / 16.667); previous = now;
+    context.clearRect(0,0,1920,1080); context.globalCompositeOperation = 'lighter';
+    if (start === null) {
+      if (Math.random() < .35 * dt) add({x:660+Math.random()*600,y:880,vx:(Math.random()-.5)*.6,vy:-1.2-Math.random()*1.6,life:220,s:2+Math.random()*3,c:pick(),star:true,twinkle:true});
+    } else {
+      const fade = Math.min(1, age / 280);
+      context.fillStyle = '#fff';
+      for (const s of sky) { context.globalAlpha = fade * (.35 + .65 * Math.abs(Math.sin(s.p + now * .0016))); context.fillRect(s.x,s.y,s.s,s.s); }
+      if (power > 1 && age > 1540 && age < 1960) {
+        const eased = 1 - (1 - (age - 1540) / 420) ** 2, x = 960 + 840 * (1 - eased), y = 820 - 860 * (1 - eased);
+        for (let j = 0; j < 6 * dt; j++) add({x,y,vx:(Math.random()-.3)*3,vy:(Math.random()-.7)*3,life:40,s:1.5+Math.random()*3,c:colors[j%colors.length],drag:.96,grav:.02});
       }
-      if (!fired && age >= 2000) {
-        fired=true;
-        for(let i=0;i<(power===3?420:power===2?220:50);i++){
-          const angle=Math.random()*Math.PI*2, speed=3+Math.random()*(8+7*power);
-          add(960,520,Math.cos(angle)*speed,Math.sin(angle)*speed*.7-3,90+Math.random()*130);
+      if (!fired && age >= 1960) {
+        fired = true;
+        for (let j = 0; j < 90 + 165 * (power - 1); j++) {
+          const angle = Math.random() * Math.PI * 2, speed = 3 + Math.random() * (8 + 7 * power);
+          add({x:960,y:520,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed*.7-3,life:70+Math.random()*90,max:160,s:2+Math.random()*(2+power),c:colors[j%colors.length],drag:.95,grav:.06,star:j%4===0});
         }
       }
+      if (power > 1 && age > 2300 && age < 6500 && Math.random() < .3 * power * dt)
+        add({x:560+Math.random()*800,y:900,vx:(Math.random()-.5)*.8,vy:-1.5-Math.random()*2.5,life:200,s:3+Math.random()*5,c:pick(),star:true,twinkle:true});
     }
-    if (start === null || age > 2500 && power > 1) {
-      if(Math.random()<.35*dt) add(560+Math.random()*800,900,(Math.random()-.5)*.8,-1.5-Math.random()*2.5,180);
+    for (const p of motes) {
+      const drag = p.drag ** dt;
+      p.vx *= drag; p.vy = p.vy * drag + p.grav * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
+      const alpha = Math.max(0, Math.min(1, p.life / (p.max * .4))) * (p.twinkle ? .5 + .5 * Math.sin(p.life * .3) : 1);
+      context.fillStyle = p.c;
+      if (p.star) { context.globalAlpha = alpha; star(p.x,p.y,p.s * 2.2); continue; }
+      context.globalAlpha = alpha * .2; context.beginPath(); context.arc(p.x,p.y,p.s * 3.5,0,6.283); context.fill();
+      context.globalAlpha = alpha; context.beginPath(); context.arc(p.x,p.y,p.s,0,6.283); context.fill();
     }
-    for(const p of motes){
-      p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;
-      p.vx*=Math.pow(.98,dt);
-      context.fillStyle=p.color;context.globalAlpha=Math.max(0,Math.min(1,p.life/60));
-      context.beginPath();
-      for(let k=0;k<8;k++){
-        const angle=k*Math.PI/4,r=k%2===0?p.r:p.r*.32;
-        context.lineTo(p.x+Math.cos(angle)*r,p.y+Math.sin(angle)*r);
-      }
-      context.closePath();context.fill();
-    }
-    motes=motes.filter(p=>p.life>0);
-    context.globalAlpha=1;context.globalCompositeOperation='source-over';
-    frame=requestAnimationFrame(paint);
+    motes = motes.filter(p => p.life > 0);
+    context.globalAlpha = 1; context.globalCompositeOperation = 'source-over';
+    frame = requestAnimationFrame(paint);
   }
-  frame=requestAnimationFrame(paint);
+  frame = requestAnimationFrame(paint);
 }
 const events = new EventSource('/lottery/events');
 events.addEventListener('state',event => show(JSON.parse(event.data)));

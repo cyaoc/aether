@@ -39,6 +39,7 @@ public sealed class LotteryPage(WebService service, LotteryController lottery)
         response.ContentLength64 = content.Length;
         await content.CopyToAsync(response.OutputStream, token);
     }
+
     public void PlayExample()
     {
         lock (service.Gate)

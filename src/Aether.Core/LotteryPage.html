@@ -13,7 +13,9 @@
   <section id="registration" hidden>
     <div id="entryBar">
       <div class="condition"><span class="label">召唤条件</span><span id="keyword"></span></div>
+      <span class="divider"></span>
       <div class="count"><span id="entryCount" class="gold"></span><span class="countLabel">位召唤师已报名</span></div>
+      <span class="divider"></span>
       <div class="latest"><span class="label">刚刚加入</span><div id="latestEntries"></div></div>
     </div>
     <aside id="awards"><div class="gold">奖品</div><div id="awardRows"></div></aside>
@@ -33,25 +35,32 @@
           <circle cx="200" cy="200" r="158" stroke-dasharray="18 10 4 10"/><circle cx="200" cy="200" r="88" stroke-dasharray="2 6"/>
         </g>
       </svg>
+      <span class="shock effect"></span>
     </div></div>
     <div class="pillar effect" aria-hidden="true"></div><div class="rays effect" aria-hidden="true"></div>
     <div class="glow effect" aria-hidden="true"></div>
     <!-- Transparent video effects can be inserted here later, behind the cards. -->
     <div id="videoEffects" hidden></div>
     <canvas id="particles" width="1920" height="1080" aria-hidden="true"></canvas>
-    <div id="ringWrap"><div id="ring"></div></div>
+    <div id="ringWrap"><div id="ring"></div><div class="lockFrame effect" aria-hidden="true"></div></div>
     <div id="banner" class="effect"></div>
     <div class="meteor effect" aria-hidden="true"></div>
     <div id="result" class="effect" aria-live="polite">
       <div class="flip">
-        <div class="cardBack">✦</div>
+        <div class="cardBack">
+          <svg width="240" height="240" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.7" aria-hidden="true">
+            <circle cx="12" cy="12" r="10.5"/><circle cx="12" cy="12" r="8" stroke-dasharray="0.6 1"/>
+            <path d="M12 3.5l2 6.2h6.4l-5.2 3.8 2 6.1L12 15.8l-5.2 3.8 2-6.1-5.2-3.8H10z"/>
+          </svg>
+        </div>
         <div class="cardFace">
-          <div><div id="rank" class="rank"></div><div id="grade"></div><div id="stars" aria-hidden="true"></div></div>
+          <div class="cardTop"><div id="rank" class="rank"></div><div id="stars" aria-hidden="true"></div></div>
           <div id="prize"></div><div id="viewer"></div>
         </div>
       </div>
     </div>
     <div id="shout" class="gold effect"></div>
+    <div class="flash effect" aria-hidden="true"></div>
   </section>
   <section id="winners" hidden>
     <h1 id="winnerTitle" class="gold"></h1><div id="winnerCards"></div>
