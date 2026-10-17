@@ -46,10 +46,9 @@ public partial class LotteryPanel : UserControl
         };
         NewButton.Click += async (_, _) =>
         {
-            if (!NewButton.IsEnabled) return;
-            var prizes = Prizes();
-            var word = StopWordInput.Text ?? "";
-            await ChangeAsync(lottery => lottery.New(prizes, word));
+            if (!NewButton.IsEnabled || TopLevel.GetTopLevel(this) is not Window owner) return;
+            var mode = await new NewLotteryWindow().ShowDialog<LotteryMode?>(owner);
+            if (mode is { } selected) await ChangeAsync(lottery => lottery.New(selected));
         };
         StopButton.Click += async (_, _) => { if (StopButton.IsEnabled) await ChangeAsync(lottery => lottery.Stop()); };
         CancelButton.Click += async (_, _) => { if (CancelButton.IsEnabled) await ChangeAsync(lottery => lottery.Cancel()); };
@@ -87,19 +86,31 @@ public partial class LotteryPanel : UserControl
     {
         if (loading || PrizeRows is null) return;
         var state = viewModel?.LotteryState;
+        var entry = state?.EntryLottery;
+        EntryContent.IsVisible = entry is not null;
+        PoolContent.IsVisible = entry is null;
+        ModeText.Text = entry is not null ? "报名抽奖" : "奖池抽奖";
+        NewHint.Text = entry is { Phase: EntryLotteryPhase.Open or EntryLotteryPhase.Closed } ? "先结束这一场才能新开" : "";
+        if (entry is not null)
+        {
+            PhaseText.Text = MainWindowViewModel.EntryPhaseText(entry);
+            PhaseChip.Classes.Set("spinning", entry.Phase == EntryLotteryPhase.Open);
+            PhaseChip.Classes.Set("drawing", entry.Phase == EntryLotteryPhase.Closed);
+            PhaseChip.Classes.Set("ended", entry.Phase == EntryLotteryPhase.Ended);
+            NewButton.IsEnabled = !busy && state!.Connected && entry.Phase is EntryLotteryPhase.Preparing or EntryLotteryPhase.Ended;
+            return;
+        }
         var lottery = state?.Lottery;
         if (loadedId != lottery?.Id || loadedRoom is not null && loadedRoom != state?.RoomId)
         {
             loading = true;
-            // 新开一场 in the same room carries the UID over, as it does the prizes and the stop word.
-            var keepUid = loadedId is not null && loadedRoom == state?.RoomId;
             loadedId = lottery?.Id;
             loadedRoom = state?.RoomId;
             PrizeRows.Children.Clear();
             if (lottery is not null)
                 foreach (var prize in lottery.Prizes) AddPrize(prize);
             else AddPrize(new("", 1, PrizeGrade.Grand), isNew: true);
-            UidInput.Text = lottery?.Uid?.ToString(CultureInfo.InvariantCulture) ?? (keepUid ? UidInput.Text : "");
+            UidInput.Text = lottery?.Uid?.ToString(CultureInfo.InvariantCulture) ?? "";
             StopWordInput.Text = lottery?.StopWord ?? DefaultStopWord;
             loading = false;
         }
@@ -111,6 +122,7 @@ public partial class LotteryPanel : UserControl
         PhaseText.Text = viewModel?.LotteryPhaseText is { Length: > 0 } text ? text : "待机";
         PhaseChip.Classes.Set("spinning", spinning);
         PhaseChip.Classes.Set("drawing", drawing);
+        PhaseChip.Classes.Set("ended", false);
 
         var rows = Rows.ToArray();
         var total = rows.Sum(row => (long)Math.Max(0, row.Value.Weight));
@@ -124,7 +136,7 @@ public partial class LotteryPanel : UserControl
         StopWordError.IsVisible = wordInvalid;
         UidInput.IsReadOnly = StopWordInput.IsReadOnly = !idle || busy;
         AddPrizeBar.IsVisible = idle;
-        AddButton.IsEnabled = idle && !busy && rows.Length < PoolLottery.MaxPrizes;
+        AddButton.IsEnabled = idle && !busy && rows.Length < LotteryController.MaxPrizes;
         var viewer = uid is { } shown ? lottery?.Viewers.GetValueOrDefault(shown) : null;
         ViewerHint.Text = uidInvalid ? "" : uid is null ? "不填就只能主播点“停”"
             : viewer is not null ? $"{viewer} · 这场发过弹幕" : "这场还没发过弹幕，喊停后显示昵称";
@@ -138,7 +150,7 @@ public partial class LotteryPanel : UserControl
         StopButton.IsVisible = CancelButton.IsVisible = spinning;
         StopButton.IsEnabled = CancelButton.IsEnabled = spinning && !busy && state?.CanControl == true;
         DrawingButton.IsVisible = drawing;
-        NewButton.IsEnabled = idle && !busy && ready;
+        NewButton.IsEnabled = idle && !busy && connected;
         var word = lottery is { Phase: not PoolLotteryPhase.Idle } ? lottery.StopWord : StopWordInput.Text?.Trim();
         var caller = (lottery is { Phase: not PoolLotteryPhase.Idle } ? lottery.Uid : uid) is { } callerUid
             ? lottery?.Viewers.GetValueOrDefault(callerUid) ?? $"UID {callerUid}" : null;
@@ -173,7 +185,7 @@ public partial class LotteryPanel : UserControl
 
     private static string? Viewer(PoolDraw draw) => draw.Uid is { } uid ? draw.Nickname ?? $"UID {uid}" : null;
 
-    private static void SetGrade(Border badge, TextBlock text, PrizeGrade grade)
+    internal static void SetGrade(Border badge, TextBlock text, PrizeGrade grade)
     {
         text.Text = GradeNames[(int)grade];
         for (var index = 0; index < GradeClasses.Length; index++) badge.Classes.Set(GradeClasses[index], index == (int)grade);
@@ -207,14 +219,18 @@ public partial class LotteryPanel : UserControl
         return new Border { Child = row };
     }
 
-    private async Task ChangeAsync(Action<PoolLottery> change)
+    private async Task ChangeAsync(Action<LotteryController> change)
     {
         if (busy || viewModel is null) return;
         busy = true;
         ErrorMessage.IsVisible = false;
         Refresh();
         try { await viewModel.ChangeLotteryAsync(change); }
-        catch (Exception error) { ErrorMessage.Text = error.Message; ErrorMessage.IsVisible = true; }
+        catch (Exception error)
+        {
+            if (EntryContent.IsVisible) EntryContent.ShowError(error.Message);
+            else { ErrorMessage.Text = error.Message; ErrorMessage.IsVisible = true; }
+        }
         finally { busy = false; Refresh(); }
     }
 }

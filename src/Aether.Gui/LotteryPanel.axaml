@@ -1,7 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPanel">
   <UserControl.Styles>
-    <!-- Phase chip, as on canvas V1: neutral while idle, accent while spinning, warning while drawing. -->
+    <!-- Phase chip, as on canvases V1 and O1: neutral while idle, accent while spinning or open, warning while drawing, success once ended. -->
     <Style Selector="Border#PhaseChip">
       <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
       <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
@@ -25,6 +25,14 @@
     </Style>
     <Style Selector="Border#PhaseChip.drawing Ellipse">
       <Setter Property="Fill" Value="{DynamicResource Warning.Dot}" />
+    </Style>
+    <Style Selector="Border#PhaseChip.ended">
+      <Setter Property="Background" Value="{DynamicResource Success.Tint}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Success.Tint}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="Border#PhaseChip.ended Ellipse">
+      <Setter Property="Fill" Value="{DynamicResource Success}" />
     </Style>
     <Style Selector="Button#NewButton, Button#CancelButton">
       <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
@@ -60,7 +68,7 @@
       <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="12">
         <TextBlock Classes="h1" Text="抽奖" VerticalAlignment="Center" />
         <Border Grid.Column="1" Height="24" Padding="8,0" CornerRadius="6" Background="{DynamicResource Border.Subtle}" VerticalAlignment="Center">
-          <TextBlock Classes="caption" Text="奖池抽奖" Foreground="{DynamicResource Text.Secondary}" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <TextBlock x:Name="ModeText" Classes="caption" Text="奖池抽奖" Foreground="{DynamicResource Text.Secondary}" FontWeight="SemiBold" VerticalAlignment="Center" />
         </Border>
         <Border Grid.Column="2" x:Name="PhaseChip" Height="24" Padding="10,0" CornerRadius="12" BorderThickness="1" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="6">
@@ -68,6 +76,7 @@
             <TextBlock x:Name="PhaseText" Classes="caption" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
           </StackPanel>
         </Border>
+        <TextBlock Grid.Column="3" x:Name="NewHint" Classes="caption muted singleLine" HorizontalAlignment="Right" VerticalAlignment="Center" />
         <Button Grid.Column="4" x:Name="NewButton" Height="32" Padding="10,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" StrokeThickness="2" /></Viewbox>
@@ -76,7 +85,8 @@
         </Button>
       </Grid>
     </Border>
-    <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+    <local:EntryLotteryPanel Grid.Row="1" x:Name="EntryContent" IsVisible="False" />
+    <Grid Grid.Row="1" x:Name="PoolContent" ColumnDefinitions="*,Auto">
       <Grid RowDefinitions="*,Auto">
         <ScrollViewer HorizontalScrollBarVisibility="Disabled" Padding="20,18">
           <StackPanel Spacing="22">

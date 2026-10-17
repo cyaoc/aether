@@ -5,8 +5,8 @@ using System.Text.Json.Serialization;
 
 namespace Aether.Core;
 
-/// <summary>The 抽奖页: read-only, it only shows what <see cref="PoolLottery"/> reports.</summary>
-public sealed class LotteryPage(PoolLottery lottery)
+/// <summary>The 抽奖页: read-only, it only shows what <see cref="LotteryController"/> reports.</summary>
+public sealed class LotteryPage(LotteryController lottery)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
 
@@ -17,6 +17,7 @@ public sealed class LotteryPage(PoolLottery lottery)
         {
             yield return "event: state\ndata: " + JsonSerializer.Serialize(update.State, Json) + "\n\n";
             if (update.Draw is { } draw) yield return "event: draw\ndata: " + JsonSerializer.Serialize(draw, Json) + "\n\n";
+            if (update.EntryDraw is { } entryDraw) yield return "event: draw\ndata: " + JsonSerializer.Serialize(entryDraw, Json) + "\n\n";
         }
     }
 

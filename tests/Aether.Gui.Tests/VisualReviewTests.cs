@@ -19,6 +19,62 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     [Theory]
+    [InlineData(1200, 720, false)]
+    [InlineData(1200, 720, true)]
+    [InlineData(1040, 600, false)]
+    [InlineData(1040, 600, true)]
+    public Task Screenshots_entry_lottery_and_picker(int width, int height, bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory)
+                { DataContext = vm, Width = width, Height = height, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = 4;
+                var at = new DateTimeOffset(2026, 10, 17, 20, 30, 0, TimeSpan.FromHours(8));
+                string[] names = ["一只小鹿", "柚子不酸", "夜航船", "桃桃乌龙", "番茄炒蛋", "青柠", "橘猫本猫", "南巷"];
+                var lottery = EntryLotteryPanelTests.TestLottery() with
+                {
+                    Entries = [.. names.Select((name, index) => new LotteryEntry(index + 1, name, at.AddSeconds(index * 13)))],
+                };
+                foreach (var phase in Enum.GetValues<EntryLotteryPhase>())
+                {
+                    var draws = phase is EntryLotteryPhase.Closed or EntryLotteryPhase.Ended
+                        ? Enumerable.Range(0, phase == EntryLotteryPhase.Ended ? 6 : 2).Select(index =>
+                        {
+                            var award = phase == EntryLotteryPhase.Closed ? 2 : index == 0 ? 0 : index < 3 ? 1 : 2;
+                            return new EntryDraw($"d{index}", award, lottery.Awards[award], lottery.Entries[index], at, []);
+                        }).ToArray() : [];
+                    vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery with
+                    {
+                        Phase = phase, Entries = phase == EntryLotteryPhase.Preparing ? [] : lottery.Entries,
+                        Draws = [.. draws], DrawUntil = phase == EntryLotteryPhase.Closed ? at.AddSeconds(7) : null,
+                    })));
+                    Save(window, $"entry-{phase}-{width}-{(dark ? "dark" : "light")}");
+                    if (phase != EntryLotteryPhase.Closed) continue;
+                    vm.Apply(new LotteryUpdate(vm.LotteryState with { EntryLottery = vm.LotteryState.EntryLottery! with { DrawUntil = null } }));
+                    window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "EndEntryButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Save(window, $"entry-Closed-confirm-{width}-{(dark ? "dark" : "light")}");
+                }
+                var picker = new NewLotteryWindow { RequestedThemeVariant = window.RequestedThemeVariant };
+                var picked = picker.ShowDialog<LotteryMode?>(window);
+                Save(picker, $"lottery-picker-{width}-{(dark ? "dark" : "light")}");
+                picker.Close(null);
+                await picked;
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public Task Screenshots_pool_lottery(bool dark)
@@ -52,7 +108,7 @@ public sealed class VisualReviewTests
                 };
                 foreach (var phase in Enum.GetValues<PoolLotteryPhase>())
                 {
-                    vm.Apply(new PoolLotteryUpdate(new(7734200, true, session with { Phase = phase })));
+                    vm.Apply(new LotteryUpdate(new(7734200, true, session with { Phase = phase })));
                     Save(window, $"lottery-{phase}-{(dark ? "dark" : "light")}");
                 }
             }

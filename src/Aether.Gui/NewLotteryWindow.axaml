@@ -1,0 +1,94 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Aether.Gui.NewLotteryWindow" Title="新开一场抽奖" Width="620" SizeToContent="Height" CanResize="False" WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <!-- Mode cards as canvas V2: icon, name and radio dot, a description, then ticked facts under a divider. -->
+    <Style Selector="RadioButton.modeCard">
+      <Setter Property="Padding" Value="16" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+      <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="VerticalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+            <ContentPresenter Content="{TemplateBinding Content}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="RadioButton.modeCard:focus-visible">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    </Style>
+    <Style Selector="RadioButton.modeCard:checked">
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+      <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+    </Style>
+    <Style Selector="RadioButton.modeCard Viewbox.mode">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
+    </Style>
+    <Style Selector="RadioButton.modeCard Ellipse.dot">
+      <Setter Property="Width" Value="18" />
+      <Setter Property="Height" Value="18" />
+      <Setter Property="Fill" Value="{DynamicResource Surface.Card}" />
+      <Setter Property="Stroke" Value="{DynamicResource Text.Disabled}" />
+      <Setter Property="StrokeThickness" Value="2" />
+    </Style>
+    <Style Selector="RadioButton.modeCard:checked Ellipse.dot">
+      <Setter Property="Stroke" Value="{DynamicResource Accent}" />
+      <Setter Property="StrokeThickness" Value="6" />
+    </Style>
+    <Style Selector="StackPanel.fact Viewbox">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+  </Window.Styles>
+  <StackPanel Margin="24" Spacing="18">
+    <StackPanel Spacing="4">
+      <TextBlock Classes="h1" Text="新开一场抽奖" />
+      <TextBlock Classes="muted" FontSize="13" Text="先选一种抽奖方式，开始后不能换" />
+    </StackPanel>
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+      <RadioButton x:Name="EntryMode" Classes="modeCard" GroupName="mode" AutomationProperties.Name="报名抽奖">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+            <Viewbox Classes="icon mode" Width="20" Height="20"><Path Data="{StaticResource Icon.Users}" /></Viewbox>
+            <TextBlock Grid.Column="1" Text="报名抽奖" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Ellipse Grid.Column="2" Classes="dot" />
+          </Grid>
+          <TextBlock FontSize="13" LineHeight="20" Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap" Text="观众发弹幕关键字报名，截止后从报名的人里抽出中奖的人。" />
+          <Border BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="0,8,0,0">
+            <StackPanel Spacing="4">
+              <StackPanel Classes="fact" Orientation="Horizontal" Spacing="6"><Viewbox Classes="icon" Width="12" Height="12"><Path Data="{StaticResource Icon.Check}" StrokeThickness="2.4" /></Viewbox><TextBlock Classes="caption muted" Text="最多 5 个奖项，各有名额，抽满为止" /></StackPanel>
+              <StackPanel Classes="fact" Orientation="Horizontal" Spacing="6"><Viewbox Classes="icon" Width="12" Height="12"><Path Data="{StaticResource Icon.Check}" StrokeThickness="2.4" /></Viewbox><TextBlock Classes="caption muted" Text="中过奖的人不再参加后面的奖项" /></StackPanel>
+              <StackPanel Classes="fact" Orientation="Horizontal" Spacing="6"><Viewbox Classes="icon" Width="12" Height="12"><Path Data="{StaticResource Icon.Check}" StrokeThickness="2.4" /></Viewbox><TextBlock Classes="caption muted" Text="奖项的档次决定开奖特效" /></StackPanel>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </RadioButton>
+      <RadioButton Grid.Column="1" x:Name="PoolMode" Classes="modeCard" GroupName="mode" IsChecked="True" AutomationProperties.Name="奖池抽奖">
+        <StackPanel Spacing="10">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+            <Viewbox Classes="icon mode" Width="20" Height="20"><Path Data="{StaticResource Icon.Lottery}" /></Viewbox>
+            <TextBlock Grid.Column="1" Text="奖池抽奖" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <Ellipse Grid.Column="2" Classes="dot" />
+          </Grid>
+          <TextBlock FontSize="13" LineHeight="20" Foreground="{DynamicResource Text.Secondary}" TextWrapping="Wrap" Text="设好奖品和档次，点开始画面转起来，被点名的一位观众发口令，或主播点“停”，停下揭晓奖品。" />
+          <Border BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="0,8,0,0">
+            <StackPanel Spacing="4">
+              <StackPanel Classes="fact" Orientation="Horizontal" Spacing="6"><Viewbox Classes="icon" Width="12" Height="12"><Path Data="{StaticResource Icon.Check}" StrokeThickness="2.4" /></Viewbox><TextBlock Classes="caption muted" Text="按占比随机，奖池不会抽完" /></StackPanel>
+              <StackPanel Classes="fact" Orientation="Horizontal" Spacing="6"><Viewbox Classes="icon" Width="12" Height="12"><Path Data="{StaticResource Icon.Check}" StrokeThickness="2.4" /></Viewbox><TextBlock Classes="caption muted" Text="大奖、二奖、三奖各有特效" /></StackPanel>
+              <StackPanel Classes="fact" Orientation="Horizontal" Spacing="6"><Viewbox Classes="icon" Width="12" Height="12"><Path Data="{StaticResource Icon.Check}" StrokeThickness="2.4" /></Viewbox><TextBlock Classes="caption muted" Text="每次只认一位观众喊停" /></StackPanel>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </RadioButton>
+    </Grid>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+      <Button x:Name="CancelButton" Content="取消" Height="34" Padding="14,0" IsCancel="True" Click="Cancel" />
+      <Button x:Name="NextButton" Content="下一步" Classes="accent" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsDefault="True" Click="Next" />
+    </StackPanel>
+  </StackPanel>
+</Window>

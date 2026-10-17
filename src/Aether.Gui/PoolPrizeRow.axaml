@@ -1,52 +1,4 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.PoolPrizeRow">
-  <UserControl.Styles>
-    <!-- 档次 as canvas V1's segmented control: one bordered strip, the picked segment in its grade's tone. -->
-    <Style Selector="ListBox#GradeInput">
-      <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="Padding" Value="0" />
-      <Setter Property="ClipToBounds" Value="True" />
-      <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
-      <Setter Property="ItemsPanel">
-        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
-      </Setter>
-    </Style>
-    <Style Selector="ListBox#GradeInput ListBoxItem">
-      <Setter Property="Height" Value="30" />
-      <Setter Property="MinHeight" Value="0" />
-      <Setter Property="Padding" Value="9,0" />
-      <Setter Property="FontSize" Value="12" />
-      <Setter Property="CornerRadius" Value="0" />
-      <Setter Property="VerticalContentAlignment" Value="Center" />
-      <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
-      <Setter Property="BorderThickness" Value="1,0,0,0" />
-    </Style>
-    <Style Selector="ListBox#GradeInput ListBoxItem:nth-child(1)">
-      <Setter Property="BorderThickness" Value="0" />
-    </Style>
-    <Style Selector="ListBox#GradeInput ListBoxItem:pointerover /template/ ContentPresenter, ListBox#GradeInput ListBoxItem:pressed /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
-      <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
-    </Style>
-    <Style Selector="ListBox#GradeInput ListBoxItem:selected /template/ ContentPresenter, ListBox#GradeInput ListBoxItem:selected:pointerover /template/ ContentPresenter, ListBox#GradeInput ListBoxItem:selected:pressed /template/ ContentPresenter">
-      <Setter Property="FontWeight" Value="Bold" />
-    </Style>
-    <Style Selector="ListBox#GradeInput ListBoxItem:nth-child(1):selected /template/ ContentPresenter, ListBox#GradeInput ListBoxItem:nth-child(1):selected:pointerover /template/ ContentPresenter, ListBox#GradeInput ListBoxItem:nth-child(1):selected:pressed /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource Grade.Grand.Tint}" />
-      <Setter Property="Foreground" Value="{DynamicResource Grade.Grand}" />
-    </Style>
-    <Style Selector="ListBox#GradeInput ListBoxItem:nth-child(2):selected /template/ ContentPresenter, ListBox#GradeInput ListBoxItem:nth-child(2):selected:pointerover /template/ ContentPresenter, ListBox#GradeInput ListBoxItem:nth-child(2):selected:pressed /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource Grade.Second.Tint}" />
-      <Setter Property="Foreground" Value="{DynamicResource Grade.Second}" />
-    </Style>
-    <Style Selector="ListBox#GradeInput ListBoxItem:nth-child(3):selected /template/ ContentPresenter, ListBox#GradeInput ListBoxItem:nth-child(3):selected:pointerover /template/ ContentPresenter, ListBox#GradeInput ListBoxItem:nth-child(3):selected:pressed /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource Grade.Third.Tint}" />
-      <Setter Property="Foreground" Value="{DynamicResource Grade.Third}" />
-    </Style>
-  </UserControl.Styles>
   <Border x:Name="RowBorder" BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="12,8,6,8" MinHeight="48">
     <StackPanel Spacing="4">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto,30" ColumnSpacing="8">
@@ -56,7 +8,7 @@
           <TextBox x:Name="WeightInput" Classes="numeric" Width="52" Height="32" MinHeight="32" FontSize="13" Padding="8,0" TextAlignment="Right" />
         </StackPanel>
         <TextBlock Grid.Column="2" x:Name="Percentage" Classes="caption numeric muted" MinWidth="40" TextAlignment="Right" VerticalAlignment="Center" />
-        <ListBox Grid.Column="3" x:Name="GradeInput" SelectionMode="AlwaysSelected" VerticalAlignment="Center" />
+        <ListBox Grid.Column="3" x:Name="GradeInput" Classes="prizeGrade" SelectionMode="AlwaysSelected" VerticalAlignment="Center" />
         <Button Grid.Column="4" x:Name="RemoveButton" Classes="ghost danger" Width="30" Height="30">
           <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
         </Button>

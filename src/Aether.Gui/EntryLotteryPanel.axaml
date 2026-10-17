@@ -1,0 +1,126 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.EntryLotteryPanel">
+  <UserControl.Styles>
+    <!-- Winner chips and entry rows as on canvas O1; the draw on air stays highlighted until the 抽奖页 finishes it. -->
+    <Style Selector="Border.winner">
+      <Setter Property="Height" Value="24" />
+      <Setter Property="Padding" Value="8,0" />
+      <Setter Property="Margin" Value="0,0,4,4" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+      <Setter Property="TextElement.FontSize" Value="12" />
+      <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="Border.winner.fresh">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+      <Setter Property="Background" Value="{DynamicResource Accent.Flash}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
+    </Style>
+    <Style Selector="TextBlock.awardName">
+      <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+    </Style>
+    <Style Selector="StackPanel#EntryRows > Border">
+      <Setter Property="Padding" Value="16,7" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <Style Selector="StackPanel#EntryRows > Border.fresh">
+      <Setter Property="Background" Value="{DynamicResource Accent.Flash}" />
+    </Style>
+    <Style Selector="Border.badge.won">
+      <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
+      <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+    </Style>
+    <!-- The confirming 结束 is the canvas's solid danger button. -->
+    <Style Selector="Button#ConfirmEndButton">
+      <Setter Property="Background" Value="{DynamicResource Danger}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+      <Setter Property="Foreground" Value="{DynamicResource Accent.OnSolid}" />
+    </Style>
+    <Style Selector="Button#ConfirmEndButton:pointerover /template/ ContentPresenter, Button#ConfirmEndButton:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Danger}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+      <Setter Property="Foreground" Value="{DynamicResource Accent.OnSolid}" />
+    </Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="*,300">
+    <Grid RowDefinitions="*,Auto">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" Padding="20,18">
+        <StackPanel Spacing="22">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+              <TextBlock Classes="section" Text="报名条件" />
+              <TextBlock Grid.Column="1" Classes="hint" Text="观众发的弹幕和关键字完全一样就算报名，每人只算一次" />
+            </Grid>
+            <Grid ColumnDefinitions="Auto,160,*" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+              <TextBlock Classes="label" Text="报名关键字" VerticalAlignment="Center" />
+              <TextBox Grid.Column="1" x:Name="KeywordInput" Height="32" MinHeight="32" FontSize="13" AutomationProperties.Name="报名关键字" Classes.invalid="{Binding #KeywordError.IsVisible}" />
+              <TextBlock Grid.Column="2" x:Name="KeywordHint" Classes="caption muted singleLine" Text="不能靠送礼物报名" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" x:Name="KeywordError" Classes="error" Text="报名关键字不能为空" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+            </Grid>
+          </StackPanel>
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+              <TextBlock Classes="section" Text="奖项" />
+              <TextBlock Grid.Column="1" Classes="hint" Text="中过奖的人不再参加这一场后面的奖项" />
+            </Grid>
+            <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8"><StackPanel x:Name="AwardRows" /></Border>
+            <!-- Click on press, as 添加奖品 does: leaving a new row above reveals its error before the release. -->
+            <Grid x:Name="AddAwardBar" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+              <Button x:Name="AddAwardButton" ClickMode="Press" Padding="10,0,12,0">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" /></Viewbox>
+                  <TextBlock Text="添加奖项" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="最多 5 个奖项；档次决定开奖特效" VerticalAlignment="Center" />
+            </Grid>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+      <Border Grid.Row="1" BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="20,12,20,18">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+          <StackPanel VerticalAlignment="Center" Spacing="4">
+            <TextBlock x:Name="StatusText" Classes="caption muted singleLine" AutomationProperties.LiveSetting="Polite" />
+            <TextBlock x:Name="ErrorMessage" Classes="caption error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
+          </StackPanel>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+            <TextBlock x:Name="ConfirmEndText" Classes="singleLine" FontSize="13" Foreground="{DynamicResource Text.Secondary}" Text="结束后不能再抽，确定吗？" VerticalAlignment="Center" IsVisible="False" />
+            <Button x:Name="CancelEndButton" Content="取消" Height="34" Padding="14,0" IsVisible="False" />
+            <Button x:Name="StartEntryButton" Classes="accent" Content="开始报名" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
+            <Button x:Name="CloseEntriesButton" Classes="accent" Content="截止报名" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
+            <Button x:Name="EndEntryButton" Content="结束这场抽奖" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
+            <Button x:Name="ConfirmEndButton" Content="结束" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsVisible="False" />
+            <Button x:Name="VisibilityButton" Content="收起画面" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
+          </StackPanel>
+        </Grid>
+      </Border>
+    </Grid>
+    <Border Grid.Column="1" Background="{DynamicResource Surface.Aside}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
+        <Grid ColumnDefinitions="*,Auto" Margin="16,18,16,8">
+          <TextBlock Classes="section" Text="中奖名单" />
+          <TextBlock Grid.Column="1" x:Name="WinnerCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+        </Grid>
+        <ScrollViewer Grid.Row="1" MaxHeight="210" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="16,0,16,12">
+            <TextBlock x:Name="EmptyWinners" Classes="hint" Text="截止报名后开奖，中奖的人会列在这里" />
+            <StackPanel x:Name="WinnerGroups" Spacing="4" />
+          </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="2" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Padding="16,12,16,8">
+          <Grid ColumnDefinitions="*,Auto">
+            <TextBlock Classes="section" Text="报名" />
+            <TextBlock Grid.Column="1" x:Name="EntryCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+          </Grid>
+        </Border>
+        <TextBlock Grid.Row="3" x:Name="EmptyEntries" Classes="hint" Text="开始报名后，满足条件的观众会出现在这里" Margin="16,4" />
+        <ScrollViewer Grid.Row="4" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel x:Name="EntryRows" />
+        </ScrollViewer>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>

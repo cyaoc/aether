@@ -71,7 +71,8 @@ internal sealed class Database
             CREATE TABLE IF NOT EXISTS lottery (
                 id TEXT PRIMARY KEY, room_id INTEGER NOT NULL, mode TEXT NOT NULL,
                 stop_word TEXT NOT NULL, started_at TEXT NOT NULL, ended_at TEXT,
-                phase INTEGER NOT NULL, uid INTEGER, draw_until TEXT
+                phase INTEGER NOT NULL, uid INTEGER, draw_until TEXT,
+                keyword TEXT NOT NULL DEFAULT '', hidden INTEGER NOT NULL DEFAULT 0
             );
             CREATE UNIQUE INDEX IF NOT EXISTS lottery_active_room ON lottery(room_id) WHERE ended_at IS NULL;
             CREATE TABLE IF NOT EXISTS lottery_prize (
@@ -85,6 +86,16 @@ internal sealed class Database
             CREATE INDEX IF NOT EXISTS lottery_draw_lottery ON lottery_draw(lottery_id);
             CREATE TABLE IF NOT EXISTS lottery_viewer (
                 lottery_id TEXT NOT NULL REFERENCES lottery(id), uid INTEGER NOT NULL, nickname TEXT NOT NULL,
+                PRIMARY KEY(lottery_id, uid)
+            );
+            CREATE TABLE IF NOT EXISTS lottery_award (
+                lottery_id TEXT NOT NULL REFERENCES lottery(id), position INTEGER NOT NULL,
+                name TEXT NOT NULL, prize TEXT NOT NULL, capacity INTEGER NOT NULL CHECK(capacity > 0), grade INTEGER NOT NULL,
+                PRIMARY KEY(lottery_id, position)
+            );
+            CREATE TABLE IF NOT EXISTS lottery_entry (
+                lottery_id TEXT NOT NULL REFERENCES lottery(id), uid INTEGER NOT NULL,
+                nickname TEXT NOT NULL, entered_at TEXT NOT NULL,
                 PRIMARY KEY(lottery_id, uid)
             );
             """;

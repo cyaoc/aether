@@ -18,7 +18,7 @@ public sealed partial class AetherClient : IDisposable
     private readonly string dataDirectory;
     public WebService WebService { get; }
     public WelcomeAnimation WelcomeAnimation { get; }
-    public PoolLottery Lottery { get; }
+    public LotteryController Lottery { get; }
     private readonly Lazy<Stores> stores;
 
     public AetherClient(HttpMessageHandler httpHandler, Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket,
@@ -90,7 +90,7 @@ public sealed partial class AetherClient : IDisposable
     public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, CancellationToken cancellationToken = default) =>
         WatchAsync(roomId, enableLottery: false, cancellationToken);
 
-    /// <summary>The GUI opts in to the pool lottery; the CLI watches without one.</summary>
+    /// <summary>The GUI opts in to lotteries; the CLI watches without one.</summary>
     public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, bool enableLottery, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(roomId);

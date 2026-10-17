@@ -8,23 +8,26 @@ html,body { margin:0; width:100%; height:100%; background:transparent; }
 body { display:grid; place-items:center; font-family:system-ui,sans-serif; color:white; }
 #result { text-align:center; padding:32px 48px; border-radius:20px; background:#17212fe6; max-width:80%; overflow-wrap:anywhere; }
 #prize { font-size:clamp(32px,6vw,96px); margin:12px 0; }
+#details { font-size:clamp(20px,2.4vw,40px); white-space:pre-line; line-height:1.6; }
 #grade,#viewer { font-size:clamp(24px,3vw,48px); }
 [hidden] { display:none!important; }
 </style>
-<section id="result" hidden aria-live="polite"><div id="grade"></div><div id="prize"></div><div id="viewer"></div></section>
+<section id="result" hidden aria-live="polite"><div id="grade"></div><div id="prize"></div><div id="viewer"></div><div id="details"></div></section>
 <script>
 const result = document.getElementById('result'), grade = document.getElementById('grade');
 const prize = document.getElementById('prize'), viewer = document.getElementById('viewer');
 const grades = {Grand:'大奖',Second:'二奖',Third:'三奖'};
-let rolling, hiding, shown = '';
-function clear() { clearInterval(rolling); clearTimeout(hiding); result.hidden = true; }
+const details = document.getElementById('details');
+let rolling, hiding, paging, shown = '';
+function clear() { clearInterval(rolling); clearTimeout(hiding); clearInterval(paging); result.hidden = true; }
 function show(state) {
+  if (state.entryLottery) { showEntry(state.entryLottery); return; }
   const lottery = state.lottery;
   // Other pushes (connection changes) must not restart the roll from the first prize.
   const key = lottery ? `${lottery.id} ${lottery.phase} ${lottery.draws.length}` : '';
   if (key === shown) return;
   shown = key;
-  clear();
+  clear(); details.textContent = '';
   if (!lottery || lottery.phase === 'Idle') return;
   result.hidden = false;
   if (lottery.phase === 'Spinning') {
@@ -38,6 +41,50 @@ function show(state) {
     viewer.textContent = draw.nickname || (draw.uid ? `UID ${draw.uid}` : '');
     hiding = setTimeout(clear, Math.max(0, Date.parse(lottery.drawUntil) - Date.now()));
   }
+}
+function showEntry(lottery) {
+  const key = `${lottery.id} ${lottery.phase} ${lottery.entryCount} ${lottery.draws.length} ${lottery.drawUntil} ${lottery.hidden}`;
+  if (key === shown) return;
+  shown = key; clear();
+  grade.textContent = ''; prize.textContent = ''; viewer.textContent = ''; details.textContent = '';
+  if (lottery.phase === 'Preparing' || lottery.hidden) return;
+  result.hidden = false;
+  if (lottery.phase === 'Open') {
+    grade.textContent = '报名中'; prize.textContent = `发弹幕「${lottery.keyword}」`;
+    viewer.textContent = `${lottery.entryCount} 人已报名`;
+    details.textContent = '最新报名：' + lottery.latestEntries.map(entry => entry.nickname).join('、') + '\n'
+      + lottery.awards.map(award => `${award.name} · ${grades[award.grade]} · ${award.prize} × ${award.capacity}`).join('\n');
+    return;
+  }
+  const remaining = Date.parse(lottery.drawUntil) - Date.now();
+  if (remaining > 0 && lottery.draws.length) {
+    const draw = lottery.draws[lottery.draws.length - 1];
+    grade.textContent = `${draw.award.name} · ${grades[draw.award.grade]}`;
+    viewer.textContent = draw.award.prize;
+    let index = 0;
+    const reveal = () => { prize.textContent = draw.winner.nickname; };
+    const roll = () => {
+      if (Date.now() - Date.parse(draw.drawnAt) >= 1800) { clearInterval(rolling); reveal(); }
+      else prize.textContent = draw.candidates[index++ % draw.candidates.length];
+    };
+    roll(); rolling = setInterval(roll, 100);
+    hiding = setTimeout(() => showEntry({...lottery, drawUntil:null}), remaining);
+    return;
+  }
+  grade.textContent = lottery.phase === 'Ended' ? '完整中奖名单' : '目前的中奖名单';
+  viewer.textContent = lottery.phase === 'Ended' ? '抽奖已结束' : `报名已截止 · 还剩 ${lottery.remaining} 个名额`;
+  const winners = lottery.awards.flatMap((award, index) => lottery.draws.filter(draw => draw.awardIndex === index));
+  if (!winners.length) { details.textContent = '暂无中奖观众'; return; }
+  let page = 0;
+  const count = Math.ceil(winners.length / 6);
+  const renderPage = () => {
+    details.textContent = winners.slice(page * 6, page * 6 + 6)
+      .map(draw => `${draw.award.name} · ${draw.award.prize} · ${draw.winner.nickname}`).join('\n');
+    prize.textContent = count > 1 ? `${page + 1} / ${count}` : '';
+    page = (page + 1) % count;
+  };
+  renderPage();
+  if (count > 1) paging = setInterval(renderPage, 5000);
 }
 const events = new EventSource('/lottery/events');
 events.addEventListener('state', event => show(JSON.parse(event.data)));

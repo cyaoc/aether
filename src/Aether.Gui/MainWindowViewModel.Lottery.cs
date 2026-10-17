@@ -8,17 +8,31 @@ public partial class MainWindowViewModel
     private CancellationTokenSource? lotteryStop;
     private Task lotteryUpdates = Task.CompletedTask;
     private Task lotteryChange = Task.CompletedTask;
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(LotteryPhaseText))] private PoolLotteryState lotteryState = new(null, false, null);
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(LotteryPhaseText))] private LotteryState lotteryState = new(null, false, null);
 
     /// <summary>The sidebar shows the phase only while a draw is under way.</summary>
-    public string LotteryPhaseText => LotteryState.Lottery?.Phase switch
+    public string LotteryPhaseText => LotteryState.EntryLottery?.Phase switch
     {
-        PoolLotteryPhase.Spinning => "转动中",
-        PoolLotteryPhase.Drawing => "开奖中",
-        _ => "",
+        EntryLotteryPhase.Open => "报名中",
+        EntryLotteryPhase.Closed => "开奖中",
+        _ => LotteryState.Lottery?.Phase switch
+        {
+            PoolLotteryPhase.Spinning => "转动中",
+            PoolLotteryPhase.Drawing => "开奖中",
+            _ => "",
+        },
     };
 
-    internal void Apply(PoolLotteryUpdate update) => LotteryState = update.State;
+    /// <summary>The 抽奖 page's phase chip for 报名抽奖, as on canvas O1.</summary>
+    internal static string EntryPhaseText(EntryLottery lottery) => lottery.Phase switch
+    {
+        EntryLotteryPhase.Preparing => "准备中",
+        EntryLotteryPhase.Open => "报名中",
+        EntryLotteryPhase.Closed => "已截止 · 开奖中",
+        _ => "已结束",
+    };
+
+    internal void Apply(LotteryUpdate update) => LotteryState = update.State;
 
     private void ObserveLottery()
     {
@@ -33,7 +47,7 @@ public partial class MainWindowViewModel
         }
     }
 
-    internal Task ChangeLotteryAsync(Action<PoolLottery> change)
+    internal Task ChangeLotteryAsync(Action<LotteryController> change)
     {
         if (shuttingDown) throw new InvalidOperationException("程序正在关闭。");
         return lotteryChange = Task.Run(() => change(client.Lottery));
