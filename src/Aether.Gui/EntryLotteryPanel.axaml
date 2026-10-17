@@ -1,24 +1,10 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.EntryLotteryPanel">
   <UserControl.Styles>
     <!-- Winner chips and entry rows as on canvas O1; the draw on air stays highlighted until the 抽奖页 finishes it. -->
-    <Style Selector="Border.winner">
-      <Setter Property="Height" Value="24" />
-      <Setter Property="Padding" Value="8,0" />
-      <Setter Property="Margin" Value="0,0,4,4" />
-      <Setter Property="CornerRadius" Value="6" />
-      <Setter Property="BorderThickness" Value="1" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
-      <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
-      <Setter Property="TextElement.FontSize" Value="12" />
-      <Setter Property="TextElement.FontWeight" Value="SemiBold" />
-    </Style>
     <Style Selector="Border.winner.fresh">
       <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
       <Setter Property="Background" Value="{DynamicResource Accent.Flash}" />
       <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
-    </Style>
-    <Style Selector="TextBlock.awardName">
-      <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
     </Style>
     <Style Selector="StackPanel#EntryRows > Border">
       <Setter Property="Padding" Value="16,7" />
