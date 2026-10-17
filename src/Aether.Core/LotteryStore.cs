@@ -5,13 +5,14 @@ using Microsoft.Data.Sqlite;
 
 namespace Aether.Core;
 
-internal sealed class LotteryStore(Database database)
+internal sealed partial class LotteryStore(Database database)
 {
-    public Lottery? Load(long roomId)
+    public Lottery? Load(long roomId, bool latest = false)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id, stop_word, started_at, phase, uid, draw_until FROM lottery WHERE room_id = $room AND ended_at IS NULL";
+        command.CommandText = "SELECT id, stop_word, started_at, phase, uid, draw_until FROM lottery WHERE room_id = $room AND mode = 'pool'"
+            + (latest ? " ORDER BY rowid DESC LIMIT 1" : " AND ended_at IS NULL");
         command.Parameters.AddWithValue("$room", roomId);
         Lottery lottery;
         using (var reader = command.ExecuteReader())

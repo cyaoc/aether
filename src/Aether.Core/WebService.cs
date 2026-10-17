@@ -22,7 +22,7 @@ public sealed class WebService : IDisposable
     public VideoPage Video { get; }
     public LotteryPage Lottery { get; }
 
-    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, PoolLottery lottery)
+    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, LotteryController lottery)
     {
         this.timeProvider = timeProvider;
         this.logger = logger;

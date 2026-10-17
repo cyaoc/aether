@@ -322,7 +322,7 @@ public sealed partial class AetherClient
                 if (danmaku is not null) client.Lottery.Receive(roomId, danmaku);
             }
             catch (Exception error) when (error is SqliteException or JsonException or IOException)
-            { client.logger.LogError(error, "奖池抽奖读写数据库失败，弹幕照常接收：{Error}", error.Message); }
+            { client.logger.LogError(error, "抽奖读写数据库失败，弹幕照常接收：{Error}", error.Message); }
         }
 
         /// <summary>Runs one of the room connection's background loops. Anything after the connection stops is just the

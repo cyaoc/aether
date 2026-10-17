@@ -5,8 +5,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
 
-/// <summary>One room's active pool lottery, independent of the browser and the room transport lifetime.</summary>
-public sealed class PoolLottery : IDisposable
+/// <summary>One room's lottery, independent of the browser and the room transport lifetime.</summary>
+public sealed partial class LotteryController : IDisposable
 {
     public static readonly TimeSpan DrawDuration = TimeSpan.FromSeconds(7);
     public const int MaxPrizes = 10;
@@ -15,12 +15,12 @@ public sealed class PoolLottery : IDisposable
     private readonly TimeProvider time;
     private readonly ILogger logger;
     private readonly Random random;
-    private readonly List<Channel<PoolLotteryUpdate>> subscribers = [];
-    private PoolLotteryState state = new(null, false, null);
+    private readonly List<Channel<LotteryUpdate>> subscribers = [];
+    private LotteryState state = new(null, false, null);
     private ITimer? drawTimer;
     private bool disposed;
 
-    internal PoolLottery(Func<LotteryStore> store, TimeProvider time, ILogger logger, Random random)
+    internal LotteryController(Func<LotteryStore> store, TimeProvider time, ILogger logger, Random random)
     {
         this.store = store;
         this.time = time;
@@ -28,12 +28,12 @@ public sealed class PoolLottery : IDisposable
         this.random = random;
     }
 
-    public PoolLotteryState State { get { lock (gate) return state; } }
+    public LotteryState State { get { lock (gate) return state; } }
 
-    public async IAsyncEnumerable<PoolLotteryUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken token = default)
+    public async IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken token = default)
     {
         // shortcut: local readers use unbounded streams like WatchAsync; bound these if a stalled shell becomes a problem.
-        var updates = Channel.CreateUnbounded<PoolLotteryUpdate>();
+        var updates = Channel.CreateUnbounded<LotteryUpdate>();
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
@@ -50,9 +50,10 @@ public sealed class PoolLottery : IDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             var lottery = store().Load(roomId);
+            var entry = store().LoadEntry(roomId);
             drawTimer?.Dispose();
             // Recovery may write an expired draw; a failed write must leave the next danmaku able to retry.
-            state = new(roomId, false, lottery) { CanControl = true };
+            state = new(roomId, false, lottery, entry) { CanControl = true };
             ResumeDraw();
             state = state with { Connected = true };
             Publish();
@@ -89,6 +90,7 @@ public sealed class PoolLottery : IDisposable
         lock (gate)
         {
             RequireConnection();
+            if (state.EntryLottery is not null) throw new InvalidOperationException("请先新开一场奖池抽奖。");
             if (state.Lottery is { Phase: not PoolLotteryPhase.Idle }) throw new InvalidOperationException("请等本次抽奖结束。");
             var lottery = state.Lottery ?? NewLottery(prizes, stopWord);
             Save(lottery with { Prizes = prizes.ToImmutableArray(), StopWord = stopWord.Trim(), Uid = uid, Phase = PoolLotteryPhase.Spinning });
@@ -102,11 +104,12 @@ public sealed class PoolLottery : IDisposable
         lock (gate)
         {
             RequireConnection();
+            RequireNew();
             if (state.Lottery is { Phase: PoolLotteryPhase.Drawing }) throw new InvalidOperationException("请等本次开奖结束。");
             var next = NewLottery(prizes, stopWord);
             store().Save(next, endCurrentAt: time.GetUtcNow());
             drawTimer?.Dispose();
-            state = state with { Lottery = next };
+            state = state with { Lottery = next, EntryLottery = null };
             Publish();
             logger.LogInformation("奖池抽奖新开一场：直播间 {RoomId}，抽奖 {LotteryId}", state.RoomId, next.Id);
         }
@@ -147,6 +150,7 @@ public sealed class PoolLottery : IDisposable
     {
         lock (gate)
         {
+            if (state.RoomId == roomId && state.EntryLottery is not null) { ReceiveEntry(danmaku); return; }
             if (state.RoomId != roomId || state.Lottery is not { } lottery || danmaku.Uid <= 0) return;
             if (!lottery.Viewers.TryGetValue(danmaku.Uid, out var name) || name != danmaku.Nickname)
             {
@@ -194,22 +198,34 @@ public sealed class PoolLottery : IDisposable
 
     private void ResumeDraw()
     {
-        if (state.Lottery is not { Phase: PoolLotteryPhase.Drawing, DrawUntil: { } until } lottery) return;
+        var id = state.EntryLottery?.Id ?? state.Lottery?.Id;
+        if ((state.EntryLottery?.DrawUntil ?? state.Lottery?.DrawUntil) is not { } until || id is null) return;
         var remaining = until - time.GetUtcNow();
-        if (remaining <= TimeSpan.Zero) { FinishDraw(lottery.Id, until); return; }
+        if (remaining <= TimeSpan.Zero) { FinishDraw(id, until); return; }
         drawTimer?.Dispose();
         drawTimer = time.CreateTimer(_ =>
         {
             lock (gate)
             {
-                try { FinishDraw(lottery.Id, until); }
-                catch (Exception error) { logger.LogError(error, "保存开奖结束状态失败"); }
+                try { FinishDraw(id, until); }
+                catch (Exception error)
+                {
+                    logger.LogError(error, "保存开奖结束状态失败");
+                    // A temporary storage failure must not leave the host stuck in 开奖中.
+                    drawTimer?.Change(TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
+                }
             }
         }, null, remaining, Timeout.InfiniteTimeSpan);
     }
 
     private void FinishDraw(string id, DateTimeOffset until)
     {
+        if (!disposed && state.EntryLottery is { DrawUntil: not null } entry && entry.Id == id && entry.DrawUntil == until)
+        {
+            var finished = entry with { DrawUntil = null };
+            if (state.CanControl) SaveEntry(finished);
+            else { state = state with { EntryLottery = finished }; Publish(); }
+        }
         if (!disposed && state.Lottery is { Phase: PoolLotteryPhase.Drawing } lottery && lottery.Id == id && lottery.DrawUntil == until)
         {
             var finished = lottery with { Phase = PoolLotteryPhase.Idle, DrawUntil = null };

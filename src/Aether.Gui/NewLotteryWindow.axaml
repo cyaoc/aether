@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Aether.Gui.NewLotteryWindow" Title="新开一场抽奖" Width="640" SizeToContent="Height" CanResize="False" WindowStartupLocation="CenterOwner">
+  <Window.Styles>
+    <Style Selector="RadioButton.modeCard">
+      <Setter Property="Padding" Value="16" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+            <ContentPresenter Content="{TemplateBinding Content}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="RadioButton.modeCard:checked, RadioButton.modeCard:focus-visible">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+      <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+    </Style>
+  </Window.Styles>
+  <StackPanel Margin="24" Spacing="18">
+    <StackPanel Spacing="6">
+      <TextBlock Classes="h1" Text="新开一场抽奖" />
+      <TextBlock Classes="caption muted" Text="先选一种抽奖方式，开始后不能换" />
+    </StackPanel>
+    <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+      <RadioButton x:Name="EntryMode" Classes="modeCard" GroupName="mode" AutomationProperties.Name="报名抽奖">
+        <StackPanel Spacing="12">
+          <TextBlock Text="报名抽奖" FontWeight="Bold" />
+          <TextBlock Classes="caption" Text="观众发关键字报名，截止后从报名的人里抽出中奖的人。" TextWrapping="Wrap" />
+          <TextBlock Classes="caption muted" Text="最多 5 个奖项，各有名额&#10;中过奖的人不再参加后面的奖项&#10;奖项的档次决定开奖特效" />
+        </StackPanel>
+      </RadioButton>
+      <RadioButton Grid.Column="1" x:Name="PoolMode" Classes="modeCard" GroupName="mode" IsChecked="True" AutomationProperties.Name="奖池抽奖">
+        <StackPanel Spacing="12">
+          <TextBlock Text="奖池抽奖" FontWeight="Bold" />
+          <TextBlock Classes="caption" Text="点名一位观众，发口令或主播点停，为他抽一件奖品。" TextWrapping="Wrap" />
+          <TextBlock Classes="caption muted" Text="按占比随机，奖池不会抽完&#10;大奖、二奖、三奖各有特效&#10;每次只认一位观众喊停" />
+        </StackPanel>
+      </RadioButton>
+    </Grid>
+    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+      <Button x:Name="CancelButton" Content="取消" IsCancel="True" Click="Cancel" />
+      <Button x:Name="NextButton" Content="下一步" Classes="accent" IsDefault="True" Click="Next" />
+    </StackPanel>
+  </StackPanel>
+</Window>

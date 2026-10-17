@@ -44,7 +44,7 @@ public partial class PoolPrizeRow : UserControl
         RemoveButton.IsEnabled = count > 1;
         var value = Value;
         Percentage.Text = total > 0 && value.Weight > 0 ? $"{100d * value.Weight / total:0.#}%" : "—";
-        var error = PoolLottery.ValidatePrize(value);
+        var error = LotteryController.ValidatePrize(value);
         var shown = errorsRevealed ? error : null;
         NameInput.Classes.Set("invalid", shown is not null && string.IsNullOrWhiteSpace(value.Name));
         WeightInput.Classes.Set("invalid", shown is not null && value.Weight <= 0);
