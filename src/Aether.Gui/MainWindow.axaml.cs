@@ -78,10 +78,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private async void OpenAnimationsWithoutLogin(object? sender, RoutedEventArgs e)
+    private async void OpenSettingsWithoutLogin(object? sender, RoutedEventArgs e)
     {
         if (DataContext is not MainWindowViewModel viewModel) return;
-        await viewModel.OpenAnimationSettingsCommand.ExecuteAsync(null);
+        await viewModel.OpenSettingsCommand.ExecuteAsync(null);
         Navigation.SelectedIndex = 1 + (int)SettingsSection.General;
     }
 

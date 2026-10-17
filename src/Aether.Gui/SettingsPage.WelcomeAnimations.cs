@@ -21,16 +21,10 @@ public partial class SettingsPage
         try
         {
             if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
-            await clipboard.SetTextAsync((button.Tag as string == "Video" ? VideoAddress.Text : LotteryAddress.Text) ?? "");
+            await clipboard.SetTextAsync(button.Tag as string ?? "");
             if (copyFeedback.Remove(button, out var pending)) pending.Dispose();
-            button.Content = "已复制";
             button.Classes.Set("copied", true);
-            copyFeedback[button] = DispatcherTimer.RunOnce(() =>
-            {
-                button.Content = "复制";
-                button.Classes.Set("copied", false);
-                copyFeedback.Remove(button);
-            }, TimeSpan.FromSeconds(2));
+            copyFeedback[button] = DispatcherTimer.RunOnce(() => { button.Classes.Set("copied", false); copyFeedback.Remove(button); }, TimeSpan.FromSeconds(2));
         }
         catch (Exception error) { Message.Text = $"复制地址失败：{error.Message}"; }
     }

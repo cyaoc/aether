@@ -24,7 +24,7 @@ public partial class MainWindowViewModel
     private bool testPlayPending;
     internal bool AnimationBusy => testPlayPending || pendingAnimations.Count > 0;
 
-    /// <summary>Starts the page when the window opens, logging mapped videos that are missing as the CLI does.</summary>
+    /// <summary>Starts the web service when the window opens, logging mapped videos that are missing as the CLI does.</summary>
     internal Task StartWebServiceAsync(string dataDirectory) => ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
 
     internal Task RefreshWebServiceAsync(Settings snapshot)
@@ -98,7 +98,7 @@ public partial class MainWindowViewModel
     }
 
     [RelayCommand]
-    private async Task OpenAnimationSettingsAsync()
+    private async Task OpenSettingsAsync()
     {
         LoginCommand.Cancel();
         if (LoginCommand.ExecutionTask is { } login) await login;
@@ -114,25 +114,35 @@ public partial class MainWindowViewModel
     [NotifyPropertyChangedFor(nameof(VideoAddressText))]
     [NotifyPropertyChangedFor(nameof(LotteryAddressText))]
     [NotifyPropertyChangedFor(nameof(HasVideoConnections))]
+    [NotifyPropertyChangedFor(nameof(HasLotteryConnections))]
     [NotifyPropertyChangedFor(nameof(HasWebServiceError))]
+    [NotifyPropertyChangedFor(nameof(IsWebServiceOff))]
     [NotifyPropertyChangedFor(nameof(ShowVideoSetup))]
     [NotifyPropertyChangedFor(nameof(ShowLotterySetup))]
     [NotifyPropertyChangedFor(nameof(ServiceStatusText))]
+    [NotifyPropertyChangedFor(nameof(ServiceHelpText))]
     [NotifyPropertyChangedFor(nameof(VideoConnectionsText))]
     [NotifyPropertyChangedFor(nameof(LotteryConnectionsText))]
     private WebServiceStatus webServiceStatus = client.WebService.Status;
 
-    public bool HasVideoConnections => WebServiceStatus.Running && WebServiceStatus.VideoConnections > 0;
+    public bool HasVideoConnections => WebServiceStatus is { Running: true, VideoConnections: > 0 };
+    public bool HasLotteryConnections => WebServiceStatus is { Running: true, LotteryConnections: > 0 };
     public bool HasWebServiceError => WebServiceStatus.Error is not null;
-    public bool ShowVideoSetup => WebServiceStatus.VideoConnections == 0;
-    public bool ShowLotterySetup => WebServiceStatus.LotteryConnections == 0;
+    public bool IsWebServiceOff => WebServiceStatus is { Running: false, Error: null };
+    public bool ShowVideoSetup => WebServiceStatus is { Running: true, VideoConnections: 0 };
+    public bool ShowLotterySetup => WebServiceStatus is { Running: true, LotteryConnections: 0 };
     public string VideoAddressText => WebServiceStatus.VideoAddress;
     public string LotteryAddressText => WebServiceStatus.LotteryAddress;
-    public string ServiceStatusText => WebServiceStatus.Error ?? (WebServiceStatus.Running ? "运行中" : "未运行");
-    public string VideoConnectionsText => $"{WebServiceStatus.VideoConnections} 个推流软件连着";
-    public string LotteryConnectionsText => $"{WebServiceStatus.LotteryConnections} 个推流软件连着";
-    public string VideoPageText => HasWebServiceError ? "视频页未连接，网页服务启动失败"
-        : HasVideoConnections ? $"视频页 · {VideoConnectionsText}" : "视频页 · 还没有推流软件连着";
+    public string ServiceStatusText => WebServiceStatus.Error is { } error ? "没打开：" + error : WebServiceStatus.Running ? "运行中" : "未运行";
+    public string ServiceHelpText => HasWebServiceError ? "换一个端口并保存，再把直播姬里所有浏览器素材的地址改成新的。"
+        : WebServiceStatus.Running ? "GUI 开着就一直运行，不用登录、不用连直播间。先开 Aether，再开直播姬。" : "";
+    public string VideoConnectionsText => ConnectionsText(WebServiceStatus.VideoConnections);
+    public string LotteryConnectionsText => ConnectionsText(WebServiceStatus.LotteryConnections);
+    private string ConnectionsText(int count) => !WebServiceStatus.Running ? "服务没打开" : count > 0 ? $"{count} 个推流软件连着" : "还没有连着";
+    public string VideoPageText => WebServiceStatus.Error is { } error ? $"网页服务没打开：{error}，试播和进场都播不了"
+        : !WebServiceStatus.Running ? "网页服务没打开，试播和进场都播不了"
+        : HasVideoConnections ? $"视频页：已有 {WebServiceStatus.VideoConnections} 个推流软件连着"
+        : "视频页还没有推流软件连着，先在直播姬里加好再试播";
 
     internal void Apply(WebServiceUpdate update)
     {
@@ -171,6 +181,7 @@ public partial class MainWindowViewModel
             // #125: the failure hint stays until the video is replaced, even if a later playback works.
             if (playback.State == PlaybackState.Failed) failedAnimationVideos.Add((playback.Uid, playback.FileName));
         }
+        else return; // A VideoPlayback alone changes no animation row.
         AnimationRowsChanged?.Invoke();
     }
 

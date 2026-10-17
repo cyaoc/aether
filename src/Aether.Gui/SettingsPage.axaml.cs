@@ -87,12 +87,7 @@ public partial class SettingsPage : UserControl
         AddAnimationButton.Click += async (_, _) => await ChooseAnimationAsync();
         DetachedFromVisualTree += (_, _) =>
         {
-            foreach (var (button, timer) in copyFeedback)
-            {
-                timer.Dispose();
-                button.Content = "复制";
-                button.Classes.Set("copied", false);
-            }
+            foreach (var (button, timer) in copyFeedback) { timer.Dispose(); button.Classes.Set("copied", false); }
             copyFeedback.Clear();
         };
         LoadSettings();
@@ -248,9 +243,13 @@ public partial class SettingsPage : UserControl
         DirtyMessage.IsVisible = welcome && ConditionsAddedOrRemoved
             || animation && AnimationDraft
             || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
+        DirtyMessage.Text = PortChanged ? "保存后网页服务换到新端口，直播姬里的地址要跟着改" : "有未保存的修改";
         SaveButton.IsEnabled = fileError is null && error is null && !invalidCondition && !invalidWelcomeText && !invalidAnimation && DirtyMessage.IsVisible;
         if (Section != SettingsSection.WelcomeAnimation || DirtyMessage.IsVisible) Message.Text = "";
     }
+
+    private bool PortChanged => Section == SettingsSection.General && settings.WebServicePort.CanEdit
+        && WebPortInput.Text != original.GetValueOrDefault(settings.WebServicePort.Name);
 
     /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
     private static string? InputError(Field field) =>
@@ -267,6 +266,7 @@ public partial class SettingsPage : UserControl
         // Core leaves alone what this form was filled with, so an untouched setting keeps its spelling and any edit made elsewhere.
         var changes = Changes(Fields());
         var result = "已保存。";
+        var portChanged = PortChanged;
         long[] replaced = [];
         saveCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         saving = true;
@@ -281,6 +281,7 @@ public partial class SettingsPage : UserControl
                 result = await Task.Run(() => SaveAnimationFiles(changes, rows, snapshot));
             }
             else Settings.Save(dataDirectory, changes, settings);
+            // Let LoadSettings validate the saved form, then keep file refreshes out until the save ends: they would clear the result message.
             saving = false;
             LoadSettings();
             saving = true;
@@ -290,6 +291,7 @@ public partial class SettingsPage : UserControl
                 {
                     await viewModel.ApplyWebSettingsAsync(settings);
                     viewModel.ForgetAnimationFailures(replaced);
+                    if (portChanged && viewModel.WebServiceStatus.Running) result = "已保存，网页服务已换到新端口";
                 }
                 SaveCompleted?.Invoke();
                 Message.Text = result;

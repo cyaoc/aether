@@ -14,7 +14,7 @@ public sealed class WebService : IDisposable
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
     private readonly List<Channel<WebServiceUpdate>> subscribers = [];
-    private readonly HashSet<Page> pages = [];
+    private readonly HashSet<Connection> connections = [];
     private WebServiceStatus status = new(false, Settings.WebPort.Initial.Value, 0, 0);
     private HttpListener? listener;
     private CancellationTokenSource? stop;
@@ -28,7 +28,8 @@ public sealed class WebService : IDisposable
         Video = new(this, dataDirectory, timeProvider);
     }
 
-    private sealed class Page(HttpListenerResponse response, string path)
+    /// <summary>One streaming software's event stream to a page.</summary>
+    private sealed class Connection(HttpListenerResponse response, string path)
     {
         public HttpListenerResponse Response { get; } = response;
         public string Path { get; } = path;
@@ -39,7 +40,7 @@ public sealed class WebService : IDisposable
 
     public WebServiceStatus Status { get { lock (Gate) return status; } }
 
-    /// <summary>Subscribe independently of WatchAsync. The first update is the current page status.</summary>
+    /// <summary>Subscribe independently of WatchAsync. The first update is the current service status.</summary>
     public async IAsyncEnumerable<WebServiceUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         // ponytail: unbounded like WatchAsync; bound this if a shell ever keeps a subscription without reading it.
@@ -60,6 +61,8 @@ public sealed class WebService : IDisposable
         await StopAsync().ConfigureAwait(false);
         lock (Gate)
         {
+            // Another StartAsync won the race; starting again would leak its listener.
+            if (stop is not null) throw new InvalidOperationException("网页服务正在启动，请稍后再试。");
             status = new(false, port, 0, 0);
             var server = new HttpListener();
             server.Prefixes.Add(Address);
@@ -95,9 +98,9 @@ public sealed class WebService : IDisposable
             if (stopping is null) return;
             stopping.Cancel();
             // Abort before Close: on Windows, Close releases the request queue that Abort needs.
-            foreach (var page in pages) Abort(page.Response);
+            foreach (var connection in connections) Abort(connection.Response);
             listener!.Close();
-            pages.Clear();
+            connections.Clear();
             status = status with { Running = false, VideoConnections = 0, LotteryConnections = 0 };
             Publish(status);
             pending = running;
@@ -121,10 +124,10 @@ public sealed class WebService : IDisposable
         lock (Gate) foreach (var subscriber in subscribers) subscriber.Writer.TryWrite(update);
     }
 
-    private void PageCountChanged()
+    private void ConnectionsChanged()
     {
-        status = status with { VideoConnections = pages.Count(page => page.Path == "/video/events"),
-            LotteryConnections = pages.Count(page => page.Path == "/lottery/events") };
+        status = status with { VideoConnections = connections.Count(connection => connection.Path == "/video/events"),
+            LotteryConnections = connections.Count(connection => connection.Path == "/lottery/events") };
         logger.LogInformation("网页服务：视频页 {VideoCount} 个推流软件，抽奖页 {LotteryCount} 个推流软件", status.VideoConnections, status.LotteryConnections);
         Publish(status);
         if (status.VideoConnections == 0) Video.Disconnected();
@@ -132,35 +135,35 @@ public sealed class WebService : IDisposable
 
     internal async Task<int> BroadcastAsync(string text, CancellationToken token, string? path = null)
     {
-        Page[] targets;
-        lock (Gate) targets = pages.Where(page => path is null || page.Path == path).ToArray();
-        var results = await Task.WhenAll(targets.Select(page => SendAsync(page, text, token)));
+        Connection[] targets;
+        lock (Gate) targets = connections.Where(connection => path is null || connection.Path == path).ToArray();
+        var results = await Task.WhenAll(targets.Select(connection => SendAsync(connection, text, token)));
         return results.Count(sent => sent);
     }
 
-    private async Task<bool> SendAsync(Page page, string text, CancellationToken token)
+    private async Task<bool> SendAsync(Connection connection, string text, CancellationToken token)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5), timeProvider);
         using var sending = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
         var acquired = false;
         try
         {
-            await page.WriteLock.WaitAsync(sending.Token);
+            await connection.WriteLock.WaitAsync(sending.Token);
             acquired = true;
-            await page.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(text), sending.Token);
-            await page.Response.OutputStream.FlushAsync(sending.Token);
+            await connection.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(text), sending.Token);
+            await connection.Response.OutputStream.FlushAsync(sending.Token);
             return true;
         }
         catch (Exception error) when (error is IOException or HttpListenerException or ObjectDisposedException or OperationCanceledException)
         {
             lock (Gate)
             {
-                if (pages.Remove(page)) PageCountChanged();
-                Abort(page.Response);
+                if (connections.Remove(connection)) ConnectionsChanged();
+                Abort(connection.Response);
             }
             return false;
         }
-        finally { if (acquired) page.WriteLock.Release(); }
+        finally { if (acquired) connection.WriteLock.Release(); }
     }
 
     private async Task HeartbeatsAsync(CancellationToken token)
@@ -213,9 +216,9 @@ public sealed class WebService : IDisposable
             {
                 response.ContentType = "text/event-stream";
                 response.SendChunked = true;
-                var page = new Page(response, path);
-                lock (Gate) { token.ThrowIfCancellationRequested(); pages.Add(page); PageCountChanged(); }
-                keepOpen = await SendAsync(page, "retry: 2000\n\n", token);
+                var connection = new Connection(response, path);
+                lock (Gate) { token.ThrowIfCancellationRequested(); connections.Add(connection); ConnectionsChanged(); }
+                keepOpen = await SendAsync(connection, "retry: 2000\n\n", token);
             }
             else if (path.StartsWith("/video", StringComparison.Ordinal))
                 await Video.HandleAsync(request, response, token);

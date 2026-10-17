@@ -33,7 +33,9 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
     private void Report(Playback item, PlaybackState state, string? reason = null)
     {
         var update = new VideoPlayback(item.Id, item.FileName, item.Source, state, reason);
-        lock (service.Gate) { service.Publish(update); item.Updated?.Invoke(update); }
+        service.Publish(update);
+        // Only under the gate when the caller holds it: the source logs, which should not hold up requests.
+        item.Updated?.Invoke(update);
     }
 
     private string VideoPath(string fileName) => Settings.VideoFile(dataDirectory, fileName);
@@ -49,10 +51,11 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
                 var exists = File.Exists(VideoPath(item.FileName));
                 lock (service.Gate)
                 {
-                    var reason = timeProvider.GetElapsedTime(item.ReceivedAt) > TimeSpan.FromSeconds(30) ? "排队超过 30 秒"
+                    // The source's reason first: an entry from an ended room connection reports that, not its queue wait.
+                    var reason = item.SkipReason?.Invoke()
+                        ?? (timeProvider.GetElapsedTime(item.ReceivedAt) > TimeSpan.FromSeconds(30) ? "排队超过 30 秒"
                         : service.Status.VideoConnections == 0 ? "没有推流软件连着"
-                        : !exists ? "视频文件不存在"
-                        : item.SkipReason?.Invoke();
+                        : !exists ? "视频文件不存在" : null);
                     if (reason is not null) { Report(item, PlaybackState.Skipped, reason); continue; }
                     current = item;
                     reported = completion = new(TaskCreationOptions.RunContinuationsAsynchronously);

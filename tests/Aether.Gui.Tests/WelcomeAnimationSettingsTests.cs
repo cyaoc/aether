@@ -383,9 +383,10 @@ public sealed class WelcomeAnimationSettingsTests
             GuiHarness.Flush();
             var button = page.FindControl<Button>("Copy" + pageName + "AddressButton")!;
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await GuiHarness.WaitForAsync(() => Equals(button.Content, "已复制"));
+            var label = ((StackPanel)button.Content!).Children.OfType<TextBlock>().Single();
+            await GuiHarness.WaitForAsync(() => label.Text == "已复制");
             Assert.Equal("http://localhost:17891" + path, await window.Clipboard!.TryGetTextAsync());
-            await GuiHarness.WaitForAsync(() => Equals(button.Content, "复制"));
+            await GuiHarness.WaitForAsync(() => label.Text == "复制");
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
@@ -480,7 +481,7 @@ public sealed class WelcomeAnimationSettingsTests
             await GuiHarness.WaitForAsync(() => viewModel.IsLoginPage && viewModel.WebServiceStatus.Running);
             Assert.Contains("<video", await http.GetStringAsync(viewModel.VideoAddressText));
             Assert.Contains("/lottery/events", await http.GetStringAsync(viewModel.LotteryAddressText));
-            window.FindControl<Button>("OpenAnimationsWithoutLoginButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.FindControl<Button>("OpenSettingsWithoutLoginButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => !viewModel.IsLoginPage);
             Assert.Equal(5, window.Navigation.SelectedIndex);
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
@@ -516,7 +517,10 @@ public sealed class WelcomeAnimationSettingsTests
             general.FindControl<NumericUpDown>("WebPortInput")!.Text = nextPort.ToString();
             GuiHarness.Flush();
             Assert.Equal(port, viewModel.WebServiceStatus.Port);
-            await Save(general);
+            Assert.Equal("保存后网页服务换到新端口，直播姬里的地址要跟着改", general.FindControl<TextBlock>("DirtyMessage")!.Text);
+            Click(general, "SaveButton");
+            await GuiHarness.WaitForAsync(() => general.IsEnabled);
+            Assert.Equal("已保存，网页服务已换到新端口", general.FindControl<TextBlock>("Message")!.Text);
             Assert.Equal(nextPort, viewModel.WebServiceStatus.Port);
             Assert.Equal(0, viewModel.WebServiceStatus.VideoConnections);
             Assert.Contains("<video", await http.GetStringAsync(viewModel.VideoAddressText));
@@ -673,13 +677,13 @@ public sealed class WelcomeAnimationSettingsTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(true, 2, 1, null, "运行中")]
-    [InlineData(true, 2, 0, null, "运行中")]
-    [InlineData(true, 0, 1, null, "运行中")]
-    [InlineData(true, 0, 0, null, "运行中")]
-    [InlineData(false, 0, 0, "端口 17891 被别的程序占用", "端口 17891 被别的程序占用")]
-    [InlineData(false, 0, 0, null, "未运行")]
-    public Task Web_service_card_shows_each_page_count_setup_and_errors(bool running, int videos, int lotteries, string? error, string expected) => HeadlessApp.Session.Dispatch(async () =>
+    [InlineData(true, 2, 1, null, "运行中", "视频页：已有 2 个推流软件连着")]
+    [InlineData(true, 2, 0, null, "运行中", "视频页：已有 2 个推流软件连着")]
+    [InlineData(true, 0, 1, null, "运行中", "视频页还没有推流软件连着，先在直播姬里加好再试播")]
+    [InlineData(true, 0, 0, null, "运行中", "视频页还没有推流软件连着，先在直播姬里加好再试播")]
+    [InlineData(false, 0, 0, "端口 17891 被别的程序占用", "没打开：端口 17891 被别的程序占用", "网页服务没打开：端口 17891 被别的程序占用，试播和进场都播不了")]
+    [InlineData(false, 0, 0, null, "未运行", "网页服务没打开，试播和进场都播不了")]
+    public Task Web_service_card_shows_each_page_count_setup_and_errors(bool running, int videos, int lotteries, string? error, string expected, string videoRow) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         var viewModel = harness.CreateViewModel();
@@ -693,11 +697,15 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal(expected, page.FindControl<TextBlock>("WebServiceStatusText")!.Text);
             Assert.Equal("http://localhost:17891/video", page.FindControl<TextBox>("VideoAddress")!.Text);
             Assert.Equal("http://localhost:17891/lottery", page.FindControl<TextBox>("LotteryAddress")!.Text);
-            Assert.Equal($"{videos} 个推流软件连着", page.FindControl<TextBlock>("VideoConnectionsText")!.Text);
-            Assert.Equal($"{lotteries} 个推流软件连着", page.FindControl<TextBlock>("LotteryConnectionsText")!.Text);
-            Assert.Equal(videos == 0, page.FindControl<TextBlock>("VideoSetupHelp")!.IsVisible);
-            Assert.Equal(lotteries == 0, page.FindControl<TextBlock>("LotterySetupHelp")!.IsVisible);
-            Assert.Equal(error is not null, page.FindControl<TextBlock>("WebServiceErrorHelp")!.IsVisible);
+            string Count(int count) => !running ? "服务没打开" : count > 0 ? $"{count} 个推流软件连着" : "还没有连着";
+            Assert.Equal(Count(videos), page.FindControl<TextBlock>("VideoConnectionsText")!.Text);
+            Assert.Equal(Count(lotteries), page.FindControl<TextBlock>("LotteryConnectionsText")!.Text);
+            Assert.Equal(running && videos == 0, page.FindControl<Control>("VideoSetupHelp")!.IsVisible);
+            Assert.Equal(running && lotteries == 0, page.FindControl<Control>("LotterySetupHelp")!.IsVisible);
+            var help = page.FindControl<TextBlock>("WebServiceHelp")!;
+            Assert.Equal(running || error is not null, help.IsVisible);
+            if (error is not null) Assert.StartsWith("换一个端口并保存", help.Text);
+            Assert.Equal(videoRow, viewModel.VideoPageText);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;

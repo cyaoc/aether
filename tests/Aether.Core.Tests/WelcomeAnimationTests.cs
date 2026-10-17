@@ -57,6 +57,62 @@ public sealed class WelcomeAnimationTests
     }
 
     [Fact]
+    public async Task Changing_the_port_restarts_the_service_and_drops_existing_streams()
+    {
+        await using var h = new WatchHarness();
+        await Start(h, 10001);
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Address) };
+        using var page = await Page.ConnectAsync(h);
+        var port = FreePort();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
+        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+        Assert.Equal(new WebServiceStatus(true, port, 0, 0), h.Client.WebService.Status);
+        await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync("/video", h.Stop.Token));
+        using var restarted = await Page.ConnectAsync(h);
+        h.Client.WelcomeAnimation.TestPlay(10001);
+        Assert.Equal("10001", (await restarted.NextAsync()).Content);
+    }
+
+    [Fact]
+    public async Task Concurrent_port_changes_keep_one_listener_and_stop_releases_every_port()
+    {
+        await using var h = new WatchHarness();
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var time = new PausedTimerProvider(() => { entered.SetResult(); release.Wait(); });
+        using var service = new WebService(h.DataDirectory, time, h.Logger);
+        var ports = new HashSet<int>();
+        while (ports.Count < 3) ports.Add(FreePort());
+        var candidates = ports.ToArray();
+        await service.StartAsync(candidates[0]);
+        try
+        {
+            // Keep the old service finishing while both callers request a new port.
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
+            var first = service.StartAsync(candidates[1]);
+            var second = service.StartAsync(candidates[2]);
+            Assert.False(first.IsCompleted);
+            Assert.False(second.IsCompleted);
+            release.Set();
+            Exception?[] errors = [await Record.ExceptionAsync(() => first), await Record.ExceptionAsync(() => second)];
+            Assert.Single(errors, error => error is null);
+            Assert.IsType<InvalidOperationException>(Assert.Single(errors, error => error is not null));
+            Assert.True(service.Status.Running);
+            using var http = new HttpClient(new HttpClientHandler { UseProxy = false });
+            foreach (var port in candidates)
+            {
+                var address = $"http://localhost:{port}/video";
+                if (port == service.Status.Port) Assert.Contains("<video", await http.GetStringAsync(address, h.Stop.Token));
+                else await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync(address, h.Stop.Token));
+            }
+            await service.StopAsync();
+            foreach (var port in candidates)
+                await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync($"http://localhost:{port}/video", h.Stop.Token));
+        }
+        finally { release.Set(); }
+    }
+
+    [Fact]
     public async Task Video_page_plays_an_unmapped_file_by_playback_id_and_retires_it_after_report()
     {
         await using var h = new WatchHarness();
@@ -413,15 +469,30 @@ public sealed class WelcomeAnimationTests
         public async ValueTask DisposeAsync() { await stop.CancelAsync(); await reading; stop.Dispose(); }
     }
 
-    private static async Task Start(WatchHarness h, params long[] uids)
+    private static int FreePort()
     {
         using var port = new TcpListener(IPAddress.Loopback, 0);
         port.Start();
         var number = ((IPEndPoint)port.LocalEndpoint).Port;
         port.Stop();
+        return number;
+    }
+
+    private sealed class PausedTimerProvider(Action pause) : TimeProvider
+    {
+        private int started;
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            if (Interlocked.Exchange(ref started, 1) == 0) pause();
+            return System.CreateTimer(callback, state, dueTime, period);
+        }
+    }
+
+    private static async Task Start(WatchHarness h, params long[] uids)
+    {
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation.enabled"] = "true", ["web_service.port"] = number.ToString()
+            ["welcome_animation.enabled"] = "true", ["web_service.port"] = FreePort().ToString()
         });
         Directory.CreateDirectory(Path.Combine(h.DataDirectory, "videos"));
         foreach (var uid in uids)
