@@ -51,7 +51,7 @@ public sealed partial class LotteryController : IDisposable
         {
             ObjectDisposedException.ThrowIf(disposed, this);
             subscribers.Add(updates);
-            updates.Writer.TryWrite(new(state));
+            updates.Writer.TryWrite(new(state, Example: example));
         }
         try { await foreach (var update in updates.Reader.ReadAllAsync(token)) yield return update; }
         finally { lock (gate) subscribers.Remove(updates); }
@@ -66,7 +66,7 @@ public sealed partial class LotteryController : IDisposable
             var entry = store().LoadEntry(roomId);
             drawTimer?.Dispose();
             // Recovery may write an expired draw; a failed write must leave the next danmaku able to retry.
-            state = new(roomId, false, lottery, entry) { CanControl = true };
+            state = new(roomId, false, lottery, entry) { CanControl = true, Theme = state.Theme };
             ResumeDraw();
             state = state with { Connected = true };
             Publish();
@@ -153,7 +153,7 @@ public sealed partial class LotteryController : IDisposable
                 store().RememberViewer(lottery.Id, danmaku.Uid, danmaku.Nickname);
                 lottery = lottery with { Viewers = lottery.Viewers.SetItem(danmaku.Uid, danmaku.Nickname) };
                 state = state with { Lottery = lottery };
-                Publish();
+                Broadcast();
             }
             if (lottery.Phase == PoolLotteryPhase.Spinning && lottery.Uid == danmaku.Uid
                 && danmaku.Content.Trim() == lottery.StopWord) Draw(stoppedByHost: false);
@@ -238,9 +238,16 @@ public sealed partial class LotteryController : IDisposable
         Publish(draw);
     }
 
-    private void Publish(PoolDraw? draw = null)
+    private void Publish(PoolDraw? draw = null, EntryDraw? entryDraw = null)
     {
-        foreach (var subscriber in subscribers) subscriber.Writer.TryWrite(new(state, draw));
+        // Live changes take the screen back immediately, without ever saving example data.
+        ClearExample();
+        Broadcast(draw, entryDraw);
+    }
+
+    private void Broadcast(PoolDraw? draw = null, EntryDraw? entryDraw = null)
+    {
+        foreach (var subscriber in subscribers) subscriber.Writer.TryWrite(new(state, draw, entryDraw, example));
     }
 
     public void Dispose()
@@ -249,6 +256,7 @@ public sealed partial class LotteryController : IDisposable
         {
             disposed = true;
             drawTimer?.Dispose();
+            ClearExample();
             foreach (var subscriber in subscribers) subscriber.Writer.TryComplete();
             subscribers.Clear();
         }

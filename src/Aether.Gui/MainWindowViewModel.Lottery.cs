@@ -66,6 +66,19 @@ public partial class MainWindowViewModel
         return lotteryChange = Task.Run(() => change(client.Lottery));
     }
 
+    internal void SelectLotteryTheme(LotteryTheme theme)
+    {
+        client.Lottery.SelectTheme(theme);
+        Apply(new LotteryUpdate(client.Lottery.State));
+    }
+
+    internal void PlayLotteryExample()
+    {
+        if (shuttingDown) return;
+        client.WebService.Lottery.PlayExample();
+        Apply(new LotteryUpdate(client.Lottery.State));
+    }
+
     private async Task FinishLotteryChangeAsync()
     {
         // The page reports failures; closing still waits until a database write has finished.

@@ -138,6 +138,6 @@ public sealed partial class LotteryController
     {
         store().Save(lottery, draw: draw);
         state = state with { EntryLottery = lottery };
-        foreach (var subscriber in subscribers) subscriber.Writer.TryWrite(new(state, EntryDraw: draw));
+        Publish(entryDraw: draw);
     }
 }

@@ -21,7 +21,7 @@ public sealed class WelcomeAnimationTests
         using var root = await http.GetAsync("/", h.Stop.Token);
         Assert.Equal(HttpStatusCode.NotFound, root.StatusCode);
         Assert.Contains("<video", await http.GetStringAsync("/video", h.Stop.Token));
-        Assert.Contains("/lottery/events", await http.GetStringAsync("/lottery", h.Stop.Token));
+        Assert.Contains("/lottery/page.js", await http.GetStringAsync("/lottery", h.Stop.Token));
     }
 
     [Fact]

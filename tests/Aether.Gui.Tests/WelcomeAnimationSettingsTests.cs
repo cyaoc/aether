@@ -480,7 +480,7 @@ public sealed class WelcomeAnimationSettingsTests
         {
             await GuiHarness.WaitForAsync(() => viewModel.IsLoginPage && viewModel.WebServiceStatus.Running);
             Assert.Contains("<video", await http.GetStringAsync(viewModel.VideoAddressText));
-            Assert.Contains("/lottery/events", await http.GetStringAsync(viewModel.LotteryAddressText));
+            Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.LotteryAddressText));
             window.FindControl<Button>("OpenSettingsWithoutLoginButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => !viewModel.IsLoginPage);
             Assert.Equal(6, window.Navigation.SelectedIndex);

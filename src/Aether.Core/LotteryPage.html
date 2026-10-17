@@ -1,93 +1,71 @@
 <!doctype html>
 <html lang="zh-CN">
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Aether 抽奖页</title>
-<style>
-html,body { margin:0; width:100%; height:100%; background:transparent; }
-body { display:grid; place-items:center; font-family:system-ui,sans-serif; color:white; }
-#result { text-align:center; padding:32px 48px; border-radius:20px; background:#17212fe6; max-width:80%; overflow-wrap:anywhere; }
-#prize { font-size:clamp(32px,6vw,96px); margin:12px 0; }
-#details { font-size:clamp(20px,2.4vw,40px); white-space:pre-line; line-height:1.6; }
-#grade,#viewer { font-size:clamp(24px,3vw,48px); }
-[hidden] { display:none!important; }
-</style>
-<section id="result" hidden aria-live="polite"><div id="grade"></div><div id="prize"></div><div id="viewer"></div><div id="details"></div></section>
-<script>
-const result = document.getElementById('result'), grade = document.getElementById('grade');
-const prize = document.getElementById('prize'), viewer = document.getElementById('viewer');
-const grades = {Grand:'大奖',Second:'二奖',Third:'三奖'};
-const details = document.getElementById('details');
-let rolling, hiding, paging, shown = '';
-function clear() { clearInterval(rolling); clearTimeout(hiding); clearInterval(paging); result.hidden = true; }
-function show(state) {
-  if (state.entryLottery) { showEntry(state.entryLottery); return; }
-  const lottery = state.lottery;
-  // Other pushes (connection changes) must not restart the roll from the first prize.
-  const key = lottery ? `${lottery.id} ${lottery.phase} ${lottery.draws.length}` : '';
-  if (key === shown) return;
-  shown = key;
-  clear(); details.textContent = '';
-  if (!lottery || lottery.phase === 'Idle') return;
-  result.hidden = false;
-  if (lottery.phase === 'Spinning') {
-    grade.textContent = ''; viewer.textContent = '';
-    let index = 0;
-    const next = () => { prize.textContent = lottery.prizes[index++ % lottery.prizes.length].name; };
-    next(); rolling = setInterval(next, 100);
-  } else if (lottery.phase === 'Drawing') {
-    const draw = lottery.draws[lottery.draws.length - 1];
-    grade.textContent = grades[draw.prize.grade]; prize.textContent = draw.prize.name;
-    viewer.textContent = draw.nickname || (draw.uid ? `UID ${draw.uid}` : '');
-    hiding = setTimeout(clear, Math.max(0, Date.parse(lottery.drawUntil) - Date.now()));
-  }
-}
-function showEntry(lottery) {
-  const key = `${lottery.id} ${lottery.phase} ${lottery.entryCount} ${lottery.draws.length} ${lottery.drawUntil} ${lottery.hidden}`;
-  if (key === shown) return;
-  shown = key; clear();
-  grade.textContent = ''; prize.textContent = ''; viewer.textContent = ''; details.textContent = '';
-  if (lottery.phase === 'Preparing' || lottery.hidden) return;
-  result.hidden = false;
-  if (lottery.phase === 'Open') {
-    grade.textContent = '报名中'; prize.textContent = `发弹幕「${lottery.keyword}」`;
-    viewer.textContent = `${lottery.entryCount} 人已报名`;
-    details.textContent = '最新报名：' + lottery.latestEntries.map(entry => entry.nickname).join('、') + '\n'
-      + lottery.awards.map(award => `${award.name} · ${grades[award.grade]} · ${award.prize} × ${award.capacity}`).join('\n');
-    return;
-  }
-  const remaining = Date.parse(lottery.drawUntil) - Date.now();
-  if (remaining > 0 && lottery.draws.length) {
-    const draw = lottery.draws[lottery.draws.length - 1];
-    grade.textContent = `${draw.award.name} · ${grades[draw.award.grade]}`;
-    viewer.textContent = draw.award.prize;
-    let index = 0;
-    const reveal = () => { prize.textContent = draw.winner.nickname; };
-    const roll = () => {
-      if (Date.now() - Date.parse(draw.drawnAt) >= 1800) { clearInterval(rolling); reveal(); }
-      else prize.textContent = draw.candidates[index++ % draw.candidates.length];
-    };
-    roll(); rolling = setInterval(roll, 100);
-    hiding = setTimeout(() => showEntry({...lottery, drawUntil:null}), remaining);
-    return;
-  }
-  grade.textContent = lottery.phase === 'Ended' ? '完整中奖名单' : '目前的中奖名单';
-  viewer.textContent = lottery.phase === 'Ended' ? '抽奖已结束' : `报名已截止 · 还剩 ${lottery.remaining} 个名额`;
-  const winners = lottery.awards.flatMap((award, index) => lottery.draws.filter(draw => draw.awardIndex === index));
-  if (!winners.length) { details.textContent = '暂无中奖观众'; return; }
-  let page = 0;
-  const count = Math.ceil(winners.length / 6);
-  const renderPage = () => {
-    details.textContent = winners.slice(page * 6, page * 6 + 6)
-      .map(draw => `${draw.award.name} · ${draw.award.prize} · ${draw.winner.nickname}`).join('\n');
-    prize.textContent = count > 1 ? `${page + 1} / ${count}` : '';
-    page = (page + 1) % count;
-  };
-  renderPage();
-  if (count > 1) paging = setInterval(renderPage, 5000);
-}
-const events = new EventSource('/lottery/events');
-events.addEventListener('state', event => show(JSON.parse(event.data)));
-events.onerror = () => { shown = ''; clear(); };
-</script>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aether 抽奖页 · 星辰召唤</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/lottery/style.css">
+  <script src="/lottery/page.js" defer></script>
+</head>
+<body>
+<main id="scene" data-theme="StarSummon" hidden>
+  <section id="registration" hidden>
+    <div id="entryBar">
+      <div class="condition"><span class="label">召唤条件</span><span id="keyword"></span></div>
+      <span class="divider"></span>
+      <div class="count"><span id="entryCount" class="gold"></span><span class="countLabel">位召唤师已报名</span></div>
+      <span class="divider"></span>
+      <div class="latest"><span class="label">刚刚加入</span><div id="latestEntries"></div></div>
+    </div>
+    <aside id="awards"><div class="gold">奖品</div><div id="awardRows"></div></aside>
+  </section>
+  <section id="summon" hidden>
+    <div class="sky"></div>
+    <div class="circleSpace" aria-hidden="true"><div class="circlePlane">
+      <svg class="circle" viewBox="0 0 400 400" width="900" height="900">
+        <g fill="none" stroke="currentColor" stroke-width="2.4">
+          <circle cx="200" cy="200" r="192"/><circle cx="200" cy="200" r="180" stroke-dasharray="3 7"/>
+          <circle cx="200" cy="200" r="134"/><polygon points="200,66 316,267 84,267"/>
+          <polygon points="200,334 84,133 316,133"/><circle cx="200" cy="200" r="46"/>
+        </g>
+      </svg>
+      <svg class="circle reverse" viewBox="0 0 400 400" width="900" height="900">
+        <g fill="none" stroke="currentColor" stroke-width="1.6" opacity=".7">
+          <circle cx="200" cy="200" r="158" stroke-dasharray="18 10 4 10"/><circle cx="200" cy="200" r="88" stroke-dasharray="2 6"/>
+        </g>
+      </svg>
+      <span class="shock effect"></span>
+    </div></div>
+    <div class="pillar effect" aria-hidden="true"></div><div class="rays effect" aria-hidden="true"></div>
+    <div class="glow effect" aria-hidden="true"></div>
+    <!-- Transparent video effects can be inserted here later, behind the cards. -->
+    <div id="videoEffects" hidden></div>
+    <canvas id="particles" width="1920" height="1080" aria-hidden="true"></canvas>
+    <div id="ringWrap"><div id="ring"></div><div class="lockFrame effect" aria-hidden="true"></div></div>
+    <div id="banner" class="effect"></div>
+    <div class="meteor effect" aria-hidden="true"></div>
+    <div id="result" class="effect" aria-live="polite">
+      <div class="flip">
+        <div class="cardBack">
+          <svg width="240" height="240" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="0.7" aria-hidden="true">
+            <circle cx="12" cy="12" r="10.5"/><circle cx="12" cy="12" r="8" stroke-dasharray="0.6 1"/>
+            <path d="M12 3.5l2 6.2h6.4l-5.2 3.8 2 6.1L12 15.8l-5.2 3.8 2-6.1-5.2-3.8H10z"/>
+          </svg>
+        </div>
+        <div class="cardFace">
+          <div class="cardTop"><div id="rank" class="rank"></div><div id="stars" aria-hidden="true"></div></div>
+          <div id="prize"></div><div id="viewer"></div>
+        </div>
+      </div>
+    </div>
+    <div id="shout" class="gold effect"></div>
+    <div class="flash effect" aria-hidden="true"></div>
+  </section>
+  <section id="winners" hidden>
+    <h1 id="winnerTitle" class="gold"></h1><div id="winnerCards"></div>
+    <div id="remaining"></div><div id="pageNumber"></div>
+  </section>
+</main>
+</body>
 </html>

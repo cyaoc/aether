@@ -4,99 +4,109 @@ import vm from 'node:vm';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const script = readFileSync(new URL('../../src/Aether.Core/LotteryPage.html', import.meta.url), 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
+const script = readFileSync(new URL('../../src/Aether.Core/LotteryPage.js', import.meta.url), 'utf8');
 function page() {
-  let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0;
+  let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0, source;
   const timers = new Map(), elements = new Map(), listeners = new Map();
-  const document = { getElementById: id => {
-    if (!elements.has(id)) elements.set(id, { textContent: '', hidden: true });
+  const graphics = new Proxy({}, { get: () => () => {} });
+  const element = () => ({ hidden:true, children:[], dataset:{}, style:{setProperty(k,v){this[k]=v;}},
+    className:'', offsetWidth:0, scrollHeight:0, clientHeight:0, scrollWidth:0, clientWidth:0,
+    set textContent(value) { this.text = String(value); this.children = []; },
+    get textContent() { return (this.text || '') + this.children.map(c=>c.textContent).join(''); },
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.text=''; this.children=children; },
+    getContext:()=>graphics });
+  const document = { createElement:element, getElementById:id=>{
+    if(!elements.has(id)) elements.set(id,element());
     return elements.get(id);
-  }};
-  const timer = (callback, delay, repeat) => {
-    const id = ++nextId;
-    timers.set(id, { callback, at: now + delay, repeat });
-    return id;
-  };
-  vm.runInNewContext(script, {
-    document, Date: class extends Date { static now() { return now; } },
-    EventSource: class { addEventListener(name, fn) { listeners.set(name, fn); } },
-    setTimeout: (fn, ms) => timer(fn, ms, 0), setInterval: (fn, ms) => timer(fn, ms, ms),
-    clearTimeout: id => timers.delete(id), clearInterval: id => timers.delete(id),
-  });
-  return {
-    element: id => document.getElementById(id),
-    state: state => listeners.get('state')({ data: JSON.stringify(state) }),
-    advance: ms => {
-      const end = now + ms;
-      while (true) {
-        const due = [...timers].filter(([, t]) => t.at <= end).sort((a, b) => a[1].at - b[1].at)[0];
-        if (!due) break;
-        const [id, t] = due;
-        now = t.at;
-        if (t.repeat) t.at += t.repeat; else timers.delete(id);
+  }, fonts:{ready:Promise.resolve(),addEventListener(){}} };
+  const timer = (callback,delay,repeat) => { const id=++nextId; timers.set(id,{callback,at:now+delay,repeat}); return id; };
+  vm.runInNewContext(script, { document, window:{innerWidth:1920,innerHeight:1080,addEventListener(){}},
+    Date:class extends Date { static now(){return now;} }, getComputedStyle:()=>({fontSize:'112px'}),
+    EventSource:class { constructor(){source=this;} addEventListener(name,fn){listeners.set(name,fn);} },
+    requestAnimationFrame:()=>0,cancelAnimationFrame:()=>{},
+    setTimeout:(fn,ms)=>timer(fn,ms,0),setInterval:(fn,ms)=>timer(fn,ms,ms),
+    clearTimeout:id=>timers.delete(id),clearInterval:id=>timers.delete(id) });
+  return { element:id=>document.getElementById(id), state:state=>listeners.get('state')({data:JSON.stringify(state)}),
+    disconnect:()=>source.onerror(), advance:ms=>{
+      const end=now+ms;
+      while(true){
+        const due=[...timers].filter(([,t])=>t.at<=end).sort((a,b)=>a[1].at-b[1].at)[0];
+        if(!due)break;
+        const [id,t]=due; now=t.at;
+        if(t.repeat)t.at+=t.repeat;else timers.delete(id);
         t.callback();
       }
-      now = end;
-    },
-  };
+      now=end;
+    } };
 }
-const award = { name: '一等奖', prize: '键盘', capacity: 8, grade: 'Grand' };
-const entry = { id: 'entry', phase: 'Open', keyword: '<img onerror=alert(1)>', entryCount: 7,
-  latestEntries: [{ nickname: '甲' }, { nickname: '乙' }, { nickname: '丙' }], awards: [award], draws: [], remaining: 8, hidden: false, drawUntil: null };
-const draws = Array.from({ length: 7 }, (_, index) => ({ id: `d${index}`, awardIndex: 0, award,
-  winner: { uid: index + 1, nickname: `观众${index + 1}` }, candidates: ['甲', '乙'], drawnAt: '2026-10-17T12:00:00Z' }));
+const award = {name:'一等奖',prize:'键盘',capacity:8,grade:'Grand'};
+const entry = {id:'entry',phase:'Open',keyword:'<img onerror=alert(1)>',entryCount:7,
+  latestEntries:[{nickname:'甲'},{nickname:'乙'},{nickname:'丙'}],awards:[award],draws:[],remaining:8,hidden:false,drawUntil:null};
+const draws = Array.from({length:7},(_,i)=>({id:`d${i}`,awardIndex:0,award,winner:{uid:i+1,nickname:`观众${i+1}`},
+  candidates:['甲','乙'],drawnAt:'2026-10-17T12:00:00Z'}));
 
-test('registration, closed and ended snapshots render and winners rotate every five seconds', () => {
-  const p = page();
-  p.state({ entryLottery: entry });
-  assert.equal(p.element('result').hidden, false);
-  assert.equal(p.element('prize').textContent, '发弹幕「<img onerror=alert(1)>」');
-  assert.match(p.element('details').textContent, /最新报名：甲、乙、丙/);
-  p.state({ entryLottery: { ...entry, phase: 'Closed', draws, remaining: 1 } });
-  assert.equal(p.element('grade').textContent, '目前的中奖名单');
-  assert.match(p.element('viewer').textContent, /还剩 1 个名额/);
-  assert.equal(p.element('details').textContent.split('\n').length, 6);
-  assert.doesNotMatch(p.element('details').textContent, /观众7/);
-  p.advance(4999);
-  assert.equal(p.element('prize').textContent, '1 / 2');
-  p.advance(1);
-  assert.equal(p.element('details').textContent, '一等奖 · 键盘 · 观众7');
-  p.state({ entryLottery: { ...entry, phase: 'Ended', draws } });
-  assert.equal(p.element('grade').textContent, '完整中奖名单');
-  p.state({ entryLottery: { ...entry, phase: 'Ended', draws, hidden: true } });
-  assert.equal(p.element('result').hidden, true);
+test('registration uses text nodes, closed and ended results page by six and hidden clears timers',()=>{
+  const p=page(); p.state({entryLottery:entry});
+  assert.equal(p.element('registration').hidden,false);
+  assert.equal(p.element('keyword').textContent,'发弹幕「<img onerror=alert(1)>」');
+  assert.equal(p.element('keyword').children.length,0);
+  assert.equal(p.element('entryCount').textContent,'7');
+  assert.equal(p.element('latestEntries').textContent,'甲乙');
+  p.state({entryLottery:{...entry,phase:'Closed',draws,remaining:1}});
+  assert.equal(p.element('winnerTitle').textContent,'目前的召唤结果');
+  assert.match(p.element('remaining').textContent,/还剩 1 个名额/);
+  assert.equal(p.element('winnerCards').children.length,6);
+  p.advance(4999); assert.equal(p.element('pageNumber').textContent,'1 / 2');
+  p.advance(1); assert.match(p.element('winnerCards').textContent,/观众7/);
+  assert.equal(p.element('winnerCards').children.length,1);
+  p.state({entryLottery:{...entry,phase:'Ended',draws}});
+  assert.equal(p.element('winnerTitle').textContent,'召唤结果');
+  assert.equal(p.element('remaining').hidden,true);
+  assert.doesNotMatch(p.element('winnerCards').textContent,/键盘/);
+  p.state({entryLottery:{...entry,phase:'Ended',draws,hidden:true}});
+  assert.equal(p.element('scene').hidden,true);
   p.advance(5000);
-  p.state({ entryLottery: { ...entry, phase: 'Ended', draws } });
-  assert.equal(p.element('result').hidden, false);
-  p.state({ entryLottery: { ...entry, phase: 'Preparing' } });
-  assert.equal(p.element('result').hidden, true);
+  p.state({entryLottery:{...entry,phase:'Ended',draws}});
+  assert.equal(p.element('winners').hidden,false);
+  p.state({entryLottery:{...entry,phase:'Preparing'}});
+  assert.equal(p.element('scene').hidden,true);
 });
 
-test('draw reveals winner, ends at seven seconds, and a reconnect uses the remaining deadline', () => {
-  const p = page();
-  const state = { entryLottery: { ...entry, phase: 'Closed', draws: [draws[0]], drawUntil: '2026-10-17T12:00:07Z' } };
+test('one draw runs to its deadline and repeat snapshots or reconnects do not replay it',()=>{
+  const p=page(), state={entryLottery:{...entry,phase:'Closed',draws:[draws[0]],drawUntil:'2026-10-17T12:00:07Z'}};
   p.state(state);
-  assert.equal(p.element('prize').textContent, '甲');
-  p.advance(1800);
-  assert.equal(p.element('prize').textContent, '观众1');
-  p.state(state);
-  p.advance(5199);
-  assert.equal(p.element('grade').textContent, '一等奖 · 大奖');
-  p.advance(1);
-  assert.equal(p.element('grade').textContent, '目前的中奖名单');
-  const late = page();
-  late.advance(6000);
-  late.state(state);
-  assert.equal(late.element('prize').textContent, '观众1');
-  late.advance(1000);
-  assert.equal(late.element('grade').textContent, '目前的中奖名单');
+  assert.equal(p.element('scene').dataset.view,'drawing');
+  assert.match(p.element('ring').textContent,/甲/);
+  assert.equal(p.element('prize').textContent,'观众1');
+  p.advance(3000); p.state(state);
+  assert.equal(p.element('summon').style['--elapsed'],'0s');
+  p.advance(3999); assert.equal(p.element('scene').dataset.view,'drawing');
+  p.advance(1); assert.equal(p.element('scene').dataset.view,'winners');
+  p.state(state); assert.equal(p.element('scene').dataset.view,'winners');
+  const late=page(); late.advance(6000); late.state(state);
+  assert.equal(late.element('summon').style['--elapsed'],'-6s');
+  late.advance(1000); assert.equal(late.element('scene').dataset.view,'winners');
+  late.disconnect(); assert.equal(late.element('scene').hidden,true);
+  late.state(state); assert.equal(late.element('scene').dataset.view,'winners');
 });
 
-test('switching to an idle pool clears entry content and its page timer', () => {
-  const p = page();
-  p.state({ entryLottery: { ...entry, phase: 'Ended', draws } });
-  p.state({ lottery: { id: 'pool', phase: 'Idle', draws: [] } });
-  assert.equal(p.element('result').hidden, true);
-  p.advance(5000);
-  assert.equal(p.element('details').textContent, '');
+test('pool spinning has only prizes, each grade reveals the drawn prize, then becomes transparent',()=>{
+  for(const grade of ['Grand','Second','Third']){
+    const p=page(), prize={name:'手办',grade,weight:1};
+    const pool={id:'pool',phase:'Spinning',prizes:[prize],draws:[],uid:42,stopWord:'停'};
+    p.state({lottery:pool});
+    assert.equal(p.element('scene').dataset.view,'spinning');
+    assert.match(p.element('ring').textContent,/手办/);
+    assert.equal(p.element('banner').textContent,'');
+    p.state({lottery:{...pool,phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
+      draws:[{id:'d',prize,uid:42,nickname:null,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}]}});
+    assert.equal(p.element('summon').className,`drawing ${grade}`);
+    assert.equal(p.element('prize').textContent,'手办');
+    assert.equal(p.element('viewer').textContent,'UID 42');
+    assert.equal(p.element('banner').textContent,'UID 42 发起召唤！');
+    assert.equal(p.element('rank').textContent,{Grand:'大奖',Second:'二奖',Third:'三奖'}[grade]);
+    p.advance(7000); assert.equal(p.element('scene').hidden,true);
+    p.advance(7000); assert.equal(p.element('scene').hidden,true);
+  }
 });
