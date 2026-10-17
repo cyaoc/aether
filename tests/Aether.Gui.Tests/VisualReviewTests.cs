@@ -18,6 +18,56 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_web_service_and_video_status(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            Directory.CreateDirectory(Settings.VideoDirectory(harness.DataDirectory));
+            foreach (var (uid, file) in new[] { (12345, "小鹿的欢迎动画.mp4"), (67890, "星光入场.webm") })
+            {
+                Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, uid, file);
+                File.WriteAllText(Path.Combine(Settings.VideoDirectory(harness.DataDirectory), file), "video");
+            }
+            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
+            var viewModel = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, Width = 1200, Height = 720,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = 5;
+                GuiHarness.Flush();
+                foreach (var (name, state) in new[]
+                {
+                    ("connected", new WebServiceStatus(true, 17890, 2, 1)),
+                    ("partial", new WebServiceStatus(true, 17890, 1, 0)),
+                    ("setup", new WebServiceStatus(true, 17890, 0, 0)),
+                    ("occupied", new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"))
+                })
+                {
+                    viewModel.Apply(state);
+                    Save(window, $"web-service-N{(dark ? 2 : 1)}-{name}");
+                }
+                viewModel.Apply(new WebServiceStatus(true, 17890, 1, 1));
+                window.Navigation.SelectedIndex = 3;
+                viewModel.Apply(new WelcomeAnimationPlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
+                Save(window, $"welcome-animation-N3-{(dark ? "dark" : "light")}");
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
     [InlineData(904, false)]
     [InlineData(904, true)]
     [InlineData(960, false)]
@@ -193,11 +243,11 @@ public sealed class VisualReviewTests
             using var harness = new GuiHarness();
             await harness.SaveCredentialAsync();
             var videos = new Dictionary<long, string> { [1234567890123456] = "小鹿的欢迎动画.mp4", [67890] = "星光入场.webm", [24680] = "很长的专属欢迎动画文件名.mp4", [13579] = "找不到的视频.mp4" };
-            Directory.CreateDirectory(Path.Combine(harness.DataDirectory, "welcome-animations"));
+            Directory.CreateDirectory(Path.Combine(harness.DataDirectory, "videos"));
             foreach (var (uid, file) in videos)
             {
                 Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, uid, file);
-                if (uid != 13579) File.WriteAllText(Path.Combine(harness.DataDirectory, "welcome-animations", file), "video");
+                if (uid != 13579) File.WriteAllText(Path.Combine(harness.DataDirectory, "videos", file), "video");
             }
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
             var viewModel = harness.CreateViewModel();
@@ -212,17 +262,17 @@ public sealed class VisualReviewTests
                 await viewModel.ReadAccountCommand.ExecutionTask!;
                 window.Navigation.SelectedIndex = 3;
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.Section == SettingsSection.WelcomeAnimation);
-                viewModel.Apply(new AnimationPageStatus(true, 17890, 2));
-                foreach (var (state, index) in new[] { WelcomeAnimationState.Completed, WelcomeAnimationState.Failed, WelcomeAnimationState.NoReport, WelcomeAnimationState.Skipped, WelcomeAnimationState.Queued }.Select((state, index) => (state, index)))
-                    viewModel.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == WelcomeAnimationState.Skipped ? "10 分钟内播过" : null,
+                viewModel.Apply(new WebServiceStatus(true, 17890, 2, 0));
+                foreach (var (state, index) in new[] { PlaybackState.Completed, PlaybackState.Failed, PlaybackState.NoReport, PlaybackState.Skipped, PlaybackState.Queued }.Select((state, index) => (state, index)))
+                    viewModel.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "10 分钟内播过" : null,
                         Nickname: index switch { 1 => "柚子不酸", 2 => "bili_6508617762", _ => null }));
                 Capture("connected");
-                viewModel.Apply(new AnimationPageStatus(true, 17890, 0));
+                viewModel.Apply(new WebServiceStatus(true, 17890, 0, 0));
                 Capture("setup");
-                viewModel.Apply(new AnimationPageStatus(false, 17890, 0, "端口 17890 被别的程序占用"));
+                viewModel.Apply(new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"));
                 Capture("port-occupied");
-                viewModel.Apply(new AnimationPageStatus(true, 17890, 1));
-                viewModel.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, WelcomeAnimationState.Playing));
+                viewModel.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                viewModel.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
                 Capture("playing");
                 var rows = page.FindControl<StackPanel>("AnimationRows")!.Children.Cast<WelcomeAnimationRow>().ToArray();
                 rows[0].FindControl<TextBox>("UidInput")!.Text = "";
@@ -236,7 +286,7 @@ public sealed class VisualReviewTests
                 await GuiHarness.WaitForAsync(() => page.IsEnabled);
                 viewModel.RecentAnimations.Clear();
                 page.FindControl<TextBlock>("Message")!.Text = "";
-                viewModel.Apply(new AnimationPageStatus(false, 17890, 0));
+                viewModel.Apply(new WebServiceStatus(false, 17890, 0, 0));
                 Capture("empty");
                 page.FindControl<Control>("EmptyAnimations")!.BringIntoView();
                 Capture("empty-list");

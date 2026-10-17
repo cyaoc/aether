@@ -67,7 +67,7 @@
         </Border>
         <TextBlock Classes="secondary" Text="打开 B站 App 扫一扫，在手机上确认" FontWeight="SemiBold" TextWrapping="Wrap" TextAlignment="Center" />
         <TextBlock Classes="caption muted" Text="二维码过期后会自动换新" TextWrapping="Wrap" TextAlignment="Center" />
-        <Button x:Name="OpenAnimationsWithoutLoginButton" Content="先设置欢迎动画，无需登录" Classes="ghost" HorizontalAlignment="Center" Click="OpenAnimationsWithoutLogin" />
+        <Button x:Name="OpenSettingsWithoutLoginButton" Content="先设置，无需登录" Classes="ghost" HorizontalAlignment="Center" Click="OpenSettingsWithoutLogin" />
       </StackPanel>
     </Grid>
     <Grid ColumnDefinitions="224,*" IsVisible="{Binding !IsLoginPage}">

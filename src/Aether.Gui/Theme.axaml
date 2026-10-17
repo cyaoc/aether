@@ -39,6 +39,7 @@
           <SolidColorBrush x:Key="Warning.Background" Color="#FEF8EC" />
           <SolidColorBrush x:Key="Warning.Border" Color="#F5D9A8" />
           <SolidColorBrush x:Key="Warning.Text" Color="#78350F" />
+          <SolidColorBrush x:Key="Warning.Dot" Color="#D08A1E" />
           <SolidColorBrush x:Key="Danger" Color="#B91C1C" />
           <SolidColorBrush x:Key="Danger.Tint" Color="#FEF2F2" />
           <SolidColorBrush x:Key="Danger.Border" Color="#FECACA" />
@@ -86,6 +87,7 @@
           <SolidColorBrush x:Key="Warning.Background" Color="#2A2114" />
           <SolidColorBrush x:Key="Warning.Border" Color="#5A4318" />
           <SolidColorBrush x:Key="Warning.Text" Color="#F2C46D" />
+          <SolidColorBrush x:Key="Warning.Dot" Color="#E0A43A" />
           <SolidColorBrush x:Key="Danger" Color="#F87171" />
           <SolidColorBrush x:Key="Danger.Tint" Color="#321E22" />
           <SolidColorBrush x:Key="Danger.Border" Color="#673238" />
@@ -107,6 +109,8 @@
       <StreamGeometry x:Key="Icon.Welcome">M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3</StreamGeometry>
       <StreamGeometry x:Key="Icon.Animation">M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4</StreamGeometry>
       <StreamGeometry x:Key="Icon.Play">M7 4l13 8-13 8z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Lottery">M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4zM14 5v2M14 11v2M14 17v2</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Next">M9 6l6 6-6 6</StreamGeometry>
       <StreamGeometry x:Key="Icon.Wave">M3 10v4M7 7v10M11 4v16M15 8v8M19 11v2</StreamGeometry>
       <StreamGeometry x:Key="Icon.Copy">M9 9h11v11H9zM5 15H4V4h11v1</StreamGeometry>
       <StreamGeometry x:Key="Icon.Check">M20 6L9 17l-5-5</StreamGeometry>

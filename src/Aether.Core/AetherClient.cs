@@ -9,27 +9,42 @@ using Microsoft.Extensions.Logging;
 namespace Aether.Core;
 
 /// <summary>Owns the supplied HTTP handler and each WebSocket returned by the connection delegate.</summary>
-public sealed partial class AetherClient(
-    HttpMessageHandler httpHandler,
-    Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket,
-    TimeProvider timeProvider,
-    ILogger<AetherClient> logger,
-    string dataDirectory) : IDisposable
+public sealed partial class AetherClient : IDisposable
 {
-    private readonly HttpClient http = new(httpHandler);
-    // Fields rather than captured parameters, so the nested RoomConnection can reach them.
-    private readonly Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket = connectWebSocket;
-    private readonly TimeProvider timeProvider = timeProvider;
-    private readonly ILogger<AetherClient> logger = logger;
-    private readonly string dataDirectory = dataDirectory;
-    public AnimationPage AnimationPage { get; } = new(dataDirectory, timeProvider, logger);
-    // One database for the whole client, opened on first use. PublicationOnly does not cache a failed open,
-    // so a transient database error does not poison a long-lived client.
-    private readonly Lazy<Stores> stores = new(() =>
+    private readonly HttpClient http;
+    private readonly Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket;
+    private readonly TimeProvider timeProvider;
+    private readonly ILogger<AetherClient> logger;
+    private readonly string dataDirectory;
+    public WebService WebService { get; }
+    public WelcomeAnimation WelcomeAnimation { get; }
+    private readonly Lazy<Stores> stores;
+
+    public AetherClient(HttpMessageHandler httpHandler, Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket,
+        TimeProvider timeProvider, ILogger<AetherClient> logger, string dataDirectory)
     {
-        var database = new Database(dataDirectory);
-        return new Stores(new CredentialStore(database), new BlindBoxStore(database, logger));
-    }, LazyThreadSafetyMode.PublicationOnly);
+        http = new(httpHandler);
+        this.connectWebSocket = connectWebSocket;
+        this.timeProvider = timeProvider;
+        this.logger = logger;
+        this.dataDirectory = dataDirectory;
+        WebService = new(dataDirectory, timeProvider, logger);
+        WelcomeAnimation = new(WebService, timeProvider, logger);
+        // PublicationOnly does not cache a failed open, so a transient database error can be retried.
+        stores = new(() =>
+        {
+            var database = new Database(dataDirectory);
+            return new Stores(new CredentialStore(database), new BlindBoxStore(database, logger));
+        }, LazyThreadSafetyMode.PublicationOnly);
+    }
+
+    /// <summary>Applies feature settings immediately; only a port change restarts the web service.</summary>
+    public async Task ApplyWebSettingsAsync(Settings settings)
+    {
+        if (settings.Error is { } error) throw error;
+        WelcomeAnimation.Apply(settings);
+        await WebService.StartAsync(settings.WebServicePort.Value).ConfigureAwait(false);
+    }
 
     private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes);
 
@@ -261,7 +276,7 @@ public sealed partial class AetherClient(
         catch { socket.Dispose(); throw; }
     }
 
-    public void Dispose() { AnimationPage.Dispose(); http.Dispose(); }
+    public void Dispose() { WebService.Dispose(); http.Dispose(); }
 }
 
 public static class AetherHosting

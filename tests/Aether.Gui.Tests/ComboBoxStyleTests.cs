@@ -112,7 +112,8 @@ public sealed class ComboBoxStyleTests
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory)
         {
-            DataContext = viewModel, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            // Leave room below the log dropdown now that General also contains the web service card.
+            DataContext = viewModel, Height = 1000, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
         };
         window.Show();
         try { test(window); }

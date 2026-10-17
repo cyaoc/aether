@@ -28,6 +28,9 @@ public partial class SettingsPage : UserControl
     public SettingsSection Section { get; }
     /// <summary>Raised once Save has written the file or failed to, so other views can reread it.</summary>
     public event Action? SaveCompleted;
+    public event Action? GeneralSettingsRequested;
+
+    private void OpenGeneralSettings(object? sender, RoutedEventArgs e) => GeneralSettingsRequested?.Invoke();
 
     public SettingsPage() : this(DataDirectory.Locate(), SettingsSection.General) { }
 
@@ -47,7 +50,7 @@ public partial class SettingsPage : UserControl
             SettingsSection.Send => ("发送队列", "send."),
             _ => ("通用设置", "log.")
         };
-        TimingHint.Text = AppliesOnRestart ? "重启后生效" : "下次连接直播间时生效";
+        TimingHint.Text = AppliesOnRestart ? "端口保存后立即生效；日志设置重启后生效" : "下次连接直播间时生效";
         BlindBoxHeader.IsVisible = BlindBoxFields.IsVisible = section == SettingsSection.BlindBox;
         WelcomeHeader.IsVisible = WelcomeFields.IsVisible = section == SettingsSection.Welcome;
         AnimationHeader.IsVisible = AnimationFields.IsVisible = section == SettingsSection.WelcomeAnimation;
@@ -68,7 +71,7 @@ public partial class SettingsPage : UserControl
         RecentAnimationsList.IsVisible = section == SettingsSection.WelcomeAnimation;
         SizeChanged += (_, _) => ArrangeActivity();
         LogLevelInput.ItemsSource = Settings.LogLevels;
-        foreach (var number in new[] { RetentionInput, SendIntervalInput, AnimationPortInput })
+        foreach (var number in new[] { RetentionInput, SendIntervalInput, WebPortInput })
             number.PropertyChanged += (_, e) =>
             {
                 if (e.Property == NumericUpDown.TextProperty) Validate();
@@ -82,8 +85,11 @@ public partial class SettingsPage : UserControl
                 if (e.Property == ToggleButton.IsCheckedProperty) Validate();
             };
         AddAnimationButton.Click += async (_, _) => await ChooseAnimationAsync();
-        CopyAnimationAddressButton.Click += async (_, _) => await CopyAnimationAddressAsync();
-        DetachedFromVisualTree += (_, _) => { copyFeedback?.Dispose(); ShowCopied(false); };
+        DetachedFromVisualTree += (_, _) =>
+        {
+            foreach (var (button, timer) in copyFeedback) { timer.Dispose(); button.Classes.Set("copied", false); }
+            copyFeedback.Clear();
+        };
         LoadSettings();
     }
 
@@ -131,7 +137,7 @@ public partial class SettingsPage : UserControl
         Show(WelcomeInput, WelcomeReadOnly, settings.WelcomeEnabled);
         LoadWelcomeTexts();
         Show(AnimationInput, AnimationReadOnly, settings.WelcomeAnimationEnabled);
-        Show(AnimationPortInput, AnimationPortReadOnly, settings.WelcomeAnimationPort);
+        Show(WebPortInput, WebPortReadOnly, settings.WebServicePort);
         LoadWelcomeConditions();
         if (Section == SettingsSection.WelcomeAnimation) LoadAnimations();
         original = Fields().ToDictionary(field => field.Name, field => field.Input);
@@ -212,8 +218,9 @@ public partial class SettingsPage : UserControl
         new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, ConditionValue(WelcomeCondition.Guard, Settings.WelcomeGuards[0])),
         new(settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, ConditionValue(WelcomeCondition.WealthLevel, "0")),
         new(settings.WelcomeAnimationEnabled.Name, settings.WelcomeAnimationEnabled.CanEdit, Settings.BooleanText(AnimationInput.IsChecked == true)),
-        new(settings.WelcomeAnimationPort.Name, settings.WelcomeAnimationPort.CanEdit, AnimationPortInput.Text, AnimationPortError),
-    }.Where(field => field.Name.StartsWith(group, StringComparison.Ordinal)).ToArray();
+        new(settings.WebServicePort.Name, settings.WebServicePort.CanEdit, WebPortInput.Text, WebPortError),
+    }.Where(field => field.Name.StartsWith(group, StringComparison.Ordinal)
+        || Section == SettingsSection.General && field.Name.StartsWith("web_service.", StringComparison.Ordinal)).ToArray();
 
     private void Validate()
     {
@@ -236,9 +243,13 @@ public partial class SettingsPage : UserControl
         DirtyMessage.IsVisible = welcome && ConditionsAddedOrRemoved
             || animation && AnimationDraft
             || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
+        DirtyMessage.Text = PortChanged ? "保存后网页服务换到新端口，直播姬里的地址要跟着改" : "有未保存的修改";
         SaveButton.IsEnabled = fileError is null && error is null && !invalidCondition && !invalidWelcomeText && !invalidAnimation && DirtyMessage.IsVisible;
-        if (Section != SettingsSection.WelcomeAnimation || DirtyMessage.IsVisible) Message.Text = "";
+        if (Section is not (SettingsSection.WelcomeAnimation or SettingsSection.General) || DirtyMessage.IsVisible) Message.Text = "";
     }
+
+    private bool PortChanged => Section == SettingsSection.General && settings.WebServicePort.CanEdit
+        && WebPortInput.Text != original.GetValueOrDefault(settings.WebServicePort.Name);
 
     /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
     private static string? InputError(Field field) =>
@@ -255,28 +266,32 @@ public partial class SettingsPage : UserControl
         // Core leaves alone what this form was filled with, so an untouched setting keeps its spelling and any edit made elsewhere.
         var changes = Changes(Fields());
         var result = "已保存。";
+        var portChanged = PortChanged;
         long[] replaced = [];
+        saveCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        saving = true;
+        IsEnabled = false;
         try
         {
             if (Section == SettingsSection.WelcomeAnimation)
             {
                 var rows = Animations.ToDictionary(row => row.Uid!.Value, row => (row.FileName, row.SourcePath));
                 replaced = rows.Where(pair => pair.Value.SourcePath is not null).Select(pair => pair.Key).ToArray();
-                saveCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                saving = true;
-                IsEnabled = false;
                 var snapshot = settings;
                 result = await Task.Run(() => SaveAnimationFiles(changes, rows, snapshot));
-                saving = false;
             }
             else Settings.Save(dataDirectory, changes, settings);
+            // Let LoadSettings validate the saved form, then keep file refreshes out until the save ends: they would clear the result message.
+            saving = false;
             LoadSettings();
+            saving = true;
             if (settings.Error is null)
             {
-                if (Section == SettingsSection.WelcomeAnimation && viewModel is not null)
+                if (Section is SettingsSection.WelcomeAnimation or SettingsSection.General && viewModel is not null)
                 {
-                    await viewModel.ReloadAnimationPageAsync(settings);
+                    await viewModel.ApplyWebSettingsAsync(settings);
                     viewModel.ForgetAnimationFailures(replaced);
+                    if (portChanged && viewModel.WebServiceStatus.Running) result = "已保存，网页服务已换到新端口";
                 }
                 SaveCompleted?.Invoke();
                 Message.Text = result;

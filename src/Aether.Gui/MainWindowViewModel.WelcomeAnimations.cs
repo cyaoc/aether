@@ -24,22 +24,22 @@ public partial class MainWindowViewModel
     private bool testPlayPending;
     internal bool AnimationBusy => testPlayPending || pendingAnimations.Count > 0;
 
-    /// <summary>Starts the page when the window opens, logging mapped videos that are missing as the CLI does.</summary>
-    internal Task StartAnimationPageAsync(string dataDirectory) => ReloadAnimationPageAsync(Settings.Load(dataDirectory, logger));
+    /// <summary>Starts the web service when the window opens, logging mapped videos that are missing as the CLI does.</summary>
+    internal Task StartWebServiceAsync(string dataDirectory) => ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
 
-    internal Task RefreshAnimationPageAsync(Settings snapshot)
+    internal Task RefreshWebServiceAsync(Settings snapshot)
     {
         if (animationSettings is { } previous
             && previous.Error?.Message == snapshot.Error?.Message
             && previous.WelcomeAnimationEnabled.Value == snapshot.WelcomeAnimationEnabled.Value
-            && previous.WelcomeAnimationPort.Value == snapshot.WelcomeAnimationPort.Value
+            && previous.WebServicePort.Value == snapshot.WebServicePort.Value
             && previous.WelcomeAnimationVideos.Count == snapshot.WelcomeAnimationVideos.Count
             && previous.WelcomeAnimationVideos.All(pair => snapshot.WelcomeAnimationVideos.TryGetValue(pair.Key, out var video) && video.Value == pair.Value.Value))
             return animationReload;
-        return ReloadAnimationPageAsync(snapshot);
+        return ApplyWebSettingsAsync(snapshot);
     }
 
-    public Task ReloadAnimationPageAsync(Settings snapshot)
+    public Task ApplyWebSettingsAsync(Settings snapshot)
     {
         if (shuttingDown) return Task.CompletedTask;
         animationSettings = snapshot;
@@ -59,16 +59,15 @@ public partial class MainWindowViewModel
             {
                 await previous;
                 if (shuttingDown) return;
-                await client.AnimationPage.StopAsync();
-                if (shuttingDown) return;
-                client.AnimationPage.Start(snapshot);
+                await client.ApplyWebSettingsAsync(snapshot);
                 failedAnimationVideos.RemoveWhere(video => !snapshot.WelcomeAnimationVideos.TryGetValue(video.Uid, out var saved) || saved.Value != video.FileName);
-                Apply(client.AnimationPage.Status);
+                Apply(client.WebService.Status);
             }
             catch (Exception error)
             {
-                logger.LogWarning(error, "动画页启动失败");
-                Apply(new AnimationPageStatus(false, snapshot.WelcomeAnimationPort.Value, 0, error.Message));
+                logger.LogWarning(error, "网页服务设置未应用");
+                // Invalid file contents did not change the running service; the settings page shows that error.
+                Apply(snapshot.Error is not null ? client.WebService.Status : client.WebService.Status with { Error = error.Message });
             }
             finally
             {
@@ -82,7 +81,7 @@ public partial class MainWindowViewModel
     {
         try
         {
-            await foreach (var update in client.AnimationPage.GetUpdatesAsync(token)) Apply(update);
+            await foreach (var update in client.WebService.GetUpdatesAsync(token)) Apply(update);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
     }
@@ -90,8 +89,8 @@ public partial class MainWindowViewModel
     private async Task StopAnimationsAsync()
     {
         await animationReload;
-        await client.AnimationPage.StopAsync();
-        Apply(client.AnimationPage.Status);
+        await client.WebService.StopAsync();
+        Apply(client.WebService.Status);
         animationUpdateStop?.Cancel();
         await animationUpdates;
         animationUpdateStop?.Dispose();
@@ -99,7 +98,7 @@ public partial class MainWindowViewModel
     }
 
     [RelayCommand]
-    private async Task OpenAnimationSettingsAsync()
+    private async Task OpenSettingsAsync()
     {
         LoginCommand.Cancel();
         if (LoginCommand.ExecutionTask is { } login) await login;
@@ -111,32 +110,45 @@ public partial class MainWindowViewModel
     private void OpenLoginPage() => ShowLoginPage();
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(AnimationPageText))]
-    [NotifyPropertyChangedFor(nameof(AnimationAddressText))]
-    [NotifyPropertyChangedFor(nameof(HasAnimationPages))]
-    [NotifyPropertyChangedFor(nameof(HasAnimationError))]
-    [NotifyPropertyChangedFor(nameof(ShowAnimationSetup))]
-    [NotifyPropertyChangedFor(nameof(IsAnimationPageOff))]
-    [NotifyPropertyChangedFor(nameof(AnimationPageHelp))]
-    private AnimationPageStatus animationPageStatus = client.AnimationPage.Status;
+    [NotifyPropertyChangedFor(nameof(VideoPageText))]
+    [NotifyPropertyChangedFor(nameof(VideoAddressText))]
+    [NotifyPropertyChangedFor(nameof(LotteryAddressText))]
+    [NotifyPropertyChangedFor(nameof(HasVideoConnections))]
+    [NotifyPropertyChangedFor(nameof(HasLotteryConnections))]
+    [NotifyPropertyChangedFor(nameof(HasWebServiceError))]
+    [NotifyPropertyChangedFor(nameof(IsWebServiceOff))]
+    [NotifyPropertyChangedFor(nameof(ShowVideoSetup))]
+    [NotifyPropertyChangedFor(nameof(ShowLotterySetup))]
+    [NotifyPropertyChangedFor(nameof(ServiceStatusText))]
+    [NotifyPropertyChangedFor(nameof(ServiceHelpText))]
+    [NotifyPropertyChangedFor(nameof(VideoConnectionsText))]
+    [NotifyPropertyChangedFor(nameof(LotteryConnectionsText))]
+    private WebServiceStatus webServiceStatus = client.WebService.Status;
 
-    public bool HasAnimationPages => AnimationPageStatus.Running && AnimationPageStatus.ConnectedPages > 0;
-    public bool HasAnimationError => AnimationPageStatus.Error is not null;
-    public bool ShowAnimationSetup => AnimationPageStatus is { Running: true, ConnectedPages: 0 };
-    public bool IsAnimationPageOff => AnimationPageStatus is { Running: false, Error: null };
-    public string AnimationAddressText => AnimationPageStatus.Address;
-    public string AnimationPageText => AnimationPageStatus.Error is { } error ? "动画页没打开：" + error
-        : !AnimationPageStatus.Running ? "动画页没开，打开开关并保存后启动"
-        : HasAnimationPages ? $"已有 {AnimationPageStatus.ConnectedPages} 个推流软件连着动画页"
-        : "还没有推流软件连着动画页";
-    public string AnimationPageHelp => HasAnimationError ? "换一个端口并保存，再把直播姬里浏览器素材的地址改成新的。"
-        : ShowAnimationSetup ? "在直播姬里添加浏览器素材，地址填下面这个，尺寸 1920 × 1080。已经加过的，右键素材 → 刷新。" : "";
+    public bool HasVideoConnections => WebServiceStatus is { Running: true, VideoConnections: > 0 };
+    public bool HasLotteryConnections => WebServiceStatus is { Running: true, LotteryConnections: > 0 };
+    public bool HasWebServiceError => WebServiceStatus.Error is not null;
+    public bool IsWebServiceOff => WebServiceStatus is { Running: false, Error: null };
+    public bool ShowVideoSetup => WebServiceStatus is { Running: true, VideoConnections: 0 };
+    public bool ShowLotterySetup => WebServiceStatus is { Running: true, LotteryConnections: 0 };
+    public string VideoAddressText => WebServiceStatus.VideoAddress;
+    public string LotteryAddressText => WebServiceStatus.LotteryAddress;
+    public string ServiceStatusText => WebServiceStatus.Error is { } error ? "没打开：" + error : WebServiceStatus.Running ? "运行中" : "未运行";
+    public string ServiceHelpText => HasWebServiceError ? "换一个端口并保存，再把直播姬里所有浏览器素材的地址改成新的。"
+        : WebServiceStatus.Running ? "GUI 开着就一直运行，不用登录、不用连直播间。先开 Aether，再开直播姬。" : "";
+    public string VideoConnectionsText => ConnectionsText(WebServiceStatus.VideoConnections);
+    public string LotteryConnectionsText => ConnectionsText(WebServiceStatus.LotteryConnections);
+    private string ConnectionsText(int count) => !WebServiceStatus.Running ? "服务没打开" : count > 0 ? $"{count} 个推流软件连着" : "还没有连着";
+    public string VideoPageText => WebServiceStatus.Error is { } error ? $"网页服务没打开：{error}，试播和进场都播不了"
+        : !WebServiceStatus.Running ? "网页服务没打开，试播和进场都播不了"
+        : HasVideoConnections ? $"视频页：已有 {WebServiceStatus.VideoConnections} 个推流软件连着"
+        : "视频页还没有推流软件连着，先在直播姬里加好再试播";
 
-    internal void Apply(AnimationPageUpdate update)
+    internal void Apply(WebServiceUpdate update)
     {
-        if (update is AnimationPageStatus status)
+        if (update is WebServiceStatus status)
         {
-            AnimationPageStatus = status;
+            WebServiceStatus = status;
             if (!status.Running)
             {
                 pendingAnimations.Clear();
@@ -151,7 +163,7 @@ public partial class MainWindowViewModel
             var item = new WelcomeAnimationItem(playback, existing?.OccurredAt ?? clock.GetLocalNow());
             if (existing is null) RecentAnimations.Insert(0, item);
             else RecentAnimations[RecentAnimations.IndexOf(existing)] = item;
-            if (playback.State is WelcomeAnimationState.Queued or WelcomeAnimationState.Playing)
+            if (playback.State is PlaybackState.Queued or PlaybackState.Playing)
                 pendingAnimations.Add(playback.Id);
             else
             {
@@ -164,11 +176,12 @@ public partial class MainWindowViewModel
                 }
             }
             NumberQueuedAnimations();
-            if (playback.State == WelcomeAnimationState.Playing) playingAnimation = playback;
+            if (playback.State == PlaybackState.Playing) playingAnimation = playback;
             else if (playingAnimation?.Id == playback.Id) playingAnimation = null;
             // #125: the failure hint stays until the video is replaced, even if a later playback works.
-            if (playback.State == WelcomeAnimationState.Failed) failedAnimationVideos.Add((playback.Uid, playback.FileName));
+            if (playback.State == PlaybackState.Failed) failedAnimationVideos.Add((playback.Uid, playback.FileName));
         }
+        else return; // A VideoPlayback alone changes no animation row.
         AnimationRowsChanged?.Invoke();
     }
 
@@ -178,7 +191,7 @@ public partial class MainWindowViewModel
         var position = 0;
         for (var index = RecentAnimations.Count - 1; index >= 0; index--)
         {
-            if (RecentAnimations[index] is not { Playback.State: WelcomeAnimationState.Queued } queued) continue;
+            if (RecentAnimations[index] is not { Playback.State: PlaybackState.Queued } queued) continue;
             position++;
             if (queued.Position != position) RecentAnimations[index] = queued with { Position = position };
         }
@@ -197,12 +210,13 @@ public partial class MainWindowViewModel
 
     internal void TestPlay(long uid, string fileName)
     {
-        if (AnimationReloading || AnimationBusy || !HasAnimationPages || shuttingDown
+        if (AnimationReloading || AnimationBusy || !HasVideoConnections || shuttingDown
+            || animationSettings?.WelcomeAnimationEnabled.Value != true
             || !AnimationVideoSaved(uid, fileName)) return;
         // Disable immediately, before the queued update crosses back to the UI thread.
         testPlayPending = true;
         AnimationRowsChanged?.Invoke();
-        client.AnimationPage.TestPlay(uid);
+        client.WelcomeAnimation.TestPlay(uid);
     }
 
     private void ClearAnimationHistory()
@@ -220,16 +234,16 @@ public sealed record WelcomeAnimationItem(WelcomeAnimationPlayback Playback, Dat
     public string? Detail => Playback.IsTest || Playback.Nickname is null ? null : $"UID {Playback.Uid}";
     public string Status => Playback switch
     {
-        { State: WelcomeAnimationState.Queued } when Position > 0 => $"{Playback.Progress} · 第 {Position} 个",
-        { State: WelcomeAnimationState.Failed or WelcomeAnimationState.Skipped or WelcomeAnimationState.NoReport, Reason: { } reason }
+        { State: PlaybackState.Queued } when Position > 0 => $"{Playback.Progress} · 第 {Position} 个",
+        { State: PlaybackState.Failed or PlaybackState.Skipped or PlaybackState.NoReport, Reason: { } reason }
             => $"{Playback.Progress}：{reason}",
         _ => Playback.Progress
     };
-    public bool Playing => Playback.State == WelcomeAnimationState.Playing;
-    public bool Failed => Playback.State == WelcomeAnimationState.Failed;
+    public bool Playing => Playback.State == PlaybackState.Playing;
+    public bool Failed => Playback.State == PlaybackState.Failed;
     /// <summary>A viewer played within the interval: the queue working as intended, so it stays quiet.</summary>
-    public bool RecentlyPlayed => Playback is { State: WelcomeAnimationState.Skipped, Reason: AnimationPage.RecentlyPlayed };
-    public bool Completed => Playback.State == WelcomeAnimationState.Completed;
+    public bool RecentlyPlayed => Playback is { State: PlaybackState.Skipped, Reason: WelcomeAnimation.RecentlyPlayed };
+    public bool Completed => Playback.State == PlaybackState.Completed;
     /// <summary>Not played for a reason the streamer may want to act on.</summary>
-    public bool Unplayed => Playback.State == WelcomeAnimationState.NoReport || Playback.State == WelcomeAnimationState.Skipped && !RecentlyPlayed;
+    public bool Unplayed => Playback.State == PlaybackState.NoReport || Playback.State == PlaybackState.Skipped && !RecentlyPlayed;
 }

@@ -126,7 +126,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Assert.Contains("# 本直播间粉丝团等级达到多少就欢迎，0 表示不按粉丝团等级欢迎\n  fan_club_level: 0", section);
         Assert.Contains("# 荣耀等级达到多少就欢迎，0 表示不按荣耀等级欢迎\n  wealth_level: 0", section);
         Assert.Empty(settings.UnknownKeys);
-        const string before = "welcome_animation:\r\nwelcome_animation_videos:\r\n# 保留\r\nlog:\r\nblind_box:\r\nsend:\r\n";
+        const string before = "web_service:\r\nwelcome_animation:\r\nwelcome_animation_videos:\r\n# 保留\r\nlog:\r\nblind_box:\r\nsend:\r\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
         Assert.Null(Settings.Load(h.DataDirectory).Error);
         var after = File.ReadAllText(Settings.FilePath(h.DataDirectory));
@@ -147,7 +147,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Welcome_conditions_save_on_their_lines_and_preserve_comments_and_other_settings()
     {
         Settings.Load(h.DataDirectory);
-        const string before = "welcome_animation:\r\nwelcome_animation_videos:\r\n# 保留\r\nlog:\r\nblind_box:\r\nsend:\r\nwelcome:\r\n  uids: [42]  # 老朋友\r\n  fan_club_level: 0 # 老粉\r\n  guard: 舰长\r\n  wealth_level: 0 # 荣耀\r\nfuture: 保留\r\n";
+        const string before = "web_service:\r\nwelcome_animation:\r\nwelcome_animation_videos:\r\n# 保留\r\nlog:\r\nblind_box:\r\nsend:\r\nwelcome:\r\n  uids: [42]  # 老朋友\r\n  fan_club_level: 0 # 老粉\r\n  guard: 舰长\r\n  wealth_level: 0 # 荣耀\r\nfuture: 保留\r\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
         var changes = new Dictionary<string, string>
         {
@@ -231,7 +231,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void A_single_line_uid_list_in_a_flow_group_loads_but_cannot_be_line_edited()
     {
         Settings.Load(h.DataDirectory);
-        const string yaml = "welcome_animation:\nwelcome_animation_videos:\nlog:\nblind_box:\nsend:\nwelcome: {uids: [12345]}\n";
+        const string yaml = "web_service:\nwelcome_animation:\nwelcome_animation_videos:\nlog:\nblind_box:\nsend:\nwelcome: {uids: [12345]}\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
         var loaded = Settings.Load(h.DataDirectory);
         Assert.Null(loaded.Error);
@@ -269,7 +269,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Old_max_length_is_only_an_unknown_key_and_is_preserved(string value)
     {
         Settings.Load(h.DataDirectory);
-        var yaml = $"welcome_animation:\nwelcome_animation_videos:\nlog:\nblind_box:\nsend:\nwelcome:\n  max_length: {value} # 保留\n";
+        var yaml = $"web_service:\nwelcome_animation:\nwelcome_animation_videos:\nlog:\nblind_box:\nsend:\nwelcome:\n  max_length: {value} # 保留\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
         var settings = Settings.Load(h.DataDirectory, h.Logger);
         Assert.Null(settings.Error);

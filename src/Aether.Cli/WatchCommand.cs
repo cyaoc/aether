@@ -9,9 +9,9 @@ internal static class WatchCommand
     {
         try
         {
-            client.AnimationPage.Start(settings);
-            if (client.AnimationPage.Status.Running)
-                await Console.Out.WriteLineAsync($"动画页：{client.AnimationPage.Address}");
+            if (settings.WelcomeAnimationEnabled.Value) await client.ApplyWebSettingsAsync(settings);
+            if (client.WebService.Status.Running)
+                await Console.Out.WriteLineAsync($"视频页：{client.WebService.Status.VideoAddress}");
             await foreach (var update in client.WatchAsync(roomId, cancellationToken))
             {
                 switch (update)
@@ -34,6 +34,6 @@ internal static class WatchCommand
                 }
             }
         }
-        finally { await client.AnimationPage.StopAsync(); }
+        finally { await client.WebService.StopAsync(); }
     }
 }

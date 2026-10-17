@@ -15,6 +15,8 @@ namespace Aether.Gui.Tests;
 public sealed class NumericInputTests
 {
     private const string SettingsText = """
+        web_service:
+          port: 1
         log:
           retention_days: 1
         send:
@@ -157,7 +159,7 @@ public sealed class NumericInputTests
                         Assert.Equal(Color.Parse(dark ? "#F87171" : "#B91C1C"), ColorOf(outline.BorderBrush));
                         Assert.False(page.FindControl<Button>("SaveButton")!.IsEffectivelyEnabled);
                         Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), x => x.IsEffectivelyVisible &&
-                            (x.Text?.Contains("正整数") == true || x.Text == "至少 1 级"));
+                            (x.Text?.Contains("正整数") == true || x.Text?.Contains("1–65535") == true || x.Text == "至少 1 级"));
                         text.Text = "12345";
                         GuiHarness.Flush();
                         Assert.Equal(Color.Parse(dark ? "#8DA2FB" : "#3358D4"), ColorOf(outline.BorderBrush));
