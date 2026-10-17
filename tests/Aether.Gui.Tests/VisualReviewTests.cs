@@ -18,6 +18,38 @@ namespace Aether.Gui.Tests;
 
 public sealed class VisualReviewTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_pool_lottery(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            var vm = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+                { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = 4;
+                var session = PoolLotteryPageTests.Session();
+                var draw = new PoolDraw("draw", session.Prizes[0], 42, "小明", true, DateTimeOffset.Now, session.Prizes);
+                session = session with { Draws = [draw] };
+                foreach (var phase in Enum.GetValues<PoolLotteryPhase>())
+                {
+                    vm.Apply(new PoolLotteryUpdate(new(7734200, true, session with { Phase = phase })));
+                    Save(window, $"lottery-{phase}-{(dark ? "dark" : "light")}");
+                }
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
     [Fact]
     public Task Main_window_has_desktop_default_and_minimum_size() => HeadlessApp.Session.Dispatch(() =>
     {
@@ -87,7 +119,7 @@ public sealed class VisualReviewTests
                 foreach (var text in texts)
                 {
                     // These are multi-sentence help, not single-line captions.
-                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" ||
+                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" or "LatestResult" ||
                         text.GetVisualAncestors().OfType<Control>().Any(c =>
                             c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "EmptyConditions")) continue;
                     Assert.True(text.TextWrapping == TextWrapping.NoWrap, $"Wrapping: {text.Text}");
@@ -130,7 +162,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 GuiHarness.Flush();
                 foreach (var (name, state) in new[]
                 {
@@ -459,7 +491,7 @@ public sealed class VisualReviewTests
             window.Show();
             try
             {
-                foreach (var (pageIndex, name) in new[] { (5, "LogLevelInput"), (2, "GuardInput") })
+                foreach (var (pageIndex, name) in new[] { (6, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
                     input.IsDropDownOpen = true;
@@ -499,7 +531,7 @@ public sealed class VisualReviewTests
             window.Show();
             try
             {
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 var number = page.FindControl<NumericUpDown>("SendIntervalInput")!;
@@ -519,8 +551,8 @@ public sealed class VisualReviewTests
                 Capture("error");
                 text.Text = "1";
                 File.WriteAllText(Settings.FilePath(harness.DataDirectory), "send:\n  interval_seconds: |-\n    1\n");
+                window.Navigation.SelectedIndex = 6;
                 window.Navigation.SelectedIndex = 5;
-                window.Navigation.SelectedIndex = 4;
                 Capture("readonly");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -584,7 +616,7 @@ public sealed class VisualReviewTests
                 { Text = "@" + nickname + " 投入52电池 亏12.6电池", RetrySeconds = 1 });
             }
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "send-queue", "general" };
+            var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "lottery", "send-queue", "general" };
             for (var i = 0; i < pages.Length; i++)
             {
                 navigation.SelectedIndex = i;
@@ -624,7 +656,7 @@ public sealed class VisualReviewTests
                 Add(welcome, kind);
             Capture("welcome-levels");
             File.WriteAllText(path, "log:\n  level: @bad\n");
-            navigation.SelectedIndex = 5;
+            navigation.SelectedIndex = 6;
             Capture("settings-error");
             viewModel.IsLoginPage = true;
             viewModel.Apply(new WatchQrCode("https://example.test/visual-review"));

@@ -34,7 +34,7 @@ public sealed class SettingsNavigationTests
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
             Assert.False(viewModel.HasRoomConnection);
             navigation.Focus();
-            navigation.SelectedIndex = 5;
+            navigation.SelectedIndex = 6;
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             general.FindControl<NumericUpDown>("RetentionInput")!.Text = "14";
@@ -106,20 +106,20 @@ public sealed class SettingsNavigationTests
         try
         {
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            navigation.SelectedIndex = 4;
+            navigation.SelectedIndex = 5;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var input = page.FindControl<NumericUpDown>("SendIntervalInput")!;
             Assert.True(input.IsReadOnly);
             navigation.SelectedIndex = 0;
             File.WriteAllText(path, File.ReadAllText(path).Replace("interval_seconds: |-\n    7", "interval_seconds: 8"));
-            navigation.SelectedIndex = 4;
+            navigation.SelectedIndex = 5;
             Assert.False(input.IsReadOnly);
             Assert.Equal("8", input.Text);
             Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
             navigation.SelectedIndex = 0;
             File.WriteAllText(path, File.ReadAllText(path).Replace("interval_seconds: 8", "interval_seconds: |-\n    9"));
-            navigation.SelectedIndex = 4;
+            navigation.SelectedIndex = 5;
             Assert.True(input.IsReadOnly);
             Assert.Equal("9", input.Text);
         }
@@ -141,7 +141,7 @@ public sealed class SettingsNavigationTests
         try
         {
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            navigation.SelectedIndex = 4;
+            navigation.SelectedIndex = 5;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var input = page.FindControl<NumericUpDown>("SendIntervalInput")!;
@@ -149,7 +149,7 @@ public sealed class SettingsNavigationTests
             Dispatcher.UIThread.RunJobs();
             navigation.SelectedIndex = 0;
             File.WriteAllText(path, "send:\n  interval_seconds: 8\n");
-            navigation.SelectedIndex = 4;
+            navigation.SelectedIndex = 5;
             Assert.Equal("8", input.Text);
             Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
         }
@@ -172,7 +172,7 @@ public sealed class SettingsNavigationTests
         window.Show();
         try
         {
-            for (var index = 1; index <= 5; index++)
+            foreach (var index in new[] { 1, 2, 3, 5, 6 })
             {
                 window.FindControl<ListBox>("Navigation")!.SelectedIndex = index;
                 GuiHarness.Flush();
@@ -201,7 +201,9 @@ public sealed class SettingsNavigationTests
         {
             var navigation = window.FindControl<ListBox>("Navigation");
             Assert.NotNull(navigation);
-            Assert.Equal(6, navigation.ItemCount);
+            Assert.Equal(7, navigation.ItemCount);
+            Assert.Equal(new[] { "弹幕", "盲盒统计", "进场欢迎", "欢迎动画", "抽奖", "发送队列", "通用设置" },
+                navigation.Items.Cast<ListBoxItem>().Select(item => ((Grid)item.Content!).Children.OfType<TextBlock>().First().Text));
             Assert.Null(window.FindControl<Button>("SettingsButton"));
             var path = Settings.FilePath(harness.DataDirectory);
             var before = File.ReadAllText(path);

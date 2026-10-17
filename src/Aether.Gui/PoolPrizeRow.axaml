@@ -1,0 +1,12 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.PoolPrizeRow">
+  <Grid ColumnDefinitions="*,100,56,90,28" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+    <TextBox x:Name="NameInput" PlaceholderText="奖品名称" Classes.invalid="{Binding #ErrorMessage.IsVisible}" />
+    <NumericUpDown Grid.Column="1" x:Name="WeightInput" Minimum="1" Maximum="2147483647" Width="100" FormatString="0.############################" Classes.invalid="{Binding #ErrorMessage.IsVisible}" />
+    <TextBlock Grid.Column="2" x:Name="Percentage" Classes="caption numeric muted" VerticalAlignment="Center" HorizontalAlignment="Right" />
+    <ComboBox Grid.Column="3" x:Name="GradeInput" HorizontalAlignment="Stretch" />
+    <Button Grid.Column="4" x:Name="RemoveButton" Classes="ghost danger" Padding="4" VerticalAlignment="Center">
+      <Viewbox Classes="icon remove"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
+    </Button>
+    <TextBlock Grid.Row="1" Grid.ColumnSpan="5" x:Name="ErrorMessage" Classes="error" IsVisible="False" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+  </Grid>
+</UserControl>

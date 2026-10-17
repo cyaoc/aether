@@ -67,6 +67,28 @@ internal sealed class Database
                 """;
             command.ExecuteNonQuery();
         }
+        command.CommandText = """
+            CREATE TABLE IF NOT EXISTS lottery (
+                id TEXT PRIMARY KEY, room_id INTEGER NOT NULL, mode TEXT NOT NULL,
+                stop_word TEXT NOT NULL, started_at TEXT NOT NULL, ended_at TEXT,
+                phase INTEGER NOT NULL, uid INTEGER, reveal_until TEXT
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS lottery_active_room ON lottery(room_id) WHERE ended_at IS NULL;
+            CREATE TABLE IF NOT EXISTS lottery_prize (
+                lottery_id TEXT NOT NULL REFERENCES lottery(id), position INTEGER NOT NULL,
+                name TEXT NOT NULL, weight INTEGER NOT NULL CHECK(weight > 0), grade INTEGER NOT NULL,
+                PRIMARY KEY(lottery_id, position)
+            );
+            CREATE TABLE IF NOT EXISTS lottery_draw (
+                id TEXT PRIMARY KEY, lottery_id TEXT NOT NULL REFERENCES lottery(id), result TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS lottery_draw_lottery ON lottery_draw(lottery_id);
+            CREATE TABLE IF NOT EXISTS lottery_viewer (
+                lottery_id TEXT NOT NULL REFERENCES lottery(id), uid INTEGER NOT NULL, nickname TEXT NOT NULL,
+                PRIMARY KEY(lottery_id, uid)
+            );
+            """;
+        command.ExecuteNonQuery();
         transaction.Commit();
         // Owner-only, since credentials are plaintext; SQLite creates later -wal/-shm files with the database's mode.
         // ponytail: Windows relies on the data directory's inherited ACLs; revisit with the keychain move.

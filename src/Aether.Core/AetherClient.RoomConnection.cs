@@ -9,7 +9,7 @@ public sealed partial class AetherClient
 {
     /// <summary>One room connection: from resolving the room until it ends, across every reconnect.
     /// Runs on its own and reports to <paramref name="output"/>; whoever reads it never paces it.</summary>
-    private sealed class RoomConnection(AetherClient client, long roomId, Settings settings, ChannelWriter<WatchUpdate> output)
+    private sealed class RoomConnection(AetherClient client, long roomId, Settings settings, ChannelWriter<WatchUpdate> output, bool enableLottery)
     {
         // No data at all for this long, not even a heartbeat reply, means the room connection is dead.
         private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(60);
@@ -105,6 +105,7 @@ public sealed partial class AetherClient
                 if (roomLock is not null)
                     client.logger.LogInformation("直播间连接结束，发送队列丢掉 {Count} 条待发弹幕", discarded);
                 roomScope?.Dispose();
+                if (enableLottery && roomLock is not null) client.Lottery.EndRoom(realRoomId!.Value);
                 roomLock?.Dispose();
             }
         }
@@ -200,6 +201,7 @@ public sealed partial class AetherClient
                                 heartbeat = SendHeartbeatsAsync(socket, connectionStop);
                                 credentialChecks = RefreshCredentialWhileConnectedAsync(connectionStop, cancellationToken);
                                 client.logger.LogInformation("已连接弹幕服务器 {Server}", connection.Server);
+                                if (enableLottery) client.Lottery.Connect(realRoomId);
                                 yield return new Connected();
                                 // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it;
                                 // on the thread pool, as it would otherwise run its first SQLite query right here on the receive loop.
@@ -210,6 +212,7 @@ public sealed partial class AetherClient
                         {
                             // Reported first, so a shell sees the keyword before the 盲盒查询 it queues.
                             yield return danmaku.Danmaku;
+                            if (enableLottery) client.Lottery.Receive(realRoomId, danmaku.Danmaku);
                             if (Settings.BlindBoxEnabled.Value)
                             {
                                 var text = danmaku.Danmaku.Content.Trim();
@@ -241,6 +244,7 @@ public sealed partial class AetherClient
             finally
             {
                 // Read before teardown, which can outlast the idle deadline; a stop already explained keeps its reason.
+                if (enableLottery) client.Lottery.Disconnect(realRoomId);
                 if (idleTimeout.IsCancellationRequested)
                     stopReason ??= FormattableString.Invariant($"{IdleTimeout.TotalSeconds} 秒未收到任何数据，包括心跳回复。");
                 await connectionStop.CancelAsync();

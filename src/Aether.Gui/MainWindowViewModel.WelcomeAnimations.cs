@@ -42,6 +42,7 @@ public partial class MainWindowViewModel
     public Task ApplyWebSettingsAsync(Settings snapshot)
     {
         if (shuttingDown) return Task.CompletedTask;
+        ObserveLottery();
         animationSettings = snapshot;
         pendingAnimationReloads++;
         AnimationRowsChanged?.Invoke();

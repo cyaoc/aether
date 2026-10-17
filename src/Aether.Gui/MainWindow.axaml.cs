@@ -30,9 +30,10 @@ public partial class MainWindow : Window
         {
             page.IsVisible = false;
             page.SaveCompleted += RefreshSettingsStatus;
-            page.GeneralSettingsRequested += () => Navigation.SelectedIndex = 1 + (int)SettingsSection.General;
+            page.GeneralSettingsRequested += () => Navigation.SelectedIndex = 6;
             PageHost.Children.Add(page);
         }
+        PageHost.Children.Insert(4, new LotteryPage { IsVisible = false });
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
         // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
@@ -82,13 +83,13 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel viewModel) return;
         await viewModel.OpenSettingsCommand.ExecuteAsync(null);
-        Navigation.SelectedIndex = 1 + (int)SettingsSection.General;
+        Navigation.SelectedIndex = 6;
     }
 
     private void Navigate(object? sender, SelectionChangedEventArgs e)
     {
         if (settingsPages is null) return;
-        // Navigation items and PageHost children share one order: 弹幕, then the settings pages in SettingsSection order.
+        // Navigation items and PageHost children share one order, with 抽奖 after 欢迎动画.
         for (var index = 0; index < PageHost.Children.Count; index++)
             PageHost.Children[index].IsVisible = index == Navigation.SelectedIndex;
         RefreshSettingsStatus();

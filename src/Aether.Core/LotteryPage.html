@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aether 抽奖页</title>
+<style>
+html,body { margin:0; width:100%; height:100%; background:transparent; }
+body { display:grid; place-items:center; font-family:system-ui,sans-serif; color:white; }
+#result { text-align:center; padding:32px 48px; border-radius:20px; background:#17212fe6; max-width:80%; overflow-wrap:anywhere; }
+#prize { font-size:clamp(32px,6vw,96px); margin:12px 0; }
+#grade,#viewer { font-size:clamp(24px,3vw,48px); }
+[hidden] { display:none!important; }
+</style>
+<section id="result" hidden aria-live="polite"><div id="grade"></div><div id="prize"></div><div id="viewer"></div></section>
+<script>
+const result = document.getElementById('result'), grade = document.getElementById('grade');
+const prize = document.getElementById('prize'), viewer = document.getElementById('viewer');
+const grades = {Grand:'大奖',Second:'二奖',Third:'三奖'};
+let rolling, hiding;
+function clear() { clearInterval(rolling); clearTimeout(hiding); result.hidden = true; }
+function show(state) {
+  clear();
+  const lottery = state.lottery;
+  if (!lottery || lottery.phase === 'Idle') return;
+  result.hidden = false;
+  if (lottery.phase === 'Spinning') {
+    grade.textContent = '抽奖中'; viewer.textContent = lottery.uid ? `UID ${lottery.uid} · 发送「${lottery.stopWord}」喊停` : '等待主播点停';
+    let index = 0;
+    const next = () => { prize.textContent = lottery.prizes[index++ % lottery.prizes.length].name; };
+    next(); rolling = setInterval(next, 100);
+  } else if (lottery.phase === 'Revealing') {
+    const draw = lottery.draws[lottery.draws.length - 1];
+    grade.textContent = grades[draw.prize.grade]; prize.textContent = draw.prize.name;
+    viewer.textContent = draw.nickname || (draw.uid ? `UID ${draw.uid}` : '');
+    hiding = setTimeout(clear, Math.max(0, Date.parse(lottery.revealUntil) - Date.now()));
+  }
+}
+const events = new EventSource('/lottery/events');
+events.addEventListener('state', event => show(JSON.parse(event.data)));
+events.onerror = clear;
+</script>
+</html>

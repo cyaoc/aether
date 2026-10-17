@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPage">
+  <Grid RowDefinitions="60,*">
+    <Border Classes="pageHeader">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <TextBlock Classes="h1" Text="抽奖" />
+          <Border Classes="badge" Background="{DynamicResource Accent.Tint}" VerticalAlignment="Center"><TextBlock Classes="caption accent" Text="奖池抽奖" /></Border>
+          <TextBlock x:Name="PhaseText" Classes="caption muted" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+        </StackPanel>
+        <Button Grid.Column="1" x:Name="NewButton" Content="新开一场" VerticalAlignment="Center" />
+      </Grid>
+    </Border>
+    <Grid Grid.Row="1" ColumnDefinitions="*,280">
+      <Grid RowDefinitions="*,Auto">
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="20" Margin="20">
+            <StackPanel Spacing="6">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                <TextBlock Classes="section" Text="奖品" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Classes="hint" Text="最多 10 件，按占比抽取，不扣减" VerticalAlignment="Center" />
+              </Grid>
+              <Border Classes="card">
+                <StackPanel Spacing="10">
+                  <Grid ColumnDefinitions="*,100,56,90,28" ColumnSpacing="8">
+                    <TextBlock Classes="caption muted" Text="名称" /><TextBlock Grid.Column="1" Classes="caption muted" Text="占比" />
+                    <TextBlock Grid.Column="2" Classes="caption muted" Text="概率" HorizontalAlignment="Right" /><TextBlock Grid.Column="3" Classes="caption muted" Text="档次" />
+                  </Grid>
+                  <StackPanel x:Name="PrizeRows" Spacing="10" />
+                  <Button x:Name="AddButton" Content="＋ 添加奖品" Classes="ghost" HorizontalAlignment="Left" Focusable="False" ClickMode="Press" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+            <StackPanel Spacing="10">
+              <TextBlock Classes="section" Text="谁来喊停" />
+              <Border Classes="card">
+                <StackPanel x:Name="StopFields" Spacing="10">
+                  <TextBlock Classes="label" Text="观众 UID（可不填）" />
+                  <Grid ColumnDefinitions="200,*" ColumnSpacing="12">
+                    <TextBox x:Name="UidInput" Classes="numeric" PlaceholderText="留空时由主播点停" AutomationProperties.Name="喊停观众 UID" Classes.invalid="{Binding #UidError.IsVisible}" />
+                    <TextBlock Grid.Column="1" x:Name="ViewerHint" Classes="hint" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                  </Grid>
+                  <TextBlock x:Name="UidError" Classes="error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
+                  <TextBlock Classes="label" Text="口令" />
+                  <TextBox x:Name="StopWordInput" Text="停" Width="240" HorizontalAlignment="Left" AutomationProperties.Name="抽奖口令" Classes.invalid="{Binding #StopWordError.IsVisible}" />
+                  <TextBlock x:Name="StopWordError" Classes="error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="1" Padding="20,12" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource Border}">
+          <StackPanel Spacing="8">
+            <TextBlock x:Name="ConnectionHint" Classes="hint" Text="请先连接直播间，再开始抽奖。" />
+            <TextBlock x:Name="ErrorMessage" Classes="error" IsVisible="False" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+              <Button x:Name="CancelButton" Content="取消" />
+              <Button Grid.Column="1" x:Name="StartButton" Classes="accent" Content="开始" HorizontalAlignment="Stretch" />
+              <Button Grid.Column="1" x:Name="StopButton" Classes="accent" Content="停" HorizontalAlignment="Stretch" />
+              <Button Grid.Column="1" x:Name="RevealingButton" Classes="accent" Content="开奖中…" IsEnabled="False" HorizontalAlignment="Stretch" />
+            </Grid>
+          </StackPanel>
+        </Border>
+      </Grid>
+      <Border Grid.Column="1" BorderThickness="1,0,0,0" BorderBrush="{DynamicResource Border}" Padding="16">
+        <Grid RowDefinitions="Auto,Auto,Auto,*">
+          <TextBlock Classes="section" Text="刚抽到" Margin="0,0,0,12" />
+          <Border Grid.Row="1" Classes="card" Margin="0,0,0,24">
+            <TextBlock x:Name="LatestResult" Text="还没有开奖" TextWrapping="Wrap" FontSize="18" FontWeight="SemiBold" />
+          </Border>
+          <TextBlock Grid.Row="2" Classes="section" Text="本场开奖记录" Margin="0,0,0,10" />
+          <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel x:Name="HistoryRows" Spacing="8" />
+          </ScrollViewer>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

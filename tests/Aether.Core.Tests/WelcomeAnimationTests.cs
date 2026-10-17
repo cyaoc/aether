@@ -33,6 +33,9 @@ public sealed class WelcomeAnimationTests
         using var lottery = await http.GetAsync("/lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var lotteryReader = new StreamReader(await lottery.Content.ReadAsStreamAsync(h.Stop.Token));
         Assert.StartsWith("retry:", await lotteryReader.ReadLineAsync(h.Stop.Token));
+        Assert.Equal("", await lotteryReader.ReadLineAsync(h.Stop.Token));
+        Assert.Equal("event: state", await lotteryReader.ReadLineAsync(h.Stop.Token));
+        Assert.StartsWith("data:", await lotteryReader.ReadLineAsync(h.Stop.Token));
         Assert.Equal(0, h.Client.WebService.Status.VideoConnections);
         Assert.Equal(1, h.Client.WebService.Status.LotteryConnections);
         using var video = await Page.ConnectAsync(h);

@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
@@ -10,6 +12,8 @@ namespace Aether.Core;
 /// <summary>The shell owns the service lifetime; each page has its own connections.</summary>
 public sealed class WebService : IDisposable
 {
+    private static readonly JsonSerializerOptions LotteryJson = new(JsonSerializerDefaults.Web)
+        { Converters = { new JsonStringEnumConverter() } };
     internal object Gate { get; } = new();
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
@@ -20,12 +24,14 @@ public sealed class WebService : IDisposable
     private CancellationTokenSource? stop;
     private Task running = Task.CompletedTask;
     public VideoPage Video { get; }
+    public PoolLottery Lottery { get; }
 
-    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger)
+    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, Random? random = null)
     {
         this.timeProvider = timeProvider;
         this.logger = logger;
         Video = new(this, dataDirectory, timeProvider);
+        Lottery = new(dataDirectory, timeProvider, logger, random ?? Random.Shared);
     }
 
     /// <summary>One streaming software's event stream to a page.</summary>
@@ -34,6 +40,7 @@ public sealed class WebService : IDisposable
         public HttpListenerResponse Response { get; } = response;
         public string Path { get; } = path;
         public SemaphoreSlim WriteLock { get; } = new(1);
+        public CancellationTokenSource? StreamStop { get; set; }
     }
 
     public string Address => $"http://localhost:{Status.Port}/";
@@ -159,6 +166,7 @@ public sealed class WebService : IDisposable
             lock (Gate)
             {
                 if (connections.Remove(connection)) ConnectionsChanged();
+                connection.StreamStop?.Cancel();
                 Abort(connection.Response);
             }
             return false;
@@ -217,17 +225,40 @@ public sealed class WebService : IDisposable
                 response.ContentType = "text/event-stream";
                 response.SendChunked = true;
                 var connection = new Connection(response, path);
+                using var streamStop = path == "/lottery/events" ? CancellationTokenSource.CreateLinkedTokenSource(token) : null;
+                connection.StreamStop = streamStop;
                 lock (Gate) { token.ThrowIfCancellationRequested(); connections.Add(connection); ConnectionsChanged(); }
                 keepOpen = await SendAsync(connection, "retry: 2000\n\n", token);
+                if (keepOpen && path == "/lottery/events")
+                {
+                    try
+                    {
+                        await foreach (var update in Lottery.GetUpdatesAsync(streamStop!.Token))
+                        {
+                            if (!await SendAsync(connection, "event: state\ndata: " + JsonSerializer.Serialize(update.State, LotteryJson) + "\n\n", token)) break;
+                            if (update.Draw is { } draw && !await SendAsync(connection,
+                                "event: draw\ndata: " + JsonSerializer.Serialize(draw, LotteryJson) + "\n\n", token)) break;
+                        }
+                    }
+                    finally
+                    {
+                        keepOpen = false;
+                        lock (Gate)
+                        {
+                            connection.StreamStop = null;
+                            if (connections.Remove(connection)) ConnectionsChanged();
+                        }
+                    }
+                }
             }
             else if (path.StartsWith("/video", StringComparison.Ordinal))
                 await Video.HandleAsync(request, response, token);
             else if (request.HttpMethod == "GET" && path == "/lottery")
             {
                 response.ContentType = "text/html; charset=utf-8";
-                var html = Encoding.UTF8.GetBytes("<!doctype html><html><meta charset=\"utf-8\"><title>Aether 抽奖页</title><body style=\"margin:0;background:transparent\"><script>new EventSource('/lottery/events');</script></body></html>");
+                using var html = typeof(WebService).Assembly.GetManifestResourceStream("Aether.Core.LotteryPage.html")!;
                 response.ContentLength64 = html.Length;
-                await response.OutputStream.WriteAsync(html, token);
+                await html.CopyToAsync(response.OutputStream, token);
             }
             else response.StatusCode = 404;
         }
@@ -252,6 +283,7 @@ public sealed class WebService : IDisposable
 
     public void Dispose()
     {
+        Lottery.Dispose();
         StopAsync().GetAwaiter().GetResult();
         lock (Gate)
         {

@@ -18,17 +18,18 @@ public sealed partial class AetherClient : IDisposable
     private readonly string dataDirectory;
     public WebService WebService { get; }
     public WelcomeAnimation WelcomeAnimation { get; }
+    public PoolLottery Lottery => WebService.Lottery;
     private readonly Lazy<Stores> stores;
 
     public AetherClient(HttpMessageHandler httpHandler, Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket,
-        TimeProvider timeProvider, ILogger<AetherClient> logger, string dataDirectory)
+        TimeProvider timeProvider, ILogger<AetherClient> logger, string dataDirectory, Random? random = null)
     {
         http = new(httpHandler);
         this.connectWebSocket = connectWebSocket;
         this.timeProvider = timeProvider;
         this.logger = logger;
         this.dataDirectory = dataDirectory;
-        WebService = new(dataDirectory, timeProvider, logger);
+        WebService = new(dataDirectory, timeProvider, logger, random);
         WelcomeAnimation = new(WebService, timeProvider, logger);
         // PublicationOnly does not cache a failed open, so a transient database error can be retried.
         stores = new(() =>
@@ -85,16 +86,16 @@ public sealed partial class AetherClient : IDisposable
         credentials.Delete();
     }
 
-    public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, CancellationToken cancellationToken = default, bool enableLottery = false)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(roomId);
-        return EndOnCancellation(RunRoomConnectionAsync(roomId, cancellationToken), cancellationToken);
+        return EndOnCancellation(RunRoomConnectionAsync(roomId, enableLottery, cancellationToken), cancellationToken);
     }
 
     /// <summary>Core runs the room connection on its own; the caller only reads what it reports,
     /// so a slow reader never holds up receiving, heartbeats or the idle deadline.</summary>
     private async IAsyncEnumerable<WatchUpdate> RunRoomConnectionAsync(
-        long roomId, [EnumeratorCancellation] CancellationToken cancellationToken)
+        long roomId, bool enableLottery, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // ponytail: unbounded, so a reader that stops for good grows memory; bound it if a stalled shell ever matters.
         var updates = Channel.CreateUnbounded<WatchUpdate>(new UnboundedChannelOptions { SingleReader = true });
@@ -130,7 +131,7 @@ public sealed partial class AetherClient : IDisposable
             {
                 var settings = Settings.Load(dataDirectory, logger);
                 if (settings.Error is { } settingsError) throw settingsError;
-                await new RoomConnection(this, roomId, settings, updates.Writer).RunAsync(stop.Token);
+                await new RoomConnection(this, roomId, settings, updates.Writer, enableLottery).RunAsync(stop.Token);
             }
             finally { updates.Writer.Complete(); }
         }
