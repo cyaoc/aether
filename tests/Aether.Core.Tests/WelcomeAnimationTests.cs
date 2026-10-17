@@ -255,6 +255,7 @@ public sealed class WelcomeAnimationTests
         Assert.Equal(first, await secondPage.NextAsync());
         await secondPage.ReportAsync(first, false, "格式不支持");
         var next = await firstPage.NextAsync();
+        Assert.Equal(next, await secondPage.NextAsync());
         Assert.Equal("20002", next.Content);
         await secondPage.ReportAsync(first);
         await observed.WaitAsync(u => u is WelcomeAnimationPlayback { State: PlaybackState.Failed, Reason: "格式不支持", IsTest: true });
