@@ -4,7 +4,8 @@
 html,body { margin:0; width:100%; height:100%; overflow:hidden; background:transparent; }
 body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei UI',system-ui,sans-serif; }
 [hidden] { display:none!important; }
-#scene { width:1920px; height:1080px; position:absolute; left:50%; top:50%; transform-origin:0 0; overflow:hidden; }
+#scene { --ring-radius:430px; --meteor-x:840px; --meteor-y:-860px; width:1920px; height:1080px; position:absolute; left:50%; top:50%; transform-origin:0 0; overflow:hidden; }
+#registrationTitle,.awardName,#latestEntries div:nth-child(3) { display:none; }
 .gold { background:linear-gradient(180deg,#fff,#fff1c2 40%,#ffd36b 70%,#e8a93a); -webkit-background-clip:text; background-clip:text; color:transparent; }
 /* --in/--mid paint the revealed card, --deep/--glow the ring and result cards, as the board's cardIn/cardMid/deep/glow. */
 .Grand { --main:#ffd36b; --light:#ffe7a8; --in:#5a3f0c; --mid:#2a1c05; --deep:rgba(110,78,14,.95); --a:rgba(255,211,107,.55); --glow:rgba(255,211,107,.5); --frame:linear-gradient(160deg,#fff,#ffe7a8 25%,#e8a93a 55%,#fff1c2 80%,#c98a1b); }
@@ -76,7 +77,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 #particles { position:absolute; inset:0; pointer-events:none; }
 .meteor { position:absolute; left:944px; top:804px; width:32px; height:32px; border-radius:50%; background:white; box-shadow:0 0 30px 14px var(--main),0 0 90px 34px var(--a); animation:meteor 7s both; animation-delay:var(--elapsed); }
 .meteor:after { content:''; position:absolute; left:16px; top:10px; width:680px; height:12px; border-radius:6px; transform-origin:0 50%; transform:rotate(-45.7deg); background:linear-gradient(90deg,white,var(--main) 18%,transparent); }
-@keyframes meteor { 0%,21.5% { opacity:0; transform:translate(840px,-860px); } 22% { opacity:1; transform:translate(840px,-860px); animation-timing-function:cubic-bezier(.5,0,.9,.6); } 28% { opacity:1; transform:none; } 28.5%,100% { opacity:0; transform:none; } }
+@keyframes meteor { 0%,21.5% { opacity:0; transform:translate(var(--meteor-x),var(--meteor-y)); } 22% { opacity:1; transform:translate(var(--meteor-x),var(--meteor-y)); animation-timing-function:cubic-bezier(.5,0,.9,.6); } 28% { opacity:1; transform:none; } 28.5%,100% { opacity:0; transform:none; } }
 #banner { position:absolute; left:0; right:0; top:70px; width:fit-content; max-width:1600px; height:110px; margin:0 auto; padding:0 48px; border-radius:55px; border:2px solid var(--light); background:rgba(14,12,44,.92); box-shadow:0 0 34px var(--a); font-size:72px; line-height:106px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; animation:banner 7s both; animation-delay:var(--elapsed); }
 @keyframes banner { 0% { opacity:0; transform:scale(1.6); } 3% { opacity:1; transform:scale(.96); } 5% { transform:scale(1); } 25.5% { opacity:1; transform:none; } 29.5%,100% { opacity:0; transform:translateY(-40px); } }
 #result { position:absolute; left:700px; top:190px; width:520px; height:660px; perspective:1600px; animation:card 7s both; animation-delay:var(--elapsed); }
@@ -111,3 +112,82 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 @keyframes deal { 0% { opacity:0; transform:translateY(-60px) rotateY(180deg); } 60% { opacity:1; } 100% { opacity:1; transform:none; } }
 #remaining { padding:12px 36px; border-radius:36px; background:rgba(14,12,44,.9); border:1px solid #c59bff99; font-size:56px; color:#e7d9ff; }
 #pageNumber { font-size:30px; color:#e7d9ff; }
+
+/* PW1 / PX1 / PY1 / PZ1 / PE1: SA1 is x 54–864, y 288–1248, centred at x 459. Labels keep the board's 28–38px; key information is 40px or more. */
+#scene[data-orientation="portrait"] { --ring-radius:340px; --meteor-x:600px; --meteor-y:-1100px; width:1080px; height:1920px; }
+[data-orientation="portrait"] #registration { position:absolute; left:54px; top:300px; width:810px; display:flex; flex-direction:column; align-items:center; gap:18px; }
+[data-orientation="portrait"] #registrationTitle { height:90px; margin:0; padding:0 30px; display:flex; align-items:center; gap:16px; border-radius:45px; border:2px solid #ffd36bcc; background:rgba(14,12,44,.92); font-size:60px; font-weight:normal; }
+[data-orientation="portrait"] #registrationTitle span+span { height:44px; display:flex; align-items:center; padding:0 14px; border-radius:22px; background:#c59bff38; color:#e7d9ff; font-size:30px; }
+[data-orientation="portrait"] #entryBar { display:contents; }
+[data-orientation="portrait"] .divider,[data-orientation="portrait"] .latest>.label,[data-orientation="portrait"] #awards>.gold { display:none; }
+[data-orientation="portrait"] .condition { width:760px; gap:6px; padding:20px 24px; align-items:center; border-radius:22px; border:2px solid #c59bffb3; background:rgba(14,12,44,.92); }
+[data-orientation="portrait"] .condition .label { font-size:28px; }
+[data-orientation="portrait"] #keyword { width:100%; padding-bottom:6px; max-height:128px; text-align:center; }
+[data-orientation="portrait"] .count { width:fit-content; max-width:760px; flex-direction:row; align-items:baseline; gap:12px; padding:4px 30px; border-radius:24px; background:rgba(14,12,44,.85); }
+[data-orientation="portrait"] #entryCount { max-width:360px; line-height:1.05; }
+[data-orientation="portrait"] .countLabel { font-size:38px; white-space:nowrap; }
+[data-orientation="portrait"] .latest { flex:none; width:760px; }
+[data-orientation="portrait"] #latestEntries { display:flex; flex-direction:column; gap:8px; font-size:48px; }
+[data-orientation="portrait"] #latestEntries div { display:block; height:70px; padding:0 22px; border-radius:35px; border:1px solid #c59bff80; background:rgba(14,12,44,.9); line-height:68px; }
+[data-orientation="portrait"] #latestEntries div:before { content:''; display:inline-block; width:30px; height:30px; margin-right:14px; vertical-align:middle; background:#ffd36b; clip-path:polygon(50% 6%,59% 41%,94% 50%,59% 59%,50% 94%,41% 59%,6% 50%,41% 41%); }
+[data-orientation="portrait"] #latestEntries div:first-child { animation-name:enterRow; }
+[data-orientation="portrait"] #latestEntries div:nth-child(2) { opacity:.78; }
+[data-orientation="portrait"] #latestEntries div:nth-child(2):before { background:#c59bff; }
+[data-orientation="portrait"] #latestEntries div:nth-child(3) { opacity:.56; }
+[data-orientation="portrait"] #latestEntries div:nth-child(3):before { background:#7cc4ff; }
+@keyframes enterRow { 0% { opacity:0; transform:translateY(-40px) scale(.9); box-shadow:0 0 40px #ffd36be6; } 60% { opacity:1; transform:none; } 100% { box-shadow:0 0 0 #ffd36b00; } }
+[data-orientation="portrait"] #awards { position:static; width:760px; padding:0; border:0; border-radius:0; background:none; }
+[data-orientation="portrait"] #awardRows { display:flex; flex-direction:column; gap:8px; }
+[data-orientation="portrait"] .awardRow { height:64px; padding:0 22px; gap:16px; border:2px solid transparent; border-radius:14px; background:linear-gradient(120deg,var(--deep),#0c0a26f0 70%) padding-box,var(--frame) border-box; }
+[data-orientation="portrait"] .awardRow .rank { width:84px; font-size:40px; }
+[data-orientation="portrait"] .awardName { display:block; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--main); font:700 30px 'PingFang SC','Microsoft YaHei UI',sans-serif; }
+[data-orientation="portrait"] .awardPrize { font-size:40px; }
+[data-orientation="portrait"] .capacity { font:30px 'PingFang SC','Microsoft YaHei UI',sans-serif; }
+/* The board shows three awards; four or five tighten the column so the last row still ends inside SA1. */
+[data-orientation="portrait"] #registration[data-awards="4"],[data-orientation="portrait"] #registration[data-awards="5"] { gap:8px; }
+[data-orientation="portrait"] [data-awards="4"] #latestEntries div,[data-orientation="portrait"] [data-awards="5"] #latestEntries div { height:60px; line-height:58px; }
+[data-orientation="portrait"] [data-awards="4"] .condition,[data-orientation="portrait"] [data-awards="5"] .condition { padding:10px 24px; }
+[data-orientation="portrait"] [data-awards="4"] .awardRow,[data-orientation="portrait"] [data-awards="5"] .awardRow { height:52px; }
+[data-orientation="portrait"] .sky { left:24px; top:380px; width:870px; height:900px; background:radial-gradient(ellipse at 50% 50%,#1e145ab8,rgba(20,14,64,.45) 45%,transparent 70%); }
+[data-orientation="portrait"] .drawing .sky { inset:0; width:auto; height:auto; background:radial-gradient(ellipse at 42% 50%,#462caae0,#161046f2 45%,#06061af7 80%); }
+[data-orientation="portrait"] .drawing.Second .sky { background:radial-gradient(ellipse at 42% 50%,#462caacc,#161046e0 50%,#06061ae6 85%); }
+[data-orientation="portrait"] .drawing.Third .sky { background:radial-gradient(ellipse at 42% 42%,#281e6eb3,#0e0c2ca6 45%,#0e0c2c33 80%); }
+[data-orientation="portrait"] .circleSpace { perspective:1200px; perspective-origin:459px 900px; }
+[data-orientation="portrait"] .circlePlane { left:99px; top:770px; width:720px; height:720px; }
+[data-orientation="portrait"] .circle { width:720px; height:720px; }
+[data-orientation="portrait"] .shock { left:360px; top:360px; width:520px; height:520px; border-width:9px; box-shadow:0 0 36px var(--main); }
+[data-orientation="portrait"] #ringWrap { perspective:1400px; perspective-origin:459px 700px; }
+[data-orientation="portrait"] #ring { left:459px; top:760px; }
+[data-orientation="portrait"] .candidate { left:-90px; top:-125px; width:180px; height:250px; padding:12px 8px; gap:10px; border-radius:14px; box-shadow:0 0 20px var(--glow); }
+[data-orientation="portrait"] .candidateLabel { font-size:30px; }
+[data-orientation="portrait"] .candidateName { font-size:38px; max-height:176px; }
+[data-orientation="portrait"] .lockFrame { left:324px; top:599px; width:270px; height:360px; border-radius:22px; box-shadow:0 0 44px var(--main),inset 0 0 26px var(--a); }
+[data-orientation="portrait"] .pillar { left:309px; width:300px; height:1200px; }
+[data-orientation="portrait"] .Second .pillar { left:359px; width:200px; }
+[data-orientation="portrait"] .rays { left:459px; top:760px; width:1500px; height:1500px; }
+[data-orientation="portrait"] .glow { left:-41px; top:260px; width:1000px; height:1000px; }
+[data-orientation="portrait"] .meteor { left:445px; top:1086px; width:28px; height:28px; box-shadow:0 0 26px 12px var(--main),0 0 80px 30px var(--a); }
+[data-orientation="portrait"] .meteor:after { left:14px; top:9px; width:620px; height:10px; border-radius:5px; transform:rotate(-61.4deg); }
+[data-orientation="portrait"] #banner { left:54px; right:216px; top:300px; max-width:810px; height:92px; padding:0 36px; border-radius:46px; box-shadow:0 0 30px var(--a); font-size:54px; line-height:88px; }
+[data-orientation="portrait"] #result { left:239px; top:470px; width:440px; height:580px; perspective:1400px; }
+[data-orientation="portrait"] .cardBack,[data-orientation="portrait"] .cardFace { border-radius:22px; }
+[data-orientation="portrait"] .cardBack svg { width:210px; height:210px; }
+[data-orientation="portrait"] .cardFace { padding:36px 24px 32px; box-shadow:0 0 70px var(--main); }
+[data-orientation="portrait"] .cardTop { gap:8px; }
+[data-orientation="portrait"] #rank { filter:drop-shadow(0 0 12px var(--main)); }
+[data-orientation="portrait"] #stars svg { width:34px; height:34px; }
+[data-orientation="portrait"] #prize { max-height:260px; text-shadow:0 0 24px var(--main); }
+[data-orientation="portrait"] #viewer { max-height:110px; }
+[data-orientation="portrait"] #shout { left:54px; top:1090px; width:810px; font-size:60px; letter-spacing:8px; filter:drop-shadow(0 0 16px rgba(255,211,107,.9)); }
+[data-orientation="portrait"] .flash { background:radial-gradient(circle at 42% 42%,#fff,var(--a) 28%,transparent 70%); }
+[data-orientation="portrait"] #winners { left:54px; top:300px; width:810px; gap:26px; }
+[data-orientation="portrait"] #winnerTitle { font-size:76px; line-height:84px; }
+[data-orientation="portrait"] #winnerCards { width:756px; gap:18px; perspective:1200px; }
+[data-orientation="portrait"] .winnerCard { height:330px; padding:20px 10px; border-radius:16px; }
+[data-orientation="portrait"] .winnerCard .rank { font-size:50px; }
+[data-orientation="portrait"] .winnerName { height:146px; max-height:146px; flex-shrink:0; display:flex; align-items:center; justify-content:center; line-height:1.15; padding-bottom:6px; }
+[data-orientation="portrait"] .winnerAward { font-size:28px; }
+[data-orientation="portrait"] #remaining { max-width:810px; padding:10px 30px; border-radius:30px; font-size:40px; line-height:44px; text-align:center; }
+/* Paging is not on the board; tuck the page number under the results so a closed page with both still ends inside SA1. */
+[data-orientation="portrait"] #pageNumber { margin-top:-14px; font-size:40px; line-height:44px; }
+#pageNumber:empty { display:none; }

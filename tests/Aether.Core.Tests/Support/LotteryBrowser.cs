@@ -14,7 +14,7 @@ internal sealed class LotteryBrowser : IAsyncDisposable
     public List<string> Requests { get; } = [];
     public List<string> Errors { get; } = [];
 
-    public async Task OpenAsync(string directory, string url)
+    public async Task OpenAsync(string directory, string url, int width = 1920, int height = 1080)
     {
         var executable = Environment.GetEnvironmentVariable("AETHER_TEST_CHROME");
         if (string.IsNullOrEmpty(executable)) Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
@@ -36,10 +36,10 @@ internal sealed class LotteryBrowser : IAsyncDisposable
         await CommandAsync("Page.enable");
         await CommandAsync("Runtime.enable");
         await CommandAsync("Network.enable");
-        await CommandAsync("Emulation.setDeviceMetricsOverride", new { width = 1920, height = 1080, deviceScaleFactor = 1, mobile = false });
+        await CommandAsync("Emulation.setDeviceMetricsOverride", new { width, height, deviceScaleFactor = 1, mobile = false });
         await CommandAsync("Emulation.setDefaultBackgroundColorOverride", new { color = new { r = 0, g = 0, b = 0, a = 0 } });
         await CommandAsync("Page.navigate", new { url });
-        await WaitAsync("document.getElementById('scene') && document.fonts.status === 'loaded'");
+        await WaitAsync("document.readyState === 'complete' && document.getElementById('scene') && document.fonts.status === 'loaded'");
     }
 
     public async Task<JsonElement> CommandAsync(string method, object? parameters = null)
