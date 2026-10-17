@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.EntryLotteryPanel">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.EntryLotteryPanel">
   <UserControl.Styles>
     <!-- Winner chips and entry rows as on canvas O1; the draw on air stays highlighted until the 抽奖页 finishes it. -->
     <Style Selector="Border.winner.fresh">
@@ -64,6 +64,7 @@
               <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="最多 5 个奖项；档次决定开奖特效" VerticalAlignment="Center" />
             </Grid>
           </StackPanel>
+          <local:LotteryThemePicker x:Name="EntryTheme" />
         </StackPanel>
       </ScrollViewer>
       <Border Grid.Row="1" BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="20,12,20,18">

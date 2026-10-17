@@ -1,0 +1,38 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.LotteryThemePicker">
+  <UserControl.Styles>
+    <Style Selector="RadioButton.themeCard">
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource Accent}" BorderThickness="2" CornerRadius="8" Padding="3">
+            <ContentPresenter Content="{TemplateBinding Content}" />
+          </Border>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="RadioButton.themeCard:focus-visible">
+      <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="10">
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+      <TextBlock Classes="section" Text="直播画面主题" />
+      <TextBlock Grid.Column="1" Classes="hint" Text="两种抽奖共用 · 素材 1920×1080 是横屏，1080×1920 是竖屏" />
+    </Grid>
+    <RadioButton x:Name="StarSummonCard" Classes="themeCard" IsChecked="True" HorizontalAlignment="Left" AutomationProperties.Name="星辰召唤">
+      <StackPanel Width="156">
+        <Border Height="64" CornerRadius="5" Background="#171036">
+          <TextBlock Text="SSR" FontSize="22" Foreground="#FFD36B" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        </Border>
+        <Grid ColumnDefinitions="*,Auto" Margin="8,6">
+          <TextBlock Text="星辰召唤" FontSize="13" FontWeight="SemiBold" />
+          <TextBlock Grid.Column="1" Text="抽卡风" Classes="caption muted" VerticalAlignment="Center" />
+        </Grid>
+      </StackPanel>
+    </RadioButton>
+    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+      <Button x:Name="ExampleButton" Content="试一下" Padding="12,0" />
+      <TextBlock Grid.Column="1" x:Name="ExampleHint" Classes="hint" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+    </Grid>
+    <TextBlock x:Name="ErrorText" Classes="error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
+  </StackPanel>
+</UserControl>

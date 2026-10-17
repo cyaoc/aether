@@ -11,5 +11,9 @@
     <InternalsVisibleTo Include="Aether.Core.Tests" />
     <EmbeddedResource Include="VideoPage.html" />
     <EmbeddedResource Include="LotteryPage.html" />
+    <EmbeddedResource Include="LotteryPage.css" />
+    <EmbeddedResource Include="LotteryPage.js" />
+    <EmbeddedResource Include="Fonts/*.woff2;Fonts/OFL.txt" />
+    <None Update="Fonts/OFL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

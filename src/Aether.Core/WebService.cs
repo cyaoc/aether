@@ -27,7 +27,7 @@ public sealed class WebService : IDisposable
         this.timeProvider = timeProvider;
         this.logger = logger;
         Video = new(this, dataDirectory, timeProvider);
-        Lottery = new(lottery);
+        Lottery = new(this, lottery);
     }
 
     /// <summary>One streaming software's event stream to a page.</summary>
@@ -100,6 +100,7 @@ public sealed class WebService : IDisposable
             stopping = stop;
             if (stopping is null) return;
             stopping.Cancel();
+            Lottery.StopExample();
             // Abort before Close: on Windows, Close releases the request queue that Abort needs.
             foreach (var connection in connections) Abort(connection.Response);
             listener!.Close();
