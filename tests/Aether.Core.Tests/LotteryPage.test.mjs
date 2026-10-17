@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const script = readFileSync(new URL('../../src/Aether.Core/LotteryPage.js', import.meta.url), 'utf8');
-function page() {
+function page(width = 1920, height = 1080) {
   let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0, source;
   const timers = new Map(), elements = new Map(), listeners = new Map();
   const graphics = new Proxy({}, { get: () => () => {} });
@@ -21,13 +21,15 @@ function page() {
     return elements.get(id);
   }, fonts:{ready:Promise.resolve(),addEventListener(){}} };
   const timer = (callback,delay,repeat) => { const id=++nextId; timers.set(id,{callback,at:now+delay,repeat}); return id; };
-  vm.runInNewContext(script, { document, window:{innerWidth:1920,innerHeight:1080,addEventListener(){}},
+  const window = {innerWidth:width,innerHeight:height,addEventListener(name,fn){listeners.set(name,fn);}};
+  vm.runInNewContext(script, { document, window,
     Date:class extends Date { static now(){return now;} }, getComputedStyle:()=>({fontSize:'112px'}),
     EventSource:class { constructor(){source=this;} addEventListener(name,fn){listeners.set(name,fn);} },
     requestAnimationFrame:()=>0,cancelAnimationFrame:()=>{},
     setTimeout:(fn,ms)=>timer(fn,ms,0),setInterval:(fn,ms)=>timer(fn,ms,ms),
     clearTimeout:id=>timers.delete(id),clearInterval:id=>timers.delete(id) });
   return { element:id=>document.getElementById(id), state:state=>listeners.get('state')({data:JSON.stringify(state)}),
+    resize:(width,height)=>{window.innerWidth=width; window.innerHeight=height; listeners.get('resize')();},
     disconnect:()=>source.onerror(), advance:ms=>{
       const end=now+ms;
       while(true){
@@ -46,13 +48,32 @@ const entry = {id:'entry',phase:'Open',keyword:'<img onerror=alert(1)>',entryCou
 const draws = Array.from({length:7},(_,i)=>({id:`d${i}`,awardIndex:0,award,winner:{uid:i+1,nickname:`观众${i+1}`},
   candidates:['甲','乙'],drawnAt:'2026-10-17T12:00:00Z'}));
 
+test('viewport selects portrait only when taller than wide and resizing keeps the draw deadline',()=>{
+  const p=page(1080,1920);
+  assert.equal(p.element('scene').dataset.orientation,'portrait');
+  assert.equal(p.element('scene').style.transform,'scale(1) translate(-50%,-50%)');
+  p.state({entryLottery:{...entry,phase:'Closed',draws:[draws[0]],drawUntil:'2026-10-17T12:00:07Z'}});
+  p.advance(3000);
+  p.resize(800,600);
+  assert.equal(p.element('scene').dataset.orientation,'landscape');
+  assert.equal(p.element('scene').style.transform,'scale(0.4166666666666667) translate(-50%,-50%)');
+  p.resize(800,800);
+  assert.equal(p.element('scene').dataset.orientation,'landscape');
+  p.resize(540,960);
+  assert.equal(p.element('scene').dataset.orientation,'portrait');
+  assert.equal(p.element('scene').style.transform,'scale(0.5) translate(-50%,-50%)');
+  assert.equal(p.element('summon').style['--elapsed'],'0s');
+  p.advance(4000);
+  assert.equal(p.element('scene').dataset.view,'winners');
+});
+
 test('registration uses text nodes, closed and ended results page by six and hidden clears timers',()=>{
   const p=page(); p.state({entryLottery:entry});
   assert.equal(p.element('registration').hidden,false);
   assert.equal(p.element('keyword').textContent,'发弹幕「<img onerror=alert(1)>」');
   assert.equal(p.element('keyword').children.length,0);
   assert.equal(p.element('entryCount').textContent,'7');
-  assert.equal(p.element('latestEntries').textContent,'甲乙');
+  assert.equal(p.element('latestEntries').textContent,'甲乙丙');
   p.state({entryLottery:{...entry,phase:'Closed',draws,remaining:1}});
   assert.equal(p.element('winnerTitle').textContent,'目前的召唤结果');
   assert.match(p.element('remaining').textContent,/还剩 1 个名额/);
