@@ -14,8 +14,8 @@ namespace Aether.Gui.Tests;
 public sealed class DanmakuPageTests
 {
     [Theory]
-    [InlineData(960)]
-    [InlineData(760)]
+    [InlineData(1200)]
+    [InlineData(1040)]
     public Task Rows_have_separate_highlights_and_align_with_the_page_title(int width) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -62,7 +62,7 @@ public sealed class DanmakuPageTests
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
         var viewModel = harness.CreateViewModel();
-        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, Width = 760, Height = 520, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, Width = 1040, Height = 600, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
         window.Show();
         try
         {

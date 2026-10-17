@@ -29,8 +29,8 @@ public sealed class NumericInputTests
         """;
 
     [Theory]
-    [InlineData(960)]
-    [InlineData(760)]
+    [InlineData(1200)]
+    [InlineData(1040)]
     public Task Numbers_and_units_fit_their_content_and_buttons_edit_the_setting(int width) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -174,8 +174,8 @@ public sealed class NumericInputTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(960)]
-    [InlineData(760)]
+    [InlineData(1200)]
+    [InlineData(1040)]
     public Task Short_fields_stay_compact_and_condition_delete_buttons_stay_at_the_right(int width) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();

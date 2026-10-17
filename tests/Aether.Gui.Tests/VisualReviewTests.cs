@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Aether.Core;
 using Aether.Gui.Tests.Support;
 using static Aether.Gui.Tests.Support.ConditionList;
@@ -17,6 +18,91 @@ namespace Aether.Gui.Tests;
 
 public sealed class VisualReviewTests
 {
+    [Fact]
+    public Task Main_window_has_desktop_default_and_minimum_size() => HeadlessApp.Session.Dispatch(() =>
+    {
+        using var harness = new GuiHarness();
+        var window = new MainWindow(harness.DataDirectory);
+        Assert.Equal(new Size(1200, 720), new Size(window.Width, window.Height));
+        Assert.Equal(new Size(1040, 600), new Size(window.MinWidth, window.MinHeight));
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(1200, 720, false)]
+    [InlineData(1200, 720, true)]
+    [InlineData(1040, 600, false)]
+    [InlineData(1040, 600, true)]
+    public Task Fixed_text_stays_on_one_line_at_supported_sizes(int width, int height, bool dark) =>
+        HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            var viewModel = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, Width = width, Height = height,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
+                viewModel.Apply(new WebServiceStatus(true, 17890, 0, 0));
+                for (var index = 0; index < window.Navigation.ItemCount; index++)
+                {
+                    window.Navigation.SelectedIndex = index;
+                    CheckFixedText();
+                }
+                var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);
+                var status = general.FindControl<TextBlock>("WebServiceStatusText")!;
+                status.Text = string.Concat(Enumerable.Repeat("没打开：端口 17890 被别的程序占用。", 4));
+                GuiHarness.Flush();
+                Assert.True(Assert.Single(status.TextLayout.TextLines).HasCollapsed);
+                Assert.Equal(status.Text, ToolTip.GetTip(status));
+                // Headless drawing does not hit-test glyphs; exercise hover with the Skia screenshot run.
+                if (HeadlessApp.ScreenshotDirectory is not null)
+                {
+                    ToolTip.SetShowDelay(status, 0);
+                    var hoverPoint = status.TranslatePoint(new Point(3, 3), window)!.Value;
+                    Assert.Same(status, window.InputHitTest(hoverPoint));
+                    window.MouseMove(hoverPoint);
+                    await GuiHarness.WaitForAsync(() => ToolTip.GetIsOpen(status));
+                    window.MouseMove(default);
+                }
+                viewModel.IsLoginPage = true;
+                viewModel.Apply(new WatchQrCode("https://example.test/visual-review"));
+                CheckFixedText();
+                viewModel.IsLoginPage = false;
+                CheckFixedText();
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+
+            void CheckFixedText()
+            {
+                GuiHarness.Flush();
+                var texts = window.GetVisualDescendants().OfType<TextBlock>()
+                    .Where(t => t.IsEffectivelyVisible && !string.IsNullOrEmpty(t.Text));
+                foreach (var text in texts)
+                {
+                    // These are multi-sentence help, not single-line captions.
+                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" ||
+                        text.GetVisualAncestors().OfType<Control>().Any(c =>
+                            c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "EmptyConditions")) continue;
+                    Assert.True(text.TextWrapping == TextWrapping.NoWrap, $"Wrapping: {text.Text}");
+                    var line = Assert.Single(text.TextLayout.TextLines);
+                    Assert.True(line.Width > 0 && text.Bounds.Height >= line.Height - 1, $"Hidden: {text.Text}");
+                    Assert.True(line.Width <= text.Bounds.Width + 1, $"Clipped: {text.Text}");
+                    if (line.HasCollapsed) Assert.Equal(text.Text, ToolTip.GetTip(text));
+                    if (text.Classes.Contains("section") && text.Parent is Panel row)
+                        foreach (var hint in row.Children.OfType<TextBlock>().Where(t => t.Classes.Contains("hint")))
+                            Assert.True(hint.Bounds.Top < text.Bounds.Bottom && text.Bounds.Top < hint.Bounds.Bottom,
+                                $"Caption below heading: {text.Text}");
+                }
+            }
+        }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -68,10 +154,10 @@ public sealed class VisualReviewTests
     }
 
     [Theory]
-    [InlineData(904, false)]
-    [InlineData(904, true)]
-    [InlineData(960, false)]
-    [InlineData(960, true)]
+    [InlineData(1040, false)]
+    [InlineData(1040, true)]
+    [InlineData(1200, false)]
+    [InlineData(1200, true)]
     public Task Welcome_large_lists_keep_conditions_in_the_first_screen(int width, bool dark) =>
         HeadlessApp.Session.Dispatch(async () =>
         {
@@ -185,10 +271,10 @@ public sealed class VisualReviewTests
     }
 
     [Theory]
-    [InlineData(960, false)]
-    [InlineData(960, true)]
-    [InlineData(904, false)]
-    [InlineData(904, true)]
+    [InlineData(1200, false)]
+    [InlineData(1200, true)]
+    [InlineData(1040, false)]
+    [InlineData(1040, true)]
     public Task Screenshots_welcome_text_lists(int width, bool dark)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
@@ -231,10 +317,10 @@ public sealed class VisualReviewTests
     }
 
     [Theory]
-    [InlineData(960, 640, false)]
-    [InlineData(960, 640, true)]
-    [InlineData(760, 520, false)]
-    [InlineData(760, 520, true)]
+    [InlineData(1200, 720, false)]
+    [InlineData(1200, 720, true)]
+    [InlineData(1040, 600, false)]
+    [InlineData(1040, 600, true)]
     public Task Screenshots_welcome_animation_states(int width, int height, bool dark)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
@@ -301,10 +387,10 @@ public sealed class VisualReviewTests
     // A manual review tool, not a regression test: set AETHER_SCREENSHOT_DIR to render every page per size and theme
     // with Skia and compare the PNGs with designs B, E and F. CI leaves it unset, so the theory skips there.
     [Theory]
-    [InlineData(960, 640, false)]
-    [InlineData(960, 640, true)]
-    [InlineData(760, 520, false)]
-    [InlineData(760, 520, true)]
+    [InlineData(1200, 720, false)]
+    [InlineData(1200, 720, true)]
+    [InlineData(1040, 600, false)]
+    [InlineData(1040, 600, true)]
     public Task Screenshots_every_page_for_visual_review(int width, int height, bool dark)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
@@ -555,6 +641,19 @@ public sealed class VisualReviewTests
         GuiHarness.Flush();
         using var bitmap = topLevel.CaptureRenderedFrame();
         Assert.NotNull(bitmap);
+        foreach (var page in topLevel.GetVisualDescendants().OfType<SettingsPage>().Where(p => p.IsEffectivelyVisible))
+        {
+            // Verify visible ink as well as layout metrics on the uniform page header.
+            var caption = page.FindControl<TextBlock>("TimingHint")!;
+            var origin = caption.TranslatePoint(default, topLevel)!.Value;
+            using var pixels = bitmap.Lock();
+            Assert.Equal(32, pixels.Format.BitsPerPixel);
+            var colors = new HashSet<int>();
+            for (var y = (int)origin.Y; y < origin.Y + caption.Bounds.Height; y++)
+                for (var x = (int)origin.X; x < origin.X + caption.Bounds.Width; x++)
+                    colors.Add(Marshal.ReadInt32(pixels.Address, y * pixels.RowBytes + x * 4));
+            Assert.True(colors.Count > 1, $"Caption not drawn: {fileName}");
+        }
         Directory.CreateDirectory(HeadlessApp.ScreenshotDirectory!);
         bitmap.Save(Path.Combine(HeadlessApp.ScreenshotDirectory!, fileName + ".png"), PngBitmapEncoderOptions.Default);
     }
