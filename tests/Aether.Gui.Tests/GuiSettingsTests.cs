@@ -83,5 +83,21 @@ public sealed class GuiSettingsTests : IDisposable
         Assert.False(reloaded.KeepRecentDanmaku);
     }
 
+    [Theory]
+    [InlineData("7734200", 7734200L)]
+    [InlineData("~", null)]
+    [InlineData("0", null)]
+    [InlineData("-1", null)]
+    [InlineData("[42]", null)]
+    public void Last_lottery_room_keeps_the_resolved_id_for_offline_history(string value, long? expected)
+    {
+        Directory.CreateDirectory(harness.DataDirectory);
+        File.WriteAllText(harness.SettingsFile, $"LastLotteryRoomId: {value}");
+        var settings = harness.LoadSettings();
+        Assert.Equal(expected, settings.LastLotteryRoomId);
+        settings.Save();
+        Assert.Equal(expected, harness.LoadSettings().LastLotteryRoomId);
+    }
+
     public void Dispose() => harness.Dispose();
 }

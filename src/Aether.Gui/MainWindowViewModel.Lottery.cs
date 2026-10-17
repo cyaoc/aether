@@ -32,7 +32,20 @@ public partial class MainWindowViewModel
         _ => "已结束",
     };
 
-    internal void Apply(LotteryUpdate update) => LotteryState = update.State;
+    internal void Apply(LotteryUpdate update)
+    {
+        var previous = LotteryState;
+        LotteryState = update.State;
+        if (LotteryState.RoomId is { } room && settings.LastLotteryRoomId != room)
+        {
+            settings.LastLotteryRoomId = room;
+            SaveGuiSettings();
+        }
+        if (previous.RoomId != LotteryState.RoomId || previous.EntryLottery != LotteryState.EntryLottery
+            || previous.Lottery?.Id != LotteryState.Lottery?.Id || previous.Lottery?.Draws != LotteryState.Lottery?.Draws
+            || previous.Lottery?.Prizes != LotteryState.Lottery?.Prizes || previous.Lottery?.StopWord != LotteryState.Lottery?.StopWord)
+            _ = RefreshLotteryHistoryAsync();
+    }
 
     private void ObserveLottery()
     {
@@ -66,5 +79,6 @@ public partial class MainWindowViewModel
         await lotteryUpdates;
         lotteryStop?.Dispose();
         lotteryStop = null;
+        await lotteryHistoryRead;
     }
 }

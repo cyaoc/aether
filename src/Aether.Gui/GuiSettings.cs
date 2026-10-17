@@ -15,6 +15,7 @@ public sealed class GuiSettings
     private const int RecentRoomLimit = 5;
 
     public bool KeepRecentDanmaku { get; set; } = true;
+    public long? LastLotteryRoomId { get; set; }
 
     // Most recent first. Every write goes through here, so a hand-edited gui.yml and a new connection follow one rule.
     public string[] RecentRooms
@@ -36,6 +37,8 @@ public sealed class GuiSettings
                 : [];
             if (values.GetValueOrDefault(nameof(KeepRecentDanmaku)) is string keep && bool.TryParse(keep, out var value))
                 settings.KeepRecentDanmaku = value;
+            if (values.GetValueOrDefault(nameof(LastLotteryRoomId)) is string lastRoom && long.TryParse(lastRoom, out var roomId) && roomId > 0)
+                settings.LastLotteryRoomId = roomId;
             settings.RecentRooms = values.GetValueOrDefault(nameof(RecentRooms)) switch
             {
                 List<object?> rooms => [.. rooms.OfType<string>()],

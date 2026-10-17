@@ -22,6 +22,12 @@ public partial class LotteryPanel : UserControl
     public LotteryPanel()
     {
         InitializeComponent();
+        ViewTabs.SelectionChanged += (_, _) =>
+        {
+            Refresh();
+            if (ViewTabs.SelectedIndex == 1 && viewModel is not null) _ = viewModel.RefreshLotteryHistoryAsync();
+        };
+        HistoryContent.ReturnRequested += () => ViewTabs.SelectedIndex = 0;
         StopWordInput.Text = DefaultStopWord;
         AddPrize(new("", 1, PrizeGrade.Grand), isNew: true);
         AddButton.Click += (_, _) =>
@@ -48,7 +54,11 @@ public partial class LotteryPanel : UserControl
         {
             if (!NewButton.IsEnabled || TopLevel.GetTopLevel(this) is not Window owner) return;
             var mode = await new NewLotteryWindow().ShowDialog<LotteryMode?>(owner);
-            if (mode is { } selected) await ChangeAsync(lottery => lottery.New(selected));
+            if (mode is { } selected)
+            {
+                await ChangeAsync(lottery => lottery.New(selected));
+                ViewTabs.SelectedIndex = 0;
+            }
         };
         StopButton.Click += async (_, _) => { if (StopButton.IsEnabled) await ChangeAsync(lottery => lottery.Stop()); };
         CancelButton.Click += async (_, _) => { if (CancelButton.IsEnabled) await ChangeAsync(lottery => lottery.Cancel()); };
@@ -75,11 +85,12 @@ public partial class LotteryPanel : UserControl
         viewModel = DataContext as MainWindowViewModel;
         if (viewModel is not null) viewModel.PropertyChanged += StateChanged;
         Refresh();
+        if (viewModel is not null) _ = viewModel.RefreshLotteryHistoryAsync();
     }
 
     private void StateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.LotteryState)) Refresh();
+        if (e.PropertyName is nameof(MainWindowViewModel.LotteryState) or nameof(MainWindowViewModel.LotteryHistory)) Refresh();
     }
 
     private void Refresh()
@@ -87,8 +98,12 @@ public partial class LotteryPanel : UserControl
         if (loading || PrizeRows is null) return;
         var state = viewModel?.LotteryState;
         var entry = state?.EntryLottery;
-        EntryContent.IsVisible = entry is not null;
-        PoolContent.IsVisible = entry is null;
+        var history = ViewTabs.SelectedIndex == 1;
+        HistoryContent.IsVisible = history;
+        EntryContent.IsVisible = !history && entry is not null;
+        PoolContent.IsVisible = !history && entry is null;
+        ModeChip.IsVisible = PhaseChip.IsVisible = !history;
+        HistoryTabText.Text = $"历史 {viewModel?.LotteryHistory.Count ?? 0}";
         ModeText.Text = entry is not null ? "报名抽奖" : "奖池抽奖";
         NewHint.Text = entry is { Phase: EntryLotteryPhase.Open or EntryLotteryPhase.Closed } ? "先结束这一场才能新开" : "";
         if (entry is not null)

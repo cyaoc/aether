@@ -30,6 +30,19 @@ public sealed partial class LotteryController : IDisposable
 
     public LotteryState State { get { lock (gate) return state; } }
 
+    /// <summary>Read-only, including unfinished lotteries; no room connection is required.</summary>
+    public ImmutableArray<LotteryHistory> GetHistory(long roomId)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        return store().History(roomId);
+    }
+
+    public LotteryHistoryDetails? GetHistoryDetails(long roomId, string id)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        return store().HistoryDetails(roomId, id);
+    }
+
     public async IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken token = default)
     {
         // shortcut: local readers use unbounded streams like WatchAsync; bound these if a stalled shell becomes a problem.

@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.LotteryHistoryPanel">
+  <UserControl.Styles>
+    <Style Selector="ListBox#LotteryList">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="ListBox#LotteryList ListBoxItem">
+      <Setter Property="Padding" Value="12,12" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="BorderThickness" Value="3,0,0,1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
+      <Setter Property="CornerRadius" Value="0" />
+    </Style>
+    <Style Selector="ListBox#LotteryList ListBoxItem:selected /template/ ContentPresenter, ListBox#LotteryList ListBoxItem:selected:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+      <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    </Style>
+    <Style Selector="Border.historyStatus">
+      <Setter Property="Background" Value="{DynamicResource Success.Tint}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="Border.historyStatus.active">
+      <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
+    </Style>
+    <Style Selector="Border.historyMode, Border.winner">
+      <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="5" />
+    </Style>
+    <Style Selector="Border.winner">
+      <Setter Property="Padding" Value="8,3" />
+      <Setter Property="Margin" Value="0,0,4,4" />
+      <Setter Property="TextElement.FontSize" Value="12" />
+      <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="*,300">
+    <Grid Margin="20,18" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+        <TextBlock Classes="section" Text="全部抽奖" />
+        <TextBlock Grid.Column="1" Classes="hint singleLine" Text="按时间倒序，点一场看它的中奖名单" />
+      </Grid>
+      <StackPanel Grid.Row="1" Spacing="6">
+        <TextBlock x:Name="RoomText" Classes="caption muted" />
+        <TextBlock x:Name="LoadingText" Classes="hint" Text="读取中…" IsVisible="False" />
+        <TextBlock x:Name="ErrorText" Classes="error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
+        <Button x:Name="RetryButton" Content="重试" IsVisible="False" HorizontalAlignment="Left" />
+      </StackPanel>
+      <Panel Grid.Row="2">
+        <ListBox x:Name="LotteryList" VerticalAlignment="Top" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="抽奖历史" />
+        <TextBlock x:Name="EmptyText" Classes="hint" Text="暂无抽奖历史" Margin="0,8" />
+      </Panel>
+      <TextBlock Grid.Row="3" Classes="caption muted" Text="关掉再开仍可查看。历史只能查看，不能再抽。" TextWrapping="Wrap" />
+    </Grid>
+    <Border Grid.Column="1" Background="{DynamicResource Surface.Aside}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
+      <ScrollViewer HorizontalScrollBarVisibility="Disabled" Padding="16,18">
+        <StackPanel x:Name="Details" Spacing="12" IsVisible="False">
+          <StackPanel Spacing="4">
+            <TextBlock x:Name="DetailDate" FontWeight="SemiBold" />
+            <TextBlock x:Name="DetailSummary" Classes="caption muted" />
+          </StackPanel>
+          <Button x:Name="ReturnButton" Content="回到本场" HorizontalAlignment="Left" />
+          <TextBlock x:Name="ReturnHint" Classes="caption muted" Text="连接该直播间后可回到本场" IsVisible="False" />
+          <TextBlock Classes="section" Text="中奖名单" />
+          <StackPanel x:Name="WinnerGroups" Spacing="10" />
+          <TextBlock x:Name="ConditionTitle" Classes="section" />
+          <TextBlock x:Name="ConditionText" Classes="caption" TextWrapping="Wrap" />
+        </StackPanel>
+      </ScrollViewer>
+    </Border>
+  </Grid>
+</UserControl>

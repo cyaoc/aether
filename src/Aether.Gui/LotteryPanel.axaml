@@ -1,6 +1,23 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPanel">
   <UserControl.Styles>
+    <Style Selector="ListBox#ViewTabs">
+      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+      <Setter Property="Padding" Value="3" />
+      <Setter Property="CornerRadius" Value="7" />
+      <Setter Property="ItemsPanel"><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></Setter>
+    </Style>
+    <Style Selector="ListBox#ViewTabs ListBoxItem">
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="CornerRadius" Value="5" />
+      <Setter Property="FontSize" Value="12" />
+    </Style>
+    <Style Selector="ListBox#ViewTabs ListBoxItem:selected /template/ ContentPresenter, ListBox#ViewTabs ListBoxItem:selected:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+      <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
     <!-- Phase chip, as on canvases V1 and O1: neutral while idle, accent while spinning or open, warning while drawing, success once ended. -->
     <Style Selector="Border#PhaseChip">
       <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
@@ -65,19 +82,23 @@
   </UserControl.Styles>
   <Grid RowDefinitions="60,*">
     <Border Classes="pageHeader">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="12">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="12">
         <TextBlock Classes="h1" Text="抽奖" VerticalAlignment="Center" />
-        <Border Grid.Column="1" Height="24" Padding="8,0" CornerRadius="6" Background="{DynamicResource Border.Subtle}" VerticalAlignment="Center">
+        <ListBox Grid.Column="1" x:Name="ViewTabs" SelectedIndex="0" VerticalAlignment="Center" AutomationProperties.Name="抽奖视图">
+          <ListBoxItem Content="本场" />
+          <ListBoxItem><TextBlock x:Name="HistoryTabText" Text="历史 0" /></ListBoxItem>
+        </ListBox>
+        <Border Grid.Column="2" x:Name="ModeChip" Height="24" Padding="8,0" CornerRadius="6" Background="{DynamicResource Border.Subtle}" VerticalAlignment="Center">
           <TextBlock x:Name="ModeText" Classes="caption" Text="奖池抽奖" Foreground="{DynamicResource Text.Secondary}" FontWeight="SemiBold" VerticalAlignment="Center" />
         </Border>
-        <Border Grid.Column="2" x:Name="PhaseChip" Height="24" Padding="10,0" CornerRadius="12" BorderThickness="1" VerticalAlignment="Center">
+        <Border Grid.Column="3" x:Name="PhaseChip" Height="24" Padding="10,0" CornerRadius="12" BorderThickness="1" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
             <TextBlock x:Name="PhaseText" Classes="caption" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
           </StackPanel>
         </Border>
-        <TextBlock Grid.Column="3" x:Name="NewHint" Classes="caption muted singleLine" HorizontalAlignment="Right" VerticalAlignment="Center" />
-        <Button Grid.Column="4" x:Name="NewButton" Height="32" Padding="10,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center">
+        <TextBlock Grid.Column="4" x:Name="NewHint" Classes="caption muted singleLine" HorizontalAlignment="Right" VerticalAlignment="Center" />
+        <Button Grid.Column="5" x:Name="NewButton" Height="32" Padding="10,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" StrokeThickness="2" /></Viewbox>
             <TextBlock Text="新开一场" VerticalAlignment="Center" />
@@ -85,6 +106,7 @@
         </Button>
       </Grid>
     </Border>
+    <local:LotteryHistoryPanel Grid.Row="1" x:Name="HistoryContent" IsVisible="False" />
     <local:EntryLotteryPanel Grid.Row="1" x:Name="EntryContent" IsVisible="False" />
     <Grid Grid.Row="1" x:Name="PoolContent" ColumnDefinitions="*,Auto">
       <Grid RowDefinitions="*,Auto">

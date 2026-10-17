@@ -23,6 +23,39 @@ public sealed class VisualReviewTests
     [InlineData(1200, 720, true)]
     [InlineData(1040, 600, false)]
     [InlineData(1040, 600, true)]
+    public Task Screenshots_lottery_history(int width, int height, bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await LotteryHistoryFixture.SeedAsync(h);
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory)
+                { DataContext = vm, Width = width, Height = height, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = 4;
+                vm.Apply(new LotteryUpdate(new(7734200, true, null, LotteryHistoryFixture.Current)));
+                var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
+                panel.FindControl<ListBox>("ViewTabs")!.SelectedIndex = 1;
+                await vm.RefreshLotteryHistoryAsync();
+                Save(window, $"history-entry-{width}-{(dark ? "dark" : "light")}");
+                await vm.RefreshLotteryHistoryAsync("pool");
+                Save(window, $"history-pool-{width}-{(dark ? "dark" : "light")}");
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(1200, 720, false)]
+    [InlineData(1200, 720, true)]
+    [InlineData(1040, 600, false)]
+    [InlineData(1040, 600, true)]
     public Task Screenshots_entry_lottery_and_picker(int width, int height, bool dark)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
