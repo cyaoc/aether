@@ -22,6 +22,102 @@ public sealed class LotteryBrowserTests
     [Theory]
     [InlineData(1920, 1080)]
     [InlineData(1080, 1920)]
+    public async Task Mecha_lock_grand_warning_flashes_red_inside_the_dome(int width, int height)
+    {
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
+            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
+        await using var h = new WatchHarness(enableLottery: true);
+        await h.LoginAsync();
+        h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
+        await using var watch = await h.WatchConnectedAsync();
+        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
+        await using var browser = new ChromeBrowser();
+        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, width, height);
+        h.Client.Lottery.SelectTheme(LotteryTheme.MechaLock);
+        h.Client.Lottery.Start([new("机械键盘", 1, Grade.Grand)], "停", 42);
+        h.Client.Lottery.Stop();
+        await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
+        // Freeze the deadline too: screenshot speed must not decide whether the scene is still visible.
+        await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
+        await browser.EvaluateAsync("document.body.style.background = '#f0eae4'; document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); a.currentTime = 336; }); true");
+        var lit = await browser.CommandAsync("Page.captureScreenshot", new { format = "png" });
+        await browser.ScreenshotAsync($"{width}-grand-warning");
+        await browser.EvaluateAsync("document.querySelector('.mechaAlert').hidden = true");
+        var unlit = await browser.CommandAsync("Page.captureScreenshot", new { format = "png" });
+        var difference = await browser.EvaluateAsync("""
+            (async () => {
+              const samples = [];
+              for (const png of
+            """ + JsonSerializer.Serialize(new[] { lit.GetProperty("data").GetString(), unlit.GetProperty("data").GetString() }) + """
+              ) {
+                const image = new Image(); image.src = 'data:image/png;base64,' + png; await image.decode();
+                const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+                const ctx = canvas.getContext('2d'); ctx.drawImage(image,0,0);
+                // Between the portrait tile columns, or below the landscape tiles; no text covers this point.
+                const {data} = ctx.getImageData(image.width/2, image.width < image.height ? 1220 : 820, 1, 1);
+                samples.push(data[0] - data[1]);
+              }
+              return samples[0] - samples[1];
+            })()
+            """);
+        Assert.True(difference.GetInt32() > 30, $"The central red warning was barely visible: red-green change {difference}.");
+        Assert.Empty(browser.Errors);
+    }
+
+    [Theory]
+    [InlineData(1920, 1080, Grade.Grand)]
+    [InlineData(1920, 1080, Grade.Second)]
+    [InlineData(1920, 1080, Grade.Third)]
+    [InlineData(1080, 1920, Grade.Grand)]
+    [InlineData(1080, 1920, Grade.Second)]
+    [InlineData(1080, 1920, Grade.Third)]
+    public async Task Mecha_lock_scans_then_clamps_the_panel_and_sweeps_it_twice(int width, int height, Grade grade)
+    {
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
+            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
+        await using var h = new WatchHarness(enableLottery: true);
+        await h.LoginAsync();
+        h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
+        await using var watch = await h.WatchConnectedAsync();
+        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
+        await using var browser = new ChromeBrowser();
+        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, width, height);
+        h.Client.Lottery.SelectTheme(LotteryTheme.MechaLock);
+        h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
+        h.Client.Lottery.Stop();
+        await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
+        Assert.True((await browser.EvaluateAsync("!!document.querySelector('.mechaClamp')")).GetBoolean(), "The result panel needs the TARGET LOCKED corner frame.");
+        await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
+        await browser.EvaluateAsync("document.body.style.background = '#f0eae4'; document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); }); true");
+        foreach (var milliseconds in new[] { 336, 1200, 2140, 2450, 2520, 3000, 4550, 5000 })
+        {
+            await browser.EvaluateAsync($"document.getAnimations().forEach(a => a.currentTime = {milliseconds}); true");
+            var effects = await browser.EvaluateAsync("""
+                (() => {
+                  const visible = selector => { const e = document.querySelector(selector), s = getComputedStyle(e); return s.display !== 'none' && +s.opacity > .1; };
+                  const panel = document.getElementById('result').getBoundingClientRect(), beam = document.querySelector('.mechaBeam').getBoundingClientRect();
+                  const hud = document.querySelector('.mechaHud').getBoundingClientRect();
+                  return {radar:visible('.mechaRadar'), clamp:visible('.mechaClamp'), lines:visible('.mechaLines'), pulse:visible('.mechaPulse'),
+                    beam:visible('.mechaBeam') && beam.top >= panel.top && beam.bottom <= panel.bottom,
+                    centred:Math.abs(hud.left + hud.width/2 - innerWidth/2) < 4};
+                })()
+                """);
+            Assert.True(effects.GetProperty("centred").GetBoolean());
+            Assert.Equal(milliseconds < 1960, effects.GetProperty("radar").GetBoolean());
+            Assert.Equal(milliseconds >= 2140, effects.GetProperty("clamp").GetBoolean());
+            if (milliseconds <= 2140 || milliseconds >= 3000)
+                Assert.Equal(grade != Grade.Third && milliseconds == 2140, effects.GetProperty("lines").GetBoolean());
+            if (milliseconds == 1200) Assert.Equal(grade != Grade.Third, effects.GetProperty("pulse").GetBoolean());
+            Assert.Equal(milliseconds is 2450 or 2520 or 4550, effects.GetProperty("beam").GetBoolean());
+            await AssertLayoutAsync(browser);
+            await browser.ScreenshotAsync($"{width}-{grade}-enhanced-{milliseconds}");
+        }
+        Assert.Empty(browser.Errors);
+    }
+
+    [Theory]
+    [InlineData(1920, 1080)]
+    [InlineData(1080, 1920)]
     [InlineData(800, 600)]
     public Task Capsule_gacha_renders_both_modes_all_grades_and_the_offline_example_through_real_SSE(int width, int height) =>
         RenderBothModesAsync(width, height, LotteryTheme.CapsuleGacha);
@@ -417,7 +513,7 @@ public sealed class LotteryBrowserTests
               const portrait = scene.dataset.orientation === 'portrait';
               const scale = rect.width / (portrait ? 1080 : 1920);
               const bounds = portrait ? [0,0,1080,1920] : [0,0,1920,1080];
-              const labels = '.label,#registrationTitle span+span,.countLabel,.awardName,.capacity,.candidateLabel,.candidateName,.winnerAward,.winnerPrize,#machineLabel span,#warning,.pilotCode,.pilotStatus';
+              const labels = '.label,#registrationTitle span+span,.countLabel,.awardName,.capacity,.candidateLabel,.candidateName,.winnerAward,.winnerPrize,#machineLabel span,#warning,.pilotCode,.pilotStatus,.mechaClamp span';
               return Array.from(scene.querySelectorAll('*')).filter(e =>
                 e.childNodes.length && Array.from(e.childNodes).some(n => n.nodeType === 3 && n.textContent.trim())
               ).flatMap(e => {

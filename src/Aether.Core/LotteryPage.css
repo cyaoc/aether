@@ -197,7 +197,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
   -webkit-mask-composite:source-in;
   mask-composite:intersect;
 }
-.drawing .sky,.mechaAlert { -webkit-mask-image:radial-gradient(ellipse,#000 20%,transparent 70%); }
+.drawing .sky { -webkit-mask-image:radial-gradient(ellipse,#000 20%,transparent 70%); }
 
 /* Star Summon "加强" from W1 / PW1, shifted from the board's 36.5% hit to this page's 28% like the rest of the reveal. */
 .starEffect { display:none; }

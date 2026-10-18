@@ -359,14 +359,14 @@ function starSummon(start, grade) {
       add({x:rise[0]+Math.random()*rise[1],y:rise[2],vx:(Math.random()-.5)*.8,vy:-1.5-Math.random()*2.5,life:200,s:3+Math.random()*5,c:pick(),kind:'star',twinkle:true});
   };
 }
-// Board W2's canvas, shifted from its 35% lock to this page's 28%: sparks and hex shards sized by grade just after the lock, then embers rising from the bottom edge for the two higher grades.
+// W2 / PW2 "加强": sparks and hex shards just after the 28% lock, then embers rising inside the dome.
 function mechaLock(start, grade) {
   if (start === null) return () => {};
   const power = powers[grade];
   const colors = grade === 'Grand' ? ['#ff3d3d','#ff7a1a','#ffb067','#fff'] : grade === 'Second' ? ['#ff7a1a','#ffb067','#fff'] : ['#8fd3ff','#fff'];
   let fired = Date.now() - start >= 2800;
   return (now, dt, add) => {
-    const age = now - start, [cx,cy,left,width,bottom] = portrait ? [459,760,54,810,1930] : [960,560,200,1520,1090];
+    const age = now - start, [cx,cy,left,width,bottom] = portrait ? [459,760,159,600,1300] : [960,560,520,880,980];
     if (!fired && age >= 2090) {
       fired = true;
       for (let k = 0; k < [60,180,380][power - 1]; k++) {
