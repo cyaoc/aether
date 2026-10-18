@@ -3,7 +3,8 @@ using System.Text.Json;
 namespace Aether.Core.Entries;
 
 /// <summary>A viewer's 进场; PrivilegeType is B站's code for the viewer's 大航海身份 in this room.</summary>
-internal sealed record Entry(long Uid, string Nickname, long MessageType, long PrivilegeType, long? FanClubLevel, long WealthLevel)
+internal sealed record Entry(long Uid, string Nickname, long MessageType, long PrivilegeType, long? FanClubLevel, long WealthLevel,
+    long TriggerTime = 0)
 {
     /// <summary>The 大航海身份 as its index in Settings.WelcomeGuards: 0 for none, then 舰长, 提督, 总督.</summary>
     public int GuardTier => Guard.TierFromPrivilegeType(PrivilegeType);
@@ -14,9 +15,11 @@ internal sealed record Entry(long Uid, string Nickname, long MessageType, long P
 
 internal static class EntryMessages
 {
-    private static readonly Dictionary<string, (string Version, Func<JsonElement, (Entry Entry, long FanClubRoom)> Decode)> Decoders = new()
+    private static readonly Dictionary<string, (string Version, Func<JsonElement, long, Entry> Decode)> Decoders = new()
     {
-        ["INTERACT_WORD_V2"] = ("V2", InteractWordV2.Decode)
+        ["INTERACT_WORD_V2"] = ("V2", DecodeV2),
+        ["ENTRY_EFFECT"] = ("进场特效", (data, _) => EntryEffect.Decode(data)),
+        ["ENTRY_EFFECT_MUST_RECEIVE"] = ("进场特效", (data, _) => EntryEffect.Decode(data))
     };
 
     public static string? Version(string command) => Decoders.TryGetValue(command, out var decoder) ? decoder.Version : null;
@@ -24,10 +27,16 @@ internal static class EntryMessages
     public static Entry? Decode(string command, JsonElement root, long roomId)
     {
         if (!Decoders.TryGetValue(command, out var decoder)) return null;
-        var (entry, fanClubRoom) = decoder.Decode(root.GetProperty("data"));
+        var entry = decoder.Decode(root.GetProperty("data"), roomId);
         if (entry.Uid < 0 || entry.MessageType < 0 || entry.PrivilegeType < 0 || entry.FanClubLevel < 0 || entry.WealthLevel < 0)
             throw new FormatException("进场消息的 uid、类型、大航海身份、粉丝团等级或荣耀等级无效。");
         if (entry.MessageType != 1 || entry.Uid == 0) return null;
-        return entry with { FanClubLevel = fanClubRoom == roomId && entry.FanClubLevel > 0 ? entry.FanClubLevel : null };
+        return entry with { FanClubLevel = entry.FanClubLevel > 0 ? entry.FanClubLevel : null };
+    }
+
+    private static Entry DecodeV2(JsonElement data, long roomId)
+    {
+        var (entry, fanClubRoom) = InteractWordV2.Decode(data);
+        return entry with { FanClubLevel = fanClubRoom == roomId || entry.FanClubLevel < 0 ? entry.FanClubLevel : null };
     }
 }

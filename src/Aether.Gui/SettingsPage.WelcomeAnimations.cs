@@ -48,7 +48,7 @@ public partial class SettingsPage
         row.TestRequested += () =>
         {
             RefreshAnimations();
-            if (row.CanTest && row.Uid is { } uid) viewModel?.TestPlay(uid, row.FileName);
+            if (row.CanTest && row.Uid is { } uid) viewModel?.TestOrStopAnimation(uid, row.FileName);
         };
         return row;
     }
@@ -71,7 +71,7 @@ public partial class SettingsPage
             var saved = MatchesFile(row) && (viewModel is null || viewModel.AnimationVideoSaved(row.Uid!.Value, row.FileName));
             invalid |= row.Refresh(uids, AnimationDirectory, saved, settings.WelcomeAnimationEnabled.Value && viewModel?.HasVideoConnections == true,
                 viewModel?.AnimationBusy == true || viewModel?.AnimationReloading == true,
-                saved && row.Uid is { } playingUid && viewModel?.AnimationPlaying(playingUid, row.FileName) == true,
+                row.SourcePath is null && row.Uid is { } playingUid ? viewModel?.AnimationPlaying(playingUid, row.FileName) : null,
                 row.SourcePath is null && row.Uid is { } failedUid && viewModel?.AnimationFailed(failedUid, row.FileName) == true);
         }
         var count = AnimationRows.Children.Count;

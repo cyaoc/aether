@@ -482,7 +482,7 @@ public sealed class VisualReviewTests
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.Section == SettingsSection.WelcomeAnimation);
                 viewModel.Apply(new WebServiceStatus(true, 17890, 2, 0));
                 foreach (var (state, index) in new[] { PlaybackState.Completed, PlaybackState.Failed, PlaybackState.NoReport, PlaybackState.Skipped, PlaybackState.Queued }.Select((state, index) => (state, index)))
-                    viewModel.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "10 分钟内播过" : null,
+                    viewModel.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
                         Nickname: index switch { 1 => "柚子不酸", 2 => "bili_6508617762", _ => null }));
                 Capture("connected");
                 viewModel.Apply(new WebServiceStatus(true, 17890, 0, 0));
@@ -492,6 +492,10 @@ public sealed class VisualReviewTests
                 viewModel.Apply(new WebServiceStatus(true, 17890, 1, 0));
                 viewModel.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
                 Capture("playing");
+                viewModel.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Stopped));
+                Capture("stopped");
+                viewModel.Apply(new WelcomeAnimationPlayback("real", 1234567890123456, videos[1234567890123456], false, PlaybackState.Playing));
+                Capture("entry-playing");
                 var rows = page.FindControl<StackPanel>("AnimationRows")!.Children.Cast<WelcomeAnimationRow>().ToArray();
                 rows[0].FindControl<TextBox>("UidInput")!.Text = "";
                 rows[1].FindControl<TextBox>("UidInput")!.Text = "not-a-uid";

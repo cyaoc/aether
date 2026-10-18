@@ -39,7 +39,7 @@ internal sealed class LotteryBrowser : IAsyncDisposable
         await CommandAsync("Emulation.setDeviceMetricsOverride", new { width, height, deviceScaleFactor = 1, mobile = false });
         await CommandAsync("Emulation.setDefaultBackgroundColorOverride", new { color = new { r = 0, g = 0, b = 0, a = 0 } });
         await CommandAsync("Page.navigate", new { url });
-        await WaitAsync("document.readyState === 'complete' && document.getElementById('scene') && document.fonts.status === 'loaded'");
+        await WaitAsync("document.readyState === 'complete' && document.fonts.status === 'loaded'");
     }
 
     public async Task<JsonElement> CommandAsync(string method, object? parameters = null)

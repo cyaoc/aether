@@ -30,6 +30,11 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
 
     internal void Disconnected() => reported?.TrySetResult((PlaybackState.NoReport, "推流软件已全部断开"));
 
+    internal void Stop(string id)
+    {
+        lock (service.Gate) if (current?.Id == id) reported?.TrySetResult((PlaybackState.Stopped, null));
+    }
+
     private void Report(Playback item, PlaybackState state, string? reason = null)
     {
         var update = new VideoPlayback(item.Id, item.FileName, item.Source, state, reason);
@@ -70,6 +75,8 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
                     try
                     {
                         var result = await completion.Task.WaitAsync(TimeSpan.FromMinutes(2), timeProvider, token);
+                        if (result.State == PlaybackState.Stopped)
+                            await service.BroadcastAsync("event: stop\ndata: " + payload + "\n\n", token, "/video/events");
                         Report(item, result.State, result.Reason);
                     }
                     catch (TimeoutException) { Report(item, PlaybackState.NoReport, "等了 2 分钟"); }

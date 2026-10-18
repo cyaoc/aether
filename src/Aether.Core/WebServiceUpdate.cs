@@ -9,7 +9,7 @@ public sealed record WebServiceStatus(bool Running, int Port, int VideoConnectio
     public string LotteryAddress => $"http://localhost:{Port}/lottery";
 }
 
-public enum PlaybackState { Queued, Playing, Completed, Failed, Skipped, NoReport }
+public enum PlaybackState { Queued, Playing, Completed, Failed, Skipped, NoReport, Stopped }
 
 /// <param name="Nickname">The viewer's nickname when they entered; a test play has none.</param>
 public sealed record WelcomeAnimationPlayback(string Id, long Uid, string FileName, bool IsTest,
@@ -20,6 +20,7 @@ public sealed record WelcomeAnimationPlayback(string Id, long Uid, string FileNa
     {
         PlaybackState.Queued => "排队中", PlaybackState.Playing => "播放中",
         PlaybackState.Completed => "已播放", PlaybackState.Failed => "播放失败",
+        PlaybackState.Stopped => "已停止",
         PlaybackState.NoReport => "没收到播放回报", _ => "没播"
     };
 }

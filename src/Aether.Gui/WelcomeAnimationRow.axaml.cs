@@ -57,8 +57,10 @@ public partial class WelcomeAnimationRow : UserControl
         Changed?.Invoke();
     }
 
-    public bool Refresh(ISet<long> uids, string directory, bool saved, bool hasPages, bool busy, bool playing, bool failed)
+    public bool Refresh(ISet<long> uids, string directory, bool saved, bool hasPages, bool busy, Aether.Core.WelcomeAnimationPlayback? playback, bool failed)
     {
+        var playing = playback is not null;
+        var canStop = playback?.IsTest == true;
         var error = string.IsNullOrWhiteSpace(UidInput.Text) ? "填一个 UID，或删掉这条"
             : Uid is not { } uid ? "UID 必须是正整数"
             : !uids.Add(uid) ? "和上面那条重复了" : null;
@@ -83,12 +85,13 @@ public partial class WelcomeAnimationRow : UserControl
         RowNote.Classes.Set("playing", tone == "playing");
         var who = Uid is { } owner ? $"{owner} 的" : "";
         AutomationProperties.SetName(FileButton, $"更换{who}视频：{FileName}");
-        AutomationProperties.SetName(TestButton, (playing ? "正在试播" : "试播") + who + "欢迎动画");
+        AutomationProperties.SetName(TestButton, (canStop ? "停止试播" : playing ? "正在播放" : "试播") + who + "欢迎动画");
         AutomationProperties.SetName(RemoveButton, $"删除{who}欢迎动画");
         TestButton.Classes.Set("playing", playing);
-        TestIcon.Data = Icon(playing ? "Icon.Wave" : "Icon.Play");
-        TestText.Text = playing ? "播放中" : "试播";
-        TestButton.IsEnabled = error is null && saved && hasPages && exists && !busy;
+        TestButton.Classes.Set("stoppable", canStop);
+        TestIcon.Data = Icon(canStop ? "Icon.Stop" : playing ? "Icon.Wave" : "Icon.Play");
+        TestText.Text = canStop ? "停止" : playing ? "播放中" : "试播";
+        TestButton.IsEnabled = canStop || error is null && saved && hasPages && exists && !busy;
         return error is not null;
     }
 

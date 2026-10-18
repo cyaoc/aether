@@ -20,6 +20,9 @@
       <Setter Property="BorderBrush" Value="{DynamicResource Accent.Tint}" />
       <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
     </Style>
+    <Style Selector="Button#TestButton.stoppable /template/ ContentPresenter">
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    </Style>
     <Style Selector="Grid#RowNote">
       <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
     </Style>

@@ -208,13 +208,19 @@ public partial class MainWindowViewModel
         failedAnimationVideos.RemoveWhere(video => replaced.Contains(video.Uid));
         AnimationRowsChanged?.Invoke();
     }
-    internal bool AnimationPlaying(long uid, string fileName) => playingAnimation is { } playing && playing.Uid == uid && playing.FileName == fileName;
+    internal WelcomeAnimationPlayback? AnimationPlaying(long uid, string fileName) =>
+        playingAnimation is { } playing && playing.Uid == uid && playing.FileName == fileName ? playing : null;
 
     internal bool AnimationVideoSaved(long uid, string fileName) => animationSettings is { } snapshot
         && snapshot.WelcomeAnimationVideos.TryGetValue(uid, out var video) && video.Value == fileName;
 
-    internal void TestPlay(long uid, string fileName)
+    internal void TestOrStopAnimation(long uid, string fileName)
     {
+        if (AnimationPlaying(uid, fileName) is { IsTest: true } playing)
+        {
+            client.WelcomeAnimation.StopTestPlay(playing.Id);
+            return;
+        }
         if (AnimationReloading || AnimationBusy || !HasVideoConnections || shuttingDown
             || animationSettings?.WelcomeAnimationEnabled.Value != true
             || !AnimationVideoSaved(uid, fileName)) return;
@@ -246,9 +252,10 @@ public sealed record WelcomeAnimationItem(WelcomeAnimationPlayback Playback, Dat
     };
     public bool Playing => Playback.State == PlaybackState.Playing;
     public bool Failed => Playback.State == PlaybackState.Failed;
-    /// <summary>A viewer played within the interval: the queue working as intended, so it stays quiet.</summary>
-    public bool RecentlyPlayed => Playback is { State: PlaybackState.Skipped, Reason: WelcomeAnimation.RecentlyPlayed };
+    /// <summary>A viewer already has a pending animation, so the skipped reentry stays quiet.</summary>
+    public bool StillPlaying => Playback is { State: PlaybackState.Skipped, Reason: WelcomeAnimation.StillPlaying };
     public bool Completed => Playback.State == PlaybackState.Completed;
+    public bool Stopped => Playback.State == PlaybackState.Stopped;
     /// <summary>Not played for a reason the streamer may want to act on.</summary>
-    public bool Unplayed => Playback.State == PlaybackState.NoReport || Playback.State == PlaybackState.Skipped && !RecentlyPlayed;
+    public bool Unplayed => Playback.State == PlaybackState.NoReport || Playback.State == PlaybackState.Skipped && !StillPlaying;
 }
