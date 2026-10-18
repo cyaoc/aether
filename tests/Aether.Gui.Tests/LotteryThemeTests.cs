@@ -30,6 +30,14 @@ public sealed class LotteryThemeTests
                 Assert.False(play.IsEnabled);
                 Assert.Contains("网页服务", picker.FindControl<TextBlock>("ExampleHint")!.Text);
             }
+            pickers[0].FindControl<RadioButton>("MechaLockCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.Equal("MechaLock", vm.LotteryState.Theme.ToString());
+            Assert.All(pickers, picker =>
+            {
+                Assert.True(picker.FindControl<RadioButton>("MechaLockCard")!.IsChecked);
+                Assert.False(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked);
+            });
             using var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
             var port = ((IPEndPoint)listener.LocalEndpoint).Port;
@@ -45,6 +53,7 @@ public sealed class LotteryThemeTests
             pickers[0].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             Assert.True(vm.LotteryState.IsExamplePlaying);
+            Assert.Equal("MechaLock", vm.LotteryState.Theme.ToString());
             foreach (var picker in pickers)
             {
                 Assert.False(picker.FindControl<Button>("ExampleButton")!.IsEnabled);
@@ -61,6 +70,9 @@ public sealed class LotteryThemeTests
             time.Advance(TimeSpan.FromSeconds(21));
             await GuiHarness.WaitForAsync(() => !vm.LotteryState.IsExamplePlaying);
             Assert.False(File.Exists(Path.Combine(h.DataDirectory, "aether.db")));
+            pickers[1].FindControl<RadioButton>("StarSummonCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.All(pickers, picker => Assert.True(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked));
             vm.Apply(new WebServiceStatus(false, 18080, 0, 0, "端口被占用"));
             Assert.All(pickers, picker => Assert.Contains("端口被占用", picker.FindControl<TextBlock>("ExampleHint")!.Text));
         }

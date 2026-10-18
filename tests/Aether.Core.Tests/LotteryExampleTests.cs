@@ -27,7 +27,7 @@ public sealed class LotteryExampleTests
         await using var h = new WatchHarness();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Address) };
-        foreach (var path in new[] { "lottery", "lottery/style.css", "lottery/page.js", "lottery/SmileySans-Oblique.woff2", "lottery/OFL.txt" })
+        foreach (var path in new[] { "lottery", "lottery/style.css", "lottery/mecha.css", "lottery/page.js", "lottery/SmileySans-Oblique.woff2", "lottery/OFL.txt" })
         {
             using var asset = await http.GetAsync(path, h.Stop.Token);
             Assert.Equal(System.Net.HttpStatusCode.OK, asset.StatusCode);

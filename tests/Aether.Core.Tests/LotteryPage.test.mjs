@@ -12,7 +12,7 @@ function page(width = 1920, height = 1080) {
   const element = () => ({ hidden:true, children:[], dataset:{}, style:{setProperty(k,v){this[k]=v;}},
     className:'', offsetWidth:0, scrollHeight:0, clientHeight:0, scrollWidth:0, clientWidth:0,
     set textContent(value) { this.text = String(value); this.children = []; },
-    get textContent() { return (this.text || '') + this.children.map(c=>c.textContent).join(''); },
+    get textContent() { return (this.text || '') + this.children.map(c=>c.textContent ?? c).join(''); },
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.text=''; this.children=children; },
     getContext:()=>graphics });
@@ -47,6 +47,36 @@ const entry = {id:'entry',phase:'Open',keyword:'<img onerror=alert(1)>',entryCou
   latestEntries:[{nickname:'甲'},{nickname:'乙'},{nickname:'丙'}],awards:[award],draws:[],remaining:8,hidden:false,drawUntil:null};
 const draws = Array.from({length:7},(_,i)=>({id:`d${i}`,awardIndex:0,award,winner:{uid:i+1,nickname:`观众${i+1}`},
   candidates:['甲','乙'],drawnAt:'2026-10-17T12:00:00Z'}));
+
+test('switching to Mecha Lock refreshes a live draw, locks the winning cell and keeps the deadline',()=>{
+  const p=page(), prize={name:'键盘',grade:'Grand'}, other={name:'签名照',grade:'Third'};
+  const lottery={id:'pool',phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
+    draws:[{id:'d',prize,uid:42,candidates:[other,prize],drawnAt:'2026-10-17T12:00:00Z'}]};
+  p.state({lottery}); p.advance(1000);
+  p.state({lottery,theme:'MechaLock'});
+  assert.equal(p.element('rank').textContent,'S 级大奖');
+  assert.equal(p.element('summon').style['--elapsed'],'-1s');
+  assert.equal(p.element('prize').textContent,'键盘');
+  p.advance(1100);
+  const locked=p.element('ring').children.filter(c=>c.dataset.lock==='LOCK ON');
+  assert.equal(locked.length,1);
+  assert.match(locked[0].textContent,/键盘/);
+  p.state({lottery,theme:'MechaLock'});
+  assert.equal(p.element('summon').style['--elapsed'],'-1s');
+  p.resize(1080,1920);
+  p.advance(4899); assert.equal(p.element('scene').hidden,false);
+  p.advance(1); assert.equal(p.element('scene').hidden,true);
+});
+
+test('Mecha Lock spinning hops the scanning frame between cells',()=>{
+  const p=page(), prizes=[{name:'键盘',grade:'Grand'},{name:'签名照',grade:'Third'}];
+  p.state({lottery:{id:'pool',phase:'Spinning',prizes,draws:[]},theme:'MechaLock'});
+  const scanned=()=>p.element('ring').children.findIndex(c=>c.dataset.lock==='SCANNING');
+  const first=scanned();
+  assert.notEqual(first,-1);
+  p.advance(400);
+  assert.notEqual(scanned(),first);
+});
 
 test('viewport selects portrait only when taller than wide and resizing keeps the draw deadline',()=>{
   const p=page(1080,1920);

@@ -1,0 +1,176 @@
+/* Mecha Lock: W2 / X2 / Y2 / Z2 / LE2 and the portrait PW2 / PX2 / PY2 / PZ2 / PE2 from the design canvas in #142.
+   The board locks at 35% of its 7 s loop; here the lock is at 28% like Star Summon so the result holds 4 s. Beats after the lock
+   move 7% earlier, beats before it scale by 0.8. */
+.mechaAlert,.hazard,.reticle { display:none; }
+/* Chinese inside the condensed labels falls back to the system sans, as on the board. */
+[data-theme="MechaLock"] { --condensed:'Bahnschrift SemiCondensed','Bahnschrift','DIN Condensed','Avenir Next Condensed',sans-serif; --stripe:#ff7a1a; color:#f2f4f7; }
+[data-theme="MechaLock"] .Grand { --main:#ff3d3d; --light:#ff3d3d; --a:#ff3d3d8c; --flash:36%; }
+[data-theme="MechaLock"] .Second { --main:#ffb067; --light:#ffb067; --a:#ffb06780; --flash:28%; }
+[data-theme="MechaLock"] .Third { --main:#8fd3ff; --light:#8fd3ff; --a:#8fd3ff73; --flash:18%; }
+[data-theme="MechaLock"] .drawing.Grand { --stripe:#ff3d3d; }
+[data-theme="MechaLock"] .awardRow.Grand,[data-theme="MechaLock"] .winnerCard.Grand { --main:#ff7a1a; }
+[data-theme="MechaLock"] .awardRow.Third,[data-theme="MechaLock"] .winnerCard.Third { --main:#c9d0d8; }
+[data-theme="MechaLock"] #entryBar:before,[data-theme="MechaLock"] #entryBar:after,[data-theme="MechaLock"] .hazard,[data-theme="MechaLock"] .cardFace:before,[data-theme="MechaLock"] .cardFace:after,
+[data-theme="MechaLock"] #winners:before,[data-theme="MechaLock"] #registrationTitle:before,[data-theme="MechaLock"] #registrationTitle:after { background:repeating-linear-gradient(-45deg,var(--stripe) 0 18px,#0a0c10 18px 36px); }
+[data-theme="MechaLock"] .gold { background:none; color:#ff7a1a; }
+[data-theme="MechaLock"] .rank { background:none; color:var(--main); -webkit-text-fill-color:currentColor; font-family:var(--condensed); font-weight:700; }
+[data-theme="MechaLock"] .label { font:700 30px var(--condensed); color:#ff7a1a; }
+[data-theme="MechaLock"] .condition .label { letter-spacing:6px; }
+[data-theme="MechaLock"] .latest .label { color:#9aa3ae; letter-spacing:4px; }
+
+/* LE2 registration: a bar with stripes at both ends, and the reward card. */
+[data-theme="MechaLock"][data-orientation="landscape"] #entryBar { gap:0; padding:0 34px; border-radius:0; border-color:#ff7a1a; background:#0a0c10f0; box-shadow:none; }
+[data-theme="MechaLock"] #entryBar:before,[data-theme="MechaLock"] #entryBar:after { content:''; position:absolute; top:-2px; bottom:-2px; width:36px; }
+[data-theme="MechaLock"] #entryBar:before { left:-2px; }
+[data-theme="MechaLock"] #entryBar:after { right:-2px; }
+[data-theme="MechaLock"][data-orientation="landscape"] .condition { width:680px; padding:0 30px; }
+[data-theme="MechaLock"][data-orientation="landscape"] .count { width:440px; }
+[data-theme="MechaLock"][data-orientation="landscape"] .latest { padding:0 30px; }
+[data-theme="MechaLock"] .divider { height:160px; background:#ff7a1a80; }
+[data-theme="MechaLock"] #entryCount { font-family:var(--condensed); font-weight:700; text-shadow:0 0 22px #ff7a1a80; }
+[data-theme="MechaLock"] .countLabel { color:#f2f4f7; }
+[data-theme="MechaLock"] #latestEntries>div:first-child { animation:mechaFlicker .6s steps(1,end),mechaSlide .6s cubic-bezier(.2,.9,.2,1); }
+@keyframes mechaFlicker { 0% { opacity:.2; } 25% { opacity:1; } 40% { opacity:.3; } 60%,100% { opacity:1; } }
+@keyframes mechaSlide { from { transform:translateX(80px); } }
+[data-theme="MechaLock"][data-orientation="landscape"] .pilotCode,[data-theme="MechaLock"][data-orientation="landscape"] .pilotStatus { display:none; }
+[data-theme="MechaLock"] .pilotName { overflow:hidden; text-overflow:ellipsis; }
+[data-theme="MechaLock"][data-orientation="landscape"] #awards { padding:20px 24px; border-radius:0; border-color:#ff7a1a; background:#0a0c10f0; }
+[data-theme="MechaLock"] #awardsTitle { color:#f2f4f7; }
+[data-theme="MechaLock"][data-orientation="landscape"] #awardRows { display:flex; flex-direction:column; gap:10px; }
+[data-theme="MechaLock"] #awardsTitle:after { content:'REWARD'; margin-left:12px; font:700 26px var(--condensed); letter-spacing:4px; color:#ff7a1a; }
+[data-theme="MechaLock"] .awardRow .rank { width:64px; height:64px; display:grid; place-items:center; background:var(--main); color:#0a0c10; }
+[data-theme="MechaLock"][data-orientation="landscape"] .awardPrize { font-size:56px; }
+[data-theme="MechaLock"] .capacity { font-family:var(--condensed); font-weight:700; color:#9aa3ae; }
+
+/* W2 spinning: ten tiles in a grid and a lock frame hopping between them; it turns the grade's colour on LOCK ON. */
+[data-theme="MechaLock"] .circleSpace,[data-theme="MechaLock"] .pillar,[data-theme="MechaLock"] .rays,[data-theme="MechaLock"] .glow,[data-theme="MechaLock"] .meteor,[data-theme="MechaLock"] .lockFrame,[data-theme="MechaLock"] #stars,[data-theme="MechaLock"] #shout,[data-theme="MechaLock"] .cardBack,[data-theme="MechaLock"] .sky { display:none; }
+[data-theme="MechaLock"] #ringWrap { perspective:none; }
+[data-theme="MechaLock"] #ring { left:162px; top:380px; width:1596px; height:auto; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); grid-auto-rows:170px; gap:24px; transform:none; transform-style:flat; animation:none; }
+[data-theme="MechaLock"] .candidate { position:relative; left:auto; top:auto; width:auto; height:auto; padding:8px 8px 0; gap:4px; border:2px solid #ff7a1a73; border-top:10px solid var(--strip,var(--main)); border-radius:0; background:#0c0e13f0; box-shadow:none; transform:none!important; }
+[data-theme="MechaLock"] .candidate.viewer { --strip:#ff7a1a; }
+[data-theme="MechaLock"] .candidateLabel { font:700 30px var(--condensed); letter-spacing:4px; color:var(--strip,var(--main)); }
+[data-theme="MechaLock"] .candidateName { width:100%; line-height:1.05; max-height:118px; }
+/* The frame sits 20px outside the tile's border box, as the board's 340 × 210 frame around a 300 × 170 tile. */
+[data-theme="MechaLock"] .candidate[data-lock]:not([data-lock=""]):before { content:attr(data-lock); position:absolute; left:-22px; top:-68px; color:var(--lock,#ff7a1a); font:700 30px/32px var(--condensed); letter-spacing:4px; white-space:nowrap; }
+[data-theme="MechaLock"] .candidate[data-lock]:not([data-lock=""]):after { --arm:52px; --line:7px; content:''; position:absolute; inset:-30px -22px -22px; pointer-events:none; background:
+  linear-gradient(var(--lock,#ff7a1a),var(--lock,#ff7a1a)) left top/var(--line) var(--arm),linear-gradient(var(--lock,#ff7a1a),var(--lock,#ff7a1a)) left top/var(--arm) var(--line),
+  linear-gradient(var(--lock,#ff7a1a),var(--lock,#ff7a1a)) right top/var(--line) var(--arm),linear-gradient(var(--lock,#ff7a1a),var(--lock,#ff7a1a)) right top/var(--arm) var(--line),
+  linear-gradient(var(--lock,#ff7a1a),var(--lock,#ff7a1a)) left bottom/var(--line) var(--arm),linear-gradient(var(--lock,#ff7a1a),var(--lock,#ff7a1a)) left bottom/var(--arm) var(--line),
+  linear-gradient(var(--lock,#ff7a1a),var(--lock,#ff7a1a)) right bottom/var(--line) var(--arm),linear-gradient(var(--lock,#ff7a1a),var(--lock,#ff7a1a)) right bottom/var(--arm) var(--line); background-repeat:no-repeat; }
+[data-theme="MechaLock"] .candidate[data-lock="LOCK ON"] { --lock:var(--main); }
+[data-theme="MechaLock"] .candidate[data-lock="LOCK ON"]:before,[data-theme="MechaLock"] .candidate[data-lock="LOCK ON"]:after { filter:drop-shadow(0 0 14px var(--main)); animation:mechaLockOn .12s linear; }
+@keyframes mechaLockOn { 0% { opacity:1; transform:none; } 45% { opacity:.2; transform:scale(.9); } 100% { opacity:1; transform:none; } }
+
+/* X2 / Y2 / Z2 reveal. */
+[data-theme="MechaLock"] #summon.drawing .sky { display:block; inset:0; width:auto; height:auto; border-radius:0; background:linear-gradient(#ff7a1a0d 1px,transparent 1px) 0 0/100% 40px,linear-gradient(90deg,#ff7a1a0d 1px,transparent 1px) 0 0/40px 100%,radial-gradient(ellipse at 50% 52%,#0e1016d1,#040507f2 75%); }
+[data-theme="MechaLock"] .drawing.Grand .mechaAlert { display:block; position:absolute; inset:0; background:radial-gradient(ellipse,transparent 40%,#ff3d3d99); animation:mechaAlert 7s both; animation-delay:var(--elapsed); }
+@keyframes mechaAlert { 0%,1.6% { opacity:0; } 4.8% { opacity:.9; } 8% { opacity:.15; } 11.2% { opacity:.8; } 14.4% { opacity:.15; } 17.6% { opacity:.7; } 20.8% { opacity:.15; } 24% { opacity:.6; } 27.2%,100% { opacity:0; } }
+[data-theme="MechaLock"] .drawing .hazard { display:flex; position:absolute; left:0; width:100%; align-items:center; justify-content:center; animation:mechaBandIn 7s both,mechaStripe 1s linear infinite; animation-delay:var(--elapsed),0s; }
+[data-theme="MechaLock"] .drawing .hazard.bottom { animation-name:mechaBandInRight,mechaStripe; }
+[data-theme="MechaLock"] .drawing.Third .hazard { display:none; }
+[data-theme="MechaLock"] .hazard.top { top:130px; height:56px; }
+[data-theme="MechaLock"] .hazard.bottom { top:860px; height:36px; }
+@keyframes mechaBandIn { 0%,.8% { transform:translateX(-100%); } 4.8%,100% { transform:none; } }
+@keyframes mechaBandInRight { 0%,.8% { transform:translateX(100%); } 4.8%,100% { transform:none; } }
+@keyframes mechaStripe { to { background-position:51px 0; } }
+[data-theme="MechaLock"] #warning { padding:0 26px; background:#0a0c10; color:var(--main); font:700 30px/40px var(--condensed); letter-spacing:10px; }
+[data-theme="MechaLock"] #banner { top:232px; height:96px; padding:0 40px; border-radius:0; background:#0a0c10f5; box-shadow:none; font-size:62px; line-height:92px; animation-name:mechaBanner; }
+[data-theme="MechaLock"] #banner:before { content:'COMMAND'; display:inline-block; vertical-align:top; margin-right:20px; font:700 30px/92px var(--condensed); letter-spacing:6px; color:var(--main); }
+@keyframes mechaBanner { 0% { opacity:0; transform:scaleX(.1); } 3% { opacity:1; transform:scaleX(1.05); } 4%,27% { opacity:1; transform:none; } 31%,100% { opacity:0; } }
+[data-theme="MechaLock"] .drawing #ringWrap { animation:mechaTiles 7s both; animation-delay:var(--elapsed); }
+@keyframes mechaTiles { 0%,29.5% { opacity:1; transform:none; } 33%,100% { opacity:0; transform:translateY(50px) scale(.92); } }
+[data-theme="MechaLock"] .drawing.Grand .stage { animation:mechaShake 7s both; animation-delay:var(--elapsed); }
+[data-theme="MechaLock"] .drawing.Second .stage { animation:mechaShakeLight 7s both; animation-delay:var(--elapsed); }
+@keyframes mechaShake { 0%,29.8% { transform:none; } 30.4% { transform:translate(-18px,10px); } 31% { transform:translate(16px,-12px); } 31.6% { transform:translate(-12px,-8px); } 32.2% { transform:translate(9px,7px); } 33%,100% { transform:none; } }
+@keyframes mechaShakeLight { 0%,29.8% { transform:none; } 30.4% { transform:translate(-7px,4px); } 31% { transform:translate(6px,-4px); } 31.8%,100% { transform:none; } }
+[data-theme="MechaLock"] .drawing:not(.Third) .reticle { display:block; position:absolute; left:960px; top:560px; width:980px; height:980px; color:var(--main); animation:mechaReticle 7s both; animation-delay:var(--elapsed); }
+@keyframes mechaReticle { 0%,30% { opacity:0; transform:translate(-50%,-50%) scale(2.2); } 34% { opacity:1; transform:translate(-50%,-50%) rotate(90deg); } 100% { opacity:.8; transform:translate(-50%,-50%) rotate(180deg); } }
+[data-theme="MechaLock"] #result { left:410px; top:370px; width:1100px; height:380px; perspective:none; animation:mechaPanel 7s both; animation-delay:var(--elapsed); }
+@keyframes mechaPanel { 0%,31.6% { opacity:0; transform:scaleY(0); } 33.5% { opacity:1; transform:scaleY(1.08); } 34.5%,100% { opacity:1; transform:none; } }
+[data-theme="MechaLock"] .flip { transform:none; animation:none; }
+[data-theme="MechaLock"] .cardFace { padding:18px 24px; gap:4px; justify-content:center; border:3px solid var(--main); border-radius:0; background:#0a0c10f7; box-shadow:0 0 70px var(--a); }
+[data-theme="MechaLock"] .cardFace:before,[data-theme="MechaLock"] .cardFace:after { content:''; position:absolute; left:0; right:0; height:18px; }
+[data-theme="MechaLock"] .cardFace:before { top:0; }
+[data-theme="MechaLock"] .cardFace:after { bottom:0; }
+[data-theme="MechaLock"] #rank { line-height:1.1; font-family:inherit; font-weight:normal; filter:none; text-shadow:0 0 16px var(--a); }
+[data-theme="MechaLock"] .rankCode { display:inline-block; margin-right:16px; font:700 1.07em/1 var(--condensed); }
+/* Two clipped, offset copies of the name glitch behind it right after the panel opens. */
+[data-theme="MechaLock"] #prize { position:relative; z-index:0; max-height:170px; color:#fff; text-shadow:0 0 30px var(--a); }
+[data-theme="MechaLock"] #prize:before,[data-theme="MechaLock"] #prize:after { content:attr(data-text); position:absolute; inset:0; z-index:-1; opacity:0; text-shadow:none; animation:mechaGlitchA 7s both; animation-delay:var(--elapsed); }
+[data-theme="MechaLock"] #prize:before { color:var(--main); }
+[data-theme="MechaLock"] #prize:after { color:#fff; animation-name:mechaGlitchB; }
+@keyframes mechaGlitchA { 0%,33.5% { opacity:0; transform:none; clip-path:inset(0); } 34% { opacity:1; transform:translateX(-20px); clip-path:inset(12% 0 50% 0); } 35.5% { transform:translateX(16px); clip-path:inset(60% 0 6% 0); } 37% { transform:translateX(-8px); clip-path:inset(30% 0 36% 0); } 38.5%,100% { opacity:0; transform:none; clip-path:inset(0); } }
+@keyframes mechaGlitchB { 0%,33.5% { opacity:0; transform:none; clip-path:inset(0); } 34% { opacity:1; transform:translateX(18px); clip-path:inset(48% 0 18% 0); } 35.5% { transform:translateX(-14px); clip-path:inset(4% 0 66% 0); } 37% { transform:translateX(10px); clip-path:inset(40% 0 30% 0); } 38.5%,100% { opacity:0; transform:none; clip-path:inset(0); } }
+[data-theme="MechaLock"] #viewer { max-height:128px; color:#ffb067; letter-spacing:6px; animation:mechaSub 7s both; animation-delay:var(--elapsed); }
+@keyframes mechaSub { 0%,37% { opacity:0; } 42%,100% { opacity:1; } }
+[data-theme="MechaLock"] .flash { background:radial-gradient(circle at 50% 52%,#fff,var(--a) var(--flash),transparent 72%); animation-name:mechaFlash; }
+@keyframes mechaFlash { 0%,29.6% { opacity:0; } 30.2% { opacity:1; } 34%,100% { opacity:0; } }
+
+/* LE2 results: a striped panel with one row per winner. */
+[data-theme="MechaLock"] #winners { top:90px; gap:10px; padding:24px 34px 24px; background:#0a0c10f5; border:2px solid #ff7a1a; }
+[data-theme="MechaLock"] #winners:before { content:''; position:absolute; top:-2px; left:-2px; right:-2px; height:16px; }
+[data-theme="MechaLock"] #winnerTitle { padding:16px 0 8px; font-size:80px; line-height:normal; color:#f2f4f7; filter:none; }
+[data-theme="MechaLock"] #winnerTitle:after { content:'MISSION RESULT'; margin-left:20px; font:700 30px var(--condensed); letter-spacing:8px; color:#ff7a1a; }
+[data-theme="MechaLock"] #winnerCards { display:flex; flex-direction:column; width:100%; gap:10px; perspective:none; }
+[data-theme="MechaLock"] .winnerCard { height:100px; padding:0 24px; display:grid; grid-template-columns:70px minmax(0,1fr) auto; align-items:center; column-gap:24px; border:0; border-left:10px solid var(--main); border-radius:0; background:#ffffff0d; box-shadow:none; text-align:left; animation:mechaRow .5s cubic-bezier(.2,.9,.2,1) both; animation-delay:calc(var(--index) * .1s); }
+@keyframes mechaRow { from { opacity:0; transform:translateX(-60px); } }
+[data-theme="MechaLock"] .winnerName { max-height:76px; line-height:1.05; }
+[data-theme="MechaLock"] .winnerAward { font:36px 'PingFang SC','Microsoft YaHei UI',sans-serif; color:#9aa3ae; }
+[data-theme="MechaLock"] #remaining { align-self:stretch; margin-top:6px; padding:16px 24px; border:2px dashed #ff7a1ab3; border-radius:0; background:none; color:#ffb067; font:700 48px var(--condensed); letter-spacing:2px; }
+[data-theme="MechaLock"] #remaining:before { content:'CLOSED · '; }
+[data-theme="MechaLock"] #pageNumber { color:#9aa3ae; font-family:var(--condensed); }
+
+/* PW2 / PE2 portrait. The board's WARNING stripe sits above SA1; here it starts inside SA1 and everything below moves down to clear it. */
+[data-theme="MechaLock"][data-orientation="portrait"] #registrationTitle { height:88px; padding:0; gap:0; border-radius:0; border-color:#ff7a1a; background:#0a0c10f0; font-size:56px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #registrationTitle:before,[data-theme="MechaLock"][data-orientation="portrait"] #registrationTitle:after { content:''; align-self:stretch; width:26px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #themeTitle { margin:0 16px 0 24px; color:#fff; }
+[data-theme="MechaLock"][data-orientation="portrait"] #registrationTitle span+span { height:auto; margin-right:24px; padding:0; border-radius:0; background:none; color:#ffb067; font:700 26px var(--condensed); letter-spacing:3px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #entryBar:before,[data-theme="MechaLock"][data-orientation="portrait"] #entryBar:after { display:none; }
+[data-theme="MechaLock"][data-orientation="portrait"] .condition { gap:6px; padding:18px 24px; align-items:flex-start; border:0; border-left:8px solid #ff7a1a; border-radius:0; background:#0a0c10f0; }
+[data-theme="MechaLock"][data-orientation="portrait"] .condition .label { font-size:24px; letter-spacing:4px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #keyword { text-align:left; }
+[data-theme="MechaLock"][data-orientation="portrait"] .count { padding:0 26px; border-radius:0; background:#0a0c10e6; }
+[data-theme="MechaLock"][data-orientation="portrait"] #latestEntries>div { position:relative; display:flex; align-items:baseline; gap:14px; padding:10px 18px 0; border:0; border-left:4px solid #ff7a1a; border-radius:0; background:#0a0c10eb; line-height:1; }
+[data-theme="MechaLock"][data-orientation="portrait"] .pilotName { flex:1; min-width:0; font-size:44px; white-space:nowrap; }
+[data-theme="MechaLock"][data-orientation="portrait"] .pilotCode,[data-theme="MechaLock"][data-orientation="portrait"] .pilotStatus { font:700 24px var(--condensed); color:#9aa3ae; }
+[data-theme="MechaLock"][data-orientation="portrait"] .pilotStatus { color:#39ff88; }
+/* The sync bar: a dim track, filled in for every row and animated on the newest. */
+[data-theme="MechaLock"][data-orientation="portrait"] #latestEntries>div:before,[data-theme="MechaLock"][data-orientation="portrait"] #latestEntries>div:after { content:''; position:absolute; left:18px; right:18px; bottom:10px; width:auto; height:4px; margin:0; clip-path:none; background:#ffffff1a; }
+[data-theme="MechaLock"][data-orientation="portrait"] #latestEntries>div:after { background:#ff7a1a; transform-origin:0 50%; }
+/* The board slides the newest row 80px; SA1 leaves 25px right of the rows, so it slides 24px here. */
+[data-theme="MechaLock"][data-orientation="portrait"] #latestEntries>div:first-child { animation-name:mechaFlicker,mechaSlideShort; }
+@keyframes mechaSlideShort { from { transform:translateX(24px); } }
+[data-theme="MechaLock"][data-orientation="portrait"] #latestEntries>div:first-child:after { animation:mechaSync 1.1s cubic-bezier(.3,.8,.3,1) both; }
+@keyframes mechaSync { from { transform:scaleX(0); } to { transform:scaleX(1); } }
+[data-theme="MechaLock"][data-orientation="portrait"] .awardRow { padding:0 20px 0 0; border-radius:0; border:2px solid var(--main); background:#0a0c10f0; }
+[data-theme="MechaLock"][data-orientation="portrait"] .awardRow .rank { width:70px; height:100%; font-size:46px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #ring { left:89px; top:490px; width:740px; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:120px; gap:20px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .candidate { padding:6px 8px 0; gap:0; border-top-width:8px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .candidateLabel { font-size:24px; letter-spacing:3px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .candidateName { font-size:46px; max-height:52px; white-space:nowrap; text-overflow:ellipsis; }
+[data-theme="MechaLock"][data-orientation="portrait"] .candidate[data-lock]:not([data-lock=""]):before { left:-22px; top:-60px; font-size:22px; line-height:26px; letter-spacing:3px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .candidate[data-lock]:not([data-lock=""]):after { --arm:40px; --line:6px; inset:-28px -22px -22px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .hazard.top { top:294px; height:50px; padding-right:162px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .hazard.bottom { top:1262px; height:30px; }
+/* The stripe slides in from outside SA1, so its words show once it has arrived. */
+[data-theme="MechaLock"][data-orientation="portrait"] #warning { max-width:810px; font-size:24px; letter-spacing:6px; animation:mechaLabel 7s both; animation-delay:var(--elapsed); }
+@keyframes mechaLabel { 0%,4.8% { opacity:0; } 4.9%,100% { opacity:1; } }
+[data-theme="MechaLock"][data-orientation="portrait"] #banner { left:54px; right:216px; top:354px; height:84px; max-width:810px; padding:0 26px; font-size:44px; line-height:80px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #banner:before { margin-right:14px; font-size:22px; line-height:80px; letter-spacing:4px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .drawing:not(.Third) .reticle { left:459px; top:760px; width:820px; height:820px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #result { left:79px; top:550px; width:760px; height:420px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .cardFace { padding:14px 24px; box-shadow:0 0 70px var(--a); }
+[data-theme="MechaLock"][data-orientation="portrait"] .cardFace:before,[data-theme="MechaLock"][data-orientation="portrait"] .cardFace:after { height:14px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #prize { max-height:230px; text-shadow:0 0 30px var(--a); }
+[data-theme="MechaLock"][data-orientation="portrait"] #viewer { max-height:110px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .flash { background:radial-gradient(circle at 42% 40%,#fff,var(--a) var(--flash),transparent 72%); }
+[data-theme="MechaLock"][data-orientation="portrait"] #winners { left:54px; top:300px; width:810px; padding:22px 24px 24px; gap:10px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #winners:before { height:14px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #winnerTitle { padding:14px 0 8px; font-size:68px; line-height:normal; }
+[data-theme="MechaLock"][data-orientation="portrait"] #winnerTitle:after { margin-left:16px; font-size:24px; letter-spacing:6px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .winnerCard { height:96px; padding:0 18px; grid-template-columns:50px minmax(0,1fr); grid-template-rows:auto auto; align-content:center; column-gap:16px; border-left-width:8px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .winnerCard .rank { grid-row:1 / 3; font-size:56px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .winnerName { height:auto; max-height:60px; display:block; text-align:left; line-height:1.2; padding:0; }
+[data-theme="MechaLock"][data-orientation="portrait"] .winnerAward { grid-column:2; font-size:26px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #remaining { padding:14px 18px; font-size:40px; line-height:44px; text-align:left; }
+[data-theme="MechaLock"][data-orientation="portrait"] #pageNumber { margin:0; }

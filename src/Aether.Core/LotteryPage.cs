@@ -28,6 +28,7 @@ public sealed class LotteryPage(WebService service, LotteryController lottery)
         {
             "/lottery" => ("LotteryPage.html", "text/html; charset=utf-8"),
             "/lottery/style.css" => ("LotteryPage.css", "text/css; charset=utf-8"),
+            "/lottery/mecha.css" => ("LotteryPage.Mecha.css", "text/css; charset=utf-8"),
             "/lottery/page.js" => ("LotteryPage.js", "text/javascript; charset=utf-8"),
             "/lottery/SmileySans-Oblique.woff2" => ("Fonts.SmileySans-Oblique.woff2", "font/woff2"),
             "/lottery/OFL.txt" => ("Fonts.OFL.txt", "text/plain; charset=utf-8"),
