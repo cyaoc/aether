@@ -193,6 +193,7 @@ public sealed class LotteryBrowserTests
     private static async Task AssertDrawAsync(LotteryBrowser browser, PrizeGrade grade, string mode, LotteryTheme theme)
     {
         var mecha = theme == LotteryTheme.MechaLock;
+        var width = (await browser.EvaluateAsync("window.innerWidth")).GetInt32();
         await browser.WaitAsync($"document.getElementById('summon').className === 'drawing {grade}'");
         // The board's banner pops in from 1.6x and drifts up as it fades; check it while it holds still.
         await browser.WaitAsync("(p => p > .05 && p < .25)(document.getElementById('banner').getAnimations()[0].effect.getComputedTiming().progress)");
@@ -203,7 +204,7 @@ public sealed class LotteryBrowserTests
             await browser.WaitAsync("document.querySelector('[data-lock=\"LOCK ON\"]')");
             Assert.Equal((await browser.EvaluateAsync("document.getElementById('prize').textContent")).GetString(),
                 (await browser.EvaluateAsync("document.querySelector('[data-lock=\"LOCK ON\"] .candidateName').textContent")).GetString());
-            await browser.ScreenshotAsync($"mecha-{mode}-{grade}-locked");
+            await browser.ScreenshotAsync($"{width}-{mode}-{grade}-locked");
             await browser.WaitAsync("document.getElementById('result').getAnimations()[0].effect.getComputedTiming().progress >= .4");
             Assert.Contains(grade == PrizeGrade.Grand ? "S 级" : grade == PrizeGrade.Second ? "A 级" : "B 级",
                 (await browser.EvaluateAsync("document.getElementById('rank').textContent")).GetString());
@@ -211,7 +212,6 @@ public sealed class LotteryBrowserTests
         }
         else await browser.WaitAsync("getComputedStyle(document.querySelector('.flip')).transform === 'matrix(1, 0, 0, 1, 0, 0)'");
         var revealedAt = DateTimeOffset.UtcNow;
-        var width = (await browser.EvaluateAsync("window.innerWidth")).GetInt32();
         Assert.Equal(mecha ? width == 1080 ? "116px" : "150px" : width == 1080 ? "96px" : "112px", (await browser.EvaluateAsync("getComputedStyle(document.getElementById('prize')).fontSize")).GetString());
         if (width == 1080 && grade == PrizeGrade.Grand)
         {

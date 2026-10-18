@@ -5,7 +5,7 @@ html,body { margin:0; width:100%; height:100%; overflow:hidden; background:trans
 body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei UI',system-ui,sans-serif; }
 [hidden] { display:none!important; }
 #scene { --ring-radius:430px; --meteor-x:840px; --meteor-y:-860px; width:1920px; height:1080px; position:absolute; left:50%; top:50%; transform-origin:0 0; overflow:hidden; }
-#registrationTitle,.awardName,#latestEntries div:nth-child(3) { display:none; }
+#registrationTitle,.awardName,#latestEntries>div:nth-child(3) { display:none; }
 .gold { background:linear-gradient(180deg,#fff,#fff1c2 40%,#ffd36b 70%,#e8a93a); -webkit-background-clip:text; background-clip:text; color:transparent; }
 /* --in/--mid paint the revealed card, --deep/--glow the ring and result cards, as the board's cardIn/cardMid/deep/glow. */
 .Grand { --main:#ffd36b; --light:#ffe7a8; --in:#5a3f0c; --mid:#2a1c05; --deep:rgba(110,78,14,.95); --a:rgba(255,211,107,.55); --glow:rgba(255,211,107,.5); --frame:linear-gradient(160deg,#fff,#ffe7a8 25%,#e8a93a 55%,#fff1c2 80%,#c98a1b); }
@@ -25,9 +25,9 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 .countLabel { font-size:44px; color:#e7d9ff; }
 .latest { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }
 #latestEntries { font-size:62px; line-height:1.1; }
-#latestEntries div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-#latestEntries div:first-child { animation:enter .9s cubic-bezier(.2,.9,.2,1); }
-#latestEntries div+div { opacity:.65; }
+#latestEntries>div { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+#latestEntries>div:first-child { animation:enter .9s cubic-bezier(.2,.9,.2,1); }
+#latestEntries>div+div { opacity:.65; }
 @keyframes enter { 0% { opacity:0; transform:translateY(-40px) scale(.9); text-shadow:0 0 40px #ffd36b; } 60% { opacity:1; transform:none; } 100% { text-shadow:none; } }
 #awards { position:absolute; right:60px; top:40px; width:560px; display:flex; flex-direction:column; gap:10px; padding:22px 26px; border-radius:22px; border:2px solid #ffd36bb3; background:rgba(14,12,44,.92); font-size:48px; }
 .awardRow { display:flex; align-items:center; gap:16px; height:72px; }
@@ -35,7 +35,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 .awardRow .rank { width:100px; flex-shrink:0; font-size:52px; }
 .awardPrize { flex:1; min-width:0; font-size:58px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .capacity { font-size:44px; color:#b9b4e0; }
-#summon { position:absolute; inset:0; }
+#summon,.stage { position:absolute; inset:0; }
 .sky { position:absolute; left:260px; top:160px; width:1400px; height:900px; border-radius:50%; background:radial-gradient(ellipse at 50% 55%,#1e145ab8,rgba(20,14,64,.45) 45%,transparent 70%); }
 .drawing .sky { inset:0; width:auto; height:auto; border-radius:0; background:radial-gradient(ellipse at 50% 70%,rgba(70,44,170,.88),rgba(22,16,70,.95) 45%,rgba(6,6,26,.97) 80%); animation:sky 7s both; animation-delay:var(--elapsed); }
 .drawing.Second .sky { background:radial-gradient(ellipse at 50% 70%,rgba(70,44,170,.8),rgba(22,16,70,.88) 50%,rgba(6,6,26,.9) 85%); }
@@ -105,7 +105,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 #winners { position:absolute; left:360px; top:100px; width:1200px; display:flex; flex-direction:column; align-items:center; gap:26px; }
 #winnerTitle { margin:0; font-size:96px; font-weight:normal; filter:drop-shadow(0 0 18px #ffd36b80); }
 #winnerCards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px; width:1128px; perspective:1400px; }
-.winnerCard { height:300px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:22px 12px; border-radius:18px; border:3px solid transparent; background:linear-gradient(170deg,var(--deep),#0c0a26 75%) padding-box,var(--frame) border-box; box-shadow:0 0 30px var(--glow); text-align:center; animation:deal .8s cubic-bezier(.2,.9,.2,1) both; }
+.winnerCard { height:300px; display:flex; flex-direction:column; align-items:center; justify-content:space-between; padding:22px 12px; border-radius:18px; border:3px solid transparent; background:linear-gradient(170deg,var(--deep),#0c0a26 75%) padding-box,var(--frame) border-box; box-shadow:0 0 30px var(--glow); text-align:center; animation:deal .8s cubic-bezier(.2,.9,.2,1) both; animation-delay:calc(var(--index) * .14s); }
 .winnerCard .rank { font-size:64px; line-height:1; }
 .winnerName { font-size:72px; line-height:1.1; width:100%; max-height:125px; overflow-wrap:anywhere; overflow:hidden; }
 .winnerAward { font:700 40px 'PingFang SC','Microsoft YaHei UI',sans-serif; color:var(--main); max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -128,13 +128,13 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-orientation="portrait"] .countLabel { font-size:38px; white-space:nowrap; }
 [data-orientation="portrait"] .latest { flex:none; width:760px; }
 [data-orientation="portrait"] #latestEntries { display:flex; flex-direction:column; gap:8px; font-size:48px; }
-[data-orientation="portrait"] #latestEntries div { display:block; height:70px; padding:0 22px; border-radius:35px; border:1px solid #c59bff80; background:rgba(14,12,44,.9); line-height:68px; }
-[data-orientation="portrait"] #latestEntries div:before { content:''; display:inline-block; width:30px; height:30px; margin-right:14px; vertical-align:middle; background:#ffd36b; clip-path:polygon(50% 6%,59% 41%,94% 50%,59% 59%,50% 94%,41% 59%,6% 50%,41% 41%); }
-[data-orientation="portrait"] #latestEntries div:first-child { animation-name:enterRow; }
-[data-orientation="portrait"] #latestEntries div:nth-child(2) { opacity:.78; }
-[data-orientation="portrait"] #latestEntries div:nth-child(2):before { background:#c59bff; }
-[data-orientation="portrait"] #latestEntries div:nth-child(3) { opacity:.56; }
-[data-orientation="portrait"] #latestEntries div:nth-child(3):before { background:#7cc4ff; }
+[data-orientation="portrait"] #latestEntries>div { display:block; height:70px; padding:0 22px; border-radius:35px; border:1px solid #c59bff80; background:rgba(14,12,44,.9); line-height:68px; }
+[data-orientation="portrait"] #latestEntries>div:before { content:''; display:inline-block; width:30px; height:30px; margin-right:14px; vertical-align:middle; background:#ffd36b; clip-path:polygon(50% 6%,59% 41%,94% 50%,59% 59%,50% 94%,41% 59%,6% 50%,41% 41%); }
+[data-orientation="portrait"] #latestEntries>div:first-child { animation-name:enterRow; }
+[data-orientation="portrait"] #latestEntries>div:nth-child(2) { opacity:.78; }
+[data-orientation="portrait"] #latestEntries>div:nth-child(2):before { background:#c59bff; }
+[data-orientation="portrait"] #latestEntries>div:nth-child(3) { opacity:.56; }
+[data-orientation="portrait"] #latestEntries>div:nth-child(3):before { background:#7cc4ff; }
 @keyframes enterRow { 0% { opacity:0; transform:translateY(-40px) scale(.9); box-shadow:0 0 40px #ffd36be6; } 60% { opacity:1; transform:none; } 100% { box-shadow:0 0 0 #ffd36b00; } }
 [data-orientation="portrait"] #awards { position:static; width:760px; padding:0; border:0; border-radius:0; background:none; }
 [data-orientation="portrait"] #awardRows { display:flex; flex-direction:column; gap:8px; }
@@ -145,7 +145,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-orientation="portrait"] .capacity { font:30px 'PingFang SC','Microsoft YaHei UI',sans-serif; }
 /* The board shows three awards; four or five tighten the column so the last row still ends inside SA1. */
 [data-orientation="portrait"] #registration[data-awards="4"],[data-orientation="portrait"] #registration[data-awards="5"] { gap:8px; }
-[data-orientation="portrait"] [data-awards="4"] #latestEntries div,[data-orientation="portrait"] [data-awards="5"] #latestEntries div { height:60px; line-height:58px; }
+[data-orientation="portrait"] [data-awards="4"] #latestEntries>div,[data-orientation="portrait"] [data-awards="5"] #latestEntries>div { height:60px; line-height:58px; }
 [data-orientation="portrait"] [data-awards="4"] .condition,[data-orientation="portrait"] [data-awards="5"] .condition { padding:10px 24px; }
 [data-orientation="portrait"] [data-awards="4"] .awardRow,[data-orientation="portrait"] [data-awards="5"] .awardRow { height:52px; }
 [data-orientation="portrait"] .sky { left:24px; top:380px; width:870px; height:900px; background:radial-gradient(ellipse at 50% 50%,#1e145ab8,rgba(20,14,64,.45) 45%,transparent 70%); }

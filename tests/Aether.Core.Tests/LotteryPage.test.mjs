@@ -12,7 +12,7 @@ function page(width = 1920, height = 1080) {
   const element = () => ({ hidden:true, children:[], dataset:{}, style:{setProperty(k,v){this[k]=v;}},
     className:'', offsetWidth:0, scrollHeight:0, clientHeight:0, scrollWidth:0, clientWidth:0,
     set textContent(value) { this.text = String(value); this.children = []; },
-    get textContent() { return (this.text || '') + this.children.map(c=>c.textContent).join(''); },
+    get textContent() { return (this.text || '') + this.children.map(c=>c.textContent ?? c).join(''); },
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.text=''; this.children=children; },
     getContext:()=>graphics });
@@ -54,7 +54,7 @@ test('switching to Mecha Lock refreshes a live draw, locks the winning cell and 
     draws:[{id:'d',prize,uid:42,candidates:[other,prize],drawnAt:'2026-10-17T12:00:00Z'}]};
   p.state({lottery}); p.advance(1000);
   p.state({lottery,theme:'MechaLock'});
-  assert.equal(p.element('rank').textContent,'S 级 · 大奖 · 目标确认');
+  assert.equal(p.element('rank').textContent,'S 级大奖');
   assert.equal(p.element('summon').style['--elapsed'],'-1s');
   assert.equal(p.element('prize').textContent,'键盘');
   p.advance(1100);
@@ -66,6 +66,16 @@ test('switching to Mecha Lock refreshes a live draw, locks the winning cell and 
   p.resize(1080,1920);
   p.advance(4899); assert.equal(p.element('scene').hidden,false);
   p.advance(1); assert.equal(p.element('scene').hidden,true);
+});
+
+test('Mecha Lock spinning hops the scanning frame between cells',()=>{
+  const p=page(), prizes=[{name:'键盘',grade:'Grand'},{name:'签名照',grade:'Third'}];
+  p.state({lottery:{id:'pool',phase:'Spinning',prizes,draws:[]},theme:'MechaLock'});
+  const scanned=()=>p.element('ring').children.findIndex(c=>c.dataset.lock==='SCANNING');
+  const first=scanned();
+  assert.notEqual(first,-1);
+  p.advance(400);
+  assert.notEqual(scanned(),first);
 });
 
 test('viewport selects portrait only when taller than wide and resizing keeps the draw deadline',()=>{

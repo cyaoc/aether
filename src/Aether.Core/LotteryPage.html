@@ -26,10 +26,6 @@
     <div class="sky"></div>
     <div class="mechaAlert" aria-hidden="true"></div>
     <div class="hazard top"><span id="warning"></span></div><div class="hazard bottom" aria-hidden="true"></div>
-    <svg class="reticle" viewBox="0 0 200 200" aria-hidden="true">
-      <g fill="none" stroke="currentColor" stroke-width=".8"><circle cx="100" cy="100" r="96" stroke-dasharray="2 4"/><circle cx="100" cy="100" r="84"/><path d="M100 0v18M100 182v18M0 100h18M182 100h18"/></g>
-      <g fill="none" stroke="#fff" stroke-width="1.2"><path d="M100 10a90 90 0 0 1 66 29M100 190a90 90 0 0 1-66-29"/></g>
-    </svg>
     <div class="circleSpace" aria-hidden="true"><div class="circlePlane">
       <svg class="circle" viewBox="0 0 400 400" width="900" height="900">
         <g fill="none" stroke="currentColor" stroke-width="2.4">
@@ -50,9 +46,15 @@
     <!-- Transparent video effects can be inserted here later, behind the cards. -->
     <div id="videoEffects" hidden></div>
     <canvas id="particles" width="1920" height="1080" aria-hidden="true"></canvas>
+    <!-- The stage shakes on a Mecha Lock hit; the backdrop, stripes and canvas stay put. -->
+    <div class="stage">
     <div id="ringWrap"><div id="ring"></div><div class="lockFrame effect" aria-hidden="true"></div></div>
     <div id="banner" class="effect"></div>
     <div class="meteor effect" aria-hidden="true"></div>
+    <svg class="reticle" viewBox="0 0 200 200" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width=".8"><circle cx="100" cy="100" r="96" stroke-dasharray="2 4"/><circle cx="100" cy="100" r="84"/><path d="M100 0v18M100 182v18M0 100h18M182 100h18"/></g>
+      <g fill="none" stroke="#fff" stroke-width="1.2"><path d="M100 10a90 90 0 0 1 66 29M100 190a90 90 0 0 1-66-29"/></g>
+    </svg>
     <div id="result" class="effect" aria-live="polite">
       <div class="flip">
         <div class="cardBack">
@@ -69,6 +71,7 @@
     </div>
     <div id="shout" class="gold effect"></div>
     <div class="flash effect" aria-hidden="true"></div>
+    </div>
   </section>
   <section id="winners" hidden>
     <h1 id="winnerTitle" class="gold"></h1><div id="winnerCards"></div>
