@@ -25,6 +25,7 @@
   </section>
   <section id="summon" hidden>
     <div class="sky"></div>
+    <div class="gachaSun gachaEffect" aria-hidden="true"></div>
     <div id="gachaMachine" aria-hidden="true">
       <div class="dome"><div id="capsules"></div></div><div class="neck"></div>
       <div class="machineBody"><div id="machineLabel"><span class="idle">等你来扭</span><span class="busy">扭扭扭…</span></div><div class="crank"></div><div class="coinSlot"></div><div class="outlet"></div></div>
@@ -70,6 +71,8 @@
     <!-- The foreground shakes on a hit; the backdrop and canvas stay put. -->
     <div class="stage">
     <div class="gachaBall effect" aria-hidden="true"></div><div class="gachaRainbow effect" aria-hidden="true"></div>
+    <div class="gachaBeams gachaEffect" aria-hidden="true"></div>
+    <span class="gachaRing gachaEffect" aria-hidden="true"></span><span class="gachaRing echo gachaEffect" aria-hidden="true"></span>
     <div class="gachaHalves effect" aria-hidden="true"><span></span><span></span></div>
     <div id="ringWrap"><div id="ring"></div><div class="lockFrame effect" aria-hidden="true"></div></div>
     <div id="banner" class="effect"></div>
@@ -95,6 +98,14 @@
         </div>
       </div>
     </div>
+    <div class="gachaSparkles gachaEffect" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><defs><path id="gachaSparkleShape" d="M12 1.5c.9 5.3 3.2 7.6 8.5 8.5-5.3.9-7.6 3.2-8.5 8.5-.9-5.3-3.2-7.6-8.5-8.5 5.3-.9 7.6-3.2 8.5-8.5z"/></defs><use href="#gachaSparkleShape"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#gachaSparkleShape"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#gachaSparkleShape"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#gachaSparkleShape"/></svg>
+      <svg viewBox="0 0 24 24"><use href="#gachaSparkleShape"/></svg>
+    </div>
+    <div class="gachaPopSticker gachaEffect" aria-hidden="true"></div>
     <div id="shout" class="gold effect"></div>
     <div class="flash effect" aria-hidden="true"></div>
     </div>

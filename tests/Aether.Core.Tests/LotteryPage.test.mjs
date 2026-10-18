@@ -6,11 +6,15 @@ import assert from 'node:assert/strict';
 
 const script = readFileSync(new URL('../../src/Aether.Core/LotteryPage.js', import.meta.url), 'utf8');
 function page(width = 1920, height = 1080) {
-  let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0, source;
+  let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0, source, animationFrame;
   const timers = new Map(), elements = new Map(), listeners = new Map();
-  const graphics = new Proxy({}, { get: () => () => {} });
+  let rectangles = [], position;
+  const graphics = new Proxy({}, { get: (_, name) => (...args) => {
+    if (name === 'translate') position = args;
+    if (name === 'rect') rectangles.push(position);
+  } });
   const element = () => ({ hidden:true, children:[], dataset:{}, style:{setProperty(k,v){this[k]=v;}},
-    className:'', offsetWidth:0, scrollHeight:0, clientHeight:0, scrollWidth:0, clientWidth:0,
+    className:'', offsetLeft:0, offsetTop:0, offsetWidth:0, scrollHeight:0, clientHeight:0, scrollWidth:0, clientWidth:0,
     set textContent(value) { this.text = String(value); this.children = []; },
     get textContent() { return (this.text || '') + this.children.map(c=>c.textContent ?? c).join(''); },
     append(...children) { this.children.push(...children); },
@@ -25,10 +29,11 @@ function page(width = 1920, height = 1080) {
   vm.runInNewContext(script, { document, window,
     Date:class extends Date { static now(){return now;} }, getComputedStyle:()=>({fontSize:'112px'}),
     EventSource:class { constructor(){source=this;} addEventListener(name,fn){listeners.set(name,fn);} },
-    requestAnimationFrame:()=>0,cancelAnimationFrame:()=>{},
+    requestAnimationFrame:fn=>{animationFrame=fn;return 1;},cancelAnimationFrame:()=>{animationFrame=undefined;},
     setTimeout:(fn,ms)=>timer(fn,ms,0),setInterval:(fn,ms)=>timer(fn,ms,ms),
     clearTimeout:id=>timers.delete(id),clearInterval:id=>timers.delete(id) });
   return { element:id=>document.getElementById(id), state:state=>listeners.get('state')({data:JSON.stringify(state)}),
+    frame:()=>{rectangles=[]; animationFrame?.(); return rectangles;},
     resize:(width,height)=>{window.innerWidth=width; window.innerHeight=height; listeners.get('resize')();},
     disconnect:()=>source.onerror(), advance:ms=>{
       const end=now+ms;
@@ -47,6 +52,28 @@ const entry = {id:'entry',phase:'Open',keyword:'<img onerror=alert(1)>',entryCou
   latestEntries:[{nickname:'甲'},{nickname:'乙'},{nickname:'丙'}],awards:[award],draws:[],remaining:8,hidden:false,drawUntil:null};
 const draws = Array.from({length:7},(_,i)=>({id:`d${i}`,awardIndex:0,award,winner:{uid:i+1,nickname:`观众${i+1}`},
   candidates:['甲','乙'],drawnAt:'2026-10-17T12:00:00Z'}));
+
+test('Capsule Gacha fires confetti upwards from both sides once for Second and twice for Grand',()=>{
+  for (const [width,height] of [[1920,1080],[1080,1920]]) for (const grade of ['Grand','Second','Third']) {
+    const p=page(width,height), draw={...draws[0],award:{...award,grade}};
+    p.state({theme:'CapsuleGacha',entryLottery:{...entry,phase:'Closed',draws:[draw],drawUntil:'2026-10-17T12:00:07Z'}});
+    p.advance(1900);
+    assert.equal(p.frame().length,0);
+    p.advance(120);
+    const first=p.frame();
+    if (grade === 'Third') assert.equal(first.length,0);
+    else {
+      const middle=width===1080 ? 459 : 1180, bottom=width===1080 ? 1150 : 960;
+      assert.ok(first.some(([x])=>x<middle) && first.some(([x])=>x>middle));
+      assert.ok(first.every(([,y])=>y<bottom && y>bottom-100),'Confetti starts inside the source and travels upwards');
+    }
+    p.advance(700);
+    const second=p.frame();
+    assert.equal(second.length,grade==='Grand' ? first.length*2 : first.length);
+    p.advance(200);
+    assert.equal(p.frame().length,second.length,'No extra volley on subsequent frames');
+  }
+});
 
 test('Capsule Gacha drops a capsule beside the count and matches the newest name colour',()=>{
   const p=page(), show=e=>p.state({theme:'CapsuleGacha',entryLottery:{...e,latestEntries:e.latestEntries.slice(0,e.entryCount)}});
