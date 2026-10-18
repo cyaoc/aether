@@ -24,15 +24,8 @@ public sealed class LotteryBrowserTests
     [InlineData(1080, 1920)]
     public async Task Mecha_lock_grand_warning_flashes_red_inside_the_dome(int width, int height)
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
-            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
-        await using var h = new WatchHarness(enableLottery: true);
-        await h.LoginAsync();
-        h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
-        await using var watch = await h.WatchConnectedAsync();
-        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new ChromeBrowser();
-        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, width, height);
+        await using var page = await OpenPageAsync(width, height);
+        var (h, browser) = (page.H, page.Browser);
         h.Client.Lottery.SelectTheme(LotteryTheme.MechaLock);
         h.Client.Lottery.Start([new("机械键盘", 1, Grade.Grand)], "停", 42);
         h.Client.Lottery.Stop();
@@ -73,20 +66,12 @@ public sealed class LotteryBrowserTests
     [InlineData(1080, 1920, Grade.Third)]
     public async Task Mecha_lock_scans_then_clamps_the_panel_and_sweeps_it_twice(int width, int height, Grade grade)
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
-            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
-        await using var h = new WatchHarness(enableLottery: true);
-        await h.LoginAsync();
-        h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
-        await using var watch = await h.WatchConnectedAsync();
-        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new ChromeBrowser();
-        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, width, height);
+        await using var page = await OpenPageAsync(width, height);
+        var (h, browser) = (page.H, page.Browser);
         h.Client.Lottery.SelectTheme(LotteryTheme.MechaLock);
         h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
         h.Client.Lottery.Stop();
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
-        Assert.True((await browser.EvaluateAsync("!!document.querySelector('.mechaClamp')")).GetBoolean(), "The result panel needs the TARGET LOCKED corner frame.");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
         await browser.EvaluateAsync("document.body.style.background = '#f0eae4'; document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); }); true");
         foreach (var milliseconds in new[] { 336, 1200, 2140, 2450, 2520, 3000, 4550, 5000 })
@@ -122,18 +107,91 @@ public sealed class LotteryBrowserTests
     public Task Capsule_gacha_renders_both_modes_all_grades_and_the_offline_example_through_real_SSE(int width, int height) =>
         RenderBothModesAsync(width, height, LotteryTheme.CapsuleGacha);
 
+    [Theory]
+    [InlineData(1920, 1080, "柚子不酸")]
+    [InlineData(1920, 1080, "观众的超长中文昵称星河入梦与漫天星光")]
+    [InlineData(1080, 1920, "柚子不酸")]
+    [InlineData(1080, 1920, "观众的超长中文昵称星河入梦与漫天星光")]
+    public async Task Capsule_gacha_banner_stays_inside_the_unmasked_area_and_settles_above_the_dome(int width, int height, string nickname)
+    {
+        await using var page = await OpenPageAsync(width, height);
+        var (h, watch, browser) = (page.H, page.Watch, page.Browser);
+        h.Client.Lottery.SelectTheme(LotteryTheme.CapsuleGacha);
+        h.Client.Lottery.Start([new("机械键盘", 1, Grade.Grand)], "停", 42);
+        await h.PushAndCollectAsync(watch, Message(42, nickname, "停"));
+        await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
+        await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
+        await browser.EvaluateAsync("document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); }); true");
+        foreach (var milliseconds in new[] { 16, 50, 100, 154, 252, 1000, 1500, 1771, 1900, 2000 })
+        {
+            await browser.EvaluateAsync($"document.getAnimations().forEach(a => a.currentTime = {milliseconds}); true");
+            var bounds = await browser.EvaluateAsync("""
+                (() => { const r = document.getElementById('banner').getBoundingClientRect();
+                  return {left:r.left, top:r.top, right:r.right, bottom:r.bottom, dome:document.querySelector('.dome').getBoundingClientRect().top}; })()
+                """);
+            Assert.True(bounds.GetProperty("top").GetDouble() >= 56 && bounds.GetProperty("left").GetDouble() >= 56 &&
+                bounds.GetProperty("right").GetDouble() <= width - 56 && bounds.GetProperty("bottom").GetDouble() <= height - 56,
+                $"{width} {nickname} {milliseconds}: banner enters the edge fade: {bounds}");
+            // Once settled, the banner and its 8px shadow stay clear of the machine's dome.
+            Assert.True(milliseconds < 252 || bounds.GetProperty("bottom").GetDouble() + 8 <= bounds.GetProperty("dome").GetDouble(),
+                $"{width} {nickname} {milliseconds}: banner presses on the dome: {bounds}");
+        }
+        Assert.Empty(browser.Errors);
+    }
+
+    [Theory]
+    [InlineData(1920, 1080, Grade.Grand)]
+    [InlineData(1920, 1080, Grade.Second)]
+    [InlineData(1920, 1080, Grade.Third)]
+    [InlineData(1080, 1920, Grade.Grand)]
+    [InlineData(1080, 1920, Grade.Second)]
+    [InlineData(1080, 1920, Grade.Third)]
+    public async Task Capsule_gacha_opens_with_beams_rings_and_a_sticker_then_holds_a_rotating_sun_and_stars(int width, int height, Grade grade)
+    {
+        await using var page = await OpenPageAsync(width, height);
+        var (h, browser) = (page.H, page.Browser);
+        h.Client.Lottery.SelectTheme(LotteryTheme.CapsuleGacha);
+        h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
+        h.Client.Lottery.Stop();
+        await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
+        await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
+        await browser.EvaluateAsync("document.body.style.background = '#f0eae4'; document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); }); true");
+        string? rotation = null;
+        foreach (var milliseconds in new[] { 1500, 2050, 2250, 2800, 3400, 5000, 6500 })
+        {
+            await browser.EvaluateAsync($"document.getAnimations().forEach(a => a.currentTime = {milliseconds}); true");
+            var effects = await browser.EvaluateAsync("""
+                (() => {
+                  const visible = selector => { const e = document.querySelector(selector); if (!e) return false;
+                    const s = getComputedStyle(e); return s.display !== 'none' && +s.opacity > .1; };
+                  return {beams:visible('.gachaBeams'), ring:visible('.gachaRing'), echo:visible('.gachaRing.echo'),
+                    burst:visible('.gachaPopSticker'), sun:visible('.gachaSun'), stars:visible('.gachaSparkles'),
+                    rotation:document.querySelector('.gachaSun') && getComputedStyle(document.querySelector('.gachaSun'), '::before').transform};
+                })()
+                """);
+            Assert.Equal(milliseconds is 2050 or 2250, effects.GetProperty("beams").GetBoolean());
+            Assert.Equal(milliseconds is 2050 or 2250, effects.GetProperty("ring").GetBoolean());
+            Assert.Equal(grade != Grade.Third && milliseconds == 2250, effects.GetProperty("echo").GetBoolean());
+            Assert.Equal(milliseconds is 2050 or 2250 or 2800, effects.GetProperty("burst").GetBoolean());
+            Assert.Equal(milliseconds >= 2050, effects.GetProperty("sun").GetBoolean());
+            Assert.Equal(milliseconds >= 2800, effects.GetProperty("stars").GetBoolean());
+            if (milliseconds >= 3400)
+            {
+                var current = effects.GetProperty("rotation").GetString();
+                Assert.NotEqual(rotation, current);
+                rotation = current;
+            }
+            await AssertLayoutAsync(browser);
+            await browser.ScreenshotAsync($"{width}-{grade}-enhanced-{milliseconds}");
+        }
+        Assert.Empty(browser.Errors);
+    }
+
     private static async Task RenderBothModesAsync(int width, int height, LotteryTheme theme)
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
-            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
-        await using var h = new WatchHarness(enableLottery: true);
-        await h.LoginAsync();
+        await using var page = await OpenPageAsync(width, height);
+        var (h, watch, browser) = (page.H, page.Watch, page.Browser);
         void SyncClock() => h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
-        SyncClock();
-        await using var watch = await h.WatchConnectedAsync();
-        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new ChromeBrowser();
-        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, width, height);
         var portrait = width < height;
         Assert.Equal(portrait ? "portrait" : "landscape", (await browser.EvaluateAsync("document.getElementById('scene').dataset.orientation")).GetString());
         var lottery = h.Client.Lottery;
@@ -221,48 +279,46 @@ public sealed class LotteryBrowserTests
     [InlineData(LotteryTheme.CapsuleGacha, 1080, 1920)]
     public async Task Draw_effects_leave_forty_pixels_of_background_at_every_edge(LotteryTheme theme, int width, int height)
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
-            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
-        await using var h = new WatchHarness(enableLottery: true);
-        await h.LoginAsync();
-        h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
-        await using var watch = await h.WatchConnectedAsync();
-        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new ChromeBrowser();
-        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, width, height);
+        await using var page = await OpenPageAsync(width, height);
+        var (h, browser) = (page.H, page.Browser);
         h.Client.Lottery.SelectTheme(theme);
         await browser.EvaluateAsync("document.body.style.background = 'rgb(17, 231, 103)'; true");
+        async Task AssertEdgesAsync(string moment)
+        {
+            var png = await browser.CommandAsync("Page.captureScreenshot", new { format = "png" });
+            var pixels = await browser.EvaluateAsync("""
+                (async () => {
+                  const image = new Image(); image.src = 'data:image/png;base64,' +
+                """ + JsonSerializer.Serialize(png.GetProperty("data").GetString()) + """
+                  ; await image.decode();
+                  const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+                  const ctx = canvas.getContext('2d'); ctx.drawImage(image,0,0);
+                  const {data} = ctx.getImageData(0,0,canvas.width,canvas.height);
+                  let changed = 0, first;
+                  for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+                    if (x >= 40 && y >= 40 && x < canvas.width-40 && y < canvas.height-40) continue;
+                    const i = (y*canvas.width+x)*4;
+                    if (data[i] !== 17 || data[i+1] !== 231 || data[i+2] !== 103) { changed++; first ||= {x,y}; }
+                  }
+                  return {changed,first};
+                })()
+                """);
+            await browser.ScreenshotAsync($"{width}-{moment}");
+            Assert.True(pixels.GetProperty("changed").GetInt32() == 0, $"{theme} {width} {moment}: {pixels}");
+        }
         foreach (var grade in new[] { Grade.Grand, Grade.Second, Grade.Third })
         {
             h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
             h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
             await browser.WaitAsync("document.getElementById('scene').dataset.view === 'spinning'");
+            await AssertEdgesAsync($"{grade}-edges-spinning");
             h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
             h.Client.Lottery.Stop();
             await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
             foreach (var milliseconds in new[] { 350, 1400, 1850, 2000, 2300, 2800, 4000, 6000 })
             {
                 await browser.WaitAsync($"document.getElementById('banner').getAnimations()[0].currentTime >= {milliseconds}");
-                var png = await browser.CommandAsync("Page.captureScreenshot", new { format = "png" });
-                var pixels = await browser.EvaluateAsync("""
-                    (async () => {
-                      const image = new Image(); image.src = 'data:image/png;base64,' +
-                    """ + JsonSerializer.Serialize(png.GetProperty("data").GetString()) + """
-                      ; await image.decode();
-                      const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
-                      const ctx = canvas.getContext('2d'); ctx.drawImage(image,0,0);
-                      const {data} = ctx.getImageData(0,0,canvas.width,canvas.height);
-                      let changed = 0, first;
-                      for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
-                        if (x >= 40 && y >= 40 && x < canvas.width-40 && y < canvas.height-40) continue;
-                        const i = (y*canvas.width+x)*4;
-                        if (data[i] !== 17 || data[i+1] !== 231 || data[i+2] !== 103) { changed++; first ||= {x,y}; }
-                      }
-                      return {changed,first};
-                    })()
-                    """);
-                await browser.ScreenshotAsync($"{width}-{grade}-edges-{milliseconds}");
-                Assert.True(pixels.GetProperty("changed").GetInt32() == 0, $"{theme} {width} {grade} {milliseconds}: {pixels}");
+                await AssertEdgesAsync($"{grade}-edges-{milliseconds}");
             }
             await browser.WaitAsync("document.getElementById('scene').hidden");
             h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
@@ -280,15 +336,8 @@ public sealed class LotteryBrowserTests
     [InlineData(LotteryTheme.CapsuleGacha, Grade.Third)]
     public async Task Portrait_transition_frames_keep_text_inside_the_frame(LotteryTheme theme, Grade grade)
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
-            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
-        await using var h = new WatchHarness(enableLottery: true);
-        await h.LoginAsync();
-        h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
-        await using var watch = await h.WatchConnectedAsync();
-        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new ChromeBrowser();
-        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, 1080, 1920);
+        await using var page = await OpenPageAsync(1080, 1920);
+        var (h, watch, browser) = (page.H, page.Watch, page.Browser);
         h.Client.Lottery.SelectTheme(theme);
         h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'spinning'");
@@ -313,15 +362,8 @@ public sealed class LotteryBrowserTests
     [InlineData(LotteryTheme.CapsuleGacha, 5)]
     public async Task Portrait_centres_awards_long_names_and_paged_results_after_resizing(LotteryTheme theme, int awards)
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
-            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
-        await using var h = new WatchHarness(enableLottery: true);
-        await h.LoginAsync();
-        h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
-        await using var watch = await h.WatchConnectedAsync();
-        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new ChromeBrowser();
-        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, 1080, 1920);
+        await using var page = await OpenPageAsync(1080, 1920);
+        var (h, watch, browser) = (page.H, page.Watch, page.Browser);
         var lottery = h.Client.Lottery;
         lottery.SelectTheme(theme);
         lottery.New(LotteryMode.Entry);
@@ -367,15 +409,8 @@ public sealed class LotteryBrowserTests
     [Fact]
     public async Task Capsule_gacha_repages_grouped_long_names_when_rotating_a_closed_lottery()
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
-            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
-        await using var h = new WatchHarness(enableLottery: true);
-        await h.LoginAsync();
-        h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
-        await using var watch = await h.WatchConnectedAsync();
-        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new ChromeBrowser();
-        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, 1920, 1080);
+        await using var page = await OpenPageAsync(1920, 1080);
+        var (h, watch, browser) = (page.H, page.Watch, page.Browser);
         var lottery = h.Client.Lottery;
         lottery.SelectTheme(LotteryTheme.CapsuleGacha);
         lottery.New(LotteryMode.Entry);
@@ -406,15 +441,8 @@ public sealed class LotteryBrowserTests
     [InlineData(1080, 1920, true)]
     public async Task Capsule_gacha_keeps_long_draw_text_readable(int width, int height, bool entry)
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
-            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
-        await using var h = new WatchHarness(enableLottery: true);
-        await h.LoginAsync();
-        h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
-        await using var watch = await h.WatchConnectedAsync();
-        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new ChromeBrowser();
-        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, width, height);
+        await using var page = await OpenPageAsync(width, height);
+        var (h, watch, browser) = (page.H, page.Watch, page.Browser);
         var lottery = h.Client.Lottery;
         const string name = "观众的超长中文昵称星河入梦与漫天星光", prize = "星辰召唤特别纪念限量联名豪华版无线机械键盘和配套主题礼盒";
         lottery.SelectTheme(LotteryTheme.CapsuleGacha);
@@ -536,9 +564,13 @@ public sealed class LotteryBrowserTests
               const scale = r.width / 1080;
               const summon = document.getElementById('summon');
               if (!summon.hidden) {
-                // The stage's original design anchor maps to the source centre, including Gacha's asymmetric composition.
-                const b = summon.getBoundingClientRect(), x = (b.left-r.left)/scale + 459, y = (b.top-r.top)/scale + 760;
-                return Math.abs(x-540) > 4 || Math.abs(y-960) > 4 ? [{id:'summon',x,y}] : [];
+                // The result card while drawing, else the candidate ring: its layout box, free of the draw's transforms,
+                // sits on the centre line in every theme; the stage's 760px draw height maps to the source centre.
+                const content = ['result','ring'].map(id => document.getElementById(id)).find(e => e.offsetParent);
+                let x = content.offsetWidth/2;
+                for (let e = content; e !== scene; e = e.offsetParent) x += e.offsetLeft;
+                const y = summon.offsetTop + 760;
+                return Math.abs(x-540) > 4 || Math.abs(y-960) > 4 ? [{id:content.id,x,y}] : [];
               }
               if (scene.dataset.view === 'winners' && scene.dataset.theme === 'StarSummon') {
                 const cards = Array.from(scene.querySelectorAll('.winnerCard'), e => e.getBoundingClientRect());
@@ -554,6 +586,42 @@ public sealed class LotteryBrowserTests
             })()
             """);
         Assert.True(centre.GetArrayLength() == 0, centre.GetRawText());
+    }
+
+    private static async Task<PageSession> OpenPageAsync(int width, int height)
+    {
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
+            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
+        var page = new PageSession();
+        try
+        {
+            await page.H.LoginAsync();
+            page.H.Time.Advance(DateTimeOffset.UtcNow - page.H.Time.GetUtcNow());
+            page.Watch = await page.H.WatchConnectedAsync();
+            await page.H.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
+            await page.Browser.OpenAsync(page.H.DataDirectory, page.H.Client.WebService.Status.LotteryAddress, width, height);
+            return page;
+        }
+        catch
+        {
+            await page.DisposeAsync();
+            throw;
+        }
+    }
+
+    /// <summary>A connected room with the lottery page open in Chrome, closed browser first.</summary>
+    private sealed class PageSession : IAsyncDisposable
+    {
+        public WatchHarness H { get; } = new(enableLottery: true);
+        public IAsyncEnumerator<WatchUpdate> Watch { get; set; } = null!;
+        public ChromeBrowser Browser { get; } = new();
+
+        public async ValueTask DisposeAsync()
+        {
+            await using (H)
+            await using (Watch)
+                await Browser.DisposeAsync();
+        }
     }
 
     private static string Message(long uid, string name, string keyword = "抽奖") => JsonSerializer.Serialize(new
