@@ -15,8 +15,8 @@ public sealed partial class LotteryController
     {
         if (state.EntryLottery is { Phase: EntryLotteryPhase.Open or EntryLotteryPhase.Closed })
             throw new InvalidOperationException("先结束这一场才能新开。");
-        if (state.Lottery is { Phase: PoolLotteryPhase.Drawing })
-            throw new InvalidOperationException("请等本次抽奖结束。");
+        if (state.PoolLottery is { Phase: PoolLotteryPhase.Drawing })
+            throw new InvalidOperationException("请等本次开奖结束。");
     }
 
     public void New(LotteryMode mode)
@@ -31,17 +31,17 @@ public sealed partial class LotteryController
             {
                 var previous = store().LoadEntry(state.RoomId!.Value, latest: true);
                 var next = new EntryLottery(Guid.NewGuid().ToString("N"), state.RoomId.Value,
-                    previous?.Keyword ?? "抽奖", now, previous?.Awards ?? [new("一等奖", "", 1, PrizeGrade.Grand)], [], []);
+                    previous?.Keyword ?? "抽奖", now, previous?.Awards ?? [new("一等奖", "", 1, Grade.Grand)], [], []);
                 store().Save(next, endCurrentAt: now);
-                state = state with { Lottery = null, EntryLottery = next };
+                state = state with { PoolLottery = null, EntryLottery = next };
             }
             else
             {
-                var previous = store().Load(state.RoomId!.Value, latest: true);
-                var next = NewLottery(previous?.Prizes ?? [new("", 1, PrizeGrade.Grand)], previous?.StopWord ?? "停")
+                var previous = store().LoadPool(state.RoomId!.Value, latest: true);
+                var next = NewPoolLottery(previous?.Prizes ?? [new("", 1, Grade.Grand)], previous?.StopWord ?? "停")
                     with { Uid = previous?.Uid };
                 store().Save(next, endCurrentAt: now);
-                state = state with { Lottery = next, EntryLottery = null };
+                state = state with { PoolLottery = next, EntryLottery = null };
             }
             drawTimer?.Dispose();
             Publish();

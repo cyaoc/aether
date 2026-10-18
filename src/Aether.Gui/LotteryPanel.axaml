@@ -59,11 +59,6 @@
     <Style Selector="Button#NewButton, Button#CancelButton">
       <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
     </Style>
-    <Style Selector="Button#NewButton:disabled /template/ ContentPresenter">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
-      <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
-    </Style>
     <!-- Locked while a draw runs: the canvas greys the boxes but keeps the text readable. -->
     <Style Selector="TextBox[IsReadOnly=True] /template/ Border#PART_BorderElement, TextBox[IsReadOnly=True]:pointerover /template/ Border#PART_BorderElement, TextBox[IsReadOnly=True]:focus /template/ Border#PART_BorderElement">
       <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />

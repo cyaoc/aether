@@ -24,7 +24,7 @@ public partial class EntryLotteryPanel : UserControl
         {
             if (!AddAwardButton.IsEnabled) return;
             var count = AwardRows.Children.Count;
-            var row = AddAward(new("", "", 1, count == 0 ? PrizeGrade.Grand : count == 1 ? PrizeGrade.Second : PrizeGrade.Third), true);
+            var row = AddAward(new("", "", 1, count == 0 ? Grade.Grand : count == 1 ? Grade.Second : Grade.Third), true);
             Refresh();
             Dispatcher.UIThread.Post(() => { if (AwardRows.Children.Contains(row)) row.FocusInput(); }, DispatcherPriority.Loaded);
         };

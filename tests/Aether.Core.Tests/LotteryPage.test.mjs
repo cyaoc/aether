@@ -105,8 +105,8 @@ test('Capsule Gacha switches mid-draw without replaying, shows all three grades 
     const p=page(), prize={name:'<b>手办</b>',grade};
     const lottery={id:'pool',phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
       draws:[{id:'d',prize,uid:42,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}]};
-    p.state({lottery}); p.advance(1500);
-    p.state({lottery,theme:'CapsuleGacha'});
+    p.state({poolLottery:lottery}); p.advance(1500);
+    p.state({poolLottery:lottery,theme:'CapsuleGacha'});
     assert.equal(p.element('summon').style['--elapsed'],'-1.5s');
     assert.equal(p.element('shout').textContent,pop);
     assert.equal(p.element('prize').textContent,'<b>手办</b>');
@@ -121,8 +121,8 @@ test('switching to Mecha Lock refreshes a live draw, locks the winning cell and 
   const p=page(), prize={name:'键盘',grade:'Grand'}, other={name:'签名照',grade:'Third'};
   const lottery={id:'pool',phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
     draws:[{id:'d',prize,uid:42,candidates:[other,prize],drawnAt:'2026-10-17T12:00:00Z'}]};
-  p.state({lottery}); p.advance(1000);
-  p.state({lottery,theme:'MechaLock'});
+  p.state({poolLottery:lottery}); p.advance(1000);
+  p.state({poolLottery:lottery,theme:'MechaLock'});
   assert.equal(p.element('rank').textContent,'S 级大奖');
   assert.equal(p.element('summon').style['--elapsed'],'-1s');
   assert.equal(p.element('prize').textContent,'键盘');
@@ -130,7 +130,7 @@ test('switching to Mecha Lock refreshes a live draw, locks the winning cell and 
   const locked=p.element('ring').children.filter(c=>c.dataset.lock==='LOCK ON');
   assert.equal(locked.length,1);
   assert.match(locked[0].textContent,/键盘/);
-  p.state({lottery,theme:'MechaLock'});
+  p.state({poolLottery:lottery,theme:'MechaLock'});
   assert.equal(p.element('summon').style['--elapsed'],'-1s');
   p.resize(1080,1920);
   p.advance(4899); assert.equal(p.element('scene').hidden,false);
@@ -139,7 +139,7 @@ test('switching to Mecha Lock refreshes a live draw, locks the winning cell and 
 
 test('Mecha Lock spinning hops the scanning frame between cells',()=>{
   const p=page(), prizes=[{name:'键盘',grade:'Grand'},{name:'签名照',grade:'Third'}];
-  p.state({lottery:{id:'pool',phase:'Spinning',prizes,draws:[]},theme:'MechaLock'});
+  p.state({poolLottery:{id:'pool',phase:'Spinning',prizes,draws:[]},theme:'MechaLock'});
   const scanned=()=>p.element('ring').children.findIndex(c=>c.dataset.lock==='SCANNING');
   const first=scanned();
   assert.notEqual(first,-1);
@@ -215,11 +215,11 @@ test('pool spinning has only prizes, each grade reveals the drawn prize, then be
   for(const grade of ['Grand','Second','Third']){
     const p=page(), prize={name:'手办',grade,weight:1};
     const pool={id:'pool',phase:'Spinning',prizes:[prize],draws:[],uid:42,stopWord:'停'};
-    p.state({lottery:pool});
+    p.state({poolLottery:pool});
     assert.equal(p.element('scene').dataset.view,'spinning');
     assert.match(p.element('ring').textContent,/手办/);
     assert.equal(p.element('banner').textContent,'');
-    p.state({lottery:{...pool,phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
+    p.state({poolLottery:{...pool,phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
       draws:[{id:'d',prize,uid:42,nickname:null,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}]}});
     assert.equal(p.element('summon').className,`drawing ${grade}`);
     assert.equal(p.element('prize').textContent,'手办');

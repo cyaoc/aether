@@ -126,8 +126,8 @@ public sealed class VisualReviewTests
                 await vm.ReadAccountCommand.ExecutionTask!;
                 window.Navigation.SelectedIndex = 4;
                 // Canvas V1's pool and records: a viewer's stop, a host stop with no UID, and a host stop for a named viewer.
-                PoolPrize[] prizes = [new("机械键盘", 1, PrizeGrade.Grand), new("周边抱枕", 3, PrizeGrade.Second),
-                    new("签名照", 4, PrizeGrade.Third), new("贴纸套装", 2, PrizeGrade.Third)];
+                PoolPrize[] prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second),
+                    new("签名照", 4, Grade.Third), new("贴纸套装", 2, Grade.Third)];
                 var at = new DateTimeOffset(2026, 10, 17, 20, 30, 0, TimeSpan.FromHours(8));
                 var session = LotteryPanelTests.TestLottery() with
                 {

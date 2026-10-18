@@ -15,7 +15,7 @@ public partial class MainWindowViewModel
     {
         EntryLotteryPhase.Open => "报名中",
         EntryLotteryPhase.Closed => "开奖中",
-        _ => LotteryState.Lottery?.Phase switch
+        _ => LotteryState.PoolLottery?.Phase switch
         {
             PoolLotteryPhase.Spinning => "转动中",
             PoolLotteryPhase.Drawing => "开奖中",
@@ -42,8 +42,8 @@ public partial class MainWindowViewModel
             SaveGuiSettings();
         }
         if (previous.RoomId != LotteryState.RoomId || previous.EntryLottery != LotteryState.EntryLottery
-            || previous.Lottery?.Id != LotteryState.Lottery?.Id || previous.Lottery?.Draws != LotteryState.Lottery?.Draws
-            || previous.Lottery?.Prizes != LotteryState.Lottery?.Prizes || previous.Lottery?.StopWord != LotteryState.Lottery?.StopWord)
+            || previous.PoolLottery?.Id != LotteryState.PoolLottery?.Id || previous.PoolLottery?.Draws != LotteryState.PoolLottery?.Draws
+            || previous.PoolLottery?.Prizes != LotteryState.PoolLottery?.Prizes || previous.PoolLottery?.StopWord != LotteryState.PoolLottery?.StopWord)
             _ = RefreshLotteryHistoryAsync();
     }
 

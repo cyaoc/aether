@@ -7,14 +7,14 @@ namespace Aether.Core;
 
 internal sealed partial class LotteryStore(Database database)
 {
-    public Lottery? Load(long roomId, bool latest = false)
+    public PoolLottery? LoadPool(long roomId, bool latest = false)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT id, stop_word, started_at, phase, uid, draw_until FROM lottery WHERE room_id = $room AND mode = 'pool'"
             + (latest ? " ORDER BY rowid DESC LIMIT 1" : " AND ended_at IS NULL");
         command.Parameters.AddWithValue("$room", roomId);
-        Lottery lottery;
+        PoolLottery lottery;
         using (var reader = command.ExecuteReader())
         {
             if (!reader.Read()) return null;
@@ -27,32 +27,17 @@ internal sealed partial class LotteryStore(Database database)
         command.CommandText = "SELECT name, weight, grade FROM lottery_prize WHERE lottery_id = $id ORDER BY position";
         var prizes = ImmutableArray.CreateBuilder<PoolPrize>();
         using (var reader = command.ExecuteReader())
-            while (reader.Read()) prizes.Add(new(reader.GetString(0), reader.GetInt32(1), (PrizeGrade)reader.GetInt32(2)));
-        command.CommandText = "SELECT result FROM lottery_draw WHERE lottery_id = $id ORDER BY rowid";
-        var draws = ImmutableArray.CreateBuilder<PoolDraw>();
-        using (var reader = command.ExecuteReader())
-            while (reader.Read()) draws.Add(JsonSerializer.Deserialize<PoolDraw>(reader.GetString(0))!);
-        command.CommandText = "SELECT uid, nickname FROM lottery_viewer WHERE lottery_id = $id";
-        var viewers = ImmutableDictionary.CreateBuilder<long, string>();
-        using (var reader = command.ExecuteReader())
-            while (reader.Read()) viewers.Add(reader.GetInt64(0), reader.GetString(1));
-        return lottery with { Prizes = prizes.ToImmutable(), Draws = draws.ToImmutable(), Viewers = viewers.ToImmutable() };
+            while (reader.Read()) prizes.Add(new(reader.GetString(0), reader.GetInt32(1), (Grade)reader.GetInt32(2)));
+        return lottery with { Prizes = prizes.ToImmutable(), Draws = ReadDraws<PoolDraw>(command, lottery.Id) };
     }
 
-    public void Save(Lottery lottery, DateTimeOffset? endCurrentAt = null, PoolDraw? draw = null)
+    public void Save(PoolLottery lottery, DateTimeOffset? endCurrentAt = null, PoolDraw? draw = null)
     {
         using var connection = database.Open();
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        if (endCurrentAt is { } ended)
-        {
-            command.CommandText = "UPDATE lottery SET ended_at = $ended WHERE room_id = $room AND ended_at IS NULL";
-            command.Parameters.AddWithValue("$ended", ended.ToString("O"));
-            command.Parameters.AddWithValue("$room", lottery.RoomId);
-            command.ExecuteNonQuery();
-            command.Parameters.Clear();
-        }
+        EndCurrent(command, lottery.RoomId, endCurrentAt);
         command.CommandText = """
             INSERT INTO lottery (id, room_id, mode, stop_word, started_at, phase, uid, draw_until)
             VALUES ($id, $room, 'pool', $word, $started, $phase, $uid, $until)
@@ -79,30 +64,39 @@ internal sealed partial class LotteryStore(Database database)
             command.Parameters.AddWithValue("$grade", (int)prize.Grade);
             command.ExecuteNonQuery();
         }
-        if (draw is not null)
-        {
-            command.Parameters.Clear();
-            // Keep the prize and viewer as drawn, even when next time's pool or nickname changes.
-            command.CommandText = "INSERT INTO lottery_draw (id, lottery_id, result) VALUES ($id, $lottery, $result)";
-            command.Parameters.AddWithValue("$id", draw.Id);
-            command.Parameters.AddWithValue("$lottery", lottery.Id);
-            command.Parameters.AddWithValue("$result", JsonSerializer.Serialize(draw));
-            command.ExecuteNonQuery();
-        }
+        if (draw is not null) AddDraw(command, lottery.Id, draw.Id, JsonSerializer.Serialize(draw));
         transaction.Commit();
     }
 
-    public void RememberViewer(string lotteryId, long uid, string nickname)
+    private static void EndCurrent(SqliteCommand command, long roomId, DateTimeOffset? endedAt)
     {
-        using var connection = database.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = """
-            INSERT INTO lottery_viewer (lottery_id, uid, nickname) VALUES ($id, $uid, $name)
-            ON CONFLICT(lottery_id, uid) DO UPDATE SET nickname = $name
-            """;
-        command.Parameters.AddWithValue("$id", lotteryId);
-        command.Parameters.AddWithValue("$uid", uid);
-        command.Parameters.AddWithValue("$name", nickname);
+        if (endedAt is not { } ended) return;
+        command.CommandText = "UPDATE lottery SET ended_at = $ended WHERE room_id = $room AND ended_at IS NULL";
+        command.Parameters.AddWithValue("$ended", ended.ToString("O"));
+        command.Parameters.AddWithValue("$room", roomId);
         command.ExecuteNonQuery();
+        command.Parameters.Clear();
+    }
+
+    /// <summary>Keeps the prize and viewer as drawn, even when next time's pool or nickname changes.</summary>
+    private static void AddDraw(SqliteCommand command, string lotteryId, string drawId, string result)
+    {
+        command.Parameters.Clear();
+        command.CommandText = "INSERT INTO lottery_draw (id, lottery_id, result) VALUES ($id, $lottery, $result)";
+        command.Parameters.AddWithValue("$id", drawId);
+        command.Parameters.AddWithValue("$lottery", lotteryId);
+        command.Parameters.AddWithValue("$result", result);
+        command.ExecuteNonQuery();
+    }
+
+    private static ImmutableArray<T> ReadDraws<T>(SqliteCommand command, string lotteryId)
+    {
+        command.Parameters.Clear();
+        command.Parameters.AddWithValue("$id", lotteryId);
+        command.CommandText = "SELECT result FROM lottery_draw WHERE lottery_id = $id ORDER BY rowid";
+        var draws = ImmutableArray.CreateBuilder<T>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read()) draws.Add(JsonSerializer.Deserialize<T>(reader.GetString(0))!);
+        return draws.ToImmutable();
     }
 }

@@ -10,8 +10,8 @@ public sealed class EntryLotteryPanelTests
 {
     internal static EntryLottery TestLottery(EntryLotteryPhase phase = EntryLotteryPhase.Preparing) =>
         new("entry", 7734200, "抽奖", DateTimeOffset.UnixEpoch,
-            [new("一等奖", "机械键盘", 1, PrizeGrade.Grand), new("二等奖", "周边抱枕", 2, PrizeGrade.Second),
-                new("三等奖", "签名照", 3, PrizeGrade.Third)], [], [], phase);
+            [new("一等奖", "机械键盘", 1, Grade.Grand), new("二等奖", "周边抱枕", 2, Grade.Second),
+                new("三等奖", "签名照", 3, Grade.Third)], [], [], phase);
 
     [Fact]
     public Task Phase_controls_editing_buttons_and_lists() => HeadlessApp.Session.Dispatch(async () =>

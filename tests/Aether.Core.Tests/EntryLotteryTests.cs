@@ -5,7 +5,7 @@ namespace Aether.Core.Tests;
 
 public sealed class EntryLotteryTests
 {
-    private static readonly LotteryAward[] Awards = [new("一等奖", "键盘", 1, PrizeGrade.Grand), new("二等奖", "抱枕", 2, PrizeGrade.Second)];
+    private static readonly LotteryAward[] Awards = [new("一等奖", "键盘", 1, Grade.Grand), new("二等奖", "抱枕", 2, Grade.Second)];
 
     [Fact]
     public async Task Only_exact_trimmed_keywords_during_registration_enter_once_per_uid()
@@ -136,12 +136,12 @@ public sealed class EntryLotteryTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        PoolPrize[] pool = [new("手办", 3, PrizeGrade.Second)];
+        PoolPrize[] pool = [new("手办", 3, Grade.Second)];
         lottery.Start(pool, "开", 42);
         await h.PushAndCollectAsync(updates, Message(42, "四二", "开"));
         h.Time.Advance(LotteryController.DrawDuration);
         lottery.New(LotteryMode.Entry);
-        Assert.Null(lottery.State.Lottery);
+        Assert.Null(lottery.State.PoolLottery);
         lottery.StartEntry(Awards, "参加");
         await h.PushAndCollectAsync(updates, Message(1, "小明", "参加"));
         lottery.CloseEntries();
@@ -152,11 +152,11 @@ public sealed class EntryLotteryTests
         lottery.EndEntry();
         lottery.New(LotteryMode.Pool);
         Assert.Null(lottery.State.EntryLottery);
-        Assert.Equal(pool, lottery.State.Lottery!.Prizes);
-        Assert.Equal("开", lottery.State.Lottery.StopWord);
-        Assert.Equal(42, lottery.State.Lottery.Uid);
-        Assert.Empty(lottery.State.Lottery.Draws);
-        Assert.Empty(lottery.State.Lottery.Viewers);
+        Assert.Equal(pool, lottery.State.PoolLottery!.Prizes);
+        Assert.Equal("开", lottery.State.PoolLottery.StopWord);
+        Assert.Equal(42, lottery.State.PoolLottery.Uid);
+        Assert.Empty(lottery.State.PoolLottery.Draws);
+        Assert.Empty(lottery.State.PoolLottery.Viewers);
         lottery.New(LotteryMode.Entry);
         Assert.Equal("参加", lottery.State.EntryLottery!.Keyword);
         Assert.Equal(Awards, lottery.State.EntryLottery.Awards);
@@ -245,7 +245,7 @@ public sealed class EntryLotteryTests
         Assert.Throws<ArgumentException>(() => lottery.StartEntry([], "抽奖"));
         Assert.Throws<ArgumentException>(() => lottery.StartEntry(Enumerable.Repeat(Awards[0], 6).ToArray(), "抽奖"));
         foreach (var invalid in new[] { Awards[0] with { Name = "" }, Awards[0] with { Prize = " " },
-            Awards[0] with { Capacity = 0 }, Awards[0] with { Grade = (PrizeGrade)99 } })
+            Awards[0] with { Capacity = 0 }, Awards[0] with { Grade = (Grade)99 } })
             Assert.Throws<ArgumentException>(() => lottery.StartEntry([invalid], "抽奖"));
         Assert.Equal(before, lottery.State);
         Assert.Throws<InvalidOperationException>(lottery.CloseEntries);
@@ -253,7 +253,7 @@ public sealed class EntryLotteryTests
         Assert.Throws<InvalidOperationException>(() => lottery.SetEntryHidden(true));
         lottery.StartEntry(Awards, "抽奖");
         Assert.Throws<InvalidOperationException>(() => lottery.StartEntry(Awards, "改了"));
-        Assert.Throws<InvalidOperationException>(() => lottery.Start([new("手办", 1, PrizeGrade.Grand)], "停"));
+        Assert.Throws<InvalidOperationException>(() => lottery.Start([new("手办", 1, Grade.Grand)], "停"));
         Assert.Throws<InvalidOperationException>(() => lottery.New(LotteryMode.Pool));
         Assert.Throws<InvalidOperationException>(lottery.EndEntry);
         lottery.CloseEntries();

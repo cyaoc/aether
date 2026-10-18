@@ -51,7 +51,7 @@ internal static class LotteryHistoryFixture
             Execute("INSERT INTO lottery_draw VALUES ($id, 'entry', $result)", ("$id", draw.Id), ("$result", JsonSerializer.Serialize(draw)));
         Execute("INSERT INTO lottery (id, room_id, mode, stop_word, started_at, ended_at, phase) VALUES ('pool', 7734200, 'pool', '停', $at, $ended, 0)",
             ("$at", At.AddDays(-2).ToString("O")), ("$ended", At.ToString("O")));
-        PoolPrize[] prizes = [new("机械键盘", 1, PrizeGrade.Grand), new("周边抱枕", 3, PrizeGrade.Second), new("签名照", 4, PrizeGrade.Third)];
+        PoolPrize[] prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second), new("签名照", 4, Grade.Third)];
         for (var index = 0; index < prizes.Length; index++)
             Execute("INSERT INTO lottery_prize VALUES ('pool', $index, $name, $weight, $grade)",
                 ("$index", index), ("$name", prizes[index].Name), ("$weight", prizes[index].Weight), ("$grade", (int)prizes[index].Grade));

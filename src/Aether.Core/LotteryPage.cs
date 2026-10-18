@@ -15,7 +15,9 @@ public sealed class LotteryPage(WebService service, LotteryController lottery)
     {
         await foreach (var update in lottery.GetUpdatesAsync(token))
         {
-            var state = (update.Example ?? update.State) with { Theme = update.State.Theme, IsExamplePlaying = update.State.IsExamplePlaying };
+            // Once the room connection ends nobody can stop or hide what is on air, so the page clears until it reconnects.
+            var live = update.State.CanControl ? update.State : update.State with { PoolLottery = null, EntryLottery = null };
+            var state = (update.Example ?? live) with { Theme = update.State.Theme, IsExamplePlaying = update.State.IsExamplePlaying };
             yield return "event: state\ndata: " + JsonSerializer.Serialize(state, Json) + "\n\n";
             if (update.Draw is { } draw) yield return "event: draw\ndata: " + JsonSerializer.Serialize(draw, Json) + "\n\n";
             if (update.EntryDraw is { } entryDraw) yield return "event: draw\ndata: " + JsonSerializer.Serialize(entryDraw, Json) + "\n\n";

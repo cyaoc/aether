@@ -317,6 +317,7 @@ public sealed partial class AetherClient
             try
             {
                 // Retry a failed initial load when the next danmaku arrives, without reconnecting the room.
+                // shortcut: loads, entries and stop-word draws hit SQLite on the receive loop; move off it if a busy room lags.
                 var state = client.Lottery.State;
                 if (!state.Connected || state.RoomId != roomId) client.Lottery.Connect(roomId);
                 if (danmaku is not null) client.Lottery.Receive(roomId, danmaku);

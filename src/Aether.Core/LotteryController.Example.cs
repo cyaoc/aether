@@ -27,14 +27,14 @@ public sealed partial class LotteryController
             if (example is not null) throw new InvalidOperationException("示例播放中，请稍后再试。");
             var now = time.GetUtcNow();
             var id = "example-" + Guid.NewGuid().ToString("N");
-            ImmutableArray<LotteryAward> awards = [new("一等奖", "机械键盘", 1, PrizeGrade.Grand),
-                new("二等奖", "周边抱枕", 2, PrizeGrade.Second), new("三等奖", "签名照", 3, PrizeGrade.Third)];
+            ImmutableArray<LotteryAward> awards = [new("一等奖", "机械键盘", 1, Grade.Grand),
+                new("二等奖", "周边抱枕", 2, Grade.Second), new("三等奖", "签名照", 3, Grade.Third)];
             ImmutableArray<LotteryEntry> entries = [new(1, "柚子不酸", now), new(2, "星河入梦", now), new(3, "一只小鹿", now)];
             var entry = new EntryLottery(id, 0, "抽奖", now, awards, entries, [], EntryLotteryPhase.Open);
             var entryDraw = new EntryDraw(id + "-entry", 0, awards[0], entries[0], now.AddSeconds(4),
                 ["柚子不酸", "星河入梦", "一只小鹿"]);
-            ImmutableArray<PoolPrize> prizes = [new("机械键盘", 1, PrizeGrade.Grand), new("周边抱枕", 3, PrizeGrade.Second), new("签名照", 6, PrizeGrade.Third)];
-            var pool = new Lottery(id + "-pool", 0, "停", now, prizes, [], ImmutableDictionary<long, string>.Empty, PoolLotteryPhase.Spinning);
+            ImmutableArray<PoolPrize> prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second), new("签名照", 6, Grade.Third)];
+            var pool = new PoolLottery(id + "-pool", 0, "停", now, prizes, [], ImmutableDictionary<long, string>.Empty, PoolLotteryPhase.Spinning);
             var poolDraw = new PoolDraw(id + "-draw", prizes[1], 2, "星河入梦", false, now.AddSeconds(14), prizes);
             (int At, LotteryState? State)[] frames =
             [

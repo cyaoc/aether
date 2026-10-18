@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using System.Text.Json;
 using Microsoft.Data.Sqlite;
 
 namespace Aether.Core;
@@ -22,15 +21,8 @@ internal sealed partial class LotteryStore
         if (lottery is null) return null;
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "SELECT result FROM lottery_draw WHERE lottery_id = $id ORDER BY rowid";
-        command.Parameters.AddWithValue("$id", id);
-        var entries = ImmutableArray.CreateBuilder<EntryDraw>();
-        var pool = ImmutableArray.CreateBuilder<PoolDraw>();
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-            if (lottery.Mode == LotteryMode.Entry) entries.Add(JsonSerializer.Deserialize<EntryDraw>(reader.GetString(0))!);
-            else pool.Add(JsonSerializer.Deserialize<PoolDraw>(reader.GetString(0))!);
-        return new(lottery, entries.ToImmutable(), pool.ToImmutable());
+        return lottery.Mode == LotteryMode.Entry ? new(lottery, ReadDraws<EntryDraw>(command, id), [])
+            : new(lottery, [], ReadDraws<PoolDraw>(command, id));
     }
 
     private static ImmutableArray<LotteryHistory> ReadHistory(SqliteConnection connection, SqliteTransaction transaction,
@@ -65,7 +57,7 @@ internal sealed partial class LotteryStore
             while (reader.Read())
             {
                 var item = items[reader.GetString(0)];
-                items[item.Id] = item with { Awards = item.Awards.Add(new(reader.GetString(1), reader.GetString(2), reader.GetInt32(3), (PrizeGrade)reader.GetInt32(4))) };
+                items[item.Id] = item with { Awards = item.Awards.Add(new(reader.GetString(1), reader.GetString(2), reader.GetInt32(3), (Grade)reader.GetInt32(4))) };
             }
         command.CommandText = "SELECT p.lottery_id, p.name, p.weight, p.grade FROM lottery_prize p JOIN lottery l ON l.id = p.lottery_id"
             + filter + " ORDER BY p.position";
@@ -73,7 +65,7 @@ internal sealed partial class LotteryStore
             while (reader.Read())
             {
                 var item = items[reader.GetString(0)];
-                items[item.Id] = item with { Prizes = item.Prizes.Add(new(reader.GetString(1), reader.GetInt32(2), (PrizeGrade)reader.GetInt32(3))) };
+                items[item.Id] = item with { Prizes = item.Prizes.Add(new(reader.GetString(1), reader.GetInt32(2), (Grade)reader.GetInt32(3))) };
             }
         return [.. order.Select(key => items[key])];
     }
