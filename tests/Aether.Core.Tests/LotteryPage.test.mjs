@@ -48,6 +48,42 @@ const entry = {id:'entry',phase:'Open',keyword:'<img onerror=alert(1)>',entryCou
 const draws = Array.from({length:7},(_,i)=>({id:`d${i}`,awardIndex:0,award,winner:{uid:i+1,nickname:`观众${i+1}`},
   candidates:['甲','乙'],drawnAt:'2026-10-17T12:00:00Z'}));
 
+test('Capsule Gacha adds a falling capsule for new entries, bounds the dome and resets for a new lottery',()=>{
+  const p=page(), show=e=>p.state({theme:'CapsuleGacha',entryLottery:e});
+  show({...entry,entryCount:0});
+  assert.equal(p.element('capsules').children.length,0);
+  show({...entry,entryCount:1});
+  assert.equal(p.element('capsules').children.length,1);
+  assert.match(p.element('capsules').children[0].className,/falling/);
+  const first=p.element('capsules').children[0];
+  show({...entry,entryCount:1});
+  assert.equal(p.element('capsules').children[0],first);
+  show({...entry,entryCount:21});
+  assert.equal(p.element('capsules').children.length,18);
+  show({...entry,entryCount:22});
+  assert.equal(p.element('capsules').children.filter(c=>c.className.includes('falling')).length,1);
+  assert.equal(p.element('entryCount').textContent,'22');
+  show({...entry,id:'next',entryCount:0});
+  assert.equal(p.element('capsules').children.length,0);
+});
+
+test('Capsule Gacha switches mid-draw without replaying, shows all three grades and preserves text safely',()=>{
+  for(const [grade,pop] of [['Grand','大奖!!'],['Second','POP!'],['Third','pop']]){
+    const p=page(), prize={name:'<b>手办</b>',grade};
+    const lottery={id:'pool',phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
+      draws:[{id:'d',prize,uid:42,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}]};
+    p.state({lottery}); p.advance(1500);
+    p.state({lottery,theme:'CapsuleGacha'});
+    assert.equal(p.element('summon').style['--elapsed'],'-1.5s');
+    assert.equal(p.element('shout').textContent,pop);
+    assert.equal(p.element('prize').textContent,'<b>手办</b>');
+    assert.equal(p.element('prize').children.length,0);
+    assert.equal(p.element('viewer').textContent,'UID 42 扭到了');
+    p.resize(1080,1920); p.advance(5500);
+    assert.equal(p.element('scene').hidden,true);
+  }
+});
+
 test('switching to Mecha Lock refreshes a live draw, locks the winning cell and keeps the deadline',()=>{
   const p=page(), prize={name:'键盘',grade:'Grand'}, other={name:'签名照',grade:'Third'};
   const lottery={id:'pool',phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',

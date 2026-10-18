@@ -27,13 +27,15 @@ public sealed class LotteryExampleTests
         await using var h = new WatchHarness();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Address) };
-        foreach (var path in new[] { "lottery", "lottery/style.css", "lottery/mecha.css", "lottery/page.js", "lottery/SmileySans-Oblique.woff2", "lottery/OFL.txt" })
+        foreach (var path in new[] { "lottery", "lottery/style.css", "lottery/mecha.css", "lottery/gacha.css", "lottery/page.js", "lottery/SmileySans-Oblique.woff2", "lottery/OFL.txt", "lottery/ZCOOLKuaiLe-Regular.ttf", "lottery/ZCOOLKuaiLe-OFL.txt" })
         {
             using var asset = await http.GetAsync(path, h.Stop.Token);
             Assert.Equal(System.Net.HttpStatusCode.OK, asset.StatusCode);
             Assert.NotEmpty(await asset.Content.ReadAsByteArrayAsync(h.Stop.Token));
         }
         Assert.Contains("SIL OPEN FONT LICENSE", await http.GetStringAsync("lottery/OFL.txt", h.Stop.Token));
+        Assert.Contains("SIL OPEN FONT LICENSE", await http.GetStringAsync("lottery/ZCOOLKuaiLe-OFL.txt", h.Stop.Token));
+        h.Client.Lottery.SelectTheme(LotteryTheme.CapsuleGacha);
         h.Client.WebService.Lottery.PlayExample();
         using var response = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(h.Stop.Token));
@@ -44,7 +46,7 @@ public sealed class LotteryExampleTests
         using var json = System.Text.Json.JsonDocument.Parse(line[6..]);
         Assert.Equal("Open", json.RootElement.GetProperty("entryLottery").GetProperty("phase").GetString());
         Assert.True(json.RootElement.GetProperty("isExamplePlaying").GetBoolean());
-        Assert.Equal("StarSummon", json.RootElement.GetProperty("theme").GetString());
+        Assert.Equal("CapsuleGacha", json.RootElement.GetProperty("theme").GetString());
     }
 
     [Fact]

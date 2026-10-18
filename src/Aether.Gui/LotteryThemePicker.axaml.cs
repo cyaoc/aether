@@ -13,6 +13,7 @@ public partial class LotteryThemePicker : UserControl
         InitializeComponent();
         StarSummonCard.Click += (_, _) => viewModel?.SelectLotteryTheme(LotteryTheme.StarSummon);
         MechaLockCard.Click += (_, _) => viewModel?.SelectLotteryTheme(LotteryTheme.MechaLock);
+        CapsuleGachaCard.Click += (_, _) => viewModel?.SelectLotteryTheme(LotteryTheme.CapsuleGacha);
         ExampleButton.Click += (_, _) =>
         {
             if (!ExampleButton.IsEnabled || viewModel is null) return;
@@ -45,6 +46,7 @@ public partial class LotteryThemePicker : UserControl
         var running = viewModel?.WebServiceStatus.Running == true;
         StarSummonCard.IsChecked = viewModel is null || viewModel.LotteryState.Theme == LotteryTheme.StarSummon;
         MechaLockCard.IsChecked = viewModel?.LotteryState.Theme == LotteryTheme.MechaLock;
+        CapsuleGachaCard.IsChecked = viewModel?.LotteryState.Theme == LotteryTheme.CapsuleGacha;
         ExampleText.Text = playing ? "示例播放中…" : "试一下";
         ExampleButton.IsEnabled = !playing && running;
         ExampleHint.Text = !running ? "网页服务未运行：" + (viewModel?.WebServiceStatus.Error ?? "请检查通用设置")

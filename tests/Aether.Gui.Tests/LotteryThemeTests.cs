@@ -10,8 +10,10 @@ namespace Aether.Gui.Tests;
 
 public sealed class LotteryThemeTests
 {
-    [Fact]
-    public Task Both_modes_share_the_selected_theme_and_example_status_without_a_room_connection() => HeadlessApp.Session.Dispatch(async () =>
+    [Theory]
+    [InlineData("MechaLock")]
+    [InlineData("CapsuleGacha")]
+    public Task Both_modes_share_the_selected_theme_and_example_status_without_a_room_connection(string theme) => HeadlessApp.Session.Dispatch(async () =>
     {
         var time = new FakeTimeProvider();
         using var h = new GuiHarness(time);
@@ -30,12 +32,14 @@ public sealed class LotteryThemeTests
                 Assert.False(play.IsEnabled);
                 Assert.Contains("网页服务", picker.FindControl<TextBlock>("ExampleHint")!.Text);
             }
-            pickers[0].FindControl<RadioButton>("MechaLockCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var card = pickers[0].FindControl<RadioButton>($"{theme}Card");
+            Assert.NotNull(card);
+            card.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            Assert.Equal("MechaLock", vm.LotteryState.Theme.ToString());
+            Assert.Equal(theme, vm.LotteryState.Theme.ToString());
             Assert.All(pickers, picker =>
             {
-                Assert.True(picker.FindControl<RadioButton>("MechaLockCard")!.IsChecked);
+                Assert.True(picker.FindControl<RadioButton>($"{theme}Card")!.IsChecked);
                 Assert.False(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked);
             });
             using var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -53,7 +57,7 @@ public sealed class LotteryThemeTests
             pickers[0].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             Assert.True(vm.LotteryState.IsExamplePlaying);
-            Assert.Equal("MechaLock", vm.LotteryState.Theme.ToString());
+            Assert.Equal(theme, vm.LotteryState.Theme.ToString());
             foreach (var picker in pickers)
             {
                 Assert.False(picker.FindControl<Button>("ExampleButton")!.IsEnabled);

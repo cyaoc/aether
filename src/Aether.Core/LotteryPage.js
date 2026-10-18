@@ -35,10 +35,40 @@ const themes = {
     particles:mechaLock,
     scan,
   },
+  CapsuleGacha:{
+    ranks:{ Grand:'', Second:'', Third:'' },
+    labels:{ themeTitle:'扭蛋抽奖', registrationPhase:'报名中', joinLabel:'扭蛋抽奖', countLabel:'颗扭蛋', latestLabel:'刚刚加入', awardsTitle:'奖品' },
+    sizes:{ keyword:[72,50], entryCount:[120,92], rank:[56,46], prize:[120,100], viewer:[56,44], winnerName:[62,46] },
+    latest:item => text('',item.nickname),
+    cell:candidate => grades[candidate.grade],
+    cells:candidates => Object.keys(grades).flatMap(grade => {
+      const names = candidates.filter(c => c.grade === grade).map(c => c.name);
+      return names.length ? [{grade,name:[...new Set(names)].join('、')}] : [];
+    }),
+    rank:(code, title) => [title],
+    viewer:({entry, prize, viewer}) => entry ? `抽中 ${prize}` : viewer && `${viewer} 扭到了`,
+    banner:({entry, title, viewer}) => entry ? `扭出 ${title} 中奖者！` : viewer ? `${viewer} 来扭蛋啦！` : '来扭蛋啦！',
+    shout:grade => ({Grand:'大奖!!',Second:'POP!',Third:'pop'})[grade],
+    winners:['中奖啦！','已经扭出来的'],
+    award:award => `${award.name} · ${award.prize}`,
+    registration:entry => {
+      byId('entryCounter').append(byId('gachaMachine'));
+      fillCapsules(entry.entryCount, capsuleEntry?.id === entry.id ? capsuleEntry.count : entry.entryCount);
+      capsuleEntry = {id:entry.id,count:entry.entryCount};
+      byId('machineLabel').textContent = '报名中';
+    },
+    stage:() => {
+      summon.append(byId('gachaMachine')); capsuleEntry = null;
+      fillCapsules(18); byId('machineLabel').textContent = '等你来扭';
+    },
+    composite:'source-over',
+    particles:capsuleGacha,
+  },
 };
 const theme = () => themes[scene.dataset.theme] || themes.StarSummon;
 const starIcon = '<svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3-6.2-4.5-6.2 4.5 2.4-7.3L2 9.2h7.6z"/></svg>';
 let shown = '', hiding, paging, scanning, frame, fitting = [], portrait = false;
+let capsuleEntry;
 const canvas = byId('particles'), context = canvas.getContext('2d');
 function resize() {
   portrait = window.innerWidth < window.innerHeight;
@@ -56,12 +86,16 @@ function text(className, value) {
   return node;
 }
 function fit(node, maximum) {
-  node.style.fontSize = maximum + 'px';
   const height = parseFloat(getComputedStyle(node).maxHeight) || Infinity;
-  while (maximum > (portrait ? 40 : 56) && (node.scrollHeight > height + 1 || node.scrollWidth > node.clientWidth + 1))
+  const sticker = scene.dataset.theme === 'CapsuleGacha' && (node === byId('prize') || node === byId('viewer'));
+  while (maximum > (portrait ? 40 : 56) && (node.scrollHeight > (sticker ? Math.min(height, node.clientHeight) : height + 1) || node.scrollWidth > node.clientWidth + 1))
     node.style.fontSize = --maximum + 'px';
 }
-function fitAll() { fitting.forEach(([node, size, portraitSize]) => fit(node, portrait ? portraitSize : size)); }
+function fitAll() {
+  // Start all flex siblings at full size before shrinking; growing one later would squeeze the others.
+  fitting.forEach(([node, size, portraitSize]) => node.style.fontSize = (portrait ? portraitSize : size) + 'px');
+  fitting.forEach(([node, size, portraitSize]) => fit(node, portrait ? portraitSize : size));
+}
 document.fonts.ready.then(fitAll);
 document.fonts.addEventListener('loadingdone', fitAll);
 function clear() {
@@ -101,6 +135,7 @@ function show(state) {
       return row;
     }));
     fitting = [[byId('keyword'),...t.sizes.keyword],[byId('entryCount'),...t.sizes.entryCount]]; fitAll();
+    t.registration?.(entry);
     return;
   }
   if (pool?.phase === 'Spinning') {
@@ -123,8 +158,9 @@ function show(state) {
   if (entry) showWinners(entry);
 }
 function makeRing(candidates) {
+  theme().stage?.();
   // Ten visual cells fill the stage; Core has already chosen the result.
-  const cells = Array.from({length:10},(_,index) => candidates[index % candidates.length]);
+  const cells = theme().cells?.(candidates) || Array.from({length:10},(_,index) => candidates[index % candidates.length]);
   ring.replaceChildren(...cells.map((candidate,index) => {
     const card = text(`candidate ${candidate.grade}${candidate.viewer ? ' viewer' : ''}`, '');
     card.style.transform = `rotateY(${index * 36}deg) translateZ(var(--ring-radius))`;
@@ -166,7 +202,8 @@ function drawResult(draw, entry) {
   byId('viewer').textContent = t.viewer(words);
   byId('banner').textContent = t.banner(words);
   byId('warning').textContent = grade === 'Grand' ? 'WARNING · S 级奖励出现' : 'ALERT · 锁定程序启动';
-  byId('shout').textContent = entry ? '★ 恭喜召唤成功 ★' : '★ 大奖降临 ★';
+  byId('shout').textContent = t.shout?.(grade) || (entry ? '★ 恭喜召唤成功 ★' : '★ 大奖降临 ★');
+  byId('machineLabel').textContent = '扭扭扭…';
   fitting = [[byId('rank'),...t.sizes.rank],[byId('prize'),...t.sizes.prize],[byId('viewer'),...t.sizes.viewer]];
   // Flush the previous draw's animation before applying the same grade again.
   void summon.offsetWidth;
@@ -229,7 +266,7 @@ function particles(start, grade) {
   const add = mote => motes.push({drag:1,grav:0,max:mote.life,...mote});
   function paint() {
     const now = Date.now(), dt = Math.min(3,(now - previous) / 16.667); previous = now;
-    context.clearRect(0,0,canvas.width,canvas.height); context.globalCompositeOperation = 'lighter';
+    context.clearRect(0,0,canvas.width,canvas.height); context.globalCompositeOperation = theme().composite || 'lighter';
     spawn(now, dt, add);
     for (const p of motes) {
       const drag = p.drag ** dt;
@@ -240,6 +277,16 @@ function particles(start, grade) {
       else if (p.kind === 'hex') { context.lineWidth = 2; hex(p.x,p.y,p.s); }
       else if (p.kind === 'spark') { context.lineWidth = p.s; context.moveTo(p.x,p.y); context.lineTo(p.x - p.vx * 2.6,p.y - p.vy * 2.6); context.stroke(); }
       else if (p.kind === 'ember') { context.arc(p.x,p.y,p.s,0,6.283); context.fill(); }
+      else if (p.kind === 'heart') {
+        context.moveTo(p.x,p.y+p.s*.9);
+        context.bezierCurveTo(p.x-p.s*1.6,p.y-p.s*.2,p.x-p.s*.7,p.y-p.s*1.4,p.x,p.y-p.s*.5);
+        context.bezierCurveTo(p.x+p.s*.7,p.y-p.s*1.4,p.x+p.s*1.6,p.y-p.s*.2,p.x,p.y+p.s*.9);
+        context.fill(); context.strokeStyle = '#4b2a4f'; context.lineWidth = 2; context.stroke();
+      }
+      else if (p.kind === 'confetti') {
+        context.save(); context.translate(p.x,p.y); context.rotate(p.life*.07);
+        context.fillRect(-p.s,-p.s*.6,p.s*2,p.s*1.2); context.restore();
+      }
       else {
         context.globalAlpha = alpha * .2; context.arc(p.x,p.y,p.s * 3.5,0,6.283); context.fill();
         context.globalAlpha = alpha; context.beginPath(); context.arc(p.x,p.y,p.s,0,6.283); context.fill();
@@ -304,6 +351,40 @@ function mechaLock(start, grade) {
     }
     if (power > 1 && age > 2410 && age < 5510 && Math.random() < .4 * power * dt)
       add({x:left+Math.random()*width,y:bottom,vx:(Math.random()-.5)*.8,vy:-2-Math.random()*3,life:220,s:1.5+Math.random()*2.5,c:colors[0],kind:'ember',twinkle:true});
+  };
+}
+// W3/PW3's dome has 18 visible slots; new entries keep falling after it fills, while the counter shows the full total.
+function fillCapsules(count, previous = count) {
+  const spots = [[52,268],[112,272],[172,270],[232,268],[292,262],[26,214],[82,216],[140,212],[198,214],[256,210],[312,206],[58,160],[116,158],[174,162],[232,156],[100,106],[160,104],[222,108]];
+  const colors = ['#5fd3b0','#5fd3b0','#ff7aae','#5fd3b0','#ffd45e'];
+  const visible = Math.min(count,spots.length);
+  byId('capsules').replaceChildren(...spots.slice(0,visible).map(([x,y],i) => {
+    const number = count - visible + i, ball = text(`capsule${number >= previous ? ' falling' : ''}`,'');
+    ball.style.left = x + 'px'; ball.style.top = y + 'px';
+    ball.style.setProperty('--cap',colors[number % colors.length]);
+    ball.style.setProperty('--tilt',`${number * 47 % 90 - 45}deg`);
+    return ball;
+  }));
+}
+function capsuleGacha(start, grade) {
+  if (start === null) return () => {};
+  const power = grade === 'Grand' ? 3 : grade === 'Second' ? 2 : 1;
+  const colors = power === 3 ? ['#ff7aae','#ffd45e','#5fd3b0','#a991ff','#7ccbff','#fff']
+    : power === 2 ? ['#ff7aae','#ffb3cf','#fff','#ffd45e'] : ['#5fd3b0','#bff0df','#fff'];
+  let fired = Date.now() - start >= 2800;
+  return (now, dt, add) => {
+    const age = now - start, [cx,cy] = portrait ? [459,600] : [1180,520];
+    if (!fired && age >= 1960) {
+      fired = true;
+      for (let i = 0; i < [30,70,140][power-1]; i++) {
+        const angle = Math.random()*Math.PI*2, speed = 5+Math.random()*(6+5*power);
+        add({x:cx,y:cy,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-4,life:120+Math.random()*60,s:6+Math.random()*8,c:colors[i%colors.length],drag:.97,grav:.32,kind:power > 1 && i%3===0 ? 'heart' : 'confetti'});
+      }
+    }
+    if (power > 1 && age > 2600 && age < 6200 && Math.random() < .12*power*dt)
+      add({x:cx-250+Math.random()*500,y:portrait?1000:760,vx:0,vy:-1.4-Math.random()*1.2,life:180,s:9+Math.random()*8,c:colors[0],kind:'heart'});
+    if (power === 3 && age > 2100 && age < 5600)
+      for (let i = 0; i < 3*dt; i++) add({x:Math.random()*canvas.width,y:-20,vx:0,vy:5+Math.random()*4,life:400,s:8,c:colors[i%colors.length],kind:'confetti'});
   };
 }
 const events = new EventSource('/lottery/events');
