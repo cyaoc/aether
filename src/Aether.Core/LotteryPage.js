@@ -39,7 +39,8 @@ const themes = {
     ranks:{ Grand:'', Second:'', Third:'' },
     labels:{ themeTitle:'扭蛋抽奖', registrationPhase:'报名中', joinLabel:'扭蛋抽奖', countLabel:'颗扭蛋', latestLabel:'刚刚加入', awardsTitle:'奖品' },
     sizes:{ keyword:[72,50], entryCount:[120,92], rank:[56,46], prize:[120,100], viewer:[56,44], winnerName:[62,46] },
-    latest:item => text('',item.nickname),
+    // Each entry gets the next capsule colour; the newest tag shares it with the capsule dropping beside the count.
+    latest:(item, index, entry) => capsuleColor(text('',item.nickname), entry.entryCount - index),
     cell:candidate => grades[candidate.grade],
     cells:candidates => Object.keys(grades).flatMap(grade => {
       const names = candidates.filter(c => c.grade === grade).map(c => c.name);
@@ -50,32 +51,40 @@ const themes = {
     banner:({entry, title, viewer}) => entry ? `扭出 ${title} 中奖者！` : viewer ? `${viewer} 来扭蛋啦！` : '来扭蛋啦！',
     shout:grade => ({Grand:'大奖!!',Second:'POP!',Third:'pop'})[grade],
     winners:['中奖啦！','已经扭出来的'],
-    award:award => `${award.name} · ${award.prize}`,
-    registration:entry => {
-      byId('entryCounter').append(byId('gachaMachine'));
-      fillCapsules(entry.entryCount, capsuleEntry?.id === entry.id ? capsuleEntry.count : entry.entryCount);
-      capsuleEntry = {id:entry.id,count:entry.entryCount};
-      byId('machineLabel').textContent = '报名中';
+    closed:'报名截止啦',
+    // Name tags line up behind one capsule and award per row.
+    group:(draws, cards) => {
+      const rows = [];
+      let list;
+      draws.forEach((draw, index) => {
+        if (draw.awardIndex !== draws[index - 1]?.awardIndex) {
+          const row = text(`winnerGroup ${draw.award.grade}`, ''), award = text('winnerAward', draw.award.name);
+          award.append(text('winnerPrize', draw.award.prize));
+          list = text('winnerList', '');
+          row.append(text('rank', ''), award, list);
+          rows.push(row);
+        }
+        list.append(cards[index]);
+      });
+      return rows;
     },
-    stage:() => {
-      summon.append(byId('gachaMachine')); capsuleEntry = null;
-      fillCapsules(18); byId('machineLabel').textContent = '等你来扭';
-    },
+    registration:entry => capsuleColor(byId('capsuleDrop'), entry.entryCount),
     composite:'source-over',
     particles:capsuleGacha,
   },
 };
 const theme = () => themes[scene.dataset.theme] || themes.StarSummon;
 const starIcon = '<svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3-6.2-4.5-6.2 4.5 2.4-7.3L2 9.2h7.6z"/></svg>';
-let shown = '', hiding, paging, scanning, frame, fitting = [], portrait = false;
-let capsuleEntry;
+let shown = '', hiding, paging, repageWinners, scanning, frame, fitting = [], portrait = false;
 const canvas = byId('particles'), context = canvas.getContext('2d');
 function resize() {
+  const wasPortrait = portrait;
   portrait = window.innerWidth < window.innerHeight;
   const [width, height] = portrait ? [1080, 1920] : [1920, 1080];
   scene.dataset.orientation = portrait ? 'portrait' : 'landscape';
   scene.style.transform = `scale(${Math.min(window.innerWidth / width, window.innerHeight / height)}) translate(-50%,-50%)`;
   if (canvas.width !== width) { canvas.width = width; canvas.height = height; }
+  if (wasPortrait !== portrait) repageWinners?.();
   fitAll();
 }
 window.addEventListener('resize', resize);
@@ -87,8 +96,7 @@ function text(className, value) {
 }
 function fit(node, maximum) {
   const height = parseFloat(getComputedStyle(node).maxHeight) || Infinity;
-  const sticker = scene.dataset.theme === 'CapsuleGacha' && (node === byId('prize') || node === byId('viewer'));
-  while (maximum > (portrait ? 40 : 56) && (node.scrollHeight > (sticker ? Math.min(height, node.clientHeight) : height + 1) || node.scrollWidth > node.clientWidth + 1))
+  while (maximum > (portrait ? 40 : 56) && (node.scrollHeight > height + 1 || node.scrollWidth > node.clientWidth + 1))
     node.style.fontSize = --maximum + 'px';
 }
 function fitAll() {
@@ -100,6 +108,7 @@ document.fonts.ready.then(fitAll);
 document.fonts.addEventListener('loadingdone', fitAll);
 function clear() {
   clearTimeout(hiding); clearInterval(paging); clearInterval(scanning); cancelAnimationFrame(frame);
+  repageWinners = undefined;
   scene.hidden = true; summon.className = ''; fitting = [];
   for (const id of ['registration','summon','winners']) byId(id).hidden = true;
   context.clearRect(0, 0, canvas.width, canvas.height);
@@ -123,10 +132,10 @@ function show(state) {
     const t = theme();
     for (const [id, value] of Object.entries(t.labels)) byId(id).textContent = value;
     byId('keyword').textContent = `发弹幕「${entry.keyword}」`;
-    const count = byId('entryCount');
-    count.textContent = entry.entryCount;
+    byId('entryCount').textContent = entry.entryCount;
     // Restart the board's pop on every new entry; the newest name slides in by CSS.
-    count.className = 'gold'; void count.offsetWidth; count.className = 'gold pop';
+    const counter = byId('entryCounter');
+    counter.className = 'count'; void counter.offsetWidth; counter.className = 'count pop';
     byId('registration').dataset.awards = entry.awards.length;
     byId('latestEntries').replaceChildren(...entry.latestEntries.slice(0,3).map((item,index) => t.latest(item,index,entry)));
     byId('awardRows').replaceChildren(...entry.awards.map(award => {
@@ -158,7 +167,6 @@ function show(state) {
   if (entry) showWinners(entry);
 }
 function makeRing(candidates) {
-  theme().stage?.();
   // Ten visual cells fill the stage; Core has already chosen the result.
   const cells = theme().cells?.(candidates) || Array.from({length:10},(_,index) => candidates[index % candidates.length]);
   ring.replaceChildren(...cells.map((candidate,index) => {
@@ -203,7 +211,6 @@ function drawResult(draw, entry) {
   byId('banner').textContent = t.banner(words);
   byId('warning').textContent = grade === 'Grand' ? 'WARNING · S 级奖励出现' : 'ALERT · 锁定程序启动';
   byId('shout').textContent = t.shout?.(grade) || (entry ? '★ 恭喜召唤成功 ★' : '★ 大奖降临 ★');
-  byId('machineLabel').textContent = '扭扭扭…';
   fitting = [[byId('rank'),...t.sizes.rank],[byId('prize'),...t.sizes.prize],[byId('viewer'),...t.sizes.viewer]];
   // Flush the previous draw's animation before applying the same grade again.
   void summon.offsetWidth;
@@ -213,32 +220,41 @@ function drawResult(draw, entry) {
   particles(Date.parse(draw.drawnAt), grade);
 }
 function showWinners(lottery) {
+  clearInterval(paging);
+  repageWinners = () => showWinners(lottery);
   view('winners');
   const t = theme();
   byId('winnerTitle').textContent = t.winners[lottery.phase === 'Ended' ? 0 : 1];
   byId('remaining').hidden = lottery.phase === 'Ended';
-  byId('remaining').textContent = `报名已截止 · 还剩 ${lottery.remaining} 个名额`;
+  byId('remaining').textContent = `${t.closed || '报名已截止'} · 还剩 ${lottery.remaining} 个名额`;
   const winners = lottery.awards.flatMap((_, index) => lottery.draws.filter(draw => draw.awardIndex === index));
   if (!winners.length) {
     byId('winnerCards').replaceChildren();
     byId('pageNumber').textContent = lottery.phase === 'Ended' ? '本场没有开奖' : '等待开奖'; return;
   }
+  // Six winners a page. Grouped rows also stop at three awards, and a portrait page gives a name's room to the remaining-places line.
+  const limit = t.group && portrait && lottery.phase !== 'Ended' ? 5 : 6, pages = [];
+  for (const draw of winners) {
+    const last = pages.at(-1);
+    if (last?.length < limit && (!t.group || new Set([...last, draw].map(d => d.awardIndex)).size <= 3)) last.push(draw);
+    else pages.push([draw]);
+  }
   let page = 0;
-  const count = Math.ceil(winners.length / 6);
   const render = () => {
     fitting = [];
-    byId('winnerCards').replaceChildren(...winners.slice(page * 6,page * 6 + 6).map((draw,index) => {
+    const cards = pages[page].map((draw,index) => {
       const card = text(`winnerCard ${draw.award.grade}`, '');
       const name = text('winnerName',draw.winner.nickname);
       card.style.setProperty('--index', index);
-      card.append(text('rank',t.ranks[draw.award.grade]),name,text('winnerAward',t.award(draw.award)));
+      card.append(...t.group ? [name] : [text('rank',t.ranks[draw.award.grade]),name,text('winnerAward',t.award(draw.award))]);
       fitting.push([name,...t.sizes.winnerName]);
       return card;
-    }));
-    byId('pageNumber').textContent = count > 1 ? `${page + 1} / ${count}` : '';
-    fitAll(); page = (page + 1) % count;
+    });
+    byId('winnerCards').replaceChildren(...t.group?.(pages[page], cards) || cards);
+    byId('pageNumber').textContent = pages.length > 1 ? `${page + 1} / ${pages.length}` : '';
+    fitAll(); page = (page + 1) % pages.length;
   };
-  render(); if (count > 1) paging = setInterval(render,5000);
+  render(); if (pages.length > 1) paging = setInterval(render,5000);
 }
 const idleColors = ['#ffe7a8','#c59bff','#7cc4ff'];
 const burstColors = { Grand:['#fff','#fff1c2','#ffd36b','#e8a93a'], Second:['#fff','#e3d2ff','#c59bff','#9f7bff'], Third:['#fff','#cdebff','#7cc4ff'] };
@@ -277,16 +293,7 @@ function particles(start, grade) {
       else if (p.kind === 'hex') { context.lineWidth = 2; hex(p.x,p.y,p.s); }
       else if (p.kind === 'spark') { context.lineWidth = p.s; context.moveTo(p.x,p.y); context.lineTo(p.x - p.vx * 2.6,p.y - p.vy * 2.6); context.stroke(); }
       else if (p.kind === 'ember') { context.arc(p.x,p.y,p.s,0,6.283); context.fill(); }
-      else if (p.kind === 'heart') {
-        context.moveTo(p.x,p.y+p.s*.9);
-        context.bezierCurveTo(p.x-p.s*1.6,p.y-p.s*.2,p.x-p.s*.7,p.y-p.s*1.4,p.x,p.y-p.s*.5);
-        context.bezierCurveTo(p.x+p.s*.7,p.y-p.s*1.4,p.x+p.s*1.6,p.y-p.s*.2,p.x,p.y+p.s*.9);
-        context.fill(); context.strokeStyle = '#4b2a4f'; context.lineWidth = 2; context.stroke();
-      }
-      else if (p.kind === 'confetti') {
-        context.save(); context.translate(p.x,p.y); context.rotate(p.life*.07);
-        context.fillRect(-p.s,-p.s*.6,p.s*2,p.s*1.2); context.restore();
-      }
+      else if (p.kind === 'sticker') sticker(p);
       else {
         context.globalAlpha = alpha * .2; context.arc(p.x,p.y,p.s * 3.5,0,6.283); context.fill();
         context.globalAlpha = alpha; context.beginPath(); context.arc(p.x,p.y,p.s,0,6.283); context.fill();
@@ -353,19 +360,34 @@ function mechaLock(start, grade) {
       add({x:left+Math.random()*width,y:bottom,vx:(Math.random()-.5)*.8,vy:-2-Math.random()*3,life:220,s:1.5+Math.random()*2.5,c:colors[0],kind:'ember',twinkle:true});
   };
 }
-// W3/PW3's dome has 18 visible slots; new entries keep falling after it fills, while the counter shows the full total.
-function fillCapsules(count, previous = count) {
-  const spots = [[52,268],[112,272],[172,270],[232,268],[292,262],[26,214],[82,216],[140,212],[198,214],[256,210],[312,206],[58,160],[116,158],[174,162],[232,156],[100,106],[160,104],[222,108]];
-  const colors = ['#5fd3b0','#5fd3b0','#ff7aae','#5fd3b0','#ffd45e'];
-  const visible = Math.min(count,spots.length);
-  byId('capsules').replaceChildren(...spots.slice(0,visible).map(([x,y],i) => {
-    const number = count - visible + i, ball = text(`capsule${number >= previous ? ' falling' : ''}`,'');
-    ball.style.left = x + 'px'; ball.style.top = y + 'px';
-    ball.style.setProperty('--cap',colors[number % colors.length]);
-    ball.style.setProperty('--tilt',`${number * 47 % 90 - 45}deg`);
+// W3/PW3's dome: 18 capsules in the board's slots and colours.
+byId('capsules').replaceChildren(...[[52,268],[112,272],[172,270],[232,268],[292,262],[26,214],[82,216],[140,212],[198,214],[256,210],[312,206],[58,160],[116,158],[174,162],[232,156],[100,106],[160,104],[222,108]]
+  .map(([x,y],i) => {
+    const ball = text('capsule','');
+    ball.style.cssText = `left:${x}px;top:${y}px;--cap:${['#5fd3b0','#5fd3b0','#ff7aae','#5fd3b0','#ffd45e','#5fd3b0','#ff7aae','#5fd3b0','#5fd3b0'][i % 9]};--tilt:${i * 47 % 90 - 45}deg`;
     return ball;
   }));
+const capsuleColors = [['#ff7aae','#ffe3ee'],['#5fd3b0','#ddf7ee'],['#a991ff','#ece6ff'],['#ffd45e','#fff2c9'],['#7ccbff','#e0f2ff']];
+function capsuleColor(node, number) {
+  const [cap, tint] = capsuleColors[number % capsuleColors.length];
+  node.style.setProperty('--cap', cap); node.style.setProperty('--tint', tint);
+  return node;
 }
+// Board W3's outlined particles; the angle follows the remaining life so painting needs no extra state.
+function sticker(p) {
+  const angle = (p.turn || 0) + p.life * (p.spin || 0), r = p.s;
+  context.save(); context.translate(p.x + (p.sway === undefined ? 0 : 13 * Math.sin(p.life * .06 + p.sway)), p.y); context.rotate(angle);
+  context.strokeStyle = '#4b2a4f'; context.lineWidth = 3; context.lineJoin = 'round'; context.beginPath();
+  if (p.shape === 'heart') {
+    const h = r * .7;
+    context.moveTo(0,h*.9); context.bezierCurveTo(-h*1.6,-h*.2,-h*.7,-h*1.4,0,-h*.5); context.bezierCurveTo(h*.7,-h*1.4,h*1.6,-h*.2,0,h*.9);
+  }
+  else if (p.shape === 'star') for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * .45 : r; context.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+  else if (p.shape === 'dot') context.arc(0,0,r * .55,0,6.283);
+  else { context.scale(1,Math.cos(angle * 2)); context.rect(-7,-5,14,10); }
+  context.closePath(); context.fill(); context.stroke(); context.restore();
+}
+// Board W3's canvas, shifted from its 36.7% opening to this page's 28%: hearts, stars and dots sized by grade, hearts floating up for the two higher grades and confetti rain for the top one.
 function capsuleGacha(start, grade) {
   if (start === null) return () => {};
   const power = grade === 'Grand' ? 3 : grade === 'Second' ? 2 : 1;
@@ -373,18 +395,19 @@ function capsuleGacha(start, grade) {
     : power === 2 ? ['#ff7aae','#ffb3cf','#fff','#ffd45e'] : ['#5fd3b0','#bff0df','#fff'];
   let fired = Date.now() - start >= 2800;
   return (now, dt, add) => {
-    const age = now - start, [cx,cy] = portrait ? [459,600] : [1180,520];
+    const age = now - start, [cx,cy,left,width,bottom] = portrait ? [459,600,209,500,1000] : [1180,520,880,600,760];
     if (!fired && age >= 1960) {
       fired = true;
-      for (let i = 0; i < [30,70,140][power-1]; i++) {
-        const angle = Math.random()*Math.PI*2, speed = 5+Math.random()*(6+5*power);
-        add({x:cx,y:cy,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-4,life:120+Math.random()*60,s:6+Math.random()*8,c:colors[i%colors.length],drag:.97,grav:.32,kind:power > 1 && i%3===0 ? 'heart' : 'confetti'});
+      for (let k = 0; k < [30,70,140][power - 1]; k++) {
+        const angle = Math.random() * Math.PI * 2, speed = 5 + Math.random() * (6 + 5 * power);
+        add({x:cx,y:cy,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed-4,life:120+Math.random()*60,max:100,s:9+Math.random()*(6+4*power),c:colors[k%colors.length],drag:.97,grav:.32,
+          kind:'sticker',shape:['heart','star','dot'][k%3],turn:Math.random()*6.28,spin:(Math.random()-.5)*.2});
       }
     }
-    if (power > 1 && age > 2600 && age < 6200 && Math.random() < .12*power*dt)
-      add({x:cx-250+Math.random()*500,y:portrait?1000:760,vx:0,vy:-1.4-Math.random()*1.2,life:180,s:9+Math.random()*8,c:colors[0],kind:'heart'});
-    if (power === 3 && age > 2100 && age < 5600)
-      for (let i = 0; i < 3*dt; i++) add({x:Math.random()*canvas.width,y:-20,vx:0,vy:5+Math.random()*4,life:400,s:8,c:colors[i%colors.length],kind:'confetti'});
+    if (power > 1 && age > 2390 && age < 5390 && Math.random() < .12 * power * dt)
+      add({x:left+Math.random()*width,y:bottom,vx:(Math.random()-.5)*.6,vy:-1.4-Math.random()*1.2,life:180,max:100,s:9+Math.random()*8,c:Math.random() < .6 ? '#ff7aae' : '#ffd45e',kind:'sticker',shape:'heart',sway:Math.random()*6.28});
+    if (power === 3 && age > 2190 && age < 4990 && Math.random() < .9 * dt)
+      add({x:Math.random()*canvas.width,y:-20,vx:0,vy:2.5,life:400,max:100,s:8,c:colors[Math.floor(Math.random()*5)],kind:'sticker',shape:'confetti',turn:Math.random()*6.28,spin:-.1});
   };
 }
 const events = new EventSource('/lottery/events');
