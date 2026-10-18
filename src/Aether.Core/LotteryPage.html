@@ -48,14 +48,23 @@
         </g>
       </svg>
       <span class="shock effect"></span>
+      <span class="shock echo starEffect" aria-hidden="true"></span>
     </div></div>
     <div class="pillar effect" aria-hidden="true"></div><div class="rays effect" aria-hidden="true"></div>
     <div class="glow effect" aria-hidden="true"></div>
     <!-- Transparent video effects can be inserted here later, behind the cards. -->
     <div id="videoEffects" hidden></div>
     <canvas id="particles" width="1920" height="1080" aria-hidden="true"></canvas>
-    <!-- The stage shakes on a Mecha Lock hit; the backdrop, stripes and canvas stay put. -->
+    <!-- The foreground shakes on a hit; the backdrop and canvas stay put. -->
     <div class="stage">
+    <div class="focusLines starEffect" aria-hidden="true"></div>
+    <svg class="aura starEffect" viewBox="0 0 400 400" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.6">
+        <circle cx="200" cy="200" r="192"/><circle cx="200" cy="200" r="180" stroke-dasharray="3 7"/>
+        <circle cx="200" cy="200" r="150" stroke-dasharray="18 10 4 10"/>
+        <polygon points="200,36 342,282 58,282"/><polygon points="200,364 58,118 342,118"/>
+      </g>
+    </svg>
     <div class="gachaBall effect" aria-hidden="true"></div><div class="gachaRainbow effect" aria-hidden="true"></div>
     <div class="gachaHalves effect" aria-hidden="true"><span></span><span></span></div>
     <div id="ringWrap"><div id="ring"></div><div class="lockFrame effect" aria-hidden="true"></div></div>

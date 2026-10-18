@@ -108,7 +108,8 @@ internal sealed class ChromeBrowser : IAsyncDisposable
         socket.Dispose();
         if (process is null) return;
         if (!process.HasExited) process.Kill(entireProcessTree: true);
-        await process.WaitForExitAsync(CancellationToken.None);
+        // Wait for the process, not EOF on redirected pipes that Chrome helpers may keep open.
+        Assert.True(await Task.Run(() => process.WaitForExit(5000)), "Chrome did not exit.");
         process.Dispose();
     }
 }

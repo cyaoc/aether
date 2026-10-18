@@ -110,7 +110,7 @@
 [data-theme="CapsuleGacha"] #rank { width:fit-content; max-width:100%; height:80px; padding:0 40px; border:5px solid var(--ink); border-radius:40px; background:var(--main); box-shadow:5px 5px var(--ink); line-height:70px; transform:rotate(-4deg); filter:none; }
 [data-theme="CapsuleGacha"] #prize { max-height:190px; overflow:hidden; text-shadow:none; }
 [data-theme="CapsuleGacha"] #viewer { max-height:190px; color:#8a4a7e; }
-[data-theme="CapsuleGacha"] #shout { left:1430px; top:300px; width:auto; font-size:120px; line-height:1; letter-spacing:0; color:var(--main); animation-name:gachaPop; }
+[data-theme="CapsuleGacha"] #shout { left:1430px; top:300px; width:auto; padding:10px 20px; border-radius:30px; background:var(--ink); font-size:120px; line-height:1; letter-spacing:0; color:var(--main); animation-name:gachaPop; }
 [data-theme="CapsuleGacha"] .drawing.Second #shout,[data-theme="CapsuleGacha"] .drawing.Third #shout { display:block; }
 [data-theme="CapsuleGacha"] .Second #shout { left:1460px; font-size:96px; }
 [data-theme="CapsuleGacha"] .Third #shout { left:1460px; font-size:64px; }

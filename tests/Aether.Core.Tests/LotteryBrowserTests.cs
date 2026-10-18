@@ -117,11 +117,72 @@ public sealed class LotteryBrowserTests
     }
 
     [Theory]
+    [InlineData(LotteryTheme.StarSummon, 1920, 1080)]
+    [InlineData(LotteryTheme.StarSummon, 1080, 1920)]
+    [InlineData(LotteryTheme.MechaLock, 1920, 1080)]
+    [InlineData(LotteryTheme.MechaLock, 1080, 1920)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1920, 1080)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1080, 1920)]
+    public async Task Draw_effects_leave_forty_pixels_of_background_at_every_edge(LotteryTheme theme, int width, int height)
+    {
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
+            Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
+        await using var h = new WatchHarness(enableLottery: true);
+        await h.LoginAsync();
+        h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
+        await using var watch = await h.WatchConnectedAsync();
+        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
+        await using var browser = new ChromeBrowser();
+        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, width, height);
+        h.Client.Lottery.SelectTheme(theme);
+        await browser.EvaluateAsync("document.body.style.background = 'rgb(17, 231, 103)'; true");
+        foreach (var grade in new[] { Grade.Grand, Grade.Second, Grade.Third })
+        {
+            h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
+            h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
+            await browser.WaitAsync("document.getElementById('scene').dataset.view === 'spinning'");
+            h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
+            h.Client.Lottery.Stop();
+            await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
+            foreach (var milliseconds in new[] { 350, 1400, 1850, 2000, 2300, 2800, 4000, 6000 })
+            {
+                await browser.WaitAsync($"document.getElementById('banner').getAnimations()[0].currentTime >= {milliseconds}");
+                var png = await browser.CommandAsync("Page.captureScreenshot", new { format = "png" });
+                var pixels = await browser.EvaluateAsync("""
+                    (async () => {
+                      const image = new Image(); image.src = 'data:image/png;base64,' +
+                    """ + JsonSerializer.Serialize(png.GetProperty("data").GetString()) + """
+                      ; await image.decode();
+                      const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+                      const ctx = canvas.getContext('2d'); ctx.drawImage(image,0,0);
+                      const {data} = ctx.getImageData(0,0,canvas.width,canvas.height);
+                      let changed = 0, first;
+                      for (let y = 0; y < canvas.height; y++) for (let x = 0; x < canvas.width; x++) {
+                        if (x >= 40 && y >= 40 && x < canvas.width-40 && y < canvas.height-40) continue;
+                        const i = (y*canvas.width+x)*4;
+                        if (data[i] !== 17 || data[i+1] !== 231 || data[i+2] !== 103) { changed++; first ||= {x,y}; }
+                      }
+                      return {changed,first};
+                    })()
+                    """);
+                await browser.ScreenshotAsync($"{width}-{grade}-edges-{milliseconds}");
+                Assert.True(pixels.GetProperty("changed").GetInt32() == 0, $"{theme} {width} {grade} {milliseconds}: {pixels}");
+            }
+            await browser.WaitAsync("document.getElementById('scene').hidden");
+            h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
+        }
+        Assert.Empty(browser.Errors);
+    }
+
+    [Theory]
+    [InlineData(LotteryTheme.StarSummon, Grade.Grand)]
+    [InlineData(LotteryTheme.StarSummon, Grade.Second)]
+    [InlineData(LotteryTheme.StarSummon, Grade.Third)]
     [InlineData(LotteryTheme.MechaLock, Grade.Grand)]
     [InlineData(LotteryTheme.CapsuleGacha, Grade.Grand)]
     [InlineData(LotteryTheme.CapsuleGacha, Grade.Second)]
     [InlineData(LotteryTheme.CapsuleGacha, Grade.Third)]
-    public async Task Portrait_transition_frames_keep_text_inside_the_safe_area(LotteryTheme theme, Grade grade)
+    public async Task Portrait_transition_frames_keep_text_inside_the_frame(LotteryTheme theme, Grade grade)
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
             Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
@@ -148,10 +209,13 @@ public sealed class LotteryBrowserTests
     }
 
     [Theory]
-    [InlineData(LotteryTheme.StarSummon)]
-    [InlineData(LotteryTheme.MechaLock)]
-    [InlineData(LotteryTheme.CapsuleGacha)]
-    public async Task Portrait_keeps_five_awards_long_names_and_paged_results_inside_the_safe_area_after_resizing(LotteryTheme theme)
+    [InlineData(LotteryTheme.StarSummon, 1)]
+    [InlineData(LotteryTheme.StarSummon, 5)]
+    [InlineData(LotteryTheme.MechaLock, 1)]
+    [InlineData(LotteryTheme.MechaLock, 5)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1)]
+    [InlineData(LotteryTheme.CapsuleGacha, 5)]
+    public async Task Portrait_centres_awards_long_names_and_paged_results_after_resizing(LotteryTheme theme, int awards)
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
             Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
@@ -166,7 +230,7 @@ public sealed class LotteryBrowserTests
         lottery.SelectTheme(theme);
         lottery.New(LotteryMode.Entry);
         const string keyword = "欢迎参加星辰召唤特别纪念限定抽奖活动";
-        lottery.StartEntry(Enumerable.Range(1, 5).Select(i => new LotteryAward($"第{i}个特别纪念奖项", "星辰召唤限量纪念版机械键盘", 10, Grade.Grand)).ToArray(), keyword);
+        lottery.StartEntry(Enumerable.Range(1, awards).Select(i => new LotteryAward($"第{i}个特别纪念奖项", "星辰召唤限量纪念版机械键盘", 10, Grade.Grand)).ToArray(), keyword);
         var messages = Enumerable.Range(1, 7).Select(i => Message(i, $"观众{i}的超长中文昵称星河入梦", keyword)).ToArray();
         await h.PushAndCollectAsync(watch, messages);
         await browser.WaitAsync("document.getElementById('entryCount').textContent === '7'");
@@ -175,7 +239,7 @@ public sealed class LotteryBrowserTests
         Assert.True(keywordSize.GetProperty("scrollWidth").GetInt32() <= keywordSize.GetProperty("width").GetInt32() + 1
             && keywordSize.GetProperty("scrollHeight").GetInt32() <= keywordSize.GetProperty("height").GetInt32() + 1, keywordSize.GetRawText());
         await AssertLayoutAsync(browser);
-        await browser.ScreenshotAsync("1080-entry-five-awards");
+        await browser.ScreenshotAsync($"1080-entry-{awards}-awards");
         foreach (var (width, height) in new[] { (800, 600), (800, 800), (540, 960), (1080, 1920) })
         {
             await browser.CommandAsync("Emulation.setDeviceMetricsOverride", new { width, height, deviceScaleFactor = 1, mobile = false });
@@ -199,6 +263,7 @@ public sealed class LotteryBrowserTests
         await browser.ScreenshotAsync("1080-winners-page-2");
         lottery.EndEntry();
         await browser.WaitAsync($"document.getElementById('winnerTitle').textContent === '{(theme == LotteryTheme.CapsuleGacha ? "中奖啦！" : theme == LotteryTheme.MechaLock ? "作战结果" : "召唤结果")}'");
+        await browser.WaitAsync("Array.from(document.querySelectorAll('.winnerCard')).every(c => c.getAnimations().every(a => a.playState === 'finished'))");
         await AssertLayoutAsync(browser);
         Assert.Empty(browser.Errors);
     }
@@ -309,6 +374,8 @@ public sealed class LotteryBrowserTests
             Assert.Equal(grade == Grade.Grand, (await browser.EvaluateAsync("getComputedStyle(document.querySelector('.gachaRainbow')).display !== 'none'")).GetBoolean());
         }
         else await browser.WaitAsync("getComputedStyle(document.querySelector('.flip')).transform === 'matrix(1, 0, 0, 1, 0, 0)'");
+        if (!mecha)
+            Assert.NotEqual("rgba(0, 0, 0, 0)", (await browser.EvaluateAsync("getComputedStyle(document.getElementById('shout')).backgroundColor")).GetString());
         var revealedAt = DateTimeOffset.UtcNow;
         Assert.Equal(gacha ? width == 1080 ? "100px" : "120px" : mecha ? width == 1080 ? "116px" : "150px" : width == 1080 ? "96px" : "112px", (await browser.EvaluateAsync("getComputedStyle(document.getElementById('prize')).fontSize")).GetString());
         if (width == 1080 && grade == Grade.Grand)
@@ -343,13 +410,13 @@ public sealed class LotteryBrowserTests
 
     private static async Task AssertLayoutAsync(ChromeBrowser browser)
     {
-        // Measure rendered text, including the 3D ring, against SA1 in design coordinates; the board's labels stay at 28–38px.
+        // Measure rendered text in design coordinates; the board's secondary labels stay at 28–38px.
         var violations = await browser.EvaluateAsync("""
             (() => {
               const scene = document.getElementById('scene'), rect = scene.getBoundingClientRect();
               const portrait = scene.dataset.orientation === 'portrait';
               const scale = rect.width / (portrait ? 1080 : 1920);
-              const bounds = portrait ? [54,288,864,1248] : [0,0,1920,1080];
+              const bounds = portrait ? [0,0,1080,1920] : [0,0,1920,1080];
               const labels = '.label,#registrationTitle span+span,.countLabel,.awardName,.capacity,.candidateLabel,.candidateName,.winnerAward,.winnerPrize,#machineLabel span,#warning,.pilotCode,.pilotStatus';
               return Array.from(scene.querySelectorAll('*')).filter(e =>
                 e.childNodes.length && Array.from(e.childNodes).some(n => n.nodeType === 3 && n.textContent.trim())
@@ -366,6 +433,31 @@ public sealed class LotteryBrowserTests
             })()
             """);
         Assert.True(violations.GetArrayLength() == 0, violations.GetRawText());
+        var centre = await browser.EvaluateAsync("""
+            (() => {
+              const scene = document.getElementById('scene'), r = scene.getBoundingClientRect();
+              if (scene.dataset.orientation !== 'portrait') return [];
+              const scale = r.width / 1080;
+              const summon = document.getElementById('summon');
+              if (!summon.hidden) {
+                // The stage's original design anchor maps to the source centre, including Gacha's asymmetric composition.
+                const b = summon.getBoundingClientRect(), x = (b.left-r.left)/scale + 459, y = (b.top-r.top)/scale + 760;
+                return Math.abs(x-540) > 4 || Math.abs(y-960) > 4 ? [{id:'summon',x,y}] : [];
+              }
+              if (scene.dataset.view === 'winners' && scene.dataset.theme === 'StarSummon') {
+                const cards = Array.from(scene.querySelectorAll('.winnerCard'), e => e.getBoundingClientRect());
+                if (cards.length) {
+                  const x = ((Math.min(...cards.map(b => b.left)) + Math.max(...cards.map(b => b.right)))/2-r.left)/scale;
+                  if (Math.abs(x-540) > 4) return [{id:'winnerCards',x}];
+                }
+              }
+              return ['registration','winners'].map(id => document.getElementById(id)).filter(e => !e.hidden).flatMap(e => {
+                const b = e.getBoundingClientRect(), x = (b.left + b.width/2 - r.left)/scale, y = (b.top + b.height/2 - r.top)/scale;
+                return Math.abs(x - 540) > 4 || Math.abs(y - 960) > 4 ? [{id:e.id,x,y}] : [];
+              });
+            })()
+            """);
+        Assert.True(centre.GetArrayLength() == 0, centre.GetRawText());
     }
 
     private static string Message(long uid, string name, string keyword = "抽奖") => JsonSerializer.Serialize(new
