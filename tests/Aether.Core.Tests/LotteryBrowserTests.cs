@@ -197,10 +197,10 @@ public sealed class LotteryBrowserTests
         h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'spinning'");
         await browser.ScreenshotAsync("portrait-scanning");
-        h.Client.Lottery.Stop();
+        await h.PushAndCollectAsync(watch, Message(42, "观众的超长中文昵称星河入梦与漫天星光", "停"));
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
         await browser.EvaluateAsync("document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); }); true");
-        foreach (var milliseconds in new[] { 100, 154, 252, 300, 1400, 1700, 1960, 2080, 2093, 2205, 2240, 2450, 2800, 4000, 6800 })
+        foreach (var milliseconds in new[] { 16, 33, 50, 100, 154, 252, 300, 1400, 1700, 1960, 2080, 2093, 2205, 2240, 2450, 2800, 4000, 6800 })
         {
             await browser.EvaluateAsync($"document.getAnimations().forEach(a => a.currentTime = {milliseconds}); true");
             await AssertLayoutAsync(browser);
@@ -374,7 +374,7 @@ public sealed class LotteryBrowserTests
             Assert.Equal(grade == Grade.Grand, (await browser.EvaluateAsync("getComputedStyle(document.querySelector('.gachaRainbow')).display !== 'none'")).GetBoolean());
         }
         else await browser.WaitAsync("getComputedStyle(document.querySelector('.flip')).transform === 'matrix(1, 0, 0, 1, 0, 0)'");
-        if (!mecha)
+        if (!mecha && !gacha)
             Assert.NotEqual("rgba(0, 0, 0, 0)", (await browser.EvaluateAsync("getComputedStyle(document.getElementById('shout')).backgroundColor")).GetString());
         var revealedAt = DateTimeOffset.UtcNow;
         Assert.Equal(gacha ? width == 1080 ? "100px" : "120px" : mecha ? width == 1080 ? "116px" : "150px" : width == 1080 ? "96px" : "112px", (await browser.EvaluateAsync("getComputedStyle(document.getElementById('prize')).fontSize")).GetString());

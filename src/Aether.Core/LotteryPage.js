@@ -272,10 +272,11 @@ function hex(x, y, r) {
   for (let k = 0; k < 6; k++) { const angle = Math.PI / 6 + k * Math.PI / 3; context.lineTo(x + Math.cos(angle) * r, y + Math.sin(angle) * r); }
   context.closePath(); context.stroke();
 }
-// Canvas geometry relative to the summon stage; portrait's shared offset centres all themes.
+// Canvas geometry of boards W1 and PW1, relative to the summon stage: burst centre, idle motes and rising sparkles (left, spread, y),
+// portal stars and gathering streaks (x and y radius), meteor path, star ring speed and burst spread.
 const stages = {
-  landscape:{cx:960,cy:520,idle:[660,600,880],rise:[560,800,900],meteor:{dx:400,y:820,dy:480},spread:[1,.7]},
-  portrait:{cx:459,cy:760,idle:[199,520,1140],rise:[159,600,1180],meteor:{dx:220,y:1100,dy:640},spread:[.8,1]},
+  landscape:{cx:960,cy:520,idle:[660,600,880],rise:[560,800,900],sky:[720,440],gather:[760,440],meteor:{dx:600,y:820,dy:600},ring:[16,10],spread:[1,.7]},
+  portrait:{cx:459,cy:760,idle:[199,520,1140],rise:[159,600,1180],sky:[440,620],gather:[470,660],meteor:{dx:360,y:1100,dy:700},ring:[11,15],spread:[.8,1]},
 };
 // Moves and paints the motes; the theme adds them on the draw timeline and may paint a backdrop first.
 function particles(start, grade) {
@@ -284,16 +285,19 @@ function particles(start, grade) {
   const add = mote => motes.push({drag:1,grav:0,max:mote.life,...mote});
   function paint() {
     const now = Date.now(), dt = Math.min(3,(now - previous) / 16.667); previous = now;
+    // Motes fade out over 140px before the source's 40px border, as on the boards; portrait shifts the stage inside the source.
+    const left = summon.offsetLeft, top = summon.offsetTop;
     context.clearRect(0,0,canvas.width,canvas.height); context.globalCompositeOperation = theme().composite || 'lighter';
     spawn(now, dt, add);
     for (const p of motes) {
       const drag = p.drag ** dt;
       p.vx *= drag; p.vy = p.vy * drag + p.grav * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
-      const alpha = Math.max(0, Math.min(1, p.life / (p.max * .4))) * (p.twinkle ? .5 + .5 * Math.sin(p.life * .3) : 1);
+      const edge = Math.min(p.x + left, canvas.width - p.x - left, p.y + top, canvas.height - p.y - top) - 40;
+      const alpha = Math.max(0, Math.min(1, p.life / (p.max * .4))) * Math.max(0, Math.min(1, edge / 140)) * (p.twinkle ? .5 + .5 * Math.sin(p.life * .3) : 1);
       context.globalAlpha = alpha; context.fillStyle = context.strokeStyle = p.c; context.beginPath();
       if (p.kind === 'star') star(p.x,p.y,p.s * 2.2);
       else if (p.kind === 'hex') { context.lineWidth = 2; hex(p.x,p.y,p.s); }
-      else if (p.kind === 'spark') { context.lineWidth = p.s; context.moveTo(p.x,p.y); context.lineTo(p.x - p.vx * 2.6,p.y - p.vy * 2.6); context.stroke(); }
+      else if (p.kind === 'spark') { context.lineWidth = p.s; context.moveTo(p.x,p.y); context.lineTo(p.x - p.vx * (p.tail || 2.6),p.y - p.vy * (p.tail || 2.6)); context.stroke(); }
       else if (p.kind === 'ember') { context.arc(p.x,p.y,p.s,0,6.283); context.fill(); }
       else if (p.kind === 'sticker') sticker(p);
       else {
@@ -307,52 +311,48 @@ function particles(start, grade) {
   }
   frame = requestAnimationFrame(paint);
 }
-// Portal stars and gathering lights lead into the 28% hit, then a star ring and rising sparkles.
+// Board W1's "加强" canvas, shifted from its 36.5% hit to this page's 28%: portal stars, gathering streaks and the meteor trail lead in,
+// then a star ring, the burst and rising sparkles.
 function starSummon(start, grade) {
   const power = powers[grade] ?? 1;
   const colors = start === null ? idleColors : burstColors[grade];
-  const sky = start === null ? [] : Array.from({length:160},() => ({r:Math.sqrt(Math.random())*.9,a:Math.random()*6.28,s:.6+Math.random()*1.8,p:Math.random()*6.28}));
+  // Portal stars thin out towards the rim.
+  const sky = start === null ? [] : Array.from({length:220},() => ({a:Math.random()*6.283,d:Math.sqrt(Math.random()),s:.6+Math.random()*2,p:Math.random()*6.28}));
   const pick = () => colors[Math.floor(Math.random()*colors.length)];
   let fired = start !== null && Date.now() - start >= 2600;
   return (now, dt, add) => {
     const age = start === null ? 0 : now - start;
-    const {cx,cy,idle,rise,meteor,spread} = stages[scene.dataset.orientation];
+    const {cx,cy,idle,rise,sky:[rx,ry],gather:[gx,gy],meteor,ring,spread} = stages[scene.dataset.orientation];
     if (start === null) {
       if (Math.random() < .35 * dt) add({x:idle[0]+Math.random()*idle[1],y:idle[2],vx:(Math.random()-.5)*.6,vy:-1.2-Math.random()*1.6,life:220,s:2+Math.random()*3,c:pick(),kind:'star',twinkle:true});
       return;
     }
     const fade = Math.min(1, age / 280);
-    const rx = (portrait ? [320,390,460] : [480,620,740])[power-1], ry = (portrait ? [400,480,570] : [340,390,450])[power-1];
-    const contraction = age < 1400 ? 1 : age < 1925 ? 1 - .3*(age-1400)/525 : age < 2065 ? .7 + .42*(age-1925)/140 : age < 2450 ? 1.12 - .12*(age-2065)/385 : 1;
     context.fillStyle = '#fff';
     for (const s of sky) {
-      const angle = s.a + age * .00015;
-      context.globalAlpha = fade * (1-s.r) * (.35 + .65 * Math.abs(Math.sin(s.p + now * .0016)));
-      context.fillRect(cx + Math.cos(angle)*s.r*rx*contraction,cy + Math.sin(angle)*s.r*ry*contraction,s.s,s.s);
+      context.globalAlpha = fade * (1 - s.d * s.d) * (.35 + .65 * Math.abs(Math.sin(s.p + now * .0016)));
+      context.fillRect(cx + Math.cos(s.a)*s.d*rx,cy + Math.sin(s.a)*s.d*ry,s.s,s.s);
     }
-    if (power > 1 && age > 980 && age < 1960) {
-      const progress = (age-980)/980;
-      context.fillStyle = colors[2];
-      for (let j = 0; j < power * 24; j++) {
-        const angle = j * 2.39996, radius = (1-progress) * (.65 + (j%7)/20);
-        context.globalAlpha = Math.sin(progress*Math.PI) * .9;
-        star(cx + Math.cos(angle)*rx*radius,cy + Math.sin(angle)*ry*radius,2 + progress*3);
+    if (power > 1 && age > 1005 && age < 1885)
+      for (let j = 0; j < (power - 1) * dt; j++) {
+        const angle = Math.random() * 6.283, x = cx + Math.cos(angle)*gx, y = cy + Math.sin(angle)*gy;
+        add({x,y,vx:(cx-x)/24,vy:(cy-y)/24,life:24,s:2.5,c:colors[j%colors.length],kind:'spark',tail:5});
       }
-    }
     if (power > 1 && age > 1540 && age < 1960) {
-      const progress = (age - 1540) / 420, x = cx + meteor.dx * (1 - progress), y = meteor.y - meteor.dy * (1 - progress);
-      if (Math.random() < Math.min(1,progress*4))
-        for (let j = 0; j < 6 * dt; j++) add({x,y,vx:(Math.random()-.3)*3,vy:(Math.random()-.7)*3,life:24,s:1.5+Math.random()*3,c:colors[j%colors.length],drag:.96,grav:.02});
+      // The trail follows the meteor's ease-in path and fades in with it.
+      const progress = ((age - 1540) / 420) ** 2, x = cx + meteor.dx * (1 - progress), y = meteor.y - meteor.dy * (1 - progress);
+      if (Math.random() < progress)
+        for (let j = 0; j < 6 * dt; j++) add({x,y,vx:(Math.random()-.3)*3,vy:(Math.random()-.7)*3,life:40,s:1.5+Math.random()*3,c:colors[j%colors.length],drag:.96,grav:.02});
     }
     if (!fired && age >= 1960) {
       fired = true;
+      if (power > 1) for (let j = 0; j < 36; j++) {
+        const angle = j * Math.PI / 18;
+        add({x:cx,y:cy,vx:Math.cos(angle)*ring[0],vy:Math.sin(angle)*ring[1],life:60,s:4+power,c:colors[j%colors.length],drag:.93,kind:'star'});
+      }
       for (let j = 0; j < Math.round((90 + 165 * (power - 1)) * 1.5); j++) {
         const angle = Math.random() * Math.PI * 2, speed = 3 + Math.random() * (8 + 7 * power);
         add({x:cx,y:cy,vx:Math.cos(angle)*speed*spread[0],vy:Math.sin(angle)*speed*spread[1]-3,life:70+Math.random()*90,max:160,s:2+Math.random()*(2+power),c:colors[j%colors.length],drag:.95,grav:.06,kind:j%4===0 ? 'star' : 'dot'});
-      }
-      if (power > 1) for (let j = 0; j < 36; j++) {
-        const angle = j * Math.PI / 18;
-        add({x:cx,y:cy,vx:Math.cos(angle)*13,vy:Math.sin(angle)*13,life:75,s:4+power,c:colors[2],drag:.97,kind:'star'});
       }
     }
     if (power > 1 && age > 2300 && age < 6500 && Math.random() < .3 * power * dt)

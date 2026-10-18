@@ -4,7 +4,7 @@
 html,body { margin:0; width:100%; height:100%; overflow:hidden; background:transparent; }
 body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei UI',system-ui,sans-serif; }
 [hidden] { display:none!important; }
-#scene { --ring-radius:430px; --meteor-x:840px; --meteor-y:-860px; width:1920px; height:1080px; position:absolute; left:50%; top:50%; transform-origin:0 0; overflow:hidden; }
+#scene { --ring-radius:430px; --meteor-x:600px; --meteor-y:-600px; width:1920px; height:1080px; position:absolute; left:50%; top:50%; transform-origin:0 0; overflow:hidden; }
 #registrationTitle,.awardName,#latestEntries>div:nth-child(3) { display:none; }
 .gold { background:linear-gradient(180deg,#fff,#fff1c2 40%,#ffd36b 70%,#e8a93a); -webkit-background-clip:text; background-clip:text; color:transparent; }
 /* --in/--mid paint the revealed card, --deep/--glow the ring and result cards, as the board's cardIn/cardMid/deep/glow. */
@@ -37,9 +37,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 .capacity { font-size:44px; color:#b9b4e0; }
 #summon,.stage { position:absolute; inset:0; }
 .sky { position:absolute; left:260px; top:160px; width:1400px; height:900px; border-radius:50%; background:radial-gradient(ellipse at 50% 55%,#1e145ab8,rgba(20,14,64,.45) 45%,transparent 70%); }
-.drawing .sky { inset:0; width:auto; height:auto; border-radius:0; background:radial-gradient(ellipse at 50% 70%,rgba(70,44,170,.88),rgba(22,16,70,.95) 45%,rgba(6,6,26,.97) 80%); animation:sky 7s both; animation-delay:var(--elapsed); }
-.drawing.Second .sky { background:radial-gradient(ellipse at 50% 70%,rgba(70,44,170,.8),rgba(22,16,70,.88) 50%,rgba(6,6,26,.9) 85%); }
-.drawing.Third .sky { background:radial-gradient(ellipse at 50% 60%,rgba(40,30,110,.7),rgba(14,12,44,.65) 50%,rgba(14,12,44,.2) 85%); }
+.drawing .sky { inset:0; width:auto; height:auto; border-radius:0; animation:sky 7s both; animation-delay:var(--elapsed); }
 @keyframes sky { from { opacity:0; } 4%,100% { opacity:1; } }
 .circleSpace { position:absolute; inset:0; perspective:1400px; perspective-origin:50% 30%; }
 .circlePlane { position:absolute; left:510px; top:400px; width:900px; height:900px; transform:rotateX(76deg); }
@@ -70,14 +68,15 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 .Second .pillar { left:850px; width:220px; }
 .drawing.Third .pillar,.drawing.Third .meteor,.drawing.Third .rays,.drawing.Second .rays { display:none; }
 @keyframes pillar { 0%,28% { opacity:0; transform:scaleX(.2) scaleY(0); } 30.5% { opacity:1; transform:scaleX(1.3) scaleY(1); } 34.5% { transform:scale(1); } 100% { opacity:.85; transform:scale(1); } }
-.rays { position:absolute; left:960px; top:500px; width:1600px; height:1600px; border-radius:50%; background:repeating-conic-gradient(from 0deg,rgba(255,220,140,.45) 0deg 4deg,transparent 4deg 14deg); -webkit-mask-image:radial-gradient(circle,#000 6%,rgba(0,0,0,.55) 30%,transparent 60%); animation:rays 7s both; animation-delay:var(--elapsed); }
+.rays { position:absolute; left:960px; top:500px; width:1000px; height:1000px; border-radius:50%; background:repeating-conic-gradient(from 0deg,rgba(255,226,150,.6) 0deg 4deg,transparent 4deg 14deg); -webkit-mask-image:radial-gradient(closest-side,#000 8%,rgba(0,0,0,.6) 40%,transparent 96%); animation:rays 7s both; animation-delay:var(--elapsed); }
 @keyframes rays { 0%,31.5% { opacity:0; transform:translate(-50%,-50%) scale(.4); } 37.5% { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(10deg); } 100% { opacity:.9; transform:translate(-50%,-50%) scale(1.05) rotate(46deg); } }
 .glow { position:absolute; left:410px; top:-50px; width:1100px; height:1100px; border-radius:50%; background:radial-gradient(circle,var(--a),transparent 60%); animation:glow 7s both; animation-delay:var(--elapsed); }
 @keyframes glow { 0%,28% { opacity:0; transform:scale(.3); } 33.5% { opacity:1; transform:scale(1); } 100% { opacity:.8; transform:scale(1); } }
 #particles { position:absolute; inset:0; pointer-events:none; }
 .meteor { position:absolute; left:944px; top:804px; width:32px; height:32px; border-radius:50%; background:white; box-shadow:0 0 30px 14px var(--main),0 0 90px 34px var(--a); animation:meteor 7s both; animation-delay:var(--elapsed); }
-.meteor:after { content:''; position:absolute; left:16px; top:10px; width:680px; height:12px; border-radius:6px; transform-origin:0 50%; transform:rotate(-45.7deg); background:linear-gradient(90deg,white,var(--main) 18%,transparent); }
-@keyframes meteor { 0%,21.5% { opacity:0; transform:translate(var(--meteor-x),var(--meteor-y)); } 22% { opacity:1; transform:translate(var(--meteor-x),var(--meteor-y)); animation-timing-function:cubic-bezier(.5,0,.9,.6); } 28% { opacity:1; transform:none; } 28.5%,100% { opacity:0; transform:none; } }
+.meteor:after { content:''; position:absolute; left:16px; top:10px; width:420px; height:12px; border-radius:6px; transform-origin:0 50%; transform:rotate(-45.7deg); background:linear-gradient(90deg,white,var(--main) 18%,transparent); }
+/* The meteor fades in on its way rather than flying in from the edge. */
+@keyframes meteor { 0%,22% { opacity:0; transform:translate(var(--meteor-x),var(--meteor-y)); animation-timing-function:cubic-bezier(.5,0,.9,.6); } 28% { opacity:1; transform:none; } 28.5%,100% { opacity:0; transform:none; } }
 #banner { position:absolute; left:0; right:0; top:70px; width:fit-content; max-width:1600px; height:110px; margin:0 auto; padding:0 48px; border-radius:55px; border:2px solid var(--light); background:rgba(14,12,44,.92); box-shadow:0 0 34px var(--a); font-size:72px; line-height:106px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; animation:banner 7s both; animation-delay:var(--elapsed); }
 @keyframes banner { 0% { opacity:0; transform:scale(var(--banner-scale,1.6)); } 3% { opacity:1; transform:scale(.96); } 5% { transform:scale(1); } 25.5% { opacity:1; transform:none; } 29.5%,100% { opacity:0; transform:translateY(-40px); } }
 #result { position:absolute; left:700px; top:190px; width:520px; height:660px; perspective:1600px; animation:card 7s both; animation-delay:var(--elapsed); }
@@ -96,7 +95,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 #shout { position:absolute; top:880px; width:100%; text-align:center; font-size:76px; letter-spacing:10px; filter:drop-shadow(0 0 18px rgba(255,211,107,.9)); animation:shout 7s both; animation-delay:var(--elapsed); }
 .drawing.Second #shout,.drawing.Third #shout { display:none; }
 @keyframes shout { 0%,41.5% { opacity:0; transform:translateY(24px) scale(.9); } 46.5%,100% { opacity:1; transform:none; } }
-.flash { position:absolute; inset:0; pointer-events:none; background:radial-gradient(circle at 50% 60%,#fff,var(--a) 32%,transparent 75%); animation:flash 7s both; animation-delay:var(--elapsed); }
+.flash { position:absolute; inset:0; pointer-events:none; background:radial-gradient(closest-side,#fff,var(--a) 45%,transparent); animation:flash 7s both; animation-delay:var(--elapsed); }
 .Second .flash { animation-name:flashSecond; }
 .Third .flash { animation-name:flashThird; }
 @keyframes flash { 0%,27.9% { opacity:0; } 28.5% { opacity:.95; } 32.5%,37.5% { opacity:0; } 38.3% { opacity:.6; } 41.5%,100% { opacity:0; } }
@@ -114,7 +113,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 #pageNumber { font-size:30px; color:#e7d9ff; }
 
 /* Portrait labels keep the board's 28–38px; key information is 40px or more. */
-#scene[data-orientation="portrait"] { --ring-radius:340px; --meteor-x:600px; --meteor-y:-1100px; width:1080px; height:1920px; }
+#scene[data-orientation="portrait"] { --ring-radius:340px; --meteor-x:360px; --meteor-y:-700px; width:1080px; height:1920px; }
 [data-orientation="portrait"] #registration { position:absolute; left:54px; top:300px; width:810px; display:flex; flex-direction:column; align-items:center; gap:18px; }
 [data-orientation="portrait"] #registrationTitle { height:90px; margin:0; padding:0 30px; display:flex; align-items:center; gap:16px; border-radius:45px; border:2px solid #ffd36bcc; background:rgba(14,12,44,.92); font-size:60px; font-weight:normal; }
 [data-orientation="portrait"] #registrationTitle span+span { height:44px; display:flex; align-items:center; padding:0 14px; border-radius:22px; background:#c59bff38; color:#e7d9ff; font-size:30px; }
@@ -149,9 +148,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-orientation="portrait"] [data-awards="4"] .condition,[data-orientation="portrait"] [data-awards="5"] .condition { padding:10px 24px; }
 [data-orientation="portrait"] [data-awards="4"] .awardRow,[data-orientation="portrait"] [data-awards="5"] .awardRow { height:52px; }
 [data-orientation="portrait"] .sky { left:24px; top:380px; width:870px; height:900px; background:radial-gradient(ellipse at 50% 50%,#1e145ab8,rgba(20,14,64,.45) 45%,transparent 70%); }
-[data-orientation="portrait"] .drawing .sky { inset:0; width:auto; height:auto; background:radial-gradient(ellipse at 42% 50%,#462caae0,#161046f2 45%,#06061af7 80%); }
-[data-orientation="portrait"] .drawing.Second .sky { background:radial-gradient(ellipse at 42% 50%,#462caacc,#161046e0 50%,#06061ae6 85%); }
-[data-orientation="portrait"] .drawing.Third .sky { background:radial-gradient(ellipse at 42% 42%,#281e6eb3,#0e0c2ca6 45%,#0e0c2c33 80%); }
+[data-orientation="portrait"] .drawing .sky { inset:0; width:auto; height:auto; }
 [data-orientation="portrait"] .circleSpace { perspective:1200px; perspective-origin:459px 900px; }
 [data-orientation="portrait"] .circlePlane { left:99px; top:770px; width:720px; height:720px; }
 [data-orientation="portrait"] .circle { width:720px; height:720px; }
@@ -164,10 +161,10 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-orientation="portrait"] .lockFrame { left:324px; top:599px; width:270px; height:360px; border-radius:22px; box-shadow:0 0 44px var(--main),inset 0 0 26px var(--a); }
 [data-orientation="portrait"] .pillar { left:309px; width:300px; height:1200px; }
 [data-orientation="portrait"] .Second .pillar { left:359px; width:200px; }
-[data-orientation="portrait"] .rays { left:459px; top:760px; width:1500px; height:1500px; }
+[data-orientation="portrait"] .rays { left:459px; top:760px; }
 [data-orientation="portrait"] .glow { left:-41px; top:260px; width:1000px; height:1000px; }
 [data-orientation="portrait"] .meteor { left:445px; top:1086px; width:28px; height:28px; box-shadow:0 0 26px 12px var(--main),0 0 80px 30px var(--a); }
-[data-orientation="portrait"] .meteor:after { left:14px; top:9px; width:620px; height:10px; border-radius:5px; transform:rotate(-61.4deg); }
+[data-orientation="portrait"] .meteor:after { left:14px; top:9px; width:320px; height:10px; border-radius:5px; transform:rotate(-61.4deg); }
 [data-orientation="portrait"] #banner { left:54px; right:216px; top:300px; max-width:810px; height:92px; padding:0 36px; border-radius:46px; box-shadow:0 0 30px var(--a); font-size:54px; line-height:88px; }
 [data-orientation="portrait"] #result { left:239px; top:470px; width:440px; height:580px; perspective:1400px; }
 [data-orientation="portrait"] .cardBack,[data-orientation="portrait"] .cardFace { border-radius:22px; }
@@ -179,7 +176,6 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-orientation="portrait"] #prize { max-height:260px; text-shadow:0 0 24px var(--main); }
 [data-orientation="portrait"] #viewer { max-height:110px; }
 [data-orientation="portrait"] #shout { left:54px; top:1090px; width:810px; font-size:60px; letter-spacing:8px; filter:drop-shadow(0 0 16px rgba(255,211,107,.9)); }
-[data-orientation="portrait"] .flash { background:radial-gradient(circle at 42% 42%,#fff,var(--a) 28%,transparent 70%); }
 [data-orientation="portrait"] #winners { left:54px; top:300px; width:810px; gap:26px; }
 [data-orientation="portrait"] #winnerTitle { font-size:76px; line-height:84px; }
 [data-orientation="portrait"] #winnerCards { width:756px; gap:18px; perspective:1200px; }
@@ -195,68 +191,73 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 /* All themes share the source centre, independent of where the streamer places it. */
 #scene[data-orientation="portrait"] #registration,#scene[data-orientation="portrait"] #winners { left:135px; top:50%; transform:translateY(-50%); }
 #scene[data-orientation="portrait"] #summon { left:81px; top:200px; right:-81px; bottom:-200px; }
-/* Fade the composite, including canvas particles and shaking children, before the source's 40px border. */
+/* Keep the source's 40px border clear. Effects and motes fade out on their own; the short ramp spares plates from 56px in, such as Gacha's banner. */
 #scene[data-view="drawing"],#scene[data-view="spinning"] {
-  -webkit-mask-image:linear-gradient(90deg,transparent 40px,#000 120px,#000 calc(100% - 120px),transparent calc(100% - 40px)),linear-gradient(transparent 40px,#000 120px,#000 calc(100% - 120px),transparent calc(100% - 40px));
+  -webkit-mask-image:linear-gradient(90deg,transparent 40px,#000 56px,#000 calc(100% - 56px),transparent calc(100% - 40px)),linear-gradient(transparent 40px,#000 56px,#000 calc(100% - 56px),transparent calc(100% - 40px));
   -webkit-mask-composite:source-in;
   mask-composite:intersect;
 }
-.sky,.mechaAlert { -webkit-mask-image:radial-gradient(ellipse,#000 20%,transparent 70%); }
+.drawing .sky,.mechaAlert { -webkit-mask-image:radial-gradient(ellipse,#000 20%,transparent 70%); }
 
-/* Star Summon enhancement: the board's 36% hit maps to 28%; the four-second result hold stays unchanged. */
+/* Star Summon "加强" from W1 / PW1, shifted from the board's 36.5% hit to this page's 28% like the rest of the reveal. */
 .starEffect { display:none; }
-#scene[data-theme="StarSummon"] { --cx:960px; --cy:520px; --meteor-x:400px; --meteor-y:-480px; }
-#scene[data-theme="StarSummon"][data-orientation="portrait"] { --cx:459px; --cy:760px; --banner-scale:1.08; --meteor-x:220px; --meteor-y:-640px; }
-[data-theme="StarSummon"] .Grand { --portal-w:1480px; --portal-h:900px; --shake:16px; }
-[data-theme="StarSummon"] .Second { --portal-w:1240px; --portal-h:780px; --shake:6px; }
-[data-theme="StarSummon"] .Third { --portal-w:960px; --portal-h:680px; }
-[data-theme="StarSummon"][data-orientation="portrait"] .Grand { --portal-w:920px; --portal-h:1140px; }
-[data-theme="StarSummon"][data-orientation="portrait"] .Second { --portal-w:780px; --portal-h:960px; }
-[data-theme="StarSummon"][data-orientation="portrait"] .Third { --portal-w:640px; --portal-h:800px; }
+#scene[data-theme="StarSummon"] { --cx:960px; --cy:520px; --squash:.6; }
+#scene[data-theme="StarSummon"][data-orientation="portrait"] { --cx:459px; --cy:760px; --squash:1.3; --banner-scale:1.08; }
+[data-theme="StarSummon"] .Grand { --portal-w:1560px; --portal-h:1000px; --swirl:1240px; --halo:860px; }
+[data-theme="StarSummon"] .Second { --portal-w:1400px; --portal-h:920px; --swirl:1120px; --halo:760px; }
+[data-theme="StarSummon"] .Third { --portal-w:1100px; --portal-h:760px; --swirl:900px; --halo:620px; }
+[data-theme="StarSummon"][data-orientation="portrait"] .Grand { --portal-w:1000px; --portal-h:1400px; --swirl:900px; --halo:820px; }
+[data-theme="StarSummon"][data-orientation="portrait"] .Second { --portal-w:940px; --portal-h:1240px; --swirl:820px; --halo:720px; }
+[data-theme="StarSummon"][data-orientation="portrait"] .Third { --portal-w:760px; --portal-h:960px; --swirl:660px; --halo:600px; }
+[data-theme="StarSummon"][data-orientation="landscape"] .circleSpace { -webkit-mask-image:linear-gradient(#000 62%,transparent 94%); }
 #scene[data-theme="StarSummon"] .drawing .sky {
-  inset:auto; left:var(--cx); top:var(--cy); width:var(--portal-w); height:var(--portal-h); border-radius:50%; overflow:hidden;
-  background:radial-gradient(ellipse,#100c32e6 15%,#32206ed9 44%,var(--a) 58%,transparent 72%);
-  -webkit-mask-image:radial-gradient(ellipse,#000 40%,transparent 71%);
+  inset:auto; left:var(--cx); top:var(--cy); width:var(--portal-w); height:var(--portal-h); border-radius:50%; -webkit-mask-image:none;
+  background:radial-gradient(closest-side,#0e082cf0,#221468db 34%,#462caa80 62%,#462caa29 82%,transparent);
   animation:portal 7s both; animation-delay:var(--elapsed);
 }
-[data-theme="StarSummon"] .drawing .sky:before,[data-theme="StarSummon"] .drawing .sky:after {
-  content:''; position:absolute; inset:-30%; border-radius:50%;
-  background:repeating-conic-gradient(from 20deg,transparent 0deg,var(--a) 40deg,#9581ff66 65deg,transparent 100deg);
-  filter:blur(22px); animation:rotate 18s linear infinite; animation-delay:var(--elapsed);
+#scene[data-theme="StarSummon"] .drawing.Second .sky { background:radial-gradient(closest-side,#100a32e6,#28186ec7 36%,#462caa6b 64%,#462caa1f 84%,transparent); }
+#scene[data-theme="StarSummon"] .drawing.Third .sky { background:radial-gradient(closest-side,#0e0c2cd9,#1c24649e 40%,#283c8c40 70%,transparent); }
+[data-theme="StarSummon"] .drawing .sky:before {
+  content:''; position:absolute; left:50%; top:50%; width:var(--swirl); height:var(--swirl); border-radius:50%;
+  background:conic-gradient(transparent,var(--a) 70deg,transparent 140deg,#7cc4ff4d 220deg,#ffe7a852 290deg,transparent);
+  -webkit-mask-image:radial-gradient(closest-side,transparent 18%,#000 42%,#000 58%,transparent);
+  animation:swirl 9s linear infinite;
 }
-[data-theme="StarSummon"] .drawing .sky:after { inset:12%; filter:blur(12px); animation-duration:12s; animation-direction:reverse; opacity:.6; }
-@keyframes portal {
-  0% { opacity:0; transform:translate(-50%,-50%) scale(.8); }
-  5%,20% { opacity:1; transform:translate(-50%,-50%) scale(1); }
-  27.5% { transform:translate(-50%,-50%) scale(.7); }
-  29.5% { transform:translate(-50%,-50%) scale(1.12); }
-  35%,100% { opacity:1; transform:translate(-50%,-50%) scale(1); }
-}
+@keyframes portal { 0% { opacity:0; transform:translate(-50%,-50%) scale(.25); } 5% { opacity:1; transform:translate(-50%,-50%) scale(1); } 26.9% { transform:translate(-50%,-50%) scale(.9); } 28.9% { transform:translate(-50%,-50%) scale(1.07); } 33.5%,100% { opacity:1; transform:translate(-50%,-50%) scale(1); } }
+@keyframes swirl { from { transform:translate(-50%,-50%) scaleY(var(--squash)) rotate(0deg); } to { transform:translate(-50%,-50%) scaleY(var(--squash)) rotate(360deg); } }
 [data-theme="StarSummon"] .drawing .starEffect { display:block; }
-[data-theme="StarSummon"] .echo { animation-name:shockEcho; border-width:5px; }
-@keyframes shockEcho { 0%,30% { opacity:0; transform:translate(-50%,-50%) scale(.2); } 32% { opacity:.8; } 46%,100% { opacity:0; transform:translate(-50%,-50%) scale(2.8); } }
 [data-theme="StarSummon"] .focusLines {
-  position:absolute; left:var(--cx); top:var(--cy); width:1600px; height:1600px; border-radius:50%;
-  background:repeating-conic-gradient(var(--main) 0deg 1deg,transparent 1deg 12deg);
-  -webkit-mask-image:radial-gradient(circle,transparent 16%,#000 32%,transparent 68%);
+  position:absolute; left:var(--cx); top:var(--cy); width:2000px; height:2000px;
+  background:repeating-conic-gradient(transparent 0deg 2.4deg,var(--light) 2.4deg 2.9deg,transparent 2.9deg 8deg),repeating-conic-gradient(from 3deg,transparent 0deg 6deg,#140a3cb3 6deg 6.4deg,transparent 6.4deg 13deg);
+  -webkit-mask-image:radial-gradient(880px 490px,transparent 30%,#000 50%,#000 70%,transparent);
   animation:focusLines 7s both; animation-delay:var(--elapsed);
 }
+[data-theme="StarSummon"][data-orientation="portrait"] .focusLines { height:2400px; -webkit-mask-image:radial-gradient(500px 860px,transparent 30%,#000 50%,#000 70%,transparent); }
 [data-theme="StarSummon"] .Third .focusLines { display:none; }
-@keyframes focusLines { 0%,26% { opacity:0; transform:translate(-50%,-50%) scale(1.3); } 28% { opacity:.85; transform:translate(-50%,-50%) scale(.85); } 33%,100% { opacity:0; transform:translate(-50%,-50%) scale(1.1); } }
-[data-theme="StarSummon"] .drawing:not(.Third) .stage { animation:starShake 7s both; animation-delay:var(--elapsed); }
-@keyframes starShake { 0%,28%,34%,100% { transform:none; } 28.5%,30.5% { transform:translate(calc(-1 * var(--shake)),calc(var(--shake) * .5)); } 29.5%,31.5% { transform:translate(var(--shake),calc(var(--shake) * -.4)); } 32.5% { transform:translate(calc(var(--shake) * -.3),0); } }
-[data-theme="StarSummon"] .aura { position:absolute; left:var(--cx); top:var(--cy); width:1000px; height:1000px; color:var(--main); filter:drop-shadow(0 0 12px var(--main)); animation:aura 7s linear both; animation-delay:var(--elapsed); }
-[data-theme="StarSummon"][data-orientation="portrait"] .aura { width:820px; height:820px; }
-@keyframes aura { 0%,31% { opacity:0; transform:translate(-50%,-50%) scale(.6); } 37% { opacity:.65; transform:translate(-50%,-50%) rotate(15deg); } 100% { opacity:.5; transform:translate(-50%,-50%) rotate(110deg); } }
+@keyframes focusLines { 0%,27.4% { opacity:0; transform:translate(-50%,-50%) scale(1.2) rotate(0deg); } 27.7% { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(0deg); } 28.5% { transform:translate(-50%,-50%) scale(1.03) rotate(1.4deg); } 29.3% { transform:translate(-50%,-50%) scale(1) rotate(-1deg); } 30.1% { transform:translate(-50%,-50%) scale(1.03) rotate(1.8deg); } 30.9% { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(0deg); } 36.5%,100% { opacity:0; transform:translate(-50%,-50%) scale(.92) rotate(0deg); } }
+[data-theme="StarSummon"] .starRing { position:absolute; left:var(--cx); top:var(--cy); width:300px; height:300px; border-radius:50%; border:8px solid var(--light); box-shadow:0 0 30px var(--main),inset 0 0 30px var(--a); animation:starRing 7s both; animation-delay:var(--elapsed); }
+[data-theme="StarSummon"] .starRing.echo { border:3px solid #fff; box-shadow:0 0 18px var(--main); animation-name:starEcho; }
+@keyframes starRing { 0%,27.5% { opacity:0; transform:translate(-50%,-50%) scale(.3); } 27.9% { opacity:1; } 36.5%,100% { opacity:0; transform:translate(-50%,-50%) scale(3.2); } }
+@keyframes starEcho { 0%,28.9% { opacity:0; transform:translate(-50%,-50%) scale(.3); } 29.3% { opacity:.9; } 39.5%,100% { opacity:0; transform:translate(-50%,-50%) scale(3.2); } }
+[data-theme="StarSummon"] .aura { position:absolute; left:var(--cx); top:var(--cy); width:var(--halo); height:var(--halo); color:var(--light); filter:drop-shadow(0 0 12px var(--main)); animation:aura 7s both; animation-delay:var(--elapsed); }
+@keyframes aura { 0%,31.5% { opacity:0; transform:translate(-50%,-50%) scale(.5) rotate(0deg); } 35.5% { opacity:.95; transform:translate(-50%,-50%) scale(1.05) rotate(40deg); } 37.5% { transform:translate(-50%,-50%) scale(1) rotate(50deg); } 77.5% { opacity:.85; transform:translate(-50%,-50%) scale(1) rotate(160deg); } 100% { opacity:.85; transform:translate(-50%,-50%) scale(1) rotate(222deg); } }
+[data-theme="StarSummon"] .drawing.Grand .stage { animation:starShake 7s both; animation-delay:var(--elapsed); }
+[data-theme="StarSummon"] .drawing.Second .stage { animation:starShakeLight 7s both; animation-delay:var(--elapsed); }
+@keyframes starShake { 0%,27.6% { transform:none; } 28% { transform:translate(-16px,10px); } 28.5% { transform:translate(14px,-12px); } 29% { transform:translate(-10px,-6px); } 29.5% { transform:translate(8px,6px); } 30.1% { transform:translate(-4px,2px); } 30.7%,33.8% { transform:none; } 34.3% { transform:translate(0,9px); } 34.9%,100% { transform:none; } }
+@keyframes starShakeLight { 0%,27.6% { transform:none; } 28.1% { transform:translate(-7px,4px); } 28.7% { transform:translate(6px,-5px); } 29.3% { transform:translate(-3px,2px); } 29.9%,100% { transform:none; } }
 [data-theme="StarSummon"] .cardFace { overflow:hidden; }
-[data-theme="StarSummon"] .drawing .cardFace:after { content:''; position:absolute; inset:0; background:linear-gradient(115deg,transparent 30%,#ffffff85 50%,transparent 70%); animation:cardSheen 7s linear both; animation-delay:var(--elapsed); pointer-events:none; }
-@keyframes cardSheen { 0%,41%,59%,100% { opacity:0; transform:translateX(-110%); } 42%,67% { opacity:.8; transform:translateX(-110%); } 51%,76% { opacity:.8; transform:translateX(110%); } 52%,77% { opacity:0; transform:translateX(110%); } }
-[data-theme="StarSummon"] .meteor:after { width:250px; }
-[data-theme="StarSummon"][data-orientation="portrait"] .meteor:after { width:200px; transform:rotate(-71deg); }
-[data-theme="StarSummon"] .meteor { animation-name:meteorInside; animation-timing-function:linear; }
-@keyframes meteorInside { 0%,22% { opacity:0; transform:translate(var(--meteor-x),var(--meteor-y)); } 23.5% { opacity:1; } 28% { opacity:1; transform:none; } 28.5%,100% { opacity:0; transform:none; } }
-#scene[data-theme="StarSummon"] #shout { left:0; right:0; width:fit-content; max-width:810px; margin:0 auto; padding:10px 28px; border-radius:44px; background:#0e0c2ceb; color:#ffe7a8; }
-#scene[data-theme="StarSummon"][data-orientation="portrait"] #shout { left:54px; right:216px; }
-[data-theme="StarSummon"] #winnerTitle,[data-theme="StarSummon"] #pageNumber { padding:8px 28px; border-radius:32px; background:#0e0c2ceb; color:#ffe7a8; }
+[data-theme="StarSummon"] .drawing .cardFace:after { content:''; position:absolute; left:-60%; top:-20%; width:40%; height:140%; background:linear-gradient(90deg,transparent,#ffffff80,transparent); pointer-events:none; animation:cardSheen 7s both; animation-delay:var(--elapsed); }
+@keyframes cardSheen { 0%,44.5% { transform:translateX(0) skewX(-18deg); } 49.5% { transform:translateX(450%) skewX(-18deg); } 49.6%,63.5% { transform:translateX(0) skewX(-18deg); } 68.5%,100% { transform:translateX(450%) skewX(-18deg); } }
+[data-theme="StarSummon"] .flash { inset:auto; left:var(--cx); top:var(--cy); width:1800px; height:1000px; transform:translate(-50%,-50%); }
+[data-theme="StarSummon"][data-orientation="portrait"] .flash { width:1000px; height:1600px; }
+/* Gold text that had no plate gets the board's dark plate; the gradient stays clipped to the text. */
+#scene[data-theme="StarSummon"] #shout,[data-theme="StarSummon"] #winnerTitle {
+  background:linear-gradient(180deg,#fff,#fff1c2 40%,#ffd36b 70%,#e8a93a),rgba(14,12,44,.92); -webkit-background-clip:text,padding-box; background-clip:text,padding-box;
+  box-shadow:0 0 0 2px #ffd36bb3,0 0 30px #ffd36b73; filter:none;
+}
+#scene[data-theme="StarSummon"] #shout { left:0; right:0; width:fit-content; margin:0 auto; padding:4px 30px 4px 40px; border-radius:56px; }
+#scene[data-theme="StarSummon"][data-orientation="portrait"] #shout { left:54px; right:216px; padding:4px 26px 4px 34px; border-radius:48px; }
+[data-theme="StarSummon"] #winnerTitle { padding:4px 40px; border-radius:56px; }
+[data-theme="StarSummon"] #pageNumber { padding:8px 28px; border-radius:32px; background:rgba(14,12,44,.9); border:1px solid #c59bff99; }
 [data-theme="StarSummon"][data-orientation="portrait"] #winnerCards { display:flex; flex-wrap:wrap; justify-content:center; }
 [data-theme="StarSummon"][data-orientation="portrait"] .winnerCard { width:calc((100% - 36px) / 3); }
