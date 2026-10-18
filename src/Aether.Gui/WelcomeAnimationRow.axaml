@@ -15,11 +15,6 @@
     <Style Selector="Button#TestButton">
       <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
     </Style>
-    <Style Selector="Button#TestButton:disabled /template/ ContentPresenter">
-      <Setter Property="Background" Value="Transparent" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
-      <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
-    </Style>
     <Style Selector="Button#TestButton.playing /template/ ContentPresenter">
       <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
       <Setter Property="BorderBrush" Value="{DynamicResource Accent.Tint}" />

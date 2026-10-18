@@ -28,16 +28,12 @@ internal sealed partial class LotteryStore
         command.CommandText = "SELECT name, prize, capacity, grade FROM lottery_award WHERE lottery_id = $id ORDER BY position";
         var awards = ImmutableArray.CreateBuilder<LotteryAward>();
         using (var reader = command.ExecuteReader())
-            while (reader.Read()) awards.Add(new(reader.GetString(0), reader.GetString(1), reader.GetInt32(2), (PrizeGrade)reader.GetInt32(3)));
+            while (reader.Read()) awards.Add(new(reader.GetString(0), reader.GetString(1), reader.GetInt32(2), (Grade)reader.GetInt32(3)));
         command.CommandText = "SELECT uid, nickname, entered_at FROM lottery_entry WHERE lottery_id = $id ORDER BY rowid";
         var entries = ImmutableArray.CreateBuilder<LotteryEntry>();
         using (var reader = command.ExecuteReader())
             while (reader.Read()) entries.Add(new(reader.GetInt64(0), reader.GetString(1), DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture)));
-        command.CommandText = "SELECT result FROM lottery_draw WHERE lottery_id = $id ORDER BY rowid";
-        var draws = ImmutableArray.CreateBuilder<EntryDraw>();
-        using (var reader = command.ExecuteReader())
-            while (reader.Read()) draws.Add(JsonSerializer.Deserialize<EntryDraw>(reader.GetString(0))!);
-        return lottery with { Awards = awards.ToImmutable(), Entries = entries.ToImmutable(), Draws = draws.ToImmutable() };
+        return lottery with { Awards = awards.ToImmutable(), Entries = entries.ToImmutable(), Draws = ReadDraws<EntryDraw>(command, lottery.Id) };
     }
 
     public void Save(EntryLottery lottery, DateTimeOffset? endCurrentAt = null, EntryDraw? draw = null)
@@ -46,14 +42,7 @@ internal sealed partial class LotteryStore
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        if (endCurrentAt is { } ended)
-        {
-            command.CommandText = "UPDATE lottery SET ended_at = $ended WHERE room_id = $room AND ended_at IS NULL";
-            command.Parameters.AddWithValue("$ended", ended.ToString("O"));
-            command.Parameters.AddWithValue("$room", lottery.RoomId);
-            command.ExecuteNonQuery();
-            command.Parameters.Clear();
-        }
+        EndCurrent(command, lottery.RoomId, endCurrentAt);
         command.CommandText = """
             INSERT INTO lottery (id, room_id, mode, stop_word, keyword, started_at, ended_at, phase, draw_until, hidden)
             VALUES ($id, $room, 'entry', '', $keyword, $started, $ended, $phase, $until, $hidden)
@@ -82,15 +71,7 @@ internal sealed partial class LotteryStore
             command.Parameters.AddWithValue("$grade", (int)award.Grade);
             command.ExecuteNonQuery();
         }
-        if (draw is not null)
-        {
-            command.Parameters.Clear();
-            command.CommandText = "INSERT INTO lottery_draw (id, lottery_id, result) VALUES ($id, $lottery, $result)";
-            command.Parameters.AddWithValue("$id", draw.Id);
-            command.Parameters.AddWithValue("$lottery", lottery.Id);
-            command.Parameters.AddWithValue("$result", JsonSerializer.Serialize(draw));
-            command.ExecuteNonQuery();
-        }
+        if (draw is not null) AddDraw(command, lottery.Id, draw.Id, JsonSerializer.Serialize(draw));
         transaction.Commit();
     }
 

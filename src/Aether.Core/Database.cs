@@ -84,10 +84,6 @@ internal sealed class Database
                 id TEXT PRIMARY KEY, lottery_id TEXT NOT NULL REFERENCES lottery(id), result TEXT NOT NULL
             );
             CREATE INDEX IF NOT EXISTS lottery_draw_lottery ON lottery_draw(lottery_id);
-            CREATE TABLE IF NOT EXISTS lottery_viewer (
-                lottery_id TEXT NOT NULL REFERENCES lottery(id), uid INTEGER NOT NULL, nickname TEXT NOT NULL,
-                PRIMARY KEY(lottery_id, uid)
-            );
             CREATE TABLE IF NOT EXISTS lottery_award (
                 lottery_id TEXT NOT NULL REFERENCES lottery(id), position INTEGER NOT NULL,
                 name TEXT NOT NULL, prize TEXT NOT NULL, capacity INTEGER NOT NULL CHECK(capacity > 0), grade INTEGER NOT NULL,

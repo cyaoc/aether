@@ -2,6 +2,8 @@
 const byId = id => document.getElementById(id);
 const scene = byId('scene'), summon = byId('summon'), ring = byId('ring');
 const grades = { Grand:'大奖', Second:'二奖', Third:'三奖' };
+// How big each grade's effects get; star counts and particle amounts scale with it.
+const powers = { Grand:3, Second:2, Third:1 };
 // Each theme's wording, sizes as [landscape, portrait] and particles; the views below are shared.
 const themes = {
   StarSummon:{
@@ -119,7 +121,7 @@ function view(name) {
 }
 function show(state) {
   scene.dataset.theme = state.theme || 'StarSummon';
-  const entry = state.entryLottery, pool = state.lottery;
+  const entry = state.entryLottery, pool = state.poolLottery;
   const lottery = entry || pool;
   // Repeated state snapshots must not restart a draw, including on a room reconnect.
   const key = lottery ? [state.theme,lottery.id,lottery.phase,lottery.draws.length,lottery.draws.at(-1)?.id,
@@ -203,7 +205,7 @@ function drawResult(draw, entry) {
   const t = theme(), words = {entry, title:entry ? draw.award.name : grades[grade], prize:entry ? draw.award.prize : '',
     viewer:draw.nickname || (draw.uid ? `UID ${draw.uid}` : '')};
   byId('rank').replaceChildren(...t.rank(t.ranks[grade], words.title, entry));
-  byId('stars').innerHTML = starIcon.repeat(grade === 'Grand' ? 5 : grade === 'Second' ? 4 : 3);
+  byId('stars').innerHTML = starIcon.repeat(powers[grade] + 2);
   byId('prize').textContent = name;
   // The glitch copies of the name are drawn from this attribute.
   byId('prize').dataset.text = name;
@@ -307,7 +309,7 @@ function particles(start, grade) {
 }
 // Board W1's canvas on this page's timeline: spinning motes, or sky stars, meteor trail, the burst at the 28% hit and rising sparkles.
 function starSummon(start, grade) {
-  const power = grade === 'Grand' ? 3 : grade === 'Second' ? 2 : 1;
+  const power = powers[grade] ?? 1;
   const colors = start === null ? idleColors : burstColors[grade];
   const sky = start === null ? [] : Array.from({length:160},() => ({x:Math.random(),y:Math.random(),s:.6+Math.random()*1.8,p:Math.random()*6.28}));
   const pick = () => colors[Math.floor(Math.random()*colors.length)];
@@ -340,7 +342,7 @@ function starSummon(start, grade) {
 // Board W2's canvas, shifted from its 35% lock to this page's 28%: sparks and hex shards sized by grade just after the lock, then embers rising from the bottom edge for the two higher grades.
 function mechaLock(start, grade) {
   if (start === null) return () => {};
-  const power = grade === 'Grand' ? 3 : grade === 'Second' ? 2 : 1;
+  const power = powers[grade];
   const colors = grade === 'Grand' ? ['#ff3d3d','#ff7a1a','#ffb067','#fff'] : grade === 'Second' ? ['#ff7a1a','#ffb067','#fff'] : ['#8fd3ff','#fff'];
   let fired = Date.now() - start >= 2800;
   return (now, dt, add) => {
@@ -390,7 +392,7 @@ function sticker(p) {
 // Board W3's canvas, shifted from its 36.7% opening to this page's 28%: hearts, stars and dots sized by grade, hearts floating up for the two higher grades and confetti rain for the top one.
 function capsuleGacha(start, grade) {
   if (start === null) return () => {};
-  const power = grade === 'Grand' ? 3 : grade === 'Second' ? 2 : 1;
+  const power = powers[grade];
   const colors = power === 3 ? ['#ff7aae','#ffd45e','#5fd3b0','#a991ff','#7ccbff','#fff']
     : power === 2 ? ['#ff7aae','#ffb3cf','#fff','#ffd45e'] : ['#5fd3b0','#bff0df','#fff'];
   let fired = Date.now() - start >= 2800;

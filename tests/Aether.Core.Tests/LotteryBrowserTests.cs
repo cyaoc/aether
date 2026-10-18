@@ -45,7 +45,7 @@ public sealed class LotteryBrowserTests
         var gacha = theme == LotteryTheme.CapsuleGacha;
         Assert.True((await browser.EvaluateAsync("document.getElementById('scene').hidden")).GetBoolean());
         lottery.New(LotteryMode.Entry);
-        LotteryAward[] awards = [new("一等奖", "机械键盘", 1, PrizeGrade.Grand), new("二等奖", "周边抱枕", 1, PrizeGrade.Second), new("三等奖", "签名照", 1, PrizeGrade.Third)];
+        LotteryAward[] awards = [new("一等奖", "机械键盘", 1, Grade.Grand), new("二等奖", "周边抱枕", 1, Grade.Second), new("三等奖", "签名照", 1, Grade.Third)];
         lottery.StartEntry(awards, "抽奖");
         await h.PushAndCollectAsync(watch, Message(1, "柚子不酸"), Message(2, "星河入梦"), Message(3, "一只小鹿"));
         await browser.WaitAsync("document.getElementById('entryCount').textContent === '3'");
@@ -117,11 +117,11 @@ public sealed class LotteryBrowserTests
     }
 
     [Theory]
-    [InlineData(LotteryTheme.MechaLock, PrizeGrade.Grand)]
-    [InlineData(LotteryTheme.CapsuleGacha, PrizeGrade.Grand)]
-    [InlineData(LotteryTheme.CapsuleGacha, PrizeGrade.Second)]
-    [InlineData(LotteryTheme.CapsuleGacha, PrizeGrade.Third)]
-    public async Task Portrait_transition_frames_keep_text_inside_the_safe_area(LotteryTheme theme, PrizeGrade grade)
+    [InlineData(LotteryTheme.MechaLock, Grade.Grand)]
+    [InlineData(LotteryTheme.CapsuleGacha, Grade.Grand)]
+    [InlineData(LotteryTheme.CapsuleGacha, Grade.Second)]
+    [InlineData(LotteryTheme.CapsuleGacha, Grade.Third)]
+    public async Task Portrait_transition_frames_keep_text_inside_the_safe_area(LotteryTheme theme, Grade grade)
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
             Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
@@ -166,7 +166,7 @@ public sealed class LotteryBrowserTests
         lottery.SelectTheme(theme);
         lottery.New(LotteryMode.Entry);
         const string keyword = "欢迎参加星辰召唤特别纪念限定抽奖活动";
-        lottery.StartEntry(Enumerable.Range(1, 5).Select(i => new LotteryAward($"第{i}个特别纪念奖项", "星辰召唤限量纪念版机械键盘", 10, PrizeGrade.Grand)).ToArray(), keyword);
+        lottery.StartEntry(Enumerable.Range(1, 5).Select(i => new LotteryAward($"第{i}个特别纪念奖项", "星辰召唤限量纪念版机械键盘", 10, Grade.Grand)).ToArray(), keyword);
         var messages = Enumerable.Range(1, 7).Select(i => Message(i, $"观众{i}的超长中文昵称星河入梦", keyword)).ToArray();
         await h.PushAndCollectAsync(watch, messages);
         await browser.WaitAsync("document.getElementById('entryCount').textContent === '7'");
@@ -218,7 +218,7 @@ public sealed class LotteryBrowserTests
         var lottery = h.Client.Lottery;
         lottery.SelectTheme(LotteryTheme.CapsuleGacha);
         lottery.New(LotteryMode.Entry);
-        lottery.StartEntry(Enumerable.Range(1, 3).Select(i => new LotteryAward($"第{i}个特别纪念奖项", "限量纪念版机械键盘", 3, PrizeGrade.Grand)).ToArray(), "抽奖");
+        lottery.StartEntry(Enumerable.Range(1, 3).Select(i => new LotteryAward($"第{i}个特别纪念奖项", "限量纪念版机械键盘", 3, Grade.Grand)).ToArray(), "抽奖");
         await h.PushAndCollectAsync(watch, Enumerable.Range(1, 7).Select(i => Message(i, $"观众{i}的超长中文昵称星河入梦")).ToArray());
         lottery.CloseEntries();
         for (var i = 0; i < 6; i++) { lottery.DrawEntry(i / 2); h.Time.Advance(LotteryController.DrawDuration); }
@@ -260,9 +260,9 @@ public sealed class LotteryBrowserTests
         if (entry)
         {
             lottery.New(LotteryMode.Entry);
-            lottery.StartEntry([new("一等奖", prize, 1, PrizeGrade.Grand)], "抽奖");
+            lottery.StartEntry([new("一等奖", prize, 1, Grade.Grand)], "抽奖");
         }
-        else lottery.Start([new(prize, 1, PrizeGrade.Grand)], "停", 42);
+        else lottery.Start([new(prize, 1, Grade.Grand)], "停", 42);
         await h.PushAndCollectAsync(watch, Message(42, name, entry ? "抽奖" : "停"));
         if (entry) { lottery.CloseEntries(); lottery.DrawEntry(0); }
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing' && document.fonts.status === 'loaded'");
@@ -280,7 +280,7 @@ public sealed class LotteryBrowserTests
         Assert.Empty(browser.Errors);
     }
 
-    private static async Task AssertDrawAsync(LotteryBrowser browser, PrizeGrade grade, string mode, LotteryTheme theme)
+    private static async Task AssertDrawAsync(LotteryBrowser browser, Grade grade, string mode, LotteryTheme theme)
     {
         var mecha = theme == LotteryTheme.MechaLock;
         var gacha = theme == LotteryTheme.CapsuleGacha;
@@ -297,21 +297,21 @@ public sealed class LotteryBrowserTests
                 (await browser.EvaluateAsync("document.querySelector('[data-lock=\"LOCK ON\"] .candidateName').textContent")).GetString());
             await browser.ScreenshotAsync($"{width}-{mode}-{grade}-locked");
             await browser.WaitAsync("document.getElementById('result').getAnimations()[0].effect.getComputedTiming().progress >= .4");
-            Assert.Contains(grade == PrizeGrade.Grand ? "S 级" : grade == PrizeGrade.Second ? "A 级" : "B 级",
+            Assert.Contains(grade == Grade.Grand ? "S 级" : grade == Grade.Second ? "A 级" : "B 级",
                 (await browser.EvaluateAsync("document.getElementById('rank').textContent")).GetString());
-            Assert.Equal(grade != PrizeGrade.Third, (await browser.EvaluateAsync("getComputedStyle(document.querySelector('.hazard')).display !== 'none'")).GetBoolean());
+            Assert.Equal(grade != Grade.Third, (await browser.EvaluateAsync("getComputedStyle(document.querySelector('.hazard')).display !== 'none'")).GetBoolean());
         }
         else if (gacha)
         {
             await browser.WaitAsync("document.getElementById('result').getAnimations()[0].effect.getComputedTiming().progress >= .4");
-            Assert.Equal(grade == PrizeGrade.Grand ? "大奖!!" : grade == PrizeGrade.Second ? "POP!" : "pop",
+            Assert.Equal(grade == Grade.Grand ? "大奖!!" : grade == Grade.Second ? "POP!" : "pop",
                 (await browser.EvaluateAsync("document.getElementById('shout').textContent")).GetString());
-            Assert.Equal(grade == PrizeGrade.Grand, (await browser.EvaluateAsync("getComputedStyle(document.querySelector('.gachaRainbow')).display !== 'none'")).GetBoolean());
+            Assert.Equal(grade == Grade.Grand, (await browser.EvaluateAsync("getComputedStyle(document.querySelector('.gachaRainbow')).display !== 'none'")).GetBoolean());
         }
         else await browser.WaitAsync("getComputedStyle(document.querySelector('.flip')).transform === 'matrix(1, 0, 0, 1, 0, 0)'");
         var revealedAt = DateTimeOffset.UtcNow;
         Assert.Equal(gacha ? width == 1080 ? "100px" : "120px" : mecha ? width == 1080 ? "116px" : "150px" : width == 1080 ? "96px" : "112px", (await browser.EvaluateAsync("getComputedStyle(document.getElementById('prize')).fontSize")).GetString());
-        if (width == 1080 && grade == PrizeGrade.Grand)
+        if (width == 1080 && grade == Grade.Grand)
         {
             var animationTimes = mecha || gacha ? "['#banner','#result'].map(s => document.querySelector(s).getAnimations()[0].currentTime)" : "['#banner','.meteor'].map(s => document.querySelector(s).getAnimations()[0].currentTime)";
             var before = await browser.EvaluateAsync(animationTimes);
@@ -323,7 +323,7 @@ public sealed class LotteryBrowserTests
                 for (var i = 0; i < 2; i++) Assert.True(after[i].GetDouble() >= before[i].GetDouble(), "Resizing restarted the draw animation.");
             }
         }
-        if (!mecha && !gacha && grade == PrizeGrade.Grand)
+        if (!mecha && !gacha && grade == Grade.Grand)
             await browser.WaitAsync("getComputedStyle(document.getElementById('shout')).opacity === '1'");
         await AssertLayoutAsync(browser);
         await browser.ScreenshotAsync($"{width}-{mode}-{grade}");

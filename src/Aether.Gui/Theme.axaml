@@ -214,6 +214,12 @@
     <Setter Property="BorderBrush" Value="{DynamicResource Border.Control}" />
     <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
   </Style>
+  <!-- An outline button that cannot act keeps a quiet outline, without Fluent's grey plate; accent and ghost override it below. -->
+  <Style Selector="Button:disabled /template/ ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
+  </Style>
   <Style Selector="Button.accent">
     <Setter Property="Background" Value="{DynamicResource Accent}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />

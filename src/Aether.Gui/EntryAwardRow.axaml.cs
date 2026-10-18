@@ -13,9 +13,9 @@ public partial class EntryAwardRow : UserControl
     public event Action? RemoveRequested;
     public event Action? DrawRequested;
     public LotteryAward Value => new(NameInput.Text ?? "", PrizeInput.Text ?? "", int.TryParse(CapacityInput.Text,
-        NumberStyles.None, CultureInfo.InvariantCulture, out var capacity) ? capacity : 0, (PrizeGrade)GradeInput.SelectedIndex);
+        NumberStyles.None, CultureInfo.InvariantCulture, out var capacity) ? capacity : 0, (Grade)GradeInput.SelectedIndex);
 
-    public EntryAwardRow() : this(new("", "", 1, PrizeGrade.Grand), true) { }
+    public EntryAwardRow() : this(new("", "", 1, Grade.Grand), true) { }
     public EntryAwardRow(LotteryAward award, bool isNew = false)
     {
         InitializeComponent();

@@ -17,7 +17,7 @@ public partial class LotteryPanel : UserControl
     private long? loadedRoom;
     private bool loading;
     private bool busy;
-    private Lottery? displayedHistory;
+    private PoolLottery? displayedHistory;
 
     public LotteryPanel()
     {
@@ -29,11 +29,11 @@ public partial class LotteryPanel : UserControl
         };
         HistoryContent.ReturnRequested += () => ViewTabs.SelectedIndex = 0;
         StopWordInput.Text = DefaultStopWord;
-        AddPrize(new("", 1, PrizeGrade.Grand), isNew: true);
+        AddPrize(new("", 1, Grade.Grand), isNew: true);
         AddButton.Click += (_, _) =>
         {
             if (!AddButton.IsEnabled) return;
-            var row = AddPrize(new("", 1, PrizeGrade.Third), isNew: true);
+            var row = AddPrize(new("", 1, Grade.Third), isNew: true);
             Refresh();
             Dispatcher.UIThread.Post(() =>
             {
@@ -115,7 +115,7 @@ public partial class LotteryPanel : UserControl
             NewButton.IsEnabled = !busy && state!.Connected && entry.Phase is EntryLotteryPhase.Preparing or EntryLotteryPhase.Ended;
             return;
         }
-        var lottery = state?.Lottery;
+        var lottery = state?.PoolLottery;
         if (loadedId != lottery?.Id || loadedRoom is not null && loadedRoom != state?.RoomId)
         {
             loading = true;
@@ -124,7 +124,7 @@ public partial class LotteryPanel : UserControl
             PrizeRows.Children.Clear();
             if (lottery is not null)
                 foreach (var prize in lottery.Prizes) AddPrize(prize);
-            else AddPrize(new("", 1, PrizeGrade.Grand), isNew: true);
+            else AddPrize(new("", 1, Grade.Grand), isNew: true);
             UidInput.Text = lottery?.Uid?.ToString(CultureInfo.InvariantCulture) ?? "";
             StopWordInput.Text = lottery?.StopWord ?? DefaultStopWord;
             loading = false;
@@ -200,7 +200,7 @@ public partial class LotteryPanel : UserControl
 
     private static string? Viewer(PoolDraw draw) => draw.Uid is { } uid ? draw.Nickname ?? $"UID {uid}" : null;
 
-    internal static void SetGrade(Border badge, TextBlock text, PrizeGrade grade)
+    internal static void SetGrade(Border badge, TextBlock text, Grade grade)
     {
         text.Text = GradeNames[(int)grade];
         for (var index = 0; index < GradeClasses.Length; index++) badge.Classes.Set(GradeClasses[index], index == (int)grade);
