@@ -22,6 +22,7 @@ internal static class InteractWordV2
                 case 2: entry = entry with { Nickname = reader.Text(type) }; break;
                 case 5: entry = entry with { MessageType = reader.Int64(type) }; break;
                 case 9: (fanClubLevel, fanClubRoom) = ReadFanClub(reader.Bytes(type), fanClubLevel, fanClubRoom); break;
+                case 15: entry = entry with { TriggerTime = reader.Int64(type) }; break;
                 case 16: entry = entry with { PrivilegeType = reader.Int64(type) }; break;
                 case 22: (wealthLevel, nestedGuard) = ReadUser(reader.Bytes(type), wealthLevel, nestedGuard); break;
                 default: reader.Skip(field, type); break;

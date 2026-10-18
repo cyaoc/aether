@@ -25,7 +25,7 @@ internal static class DanmakuProtocol
     internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
     internal sealed record DanmakuReceived(Danmaku Danmaku) : DecodedEvent;
     internal sealed record BlindBoxesReceived(BlindBox[] BlindBoxes) : DecodedEvent;
-    internal sealed record EntryReceived(Entry Entry) : DecodedEvent;
+    internal sealed record EntryReceived(Entry Entry, string Command) : DecodedEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
     internal sealed class FormatNotices
@@ -153,7 +153,7 @@ internal static class DanmakuProtocol
             else if (GiftMessages.Decode(command, root, body, logger) is { Length: > 0 } boxes)
                 decoded = [new BlindBoxesReceived(boxes)];
             else if (welcomeEnabled && EntryMessages.Decode(command, root, roomId) is { } entry)
-                decoded = [new EntryReceived(entry)];
+                decoded = [new EntryReceived(entry, command)];
         }
         // Only message decoding is inside this boundary; frame errors still end the stream.
         catch (Exception error) when (error is JsonException or KeyNotFoundException

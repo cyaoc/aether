@@ -9,6 +9,37 @@ namespace Aether.Core.Tests;
 public sealed class WelcomeAnimationTests
 {
     [Fact]
+    public async Task Stopping_a_test_play_clears_every_video_page_advances_the_playback_queue_and_cannot_stop_real_entries()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await Start(h, 10001, 20002);
+        await using var observed = new Observations(h);
+        using var page = await Page.ConnectAsync(h);
+        using var otherPage = await Page.ConnectAsync(h);
+        await using var updates = await h.WatchConnectedAsync();
+        h.Client.WelcomeAnimation.TestPlay(10001);
+        var trial = await page.NextAsync();
+        Assert.Equal(trial, await otherPage.NextAsync());
+        await observed.WaitAsync(u => u is WelcomeAnimationPlayback { IsTest: true, State: PlaybackState.Playing });
+        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(uid: 20002));
+        h.Client.WelcomeAnimation.StopTestPlay(trial.Id);
+        Assert.Equal(trial.Id, await page.NextStopAsync());
+        Assert.Equal(trial.Id, await otherPage.NextStopAsync());
+        await observed.WaitAsync(u => u is WelcomeAnimationPlayback { IsTest: true, State: PlaybackState.Stopped });
+        var real = await page.NextAsync();
+        Assert.Equal(real, await otherPage.NextAsync());
+        Assert.Equal("20002", real.Content);
+        h.Client.WelcomeAnimation.StopTestPlay(trial.Id); // A late click must not stop the next item.
+        h.Client.WelcomeAnimation.StopTestPlay(real.Id);
+        await page.ReportAsync(trial); // Neither may a late report from the stopped test finish it.
+        await page.ReportAsync(real);
+        await observed.WaitAsync(u => u is WelcomeAnimationPlayback p && p.Id == real.Id && p.State == PlaybackState.Completed);
+        Assert.Single(observed.Items.OfType<WelcomeAnimationPlayback>(), p => p.State == PlaybackState.Stopped);
+        Assert.DoesNotContain(observed.Items, u => u is WelcomeAnimationPlayback p && p.Id == trial.Id && p.State == PlaybackState.Completed);
+    }
+
+    [Fact]
     public async Task Web_service_runs_with_welcome_animation_off_and_root_is_not_a_page()
     {
         await using var h = new WatchHarness();
@@ -170,31 +201,31 @@ public sealed class WelcomeAnimationTests
         Assert.DoesNotContain(h.Logger.Entries, entry => entry.Message.Contains("[欢迎动画"));
     }
 
-    [Theory]
-    [InlineData(599999, false)]
-    [InlineData(600000, true)]
-    public async Task Ten_minute_interval_starts_only_after_delivery(int elapsedMilliseconds, bool plays)
+    [Fact]
+    public async Task Reentry_while_queued_or_playing_is_skipped_but_can_play_immediately_after_completion()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        await Start(h, 10001);
+        await Start(h, 10001, 20002);
         using var page = await Page.ConnectAsync(h);
+        await using var observed = new Observations(h);
         await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(), EntryV2Fixture.Message(uid: 20002));
+        var first = await page.NextAsync();
+        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(), EntryV2Fixture.Message(uid: 20002));
+        await Eventually.TrueAsync(() => observed.Items.OfType<WelcomeAnimationPlayback>()
+            .Count(item => item.State == PlaybackState.Skipped && item.Reason == "上一个还没播完") == 2);
+        Assert.Equal(2, observed.Items.OfType<WelcomeAnimationPlayback>().Count(item => item.State == PlaybackState.Queued));
+        await page.ReportAsync(first);
+        var second = await page.NextAsync();
+        Assert.Equal("20002", second.Content);
         await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
-        await page.ReportAsync(await page.NextAsync());
-        await h.WaitForLogAsync("已播放");
-        await AdvanceAsync(h, updates, TimeSpan.FromMilliseconds(elapsedMilliseconds));
-        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
-        if (plays) Assert.Equal("10001", (await page.NextAsync()).Content);
-        else
-        {
-            await h.WaitForLogAsync("10 分钟内播过");
-            await page.AssertNoPlayAsync();
-        }
+        await page.ReportAsync(second);
+        Assert.Equal("10001", (await page.NextAsync()).Content);
     }
 
     [Fact]
-    public async Task No_page_does_not_count_and_test_plays_neither_check_nor_update_the_interval()
+    public async Task No_page_does_not_block_later_entries_or_test_plays()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -211,11 +242,58 @@ public sealed class WelcomeAnimationTests
         await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
         await page.ReportAsync(await page.NextAsync());
         await observed.WaitAsync(u => u is WelcomeAnimationPlayback { IsTest: false, State: PlaybackState.Completed });
-        await AdvanceAsync(h, updates, TimeSpan.FromMinutes(5));
         h.Client.WelcomeAnimation.TestPlay(10001);
         await page.ReportAsync(await page.NextAsync());
         await Eventually.TrueAsync(() => observed.Items.OfType<WelcomeAnimationPlayback>().Count(u => u.IsTest && u.State == PlaybackState.Completed) == 2);
-        await AdvanceAsync(h, updates, TimeSpan.FromMinutes(5));
+        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
+        Assert.Equal("10001", (await page.NextAsync()).Content);
+    }
+
+    [Fact]
+    public async Task Test_plays_neither_check_nor_hold_the_viewers_pending_entry()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await Start(h, 10001);
+        using var page = await Page.ConnectAsync(h);
+        await using var observed = new Observations(h);
+        await using var updates = await h.WatchConnectedAsync();
+        h.Client.WelcomeAnimation.TestPlay(10001);
+        var trial = await page.NextAsync();
+        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
+        h.Client.WelcomeAnimation.TestPlay(10001);
+        await page.ReportAsync(trial);
+        var real = await page.NextAsync();
+        await observed.WaitAsync(u => u is WelcomeAnimationPlayback p && p.Id == real.Id && !p.IsTest && p.State == PlaybackState.Playing);
+        h.Client.WelcomeAnimation.TestPlay(10001);
+        await page.ReportAsync(real);
+        await page.ReportAsync(await page.NextAsync());
+        await page.ReportAsync(await page.NextAsync());
+        await Eventually.TrueAsync(() => observed.Items.OfType<WelcomeAnimationPlayback>().Count(p => p.State == PlaybackState.Completed) == 4);
+        Assert.DoesNotContain(observed.Items, u => u is WelcomeAnimationPlayback { State: PlaybackState.Skipped });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Failed_or_unreported_entry_releases_the_viewer_immediately(bool timeout)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await Start(h, 10001);
+        using var page = await Page.ConnectAsync(h);
+        await using var observed = new Observations(h);
+        await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
+        var first = await page.NextAsync();
+        if (timeout)
+        {
+            await h.Time.WaitForTimerAsync(TimeSpan.FromMinutes(2));
+            await AdvanceAsync(h, updates, TimeSpan.FromMinutes(2));
+        }
+        else await page.ReportAsync(first, false, "格式不支持");
+        await observed.WaitAsync(u => u is WelcomeAnimationPlayback p && p.Id == first.Id
+            && p.State == (timeout ? PlaybackState.NoReport : PlaybackState.Failed));
         await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
         Assert.Equal("10001", (await page.NextAsync()).Content);
     }
@@ -240,6 +318,8 @@ public sealed class WelcomeAnimationTests
         {
             await h.WaitForLogAsync("排队超过 30 秒");
             await page.AssertNoPlayAsync();
+            await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(uid: 20002));
+            Assert.Equal("20002", (await page.NextAsync()).Content);
         }
     }
 
@@ -287,7 +367,7 @@ public sealed class WelcomeAnimationTests
             h.Time.Advance(TimeSpan.FromSeconds(15));
             await Task.Delay(200, h.Stop.Token);
         }
-        // Already pushed and counted in the interval, so it reads as unreported, not as a skip.
+        // Already pushed, so it reads as unreported, not as a skip.
         await observed.WaitAsync(u => u is WelcomeAnimationPlayback { State: PlaybackState.NoReport, Reason: "推流软件已全部断开" });
         await observed.WaitAsync(u => u is WebServiceStatus { Running: true, VideoConnections: 0 });
         using var replacement = await Page.ConnectAsync(h);
@@ -313,7 +393,7 @@ public sealed class WelcomeAnimationTests
     }
 
     [Fact]
-    public async Task A_new_room_connection_gets_its_own_interval_and_discards_old_pending_entries()
+    public async Task A_new_room_connection_discards_old_pending_entries()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -512,6 +592,7 @@ public sealed class WelcomeAnimationTests
     private sealed class Page(HttpClient http, HttpResponseMessage response, StreamReader reader) : IDisposable
     {
         private readonly System.Threading.Channels.Channel<Play> received = System.Threading.Channels.Channel.CreateUnbounded<Play>();
+        private readonly System.Threading.Channels.Channel<string> stopped = System.Threading.Channels.Channel.CreateUnbounded<string>();
         private readonly CancellationTokenSource stop = new();
         private Task reading = Task.CompletedTask;
 
@@ -531,13 +612,17 @@ public sealed class WelcomeAnimationTests
         {
             try
             {
+                var stopEvent = false;
                 while (await reader.ReadLineAsync(stop.Token) is { } line)
-                    if (line.StartsWith("data: "))
+                    if (line == "event: stop") stopEvent = true;
+                    else if (line.StartsWith("data: "))
                     {
                         using var payload = JsonDocument.Parse(line[6..]);
                         Assert.False(payload.RootElement.TryGetProperty("uid", out _));
                         var id = payload.RootElement.GetProperty("id").GetString()!;
-                        received.Writer.TryWrite(new(id, await http.GetStringAsync("/video/files/" + id, stop.Token)));
+                        if (stopEvent) stopped.Writer.TryWrite(id);
+                        else received.Writer.TryWrite(new(id, await http.GetStringAsync("/video/files/" + id, stop.Token)));
+                        stopEvent = false;
                     }
             }
             catch (Exception error) when (error is OperationCanceledException or IOException or ObjectDisposedException) { }
@@ -545,6 +630,7 @@ public sealed class WelcomeAnimationTests
         }
 
         public Task<Play> NextAsync() => received.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        public Task<string> NextStopAsync() => stopped.Reader.ReadAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(5));
 
         public async Task AssertNoPlayAsync()
         {

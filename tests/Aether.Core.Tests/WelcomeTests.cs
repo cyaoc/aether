@@ -327,7 +327,12 @@ public sealed class WelcomeTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         Enable(h);
-        var messages = new[] { EntryV2Fixture.Message(guard: 0), "{\"cmd\":\"INTERACT_WORD\"}", "{\"cmd\":\"INTERACT_WORD_V3\"}" };
+        // An entry effect usually arrives first; it must not stand in for the room's INTERACT_WORD format (#154).
+        var messages = new[]
+        {
+            EntryEffectFixture.Message("ENTRY_EFFECT_MUST_RECEIVE", guard: 0, wealthLevel: 0, fanClubLevel: 0),
+            EntryV2Fixture.Message(guard: 0), "{\"cmd\":\"INTERACT_WORD\"}", "{\"cmd\":\"INTERACT_WORD_V3\"}"
+        };
         await using (var updates = await h.WatchConnectedAsync())
         {
             await h.PushAndSyncAsync(updates, messages);

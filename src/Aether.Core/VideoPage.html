@@ -37,6 +37,9 @@ video.addEventListener('error', () => {
 });
 const events = new EventSource('/video/events');
 events.onerror = clear;
+events.addEventListener('stop', event => {
+  if (active?.id === JSON.parse(event.data).id) clear();
+});
 events.onmessage = async event => {
   clear();
   const item = { ...JSON.parse(event.data), abort: new AbortController() };

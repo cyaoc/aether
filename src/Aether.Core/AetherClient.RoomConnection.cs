@@ -34,7 +34,8 @@ public sealed partial class AetherClient
         private readonly SendQueue sendQueue =
             new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value), output);
         private readonly Welcome welcome = new(settings);
-        private readonly Dictionary<long, long> animationLastPlayed = [];
+        // shortcut: keeps every viewer seen this room connection; prune it if a huge room's connection grows too large.
+        private readonly Dictionary<long, long> lastEntryTriggers = [];
         private CancellationToken roomStopped;
 
         // Why the current attempt was stopped, where its exception would only say it was canceled; cleared before each attempt.
@@ -233,10 +234,17 @@ public sealed partial class AetherClient
                         else if (decoded is DanmakuProtocol.BlindBoxesReceived received && Settings.BlindBoxEnabled.Value)
                             sendQueue.Record(received.BlindBoxes, receivedTimestamp,
                                 box => client.stores.Value.BlindBoxes.Save(realRoomId, box) && Settings.BlindBoxAnnounce.Value);
-                        else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry })
+                        else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry, Command: var command })
                         {
+                            if (entry.TriggerTime != 0 && lastEntryTriggers.TryGetValue(entry.Uid, out var lastTrigger)
+                                && lastTrigger == entry.TriggerTime)
+                            {
+                                client.logger.LogDebug("忽略同一次进场的重复通知 {Command}，观众 {Uid}", command, entry.Uid);
+                                continue;
+                            }
+                            lastEntryTriggers[entry.Uid] = entry.TriggerTime;
                             if (Settings.WelcomeAnimationEnabled.Value)
-                                client.WelcomeAnimation.Enqueue(entry.Uid, entry.Nickname, receivedTimestamp, animationLastPlayed, roomStopped);
+                                client.WelcomeAnimation.Enqueue(entry.Uid, entry.Nickname, receivedTimestamp, roomStopped);
                             if (!Settings.WelcomeEnabled.Value || welcome.Evaluate(entry, danmakuLengthLimit) is not { } result) continue;
                             sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, receivedTimestamp, result);
                         }

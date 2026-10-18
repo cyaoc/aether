@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace Aether.Core.Tests.Support;
 
 /// <summary>Optional real-browser acceptance, using Chrome's bundled DevTools protocol without a test dependency.</summary>
-internal sealed class LotteryBrowser : IAsyncDisposable
+internal sealed class ChromeBrowser : IAsyncDisposable
 {
     private readonly ClientWebSocket socket = new();
     private Process? process;
@@ -17,7 +17,7 @@ internal sealed class LotteryBrowser : IAsyncDisposable
     public async Task OpenAsync(string directory, string url, int width = 1920, int height = 1080)
     {
         var executable = Environment.GetEnvironmentVariable("AETHER_TEST_CHROME");
-        if (string.IsNullOrEmpty(executable)) Assert.Skip("Set AETHER_TEST_CHROME for real lottery browser acceptance.");
+        if (string.IsNullOrEmpty(executable)) Assert.Skip("Set AETHER_TEST_CHROME for real browser acceptance.");
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true };
         foreach (var arg in new[] { "--headless", "--no-first-run", "--no-default-browser-check", "--remote-debugging-port=0",
             "--user-data-dir=" + Path.Combine(directory, "chrome"), "about:blank" }) start.ArgumentList.Add(arg);
@@ -39,7 +39,7 @@ internal sealed class LotteryBrowser : IAsyncDisposable
         await CommandAsync("Emulation.setDeviceMetricsOverride", new { width, height, deviceScaleFactor = 1, mobile = false });
         await CommandAsync("Emulation.setDefaultBackgroundColorOverride", new { color = new { r = 0, g = 0, b = 0, a = 0 } });
         await CommandAsync("Page.navigate", new { url });
-        await WaitAsync("document.readyState === 'complete' && document.getElementById('scene') && document.fonts.status === 'loaded'");
+        await WaitAsync("document.readyState === 'complete' && document.fonts.status === 'loaded'");
     }
 
     public async Task<JsonElement> CommandAsync(string method, object? parameters = null)

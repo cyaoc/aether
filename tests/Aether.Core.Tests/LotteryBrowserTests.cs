@@ -36,7 +36,7 @@ public sealed class LotteryBrowserTests
         SyncClock();
         await using var watch = await h.WatchConnectedAsync();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new LotteryBrowser();
+        await using var browser = new ChromeBrowser();
         await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, width, height);
         var portrait = width < height;
         Assert.Equal(portrait ? "portrait" : "landscape", (await browser.EvaluateAsync("document.getElementById('scene').dataset.orientation")).GetString());
@@ -130,7 +130,7 @@ public sealed class LotteryBrowserTests
         h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
         await using var watch = await h.WatchConnectedAsync();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new LotteryBrowser();
+        await using var browser = new ChromeBrowser();
         await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, 1080, 1920);
         h.Client.Lottery.SelectTheme(theme);
         h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
@@ -160,7 +160,7 @@ public sealed class LotteryBrowserTests
         h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
         await using var watch = await h.WatchConnectedAsync();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new LotteryBrowser();
+        await using var browser = new ChromeBrowser();
         await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, 1080, 1920);
         var lottery = h.Client.Lottery;
         lottery.SelectTheme(theme);
@@ -213,7 +213,7 @@ public sealed class LotteryBrowserTests
         h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
         await using var watch = await h.WatchConnectedAsync();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new LotteryBrowser();
+        await using var browser = new ChromeBrowser();
         await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, 1920, 1080);
         var lottery = h.Client.Lottery;
         lottery.SelectTheme(LotteryTheme.CapsuleGacha);
@@ -252,7 +252,7 @@ public sealed class LotteryBrowserTests
         h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
         await using var watch = await h.WatchConnectedAsync();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        await using var browser = new LotteryBrowser();
+        await using var browser = new ChromeBrowser();
         await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.LotteryAddress, width, height);
         var lottery = h.Client.Lottery;
         const string name = "观众的超长中文昵称星河入梦与漫天星光", prize = "星辰召唤特别纪念限量联名豪华版无线机械键盘和配套主题礼盒";
@@ -280,7 +280,7 @@ public sealed class LotteryBrowserTests
         Assert.Empty(browser.Errors);
     }
 
-    private static async Task AssertDrawAsync(LotteryBrowser browser, Grade grade, string mode, LotteryTheme theme)
+    private static async Task AssertDrawAsync(ChromeBrowser browser, Grade grade, string mode, LotteryTheme theme)
     {
         var mecha = theme == LotteryTheme.MechaLock;
         var gacha = theme == LotteryTheme.CapsuleGacha;
@@ -341,7 +341,7 @@ public sealed class LotteryBrowserTests
         }
     }
 
-    private static async Task AssertLayoutAsync(LotteryBrowser browser)
+    private static async Task AssertLayoutAsync(ChromeBrowser browser)
     {
         // Measure rendered text, including the 3D ring, against SA1 in design coordinates; the board's labels stay at 28–38px.
         var violations = await browser.EvaluateAsync("""

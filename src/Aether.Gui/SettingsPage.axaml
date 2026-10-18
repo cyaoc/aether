@@ -11,7 +11,7 @@
           </local:ActivityHeader>
           <TextBlock Classes="label singleLine" Text="{Binding Playback.FileName}" />
           <Grid Classes="playbackStatus" Classes.playing="{Binding Playing}" Classes.completed="{Binding Completed}" Classes.failed="{Binding Failed}"
-            Classes.unplayed="{Binding Unplayed}" Classes.skipped="{Binding RecentlyPlayed}" ColumnDefinitions="Auto,*" ColumnSpacing="5">
+            Classes.unplayed="{Binding Unplayed}" Classes.skipped="{Binding PreviousPending}" Classes.stopped="{Binding Stopped}" ColumnDefinitions="Auto,*" ColumnSpacing="5">
             <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path StrokeThickness="2" /></Viewbox>
             <TextBlock Grid.Column="1" x:Name="PlaybackStatus" Text="{Binding Status}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
           </Grid>
@@ -77,6 +77,12 @@
     </Style>
     <Style Selector="Grid.playbackStatus.skipped Path">
       <Setter Property="Data" Value="{StaticResource Icon.Skip}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.stopped">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.stopped Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Stop}" />
     </Style>
     <Style Selector="Button.copy Path">
       <Setter Property="Data" Value="{StaticResource Icon.Copy}" />
