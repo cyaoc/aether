@@ -64,24 +64,26 @@
 /* The grid and its dark plate fade together around the HUD dome. */
 [data-theme="MechaLock"] #summon.drawing .sky { display:block; inset:auto; left:var(--cx); top:var(--cy); width:var(--dome-w); height:var(--dome-h); transform:translate(-50%,-50%); border-radius:50%; background:linear-gradient(#ff7a1a1f 1px,transparent 1px) 0 0/100% 40px,linear-gradient(90deg,#ff7a1a1f 1px,transparent 1px) 0 0/40px 100%,radial-gradient(closest-side,#0a0c10f0,#0a0c10db 50%,transparent); -webkit-mask-image:radial-gradient(closest-side,#000 50%,transparent); }
 [data-theme="MechaLock"] .drawing .mechaEffect { display:block; }
-[data-theme="MechaLock"] .mechaHud { position:absolute; left:var(--cx); top:var(--cy); width:var(--hud); height:var(--hud); color:#ff7a1a73; animation:mechaHud 7s linear both; animation-delay:var(--elapsed); }
-@keyframes mechaHud { 0% { opacity:0; transform:translate(-50%,-50%) rotate(0deg); } 4% { opacity:1; } 100% { opacity:1; transform:translate(-50%,-50%) rotate(60deg); } }
+[data-theme="MechaLock"] .mechaHud { position:absolute; left:var(--cx); top:var(--cy); width:var(--hud); height:var(--hud); color:#ff7a1a73; animation:mechaHud 7s both; animation-delay:var(--elapsed); }
+@keyframes mechaHud { 0% { opacity:0; transform:translate(-50%,-50%) rotate(0deg); } 3.2% { opacity:1; } 88%,100% { opacity:1; transform:translate(-50%,-50%) rotate(60deg); } }
 [data-theme="MechaLock"] .mechaRadar { position:absolute; left:var(--cx); top:var(--cy); width:880px; height:880px; transform:translate(-50%,-50%); animation:mechaRadar 7s both; animation-delay:var(--elapsed); }
 [data-theme="MechaLock"] .mechaRadar:before { content:''; position:absolute; inset:0; border-radius:50%; background:conic-gradient(transparent 280deg,#ff7a1a61 354deg,#ffdcbebf); -webkit-mask-image:radial-gradient(closest-side,#000 55%,transparent); animation:rotate 1.4s linear infinite; animation-delay:var(--elapsed); }
-@keyframes mechaRadar { 0% { opacity:0; } 4%,28.5% { opacity:1; } 30.5%,100% { opacity:0; } }
+@keyframes mechaRadar { 0% { opacity:0; } 3.2%,28.5% { opacity:1; } 30.5%,100% { opacity:0; } }
 [data-theme="MechaLock"] .drawing.Grand .mechaAlert { display:block; position:absolute; left:var(--cx); top:var(--cy); width:1500px; height:860px; transform:translate(-50%,-50%); border-radius:50%; background:radial-gradient(closest-side,#ff3d3d99,#ff3d3d4d 45%,transparent); animation:mechaAlert 7s both; animation-delay:var(--elapsed); }
 @keyframes mechaAlert { 0%,1.6% { opacity:0; } 4.8% { opacity:.9; } 8% { opacity:.15; } 11.2% { opacity:.8; } 14.4% { opacity:.15; } 17.6% { opacity:.7; } 20.8% { opacity:.15; } 24% { opacity:.6; } 27.2%,100% { opacity:0; } }
 [data-theme="MechaLock"] .mechaPulse { position:absolute; left:var(--cx); top:var(--cy); width:220px; height:220px; border-radius:50%; border:6px solid var(--main); box-shadow:0 0 24px var(--main),inset 0 0 24px var(--a); animation:mechaPulse 7s both; animation-delay:var(--elapsed); }
-[data-theme="MechaLock"] .mechaPulse.echo { border:3px solid #fff; box-shadow:none; animation-delay:calc(var(--elapsed) + .25s); }
+[data-theme="MechaLock"] .mechaPulse.echo { border:3px solid #fff; box-shadow:none; animation-delay:calc(var(--elapsed) + .2s); }
 [data-theme="MechaLock"] .drawing.Third .mechaPulse,[data-theme="MechaLock"] .drawing.Third .mechaLines { display:none; }
 @keyframes mechaPulse { 0%,1.52% { opacity:0; transform:translate(-50%,-50%) scale(1); } 1.6% { opacity:.95; transform:translate(-50%,-50%) scale(1); } 6.4% { opacity:0; transform:translate(-50%,-50%) scale(4.2); } 7.92% { opacity:0; transform:translate(-50%,-50%) scale(1); } 8% { opacity:.95; transform:translate(-50%,-50%) scale(1); } 12.8% { opacity:0; transform:translate(-50%,-50%) scale(4.2); } 14.32% { opacity:0; transform:translate(-50%,-50%) scale(1); } 14.4% { opacity:.95; transform:translate(-50%,-50%) scale(1); } 19.2% { opacity:0; transform:translate(-50%,-50%) scale(4.2); } 20.72% { opacity:0; transform:translate(-50%,-50%) scale(1); } 20.8% { opacity:.95; transform:translate(-50%,-50%) scale(1); } 25.6%,100% { opacity:0; transform:translate(-50%,-50%) scale(4.2); } }
-[data-theme="MechaLock"] .drawing .hazard { display:flex; position:absolute; left:120px; width:1680px; align-items:center; justify-content:center; -webkit-mask-image:linear-gradient(90deg,transparent 3%,#000 16%,#000 84%,transparent 97%); animation:mechaBandIn 7s both,mechaStripe 1s linear infinite; animation-delay:var(--elapsed),0s; }
+/* As on the board, the stripes tilt about the stage centre and slide in under a fade that stays put on screen. */
+[data-theme="MechaLock"] .hazards { position:absolute; inset:0; -webkit-mask-image:linear-gradient(90deg,transparent 3%,#000 16%,#000 84%,transparent 97%); }
+[data-theme="MechaLock"] .drawing .hazard { display:flex; position:absolute; left:0; width:100%; align-items:center; justify-content:center; animation:mechaBandIn 7s both,mechaStripe 1s linear infinite; animation-delay:var(--elapsed),0s; }
 [data-theme="MechaLock"] .drawing .hazard.bottom { animation-name:mechaBandInRight,mechaStripe; }
 [data-theme="MechaLock"] .drawing.Third .hazard { display:none; }
-[data-theme="MechaLock"] .hazard.top { --tilt:-3deg; top:130px; height:56px; }
-[data-theme="MechaLock"] .hazard.bottom { --tilt:2.5deg; top:860px; height:36px; }
-@keyframes mechaBandIn { 0%,.8% { opacity:0; transform:translateX(-80px) rotate(var(--tilt)); } 4.8%,100% { opacity:1; transform:rotate(var(--tilt)); } }
-@keyframes mechaBandInRight { 0%,.8% { opacity:0; transform:translateX(80px) rotate(var(--tilt)); } 4.8%,100% { opacity:1; transform:rotate(var(--tilt)); } }
+[data-theme="MechaLock"] .hazard.top { --tilt:-3deg; top:130px; height:56px; transform-origin:960px 410px; }
+[data-theme="MechaLock"] .hazard.bottom { --tilt:2.5deg; top:860px; height:36px; transform-origin:960px -320px; }
+@keyframes mechaBandIn { 0%,.8% { transform:rotate(var(--tilt)) translateX(-2000px); } 4.8%,100% { transform:rotate(var(--tilt)) translateX(0); } }
+@keyframes mechaBandInRight { 0%,.8% { transform:rotate(var(--tilt)) translateX(2000px); } 4.8%,100% { transform:rotate(var(--tilt)) translateX(0); } }
 @keyframes mechaStripe { to { background-position:51px 0; } }
 [data-theme="MechaLock"] #warning { padding:0 26px; background:#0a0c10; color:var(--main); font:700 30px/40px var(--condensed); letter-spacing:10px; }
 [data-theme="MechaLock"] #banner { top:232px; height:96px; padding:0 40px; border-radius:0; background:#0a0c10f5; box-shadow:none; font-size:62px; line-height:92px; animation-name:mechaBanner; }
@@ -96,7 +98,7 @@
 [data-theme="MechaLock"] .drawing:not(.Third) .reticle { display:block; position:absolute; left:960px; top:560px; width:980px; height:980px; color:var(--main); animation:mechaReticle 7s both; animation-delay:var(--elapsed); }
 /* The incoming reticle grows beyond the dome; fade in source coordinates so its mask does not grow with it. */
 [data-theme="MechaLock"] .mechaReticleClip { position:absolute; inset:0; -webkit-mask-image:linear-gradient(90deg,transparent 40px,#000 180px,#000 calc(100% - 180px),transparent calc(100% - 40px)),linear-gradient(transparent 40px,#000 180px,#000 calc(100% - 180px),transparent calc(100% - 40px)); -webkit-mask-composite:source-in; mask-composite:intersect; -webkit-mask-repeat:no-repeat; }
-@keyframes mechaReticle { 0%,30% { opacity:0; transform:translate(-50%,-50%) scale(2.2); } 34% { opacity:1; transform:translate(-50%,-50%) rotate(90deg); } 100% { opacity:.8; transform:translate(-50%,-50%) rotate(180deg); } }
+@keyframes mechaReticle { 0%,30% { opacity:0; transform:translate(-50%,-50%) scale(2.2); } 34% { opacity:1; transform:translate(-50%,-50%) rotate(90deg); } 77%,100% { opacity:.8; transform:translate(-50%,-50%) rotate(180deg); } }
 [data-theme="MechaLock"] .mechaLines { position:absolute; left:var(--cx); top:var(--cy); width:2000px; height:2000px; background:repeating-conic-gradient(transparent 0deg 2.4deg,var(--main) 2.4deg 3deg,transparent 3deg 7.5deg),repeating-conic-gradient(from 2deg,transparent 0deg 5.6deg,#fff0e6d9 5.6deg 5.9deg,transparent 5.9deg 12deg); -webkit-mask-image:radial-gradient(880px 470px,transparent 32%,#000 52%,#000 70%,transparent); animation:mechaLines 7s both; animation-delay:var(--elapsed); }
 @keyframes mechaLines { 0%,29.7% { opacity:0; transform:translate(-50%,-50%) scale(1.2) rotate(0deg); } 30% { opacity:1; transform:translate(-50%,-50%) scale(1) rotate(0deg); } 30.8% { transform:translate(-50%,-50%) scale(1.03) rotate(-1.4deg); } 31.6% { transform:translate(-50%,-50%) scale(1) rotate(1deg); } 32.4% { opacity:1; transform:translate(-50%,-50%) scale(1.02) rotate(-1.6deg); } 38%,100% { opacity:0; transform:translate(-50%,-50%) scale(.92) rotate(0deg); } }
 [data-theme="MechaLock"] .mechaClamp { position:absolute; left:378px; top:338px; width:1164px; height:444px; filter:drop-shadow(0 0 12px var(--main)); animation:mechaClamp 7s both; animation-delay:var(--elapsed); }
@@ -105,7 +107,7 @@
 [data-theme="MechaLock"] .mechaClamp i:nth-child(2) { right:0; top:0; border-right-width:10px; border-top-width:10px; }
 [data-theme="MechaLock"] .mechaClamp i:nth-child(3) { left:0; bottom:0; border-left-width:10px; border-bottom-width:10px; }
 [data-theme="MechaLock"] .mechaClamp i:nth-child(4) { right:0; bottom:0; border-right-width:10px; border-bottom-width:10px; }
-[data-theme="MechaLock"] .mechaClamp span { position:absolute; right:0; top:-46px; padding:2px 10px; background:#0a0c10f5; font:700 30px var(--condensed); letter-spacing:8px; color:var(--main); }
+[data-theme="MechaLock"] .mechaClamp span { position:absolute; right:0; top:-46px; font:700 30px var(--condensed); letter-spacing:8px; color:var(--main); }
 @keyframes mechaClamp { 0%,30% { opacity:0; transform:scale(var(--clamp-scale)); } 31.4% { opacity:1; transform:scale(.97); } 32.2% { transform:scale(1.01); } 33%,100% { opacity:1; transform:scale(1); } }
 [data-theme="MechaLock"] #result { left:410px; top:370px; width:1100px; height:380px; perspective:none; animation:mechaPanel 7s both; animation-delay:var(--elapsed); }
 @keyframes mechaPanel { 0%,31.6% { opacity:0; transform:scaleY(0); } 33.5% { opacity:1; transform:scaleY(1.08); } 34.5%,100% { opacity:1; transform:none; } }
@@ -127,7 +129,7 @@
 @keyframes mechaGlitchB { 0%,33.5% { opacity:0; transform:none; clip-path:inset(0); } 34% { opacity:1; transform:translateX(18px); clip-path:inset(48% 0 18% 0); } 35.5% { transform:translateX(-14px); clip-path:inset(4% 0 66% 0); } 37% { transform:translateX(10px); clip-path:inset(40% 0 30% 0); } 38.5%,100% { opacity:0; transform:none; clip-path:inset(0); } }
 [data-theme="MechaLock"] #viewer { max-height:128px; color:#ffb067; letter-spacing:6px; animation:mechaSub 7s both; animation-delay:var(--elapsed); }
 @keyframes mechaSub { 0%,37% { opacity:0; } 42%,100% { opacity:1; } }
-[data-theme="MechaLock"] .flash { inset:auto; left:var(--cx); top:var(--cy); width:1800px; height:960px; transform:translate(-50%,-50%); background:radial-gradient(closest-side,#fff,var(--a) 45%,transparent); animation-name:mechaFlash; }
+[data-theme="MechaLock"] .flash { inset:auto; left:var(--cx); top:var(--cy); width:1800px; height:960px; transform:translate(-50%,-50%); animation-name:mechaFlash; }
 @keyframes mechaFlash { 0%,29.6% { opacity:0; } 30.2% { opacity:1; } 34%,100% { opacity:0; } }
 
 /* LE2 results: a striped panel with one row per winner. */
@@ -144,7 +146,7 @@
 [data-theme="MechaLock"] #remaining:before { content:'CLOSED · '; }
 [data-theme="MechaLock"] #pageNumber { color:#9aa3ae; font-family:var(--condensed); }
 
-/* PW2 / PE2 portrait. The board's WARNING stripe sits above SA1; here it starts inside SA1 and everything below moves down to clear it. */
+/* PW2 / PE2 portrait. */
 [data-theme="MechaLock"][data-orientation="portrait"] #registrationTitle { height:88px; padding:0; gap:0; border-radius:0; border-color:#ff7a1a; background:#0a0c10f0; font-size:56px; }
 [data-theme="MechaLock"][data-orientation="portrait"] #registrationTitle:before,[data-theme="MechaLock"][data-orientation="portrait"] #registrationTitle:after { content:''; align-self:stretch; width:26px; }
 [data-theme="MechaLock"][data-orientation="portrait"] #themeTitle { margin:0 16px 0 24px; color:#fff; }
@@ -168,7 +170,7 @@
 @keyframes mechaSync { from { transform:scaleX(0); } to { transform:scaleX(1); } }
 [data-theme="MechaLock"][data-orientation="portrait"] .awardRow { padding:0 20px 0 0; border-radius:0; border:2px solid var(--main); background:#0a0c10f0; }
 [data-theme="MechaLock"][data-orientation="portrait"] .awardRow .rank { width:70px; height:100%; font-size:46px; }
-[data-theme="MechaLock"][data-orientation="portrait"] #ring { left:89px; top:490px; width:740px; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:120px; gap:20px; }
+[data-theme="MechaLock"][data-orientation="portrait"] #ring { left:89px; top:440px; width:740px; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:120px; gap:20px; }
 [data-theme="MechaLock"][data-orientation="portrait"] .candidate { padding:6px 8px 0; gap:0; border-top-width:8px; }
 [data-theme="MechaLock"][data-orientation="portrait"] .candidateLabel { font-size:24px; letter-spacing:3px; }
 [data-theme="MechaLock"][data-orientation="portrait"] .candidateName { font-size:46px; max-height:52px; white-space:nowrap; text-overflow:ellipsis; }
@@ -181,11 +183,13 @@
 [data-theme="MechaLock"][data-orientation="portrait"] .drawing.Grand .mechaAlert { width:960px; height:1200px; }
 [data-theme="MechaLock"][data-orientation="portrait"] .mechaRadar { width:760px; height:760px; }
 [data-theme="MechaLock"][data-orientation="portrait"] .mechaPulse { width:200px; height:200px; }
-[data-theme="MechaLock"][data-orientation="portrait"] .drawing .hazard { left:0; width:918px; -webkit-mask-image:linear-gradient(90deg,transparent,#000 150px,#000 768px,transparent); }
-[data-theme="MechaLock"][data-orientation="portrait"] .hazard.top { --tilt:-4deg; top:294px; height:50px; }
-[data-theme="MechaLock"][data-orientation="portrait"] .hazard.bottom { --tilt:3deg; top:1262px; height:30px; }
-[data-theme="MechaLock"][data-orientation="portrait"] #warning { max-width:810px; font-size:24px; letter-spacing:6px; }
-[data-theme="MechaLock"][data-orientation="portrait"] #banner { left:54px; right:216px; top:354px; height:84px; max-width:810px; padding:0 26px; font-size:44px; line-height:80px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .hazards { -webkit-mask-image:linear-gradient(90deg,transparent,#000 150px,#000 768px,transparent 918px); }
+[data-theme="MechaLock"][data-orientation="portrait"] .hazard.top { --tilt:-4deg; top:200px; height:50px; transform-origin:540px 760px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .hazard.bottom { --tilt:3deg; top:1262px; height:30px; transform-origin:540px -302px; }
+/* The stripe slides in from beyond the frame, so its words show once it has arrived. */
+[data-theme="MechaLock"][data-orientation="portrait"] #warning { max-width:810px; font-size:24px; letter-spacing:6px; animation:mechaLabel 7s both; animation-delay:var(--elapsed); }
+@keyframes mechaLabel { 0%,4.8% { opacity:0; } 4.9%,100% { opacity:1; } }
+[data-theme="MechaLock"][data-orientation="portrait"] #banner { left:54px; right:216px; top:300px; height:84px; max-width:810px; padding:0 26px; font-size:44px; line-height:80px; }
 [data-theme="MechaLock"][data-orientation="portrait"] #banner:before { margin-right:14px; font-size:22px; line-height:80px; letter-spacing:4px; }
 [data-theme="MechaLock"][data-orientation="portrait"] .drawing:not(.Third) .reticle { left:540px; top:960px; width:820px; height:820px; }
 [data-theme="MechaLock"][data-orientation="portrait"] .mechaReticleClip { left:-81px; top:-200px; right:81px; bottom:200px; }
