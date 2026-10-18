@@ -6,7 +6,7 @@ namespace Aether.Cli.Tests;
 public sealed class VideoPageBrowserTests
 {
     [Fact]
-    public async Task Stopping_a_test_pauses_and_clears_the_production_video_and_it_can_play_again()
+    public async Task Stopping_a_test_play_pauses_and_clears_the_real_video_page_and_it_can_play_again()
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
             Assert.Skip("Set AETHER_TEST_CHROME for real video browser acceptance.");
@@ -19,7 +19,7 @@ public sealed class VideoPageBrowserTests
         File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(Settings.VideoDirectory(h.DataDirectory), "welcome.mp4"));
         Settings.SaveWelcomeAnimationVideo(h.DataDirectory, 10001, "welcome.mp4");
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
-        await using var browser = new LotteryBrowser();
+        await using var browser = new ChromeBrowser();
         await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.VideoAddress);
         await h.WaitForLogAsync("视频页 1 个推流软件");
         // Keep the short fixture playing until Stop; muting removes the headless browser's autoplay gate.

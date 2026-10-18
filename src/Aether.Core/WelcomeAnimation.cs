@@ -8,7 +8,7 @@ public sealed class WelcomeAnimation(WebService service, TimeProvider timeProvid
     private Settings? settings;
     private readonly HashSet<long> pendingViewers = [];
     private string? playingTest;
-    public const string StillPlaying = "上一个还没播完";
+    public const string PreviousPending = "上一个还没播完";
 
     internal void Apply(Settings snapshot) { lock (service.Gate) settings = snapshot; }
 
@@ -27,7 +27,7 @@ public sealed class WelcomeAnimation(WebService service, TimeProvider timeProvid
                 || !settings.WelcomeAnimationVideos.TryGetValue(uid, out var video)) return;
             if (!isTest && !pendingViewers.Add(uid))
             {
-                Publish(new(Guid.NewGuid().ToString("N"), uid, video.Value, false, PlaybackState.Skipped, StillPlaying, nickname));
+                Publish(new(Guid.NewGuid().ToString("N"), uid, video.Value, false, PlaybackState.Skipped, PreviousPending, nickname));
                 return;
             }
             service.Video.Enqueue(video.Value, "欢迎动画", receivedAt,

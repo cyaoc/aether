@@ -1,4 +1,5 @@
 using System.Globalization;
+using Aether.Core;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
@@ -57,7 +58,7 @@ public partial class WelcomeAnimationRow : UserControl
         Changed?.Invoke();
     }
 
-    public bool Refresh(ISet<long> uids, string directory, bool saved, bool hasPages, bool busy, Aether.Core.WelcomeAnimationPlayback? playback, bool failed)
+    public bool Refresh(ISet<long> uids, string directory, bool saved, bool hasPages, bool busy, WelcomeAnimationPlayback? playback, bool failed)
     {
         var playing = playback is not null;
         var canStop = playback?.IsTest == true;
@@ -76,7 +77,7 @@ public partial class WelcomeAnimationRow : UserControl
             : !exists ? ("找不到视频文件，点文件名重新选择", "error", "Icon.Alert")
             : failed ? ("上次播放失败：格式不支持，换成 H.264 编码的 MP4", "error", "Icon.Fail")
             : !saved ? ("保存后才能试播", null, "Icon.Info")
-            : playing ? ("正在直播姬里播放", "playing", "Icon.Wave") : ("", null, "Icon.Info");
+            : playing ? (canStop ? "正在直播姬里试播" : "正在直播姬里播放", "playing", "Icon.Wave") : ("", null, "Icon.Info");
         if (!CanEdit) note += (note.Length > 0 ? "\n" : "") + "这项不能逐行编辑，请在设置文件里改";
         RowMessage.Text = note;
         NoteIcon.Data = Icon(icon);
@@ -85,12 +86,14 @@ public partial class WelcomeAnimationRow : UserControl
         RowNote.Classes.Set("playing", tone == "playing");
         var who = Uid is { } owner ? $"{owner} 的" : "";
         AutomationProperties.SetName(FileButton, $"更换{who}视频：{FileName}");
-        AutomationProperties.SetName(TestButton, (canStop ? "停止试播" : playing ? "正在播放" : "试播") + who + "欢迎动画");
+        var (action, testIcon, testText) = canStop ? ("停止试播", "Icon.Stop", "停止")
+            : playing ? ("正在播放", "Icon.Wave", "播放中") : ("试播", "Icon.Play", "试播");
+        AutomationProperties.SetName(TestButton, action + who + "欢迎动画");
         AutomationProperties.SetName(RemoveButton, $"删除{who}欢迎动画");
         TestButton.Classes.Set("playing", playing);
         TestButton.Classes.Set("stoppable", canStop);
-        TestIcon.Data = Icon(canStop ? "Icon.Stop" : playing ? "Icon.Wave" : "Icon.Play");
-        TestText.Text = canStop ? "停止" : playing ? "播放中" : "试播";
+        TestIcon.Data = Icon(testIcon);
+        TestText.Text = testText;
         TestButton.IsEnabled = canStop || error is null && saved && hasPages && exists && !busy;
         return error is not null;
     }

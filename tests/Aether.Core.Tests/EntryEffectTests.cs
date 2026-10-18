@@ -106,7 +106,7 @@ public sealed class EntryEffectTests
     [InlineData("ENTRY_EFFECT", "welcome.wealth_level", "45", 90001, true)]
     [InlineData("ENTRY_EFFECT_MUST_RECEIVE", "welcome.fan_club_level", "47", 90001, true)]
     [InlineData("ENTRY_EFFECT", "welcome.fan_club_level", "47", 90002, false)]
-    public async Task Effect_alone_uses_identity_and_only_the_target_anchors_medal(
+    public async Task Effect_alone_uses_identity_and_only_this_rooms_fan_club(
         string command, string condition, string value, long medalAnchor, bool welcomed)
     {
         await using var h = new WatchHarness();
@@ -123,5 +123,18 @@ public sealed class EntryEffectTests
         var queued = progress.OfType<SendQueueUpdate>().Where(item => item.State == SendQueueItemState.Queued).ToArray();
         if (welcomed) Assert.Equal("欢迎舰长测试观众", Assert.Single(queued).Text);
         else Assert.Empty(queued);
+    }
+
+    [Fact]
+    public async Task Negative_fan_club_level_is_malformed_even_for_another_rooms_fan_club()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true", ["welcome.guard"] = "舰长" });
+        await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
+        var progress = await h.PushAndCollectAsync(updates, EntryEffectFixture.Message(fanClubLevel: -1, medalAnchor: 90002));
+        Assert.Empty(progress.OfType<SendQueueUpdate>());
+        Assert.Contains(h.Logger.Entries, log => log.Level == Microsoft.Extensions.Logging.LogLevel.Warning
+            && log.Message.Contains("跳过无法解析的直播间消息") && log.Message.Contains("ENTRY_EFFECT"));
     }
 }

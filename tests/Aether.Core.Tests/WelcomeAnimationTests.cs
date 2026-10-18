@@ -9,7 +9,7 @@ namespace Aether.Core.Tests;
 public sealed class WelcomeAnimationTests
 {
     [Fact]
-    public async Task Stopping_a_test_clears_every_page_advances_the_queue_and_cannot_stop_real_entries()
+    public async Task Stopping_a_test_play_clears_every_video_page_advances_the_playback_queue_and_cannot_stop_real_entries()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();

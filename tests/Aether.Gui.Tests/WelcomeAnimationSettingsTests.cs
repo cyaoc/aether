@@ -49,7 +49,7 @@ public sealed class WelcomeAnimationSettingsTests
     [Theory]
     [InlineData("没有推流软件连着", true)]
     [InlineData("排队超过 30 秒", true)]
-    [InlineData(WelcomeAnimation.StillPlaying, false)]
+    [InlineData(WelcomeAnimation.PreviousPending, false)]
     public Task Skipped_playback_keeps_its_specific_reason(string reason, bool unplayed) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -59,7 +59,7 @@ public sealed class WelcomeAnimationSettingsTests
         Assert.Equal("没播：" + reason, item.Status);
         Assert.Equal(("小鹿", "UID 42"), (item.Name, item.Detail));
         Assert.Equal(unplayed, item.Unplayed);
-        Assert.Equal(!unplayed, item.StillPlaying);
+        Assert.Equal(!unplayed, item.PreviousPending);
         await viewModel.ShutdownAsync();
         return true;
     }, TestContext.Current.CancellationToken);
@@ -218,7 +218,7 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.True(button.IsEnabled);
             viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "video.mp4", true, PlaybackState.Playing));
             Assert.Equal("停止", row.FindControl<TextBlock>("TestText")!.Text);
-            Assert.Contains("正在直播姬里播放", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Contains("正在直播姬里试播", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.True(button.IsEnabled);
             Assert.Contains("stoppable", button.Classes);
             viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "video.mp4", true, PlaybackState.NoReport));
@@ -591,7 +591,7 @@ public sealed class WelcomeAnimationSettingsTests
             GuiHarness.Flush();
             Assert.Equal(before, viewModel.WebServiceStatus);
             Assert.True(viewModel.AnimationBusy);
-            Assert.NotNull(viewModel.AnimationPlaying(42, "video.mp4"));
+            Assert.NotNull(viewModel.PlayingAnimation(42, "video.mp4"));
             Assert.Contains("<video", await http.GetStringAsync(viewModel.VideoAddressText));
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Contains("web_service.port", page.FindControl<TextBlock>("FileMessage")!.Text);

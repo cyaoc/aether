@@ -15,11 +15,12 @@ internal sealed record Entry(long Uid, string Nickname, long MessageType, long P
 
 internal static class EntryMessages
 {
-    private static readonly Dictionary<string, (string Version, Func<JsonElement, long, Entry> Decode)> Decoders = new()
+    // Effects come alongside INTERACT_WORD, so only the INTERACT_WORD family names the room's entry format.
+    private static readonly Dictionary<string, (string? Version, Func<JsonElement, long, Entry> Decode)> Decoders = new()
     {
         ["INTERACT_WORD_V2"] = ("V2", DecodeV2),
-        ["ENTRY_EFFECT"] = ("进场特效", (data, _) => EntryEffect.Decode(data)),
-        ["ENTRY_EFFECT_MUST_RECEIVE"] = ("进场特效", (data, _) => EntryEffect.Decode(data))
+        ["ENTRY_EFFECT"] = (null, DecodeEffect),
+        ["ENTRY_EFFECT_MUST_RECEIVE"] = (null, DecodeEffect)
     };
 
     public static string? Version(string command) => Decoders.TryGetValue(command, out var decoder) ? decoder.Version : null;
@@ -39,4 +40,7 @@ internal static class EntryMessages
         var (entry, fanClubRoom) = InteractWordV2.Decode(data);
         return entry with { FanClubLevel = fanClubRoom == roomId || entry.FanClubLevel < 0 ? entry.FanClubLevel : null };
     }
+
+    // The medal names its anchor rather than the room, so the effect checks it against target_id itself.
+    private static Entry DecodeEffect(JsonElement data, long roomId) => EntryEffect.Decode(data);
 }

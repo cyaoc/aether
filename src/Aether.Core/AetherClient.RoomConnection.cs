@@ -34,6 +34,7 @@ public sealed partial class AetherClient
         private readonly SendQueue sendQueue =
             new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value), output);
         private readonly Welcome welcome = new(settings);
+        // shortcut: keeps every viewer seen this room connection; prune it if a huge room's connection grows too large.
         private readonly Dictionary<long, long> lastEntryTriggers = [];
         private CancellationToken roomStopped;
 
