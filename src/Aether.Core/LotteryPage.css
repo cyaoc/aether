@@ -20,7 +20,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 .divider { width:2px; height:150px; flex-shrink:0; background:rgba(197,155,255,.5); }
 .count { width:420px; flex-shrink:0; display:flex; flex-direction:column; align-items:center; }
 #entryCount { display:inline-block; font-size:130px; line-height:1; font-variant-numeric:tabular-nums; }
-#entryCount.pop { animation:pop .6s ease-out; }
+.pop>#entryCount { animation:pop .6s ease-out; }
 @keyframes pop { from { transform:scale(1.3); filter:brightness(1.8); } to { transform:scale(1); } }
 .countLabel { font-size:44px; color:#e7d9ff; }
 .latest { flex:1; min-width:0; display:flex; flex-direction:column; gap:6px; }

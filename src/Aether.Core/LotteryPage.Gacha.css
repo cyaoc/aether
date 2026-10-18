@@ -1,0 +1,193 @@
+/* W3 / X3 / Y3 / Z3 / LE3 and their portrait boards: pastel stickers with solid offset shadows. */
+@font-face { font-family:'ZCOOL KuaiLe'; src:url('/lottery/ZCOOLKuaiLe-Regular.ttf') format('truetype'); font-display:swap; }
+#gachaMachine,#capsuleDrop { display:none; }
+[data-theme="CapsuleGacha"] { --ink:#4b2a4f; --paper:#fff8ee; color:var(--ink); font-family:'ZCOOL KuaiLe','PingFang SC','Microsoft YaHei UI',sans-serif; }
+/* The capsule icons and crank parts are pseudo-elements, which the page-wide border-box rule does not reach. */
+[data-theme="CapsuleGacha"] ::before,[data-theme="CapsuleGacha"] ::after { box-sizing:border-box; }
+/* --tier inks the grade words; --a and --glow light the capsule and the opening burst. */
+[data-theme="CapsuleGacha"] .Grand { --main:#ffd45e; --tint:#fff2c9; --tier:#8a5a00; --a:rgba(255,212,94,.55); --glow:rgba(255,212,94,.95); }
+[data-theme="CapsuleGacha"] .Second { --main:#ff7aae; --tint:#ffe3ee; --tier:#b23a73; --a:rgba(255,122,174,.5); --glow:rgba(255,122,174,.9); }
+[data-theme="CapsuleGacha"] .Third { --main:#5fd3b0; --tint:#ddf7ee; --tier:#1f7a60; --a:rgba(95,211,176,.45); --glow:rgba(95,211,176,.85); }
+[data-theme="CapsuleGacha"] .gold,[data-theme="CapsuleGacha"] .rank { background:none; -webkit-text-fill-color:currentColor; color:var(--ink); filter:none; }
+[data-theme="CapsuleGacha"] #themeTitle,[data-theme="CapsuleGacha"] #joinLabel,[data-theme="CapsuleGacha"] #winnerTitle,[data-theme="CapsuleGacha"] #awardsTitle,[data-theme="CapsuleGacha"] #shout { color:#ff7aae; filter:none; text-shadow:3px 0 var(--ink),-3px 0 var(--ink),0 3px var(--ink),0 -3px var(--ink),2px 2px var(--ink),-2px 2px var(--ink),2px -2px var(--ink),-2px -2px var(--ink),6px 6px var(--ink); }
+[data-theme="CapsuleGacha"] #entryBar,[data-theme="CapsuleGacha"] #awards,[data-theme="CapsuleGacha"] #winners { border:5px solid var(--ink); background:var(--paper); box-shadow:8px 8px var(--ink); border-radius:40px; }
+[data-theme="CapsuleGacha"] #entryBar { top:790px; height:250px; gap:30px; padding:0 40px; }
+[data-theme="CapsuleGacha"] .condition { width:620px; gap:2px; }
+[data-theme="CapsuleGacha"] .label { font-family:inherit; font-size:34px; color:#7a5a7e; letter-spacing:0; }
+[data-theme="CapsuleGacha"] #joinLabel { font-size:48px; line-height:1.1; }
+[data-theme="CapsuleGacha"] #keyword { line-height:1.15; }
+[data-theme="CapsuleGacha"] .divider { width:0; border-left:4px dashed #b9a2bc; background:none; }
+/* Every new entry drops a capsule in its colour beside the count. */
+[data-theme="CapsuleGacha"] .count { width:440px; display:grid; grid-template-columns:auto auto; justify-content:center; justify-items:center; align-items:center; column-gap:16px; }
+[data-theme="CapsuleGacha"] #capsuleDrop { display:block; grid-row:span 2; width:92px; height:92px; border:5px solid var(--ink); border-radius:50%; background:linear-gradient(var(--cap) 46%,var(--ink) 46% 54%,white 54%); }
+[data-theme="CapsuleGacha"] .pop>#capsuleDrop { animation:gachaDrop .9s cubic-bezier(.3,1.5,.5,1); }
+@keyframes gachaDrop { from { transform:translateY(-160px) rotate(-90deg); } }
+[data-theme="CapsuleGacha"] #entryCount { color:#ff7aae; }
+[data-theme="CapsuleGacha"] .pop>#entryCount { animation:gachaCount .6s cubic-bezier(.3,1.6,.5,1); }
+@keyframes gachaCount { from { transform:scale(1.5); } }
+[data-theme="CapsuleGacha"] .countLabel { color:var(--ink); }
+[data-theme="CapsuleGacha"] .latest { gap:10px; }
+[data-theme="CapsuleGacha"] #latestEntries { display:flex; flex-wrap:wrap; gap:12px; font-size:54px; }
+[data-theme="CapsuleGacha"] #latestEntries>div { min-width:0; height:76px; padding:0 24px 0 12px; border:3px solid var(--ink); border-radius:38px; background:var(--tint); line-height:70px; }
+[data-theme="CapsuleGacha"] #latestEntries>div:before { content:''; display:inline-block; width:44px; height:44px; margin-right:10px; vertical-align:middle; border:3px solid var(--ink); border-radius:50%; background:linear-gradient(var(--cap) 50%,white 50%); clip-path:none; }
+[data-theme="CapsuleGacha"] #latestEntries>div:first-child { animation:gachaJoin .7s cubic-bezier(.3,1.6,.5,1); }
+@keyframes gachaJoin { from { opacity:0; transform:scale(.3,1.4); } 60% { opacity:1; transform:scale(1.1,.9); } }
+[data-theme="CapsuleGacha"] #awards { gap:12px; padding:22px 26px; border-radius:34px; box-shadow:7px 7px var(--ink); }
+[data-theme="CapsuleGacha"] #awardsTitle { color:#ffd45e; font-size:52px; line-height:1.1; }
+[data-theme="CapsuleGacha"] #awardRows { display:flex; flex-direction:column; gap:12px; }
+[data-theme="CapsuleGacha"] .awardRow { gap:14px; }
+[data-theme="CapsuleGacha"] .awardRow .rank { width:56px; height:56px; border:4px solid var(--ink); border-radius:50%; background:linear-gradient(var(--main) 46%,var(--ink) 46% 54%,white 54%); font-size:0; }
+[data-theme="CapsuleGacha"] .awardPrize { font-size:54px; }
+[data-theme="CapsuleGacha"] .capacity { font-size:42px; color:#7a5a7e; }
+
+/* The machine: parts sit inside the 6px outlines exactly as on the board. */
+[data-theme="CapsuleGacha"] #gachaMachine { display:block; position:absolute; left:500px; top:230px; width:420px; height:780px; z-index:1; }
+[data-theme="CapsuleGacha"] .dome { position:absolute; left:20px; top:0; width:380px; height:380px; border:6px solid var(--ink); border-radius:50%; background:radial-gradient(circle at 35% 30%,#fffffff2,#f0f8ffd1 45%,#d6e8fac7); overflow:hidden; }
+[data-theme="CapsuleGacha"] .dome:after { content:''; position:absolute; left:62px; top:46px; width:90px; height:44px; border-radius:50%; background:#ffffffe6; transform:rotate(-28deg); }
+[data-theme="CapsuleGacha"] #capsules { position:absolute; inset:0; animation:gachaBob 2.2s ease-in-out infinite alternate; }
+@keyframes gachaBob { to { transform:translateY(-6px); } }
+[data-theme="CapsuleGacha"] .capsule { position:absolute; width:64px; height:64px; border:3px solid var(--ink); border-radius:50%; background:linear-gradient(var(--cap) 46%,var(--ink) 46% 54%,white 54%); transform:rotate(var(--tilt)); }
+[data-theme="CapsuleGacha"] .neck { position:absolute; left:130px; top:362px; width:160px; height:54px; border:6px solid var(--ink); border-radius:10px; background:#f2669c; }
+[data-theme="CapsuleGacha"] .machineBody { position:absolute; left:30px; top:400px; width:360px; height:330px; border:6px solid var(--ink); border-radius:36px; background:#ff8db8; box-shadow:8px 8px var(--ink); transform-origin:50% 100%; }
+[data-theme="CapsuleGacha"] #machineLabel { position:absolute; left:44px; top:26px; width:260px; height:76px; display:grid; place-items:center; border:5px solid var(--ink); border-radius:14px; background:#cff5e8; font-size:38px; }
+[data-theme="CapsuleGacha"] #summon:not(.drawing) #machineLabel .busy,[data-theme="CapsuleGacha"] .drawing #machineLabel .idle { display:none; }
+[data-theme="CapsuleGacha"] .crank { position:absolute; left:50px; top:136px; width:120px; height:120px; border:6px solid var(--ink); border-radius:50%; background:#ffd45e; animation:gachaWiggle 1.6s ease-in-out infinite alternate; }
+[data-theme="CapsuleGacha"] .crank:before { content:''; position:absolute; left:8px; top:41px; width:92px; height:26px; border:5px solid var(--ink); border-radius:13px; background:var(--paper); }
+[data-theme="CapsuleGacha"] .crank:after { content:''; position:absolute; left:80px; top:32px; width:44px; height:44px; border:5px solid var(--ink); border-radius:50%; background:#ff7aae; }
+@keyframes gachaWiggle { from { transform:rotate(-28deg); } to { transform:rotate(28deg); } }
+[data-theme="CapsuleGacha"] .coinSlot { position:absolute; left:226px; top:140px; width:18px; height:56px; border-radius:9px; background:var(--ink); }
+[data-theme="CapsuleGacha"] .outlet { position:absolute; left:204px; top:232px; width:112px; height:74px; border:6px solid var(--ink); border-radius:56px 56px 12px 12px; background:#3a1f3e; }
+[data-theme="CapsuleGacha"] .foot { position:absolute; top:736px; width:90px; height:38px; border:6px solid var(--ink); border-top:0; border-radius:0 0 16px 16px; background:#a991ff; }
+[data-theme="CapsuleGacha"] .foot.left { left:60px; }
+[data-theme="CapsuleGacha"] .foot.right { left:270px; }
+[data-theme="CapsuleGacha"] .gachaStar,[data-theme="CapsuleGacha"] .gachaHeart { position:absolute; animation:gachaFloat 3s ease-in-out infinite alternate; }
+[data-theme="CapsuleGacha"] .gachaStar { left:-40px; top:30px; }
+[data-theme="CapsuleGacha"] .gachaHeart { left:400px; top:120px; animation-delay:.9s; }
+[data-theme="CapsuleGacha"] .drawing .gachaStar,[data-theme="CapsuleGacha"] .drawing .gachaHeart { display:none; }
+@keyframes gachaFloat { from { transform:rotate(-6deg); } to { transform:translateY(-12px) rotate(6deg); } }
+[data-theme="CapsuleGacha"] .sky,[data-theme="CapsuleGacha"] .circleSpace,[data-theme="CapsuleGacha"] .pillar,[data-theme="CapsuleGacha"] .rays,[data-theme="CapsuleGacha"] .meteor,[data-theme="CapsuleGacha"] .flash,[data-theme="CapsuleGacha"] .lockFrame,[data-theme="CapsuleGacha"] .cardBack,[data-theme="CapsuleGacha"] #stars { display:none; }
+[data-theme="CapsuleGacha"] .drawing .sky { display:block; background:radial-gradient(circle at 60% 50%,#ffbed78c,#78508c8c 45%,#3c1e46b8); }
+[data-theme="CapsuleGacha"] #particles { z-index:2; }
+[data-theme="CapsuleGacha"] .stage { z-index:3; }
+
+/* Spinning: the prize legend beside the machine. */
+[data-theme="CapsuleGacha"] #ringWrap { perspective:none; }
+[data-theme="CapsuleGacha"] #ring { left:1000px; top:290px; width:800px; height:auto; display:flex; flex-direction:column; gap:22px; animation:none; transform:none; }
+[data-theme="CapsuleGacha"] .candidate { position:static; width:fit-content; max-width:100%; height:96px; flex-direction:row; gap:18px; padding:0 30px 0 18px; border:4px solid var(--ink); border-radius:48px; background:var(--paper); box-shadow:5px 5px var(--ink); transform:none!important; }
+[data-theme="CapsuleGacha"] .candidate:before { content:''; width:64px; height:64px; flex-shrink:0; border:4px solid var(--ink); border-radius:50%; background:linear-gradient(var(--main) 46%,var(--ink) 46% 54%,white 54%); transform:rotate(-18deg); }
+[data-theme="CapsuleGacha"] .candidateLabel { flex-shrink:0; font-size:44px; color:var(--tier); }
+[data-theme="CapsuleGacha"] .candidateName { font-size:52px; white-space:nowrap; text-overflow:ellipsis; min-width:0; }
+[data-theme="CapsuleGacha"] .drawing #ringWrap { display:none; }
+
+/* Board W3's 7 s reveal: the crank turns while the dome jiggles, then the capsule bounces out and opens at this page's 28% (the board's 36.7%). */
+[data-theme="CapsuleGacha"] .drawing .crank { animation:gachaCrank 7s ease-in-out both; animation-delay:var(--elapsed); }
+@keyframes gachaCrank { 0%,2.9% { transform:rotate(0deg); } 20.2%,100% { transform:rotate(720deg); } }
+[data-theme="CapsuleGacha"] .drawing .machineBody { animation:gachaSquash 7s both; animation-delay:var(--elapsed); }
+@keyframes gachaSquash { 0%,2.9%,8.6%,14.4%,20.2%,100% { transform:none; } 5.8%,11.5%,17.3% { transform:scale(1.03,.95); } }
+[data-theme="CapsuleGacha"] .drawing #capsules { animation:gachaJiggle 7s both; animation-delay:var(--elapsed); }
+@keyframes gachaJiggle { 0%,2.9%,20.2%,100% { transform:none; } 5% { transform:translate(-6px,-8px) rotate(-3deg); } 7.2% { transform:translate(6px,0) rotate(3deg); } 9.4% { transform:translate(-4px,-10px) rotate(-2deg); } 11.5% { transform:translate(5px,-2px) rotate(3deg); } 13.7% { transform:translate(-6px,-6px) rotate(-3deg); } 15.8% { transform:translate(4px,0) rotate(2deg); } 18% { transform:translate(-5px,-9px) rotate(-3deg); } }
+[data-theme="CapsuleGacha"] #banner { top:56px; height:112px; padding:0 46px; border:5px solid var(--ink); border-radius:56px; background:var(--paper); box-shadow:8px 8px var(--ink); font-size:68px; line-height:102px; color:var(--ink); --drift:-30px; --banner-pop:1.15; --banner-start:-8deg; --banner-tilt:3deg; --banner-settle:-2deg; animation-name:gachaBanner; }
+@keyframes gachaBanner { 0% { opacity:0; transform:scale(0) rotate(var(--banner-start)); } 2.2% { opacity:1; transform:scale(var(--banner-pop)) rotate(var(--banner-tilt)); } 3.6% { transform:rotate(var(--banner-settle)); } 25.3% { opacity:1; } 29.3%,100% { opacity:0; transform:translateY(var(--drift)); } }
+[data-theme="CapsuleGacha"] .gachaBall { position:absolute; left:745px; top:840px; width:130px; height:130px; border:6px solid var(--ink); border-radius:50%; background:linear-gradient(var(--main) 46%,var(--ink) 46% 54%,white 54%); box-shadow:0 0 0 6px var(--a),0 0 40px var(--glow); animation:gachaBall 7s both; animation-delay:var(--elapsed); }
+@keyframes gachaBall { 0%,19.8% { opacity:0; transform:scale(.3); } 20.3% { opacity:1; transform:none; } 21.8% { transform:translate(95px,-110px) rotate(120deg); } 23.3% { transform:translate(180px,0) rotate(230deg) scale(1.16,.84); } 24.5% { transform:translate(250px,-60px) rotate(300deg); } 25.5% { transform:translate(310px,0) rotate(380deg) scale(1.12,.88); } 26.8% { transform:translate(370px,-385px) rotate(460deg); } 27.6% { opacity:1; transform:translate(370px,-385px) rotate(470deg) scale(1.3); } 28%,100% { opacity:0; transform:translate(370px,-385px) rotate(470deg) scale(1.3); } }
+[data-theme="CapsuleGacha"] .glow { left:1180px; top:520px; width:560px; height:560px; background:radial-gradient(circle,#fff,var(--a) 35%,transparent 70%); animation-name:gachaBurst; }
+[data-theme="CapsuleGacha"] .Second .glow { width:420px; height:420px; }
+[data-theme="CapsuleGacha"] .Third .glow { width:300px; height:300px; }
+@keyframes gachaBurst { 0%,27.6% { opacity:0; transform:translate(-50%,-50%) scale(.2); } 28.5% { opacity:1; } 36.3%,100% { opacity:0; transform:translate(-50%,-50%) scale(2.6); } }
+[data-theme="CapsuleGacha"] .gachaRainbow { display:none; position:absolute; left:1180px; top:520px; width:520px; height:520px; border-radius:50%; background:conic-gradient(#ff7aae,#ffd45e,#5fd3b0,#7ccbff,#a991ff,#ff7aae); -webkit-mask-image:radial-gradient(circle,transparent 52%,#000 54% 64%,transparent 66%); mask-image:radial-gradient(circle,transparent 52%,#000 54% 64%,transparent 66%); animation:gachaRainbow 7s both; animation-delay:var(--elapsed); }
+[data-theme="CapsuleGacha"] .drawing.Grand .gachaRainbow { display:block; }
+@keyframes gachaRainbow { 0%,27.7% { opacity:0; transform:translate(-50%,-50%) scale(.2); } 29.3% { opacity:1; } 43.3%,100% { opacity:0; transform:translate(-50%,-50%) scale(2.2) rotate(120deg); } }
+[data-theme="CapsuleGacha"] .gachaHalves { position:absolute; left:1115px; top:455px; width:130px; height:130px; }
+[data-theme="CapsuleGacha"] .gachaHalves span { position:absolute; width:100%; height:50%; border:6px solid var(--ink); border-bottom-width:4px; background:var(--main); border-radius:65px 65px 0 0; --hx:-200px; --hy:-240px; --hr:-110deg; animation:gachaHalf 7s both; animation-delay:var(--elapsed); }
+[data-theme="CapsuleGacha"] .gachaHalves span+span { top:50%; border-width:4px 6px 6px; border-radius:0 0 65px 65px; background:white; --hx:220px; --hy:260px; --hr:90deg; }
+@keyframes gachaHalf { 0%,27.7% { opacity:0; transform:none; } 28% { opacity:1; transform:none; } 36.3%,100% { opacity:0; transform:translate(var(--hx),var(--hy)) rotate(var(--hr)); } }
+/* The sticker keeps the board's size and grows only for text that would not fit. */
+[data-theme="CapsuleGacha"] #result { left:860px; top:340px; width:640px; height:auto; perspective:none; animation-name:gachaWinner; }
+@keyframes gachaWinner { 0%,28.5% { opacity:0; transform:scale(0) rotate(-8deg); } 31.5% { opacity:1; transform:scale(1.18) rotate(3deg); } 33.5% { transform:scale(.94) rotate(-2deg); } 35.5% { transform:scale(1.04) rotate(1deg); } 37.5%,100% { opacity:1; transform:none; } }
+[data-theme="CapsuleGacha"] .flip { position:relative; transform:none; animation:none; }
+[data-theme="CapsuleGacha"] .cardFace { position:relative; min-height:360px; justify-content:center; gap:8px; padding:54px 24px 10px; border:6px solid var(--ink); border-radius:40px; background:var(--paper); box-shadow:12px 12px var(--ink); }
+[data-theme="CapsuleGacha"] .cardTop { position:absolute; left:24px; right:24px; top:-46px; width:auto; }
+[data-theme="CapsuleGacha"] #rank { width:fit-content; max-width:100%; height:80px; padding:0 40px; border:5px solid var(--ink); border-radius:40px; background:var(--main); box-shadow:5px 5px var(--ink); line-height:70px; transform:rotate(-4deg); filter:none; }
+[data-theme="CapsuleGacha"] #prize { max-height:190px; overflow:hidden; text-shadow:none; }
+[data-theme="CapsuleGacha"] #viewer { max-height:190px; color:#8a4a7e; }
+[data-theme="CapsuleGacha"] #shout { left:1430px; top:300px; width:auto; font-size:120px; line-height:1; letter-spacing:0; color:var(--main); animation-name:gachaPop; }
+[data-theme="CapsuleGacha"] .drawing.Second #shout,[data-theme="CapsuleGacha"] .drawing.Third #shout { display:block; }
+[data-theme="CapsuleGacha"] .Second #shout { left:1460px; font-size:96px; }
+[data-theme="CapsuleGacha"] .Third #shout { left:1460px; font-size:64px; }
+@keyframes gachaPop { 0%,27.9% { opacity:0; transform:rotate(-12deg) scale(.2); } 29.9% { opacity:1; transform:rotate(-12deg) scale(1.3); } 31.9% { transform:rotate(-12deg) scale(.95); } 33.9%,43.3% { opacity:1; transform:rotate(-12deg); } 47.3%,100% { opacity:0; transform:rotate(-12deg); } }
+
+/* Winners: one capsule and award per row, the names as tags; the page number sits beside the title. */
+[data-theme="CapsuleGacha"] #winners { top:80px; padding:30px 44px 36px; gap:24px; border-width:6px; border-radius:44px; box-shadow:12px 12px var(--ink); }
+[data-theme="CapsuleGacha"] #winnerTitle { line-height:1.1; }
+[data-theme="CapsuleGacha"] #winnerCards { width:100%; display:flex; flex-direction:column; gap:24px; perspective:none; }
+[data-theme="CapsuleGacha"] .winnerGroup { display:flex; align-items:center; gap:18px; }
+[data-theme="CapsuleGacha"] .winnerGroup .rank { width:76px; height:76px; flex-shrink:0; border:5px solid var(--ink); border-radius:50%; background:linear-gradient(var(--main) 46%,var(--ink) 46% 54%,white 54%); }
+[data-theme="CapsuleGacha"] .winnerAward { width:170px; flex-shrink:0; color:var(--ink); font:52px 'ZCOOL KuaiLe',sans-serif; }
+[data-theme="CapsuleGacha"] .winnerPrize { display:none; }
+[data-theme="CapsuleGacha"] .winnerList { flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:14px; }
+[data-theme="CapsuleGacha"] .winnerCard { display:block; min-width:0; height:92px; padding:0 30px; border:5px solid var(--ink); border-radius:46px; background:var(--tint); box-shadow:6px 6px var(--ink); animation:gachaBoing .7s cubic-bezier(.3,1.6,.5,1) both; animation-delay:calc(var(--index) * .12s); }
+@keyframes gachaBoing { from { opacity:0; transform:scale(0); } }
+[data-theme="CapsuleGacha"] .winnerName { display:block; height:auto; max-height:none; padding:0; line-height:82px; white-space:nowrap; text-overflow:ellipsis; }
+[data-theme="CapsuleGacha"] #remaining { height:84px; padding:0 36px; border:4px dashed #b9a2bc; border-radius:42px; background:none; color:#7a5a7e; font-size:52px; line-height:76px; }
+[data-theme="CapsuleGacha"] #pageNumber { position:absolute; top:30px; right:44px; margin:0; color:#7a5a7e; font-size:40px; line-height:106px; }
+
+/* PW3 / PE3: all text stays within SA1 (54,288)–(864,1248), including animation overshoot. */
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #registration { gap:14px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #registrationTitle { height:100px; padding:0 40px; border:5px solid var(--ink); border-radius:50px; background:var(--paper); box-shadow:7px 7px var(--ink); font-size:62px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #registrationPhase,[data-theme="CapsuleGacha"][data-orientation="portrait"] #joinLabel { display:none; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #entryBar { display:contents; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .condition { width:760px; padding:14px 20px; border:4px solid var(--ink); border-radius:30px; background:#bff0df; box-shadow:5px 5px var(--ink); }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .count { width:fit-content; height:118px; display:flex; gap:16px; padding:0 34px 0 22px; border:4px solid var(--ink); border-radius:59px; background:var(--paper); box-shadow:5px 5px var(--ink); }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #keyword { line-height:1; padding-bottom:0; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #entryCount { line-height:1; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #capsuleDrop { width:74px; height:74px; border-width:4px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .countLabel { font-size:40px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #latestEntries { flex-direction:column; align-items:center; gap:10px; font-size:46px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #latestEntries>div { width:fit-content; max-width:100%; height:70px; padding:0 26px 0 12px; line-height:64px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #latestEntries>div:before { width:40px; height:40px; margin-right:12px; background:linear-gradient(var(--cap) 50%,white 50%); }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #latestEntries>div:nth-child(2) { opacity:.8; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #latestEntries>div:nth-child(3) { opacity:.6; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #awardRows { gap:10px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #awards { border:0; border-radius:0; box-shadow:none; background:none; padding:0; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .awardRow { gap:14px; padding:0 22px 0 12px; border:4px solid var(--ink); border-radius:32px; background:var(--paper); box-shadow:4px 4px var(--ink); }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .awardRow .rank { width:44px; height:44px; border-width:3px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .awardName { color:var(--tier); font:32px 'ZCOOL KuaiLe',sans-serif; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .awardPrize { font-size:40px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .capacity { font:32px 'ZCOOL KuaiLe',sans-serif; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] [data-awards="4"] #latestEntries>div,[data-theme="CapsuleGacha"][data-orientation="portrait"] [data-awards="5"] #latestEntries>div { height:60px; line-height:54px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #gachaMachine { left:249px; top:420px; transform:scale(.8); transform-origin:210px 0; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .drawing .sky { background:radial-gradient(circle at 42% 34%,#ffbed78c,#78508c8c 45%,#3c1e46b8); }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #ring { left:74px; top:1048px; width:770px; gap:8px; align-items:center; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .candidate { height:58px; padding:0 22px 0 10px; gap:12px; border-radius:29px; box-shadow:4px 4px var(--ink); }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .candidate:before { width:40px; height:40px; border-width:3px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .candidateLabel { font-size:30px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .candidateName { font-size:34px; }
+/* Keep the entire banner inside SA1 even at its entrance peak, without restarting on rotation. */
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #banner { --drift:0px; --banner-pop:1; --banner-start:0deg; --banner-tilt:0deg; --banner-settle:0deg; left:54px; right:216px; top:300px; max-width:800px; height:96px; padding:0 32px; border-radius:48px; box-shadow:7px 7px var(--ink); font-size:50px; line-height:86px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .gachaBall { left:484px; top:905px; width:110px; height:110px; animation-name:gachaBallPortrait; }
+@keyframes gachaBallPortrait { 0%,19.8% { opacity:0; transform:scale(.3); } 20.3% { opacity:1; transform:none; } 21.8% { transform:translate(90px,-90px) rotate(120deg); } 23.3% { transform:translate(150px,0) rotate(230deg) scale(1.16,.84); } 24.5% { transform:translate(200px,-50px) rotate(300deg); } 25.5% { transform:translate(240px,0) rotate(380deg) scale(1.12,.88); } 26.8% { transform:translate(-80px,-360px) rotate(460deg); } 27.6% { opacity:1; transform:translate(-80px,-360px) rotate(470deg) scale(1.3); } 28%,100% { opacity:0; transform:translate(-80px,-360px) rotate(470deg) scale(1.3); } }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .glow { left:459px; top:600px; width:480px; height:480px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .Second .glow { width:360px; height:360px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .Third .glow { width:260px; height:260px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .gachaHalves { left:404px; top:545px; width:110px; height:110px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .gachaRainbow { left:459px; top:600px; width:440px; height:440px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #result { left:159px; top:470px; width:600px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .cardFace { min-height:330px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .cardTop { top:-40px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #rank { height:70px; line-height:60px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #prize { max-height:170px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #viewer { max-height:150px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #shout { left:600px; top:410px; font-size:96px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .Second #shout { left:620px; font-size:80px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .Third #shout { left:640px; font-size:54px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #winners { top:300px; padding:26px 28px 30px; gap:22px; border-width:5px; border-radius:40px; box-shadow:10px 10px var(--ink); }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #winnerCards { gap:22px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerGroup { flex-wrap:wrap; gap:10px 12px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerGroup .rank { width:52px; height:52px; border-width:4px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerAward { flex:1; min-width:0; width:auto; font-size:40px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerPrize { display:inline; margin-left:12px; font-size:30px; color:#7a5a7e; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerList { flex-basis:100%; gap:12px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerCard { height:76px; padding:0 26px; border-width:4px; border-radius:38px; box-shadow:5px 5px var(--ink); }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerName { line-height:68px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #remaining { height:70px; padding:0 30px; font-size:40px; line-height:62px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] #pageNumber { top:26px; right:28px; line-height:84px; }

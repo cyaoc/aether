@@ -74,6 +74,29 @@
           </Grid>
         </StackPanel>
       </RadioButton>
+      <RadioButton x:Name="CapsuleGachaCard" Grid.Column="2" Classes="themeCard" AutomationProperties.Name="萌系扭蛋">
+        <StackPanel Spacing="8">
+          <Viewbox Stretch="Uniform">
+            <Border Width="160" Height="90" CornerRadius="4" Background="#FFF8EE" ClipToBounds="True">
+              <Canvas>
+                <Ellipse Canvas.Left="60" Canvas.Top="8" Width="40" Height="40" Fill="#DDF7EE" Stroke="#4B2A4F" StrokeThickness="2" />
+                <Ellipse Canvas.Left="67" Canvas.Top="28" Width="14" Height="14" Fill="#FFD45E" Stroke="#4B2A4F" StrokeThickness="1.5" />
+                <Ellipse Canvas.Left="82" Canvas.Top="24" Width="14" Height="14" Fill="#FF7AAE" Stroke="#4B2A4F" StrokeThickness="1.5" />
+                <Border Canvas.Left="60" Canvas.Top="48" Width="40" Height="32" CornerRadius="6" Background="#FF8DB8" BorderBrush="#4B2A4F" BorderThickness="2" BoxShadow="3 3 0 0 #4B2A4F">
+                  <Ellipse Width="14" Height="14" Fill="#FFD45E" Stroke="#4B2A4F" StrokeThickness="2" />
+                </Border>
+              </Canvas>
+            </Border>
+          </Viewbox>
+          <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="6">
+            <TextBlock Text="萌系扭蛋" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Text="粉彩" Classes="caption muted" VerticalAlignment="Center" />
+            <Viewbox Grid.Column="3" Classes="icon check" Width="16" Height="16">
+              <Path Data="{StaticResource Icon.Check}" StrokeThickness="2.2" Stroke="{DynamicResource Accent.Text}" />
+            </Viewbox>
+          </Grid>
+        </StackPanel>
+      </RadioButton>
     </Grid>
     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
       <Button x:Name="ExampleButton" Height="30" Padding="10,0,12,0">
