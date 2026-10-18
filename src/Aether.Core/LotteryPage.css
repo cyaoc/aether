@@ -37,7 +37,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 .capacity { font-size:44px; color:#b9b4e0; }
 #summon,.stage { position:absolute; inset:0; }
 .sky { position:absolute; left:260px; top:160px; width:1400px; height:900px; border-radius:50%; background:radial-gradient(ellipse at 50% 55%,#1e145ab8,rgba(20,14,64,.45) 45%,transparent 70%); }
-.drawing .sky { inset:0; width:auto; height:auto; border-radius:0; animation:sky 7s both; animation-delay:var(--elapsed); }
+.drawing .sky { animation:sky 7s both; animation-delay:var(--elapsed); }
 @keyframes sky { from { opacity:0; } 4%,100% { opacity:1; } }
 .circleSpace { position:absolute; inset:0; perspective:1400px; perspective-origin:50% 30%; }
 .circlePlane { position:absolute; left:510px; top:400px; width:900px; height:900px; transform:rotateX(76deg); }
@@ -95,7 +95,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 #shout { position:absolute; top:880px; width:100%; text-align:center; font-size:76px; letter-spacing:10px; filter:drop-shadow(0 0 18px rgba(255,211,107,.9)); animation:shout 7s both; animation-delay:var(--elapsed); }
 .drawing.Second #shout,.drawing.Third #shout { display:none; }
 @keyframes shout { 0%,41.5% { opacity:0; transform:translateY(24px) scale(.9); } 46.5%,100% { opacity:1; transform:none; } }
-.flash { position:absolute; inset:0; pointer-events:none; background:radial-gradient(closest-side,#fff,var(--a) 45%,transparent); animation:flash 7s both; animation-delay:var(--elapsed); }
+.flash { position:absolute; left:var(--cx); top:var(--cy); width:1800px; height:960px; transform:translate(-50%,-50%); pointer-events:none; background:radial-gradient(closest-side,#fff,var(--a) 45%,transparent); animation:flash 7s both; animation-delay:var(--elapsed); }
 .Second .flash { animation-name:flashSecond; }
 .Third .flash { animation-name:flashThird; }
 @keyframes flash { 0%,27.9% { opacity:0; } 28.5% { opacity:.95; } 32.5%,37.5% { opacity:0; } 38.3% { opacity:.6; } 41.5%,100% { opacity:0; } }
@@ -114,7 +114,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 
 /* Portrait labels keep the board's 28–38px; key information is 40px or more. */
 #scene[data-orientation="portrait"] { --ring-radius:340px; --meteor-x:360px; --meteor-y:-700px; width:1080px; height:1920px; }
-[data-orientation="portrait"] #registration { position:absolute; left:54px; top:300px; width:810px; display:flex; flex-direction:column; align-items:center; gap:18px; }
+[data-orientation="portrait"] #registration { position:absolute; width:810px; display:flex; flex-direction:column; align-items:center; gap:18px; }
 [data-orientation="portrait"] #registrationTitle { height:90px; margin:0; padding:0 30px; display:flex; align-items:center; gap:16px; border-radius:45px; border:2px solid #ffd36bcc; background:rgba(14,12,44,.92); font-size:60px; font-weight:normal; }
 [data-orientation="portrait"] #registrationTitle span+span { height:44px; display:flex; align-items:center; padding:0 14px; border-radius:22px; background:#c59bff38; color:#e7d9ff; font-size:30px; }
 [data-orientation="portrait"] #entryBar { display:contents; }
@@ -148,7 +148,6 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-orientation="portrait"] [data-awards="4"] .condition,[data-orientation="portrait"] [data-awards="5"] .condition { padding:10px 24px; }
 [data-orientation="portrait"] [data-awards="4"] .awardRow,[data-orientation="portrait"] [data-awards="5"] .awardRow { height:52px; }
 [data-orientation="portrait"] .sky { left:24px; top:380px; width:870px; height:900px; background:radial-gradient(ellipse at 50% 50%,#1e145ab8,rgba(20,14,64,.45) 45%,transparent 70%); }
-[data-orientation="portrait"] .drawing .sky { inset:0; width:auto; height:auto; }
 [data-orientation="portrait"] .circleSpace { perspective:1200px; perspective-origin:459px 900px; }
 [data-orientation="portrait"] .circlePlane { left:99px; top:770px; width:720px; height:720px; }
 [data-orientation="portrait"] .circle { width:720px; height:720px; }
@@ -163,6 +162,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-orientation="portrait"] .Second .pillar { left:359px; width:200px; }
 [data-orientation="portrait"] .rays { left:459px; top:760px; }
 [data-orientation="portrait"] .glow { left:-41px; top:260px; width:1000px; height:1000px; }
+[data-orientation="portrait"] .flash { width:1000px; height:1600px; }
 [data-orientation="portrait"] .meteor { left:445px; top:1086px; width:28px; height:28px; box-shadow:0 0 26px 12px var(--main),0 0 80px 30px var(--a); }
 [data-orientation="portrait"] .meteor:after { left:14px; top:9px; width:320px; height:10px; border-radius:5px; transform:rotate(-61.4deg); }
 [data-orientation="portrait"] #banner { left:54px; right:216px; top:300px; max-width:810px; height:92px; padding:0 36px; border-radius:46px; box-shadow:0 0 30px var(--a); font-size:54px; line-height:88px; }
@@ -176,7 +176,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-orientation="portrait"] #prize { max-height:260px; text-shadow:0 0 24px var(--main); }
 [data-orientation="portrait"] #viewer { max-height:110px; }
 [data-orientation="portrait"] #shout { left:54px; top:1090px; width:810px; font-size:60px; letter-spacing:8px; filter:drop-shadow(0 0 16px rgba(255,211,107,.9)); }
-[data-orientation="portrait"] #winners { left:54px; top:300px; width:810px; gap:26px; }
+[data-orientation="portrait"] #winners { width:810px; gap:26px; }
 [data-orientation="portrait"] #winnerTitle { font-size:76px; line-height:84px; }
 [data-orientation="portrait"] #winnerCards { width:756px; gap:18px; perspective:1200px; }
 [data-orientation="portrait"] .winnerCard { height:330px; padding:20px 10px; border-radius:16px; }
@@ -197,7 +197,6 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
   -webkit-mask-composite:source-in;
   mask-composite:intersect;
 }
-.drawing .sky { -webkit-mask-image:radial-gradient(ellipse,#000 20%,transparent 70%); }
 
 /* Star Summon "加强" from W1 / PW1, shifted from the board's 36.5% hit to this page's 28% like the rest of the reveal. */
 .starEffect { display:none; }
@@ -211,7 +210,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-theme="StarSummon"][data-orientation="portrait"] .Third { --portal-w:760px; --portal-h:960px; --swirl:660px; --halo:600px; }
 [data-theme="StarSummon"][data-orientation="landscape"] .circleSpace { -webkit-mask-image:linear-gradient(#000 62%,transparent 94%); }
 #scene[data-theme="StarSummon"] .drawing .sky {
-  inset:auto; left:var(--cx); top:var(--cy); width:var(--portal-w); height:var(--portal-h); border-radius:50%; -webkit-mask-image:none;
+  left:var(--cx); top:var(--cy); width:var(--portal-w); height:var(--portal-h); border-radius:50%;
   background:radial-gradient(closest-side,#0e082cf0,#221468db 34%,#462caa80 62%,#462caa29 82%,transparent);
   animation:portal 7s both; animation-delay:var(--elapsed);
 }
@@ -248,8 +247,6 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-theme="StarSummon"] .cardFace { overflow:hidden; }
 [data-theme="StarSummon"] .drawing .cardFace:after { content:''; position:absolute; left:-60%; top:-20%; width:40%; height:140%; background:linear-gradient(90deg,transparent,#ffffff80,transparent); pointer-events:none; animation:cardSheen 7s both; animation-delay:var(--elapsed); }
 @keyframes cardSheen { 0%,44.5% { transform:translateX(0) skewX(-18deg); } 49.5% { transform:translateX(450%) skewX(-18deg); } 49.6%,63.5% { transform:translateX(0) skewX(-18deg); } 68.5%,100% { transform:translateX(450%) skewX(-18deg); } }
-[data-theme="StarSummon"] .flash { inset:auto; left:var(--cx); top:var(--cy); width:1800px; height:1000px; transform:translate(-50%,-50%); }
-[data-theme="StarSummon"][data-orientation="portrait"] .flash { width:1000px; height:1600px; }
 /* Gold text that had no plate gets the board's dark plate; the gradient stays clipped to the text. */
 #scene[data-theme="StarSummon"] #shout,[data-theme="StarSummon"] #winnerTitle {
   background:linear-gradient(180deg,#fff,#fff1c2 40%,#ffd36b 70%,#e8a93a),rgba(14,12,44,.92); -webkit-background-clip:text,padding-box; background-clip:text,padding-box;

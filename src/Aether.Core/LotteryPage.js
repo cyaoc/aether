@@ -105,6 +105,8 @@ function fitAll() {
   // Start all flex siblings at full size before shrinking; growing one later would squeeze the others.
   fitting.forEach(([node, size, portraitSize]) => node.style.fontSize = (portrait ? portraitSize : size) + 'px');
   fitting.forEach(([node, size, portraitSize]) => fit(node, portrait ? portraitSize : size));
+  // Gacha tilts a banner wider than 780px less, so its ends rise no higher than a 780px one's; a hidden banner measures 0 and keeps 1.
+  byId('banner').style.setProperty('--tilt-scale', Math.min(1, 780 / byId('banner').offsetWidth));
 }
 document.fonts.ready.then(fitAll);
 document.fonts.addEventListener('loadingdone', fitAll);
@@ -409,7 +411,8 @@ function sticker(p) {
   else { context.scale(1,Math.cos(angle * 2)); context.rect(-7,-5,14,10); }
   context.closePath(); context.fill(); context.stroke(); context.restore();
 }
-// W3 / PW3 "加强": the opening pop, floating hearts and side cannons (one volley for Second, two for Grand).
+// W3 / PW3 "加强", shifted from the board's 36.7% opening to this page's 28%: the opening pop, hearts that rise a little and sway,
+// and side cannons (one volley for Second, two for Grand). Like the board, every particle fades over its last 40 frames (max 100).
 function capsuleGacha(start, grade) {
   if (start === null) return () => {};
   const power = powers[grade];
@@ -428,13 +431,13 @@ function capsuleGacha(start, grade) {
       }
     }
     if (power > 1 && age > 2390 && age < 5390 && Math.random() < .12 * power * dt)
-      add({x:left+Math.random()*width,y:bottom,vx:(Math.random()-.5)*.6,vy:-1.4-Math.random()*1.2,life:180,max:100,s:9+Math.random()*8,c:Math.random() < .6 ? '#ff7aae' : '#ffd45e',kind:'sticker',shape:'heart',sway:Math.random()*6.28});
+      add({x:left+Math.random()*width,y:bottom,vx:(Math.random()-.5)*.6,vy:-1.4-Math.random()*1.2,life:180,max:100,s:9+Math.random()*8,c:Math.random() < .6 ? '#ff7aae' : '#ffd45e',drag:.97,kind:'sticker',shape:'heart',sway:Math.random()*6.28});
     if (power > 1 && (volleys === 0 && age >= 2010 || volleys === 1 && power === 3 && age >= 2690)) {
       volleys++;
-      const [left,right,y,count] = portrait ? [230,690,1150,power === 3 ? 50 : 26] : [820,1560,960,power === 3 ? 60 : 30];
-      for (const [x,aim] of [[left,-1.15],[right,-1.99]]) for (let k = 0; k < count; k++) {
+      const [west,east,y,count] = portrait ? [230,690,1150,power === 3 ? 50 : 26] : [820,1560,960,power === 3 ? 60 : 30];
+      for (const [x,aim] of [[west,-1.15],[east,-1.99]]) for (let k = 0; k < count; k++) {
         const angle = aim + (Math.random()-.5)*.6, speed = 16 + Math.random()*14;
-        add({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:150+Math.random()*50,max:200,s:8+Math.random()*6,c:colors[k%colors.length],drag:.97,grav:.32,
+        add({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:150+Math.random()*50,max:100,s:8+Math.random()*6,c:colors[k%colors.length],drag:.97,grav:.32,
           kind:'sticker',shape:k%4 === 0 ? 'star' : 'confetti',turn:Math.random()*6.28,spin:(Math.random()-.5)*.3});
       }
     }
