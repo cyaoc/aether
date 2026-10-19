@@ -17,8 +17,7 @@ public sealed partial class LotteryController
     {
         if (state.Lottery is EntryLottery { Phase: EntryLotteryPhase.Open or EntryLotteryPhase.Closed })
             throw new InvalidOperationException("先结束这一场才能新开。");
-        if (state.Lottery is PoolLottery { IsDrawing: true })
-            throw new InvalidOperationException("请等本次开奖结束。");
+        if (state.Lottery is PoolLottery) RequireNotDrawing();
     }
 
     public void New(LotteryMode mode)
@@ -80,7 +79,7 @@ public sealed partial class LotteryController
         lock (gate)
         {
             var lottery = RequireEntry(EntryLotteryPhase.Closed);
-            if (lottery.IsDrawing) throw new InvalidOperationException("请等本次开奖结束。");
+            RequireNotDrawing();
             if (awardIndex < 0 || awardIndex >= lottery.Awards.Length) throw new ArgumentOutOfRangeException(nameof(awardIndex));
             var award = lottery.Awards[awardIndex];
             if (lottery.Draws.Count(draw => draw.AwardIndex == awardIndex) >= award.Capacity)
@@ -105,7 +104,7 @@ public sealed partial class LotteryController
         lock (gate)
         {
             var lottery = RequireEntry(EntryLotteryPhase.Closed);
-            if (lottery.IsDrawing) throw new InvalidOperationException("请等本次开奖结束。");
+            RequireNotDrawing();
             Save(lottery with { Phase = EntryLotteryPhase.Ended, EndedAt = time.GetUtcNow() });
             logger.LogInformation("报名抽奖结束：抽奖 {LotteryId}，共 {Count} 人中奖", lottery.Id, lottery.Draws.Length);
         }
@@ -119,7 +118,7 @@ public sealed partial class LotteryController
     private EntryLottery RequireEntry(EntryLotteryPhase phase)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (!state.CanControl) throw new InvalidOperationException("请先连接直播间。");
+        RequireControl();
         if (state.Lottery is not EntryLottery lottery || lottery.Phase != phase) throw new InvalidOperationException("当前阶段不能执行此操作。");
         return lottery;
     }
