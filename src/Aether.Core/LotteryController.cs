@@ -236,19 +236,19 @@ public sealed partial class LotteryController : IDisposable
     {
         store().Save(lottery, draw: draw);
         state = state with { PoolLottery = lottery };
-        Publish(draw);
+        Publish();
     }
 
-    private void Publish(PoolDraw? draw = null, EntryDraw? entryDraw = null)
+    private void Publish()
     {
         // Live changes take the screen back immediately, without ever saving example data.
         ClearExample();
-        Broadcast(draw, entryDraw);
+        Broadcast();
     }
 
-    private void Broadcast(PoolDraw? draw = null, EntryDraw? entryDraw = null)
+    private void Broadcast()
     {
-        foreach (var subscriber in subscribers) subscriber.Writer.TryWrite(new(state, draw, entryDraw, example));
+        foreach (var subscriber in subscribers) subscriber.Writer.TryWrite(new(state, example));
     }
 
     public void Dispose()
