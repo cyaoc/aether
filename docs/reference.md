@@ -234,8 +234,9 @@ Ctrl+C 取消则保留本地凭据。
 数据目录遵循 [ADR 0002](adr/0002-portable-data-directory.md)：Release 用程序目录下的 `data/`；
 Debug 从程序目录向上寻找 `Aether.slnx`，用其所在目录下的 `data/`，找不到则退回程序目录。
 与启动命令所在目录无关。SQLite 文件是 `data/aether.db`，使用 WAL；`PRAGMA user_version`
-记录表结构版本，当前为 3。升级使用手写 SQL，并与版本号在同一事务中提交。
+记录表结构版本，当前为 4。升级使用手写 SQL，并与版本号在同一事务中提交。
 v2 升级到 v3 保留登录凭据，新增 `blind_box` 表，按真实房间号、观众 uid 和送出时间建立索引。
+v3 到 v4 把抽奖表纳入版本号，保留已有表和数据；v0.2.x 已有的抽奖表结构不变。
 `credential` 表只存一行，保存完整 cookie 名值 JSON、refresh_token、UTC 保存时间和检查时间 `checked_at`。
 v1 升级后保留原凭据，检查时间为空，下次连接立即检查；扫码或刷新保存时检查时间等于保存时间。
 凭据暂存明文，`data/` 已被 Git 忽略；连接开启 `secure_delete`，删除或覆盖的凭据不会残留在文件里。
