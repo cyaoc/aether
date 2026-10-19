@@ -10,10 +10,9 @@ public partial class MainWindowViewModel
 {
     private CancellationTokenSource? animationUpdateStop;
     private Task animationUpdates = Task.CompletedTask;
-    private Task animationReload = Task.CompletedTask;
+    private readonly LatestRun animationReload = new();
     private Settings? animationSettings;
-    private int pendingAnimationReloads;
-    internal bool AnimationReloading => pendingAnimationReloads > 0;
+    internal bool AnimationReloading => !animationReload.Current.IsCompleted;
     /// <summary>Raised when anything an animation row shows may have changed: page status, playback, failures or a reload.</summary>
     internal event Action? AnimationRowsChanged;
     public ObservableCollection<WelcomeAnimationItem> RecentAnimations { get; } = [];
@@ -32,29 +31,28 @@ public partial class MainWindowViewModel
             && previous.WebServicePort.Value == snapshot.WebServicePort.Value
             && previous.WelcomeAnimationVideos.Count == snapshot.WelcomeAnimationVideos.Count
             && previous.WelcomeAnimationVideos.All(pair => snapshot.WelcomeAnimationVideos.TryGetValue(pair.Key, out var video) && video.Value == pair.Value.Value))
-            return animationReload;
+            return animationReload.Current;
         return ApplyWebSettingsAsync(snapshot);
     }
 
-    public Task ApplyWebSettingsAsync(Settings snapshot)
+    public async Task ApplyWebSettingsAsync(Settings snapshot)
     {
-        if (shutdown.IsCancellationRequested) return Task.CompletedTask;
+        if (shutdown.IsCancellationRequested) return;
         animationSettings = snapshot;
-        pendingAnimationReloads++;
-        AnimationRowsChanged?.Invoke();
         if (animationUpdateStop is null)
         {
             animationUpdateStop = new();
             animationUpdates = ObserveAnimationsAsync(animationUpdateStop.Token);
         }
-        var previous = animationReload;
-        return animationReload = ReloadAsync();
+        var reload = animationReload.Start(ReloadAsync);
+        AnimationRowsChanged?.Invoke();
+        await reload;
+        AnimationRowsChanged?.Invoke();
 
-        async Task ReloadAsync()
+        async Task ReloadAsync(CancellationToken _)
         {
             try
             {
-                await previous;
                 if (shutdown.IsCancellationRequested) return;
                 await client.ApplyWebSettingsAsync(snapshot);
                 failedAnimationVideos.RemoveWhere(video => !snapshot.WelcomeAnimationVideos.TryGetValue(video.Uid, out var saved) || saved.Value != video.FileName);
@@ -65,11 +63,6 @@ public partial class MainWindowViewModel
                 logger.LogWarning(error, "网页服务设置未应用");
                 // Invalid file contents did not change the running service; the settings page shows that error.
                 Apply(snapshot.Error is not null ? client.WebService.Status : client.WebService.Status with { Error = error.Message });
-            }
-            finally
-            {
-                pendingAnimationReloads--;
-                AnimationRowsChanged?.Invoke();
             }
         }
     }
@@ -85,7 +78,7 @@ public partial class MainWindowViewModel
 
     private async Task StopAnimationsAsync()
     {
-        await animationReload;
+        await animationReload.StopAsync();
         await client.WebService.StopAsync();
         Apply(client.WebService.Status);
         animationUpdateStop?.Cancel();

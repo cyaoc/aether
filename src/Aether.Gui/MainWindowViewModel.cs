@@ -67,8 +67,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
     private bool isLoginPage;
     [ObservableProperty] private string loginError = "";
-    private CancellationTokenSource? accountReadStop;
-    private Task accountReadTask = Task.CompletedTask;
+    private readonly LatestRun accountRead = new();
     private readonly CancellationTokenSource shutdown = new();
 
     private bool CanConnect => AccountStatus != AccountStatus.LoggedOut && !IsLoginPage && !IsLoggingOut && !IsRestarting && !shutdown.IsCancellationRequested;
@@ -267,40 +266,30 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     private Task ReadAccountAsync()
     {
         if (IsLoggingOut || shutdown.IsCancellationRequested) return Task.CompletedTask;
-        accountReadStop?.Cancel();
-        var previous = accountReadTask;
-        var stop = new CancellationTokenSource();
-        accountReadStop = stop;
         AccountStatus = AccountStatus.Reading;
-        return accountReadTask = ReadAsync();
+        return accountRead.Start(ReadAsync);
 
-        async Task ReadAsync()
+        async Task ReadAsync(CancellationToken token)
         {
             try
             {
-                await previous;
                 // Loading the saved credential can open SQLite, so even the synchronous part runs off the UI thread.
-                var result = await Task.Run(() => client.GetAccountAsync(stop.Token), stop.Token);
-                stop.Token.ThrowIfCancellationRequested();
+                var result = await Task.Run(() => client.GetAccountAsync(token), token);
+                token.ThrowIfCancellationRequested();
                 AccountStatus = AccountStatus.Of(result);
                 if (result is null)
                 {
                     await StopWatchingAsync();
-                    stop.Token.ThrowIfCancellationRequested();
+                    token.ThrowIfCancellationRequested();
                     ShowLoginPage();
                 }
             }
-            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
             catch (Exception error)
             {
-                if (stop.IsCancellationRequested) return;
+                if (token.IsCancellationRequested) return;
                 logger.LogError(error, "账号信息读取失败");
                 AccountStatus = AccountStatus.Failed;
-            }
-            finally
-            {
-                if (ReferenceEquals(accountReadStop, stop)) accountReadStop = null;
-                stop.Dispose();
             }
         }
     }
@@ -321,7 +310,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         try
         {
             LoginCommand.Cancel();
-            await StopAccountReadAsync();
+            await accountRead.StopAsync();
             if (LoginCommand.ExecutionTask is { } login) await login;
             await StopWatchingAsync();
             if (ReconnectCommand.ExecutionTask is { } restart) await restart;
@@ -341,12 +330,6 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         else _ = ReadAccountAsync();
     }
 
-    private async Task StopAccountReadAsync()
-    {
-        accountReadStop?.Cancel();
-        await accountReadTask;
-    }
-
     private async Task StopWatchingAsync()
     {
         ConnectCommand.Cancel();
@@ -362,9 +345,9 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         LoginCommand.NotifyCanExecuteChanged();
         LoginCommand.Cancel();
         LogoutCommand.Cancel();
-        var accountRead = StopAccountReadAsync();
+        var accountStopped = accountRead.StopAsync();
         await StopLotteryAsync();
-        await accountRead;
+        await accountStopped;
         await StopWatchingAsync();
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
