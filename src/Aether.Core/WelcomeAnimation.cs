@@ -23,6 +23,7 @@ public sealed class WelcomeAnimation(WebService service, TimeProvider timeProvid
     {
         lock (service.Gate)
         {
+            // docs/reference.md: 欢迎动画关闭在保存后立即应用，须检查网页服务当前的设置。
             if (settings is not { Error: null, WelcomeAnimationEnabled.Value: true }
                 || !settings.WelcomeAnimationVideos.TryGetValue(uid, out var video)) return;
             if (!isTest && !pendingViewers.Add(uid))

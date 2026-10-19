@@ -11,6 +11,20 @@ public sealed class SendQueueUpdateTests
     private const string Query = """{"cmd":"DANMU_MSG","info":[[],"今日盲盒",[10001,"查询观众"]]}""";
 
     [Fact]
+    public async Task Query_reports_the_trigger_before_its_queue_progress()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
+        await h.Server.PushRoomMessageAsync(Query);
+        Assert.Equal("今日盲盒", Assert.IsType<Danmaku>(await h.NextAsync(updates)).Content);
+        var queued = Assert.IsType<SendQueueUpdate>(await h.NextAsync(updates));
+        Assert.Equal(SendQueueItemKind.BlindBoxQuery, queued.Kind);
+        Assert.Equal(SendQueueItemState.Queued, queued.State);
+        Assert.Equal(10001, queued.Uid);
+    }
+
+    [Fact]
     public async Task Query_logs_each_progress_with_the_same_item_id_and_viewer()
     {
         await using var h = new WatchHarness();

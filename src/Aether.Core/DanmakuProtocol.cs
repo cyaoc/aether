@@ -23,9 +23,9 @@ internal static class DanmakuProtocol
 
     internal abstract record DecodedEvent;
     internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
-    internal sealed record DanmakuReceived(Danmaku Danmaku) : DecodedEvent;
-    internal sealed record BlindBoxesReceived(BlindBox[] BlindBoxes, long ReceivedTimestamp) : DecodedEvent;
-    internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : DecodedEvent;
+    internal sealed record DanmakuReceived(Danmaku Danmaku) : RoomEvent;
+    internal sealed record BlindBoxesReceived(BlindBox[] BlindBoxes, long ReceivedTimestamp) : RoomEvent;
+    internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : RoomEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
     private sealed class FormatNotices
