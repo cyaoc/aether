@@ -26,7 +26,7 @@ public sealed class LoginTests : IDisposable
         time, logger, dataDirectory);
 
     [Fact]
-    public async Task First_credential_operation_creates_version_three_database_in_wal_mode()
+    public async Task First_credential_operation_creates_version_four_database_with_lottery_tables_in_wal_mode()
     {
         using var client = CreateClient();
         Assert.False(Directory.Exists(dataDirectory));
@@ -35,11 +35,64 @@ public sealed class LoginTests : IDisposable
         using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        Assert.Equal(3L, command.ExecuteScalar());
+        Assert.Equal(4L, command.ExecuteScalar());
         command.CommandText = "PRAGMA journal_mode";
         Assert.Equal("wal", command.ExecuteScalar());
         command.CommandText = "SELECT COUNT(*) FROM credential";
         Assert.Equal(0L, command.ExecuteScalar());
+        command.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'lottery%' ORDER BY name";
+        using var tables = command.ExecuteReader();
+        List<string> names = [];
+        while (tables.Read()) names.Add(tables.GetString(0));
+        Assert.Equal(["lottery", "lottery_award", "lottery_draw", "lottery_entry", "lottery_prize"], names);
+    }
+
+    [Fact]
+    public void Version_three_database_keeps_lottery_credential_and_blind_boxes_when_opened_as_version_four()
+    {
+        Directory.CreateDirectory(dataDirectory);
+        using (var connection = TestDatabase.Open(dataDirectory))
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "database-v0.2.1.sql"));
+            command.ExecuteNonQuery();
+        }
+
+        using var client = CreateClient();
+        var history = Assert.Single(client.Lottery.GetHistory(7734200));
+        Assert.Equal("legacy-pool", history.Id);
+        Assert.Equal(LotteryMode.Pool, history.Mode);
+        Assert.Equal(DateTimeOffset.Parse("2023-12-10T00:00:00Z"), history.StartedAt);
+        Assert.Equal(DateTimeOffset.Parse("2023-12-10T00:10:00Z"), history.EndedAt);
+        Assert.Equal("开", history.StopWord);
+        Assert.Equal(1, history.DrawCount);
+        Assert.Equal(new PoolPrize("键盘", 1, Grade.Grand), Assert.Single(history.Prizes));
+        var lottery = Assert.IsType<PoolLottery>(client.Lottery.GetHistoryDetails(7734200, history.Id));
+        var draw = Assert.Single(lottery.Draws);
+        Assert.Equal("legacy-draw", draw.Id);
+        Assert.Equal(history.Prizes[0], draw.Prize);
+        Assert.Equal(42, draw.Uid);
+        Assert.Equal("测试观众", draw.Nickname);
+        Assert.False(draw.StoppedByHost);
+        Assert.Equal(DateTimeOffset.Parse("2023-12-10T00:05:00Z"), draw.DrawnAt);
+        Assert.Equal(draw.Prize, Assert.Single(draw.Candidates));
+
+        var credential = TestDatabase.SavedCredential(dataDirectory);
+        Assert.Equivalent(new Dictionary<string, string>
+        {
+            ["SESSDATA"] = "legacy-session", ["bili_jct"] = "legacy-csrf",
+            ["DedeUserID"] = "123", ["buvid3"] = "legacy-buvid"
+        }, credential.Cookies);
+        Assert.Equal("legacy-token", credential.RefreshToken);
+        Assert.Equal(DateTimeOffset.Parse("2023-12-10T00:00:00Z"), credential.SavedAt);
+        Assert.Equal(DateTimeOffset.Parse("2023-12-10T01:00:00Z"), TestDatabase.CheckedAt(dataDirectory));
+        Assert.Equal(new TestDatabase.BlindBoxRow(7734200, 42, "测试观众", 100, "测试盲盒", 1000,
+            200, "测试礼物", 2000, 2, 2000, 4000, 1702204169, "legacy-tid", """{"cmd":"SEND_GIFT"}"""),
+            Assert.Single(TestDatabase.BlindBoxRows(dataDirectory)));
+        using var reopened = TestDatabase.Open(dataDirectory);
+        using var version = reopened.CreateCommand();
+        version.CommandText = "PRAGMA user_version";
+        Assert.Equal(4L, version.ExecuteScalar());
     }
 
     [Fact]
@@ -194,10 +247,10 @@ public sealed class LoginTests : IDisposable
     public async Task Failed_database_open_is_retried_by_the_next_operation_on_the_same_client()
     {
         using (var setup = CreateClient()) await setup.LogoutAsync(TestContext.Current.CancellationToken);
-        SetUserVersion(4);
+        SetUserVersion(5);
         using var client = CreateClient();
         await Assert.ThrowsAsync<InvalidOperationException>(() => client.LogoutAsync(TestContext.Current.CancellationToken));
-        SetUserVersion(3);
+        SetUserVersion(4);
         await client.LogoutAsync(TestContext.Current.CancellationToken);
         AssertNoCredential();
     }

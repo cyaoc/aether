@@ -4,6 +4,34 @@ namespace Aether.Core.Tests;
 
 public sealed class LotteryHistoryTests
 {
+    [Theory]
+    [InlineData(null)]
+    [InlineData("2026-10-19T08:04:05.7654321-05:30")]
+    public async Task History_preserves_saved_timestamp_offsets_and_nullable_fields(string? endedAt)
+    {
+        await using var h = new WatchHarness();
+        Assert.Empty(h.Client.Lottery.GetHistory(7734200));
+        using (var connection = TestDatabase.Open(h.DataDirectory))
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                INSERT INTO lottery (id, room_id, mode, stop_word, started_at, ended_at, phase, uid, draw_until)
+                VALUES ('saved', 7734200, 'pool', '停', '2026-10-19T08:01:02.1234567+08:00', $ended, 0, NULL, NULL);
+                """;
+            command.Parameters.AddWithValue("$ended", (object?)endedAt ?? DBNull.Value);
+            command.ExecuteNonQuery();
+        }
+
+        var history = Assert.Single(h.Client.Lottery.GetHistory(7734200));
+        var details = Assert.IsType<PoolLottery>(h.Client.Lottery.GetHistoryDetails(7734200, "saved"));
+        Assert.Equal("2026-10-19T08:01:02.1234567+08:00", history.StartedAt.ToString("O"));
+        Assert.Equal("2026-10-19T08:01:02.1234567+08:00", details.StartedAt.ToString("O"));
+        Assert.Equal(endedAt, history.EndedAt?.ToString("O"));
+        Assert.Equal(endedAt, details.EndedAt?.ToString("O"));
+        Assert.Null(details.Uid);
+        Assert.Null(details.DrawUntil);
+    }
+
     [Fact]
     public async Task Pool_history_details_return_the_ended_lottery_with_the_complete_draw()
     {

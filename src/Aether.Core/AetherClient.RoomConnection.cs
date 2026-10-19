@@ -1,8 +1,6 @@
 using System.Net.WebSockets;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using System.Threading.Channels;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
@@ -30,13 +28,10 @@ public sealed partial class AetherClient
         private long? realRoomId;
         private FileStream? roomLock;
         private IDisposable? roomScope;
-        private readonly DanmakuProtocol.FormatNotices formatNotices = new();
+        private DanmakuProtocol.Decoder? decoder;
+        private readonly List<IRoomFeature> features = [];
         private readonly SendQueue sendQueue =
             new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value), output);
-        private readonly Welcome welcome = new(settings);
-        // shortcut: keeps every viewer seen this room connection; prune it if a huge room's connection grows too large.
-        private readonly Dictionary<long, long> lastEntryTriggers = [];
-        private CancellationToken roomStopped;
 
         // Why the current attempt was stopped, where its exception would only say it was canceled; cleared before each attempt.
         private string? stopReason;
@@ -44,7 +39,6 @@ public sealed partial class AetherClient
         public async Task RunAsync(CancellationToken cancellationToken)
         {
             using var animationStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            roomStopped = animationStop.Token;
             var reconnecting = false;
             var retrySeconds = 1;
             try
@@ -55,13 +49,31 @@ public sealed partial class AetherClient
                     stopReason = null;
                     try
                     {
-                        realRoomId ??= await new BilibiliApi(client.http, client.timeProvider, credential: null)
+                        realRoomId ??= await client.Api(credential: null)
                             .ResolveRoomIdAsync(roomId, cancellationToken);
                         if (roomLock is null)
                         {
                             roomLock = AcquireRoomLock(realRoomId.Value);
                             roomScope = client.logger.BeginRoomScope(realRoomId.Value);
                             client.logger.LogInformation("直播间连接开始");
+                            if (enableLottery) features.Add(new LotteryFeature(client.Lottery, client.logger, realRoomId.Value));
+                            if (Settings.BlindBoxEnabled.Value)
+                            {
+                                features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));
+                                features.Add(new BlindBoxRecordFeature(client.stores, realRoomId.Value, sendQueue, Settings.BlindBoxAnnounce.Value));
+                            }
+                            var parseEntries = false;
+                            if (Settings.WelcomeAnimationEnabled.Value)
+                            {
+                                features.Add(new WelcomeAnimationFeature(client.WelcomeAnimation, animationStop.Token));
+                                parseEntries = true;
+                            }
+                            if (Settings.WelcomeEnabled.Value)
+                            {
+                                features.Add(new WelcomeFeature(Settings, sendQueue));
+                                parseEntries = true;
+                            }
+                            decoder = new DanmakuProtocol.Decoder(realRoomId.Value, client.logger, parseEntries);
                         }
                         await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {
@@ -108,7 +120,7 @@ public sealed partial class AetherClient
                 if (roomLock is not null)
                     client.logger.LogInformation("直播间连接结束，发送队列丢掉 {Count} 条待发弹幕", discarded);
                 roomScope?.Dispose();
-                if (enableLottery && roomLock is not null) client.Lottery.EndRoom(realRoomId!.Value);
+                if (roomLock is not null) Handle(new RoomConnectionEnded());
                 roomLock?.Dispose();
             }
         }
@@ -119,14 +131,14 @@ public sealed partial class AetherClient
             cancellationToken.ThrowIfCancellationRequested();
             var credentials = client.stores.Value.Credentials;
             var credential = await client.RefreshCredentialIfDueAsync(cancellationToken, cancellationToken);
-            var api = new BilibiliApi(client.http, client.timeProvider, credential);
+            var api = client.Api(credential);
             while (!await api.IsLoggedInAsync(cancellationToken))
             {
                 await foreach (var update in client.LoginCoreAsync(cancellationToken,
                     acceptExternalCredential: true, previousToken: credential?.RefreshToken))
                     if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
                 credential = credentials.Load();
-                api = new BilibiliApi(client.http, client.timeProvider, credential);
+                api = client.Api(credential);
                 if (!await api.IsLoggedInAsync(cancellationToken)) // Cached, so the loop condition sends no second nav.
                     client.logger.LogWarning("新的登录凭据未生效，请重新扫码登录。");
             }
@@ -162,7 +174,7 @@ public sealed partial class AetherClient
         {
             var connection = await api.GetConnectionAsync(realRoomId, cancellationToken);
             var danmakuLengthLimit = FallbackDanmakuLengthLimit;
-            if (Settings.WelcomeEnabled.Value)
+            if (features.Any(feature => feature is WelcomeFeature))
             {
                 try
                 {
@@ -190,8 +202,7 @@ public sealed partial class AetherClient
                     var bytes = await ReceiveMessageAsync(socket, idleTimeout, connectionStop.Token);
                     var receivedAt = client.timeProvider.GetLocalNow();
                     var receivedTimestamp = client.timeProvider.GetTimestamp();
-                    foreach (var decoded in DanmakuProtocol.Decode(bytes, receivedAt, connected, formatNotices, client.logger,
-                        Settings.WelcomeEnabled.Value || Settings.WelcomeAnimationEnabled.Value, realRoomId))
+                    foreach (var decoded in decoder!.Decode(bytes, receivedAt, connected, receivedTimestamp))
                     {
                         connectionStop.Token.ThrowIfCancellationRequested();
                         if (decoded is DanmakuProtocol.AuthenticationReply auth)
@@ -204,49 +215,21 @@ public sealed partial class AetherClient
                                 heartbeat = SendHeartbeatsAsync(socket, connectionStop);
                                 credentialChecks = RefreshCredentialWhileConnectedAsync(connectionStop, cancellationToken);
                                 client.logger.LogInformation("已连接弹幕服务器 {Server}", connection.Server);
-                                RunLottery(realRoomId);
+                                Handle(new TransportConnected(danmakuLengthLimit));
                                 yield return new Connected();
                                 // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it;
                                 // on the thread pool, as it would otherwise run its first SQLite query right here on the receive loop.
                                 sending = Task.Run(() => SendRepliesAsync(realRoomId, connectionStop), CancellationToken.None);
                             }
                         }
-                        else if (decoded is DanmakuProtocol.DanmakuReceived danmaku)
+                        else if (decoded is RoomEvent roomEvent)
                         {
-                            // Reported first, so a shell sees the keyword before the 盲盒查询 it queues.
-                            yield return danmaku.Danmaku;
-                            RunLottery(realRoomId, danmaku.Danmaku);
-                            if (Settings.BlindBoxEnabled.Value)
+                            if (roomEvent is DanmakuProtocol.DanmakuReceived danmaku)
                             {
-                                var text = danmaku.Danmaku.Content.Trim();
-                                BlindBoxPeriod? period = text == Settings.BlindBoxDailyKeyword.Value.Trim() ? BlindBoxPeriod.Daily
-                                    : text == Settings.BlindBoxMonthlyKeyword.Value.Trim() ? BlindBoxPeriod.Monthly : null;
-                                if (period is { } matched)
-                                {
-                                    if (danmaku.Danmaku.Uid == 0)
-                                        client.logger.LogDebug("uid 为 0 的观众发出盲盒关键字，未回复");
-                                    else sendQueue.Enqueue(danmaku.Danmaku, matched);
-                                }
+                                // Reported first, so a shell sees the keyword before the 盲盒查询 it queues.
+                                yield return danmaku.Danmaku;
                             }
-                        }
-                        // ponytail: a synchronous SQLite write on the receive loop (busy waits up to Microsoft.Data.Sqlite's 30 s
-                        // command timeout, well inside the 60 s idle deadline); hand it to a background writer if a room ever stalls on it.
-                        else if (decoded is DanmakuProtocol.BlindBoxesReceived received && Settings.BlindBoxEnabled.Value)
-                            sendQueue.Record(received.BlindBoxes, receivedTimestamp,
-                                box => client.stores.Value.BlindBoxes.Save(realRoomId, box) && Settings.BlindBoxAnnounce.Value);
-                        else if (decoded is DanmakuProtocol.EntryReceived { Entry: var entry, Command: var command })
-                        {
-                            if (entry.TriggerTime != 0 && lastEntryTriggers.TryGetValue(entry.Uid, out var lastTrigger)
-                                && lastTrigger == entry.TriggerTime)
-                            {
-                                client.logger.LogDebug("忽略同一次进场的重复通知 {Command}，观众 {Uid}", command, entry.Uid);
-                                continue;
-                            }
-                            lastEntryTriggers[entry.Uid] = entry.TriggerTime;
-                            if (Settings.WelcomeAnimationEnabled.Value)
-                                client.WelcomeAnimation.Enqueue(entry.Uid, entry.Nickname, receivedTimestamp, roomStopped);
-                            if (!Settings.WelcomeEnabled.Value || welcome.Evaluate(entry, danmakuLengthLimit) is not { } result) continue;
-                            sendQueue.EnqueueWelcome(entry.Uid, entry.Nickname, receivedTimestamp, result);
+                            Handle(roomEvent);
                         }
                     }
                 }
@@ -254,7 +237,7 @@ public sealed partial class AetherClient
             finally
             {
                 // Read before teardown, which can outlast the idle deadline; a stop already explained keeps its reason.
-                if (enableLottery) client.Lottery.Disconnect(realRoomId);
+                Handle(new TransportDisconnected());
                 if (idleTimeout.IsCancellationRequested)
                     stopReason ??= FormattableString.Invariant($"{IdleTimeout.TotalSeconds} 秒未收到任何数据，包括心跳回复。");
                 await connectionStop.CancelAsync();
@@ -282,7 +265,7 @@ public sealed partial class AetherClient
                     SendQueue.Welcome queued => queued.Result.Text,
                     _ => BlindBoxTally.Announcement(round!)
                 };
-                var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
+                var api = client.Api(client.stores.Value.Credentials.Load());
                 return (text, token => api.SendDanmakuAsync(roomId, item is SendQueue.Welcome { Result.Mention: false } ? null : item.Uid,
                     (item as SendQueue.Query)?.Trigger.Id, text, token));
             }, stop.Token));
@@ -318,20 +301,9 @@ public sealed partial class AetherClient
                 await socket.SendAsync(DanmakuProtocol.CreateHeartbeat(), WebSocketMessageType.Binary, true, stop.Token);
         });
 
-        /// <summary>The lottery rides along: its database failing is logged, and danmaku keep coming.</summary>
-        private void RunLottery(long roomId, Danmaku? danmaku = null)
+        private void Handle(RoomEvent e)
         {
-            if (!enableLottery) return;
-            try
-            {
-                // Retry a failed initial load when the next danmaku arrives, without reconnecting the room.
-                // shortcut: loads, entries and stop-word draws hit SQLite on the receive loop; move off it if a busy room lags.
-                var state = client.Lottery.State;
-                if (!state.Connected || state.RoomId != roomId) client.Lottery.Connect(roomId);
-                if (danmaku is not null) client.Lottery.Receive(roomId, danmaku);
-            }
-            catch (Exception error) when (error is SqliteException or JsonException or IOException)
-            { client.logger.LogError(error, "抽奖读写数据库失败，弹幕照常接收：{Error}", error.Message); }
+            foreach (var feature in features) feature.Handle(e);
         }
 
         /// <summary>Runs one of the room connection's background loops. Anything after the connection stops is just the

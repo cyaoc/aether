@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Globalization;
 using Microsoft.Data.Sqlite;
 
 namespace Aether.Core;
@@ -34,8 +33,7 @@ internal sealed partial class LotteryStore
                 var key = reader.GetString(0);
                 order.Add(key);
                 items.Add(key, new(key, roomId, ReadMode(reader.GetString(1)),
-                    DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture),
-                    reader.IsDBNull(3) ? null : DateTimeOffset.Parse(reader.GetString(3), CultureInfo.InvariantCulture),
+                    reader.GetDateTimeOffset(2), reader.GetNullable<DateTimeOffset>(3),
                     reader.GetString(4), reader.GetString(5), reader.GetInt32(6), reader.GetInt32(7), [], []));
             }
         command.CommandText = "SELECT a.lottery_id, a.name, a.prize, a.capacity, a.grade FROM lottery_award a JOIN lottery l ON l.id = a.lottery_id"

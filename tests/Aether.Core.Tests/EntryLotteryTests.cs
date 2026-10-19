@@ -219,7 +219,7 @@ public sealed class EntryLotteryTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Address) };
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
         using var response = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(h.Stop.Token));
         await Event(reader);

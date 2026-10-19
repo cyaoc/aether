@@ -23,43 +23,38 @@ internal static class DanmakuProtocol
 
     internal abstract record DecodedEvent;
     internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
-    internal sealed record DanmakuReceived(Danmaku Danmaku) : DecodedEvent;
-    internal sealed record BlindBoxesReceived(BlindBox[] BlindBoxes) : DecodedEvent;
-    internal sealed record EntryReceived(Entry Entry, string Command) : DecodedEvent;
+    internal sealed record DanmakuReceived(Danmaku Danmaku) : RoomEvent;
+    internal sealed record BlindBoxesReceived(BlindBox[] BlindBoxes, long ReceivedTimestamp) : RoomEvent;
+    internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : RoomEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
-    internal sealed class FormatNotices
+    private sealed class FormatNotices(ILogger logger, bool parseEntries)
     {
-        private string? giftCommand;
+        private readonly Dictionary<string, string> versions = [];
         private readonly HashSet<string> unknownCommands = [];
-        private bool entryVersionSeen;
-        private bool unknownEntrySeen;
 
-        public void Observe(string command, ILogger logger, bool welcomeEnabled)
+        public void Observe(string command)
         {
-            // Entry messages are only decoded while welcomes are on, so only then do their formats matter.
-            if (welcomeEnabled && EntryMessages.Version(command) is { } entryVersion)
+            if (IsDanmaku(command) || command == "DANMU_MSG_MIRROR") return;
+            var (category, version) = command switch
             {
-                if (entryVersionSeen) return;
-                entryVersionSeen = true;
-                logger.LogInformation("本直播间的进场消息为 {Version}（{Command}）", entryVersion, command);
-            }
-            else if (welcomeEnabled && !unknownEntrySeen
-                && (command == "INTERACT_WORD" || command.StartsWith("INTERACT_WORD_", StringComparison.Ordinal)))
+                _ when command.StartsWith("DANMU_MSG", StringComparison.Ordinal) => ("弹幕", null),
+                _ when command.StartsWith("SEND_GIFT", StringComparison.Ordinal) => ("礼物", GiftMessages.Version(command)),
+                _ when parseEntries && (command == "INTERACT_WORD" || command.StartsWith("INTERACT_WORD_", StringComparison.Ordinal))
+                    => ("进场", EntryMessages.Version(command)),
+                _ => (null, null)
+            };
+            if (category is null) return;
+            if (version is not null)
             {
-                unknownEntrySeen = true;
-                logger.LogWarning("收到不认识的进场消息 {Command}，进场消息格式可能变了", command);
-            }
-            if (GiftMessages.Version(command) is { } version)
-            {
-                if (command == giftCommand) return;
-                giftCommand = command;
-                logger.LogInformation("本直播间的礼物消息为 {Version}（{Command}）", version, command);
+                if (versions.GetValueOrDefault(category) == version) return;
+                versions[category] = version;
+                logger.LogInformation("本直播间的{Category}消息为 {Version}（{Command}）", category, version, command);
             }
             // B站 moves message kinds to new formats room by room without notice; say so instead of silently missing them.
-            else if ((command.StartsWith("DANMU_MSG", StringComparison.Ordinal) || command.StartsWith("SEND_GIFT", StringComparison.Ordinal))
-                && !IsDanmaku(command) && command != "DANMU_MSG_MIRROR" && unknownCommands.Add(command))
-                logger.LogWarning("收到不认识的直播间消息 {Command}，弹幕或礼物的消息格式可能变了", command);
+            // The category appears twice under two names, since structured loggers key properties by name.
+            else if (unknownCommands.Add(command))
+                logger.LogWarning("收到不认识的{Category}消息 {Command}，{FormatCategory}消息格式可能变了", category, command, category);
         }
     }
 
@@ -72,23 +67,91 @@ internal static class DanmakuProtocol
 
     public static byte[] CreateHeartbeat() => Pack(Operation.Heartbeat, []);
 
-    public static IEnumerable<DecodedEvent> Decode(
-        byte[] bytes, DateTimeOffset receivedAt, bool authenticated, FormatNotices notices, ILogger logger,
-        bool welcomeEnabled, long roomId)
+    /// <summary>One room connection's decoder; reconnects keep its format notices and entry history.</summary>
+    internal sealed class Decoder(long roomId, ILogger logger, bool parseEntries)
     {
-        foreach (var packet in Unpack(bytes))
+        private readonly FormatNotices notices = new(logger, parseEntries);
+        // shortcut: keeps every viewer seen this room connection; prune it if a huge room's connection grows too large.
+        private readonly Dictionary<long, long> lastEntryTriggers = [];
+
+        public IEnumerable<DecodedEvent> Decode(
+            byte[] bytes, DateTimeOffset receivedAt, bool authenticated, long receivedTimestamp)
         {
-            if (packet.Operation == Operation.AuthenticationReply)
+            foreach (var packet in Unpack(bytes))
             {
-                using var auth = JsonDocument.Parse(packet.Body);
-                var success = auth.RootElement.GetProperty("code").GetInt32() == 0;
-                // Authentication and room messages can share one (possibly compressed) frame.
-                if (success) authenticated = true;
-                yield return new AuthenticationReply(success);
+                if (packet.Operation == Operation.AuthenticationReply)
+                {
+                    using var auth = JsonDocument.Parse(packet.Body);
+                    var success = auth.RootElement.GetProperty("code").GetInt32() == 0;
+                    // Authentication and room messages can share one (possibly compressed) frame.
+                    if (success) authenticated = true;
+                    yield return new AuthenticationReply(success);
+                }
+                else if (packet.Operation == Operation.RoomMessage && authenticated)
+                    foreach (var decoded in ParseRoomMessage(packet.Body, receivedAt, receivedTimestamp))
+                        yield return decoded;
             }
-            else if (packet.Operation == Operation.RoomMessage && authenticated)
-                foreach (var decoded in ParseRoomMessage(packet.Body, receivedAt, notices, logger, welcomeEnabled, roomId))
-                    yield return decoded;
+        }
+
+        private DecodedEvent[] ParseRoomMessage(
+            ReadOnlyMemory<byte> body, DateTimeOffset receivedAt, long receivedTimestamp)
+        {
+            string? command = null;
+            DecodedEvent[] decoded = [];
+            try
+            {
+                using var message = JsonDocument.Parse(body);
+                var root = message.RootElement;
+                command = root.GetProperty("cmd").GetString() ?? throw new JsonException("缺少 cmd。");
+                notices.Observe(command);
+                if (IsDanmaku(command))
+                {
+                    var info = root.GetProperty("info");
+                    var nickname = info[2][1].GetString() ?? throw new JsonException("缺少弹幕昵称。");
+                    var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
+                    var (uid, id, replyName) = ReplyDetails(info);
+                    var fanClub = ArrayItem(info, 3);
+                    var fanClubLevel = NumberAt(fanClub, 0);
+                    decoded = [new DanmakuReceived(new Danmaku(receivedAt, nickname, content)
+                    {
+                        Uid = uid, Id = id, ReplyName = replyName,
+                        FanClubLevel = NumberAt(fanClub, 3) == roomId && fanClubLevel > 0 ? fanClubLevel : null,
+                        GuardTier = Guard.TierFromPrivilegeType(NumberAt(info, 7)),
+                        WealthLevel = NumberAt(ArrayItem(info, 16), 0)
+                    })];
+                }
+                else if (GiftMessages.Decode(command, root, body, logger) is { Length: > 0 } boxes)
+                    decoded = [new BlindBoxesReceived(boxes, receivedTimestamp)];
+                else if (parseEntries && EntryMessages.Decode(command, root, roomId) is { } entry)
+                    decoded = [new EntryReceived(entry, receivedTimestamp)];
+            }
+            // Only message decoding is inside this boundary; frame errors still end the stream.
+            catch (Exception error) when (error is JsonException or KeyNotFoundException
+                or InvalidOperationException or IndexOutOfRangeException or FormatException or OverflowException)
+            {
+                var length = Math.Min(body.Length, MaxLoggedJsonBytes);
+                // Keep a complete UTF-8 prefix when the byte limit lands inside a character.
+                while (length < body.Length && length > 0 && (body.Span[length] & 0xC0) == 0x80) length--;
+                var json = Encoding.UTF8.GetString(body.Span[..length]);
+                logger.LogWarning("跳过无法解析的直播间消息（cmd: {Command}）：{Error}；原始 JSON：{Json}{Truncated}",
+                    command, error.Message, json, length < body.Length ? "（已截断，最多 2KB）" : "");
+                return [];
+            }
+            // Valid JSON only has literal CR/LF outside strings; keep each capture on one line.
+            if (logger.IsEnabled(LogLevel.Trace))
+                logger.LogTrace("直播间消息原始 JSON：{Json}", Encoding.UTF8.GetString(body.Span).Replace("\r", "").Replace("\n", ""));
+            if (decoded is [EntryReceived { Entry: var receivedEntry }])
+            {
+                if (receivedEntry.TriggerTime != 0 && lastEntryTriggers.TryGetValue(receivedEntry.Uid, out var lastTrigger)
+                    && lastTrigger == receivedEntry.TriggerTime)
+                {
+                    logger.LogDebug("忽略同一次进场的重复通知 {Command}，观众 {Uid}", command, receivedEntry.Uid);
+                    return [];
+                }
+                lastEntryTriggers[receivedEntry.Uid] = receivedEntry.TriggerTime;
+            }
+            if (decoded.Length == 0) logger.LogDebug("忽略直播间事件 {Command}", command);
+            return decoded;
         }
     }
 
@@ -122,57 +185,6 @@ internal static class DanmakuProtocol
 
     private static bool IsDanmaku(string command) =>
         command == "DANMU_MSG" || command.StartsWith("DANMU_MSG:", StringComparison.Ordinal);
-
-    private static DecodedEvent[] ParseRoomMessage(
-        ReadOnlyMemory<byte> body, DateTimeOffset receivedAt, FormatNotices notices, ILogger logger, bool welcomeEnabled, long roomId)
-    {
-        string? command = null;
-        DecodedEvent[] decoded = [];
-        try
-        {
-            using var message = JsonDocument.Parse(body);
-            var root = message.RootElement;
-            command = root.GetProperty("cmd").GetString() ?? throw new JsonException("缺少 cmd。");
-            notices.Observe(command, logger, welcomeEnabled);
-            if (IsDanmaku(command))
-            {
-                var info = root.GetProperty("info");
-                var nickname = info[2][1].GetString() ?? throw new JsonException("缺少弹幕昵称。");
-                var content = info[1].GetString() ?? throw new JsonException("缺少弹幕内容。");
-                var (uid, id, replyName) = ReplyDetails(info);
-                var fanClub = ArrayItem(info, 3);
-                var fanClubLevel = NumberAt(fanClub, 0);
-                decoded = [new DanmakuReceived(new Danmaku(receivedAt, nickname, content)
-                {
-                    Uid = uid, Id = id, ReplyName = replyName,
-                    FanClubLevel = NumberAt(fanClub, 3) == roomId && fanClubLevel > 0 ? fanClubLevel : null,
-                    GuardTier = Guard.TierFromPrivilegeType(NumberAt(info, 7)),
-                    WealthLevel = NumberAt(ArrayItem(info, 16), 0)
-                })];
-            }
-            else if (GiftMessages.Decode(command, root, body, logger) is { Length: > 0 } boxes)
-                decoded = [new BlindBoxesReceived(boxes)];
-            else if (welcomeEnabled && EntryMessages.Decode(command, root, roomId) is { } entry)
-                decoded = [new EntryReceived(entry, command)];
-        }
-        // Only message decoding is inside this boundary; frame errors still end the stream.
-        catch (Exception error) when (error is JsonException or KeyNotFoundException
-            or InvalidOperationException or IndexOutOfRangeException or FormatException or OverflowException)
-        {
-            var length = Math.Min(body.Length, MaxLoggedJsonBytes);
-            // Keep a complete UTF-8 prefix when the byte limit lands inside a character.
-            while (length < body.Length && length > 0 && (body.Span[length] & 0xC0) == 0x80) length--;
-            var json = Encoding.UTF8.GetString(body.Span[..length]);
-            logger.LogWarning("跳过无法解析的直播间消息（cmd: {Command}）：{Error}；原始 JSON：{Json}{Truncated}",
-                command, error.Message, json, length < body.Length ? "（已截断，最多 2KB）" : "");
-            return [];
-        }
-        // Valid JSON only has literal CR/LF outside strings; keep each capture on one line.
-        if (logger.IsEnabled(LogLevel.Trace))
-            logger.LogTrace("直播间消息原始 JSON：{Json}", Encoding.UTF8.GetString(body.Span).Replace("\r", "").Replace("\n", ""));
-        if (decoded.Length == 0) logger.LogDebug("忽略直播间事件 {Command}", command);
-        return decoded;
-    }
 
     private static IEnumerable<(Operation Operation, ReadOnlyMemory<byte> Body)> Unpack(byte[] bytes, int depth = 0)
     {

@@ -48,7 +48,7 @@ public sealed class WelcomeAnimationTests
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "false" });
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
         Assert.True(h.Client.WebService.Status.Running);
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Address) };
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
         using var root = await http.GetAsync("/", h.Stop.Token);
         Assert.Equal(HttpStatusCode.NotFound, root.StatusCode);
         Assert.Contains("<video", await http.GetStringAsync("/video", h.Stop.Token));
@@ -60,7 +60,7 @@ public sealed class WelcomeAnimationTests
     {
         await using var h = new WatchHarness();
         await Start(h, 10001);
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Address) };
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
         using var lottery = await http.GetAsync("/lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var lotteryReader = new StreamReader(await lottery.Content.ReadAsStreamAsync(h.Stop.Token));
         Assert.StartsWith("retry:", await lotteryReader.ReadLineAsync(h.Stop.Token));
@@ -91,11 +91,73 @@ public sealed class WelcomeAnimationTests
     }
 
     [Fact]
+    public async Task Finishing_the_lottery_stream_closes_only_its_connection_and_video_keeps_receiving_broadcasts()
+    {
+        await using var h = new WatchHarness();
+        await Start(h, 10001);
+        using var video = await Page.ConnectAsync(h);
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
+        using var lottery = await http.GetAsync("/lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
+        using var reader = new StreamReader(await lottery.Content.ReadAsStreamAsync(h.Stop.Token));
+        string? line;
+        do { line = await reader.ReadLineAsync(h.Stop.Token); } while (line is not null && !line.StartsWith("data: "));
+        Assert.NotNull(line);
+        Assert.Equal("", await reader.ReadLineAsync(h.Stop.Token));
+        Assert.Equal(1, h.Client.WebService.Status.LotteryConnections);
+
+        h.Client.Lottery.Dispose();
+        Assert.Null(await reader.ReadLineAsync(h.Stop.Token).AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        await Eventually.TrueAsync(() => h.Client.WebService.Status.LotteryConnections == 0);
+        Assert.Equal(1, h.Client.WebService.Status.VideoConnections);
+        h.Client.WebService.Video.Enqueue("10001.mp4", "测试");
+        var playing = await video.NextAsync();
+        Assert.Equal("10001", playing.Content);
+        await video.ReportAsync(playing);
+    }
+
+    [Fact]
+    public async Task Event_streams_preserve_retry_heartbeat_and_page_event_bytes()
+    {
+        await using var h = new WatchHarness();
+        await Start(h, 10001);
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
+        using var lottery = await http.GetAsync("/lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
+        await using var lotteryStream = await lottery.Content.ReadAsStreamAsync(h.Stop.Token);
+        await AssertFrameAsync(lotteryStream, "retry: 2000\n\n");
+        await AssertFrameAsync(lotteryStream,
+            "event: state\ndata: {\"roomId\":null,\"connected\":false,\"lottery\":null,\"canControl\":false,\"theme\":\"StarSummon\",\"isExamplePlaying\":false}\n\n");
+
+        using var video = await http.GetAsync("/video/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
+        await using var videoStream = await video.Content.ReadAsStreamAsync(h.Stop.Token);
+        await AssertFrameAsync(videoStream, "retry: 2000\n\n");
+        await using var observed = new Observations(h);
+        h.Client.WelcomeAnimation.TestPlay(10001);
+        await observed.WaitAsync(update => update is WelcomeAnimationPlayback { State: PlaybackState.Playing });
+        var id = Assert.Single(observed.Items.OfType<WelcomeAnimationPlayback>(), update => update.State == PlaybackState.Playing).Id;
+        await AssertFrameAsync(videoStream, "data: {\"id\":\"" + id + "\"}\n\n");
+        h.Client.WelcomeAnimation.StopTestPlay(id);
+        await AssertFrameAsync(videoStream, "event: stop\ndata: {\"id\":\"" + id + "\"}\n\n");
+
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(15));
+        h.Time.Advance(TimeSpan.FromSeconds(15));
+        await AssertFrameAsync(lotteryStream, ": heartbeat\n\n");
+        await AssertFrameAsync(videoStream, ": heartbeat\n\n");
+
+        async Task AssertFrameAsync(Stream stream, string expected)
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(expected);
+            var actual = new byte[bytes.Length];
+            await stream.ReadExactlyAsync(actual, h.Stop.Token).AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
+            Assert.Equal(bytes, actual);
+        }
+    }
+
+    [Fact]
     public async Task Changing_the_port_restarts_the_service_and_drops_existing_streams()
     {
         await using var h = new WatchHarness();
         await Start(h, 10001);
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Address) };
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
         using var page = await Page.ConnectAsync(h);
         var port = FreePort();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
@@ -157,7 +219,7 @@ public sealed class WelcomeAnimationTests
         h.Client.WebService.Video.Enqueue("shared.webm", "抽奖");
         var playback = await page.NextAsync();
         Assert.Equal("shared bytes", playback.Content);
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Address) };
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
         using var file = await http.GetAsync("/video/files/" + playback.Id, h.Stop.Token);
         Assert.Equal("video/webm", file.Content.Headers.ContentType?.MediaType);
         await page.ReportAsync(playback);
@@ -426,7 +488,7 @@ public sealed class WelcomeAnimationTests
         tcp.Start();
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        var port = rawSocket ? ((IPEndPoint)tcp.LocalEndpoint).Port : new Uri(first.Client.WebService.Address).Port;
+        var port = rawSocket ? ((IPEndPoint)tcp.LocalEndpoint).Port : new Uri(first.Client.WebService.Status.Origin).Port;
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
             ["welcome_animation.enabled"] = "true", ["web_service.port"] = port.ToString()
@@ -457,10 +519,10 @@ public sealed class WelcomeAnimationTests
             await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
             await page.ReportAsync(await page.NextAsync());
         }
-        var address = h.Client.WebService.Address;
+        var address = h.Client.WebService.Status.Origin;
         await h.Client.WebService.StopAsync();
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
-        Assert.Equal(address, h.Client.WebService.Address);
+        Assert.Equal(address, h.Client.WebService.Status.Origin);
         using var restarted = await Page.ConnectAsync(h);
         h.Client.WelcomeAnimation.TestPlay(10001);
         Assert.Equal("10001", (await restarted.NextAsync()).Content);
@@ -471,7 +533,7 @@ public sealed class WelcomeAnimationTests
     {
         await using var h = new WatchHarness();
         await Start(h, 10001);
-        var address = new Uri(h.Client.WebService.Address);
+        var address = new Uri(h.Client.WebService.Status.Origin);
         // A bodyless 404 writes its headers in Close(), after the client may have reset the connection.
         var request = System.Text.Encoding.ASCII.GetBytes($"GET /missing HTTP/1.1\r\nHost: {address.Authority}\r\nConnection: close\r\n\r\n");
         // 20 resets crashed .NET 10.0.12 on macOS (dotnet/runtime#121848) only 4 runs in 5; 100 crashed it every run.
@@ -495,7 +557,7 @@ public sealed class WelcomeAnimationTests
     {
         await using var h = new WatchHarness();
         await Start(h, 10001);
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Address) };
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
         var html = await http.GetStringAsync("/video", h.Stop.Token);
         Assert.Contains("object-fit: contain", html);
         Assert.Contains("response.blob()", html);
@@ -598,7 +660,7 @@ public sealed class WelcomeAnimationTests
 
         public static async Task<Page> ConnectAsync(WatchHarness h)
         {
-            var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Address) };
+            var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
             var response = await http.GetAsync("/video/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
             response.EnsureSuccessStatusCode();
             var reader = new StreamReader(await response.Content.ReadAsStreamAsync(h.Stop.Token));

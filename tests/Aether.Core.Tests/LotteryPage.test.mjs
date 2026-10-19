@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const script = readFileSync(new URL('../../src/Aether.Core/LotteryPage.js', import.meta.url), 'utf8');
+const script = readFileSync(new URL('../../src/Aether.Core/Pages/lottery/page.js', import.meta.url), 'utf8');
 function page(width = 1920, height = 1080) {
   let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0, source, animationFrame;
   const timers = new Map(), elements = new Map(), listeners = new Map();

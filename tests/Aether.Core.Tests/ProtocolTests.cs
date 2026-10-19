@@ -332,6 +332,23 @@ public sealed class ProtocolTests
         Assert.Equal(2, Warnings(h).Count(message => message.Contains("DANMU_MSG_V2")));
     }
 
+    [Theory]
+    [InlineData("DANMU_MSG", "弹幕")]
+    [InlineData("SEND_GIFT", "礼物")]
+    public async Task Unknown_message_format_is_warned_once_per_command_in_its_category(string prefix, string category)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        var v3 = $$"""{"cmd":"{{prefix}}_V3"}""";
+        var v4 = $$"""{"cmd":"{{prefix}}_V4"}""";
+        await h.PushAndSyncAsync(updates, v3, v4, v3, v4);
+
+        Assert.Collection(Warnings(h),
+            message => Assert.Equal($"收到不认识的{category}消息 {prefix}_V3，{category}消息格式可能变了", message),
+            message => Assert.Equal($"收到不认识的{category}消息 {prefix}_V4，{category}消息格式可能变了", message));
+    }
+
     private const string UnknownDanmaku ="""{"cmd":"DANMU_MSG_V2","data":{}}""";
     private const string GiftV1 ="""{"cmd":"SEND_GIFT","data":{}}""";
     private const string GiftV2 = """{"cmd":"SEND_GIFT_V2","data":{"pb":""}}""";

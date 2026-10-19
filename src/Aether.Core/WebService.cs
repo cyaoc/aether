@@ -1,8 +1,8 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
 using System.Text;
-using System.Threading.Channels;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
@@ -10,10 +10,14 @@ namespace Aether.Core;
 /// <summary>The shell owns the service lifetime; each page has its own connections.</summary>
 public sealed class WebService : IDisposable
 {
+    internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
+    private const string Retry = "retry: 2000\n\n";
+    private const string Heartbeat = ": heartbeat\n\n";
     internal object Gate { get; } = new();
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
-    private readonly List<Channel<WebServiceUpdate>> subscribers = [];
+    private readonly WebPage[] pages;
+    private readonly Subscribers<WebServiceUpdate> subscribers;
     private readonly HashSet<Connection> connections = [];
     private WebServiceStatus status = new(false, Settings.WebPort.Initial.Value, 0, 0);
     private HttpListener? listener;
@@ -26,35 +30,26 @@ public sealed class WebService : IDisposable
     {
         this.timeProvider = timeProvider;
         this.logger = logger;
+        subscribers = new(Gate);
         Video = new(this, dataDirectory, timeProvider);
         Lottery = new(this, lottery);
+        pages = [Video, Lottery];
     }
 
     /// <summary>One streaming software's event stream to a page.</summary>
-    private sealed class Connection(HttpListenerResponse response, string path)
+    private sealed class Connection(HttpListenerResponse response, WebPage page)
     {
         public HttpListenerResponse Response { get; } = response;
-        public string Path { get; } = path;
+        public WebPage Page { get; } = page;
         public SemaphoreSlim WriteLock { get; } = new(1);
         public CancellationTokenSource? StreamStop { get; set; }
     }
 
-    public string Address => $"http://localhost:{Status.Port}/";
-
     public WebServiceStatus Status { get { lock (Gate) return status; } }
 
     /// <summary>Subscribe independently of WatchAsync. The first update is the current service status.</summary>
-    public async IAsyncEnumerable<WebServiceUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        // ponytail: unbounded like WatchAsync; bound this if a shell ever keeps a subscription without reading it.
-        var updates = Channel.CreateUnbounded<WebServiceUpdate>();
-        lock (Gate) { subscribers.Add(updates); updates.Writer.TryWrite(status); }
-        try
-        {
-            await foreach (var update in updates.Reader.ReadAllAsync(cancellationToken)) yield return update;
-        }
-        finally { lock (Gate) subscribers.Remove(updates); }
-    }
+    public IAsyncEnumerable<WebServiceUpdate> GetUpdatesAsync(CancellationToken cancellationToken = default) =>
+        subscribers.SubscribeAsync(() => status, cancellationToken);
 
     /// <summary>Only a changed port restarts existing connections.</summary>
     public async Task StartAsync(int port)
@@ -68,7 +63,7 @@ public sealed class WebService : IDisposable
             if (stop is not null) throw new InvalidOperationException("网页服务正在启动，请稍后再试。");
             status = new(false, port, 0, 0);
             var server = new HttpListener();
-            server.Prefixes.Add(Address);
+            server.Prefixes.Add(status.Origin + "/");
             try { server.Start(); }
             catch (HttpListenerException exception)
             {
@@ -87,7 +82,8 @@ public sealed class WebService : IDisposable
             status = status with { Running = true };
             Publish(status);
             var token = stop.Token;
-            running = Task.Run(() => Task.WhenAll(AcceptAsync(server, token), HeartbeatsAsync(token), Video.RunAsync(token)));
+            running = Task.Run(() => Task.WhenAll(pages.Select(page => page.RunAsync(token))
+                .Append(AcceptAsync(server, token)).Append(HeartbeatsAsync(token))));
         }
     }
 
@@ -100,7 +96,6 @@ public sealed class WebService : IDisposable
             stopping = stop;
             if (stopping is null) return;
             stopping.Cancel();
-            Lottery.StopExample();
             // Abort before Close: on Windows, Close releases the request queue that Abort needs.
             foreach (var connection in connections) Abort(connection.Response);
             listener!.Close();
@@ -123,24 +118,28 @@ public sealed class WebService : IDisposable
         }
     }
 
-    internal void Publish(WebServiceUpdate update)
-    {
-        lock (Gate) foreach (var subscriber in subscribers) subscriber.Writer.TryWrite(update);
-    }
+    internal void Publish(WebServiceUpdate update) => subscribers.Publish(update);
 
     private void ConnectionsChanged()
     {
-        status = status with { VideoConnections = connections.Count(connection => connection.Path == "/video/events"),
-            LotteryConnections = connections.Count(connection => connection.Path == "/lottery/events") };
+        var counts = pages.ToDictionary(page => page, page => connections.Count(connection => connection.Page == page));
+        status = status with { VideoConnections = counts[Video], LotteryConnections = counts[Lottery] };
         logger.LogInformation("网页服务：视频页 {VideoCount} 个推流软件，抽奖页 {LotteryCount} 个推流软件", status.VideoConnections, status.LotteryConnections);
         Publish(status);
-        if (status.VideoConnections == 0) Video.Disconnected();
+        foreach (var (page, count) in counts)
+            if (count == 0) page.Disconnected();
     }
 
-    internal async Task<int> BroadcastAsync(string text, CancellationToken token, string? path = null)
+    private static string Frame(SseEvent message) =>
+        (message.Name is null ? "" : "event: " + message.Name + "\n") + "data: " + JsonSerializer.Serialize(message.Data, Json) + "\n\n";
+
+    internal Task<int> BroadcastAsync(WebPage page, SseEvent message, CancellationToken token) =>
+        BroadcastFrameAsync(Frame(message), token, page);
+
+    private async Task<int> BroadcastFrameAsync(string text, CancellationToken token, WebPage? page = null)
     {
         Connection[] targets;
-        lock (Gate) targets = connections.Where(connection => path is null || connection.Path == path).ToArray();
+        lock (Gate) targets = connections.Where(connection => page is null || connection.Page == page).ToArray();
         var results = await Task.WhenAll(targets.Select(connection => SendAsync(connection, text, token)));
         return results.Count(sent => sent);
     }
@@ -178,7 +177,7 @@ public sealed class WebService : IDisposable
             while (true)
             {
                 await Task.Delay(TimeSpan.FromSeconds(15), timeProvider, token);
-                await BroadcastAsync(": heartbeat\n\n", token);
+                await BroadcastFrameAsync(Heartbeat, token);
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
@@ -211,29 +210,33 @@ public sealed class WebService : IDisposable
             response.Headers["X-Content-Type-Options"] = "nosniff";
             var host = request.Headers["Host"];
             // Browsers omit the default HTTP port from Host even when the URL explicitly contains :80.
-            var localHost = string.Equals(host, $"localhost:{status.Port}", StringComparison.OrdinalIgnoreCase)
+            var localHost = string.Equals(host, status.Origin["http://".Length..], StringComparison.OrdinalIgnoreCase)
                 || status.Port == 80 && string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase);
             if (!localHost
                 || request.RemoteEndPoint is not { Address: var address } || !IPAddress.IsLoopback(address))
             { response.StatusCode = 403; return; }
             var path = request.Url!.AbsolutePath;
-            if (request.HttpMethod == "GET" && path is "/video/events" or "/lottery/events")
+            var name = path.Split('/', 3)[1];
+            var page = pages.FirstOrDefault(page => page.Name == name);
+            if (page is null) { response.StatusCode = 404; return; }
+            if (request.HttpMethod == "GET" && path == $"/{page.Name}/events")
             {
                 response.ContentType = "text/event-stream";
                 response.SendChunked = true;
-                var connection = new Connection(response, path);
-                using var streamStop = path == "/lottery/events" ? CancellationTokenSource.CreateLinkedTokenSource(token) : null;
+                var connection = new Connection(response, page);
+                var events = page.EventsAsync(token);
+                using var streamStop = events is not null ? CancellationTokenSource.CreateLinkedTokenSource(token) : null;
                 connection.StreamStop = streamStop;
                 try
                 {
                     lock (Gate) { token.ThrowIfCancellationRequested(); connections.Add(connection); ConnectionsChanged(); }
-                    keepOpen = await SendAsync(connection, "retry: 2000\n\n", token);
+                    keepOpen = await SendAsync(connection, Retry, token);
                     if (keepOpen && streamStop is not null)
                     {
-                        // The lottery stream lives in this request, so the response closes when it ends.
+                        // A page's stream lives in this request, so the response closes when it ends.
                         keepOpen = false;
-                        await foreach (var frame in Lottery.EventsAsync(streamStop.Token))
-                            if (!await SendAsync(connection, frame, token)) break;
+                        await foreach (var message in events!.WithCancellation(streamStop.Token))
+                            if (!await SendAsync(connection, Frame(message), token)) break;
                     }
                 }
                 finally
@@ -246,11 +249,8 @@ public sealed class WebService : IDisposable
                     }
                 }
             }
-            else if (path.StartsWith("/video", StringComparison.Ordinal))
-                await Video.HandleAsync(request, response, token);
-            else if (path.StartsWith("/lottery", StringComparison.Ordinal))
-                await Lottery.HandleAsync(request, response, token);
-            else response.StatusCode = 404;
+            else if (!await ServeResourceAsync(page, request, response, token)
+                && !await page.HandleAsync(request, response, token)) response.StatusCode = 404;
         }
         // On macOS, RemoteEndPoint throws SocketException once the client has reset the connection.
         catch (Exception error) when (error is IOException or HttpListenerException or SocketException or ObjectDisposedException or OperationCanceledException or UnauthorizedAccessException)
@@ -264,6 +264,30 @@ public sealed class WebService : IDisposable
         }
     }
 
+    private static async Task<bool> ServeResourceAsync(WebPage page, HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
+    {
+        if (request.HttpMethod != "GET") return false;
+        var path = request.Url!.AbsolutePath;
+        if (path == $"/{page.Name}") path += "/index.html";
+        var contentType = Path.GetExtension(path) switch
+        {
+            ".html" => "text/html; charset=utf-8",
+            ".css" => "text/css; charset=utf-8",
+            ".js" => "text/javascript; charset=utf-8",
+            ".woff2" => "font/woff2",
+            ".ttf" => "font/ttf",
+            ".txt" => "text/plain; charset=utf-8",
+            _ => null
+        };
+        if (contentType is null) return false;
+        using var content = typeof(WebService).Assembly.GetManifestResourceStream("Aether.Core.Pages" + path.Replace('/', '.'));
+        if (content is null) return false;
+        response.ContentType = contentType;
+        response.ContentLength64 = content.Length;
+        await content.CopyToAsync(response.OutputStream, token);
+        return true;
+    }
+
     /// <summary>A request still finishing after StopAsync closed the listener has nothing left to abort on Windows.</summary>
     private static void Abort(HttpListenerResponse response)
     {
@@ -274,10 +298,6 @@ public sealed class WebService : IDisposable
     public void Dispose()
     {
         StopAsync().GetAwaiter().GetResult();
-        lock (Gate)
-        {
-            foreach (var subscriber in subscribers) subscriber.Writer.TryComplete();
-            subscribers.Clear();
-        }
+        subscribers.Complete();
     }
 }
