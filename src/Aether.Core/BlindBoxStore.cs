@@ -95,7 +95,7 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
         command.Parameters.AddWithValue("$spend", blindBox.Spend);
         command.Parameters.AddWithValue("$openedValue", blindBox.OpenedValue);
         command.Parameters.AddWithValue("$timestamp", blindBox.Timestamp);
-        command.Parameters.AddWithValue("$tid", (object?)blindBox.Tid ?? DBNull.Value);
+        command.Set("$tid", blindBox.Tid);
         command.Parameters.AddWithValue("$rawMessage", blindBox.RawMessage);
         if (command.ExecuteNonQuery() == 0)
         {

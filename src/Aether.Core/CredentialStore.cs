@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 
 namespace Aether.Core;
@@ -26,7 +25,7 @@ internal sealed class CredentialStore(Database database)
         if (previousToken is not null) command.Parameters.AddWithValue("$previousToken", previousToken);
         command.Parameters.AddWithValue("$cookies", JsonSerializer.Serialize(credential.Cookies));
         command.Parameters.AddWithValue("$token", credential.RefreshToken);
-        command.Parameters.AddWithValue("$savedAt", credential.SavedAt.ToString("O"));
+        command.Set("$savedAt", credential.SavedAt);
         return command.ExecuteNonQuery() != 0;
     }
 
@@ -38,8 +37,7 @@ internal sealed class CredentialStore(Database database)
         using var reader = command.ExecuteReader();
         if (!reader.Read()) return null;
         return new Credential(JsonSerializer.Deserialize<Dictionary<string, string>>(reader.GetString(0))!,
-            reader.GetString(1), DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture),
-            reader.IsDBNull(3) ? null : DateTimeOffset.Parse(reader.GetString(3), CultureInfo.InvariantCulture));
+            reader.GetString(1), reader.GetDateTimeOffset(2), reader.GetNullable<DateTimeOffset>(3));
     }
 
     public void MarkChecked(string token, DateTimeOffset checkedAt)
@@ -47,7 +45,7 @@ internal sealed class CredentialStore(Database database)
         using var connection = database.Open();
         using var command = connection.CreateCommand();
         command.CommandText = "UPDATE credential SET checked_at = $checkedAt WHERE refresh_token = $token";
-        command.Parameters.AddWithValue("$checkedAt", checkedAt.ToString("O"));
+        command.Set("$checkedAt", checkedAt);
         command.Parameters.AddWithValue("$token", token);
         command.ExecuteNonQuery();
     }
