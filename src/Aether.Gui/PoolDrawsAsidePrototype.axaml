@@ -1,0 +1,67 @@
+<!-- PROTOTYPE (#180), throwaway: the 开奖记录 aside of LotteryPanel.axaml rewritten as a DataTemplate plus bindings. -->
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core"
+  x:Class="Aether.Gui.PoolDrawsAsidePrototype" x:DataType="local:PoolDrawsPrototype">
+  <UserControl.Styles>
+    <Style Selector="ItemsControl#HistoryRows Border.drawRow">
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+    </Style>
+    <Style Selector="ItemsControl#HistoryRows Border.drawRow.fresh">
+      <Setter Property="Background" Value="{DynamicResource Accent.Flash}" />
+    </Style>
+  </UserControl.Styles>
+  <Border Width="280" Background="{DynamicResource Surface.Aside}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
+    <Grid RowDefinitions="Auto,Auto,*">
+      <Border x:Name="LatestCard" Margin="16,16,16,4" Padding="12" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource Accent}" Background="{DynamicResource Accent.Flash}"
+        IsVisible="{Binding ShowLatest}">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="caption muted singleLine" Text="{Binding Latest.Head}" />
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+            <Border Classes="badge" Height="20" Padding="6,0" VerticalAlignment="Center"
+              Classes.grand="{Binding Latest.Grade, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static core:Grade.Grand}}"
+              Classes.second="{Binding Latest.Grade, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static core:Grade.Second}}"
+              Classes.third="{Binding Latest.Grade, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static core:Grade.Third}}">
+              <TextBlock Text="{Binding Latest.GradeName}" VerticalAlignment="Center" />
+            </Border>
+            <TextBlock Grid.Column="1" Classes="singleLine" Text="{Binding Latest.Prize}" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+          </Grid>
+        </StackPanel>
+      </Border>
+      <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,14,16,8">
+        <TextBlock Classes="section" Text="开奖记录" />
+        <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding DrawCount}" VerticalAlignment="Center" />
+      </Grid>
+      <Panel Grid.Row="2">
+        <TextBlock Classes="hint" Text="暂无开奖记录" Margin="16,0" IsVisible="{Binding IsEmpty}" />
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <ItemsControl x:Name="HistoryRows" ItemsSource="{Binding Rows}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="local:PoolDrawRow">
+                <Border Classes="drawRow" Classes.fresh="{Binding Fresh}">
+                  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <TextBlock Classes="singleLine" Text="{Binding Who}" FontSize="13" FontWeight="SemiBold" MaxWidth="84" VerticalAlignment="Center" />
+                      <Border Classes="badge neutralBadge" Height="18" VerticalAlignment="Center" ToolTip.Tip="主播点停" IsVisible="{Binding HostBadge}">
+                        <TextBlock Text="点停" />
+                      </Border>
+                      <Border Classes="badge" Height="18" VerticalAlignment="Center"
+                        Classes.grand="{Binding Grade, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static core:Grade.Grand}}"
+                        Classes.second="{Binding Grade, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static core:Grade.Second}}"
+                        Classes.third="{Binding Grade, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static core:Grade.Third}}">
+                        <TextBlock Text="{Binding GradeName}" VerticalAlignment="Center" />
+                      </Border>
+                    </StackPanel>
+                    <TextBlock Grid.Column="1" Classes="singleLine" Text="{Binding Prize}" FontSize="13" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Classes="caption muted numeric" Text="{Binding Time}" VerticalAlignment="Center" />
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </ScrollViewer>
+      </Panel>
+    </Grid>
+  </Border>
+</UserControl>
