@@ -49,7 +49,7 @@ public partial class MainWindowViewModel
 
     private void ObserveLottery()
     {
-        if (lotteryStop is not null) return;
+        if (shutdown.IsCancellationRequested || lotteryStop is not null) return;
         lotteryStop = new();
         lotteryUpdates = ReadAsync(lotteryStop.Token);
 
@@ -62,7 +62,7 @@ public partial class MainWindowViewModel
 
     internal Task ChangeLotteryAsync(Action<LotteryController> change)
     {
-        if (shuttingDown) throw new InvalidOperationException("程序正在关闭。");
+        if (shutdown.IsCancellationRequested) throw new InvalidOperationException("程序正在关闭。");
         return lotteryChange = Task.Run(() => change(client.Lottery));
     }
 
@@ -74,7 +74,7 @@ public partial class MainWindowViewModel
 
     internal void PlayLotteryExample()
     {
-        if (shuttingDown) return;
+        if (shutdown.IsCancellationRequested) return;
         client.WebService.Lottery.PlayExample();
         Apply(new LotteryUpdate(client.Lottery.State));
     }
@@ -88,6 +88,7 @@ public partial class MainWindowViewModel
 
     private async Task StopLotteryAsync()
     {
+        await FinishLotteryChangeAsync();
         lotteryStop?.Cancel();
         await lotteryUpdates;
         lotteryStop?.Dispose();

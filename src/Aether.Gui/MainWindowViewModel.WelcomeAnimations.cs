@@ -24,14 +24,6 @@ public partial class MainWindowViewModel
     private bool testPlayPending;
     internal bool AnimationBusy => testPlayPending || pendingAnimations.Count > 0;
 
-    /// <summary>Starts the web service when the window opens, logging mapped videos that are missing as the CLI does.</summary>
-    internal Task StartWebServiceAsync(string dataDirectory)
-    {
-        // The 抽奖页 and the GUI read the same lottery, so the GUI starts following it with the web service.
-        if (!shuttingDown) ObserveLottery();
-        return ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
-    }
-
     internal Task RefreshWebServiceAsync(Settings snapshot)
     {
         if (animationSettings is { } previous
@@ -46,7 +38,7 @@ public partial class MainWindowViewModel
 
     public Task ApplyWebSettingsAsync(Settings snapshot)
     {
-        if (shuttingDown) return Task.CompletedTask;
+        if (shutdown.IsCancellationRequested) return Task.CompletedTask;
         animationSettings = snapshot;
         pendingAnimationReloads++;
         AnimationRowsChanged?.Invoke();
@@ -63,7 +55,7 @@ public partial class MainWindowViewModel
             try
             {
                 await previous;
-                if (shuttingDown) return;
+                if (shutdown.IsCancellationRequested) return;
                 await client.ApplyWebSettingsAsync(snapshot);
                 failedAnimationVideos.RemoveWhere(video => !snapshot.WelcomeAnimationVideos.TryGetValue(video.Uid, out var saved) || saved.Value != video.FileName);
                 Apply(client.WebService.Status);
@@ -221,7 +213,7 @@ public partial class MainWindowViewModel
             client.WelcomeAnimation.StopTestPlay(playing.Id);
             return;
         }
-        if (AnimationReloading || AnimationBusy || !HasVideoConnections || shuttingDown
+        if (AnimationReloading || AnimationBusy || !HasVideoConnections || shutdown.IsCancellationRequested
             || animationSettings?.WelcomeAnimationEnabled.Value != true
             || !AnimationVideoSaved(uid, fileName)) return;
         // Disable immediately, before the queued update crosses back to the UI thread.

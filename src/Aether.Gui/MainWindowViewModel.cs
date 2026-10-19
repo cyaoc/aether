@@ -69,11 +69,11 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     [ObservableProperty] private string loginError = "";
     private CancellationTokenSource? accountReadStop;
     private Task accountReadTask = Task.CompletedTask;
-    private bool shuttingDown;
+    private readonly CancellationTokenSource shutdown = new();
 
-    private bool CanConnect => AccountStatus != AccountStatus.LoggedOut && !IsLoginPage && !IsLoggingOut && !IsRestarting && !shuttingDown;
+    private bool CanConnect => AccountStatus != AccountStatus.LoggedOut && !IsLoginPage && !IsLoggingOut && !IsRestarting && !shutdown.IsCancellationRequested;
     private bool CanReconnect => CanConnect && HasRoomConnection;
-    private bool CanLogin => IsLoginPage && !IsLoggingOut && !shuttingDown;
+    private bool CanLogin => IsLoginPage && !IsLoggingOut && !shutdown.IsCancellationRequested;
     public bool IsConnected => ConnectionState == RoomConnectionState.Connected;
     public bool HasRoomConnection => ConnectionState != RoomConnectionState.Disconnected;
     public string Status => ConnectionState switch
@@ -97,6 +97,14 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     public static FuncValueConverter<int, bool> IsAdmiral { get; } = new(tier => tier == 2);
     public static FuncValueConverter<int, bool> IsGovernor { get; } = new(tier => tier == 3);
     public static FuncValueConverter<string?, string> ReplyPrefix { get; } = new(name => string.IsNullOrEmpty(name) ? "" : $"@{name} ");
+
+    public Task StartAsync(string dataDirectory)
+    {
+        if (shutdown.IsCancellationRequested) return Task.CompletedTask;
+        ObserveLottery();
+        var webSettings = ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
+        return Task.WhenAll(webSettings, ReadAccountCommand.ExecuteAsync(null));
+    }
 
     partial void OnConnectionStateChanged(RoomConnectionState value)
     {
@@ -258,7 +266,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task ReadAccountAsync()
     {
-        if (IsLoggingOut || shuttingDown) return Task.CompletedTask;
+        if (IsLoggingOut || shutdown.IsCancellationRequested) return Task.CompletedTask;
         accountReadStop?.Cancel();
         var previous = accountReadTask;
         var stop = new CancellationTokenSource();
@@ -299,7 +307,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
 
     private void ShowLoginPage()
     {
-        if (shuttingDown) return;
+        if (shutdown.IsCancellationRequested) return;
         IsLoginPage = true;
         if (LoginCommand.CanExecute(null)) LoginCommand.Execute(null);
     }
@@ -345,22 +353,23 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         if (ConnectCommand.ExecutionTask is { } task) await task;
     }
 
+    // Finish draws before disconnecting the room they require; stop the web service last, as the CLI does, because the receive loop sends it welcome animations.
     public async Task ShutdownAsync()
     {
-        shuttingDown = true;
+        shutdown.Cancel();
         ConnectCommand.NotifyCanExecuteChanged();
         ReconnectCommand.NotifyCanExecuteChanged();
         LoginCommand.NotifyCanExecuteChanged();
         LoginCommand.Cancel();
         LogoutCommand.Cancel();
-        await StopAccountReadAsync();
-        await FinishLotteryChangeAsync();
+        var accountRead = StopAccountReadAsync();
+        await StopLotteryAsync();
+        await accountRead;
         await StopWatchingAsync();
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
         if (LoginCommand.ExecutionTask is { } login) await login;
         await StopAnimationsAsync();
-        await StopLotteryAsync();
     }
 
     // Reconnects skip Connecting, so a QR login can end at either update.
