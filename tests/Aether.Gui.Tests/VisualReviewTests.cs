@@ -607,6 +607,7 @@ public sealed class VisualReviewTests
             window.Show();
             try
             {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
                 foreach (var (pageIndex, name) in new[] { (6, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
