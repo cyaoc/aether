@@ -15,7 +15,8 @@ public enum LotteryTheme { StarSummon, MechaLock, CapsuleGacha }
 public abstract record Lottery(string Id, long RoomId, DateTimeOffset StartedAt,
     DateTimeOffset? EndedAt, DateTimeOffset? DrawUntil)
 {
-    public bool IsDrawing => DrawUntil is not null;
+    // The 抽奖页 clears drawUntil locally when its countdown ends, so a pushed isDrawing would go stale.
+    [JsonIgnore] public bool IsDrawing => DrawUntil is not null;
 }
 
 public abstract record LotteryDraw(string Id, DateTimeOffset DrawnAt);

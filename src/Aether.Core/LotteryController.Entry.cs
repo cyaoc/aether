@@ -17,7 +17,7 @@ public sealed partial class LotteryController
     {
         if (state.Lottery is EntryLottery { Phase: EntryLotteryPhase.Open or EntryLotteryPhase.Closed })
             throw new InvalidOperationException("先结束这一场才能新开。");
-        if (state.Lottery is PoolLottery) RequireNotDrawing();
+        RequireNotDrawing();
     }
 
     public void New(LotteryMode mode)

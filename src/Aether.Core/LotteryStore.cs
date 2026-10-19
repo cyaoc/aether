@@ -16,7 +16,7 @@ internal sealed partial class LotteryStore(Database database)
         command.CommandText = "SELECT id, mode, started_at, ended_at, phase, draw_until, stop_word, uid, keyword, hidden FROM lottery WHERE room_id = $room"
             + (mode is null ? "" : " AND mode = $mode") + (id is null ? "" : " AND id = $id") + " ORDER BY rowid DESC LIMIT 1";
         command.Parameters.AddWithValue("$room", roomId);
-        if (mode is not null) command.Parameters.AddWithValue("$mode", mode == LotteryMode.Entry ? "entry" : "pool");
+        if (mode is not null) command.Parameters.AddWithValue("$mode", ModeText(mode.Value));
         if (id is not null) command.Parameters.AddWithValue("$id", id);
         Lottery lottery;
         using (var reader = command.ExecuteReader())
@@ -27,7 +27,7 @@ internal sealed partial class LotteryStore(Database database)
             DateTimeOffset? endedAt = reader.IsDBNull(3) ? null : DateTimeOffset.Parse(reader.GetString(3), CultureInfo.InvariantCulture);
             var phase = reader.GetInt32(4);
             DateTimeOffset? drawUntil = reader.IsDBNull(5) ? null : DateTimeOffset.Parse(reader.GetString(5), CultureInfo.InvariantCulture);
-            lottery = reader.GetString(1) == "entry"
+            lottery = ReadMode(reader.GetString(1)) == LotteryMode.Entry
                 ? new EntryLottery(key, roomId, reader.GetString(8), startedAt, [], [], [], (EntryLotteryPhase)phase,
                     drawUntil, endedAt, reader.GetBoolean(9))
                 : new PoolLottery(key, roomId, reader.GetString(6), startedAt, [], [], ImmutableDictionary<long, string>.Empty,
@@ -62,56 +62,63 @@ internal sealed partial class LotteryStore(Database database)
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         EndCurrent(command, lottery.RoomId, endCurrentAt);
-        var pool = lottery as PoolLottery;
-        var entry = lottery as EntryLottery;
+        var (mode, phase, stopWord, uid, keyword, hidden) = lottery switch
+        {
+            PoolLottery pool => (LotteryMode.Pool, (int)pool.Phase, pool.StopWord, pool.Uid, "", false),
+            EntryLottery entry => (LotteryMode.Entry, (int)entry.Phase, "", (long?)null, entry.Keyword, entry.Hidden),
+            _ => throw new ArgumentOutOfRangeException(nameof(lottery)),
+        };
         command.CommandText = """
             INSERT INTO lottery (id, room_id, mode, started_at, ended_at, phase, draw_until, stop_word, uid, keyword, hidden)
             VALUES ($id, $room, $mode, $started, $ended, $phase, $until, $word, $uid, $keyword, $hidden)
             ON CONFLICT(id) DO UPDATE SET ended_at = $ended, phase = $phase, draw_until = $until,
                 stop_word = $word, uid = $uid, keyword = $keyword, hidden = $hidden;
-            """ + (pool is not null ? "DELETE FROM lottery_prize WHERE lottery_id = $id;" : "DELETE FROM lottery_award WHERE lottery_id = $id;");
+            DELETE FROM lottery_prize WHERE lottery_id = $id;
+            DELETE FROM lottery_award WHERE lottery_id = $id;
+            """;
         command.Parameters.AddWithValue("$id", lottery.Id);
         command.Parameters.AddWithValue("$room", lottery.RoomId);
-        command.Parameters.AddWithValue("$mode", pool is not null ? "pool" : "entry");
+        command.Parameters.AddWithValue("$mode", ModeText(mode));
         command.Parameters.AddWithValue("$started", lottery.StartedAt.ToString("O"));
         command.Parameters.AddWithValue("$ended", (object?)lottery.EndedAt?.ToString("O") ?? DBNull.Value);
-        command.Parameters.AddWithValue("$phase", pool is not null ? (int)pool.Phase : (int)entry!.Phase);
+        command.Parameters.AddWithValue("$phase", phase);
         command.Parameters.AddWithValue("$until", (object?)lottery.DrawUntil?.ToString("O") ?? DBNull.Value);
-        command.Parameters.AddWithValue("$word", pool?.StopWord ?? "");
-        command.Parameters.AddWithValue("$uid", (object?)pool?.Uid ?? DBNull.Value);
-        command.Parameters.AddWithValue("$keyword", entry?.Keyword ?? "");
-        command.Parameters.AddWithValue("$hidden", entry?.Hidden ?? false);
+        command.Parameters.AddWithValue("$word", stopWord);
+        command.Parameters.AddWithValue("$uid", (object?)uid ?? DBNull.Value);
+        command.Parameters.AddWithValue("$keyword", keyword);
+        command.Parameters.AddWithValue("$hidden", hidden);
         command.ExecuteNonQuery();
-        if (pool is not null)
+        switch (lottery)
         {
-            for (var index = 0; index < pool.Prizes.Length; index++)
-            {
-                var prize = pool.Prizes[index];
-                command.Parameters.Clear();
-                command.CommandText = "INSERT INTO lottery_prize (lottery_id, position, name, weight, grade) VALUES ($id, $position, $name, $weight, $grade)";
-                command.Parameters.AddWithValue("$id", lottery.Id);
-                command.Parameters.AddWithValue("$position", index);
-                command.Parameters.AddWithValue("$name", prize.Name);
-                command.Parameters.AddWithValue("$weight", prize.Weight);
-                command.Parameters.AddWithValue("$grade", (int)prize.Grade);
-                command.ExecuteNonQuery();
-            }
-        }
-        else
-        {
-            for (var index = 0; index < entry!.Awards.Length; index++)
-            {
-                var award = entry.Awards[index];
-                command.Parameters.Clear();
-                command.CommandText = "INSERT INTO lottery_award (lottery_id, position, name, prize, capacity, grade) VALUES ($id, $position, $name, $prize, $capacity, $grade)";
-                command.Parameters.AddWithValue("$id", lottery.Id);
-                command.Parameters.AddWithValue("$position", index);
-                command.Parameters.AddWithValue("$name", award.Name);
-                command.Parameters.AddWithValue("$prize", award.Prize);
-                command.Parameters.AddWithValue("$capacity", award.Capacity);
-                command.Parameters.AddWithValue("$grade", (int)award.Grade);
-                command.ExecuteNonQuery();
-            }
+            case PoolLottery pool:
+                for (var index = 0; index < pool.Prizes.Length; index++)
+                {
+                    var prize = pool.Prizes[index];
+                    command.Parameters.Clear();
+                    command.CommandText = "INSERT INTO lottery_prize (lottery_id, position, name, weight, grade) VALUES ($id, $position, $name, $weight, $grade)";
+                    command.Parameters.AddWithValue("$id", lottery.Id);
+                    command.Parameters.AddWithValue("$position", index);
+                    command.Parameters.AddWithValue("$name", prize.Name);
+                    command.Parameters.AddWithValue("$weight", prize.Weight);
+                    command.Parameters.AddWithValue("$grade", (int)prize.Grade);
+                    command.ExecuteNonQuery();
+                }
+                break;
+            case EntryLottery entry:
+                for (var index = 0; index < entry.Awards.Length; index++)
+                {
+                    var award = entry.Awards[index];
+                    command.Parameters.Clear();
+                    command.CommandText = "INSERT INTO lottery_award (lottery_id, position, name, prize, capacity, grade) VALUES ($id, $position, $name, $prize, $capacity, $grade)";
+                    command.Parameters.AddWithValue("$id", lottery.Id);
+                    command.Parameters.AddWithValue("$position", index);
+                    command.Parameters.AddWithValue("$name", award.Name);
+                    command.Parameters.AddWithValue("$prize", award.Prize);
+                    command.Parameters.AddWithValue("$capacity", award.Capacity);
+                    command.Parameters.AddWithValue("$grade", (int)award.Grade);
+                    command.ExecuteNonQuery();
+                }
+                break;
         }
         if (draw is not null) AddDraw(command, lottery.Id, draw.Id, JsonSerializer.Serialize(draw, draw.GetType()));
         transaction.Commit();
@@ -138,6 +145,9 @@ internal sealed partial class LotteryStore(Database database)
         command.ExecuteNonQuery();
         command.Parameters.Clear();
     }
+
+    private static string ModeText(LotteryMode mode) => mode == LotteryMode.Entry ? "entry" : "pool";
+    private static LotteryMode ReadMode(string text) => text == "entry" ? LotteryMode.Entry : LotteryMode.Pool;
 
     /// <summary>Keeps the prize and viewer as drawn, even when next time's pool or nickname changes.</summary>
     private static void AddDraw(SqliteCommand command, string lotteryId, string drawId, string result)

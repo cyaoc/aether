@@ -105,9 +105,9 @@ public partial class WelcomeConditionRow : UserControl
                 error = "UID 必须是正整数";
             else if (!uidsAbove.Add(uid)) error = "和上面那条重复了";
         }
+        // A row means the condition is on; saving 0 would turn it off and drop the row next time settings open.
         else if (CanEdit && Kind is WelcomeCondition.FanClubLevel or WelcomeCondition.WealthLevel
             && (!int.TryParse(Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var level) || level < 1))
-            // 有这一行就表示开着；存成 0 等于关闭，下次打开设置页这一行就没了。
             error = "至少 1 级";
         ErrorMessage.Text = errorsRevealed ? error : null;
         ErrorMessage.IsVisible = errorsRevealed && error is not null;

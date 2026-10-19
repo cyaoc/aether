@@ -33,7 +33,7 @@ internal sealed partial class LotteryStore
             {
                 var key = reader.GetString(0);
                 order.Add(key);
-                items.Add(key, new(key, roomId, reader.GetString(1) == "entry" ? LotteryMode.Entry : LotteryMode.Pool,
+                items.Add(key, new(key, roomId, ReadMode(reader.GetString(1)),
                     DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture),
                     reader.IsDBNull(3) ? null : DateTimeOffset.Parse(reader.GetString(3), CultureInfo.InvariantCulture),
                     reader.GetString(4), reader.GetString(5), reader.GetInt32(6), reader.GetInt32(7), [], []));

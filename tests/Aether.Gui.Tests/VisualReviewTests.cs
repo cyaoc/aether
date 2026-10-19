@@ -647,6 +647,7 @@ public sealed class VisualReviewTests
             window.Show();
             try
             {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
                 window.Navigation.SelectedIndex = 5;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);

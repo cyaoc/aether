@@ -77,7 +77,7 @@ public partial class LotteryHistoryPanel : UserControl
         DetailDate.Text = Date(selected.StartedAt);
         if (selected is EntryLottery entry)
         {
-            DetailSummary.Text = $"报名抽奖 · 报名 {entry.EntryCount} 人";
+            DetailSummary.Text = $"{Mode(LotteryMode.Entry)} · 报名 {entry.EntryCount} 人";
             ConditionTitle.Text = "报名条件";
             ConditionText.Text = $"发弹幕「{entry.Keyword}」";
             for (var index = 0; index < entry.Awards.Length; index++)
@@ -90,7 +90,7 @@ public partial class LotteryHistoryPanel : UserControl
         }
         else if (selected is PoolLottery pool)
         {
-            DetailSummary.Text = $"奖池抽奖 · 抽了 {pool.Draws.Length} 次";
+            DetailSummary.Text = $"{Mode(LotteryMode.Pool)} · 抽了 {pool.Draws.Length} 次";
             ConditionTitle.Text = "谁来喊停";
             ConditionText.Text = $"口令「{pool.StopWord}」，每次点名一位观众喊停，或主播点停";
             // A pool can change between draws; retain prizes already won even if later removed.
@@ -114,7 +114,7 @@ public partial class LotteryHistoryPanel : UserControl
     // O4 drops the year; an older year keeps it so rows stay unambiguous.
     private static string Date(DateTimeOffset startedAt) => startedAt.ToLocalTime() is var at && at.Year == DateTimeOffset.Now.Year
         ? $"{at:M月d日 HH:mm}" : $"{at:yyyy年M月d日 HH:mm}";
-    private static string Mode(LotteryHistory item) => item.Mode == LotteryMode.Entry ? "报名抽奖" : "奖池抽奖";
+    private static string Mode(LotteryMode mode) => mode == LotteryMode.Entry ? "报名抽奖" : "奖池抽奖";
     private static string Count(LotteryHistory item) => item.Mode == LotteryMode.Entry
         ? $"报名 {item.EntryCount} · 中奖 {item.DrawCount}" : $"抽了 {item.DrawCount} 次";
 
@@ -125,7 +125,7 @@ public partial class LotteryHistoryPanel : UserControl
         var status = new Border { Child = Text(item.EndedAt is null ? "进行中" : "已结束") };
         status.Classes.AddRange(["badge", "historyTag"]);
         status.Classes.Set("active", item.EndedAt is null);
-        var mode = new Border { Child = Text(Mode(item)) };
+        var mode = new Border { Child = Text(Mode(item.Mode)) };
         mode.Classes.AddRange(["badge", "historyTag", "mode"]);
         var count = Text(Count(item), "caption", "muted", "numeric");
         Grid.SetColumn(status, 1);
@@ -139,7 +139,7 @@ public partial class LotteryHistoryPanel : UserControl
         var content = new Border { Child = new StackPanel { Spacing = 6, Children = { top, description } } };
         content.Classes.Add("historyRow");
         var row = new ListBoxItem { Tag = item, Content = content };
-        AutomationProperties.SetName(row, $"{Date(item.StartedAt)} · {(item.EndedAt is null ? "进行中" : "已结束")} · {Mode(item)} · {Count(item)} · {summary}");
+        AutomationProperties.SetName(row, $"{Date(item.StartedAt)} · {(item.EndedAt is null ? "进行中" : "已结束")} · {Mode(item.Mode)} · {Count(item)} · {summary}");
         return row;
     }
 
