@@ -105,7 +105,7 @@ public partial class LotteryHistoryPanel : UserControl
                     return (group.Count() > 1 ? $"{who} ×{group.Count()}" : who,
                         group.Key is { } viewer ? $"UID {viewer}" : "未指定观众");
                 });
-                AddWinners(LotteryPanel.GradeNames[(int)grade], name, $"{draws.Length} 次", winners);
+                AddWinners(LotteryController.GradeNames[(int)grade], name, $"{draws.Length} 次", winners);
             }
         }
     }
@@ -133,7 +133,7 @@ public partial class LotteryHistoryPanel : UserControl
         var top = new Grid { ColumnDefinitions = new("Auto,Auto,Auto,*,Auto"), ColumnSpacing = 8, Children = { date, status, mode, count } };
         var summary = item.Mode == LotteryMode.Entry
             ? string.Join(" · ", item.Awards.Select(award => $"{award.Name} {award.Prize} ×{award.Capacity}"))
-            : string.Join(" · ", item.Prizes.Select(prize => $"{LotteryPanel.GradeNames[(int)prize.Grade]} {prize.Name}"));
+            : string.Join(" · ", item.Prizes.Select(prize => $"{LotteryController.GradeNames[(int)prize.Grade]} {prize.Name}"));
         var description = Text(summary, "label", "singleLine");
         var content = new Border { Child = new StackPanel { Spacing = 6, Children = { top, description } } };
         content.Classes.Add("historyRow");

@@ -23,7 +23,7 @@ public partial class EntryAwardRow : UserControl
         NameInput.Text = award.Name;
         PrizeInput.Text = award.Prize;
         CapacityInput.Text = award.Capacity.ToString(CultureInfo.InvariantCulture);
-        GradeInput.ItemsSource = LotteryPanel.GradeNames;
+        GradeInput.ItemsSource = LotteryController.GradeNames;
         GradeInput.SelectedIndex = (int)award.Grade;
         NameInput.TextChanged += (_, _) => Changed?.Invoke();
         PrizeInput.TextChanged += (_, _) => Changed?.Invoke();

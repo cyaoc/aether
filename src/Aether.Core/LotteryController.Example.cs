@@ -34,7 +34,7 @@ public sealed partial class LotteryController
             var entryDraw = new EntryDraw(id + "-entry", 0, awards[0], entries[0], now.AddSeconds(4),
                 ["柚子不酸", "星河入梦", "一只小鹿"]);
             ImmutableArray<PoolPrize> prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second), new("签名照", 6, Grade.Third)];
-            var pool = new PoolLottery(id + "-pool", 0, "停", now, prizes, [], ImmutableDictionary<long, string>.Empty, PoolLotteryPhase.Spinning);
+            var pool = new PoolLottery(id + "-pool", 0, DefaultStopWord, now, prizes, [], ImmutableDictionary<long, string>.Empty, PoolLotteryPhase.Spinning);
             var poolDraw = new PoolDraw(id + "-draw", prizes[1], 2, "星河入梦", false, now.AddSeconds(14), prizes);
             (int At, LotteryState? State)[] frames =
             [
