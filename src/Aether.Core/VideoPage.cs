@@ -68,15 +68,15 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
                 // Once pushed, the room ending does not cut the video short: pages outlive room connections (ADR 0006).
                 try
                 {
-                    var payload = JsonSerializer.Serialize(new { id = item.Id });
-                    var sent = await service.BroadcastAsync("data: " + payload + "\n\n", token, "/video/events");
+                    var payload = new { id = item.Id };
+                    var sent = await service.BroadcastAsync(new(null, payload), token, "/video/events");
                     if (sent == 0) { Report(item, PlaybackState.Skipped, "没有推流软件连着"); continue; }
                     Report(item, PlaybackState.Playing);
                     try
                     {
                         var result = await completion.Task.WaitAsync(TimeSpan.FromMinutes(2), timeProvider, token);
                         if (result.State == PlaybackState.Stopped)
-                            await service.BroadcastAsync("event: stop\ndata: " + payload + "\n\n", token, "/video/events");
+                            await service.BroadcastAsync(new("stop", payload), token, "/video/events");
                         Report(item, result.State, result.Reason);
                     }
                     catch (TimeoutException) { Report(item, PlaybackState.NoReport, "等了 2 分钟"); }
@@ -126,7 +126,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
 
     private async Task ReceiveReportAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
     {
-        if (request.Headers["Origin"] is { } origin && origin != new Uri(service.Address).GetLeftPart(UriPartial.Authority))
+        if (request.Headers["Origin"] is { } origin && origin != new Uri(service.Status.Origin).GetLeftPart(UriPartial.Authority))
         { response.StatusCode = 403; return; }
         if (!request.HasEntityBody || request.ContentLength64 > 4096
             || request.ContentType?.Split(';')[0] != "application/json") { response.StatusCode = 400; return; }
@@ -137,7 +137,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
             var body = new byte[4097];
             var length = await request.InputStream.ReadAtLeastAsync(body, body.Length, throwOnEndOfStream: false, timeout.Token);
             if (length > 4096) { response.StatusCode = 400; return; }
-            var result = JsonSerializer.Deserialize<PageReport>(body.AsSpan(0, length), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            var result = JsonSerializer.Deserialize<PageReport>(body.AsSpan(0, length), WebService.Json);
             if (result is not { Id: not null, Success: not null } || result.Reason?.Length > 300)
             { response.StatusCode = 400; return; }
             lock (service.Gate)

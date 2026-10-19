@@ -5,8 +5,9 @@ public abstract record WebServiceUpdate;
 public sealed record WebServiceStatus(bool Running, int Port, int VideoConnections, int LotteryConnections, string? Error = null) : WebServiceUpdate
 {
     /// <summary>What a browser source is given; ADR 0006 binds the page to localhost only.</summary>
-    public string VideoAddress => $"http://localhost:{Port}/video";
-    public string LotteryAddress => $"http://localhost:{Port}/lottery";
+    public string Origin => $"http://localhost:{Port}";
+    public string VideoAddress => Origin + "/video";
+    public string LotteryAddress => Origin + "/lottery";
 }
 
 public enum PlaybackState { Queued, Playing, Completed, Failed, Skipped, NoReport, Stopped }

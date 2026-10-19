@@ -210,7 +210,7 @@ public sealed class PoolLotteryTests
     {
         await using var h = new WatchHarness(random: new FixedRandom(1), enableLottery: true);
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Address) };
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
         using var response = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(h.Stop.Token));
         var initial = await Event(reader);
@@ -252,7 +252,7 @@ public sealed class PoolLotteryTests
     {
         await using var h = new WatchHarness(enableLottery: true);
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Address) };
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
         await h.LoginAsync();
         var first = await h.WatchConnectedAsync();
         h.Client.Lottery.Start(Prizes, "停");
