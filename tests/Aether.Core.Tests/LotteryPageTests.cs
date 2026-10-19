@@ -8,7 +8,7 @@ public sealed class LotteryPageTests
     [Fact]
     public void Script_grade_names_and_cell_count_match_the_controller()
     {
-        using var resource = typeof(LotteryPage).Assembly.GetManifestResourceStream("Aether.Core.LotteryPage.js")!;
+        using var resource = typeof(LotteryPage).Assembly.GetManifestResourceStream("Aether.Core.Pages.lottery.page.js")!;
         using var reader = new StreamReader(resource);
         var script = reader.ReadToEnd();
         var grades = Regex.Match(script, @"const grades = \{([^}]+)\};").Groups[1].Value;
