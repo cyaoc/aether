@@ -22,12 +22,29 @@ public sealed record AccountStatus(string Text, Account? Account = null)
     public bool ReadFailed => this == Failed;
 }
 
-public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
-    TimeProvider clock) : ObservableObject
+public partial class MainWindowViewModel : ObservableObject
 {
+    private readonly AetherClient client;
+    private readonly ILogger<MainWindowViewModel> logger;
+    private readonly GuiSettings settings;
+    private readonly TimeProvider clock;
+
+    public MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings, TimeProvider clock)
+    {
+        this.client = client;
+        this.logger = logger;
+        this.settings = settings;
+        this.clock = clock;
+        keepRecentDanmaku = settings.KeepRecentDanmaku;
+        roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
+        webServiceStatus = client.WebService.Status;
+        Lottery = new(client, logger, settings, SaveGuiSettings, shutdown.Token);
+    }
+
     public SendQueueViewModel SendQueue { get; } = new();
-    [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
-    [ObservableProperty] private string roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
+    public LotteryViewModel Lottery { get; }
+    [ObservableProperty] private bool keepRecentDanmaku;
+    [ObservableProperty] private string roomNumber;
     public string[] RecentRooms => settings.RecentRooms;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Status))]
@@ -101,7 +118,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     public Task StartAsync(string dataDirectory)
     {
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
-        ObserveLottery();
+        Lottery.ObserveLottery();
         var webSettings = ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
         return Task.WhenAll(webSettings, ReadAccountCommand.ExecuteAsync(null));
     }
@@ -347,7 +364,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         LoginCommand.Cancel();
         LogoutCommand.Cancel();
         var accountStopped = accountRead.StopAsync();
-        await StopLotteryAsync();
+        await Lottery.StopAsync();
         await accountStopped;
         await StopWatchingAsync();
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;

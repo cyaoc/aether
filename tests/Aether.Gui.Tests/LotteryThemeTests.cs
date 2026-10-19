@@ -36,7 +36,7 @@ public sealed class LotteryThemeTests
             Assert.NotNull(card);
             card.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            Assert.Equal(theme, vm.LotteryState.Theme.ToString());
+            Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             Assert.All(pickers, picker =>
             {
                 Assert.True(picker.FindControl<RadioButton>($"{theme}Card")!.IsChecked);
@@ -57,8 +57,8 @@ public sealed class LotteryThemeTests
             }
             pickers[0].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            Assert.True(vm.LotteryState.IsExamplePlaying);
-            Assert.Equal(theme, vm.LotteryState.Theme.ToString());
+            Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
+            Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             foreach (var picker in pickers)
             {
                 Assert.False(picker.FindControl<Button>("ExampleButton")!.IsEnabled);
@@ -68,16 +68,16 @@ public sealed class LotteryThemeTests
                 Assert.Contains("accent", hint.Classes);
             }
             time.Advance(TimeSpan.FromSeconds(21));
-            await GuiHarness.WaitForAsync(() => !vm.LotteryState.IsExamplePlaying);
+            await GuiHarness.WaitForAsync(() => !vm.Lottery.LotteryState.IsExamplePlaying);
             Assert.All(pickers, picker => Assert.True(picker.FindControl<Button>("ExampleButton")!.IsEnabled));
             pickers[1].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.True(vm.LotteryState.IsExamplePlaying);
+            Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
             time.Advance(TimeSpan.FromSeconds(21));
-            await GuiHarness.WaitForAsync(() => !vm.LotteryState.IsExamplePlaying);
-            vm.Apply(new LotteryUpdate(vm.LotteryState with { RoomId = 42 }));
-            await vm.RefreshLotteryHistoryAsync();
-            Assert.Empty(vm.LotteryHistoryError);
-            Assert.Empty(vm.LotteryHistory);
+            await GuiHarness.WaitForAsync(() => !vm.Lottery.LotteryState.IsExamplePlaying);
+            vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with { RoomId = 42 }));
+            await vm.Lottery.RefreshLotteryHistoryAsync();
+            Assert.Empty(vm.Lottery.LotteryHistoryError);
+            Assert.Empty(vm.Lottery.LotteryHistory);
             pickers[1].FindControl<RadioButton>("StarSummonCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             Assert.All(pickers, picker => Assert.True(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked));

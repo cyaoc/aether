@@ -111,7 +111,7 @@ public partial class MainWindowViewModel
     [NotifyPropertyChangedFor(nameof(ServiceHelpText))]
     [NotifyPropertyChangedFor(nameof(VideoConnectionsText))]
     [NotifyPropertyChangedFor(nameof(LotteryConnectionsText))]
-    private WebServiceStatus webServiceStatus = client.WebService.Status;
+    private WebServiceStatus webServiceStatus;
 
     public bool HasVideoConnections => WebServiceStatus is { Running: true, VideoConnections: > 0 };
     public bool HasLotteryConnections => WebServiceStatus is { Running: true, LotteryConnections: > 0 };
