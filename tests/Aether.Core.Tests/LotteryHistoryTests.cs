@@ -12,11 +12,11 @@ public sealed class LotteryHistoryTests
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
         lottery.New(LotteryMode.Entry);
-        var first = lottery.State.EntryLottery!.Id;
+        var first = lottery.State.Lottery!.Id;
         lottery.New(LotteryMode.Pool);
-        var second = lottery.State.PoolLottery!.Id;
+        var second = lottery.State.Lottery!.Id;
         lottery.New(LotteryMode.Entry);
-        var third = lottery.State.EntryLottery!.Id;
+        var third = lottery.State.Lottery!.Id;
         var history = lottery.GetHistory(7734200);
         Assert.Equal(new[] { third, second, first }, history.Select(item => item.Id));
         Assert.Null(history[0].EndedAt);
@@ -34,7 +34,7 @@ public sealed class LotteryHistoryTests
         var lottery = h.Client.Lottery;
         lottery.Start([new("键盘", 1, Grade.Grand)], "开", 42);
         await h.PushAndCollectAsync(updates, """{"cmd":"DANMU_MSG","info":[[],"开",[42,"小明"]]}""");
-        var poolId = lottery.State.PoolLottery!.Id;
+        var poolId = lottery.State.Lottery!.Id;
         Assert.Null(Assert.Single(lottery.GetHistory(7734200)).EndedAt);
         h.Time.Advance(LotteryController.DrawDuration);
         lottery.New(LotteryMode.Entry);
@@ -42,11 +42,11 @@ public sealed class LotteryHistoryTests
         await h.PushAndCollectAsync(updates, """{"cmd":"DANMU_MSG","info":[[],"参加",[7,"七七"]]}""");
         lottery.CloseEntries();
         lottery.DrawEntry(0);
-        var entryId = lottery.State.EntryLottery!.Id;
+        var entryId = lottery.State.Lottery!.Id;
         h.Time.Advance(LotteryController.DrawDuration);
         lottery.EndEntry();
         lottery.New(LotteryMode.Pool);
-        var currentId = lottery.State.PoolLottery!.Id;
+        var currentId = lottery.State.Lottery!.Id;
         await updates.DisposeAsync();
         h.Client.Dispose();
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);

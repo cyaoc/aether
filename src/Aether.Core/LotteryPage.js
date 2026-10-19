@@ -123,8 +123,8 @@ function view(name) {
 }
 function show(state) {
   scene.dataset.theme = state.theme || 'StarSummon';
-  const entry = state.entryLottery, pool = state.poolLottery;
-  const lottery = entry || pool;
+  const lottery = state.lottery;
+  const entry = lottery?.mode === 'Entry' ? lottery : null, pool = lottery?.mode === 'Pool' ? lottery : null;
   // Repeated state snapshots must not restart a draw, including on a room reconnect.
   const key = lottery ? [state.theme,lottery.id,lottery.phase,lottery.draws.length,lottery.draws.at(-1)?.id,
     lottery.drawUntil,lottery.entryCount,lottery.hidden].join(' ') : '';
@@ -162,10 +162,7 @@ function show(state) {
   const draw = lottery.draws.at(-1), remaining = Date.parse(lottery.drawUntil) - Date.now();
   if (draw && remaining > 0) {
     drawResult(draw, !!entry);
-    hiding = setTimeout(() => {
-      if (entry) show({ ...state, entryLottery:{...entry,drawUntil:null} });
-      else show({ ...state, poolLottery:{...pool,drawUntil:null} });
-    }, remaining);
+    hiding = setTimeout(() => show({ ...state, lottery:{...lottery,drawUntil:null} }), remaining);
     return;
   }
   if (entry) showWinners(entry);

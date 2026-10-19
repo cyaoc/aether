@@ -38,10 +38,10 @@ public sealed partial class LotteryController
             var poolDraw = new PoolDraw(id + "-draw", prizes[1], 2, "星河入梦", false, now.AddSeconds(14), prizes);
             (int At, LotteryState? State)[] frames =
             [
-                (0, new(null, false, null, entry)),
-                (3, new(null, false, null, entry with { Phase = EntryLotteryPhase.Closed })),
-                (4, new(null, false, null, entry with { Phase = EntryLotteryPhase.Closed, Draws = [entryDraw], DrawUntil = now.AddSeconds(11) })),
-                (11, new(null, false, null, entry with { Phase = EntryLotteryPhase.Ended, Draws = [entryDraw], EndedAt = now.AddSeconds(11) })),
+                (0, new(null, false, entry)),
+                (3, new(null, false, entry with { Phase = EntryLotteryPhase.Closed })),
+                (4, new(null, false, entry with { Phase = EntryLotteryPhase.Closed, Draws = [entryDraw], DrawUntil = now.AddSeconds(11) })),
+                (11, new(null, false, entry with { Phase = EntryLotteryPhase.Ended, Draws = [entryDraw], EndedAt = now.AddSeconds(11) })),
                 (13, new(null, false, pool)),
                 (14, new(null, false, pool with { Phase = PoolLotteryPhase.Idle, Draws = [poolDraw], DrawUntil = now.AddSeconds(21) })),
                 (21, null)

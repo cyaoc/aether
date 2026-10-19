@@ -9,6 +9,9 @@ public enum LotteryMode { Pool, Entry }
 public enum EntryLotteryPhase { Preparing, Open, Closed, Ended }
 public enum LotteryTheme { StarSummon, MechaLock, CapsuleGacha }
 
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "mode")]
+[JsonDerivedType(typeof(PoolLottery), nameof(LotteryMode.Pool))]
+[JsonDerivedType(typeof(EntryLottery), nameof(LotteryMode.Entry))]
 public abstract record Lottery(string Id, long RoomId, DateTimeOffset StartedAt,
     DateTimeOffset? EndedAt, DateTimeOffset? DrawUntil)
 {
@@ -40,7 +43,7 @@ public sealed record PoolLottery(string Id, long RoomId, string StopWord, DateTi
     [property: JsonIgnore] ImmutableDictionary<long, string> Viewers, PoolLotteryPhase Phase = PoolLotteryPhase.Idle,
     long? Uid = null, DateTimeOffset? DrawUntil = null, DateTimeOffset? EndedAt = null)
     : Lottery(Id, RoomId, StartedAt, EndedAt, DrawUntil);
-public sealed record LotteryState(long? RoomId, bool Connected, PoolLottery? PoolLottery, EntryLottery? EntryLottery = null)
+public sealed record LotteryState(long? RoomId, bool Connected, Lottery? Lottery)
 {
     /// <summary>The room lock is still held, including while the transport reconnects.</summary>
     public bool CanControl { get; init; } = Connected;

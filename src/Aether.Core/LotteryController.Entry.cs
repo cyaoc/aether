@@ -13,9 +13,9 @@ public sealed partial class LotteryController
 
     private void RequireNew()
     {
-        if (state.EntryLottery is { Phase: EntryLotteryPhase.Open or EntryLotteryPhase.Closed })
+        if (state.Lottery is EntryLottery { Phase: EntryLotteryPhase.Open or EntryLotteryPhase.Closed })
             throw new InvalidOperationException("先结束这一场才能新开。");
-        if (state.PoolLottery is { IsDrawing: true })
+        if (state.Lottery is PoolLottery { IsDrawing: true })
             throw new InvalidOperationException("请等本次开奖结束。");
     }
 
@@ -33,7 +33,7 @@ public sealed partial class LotteryController
                 var next = new EntryLottery(Guid.NewGuid().ToString("N"), state.RoomId.Value,
                     previous?.Keyword ?? "抽奖", now, previous?.Awards ?? [new("一等奖", "", 1, Grade.Grand)], [], []);
                 store().Save(next, endCurrentAt: now);
-                state = state with { PoolLottery = null, EntryLottery = next };
+                state = state with { Lottery = next };
             }
             else
             {
@@ -41,7 +41,7 @@ public sealed partial class LotteryController
                 var next = NewPoolLottery(previous?.Prizes ?? [new("", 1, Grade.Grand)], previous?.StopWord ?? "停")
                     with { Uid = previous?.Uid };
                 store().Save(next, endCurrentAt: now);
-                state = state with { PoolLottery = next, EntryLottery = null };
+                state = state with { Lottery = next };
             }
             drawTimer?.Dispose();
             Publish();
@@ -119,17 +119,17 @@ public sealed partial class LotteryController
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         if (!state.CanControl) throw new InvalidOperationException("请先连接直播间。");
-        if (state.EntryLottery is not { } lottery || lottery.Phase != phase) throw new InvalidOperationException("当前阶段不能执行此操作。");
+        if (state.Lottery is not EntryLottery lottery || lottery.Phase != phase) throw new InvalidOperationException("当前阶段不能执行此操作。");
         return lottery;
     }
 
     private void ReceiveEntry(Danmaku danmaku)
     {
-        if (state.EntryLottery is not { Phase: EntryLotteryPhase.Open } lottery || danmaku.Uid <= 0
+        if (state.Lottery is not EntryLottery { Phase: EntryLotteryPhase.Open } lottery || danmaku.Uid <= 0
             || danmaku.Content.Trim() != lottery.Keyword || lottery.Entries.Any(entry => entry.Uid == danmaku.Uid)) return;
         var entry = new LotteryEntry(danmaku.Uid, danmaku.Nickname, time.GetUtcNow());
         store().AddEntry(lottery.Id, entry);
-        state = state with { EntryLottery = lottery with { Entries = lottery.Entries.Add(entry) } };
+        state = state with { Lottery = lottery with { Entries = lottery.Entries.Add(entry) } };
         Publish();
         logger.LogInformation("报名抽奖报名：抽奖 {LotteryId}，观众 {Uid} {Nickname}", lottery.Id, entry.Uid, entry.Nickname);
     }
@@ -137,7 +137,7 @@ public sealed partial class LotteryController
     private void SaveEntry(EntryLottery lottery, EntryDraw? draw = null)
     {
         store().Save(lottery, draw: draw);
-        state = state with { EntryLottery = lottery };
+        state = state with { Lottery = lottery };
         Publish();
     }
 }

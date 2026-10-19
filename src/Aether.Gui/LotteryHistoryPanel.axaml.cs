@@ -68,7 +68,7 @@ public partial class LotteryHistoryPanel : UserControl
         Details.IsVisible = selected is not null;
         ReturnButton.IsVisible = selected is { Lottery.EndedAt: null };
         ReturnButton.IsEnabled = selected is not null
-            && selected.Lottery.Id == (viewModel.LotteryState.EntryLottery?.Id ?? viewModel.LotteryState.PoolLottery?.Id);
+            && selected.Lottery.Id == viewModel.LotteryState.Lottery?.Id;
         ReturnHint.IsVisible = ReturnButton.IsVisible && !ReturnButton.IsEnabled;
         if (ReferenceEquals(details, selected)) return;
         details = selected;

@@ -47,7 +47,7 @@ public partial class EntryLotteryPanel : UserControl
         };
         VisibilityButton.Click += async (_, _) =>
         {
-            if (!VisibilityButton.IsEnabled || viewModel?.LotteryState.EntryLottery is not { } entry) return;
+            if (!VisibilityButton.IsEnabled || viewModel?.LotteryState.Lottery is not EntryLottery entry) return;
             await ChangeAsync(lottery => lottery.SetEntryHidden(!entry.Hidden));
         };
     }
@@ -89,7 +89,7 @@ public partial class EntryLotteryPanel : UserControl
     {
         if (loading || AwardRows is null) return;
         var state = viewModel?.LotteryState;
-        if (state?.EntryLottery is not { } lottery) { loadedId = null; displayed = null; return; }
+        if (state?.Lottery is not EntryLottery lottery) { loadedId = null; displayed = null; return; }
         if (loadedId != lottery.Id)
         {
             loading = true;

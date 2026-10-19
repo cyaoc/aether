@@ -97,7 +97,7 @@ public partial class LotteryPanel : UserControl
     {
         if (loading || PrizeRows is null) return;
         var state = viewModel?.LotteryState;
-        var entry = state?.EntryLottery;
+        var entry = state?.Lottery as EntryLottery;
         var history = ViewTabs.SelectedIndex == 1;
         HistoryContent.IsVisible = history;
         EntryContent.IsVisible = !history && entry is not null;
@@ -115,7 +115,7 @@ public partial class LotteryPanel : UserControl
             NewButton.IsEnabled = !busy && state!.Connected && entry.Phase is EntryLotteryPhase.Preparing or EntryLotteryPhase.Ended;
             return;
         }
-        var lottery = state?.PoolLottery;
+        var lottery = state?.Lottery as PoolLottery;
         if (loadedId != lottery?.Id || loadedRoom is not null && loadedRoom != state?.RoomId)
         {
             loading = true;

@@ -63,7 +63,7 @@ public sealed class LotteryHistoryPanelTests
             var back = history.FindControl<Button>("ReturnButton")!;
             Assert.True(back.IsVisible);
             Assert.False(back.IsEnabled);
-            vm.Apply(new LotteryUpdate(new(7734200, true, null, LotteryHistoryFixture.Current)));
+            vm.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
             await vm.RefreshLotteryHistoryAsync();
             Assert.True(back.IsEnabled);
             back.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -80,9 +80,9 @@ public sealed class LotteryHistoryPanelTests
             Assert.Contains("主播点停", GuiHarness.VisibleText(window));
             Assert.Contains("口令「停」，每次点名一位观众喊停，或主播点停", GuiHarness.VisibleText(window));
             Assert.False(back.IsVisible);
-            Assert.Equal("entry", vm.LotteryState.EntryLottery!.Id);
+            Assert.Equal("entry", vm.LotteryState.Lottery!.Id);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBox>(), control => control.IsEffectivelyVisible);
-            vm.Apply(new LotteryUpdate(vm.LotteryState with { EntryLottery = LotteryHistoryFixture.Current with { Hidden = true } }));
+            vm.Apply(new LotteryUpdate(vm.LotteryState with { Lottery = LotteryHistoryFixture.Current with { Hidden = true } }));
             await vm.RefreshLotteryHistoryAsync();
             Assert.Equal("pool", vm.SelectedLotteryHistory!.Lottery.Id);
             list.SelectedIndex = 0;

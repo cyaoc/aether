@@ -38,7 +38,7 @@ public sealed class VisualReviewTests
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
                 window.Navigation.SelectedIndex = 4;
-                vm.Apply(new LotteryUpdate(new(7734200, true, null, LotteryHistoryFixture.Current)));
+                vm.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
                 var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
                 panel.FindControl<ListBox>("ViewTabs")!.SelectedIndex = 1;
                 await vm.RefreshLotteryHistoryAsync();
@@ -85,14 +85,14 @@ public sealed class VisualReviewTests
                             var award = phase == EntryLotteryPhase.Closed ? 2 : index == 0 ? 0 : index < 3 ? 1 : 2;
                             return new EntryDraw($"d{index}", award, lottery.Awards[award], lottery.Entries[index], at, []);
                         }).ToArray() : [];
-                    vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery with
+                    vm.Apply(new LotteryUpdate(new(7734200, true, lottery with
                     {
                         Phase = phase, Entries = phase == EntryLotteryPhase.Preparing ? [] : lottery.Entries,
                         Draws = [.. draws], DrawUntil = phase == EntryLotteryPhase.Closed ? at.AddSeconds(7) : null,
                     })));
                     Save(window, $"entry-{phase}-{width}-{(dark ? "dark" : "light")}");
                     if (phase != EntryLotteryPhase.Closed) continue;
-                    vm.Apply(new LotteryUpdate(vm.LotteryState with { EntryLottery = vm.LotteryState.EntryLottery! with { DrawUntil = null } }));
+                    vm.Apply(new LotteryUpdate(vm.LotteryState with { Lottery = vm.LotteryState.Lottery! with { DrawUntil = null } }));
                     window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "EndEntryButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     Save(window, $"entry-Closed-confirm-{width}-{(dark ? "dark" : "light")}");
                 }
