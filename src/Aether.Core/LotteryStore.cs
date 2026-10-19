@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Globalization;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
 
@@ -23,15 +22,15 @@ internal sealed partial class LotteryStore(Database database)
         {
             if (!reader.Read()) return null;
             var key = reader.GetString(0);
-            var startedAt = DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture);
-            DateTimeOffset? endedAt = reader.IsDBNull(3) ? null : DateTimeOffset.Parse(reader.GetString(3), CultureInfo.InvariantCulture);
+            var startedAt = reader.GetDateTimeOffset(2);
+            DateTimeOffset? endedAt = reader.GetNullable<DateTimeOffset>(3);
             var phase = reader.GetInt32(4);
-            DateTimeOffset? drawUntil = reader.IsDBNull(5) ? null : DateTimeOffset.Parse(reader.GetString(5), CultureInfo.InvariantCulture);
+            DateTimeOffset? drawUntil = reader.GetNullable<DateTimeOffset>(5);
             lottery = ReadMode(reader.GetString(1)) == LotteryMode.Entry
                 ? new EntryLottery(key, roomId, reader.GetString(8), startedAt, [], [], [], (EntryLotteryPhase)phase,
                     drawUntil, endedAt, reader.GetBoolean(9))
                 : new PoolLottery(key, roomId, reader.GetString(6), startedAt, [], [], ImmutableDictionary<long, string>.Empty,
-                    (PoolLotteryPhase)phase, reader.IsDBNull(7) ? null : reader.GetInt64(7), drawUntil, endedAt);
+                    (PoolLotteryPhase)phase, reader.GetNullable<long>(7), drawUntil, endedAt);
         }
         command.Parameters.Clear();
         command.Parameters.AddWithValue("$id", lottery.Id);
@@ -51,7 +50,7 @@ internal sealed partial class LotteryStore(Database database)
         command.CommandText = "SELECT uid, nickname, entered_at FROM lottery_entry WHERE lottery_id = $id ORDER BY rowid";
         var entries = ImmutableArray.CreateBuilder<LotteryEntry>();
         using (var reader = command.ExecuteReader())
-            while (reader.Read()) entries.Add(new(reader.GetInt64(0), reader.GetString(1), DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture)));
+            while (reader.Read()) entries.Add(new(reader.GetInt64(0), reader.GetString(1), reader.GetDateTimeOffset(2)));
         return entry with { Awards = awards.ToImmutable(), Entries = entries.ToImmutable(), Draws = ReadDraws<EntryDraw>(command, lottery.Id) };
     }
 
@@ -79,12 +78,12 @@ internal sealed partial class LotteryStore(Database database)
         command.Parameters.AddWithValue("$id", lottery.Id);
         command.Parameters.AddWithValue("$room", lottery.RoomId);
         command.Parameters.AddWithValue("$mode", ModeText(mode));
-        command.Parameters.AddWithValue("$started", lottery.StartedAt.ToString("O"));
-        command.Parameters.AddWithValue("$ended", (object?)lottery.EndedAt?.ToString("O") ?? DBNull.Value);
+        command.Set("$started", lottery.StartedAt);
+        command.Set("$ended", lottery.EndedAt);
         command.Parameters.AddWithValue("$phase", phase);
-        command.Parameters.AddWithValue("$until", (object?)lottery.DrawUntil?.ToString("O") ?? DBNull.Value);
+        command.Set("$until", lottery.DrawUntil);
         command.Parameters.AddWithValue("$word", stopWord);
-        command.Parameters.AddWithValue("$uid", (object?)uid ?? DBNull.Value);
+        command.Set("$uid", uid);
         command.Parameters.AddWithValue("$keyword", keyword);
         command.Parameters.AddWithValue("$hidden", hidden);
         command.ExecuteNonQuery();
@@ -132,7 +131,7 @@ internal sealed partial class LotteryStore(Database database)
         command.Parameters.AddWithValue("$id", lotteryId);
         command.Parameters.AddWithValue("$uid", entry.Uid);
         command.Parameters.AddWithValue("$name", entry.Nickname);
-        command.Parameters.AddWithValue("$at", entry.EnteredAt.ToString("O"));
+        command.Set("$at", entry.EnteredAt);
         command.ExecuteNonQuery();
     }
 
@@ -140,7 +139,7 @@ internal sealed partial class LotteryStore(Database database)
     {
         if (endedAt is not { } ended) return;
         command.CommandText = "UPDATE lottery SET ended_at = $ended WHERE room_id = $room AND ended_at IS NULL";
-        command.Parameters.AddWithValue("$ended", ended.ToString("O"));
+        command.Set("$ended", ended);
         command.Parameters.AddWithValue("$room", roomId);
         command.ExecuteNonQuery();
         command.Parameters.Clear();
