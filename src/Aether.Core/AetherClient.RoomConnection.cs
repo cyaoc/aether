@@ -56,16 +56,16 @@ public sealed partial class AetherClient
                             roomLock = AcquireRoomLock(realRoomId.Value);
                             roomScope = client.logger.BeginRoomScope(realRoomId.Value);
                             client.logger.LogInformation("直播间连接开始");
-                            if (enableLottery) features.Add(new LotteryFeature(client, realRoomId.Value));
+                            if (enableLottery) features.Add(new LotteryFeature(client.Lottery, client.logger, realRoomId.Value));
                             if (Settings.BlindBoxEnabled.Value)
                             {
                                 features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));
-                                features.Add(new BlindBoxRecordFeature(client, realRoomId.Value, sendQueue, Settings.BlindBoxAnnounce.Value));
+                                features.Add(new BlindBoxRecordFeature(client.stores, realRoomId.Value, sendQueue, Settings.BlindBoxAnnounce.Value));
                             }
                             var parseEntries = false;
                             if (Settings.WelcomeAnimationEnabled.Value)
                             {
-                                features.Add(new WelcomeAnimationFeature(client, animationStop.Token));
+                                features.Add(new WelcomeAnimationFeature(client.WelcomeAnimation, animationStop.Token));
                                 parseEntries = true;
                             }
                             if (Settings.WelcomeEnabled.Value)

@@ -13,7 +13,7 @@ internal sealed class Subscribers<T>(object gate)
         var updates = Channel.CreateUnbounded<T>();
         try
         {
-            lock (gate) { subscribers.Add(updates); updates.Writer.TryWrite(first()); }
+            lock (gate) { updates.Writer.TryWrite(first()); subscribers.Add(updates); }
             await foreach (var update in updates.Reader.ReadAllAsync(token)) yield return update;
         }
         finally { lock (gate) subscribers.Remove(updates); }

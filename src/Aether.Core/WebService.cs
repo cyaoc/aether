@@ -122,12 +122,12 @@ public sealed class WebService : IDisposable
 
     private void ConnectionsChanged()
     {
-        status = status with { VideoConnections = connections.Count(connection => connection.Page == Video),
-            LotteryConnections = connections.Count(connection => connection.Page == Lottery) };
+        var counts = pages.ToDictionary(page => page, page => connections.Count(connection => connection.Page == page));
+        status = status with { VideoConnections = counts[Video], LotteryConnections = counts[Lottery] };
         logger.LogInformation("网页服务：视频页 {VideoCount} 个推流软件，抽奖页 {LotteryCount} 个推流软件", status.VideoConnections, status.LotteryConnections);
         Publish(status);
-        foreach (var page in pages)
-            if (!connections.Any(connection => connection.Page == page)) page.Disconnected();
+        foreach (var (page, count) in counts)
+            if (count == 0) page.Disconnected();
     }
 
     private static string Frame(SseEvent message) =>

@@ -11,7 +11,7 @@ public sealed class SendQueueUpdateTests
     private const string Query = """{"cmd":"DANMU_MSG","info":[[],"今日盲盒",[10001,"查询观众"]]}""";
 
     [Fact]
-    public async Task Query_reports_the_trigger_before_its_queue_progress()
+    public async Task Query_reports_the_trigger_before_its_send_queue_progress()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();

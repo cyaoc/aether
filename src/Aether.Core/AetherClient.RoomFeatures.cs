@@ -7,7 +7,7 @@ namespace Aether.Core;
 public sealed partial class AetherClient
 {
     /// <summary>The lottery rides along: its database failing is logged, and danmaku keep coming.</summary>
-    private sealed class LotteryFeature(AetherClient client, long roomId) : IRoomFeature
+    private sealed class LotteryFeature(LotteryController lottery, ILogger logger, long roomId) : IRoomFeature
     {
         public void Handle(RoomEvent e)
         {
@@ -20,10 +20,10 @@ public sealed partial class AetherClient
                     RunLottery(received.Danmaku);
                     break;
                 case TransportDisconnected:
-                    client.Lottery.Disconnect(roomId);
+                    lottery.Disconnect(roomId);
                     break;
                 case RoomConnectionEnded:
-                    client.Lottery.EndRoom(roomId);
+                    lottery.EndRoom(roomId);
                     break;
             }
         }
@@ -34,12 +34,12 @@ public sealed partial class AetherClient
             {
                 // Retry a failed initial load when the next danmaku arrives, without reconnecting the room.
                 // shortcut: loads, entries and stop-word draws hit SQLite on the receive loop; move off it if a busy room lags.
-                var state = client.Lottery.State;
-                if (!state.Connected || state.RoomId != roomId) client.Lottery.Connect(roomId);
-                if (danmaku is not null) client.Lottery.Receive(roomId, danmaku);
+                var state = lottery.State;
+                if (!state.Connected || state.RoomId != roomId) lottery.Connect(roomId);
+                if (danmaku is not null) lottery.Receive(roomId, danmaku);
             }
             catch (Exception error) when (error is SqliteException or JsonException or IOException)
-            { client.logger.LogError(error, "抽奖读写数据库失败，弹幕照常接收：{Error}", error.Message); }
+            { logger.LogError(error, "抽奖读写数据库失败，弹幕照常接收：{Error}", error.Message); }
         }
     }
 
@@ -63,7 +63,7 @@ public sealed partial class AetherClient
         }
     }
 
-    private sealed class BlindBoxRecordFeature(AetherClient client, long roomId, SendQueue sendQueue, bool announce) : IRoomFeature
+    private sealed class BlindBoxRecordFeature(Lazy<Stores> stores, long roomId, SendQueue sendQueue, bool announce) : IRoomFeature
     {
         public void Handle(RoomEvent e)
         {
@@ -71,16 +71,16 @@ public sealed partial class AetherClient
             // command timeout, well inside the 60 s idle deadline); hand it to a background writer if a room ever stalls on it.
             if (e is DanmakuProtocol.BlindBoxesReceived received)
                 sendQueue.Record(received.BlindBoxes, received.ReceivedTimestamp,
-                    box => client.stores.Value.BlindBoxes.Save(roomId, box) && announce);
+                    box => stores.Value.BlindBoxes.Save(roomId, box) && announce);
         }
     }
 
-    private sealed class WelcomeAnimationFeature(AetherClient client, CancellationToken roomStopped) : IRoomFeature
+    private sealed class WelcomeAnimationFeature(WelcomeAnimation animation, CancellationToken roomStopped) : IRoomFeature
     {
         public void Handle(RoomEvent e)
         {
             if (e is DanmakuProtocol.EntryReceived { Entry: var entry, ReceivedTimestamp: var timestamp })
-                client.WelcomeAnimation.Enqueue(entry.Uid, entry.Nickname, timestamp, roomStopped);
+                animation.Enqueue(entry.Uid, entry.Nickname, timestamp, roomStopped);
         }
     }
 

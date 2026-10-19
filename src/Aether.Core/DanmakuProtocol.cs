@@ -28,19 +28,18 @@ internal static class DanmakuProtocol
     internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : RoomEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
-    private sealed class FormatNotices
+    private sealed class FormatNotices(ILogger logger, bool parseEntries)
     {
         private readonly Dictionary<string, string> versions = [];
         private readonly HashSet<string> unknownCommands = [];
 
-        public void Observe(string command, ILogger logger, bool parseEntries)
+        public void Observe(string command)
         {
             if (IsDanmaku(command) || command == "DANMU_MSG_MIRROR") return;
             var (category, version) = command switch
             {
                 _ when command.StartsWith("DANMU_MSG", StringComparison.Ordinal) => ("弹幕", null),
                 _ when command.StartsWith("SEND_GIFT", StringComparison.Ordinal) => ("礼物", GiftMessages.Version(command)),
-                // Entry effects accompany INTERACT_WORD, so only that family names the room's entry format.
                 _ when parseEntries && (command == "INTERACT_WORD" || command.StartsWith("INTERACT_WORD_", StringComparison.Ordinal))
                     => ("进场", EntryMessages.Version(command)),
                 _ => (null, null)
@@ -53,6 +52,7 @@ internal static class DanmakuProtocol
                 logger.LogInformation("本直播间的{Category}消息为 {Version}（{Command}）", category, version, command);
             }
             // B站 moves message kinds to new formats room by room without notice; say so instead of silently missing them.
+            // The category appears twice under two names, since structured loggers key properties by name.
             else if (unknownCommands.Add(command))
                 logger.LogWarning("收到不认识的{Category}消息 {Command}，{FormatCategory}消息格式可能变了", category, command, category);
         }
@@ -70,7 +70,7 @@ internal static class DanmakuProtocol
     /// <summary>One room connection's decoder; reconnects keep its format notices and entry history.</summary>
     internal sealed class Decoder(long roomId, ILogger logger, bool parseEntries)
     {
-        private readonly FormatNotices notices = new();
+        private readonly FormatNotices notices = new(logger, parseEntries);
         // shortcut: keeps every viewer seen this room connection; prune it if a huge room's connection grows too large.
         private readonly Dictionary<long, long> lastEntryTriggers = [];
 
@@ -103,7 +103,7 @@ internal static class DanmakuProtocol
                 using var message = JsonDocument.Parse(body);
                 var root = message.RootElement;
                 command = root.GetProperty("cmd").GetString() ?? throw new JsonException("缺少 cmd。");
-                notices.Observe(command, logger, parseEntries);
+                notices.Observe(command);
                 if (IsDanmaku(command))
                 {
                     var info = root.GetProperty("info");
