@@ -9,9 +9,7 @@ namespace Aether.Gui;
 
 public partial class LotteryPanel : UserControl
 {
-    internal static readonly string[] GradeNames = ["大奖", "二奖", "三奖"];
     private static readonly string[] GradeClasses = ["grand", "second", "third"];
-    private const string DefaultStopWord = "停";
     private MainWindowViewModel? viewModel;
     private string? loadedId;
     private long? loadedRoom;
@@ -28,8 +26,8 @@ public partial class LotteryPanel : UserControl
             if (ViewTabs.SelectedIndex == 1 && viewModel is not null) _ = viewModel.RefreshLotteryHistoryAsync();
         };
         HistoryContent.ReturnRequested += () => ViewTabs.SelectedIndex = 0;
-        StopWordInput.Text = DefaultStopWord;
-        AddPrize(new("", 1, Grade.Grand), isNew: true);
+        StopWordInput.Text = LotteryController.DefaultStopWord;
+        AddPrize(LotteryController.DefaultPrize, isNew: true);
         AddButton.Click += (_, _) =>
         {
             if (!AddButton.IsEnabled) return;
@@ -124,9 +122,9 @@ public partial class LotteryPanel : UserControl
             PrizeRows.Children.Clear();
             if (lottery is not null)
                 foreach (var prize in lottery.Prizes) AddPrize(prize);
-            else AddPrize(new("", 1, Grade.Grand), isNew: true);
+            else AddPrize(LotteryController.DefaultPrize, isNew: true);
             UidInput.Text = lottery?.Uid?.ToString(CultureInfo.InvariantCulture) ?? "";
-            StopWordInput.Text = lottery?.StopWord ?? DefaultStopWord;
+            StopWordInput.Text = lottery?.StopWord ?? LotteryController.DefaultStopWord;
             loading = false;
         }
         loadedRoom = state?.RoomId;
@@ -205,7 +203,7 @@ public partial class LotteryPanel : UserControl
 
     internal static void SetGrade(Border badge, TextBlock text, Grade grade)
     {
-        text.Text = GradeNames[(int)grade];
+        text.Text = LotteryController.GradeNames[(int)grade];
         for (var index = 0; index < GradeClasses.Length; index++) badge.Classes.Set(GradeClasses[index], index == (int)grade);
     }
 

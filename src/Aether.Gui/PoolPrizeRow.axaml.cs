@@ -21,7 +21,7 @@ public partial class PoolPrizeRow : UserControl
         errorsRevealed = !isNew;
         NameInput.Text = prize.Name;
         WeightInput.Text = prize.Weight.ToString(CultureInfo.InvariantCulture);
-        GradeInput.ItemsSource = LotteryPanel.GradeNames;
+        GradeInput.ItemsSource = LotteryController.GradeNames;
         GradeInput.SelectedIndex = (int)prize.Grade;
         NameInput.TextChanged += (_, _) => Changed?.Invoke();
         WeightInput.TextChanged += (_, _) => Changed?.Invoke();

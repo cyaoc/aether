@@ -2,6 +2,7 @@
 const byId = id => document.getElementById(id);
 const scene = byId('scene'), summon = byId('summon'), ring = byId('ring');
 const grades = { Grand:'大奖', Second:'二奖', Third:'三奖' };
+const cellCount = 10;
 // How big each grade's effects get; star counts and particle amounts scale with it.
 const powers = { Grand:3, Second:2, Third:1 };
 // Each theme's wording, sizes as [landscape, portrait] and particles; the views below are shared.
@@ -169,10 +170,10 @@ function show(state) {
 }
 function makeRing(candidates) {
   // Ten visual cells fill the stage; Core has already chosen the result.
-  const cells = theme().cells?.(candidates) || Array.from({length:10},(_,index) => candidates[index % candidates.length]);
+  const cells = theme().cells?.(candidates) || Array.from({length:cellCount},(_,index) => candidates[index % candidates.length]);
   ring.replaceChildren(...cells.map((candidate,index) => {
     const card = text(`candidate ${candidate.grade}${candidate.viewer ? ' viewer' : ''}`, '');
-    card.style.transform = `rotateY(${index * 36}deg) translateZ(var(--ring-radius))`;
+    card.style.transform = `rotateY(${index * 360 / cellCount}deg) translateZ(var(--ring-radius))`;
     card.append(text('candidateLabel',theme().cell(candidate,index)),text('candidateName',candidate.name));
     return card;
   }));
@@ -180,6 +181,7 @@ function makeRing(candidates) {
 }
 // Board W2's lock frame: hops a cell every 0.4 s while spinning; on a draw it slows down and locks the winner at the 28% hit.
 function scan(start, winner) {
+  // Both scan paths are written for 10 cells.
   const path = winner === undefined ? [0,6,3,8,1,5,9,2,7,4] : [5,0,8,3,6,1,9,4,7,2];
   const update = () => {
     const age = Math.max(0,Date.now() - start), locked = winner !== undefined && age >= 1960;
@@ -199,7 +201,7 @@ function drawResult(draw, entry) {
   const cells = makeRing(candidates.length ? candidates : [{name:entry ? draw.winner.nickname : draw.prize.name,grade}]);
   const name = entry ? draw.winner.nickname : draw.prize.name;
   const winnerIndex = Math.max(0, cells.findIndex(candidate => candidate.name === name && candidate.grade === grade));
-  summon.style.setProperty('--stop', `${-720 - winnerIndex * 36}deg`);
+  summon.style.setProperty('--stop', `${-720 - winnerIndex * 360 / cellCount}deg`);
   summon.style.setProperty('--elapsed', `${-elapsed / 1000}s`);
   const t = theme(), words = {entry, title:entry ? draw.award.name : grades[grade], prize:entry ? draw.award.prize : '',
     viewer:draw.nickname || (draw.uid ? `UID ${draw.uid}` : '')};
