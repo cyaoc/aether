@@ -171,7 +171,7 @@ public sealed class EntryLotteryTests
     }
 
     [Fact]
-    public async Task Browser_receives_every_phase_snapshot_recent_entries_draw_and_visibility()
+    public async Task Browser_receives_every_phase_snapshot_recent_entries_draws_and_visibility_in_state_only()
     {
         await using var h = new WatchHarness(enableLottery: true);
         await h.LoginAsync();
@@ -200,18 +200,21 @@ public sealed class EntryLotteryTests
         lottery.CloseEntries();
         Assert.Equal("Closed", (await Event(reader)).Data.GetProperty("entryLottery").GetProperty("phase").GetString());
         lottery.DrawEntry(0);
-        var drawing = (await Event(reader)).Data.GetProperty("entryLottery");
+        var drawingEvent = await Event(reader);
+        Assert.Equal("state", drawingEvent.Name);
+        var drawing = drawingEvent.Data.GetProperty("entryLottery");
         Assert.Equal(2, drawing.GetProperty("remaining").GetInt32());
         Assert.Equal("Grand", drawing.GetProperty("awards")[0].GetProperty("grade").GetString());
-        var draw = await Event(reader);
-        Assert.Equal("draw", draw.Name);
-        Assert.Equal(10, draw.Data.GetProperty("candidates").GetArrayLength());
-        Assert.Equal("键盘", draw.Data.GetProperty("award").GetProperty("prize").GetString());
+        var draw = Assert.Single(drawing.GetProperty("draws").EnumerateArray());
+        Assert.Equal(10, draw.GetProperty("candidates").GetArrayLength());
+        Assert.Equal("键盘", draw.GetProperty("award").GetProperty("prize").GetString());
         using var reconnect = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var again = new StreamReader(await reconnect.Content.ReadAsStreamAsync(h.Stop.Token));
         Assert.Equal(drawing.GetProperty("drawUntil").GetString(), (await Event(again)).Data.GetProperty("entryLottery").GetProperty("drawUntil").GetString());
         h.Time.Advance(LotteryController.DrawDuration);
-        Assert.Equal(JsonValueKind.Null, (await Event(reader)).Data.GetProperty("entryLottery").GetProperty("drawUntil").ValueKind);
+        var finished = await Event(reader);
+        Assert.Equal("state", finished.Name);
+        Assert.Equal(JsonValueKind.Null, finished.Data.GetProperty("entryLottery").GetProperty("drawUntil").ValueKind);
         lottery.EndEntry();
         Assert.Equal("Ended", (await Event(reader)).Data.GetProperty("entryLottery").GetProperty("phase").GetString());
         lottery.SetEntryHidden(true);

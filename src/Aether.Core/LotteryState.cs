@@ -38,5 +38,4 @@ public sealed record LotteryState(long? RoomId, bool Connected, PoolLottery? Poo
     public LotteryTheme Theme { get; init; } = LotteryTheme.StarSummon;
     public bool IsExamplePlaying { get; init; }
 }
-public sealed record LotteryUpdate(LotteryState State, PoolDraw? Draw = null, EntryDraw? EntryDraw = null,
-    LotteryState? Example = null);
+public sealed record LotteryUpdate(LotteryState State, LotteryState? Example = null);

@@ -195,7 +195,7 @@ public sealed class PoolLotteryTests
     }
 
     [Fact]
-    public async Task Browser_gets_snapshot_changes_and_one_draw_event_and_cannot_control_the_lottery()
+    public async Task Browser_gets_snapshot_changes_and_draws_in_state_only_and_cannot_control_the_lottery()
     {
         await using var h = new WatchHarness(random: new FixedRandom(1), enableLottery: true);
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
@@ -211,20 +211,23 @@ public sealed class PoolLotteryTests
         h.Client.Lottery.Start(Prizes, "停");
         Assert.Equal("Spinning", (await Event(reader)).Data.GetProperty("poolLottery").GetProperty("phase").GetString());
         h.Client.Lottery.Stop();
-        Assert.Equal("Drawing", (await Event(reader)).Data.GetProperty("poolLottery").GetProperty("phase").GetString());
-        var draw = await Event(reader);
-        Assert.Equal("draw", draw.Name);
-        Assert.Equal("贴纸", draw.Data.GetProperty("prize").GetProperty("name").GetString());
+        var drawing = await Event(reader);
+        Assert.Equal("state", drawing.Name);
+        Assert.Equal("Drawing", drawing.Data.GetProperty("poolLottery").GetProperty("phase").GetString());
+        var draw = Assert.Single(drawing.Data.GetProperty("poolLottery").GetProperty("draws").EnumerateArray());
+        Assert.Equal("贴纸", draw.GetProperty("prize").GetProperty("name").GetString());
         Assert.Equal([.. Enumerable.Repeat("抱枕", 2), .. Enumerable.Repeat("贴纸", 8)],
-            draw.Data.GetProperty("candidates").EnumerateArray().Select(prize => prize.GetProperty("name").GetString()));
+            draw.GetProperty("candidates").EnumerateArray().Select(prize => prize.GetProperty("name").GetString()));
         using var reconnected = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var reconnectedReader = new StreamReader(await reconnected.Content.ReadAsStreamAsync(h.Stop.Token));
         var snapshot = (await Event(reconnectedReader)).Data.GetProperty("poolLottery");
         Assert.Equal("Drawing", snapshot.GetProperty("phase").GetString());
         Assert.False(snapshot.TryGetProperty("viewers", out _));
-        Assert.Equal(draw.Data.GetProperty("id").GetString(), snapshot.GetProperty("draws")[0].GetProperty("id").GetString());
+        Assert.Equal(draw.GetProperty("id").GetString(), snapshot.GetProperty("draws")[0].GetProperty("id").GetString());
         h.Time.Advance(LotteryController.DrawDuration);
-        Assert.Equal("Idle", (await Event(reader)).Data.GetProperty("poolLottery").GetProperty("phase").GetString());
+        var finished = await Event(reader);
+        Assert.Equal("state", finished.Name);
+        Assert.Equal("Idle", finished.Data.GetProperty("poolLottery").GetProperty("phase").GetString());
         using var post = await http.PostAsync("lottery/stop", new StringContent(""), h.Stop.Token);
         Assert.Equal(HttpStatusCode.NotFound, post.StatusCode);
     }
