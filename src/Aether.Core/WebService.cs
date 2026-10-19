@@ -1,10 +1,8 @@
 using System.Net;
 using System.Net.Sockets;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
@@ -19,7 +17,7 @@ public sealed class WebService : IDisposable
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
     private readonly WebPage[] pages;
-    private readonly List<Channel<WebServiceUpdate>> subscribers = [];
+    private readonly Subscribers<WebServiceUpdate> subscribers;
     private readonly HashSet<Connection> connections = [];
     private WebServiceStatus status = new(false, Settings.WebPort.Initial.Value, 0, 0);
     private HttpListener? listener;
@@ -32,6 +30,7 @@ public sealed class WebService : IDisposable
     {
         this.timeProvider = timeProvider;
         this.logger = logger;
+        subscribers = new(Gate);
         Video = new(this, dataDirectory, timeProvider);
         Lottery = new(this, lottery);
         pages = [Video, Lottery];
@@ -49,17 +48,8 @@ public sealed class WebService : IDisposable
     public WebServiceStatus Status { get { lock (Gate) return status; } }
 
     /// <summary>Subscribe independently of WatchAsync. The first update is the current service status.</summary>
-    public async IAsyncEnumerable<WebServiceUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        // ponytail: unbounded like WatchAsync; bound this if a shell ever keeps a subscription without reading it.
-        var updates = Channel.CreateUnbounded<WebServiceUpdate>();
-        lock (Gate) { subscribers.Add(updates); updates.Writer.TryWrite(status); }
-        try
-        {
-            await foreach (var update in updates.Reader.ReadAllAsync(cancellationToken)) yield return update;
-        }
-        finally { lock (Gate) subscribers.Remove(updates); }
-    }
+    public IAsyncEnumerable<WebServiceUpdate> GetUpdatesAsync(CancellationToken cancellationToken = default) =>
+        subscribers.SubscribeAsync(() => status, cancellationToken);
 
     /// <summary>Only a changed port restarts existing connections.</summary>
     public async Task StartAsync(int port)
@@ -128,10 +118,7 @@ public sealed class WebService : IDisposable
         }
     }
 
-    internal void Publish(WebServiceUpdate update)
-    {
-        lock (Gate) foreach (var subscriber in subscribers) subscriber.Writer.TryWrite(update);
-    }
+    internal void Publish(WebServiceUpdate update) => subscribers.Publish(update);
 
     private void ConnectionsChanged()
     {
@@ -286,10 +273,6 @@ public sealed class WebService : IDisposable
     public void Dispose()
     {
         StopAsync().GetAwaiter().GetResult();
-        lock (Gate)
-        {
-            foreach (var subscriber in subscribers) subscriber.Writer.TryComplete();
-            subscribers.Clear();
-        }
+        subscribers.Complete();
     }
 }
