@@ -16,7 +16,7 @@ public partial class MainWindowViewModel
 
     internal Task RefreshLotteryHistoryAsync(string? selectedId = null)
     {
-        if (shuttingDown) return Task.CompletedTask;
+        if (shutdown.IsCancellationRequested) return Task.CompletedTask;
         var previous = lotteryHistoryRead;
         var version = ++lotteryHistoryVersion;
         var roomId = LotteryState.RoomId ?? settings.LastLotteryRoomId;
@@ -37,7 +37,7 @@ public partial class MainWindowViewModel
             try
             {
                 await previous;
-                if (version != lotteryHistoryVersion || shuttingDown) return;
+                if (version != lotteryHistoryVersion || shutdown.IsCancellationRequested) return;
                 var result = await Task.Run(() =>
                 {
                     var items = roomId is { } room ? client.Lottery.GetHistory(room) : [];
@@ -45,14 +45,14 @@ public partial class MainWindowViewModel
                     var details = selected is null ? null : client.Lottery.GetHistoryDetails(selected.RoomId, selected.Id);
                     return (items, details);
                 });
-                if (version != lotteryHistoryVersion || shuttingDown) return;
+                if (version != lotteryHistoryVersion || shutdown.IsCancellationRequested) return;
                 LotteryHistory = result.items;
                 SelectedLotteryHistory = result.details;
                 lotteryHistorySelection = result.details?.Id;
             }
             catch (Exception error)
             {
-                if (version != lotteryHistoryVersion || shuttingDown) return;
+                if (version != lotteryHistoryVersion || shutdown.IsCancellationRequested) return;
                 logger.LogError(error, "读取抽奖历史失败");
                 LotteryHistoryError = $"读取抽奖历史失败：{error.Message}";
             }
