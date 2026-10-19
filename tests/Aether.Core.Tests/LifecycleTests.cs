@@ -13,8 +13,10 @@ public sealed class LifecycleTests
     {
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         await using var server = new FakeDanmakuServer();
+        var connectingObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         await using var h = new WatchHarness(async (uri, token) =>
         {
+            await connectingObserved.Task.WaitAsync(token);
             var socket = await server.ConnectAsync(uri, token);
             if (cancel) await stop.CancelAsync();
             socket.Abort();
@@ -23,6 +25,8 @@ public sealed class LifecycleTests
         await h.LoginAsync();
         await using var updates = h.Client.WatchAsync(6, stop.Token).GetAsyncEnumerator(stop.Token);
         Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<Connecting>(updates.Current);
+        connectingObserved.SetResult();
         if (cancel) Assert.False(await updates.MoveNextAsync());
         else
         {
