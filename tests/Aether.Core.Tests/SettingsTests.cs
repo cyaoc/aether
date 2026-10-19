@@ -44,6 +44,7 @@ public sealed class SettingsTests : IAsyncDisposable
 
     [Theory]
     [InlineData("0", "x.mp4")]
+    [InlineData("+123", "x.mp4")]
     [InlineData("-1", "x.mp4")]
     [InlineData("x", "x.mp4")]
     [InlineData("9223372036854775808", "x.mp4")]
@@ -123,10 +124,13 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
     }
 
-    [Fact]
-    public void Animation_mapping_add_replace_delete_preserves_other_lines_and_encoding()
+    [Theory]
+    [InlineData("00042")]
+    [InlineData("\" 42\"")]
+    [InlineData("'42 '")]
+    public void Animation_mapping_add_replace_delete_preserves_other_lines_and_encoding(string uid)
     {
-        const string yaml = "# 我的文件\r\nwelcome_animation_videos:\r\n  # 观众\r\n  00042: 原片.mp4 # 保留\r\nlog:\r\n  level: Debug\r\n...\r\n";
+        var yaml = $"# 我的文件\r\nwelcome_animation_videos:\r\n  # 观众\r\n  {uid}: 原片.mp4 # 保留\r\nlog:\r\n  level: Debug\r\n...\r\n";
         Directory.CreateDirectory(harness.DataDirectory);
         File.WriteAllText(SettingsPath, yaml, System.Text.Encoding.Unicode);
         Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, "新片.webm");
@@ -136,7 +140,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal("新片.webm", Settings.Load(harness.DataDirectory).WelcomeAnimationVideos[42].Value);
         Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, null);
         Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 43, null);
-        var deleted = yaml.Replace("  00042: 原片.mp4 # 保留\r\n", "");
+        var deleted = yaml.Replace($"  {uid}: 原片.mp4 # 保留\r\n", "");
         Assert.Equal(deleted, File.ReadAllText(SettingsPath));
         Assert.Empty(Settings.Load(harness.DataDirectory).WelcomeAnimationVideos);
         Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 44, "最后.mp4");

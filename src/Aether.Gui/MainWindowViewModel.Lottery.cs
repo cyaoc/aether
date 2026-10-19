@@ -11,16 +11,13 @@ public partial class MainWindowViewModel
     [ObservableProperty, NotifyPropertyChangedFor(nameof(LotteryPhaseText))] private LotteryState lotteryState = new(null, false, null);
 
     /// <summary>The sidebar shows the phase only while a draw is under way.</summary>
-    public string LotteryPhaseText => LotteryState.EntryLottery?.Phase switch
+    public string LotteryPhaseText => LotteryState.Lottery switch
     {
-        EntryLotteryPhase.Open => "报名中",
-        EntryLotteryPhase.Closed => "开奖中",
-        _ => LotteryState.PoolLottery?.Phase switch
-        {
-            PoolLotteryPhase.Spinning => "转动中",
-            PoolLotteryPhase.Drawing => "开奖中",
-            _ => "",
-        },
+        EntryLottery { Phase: EntryLotteryPhase.Open } => "报名中",
+        EntryLottery { Phase: EntryLotteryPhase.Closed } => "开奖中",
+        PoolLottery { Phase: PoolLotteryPhase.Spinning } => "转动中",
+        PoolLottery { IsDrawing: true } => "开奖中",
+        _ => "",
     };
 
     /// <summary>The 抽奖 page's phase chip for 报名抽奖, as on canvas O1.</summary>
@@ -41,9 +38,12 @@ public partial class MainWindowViewModel
             settings.LastLotteryRoomId = room;
             SaveGuiSettings();
         }
-        if (previous.RoomId != LotteryState.RoomId || previous.EntryLottery != LotteryState.EntryLottery
-            || previous.PoolLottery?.Id != LotteryState.PoolLottery?.Id || previous.PoolLottery?.Draws != LotteryState.PoolLottery?.Draws
-            || previous.PoolLottery?.Prizes != LotteryState.PoolLottery?.Prizes || previous.PoolLottery?.StopWord != LotteryState.PoolLottery?.StopWord)
+        if (previous.RoomId != LotteryState.RoomId || ((previous.Lottery, LotteryState.Lottery) switch
+            {
+                (PoolLottery before, PoolLottery after) => before.Id != after.Id || before.Draws != after.Draws
+                    || before.Prizes != after.Prizes || before.StopWord != after.StopWord,
+                _ => previous.Lottery != LotteryState.Lottery,
+            }))
             _ = RefreshLotteryHistoryAsync();
     }
 

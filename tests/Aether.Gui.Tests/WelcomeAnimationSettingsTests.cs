@@ -109,6 +109,7 @@ public sealed class WelcomeAnimationSettingsTests
 
     [Theory]
     [InlineData("", "填一个 UID")]
+    [InlineData("+123", "UID 必须是正整数")]
     [InlineData("0", "UID 必须是正整数")]
     [InlineData("-1", "UID 必须是正整数")]
     [InlineData("abc", "UID 必须是正整数")]

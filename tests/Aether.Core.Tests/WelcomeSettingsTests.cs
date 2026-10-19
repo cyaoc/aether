@@ -165,7 +165,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Assert.Equal(21, loaded.WelcomeFanClubLevel.Value);
         Assert.Equal(45, loaded.WelcomeWealthLevel.Value);
         // Equal numeric values keep the original spelling, as scalar settings do.
-        changes["welcome.uids"] = "[ 02147483648, +9223372036854775807 ]";
+        changes["welcome.uids"] = "[ 02147483648, 9223372036854775807 ]";
         Settings.Save(h.DataDirectory, changes);
         Assert.Equal(expected, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.uids"] = "[]" });
@@ -190,6 +190,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     [InlineData("uids", "12345")]
     [InlineData("uids", "'[12345]'")]
     [InlineData("uids", "[abc]")]
+    [InlineData("uids", "[+123]")]
     [InlineData("uids", "[0]")]
     [InlineData("uids", "[-1]")]
     [InlineData("uids", "[1.5]")]
@@ -215,7 +216,9 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
         Assert.Equal("welcome." + key, error.SettingName);
         Assert.Equal(3, error.LineNumber);
-        Assert.Contains(key == "uids" ? "单行数字列表" : "非负整数", error.Message);
+        Assert.EndsWith(key == "uids"
+            ? "必须是 [12345, 67890] 形式的单行数字列表，每项为 int64 范围内的正整数；[] 表示空列表。"
+            : "必须为非负整数。", error.Message);
         Assert.Equal(yaml, File.ReadAllText(path));
 
         const string valid = "welcome:\n  uids: []\n  fan_club_level: 0\n  wealth_level: 0\n";

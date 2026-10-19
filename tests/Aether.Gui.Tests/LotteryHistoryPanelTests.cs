@@ -63,7 +63,7 @@ public sealed class LotteryHistoryPanelTests
             var back = history.FindControl<Button>("ReturnButton")!;
             Assert.True(back.IsVisible);
             Assert.False(back.IsEnabled);
-            vm.Apply(new LotteryUpdate(new(7734200, true, null, LotteryHistoryFixture.Current)));
+            vm.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
             await vm.RefreshLotteryHistoryAsync();
             Assert.True(back.IsEnabled);
             back.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -72,7 +72,7 @@ public sealed class LotteryHistoryPanelTests
             tabs.SelectedIndex = 1;
             await vm.RefreshLotteryHistoryAsync();
             list.SelectedIndex = 1;
-            await GuiHarness.WaitForAsync(() => vm.SelectedLotteryHistory?.Lottery.Id == "pool" && !vm.LotteryHistoryLoading);
+            await GuiHarness.WaitForAsync(() => vm.SelectedLotteryHistory?.Id == "pool" && !vm.LotteryHistoryLoading);
             GuiHarness.Flush();
             Assert.Contains("抽了 7 次", GuiHarness.VisibleText(window));
             Assert.Contains("晚风 ×2", GuiHarness.VisibleText(window));
@@ -80,18 +80,18 @@ public sealed class LotteryHistoryPanelTests
             Assert.Contains("主播点停", GuiHarness.VisibleText(window));
             Assert.Contains("口令「停」，每次点名一位观众喊停，或主播点停", GuiHarness.VisibleText(window));
             Assert.False(back.IsVisible);
-            Assert.Equal("entry", vm.LotteryState.EntryLottery!.Id);
+            Assert.Equal("entry", vm.LotteryState.Lottery!.Id);
             Assert.DoesNotContain(window.GetVisualDescendants().OfType<TextBox>(), control => control.IsEffectivelyVisible);
-            vm.Apply(new LotteryUpdate(vm.LotteryState with { EntryLottery = LotteryHistoryFixture.Current with { Hidden = true } }));
+            vm.Apply(new LotteryUpdate(vm.LotteryState with { Lottery = LotteryHistoryFixture.Current with { Hidden = true } }));
             await vm.RefreshLotteryHistoryAsync();
-            Assert.Equal("pool", vm.SelectedLotteryHistory!.Lottery.Id);
+            Assert.Equal("pool", vm.SelectedLotteryHistory!.Id);
             list.SelectedIndex = 0;
             await vm.RefreshLotteryHistoryAsync();
-            Assert.Equal("entry", vm.SelectedLotteryHistory!.Lottery.Id);
+            Assert.Equal("entry", vm.SelectedLotteryHistory!.Id);
             vm.Apply(new LotteryUpdate(new(999, true, null)));
             await vm.RefreshLotteryHistoryAsync();
             Assert.Equal("other", Assert.Single(vm.LotteryHistory).Id);
-            Assert.Equal("other", vm.SelectedLotteryHistory!.Lottery.Id);
+            Assert.Equal("other", vm.SelectedLotteryHistory!.Id);
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
         return true;

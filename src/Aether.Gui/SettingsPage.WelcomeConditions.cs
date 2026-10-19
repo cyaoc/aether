@@ -19,11 +19,11 @@ public partial class SettingsPage
         UidFold.IsExpanded = false;
         foreach (var uid in settings.WelcomeUids.Value)
             InsertCondition(WelcomeCondition.Uid, uid.ToString(CultureInfo.InvariantCulture), settings.WelcomeUids.CanEdit);
-        if (settings.WelcomeFanClubLevel.Value > 0)
+        if (settings.WelcomeFanClubLevel.Value > Settings.WelcomeLevelOff)
             InsertCondition(WelcomeCondition.FanClubLevel, settings.WelcomeFanClubLevel.Value.ToString(CultureInfo.InvariantCulture), settings.WelcomeFanClubLevel.CanEdit);
         if (settings.WelcomeGuard.Value != Settings.WelcomeGuards[0])
             InsertCondition(WelcomeCondition.Guard, settings.WelcomeGuard.Value, settings.WelcomeGuard.CanEdit);
-        if (settings.WelcomeWealthLevel.Value > 0)
+        if (settings.WelcomeWealthLevel.Value > Settings.WelcomeLevelOff)
             InsertCondition(WelcomeCondition.WealthLevel, settings.WelcomeWealthLevel.Value.ToString(CultureInfo.InvariantCulture), settings.WelcomeWealthLevel.CanEdit);
         loadedConditionKinds = Conditions.Select(row => row.Kind).ToArray();
         RefreshConditionList();

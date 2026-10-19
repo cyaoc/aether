@@ -18,7 +18,7 @@ public sealed class LotteryExampleTests
         Assert.True(lottery.State.IsExamplePlaying);
         await h.PushAndCollectAsync(watch, """{"cmd":"DANMU_MSG","info":[[],"停",[42,"新观众"]]}""");
         Assert.False(lottery.State.IsExamplePlaying);
-        Assert.Equal(Grade.Third, Assert.Single(lottery.State.PoolLottery!.Draws).Prize.Grade);
+        Assert.Equal(Grade.Third, Assert.Single(Assert.IsType<PoolLottery>(lottery.State.Lottery).Draws).Prize.Grade);
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public sealed class LotteryExampleTests
         do { line = await reader.ReadLineAsync(timeout.Token); } while (line is not null && !line.StartsWith("data: "));
         Assert.NotNull(line);
         using var json = System.Text.Json.JsonDocument.Parse(line[6..]);
-        Assert.Equal("Open", json.RootElement.GetProperty("entryLottery").GetProperty("phase").GetString());
+        Assert.Equal("Open", json.RootElement.GetProperty("lottery").GetProperty("phase").GetString());
         Assert.True(json.RootElement.GetProperty("isExamplePlaying").GetBoolean());
         Assert.Equal("CapsuleGacha", json.RootElement.GetProperty("theme").GetString());
     }
@@ -58,10 +58,10 @@ public sealed class LotteryExampleTests
         await using var watch = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
         lottery.New(LotteryMode.Entry);
-        var original = lottery.State.EntryLottery;
+        var original = Assert.IsType<EntryLottery>(lottery.State.Lottery);
         var history = lottery.GetHistory(7734200);
         h.Client.WebService.Lottery.PlayExample();
-        Assert.Same(original, lottery.State.EntryLottery);
+        Assert.Same(original, Assert.IsType<EntryLottery>(lottery.State.Lottery));
         Assert.Equal(history.Select(item => (item.Id, item.DrawCount, item.EntryCount)),
             lottery.GetHistory(7734200).Select(item => (item.Id, item.DrawCount, item.EntryCount)));
         h.Time.HoldCallbacksFor = TimeSpan.FromSeconds(3);
@@ -72,12 +72,12 @@ public sealed class LotteryExampleTests
         h.Time.HoldCallbacksFor = null;
         h.Time.RunHeldCallbacks();
         await using var stream = lottery.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.Equal(EntryLotteryPhase.Open, (await h.NextAsync(stream)).Example!.EntryLottery!.Phase);
+        Assert.Equal(EntryLotteryPhase.Open, Assert.IsType<EntryLottery>((await h.NextAsync(stream)).Example!.Lottery).Phase);
         await h.Client.WebService.StopAsync();
         Assert.False(lottery.State.IsExamplePlaying);
         h.Time.Advance(TimeSpan.FromSeconds(30));
-        Assert.Equal(EntryLotteryPhase.Open, lottery.State.EntryLottery!.Phase);
-        Assert.Empty(lottery.State.EntryLottery.Draws);
+        Assert.Equal(EntryLotteryPhase.Open, Assert.IsType<EntryLottery>(lottery.State.Lottery).Phase);
+        Assert.Empty(Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws);
         Assert.Single(lottery.GetHistory(7734200));
     }
 
@@ -93,27 +93,31 @@ public sealed class LotteryExampleTests
         service.Lottery.PlayExample();
         var first = await h.NextAsync(updates);
         Assert.True(first.State.IsExamplePlaying);
-        Assert.Null(first.State.EntryLottery);
-        Assert.Equal(EntryLotteryPhase.Open, first.Example!.EntryLottery!.Phase);
+        Assert.Null(first.State.Lottery);
+        Assert.Equal(EntryLotteryPhase.Open, Assert.IsType<EntryLottery>(first.Example!.Lottery).Phase);
         Assert.Throws<InvalidOperationException>(service.Lottery.PlayExample);
         h.Time.Advance(TimeSpan.FromSeconds(3));
-        Assert.Equal(EntryLotteryPhase.Closed, (await h.NextAsync(updates)).Example!.EntryLottery!.Phase);
+        Assert.Equal(EntryLotteryPhase.Closed, Assert.IsType<EntryLottery>((await h.NextAsync(updates)).Example!.Lottery).Phase);
         h.Time.Advance(TimeSpan.FromSeconds(1));
-        var entry = (await h.NextAsync(updates)).Example!.EntryLottery!;
+        var entry = Assert.IsType<EntryLottery>((await h.NextAsync(updates)).Example!.Lottery);
         Assert.Equal(Grade.Grand, Assert.Single(entry.Draws).Award.Grade);
+        Assert.True(entry.IsDrawing);
         Assert.Equal(TimeSpan.FromSeconds(7), entry.DrawUntil - entry.Draws[0].DrawnAt);
         h.Time.Advance(TimeSpan.FromSeconds(7));
-        Assert.Equal(EntryLotteryPhase.Ended, (await h.NextAsync(updates)).Example!.EntryLottery!.Phase);
+        Assert.Equal(EntryLotteryPhase.Ended, Assert.IsType<EntryLottery>((await h.NextAsync(updates)).Example!.Lottery).Phase);
         h.Time.Advance(TimeSpan.FromSeconds(2));
-        Assert.Equal(PoolLotteryPhase.Spinning, (await h.NextAsync(updates)).Example!.PoolLottery!.Phase);
+        Assert.Equal(PoolLotteryPhase.Spinning, Assert.IsType<PoolLottery>((await h.NextAsync(updates)).Example!.Lottery).Phase);
         h.Time.Advance(TimeSpan.FromSeconds(1));
-        var pool = (await h.NextAsync(updates)).Example!.PoolLottery!;
+        var pool = Assert.IsType<PoolLottery>((await h.NextAsync(updates)).Example!.Lottery);
         Assert.Equal(Grade.Second, Assert.Single(pool.Draws).Prize.Grade);
+        Assert.Equal(PoolLotteryPhase.Idle, pool.Phase);
+        Assert.True(pool.IsDrawing);
+        Assert.Equal(TimeSpan.FromSeconds(7), pool.DrawUntil - pool.Draws[0].DrawnAt);
         h.Time.Advance(TimeSpan.FromSeconds(7));
         var last = await h.NextAsync(updates);
         Assert.False(last.State.IsExamplePlaying);
         Assert.Null(last.Example);
-        Assert.Null(last.State.PoolLottery);
+        Assert.Null(last.State.Lottery);
         Assert.False(File.Exists(Path.Combine(h.DataDirectory, "aether.db")));
         Assert.Empty(h.Http.Requests);
     }

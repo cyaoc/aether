@@ -7,6 +7,44 @@ public sealed class EntryLotteryTests
 {
     private static readonly LotteryAward[] Awards = [new("一等奖", "键盘", 1, Grade.Grand), new("二等奖", "抱枕", 2, Grade.Second)];
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Restart_restores_the_latest_lottery_after_ending_hiding_or_replacing_an_entry_lottery(bool hidden, bool replaced)
+    {
+        await using var h = new WatchHarness(enableLottery: true);
+        await h.LoginAsync();
+        var updates = await h.WatchConnectedAsync();
+        var lottery = h.Client.Lottery;
+        lottery.New(LotteryMode.Pool);
+        lottery.New(LotteryMode.Entry);
+        lottery.StartEntry(Awards, "参加");
+        lottery.CloseEntries();
+        lottery.EndEntry();
+        lottery.SetEntryHidden(hidden);
+        if (replaced) lottery.New(LotteryMode.Pool);
+        var current = lottery.State.Lottery!;
+        await updates.DisposeAsync();
+        using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
+        await using var resumed = await h.WatchConnectedAsync(restarted);
+        Assert.Equal(current.Id, restarted.Lottery.State.Lottery!.Id);
+        if (replaced)
+        {
+            var pool = Assert.IsType<PoolLottery>(restarted.Lottery.State.Lottery);
+            Assert.Null(pool.EndedAt);
+            Assert.False(pool.IsDrawing);
+        }
+        else
+        {
+            var entry = Assert.IsType<EntryLottery>(restarted.Lottery.State.Lottery);
+            Assert.Equal(EntryLotteryPhase.Ended, entry.Phase);
+            Assert.Equal(current.EndedAt, entry.EndedAt);
+            Assert.Equal(hidden, entry.Hidden);
+            Assert.Equal(Awards, entry.Awards);
+        }
+    }
+
     [Fact]
     public async Task Only_exact_trimmed_keywords_during_registration_enter_once_per_uid()
     {
@@ -16,18 +54,18 @@ public sealed class EntryLotteryTests
         await using var updates = await h.WatchConnectedAsync();
         h.Client.Lottery.New(LotteryMode.Entry);
         await h.PushAndCollectAsync(updates, Message(1, "太早", "抽奖"));
-        Assert.Empty(h.Client.Lottery.State.EntryLottery!.Entries);
+        Assert.Empty(Assert.IsType<EntryLottery>(h.Client.Lottery.State.Lottery).Entries);
         h.Client.Lottery.StartEntry(Awards, " 抽奖 ");
         await h.PushAndCollectAsync(updates, Message(1, "小明", "抽奖!"), Message(2, "小红", " 抽奖\n"),
             Message(2, "新昵称", "抽奖"), Message(0, "匿名", "抽奖"), Message(3, "小蓝", "抽 奖"));
-        var entry = Assert.Single(h.Client.Lottery.State.EntryLottery!.Entries);
+        var entry = Assert.Single(Assert.IsType<EntryLottery>(h.Client.Lottery.State.Lottery).Entries);
         Assert.Equal(2, entry.Uid);
         Assert.Equal("小红", entry.Nickname);
         Assert.Equal(h.Time.GetUtcNow(), entry.EnteredAt);
         h.Client.Lottery.CloseEntries();
         await h.PushAndCollectAsync(updates, Message(3, "太晚", "抽奖"));
-        Assert.Single(h.Client.Lottery.State.EntryLottery.Entries);
-        Assert.Equal(EntryLotteryPhase.Closed, h.Client.Lottery.State.EntryLottery.Phase);
+        Assert.Single(Assert.IsType<EntryLottery>(h.Client.Lottery.State.Lottery).Entries);
+        Assert.Equal(EntryLotteryPhase.Closed, Assert.IsType<EntryLottery>(h.Client.Lottery.State.Lottery).Phase);
         Assert.Equal(0, SentDanmaku.SendAttempts(h));
     }
 
@@ -49,7 +87,7 @@ public sealed class EntryLotteryTests
         Assert.Throws<InvalidOperationException>(() => lottery.New(LotteryMode.Pool));
         lottery.CloseEntries();
         lottery.DrawEntry(0);
-        var draw = Assert.Single(lottery.State.EntryLottery!.Draws);
+        var draw = Assert.Single(Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws);
         Assert.Equal(3, random.Bound);
         Assert.Equal(expectedUid, draw.Winner.Uid);
         Assert.Equal(10, draw.Candidates.Length);
@@ -63,19 +101,19 @@ public sealed class EntryLotteryTests
         random.Pick = 0;
         lottery.DrawEntry(1);
         Assert.Equal(2, random.Bound);
-        Assert.NotEqual(expectedUid, lottery.State.EntryLottery.Draws[^1].Winner.Uid);
+        Assert.NotEqual(expectedUid, Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws[^1].Winner.Uid);
         h.Time.Advance(LotteryController.DrawDuration);
         lottery.DrawEntry(1);
         Assert.Equal(1, random.Bound);
-        Assert.Equal(3, lottery.State.EntryLottery.Draws.Select(d => d.Winner.Uid).Distinct().Count());
+        Assert.Equal(3, Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws.Select(d => d.Winner.Uid).Distinct().Count());
         h.Time.Advance(LotteryController.DrawDuration);
         lottery.EndEntry();
-        Assert.Equal(EntryLotteryPhase.Ended, lottery.State.EntryLottery.Phase);
-        Assert.False(lottery.State.EntryLottery.Hidden);
+        Assert.Equal(EntryLotteryPhase.Ended, Assert.IsType<EntryLottery>(lottery.State.Lottery).Phase);
+        Assert.False(Assert.IsType<EntryLottery>(lottery.State.Lottery).Hidden);
         lottery.SetEntryHidden(true);
-        Assert.True(lottery.State.EntryLottery.Hidden);
+        Assert.True(Assert.IsType<EntryLottery>(lottery.State.Lottery).Hidden);
         lottery.SetEntryHidden(false);
-        Assert.False(lottery.State.EntryLottery.Hidden);
+        Assert.False(Assert.IsType<EntryLottery>(lottery.State.Lottery).Hidden);
         foreach (var action in new[] { "开始报名", "报名：", "截止", "开奖", "结束" })
             Assert.Contains(h.Logger.Entries, entry => entry.Message.Contains(action));
         Assert.Equal(0, SentDanmaku.SendAttempts(h));
@@ -92,15 +130,15 @@ public sealed class EntryLotteryTests
         h.Client.Lottery.New(LotteryMode.Entry);
         h.Client.Lottery.StartEntry(Awards, "来吧");
         await h.PushAndCollectAsync(updates, Message(7, "七七", "来吧"));
-        var id = h.Client.Lottery.State.EntryLottery!.Id;
+        var id = h.Client.Lottery.State.Lottery!.Id;
         await updates.DisposeAsync();
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
         updates = await h.WatchConnectedAsync(restarted);
-        Assert.Equal(id, restarted.Lottery.State.EntryLottery!.Id);
-        Assert.Equal(EntryLotteryPhase.Open, restarted.Lottery.State.EntryLottery.Phase);
-        Assert.Equal(Awards, restarted.Lottery.State.EntryLottery.Awards);
+        Assert.Equal(id, restarted.Lottery.State.Lottery!.Id);
+        Assert.Equal(EntryLotteryPhase.Open, Assert.IsType<EntryLottery>(restarted.Lottery.State.Lottery).Phase);
+        Assert.Equal(Awards, Assert.IsType<EntryLottery>(restarted.Lottery.State.Lottery).Awards);
         await h.PushAndCollectAsync(updates, Message(7, "重复", "来吧"));
-        Assert.Single(restarted.Lottery.State.EntryLottery.Entries);
+        Assert.Single(Assert.IsType<EntryLottery>(restarted.Lottery.State.Lottery).Entries);
         restarted.Lottery.CloseEntries();
         restarted.Lottery.DrawEntry(0);
         if (ended)
@@ -111,21 +149,25 @@ public sealed class EntryLotteryTests
         }
         await updates.DisposeAsync();
         await using var resumed = await h.WatchConnectedAsync();
-        var restored = h.Client.Lottery.State.EntryLottery!;
+        var restored = Assert.IsType<EntryLottery>(h.Client.Lottery.State.Lottery);
         Assert.Equal(id, restored.Id);
-        Assert.Single(restored.Draws);
+        var restoredDraw = Assert.Single(restored.Draws);
+        Assert.Equal(Awards[0], restoredDraw.Award);
+        Assert.Equal(7, restoredDraw.Winner.Uid);
+        Assert.Equal("七七", restoredDraw.Winner.Nickname);
+        Assert.Equal(Enumerable.Repeat("七七", 10), restoredDraw.Candidates);
         Assert.Equal(ended, restored.Hidden);
         Assert.Equal(ended ? EntryLotteryPhase.Ended : EntryLotteryPhase.Closed, restored.Phase);
         if (!ended)
         {
-            Assert.NotNull(restored.DrawUntil);
+            Assert.True(restored.IsDrawing);
             h.Time.Advance(LotteryController.DrawDuration);
-            Assert.Null(h.Client.Lottery.State.EntryLottery!.DrawUntil);
+            Assert.False(h.Client.Lottery.State.Lottery!.IsDrawing);
         }
         else
         {
             h.Client.Lottery.SetEntryHidden(false);
-            Assert.False(h.Client.Lottery.State.EntryLottery!.Hidden);
+            Assert.False(Assert.IsType<EntryLottery>(h.Client.Lottery.State.Lottery).Hidden);
         }
     }
 
@@ -141,7 +183,7 @@ public sealed class EntryLotteryTests
         await h.PushAndCollectAsync(updates, Message(42, "四二", "开"));
         h.Time.Advance(LotteryController.DrawDuration);
         lottery.New(LotteryMode.Entry);
-        Assert.Null(lottery.State.PoolLottery);
+        Assert.IsType<EntryLottery>(lottery.State.Lottery);
         lottery.StartEntry(Awards, "参加");
         await h.PushAndCollectAsync(updates, Message(1, "小明", "参加"));
         lottery.CloseEntries();
@@ -151,18 +193,18 @@ public sealed class EntryLotteryTests
         Assert.Contains("没有", Assert.Throws<InvalidOperationException>(() => lottery.DrawEntry(1)).Message);
         lottery.EndEntry();
         lottery.New(LotteryMode.Pool);
-        Assert.Null(lottery.State.EntryLottery);
-        Assert.Equal(pool, lottery.State.PoolLottery!.Prizes);
-        Assert.Equal("开", lottery.State.PoolLottery.StopWord);
-        Assert.Equal(42, lottery.State.PoolLottery.Uid);
-        Assert.Empty(lottery.State.PoolLottery.Draws);
-        Assert.Empty(lottery.State.PoolLottery.Viewers);
+        Assert.IsType<PoolLottery>(lottery.State.Lottery);
+        Assert.Equal(pool, Assert.IsType<PoolLottery>(lottery.State.Lottery).Prizes);
+        Assert.Equal("开", Assert.IsType<PoolLottery>(lottery.State.Lottery).StopWord);
+        Assert.Equal(42, Assert.IsType<PoolLottery>(lottery.State.Lottery).Uid);
+        Assert.Empty(Assert.IsType<PoolLottery>(lottery.State.Lottery).Draws);
+        Assert.Empty(Assert.IsType<PoolLottery>(lottery.State.Lottery).Viewers);
         lottery.New(LotteryMode.Entry);
-        Assert.Equal("参加", lottery.State.EntryLottery!.Keyword);
-        Assert.Equal(Awards, lottery.State.EntryLottery.Awards);
-        Assert.Equal(EntryLotteryPhase.Preparing, lottery.State.EntryLottery.Phase);
-        Assert.Empty(lottery.State.EntryLottery.Entries);
-        Assert.Empty(lottery.State.EntryLottery.Draws);
+        Assert.Equal("参加", Assert.IsType<EntryLottery>(lottery.State.Lottery).Keyword);
+        Assert.Equal(Awards, Assert.IsType<EntryLottery>(lottery.State.Lottery).Awards);
+        Assert.Equal(EntryLotteryPhase.Preparing, Assert.IsType<EntryLottery>(lottery.State.Lottery).Phase);
+        Assert.Empty(Assert.IsType<EntryLottery>(lottery.State.Lottery).Entries);
+        Assert.Empty(Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws);
         using var db = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
         db.Open();
         using var query = db.CreateCommand();
@@ -171,7 +213,7 @@ public sealed class EntryLotteryTests
     }
 
     [Fact]
-    public async Task Browser_receives_every_phase_snapshot_recent_entries_draw_and_visibility()
+    public async Task Browser_receives_every_phase_snapshot_recent_entries_draws_and_visibility_in_state_only()
     {
         await using var h = new WatchHarness(enableLottery: true);
         await h.LoginAsync();
@@ -183,13 +225,13 @@ public sealed class EntryLotteryTests
         await Event(reader);
         var lottery = h.Client.Lottery;
         lottery.New(LotteryMode.Entry);
-        Assert.Equal("Preparing", (await Event(reader)).Data.GetProperty("entryLottery").GetProperty("phase").GetString());
+        Assert.Equal("Preparing", (await Event(reader)).Data.GetProperty("lottery").GetProperty("phase").GetString());
         lottery.StartEntry(Awards, "抽奖");
-        Assert.Equal("Open", (await Event(reader)).Data.GetProperty("entryLottery").GetProperty("phase").GetString());
+        Assert.Equal("Open", (await Event(reader)).Data.GetProperty("lottery").GetProperty("phase").GetString());
         for (var uid = 1; uid <= 4; uid++)
         {
             await h.PushAndCollectAsync(updates, Message(uid, $"观众{uid}", "抽奖"));
-            var snapshot = (await Event(reader)).Data.GetProperty("entryLottery");
+            var snapshot = (await Event(reader)).Data.GetProperty("lottery");
             Assert.Equal(uid, snapshot.GetProperty("entryCount").GetInt32());
             if (uid == 4)
             {
@@ -198,26 +240,30 @@ public sealed class EntryLotteryTests
             }
         }
         lottery.CloseEntries();
-        Assert.Equal("Closed", (await Event(reader)).Data.GetProperty("entryLottery").GetProperty("phase").GetString());
+        Assert.Equal("Closed", (await Event(reader)).Data.GetProperty("lottery").GetProperty("phase").GetString());
         lottery.DrawEntry(0);
-        var drawing = (await Event(reader)).Data.GetProperty("entryLottery");
+        var drawingEvent = await Event(reader);
+        Assert.Equal("state", drawingEvent.Name);
+        var drawing = drawingEvent.Data.GetProperty("lottery");
+        Assert.Equal("Entry", drawing.GetProperty("mode").GetString());
         Assert.Equal(2, drawing.GetProperty("remaining").GetInt32());
         Assert.Equal("Grand", drawing.GetProperty("awards")[0].GetProperty("grade").GetString());
-        var draw = await Event(reader);
-        Assert.Equal("draw", draw.Name);
-        Assert.Equal(10, draw.Data.GetProperty("candidates").GetArrayLength());
-        Assert.Equal("键盘", draw.Data.GetProperty("award").GetProperty("prize").GetString());
+        var draw = Assert.Single(drawing.GetProperty("draws").EnumerateArray());
+        Assert.Equal(10, draw.GetProperty("candidates").GetArrayLength());
+        Assert.Equal("键盘", draw.GetProperty("award").GetProperty("prize").GetString());
         using var reconnect = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var again = new StreamReader(await reconnect.Content.ReadAsStreamAsync(h.Stop.Token));
-        Assert.Equal(drawing.GetProperty("drawUntil").GetString(), (await Event(again)).Data.GetProperty("entryLottery").GetProperty("drawUntil").GetString());
+        Assert.Equal(drawing.GetProperty("drawUntil").GetString(), (await Event(again)).Data.GetProperty("lottery").GetProperty("drawUntil").GetString());
         h.Time.Advance(LotteryController.DrawDuration);
-        Assert.Equal(JsonValueKind.Null, (await Event(reader)).Data.GetProperty("entryLottery").GetProperty("drawUntil").ValueKind);
+        var finished = await Event(reader);
+        Assert.Equal("state", finished.Name);
+        Assert.Equal(JsonValueKind.Null, finished.Data.GetProperty("lottery").GetProperty("drawUntil").ValueKind);
         lottery.EndEntry();
-        Assert.Equal("Ended", (await Event(reader)).Data.GetProperty("entryLottery").GetProperty("phase").GetString());
+        Assert.Equal("Ended", (await Event(reader)).Data.GetProperty("lottery").GetProperty("phase").GetString());
         lottery.SetEntryHidden(true);
-        Assert.True((await Event(reader)).Data.GetProperty("entryLottery").GetProperty("hidden").GetBoolean());
+        Assert.True((await Event(reader)).Data.GetProperty("lottery").GetProperty("hidden").GetBoolean());
         lottery.SetEntryHidden(false);
-        Assert.False((await Event(reader)).Data.GetProperty("entryLottery").GetProperty("hidden").GetBoolean());
+        Assert.False((await Event(reader)).Data.GetProperty("lottery").GetProperty("hidden").GetBoolean());
     }
 
     private static async Task<(string Name, JsonElement Data)> Event(StreamReader reader)
@@ -241,7 +287,7 @@ public sealed class EntryLotteryTests
         var lottery = h.Client.Lottery;
         lottery.New(LotteryMode.Entry);
         var before = lottery.State;
-        Assert.Throws<ArgumentException>(() => lottery.StartEntry(Awards, " "));
+        Assert.Equal(LotteryController.ValidateKeyword(" "), Assert.Throws<ArgumentException>(() => lottery.StartEntry(Awards, " ")).Message);
         Assert.Throws<ArgumentException>(() => lottery.StartEntry([], "抽奖"));
         Assert.Throws<ArgumentException>(() => lottery.StartEntry(Enumerable.Repeat(Awards[0], 6).ToArray(), "抽奖"));
         foreach (var invalid in new[] { Awards[0] with { Name = "" }, Awards[0] with { Prize = " " },
@@ -259,7 +305,7 @@ public sealed class EntryLotteryTests
         lottery.CloseEntries();
         Assert.Contains("没有", Assert.Throws<InvalidOperationException>(() => lottery.DrawEntry(0)).Message);
         lottery.EndEntry();
-        Assert.Empty(lottery.State.EntryLottery!.Draws);
+        Assert.Empty(Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws);
     }
 
     [Fact]
@@ -279,20 +325,20 @@ public sealed class EntryLotteryTests
         command.CommandText = "CREATE TRIGGER fail_draw BEFORE INSERT ON lottery_draw BEGIN SELECT RAISE(FAIL, 'unavailable'); END";
         command.ExecuteNonQuery();
         Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() => lottery.DrawEntry(0));
-        Assert.Empty(lottery.State.EntryLottery!.Draws);
-        Assert.Null(lottery.State.EntryLottery.DrawUntil);
+        Assert.Empty(Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws);
+        Assert.False(lottery.State.Lottery.IsDrawing);
         command.CommandText = "DROP TRIGGER fail_draw";
         command.ExecuteNonQuery();
         lottery.DrawEntry(0);
         command.CommandText = "CREATE TRIGGER fail_finish BEFORE UPDATE ON lottery BEGIN SELECT RAISE(FAIL, 'unavailable'); END";
         command.ExecuteNonQuery();
         h.Time.Advance(LotteryController.DrawDuration);
-        Assert.NotNull(lottery.State.EntryLottery.DrawUntil);
+        Assert.True(lottery.State.Lottery.IsDrawing);
         command.CommandText = "DROP TRIGGER fail_finish";
         command.ExecuteNonQuery();
         h.Time.Advance(TimeSpan.FromSeconds(1));
-        Assert.Null(lottery.State.EntryLottery.DrawUntil);
-        Assert.Single(lottery.State.EntryLottery.Draws);
+        Assert.False(lottery.State.Lottery.IsDrawing);
+        Assert.Single(Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws);
         lottery.EndEntry();
     }
 

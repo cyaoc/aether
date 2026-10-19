@@ -24,11 +24,11 @@ public sealed class EntryLotteryPanelTests
         try
         {
             var lottery = TestLottery();
-            vm.Apply(new LotteryUpdate(new(7734200, false, null, lottery)));
+            vm.Apply(new LotteryUpdate(new(7734200, false, lottery)));
             var entry = panel.FindControl<EntryLotteryPanel>("EntryContent")!;
             var start = entry.FindControl<Button>("StartEntryButton")!;
             Assert.False(start.IsEnabled);
-            vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery)));
+            vm.Apply(new LotteryUpdate(new(7734200, true, lottery)));
             Assert.True(start.IsEnabled);
             Assert.Equal("报名抽奖", panel.FindControl<TextBlock>("ModeText")!.Text);
             Assert.Equal("准备中", panel.FindControl<TextBlock>("PhaseText")!.Text);
@@ -37,10 +37,13 @@ public sealed class EntryLotteryPanelTests
             GuiHarness.Flush();
             Assert.False(start.IsEnabled);
             Assert.True(entry.FindControl<TextBlock>("KeywordError")!.IsVisible);
+            Assert.Equal(LotteryController.ValidateKeyword(keyword.Text), entry.FindControl<TextBlock>("KeywordError")!.Text);
             keyword.Text = "抽奖";
             GuiHarness.Flush();
+            Assert.False(entry.FindControl<TextBlock>("KeywordError")!.IsVisible);
+            Assert.Equal(LotteryController.ValidateKeyword(keyword.Text), entry.FindControl<TextBlock>("KeywordError")!.Text);
             lottery = lottery with { Phase = EntryLotteryPhase.Open, Entries = [new(42, "小明", DateTimeOffset.UnixEpoch)] };
-            vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery)));
+            vm.Apply(new LotteryUpdate(new(7734200, true, lottery)));
             Assert.True(keyword.IsReadOnly);
             Assert.False(start.IsVisible);
             Assert.True(entry.FindControl<Button>("CloseEntriesButton")!.IsEnabled);
@@ -51,13 +54,13 @@ public sealed class EntryLotteryPanelTests
             Assert.True(row.FindControl<Border>("GradeBadge")!.IsVisible);
             Assert.False(row.FindControl<Button>("DrawButton")!.IsEnabled);
             lottery = lottery with { Phase = EntryLotteryPhase.Closed };
-            vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery)));
+            vm.Apply(new LotteryUpdate(new(7734200, true, lottery)));
             Assert.True(row.FindControl<Button>("DrawButton")!.IsEnabled);
             Assert.True(entry.FindControl<Button>("EndEntryButton")!.IsEnabled);
             Assert.Equal("开奖中", vm.LotteryPhaseText);
             var draw = new EntryDraw("draw", 0, lottery.Awards[0], lottery.Entries[0], DateTimeOffset.UnixEpoch, []);
             lottery = lottery with { Draws = [draw], DrawUntil = DateTimeOffset.UnixEpoch.AddSeconds(7) };
-            vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery)));
+            vm.Apply(new LotteryUpdate(new(7734200, true, lottery)));
             Assert.False(entry.FindControl<Button>("EndEntryButton")!.IsEnabled);
             Assert.False(row.FindControl<Button>("DrawButton")!.IsEnabled);
             Assert.Contains("开奖中", panel.FindControl<TextBlock>("PhaseText")!.Text);
@@ -65,12 +68,12 @@ public sealed class EntryLotteryPanelTests
             Assert.Contains(winners.GetVisualDescendants().OfType<Border>(), chip => chip.Classes.Contains("fresh"));
             Assert.Contains(entry.FindControl<StackPanel>("EntryRows")!.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "中 一等奖");
             lottery = lottery with { Phase = EntryLotteryPhase.Ended, DrawUntil = null };
-            vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery)));
+            vm.Apply(new LotteryUpdate(new(7734200, true, lottery)));
             Assert.True(panel.FindControl<Button>("NewButton")!.IsEnabled);
             Assert.Equal("抽完了", row.FindControl<TextBlock>("DrawText")!.Text);
             Assert.Equal("收起画面", entry.FindControl<Button>("VisibilityButton")!.Content);
             Assert.DoesNotContain(winners.GetVisualDescendants().OfType<Border>(), chip => chip.Classes.Contains("fresh"));
-            vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery with { Hidden = true })));
+            vm.Apply(new LotteryUpdate(new(7734200, true, lottery with { Hidden = true })));
             Assert.Equal("重新显示", entry.FindControl<Button>("VisibilityButton")!.Content);
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
@@ -87,7 +90,7 @@ public sealed class EntryLotteryPanelTests
         window.Show();
         try
         {
-            vm.Apply(new LotteryUpdate(new(7734200, true, null, TestLottery() with { Awards = [TestLottery().Awards[0]] })));
+            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Awards = [TestLottery().Awards[0]] })));
             var entry = panel.FindControl<EntryLotteryPanel>("EntryContent")!;
             var rows = entry.FindControl<StackPanel>("AwardRows")!;
             var add = entry.FindControl<Button>("AddAwardButton")!;
@@ -152,7 +155,7 @@ public sealed class EntryLotteryPanelTests
                 picker.FindControl<Button>("NextButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal(mode, await result);
             }
-            vm.Apply(new LotteryUpdate(new(7734200, true, null, TestLottery(EntryLotteryPhase.Closed))));
+            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery(EntryLotteryPhase.Closed))));
             var entry = panel.FindControl<EntryLotteryPanel>("EntryContent")!;
             var end = entry.FindControl<Button>("EndEntryButton")!;
             var confirm = entry.FindControl<Button>("ConfirmEndButton")!;
@@ -163,7 +166,7 @@ public sealed class EntryLotteryPanelTests
             entry.FindControl<Button>("CancelEndButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.True(end.IsVisible);
             Assert.False(confirm.IsVisible);
-            Assert.Equal(EntryLotteryPhase.Closed, vm.LotteryState.EntryLottery!.Phase);
+            Assert.Equal(EntryLotteryPhase.Closed, Assert.IsType<EntryLottery>(vm.LotteryState.Lottery).Phase);
             end.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             // The harness is not connected, so reaching EndEntry shows its error instead of ending.

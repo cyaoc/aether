@@ -23,7 +23,7 @@ public partial class EntryAwardRow : UserControl
         NameInput.Text = award.Name;
         PrizeInput.Text = award.Prize;
         CapacityInput.Text = award.Capacity.ToString(CultureInfo.InvariantCulture);
-        GradeInput.ItemsSource = LotteryPanel.GradeNames;
+        GradeInput.ItemsSource = LotteryController.GradeNames;
         GradeInput.SelectedIndex = (int)award.Grade;
         NameInput.TextChanged += (_, _) => Changed?.Invoke();
         PrizeInput.TextChanged += (_, _) => Changed?.Invoke();
@@ -57,7 +57,7 @@ public partial class EntryAwardRow : UserControl
         DrawButton.Classes.Set("full", full);
         DrawText.Text = full ? "抽完了" : lottery.Phase == EntryLotteryPhase.Open ? "截止后抽" : "抽一个";
         AutomationProperties.SetName(DrawButton, full ? $"{value.Name}已抽完" : $"抽一位{value.Name}");
-        DrawButton.IsEnabled = !busy && canControl && lottery.Phase == EntryLotteryPhase.Closed && lottery.DrawUntil is null
+        DrawButton.IsEnabled = !busy && canControl && lottery.Phase == EntryLotteryPhase.Closed && !lottery.IsDrawing
             && !full && lottery.Entries.Length > lottery.Draws.Length;
         ToolTip.SetTip(DrawButton, lottery.Entries.Length <= lottery.Draws.Length ? "没有还没中奖的报名观众可抽" : null);
         var error = LotteryController.ValidateAward(value);

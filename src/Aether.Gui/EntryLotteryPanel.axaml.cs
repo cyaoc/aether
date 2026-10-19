@@ -47,7 +47,7 @@ public partial class EntryLotteryPanel : UserControl
         };
         VisibilityButton.Click += async (_, _) =>
         {
-            if (!VisibilityButton.IsEnabled || viewModel?.LotteryState.EntryLottery is not { } entry) return;
+            if (!VisibilityButton.IsEnabled || viewModel?.LotteryState.Lottery is not EntryLottery entry) return;
             await ChangeAsync(lottery => lottery.SetEntryHidden(!entry.Hidden));
         };
     }
@@ -89,7 +89,7 @@ public partial class EntryLotteryPanel : UserControl
     {
         if (loading || AwardRows is null) return;
         var state = viewModel?.LotteryState;
-        if (state?.EntryLottery is not { } lottery) { loadedId = null; displayed = null; return; }
+        if (state?.Lottery is not EntryLottery lottery) { loadedId = null; displayed = null; return; }
         if (loadedId != lottery.Id)
         {
             loading = true;
@@ -104,9 +104,10 @@ public partial class EntryLotteryPanel : UserControl
         var open = lottery.Phase == EntryLotteryPhase.Open;
         var closed = lottery.Phase == EntryLotteryPhase.Closed;
         var ended = lottery.Phase == EntryLotteryPhase.Ended;
-        var drawing = lottery.DrawUntil is not null;
+        var drawing = lottery.IsDrawing;
         KeywordInput.IsReadOnly = !preparing || busy;
-        KeywordError.IsVisible = preparing && string.IsNullOrWhiteSpace(KeywordInput.Text);
+        KeywordError.Text = LotteryController.ValidateKeyword(KeywordInput.Text);
+        KeywordError.IsVisible = preparing && KeywordError.Text is not null;
         KeywordHint.Text = preparing ? "不能靠送礼物报名" : "开始报名后，关键字和奖项不能再改";
         AddAwardBar.IsVisible = preparing;
         AddAwardButton.IsEnabled = preparing && !busy && AwardRows.Children.Count < LotteryController.MaxAwards;

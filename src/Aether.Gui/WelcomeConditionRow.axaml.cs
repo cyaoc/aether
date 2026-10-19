@@ -75,8 +75,13 @@ public partial class WelcomeConditionRow : UserControl
                 WelcomeCondition.Guard => GuardInput.SelectedItem?.ToString(),
                 _ => LevelInput.Text
             } ?? "";
-            return Kind != WelcomeCondition.Guard && long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
-                ? number.ToString(CultureInfo.InvariantCulture) : text;
+            return Kind switch
+            {
+                WelcomeCondition.Uid when Viewer.TryParseUid(text, out var uid) => uid.ToString(CultureInfo.InvariantCulture),
+                WelcomeCondition.FanClubLevel or WelcomeCondition.WealthLevel
+                    when long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var level) => level.ToString(CultureInfo.InvariantCulture),
+                _ => text
+            };
         }
     }
 
@@ -96,10 +101,11 @@ public partial class WelcomeConditionRow : UserControl
         if (CanEdit && Kind == WelcomeCondition.Uid)
         {
             if (string.IsNullOrWhiteSpace(Value)) error = "填一个 UID，或删掉这条";
-            else if (!long.TryParse(Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var uid) || uid <= 0)
+            else if (!Viewer.TryParseUid(Value, out var uid))
                 error = "UID 必须是正整数";
             else if (!uidsAbove.Add(uid)) error = "和上面那条重复了";
         }
+        // A row means the condition is on; saving 0 would turn it off and drop the row next time settings open.
         else if (CanEdit && Kind is WelcomeCondition.FanClubLevel or WelcomeCondition.WealthLevel
             && (!int.TryParse(Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var level) || level < 1))
             error = "至少 1 级";
