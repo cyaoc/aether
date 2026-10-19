@@ -2,6 +2,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
@@ -10,6 +12,9 @@ namespace Aether.Core;
 /// <summary>The shell owns the service lifetime; each page has its own connections.</summary>
 public sealed class WebService : IDisposable
 {
+    internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
+    private const string Retry = "retry: 2000\n\n";
+    private const string Heartbeat = ": heartbeat\n\n";
     internal object Gate { get; } = new();
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
@@ -39,8 +44,6 @@ public sealed class WebService : IDisposable
         public CancellationTokenSource? StreamStop { get; set; }
     }
 
-    public string Address => $"http://localhost:{Status.Port}/";
-
     public WebServiceStatus Status { get { lock (Gate) return status; } }
 
     /// <summary>Subscribe independently of WatchAsync. The first update is the current service status.</summary>
@@ -68,7 +71,7 @@ public sealed class WebService : IDisposable
             if (stop is not null) throw new InvalidOperationException("网页服务正在启动，请稍后再试。");
             status = new(false, port, 0, 0);
             var server = new HttpListener();
-            server.Prefixes.Add(Address);
+            server.Prefixes.Add(status.Origin + "/");
             try { server.Start(); }
             catch (HttpListenerException exception)
             {
@@ -137,7 +140,13 @@ public sealed class WebService : IDisposable
         if (status.VideoConnections == 0) Video.Disconnected();
     }
 
-    internal async Task<int> BroadcastAsync(string text, CancellationToken token, string? path = null)
+    private static string Frame(SseEvent message) =>
+        (message.Name is null ? "" : "event: " + message.Name + "\n") + "data: " + JsonSerializer.Serialize(message.Data, Json) + "\n\n";
+
+    internal Task<int> BroadcastAsync(SseEvent message, CancellationToken token, string? path = null) =>
+        BroadcastFrameAsync(Frame(message), token, path);
+
+    private async Task<int> BroadcastFrameAsync(string text, CancellationToken token, string? path = null)
     {
         Connection[] targets;
         lock (Gate) targets = connections.Where(connection => path is null || connection.Path == path).ToArray();
@@ -178,7 +187,7 @@ public sealed class WebService : IDisposable
             while (true)
             {
                 await Task.Delay(TimeSpan.FromSeconds(15), timeProvider, token);
-                await BroadcastAsync(": heartbeat\n\n", token);
+                await BroadcastFrameAsync(Heartbeat, token);
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
@@ -211,7 +220,7 @@ public sealed class WebService : IDisposable
             response.Headers["X-Content-Type-Options"] = "nosniff";
             var host = request.Headers["Host"];
             // Browsers omit the default HTTP port from Host even when the URL explicitly contains :80.
-            var localHost = string.Equals(host, $"localhost:{status.Port}", StringComparison.OrdinalIgnoreCase)
+            var localHost = string.Equals(host, status.Origin["http://".Length..], StringComparison.OrdinalIgnoreCase)
                 || status.Port == 80 && string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase);
             if (!localHost
                 || request.RemoteEndPoint is not { Address: var address } || !IPAddress.IsLoopback(address))
@@ -227,13 +236,13 @@ public sealed class WebService : IDisposable
                 try
                 {
                     lock (Gate) { token.ThrowIfCancellationRequested(); connections.Add(connection); ConnectionsChanged(); }
-                    keepOpen = await SendAsync(connection, "retry: 2000\n\n", token);
+                    keepOpen = await SendAsync(connection, Retry, token);
                     if (keepOpen && streamStop is not null)
                     {
                         // The lottery stream lives in this request, so the response closes when it ends.
                         keepOpen = false;
-                        await foreach (var frame in Lottery.EventsAsync(streamStop.Token))
-                            if (!await SendAsync(connection, frame, token)) break;
+                        await foreach (var message in Lottery.EventsAsync(streamStop.Token))
+                            if (!await SendAsync(connection, Frame(message), token)) break;
                     }
                 }
                 finally
