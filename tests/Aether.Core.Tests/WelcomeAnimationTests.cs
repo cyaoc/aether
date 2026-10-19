@@ -91,6 +91,31 @@ public sealed class WelcomeAnimationTests
     }
 
     [Fact]
+    public async Task Finishing_the_lottery_stream_closes_only_its_connection_and_video_keeps_receiving_broadcasts()
+    {
+        await using var h = new WatchHarness();
+        await Start(h, 10001);
+        using var video = await Page.ConnectAsync(h);
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
+        using var lottery = await http.GetAsync("/lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
+        using var reader = new StreamReader(await lottery.Content.ReadAsStreamAsync(h.Stop.Token));
+        string? line;
+        do { line = await reader.ReadLineAsync(h.Stop.Token); } while (line is not null && !line.StartsWith("data: "));
+        Assert.NotNull(line);
+        Assert.Equal("", await reader.ReadLineAsync(h.Stop.Token));
+        Assert.Equal(1, h.Client.WebService.Status.LotteryConnections);
+
+        h.Client.Lottery.Dispose();
+        Assert.Null(await reader.ReadLineAsync(h.Stop.Token).AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+        await Eventually.TrueAsync(() => h.Client.WebService.Status.LotteryConnections == 0);
+        Assert.Equal(1, h.Client.WebService.Status.VideoConnections);
+        h.Client.WebService.Video.Enqueue("10001.mp4", "测试");
+        var playing = await video.NextAsync();
+        Assert.Equal("10001", playing.Content);
+        await video.ReportAsync(playing);
+    }
+
+    [Fact]
     public async Task Event_streams_preserve_retry_heartbeat_and_page_event_bytes()
     {
         await using var h = new WatchHarness();
