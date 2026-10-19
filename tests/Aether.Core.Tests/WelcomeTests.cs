@@ -322,7 +322,7 @@ public sealed class WelcomeTests
     }
 
     [Fact]
-    public async Task Entry_format_notices_are_once_per_room_connection_even_across_reconnects()
+    public async Task Entry_format_notices_are_once_per_command_per_room_connection_even_across_reconnects()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -343,12 +343,12 @@ public sealed class WelcomeTests
             Assert.IsType<Connected>(updates.Current);
             await h.PushAndSyncAsync(updates, messages);
             Assert.Single(h.Logger.Entries, entry => entry.Level == LogLevel.Information && entry.Message.Contains("进场消息为 V2"));
-            Assert.Single(h.Logger.Entries, entry => entry.Level == LogLevel.Warning && entry.Message.Contains("进场消息格式可能变了"));
+            Assert.Equal(2, h.Logger.Entries.Count(entry => entry.Level == LogLevel.Warning && entry.Message.Contains("进场消息格式可能变了")));
         }
         await using var next = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(next, messages);
         Assert.Equal(2, h.Logger.Entries.Count(entry => entry.Message.Contains("进场消息为 V2")));
-        Assert.Equal(2, h.Logger.Entries.Count(entry => entry.Message.Contains("进场消息格式可能变了")));
+        Assert.Equal(4, h.Logger.Entries.Count(entry => entry.Message.Contains("进场消息格式可能变了")));
     }
 
     [Fact]
