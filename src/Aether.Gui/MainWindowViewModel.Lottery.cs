@@ -15,10 +15,10 @@ public partial class MainWindowViewModel
     {
         EntryLotteryPhase.Open => "报名中",
         EntryLotteryPhase.Closed => "开奖中",
-        _ => LotteryState.PoolLottery?.Phase switch
+        _ => LotteryState.PoolLottery switch
         {
-            PoolLotteryPhase.Spinning => "转动中",
-            PoolLotteryPhase.Drawing => "开奖中",
+            { Phase: PoolLotteryPhase.Spinning } => "转动中",
+            { IsDrawing: true } => "开奖中",
             _ => "",
         },
     };

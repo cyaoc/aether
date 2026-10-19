@@ -101,6 +101,7 @@ public sealed class LotteryExampleTests
         h.Time.Advance(TimeSpan.FromSeconds(1));
         var entry = (await h.NextAsync(updates)).Example!.EntryLottery!;
         Assert.Equal(Grade.Grand, Assert.Single(entry.Draws).Award.Grade);
+        Assert.True(entry.IsDrawing);
         Assert.Equal(TimeSpan.FromSeconds(7), entry.DrawUntil - entry.Draws[0].DrawnAt);
         h.Time.Advance(TimeSpan.FromSeconds(7));
         Assert.Equal(EntryLotteryPhase.Ended, (await h.NextAsync(updates)).Example!.EntryLottery!.Phase);
@@ -109,6 +110,9 @@ public sealed class LotteryExampleTests
         h.Time.Advance(TimeSpan.FromSeconds(1));
         var pool = (await h.NextAsync(updates)).Example!.PoolLottery!;
         Assert.Equal(Grade.Second, Assert.Single(pool.Draws).Prize.Grade);
+        Assert.Equal(PoolLotteryPhase.Idle, pool.Phase);
+        Assert.True(pool.IsDrawing);
+        Assert.Equal(TimeSpan.FromSeconds(7), pool.DrawUntil - pool.Draws[0].DrawnAt);
         h.Time.Advance(TimeSpan.FromSeconds(7));
         var last = await h.NextAsync(updates);
         Assert.False(last.State.IsExamplePlaying);

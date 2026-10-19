@@ -106,11 +106,12 @@ public sealed class Settings
     private static readonly Definition<IReadOnlyList<string>> WelcomeTextList = Register(Definition.TextList("welcome.texts", ["欢迎{大航海}{昵称}"],
         texts => texts.Count == 0 ? "欢迎语列表不能为空。" : texts.Select(Core.WelcomeText.Validate).FirstOrDefault(error => error is not null)));
     private static readonly Definition<IReadOnlyList<long>> WelcomeUidList = Register(Definition.NumberList("welcome.uids", []));
-    private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", 0, "必须为非负整数。", level => level >= 0));
+    public const int WelcomeLevelOff = 0;
+    private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
     /// <summary>The values welcome.guard accepts: 关闭, then 大航海身份 from low to high, so each one's index is its tier.</summary>
     public static IReadOnlyList<string> WelcomeGuards { get; } = ["关闭", "舰长", "提督", "总督"];
     private static readonly Definition<string> WelcomeGuardTier = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
-    private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", 0, "必须为非负整数。", level => level >= 0));
+    private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
     private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("welcome_animation.enabled", false));
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private const string VideoGroup = "welcome_animation_videos";
@@ -178,10 +179,7 @@ public sealed class Settings
     private static Definition? Find(IReadOnlyList<Definition> definitions, string name) =>
         definitions.FirstOrDefault(definition => definition.Name == name)
         ?? (ReferenceEquals(definitions, Definitions) && name.StartsWith(VideoGroup + ".", StringComparison.Ordinal)
-            && TryUid(name[(VideoGroup.Length + 1)..], out var uid) ? VideoDefinition(uid) : null);
-
-    private static bool TryUid(string text, out long uid) =>
-        long.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out uid) && uid > 0;
+            && Viewer.TryParseUid(name[(VideoGroup.Length + 1)..], out var uid) ? VideoDefinition(uid) : null);
 
     private static Definition<string> VideoDefinition(long uid) =>
         Definition.RequiredText(VideoGroup + "." + uid.ToString(CultureInfo.InvariantCulture), "", ValidateVideoFileName);
@@ -266,7 +264,7 @@ public sealed class Settings
             {
                 // Match by name like Load does, so a tagged key such as `!!str level` is still found.
                 var entry = group?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: var key }
-                    && (key == definition.Key || groupName == VideoGroup && TryUid(key ?? "", out var uid) && VideoDefinition(uid).Name == definition.Name));
+                    && (key == definition.Key || groupName == VideoGroup && Viewer.TryParseUid(key, out var uid) && VideoDefinition(uid).Name == definition.Name));
                 var node = entry?.Value;
                 if (!definition.CanEdit(current) || groupName == VideoGroup && !current.CanEditWelcomeAnimationVideos)
                     throw new SettingsException(path, node?.Start.Line ?? groupEntry?.Key?.Start.Line ?? 1, definition.Name,
@@ -473,7 +471,7 @@ public sealed class Settings
                         };
                     if (videoGroup)
                     {
-                        if (!TryUid(KeyName(key), out var uid))
+                        if (!Viewer.TryParseUid(KeyName(key), out var uid))
                         {
                             settings.Error ??= new(path, key.Start.Line, name, "UID 必须为 int64 范围内的正整数。");
                             continue;
@@ -593,8 +591,7 @@ public sealed class Settings
                 foreach (var item in list.Children)
                 {
                     if (item is not YamlScalarNode { Value: { } text }
-                        || !long.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)
-                        || number <= 0) return default;
+                        || !Viewer.TryParseUid(text, out var number)) return default;
                     numbers.Add(number);
                 }
                 return (true, numbers.AsReadOnly());

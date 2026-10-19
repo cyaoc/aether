@@ -104,7 +104,7 @@ public partial class EntryLotteryPanel : UserControl
         var open = lottery.Phase == EntryLotteryPhase.Open;
         var closed = lottery.Phase == EntryLotteryPhase.Closed;
         var ended = lottery.Phase == EntryLotteryPhase.Ended;
-        var drawing = lottery.DrawUntil is not null;
+        var drawing = lottery.IsDrawing;
         KeywordInput.IsReadOnly = !preparing || busy;
         KeywordError.IsVisible = preparing && string.IsNullOrWhiteSpace(KeywordInput.Text);
         KeywordHint.Text = preparing ? "不能靠送礼物报名" : "开始报名后，关键字和奖项不能再改";

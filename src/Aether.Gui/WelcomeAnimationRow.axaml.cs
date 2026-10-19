@@ -1,4 +1,3 @@
-using System.Globalization;
 using Aether.Core;
 using Avalonia;
 using Avalonia.Automation;
@@ -13,7 +12,7 @@ public partial class WelcomeAnimationRow : UserControl
     public bool CanEdit { get; }
     public string FileName { get; private set; }
     public string? SourcePath { get; private set; }
-    public long? Uid => long.TryParse(UidInput.Text?.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var uid) && uid > 0 ? uid : null;
+    public long? Uid => Viewer.TryParseUid(UidInput.Text, out var uid) ? uid : null;
     public event Action? Changed;
     public event Action? RemoveRequested;
     public event Action? ChooseRequested;
