@@ -95,14 +95,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
     internal override async Task<bool> HandleAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
     {
         var path = request.Url!.AbsolutePath;
-        if (request.HttpMethod == "GET" && path == "/video")
-        {
-            response.ContentType = "text/html; charset=utf-8";
-            using var html = typeof(VideoPage).Assembly.GetManifestResourceStream("Aether.Core.VideoPage.html")!;
-            response.ContentLength64 = html.Length;
-            await html.CopyToAsync(response.OutputStream, token);
-        }
-        else if (request.HttpMethod == "GET" && path.StartsWith("/video/files/", StringComparison.Ordinal))
+        if (request.HttpMethod == "GET" && path.StartsWith("/video/files/", StringComparison.Ordinal))
         {
             string? fileName;
             lock (service.Gate) fileName = current is { } item && item.Id == path[13..] ? item.FileName : null;

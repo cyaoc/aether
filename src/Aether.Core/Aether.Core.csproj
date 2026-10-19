@@ -9,13 +9,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Aether.Core.Tests" />
-    <EmbeddedResource Include="VideoPage.html" />
-    <EmbeddedResource Include="LotteryPage.html" />
-    <EmbeddedResource Include="LotteryPage.css" />
-    <EmbeddedResource Include="LotteryPage.Mecha.css" />
-    <EmbeddedResource Include="LotteryPage.Gacha.css" />
-    <EmbeddedResource Include="LotteryPage.js" />
-    <EmbeddedResource Include="Fonts/*.woff2;Fonts/*.ttf;Fonts/*OFL.txt" />
-    <None Update="Fonts/*OFL.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <EmbeddedResource Include="Pages/**" Exclude="Pages/**/*.md" />
+    <None Update="Pages/lottery/*OFL.txt" Link="Fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

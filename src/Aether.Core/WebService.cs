@@ -262,7 +262,8 @@ public sealed class WebService : IDisposable
                     }
                 }
             }
-            else if (!await page.HandleAsync(request, response, token)) response.StatusCode = 404;
+            else if (!await ServeResourceAsync(page, request, response, token)
+                && !await page.HandleAsync(request, response, token)) response.StatusCode = 404;
         }
         // On macOS, RemoteEndPoint throws SocketException once the client has reset the connection.
         catch (Exception error) when (error is IOException or HttpListenerException or SocketException or ObjectDisposedException or OperationCanceledException or UnauthorizedAccessException)
@@ -274,6 +275,30 @@ public sealed class WebService : IDisposable
                 try { response.Close(); }
                 catch (Exception error) when (error is IOException or HttpListenerException or ObjectDisposedException) { Abort(response); }
         }
+    }
+
+    private static async Task<bool> ServeResourceAsync(WebPage page, HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
+    {
+        if (request.HttpMethod != "GET") return false;
+        var path = request.Url!.AbsolutePath;
+        if (path == $"/{page.Name}") path += "/index.html";
+        var contentType = Path.GetExtension(path) switch
+        {
+            ".html" => "text/html; charset=utf-8",
+            ".css" => "text/css; charset=utf-8",
+            ".js" => "text/javascript; charset=utf-8",
+            ".woff2" => "font/woff2",
+            ".ttf" => "font/ttf",
+            ".txt" => "text/plain; charset=utf-8",
+            _ => null
+        };
+        if (contentType is null) return false;
+        using var content = typeof(WebService).Assembly.GetManifestResourceStream("Aether.Core.Pages" + path.Replace('/', '.'));
+        if (content is null) return false;
+        response.ContentType = contentType;
+        response.ContentLength64 = content.Length;
+        await content.CopyToAsync(response.OutputStream, token);
+        return true;
     }
 
     /// <summary>A request still finishing after StopAsync closed the listener has nothing left to abort on Windows.</summary>
