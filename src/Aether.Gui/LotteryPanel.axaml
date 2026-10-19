@@ -142,13 +142,13 @@
                   <TextBox x:Name="UidInput" Classes="numeric" Width="150" Height="32" MinHeight="32" FontSize="13" PlaceholderText="观众 UID" AutomationProperties.Name="喊停观众 UID" Classes.invalid="{Binding #UidError.IsVisible}" />
                   <TextBlock x:Name="ViewerHint" Classes="caption muted singleLine" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
                 </StackPanel>
-                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="UidError" Classes="error" Text="UID 必须是正整数或留空" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="UidError" Classes="error" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
                 <TextBlock Grid.Row="2" Classes="label" Text="口令" VerticalAlignment="Center" Margin="0,10,0,0" />
                 <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
                   <TextBox x:Name="StopWordInput" Width="150" Height="32" MinHeight="32" FontSize="13" AutomationProperties.Name="口令" Classes.invalid="{Binding #StopWordError.IsVisible}" />
                   <TextBlock Classes="caption muted singleLine" Text="弹幕内容和口令完全一样才算" VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="StopWordError" Classes="error" Text="口令不能为空" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="StopWordError" Classes="error" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
               </Grid>
             </StackPanel>
             <local:LotteryThemePicker x:Name="PoolTheme" />

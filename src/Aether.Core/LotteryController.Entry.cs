@@ -11,6 +11,8 @@ public sealed partial class LotteryController
         : string.IsNullOrWhiteSpace(award.Prize) ? "请填写奖品。" : award.Capacity <= 0 ? "名额必须是正整数。"
         : !Enum.IsDefined(award.Grade) ? "请选择档次。" : null;
 
+    public static string? ValidateKeyword(string? text) => string.IsNullOrWhiteSpace(text) ? "报名关键字不能为空" : null;
+
     private void RequireNew()
     {
         if (state.EntryLottery is { Phase: EntryLotteryPhase.Open or EntryLotteryPhase.Closed })
@@ -51,7 +53,7 @@ public sealed partial class LotteryController
 
     public void StartEntry(IReadOnlyCollection<LotteryAward> awards, string keyword)
     {
-        if (string.IsNullOrWhiteSpace(keyword)) throw new ArgumentException("报名关键字不能为空。");
+        if (ValidateKeyword(keyword) is { } keywordError) throw new ArgumentException(keywordError);
         if (awards.Count is < 1 or > MaxAwards) throw new ArgumentException($"奖项须为 1 至 {MaxAwards} 个。");
         foreach (var award in awards)
             if (ValidateAward(award) is { } error) throw new ArgumentException(error);

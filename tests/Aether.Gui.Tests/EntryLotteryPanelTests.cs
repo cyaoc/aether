@@ -37,8 +37,11 @@ public sealed class EntryLotteryPanelTests
             GuiHarness.Flush();
             Assert.False(start.IsEnabled);
             Assert.True(entry.FindControl<TextBlock>("KeywordError")!.IsVisible);
+            Assert.Equal(LotteryController.ValidateKeyword(keyword.Text), entry.FindControl<TextBlock>("KeywordError")!.Text);
             keyword.Text = "抽奖";
             GuiHarness.Flush();
+            Assert.False(entry.FindControl<TextBlock>("KeywordError")!.IsVisible);
+            Assert.Equal(LotteryController.ValidateKeyword(keyword.Text), entry.FindControl<TextBlock>("KeywordError")!.Text);
             lottery = lottery with { Phase = EntryLotteryPhase.Open, Entries = [new(42, "小明", DateTimeOffset.UnixEpoch)] };
             vm.Apply(new LotteryUpdate(new(7734200, true, null, lottery)));
             Assert.True(keyword.IsReadOnly);

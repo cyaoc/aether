@@ -244,7 +244,7 @@ public sealed class EntryLotteryTests
         var lottery = h.Client.Lottery;
         lottery.New(LotteryMode.Entry);
         var before = lottery.State;
-        Assert.Throws<ArgumentException>(() => lottery.StartEntry(Awards, " "));
+        Assert.Equal(LotteryController.ValidateKeyword(" "), Assert.Throws<ArgumentException>(() => lottery.StartEntry(Awards, " ")).Message);
         Assert.Throws<ArgumentException>(() => lottery.StartEntry([], "抽奖"));
         Assert.Throws<ArgumentException>(() => lottery.StartEntry(Enumerable.Repeat(Awards[0], 6).ToArray(), "抽奖"));
         foreach (var invalid in new[] { Awards[0] with { Name = "" }, Awards[0] with { Prize = " " },
