@@ -25,6 +25,7 @@ public sealed record AccountStatus(string Text, Account? Account = null)
 public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
     TimeProvider clock) : ObservableObject
 {
+    public SendQueueViewModel SendQueue { get; } = new();
     [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
     [ObservableProperty] private string roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
     public string[] RecentRooms => settings.RecentRooms;
@@ -112,7 +113,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         connectionTimer?.Dispose();
         connectionTimer = null;
         connectedAt = null;
-        EndPendingSends();
+        SendQueue.EndPending();
     }
 
     partial void OnKeepRecentDanmakuChanged(bool value)
@@ -163,7 +164,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         if (!preserveHistory)
         {
             Danmaku.Clear();
-            ClearSendHistory();
+            SendQueue.Clear();
             ClearAnimationHistory();
         }
         preserveHistory = false;
@@ -258,7 +259,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                 if (KeepRecentDanmaku && Danmaku.Count > RecentDanmakuLimit) Danmaku.RemoveAt(0);
                 break;
             case SendQueueUpdate progress:
-                ApplySendQueue(progress);
+                SendQueue.Apply(progress);
                 break;
         }
     }

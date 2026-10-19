@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Aether.Gui;
 
-public partial class MainWindowViewModel
+public partial class SendQueueViewModel : ObservableObject
 {
     public ObservableCollection<SendQueueItemViewModel> PendingSends { get; } = [];
     public RecentItems<SendQueueItemViewModel> RecentSends { get; } = [];
@@ -12,7 +12,7 @@ public partial class MainWindowViewModel
     public RecentItems<SendQueueItemViewModel> RecentQueriesAndAnnouncements { get; } = [];
     [ObservableProperty] private long welcomeCount;
 
-    private void ApplySendQueue(SendQueueUpdate update)
+    internal void Apply(SendQueueUpdate update)
     {
         // Core reports nothing after an item's outcome, so only pending items can be updated.
         var item = PendingSends.FirstOrDefault(pending => pending.Id == update.Id);
@@ -33,7 +33,7 @@ public partial class MainWindowViewModel
         for (var index = 0; index < PendingSends.Count; index++) PendingSends[index].Position = index + 1;
     }
 
-    private void EndPendingSends()
+    internal void EndPending()
     {
         foreach (var item in PendingSends.ToArray())
         {
@@ -51,7 +51,7 @@ public partial class MainWindowViewModel
         page.Finish(item);
     }
 
-    private void ClearSendHistory()
+    internal void Clear()
     {
         PendingSends.Clear();
         RecentSends.Clear();

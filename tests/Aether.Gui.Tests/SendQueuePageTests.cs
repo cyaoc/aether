@@ -247,26 +247,26 @@ public sealed class SendQueuePageTests
         var second = Update(2, SendQueueItemKind.BlindBoxQuery);
         viewModel.Apply(first);
         viewModel.Apply(second);
-        var item = viewModel.PendingSends[0];
+        var item = viewModel.SendQueue.PendingSends[0];
         Assert.Equal("排队中 · 第 1 条", item.Status);
-        Assert.Equal("排队中 · 第 2 条", viewModel.PendingSends[1].Status);
+        Assert.Equal("排队中 · 第 2 条", viewModel.SendQueue.PendingSends[1].Status);
         Assert.Equal("欢迎回来", item.Text);
 
         viewModel.Apply(first with { State = SendQueueItemState.Sending });
-        Assert.Same(item, viewModel.PendingSends[0]);
+        Assert.Same(item, viewModel.SendQueue.PendingSends[0]);
         Assert.Equal("发送中", item.Status);
-        Assert.Equal("排队中 · 第 2 条", viewModel.PendingSends[1].Status);
+        Assert.Equal("排队中 · 第 2 条", viewModel.SendQueue.PendingSends[1].Status);
         viewModel.Apply(first with { State = SendQueueItemState.WaitingToRetry, Text = null, RetrySeconds = 5 });
         Assert.Equal("被限流，5 秒后重试", item.Status);
         Assert.Equal("欢迎回来", item.Text);
         viewModel.Apply(first with { State = SendQueueItemState.Sending });
         viewModel.Apply(first with { State = SendQueueItemState.Sent, OccurredAt = OccurredAt.AddSeconds(8) });
-        Assert.Same(item, Assert.Single(viewModel.RecentSends));
+        Assert.Same(item, Assert.Single(viewModel.SendQueue.RecentSends));
         Assert.Equal("已发送 14:30:08", item.Status);
         Assert.True(item.IsSent);
         Assert.False(item.IsUnsent);
-        Assert.Equal("排队中 · 第 1 条", Assert.Single(viewModel.PendingSends).Status);
-        Assert.Same(item, Assert.Single(viewModel.RecentWelcomes));
+        Assert.Equal("排队中 · 第 1 条", Assert.Single(viewModel.SendQueue.PendingSends).Status);
+        Assert.Same(item, Assert.Single(viewModel.SendQueue.RecentWelcomes));
         return true;
     }, TestContext.Current.CancellationToken);
 
@@ -280,25 +280,25 @@ public sealed class SendQueuePageTests
         for (var id = 221; id <= 330; id++) viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxQuery, SendQueueItemState.Sent));
         for (var id = 331; id <= 440; id++) viewModel.Apply(Update(id, SendQueueItemKind.BlindBoxAnnouncement));
 
-        Assert.Equal(220, viewModel.PendingSends.Count);
-        Assert.Equal(100, viewModel.RecentSends.Count);
-        Assert.Equal(330, viewModel.RecentSends[0].Id);
-        Assert.Equal(231, viewModel.RecentSends[^1].Id);
-        Assert.Equal(210, viewModel.RecentWelcomes.Count);
-        Assert.Equal(220, viewModel.RecentWelcomes[0].Id);
-        Assert.DoesNotContain(viewModel.RecentWelcomes, item => item.Id is >= 111 and <= 120);
-        Assert.Equal(210, viewModel.RecentQueriesAndAnnouncements.Count);
-        Assert.Equal(440, viewModel.RecentQueriesAndAnnouncements[0].Id);
-        Assert.Equal(231, viewModel.RecentQueriesAndAnnouncements[^1].Id);
-        Assert.Equal(220, viewModel.WelcomeCount);
+        Assert.Equal(220, viewModel.SendQueue.PendingSends.Count);
+        Assert.Equal(100, viewModel.SendQueue.RecentSends.Count);
+        Assert.Equal(330, viewModel.SendQueue.RecentSends[0].Id);
+        Assert.Equal(231, viewModel.SendQueue.RecentSends[^1].Id);
+        Assert.Equal(210, viewModel.SendQueue.RecentWelcomes.Count);
+        Assert.Equal(220, viewModel.SendQueue.RecentWelcomes[0].Id);
+        Assert.DoesNotContain(viewModel.SendQueue.RecentWelcomes, item => item.Id is >= 111 and <= 120);
+        Assert.Equal(210, viewModel.SendQueue.RecentQueriesAndAnnouncements.Count);
+        Assert.Equal(440, viewModel.SendQueue.RecentQueriesAndAnnouncements[0].Id);
+        Assert.Equal(231, viewModel.SendQueue.RecentQueriesAndAnnouncements[^1].Id);
+        Assert.Equal(220, viewModel.SendQueue.WelcomeCount);
         viewModel.ConnectionState = RoomConnectionState.Connected;
         viewModel.ConnectionState = RoomConnectionState.Disconnected;
-        Assert.Empty(viewModel.PendingSends);
-        Assert.Equal(100, viewModel.RecentSends.Count);
-        Assert.Equal(100, viewModel.RecentWelcomes.Count);
-        Assert.Equal(110, viewModel.RecentWelcomes[0].Id); // The items that just ended outlast those that finished earlier.
-        Assert.Equal(100, viewModel.RecentQueriesAndAnnouncements.Count);
-        Assert.Equal(220, viewModel.WelcomeCount);
+        Assert.Empty(viewModel.SendQueue.PendingSends);
+        Assert.Equal(100, viewModel.SendQueue.RecentSends.Count);
+        Assert.Equal(100, viewModel.SendQueue.RecentWelcomes.Count);
+        Assert.Equal(110, viewModel.SendQueue.RecentWelcomes[0].Id); // The items that just ended outlast those that finished earlier.
+        Assert.Equal(100, viewModel.SendQueue.RecentQueriesAndAnnouncements.Count);
+        Assert.Equal(220, viewModel.SendQueue.WelcomeCount);
         return true;
     }, TestContext.Current.CancellationToken);
 
@@ -328,26 +328,26 @@ public sealed class SendQueuePageTests
             viewModel.Apply(Update(3, SendQueueItemKind.BlindBoxAnnouncement, SendQueueItemState.WaitingToRetry));
             viewModel.Apply(Update(4, SendQueueItemKind.Welcome, SendQueueItemState.Sent));
             viewModel.Apply(new Reconnecting());
-            Assert.Equal(3, viewModel.PendingSends.Count); // Automatic reconnect keeps the same room connection.
+            Assert.Equal(3, viewModel.SendQueue.PendingSends.Count); // Automatic reconnect keeps the same room connection.
             if (fails) end.SetResult();
             else viewModel.ConnectCommand.Cancel();
             await viewModel.ConnectCommand.ExecutionTask!;
 
-            Assert.Empty(viewModel.PendingSends);
-            Assert.Equal(4, viewModel.RecentSends.Count);
-            Assert.All(viewModel.RecentSends.Where(item => item.Id != 4), item =>
+            Assert.Empty(viewModel.SendQueue.PendingSends);
+            Assert.Equal(4, viewModel.SendQueue.RecentSends.Count);
+            Assert.All(viewModel.SendQueue.RecentSends.Where(item => item.Id != 4), item =>
             {
                 Assert.Equal("连接结束，没发出", item.Status);
                 Assert.True(item.IsUnsent);
             });
-            Assert.Equal("已发送 14:30:00", viewModel.RecentSends.Single(item => item.Id == 4).Status);
+            Assert.Equal("已发送 14:30:00", viewModel.SendQueue.RecentSends.Single(item => item.Id == 4).Status);
 
             viewModel.ConnectCommand.Execute(null);
-            Assert.Empty(viewModel.PendingSends);
-            Assert.Empty(viewModel.RecentSends);
-            Assert.Empty(viewModel.RecentWelcomes);
-            Assert.Empty(viewModel.RecentQueriesAndAnnouncements);
-            Assert.Equal(0, viewModel.WelcomeCount);
+            Assert.Empty(viewModel.SendQueue.PendingSends);
+            Assert.Empty(viewModel.SendQueue.RecentSends);
+            Assert.Empty(viewModel.SendQueue.RecentWelcomes);
+            Assert.Empty(viewModel.SendQueue.RecentQueriesAndAnnouncements);
+            Assert.Equal(0, viewModel.SendQueue.WelcomeCount);
         }
         finally { await viewModel.ShutdownAsync(); }
         return true;
@@ -369,15 +369,15 @@ public sealed class SendQueuePageTests
             {
                 WelcomeCondition = condition, WelcomeValue = value, Text = "很长的欢迎语", Reason = "欢迎语超过弹幕字数上限 20"
             });
-            var item = Assert.Single(viewModel.RecentWelcomes);
+            var item = Assert.Single(viewModel.SendQueue.RecentWelcomes);
             Assert.Equal(expected, item.Detail);
             Assert.Equal("很长的欢迎语", item.Text);
             Assert.Equal("没发出：欢迎语超过弹幕字数上限 20", item.Status);
             Assert.True(item.IsUnsent);
-            Assert.Empty(viewModel.PendingSends);
-            Assert.Empty(viewModel.RecentQueriesAndAnnouncements);
-            Assert.Same(item, Assert.Single(viewModel.RecentSends));
-            Assert.Equal(1, viewModel.WelcomeCount);
+            Assert.Empty(viewModel.SendQueue.PendingSends);
+            Assert.Empty(viewModel.SendQueue.RecentQueriesAndAnnouncements);
+            Assert.Same(item, Assert.Single(viewModel.SendQueue.RecentSends));
+            Assert.Equal(1, viewModel.SendQueue.WelcomeCount);
             return true;
         }, TestContext.Current.CancellationToken);
 
@@ -433,14 +433,14 @@ public sealed class SendQueuePageTests
             Assert.Contains("观众3 播报", GuiHarness.VisibleText(window));
             Assert.Equal(2, GuiHarness.VisibleText(window).Count(text => text == "发送时计算金额"));
             Assert.DoesNotContain(GuiHarness.VisibleText(window), text => text?.StartsWith("观众1") == true);
-            Assert.Equal(new long[] { 3, 2 }, viewModel.RecentQueriesAndAnnouncements.Select(item => item.Id));
+            Assert.Equal(new long[] { 3, 2 }, viewModel.SendQueue.RecentQueriesAndAnnouncements.Select(item => item.Id));
 
             viewModel.Apply(welcome with { State = SendQueueItemState.Sent });
             viewModel.Apply(query with { State = SendQueueItemState.Sending, Text = "今日赚 10 电池" });
             GuiHarness.Flush();
             Assert.Contains("今日赚 10 电池", GuiHarness.VisibleText(window));
             viewModel.Apply(query with { State = SendQueueItemState.WaitingToRetry, RetrySeconds = 5 });
-            Assert.Equal("今日赚 10 电池", viewModel.RecentQueriesAndAnnouncements[1].Text);
+            Assert.Equal("今日赚 10 电池", viewModel.SendQueue.RecentQueriesAndAnnouncements[1].Text);
             viewModel.Apply(query with { State = SendQueueItemState.Sending, Text = "今日赚 20 电池" });
             viewModel.Apply(query with { State = SendQueueItemState.Discarded, Reason = "发送被拒绝" });
 
