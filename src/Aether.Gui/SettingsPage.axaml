@@ -451,21 +451,21 @@
             <Grid x:Name="PendingActivity" RowDefinitions="Auto,*">
               <Grid ColumnDefinitions="*,Auto" Margin="20,0,20,2">
                 <TextBlock Text="待发" Classes="section" />
-                <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding PendingSends.Count, StringFormat={}{0:N0} 条}" />
+                <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding SendQueue.PendingSends.Count, StringFormat={}{0:N0} 条}" />
               </Grid>
               <Panel Grid.Row="1">
-                <TextBlock Classes="hint" Text="暂无待发弹幕" Margin="20,8,20,12" IsVisible="{Binding !PendingSends.Count}" />
-                <ListBox x:Name="PendingSendsList" Classes="plain" ItemsSource="{Binding PendingSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="待发弹幕" IsVisible="{Binding !!PendingSends.Count}" />
+                <TextBlock Classes="hint" Text="暂无待发弹幕" Margin="20,8,20,12" IsVisible="{Binding !SendQueue.PendingSends.Count}" />
+                <ListBox x:Name="PendingSendsList" Classes="plain" ItemsSource="{Binding SendQueue.PendingSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="待发弹幕" IsVisible="{Binding !!SendQueue.PendingSends.Count}" />
               </Panel>
             </Grid>
             <Grid x:Name="RecentSendsActivity" Grid.Row="1" RowDefinitions="Auto,*" Margin="0,12,0,0">
               <Grid x:Name="RecentSendsHeader" ColumnDefinitions="*,Auto" Margin="20,0,20,2">
                 <TextBlock Text="最近发送" Classes="section" />
-                <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding RecentSends.Count, StringFormat={}{0:N0} 条}" />
+                <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding SendQueue.RecentSends.Count, StringFormat={}{0:N0} 条}" />
               </Grid>
               <Panel Grid.Row="1">
-                <TextBlock Classes="hint" Text="暂无发送记录" Margin="20,8,20,12" IsVisible="{Binding !RecentSends.Count}" />
-                <ListBox x:Name="RecentSendsList" Classes="plain" ItemsSource="{Binding RecentSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="最近发送" IsVisible="{Binding !!RecentSends.Count}" />
+                <TextBlock Classes="hint" Text="暂无发送记录" Margin="20,8,20,12" IsVisible="{Binding !SendQueue.RecentSends.Count}" />
+                <ListBox x:Name="RecentSendsList" Classes="plain" ItemsSource="{Binding SendQueue.RecentSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="最近发送" IsVisible="{Binding !!SendQueue.RecentSends.Count}" />
               </Panel>
             </Grid>
           </Grid>
@@ -486,20 +486,20 @@
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,18,16,2">
             <TextBlock x:Name="RecentActivityTitle" Classes="section" />
             <Panel Grid.Column="1">
-              <TextBlock x:Name="WelcomeTotal" Classes="caption muted numeric" Text="{Binding WelcomeCount, StringFormat=共 {0:N0} 次}" VerticalAlignment="Center" />
+              <TextBlock x:Name="WelcomeTotal" Classes="caption muted numeric" Text="{Binding SendQueue.WelcomeCount, StringFormat=共 {0:N0} 次}" VerticalAlignment="Center" />
               <Panel IsVisible="{Binding #RecentAnimationsList.IsVisible}">
                 <TextBlock x:Name="AnimationTotal" Classes="caption muted numeric" Text="{Binding RecentAnimations.Count, StringFormat=共 {0:N0} 次}" IsVisible="{Binding !!RecentAnimations.Count}" VerticalAlignment="Center" />
               </Panel>
-              <TextBlock Classes="caption muted numeric" Text="{Binding RecentQueriesAndAnnouncements.Count, StringFormat={}{0:N0} 条}" IsVisible="{Binding #RecentQueriesAndAnnouncementsList.IsVisible}" VerticalAlignment="Center" />
+              <TextBlock Classes="caption muted numeric" Text="{Binding SendQueue.RecentQueriesAndAnnouncements.Count, StringFormat={}{0:N0} 条}" IsVisible="{Binding #RecentQueriesAndAnnouncementsList.IsVisible}" VerticalAlignment="Center" />
             </Panel>
           </Grid>
           <Panel Grid.Row="1">
-            <ListBox x:Name="RecentWelcomesList" Classes="plain aside" ItemsSource="{Binding RecentWelcomes}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近欢迎" />
+            <ListBox x:Name="RecentWelcomesList" Classes="plain aside" ItemsSource="{Binding SendQueue.RecentWelcomes}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近欢迎" />
             <ListBox x:Name="RecentAnimationsList" Classes="plain aside" ItemsSource="{Binding RecentAnimations}" ItemTemplate="{StaticResource AnimationActivityTemplate}" AutomationProperties.Name="最近播放" />
             <Panel IsVisible="{Binding #RecentAnimationsList.IsVisible}">
               <TextBlock Classes="hint" Text="暂无播放记录" Margin="16,8" IsVisible="{Binding !RecentAnimations.Count}" />
             </Panel>
-            <ListBox x:Name="RecentQueriesAndAnnouncementsList" Classes="plain aside" ItemsSource="{Binding RecentQueriesAndAnnouncements}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近回复和播报" />
+            <ListBox x:Name="RecentQueriesAndAnnouncementsList" Classes="plain aside" ItemsSource="{Binding SendQueue.RecentQueriesAndAnnouncements}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近回复和播报" />
           </Panel>
         </Grid>
       </Border>
