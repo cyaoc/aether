@@ -1,7 +1,5 @@
 using System.Collections.Immutable;
 using System.Globalization;
-using System.Runtime.CompilerServices;
-using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
@@ -23,7 +21,7 @@ public sealed partial class LotteryController : IDisposable
     private readonly TimeProvider time;
     private readonly ILogger logger;
     private readonly Random random;
-    private readonly List<Channel<LotteryUpdate>> subscribers = [];
+    private readonly Subscribers<LotteryUpdate> subscribers;
     private LotteryState state = new(null, false, null);
     private ITimer? drawTimer;
     private bool disposed;
@@ -34,6 +32,7 @@ public sealed partial class LotteryController : IDisposable
         this.time = time;
         this.logger = logger;
         this.random = random;
+        subscribers = new(gate);
     }
 
     public LotteryState State { get { lock (gate) return state; } }
@@ -51,19 +50,12 @@ public sealed partial class LotteryController : IDisposable
         return store().Load(roomId, id: id);
     }
 
-    public async IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken token = default)
-    {
-        // shortcut: local readers use unbounded streams like WatchAsync; bound these if a stalled shell becomes a problem.
-        var updates = Channel.CreateUnbounded<LotteryUpdate>();
-        lock (gate)
+    public IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync(CancellationToken token = default) =>
+        subscribers.SubscribeAsync(() =>
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            subscribers.Add(updates);
-            updates.Writer.TryWrite(new(state, Example: example));
-        }
-        try { await foreach (var update in updates.Reader.ReadAllAsync(token)) yield return update; }
-        finally { lock (gate) subscribers.Remove(updates); }
-    }
+            return new(state, Example: example);
+        }, token);
 
     internal void Connect(long roomId)
     {
@@ -267,10 +259,7 @@ public sealed partial class LotteryController : IDisposable
         Broadcast();
     }
 
-    private void Broadcast()
-    {
-        foreach (var subscriber in subscribers) subscriber.Writer.TryWrite(new(state, example));
-    }
+    private void Broadcast() => subscribers.Publish(new(state, example));
 
     public void Dispose()
     {
@@ -279,8 +268,7 @@ public sealed partial class LotteryController : IDisposable
             disposed = true;
             drawTimer?.Dispose();
             ClearExample();
-            foreach (var subscriber in subscribers) subscriber.Writer.TryComplete();
-            subscribers.Clear();
+            subscribers.Complete();
         }
     }
 }
