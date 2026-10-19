@@ -29,22 +29,21 @@ public sealed partial class LotteryController
             RequireConnection();
             RequireNew();
             var now = time.GetUtcNow();
+            Lottery next;
             if (mode == LotteryMode.Entry)
             {
-                var previous = store().LoadEntry(state.RoomId!.Value, latest: true);
-                var next = new EntryLottery(Guid.NewGuid().ToString("N"), state.RoomId.Value,
+                var previous = store().Load(state.RoomId!.Value, LotteryMode.Entry) as EntryLottery;
+                next = new EntryLottery(Guid.NewGuid().ToString("N"), state.RoomId.Value,
                     previous?.Keyword ?? "抽奖", now, previous?.Awards ?? [new("一等奖", "", 1, Grade.Grand)], [], []);
-                store().Save(next, endCurrentAt: now);
-                state = state with { Lottery = next };
             }
             else
             {
-                var previous = store().LoadPool(state.RoomId!.Value, latest: true);
-                var next = NewPoolLottery(previous?.Prizes ?? [new("", 1, Grade.Grand)], previous?.StopWord ?? "停")
+                var previous = store().Load(state.RoomId!.Value, LotteryMode.Pool) as PoolLottery;
+                next = NewPoolLottery(previous?.Prizes ?? [new("", 1, Grade.Grand)], previous?.StopWord ?? "停")
                     with { Uid = previous?.Uid };
-                store().Save(next, endCurrentAt: now);
-                state = state with { Lottery = next };
             }
+            store().Save(next, endCurrentAt: now);
+            state = state with { Lottery = next };
             drawTimer?.Dispose();
             Publish();
             logger.LogInformation("抽奖新开一场：直播间 {RoomId}，方式 {Mode}", state.RoomId, mode);
@@ -61,7 +60,7 @@ public sealed partial class LotteryController
         {
             RequireConnection();
             var lottery = RequireEntry(EntryLotteryPhase.Preparing);
-            SaveEntry(lottery with { Keyword = keyword.Trim(), Awards = awards.ToImmutableArray(), Phase = EntryLotteryPhase.Open });
+            Save(lottery with { Keyword = keyword.Trim(), Awards = awards.ToImmutableArray(), Phase = EntryLotteryPhase.Open });
             logger.LogInformation("报名抽奖开始报名：直播间 {RoomId}，抽奖 {LotteryId}，关键字 {Keyword}", state.RoomId, lottery.Id, keyword.Trim());
         }
     }
@@ -71,7 +70,7 @@ public sealed partial class LotteryController
         lock (gate)
         {
             var lottery = RequireEntry(EntryLotteryPhase.Open);
-            SaveEntry(lottery with { Phase = EntryLotteryPhase.Closed });
+            Save(lottery with { Phase = EntryLotteryPhase.Closed });
             logger.LogInformation("报名抽奖截止：抽奖 {LotteryId}，共 {Count} 人", lottery.Id, lottery.Entries.Length);
         }
     }
@@ -94,7 +93,7 @@ public sealed partial class LotteryController
             var candidates = Enumerable.Range(0, 10).Select(index => available[(pick + index) % available.Length].Nickname).ToImmutableArray();
             var now = time.GetUtcNow();
             var draw = new EntryDraw(Guid.NewGuid().ToString("N"), awardIndex, award, available[pick], now, candidates);
-            SaveEntry(lottery with { Draws = lottery.Draws.Add(draw), DrawUntil = now + DrawDuration }, draw);
+            Save(lottery with { Draws = lottery.Draws.Add(draw), DrawUntil = now + DrawDuration }, draw);
             ResumeDraw();
             logger.LogInformation("报名抽奖开奖：抽奖 {LotteryId}，奖项 {Award}，奖品 {Prize}，观众 {Uid} {Nickname}",
                 lottery.Id, award.Name, award.Prize, draw.Winner.Uid, draw.Winner.Nickname);
@@ -107,14 +106,14 @@ public sealed partial class LotteryController
         {
             var lottery = RequireEntry(EntryLotteryPhase.Closed);
             if (lottery.IsDrawing) throw new InvalidOperationException("请等本次开奖结束。");
-            SaveEntry(lottery with { Phase = EntryLotteryPhase.Ended, EndedAt = time.GetUtcNow() });
+            Save(lottery with { Phase = EntryLotteryPhase.Ended, EndedAt = time.GetUtcNow() });
             logger.LogInformation("报名抽奖结束：抽奖 {LotteryId}，共 {Count} 人中奖", lottery.Id, lottery.Draws.Length);
         }
     }
 
     public void SetEntryHidden(bool hidden)
     {
-        lock (gate) SaveEntry(RequireEntry(EntryLotteryPhase.Ended) with { Hidden = hidden });
+        lock (gate) Save(RequireEntry(EntryLotteryPhase.Ended) with { Hidden = hidden });
     }
 
     private EntryLottery RequireEntry(EntryLotteryPhase phase)
@@ -134,12 +133,5 @@ public sealed partial class LotteryController
         state = state with { Lottery = lottery with { Entries = lottery.Entries.Add(entry) } };
         Publish();
         logger.LogInformation("报名抽奖报名：抽奖 {LotteryId}，观众 {Uid} {Nickname}", lottery.Id, entry.Uid, entry.Nickname);
-    }
-
-    private void SaveEntry(EntryLottery lottery, EntryDraw? draw = null)
-    {
-        store().Save(lottery, draw: draw);
-        state = state with { Lottery = lottery };
-        Publish();
     }
 }

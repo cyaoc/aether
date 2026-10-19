@@ -63,8 +63,7 @@ public sealed partial class LotteryController : IDisposable
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
-            Lottery? lottery = store().LoadEntry(roomId);
-            lottery ??= store().LoadPool(roomId);
+            var lottery = store().Load(roomId);
             // Who has spoken lives only in memory, so a transport reconnect keeps it and a restart starts over.
             if (lottery is PoolLottery pool && state.Lottery is PoolLottery previous && previous.Id == pool.Id)
                 lottery = pool with { Viewers = previous.Viewers };
@@ -233,14 +232,10 @@ public sealed partial class LotteryController : IDisposable
             Publish();
             return;
         }
-        switch (finished)
-        {
-            case PoolLottery pool: Save(pool); break;
-            case EntryLottery entry: SaveEntry(entry); break;
-        }
+        Save(finished);
     }
 
-    private void Save(PoolLottery lottery, PoolDraw? draw = null)
+    private void Save(Lottery lottery, LotteryDraw? draw = null)
     {
         store().Save(lottery, draw: draw);
         state = state with { Lottery = lottery };

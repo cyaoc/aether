@@ -157,6 +157,10 @@ public sealed class PoolLotteryTests
         await using var resumed = await h.WatchConnectedAsync(restarted);
         Assert.Equal(id, restarted.Lottery.State.Lottery!.Id);
         Assert.Empty(Assert.IsType<PoolLottery>(restarted.Lottery.State.Lottery).Viewers);
+        var restoredDraw = Assert.Single(Assert.IsType<PoolLottery>(restarted.Lottery.State.Lottery).Draws);
+        Assert.Equal(Prizes[0], restoredDraw.Prize);
+        Assert.Equal("小明", restoredDraw.Nickname);
+        Assert.Equal([.. Enumerable.Repeat("抱枕", 2), .. Enumerable.Repeat("贴纸", 8)], restoredDraw.Candidates.Select(prize => prize.Name));
         Assert.Equal(PoolLotteryPhase.Idle, Assert.IsType<PoolLottery>(restarted.Lottery.State.Lottery).Phase);
         Assert.True(restarted.Lottery.State.Lottery.IsDrawing);
         h.Time.Advance(TimeSpan.FromSeconds(5));

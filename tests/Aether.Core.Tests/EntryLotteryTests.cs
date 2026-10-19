@@ -7,6 +7,44 @@ public sealed class EntryLotteryTests
 {
     private static readonly LotteryAward[] Awards = [new("一等奖", "键盘", 1, Grade.Grand), new("二等奖", "抱枕", 2, Grade.Second)];
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Restart_restores_the_latest_lottery_after_ending_hiding_or_replacing_an_entry_lottery(bool hidden, bool replaced)
+    {
+        await using var h = new WatchHarness(enableLottery: true);
+        await h.LoginAsync();
+        var updates = await h.WatchConnectedAsync();
+        var lottery = h.Client.Lottery;
+        lottery.New(LotteryMode.Pool);
+        lottery.New(LotteryMode.Entry);
+        lottery.StartEntry(Awards, "参加");
+        lottery.CloseEntries();
+        lottery.EndEntry();
+        lottery.SetEntryHidden(hidden);
+        if (replaced) lottery.New(LotteryMode.Pool);
+        var current = lottery.State.Lottery!;
+        await updates.DisposeAsync();
+        using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
+        await using var resumed = await h.WatchConnectedAsync(restarted);
+        Assert.Equal(current.Id, restarted.Lottery.State.Lottery!.Id);
+        if (replaced)
+        {
+            var pool = Assert.IsType<PoolLottery>(restarted.Lottery.State.Lottery);
+            Assert.Null(pool.EndedAt);
+            Assert.False(pool.IsDrawing);
+        }
+        else
+        {
+            var entry = Assert.IsType<EntryLottery>(restarted.Lottery.State.Lottery);
+            Assert.Equal(EntryLotteryPhase.Ended, entry.Phase);
+            Assert.Equal(current.EndedAt, entry.EndedAt);
+            Assert.Equal(hidden, entry.Hidden);
+            Assert.Equal(Awards, entry.Awards);
+        }
+    }
+
     [Fact]
     public async Task Only_exact_trimmed_keywords_during_registration_enter_once_per_uid()
     {
@@ -113,7 +151,11 @@ public sealed class EntryLotteryTests
         await using var resumed = await h.WatchConnectedAsync();
         var restored = Assert.IsType<EntryLottery>(h.Client.Lottery.State.Lottery);
         Assert.Equal(id, restored.Id);
-        Assert.Single(restored.Draws);
+        var restoredDraw = Assert.Single(restored.Draws);
+        Assert.Equal(Awards[0], restoredDraw.Award);
+        Assert.Equal(7, restoredDraw.Winner.Uid);
+        Assert.Equal("七七", restoredDraw.Winner.Nickname);
+        Assert.Equal(Enumerable.Repeat("七七", 10), restoredDraw.Candidates);
         Assert.Equal(ended, restored.Hidden);
         Assert.Equal(ended ? EntryLotteryPhase.Ended : EntryLotteryPhase.Closed, restored.Phase);
         if (!ended)
