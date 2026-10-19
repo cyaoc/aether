@@ -47,7 +47,8 @@ public sealed class LotteryThemeTests
             var port = ((IPEndPoint)listener.LocalEndpoint).Port;
             listener.Stop();
             Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
-            await vm.StartWebServiceAsync(h.DataDirectory);
+            await h.SaveCredentialAsync();
+            await vm.StartAsync(h.DataDirectory);
             GuiHarness.Flush();
             foreach (var picker in pickers)
             {
@@ -73,7 +74,10 @@ public sealed class LotteryThemeTests
             Assert.True(vm.LotteryState.IsExamplePlaying);
             time.Advance(TimeSpan.FromSeconds(21));
             await GuiHarness.WaitForAsync(() => !vm.LotteryState.IsExamplePlaying);
-            Assert.False(File.Exists(Path.Combine(h.DataDirectory, "aether.db")));
+            vm.Apply(new LotteryUpdate(vm.LotteryState with { RoomId = 42 }));
+            await vm.RefreshLotteryHistoryAsync();
+            Assert.Empty(vm.LotteryHistoryError);
+            Assert.Empty(vm.LotteryHistory);
             pickers[1].FindControl<RadioButton>("StarSummonCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             Assert.All(pickers, picker => Assert.True(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked));

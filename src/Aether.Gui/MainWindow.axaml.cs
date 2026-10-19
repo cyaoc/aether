@@ -73,10 +73,7 @@ public partial class MainWindow : Window
     {
         base.OnOpened(e);
         if (DataContext is MainWindowViewModel viewModel)
-        {
-            _ = viewModel.StartWebServiceAsync(dataDirectory);
-            viewModel.ReadAccountCommand.Execute(null);
-        }
+            _ = viewModel.StartAsync(dataDirectory);
     }
 
     private async void OpenSettingsWithoutLogin(object? sender, RoutedEventArgs e)
