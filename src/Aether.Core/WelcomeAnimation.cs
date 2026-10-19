@@ -28,7 +28,7 @@ public sealed class WelcomeAnimation(WebService service, TimeProvider timeProvid
                 || !settings.WelcomeAnimationVideos.TryGetValue(uid, out var video)) return;
             if (!isTest && !pendingViewers.Add(uid))
             {
-                Publish(new(Guid.NewGuid().ToString("N"), uid, video.Value, false, PlaybackState.Skipped, PreviousPending, nickname));
+                Publish(new(Ids.New(), uid, video.Value, false, PlaybackState.Skipped, PreviousPending, nickname));
                 return;
             }
             service.Video.Enqueue(video.Value, "欢迎动画", receivedAt,

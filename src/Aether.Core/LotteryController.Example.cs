@@ -26,7 +26,7 @@ public sealed partial class LotteryController
             ObjectDisposedException.ThrowIf(disposed, this);
             if (example is not null) throw new InvalidOperationException("示例播放中，请稍后再试。");
             var now = time.GetUtcNow();
-            var id = "example-" + Guid.NewGuid().ToString("N");
+            var id = "example-" + Ids.New();
             ImmutableArray<LotteryAward> awards = [new("一等奖", "机械键盘", 1, Grade.Grand),
                 new("二等奖", "周边抱枕", 2, Grade.Second), new("三等奖", "签名照", 3, Grade.Third)];
             ImmutableArray<LotteryEntry> entries = [new(1, "柚子不酸", now), new(2, "星河入梦", now), new(3, "一只小鹿", now)];

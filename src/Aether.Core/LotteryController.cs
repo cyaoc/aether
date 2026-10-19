@@ -128,7 +128,7 @@ public sealed partial class LotteryController : IDisposable
     }
 
     private PoolLottery NewPoolLottery(IReadOnlyCollection<PoolPrize> prizes, string stopWord) =>
-        new(Guid.NewGuid().ToString("N"), state.RoomId!.Value, stopWord.Trim(), time.GetUtcNow(),
+        new(Ids.New(), state.RoomId!.Value, stopWord.Trim(), time.GetUtcNow(),
             prizes.ToImmutableArray(), [], ImmutableDictionary<long, string>.Empty);
 
     private void RequireConnection()
@@ -209,7 +209,7 @@ public sealed partial class LotteryController : IDisposable
         var candidates = ImmutableArray.CreateBuilder<PoolPrize>(DrawCells);
         for (var index = 0; index < cells.Length; index++) candidates.AddRange(Enumerable.Repeat(lottery.Prizes[index], cells[index]));
         var now = time.GetUtcNow();
-        var draw = new PoolDraw(Guid.NewGuid().ToString("N"), winner, lottery.Uid,
+        var draw = new PoolDraw(Ids.New(), winner, lottery.Uid,
             lottery.Uid is { } uid ? lottery.Viewers.GetValueOrDefault(uid) : null, stoppedByHost, now, candidates.MoveToImmutable());
         Save(lottery with { Draws = lottery.Draws.Add(draw), Phase = PoolLotteryPhase.Idle, DrawUntil = now + DrawDuration }, draw);
         ResumeDraw();
