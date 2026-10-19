@@ -2,7 +2,6 @@ using Aether.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using System.Collections.ObjectModel;
 
 namespace Aether.Gui;
 
@@ -16,8 +15,7 @@ public partial class MainWindowViewModel
     internal bool AnimationReloading => pendingAnimationReloads > 0;
     /// <summary>Raised when anything an animation row shows may have changed: page status, playback, failures or a reload.</summary>
     internal event Action? AnimationRowsChanged;
-    public ObservableCollection<WelcomeAnimationItem> RecentAnimations { get; } = [];
-    private readonly Queue<string> finishedAnimations = new();
+    public RecentItems<WelcomeAnimationItem> RecentAnimations { get; } = [];
     private readonly HashSet<string> pendingAnimations = [];
     private readonly HashSet<(long Uid, string FileName)> failedAnimationVideos = [];
     private WelcomeAnimationPlayback? playingAnimation;
@@ -165,12 +163,7 @@ public partial class MainWindowViewModel
             else
             {
                 pendingAnimations.Remove(playback.Id);
-                finishedAnimations.Enqueue(playback.Id);
-                if (finishedAnimations.Count > FinishedItemLimit)
-                {
-                    var oldest = finishedAnimations.Dequeue();
-                    if (RecentAnimations.FirstOrDefault(value => value.Playback.Id == oldest) is { } old) RecentAnimations.Remove(old);
-                }
+                RecentAnimations.Finish(item);
             }
             NumberQueuedAnimations();
             if (playback.State == PlaybackState.Playing) playingAnimation = playback;
@@ -225,7 +218,6 @@ public partial class MainWindowViewModel
     private void ClearAnimationHistory()
     {
         RecentAnimations.Clear();
-        finishedAnimations.Clear();
     }
 }
 
