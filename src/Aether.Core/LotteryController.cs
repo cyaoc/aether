@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
@@ -90,13 +91,18 @@ public sealed partial class LotteryController : IDisposable
     public static string? ValidatePrize(PoolPrize prize) => string.IsNullOrWhiteSpace(prize.Name) ? "请填写奖品名称。"
         : prize.Weight <= 0 ? "占比必须是正整数。" : !Enum.IsDefined(prize.Grade) ? "请选择档次。" : null;
 
+    public static string? ValidateStopWord(string? text) => string.IsNullOrWhiteSpace(text) ? "口令不能为空" : null;
+
+    public static string? ValidateUid(string? text) => string.IsNullOrWhiteSpace(text) || Viewer.TryParseUid(text, out _)
+        ? null : "UID 必须是正整数或留空";
+
     private static void Validate(IReadOnlyCollection<PoolPrize> prizes, string stopWord, long? uid)
     {
         if (prizes.Count is < 1 or > MaxPrizes) throw new ArgumentException($"奖品须为 1 至 {MaxPrizes} 件。");
         foreach (var prize in prizes)
             if (ValidatePrize(prize) is { } error) throw new ArgumentException(error);
-        if (string.IsNullOrWhiteSpace(stopWord)) throw new ArgumentException("口令不能为空。");
-        if (uid is <= 0) throw new ArgumentException("UID 必须是正整数或留空。");
+        if (ValidateStopWord(stopWord) is { } stopWordError) throw new ArgumentException(stopWordError);
+        if (ValidateUid(uid?.ToString(CultureInfo.InvariantCulture)) is { } uidError) throw new ArgumentException(uidError);
     }
 
     public void Start(IReadOnlyCollection<PoolPrize> prizes, string stopWord, long? uid = null)

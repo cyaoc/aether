@@ -144,8 +144,10 @@ public partial class LotteryPanel : UserControl
         var invalid = false;
         for (var index = 0; index < rows.Length; index++) invalid |= rows[index].Refresh(index, rows.Length, total, idle && !busy);
         var uid = ParseUid();
-        var uidInvalid = !string.IsNullOrWhiteSpace(UidInput.Text) && uid is null;
-        var wordInvalid = string.IsNullOrWhiteSpace(StopWordInput.Text);
+        UidError.Text = LotteryController.ValidateUid(UidInput.Text);
+        StopWordError.Text = LotteryController.ValidateStopWord(StopWordInput.Text);
+        var uidInvalid = UidError.Text is not null;
+        var wordInvalid = StopWordError.Text is not null;
         // Single inputs check as you type (#136); only new prize rows wait until they are left.
         UidError.IsVisible = uidInvalid;
         StopWordError.IsVisible = wordInvalid;
