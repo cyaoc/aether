@@ -10,7 +10,7 @@ public partial class MainWindowViewModel
     private int lotteryHistoryVersion;
     private string? lotteryHistorySelection;
     [ObservableProperty] private IReadOnlyList<LotteryHistory> lotteryHistory = [];
-    [ObservableProperty] private LotteryHistoryDetails? selectedLotteryHistory;
+    [ObservableProperty] private Lottery? selectedLotteryHistory;
     [ObservableProperty] private string lotteryHistoryError = "";
     [ObservableProperty] private bool lotteryHistoryLoading;
 
@@ -48,7 +48,7 @@ public partial class MainWindowViewModel
                 if (version != lotteryHistoryVersion || shuttingDown) return;
                 LotteryHistory = result.items;
                 SelectedLotteryHistory = result.details;
-                lotteryHistorySelection = result.details?.Lottery.Id;
+                lotteryHistorySelection = result.details?.Id;
             }
             catch (Exception error)
             {

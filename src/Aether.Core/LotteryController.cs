@@ -16,6 +16,7 @@ public sealed partial class LotteryController : IDisposable
     public static IReadOnlyList<string> GradeNames { get; } = ["大奖", "二奖", "三奖"];
     // Matches the number of cells in the lottery page's carousel.
     internal const int DrawCells = 10;
+    private const string ConnectionRequired = "请先连接直播间。";
     private readonly object gate = new();
     private readonly Func<LotteryStore> store;
     private readonly TimeProvider time;
@@ -43,10 +44,10 @@ public sealed partial class LotteryController : IDisposable
         return store().History(roomId);
     }
 
-    public LotteryHistoryDetails? GetHistoryDetails(long roomId, string id)
+    public Lottery? GetHistoryDetails(long roomId, string id)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        return store().HistoryDetails(roomId, id);
+        return store().Load(roomId, id: id);
     }
 
     public async IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken token = default)
@@ -117,7 +118,7 @@ public sealed partial class LotteryController : IDisposable
         {
             RequireConnection();
             if (state.Lottery is EntryLottery) throw new InvalidOperationException("请先新开一场奖池抽奖。");
-            if (state.Lottery is PoolLottery { Phase: PoolLotteryPhase.Spinning } or { IsDrawing: true }) throw new InvalidOperationException("请等本次开奖结束。");
+            RequireNotDrawing(includeSpinning: true);
             var lottery = state.Lottery is PoolLottery current ? current : NewPoolLottery(prizes, stopWord);
             Save(lottery with { Prizes = prizes.ToImmutableArray(), StopWord = stopWord.Trim(), Uid = uid, Phase = PoolLotteryPhase.Spinning });
             logger.LogInformation("奖池抽奖开始：直播间 {RoomId}，抽奖 {LotteryId}，观众 {Uid}", state.RoomId, lottery.Id, uid);
@@ -131,14 +132,25 @@ public sealed partial class LotteryController : IDisposable
     private void RequireConnection()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        if (!state.Connected) throw new InvalidOperationException("请先连接直播间。");
+        if (!state.Connected) throw new InvalidOperationException(ConnectionRequired);
+    }
+
+    private void RequireControl()
+    {
+        if (!state.CanControl) throw new InvalidOperationException(ConnectionRequired);
+    }
+
+    private void RequireNotDrawing(bool includeSpinning = false)
+    {
+        if (state.Lottery is { IsDrawing: true } || includeSpinning && state.Lottery is PoolLottery { Phase: PoolLotteryPhase.Spinning })
+            throw new InvalidOperationException("请等本次开奖结束。");
     }
 
     public void Cancel()
     {
         lock (gate)
         {
-            if (!state.CanControl) throw new InvalidOperationException("请先连接直播间。");
+            RequireControl();
             if (state.Lottery is not PoolLottery { Phase: PoolLotteryPhase.Spinning } lottery) throw new InvalidOperationException("当前没有转动中的抽奖。");
             Save(lottery with { Phase = PoolLotteryPhase.Idle });
             logger.LogInformation("奖池抽奖取消：抽奖 {LotteryId}", lottery.Id);
@@ -149,7 +161,7 @@ public sealed partial class LotteryController : IDisposable
     {
         lock (gate)
         {
-            if (!state.CanControl) throw new InvalidOperationException("请先连接直播间。");
+            RequireControl();
             if (state.Lottery is not PoolLottery { Phase: PoolLotteryPhase.Spinning }) throw new InvalidOperationException("当前没有转动中的抽奖。");
             Draw(stoppedByHost: true);
         }
