@@ -22,12 +22,29 @@ public sealed record AccountStatus(string Text, Account? Account = null)
     public bool ReadFailed => this == Failed;
 }
 
-public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
-    TimeProvider clock) : ObservableObject
+public partial class MainWindowViewModel : ObservableObject
 {
+    private readonly AetherClient client;
+    private readonly ILogger<MainWindowViewModel> logger;
+    private readonly GuiSettings settings;
+    private readonly TimeProvider clock;
+
+    public MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
+        TimeProvider clock)
+    {
+        this.client = client;
+        this.logger = logger;
+        this.settings = settings;
+        this.clock = clock;
+        keepRecentDanmaku = settings.KeepRecentDanmaku;
+        roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
+        WebService = new(client, logger, clock, shutdown.Token);
+    }
+
     public SendQueueViewModel SendQueue { get; } = new();
-    [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
-    [ObservableProperty] private string roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
+    public WebServiceViewModel WebService { get; }
+    [ObservableProperty] private bool keepRecentDanmaku;
+    [ObservableProperty] private string roomNumber;
     public string[] RecentRooms => settings.RecentRooms;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Status))]
@@ -102,7 +119,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     {
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
         ObserveLottery();
-        var webSettings = ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
+        var webSettings = WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
         return Task.WhenAll(webSettings, ReadAccountCommand.ExecuteAsync(null));
     }
 
@@ -164,7 +181,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         {
             Danmaku.Clear();
             SendQueue.Clear();
-            ClearAnimationHistory();
+            WebService.ClearAnimationHistory();
         }
         preserveHistory = false;
         try
@@ -263,6 +280,18 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         }
     }
 
+    [RelayCommand]
+    private async Task OpenSettingsAsync()
+    {
+        LoginCommand.Cancel();
+        if (LoginCommand.ExecutionTask is { } login) await login;
+        ClearQrCode();
+        IsLoginPage = false;
+    }
+
+    [RelayCommand]
+    private void OpenLoginPage() => ShowLoginPage();
+
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task ReadAccountAsync()
     {
@@ -353,7 +382,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
         if (LoginCommand.ExecutionTask is { } login) await login;
-        await StopAnimationsAsync();
+        await WebService.StopAsync();
     }
 
     // Reconnects skip Connecting, so a QR login can end at either update.

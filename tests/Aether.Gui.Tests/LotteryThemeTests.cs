@@ -81,7 +81,7 @@ public sealed class LotteryThemeTests
             pickers[1].FindControl<RadioButton>("StarSummonCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             Assert.All(pickers, picker => Assert.True(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked));
-            vm.Apply(new WebServiceStatus(false, 18080, 0, 0, "端口被占用"));
+            vm.WebService.Apply(new WebServiceStatus(false, 18080, 0, 0, "端口被占用"));
             Assert.All(pickers, picker => Assert.Contains("端口被占用", picker.FindControl<TextBlock>("ExampleHint")!.Text));
         }
         finally { window.Close(); await vm.ShutdownAsync(); }

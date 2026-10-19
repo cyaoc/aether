@@ -48,7 +48,7 @@ public partial class SettingsPage
         row.TestRequested += () =>
         {
             RefreshAnimations();
-            if (row.CanTest && row.Uid is { } uid) viewModel?.TestOrStopAnimation(uid, row.FileName);
+            if (row.CanTest && row.Uid is { } uid) viewModel?.WebService.TestOrStopAnimation(uid, row.FileName);
         };
         return row;
     }
@@ -68,11 +68,11 @@ public partial class SettingsPage
         {
             row.ShowDivider(!first);
             first = false;
-            var saved = MatchesFile(row) && (viewModel is null || viewModel.AnimationVideoSaved(row.Uid!.Value, row.FileName));
-            invalid |= row.Refresh(uids, AnimationDirectory, saved, settings.WelcomeAnimationEnabled.Value && viewModel?.HasVideoConnections == true,
-                viewModel?.AnimationBusy == true || viewModel?.AnimationReloading == true,
-                row.SourcePath is null && row.Uid is { } playingUid ? viewModel?.PlayingAnimation(playingUid, row.FileName) : null,
-                row.SourcePath is null && row.Uid is { } failedUid && viewModel?.AnimationFailed(failedUid, row.FileName) == true);
+            var saved = MatchesFile(row) && (viewModel is null || viewModel.WebService.AnimationVideoSaved(row.Uid!.Value, row.FileName));
+            invalid |= row.Refresh(uids, AnimationDirectory, saved, settings.WelcomeAnimationEnabled.Value && viewModel?.WebService.HasVideoConnections == true,
+                viewModel?.WebService.AnimationBusy == true || viewModel?.WebService.AnimationReloading == true,
+                row.SourcePath is null && row.Uid is { } playingUid ? viewModel?.WebService.PlayingAnimation(playingUid, row.FileName) : null,
+                row.SourcePath is null && row.Uid is { } failedUid && viewModel?.WebService.AnimationFailed(failedUid, row.FileName) == true);
         }
         var count = AnimationRows.Children.Count;
         AnimationCount.Text = count > 0 ? $"{count} 位" : "";
