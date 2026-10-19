@@ -289,9 +289,9 @@ public partial class SettingsPage : UserControl
             {
                 if (Section is SettingsSection.WelcomeAnimation or SettingsSection.General && viewModel is not null)
                 {
-                    await viewModel.ApplyWebSettingsAsync(settings);
-                    viewModel.ForgetAnimationFailures(replaced);
-                    if (portChanged && viewModel.WebServiceStatus.Running) result = "已保存，网页服务已换到新端口";
+                    await viewModel.WebService.ApplyWebSettingsAsync(settings);
+                    viewModel.WebService.ForgetAnimationFailures(replaced);
+                    if (portChanged && viewModel.WebService.WebServiceStatus.Running) result = "已保存，网页服务已换到新端口";
                 }
                 SaveCompleted?.Invoke();
                 Message.Text = result;
@@ -316,13 +316,13 @@ public partial class SettingsPage : UserControl
         if (viewModel is not null)
         {
             viewModel.PropertyChanged -= OnRoomStateChanged;
-            viewModel.AnimationRowsChanged -= OnAnimationRowsChanged;
+            viewModel.WebService.AnimationRowsChanged -= OnAnimationRowsChanged;
         }
         viewModel = DataContext as MainWindowViewModel;
         if (viewModel is not null)
         {
             viewModel.PropertyChanged += OnRoomStateChanged;
-            if (Section == SettingsSection.WelcomeAnimation) viewModel.AnimationRowsChanged += OnAnimationRowsChanged;
+            if (Section == SettingsSection.WelcomeAnimation) viewModel.WebService.AnimationRowsChanged += OnAnimationRowsChanged;
         }
         if (Section == SettingsSection.WelcomeAnimation && settings is not null) RefreshAnimations();
     }
