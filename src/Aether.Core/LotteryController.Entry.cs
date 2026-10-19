@@ -138,6 +138,6 @@ public sealed partial class LotteryController
     {
         store().Save(lottery, draw: draw);
         state = state with { EntryLottery = lottery };
-        Publish(entryDraw: draw);
+        Publish();
     }
 }
