@@ -39,7 +39,7 @@ public sealed partial class LotteryController
             else
             {
                 var previous = store().Load(state.RoomId!.Value, LotteryMode.Pool) as PoolLottery;
-                next = NewPoolLottery(previous?.Prizes ?? [new("", 1, Grade.Grand)], previous?.StopWord ?? "停")
+                next = NewPoolLottery(previous?.Prizes ?? [DefaultPrize], previous?.StopWord ?? DefaultStopWord)
                     with { Uid = previous?.Uid };
             }
             store().Save(next, endCurrentAt: now);
@@ -90,7 +90,7 @@ public sealed partial class LotteryController
             if (available.Length == 0) throw new InvalidOperationException("没有还没中奖的报名观众可抽。");
             var pick = (int)random.NextInt64(available.Length);
             // Display cells repeat when fewer than ten viewers remain; they do not affect the uniform draw.
-            var candidates = Enumerable.Range(0, 10).Select(index => available[(pick + index) % available.Length].Nickname).ToImmutableArray();
+            var candidates = Enumerable.Range(0, DrawCells).Select(index => available[(pick + index) % available.Length].Nickname).ToImmutableArray();
             var now = time.GetUtcNow();
             var draw = new EntryDraw(Guid.NewGuid().ToString("N"), awardIndex, award, available[pick], now, candidates);
             Save(lottery with { Draws = lottery.Draws.Add(draw), DrawUntil = now + DrawDuration }, draw);

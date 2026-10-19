@@ -11,6 +11,11 @@ public sealed partial class LotteryController : IDisposable
 {
     public static readonly TimeSpan DrawDuration = TimeSpan.FromSeconds(7);
     public const int MaxPrizes = 10;
+    public const string DefaultStopWord = "停";
+    public static PoolPrize DefaultPrize { get; } = new("", 1, Grade.Grand);
+    public static IReadOnlyList<string> GradeNames { get; } = ["大奖", "二奖", "三奖"];
+    // Matches the number of cells in the lottery page's carousel.
+    internal const int DrawCells = 10;
     private readonly object gate = new();
     private readonly Func<LotteryStore> store;
     private readonly TimeProvider time;
@@ -181,14 +186,14 @@ public sealed partial class LotteryController : IDisposable
         // Every prize gets a cell, so a theme can always stop on the winner; the other cells go by weight (D'Hondt).
         // The cells only show the pool and never change the actual draw odds.
         var cells = lottery.Prizes.Select(_ => 1).ToArray();
-        for (var filled = cells.Length; filled < 10; filled++)
+        for (var filled = cells.Length; filled < DrawCells; filled++)
         {
             var next = 0;
             for (var index = 1; index < cells.Length; index++)
                 if ((long)lottery.Prizes[index].Weight * (cells[next] + 1) > (long)lottery.Prizes[next].Weight * (cells[index] + 1)) next = index;
             cells[next]++;
         }
-        var candidates = ImmutableArray.CreateBuilder<PoolPrize>(10);
+        var candidates = ImmutableArray.CreateBuilder<PoolPrize>(DrawCells);
         for (var index = 0; index < cells.Length; index++) candidates.AddRange(Enumerable.Repeat(lottery.Prizes[index], cells[index]));
         var now = time.GetUtcNow();
         var draw = new PoolDraw(Guid.NewGuid().ToString("N"), winner, lottery.Uid,
