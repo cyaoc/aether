@@ -596,6 +596,7 @@ public sealed class SettingsPageTests
     [Theory]
     [InlineData("", "填一个 UID，或删掉这条")]
     [InlineData(" ", "填一个 UID，或删掉这条")]
+    [InlineData("+123", "UID 必须是正整数")]
     [InlineData("0", "UID 必须是正整数")]
     [InlineData("-1", "UID 必须是正整数")]
     [InlineData("1.5", "UID 必须是正整数")]

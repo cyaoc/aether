@@ -30,7 +30,7 @@ public sealed class LotteryPanelTests
             var uid = page.FindControl<TextBox>("UidInput")!;
             var uidError = page.FindControl<TextBlock>("UidError")!;
             // Single inputs check as you type (#136): no need to leave the box first.
-            foreach (var invalid in new[] { "0", "-1", "abc", "1.5", "9223372036854775808" })
+            foreach (var invalid in new[] { "+123", "0", "-1", "abc", "1.5", "9223372036854775808" })
             {
                 uid.Text = invalid;
                 GuiHarness.Flush();
@@ -38,7 +38,7 @@ public sealed class LotteryPanelTests
                 Assert.True(uidError.IsVisible);
                 Assert.Contains("invalid", uid.Classes);
             }
-            uid.Text = "42";
+            uid.Text = " 42 ";
             GuiHarness.Flush();
             Assert.False(uidError.IsVisible);
             Assert.Contains("还没发过", page.FindControl<TextBlock>("ViewerHint")!.Text);

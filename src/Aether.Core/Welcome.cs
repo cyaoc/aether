@@ -43,11 +43,11 @@ internal sealed class Welcome(Settings settings, Random? random = null)
         (WelcomeCondition Condition, string? Value) match;
         if (settings.WelcomeUids.Value.Contains(entry.Uid))
             match = (WelcomeCondition.Uid, null);
-        else if (settings.WelcomeFanClubLevel.Value > 0 && entry.FanClubLevel >= settings.WelcomeFanClubLevel.Value)
+        else if (settings.WelcomeFanClubLevel.Value > Settings.WelcomeLevelOff && entry.FanClubLevel >= settings.WelcomeFanClubLevel.Value)
             match = (WelcomeCondition.FanClubLevel, FormattableString.Invariant($"{entry.FanClubLevel}"));
         else if (guardThreshold > 0 && entry.GuardTier >= guardThreshold)
             match = (WelcomeCondition.Guard, entry.GuardName);
-        else if (settings.WelcomeWealthLevel.Value > 0 && entry.WealthLevel >= settings.WelcomeWealthLevel.Value)
+        else if (settings.WelcomeWealthLevel.Value > Settings.WelcomeLevelOff && entry.WealthLevel >= settings.WelcomeWealthLevel.Value)
             match = (WelcomeCondition.WealthLevel, FormattableString.Invariant($"{entry.WealthLevel}"));
         else return null;
 

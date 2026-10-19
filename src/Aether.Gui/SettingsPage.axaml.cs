@@ -214,9 +214,9 @@ public partial class SettingsPage : UserControl
         new(settings.WelcomeEnabled.Name, settings.WelcomeEnabled.CanEdit, Settings.BooleanText(WelcomeInput.IsChecked == true), WelcomeError),
         new(settings.WelcomeTexts.Name, settings.WelcomeTexts.CanEdit, Settings.TextListText(WelcomeTexts.Select(row => row.Value))),
         new(settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, WelcomeUidsText()),
-        new(settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, ConditionValue(WelcomeCondition.FanClubLevel, "0")),
+        new(settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, ConditionValue(WelcomeCondition.FanClubLevel, Settings.WelcomeLevelOff.ToString(CultureInfo.InvariantCulture))),
         new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, ConditionValue(WelcomeCondition.Guard, Settings.WelcomeGuards[0])),
-        new(settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, ConditionValue(WelcomeCondition.WealthLevel, "0")),
+        new(settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, ConditionValue(WelcomeCondition.WealthLevel, Settings.WelcomeLevelOff.ToString(CultureInfo.InvariantCulture))),
         new(settings.WelcomeAnimationEnabled.Name, settings.WelcomeAnimationEnabled.CanEdit, Settings.BooleanText(AnimationInput.IsChecked == true)),
         new(settings.WebServicePort.Name, settings.WebServicePort.CanEdit, WebPortInput.Text, WebPortError),
     }.Where(field => field.Name.StartsWith(group, StringComparison.Ordinal)

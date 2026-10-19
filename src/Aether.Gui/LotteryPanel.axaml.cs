@@ -67,7 +67,7 @@ public partial class LotteryPanel : UserControl
 
     private IEnumerable<PoolPrizeRow> Rows => PrizeRows.Children.OfType<PoolPrizeRow>();
     private PoolPrize[] Prizes() => Rows.Select(row => row.Value).ToArray();
-    private long? ParseUid() => long.TryParse(UidInput.Text, NumberStyles.None, CultureInfo.InvariantCulture, out var uid) && uid > 0 ? uid : null;
+    private long? ParseUid() => Core.Viewer.TryParseUid(UidInput.Text, out var uid) ? uid : null;
 
     private PoolPrizeRow AddPrize(PoolPrize prize, bool isNew = false)
     {
