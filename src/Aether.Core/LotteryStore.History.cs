@@ -13,26 +13,13 @@ internal sealed partial class LotteryStore
         return ReadHistory(connection, transaction, roomId);
     }
 
-    public LotteryHistoryDetails? HistoryDetails(long roomId, string id)
-    {
-        using var connection = database.Open();
-        using var transaction = connection.BeginTransaction(deferred: true);
-        var lottery = ReadHistory(connection, transaction, roomId, id).SingleOrDefault();
-        if (lottery is null) return null;
-        using var command = connection.CreateCommand();
-        command.Transaction = transaction;
-        return lottery.Mode == LotteryMode.Entry ? new(lottery, ReadDraws<EntryDraw>(command, id), [])
-            : new(lottery, [], ReadDraws<PoolDraw>(command, id));
-    }
-
     private static ImmutableArray<LotteryHistory> ReadHistory(SqliteConnection connection, SqliteTransaction transaction,
-        long roomId, string? id = null)
+        long roomId)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        var filter = " WHERE l.room_id = $room" + (id is null ? "" : " AND l.id = $id");
+        const string filter = " WHERE l.room_id = $room";
         command.Parameters.AddWithValue("$room", roomId);
-        if (id is not null) command.Parameters.AddWithValue("$id", id);
         command.CommandText = """
             SELECT l.id, l.mode, l.started_at, l.ended_at, l.keyword, l.stop_word,
                 (SELECT count(*) FROM lottery_entry WHERE lottery_id = l.id),

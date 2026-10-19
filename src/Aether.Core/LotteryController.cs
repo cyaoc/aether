@@ -43,10 +43,10 @@ public sealed partial class LotteryController : IDisposable
         return store().History(roomId);
     }
 
-    public LotteryHistoryDetails? GetHistoryDetails(long roomId, string id)
+    public Lottery? GetHistoryDetails(long roomId, string id)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        return store().HistoryDetails(roomId, id);
+        return store().Load(roomId, id: id);
     }
 
     public async IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync([EnumeratorCancellation] CancellationToken token = default)
