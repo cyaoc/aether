@@ -42,6 +42,9 @@ public sealed class VisualReviewTests
                 var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
                 panel.FindControl<ListBox>("ViewTabs")!.SelectedIndex = 1;
                 await vm.RefreshLotteryHistoryAsync();
+                // Compare the selected tab after its theme transition settles.
+                GuiHarness.Flush();
+                await Task.Delay(300, TestContext.Current.CancellationToken);
                 Save(window, $"history-entry-{width}-{(dark ? "dark" : "light")}");
                 await vm.RefreshLotteryHistoryAsync("pool");
                 Save(window, $"history-pool-{width}-{(dark ? "dark" : "light")}");
@@ -254,7 +257,7 @@ public sealed class VisualReviewTests
                 File.WriteAllText(Path.Combine(Settings.VideoDirectory(harness.DataDirectory), file), "video");
             }
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
-            var viewModel = harness.CreateViewModel();
+            var viewModel = harness.CreateViewModel(new FakeTimeProvider());
             var window = new MainWindow(harness.DataDirectory)
             {
                 DataContext = viewModel, Width = 1200, Height = 720,
@@ -470,7 +473,7 @@ public sealed class VisualReviewTests
                 if (uid != 13579) File.WriteAllText(Path.Combine(harness.DataDirectory, "videos", file), "video");
             }
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
-            var viewModel = harness.CreateViewModel();
+            var viewModel = harness.CreateViewModel(new FakeTimeProvider());
             var window = new MainWindow(harness.DataDirectory)
             {
                 DataContext = viewModel, Width = width, Height = height,
@@ -511,6 +514,11 @@ public sealed class VisualReviewTests
                 viewModel.RecentAnimations.Clear();
                 page.FindControl<TextBlock>("Message")!.Text = "";
                 viewModel.Apply(new WebServiceStatus(false, 17890, 0, 0));
+                GuiHarness.Flush();
+                // Settle the transition, then redraw its final edges instead of reusing an intermediate frame.
+                await Task.Delay(300, TestContext.Current.CancellationToken);
+                foreach (var visual in page.FindControl<ToggleSwitch>("AnimationInput")!.GetVisualDescendants())
+                    visual.InvalidateVisual();
                 Capture("empty");
                 page.FindControl<Control>("EmptyAnimations")!.BringIntoView();
                 Capture("empty-list");
@@ -763,6 +771,12 @@ public sealed class VisualReviewTests
             Capture("welcome-levels");
             File.WriteAllText(path, "log:\n  level: @bad\n");
             navigation.SelectedIndex = 6;
+            GuiHarness.Flush();
+            var fileMessage = window.GetVisualDescendants().OfType<SettingsPage>()
+                .Single(page => page.Section == SettingsSection.General).FindControl<TextBlock>("FileMessage")!;
+            Assert.Contains(harness.DataDirectory, fileMessage.Text);
+            // Keep the real parse error while removing the per-run temporary directory from its fixture text.
+            fileMessage.Text = fileMessage.Text!.Replace(harness.DataDirectory, "/aether-visual-review");
             Capture("settings-error");
             viewModel.IsLoginPage = true;
             viewModel.Apply(new WatchQrCode("https://example.test/visual-review"));
