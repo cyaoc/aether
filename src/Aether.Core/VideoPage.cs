@@ -21,7 +21,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
         if (Settings.ValidateVideoFileName(fileName) is { } error) throw new ArgumentException(error, nameof(fileName));
         lock (service.Gate)
         {
-            var item = new Playback(Guid.NewGuid().ToString("N"), fileName, source, receivedAt, skipReason, updated);
+            var item = new Playback(Ids.New(), fileName, source, receivedAt, skipReason, updated);
             if (!service.Status.Running) Report(item, PlaybackState.Skipped, service.Status.Error ?? "网页服务未运行");
             else if (service.Status.VideoConnections == 0) Report(item, PlaybackState.Skipped, "没有推流软件连着");
             else { Report(item, PlaybackState.Queued); queue.Writer.TryWrite(item); }

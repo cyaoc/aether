@@ -32,7 +32,7 @@ public sealed partial class LotteryController
             if (mode == LotteryMode.Entry)
             {
                 var previous = store().Load(state.RoomId!.Value, LotteryMode.Entry) as EntryLottery;
-                next = new EntryLottery(Guid.NewGuid().ToString("N"), state.RoomId.Value,
+                next = new EntryLottery(Ids.New(), state.RoomId.Value,
                     previous?.Keyword ?? "抽奖", now, previous?.Awards ?? [new("一等奖", "", 1, Grade.Grand)], [], []);
             }
             else
@@ -91,7 +91,7 @@ public sealed partial class LotteryController
             // Display cells repeat when fewer than ten viewers remain; they do not affect the uniform draw.
             var candidates = Enumerable.Range(0, DrawCells).Select(index => available[(pick + index) % available.Length].Nickname).ToImmutableArray();
             var now = time.GetUtcNow();
-            var draw = new EntryDraw(Guid.NewGuid().ToString("N"), awardIndex, award, available[pick], now, candidates);
+            var draw = new EntryDraw(Ids.New(), awardIndex, award, available[pick], now, candidates);
             Save(lottery with { Draws = lottery.Draws.Add(draw), DrawUntil = now + DrawDuration }, draw);
             ResumeDraw();
             logger.LogInformation("报名抽奖开奖：抽奖 {LotteryId}，奖项 {Award}，奖品 {Prize}，观众 {Uid} {Nickname}",

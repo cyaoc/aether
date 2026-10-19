@@ -52,6 +52,8 @@ public sealed partial class AetherClient : IDisposable
 
     private static readonly TimeSpan CredentialCheckInterval = TimeSpan.FromHours(24);
 
+    private BilibiliApi Api(Credential? credential) => new BilibiliApi(http, timeProvider, credential);
+
     // BilibiliApi keeps cookies per flow so a fresh login cannot inherit another flow's credential.
     public AetherClient(ILogger<AetherClient> logger, string dataDirectory)
         : this(new HttpClientHandler { UseCookies = false, AutomaticDecompression = DecompressionMethods.All },
@@ -64,7 +66,7 @@ public sealed partial class AetherClient : IDisposable
     /// <summary>Reads the saved credential's account; returns null when not logged in. Request failures propagate to the caller.</summary>
     /// <remarks>Read-only: does not refresh or delete the credential, and takes no room lock.</remarks>
     public async Task<Account?> GetAccountAsync(CancellationToken cancellationToken = default) =>
-        await new BilibiliApi(http, timeProvider, stores.Value.Credentials.Load()).GetAccountAsync(cancellationToken);
+        await Api(stores.Value.Credentials.Load()).GetAccountAsync(cancellationToken);
 
     /// <summary>Signs out on B站 when possible; the local credential is deleted either way unless the caller cancels.</summary>
     /// <remarks>Takes no room lock. A room connection running elsewhere on this data directory keeps going,
@@ -76,7 +78,7 @@ public sealed partial class AetherClient : IDisposable
         {
             if (credentials.Load() is { } credential)
             {
-                var api = new BilibiliApi(http, timeProvider, credential);
+                var api = Api(credential);
                 await api.LogoutAsync(cancellationToken);
             }
         }
@@ -164,7 +166,7 @@ public sealed partial class AetherClient : IDisposable
     {
         // Everything that can fail on its own runs before the first QR code, so no scan is wasted.
         var credentials = stores.Value.Credentials;
-        var api = new BilibiliApi(http, timeProvider, credential: null);
+        var api = Api(credential: null);
         while (true)
         {
             var qr = await RetryAsync(() => api.GenerateQrCodeAsync(cancellationToken), cancellationToken);
@@ -234,7 +236,7 @@ public sealed partial class AetherClient : IDisposable
             && timeProvider.GetUtcNow() - checkedAt < CredentialCheckInterval) return credential;
         try
         {
-            var api = new BilibiliApi(http, timeProvider, credential);
+            var api = Api(credential);
             if (await api.GetRefreshTimestampAsync(cancellationToken) is { } timestamp)
             {
                 var refreshed = await api.RefreshCredentialAsync(timestamp, refreshCancellation);
@@ -242,7 +244,7 @@ public sealed partial class AetherClient : IDisposable
                 {
                     try
                     {
-                        await new BilibiliApi(http, timeProvider, refreshed)
+                        await Api(refreshed)
                             .ConfirmCredentialRefreshAsync(credential.RefreshToken, cancellationToken);
                     }
                     catch (Exception error) when (!cancellationToken.IsCancellationRequested)

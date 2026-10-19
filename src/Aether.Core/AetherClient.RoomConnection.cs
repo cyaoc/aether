@@ -49,7 +49,7 @@ public sealed partial class AetherClient
                     stopReason = null;
                     try
                     {
-                        realRoomId ??= await new BilibiliApi(client.http, client.timeProvider, credential: null)
+                        realRoomId ??= await client.Api(credential: null)
                             .ResolveRoomIdAsync(roomId, cancellationToken);
                         if (roomLock is null)
                         {
@@ -131,14 +131,14 @@ public sealed partial class AetherClient
             cancellationToken.ThrowIfCancellationRequested();
             var credentials = client.stores.Value.Credentials;
             var credential = await client.RefreshCredentialIfDueAsync(cancellationToken, cancellationToken);
-            var api = new BilibiliApi(client.http, client.timeProvider, credential);
+            var api = client.Api(credential);
             while (!await api.IsLoggedInAsync(cancellationToken))
             {
                 await foreach (var update in client.LoginCoreAsync(cancellationToken,
                     acceptExternalCredential: true, previousToken: credential?.RefreshToken))
                     if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
                 credential = credentials.Load();
-                api = new BilibiliApi(client.http, client.timeProvider, credential);
+                api = client.Api(credential);
                 if (!await api.IsLoggedInAsync(cancellationToken)) // Cached, so the loop condition sends no second nav.
                     client.logger.LogWarning("新的登录凭据未生效，请重新扫码登录。");
             }
@@ -265,7 +265,7 @@ public sealed partial class AetherClient
                     SendQueue.Welcome queued => queued.Result.Text,
                     _ => BlindBoxTally.Announcement(round!)
                 };
-                var api = new BilibiliApi(client.http, client.timeProvider, client.stores.Value.Credentials.Load());
+                var api = client.Api(client.stores.Value.Credentials.Load());
                 return (text, token => api.SendDanmakuAsync(roomId, item is SendQueue.Welcome { Result.Mention: false } ? null : item.Uid,
                     (item as SendQueue.Query)?.Trigger.Id, text, token));
             }, stop.Token));
