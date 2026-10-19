@@ -181,8 +181,8 @@ public sealed class PoolLotteryTests
         Assert.Throws<ArgumentException>(() => lottery.Start([new("", 1, Grade.Grand)], "停"));
         Assert.Throws<ArgumentException>(() => lottery.Start([new("奖品", 0, Grade.Grand)], "停"));
         Assert.Throws<ArgumentException>(() => lottery.Start([new("奖品", 1, (Grade)10)], "停"));
-        Assert.Throws<ArgumentException>(() => lottery.Start(Prizes, " "));
-        Assert.Throws<ArgumentException>(() => lottery.Start(Prizes, "停", 0));
+        Assert.Equal(LotteryController.ValidateStopWord(" "), Assert.Throws<ArgumentException>(() => lottery.Start(Prizes, " ")).Message);
+        Assert.Equal(LotteryController.ValidateUid("0"), Assert.Throws<ArgumentException>(() => lottery.Start(Prizes, "停", 0)).Message);
         lottery.Start(Prizes, "停", 42);
         var first = lottery.State.Lottery!.Id;
         await h.PushAndCollectAsync(updates, Message(42, "小明", "你好"));

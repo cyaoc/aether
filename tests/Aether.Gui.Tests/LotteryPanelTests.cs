@@ -36,11 +36,13 @@ public sealed class LotteryPanelTests
                 GuiHarness.Flush();
                 Assert.False(start.IsEnabled);
                 Assert.True(uidError.IsVisible);
+                Assert.Equal(LotteryController.ValidateUid(invalid), uidError.Text);
                 Assert.Contains("invalid", uid.Classes);
             }
             uid.Text = " 42 ";
             GuiHarness.Flush();
             Assert.False(uidError.IsVisible);
+            Assert.Equal(LotteryController.ValidateUid(uid.Text), uidError.Text);
             Assert.Contains("还没发过", page.FindControl<TextBlock>("ViewerHint")!.Text);
             Assert.Contains("只认 UID 42 发的「停」", page.FindControl<TextBlock>("StatusText")!.Text);
             var word = page.FindControl<TextBox>("StopWordInput")!;
@@ -48,9 +50,11 @@ public sealed class LotteryPanelTests
             GuiHarness.Flush();
             Assert.False(start.IsEnabled);
             Assert.True(page.FindControl<TextBlock>("StopWordError")!.IsVisible);
+            Assert.Equal(LotteryController.ValidateStopWord(word.Text), page.FindControl<TextBlock>("StopWordError")!.Text);
             word.Text = "停";
             GuiHarness.Flush();
             Assert.False(page.FindControl<TextBlock>("StopWordError")!.IsVisible);
+            Assert.Equal(LotteryController.ValidateStopWord(word.Text), page.FindControl<TextBlock>("StopWordError")!.Text);
             Assert.True(start.IsEnabled);
             var weight = first.FindControl<TextBox>("WeightInput")!;
             weight.Text = "1.5";

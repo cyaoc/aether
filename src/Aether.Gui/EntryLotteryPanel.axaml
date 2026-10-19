@@ -44,7 +44,7 @@
               <TextBlock Classes="label" Text="报名关键字" VerticalAlignment="Center" />
               <TextBox Grid.Column="1" x:Name="KeywordInput" Height="32" MinHeight="32" FontSize="13" AutomationProperties.Name="报名关键字" Classes.invalid="{Binding #KeywordError.IsVisible}" />
               <TextBlock Grid.Column="2" x:Name="KeywordHint" Classes="caption muted singleLine" Text="不能靠送礼物报名" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" x:Name="KeywordError" Classes="error" Text="报名关键字不能为空" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" x:Name="KeywordError" Classes="error" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
             </Grid>
           </StackPanel>
           <StackPanel Spacing="10">
