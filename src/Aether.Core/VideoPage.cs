@@ -5,7 +5,7 @@ using System.Threading.Channels;
 namespace Aether.Core;
 
 /// <summary>Serial playback by file and source; viewer selection belongs to the caller.</summary>
-public sealed class VideoPage(WebService service, string dataDirectory, TimeProvider timeProvider)
+public sealed class VideoPage(WebService service, string dataDirectory, TimeProvider timeProvider) : WebPage("video")
 {
     // shortcut: pending videos are unbounded; add a capacity if playback sources can flood the queue.
     private readonly Channel<Playback> queue = Channel.CreateUnbounded<Playback>(new UnboundedChannelOptions { SingleReader = true });
@@ -28,7 +28,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
         }
     }
 
-    internal void Disconnected() => reported?.TrySetResult((PlaybackState.NoReport, "推流软件已全部断开"));
+    internal override void Disconnected() => reported?.TrySetResult((PlaybackState.NoReport, "推流软件已全部断开"));
 
     internal void Stop(string id)
     {
@@ -45,7 +45,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
 
     private string VideoPath(string fileName) => Settings.VideoFile(dataDirectory, fileName);
 
-    internal async Task RunAsync(CancellationToken token)
+    internal override async Task RunAsync(CancellationToken token)
     {
         var reader = queue.Reader;
         try
@@ -69,14 +69,14 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
                 try
                 {
                     var payload = new { id = item.Id };
-                    var sent = await service.BroadcastAsync(new(null, payload), token, "/video/events");
+                    var sent = await service.BroadcastAsync(this, new(null, payload), token);
                     if (sent == 0) { Report(item, PlaybackState.Skipped, "没有推流软件连着"); continue; }
                     Report(item, PlaybackState.Playing);
                     try
                     {
                         var result = await completion.Task.WaitAsync(TimeSpan.FromMinutes(2), timeProvider, token);
                         if (result.State == PlaybackState.Stopped)
-                            await service.BroadcastAsync(new("stop", payload), token, "/video/events");
+                            await service.BroadcastAsync(this, new("stop", payload), token);
                         Report(item, result.State, result.Reason);
                     }
                     catch (TimeoutException) { Report(item, PlaybackState.NoReport, "等了 2 分钟"); }
@@ -92,7 +92,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
         }
     }
 
-    internal async Task HandleAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
+    internal override async Task<bool> HandleAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
     {
         var path = request.Url!.AbsolutePath;
         if (request.HttpMethod == "GET" && path == "/video")
@@ -106,7 +106,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
         {
             string? fileName;
             lock (service.Gate) fileName = current is { } item && item.Id == path[13..] ? item.FileName : null;
-            if (fileName is null) { response.StatusCode = 404; return; }
+            if (fileName is null) return false;
             try
             {
                 await using var file = new FileStream(VideoPath(fileName), FileMode.Open, FileAccess.Read, FileShare.Read,
@@ -119,7 +119,8 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
             catch (DirectoryNotFoundException) { response.StatusCode = 404; }
         }
         else if (request.HttpMethod == "POST" && path == "/video/report") await ReceiveReportAsync(request, response, token);
-        else response.StatusCode = 404;
+        else return false;
+        return true;
     }
 
     private sealed record PageReport(string? Id, bool? Success, string? Reason);

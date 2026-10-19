@@ -4,10 +4,10 @@ using System.Runtime.CompilerServices;
 namespace Aether.Core;
 
 /// <summary>The 抽奖页: read-only, it only shows what <see cref="LotteryController"/> reports.</summary>
-public sealed class LotteryPage(WebService service, LotteryController lottery)
+public sealed class LotteryPage(WebService service, LotteryController lottery) : WebPage("lottery")
 {
     /// <summary>SSE events: a state snapshot first, then one per change.</summary>
-    internal async IAsyncEnumerable<SseEvent> EventsAsync([EnumeratorCancellation] CancellationToken token)
+    internal override async IAsyncEnumerable<SseEvent> EventsAsync([EnumeratorCancellation] CancellationToken token)
     {
         await foreach (var update in lottery.GetUpdatesAsync(token))
         {
@@ -18,7 +18,7 @@ public sealed class LotteryPage(WebService service, LotteryController lottery)
         }
     }
 
-    internal async Task HandleAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
+    internal override async Task<bool> HandleAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
     {
         var (resource, contentType) = request.Url!.AbsolutePath switch
         {
@@ -33,11 +33,12 @@ public sealed class LotteryPage(WebService service, LotteryController lottery)
             "/lottery/ZCOOLKuaiLe-OFL.txt" => ("Fonts.ZCOOLKuaiLe-OFL.txt", "text/plain; charset=utf-8"),
             _ => (null, null)
         };
-        if (request.HttpMethod != "GET" || resource is null) { response.StatusCode = 404; return; }
+        if (request.HttpMethod != "GET" || resource is null) return false;
         response.ContentType = contentType;
         using var content = typeof(LotteryPage).Assembly.GetManifestResourceStream("Aether.Core." + resource)!;
         response.ContentLength64 = content.Length;
         await content.CopyToAsync(response.OutputStream, token);
+        return true;
     }
 
     public void PlayExample()
@@ -50,5 +51,10 @@ public sealed class LotteryPage(WebService service, LotteryController lottery)
         }
     }
 
-    internal void StopExample() => lottery.StopExample();
+    internal override async Task RunAsync(CancellationToken token)
+    {
+        try { await Task.Delay(Timeout.InfiniteTimeSpan, token); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        finally { lottery.StopExample(); }
+    }
 }

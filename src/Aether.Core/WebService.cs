@@ -18,6 +18,7 @@ public sealed class WebService : IDisposable
     internal object Gate { get; } = new();
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
+    private readonly WebPage[] pages;
     private readonly List<Channel<WebServiceUpdate>> subscribers = [];
     private readonly HashSet<Connection> connections = [];
     private WebServiceStatus status = new(false, Settings.WebPort.Initial.Value, 0, 0);
@@ -33,13 +34,14 @@ public sealed class WebService : IDisposable
         this.logger = logger;
         Video = new(this, dataDirectory, timeProvider);
         Lottery = new(this, lottery);
+        pages = [Video, Lottery];
     }
 
     /// <summary>One streaming software's event stream to a page.</summary>
-    private sealed class Connection(HttpListenerResponse response, string path)
+    private sealed class Connection(HttpListenerResponse response, WebPage page)
     {
         public HttpListenerResponse Response { get; } = response;
-        public string Path { get; } = path;
+        public WebPage Page { get; } = page;
         public SemaphoreSlim WriteLock { get; } = new(1);
         public CancellationTokenSource? StreamStop { get; set; }
     }
@@ -90,7 +92,8 @@ public sealed class WebService : IDisposable
             status = status with { Running = true };
             Publish(status);
             var token = stop.Token;
-            running = Task.Run(() => Task.WhenAll(AcceptAsync(server, token), HeartbeatsAsync(token), Video.RunAsync(token)));
+            running = Task.Run(() => Task.WhenAll(pages.Select(page => page.RunAsync(token))
+                .Append(AcceptAsync(server, token)).Append(HeartbeatsAsync(token))));
         }
     }
 
@@ -103,7 +106,6 @@ public sealed class WebService : IDisposable
             stopping = stop;
             if (stopping is null) return;
             stopping.Cancel();
-            Lottery.StopExample();
             // Abort before Close: on Windows, Close releases the request queue that Abort needs.
             foreach (var connection in connections) Abort(connection.Response);
             listener!.Close();
@@ -133,23 +135,24 @@ public sealed class WebService : IDisposable
 
     private void ConnectionsChanged()
     {
-        status = status with { VideoConnections = connections.Count(connection => connection.Path == "/video/events"),
-            LotteryConnections = connections.Count(connection => connection.Path == "/lottery/events") };
+        status = status with { VideoConnections = connections.Count(connection => connection.Page == Video),
+            LotteryConnections = connections.Count(connection => connection.Page == Lottery) };
         logger.LogInformation("网页服务：视频页 {VideoCount} 个推流软件，抽奖页 {LotteryCount} 个推流软件", status.VideoConnections, status.LotteryConnections);
         Publish(status);
-        if (status.VideoConnections == 0) Video.Disconnected();
+        foreach (var page in pages)
+            if (!connections.Any(connection => connection.Page == page)) page.Disconnected();
     }
 
     private static string Frame(SseEvent message) =>
         (message.Name is null ? "" : "event: " + message.Name + "\n") + "data: " + JsonSerializer.Serialize(message.Data, Json) + "\n\n";
 
-    internal Task<int> BroadcastAsync(SseEvent message, CancellationToken token, string? path = null) =>
-        BroadcastFrameAsync(Frame(message), token, path);
+    internal Task<int> BroadcastAsync(WebPage page, SseEvent message, CancellationToken token) =>
+        BroadcastFrameAsync(Frame(message), token, page);
 
-    private async Task<int> BroadcastFrameAsync(string text, CancellationToken token, string? path = null)
+    private async Task<int> BroadcastFrameAsync(string text, CancellationToken token, WebPage? page = null)
     {
         Connection[] targets;
-        lock (Gate) targets = connections.Where(connection => path is null || connection.Path == path).ToArray();
+        lock (Gate) targets = connections.Where(connection => page is null || connection.Page == page).ToArray();
         var results = await Task.WhenAll(targets.Select(connection => SendAsync(connection, text, token)));
         return results.Count(sent => sent);
     }
@@ -226,12 +229,16 @@ public sealed class WebService : IDisposable
                 || request.RemoteEndPoint is not { Address: var address } || !IPAddress.IsLoopback(address))
             { response.StatusCode = 403; return; }
             var path = request.Url!.AbsolutePath;
-            if (request.HttpMethod == "GET" && path is "/video/events" or "/lottery/events")
+            var name = path.Split('/', 3)[1];
+            var page = pages.FirstOrDefault(page => page.Name == name);
+            if (page is null) { response.StatusCode = 404; return; }
+            if (request.HttpMethod == "GET" && path == $"/{page.Name}/events")
             {
                 response.ContentType = "text/event-stream";
                 response.SendChunked = true;
-                var connection = new Connection(response, path);
-                using var streamStop = path == "/lottery/events" ? CancellationTokenSource.CreateLinkedTokenSource(token) : null;
+                var connection = new Connection(response, page);
+                var events = page.EventsAsync(token);
+                using var streamStop = events is not null ? CancellationTokenSource.CreateLinkedTokenSource(token) : null;
                 connection.StreamStop = streamStop;
                 try
                 {
@@ -239,9 +246,9 @@ public sealed class WebService : IDisposable
                     keepOpen = await SendAsync(connection, Retry, token);
                     if (keepOpen && streamStop is not null)
                     {
-                        // The lottery stream lives in this request, so the response closes when it ends.
+                        // A page's stream lives in this request, so the response closes when it ends.
                         keepOpen = false;
-                        await foreach (var message in Lottery.EventsAsync(streamStop.Token))
+                        await foreach (var message in events!.WithCancellation(streamStop.Token))
                             if (!await SendAsync(connection, Frame(message), token)) break;
                     }
                 }
@@ -255,11 +262,7 @@ public sealed class WebService : IDisposable
                     }
                 }
             }
-            else if (path.StartsWith("/video", StringComparison.Ordinal))
-                await Video.HandleAsync(request, response, token);
-            else if (path.StartsWith("/lottery", StringComparison.Ordinal))
-                await Lottery.HandleAsync(request, response, token);
-            else response.StatusCode = 404;
+            else if (!await page.HandleAsync(request, response, token)) response.StatusCode = 404;
         }
         // On macOS, RemoteEndPoint throws SocketException once the client has reset the connection.
         catch (Exception error) when (error is IOException or HttpListenerException or SocketException or ObjectDisposedException or OperationCanceledException or UnauthorizedAccessException)
