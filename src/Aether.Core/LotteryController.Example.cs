@@ -43,7 +43,7 @@ public sealed partial class LotteryController
                 (4, new(null, false, null, entry with { Phase = EntryLotteryPhase.Closed, Draws = [entryDraw], DrawUntil = now.AddSeconds(11) })),
                 (11, new(null, false, null, entry with { Phase = EntryLotteryPhase.Ended, Draws = [entryDraw], EndedAt = now.AddSeconds(11) })),
                 (13, new(null, false, pool)),
-                (14, new(null, false, pool with { Phase = PoolLotteryPhase.Drawing, Draws = [poolDraw], DrawUntil = now.AddSeconds(21) })),
+                (14, new(null, false, pool with { Phase = PoolLotteryPhase.Idle, Draws = [poolDraw], DrawUntil = now.AddSeconds(21) })),
                 (21, null)
             ];
             var run = exampleRun = new object();

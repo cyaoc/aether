@@ -126,21 +126,22 @@ public sealed class LotteryPanelTests
             vm.Apply(new LotteryUpdate(new(7734200, false, TestLottery(PoolLotteryPhase.Spinning)) { CanControl = false }));
             Assert.False(page.FindControl<Button>("StopButton")!.IsEnabled);
             Assert.False(page.FindControl<Button>("CancelButton")!.IsEnabled);
-            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery(PoolLotteryPhase.Drawing))));
+            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { DrawUntil = DateTimeOffset.UnixEpoch.AddSeconds(7) })));
             Assert.True(page.FindControl<Button>("DrawingButton")!.IsVisible);
             Assert.False(page.FindControl<Button>("DrawingButton")!.IsEnabled);
             Assert.False(page.FindControl<Button>("StopButton")!.IsVisible);
             Assert.False(page.FindControl<Button>("NewButton")!.IsEnabled);
             Assert.Equal("开奖中", page.FindControl<TextBlock>("PhaseText")!.Text);
             var draw = new PoolDraw("draw", new("限定抱枕", 1, Grade.Grand), 42, "小明", true, DateTimeOffset.UnixEpoch, []);
-            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery(PoolLotteryPhase.Drawing) with { Draws = [draw] })));
+            var drawing = TestLottery() with { Draws = [draw], DrawUntil = DateTimeOffset.UnixEpoch.AddSeconds(7) };
+            vm.Apply(new LotteryUpdate(new(7734200, true, drawing)));
             Assert.True(page.FindControl<Border>("LatestCard")!.IsVisible);
             Assert.StartsWith("小明 · 主播点停 · ", page.FindControl<TextBlock>("LatestHead")!.Text);
             Assert.Equal("限定抱枕", page.FindControl<TextBlock>("LatestPrize")!.Text);
             Assert.Equal("本场 1 次", page.FindControl<TextBlock>("DrawCount")!.Text);
             Assert.Contains("fresh", Assert.Single(page.FindControl<StackPanel>("HistoryRows")!.Children).Classes);
             Assert.False(page.FindControl<TextBlock>("EmptyHistory")!.IsVisible);
-            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Draws = [draw] })));
+            vm.Apply(new LotteryUpdate(new(7734200, true, drawing with { DrawUntil = null })));
             Assert.DoesNotContain("fresh", Assert.Single(page.FindControl<StackPanel>("HistoryRows")!.Children).Classes);
             // Core carries the previous pool's UID, including when an entry lottery ran in between.
             vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Id = "next", Uid = 42 })));

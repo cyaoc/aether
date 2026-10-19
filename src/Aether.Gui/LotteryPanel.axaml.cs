@@ -131,9 +131,9 @@ public partial class LotteryPanel : UserControl
         }
         loadedRoom = state?.RoomId;
         var phase = lottery?.Phase ?? PoolLotteryPhase.Idle;
-        var idle = phase == PoolLotteryPhase.Idle;
         var spinning = phase == PoolLotteryPhase.Spinning;
-        var drawing = phase == PoolLotteryPhase.Drawing;
+        var drawing = lottery?.IsDrawing == true;
+        var idle = !spinning && !drawing;
         PhaseText.Text = viewModel?.LotteryPhaseText is { Length: > 0 } text ? text : "待机";
         PhaseChip.Classes.Set("spinning", spinning);
         PhaseChip.Classes.Set("drawing", drawing);
@@ -166,18 +166,19 @@ public partial class LotteryPanel : UserControl
         StopButton.IsEnabled = CancelButton.IsEnabled = spinning && !busy && state?.CanControl == true;
         DrawingButton.IsVisible = drawing;
         NewButton.IsEnabled = idle && !busy && connected;
-        var word = lottery is { Phase: not PoolLotteryPhase.Idle } ? lottery.StopWord : StopWordInput.Text?.Trim();
-        var caller = (lottery is { Phase: not PoolLotteryPhase.Idle } ? lottery.Uid : uid) is { } callerUid
+        var word = spinning || drawing ? lottery!.StopWord : StopWordInput.Text?.Trim();
+        var caller = (spinning || drawing ? lottery!.Uid : uid) is { } callerUid
             ? lottery?.Viewers.GetValueOrDefault(callerUid) ?? $"UID {callerUid}" : null;
         StatusText.Text = phase switch
         {
             PoolLotteryPhase.Spinning => caller is null ? "点“停”开奖" : $"正在等 {caller} 发「{word}」，也可以直接点“停”",
-            PoolLotteryPhase.Drawing => "直播画面正在播开奖特效",
+            _ when drawing => "直播画面正在播开奖特效",
             _ when !connected => "先连直播间，才能开始抽奖",
             _ => caller is null ? "没填 UID，开始后要主播点“停”" : $"点“开始”，直播画面上的奖品转起来；只认 {caller} 发的「{word}」",
         };
 
-        if (displayedHistory?.Id == lottery?.Id && displayedHistory?.Draws == lottery?.Draws && displayedHistory?.Phase == phase) return;
+        if (displayedHistory?.Id == lottery?.Id && displayedHistory?.Draws == lottery?.Draws && displayedHistory?.Phase == phase
+            && displayedHistory?.IsDrawing == drawing) return;
         displayedHistory = lottery;
         var draws = lottery?.Draws ?? [];
         LatestCard.IsVisible = draws.Length > 0 && !spinning;

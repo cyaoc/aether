@@ -130,7 +130,7 @@ test('Capsule Gacha repages on rotation and leaves room for remaining places unt
 test('Capsule Gacha switches mid-draw without replaying, shows all three grades and preserves text safely',()=>{
   for(const [grade,pop] of [['Grand','大奖!!'],['Second','POP!'],['Third','pop']]){
     const p=page(), prize={name:'<b>手办</b>',grade};
-    const lottery={id:'pool',phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
+    const lottery={id:'pool',phase:'Idle',drawUntil:'2026-10-17T12:00:07Z',
       draws:[{id:'d',prize,uid:42,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}]};
     p.state({poolLottery:lottery}); p.advance(1500);
     p.state({poolLottery:lottery,theme:'CapsuleGacha'});
@@ -146,7 +146,7 @@ test('Capsule Gacha switches mid-draw without replaying, shows all three grades 
 
 test('switching to Mecha Lock refreshes a live draw, locks the winning cell and keeps the deadline',()=>{
   const p=page(), prize={name:'键盘',grade:'Grand'}, other={name:'签名照',grade:'Third'};
-  const lottery={id:'pool',phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
+  const lottery={id:'pool',phase:'Idle',drawUntil:'2026-10-17T12:00:07Z',
     draws:[{id:'d',prize,uid:42,candidates:[other,prize],drawnAt:'2026-10-17T12:00:00Z'}]};
   p.state({poolLottery:lottery}); p.advance(1000);
   p.state({poolLottery:lottery,theme:'MechaLock'});
@@ -238,6 +238,21 @@ test('one draw runs to its deadline and repeat snapshots or reconnects do not re
   late.state(state); assert.equal(late.element('scene').dataset.view,'winners');
 });
 
+test('an idle pool with a draw deadline reveals its prize until the deadline without replaying',()=>{
+  const p=page(), prize={name:'手办',grade:'Grand',weight:1};
+  const state={poolLottery:{id:'pool',phase:'Idle',drawUntil:'2026-10-17T12:00:07Z',
+    draws:[{id:'d',prize,uid:42,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}]}};
+  p.state(state);
+  assert.equal(p.element('scene').hidden,false);
+  assert.equal(p.element('scene').dataset.view,'drawing');
+  assert.equal(p.element('prize').textContent,'手办');
+  p.advance(3000); p.state(state);
+  assert.equal(p.element('summon').style['--elapsed'],'0s');
+  p.advance(3999); assert.equal(p.element('scene').hidden,false);
+  p.advance(1); assert.equal(p.element('scene').hidden,true);
+  p.state(state); assert.equal(p.element('scene').hidden,true);
+});
+
 test('pool spinning has only prizes, each grade reveals the drawn prize, then becomes transparent',()=>{
   for(const grade of ['Grand','Second','Third']){
     const p=page(), prize={name:'手办',grade,weight:1};
@@ -246,7 +261,7 @@ test('pool spinning has only prizes, each grade reveals the drawn prize, then be
     assert.equal(p.element('scene').dataset.view,'spinning');
     assert.match(p.element('ring').textContent,/手办/);
     assert.equal(p.element('banner').textContent,'');
-    p.state({poolLottery:{...pool,phase:'Drawing',drawUntil:'2026-10-17T12:00:07Z',
+    p.state({poolLottery:{...pool,phase:'Idle',drawUntil:'2026-10-17T12:00:07Z',
       draws:[{id:'d',prize,uid:42,nickname:null,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}]}});
     assert.equal(p.element('summon').className,`drawing ${grade}`);
     assert.equal(p.element('prize').textContent,'手办');
