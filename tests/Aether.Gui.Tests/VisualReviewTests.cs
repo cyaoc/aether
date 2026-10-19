@@ -40,11 +40,13 @@ public sealed class VisualReviewTests
                 window.Navigation.SelectedIndex = 4;
                 vm.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
                 var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
-                panel.FindControl<ListBox>("ViewTabs")!.SelectedIndex = 1;
+                var tabs = panel.FindControl<ListBox>("ViewTabs")!;
+                tabs.SelectedIndex = 1;
                 await vm.RefreshLotteryHistoryAsync();
                 // Compare the selected tab after its theme transition settles.
                 GuiHarness.Flush();
                 await Task.Delay(300, TestContext.Current.CancellationToken);
+                foreach (var visual in tabs.GetVisualDescendants()) visual.InvalidateVisual();
                 Save(window, $"history-entry-{width}-{(dark ? "dark" : "light")}");
                 await vm.RefreshLotteryHistoryAsync("pool");
                 Save(window, $"history-pool-{width}-{(dark ? "dark" : "light")}");
