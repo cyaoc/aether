@@ -144,6 +144,8 @@ public sealed class VisualReviewTests
                     vm.Apply(new LotteryUpdate(new(7734200, true, session with { Phase = phase })));
                     Save(window, $"lottery-{phase}-{(dark ? "dark" : "light")}");
                 }
+                vm.Apply(new LotteryUpdate(new(7734200, true, session with { DrawUntil = at.AddMinutes(6).AddSeconds(7) })));
+                Save(window, $"lottery-Drawing-{(dark ? "dark" : "light")}");
             }
             finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
             return true;

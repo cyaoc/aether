@@ -118,9 +118,9 @@ public sealed class EntryLotteryTests
         Assert.Equal(ended ? EntryLotteryPhase.Ended : EntryLotteryPhase.Closed, restored.Phase);
         if (!ended)
         {
-            Assert.NotNull(restored.DrawUntil);
+            Assert.True(restored.IsDrawing);
             h.Time.Advance(LotteryController.DrawDuration);
-            Assert.Null(h.Client.Lottery.State.EntryLottery!.DrawUntil);
+            Assert.False(h.Client.Lottery.State.EntryLottery!.IsDrawing);
         }
         else
         {
@@ -280,18 +280,18 @@ public sealed class EntryLotteryTests
         command.ExecuteNonQuery();
         Assert.Throws<Microsoft.Data.Sqlite.SqliteException>(() => lottery.DrawEntry(0));
         Assert.Empty(lottery.State.EntryLottery!.Draws);
-        Assert.Null(lottery.State.EntryLottery.DrawUntil);
+        Assert.False(lottery.State.EntryLottery.IsDrawing);
         command.CommandText = "DROP TRIGGER fail_draw";
         command.ExecuteNonQuery();
         lottery.DrawEntry(0);
         command.CommandText = "CREATE TRIGGER fail_finish BEFORE UPDATE ON lottery BEGIN SELECT RAISE(FAIL, 'unavailable'); END";
         command.ExecuteNonQuery();
         h.Time.Advance(LotteryController.DrawDuration);
-        Assert.NotNull(lottery.State.EntryLottery.DrawUntil);
+        Assert.True(lottery.State.EntryLottery.IsDrawing);
         command.CommandText = "DROP TRIGGER fail_finish";
         command.ExecuteNonQuery();
         h.Time.Advance(TimeSpan.FromSeconds(1));
-        Assert.Null(lottery.State.EntryLottery.DrawUntil);
+        Assert.False(lottery.State.EntryLottery.IsDrawing);
         Assert.Single(lottery.State.EntryLottery.Draws);
         lottery.EndEntry();
     }

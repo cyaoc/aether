@@ -130,7 +130,7 @@ function show(state) {
     lottery.drawUntil,lottery.entryCount,lottery.hidden].join(' ') : '';
   if (key === shown) return;
   shown = key; clear();
-  if (!lottery || entry?.hidden || entry?.phase === 'Preparing' || pool?.phase === 'Idle') return;
+  if (!lottery || entry?.hidden || entry?.phase === 'Preparing' || pool?.phase === 'Idle' && !pool.drawUntil) return;
   if (entry?.phase === 'Open') {
     view('registration');
     const t = theme();
@@ -164,7 +164,7 @@ function show(state) {
     drawResult(draw, !!entry);
     hiding = setTimeout(() => {
       if (entry) show({ ...state, entryLottery:{...entry,drawUntil:null} });
-      else clear();
+      else show({ ...state, poolLottery:{...pool,drawUntil:null} });
     }, remaining);
     return;
   }

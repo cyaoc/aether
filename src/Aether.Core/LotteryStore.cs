@@ -11,7 +11,7 @@ internal sealed partial class LotteryStore(Database database)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id, stop_word, started_at, phase, uid, draw_until FROM lottery WHERE room_id = $room AND mode = 'pool'"
+        command.CommandText = "SELECT id, stop_word, started_at, phase, uid, draw_until, ended_at FROM lottery WHERE room_id = $room AND mode = 'pool'"
             + (latest ? " ORDER BY rowid DESC LIMIT 1" : " AND ended_at IS NULL");
         command.Parameters.AddWithValue("$room", roomId);
         PoolLottery lottery;
@@ -20,7 +20,8 @@ internal sealed partial class LotteryStore(Database database)
             if (!reader.Read()) return null;
             lottery = new(reader.GetString(0), roomId, reader.GetString(1), DateTimeOffset.Parse(reader.GetString(2), CultureInfo.InvariantCulture),
                 [], [], ImmutableDictionary<long, string>.Empty, (PoolLotteryPhase)reader.GetInt32(3),
-                reader.IsDBNull(4) ? null : reader.GetInt64(4), reader.IsDBNull(5) ? null : DateTimeOffset.Parse(reader.GetString(5), CultureInfo.InvariantCulture));
+                reader.IsDBNull(4) ? null : reader.GetInt64(4), reader.IsDBNull(5) ? null : DateTimeOffset.Parse(reader.GetString(5), CultureInfo.InvariantCulture),
+                reader.IsDBNull(6) ? null : DateTimeOffset.Parse(reader.GetString(6), CultureInfo.InvariantCulture));
         }
         command.Parameters.Clear();
         command.Parameters.AddWithValue("$id", lottery.Id);
