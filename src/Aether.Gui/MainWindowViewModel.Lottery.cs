@@ -93,6 +93,6 @@ public partial class MainWindowViewModel
         await lotteryUpdates;
         lotteryStop?.Dispose();
         lotteryStop = null;
-        await lotteryHistoryRead;
+        await lotteryHistoryRead.StopAsync();
     }
 }
