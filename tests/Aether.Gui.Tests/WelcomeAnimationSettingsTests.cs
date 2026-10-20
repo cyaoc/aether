@@ -70,11 +70,17 @@ public sealed class WelcomeAnimationSettingsTests
         using var harness = new GuiHarness();
         var choices = new Queue<string?>([null, Video(harness, "source", "not-video.txt")]);
         var page = new SettingsPage(harness.DataDirectory, SettingsSection.WelcomeAnimation, () => Task.FromResult(choices.Dequeue()));
-        Click(page, "AddAnimationButton");
-        Assert.Empty(Rows(page));
-        Click(page, "AddAnimationButton");
-        Assert.Empty(Rows(page));
-        Assert.Contains(".mp4", page.FindControl<TextBlock>("Message")!.Text);
+        var window = new Window { Content = page };
+        window.Show();
+        try
+        {
+            Click(page, "AddAnimationButton");
+            Assert.Empty(Rows(page));
+            Click(page, "AddAnimationButton");
+            Assert.Empty(Rows(page));
+            Assert.Contains(".mp4", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
+        }
+        finally { window.Close(); GuiHarness.Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
 
@@ -96,7 +102,8 @@ public sealed class WelcomeAnimationSettingsTests
         {
             Click(Rows(page)[0], "FileButton");
             if (fail) { Add(page, "43"); File.Delete(missing); }
-            Click(page, "SaveButton");
+            GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
             await GuiHarness.WaitForAsync(() => page.IsEnabled);
             Assert.Equal("video.mp4", Settings.Load(harness.DataDirectory).WelcomeAnimationVideos[42].Value);
             Assert.Equal(fail ? "old video" : "new video", File.ReadAllText(owned));
@@ -132,11 +139,11 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.DoesNotContain("error", row.FindControl<Grid>("RowNote")!.Classes);
             Assert.DoesNotContain("invalid", input.Classes);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             input.Text = uid;
             GuiHarness.Flush();
             Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             Assert.False(row.CanTest);
             Rows(page)[0].FocusInput();
             GuiHarness.Flush();
@@ -149,12 +156,12 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.DoesNotContain("error", row.FindControl<Grid>("RowNote")!.Classes);
             Assert.DoesNotContain("invalid", input.Classes);
-            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             input.Text = uid;
             GuiHarness.Flush();
             Assert.Contains(hint, row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.Contains("invalid", input.Classes);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             Assert.False(row.CanTest);
         }
         finally { window.Close(); GuiHarness.Flush(); }
@@ -180,14 +187,14 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("填一个 UID，或删掉这条", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.Contains("error", row.FindControl<Grid>("RowNote")!.Classes);
             Assert.Contains("invalid", input.Classes);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             Assert.False(row.CanTest);
             input.Text = "43";
             GuiHarness.Flush();
             Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.DoesNotContain("error", row.FindControl<Grid>("RowNote")!.Classes);
             Assert.DoesNotContain("invalid", input.Classes);
-            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
         }
         finally { window.Close(); GuiHarness.Flush(); }
         return true;
@@ -262,13 +269,20 @@ public sealed class WelcomeAnimationSettingsTests
         Directory.CreateDirectory(harness.DataDirectory);
         File.WriteAllText(Settings.FilePath(harness.DataDirectory), yaml);
         var page = new SettingsPage(harness.DataDirectory, SettingsSection.WelcomeAnimation);
-        Assert.False(page.FindControl<ToggleSwitch>("AnimationInput")!.IsEnabled);
-        Assert.True(page.FindControl<NumericUpDown>("WebPortInput")!.IsReadOnly);
-        Assert.False(page.FindControl<NumericUpDown>("WebPortInput")!.AllowSpin);
-        Assert.True(Rows(page).Single().FindControl<TextBox>("UidInput")!.IsReadOnly);
-        Assert.False(Rows(page).Single().FindControl<Button>("FileButton")!.IsEnabled);
-        Assert.Contains("设置文件", Rows(page).Single().FindControl<TextBlock>("RowMessage")!.Text);
-        Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+        var general = new SettingsPage(harness.DataDirectory, SettingsSection.General);
+        var window = new Window { Content = page };
+        window.Show();
+        try
+        {
+            Assert.False(page.FindControl<ToggleSwitch>("AnimationInput")!.IsEnabled);
+            Assert.True(general.FindControl<NumericUpDown>("WebPortInput")!.IsReadOnly);
+            Assert.False(general.FindControl<NumericUpDown>("WebPortInput")!.AllowSpin);
+            Assert.True(Rows(page).Single().FindControl<TextBox>("UidInput")!.IsReadOnly);
+            Assert.False(Rows(page).Single().FindControl<Button>("FileButton")!.IsEnabled);
+            Assert.Contains("设置文件", Rows(page).Single().FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
+        }
+        finally { window.Close(); GuiHarness.Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
 
@@ -288,14 +302,15 @@ public sealed class WelcomeAnimationSettingsTests
             Add(page, "43");
             var before = File.ReadAllText(Settings.FilePath(harness.DataDirectory));
             File.Delete(second);
-            Click(page, "SaveButton");
+            GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
             await GuiHarness.WaitForAsync(() => page.IsEnabled);
-            Assert.Contains("second.webm", page.FindControl<TextBlock>("Message")!.Text);
+            Assert.Contains("second.webm", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
             Assert.Equal(before, File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
             Assert.Empty(Directory.GetFiles(Path.Combine(harness.DataDirectory, "videos")));
             Assert.Equal("video", File.ReadAllText(first));
             Assert.Equal(2, Rows(page).Length);
-            Assert.True(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
         }
         finally { window.Close(); GuiHarness.Flush(); }
         return true;
@@ -367,10 +382,11 @@ public sealed class WelcomeAnimationSettingsTests
     private static async Task Save(SettingsPage page)
     {
         GuiHarness.Flush();
-        Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
-        Click(page, "SaveButton");
+        Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
+        GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        GuiHarness.Flush();
         await GuiHarness.WaitForAsync(() => page.IsEnabled);
-        Assert.Equal("已保存。", page.FindControl<TextBlock>("Message")!.Text);
+        Assert.Equal("已保存。", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
     }
 
     [Theory]
@@ -492,13 +508,13 @@ public sealed class WelcomeAnimationSettingsTests
             await GuiHarness.WaitForAsync(() => !viewModel.IsLoginPage);
             Assert.Equal(6, window.Navigation.SelectedIndex);
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            Assert.Equal("端口保存后立即生效；日志设置重启后生效", general.FindControl<TextBlock>("TimingHint")!.Text);
+            Assert.Equal("端口保存后立即生效；日志设置重启后生效", GuiHarness.FindVisual<TextBlock>(general, "TimingHint").Text);
             using var response = await http.GetAsync(viewModel.WebService.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
             using var reader = new StreamReader(await response.Content.ReadAsStreamAsync());
             await GuiHarness.WaitForAsync(() => viewModel.WebService.HasVideoConnections);
             window.Navigation.SelectedIndex = 3;
             var animation = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            Assert.False(animation.FindControl<NumericUpDown>("WebPortInput")!.IsEffectivelyVisible);
+            Assert.False(general.FindControl<NumericUpDown>("WebPortInput")!.IsEffectivelyVisible);
             foreach (var enabled in new[] { true, false, true })
             {
                 animation.FindControl<ToggleSwitch>("AnimationInput")!.IsChecked = enabled;
@@ -532,20 +548,22 @@ public sealed class WelcomeAnimationSettingsTests
             general.FindControl<NumericUpDown>("WebPortInput")!.Text = nextPort.ToString();
             GuiHarness.Flush();
             Assert.Equal(port, viewModel.WebService.WebServiceStatus.Port);
-            Assert.Equal("保存后网页服务换到新端口，直播姬里的地址要跟着改", general.FindControl<TextBlock>("DirtyMessage")!.Text);
-            Click(general, "SaveButton");
-            await GuiHarness.WaitForAsync(() => general.IsEnabled);
-            // Hidden fields also notify after a saved snapshot is loaded; they are not edits to this page.
-            general.FindControl<TextBox>("DailyKeywordInput")!.Text = "延迟的文本通知";
+            Assert.Equal("保存后网页服务换到新端口，直播姬里的地址要跟着改", GuiHarness.FindVisual<TextBlock>(general, "DirtyMessage").Text);
+            GuiHarness.FindVisual<Button>(general, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            Assert.Equal("已保存，网页服务已换到新端口", general.FindControl<TextBlock>("Message")!.Text);
+            await GuiHarness.WaitForAsync(() => general.IsEnabled);
+            // Other settings pages also notify after a saved snapshot is loaded; they are not edits to this page.
+            var blindBox = window.GetVisualDescendants().OfType<SettingsPage>().Single(page => page.Section == SettingsSection.BlindBox);
+            blindBox.FindControl<TextBox>("DailyKeywordInput")!.Text = "延迟的文本通知";
+            GuiHarness.Flush();
+            Assert.Equal("已保存，网页服务已换到新端口", GuiHarness.FindVisual<TextBlock>(general, "Message").Text);
             Assert.Equal(nextPort, viewModel.WebService.WebServiceStatus.Port);
             Assert.Equal(0, viewModel.WebService.WebServiceStatus.VideoConnections);
             Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
             await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync($"http://localhost:{port}/video", TestContext.Current.CancellationToken));
             general.FindControl<NumericUpDown>("RetentionInput")!.Text = "31";
             GuiHarness.Flush();
-            Assert.Equal("", general.FindControl<TextBlock>("Message")!.Text);
+            Assert.Equal("", GuiHarness.FindVisual<TextBlock>(general, "Message").Text);
             var externalPort = FreePort();
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = externalPort.ToString() });
             window.Navigation.SelectedIndex = 0;
@@ -595,7 +613,7 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.NotNull(viewModel.WebService.PlayingAnimation(42, "video.mp4"));
             Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            Assert.Contains("web_service.port", page.FindControl<TextBlock>("FileMessage")!.Text);
+            Assert.Contains("web_service.port", GuiHarness.FindVisual<TextBlock>(page, "FileMessage").Text);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
@@ -680,15 +698,15 @@ public sealed class WelcomeAnimationSettingsTests
             var row = Assert.Single(page.FindControl<StackPanel>("AnimationRows")!.Children);
             Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
             Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             Assert.False(Directory.Exists(Path.Combine(harness.DataDirectory, "videos")));
             row.FindControl<TextBox>("UidInput")!.Text = "42";
             GuiHarness.Flush();
             Assert.Contains("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
-            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
+            GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => page.IsEnabled);
-            Assert.Equal("已保存。", page.FindControl<TextBlock>("Message")!.Text);
+            Assert.Equal("已保存。", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
             Assert.Equal("欢迎.mp4", Settings.Load(harness.DataDirectory).WelcomeAnimationVideos[42].Value);
             Assert.Equal("original video", File.ReadAllText(Path.Combine(harness.DataDirectory, "videos", "欢迎.mp4")));
             Assert.Equal("original video", File.ReadAllText(source));
@@ -746,9 +764,9 @@ public sealed class WelcomeAnimationSettingsTests
             window.Navigation.SelectedIndex = 3;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            Assert.Equal("欢迎动画", page.FindControl<TextBlock>("PageTitle")!.Text);
+            Assert.Equal("欢迎动画", GuiHarness.FindVisual<TextBlock>(page, "PageTitle").Text);
             Assert.True(page.FindControl<Control>("EmptyAnimations")!.IsEffectivelyVisible);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;

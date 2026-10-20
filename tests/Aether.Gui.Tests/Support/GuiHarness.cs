@@ -105,6 +105,9 @@ internal sealed class GuiHarness : IDisposable
         }
     }
 
+    public static T FindVisual<T>(Visual parent, string name) where T : Control =>
+        parent.GetVisualDescendants().OfType<T>().Single(control => control.Name == name);
+
     /// <summary>Shows a navigation page and returns its visible ComboBox, scrolled into view.</summary>
     public static ComboBox VisibleComboBox(MainWindow window, int page, string name)
     {
