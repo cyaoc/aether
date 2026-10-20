@@ -1,4 +1,5 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.LotteryThemePicker">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" xmlns:core="using:Aether.Core" x:Class="Aether.Gui.LotteryThemePicker" x:DataType="local:MainWindowViewModel">
   <UserControl.Styles>
     <!-- Theme cards as on canvas O1/V1: a 16:9 preview, name and style, and a check on the selected card. -->
     <Style Selector="RadioButton.themeCard">
@@ -35,7 +36,7 @@
       <TextBlock Grid.Column="1" Classes="hint" Text="两种抽奖共用 · 素材 1920×1080 是横屏，1080×1920 是竖屏" />
     </Grid>
     <Grid ColumnDefinitions="*,*,*" ColumnSpacing="10">
-      <RadioButton x:Name="StarSummonCard" Classes="themeCard" IsChecked="True" AutomationProperties.Name="星辰召唤">
+      <RadioButton x:Name="StarSummonCard" Classes="themeCard" IsChecked="{Binding Lottery.LotteryState.Theme, Mode=OneWay, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static core:LotteryTheme.StarSummon}, FallbackValue=True}" AutomationProperties.Name="星辰召唤">
         <StackPanel Spacing="8">
           <!-- Scales a 160 × 90 preview to the card width, keeping 16:9. -->
           <Viewbox Stretch="Uniform">
@@ -52,7 +53,7 @@
           </Grid>
         </StackPanel>
       </RadioButton>
-      <RadioButton x:Name="MechaLockCard" Grid.Column="1" Classes="themeCard" AutomationProperties.Name="机甲锁定">
+      <RadioButton x:Name="MechaLockCard" Grid.Column="1" Classes="themeCard" IsChecked="{Binding Lottery.LotteryState.Theme, Mode=OneWay, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static core:LotteryTheme.MechaLock}}" AutomationProperties.Name="机甲锁定">
         <StackPanel Spacing="8">
           <Viewbox Stretch="Uniform">
             <Border Width="160" Height="90" CornerRadius="4" Background="#0A0C10" ClipToBounds="True">
@@ -74,7 +75,7 @@
           </Grid>
         </StackPanel>
       </RadioButton>
-      <RadioButton x:Name="CapsuleGachaCard" Grid.Column="2" Classes="themeCard" AutomationProperties.Name="萌系扭蛋">
+      <RadioButton x:Name="CapsuleGachaCard" Grid.Column="2" Classes="themeCard" IsChecked="{Binding Lottery.LotteryState.Theme, Mode=OneWay, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static core:LotteryTheme.CapsuleGacha}}" AutomationProperties.Name="萌系扭蛋">
         <StackPanel Spacing="8">
           <Viewbox Stretch="Uniform">
             <Border Width="160" Height="90" CornerRadius="4" Background="#FFF8EE" ClipToBounds="True">
@@ -102,7 +103,7 @@
       <Button x:Name="ExampleButton" Height="30" Padding="10,0,12,0">
         <StackPanel Orientation="Horizontal" Spacing="6">
           <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Play}" StrokeThickness="2" /></Viewbox>
-          <TextBlock x:Name="ExampleText" Text="试一下" VerticalAlignment="Center" />
+          <TextBlock x:Name="ExampleText" Text="{Binding Lottery.LotteryExampleText}" VerticalAlignment="Center" />
         </StackPanel>
       </Button>
       <TextBlock Grid.Column="1" x:Name="ExampleHint" Classes="caption muted singleLine" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
