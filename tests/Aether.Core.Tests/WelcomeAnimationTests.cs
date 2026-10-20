@@ -575,6 +575,8 @@ public sealed class WelcomeAnimationTests
         }
         using var badHost = new HttpRequestMessage(HttpMethod.Get, "");
         badHost.Headers.Host = "evil.example:" + http.BaseAddress.Port;
+        // HttpListener can race cleanup of a rejected Host with the next request on that connection.
+        badHost.Headers.ConnectionClose = true;
         using var wrongHost = await http.SendAsync(badHost, h.Stop.Token);
         Assert.False(wrongHost.IsSuccessStatusCode);
         using var badReport = await http.PostAsync("/video/report", new StringContent("{}", System.Text.Encoding.UTF8, "application/json"), h.Stop.Token);
