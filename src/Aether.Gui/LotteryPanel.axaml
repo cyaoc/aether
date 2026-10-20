@@ -1,5 +1,5 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPanel">
+  xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPanel" x:DataType="local:MainWindowViewModel">
   <UserControl.Styles>
     <!-- 本场 / 历史 as on canvases O1 and O4: a subtle strip, the picked view raised as a card. -->
     <Style Selector="ListBox#ViewTabs">
@@ -65,12 +65,12 @@
       <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
       <Setter Property="BorderThickness" Value="1" />
     </Style>
-    <Style Selector="StackPanel#HistoryRows > Border">
+    <Style Selector="Border.poolDraw">
       <Setter Property="Padding" Value="16,8" />
       <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
       <Setter Property="BorderThickness" Value="0,0,0,1" />
     </Style>
-    <Style Selector="StackPanel#HistoryRows > Border.fresh">
+    <Style Selector="Border.poolDraw.fresh">
       <Setter Property="Background" Value="{DynamicResource Accent.Flash}" />
     </Style>
     <Style Selector="StackPanel#StatusPanel TextBlock.caption">
@@ -89,15 +89,16 @@
           <ListBoxItem><TextBlock x:Name="HistoryTabText" Text="历史 0" /></ListBoxItem>
         </ListBox>
         <Border Grid.Column="2" x:Name="ModeChip" Height="24" Padding="8,0" CornerRadius="6" Background="{DynamicResource Border.Subtle}" VerticalAlignment="Center">
-          <TextBlock x:Name="ModeText" Classes="caption" Text="奖池抽奖" Foreground="{DynamicResource Text.Secondary}" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <TextBlock x:Name="ModeText" Classes="caption" Text="{Binding Lottery.LotteryModeText}" Foreground="{DynamicResource Text.Secondary}" FontWeight="SemiBold" VerticalAlignment="Center" />
         </Border>
-        <Border Grid.Column="3" x:Name="PhaseChip" Height="24" Padding="10,0" CornerRadius="12" BorderThickness="1" VerticalAlignment="Center">
+        <Border Grid.Column="3" x:Name="PhaseChip" Height="24" Padding="10,0" CornerRadius="12" BorderThickness="1" VerticalAlignment="Center"
+          Classes.spinning="{Binding Lottery.IsLotterySpinning}" Classes.drawing="{Binding Lottery.IsLotteryDrawing}" Classes.ended="{Binding Lottery.IsLotteryEnded}">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
-            <TextBlock x:Name="PhaseText" Classes="caption" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+            <TextBlock x:Name="PhaseText" Classes="caption" Text="{Binding Lottery.LotteryPanelPhaseText}" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
           </StackPanel>
         </Border>
-        <TextBlock Grid.Column="4" x:Name="NewHint" Classes="caption muted singleLine" HorizontalAlignment="Right" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="4" x:Name="NewHint" Classes="caption muted singleLine" Text="{Binding Lottery.NewLotteryHint}" HorizontalAlignment="Right" VerticalAlignment="Center" />
         <Button Grid.Column="5" x:Name="NewButton" Height="32" Padding="10,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" StrokeThickness="2" /></Viewbox>
@@ -176,23 +177,41 @@
       </Grid>
       <Border Grid.Column="1" Width="280" Background="{DynamicResource Surface.Aside}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
         <Grid RowDefinitions="Auto,Auto,*">
-          <Border x:Name="LatestCard" Margin="16,16,16,4" Padding="12" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource Accent}" Background="{DynamicResource Accent.Flash}">
+          <Border x:Name="LatestCard" IsVisible="{Binding Lottery.ShowLatestPoolDraw}" Margin="16,16,16,4" Padding="12" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource Accent}" Background="{DynamicResource Accent.Flash}">
             <StackPanel Spacing="4">
-              <TextBlock x:Name="LatestHead" Classes="caption muted singleLine" />
+              <TextBlock x:Name="LatestHead" Classes="caption muted singleLine" Text="{Binding Lottery.LatestPoolDrawHead}" />
               <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                <local:GradeBadge x:Name="LatestGrade" Height="20" Padding="6,0" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" x:Name="LatestPrize" Classes="singleLine" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
+                <local:GradeBadge x:Name="LatestGrade" Grade="{Binding Lottery.LatestPoolDrawGrade}" Height="20" Padding="6,0" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" x:Name="LatestPrize" Classes="singleLine" Text="{Binding Lottery.LatestPoolDrawPrize}" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
               </Grid>
             </StackPanel>
           </Border>
           <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,14,16,8">
             <TextBlock Classes="section" Text="开奖记录" />
-            <TextBlock Grid.Column="1" x:Name="DrawCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" x:Name="DrawCount" Classes="caption muted numeric" Text="{Binding Lottery.PoolDrawCountText}" VerticalAlignment="Center" />
           </Grid>
           <Panel Grid.Row="2">
-            <TextBlock x:Name="EmptyHistory" Classes="hint" Text="暂无开奖记录" Margin="16,0" />
+            <TextBlock x:Name="EmptyHistory" Classes="hint" Text="暂无开奖记录" IsVisible="{Binding Lottery.IsPoolDrawsEmpty}" Margin="16,0" />
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
-              <StackPanel x:Name="HistoryRows" />
+              <ItemsControl x:Name="HistoryRows" ItemsSource="{Binding Lottery.PoolDraws}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="local:PoolDrawRow">
+                    <Border Classes="poolDraw" Classes.fresh="{Binding Fresh}">
+                      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                          <TextBlock Classes="singleLine" Text="{Binding Viewer}" FontSize="13" FontWeight="SemiBold" MaxWidth="84" VerticalAlignment="Center" />
+                          <Border Classes="badge neutralBadge" IsVisible="{Binding StoppedByHost}" Height="18" VerticalAlignment="Center" ToolTip.Tip="主播点停">
+                            <TextBlock Text="点停" />
+                          </Border>
+                          <local:GradeBadge Grade="{Binding Grade}" Height="18" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Classes="singleLine" Text="{Binding Prize}" FontSize="13" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" Classes="caption muted numeric" Text="{Binding Time}" VerticalAlignment="Center" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
             </ScrollViewer>
           </Panel>
         </Grid>
