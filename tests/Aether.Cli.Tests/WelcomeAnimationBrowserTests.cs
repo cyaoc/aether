@@ -45,7 +45,7 @@ public sealed class WelcomeAnimationBrowserTests
         var videos = Path.Combine(h.DataDirectory, "videos");
         Directory.CreateDirectory(videos);
         File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(videos, "welcome.mp4"));
-        Settings.SaveWelcomeAnimationVideo(h.DataDirectory, 10001, "welcome.mp4");
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.10001"] = "welcome.mp4" });
         var output = Console.Out;
         using var captured = new StringWriter();
         Console.SetOut(TextWriter.Synchronized(captured));
