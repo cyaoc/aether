@@ -10,46 +10,34 @@ public partial class WelcomeSettingsPage
 {
     private WelcomeCondition[] loadedConditionKinds = [];
 
-    private IEnumerable<WelcomeConditionRow> Conditions => UidRows.Children.Concat(ConditionRows.Children).Cast<WelcomeConditionRow>();
+    internal EditableRows<WelcomeConditionRow> WelcomeUids { get; } = new(0);
+    internal EditableRows<WelcomeConditionRow> WelcomeThresholds { get; } = new(0);
+    private IEnumerable<WelcomeConditionRow> Conditions => WelcomeUids.Concat(WelcomeThresholds);
 
     private void LoadWelcomeConditions()
     {
-        ConditionRows.Children.Clear();
-        UidRows.Children.Clear();
+        WelcomeThresholds.Clear();
+        WelcomeUids.Clear();
         UidFold.IsExpanded = false;
         foreach (var uid in settings.WelcomeUids.Value)
-            InsertCondition(WelcomeCondition.Uid, uid.ToString(CultureInfo.InvariantCulture), settings.WelcomeUids.CanEdit);
+            WelcomeUids.Add(new(WelcomeCondition.Uid, uid.ToString(CultureInfo.InvariantCulture), settings.WelcomeUids.CanEdit));
         if (settings.WelcomeFanClubLevel.Value > Settings.WelcomeLevelOff)
-            InsertCondition(WelcomeCondition.FanClubLevel, settings.WelcomeFanClubLevel.Value.ToString(CultureInfo.InvariantCulture), settings.WelcomeFanClubLevel.CanEdit);
+            WelcomeThresholds.Add(new(WelcomeCondition.FanClubLevel, settings.WelcomeFanClubLevel.Value.ToString(CultureInfo.InvariantCulture), settings.WelcomeFanClubLevel.CanEdit));
         if (settings.WelcomeGuard.Value != Settings.WelcomeGuards[0])
-            InsertCondition(WelcomeCondition.Guard, settings.WelcomeGuard.Value, settings.WelcomeGuard.CanEdit);
+            WelcomeThresholds.Add(new(WelcomeCondition.Guard, settings.WelcomeGuard.Value, settings.WelcomeGuard.CanEdit));
         if (settings.WelcomeWealthLevel.Value > Settings.WelcomeLevelOff)
-            InsertCondition(WelcomeCondition.WealthLevel, settings.WelcomeWealthLevel.Value.ToString(CultureInfo.InvariantCulture), settings.WelcomeWealthLevel.CanEdit);
+            WelcomeThresholds.Add(new(WelcomeCondition.WealthLevel, settings.WelcomeWealthLevel.Value.ToString(CultureInfo.InvariantCulture), settings.WelcomeWealthLevel.CanEdit));
         loadedConditionKinds = Conditions.Select(row => row.Kind).ToArray();
         RefreshConditionList();
-    }
-
-    private WelcomeConditionRow InsertCondition(WelcomeCondition kind, string value, bool canEdit, bool isNew = false)
-    {
-        var row = new WelcomeConditionRow(kind, value, canEdit, isNew);
-        var rows = kind == WelcomeCondition.Uid ? UidRows : ConditionRows;
-        var index = rows.Children.Cast<WelcomeConditionRow>().TakeWhile(existing => existing.Kind <= kind).Count();
-        rows.Children.Insert(index, row);
-        row.Changed += Validate;
-        row.RemoveRequested += () =>
-        {
-            rows.Children.Remove(row);
-            RefreshConditionList();
-            Validate();
-        };
-        return row;
+        // Preserve the deferred validation and priority of the old rows' initialized TextChanged events.
+        if (Conditions.Any()) Dispatcher.UIThread.Post(Validate, DispatcherPriority.Normal);
     }
 
     /// <summary>Updates what depends on which rows exist: the count, the empty state, the menu, each kind's heading and "或" separator, and the UID fold.</summary>
     private void RefreshConditionList()
     {
         var count = Conditions.Select(row => row.Kind).Distinct().Count();
-        UidGroup.IsVisible = UidRows.Children.Count > 0;
+        UidGroup.IsVisible = WelcomeUids.Count > 0;
         ConditionCount.Text = $"{count} 条";
         ConditionCount.IsVisible = count > 0;
         EmptyConditions.IsVisible = count == 0;
@@ -70,8 +58,8 @@ public partial class WelcomeSettingsPage
         WelcomeCondition? previous = null;
         foreach (var row in Conditions)
         {
-            row.ShowSeparator(previous is not null && previous != row.Kind);
-            row.ShowHeading(previous != row.Kind);
+            row.HasSeparator = previous is not null && previous != row.Kind;
+            row.HasHeading = previous != row.Kind;
             previous = row.Kind;
         }
         RefreshUidFold();
@@ -95,13 +83,11 @@ public partial class WelcomeSettingsPage
             WelcomeCondition.Guard => "舰长",
             _ => "10"
         };
-        var row = InsertCondition(kind, value, true, isNew: true);
         if (kind == WelcomeCondition.Uid) UidFold.IsExpanded = true;
-        RefreshConditionList();
-        Validate();
         AddConditionButton.Flyout!.Hide();
-        // Menu dismissal restores focus to its button; focus the new input after that finishes.
-        Dispatcher.UIThread.Post(row.FocusInput, DispatcherPriority.Loaded);
+        var row = new WelcomeConditionRow(kind, value, true, isNew: true);
+        if (kind == WelcomeCondition.Uid) WelcomeUids.AddNew(row);
+        else WelcomeThresholds.AddNew(WelcomeThresholds.TakeWhile(existing => existing.Kind <= kind).Count(), row);
     }
 
     private string ConditionValue(WelcomeCondition kind, string absent) =>
@@ -125,10 +111,14 @@ public partial class WelcomeSettingsPage
     {
         var invalid = false;
         var uidsAbove = new HashSet<long>();
-        foreach (var row in Conditions) invalid |= row.ShowError(uidsAbove);
+        foreach (var row in Conditions)
+        {
+            row.Error = row.Validate(uidsAbove);
+            invalid |= row.Error is not null;
+        }
         RefreshUidFold();
         return invalid;
     }
 
-    private void RefreshUidFold() => UidFold.ApplyTo(UidRows.Children.Cast<WelcomeConditionRow>(), row => row.HasVisibleError, "位");
+    private void RefreshUidFold() => UidFold.ApplyTo(WelcomeUids, "位");
 }

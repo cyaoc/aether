@@ -43,14 +43,6 @@ public partial class ListFoldButton : Button
 
     /// <summary>Shows the first 3 rows, or all of them when expanded. Past 3 rows the button appears and says how many
     /// rows are hidden and how many of those show an error.</summary>
-    public void ApplyTo<T>(IEnumerable<T> rows, Func<T, bool> hasVisibleError, string unit) where T : Control
-    {
-        var all = rows.ToArray();
-        for (var index = 0; index < all.Length; index++) all[index].IsVisible = IsExpanded || index < Shown;
-        var hiddenErrors = IsExpanded ? 0 : all.Skip(Shown).Count(hasVisibleError);
-        Refresh(all.Length, hiddenErrors, unit);
-    }
-
     public void ApplyTo<T>(IEnumerable<T> rows, string unit) where T : EditableRow
     {
         var all = rows.ToArray();

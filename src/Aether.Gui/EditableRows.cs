@@ -6,9 +6,11 @@ public sealed class EditableRows<T>(int minimumCount) : ObservableCollection<T> 
 {
     public event Action? RowChanged;
 
-    public void AddNew(T row)
+    public void AddNew(T row) => AddNew(Count, row);
+
+    public void AddNew(int index, T row)
     {
-        Add(row);
+        Insert(index, row);
         row.RequestFocus();
     }
 

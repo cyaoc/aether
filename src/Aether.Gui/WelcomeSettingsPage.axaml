@@ -1,5 +1,37 @@
 <local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.WelcomeSettingsPage">
+  <local:SettingsPage.Resources>
+    <DataTemplate x:Key="ConditionRowTemplate" x:DataType="local:WelcomeConditionRow">
+      <local:EditableRowFrame>
+        <StackPanel>
+          <Grid x:Name="OrSeparator" IsVisible="{Binding HasSeparator}" ColumnDefinitions="*,Auto,*" ColumnSpacing="8" Margin="0,2">
+            <Border Height="1" Background="{DynamicResource Border.Subtle}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="caption muted" Text="或" />
+            <Border Grid.Column="2" Height="1" Background="{DynamicResource Border.Subtle}" VerticalAlignment="Center" />
+          </Grid>
+          <Grid ColumnDefinitions="18,90,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" Margin="0,8">
+            <Viewbox x:Name="TypeIconBox" IsVisible="{Binding HasHeading}" Classes="icon"><Path x:Name="TypeIcon" Data="{Binding Icon}" TextElement.Foreground="{DynamicResource Text.Muted}" /></Viewbox>
+            <TextBlock Grid.Column="1" x:Name="TypeName" Text="{Binding Name}" IsVisible="{Binding HasHeading}" Classes="label" VerticalAlignment="Center" />
+            <Grid Grid.Column="2">
+              <TextBox x:Name="UidInput" Classes="numeric rowFocus" Text="{Binding Uid, Mode=TwoWay}" IsVisible="{Binding IsUid}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding #ErrorMessage.IsVisible}" MaxWidth="200" HorizontalAlignment="Stretch" PlaceholderText="输入 UID" AutomationProperties.Name="指定观众 UID" />
+              <Grid x:Name="ThresholdInput" IsVisible="{Binding !IsUid}" ColumnDefinitions="Auto,Auto,Auto" HorizontalAlignment="Left">
+                <TextBlock Classes="label" Text="达到" VerticalAlignment="Center" Margin="0,0,12,0" />
+                <!-- NumericUpDown initializes its text from Value when its template attaches. -->
+                <NumericUpDown Grid.Column="1" x:Name="LevelInput" Classes="rowFocus" Value="{Binding InitialLevel, Mode=OneTime}" Text="{Binding Level, Mode=TwoWay}" IsVisible="{Binding IsLevel}" IsReadOnly="{Binding !CanEdit}" AllowSpin="{Binding CanEdit}" AutomationProperties.Name="{Binding LevelName}" Minimum="1" Classes.invalid="{Binding #ErrorMessage.IsVisible}" FormatString="0.############################" />
+                <ComboBox Grid.Column="1" x:Name="GuardInput" Classes="rowFocus" ItemsSource="{Binding Guards}" SelectedItem="{Binding Guard, Mode=TwoWay}" IsVisible="{Binding IsGuard}" IsEnabled="{Binding CanEdit}" Width="132" HorizontalAlignment="Left" AutomationProperties.Name="大航海身份" />
+                <TextBlock Grid.Column="2" x:Name="LevelUnit" IsVisible="{Binding IsLevel}" Classes="label" Text="级" VerticalAlignment="Center" Margin="8,0,0,0" />
+              </Grid>
+            </Grid>
+            <Button Grid.Column="3" x:Name="RemoveButton" Command="{Binding Remove}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding CanEdit}" AutomationProperties.Name="{Binding RemoveName}" Classes="ghost danger" Width="28" VerticalAlignment="Center">
+              <Viewbox Classes="icon remove"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
+            </Button>
+            <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" x:Name="ErrorMessage" Classes="error" Text="{Binding VisibleError}" IsVisible="{Binding VisibleError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="ReadOnlyMessage" Classes="hint" IsVisible="{Binding HasReadOnlyHint}" Text="这项是多行写法，请在设置文件里改" />
+          </Grid>
+        </StackPanel>
+      </local:EditableRowFrame>
+    </DataTemplate>
+  </local:SettingsPage.Resources>
   <local:SettingsPage.HeaderContent>
     <StackPanel VerticalAlignment="Center">
       <ToggleSwitch Classes="plain" x:Name="WelcomeInput" AutomationProperties.Name="进场欢迎" />
@@ -67,11 +99,15 @@
       </Grid>
       <StackPanel>
         <StackPanel x:Name="UidGroup" AutomationProperties.Name="指定观众">
-          <StackPanel x:Name="UidRows" />
+          <ItemsControl x:Name="UidRows" Classes="editableRows" ItemTemplate="{StaticResource ConditionRowTemplate}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          </ItemsControl>
           <!-- 120 = WelcomeConditionRow's icon and name columns with their spacing (18 + 8 + 90 + 8), less the button's padding of 4, so the text lines up with the UID inputs. -->
           <local:ListFoldButton x:Name="UidFold" Margin="120,0,0,8" />
         </StackPanel>
-        <StackPanel x:Name="ConditionRows" />
+        <ItemsControl x:Name="ConditionRows" Classes="editableRows" ItemTemplate="{StaticResource ConditionRowTemplate}">
+          <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+        </ItemsControl>
       </StackPanel>
       <Grid x:Name="EmptyConditions">
         <Rectangle Stroke="{DynamicResource Border.Control}" StrokeThickness="1" StrokeDashArray="4,3" RadiusX="8" RadiusY="8" />

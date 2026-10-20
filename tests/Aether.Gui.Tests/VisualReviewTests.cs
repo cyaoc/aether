@@ -324,12 +324,12 @@ public sealed class VisualReviewTests
                 Assert.Equal(0, scroll.Offset.Y);
                 Assert.InRange(heading.TranslatePoint(default, scroll)!.Value.Y, 0, scroll.Bounds.Height - heading.Bounds.Height);
                 Assert.Equal(3, WelcomeTextList.Rows(page).Count(row => row.IsShown));
-                Assert.Equal(3, Rows(page).Count(row => row.Kind == WelcomeCondition.Uid && row.IsVisible));
-                foreach (var row in Rows(page).Where(row => row.Kind == WelcomeCondition.Uid && row.IsVisible))
+                Assert.Equal(3, Rows(page).Count(row => row.Kind == WelcomeCondition.Uid && row.IsShown));
+                foreach (var row in Rows(page).Where(row => row.Kind == WelcomeCondition.Uid && row.IsShown))
                 {
-                    var input = row.FindControl<TextBox>("UidInput")!;
-                    var remove = row.FindControl<Button>("RemoveButton")!;
-                    Assert.True(input.TranslatePoint(default, row)!.Value.X + input.Bounds.Width <= remove.TranslatePoint(default, row)!.Value.X);
+                    var input = GuiHarness.FindRowControl<TextBox>(page, row, "UidInput");
+                    var remove = GuiHarness.FindRowControl<Button>(page, row, "RemoveButton");
+                    Assert.True(input.TranslatePoint(default, page)!.Value.X + input.Bounds.Width <= remove.TranslatePoint(default, page)!.Value.X);
                 }
                 Capture("collapsed");
                 page.FindControl<Button>("UidFold")!.BringIntoView();
@@ -377,18 +377,21 @@ public sealed class VisualReviewTests
             try
             {
                 Control row;
-                if (kind == "condition") row = Add(page, WelcomeCondition.Uid);
+                TextBox input;
+                if (kind == "condition")
+                {
+                    input = GuiHarness.FindRowControl<TextBox>(page, Add(page, WelcomeCondition.Uid), "UidInput");
+                    row = input.GetVisualAncestors().OfType<EditableRowFrame>().Single();
+                }
                 else
                 {
                     page.FindControl<Button>(kind == "text" ? "AddWelcomeTextButton" : "AddAnimationButton")!
                         .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     GuiHarness.Flush();
-                    row = kind == "text" ? GuiHarness.FindRowControl<TextBox>(page, WelcomeTextList.Rows(page)[1], "ValueInput").GetVisualAncestors().OfType<EditableRowFrame>().Single()
-                        : GuiHarness.FindRowControl<TextBox>(page, ((WelcomeAnimationSettingsPage)page).Animations.Single(), "UidInput").GetVisualAncestors().OfType<EditableRowFrame>().Single();
+                    input = kind == "text" ? WelcomeTextList.Input(page, 1)
+                        : GuiHarness.FindRowControl<TextBox>(page, ((WelcomeAnimationSettingsPage)page).Animations.Single(), "UidInput");
+                    row = input.GetVisualAncestors().OfType<EditableRowFrame>().Single();
                 }
-                var input = kind == "text" ? WelcomeTextList.Input(page, 1)
-                    : kind == "animation" ? GuiHarness.FindRowControl<TextBox>(page, ((WelcomeAnimationSettingsPage)page).Animations.Single(), "UidInput")
-                    : row.FindControl<TextBox>("UidInput")!;
                 Capture("new", false);
                 page.FindControl<Button>(kind == "animation" ? "AddAnimationButton" : "AddWelcomeTextButton")!.Focus();
                 Capture("empty-blurred", true);
@@ -766,7 +769,7 @@ public sealed class VisualReviewTests
             menu.ShowAt(add);
             Capture("welcome-menu");
             menu.Hide();
-            foreach (var row in Rows(welcome)) Remove(row);
+            foreach (var row in Rows(welcome)) Remove(welcome, row);
             Capture("welcome-empty");
             add.BringIntoView();
             GuiHarness.Flush();
@@ -775,7 +778,7 @@ public sealed class VisualReviewTests
             menu.Hide();
             Add(welcome, WelcomeCondition.Uid);
             Capture("welcome-invalid");
-            Remove(Rows(welcome).Single());
+            Remove(welcome, Rows(welcome).Single());
             foreach (var kind in new[] { WelcomeCondition.FanClubLevel, WelcomeCondition.Guard, WelcomeCondition.WealthLevel })
                 Add(welcome, kind);
             Capture("welcome-levels");
