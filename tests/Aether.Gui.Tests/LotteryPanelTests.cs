@@ -1,6 +1,9 @@
 using System.Collections.Immutable;
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia.Automation;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -9,6 +12,40 @@ namespace Aether.Gui.Tests;
 
 public sealed class LotteryPanelTests
 {
+    [Fact]
+    public Task Prize_accessible_names_follow_rows_after_removing_the_first() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var page = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var rows = vm.Lottery.Prizes;
+            var add = page.FindControl<Button>("AddButton")!;
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.Equal(3, rows.Count);
+            var first = rows[0];
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                GuiHarness.FindRowControl<Button>(page, first, "RemoveButton"))).Invoke();
+            GuiHarness.Flush();
+            var remaining = rows.ToArray();
+            Assert.Equal(new[] { "第 1 件奖品名称", "第 2 件奖品名称" },
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<TextBox>(page, row, "NameInput"))));
+            Assert.Equal(new[] { "第 1 件奖品占比", "第 2 件奖品占比" },
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<TextBox>(page, row, "WeightInput"))));
+            Assert.Equal(new[] { "第 1 件奖品档次", "第 2 件奖品档次" },
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<GradePicker>(page, row, "GradeInput"))));
+            Assert.Equal(new[] { "删除第 1 件奖品", "删除第 2 件奖品" },
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<Button>(page, row, "RemoveButton"))));
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task Draft_survives_connecting_and_validation_and_ten_prize_limit_apply() => HeadlessApp.Session.Dispatch(async () =>
     {
@@ -19,12 +56,12 @@ public sealed class LotteryPanelTests
         window.Show();
         try
         {
-            var rows = page.FindControl<StackPanel>("PrizeRows")!;
-            var first = Assert.IsType<PoolPrizeRow>(rows.Children[0]);
-            first.FindControl<TextBox>("NameInput")!.Text = "手办";
+            var rows = vm.Lottery.Prizes;
+            var first = rows[0];
+            GuiHarness.FindRowControl<TextBox>(page, first, "NameInput").Text = "手办";
             GuiHarness.Flush();
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, null)));
-            Assert.Equal("手办", Assert.IsType<PoolPrizeRow>(rows.Children[0]).FindControl<TextBox>("NameInput")!.Text);
+            Assert.Equal("手办", rows[0].Name);
             var start = page.FindControl<Button>("StartButton")!;
             Assert.True(start.IsEnabled);
             var uid = page.FindControl<TextBox>("UidInput")!;
@@ -56,7 +93,7 @@ public sealed class LotteryPanelTests
             Assert.False(page.FindControl<TextBlock>("StopWordError")!.IsVisible);
             Assert.Equal(LotteryController.ValidateStopWord(word.Text), page.FindControl<TextBlock>("StopWordError")!.Text);
             Assert.True(start.IsEnabled);
-            var weight = first.FindControl<TextBox>("WeightInput")!;
+            var weight = GuiHarness.FindRowControl<TextBox>(page, first, "WeightInput");
             weight.Text = "1.5";
             GuiHarness.Flush();
             Assert.False(start.IsEnabled);
@@ -65,26 +102,27 @@ public sealed class LotteryPanelTests
             var add = page.FindControl<Button>("AddButton")!;
             add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            var added = Assert.IsType<PoolPrizeRow>(rows.Children[1]);
-            Assert.False(added.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            var added = rows[1];
+            Assert.Null(added.VisibleError);
             Assert.False(start.IsEnabled);
             uid.Focus();
-            Assert.True(added.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
-            Assert.Contains("invalid", added.FindControl<TextBox>("NameInput")!.Classes);
-            Assert.DoesNotContain("invalid", added.FindControl<TextBox>("WeightInput")!.Classes);
-            added.FindControl<TextBox>("NameInput")!.Text = "贴纸";
+            Assert.NotNull(added.VisibleError);
+            Assert.Contains("invalid", GuiHarness.FindRowControl<TextBox>(page, added, "NameInput").Classes);
+            Assert.DoesNotContain("invalid", GuiHarness.FindRowControl<TextBox>(page, added, "WeightInput").Classes);
+            GuiHarness.FindRowControl<TextBox>(page, added, "NameInput").Text = "贴纸";
             GuiHarness.Flush();
-            added.FindControl<TextBox>("WeightInput")!.Text = "3";
+            GuiHarness.FindRowControl<TextBox>(page, added, "WeightInput").Text = "3";
             GuiHarness.Flush();
-            Assert.Equal("25%", first.FindControl<TextBlock>("Percentage")!.Text);
-            Assert.Equal("75%", added.FindControl<TextBlock>("Percentage")!.Text);
+            Assert.Equal("25%", first.Percentage);
+            Assert.Equal("75%", added.Percentage);
             for (var index = 2; index < 10; index++) add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(10, rows.Children.Count);
+            Assert.Equal(10, rows.Count);
             Assert.False(add.IsEnabled);
             add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            Assert.Equal(10, rows.Children.Count);
-            added.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(10, rows.Count);
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                GuiHarness.FindRowControl<Button>(page, added, "RemoveButton"))).Invoke();
             Assert.True(add.IsEnabled);
         }
         finally { window.Close(); await vm.ShutdownAsync(); }

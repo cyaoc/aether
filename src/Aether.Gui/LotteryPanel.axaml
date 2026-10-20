@@ -99,7 +99,7 @@
           </StackPanel>
         </Border>
         <TextBlock Grid.Column="4" x:Name="NewHint" Classes="caption muted singleLine" Text="{Binding Lottery.NewLotteryHint}" HorizontalAlignment="Right" VerticalAlignment="Center" />
-        <Button Grid.Column="5" x:Name="NewButton" Height="32" Padding="10,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center">
+        <Button Grid.Column="5" x:Name="NewButton" IsEnabled="{Binding Lottery.CanNew}" Height="32" Padding="10,0,12,0" FontWeight="SemiBold" VerticalAlignment="Center">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" StrokeThickness="2" /></Viewbox>
             <TextBlock Text="新开一场" VerticalAlignment="Center" />
@@ -119,11 +119,40 @@
                 <TextBlock Grid.Column="1" Classes="hint" Text="按占比随机抽一件，不会抽完；档次决定开奖特效" />
               </Grid>
               <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8">
-                <StackPanel x:Name="PrizeRows" />
+                <ItemsControl x:Name="PrizeRows" Classes="editableRows dividedRows" ItemsSource="{Binding Lottery.Prizes}">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:PoolPrizeRow">
+                      <local:EditableRowFrame BorderBrush="{DynamicResource Border.Subtle}" Padding="12,8,6,8" MinHeight="48">
+                        <StackPanel Spacing="4">
+                          <Grid ColumnDefinitions="*,Auto,Auto,Auto,30" ColumnSpacing="8">
+                            <TextBox x:Name="NameInput" Classes="rowFocus" Height="32" MinHeight="32" FontSize="13" PlaceholderText="奖品名称"
+                              Text="{Binding Name, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding NameInvalid}"
+                              AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 件奖品名称'}" />
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                              <TextBlock Classes="caption" Text="占比" Foreground="{DynamicResource Text.Secondary}" VerticalAlignment="Center" />
+                              <TextBox x:Name="WeightInput" Classes="numeric" Width="52" Height="32" MinHeight="32" FontSize="13" Padding="8,0" TextAlignment="Right"
+                                Text="{Binding Weight, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding WeightInvalid}"
+                                AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 件奖品占比'}" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" x:Name="Percentage" Classes="caption numeric muted" MinWidth="40" TextAlignment="Right" VerticalAlignment="Center" Text="{Binding Percentage}" />
+                            <local:GradePicker Grid.Column="3" x:Name="GradeInput" VerticalAlignment="Center" SelectedItem="{Binding Grade, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"
+                              AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 件奖品档次'}" />
+                            <Button Grid.Column="4" x:Name="RemoveButton" Classes="ghost danger" Width="30" Height="30" Command="{Binding Remove}"
+                              IsVisible="{Binding CanEdit}" IsEnabled="{Binding CanRemove}" AutomationProperties.Name="{Binding Number, StringFormat='删除第 {0} 件奖品'}">
+                              <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
+                            </Button>
+                          </Grid>
+                          <TextBlock x:Name="ErrorMessage" Classes="error" Text="{Binding VisibleError}" IsVisible="{Binding VisibleError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" AutomationProperties.LiveSetting="Polite" />
+                        </StackPanel>
+                      </local:EditableRowFrame>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
               </Border>
               <!-- Click on press, as 添加欢迎语 does: leaving a new row above reveals its error before the release. -->
-              <Grid x:Name="AddPrizeBar" ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                <Button x:Name="AddButton" HorizontalAlignment="Left" Padding="10,0,12,0" ClickMode="Press">
+              <Grid x:Name="AddPrizeBar" IsVisible="{Binding Lottery.PoolIdle}" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                <Button x:Name="AddButton" IsEnabled="{Binding Lottery.CanAddPrize}" HorizontalAlignment="Left" Padding="10,0,12,0" ClickMode="Press">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" /></Viewbox>
                     <TextBlock Text="添加奖品" VerticalAlignment="Center" />
@@ -140,16 +169,16 @@
               <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="10">
                 <TextBlock Classes="label" Text="这次谁来喊" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                  <TextBox x:Name="UidInput" Classes="numeric" Width="150" Height="32" MinHeight="32" FontSize="13" PlaceholderText="观众 UID" AutomationProperties.Name="喊停观众 UID" Classes.invalid="{Binding #UidError.IsVisible}" />
-                  <TextBlock x:Name="ViewerHint" Classes="caption muted singleLine" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                  <TextBox x:Name="UidInput" Text="{Binding Lottery.Uid, Mode=TwoWay}" IsReadOnly="{Binding !Lottery.CanEditPool}" Classes="numeric" Width="150" Height="32" MinHeight="32" FontSize="13" PlaceholderText="观众 UID" AutomationProperties.Name="喊停观众 UID" Classes.invalid="{Binding #UidError.IsVisible}" />
+                  <TextBlock x:Name="ViewerHint" Classes="caption singleLine" Text="{Binding Lottery.PoolViewerHint}" Classes.success="{Binding Lottery.PoolViewerKnown}" Classes.muted="{Binding !Lottery.PoolViewerKnown}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
                 </StackPanel>
-                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="UidError" Classes="error" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="UidError" Classes="error" Text="{Binding Lottery.UidError}" IsVisible="{Binding Lottery.UidError, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
                 <TextBlock Grid.Row="2" Classes="label" Text="口令" VerticalAlignment="Center" Margin="0,10,0,0" />
                 <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="0,10,0,0">
-                  <TextBox x:Name="StopWordInput" Width="150" Height="32" MinHeight="32" FontSize="13" AutomationProperties.Name="口令" Classes.invalid="{Binding #StopWordError.IsVisible}" />
+                  <TextBox x:Name="StopWordInput" Text="{Binding Lottery.StopWord, Mode=TwoWay}" IsReadOnly="{Binding !Lottery.CanEditPool}" Width="150" Height="32" MinHeight="32" FontSize="13" AutomationProperties.Name="口令" Classes.invalid="{Binding #StopWordError.IsVisible}" />
                   <TextBlock Classes="caption muted singleLine" Text="弹幕内容和口令完全一样才算" VerticalAlignment="Center" />
                 </StackPanel>
-                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="StopWordError" Classes="error" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="StopWordError" Classes="error" Text="{Binding Lottery.StopWordError}" IsVisible="{Binding Lottery.StopWordError, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
               </Grid>
             </StackPanel>
             <local:LotteryThemePicker x:Name="PoolTheme" />
@@ -158,19 +187,19 @@
         <Border Grid.Row="1" BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="20,12,20,18">
           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
             <StackPanel x:Name="StatusPanel" VerticalAlignment="Center" Spacing="4">
-              <TextBlock x:Name="StatusText" Classes="caption singleLine" AutomationProperties.LiveSetting="Polite" />
-              <TextBlock x:Name="ErrorMessage" Classes="caption error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
+              <TextBlock x:Name="StatusText" Text="{Binding Lottery.PoolStatusText}" Classes="caption singleLine" AutomationProperties.LiveSetting="Polite" />
+              <TextBlock x:Name="ErrorMessage" Classes="caption error" Text="{Binding Lottery.PoolLotteryError}" IsVisible="{Binding Lottery.PoolLotteryError, Converter={x:Static ObjectConverters.IsNotNull}}" AutomationProperties.LiveSetting="Polite" />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-              <Button x:Name="CancelButton" Content="取消" Height="34" Padding="14,0" />
-              <Button x:Name="StopButton" Classes="accent" Height="34" MinWidth="120" Padding="18,0" FontWeight="Bold">
+              <Button x:Name="CancelButton" IsVisible="{Binding Lottery.PoolSpinning}" IsEnabled="{Binding Lottery.CanCancel}" Content="取消" Height="34" Padding="14,0" />
+              <Button x:Name="StopButton" IsVisible="{Binding Lottery.PoolSpinning}" IsEnabled="{Binding Lottery.CanStop}" Classes="accent" Height="34" MinWidth="120" Padding="18,0" FontWeight="Bold">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <Border Width="8" Height="8" CornerRadius="1" Background="{Binding $parent[Button].Foreground}" VerticalAlignment="Center" />
                   <TextBlock Text="停" VerticalAlignment="Center" />
                 </StackPanel>
               </Button>
-              <Button x:Name="StartButton" Classes="accent" Content="开始" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
-              <Button x:Name="DrawingButton" Classes="accent" Content="开奖中…" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsEnabled="False" />
+              <Button x:Name="StartButton" IsVisible="{Binding Lottery.PoolIdle}" IsEnabled="{Binding Lottery.CanStart}" Classes="accent" Content="开始" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
+              <Button x:Name="DrawingButton" IsVisible="{Binding Lottery.PoolDrawing}" Classes="accent" Content="开奖中…" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsEnabled="False" />
             </StackPanel>
           </Grid>
         </Border>
