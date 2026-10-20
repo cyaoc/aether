@@ -103,10 +103,10 @@ public sealed class LotteryPanelTests
             add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             var added = rows[1];
-            Assert.Null(added.VisibleError);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, added, "ErrorMessage").IsVisible);
             Assert.False(start.IsEnabled);
             uid.Focus();
-            Assert.NotNull(added.VisibleError);
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, added, "ErrorMessage").IsVisible);
             Assert.Contains("invalid", GuiHarness.FindRowControl<TextBox>(page, added, "NameInput").Classes);
             Assert.DoesNotContain("invalid", GuiHarness.FindRowControl<TextBox>(page, added, "WeightInput").Classes);
             GuiHarness.FindRowControl<TextBox>(page, added, "NameInput").Text = "贴纸";

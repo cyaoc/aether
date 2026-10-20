@@ -144,10 +144,10 @@ public sealed class EntryLotteryPanelTests
                 GuiHarness.Flush();
                 var row = rows[count];
                 Assert.Equal(count == 1 ? Grade.Second : Grade.Third, row.Grade);
-                Assert.Null(row.VisibleError);
+                Assert.False(GuiHarness.FindRowControl<TextBlock>(entry, row, "ErrorMessage").IsVisible);
                 Assert.False(start.IsEnabled);
                 entry.FindControl<TextBox>("KeywordInput")!.Focus();
-                Assert.NotNull(row.VisibleError);
+                Assert.True(GuiHarness.FindRowControl<TextBlock>(entry, row, "ErrorMessage").IsVisible);
                 GuiHarness.FindRowControl<TextBox>(entry, row, "NameInput").Text = $"奖项{count + 1}";
                 GuiHarness.FindRowControl<TextBox>(entry, row, "PrizeInput").Text = "贴纸";
                 GuiHarness.Flush();
