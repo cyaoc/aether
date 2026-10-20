@@ -4,9 +4,26 @@ using Microsoft.Extensions.Logging;
 
 namespace Aether.Gui;
 
-public partial class LotteryViewModel(AetherClient client, ILogger logger, GuiSettings settings, Action saveSettings,
-    CancellationToken shutdown) : ObservableObject
+public partial class LotteryViewModel : ObservableObject
 {
+    private readonly AetherClient client;
+    private readonly ILogger logger;
+    private readonly GuiSettings settings;
+    private readonly Action saveSettings;
+    private readonly CancellationToken shutdown;
+
+    public LotteryViewModel(AetherClient client, ILogger logger, GuiSettings settings, Action saveSettings,
+        CancellationToken shutdown)
+    {
+        this.client = client;
+        this.logger = logger;
+        this.settings = settings;
+        this.saveSettings = saveSettings;
+        this.shutdown = shutdown;
+        Prizes.RowChanged += RefreshPoolInputs;
+        RefreshPoolInputs();
+    }
+
     private readonly LatestRun lotteryUpdates = new();
     private Task lotteryChange = Task.CompletedTask;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(LotteryPhaseText))] private LotteryState lotteryState = new(null, false, null);
@@ -63,7 +80,15 @@ public partial class LotteryViewModel(AetherClient client, ILogger logger, GuiSe
     internal Task ChangeLotteryAsync(Action<LotteryController> change)
     {
         if (shutdown.IsCancellationRequested) throw new InvalidOperationException("程序正在关闭。");
-        return lotteryChange = Task.Run(() => change(client.Lottery));
+        if (Busy) return Task.CompletedTask;
+        Busy = true;
+        return lotteryChange = RunAsync();
+
+        async Task RunAsync()
+        {
+            try { await Task.Run(() => change(client.Lottery)); }
+            finally { Busy = false; }
+        }
     }
 
     internal void SelectLotteryTheme(LotteryTheme theme)
