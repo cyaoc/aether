@@ -28,27 +28,27 @@ public sealed class EntryLotteryPanelTests
         {
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Awards = [TestLottery().Awards[0]] })));
             var entry = panel.FindControl<EntryLotteryPanel>("EntryContent")!;
-            var rows = entry.FindControl<StackPanel>("AwardRows")!;
+            var rows = vm.Lottery.Awards;
             var add = entry.FindControl<Button>("AddAwardButton")!;
             add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            Assert.Equal(3, rows.Children.Count);
-            var first = Assert.IsType<EntryAwardRow>(rows.Children[0]);
+            Assert.Equal(3, rows.Count);
+            var first = rows[0];
             Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
-                first.FindControl<Button>("RemoveButton")!)).Invoke();
+                GuiHarness.FindRowControl<Button>(entry, first, "RemoveButton"))).Invoke();
             GuiHarness.Flush();
-            var remaining = rows.Children.Cast<EntryAwardRow>().ToArray();
+            var remaining = rows.ToArray();
             Assert.Equal(new[] { "第 1 个奖项名称", "第 2 个奖项名称" },
-                remaining.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("NameInput")!)));
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<TextBox>(entry, row, "NameInput"))));
             Assert.Equal(new[] { "第 1 个奖项的奖品", "第 2 个奖项的奖品" },
-                remaining.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("PrizeInput")!)));
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<TextBox>(entry, row, "PrizeInput"))));
             Assert.Equal(new[] { "第 1 个奖项名额", "第 2 个奖项名额" },
-                remaining.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("CapacityInput")!)));
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<TextBox>(entry, row, "CapacityInput"))));
             Assert.Equal(new[] { "第 1 个奖项档次", "第 2 个奖项档次" },
-                remaining.Select(row => AutomationProperties.GetName(row.FindControl<GradePicker>("GradeInput")!)));
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<GradePicker>(entry, row, "GradeInput"))));
             Assert.Equal(new[] { "删除第 1 个奖项", "删除第 2 个奖项" },
-                remaining.Select(row => AutomationProperties.GetName(row.FindControl<Button>("RemoveButton")!)));
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<Button>(entry, row, "RemoveButton"))));
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
         return true;
@@ -90,20 +90,20 @@ public sealed class EntryLotteryPanelTests
             Assert.True(entry.FindControl<Button>("CloseEntriesButton")!.IsEnabled);
             Assert.False(panel.FindControl<Button>("NewButton")!.IsEnabled);
             Assert.Equal("先结束这一场才能新开", panel.FindControl<TextBlock>("NewHint")!.Text);
-            var row = Assert.IsType<EntryAwardRow>(entry.FindControl<StackPanel>("AwardRows")!.Children[0]);
-            Assert.False(row.FindControl<ListBox>("GradeInput")!.IsVisible);
-            Assert.True(row.FindControl<Border>("GradeBadge")!.IsVisible);
-            Assert.False(row.FindControl<Button>("DrawButton")!.IsEnabled);
+            var row = vm.Lottery.Awards[0];
+            Assert.False(GuiHarness.FindRowControl<ListBox>(entry, row, "GradeInput").IsVisible);
+            Assert.True(GuiHarness.FindRowControl<Border>(entry, row, "GradeBadge").IsVisible);
+            Assert.False(GuiHarness.FindRowControl<Button>(entry, row, "DrawButton").IsEnabled);
             lottery = lottery with { Phase = EntryLotteryPhase.Closed };
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
-            Assert.True(row.FindControl<Button>("DrawButton")!.IsEnabled);
+            Assert.True(GuiHarness.FindRowControl<Button>(entry, row, "DrawButton").IsEnabled);
             Assert.True(entry.FindControl<Button>("EndEntryButton")!.IsEnabled);
             Assert.Equal("开奖中", vm.Lottery.LotteryPhaseText);
             var draw = new EntryDraw("draw", 0, lottery.Awards[0], lottery.Entries[0], DateTimeOffset.UnixEpoch, []);
             lottery = lottery with { Draws = [draw], DrawUntil = DateTimeOffset.UnixEpoch.AddSeconds(7) };
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
             Assert.False(entry.FindControl<Button>("EndEntryButton")!.IsEnabled);
-            Assert.False(row.FindControl<Button>("DrawButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindRowControl<Button>(entry, row, "DrawButton").IsEnabled);
             Assert.Contains("开奖中", panel.FindControl<TextBlock>("PhaseText")!.Text);
             var winners = entry.FindControl<StackPanel>("WinnerGroups")!;
             Assert.Contains(winners.GetVisualDescendants().OfType<Border>(), chip => chip.Classes.Contains("fresh"));
@@ -111,7 +111,7 @@ public sealed class EntryLotteryPanelTests
             lottery = lottery with { Phase = EntryLotteryPhase.Ended, DrawUntil = null };
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
             Assert.True(panel.FindControl<Button>("NewButton")!.IsEnabled);
-            Assert.Equal("抽完了", row.FindControl<TextBlock>("DrawText")!.Text);
+            Assert.Equal("抽完了", row.DrawText);
             Assert.Equal("收起画面", entry.FindControl<Button>("VisibilityButton")!.Content);
             Assert.DoesNotContain(winners.GetVisualDescendants().OfType<Border>(), chip => chip.Classes.Contains("fresh"));
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery with { Hidden = true })));
@@ -133,28 +133,28 @@ public sealed class EntryLotteryPanelTests
         {
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Awards = [TestLottery().Awards[0]] })));
             var entry = panel.FindControl<EntryLotteryPanel>("EntryContent")!;
-            var rows = entry.FindControl<StackPanel>("AwardRows")!;
+            var rows = vm.Lottery.Awards;
             var add = entry.FindControl<Button>("AddAwardButton")!;
             var start = entry.FindControl<Button>("StartEntryButton")!;
             for (var count = 1; count < 5; count++)
             {
                 add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 GuiHarness.Flush();
-                var row = Assert.IsType<EntryAwardRow>(rows.Children[count]);
-                Assert.Equal(count == 1 ? 1 : 2, row.FindControl<ListBox>("GradeInput")!.SelectedIndex);
-                Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+                var row = rows[count];
+                Assert.Equal(count == 1 ? Grade.Second : Grade.Third, row.Grade);
+                Assert.Null(row.VisibleError);
                 Assert.False(start.IsEnabled);
                 entry.FindControl<TextBox>("KeywordInput")!.Focus();
-                Assert.True(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
-                row.FindControl<TextBox>("NameInput")!.Text = $"奖项{count + 1}";
-                row.FindControl<TextBox>("PrizeInput")!.Text = "贴纸";
+                Assert.NotNull(row.VisibleError);
+                GuiHarness.FindRowControl<TextBox>(entry, row, "NameInput").Text = $"奖项{count + 1}";
+                GuiHarness.FindRowControl<TextBox>(entry, row, "PrizeInput").Text = "贴纸";
                 GuiHarness.Flush();
             }
             Assert.False(add.IsEnabled);
             add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(5, rows.Children.Count);
-            var first = Assert.IsType<EntryAwardRow>(rows.Children[0]);
-            var capacity = first.FindControl<TextBox>("CapacityInput")!;
+            Assert.Equal(5, rows.Count);
+            var first = rows[0];
+            var capacity = GuiHarness.FindRowControl<TextBox>(entry, first, "CapacityInput");
             foreach (var invalid in new[] { "", "0", "-1", "1.5", "2147483648", "abc" })
             {
                 capacity.Text = invalid;
@@ -165,8 +165,9 @@ public sealed class EntryLotteryPanelTests
             capacity.Text = "2";
             GuiHarness.Flush();
             Assert.True(start.IsEnabled);
-            first.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(4, rows.Children.Count);
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                GuiHarness.FindRowControl<Button>(entry, first, "RemoveButton"))).Invoke();
+            Assert.Equal(4, rows.Count);
             Assert.True(add.IsEnabled);
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
