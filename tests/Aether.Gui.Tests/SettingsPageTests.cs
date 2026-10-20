@@ -560,6 +560,29 @@ public sealed class SettingsPageTests
         });
 
     [Fact]
+    public Task Welcome_condition_accessible_names_keep_their_kind_after_removal() =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  guard: 关闭\n", (page, _) =>
+        {
+            Add(page, WelcomeCondition.Uid);
+            Add(page, WelcomeCondition.FanClubLevel);
+            Add(page, WelcomeCondition.Guard);
+            Add(page, WelcomeCondition.WealthLevel);
+            Add(page, WelcomeCondition.Uid);
+            var rows = Rows(page);
+            Assert.Equal(5, rows.Length);
+            Assert.IsAssignableFrom<IInvokeProvider>(
+                ControlAutomationPeer.CreatePeerForElement(rows[0].FindControl<Button>("RemoveButton")!)).Invoke();
+            GuiHarness.Flush();
+            rows = Rows(page);
+            Assert.Equal(4, rows.Length);
+            Assert.Equal(["指定观众 UID", "粉丝团等级门槛", "大航海身份", "荣耀等级门槛"],
+                rows.Select(row => AutomationProperties.GetName(row.FindControl<Control>(
+                    row.Kind == WelcomeCondition.Uid ? "UidInput" : row.Kind == WelcomeCondition.Guard ? "GuardInput" : "LevelInput")!)));
+            Assert.Equal(["删除指定观众 UID", "删除粉丝团等级条件", "删除大航海身份条件", "删除荣耀等级条件"],
+                rows.Select(row => AutomationProperties.GetName(row.FindControl<Button>("RemoveButton")!)));
+        });
+
+    [Fact]
     public Task Removing_all_conditions_saves_disabled_values_and_shows_empty_state() =>
         WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42, 43] # 观众\n  fan_club_level: 1 # 粉丝团\n  guard: 舰长 # 大航海\n  wealth_level: 10 # 荣耀\n", (page, path) =>
         {
