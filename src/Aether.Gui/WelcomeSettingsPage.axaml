@@ -1,0 +1,123 @@
+<local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.WelcomeSettingsPage">
+  <local:SettingsPage.HeaderContent>
+    <StackPanel x:Name="WelcomeHeader" VerticalAlignment="Center">
+      <ToggleSwitch Classes="plain" x:Name="WelcomeInput" AutomationProperties.Name="进场欢迎" />
+    </StackPanel>
+  </local:SettingsPage.HeaderContent>
+  <local:SettingsPage.HeaderNote>
+    <StackPanel Margin="20,0">
+      <TextBlock x:Name="WelcomeReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="WelcomeError" Classes="error" />
+    </StackPanel>
+  </local:SettingsPage.HeaderNote>
+  <local:SettingsPage.BodyContent>
+    <StackPanel x:Name="WelcomeFields" Spacing="8">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <Grid ColumnDefinitions="Auto,*">
+          <TextBlock Classes="section" Text="欢迎语" Margin="0,0,8,0" />
+          <TextBlock Grid.Column="1" x:Name="WelcomeRandomHint" Classes="hint" />
+        </Grid>
+        <TextBlock Grid.Column="1" x:Name="WelcomeTextCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+      </Grid>
+      <StackPanel x:Name="WelcomeTextRows" Spacing="8" />
+      <local:ListFoldButton x:Name="WelcomeTextFold" />
+      <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*">
+        <TextBlock Classes="caption muted" Text="插入" VerticalAlignment="Center" Margin="0,0,8,0" />
+        <Button Grid.Column="1" Classes="chip" Margin="0,0,6,0" x:Name="InsertAtButton" GettingFocus="InsertButtonGettingFocus" Content="@观众" Tag="{}{@}" Click="InsertPlaceholder" />
+        <Button Grid.Column="2" Classes="chip" Margin="0,0,6,0" x:Name="InsertNicknameButton" GettingFocus="InsertButtonGettingFocus" Content="昵称" Tag="{}{昵称}" Click="InsertPlaceholder" />
+        <Button Grid.Column="3" Classes="chip" Margin="0,0,6,0" x:Name="InsertGuardButton" GettingFocus="InsertButtonGettingFocus" Content="大航海身份" Tag="{}{大航海}" Click="InsertPlaceholder" />
+        <TextBlock Grid.Column="4" x:Name="WelcomeInsertTarget" Classes="caption muted singleLine" VerticalAlignment="Center" />
+      </Grid>
+      <TextBlock x:Name="WelcomeTextHint" Classes="caption muted" TextWrapping="Wrap"
+        Text="英文、数字、半角符号算 1，其他字符算 2。上限自动读取账号的。可用 {@}（只能放开头）、{昵称}、{大航海}；用 {{ 和 }} 转义花括号。" />
+      <!-- Click on press: leaving a new row above shows its error and pushes this button down before the release.
+           shortcut: other buttons below a new row can still lose that one click; defer the reveal to pointer release if it matters. -->
+      <Button x:Name="AddWelcomeTextButton" Content="＋ 添加欢迎语" HorizontalAlignment="Left" ClickMode="Press" Click="AddWelcomeText" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,10,0,0">
+        <Grid ColumnDefinitions="Auto,*">
+          <TextBlock x:Name="ConditionsHeading" Classes="section" Text="欢迎条件" Margin="0,0,10,0" />
+          <TextBlock Grid.Column="1" Classes="hint" Text="满足任意一条就欢迎" />
+        </Grid>
+        <TextBlock Grid.Column="1" x:Name="ConditionCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+      </Grid>
+      <StackPanel>
+        <StackPanel x:Name="UidGroup" AutomationProperties.Name="指定观众">
+          <StackPanel x:Name="UidRows" />
+          <!-- 120 = WelcomeConditionRow's icon and name columns with their spacing (18 + 8 + 90 + 8), less the button's padding of 4, so the text lines up with the UID inputs. -->
+          <local:ListFoldButton x:Name="UidFold" Margin="120,0,0,8" />
+        </StackPanel>
+        <StackPanel x:Name="ConditionRows" />
+      </StackPanel>
+      <Grid x:Name="EmptyConditions">
+        <Rectangle Stroke="{DynamicResource Border.Control}" StrokeThickness="1" StrokeDashArray="4,3" RadiusX="8" RadiusY="8" />
+        <StackPanel Margin="18" Spacing="6">
+          <TextBlock Classes="label" Text="还没有欢迎条件" FontWeight="SemiBold" />
+          <TextBlock Classes="secondary muted" Text="现在不会欢迎任何人。点下面的“添加条件”，选要欢迎哪些观众。" TextWrapping="Wrap" />
+        </StackPanel>
+      </Grid>
+      <TextBlock x:Name="ConditionsReadOnly" Classes="hint" />
+      <Button x:Name="AddConditionButton" Content="＋ 添加条件" HorizontalAlignment="Left" ClickMode="Press">
+        <Button.Flyout>
+          <MenuFlyout Placement="BottomEdgeAlignedLeft">
+            <MenuItem Tag="{x:Static core:WelcomeCondition.Uid}" Click="AddConditionFromMenu" AutomationProperties.Name="添加指定观众条件">
+              <MenuItem.Header>
+                <StackPanel Spacing="3" Margin="0,3">
+                  <TextBlock Classes="label" Text="指定观众" />
+                  <TextBlock Classes="caption muted" Text="按 UID 欢迎，可以添加多条" />
+                </StackPanel>
+              </MenuItem.Header>
+            </MenuItem>
+            <MenuItem Tag="{x:Static core:WelcomeCondition.FanClubLevel}" Click="AddConditionFromMenu" AutomationProperties.Name="添加粉丝团等级条件">
+              <MenuItem.Header>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,3">
+                  <StackPanel Spacing="3">
+                    <TextBlock Classes="label" Text="粉丝团等级" />
+                    <TextBlock Classes="caption muted" Text="本直播间粉丝团达到某一级" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="FanClubAdded" Classes="caption muted" Text="已添加" VerticalAlignment="Center" />
+                </Grid>
+              </MenuItem.Header>
+            </MenuItem>
+            <MenuItem Tag="{x:Static core:WelcomeCondition.Guard}" Click="AddConditionFromMenu" AutomationProperties.Name="添加大航海身份条件">
+              <MenuItem.Header>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,3">
+                  <StackPanel Spacing="3">
+                    <TextBlock Classes="label" Text="大航海身份" />
+                    <TextBlock Classes="caption muted" Text="舰长、提督或总督，含更高身份" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="GuardAdded" Classes="caption muted" Text="已添加" VerticalAlignment="Center" />
+                </Grid>
+              </MenuItem.Header>
+            </MenuItem>
+            <MenuItem Tag="{x:Static core:WelcomeCondition.WealthLevel}" Click="AddConditionFromMenu" AutomationProperties.Name="添加荣耀等级条件">
+              <MenuItem.Header>
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,3">
+                  <StackPanel Spacing="3">
+                    <TextBlock Classes="label" Text="荣耀等级" />
+                    <TextBlock Classes="caption muted" Text="全站荣耀等级达到某一级" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="1" x:Name="WealthAdded" Classes="caption muted" Text="已添加" VerticalAlignment="Center" />
+                </Grid>
+              </MenuItem.Header>
+            </MenuItem>
+          </MenuFlyout>
+        </Button.Flyout>
+      </Button>
+    </StackPanel>
+  </local:SettingsPage.BodyContent>
+  <local:SettingsPage.ActivityContent>
+    <Grid RowDefinitions="Auto,*">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,18,16,2">
+        <TextBlock x:Name="RecentActivityTitle" Classes="section" Text="最近欢迎" />
+        <Panel Grid.Column="1">
+          <TextBlock x:Name="WelcomeTotal" Classes="caption muted numeric" Text="{Binding SendQueue.WelcomeCount, StringFormat=共 {0:N0} 次}" VerticalAlignment="Center" />
+        </Panel>
+      </Grid>
+      <Panel Grid.Row="1">
+        <ListBox x:Name="RecentWelcomesList" Classes="plain aside" ItemsSource="{Binding SendQueue.RecentWelcomes}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近欢迎" />
+      </Panel>
+    </Grid>
+  </local:SettingsPage.ActivityContent>
+</local:SettingsPage>

@@ -1,0 +1,155 @@
+<local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.GeneralSettingsPage">
+  <local:SettingsPage.Resources>
+    <x:String x:Key="BrowserSourceSteps">还没有推流软件连着。在直播姬里添加浏览器素材，地址填上面这个；已经加过的，右键素材 → 刷新。</x:String>
+  </local:SettingsPage.Resources>
+  <local:SettingsPage.Styles>
+    <Style Selector="Button.copy Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Copy}" />
+    </Style>
+    <Style Selector="Button.copy TextBlock">
+      <Setter Property="Text" Value="复制" />
+    </Style>
+    <Style Selector="Button.copy.copied StackPanel">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="Button.copy.copied Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Check}" />
+    </Style>
+    <Style Selector="Button.copy.copied TextBlock">
+      <Setter Property="Text" Value="已复制" />
+    </Style>
+    <Style Selector="StackPanel.pageStatus">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
+    </Style>
+    <Style Selector="StackPanel.pageStatus > Ellipse">
+      <Setter Property="Fill" Value="{DynamicResource Text.Disabled}" />
+    </Style>
+    <Style Selector="StackPanel.pageStatus.connected">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="StackPanel.pageStatus.connected > Ellipse">
+      <Setter Property="Fill" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="StackPanel.pageStatus.waiting">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Warning.Text}" />
+    </Style>
+    <Style Selector="StackPanel.pageStatus.waiting > Ellipse">
+      <Setter Property="Fill" Value="{DynamicResource Warning.Dot}" />
+    </Style>
+    <Style Selector="TextBox.address">
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontFamily" Value="Menlo, Consolas" />
+      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+    </Style>
+  </local:SettingsPage.Styles>
+  <local:SettingsPage.BodyContent>
+    <StackPanel x:Name="GeneralFields" Spacing="8">
+      <StackPanel Spacing="10" Margin="0,0,0,14">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+          <TextBlock Classes="section" Text="网页服务" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="hint" Text="直播姬里的浏览器素材从这里打开页面" VerticalAlignment="Center" />
+        </Grid>
+        <Border Classes="card notice" Classes.error="{Binding WebService.HasWebServiceError}">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+            <Panel VerticalAlignment="Top" Margin="0,1,0,0">
+              <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.WebServiceStatus.Running}"><Path Data="{StaticResource Icon.Ok}" Stroke="{DynamicResource Success}" StrokeThickness="2" /></Viewbox>
+              <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.HasWebServiceError}"><Path Data="{StaticResource Icon.Fail}" StrokeThickness="2" /></Viewbox>
+              <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.IsWebServiceOff}"><Path Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
+            </Panel>
+            <StackPanel Grid.Column="1" Spacing="4">
+              <TextBlock x:Name="WebServiceStatusText" Classes="secondary singleLine" Classes.success="{Binding WebService.WebServiceStatus.Running}" Classes.muted="{Binding WebService.IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding WebService.ServiceStatusText}" AutomationProperties.LiveSetting="Polite" />
+              <TextBlock x:Name="WebServiceHelp" Classes="caption" Foreground="{DynamicResource Text.Secondary}" LineHeight="18" TextWrapping="Wrap" Text="{Binding WebService.ServiceHelpText}"
+                IsVisible="{Binding WebService.ServiceHelpText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+          </Grid>
+        </Border>
+        <StackPanel Spacing="6">
+          <TextBlock Classes="label" Text="端口" />
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+            <NumericUpDown x:Name="WebPortInput" Minimum="1" Maximum="65535" Classes.invalid="{Binding #WebPortError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="网页服务端口" />
+            <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="改了端口，直播姬里所有浏览器素材的地址都要跟着改" VerticalAlignment="Center" IsVisible="{Binding !#WebPortError.IsVisible}" />
+            <TextBlock Grid.Column="1" x:Name="WebPortError" Classes="error" VerticalAlignment="Center" />
+          </Grid>
+          <TextBlock x:Name="WebPortReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+        </StackPanel>
+        <StackPanel Spacing="6">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+            <TextBlock Classes="label" Text="页面" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="每个页面在直播姬里各加一个浏览器素材：横屏 1920 × 1080，竖屏 1080 × 1920" VerticalAlignment="Center" />
+          </Grid>
+          <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8">
+            <StackPanel>
+            <StackPanel Spacing="8" Margin="12,10">
+              <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+                <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Animation}" Stroke="{DynamicResource Accent.Text}" /></Viewbox>
+                <TextBlock Grid.Column="1" Text="视频页" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Classes="caption muted singleLine" Text="欢迎动画在这里播放" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="3" Classes="pageStatus" Classes.connected="{Binding WebService.HasVideoConnections}" Classes.waiting="{Binding WebService.ShowVideoSetup}" Orientation="Horizontal" Spacing="6">
+                  <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
+                  <TextBlock x:Name="VideoConnectionsText" Text="{Binding WebService.VideoConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox x:Name="VideoAddress" Classes="address" Text="{Binding WebService.VideoAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="视频页地址" />
+                <Button Grid.Column="1" x:Name="CopyVideoAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.VideoAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制视频页地址">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
+                    <TextBlock VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+              </Grid>
+              <Grid x:Name="VideoSetupHelp" ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding WebService.ShowVideoSetup}" TextElement.Foreground="{DynamicResource Warning.Text}">
+                <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
+                <TextBlock Grid.Column="1" Classes="caption" LineHeight="18" TextWrapping="Wrap" Text="{StaticResource BrowserSourceSteps}" />
+              </Grid>
+            </StackPanel>
+              <Border BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0">
+            <StackPanel Spacing="8" Margin="12,10">
+              <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
+                <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Lottery}" Stroke="{DynamicResource Accent.Text}" /></Viewbox>
+                <TextBlock Grid.Column="1" Text="抽奖页" FontWeight="SemiBold" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Classes="caption muted singleLine" Text="报名、开奖和中奖名单" VerticalAlignment="Center" />
+                <StackPanel Grid.Column="3" Classes="pageStatus" Classes.connected="{Binding WebService.HasLotteryConnections}" Classes.waiting="{Binding WebService.ShowLotterySetup}" Orientation="Horizontal" Spacing="6">
+                  <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
+                  <TextBlock x:Name="LotteryConnectionsText" Text="{Binding WebService.LotteryConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                </StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                <TextBox x:Name="LotteryAddress" Classes="address" Text="{Binding WebService.LotteryAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="抽奖页地址" />
+                <Button Grid.Column="1" x:Name="CopyLotteryAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.LotteryAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制抽奖页地址">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
+                    <TextBlock VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+              </Grid>
+              <Grid x:Name="LotterySetupHelp" ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding WebService.ShowLotterySetup}" TextElement.Foreground="{DynamicResource Warning.Text}">
+                <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
+                <TextBlock Grid.Column="1" Classes="caption" LineHeight="18" TextWrapping="Wrap" Text="{StaticResource BrowserSourceSteps}" />
+              </Grid>
+            </StackPanel>
+              </Border>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </StackPanel>
+
+      <TextBlock Classes="label" Text="日志保留" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <NumericUpDown x:Name="RetentionInput" Minimum="1" Classes.invalid="{Binding #RetentionError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日志保留天数" />
+        <TextBlock Classes="label" Text="天" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="RetentionError" Classes="error" />
+      <TextBlock Classes="label" Text="级别" Margin="0,8,0,0" />
+      <ComboBox x:Name="LogLevelInput" Width="200" HorizontalAlignment="Left" AutomationProperties.Name="日志级别" />
+      <TextBlock x:Name="LogLevelReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="LogLevelError" Classes="error" />
+      <Button Content="打开设置文件" Click="OpenFile" />
+      <TextBlock x:Name="UnknownKeysMessage" Text="{Binding $parent[local:SettingsPage].UnknownKeysText}" IsVisible="{Binding $parent[local:SettingsPage].HasUnknownKeys}" Classes="secondary muted" TextWrapping="Wrap" />
+    </StackPanel>
+  </local:SettingsPage.BodyContent>
+</local:SettingsPage>

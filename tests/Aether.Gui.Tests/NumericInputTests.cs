@@ -157,13 +157,13 @@ public sealed class NumericInputTests
                         text.Text = "1.5";
                         GuiHarness.Flush();
                         Assert.Equal(Color.Parse(dark ? "#F87171" : "#B91C1C"), ColorOf(outline.BorderBrush));
-                        Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEffectivelyEnabled);
+                        Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEffectivelyEnabled);
                         Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), x => x.IsEffectivelyVisible &&
                             (x.Text?.Contains("正整数") == true || x.Text?.Contains("1–65535") == true || x.Text == "至少 1 级"));
                         text.Text = "12345";
                         GuiHarness.Flush();
                         Assert.Equal(Color.Parse(dark ? "#8DA2FB" : "#3358D4"), ColorOf(outline.BorderBrush));
-                        GuiHarness.FindVisual<Button>(page, "SaveButton").Focus();
+                        GuiHarness.FindVisual<Button>(page, "PART_SaveButton").Focus();
                         GuiHarness.Flush();
                     }
                 }

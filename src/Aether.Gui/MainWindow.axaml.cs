@@ -17,7 +17,7 @@ public partial class MainWindow : Window
     private bool followLatest = true;
     private bool scrollPending;
     private readonly string dataDirectory;
-    private readonly SettingsPage[] settingsPages;
+    private readonly GeneralSettingsPage general;
 
     public MainWindow() : this(Aether.Core.DataDirectory.Locate()) { }
 
@@ -25,15 +25,14 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         this.dataDirectory = dataDirectory;
-        settingsPages = Enum.GetValues<SettingsSection>().Select(section => new SettingsPage(dataDirectory, section)).ToArray();
-        foreach (var page in settingsPages)
-        {
-            page.IsVisible = false;
-            page.SaveCompleted += RefreshSettingsStatus;
-            page.GeneralSettingsRequested += ShowGeneralSettings;
-            PageHost.Children.Add(page);
-            if (page.Section == SettingsSection.WelcomeAnimation) PageHost.Children.Add(new LotteryPanel { IsVisible = false });
-        }
+        general = new GeneralSettingsPage(dataDirectory);
+        var animation = new WelcomeAnimationSettingsPage(dataDirectory);
+        // Navigation items and PageHost children share one order.
+        PageHost.Children.AddRange([new BlindBoxSettingsPage(dataDirectory), new WelcomeSettingsPage(dataDirectory),
+            animation, new LotteryPanel(), new SendSettingsPage(dataDirectory), general]);
+        foreach (var page in PageHost.Children.Skip(1)) page.IsVisible = false;
+        foreach (var page in PageHost.Children.OfType<SettingsPage>()) page.SaveCompleted += RefreshSettingsStatus;
+        animation.GeneralSettingsRequested += ShowGeneralSettings;
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
         // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
@@ -83,12 +82,11 @@ public partial class MainWindow : Window
         ShowGeneralSettings();
     }
 
-    private void ShowGeneralSettings() => Navigation.SelectedIndex = PageHost.Children.IndexOf(settingsPages[(int)SettingsSection.General]);
+    private void ShowGeneralSettings() => Navigation.SelectedIndex = PageHost.Children.IndexOf(general);
 
     private void Navigate(object? sender, SelectionChangedEventArgs e)
     {
-        if (settingsPages is null) return;
-        // Navigation items and PageHost children share one order, with 抽奖 after 欢迎动画.
+        if (general is null) return;
         for (var index = 0; index < PageHost.Children.Count; index++)
             PageHost.Children[index].IsVisible = index == Navigation.SelectedIndex;
         RefreshSettingsStatus();
@@ -103,7 +101,7 @@ public partial class MainWindow : Window
         ShowEnabled(WelcomeStatus, current.Error is null ? current.WelcomeEnabled.Value : null);
         ShowEnabled(AnimationStatus, current.Error is null ? current.WelcomeAnimationEnabled.Value : null);
         if (IsVisible && DataContext is MainWindowViewModel viewModel) _ = viewModel.WebService.RefreshWebServiceAsync(current);
-        foreach (var page in settingsPages) page.RefreshFileStatus(current);
+        foreach (var page in PageHost.Children.OfType<SettingsPage>()) page.RefreshFileStatus(current);
     }
 
     private static void ShowEnabled(TextBlock status, bool? enabled)
@@ -233,7 +231,7 @@ public partial class MainWindow : Window
         if (closing) return;
         closing = true;
         IsEnabled = false;
-        await Task.WhenAll(settingsPages.Select(page => page.PendingSave));
+        await Task.WhenAll(PageHost.Children.OfType<SettingsPage>().Select(page => page.PendingSave));
         if (DataContext is MainWindowViewModel viewModel) await viewModel.ShutdownAsync();
         canClose = true;
         Dispatcher.UIThread.Post(Close);

@@ -47,7 +47,7 @@ public sealed class SettingsReconnectTests
                     case 5: page.FindControl<NumericUpDown>("SendIntervalInput")!.Text = "7"; break;
                     case 6: page.FindControl<NumericUpDown>("RetentionInput")!.Text = "7"; break;
                 }
-                GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal(notice, GuiHarness.FindVisual<Border>(page, "ReconnectNotice").IsVisible);
                 viewModel.ConnectionState = RoomConnectionState.Disconnected;
                 Assert.All(window.GetVisualDescendants().OfType<SettingsPage>(),
@@ -101,7 +101,7 @@ public sealed class SettingsReconnectTests
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 page.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
-                GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.True(GuiHarness.FindVisual<Border>(page, "ReconnectNotice").IsVisible);
                 var reconnect = GuiHarness.FindVisual<Button>(page, "ReconnectButton");
                 Assert.True(reconnect.IsEnabled);

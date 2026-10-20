@@ -1,0 +1,52 @@
+<local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.SendSettingsPage">
+  <local:SettingsPage.Resources>
+    <DataTemplate x:Key="SendActivityTemplate" x:DataType="local:SendQueueItemViewModel">
+      <Border Classes="activityRow">
+        <StackPanel Spacing="4">
+          <local:ActivityHeader>
+            <TextBlock Classes="secondary" TextWrapping="Wrap"><Run Text="{Binding Nickname}" FontWeight="SemiBold" /><Run Text=" " /><Run Text="{Binding KindText}" Foreground="{DynamicResource Text.Muted}" /></TextBlock>
+            <TextBlock Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" />
+          </local:ActivityHeader>
+          <TextBlock Classes="label" Text="{Binding Text}" TextWrapping="Wrap" IsVisible="{Binding Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          <TextBlock Classes="sendStatus" Classes.sent="{Binding IsSent}" Classes.unsent="{Binding IsUnsent}" Text="{Binding Status}" />
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+  </local:SettingsPage.Resources>
+  <local:SettingsPage.BodyContent>
+    <StackPanel x:Name="SendFields" Spacing="8">
+      <TextBlock Classes="label" Text="发送间隔" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <NumericUpDown x:Name="SendIntervalInput" Minimum="1" Classes.invalid="{Binding #SendIntervalError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="发送间隔秒数" />
+        <TextBlock Classes="label" Text="秒" VerticalAlignment="Center" />
+      </StackPanel>
+      <TextBlock x:Name="SendIntervalReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="SendIntervalError" Classes="error" />
+    </StackPanel>
+  </local:SettingsPage.BodyContent>
+  <local:SettingsPage.BelowBodyContent>
+    <Grid x:Name="SendActivity" RowDefinitions="Auto,*">
+      <Grid x:Name="PendingActivity" RowDefinitions="Auto,*">
+        <Grid ColumnDefinitions="*,Auto" Margin="20,0,20,2">
+          <TextBlock Text="待发" Classes="section" />
+          <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding SendQueue.PendingSends.Count, StringFormat={}{0:N0} 条}" />
+        </Grid>
+        <Panel Grid.Row="1">
+          <TextBlock Classes="hint" Text="暂无待发弹幕" Margin="20,8,20,12" IsVisible="{Binding !SendQueue.PendingSends.Count}" />
+          <ListBox x:Name="PendingSendsList" Classes="plain" ItemsSource="{Binding SendQueue.PendingSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="待发弹幕" IsVisible="{Binding !!SendQueue.PendingSends.Count}" />
+        </Panel>
+      </Grid>
+      <Grid x:Name="RecentSendsActivity" Grid.Row="1" RowDefinitions="Auto,*" Margin="0,12,0,0">
+        <Grid x:Name="RecentSendsHeader" ColumnDefinitions="*,Auto" Margin="20,0,20,2">
+          <TextBlock Text="最近发送" Classes="section" />
+          <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding SendQueue.RecentSends.Count, StringFormat={}{0:N0} 条}" />
+        </Grid>
+        <Panel Grid.Row="1">
+          <TextBlock Classes="hint" Text="暂无发送记录" Margin="20,8,20,12" IsVisible="{Binding !SendQueue.RecentSends.Count}" />
+          <ListBox x:Name="RecentSendsList" Classes="plain" ItemsSource="{Binding SendQueue.RecentSends}" ItemTemplate="{StaticResource SendActivityTemplate}" AutomationProperties.Name="最近发送" IsVisible="{Binding !!SendQueue.RecentSends.Count}" />
+        </Panel>
+      </Grid>
+    </Grid>
+  </local:SettingsPage.BelowBodyContent>
+</local:SettingsPage>
