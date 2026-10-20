@@ -1140,6 +1140,49 @@ public sealed class SettingsPageTests
     }
 
     [Fact]
+    public Task Welcome_text_accessible_names_follow_the_remaining_rows_after_removal() =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), null, (page, _) =>
+        {
+            var add = page.FindControl<Button>("AddWelcomeTextButton")!;
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            var rows = WelcomeTextList.Rows(page);
+            Assert.Equal(3, rows.Length);
+            Assert.IsAssignableFrom<IInvokeProvider>(
+                ControlAutomationPeer.CreatePeerForElement(rows[0].FindControl<Button>("RemoveButton")!)).Invoke();
+            GuiHarness.Flush();
+            rows = WelcomeTextList.Rows(page);
+            Assert.Equal(2, rows.Length);
+            Assert.Equal(["第 1 条欢迎语", "第 2 条欢迎语"],
+                rows.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("ValueInput")!)));
+            Assert.Equal(["删除第 1 条欢迎语", "删除第 2 条欢迎语"],
+                rows.Select(row => AutomationProperties.GetName(row.FindControl<Button>("RemoveButton")!)));
+        });
+
+    [Theory]
+    [InlineData("InsertNicknameButton", 1, 2, "欢迎{昵称}回家", 6)]
+    [InlineData("InsertAtButton", 1, 3, "{@}欢迎回家", 3)]
+    public Task Welcome_placeholder_insertion_collapses_the_selection(
+        string buttonName, int selectionStart, int selectionEnd, string expectedText, int expectedCaret) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), null, (page, _) =>
+        {
+            var text = WelcomeTextList.Input(page);
+            text.Text = "欢迎回家";
+            text.Focus();
+            text.CaretIndex = selectionEnd;
+            text.SelectionStart = selectionStart;
+            text.SelectionEnd = selectionEnd;
+            page.FindControl<Button>(buttonName)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.Equal(expectedText, text.Text);
+            Assert.Equal(expectedCaret, text.CaretIndex);
+            Assert.Equal(expectedCaret, text.SelectionStart);
+            Assert.Equal(expectedCaret, text.SelectionEnd);
+            Assert.True(text.IsFocused);
+        });
+
+    [Fact]
     public Task Welcome_insert_buttons_use_caret_and_at_viewer_is_inserted_only_once() => WithSettingsPage(dir => new WelcomeSettingsPage(dir), null, (page, path) =>
     {
         var text = WelcomeTextList.Input(page);
