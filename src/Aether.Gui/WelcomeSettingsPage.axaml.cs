@@ -12,6 +12,10 @@ public partial class WelcomeSettingsPage : SettingsPage
         InitializeComponent();
         Title = "进场欢迎";
         Bind(WelcomeInput, WelcomeReadOnly, WelcomeError, s => s.WelcomeEnabled);
+        WelcomeTextRows.ItemsSource = WelcomeTexts;
+        WelcomeTextRows.GotFocus += WelcomeTextGotFocus;
+        WelcomeTexts.CollectionChanged += WelcomeTextsChanged;
+        WelcomeTexts.RowChanged += Validate;
         WelcomeTextFold.Toggled += RefreshWelcomeTextFold;
         UidFold.Toggled += RefreshUidFold;
         LoadSettings();
