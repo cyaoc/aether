@@ -14,6 +14,8 @@ public partial class WelcomeAnimationSettingsPage : SettingsPage
     {
         this.pickAnimationVideo = pickAnimationVideo;
         InitializeComponent();
+        AnimationRows.ItemsSource = Animations;
+        Animations.RowChanged += Validate;
         Title = "欢迎动画";
         Bind(AnimationInput, AnimationReadOnly, null, s => s.WelcomeAnimationEnabled);
         AddAnimationButton.Click += async (_, _) => await ChooseAnimationAsync();

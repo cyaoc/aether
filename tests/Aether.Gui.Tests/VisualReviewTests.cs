@@ -384,9 +384,11 @@ public sealed class VisualReviewTests
                         .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     GuiHarness.Flush();
                     row = kind == "text" ? GuiHarness.FindRowControl<TextBox>(page, WelcomeTextList.Rows(page)[1], "ValueInput").GetVisualAncestors().OfType<EditableRowFrame>().Single()
-                        : page.FindControl<StackPanel>("AnimationRows")!.Children.Single();
+                        : GuiHarness.FindRowControl<TextBox>(page, ((WelcomeAnimationSettingsPage)page).Animations.Single(), "UidInput").GetVisualAncestors().OfType<EditableRowFrame>().Single();
                 }
-                var input = kind == "text" ? WelcomeTextList.Input(page, 1) : row.FindControl<TextBox>("UidInput")!;
+                var input = kind == "text" ? WelcomeTextList.Input(page, 1)
+                    : kind == "animation" ? GuiHarness.FindRowControl<TextBox>(page, ((WelcomeAnimationSettingsPage)page).Animations.Single(), "UidInput")
+                    : row.FindControl<TextBox>("UidInput")!;
                 Capture("new", false);
                 page.FindControl<Button>(kind == "animation" ? "AddAnimationButton" : "AddWelcomeTextButton")!.Focus();
                 Capture("empty-blurred", true);
@@ -506,13 +508,14 @@ public sealed class VisualReviewTests
                 Capture("stopped");
                 viewModel.WebService.Apply(new WelcomeAnimationPlayback("real", 1234567890123456, videos[1234567890123456], false, PlaybackState.Playing));
                 Capture("entry-playing");
-                var rows = page.FindControl<StackPanel>("AnimationRows")!.Children.Cast<WelcomeAnimationRow>().ToArray();
-                rows[0].FindControl<TextBox>("UidInput")!.Text = "";
-                rows[1].FindControl<TextBox>("UidInput")!.Text = "not-a-uid";
-                rows[2].FindControl<TextBox>("UidInput")!.Text = "13579";
+                var rows = page.Animations.ToArray();
+                GuiHarness.FindRowControl<TextBox>(page, rows[0], "UidInput").Text = "";
+                GuiHarness.FindRowControl<TextBox>(page, rows[1], "UidInput").Text = "not-a-uid";
+                GuiHarness.FindRowControl<TextBox>(page, rows[2], "UidInput").Text = "13579";
                 Capture("row-errors");
                 // Reload after deleting the fixture mappings to show the first-use state.
-                foreach (var row in rows) row.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                foreach (var row in rows) Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                    GuiHarness.FindRowControl<Button>(page, row, "RemoveButton"))).Invoke();
                 page.FindControl<ToggleSwitch>("AnimationInput")!.IsChecked = false;
                 GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await GuiHarness.WaitForAsync(() => page.IsEnabled);

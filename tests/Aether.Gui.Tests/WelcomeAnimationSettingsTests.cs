@@ -30,17 +30,17 @@ public sealed class WelcomeAnimationSettingsTests
             Add(page, "43");
             Add(page, "44");
             Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
-                Rows(page)[0].FindControl<Button>("RemoveButton")!)).Invoke();
+                GuiHarness.FindRowControl<Button>(page, Rows(page)[0], "RemoveButton"))).Invoke();
             GuiHarness.Flush();
             var remaining = Rows(page);
             Assert.Equal(new[] { "观众 UID", "观众 UID" },
-                remaining.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("UidInput")!)));
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<TextBox>(page, row, "UidInput"))));
             Assert.Equal(new[] { "更换43 的视频：video.mp4", "更换44 的视频：video.mp4" },
-                remaining.Select(row => AutomationProperties.GetName(row.FindControl<Button>("FileButton")!)));
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<Button>(page, row, "FileButton"))));
             Assert.Equal(new[] { "试播43 的欢迎动画", "试播44 的欢迎动画" },
-                remaining.Select(row => AutomationProperties.GetName(row.FindControl<Button>("TestButton")!)));
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<Button>(page, row, "TestButton"))));
             Assert.Equal(new[] { "删除43 的欢迎动画", "删除44 的欢迎动画" },
-                remaining.Select(row => AutomationProperties.GetName(row.FindControl<Button>("RemoveButton")!)));
+                remaining.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<Button>(page, row, "RemoveButton"))));
         }
         finally { window.Close(); GuiHarness.Flush(); }
         return true;
@@ -132,7 +132,7 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            Click(Rows(page)[0], "FileButton");
+            Click(page, Rows(page)[0], "FileButton");
             if (fail) { Add(page, "43"); File.Delete(missing); }
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
@@ -166,32 +166,32 @@ public sealed class WelcomeAnimationSettingsTests
             Add(page, "42");
             Click(page, "AddAnimationButton");
             var row = Rows(page)[1];
-            var input = row.FindControl<TextBox>("UidInput")!;
+            var input = GuiHarness.FindRowControl<TextBox>(page, row, "UidInput");
             Assert.True(input.IsFocused);
-            Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.DoesNotContain("error", row.FindControl<Grid>("RowNote")!.Classes);
+            Assert.Equal("保存后才能试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            Assert.DoesNotContain("error", GuiHarness.FindRowControl<Grid>(page, row, "RowNote").Classes);
             Assert.DoesNotContain("invalid", input.Classes);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             input.Text = uid;
             GuiHarness.Flush();
-            Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Equal("保存后才能试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             Assert.False(row.CanTest);
-            Rows(page)[0].FocusInput();
+            GuiHarness.FindRowControl<TextBox>(page, Rows(page)[0], "UidInput").Focus();
             GuiHarness.Flush();
-            Assert.Contains(hint, row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.Contains("error", row.FindControl<Grid>("RowNote")!.Classes);
+            Assert.Contains(hint, GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            Assert.Contains("error", GuiHarness.FindRowControl<Grid>(page, row, "RowNote").Classes);
             Assert.Contains("invalid", input.Classes);
             input.Focus();
             input.Text = "43";
             GuiHarness.Flush();
-            Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.DoesNotContain("error", row.FindControl<Grid>("RowNote")!.Classes);
+            Assert.Equal("保存后才能试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            Assert.DoesNotContain("error", GuiHarness.FindRowControl<Grid>(page, row, "RowNote").Classes);
             Assert.DoesNotContain("invalid", input.Classes);
             Assert.True(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             input.Text = uid;
             GuiHarness.Flush();
-            Assert.Contains(hint, row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Contains(hint, GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             Assert.Contains("invalid", input.Classes);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             Assert.False(row.CanTest);
@@ -212,19 +212,19 @@ public sealed class WelcomeAnimationSettingsTests
         try
         {
             var row = Assert.Single(Rows(page));
-            var input = row.FindControl<TextBox>("UidInput")!;
+            var input = GuiHarness.FindRowControl<TextBox>(page, row, "UidInput");
             input.Focus();
             input.Text = "";
             GuiHarness.Flush();
-            Assert.Equal("填一个 UID，或删掉这条", row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.Contains("error", row.FindControl<Grid>("RowNote")!.Classes);
+            Assert.Equal("填一个 UID，或删掉这条", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            Assert.Contains("error", GuiHarness.FindRowControl<Grid>(page, row, "RowNote").Classes);
             Assert.Contains("invalid", input.Classes);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             Assert.False(row.CanTest);
             input.Text = "43";
             GuiHarness.Flush();
-            Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.DoesNotContain("error", row.FindControl<Grid>("RowNote")!.Classes);
+            Assert.Equal("保存后才能试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            Assert.DoesNotContain("error", GuiHarness.FindRowControl<Grid>(page, row, "RowNote").Classes);
             Assert.DoesNotContain("invalid", input.Classes);
             Assert.True(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
         }
@@ -248,7 +248,7 @@ public sealed class WelcomeAnimationSettingsTests
         try
         {
             var row = Rows(page).Single();
-            var button = row.FindControl<Button>("TestButton")!;
+            var button = GuiHarness.FindRowControl<Button>(page, row, "TestButton");
             Assert.False(button.IsEnabled);
             viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
             Assert.True(button.IsEnabled);
@@ -257,36 +257,36 @@ public sealed class WelcomeAnimationSettingsTests
             viewModel.WebService.Apply(new WelcomeAnimationPlayback("other", 43, "other.mp4", false, PlaybackState.Completed));
             Assert.True(button.IsEnabled);
             viewModel.WebService.Apply(new WelcomeAnimationPlayback("one", 42, "video.mp4", true, PlaybackState.Playing));
-            Assert.Equal("停止", row.FindControl<TextBlock>("TestText")!.Text);
-            Assert.Contains("正在直播姬里试播", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Equal("停止", GuiHarness.FindRowControl<TextBlock>(page, row, "TestText").Text);
+            Assert.Contains("正在直播姬里试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             Assert.True(button.IsEnabled);
             Assert.Contains("stoppable", button.Classes);
             viewModel.WebService.Apply(new WelcomeAnimationPlayback("one", 42, "video.mp4", true, PlaybackState.NoReport));
-            Assert.DoesNotContain("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.DoesNotContain("上次播放失败", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             Assert.True(button.IsEnabled);
             viewModel.WebService.Apply(new WelcomeAnimationPlayback("failure", 42, "video.mp4", true, PlaybackState.Failed));
-            Assert.Contains("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.Contains("H.264", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Contains("上次播放失败", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            Assert.Contains("H.264", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             viewModel.WebService.Apply(new WelcomeAnimationPlayback("success", 42, "video.mp4", true, PlaybackState.Playing));
-            Assert.Equal("停止", row.FindControl<TextBlock>("TestText")!.Text);
-            Assert.Contains("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Equal("停止", GuiHarness.FindRowControl<TextBlock>(page, row, "TestText").Text);
+            Assert.Contains("上次播放失败", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             viewModel.WebService.Apply(new WelcomeAnimationPlayback("success", 42, "video.mp4", true, PlaybackState.Completed));
-            Assert.Contains("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Contains("上次播放失败", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             viewModel.WebService.Apply(new WelcomeAnimationPlayback("real", 42, "video.mp4", false, PlaybackState.Playing));
-            Assert.Equal("播放中", row.FindControl<TextBlock>("TestText")!.Text);
+            Assert.Equal("播放中", GuiHarness.FindRowControl<TextBlock>(page, row, "TestText").Text);
             Assert.False(button.IsEnabled);
             viewModel.WebService.Apply(new WelcomeAnimationPlayback("real", 42, "video.mp4", false, PlaybackState.Completed));
             File.Delete(path);
             viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
             Assert.False(button.IsEnabled);
-            Assert.Contains("找不到视频文件", row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.NotNull(row.FindControl<TextBlock>("FileNameText")!.TextDecorations);
-            Click(row, "FileButton");
+            Assert.Contains("找不到视频文件", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            Assert.NotNull(GuiHarness.FindRowControl<TextBlock>(page, row, "FileNameText").TextDecorations);
+            Click(page, row, "FileButton");
             Assert.False(button.IsEnabled);
-            Assert.Contains("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
-            Assert.DoesNotContain("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Contains("保存后才能试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            Assert.DoesNotContain("上次播放失败", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             await Save(page);
-            Assert.DoesNotContain("上次播放失败", Rows(page).Single().FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.DoesNotContain("上次播放失败", GuiHarness.FindRowControl<TextBlock>(page, Rows(page).Single(), "RowMessage").Text);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
@@ -309,9 +309,9 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.False(page.FindControl<ToggleSwitch>("AnimationInput")!.IsEnabled);
             Assert.True(general.FindControl<NumericUpDown>("WebPortInput")!.IsReadOnly);
             Assert.False(general.FindControl<NumericUpDown>("WebPortInput")!.AllowSpin);
-            Assert.True(Rows(page).Single().FindControl<TextBox>("UidInput")!.IsReadOnly);
-            Assert.False(Rows(page).Single().FindControl<Button>("FileButton")!.IsEnabled);
-            Assert.Contains("设置文件", Rows(page).Single().FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.True(GuiHarness.FindRowControl<TextBox>(page, Rows(page).Single(), "UidInput").IsReadOnly);
+            Assert.False(GuiHarness.FindRowControl<Button>(page, Rows(page).Single(), "FileButton").IsEnabled);
+            Assert.Contains("设置文件", GuiHarness.FindRowControl<TextBlock>(page, Rows(page).Single(), "RowMessage").Text);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
         }
         finally { window.Close(); GuiHarness.Flush(); }
@@ -367,7 +367,7 @@ public sealed class WelcomeAnimationSettingsTests
             var saved = Settings.Load(harness.DataDirectory);
             Assert.Equal("欢迎.mp4", saved.WelcomeAnimationVideos[42].Value);
             Assert.Equal("欢迎 (2).mp4", saved.WelcomeAnimationVideos[43].Value);
-            Click(Rows(page)[0], "FileButton");
+            Click(page, Rows(page)[0], "FileButton");
             await Save(page);
             saved = Settings.Load(harness.DataDirectory);
             Assert.Equal("欢迎.mp4", saved.WelcomeAnimationVideos[42].Value);
@@ -375,14 +375,14 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("second video", File.ReadAllText(Copy(harness, "欢迎 (2).mp4")));
             // A mapping added in the settings file after this draft was opened must keep its shared video.
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.44"] = "欢迎.mp4" });
-            Click(Rows(page)[0], "RemoveButton");
+            Click(page, Rows(page)[0], "RemoveButton");
             await Save(page);
             Assert.Equal("replacement video", File.ReadAllText(Copy(harness, "欢迎.mp4")));
             Assert.Equal("欢迎.mp4", Settings.Load(harness.DataDirectory).WelcomeAnimationVideos[44].Value);
-            Click(Rows(page).Single(row => row.Uid == 43), "RemoveButton");
+            Click(page, Rows(page).Single(row => row.Uid == 43), "RemoveButton");
             await Save(page);
             Assert.False(File.Exists(Copy(harness, "欢迎 (2).mp4")));
-            Click(Rows(page).Single(), "RemoveButton");
+            Click(page, Rows(page).Single(), "RemoveButton");
             await Save(page);
             Assert.False(File.Exists(Copy(harness, "欢迎.mp4")));
             Assert.Empty(Settings.Load(harness.DataDirectory).WelcomeAnimationVideos);
@@ -403,12 +403,18 @@ public sealed class WelcomeAnimationSettingsTests
     }
 
     private static string Copy(GuiHarness harness, string name) => Path.Combine(harness.DataDirectory, "videos", name);
-    private static WelcomeAnimationRow[] Rows(SettingsPage page) => page.FindControl<StackPanel>("AnimationRows")!.Children.Cast<WelcomeAnimationRow>().ToArray();
+    private static WelcomeAnimationRow[] Rows(SettingsPage page) => ((WelcomeAnimationSettingsPage)page).Animations.ToArray();
     private static void Click(Control control, string name) { control.FindControl<Button>(name)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); GuiHarness.Flush(); }
+    private static void Click(SettingsPage page, WelcomeAnimationRow row, string name)
+    {
+        Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+            GuiHarness.FindRowControl<Button>(page, row, name))).Invoke();
+        GuiHarness.Flush();
+    }
     private static void Add(SettingsPage page, string uid)
     {
         Click(page, "AddAnimationButton");
-        Rows(page)[^1].FindControl<TextBox>("UidInput")!.Text = uid;
+        GuiHarness.FindRowControl<TextBox>(page, Rows(page)[^1], "UidInput").Text = uid;
         GuiHarness.Flush();
     }
     private static async Task Save(SettingsPage page)
@@ -555,7 +561,7 @@ public sealed class WelcomeAnimationSettingsTests
                 Assert.Equal(1, viewModel.WebService.WebServiceStatus.VideoConnections);
                 Assert.Equal(enabled, Rows(animation).Single().CanTest);
             }
-            Click(Rows(animation).Single(), "TestButton");
+            Click(animation, Rows(animation).Single(), "TestButton");
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             string? line;
             do { line = await reader.ReadLineAsync(deadline.Token); } while (line is not null && !line.StartsWith("data: "));
@@ -566,14 +572,14 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("trial video", await http.GetStringAsync(viewModel.WebService.VideoAddressText + "/files/" + id));
             await GuiHarness.WaitForAsync(() => viewModel.WebService.RecentAnimations.Single().Playback.State == PlaybackState.Playing);
             var playingRow = Rows(animation).Single();
-            Assert.Equal("停止", playingRow.FindControl<TextBlock>("TestText")!.Text);
-            Click(playingRow, "TestButton");
+            Assert.Equal("停止", GuiHarness.FindRowControl<TextBlock>(animation, playingRow, "TestText").Text);
+            Click(animation, playingRow, "TestButton");
             do { line = await reader.ReadLineAsync(deadline.Token); } while (line is not null && line != "event: stop");
             Assert.Equal("event: stop", line);
             using var stopped = JsonDocument.Parse((await reader.ReadLineAsync(deadline.Token))![6..]);
             Assert.Equal(id, stopped.RootElement.GetProperty("id").GetString());
             await GuiHarness.WaitForAsync(() => viewModel.WebService.RecentAnimations.Single().Playback.State == PlaybackState.Stopped);
-            Assert.Equal("试播", playingRow.FindControl<TextBlock>("TestText")!.Text);
+            Assert.Equal("试播", GuiHarness.FindRowControl<TextBlock>(animation, playingRow, "TestText").Text);
             Click(animation, "OpenGeneralSettingsButton");
             Assert.Equal(6, window.Navigation.SelectedIndex);
             var nextPort = FreePort();
@@ -678,7 +684,7 @@ public sealed class WelcomeAnimationSettingsTests
             GuiHarness.Flush();
             Assert.True(viewModel.WebService.HasVideoConnections);
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            if (draft) Rows(page).Single().FindControl<TextBox>("UidInput")!.Text = "44";
+            if (draft) GuiHarness.FindRowControl<TextBox>(page, Rows(page).Single(), "UidInput").Text = "44";
             GuiHarness.Flush();
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.42"] = "new.mp4" });
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.43"] = "new.mp4" });
@@ -691,13 +697,13 @@ public sealed class WelcomeAnimationSettingsTests
             {
                 var row = Assert.Single(Rows(page));
                 Assert.Equal("old.mp4", row.FileName);
-                Assert.False(row.FindControl<Button>("TestButton")!.IsEnabled);
-                Assert.Contains("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
+                Assert.False(GuiHarness.FindRowControl<Button>(page, row, "TestButton").IsEnabled);
+                Assert.Contains("保存后才能试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
                 Assert.False(viewModel.WebService.AnimationBusy);
                 return true;
             }
-            Assert.All(Rows(page), row => Assert.True(row.FindControl<Button>("TestButton")!.IsEnabled));
-            Click(Rows(page).Single(row => row.Uid == 43), "TestButton");
+            Assert.All(Rows(page), row => Assert.True(GuiHarness.FindRowControl<Button>(page, row, "TestButton").IsEnabled));
+            Click(page, Rows(page).Single(row => row.Uid == 43), "TestButton");
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             string? line;
             do { line = await reader.ReadLineAsync(deadline.Token); } while (line is not null && !line.StartsWith("data: "));
@@ -727,14 +733,14 @@ public sealed class WelcomeAnimationSettingsTests
         {
             page.FindControl<Button>("AddAnimationButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            var row = Assert.Single(page.FindControl<StackPanel>("AnimationRows")!.Children);
-            Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
-            Assert.Equal("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
+            var row = Assert.Single(Rows(page));
+            Assert.Equal("", GuiHarness.FindRowControl<TextBox>(page, row, "UidInput").Text);
+            Assert.Equal("保存后才能试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             Assert.False(Directory.Exists(Path.Combine(harness.DataDirectory, "videos")));
-            row.FindControl<TextBox>("UidInput")!.Text = "42";
+            GuiHarness.FindRowControl<TextBox>(page, row, "UidInput").Text = "42";
             GuiHarness.Flush();
-            Assert.Contains("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
+            Assert.Contains("保存后才能试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             Assert.True(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => page.IsEnabled);
