@@ -9,14 +9,11 @@ public partial class LotteryViewModel
     private string? loadedPoolId;
     private long? loadedPoolRoom;
     private bool loadingPool;
-    [ObservableProperty] private bool busy;
     [ObservableProperty] private string? uid = "";
     [ObservableProperty] private string? stopWord = LotteryController.DefaultStopWord;
     [ObservableProperty] private string? poolLotteryError;
     public EditableRows<PoolPrizeRow> Prizes { get; } = new(1) { new(LotteryController.DefaultPrize, isNew: true) };
 
-    private bool CanBeginOperation => !Busy && LotteryState.Connected;
-    private bool CanControlOperation => !Busy && LotteryState.CanControl;
     public bool PoolSpinning => LotteryState.Lottery is PoolLottery { Phase: PoolLotteryPhase.Spinning };
     public bool PoolDrawing => LotteryState.Lottery is PoolLottery { IsDrawing: true };
     public bool PoolIdle => LotteryState.Lottery is not EntryLottery && !PoolSpinning && !PoolDrawing;
@@ -52,7 +49,6 @@ public partial class LotteryViewModel
         }
     }
 
-    partial void OnBusyChanged(bool value) => RefreshPoolInputs();
     partial void OnUidChanged(string? value) => RefreshPoolInputs();
     partial void OnStopWordChanged(string? value) => RefreshPoolInputs();
 

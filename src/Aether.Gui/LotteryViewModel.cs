@@ -21,11 +21,16 @@ public partial class LotteryViewModel : ObservableObject
         this.saveSettings = saveSettings;
         this.shutdown = shutdown;
         Prizes.RowChanged += RefreshPoolInputs;
+        Awards.RowChanged += RefreshEntryInputs;
         RefreshPoolInputs();
+        RefreshEntryInputs();
     }
 
     private readonly LatestRun lotteryUpdates = new();
     private Task lotteryChange = Task.CompletedTask;
+    [ObservableProperty] private bool busy;
+    private bool CanBeginOperation => !Busy && LotteryState.Connected;
+    private bool CanControlOperation => !Busy && LotteryState.CanControl;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LotteryPhaseText), nameof(PoolDraws), nameof(ShowLatestPoolDraw),
         nameof(LatestPoolDrawHead), nameof(LatestPoolDrawGrade), nameof(LatestPoolDrawPrize),
@@ -39,7 +44,14 @@ public partial class LotteryViewModel : ObservableObject
     partial void OnLotteryStateChanged(LotteryState value)
     {
         RefreshPoolForm();
+        RefreshEntryForm();
         UpdateEntryRows(value);
+    }
+
+    partial void OnBusyChanged(bool value)
+    {
+        RefreshPoolInputs();
+        RefreshEntryInputs();
     }
 
     /// <summary>The sidebar shows the phase only while a draw is under way.</summary>

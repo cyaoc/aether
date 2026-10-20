@@ -68,7 +68,7 @@ public partial class LotteryPanel : UserControl
         try { await change(viewModel.Lottery); }
         catch (Exception error)
         {
-            if (EntryContent.IsVisible) EntryContent.ShowError(error.Message);
+            if (EntryContent.IsVisible) viewModel.Lottery.EntryLotteryError = error.Message;
             else viewModel.Lottery.PoolLotteryError = error.Message;
         }
     }
