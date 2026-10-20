@@ -418,9 +418,9 @@ public sealed class SendQueuePageTests
             Assert.Contains("欢迎回来", GuiHarness.VisibleText(window));
             Assert.DoesNotContain(GuiHarness.VisibleText(window), text => text?.StartsWith("观众2") == true);
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(control => control.IsEffectivelyVisible);
-            var activity = page.FindControl<Border>("RecentActivity")!;
+            var activity = GuiHarness.FindVisual<Border>(page, "RecentActivity");
             var activityOrigin = activity.TranslatePoint(new Point(), page)!.Value;
-            var save = page.FindControl<Button>("SaveButton")!;
+            var save = GuiHarness.FindVisual<Button>(page, "SaveButton");
             var saveOrigin = save.TranslatePoint(new Point(), page)!.Value;
             Assert.Equal(300, activity.Bounds.Width);
             Assert.True(activityOrigin.X >= saveOrigin.X + save.Bounds.Width);

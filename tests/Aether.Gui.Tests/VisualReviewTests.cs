@@ -511,10 +511,10 @@ public sealed class VisualReviewTests
                 // Reload after deleting the fixture mappings to show the first-use state.
                 foreach (var row in rows) row.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 page.FindControl<ToggleSwitch>("AnimationInput")!.IsChecked = false;
-                page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await GuiHarness.WaitForAsync(() => page.IsEnabled);
                 viewModel.WebService.RecentAnimations.Clear();
-                page.FindControl<TextBlock>("Message")!.Text = "";
+                GuiHarness.FindVisual<TextBlock>(page, "Message").Text = "";
                 viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0));
                 GuiHarness.Flush();
                 // Settle the transition, then redraw its final edges instead of reusing an intermediate frame.
@@ -751,7 +751,7 @@ public sealed class VisualReviewTests
             var welcome = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             WelcomeTextList.Input(welcome).Text = "欢迎{昵称}回到直播间";
             GuiHarness.Flush();
-            welcome.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(welcome, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Capture("welcome-reconnect");
             var add = welcome.FindControl<Button>("AddConditionButton")!;
             var menu = Menu(welcome);
@@ -776,8 +776,9 @@ public sealed class VisualReviewTests
             File.WriteAllText(path, "log:\n  level: @bad\n");
             navigation.SelectedIndex = 6;
             GuiHarness.Flush();
-            var fileMessage = window.GetVisualDescendants().OfType<SettingsPage>()
-                .Single(page => page.Section == SettingsSection.General).FindControl<TextBlock>("FileMessage")!;
+            var general = window.GetVisualDescendants().OfType<SettingsPage>()
+                .Single(page => page.Section == SettingsSection.General);
+            var fileMessage = GuiHarness.FindVisual<TextBlock>(general, "FileMessage");
             Assert.Contains(harness.DataDirectory, fileMessage.Text);
             // Keep the real parse error while removing the per-run temporary directory from its fixture text.
             fileMessage.Text = fileMessage.Text!.Replace(harness.DataDirectory, "/aether-visual-review");
@@ -800,7 +801,7 @@ public sealed class VisualReviewTests
         foreach (var page in topLevel.GetVisualDescendants().OfType<SettingsPage>().Where(p => p.IsEffectivelyVisible))
         {
             // Verify visible ink as well as layout metrics on the uniform page header.
-            var caption = page.FindControl<TextBlock>("TimingHint")!;
+            var caption = GuiHarness.FindVisual<TextBlock>(page, "TimingHint");
             var origin = caption.TranslatePoint(default, topLevel)!.Value;
             using var pixels = bitmap.Lock();
             Assert.Equal(32, pixels.Format.BitsPerPixel);
