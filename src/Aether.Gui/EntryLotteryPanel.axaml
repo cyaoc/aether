@@ -94,7 +94,7 @@
         <ScrollViewer Grid.Row="1" MaxHeight="210" HorizontalScrollBarVisibility="Disabled">
           <StackPanel Margin="16,0,16,12">
             <TextBlock x:Name="EmptyWinners" Classes="hint" Text="截止报名后开奖，中奖的人会列在这里" IsVisible="{Binding Lottery.IsEntryWinnersEmpty}" />
-            <ItemsControl x:Name="WinnerGroups" ItemsSource="{Binding Lottery.EntryWinnerGroups}" ItemTemplate="{StaticResource WinnerGroupTemplate}">
+            <ItemsControl x:Name="WinnerGroups" ItemsSource="{Binding Lottery.EntryWinnerGroups}" ItemTemplate="{StaticResource WinnerGroupTemplate}" ClipToBounds="False">
               <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="4" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
             </ItemsControl>
           </StackPanel>

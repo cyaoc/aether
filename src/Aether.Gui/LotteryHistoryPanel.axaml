@@ -96,7 +96,7 @@
           <TextBlock x:Name="ReturnHint" Classes="caption muted" Text="连接该直播间后可回到本场" IsVisible="{Binding Lottery.ShowReturnToCurrentHint}" />
           <StackPanel Spacing="8">
             <TextBlock Classes="secondary" FontWeight="SemiBold" Text="中奖名单" />
-            <ItemsControl x:Name="WinnerGroups" ItemsSource="{Binding Lottery.HistoryWinnerGroups}" ItemTemplate="{StaticResource WinnerGroupTemplate}">
+            <ItemsControl x:Name="WinnerGroups" ItemsSource="{Binding Lottery.HistoryWinnerGroups}" ItemTemplate="{StaticResource WinnerGroupTemplate}" ClipToBounds="False">
               <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
             </ItemsControl>
           </StackPanel>

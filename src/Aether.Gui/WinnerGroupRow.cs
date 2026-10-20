@@ -7,5 +7,5 @@ public sealed record WinnerGroupRow(string Award, string Prize, string Progress,
 
 public sealed record WinnerRow(string Name, string? Hint = null, bool Fresh = false)
 {
-    public string ToolTip => Hint is null ? Name : $"{Name} · {Hint}";
+    public string? ToolTip => Hint is null ? null : $"{Name} · {Hint}";
 }

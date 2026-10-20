@@ -6,7 +6,7 @@ namespace Aether.Gui;
 public partial class LotteryHistoryPanel : UserControl
 {
     private MainWindowViewModel? viewModel;
-    private bool loading;
+    private string? selection;
     internal event Action? ReturnRequested;
 
     public LotteryHistoryPanel()
@@ -14,8 +14,12 @@ public partial class LotteryHistoryPanel : UserControl
         InitializeComponent();
         LotteryList.SelectionChanged += async (_, _) =>
         {
-            if (!loading && viewModel is not null && LotteryList.SelectedItem is LotteryHistoryRow item)
+            // Replacing ItemsSource restores the same Id with a new row; that must not start another read.
+            if (viewModel is not null && LotteryList.SelectedItem is LotteryHistoryRow item && item.Id != selection)
+            {
+                selection = item.Id;
                 await viewModel.Lottery.RefreshLotteryHistoryAsync(item.Id);
+            }
         };
         ReturnButton.Click += (_, _) => { if (ReturnButton.IsEnabled) ReturnRequested?.Invoke(); };
         RetryButton.Click += async (_, _) => { if (viewModel is not null) await viewModel.Lottery.RefreshLotteryHistoryAsync(); };
@@ -26,6 +30,7 @@ public partial class LotteryHistoryPanel : UserControl
         base.OnDataContextChanged(e);
         if (viewModel is not null) viewModel.Lottery.PropertyChanged -= Changed;
         viewModel = DataContext as MainWindowViewModel;
+        selection = null;
         if (viewModel is not null) viewModel.Lottery.PropertyChanged += Changed;
         Refresh();
     }
@@ -38,8 +43,7 @@ public partial class LotteryHistoryPanel : UserControl
     private void Refresh()
     {
         if (viewModel is null || LotteryList is null || viewModel.Lottery.LotteryHistoryLoading) return;
-        loading = true;
-        LotteryList.SelectedItem = viewModel.Lottery.LotteryHistoryRows.FirstOrDefault(row => row.Id == viewModel.Lottery.SelectedLotteryHistory?.Id);
-        loading = false;
+        selection = viewModel.Lottery.SelectedLotteryHistory?.Id;
+        LotteryList.SelectedItem = viewModel.Lottery.LotteryHistoryRows.FirstOrDefault(row => row.Id == selection);
     }
 }
