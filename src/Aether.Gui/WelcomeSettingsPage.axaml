@@ -10,7 +10,7 @@
             <Border Grid.Column="2" Height="1" Background="{DynamicResource Border.Subtle}" VerticalAlignment="Center" />
           </Grid>
           <Grid ColumnDefinitions="18,90,*,Auto" RowDefinitions="Auto,Auto,Auto" ColumnSpacing="8" Margin="0,8">
-            <Viewbox x:Name="TypeIconBox" IsVisible="{Binding HasHeading}" Classes="icon"><Path x:Name="TypeIcon" Data="{Binding Icon}" Stroke="{DynamicResource Text.Muted}" /></Viewbox>
+            <Viewbox x:Name="TypeIconBox" IsVisible="{Binding HasHeading}" Classes="icon"><Path x:Name="TypeIcon" Data="{Binding Icon}" TextElement.Foreground="{DynamicResource Text.Muted}" /></Viewbox>
             <TextBlock Grid.Column="1" x:Name="TypeName" Text="{Binding Name}" IsVisible="{Binding HasHeading}" Classes="label" VerticalAlignment="Center" />
             <Grid Grid.Column="2">
               <TextBox x:Name="UidInput" Classes="numeric rowFocus" Text="{Binding Uid, Mode=TwoWay}" IsVisible="{Binding IsUid}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding #ErrorMessage.IsVisible}" MaxWidth="200" HorizontalAlignment="Stretch" PlaceholderText="输入 UID" AutomationProperties.Name="指定观众 UID" />
