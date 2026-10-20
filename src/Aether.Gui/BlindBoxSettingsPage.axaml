@@ -1,0 +1,48 @@
+<local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.BlindBoxSettingsPage">
+  <local:SettingsPage.HeaderContent>
+    <StackPanel x:Name="BlindBoxHeader" VerticalAlignment="Center">
+      <ToggleSwitch Classes="plain" x:Name="BlindBoxInput" AutomationProperties.Name="记录盲盒" />
+    </StackPanel>
+  </local:SettingsPage.HeaderContent>
+  <local:SettingsPage.HeaderNote>
+    <StackPanel Margin="20,0">
+      <TextBlock x:Name="BlindBoxReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="BlindBoxError" Classes="error" />
+    </StackPanel>
+  </local:SettingsPage.HeaderNote>
+  <local:SettingsPage.BodyContent>
+    <StackPanel x:Name="BlindBoxFields" Spacing="8">
+      <TextBlock Classes="label" Text="今日查询关键字" />
+      <TextBox x:Name="DailyKeywordInput" Width="240" HorizontalAlignment="Left" AutomationProperties.Name="今日查询关键字" />
+      <TextBlock x:Name="DailyKeywordReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="DailyKeywordError" Classes="error" />
+      <TextBlock Classes="label" Text="本月查询关键字" Margin="0,8,0,0" />
+      <TextBox x:Name="MonthlyKeywordInput" Width="240" HorizontalAlignment="Left" AutomationProperties.Name="本月查询关键字" />
+      <TextBlock x:Name="MonthlyKeywordReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="MonthlyKeywordError" Classes="error" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,10,0,0" IsEnabled="{Binding $parent[local:SettingsPage].FileError, Converter={x:Static ObjectConverters.IsNull}}">
+        <StackPanel Spacing="4">
+          <TextBlock Classes="label" Text="盲盒播报" />
+          <TextBlock Classes="hint" Text="送完一轮后，自动播报本轮盈亏" />
+        </StackPanel>
+        <ToggleSwitch Grid.Column="1" Classes="plain" x:Name="AnnounceInput" AutomationProperties.Name="盲盒播报" />
+      </Grid>
+      <TextBlock x:Name="AnnounceReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="AnnounceError" Classes="error" />
+    </StackPanel>
+  </local:SettingsPage.BodyContent>
+  <local:SettingsPage.ActivityContent>
+    <Grid RowDefinitions="Auto,*">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,18,16,2">
+        <TextBlock x:Name="RecentActivityTitle" Classes="section" Text="最近回复和播报" />
+        <Panel Grid.Column="1">
+          <TextBlock Classes="caption muted numeric" Text="{Binding SendQueue.RecentQueriesAndAnnouncements.Count, StringFormat={}{0:N0} 条}" VerticalAlignment="Center" />
+        </Panel>
+      </Grid>
+      <Panel Grid.Row="1">
+        <ListBox x:Name="RecentQueriesAndAnnouncementsList" Classes="plain aside" ItemsSource="{Binding SendQueue.RecentQueriesAndAnnouncements}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近回复和播报" />
+      </Panel>
+    </Grid>
+  </local:SettingsPage.ActivityContent>
+</local:SettingsPage>

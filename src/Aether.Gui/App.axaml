@@ -10,6 +10,7 @@
       </FluentTheme.Palettes>
     </FluentTheme>
     <StyleInclude Source="avares://Aether.Gui/Theme.axaml" />
+    <StyleInclude Source="avares://Aether.Gui/SettingsPage.axaml" />
     <Style Selector=":is(Window)">
       <Setter Property="Icon" Value="avares://Aether.Gui/Assets/aether.ico" />
     </Style>

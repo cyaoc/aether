@@ -363,9 +363,9 @@ public sealed class VisualReviewTests
             Directory.CreateDirectory(harness.DataDirectory);
             var video = Path.Combine(harness.DataDirectory, "欢迎动画.mp4");
             File.WriteAllText(video, "video");
-            var page = new SettingsPage(harness.DataDirectory,
-                kind == "animation" ? SettingsSection.WelcomeAnimation : SettingsSection.Welcome,
-                () => Task.FromResult<string?>(video));
+            SettingsPage page = kind == "animation"
+                ? new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(video))
+                : new WelcomeSettingsPage(harness.DataDirectory);
             var window = new Window
             {
                 Content = page, Width = 736, Height = 640,
@@ -438,7 +438,7 @@ public sealed class VisualReviewTests
                 await viewModel.ReadAccountCommand.ExecutionTask!;
                 window.Navigation.SelectedIndex = 2;
                 GuiHarness.Flush();
-                var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.Section == SettingsSection.Welcome);
+                var page = window.GetVisualDescendants().OfType<WelcomeSettingsPage>().Single();
                 Capture("three");
                 page.FindControl<Button>("AddWelcomeTextButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Capture("empty-row");
@@ -486,7 +486,7 @@ public sealed class VisualReviewTests
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
                 window.Navigation.SelectedIndex = 3;
-                var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.Section == SettingsSection.WelcomeAnimation);
+                var page = window.GetVisualDescendants().OfType<WelcomeAnimationSettingsPage>().Single();
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
                 foreach (var (state, index) in new[] { PlaybackState.Completed, PlaybackState.Failed, PlaybackState.NoReport, PlaybackState.Skipped, PlaybackState.Queued }.Select((state, index) => (state, index)))
                     viewModel.WebService.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
@@ -511,7 +511,7 @@ public sealed class VisualReviewTests
                 // Reload after deleting the fixture mappings to show the first-use state.
                 foreach (var row in rows) row.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 page.FindControl<ToggleSwitch>("AnimationInput")!.IsChecked = false;
-                GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await GuiHarness.WaitForAsync(() => page.IsEnabled);
                 viewModel.WebService.RecentAnimations.Clear();
                 GuiHarness.FindVisual<TextBlock>(page, "Message").Text = "";
@@ -751,7 +751,7 @@ public sealed class VisualReviewTests
             var welcome = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             WelcomeTextList.Input(welcome).Text = "欢迎{昵称}回到直播间";
             GuiHarness.Flush();
-            GuiHarness.FindVisual<Button>(welcome, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(welcome, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Capture("welcome-reconnect");
             var add = welcome.FindControl<Button>("AddConditionButton")!;
             var menu = Menu(welcome);
@@ -776,8 +776,7 @@ public sealed class VisualReviewTests
             File.WriteAllText(path, "log:\n  level: @bad\n");
             navigation.SelectedIndex = 6;
             GuiHarness.Flush();
-            var general = window.GetVisualDescendants().OfType<SettingsPage>()
-                .Single(page => page.Section == SettingsSection.General);
+            var general = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
             var fileMessage = GuiHarness.FindVisual<TextBlock>(general, "FileMessage");
             Assert.Contains(harness.DataDirectory, fileMessage.Text);
             // Keep the real parse error while removing the per-run temporary directory from its fixture text.
