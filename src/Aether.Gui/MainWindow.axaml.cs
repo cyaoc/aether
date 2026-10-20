@@ -27,10 +27,11 @@ public partial class MainWindow : Window
         this.dataDirectory = dataDirectory;
         general = new GeneralSettingsPage(dataDirectory);
         var animation = new WelcomeAnimationSettingsPage(dataDirectory);
-        // Navigation items and PageHost children share one order.
-        PageHost.Children.AddRange([new BlindBoxSettingsPage(dataDirectory), new WelcomeSettingsPage(dataDirectory),
-            animation, new LotteryPanel(), new SendSettingsPage(dataDirectory), general]);
-        foreach (var page in PageHost.Children.Skip(1)) page.IsVisible = false;
+        // Navigation items and PageHost children share one order, after the danmaku page.
+        Control[] pages = [new BlindBoxSettingsPage(dataDirectory), new WelcomeSettingsPage(dataDirectory),
+            animation, new LotteryPanel(), new SendSettingsPage(dataDirectory), general];
+        foreach (var page in pages) page.IsVisible = false;
+        PageHost.Children.AddRange(pages);
         foreach (var page in PageHost.Children.OfType<SettingsPage>()) page.SaveCompleted += RefreshSettingsStatus;
         animation.GeneralSettingsRequested += ShowGeneralSettings;
         RefreshSettingsStatus();

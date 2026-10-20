@@ -20,9 +20,10 @@ public partial class GeneralSettingsPage : SettingsPage
         Title = "通用设置";
         TimingHint = "端口保存后立即生效；日志设置重启后生效";
         LogLevelInput.ItemsSource = Settings.LogLevels;
-        Bind(WebPortInput, WebPortReadOnly, WebPortError, s => s.WebServicePort);
+        // Save appends missing groups in this order, so log stays ahead of web_service.
         Bind(RetentionInput, RetentionReadOnly, RetentionError, s => s.LogRetentionDays);
         Bind(LogLevelInput, LogLevelReadOnly, LogLevelError, s => s.LogLevel);
+        Bind(WebPortInput, WebPortReadOnly, WebPortError, s => s.WebServicePort);
         DetachedFromVisualTree += (_, _) =>
         {
             foreach (var (button, timer) in copyFeedback) { timer.Dispose(); button.Classes.Set("copied", false); }
@@ -32,7 +33,7 @@ public partial class GeneralSettingsPage : SettingsPage
     }
 
     protected override bool ReconnectAfterSave => false;
-    protected override bool KeepMessage => true;
+    protected override bool KeepMessageUntilEdited => true;
     private bool PortChanged => settings.WebServicePort.CanEdit && WebPortInput.Text != original.GetValueOrDefault(settings.WebServicePort.Name);
     protected override string DirtyDescription => PortChanged ? "保存后网页服务换到新端口，直播姬里的地址要跟着改" : base.DirtyDescription;
 

@@ -32,7 +32,7 @@
           </StackPanel>
           <Grid Grid.Row="2" x:Name="PART_PageLayout" ColumnDefinitions="*,Auto" RowDefinitions="*,0">
             <Grid RowDefinitions="*,Auto">
-              <Grid x:Name="PART_FieldsAndSendActivity" RowDefinitions="*,0">
+              <Grid x:Name="PART_BodyLayout" RowDefinitions="*,0">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" Padding="20,18">
                   <StackPanel>
                     <ContentPresenter Content="{TemplateBinding BodyContent}" />

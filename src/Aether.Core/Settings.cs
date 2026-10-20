@@ -114,7 +114,7 @@ public sealed class Settings
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
     private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("welcome_animation.enabled", false));
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
-    private static readonly KeyedGroupDefinition AnimationVideos = Register(new KeyedGroupDefinition("welcome_animation_videos"));
+    private static readonly VideoGroupDefinition AnimationVideos = Register(new VideoGroupDefinition("welcome_animation_videos"));
     /// <summary>Adding a setting means registering its definition here, adding its property and a line in Template,
     /// then a Bind call in its GUI settings page (composite settings need their row code instead).
     /// The GUI coverage test catches settings omitted from the pages.</summary>
@@ -218,23 +218,19 @@ public sealed class Settings
         var current = Load(dataDirectory, definitions);
         if (current.Error is { } error) throw error;
         // A value the file or the snapshot already holds is no change, and keeps its spelling: '7', 007 and 7 are the same.
-        changes = changes.Where(change =>
+        var resolved = changes.Select(change =>
         {
             var definition = Find(definitions, change.Key)!;
-            var name = definition.Resolve(change.Key)!;
-            if (change.Value is null) return current.values.ContainsKey(name);
-            return !definition.Holds(current, name, change.Value) && !(snapshot is not null && definition.Holds(snapshot, name, change.Value));
-        }).ToDictionary();
+            return (Definition: definition, Name: definition.Resolve(change.Key)!, change.Value);
+        }).Where(change => change.Value is null
+            ? current.values.ContainsKey(change.Name)
+            : !change.Definition.Holds(current, change.Name, change.Value)
+                && !(snapshot is not null && change.Definition.Holds(snapshot, change.Name, change.Value))).ToArray();
         var tokens = Scan(current.source);
         var edits = new List<(int Start, int Length, string Value)>();
         var newline = NewlineOf(current.source);
         var rootIndent = current.root is { Children.Count: > 0 } ? IndentOf(current.root) : 0;
-        foreach (var groupChanges in changes.Select(change =>
-        {
-            var definition = Find(definitions, change.Key)!;
-            return (Definition: definition, Name: definition.Resolve(change.Key)!, change.Value);
-        })
-            .GroupBy(change => change.Definition.Group))
+        foreach (var groupChanges in resolved.GroupBy(change => change.Definition.Group))
             EditGroup(groupChanges.Key, groupChanges);
         if (edits.Count == 0) return;
         var text = current.source;
@@ -604,7 +600,9 @@ public sealed class Settings
         }
     }
 
-    internal sealed class KeyedGroupDefinition(string name) : Definition(name)
+    /// <summary>The welcome animation videos: a group whose keys are viewer UIDs read from the file, each mapped to a video file name.
+    /// Numeric aliases such as 007 and 7 name the same item, and null deletes one.</summary>
+    internal sealed class VideoGroupDefinition(string name) : Definition(name)
     {
         private sealed class GroupValues
         {
@@ -612,36 +610,44 @@ public sealed class Settings
             public Dictionary<long, Setting<string>> Items { get; } = [];
         }
 
-        private GroupValues Get(Settings settings)
+        private static readonly GroupValues Unread = new();
+
+        // Reads never add the group, so a Settings that has not loaded it stays unchanged.
+        private GroupValues Read(Settings settings) => settings.values.TryGetValue(Name, out var value) ? (GroupValues)value : Unread;
+
+        private GroupValues Write(Settings settings)
         {
             if (!settings.values.TryGetValue(Name, out var value)) settings.values[Name] = value = new GroupValues();
             return (GroupValues)value;
         }
 
-        public IReadOnlyDictionary<long, Setting<string>> Items(Settings settings) => Get(settings).Items;
+        public IReadOnlyDictionary<long, Setting<string>> Items(Settings settings) => Read(settings).Items;
         public string ItemName(long uid) => Name + "." + uid.ToString(CultureInfo.InvariantCulture);
         public override bool Contains(string name) => name.StartsWith(Name + ".", StringComparison.Ordinal);
-        public override string? Resolve(string name) =>
-            Contains(name) && Viewer.TryParseUid(name[(Name.Length + 1)..], out var uid) ? ItemName(uid) : null;
+        private bool TryParseUid(string name, out long uid)
+        {
+            uid = 0;
+            return Contains(name) && Viewer.TryParseUid(name[(Name.Length + 1)..], out uid);
+        }
+        public override string? Resolve(string name) => TryParseUid(name, out var uid) ? ItemName(uid) : null;
         private Definition<string> Item(string name) => RequiredText(Resolve(name)!, "", ValidateVideoFileName);
         public override string? Validate(string name, string? text) => text is null ? null : Item(name).Validate(name, text);
         public override string Format(string name, string text) => Item(name).Format(name, text);
         public override string ValueText(Settings settings, string name) => Item(name).ValueText(settings, name);
         public override bool CanEdit(Settings settings, string? name = null) =>
-            Get(settings).CanEdit && (name is null || Item(name).CanEdit(settings));
-        public override void MarkEditable(Settings settings, bool canEdit) => Get(settings).CanEdit = canEdit;
+            Read(settings).CanEdit && (name is null || Item(name).CanEdit(settings));
+        public override void MarkEditable(Settings settings, bool canEdit) => Write(settings).CanEdit = canEdit;
 
         public override string? ReadKey(Settings settings, string name, YamlNode key, YamlNode node,
             bool canEdit, bool singleLine, HashSet<string> seenNames)
         {
-            if (Resolve(name) is not { } resolved) return "UID 必须为 int64 范围内的正整数。";
-            var item = Item(resolved);
+            if (!TryParseUid(name, out var uid)) return "UID 必须为 int64 范围内的正整数。";
+            var item = Item(name);
             string? reason = null;
-            if (!seenNames.Add(resolved)) reason = "UID 重复，请只保留一项。";
+            if (!seenNames.Add(item.Name)) reason = "UID 重复，请只保留一项。";
             else if (!singleLine || item.Read(settings, node, canEdit && key.Anchor.IsEmpty, singleLine) is { })
                 reason = "必须是单行的纯文件名，扩展名为 .mp4 或 .webm，不能带路径。";
-            Viewer.TryParseUid(resolved[(Name.Length + 1)..], out var uid);
-            Get(settings).Items[uid] = settings.Get(item);
+            Write(settings).Items[uid] = settings.Get(item);
             return reason;
         }
     }

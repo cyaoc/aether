@@ -1,5 +1,5 @@
 <local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.GeneralSettingsPage">
+  xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.GeneralSettingsPage">
   <local:SettingsPage.Resources>
     <x:String x:Key="BrowserSourceSteps">还没有推流软件连着。在直播姬里添加浏览器素材，地址填上面这个；已经加过的，右键素材 → 刷新。</x:String>
   </local:SettingsPage.Resources>
@@ -46,7 +46,7 @@
     </Style>
   </local:SettingsPage.Styles>
   <local:SettingsPage.BodyContent>
-    <StackPanel x:Name="GeneralFields" Spacing="8">
+    <StackPanel Spacing="8">
       <StackPanel Spacing="10" Margin="0,0,0,14">
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
           <TextBlock Classes="section" Text="网页服务" VerticalAlignment="Center" />

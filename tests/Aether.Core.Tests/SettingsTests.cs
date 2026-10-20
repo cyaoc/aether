@@ -210,7 +210,7 @@ public sealed class SettingsTests : IAsyncDisposable
         foreach (var line in File.ReadAllText(SettingsPath).ReplaceLineEndings("\n").Split('\n'))
             if (Regex.Match(line, @"^(\w+):$") is { Success: true } header) templateGroup = header.Groups[1].Value;
             else if (Regex.Match(line, @"^  (\w+):") is { Success: true } key) templateNames.Add(templateGroup + "." + key.Groups[1].Value);
-        Assert.Equal(Settings.AllDefinitions.Where(definition => definition.Name.Contains('.')).Select(definition => definition.Name).Order(), templateNames.Order());
+        Assert.Equal(Settings.AllDefinitions.Where(definition => definition is not Settings.VideoGroupDefinition).Select(definition => definition.Name).Order(), templateNames.Order());
         // Keep every group present so Load cannot fill it from Template and hide a mismatched definition default.
         Write(string.Concat(Settings.AllDefinitions.Select(definition => definition.Group).Distinct().Select(group => group + ":\n")));
         var missing = Settings.Load(harness.DataDirectory);
@@ -219,7 +219,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(Values(fromTemplate), Values(missing));
 
         static IEnumerable<(string, string)> Values(Settings settings) =>
-            Settings.AllDefinitions.Where(definition => definition.Name.Contains('.'))
+            Settings.AllDefinitions.Where(definition => definition is not Settings.VideoGroupDefinition)
                 .Select(definition => (definition.Name, definition.ValueText(settings, definition.Name)));
     }
 

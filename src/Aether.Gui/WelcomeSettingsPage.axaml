@@ -1,7 +1,7 @@
 <local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.WelcomeSettingsPage">
   <local:SettingsPage.HeaderContent>
-    <StackPanel x:Name="WelcomeHeader" VerticalAlignment="Center">
+    <StackPanel VerticalAlignment="Center">
       <ToggleSwitch Classes="plain" x:Name="WelcomeInput" AutomationProperties.Name="进场欢迎" />
     </StackPanel>
   </local:SettingsPage.HeaderContent>
@@ -12,7 +12,7 @@
     </StackPanel>
   </local:SettingsPage.HeaderNote>
   <local:SettingsPage.BodyContent>
-    <StackPanel x:Name="WelcomeFields" Spacing="8">
+    <StackPanel Spacing="8">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
         <Grid ColumnDefinitions="Auto,*">
           <TextBlock Classes="section" Text="欢迎语" Margin="0,0,8,0" />
@@ -110,9 +110,9 @@
   <local:SettingsPage.ActivityContent>
     <Grid RowDefinitions="Auto,*">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,18,16,2">
-        <TextBlock x:Name="RecentActivityTitle" Classes="section" Text="最近欢迎" />
+        <TextBlock Classes="section" Text="最近欢迎" />
         <Panel Grid.Column="1">
-          <TextBlock x:Name="WelcomeTotal" Classes="caption muted numeric" Text="{Binding SendQueue.WelcomeCount, StringFormat=共 {0:N0} 次}" VerticalAlignment="Center" />
+          <TextBlock Classes="caption muted numeric" Text="{Binding SendQueue.WelcomeCount, StringFormat=共 {0:N0} 次}" VerticalAlignment="Center" />
         </Panel>
       </Grid>
       <Panel Grid.Row="1">

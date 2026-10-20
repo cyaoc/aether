@@ -514,7 +514,7 @@ public sealed class WelcomeAnimationSettingsTests
             await GuiHarness.WaitForAsync(() => viewModel.WebService.HasVideoConnections);
             window.Navigation.SelectedIndex = 3;
             var animation = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            Assert.False(general.FindControl<NumericUpDown>("WebPortInput")!.IsEffectivelyVisible);
+            Assert.Null(animation.FindControl<NumericUpDown>("WebPortInput"));
             foreach (var enabled in new[] { true, false, true })
             {
                 animation.FindControl<ToggleSwitch>("AnimationInput")!.IsChecked = enabled;
@@ -552,9 +552,9 @@ public sealed class WelcomeAnimationSettingsTests
             GuiHarness.FindVisual<Button>(general, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             await GuiHarness.WaitForAsync(() => general.IsEnabled);
-            // Other settings pages also notify after a saved snapshot is loaded; they are not edits to this page.
-            var blindBox = window.GetVisualDescendants().OfType<BlindBoxSettingsPage>().Single();
-            blindBox.FindControl<TextBox>("DailyKeywordInput")!.Text = "延迟的文本通知";
+            // Rereading the saved file validates the page again; that is not an edit, so the result stays.
+            window.Navigation.SelectedIndex = 5;
+            window.Navigation.SelectedIndex = 6;
             GuiHarness.Flush();
             Assert.Equal("已保存，网页服务已换到新端口", GuiHarness.FindVisual<TextBlock>(general, "Message").Text);
             Assert.Equal(nextPort, viewModel.WebService.WebServiceStatus.Port);

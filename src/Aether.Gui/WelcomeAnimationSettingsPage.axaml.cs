@@ -21,7 +21,7 @@ public partial class WelcomeAnimationSettingsPage : SettingsPage
     }
 
     private void OpenGeneralSettings(object? sender, RoutedEventArgs e) => GeneralSettingsRequested?.Invoke();
-    protected override bool KeepMessage => true;
+    protected override bool KeepMessageUntilEdited => true;
     protected override void LoadRows() => LoadAnimations();
     protected override bool RowsChanged => AnimationDraft;
     protected override bool ShowRowErrors() => RefreshAnimations();

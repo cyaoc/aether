@@ -1,5 +1,5 @@
 <local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.WelcomeAnimationSettingsPage">
+  xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.WelcomeAnimationSettingsPage">
   <local:SettingsPage.Resources>
     <DataTemplate x:Key="AnimationActivityTemplate" x:DataType="local:WelcomeAnimationItem">
       <Border Classes="activityRow">
@@ -60,12 +60,12 @@
     </Style>
   </local:SettingsPage.Styles>
   <local:SettingsPage.HeaderContent>
-    <StackPanel x:Name="AnimationHeader" VerticalAlignment="Center">
+    <StackPanel VerticalAlignment="Center">
       <ToggleSwitch Classes="plain" x:Name="AnimationInput" AutomationProperties.Name="欢迎动画" />
     </StackPanel>
   </local:SettingsPage.HeaderContent>
   <local:SettingsPage.BodyContent>
-    <StackPanel x:Name="AnimationFields" Spacing="10">
+    <StackPanel Spacing="10">
       <TextBlock x:Name="AnimationReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
       <Border Classes="card notice" Padding="12,8,8,8" Classes.warning="{Binding WebService.ShowVideoSetup}" Classes.error="{Binding WebService.HasWebServiceError}">
         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
@@ -116,9 +116,9 @@
   <local:SettingsPage.ActivityContent>
     <Grid RowDefinitions="Auto,*">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,18,16,2">
-        <TextBlock x:Name="RecentActivityTitle" Classes="section" Text="最近播放" />
+        <TextBlock Classes="section" Text="最近播放" />
         <Panel Grid.Column="1">
-          <TextBlock x:Name="AnimationTotal" Classes="caption muted numeric" Text="{Binding WebService.RecentAnimations.Count, StringFormat=共 {0:N0} 次}" IsVisible="{Binding !!WebService.RecentAnimations.Count}" VerticalAlignment="Center" />
+          <TextBlock Classes="caption muted numeric" Text="{Binding WebService.RecentAnimations.Count, StringFormat=共 {0:N0} 次}" IsVisible="{Binding !!WebService.RecentAnimations.Count}" VerticalAlignment="Center" />
         </Panel>
       </Grid>
       <Panel Grid.Row="1">

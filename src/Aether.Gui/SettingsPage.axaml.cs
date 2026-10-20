@@ -62,7 +62,7 @@ public abstract class SettingsPage : TemplatedControl
     public bool IsDirty { get => GetValue(IsDirtyProperty); protected set => SetValue(IsDirtyProperty, value); }
 
     public static readonly StyledProperty<string> DirtyTextProperty =
-        AvaloniaProperty.Register<SettingsPage, string>(nameof(DirtyText), "有未保存的修改");
+        AvaloniaProperty.Register<SettingsPage, string>(nameof(DirtyText), "");
     public string DirtyText { get => GetValue(DirtyTextProperty); protected set => SetValue(DirtyTextProperty, value); }
 
     public static readonly StyledProperty<bool> CanSaveProperty =
@@ -99,7 +99,7 @@ public abstract class SettingsPage : TemplatedControl
         if (saveButton is not null) saveButton.Click += Save;
         recentActivity = e.NameScope.Find<Border>("PART_RecentActivity");
         pageLayout = e.NameScope.Find<Grid>("PART_PageLayout");
-        if (e.NameScope.Find<Grid>("PART_FieldsAndSendActivity") is { } fields)
+        if (e.NameScope.Find<Grid>("PART_BodyLayout") is { } fields)
         {
             fields.RowDefinitions[0].Height = BelowBodyContent is null ? GridLength.Star : GridLength.Auto;
             fields.RowDefinitions[1].Height = BelowBodyContent is null ? new GridLength(0) : GridLength.Star;
@@ -119,7 +119,7 @@ public abstract class SettingsPage : TemplatedControl
     }
 
     protected virtual bool ReconnectAfterSave => true;
-    protected virtual bool KeepMessage => false;
+    protected virtual bool KeepMessageUntilEdited => false;
     protected virtual string DirtyDescription => "有未保存的修改";
     protected virtual bool RowsChanged => false;
     protected virtual void LoadRows() { }
@@ -242,7 +242,7 @@ public abstract class SettingsPage : TemplatedControl
         IsDirty = RowsChanged || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
         DirtyText = DirtyDescription;
         CanSave = FileError is null && error is null && !invalidRows && IsDirty;
-        if (!KeepMessage || IsDirty) Message = "";
+        if (!KeepMessageUntilEdited || IsDirty) Message = "";
     }
 
     /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>

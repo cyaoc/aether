@@ -1,7 +1,7 @@
 <local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:local="using:Aether.Gui" xmlns:core="clr-namespace:Aether.Core;assembly=Aether.Core" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.BlindBoxSettingsPage">
+  xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.BlindBoxSettingsPage">
   <local:SettingsPage.HeaderContent>
-    <StackPanel x:Name="BlindBoxHeader" VerticalAlignment="Center">
+    <StackPanel VerticalAlignment="Center">
       <ToggleSwitch Classes="plain" x:Name="BlindBoxInput" AutomationProperties.Name="记录盲盒" />
     </StackPanel>
   </local:SettingsPage.HeaderContent>
@@ -12,7 +12,7 @@
     </StackPanel>
   </local:SettingsPage.HeaderNote>
   <local:SettingsPage.BodyContent>
-    <StackPanel x:Name="BlindBoxFields" Spacing="8">
+    <StackPanel Spacing="8">
       <TextBlock Classes="label" Text="今日查询关键字" />
       <TextBox x:Name="DailyKeywordInput" Width="240" HorizontalAlignment="Left" AutomationProperties.Name="今日查询关键字" />
       <TextBlock x:Name="DailyKeywordReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
@@ -35,7 +35,7 @@
   <local:SettingsPage.ActivityContent>
     <Grid RowDefinitions="Auto,*">
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,18,16,2">
-        <TextBlock x:Name="RecentActivityTitle" Classes="section" Text="最近回复和播报" />
+        <TextBlock Classes="section" Text="最近回复和播报" />
         <Panel Grid.Column="1">
           <TextBlock Classes="caption muted numeric" Text="{Binding SendQueue.RecentQueriesAndAnnouncements.Count, StringFormat={}{0:N0} 条}" VerticalAlignment="Center" />
         </Panel>
