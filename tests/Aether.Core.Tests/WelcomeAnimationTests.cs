@@ -646,7 +646,7 @@ public sealed class WelcomeAnimationTests
         foreach (var uid in uids)
         {
             File.WriteAllText(Path.Combine(h.DataDirectory, "videos", $"{uid}.mp4"), uid.ToString());
-            Settings.SaveWelcomeAnimationVideo(h.DataDirectory, uid, $"{uid}.mp4");
+            Settings.Save(h.DataDirectory, new Dictionary<string, string> { [$"welcome_animation_videos.{uid}"] = $"{uid}.mp4" });
         }
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
     }

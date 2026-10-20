@@ -2,32 +2,16 @@ using System.Globalization;
 using Aether.Core;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Input.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 
 namespace Aether.Gui;
 
-public partial class SettingsPage
+public partial class WelcomeAnimationSettingsPage
 {
     private readonly Func<Task<string?>>? pickAnimationVideo;
-    private readonly Dictionary<Button, IDisposable> copyFeedback = [];
     private IEnumerable<WelcomeAnimationRow> Animations => AnimationRows.Children.Cast<WelcomeAnimationRow>();
     private string AnimationDirectory => Settings.VideoDirectory(dataDirectory);
-
-    private async void CopyPageAddress(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (sender is not Button button) return;
-        try
-        {
-            if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;
-            await clipboard.SetTextAsync(button.Tag as string ?? "");
-            if (copyFeedback.Remove(button, out var pending)) pending.Dispose();
-            button.Classes.Set("copied", true);
-            copyFeedback[button] = DispatcherTimer.RunOnce(() => { button.Classes.Set("copied", false); copyFeedback.Remove(button); }, TimeSpan.FromSeconds(2));
-        }
-        catch (Exception error) { Message.Text = $"复制地址失败：{error.Message}"; }
-    }
 
     private void LoadAnimations()
     {
@@ -90,7 +74,7 @@ public partial class SettingsPage
             if (path is null) return;
             if (Settings.ValidateVideoFileName(Path.GetFileName(path)) is { } reason)
             {
-                Message.Text = reason;
+                Message = reason;
                 return;
             }
             row ??= InsertAnimation("", Path.GetFileName(path), true, isNew: true);
@@ -101,7 +85,7 @@ public partial class SettingsPage
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
         {
-            Message.Text = $"选择视频失败：{error.Message}";
+            Message = $"选择视频失败：{error.Message}";
         }
     }
 

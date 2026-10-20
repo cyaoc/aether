@@ -1,0 +1,130 @@
+<local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.WelcomeAnimationSettingsPage">
+  <local:SettingsPage.Resources>
+    <DataTemplate x:Key="AnimationActivityTemplate" x:DataType="local:WelcomeAnimationItem">
+      <Border Classes="activityRow">
+        <StackPanel Spacing="4">
+          <local:ActivityHeader>
+            <TextBlock Classes="secondary" TextWrapping="Wrap"><Run Text="{Binding Name}" FontWeight="SemiBold" /><Run Text="{Binding Detail, StringFormat=' {0}', TargetNullValue=''}" Foreground="{DynamicResource Text.Muted}" FontFeatures="tnum" /></TextBlock>
+            <TextBlock Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" />
+          </local:ActivityHeader>
+          <TextBlock Classes="label singleLine" Text="{Binding Playback.FileName}" />
+          <Grid Classes="playbackStatus" Classes.playing="{Binding Playing}" Classes.completed="{Binding Completed}" Classes.failed="{Binding Failed}"
+            Classes.unplayed="{Binding Unplayed}" Classes.skipped="{Binding PreviousPending}" Classes.stopped="{Binding Stopped}" ColumnDefinitions="Auto,*" ColumnSpacing="5">
+            <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path StrokeThickness="2" /></Viewbox>
+            <TextBlock Grid.Column="1" x:Name="PlaybackStatus" Text="{Binding Status}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+          </Grid>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+  </local:SettingsPage.Resources>
+  <local:SettingsPage.Styles>
+    <Style Selector="Grid.playbackStatus">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Clock}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.playing Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Wave}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.completed">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.completed Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Check}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.failed">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Danger}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.failed Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Fail}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.unplayed">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Warning.Text}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.unplayed Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Alert}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.skipped">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.skipped Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Skip}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.stopped">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.stopped Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Stop}" />
+    </Style>
+  </local:SettingsPage.Styles>
+  <local:SettingsPage.HeaderContent>
+    <StackPanel VerticalAlignment="Center">
+      <ToggleSwitch Classes="plain" x:Name="AnimationInput" AutomationProperties.Name="欢迎动画" />
+    </StackPanel>
+  </local:SettingsPage.HeaderContent>
+  <local:SettingsPage.BodyContent>
+    <StackPanel Spacing="10">
+      <TextBlock x:Name="AnimationReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <Border Classes="card notice" Padding="12,8,8,8" Classes.warning="{Binding WebService.ShowVideoSetup}" Classes.error="{Binding WebService.HasWebServiceError}">
+        <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+          <Panel>
+            <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.HasVideoConnections}"><Path Data="{StaticResource Icon.Ok}" Stroke="{DynamicResource Success}" StrokeThickness="2" /></Viewbox>
+            <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.ShowVideoSetup}"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
+            <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.HasWebServiceError}"><Path Data="{StaticResource Icon.Fail}" StrokeThickness="2" /></Viewbox>
+            <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.IsWebServiceOff}"><Path Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
+          </Panel>
+          <TextBlock Grid.Column="1" x:Name="VideoPageStatusText" Classes="secondary singleLine" Classes.success="{Binding WebService.HasVideoConnections}" Classes.muted="{Binding WebService.IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding WebService.VideoPageText}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+          <Button Grid.Column="2" x:Name="OpenGeneralSettingsButton" Classes="ghost" Height="30" Padding="8,0" Foreground="{DynamicResource Accent.Text}" Click="OpenGeneralSettings">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="地址和端口在通用设置" FontSize="13" VerticalAlignment="Center" />
+              <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Next}" StrokeThickness="2" /></Viewbox>
+            </StackPanel>
+          </Button>
+        </Grid>
+      </Border>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,12,0,0">
+        <Grid ColumnDefinitions="Auto,*">
+          <TextBlock Classes="section" Text="观众" Margin="0,0,8,0" />
+          <TextBlock Grid.Column="1" Classes="hint" Text="进场时在直播画面上播放各自的视频" />
+        </Grid>
+        <TextBlock Grid.Column="1" x:Name="AnimationCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+      </Grid>
+      <Border x:Name="AnimationRowsBorder" BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8">
+        <StackPanel x:Name="AnimationRows" />
+      </Border>
+      <Grid x:Name="EmptyAnimations">
+        <Rectangle Stroke="{DynamicResource Border.Control}" StrokeThickness="1" StrokeDashArray="4,3" RadiusX="8" RadiusY="8" />
+        <StackPanel Margin="16,22" Spacing="4" HorizontalAlignment="Center">
+          <TextBlock Classes="label" Text="还没有观众" FontWeight="SemiBold" HorizontalAlignment="Center" />
+          <TextBlock Classes="caption muted singleLine" Text="点下面的“添加观众”，选一个视频、填上 UID，这位观众进场时就会播放。" TextAlignment="Center" LineHeight="18" />
+        </StackPanel>
+      </Grid>
+      <TextBlock x:Name="AnimationVideosReadOnly" Classes="hint" IsVisible="False" Text="这些映射不能逐行编辑，请在设置文件里改" />
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+        <Button x:Name="AddAnimationButton" HorizontalAlignment="Left" Padding="10,0,12,0">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" /></Viewbox>
+            <TextBlock Text="添加观众" VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+        <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="选 MP4 或 WebM，保存时复制到数据目录" VerticalAlignment="Center" />
+      </Grid>
+    </StackPanel>
+  </local:SettingsPage.BodyContent>
+  <local:SettingsPage.ActivityContent>
+    <Grid RowDefinitions="Auto,*">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,18,16,2">
+        <TextBlock Classes="section" Text="最近播放" />
+        <Panel Grid.Column="1">
+          <TextBlock Classes="caption muted numeric" Text="{Binding WebService.RecentAnimations.Count, StringFormat=共 {0:N0} 次}" IsVisible="{Binding !!WebService.RecentAnimations.Count}" VerticalAlignment="Center" />
+        </Panel>
+      </Grid>
+      <Panel Grid.Row="1">
+        <ListBox x:Name="RecentAnimationsList" Classes="plain aside" ItemsSource="{Binding WebService.RecentAnimations}" ItemTemplate="{StaticResource AnimationActivityTemplate}" AutomationProperties.Name="最近播放" />
+        <TextBlock Classes="hint" Text="暂无播放记录" Margin="16,8" IsVisible="{Binding !WebService.RecentAnimations.Count}" />
+      </Panel>
+    </Grid>
+  </local:SettingsPage.ActivityContent>
+</local:SettingsPage>

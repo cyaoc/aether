@@ -107,8 +107,10 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Null(settings.Error);
         Assert.False(settings.CanEditWelcomeAnimationVideos);
         Assert.Equal("a.mp4", settings.WelcomeAnimationVideos[42].Value);
-        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, null));
-        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 43, "b.mp4"));
+        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimations(harness.DataDirectory,
+            new Dictionary<string, string>(), new Dictionary<long, string>(), settings));
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["welcome_animation_videos.43"] = "b.mp4" }));
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
     }
 
@@ -120,7 +122,8 @@ public sealed class SettingsTests : IAsyncDisposable
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Null(settings.Error);
         Assert.False(settings.WelcomeAnimationVideos[42].CanEdit);
-        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, null));
+        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimations(harness.DataDirectory,
+            new Dictionary<string, string>(), new Dictionary<long, string>(), settings));
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
     }
 
@@ -133,17 +136,19 @@ public sealed class SettingsTests : IAsyncDisposable
         var yaml = $"# 我的文件\r\nwelcome_animation_videos:\r\n  # 观众\r\n  {uid}: 原片.mp4 # 保留\r\nlog:\r\n  level: Debug\r\n...\r\n";
         Directory.CreateDirectory(harness.DataDirectory);
         File.WriteAllText(SettingsPath, yaml, System.Text.Encoding.Unicode);
-        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, "新片.webm");
-        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 43, "# 进场.mp4");
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.42"] = "新片.webm" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.43"] = "# 进场.mp4" });
         var replaced = yaml.Replace("原片.mp4", "新片.webm").Replace("log:", "  43: '# 进场.mp4'\r\nlog:");
         Assert.Equal(replaced, File.ReadAllText(SettingsPath));
         Assert.Equal("新片.webm", Settings.Load(harness.DataDirectory).WelcomeAnimationVideos[42].Value);
-        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, null);
-        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 43, null);
+        Settings.SaveWelcomeAnimations(harness.DataDirectory, new Dictionary<string, string>(),
+            new Dictionary<long, string> { [43] = "# 进场.mp4" }, Settings.Load(harness.DataDirectory));
+        Settings.SaveWelcomeAnimations(harness.DataDirectory, new Dictionary<string, string>(),
+            new Dictionary<long, string>(), Settings.Load(harness.DataDirectory));
         var deleted = yaml.Replace($"  {uid}: 原片.mp4 # 保留\r\n", "");
         Assert.Equal(deleted, File.ReadAllText(SettingsPath));
         Assert.Empty(Settings.Load(harness.DataDirectory).WelcomeAnimationVideos);
-        Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 44, "最后.mp4");
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.44"] = "最后.mp4" });
         Assert.Equal(deleted.Replace("log:", "  44: 最后.mp4\r\nlog:"), File.ReadAllText(SettingsPath));
         Assert.True(File.ReadAllBytes(SettingsPath).AsSpan().StartsWith(System.Text.Encoding.Unicode.GetPreamble()));
     }
@@ -205,7 +210,7 @@ public sealed class SettingsTests : IAsyncDisposable
         foreach (var line in File.ReadAllText(SettingsPath).ReplaceLineEndings("\n").Split('\n'))
             if (Regex.Match(line, @"^(\w+):$") is { Success: true } header) templateGroup = header.Groups[1].Value;
             else if (Regex.Match(line, @"^  (\w+):") is { Success: true } key) templateNames.Add(templateGroup + "." + key.Groups[1].Value);
-        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name).Order(), templateNames.Order());
+        Assert.Equal(Settings.AllDefinitions.Where(definition => definition is not Settings.VideoGroupDefinition).Select(definition => definition.Name).Order(), templateNames.Order());
         // Keep every group present so Load cannot fill it from Template and hide a mismatched definition default.
         Write(string.Concat(Settings.AllDefinitions.Select(definition => definition.Group).Distinct().Select(group => group + ":\n")));
         var missing = Settings.Load(harness.DataDirectory);
@@ -214,7 +219,8 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(Values(fromTemplate), Values(missing));
 
         static IEnumerable<(string, string)> Values(Settings settings) =>
-            Settings.AllDefinitions.Select(definition => (definition.Name, definition.ValueText(settings)));
+            Settings.AllDefinitions.Where(definition => definition is not Settings.VideoGroupDefinition)
+                .Select(definition => (definition.Name, definition.ValueText(settings, definition.Name)));
     }
 
     [Fact]

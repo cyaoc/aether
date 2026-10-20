@@ -1,6 +1,18 @@
-<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+<Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui">
   <Styles.Resources>
     <ResourceDictionary>
+      <DataTemplate x:Key="FeatureActivityTemplate" x:DataType="local:SendQueueItemViewModel">
+        <Border Classes="activityRow">
+          <StackPanel Spacing="4">
+            <local:ActivityHeader>
+              <TextBlock Classes="secondary" TextWrapping="Wrap"><Run Text="{Binding Nickname}" FontWeight="SemiBold" /><Run Text=" " /><Run Text="{Binding Detail}" Foreground="{DynamicResource Text.Muted}" /></TextBlock>
+              <TextBlock Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" />
+            </local:ActivityHeader>
+            <TextBlock Classes="label" Text="{Binding TextOrPlaceholder}" TextWrapping="Wrap" />
+            <TextBlock Classes="sendStatus" Classes.sent="{Binding IsSent}" Classes.unsent="{Binding IsUnsent}" Text="{Binding Status}" />
+          </StackPanel>
+        </Border>
+      </DataTemplate>
       <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
       <BoxShadows x:Key="QrShadow">0 8 28 0 #18000000</BoxShadows>
       <!-- Room for PopupShadow around a popup card; Popup discounts its child's margin, so the card does not shift. -->

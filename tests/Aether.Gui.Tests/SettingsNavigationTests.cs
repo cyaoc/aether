@@ -29,8 +29,8 @@ public sealed class SettingsNavigationTests
             var row = Add(page, WelcomeCondition.Uid);
             Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
             Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
-            Assert.True(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
             Assert.False(viewModel.HasRoomConnection);
             navigation.Focus();
@@ -38,7 +38,7 @@ public sealed class SettingsNavigationTests
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             general.FindControl<NumericUpDown>("RetentionInput")!.Text = "14";
-            general.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(general, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             navigation.SelectedIndex = 2;
             GuiHarness.Flush();
             Assert.Same(row, Rows(page)[0]);
@@ -49,7 +49,7 @@ public sealed class SettingsNavigationTests
             Assert.Empty(settings.WelcomeUids.Value);
             row.FindControl<TextBox>("UidInput")!.Text = "42";
             GuiHarness.Flush();
-            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal([42L], Settings.Load(harness.DataDirectory).WelcomeUids.Value);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
@@ -116,7 +116,7 @@ public sealed class SettingsNavigationTests
             navigation.SelectedIndex = 5;
             Assert.False(input.IsReadOnly);
             Assert.Equal("8", input.Text);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             navigation.SelectedIndex = 0;
             File.WriteAllText(path, File.ReadAllText(path).Replace("interval_seconds: 8", "interval_seconds: |-\n    9"));
             navigation.SelectedIndex = 5;
@@ -151,7 +151,7 @@ public sealed class SettingsNavigationTests
             File.WriteAllText(path, "send:\n  interval_seconds: 8\n");
             navigation.SelectedIndex = 5;
             Assert.Equal("8", input.Text);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
         return true;
@@ -177,11 +177,11 @@ public sealed class SettingsNavigationTests
                 window.FindControl<ListBox>("Navigation")!.SelectedIndex = index;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-                var error = page.FindControl<TextBlock>("FileMessage")!;
+                var error = GuiHarness.FindVisual<TextBlock>(page, "FileMessage");
                 Assert.True(error.IsEffectivelyVisible);
                 Assert.Contains(path, error.Text);
                 Assert.Contains(expected, error.Text);
-                Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+                Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             }
             Assert.Equal(yaml, File.ReadAllText(path));
         }
@@ -210,14 +210,14 @@ public sealed class SettingsNavigationTests
             navigation.SelectedIndex = 1;
             GuiHarness.Flush();
             var blindBox = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            var save = blindBox.FindControl<Button>("SaveButton")!;
+            var save = GuiHarness.FindVisual<Button>(blindBox, "PART_SaveButton");
             Assert.False(save.IsEnabled);
             blindBox.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
             blindBox.FindControl<TextBox>("DailyKeywordInput")!.Text = "查今天";
             blindBox.FindControl<TextBox>("MonthlyKeywordInput")!.Text = "查本月";
             GuiHarness.Flush();
             Assert.True(save.IsEnabled);
-            Assert.True(blindBox.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.True(GuiHarness.FindVisual<TextBlock>(blindBox, "DirtyMessage").IsVisible);
             Assert.Equal("开", window.FindControl<TextBlock>("BlindBoxStatus")!.Text);
 
             navigation.SelectedIndex = 2;
@@ -228,10 +228,10 @@ public sealed class SettingsNavigationTests
             Assert.Equal("关", window.FindControl<TextBlock>("WelcomeStatus")!.Text);
             WelcomeTextList.Input(welcome).Text = "欢迎回家{昵称}";
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal(SettingsSection.Welcome, Assert.IsType<SettingsPage>(welcome).Section);
-            Assert.True(welcome.FindControl<Button>("SaveButton")!.IsEnabled,
+            Assert.IsType<WelcomeSettingsPage>(welcome);
+            Assert.True(GuiHarness.FindVisual<Button>(welcome, "PART_SaveButton").IsEnabled,
                 string.Join(" | ", welcome.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsVisible).Select(x => x.Text)));
-            welcome.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(welcome, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal("欢迎回家{昵称}", Settings.Load(harness.DataDirectory).WelcomeTexts.Value[0]);
             Assert.Equal("开", window.FindControl<TextBlock>("WelcomeStatus")!.Text);
             Assert.Equal(new System.Text.RegularExpressions.Regex("enabled: false").Replace(before, "enabled: true", 1).Split('\n').Where(line => !line.StartsWith("  texts:")),
@@ -249,7 +249,7 @@ public sealed class SettingsNavigationTests
             Assert.Equal("查本月", Settings.Load(harness.DataDirectory).BlindBoxMonthlyKeyword.Value);
             Assert.Equal("关", window.FindControl<TextBlock>("BlindBoxStatus")!.Text);
             Assert.False(save.IsEnabled);
-            Assert.False(blindBox.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindVisual<TextBlock>(blindBox, "DirtyMessage").IsVisible);
             Assert.Empty(window.OwnedWindows);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }

@@ -49,7 +49,7 @@ public sealed class ThemeTests
                 }
                 Assert.Equal(before, File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
                 Assert.Contains("有未保存的修改", GuiHarness.VisibleText(window));
-                page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.NotEqual(before, File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
                 Assert.Contains("没有未保存的修改", GuiHarness.VisibleText(window));
             }
@@ -81,7 +81,8 @@ public sealed class ThemeTests
         {
             window.FindControl<ListBox>("Navigation")!.SelectedIndex = 1;
             GuiHarness.Flush();
-            var save = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible).FindControl<Button>("SaveButton")!;
+            var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+            var save = GuiHarness.FindVisual<Button>(page, "PART_SaveButton");
             var text = save.GetVisualDescendants().OfType<TextBlock>().Single();
             var center = text.TranslatePoint(new Point(0, text.TextLayout.Height / 2), save)!.Value.Y;
             Assert.InRange(center, save.Bounds.Height / 2 - 1, save.Bounds.Height / 2 + 1);

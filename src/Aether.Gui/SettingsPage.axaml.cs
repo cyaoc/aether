@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Globalization;
 using Aether.Core;
 using Avalonia;
@@ -9,137 +8,131 @@ using Avalonia.Interactivity;
 
 namespace Aether.Gui;
 
-public enum SettingsSection { BlindBox, Welcome, WelcomeAnimation, Send, General }
-
-public partial class SettingsPage : UserControl
+public abstract class SettingsPage : TemplatedControl
 {
-    private readonly string dataDirectory;
-    private readonly string group;
-    private Settings settings = null!;
-
-    private Dictionary<string, string?> original = [];
+    protected readonly string dataDirectory;
+    protected Settings settings = null!;
+    protected MainWindowViewModel? viewModel;
+    protected Dictionary<string, string?> original = [];
+    private readonly List<(Action Load, Func<Field> Read)> bindings = [];
     private bool loading;
     private bool saving;
     private TaskCompletionSource? saveCompletion;
+    private Button? saveButton;
+    private Border? recentActivity;
+    private Grid? pageLayout;
     internal Task PendingSave => saveCompletion?.Task ?? Task.CompletedTask;
-    private SettingsException? fileError;
-    private MainWindowViewModel? viewModel;
-    private double firstPendingRowsHeight;
-    public SettingsSection Section { get; }
     /// <summary>Raised once Save has written the file or failed to, so other views can reread it.</summary>
     public event Action? SaveCompleted;
-    public event Action? GeneralSettingsRequested;
 
-    private void OpenGeneralSettings(object? sender, RoutedEventArgs e) => GeneralSettingsRequested?.Invoke();
+    public static readonly StyledProperty<Control?> HeaderContentProperty =
+        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderContent), null);
+    public Control? HeaderContent { get => GetValue(HeaderContentProperty); set => SetValue(HeaderContentProperty, value); }
 
-    public SettingsPage() : this(DataDirectory.Locate(), SettingsSection.General) { }
+    public static readonly StyledProperty<Control?> HeaderNoteProperty =
+        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderNote), null);
+    public Control? HeaderNote { get => GetValue(HeaderNoteProperty); set => SetValue(HeaderNoteProperty, value); }
 
-    public SettingsPage(string dataDirectory, SettingsSection section, Func<Task<string?>>? pickAnimationVideo = null)
+    public static readonly StyledProperty<Control?> BodyContentProperty =
+        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(BodyContent), null);
+    public Control? BodyContent { get => GetValue(BodyContentProperty); set => SetValue(BodyContentProperty, value); }
+
+    public static readonly StyledProperty<Control?> ActivityContentProperty =
+        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(ActivityContent), null);
+    public Control? ActivityContent { get => GetValue(ActivityContentProperty); set => SetValue(ActivityContentProperty, value); }
+
+    public static readonly StyledProperty<Control?> BelowBodyContentProperty =
+        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(BelowBodyContent), null);
+    public Control? BelowBodyContent { get => GetValue(BelowBodyContentProperty); set => SetValue(BelowBodyContentProperty, value); }
+
+    public static readonly StyledProperty<string> TitleProperty =
+        AvaloniaProperty.Register<SettingsPage, string>(nameof(Title), "");
+    public string Title { get => GetValue(TitleProperty); protected set => SetValue(TitleProperty, value); }
+
+    public static readonly StyledProperty<string> TimingHintProperty =
+        AvaloniaProperty.Register<SettingsPage, string>(nameof(TimingHint), "下次连接直播间时生效");
+    public string TimingHint { get => GetValue(TimingHintProperty); protected set => SetValue(TimingHintProperty, value); }
+
+    public static readonly StyledProperty<SettingsException?> FileErrorProperty =
+        AvaloniaProperty.Register<SettingsPage, SettingsException?>(nameof(FileError), null);
+    public SettingsException? FileError { get => GetValue(FileErrorProperty); protected set => SetValue(FileErrorProperty, value); }
+
+    public static readonly StyledProperty<bool> IsDirtyProperty =
+        AvaloniaProperty.Register<SettingsPage, bool>(nameof(IsDirty), false);
+    public bool IsDirty { get => GetValue(IsDirtyProperty); protected set => SetValue(IsDirtyProperty, value); }
+
+    public static readonly StyledProperty<string> DirtyTextProperty =
+        AvaloniaProperty.Register<SettingsPage, string>(nameof(DirtyText), "");
+    public string DirtyText { get => GetValue(DirtyTextProperty); protected set => SetValue(DirtyTextProperty, value); }
+
+    public static readonly StyledProperty<bool> CanSaveProperty =
+        AvaloniaProperty.Register<SettingsPage, bool>(nameof(CanSave), false);
+    public bool CanSave { get => GetValue(CanSaveProperty); protected set => SetValue(CanSaveProperty, value); }
+
+    public static readonly StyledProperty<string> MessageProperty =
+        AvaloniaProperty.Register<SettingsPage, string>(nameof(Message), "");
+    public string Message { get => GetValue(MessageProperty); protected set => SetValue(MessageProperty, value); }
+
+    public static readonly StyledProperty<bool> ShowReconnectNoticeProperty =
+        AvaloniaProperty.Register<SettingsPage, bool>(nameof(ShowReconnectNotice), false);
+    public bool ShowReconnectNotice { get => GetValue(ShowReconnectNoticeProperty); protected set => SetValue(ShowReconnectNoticeProperty, value); }
+
+    public static readonly StyledProperty<bool> HasUnknownKeysProperty =
+        AvaloniaProperty.Register<SettingsPage, bool>(nameof(HasUnknownKeys), false);
+    public bool HasUnknownKeys { get => GetValue(HasUnknownKeysProperty); protected set => SetValue(HasUnknownKeysProperty, value); }
+
+    public static readonly StyledProperty<string> UnknownKeysTextProperty =
+        AvaloniaProperty.Register<SettingsPage, string>(nameof(UnknownKeysText), "");
+    public string UnknownKeysText { get => GetValue(UnknownKeysTextProperty); protected set => SetValue(UnknownKeysTextProperty, value); }
+
+    protected SettingsPage(string dataDirectory)
     {
         this.dataDirectory = dataDirectory;
-        this.pickAnimationVideo = pickAnimationVideo;
-        Section = section;
-        InitializeComponent();
-        WelcomeTextFold.Toggled += RefreshWelcomeTextFold;
-        UidFold.Toggled += RefreshUidFold;
-        (PageTitle.Text, group) = section switch
-        {
-            SettingsSection.BlindBox => ("盲盒统计", "blind_box."),
-            SettingsSection.Welcome => ("进场欢迎", "welcome."),
-            SettingsSection.WelcomeAnimation => ("欢迎动画", "welcome_animation."),
-            SettingsSection.Send => ("发送队列", "send."),
-            _ => ("通用设置", "log.")
-        };
-        TimingHint.Text = AppliesOnRestart ? "端口保存后立即生效；日志设置重启后生效" : "下次连接直播间时生效";
-        BlindBoxHeader.IsVisible = BlindBoxFields.IsVisible = section == SettingsSection.BlindBox;
-        WelcomeHeader.IsVisible = WelcomeFields.IsVisible = section == SettingsSection.Welcome;
-        AnimationHeader.IsVisible = AnimationFields.IsVisible = section == SettingsSection.WelcomeAnimation;
-        SendFields.IsVisible = section == SettingsSection.Send;
-        GeneralFields.IsVisible = section == SettingsSection.General;
-        SendActivity.IsVisible = section == SettingsSection.Send;
-        if (SendActivity.IsVisible)
-        {
-            FieldsAndSendActivity.RowDefinitions[0].Height = GridLength.Auto;
-            FieldsAndSendActivity.RowDefinitions[1].Height = GridLength.Star;
-            // Row heights are only known after layout, so the cap follows every layout pass.
-            SendActivity.LayoutUpdated += (_, _) => ArrangePendingActivity();
-        }
-        RecentActivity.IsVisible = section is SettingsSection.Welcome or SettingsSection.BlindBox or SettingsSection.WelcomeAnimation;
-        RecentActivityTitle.Text = section switch { SettingsSection.Welcome => "最近欢迎", SettingsSection.WelcomeAnimation => "最近播放", _ => "最近回复和播报" };
-        RecentWelcomesList.IsVisible = WelcomeTotal.IsVisible = section == SettingsSection.Welcome;
-        RecentQueriesAndAnnouncementsList.IsVisible = section == SettingsSection.BlindBox;
-        RecentAnimationsList.IsVisible = section == SettingsSection.WelcomeAnimation;
         SizeChanged += (_, _) => ArrangeActivity();
-        LogLevelInput.ItemsSource = Settings.LogLevels;
-        foreach (var number in new[] { RetentionInput, SendIntervalInput, WebPortInput })
-            number.PropertyChanged += (_, e) =>
-            {
-                if (e.Property == NumericUpDown.TextProperty) Validate();
-            };
-        LogLevelInput.SelectionChanged += (_, _) => Validate();
-        DailyKeywordInput.TextChanged += (_, _) => Validate();
-        MonthlyKeywordInput.TextChanged += (_, _) => Validate();
-        foreach (var toggle in new[] { BlindBoxInput, AnnounceInput, WelcomeInput, AnimationInput })
-            toggle.PropertyChanged += (_, e) =>
-            {
-                if (e.Property == ToggleButton.IsCheckedProperty) Validate();
-            };
-        AddAnimationButton.Click += async (_, _) => await ChooseAnimationAsync();
-        DetachedFromVisualTree += (_, _) =>
-        {
-            foreach (var (button, timer) in copyFeedback) { timer.Dispose(); button.Classes.Set("copied", false); }
-            copyFeedback.Clear();
-        };
-        LoadSettings();
     }
 
-    private void ArrangePendingActivity()
+    protected override void OnApplyTemplate(TemplateAppliedEventArgs e)
     {
-        // The record being sent and the next one stay whole; past them the queue takes at most half, and history keeps its heading.
-        // With more rows below, the second row's separator ends the area rather than a sliver of the third.
-        // A scrolled-away second row keeps the last measured height.
-        var count = PendingSendsList.ItemCount;
-        if (count > 0
-            && PendingSendsList.ContainerFromIndex(Math.Min(1, count - 1)) is { } row
-            && PendingSendsList.TranslatePoint(default, PendingActivity) is { } list)
-            firstPendingRowsHeight = list.Y + PendingSendsList.Padding.Top + row.Bounds.Bottom + (count > 2 ? 0 : PendingSendsList.Padding.Bottom);
-        var room = SendActivity.Bounds.Height - RecentSendsActivity.Margin.Top - RecentSendsHeader.DesiredSize.Height;
-        var height = Math.Max(0, Math.Min(room, Math.Max(SendActivity.Bounds.Height / 2, firstPendingRowsHeight)));
-        if (Math.Abs(PendingActivity.MaxHeight - height) > 0.5) PendingActivity.MaxHeight = height;
+        if (saveButton is not null) saveButton.Click -= Save;
+        base.OnApplyTemplate(e);
+        saveButton = e.NameScope.Find<Button>("PART_SaveButton");
+        if (saveButton is not null) saveButton.Click += Save;
+        recentActivity = e.NameScope.Find<Border>("PART_RecentActivity");
+        pageLayout = e.NameScope.Find<Grid>("PART_PageLayout");
+        if (e.NameScope.Find<Grid>("PART_BodyLayout") is { } fields)
+        {
+            fields.RowDefinitions[0].Height = BelowBodyContent is null ? GridLength.Star : GridLength.Auto;
+            fields.RowDefinitions[1].Height = BelowBodyContent is null ? new GridLength(0) : GridLength.Star;
+        }
+        ArrangeActivity();
     }
 
     private void ArrangeActivity()
     {
-        if (!RecentActivity.IsVisible) return;
+        if (recentActivity is not { IsVisible: true } || pageLayout is null) return;
         var stacked = Bounds.Width < 680;
-        Grid.SetColumn(RecentActivity, stacked ? 0 : 1);
-        Grid.SetRow(RecentActivity, stacked ? 1 : 0);
-        RecentActivity.Width = stacked ? double.NaN : 300;
-        RecentActivity.BorderThickness = stacked ? new Thickness(0, 1, 0, 0) : new Thickness(1, 0, 0, 0);
-        PageLayout.RowDefinitions[1].Height = stacked ? GridLength.Star : new GridLength(0);
+        Grid.SetColumn(recentActivity, stacked ? 0 : 1);
+        Grid.SetRow(recentActivity, stacked ? 1 : 0);
+        recentActivity.Width = stacked ? double.NaN : 300;
+        recentActivity.BorderThickness = stacked ? new Thickness(0, 1, 0, 0) : new Thickness(1, 0, 0, 0);
+        pageLayout.RowDefinitions[1].Height = stacked ? GridLength.Star : new GridLength(0);
     }
 
-    /// <summary>Only log settings require restarting the app.</summary>
-    private bool AppliesOnRestart => Section == SettingsSection.General;
+    protected virtual bool ReconnectAfterSave => true;
+    protected virtual bool KeepMessageUntilEdited => false;
+    protected virtual string DirtyDescription => "有未保存的修改";
+    protected virtual bool RowsChanged => false;
+    protected virtual void LoadRows() { }
+    protected virtual IEnumerable<Field> RowFields() => [];
+    protected virtual bool ShowRowErrors() => false;
 
-    private void LoadSettings(Settings? current = null)
+    protected void LoadSettings(Settings? current = null)
     {
         loading = true;
         settings = current ?? Settings.Load(dataDirectory);
         ShowFileStatus(settings);
-        Show(RetentionInput, RetentionReadOnly, settings.LogRetentionDays);
-        Show(LogLevelInput, LogLevelReadOnly, settings.LogLevel);
-        Show(BlindBoxInput, BlindBoxReadOnly, settings.BlindBoxEnabled);
-        Show(DailyKeywordInput, DailyKeywordReadOnly, settings.BlindBoxDailyKeyword);
-        Show(MonthlyKeywordInput, MonthlyKeywordReadOnly, settings.BlindBoxMonthlyKeyword);
-        Show(AnnounceInput, AnnounceReadOnly, settings.BlindBoxAnnounce);
-        Show(SendIntervalInput, SendIntervalReadOnly, settings.SendIntervalSeconds);
-        Show(WelcomeInput, WelcomeReadOnly, settings.WelcomeEnabled);
-        LoadWelcomeTexts();
-        Show(AnimationInput, AnimationReadOnly, settings.WelcomeAnimationEnabled);
-        Show(WebPortInput, WebPortReadOnly, settings.WebServicePort);
-        LoadWelcomeConditions();
-        if (Section == SettingsSection.WelcomeAnimation) LoadAnimations();
+        foreach (var binding in bindings) binding.Load();
+        LoadRows();
         original = Fields().ToDictionary(field => field.Name, field => field.Input);
         loading = false;
         Validate();
@@ -150,7 +143,7 @@ public partial class SettingsPage : UserControl
     {
         if (saving) return;
         // A snapshot with an error filled the inputs with values that must not be used, so a draft over it is dropped.
-        if (settings.Error is not null || !DirtyMessage.IsVisible)
+        if (settings.Error is not null || !IsDirty)
         {
             LoadSettings(current);
             return;
@@ -159,12 +152,43 @@ public partial class SettingsPage : UserControl
         Validate();
     }
 
-    private void ShowFileStatus(Settings current)
+    protected void ShowFileStatus(Settings current)
     {
-        fileError = current.Error;
-        UnknownKeysMessage.IsVisible = current.UnknownKeys.Count > 0;
-        UnknownKeysMessage.Text = $"未知设置键：{string.Join("、", current.UnknownKeys)}。保存后会原样保留。";
+        FileError = current.Error;
+        HasUnknownKeys = current.UnknownKeys.Count > 0;
+        UnknownKeysText = $"未知设置键：{string.Join("、", current.UnknownKeys)}。保存后会原样保留。";
     }
+
+    protected void Bind(NumericUpDown input, TextBlock readOnly, TextBlock? error, Func<Settings, Setting<int>> select)
+    {
+        Register(setting => Show(input, readOnly, setting), () => input.Text, error, select);
+        input.PropertyChanged += (_, e) => { if (e.Property == NumericUpDown.TextProperty) Validate(); };
+    }
+
+    protected void Bind(TextBox input, TextBlock readOnly, TextBlock? error, Func<Settings, Setting<string>> select)
+    {
+        Register(setting => Show(input, readOnly, setting), () => input.Text, error, select);
+        input.TextChanged += (_, _) => Validate();
+    }
+
+    protected void Bind<T>(ComboBox input, TextBlock readOnly, TextBlock? error, Func<Settings, Setting<T>> select)
+    {
+        Register(setting => Show(input, readOnly, setting), () => input.SelectedItem?.ToString(), error, select);
+        input.SelectionChanged += (_, _) => Validate();
+    }
+
+    protected void Bind(ToggleSwitch input, TextBlock readOnly, TextBlock? error, Func<Settings, Setting<bool>> select)
+    {
+        Register(setting => Show(input, readOnly, setting), () => Settings.BooleanText(input.IsChecked == true), error, select);
+        input.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Validate(); };
+    }
+
+    private void Register<T>(Action<Setting<T>> show, Func<string?> input, TextBlock? error, Func<Settings, Setting<T>> select) =>
+        bindings.Add((() => show(select(settings)), () =>
+        {
+            var setting = select(settings);
+            return new Field(setting.Name, setting.CanEdit, input(), error);
+        }));
 
     // Each control shows its setting; a line that cannot be edited safely leaves it read-only beside its hint.
     private static void Show(NumericUpDown input, TextBlock readOnly, Setting<int> setting)
@@ -197,59 +221,29 @@ public partial class SettingsPage : UserControl
         readOnly.IsVisible = !setting.CanEdit;
     }
 
-    private readonly record struct Field(string Name, bool CanEdit, string? Input, TextBlock? Error = null);
+    protected readonly record struct Field(string Name, bool CanEdit, string? Input, TextBlock? Error = null);
 
-    /// <summary>Each setting this page edits and the text its control now holds; validating, enabling Save
-    /// and saving all read this one list.</summary>
-    private Field[] Fields() =>
-    new Field[]
-    {
-        new(settings.LogRetentionDays.Name, settings.LogRetentionDays.CanEdit, RetentionInput.Text, RetentionError),
-        new(settings.LogLevel.Name, settings.LogLevel.CanEdit, LogLevelInput.SelectedItem?.ToString(), LogLevelError),
-        new(settings.BlindBoxEnabled.Name, settings.BlindBoxEnabled.CanEdit, Settings.BooleanText(BlindBoxInput.IsChecked == true), BlindBoxError),
-        new(settings.BlindBoxDailyKeyword.Name, settings.BlindBoxDailyKeyword.CanEdit, DailyKeywordInput.Text, DailyKeywordError),
-        new(settings.BlindBoxMonthlyKeyword.Name, settings.BlindBoxMonthlyKeyword.CanEdit, MonthlyKeywordInput.Text, MonthlyKeywordError),
-        new(settings.BlindBoxAnnounce.Name, settings.BlindBoxAnnounce.CanEdit, Settings.BooleanText(AnnounceInput.IsChecked == true), AnnounceError),
-        new(settings.SendIntervalSeconds.Name, settings.SendIntervalSeconds.CanEdit, SendIntervalInput.Text, SendIntervalError),
-        new(settings.WelcomeEnabled.Name, settings.WelcomeEnabled.CanEdit, Settings.BooleanText(WelcomeInput.IsChecked == true), WelcomeError),
-        new(settings.WelcomeTexts.Name, settings.WelcomeTexts.CanEdit, Settings.TextListText(WelcomeTexts.Select(row => row.Value))),
-        new(settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, WelcomeUidsText()),
-        new(settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, ConditionValue(WelcomeCondition.FanClubLevel, Settings.WelcomeLevelOff.ToString(CultureInfo.InvariantCulture))),
-        new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, ConditionValue(WelcomeCondition.Guard, Settings.WelcomeGuards[0])),
-        new(settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, ConditionValue(WelcomeCondition.WealthLevel, Settings.WelcomeLevelOff.ToString(CultureInfo.InvariantCulture))),
-        new(settings.WelcomeAnimationEnabled.Name, settings.WelcomeAnimationEnabled.CanEdit, Settings.BooleanText(AnimationInput.IsChecked == true)),
-        new(settings.WebServicePort.Name, settings.WebServicePort.CanEdit, WebPortInput.Text, WebPortError),
-    }.Where(field => field.Name.StartsWith(group, StringComparison.Ordinal)
-        || Section == SettingsSection.General && field.Name.StartsWith("web_service.", StringComparison.Ordinal)).ToArray();
+    /// <summary>Each setting this page edits; reading, validating and saving share this list.</summary>
+    private Field[] Fields() => bindings.Select(binding => binding.Read()).Concat(RowFields()).ToArray();
+    internal virtual IEnumerable<string> FieldNames => Fields().Select(item => item.Name);
 
-    private void Validate()
+    protected void Validate()
     {
         if (loading || saving || settings is null) return;
         var fields = Fields();
         var error = fields.Select(InputError).FirstOrDefault(reason => reason is not null);
-        FileMessage.Text = fileError?.Message ?? "";
-        FileMessage.IsVisible = fileError is not null;
         foreach (var field in fields)
         {
             if (field.Error is not { } label) continue;
             label.Text = InputError(field) ?? "";
             label.IsVisible = label.Text.Length > 0;
         }
-        var welcome = Section == SettingsSection.Welcome;
-        var invalidCondition = welcome && ShowConditionErrors();
-        var invalidWelcomeText = welcome && ShowWelcomeTextErrors();
-        var animation = Section == SettingsSection.WelcomeAnimation;
-        var invalidAnimation = animation && RefreshAnimations();
-        DirtyMessage.IsVisible = welcome && ConditionsAddedOrRemoved
-            || animation && AnimationDraft
-            || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
-        DirtyMessage.Text = PortChanged ? "保存后网页服务换到新端口，直播姬里的地址要跟着改" : "有未保存的修改";
-        SaveButton.IsEnabled = fileError is null && error is null && !invalidCondition && !invalidWelcomeText && !invalidAnimation && DirtyMessage.IsVisible;
-        if (Section is not (SettingsSection.WelcomeAnimation or SettingsSection.General) || DirtyMessage.IsVisible) Message.Text = "";
+        var invalidRows = ShowRowErrors();
+        IsDirty = RowsChanged || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
+        DirtyText = DirtyDescription;
+        CanSave = FileError is null && error is null && !invalidRows && IsDirty;
+        if (!KeepMessageUntilEdited || IsDirty) Message = "";
     }
-
-    private bool PortChanged => Section == SettingsSection.General && settings.WebServicePort.CanEdit
-        && WebPortInput.Text != original.GetValueOrDefault(settings.WebServicePort.Name);
 
     /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
     private static string? InputError(Field field) =>
@@ -259,53 +253,45 @@ public partial class SettingsPage : UserControl
     private static Dictionary<string, string> Changes(IEnumerable<Field> fields) =>
         fields.Where(field => field.CanEdit).ToDictionary(field => field.Name, field => field.Input!);
 
+    protected virtual Task<string> WriteSettings(Dictionary<string, string> changes)
+    {
+        Settings.Save(dataDirectory, changes, settings);
+        return Task.FromResult("已保存。");
+    }
+
+    protected virtual Task<string> AfterSave(Settings saved, string result) => Task.FromResult(result);
+    protected virtual void ReloadAfterFailure() => LoadSettings();
+
     private async void Save(object? sender, RoutedEventArgs e)
     {
         Validate();
-        if (!SaveButton.IsEnabled) return;
+        if (!CanSave) return;
         // Core leaves alone what this form was filled with, so an untouched setting keeps its spelling and any edit made elsewhere.
         var changes = Changes(Fields());
-        var result = "已保存。";
-        var portChanged = PortChanged;
-        long[] replaced = [];
         saveCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
         saving = true;
         IsEnabled = false;
         try
         {
-            if (Section == SettingsSection.WelcomeAnimation)
-            {
-                var rows = Animations.ToDictionary(row => row.Uid!.Value, row => (row.FileName, row.SourcePath));
-                replaced = rows.Where(pair => pair.Value.SourcePath is not null).Select(pair => pair.Key).ToArray();
-                var snapshot = settings;
-                result = await Task.Run(() => SaveAnimationFiles(changes, rows, snapshot));
-            }
-            else Settings.Save(dataDirectory, changes, settings);
+            var result = await WriteSettings(changes);
             // Let LoadSettings validate the saved form, then keep file refreshes out until the save ends: they would clear the result message.
             saving = false;
             LoadSettings();
             saving = true;
             if (settings.Error is null)
             {
-                if (Section is SettingsSection.WelcomeAnimation or SettingsSection.General && viewModel is not null)
-                {
-                    await viewModel.WebService.ApplyWebSettingsAsync(settings);
-                    viewModel.WebService.ForgetAnimationFailures(replaced);
-                    if (portChanged && viewModel.WebService.WebServiceStatus.Running) result = "已保存，网页服务已换到新端口";
-                }
+                result = await AfterSave(settings, result);
                 SaveCompleted?.Invoke();
-                Message.Text = result;
-                ReconnectNotice.IsVisible = !AppliesOnRestart && viewModel?.HasRoomConnection == true;
+                Message = result;
+                ShowReconnectNotice = ReconnectAfterSave && viewModel?.HasRoomConnection == true;
             }
         }
         catch (Exception error) when (error is SettingsException or IOException or UnauthorizedAccessException)
         {
             saving = false;
-            // Keep selected source paths after a failed import, so the user can retry or replace the video.
-            if (Section != SettingsSection.WelcomeAnimation) LoadSettings();
-            else { ShowFileStatus(Settings.Load(dataDirectory)); Validate(); }
+            ReloadAfterFailure();
             SaveCompleted?.Invoke();
-            Message.Text = error.Message;
+            Message = error.Message;
         }
         finally { saving = false; IsEnabled = true; saveCompletion?.TrySetResult(); }
     }
@@ -313,38 +299,15 @@ public partial class SettingsPage : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (viewModel is not null)
-        {
-            viewModel.PropertyChanged -= OnRoomStateChanged;
-            viewModel.WebService.AnimationRowsChanged -= OnAnimationRowsChanged;
-        }
+        if (viewModel is not null) viewModel.PropertyChanged -= OnRoomStateChanged;
         viewModel = DataContext as MainWindowViewModel;
-        if (viewModel is not null)
-        {
-            viewModel.PropertyChanged += OnRoomStateChanged;
-            if (Section == SettingsSection.WelcomeAnimation) viewModel.WebService.AnimationRowsChanged += OnAnimationRowsChanged;
-        }
-        if (Section == SettingsSection.WelcomeAnimation && settings is not null) RefreshAnimations();
+        if (viewModel is not null) viewModel.PropertyChanged += OnRoomStateChanged;
     }
-
-    private void OnAnimationRowsChanged() => RefreshAnimations();
 
     // The room connection the notice warned about has ended (disconnected, reconnected or failed).
     private void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainWindowViewModel.HasRoomConnection) && viewModel?.HasRoomConnection != true)
-            ReconnectNotice.IsVisible = false;
-    }
-
-    private void OpenFile(object? sender, RoutedEventArgs e)
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo(Settings.FilePath(dataDirectory)) { UseShellExecute = true });
-        }
-        catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException)
-        {
-            Message.Text = $"打开设置文件失败：{error.Message}";
-        }
+            ShowReconnectNotice = false;
     }
 }

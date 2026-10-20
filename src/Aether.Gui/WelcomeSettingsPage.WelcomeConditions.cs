@@ -6,7 +6,7 @@ using Avalonia.Threading;
 
 namespace Aether.Gui;
 
-public partial class SettingsPage
+public partial class WelcomeSettingsPage
 {
     private WelcomeCondition[] loadedConditionKinds = [];
 
