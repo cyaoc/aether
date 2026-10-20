@@ -98,7 +98,6 @@ public partial class LotteryPanel : UserControl
         EntryContent.IsVisible = !history && entry is not null;
         PoolContent.IsVisible = !history && entry is null;
         ModeChip.IsVisible = PhaseChip.IsVisible = !history;
-        HistoryTabText.Text = $"历史 {viewModel?.Lottery.LotteryHistory.Count ?? 0}";
         if (entry is not null)
         {
             NewButton.IsEnabled = !busy && state!.Connected && entry.Phase is EntryLotteryPhase.Preparing or EntryLotteryPhase.Ended;

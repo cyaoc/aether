@@ -7,6 +7,28 @@
   </Style>
   <Styles.Resources>
     <ResourceDictionary>
+      <DataTemplate x:Key="WinnerGroupTemplate" x:DataType="local:WinnerGroupRow">
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+            <TextBlock Classes="caption awardName singleLine" Text="{Binding Award}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="{Binding Prize}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2" Classes="caption muted numeric" Text="{Binding Progress}" VerticalAlignment="Center" />
+          </Grid>
+          <Panel>
+            <TextBlock Classes="caption muted" Text="还没抽" IsVisible="{Binding IsEmpty}" VerticalAlignment="Center" />
+            <ItemsControl ItemsSource="{Binding Winners}" IsVisible="{Binding !IsEmpty}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:WinnerRow">
+                  <Border Classes="winner" Classes.fresh="{Binding Fresh}">
+                    <TextBlock Classes="singleLine" Text="{Binding Name}" ToolTip.Tip="{Binding ToolTip}" MaxWidth="210" VerticalAlignment="Center" />
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Panel>
+        </StackPanel>
+      </DataTemplate>
       <DataTemplate x:Key="FeatureActivityTemplate" x:DataType="local:SendQueueItemViewModel">
         <Border Classes="activityRow">
           <StackPanel Spacing="4">

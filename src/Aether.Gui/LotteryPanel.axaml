@@ -86,7 +86,7 @@
         <TextBlock Classes="h1" Text="抽奖" VerticalAlignment="Center" />
         <ListBox Grid.Column="1" x:Name="ViewTabs" SelectedIndex="0" VerticalAlignment="Center" AutomationProperties.Name="抽奖视图">
           <ListBoxItem Content="本场" />
-          <ListBoxItem><TextBlock x:Name="HistoryTabText" Text="历史 0" /></ListBoxItem>
+          <ListBoxItem><TextBlock x:Name="HistoryTabText" Text="{Binding Lottery.LotteryHistoryTabText}" /></ListBoxItem>
         </ListBox>
         <Border Grid.Column="2" x:Name="ModeChip" Height="24" Padding="8,0" CornerRadius="6" Background="{DynamicResource Border.Subtle}" VerticalAlignment="Center">
           <TextBlock x:Name="ModeText" Classes="caption" Text="{Binding Lottery.LotteryModeText}" Foreground="{DynamicResource Text.Secondary}" FontWeight="SemiBold" VerticalAlignment="Center" />

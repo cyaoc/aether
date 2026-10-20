@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.LotteryHistoryPanel">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryHistoryPanel" x:DataType="local:MainWindowViewModel">
   <UserControl.Styles>
     <!-- 全部抽奖 as on canvas O4: one bordered list, subtle dividers between rows, the picked row tinted with an accent bar on its left. -->
     <Style Selector="ListBox#LotteryList">
@@ -9,10 +9,11 @@
       <Setter Property="CornerRadius" Value="8" />
       <Setter Property="ClipToBounds" Value="True" />
     </Style>
-    <Style Selector="ListBox#LotteryList ListBoxItem">
+    <Style Selector="ListBox#LotteryList ListBoxItem" x:DataType="local:LotteryHistoryRow">
       <Setter Property="Padding" Value="0" />
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
       <Setter Property="CornerRadius" Value="0" />
+      <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleName}" />
     </Style>
     <!-- The divider sits on an inner border: Avalonia draws no inset shadow on an uneven border, which would hide the accent bar. -->
     <Style Selector="ListBox#LotteryList Border.historyRow">
@@ -54,31 +55,54 @@
           <TextBlock Classes="section" Text="全部抽奖" />
           <TextBlock Grid.Column="1" Classes="hint" Text="按时间倒序，点一场看它的中奖名单" />
         </Grid>
-        <TextBlock x:Name="RoomText" Classes="caption muted" IsVisible="False" />
-        <TextBlock x:Name="LoadingText" Classes="hint" Text="读取中…" IsVisible="False" />
-        <TextBlock x:Name="ErrorText" Classes="error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
-        <Button x:Name="RetryButton" Content="重试" IsVisible="False" HorizontalAlignment="Left" />
-        <ListBox x:Name="LotteryList" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="抽奖历史" />
-        <TextBlock x:Name="EmptyText" Classes="hint" Text="暂无抽奖历史" />
+        <TextBlock x:Name="RoomText" Classes="caption muted" Text="{Binding Lottery.HistoryRoomText}" IsVisible="{Binding Lottery.ShowHistoryRoom}" />
+        <TextBlock x:Name="LoadingText" Classes="hint" Text="读取中…" IsVisible="{Binding Lottery.LotteryHistoryLoading}" />
+        <TextBlock x:Name="ErrorText" Classes="error" Text="{Binding Lottery.LotteryHistoryError}" IsVisible="{Binding Lottery.HasLotteryHistoryError}" AutomationProperties.LiveSetting="Polite" />
+        <Button x:Name="RetryButton" Content="重试" IsVisible="{Binding Lottery.HasLotteryHistoryError}" HorizontalAlignment="Left" />
+        <ListBox x:Name="LotteryList" ItemsSource="{Binding Lottery.LotteryHistoryRows}" IsVisible="{Binding Lottery.HasLotteryHistory}" ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="抽奖历史">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="local:LotteryHistoryRow">
+              <Border Classes="historyRow">
+                <StackPanel Spacing="6">
+                  <Grid ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="8">
+                    <TextBlock Classes="numeric" Text="{Binding Date}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Column="1" Classes="badge historyTag" Classes.active="{Binding Active}">
+                      <TextBlock Text="{Binding Status}" VerticalAlignment="Center" />
+                    </Border>
+                    <Border Grid.Column="2" Classes="badge historyTag mode">
+                      <TextBlock Text="{Binding Mode}" VerticalAlignment="Center" />
+                    </Border>
+                    <TextBlock Grid.Column="4" Classes="caption muted numeric" Text="{Binding Count}" VerticalAlignment="Center" />
+                  </Grid>
+                  <TextBlock Classes="label singleLine" Text="{Binding Summary}" VerticalAlignment="Center" />
+                </StackPanel>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock x:Name="EmptyText" Classes="hint" Text="暂无抽奖历史" IsVisible="{Binding Lottery.IsLotteryHistoryEmpty}" />
         <TextBlock Classes="caption muted" Text="每一场都存在数据库里，GUI 关掉再开也还在。历史只能查看，不能再抽。" TextWrapping="Wrap" />
       </StackPanel>
     </ScrollViewer>
     <Border Grid.Column="1" Background="{DynamicResource Surface.Aside}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
       <ScrollViewer HorizontalScrollBarVisibility="Disabled" Padding="16,18">
-        <StackPanel x:Name="Details" Spacing="14" IsVisible="False" AutomationProperties.Name="这一场的中奖名单">
+        <StackPanel x:Name="Details" Spacing="14" IsVisible="{Binding Lottery.HasLotteryHistoryDetails}" AutomationProperties.Name="这一场的中奖名单">
           <StackPanel Spacing="2">
-            <TextBlock x:Name="DetailDate" Classes="numeric" FontWeight="SemiBold" />
-            <TextBlock x:Name="DetailSummary" Classes="caption muted" />
+            <TextBlock x:Name="DetailDate" Classes="numeric" Text="{Binding Lottery.HistoryDetailDate}" FontWeight="SemiBold" />
+            <TextBlock x:Name="DetailSummary" Classes="caption muted" Text="{Binding Lottery.HistoryDetailSummary}" />
           </StackPanel>
-          <Button x:Name="ReturnButton" Classes="ghost listFold" Content="这一场还没结束，回到本场继续开奖" Padding="0" MinHeight="0" HorizontalAlignment="Left" />
-          <TextBlock x:Name="ReturnHint" Classes="caption muted" Text="连接该直播间后可回到本场" IsVisible="False" />
+          <Button x:Name="ReturnButton" Classes="ghost listFold" Content="这一场还没结束，回到本场继续开奖" Padding="0" MinHeight="0" HorizontalAlignment="Left"
+            IsVisible="{Binding Lottery.ShowReturnToCurrent}" IsEnabled="{Binding Lottery.CanReturnToCurrent}" />
+          <TextBlock x:Name="ReturnHint" Classes="caption muted" Text="连接该直播间后可回到本场" IsVisible="{Binding Lottery.ShowReturnToCurrentHint}" />
           <StackPanel Spacing="8">
             <TextBlock Classes="secondary" FontWeight="SemiBold" Text="中奖名单" />
-            <StackPanel x:Name="WinnerGroups" Spacing="8" />
+            <ItemsControl x:Name="WinnerGroups" ItemsSource="{Binding Lottery.HistoryWinnerGroups}" ItemTemplate="{StaticResource WinnerGroupTemplate}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            </ItemsControl>
           </StackPanel>
           <StackPanel Spacing="4">
-            <TextBlock x:Name="ConditionTitle" Classes="secondary" FontWeight="SemiBold" />
-            <TextBlock x:Name="ConditionText" Classes="caption" Foreground="{DynamicResource Text.Secondary}" LineHeight="18" TextWrapping="Wrap" />
+            <TextBlock x:Name="ConditionTitle" Classes="secondary" Text="{Binding Lottery.HistoryConditionTitle}" FontWeight="SemiBold" />
+            <TextBlock x:Name="ConditionText" Classes="caption" Text="{Binding Lottery.HistoryConditionText}" Foreground="{DynamicResource Text.Secondary}" LineHeight="18" TextWrapping="Wrap" />
           </StackPanel>
         </StackPanel>
       </ScrollViewer>

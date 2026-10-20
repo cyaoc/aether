@@ -64,15 +64,17 @@ public sealed class EntryLotteryPanelTests
             Assert.False(entry.FindControl<Button>("EndEntryButton")!.IsEnabled);
             Assert.False(row.FindControl<Button>("DrawButton")!.IsEnabled);
             Assert.Contains("开奖中", panel.FindControl<TextBlock>("PhaseText")!.Text);
-            var winners = entry.FindControl<StackPanel>("WinnerGroups")!;
-            Assert.Contains(winners.GetVisualDescendants().OfType<Border>(), chip => chip.Classes.Contains("fresh"));
-            Assert.Contains(entry.FindControl<StackPanel>("EntryRows")!.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "中 一等奖");
+            var winners = entry.FindControl<ItemsControl>("WinnerGroups")!;
+            GuiHarness.Flush();
+            Assert.Contains(winners.GetRealizedContainers().SelectMany(row => row.GetVisualDescendants()).OfType<Border>(), chip => chip.Classes.Contains("fresh"));
+            Assert.Contains(vm.Lottery.LotteryEntries, row => row.Award == "中 一等奖");
             lottery = lottery with { Phase = EntryLotteryPhase.Ended, DrawUntil = null };
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
             Assert.True(panel.FindControl<Button>("NewButton")!.IsEnabled);
             Assert.Equal("抽完了", row.FindControl<TextBlock>("DrawText")!.Text);
             Assert.Equal("收起画面", entry.FindControl<Button>("VisibilityButton")!.Content);
-            Assert.DoesNotContain(winners.GetVisualDescendants().OfType<Border>(), chip => chip.Classes.Contains("fresh"));
+            GuiHarness.Flush();
+            Assert.DoesNotContain(winners.GetRealizedContainers().SelectMany(row => row.GetVisualDescendants()).OfType<Border>(), chip => chip.Classes.Contains("fresh"));
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery with { Hidden = true })));
             Assert.Equal("重新显示", entry.FindControl<Button>("VisibilityButton")!.Content);
         }
