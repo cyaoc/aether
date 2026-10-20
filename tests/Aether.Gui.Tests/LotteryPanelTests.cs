@@ -1,6 +1,9 @@
 using System.Collections.Immutable;
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia.Automation;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -9,6 +12,40 @@ namespace Aether.Gui.Tests;
 
 public sealed class LotteryPanelTests
 {
+    [Fact]
+    public Task Prize_accessible_names_follow_rows_after_removing_the_first() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var page = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var rows = page.FindControl<StackPanel>("PrizeRows")!;
+            var add = page.FindControl<Button>("AddButton")!;
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.Equal(3, rows.Children.Count);
+            var first = Assert.IsType<PoolPrizeRow>(rows.Children[0]);
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                first.FindControl<Button>("RemoveButton")!)).Invoke();
+            GuiHarness.Flush();
+            var remaining = rows.Children.Cast<PoolPrizeRow>().ToArray();
+            Assert.Equal(new[] { "第 1 件奖品名称", "第 2 件奖品名称" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("NameInput")!)));
+            Assert.Equal(new[] { "第 1 件奖品占比", "第 2 件奖品占比" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("WeightInput")!)));
+            Assert.Equal(new[] { "第 1 件奖品档次", "第 2 件奖品档次" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<GradePicker>("GradeInput")!)));
+            Assert.Equal(new[] { "删除第 1 件奖品", "删除第 2 件奖品" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<Button>("RemoveButton")!)));
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task Draft_survives_connecting_and_validation_and_ten_prize_limit_apply() => HeadlessApp.Session.Dispatch(async () =>
     {
