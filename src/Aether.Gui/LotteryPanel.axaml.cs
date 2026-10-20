@@ -9,7 +9,6 @@ namespace Aether.Gui;
 
 public partial class LotteryPanel : UserControl
 {
-    private static readonly string[] GradeClasses = ["grand", "second", "third"];
     private MainWindowViewModel? viewModel;
     private string? loadedId;
     private long? loadedRoom;
@@ -188,7 +187,7 @@ public partial class LotteryPanel : UserControl
             var who = Viewer(last);
             LatestHead.Text = (last.StoppedByHost ? who is null ? "主播点停" : $"{who} · 主播点停" : $"{who} 喊停")
                 + $" · {last.DrawnAt.ToLocalTime():HH:mm}";
-            SetGrade(LatestGrade, LatestGradeText, last.Prize.Grade);
+            LatestGrade.Grade = last.Prize.Grade;
             LatestPrize.Text = last.Prize.Name;
         }
         DrawCount.Text = draws.Length > 0 ? $"本场 {draws.Length} 次" : "";
@@ -201,21 +200,12 @@ public partial class LotteryPanel : UserControl
 
     private static string? Viewer(PoolDraw draw) => draw.Uid is { } uid ? draw.Nickname ?? $"UID {uid}" : null;
 
-    internal static void SetGrade(Border badge, TextBlock text, Grade grade)
-    {
-        text.Text = LotteryController.GradeNames[(int)grade];
-        for (var index = 0; index < GradeClasses.Length; index++) badge.Classes.Set(GradeClasses[index], index == (int)grade);
-    }
-
     /// <summary>One line per draw as on canvas V1: who, 档次, prize, time.</summary>
     private static Border HistoryRow(PoolDraw draw)
     {
         var who = new TextBlock { Text = Viewer(draw) ?? "主播点停", FontSize = 13, FontWeight = Avalonia.Media.FontWeight.SemiBold, MaxWidth = 84, VerticalAlignment = VerticalAlignment.Center };
         who.Classes.Add("singleLine");
-        var gradeText = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-        var grade = new Border { Child = gradeText, Height = 18, VerticalAlignment = VerticalAlignment.Center };
-        grade.Classes.Add("badge");
-        SetGrade(grade, gradeText, draw.Prize.Grade);
+        var grade = new GradeBadge { Grade = draw.Prize.Grade, Height = 18, VerticalAlignment = VerticalAlignment.Center };
         var prize = new TextBlock { Text = draw.Prize.Name, FontSize = 13, VerticalAlignment = VerticalAlignment.Center };
         prize.Classes.Add("singleLine");
         var time = new TextBlock { Text = $"{draw.DrawnAt.ToLocalTime():HH:mm}", VerticalAlignment = VerticalAlignment.Center };

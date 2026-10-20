@@ -702,15 +702,15 @@
   <Style Selector="ListBox.prizeGrade ListBoxItem:selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:selected:pressed /template/ ContentPresenter">
     <Setter Property="FontWeight" Value="Bold" />
   </Style>
-  <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(1):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(1):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(1):selected:pressed /template/ ContentPresenter">
+  <Style Selector="ListBox.prizeGrade ListBoxItem.grand:selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.grand:selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.grand:selected:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource Grade.Grand.Tint}" />
     <Setter Property="Foreground" Value="{DynamicResource Grade.Grand}" />
   </Style>
-  <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(2):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(2):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(2):selected:pressed /template/ ContentPresenter">
+  <Style Selector="ListBox.prizeGrade ListBoxItem.second:selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.second:selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.second:selected:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource Grade.Second.Tint}" />
     <Setter Property="Foreground" Value="{DynamicResource Grade.Second}" />
   </Style>
-  <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(3):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(3):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(3):selected:pressed /template/ ContentPresenter">
+  <Style Selector="ListBox.prizeGrade ListBoxItem.third:selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.third:selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.third:selected:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource Grade.Third.Tint}" />
     <Setter Property="Foreground" Value="{DynamicResource Grade.Third}" />
   </Style>

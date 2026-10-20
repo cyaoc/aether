@@ -180,7 +180,7 @@
             <StackPanel Spacing="4">
               <TextBlock x:Name="LatestHead" Classes="caption muted singleLine" />
               <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-                <Border x:Name="LatestGrade" Classes="badge" Height="20" Padding="6,0" VerticalAlignment="Center"><TextBlock x:Name="LatestGradeText" VerticalAlignment="Center" /></Border>
+                <local:GradeBadge x:Name="LatestGrade" Height="20" Padding="6,0" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="1" x:Name="LatestPrize" Classes="singleLine" FontSize="16" FontWeight="Bold" VerticalAlignment="Center" />
               </Grid>
             </StackPanel>
