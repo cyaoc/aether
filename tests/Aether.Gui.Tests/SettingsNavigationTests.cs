@@ -27,8 +27,8 @@ public sealed class SettingsNavigationTests
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var row = Add(page, WelcomeCondition.Uid);
-            Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
-            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.Equal("", GuiHarness.FindRowControl<TextBox>(page, row, "UidInput")!.Text);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.IsVisible);
             Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
@@ -42,12 +42,12 @@ public sealed class SettingsNavigationTests
             navigation.SelectedIndex = 2;
             GuiHarness.Flush();
             Assert.Same(row, Rows(page)[0]);
-            Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
-            Assert.Equal("填一个 UID，或删掉这条", row.FindControl<TextBlock>("ErrorMessage")!.Text);
+            Assert.Equal("", GuiHarness.FindRowControl<TextBox>(page, row, "UidInput")!.Text);
+            Assert.Equal("填一个 UID，或删掉这条", GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.Text);
             var settings = Settings.Load(harness.DataDirectory);
             Assert.Equal(14, settings.LogRetentionDays.Value);
             Assert.Empty(settings.WelcomeUids.Value);
-            row.FindControl<TextBox>("UidInput")!.Text = "42";
+            GuiHarness.FindRowControl<TextBox>(page, row, "UidInput")!.Text = "42";
             GuiHarness.Flush();
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal([42L], Settings.Load(harness.DataDirectory).WelcomeUids.Value);

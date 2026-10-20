@@ -206,8 +206,8 @@ public sealed class NumericInputTests
                 }
                 else
                 {
-                    var row = input.GetVisualAncestors().OfType<WelcomeConditionRow>().Single();
-                    var remove = row.FindControl<Button>("RemoveButton")!;
+                    var row = input.GetVisualAncestors().OfType<EditableRowFrame>().Single();
+                    var remove = GuiHarness.FindRowControl<Button>(page, input.DataContext!, "RemoveButton");
                     Assert.Equal(row.Bounds.Width, remove.TranslatePoint(new Point(remove.Bounds.Width, 0), row)!.Value.X);
                     Assert.True(input.TranslatePoint(new Point(input.Bounds.Width, 0), row)!.Value.X <= remove.TranslatePoint(default, row)!.Value.X - 8);
                     if (name == "GuardInput")

@@ -46,19 +46,19 @@ public sealed class SettingsPageTests
             var fold = page.FindControl<Button>(uids ? "UidFold" : "WelcomeTextFold");
             Assert.NotNull(fold);
             Assert.Equal(count > 3, fold.IsVisible);
-            Assert.Equal(3, WelcomeListRows(page, uids).Count(WelcomeListRowIsShown));
+            Assert.Equal(3, WelcomeListRows(page, uids).Count(row => row.IsShown));
             if (count == 3) return;
             Assert.Equal(uids ? "还有 1 位" : "还有 1 条", AutomationProperties.GetName(fold));
             var provider = Assert.IsAssignableFrom<IExpandCollapseProvider>(ControlAutomationPeer.CreatePeerForElement(fold));
             Assert.Equal(ExpandCollapseState.Collapsed, provider.ExpandCollapseState);
             fold.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            Assert.Equal(4, WelcomeListRows(page, uids).Count(WelcomeListRowIsShown));
+            Assert.Equal(4, WelcomeListRows(page, uids).Count(row => row.IsShown));
             Assert.Equal(uids ? "收起，只看前 3 位" : "收起，只看前 3 条", AutomationProperties.GetName(fold));
             Assert.Equal(ExpandCollapseState.Expanded, provider.ExpandCollapseState);
             provider.Collapse();
             GuiHarness.Flush();
-            Assert.Equal(3, WelcomeListRows(page, uids).Count(WelcomeListRowIsShown));
+            Assert.Equal(3, WelcomeListRows(page, uids).Count(row => row.IsShown));
             Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
         });
 
@@ -66,14 +66,9 @@ public sealed class SettingsPageTests
         ? $"uids: [{string.Join(", ", Enumerable.Range(1, count))}]"
         : $"texts: {Settings.TextListText(Enumerable.Range(1, count).Select(i => $"欢迎{i}"))}") + "\n";
 
-    private static object[] WelcomeListRows(SettingsPage page, bool uids) => uids
+    private static EditableRow[] WelcomeListRows(SettingsPage page, bool uids) => uids
         ? Rows(page).Where(row => row.Kind == WelcomeCondition.Uid).ToArray()
         : WelcomeTextList.Rows(page);
-
-    private static bool WelcomeListRowIsShown(object row) => row is WelcomeTextRow text ? text.IsShown : ((Control)row).IsVisible;
-
-    private static T WelcomeListControl<T>(SettingsPage page, object row, string name) where T : Control =>
-        row is Control control ? control.FindControl<T>(name)! : GuiHarness.FindRowControl<T>(page, row, name);
 
     [Theory]
     [InlineData(false)]
@@ -87,7 +82,7 @@ public sealed class SettingsPageTests
             provider.Expand();
             var rows = WelcomeListRows(page, uids);
             foreach (var index in new[] { 0, 3, 4 })
-                WelcomeListControl<TextBox>(page, rows[index], uids ? "UidInput" : "ValueInput").Text = "";
+                GuiHarness.FindRowControl<TextBox>(page, rows[index], uids ? "UidInput" : "ValueInput").Text = "";
             GuiHarness.Flush();
             provider.Collapse();
             GuiHarness.Flush();
@@ -98,15 +93,15 @@ public sealed class SettingsPageTests
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
 
             Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
-                WelcomeListControl<Button>(page, rows[0], "RemoveButton"))).Invoke();
+                GuiHarness.FindRowControl<Button>(page, rows[0], "RemoveButton"))).Invoke();
             GuiHarness.Flush();
             Assert.Equal(uids ? "还有 1 位，其中 1 位有错" : "还有 1 条，其中 1 条有错", AutomationProperties.GetName(fold));
-            Assert.True(WelcomeListRowIsShown(rows[3]));
+            Assert.True(rows[3].IsShown);
             provider.Expand();
             GuiHarness.Flush();
             Assert.DoesNotContain("danger", fold.Classes);
-            Assert.True(WelcomeListControl<TextBlock>(page, rows[4], "ErrorMessage").IsVisible);
-            WelcomeListControl<TextBox>(page, rows[4], uids ? "UidInput" : "ValueInput").Text = uids ? "42" : "欢迎";
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, rows[4], "ErrorMessage").IsVisible);
+            GuiHarness.FindRowControl<TextBox>(page, rows[4], uids ? "UidInput" : "ValueInput").Text = uids ? "42" : "欢迎";
             GuiHarness.Flush();
             provider.Collapse();
             Assert.Equal(uids ? "还有 1 位" : "还有 1 条", AutomationProperties.GetName(fold));
@@ -146,10 +141,10 @@ public sealed class SettingsPageTests
             GuiHarness.Flush();
             var rows = WelcomeListRows(page, uids);
             Assert.Equal(21, rows.Length);
-            Assert.All(rows, row => Assert.True(WelcomeListRowIsShown(row)));
-            var input = WelcomeListControl<TextBox>(page, rows[^1], uids ? "UidInput" : "ValueInput");
+            Assert.All(rows, row => Assert.True(row.IsShown));
+            var input = GuiHarness.FindRowControl<TextBox>(page, rows[^1], uids ? "UidInput" : "ValueInput");
             Assert.True(input.IsFocused);
-            Assert.False(WelcomeListControl<TextBlock>(page, rows[^1], "ErrorMessage").IsVisible);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, rows[^1], "ErrorMessage").IsVisible);
             var scroll = input.GetVisualAncestors().OfType<ScrollViewer>().First();
             var top = input.TranslatePoint(default, scroll)!.Value.Y;
             Assert.InRange(top, 0, scroll.Bounds.Height - input.Bounds.Height);
@@ -164,12 +159,12 @@ public sealed class SettingsPageTests
             var group = page.FindControl<StackPanel>("UidGroup");
             Assert.NotNull(group);
             Assert.Equal("1 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
-            var first = Rows(page)[0].FindControl<TextBox>("UidInput")!;
-            var second = Rows(page)[1].FindControl<TextBox>("UidInput")!;
+            var first = GuiHarness.FindRowControl<TextBox>(page, Rows(page)[0], "UidInput")!;
+            var second = GuiHarness.FindRowControl<TextBox>(page, Rows(page)[1], "UidInput")!;
             Assert.Equal(first.TranslatePoint(default, page)!.Value.X, second.TranslatePoint(default, page)!.Value.X);
-            Remove(Rows(page)[0]);
-            Assert.True(Rows(page)[0].FindControl<TextBlock>("TypeName")!.IsVisible);
-            Remove(Rows(page)[0]);
+            Remove(page, Rows(page)[0]);
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, Rows(page)[0], "TypeName")!.IsVisible);
+            Remove(page, Rows(page)[0]);
             Assert.False(group.IsVisible);
             Assert.True(page.FindControl<Grid>("EmptyConditions")!.IsVisible);
             Add(page, WelcomeCondition.Uid);
@@ -177,8 +172,8 @@ public sealed class SettingsPageTests
             Assert.True(group.IsVisible);
             Assert.Equal(2, Rows(page).Length);
             Assert.Equal("1 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
-            Assert.All(Rows(page), row => Assert.Contains(group, row.GetVisualAncestors()));
-            Assert.All(Rows(page), row => Assert.False(row.FindControl<Grid>("OrSeparator")!.IsVisible));
+            Assert.All(Rows(page), row => Assert.Contains(group, GuiHarness.FindRowControl<TextBox>(page, row, "UidInput").GetVisualAncestors()));
+            Assert.All(Rows(page), row => Assert.False(GuiHarness.FindRowControl<Grid>(page, row, "OrSeparator")!.IsVisible));
         });
 
     [Fact]
@@ -274,9 +269,9 @@ public sealed class SettingsPageTests
             Assert.Equal(3, WelcomeTextList.Rows(page).Length);
 
             var uid = Add(page, WelcomeCondition.Uid);
-            Assert.True(uid.FindControl<TextBox>("UidInput")!.IsFocused);
+            Assert.True(GuiHarness.FindRowControl<TextBox>(page, uid, "UidInput")!.IsFocused);
             PressAndRelease(page, page.FindControl<Button>("AddConditionButton")!);
-            Assert.True(uid.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, uid, "ErrorMessage")!.IsVisible);
             Assert.True(Menu(page).IsOpen);
         });
 
@@ -320,17 +315,17 @@ public sealed class SettingsPageTests
         WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42]\n", (page, _) =>
         {
             var row = Row(page, WelcomeCondition.Uid);
-            var input = row.FindControl<TextBox>("UidInput")!;
+            var input = GuiHarness.FindRowControl<TextBox>(page, row, "UidInput")!;
             input.Focus();
             input.Text = "0";
             GuiHarness.Flush();
-            Assert.Equal("UID 必须是正整数", row.FindControl<TextBlock>("ErrorMessage")!.Text);
-            Assert.True(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.Equal("UID 必须是正整数", GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.Text);
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.IsVisible);
             Assert.Contains("invalid", input.Classes);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             input.Text = "43";
             GuiHarness.Flush();
-            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.IsVisible);
             Assert.DoesNotContain("invalid", input.Classes);
             Assert.True(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
         });
@@ -440,11 +435,11 @@ public sealed class SettingsPageTests
     public Task Default_template_shows_only_the_guard_condition() =>
         WithSettingsPage(dir => new WelcomeSettingsPage(dir), null, (page, _) =>
         {
-            var rows = page.FindControl<StackPanel>("ConditionRows");
+            var rows = page.FindControl<ItemsControl>("ConditionRows");
             Assert.NotNull(rows);
-            var row = Assert.Single(rows.Children);
-            Assert.Contains(row.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "大航海身份");
-            var guard = Assert.Single(row.GetVisualDescendants().OfType<ComboBox>());
+            var row = Assert.Single(((WelcomeSettingsPage)page).WelcomeThresholds);
+            Assert.Equal("大航海身份", row.Name);
+            var guard = GuiHarness.FindRowControl<ComboBox>(page, row, "GuardInput");
             Assert.Equal("舰长", guard.SelectedItem);
             Assert.Equal(new[] { "舰长", "提督", "总督" }, guard.Items.Cast<string>());
             Assert.Equal("1 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
@@ -462,10 +457,10 @@ public sealed class SettingsPageTests
             var before = File.ReadAllText(path);
             var enabled = window.FindControl<ToggleSwitch>("WelcomeInput");
             var text = WelcomeTextList.Input(window);
-            var uids = Row(window, WelcomeCondition.Uid).FindControl<TextBox>("UidInput");
-            var fanClub = Row(window, WelcomeCondition.FanClubLevel).FindControl<NumericUpDown>("LevelInput");
-            var threshold = Row(window, WelcomeCondition.Guard).FindControl<ComboBox>("GuardInput");
-            var wealth = Row(window, WelcomeCondition.WealthLevel).FindControl<NumericUpDown>("LevelInput");
+            var uids = GuiHarness.FindRowControl<TextBox>(window, Row(window, WelcomeCondition.Uid), "UidInput");
+            var fanClub = GuiHarness.FindRowControl<NumericUpDown>(window, Row(window, WelcomeCondition.FanClubLevel), "LevelInput");
+            var threshold = GuiHarness.FindRowControl<ComboBox>(window, Row(window, WelcomeCondition.Guard), "GuardInput");
+            var wealth = GuiHarness.FindRowControl<NumericUpDown>(window, Row(window, WelcomeCondition.WealthLevel), "LevelInput");
             Assert.NotNull(enabled);
             Assert.NotNull(text);
             Assert.NotNull(uids);
@@ -494,7 +489,7 @@ public sealed class SettingsPageTests
             text.Text = "{@}欢迎{大航海}{昵称}回家";
             SetUids(window, "2147483648", "9223372036854775807");
             fanClub.Text = "21";
-            if (guard == "关闭") Remove(Row(window, WelcomeCondition.Guard));
+            if (guard == "关闭") Remove(window, Row(window, WelcomeCondition.Guard));
             else threshold.SelectedItem = guard;
             wealth.Text = "45";
             Dispatcher.UIThread.RunJobs();
@@ -538,13 +533,13 @@ public sealed class SettingsPageTests
             Assert.Equal(new[] { "", "", "1", "舰长", "10" }, rows.Select(row => row.Value));
             Assert.True(MenuItem(WelcomeCondition.Uid).IsEnabled);
             Assert.All(menu.Items.Cast<MenuItem>().Skip(1), item => Assert.False(item.IsEnabled));
-            Assert.True(rows[1].FindControl<TextBox>("UidInput")!.IsFocused);
+            Assert.True(GuiHarness.FindRowControl<TextBox>(page, rows[1], "UidInput")!.IsFocused);
             Assert.Equal("4 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
-            Assert.False(rows[0].FindControl<Grid>("OrSeparator")!.IsVisible);
-            Assert.False(rows[1].FindControl<Grid>("OrSeparator")!.IsVisible);
-            Assert.True(rows[0].FindControl<TextBlock>("TypeName")!.IsVisible);
-            Assert.False(rows[1].FindControl<TextBlock>("TypeName")!.IsVisible);
-            Assert.All(rows.Skip(2), row => Assert.True(row.FindControl<Grid>("OrSeparator")!.IsVisible));
+            Assert.False(GuiHarness.FindRowControl<Grid>(page, rows[0], "OrSeparator")!.IsVisible);
+            Assert.False(GuiHarness.FindRowControl<Grid>(page, rows[1], "OrSeparator")!.IsVisible);
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, rows[0], "TypeName")!.IsVisible);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, rows[1], "TypeName")!.IsVisible);
+            Assert.All(rows.Skip(2), row => Assert.True(GuiHarness.FindRowControl<Grid>(page, row, "OrSeparator")!.IsVisible));
 
             MenuItem MenuItem(WelcomeCondition kind) => menu.Items.Cast<MenuItem>().Single(item => Equals(item.Tag, kind));
             void Add(WelcomeCondition kind)
@@ -555,7 +550,8 @@ public sealed class SettingsPageTests
                 GuiHarness.Flush();
                 Assert.False(menu.IsOpen);
                 var row = Rows(page).Last(row => row.Kind == kind);
-                Assert.True(row.IsKeyboardFocusWithin);
+                Assert.True(GuiHarness.FindRowControl<Control>(page, row,
+                    kind == WelcomeCondition.Uid ? "UidInput" : kind == WelcomeCondition.Guard ? "GuardInput" : "LevelInput").IsKeyboardFocusWithin);
             }
         });
 
@@ -571,15 +567,15 @@ public sealed class SettingsPageTests
             var rows = Rows(page);
             Assert.Equal(5, rows.Length);
             Assert.IsAssignableFrom<IInvokeProvider>(
-                ControlAutomationPeer.CreatePeerForElement(rows[0].FindControl<Button>("RemoveButton")!)).Invoke();
+                ControlAutomationPeer.CreatePeerForElement(GuiHarness.FindRowControl<Button>(page, rows[0], "RemoveButton")!)).Invoke();
             GuiHarness.Flush();
             rows = Rows(page);
             Assert.Equal(4, rows.Length);
             Assert.Equal(["指定观众 UID", "粉丝团等级门槛", "大航海身份", "荣耀等级门槛"],
-                rows.Select(row => AutomationProperties.GetName(row.FindControl<Control>(
+                rows.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<Control>(page, row,
                     row.Kind == WelcomeCondition.Uid ? "UidInput" : row.Kind == WelcomeCondition.Guard ? "GuardInput" : "LevelInput")!)));
             Assert.Equal(["删除指定观众 UID", "删除粉丝团等级条件", "删除大航海身份条件", "删除荣耀等级条件"],
-                rows.Select(row => AutomationProperties.GetName(row.FindControl<Button>("RemoveButton")!)));
+                rows.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<Button>(page, row, "RemoveButton")!)));
         });
 
     [Fact]
@@ -588,7 +584,7 @@ public sealed class SettingsPageTests
         {
             var before = File.ReadAllText(path);
             Assert.Equal(new[] { WelcomeCondition.Uid, WelcomeCondition.Uid, WelcomeCondition.FanClubLevel, WelcomeCondition.Guard, WelcomeCondition.WealthLevel }, Rows(page).Select(row => row.Kind));
-            foreach (var row in Rows(page)) Remove(row);
+            foreach (var row in Rows(page)) Remove(page, row);
             Assert.True(page.FindControl<Grid>("EmptyConditions")!.IsVisible);
             Assert.False(page.FindControl<TextBlock>("ConditionCount")!.IsVisible);
             Assert.True(page.FindControl<Button>("AddConditionButton")!.IsVisible);
@@ -605,11 +601,11 @@ public sealed class SettingsPageTests
         WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42]\n  fan_club_level: 1\n  guard: 舰长\n  wealth_level: 10\n", (page, path) =>
         {
             var before = File.ReadAllText(path);
-            foreach (var row in Rows(page)) Remove(row);
+            foreach (var row in Rows(page)) Remove(page, row);
             Add(page, WelcomeCondition.WealthLevel);
             Add(page, WelcomeCondition.Guard);
             Add(page, WelcomeCondition.FanClubLevel);
-            Add(page, WelcomeCondition.Uid).FindControl<TextBox>("UidInput")!.Text = "0042";
+            GuiHarness.FindRowControl<TextBox>(page, Add(page, WelcomeCondition.Uid), "UidInput")!.Text = "0042";
             GuiHarness.Flush();
             Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
@@ -620,8 +616,8 @@ public sealed class SettingsPageTests
     public Task A_uid_removed_and_added_back_after_the_others_is_not_a_change() =>
         WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42, 43]\n", (page, _) =>
         {
-            Remove(Rows(page)[0]);
-            Add(page, WelcomeCondition.Uid).FindControl<TextBox>("UidInput")!.Text = "42";
+            Remove(page, Rows(page)[0]);
+            GuiHarness.FindRowControl<TextBox>(page, Add(page, WelcomeCondition.Uid), "UidInput")!.Text = "42";
             GuiHarness.Flush();
             Assert.Equal(["43", "42"], UidLabels(page));
             Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
@@ -632,12 +628,12 @@ public sealed class SettingsPageTests
     public Task Duplicate_uids_in_the_file_are_reported_without_making_a_draft() =>
         WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42, 42]\n", (page, path) =>
         {
-            Assert.Equal("和上面那条重复了", Rows(page)[1].FindControl<TextBlock>("ErrorMessage")!.Text);
+            Assert.Equal("和上面那条重复了", GuiHarness.FindRowControl<TextBlock>(page, Rows(page)[1], "ErrorMessage")!.Text);
             Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
             File.WriteAllText(path, "welcome:\n  uids: [42]\n");
             page.RefreshFileStatus(Settings.Load(Path.GetDirectoryName(path)!));
             Assert.Equal(["42"], UidLabels(page));
-            Assert.False(Rows(page)[0].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, Rows(page)[0], "ErrorMessage")!.IsVisible);
         });
 
     [Theory]
@@ -658,21 +654,21 @@ public sealed class SettingsPageTests
             var before = File.ReadAllText(path);
             var originalRow = Row(page, WelcomeCondition.Uid);
             var row = Add(page, WelcomeCondition.Uid);
-            var input = row.FindControl<TextBox>("UidInput")!;
+            var input = GuiHarness.FindRowControl<TextBox>(page, row, "UidInput")!;
             Assert.True(input.IsFocused);
-            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.IsVisible);
             Assert.DoesNotContain("invalid", input.Classes);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             input.Text = value;
             GuiHarness.Flush();
-            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.IsVisible);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
-            originalRow.FocusInput();
+            GuiHarness.FindRowControl<TextBox>(page, originalRow, "UidInput").Focus();
             GuiHarness.Flush();
-            Assert.Equal(message, row.FindControl<TextBlock>("ErrorMessage")!.Text);
-            Assert.True(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.Equal(message, GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.Text);
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.IsVisible);
             Assert.Contains("invalid", input.Classes);
-            Assert.False(originalRow.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, originalRow, "ErrorMessage")!.IsVisible);
             Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
             var save = GuiHarness.FindVisual<Button>(page, "PART_SaveButton");
             Assert.False(save.IsEnabled);
@@ -681,12 +677,12 @@ public sealed class SettingsPageTests
             input.Focus();
             input.Text = "43";
             GuiHarness.Flush();
-            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.IsVisible);
             Assert.DoesNotContain("invalid", input.Classes);
             Assert.True(save.IsEnabled);
             input.Text = value;
             GuiHarness.Flush();
-            Assert.True(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.IsVisible);
             Assert.Contains("invalid", input.Classes);
             Assert.False(save.IsEnabled);
             input.Text = "9223372036854775807";
@@ -702,11 +698,11 @@ public sealed class SettingsPageTests
         {
             SetUids(page, "42", "42");
             var rows = Rows(page).Where(row => row.Kind == WelcomeCondition.Uid).ToArray();
-            rows[0].FocusInput();
+            GuiHarness.FindRowControl<TextBox>(page, rows[0], "UidInput").Focus();
             GuiHarness.Flush();
-            Assert.True(rows[1].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
-            Remove(rows[0]);
-            Assert.False(rows[1].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, rows[1], "ErrorMessage")!.IsVisible);
+            Remove(page, rows[0]);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, rows[1], "ErrorMessage")!.IsVisible);
             Assert.True(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
         });
 
@@ -724,11 +720,11 @@ public sealed class SettingsPageTests
         {
             var before = File.ReadAllText(path);
             var row = Add(page, kind);
-            var number = row.FindControl<NumericUpDown>("LevelInput")!;
+            var number = GuiHarness.FindRowControl<NumericUpDown>(page, row, "LevelInput")!;
             var input = Assert.Single(number.GetVisualDescendants().OfType<TextBox>());
             input.Text = value;
             GuiHarness.Flush();
-            Assert.Equal("至少 1 级", row.FindControl<TextBlock>("ErrorMessage")!.Text);
+            Assert.Equal("至少 1 级", GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.Text);
             var save = GuiHarness.FindVisual<Button>(page, "PART_SaveButton");
             Assert.False(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -767,7 +763,7 @@ public sealed class SettingsPageTests
             Assert.Equal("荣耀等级是多行写法，请在设置文件里改", hint.Text);
             Assert.Equal(new[] { true, true, false, false },
                 Menu(page).Items.Cast<MenuItem>().Select(item => item.IsEnabled));
-            Remove(Row(page, WelcomeCondition.Guard));
+            Remove(page, Row(page, WelcomeCondition.Guard));
             Assert.True(Menu(page).Items.Cast<MenuItem>().Single(item => Equals(item.Tag, WelcomeCondition.Guard)).IsEnabled);
             Assert.Equal("荣耀等级是多行写法，请在设置文件里改", hint.Text);
         });
@@ -778,14 +774,14 @@ public sealed class SettingsPageTests
         {
             var before = File.ReadAllText(path);
             var row = Row(page, WelcomeCondition.FanClubLevel);
-            Assert.True(row.FindControl<NumericUpDown>("LevelInput")!.IsReadOnly);
-            Assert.False(row.FindControl<NumericUpDown>("LevelInput")!.AllowSpin);
-            Assert.False(row.FindControl<Button>("RemoveButton")!.IsVisible);
-            Assert.True(row.FindControl<TextBlock>("ReadOnlyMessage")!.IsVisible);
+            Assert.True(GuiHarness.FindRowControl<NumericUpDown>(page, row, "LevelInput")!.IsReadOnly);
+            Assert.False(GuiHarness.FindRowControl<NumericUpDown>(page, row, "LevelInput")!.AllowSpin);
+            Assert.False(GuiHarness.FindRowControl<Button>(page, row, "RemoveButton")!.IsVisible);
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, row, "ReadOnlyMessage")!.IsVisible);
             Assert.False(page.FindControl<TextBlock>("ConditionsReadOnly")!.IsVisible);
-            Remove(row);
+            Remove(page, row);
             Assert.Same(row, Row(page, WelcomeCondition.FanClubLevel));
-            Remove(Row(page, WelcomeCondition.Guard));
+            Remove(page, Row(page, WelcomeCondition.Guard));
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("guard: 舰长", "guard: 关闭"), File.ReadAllText(path));
         });
@@ -840,7 +836,7 @@ public sealed class SettingsPageTests
             Assert.Null(window.FindControl<NumericUpDown>("WelcomeMaxLengthInput"));
             Assert.Empty(UidLabels(window));
             Assert.DoesNotContain(Rows(window), row => row.Kind == WelcomeCondition.FanClubLevel);
-            Assert.Equal("舰长", Row(window, WelcomeCondition.Guard).FindControl<ComboBox>("GuardInput")!.SelectedItem);
+            Assert.Equal("舰长", GuiHarness.FindRowControl<ComboBox>(window, Row(window, WelcomeCondition.Guard), "GuardInput")!.SelectedItem);
             Assert.DoesNotContain(Rows(window), row => row.Kind == WelcomeCondition.WealthLevel);
             var hint = window.FindControl<TextBlock>("WelcomeTextHint")!.Text;
             Assert.Contains("英文、数字、半角符号算 1，其他字符算 2", hint);
@@ -866,12 +862,12 @@ public sealed class SettingsPageTests
             Assert.Equal("欢迎{昵称}", WelcomeTextList.Input(window).Text);
             Assert.True(WelcomeTextList.Input(window).IsReadOnly);
             Assert.Equal(["12345", "67890"], UidLabels(window));
-            Assert.All(Rows(window).Where(row => row.Kind == WelcomeCondition.Uid), row => Assert.True(row.FindControl<TextBox>("UidInput")!.IsReadOnly));
-            Assert.Equal("提督", Row(window, WelcomeCondition.Guard).FindControl<ComboBox>("GuardInput")!.SelectedItem);
-            Assert.False(Row(window, WelcomeCondition.Guard).FindControl<ComboBox>("GuardInput")!.IsEnabled);
+            Assert.All(Rows(window).Where(row => row.Kind == WelcomeCondition.Uid), row => Assert.True(GuiHarness.FindRowControl<TextBox>(window, row, "UidInput")!.IsReadOnly));
+            Assert.Equal("提督", GuiHarness.FindRowControl<ComboBox>(window, Row(window, WelcomeCondition.Guard), "GuardInput")!.SelectedItem);
+            Assert.False(GuiHarness.FindRowControl<ComboBox>(window, Row(window, WelcomeCondition.Guard), "GuardInput")!.IsEnabled);
             foreach (var (name, value) in new[] { (WelcomeCondition.FanClubLevel, "21"), (WelcomeCondition.WealthLevel, "45") })
             {
-                var number = Row(window, name).FindControl<NumericUpDown>("LevelInput")!;
+                var number = GuiHarness.FindRowControl<NumericUpDown>(window, Row(window, name), "LevelInput")!;
                 Assert.Equal(value, number.Text);
                 Assert.True(number.IsReadOnly);
                 Assert.False(number.AllowSpin);
@@ -880,8 +876,8 @@ public sealed class SettingsPageTests
                 Assert.True(window.FindControl<TextBlock>(name + "ReadOnly")!.IsVisible);
             Assert.All(Rows(window), row =>
             {
-                Assert.Equal(row == Rows(window).First(r => r.Kind == row.Kind), row.FindControl<TextBlock>("ReadOnlyMessage")!.IsVisible);
-                Assert.False(row.FindControl<Button>("RemoveButton")!.IsVisible);
+                Assert.Equal(row == Rows(window).First(r => r.Kind == row.Kind), GuiHarness.FindRowControl<TextBlock>(window, row, "ReadOnlyMessage")!.IsVisible);
+                Assert.False(GuiHarness.FindRowControl<Button>(window, row, "RemoveButton")!.IsVisible);
             });
             Assert.All(Menu(window).Items.Cast<MenuItem>(), item => Assert.False(item.IsEnabled));
             var general = new GeneralSettingsPage(Path.GetDirectoryName(path)!);
@@ -1161,12 +1157,12 @@ public sealed class SettingsPageTests
 
     private static WelcomeConditionRow Row(SettingsPage page, WelcomeCondition kind) => Rows(page).First(row => row.Kind == kind);
     private static IEnumerable<string?> UidLabels(SettingsPage page) => Rows(page)
-        .Where(row => row.Kind == WelcomeCondition.Uid).Select(row => row.FindControl<TextBox>("UidInput")!.Text);
+        .Where(row => row.Kind == WelcomeCondition.Uid).Select(row => row.Uid);
 
     private static void SetUids(SettingsPage page, params string[] values)
     {
-        foreach (var row in Rows(page).Where(row => row.Kind == WelcomeCondition.Uid)) Remove(row);
-        foreach (var value in values) Add(page, WelcomeCondition.Uid).FindControl<TextBox>("UidInput")!.Text = value;
+        foreach (var row in Rows(page).Where(row => row.Kind == WelcomeCondition.Uid)) Remove(page, row);
+        foreach (var value in values) GuiHarness.FindRowControl<TextBox>(page, Add(page, WelcomeCondition.Uid), "UidInput")!.Text = value;
         GuiHarness.Flush();
     }
 
