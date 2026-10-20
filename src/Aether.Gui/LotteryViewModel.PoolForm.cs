@@ -10,8 +10,8 @@ public partial class LotteryViewModel
     private long? loadedPoolRoom;
     private bool loadingPool;
     [ObservableProperty] private bool busy;
-    [ObservableProperty] private string uid = "";
-    [ObservableProperty] private string stopWord = LotteryController.DefaultStopWord;
+    [ObservableProperty] private string? uid = "";
+    [ObservableProperty] private string? stopWord = LotteryController.DefaultStopWord;
     [ObservableProperty] private string? poolLotteryError;
     public EditableRows<PoolPrizeRow> Prizes { get; } = new(1) { new(LotteryController.DefaultPrize, isNew: true) };
 
@@ -19,7 +19,7 @@ public partial class LotteryViewModel
     private bool CanControlOperation => !Busy && LotteryState.CanControl;
     public bool PoolSpinning => LotteryState.Lottery is PoolLottery { Phase: PoolLotteryPhase.Spinning };
     public bool PoolDrawing => LotteryState.Lottery is PoolLottery { IsDrawing: true };
-    public bool PoolIdle => !PoolSpinning && !PoolDrawing;
+    public bool PoolIdle => LotteryState.Lottery is not EntryLottery && !PoolSpinning && !PoolDrawing;
     public bool CanEditPool => PoolIdle && !Busy;
     public bool CanAddPrize => CanEditPool && Prizes.Count < LotteryController.MaxPrizes;
     public bool CanStart => PoolIdle && CanBeginOperation && Prizes.All(row => row.Error is null) && UidError is null && StopWordError is null;
@@ -39,7 +39,7 @@ public partial class LotteryViewModel
         get
         {
             var lottery = LotteryState.Lottery as PoolLottery;
-            var word = PoolSpinning || PoolDrawing ? lottery!.StopWord : StopWord.Trim();
+            var word = PoolSpinning || PoolDrawing ? lottery!.StopWord : StopWord?.Trim();
             var caller = (PoolSpinning || PoolDrawing ? lottery!.Uid : ParsedUid) is { } uid
                 ? lottery?.Viewers.GetValueOrDefault(uid) ?? $"UID {uid}" : null;
             return lottery?.Phase switch
@@ -54,8 +54,8 @@ public partial class LotteryViewModel
 
     partial void OnLotteryStateChanged(LotteryState value) => RefreshPoolForm();
     partial void OnBusyChanged(bool value) => RefreshPoolInputs();
-    partial void OnUidChanged(string value) => RefreshPoolInputs();
-    partial void OnStopWordChanged(string value) => RefreshPoolInputs();
+    partial void OnUidChanged(string? value) => RefreshPoolInputs();
+    partial void OnStopWordChanged(string? value) => RefreshPoolInputs();
 
     private void RefreshPoolForm()
     {
@@ -107,7 +107,7 @@ public partial class LotteryViewModel
     {
         if (!CanStart) return Task.CompletedTask;
         var prizes = Prizes.Select(row => row.Value).ToArray();
-        var word = StopWord;
+        var word = StopWord ?? "";
         var uid = ParsedUid;
         return ChangeLotteryAsync(lottery => lottery.Start(prizes, word, uid));
     }
