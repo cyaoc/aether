@@ -9,6 +9,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Aether.Core.Tests" />
+    <InternalsVisibleTo Include="Aether.Gui.Tests" />
     <EmbeddedResource Include="Pages/**" Exclude="Pages/**/*.md" />
     <None Update="Pages/lottery/*OFL.txt" Link="Fonts/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>

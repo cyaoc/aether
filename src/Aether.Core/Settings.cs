@@ -115,10 +115,9 @@ public sealed class Settings
     private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("welcome_animation.enabled", false));
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private static readonly KeyedGroupDefinition AnimationVideos = Register(new KeyedGroupDefinition("welcome_animation_videos"));
-    /// <summary>Adding a setting is a registered definition here, its property and its line in Template
-    /// (plus, for the GUI, one Fields entry in SettingsPage and the controls that show it: in SettingsPage.axaml with
-    /// one Show call, for a 欢迎条件 a WelcomeConditionRow kind, or for a list of texts rows like WelcomeTextRow). The UID-keyed welcome_animation_videos group is the
-    /// exception: its keys come from the file, so it is handled wherever VideoGroup appears.</summary>
+    /// <summary>Adding a setting means registering its definition here, adding its property and a line in Template,
+    /// then a Bind call in its GUI settings page (composite settings need their row code instead).
+    /// The GUI coverage test catches settings omitted from the pages.</summary>
     private static T Register<T>(T definition) where T : Definition
     {
         Definitions.Add(definition);

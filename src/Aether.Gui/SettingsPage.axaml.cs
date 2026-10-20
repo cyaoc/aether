@@ -225,6 +225,7 @@ public abstract class SettingsPage : TemplatedControl
 
     /// <summary>Each setting this page edits; reading, validating and saving share this list.</summary>
     private Field[] Fields() => bindings.Select(binding => binding.Read()).Concat(RowFields()).ToArray();
+    internal virtual IEnumerable<string> FieldNames => Fields().Select(item => item.Name);
 
     protected void Validate()
     {
