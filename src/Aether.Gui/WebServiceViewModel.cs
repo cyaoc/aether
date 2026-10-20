@@ -1,11 +1,11 @@
 using Aether.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Gui;
 
-public partial class MainWindowViewModel
+public partial class WebServiceViewModel(AetherClient client, ILogger logger, TimeProvider clock,
+    CancellationToken shutdown) : ObservableObject
 {
     private CancellationTokenSource? animationUpdateStop;
     private Task animationUpdates = Task.CompletedTask;
@@ -74,7 +74,7 @@ public partial class MainWindowViewModel
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
     }
 
-    private async Task StopAnimationsAsync()
+    internal async Task StopAsync()
     {
         await animationReload.StopAsync();
         await client.WebService.StopAsync();
@@ -84,18 +84,6 @@ public partial class MainWindowViewModel
         animationUpdateStop?.Dispose();
         animationUpdateStop = null;
     }
-
-    [RelayCommand]
-    private async Task OpenSettingsAsync()
-    {
-        LoginCommand.Cancel();
-        if (LoginCommand.ExecutionTask is { } login) await login;
-        ClearQrCode();
-        IsLoginPage = false;
-    }
-
-    [RelayCommand]
-    private void OpenLoginPage() => ShowLoginPage();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(VideoPageText))]
@@ -111,7 +99,7 @@ public partial class MainWindowViewModel
     [NotifyPropertyChangedFor(nameof(ServiceHelpText))]
     [NotifyPropertyChangedFor(nameof(VideoConnectionsText))]
     [NotifyPropertyChangedFor(nameof(LotteryConnectionsText))]
-    private WebServiceStatus webServiceStatus;
+    private WebServiceStatus webServiceStatus = client.WebService.Status;
 
     public bool HasVideoConnections => WebServiceStatus is { Running: true, VideoConnections: > 0 };
     public bool HasLotteryConnections => WebServiceStatus is { Running: true, LotteryConnections: > 0 };
@@ -208,7 +196,7 @@ public partial class MainWindowViewModel
         client.WelcomeAnimation.TestPlay(uid);
     }
 
-    private void ClearAnimationHistory()
+    internal void ClearAnimationHistory()
     {
         RecentAnimations.Clear();
     }

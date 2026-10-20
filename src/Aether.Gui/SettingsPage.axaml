@@ -177,17 +177,17 @@
                     <TextBlock Classes="section" Text="网页服务" VerticalAlignment="Center" />
                     <TextBlock Grid.Column="1" Classes="hint" Text="直播姬里的浏览器素材从这里打开页面" VerticalAlignment="Center" />
                   </Grid>
-                  <Border Classes="card notice" Classes.error="{Binding HasWebServiceError}">
+                  <Border Classes="card notice" Classes.error="{Binding WebService.HasWebServiceError}">
                     <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
                       <Panel VerticalAlignment="Top" Margin="0,1,0,0">
-                        <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebServiceStatus.Running}"><Path Data="{StaticResource Icon.Ok}" Stroke="{DynamicResource Success}" StrokeThickness="2" /></Viewbox>
-                        <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding HasWebServiceError}"><Path Data="{StaticResource Icon.Fail}" StrokeThickness="2" /></Viewbox>
-                        <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding IsWebServiceOff}"><Path Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
+                        <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.WebServiceStatus.Running}"><Path Data="{StaticResource Icon.Ok}" Stroke="{DynamicResource Success}" StrokeThickness="2" /></Viewbox>
+                        <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.HasWebServiceError}"><Path Data="{StaticResource Icon.Fail}" StrokeThickness="2" /></Viewbox>
+                        <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.IsWebServiceOff}"><Path Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
                       </Panel>
                       <StackPanel Grid.Column="1" Spacing="4">
-                        <TextBlock x:Name="WebServiceStatusText" Classes="secondary singleLine" Classes.success="{Binding WebServiceStatus.Running}" Classes.muted="{Binding IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding ServiceStatusText}" AutomationProperties.LiveSetting="Polite" />
-                        <TextBlock x:Name="WebServiceHelp" Classes="caption" Foreground="{DynamicResource Text.Secondary}" LineHeight="18" TextWrapping="Wrap" Text="{Binding ServiceHelpText}"
-                          IsVisible="{Binding ServiceHelpText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                        <TextBlock x:Name="WebServiceStatusText" Classes="secondary singleLine" Classes.success="{Binding WebService.WebServiceStatus.Running}" Classes.muted="{Binding WebService.IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding WebService.ServiceStatusText}" AutomationProperties.LiveSetting="Polite" />
+                        <TextBlock x:Name="WebServiceHelp" Classes="caption" Foreground="{DynamicResource Text.Secondary}" LineHeight="18" TextWrapping="Wrap" Text="{Binding WebService.ServiceHelpText}"
+                          IsVisible="{Binding WebService.ServiceHelpText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                       </StackPanel>
                     </Grid>
                   </Border>
@@ -212,21 +212,21 @@
                           <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Animation}" Stroke="{DynamicResource Accent.Text}" /></Viewbox>
                           <TextBlock Grid.Column="1" Text="视频页" FontWeight="SemiBold" VerticalAlignment="Center" />
                           <TextBlock Grid.Column="2" Classes="caption muted singleLine" Text="欢迎动画在这里播放" VerticalAlignment="Center" />
-                          <StackPanel Grid.Column="3" Classes="pageStatus" Classes.connected="{Binding HasVideoConnections}" Classes.waiting="{Binding ShowVideoSetup}" Orientation="Horizontal" Spacing="6">
+                          <StackPanel Grid.Column="3" Classes="pageStatus" Classes.connected="{Binding WebService.HasVideoConnections}" Classes.waiting="{Binding WebService.ShowVideoSetup}" Orientation="Horizontal" Spacing="6">
                             <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
-                            <TextBlock x:Name="VideoConnectionsText" Text="{Binding VideoConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                            <TextBlock x:Name="VideoConnectionsText" Text="{Binding WebService.VideoConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
                           </StackPanel>
                         </Grid>
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                          <TextBox x:Name="VideoAddress" Classes="address" Text="{Binding VideoAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="视频页地址" />
-                          <Button Grid.Column="1" x:Name="CopyVideoAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding VideoAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制视频页地址">
+                          <TextBox x:Name="VideoAddress" Classes="address" Text="{Binding WebService.VideoAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="视频页地址" />
+                          <Button Grid.Column="1" x:Name="CopyVideoAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.VideoAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制视频页地址">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                               <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
                               <TextBlock VerticalAlignment="Center" />
                             </StackPanel>
                           </Button>
                         </Grid>
-                        <Grid x:Name="VideoSetupHelp" ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding ShowVideoSetup}" TextElement.Foreground="{DynamicResource Warning.Text}">
+                        <Grid x:Name="VideoSetupHelp" ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding WebService.ShowVideoSetup}" TextElement.Foreground="{DynamicResource Warning.Text}">
                           <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
                           <TextBlock Grid.Column="1" Classes="caption" LineHeight="18" TextWrapping="Wrap" Text="{StaticResource BrowserSourceSteps}" />
                         </Grid>
@@ -237,21 +237,21 @@
                           <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Lottery}" Stroke="{DynamicResource Accent.Text}" /></Viewbox>
                           <TextBlock Grid.Column="1" Text="抽奖页" FontWeight="SemiBold" VerticalAlignment="Center" />
                           <TextBlock Grid.Column="2" Classes="caption muted singleLine" Text="报名、开奖和中奖名单" VerticalAlignment="Center" />
-                          <StackPanel Grid.Column="3" Classes="pageStatus" Classes.connected="{Binding HasLotteryConnections}" Classes.waiting="{Binding ShowLotterySetup}" Orientation="Horizontal" Spacing="6">
+                          <StackPanel Grid.Column="3" Classes="pageStatus" Classes.connected="{Binding WebService.HasLotteryConnections}" Classes.waiting="{Binding WebService.ShowLotterySetup}" Orientation="Horizontal" Spacing="6">
                             <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
-                            <TextBlock x:Name="LotteryConnectionsText" Text="{Binding LotteryConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                            <TextBlock x:Name="LotteryConnectionsText" Text="{Binding WebService.LotteryConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
                           </StackPanel>
                         </Grid>
                         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                          <TextBox x:Name="LotteryAddress" Classes="address" Text="{Binding LotteryAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="抽奖页地址" />
-                          <Button Grid.Column="1" x:Name="CopyLotteryAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding LotteryAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制抽奖页地址">
+                          <TextBox x:Name="LotteryAddress" Classes="address" Text="{Binding WebService.LotteryAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="抽奖页地址" />
+                          <Button Grid.Column="1" x:Name="CopyLotteryAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.LotteryAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制抽奖页地址">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                               <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
                               <TextBlock VerticalAlignment="Center" />
                             </StackPanel>
                           </Button>
                         </Grid>
-                        <Grid x:Name="LotterySetupHelp" ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding ShowLotterySetup}" TextElement.Foreground="{DynamicResource Warning.Text}">
+                        <Grid x:Name="LotterySetupHelp" ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding WebService.ShowLotterySetup}" TextElement.Foreground="{DynamicResource Warning.Text}">
                           <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
                           <TextBlock Grid.Column="1" Classes="caption" LineHeight="18" TextWrapping="Wrap" Text="{StaticResource BrowserSourceSteps}" />
                         </Grid>
@@ -297,15 +297,15 @@
               </StackPanel>
               <StackPanel x:Name="AnimationFields" Spacing="10">
                 <TextBlock x:Name="AnimationReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
-                <Border Classes="card notice" Padding="12,8,8,8" Classes.warning="{Binding ShowVideoSetup}" Classes.error="{Binding HasWebServiceError}">
+                <Border Classes="card notice" Padding="12,8,8,8" Classes.warning="{Binding WebService.ShowVideoSetup}" Classes.error="{Binding WebService.HasWebServiceError}">
                   <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                     <Panel>
-                      <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding HasVideoConnections}"><Path Data="{StaticResource Icon.Ok}" Stroke="{DynamicResource Success}" StrokeThickness="2" /></Viewbox>
-                      <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding ShowVideoSetup}"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
-                      <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding HasWebServiceError}"><Path Data="{StaticResource Icon.Fail}" StrokeThickness="2" /></Viewbox>
-                      <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding IsWebServiceOff}"><Path Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
+                      <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.HasVideoConnections}"><Path Data="{StaticResource Icon.Ok}" Stroke="{DynamicResource Success}" StrokeThickness="2" /></Viewbox>
+                      <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.ShowVideoSetup}"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
+                      <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.HasWebServiceError}"><Path Data="{StaticResource Icon.Fail}" StrokeThickness="2" /></Viewbox>
+                      <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.IsWebServiceOff}"><Path Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
                     </Panel>
-                    <TextBlock Grid.Column="1" x:Name="VideoPageStatusText" Classes="secondary singleLine" Classes.success="{Binding HasVideoConnections}" Classes.muted="{Binding IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding VideoPageText}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+                    <TextBlock Grid.Column="1" x:Name="VideoPageStatusText" Classes="secondary singleLine" Classes.success="{Binding WebService.HasVideoConnections}" Classes.muted="{Binding WebService.IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding WebService.VideoPageText}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
                     <Button Grid.Column="2" x:Name="OpenGeneralSettingsButton" Classes="ghost" Height="30" Padding="8,0" Foreground="{DynamicResource Accent.Text}" Click="OpenGeneralSettings">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <TextBlock Text="地址和端口在通用设置" FontSize="13" VerticalAlignment="Center" />
@@ -488,16 +488,16 @@
             <Panel Grid.Column="1">
               <TextBlock x:Name="WelcomeTotal" Classes="caption muted numeric" Text="{Binding SendQueue.WelcomeCount, StringFormat=共 {0:N0} 次}" VerticalAlignment="Center" />
               <Panel IsVisible="{Binding #RecentAnimationsList.IsVisible}">
-                <TextBlock x:Name="AnimationTotal" Classes="caption muted numeric" Text="{Binding RecentAnimations.Count, StringFormat=共 {0:N0} 次}" IsVisible="{Binding !!RecentAnimations.Count}" VerticalAlignment="Center" />
+                <TextBlock x:Name="AnimationTotal" Classes="caption muted numeric" Text="{Binding WebService.RecentAnimations.Count, StringFormat=共 {0:N0} 次}" IsVisible="{Binding !!WebService.RecentAnimations.Count}" VerticalAlignment="Center" />
               </Panel>
               <TextBlock Classes="caption muted numeric" Text="{Binding SendQueue.RecentQueriesAndAnnouncements.Count, StringFormat={}{0:N0} 条}" IsVisible="{Binding #RecentQueriesAndAnnouncementsList.IsVisible}" VerticalAlignment="Center" />
             </Panel>
           </Grid>
           <Panel Grid.Row="1">
             <ListBox x:Name="RecentWelcomesList" Classes="plain aside" ItemsSource="{Binding SendQueue.RecentWelcomes}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近欢迎" />
-            <ListBox x:Name="RecentAnimationsList" Classes="plain aside" ItemsSource="{Binding RecentAnimations}" ItemTemplate="{StaticResource AnimationActivityTemplate}" AutomationProperties.Name="最近播放" />
+            <ListBox x:Name="RecentAnimationsList" Classes="plain aside" ItemsSource="{Binding WebService.RecentAnimations}" ItemTemplate="{StaticResource AnimationActivityTemplate}" AutomationProperties.Name="最近播放" />
             <Panel IsVisible="{Binding #RecentAnimationsList.IsVisible}">
-              <TextBlock Classes="hint" Text="暂无播放记录" Margin="16,8" IsVisible="{Binding !RecentAnimations.Count}" />
+              <TextBlock Classes="hint" Text="暂无播放记录" Margin="16,8" IsVisible="{Binding !WebService.RecentAnimations.Count}" />
             </Panel>
             <ListBox x:Name="RecentQueriesAndAnnouncementsList" Classes="plain aside" ItemsSource="{Binding SendQueue.RecentQueriesAndAnnouncements}" ItemTemplate="{StaticResource FeatureActivityTemplate}" AutomationProperties.Name="最近回复和播报" />
           </Panel>

@@ -29,7 +29,8 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly GuiSettings settings;
     private readonly TimeProvider clock;
 
-    public MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings, TimeProvider clock)
+    public MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
+        TimeProvider clock)
     {
         this.client = client;
         this.logger = logger;
@@ -37,11 +38,12 @@ public partial class MainWindowViewModel : ObservableObject
         this.clock = clock;
         keepRecentDanmaku = settings.KeepRecentDanmaku;
         roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
-        webServiceStatus = client.WebService.Status;
+        WebService = new(client, logger, clock, shutdown.Token);
         Lottery = new(client, logger, settings, SaveGuiSettings, shutdown.Token);
     }
 
     public SendQueueViewModel SendQueue { get; } = new();
+    public WebServiceViewModel WebService { get; }
     public LotteryViewModel Lottery { get; }
     [ObservableProperty] private bool keepRecentDanmaku;
     [ObservableProperty] private string roomNumber;
@@ -119,7 +121,7 @@ public partial class MainWindowViewModel : ObservableObject
     {
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
         Lottery.ObserveLottery();
-        var webSettings = ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
+        var webSettings = WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
         return Task.WhenAll(webSettings, ReadAccountCommand.ExecuteAsync(null));
     }
 
@@ -181,7 +183,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             Danmaku.Clear();
             SendQueue.Clear();
-            ClearAnimationHistory();
+            WebService.ClearAnimationHistory();
         }
         preserveHistory = false;
         try
@@ -280,6 +282,18 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
+    [RelayCommand]
+    private async Task OpenSettingsAsync()
+    {
+        LoginCommand.Cancel();
+        if (LoginCommand.ExecutionTask is { } login) await login;
+        ClearQrCode();
+        IsLoginPage = false;
+    }
+
+    [RelayCommand]
+    private void OpenLoginPage() => ShowLoginPage();
+
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task ReadAccountAsync()
     {
@@ -370,7 +384,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
         if (LoginCommand.ExecutionTask is { } login) await login;
-        await StopAnimationsAsync();
+        await WebService.StopAsync();
     }
 
     // Reconnects skip Connecting, so a QR login can end at either update.
