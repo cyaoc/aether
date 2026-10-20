@@ -25,6 +25,7 @@ public partial class WelcomeAnimationSettingsPage : SettingsPage
     protected override void LoadRows() => LoadAnimations();
     protected override bool RowsChanged => AnimationDraft;
     protected override bool ShowRowErrors() => RefreshAnimations();
+    internal override IEnumerable<string> FieldNames => base.FieldNames.Append("welcome_animation_videos");
 
     protected override Task<string> WriteSettings(Dictionary<string, string> changes)
     {

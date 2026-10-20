@@ -18,6 +18,22 @@ namespace Aether.Gui.Tests;
 
 public sealed class SettingsPageTests
 {
+    [Fact]
+    public Task Every_core_setting_is_edited_by_exactly_one_settings_section() => HeadlessApp.Session.Dispatch(() =>
+    {
+        using var harness = new GuiHarness();
+        SettingsPage[] pages =
+        [
+            new BlindBoxSettingsPage(harness.DataDirectory),
+            new WelcomeSettingsPage(harness.DataDirectory),
+            new WelcomeAnimationSettingsPage(harness.DataDirectory),
+            new SendSettingsPage(harness.DataDirectory),
+            new GeneralSettingsPage(harness.DataDirectory)
+        ];
+        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name).Order(),
+            pages.SelectMany(page => page.FieldNames).Order());
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(false, 3)]
     [InlineData(false, 4)]
