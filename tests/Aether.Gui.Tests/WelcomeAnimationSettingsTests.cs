@@ -1,6 +1,8 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia.Automation;
 using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -14,6 +16,36 @@ namespace Aether.Gui.Tests;
 
 public sealed class WelcomeAnimationSettingsTests
 {
+    [Fact]
+    public Task Animation_accessible_names_keep_their_uid_after_removing_the_first() => HeadlessApp.Session.Dispatch(() =>
+    {
+        using var harness = new GuiHarness();
+        var source = Video(harness, "source", "video.mp4");
+        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(source));
+        var window = new Window { Content = page };
+        window.Show();
+        try
+        {
+            Add(page, "42");
+            Add(page, "43");
+            Add(page, "44");
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                Rows(page)[0].FindControl<Button>("RemoveButton")!)).Invoke();
+            GuiHarness.Flush();
+            var remaining = Rows(page);
+            Assert.Equal(new[] { "观众 UID", "观众 UID" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("UidInput")!)));
+            Assert.Equal(new[] { "更换43 的视频：video.mp4", "更换44 的视频：video.mp4" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<Button>("FileButton")!)));
+            Assert.Equal(new[] { "试播43 的欢迎动画", "试播44 的欢迎动画" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<Button>("TestButton")!)));
+            Assert.Equal(new[] { "删除43 的欢迎动画", "删除44 的欢迎动画" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<Button>("RemoveButton")!)));
+        }
+        finally { window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task History_keeps_one_hundred_finished_items_and_clears_only_for_a_new_room_connection() => HeadlessApp.Session.Dispatch(async () =>
     {
