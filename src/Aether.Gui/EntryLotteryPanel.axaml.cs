@@ -47,7 +47,7 @@ public partial class EntryLotteryPanel : UserControl
         };
         VisibilityButton.Click += async (_, _) =>
         {
-            if (!VisibilityButton.IsEnabled || viewModel?.LotteryState.Lottery is not EntryLottery entry) return;
+            if (!VisibilityButton.IsEnabled || viewModel?.Lottery.LotteryState.Lottery is not EntryLottery entry) return;
             await ChangeAsync(lottery => lottery.SetEntryHidden(!entry.Hidden));
         };
     }
@@ -74,21 +74,21 @@ public partial class EntryLotteryPanel : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (viewModel is not null) viewModel.PropertyChanged -= StateChanged;
+        if (viewModel is not null) viewModel.Lottery.PropertyChanged -= StateChanged;
         viewModel = DataContext as MainWindowViewModel;
-        if (viewModel is not null) viewModel.PropertyChanged += StateChanged;
+        if (viewModel is not null) viewModel.Lottery.PropertyChanged += StateChanged;
         Refresh();
     }
 
     private void StateChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MainWindowViewModel.LotteryState)) Refresh();
+        if (e.PropertyName == nameof(LotteryViewModel.LotteryState)) Refresh();
     }
 
     private void Refresh()
     {
         if (loading || AwardRows is null) return;
-        var state = viewModel?.LotteryState;
+        var state = viewModel?.Lottery.LotteryState;
         if (state?.Lottery is not EntryLottery lottery) { loadedId = null; displayed = null; return; }
         if (loadedId != lottery.Id)
         {
@@ -226,7 +226,7 @@ public partial class EntryLotteryPanel : UserControl
         busy = true;
         ErrorMessage.IsVisible = false;
         Refresh();
-        try { await viewModel.ChangeLotteryAsync(change); }
+        try { await viewModel.Lottery.ChangeLotteryAsync(change); }
         catch (Exception error) { ShowError(error.Message); }
         finally { busy = false; Refresh(); }
     }

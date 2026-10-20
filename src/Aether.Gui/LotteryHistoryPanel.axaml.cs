@@ -21,54 +21,54 @@ public partial class LotteryHistoryPanel : UserControl
         LotteryList.SelectionChanged += async (_, _) =>
         {
             if (!loading && LotteryList.SelectedItem is ListBoxItem { Tag: LotteryHistory item } && viewModel is not null)
-                await viewModel.RefreshLotteryHistoryAsync(item.Id);
+                await viewModel.Lottery.RefreshLotteryHistoryAsync(item.Id);
         };
         ReturnButton.Click += (_, _) => { if (ReturnButton.IsEnabled) ReturnRequested?.Invoke(); };
-        RetryButton.Click += async (_, _) => { if (viewModel is not null) await viewModel.RefreshLotteryHistoryAsync(); };
+        RetryButton.Click += async (_, _) => { if (viewModel is not null) await viewModel.Lottery.RefreshLotteryHistoryAsync(); };
     }
 
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        if (viewModel is not null) viewModel.PropertyChanged -= Changed;
+        if (viewModel is not null) viewModel.Lottery.PropertyChanged -= Changed;
         viewModel = DataContext as MainWindowViewModel;
-        if (viewModel is not null) viewModel.PropertyChanged += Changed;
+        if (viewModel is not null) viewModel.Lottery.PropertyChanged += Changed;
         Refresh();
     }
 
     private void Changed(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is nameof(MainWindowViewModel.LotteryHistory) or nameof(MainWindowViewModel.SelectedLotteryHistory)
-            or nameof(MainWindowViewModel.LotteryHistoryLoading) or nameof(MainWindowViewModel.LotteryHistoryError)
-            or nameof(MainWindowViewModel.LotteryState)) Refresh();
+        if (e.PropertyName is nameof(LotteryViewModel.LotteryHistory) or nameof(LotteryViewModel.SelectedLotteryHistory)
+            or nameof(LotteryViewModel.LotteryHistoryLoading) or nameof(LotteryViewModel.LotteryHistoryError)
+            or nameof(LotteryViewModel.LotteryState)) Refresh();
     }
 
     private void Refresh()
     {
         if (viewModel is null || LotteryList is null) return;
-        LoadingText.IsVisible = viewModel.LotteryHistoryLoading;
-        ErrorText.Text = viewModel.LotteryHistoryError;
+        LoadingText.IsVisible = viewModel.Lottery.LotteryHistoryLoading;
+        ErrorText.Text = viewModel.Lottery.LotteryHistoryError;
         ErrorText.IsVisible = RetryButton.IsVisible = !string.IsNullOrEmpty(ErrorText.Text);
-        EmptyText.IsVisible = viewModel.LotteryHistory.Count == 0 && !LoadingText.IsVisible && !ErrorText.IsVisible;
-        LotteryList.IsVisible = viewModel.LotteryHistory.Count > 0;
+        EmptyText.IsVisible = viewModel.Lottery.LotteryHistory.Count == 0 && !LoadingText.IsVisible && !ErrorText.IsVisible;
+        LotteryList.IsVisible = viewModel.Lottery.LotteryHistory.Count > 0;
         loading = true;
-        if (!ReferenceEquals(displayed, viewModel.LotteryHistory))
+        if (!ReferenceEquals(displayed, viewModel.Lottery.LotteryHistory))
         {
-            displayed = viewModel.LotteryHistory;
+            displayed = viewModel.Lottery.LotteryHistory;
             LotteryList.Items.Clear();
             foreach (var item in displayed) LotteryList.Items.Add(Row(item));
             RoomText.Text = displayed.FirstOrDefault() is { } first ? $"直播间 {first.RoomId}" : "";
         }
         // Connected, the sidebar already names the room; offline, this says whose history is shown.
-        RoomText.IsVisible = viewModel.LotteryState.RoomId is null && RoomText.Text != "";
-        var selected = viewModel.SelectedLotteryHistory;
-        if (!viewModel.LotteryHistoryLoading)
+        RoomText.IsVisible = viewModel.Lottery.LotteryState.RoomId is null && RoomText.Text != "";
+        var selected = viewModel.Lottery.SelectedLotteryHistory;
+        if (!viewModel.Lottery.LotteryHistoryLoading)
             LotteryList.SelectedItem = LotteryList.Items.OfType<ListBoxItem>().FirstOrDefault(row => row.Tag is LotteryHistory item && item.Id == selected?.Id);
         loading = false;
         Details.IsVisible = selected is not null;
         ReturnButton.IsVisible = selected is { EndedAt: null };
         ReturnButton.IsEnabled = selected is not null
-            && selected.Id == viewModel.LotteryState.Lottery?.Id;
+            && selected.Id == viewModel.Lottery.LotteryState.Lottery?.Id;
         ReturnHint.IsVisible = ReturnButton.IsVisible && !ReturnButton.IsEnabled;
         if (ReferenceEquals(details, selected)) return;
         details = selected;

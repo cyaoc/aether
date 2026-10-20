@@ -4,20 +4,15 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Aether.Gui;
 
-public partial class MainWindowViewModel
+public partial class SendQueueViewModel : ObservableObject
 {
-    // ponytail: each page keeps 100 finished items; add history storage only if older records are needed.
-    private const int FinishedItemLimit = 100;
-    // Each feature page's finished items, earliest-finished first, so trimming drops the oldest by when they finished.
-    private readonly Queue<SendQueueItemViewModel> finishedWelcomes = new();
-    private readonly Queue<SendQueueItemViewModel> finishedQueriesAndAnnouncements = new();
     public ObservableCollection<SendQueueItemViewModel> PendingSends { get; } = [];
-    public ObservableCollection<SendQueueItemViewModel> RecentSends { get; } = [];
-    public ObservableCollection<SendQueueItemViewModel> RecentWelcomes { get; } = [];
-    public ObservableCollection<SendQueueItemViewModel> RecentQueriesAndAnnouncements { get; } = [];
+    public RecentItems<SendQueueItemViewModel> RecentSends { get; } = [];
+    public RecentItems<SendQueueItemViewModel> RecentWelcomes { get; } = [];
+    public RecentItems<SendQueueItemViewModel> RecentQueriesAndAnnouncements { get; } = [];
     [ObservableProperty] private long welcomeCount;
 
-    private void ApplySendQueue(SendQueueUpdate update)
+    internal void Apply(SendQueueUpdate update)
     {
         // Core reports nothing after an item's outcome, so only pending items can be updated.
         var item = PendingSends.FirstOrDefault(pending => pending.Id == update.Id);
@@ -38,7 +33,7 @@ public partial class MainWindowViewModel
         for (var index = 0; index < PendingSends.Count; index++) PendingSends[index].Position = index + 1;
     }
 
-    private void EndPendingSends()
+    internal void EndPending()
     {
         foreach (var item in PendingSends.ToArray())
         {
@@ -51,22 +46,17 @@ public partial class MainWindowViewModel
     {
         PendingSends.Remove(item);
         RecentSends.Insert(0, item);
-        if (RecentSends.Count > FinishedItemLimit) RecentSends.RemoveAt(FinishedItemLimit);
-        var (page, finished) = item.Kind == SendQueueItemKind.Welcome
-            ? (RecentWelcomes, finishedWelcomes)
-            : (RecentQueriesAndAnnouncements, finishedQueriesAndAnnouncements);
-        finished.Enqueue(item);
-        if (finished.Count > FinishedItemLimit) page.Remove(finished.Dequeue());
+        RecentSends.Finish(item);
+        var page = item.Kind == SendQueueItemKind.Welcome ? RecentWelcomes : RecentQueriesAndAnnouncements;
+        page.Finish(item);
     }
 
-    private void ClearSendHistory()
+    internal void Clear()
     {
         PendingSends.Clear();
         RecentSends.Clear();
         RecentWelcomes.Clear();
         RecentQueriesAndAnnouncements.Clear();
-        finishedWelcomes.Clear();
-        finishedQueriesAndAnnouncements.Clear();
         WelcomeCount = 0;
     }
 }

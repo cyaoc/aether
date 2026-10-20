@@ -73,10 +73,7 @@ public partial class MainWindow : Window
     {
         base.OnOpened(e);
         if (DataContext is MainWindowViewModel viewModel)
-        {
-            _ = viewModel.StartWebServiceAsync(dataDirectory);
-            viewModel.ReadAccountCommand.Execute(null);
-        }
+            _ = viewModel.StartAsync(dataDirectory);
     }
 
     private async void OpenSettingsWithoutLogin(object? sender, RoutedEventArgs e)
@@ -105,7 +102,7 @@ public partial class MainWindow : Window
         ShowEnabled(BlindBoxStatus, current.Error is null ? current.BlindBoxEnabled.Value : null);
         ShowEnabled(WelcomeStatus, current.Error is null ? current.WelcomeEnabled.Value : null);
         ShowEnabled(AnimationStatus, current.Error is null ? current.WelcomeAnimationEnabled.Value : null);
-        if (IsVisible && DataContext is MainWindowViewModel viewModel) _ = viewModel.RefreshWebServiceAsync(current);
+        if (IsVisible && DataContext is MainWindowViewModel viewModel) _ = viewModel.WebService.RefreshWebServiceAsync(current);
         foreach (var page in settingsPages) page.RefreshFileStatus(current);
     }
 

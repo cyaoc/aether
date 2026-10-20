@@ -38,17 +38,17 @@ public sealed class VisualReviewTests
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
                 window.Navigation.SelectedIndex = 4;
-                vm.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
                 var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
                 var tabs = panel.FindControl<ListBox>("ViewTabs")!;
                 tabs.SelectedIndex = 1;
-                await vm.RefreshLotteryHistoryAsync();
+                await vm.Lottery.RefreshLotteryHistoryAsync();
                 // Compare the selected tab after its theme transition settles.
                 GuiHarness.Flush();
                 await Task.Delay(300, TestContext.Current.CancellationToken);
                 foreach (var visual in tabs.GetVisualDescendants()) visual.InvalidateVisual();
                 Save(window, $"history-entry-{width}-{(dark ? "dark" : "light")}");
-                await vm.RefreshLotteryHistoryAsync("pool");
+                await vm.Lottery.RefreshLotteryHistoryAsync("pool");
                 Save(window, $"history-pool-{width}-{(dark ? "dark" : "light")}");
             }
             finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -90,14 +90,14 @@ public sealed class VisualReviewTests
                             var award = phase == EntryLotteryPhase.Closed ? 2 : index == 0 ? 0 : index < 3 ? 1 : 2;
                             return new EntryDraw($"d{index}", award, lottery.Awards[award], lottery.Entries[index], at, []);
                         }).ToArray() : [];
-                    vm.Apply(new LotteryUpdate(new(7734200, true, lottery with
+                    vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery with
                     {
                         Phase = phase, Entries = phase == EntryLotteryPhase.Preparing ? [] : lottery.Entries,
                         Draws = [.. draws], DrawUntil = phase == EntryLotteryPhase.Closed ? at.AddSeconds(7) : null,
                     })));
                     Save(window, $"entry-{phase}-{width}-{(dark ? "dark" : "light")}");
                     if (phase != EntryLotteryPhase.Closed) continue;
-                    vm.Apply(new LotteryUpdate(vm.LotteryState with { Lottery = vm.LotteryState.Lottery! with { DrawUntil = null } }));
+                    vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with { Lottery = vm.Lottery.LotteryState.Lottery! with { DrawUntil = null } }));
                     window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "EndEntryButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     Save(window, $"entry-Closed-confirm-{width}-{(dark ? "dark" : "light")}");
                 }
@@ -146,10 +146,10 @@ public sealed class VisualReviewTests
                 };
                 foreach (var phase in Enum.GetValues<PoolLotteryPhase>())
                 {
-                    vm.Apply(new LotteryUpdate(new(7734200, true, session with { Phase = phase })));
+                    vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, session with { Phase = phase })));
                     Save(window, $"lottery-{phase}-{(dark ? "dark" : "light")}");
                 }
-                vm.Apply(new LotteryUpdate(new(7734200, true, session with { DrawUntil = at.AddMinutes(6).AddSeconds(7) })));
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, session with { DrawUntil = at.AddMinutes(6).AddSeconds(7) })));
                 Save(window, $"lottery-Drawing-{(dark ? "dark" : "light")}");
             }
             finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -187,7 +187,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                viewModel.Apply(new WebServiceStatus(true, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
                 for (var index = 0; index < window.Navigation.ItemCount; index++)
                 {
                     window.Navigation.SelectedIndex = index;
@@ -279,12 +279,12 @@ public sealed class VisualReviewTests
                     ("occupied", new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"))
                 })
                 {
-                    viewModel.Apply(state);
+                    viewModel.WebService.Apply(state);
                     Save(window, $"web-service-N{(dark ? 2 : 1)}-{name}");
                 }
-                viewModel.Apply(new WebServiceStatus(true, 17890, 1, 1));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1));
                 window.Navigation.SelectedIndex = 3;
-                viewModel.Apply(new WelcomeAnimationPlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
+                viewModel.WebService.Apply(new WelcomeAnimationPlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
                 Save(window, $"welcome-animation-N3-{(dark ? "dark" : "light")}");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -487,21 +487,21 @@ public sealed class VisualReviewTests
                 await viewModel.ReadAccountCommand.ExecutionTask!;
                 window.Navigation.SelectedIndex = 3;
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.Section == SettingsSection.WelcomeAnimation);
-                viewModel.Apply(new WebServiceStatus(true, 17890, 2, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
                 foreach (var (state, index) in new[] { PlaybackState.Completed, PlaybackState.Failed, PlaybackState.NoReport, PlaybackState.Skipped, PlaybackState.Queued }.Select((state, index) => (state, index)))
-                    viewModel.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
+                    viewModel.WebService.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
                         Nickname: index switch { 1 => "柚子不酸", 2 => "bili_6508617762", _ => null }));
                 Capture("connected");
-                viewModel.Apply(new WebServiceStatus(true, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
                 Capture("setup");
-                viewModel.Apply(new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"));
+                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"));
                 Capture("port-occupied");
-                viewModel.Apply(new WebServiceStatus(true, 17890, 1, 0));
-                viewModel.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                viewModel.WebService.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
                 Capture("playing");
-                viewModel.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Stopped));
+                viewModel.WebService.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Stopped));
                 Capture("stopped");
-                viewModel.Apply(new WelcomeAnimationPlayback("real", 1234567890123456, videos[1234567890123456], false, PlaybackState.Playing));
+                viewModel.WebService.Apply(new WelcomeAnimationPlayback("real", 1234567890123456, videos[1234567890123456], false, PlaybackState.Playing));
                 Capture("entry-playing");
                 var rows = page.FindControl<StackPanel>("AnimationRows")!.Children.Cast<WelcomeAnimationRow>().ToArray();
                 rows[0].FindControl<TextBox>("UidInput")!.Text = "";
@@ -513,9 +513,9 @@ public sealed class VisualReviewTests
                 page.FindControl<ToggleSwitch>("AnimationInput")!.IsChecked = false;
                 page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await GuiHarness.WaitForAsync(() => page.IsEnabled);
-                viewModel.RecentAnimations.Clear();
+                viewModel.WebService.RecentAnimations.Clear();
                 page.FindControl<TextBlock>("Message")!.Text = "";
-                viewModel.Apply(new WebServiceStatus(false, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0));
                 GuiHarness.Flush();
                 // Settle the transition, then redraw its final edges instead of reusing an intermediate frame.
                 await Task.Delay(300, TestContext.Current.CancellationToken);
@@ -607,6 +607,7 @@ public sealed class VisualReviewTests
             window.Show();
             try
             {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
                 foreach (var (pageIndex, name) in new[] { (6, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);

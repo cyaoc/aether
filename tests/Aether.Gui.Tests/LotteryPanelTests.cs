@@ -23,7 +23,7 @@ public sealed class LotteryPanelTests
             var first = Assert.IsType<PoolPrizeRow>(rows.Children[0]);
             first.FindControl<TextBox>("NameInput")!.Text = "手办";
             GuiHarness.Flush();
-            vm.Apply(new LotteryUpdate(new(7734200, true, null)));
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, null)));
             Assert.Equal("手办", Assert.IsType<PoolPrizeRow>(rows.Children[0]).FindControl<TextBox>("NameInput")!.Text);
             var start = page.FindControl<Button>("StartButton")!;
             Assert.True(start.IsEnabled);
@@ -110,7 +110,7 @@ public sealed class LotteryPanelTests
             Assert.False(page.FindControl<Button>("StartButton")!.IsEnabled);
             Assert.False(page.FindControl<Button>("NewButton")!.IsEnabled);
             Assert.Equal("先连直播间，才能开始抽奖", status.Text);
-            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
             GuiHarness.Flush();
             Assert.True(page.FindControl<Button>("StartButton")!.IsEnabled);
             Assert.True(page.FindControl<Button>("NewButton")!.IsEnabled);
@@ -118,7 +118,7 @@ public sealed class LotteryPanelTests
             Assert.Equal("待机", page.FindControl<TextBlock>("PhaseText")!.Text);
             Assert.False(page.FindControl<Border>("LatestCard")!.IsVisible);
             Assert.True(page.FindControl<TextBlock>("EmptyHistory")!.IsVisible);
-            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery(PoolLotteryPhase.Spinning))));
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery(PoolLotteryPhase.Spinning))));
             Assert.True(page.FindControl<Button>("StopButton")!.IsEnabled);
             Assert.True(page.FindControl<Button>("CancelButton")!.IsEnabled);
             Assert.False(page.FindControl<Button>("StartButton")!.IsVisible);
@@ -126,11 +126,11 @@ public sealed class LotteryPanelTests
             Assert.False(page.FindControl<Button>("AddButton")!.IsEffectivelyVisible);
             Assert.True(page.FindControl<TextBox>("UidInput")!.IsReadOnly);
             Assert.Equal("正在等 小明 发「停」，也可以直接点“停”", status.Text);
-            Assert.Equal("转动中", vm.LotteryPhaseText);
-            vm.Apply(new LotteryUpdate(new(7734200, false, TestLottery(PoolLotteryPhase.Spinning)) { CanControl = false }));
+            Assert.Equal("转动中", vm.Lottery.LotteryPhaseText);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, false, TestLottery(PoolLotteryPhase.Spinning)) { CanControl = false }));
             Assert.False(page.FindControl<Button>("StopButton")!.IsEnabled);
             Assert.False(page.FindControl<Button>("CancelButton")!.IsEnabled);
-            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { DrawUntil = DateTimeOffset.UnixEpoch.AddSeconds(7) })));
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { DrawUntil = DateTimeOffset.UnixEpoch.AddSeconds(7) })));
             Assert.True(page.FindControl<Button>("DrawingButton")!.IsVisible);
             Assert.False(page.FindControl<Button>("DrawingButton")!.IsEnabled);
             Assert.False(page.FindControl<Button>("StopButton")!.IsVisible);
@@ -138,21 +138,21 @@ public sealed class LotteryPanelTests
             Assert.Equal("开奖中", page.FindControl<TextBlock>("PhaseText")!.Text);
             var draw = new PoolDraw("draw", new("限定抱枕", 1, Grade.Grand), 42, "小明", true, DateTimeOffset.UnixEpoch, []);
             var drawing = TestLottery() with { Draws = [draw], DrawUntil = DateTimeOffset.UnixEpoch.AddSeconds(7) };
-            vm.Apply(new LotteryUpdate(new(7734200, true, drawing)));
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, drawing)));
             Assert.True(page.FindControl<Border>("LatestCard")!.IsVisible);
             Assert.StartsWith("小明 · 主播点停 · ", page.FindControl<TextBlock>("LatestHead")!.Text);
             Assert.Equal("限定抱枕", page.FindControl<TextBlock>("LatestPrize")!.Text);
             Assert.Equal("本场 1 次", page.FindControl<TextBlock>("DrawCount")!.Text);
             Assert.Contains("fresh", Assert.Single(page.FindControl<StackPanel>("HistoryRows")!.Children).Classes);
             Assert.False(page.FindControl<TextBlock>("EmptyHistory")!.IsVisible);
-            vm.Apply(new LotteryUpdate(new(7734200, true, drawing with { DrawUntil = null })));
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, drawing with { DrawUntil = null })));
             Assert.DoesNotContain("fresh", Assert.Single(page.FindControl<StackPanel>("HistoryRows")!.Children).Classes);
             // Core carries the previous pool's UID, including when an entry lottery ran in between.
-            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Id = "next", Uid = 42 })));
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Id = "next", Uid = 42 })));
             Assert.Equal("42", page.FindControl<TextBox>("UidInput")!.Text);
-            vm.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Id = "without-viewer", Uid = null })));
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Id = "without-viewer", Uid = null })));
             Assert.Equal("", page.FindControl<TextBox>("UidInput")!.Text);
-            Assert.Equal("", vm.LotteryPhaseText);
+            Assert.Equal("", vm.Lottery.LotteryPhaseText);
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
         return true;

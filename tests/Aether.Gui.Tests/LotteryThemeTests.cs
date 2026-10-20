@@ -2,6 +2,7 @@ using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Time.Testing;
 using System.Net;
 using System.Net.Sockets;
@@ -36,7 +37,7 @@ public sealed class LotteryThemeTests
             Assert.NotNull(card);
             card.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            Assert.Equal(theme, vm.LotteryState.Theme.ToString());
+            Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             Assert.All(pickers, picker =>
             {
                 Assert.True(picker.FindControl<RadioButton>($"{theme}Card")!.IsChecked);
@@ -47,7 +48,8 @@ public sealed class LotteryThemeTests
             var port = ((IPEndPoint)listener.LocalEndpoint).Port;
             listener.Stop();
             Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
-            await vm.StartWebServiceAsync(h.DataDirectory);
+            await h.SaveCredentialAsync();
+            await vm.StartAsync(h.DataDirectory);
             GuiHarness.Flush();
             foreach (var picker in pickers)
             {
@@ -56,8 +58,8 @@ public sealed class LotteryThemeTests
             }
             pickers[0].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            Assert.True(vm.LotteryState.IsExamplePlaying);
-            Assert.Equal(theme, vm.LotteryState.Theme.ToString());
+            Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
+            Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             foreach (var picker in pickers)
             {
                 Assert.False(picker.FindControl<Button>("ExampleButton")!.IsEnabled);
@@ -67,17 +69,24 @@ public sealed class LotteryThemeTests
                 Assert.Contains("accent", hint.Classes);
             }
             time.Advance(TimeSpan.FromSeconds(21));
-            await GuiHarness.WaitForAsync(() => !vm.LotteryState.IsExamplePlaying);
+            await GuiHarness.WaitForAsync(() => !vm.Lottery.LotteryState.IsExamplePlaying);
             Assert.All(pickers, picker => Assert.True(picker.FindControl<Button>("ExampleButton")!.IsEnabled));
             pickers[1].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.True(vm.LotteryState.IsExamplePlaying);
+            Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
             time.Advance(TimeSpan.FromSeconds(21));
-            await GuiHarness.WaitForAsync(() => !vm.LotteryState.IsExamplePlaying);
-            Assert.False(File.Exists(Path.Combine(h.DataDirectory, "aether.db")));
+            await GuiHarness.WaitForAsync(() => !vm.Lottery.LotteryState.IsExamplePlaying);
+            // The saved credential created aether.db, so check that no example reached the lottery table.
+            using (var connection = new SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False"))
+            {
+                connection.Open();
+                using var count = connection.CreateCommand();
+                count.CommandText = "SELECT COUNT(*) FROM lottery";
+                Assert.Equal(0L, count.ExecuteScalar());
+            }
             pickers[1].FindControl<RadioButton>("StarSummonCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             Assert.All(pickers, picker => Assert.True(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked));
-            vm.Apply(new WebServiceStatus(false, 18080, 0, 0, "端口被占用"));
+            vm.WebService.Apply(new WebServiceStatus(false, 18080, 0, 0, "端口被占用"));
             Assert.All(pickers, picker => Assert.Contains("端口被占用", picker.FindControl<TextBlock>("ExampleHint")!.Text));
         }
         finally { window.Close(); await vm.ShutdownAsync(); }

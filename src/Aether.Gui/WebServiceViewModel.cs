@@ -1,36 +1,24 @@
 using Aether.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
-using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using System.Collections.ObjectModel;
 
 namespace Aether.Gui;
 
-public partial class MainWindowViewModel
+public partial class WebServiceViewModel(AetherClient client, ILogger logger, TimeProvider clock,
+    CancellationToken shutdown) : ObservableObject
 {
-    private CancellationTokenSource? animationUpdateStop;
-    private Task animationUpdates = Task.CompletedTask;
-    private Task animationReload = Task.CompletedTask;
+    private readonly LatestRun animationUpdates = new();
+    private readonly LatestRun animationReload = new();
     private Settings? animationSettings;
-    private int pendingAnimationReloads;
-    internal bool AnimationReloading => pendingAnimationReloads > 0;
+    internal bool AnimationReloading => !animationReload.Current.IsCompleted;
     /// <summary>Raised when anything an animation row shows may have changed: page status, playback, failures or a reload.</summary>
     internal event Action? AnimationRowsChanged;
-    public ObservableCollection<WelcomeAnimationItem> RecentAnimations { get; } = [];
-    private readonly Queue<string> finishedAnimations = new();
+    public RecentItems<WelcomeAnimationItem> RecentAnimations { get; } = [];
     private readonly HashSet<string> pendingAnimations = [];
     private readonly HashSet<(long Uid, string FileName)> failedAnimationVideos = [];
     private WelcomeAnimationPlayback? playingAnimation;
     private bool testPlayPending;
     internal bool AnimationBusy => testPlayPending || pendingAnimations.Count > 0;
-
-    /// <summary>Starts the web service when the window opens, logging mapped videos that are missing as the CLI does.</summary>
-    internal Task StartWebServiceAsync(string dataDirectory)
-    {
-        // The 抽奖页 and the GUI read the same lottery, so the GUI starts following it with the web service.
-        if (!shuttingDown) ObserveLottery();
-        return ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
-    }
 
     internal Task RefreshWebServiceAsync(Settings snapshot)
     {
@@ -40,30 +28,25 @@ public partial class MainWindowViewModel
             && previous.WebServicePort.Value == snapshot.WebServicePort.Value
             && previous.WelcomeAnimationVideos.Count == snapshot.WelcomeAnimationVideos.Count
             && previous.WelcomeAnimationVideos.All(pair => snapshot.WelcomeAnimationVideos.TryGetValue(pair.Key, out var video) && video.Value == pair.Value.Value))
-            return animationReload;
+            return animationReload.Current;
         return ApplyWebSettingsAsync(snapshot);
     }
 
-    public Task ApplyWebSettingsAsync(Settings snapshot)
+    public async Task ApplyWebSettingsAsync(Settings snapshot)
     {
-        if (shuttingDown) return Task.CompletedTask;
+        if (shutdown.IsCancellationRequested) return;
         animationSettings = snapshot;
-        pendingAnimationReloads++;
+        if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Start(ObserveAnimationsAsync);
+        var reload = animationReload.Start(ReloadAsync);
         AnimationRowsChanged?.Invoke();
-        if (animationUpdateStop is null)
-        {
-            animationUpdateStop = new();
-            animationUpdates = ObserveAnimationsAsync(animationUpdateStop.Token);
-        }
-        var previous = animationReload;
-        return animationReload = ReloadAsync();
+        await reload;
+        AnimationRowsChanged?.Invoke();
 
-        async Task ReloadAsync()
+        async Task ReloadAsync(CancellationToken _)
         {
             try
             {
-                await previous;
-                if (shuttingDown) return;
+                if (shutdown.IsCancellationRequested) return;
                 await client.ApplyWebSettingsAsync(snapshot);
                 failedAnimationVideos.RemoveWhere(video => !snapshot.WelcomeAnimationVideos.TryGetValue(video.Uid, out var saved) || saved.Value != video.FileName);
                 Apply(client.WebService.Status);
@@ -73,11 +56,6 @@ public partial class MainWindowViewModel
                 logger.LogWarning(error, "网页服务设置未应用");
                 // Invalid file contents did not change the running service; the settings page shows that error.
                 Apply(snapshot.Error is not null ? client.WebService.Status : client.WebService.Status with { Error = error.Message });
-            }
-            finally
-            {
-                pendingAnimationReloads--;
-                AnimationRowsChanged?.Invoke();
             }
         }
     }
@@ -91,28 +69,13 @@ public partial class MainWindowViewModel
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
     }
 
-    private async Task StopAnimationsAsync()
+    internal async Task StopAsync()
     {
-        await animationReload;
+        await animationReload.StopAsync();
         await client.WebService.StopAsync();
         Apply(client.WebService.Status);
-        animationUpdateStop?.Cancel();
-        await animationUpdates;
-        animationUpdateStop?.Dispose();
-        animationUpdateStop = null;
+        await animationUpdates.StopAsync();
     }
-
-    [RelayCommand]
-    private async Task OpenSettingsAsync()
-    {
-        LoginCommand.Cancel();
-        if (LoginCommand.ExecutionTask is { } login) await login;
-        ClearQrCode();
-        IsLoginPage = false;
-    }
-
-    [RelayCommand]
-    private void OpenLoginPage() => ShowLoginPage();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(VideoPageText))]
@@ -173,12 +136,7 @@ public partial class MainWindowViewModel
             else
             {
                 pendingAnimations.Remove(playback.Id);
-                finishedAnimations.Enqueue(playback.Id);
-                if (finishedAnimations.Count > FinishedItemLimit)
-                {
-                    var oldest = finishedAnimations.Dequeue();
-                    if (RecentAnimations.FirstOrDefault(value => value.Playback.Id == oldest) is { } old) RecentAnimations.Remove(old);
-                }
+                RecentAnimations.Finish(item);
             }
             NumberQueuedAnimations();
             if (playback.State == PlaybackState.Playing) playingAnimation = playback;
@@ -221,7 +179,7 @@ public partial class MainWindowViewModel
             client.WelcomeAnimation.StopTestPlay(playing.Id);
             return;
         }
-        if (AnimationReloading || AnimationBusy || !HasVideoConnections || shuttingDown
+        if (AnimationReloading || AnimationBusy || !HasVideoConnections || shutdown.IsCancellationRequested
             || animationSettings?.WelcomeAnimationEnabled.Value != true
             || !AnimationVideoSaved(uid, fileName)) return;
         // Disable immediately, before the queued update crosses back to the UI thread.
@@ -230,10 +188,9 @@ public partial class MainWindowViewModel
         client.WelcomeAnimation.TestPlay(uid);
     }
 
-    private void ClearAnimationHistory()
+    internal void ClearAnimationHistory()
     {
         RecentAnimations.Clear();
-        finishedAnimations.Clear();
     }
 }
 

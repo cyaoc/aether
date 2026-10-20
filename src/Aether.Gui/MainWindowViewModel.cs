@@ -22,11 +22,31 @@ public sealed record AccountStatus(string Text, Account? Account = null)
     public bool ReadFailed => this == Failed;
 }
 
-public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
-    TimeProvider clock) : ObservableObject
+public partial class MainWindowViewModel : ObservableObject
 {
-    [ObservableProperty] private bool keepRecentDanmaku = settings.KeepRecentDanmaku;
-    [ObservableProperty] private string roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
+    private readonly AetherClient client;
+    private readonly ILogger<MainWindowViewModel> logger;
+    private readonly GuiSettings settings;
+    private readonly TimeProvider clock;
+
+    public MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
+        TimeProvider clock)
+    {
+        this.client = client;
+        this.logger = logger;
+        this.settings = settings;
+        this.clock = clock;
+        keepRecentDanmaku = settings.KeepRecentDanmaku;
+        roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
+        WebService = new(client, logger, clock, shutdown.Token);
+        Lottery = new(client, logger, settings, SaveGuiSettings, shutdown.Token);
+    }
+
+    public SendQueueViewModel SendQueue { get; } = new();
+    public WebServiceViewModel WebService { get; }
+    public LotteryViewModel Lottery { get; }
+    [ObservableProperty] private bool keepRecentDanmaku;
+    [ObservableProperty] private string roomNumber;
     public string[] RecentRooms => settings.RecentRooms;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Status))]
@@ -67,13 +87,12 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
     private bool isLoginPage;
     [ObservableProperty] private string loginError = "";
-    private CancellationTokenSource? accountReadStop;
-    private Task accountReadTask = Task.CompletedTask;
-    private bool shuttingDown;
+    private readonly LatestRun accountRead = new();
+    private readonly CancellationTokenSource shutdown = new();
 
-    private bool CanConnect => AccountStatus != AccountStatus.LoggedOut && !IsLoginPage && !IsLoggingOut && !IsRestarting && !shuttingDown;
+    private bool CanConnect => AccountStatus != AccountStatus.LoggedOut && !IsLoginPage && !IsLoggingOut && !IsRestarting && !shutdown.IsCancellationRequested;
     private bool CanReconnect => CanConnect && HasRoomConnection;
-    private bool CanLogin => IsLoginPage && !IsLoggingOut && !shuttingDown;
+    private bool CanLogin => IsLoginPage && !IsLoggingOut && !shutdown.IsCancellationRequested;
     public bool IsConnected => ConnectionState == RoomConnectionState.Connected;
     public bool HasRoomConnection => ConnectionState != RoomConnectionState.Disconnected;
     public string Status => ConnectionState switch
@@ -98,13 +117,22 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
     public static FuncValueConverter<int, bool> IsGovernor { get; } = new(tier => tier == 3);
     public static FuncValueConverter<string?, string> ReplyPrefix { get; } = new(name => string.IsNullOrEmpty(name) ? "" : $"@{name} ");
 
+    public Task StartAsync(string dataDirectory)
+    {
+        if (shutdown.IsCancellationRequested) return Task.CompletedTask;
+        // The 抽奖页 and the GUI read the same lottery, so the GUI starts following it with the web service.
+        Lottery.ObserveLottery();
+        var webSettings = WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
+        return Task.WhenAll(webSettings, ReadAccountCommand.ExecuteAsync(null));
+    }
+
     partial void OnConnectionStateChanged(RoomConnectionState value)
     {
         if (value != RoomConnectionState.Disconnected) return;
         connectionTimer?.Dispose();
         connectionTimer = null;
         connectedAt = null;
-        EndPendingSends();
+        SendQueue.EndPending();
     }
 
     partial void OnKeepRecentDanmakuChanged(bool value)
@@ -155,8 +183,8 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         if (!preserveHistory)
         {
             Danmaku.Clear();
-            ClearSendHistory();
-            ClearAnimationHistory();
+            SendQueue.Clear();
+            WebService.ClearAnimationHistory();
         }
         preserveHistory = false;
         try
@@ -250,56 +278,58 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
                 if (KeepRecentDanmaku && Danmaku.Count > RecentDanmakuLimit) Danmaku.RemoveAt(0);
                 break;
             case SendQueueUpdate progress:
-                ApplySendQueue(progress);
+                SendQueue.Apply(progress);
                 break;
         }
     }
 
+    [RelayCommand]
+    private async Task OpenSettingsAsync()
+    {
+        LoginCommand.Cancel();
+        if (LoginCommand.ExecutionTask is { } login) await login;
+        ClearQrCode();
+        IsLoginPage = false;
+    }
+
+    [RelayCommand]
+    private void OpenLoginPage() => ShowLoginPage();
+
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task ReadAccountAsync()
     {
-        if (IsLoggingOut || shuttingDown) return Task.CompletedTask;
-        accountReadStop?.Cancel();
-        var previous = accountReadTask;
-        var stop = new CancellationTokenSource();
-        accountReadStop = stop;
+        if (IsLoggingOut || shutdown.IsCancellationRequested) return Task.CompletedTask;
         AccountStatus = AccountStatus.Reading;
-        return accountReadTask = ReadAsync();
+        return accountRead.Start(ReadAsync);
 
-        async Task ReadAsync()
+        async Task ReadAsync(CancellationToken token)
         {
             try
             {
-                await previous;
                 // Loading the saved credential can open SQLite, so even the synchronous part runs off the UI thread.
-                var result = await Task.Run(() => client.GetAccountAsync(stop.Token), stop.Token);
-                stop.Token.ThrowIfCancellationRequested();
+                var result = await Task.Run(() => client.GetAccountAsync(token), token);
+                token.ThrowIfCancellationRequested();
                 AccountStatus = AccountStatus.Of(result);
                 if (result is null)
                 {
                     await StopWatchingAsync();
-                    stop.Token.ThrowIfCancellationRequested();
+                    token.ThrowIfCancellationRequested();
                     ShowLoginPage();
                 }
             }
-            catch (OperationCanceledException) when (stop.IsCancellationRequested) { }
+            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
             catch (Exception error)
             {
-                if (stop.IsCancellationRequested) return;
+                if (token.IsCancellationRequested) return;
                 logger.LogError(error, "账号信息读取失败");
                 AccountStatus = AccountStatus.Failed;
-            }
-            finally
-            {
-                if (ReferenceEquals(accountReadStop, stop)) accountReadStop = null;
-                stop.Dispose();
             }
         }
     }
 
     private void ShowLoginPage()
     {
-        if (shuttingDown) return;
+        if (shutdown.IsCancellationRequested) return;
         IsLoginPage = true;
         if (LoginCommand.CanExecute(null)) LoginCommand.Execute(null);
     }
@@ -313,7 +343,7 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         try
         {
             LoginCommand.Cancel();
-            await StopAccountReadAsync();
+            await accountRead.StopAsync();
             if (LoginCommand.ExecutionTask is { } login) await login;
             await StopWatchingAsync();
             if (ReconnectCommand.ExecutionTask is { } restart) await restart;
@@ -333,34 +363,29 @@ public partial class MainWindowViewModel(AetherClient client, ILogger<MainWindow
         else _ = ReadAccountAsync();
     }
 
-    private async Task StopAccountReadAsync()
-    {
-        accountReadStop?.Cancel();
-        await accountReadTask;
-    }
-
     private async Task StopWatchingAsync()
     {
         ConnectCommand.Cancel();
         if (ConnectCommand.ExecutionTask is { } task) await task;
     }
 
+    // Finish draws before disconnecting the room they require; stop the web service last, as the CLI does, because the receive loop sends it welcome animations.
     public async Task ShutdownAsync()
     {
-        shuttingDown = true;
+        shutdown.Cancel();
         ConnectCommand.NotifyCanExecuteChanged();
         ReconnectCommand.NotifyCanExecuteChanged();
         LoginCommand.NotifyCanExecuteChanged();
         LoginCommand.Cancel();
         LogoutCommand.Cancel();
-        await StopAccountReadAsync();
-        await FinishLotteryChangeAsync();
+        var accountStopped = accountRead.StopAsync();
+        await Lottery.StopAsync();
+        await accountStopped;
         await StopWatchingAsync();
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
         if (LoginCommand.ExecutionTask is { } login) await login;
-        await StopAnimationsAsync();
-        await StopLotteryAsync();
+        await WebService.StopAsync();
     }
 
     // Reconnects skip Connecting, so a QR login can end at either update.

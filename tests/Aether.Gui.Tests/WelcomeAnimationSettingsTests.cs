@@ -26,21 +26,21 @@ public sealed class WelcomeAnimationSettingsTests
             viewModel.RoomNumber = "6";
             viewModel.ConnectCommand.Execute(null);
             await requested.WaitAsync(TimeSpan.FromSeconds(5));
-            viewModel.Apply(new WelcomeAnimationPlayback("pending", 42, "a.mp4", false, PlaybackState.Queued));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("pending", 42, "a.mp4", false, PlaybackState.Queued));
             for (var i = 0; i < 102; i++)
-                viewModel.Apply(new WelcomeAnimationPlayback(i.ToString(), 42, "a.mp4", false, PlaybackState.Completed));
-            Assert.Equal(101, viewModel.RecentAnimations.Count);
-            Assert.Contains(viewModel.RecentAnimations, item => item.Playback.Id == "pending");
-            Assert.DoesNotContain(viewModel.RecentAnimations, item => item.Playback.Id is "0" or "1");
+                viewModel.WebService.Apply(new WelcomeAnimationPlayback(i.ToString(), 42, "a.mp4", false, PlaybackState.Completed));
+            Assert.Equal(101, viewModel.WebService.RecentAnimations.Count);
+            Assert.Contains(viewModel.WebService.RecentAnimations, item => item.Playback.Id == "pending");
+            Assert.DoesNotContain(viewModel.WebService.RecentAnimations, item => item.Playback.Id is "0" or "1");
             viewModel.Apply(new Reconnecting());
-            Assert.Equal(101, viewModel.RecentAnimations.Count);
+            Assert.Equal(101, viewModel.WebService.RecentAnimations.Count);
             await viewModel.ReconnectCommand.ExecuteAsync(null);
-            Assert.Equal(101, viewModel.RecentAnimations.Count);
+            Assert.Equal(101, viewModel.WebService.RecentAnimations.Count);
             viewModel.ConnectCommand.Cancel();
             await viewModel.ConnectCommand.ExecutionTask!;
-            Assert.Equal(101, viewModel.RecentAnimations.Count);
+            Assert.Equal(101, viewModel.WebService.RecentAnimations.Count);
             viewModel.ConnectCommand.Execute(null);
-            Assert.Empty(viewModel.RecentAnimations);
+            Assert.Empty(viewModel.WebService.RecentAnimations);
         }
         finally { await viewModel.ShutdownAsync(); }
         return true;
@@ -54,8 +54,8 @@ public sealed class WelcomeAnimationSettingsTests
     {
         using var harness = new GuiHarness();
         var viewModel = harness.CreateViewModel();
-        viewModel.Apply(new WelcomeAnimationPlayback("skip", 42, "a.mp4", false, PlaybackState.Skipped, reason, "小鹿"));
-        var item = viewModel.RecentAnimations.Single();
+        viewModel.WebService.Apply(new WelcomeAnimationPlayback("skip", 42, "a.mp4", false, PlaybackState.Skipped, reason, "小鹿"));
+        var item = viewModel.WebService.RecentAnimations.Single();
         Assert.Equal("没播：" + reason, item.Status);
         Assert.Equal(("小鹿", "UID 42"), (item.Name, item.Detail));
         Assert.Equal(unplayed, item.Unplayed);
@@ -201,7 +201,7 @@ public sealed class WelcomeAnimationSettingsTests
         Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, 42, "video.mp4");
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
         var viewModel = harness.CreateViewModel();
-        await viewModel.ApplyWebSettingsAsync(Settings.Load(harness.DataDirectory));
+        await viewModel.WebService.ApplyWebSettingsAsync(Settings.Load(harness.DataDirectory));
         var replacement = Video(harness, "source", "video.mp4");
         var page = new SettingsPage(harness.DataDirectory, SettingsSection.WelcomeAnimation, () => Task.FromResult<string?>(replacement)) { DataContext = viewModel };
         var window = new Window { Content = page };
@@ -211,34 +211,34 @@ public sealed class WelcomeAnimationSettingsTests
             var row = Rows(page).Single();
             var button = row.FindControl<Button>("TestButton")!;
             Assert.False(button.IsEnabled);
-            viewModel.Apply(new WebServiceStatus(true, 17890, 1, 0));
+            viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
             Assert.True(button.IsEnabled);
-            viewModel.Apply(new WelcomeAnimationPlayback("other", 43, "other.mp4", false, PlaybackState.Queued));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("other", 43, "other.mp4", false, PlaybackState.Queued));
             Assert.False(button.IsEnabled);
-            viewModel.Apply(new WelcomeAnimationPlayback("other", 43, "other.mp4", false, PlaybackState.Completed));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("other", 43, "other.mp4", false, PlaybackState.Completed));
             Assert.True(button.IsEnabled);
-            viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "video.mp4", true, PlaybackState.Playing));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("one", 42, "video.mp4", true, PlaybackState.Playing));
             Assert.Equal("停止", row.FindControl<TextBlock>("TestText")!.Text);
             Assert.Contains("正在直播姬里试播", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.True(button.IsEnabled);
             Assert.Contains("stoppable", button.Classes);
-            viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "video.mp4", true, PlaybackState.NoReport));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("one", 42, "video.mp4", true, PlaybackState.NoReport));
             Assert.DoesNotContain("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.True(button.IsEnabled);
-            viewModel.Apply(new WelcomeAnimationPlayback("failure", 42, "video.mp4", true, PlaybackState.Failed));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("failure", 42, "video.mp4", true, PlaybackState.Failed));
             Assert.Contains("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.Contains("H.264", row.FindControl<TextBlock>("RowMessage")!.Text);
-            viewModel.Apply(new WelcomeAnimationPlayback("success", 42, "video.mp4", true, PlaybackState.Playing));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("success", 42, "video.mp4", true, PlaybackState.Playing));
             Assert.Equal("停止", row.FindControl<TextBlock>("TestText")!.Text);
             Assert.Contains("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
-            viewModel.Apply(new WelcomeAnimationPlayback("success", 42, "video.mp4", true, PlaybackState.Completed));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("success", 42, "video.mp4", true, PlaybackState.Completed));
             Assert.Contains("上次播放失败", row.FindControl<TextBlock>("RowMessage")!.Text);
-            viewModel.Apply(new WelcomeAnimationPlayback("real", 42, "video.mp4", false, PlaybackState.Playing));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("real", 42, "video.mp4", false, PlaybackState.Playing));
             Assert.Equal("播放中", row.FindControl<TextBlock>("TestText")!.Text);
             Assert.False(button.IsEnabled);
-            viewModel.Apply(new WelcomeAnimationPlayback("real", 42, "video.mp4", false, PlaybackState.Completed));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("real", 42, "video.mp4", false, PlaybackState.Completed));
             File.Delete(path);
-            viewModel.Apply(new WebServiceStatus(true, 17890, 2, 0));
+            viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
             Assert.False(button.IsEnabled);
             Assert.Contains("找不到视频文件", row.FindControl<TextBlock>("RowMessage")!.Text);
             Assert.NotNull(row.FindControl<TextBlock>("FileNameText")!.TextDecorations);
@@ -385,7 +385,7 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            viewModel.Apply(new WebServiceStatus(true, 17891, 0, 0));
+            viewModel.WebService.Apply(new WebServiceStatus(true, 17891, 0, 0));
             GuiHarness.Flush();
             var button = page.FindControl<Button>("Copy" + pageName + "AddressButton")!;
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -415,14 +415,14 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "欢迎.mp4", true, PlaybackState.Queued));
-            viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "欢迎.mp4", true, state, reason));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("one", 42, "欢迎.mp4", true, PlaybackState.Queued));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("one", 42, "欢迎.mp4", true, state, reason));
             GuiHarness.Flush();
             var list = page.FindControl<ListBox>("RecentAnimationsList")!;
             Assert.Equal(1, list.ItemCount);
             Assert.Contains(expected, GuiHarness.VisibleText(window));
             Assert.Contains("试播", GuiHarness.VisibleText(window));
-            Assert.Equal(busy, viewModel.AnimationBusy);
+            Assert.Equal(busy, viewModel.WebService.AnimationBusy);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
@@ -439,12 +439,12 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            viewModel.Apply(new WelcomeAnimationPlayback("one", 42, "欢迎.mp4", false, PlaybackState.Completed, Nickname: nickname));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("one", 42, "欢迎.mp4", false, PlaybackState.Completed, Nickname: nickname));
             GuiHarness.Flush();
             var list = page.FindControl<ListBox>("RecentAnimationsList")!;
             var text = list.ContainerFromIndex(0)!.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).ToArray();
             var header = Assert.Single(text, x => new TextBlockAutomationPeer(x).GetName() == $"{nickname} UID 42");
-            var time = text.Single(x => x.Text == viewModel.RecentAnimations.Single().OccurredAt.ToString("HH:mm:ss"));
+            var time = text.Single(x => x.Text == viewModel.WebService.RecentAnimations.Single().OccurredAt.ToString("HH:mm:ss"));
             Assert.Single(header.TextLayout.TextLines);
             GuiHarness.AssertSameBaseline(header, time, window);
         }
@@ -460,10 +460,10 @@ public sealed class WelcomeAnimationSettingsTests
         try
         {
             foreach (var id in new[] { "a", "b", "c" })
-                viewModel.Apply(new WelcomeAnimationPlayback(id, 42, "欢迎.mp4", false, PlaybackState.Queued, Nickname: id));
-            string Status(string id) => viewModel.RecentAnimations.Single(item => item.Playback.Id == id).Status;
+                viewModel.WebService.Apply(new WelcomeAnimationPlayback(id, 42, "欢迎.mp4", false, PlaybackState.Queued, Nickname: id));
+            string Status(string id) => viewModel.WebService.RecentAnimations.Single(item => item.Playback.Id == id).Status;
             Assert.Equal(["排队中 · 第 1 个", "排队中 · 第 2 个", "排队中 · 第 3 个"], new[] { Status("a"), Status("b"), Status("c") });
-            viewModel.Apply(new WelcomeAnimationPlayback("a", 42, "欢迎.mp4", false, PlaybackState.Playing, Nickname: "a"));
+            viewModel.WebService.Apply(new WelcomeAnimationPlayback("a", 42, "欢迎.mp4", false, PlaybackState.Playing, Nickname: "a"));
             Assert.Equal(["播放中", "排队中 · 第 1 个", "排队中 · 第 2 个"], new[] { Status("a"), Status("b"), Status("c") });
         }
         finally { await viewModel.ShutdownAsync(); }
@@ -485,17 +485,17 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => viewModel.IsLoginPage && viewModel.WebServiceStatus.Running);
-            Assert.Contains("<video", await http.GetStringAsync(viewModel.VideoAddressText));
-            Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.LotteryAddressText));
+            await GuiHarness.WaitForAsync(() => viewModel.IsLoginPage && viewModel.WebService.WebServiceStatus.Running);
+            Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
+            Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
             window.FindControl<Button>("OpenSettingsWithoutLoginButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => !viewModel.IsLoginPage);
             Assert.Equal(6, window.Navigation.SelectedIndex);
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Equal("端口保存后立即生效；日志设置重启后生效", general.FindControl<TextBlock>("TimingHint")!.Text);
-            using var response = await http.GetAsync(viewModel.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
+            using var response = await http.GetAsync(viewModel.WebService.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
             using var reader = new StreamReader(await response.Content.ReadAsStreamAsync());
-            await GuiHarness.WaitForAsync(() => viewModel.HasVideoConnections);
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.HasVideoConnections);
             window.Navigation.SelectedIndex = 3;
             var animation = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.False(animation.FindControl<NumericUpDown>("WebPortInput")!.IsEffectivelyVisible);
@@ -503,8 +503,8 @@ public sealed class WelcomeAnimationSettingsTests
             {
                 animation.FindControl<ToggleSwitch>("AnimationInput")!.IsChecked = enabled;
                 await Save(animation);
-                Assert.True(viewModel.WebServiceStatus.Running);
-                Assert.Equal(1, viewModel.WebServiceStatus.VideoConnections);
+                Assert.True(viewModel.WebService.WebServiceStatus.Running);
+                Assert.Equal(1, viewModel.WebService.WebServiceStatus.VideoConnections);
                 Assert.Equal(enabled, Rows(animation).Single().CanTest);
             }
             Click(Rows(animation).Single(), "TestButton");
@@ -515,8 +515,8 @@ public sealed class WelcomeAnimationSettingsTests
             using var payload = JsonDocument.Parse(line[6..]);
             Assert.False(payload.RootElement.TryGetProperty("uid", out _));
             var id = payload.RootElement.GetProperty("id").GetString();
-            Assert.Equal("trial video", await http.GetStringAsync(viewModel.VideoAddressText + "/files/" + id));
-            await GuiHarness.WaitForAsync(() => viewModel.RecentAnimations.Single().Playback.State == PlaybackState.Playing);
+            Assert.Equal("trial video", await http.GetStringAsync(viewModel.WebService.VideoAddressText + "/files/" + id));
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.RecentAnimations.Single().Playback.State == PlaybackState.Playing);
             var playingRow = Rows(animation).Single();
             Assert.Equal("停止", playingRow.FindControl<TextBlock>("TestText")!.Text);
             Click(playingRow, "TestButton");
@@ -524,14 +524,14 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("event: stop", line);
             using var stopped = JsonDocument.Parse((await reader.ReadLineAsync(deadline.Token))![6..]);
             Assert.Equal(id, stopped.RootElement.GetProperty("id").GetString());
-            await GuiHarness.WaitForAsync(() => viewModel.RecentAnimations.Single().Playback.State == PlaybackState.Stopped);
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.RecentAnimations.Single().Playback.State == PlaybackState.Stopped);
             Assert.Equal("试播", playingRow.FindControl<TextBlock>("TestText")!.Text);
             Click(animation, "OpenGeneralSettingsButton");
             Assert.Equal(6, window.Navigation.SelectedIndex);
             var nextPort = FreePort();
             general.FindControl<NumericUpDown>("WebPortInput")!.Text = nextPort.ToString();
             GuiHarness.Flush();
-            Assert.Equal(port, viewModel.WebServiceStatus.Port);
+            Assert.Equal(port, viewModel.WebService.WebServiceStatus.Port);
             Assert.Equal("保存后网页服务换到新端口，直播姬里的地址要跟着改", general.FindControl<TextBlock>("DirtyMessage")!.Text);
             Click(general, "SaveButton");
             await GuiHarness.WaitForAsync(() => general.IsEnabled);
@@ -539,9 +539,9 @@ public sealed class WelcomeAnimationSettingsTests
             general.FindControl<TextBox>("DailyKeywordInput")!.Text = "延迟的文本通知";
             GuiHarness.Flush();
             Assert.Equal("已保存，网页服务已换到新端口", general.FindControl<TextBlock>("Message")!.Text);
-            Assert.Equal(nextPort, viewModel.WebServiceStatus.Port);
-            Assert.Equal(0, viewModel.WebServiceStatus.VideoConnections);
-            Assert.Contains("<video", await http.GetStringAsync(viewModel.VideoAddressText));
+            Assert.Equal(nextPort, viewModel.WebService.WebServiceStatus.Port);
+            Assert.Equal(0, viewModel.WebService.WebServiceStatus.VideoConnections);
+            Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
             await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync($"http://localhost:{port}/video", TestContext.Current.CancellationToken));
             general.FindControl<NumericUpDown>("RetentionInput")!.Text = "31";
             GuiHarness.Flush();
@@ -549,8 +549,8 @@ public sealed class WelcomeAnimationSettingsTests
             var externalPort = FreePort();
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = externalPort.ToString() });
             window.Navigation.SelectedIndex = 0;
-            await GuiHarness.WaitForAsync(() => viewModel.WebServiceStatus.Port == externalPort && viewModel.WebServiceStatus.Running);
-            Assert.Contains("<video", await http.GetStringAsync(viewModel.VideoAddressText));
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.WebServiceStatus.Port == externalPort && viewModel.WebService.WebServiceStatus.Running);
+            Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
             Assert.False(viewModel.HasRoomConnection);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -581,19 +581,19 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => viewModel.WebServiceStatus.Running);
-            using var response = await http.GetAsync(viewModel.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
-            await GuiHarness.WaitForAsync(() => viewModel.HasVideoConnections);
-            viewModel.TestOrStopAnimation(42, "video.mp4");
-            await GuiHarness.WaitForAsync(() => viewModel.RecentAnimations.Any(item => item.Playing));
-            var before = viewModel.WebServiceStatus;
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.WebServiceStatus.Running);
+            using var response = await http.GetAsync(viewModel.WebService.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.HasVideoConnections);
+            viewModel.WebService.TestOrStopAnimation(42, "video.mp4");
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.RecentAnimations.Any(item => item.Playing));
+            var before = viewModel.WebService.WebServiceStatus;
             File.WriteAllText(Settings.FilePath(harness.DataDirectory), "web_service:\n  port: invalid\n");
             window.Navigation.SelectedIndex = 3;
             GuiHarness.Flush();
-            Assert.Equal(before, viewModel.WebServiceStatus);
-            Assert.True(viewModel.AnimationBusy);
-            Assert.NotNull(viewModel.PlayingAnimation(42, "video.mp4"));
-            Assert.Contains("<video", await http.GetStringAsync(viewModel.VideoAddressText));
+            Assert.Equal(before, viewModel.WebService.WebServiceStatus);
+            Assert.True(viewModel.WebService.AnimationBusy);
+            Assert.NotNull(viewModel.WebService.PlayingAnimation(42, "video.mp4"));
+            Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Contains("web_service.port", page.FindControl<TextBlock>("FileMessage")!.Text);
         }
@@ -621,12 +621,12 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => viewModel.WebServiceStatus.Running);
-            using var original = await http.GetAsync(viewModel.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
-            await GuiHarness.WaitForAsync(() => viewModel.HasVideoConnections);
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.WebServiceStatus.Running);
+            using var original = await http.GetAsync(viewModel.WebService.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.HasVideoConnections);
             window.Navigation.SelectedIndex = 3;
             GuiHarness.Flush();
-            Assert.True(viewModel.HasVideoConnections);
+            Assert.True(viewModel.WebService.HasVideoConnections);
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             if (draft) Rows(page).Single().FindControl<TextBox>("UidInput")!.Text = "44";
             GuiHarness.Flush();
@@ -635,7 +635,7 @@ public sealed class WelcomeAnimationSettingsTests
             window.Navigation.SelectedIndex = 0;
             window.Navigation.SelectedIndex = 3;
             GuiHarness.Flush();
-            Assert.Equal(1, viewModel.WebServiceStatus.VideoConnections);
+            Assert.Equal(1, viewModel.WebService.WebServiceStatus.VideoConnections);
             using var reader = new StreamReader(await original.Content.ReadAsStreamAsync());
             if (draft)
             {
@@ -643,7 +643,7 @@ public sealed class WelcomeAnimationSettingsTests
                 Assert.Equal("old.mp4", row.FileName);
                 Assert.False(row.FindControl<Button>("TestButton")!.IsEnabled);
                 Assert.Contains("保存后才能试播", row.FindControl<TextBlock>("RowMessage")!.Text);
-                Assert.False(viewModel.AnimationBusy);
+                Assert.False(viewModel.WebService.AnimationBusy);
                 return true;
             }
             Assert.All(Rows(page), row => Assert.True(row.FindControl<Button>("TestButton")!.IsEnabled));
@@ -654,10 +654,10 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.NotNull(line);
             using var payload = JsonDocument.Parse(line[6..]);
             Assert.False(payload.RootElement.TryGetProperty("uid", out _));
-            Assert.Equal("new video", await http.GetStringAsync(viewModel.VideoAddressText + "/files/" + payload.RootElement.GetProperty("id").GetString()));
-            using var report = await http.PostAsJsonAsync(viewModel.VideoAddressText + "/report", new { id = payload.RootElement.GetProperty("id").GetString(), success = true });
-            await GuiHarness.WaitForAsync(() => !viewModel.AnimationBusy);
-            Assert.Equal(PlaybackState.Completed, viewModel.RecentAnimations.Single().Playback.State);
+            Assert.Equal("new video", await http.GetStringAsync(viewModel.WebService.VideoAddressText + "/files/" + payload.RootElement.GetProperty("id").GetString()));
+            using var report = await http.PostAsJsonAsync(viewModel.WebService.VideoAddressText + "/report", new { id = payload.RootElement.GetProperty("id").GetString(), success = true });
+            await GuiHarness.WaitForAsync(() => !viewModel.WebService.AnimationBusy);
+            Assert.Equal(PlaybackState.Completed, viewModel.WebService.RecentAnimations.Single().Playback.State);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
@@ -713,7 +713,7 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            viewModel.Apply(new WebServiceStatus(running, 17891, videos, lotteries, error));
+            viewModel.WebService.Apply(new WebServiceStatus(running, 17891, videos, lotteries, error));
             GuiHarness.Flush();
             Assert.Equal(expected, page.FindControl<TextBlock>("WebServiceStatusText")!.Text);
             Assert.Equal("http://localhost:17891/video", page.FindControl<TextBox>("VideoAddress")!.Text);
@@ -726,7 +726,7 @@ public sealed class WelcomeAnimationSettingsTests
             var help = page.FindControl<TextBlock>("WebServiceHelp")!;
             Assert.Equal(running || error is not null, help.IsVisible);
             if (error is not null) Assert.StartsWith("换一个端口并保存", help.Text);
-            Assert.Equal(videoRow, viewModel.VideoPageText);
+            Assert.Equal(videoRow, viewModel.WebService.VideoPageText);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
