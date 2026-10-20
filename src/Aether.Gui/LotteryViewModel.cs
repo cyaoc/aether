@@ -35,13 +35,17 @@ public partial class LotteryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(LotteryPhaseText), nameof(PoolDraws), nameof(ShowLatestPoolDraw),
         nameof(LatestPoolDrawHead), nameof(LatestPoolDrawGrade), nameof(LatestPoolDrawPrize),
         nameof(PoolDrawCountText), nameof(IsPoolDrawsEmpty), nameof(LotteryModeText), nameof(LotteryPanelPhaseText),
-        nameof(IsLotterySpinning), nameof(IsLotteryDrawing), nameof(IsLotteryEnded), nameof(NewLotteryHint), nameof(LotteryExampleText))]
+        nameof(IsLotterySpinning), nameof(IsLotteryDrawing), nameof(IsLotteryEnded), nameof(NewLotteryHint), nameof(LotteryExampleText),
+        nameof(EntryWinnerGroups), nameof(EntryWinnerCountText), nameof(LotteryEntryCountText), nameof(IsEntryWinnersEmpty),
+        nameof(IsLotteryEntriesEmpty), nameof(EntryVisibilityText), nameof(EntryStatusText), nameof(ShowHistoryRoom),
+        nameof(CanReturnToCurrent), nameof(ShowReturnToCurrentHint))]
     private LotteryState lotteryState = new(null, false, null);
 
     partial void OnLotteryStateChanged(LotteryState value)
     {
         RefreshPoolForm();
         RefreshEntryForm();
+        UpdateEntryRows(value);
     }
 
     partial void OnBusyChanged(bool value)
@@ -137,10 +141,18 @@ public partial class LotteryViewModel : ObservableObject
 
     private readonly LatestRun lotteryHistoryRead = new();
     private string? lotteryHistorySelection;
-    [ObservableProperty] private IReadOnlyList<LotteryHistory> lotteryHistory = [];
-    [ObservableProperty] private Lottery? selectedLotteryHistory;
-    [ObservableProperty] private string lotteryHistoryError = "";
-    [ObservableProperty] private bool lotteryHistoryLoading;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LotteryHistoryRows), nameof(LotteryHistoryTabText), nameof(HistoryRoomText),
+        nameof(ShowHistoryRoom), nameof(HasLotteryHistory), nameof(IsLotteryHistoryEmpty))]
+    private IReadOnlyList<LotteryHistory> lotteryHistory = [];
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HistoryWinnerGroups), nameof(HasLotteryHistoryDetails), nameof(ShowReturnToCurrent),
+        nameof(CanReturnToCurrent), nameof(ShowReturnToCurrentHint), nameof(HistoryDetailDate),
+        nameof(HistoryDetailSummary), nameof(HistoryConditionTitle), nameof(HistoryConditionText))]
+    private Lottery? selectedLotteryHistory;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasLotteryHistoryError), nameof(IsLotteryHistoryEmpty))]
+    private string lotteryHistoryError = "";
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(IsLotteryHistoryEmpty))] private bool lotteryHistoryLoading;
 
     internal Task RefreshLotteryHistoryAsync(string? selectedId = null)
     {
