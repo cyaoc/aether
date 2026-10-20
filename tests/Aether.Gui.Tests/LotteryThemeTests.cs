@@ -2,6 +2,7 @@ using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Time.Testing;
 using System.Net;
 using System.Net.Sockets;
@@ -74,10 +75,14 @@ public sealed class LotteryThemeTests
             Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
             time.Advance(TimeSpan.FromSeconds(21));
             await GuiHarness.WaitForAsync(() => !vm.Lottery.LotteryState.IsExamplePlaying);
-            vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with { RoomId = 42 }));
-            await vm.Lottery.RefreshLotteryHistoryAsync();
-            Assert.Empty(vm.Lottery.LotteryHistoryError);
-            Assert.Empty(vm.Lottery.LotteryHistory);
+            // The saved credential created aether.db, so check that no example reached the lottery table.
+            using (var connection = new SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False"))
+            {
+                connection.Open();
+                using var count = connection.CreateCommand();
+                count.CommandText = "SELECT COUNT(*) FROM lottery";
+                Assert.Equal(0L, count.ExecuteScalar());
+            }
             pickers[1].FindControl<RadioButton>("StarSummonCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             Assert.All(pickers, picker => Assert.True(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked));

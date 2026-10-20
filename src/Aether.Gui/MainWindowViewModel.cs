@@ -120,6 +120,7 @@ public partial class MainWindowViewModel : ObservableObject
     public Task StartAsync(string dataDirectory)
     {
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
+        // The 抽奖页 and the GUI read the same lottery, so the GUI starts following it with the web service.
         Lottery.ObserveLottery();
         var webSettings = WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
         return Task.WhenAll(webSettings, ReadAccountCommand.ExecuteAsync(null));

@@ -7,8 +7,7 @@ namespace Aether.Gui;
 public partial class LotteryViewModel(AetherClient client, ILogger logger, GuiSettings settings, Action saveSettings,
     CancellationToken shutdown) : ObservableObject
 {
-    private CancellationTokenSource? lotteryStop;
-    private Task lotteryUpdates = Task.CompletedTask;
+    private readonly LatestRun lotteryUpdates = new();
     private Task lotteryChange = Task.CompletedTask;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(LotteryPhaseText))] private LotteryState lotteryState = new(null, false, null);
 
@@ -51,9 +50,8 @@ public partial class LotteryViewModel(AetherClient client, ILogger logger, GuiSe
 
     internal void ObserveLottery()
     {
-        if (shutdown.IsCancellationRequested || lotteryStop is not null) return;
-        lotteryStop = new();
-        lotteryUpdates = ReadAsync(lotteryStop.Token);
+        if (shutdown.IsCancellationRequested || !lotteryUpdates.Current.IsCompleted) return;
+        lotteryUpdates.Start(ReadAsync);
 
         async Task ReadAsync(CancellationToken token)
         {
@@ -81,20 +79,12 @@ public partial class LotteryViewModel(AetherClient client, ILogger logger, GuiSe
         Apply(new LotteryUpdate(client.Lottery.State));
     }
 
-    private async Task FinishLotteryChangeAsync()
+    internal async Task StopAsync()
     {
         // The page reports failures; closing still waits until a database write has finished.
         try { await lotteryChange; }
         catch { }
-    }
-
-    internal async Task StopAsync()
-    {
-        await FinishLotteryChangeAsync();
-        lotteryStop?.Cancel();
-        await lotteryUpdates;
-        lotteryStop?.Dispose();
-        lotteryStop = null;
+        await lotteryUpdates.StopAsync();
         await lotteryHistoryRead.StopAsync();
     }
 

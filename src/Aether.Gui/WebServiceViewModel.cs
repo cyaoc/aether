@@ -7,8 +7,7 @@ namespace Aether.Gui;
 public partial class WebServiceViewModel(AetherClient client, ILogger logger, TimeProvider clock,
     CancellationToken shutdown) : ObservableObject
 {
-    private CancellationTokenSource? animationUpdateStop;
-    private Task animationUpdates = Task.CompletedTask;
+    private readonly LatestRun animationUpdates = new();
     private readonly LatestRun animationReload = new();
     private Settings? animationSettings;
     internal bool AnimationReloading => !animationReload.Current.IsCompleted;
@@ -37,11 +36,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     {
         if (shutdown.IsCancellationRequested) return;
         animationSettings = snapshot;
-        if (animationUpdateStop is null)
-        {
-            animationUpdateStop = new();
-            animationUpdates = ObserveAnimationsAsync(animationUpdateStop.Token);
-        }
+        if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Start(ObserveAnimationsAsync);
         var reload = animationReload.Start(ReloadAsync);
         AnimationRowsChanged?.Invoke();
         await reload;
@@ -79,10 +74,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         await animationReload.StopAsync();
         await client.WebService.StopAsync();
         Apply(client.WebService.Status);
-        animationUpdateStop?.Cancel();
-        await animationUpdates;
-        animationUpdateStop?.Dispose();
-        animationUpdateStop = null;
+        await animationUpdates.StopAsync();
     }
 
     [ObservableProperty]
