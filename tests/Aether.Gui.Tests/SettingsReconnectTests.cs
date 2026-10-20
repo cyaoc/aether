@@ -27,6 +27,11 @@ public sealed class SettingsReconnectTests
             window.Show();
             try
             {
+                foreach (var otherIndex in new[] { 1, 2, 3, 5, 6 })
+                {
+                    window.Navigation.SelectedIndex = otherIndex;
+                    GuiHarness.Flush();
+                }
                 viewModel.ConnectionState = state;
                 window.FindControl<ListBox>("Navigation")!.SelectedIndex = index;
                 GuiHarness.Flush();
@@ -42,11 +47,11 @@ public sealed class SettingsReconnectTests
                     case 5: page.FindControl<NumericUpDown>("SendIntervalInput")!.Text = "7"; break;
                     case 6: page.FindControl<NumericUpDown>("RetentionInput")!.Text = "7"; break;
                 }
-                page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                Assert.Equal(notice, page.FindControl<Border>("ReconnectNotice")!.IsVisible);
+                GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.Equal(notice, GuiHarness.FindVisual<Border>(page, "ReconnectNotice").IsVisible);
                 viewModel.ConnectionState = RoomConnectionState.Disconnected;
                 Assert.All(window.GetVisualDescendants().OfType<SettingsPage>(),
-                    other => Assert.False(other.FindControl<Border>("ReconnectNotice")!.IsVisible));
+                    other => Assert.False(GuiHarness.FindVisual<Border>(other, "ReconnectNotice").IsVisible));
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
             return true;
@@ -96,9 +101,9 @@ public sealed class SettingsReconnectTests
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 page.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
-                page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                Assert.True(page.FindControl<Border>("ReconnectNotice")!.IsVisible);
-                var reconnect = page.FindControl<Button>("ReconnectButton")!;
+                GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                Assert.True(GuiHarness.FindVisual<Border>(page, "ReconnectNotice").IsVisible);
+                var reconnect = GuiHarness.FindVisual<Button>(page, "ReconnectButton");
                 Assert.True(reconnect.IsEnabled);
                 Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(reconnect)).Invoke();
                 await firstCancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -117,7 +122,7 @@ public sealed class SettingsReconnectTests
                 Assert.Equal(2, viewModel.SendQueue.WelcomeCount);
                 Assert.Equal(2, viewModel.SendQueue.RecentWelcomes.Count);
                 Assert.Equal("排队中 · 第 1 条", Assert.Single(viewModel.SendQueue.PendingSends).Status);
-                Assert.False(page.FindControl<Border>("ReconnectNotice")!.IsVisible);
+                Assert.False(GuiHarness.FindVisual<Border>(page, "ReconnectNotice").IsVisible);
             }
             finally
             {

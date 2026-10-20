@@ -43,7 +43,7 @@ public sealed class SettingsPageTests
             provider.Collapse();
             GuiHarness.Flush();
             Assert.Equal(3, WelcomeListRows(page, uids).Count(row => row.IsVisible));
-            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
         });
 
     private static string WelcomeListYaml(bool uids, int count) => "welcome:\n  " + (uids
@@ -74,7 +74,7 @@ public sealed class SettingsPageTests
             Assert.Contains("danger", fold.Classes);
             Assert.True(fold.TryFindResource("Danger", fold.ActualThemeVariant, out var danger));
             Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(danger).Color, Assert.IsAssignableFrom<ISolidColorBrush>(fold.Foreground).Color);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
 
             rows[0].FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
@@ -194,7 +194,7 @@ public sealed class SettingsPageTests
             Assert.False(error.IsVisible);
             Assert.DoesNotContain("invalid", input.Classes);
             Assert.False(WelcomeTextList.Error(page).IsVisible);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             foreach (var name in new[] { "InsertAtButton", "InsertNicknameButton", "InsertGuardButton" })
             {
                 var button = page.FindControl<Button>(name)!;
@@ -223,13 +223,13 @@ public sealed class SettingsPageTests
             GuiHarness.Flush();
             Assert.False(error.IsVisible);
             Assert.DoesNotContain("invalid", input.Classes);
-            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             input.Text = "{@}";
             GuiHarness.Flush();
             Assert.True(error.IsVisible);
             Assert.Equal("欢迎语不能只有 {@}，还要写上发出去的文字。", error.Text);
             AssertDangerBorder(input);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
         });
 
     /// <summary>The invalid outline wins over the focus outline too.</summary>
@@ -285,12 +285,12 @@ public sealed class SettingsPageTests
             Assert.Equal(message, WelcomeTextList.Error(page).Text);
             Assert.True(WelcomeTextList.Error(page).IsVisible);
             Assert.Contains("invalid", input.Classes);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             input.Text = "欢迎回来";
             GuiHarness.Flush();
             Assert.False(WelcomeTextList.Error(page).IsVisible);
             Assert.DoesNotContain("invalid", input.Classes);
-            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
         });
 
     [Fact]
@@ -305,12 +305,12 @@ public sealed class SettingsPageTests
             Assert.Equal("UID 必须是正整数", row.FindControl<TextBlock>("ErrorMessage")!.Text);
             Assert.True(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
             Assert.Contains("invalid", input.Classes);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             input.Text = "43";
             GuiHarness.Flush();
             Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
             Assert.DoesNotContain("invalid", input.Classes);
-            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
         });
 
     [Fact]
@@ -333,27 +333,27 @@ public sealed class SettingsPageTests
             GuiHarness.Flush();
             Assert.True(WelcomeTextList.Error(page, 1).IsVisible);
             Assert.False(WelcomeTextList.Error(page).IsVisible);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             WelcomeTextList.Input(page, 1).Text = "{@}欢迎\"老朋友\"\\回家,{{花}}";
             GuiHarness.Flush();
-            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             Assert.Equal("每次随机发一条", page.FindControl<TextBlock>("WelcomeRandomHint")!.Text);
             WelcomeTextList.Rows(page)[1].FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
-            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
+            Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
             Assert.Equal(before, File.ReadAllText(path));
 
             page.FindControl<Button>("AddWelcomeTextButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             WelcomeTextList.Input(page, 1).Text = "{@}欢迎\"老朋友\"\\回家,{{花}}";
             GuiHarness.Flush();
-            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
             Assert.Null(settings.Error);
             Assert.Equal(["欢迎{大航海}{昵称}", "{@}欢迎\"老朋友\"\\回家,{{花}}"], settings.WelcomeTexts.Value);
             Assert.True(settings.WelcomeTexts.CanEdit);
             Assert.Contains("  texts: [\"欢迎{大航海}{昵称}\", \"{@}欢迎\\\"老朋友\\\"\\\\回家,{{花}}\"]", File.ReadAllText(path));
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
         });
 
     [Fact]
@@ -407,8 +407,8 @@ public sealed class SettingsPageTests
             Assert.Equal("欢迎", WelcomeTextList.Input(page).Text);
             page.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked = true;
             GuiHarness.Flush();
-            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
-            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
+            GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("welcome:\n  enabled: false", "welcome:\n  enabled: true"), File.ReadAllText(path));
         });
 
@@ -424,7 +424,7 @@ public sealed class SettingsPageTests
             Assert.Equal("舰长", guard.SelectedItem);
             Assert.Equal(new[] { "舰长", "提督", "总督" }, guard.Items.Cast<string>());
             Assert.Equal("1 条", page.FindControl<TextBlock>("ConditionCount")!.Text);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
         });
 
     [Theory]
@@ -450,7 +450,7 @@ public sealed class SettingsPageTests
             Assert.NotNull(wealth);
             Assert.False(enabled.IsChecked);
             Assert.True(enabled.IsEnabled);
-            Assert.Equal("下次连接直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
+            Assert.Equal("下次连接直播间时生效", GuiHarness.FindVisual<TextBlock>(window, "TimingHint").Text);
             Assert.Equal("欢迎{昵称}", text.Text);
             Assert.False(text.IsReadOnly);
             Assert.Equal(["42"], UidLabels(window));
@@ -474,7 +474,7 @@ public sealed class SettingsPageTests
             else threshold.SelectedItem = guard;
             wealth.Text = "45";
             Dispatcher.UIThread.RunJobs();
-            var save = window.FindControl<Button>("SaveButton")!;
+            var save = GuiHarness.FindVisual<Button>(window, "SaveButton");
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("enabled: false # 开关", "enabled: true # 开关")
@@ -545,12 +545,12 @@ public sealed class SettingsPageTests
             Assert.True(page.FindControl<Grid>("EmptyConditions")!.IsVisible);
             Assert.False(page.FindControl<TextBlock>("ConditionCount")!.IsVisible);
             Assert.True(page.FindControl<Button>("AddConditionButton")!.IsVisible);
-            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
-            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
+            GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("uids: [42, 43]", "uids: []").Replace("fan_club_level: 1", "fan_club_level: 0")
                 .Replace("guard: 舰长", "guard: 关闭").Replace("wealth_level: 10", "wealth_level: 0"), File.ReadAllText(path));
             Assert.Empty(Rows(page));
-            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
         });
 
     [Fact]
@@ -564,8 +564,8 @@ public sealed class SettingsPageTests
             Add(page, WelcomeCondition.FanClubLevel);
             Add(page, WelcomeCondition.Uid).FindControl<TextBox>("UidInput")!.Text = "0042";
             GuiHarness.Flush();
-            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             Assert.Equal(before, File.ReadAllText(path));
         });
 
@@ -577,8 +577,8 @@ public sealed class SettingsPageTests
             Add(page, WelcomeCondition.Uid).FindControl<TextBox>("UidInput")!.Text = "42";
             GuiHarness.Flush();
             Assert.Equal(["43", "42"], UidLabels(page));
-            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
         });
 
     [Fact]
@@ -586,7 +586,7 @@ public sealed class SettingsPageTests
         WithSettingsPage(SettingsSection.Welcome, "welcome:\n  uids: [42, 42]\n", (page, path) =>
         {
             Assert.Equal("和上面那条重复了", Rows(page)[1].FindControl<TextBlock>("ErrorMessage")!.Text);
-            Assert.False(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
+            Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
             File.WriteAllText(path, "welcome:\n  uids: [42]\n");
             page.RefreshFileStatus(Settings.Load(Path.GetDirectoryName(path)!));
             Assert.Equal(["42"], UidLabels(page));
@@ -615,19 +615,19 @@ public sealed class SettingsPageTests
             Assert.True(input.IsFocused);
             Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
             Assert.DoesNotContain("invalid", input.Classes);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             input.Text = value;
             GuiHarness.Flush();
             Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
-            Assert.False(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
             originalRow.FocusInput();
             GuiHarness.Flush();
             Assert.Equal(message, row.FindControl<TextBlock>("ErrorMessage")!.Text);
             Assert.True(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
             Assert.Contains("invalid", input.Classes);
             Assert.False(originalRow.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
-            Assert.True(page.FindControl<TextBlock>("DirtyMessage")!.IsVisible);
-            var save = page.FindControl<Button>("SaveButton")!;
+            Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
+            var save = GuiHarness.FindVisual<Button>(page, "SaveButton");
             Assert.False(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before, File.ReadAllText(path));
@@ -660,7 +660,7 @@ public sealed class SettingsPageTests
             Assert.True(rows[1].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
             Remove(rows[0]);
             Assert.False(rows[1].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
-            Assert.True(page.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.True(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEnabled);
         });
 
     [Theory]
@@ -682,7 +682,7 @@ public sealed class SettingsPageTests
             input.Text = value;
             GuiHarness.Flush();
             Assert.Equal("至少 1 级", row.FindControl<TextBlock>("ErrorMessage")!.Text);
-            var save = page.FindControl<Button>("SaveButton")!;
+            var save = GuiHarness.FindVisual<Button>(page, "SaveButton");
             Assert.False(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before, File.ReadAllText(path));
@@ -739,7 +739,7 @@ public sealed class SettingsPageTests
             Remove(row);
             Assert.Same(row, Row(page, WelcomeCondition.FanClubLevel));
             Remove(Row(page, WelcomeCondition.Guard));
-            page.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(page, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("guard: 舰长", "guard: 关闭"), File.ReadAllText(path));
         });
 
@@ -755,7 +755,7 @@ public sealed class SettingsPageTests
             var input = WelcomeTextList.Input(window);
             input.Text = text;
             Dispatcher.UIThread.RunJobs();
-            var save = window.FindControl<Button>("SaveButton")!;
+            var save = GuiHarness.FindVisual<Button>(window, "SaveButton");
             Assert.False(save.IsEnabled);
             Assert.Equal("可用占位符为 {@}（只能放开头）、{昵称}、{大航海}；花括号本身用 {{ 和 }}。", WelcomeTextList.Error(window).Text);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -775,7 +775,7 @@ public sealed class SettingsPageTests
         {
             WelcomeTextList.Input(window).Text = "一二三四五六七八九十百";
             Dispatcher.UIThread.RunJobs();
-            var save = window.FindControl<Button>("SaveButton")!;
+            var save = GuiHarness.FindVisual<Button>(window, "SaveButton");
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
@@ -802,7 +802,7 @@ public sealed class SettingsPageTests
             Assert.Contains("{{ 和 }}", hint);
             SetUids(window, "12345", "67890");
             Dispatcher.UIThread.RunJobs();
-            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(window, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var after = File.ReadAllText(path);
             Assert.Contains("  uids: [12345, 67890]\n", after);
             Assert.Equal(before, after.Replace("  uids: [12345, 67890]\n", ""));
@@ -838,9 +838,11 @@ public sealed class SettingsPageTests
             });
             Assert.All(Menu(window).Items.Cast<MenuItem>(), item => Assert.False(item.IsEnabled));
             var general = new SettingsPage(Path.GetDirectoryName(path)!, SettingsSection.General);
+            ((Window)TopLevel.GetTopLevel(window)!).Content = general;
+            GuiHarness.Flush();
             general.FindControl<ComboBox>("LogLevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
             Dispatcher.UIThread.RunJobs();
-            var save = general.FindControl<Button>("SaveButton")!;
+            var save = GuiHarness.FindVisual<Button>(general, "SaveButton");
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("level: Information", "level: Warning"), File.ReadAllText(path));
@@ -857,9 +859,9 @@ public sealed class SettingsPageTests
             Assert.NotNull(input);
             Assert.True(input.IsChecked);
             Assert.True(input.IsEnabled);
-            Assert.Equal("下次连接直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
+            Assert.Equal("下次连接直播间时生效", GuiHarness.FindVisual<TextBlock>(window, "TimingHint").Text);
             input.IsChecked = false;
-            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(window, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(line is null ? before.Replace("  enabled: true\n", "  enabled: true\n  announce: false\n")
                 : before.Replace("announce: true", "announce: false"), File.ReadAllText(path));
             Assert.False(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxAnnounce.Value);
@@ -876,7 +878,7 @@ public sealed class SettingsPageTests
             Assert.False(input.IsEnabled);
             Assert.True(window.FindControl<TextBlock>("AnnounceReadOnly")!.IsVisible);
             window.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
-            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(window, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("enabled: true", "enabled: false"), File.ReadAllText(path));
         });
 
@@ -895,7 +897,7 @@ public sealed class SettingsPageTests
             Assert.Equal("今日盲盒", keyword.Text);
             Assert.Equal("本月盲盒", monthly.Text);
             Assert.Equal("1", interval.Text);
-            var save = window.FindControl<Button>("SaveButton")!;
+            var save = GuiHarness.FindVisual<Button>(window, "SaveButton");
             keyword.Text = " ";
             Dispatcher.UIThread.RunJobs();
             Assert.False(save.IsEnabled);
@@ -911,7 +913,7 @@ public sealed class SettingsPageTests
             Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n"), File.ReadAllText(path));
             ((Window)TopLevel.GetTopLevel(window)!).Content = send;
             GuiHarness.Flush();
-            save = send.FindControl<Button>("SaveButton")!;
+            save = GuiHarness.FindVisual<Button>(send, "SaveButton");
             var numberText = Assert.Single(interval.GetVisualDescendants().OfType<TextBox>());
             numberText.Text = "1.5";
             Dispatcher.UIThread.RunJobs();
@@ -935,7 +937,8 @@ public sealed class SettingsPageTests
         {
             var before = File.ReadAllText(path);
             var keyword = window.FindControl<TextBox>("DailyKeywordInput");
-            var interval = window.FindControl<NumericUpDown>("SendIntervalInput");
+            var send = new SettingsPage(Path.GetDirectoryName(path)!, SettingsSection.Send);
+            var interval = send.FindControl<NumericUpDown>("SendIntervalInput");
             Assert.NotNull(keyword);
             Assert.NotNull(interval);
             Assert.True(keyword.IsReadOnly);
@@ -947,9 +950,9 @@ public sealed class SettingsPageTests
             Assert.True(monthly.IsReadOnly);
             Assert.Equal("查月盲盒", monthly.Text);
             Assert.True(window.FindControl<TextBlock>("MonthlyKeywordReadOnly")!.IsVisible);
-            Assert.True(window.FindControl<TextBlock>("SendIntervalReadOnly")!.IsVisible);
+            Assert.True(send.FindControl<TextBlock>("SendIntervalReadOnly")!.IsVisible);
             window.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
-            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(window, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("\nsend:", "\n  enabled: false\nsend:"), File.ReadAllText(path));
         });
 
@@ -963,8 +966,10 @@ public sealed class SettingsPageTests
             Assert.False(input.IsEnabled);
             Assert.True(window.FindControl<TextBlock>("BlindBoxReadOnly")!.IsVisible);
             var general = new SettingsPage(Path.GetDirectoryName(path)!, SettingsSection.General);
+            ((Window)TopLevel.GetTopLevel(window)!).Content = general;
+            GuiHarness.Flush();
             general.FindControl<ComboBox>("LogLevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
-            general.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(general, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("level: Debug", "level: Warning"), File.ReadAllText(path));
         });
 
@@ -977,13 +982,13 @@ public sealed class SettingsPageTests
             Assert.NotNull(input);
             Assert.False(input.IsChecked);
             input.IsChecked = true;
-            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(window, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("enabled: false # 开关", "enabled: true # 开关"), File.ReadAllText(path));
             Assert.True(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);
-            Assert.StartsWith("已保存", window.FindControl<TextBlock>("Message")!.Text);
-            Assert.Equal("下次连接直播间时生效", window.FindControl<TextBlock>("TimingHint")!.Text);
+            Assert.StartsWith("已保存", GuiHarness.FindVisual<TextBlock>(window, "Message").Text);
+            Assert.Equal("下次连接直播间时生效", GuiHarness.FindVisual<TextBlock>(window, "TimingHint").Text);
             input.IsChecked = false;
-            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(window, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxEnabled.Value);
         });
 
@@ -993,7 +998,7 @@ public sealed class SettingsPageTests
         {
             Assert.False(window.FindControl<ComboBox>("LogLevelInput")!.IsEnabled);
             Assert.True(window.FindControl<TextBlock>("LogLevelReadOnly")!.IsVisible);
-            Assert.False(window.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(window, "SaveButton").IsEnabled);
         });
 
     [Fact]
@@ -1002,7 +1007,7 @@ public sealed class SettingsPageTests
         {
             File.WriteAllText(path, "# 外部修改\nlog:\n  retention_days: 30\n  level: Warning\n");
             window.FindControl<NumericUpDown>("RetentionInput")!.Text = "7";
-            var save = window.FindControl<Button>("SaveButton")!;
+            var save = GuiHarness.FindVisual<Button>(window, "SaveButton");
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, window.FindControl<ComboBox>("LogLevelInput")!.SelectedItem);
             var after = File.ReadAllText(path);
@@ -1014,7 +1019,7 @@ public sealed class SettingsPageTests
             window.FindControl<NumericUpDown>("RetentionInput")!.Text = "14";
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.False(save.IsEnabled);
-            Assert.Contains("第 2 行", window.FindControl<TextBlock>("FileMessage")!.Text);
+            Assert.Contains("第 2 行", GuiHarness.FindVisual<TextBlock>(window, "FileMessage").Text);
             Assert.Equal("log:\n  level: @bad\n", File.ReadAllText(path));
         });
 
@@ -1034,10 +1039,10 @@ public sealed class SettingsPageTests
             Dispatcher.UIThread.RunJobs();
 
             Assert.Contains(Settings.Validate("log.retention_days", input)!, window.FindControl<TextBlock>("RetentionError")!.Text);
-            Assert.False(window.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(window, "SaveButton").IsEnabled);
             textBox.Text = "14";
             Dispatcher.UIThread.RunJobs();
-            Assert.True(window.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.True(GuiHarness.FindVisual<Button>(window, "SaveButton").IsEnabled);
         });
 
     [Theory]
@@ -1048,11 +1053,11 @@ public sealed class SettingsPageTests
     public Task File_errors_display_core_location_and_disable_save(string yaml, string expected) =>
         WithSettingsPage(SettingsSection.General, yaml, (window, path) =>
         {
-            var message = window.FindControl<TextBlock>("FileMessage")!;
+            var message = GuiHarness.FindVisual<TextBlock>(window, "FileMessage");
             Assert.True(message.IsVisible);
             Assert.Contains(path, message.Text);
             Assert.Contains(expected, message.Text);
-            Assert.False(window.FindControl<Button>("SaveButton")!.IsEnabled);
+            Assert.False(GuiHarness.FindVisual<Button>(window, "SaveButton").IsEnabled);
         });
 
     [Fact]
@@ -1064,7 +1069,7 @@ public sealed class SettingsPageTests
             Assert.False(window.FindControl<NumericUpDown>("RetentionInput")!.AllowSpin);
             Assert.True(window.FindControl<TextBlock>("RetentionReadOnly")!.IsVisible);
             window.FindControl<ComboBox>("LogLevelInput")!.SelectedItem = Microsoft.Extensions.Logging.LogLevel.Warning;
-            window.FindControl<Button>("SaveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.FindVisual<Button>(window, "SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("level: Debug", "level: Warning"), File.ReadAllText(path));
         });
 
@@ -1091,7 +1096,7 @@ public sealed class SettingsPageTests
                 Assert.Contains("原样保留", window.FindControl<TextBlock>("UnknownKeysMessage")!.Text);
                 window.FindControl<NumericUpDown>("RetentionInput")!.Text = "14";
                 Dispatcher.UIThread.RunJobs();
-                var save = window.FindControl<Button>("SaveButton")!;
+                var save = GuiHarness.FindVisual<Button>(window, "SaveButton");
                 Assert.True(save.IsEnabled);
                 save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal(before.Replace("retention_days: '7'", "retention_days: 14"), File.ReadAllText(path));

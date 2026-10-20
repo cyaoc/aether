@@ -78,7 +78,7 @@ public sealed class NumericInputTests
                 GuiHarness.Flush();
                 Assert.Equal(2, number.Value);
                 Assert.True(decrease.IsEffectivelyEnabled);
-                Assert.True(page.FindControl<TextBlock>("DirtyMessage")!.IsEffectivelyVisible);
+                Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsEffectivelyVisible);
                 var text = number.GetVisualDescendants().OfType<TextBox>().Single();
                 text.Focus();
                 window.KeyPress(Key.Up, RawInputModifiers.None, PhysicalKey.ArrowUp, null);
@@ -157,13 +157,13 @@ public sealed class NumericInputTests
                         text.Text = "1.5";
                         GuiHarness.Flush();
                         Assert.Equal(Color.Parse(dark ? "#F87171" : "#B91C1C"), ColorOf(outline.BorderBrush));
-                        Assert.False(page.FindControl<Button>("SaveButton")!.IsEffectivelyEnabled);
+                        Assert.False(GuiHarness.FindVisual<Button>(page, "SaveButton").IsEffectivelyEnabled);
                         Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), x => x.IsEffectivelyVisible &&
                             (x.Text?.Contains("正整数") == true || x.Text?.Contains("1–65535") == true || x.Text == "至少 1 级"));
                         text.Text = "12345";
                         GuiHarness.Flush();
                         Assert.Equal(Color.Parse(dark ? "#8DA2FB" : "#3358D4"), ColorOf(outline.BorderBrush));
-                        page.FindControl<Button>("SaveButton")!.Focus();
+                        GuiHarness.FindVisual<Button>(page, "SaveButton").Focus();
                         GuiHarness.Flush();
                     }
                 }
@@ -201,7 +201,7 @@ public sealed class NumericInputTests
                 Assert.Equal(expectedWidth, input.Bounds.Width);
                 if (index != 2)
                 {
-                    var title = page.FindControl<TextBlock>("PageTitle")!;
+                    var title = GuiHarness.FindVisual<TextBlock>(page, "PageTitle");
                     Assert.Equal(title.TranslatePoint(default, page)!.Value.X, input.TranslatePoint(default, page)!.Value.X);
                 }
                 else
