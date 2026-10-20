@@ -56,7 +56,7 @@ public sealed class LotteryHistoryPanelTests
             Assert.Equal("历史 2", panel.FindControl<TextBlock>("HistoryTabText")!.Text);
             var history = panel.FindControl<LotteryHistoryPanel>("HistoryContent")!;
             var list = history.FindControl<ListBox>("LotteryList")!;
-            Assert.Equal(new[] { "entry", "pool" }, list.Items.OfType<ListBoxItem>().Select(row => ((LotteryHistory)row.Tag!).Id));
+            Assert.Equal(new[] { "entry", "pool" }, vm.Lottery.LotteryHistoryRows.Select(row => row.Id));
             Assert.Contains("已抽 2 / 3", GuiHarness.VisibleText(window));
             Assert.Contains("番茄炒蛋", GuiHarness.VisibleText(window));
             Assert.Contains("发弹幕「抽奖」", GuiHarness.VisibleText(window));
