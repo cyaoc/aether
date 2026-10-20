@@ -212,8 +212,12 @@ public sealed class WebService : IDisposable
             // Browsers omit the default HTTP port from Host even when the URL explicitly contains :80.
             var localHost = string.Equals(host, status.Origin["http://".Length..], StringComparison.OrdinalIgnoreCase)
                 || status.Port == 80 && string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase);
-            if (!localHost
-                || request.RemoteEndPoint is not { Address: var address } || !IPAddress.IsLoopback(address))
+            if (!localHost) { response.StatusCode = 403; return; }
+            IPEndPoint? remoteEndPoint;
+            try { remoteEndPoint = request.RemoteEndPoint; }
+            // The managed listener can clear its socket while a disconnected request is being dispatched.
+            catch (NullReferenceException) { Abort(response); return; }
+            if (remoteEndPoint is not { Address: var address } || !IPAddress.IsLoopback(address))
             { response.StatusCode = 403; return; }
             var path = request.Url!.AbsolutePath;
             var name = path.Split('/', 3)[1];
