@@ -46,19 +46,19 @@ public sealed class SettingsPageTests
             var fold = page.FindControl<Button>(uids ? "UidFold" : "WelcomeTextFold");
             Assert.NotNull(fold);
             Assert.Equal(count > 3, fold.IsVisible);
-            Assert.Equal(3, WelcomeListRows(page, uids).Count(row => row.IsVisible));
+            Assert.Equal(3, WelcomeListRows(page, uids).Count(WelcomeListRowIsShown));
             if (count == 3) return;
             Assert.Equal(uids ? "还有 1 位" : "还有 1 条", AutomationProperties.GetName(fold));
             var provider = Assert.IsAssignableFrom<IExpandCollapseProvider>(ControlAutomationPeer.CreatePeerForElement(fold));
             Assert.Equal(ExpandCollapseState.Collapsed, provider.ExpandCollapseState);
             fold.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
-            Assert.Equal(4, WelcomeListRows(page, uids).Count(row => row.IsVisible));
+            Assert.Equal(4, WelcomeListRows(page, uids).Count(WelcomeListRowIsShown));
             Assert.Equal(uids ? "收起，只看前 3 位" : "收起，只看前 3 条", AutomationProperties.GetName(fold));
             Assert.Equal(ExpandCollapseState.Expanded, provider.ExpandCollapseState);
             provider.Collapse();
             GuiHarness.Flush();
-            Assert.Equal(3, WelcomeListRows(page, uids).Count(row => row.IsVisible));
+            Assert.Equal(3, WelcomeListRows(page, uids).Count(WelcomeListRowIsShown));
             Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
         });
 
@@ -66,9 +66,14 @@ public sealed class SettingsPageTests
         ? $"uids: [{string.Join(", ", Enumerable.Range(1, count))}]"
         : $"texts: {Settings.TextListText(Enumerable.Range(1, count).Select(i => $"欢迎{i}"))}") + "\n";
 
-    private static Control[] WelcomeListRows(SettingsPage page, bool uids) => uids
+    private static object[] WelcomeListRows(SettingsPage page, bool uids) => uids
         ? Rows(page).Where(row => row.Kind == WelcomeCondition.Uid).ToArray()
         : WelcomeTextList.Rows(page);
+
+    private static bool WelcomeListRowIsShown(object row) => row is WelcomeTextRow text ? text.IsShown : ((Control)row).IsVisible;
+
+    private static T WelcomeListControl<T>(SettingsPage page, object row, string name) where T : Control =>
+        row is Control control ? control.FindControl<T>(name)! : GuiHarness.FindRowControl<T>(page, row, name);
 
     [Theory]
     [InlineData(false)]
@@ -82,7 +87,7 @@ public sealed class SettingsPageTests
             provider.Expand();
             var rows = WelcomeListRows(page, uids);
             foreach (var index in new[] { 0, 3, 4 })
-                rows[index].FindControl<TextBox>(uids ? "UidInput" : "ValueInput")!.Text = "";
+                WelcomeListControl<TextBox>(page, rows[index], uids ? "UidInput" : "ValueInput").Text = "";
             GuiHarness.Flush();
             provider.Collapse();
             GuiHarness.Flush();
@@ -92,15 +97,16 @@ public sealed class SettingsPageTests
             Assert.Equal(Assert.IsAssignableFrom<ISolidColorBrush>(danger).Color, Assert.IsAssignableFrom<ISolidColorBrush>(fold.Foreground).Color);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
 
-            rows[0].FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                WelcomeListControl<Button>(page, rows[0], "RemoveButton"))).Invoke();
             GuiHarness.Flush();
             Assert.Equal(uids ? "还有 1 位，其中 1 位有错" : "还有 1 条，其中 1 条有错", AutomationProperties.GetName(fold));
-            Assert.True(rows[3].IsVisible);
+            Assert.True(WelcomeListRowIsShown(rows[3]));
             provider.Expand();
             GuiHarness.Flush();
             Assert.DoesNotContain("danger", fold.Classes);
-            Assert.True(rows[4].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
-            rows[4].FindControl<TextBox>(uids ? "UidInput" : "ValueInput")!.Text = uids ? "42" : "欢迎";
+            Assert.True(WelcomeListControl<TextBlock>(page, rows[4], "ErrorMessage").IsVisible);
+            WelcomeListControl<TextBox>(page, rows[4], uids ? "UidInput" : "ValueInput").Text = uids ? "42" : "欢迎";
             GuiHarness.Flush();
             provider.Collapse();
             Assert.Equal(uids ? "还有 1 位" : "还有 1 条", AutomationProperties.GetName(fold));
@@ -140,10 +146,10 @@ public sealed class SettingsPageTests
             GuiHarness.Flush();
             var rows = WelcomeListRows(page, uids);
             Assert.Equal(21, rows.Length);
-            Assert.All(rows, row => Assert.True(row.IsVisible));
-            var input = rows[^1].FindControl<TextBox>(uids ? "UidInput" : "ValueInput")!;
+            Assert.All(rows, row => Assert.True(WelcomeListRowIsShown(row)));
+            var input = WelcomeListControl<TextBox>(page, rows[^1], uids ? "UidInput" : "ValueInput");
             Assert.True(input.IsFocused);
-            Assert.False(rows[^1].FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.False(WelcomeListControl<TextBlock>(page, rows[^1], "ErrorMessage").IsVisible);
             var scroll = input.GetVisualAncestors().OfType<ScrollViewer>().First();
             var top = input.TranslatePoint(default, scroll)!.Value.Y;
             Assert.InRange(top, 0, scroll.Bounds.Height - input.Bounds.Height);
@@ -187,11 +193,11 @@ public sealed class SettingsPageTests
             GuiHarness.Flush();
             Assert.True(WelcomeTextList.Input(page, 3).IsFocused);
             PressAndRelease(page, fold);
-            Assert.False(WelcomeTextList.Rows(page)[3].IsVisible);
+            Assert.False(WelcomeTextList.Rows(page)[3].IsShown);
             page.FindControl<Button>("InsertNicknameButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             GuiHarness.Flush();
             Assert.Contains("{昵称}", WelcomeTextList.Input(page, 3).Text);
-            Assert.True(WelcomeTextList.Rows(page)[3].IsVisible);
+            Assert.True(WelcomeTextList.Rows(page)[3].IsShown);
             Assert.True(WelcomeTextList.Input(page, 3).IsFocused);
         });
 
@@ -335,9 +341,8 @@ public sealed class SettingsPageTests
         {
             var before = File.ReadAllText(path);
             var first = Assert.Single(WelcomeTextList.Rows(page));
-            var remove = first.FindControl<Button>("RemoveButton")!;
+            var remove = GuiHarness.FindRowControl<Button>(page, first, "RemoveButton");
             Assert.False(remove.IsEnabled);
-            remove.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Single(WelcomeTextList.Rows(page));
             Assert.Equal("写多条时，每次随机发一条", page.FindControl<TextBlock>("WelcomeRandomHint")!.Text);
             Assert.False(page.FindControl<TextBlock>("WelcomeInsertTarget")!.IsVisible);
@@ -354,7 +359,8 @@ public sealed class SettingsPageTests
             GuiHarness.Flush();
             Assert.True(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             Assert.Equal("每次随机发一条", page.FindControl<TextBlock>("WelcomeRandomHint")!.Text);
-            WelcomeTextList.Rows(page)[1].FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                GuiHarness.FindRowControl<Button>(page, WelcomeTextList.Rows(page)[1], "RemoveButton"))).Invoke();
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
             Assert.Equal(before, File.ReadAllText(path));
@@ -389,11 +395,13 @@ public sealed class SettingsPageTests
             Assert.Equal("回{昵称}家", input.Text);
             Assert.Equal("欢迎", WelcomeTextList.Input(page).Text);
             Assert.Equal("到第 2 条", page.FindControl<TextBlock>("WelcomeInsertTarget")!.Text);
-            WelcomeTextList.Rows(page)[0].FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                GuiHarness.FindRowControl<Button>(page, WelcomeTextList.Rows(page)[0], "RemoveButton"))).Invoke();
             Assert.Equal("到第 1 条", page.FindControl<TextBlock>("WelcomeInsertTarget")!.Text);
             page.FindControl<Button>("InsertAtButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal("{@}回{昵称}家", input.Text);
-            WelcomeTextList.Rows(page)[0].FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                GuiHarness.FindRowControl<Button>(page, WelcomeTextList.Rows(page)[0], "RemoveButton"))).Invoke();
             insert.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Contains("{昵称}", WelcomeTextList.Input(page).Text);
             Assert.False(page.FindControl<TextBlock>("WelcomeInsertTarget")!.IsVisible);
@@ -409,8 +417,8 @@ public sealed class SettingsPageTests
             Assert.Equal(2, WelcomeTextList.Rows(page).Length);
             Assert.All(WelcomeTextList.Rows(page), row =>
             {
-                Assert.True(row.FindControl<TextBox>("ValueInput")!.IsReadOnly);
-                Assert.False(row.FindControl<Button>("RemoveButton")!.IsVisible);
+                Assert.True(GuiHarness.FindRowControl<TextBox>(page, row, "ValueInput").IsReadOnly);
+                Assert.False(GuiHarness.FindRowControl<Button>(page, row, "RemoveButton").IsVisible);
             });
             Assert.True(page.FindControl<TextBlock>("WelcomeTextReadOnly")!.IsVisible);
             Assert.False(page.FindControl<Button>("AddWelcomeTextButton")!.IsVisible);
@@ -1138,6 +1146,49 @@ public sealed class SettingsPageTests
         foreach (var value in values) Add(page, WelcomeCondition.Uid).FindControl<TextBox>("UidInput")!.Text = value;
         GuiHarness.Flush();
     }
+
+    [Fact]
+    public Task Welcome_text_accessible_names_follow_the_remaining_rows_after_removal() =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), null, (page, _) =>
+        {
+            var add = page.FindControl<Button>("AddWelcomeTextButton")!;
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            var rows = WelcomeTextList.Rows(page);
+            Assert.Equal(3, rows.Length);
+            Assert.IsAssignableFrom<IInvokeProvider>(
+                ControlAutomationPeer.CreatePeerForElement(GuiHarness.FindRowControl<Button>(page, rows[0], "RemoveButton"))).Invoke();
+            GuiHarness.Flush();
+            rows = WelcomeTextList.Rows(page);
+            Assert.Equal(2, rows.Length);
+            Assert.Equal(["第 1 条欢迎语", "第 2 条欢迎语"],
+                rows.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<TextBox>(page, row, "ValueInput"))));
+            Assert.Equal(["删除第 1 条欢迎语", "删除第 2 条欢迎语"],
+                rows.Select(row => AutomationProperties.GetName(GuiHarness.FindRowControl<Button>(page, row, "RemoveButton"))));
+        });
+
+    [Theory]
+    [InlineData("InsertNicknameButton", 1, 2, "欢迎{昵称}回家", 6)]
+    [InlineData("InsertAtButton", 1, 3, "{@}欢迎回家", 3)]
+    public Task Welcome_placeholder_insertion_collapses_the_selection(
+        string buttonName, int selectionStart, int selectionEnd, string expectedText, int expectedCaret) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), null, (page, _) =>
+        {
+            var text = WelcomeTextList.Input(page);
+            text.Text = "欢迎回家";
+            text.Focus();
+            text.CaretIndex = selectionEnd;
+            text.SelectionStart = selectionStart;
+            text.SelectionEnd = selectionEnd;
+            page.FindControl<Button>(buttonName)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.Equal(expectedText, text.Text);
+            Assert.Equal(expectedCaret, text.CaretIndex);
+            Assert.Equal(expectedCaret, text.SelectionStart);
+            Assert.Equal(expectedCaret, text.SelectionEnd);
+            Assert.True(text.IsFocused);
+        });
 
     [Fact]
     public Task Welcome_insert_buttons_use_caret_and_at_viewer_is_inserted_only_once() => WithSettingsPage(dir => new WelcomeSettingsPage(dir), null, (page, path) =>

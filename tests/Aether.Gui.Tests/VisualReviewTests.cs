@@ -3,6 +3,8 @@ using Aether.Core;
 using Aether.Gui.Tests.Support;
 using static Aether.Gui.Tests.Support.ConditionList;
 using Avalonia;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
@@ -321,7 +323,7 @@ public sealed class VisualReviewTests
                 var scroll = heading.GetVisualAncestors().OfType<ScrollViewer>().First();
                 Assert.Equal(0, scroll.Offset.Y);
                 Assert.InRange(heading.TranslatePoint(default, scroll)!.Value.Y, 0, scroll.Bounds.Height - heading.Bounds.Height);
-                Assert.Equal(3, WelcomeTextList.Rows(page).Count(row => row.IsVisible));
+                Assert.Equal(3, WelcomeTextList.Rows(page).Count(row => row.IsShown));
                 Assert.Equal(3, Rows(page).Count(row => row.Kind == WelcomeCondition.Uid && row.IsVisible));
                 foreach (var row in Rows(page).Where(row => row.Kind == WelcomeCondition.Uid && row.IsVisible))
                 {
@@ -381,10 +383,10 @@ public sealed class VisualReviewTests
                     page.FindControl<Button>(kind == "text" ? "AddWelcomeTextButton" : "AddAnimationButton")!
                         .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     GuiHarness.Flush();
-                    row = kind == "text" ? WelcomeTextList.Rows(page)[1]
+                    row = kind == "text" ? GuiHarness.FindRowControl<TextBox>(page, WelcomeTextList.Rows(page)[1], "ValueInput").GetVisualAncestors().OfType<EditableRowFrame>().Single()
                         : page.FindControl<StackPanel>("AnimationRows")!.Children.Single();
                 }
-                var input = row.FindControl<TextBox>(kind == "text" ? "ValueInput" : "UidInput")!;
+                var input = kind == "text" ? WelcomeTextList.Input(page, 1) : row.FindControl<TextBox>("UidInput")!;
                 Capture("new", false);
                 page.FindControl<Button>(kind == "animation" ? "AddAnimationButton" : "AddWelcomeTextButton")!.Focus();
                 Capture("empty-blurred", true);
@@ -445,7 +447,8 @@ public sealed class VisualReviewTests
                 WelcomeTextList.Input(page, 3).Text = "欢迎回到直播间";
                 Capture("four");
                 foreach (var row in WelcomeTextList.Rows(page).Skip(1))
-                    row.FindControl<Button>("RemoveButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                        GuiHarness.FindRowControl<Button>(page, row, "RemoveButton"))).Invoke();
                 Capture("one");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }

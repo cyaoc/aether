@@ -1,4 +1,10 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui">
+  <Style Selector="ItemsControl.editableRows > ContentPresenter" x:DataType="local:EditableRow">
+    <Setter Property="IsVisible" Value="{Binding IsShown}" />
+  </Style>
+  <Style Selector="ItemsControl.dividedRows > ContentPresenter:nth-child(n+2) local|EditableRowFrame">
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+  </Style>
   <Styles.Resources>
     <ResourceDictionary>
       <DataTemplate x:Key="FeatureActivityTemplate" x:DataType="local:SendQueueItemViewModel">

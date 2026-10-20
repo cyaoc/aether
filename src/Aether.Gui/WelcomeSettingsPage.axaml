@@ -20,7 +20,30 @@
         </Grid>
         <TextBlock Grid.Column="1" x:Name="WelcomeTextCount" Classes="caption muted numeric" VerticalAlignment="Center" />
       </Grid>
-      <StackPanel x:Name="WelcomeTextRows" Spacing="8" />
+      <ItemsControl x:Name="WelcomeTextRows" Classes="editableRows">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><StackPanel Spacing="8" /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="local:WelcomeTextRow">
+            <local:EditableRowFrame>
+              <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                <TextBox x:Name="ValueInput" Classes="rowFocus" PlaceholderText="输入欢迎语"
+                  Text="{Binding Value, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}"
+                  CaretIndex="{Binding CaretIndex, Mode=TwoWay}" SelectionStart="{Binding SelectionStart, Mode=TwoWay}" SelectionEnd="{Binding SelectionEnd, Mode=TwoWay}"
+                  Classes.invalid="{Binding #ErrorMessage.IsVisible}" AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 条欢迎语'}" />
+                <Button Grid.Column="1" x:Name="RemoveButton" Classes="ghost danger" Width="28" VerticalAlignment="Center"
+                  Command="{Binding Remove}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding CanEdit}"
+                  AutomationProperties.Name="{Binding Number, StringFormat='删除第 {0} 条欢迎语'}">
+                  <Viewbox Classes="icon remove"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
+                </Button>
+                <TextBlock Grid.Row="1" x:Name="ErrorMessage" Classes="error" IsVisible="{Binding VisibleError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Text="{Binding VisibleError}"
+                  TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+              </Grid>
+            </local:EditableRowFrame>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
       <local:ListFoldButton x:Name="WelcomeTextFold" />
       <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
       <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*">
