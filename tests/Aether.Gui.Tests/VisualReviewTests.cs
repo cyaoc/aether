@@ -255,7 +255,7 @@ public sealed class VisualReviewTests
             Directory.CreateDirectory(Settings.VideoDirectory(harness.DataDirectory));
             foreach (var (uid, file) in new[] { (12345, "小鹿的欢迎动画.mp4"), (67890, "星光入场.webm") })
             {
-                Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, uid, file);
+                Settings.Save(harness.DataDirectory, new Dictionary<string, string> { [$"welcome_animation_videos.{uid}"] = file });
                 File.WriteAllText(Path.Combine(Settings.VideoDirectory(harness.DataDirectory), file), "video");
             }
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
@@ -471,7 +471,7 @@ public sealed class VisualReviewTests
             Directory.CreateDirectory(Path.Combine(harness.DataDirectory, "videos"));
             foreach (var (uid, file) in videos)
             {
-                Settings.SaveWelcomeAnimationVideo(harness.DataDirectory, uid, file);
+                Settings.Save(harness.DataDirectory, new Dictionary<string, string> { [$"welcome_animation_videos.{uid}"] = file });
                 if (uid != 13579) File.WriteAllText(Path.Combine(harness.DataDirectory, "videos", file), "video");
             }
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });

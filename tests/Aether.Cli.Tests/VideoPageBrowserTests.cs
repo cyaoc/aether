@@ -17,7 +17,7 @@ public sealed class VideoPageBrowserTests
         });
         Directory.CreateDirectory(Settings.VideoDirectory(h.DataDirectory));
         File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(Settings.VideoDirectory(h.DataDirectory), "welcome.mp4"));
-        Settings.SaveWelcomeAnimationVideo(h.DataDirectory, 10001, "welcome.mp4");
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.10001"] = "welcome.mp4" });
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
         await using var browser = new ChromeBrowser();
         await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.VideoAddress);
