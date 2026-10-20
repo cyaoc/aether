@@ -114,12 +114,12 @@ public sealed class Settings
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
     private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("welcome_animation.enabled", false));
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
-    private const string VideoGroup = "welcome_animation_videos";
+    private static readonly KeyedGroupDefinition AnimationVideos = Register(new KeyedGroupDefinition("welcome_animation_videos"));
     /// <summary>Adding a setting is a registered definition here, its property and its line in Template
     /// (plus, for the GUI, one Fields entry in SettingsPage and the controls that show it: in SettingsPage.axaml with
     /// one Show call, for a 欢迎条件 a WelcomeConditionRow kind, or for a list of texts rows like WelcomeTextRow). The UID-keyed welcome_animation_videos group is the
     /// exception: its keys come from the file, so it is handled wherever VideoGroup appears.</summary>
-    private static Definition<T> Register<T>(Definition<T> definition)
+    private static T Register<T>(T definition) where T : Definition
     {
         Definitions.Add(definition);
         return definition;
@@ -140,9 +140,8 @@ public sealed class Settings
     public Setting<int> WelcomeWealthLevel => Get(WelcomeWealth);
     public Setting<bool> WelcomeAnimationEnabled => Get(AnimationOn);
     public Setting<int> WebServicePort => Get(WebPort);
-    public IReadOnlyDictionary<long, Setting<string>> WelcomeAnimationVideos => videos;
-    public bool CanEditWelcomeAnimationVideos { get; private set; } = true;
-    private readonly Dictionary<long, Setting<string>> videos = [];
+    public IReadOnlyDictionary<long, Setting<string>> WelcomeAnimationVideos => AnimationVideos.Items(this);
+    public bool CanEditWelcomeAnimationVideos => AnimationVideos.CanEdit(this);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
     private readonly Dictionary<string, object> values = [];
@@ -172,17 +171,10 @@ public sealed class Settings
     public static string? Validate(string name, string? value) => Validate(Definitions, name, value);
 
     private static string? Validate(IReadOnlyList<Definition> definitions, string name, string? value) =>
-        Find(definitions, name) is { } definition
-            ? value is null && definition.Group == VideoGroup ? null : definition.Validate(value)
-            : "未知设置，不能修改。";
+        Find(definitions, name) is { } definition ? definition.Validate(name, value) : "未知设置，不能修改。";
 
     private static Definition? Find(IReadOnlyList<Definition> definitions, string name) =>
-        definitions.FirstOrDefault(definition => definition.Name == name)
-        ?? (ReferenceEquals(definitions, Definitions) && name.StartsWith(VideoGroup + ".", StringComparison.Ordinal)
-            && Viewer.TryParseUid(name[(VideoGroup.Length + 1)..], out var uid) ? VideoDefinition(uid) : null);
-
-    private static Definition<string> VideoDefinition(long uid) =>
-        Definition.RequiredText(VideoGroup + "." + uid.ToString(CultureInfo.InvariantCulture), "", ValidateVideoFileName);
+        definitions.FirstOrDefault(definition => definition.Resolve(name) is not null);
 
     public static string? ValidateVideoFileName(string name) =>
         name is "." or ".." || name.IndexOfAny(['/', '\\', ':', '\0']) >= 0
@@ -198,24 +190,17 @@ public sealed class Settings
     public static void Save(string dataDirectory, IReadOnlyDictionary<string, string> changes, Settings? snapshot = null) =>
         Save(dataDirectory, Definitions, changes, snapshot);
 
-    /// <summary>Adds or replaces one viewer's video; null removes the whole line, leaving surrounding comments intact.</summary>
-    public static void SaveWelcomeAnimationVideo(string dataDirectory, long uid, string? fileName, Settings? snapshot = null)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(uid);
-        SaveChanges(dataDirectory, Definitions, new Dictionary<string, string?> { [VideoDefinition(uid).Name] = fileName }, snapshot);
-    }
-
     /// <summary>Commits the animation form in one write; mappings added outside the form are left alone.</summary>
     public static void SaveWelcomeAnimations(string dataDirectory, IReadOnlyDictionary<string, string> changes,
         IReadOnlyDictionary<long, string> videos, Settings snapshot)
     {
         var edits = changes.ToDictionary(pair => pair.Key, pair => (string?)pair.Value);
         foreach (var uid in snapshot.WelcomeAnimationVideos.Keys.Except(videos.Keys))
-            edits[VideoDefinition(uid).Name] = null;
+            edits[AnimationVideos.ItemName(uid)] = null;
         foreach (var (uid, fileName) in videos)
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(uid);
-            edits[VideoDefinition(uid).Name] = fileName;
+            edits[AnimationVideos.ItemName(uid)] = fileName;
         }
         SaveChanges(dataDirectory, Definitions, edits, snapshot);
     }
@@ -237,14 +222,19 @@ public sealed class Settings
         changes = changes.Where(change =>
         {
             var definition = Find(definitions, change.Key)!;
-            if (change.Value is null) return current.values.ContainsKey(definition.Name);
-            return !definition.Holds(current, change.Value) && !(snapshot is not null && definition.Holds(snapshot, change.Value));
+            var name = definition.Resolve(change.Key)!;
+            if (change.Value is null) return current.values.ContainsKey(name);
+            return !definition.Holds(current, name, change.Value) && !(snapshot is not null && definition.Holds(snapshot, name, change.Value));
         }).ToDictionary();
         var tokens = Scan(current.source);
         var edits = new List<(int Start, int Length, string Value)>();
         var newline = NewlineOf(current.source);
         var rootIndent = current.root is { Children.Count: > 0 } ? IndentOf(current.root) : 0;
-        foreach (var groupChanges in changes.Select(change => (Definition: Find(definitions, change.Key)!, change.Value))
+        foreach (var groupChanges in changes.Select(change =>
+        {
+            var definition = Find(definitions, change.Key)!;
+            return (Definition: definition, Name: definition.Resolve(change.Key)!, change.Value);
+        })
             .GroupBy(change => change.Definition.Group))
             EditGroup(groupChanges.Key, groupChanges);
         if (edits.Count == 0) return;
@@ -254,20 +244,20 @@ public sealed class Settings
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
         AtomicFile.Write(path, [.. current.encoding.GetPreamble(), .. current.encoding.GetBytes(text)]);
 
-        void EditGroup(string groupName, IEnumerable<(Definition Definition, string? Value)> groupChanges)
+        void EditGroup(string groupName, IEnumerable<(Definition Definition, string Name, string? Value)> groupChanges)
         {
             var groupEntry = current.root?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: var key } && key == groupName);
             var group = groupEntry?.Value as YamlMappingNode;
             var indent = new string(' ', group is { Children.Count: > 0 } ? IndentOf(group) : rootIndent + 2);
             var missing = new StringBuilder();
-            foreach (var (definition, value) in groupChanges)
+            foreach (var (definition, name, value) in groupChanges)
             {
                 // Match by name like Load does, so a tagged key such as `!!str level` is still found.
                 var entry = group?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: var key }
-                    && (key == definition.Key || groupName == VideoGroup && Viewer.TryParseUid(key, out var uid) && VideoDefinition(uid).Name == definition.Name));
+                    && definition.Resolve(groupName + "." + key) == name);
                 var node = entry?.Value;
-                if (!definition.CanEdit(current) || groupName == VideoGroup && !current.CanEditWelcomeAnimationVideos)
-                    throw new SettingsException(path, node?.Start.Line ?? groupEntry?.Key?.Start.Line ?? 1, definition.Name,
+                if (!definition.CanEdit(current, name))
+                    throw new SettingsException(path, node?.Start.Line ?? groupEntry?.Key?.Start.Line ?? 1, name,
                         "不能逐行编辑，请在设置文件里修改。");
                 if (value is null)
                 {
@@ -280,8 +270,8 @@ public sealed class Settings
                     edits.Add((start, end - start, ""));
                     continue;
                 }
-                var scalar = definition.Format(value);
-                if (node is null) missing.Append(indent).Append(definition.Key).Append(": ").Append(scalar).Append(newline);
+                var scalar = definition.Format(name, value);
+                if (node is null) missing.Append(indent).Append(name[(groupName.Length + 1)..]).Append(": ").Append(scalar).Append(newline);
                 else edits.Add(((int)node.Start.Index, (int)(EndOf(tokens, node).Index - node.Start.Index), scalar));
             }
             if (missing.Length == 0) return;
@@ -355,9 +345,6 @@ public sealed class Settings
         var missing = Definitions.Where(definition => definition.CanEdit(settings)
             && settings.root?.Children.Keys.Any(key => key is YamlScalarNode { Value: var name } && name == definition.Group) != true)
             .Select(definition => definition.Group).ToHashSet();
-        if (settings.CanEditWelcomeAnimationVideos
-            && settings.root?.Children.Keys.Any(key => key is YamlScalarNode { Value: VideoGroup }) != true)
-            missing.Add(VideoGroup);
         if (missing.Count == 0) return settings;
         var tokens = Scan(settings.source);
         // Appending after an explicit document end would create a second document.
@@ -412,7 +399,6 @@ public sealed class Settings
             var lossless = bytes.AsSpan(settings.encoding.GetPreamble().Length)
                 .SequenceEqual(settings.encoding.GetBytes(settings.source));
             MarkEditable(definitions, lossless);
-            settings.CanEditWelcomeAnimationVideos = lossless;
             var yaml = new YamlStream();
             yaml.Load(new StringReader(settings.source));
             var tokens = Scan(settings.source);
@@ -423,21 +409,22 @@ public sealed class Settings
             settings.root = root;
             var rootEditable = lossless && root.Style == MappingStyle.Block && root.Anchor.IsEmpty;
             MarkEditable(definitions, rootEditable);
-            settings.CanEditWelcomeAnimationVideos = rootEditable;
             var unknown = new List<string>();
             // Load and Save match names without YAML tags, so known names must be unique on that basis.
             var seenNames = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var (groupKey, groupValue) in root.Children)
+            foreach (var (groupKey, groupValue) in root.Children) LoadGroup(groupKey, groupValue);
+            settings.UnknownKeys = unknown.AsReadOnly();
+
+            void LoadGroup(YamlNode groupKey, YamlNode groupValue)
             {
                 var groupName = KeyName(groupKey);
                 var known = definitions.Where(definition => definition.Group == groupName).ToArray();
-                var videoGroup = ReferenceEquals(definitions, Definitions) && groupName == VideoGroup;
-                if (known.Length == 0 && !videoGroup)
+                if (known.Length == 0)
                 {
                     if (groupValue is YamlMappingNode { Children.Count: > 0 } other)
                         unknown.AddRange(other.Children.Keys.Select(key => groupName + "." + KeyName(key)));
                     else unknown.Add(groupName);
-                    continue;
+                    return;
                 }
                 if (!seenNames.Add(groupName))
                     settings.Error ??= new(path, groupKey.Start.Line, groupName, "分组名重复，请只保留一组。");
@@ -445,52 +432,35 @@ public sealed class Settings
                 if (groupValue is YamlScalarNode { Style: ScalarStyle.Plain, Value: "" })
                 {
                     MarkEditable(known, rootEditable && groupValue.Anchor.IsEmpty);
-                    if (videoGroup) settings.CanEditWelcomeAnimationVideos = rootEditable && groupValue.Anchor.IsEmpty;
-                    continue;
+                    return;
                 }
                 if (groupValue is not YamlMappingNode group)
                 {
                     settings.Error ??= new(path, groupValue.Start.Line, groupName, "必须是设置分组。");
-                    continue;
+                    return;
                 }
                 var groupEditable = rootEditable && group.Style == MappingStyle.Block && group.Anchor.IsEmpty;
                 MarkEditable(known, groupEditable);
-                if (videoGroup) settings.CanEditWelcomeAnimationVideos = groupEditable;
-                foreach (var (key, value) in group.Children)
-                {
-                    var name = groupName + "." + KeyName(key);
-                    // One line holding a scalar or a flow list of scalars, as ADR 0004 allows.
-                    var singleLine = key.Start.Line == key.End.Line && key.Start.Line == value.Start.Line
-                        && value.Start.Line == EndOf(tokens, value).Line;
-                    var canEdit = groupEditable && value.Anchor.IsEmpty && singleLine && value switch
-                        {
-                            YamlScalarNode scalar => scalar.Style is not (ScalarStyle.Literal or ScalarStyle.Folded),
-                            YamlSequenceNode { Style: SequenceStyle.Flow } list =>
-                                list.Children.All(item => item is YamlScalarNode { Anchor.IsEmpty: true }),
-                            _ => false,
-                        };
-                    if (videoGroup)
-                    {
-                        if (!Viewer.TryParseUid(KeyName(key), out var uid))
-                        {
-                            settings.Error ??= new(path, key.Start.Line, name, "UID 必须为 int64 范围内的正整数。");
-                            continue;
-                        }
-                        var video = VideoDefinition(uid);
-                        if (!seenNames.Add(video.Name))
-                            settings.Error ??= new(path, key.Start.Line, name, "UID 重复，请只保留一项。");
-                        else if (!singleLine || video.Read(settings, value, canEdit && key.Anchor.IsEmpty, singleLine) is { })
-                            settings.Error ??= new(path, key.Start.Line, name, "必须是单行的纯文件名，扩展名为 .mp4 或 .webm，不能带路径。");
-                        settings.videos[uid] = settings.Get(video);
-                    }
-                    else if (known.FirstOrDefault(definition => definition.Name == name) is not { } definition) unknown.Add(name);
-                    else if (!seenNames.Add(name))
-                        settings.Error ??= new(path, key.Start.Line, name, "设置名重复，请只保留一项。");
-                    else if (definition.Read(settings, value, canEdit, singleLine) is { } reason)
-                        settings.Error ??= new(path, key.Start.Line, name, reason);
-                }
+                foreach (var (key, value) in group.Children) LoadKey(groupName, known, groupEditable, key, value);
             }
-            settings.UnknownKeys = unknown.AsReadOnly();
+
+            void LoadKey(string groupName, Definition[] known, bool groupEditable, YamlNode key, YamlNode value)
+            {
+                var name = groupName + "." + KeyName(key);
+                // One line holding a scalar or a flow list of scalars, as ADR 0004 allows.
+                var singleLine = key.Start.Line == key.End.Line && key.Start.Line == value.Start.Line
+                    && value.Start.Line == EndOf(tokens, value).Line;
+                var canEdit = groupEditable && value.Anchor.IsEmpty && singleLine && value switch
+                    {
+                        YamlScalarNode scalar => scalar.Style is not (ScalarStyle.Literal or ScalarStyle.Folded),
+                        YamlSequenceNode { Style: SequenceStyle.Flow } list =>
+                            list.Children.All(item => item is YamlScalarNode { Anchor.IsEmpty: true }),
+                        _ => false,
+                    };
+                if (known.FirstOrDefault(definition => definition.Contains(name)) is not { } definition) unknown.Add(name);
+                else if (definition.ReadKey(settings, name, key, value, canEdit, singleLine, seenNames) is { } reason)
+                    settings.Error ??= new(path, key.Start.Line, name, reason);
+            }
         }
         catch (SettingsException error) { settings.Error = error; }
         catch (Exception error) when (IsYamlFailure(error))
@@ -504,7 +474,7 @@ public sealed class Settings
         if (settings.UnknownKeys.Count > 0)
             logger?.LogWarning("未知设置键：{Keys}", string.Join("、", settings.UnknownKeys));
         if (settings.Error is null)
-            foreach (var (uid, video) in settings.videos)
+            foreach (var (uid, video) in settings.WelcomeAnimationVideos)
                 if (!File.Exists(VideoFile(dataDirectory, video.Value)))
                     logger?.LogWarning("观众 {Uid} 的欢迎动画文件不存在：{FileName}，这位观众不播", uid, video.Value);
         return settings;
@@ -521,25 +491,27 @@ public sealed class Settings
         }
     }
 
-    /// <summary>A setting this version knows: its name in the file (group.key), how its text becomes a value,
-    /// and how a value is written back on one line.</summary>
+    /// <summary>A fixed setting (group.key) or a group whose keys come from the file,
+    /// including how each value is read and written back on one line.</summary>
     internal abstract class Definition(string name)
     {
         public string Name => name;
-        public string Group => name[..name.IndexOf('.')];
-        public string Key => name[(name.IndexOf('.') + 1)..];
+        public string Group => name.Split('.')[0];
+        public virtual bool Contains(string name) => Name == name;
+        public virtual string? Resolve(string name) => Contains(name) ? name : null;
         /// <summary>Null when the text is valid; otherwise why not.</summary>
-        public abstract string? Validate(string? text);
+        public abstract string? Validate(string name, string? text);
         /// <summary>The one-line YAML written for valid text, quoted wherever YAML needs it.</summary>
-        public abstract string Format(string text);
+        public abstract string Format(string name, string text);
         /// <summary>The value <paramref name="settings"/> holds, written as its one-line YAML.</summary>
-        public abstract string ValueText(Settings settings);
-        public abstract bool CanEdit(Settings settings);
+        public abstract string ValueText(Settings settings, string name);
+        public abstract bool CanEdit(Settings settings, string? name = null);
         /// <summary>Whether <paramref name="settings"/> already holds the value of this valid text.</summary>
-        public bool Holds(Settings settings, string text) => Format(text) == ValueText(settings);
+        public bool Holds(Settings settings, string name, string text) => Format(name, text) == ValueText(settings, name);
         public abstract void MarkEditable(Settings settings, bool canEdit);
-        /// <summary>Records whether the line can be edited, and the value when the node is valid; returns why it is not.</summary>
-        public abstract string? Read(Settings settings, YamlNode node, bool canEdit, bool singleLine);
+        /// <summary>Recognizes a key, checks duplicates and records its value and whether its line can be edited.</summary>
+        public abstract string? ReadKey(Settings settings, string name, YamlNode key, YamlNode node,
+            bool canEdit, bool singleLine, HashSet<string> seenNames);
 
         public static Definition<int> Number(string name, int initial, string rule, Func<int, bool> valid) => ScalarSetting(name, initial, rule,
             text => int.TryParse(text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) && valid(number)
@@ -633,20 +605,66 @@ public sealed class Settings
         }
     }
 
+    internal sealed class KeyedGroupDefinition(string name) : Definition(name)
+    {
+        private sealed class GroupValues
+        {
+            public bool CanEdit { get; set; } = true;
+            public Dictionary<long, Setting<string>> Items { get; } = [];
+        }
+
+        private GroupValues Get(Settings settings)
+        {
+            if (!settings.values.TryGetValue(Name, out var value)) settings.values[Name] = value = new GroupValues();
+            return (GroupValues)value;
+        }
+
+        public IReadOnlyDictionary<long, Setting<string>> Items(Settings settings) => Get(settings).Items;
+        public string ItemName(long uid) => Name + "." + uid.ToString(CultureInfo.InvariantCulture);
+        public override bool Contains(string name) => name.StartsWith(Name + ".", StringComparison.Ordinal);
+        public override string? Resolve(string name) =>
+            Contains(name) && Viewer.TryParseUid(name[(Name.Length + 1)..], out var uid) ? ItemName(uid) : null;
+        private Definition<string> Item(string name) => RequiredText(Resolve(name)!, "", ValidateVideoFileName);
+        public override string? Validate(string name, string? text) => text is null ? null : Item(name).Validate(name, text);
+        public override string Format(string name, string text) => Item(name).Format(name, text);
+        public override string ValueText(Settings settings, string name) => Item(name).ValueText(settings, name);
+        public override bool CanEdit(Settings settings, string? name = null) =>
+            Get(settings).CanEdit && (name is null || Item(name).CanEdit(settings));
+        public override void MarkEditable(Settings settings, bool canEdit) => Get(settings).CanEdit = canEdit;
+
+        public override string? ReadKey(Settings settings, string name, YamlNode key, YamlNode node,
+            bool canEdit, bool singleLine, HashSet<string> seenNames)
+        {
+            if (Resolve(name) is not { } resolved) return "UID 必须为 int64 范围内的正整数。";
+            var item = Item(resolved);
+            string? reason = null;
+            if (!seenNames.Add(resolved)) reason = "UID 重复，请只保留一项。";
+            else if (!singleLine || item.Read(settings, node, canEdit && key.Anchor.IsEmpty, singleLine) is { })
+                reason = "必须是单行的纯文件名，扩展名为 .mp4 或 .webm，不能带路径。";
+            Viewer.TryParseUid(resolved[(Name.Length + 1)..], out var uid);
+            Get(settings).Items[uid] = settings.Get(item);
+            return reason;
+        }
+    }
+
     /// <param name="check">Why a value that reads and parses is still invalid, such as a welcome text misusing placeholders.</param>
     internal sealed class Definition<T>(string name, T initial, string rule, Func<YamlNode, bool, (bool Valid, T Value)> read,
         Func<string, (bool Valid, T Value)> parse, Func<T, string> format, Func<T, string?>? check = null) : Definition(name)
     {
         public Setting<T> Initial => new(Name, initial);
-        public override string? Validate(string? text) => parse(text ?? "") is (true, var value) ? check?.Invoke(value) : rule;
+        public override string? Validate(string name, string? text) => parse(text ?? "") is (true, var value) ? check?.Invoke(value) : rule;
         /// <summary>The value of valid text.</summary>
         public T Parse(string text) => parse(text).Value;
-        public override string Format(string text) => format(Parse(text));
-        public override string ValueText(Settings settings) => format(settings.Get(this).Value);
-        public override bool CanEdit(Settings settings) => settings.Get(this).CanEdit;
+        public override string Format(string name, string text) => format(Parse(text));
+        public override string ValueText(Settings settings, string name) => format(settings.Get(this).Value);
+        public override bool CanEdit(Settings settings, string? name = null) => settings.Get(this).CanEdit;
         public override void MarkEditable(Settings settings, bool canEdit) => settings.values[Name] = settings.Get(this) with { CanEdit = canEdit };
 
-        public override string? Read(Settings settings, YamlNode node, bool canEdit, bool singleLine)
+        public override string? ReadKey(Settings settings, string name, YamlNode key, YamlNode node,
+            bool canEdit, bool singleLine, HashSet<string> seenNames) =>
+            !seenNames.Add(Name) ? "设置名重复，请只保留一项。" : Read(settings, node, canEdit, singleLine);
+
+        public string? Read(Settings settings, YamlNode node, bool canEdit, bool singleLine)
         {
             var (valid, value) = read(node, singleLine);
             // A value only check rejects is still kept, so the GUI shows what the file holds.
