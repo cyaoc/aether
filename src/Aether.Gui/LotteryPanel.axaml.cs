@@ -59,7 +59,6 @@ public partial class LotteryPanel : UserControl
         EntryContent.IsVisible = !history && entry is not null;
         PoolContent.IsVisible = !history && entry is null;
         ModeChip.IsVisible = PhaseChip.IsVisible = !history;
-        HistoryTabText.Text = $"历史 {viewModel?.Lottery.LotteryHistory.Count ?? 0}";
     }
 
     private async Task ChangeAsync(Func<LotteryViewModel, Task> change)
@@ -69,7 +68,7 @@ public partial class LotteryPanel : UserControl
         try { await change(viewModel.Lottery); }
         catch (Exception error)
         {
-            if (EntryContent.IsVisible) EntryContent.ShowError(error.Message);
+            if (EntryContent.IsVisible) viewModel.Lottery.EntryLotteryError = error.Message;
             else viewModel.Lottery.PoolLotteryError = error.Message;
         }
     }
