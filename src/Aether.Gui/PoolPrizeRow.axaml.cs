@@ -12,7 +12,7 @@ public partial class PoolPrizeRow : UserControl
     public event Action? Changed;
     public event Action? RemoveRequested;
     public PoolPrize Value => new(NameInput.Text ?? "", int.TryParse(WeightInput.Text, NumberStyles.None,
-        CultureInfo.InvariantCulture, out var weight) ? weight : 0, (Grade)GradeInput.SelectedIndex);
+        CultureInfo.InvariantCulture, out var weight) ? weight : 0, (Grade)GradeInput.SelectedItem!);
 
     public PoolPrizeRow() : this(new("", 1, Grade.Third), true) { }
     public PoolPrizeRow(PoolPrize prize, bool isNew = false)
@@ -21,8 +21,7 @@ public partial class PoolPrizeRow : UserControl
         errorsRevealed = !isNew;
         NameInput.Text = prize.Name;
         WeightInput.Text = prize.Weight.ToString(CultureInfo.InvariantCulture);
-        GradeInput.ItemsSource = LotteryController.GradeNames;
-        GradeInput.SelectedIndex = (int)prize.Grade;
+        GradeInput.SelectedItem = prize.Grade;
         NameInput.TextChanged += (_, _) => Changed?.Invoke();
         WeightInput.TextChanged += (_, _) => Changed?.Invoke();
         GradeInput.SelectionChanged += (_, _) => Changed?.Invoke();

@@ -13,7 +13,7 @@ public partial class EntryAwardRow : UserControl
     public event Action? RemoveRequested;
     public event Action? DrawRequested;
     public LotteryAward Value => new(NameInput.Text ?? "", PrizeInput.Text ?? "", int.TryParse(CapacityInput.Text,
-        NumberStyles.None, CultureInfo.InvariantCulture, out var capacity) ? capacity : 0, (Grade)GradeInput.SelectedIndex);
+        NumberStyles.None, CultureInfo.InvariantCulture, out var capacity) ? capacity : 0, (Grade)GradeInput.SelectedItem!);
 
     public EntryAwardRow() : this(new("", "", 1, Grade.Grand), true) { }
     public EntryAwardRow(LotteryAward award, bool isNew = false)
@@ -23,8 +23,7 @@ public partial class EntryAwardRow : UserControl
         NameInput.Text = award.Name;
         PrizeInput.Text = award.Prize;
         CapacityInput.Text = award.Capacity.ToString(CultureInfo.InvariantCulture);
-        GradeInput.ItemsSource = LotteryController.GradeNames;
-        GradeInput.SelectedIndex = (int)award.Grade;
+        GradeInput.SelectedItem = award.Grade;
         NameInput.TextChanged += (_, _) => Changed?.Invoke();
         PrizeInput.TextChanged += (_, _) => Changed?.Invoke();
         CapacityInput.TextChanged += (_, _) => Changed?.Invoke();
@@ -49,7 +48,7 @@ public partial class EntryAwardRow : UserControl
         GradeInput.IsEnabled = !busy;
         RemoveButton.IsEnabled = !busy && count > 1;
         GradeBadge.IsVisible = DrawCount.IsVisible = DrawButton.IsVisible = !editable;
-        LotteryPanel.SetGrade(GradeBadge, GradeText, value.Grade);
+        GradeBadge.Grade = value.Grade;
         var drawn = lottery.Draws.Count(draw => draw.AwardIndex == index);
         var full = drawn >= value.Capacity;
         DrawCount.Text = $"已抽 {drawn} / {value.Capacity}";

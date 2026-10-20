@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.EntryAwardRow">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:gui="using:Aether.Gui" x:Class="Aether.Gui.EntryAwardRow">
   <UserControl.Styles>
     <!-- 抽一个 as canvas O1: a draw that cannot run is an outline, green with a check once the award is full. -->
     <Style Selector="Button#DrawButton Path">
@@ -28,13 +28,11 @@
           <TextBox x:Name="CapacityInput" Classes="numeric" Width="44" Height="32" MinHeight="32" FontSize="13" Padding="6,0" TextAlignment="Right" />
           <TextBlock Classes="caption muted" Text="名" VerticalAlignment="Center" />
         </StackPanel>
-        <ListBox Grid.Column="3" x:Name="GradeInput" Classes="prizeGrade" SelectionMode="AlwaysSelected" VerticalAlignment="Center" />
+        <gui:GradePicker Grid.Column="3" x:Name="GradeInput" VerticalAlignment="Center" />
         <Button Grid.Column="4" x:Name="RemoveButton" Classes="ghost danger" Width="30" Height="30">
           <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
         </Button>
-        <Border Grid.Column="2" x:Name="GradeBadge" Classes="badge" Height="20" Padding="5,0" VerticalAlignment="Center" IsVisible="False">
-          <TextBlock x:Name="GradeText" VerticalAlignment="Center" />
-        </Border>
+        <gui:GradeBadge Grid.Column="2" x:Name="GradeBadge" Height="20" Padding="5,0" VerticalAlignment="Center" IsVisible="False" />
         <TextBlock Grid.Column="3" x:Name="DrawCount" Classes="caption muted numeric" MinWidth="54" TextAlignment="Right" VerticalAlignment="Center" IsVisible="False" />
         <Button Grid.Column="4" x:Name="DrawButton" Classes="accent" Width="84" Height="30" Padding="0" FontWeight="SemiBold" HorizontalContentAlignment="Center" IsVisible="False">
           <StackPanel Orientation="Horizontal" Spacing="4">
