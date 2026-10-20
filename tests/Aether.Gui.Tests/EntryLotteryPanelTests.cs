@@ -1,5 +1,8 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia.Automation;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -12,6 +15,44 @@ public sealed class EntryLotteryPanelTests
         new("entry", 7734200, "抽奖", DateTimeOffset.UnixEpoch,
             [new("一等奖", "机械键盘", 1, Grade.Grand), new("二等奖", "周边抱枕", 2, Grade.Second),
                 new("三等奖", "签名照", 3, Grade.Third)], [], [], phase);
+
+    [Fact]
+    public Task Award_accessible_names_follow_rows_after_removing_the_first() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var panel = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = panel, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Awards = [TestLottery().Awards[0]] })));
+            var entry = panel.FindControl<EntryLotteryPanel>("EntryContent")!;
+            var rows = entry.FindControl<StackPanel>("AwardRows")!;
+            var add = entry.FindControl<Button>("AddAwardButton")!;
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            add.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            GuiHarness.Flush();
+            Assert.Equal(3, rows.Children.Count);
+            var first = Assert.IsType<EntryAwardRow>(rows.Children[0]);
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
+                first.FindControl<Button>("RemoveButton")!)).Invoke();
+            GuiHarness.Flush();
+            var remaining = rows.Children.Cast<EntryAwardRow>().ToArray();
+            Assert.Equal(new[] { "第 1 个奖项名称", "第 2 个奖项名称" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("NameInput")!)));
+            Assert.Equal(new[] { "第 1 个奖项的奖品", "第 2 个奖项的奖品" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("PrizeInput")!)));
+            Assert.Equal(new[] { "第 1 个奖项名额", "第 2 个奖项名额" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<TextBox>("CapacityInput")!)));
+            Assert.Equal(new[] { "第 1 个奖项档次", "第 2 个奖项档次" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<GradePicker>("GradeInput")!)));
+            Assert.Equal(new[] { "删除第 1 个奖项", "删除第 2 个奖项" },
+                remaining.Select(row => AutomationProperties.GetName(row.FindControl<Button>("RemoveButton")!)));
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
 
     [Fact]
     public Task Phase_controls_editing_buttons_and_lists() => HeadlessApp.Session.Dispatch(async () =>
