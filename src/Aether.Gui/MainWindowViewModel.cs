@@ -39,10 +39,12 @@ public partial class MainWindowViewModel : ObservableObject
         keepRecentDanmaku = settings.KeepRecentDanmaku;
         roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
         WebService = new(client, logger, clock, shutdown.Token);
+        Lottery = new(client, logger, settings, SaveGuiSettings, shutdown.Token);
     }
 
     public SendQueueViewModel SendQueue { get; } = new();
     public WebServiceViewModel WebService { get; }
+    public LotteryViewModel Lottery { get; }
     [ObservableProperty] private bool keepRecentDanmaku;
     [ObservableProperty] private string roomNumber;
     public string[] RecentRooms => settings.RecentRooms;
@@ -118,7 +120,7 @@ public partial class MainWindowViewModel : ObservableObject
     public Task StartAsync(string dataDirectory)
     {
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
-        ObserveLottery();
+        Lottery.ObserveLottery();
         var webSettings = WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
         return Task.WhenAll(webSettings, ReadAccountCommand.ExecuteAsync(null));
     }
@@ -376,7 +378,7 @@ public partial class MainWindowViewModel : ObservableObject
         LoginCommand.Cancel();
         LogoutCommand.Cancel();
         var accountStopped = accountRead.StopAsync();
-        await StopLotteryAsync();
+        await Lottery.StopAsync();
         await accountStopped;
         await StopWatchingAsync();
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
