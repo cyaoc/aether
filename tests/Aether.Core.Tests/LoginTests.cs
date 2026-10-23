@@ -44,7 +44,7 @@ public sealed class LoginTests : IDisposable
         using var tables = command.ExecuteReader();
         List<string> names = [];
         while (tables.Read()) names.Add(tables.GetString(0));
-        Assert.Equal(["lottery", "lottery_award", "lottery_draw", "lottery_entry", "lottery_prize"], names);
+        Assert.Equal(["lottery", "lottery_award", "lottery_draw", "lottery_entry", "lottery_prize", "lottery_prize_set"], names);
     }
 
     [Fact]
