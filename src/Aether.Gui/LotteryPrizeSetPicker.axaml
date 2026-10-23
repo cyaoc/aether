@@ -1,19 +1,22 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPrizeSetPicker" x:DataType="local:MainWindowViewModel">
-  <StackPanel Orientation="Horizontal" Spacing="6">
-    <Button x:Name="LoadButton" Content="载入方案 ▾" Height="20" MinHeight="0" Padding="8,0" FontSize="12" ClickMode="Press">
-      <Button.Flyout><MenuFlyout Placement="BottomEdgeAlignedRight" /></Button.Flyout>
+  xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPrizeSetPicker" x:DataType="local:MainWindowViewModel" Margin="0,-5">
+  <StackPanel Orientation="Horizontal" Spacing="6" Height="30" VerticalAlignment="Center">
+    <Button x:Name="LoadButton" Content="载入方案 ▾" Height="30" MinHeight="0" Padding="10,0,8,0" FontSize="13" ClickMode="Press">
+      <Button.Flyout><MenuFlyout Placement="BottomEdgeAlignedRight" VerticalOffset="6" FlyoutPresenterClasses="prizeSets" /></Button.Flyout>
     </Button>
-    <Button x:Name="SaveButton" Content="存为方案" Height="20" MinHeight="0" Padding="8,0" FontSize="12" ClickMode="Press">
+    <Button x:Name="SaveButton" Content="存为方案" Height="30" MinHeight="0" Padding="10,0,12,0" FontSize="13" ClickMode="Press">
       <Button.Flyout>
-        <Flyout Placement="BottomEdgeAlignedRight">
-          <StackPanel Width="360" Spacing="12">
+        <Flyout Placement="BottomEdgeAlignedRight" VerticalOffset="6" FlyoutPresenterClasses="prizeSetSave">
+          <StackPanel Spacing="10">
             <TextBlock Classes="section" Text="存为方案" />
-            <TextBox x:Name="NameInput" PlaceholderText="给方案起个名字" AutomationProperties.Name="奖品方案名称" />
+            <StackPanel Spacing="6">
+              <TextBlock Classes="label" Text="方案名称" />
+              <TextBox x:Name="NameInput" Height="32" MinHeight="32" Padding="10,0" FontSize="13" PlaceholderText="例如 周末福利" AutomationProperties.Name="奖品方案名称" />
+            </StackPanel>
             <TextBlock x:Name="SaveHint" Classes="caption muted singleLine" AutomationProperties.LiveSetting="Polite" />
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-              <Button x:Name="CancelButton" Content="取消" />
-              <Button x:Name="ConfirmButton" Classes="accent" Content="保存" />
+              <Button x:Name="CancelButton" Content="取消" Height="30" MinHeight="0" Padding="12,0" FontSize="13" />
+              <Button x:Name="ConfirmButton" Classes="accent" Content="保存" Height="30" MinHeight="0" MinWidth="64" Padding="14,0" FontSize="13" FontWeight="SemiBold" />
             </StackPanel>
           </StackPanel>
         </Flyout>

@@ -1,10 +1,14 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.VisualTree;
 
 namespace Aether.Gui.Tests;
@@ -15,6 +19,107 @@ public sealed class EntryLotteryPanelTests
         new("entry", 7734200, "抽奖", DateTimeOffset.UnixEpoch,
             [new("一等奖", "机械键盘", 1, Grade.Grand), new("二等奖", "周边抱枕", 2, Grade.Second),
                 new("三等奖", "签名照", 3, Grade.Third)], [], [], phase);
+
+    [Fact]
+    public Task Invalid_award_cannot_be_saved_and_reports_the_start_validation_message() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        var page = new EntryLotteryPanel { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720, RequestedThemeVariant = ThemeVariant.Light };
+        window.Show();
+        try
+        {
+            var picker = page.FindControl<LotteryPrizeSetPicker>("EntryPrizeSets")!;
+            vm.Lottery.Awards[0].Capacity = "0";
+            var save = picker.FindControl<Button>("SaveButton")!;
+            save.Flyout!.ShowAt(save);
+            picker.FindControl<TextBox>("NameInput")!.Text = "无效方案";
+            GuiHarness.Flush();
+            picker.FindControl<Button>("ConfirmButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.EntryLotteryError is not null && !vm.Lottery.Busy);
+            Assert.Equal("名额必须是正整数。", page.FindControl<TextBlock>("ErrorMessage")!.Text);
+            Assert.Empty(vm.Lottery.PrizeSets);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Entry_prize_sets_replace_only_awards_and_use_the_shared_picker() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery())));
+        await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "奖池方案");
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        var page = new EntryLotteryPanel { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720, RequestedThemeVariant = ThemeVariant.Light };
+        window.Show();
+        try
+        {
+            var picker = page.FindControl<LotteryPrizeSetPicker>("EntryPrizeSets");
+            Assert.NotNull(picker);
+            var save = picker.FindControl<Button>("SaveButton")!;
+            save.Flyout!.ShowAt(save);
+            var name = picker.FindControl<TextBox>("NameInput")!;
+            var confirm = picker.FindControl<Button>("ConfirmButton")!;
+            Assert.False(confirm.IsEnabled);
+            name.Text = "报名方案";
+            GuiHarness.Flush();
+            Assert.Equal("存下这 3 个奖项，名称、奖品、名额和档次", picker.FindControl<TextBlock>("SaveHint")!.Text);
+            Assert.Equal(30, save.Bounds.Height);
+            Assert.True(picker.Bounds.Height >= save.Bounds.Height);
+            Assert.Equal(320, confirm.GetVisualAncestors().OfType<FlyoutPresenter>().Single().Bounds.Width);
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 2 && !vm.Lottery.Busy);
+            vm.Lottery.Awards[0].Prize = "限定手办";
+            save.Flyout.ShowAt(save);
+            GuiHarness.Flush();
+            Assert.Equal("替换", confirm.Content);
+            Assert.Equal("已有同名方案，保存会替换它", picker.FindControl<TextBlock>("SaveHint")!.Text);
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Single(set => set.Mode == LotteryMode.Entry).Awards[0].Prize == "限定手办" && !vm.Lottery.Busy);
+            vm.Lottery.Awards[0].Prize = "修改草稿";
+            vm.Lottery.Keyword = "报名参加";
+            var load = picker.FindControl<Button>("LoadButton")!;
+            load.Flyout!.ShowAt(load);
+            GuiHarness.Flush();
+            var menu = (MenuFlyout)load.Flyout;
+            var item = Assert.Single(menu.Items.OfType<MenuItem>(), item => item.Tag is LotteryPrizeSet);
+            var set = Assert.IsType<LotteryPrizeSet>(item.Tag);
+            Assert.Equal("报名方案", set.Name);
+            Assert.Contains(Assert.IsType<Grid>(item.Header).GetVisualDescendants().OfType<TextBlock>(),
+                text => text.Text == "限定手办 ×1、周边抱枕 ×2、签名照 ×3");
+            var presenter = item.GetVisualAncestors().OfType<MenuFlyoutPresenter>().Single();
+            Assert.Equal(340, presenter.Bounds.Width);
+            Assert.Equal(picker.TranslatePoint(new Point(picker.Bounds.Width, 0), window)!.Value.X,
+                presenter.TranslatePoint(new Point(presenter.Bounds.Width, 0), window)!.Value.X, 1);
+            item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Assert.Equal(set.Awards.ToArray(), vm.Lottery.Awards.Select(row => row.Value));
+            Assert.Equal("报名参加", vm.Lottery.Keyword);
+            Assert.Equal("机械键盘", Assert.IsType<EntryLottery>(vm.Lottery.LotteryState.Lottery).Awards[0].Prize);
+            Assert.Contains("已载入「报名方案」", vm.Lottery.EntryStatusText);
+            var first = vm.Lottery.Awards[0];
+            GuiHarness.FindRowControl<TextBox>(page, first, "PrizeInput").Text = "";
+            GuiHarness.Flush();
+            Assert.True(GuiHarness.FindRowControl<TextBlock>(page, first, "ErrorMessage").IsVisible);
+            load.Flyout.ShowAt(load);
+            GuiHarness.Flush();
+            item = Assert.Single(menu.Items.OfType<MenuItem>(), item => item.Tag is LotteryPrizeSet);
+            Assert.Equal(Color.Parse("#E6EBFA"), Assert.IsAssignableFrom<ISolidColorBrush>(item.GetVisualDescendants().OfType<Border>()
+                .Single(border => border.Name == "PART_LayoutRoot").Background).Color);
+            Assert.IsType<Grid>(item.Header).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.All(set => set.Mode != LotteryMode.Entry) && !vm.Lottery.Busy);
+            Assert.Equal(LotteryMode.Pool, Assert.Single(vm.Lottery.PrizeSets).Mode);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery(EntryLotteryPhase.Open))));
+            Assert.False(load.IsEnabled);
+            Assert.False(save.IsEnabled);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
 
     [Fact]
     public Task Award_accessible_names_follow_rows_after_removing_the_first() => HeadlessApp.Session.Dispatch(async () =>

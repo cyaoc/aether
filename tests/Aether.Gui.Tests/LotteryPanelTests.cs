@@ -53,7 +53,7 @@ public sealed class LotteryPanelTests
             var menu = Assert.IsType<MenuFlyout>(load.Flyout);
             var item = menu.Items.OfType<MenuItem>().Single(item => item.Tag is LotteryPrizeSet);
             var header = Assert.IsType<Grid>(item.Header);
-            Assert.Contains(header.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "2 件奖品 · 键盘、贴纸");
+            Assert.Contains(header.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "键盘、贴纸");
             item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             Assert.Equal("键盘", vm.Lottery.Prizes[0].Name);
             Assert.Equal("限定抱枕", Assert.IsType<PoolLottery>(vm.Lottery.LotteryState.Lottery).Prizes[0].Name);
@@ -66,7 +66,7 @@ public sealed class LotteryPanelTests
             Assert.Contains("chosen", item.Classes);
             Assert.IsType<Grid>(item.Header).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 0 && !vm.Lottery.Busy);
-            Assert.Contains(menu.Items.OfType<MenuItem>(), entry => entry.Header as string == "还没有方案，填好后点‘存为方案’");
+            Assert.Contains(menu.Items.OfType<MenuItem>(), entry => (entry.Header as TextBlock)?.Text == "还没有方案，填好后点“存为方案”");
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery(PoolLotteryPhase.Spinning))));
             Assert.False(load.IsEnabled);
             Assert.False(save.IsEnabled);
