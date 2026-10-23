@@ -35,6 +35,7 @@ const themes = {
     viewer:({entry, prize, viewer}) => entry ? `获得 ${prize}` : viewer && `${viewer} 获得`,
     banner:({entry, title, viewer}) => entry ? `锁定 ${title} 中奖者` : viewer ? `${viewer} 发出锁定指令` : '机甲锁定',
     winners:['作战结果','目前战果'],
+    pinned:{title:'作战结果', tag:'MISSION LOG', count:(count, entry) => `${count} ${entry ? '人' : '次'}`},
     award:award => `${award.name} · ${award.prize}`,
     particles:mechaLock,
     scan,
