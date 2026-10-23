@@ -54,9 +54,19 @@ public partial class LotteryViewModel
 
     internal void LoadPrizeSet(LotteryPrizeSet set)
     {
-        if (set.Mode != LotteryMode.Pool || !CanEditPool) return;
-        ReplacePoolPrizes(set.Prizes);
-        poolPrizeSetStatus = $"已载入「{set.Name}」，改了不会动到方案，要更新就再存一次";
-        RefreshPoolInputs();
+        if (set.Mode == LotteryMode.Pool ? !CanEditPool : !CanEditEntry) return;
+        var status = $"已载入「{set.Name}」，改了不会动到方案，要更新就再存一次";
+        if (set.Mode == LotteryMode.Pool)
+        {
+            ReplacePoolPrizes(set.Prizes);
+            poolPrizeSetStatus = status;
+            RefreshPoolInputs();
+        }
+        else
+        {
+            ReplaceEntryAwards(set.Awards, fromPrizeSet: true);
+            entryPrizeSetStatus = status;
+            RefreshEntryInputs();
+        }
     }
 }

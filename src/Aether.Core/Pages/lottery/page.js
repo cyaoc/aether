@@ -249,7 +249,7 @@ function showWinners(lottery) {
   byId('winnerTitle').textContent = t.winners[lottery.phase === 'Ended' ? 0 : 1];
   byId('remaining').hidden = lottery.phase === 'Ended';
   byId('remaining').textContent = `${t.closed || '报名已截止'} · 还剩 ${lottery.remaining} 个名额`;
-  const winners = lottery.awards.flatMap((_, index) => lottery.draws.filter(draw => draw.awardIndex === index));
+  const winners = lottery.awards.flatMap((_, index) => lottery.draws.filter(draw => draw.awardIndex === index && !draw.hiddenFromStream));
   if (!winners.length) {
     byId('winnerCards').replaceChildren();
     byId('pageNumber').textContent = lottery.phase === 'Ended' ? '本场没有开奖' : '等待开奖'; return;

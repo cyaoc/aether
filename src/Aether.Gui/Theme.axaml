@@ -20,9 +20,20 @@
               <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="local:WinnerRow">
-                  <Border Classes="winner" Classes.fresh="{Binding Fresh}">
-                    <TextBlock Classes="singleLine" Text="{Binding Name}" ToolTip.Tip="{Binding ToolTip}" MaxWidth="210" VerticalAlignment="Center" />
-                  </Border>
+                  <Panel>
+                    <Border x:Name="WinnerChip" Classes="winner" Classes.fresh="{Binding Fresh}"
+                      Classes.editable="{Binding HasVisibilityCommand}" Classes.hidden="{Binding HiddenFromStream}">
+                      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                        <TextBlock Classes="singleLine" Text="{Binding Name}" ToolTip.Tip="{Binding ToolTip}" MaxWidth="210" VerticalAlignment="Center" />
+                        <ToggleButton Grid.Column="1" x:Name="WinnerVisibilityButton" Classes="streamVisibility"
+                          IsVisible="{Binding HasVisibilityCommand}" IsChecked="{Binding HiddenFromStream, Mode=OneWay}"
+                          IsEnabled="{Binding CanToggleVisibility}" Command="{Binding ToggleVisibilityCommand}"
+                          AutomationProperties.Name="{Binding VisibilityName}" ToolTip.Tip="{Binding VisibilityHint}" />
+                      </Grid>
+                    </Border>
+                    <Rectangle IsVisible="{Binding HiddenFromStream}" IsHitTestVisible="False" Margin="0,0,4,4"
+                      Stroke="{DynamicResource Border.Control}" StrokeThickness="1" StrokeDashArray="4,3" RadiusX="6" RadiusY="6" />
+                  </Panel>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
@@ -524,6 +535,22 @@
   <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:disabled PathIcon">
     <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
   </Style>
+  <Style Selector="local|LotteryPrizeSetPicker Button.open">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+  </Style>
+  <Style Selector="FlyoutPresenter.prizeSetSave">
+    <Setter Property="Width" Value="320" />
+    <Setter Property="Padding" Value="14" />
+  </Style>
+  <Style Selector="FlyoutPresenter.prizeSetSave TextBlock.replacement">
+    <Setter Property="Foreground" Value="{DynamicResource Warning.Text}" />
+  </Style>
+  <Style Selector="MenuFlyoutPresenter.prizeSets">
+    <Setter Property="Width" Value="340" />
+  </Style>
+  <Style Selector="Button.prizeSetDelete">
+    <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
   <Style Selector="FlyoutPresenter">
     <Setter Property="ClipToBounds" Value="False" />
     <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
@@ -535,9 +562,6 @@
   </Style>
   <Style Selector="FlyoutPresenter /template/ Border#LayoutRoot">
     <Setter Property="BoxShadow" Value="{DynamicResource PopupShadow}" />
-  </Style>
-  <Style Selector="MenuFlyoutPresenter MenuItem.chosen /template/ Border#PART_LayoutRoot">
-    <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
   </Style>
   <Style Selector="MenuFlyoutPresenter">
     <Setter Property="ClipToBounds" Value="False" />
@@ -559,6 +583,9 @@
   </Style>
   <Style Selector="MenuFlyoutPresenter MenuItem:selected /template/ Border#PART_LayoutRoot, MenuFlyoutPresenter MenuItem:pointerover /template/ Border#PART_LayoutRoot">
     <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+  </Style>
+  <Style Selector="MenuFlyoutPresenter.prizeSets MenuItem.chosen /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
   </Style>
   <Style Selector="ListBox.nav, ListBox.plain">
     <Setter Property="Background" Value="Transparent" />
@@ -629,6 +656,26 @@
     <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
     <Setter Property="TextElement.FontSize" Value="12" />
     <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Border.winner.editable">
+    <Setter Property="Padding" Value="8,0,2,0" />
+  </Style>
+  <Style Selector="Border.winner.hidden">
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="Border.winner ToggleButton.streamVisibility">
+    <Setter Property="Width" Value="20" />
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Padding" Value="4,5" />
+  </Style>
+  <Style Selector="Border.winner ToggleButton.streamVisibility:checked">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="Border.winner ToggleButton.streamVisibility /template/ Path">
+    <Setter Property="StrokeThickness" Value="2" />
   </Style>
   <Style Selector="TextBlock.awardName">
     <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />

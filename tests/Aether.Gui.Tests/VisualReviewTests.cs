@@ -21,9 +21,11 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public Task Screenshots_pool_prize_set_menu_and_save(bool dark)
+    [InlineData(false, LotteryMode.Pool)]
+    [InlineData(true, LotteryMode.Pool)]
+    [InlineData(false, LotteryMode.Entry)]
+    [InlineData(true, LotteryMode.Entry)]
+    public Task Screenshots_prize_set_menu_and_save(bool dark, LotteryMode mode)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
         return HeadlessApp.Session.Dispatch(async () =>
@@ -38,20 +40,25 @@ public sealed class VisualReviewTests
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
                 window.Navigation.SelectedIndex = 4;
-                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery())));
-                await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末福利");
-                var picker = window.GetVisualDescendants().OfType<LotteryPrizeSetPicker>().Single();
+                Lottery lottery = mode == LotteryMode.Pool ? LotteryPanelTests.TestLottery() : EntryLotteryPanelTests.TestLottery();
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
+                await vm.Lottery.SavePrizeSetAsync(mode, "周末福利");
+                var prefix = mode == LotteryMode.Pool ? "pool" : "entry";
+                var picker = window.GetVisualDescendants().OfType<LotteryPrizeSetPicker>().Single(picker => picker.Mode == mode);
                 var load = picker.FindControl<Button>("LoadButton")!;
                 var menu = (MenuFlyout)load.Flyout!;
                 menu.ShowAt(load);
                 GuiHarness.Flush();
-                Save(TopLevel.GetTopLevel(menu.Items.OfType<MenuItem>().First())!, $"pool-prize-sets-{(dark ? "dark" : "light")}");
+                menu.Items.OfType<MenuItem>().First().RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                menu.ShowAt(load);
+                GuiHarness.Flush();
+                Save(TopLevel.GetTopLevel(menu.Items.OfType<MenuItem>().First())!, $"{prefix}-prize-sets-{(dark ? "dark" : "light")}");
                 menu.Hide();
                 var save = picker.FindControl<Button>("SaveButton")!;
                 save.Flyout!.ShowAt(save);
                 picker.FindControl<TextBox>("NameInput")!.Text = "周末福利";
                 GuiHarness.Flush();
-                Save(TopLevel.GetTopLevel(picker.FindControl<TextBox>("NameInput")!)!, $"pool-prize-set-save-{(dark ? "dark" : "light")}");
+                Save(TopLevel.GetTopLevel(picker.FindControl<TextBox>("NameInput")!)!, $"{prefix}-prize-set-save-{(dark ? "dark" : "light")}");
                 save.Flyout.Hide();
             }
             finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -137,6 +144,20 @@ public sealed class VisualReviewTests
                         Draws = [.. draws], DrawUntil = phase == EntryLotteryPhase.Closed ? at.AddSeconds(7) : null,
                     })));
                     Save(window, $"entry-{phase}-{width}-{(dark ? "dark" : "light")}");
+                    if (phase == EntryLotteryPhase.Ended)
+                    {
+                        var ended = (EntryLottery)vm.Lottery.LotteryState.Lottery!;
+                        vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with
+                        {
+                            Lottery = ended with { Draws = [.. ended.Draws.Select((draw, index) => draw with { HiddenFromStream = index == 2 })] },
+                        }));
+                        Save(window, $"entry-hidden-{width}-{(dark ? "dark" : "light")}");
+                        vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with
+                        {
+                            Lottery = ended with { Draws = [.. ended.Draws.Select(draw => draw with { HiddenFromStream = true })] },
+                        }));
+                        Save(window, $"entry-all-hidden-{width}-{(dark ? "dark" : "light")}");
+                    }
                     if (phase != EntryLotteryPhase.Closed) continue;
                     vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with { Lottery = vm.Lottery.LotteryState.Lottery! with { DrawUntil = null } }));
                     window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "EndEntryButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
