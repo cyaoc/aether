@@ -20,7 +20,7 @@ internal sealed class Database
         command.Transaction = transaction;
         command.CommandText = "PRAGMA user_version";
         var version = (long)command.ExecuteScalar()!;
-        if (version > 4) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
+        if (version > 5) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
         if (version == 0)
         {
             // Schema upgrades are handwritten and committed with user_version in the same transaction.
@@ -97,6 +97,14 @@ internal sealed class Database
                     PRIMARY KEY(lottery_id, uid)
                 );
                 PRAGMA user_version = 4;
+                """;
+            command.ExecuteNonQuery();
+        }
+        if (version < 5)
+        {
+            command.CommandText = """
+                ALTER TABLE lottery_draw ADD COLUMN hidden_from_stream INTEGER NOT NULL DEFAULT 0;
+                PRAGMA user_version = 5;
                 """;
             command.ExecuteNonQuery();
         }

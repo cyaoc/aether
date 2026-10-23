@@ -235,7 +235,7 @@ public sealed class CredentialRefreshTests
         using var migrated = TestDatabase.Open(h.DataDirectory);
         using var version = migrated.CreateCommand();
         version.CommandText = "PRAGMA user_version";
-        Assert.Equal(4L, version.ExecuteScalar());
+        Assert.Equal(5L, version.ExecuteScalar());
         version.CommandText = "SELECT COUNT(*) FROM blind_box";
         Assert.Equal(0L, version.ExecuteScalar());
     }

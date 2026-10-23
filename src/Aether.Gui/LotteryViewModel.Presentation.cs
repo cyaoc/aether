@@ -1,4 +1,5 @@
 using Aether.Core;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Aether.Gui;
 
@@ -6,6 +7,8 @@ public partial class LotteryViewModel
 {
     private const string HostStoppedText = "主播点停";
     private PoolLottery? poolDrawsSource;
+    private bool poolDrawsCanControl;
+    private DateTime poolDrawsDate;
     private IReadOnlyList<PoolDrawRow> poolDraws = [];
 
     public IReadOnlyList<PoolDrawRow> PoolDraws
@@ -14,13 +17,17 @@ public partial class LotteryViewModel
         {
             var lottery = LotteryState.Lottery as PoolLottery;
             if (poolDrawsSource?.Id == lottery?.Id && poolDrawsSource?.Draws == lottery?.Draws
-                && poolDrawsSource?.Phase == lottery?.Phase && poolDrawsSource?.IsDrawing == lottery?.IsDrawing)
+                && poolDrawsSource?.Phase == lottery?.Phase && poolDrawsSource?.IsDrawing == lottery?.IsDrawing
+                && poolDrawsCanControl == CanControlOperation && poolDrawsDate == clock.GetLocalNow().Date)
                 return poolDraws;
             poolDrawsSource = lottery;
+            poolDrawsCanControl = CanControlOperation;
+            poolDrawsDate = clock.GetLocalNow().Date;
             return poolDraws = lottery is null ? [] : lottery.Draws.Reverse().Select((draw, index) =>
                 new PoolDrawRow(DrawViewer(draw) ?? HostStoppedText, draw.StoppedByHost && draw.Uid is not null,
-                    draw.Prize.Grade, draw.Prize.Name, $"{draw.DrawnAt.ToLocalTime():HH:mm}",
-                    lottery.IsDrawing && index == 0)).ToArray();
+                    draw.Prize.Grade, draw.Prize.Name, FormatLotteryDate(draw.DrawnAt) + (draw.HiddenFromStream ? " · 不挂出" : ""),
+                    lottery.IsDrawing && index == 0, draw.HiddenFromStream, CanControlOperation,
+                    new AsyncRelayCommand(() => ToggleDrawVisibilityAsync(draw)))).ToArray();
         }
     }
 
@@ -38,7 +45,8 @@ public partial class LotteryViewModel
     }
     public Grade LatestPoolDrawGrade => LatestPoolDraw?.Prize.Grade ?? Grade.Grand;
     public string LatestPoolDrawPrize => LatestPoolDraw?.Prize.Name ?? "";
-    public string PoolDrawCountText => PoolDraws.Count > 0 ? $"本场 {PoolDraws.Count} 次" : "";
+    public string PoolDrawCountText => PoolDraws.Count > 0 ? $"本场 {PoolDraws.Count} 次"
+        + (PoolDraws.Count(row => row.HiddenFromStream) is > 0 and var hidden ? $" · {hidden} 条不挂出" : "") : "";
     public bool IsPoolDrawsEmpty => PoolDraws.Count == 0;
     public string LotteryModeText => ModeText(LotteryState.Lottery is EntryLottery ? LotteryMode.Entry : LotteryMode.Pool);
     public string LotteryPanelPhaseText => LotteryState.Lottery is EntryLottery entry

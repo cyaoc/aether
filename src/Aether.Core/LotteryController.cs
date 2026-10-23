@@ -151,6 +151,33 @@ public sealed partial class LotteryController : IDisposable
         }
     }
 
+    public void SetDrawHiddenFromStream(string drawId, bool hidden)
+    {
+        ArgumentException.ThrowIfNullOrEmpty(drawId);
+        ChangeDrawVisibility(drawId, hidden);
+    }
+
+    public void HideAllDrawsFromStream() => ChangeDrawVisibility(null, true);
+
+    private void ChangeDrawVisibility(string? drawId, bool hidden)
+    {
+        lock (gate)
+        {
+            RequireControl();
+            Lottery lottery = state.Lottery switch
+            {
+                PoolLottery pool => pool with { Draws = [.. pool.Draws.Select(draw =>
+                    drawId is null || draw.Id == drawId ? draw with { HiddenFromStream = hidden } : draw)] },
+                EntryLottery entry => entry with { Draws = [.. entry.Draws.Select(draw =>
+                    drawId is null || draw.Id == drawId ? draw with { HiddenFromStream = hidden } : draw)] },
+                _ => throw new InvalidOperationException("当前没有抽奖。"),
+            };
+            store().SetDrawHiddenFromStream(lottery.Id, drawId, hidden);
+            state = state with { Lottery = lottery };
+            Publish();
+        }
+    }
+
     public void Stop()
     {
         lock (gate)

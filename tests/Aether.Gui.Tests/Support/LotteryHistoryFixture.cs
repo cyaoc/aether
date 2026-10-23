@@ -48,7 +48,7 @@ internal static class LotteryHistoryFixture
             Execute("INSERT INTO lottery_entry VALUES ('entry', $uid, $name, $at)",
                 ("$uid", index + 1), ("$name", index < 2 ? entry.Entries[index].Nickname : $"观众{index + 1}"), ("$at", At.ToString("O")));
         foreach (var draw in entry.Draws)
-            Execute("INSERT INTO lottery_draw VALUES ($id, 'entry', $result)", ("$id", draw.Id), ("$result", JsonSerializer.Serialize(draw)));
+            Execute("INSERT INTO lottery_draw (id, lottery_id, result) VALUES ($id, 'entry', $result)", ("$id", draw.Id), ("$result", JsonSerializer.Serialize(draw)));
         Execute("INSERT INTO lottery (id, room_id, mode, stop_word, started_at, ended_at, phase) VALUES ('pool', 7734200, 'pool', '停', $at, $ended, 0)",
             ("$at", At.AddDays(-2).ToString("O")), ("$ended", At.ToString("O")));
         PoolPrize[] prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second), new("签名照", 4, Grade.Third)];
@@ -61,7 +61,7 @@ internal static class LotteryHistoryFixture
         {
             var prize = prizes[index == 0 ? 0 : index < 3 ? 1 : 2];
             var draw = new PoolDraw($"pool-{index}", prize, uids[index], names[index], true, At.AddDays(-2).AddMinutes(index), []);
-            Execute("INSERT INTO lottery_draw VALUES ($id, 'pool', $result)", ("$id", draw.Id), ("$result", JsonSerializer.Serialize(draw)));
+            Execute("INSERT INTO lottery_draw (id, lottery_id, result) VALUES ($id, 'pool', $result)", ("$id", draw.Id), ("$result", JsonSerializer.Serialize(draw)));
         }
         // Other rooms must not leak into the current room's count or selected details.
         Execute("INSERT INTO lottery (id, room_id, mode, stop_word, started_at, phase) VALUES ('other', 999, 'pool', '开', $at, 0)",
