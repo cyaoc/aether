@@ -7,6 +7,7 @@ public partial class LotteryViewModel
 {
     private string? loadedEntryId;
     private bool loadingEntry;
+    private string? entryPrizeSetStatus;
     [ObservableProperty] private string? keyword;
     [ObservableProperty] private string? entryLotteryError;
     [ObservableProperty] private bool confirmingEnd;
@@ -37,13 +38,19 @@ public partial class LotteryViewModel
             loadingEntry = true;
             loadedEntryId = lottery.Id;
             Keyword = lottery.Keyword;
-            Awards.Clear();
-            foreach (var award in lottery.Awards)
-                Awards.Add(new(award, isNew: string.IsNullOrWhiteSpace(award.Prize)));
+            ReplaceEntryAwards(lottery.Awards);
+            entryPrizeSetStatus = null;
             EntryLotteryError = null;
             loadingEntry = false;
         }
         RefreshEntryInputs();
+    }
+
+    private void ReplaceEntryAwards(IEnumerable<LotteryAward> awards, bool fromPrizeSet = false)
+    {
+        Awards.Clear();
+        foreach (var award in awards)
+            Awards.Add(new(award, isNew: !fromPrizeSet && string.IsNullOrWhiteSpace(award.Prize)));
     }
 
     private void RefreshEntryInputs()
@@ -80,6 +87,7 @@ public partial class LotteryViewModel
     internal Task StartEntryAsync()
     {
         if (!CanStartEntry) return Task.CompletedTask;
+        entryPrizeSetStatus = null;
         var awards = Awards.Select(row => row.Value).ToArray();
         var keyword = Keyword ?? "";
         return ChangeEntryLotteryAsync(lottery => lottery.StartEntry(awards, keyword));

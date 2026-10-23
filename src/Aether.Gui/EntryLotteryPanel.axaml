@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.EntryLotteryPanel" x:DataType="local:MainWindowViewModel">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui" xmlns:core="using:Aether.Core" x:Class="Aether.Gui.EntryLotteryPanel" x:DataType="local:MainWindowViewModel">
   <UserControl.Styles>
     <!-- Winner chips and entry rows as on canvas O1; the draw on air stays highlighted until the 抽奖页 finishes it. -->
     <Style Selector="Border.winner.fresh:not(.hidden)">
@@ -66,9 +66,10 @@
             </Grid>
           </StackPanel>
           <StackPanel Spacing="10">
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
               <TextBlock Classes="section" Text="奖项" />
               <TextBlock Grid.Column="1" Classes="hint" Text="中过奖的人不再参加这一场后面的奖项" />
+              <local:LotteryPrizeSetPicker Grid.Column="2" x:Name="EntryPrizeSets" Mode="{x:Static core:LotteryMode.Entry}" />
             </Grid>
             <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8"><ItemsControl x:Name="AwardRows" Classes="editableRows dividedRows" ItemsSource="{Binding Lottery.Awards}">
               <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
