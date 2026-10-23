@@ -1,11 +1,25 @@
 using System.Collections.Immutable;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using Microsoft.Data.Sqlite;
 
 namespace Aether.Core;
 
 internal sealed partial class LotteryStore(Database database)
 {
+    // Visibility lives in its own column; the original draw JSON stays unchanged.
+    private static readonly JsonSerializerOptions DrawJson = new()
+    {
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver
+        {
+            Modifiers = { type =>
+            {
+                if (type.Properties.FirstOrDefault(property => property.Name == nameof(LotteryDraw.HiddenFromStream)) is { } visibility)
+                    visibility.ShouldSerialize = (_, _) => false;
+            } },
+        },
+    };
+
     public Lottery? Load(long roomId, LotteryMode? mode = null, string? id = null)
     {
         using var connection = database.Open();
@@ -119,7 +133,7 @@ internal sealed partial class LotteryStore(Database database)
                 }
                 break;
         }
-        if (draw is not null) AddDraw(command, lottery.Id, draw.Id, JsonSerializer.Serialize(draw, draw.GetType()));
+        if (draw is not null) AddDraw(command, lottery.Id, draw.Id, JsonSerializer.Serialize(draw, draw.GetType(), DrawJson));
         transaction.Commit();
     }
 
@@ -159,14 +173,26 @@ internal sealed partial class LotteryStore(Database database)
         command.ExecuteNonQuery();
     }
 
-    private static ImmutableArray<T> ReadDraws<T>(SqliteCommand command, string lotteryId)
+    public void SetDrawHiddenFromStream(string lotteryId, string? drawId, bool hidden)
+    {
+        using var connection = database.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE lottery_draw SET hidden_from_stream = $hidden WHERE lottery_id = $lottery"
+            + (drawId is null ? "" : " AND id = $id");
+        command.Parameters.AddWithValue("$lottery", lotteryId);
+        command.Parameters.AddWithValue("$hidden", hidden);
+        if (drawId is not null) command.Parameters.AddWithValue("$id", drawId);
+        if (command.ExecuteNonQuery() == 0 && drawId is not null) throw new ArgumentException("找不到这次开奖。");
+    }
+
+    private static ImmutableArray<T> ReadDraws<T>(SqliteCommand command, string lotteryId) where T : LotteryDraw
     {
         command.Parameters.Clear();
         command.Parameters.AddWithValue("$id", lotteryId);
-        command.CommandText = "SELECT result FROM lottery_draw WHERE lottery_id = $id ORDER BY rowid";
+        command.CommandText = "SELECT result, hidden_from_stream FROM lottery_draw WHERE lottery_id = $id ORDER BY rowid";
         var draws = ImmutableArray.CreateBuilder<T>();
         using var reader = command.ExecuteReader();
-        while (reader.Read()) draws.Add(JsonSerializer.Deserialize<T>(reader.GetString(0))!);
+        while (reader.Read()) draws.Add(JsonSerializer.Deserialize<T>(reader.GetString(0))! with { HiddenFromStream = reader.GetBoolean(1) });
         return draws.ToImmutable();
     }
 }

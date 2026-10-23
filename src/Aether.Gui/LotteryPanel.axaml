@@ -66,12 +66,22 @@
       <Setter Property="BorderThickness" Value="1" />
     </Style>
     <Style Selector="Border.poolDraw">
-      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="Padding" Value="16,7,10,7" />
       <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
       <Setter Property="BorderThickness" Value="0,0,0,1" />
     </Style>
     <Style Selector="Border.poolDraw.fresh">
       <Setter Property="Background" Value="{DynamicResource Accent.Flash}" />
+    </Style>
+    <Style Selector="Border.poolDraw.hidden">
+      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+    </Style>
+    <Style Selector="Border.poolDraw.hidden TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+    </Style>
+    <Style Selector="Border.poolDraw.hidden Border.badge">
+      <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
     </Style>
     <Style Selector="StackPanel#StatusPanel TextBlock.caption">
       <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
@@ -216,9 +226,13 @@
               </Grid>
             </StackPanel>
           </Border>
-          <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,14,16,8">
-            <TextBlock Classes="section" Text="开奖记录" />
-            <TextBlock Grid.Column="1" x:Name="DrawCount" Classes="caption muted numeric" Text="{Binding Lottery.PoolDrawCountText}" VerticalAlignment="Center" />
+          <Grid Grid.Row="1" Classes="lotteryResultsHeader" ColumnDefinitions="*,Auto">
+            <StackPanel Spacing="2">
+              <TextBlock Classes="section" Text="开奖记录" />
+              <TextBlock x:Name="DrawCount" Classes="caption muted numeric singleLine" Text="{Binding Lottery.PoolDrawCountText}" />
+            </StackPanel>
+            <Button Grid.Column="1" x:Name="HideAllDrawsButton" Classes="hideAllDraws" Content="全部不挂出"
+              IsEnabled="{Binding Lottery.CanHideAllDraws}" Command="{Binding Lottery.HideAllDrawsCommand}" />
           </Grid>
           <Panel Grid.Row="2">
             <TextBlock x:Name="EmptyHistory" Classes="hint" Text="暂无开奖记录" IsVisible="{Binding Lottery.IsPoolDrawsEmpty}" Margin="16,0" />
@@ -226,17 +240,24 @@
               <ItemsControl x:Name="HistoryRows" ItemsSource="{Binding Lottery.PoolDraws}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="local:PoolDrawRow">
-                    <Border Classes="poolDraw" Classes.fresh="{Binding Fresh}">
-                      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                          <TextBlock Classes="singleLine" Text="{Binding Viewer}" FontSize="13" FontWeight="SemiBold" MaxWidth="84" VerticalAlignment="Center" />
-                          <Border Classes="badge neutralBadge" IsVisible="{Binding StoppedByHost}" Height="18" VerticalAlignment="Center" ToolTip.Tip="主播点停">
-                            <TextBlock Text="点停" />
-                          </Border>
-                          <local:GradeBadge Grade="{Binding Grade}" Height="18" VerticalAlignment="Center" />
+                    <Border Classes="poolDraw" Classes.fresh="{Binding Fresh}" Classes.hidden="{Binding HiddenFromStream}">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                        <StackPanel Spacing="2">
+                          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                              <TextBlock Classes="singleLine" Text="{Binding Viewer}" FontSize="13" FontWeight="SemiBold" MaxWidth="84" VerticalAlignment="Center" />
+                              <Border Classes="badge neutralBadge" IsVisible="{Binding StoppedByHost}" Height="18" VerticalAlignment="Center" ToolTip.Tip="主播点停">
+                                <TextBlock Text="点停" />
+                              </Border>
+                              <local:GradeBadge Grade="{Binding Grade}" Height="18" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="1" Classes="singleLine" Text="{Binding Prize}" FontSize="13" VerticalAlignment="Center" />
+                          </Grid>
+                          <TextBlock Classes="caption muted numeric singleLine" Text="{Binding Time}" />
                         </StackPanel>
-                        <TextBlock Grid.Column="1" Classes="singleLine" Text="{Binding Prize}" FontSize="13" VerticalAlignment="Center" />
-                        <TextBlock Grid.Column="2" Classes="caption muted numeric" Text="{Binding Time}" VerticalAlignment="Center" />
+                        <ToggleButton Grid.Column="1" x:Name="DrawVisibilityButton" Classes="streamVisibility"
+                          IsChecked="{Binding HiddenFromStream, Mode=OneWay}" IsEnabled="{Binding CanToggleVisibility}"
+                          Command="{Binding ToggleVisibilityCommand}" AutomationProperties.Name="{Binding VisibilityName}" ToolTip.Tip="{Binding VisibilityHint}" />
                       </Grid>
                     </Border>
                   </DataTemplate>

@@ -19,7 +19,10 @@ public abstract record Lottery(string Id, long RoomId, DateTimeOffset StartedAt,
     [JsonIgnore] public bool IsDrawing => DrawUntil is not null;
 }
 
-public abstract record LotteryDraw(string Id, DateTimeOffset DrawnAt);
+public abstract record LotteryDraw(string Id, DateTimeOffset DrawnAt)
+{
+    public bool HiddenFromStream { get; init; }
+}
 
 public sealed record LotteryAward(string Name, string Prize, int Capacity, Grade Grade);
 public sealed record LotteryEntry(long Uid, string Nickname, DateTimeOffset EnteredAt);

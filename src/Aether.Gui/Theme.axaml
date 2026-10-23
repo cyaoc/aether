@@ -169,6 +169,8 @@
       <StreamGeometry x:Key="Icon.Animation">M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4</StreamGeometry>
       <StreamGeometry x:Key="Icon.Play">M7 4l13 8-13 8z</StreamGeometry>
       <StreamGeometry x:Key="Icon.Stop">M6 6h12v12H6z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Eye">M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.EyeOff">M17.94 17.94A10.07 10.07 0 0 1 12 19c-7 0-11-7-11-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24M1 1l22 22</StreamGeometry>
       <StreamGeometry x:Key="Icon.Users">M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75</StreamGeometry>
       <StreamGeometry x:Key="Icon.Dice">M4 4h16v16H4zM8.5 8.5h.01M15.5 15.5h.01M15.5 8.5h.01M8.5 15.5h.01M12 12h.01</StreamGeometry>
       <StreamGeometry x:Key="Icon.Lottery">M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4zM14 5v2M14 11v2M14 17v2</StreamGeometry>
@@ -325,6 +327,62 @@
     <Setter Property="MinWidth" Value="0" />
     <Setter Property="MinHeight" Value="0" />
     <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+  <Style Selector="Grid.lotteryResultsHeader">
+    <Setter Property="ColumnSpacing" Value="8" />
+    <Setter Property="Margin" Value="16,10,10,8" />
+  </Style>
+  <Style Selector="Button.hideAllDraws">
+    <Setter Property="Height" Value="28" />
+    <Setter Property="MinHeight" Value="28" />
+    <Setter Property="Padding" Value="8,0,10,0" />
+    <Setter Property="FontSize" Value="12" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="ContentTemplate">
+      <DataTemplate>
+        <StackPanel Orientation="Horizontal" Spacing="5">
+          <Path Data="{DynamicResource Icon.EyeOff}" Width="14" Height="14" Stretch="Uniform" Stroke="{Binding $parent[Button].Foreground}"
+            StrokeThickness="1.8" StrokeLineCap="Round" StrokeJoin="Round" VerticalAlignment="Center" />
+          <TextBlock Text="全部不挂出" VerticalAlignment="Center" />
+        </StackPanel>
+      </DataTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ToggleButton.streamVisibility">
+    <Setter Property="Width" Value="28" />
+    <Setter Property="Height" Value="28" />
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="MinWidth" Value="0" />
+    <Setter Property="Padding" Value="6" />
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="{TemplateBinding Background}" CornerRadius="{TemplateBinding CornerRadius}" Padding="{TemplateBinding Padding}">
+          <Path Data="{DynamicResource Icon.Eye}" Stretch="Uniform" Stroke="{TemplateBinding Foreground}"
+            StrokeThickness="1.8" StrokeLineCap="Round" StrokeJoin="Round" />
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="ToggleButton.streamVisibility:checked">
+    <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+  </Style>
+  <Style Selector="ToggleButton.streamVisibility:checked /template/ Path">
+    <Setter Property="Data" Value="{DynamicResource Icon.EyeOff}" />
+  </Style>
+  <Style Selector="ToggleButton.streamVisibility:pointerover">
+    <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+  </Style>
+  <Style Selector="ToggleButton.streamVisibility:disabled">
+    <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
+  </Style>
+  <Style Selector="ToggleButton.streamVisibility:focus-visible /template/ Border">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+    <Setter Property="BorderThickness" Value="1" />
   </Style>
   <Style Selector="ToggleSwitch.plain /template/ ContentPresenter#PART_OnContentPresenter, ToggleSwitch.plain /template/ ContentPresenter#PART_OffContentPresenter">
     <Setter Property="IsVisible" Value="False" />

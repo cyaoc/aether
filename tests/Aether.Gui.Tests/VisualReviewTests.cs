@@ -192,6 +192,16 @@ public sealed class VisualReviewTests
                 }
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, session with { DrawUntil = at.AddMinutes(6).AddSeconds(7) })));
                 Save(window, $"lottery-Drawing-{(dark ? "dark" : "light")}");
+                var hidden = session with { Draws = session.Draws.SetItem(1, session.Draws[1] with { HiddenFromStream = true }) };
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, hidden)));
+                Save(window, $"lottery-hidden-{(dark ? "dark" : "light")}");
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, session with
+                    { Draws = [.. session.Draws.Select(draw => draw with { HiddenFromStream = true })] })));
+                Save(window, $"lottery-all-hidden-{(dark ? "dark" : "light")}");
+                window.Width = 1040;
+                window.Height = 600;
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, hidden)));
+                Save(window, $"lottery-hidden-1040-{(dark ? "dark" : "light")}");
             }
             finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
             return true;
