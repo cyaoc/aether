@@ -4,6 +4,7 @@ using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
+using Avalonia.Media;
 
 namespace Aether.Gui;
 
@@ -19,8 +20,11 @@ public partial class LotteryPrizeSetPicker : UserControl
     public LotteryPrizeSetPicker()
     {
         InitializeComponent();
-        LoadFlyout.Opened += (_, _) => RefreshMenu();
-        SaveFlyout.Opened += (_, _) => { NameInput.Text = loadedName ?? ""; Refresh(); };
+        LoadFlyout.Opening += (_, _) => LoadFlyout.HorizontalOffset = SaveButton.Bounds.Width + 6;
+        LoadFlyout.Opened += (_, _) => { LoadButton.Classes.Add("open"); RefreshMenu(); };
+        LoadFlyout.Closed += (_, _) => LoadButton.Classes.Remove("open");
+        SaveFlyout.Closed += (_, _) => SaveButton.Classes.Remove("open");
+        SaveFlyout.Opened += (_, _) => { SaveButton.Classes.Add("open"); NameInput.Text = loadedName ?? ""; Refresh(); };
         NameInput.TextChanged += (_, _) => Refresh();
         CancelButton.Click += (_, _) => SaveFlyout.Hide();
         ConfirmButton.Click += async (_, _) =>
@@ -66,10 +70,11 @@ public partial class LotteryPrizeSetPicker : UserControl
         var exists = viewModel?.PrizeSets.Any(set => set.Mode == Mode && set.Name == name) == true;
         ConfirmButton.IsEnabled = canEdit && !string.IsNullOrEmpty(name);
         ConfirmButton.Content = exists ? "替换" : "保存";
-        SaveHint.Text = string.IsNullOrEmpty(name) ? "先给方案起个名字"
+        SaveHint.Classes.Set("replacement", exists);
+        SaveHint.Text = string.IsNullOrEmpty(name) ? "先起个名字"
             : exists ? "已有同名方案，保存会替换它"
-            : Mode == LotteryMode.Pool ? $"存下这 {viewModel?.Prizes.Count ?? 0} 件奖品的名称、占比和档次"
-            : $"存下这 {viewModel?.Awards.Count ?? 0} 个奖项的名称、奖品、名额和档次";
+            : Mode == LotteryMode.Pool ? $"存下这 {viewModel?.Prizes.Count ?? 0} 件奖品，名称、占比和档次"
+            : $"存下这 {viewModel?.Awards.Count ?? 0} 个奖项，名称、奖品、名额和档次";
     }
 
     private void RefreshMenu()
@@ -78,22 +83,32 @@ public partial class LotteryPrizeSetPicker : UserControl
         var sets = viewModel?.PrizeSets.Where(set => set.Mode == Mode).ToArray() ?? [];
         foreach (var set in sets)
         {
-            var text = new StackPanel { Spacing = 3, Margin = new Thickness(0, 3) };
-            text.Children.Add(new TextBlock { Text = set.Name, Classes = { "label" } });
+            var text = new StackPanel { Spacing = 3, Margin = new Thickness(10, 7) };
+            var name = new TextBlock { Text = set.Name, Classes = { "label", "singleLine" },
+                MaxWidth = 210, FontWeight = loadedName == set.Name ? FontWeight.SemiBold : FontWeight.Medium };
+            name.Classes.Set("accent", loadedName == set.Name);
+            var count = new TextBlock { Text = Mode == LotteryMode.Pool ? $"{set.Prizes.Length} 件奖品" : $"{set.Awards.Length} 个奖项",
+                Classes = { "caption", "muted", "numeric" }, VerticalAlignment = VerticalAlignment.Center };
+            var title = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,Auto"), ColumnSpacing = 6, Children = { name, count } };
+            Grid.SetColumn(count, 1);
+            text.Children.Add(title);
             text.Children.Add(new TextBlock { Text = Mode == LotteryMode.Pool
-                ? $"{set.Prizes.Length} 件奖品 · {string.Join("、", set.Prizes.Select(prize => prize.Name))}"
-                : $"{set.Awards.Length} 个奖项 · {string.Join("、", set.Awards.Select(award => award.Prize))}",
-                Classes = { "caption", "muted", "singleLine" }, MaxWidth = 320 });
-            var remove = new Button { Content = "×", Classes = { "ghost", "danger" }, Width = 28, Height = 28, VerticalAlignment = VerticalAlignment.Center };
-            AutomationProperties.SetName(remove, $"删除方案：{set.Name}");
+                ? string.Join("、", set.Prizes.Select(prize => prize.Name))
+                : string.Join("、", set.Awards.Select(award => $"{award.Prize} ×{award.Capacity}")),
+                Classes = { "caption", "muted", "singleLine" } });
+            var remove = new Button { Content = new Viewbox { Classes = { "icon" }, Width = 12, Height = 12,
+                Child = new Avalonia.Controls.Shapes.Path { Data = (Geometry)this.FindResource("Icon.Remove")!, StrokeThickness = 2.2 } },
+                Classes = { "ghost", "prizeSetDelete" }, Width = 24, Height = 24, MinHeight = 0,
+                Padding = new Thickness(0), FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+            AutomationProperties.SetName(remove, $"删除方案{set.Name}");
             remove.Click += async (_, args) =>
             {
                 args.Handled = true;
                 if (viewModel is not null && await ChangeAsync(() => viewModel.DeletePrizeSetAsync(set)) && loadedName == set.Name) loadedName = null;
             };
-            var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 12, Children = { text, remove } };
+            var header = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 4, Children = { text, remove } };
             Grid.SetColumn(remove, 1);
-            var item = new MenuItem { Header = header, Tag = set };
+            var item = new MenuItem { Header = header, Tag = set, Padding = new Thickness(0, 0, 4, 0), Margin = new Thickness(0, 0, 0, 2) };
             item.Classes.Set("chosen", loadedName == set.Name);
             AutomationProperties.SetName(item, $"载入方案：{set.Name}");
             item.Click += (_, _) =>
@@ -105,10 +120,18 @@ public partial class LotteryPrizeSetPicker : UserControl
             };
             LoadFlyout.Items.Add(item);
         }
-        if (sets.Length == 0) LoadFlyout.Items.Add(new MenuItem { Header = "还没有方案，填好后点‘存为方案’", IsEnabled = false });
-        LoadFlyout.Items.Add(new Separator());
-        LoadFlyout.Items.Add(new MenuItem { Header = Mode == LotteryMode.Pool
-            ? "点一个方案，替换上面的奖品；换完还能接着改" : "点一个方案，替换上面的奖项；换完还能接着改", IsEnabled = false });
+        if (sets.Length == 0) LoadFlyout.Items.Add(new MenuItem
+        {
+            Header = new TextBlock { Text = "还没有方案，填好后点“存为方案”", Classes = { "caption", "muted" } },
+            IsEnabled = false, Padding = new Thickness(10),
+        });
+        LoadFlyout.Items.Add(new Separator { Margin = new Thickness(0, 2, 0, 0) });
+        LoadFlyout.Items.Add(new MenuItem
+        {
+            Header = new TextBlock { Text = Mode == LotteryMode.Pool
+                ? "点一个方案，替换上面的奖品；换完还能接着改" : "点一个方案，替换上面的奖项；换完还能接着改", Classes = { "caption", "muted" } },
+            IsEnabled = false, Padding = new Thickness(10, 8, 10, 6),
+        });
     }
 
     private async Task<bool> ChangeAsync(Func<Task> change)
