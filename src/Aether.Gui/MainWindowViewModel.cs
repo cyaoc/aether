@@ -39,7 +39,7 @@ public partial class MainWindowViewModel : ObservableObject
         keepRecentDanmaku = settings.KeepRecentDanmaku;
         roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
         WebService = new(client, logger, clock, shutdown.Token);
-        Lottery = new(client, logger, settings, SaveGuiSettings, shutdown.Token, clock);
+        Lottery = new(client, logger, settings, SaveGuiSettings, clock, shutdown.Token);
     }
 
     public SendQueueViewModel SendQueue { get; } = new();

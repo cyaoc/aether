@@ -107,7 +107,6 @@ public sealed class Settings
         texts => texts.Count == 0 ? "欢迎语列表不能为空。" : texts.Select(Core.WelcomeText.Validate).FirstOrDefault(error => error is not null)));
     private static readonly Definition<IReadOnlyList<long>> WelcomeUidList = Register(Definition.NumberList("welcome.uids", []));
     public const int WelcomeLevelOff = 0;
-    public static bool HasWelcomeMention(string text) => Core.WelcomeText.HasMention(text);
     private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
     /// <summary>The values welcome.guard accepts: 关闭, then 大航海身份 from low to high, so each one's index is its tier.</summary>
     public static IReadOnlyList<string> WelcomeGuards { get; } = ["关闭", "舰长", "提督", "总督"];
@@ -180,6 +179,9 @@ public sealed class Settings
         name is "." or ".." || name.IndexOfAny(['/', '\\', ':', '\0']) >= 0
             || name.Any(char.IsControl) || !new[] { ".mp4", ".webm" }.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase)
             ? "必须是纯文件名，扩展名为 .mp4 或 .webm，不能带路径。" : null;
+
+    /// <summary>Whether a welcome text has an unescaped {@} anywhere; where it may go is left to validation.</summary>
+    public static bool HasWelcomeMention(string text) => Core.WelcomeText.HasMention(text);
 
     internal Setting<T> Get<T>(Definition<T> definition) =>
         values.TryGetValue(definition.Name, out var setting) ? (Setting<T>)setting : definition.Initial;

@@ -14,7 +14,7 @@ public partial class LotteryViewModel : ObservableObject
     private readonly TimeProvider clock;
 
     public LotteryViewModel(AetherClient client, ILogger logger, GuiSettings settings, Action saveSettings,
-        CancellationToken shutdown, TimeProvider clock)
+        TimeProvider clock, CancellationToken shutdown)
     {
         this.client = client;
         this.logger = logger;
