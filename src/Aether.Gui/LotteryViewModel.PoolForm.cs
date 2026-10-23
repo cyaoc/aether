@@ -87,10 +87,7 @@ public partial class LotteryViewModel
             row.CanEdit = CanEditPool;
             row.Percentage = total > 0 && value.Weight > 0 ? $"{100d * value.Weight / total:0.#}%" : "—";
         }
-        foreach (var property in new[] { nameof(PoolSpinning), nameof(PoolDrawing), nameof(PoolIdle), nameof(CanEditPool),
-            nameof(CanAddPrize), nameof(CanStart), nameof(CanStop), nameof(CanCancel), nameof(CanNew), nameof(UidError),
-            nameof(StopWordError), nameof(PoolViewerKnown), nameof(PoolViewerHint), nameof(PoolStatusText) })
-            OnPropertyChanged(property);
+        OnPropertyChanged("");
     }
 
     public void AddPrize()

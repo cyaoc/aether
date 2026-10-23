@@ -4,6 +4,7 @@ namespace Aether.Gui;
 
 public partial class LotteryViewModel
 {
+    private const string HostStoppedText = "主播点停";
     private PoolLottery? poolDrawsSource;
     private IReadOnlyList<PoolDrawRow> poolDraws = [];
 
@@ -17,7 +18,7 @@ public partial class LotteryViewModel
                 return poolDraws;
             poolDrawsSource = lottery;
             return poolDraws = lottery is null ? [] : lottery.Draws.Reverse().Select((draw, index) =>
-                new PoolDrawRow(DrawViewer(draw) ?? "主播点停", draw.StoppedByHost && draw.Uid is not null,
+                new PoolDrawRow(DrawViewer(draw) ?? HostStoppedText, draw.StoppedByHost && draw.Uid is not null,
                     draw.Prize.Grade, draw.Prize.Name, $"{draw.DrawnAt.ToLocalTime():HH:mm}",
                     lottery.IsDrawing && index == 0)).ToArray();
         }
@@ -31,7 +32,7 @@ public partial class LotteryViewModel
         {
             if (LatestPoolDraw is not { } draw) return "";
             var who = DrawViewer(draw);
-            return (draw.StoppedByHost ? who is null ? "主播点停" : $"{who} · 主播点停" : $"{who} 喊停")
+            return (draw.StoppedByHost ? who is null ? HostStoppedText : $"{who} · {HostStoppedText}" : $"{who} 喊停")
                 + $" · {draw.DrawnAt.ToLocalTime():HH:mm}";
         }
     }
@@ -39,7 +40,7 @@ public partial class LotteryViewModel
     public string LatestPoolDrawPrize => LatestPoolDraw?.Prize.Name ?? "";
     public string PoolDrawCountText => PoolDraws.Count > 0 ? $"本场 {PoolDraws.Count} 次" : "";
     public bool IsPoolDrawsEmpty => PoolDraws.Count == 0;
-    public string LotteryModeText => LotteryState.Lottery is EntryLottery ? "报名抽奖" : "奖池抽奖";
+    public string LotteryModeText => ModeText(LotteryState.Lottery is EntryLottery ? LotteryMode.Entry : LotteryMode.Pool);
     public string LotteryPanelPhaseText => LotteryState.Lottery is EntryLottery entry
         ? EntryPhaseText(entry) : LotteryPhaseText.Length > 0 ? LotteryPhaseText : "待机";
     public bool IsLotterySpinning => LotteryState.Lottery is EntryLottery { Phase: EntryLotteryPhase.Open }
@@ -51,5 +52,8 @@ public partial class LotteryViewModel
         ? "先结束这一场才能新开" : "";
     public string LotteryExampleText => LotteryState.IsExamplePlaying ? "示例播放中…" : "试一下";
 
-    private static string? DrawViewer(PoolDraw draw) => draw.Uid is { } uid ? draw.Nickname ?? $"UID {uid}" : null;
+    private static string ModeText(LotteryMode mode) => mode == LotteryMode.Entry ? "报名抽奖" : "奖池抽奖";
+
+    private static string? DrawViewer(PoolDraw draw) => !string.IsNullOrEmpty(draw.Nickname) ? draw.Nickname
+        : draw.Uid is { } uid ? $"UID {uid}" : null;
 }

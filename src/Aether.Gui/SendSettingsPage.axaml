@@ -21,7 +21,7 @@
         <NumericUpDown x:Name="SendIntervalInput" Minimum="1" Classes.invalid="{Binding #SendIntervalError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="发送间隔秒数" />
         <TextBlock Classes="label" Text="秒" VerticalAlignment="Center" />
       </StackPanel>
-      <TextBlock x:Name="SendIntervalReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="SendIntervalReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <TextBlock x:Name="SendIntervalError" Classes="error" />
     </StackPanel>
   </local:SettingsPage.BodyContent>

@@ -180,6 +180,9 @@ public sealed class Settings
             || name.Any(char.IsControl) || !new[] { ".mp4", ".webm" }.Contains(Path.GetExtension(name), StringComparer.OrdinalIgnoreCase)
             ? "必须是纯文件名，扩展名为 .mp4 或 .webm，不能带路径。" : null;
 
+    /// <summary>Whether a welcome text has an unescaped {@} anywhere; where it may go is left to validation.</summary>
+    public static bool HasWelcomeMention(string text) => Core.WelcomeText.HasMention(text);
+
     internal Setting<T> Get<T>(Definition<T> definition) =>
         values.TryGetValue(definition.Name, out var setting) ? (Setting<T>)setting : definition.Initial;
 

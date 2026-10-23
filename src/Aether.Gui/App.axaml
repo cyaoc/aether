@@ -2,6 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Aether.Gui.App"
              RequestedThemeVariant="Default">
+  <Application.Resources>
+    <x:String x:Key="SettingsReadOnlyHint">这项是多行写法，请在设置文件里改</x:String>
+  </Application.Resources>
   <Application.Styles>
     <FluentTheme>
       <FluentTheme.Palettes>

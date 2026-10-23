@@ -32,7 +32,7 @@ public sealed class VisualReviewTests
         {
             using var h = new GuiHarness();
             await LotteryHistoryFixture.SeedAsync(h);
-            var vm = h.CreateViewModel();
+            var vm = h.CreateViewModel(new FakeTimeProvider(LotteryHistoryFixture.At));
             var window = new MainWindow(h.DataDirectory)
                 { DataContext = vm, Width = width, Height = height, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
             window.Show();

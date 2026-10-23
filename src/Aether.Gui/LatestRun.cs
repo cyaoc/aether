@@ -2,6 +2,7 @@ namespace Aether.Gui;
 
 internal sealed class LatestRun
 {
+    // Each run reports its own failure; it must not poison a replacement or shutdown.
     private CancellationTokenSource? stop;
     public Task Current { get; private set; } = Task.CompletedTask;
 
@@ -17,7 +18,8 @@ internal sealed class LatestRun
         {
             try
             {
-                await previous;
+                try { await previous; }
+                catch { }
                 await run(next.Token);
             }
             finally
@@ -28,9 +30,10 @@ internal sealed class LatestRun
         }
     }
 
-    public Task StopAsync()
+    public async Task StopAsync()
     {
         stop?.Cancel();
-        return Current;
+        try { await Current; }
+        catch { }
     }
 }

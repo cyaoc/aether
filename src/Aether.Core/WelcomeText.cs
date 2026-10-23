@@ -15,7 +15,7 @@ internal sealed class WelcomeText
         {
             var c = text[i];
             if (c is not ('{' or '}')) { literal.Append(c); i++; continue; }
-            if (i + 1 < text.Length && text[i + 1] == c) { literal.Append(c); i += 2; continue; }
+            if (IsEscapedBrace(text, i)) { literal.Append(c); i += 2; continue; }
             var end = text.IndexOf('}', i + 1);
             if (c != '{' || end < 0) throw new FormatException(PlaceholderError);
             var kind = text[(i + 1)..end];
@@ -41,6 +41,19 @@ internal sealed class WelcomeText
         }
         catch (FormatException error) { return error.Message; }
     }
+
+    public static bool HasMention(string text)
+    {
+        for (var i = 0; i < text.Length; i++)
+        {
+            if (IsEscapedBrace(text, i)) i++;
+            else if (text.AsSpan(i).StartsWith("{@}", StringComparison.Ordinal)) return true;
+        }
+        return false;
+    }
+
+    private static bool IsEscapedBrace(string text, int at) =>
+        text[at] is '{' or '}' && at + 1 < text.Length && text[at + 1] == text[at];
 
     public string Render(string nickname, string guardName, int limit)
     {

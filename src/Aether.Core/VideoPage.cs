@@ -7,6 +7,7 @@ namespace Aether.Core;
 /// <summary>Serial playback by file and source; viewer selection belongs to the caller.</summary>
 public sealed class VideoPage(WebService service, string dataDirectory, TimeProvider timeProvider) : WebPage("video")
 {
+    private const string FileRoutePrefix = "/video/files/";
     // shortcut: pending videos are unbounded; add a capacity if playback sources can flood the queue.
     private readonly Channel<Playback> queue = Channel.CreateUnbounded<Playback>(new UnboundedChannelOptions { SingleReader = true });
     private Playback? current;
@@ -95,10 +96,10 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
     internal override async Task<bool> HandleAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
     {
         var path = request.Url!.AbsolutePath;
-        if (request.HttpMethod == "GET" && path.StartsWith("/video/files/", StringComparison.Ordinal))
+        if (request.HttpMethod == "GET" && path.StartsWith(FileRoutePrefix, StringComparison.Ordinal))
         {
             string? fileName;
-            lock (service.Gate) fileName = current is { } item && item.Id == path[13..] ? item.FileName : null;
+            lock (service.Gate) fileName = current is { } item && item.Id == path[FileRoutePrefix.Length..] ? item.FileName : null;
             if (fileName is null) return false;
             try
             {

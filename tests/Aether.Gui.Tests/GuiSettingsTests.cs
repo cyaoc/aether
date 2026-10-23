@@ -40,6 +40,7 @@ public sealed class GuiSettingsTests : IDisposable
     [InlineData("KeepRecentDanmaku: false", new string[0])]
     [InlineData("RecentRooms:", new string[0])]
     [InlineData("RecentRooms: ~", new string[0])]
+    [InlineData("RecentRooms: ['+123', '42', '１２３']", new[] { "42" })]
     [InlineData("RecentRooms: ['6', '006', invalid, '0', '-1', ~, '6', '42', '123', '456', '789']",
         new[] { "6", "006", "42", "123", "456" })]
     public void Recent_rooms_load_valid_unique_numbers_in_order(string yaml, string[] expected)
@@ -88,6 +89,7 @@ public sealed class GuiSettingsTests : IDisposable
     [InlineData("~", null)]
     [InlineData("0", null)]
     [InlineData("-1", null)]
+    [InlineData("+123", null)]
     [InlineData("[42]", null)]
     public void Last_lottery_room_keeps_the_resolved_id_for_offline_history(string value, long? expected)
     {

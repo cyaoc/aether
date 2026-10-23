@@ -1,3 +1,4 @@
+using Aether.Core;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Aether.Gui;
@@ -14,12 +15,7 @@ public partial class WelcomeTextRow(string text, bool canEdit, bool isNew = fals
     {
         if (!CanEdit) return;
         var text = Value;
-        if (token == "{@}")
-            for (var at = 0; at < text.Length; at++)
-            {
-                if (text.AsSpan(at).StartsWith("{{", StringComparison.Ordinal)) at++;
-                else if (text.AsSpan(at).StartsWith(token, StringComparison.Ordinal)) return;
-            }
+        if (token == "{@}" && Settings.HasWelcomeMention(text)) return;
         var index = token == "{@}" ? 0 : CaretIndex;
         Value = text.Insert(index, token);
         CaretIndex = SelectionStart = SelectionEnd = index + token.Length;

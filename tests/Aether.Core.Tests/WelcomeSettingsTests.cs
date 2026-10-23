@@ -6,6 +6,20 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
 {
     private readonly WatchHarness h = new();
 
+    [Theory]
+    [InlineData("{@}欢迎", true)]
+    [InlineData("欢迎{@}", true)]
+    [InlineData("{{@}", false)]
+    [InlineData("}}{@}", true)]
+    [InlineData("{{{@}", true)]
+    [InlineData("{{{{@}", false)]
+    [InlineData("欢迎{昵称}", false)]
+    [InlineData("", false)]
+    public void Mention_detection_skips_escaped_braces_without_validating_position(string text, bool expected)
+    {
+        Assert.Equal(expected, Settings.HasWelcomeMention(text));
+    }
+
     [Fact]
     public void Multiple_welcome_texts_are_valid_setting_input()
     {

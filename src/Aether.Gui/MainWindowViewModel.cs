@@ -39,7 +39,7 @@ public partial class MainWindowViewModel : ObservableObject
         keepRecentDanmaku = settings.KeepRecentDanmaku;
         roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
         WebService = new(client, logger, clock, shutdown.Token);
-        Lottery = new(client, logger, settings, SaveGuiSettings, shutdown.Token);
+        Lottery = new(client, logger, settings, SaveGuiSettings, clock, shutdown.Token);
     }
 
     public SendQueueViewModel SendQueue { get; } = new();
@@ -172,9 +172,9 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanConnect), IncludeCancelCommand = true)]
     private async Task ConnectAsync(CancellationToken cancellationToken)
     {
-        if (!long.TryParse(RoomNumber, out var roomId) || roomId <= 0)
+        if (!Room.TryParseNumber(RoomNumber, out var roomId))
         {
-            Message = "请输入有效的房间号（正整数）。";
+            Message = Room.InvalidNumber;
             return;
         }
         ConnectionState = RoomConnectionState.Connecting;

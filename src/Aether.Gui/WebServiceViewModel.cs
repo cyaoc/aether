@@ -67,6 +67,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             await foreach (var update in client.WebService.GetUpdatesAsync(token)) Apply(update);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+        catch (Exception error) { logger.LogError(error, "网页服务状态订阅中断"); }
     }
 
     internal async Task StopAsync()

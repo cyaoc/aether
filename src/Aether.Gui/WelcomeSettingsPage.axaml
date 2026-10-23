@@ -26,7 +26,7 @@
               <Viewbox Classes="icon remove"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
             </Button>
             <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" x:Name="ErrorMessage" Classes="error" Text="{Binding VisibleError}" IsVisible="{Binding VisibleError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
-            <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="ReadOnlyMessage" Classes="hint" IsVisible="{Binding HasReadOnlyHint}" Text="这项是多行写法，请在设置文件里改" />
+            <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="ReadOnlyMessage" Classes="hint" IsVisible="{Binding HasReadOnlyHint}" Text="{StaticResource SettingsReadOnlyHint}" />
           </Grid>
         </StackPanel>
       </local:EditableRowFrame>
@@ -39,7 +39,7 @@
   </local:SettingsPage.HeaderContent>
   <local:SettingsPage.HeaderNote>
     <StackPanel Margin="20,0">
-      <TextBlock x:Name="WelcomeReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="WelcomeReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <TextBlock x:Name="WelcomeError" Classes="error" />
     </StackPanel>
   </local:SettingsPage.HeaderNote>
@@ -77,7 +77,7 @@
         </ItemsControl.ItemTemplate>
       </ItemsControl>
       <local:ListFoldButton x:Name="WelcomeTextFold" />
-      <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="WelcomeTextReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,*">
         <TextBlock Classes="caption muted" Text="插入" VerticalAlignment="Center" Margin="0,0,8,0" />
         <Button Grid.Column="1" Classes="chip" Margin="0,0,6,0" x:Name="InsertAtButton" GettingFocus="InsertButtonGettingFocus" Content="@观众" Tag="{}{@}" Click="InsertPlaceholder" />

@@ -6,6 +6,7 @@ namespace Aether.Core;
 public sealed partial class LotteryController
 {
     public const int MaxAwards = 5;
+    public const string NoEligibleEntries = "没有还没中奖的报名观众可抽";
 
     public static string? ValidateAward(LotteryAward award) => string.IsNullOrWhiteSpace(award.Name) ? "请填写奖项名称。"
         : string.IsNullOrWhiteSpace(award.Prize) ? "请填写奖品。" : award.Capacity <= 0 ? "名额必须是正整数。"
@@ -84,9 +85,9 @@ public sealed partial class LotteryController
             var award = lottery.Awards[awardIndex];
             if (lottery.Draws.Count(draw => draw.AwardIndex == awardIndex) >= award.Capacity)
                 throw new InvalidOperationException("这个奖项的名额已满。");
+            if (!lottery.HasEligibleEntries) throw new InvalidOperationException(NoEligibleEntries + "。");
             var winners = lottery.Draws.Select(draw => draw.Winner.Uid).ToHashSet();
             var available = lottery.Entries.Where(entry => !winners.Contains(entry.Uid)).ToArray();
-            if (available.Length == 0) throw new InvalidOperationException("没有还没中奖的报名观众可抽。");
             var pick = (int)random.NextInt64(available.Length);
             // Display cells repeat when fewer than ten viewers remain; they do not affect the uniform draw.
             var candidates = Enumerable.Range(0, DrawCells).Select(index => available[(pick + index) % available.Length].Nickname).ToImmutableArray();
@@ -117,7 +118,6 @@ public sealed partial class LotteryController
 
     private EntryLottery RequireEntry(EntryLotteryPhase phase)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
         RequireControl();
         if (state.Lottery is not EntryLottery lottery || lottery.Phase != phase) throw new InvalidOperationException("当前阶段不能执行此操作。");
         return lottery;

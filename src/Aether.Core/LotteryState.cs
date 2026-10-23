@@ -31,6 +31,8 @@ public sealed record EntryLottery(string Id, long RoomId, string Keyword, DateTi
     DateTimeOffset? EndedAt = null, bool Hidden = false) : Lottery(Id, RoomId, StartedAt, EndedAt, DrawUntil)
 {
     public int EntryCount => Entries.Length;
+    // Each draw takes a different entrant, so the counts alone decide it.
+    [JsonIgnore] public bool HasEligibleEntries => EntryCount > Draws.Length;
     public IEnumerable<LotteryEntry> LatestEntries => Entries.Reverse().Take(3);
     public long Remaining => Awards.Sum(award => (long)award.Capacity) - Draws.Length;
 }
