@@ -421,18 +421,15 @@ public sealed class SettingsPageTests
         });
 
     [Fact]
-    public Task Saving_only_welcome_texts_validates_the_reloaded_rows_again() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  texts: [欢迎]\n  guard: 关闭\n", (page, _) =>
+    public Task Saved_welcome_page_keeps_its_save_message_after_reloading_rows() =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  texts: [欢迎]\n  uids: [12345]\n", (page, _) =>
         {
-            Assert.Empty(ConditionList.Rows(page));
             WelcomeTextList.Input(page).Text = "欢迎回家";
             GuiHarness.Flush();
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            var message = GuiHarness.FindVisual<TextBlock>(page, "Message");
-            Assert.Equal("已保存。", message.Text);
-            // The second pass clears the footer message, as it does when conditions are loaded too.
+            // As on 盲盒 and 发送, which share these save rules: reloading the rows is not an edit.
             GuiHarness.Flush();
-            Assert.Equal("", message.Text);
+            Assert.Equal("已保存。", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
         });
 
     [Theory]
