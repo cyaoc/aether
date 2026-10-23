@@ -9,7 +9,7 @@ public partial class LotteryViewModel
     private bool loadingEntry;
     [ObservableProperty] private string? keyword;
     [ObservableProperty] private string? entryLotteryError;
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowEndEntry))] private bool confirmingEnd;
+    [ObservableProperty] private bool confirmingEnd;
     public EditableRows<EntryAwardRow> Awards { get; } = new(1);
 
     public bool EntryPreparing => LotteryState.Lottery is EntryLottery { Phase: EntryLotteryPhase.Preparing };
@@ -27,6 +27,7 @@ public partial class LotteryViewModel
     public string KeywordHint => EntryPreparing ? "不能靠送礼物报名" : "开始报名后，关键字和奖项不能再改";
 
     partial void OnKeywordChanged(string? value) => RefreshEntryInputs();
+    partial void OnConfirmingEndChanged(bool value) => OnPropertyChanged("");
 
     private void RefreshEntryForm()
     {
@@ -64,13 +65,10 @@ public partial class LotteryViewModel
             row.DrawCount = $"已抽 {drawn} / {value.Capacity}";
             row.DrawText = row.Full ? "抽完了" : EntryOpen ? "截止后抽" : "抽一个";
             row.DrawAccessibleName = row.Full ? $"{value.Name}已抽完" : $"抽一位{value.Name}";
-            row.CanDraw = CanEndEntry && !row.Full && lottery!.Entries.Length > lottery.Draws.Length;
-            row.DrawHint = lottery is not null && lottery.Entries.Length <= lottery.Draws.Length ? "没有还没中奖的报名观众可抽" : null;
+            row.CanDraw = CanEndEntry && !row.Full && lottery!.HasEligibleEntries;
+            row.DrawHint = lottery is { HasEligibleEntries: false } ? LotteryController.NoEligibleEntries : null;
         }
-        foreach (var property in new[] { nameof(EntryPreparing), nameof(EntryOpen), nameof(EntryClosed), nameof(EntryEnded),
-            nameof(CanEditEntry), nameof(CanAddAward), nameof(CanStartEntry), nameof(CanCloseEntries), nameof(CanEndEntry),
-            nameof(CanToggleHidden), nameof(ShowEndEntry), nameof(KeywordError), nameof(KeywordHint) })
-            OnPropertyChanged(property);
+        OnPropertyChanged("");
     }
 
     public void AddAward()

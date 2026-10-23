@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Globalization;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
@@ -16,6 +15,7 @@ public sealed partial class LotteryController : IDisposable
     internal const int DrawCells = 10;
     private const string ConnectionRequired = "请先连接直播间。";
     private const string DrawInProgress = "请等本次开奖结束。";
+    private const string InvalidUid = "UID 必须是正整数或留空";
     private readonly object gate = new();
     private readonly Func<LotteryStore> store;
     private readonly TimeProvider time;
@@ -93,7 +93,7 @@ public sealed partial class LotteryController : IDisposable
     public static string? ValidateStopWord(string? text) => string.IsNullOrWhiteSpace(text) ? "口令不能为空" : null;
 
     public static string? ValidateUid(string? text) => string.IsNullOrWhiteSpace(text) || Viewer.TryParseUid(text, out _)
-        ? null : "UID 必须是正整数或留空";
+        ? null : InvalidUid;
 
     private static void Validate(IReadOnlyCollection<PoolPrize> prizes, string stopWord, long? uid)
     {
@@ -101,7 +101,7 @@ public sealed partial class LotteryController : IDisposable
         foreach (var prize in prizes)
             if (ValidatePrize(prize) is { } error) throw new ArgumentException(error);
         if (ValidateStopWord(stopWord) is { } stopWordError) throw new ArgumentException(stopWordError);
-        if (ValidateUid(uid?.ToString(CultureInfo.InvariantCulture)) is { } uidError) throw new ArgumentException(uidError);
+        if (uid <= 0) throw new ArgumentException(InvalidUid);
     }
 
     public void Start(IReadOnlyCollection<PoolPrize> prizes, string stopWord, long? uid = null)
@@ -125,12 +125,13 @@ public sealed partial class LotteryController : IDisposable
 
     private void RequireConnection()
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
+        RequireControl();
         if (!state.Connected) throw new InvalidOperationException(ConnectionRequired);
     }
 
     private void RequireControl()
     {
+        ObjectDisposedException.ThrowIf(disposed, this);
         if (!state.CanControl) throw new InvalidOperationException(ConnectionRequired);
     }
 

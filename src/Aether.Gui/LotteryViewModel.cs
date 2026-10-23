@@ -11,15 +11,17 @@ public partial class LotteryViewModel : ObservableObject
     private readonly GuiSettings settings;
     private readonly Action saveSettings;
     private readonly CancellationToken shutdown;
+    private readonly TimeProvider clock;
 
     public LotteryViewModel(AetherClient client, ILogger logger, GuiSettings settings, Action saveSettings,
-        CancellationToken shutdown)
+        CancellationToken shutdown, TimeProvider clock)
     {
         this.client = client;
         this.logger = logger;
         this.settings = settings;
         this.saveSettings = saveSettings;
         this.shutdown = shutdown;
+        this.clock = clock;
         Prizes.RowChanged += RefreshPoolInputs;
         Awards.RowChanged += RefreshEntryInputs;
         RefreshPoolInputs();
@@ -32,13 +34,6 @@ public partial class LotteryViewModel : ObservableObject
     private bool CanBeginOperation => !Busy && LotteryState.Connected;
     private bool CanControlOperation => !Busy && LotteryState.CanControl;
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(LotteryPhaseText), nameof(PoolDraws), nameof(ShowLatestPoolDraw),
-        nameof(LatestPoolDrawHead), nameof(LatestPoolDrawGrade), nameof(LatestPoolDrawPrize),
-        nameof(PoolDrawCountText), nameof(IsPoolDrawsEmpty), nameof(LotteryModeText), nameof(LotteryPanelPhaseText),
-        nameof(IsLotterySpinning), nameof(IsLotteryDrawing), nameof(IsLotteryEnded), nameof(NewLotteryHint), nameof(LotteryExampleText),
-        nameof(EntryWinnerGroups), nameof(EntryWinnerCountText), nameof(LotteryEntryCountText), nameof(IsEntryWinnersEmpty),
-        nameof(IsLotteryEntriesEmpty), nameof(EntryVisibilityText), nameof(EntryStatusText), nameof(ShowHistoryRoom),
-        nameof(CanReturnToCurrent), nameof(ShowReturnToCurrentHint))]
     private LotteryState lotteryState = new(null, false, null);
 
     partial void OnLotteryStateChanged(LotteryState value)
@@ -46,6 +41,7 @@ public partial class LotteryViewModel : ObservableObject
         RefreshPoolForm();
         RefreshEntryForm();
         UpdateEntryRows(value);
+        OnPropertyChanged("");
     }
 
     partial void OnBusyChanged(bool value)
@@ -100,6 +96,7 @@ public partial class LotteryViewModel : ObservableObject
         {
             try { await foreach (var update in client.Lottery.GetUpdatesAsync(token)) Apply(update); }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+            catch (Exception error) { logger.LogError(error, "抽奖状态订阅中断"); }
         }
     }
 
@@ -142,17 +139,17 @@ public partial class LotteryViewModel : ObservableObject
     private readonly LatestRun lotteryHistoryRead = new();
     private string? lotteryHistorySelection;
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(LotteryHistoryRows), nameof(LotteryHistoryTabText), nameof(HistoryRoomText),
-        nameof(ShowHistoryRoom), nameof(HasLotteryHistory), nameof(IsLotteryHistoryEmpty))]
     private IReadOnlyList<LotteryHistory> lotteryHistory = [];
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HistoryWinnerGroups), nameof(HasLotteryHistoryDetails), nameof(ShowReturnToCurrent),
-        nameof(CanReturnToCurrent), nameof(ShowReturnToCurrentHint), nameof(HistoryDetailDate),
-        nameof(HistoryDetailSummary), nameof(HistoryConditionTitle), nameof(HistoryConditionText))]
     private Lottery? selectedLotteryHistory;
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(HasLotteryHistoryError), nameof(IsLotteryHistoryEmpty))]
+    [ObservableProperty]
     private string lotteryHistoryError = "";
-    [ObservableProperty, NotifyPropertyChangedFor(nameof(IsLotteryHistoryEmpty))] private bool lotteryHistoryLoading;
+    [ObservableProperty] private bool lotteryHistoryLoading;
+
+    partial void OnLotteryHistoryChanged(IReadOnlyList<LotteryHistory> value) => OnPropertyChanged("");
+    partial void OnSelectedLotteryHistoryChanged(Lottery? value) => OnPropertyChanged("");
+    partial void OnLotteryHistoryErrorChanged(string value) => OnPropertyChanged("");
+    partial void OnLotteryHistoryLoadingChanged(bool value) => OnPropertyChanged("");
 
     internal Task RefreshLotteryHistoryAsync(string? selectedId = null)
     {

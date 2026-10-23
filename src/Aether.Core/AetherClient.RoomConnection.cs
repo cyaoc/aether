@@ -29,6 +29,7 @@ public sealed partial class AetherClient
         private FileStream? roomLock;
         private IDisposable? roomScope;
         private DanmakuProtocol.Decoder? decoder;
+        private bool readDanmakuLengthLimit;
         private readonly List<IRoomFeature> features = [];
         private readonly SendQueue sendQueue =
             new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value), output);
@@ -72,6 +73,7 @@ public sealed partial class AetherClient
                             {
                                 features.Add(new WelcomeFeature(Settings, sendQueue));
                                 parseEntries = true;
+                                readDanmakuLengthLimit = true;
                             }
                             decoder = new DanmakuProtocol.Decoder(realRoomId.Value, client.logger, parseEntries);
                         }
@@ -174,7 +176,7 @@ public sealed partial class AetherClient
         {
             var connection = await api.GetConnectionAsync(realRoomId, cancellationToken);
             var danmakuLengthLimit = FallbackDanmakuLengthLimit;
-            if (features.Any(feature => feature is WelcomeFeature))
+            if (readDanmakuLengthLimit)
             {
                 try
                 {

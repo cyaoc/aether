@@ -9,7 +9,16 @@ using Microsoft.Extensions.Logging.Console;
 using QRCoder;
 
 Console.OutputEncoding = new UTF8Encoding(false);
-var room = new Argument<long>("房间号") { Description = "直播间短号或真实房间号" };
+var room = new Argument<long>("房间号")
+{
+    Description = "直播间短号或真实房间号",
+    CustomParser = result =>
+    {
+        if (Room.TryParseNumber(result.Tokens.Single().Value, out var number)) return number;
+        result.AddError(Room.InvalidNumber);
+        return 0;
+    },
+};
 var watch = new Command("watch", "观看直播间弹幕，需要时扫码登录") { room };
 watch.SetAction((result, cancellationToken) => RunAsync(client =>
     WatchCommand.RunAsync(client, Settings.Load(DataDirectory.Locate()), result.GetValue(room), ShowQrCodeAsync, cancellationToken),

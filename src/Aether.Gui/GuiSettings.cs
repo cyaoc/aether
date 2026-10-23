@@ -21,7 +21,7 @@ public sealed class GuiSettings
     public string[] RecentRooms
     {
         get;
-        set => field = [.. value.Where(room => long.TryParse(room, out var id) && id > 0).Distinct().Take(RecentRoomLimit)];
+        set => field = [.. value.Where(room => Room.TryParseNumber(room, out _)).Distinct().Take(RecentRoomLimit)];
     } = [];
 
     public static GuiSettings Load(string dataDirectory, ILogger<GuiSettings> logger)
@@ -37,7 +37,7 @@ public sealed class GuiSettings
                 : [];
             if (values.GetValueOrDefault(nameof(KeepRecentDanmaku)) is string keep && bool.TryParse(keep, out var value))
                 settings.KeepRecentDanmaku = value;
-            if (values.GetValueOrDefault(nameof(LastLotteryRoomId)) is string lastRoom && long.TryParse(lastRoom, out var roomId) && roomId > 0)
+            if (values.GetValueOrDefault(nameof(LastLotteryRoomId)) is string lastRoom && Room.TryParseNumber(lastRoom, out var roomId))
                 settings.LastLotteryRoomId = roomId;
             settings.RecentRooms = values.GetValueOrDefault(nameof(RecentRooms)) switch
             {

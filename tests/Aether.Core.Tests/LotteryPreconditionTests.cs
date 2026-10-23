@@ -10,6 +10,27 @@ public sealed class LotteryPreconditionTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task Disposed_controller_rejects_pool_and_entry_operations(bool stop)
+    {
+        await using var h = new WatchHarness(enableLottery: true);
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        var lottery = h.Client.Lottery;
+        lottery.Start(Prizes, "停");
+        var before = lottery.State;
+        lottery.Dispose();
+        Assert.Throws<ObjectDisposedException>(() => { if (stop) lottery.Stop(); else lottery.Cancel(); });
+        Assert.Throws<ObjectDisposedException>(() => lottery.StartEntry(Awards, "抽奖"));
+        Assert.Throws<ObjectDisposedException>(lottery.CloseEntries);
+        Assert.Throws<ObjectDisposedException>(() => lottery.DrawEntry(0));
+        Assert.Throws<ObjectDisposedException>(lottery.EndEntry);
+        Assert.Throws<ObjectDisposedException>(() => lottery.SetEntryHidden(true));
+        Assert.Equal(before, lottery.State);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task Reconnecting_blocks_starts_but_allows_stopping_or_cancelling_the_pool(bool stop)
     {
         await using var h = new WatchHarness(enableLottery: true);

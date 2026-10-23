@@ -6,6 +6,8 @@ namespace Aether.Gui;
 public partial class LotteryViewModel
 {
     private EntryLottery? entryRowsSource;
+    private EntryLottery? entryWinnersSource;
+    private IReadOnlyList<WinnerGroupRow> entryWinnerGroups = [];
     public ObservableCollection<LotteryEntryRow> LotteryEntries { get; } = [];
 
     private void UpdateEntryRows(LotteryState state)
@@ -31,9 +33,12 @@ public partial class LotteryViewModel
     {
         get
         {
-            if (LotteryState.Lottery is not EntryLottery lottery) return [];
+            var lottery = LotteryState.Lottery as EntryLottery;
+            if (ReferenceEquals(entryWinnersSource, lottery)) return entryWinnerGroups;
+            entryWinnersSource = lottery;
+            if (lottery is null) return entryWinnerGroups = [];
             var fresh = lottery.IsDrawing ? lottery.Draws[^1] : null;
-            return lottery.Awards.Select((award, index) =>
+            return entryWinnerGroups = lottery.Awards.Select((award, index) =>
             {
                 var winners = lottery.Draws.Where(draw => draw.AwardIndex == index).ToArray();
                 return new WinnerGroupRow(award.Name, award.Prize, $"{winners.Length} / {award.Capacity}",
@@ -54,7 +59,7 @@ public partial class LotteryViewModel
         EntryLotteryPhase.Closed when lottery.IsDrawing => "直播画面正在播开奖特效",
         EntryLotteryPhase.Closed when lottery.Entries.Length == 0 => "没人报名，没人可抽",
         EntryLotteryPhase.Closed when lottery.Remaining <= 0 => "名额都抽完了，可以结束这场抽奖",
-        EntryLotteryPhase.Closed when lottery.Entries.Length <= lottery.Draws.Length => "没人可抽了：报名的人都中过奖",
+        EntryLotteryPhase.Closed when !lottery.HasEligibleEntries => "没人可抽了：报名的人都中过奖",
         EntryLotteryPhase.Closed => $"{lottery.Entries.Length} 人报名，已抽 {lottery.Draws.Length} / {lottery.Remaining + lottery.Draws.Length}。点奖项右边的“抽一个”",
         _ => lottery.Hidden ? "画面已收起，可以重新显示完整中奖名单" : "抽奖页正在显示完整中奖名单，点“收起画面”让它消失",
     };

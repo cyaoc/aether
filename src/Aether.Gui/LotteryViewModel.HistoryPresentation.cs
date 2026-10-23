@@ -19,7 +19,7 @@ public partial class LotteryViewModel
             {
                 var date = HistoryDate(item.StartedAt);
                 var status = item.EndedAt is null ? "进行中" : "已结束";
-                var mode = item.Mode == LotteryMode.Entry ? "报名抽奖" : "奖池抽奖";
+                var mode = ModeText(item.Mode);
                 var count = item.Mode == LotteryMode.Entry ? $"报名 {item.EntryCount} · 中奖 {item.DrawCount}" : $"抽了 {item.DrawCount} 次";
                 var summary = item.Mode == LotteryMode.Entry
                     ? string.Join(" · ", item.Awards.Select(award => $"{award.Name} {award.Prize} ×{award.Capacity}"))
@@ -52,8 +52,8 @@ public partial class LotteryViewModel
                 var draws = pool.Draws.Where(draw => draw.Prize.Name == prize.Name && draw.Prize.Grade == prize.Grade).ToArray();
                 var winners = draws.GroupBy(draw => draw.Uid).Select(group =>
                 {
-                    var who = group.LastOrDefault(draw => !string.IsNullOrEmpty(draw.Nickname))?.Nickname
-                        ?? (group.Key is { } uid ? $"UID {uid}" : "主播点停");
+                    var who = DrawViewer(group.LastOrDefault(draw => !string.IsNullOrEmpty(draw.Nickname)) ?? group.Last())
+                        ?? HostStoppedText;
                     return new WinnerRow(group.Count() > 1 ? $"{who} ×{group.Count()}" : who,
                         group.Key is { } viewer ? $"UID {viewer}" : "未指定观众");
                 }).ToArray();
@@ -75,8 +75,8 @@ public partial class LotteryViewModel
     public string HistoryDetailDate => SelectedLotteryHistory is { } lottery ? HistoryDate(lottery.StartedAt) : "";
     public string HistoryDetailSummary => SelectedLotteryHistory switch
     {
-        EntryLottery entry => $"报名抽奖 · 报名 {entry.EntryCount} 人",
-        PoolLottery pool => $"奖池抽奖 · 抽了 {pool.Draws.Length} 次",
+        EntryLottery entry => $"{ModeText(LotteryMode.Entry)} · 报名 {entry.EntryCount} 人",
+        PoolLottery pool => $"{ModeText(LotteryMode.Pool)} · 抽了 {pool.Draws.Length} 次",
         _ => "",
     };
     public string HistoryConditionTitle => SelectedLotteryHistory is EntryLottery ? "报名条件" : "谁来喊停";
@@ -88,6 +88,6 @@ public partial class LotteryViewModel
     };
 
     // O4 drops the year; an older year keeps it so rows stay unambiguous.
-    private static string HistoryDate(DateTimeOffset startedAt) => startedAt.ToLocalTime() is var at && at.Year == DateTimeOffset.Now.Year
+    private string HistoryDate(DateTimeOffset startedAt) => startedAt.ToLocalTime() is var at && at.Year == clock.GetLocalNow().Year
         ? $"{at:M月d日 HH:mm}" : $"{at:yyyy年M月d日 HH:mm}";
 }

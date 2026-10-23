@@ -73,7 +73,7 @@
             <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="改了端口，直播姬里所有浏览器素材的地址都要跟着改" VerticalAlignment="Center" IsVisible="{Binding !#WebPortError.IsVisible}" />
             <TextBlock Grid.Column="1" x:Name="WebPortError" Classes="error" VerticalAlignment="Center" />
           </Grid>
-          <TextBlock x:Name="WebPortReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+          <TextBlock x:Name="WebPortReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
         </StackPanel>
         <StackPanel Spacing="6">
           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
@@ -142,11 +142,11 @@
         <NumericUpDown x:Name="RetentionInput" Minimum="1" Classes.invalid="{Binding #RetentionError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日志保留天数" />
         <TextBlock Classes="label" Text="天" VerticalAlignment="Center" />
       </StackPanel>
-      <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <TextBlock x:Name="RetentionError" Classes="error" />
       <TextBlock Classes="label" Text="级别" Margin="0,8,0,0" />
       <ComboBox x:Name="LogLevelInput" Width="200" HorizontalAlignment="Left" AutomationProperties.Name="日志级别" />
-      <TextBlock x:Name="LogLevelReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="LogLevelReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <TextBlock x:Name="LogLevelError" Classes="error" />
       <Button Content="打开设置文件" Click="OpenFile" />
       <TextBlock x:Name="UnknownKeysMessage" Text="{Binding $parent[local:SettingsPage].UnknownKeysText}" IsVisible="{Binding $parent[local:SettingsPage].HasUnknownKeys}" Classes="secondary muted" TextWrapping="Wrap" />

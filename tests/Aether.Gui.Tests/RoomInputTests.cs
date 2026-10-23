@@ -15,6 +15,29 @@ namespace Aether.Gui.Tests;
 
 public sealed class RoomInputTests
 {
+    [Fact]
+    public Task Signed_room_number_is_rejected_before_connecting() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        await h.SaveCredentialAsync();
+        var vm = h.CreateViewModel();
+        var window = new MainWindow(h.DataDirectory) { DataContext = vm };
+        window.Show();
+        try
+        {
+            await vm.ReadAccountCommand.ExecutionTask!;
+            EditorOf(window.FindControl<ComboBox>("RoomInput")!).Text = "+123";
+            await vm.ConnectCommand.ExecuteAsync(null);
+            GuiHarness.Flush();
+            Assert.Equal("请输入有效的房间号（正整数）。", vm.Message);
+            Assert.Contains(vm.Message, GuiHarness.VisibleText(window));
+            Assert.False(vm.HasRoomConnection);
+            Assert.Empty(h.RejectedRequests);
+        }
+        finally { await vm.ShutdownAsync(); window.Close(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]

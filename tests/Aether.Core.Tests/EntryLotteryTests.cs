@@ -7,6 +7,28 @@ public sealed class EntryLotteryTests
 {
     private static readonly LotteryAward[] Awards = [new("一等奖", "键盘", 1, Grade.Grand), new("二等奖", "抱枕", 2, Grade.Second)];
 
+    [Fact]
+    public async Task Eligible_entries_run_out_after_each_viewer_has_won()
+    {
+        await using var h = new WatchHarness(enableLottery: true);
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        var controller = h.Client.Lottery;
+        controller.New(LotteryMode.Entry);
+        Assert.False(Assert.IsType<EntryLottery>(controller.State.Lottery).HasEligibleEntries);
+        controller.StartEntry(Awards, "抽奖");
+        await h.PushAndCollectAsync(updates, Message(1, "甲", "抽奖"));
+        Assert.True(Assert.IsType<EntryLottery>(controller.State.Lottery).HasEligibleEntries);
+        controller.CloseEntries();
+        controller.DrawEntry(1);
+        var lottery = Assert.IsType<EntryLottery>(controller.State.Lottery);
+        Assert.False(lottery.HasEligibleEntries);
+        var json = JsonSerializer.SerializeToElement<Lottery>(lottery, WebService.Json);
+        Assert.False(json.TryGetProperty("hasEligibleEntries", out _));
+        h.Time.Advance(LotteryController.DrawDuration);
+        Assert.Equal("没有还没中奖的报名观众可抽。", Assert.Throws<InvalidOperationException>(() => controller.DrawEntry(1)).Message);
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]

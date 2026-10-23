@@ -12,6 +12,62 @@ namespace Aether.Gui.Tests;
 
 public sealed class LotteryPanelTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task State_refresh_keeps_draft_text_and_caret(bool entryMode) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var panel = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = panel, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            Lottery lottery = entryMode ? EntryLotteryPanelTests.TestLottery() : TestLottery();
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
+            GuiHarness.Flush();
+            var entry = panel.FindControl<EntryLotteryPanel>("EntryContent")!;
+            TextBox[] inputs = entryMode
+                ? [entry.FindControl<TextBox>("KeywordInput")!, GuiHarness.FindRowControl<TextBox>(entry, vm.Lottery.Awards[0], "PrizeInput")]
+                : [panel.FindControl<TextBox>("UidInput")!, panel.FindControl<TextBox>("StopWordInput")!,
+                    GuiHarness.FindRowControl<TextBox>(panel, vm.Lottery.Prizes[0], "NameInput")];
+            foreach (var input in inputs)
+            {
+                input.Text = "12345";
+                input.Focus();
+                input.CaretIndex = input.SelectionStart = input.SelectionEnd = 2;
+                vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with { Theme = LotteryTheme.MechaLock }));
+                vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with { Theme = LotteryTheme.StarSummon }));
+                GuiHarness.Flush();
+                Assert.Equal("12345", input.Text);
+                Assert.Equal(2, input.CaretIndex);
+                Assert.Equal(2, input.SelectionStart);
+                Assert.Equal(2, input.SelectionEnd);
+                Assert.True(input.IsFocused);
+            }
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Empty_draw_nickname_shows_uid_in_the_current_record_and_latest_card() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var lottery = TestLottery();
+        var draw = new PoolDraw("empty-name", lottery.Prizes[0], 42, "", false, DateTimeOffset.UnixEpoch, []);
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery with { Draws = [draw] })));
+        try
+        {
+            Assert.Equal("UID 42", Assert.Single(vm.Lottery.PoolDraws).Viewer);
+            Assert.StartsWith("UID 42 喊停 · ", vm.Lottery.LatestPoolDrawHead);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task Prize_accessible_names_follow_rows_after_removing_the_first() => HeadlessApp.Session.Dispatch(async () =>
     {

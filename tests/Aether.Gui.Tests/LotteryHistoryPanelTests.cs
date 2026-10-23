@@ -3,11 +3,48 @@ using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Gui.Tests;
 
 public sealed class LotteryHistoryPanelTests
 {
+    [Fact]
+    public Task Pool_history_keeps_the_latest_nonempty_nickname_for_each_uid() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var pool = LotteryPanelTests.TestLottery();
+        vm.Lottery.SelectedLotteryHistory = pool with
+        {
+            Draws = [new("1", pool.Prizes[0], 42, "旧昵称", true, LotteryHistoryFixture.At, []),
+                new("2", pool.Prizes[0], 42, "新昵称", true, LotteryHistoryFixture.At.AddMinutes(1), []),
+                new("3", pool.Prizes[0], 42, "", true, LotteryHistoryFixture.At.AddMinutes(2), [])],
+        };
+        try { Assert.Equal("新昵称 ×3", Assert.Single(vm.Lottery.HistoryWinnerGroups[0].Winners).Name); }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(2026, "10月16日")]
+    [InlineData(2027, "2026年10月16日")]
+    public Task History_dates_use_the_view_model_clock(int year, string date) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        await LotteryHistoryFixture.SeedAsync(h);
+        var vm = h.CreateViewModel(new FakeTimeProvider(LotteryHistoryFixture.At.AddYears(year - 2026)));
+        try
+        {
+            await vm.Lottery.RefreshLotteryHistoryAsync();
+            var expected = $"{date} {LotteryHistoryFixture.At.ToLocalTime():HH:mm}";
+            Assert.Equal(expected, vm.Lottery.LotteryHistoryRows[0].Date);
+            Assert.Equal(expected, vm.Lottery.HistoryDetailDate);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task History_switch_preserves_the_current_form_and_empty_history_is_read_only() => HeadlessApp.Session.Dispatch(async () =>
     {
@@ -43,7 +80,7 @@ public sealed class LotteryHistoryPanelTests
     {
         using var h = new GuiHarness();
         await LotteryHistoryFixture.SeedAsync(h);
-        var vm = h.CreateViewModel();
+        var vm = h.CreateViewModel(new FakeTimeProvider(LotteryHistoryFixture.At));
         var panel = new LotteryPanel { DataContext = vm };
         var window = new Window { Content = panel, Width = 976, Height = 720 };
         window.Show();

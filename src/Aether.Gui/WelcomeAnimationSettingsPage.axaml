@@ -98,7 +98,7 @@
   </local:SettingsPage.HeaderContent>
   <local:SettingsPage.BodyContent>
     <StackPanel Spacing="10">
-      <TextBlock x:Name="AnimationReadOnly" Classes="hint" Text="这项是多行写法，请在设置文件里改" />
+      <TextBlock x:Name="AnimationReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <Border Classes="card notice" Padding="12,8,8,8" Classes.warning="{Binding WebService.ShowVideoSetup}" Classes.error="{Binding WebService.HasWebServiceError}">
         <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
           <Panel>
