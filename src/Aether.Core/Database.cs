@@ -103,6 +103,7 @@ internal sealed class Database
         if (version < 5)
         {
             command.CommandText = """
+                ALTER TABLE lottery_draw ADD COLUMN hidden_from_stream INTEGER NOT NULL DEFAULT 0;
                 CREATE TABLE lottery_prize_set (
                     room_id INTEGER NOT NULL, mode TEXT NOT NULL, name TEXT NOT NULL,
                     saved_at TEXT NOT NULL, content TEXT NOT NULL,

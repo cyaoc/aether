@@ -5,8 +5,10 @@ using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Gui.Tests;
 
@@ -104,6 +106,85 @@ public sealed class LotteryPanelTests
             await GuiHarness.WaitForAsync(() => vm.Lottery.PoolLotteryError is not null && !vm.Lottery.Busy);
             Assert.Equal("请填写奖品名称。", page.FindControl<TextBlock>("ErrorMessage")!.Text);
             Assert.Single(vm.Lottery.PrizeSets);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Draw_visibility_buttons_use_the_operation_error_channel() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var panel = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = panel, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var pool = TestLottery();
+            pool = pool with { Draws = [new("draw", pool.Prizes[0], 42, "小明", true, DateTimeOffset.UnixEpoch, [])] };
+            // The view has a stale connected snapshot; Core correctly refuses its operation without the room lock.
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, pool)));
+            GuiHarness.Flush();
+            var row = Assert.Single(vm.Lottery.PoolDraws);
+            var eye = GuiHarness.FindRowControl<ToggleButton>(panel, row, "DrawVisibilityButton");
+            Assert.IsAssignableFrom<IToggleProvider>(ControlAutomationPeer.CreatePeerForElement(eye)).Toggle();
+            Assert.NotNull(row.ToggleVisibilityCommand.ExecutionTask);
+            await row.ToggleVisibilityCommand.ExecutionTask;
+            Assert.Equal("请先连接直播间。", vm.Lottery.PoolLotteryError);
+            Assert.False(vm.Lottery.Busy);
+            vm.Lottery.PoolLotteryError = null;
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(panel.FindControl<Button>("HideAllDrawsButton")!)).Invoke();
+            Assert.NotNull(vm.Lottery.HideAllDrawsCommand.ExecutionTask);
+            await vm.Lottery.HideAllDrawsCommand.ExecutionTask;
+            Assert.Equal("请先连接直播间。", vm.Lottery.PoolLotteryError);
+            Assert.False(vm.Lottery.Busy);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Draw_visibility_controls_counts_and_local_dates_follow_the_state() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        var today = new DateTimeOffset(2026, 10, 24, 21, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 10, 24)));
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel(new FakeTimeProvider(today));
+        var panel = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = panel, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var pool = TestLottery();
+            var old = new PoolDraw("old", pool.Prizes[0], 42, "小明", true, today.AddDays(-4).AddMinutes(12), []);
+            var current = new PoolDraw("today", pool.Prizes[0], null, null, true, today, []);
+            pool = pool with { Draws = [old, current] };
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, pool)));
+            GuiHarness.Flush();
+            var rows = vm.Lottery.PoolDraws;
+            Assert.Equal("21:00", rows[0].Time);
+            Assert.Equal("10月20日 21:12", rows[1].Time);
+            var eye = GuiHarness.FindRowControl<ToggleButton>(panel, rows[1], "DrawVisibilityButton");
+            Assert.False(eye.IsChecked);
+            Assert.True(eye.IsEnabled);
+            Assert.Equal("不挂出：小明的限定抱枕", AutomationProperties.GetName(eye));
+            var all = panel.FindControl<Button>("HideAllDrawsButton")!;
+            Assert.True(all.IsEnabled);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, pool with { Draws = [old with { HiddenFromStream = true }, current] })));
+            GuiHarness.Flush();
+            Assert.Equal("本场 2 次 · 1 条不挂出", panel.FindControl<TextBlock>("DrawCount")!.Text);
+            var hiddenRow = vm.Lottery.PoolDraws[1];
+            eye = GuiHarness.FindRowControl<ToggleButton>(panel, hiddenRow, "DrawVisibilityButton");
+            Assert.True(eye.IsChecked);
+            Assert.Equal("重新挂到直播画面", ToolTip.GetTip(eye));
+            Assert.Equal("10月20日 21:12 · 不挂出", hiddenRow.Time);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, pool with { Draws = [old with { HiddenFromStream = true }, current with { HiddenFromStream = true }] })));
+            GuiHarness.Flush();
+            Assert.False(all.IsEnabled);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, false, pool)));
+            GuiHarness.Flush();
+            Assert.False(all.IsEnabled);
+            Assert.All(vm.Lottery.PoolDraws, row => Assert.False(GuiHarness.FindRowControl<ToggleButton>(panel, row, "DrawVisibilityButton").IsEnabled));
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
         return true;
