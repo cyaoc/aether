@@ -6,24 +6,29 @@ namespace Aether.Core.Tests;
 public sealed partial class LotteryBrowserTests
 {
     [Theory]
-    [InlineData(1920, 1080)]
-    [InlineData(1080, 1920)]
-    public async Task Pinned_pool_uses_real_results_pages_hides_and_scales_without_replaying(int width, int height)
+    [InlineData(LotteryTheme.StarSummon, 1920, 1080)]
+    [InlineData(LotteryTheme.StarSummon, 1080, 1920)]
+    [InlineData(LotteryTheme.MechaLock, 1920, 1080)]
+    [InlineData(LotteryTheme.MechaLock, 1080, 1920)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1920, 1080)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1080, 1920)]
+    public async Task Pinned_pool_uses_real_results_pages_hides_and_scales_without_replaying(LotteryTheme theme, int width, int height)
     {
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
         var lottery = h.Client.Lottery;
+        lottery.SelectTheme(theme);
         await SeedPinnedPoolAsync(page);
         lottery.SetPinnedResults(true);
         await ReloadAtCoreTimeAsync(page);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'pinned'");
         await FreezePinnedAsync(browser, 3000);
-        Assert.Equal("共 5 次", (await browser.EvaluateAsync("document.getElementById('pinnedCount').textContent")).GetString());
+        Assert.Equal(theme == LotteryTheme.MechaLock ? "5 次" : theme == LotteryTheme.CapsuleGacha ? "共 5 颗" : "共 5 次", (await browser.EvaluateAsync("document.getElementById('pinnedCount').textContent")).GetString());
         Assert.Equal("柚子不酸", (await browser.EvaluateAsync("document.querySelector('.rb-who').textContent")).GetString());
         Assert.False((await browser.EvaluateAsync("document.getElementById('pinned').classList.contains('st-arrive')")).GetBoolean());
         await AssertPinnedLayoutAsync(browser, width, height);
         await browser.ScreenshotAsync($"{width}-pinned-static");
-        await ComparePinnedReferenceAsync(page, width == 1920 ? "RB1-PinBoard" : "NP1-PinPortraitSummon", width, height, 3000);
+        await ComparePinnedReferenceAsync(page, PinnedReference(theme, width == 1920 ? "RB" : "NP"), width, height, 3000);
         foreach (var scale in new[] { .5, .55 })
         {
             var w = (int)(width * scale); var ht = (int)(height * scale);
@@ -53,7 +58,7 @@ public sealed partial class LotteryBrowserTests
         await browser.ScreenshotAsync($"{width}-pinned-hide");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "advance", budget = 1400 });
         await browser.WaitAsync("document.getElementById('pinnedPageNumber').textContent === '' && !document.querySelector('.is-hiding')");
-        Assert.Equal("共 5 次", (await browser.EvaluateAsync("document.getElementById('pinnedCount').textContent")).GetString());
+        Assert.Equal(theme == LotteryTheme.MechaLock ? "5 次" : theme == LotteryTheme.CapsuleGacha ? "共 5 颗" : "共 5 次", (await browser.EvaluateAsync("document.getElementById('pinnedCount').textContent")).GetString());
         await FreezePinnedAsync(browser, 2000);
         await browser.ScreenshotAsync($"{width}-pinned-filled");
         lottery.HideAllDrawsFromStream();
@@ -64,17 +69,30 @@ public sealed partial class LotteryBrowserTests
     }
 
     [Theory]
-    [InlineData(1920, 1080, Grade.Grand)]
-    [InlineData(1920, 1080, Grade.Second)]
-    [InlineData(1920, 1080, Grade.Third)]
-    [InlineData(1080, 1920, Grade.Grand)]
-    [InlineData(1080, 1920, Grade.Second)]
-    [InlineData(1080, 1920, Grade.Third)]
-    public async Task Pinned_pool_entrance_only_follows_this_pages_completed_draw(int width, int height, Grade grade)
+    [InlineData(LotteryTheme.StarSummon, 1920, 1080, Grade.Grand)]
+    [InlineData(LotteryTheme.MechaLock, 1920, 1080, Grade.Grand)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1920, 1080, Grade.Grand)]
+    [InlineData(LotteryTheme.StarSummon, 1920, 1080, Grade.Second)]
+    [InlineData(LotteryTheme.MechaLock, 1920, 1080, Grade.Second)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1920, 1080, Grade.Second)]
+    [InlineData(LotteryTheme.StarSummon, 1920, 1080, Grade.Third)]
+    [InlineData(LotteryTheme.MechaLock, 1920, 1080, Grade.Third)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1920, 1080, Grade.Third)]
+    [InlineData(LotteryTheme.StarSummon, 1080, 1920, Grade.Grand)]
+    [InlineData(LotteryTheme.MechaLock, 1080, 1920, Grade.Grand)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1080, 1920, Grade.Grand)]
+    [InlineData(LotteryTheme.StarSummon, 1080, 1920, Grade.Second)]
+    [InlineData(LotteryTheme.MechaLock, 1080, 1920, Grade.Second)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1080, 1920, Grade.Second)]
+    [InlineData(LotteryTheme.StarSummon, 1080, 1920, Grade.Third)]
+    [InlineData(LotteryTheme.MechaLock, 1080, 1920, Grade.Third)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1080, 1920, Grade.Third)]
+    public async Task Pinned_pool_entrance_only_follows_this_pages_completed_draw(LotteryTheme theme, int width, int height, Grade grade)
     {
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
         var lottery = h.Client.Lottery;
+        lottery.SelectTheme(theme);
         await SeedPinnedPoolAsync(page, includeNewest: false);
         lottery.SetPinnedResults(true);
         await ReloadAtCoreTimeAsync(page);
@@ -94,7 +112,7 @@ public sealed partial class LotteryBrowserTests
             await FreezePinnedAsync(browser, milliseconds);
             await browser.ScreenshotAsync($"{width}-pinned-arrive-{grade}-{milliseconds}");
             if (width == 1920)
-                await ComparePinnedReferenceAsync(page, grade == Grade.Grand ? "NA1-ArriveSummonBig" : grade == Grade.Second ? "NB1-ArriveSummonSecond" : "NC1-ArriveSummonThird", width, height, milliseconds);
+                await ComparePinnedReferenceAsync(page, PinnedReference(theme, grade == Grade.Grand ? "NA" : grade == Grade.Second ? "NB" : "NC"), width, height, milliseconds);
         }
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "advance", budget = 6100 });
         await browser.WaitAsync("!document.getElementById('pinned').classList.contains('st-arrive')");
@@ -103,18 +121,24 @@ public sealed partial class LotteryBrowserTests
     }
 
     [Theory]
-    [InlineData(1920, 1080)]
-    [InlineData(1080, 1920)]
-    public async Task Pinned_entry_groups_results_only_after_closing_the_full_overlay(int width, int height)
+    [InlineData(LotteryTheme.StarSummon, 1920, 1080)]
+    [InlineData(LotteryTheme.StarSummon, 1080, 1920)]
+    [InlineData(LotteryTheme.MechaLock, 1920, 1080)]
+    [InlineData(LotteryTheme.MechaLock, 1080, 1920)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1920, 1080)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1080, 1920)]
+    public async Task Pinned_entry_groups_results_only_after_closing_the_full_overlay(LotteryTheme theme, int width, int height)
     {
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
         var lottery = h.Client.Lottery;
+        lottery.SelectTheme(theme);
         lottery.SetPinnedResults(true); lottery.New(LotteryMode.Entry);
-        lottery.StartEntry([new("一等奖", "机械键盘", 1, Grade.Grand), new("二等奖", "周边抱枕", 2, Grade.Second), new("三等奖", "签名照", 4, Grade.Third)], "抽奖");
-        await h.PushAndCollectAsync(page.Watch, Enumerable.Range(1, 7).Select(i => Message(i, $"观众{i}星河入梦")).ToArray());
+        var total = theme == LotteryTheme.StarSummon ? 7 : 6;
+        lottery.StartEntry([new("一等奖", "机械键盘", 1, Grade.Grand), new("二等奖", "周边抱枕", 2, Grade.Second), new("三等奖", "签名照", total - 3, Grade.Third)], "抽奖");
+        await h.PushAndCollectAsync(page.Watch, Enumerable.Range(1, total).Select(i => Message(i, $"观众{i}星河入梦")).ToArray());
         lottery.CloseEntries();
-        for (var i = 0; i < 7; i++) { lottery.DrawEntry(i == 0 ? 0 : i < 3 ? 1 : 2); h.Time.Advance(LotteryController.DrawDuration); }
+        for (var i = 0; i < total; i++) { lottery.DrawEntry(i == 0 ? 0 : i < 3 ? 1 : 2); h.Time.Advance(LotteryController.DrawDuration); }
         lottery.EndEntry();
         await ReloadAtCoreTimeAsync(page);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'winners'");
@@ -126,7 +150,7 @@ public sealed partial class LotteryBrowserTests
         Assert.False((await browser.EvaluateAsync("document.getElementById('pinned').classList.contains('st-arrive')")).GetBoolean());
         await AssertPinnedLayoutAsync(browser, width, height);
         await browser.ScreenshotAsync($"{width}-pinned-entry");
-        await ComparePinnedReferenceAsync(page, "NG4-PageEntrySummon", width, height, 3000, matchEntryNames: true);
+        await ComparePinnedReferenceAsync(page, theme == LotteryTheme.StarSummon ? "NG4-PageEntrySummon" : PinnedReference(theme, "ND"), width, height, 3000, matchEntryNames: true);
         var draw = Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws[0];
         lottery.SetDrawHiddenFromStream(draw.Id, true);
         await browser.WaitAsync("document.querySelector('.rb-group.is-hiding')");
@@ -138,6 +162,25 @@ public sealed partial class LotteryBrowserTests
         lottery.SetEntryHidden(false);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'winners'");
         Assert.Empty(browser.Errors);
+    }
+
+    private static string PinnedReference(LotteryTheme theme, string scene)
+    {
+        var (number, name) = theme switch
+        {
+            LotteryTheme.MechaLock => (2, "Mecha"),
+            LotteryTheme.CapsuleGacha => (3, "Gacha"),
+            _ => (1, "Summon"),
+        };
+        return scene switch
+        {
+            "RB" => number == 1 ? "RB1-PinBoard" : $"RB{number}-Pin{name}",
+            "NP" => $"NP{number}-PinPortrait{name}",
+            "ND" => $"ND{number}-PinEntry{name}",
+            "NA" => $"NA{number}-Arrive{name}Big",
+            "NB" => $"NB{number}-Arrive{name}Second",
+            _ => $"NC{number}-Arrive{name}Third",
+        };
     }
 
     private static async Task SeedPinnedPoolAsync(PageSession page, bool includeNewest = true)
