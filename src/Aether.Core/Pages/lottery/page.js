@@ -55,6 +55,7 @@ const themes = {
     banner:({entry, title, viewer}) => entry ? `扭出 ${title} 中奖者！` : viewer ? `${viewer} 来扭蛋啦！` : '来扭蛋啦！',
     shout:grade => ({Grand:'大奖!!',Second:'POP!',Third:'pop'})[grade],
     winners:['中奖啦！','已经扭出来的'],
+    pinned:{title:'中奖啦！', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 颗`},
     closed:'报名截止啦',
     // Name tags line up behind one capsule and award per row.
     group:(draws, cards) => {
