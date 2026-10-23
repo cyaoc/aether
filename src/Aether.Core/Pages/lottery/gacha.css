@@ -9,7 +9,7 @@
 [data-theme="CapsuleGacha"] .Second { --main:#ff7aae; --tint:#ffe3ee; --tier:#b23a73; --a:rgba(255,122,174,.5); --glow:rgba(255,122,174,.9); --sun-size:900px; --sun-a:#ffb3cf; --sun-b:#ffe6f0; --burst-fill:#ffe3ee; }
 [data-theme="CapsuleGacha"] .Third { --main:#5fd3b0; --tint:#ddf7ee; --tier:#1f7a60; --a:rgba(95,211,176,.45); --glow:rgba(95,211,176,.85); --sun-size:720px; --sun-a:#a8ebd6; --sun-b:#e6faf3; --burst-fill:#e6faf3; }
 [data-theme="CapsuleGacha"] .gold,[data-theme="CapsuleGacha"] .rank { background:none; -webkit-text-fill-color:currentColor; color:var(--ink); filter:none; }
-[data-theme="CapsuleGacha"] #themeTitle,[data-theme="CapsuleGacha"] #joinLabel,[data-theme="CapsuleGacha"] #winnerTitle,[data-theme="CapsuleGacha"] #awardsTitle,[data-theme="CapsuleGacha"] #shout { color:#ff7aae; filter:none; text-shadow:3px 0 var(--ink),-3px 0 var(--ink),0 3px var(--ink),0 -3px var(--ink),2px 2px var(--ink),-2px 2px var(--ink),2px -2px var(--ink),-2px -2px var(--ink),6px 6px var(--ink); }
+[data-theme="CapsuleGacha"] #themeTitle,[data-theme="CapsuleGacha"] #joinLabel,[data-theme="CapsuleGacha"] #winnerTitle,[data-theme="CapsuleGacha"] #awardsTitle,[data-theme="CapsuleGacha"] #shout,[data-theme="CapsuleGacha"] #pinnedTitle { color:#ff7aae; filter:none; text-shadow:3px 0 var(--ink),-3px 0 var(--ink),0 3px var(--ink),0 -3px var(--ink),2px 2px var(--ink),-2px 2px var(--ink),2px -2px var(--ink),-2px -2px var(--ink),6px 6px var(--ink); }
 [data-theme="CapsuleGacha"] #entryBar,[data-theme="CapsuleGacha"] #awards,[data-theme="CapsuleGacha"] #winners { border:5px solid var(--ink); background:var(--paper); box-shadow:8px 8px var(--ink); border-radius:40px; }
 [data-theme="CapsuleGacha"] #entryBar { top:790px; height:250px; gap:30px; padding:0 40px; }
 [data-theme="CapsuleGacha"] .condition { width:620px; gap:2px; }
@@ -61,7 +61,9 @@
 [data-theme="CapsuleGacha"] .foot.left { left:60px; }
 [data-theme="CapsuleGacha"] .foot.right { left:270px; }
 [data-theme="CapsuleGacha"] .gachaStar,[data-theme="CapsuleGacha"] .gachaHeart { position:absolute; animation:gachaFloat 3s ease-in-out infinite alternate; }
-[data-theme="CapsuleGacha"] .gachaStar { left:-40px; top:30px; }
+[data-theme="CapsuleGacha"] .gachaStar { left:-40px; top:30px; color:#ffd45e; }
+/* The ID also matches the path cloned by <use>, where the scene ancestor selector cannot match. */
+#gachaStarShape { fill:currentColor; }
 [data-theme="CapsuleGacha"] .gachaHeart { left:400px; top:120px; animation-delay:.9s; }
 [data-theme="CapsuleGacha"] .drawing .gachaStar,[data-theme="CapsuleGacha"] .drawing .gachaHeart { display:none; }
 @keyframes gachaFloat { from { transform:rotate(-6deg); } to { transform:translateY(-12px) rotate(6deg); } }
@@ -237,3 +239,34 @@
 [data-theme="CapsuleGacha"][data-orientation="portrait"] .gachaPopSticker:after { inset:8px; }
 [data-theme="CapsuleGacha"][data-orientation="portrait"] .Second .gachaPopSticker { left:605px; top:343px; width:320px; height:230px; }
 [data-theme="CapsuleGacha"][data-orientation="portrait"] .Third .gachaPopSticker { left:585px; top:357px; width:230px; height:170px; }
+
+/* RB3 / NA3–NC3 / ND3 / NP3: the shared pinned rows become capsule stickers. */
+[data-theme="CapsuleGacha"] #pinned { font-family:inherit; }
+[data-theme="CapsuleGacha"] #pinned .rb-head { padding:4px 28px; border:5px solid var(--ink); border-radius:40px; background:var(--paper); box-shadow:6px 6px var(--ink); }
+[data-theme="CapsuleGacha"] #pinned .rb-count { font-size:36px; color:#7a5a7e; }
+[data-theme="CapsuleGacha"] #pinned .rb-row { border:4px solid var(--ink); border-radius:32px; background:var(--tint); box-shadow:5px 5px var(--ink); }
+[data-theme="CapsuleGacha"] #pinned .rb-badge { width:68px; height:68px; border:4px solid var(--ink); border-radius:50%; background:linear-gradient(var(--main) 46%,var(--ink) 46% 54%,white 54%); }
+[data-theme="CapsuleGacha"] #pinned .rb-who { color:#7a5a7e; }
+[data-theme="CapsuleGacha"] #pinned .rb-name { border:3px solid var(--ink); border-radius:999px; background:white; }
+[data-theme="CapsuleGacha"] #pinned .rb-pgs>span { padding:0 12px; border:3px solid var(--ink); border-radius:999px; background:white; font-size:30px; line-height:40px; }
+[data-theme="CapsuleGacha"] #pinned .fx-ring { border:7px solid var(--main); box-shadow:0 0 0 4px var(--ink); }
+[data-theme="CapsuleGacha"] #pinned .fx-star svg,[data-theme="CapsuleGacha"] #pinned .fx-tw svg { color:var(--main); stroke:var(--ink); stroke-width:1.6; stroke-linejoin:round; }
+[data-theme="CapsuleGacha"] #pinned .fx-tw { left:96px; top:6px; margin:0; }
+[data-theme="CapsuleGacha"] #pinned .shape-sum,[data-theme="CapsuleGacha"] #pinned .fx-sweep { display:none; }
+[data-theme="CapsuleGacha"] #pinned .shape-gacha { display:block; }
+[data-theme="CapsuleGacha"] #pinned .Grand.amb .rb-badge { animation:rbWiggle 8s infinite; animation-delay:var(--d); }
+[data-theme="CapsuleGacha"] #pinned .Grand.amb .fx-tw.t1 { animation:rbSticker 8s infinite; animation-delay:var(--d); }
+@keyframes rbWiggle { 0%,100% { transform:none; } 2% { transform:rotate(-16deg); } 4% { transform:rotate(14deg); } 6% { transform:rotate(-8deg); } 8% { transform:rotate(4deg); } 10% { transform:none; } }
+@keyframes rbSticker { 0%,3% { opacity:0; transform:scale(0) rotate(-30deg); } 7% { opacity:1; transform:scale(1.15) rotate(8deg); } 9% { transform:scale(1) rotate(0deg); } 22% { opacity:1; transform:scale(1); } 26%,100% { opacity:0; transform:scale(.6); } }
+[data-theme="CapsuleGacha"] #pinned.st-arrive .is-new.Grand { animation:rbPopBig 6s both; }
+[data-theme="CapsuleGacha"] #pinned.st-arrive .is-new.Second { animation:rbPopMid 6s both; }
+[data-theme="CapsuleGacha"] #pinned.st-arrive .is-new.Third { animation:rbPopSmall 6s both; }
+[data-theme="CapsuleGacha"] #pinned.st-arrive .is-new.Grand .rb-badge,[data-theme="CapsuleGacha"] #pinned.st-arrive .is-new.Second .rb-badge { animation:rbDrop 6s both; }
+[data-theme="CapsuleGacha"] #pinned.st-arrive .is-new.Grand .fx-conf { animation:rbBurst 6s both; }
+[data-theme="CapsuleGacha"] #pinned.st-arrive .is-new.Second .fx-heart { animation:rbHeartOnce 6s both; }
+[data-theme="CapsuleGacha"] #pinned.st-arrive .is-new.Second .fx-heart.h2 { animation-delay:.25s; }
+@keyframes rbPopBig { 0%,9% { opacity:0; transform:scale(.5); } 15% { opacity:1; transform:scale(1.1); } 19% { transform:scale(.97); } 22%,100% { opacity:1; transform:none; } }
+@keyframes rbPopMid { 0%,9% { opacity:0; transform:scale(.7); } 15% { opacity:1; transform:scale(1.06); } 19%,100% { opacity:1; transform:none; } }
+@keyframes rbPopSmall { 0%,9% { opacity:0; transform:scale(.85); } 16%,100% { opacity:1; transform:none; } }
+@keyframes rbDrop { 0%,9% { transform:translateY(-220px); } 15% { transform:none; } 18% { transform:translateY(-36px); } 21% { transform:none; } 23% { transform:translateY(-10px); } 25%,100% { transform:none; } }
+@keyframes rbHeartOnce { 0%,16% { opacity:0; transform:translateY(0) scale(.6); } 20% { opacity:1; transform:translateY(-24px) scale(1); } 40%,100% { opacity:0; transform:translateY(-110px) scale(1); } }
