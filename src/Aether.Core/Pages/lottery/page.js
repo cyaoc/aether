@@ -17,6 +17,7 @@ const themes = {
     viewer:({entry, prize, viewer}) => entry ? prize : viewer,
     banner:({entry, title, viewer}) => entry ? `正在召唤 · ${title}` : viewer ? `${viewer} 发起召唤！` : '星辰召唤',
     winners:['召唤结果','目前的召唤结果'],
+    pinned:{title:'召唤结果', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 次`},
     award:award => award.name,
     particles:starSummon,
   },
@@ -78,7 +79,8 @@ const themes = {
 };
 const theme = () => themes[scene.dataset.theme] || themes.StarSummon;
 const starIcon = '<svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3-6.2-4.5-6.2 4.5 2.4-7.3L2 9.2h7.6z"/></svg>';
-let shown = '', latestState, hiding, paging, repageWinners, scanning, frame, fitting = [], portrait = false;
+let shown = '', hiding, paging, repageWinners, scanning, frame, fitting = [], portrait = false;
+let latestState, drawing, pinnedLottery, pinnedRows = new Map(), pinnedGroups = new Map(), pinnedPage = 0;
 const canvas = byId('particles'), context = canvas.getContext('2d');
 function resize() {
   const wasPortrait = portrait;
@@ -109,39 +111,52 @@ function fitAll() {
   // Gacha tilts a banner wider than 780px less, so its ends rise no higher than a 780px one's; a hidden banner measures 0 and keeps 1.
   byId('banner').style.setProperty('--tilt-scale', Math.min(1, 780 / byId('banner').offsetWidth));
 }
-document.fonts.ready.then(fitAll);
-document.fonts.addEventListener('loadingdone', fitAll);
-function clear() {
+const fontsLoaded = () => {
+  fitAll();
+  // Only grouped names wrap; pool rows have fixed heights, including during their entrance.
+  if (!byId('pinned').hidden && pinnedLottery?.mode === 'Entry') repageWinners?.();
+};
+document.fonts.ready.then(fontsLoaded);
+document.fonts.addEventListener('loadingdone', fontsLoaded);
+function clear(keepPinned = false) {
   clearTimeout(hiding); clearInterval(paging); clearInterval(scanning); cancelAnimationFrame(frame);
-  repageWinners = undefined;
+  repageWinners = undefined; drawing = undefined;
+  if (!keepPinned) { pinnedLottery = undefined; pinnedRows.clear(); pinnedGroups.clear(); pinnedPage = 0; }
   scene.hidden = true; summon.className = ''; fitting = [];
-  for (const id of ['registration','summon','winners']) byId(id).hidden = true;
+  for (const id of ['registration','summon','winners','pinned']) byId(id).hidden = true;
   context.clearRect(0, 0, canvas.width, canvas.height);
 }
 function view(name) {
   scene.hidden = false; scene.dataset.view = name;
   byId(name === 'drawing' || name === 'spinning' ? 'summon' : name).hidden = false;
 }
-function show(state) {
-  const previous = latestState;
+function show(state, completedDraw) {
+  const previousState = latestState;
   latestState = state;
-  scene.dataset.theme = state.theme || 'StarSummon';
+  const themeName = state.theme || 'StarSummon';
   const lottery = state.lottery;
   const entry = lottery?.mode === 'Entry' ? lottery : null, pool = lottery?.mode === 'Pool' ? lottery : null;
-  const draw = lottery?.draws.at(-1), remaining = Date.parse(lottery?.drawUntil) - Date.now();
-  // Repeated state snapshots must not restart a draw, including on a room reconnect.
-  const key = lottery ? [state.theme,lottery.id,lottery.phase,lottery.draws.length,lottery.draws.at(-1)?.id,
-    remaining > 0 ? lottery.drawUntil : '',lottery.entryCount,lottery.hidden,
+  const remaining = Date.parse(lottery?.drawUntil) - Date.now();
+  // Expired server deadlines and the local expiry callback describe the same view.
+  const deadline = remaining > 0 ? lottery.drawUntil : '';
+  const key = lottery ? [themeName,lottery.id,lottery.phase,lottery.draws.length,lottery.draws.at(-1)?.id,
+    deadline,lottery.entryCount,lottery.hidden,!!state.pinnedResults,!!state.isExamplePlaying,
     lottery.draws.map(draw => `${draw.id}:${!!draw.hiddenFromStream}`).join(',')].join(' ') : '';
-  if (key === shown) return;
+  if (key === shown && !completedDraw) return;
   shown = key;
-  // Visibility changes affect the following list, not the draw already on screen.
-  if (!scene.hidden && scene.dataset.view === 'drawing' && remaining > 0 &&
-      previous?.theme === state.theme && previous.lottery?.id === lottery.id &&
-      previous.lottery.phase === lottery.phase && previous.lottery.hidden === lottery.hidden &&
-      previous.lottery.drawUntil === lottery.drawUntil && previous.lottery.draws.at(-1)?.id === draw?.id) return;
-  clear();
-  if (!lottery || entry?.hidden || entry?.phase === 'Preparing' || pool?.phase === 'Idle' && !pool.drawUntil) return;
+  const draw = lottery?.draws.at(-1);
+  const drawKey = draw && deadline ? [themeName,lottery.id,draw.id,deadline].join(' ') : '';
+  const drawFrame = lottery && [themeName,lottery.id,lottery.phase,lottery.hidden,draw?.id,!!state.isExamplePlaying].join(' ');
+  // A visibility or pin change does not restart the reveal; expiry uses the latest snapshot.
+  if (!completedDraw && drawing?.frame === drawFrame && (drawKey === drawing.key || !deadline)) return;
+  const canPin = state.pinnedResults && !state.isExamplePlaying && !deadline &&
+    (pool?.phase === 'Idle' || entry?.phase === 'Ended' && entry.hidden);
+  const keepPinned = canPin && !byId('pinned').hidden && scene.dataset.theme === themeName && pinnedLottery?.id === lottery.id;
+  scene.dataset.theme = themeName;
+  clear(keepPinned);
+  if (!lottery || entry?.phase === 'Preparing') return;
+  if (canPin) { showPinned(lottery, completedDraw, previousState?.lottery); return; }
+  if (entry?.hidden || pool?.phase === 'Idle' && !deadline) return;
   if (entry?.phase === 'Open') {
     view('registration');
     const t = theme();
@@ -171,8 +186,9 @@ function show(state) {
     return;
   }
   if (draw && remaining > 0) {
+    drawing = { key:drawKey, frame:drawFrame };
     drawResult(draw, !!entry);
-    hiding = setTimeout(() => show({ ...latestState, lottery:{...latestState.lottery,drawUntil:null} }), remaining);
+    hiding = setTimeout(() => show(latestState, draw.id), remaining);
     return;
   }
   if (entry) showWinners(entry);
@@ -244,13 +260,8 @@ function showWinners(lottery) {
     byId('winnerCards').replaceChildren();
     byId('pageNumber').textContent = lottery.phase === 'Ended' ? '本场没有开奖' : '等待开奖'; return;
   }
-  // Six winners a page. Grouped rows also stop at three awards, and a portrait page gives a name's room to the remaining-places line.
-  const limit = t.group && portrait && lottery.phase !== 'Ended' ? 5 : 6, pages = [];
-  for (const draw of winners) {
-    const last = pages.at(-1);
-    if (last?.length < limit && (!t.group || new Set([...last, draw].map(d => d.awardIndex)).size <= 3)) last.push(draw);
-    else pages.push([draw]);
-  }
+  // A portrait grouped page gives a name's room to the remaining-places line.
+  const pages = winnerPages(winners, t.group && portrait && lottery.phase !== 'Ended' ? 5 : 6, t.group ? 3 : Infinity);
   let page = 0;
   const render = () => {
     fitting = [];
@@ -267,6 +278,110 @@ function showWinners(lottery) {
     fitAll(); page = (page + 1) % pages.length;
   };
   render(); if (pages.length > 1) paging = setInterval(render,5000);
+}
+function winnerPages(draws, limit = 6, groups = 3) {
+  const pages = [];
+  for (const draw of draws) {
+    const last = pages.at(-1);
+    if (last?.length < limit && new Set([...last, draw].map(d => d.awardIndex)).size <= groups) last.push(draw);
+    else pages.push([draw]);
+  }
+  return pages;
+}
+const pinnedStar = '<svg class="shape-sum" viewBox="0 0 24 24"><use href="#gachaSparkleShape"/></svg><svg class="shape-gacha" viewBox="0 0 24 24"><use href="#gachaStarShape"/></svg>';
+const pinnedEffects = '<span class="fx-clip"><i class="fx-sweep"></i><i class="fx-scan"></i><i class="fx-flash"></i><i class="fx-haz"></i></span><i class="fx-ring"></i>'
+  + Array.from({length:6},(_,i) => `<span class="fx-star s${i+1}">${pinnedStar}</span>`).join('')
+  + [1,2].map(i => `<span class="fx-tw t${i}">${pinnedStar}</span><svg class="fx-heart h${i}" viewBox="0 0 24 24"><use href="#gachaHeartShape"/></svg>`).join('')
+  + [1,2,3,4].map(i => `<i class="fx-conf c${i}"></i><i class="fx-br b${i}"></i>`).join('');
+function showPinned(lottery, completedDraw, previousLottery) {
+  clearTimeout(hiding); clearInterval(paging);
+  const entry = lottery.mode === 'Entry', t = theme(), words = t.pinned || themes.StarSummon.pinned;
+  const visible = lottery.draws.filter(draw => !draw.hiddenFromStream);
+  const draws = entry ? lottery.awards.flatMap((_, index) => visible.filter(draw => draw.awardIndex === index)) : visible.toReversed();
+  const oldNodes = pinnedRows, oldGroups = pinnedGroups, oldRows = [...byId('pinnedRows').children];
+  const oldIds = new Set(oldNodes.keys());
+  const hiddenIds = new Set(lottery.draws.filter(draw => draw.hiddenFromStream).map(draw => draw.id));
+  const removed = [...pinnedRows].filter(([id]) => hiddenIds.has(id));
+  if (!draws.length && !removed.length) return;
+  const previous = pinnedLottery;
+  const restored = previousLottery?.id === lottery.id && previousLottery.draws.some(old => old.hiddenFromStream && visible.some(draw => draw.id === old.id));
+  const pages = entry ? winnerPages(draws) : Array.from({length:Math.ceil(draws.length / 5)}, (_, index) => draws.slice(index * 5, index * 5 + 5));
+  view('pinned');
+  const board = byId('pinned');
+  let arriving = !entry && visible.some(draw => draw.id === completedDraw);
+  board.className = `rb ${entry ? 'm-entry' : 'm-pool'} ${arriving ? 'st-arrive' : previous || restored ? '' : 'st-enter'}`;
+  byId('pinnedTitle').textContent = words.title;
+  byId('pinnedTag').textContent = words.tag || '';
+  byId('pinnedCount').textContent = words.count(draws.length, entry);
+  board.dataset.paging = pages.length > 1;
+  const newResult = previous && lottery.draws.some(draw => !previous.draws.some(old => old.id === draw.id));
+  pinnedPage = previous && !newResult ? Math.min(pinnedPage,pages.length - 1) : 0;
+  pinnedLottery = lottery;
+  const render = (fill = false) => {
+    if (!draws.length) { clear(); return; }
+    const rows = [], nodes = new Map(), groups = new Map();
+    let list;
+    pages[pinnedPage].forEach((draw, index) => {
+      const prize = entry ? draw.award : draw.prize, grade = prize.grade;
+      let row;
+      if (!entry || draw.awardIndex !== pages[pinnedPage][index - 1]?.awardIndex) {
+        row = text(`rb-row ${grade}${entry ? ' rb-group' : ''}${grade === 'Grand' && !(arriving && draw.id === completedDraw) ? ' amb' : ''}${arriving && draw.id === completedDraw ? ' is-new' : ''}${!entry && fill && !oldIds.has(draw.id) ? ' is-fill' : ''}`, '');
+        row.style.setProperty('--d', `${-(rows.length * 2.6) % 8}s`);
+        const label = text('rb-text', '');
+        label.append(text('rb-prize',entry ? `${prize.name} · ${prize.prize}` : prize.name));
+        if (entry) { list = text('rb-names', ''); label.append(list); groups.set(draw.awardIndex,row); }
+        else label.append(text('rb-who',draw.nickname || (draw.uid ? `UID ${draw.uid}` : '主播点停')));
+        const effects = text('rb-fx','');
+        effects.innerHTML = pinnedEffects;
+        effects.append(text('fx-new',`NEW · ${t.ranks[grade]}`));
+        row.append(text('rb-badge',t.ranks[grade]),label,effects);
+        rows.push(row);
+      }
+      if (entry) { const name = text(`rb-name${fill && !oldIds.has(draw.id) ? ' is-fill' : ''}`,draw.winner.nickname); list.append(name); nodes.set(draw.id,name); }
+      else nodes.set(draw.id,row);
+    });
+    byId('pinnedRows').replaceChildren(...rows);
+    byId('pinnedRows').className = 'rb-page';
+    void byId('pinnedRows').offsetWidth;
+    if (pages.length > 1) byId('pinnedRows').className += ' paging';
+    byId('pinnedPageNumber').textContent = pages.length > 1 ? `${pinnedPage + 1} / ${pages.length}` : '';
+    byId('pinnedPageSize').textContent = `${pages.length} / ${pages.length}`;
+    byId('pinnedPageLabels').hidden = pages.length <= 1;
+    pinnedRows = nodes; pinnedGroups = groups;
+  };
+  repageWinners = () => showPinned(lottery);
+  let height = entry ? 0 : 548;
+  const selectedPage = pinnedPage;
+  for (let index = 0; index < pages.length; index++) {
+    pinnedPage = index; render(); height = Math.max(height,byId('pinnedRows').offsetHeight || 0);
+  }
+  pinnedPage = selectedPage;
+  byId('pinnedPages').style.height = `${height}px`;
+  const startPaging = () => {
+    if (pages.length > 1) paging = setInterval(() => { pinnedPage = (pinnedPage + 1) % pages.length; render(); },8000);
+  };
+  if (removed.length) {
+    byId('pinnedRows').replaceChildren(...oldRows);
+    byId('pinnedRows').className = 'rb-page';
+    pinnedRows = oldNodes; pinnedGroups = oldGroups;
+    board.className = `rb ${entry ? 'm-entry' : 'm-pool'}`;
+    for (const [,node] of removed) node.className += ' is-hiding';
+    if (entry) for (const [index, row] of pinnedGroups) {
+      if (!visible.some(draw => draw.awardIndex === index)) {
+        row.style.setProperty('--row-height',`${row.offsetHeight}px`);
+        row.className += ' is-hiding';
+      }
+    }
+    hiding = setTimeout(() => { render(true); startPaging(); },1320);
+  } else { render(); startPaging(); }
+  if (arriving) hiding = setTimeout(() => {
+    arriving = false;
+    board.className = board.className.replace(' st-arrive','');
+    for (const node of pinnedRows.values()) {
+      node.className = node.className.replace(' is-new','');
+      if (node.className.includes('Grand') && !node.className.includes(' amb')) node.className += ' amb';
+    }
+  },6000);
 }
 const idleColors = ['#ffe7a8','#c59bff','#7cc4ff'];
 const burstColors = { Grand:['#fff','#fff1c2','#ffd36b','#e8a93a'], Second:['#fff','#e3d2ff','#c59bff','#9f7bff'], Third:['#fff','#cdebff','#7cc4ff'] };

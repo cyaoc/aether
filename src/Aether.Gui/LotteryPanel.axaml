@@ -216,8 +216,9 @@
         </Border>
       </Grid>
       <Border Grid.Column="1" Width="280" Background="{DynamicResource Surface.Aside}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
-        <Grid RowDefinitions="Auto,Auto,*">
-          <Border x:Name="LatestCard" IsVisible="{Binding Lottery.ShowLatestPoolDraw}" Margin="16,16,16,4" Padding="12" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource Accent}" Background="{DynamicResource Accent.Flash}">
+        <Grid RowDefinitions="Auto,Auto,Auto,*">
+          <local:LotteryPinnedResultsToggle x:Name="PoolPinnedResults" Margin="16,16,16,4" />
+          <Border Grid.Row="1" x:Name="LatestCard" IsVisible="{Binding Lottery.ShowLatestPoolDraw}" Margin="16,16,16,4" Padding="12" CornerRadius="8" BorderThickness="1" BorderBrush="{DynamicResource Accent}" Background="{DynamicResource Accent.Flash}">
             <StackPanel Spacing="4">
               <TextBlock x:Name="LatestHead" Classes="caption muted singleLine" Text="{Binding Lottery.LatestPoolDrawHead}" />
               <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
@@ -226,7 +227,7 @@
               </Grid>
             </StackPanel>
           </Border>
-          <Grid Grid.Row="1" Classes="lotteryResultsHeader" ColumnDefinitions="*,Auto">
+          <Grid Grid.Row="2" Classes="lotteryResultsHeader" ColumnDefinitions="*,Auto">
             <StackPanel Spacing="2">
               <TextBlock Classes="section" Text="开奖记录" />
               <TextBlock x:Name="DrawCount" Classes="caption muted numeric singleLine" Text="{Binding Lottery.PoolDrawCountText}" />
@@ -234,7 +235,7 @@
             <Button Grid.Column="1" x:Name="HideAllDrawsButton" Classes="hideAllDraws" Content="全部不挂出"
               IsEnabled="{Binding Lottery.CanHideAllDraws}" Command="{Binding Lottery.HideAllDrawsCommand}" />
           </Grid>
-          <Panel Grid.Row="2">
+          <Panel Grid.Row="3">
             <TextBlock x:Name="EmptyHistory" Classes="hint" Text="暂无开奖记录" IsVisible="{Binding Lottery.IsPoolDrawsEmpty}" Margin="16,0" />
             <ScrollViewer HorizontalScrollBarVisibility="Disabled">
               <ItemsControl x:Name="HistoryRows" ItemsSource="{Binding Lottery.PoolDraws}">

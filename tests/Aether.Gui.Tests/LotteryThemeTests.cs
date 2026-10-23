@@ -11,6 +11,39 @@ namespace Aether.Gui.Tests;
 
 public sealed class LotteryThemeTests
 {
+    [Fact]
+    public Task Both_panels_share_pinned_results_and_explain_what_will_be_shown() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var panel = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = panel, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            LotteryPinnedResultsToggle[] controls = [panel.FindControl<LotteryPinnedResultsToggle>("PoolPinnedResults")!,
+                panel.FindControl<EntryLotteryPanel>("EntryContent")!.FindControl<LotteryPinnedResultsToggle>("EntryPinnedResults")!];
+            Assert.All(controls, control =>
+            {
+                Assert.False(control.FindControl<ToggleSwitch>("PinnedInput")!.IsChecked);
+                Assert.Equal("默认关；打开前可以先点‘全部不挂出’", control.FindControl<TextBlock>("Hint")!.Text);
+            });
+            controls[0].FindControl<ToggleSwitch>("PinnedInput")!.IsChecked = true;
+            GuiHarness.Flush();
+            Assert.True(vm.Lottery.LotteryState.PinnedResults);
+            Assert.All(controls, control =>
+            {
+                Assert.True(control.FindControl<ToggleSwitch>("PinnedInput")!.IsChecked);
+                Assert.Equal("下面没变灰的，就是直播画面上挂着的", control.FindControl<TextBlock>("Hint")!.Text);
+            });
+            controls[1].FindControl<ToggleSwitch>("PinnedInput")!.IsChecked = false;
+            GuiHarness.Flush();
+            Assert.All(controls, control => Assert.False(control.FindControl<ToggleSwitch>("PinnedInput")!.IsChecked));
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData("MechaLock")]
     [InlineData("CapsuleGacha")]

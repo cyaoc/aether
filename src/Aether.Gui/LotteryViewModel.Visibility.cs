@@ -5,6 +5,19 @@ namespace Aether.Gui;
 
 public partial class LotteryViewModel
 {
+    public bool PinnedResults
+    {
+        get => LotteryState.PinnedResults;
+        set
+        {
+            if (value == PinnedResults) return;
+            client.Lottery.SetPinnedResults(value);
+            Apply(new LotteryUpdate(client.Lottery.State));
+        }
+    }
+
+    public string PinnedResultsHint => PinnedResults ? "下面没变灰的，就是直播画面上挂着的" : "默认关；打开前可以先点‘全部不挂出’";
+
     private IAsyncRelayCommand? hideAllDrawsCommand;
     public IAsyncRelayCommand HideAllDrawsCommand => hideAllDrawsCommand ??= new AsyncRelayCommand(
         () => CanHideAllDraws ? ChangeDrawVisibilityAsync(lottery => lottery.HideAllDrawsFromStream()) : Task.CompletedTask);

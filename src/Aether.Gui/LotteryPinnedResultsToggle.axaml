@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPinnedResultsToggle" x:DataType="local:MainWindowViewModel">
+  <StackPanel Spacing="6">
+    <Grid ColumnDefinitions="*,Auto">
+      <TextBlock Classes="section" Text="常挂到直播画面" VerticalAlignment="Center" />
+      <ToggleSwitch Grid.Column="1" x:Name="PinnedInput" Classes="plain" IsChecked="{Binding Lottery.PinnedResults, Mode=TwoWay}" AutomationProperties.Name="常挂到直播画面" />
+    </Grid>
+    <TextBlock x:Name="Hint" Classes="hint" Text="{Binding Lottery.PinnedResultsHint}" />
+  </StackPanel>
+</UserControl>
