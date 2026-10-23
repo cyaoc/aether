@@ -524,6 +524,21 @@
   <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:disabled PathIcon">
     <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
   </Style>
+  <Style Selector="FlyoutPresenter">
+    <Setter Property="ClipToBounds" Value="False" />
+    <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="16" />
+    <Setter Property="Margin" Value="{StaticResource PopupShadowSpace}" />
+  </Style>
+  <Style Selector="FlyoutPresenter /template/ Border#LayoutRoot">
+    <Setter Property="BoxShadow" Value="{DynamicResource PopupShadow}" />
+  </Style>
+  <Style Selector="MenuFlyoutPresenter MenuItem.chosen /template/ Border#PART_LayoutRoot">
+    <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+  </Style>
   <Style Selector="MenuFlyoutPresenter">
     <Setter Property="ClipToBounds" Value="False" />
     <Setter Property="Background" Value="{DynamicResource Surface.Card}" />

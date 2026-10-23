@@ -21,6 +21,45 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_pool_prize_set_menu_and_save(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory)
+                { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = 4;
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery())));
+                await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末福利");
+                var picker = window.GetVisualDescendants().OfType<LotteryPrizeSetPicker>().Single();
+                var load = picker.FindControl<Button>("LoadButton")!;
+                var menu = (MenuFlyout)load.Flyout!;
+                menu.ShowAt(load);
+                GuiHarness.Flush();
+                Save(TopLevel.GetTopLevel(menu.Items.OfType<MenuItem>().First())!, $"pool-prize-sets-{(dark ? "dark" : "light")}");
+                menu.Hide();
+                var save = picker.FindControl<Button>("SaveButton")!;
+                save.Flyout!.ShowAt(save);
+                picker.FindControl<TextBox>("NameInput")!.Text = "周末福利";
+                GuiHarness.Flush();
+                Save(TopLevel.GetTopLevel(picker.FindControl<TextBox>("NameInput")!)!, $"pool-prize-set-save-{(dark ? "dark" : "light")}");
+                save.Flyout.Hide();
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
     [InlineData(1200, 720, false)]
     [InlineData(1200, 720, true)]
     [InlineData(1040, 600, false)]

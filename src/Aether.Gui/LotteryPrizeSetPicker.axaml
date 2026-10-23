@@ -1,0 +1,23 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPrizeSetPicker" x:DataType="local:MainWindowViewModel">
+  <StackPanel Orientation="Horizontal" Spacing="6">
+    <Button x:Name="LoadButton" Content="载入方案 ▾" Height="20" MinHeight="0" Padding="8,0" FontSize="12" ClickMode="Press">
+      <Button.Flyout><MenuFlyout Placement="BottomEdgeAlignedRight" /></Button.Flyout>
+    </Button>
+    <Button x:Name="SaveButton" Content="存为方案" Height="20" MinHeight="0" Padding="8,0" FontSize="12" ClickMode="Press">
+      <Button.Flyout>
+        <Flyout Placement="BottomEdgeAlignedRight">
+          <StackPanel Width="360" Spacing="12">
+            <TextBlock Classes="section" Text="存为方案" />
+            <TextBox x:Name="NameInput" PlaceholderText="给方案起个名字" AutomationProperties.Name="奖品方案名称" />
+            <TextBlock x:Name="SaveHint" Classes="caption muted singleLine" AutomationProperties.LiveSetting="Polite" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+              <Button x:Name="CancelButton" Content="取消" />
+              <Button x:Name="ConfirmButton" Classes="accent" Content="保存" />
+            </StackPanel>
+          </StackPanel>
+        </Flyout>
+      </Button.Flyout>
+    </Button>
+  </StackPanel>
+</UserControl>
