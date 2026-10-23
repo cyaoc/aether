@@ -97,6 +97,9 @@ test('pinned pages keep their eight second clock on repeats and only a completed
   p.advance(8000); assert.equal(p.element('pinnedPageNumber').textContent,'2 / 2');
   const pageTwo=p.element('pinnedRows').children[0];
   p.state(drawing); assert.equal(p.element('pinnedRows').children[0],pageTwo,'expired remote deadline does not reset paging');
+  p.advance(8000);
+  assert.doesNotMatch(p.element('pinnedRows').children[0].className,/is-new/);
+  assert.match(p.element('pinnedRows').children[0].className,/amb/,'the newest Grand resumes ambience after paging back');
   const late=page(); late.advance(30000); late.state(drawing);
   assert.doesNotMatch(late.element('pinned').className,/st-arrive/);
   assert.doesNotMatch(late.element('pinnedRows').children[0].className,/is-new/);
@@ -146,12 +149,13 @@ test('hiding a pinned result collapses it before filling, restores without tier 
   assert.doesNotMatch(p.element('pinnedRows').textContent,/UID 5/);
   assert.match(p.element('pinnedRows').textContent,/UID 1/);
   assert.match(p.element('pinnedRows').children.at(-1).className,/is-fill/);
-  show(pool); assert.doesNotMatch(p.element('pinned').className,/st-arrive/);
+  show(pool); assert.doesNotMatch(p.element('pinned').className,/st-arrive|st-enter/);
   assert.doesNotMatch(p.element('pinnedRows').children[1].className,/is-new|is-fill|is-hiding/);
   show({...pool,draws:won.map(draw=>({...draw,hiddenFromStream:true}))});
   assert.equal(p.element('pinned').hidden,false,'the last rows also fade before the board disappears');
   p.advance(1320); assert.equal(p.element('scene').hidden,true);
-  show(pool); show(hidden); show(null);
+  show(pool); assert.doesNotMatch(p.element('pinned').className,/st-arrive|st-enter/,'restoring after hiding everything also stays still');
+  show(hidden); show(null);
   p.advance(10000); assert.equal(p.element('scene').hidden,true,'old transition cannot restore cleared results');
 });
 

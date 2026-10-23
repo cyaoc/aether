@@ -268,6 +268,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 .rb-title{font-size:64px;line-height:1.15;white-space:nowrap}
 .rb-tag{display:none}
 .rb-count{margin-left:auto;font-size:34px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rb-pgs{flex-shrink:0;white-space:nowrap;font-variant-numeric:tabular-nums}
 .rb-pages{display:grid}
 .rb-page{grid-area:1/1;align-self:start;display:flex;flex-direction:column;gap:12px}
 .rb-row{position:relative;display:flex;align-items:center;gap:20px;height:100px;padding:0 24px}
@@ -303,7 +304,7 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-theme="StarSummon"] #pinned .rb-head{padding:4px 30px;border-radius:48px;border:2px solid #ffd36bb3;background:rgba(14,12,44,.92);box-shadow:0 0 30px #7c5cff59}
 [data-theme="StarSummon"] #pinned .rb-count{font-family:'PingFang SC','Microsoft YaHei UI',sans-serif;font-size:32px;color:#b9b4e0}
 [data-theme="StarSummon"] #pinned .rb-row{border-radius:18px;border:3px solid transparent;background:linear-gradient(120deg,var(--deep),#0c0a26f0 70%) padding-box,var(--frame) border-box;box-shadow:0 0 24px var(--glow)}
-[data-theme="StarSummon"] #pinned .rb-row.Third{border-width:2px}
+[data-theme="StarSummon"] #pinned .rb-row.Third{border-width:2px;box-shadow:none}
 [data-theme="StarSummon"] #pinned .rb-badge{width:96px;font-size:58px;line-height:1;background:var(--frame);-webkit-background-clip:text;background-clip:text;color:var(--light);-webkit-text-fill-color:transparent}
 [data-theme="StarSummon"] #pinned .rb-who{color:#e7d9ff}
 [data-theme="StarSummon"] #pinned .rb-name{border-radius:12px;background:rgba(255,255,255,.1)}

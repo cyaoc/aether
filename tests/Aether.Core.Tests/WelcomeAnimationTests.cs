@@ -125,7 +125,7 @@ public sealed class WelcomeAnimationTests
         await using var lotteryStream = await lottery.Content.ReadAsStreamAsync(h.Stop.Token);
         await AssertFrameAsync(lotteryStream, "retry: 2000\n\n");
         await AssertFrameAsync(lotteryStream,
-            "event: state\ndata: {\"roomId\":null,\"connected\":false,\"lottery\":null,\"canControl\":false,\"theme\":\"StarSummon\",\"isExamplePlaying\":false}\n\n");
+            "event: state\ndata: {\"roomId\":null,\"connected\":false,\"lottery\":null,\"canControl\":false,\"theme\":\"StarSummon\",\"pinnedResults\":false,\"isExamplePlaying\":false}\n\n");
 
         using var video = await http.GetAsync("/video/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         await using var videoStream = await video.Content.ReadAsStreamAsync(h.Stop.Token);

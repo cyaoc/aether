@@ -111,8 +111,13 @@ function fitAll() {
   // Gacha tilts a banner wider than 780px less, so its ends rise no higher than a 780px one's; a hidden banner measures 0 and keeps 1.
   byId('banner').style.setProperty('--tilt-scale', Math.min(1, 780 / byId('banner').offsetWidth));
 }
-document.fonts.ready.then(fitAll);
-document.fonts.addEventListener('loadingdone', fitAll);
+const fontsLoaded = () => {
+  fitAll();
+  // Only grouped names wrap; pool rows have fixed heights, including during their entrance.
+  if (!byId('pinned').hidden && pinnedLottery?.mode === 'Entry') repageWinners?.();
+};
+document.fonts.ready.then(fontsLoaded);
+document.fonts.addEventListener('loadingdone', fontsLoaded);
 function clear(keepPinned = false) {
   clearTimeout(hiding); clearInterval(paging); clearInterval(scanning); cancelAnimationFrame(frame);
   repageWinners = undefined; drawing = undefined;
@@ -126,6 +131,7 @@ function view(name) {
   byId(name === 'drawing' || name === 'spinning' ? 'summon' : name).hidden = false;
 }
 function show(state, completedDraw) {
+  const previousState = latestState;
   latestState = state;
   const themeName = state.theme || 'StarSummon';
   const lottery = state.lottery;
@@ -149,7 +155,7 @@ function show(state, completedDraw) {
   scene.dataset.theme = themeName;
   clear(keepPinned);
   if (!lottery || entry?.phase === 'Preparing') return;
-  if (canPin) { showPinned(lottery, completedDraw); return; }
+  if (canPin) { showPinned(lottery, completedDraw, previousState?.lottery); return; }
   if (entry?.hidden || pool?.phase === 'Idle' && !deadline) return;
   if (entry?.phase === 'Open') {
     view('registration');
@@ -287,7 +293,7 @@ const pinnedEffects = '<span class="fx-clip"><i class="fx-sweep"></i><i class="f
   + Array.from({length:6},(_,i) => `<span class="fx-star s${i+1}">${pinnedStar}</span>`).join('')
   + [1,2].map(i => `<span class="fx-tw t${i}">${pinnedStar}</span><svg class="fx-heart h${i}" viewBox="0 0 24 24"><use href="#gachaHeartShape"/></svg>`).join('')
   + [1,2,3,4].map(i => `<i class="fx-conf c${i}"></i><i class="fx-br b${i}"></i>`).join('');
-function showPinned(lottery, completedDraw) {
+function showPinned(lottery, completedDraw, previousLottery) {
   clearTimeout(hiding); clearInterval(paging);
   const entry = lottery.mode === 'Entry', t = theme(), words = t.pinned || themes.StarSummon.pinned;
   const visible = lottery.draws.filter(draw => !draw.hiddenFromStream);
@@ -298,11 +304,12 @@ function showPinned(lottery, completedDraw) {
   const removed = [...pinnedRows].filter(([id]) => hiddenIds.has(id));
   if (!draws.length && !removed.length) return;
   const previous = pinnedLottery;
+  const restored = previousLottery?.id === lottery.id && previousLottery.draws.some(old => old.hiddenFromStream && visible.some(draw => draw.id === old.id));
   const pages = entry ? winnerPages(draws) : Array.from({length:Math.ceil(draws.length / 5)}, (_, index) => draws.slice(index * 5, index * 5 + 5));
   view('pinned');
   const board = byId('pinned');
-  const arriving = !entry && visible.some(draw => draw.id === completedDraw);
-  board.className = `rb ${entry ? 'm-entry' : 'm-pool'} ${arriving ? 'st-arrive' : 'st-enter'}`;
+  let arriving = !entry && visible.some(draw => draw.id === completedDraw);
+  board.className = `rb ${entry ? 'm-entry' : 'm-pool'} ${arriving ? 'st-arrive' : previous || restored ? '' : 'st-enter'}`;
   byId('pinnedTitle').textContent = words.title;
   byId('pinnedTag').textContent = words.tag || '';
   byId('pinnedCount').textContent = words.count(draws.length, entry);
@@ -319,7 +326,7 @@ function showPinned(lottery, completedDraw) {
       let row;
       if (!entry || draw.awardIndex !== pages[pinnedPage][index - 1]?.awardIndex) {
         row = text(`rb-row ${grade}${entry ? ' rb-group' : ''}${grade === 'Grand' && !(arriving && draw.id === completedDraw) ? ' amb' : ''}${arriving && draw.id === completedDraw ? ' is-new' : ''}${!entry && fill && !oldIds.has(draw.id) ? ' is-fill' : ''}`, '');
-        row.style.setProperty('--d', `${-(index * 2.6) % 8}s`);
+        row.style.setProperty('--d', `${-(rows.length * 2.6) % 8}s`);
         const label = text('rb-text', '');
         label.append(text('rb-prize',entry ? `${prize.name} · ${prize.prize}` : prize.name));
         if (entry) { list = text('rb-names', ''); label.append(list); groups.set(draw.awardIndex,row); }
@@ -366,6 +373,7 @@ function showPinned(lottery, completedDraw) {
     hiding = setTimeout(() => { render(true); startPaging(); },1320);
   } else { render(); startPaging(); }
   if (arriving) hiding = setTimeout(() => {
+    arriving = false;
     board.className = board.className.replace(' st-arrive','');
     for (const node of pinnedRows.values()) {
       node.className = node.className.replace(' is-new','');
