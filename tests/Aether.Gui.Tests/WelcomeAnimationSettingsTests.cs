@@ -613,6 +613,42 @@ public sealed class WelcomeAnimationSettingsTests
         return true;
     }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public Task Closing_releases_web_service_port_before_login_finishes() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        var port = FreePort();
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
+        var started = new TaskCompletionSource();
+        var release = new TaskCompletionSource();
+        harness.LoginResponse = async (_, token) =>
+        {
+            started.TrySetResult();
+            await release.Task;
+            token.ThrowIfCancellationRequested();
+            throw new InvalidOperationException();
+        };
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.WebServiceStatus.Running);
+            Assert.Equal(port, viewModel.WebService.WebServiceStatus.Port);
+
+            window.Close();
+            await GuiHarness.WaitForAsync(() => !viewModel.WebService.WebServiceStatus.Running);
+            Assert.False(viewModel.LoginCommand.ExecutionTask!.IsCompleted);
+            using var replacement = new HttpListener();
+            replacement.Prefixes.Add($"http://localhost:{port}/");
+            // Start throws while the closing window still holds the port.
+            replacement.Start();
+        }
+        finally { release.TrySetResult(); await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     private static int FreePort()
     {
         using var listener = new TcpListener(IPAddress.Loopback, 0);
