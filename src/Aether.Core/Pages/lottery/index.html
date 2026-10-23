@@ -30,8 +30,8 @@
       <div class="dome"><div id="capsules"></div></div><div class="neck"></div>
       <div class="machineBody"><div id="machineLabel"><span class="idle">等你来扭</span><span class="busy">扭扭扭…</span></div><div class="crank"></div><div class="coinSlot"></div><div class="outlet"></div></div>
       <div class="foot left"></div><div class="foot right"></div>
-      <svg class="gachaStar" width="64" height="64" viewBox="0 0 24 24"><path d="M12 2l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 16.3l-5.8 3.5 1.6-6.6-5.1-4.4 6.7-.6z" fill="#ffd45e" stroke="#4b2a4f" stroke-width="1.6" stroke-linejoin="round"/></svg>
-      <svg class="gachaHeart" width="50" height="50" viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.5-9.2C1.2 8.7 3 5 6.6 5c2.2 0 3.6 1.3 5.4 3.3C13.8 6.3 15.2 5 17.4 5 21 5 22.8 8.7 21.5 11.8 19.5 16.4 12 21 12 21z" fill="#ff7aae" stroke="#4b2a4f" stroke-width="1.6"/></svg>
+      <svg class="gachaStar" width="64" height="64" viewBox="0 0 24 24"><path id="gachaStarShape" d="M12 2l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 16.3l-5.8 3.5 1.6-6.6-5.1-4.4 6.7-.6z" fill="#ffd45e" stroke="#4b2a4f" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      <svg class="gachaHeart" width="50" height="50" viewBox="0 0 24 24"><path id="gachaHeartShape" d="M12 21s-7.5-4.6-9.5-9.2C1.2 8.7 3 5 6.6 5c2.2 0 3.6 1.3 5.4 3.3C13.8 6.3 15.2 5 17.4 5 21 5 22.8 8.7 21.5 11.8 19.5 16.4 12 21 12 21z" fill="#ff7aae" stroke="#4b2a4f" stroke-width="1.6"/></svg>
     </div>
     <div class="mechaAlert" aria-hidden="true"></div>
     <svg class="mechaHud mechaEffect" viewBox="0 0 200 200" aria-hidden="true">
@@ -114,6 +114,10 @@
   <section id="winners" hidden>
     <h1 id="winnerTitle" class="gold"></h1><div id="winnerCards"></div>
     <div id="remaining"></div><div id="pageNumber"></div>
+  </section>
+  <section id="pinned" class="rb" hidden>
+    <div class="rb-head"><span id="pinnedTitle" class="rb-title gold"></span><span id="pinnedTag" class="rb-tag"></span><span id="pinnedCount" class="rb-count"></span><span id="pinnedPageNumber" class="rb-pgs"></span></div>
+    <div id="pinnedPages" class="rb-pages"><div id="pinnedRows" class="rb-page"></div></div>
   </section>
 </main>
 </body>

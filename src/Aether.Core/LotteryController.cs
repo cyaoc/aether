@@ -37,6 +37,16 @@ public sealed partial class LotteryController : IDisposable
 
     public LotteryState State { get { lock (gate) return state; } }
 
+    public void SetPinnedResults(bool enabled)
+    {
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            state = state with { PinnedResults = enabled };
+            Broadcast();
+        }
+    }
+
     /// <summary>Read-only, including unfinished lotteries; no room connection is required.</summary>
     public ImmutableArray<LotteryHistory> GetHistory(long roomId)
     {
@@ -93,7 +103,7 @@ public sealed partial class LotteryController : IDisposable
                 lottery = pool with { Viewers = previous.Viewers };
             drawTimer?.Dispose();
             // Recovery may write an expired draw; a failed write must leave the next danmaku able to retry.
-            state = new(roomId, false, lottery) { CanControl = true, Theme = state.Theme };
+            state = new(roomId, false, lottery) { CanControl = true, Theme = state.Theme, PinnedResults = state.PinnedResults };
             ResumeDraw();
             state = state with { Connected = true };
             Publish();

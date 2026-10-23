@@ -136,12 +136,13 @@
       </Border>
     </Grid>
     <Border Grid.Column="1" Background="{DynamicResource Surface.Aside}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
-      <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
-        <Grid ColumnDefinitions="*,Auto" Margin="16,18,16,8">
+      <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,*">
+        <local:LotteryPinnedResultsToggle x:Name="EntryPinnedResults" Margin="16,16,16,4" />
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" Margin="16,18,16,8">
           <TextBlock Classes="section" Text="中奖名单" />
           <TextBlock Grid.Column="1" x:Name="WinnerCount" Classes="caption muted numeric" Text="{Binding Lottery.EntryWinnerCountText}" VerticalAlignment="Center" />
         </Grid>
-        <ScrollViewer Grid.Row="1" MaxHeight="210" HorizontalScrollBarVisibility="Disabled">
+        <ScrollViewer Grid.Row="2" MaxHeight="210" HorizontalScrollBarVisibility="Disabled">
           <StackPanel Margin="16,0,16,12">
             <TextBlock x:Name="EmptyWinners" Classes="hint" Text="截止报名后开奖，中奖的人会列在这里" IsVisible="{Binding Lottery.IsEntryWinnersEmpty}" />
             <ItemsControl x:Name="WinnerGroups" ItemsSource="{Binding Lottery.EntryWinnerGroups}" ItemTemplate="{StaticResource WinnerGroupTemplate}" ClipToBounds="False">
@@ -149,14 +150,14 @@
             </ItemsControl>
           </StackPanel>
         </ScrollViewer>
-        <Border Grid.Row="2" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Padding="16,12,16,8">
+        <Border Grid.Row="3" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Padding="16,12,16,8">
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Classes="section" Text="报名" />
             <TextBlock Grid.Column="1" x:Name="EntryCount" Classes="caption muted numeric" Text="{Binding Lottery.LotteryEntryCountText}" VerticalAlignment="Center" />
           </Grid>
         </Border>
-        <TextBlock Grid.Row="3" x:Name="EmptyEntries" Classes="hint" Text="开始报名后，满足条件的观众会出现在这里" IsVisible="{Binding Lottery.IsLotteryEntriesEmpty}" Margin="16,4" />
-        <ScrollViewer Grid.Row="4" HorizontalScrollBarVisibility="Disabled">
+        <TextBlock Grid.Row="4" x:Name="EmptyEntries" Classes="hint" Text="开始报名后，满足条件的观众会出现在这里" IsVisible="{Binding Lottery.IsLotteryEntriesEmpty}" Margin="16,4" />
+        <ScrollViewer Grid.Row="5" HorizontalScrollBarVisibility="Disabled">
           <ItemsControl x:Name="EntryRows" ItemsSource="{Binding Lottery.LotteryEntries}">
             <ItemsControl.ItemTemplate>
               <DataTemplate x:DataType="local:LotteryEntryRow">

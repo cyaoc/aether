@@ -54,6 +54,7 @@ public sealed record LotteryState(long? RoomId, bool Connected, Lottery? Lottery
     /// <summary>The room lock is still held, including while the transport reconnects.</summary>
     public bool CanControl { get; init; } = Connected;
     public LotteryTheme Theme { get; init; } = LotteryTheme.StarSummon;
+    public bool PinnedResults { get; init; }
     public bool IsExamplePlaying { get; init; }
 }
 public sealed record LotteryUpdate(LotteryState State, LotteryState? Example = null);
