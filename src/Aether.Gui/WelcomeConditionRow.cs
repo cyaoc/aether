@@ -11,7 +11,6 @@ public partial class WelcomeConditionRow : EditableRow
     private string level = "";
     private string guard = "";
     public WelcomeCondition Kind { get; }
-    public bool CanEdit { get; }
     public string Name { get; }
     public Geometry Icon { get; }
     public bool IsUid => Kind == WelcomeCondition.Uid;
@@ -30,21 +29,15 @@ public partial class WelcomeConditionRow : EditableRow
     private string Input => IsUid ? Uid : IsGuard ? Guard : Level;
 
     public WelcomeConditionRow(WelcomeCondition kind, string value, bool canEdit, bool isNew = false)
-        : base(isNew && kind == WelcomeCondition.Uid)
+        : base(isNew && kind == WelcomeCondition.Uid, canEdit)
     {
         Kind = kind;
         if (IsUid) uid = value;
         else if (IsGuard) guard = value;
         else level = value;
         InitialLevel = IsLevel ? int.Parse(value, CultureInfo.InvariantCulture) : null;
-        CanEdit = canEdit;
         (Name, var icon) = Appearance(kind);
         Icon = Geometry.Parse(icon);
-    }
-
-    public new void Remove()
-    {
-        if (CanEdit) base.Remove();
     }
 
     public string Value => Kind switch

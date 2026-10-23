@@ -135,7 +135,7 @@
                                 Text="{Binding Weight, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding WeightInvalid}"
                                 AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 件奖品占比'}" />
                             </StackPanel>
-                            <TextBlock Grid.Column="2" x:Name="Percentage" Classes="caption numeric muted" MinWidth="40" TextAlignment="Right" VerticalAlignment="Center" Text="{Binding Percentage}" />
+                            <TextBlock Grid.Column="2" Classes="caption numeric muted" MinWidth="40" TextAlignment="Right" VerticalAlignment="Center" Text="{Binding Percentage}" />
                             <local:GradePicker Grid.Column="3" x:Name="GradeInput" VerticalAlignment="Center" SelectedItem="{Binding Grade, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"
                               AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 件奖品档次'}" />
                             <Button Grid.Column="4" x:Name="RemoveButton" Classes="ghost danger" Width="30" Height="30" Command="{Binding Remove}"

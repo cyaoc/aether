@@ -1,6 +1,6 @@
 namespace Aether.Gui;
 
-public sealed record WinnerGroupRow(string Award, string Prize, string Progress, IReadOnlyList<WinnerRow> Winners)
+public sealed record WinnerGroupRow(string Title, string Prize, string Progress, IReadOnlyList<WinnerRow> Winners)
 {
     public bool IsEmpty => Winners.Count == 0;
 }

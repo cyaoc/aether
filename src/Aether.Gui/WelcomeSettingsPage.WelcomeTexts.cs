@@ -33,14 +33,15 @@ public partial class WelcomeSettingsPage
 
     private void WelcomeTextGotFocus(object? sender, RoutedEventArgs e)
     {
-        if (e.Source is Control { DataContext: WelcomeTextRow row })
+        // Only the text box picks the row; pressing another row's × must not retarget the insert buttons.
+        if (e.Source is TextBox { DataContext: WelcomeTextRow row })
         {
             editedWelcomeText = row;
             RefreshWelcomeTexts();
         }
     }
 
-    /// <summary>Updates what depends on which rows exist: the count, the hints, the insert target and each row's ×.</summary>
+    /// <summary>Updates what depends on which rows exist: the count, the hints, the insert target and the fold.</summary>
     private void RefreshWelcomeTexts()
     {
         var count = WelcomeTexts.Count;
@@ -60,7 +61,6 @@ public partial class WelcomeSettingsPage
         editedWelcomeText = row;
         WelcomeTextFold.IsExpanded = true;
         WelcomeTexts.AddNew(row);
-        RefreshWelcomeTexts();
     }
 
     private void InsertPlaceholder(object? sender, RoutedEventArgs e)

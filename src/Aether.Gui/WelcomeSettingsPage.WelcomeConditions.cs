@@ -2,7 +2,6 @@ using System.Globalization;
 using Aether.Core;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using Avalonia.Threading;
 
 namespace Aether.Gui;
 
@@ -29,8 +28,6 @@ public partial class WelcomeSettingsPage
             WelcomeThresholds.Add(new(WelcomeCondition.WealthLevel, settings.WelcomeWealthLevel.Value.ToString(CultureInfo.InvariantCulture), settings.WelcomeWealthLevel.CanEdit));
         loadedConditionKinds = Conditions.Select(row => row.Kind).ToArray();
         RefreshConditionList();
-        // Preserve the deferred validation and priority of the old rows' initialized TextChanged events.
-        if (Conditions.Any()) Dispatcher.UIThread.Post(Validate, DispatcherPriority.Normal);
     }
 
     /// <summary>Updates what depends on which rows exist: the count, the empty state, the menu, each kind's heading and "或" separator, and the UID fold.</summary>

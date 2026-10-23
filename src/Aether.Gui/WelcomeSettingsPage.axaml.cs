@@ -1,5 +1,6 @@
 using System.Globalization;
 using Aether.Core;
+using Avalonia.Threading;
 
 namespace Aether.Gui;
 
@@ -31,6 +32,9 @@ public partial class WelcomeSettingsPage : SettingsPage
     {
         LoadWelcomeTexts();
         LoadWelcomeConditions();
+        // Loaded rows validate once more at Normal priority, as their inputs' first TextChanged did before they were templates;
+        // that later pass clears the footer's save message after a reload.
+        if (WelcomeTexts.Count > 0 || Conditions.Any()) Dispatcher.UIThread.Post(Validate, DispatcherPriority.Normal);
     }
 
     protected override IEnumerable<Field> RowFields() =>

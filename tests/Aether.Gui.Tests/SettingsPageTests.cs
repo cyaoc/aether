@@ -402,6 +402,39 @@ public sealed class SettingsPageTests
             Assert.False(page.FindControl<TextBlock>("WelcomeInsertTarget")!.IsVisible);
         });
 
+    [Fact]
+    public Task Clicking_another_rows_remove_button_keeps_the_insert_target() =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  texts: [欢迎, 回家, 晚上好]\n", (page, _) =>
+        {
+            WelcomeTextList.Input(page).Focus();
+            var remove = GuiHarness.FindRowControl<Button>(page, WelcomeTextList.Rows(page)[2], "RemoveButton");
+            remove.BringIntoView();
+            GuiHarness.Flush();
+            // A pointer press focuses the button before its command removes the row.
+            var window = (Window)TopLevel.GetTopLevel(page)!;
+            var point = remove.TranslatePoint(new Point(remove.Bounds.Width / 2, remove.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(point, MouseButton.Left);
+            window.MouseUp(point, MouseButton.Left);
+            GuiHarness.Flush();
+            Assert.Equal(["欢迎", "回家"], WelcomeTextList.Rows(page).Select(row => row.Value));
+            Assert.Equal("到第 1 条", page.FindControl<TextBlock>("WelcomeInsertTarget")!.Text);
+        });
+
+    [Fact]
+    public Task Saving_only_welcome_texts_validates_the_reloaded_rows_again() =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  texts: [欢迎]\n  guard: 关闭\n", (page, _) =>
+        {
+            Assert.Empty(ConditionList.Rows(page));
+            WelcomeTextList.Input(page).Text = "欢迎回家";
+            GuiHarness.Flush();
+            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var message = GuiHarness.FindVisual<TextBlock>(page, "Message");
+            Assert.Equal("已保存。", message.Text);
+            // The second pass clears the footer message, as it does when conditions are loaded too.
+            GuiHarness.Flush();
+            Assert.Equal("", message.Text);
+        });
+
     [Theory]
     [InlineData("\n    - 欢迎\n    - '{@}欢迎回家'")]
     [InlineData("[欢迎,\n    '{@}欢迎回家']")]

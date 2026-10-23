@@ -16,8 +16,7 @@ public sealed class EditableRows<T>(int minimumCount) : ObservableCollection<T> 
 
     protected override void InsertItem(int index, T item)
     {
-        item.RemoveRow = () => Remove(item);
-        item.Changed += OnRowChanged;
+        Attach(item);
         base.InsertItem(index, item);
         RefreshRows();
     }
@@ -39,8 +38,7 @@ public sealed class EditableRows<T>(int minimumCount) : ObservableCollection<T> 
     protected override void SetItem(int index, T item)
     {
         Detach(this[index]);
-        item.RemoveRow = () => Remove(item);
-        item.Changed += OnRowChanged;
+        Attach(item);
         base.SetItem(index, item);
         RefreshRows();
     }
@@ -49,6 +47,12 @@ public sealed class EditableRows<T>(int minimumCount) : ObservableCollection<T> 
     {
         base.MoveItem(oldIndex, newIndex);
         RefreshRows();
+    }
+
+    private void Attach(T row)
+    {
+        row.RemoveRow = () => Remove(row);
+        row.Changed += OnRowChanged;
     }
 
     private void Detach(T row)

@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Aether.Gui;
 
-public partial class WelcomeAnimationRow(string uid, string fileName, bool canEdit, bool isNew = false) : EditableRow(isNew)
+public partial class WelcomeAnimationRow(string uid, string fileName, bool canEdit, bool isNew = false) : EditableRow(isNew, canEdit)
 {
     private string uidText = uid;
     private string fileName = fileName;
@@ -13,7 +13,6 @@ public partial class WelcomeAnimationRow(string uid, string fileName, bool canEd
     public long? Uid => Viewer.TryParseUid(UidText, out var uid) ? uid : null;
     public string FileName { get => fileName; private set => SetProperty(ref fileName, value); }
     public string? SourcePath => sourcePath;
-    public bool CanEdit { get; } = canEdit;
     [ObservableProperty] private bool canTest;
     [ObservableProperty] private bool missing;
     [ObservableProperty] private bool playing;
@@ -34,10 +33,5 @@ public partial class WelcomeAnimationRow(string uid, string fileName, bool canEd
     {
         FileName = Path.GetFileName(path);
         SetInput(ref sourcePath, path, nameof(SourcePath));
-    }
-
-    public new void Remove()
-    {
-        if (CanEdit) base.Remove();
     }
 }

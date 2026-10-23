@@ -79,7 +79,7 @@
                       <Grid ColumnDefinitions="88,*,Auto,Auto,Auto" ColumnSpacing="8">
                         <TextBox x:Name="NameInput" Classes="rowFocus" Text="{Binding Name, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding NameInvalid}" AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 个奖项名称'}" Height="32" MinHeight="32" FontSize="13" FontWeight="SemiBold" PlaceholderText="奖项名称" />
                         <TextBox Grid.Column="1" x:Name="PrizeInput" Text="{Binding Prize, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding PrizeInvalid}" AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 个奖项的奖品'}" Height="32" MinHeight="32" FontSize="13" PlaceholderText="奖品" />
-                        <StackPanel Grid.Column="2" x:Name="CapacityPanel" IsVisible="{Binding Preparing}" Orientation="Horizontal" Spacing="6">
+                        <StackPanel Grid.Column="2" IsVisible="{Binding Preparing}" Orientation="Horizontal" Spacing="6">
                           <TextBox x:Name="CapacityInput" Text="{Binding Capacity, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding CapacityInvalid}" AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 个奖项名额'}" Classes="numeric" Width="44" Height="32" MinHeight="32" FontSize="13" Padding="6,0" TextAlignment="Right" />
                           <TextBlock Classes="caption muted" Text="名" VerticalAlignment="Center" />
                         </StackPanel>
@@ -93,7 +93,7 @@
                         <Button Grid.Column="4" x:Name="DrawButton" Command="{Binding $parent[local:EntryLotteryPanel].((local:MainWindowViewModel)DataContext).Lottery.DrawEntryAsync}" CommandParameter="{Binding Number}" IsEnabled="{Binding CanDraw}" Classes.full="{Binding Full}" AutomationProperties.Name="{Binding DrawAccessibleName}" ToolTip.Tip="{Binding DrawHint}" Classes="accent" Width="84" Height="30" Padding="0" FontWeight="SemiBold" HorizontalContentAlignment="Center" IsVisible="{Binding !Preparing}">
                           <StackPanel Orientation="Horizontal" Spacing="4">
                             <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
-                            <TextBlock x:Name="DrawText" Text="{Binding DrawText}" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding DrawText}" VerticalAlignment="Center" />
                           </StackPanel>
                         </Button>
                       </Grid>

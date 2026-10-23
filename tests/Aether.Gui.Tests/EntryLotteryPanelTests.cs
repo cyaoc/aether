@@ -222,4 +222,29 @@ public sealed class EntryLotteryPanelTests
         finally { foreach (var child in window.OwnedWindows.ToArray()) child.Close(); window.Close(); await vm.ShutdownAsync(); }
         return true;
     }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Draw_button_runs_the_entry_draw_for_its_award() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var panel = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = panel, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true,
+                TestLottery(EntryLotteryPhase.Closed) with { Entries = [new(42, "小明", DateTimeOffset.UnixEpoch)] })));
+            var entry = panel.FindControl<EntryLotteryPanel>("EntryContent")!;
+            GuiHarness.Flush();
+            var draw = GuiHarness.FindRowControl<Button>(entry, vm.Lottery.Awards[1], "DrawButton");
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(draw)).Invoke();
+            // The harness is not connected, so reaching DrawEntry shows its error instead of drawing.
+            var error = entry.FindControl<TextBlock>("ErrorMessage")!;
+            await GuiHarness.WaitForAsync(() => error.IsVisible);
+            Assert.Equal("请先连接直播间。", error.Text);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
 }

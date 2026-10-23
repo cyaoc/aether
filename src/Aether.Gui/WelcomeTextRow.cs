@@ -2,11 +2,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Aether.Gui;
 
-public partial class WelcomeTextRow(string text, bool canEdit, bool isNew = false) : EditableRow(isNew)
+public partial class WelcomeTextRow(string text, bool canEdit, bool isNew = false) : EditableRow(isNew, canEdit)
 {
     private string value = text;
     public string Value { get => value; set => SetInput(ref this.value, value ?? ""); }
-    public bool CanEdit { get; } = canEdit;
     [ObservableProperty] private int caretIndex;
     [ObservableProperty] private int selectionStart;
     [ObservableProperty] private int selectionEnd;

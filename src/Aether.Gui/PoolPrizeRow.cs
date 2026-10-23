@@ -14,13 +14,7 @@ public partial class PoolPrizeRow(PoolPrize prize, bool isNew = false) : Editabl
     public Grade Grade { get => grade; set => SetInput(ref grade, value); }
     public PoolPrize Value => new(Name, int.TryParse(Weight, NumberStyles.None,
         CultureInfo.InvariantCulture, out var parsed) ? parsed : 0, Grade);
-    [ObservableProperty] private bool canEdit;
     [ObservableProperty] private bool nameInvalid;
     [ObservableProperty] private bool weightInvalid;
     [ObservableProperty] private string percentage = "—";
-
-    public new void Remove()
-    {
-        if (CanEdit) base.Remove();
-    }
 }

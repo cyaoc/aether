@@ -10,7 +10,7 @@
       <DataTemplate x:Key="WinnerGroupTemplate" x:DataType="local:WinnerGroupRow">
         <StackPanel Spacing="4">
           <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
-            <TextBlock Classes="caption awardName singleLine" Text="{Binding Award}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Classes="caption awardName singleLine" Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
             <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="{Binding Prize}" VerticalAlignment="Center" />
             <TextBlock Grid.Column="2" Classes="caption muted numeric" Text="{Binding Progress}" VerticalAlignment="Center" />
           </Grid>

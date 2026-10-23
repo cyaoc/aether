@@ -17,7 +17,6 @@ public partial class EntryAwardRow(LotteryAward award, bool isNew = false) : Edi
     public LotteryAward Value => new(Name, Prize, int.TryParse(Capacity, NumberStyles.None,
         CultureInfo.InvariantCulture, out var parsed) ? parsed : 0, Grade);
     [ObservableProperty] private bool preparing;
-    [ObservableProperty] private bool canEdit;
     [ObservableProperty] private bool nameInvalid;
     [ObservableProperty] private bool prizeInvalid;
     [ObservableProperty] private bool capacityInvalid;
@@ -27,9 +26,4 @@ public partial class EntryAwardRow(LotteryAward award, bool isNew = false) : Edi
     [ObservableProperty] private string drawText = "";
     [ObservableProperty] private string drawAccessibleName = "";
     [ObservableProperty] private string? drawHint;
-
-    public new void Remove()
-    {
-        if (CanEdit) base.Remove();
-    }
 }

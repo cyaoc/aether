@@ -105,8 +105,8 @@ public partial class LotteryViewModel : ObservableObject
 
     internal Task ChangeLotteryAsync(Action<LotteryController> change)
     {
-        if (shutdown.IsCancellationRequested) throw new InvalidOperationException("程序正在关闭。");
         if (Busy) return Task.CompletedTask;
+        if (shutdown.IsCancellationRequested) throw new InvalidOperationException("程序正在关闭。");
         Busy = true;
         return lotteryChange = RunAsync();
 

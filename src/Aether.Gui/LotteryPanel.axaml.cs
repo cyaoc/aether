@@ -51,7 +51,7 @@ public partial class LotteryPanel : UserControl
 
     private void Refresh()
     {
-        if (PrizeRows is null) return;
+        if (HistoryContent is null) return;
         var state = viewModel?.Lottery.LotteryState;
         var entry = state?.Lottery as EntryLottery;
         var history = ViewTabs.SelectedIndex == 1;

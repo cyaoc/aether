@@ -3,12 +3,13 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Aether.Gui;
 
-public abstract partial class EditableRow(bool isNew = false) : ObservableObject
+public abstract partial class EditableRow(bool isNew = false, bool canEdit = false) : ObservableObject
 {
     private bool errorsRevealed = !isNew;
     [ObservableProperty, NotifyPropertyChangedFor(nameof(VisibleError))] private string? error;
     [ObservableProperty] private int number;
     [ObservableProperty] private bool canRemove;
+    [ObservableProperty] private bool canEdit = canEdit;
     [ObservableProperty] private bool isShown = true;
     internal event Action? Changed;
     internal event Action? FocusRequested;
@@ -33,7 +34,7 @@ public abstract partial class EditableRow(bool isNew = false) : ObservableObject
 
     public void Remove()
     {
-        if (CanRemove) RemoveRow?.Invoke();
+        if (CanRemove && CanEdit) RemoveRow?.Invoke();
     }
 
     public void RequestFocus()
