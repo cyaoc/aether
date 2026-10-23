@@ -427,7 +427,7 @@ public sealed class SettingsPageTests
             WelcomeTextList.Input(page).Text = "欢迎回家";
             GuiHarness.Flush();
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            // As on 盲盒 and 发送, which share these save rules: reloading the rows is not an edit.
+            // Reloading the rows is not an edit, so the result stays as on every settings page.
             GuiHarness.Flush();
             Assert.Equal("已保存。", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
         });

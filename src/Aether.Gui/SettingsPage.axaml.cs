@@ -119,7 +119,6 @@ public abstract class SettingsPage : TemplatedControl
     }
 
     protected virtual bool ReconnectAfterSave => true;
-    protected virtual bool KeepMessageUntilEdited => false;
     protected virtual string DirtyDescription => "有未保存的修改";
     protected virtual bool RowsChanged => false;
     protected virtual void LoadRows() { }
@@ -242,7 +241,8 @@ public abstract class SettingsPage : TemplatedControl
         IsDirty = RowsChanged || fields.Any(field => field.CanEdit && field.Input != original.GetValueOrDefault(field.Name));
         DirtyText = DirtyDescription;
         CanSave = FileError is null && error is null && !invalidRows && IsDirty;
-        if (!KeepMessageUntilEdited || IsDirty) Message = "";
+        // A save's result stays until the form is edited again, on every page.
+        if (IsDirty) Message = "";
     }
 
     /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
