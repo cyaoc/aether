@@ -78,7 +78,7 @@ const themes = {
 };
 const theme = () => themes[scene.dataset.theme] || themes.StarSummon;
 const starIcon = '<svg width="38" height="38" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3-6.2-4.5-6.2 4.5 2.4-7.3L2 9.2h7.6z"/></svg>';
-let shown = '', hiding, paging, repageWinners, scanning, frame, fitting = [], portrait = false;
+let shown = '', latestState, hiding, paging, repageWinners, scanning, frame, fitting = [], portrait = false;
 const canvas = byId('particles'), context = canvas.getContext('2d');
 function resize() {
   const wasPortrait = portrait;
@@ -123,14 +123,24 @@ function view(name) {
   byId(name === 'drawing' || name === 'spinning' ? 'summon' : name).hidden = false;
 }
 function show(state) {
+  const previous = latestState;
+  latestState = state;
   scene.dataset.theme = state.theme || 'StarSummon';
   const lottery = state.lottery;
   const entry = lottery?.mode === 'Entry' ? lottery : null, pool = lottery?.mode === 'Pool' ? lottery : null;
+  const draw = lottery?.draws.at(-1), remaining = Date.parse(lottery?.drawUntil) - Date.now();
   // Repeated state snapshots must not restart a draw, including on a room reconnect.
   const key = lottery ? [state.theme,lottery.id,lottery.phase,lottery.draws.length,lottery.draws.at(-1)?.id,
-    lottery.drawUntil,lottery.entryCount,lottery.hidden].join(' ') : '';
+    remaining > 0 ? lottery.drawUntil : '',lottery.entryCount,lottery.hidden,
+    lottery.draws.map(draw => `${draw.id}:${!!draw.hiddenFromStream}`).join(',')].join(' ') : '';
   if (key === shown) return;
-  shown = key; clear();
+  shown = key;
+  // Visibility changes affect the following list, not the draw already on screen.
+  if (!scene.hidden && scene.dataset.view === 'drawing' && remaining > 0 &&
+      previous?.theme === state.theme && previous.lottery?.id === lottery.id &&
+      previous.lottery.phase === lottery.phase && previous.lottery.hidden === lottery.hidden &&
+      previous.lottery.drawUntil === lottery.drawUntil && previous.lottery.draws.at(-1)?.id === draw?.id) return;
+  clear();
   if (!lottery || entry?.hidden || entry?.phase === 'Preparing' || pool?.phase === 'Idle' && !pool.drawUntil) return;
   if (entry?.phase === 'Open') {
     view('registration');
@@ -160,10 +170,9 @@ function show(state) {
     particles(null);
     return;
   }
-  const draw = lottery.draws.at(-1), remaining = Date.parse(lottery.drawUntil) - Date.now();
   if (draw && remaining > 0) {
     drawResult(draw, !!entry);
-    hiding = setTimeout(() => show({ ...state, lottery:{...lottery,drawUntil:null} }), remaining);
+    hiding = setTimeout(() => show({ ...latestState, lottery:{...latestState.lottery,drawUntil:null} }), remaining);
     return;
   }
   if (entry) showWinners(entry);
@@ -230,7 +239,7 @@ function showWinners(lottery) {
   byId('winnerTitle').textContent = t.winners[lottery.phase === 'Ended' ? 0 : 1];
   byId('remaining').hidden = lottery.phase === 'Ended';
   byId('remaining').textContent = `${t.closed || '报名已截止'} · 还剩 ${lottery.remaining} 个名额`;
-  const winners = lottery.awards.flatMap((_, index) => lottery.draws.filter(draw => draw.awardIndex === index));
+  const winners = lottery.awards.flatMap((_, index) => lottery.draws.filter(draw => draw.awardIndex === index && !draw.hiddenFromStream));
   if (!winners.length) {
     byId('winnerCards').replaceChildren();
     byId('pageNumber').textContent = lottery.phase === 'Ended' ? '本场没有开奖' : '等待开奖'; return;

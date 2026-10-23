@@ -5,11 +5,13 @@ using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Controls.Presenters;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Gui.Tests;
 
@@ -19,6 +21,78 @@ public sealed class EntryLotteryPanelTests
         new("entry", 7734200, "抽奖", DateTimeOffset.UnixEpoch,
             [new("一等奖", "机械键盘", 1, Grade.Grand), new("二等奖", "周边抱枕", 2, Grade.Second),
                 new("三等奖", "签名照", 3, Grade.Third)], [], [], phase);
+
+    [Fact]
+    public Task Winner_visibility_counts_dates_and_control_lock_follow_the_state() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        var today = new DateTimeOffset(2026, 10, 24, 21, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 10, 24)));
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel(new FakeTimeProvider(today));
+        var panel = new EntryLotteryPanel { DataContext = vm };
+        var window = new Window { Content = panel, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var lottery = TestLottery(EntryLotteryPhase.Ended);
+            var draw = new EntryDraw("first", 0, lottery.Awards[0], new(42, "小明", today), today, []);
+            lottery = lottery with { Draws = [draw] };
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
+            GuiHarness.Flush();
+            Assert.Equal("1 人", panel.FindControl<TextBlock>("WinnerCount")!.Text);
+            var row = Assert.Single(Assert.Single(vm.Lottery.EntryWinnerGroups).Winners);
+            var eye = GuiHarness.FindRowControl<ToggleButton>(panel, row, "WinnerVisibilityButton");
+            Assert.True(eye.IsVisible);
+            Assert.True(eye.IsEnabled);
+            Assert.False(eye.IsChecked);
+            Assert.Equal("不挂出：小明", AutomationProperties.GetName(eye));
+            var all = panel.FindControl<Button>("HideAllDrawsButton")!;
+            Assert.True(all.IsEnabled);
+
+            lottery = lottery with { Draws = [draw with { DrawnAt = today.AddDays(-4), HiddenFromStream = true }] };
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
+            GuiHarness.Flush();
+            Assert.Equal("10月20日开奖 · 1 人 · 1 人不挂出", panel.FindControl<TextBlock>("WinnerCount")!.Text);
+            row = Assert.Single(Assert.Single(vm.Lottery.EntryWinnerGroups).Winners);
+            eye = GuiHarness.FindRowControl<ToggleButton>(panel, row, "WinnerVisibilityButton");
+            Assert.True(eye.IsChecked);
+            Assert.Equal("重新挂到直播画面", ToolTip.GetTip(eye));
+            Assert.Contains("hidden", GuiHarness.FindRowControl<Border>(panel, row, "WinnerChip").Classes);
+            Assert.False(all.IsEnabled);
+            Assert.Equal("小明", row.Name);
+
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, false, lottery)));
+            GuiHarness.Flush();
+            row = Assert.Single(Assert.Single(vm.Lottery.EntryWinnerGroups).Winners);
+            Assert.False(GuiHarness.FindRowControl<ToggleButton>(panel, row, "WinnerVisibilityButton").IsEnabled);
+            Assert.False(all.IsEnabled);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery with { Draws = [draw] })));
+            GuiHarness.Flush();
+            Assert.Equal("1 人", panel.FindControl<TextBlock>("WinnerCount")!.Text);
+            Assert.True(all.IsEnabled);
+            row = Assert.Single(Assert.Single(vm.Lottery.EntryWinnerGroups).Winners);
+            eye = GuiHarness.FindRowControl<ToggleButton>(panel, row, "WinnerVisibilityButton");
+            Assert.IsAssignableFrom<IToggleProvider>(ControlAutomationPeer.CreatePeerForElement(eye)).Toggle();
+            Assert.NotNull(row.ToggleVisibilityCommand!.ExecutionTask);
+            await row.ToggleVisibilityCommand.ExecutionTask;
+            Assert.Equal("请先连接直播间。", vm.Lottery.EntryLotteryError);
+            Assert.False(vm.Lottery.Busy);
+            vm.Lottery.EntryLotteryError = null;
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(all)).Invoke();
+            Assert.NotNull(vm.Lottery.HideAllDrawsCommand.ExecutionTask);
+            await vm.Lottery.HideAllDrawsCommand.ExecutionTask;
+            Assert.Equal("请先连接直播间。", vm.Lottery.EntryLotteryError);
+            Assert.False(vm.Lottery.Busy);
+
+            vm.Lottery.SelectedLotteryHistory = lottery;
+            var history = new LotteryHistoryPanel { DataContext = vm };
+            window.Content = history;
+            GuiHarness.Flush();
+            Assert.Contains("小明", GuiHarness.VisibleText(window));
+            Assert.DoesNotContain(history.GetVisualDescendants().OfType<ToggleButton>(), button => button.IsEffectivelyVisible);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
 
     [Fact]
     public Task Invalid_award_cannot_be_saved_and_reports_the_start_validation_message() => HeadlessApp.Session.Dispatch(async () =>

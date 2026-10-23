@@ -53,6 +53,53 @@ const entry = {mode:'Entry',id:'entry',phase:'Open',keyword:'<img onerror=alert(
 const draws = Array.from({length:7},(_,i)=>({id:`d${i}`,awardIndex:0,award,winner:{uid:i+1,nickname:`观众${i+1}`},
   candidates:['甲','乙'],drawnAt:'2026-10-17T12:00:00Z'}));
 
+test('hidden winners leave full results, empty awards and pages, and restoring redraws the list',()=>{
+  const second={name:'二等奖',prize:'抱枕',capacity:1,grade:'Second'};
+  const won=[...draws,{...draws[0],id:'second',awardIndex:1,award:second,winner:{uid:8,nickname:'第八位'}}];
+  for(const theme of ['StarSummon','MechaLock','CapsuleGacha']){
+    const p=page(), show=(results,phase='Ended')=>p.state({theme,lottery:{...entry,phase,awards:[award,second],draws:results}});
+    show(won);
+    assert.equal(p.element('pageNumber').textContent,'1 / 2');
+    const hidden=won.map((draw,index)=>({...draw,hiddenFromStream:index===0 || index===7}));
+    show(hidden);
+    assert.doesNotMatch(p.element('winnerCards').textContent,/观众1|第八位|二等奖/);
+    assert.match(p.element('winnerCards').textContent,/观众7/);
+    assert.equal(p.element('pageNumber').textContent,'');
+    const cards=p.element('winnerCards').children;
+    p.advance(5000);
+    assert.equal(p.element('winnerCards').children,cards,'No previous paging timer survives the smaller list');
+    show(hidden);
+    assert.equal(p.element('winnerCards').children,cards,'An identical visibility snapshot does not redraw');
+    show(won.map(draw=>({...draw,hiddenFromStream:draw.awardIndex===0})));
+    assert.equal(p.element('winnerCards').children.length,1);
+    assert.match(p.element('winnerCards').textContent,/第八位/);
+    assert.doesNotMatch(p.element('winnerCards').textContent,/一等奖/);
+    for(const phase of ['Closed','Ended']){
+      show(won.map(draw=>({...draw,hiddenFromStream:true})),phase);
+      assert.equal(p.element('winnerCards').children.length,0);
+      assert.equal(p.element('pageNumber').textContent,phase==='Ended'?'本场没有开奖':'等待开奖');
+    }
+    show(won);
+    assert.match(p.element('winnerCards').textContent,/观众1/);
+    assert.equal(p.element('pageNumber').textContent,'1 / 2');
+  }
+});
+
+test('hiding a winner during the draw keeps its animation and filters the latest result afterward',()=>{
+  const p=page(), state={lottery:{...entry,phase:'Closed',draws:[draws[0]],drawUntil:'2026-10-17T12:00:07Z'}};
+  p.state(state);
+  const ring=p.element('ring').children;
+  p.advance(2000);
+  p.state({lottery:{...state.lottery,draws:[{...draws[0],hiddenFromStream:true}]}});
+  assert.equal(p.element('ring').children,ring);
+  assert.equal(p.element('summon').style['--elapsed'],'0s');
+  assert.equal(p.element('prize').textContent,'观众1');
+  p.advance(5000);
+  assert.equal(p.element('scene').dataset.view,'winners');
+  assert.equal(p.element('winnerCards').children.length,0);
+  assert.equal(p.element('pageNumber').textContent,'等待开奖');
+});
+
 test('Capsule Gacha fires confetti upwards from both sides once for Second and twice for Grand',()=>{
   for (const [width,height] of [[1920,1080],[1080,1920]]) for (const grade of ['Grand','Second','Third']) {
     const p=page(width,height), draw={...draws[0],award:{...award,grade}};

@@ -144,6 +144,20 @@ public sealed class VisualReviewTests
                         Draws = [.. draws], DrawUntil = phase == EntryLotteryPhase.Closed ? at.AddSeconds(7) : null,
                     })));
                     Save(window, $"entry-{phase}-{width}-{(dark ? "dark" : "light")}");
+                    if (phase == EntryLotteryPhase.Ended)
+                    {
+                        var ended = (EntryLottery)vm.Lottery.LotteryState.Lottery!;
+                        vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with
+                        {
+                            Lottery = ended with { Draws = [.. ended.Draws.Select((draw, index) => draw with { HiddenFromStream = index == 2 })] },
+                        }));
+                        Save(window, $"entry-hidden-{width}-{(dark ? "dark" : "light")}");
+                        vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with
+                        {
+                            Lottery = ended with { Draws = [.. ended.Draws.Select(draw => draw with { HiddenFromStream = true })] },
+                        }));
+                        Save(window, $"entry-all-hidden-{width}-{(dark ? "dark" : "light")}");
+                    }
                     if (phase != EntryLotteryPhase.Closed) continue;
                     vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with { Lottery = vm.Lottery.LotteryState.Lottery! with { DrawUntil = null } }));
                     window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "EndEntryButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

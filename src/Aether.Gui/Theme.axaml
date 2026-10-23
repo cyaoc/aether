@@ -20,9 +20,20 @@
               <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
               <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="local:WinnerRow">
-                  <Border Classes="winner" Classes.fresh="{Binding Fresh}">
-                    <TextBlock Classes="singleLine" Text="{Binding Name}" ToolTip.Tip="{Binding ToolTip}" MaxWidth="210" VerticalAlignment="Center" />
-                  </Border>
+                  <Panel>
+                    <Border x:Name="WinnerChip" Classes="winner" Classes.fresh="{Binding Fresh}"
+                      Classes.editable="{Binding HasVisibilityCommand}" Classes.hidden="{Binding HiddenFromStream}">
+                      <Grid ColumnDefinitions="*,Auto" VerticalAlignment="Center">
+                        <TextBlock Classes="singleLine" Text="{Binding Name}" ToolTip.Tip="{Binding ToolTip}" MaxWidth="210" VerticalAlignment="Center" />
+                        <ToggleButton Grid.Column="1" x:Name="WinnerVisibilityButton" Classes="streamVisibility"
+                          IsVisible="{Binding HasVisibilityCommand}" IsChecked="{Binding HiddenFromStream, Mode=OneWay}"
+                          IsEnabled="{Binding CanToggleVisibility}" Command="{Binding ToggleVisibilityCommand}"
+                          AutomationProperties.Name="{Binding VisibilityName}" ToolTip.Tip="{Binding VisibilityHint}" />
+                      </Grid>
+                    </Border>
+                    <Rectangle IsVisible="{Binding HiddenFromStream}" IsHitTestVisible="False" Margin="0,0,4,4"
+                      Stroke="{DynamicResource Border.Control}" StrokeThickness="1" StrokeDashArray="4,3" RadiusX="6" RadiusY="6" />
+                  </Panel>
                 </DataTemplate>
               </ItemsControl.ItemTemplate>
             </ItemsControl>
@@ -645,6 +656,26 @@
     <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
     <Setter Property="TextElement.FontSize" Value="12" />
     <Setter Property="TextElement.FontWeight" Value="SemiBold" />
+  </Style>
+  <Style Selector="Border.winner.editable">
+    <Setter Property="Padding" Value="8,0,2,0" />
+  </Style>
+  <Style Selector="Border.winner.hidden">
+    <Setter Property="BorderBrush" Value="Transparent" />
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="Border.winner ToggleButton.streamVisibility">
+    <Setter Property="Width" Value="20" />
+    <Setter Property="Height" Value="22" />
+    <Setter Property="Padding" Value="4,5" />
+  </Style>
+  <Style Selector="Border.winner ToggleButton.streamVisibility:checked">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="Border.winner ToggleButton.streamVisibility /template/ Path">
+    <Setter Property="StrokeThickness" Value="2" />
   </Style>
   <Style Selector="TextBlock.awardName">
     <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
