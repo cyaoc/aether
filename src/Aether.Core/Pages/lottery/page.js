@@ -345,6 +345,8 @@ function showPinned(lottery, completedDraw, previousLottery) {
     void byId('pinnedRows').offsetWidth;
     if (pages.length > 1) byId('pinnedRows').className += ' paging';
     byId('pinnedPageNumber').textContent = pages.length > 1 ? `${pinnedPage + 1} / ${pages.length}` : '';
+    byId('pinnedPageSize').textContent = `${pages.length} / ${pages.length}`;
+    byId('pinnedPageLabels').hidden = pages.length <= 1;
     pinnedRows = nodes; pinnedGroups = groups;
   };
   repageWinners = () => showPinned(lottery);

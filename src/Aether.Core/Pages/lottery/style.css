@@ -268,7 +268,9 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 .rb-title{font-size:64px;line-height:1.15;white-space:nowrap}
 .rb-tag{display:none}
 .rb-count{margin-left:auto;font-size:34px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.rb-pgs{flex-shrink:0;white-space:nowrap;font-variant-numeric:tabular-nums}
+.rb-pgs{display:grid;flex-shrink:0}
+.rb-pgs>span{grid-area:1/1;white-space:nowrap}
+#pinnedPageSize{visibility:hidden}
 .rb-pages{display:grid}
 .rb-page{grid-area:1/1;align-self:start;display:flex;flex-direction:column;gap:12px}
 .rb-row{position:relative;display:flex;align-items:center;gap:20px;height:100px;padding:0 24px}
