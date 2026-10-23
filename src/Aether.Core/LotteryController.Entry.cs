@@ -50,12 +50,17 @@ public sealed partial class LotteryController
         }
     }
 
-    public void StartEntry(IReadOnlyCollection<LotteryAward> awards, string keyword)
+    private static void Validate(IReadOnlyCollection<LotteryAward> awards)
     {
-        if (ValidateKeyword(keyword) is { } keywordError) throw new ArgumentException(keywordError);
         if (awards.Count is < 1 or > MaxAwards) throw new ArgumentException($"奖项须为 1 至 {MaxAwards} 个。");
         foreach (var award in awards)
             if (ValidateAward(award) is { } error) throw new ArgumentException(error);
+    }
+
+    public void StartEntry(IReadOnlyCollection<LotteryAward> awards, string keyword)
+    {
+        if (ValidateKeyword(keyword) is { } keywordError) throw new ArgumentException(keywordError);
+        Validate(awards);
         lock (gate)
         {
             RequireConnection();
