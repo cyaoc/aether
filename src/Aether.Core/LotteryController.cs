@@ -50,6 +50,31 @@ public sealed partial class LotteryController : IDisposable
         return store().Load(roomId, id: id);
     }
 
+    public ImmutableArray<LotteryPrizeSet> GetPrizeSets(long roomId, LotteryMode mode)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        return store().PrizeSets(roomId, mode);
+    }
+
+    public void SavePrizeSet(long roomId, LotteryMode mode, string name,
+        IReadOnlyCollection<PoolPrize> prizes, IReadOnlyCollection<LotteryAward> awards)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("请给方案起个名字。");
+        if (!Enum.IsDefined(mode)) throw new ArgumentException("请选择抽奖方式。");
+        if (mode == LotteryMode.Pool) Validate(prizes, DefaultStopWord, null);
+        else Validate(awards);
+        store().SavePrizeSet(roomId, new(mode, name.Trim(), time.GetUtcNow(),
+            mode == LotteryMode.Pool ? prizes.ToImmutableArray() : [],
+            mode == LotteryMode.Entry ? awards.ToImmutableArray() : []));
+    }
+
+    public void DeletePrizeSet(long roomId, LotteryMode mode, string name)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        store().DeletePrizeSet(roomId, mode, name);
+    }
+
     public IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync(CancellationToken token = default) =>
         subscribers.SubscribeAsync(() =>
         {

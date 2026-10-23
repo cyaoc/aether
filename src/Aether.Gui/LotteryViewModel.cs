@@ -72,12 +72,14 @@ public partial class LotteryViewModel : ObservableObject
     internal void Apply(LotteryUpdate update)
     {
         var previous = LotteryState;
+        var previousPrizeSetRoom = PrizeSetRoomId;
         LotteryState = update.State;
         if (LotteryState.RoomId is { } room && settings.LastLotteryRoomId != room)
         {
             settings.LastLotteryRoomId = room;
             saveSettings();
         }
+        if (previousPrizeSetRoom != PrizeSetRoomId) _ = RefreshPrizeSetsAsync();
         if (previous.RoomId != LotteryState.RoomId || ((previous.Lottery, LotteryState.Lottery) switch
             {
                 (PoolLottery before, PoolLottery after) => before.Id != after.Id || before.Draws != after.Draws
@@ -134,6 +136,7 @@ public partial class LotteryViewModel : ObservableObject
         catch { }
         await lotteryUpdates.StopAsync();
         await lotteryHistoryRead.StopAsync();
+        await prizeSetsRead.StopAsync();
     }
 
     private readonly LatestRun lotteryHistoryRead = new();

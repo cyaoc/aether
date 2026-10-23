@@ -12,6 +12,103 @@ namespace Aether.Gui.Tests;
 
 public sealed class LotteryPanelTests
 {
+    [Fact]
+    public Task Prize_set_picker_saves_replaces_loads_and_deletes_without_changing_stop_inputs() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        var page = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var picker = page.FindControl<LotteryPrizeSetPicker>("PoolPrizeSets")!;
+            var save = picker.FindControl<Button>("SaveButton")!;
+            save.Flyout!.ShowAt(save);
+            GuiHarness.Flush();
+            var name = picker.FindControl<TextBox>("NameInput")!;
+            var confirm = picker.FindControl<Button>("ConfirmButton")!;
+            Assert.False(confirm.IsEnabled);
+            name.Text = "周末";
+            GuiHarness.Flush();
+            Assert.True(confirm.IsEnabled);
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 1 && !vm.Lottery.Busy);
+            var original = Assert.Single(vm.Lottery.PrizeSets);
+            vm.Lottery.Prizes[0].Name = "键盘";
+            Assert.Equal("限定抱枕", original.Prizes[0].Name);
+            save.Flyout.ShowAt(save);
+            GuiHarness.Flush();
+            Assert.Equal("替换", confirm.Content);
+            Assert.Equal("已有同名方案，保存会替换它", picker.FindControl<TextBlock>("SaveHint")!.Text);
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets[0].Prizes[0].Name == "键盘" && !vm.Lottery.Busy);
+            vm.Lottery.Prizes[0].Name = "改过的草稿";
+            vm.Lottery.StopWord = "等一下";
+            vm.Lottery.Uid = "99";
+            var load = picker.FindControl<Button>("LoadButton")!;
+            load.Flyout!.ShowAt(load);
+            GuiHarness.Flush();
+            var menu = Assert.IsType<MenuFlyout>(load.Flyout);
+            var item = menu.Items.OfType<MenuItem>().Single(item => item.Tag is LotteryPrizeSet);
+            var header = Assert.IsType<Grid>(item.Header);
+            Assert.Contains(header.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "2 件奖品 · 键盘、贴纸");
+            item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Assert.Equal("键盘", vm.Lottery.Prizes[0].Name);
+            Assert.Equal("限定抱枕", Assert.IsType<PoolLottery>(vm.Lottery.LotteryState.Lottery).Prizes[0].Name);
+            Assert.Equal("等一下", vm.Lottery.StopWord);
+            Assert.Equal("99", vm.Lottery.Uid);
+            Assert.Contains("已载入「周末」", vm.Lottery.PoolStatusText);
+            load.Flyout.ShowAt(load);
+            GuiHarness.Flush();
+            item = menu.Items.OfType<MenuItem>().Single(item => item.Tag is LotteryPrizeSet);
+            Assert.Contains("chosen", item.Classes);
+            Assert.IsType<Grid>(item.Header).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 0 && !vm.Lottery.Busy);
+            Assert.Contains(menu.Items.OfType<MenuItem>(), entry => entry.Header as string == "还没有方案，填好后点‘存为方案’");
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery(PoolLotteryPhase.Spinning))));
+            Assert.False(load.IsEnabled);
+            Assert.False(save.IsEnabled);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Invalid_prize_set_uses_the_pool_error_and_room_lists_do_not_leak() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        var page = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
+            vm.Lottery.Apply(new LotteryUpdate(new(99, false, TestLottery() with { Id = "other", RoomId = 99 })));
+            await vm.Lottery.RefreshPrizeSetsAsync();
+            Assert.Empty(vm.Lottery.PrizeSets);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, false, TestLottery())));
+            await vm.Lottery.RefreshPrizeSetsAsync();
+            Assert.Equal("周末", Assert.Single(vm.Lottery.PrizeSets).Name);
+            var picker = page.FindControl<LotteryPrizeSetPicker>("PoolPrizeSets")!;
+            var save = picker.FindControl<Button>("SaveButton")!;
+            Assert.True(save.IsEnabled);
+            vm.Lottery.Prizes[0].Name = "";
+            save.Flyout!.ShowAt(save);
+            picker.FindControl<TextBox>("NameInput")!.Text = "无效奖品";
+            GuiHarness.Flush();
+            picker.FindControl<Button>("ConfirmButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PoolLotteryError is not null && !vm.Lottery.Busy);
+            Assert.Equal("请填写奖品名称。", page.FindControl<TextBlock>("ErrorMessage")!.Text);
+            Assert.Single(vm.Lottery.PrizeSets);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
