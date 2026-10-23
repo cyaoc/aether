@@ -369,7 +369,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (ConnectCommand.ExecutionTask is { } task) await task;
     }
 
-    // Finish draws before disconnecting the room they require; stop the web service last, as the CLI does, because the receive loop sends it welcome animations.
+    // Stop the web service first so later cleanup cannot hold its port; finish draws before disconnecting the room they require.
     public async Task ShutdownAsync()
     {
         shutdown.Cancel();
@@ -379,13 +379,13 @@ public partial class MainWindowViewModel : ObservableObject
         LoginCommand.Cancel();
         LogoutCommand.Cancel();
         var accountStopped = accountRead.StopAsync();
+        await WebService.StopAsync();
         await Lottery.StopAsync();
         await accountStopped;
         await StopWatchingAsync();
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;
         if (LogoutCommand.ExecutionTask is { } task) await task;
         if (LoginCommand.ExecutionTask is { } login) await login;
-        await WebService.StopAsync();
     }
 
     // Reconnects skip Connecting, so a QR login can end at either update.
