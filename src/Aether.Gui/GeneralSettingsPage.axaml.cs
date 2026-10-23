@@ -33,7 +33,6 @@ public partial class GeneralSettingsPage : SettingsPage
     }
 
     protected override bool ReconnectAfterSave => false;
-    protected override bool KeepMessageUntilEdited => true;
     private bool PortChanged => settings.WebServicePort.CanEdit && WebPortInput.Text != original.GetValueOrDefault(settings.WebServicePort.Name);
     protected override string DirtyDescription => PortChanged ? "保存后网页服务换到新端口，直播姬里的地址要跟着改" : base.DirtyDescription;
 

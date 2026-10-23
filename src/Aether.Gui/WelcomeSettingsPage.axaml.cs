@@ -12,7 +12,17 @@ public partial class WelcomeSettingsPage : SettingsPage
         InitializeComponent();
         Title = "进场欢迎";
         Bind(WelcomeInput, WelcomeReadOnly, WelcomeError, s => s.WelcomeEnabled);
+        WelcomeTextRows.ItemsSource = WelcomeTexts;
+        WelcomeTextRows.GotFocus += WelcomeTextGotFocus;
+        WelcomeTexts.CollectionChanged += WelcomeTextsChanged;
+        WelcomeTexts.RowChanged += Validate;
         WelcomeTextFold.Toggled += RefreshWelcomeTextFold;
+        UidRows.ItemsSource = WelcomeUids;
+        ConditionRows.ItemsSource = WelcomeThresholds;
+        WelcomeUids.CollectionChanged += (_, _) => RefreshConditionList();
+        WelcomeThresholds.CollectionChanged += (_, _) => RefreshConditionList();
+        WelcomeUids.RowChanged += Validate;
+        WelcomeThresholds.RowChanged += Validate;
         UidFold.Toggled += RefreshUidFold;
         LoadSettings();
     }

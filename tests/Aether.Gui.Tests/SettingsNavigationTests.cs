@@ -27,8 +27,8 @@ public sealed class SettingsNavigationTests
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var row = Add(page, WelcomeCondition.Uid);
-            Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
-            Assert.False(row.FindControl<TextBlock>("ErrorMessage")!.IsVisible);
+            Assert.Equal("", GuiHarness.FindRowControl<TextBox>(page, row, "UidInput")!.Text);
+            Assert.False(GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.IsVisible);
             Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
@@ -42,12 +42,12 @@ public sealed class SettingsNavigationTests
             navigation.SelectedIndex = 2;
             GuiHarness.Flush();
             Assert.Same(row, Rows(page)[0]);
-            Assert.Equal("", row.FindControl<TextBox>("UidInput")!.Text);
-            Assert.Equal("填一个 UID，或删掉这条", row.FindControl<TextBlock>("ErrorMessage")!.Text);
+            Assert.Equal("", GuiHarness.FindRowControl<TextBox>(page, row, "UidInput")!.Text);
+            Assert.Equal("填一个 UID，或删掉这条", GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage")!.Text);
             var settings = Settings.Load(harness.DataDirectory);
             Assert.Equal(14, settings.LogRetentionDays.Value);
             Assert.Empty(settings.WelcomeUids.Value);
-            row.FindControl<TextBox>("UidInput")!.Text = "42";
+            GuiHarness.FindRowControl<TextBox>(page, row, "UidInput")!.Text = "42";
             GuiHarness.Flush();
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal([42L], Settings.Load(harness.DataDirectory).WelcomeUids.Value);
@@ -251,6 +251,40 @@ public sealed class SettingsNavigationTests
             Assert.False(save.IsEnabled);
             Assert.False(GuiHarness.FindVisual<TextBlock>(blindBox, "DirtyMessage").IsVisible);
             Assert.Empty(window.OwnedWindows);
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Save_message_stays_across_navigation_until_the_page_is_edited() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            var navigation = window.FindControl<ListBox>("Navigation")!;
+            navigation.SelectedIndex = 1;
+            GuiHarness.Flush();
+            var blindBox = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+            var input = blindBox.FindControl<TextBox>("DailyKeywordInput")!;
+            input.Text = "查今天";
+            GuiHarness.Flush();
+            GuiHarness.FindVisual<Button>(blindBox, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            var message = GuiHarness.FindVisual<TextBlock>(blindBox, "Message");
+            Assert.Equal("已保存。", message.Text);
+            // Each navigation rereads the settings file into every untouched page.
+            navigation.SelectedIndex = 0;
+            GuiHarness.Flush();
+            navigation.SelectedIndex = 1;
+            GuiHarness.Flush();
+            Assert.Equal("已保存。", message.Text);
+            input.Text = "查今日";
+            GuiHarness.Flush();
+            Assert.Equal("", message.Text);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
         return true;

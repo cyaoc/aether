@@ -3,69 +3,89 @@ using Aether.Core;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
+using Avalonia.Media;
 
 namespace Aether.Gui;
 
 public partial class WelcomeAnimationSettingsPage
 {
     private readonly Func<Task<string?>>? pickAnimationVideo;
-    private IEnumerable<WelcomeAnimationRow> Animations => AnimationRows.Children.Cast<WelcomeAnimationRow>();
+    internal EditableRows<WelcomeAnimationRow> Animations { get; } = new(0);
     private string AnimationDirectory => Settings.VideoDirectory(dataDirectory);
 
     private void LoadAnimations()
     {
-        AnimationRows.Children.Clear();
+        Animations.Clear();
         foreach (var (uid, video) in settings.WelcomeAnimationVideos)
-            InsertAnimation(uid.ToString(CultureInfo.InvariantCulture), video.Value, settings.CanEditWelcomeAnimationVideos && video.CanEdit);
+            Animations.Add(new(uid.ToString(CultureInfo.InvariantCulture), video.Value, settings.CanEditWelcomeAnimationVideos && video.CanEdit));
         AddAnimationButton.IsEnabled = settings.CanEditWelcomeAnimationVideos;
         AnimationVideosReadOnly.IsVisible = !settings.CanEditWelcomeAnimationVideos;
     }
 
-    private WelcomeAnimationRow InsertAnimation(string uid, string fileName, bool canEdit, bool isNew = false)
+    public void TestAnimation(WelcomeAnimationRow row)
     {
-        var row = new WelcomeAnimationRow(uid, fileName, canEdit, isNew);
-        AnimationRows.Children.Add(row);
-        row.Changed += Validate;
-        row.RemoveRequested += () => { AnimationRows.Children.Remove(row); Validate(); };
-        row.ChooseRequested += async () => await ChooseAnimationAsync(row);
-        row.TestRequested += () =>
-        {
-            RefreshAnimations();
-            if (row.CanTest && row.Uid is { } uid) viewModel?.WebService.TestOrStopAnimation(uid, row.FileName);
-        };
-        return row;
+        RefreshAnimations();
+        if (row.CanTest && row.Uid is { } uid) viewModel?.WebService.TestOrStopAnimation(uid, row.FileName);
     }
 
     /// <summary>The row holds the video the settings file maps its UID to, with no new file picked.</summary>
     private bool MatchesFile(WelcomeAnimationRow row) => row.SourcePath is null && row.Uid is { } uid
         && settings.WelcomeAnimationVideos.TryGetValue(uid, out var video) && video.Value == row.FileName;
 
-    private bool AnimationDraft => Animations.Count() != settings.WelcomeAnimationVideos.Count || !Animations.All(MatchesFile);
+    private bool AnimationDraft => Animations.Count != settings.WelcomeAnimationVideos.Count || !Animations.All(MatchesFile);
 
     private bool RefreshAnimations()
     {
         var invalid = false;
         var uids = new HashSet<long>();
-        var first = true;
         foreach (var row in Animations)
         {
-            row.ShowDivider(!first);
-            first = false;
             var saved = MatchesFile(row) && (viewModel is null || viewModel.WebService.AnimationVideoSaved(row.Uid!.Value, row.FileName));
-            invalid |= row.Refresh(uids, AnimationDirectory, saved, settings.WelcomeAnimationEnabled.Value && viewModel?.WebService.HasVideoConnections == true,
-                viewModel?.WebService.AnimationBusy == true || viewModel?.WebService.AnimationReloading == true,
-                row.SourcePath is null && row.Uid is { } playingUid ? viewModel?.WebService.PlayingAnimation(playingUid, row.FileName) : null,
-                row.SourcePath is null && row.Uid is { } failedUid && viewModel?.WebService.AnimationFailed(failedUid, row.FileName) == true);
+            var hasPages = settings.WelcomeAnimationEnabled.Value && viewModel?.WebService.HasVideoConnections == true;
+            var busy = viewModel?.WebService.AnimationBusy == true || viewModel?.WebService.AnimationReloading == true;
+            var playback = row.SourcePath is null && row.Uid is { } playingUid ? viewModel?.WebService.PlayingAnimation(playingUid, row.FileName) : null;
+            var failed = row.SourcePath is null && row.Uid is { } failedUid && viewModel?.WebService.AnimationFailed(failedUid, row.FileName) == true;
+            var playing = playback is not null;
+            var canStop = playback?.IsTest == true;
+            row.Error = string.IsNullOrWhiteSpace(row.UidText) ? "填一个 UID，或删掉这条"
+                : row.Uid is not { } uid ? "UID 必须是正整数"
+                : !uids.Add(uid) ? "和上面那条重复了" : null;
+            invalid |= row.Error is not null;
+            var exists = File.Exists(row.SourcePath ?? Path.Combine(AnimationDirectory, row.FileName));
+            row.Missing = !exists;
+            row.FileIcon = Icon(exists ? "Icon.Animation" : "Icon.Alert");
+            row.FileNameDecorations = exists ? null : TextDecorations.Strikethrough;
+            // Show what blocks saving or playing first, then the last playback failure, then progress.
+            var (note, tone, icon) = row.VisibleError is { } error ? (error, "error", "Icon.Alert")
+                : !exists ? ("找不到视频文件，点文件名重新选择", "error", "Icon.Alert")
+                : failed ? ("上次播放失败：格式不支持，换成 H.264 编码的 MP4", "error", "Icon.Fail")
+                : !saved ? ("保存后才能试播", null, "Icon.Info")
+                : playing ? (canStop ? "正在直播姬里试播" : "正在直播姬里播放", "playing", "Icon.Wave") : ("", null, "Icon.Info");
+            if (!row.CanEdit) note += (note.Length > 0 ? "\n" : "") + "这项不能逐行编辑，请在设置文件里改";
+            row.RowMessage = note;
+            row.NoteIcon = Icon(icon);
+            row.NoteError = tone == "error";
+            row.NotePlaying = tone == "playing";
+            var who = row.Uid is { } owner ? $"{owner} 的" : "";
+            row.FileAccessibleName = $"更换{who}视频：{row.FileName}";
+            var (action, testIcon, testText) = canStop ? ("停止试播", "Icon.Stop", "停止")
+                : playing ? ("正在播放", "Icon.Wave", "播放中") : ("试播", "Icon.Play", "试播");
+            row.TestAccessibleName = action + who + "欢迎动画";
+            row.RemoveAccessibleName = $"删除{who}欢迎动画";
+            row.Playing = playing;
+            row.Stoppable = canStop;
+            row.TestIcon = Icon(testIcon);
+            row.TestText = testText;
+            row.CanTest = canStop || row.Error is null && saved && hasPages && exists && !busy;
         }
-        var count = AnimationRows.Children.Count;
+        var count = Animations.Count;
         AnimationCount.Text = count > 0 ? $"{count} 位" : "";
         AnimationRowsBorder.IsVisible = count > 0;
         EmptyAnimations.IsVisible = count == 0;
         return invalid;
     }
 
-    private async Task ChooseAnimationAsync(WelcomeAnimationRow? row = null)
+    public async Task ChooseAnimationAsync(WelcomeAnimationRow? row = null)
     {
         if (!settings.CanEditWelcomeAnimationVideos || row?.CanEdit == false) return;
         try
@@ -77,17 +97,26 @@ public partial class WelcomeAnimationSettingsPage
                 Message = reason;
                 return;
             }
-            row ??= InsertAnimation("", Path.GetFileName(path), true, isNew: true);
-            row.SelectVideo(path);
+            if (row is null)
+            {
+                row = new("", Path.GetFileName(path), true, isNew: true);
+                row.SelectVideo(path);
+                Animations.AddNew(row);
+            }
+            else
+            {
+                row.SelectVideo(path);
+                row.RequestFocus();
+            }
             Validate();
-            // After the picker hands focus back, or that would count as leaving the new row.
-            Dispatcher.UIThread.Post(row.FocusInput, DispatcherPriority.Loaded);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
         {
             Message = $"选择视频失败：{error.Message}";
         }
     }
+
+    private static Geometry Icon(string key) => (Geometry)Application.Current!.FindResource(key)!;
 
     private async Task<string?> PickVideoAsync()
     {

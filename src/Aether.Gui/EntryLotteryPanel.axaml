@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.EntryLotteryPanel">
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.EntryLotteryPanel" x:DataType="local:MainWindowViewModel">
   <UserControl.Styles>
     <!-- Winner chips and entry rows as on canvas O1; the draw on air stays highlighted until the 抽奖页 finishes it. -->
     <Style Selector="Border.winner.fresh">
@@ -6,12 +6,12 @@
       <Setter Property="Background" Value="{DynamicResource Accent.Flash}" />
       <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
     </Style>
-    <Style Selector="StackPanel#EntryRows > Border">
+    <Style Selector="Border.entryRow">
       <Setter Property="Padding" Value="16,7" />
       <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
       <Setter Property="BorderThickness" Value="0,0,0,1" />
     </Style>
-    <Style Selector="StackPanel#EntryRows > Border.fresh">
+    <Style Selector="Border.entryRow.fresh">
       <Setter Property="Background" Value="{DynamicResource Accent.Flash}" />
     </Style>
     <Style Selector="Border.badge.won">
@@ -30,6 +30,24 @@
       <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
       <Setter Property="Foreground" Value="{DynamicResource Accent.OnSolid}" />
     </Style>
+    <!-- 抽一个 as canvas O1: a draw that cannot run is an outline, green with a check once the award is full. -->
+    <Style Selector="Button#DrawButton Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Dice}" />
+    </Style>
+    <Style Selector="Button#DrawButton.full Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Check}" />
+    </Style>
+    <Style Selector="Button#DrawButton:disabled /template/ ContentPresenter">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
+    </Style>
+    <Style Selector="Button#DrawButton.full:disabled /template/ ContentPresenter">
+      <Setter Property="Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="TextBlock#DrawCount.full">
+      <Setter Property="Foreground" Value="{DynamicResource Success}" />
+    </Style>
   </UserControl.Styles>
   <Grid ColumnDefinitions="*,300">
     <Grid RowDefinitions="*,Auto">
@@ -42,9 +60,9 @@
             </Grid>
             <Grid ColumnDefinitions="Auto,160,*" RowDefinitions="Auto,Auto" ColumnSpacing="8">
               <TextBlock Classes="label" Text="报名关键字" VerticalAlignment="Center" />
-              <TextBox Grid.Column="1" x:Name="KeywordInput" Height="32" MinHeight="32" FontSize="13" AutomationProperties.Name="报名关键字" Classes.invalid="{Binding #KeywordError.IsVisible}" />
-              <TextBlock Grid.Column="2" x:Name="KeywordHint" Classes="caption muted singleLine" Text="不能靠送礼物报名" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" x:Name="KeywordError" Classes="error" IsVisible="False" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
+              <TextBox Grid.Column="1" x:Name="KeywordInput" Text="{Binding Lottery.Keyword, Mode=TwoWay}" IsReadOnly="{Binding !Lottery.CanEditEntry}" Height="32" MinHeight="32" FontSize="13" AutomationProperties.Name="报名关键字" Classes.invalid="{Binding #KeywordError.IsVisible}" />
+              <TextBlock Grid.Column="2" x:Name="KeywordHint" Classes="caption muted singleLine" Text="{Binding Lottery.KeywordHint}" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" x:Name="KeywordError" Classes="error" Text="{Binding Lottery.KeywordError}" IsVisible="{Binding Lottery.KeywordError, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />
             </Grid>
           </StackPanel>
           <StackPanel Spacing="10">
@@ -52,10 +70,42 @@
               <TextBlock Classes="section" Text="奖项" />
               <TextBlock Grid.Column="1" Classes="hint" Text="中过奖的人不再参加这一场后面的奖项" />
             </Grid>
-            <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8"><StackPanel x:Name="AwardRows" /></Border>
+            <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8"><ItemsControl x:Name="AwardRows" Classes="editableRows dividedRows" ItemsSource="{Binding Lottery.Awards}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:EntryAwardRow">
+                  <local:EditableRowFrame BorderBrush="{DynamicResource Border.Subtle}" Padding="12,8,6,8" MinHeight="48">
+                    <StackPanel Spacing="4">
+                      <Grid ColumnDefinitions="88,*,Auto,Auto,Auto" ColumnSpacing="8">
+                        <TextBox x:Name="NameInput" Classes="rowFocus" Text="{Binding Name, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding NameInvalid}" AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 个奖项名称'}" Height="32" MinHeight="32" FontSize="13" FontWeight="SemiBold" PlaceholderText="奖项名称" />
+                        <TextBox Grid.Column="1" x:Name="PrizeInput" Text="{Binding Prize, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding PrizeInvalid}" AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 个奖项的奖品'}" Height="32" MinHeight="32" FontSize="13" PlaceholderText="奖品" />
+                        <StackPanel Grid.Column="2" IsVisible="{Binding Preparing}" Orientation="Horizontal" Spacing="6">
+                          <TextBox x:Name="CapacityInput" Text="{Binding Capacity, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding CapacityInvalid}" AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 个奖项名额'}" Classes="numeric" Width="44" Height="32" MinHeight="32" FontSize="13" Padding="6,0" TextAlignment="Right" />
+                          <TextBlock Classes="caption muted" Text="名" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <local:GradePicker Grid.Column="3" x:Name="GradeInput" SelectedItem="{Binding Grade, Mode=TwoWay}" IsVisible="{Binding Preparing}" IsEnabled="{Binding CanEdit}" AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 个奖项档次'}" VerticalAlignment="Center" />
+                        <Button Grid.Column="4" x:Name="RemoveButton" Command="{Binding Remove}" IsVisible="{Binding Preparing}" AutomationProperties.Name="{Binding Number, StringFormat='删除第 {0} 个奖项'}" Classes="ghost danger" Width="30" Height="30">
+                          <Button.IsEnabled><MultiBinding Converter="{x:Static BoolConverters.And}"><Binding Path="CanRemove" /><Binding Path="CanEdit" /></MultiBinding></Button.IsEnabled>
+                          <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
+                        </Button>
+                        <local:GradeBadge Grid.Column="2" x:Name="GradeBadge" Grade="{Binding Grade}" Height="20" Padding="5,0" VerticalAlignment="Center" IsVisible="{Binding !Preparing}" />
+                        <TextBlock Grid.Column="3" x:Name="DrawCount" Text="{Binding DrawCount}" Classes.full="{Binding Full}" Classes="caption muted numeric" MinWidth="54" TextAlignment="Right" VerticalAlignment="Center" IsVisible="{Binding !Preparing}" />
+                        <Button Grid.Column="4" x:Name="DrawButton" Command="{Binding $parent[local:EntryLotteryPanel].((local:MainWindowViewModel)DataContext).Lottery.DrawEntryAsync}" CommandParameter="{Binding Number}" IsEnabled="{Binding CanDraw}" Classes.full="{Binding Full}" AutomationProperties.Name="{Binding DrawAccessibleName}" ToolTip.Tip="{Binding DrawHint}" Classes="accent" Width="84" Height="30" Padding="0" FontWeight="SemiBold" HorizontalContentAlignment="Center" IsVisible="{Binding !Preparing}">
+                          <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
+                            <TextBlock Text="{Binding DrawText}" VerticalAlignment="Center" />
+                          </StackPanel>
+                        </Button>
+                      </Grid>
+                      <TextBlock x:Name="ErrorMessage" Classes="error" Text="{Binding VisibleError}" IsVisible="{Binding VisibleError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" AutomationProperties.LiveSetting="Polite" />
+                    </StackPanel>
+                  </local:EditableRowFrame>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl></Border>
             <!-- Click on press, as 添加奖品 does: leaving a new row above reveals its error before the release. -->
-            <Grid x:Name="AddAwardBar" ColumnDefinitions="Auto,*" ColumnSpacing="8">
-              <Button x:Name="AddAwardButton" ClickMode="Press" Padding="10,0,12,0">
+            <Grid x:Name="AddAwardBar" IsVisible="{Binding Lottery.EntryPreparing}" ColumnDefinitions="Auto,*" ColumnSpacing="8">
+              <Button x:Name="AddAwardButton" IsEnabled="{Binding Lottery.CanAddAward}" ClickMode="Press" Padding="10,0,12,0">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                   <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Add}" /></Viewbox>
                   <TextBlock Text="添加奖项" VerticalAlignment="Center" />
@@ -70,17 +120,17 @@
       <Border Grid.Row="1" BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="20,12,20,18">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
           <StackPanel VerticalAlignment="Center" Spacing="4">
-            <TextBlock x:Name="StatusText" Classes="caption muted singleLine" AutomationProperties.LiveSetting="Polite" />
-            <TextBlock x:Name="ErrorMessage" Classes="caption error" IsVisible="False" AutomationProperties.LiveSetting="Polite" />
+            <TextBlock x:Name="StatusText" Classes="caption muted singleLine" Text="{Binding Lottery.EntryStatusText}" AutomationProperties.LiveSetting="Polite" />
+            <TextBlock x:Name="ErrorMessage" Classes="caption error" Text="{Binding Lottery.EntryLotteryError}" IsVisible="{Binding Lottery.EntryLotteryError, Converter={x:Static ObjectConverters.IsNotNull}}" AutomationProperties.LiveSetting="Polite" />
           </StackPanel>
           <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
-            <TextBlock x:Name="ConfirmEndText" Classes="singleLine" FontSize="13" Foreground="{DynamicResource Text.Secondary}" Text="结束后不能再抽，确定吗？" VerticalAlignment="Center" IsVisible="False" />
-            <Button x:Name="CancelEndButton" Content="取消" Height="34" Padding="14,0" IsVisible="False" />
-            <Button x:Name="StartEntryButton" Classes="accent" Content="开始报名" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
-            <Button x:Name="CloseEntriesButton" Classes="accent" Content="截止报名" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
-            <Button x:Name="EndEntryButton" Content="结束这场抽奖" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
-            <Button x:Name="ConfirmEndButton" Content="结束" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsVisible="False" />
-            <Button x:Name="VisibilityButton" Content="收起画面" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
+            <TextBlock x:Name="ConfirmEndText" Classes="singleLine" FontSize="13" Foreground="{DynamicResource Text.Secondary}" Text="结束后不能再抽，确定吗？" VerticalAlignment="Center" IsVisible="{Binding Lottery.ConfirmingEnd}" />
+            <Button x:Name="CancelEndButton" Content="取消" Height="34" Padding="14,0" IsVisible="{Binding Lottery.ConfirmingEnd}" />
+            <Button x:Name="StartEntryButton" IsEnabled="{Binding Lottery.CanStartEntry}" IsVisible="{Binding Lottery.EntryPreparing}" Classes="accent" Content="开始报名" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
+            <Button x:Name="CloseEntriesButton" IsEnabled="{Binding Lottery.CanCloseEntries}" IsVisible="{Binding Lottery.EntryOpen}" Classes="accent" Content="截止报名" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
+            <Button x:Name="EndEntryButton" IsEnabled="{Binding Lottery.CanEndEntry}" IsVisible="{Binding Lottery.ShowEndEntry}" Content="结束这场抽奖" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
+            <Button x:Name="ConfirmEndButton" IsEnabled="{Binding Lottery.CanEndEntry}" Content="结束" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsVisible="{Binding Lottery.ConfirmingEnd}" />
+            <Button x:Name="VisibilityButton" IsEnabled="{Binding Lottery.CanToggleHidden}" IsVisible="{Binding Lottery.EntryEnded}" Content="{Binding Lottery.EntryVisibilityText}" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
           </StackPanel>
         </Grid>
       </Border>
@@ -89,23 +139,40 @@
       <Grid RowDefinitions="Auto,Auto,Auto,Auto,*">
         <Grid ColumnDefinitions="*,Auto" Margin="16,18,16,8">
           <TextBlock Classes="section" Text="中奖名单" />
-          <TextBlock Grid.Column="1" x:Name="WinnerCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" x:Name="WinnerCount" Classes="caption muted numeric" Text="{Binding Lottery.EntryWinnerCountText}" VerticalAlignment="Center" />
         </Grid>
         <ScrollViewer Grid.Row="1" MaxHeight="210" HorizontalScrollBarVisibility="Disabled">
           <StackPanel Margin="16,0,16,12">
-            <TextBlock x:Name="EmptyWinners" Classes="hint" Text="截止报名后开奖，中奖的人会列在这里" />
-            <StackPanel x:Name="WinnerGroups" Spacing="4" />
+            <TextBlock x:Name="EmptyWinners" Classes="hint" Text="截止报名后开奖，中奖的人会列在这里" IsVisible="{Binding Lottery.IsEntryWinnersEmpty}" />
+            <ItemsControl x:Name="WinnerGroups" ItemsSource="{Binding Lottery.EntryWinnerGroups}" ItemTemplate="{StaticResource WinnerGroupTemplate}" ClipToBounds="False">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Spacing="4" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            </ItemsControl>
           </StackPanel>
         </ScrollViewer>
         <Border Grid.Row="2" BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0" Padding="16,12,16,8">
           <Grid ColumnDefinitions="*,Auto">
             <TextBlock Classes="section" Text="报名" />
-            <TextBlock Grid.Column="1" x:Name="EntryCount" Classes="caption muted numeric" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" x:Name="EntryCount" Classes="caption muted numeric" Text="{Binding Lottery.LotteryEntryCountText}" VerticalAlignment="Center" />
           </Grid>
         </Border>
-        <TextBlock Grid.Row="3" x:Name="EmptyEntries" Classes="hint" Text="开始报名后，满足条件的观众会出现在这里" Margin="16,4" />
+        <TextBlock Grid.Row="3" x:Name="EmptyEntries" Classes="hint" Text="开始报名后，满足条件的观众会出现在这里" IsVisible="{Binding Lottery.IsLotteryEntriesEmpty}" Margin="16,4" />
         <ScrollViewer Grid.Row="4" HorizontalScrollBarVisibility="Disabled">
-          <StackPanel x:Name="EntryRows" />
+          <ItemsControl x:Name="EntryRows" ItemsSource="{Binding Lottery.LotteryEntries}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="local:LotteryEntryRow">
+                <Border Classes="entryRow" Classes.fresh="{Binding Fresh}">
+                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                    <TextBlock Classes="singleLine" Text="{Binding Nickname}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Classes="caption muted numeric" Text="{Binding Time}" VerticalAlignment="Center" />
+                    <Border Grid.Column="1" Classes="badge won" Height="20" Padding="6,0" VerticalAlignment="Center"
+                      IsVisible="{Binding Award, Converter={x:Static ObjectConverters.IsNotNull}}">
+                      <TextBlock Classes="singleLine" Text="{Binding Award}" MaxWidth="90" />
+                    </Border>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </ScrollViewer>
       </Grid>
     </Border>

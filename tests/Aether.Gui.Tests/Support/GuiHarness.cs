@@ -3,6 +3,7 @@ using System.Net;
 using Avalonia;
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
+using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -107,6 +108,16 @@ internal sealed class GuiHarness : IDisposable
 
     public static T FindVisual<T>(Visual parent, string name) where T : Control =>
         parent.GetVisualDescendants().OfType<T>().Single(control => control.Name == name);
+
+    public static T FindRowControl<T>(Visual parent, object row, string name) where T : Control
+    {
+        // A folded container has not been measured yet, so its template may not exist.
+        foreach (var presenter in parent.GetVisualDescendants().OfType<ContentPresenter>()
+            .Where(presenter => ReferenceEquals(presenter.Content, row)).ToArray())
+            presenter.UpdateChild();
+        return parent.GetVisualDescendants().OfType<T>()
+            .Single(control => ReferenceEquals(control.DataContext, row) && control.Name == name);
+    }
 
     /// <summary>Shows a navigation page and returns its visible ComboBox, scrolled into view.</summary>
     public static ComboBox VisibleComboBox(MainWindow window, int page, string name)

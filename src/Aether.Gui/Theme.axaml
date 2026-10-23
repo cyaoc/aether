@@ -1,6 +1,34 @@
 <Styles xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui">
+  <Style Selector="ItemsControl.editableRows > ContentPresenter" x:DataType="local:EditableRow">
+    <Setter Property="IsVisible" Value="{Binding IsShown}" />
+  </Style>
+  <Style Selector="ItemsControl.dividedRows > ContentPresenter:nth-child(n+2) local|EditableRowFrame">
+    <Setter Property="BorderThickness" Value="0,1,0,0" />
+  </Style>
   <Styles.Resources>
     <ResourceDictionary>
+      <DataTemplate x:Key="WinnerGroupTemplate" x:DataType="local:WinnerGroupRow">
+        <StackPanel Spacing="4">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+            <TextBlock Classes="caption awardName singleLine" Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="{Binding Prize}" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="2" Classes="caption muted numeric" Text="{Binding Progress}" VerticalAlignment="Center" />
+          </Grid>
+          <Panel>
+            <TextBlock Classes="caption muted" Text="还没抽" IsVisible="{Binding IsEmpty}" VerticalAlignment="Center" />
+            <ItemsControl ItemsSource="{Binding Winners}" IsVisible="{Binding !IsEmpty}" ClipToBounds="False">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:WinnerRow">
+                  <Border Classes="winner" Classes.fresh="{Binding Fresh}">
+                    <TextBlock Classes="singleLine" Text="{Binding Name}" ToolTip.Tip="{Binding ToolTip}" MaxWidth="210" VerticalAlignment="Center" />
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </Panel>
+        </StackPanel>
+      </DataTemplate>
       <DataTemplate x:Key="FeatureActivityTemplate" x:DataType="local:SendQueueItemViewModel">
         <Border Classes="activityRow">
           <StackPanel Spacing="4">
@@ -702,15 +730,15 @@
   <Style Selector="ListBox.prizeGrade ListBoxItem:selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:selected:pressed /template/ ContentPresenter">
     <Setter Property="FontWeight" Value="Bold" />
   </Style>
-  <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(1):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(1):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(1):selected:pressed /template/ ContentPresenter">
+  <Style Selector="ListBox.prizeGrade ListBoxItem.grand:selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.grand:selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.grand:selected:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource Grade.Grand.Tint}" />
     <Setter Property="Foreground" Value="{DynamicResource Grade.Grand}" />
   </Style>
-  <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(2):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(2):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(2):selected:pressed /template/ ContentPresenter">
+  <Style Selector="ListBox.prizeGrade ListBoxItem.second:selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.second:selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.second:selected:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource Grade.Second.Tint}" />
     <Setter Property="Foreground" Value="{DynamicResource Grade.Second}" />
   </Style>
-  <Style Selector="ListBox.prizeGrade ListBoxItem:nth-child(3):selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(3):selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem:nth-child(3):selected:pressed /template/ ContentPresenter">
+  <Style Selector="ListBox.prizeGrade ListBoxItem.third:selected /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.third:selected:pointerover /template/ ContentPresenter, ListBox.prizeGrade ListBoxItem.third:selected:pressed /template/ ContentPresenter">
     <Setter Property="Background" Value="{DynamicResource Grade.Third.Tint}" />
     <Setter Property="Foreground" Value="{DynamicResource Grade.Third}" />
   </Style>

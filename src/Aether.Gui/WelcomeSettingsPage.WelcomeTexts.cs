@@ -1,21 +1,21 @@
 using Aether.Core;
+using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Threading;
 
 namespace Aether.Gui;
 
 public partial class WelcomeSettingsPage
 {
     private WelcomeTextRow? editedWelcomeText;
-    private IEnumerable<WelcomeTextRow> WelcomeTexts => WelcomeTextRows.Children.Cast<WelcomeTextRow>();
+    internal EditableRows<WelcomeTextRow> WelcomeTexts { get; } = new(1);
 
     private void LoadWelcomeTexts()
     {
-        WelcomeTextRows.Children.Clear();
+        WelcomeTexts.Clear();
         WelcomeTextFold.IsExpanded = false;
-        foreach (var text in settings.WelcomeTexts.Value) InsertWelcomeText(text);
+        foreach (var text in settings.WelcomeTexts.Value) WelcomeTexts.Add(new(text, settings.WelcomeTexts.CanEdit));
         editedWelcomeText = WelcomeTexts.FirstOrDefault();
         WelcomeTextReadOnly.IsVisible = !settings.WelcomeTexts.CanEdit;
         AddWelcomeTextButton.IsVisible = settings.WelcomeTexts.CanEdit;
@@ -24,62 +24,55 @@ public partial class WelcomeSettingsPage
         RefreshWelcomeTexts();
     }
 
-    private WelcomeTextRow InsertWelcomeText(string text, bool isNew = false)
+    private void WelcomeTextsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        var row = new WelcomeTextRow(text, settings.WelcomeTexts.CanEdit, isNew);
-        WelcomeTextRows.Children.Add(row);
-        row.Changed += Validate;
-        row.Editing += () => { editedWelcomeText = row; RefreshWelcomeTexts(); };
-        row.RemoveRequested += () =>
-        {
-            var index = WelcomeTextRows.Children.IndexOf(row);
-            WelcomeTextRows.Children.Remove(row);
-            if (editedWelcomeText == row)
-                editedWelcomeText = WelcomeTexts.ElementAt(Math.Min(index, WelcomeTextRows.Children.Count - 1));
-            RefreshWelcomeTexts();
-            Validate();
-        };
-        return row;
+        if (e.OldItems?.Contains(editedWelcomeText) == true)
+            editedWelcomeText = WelcomeTexts.ElementAtOrDefault(Math.Min(e.OldStartingIndex, WelcomeTexts.Count - 1));
+        RefreshWelcomeTexts();
     }
 
-    /// <summary>Updates what depends on which rows exist: the count, the hints, the insert target and each row's ×.</summary>
+    private void WelcomeTextGotFocus(object? sender, RoutedEventArgs e)
+    {
+        // Only the text box picks the row; pressing another row's × must not retarget the insert buttons.
+        if (e.Source is TextBox { DataContext: WelcomeTextRow row })
+        {
+            editedWelcomeText = row;
+            RefreshWelcomeTexts();
+        }
+    }
+
+    /// <summary>Updates what depends on which rows exist: the count, the hints, the insert target and the fold.</summary>
     private void RefreshWelcomeTexts()
     {
-        var count = WelcomeTextRows.Children.Count;
+        var count = WelcomeTexts.Count;
         WelcomeTextCount.Text = $"{count} 条";
         WelcomeRandomHint.Text = count == 1 ? "写多条时，每次随机发一条" : "每次随机发一条";
         WelcomeInsertTarget.IsVisible = count > 1 && settings.WelcomeTexts.CanEdit;
-        WelcomeInsertTarget.Text = $"到第 {WelcomeTextRows.Children.IndexOf(editedWelcomeText!) + 1} 条";
-        var index = 0;
-        foreach (var row in WelcomeTexts) row.Refresh(index++, count);
+        WelcomeInsertTarget.Text = $"到第 {WelcomeTexts.IndexOf(editedWelcomeText!) + 1} 条";
         RefreshWelcomeTextFold();
     }
 
-    private void RefreshWelcomeTextFold() => WelcomeTextFold.ApplyTo(WelcomeTexts, row => row.HasVisibleError, "条");
+    private void RefreshWelcomeTextFold() => WelcomeTextFold.ApplyTo(WelcomeTexts, "条");
 
     private void AddWelcomeText(object? sender, RoutedEventArgs e)
     {
         if (!settings.WelcomeTexts.CanEdit) return;
-        var row = InsertWelcomeText("", isNew: true);
+        var row = new WelcomeTextRow("", settings.WelcomeTexts.CanEdit, isNew: true);
         editedWelcomeText = row;
         WelcomeTextFold.IsExpanded = true;
-        RefreshWelcomeTexts();
-        Validate();
-        Dispatcher.UIThread.Post(row.FocusInput, DispatcherPriority.Loaded);
+        WelcomeTexts.AddNew(row);
     }
 
     private void InsertPlaceholder(object? sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: string token } && editedWelcomeText is { } row)
         {
-            var hidden = !row.IsVisible;
-            if (hidden)
+            if (!row.IsShown)
             {
                 WelcomeTextFold.IsExpanded = true;
                 RefreshWelcomeTextFold();
             }
             row.Insert(token);
-            if (hidden) Dispatcher.UIThread.Post(row.FocusInput, DispatcherPriority.Loaded);
         }
         Validate();
     }
@@ -99,7 +92,8 @@ public partial class WelcomeSettingsPage
             var error = !settings.WelcomeTexts.CanEdit ? null
                 : string.IsNullOrWhiteSpace(row.Value) ? "填上欢迎语，或删掉这条"
                 : Settings.Validate(settings.WelcomeTexts.Name, Settings.TextListText([row.Value]));
-            invalid |= row.ShowError(error);
+            row.Error = error;
+            invalid |= error is not null;
         }
         RefreshWelcomeTextFold();
         return invalid;
