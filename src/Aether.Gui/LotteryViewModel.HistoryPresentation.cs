@@ -87,11 +87,12 @@ public partial class LotteryViewModel
         _ => "",
     };
 
-    private string FormatLotteryDate(DateTimeOffset timestamp, bool includeTodayDate = false)
+    private string FormatLotteryDate(DateTimeOffset timestamp, bool includeTodayDate = false, bool dateOnly = false)
     {
         var at = timestamp.ToLocalTime();
         var today = clock.GetLocalNow();
-        return !includeTodayDate && at.Date == today.Date ? $"{at:HH:mm}"
-            : at.Year == today.Year ? $"{at:M月d日 HH:mm}" : $"{at:yyyy年M月d日 HH:mm}";
+        if (!includeTodayDate && at.Date == today.Date) return dateOnly ? "" : $"{at:HH:mm}";
+        var date = at.Year == today.Year ? $"{at:M月d日}" : $"{at:yyyy年M月d日}";
+        return dateOnly ? date : $"{date} {at:HH:mm}";
     }
 }
