@@ -183,6 +183,8 @@ test('hiding a pinned result collapses it before filling, restores without tier 
   assert.equal(p.element('pinnedRows').children[1],removed);
   assert.match(removed.className,/is-hiding/);
   assert.equal(p.element('pinnedCount').textContent,'共 5 次');
+  assert.equal(p.element('pinnedPageLabels').hidden,true,'a single remaining page releases the header before collapse finishes');
+  assert.equal(p.element('pinnedPageNumber').textContent,'');
   p.advance(1320);
   assert.doesNotMatch(p.element('pinnedRows').textContent,/UID 5/);
   assert.match(p.element('pinnedRows').textContent,/UID 1/);

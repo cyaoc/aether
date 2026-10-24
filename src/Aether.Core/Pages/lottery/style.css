@@ -350,10 +350,10 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 .rb-page.paging{animation:rbPage 8s linear infinite}
 @keyframes rbPage{0%{opacity:0;transform:translateY(16px)}4%,96%{opacity:1;transform:none}100%{opacity:0;transform:translateY(-16px)}}
 .rb-row.is-hiding{overflow:hidden;animation:rbHide 1.32s both}
-.rb-name.is-hiding{animation:rbHideName 1.32s both}
+.rb-name.is-hiding{animation:rbHideName 1.2s both}
 .rb-row.is-fill{animation:rbFill .72s both}
 .rb-name.is-fill{animation:rbEnter .72s both}
-@keyframes rbHide{0%{opacity:1;height:var(--row-height,100px);margin-bottom:0;transform:none}45%{opacity:0;height:var(--row-height,100px);margin-bottom:0;transform:translateX(60px)}100%{opacity:0;height:0;padding-top:0;padding-bottom:0;border-top-width:0;border-bottom-width:0;margin-bottom:-12px;transform:translateX(60px)}}
-@keyframes rbHideName{0%{opacity:1;max-width:400px;transform:none}45%{opacity:0;max-width:400px;transform:scale(.6)}100%{opacity:0;max-width:0;padding:0;border-width:0;margin-left:-10px;transform:scale(.6)}}
+@keyframes rbHide{0%{opacity:1;height:var(--row-height,100px);margin-bottom:0;transform:none}45.454545%{opacity:0;height:var(--row-height,100px);margin-bottom:0;transform:translateX(60px)}100%{opacity:0;height:0;padding-top:0;padding-bottom:0;border-top-width:0;border-bottom-width:0;margin-bottom:-12px;transform:translateX(60px)}}
+@keyframes rbHideName{0%{opacity:1;max-width:400px;transform:none}50%{opacity:0;max-width:400px;transform:scale(.6)}100%{opacity:0;max-width:0;padding:0;border-width:0;margin-left:-10px;transform:scale(.6)}}
 @keyframes rbFill{from{opacity:0;height:0;margin-top:-12px}to{opacity:1;height:100px;margin-top:0}}
 [data-theme="StarSummon"] #pinned .rb-pgs{font:32px 'PingFang SC','Microsoft YaHei UI',sans-serif;color:#e7d9ff}
