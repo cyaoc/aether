@@ -565,3 +565,15 @@ test('gacha opening uses the decoded confetti atlas with shape and grade colour 
   assert.ok(sprites.every(args=>args[2]===192&&args[3]===96&&args[4]===96));
   assert.ok(sprites.every(args=>args[7]===args[8]&&args[7]>=21.6));
 });
+
+test('pinned Mecha results preserve accessible tier images in pool and entry modes',()=>{
+  const p=page(), prizes=['Grand','Second','Third'].map(grade=>({name:'奖品',grade}));
+  for (const isEntry of [false,true]) {
+    const lottery=isEntry ? {...entry,phase:'Ended',hidden:true,awards:prizes.map(p=>({...award,...p})),
+      draws:prizes.map((p,i)=>({...draws[i],awardIndex:i,award:{...award,...p}}))} : {mode:'Pool',id:'pool',phase:'Idle',prizes,
+      draws:prizes.map((prize,i)=>({id:`p${i}`,prize}))};
+    p.state({theme:'MechaLock',pinnedResults:true,lottery});
+    const labels=p.element('pinnedRows').children.map(row=>row.children.find(child=>child.role==='img')?.['aria-label']);
+    assert.deepEqual(labels,isEntry ? ['S 级','A 级','B 级'] : ['B 级','A 级','S 级']);
+  }
+});
