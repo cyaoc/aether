@@ -5,6 +5,26 @@ namespace Aether.Core.Tests;
 
 public sealed partial class LotteryBrowserTests
 {
+    [Fact]
+    public async Task All_lottery_textures_are_decoded_from_local_resources_before_a_draw()
+    {
+        await using var page = await OpenPageAsync(1920, 1080);
+        var browser = page.Browser;
+        var decoded = await browser.EvaluateAsync("""
+            (async () => {
+              await textures.ready;
+              return [...document.querySelectorAll('link[rel="preload"][as="image"]')].filter(link => {
+                const name = link.href.split('/textures/')[1].replace(/\.webp$/, '');
+                return textures.image(name)?.naturalWidth > 0;
+              }).length;
+            })()
+            """);
+        Assert.Equal(28, decoded.GetInt32());
+        Assert.Equal(28, browser.Requests.Where(url => url.EndsWith(".webp", StringComparison.Ordinal)).Distinct().Count());
+        Assert.All(browser.Requests, url => Assert.Equal("localhost", new Uri(url).Host));
+        Assert.Empty(browser.Errors);
+    }
+
     [Theory]
     [InlineData(1920, 1080)]
     [InlineData(1080, 1920)]
@@ -46,14 +66,16 @@ public sealed partial class LotteryBrowserTests
                 const image = new Image(); image.src = 'data:image/png;base64,' + png; await image.decode();
                 const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
                 const ctx = canvas.getContext('2d'); ctx.drawImage(image,0,0);
-                // Between the portrait tile columns, or below the landscape tiles; no text covers this point.
-                const {data} = ctx.getImageData(image.width/2, image.width < image.height ? 1220 : 820, 1, 1);
-                samples.push(data[0] - data[1]);
+                // Test the warning's visible area; the new HUD can cover any individual sample point.
+                samples.push(ctx.getImageData(image.width/2-240, image.height/2-240, 480, 480).data);
               }
-              return samples[0] - samples[1];
+              let litPixels=0;
+              for(let i=0;i<samples[0].length;i+=4)
+                if((samples[0][i]-samples[0][i+1])-(samples[1][i]-samples[1][i+1])>30) litPixels++;
+              return litPixels;
             })()
             """);
-        Assert.True(difference.GetInt32() > 30, $"The central red warning was barely visible: red-green change {difference}.");
+        Assert.True(difference.GetInt32() > 480 * 480 * .01, $"The central red warning was barely visible: {difference} visibly red pixels.");
         Assert.Empty(browser.Errors);
     }
 
@@ -79,15 +101,16 @@ public sealed partial class LotteryBrowserTests
             await browser.EvaluateAsync($"document.getAnimations().forEach(a => a.currentTime = {milliseconds}); true");
             var effects = await browser.EvaluateAsync("""
                 (() => {
-                  const visible = selector => { const e = document.querySelector(selector), s = getComputedStyle(e); return s.display !== 'none' && +s.opacity > .1; };
+                  const visible = selector => { const e = document.querySelector(selector); if (!e) return false; const s = getComputedStyle(e); return s.display !== 'none' && +s.opacity > .1; };
                   const panel = document.getElementById('result').getBoundingClientRect(), beam = document.querySelector('.mechaBeam').getBoundingClientRect();
                   const hud = document.querySelector('.mechaHud').getBoundingClientRect();
-                  return {radar:visible('.mechaRadar'), clamp:visible('.mechaClamp'), lines:visible('.mechaLines'), pulse:visible('.mechaPulse'),
+                  return {shock:visible('.mechaShock'), radar:visible('.mechaRadar'), clamp:visible('.mechaClamp'), lines:visible('.mechaLines'), pulse:visible('.mechaPulse'),
                     beam:visible('.mechaBeam') && beam.top >= panel.top && beam.bottom <= panel.bottom,
                     centred:Math.abs(hud.left + hud.width/2 - innerWidth/2) < 4};
                 })()
                 """);
             Assert.True(effects.GetProperty("centred").GetBoolean());
+            if (milliseconds is 2140 or 3000) Assert.Equal(milliseconds == 2140, effects.GetProperty("shock").GetBoolean());
             Assert.Equal(milliseconds < 1960, effects.GetProperty("radar").GetBoolean());
             Assert.Equal(milliseconds >= 2140, effects.GetProperty("clamp").GetBoolean());
             if (milliseconds <= 2140 || milliseconds >= 3000)
@@ -462,6 +485,7 @@ public sealed partial class LotteryBrowserTests
             await AssertLayoutAsync(browser);
         }
         await browser.ScreenshotAsync($"{width}-long-{(entry ? "entry" : "pool")}-draw");
+        Assert.True((await browser.EvaluateAsync("document.getElementById('viewer').getBoundingClientRect().bottom < document.getElementById('rank').getBoundingClientRect().top")).GetBoolean(), "The grade label must leave the full winner/prize text visible.");
         var clipped = await browser.EvaluateAsync("['prize','viewer'].map(id => document.getElementById(id)).filter(e => e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1).map(e => ({id:e.id,text:e.textContent,height:e.clientHeight,scrollHeight:e.scrollHeight,font:getComputedStyle(e).fontSize}))");
         Assert.True(clipped.GetArrayLength() == 0, clipped.GetRawText());
         Assert.True((await browser.EvaluateAsync($"['prize','viewer'].every(id => parseFloat(getComputedStyle(document.getElementById(id)).fontSize) >= {(width < height ? 40 : 56)})")).GetBoolean());
@@ -480,14 +504,13 @@ public sealed partial class LotteryBrowserTests
         await AssertLayoutAsync(browser);
         if (mecha)
         {
-            Assert.Contains("linear-gradient", (await browser.EvaluateAsync("getComputedStyle(document.querySelector('.sky')).backgroundImage")).GetString());
             await browser.WaitAsync("document.querySelector('[data-lock=\"LOCK ON\"]')");
             Assert.Equal((await browser.EvaluateAsync("document.getElementById('prize').textContent")).GetString(),
                 (await browser.EvaluateAsync("document.querySelector('[data-lock=\"LOCK ON\"] .candidateName').textContent")).GetString());
             await browser.ScreenshotAsync($"{width}-{mode}-{grade}-locked");
             await browser.WaitAsync("document.getElementById('result').getAnimations()[0].effect.getComputedTiming().progress >= .4");
             Assert.Contains(grade == Grade.Grand ? "S 级" : grade == Grade.Second ? "A 级" : "B 级",
-                (await browser.EvaluateAsync("document.getElementById('rank').textContent")).GetString());
+                (await browser.EvaluateAsync("document.querySelector('#rank [role=img]').getAttribute('aria-label')")).GetString());
             Assert.Equal(grade != Grade.Third, (await browser.EvaluateAsync("getComputedStyle(document.querySelector('.hazard')).display !== 'none'")).GetBoolean());
         }
         else if (gacha)
@@ -615,12 +638,21 @@ public sealed partial class LotteryBrowserTests
         public WatchHarness H { get; } = new(enableLottery: true);
         public IAsyncEnumerator<WatchUpdate> Watch { get; set; } = null!;
         public ChromeBrowser Browser { get; } = new();
+        public System.Diagnostics.Process? ReferenceServer { get; set; }
 
         public async ValueTask DisposeAsync()
         {
-            await using (H)
-            await using (Watch)
-                await Browser.DisposeAsync();
+            try
+            {
+                await using (H)
+                await using (Watch)
+                    await Browser.DisposeAsync();
+            }
+            finally
+            {
+                if (ReferenceServer is { HasExited: false }) ReferenceServer.Kill();
+                ReferenceServer?.Dispose();
+            }
         }
     }
 

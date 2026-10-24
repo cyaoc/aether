@@ -5,28 +5,31 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const script = readFileSync(new URL('../../src/Aether.Core/Pages/lottery/page.js', import.meta.url), 'utf8');
-function page(width = 1920, height = 1080) {
+function page(width = 1920, height = 1080, loadedTextures = []) {
   let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0, source, animationFrame;
   const timers = new Map(), elements = new Map(), listeners = new Map();
-  let rectangles = [], position;
+  let rectangles = [], drawnImages = [], position;
   const graphics = new Proxy({}, { get: (_, name) => (...args) => {
     if (name === 'translate') position = args;
     if (name === 'rect') rectangles.push(position);
+    if (name === 'drawImage') drawnImages.push(args);
   } });
   const element = () => ({ hidden:true, children:[], dataset:{}, style:{setProperty(k,v){this[k]=v;}},
+    setAttribute(name,value) { this[name] = value; },
     className:'', offsetLeft:0, offsetTop:0, offsetWidth:0, scrollHeight:0, clientHeight:0, scrollWidth:0, clientWidth:0,
     set textContent(value) { this.text = String(value); this.children = []; },
     get textContent() { return (this.text || '') + this.children.map(c=>c.textContent ?? c).join(''); },
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.text=''; this.children=children; },
     getContext:()=>graphics });
-  const document = { createElement:element, getElementById:id=>{
+  const document = { querySelectorAll:()=>loadedTextures.map(name=>({href:`http://localhost/lottery/textures/${name}.webp`})), createElement:element, getElementById:id=>{
     if(!elements.has(id)) elements.set(id,element());
     return elements.get(id);
   }, fonts:{ready:Promise.resolve(),addEventListener(){}} };
   const timer = (callback,delay,repeat) => { const id=++nextId; timers.set(id,{callback,at:now+delay,repeat}); return id; };
   const window = {innerWidth:width,innerHeight:height,addEventListener(name,fn){listeners.set(name,fn);}};
-  vm.runInNewContext(script, { document, window,
+  vm.runInNewContext(readFileSync(new URL('../../src/Aether.Core/Pages/lottery/textures.js', import.meta.url),'utf8') + '\n' + script, { document, window,
+    Image:class { decode(){return Promise.resolve();} },
     Date:class extends Date { static now(){return now;} }, getComputedStyle:()=>({fontSize:'112px'}),
     EventSource:class { constructor(){source=this;} addEventListener(name,fn){listeners.set(name,fn);} },
     requestAnimationFrame:fn=>{animationFrame=fn;return 1;},cancelAnimationFrame:()=>{animationFrame=undefined;},
@@ -34,7 +37,8 @@ function page(width = 1920, height = 1080) {
     clearTimeout:id=>timers.delete(id),clearInterval:id=>timers.delete(id) });
   return { element:id=>document.getElementById(id), state:state=>listeners.get('state')({data:JSON.stringify(state)}),
     hasFrame:()=>!!animationFrame,
-    frame:()=>{rectangles=[]; animationFrame?.(); return rectangles;},
+    frame:()=>{rectangles=[]; drawnImages=[]; animationFrame?.(); return rectangles;},
+    drawnImages:()=>drawnImages,
     resize:(width,height)=>{window.innerWidth=width; window.innerHeight=height; listeners.get('resize')();},
     disconnect:()=>source.onerror(), advance:ms=>{
       const end=now+ms;
@@ -378,7 +382,8 @@ test('switching to Mecha Lock refreshes a live draw, locks the winning cell and 
     draws:[{id:'d',prize,uid:42,candidates:[other,prize],drawnAt:'2026-10-17T12:00:00Z'}]};
   p.state({lottery}); p.advance(1000);
   p.state({lottery,theme:'MechaLock'});
-  assert.equal(p.element('rank').textContent,'S 级大奖');
+  assert.equal(p.element('rank').textContent,'大奖');
+  assert.equal(p.element('rank').children[0]['aria-label'],'S 级');
   assert.equal(p.element('summon').style['--elapsed'],'-1s');
   assert.equal(p.element('prize').textContent,'键盘');
   p.advance(1100);
@@ -498,5 +503,105 @@ test('pool spinning has only prizes, each grade reveals the drawn prize, then be
     assert.equal(p.element('rank').textContent,{Grand:'大奖',Second:'二奖',Third:'三奖'}[grade]);
     p.advance(7000); assert.equal(p.element('scene').hidden,true);
     p.advance(7000); assert.equal(p.element('scene').hidden,true);
+  }
+});
+
+function texturePage() {
+  const calls = [], images = [], canvases = [];
+  const context = vm.createContext({
+    Image:class { constructor(){images.push(this);} decode(){return Promise.resolve();} },
+    document:{querySelectorAll:()=>[{href:'http://localhost/lottery/textures/summon/flare.webp'}],
+      createElement:()=>{ const canvas={getContext:()=>new Proxy({}, {set:(o,k,v)=>{calls.push([k,v]);return true;},get:(_,k)=>(...args)=>calls.push([k,...args])})}; canvases.push(canvas); return canvas;}},
+  });
+  vm.runInContext(readFileSync(new URL('../../src/Aether.Core/Pages/lottery/textures.js', import.meta.url),'utf8'),context);
+  return {textures:vm.runInContext('textures',context), calls, images, canvases};
+}
+test('confetti cells match the four-by-four atlas',()=>{
+  const {textures:t}=texturePage();
+  assert.deepEqual(Array.from(t.confettiCell('heart','#ff7aae','Grand')),[0,0,96,96]);
+  assert.deepEqual(Array.from(t.confettiCell('star','#ffd45e','Second')),[96,96,96,96]);
+  assert.deepEqual(Array.from(t.confettiCell('strip','#5fd3b0','Third')),[192,192,96,96]);
+  assert.deepEqual(Array.from(t.confettiCell('candy','#7ccbff','Grand')),[288,288,96,96]);
+  assert.deepEqual(Array.from(t.confettiCell('dot','#fff','Third')),[288,192,96,96]);
+});
+test('glow textures wait for decoding and cache each image, colour and size with a white core',async()=>{
+  const {textures:t,calls,canvases}=texturePage();
+  assert.equal(t.tinted('summon/flare','#fff',40,20),null);
+  await t.ready;
+  const first=t.tinted('summon/flare','#fff',40,20);
+  assert.equal(first.width,40); assert.equal(first.height,20);
+  assert.equal(t.tinted('summon/flare','#fff',40,20),first);
+  assert.notEqual(t.tinted('summon/flare','#fc0',40,20),first);
+  assert.notEqual(t.tinted('summon/flare','#fff',80,20),first);
+  assert.equal(canvases.length,3);
+  assert.ok(calls.some(c=>c[0]==='globalCompositeOperation'&&c[1]==='source-in'));
+  assert.ok(calls.some(c=>c[0]==='globalCompositeOperation'&&c[1]==='lighter'));
+  assert.ok(calls.some(c=>c[0]==='globalAlpha'&&c[1]===.6));
+});
+
+
+test('Mecha result badges expose the drawn rank in both modes',()=>{
+  for (const [grade,rank] of [['Grand','S'],['Second','A'],['Third','B']]) for (const isEntry of [false,true]) {
+    const p=page(), prize={name:'机械键盘',grade};
+    const draw={...draws[0],prize,award:{...award,grade}};
+    const lottery=isEntry ? {...entry,phase:'Drawing',draws:[draw]} : {mode:'Pool',id:'pool',phase:'Idle',prizes:[prize],draws:[draw]};
+    p.state({theme:'MechaLock',lottery:{...lottery,drawUntil:'2026-10-17T12:00:07Z'}});
+    const badge=p.element('rank').children.find(child=>child.role==='img');
+    assert.ok(badge,'the rank is represented by an accessible badge');
+    assert.equal(badge['aria-label'],`${rank} 级`);
+  }
+});
+
+test('gacha opening uses the decoded confetti atlas with shape and grade colour crops',async()=>{
+  const p=page(1920,1080,['gacha/confetti']), prize={name:'贴纸',grade:'Third'};
+  await new Promise(resolve=>setImmediate(resolve));
+  p.state({theme:'CapsuleGacha',lottery:{mode:'Pool',id:'pool',phase:'Idle',prizes:[prize],
+    draws:[{id:'draw',prize,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}],drawUntil:'2026-10-17T12:00:07Z'}});
+  p.advance(2000); p.frame();
+  const sprites=p.drawnImages();
+  assert.ok(sprites.length>=30);
+  assert.deepEqual([...new Set(sprites.map(args=>args[1]))].sort((a,b)=>a-b),[0,96,288]);
+  assert.ok(sprites.every(args=>args[2]===192&&args[3]===96&&args[4]===96));
+  assert.ok(sprites.every(args=>args[7]===args[8]&&args[7]>=21.6));
+});
+
+test('summon flares follow the hit window and portrait width with decoded sprites',async()=>{
+  for (const [width,height] of [[1920,1080],[1080,1920]]) for (const [grade,scale] of [['Grand',1],['Second',.8],['Third',.55]]) {
+    const p=page(width,height,['summon/flare']), prize={name:'星辰',grade};
+    await new Promise(resolve=>setImmediate(resolve));
+    p.state({theme:'StarSummon',lottery:{mode:'Pool',id:'pool',phase:'Idle',prizes:[prize],
+      draws:[{id:'draw',prize,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}],drawUntil:'2026-10-17T12:00:07Z'}});
+    p.advance(1945); p.frame();
+    assert.ok(!p.drawnImages().some(a=>a[3]===a[4]*2),'flash has not started at 1945ms');
+    p.advance(450); p.frame();
+    assert.ok(p.drawnImages().some(a=>a[0].width===128),'burst particles use the shared decoded sprite');
+    const flash=p.drawnImages().find(a=>a[3]===a[4]*2);
+    assert.ok(flash,'hit has a horizontal flare');
+    assert.equal(flash[0].width,512,'large impact uses the fixed full-detail sprite');
+    assert.equal(flash[3],2*(width===1080 ? 260+220*.875 : 380+520*.875)*scale);
+    assert.equal(flash[1]+flash[3]/2,width===1080 ? 459 : 960);
+    p.advance(450); p.frame();
+    assert.ok(!p.drawnImages().some(a=>a[3]===a[4]*2),'flash ends at 2845ms');
+  }
+});
+
+test('pinned Mecha results preserve accessible tier images in pool and entry modes',()=>{
+  const p=page(), prizes=['Grand','Second','Third'].map(grade=>({name:'奖品',grade}));
+  for (const isEntry of [false,true]) {
+    const lottery=isEntry ? {...entry,phase:'Ended',hidden:true,awards:prizes.map(p=>({...award,...p})),
+      draws:prizes.map((p,i)=>({...draws[i],awardIndex:i,award:{...award,...p}}))} : {mode:'Pool',id:'pool',phase:'Idle',prizes,
+      draws:prizes.map((prize,i)=>({id:`p${i}`,prize}))};
+    p.state({theme:'MechaLock',pinnedResults:true,lottery});
+    const labels=p.element('pinnedRows').children.map(row=>row.children.find(child=>child.role==='img')?.['aria-label']);
+    assert.deepEqual(labels,isEntry ? ['S 级','A 级','B 级'] : ['B 级','A 级','S 级']);
+  }
+});
+
+test('winner lists keep accessible Mecha tiers after closing and ending',()=>{
+  for (const phase of ['Closed','Ended']) {
+    const p=page(), awards=['Grand','Second','Third'].map(grade=>({...award,grade}));
+    p.state({theme:'MechaLock',lottery:{...entry,phase,awards,
+      draws:awards.map((award,i)=>({...draws[i],awardIndex:i,award}))}});
+    assert.deepEqual(p.element('winnerCards').children.map(row=>row.children.find(child=>child.role==='img')?.['aria-label']),['S 级','A 级','B 级']);
   }
 });

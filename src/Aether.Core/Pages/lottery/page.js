@@ -13,11 +13,13 @@ const themes = {
     sizes:{ keyword:[76,58], entryCount:[130,116], rank:[84,76], prize:[112,96], viewer:[58,50], winnerName:[72,48] },
     latest:item => text('',item.nickname),
     cell:candidate => candidate.label || grades[candidate.grade],
+    decorateCandidate:card => card.append(text('summonFace',''),text('summonFrame textureFrame','')),
     rank:(code, title) => [title],
     viewer:({entry, prize, viewer}) => entry ? prize : viewer,
     banner:({entry, title, viewer}) => entry ? `正在召唤 · ${title}` : viewer ? `${viewer} 发起召唤！` : '星辰召唤',
     winners:['召唤结果','目前的召唤结果'],
-    pinned:{title:'召唤结果', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 次`},
+    pinned:{title:'召唤结果', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 次`,
+      badge:rank => { const badge = text('pinnedBadge',rank); themes.StarSummon.decorateCandidate(badge); return badge; }},
     award:award => award.name,
     particles:starSummon,
   },
@@ -31,11 +33,15 @@ const themes = {
       return row;
     },
     cell:(candidate, index) => candidate.viewer ? `PILOT ${String(index + 1).padStart(3,'0')}` : `${themes.MechaLock.ranks[candidate.grade]} · ${grades[candidate.grade]}`,
-    rank:(code, title, entry) => [text('rankCode',`${code} 级`), entry ? `${title} · 目标确认` : title],
+    rank:(code, title, entry) => [mechaEmblem(`${code} 级`), entry ? `${title} · 目标确认` : title],
+    decorateCandidate:card => card.append(text('mechaTile textureFrame','')),
     viewer:({entry, prize, viewer}) => entry ? `获得 ${prize}` : viewer && `${viewer} 获得`,
     banner:({entry, title, viewer}) => entry ? `锁定 ${title} 中奖者` : viewer ? `${viewer} 发出锁定指令` : '机甲锁定',
     winners:['作战结果','目前战果'],
-    pinned:{title:'作战结果', tag:'MISSION LOG', count:(count, entry) => `${count} ${entry ? '人' : '次'}`},
+    winnerRank:grade => mechaEmblem(`${themes.MechaLock.ranks[grade]} 级`),
+    pinned:{title:'作战结果', tag:'MISSION LOG', count:(count, entry) => `${count} ${entry ? '人' : '次'}`,
+      badge:rank => { const badge = mechaEmblem(`${rank} 级`); badge.className += ' pinnedBadge'; return badge; },
+      decorate:row => themes.MechaLock.decorateCandidate(row)},
     award:award => `${award.name} · ${award.prize}`,
     particles:mechaLock,
     scan,
@@ -56,7 +62,8 @@ const themes = {
     banner:({entry, title, viewer}) => entry ? `扭出 ${title} 中奖者！` : viewer ? `${viewer} 来扭蛋啦！` : '来扭蛋啦！',
     shout:grade => ({Grand:'大奖!!',Second:'POP!',Third:'pop'})[grade],
     winners:['中奖啦！','已经扭出来的'],
-    pinned:{title:'中奖啦！', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 颗`},
+    pinned:{title:'中奖啦！', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 颗`,
+      badge:() => text('pinnedBadge gachaCapsule','')},
     closed:'报名截止啦',
     // Name tags line up behind one capsule and award per row.
     group:(draws, cards) => {
@@ -67,7 +74,7 @@ const themes = {
           const row = text(`winnerGroup ${draw.award.grade}`, ''), award = text('winnerAward', draw.award.name);
           award.append(text('winnerPrize', draw.award.prize));
           list = text('winnerList', '');
-          row.append(text('rank', ''), award, list);
+          row.append(text('gachaCapsule', ''), award, list);
           rows.push(row);
         }
         list.append(cards[index]);
@@ -110,6 +117,8 @@ function fitAll() {
   // Start all flex siblings at full size before shrinking; growing one later would squeeze the others.
   fitting.forEach(([node, size, portraitSize]) => node.style.fontSize = (portrait ? portraitSize : size) + 'px');
   fitting.forEach(([node, size, portraitSize]) => fit(node, portrait ? portraitSize : size));
+  if (scene.dataset.theme === 'CapsuleGacha')
+    byId('result').dataset.multiline = ['prize','viewer'].some(id => { const node = byId(id); return node.scrollHeight > parseFloat(getComputedStyle(node).lineHeight) * 1.5; });
   // Gacha tilts a banner wider than 780px less, so its ends rise no higher than a 780px one's; a hidden banner measures 0 and keeps 1.
   byId('banner').style.setProperty('--tilt-scale', Math.min(1, 780 / byId('banner').offsetWidth));
 }
@@ -198,12 +207,18 @@ function show(state, completedDraw) {
   }
   if (entry) showWinners(entry);
 }
+function mechaEmblem(label) {
+  const emblem = text('mechaEmblem','');
+  emblem.setAttribute('role','img'); emblem.setAttribute('aria-label',label);
+  return emblem;
+}
 function makeRing(candidates) {
   // Ten visual cells fill the stage; Core has already chosen the result.
   const cells = theme().cells?.(candidates) || Array.from({length:cellCount},(_,index) => candidates[index % candidates.length]);
   ring.replaceChildren(...cells.map((candidate,index) => {
     const card = text(`candidate ${candidate.grade}${candidate.viewer ? ' viewer' : ''}`, '');
     card.style.transform = `rotateY(${index * 360 / cellCount}deg) translateZ(var(--ring-radius))`;
+    theme().decorateCandidate?.(card);
     card.append(text('candidateLabel',theme().cell(candidate,index)),text('candidateName',candidate.name));
     return card;
   }));
@@ -275,7 +290,8 @@ function showWinners(lottery) {
       const card = text(`winnerCard ${draw.award.grade}`, '');
       const name = text('winnerName',draw.winner.nickname);
       card.style.setProperty('--index', index);
-      card.append(...t.group ? [name] : [text('rank',t.ranks[draw.award.grade]),name,text('winnerAward',t.award(draw.award))]);
+      t.decorateCandidate?.(card);
+      card.append(...t.group ? [name] : [t.winnerRank?.(draw.award.grade) || text('rank',t.ranks[draw.award.grade]),name,text('winnerAward',t.award(draw.award))]);
       fitting.push([name,...t.sizes.winnerName]);
       return card;
     });
@@ -346,7 +362,8 @@ function showPinned(lottery, completedDraw, previousLottery) {
         const effects = text('pinnedEffects','');
         effects.innerHTML = pinnedEffects;
         effects.append(text('effectNew',`NEW · ${t.ranks[grade]}`));
-        row.append(text('pinnedBadge',t.ranks[grade]),label,effects);
+        words.decorate?.(row);
+        row.append(words.badge(t.ranks[grade]),label,effects);
         rows.push(row);
       }
       if (entry) { const name = text(`pinnedName${fill && !oldIds.has(draw.id) ? ' filling' : ''}`,draw.winner.nickname); list.append(name); nodes.set(draw.id,name); }
@@ -431,11 +448,18 @@ function particles(start, grade) {
       const edge = Math.min(p.x + left, canvas.width - p.x - left, p.y + top, canvas.height - p.y - top) - 40;
       const alpha = Math.max(0, Math.min(1, p.life / (p.max * .4))) * Math.max(0, Math.min(1, edge / 140)) * (p.twinkle ? .5 + .5 * Math.sin(p.life * .3) : 1);
       context.globalAlpha = alpha; context.fillStyle = context.strokeStyle = p.c; context.beginPath();
+      // A texture decorates the existing particle; its kind remains the decode-time fallback.
+      const bitmap = p.texture && textures.tinted(p.texture,p.c,128);
+      if (bitmap) {
+        context.drawImage(bitmap,p.x - p.width / 2,p.y - (p.height || p.width) / 2,p.width,p.height || p.width);
+        if (p.texture === 'summon/flare' && p.kind !== 'star') { context.arc(p.x,p.y,p.s * .8,0,6.283); context.fill(); }
+        continue;
+      }
       if (p.kind === 'star') star(p.x,p.y,p.s * 2.2);
       else if (p.kind === 'hex') { context.lineWidth = 2; hex(p.x,p.y,p.s); }
       else if (p.kind === 'spark') { context.lineWidth = p.s; context.moveTo(p.x,p.y); context.lineTo(p.x - p.vx * (p.tail || 2.6),p.y - p.vy * (p.tail || 2.6)); context.stroke(); }
       else if (p.kind === 'ember') { context.arc(p.x,p.y,p.s,0,6.283); context.fill(); }
-      else if (p.kind === 'sticker') sticker(p);
+      else if (p.kind === 'sticker') sticker(p,grade);
       else {
         context.globalAlpha = alpha * .2; context.arc(p.x,p.y,p.s * 3.5,0,6.283); context.fill();
         context.globalAlpha = alpha; context.beginPath(); context.arc(p.x,p.y,p.s,0,6.283); context.fill();
@@ -456,7 +480,8 @@ function starSummon(start, grade) {
   const sky = start === null ? [] : Array.from({length:220},() => ({a:Math.random()*6.283,d:Math.sqrt(Math.random()),s:.6+Math.random()*2,p:Math.random()*6.28}));
   const pick = () => colors[Math.floor(Math.random()*colors.length)];
   let fired = start !== null && Date.now() - start >= 2600;
-  return (now, dt, add) => {
+  return (now, dt, emit) => {
+    const add = p => emit(p.kind === 'spark' ? p : {...p,texture:'summon/flare',width:p.s * (p.kind === 'star' ? 18 : 10)});
     const age = start === null ? 0 : now - start;
     const {cx,cy,idle,rise,sky:[rx,ry],gather:[gx,gy],meteor,ring,spread} = stages[scene.dataset.orientation];
     if (start === null) {
@@ -491,6 +516,15 @@ function starSummon(start, grade) {
         add({x:cx,y:cy,vx:Math.cos(angle)*speed*spread[0],vy:Math.sin(angle)*speed*spread[1]-3,life:70+Math.random()*90,max:160,s:2+Math.random()*(2+power),c:colors[j%colors.length],drag:.95,grav:.06,kind:j%4===0 ? 'star' : 'dot'});
       }
     }
+    const hit = (age - 1945) / 900;
+    const flash = hit > 0 && hit < 1 && textures.tinted('summon/flare',grade === 'Grand' ? '#ffe7a8' : colors[1],512);
+    if (flash) {
+      const e = 1 - (1 - hit) ** 3;
+      const w = (portrait ? 260 + 220 * e : 380 + 520 * e) * [.55,.8,1][power - 1];
+      context.globalAlpha = (1 - hit) ** 1.6;
+      context.drawImage(flash,cx - w,cy - w * .5,w * 2,w);
+      context.drawImage(flash,cx - w * .45,cy - w * .45,w * .9,w * .9);
+    }
     if (power > 1 && age > 2300 && age < 6500 && Math.random() < .3 * power * dt)
       add({x:rise[0]+Math.random()*rise[1],y:rise[2],vx:(Math.random()-.5)*.8,vy:-1.5-Math.random()*2.5,life:200,s:3+Math.random()*5,c:pick(),kind:'star',twinkle:true});
   };
@@ -521,8 +555,8 @@ function mechaLock(start, grade) {
 // W3/PW3's dome: 18 capsules in the board's slots and colours.
 byId('capsules').replaceChildren(...[[52,268],[112,272],[172,270],[232,268],[292,262],[26,214],[82,216],[140,212],[198,214],[256,210],[312,206],[58,160],[116,158],[174,162],[232,156],[100,106],[160,104],[222,108]]
   .map(([x,y],i) => {
-    const ball = text('capsule','');
-    ball.style.cssText = `left:${x}px;top:${y}px;--cap:${['#5fd3b0','#5fd3b0','#ff7aae','#5fd3b0','#ffd45e','#5fd3b0','#ff7aae','#5fd3b0','#5fd3b0'][i % 9]};--tilt:${i * 47 % 90 - 45}deg`;
+    const ball = text(`capsule gachaCapsule ${['Third','Third','Second','Third','Grand','Third','Second','Third','Third'][i % 9]}`,'');
+    ball.style.cssText = `left:${x}px;top:${y}px;--tilt:${i * 47 % 90 - 45}deg`;
     return ball;
   }));
 const capsuleColors = [['#ff7aae','#ffe3ee'],['#5fd3b0','#ddf7ee'],['#a991ff','#ece6ff'],['#ffd45e','#fff2c9'],['#7ccbff','#e0f2ff']];
@@ -531,10 +565,17 @@ function capsuleColor(node, number) {
   node.style.setProperty('--cap', cap); node.style.setProperty('--tint', tint);
   return node;
 }
-// Board W3's outlined particles; the angle follows the remaining life so painting needs no extra state.
-function sticker(p) {
+// The atlas keeps W3's particle motion; undecoded images use the original outlined shapes.
+function sticker(p, grade) {
   const angle = (p.turn || 0) + p.life * (p.spin || 0), r = p.s;
   context.save(); context.translate(p.x + (p.sway === undefined ? 0 : 13 * Math.sin(p.life * .06 + p.sway)), p.y); context.rotate(angle);
+  const sheet = textures.image('gacha/confetti');
+  if (sheet) {
+    if (p.shape === 'confetti') context.scale(1,Math.cos(angle * 2));
+    context.drawImage(sheet,...textures.confettiCell(p.shape,p.c,grade),-r * 1.2,-r * 1.2,r * 2.4,r * 2.4);
+    context.restore();
+    return;
+  }
   context.strokeStyle = '#4b2a4f'; context.lineWidth = 3; context.lineJoin = 'round'; context.beginPath();
   if (p.shape === 'heart') {
     const h = r * .7;
