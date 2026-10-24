@@ -32,7 +32,8 @@ const themes = {
       return row;
     },
     cell:(candidate, index) => candidate.viewer ? `PILOT ${String(index + 1).padStart(3,'0')}` : `${themes.MechaLock.ranks[candidate.grade]} · ${grades[candidate.grade]}`,
-    rank:(code, title, entry) => [text('rankCode',`${code} 级`), entry ? `${title} · 目标确认` : title],
+    rank:(code, title, entry, grade) => [mechaEmblem(grade,`${code} 级`), entry ? `${title} · 目标确认` : title],
+    decorateCandidate:card => card.append(text('mechaTile textureFrame','')),
     viewer:({entry, prize, viewer}) => entry ? `获得 ${prize}` : viewer && `${viewer} 获得`,
     banner:({entry, title, viewer}) => entry ? `锁定 ${title} 中奖者` : viewer ? `${viewer} 发出锁定指令` : '机甲锁定',
     winners:['作战结果','目前战果'],
@@ -199,6 +200,12 @@ function show(state, completedDraw) {
   }
   if (entry) showWinners(entry);
 }
+function mechaEmblem(grade, label) {
+  const emblem = text('mechaEmblem','');
+  emblem.setAttribute('role','img'); emblem.setAttribute('aria-label',label);
+  emblem.style.backgroundPosition = `${textures.gradePosition(grade)} 0`;
+  return emblem;
+}
 function makeRing(candidates) {
   // Ten visual cells fill the stage; Core has already chosen the result.
   const cells = theme().cells?.(candidates) || Array.from({length:cellCount},(_,index) => candidates[index % candidates.length]);
@@ -238,7 +245,7 @@ function drawResult(draw, entry) {
   summon.style.setProperty('--elapsed', `${-elapsed / 1000}s`);
   const t = theme(), words = {entry, title:entry ? draw.award.name : grades[grade], prize:entry ? draw.award.prize : '',
     viewer:viewerName(draw)};
-  byId('rank').replaceChildren(...t.rank(t.ranks[grade], words.title, entry));
+  byId('rank').replaceChildren(...t.rank(t.ranks[grade], words.title, entry, grade));
   byId('stars').innerHTML = starIcon.repeat(powers[grade] + 2);
   byId('prize').textContent = name;
   // The glitch copies of the name are drawn from this attribute.

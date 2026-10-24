@@ -507,7 +507,7 @@ public sealed partial class LotteryBrowserTests
             await browser.ScreenshotAsync($"{width}-{mode}-{grade}-locked");
             await browser.WaitAsync("document.getElementById('result').getAnimations()[0].effect.getComputedTiming().progress >= .4");
             Assert.Contains(grade == Grade.Grand ? "S 级" : grade == Grade.Second ? "A 级" : "B 级",
-                (await browser.EvaluateAsync("document.getElementById('rank').textContent")).GetString());
+                (await browser.EvaluateAsync("document.querySelector('#rank [role=img]').getAttribute('aria-label')")).GetString());
             Assert.Equal(grade != Grade.Third, (await browser.EvaluateAsync("getComputedStyle(document.querySelector('.hazard')).display !== 'none'")).GetBoolean());
         }
         else if (gacha)
