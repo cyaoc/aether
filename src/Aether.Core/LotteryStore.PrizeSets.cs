@@ -29,7 +29,7 @@ internal sealed partial class LotteryStore
         command.Parameters.AddWithValue("$room", roomId);
         command.Parameters.AddWithValue("$mode", set.Mode.ToString());
         command.Parameters.AddWithValue("$name", set.Name);
-        command.Parameters.AddWithValue("$saved", set.SavedAt.ToString("O"));
+        command.Set("$saved", set.SavedAt);
         command.Parameters.AddWithValue("$content", set.Mode == LotteryMode.Pool ? JsonSerializer.Serialize(set.Prizes) : JsonSerializer.Serialize(set.Awards));
         command.ExecuteNonQuery();
     }

@@ -37,6 +37,7 @@ public sealed class LotteryPanelTests
             Assert.True(confirm.IsEnabled);
             confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 1 && !vm.Lottery.Busy);
+            Assert.Equal("已存为「周末」，下次新开一场可以直接载入", page.FindControl<TextBlock>("StatusText")!.Text);
             var original = Assert.Single(vm.Lottery.PrizeSets);
             vm.Lottery.Prizes[0].Name = "键盘";
             Assert.Equal("限定抱枕", original.Prizes[0].Name);
@@ -62,6 +63,11 @@ public sealed class LotteryPanelTests
             Assert.Equal("等一下", vm.Lottery.StopWord);
             Assert.Equal("99", vm.Lottery.Uid);
             Assert.Contains("已载入「周末」", vm.Lottery.PoolStatusText);
+            save.Flyout.ShowAt(save);
+            GuiHarness.Flush();
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => !save.Flyout.IsOpen);
+            Assert.Equal("已存为「周末」，下次新开一场可以直接载入", page.FindControl<TextBlock>("StatusText")!.Text);
             load.Flyout.ShowAt(load);
             GuiHarness.Flush();
             item = menu.Items.OfType<MenuItem>().Single(item => item.Tag is LotteryPrizeSet);

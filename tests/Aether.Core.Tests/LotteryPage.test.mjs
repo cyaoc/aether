@@ -74,6 +74,20 @@ test('pinned pool results show visible draws newest first without canvas work an
   p.state({lottery:null,pinnedResults:true}); assert.equal(p.element('scene').hidden,true);
 });
 
+test('a large pinned pool only renders the visible page',()=>{
+  const p=page(), prize={name:'贴纸',grade:'Third'}, rows=p.element('pinnedRows');
+  let rendered=0;
+  const replace=rows.replaceChildren;
+  rows.replaceChildren=function(...children){rendered+=children.length;replace.apply(this,children);};
+  p.state({pinnedResults:true,lottery:{mode:'Pool',id:'pool',phase:'Idle',
+    draws:Array.from({length:1000},(_,i)=>({id:`p${i}`,prize,uid:i+1}))}});
+  assert.equal(rendered,5);
+  assert.equal(p.element('pinnedPages').style.height,'548px');
+  p.advance(8000);
+  assert.equal(rendered,10);
+  assert.equal(p.element('pinnedPageNumber').textContent,'2 / 200');
+});
+
 test('pinned pages keep their eight second clock on repeats and only a completed local draw arrives',()=>{
   const p=page(), prize={name:'贴纸',grade:'Third'};
   const pool={mode:'Pool',id:'pool',phase:'Idle',prizes:[prize],drawUntil:null,
@@ -107,6 +121,30 @@ test('pinned pages keep their eight second clock on repeats and only a completed
   assert.equal(p.element('pinnedPageNumber').textContent,'1 / 2');
   assert.notEqual(p.element('pinnedRows').children[0],arrived);
   assert.doesNotMatch(p.element('pinned').className,/st-arrive/);
+});
+
+test('SSE reconnect preserves the pinned page without replaying entrance but a cleared or new lottery resets it',()=>{
+  const prize={name:'贴纸',grade:'Third'};
+  const pool={mode:'Pool',id:'pool',phase:'Idle',draws:Array.from({length:7},(_,i)=>({id:`p${i}`,prize,uid:i+1}))};
+  for(const lottery of [pool,{...entry,phase:'Ended',hidden:true,draws}]){
+    const p=page(), state={pinnedResults:true,lottery};
+    p.state(state); p.advance(8000);
+    assert.equal(p.element('pinnedPageNumber').textContent,'2 / 2');
+    p.disconnect(); assert.equal(p.element('scene').hidden,true);
+    p.state(state);
+    assert.equal(p.element('scene').hidden,false);
+    assert.equal(p.element('pinnedPageNumber').textContent,'2 / 2');
+    assert.doesNotMatch(p.element('pinned').className,/st-enter|st-arrive/);
+    p.advance(8000); assert.equal(p.element('pinnedPageNumber').textContent,'1 / 2');
+    p.advance(8000); p.disconnect();
+    p.state({lottery:null}); p.state(state);
+    assert.equal(p.element('pinnedPageNumber').textContent,'1 / 2');
+    assert.match(p.element('pinned').className,/st-enter/);
+    p.advance(8000); p.disconnect();
+    p.state({...state,lottery:{...lottery,id:'new-lottery'}});
+    assert.equal(p.element('pinnedPageNumber').textContent,'1 / 2');
+    assert.match(p.element('pinned').className,/st-enter/);
+  }
 });
 
 test('pinned entry groups visible winners by award, repages at six names or three awards, and yields until collapsed',()=>{

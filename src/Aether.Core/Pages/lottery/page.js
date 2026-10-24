@@ -153,7 +153,7 @@ function show(state, completedDraw) {
   if (!completedDraw && drawing?.frame === drawFrame && (drawKey === drawing.key || !deadline)) return;
   const canPin = state.pinnedResults && !state.isExamplePlaying && !deadline &&
     (pool?.phase === 'Idle' || entry?.phase === 'Ended' && entry.hidden);
-  const keepPinned = canPin && !byId('pinned').hidden && scene.dataset.theme === themeName && pinnedLottery?.id === lottery.id;
+  const keepPinned = canPin && scene.dataset.theme === themeName && pinnedLottery?.id === lottery.id;
   scene.dataset.theme = themeName;
   clear(keepPinned);
   if (!lottery || entry?.phase === 'Preparing') return;
@@ -354,7 +354,7 @@ function showPinned(lottery, completedDraw, previousLottery) {
   repageWinners = () => showPinned(lottery);
   let height = entry ? 0 : 548;
   const selectedPage = pinnedPage;
-  for (let index = 0; index < pages.length; index++) {
+  if (entry) for (let index = 0; index < pages.length; index++) {
     pinnedPage = index; render(); height = Math.max(height,byId('pinnedRows').offsetHeight || 0);
   }
   pinnedPage = selectedPage;
@@ -570,4 +570,5 @@ function capsuleGacha(start, grade) {
 }
 const events = new EventSource('/lottery/events');
 events.addEventListener('state',event => show(JSON.parse(event.data)));
-events.onerror = () => { shown=''; clear(); };
+// A disconnected stream hides the view; the next snapshot decides whether to keep the pinned page.
+events.onerror = () => { shown=undefined; clear(true); };
