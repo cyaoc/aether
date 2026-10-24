@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
-using System.Text.Json;
 using Aether.Core.Tests.Support;
+using static Aether.Core.Tests.Support.ServerSentEvents;
 
 namespace Aether.Core.Tests;
 
@@ -22,12 +22,8 @@ public sealed class LotteryPageTests
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
         using var response = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(h.Stop.Token));
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        string? line;
-        do { line = await reader.ReadLineAsync(timeout.Token); } while (line is not null && !line.StartsWith("data: "));
-        Assert.NotNull(line);
-        using var json = JsonDocument.Parse(line[6..]);
-        Assert.Equal(hidden, json.RootElement.GetProperty("lottery").GetProperty("draws")[0].GetProperty("hiddenFromStream").GetBoolean());
+        var (_, json) = await Event(reader);
+        Assert.Equal(hidden, json.GetProperty("lottery").GetProperty("draws")[0].GetProperty("hiddenFromStream").GetBoolean());
     }
 
     [Fact]

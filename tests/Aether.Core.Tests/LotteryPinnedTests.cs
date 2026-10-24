@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aether.Core.Tests.Support;
+using static Aether.Core.Tests.Support.ServerSentEvents;
 
 namespace Aether.Core.Tests;
 
@@ -26,13 +27,9 @@ public sealed class LotteryPinnedTests
             { BaseAddress = new(h.Client.WebService.Status.Origin) };
         using var response = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(h.Stop.Token));
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        string? line;
-        do { line = await reader.ReadLineAsync(timeout.Token); } while (line is not null && !line.StartsWith("data: "));
-        Assert.NotNull(line);
-        using var json = JsonDocument.Parse(line[6..]);
-        Assert.True(json.RootElement.GetProperty("isExamplePlaying").GetBoolean());
-        Assert.False(json.RootElement.GetProperty("pinnedResults").GetBoolean());
+        var (_, json) = await Event(reader);
+        Assert.True(json.GetProperty("isExamplePlaying").GetBoolean());
+        Assert.False(json.GetProperty("pinnedResults").GetBoolean());
         Assert.True(lottery.State.PinnedResults);
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
         Assert.False(restarted.Lottery.State.PinnedResults);
@@ -48,12 +45,8 @@ public sealed class LotteryPinnedTests
             { BaseAddress = new(h.Client.WebService.Status.Origin) };
         using var response = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         using var reader = new StreamReader(await response.Content.ReadAsStreamAsync(h.Stop.Token));
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        string? line;
-        do { line = await reader.ReadLineAsync(timeout.Token); } while (line is not null && !line.StartsWith("data: "));
-        Assert.NotNull(line);
-        using var json = JsonDocument.Parse(line[6..]);
-        Assert.True(json.RootElement.GetProperty("pinnedResults").GetBoolean());
-        Assert.Equal(JsonValueKind.Null, json.RootElement.GetProperty("lottery").ValueKind);
+        var (_, json) = await Event(reader);
+        Assert.True(json.GetProperty("pinnedResults").GetBoolean());
+        Assert.Equal(JsonValueKind.Null, json.GetProperty("lottery").ValueKind);
     }
 }
