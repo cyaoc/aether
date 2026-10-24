@@ -244,8 +244,10 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-theme="StarSummon"] .drawing.Second .stage { animation:starShakeLight 7s both; animation-delay:var(--elapsed); }
 @keyframes starShake { 0%,27.6% { transform:none; } 28% { transform:translate(-16px,10px); } 28.5% { transform:translate(14px,-12px); } 29% { transform:translate(-10px,-6px); } 29.5% { transform:translate(8px,6px); } 30.1% { transform:translate(-4px,2px); } 30.7%,33.8% { transform:none; } 34.3% { transform:translate(0,9px); } 34.9%,100% { transform:none; } }
 @keyframes starShakeLight { 0%,27.6% { transform:none; } 28.1% { transform:translate(-7px,4px); } 28.7% { transform:translate(6px,-5px); } 29.3% { transform:translate(-3px,2px); } 29.9%,100% { transform:none; } }
-[data-theme="StarSummon"] .cardFace { overflow:hidden; }
-[data-theme="StarSummon"] .drawing .cardFace:after { content:''; position:absolute; left:-60%; top:-20%; width:40%; height:140%; background:linear-gradient(90deg,transparent,#ffffff80,transparent); pointer-events:none; animation:cardSheen 7s both; animation-delay:var(--elapsed); }
+[data-theme="StarSummon"] .cardFace { isolation:isolate; }
+.cardSheen { display:none; }
+[data-theme="StarSummon"] .cardSheen { display:block; position:absolute; inset:0; border-radius:18px; overflow:hidden; pointer-events:none; }
+[data-theme="StarSummon"] .drawing .cardSheen:after { content:''; position:absolute; left:-60%; top:-20%; width:40%; height:140%; background:linear-gradient(90deg,transparent,#ffffff80,transparent); pointer-events:none; animation:cardSheen 7s both; animation-delay:var(--elapsed); }
 @keyframes cardSheen { 0%,44.5% { transform:translateX(0) skewX(-18deg); } 49.5% { transform:translateX(450%) skewX(-18deg); } 49.6%,63.5% { transform:translateX(0) skewX(-18deg); } 68.5%,100% { transform:translateX(450%) skewX(-18deg); } }
 /* Gold text that had no plate gets the board's dark plate; the gradient stays clipped to the text. */
 #scene[data-theme="StarSummon"] #shout,[data-theme="StarSummon"] #winnerTitle {
@@ -368,3 +370,27 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 @keyframes pinnedHideName { 0% { opacity:1; max-width:400px; transform:none; } 50% { opacity:0; max-width:400px; transform:scale(.6); } 100% { opacity:0; max-width:0; padding:0; border-width:0; margin-left:-10px; transform:scale(.6); } }
 @keyframes pinnedFill { from { opacity:0; height:0; margin-top:-12px; } to { opacity:1; height:100px; margin-top:0; } }
 [data-theme="StarSummon"] #pinned .pinnedPageLabels { font:32px 'PingFang SC','Microsoft YaHei UI',sans-serif; color:#e7d9ff; }
+
+/* Shared illustrations and nine-slice frames also fit the small result cards. */
+[data-theme="StarSummon"] .Grand { --summon-art:linear-gradient(180deg,rgba(10,8,30,.3),rgba(10,8,30,.2) 40%,rgba(10,8,30,.62)),url('/lottery/textures/summon/face-ssr.webp') center/cover; --summon-frame:url('/lottery/textures/summon/frame-ssr.webp'); --summon-slice:139 75 143 75; --summon-width:13% 9.7% 13.3% 9.7%; --summon-inset:-76px -34px -78px; --summon-ink:var(--frame); }
+[data-theme="StarSummon"] .Second { --summon-art:linear-gradient(180deg,rgba(10,8,30,.25),rgba(10,8,30,.15) 40%,rgba(10,8,30,.6)),url('/lottery/textures/summon/face-sr.webp') center/cover; --summon-frame:url('/lottery/textures/summon/frame-sr.webp'); --summon-slice:113 75 75 75; --summon-width:11.6% 9.77% 7.7% 9.77%; --summon-inset:-43px -36px; --summon-ink:linear-gradient(160deg,#fff,#ebddff 55%,#c59bff); }
+[data-theme="StarSummon"] .Third { --summon-art:linear-gradient(180deg,rgba(10,8,30,.2),rgba(10,8,30,.1) 40%,rgba(10,8,30,.55)),url('/lottery/textures/summon/face-r.webp') center/cover; --summon-frame:url('/lottery/textures/summon/frame-r.webp'); --summon-slice:53; --summon-width:5.47% 6.84%; --summon-inset:-26px; --summon-ink:linear-gradient(160deg,#fff,#cdebff 55%,#7cc4ff); }
+.summonFace,.summonFrame { display:none; }
+[data-theme="StarSummon"] .summonFace { display:block; position:absolute; inset:0; z-index:-1; border-radius:18px; background:var(--summon-art); pointer-events:none; }
+[data-theme="StarSummon"] .summonFrame { display:block; position:absolute; inset:var(--summon-inset); --texture:var(--summon-frame); --texture-slice:var(--summon-slice); --texture-width:var(--summon-width); pointer-events:none; }
+[data-theme="StarSummon"] .cardFace>.summonFrame { filter:drop-shadow(0 0 16px var(--a)); }
+[data-theme="StarSummon"] .cardBack { background:url('/lottery/textures/summon/card-back.webp') center/cover; }
+[data-theme="StarSummon"] .cardBack svg { display:none; }
+[data-theme="StarSummon"] .candidate { isolation:isolate; }
+[data-theme="StarSummon"] .candidate>.summonFace { border-radius:13px; }
+[data-theme="StarSummon"] .candidate>.summonFrame { inset:-12px -10px; }
+[data-theme="StarSummon"] .cardTop { width:fit-content; max-width:100%; padding:10px 36px 14px; border-radius:30px; background:rgba(10,8,30,.72); }
+[data-theme="StarSummon"] #rank { background-image:var(--summon-ink); }
+[data-theme="StarSummon"][data-orientation="portrait"] .Grand { --summon-inset:-64px -29px -66px; }
+[data-theme="StarSummon"][data-orientation="portrait"] .Second { --summon-inset:-36px -30px; }
+[data-theme="StarSummon"][data-orientation="portrait"] .Third { --summon-inset:-22px; }
+[data-theme="StarSummon"][data-orientation="portrait"] .cardFace>.summonFace,[data-theme="StarSummon"][data-orientation="portrait"] .cardSheen { border-radius:16px; }
+[data-theme="StarSummon"][data-orientation="portrait"] .cardFace>.summonFrame { filter:drop-shadow(0 0 14px var(--a)); }
+[data-theme="StarSummon"][data-orientation="portrait"] .candidate>.summonFace { border-radius:11px; }
+[data-theme="StarSummon"][data-orientation="portrait"] .candidate>.summonFrame { inset:-10px -8px; }
+[data-theme="StarSummon"][data-orientation="portrait"] .cardTop { gap:8px; padding:8px 30px 12px; border-radius:28px; }

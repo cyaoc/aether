@@ -13,6 +13,7 @@ const themes = {
     sizes:{ keyword:[76,58], entryCount:[130,116], rank:[84,76], prize:[112,96], viewer:[58,50], winnerName:[72,48] },
     latest:item => text('',item.nickname),
     cell:candidate => candidate.label || grades[candidate.grade],
+    decorateCandidate:card => card.append(text('summonFace',''),text('summonFrame textureFrame','')),
     rank:(code, title) => [title],
     viewer:({entry, prize, viewer}) => entry ? prize : viewer,
     banner:({entry, title, viewer}) => entry ? `正在召唤 · ${title}` : viewer ? `${viewer} 发起召唤！` : '星辰召唤',
@@ -204,6 +205,7 @@ function makeRing(candidates) {
   ring.replaceChildren(...cells.map((candidate,index) => {
     const card = text(`candidate ${candidate.grade}${candidate.viewer ? ' viewer' : ''}`, '');
     card.style.transform = `rotateY(${index * 360 / cellCount}deg) translateZ(var(--ring-radius))`;
+    theme().decorateCandidate?.(card);
     card.append(text('candidateLabel',theme().cell(candidate,index)),text('candidateName',candidate.name));
     return card;
   }));
