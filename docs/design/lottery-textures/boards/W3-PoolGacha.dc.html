@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>W3 奖池抽奖 萌系扭蛋</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+@font-face{font-family:'Smiley Sans';src:url('/_blob/6b8785fa0c0f9711bc33638407feb81e') format('woff2');font-display:swap}
+.w3-outline{text-shadow:3px 0 0 #4B2A4F,-3px 0 0 #4B2A4F,0 3px 0 #4B2A4F,0 -3px 0 #4B2A4F,2px 2px 0 #4B2A4F,-2px 2px 0 #4B2A4F,2px -2px 0 #4B2A4F,-2px -2px 0 #4B2A4F,6px 6px 0 #4B2A4F}
+.w3-float{animation:w3Float 3s ease-in-out infinite alternate}
+@keyframes w3Float{0%{transform:translateY(0) rotate(-6deg)}100%{transform:translateY(-12px) rotate(6deg)}}
+.w3-wiggle{animation:w3Wiggle 1.6s ease-in-out infinite alternate}
+@keyframes w3Wiggle{0%{transform:rotate(-28deg)}100%{transform:rotate(28deg)}}
+.w3-bob{animation:w3Bob 2.2s ease-in-out infinite alternate}
+@keyframes w3Bob{0%{transform:translateY(0)}100%{transform:translateY(-6px)}}
+.w3-dim{animation:w3Dim 7s infinite}
+@keyframes w3Dim{0%{opacity:0}4%{opacity:1}88%{opacity:1}95%,100%{opacity:0}}
+.w3-banner{animation:w3Banner 7s infinite}
+@keyframes w3Banner{0%{opacity:0;transform:scale(0) rotate(-8deg)}3%{opacity:1;transform:scale(1.15) rotate(3deg)}5%{transform:scale(1) rotate(-2deg)}34%{opacity:1}38%,100%{opacity:0;transform:translateY(-30px)}}
+.w3-crank{animation:w3Crank 7s infinite}
+@keyframes w3Crank{0%,4%{transform:rotate(0deg);animation-timing-function:ease-in-out}28%,100%{transform:rotate(720deg)}}
+.w3-squash{animation:w3Squash 7s infinite}
+@keyframes w3Squash{0%,4%{transform:none}8%{transform:scale(1.03,.95)}12%{transform:none}16%{transform:scale(1.03,.95)}20%{transform:none}24%{transform:scale(1.03,.95)}28%,100%{transform:none}}
+.w3-jiggle{animation:w3Jiggle 7s infinite}
+@keyframes w3Jiggle{0%,4%{transform:none}7%{transform:translate(-6px,-8px) rotate(-3deg)}10%{transform:translate(6px,0) rotate(3deg)}13%{transform:translate(-4px,-10px) rotate(-2deg)}16%{transform:translate(5px,-2px) rotate(3deg)}19%{transform:translate(-6px,-6px) rotate(-3deg)}22%{transform:translate(4px,0) rotate(2deg)}25%{transform:translate(-5px,-9px) rotate(-3deg)}28%,100%{transform:none}}
+.w3-cap{animation:w3Cap 7s infinite}
+@keyframes w3Cap{0%,28.5%{opacity:0;transform:translate(0,0) scale(.3) rotate(0deg)}29%{opacity:1;transform:translate(0,0) scale(1) rotate(0deg)}30.5%{transform:translate(95px,-110px) rotate(120deg)}32%{transform:translate(180px,0) rotate(230deg) scale(1.16,.84)}33.2%{transform:translate(250px,-60px) rotate(300deg) scale(1)}34.2%{transform:translate(310px,0) rotate(380deg) scale(1.12,.88)}35.5%{transform:translate(370px,-385px) rotate(460deg) scale(1)}36.3%{opacity:1;transform:translate(370px,-385px) rotate(470deg) scale(1.3)}36.7%,100%{opacity:0;transform:translate(370px,-385px) rotate(470deg) scale(1.3)}}
+.w3-halfTop{animation:w3HalfTop 7s infinite}
+.w3-halfBot{animation:w3HalfBot 7s infinite}
+@keyframes w3HalfTop{0%,36.4%{opacity:0;transform:none}36.7%{opacity:1;transform:none}45%,100%{opacity:0;transform:translate(-200px,-240px) rotate(-110deg)}}
+@keyframes w3HalfBot{0%,36.4%{opacity:0;transform:none}36.7%{opacity:1;transform:none}45%,100%{opacity:0;transform:translate(220px,260px) rotate(90deg)}}
+.w3-burst{animation:w3Burst 7s infinite}
+@keyframes w3Burst{0%,36.3%{opacity:0;transform:translate(-50%,-50%) scale(.2)}37.2%{opacity:1}45%,100%{opacity:0;transform:translate(-50%,-50%) scale(2.6)}}
+.w3-rainbow{animation:w3Rainbow 7s infinite}
+@keyframes w3Rainbow{0%,36.4%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(0deg)}38%{opacity:1}52%,100%{opacity:0;transform:translate(-50%,-50%) scale(2.2) rotate(120deg)}}
+.w3-popText{animation:w3PopText 7s infinite}
+@keyframes w3PopText{0%,36.6%{opacity:0;transform:rotate(-12deg) scale(.2)}38.6%{opacity:1;transform:rotate(-12deg) scale(1.3)}40.6%{transform:rotate(-12deg) scale(.95)}42.6%{transform:rotate(-12deg) scale(1)}52%{opacity:1}56%,100%{opacity:0;transform:rotate(-12deg) scale(1)}}
+.w3-winner{animation:w3Winner 7s infinite}
+@keyframes w3Winner{0%,37.2%{opacity:0;transform:scale(0) rotate(-8deg)}40.2%{opacity:1;transform:scale(1.18) rotate(3deg)}42.2%{transform:scale(.94) rotate(-2deg)}44.2%{transform:scale(1.04) rotate(1deg)}46.2%{transform:none}86%{opacity:1;transform:none}92%,100%{opacity:0;transform:scale(.85)}}
+.w3-in-a{animation:w3InA .7s cubic-bezier(.3,1.6,.5,1)}
+.w3-in-b{animation:w3InB .7s cubic-bezier(.3,1.6,.5,1)}
+@keyframes w3InA{0%{opacity:0;transform:scale(.3,1.4)}60%{opacity:1;transform:scale(1.1,.9)}100%{transform:none}}
+@keyframes w3InB{0%{opacity:0;transform:scale(.3,1.4)}60%{opacity:1;transform:scale(1.1,.9)}100%{transform:none}}
+.w3-drop-a{animation:w3DropA .9s cubic-bezier(.3,1.5,.5,1)}
+.w3-drop-b{animation:w3DropB .9s cubic-bezier(.3,1.5,.5,1)}
+@keyframes w3DropA{0%{transform:translateY(-160px) rotate(-90deg)}100%{transform:none}}
+@keyframes w3DropB{0%{transform:translateY(-160px) rotate(-90deg)}100%{transform:none}}
+.w3-pop-a{animation:w3PopA .6s cubic-bezier(.3,1.6,.5,1)}
+.w3-pop-b{animation:w3PopB .6s cubic-bezier(.3,1.6,.5,1)}
+@keyframes w3PopA{0%{transform:scale(1.5)}100%{transform:scale(1)}}
+@keyframes w3PopB{0%{transform:scale(1.5)}100%{transform:scale(1)}}
+.w3-boing{animation:w3Boing .7s cubic-bezier(.3,1.6,.5,1) both}
+.w3b-sunWrap{animation:w3bSunWrap 7s infinite}
+@keyframes w3bSunWrap{0%,36.5%{opacity:0;transform:scale(.2)}38.5%{opacity:1;transform:scale(1.08)}40%{transform:scale(1)}86%{opacity:1;transform:scale(1)}92%,100%{opacity:0;transform:scale(.9)}}
+.w3b-sun{animation:w3bSun 18s linear infinite}
+@keyframes w3bSun{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.w3b-beams{animation:w3bBeams 7s infinite}
+@keyframes w3bBeams{0%,36.3%{opacity:0;transform:translate(-50%,-50%) scale(.2) rotate(0deg)}37.6%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(12deg)}46%,100%{opacity:0;transform:translate(-50%,-50%) scale(1.3) rotate(40deg)}}
+.w3b-ring{animation:w3bRing 7s infinite}
+@keyframes w3bRing{0%,37.4%{opacity:0;transform:translate(-50%,-50%) scale(.3)}38%{opacity:1}47%,100%{opacity:0;transform:translate(-50%,-50%) scale(2.5)}}
+.w3b-ring2{animation:w3bRing2 7s infinite}
+@keyframes w3bRing2{0%,39.4%{opacity:0;transform:translate(-50%,-50%) scale(.3)}40%{opacity:1}50%,100%{opacity:0;transform:translate(-50%,-50%) scale(2.5)}}
+.w3b-burst{animation:w3bBurst 7s infinite}
+@keyframes w3bBurst{0%,36.4%{opacity:0;transform:rotate(-12deg) scale(.2)}38.4%{opacity:1;transform:rotate(-8deg) scale(1.25)}40.4%{transform:rotate(-14deg) scale(.95)}42.4%{transform:rotate(-12deg) scale(1)}52%{opacity:1;transform:rotate(-12deg) scale(1)}56%,100%{opacity:0;transform:rotate(-12deg) scale(1.1)}}
+.w3b-hold{animation:w3bHold 7s infinite}
+@keyframes w3bHold{0%,45%{opacity:0}48%{opacity:1}86%{opacity:1}90%,100%{opacity:0}}
+.w3b-twinkle{animation:w3bTwinkle 1.1s ease-in-out infinite alternate}
+@keyframes w3bTwinkle{0%{transform:scale(.3) rotate(0deg)}100%{transform:scale(1.1) rotate(45deg)}}
+/* The textured glow pops open from a point at full opacity, so the stream behind never shows through as a patch. */
+.w3t-core{animation:w3tCore 7s infinite}
+@keyframes w3tCore{0%{opacity:1;transform:translate(-50%,-50%) scale(.06)}4%{opacity:1;transform:translate(-50%,-50%) scale(1.04)}5.5%{transform:translate(-50%,-50%) scale(1)}88%{opacity:1;transform:translate(-50%,-50%) scale(1)}95%,100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+.w3t-sun{-webkit-mask:url('/_blob/7e4b4184629e74ea5f3ffe54eddd5887') center/100% 100% no-repeat;mask:url('/_blob/7e4b4184629e74ea5f3ffe54eddd5887') center/100% 100% no-repeat}
+.w3t-pow{background:url('/_blob/4f8c2005ab975afd696500ccedd273cd') center/100% 100% no-repeat}
+.w3t-powTint{-webkit-mask:url('/_blob/4f8c2005ab975afd696500ccedd273cd') center/100% 100% no-repeat;mask:url('/_blob/4f8c2005ab975afd696500ccedd273cd') center/100% 100% no-repeat;mix-blend-mode:multiply}
+.w3t-frame1{border:1px solid transparent;border-image:url('/_blob/aaf7c4ab9206cbcb8beb2b6a0949c1cf') 173 / 27.8% 16.9% stretch}
+.w3t-frame2{border:1px solid transparent;border-image:url('/_blob/508ffeecb778752f98fd5764e3842bef') 133 / 22.6% 13.85% stretch}
+.w3t-frame3{border:1px solid transparent;border-image:url('/_blob/6773f9f8618c1fd5a04e9d60fd06c0af') 80 / 12.56% 7.6% stretch}
+.w3t-cap{background:url('/_blob/e825b3005b75f824d7baf657775c2b91') 0 0/300% 100% no-repeat}
+.w3t-half{background:url('/_blob/e825b3005b75f824d7baf657775c2b91') 0 0/390px 130px no-repeat}
+.w3t-body{background:url('/_blob/fff49d9880aff25e299011aab56bcd12') center/100% 100% no-repeat !important;border-color:transparent !important;box-shadow:none !important}
+@keyframes w3Boing{0%{opacity:0;transform:scale(0)}100%{opacity:1;transform:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: {{bg}}; color: #4B2A4F; font-family: 'ZCOOL KuaiLe', 'Smiley Sans', 'PingFang SC', sans-serif">
+
+  <sc-if value="{{mock}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; inset: 0; background: {{mockBg}}"></div>
+    <div style="position: absolute; left: 640px; top: 300px; width: 520px; height: 360px; border-radius: 28px; background: {{mockBox}}"></div>
+    <span style="position: absolute; left: 48px; bottom: 12px; font-family: 'PingFang SC', sans-serif; font-size: 18px; color: {{mockInk}}">直播画面（示意）· 抽奖页本身透明</span>
+  </sc-if>
+
+  <sc-if value="{{isReveal}}" hint-placeholder-val="{{false}}">
+    <sc-if value="{{oldSky}}" hint-placeholder-val="{{false}}">
+      <div class="w3-dim" style="position: absolute; inset: 0; background: radial-gradient(circle at 60% 50%, rgba(255, 190, 215, 0.55) 0%, rgba(120, 80, 140, 0.55) 45%, rgba(60, 30, 70, 0.72) 100%)"></div>
+    </sc-if>
+    <sc-if value="{{boost}}" hint-placeholder-val="{{false}}">
+      <div class="w3-dim" style="position: absolute; left: 980px; top: 560px; width: 1640px; height: 980px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(ellipse closest-side, rgba(255, 214, 230, 0.8) 0%, rgba(255, 190, 215, 0.55) 45%, rgba(255, 190, 215, 0) 100%)"></div>
+      <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+        <div class="w3t-core" style="position: absolute; left: 980px; top: 560px; width: 1640px; height: 980px; border-radius: 50%; background: radial-gradient(ellipse closest-side, rgba(255, 232, 240, 0.96) 0%, rgba(255, 220, 234, 0.9) 58%, rgba(255, 200, 222, 0) 82%)"></div>
+      </sc-if>
+      <div class="w3b-sunWrap" style="position: absolute; left: 1180px; top: 520px; width: 0; height: 0">
+        <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+          <div class="w3b-sun w3t-sun" style="position: absolute; left: {{sun.pos}}; top: {{sun.pos}}; width: {{sun.size}}; height: {{sun.size}}; background: radial-gradient(circle, #FFFFFF 0%, {{sun.b}} 20%, {{sun.a}} 60%)"></div>
+        </sc-if>
+        <sc-if value="{{noTex}}" hint-placeholder-val="{{true}}">
+        <div class="w3b-sun" style="position: absolute; left: {{sun.pos}}; top: {{sun.pos}}; width: {{sun.size}}; height: {{sun.size}}; border-radius: 50%; background: repeating-conic-gradient(from 0deg, {{sun.a}} 0deg 10deg, {{sun.b}} 10deg 20deg); -webkit-mask-image: radial-gradient(circle closest-side, #000 25%, rgba(0, 0, 0, 0.85) 55%, transparent 100%); mask-image: radial-gradient(circle closest-side, #000 25%, rgba(0, 0, 0, 0.85) 55%, transparent 100%)"></div>
+        </sc-if>
+      </div>
+    </sc-if>
+    <div class="w3-banner" style="position: absolute; left: 0; top: 56px; width: 1920px; display: flex; justify-content: center">
+      <span style="height: 112px; box-sizing: border-box; display: inline-flex; align-items: center; padding: 0 46px; border-radius: 56px; border: 5px solid #4B2A4F; background: #FFF8EE; box-shadow: 8px 8px 0 #4B2A4F; font-size: 68px">{{bannerText}}</span>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{showStage}}" hint-placeholder-val="{{true}}">
+  <div style="position: absolute; left: 500px; top: 230px; width: 420px; height: 780px">
+    <div style="position: absolute; left: 20px; top: 0; width: 380px; height: 380px; box-sizing: border-box; border-radius: 50%; border: 6px solid #4B2A4F; background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95) 0%, rgba(240, 248, 255, 0.82) 45%, rgba(214, 232, 250, 0.78) 100%); overflow: hidden">
+      <div class="{{jiggleCls}}" style="position: absolute; inset: 0">
+        <sc-for list="{{capsules}}" as="c" hint-placeholder-count="18">
+          <sc-if value="{{c.tex}}" hint-placeholder-val="{{false}}">
+            <span class="w3t-cap" style="position: absolute; left: {{c.x}}; top: {{c.y}}; width: 64px; height: 64px; background-position: {{c.pos}}; transform: rotate({{c.rot}})"></span>
+          </sc-if>
+          <sc-if value="{{c.flat}}" hint-placeholder-val="{{true}}">
+          <span style="position: absolute; left: {{c.x}}; top: {{c.y}}; width: 64px; height: 64px; box-sizing: border-box; border-radius: 50%; border: 3px solid #4B2A4F; background: linear-gradient(180deg, {{c.color}} 0 46%, #4B2A4F 46% 54%, #FFFFFF 54% 100%); transform: rotate({{c.rot}})"></span>
+          </sc-if>
+        </sc-for>
+      </div>
+      <span style="position: absolute; left: 62px; top: 46px; width: 90px; height: 44px; border-radius: 50%; background: rgba(255, 255, 255, 0.9); transform: rotate(-28deg)"></span>
+    </div>
+    <span style="position: absolute; left: 130px; top: 362px; width: 160px; height: 54px; box-sizing: border-box; border: 6px solid #4B2A4F; border-radius: 10px; background: #F2669C"></span>
+    <div class="{{squashCls}}" style="position: absolute; left: 30px; top: 400px; width: 360px; height: 330px; transform-origin: 50% 100%">
+      <div class="{{bodyCls}}" style="position: absolute; inset: 0; box-sizing: border-box; border-radius: 36px; border: 6px solid #4B2A4F; background: #FF8DB8; box-shadow: 8px 8px 0 #4B2A4F">
+        <div style="position: absolute; left: 44px; top: 26px; width: 260px; height: 76px; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border-radius: 14px; border: 5px solid #4B2A4F; background: #CFF5E8; font-size: 38px">{{lcd}}</div>
+        <div class="{{crankCls}}" style="position: absolute; left: 50px; top: 136px; width: 120px; height: 120px">
+          <span style="position: absolute; inset: 0; box-sizing: border-box; border-radius: 50%; border: 6px solid #4B2A4F; background: #FFD45E"></span>
+          <span style="position: absolute; left: 14px; top: 47px; width: 92px; height: 26px; box-sizing: border-box; border-radius: 13px; border: 5px solid #4B2A4F; background: #FFF8EE"></span>
+          <span style="position: absolute; left: 86px; top: 38px; width: 44px; height: 44px; box-sizing: border-box; border-radius: 50%; border: 5px solid #4B2A4F; background: #FF7AAE"></span>
+        </div>
+        <span style="position: absolute; left: 226px; top: 140px; width: 18px; height: 56px; border-radius: 9px; background: #4B2A4F"></span>
+        <span style="position: absolute; left: 204px; top: 232px; width: 112px; height: 74px; box-sizing: border-box; border-radius: 56px 56px 12px 12px; border: 6px solid #4B2A4F; background: #3A1F3E"></span>
+      </div>
+    </div>
+    <span style="position: absolute; left: 60px; top: 736px; width: 90px; height: 38px; box-sizing: border-box; border-radius: 0 0 16px 16px; border: 6px solid #4B2A4F; border-top: 0; background: #A991FF"></span>
+    <span style="position: absolute; left: 270px; top: 736px; width: 90px; height: 38px; box-sizing: border-box; border-radius: 0 0 16px 16px; border: 6px solid #4B2A4F; border-top: 0; background: #A991FF"></span>
+    <sc-if value="{{isIdle}}" hint-placeholder-val="{{true}}">
+      <svg class="w3-float" width="64" height="64" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: -40px; top: 30px"><path d="M12 2l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 16.3l-5.8 3.5 1.6-6.6-5.1-4.4 6.7-.6z" fill="#FFD45E" stroke="#4B2A4F" stroke-width="1.6" stroke-linejoin="round"></path></svg>
+      <svg class="w3-float" width="50" height="50" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: 400px; top: 120px; animation-delay: .9s"><path d="M12 21s-7.5-4.6-9.5-9.2C1.2 8.7 3 5 6.6 5c2.2 0 3.6 1.3 5.4 3.3C13.8 6.3 15.2 5 17.4 5 21 5 22.8 8.7 21.5 11.8 19.5 16.4 12 21 12 21z" fill="#FF7AAE" stroke="#4B2A4F" stroke-width="1.6" stroke-linejoin="round"></path></svg>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{isReg}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; left: 60px; top: 790px; width: 1800px; height: 250px; box-sizing: border-box; display: flex; align-items: center; gap: 30px; padding: 0 40px; border-radius: 40px; border: 5px solid #4B2A4F; background: #FFF8EE; box-shadow: 8px 8px 0 #4B2A4F">
+      <span style="width: 620px; flex-shrink: 0; display: flex; flex-direction: column; gap: 2px">
+        <span class="w3-outline" style="font-size: 48px; line-height: 1.1; color: #FF7AAE">扭蛋抽奖</span>
+        <span style="font-size: 72px; line-height: 1.15">发弹幕「抽奖」</span>
+      </span>
+      <span style="width: 0; height: 150px; flex-shrink: 0; border-left: 4px dashed #B9A2BC"></span>
+      <span style="width: 440px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; gap: 16px">
+        <span class="{{dropCls}}" style="display: inline-block; width: 92px; height: 92px; flex-shrink: 0; box-sizing: border-box; border-radius: 50%; border: 5px solid #4B2A4F; background: linear-gradient(180deg, {{dropColor}} 0 46%, #4B2A4F 46% 54%, #FFFFFF 54% 100%)"></span>
+        <span style="display: flex; flex-direction: column; align-items: center">
+          <span class="{{popClass}}" style="display: inline-block; font-size: 120px; line-height: 1; color: #FF7AAE; font-variant-numeric: tabular-nums">{{count}}</span>
+          <span style="font-size: 44px">颗扭蛋</span>
+        </span>
+      </span>
+      <span style="width: 0; height: 150px; flex-shrink: 0; border-left: 4px dashed #B9A2BC"></span>
+      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+        <span style="font-size: 34px; color: #7A5A7E">刚刚加入</span>
+        <span style="display: flex; gap: 12px; flex-wrap: wrap">
+          <sc-for list="{{latestTags}}" as="g" hint-placeholder-count="2">
+            <span class="{{g.cls}}" style="height: 76px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 10px; padding: 0 24px 0 12px; border-radius: 38px; border: 3px solid #4B2A4F; background: {{g.bg}}; font-size: 54px; opacity: {{g.fade}}">
+              <span style="width: 44px; height: 44px; box-sizing: border-box; border-radius: 50%; border: 3px solid #4B2A4F; background: linear-gradient(180deg, {{g.cap}} 0 50%, #FFFFFF 50% 100%)"></span>{{g.name}}
+            </span>
+          </sc-for>
+        </span>
+      </span>
+    </div>
+    <div style="position: absolute; left: 1300px; top: 40px; width: 560px; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 22px 26px; border-radius: 34px; border: 5px solid #4B2A4F; background: #FFF8EE; box-shadow: 7px 7px 0 #4B2A4F">
+      <span class="w3-outline" style="font-size: 52px; line-height: 1.1; color: #FFD45E">奖品</span>
+      <sc-for list="{{prizeRows}}" as="p" hint-placeholder-count="3">
+        <span style="height: 72px; display: flex; align-items: center; gap: 14px">
+          <span style="width: 56px; height: 56px; flex-shrink: 0; box-sizing: border-box; border-radius: 50%; border: 4px solid #4B2A4F; background: linear-gradient(180deg, {{p.color}} 0 46%, #4B2A4F 46% 54%, #FFFFFF 54% 100%)"></span>
+          <span style="flex: 1; min-width: 0; font-size: 54px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.prize}}</span>
+          <span style="font-size: 42px; color: #7A5A7E">×{{p.quota}}</span>
+        </span>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isDone}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; left: 360px; top: 80px; width: 1200px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 30px 44px 36px; border-radius: 44px; border: 6px solid #4B2A4F; background: #FFF8EE; box-shadow: 12px 12px 0 #4B2A4F">
+      <span class="w3-outline" style="font-size: 96px; line-height: 1.1; color: #FF7AAE">{{doneTitle}}</span>
+      <sc-for list="{{resultRows}}" as="r" hint-placeholder-count="3">
+        <span style="width: 100%; display: flex; align-items: center; gap: 18px">
+          <sc-if value="{{r.flat}}" hint-placeholder-val="{{true}}">
+          <span style="width: 76px; height: 76px; flex-shrink: 0; box-sizing: border-box; border-radius: 50%; border: 5px solid #4B2A4F; background: linear-gradient(180deg, {{r.color}} 0 46%, #4B2A4F 46% 54%, #FFFFFF 54% 100%)"></span>
+          </sc-if>
+          <sc-if value="{{r.tex}}" hint-placeholder-val="{{false}}">
+            <span class="w3t-cap" style="width: 76px; height: 76px; flex-shrink: 0; background-position: {{r.pos}}"></span>
+          </sc-if>
+          <span style="width: 170px; flex-shrink: 0; font-size: 52px">{{r.tier}}</span>
+          <span style="display: flex; flex-wrap: wrap; gap: 14px">
+            <sc-for list="{{r.people}}" as="w" hint-placeholder-count="2">
+              <span class="w3-boing" style="height: 92px; box-sizing: border-box; display: inline-flex; align-items: center; padding: 0 30px; border-radius: 46px; border: 5px solid #4B2A4F; background: {{r.tint}}; box-shadow: 6px 6px 0 #4B2A4F; font-size: 62px; animation-delay: {{w.delay}}">{{w.name}}</span>
+            </sc-for>
+          </span>
+        </span>
+      </sc-for>
+      <sc-if value="{{partial}}" hint-placeholder-val="{{false}}">
+        <span style="height: 84px; box-sizing: border-box; display: inline-flex; align-items: center; padding: 0 36px; border-radius: 42px; border: 4px dashed #B9A2BC; font-size: 52px; color: #7A5A7E">{{remainText}}</span>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isIdle}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; left: 1000px; top: 290px; display: flex; flex-direction: column; gap: 22px">
+      <sc-for list="{{legend}}" as="lg" hint-placeholder-count="3">
+        <span style="height: 96px; box-sizing: border-box; display: inline-flex; align-items: center; align-self: flex-start; gap: 18px; padding: 0 30px 0 18px; border-radius: 48px; border: 4px solid #4B2A4F; background: #FFF8EE; box-shadow: 5px 5px 0 #4B2A4F">
+          <span style="width: 64px; height: 64px; flex-shrink: 0; box-sizing: border-box; border-radius: 50%; border: 4px solid #4B2A4F; background: linear-gradient(180deg, {{lg.color}} 0 46%, #4B2A4F 46% 54%, #FFFFFF 54% 100%); transform: rotate(-18deg)"></span>
+          <span style="font-size: 44px; color: {{lg.ink}}">{{lg.tier}}</span>
+          <span style="font-size: 52px">{{lg.prizes}}</span>
+        </span>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <canvas ref="{{setCanvas}}" id="w3fx" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none"></canvas>
+
+  <sc-if value="{{isReveal}}" hint-placeholder-val="{{false}}">
+    <sc-if value="{{noTex}}" hint-placeholder-val="{{true}}">
+    <span class="w3-cap" style="position: absolute; left: 745px; top: 840px; width: 130px; height: 130px; box-sizing: border-box; border-radius: 50%; border: 6px solid #4B2A4F; background: linear-gradient(180deg, {{tc.color}} 0 46%, #4B2A4F 46% 54%, #FFFFFF 54% 100%); box-shadow: 0 0 0 6px {{tc.glowA}}, 0 0 40px {{tc.glow}}"></span>
+    </sc-if>
+    <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+      <span class="w3-cap w3t-cap" style="position: absolute; left: 745px; top: 840px; width: 130px; height: 130px; border-radius: 50%; background-position: {{capPos}}; box-shadow: 0 0 0 6px {{tc.glowA}}, 0 0 40px {{tc.glow}}"></span>
+    </sc-if>
+    <sc-if value="{{isBig}}" hint-placeholder-val="{{true}}">
+      <span class="w3-rainbow" style="position: absolute; left: 1180px; top: 520px; width: 520px; height: 520px; border-radius: 50%; background: conic-gradient(#FF7AAE, #FFD45E, #5FD3B0, #7CCBFF, #A991FF, #FF7AAE); -webkit-mask-image: radial-gradient(circle, transparent 52%, #000 54%, #000 64%, transparent 66%); mask-image: radial-gradient(circle, transparent 52%, #000 54%, #000 64%, transparent 66%)"></span>
+    </sc-if>
+    <sc-if value="{{boost}}" hint-placeholder-val="{{false}}">
+      <span class="w3b-beams" style="position: absolute; left: 1180px; top: 520px; width: 760px; height: 760px; border-radius: 50%; background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.95) 0deg 5deg, rgba(255, 255, 255, 0) 5deg 22deg); -webkit-mask-image: radial-gradient(circle closest-side, #000 12%, rgba(0, 0, 0, 0.6) 50%, transparent 100%); mask-image: radial-gradient(circle closest-side, #000 12%, rgba(0, 0, 0, 0.6) 50%, transparent 100%)"></span>
+      <span class="w3b-ring" style="position: absolute; left: 1180px; top: 520px; width: 300px; height: 300px; box-sizing: border-box; border-radius: 50%; border: 12px solid {{tc.color}}; box-shadow: 0 0 0 5px #4B2A4F, inset 0 0 0 5px #4B2A4F"></span>
+      <sc-if value="{{hasRing2}}" hint-placeholder-val="{{true}}">
+        <span class="w3b-ring2" style="position: absolute; left: 1180px; top: 520px; width: 300px; height: 300px; box-sizing: border-box; border-radius: 50%; border: 10px solid #FFFFFF; box-shadow: 0 0 0 5px #4B2A4F, inset 0 0 0 5px #4B2A4F"></span>
+      </sc-if>
+    </sc-if>
+    <span class="w3-burst" style="position: absolute; left: 1180px; top: 520px; width: {{burstSize}}; height: {{burstSize}}; border-radius: 50%; background: radial-gradient(circle, #FFFFFF 0%, {{tc.glowA}} 35%, rgba(255, 255, 255, 0) 70%)"></span>
+    <div style="position: absolute; left: 1115px; top: 455px; width: 130px; height: 130px">
+      <sc-if value="{{noTex}}" hint-placeholder-val="{{true}}">
+      <span class="w3-halfTop" style="position: absolute; left: 0; top: 0; width: 130px; height: 65px; box-sizing: border-box; border-radius: 65px 65px 0 0; border: 6px solid #4B2A4F; border-bottom-width: 4px; background: {{tc.color}}"></span>
+      <span class="w3-halfBot" style="position: absolute; left: 0; top: 65px; width: 130px; height: 65px; box-sizing: border-box; border-radius: 0 0 65px 65px; border: 6px solid #4B2A4F; border-top-width: 4px; background: #FFFFFF"></span>
+      </sc-if>
+      <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+        <span class="w3-halfTop w3t-half" style="position: absolute; left: 0; top: 0; width: 130px; height: 65px; background-position: {{halfX}} 0"></span>
+        <span class="w3-halfBot w3t-half" style="position: absolute; left: 0; top: 65px; width: 130px; height: 65px; background-position: {{halfX}} -65px"></span>
+      </sc-if>
+    </div>
+    <div class="w3-winner" style="position: absolute; left: 860px; top: 340px; width: 640px; height: 360px">
+      <div style="position: absolute; inset: 0; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding-top: 44px; border-radius: 40px; border: 6px solid #4B2A4F; background: #FFF8EE; box-shadow: 12px 12px 0 #4B2A4F">
+        <span style="font-size: 120px; line-height: 1.05">{{stickerMain}}</span>
+        <span style="font-size: 54px; color: #8A4A7E">{{stickerSub}}</span>
+      </div>
+      <sc-if value="{{texFrame}}" hint-placeholder-val="{{false}}">
+        <span class="w3t-frame{{tierN}}" style="position: absolute; {{frameIn}} pointer-events: none"></span>
+      </sc-if>
+      <span style="position: absolute; left: 50%; top: {{tagTop}}; transform: translateX(-50%) rotate(-4deg); height: 80px; box-sizing: border-box; display: inline-flex; align-items: center; padding: 0 40px; border-radius: 40px; border: 5px solid #4B2A4F; background: {{tc.color}}; box-shadow: 5px 5px 0 #4B2A4F; font-size: 56px; white-space: nowrap">{{stickerTier}}</span>
+    </div>
+    <sc-if value="{{boost}}" hint-placeholder-val="{{false}}">
+      <div class="w3b-hold" style="position: absolute; inset: 0">
+        <sc-for list="{{sparkles}}" as="sp" hint-placeholder-count="4">
+          <svg class="w3b-twinkle" width="{{sp.s}}" height="{{sp.s}}" viewBox="0 0 24 24" aria-hidden="true" style="position: absolute; left: {{sp.x}}; top: {{sp.y}}; animation-delay: {{sp.d}}"><path d="M12 1.5c.9 5.3 3.2 7.6 8.5 8.5-5.3.9-7.6 3.2-8.5 8.5-.9-5.3-3.2-7.6-8.5-8.5 5.3-.9 7.6-3.2 8.5-8.5z" fill="#FFFFFF" stroke="#4B2A4F" stroke-width="1.6" stroke-linejoin="round"></path></svg>
+        </sc-for>
+      </div>
+      <div class="w3b-burst" style="position: absolute; left: {{burstBox.x}}; top: {{burstBox.y}}; width: {{burstBox.w}}; height: {{burstBox.h}}">
+        <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+          <span style="position: absolute; left: -12%; top: -12%; right: -12%; bottom: -12%; isolation: isolate">
+            <span class="w3t-pow" style="position: absolute; inset: 0"></span>
+            <span class="w3t-powTint" style="position: absolute; inset: 0; background: {{burstFill}}"></span>
+          </span>
+        </sc-if>
+        <sc-if value="{{noTex}}" hint-placeholder-val="{{true}}">
+        <span style="position: absolute; inset: 0; transform: translate(10px, 10px); background: #4B2A4F; clip-path: polygon(50.0% 0.0%, 57.3% 17.8%, 69.5% 9.5%, 70.6% 24.2%, 89.1% 18.8%, 79.7% 35.7%, 93.9% 40.0%, 83.0% 50.0%, 98.7% 61.1%, 79.7% 64.3%, 85.2% 78.1%, 70.6% 75.8%, 71.7% 95.0%, 57.3% 82.2%, 50.0% 95.0%, 42.7% 82.2%, 28.3% 95.0%, 29.4% 75.8%, 14.8% 78.1%, 20.3% 64.3%, 1.3% 61.1%, 17.0% 50.0%, 6.1% 40.0%, 20.3% 35.7%, 10.9% 18.8%, 29.4% 24.2%, 30.5% 9.5%, 42.7% 17.8%)"></span>
+        <span style="position: absolute; inset: 0; background: #4B2A4F; clip-path: polygon(50.0% 0.0%, 57.3% 17.8%, 69.5% 9.5%, 70.6% 24.2%, 89.1% 18.8%, 79.7% 35.7%, 93.9% 40.0%, 83.0% 50.0%, 98.7% 61.1%, 79.7% 64.3%, 85.2% 78.1%, 70.6% 75.8%, 71.7% 95.0%, 57.3% 82.2%, 50.0% 95.0%, 42.7% 82.2%, 28.3% 95.0%, 29.4% 75.8%, 14.8% 78.1%, 20.3% 64.3%, 1.3% 61.1%, 17.0% 50.0%, 6.1% 40.0%, 20.3% 35.7%, 10.9% 18.8%, 29.4% 24.2%, 30.5% 9.5%, 42.7% 17.8%)"></span>
+        <span style="position: absolute; inset: 9px; background: {{burstFill}}; clip-path: polygon(50.0% 0.0%, 57.3% 17.8%, 69.5% 9.5%, 70.6% 24.2%, 89.1% 18.8%, 79.7% 35.7%, 93.9% 40.0%, 83.0% 50.0%, 98.7% 61.1%, 79.7% 64.3%, 85.2% 78.1%, 70.6% 75.8%, 71.7% 95.0%, 57.3% 82.2%, 50.0% 95.0%, 42.7% 82.2%, 28.3% 95.0%, 29.4% 75.8%, 14.8% 78.1%, 20.3% 64.3%, 1.3% 61.1%, 17.0% 50.0%, 6.1% 40.0%, 20.3% 35.7%, 10.9% 18.8%, 29.4% 24.2%, 30.5% 9.5%, 42.7% 17.8%)"></span>
+        </sc-if>
+      </div>
+    </sc-if>
+    <span class="w3-popText w3-outline" style="position: absolute; left: {{popX}}; top: 300px; font-size: {{popSize}}; line-height: 1; color: {{tc.color}}">{{popWord}}</span>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["奖池","报名"],"default":"奖池"},"stage":{"editor":"enum","options":["转动中","揭晓","报名中","已截止","中奖名单"],"default":"转动中"},"tier":{"editor":"enum","options":["大奖","二奖","三奖"],"default":"大奖"},"stream":{"editor":"boolean","default":true},"fx":{"editor":"enum","options":["现在","加强","贴图"],"default":"现在"},"room":{"editor":"enum","options":["示意画面","浅色房间","深色房间","透明"],"default":"示意画面"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    this.t0 = performance.now();
+    this.sheet = new Image();
+    this.sheet.src = '/_blob/e030deb9aabcaa3748ca08459c311ecf';
+    this.parts = [];
+    const loop = (now) => { this.raf = requestAnimationFrame(loop); this.fx(now); };
+    this.raf = requestAnimationFrame(loop);
+    this.ticker = setInterval(() => {
+      if (!this.registering) return;
+      const s = this.state || {};
+      this.setState({ n: ((s.n || 0) + 1) % 40, flip: !s.flip });
+    }, 1500);
+  }
+
+  componentWillUnmount() { cancelAnimationFrame(this.raf); clearInterval(this.ticker); }
+
+  heart(g, x, y, r) {
+    g.beginPath(); g.moveTo(x, y + r * 0.9);
+    g.bezierCurveTo(x - r * 1.6, y - r * 0.2, x - r * 0.7, y - r * 1.4, x, y - r * 0.5);
+    g.bezierCurveTo(x + r * 0.7, y - r * 1.4, x + r * 1.6, y - r * 0.2, x, y + r * 0.9);
+    g.closePath(); g.fill(); g.stroke();
+  }
+
+  // Atlas cell for a confetti piece: column by shape (heart, star, ribbon, candy), row by color.
+  cell(p) {
+    const row = { '#FF7AAE': 0, '#FFB3CF': 0, '#FFD45E': 1, '#5FD3B0': 2, '#BFF0DF': 2, '#A991FF': 3, '#7CCBFF': 3 }[p.c] ?? (this.power === 1 ? 2 : 3);
+    const col = p.kind === 0 ? 0 : p.kind === 1 ? 1 : p.kind === 2 ? 3 : 2;
+    return [col * 96, row * 96];
+  }
+
+  star(g, x, y, r) {
+    g.beginPath();
+    for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 === 0 ? r : r * 0.45; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+    g.closePath(); g.fill(); g.stroke();
+  }
+
+  // Reveal only: a pop sized by tier, floating hearts for the two higher tiers, confetti rain for the top prize.
+  fx(now) {
+    const c = this.canvas || document.getElementById('w3fx');
+    if (!c) return;
+    const g = c.getContext('2d');
+    const el = now - this.t0, t = el % 7000, cyc = Math.floor(el / 7000);
+    if (cyc !== this.cyc) { this.cyc = cyc; this.fired = false; this.fired2 = false; this.parts = []; }
+    g.clearRect(0, 0, 1920, 1080);
+    if (!this.reveal) return;
+    const P = this.parts, power = this.power;
+    const colors = power === 3 ? ['#FF7AAE', '#FFD45E', '#5FD3B0', '#A991FF', '#7CCBFF', '#FFFFFF'] : power === 2 ? ['#FF7AAE', '#FFB3CF', '#FFFFFF', '#FFD45E'] : ['#5FD3B0', '#BFF0DF', '#FFFFFF'];
+    if (!this.fired && t >= 2570) {
+      this.fired = true;
+      const n = [30, 70, 140][power - 1];
+      for (let k = 0; k < n; k++) {
+        const a = Math.random() * Math.PI * 2, sp = 5 + Math.random() * (6 + 5 * power);
+        P.push({ x: 1180, y: 520, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 4, r: 9 + Math.random() * (6 + 4 * power), rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.2, kind: k % 3, c: colors[k % colors.length], life: 120 + Math.random() * 60, max: 180, grav: 0.32 });
+      }
+    }
+    if (power >= 2 && t > 3000 && t < 6000 && Math.random() < 0.12 * power) P.push({ x: 880 + Math.random() * 600, y: 760, vx: (Math.random() - 0.5) * 0.6, vy: -1.4 - Math.random() * 1.2, r: 9 + Math.random() * 8, rot: 0, vr: 0, kind: 0, c: Math.random() < 0.6 ? '#FF7AAE' : '#FFD45E', life: 180, max: 180, grav: 0, sway: Math.random() * 6.28 });
+    if (this.boost && power > 1 && (!this.fired2 && t >= 2620 || this.fired2 === 1 && power === 3 && t >= 3300)) {
+      this.fired2 = this.fired2 ? 2 : 1;
+      for (const [x, aim] of [[820, -1.15], [1560, -1.99]]) for (let k = 0; k < (power === 3 ? 60 : 30); k++) {
+        const a = aim + (Math.random() - 0.5) * 0.6, sp = 16 + Math.random() * 14;
+        P.push({ x, y: 960, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 8 + Math.random() * 6, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.3, kind: k % 4 === 0 ? 1 : 4, c: colors[k % colors.length], life: 150 + Math.random() * 50, max: 200, grav: 0.32 });
+      }
+    }
+    if (!this.boost && power === 3 && t > 2800 && t < 5600 && Math.random() < 0.9) P.push({ x: Math.random() * 1920, y: -20, vx: 0, vy: 2.5 + Math.random() * 2, r: 8, rot: Math.random() * 6.28, vr: 0.1, kind: 3, c: colors[Math.floor(Math.random() * 5)], life: 400, max: 400, grav: 0 });
+    g.lineWidth = 3; g.strokeStyle = '#4B2A4F'; g.lineJoin = 'round';
+    for (let k = P.length - 1; k >= 0; k--) {
+      const p = P[k];
+      p.vx *= 0.97; p.vy = p.vy * 0.97 + p.grav; if (p.kind === 3 && p.vy < 2.5) p.vy = 2.5;
+      p.x += p.vx + (p.sway !== undefined ? Math.sin((p.sway += 0.06)) * 0.8 : 0); p.y += p.vy; p.rot += p.vr; p.life -= 1;
+      if (p.life <= 0 || p.y > 1120) { P.splice(k, 1); continue; }
+      g.globalAlpha = Math.min(1, p.life / 40) * (this.boost ? Math.max(0, Math.min(1, Math.min(p.x - 40, 1880 - p.x, p.y - 30, 1050 - p.y) / 140)) : 1);
+      g.fillStyle = p.c;
+      g.save(); g.translate(p.x, p.y); g.rotate(p.rot);
+      if (this.tex && this.sheet.naturalWidth) {
+        const [sx, sy] = this.cell(p), d = p.r * 2.4;
+        if (p.kind >= 3) g.scale(1, Math.cos(p.rot * 2));
+        g.drawImage(this.sheet, sx, sy, 96, 96, -d / 2, -d / 2, d, d);
+      }
+      else if (p.kind === 0) this.heart(g, 0, 0, p.r * 0.7);
+      else if (p.kind === 1) this.star(g, 0, 0, p.r);
+      else if (p.kind === 2) { g.beginPath(); g.arc(0, 0, p.r * 0.55, 0, 6.283); g.fill(); g.stroke(); }
+      else { g.scale(1, Math.cos(p.rot * 2)); g.fillRect(-7, -5, 14, 10); g.strokeRect(-7, -5, 14, 10); }
+      g.restore();
+    }
+    g.globalAlpha = 1;
+  }
+
+  renderVals() {
+    const stage = this.props.stage ?? '转动中';
+    const tier = this.props.tier ?? '大奖';
+    const stream = this.props.stream !== false && this.props.stream !== 'false';
+    const tex = (this.props.fx ?? '现在') === '贴图';
+    const boost = (this.props.fx ?? '现在') === '加强' || tex;
+    const room = this.props.room ?? '示意画面';
+    const isReveal = stage === '揭晓';
+    const s = this.state || {};
+    const isEntry = (this.props.mode ?? '奖池') === '报名';
+    const isReg = isEntry && (stage === '报名中' || stage === '转动中');
+    const isDone = isEntry && (stage === '中奖名单' || stage === '已截止');
+    const partial = stage === '已截止';
+    const isIdle = !isEntry && !isReveal;
+    this.registering = isReg;
+    this.quiet = isReg || isDone;
+    const entryTier = { '大奖': '一等奖', '二奖': '二等奖', '三奖': '三等奖' }[tier];
+    const n = isReg ? (s.n || 0) : 0;
+    const count = (isReg ? 109 : 128) + n;
+    const feedNames = ['北北', '海盐', '雨后', '甜筒', '喵了个咪', '十一', '南巷', '橘猫本猫', '早睡早起', '云朵棉花糖'];
+    const latest = [0, 1].map((k) => ({ name: feedNames[(n + feedNames.length - k) % feedNames.length], fade: String(1 - k * 0.35), cls: k === 0 ? (s.flip ? 'w3-in-a' : 'w3-in-b') : '' }));
+    const drawNames = ['一只小鹿', '夜航船', '桃桃乌龙', '晚风', '番茄炒蛋', '阿白', '小满', '星河入梦', '山有木兮', '摸鱼大师'];
+    drawNames[tier === '大奖' ? 2 : tier === '二奖' ? 7 : 8] = '柚子不酸';
+    const looks = {
+      '大奖': { color: '#FFD45E', glow: 'rgba(255, 212, 94, 0.95)', glowA: 'rgba(255, 212, 94, 0.55)', ink: '#8A5A00' },
+      '二奖': { color: '#FF7AAE', glow: 'rgba(255, 122, 174, 0.9)', glowA: 'rgba(255, 122, 174, 0.5)', ink: '#B23A73' },
+      '三奖': { color: '#5FD3B0', glow: 'rgba(95, 211, 176, 0.85)', glowA: 'rgba(95, 211, 176, 0.45)', ink: '#1F7A60' }
+    };
+    const tc = looks[tier];
+    const power = tier === '大奖' ? 3 : tier === '二奖' ? 2 : 1;
+    this.reveal = isReveal; this.power = power; this.boost = boost; this.tex = tex;
+    const spots = [[52, 268], [112, 272], [172, 270], [232, 268], [292, 262], [26, 214], [82, 216], [140, 212], [198, 214], [256, 210], [312, 206], [58, 160], [116, 158], [174, 162], [232, 156], [100, 106], [160, 104], [222, 108]];
+    const capColors = ['#5FD3B0', '#5FD3B0', '#FF7AAE', '#5FD3B0', '#FFD45E', '#5FD3B0', '#FF7AAE', '#5FD3B0', '#5FD3B0'];
+    const capPos = { '#FFD45E': '0% 0', '#FF7AAE': '50% 0', '#5FD3B0': '100% 0' };
+    const capsules = spots.map(([x, y], k) => ({ x: x + 'px', y: y + 'px', color: capColors[k % capColors.length], rot: ((k * 47) % 90 - 45) + 'deg', pos: capPos[capColors[k % capColors.length]], tex, flat: !tex }));
+    const legend = [['大奖', '机械键盘'], ['二奖', '周边抱枕'], ['三奖', '签名照、贴纸套装']].map(([tr, prizes]) => ({ tier: tr, prizes, color: looks[tr].color, ink: looks[tr].ink }));
+    const prize = tier === '大奖' ? '机械键盘' : tier === '二奖' ? '周边抱枕' : '签名照';
+    const tints = ['#FFE3EE', '#DDF7EE', '#ECE6FF', '#FFF2C9', '#E0F2FF'];
+    const caps = ['#FF7AAE', '#5FD3B0', '#A991FF', '#FFD45E', '#7CCBFF'];
+    const latestTags = latest.map((f, k) => Object.assign({}, f, { bg: tints[(n + k) % 5], cap: caps[(n + k) % 5] }));
+    const prizeRows = [['机械键盘', 1, '大奖'], ['周边抱枕', 2, '二奖'], ['签名照', 3, '三奖']].map(([p, quota, look]) => ({ prize: p, quota, color: looks[look].color }));
+    const resultRows = [['一等奖', '大奖', '#FFF2C9', ['柚子不酸']], ['二等奖', '二奖', '#FFE3EE', ['桃桃乌龙', '南巷']], ['三等奖', '三奖', '#DDF7EE', ['番茄炒蛋', '青柠', '星河入梦']]]
+      .map(([tr, look, tint, list], row) => ({ tier: tr, color: looks[look].color, tex, flat: !tex, pos: capPos[looks[look].color], tint, people: (partial ? (row === 2 ? list.slice(0, 2) : []) : list).map((name, k) => ({ name, delay: (row * 0.3 + k * 0.12).toFixed(2) + 's' })) }))
+      .filter((r) => r.people.length > 0);
+    return {
+      stream,
+      bg: !stream ? 'repeating-conic-gradient(#D5D9E0 0% 25%, #FFFFFF 0% 50%) 50% / 48px 48px' : room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#758F70',
+      mock: stream && room !== '透明',
+      mockBg: room === '浅色房间' ? 'linear-gradient(180deg, #F4EFE7 0%, #EAE2D5 56%, #CDB89A 57%, #B9A27F 100%)' : room === '深色房间' ? 'linear-gradient(180deg, #16181D 0%, #23262E 56%, #121317 57%, #0C0D10 100%)' : 'linear-gradient(180deg, #8FB7D9 0%, #B6D3E8 56%, #8FA88A 57%, #758F70 100%)',
+      mockBox: room === '浅色房间' ? '#D9CCB8' : room === '深色房间' ? '#2F333C' : '#A9C5DD',
+      mockInk: room === '浅色房间' ? 'rgba(60, 40, 20, 0.55)' : 'rgba(255, 255, 255, 0.85)',
+      boost: boost && isReveal, oldSky: isReveal && !boost, hasRing2: power > 1,
+      tex: tex && isReveal, noTex: !tex, texFrame: tex && isReveal, tierN: 4 - power, bodyCls: tex ? 'w3t-body' : '',
+      frameIn: ['left: -36px; top: -36px; right: -36px; bottom: -36px;', 'left: -41px; top: -41px; right: -41px; bottom: -41px;', 'left: -35px; top: -35px; right: -35px; bottom: -35px;'][3 - power],
+      capPos: { 3: '0% 0', 2: '50% 0', 1: '100% 0' }[power], halfX: { 3: '0', 2: '-130px', 1: '-260px' }[power], tagTop: tex && power === 3 ? '320px' : '-40px',
+      sun: power === 3 ? { size: '1000px', pos: '-500px', a: '#FFE27A', b: '#FFF6D6' } : power === 2 ? { size: '900px', pos: '-450px', a: '#FFB3CF', b: '#FFE6F0' } : { size: '720px', pos: '-360px', a: '#A8EBD6', b: '#E6FAF3' },
+      burstBox: power === 3 ? { x: '1398px', y: '206px', w: '460px', h: '320px' } : power === 2 ? { x: '1420px', y: '226px', w: '380px', h: '280px' } : { x: '1440px', y: '250px', w: '280px', h: '210px' },
+      burstFill: power === 3 ? '#FFF3B0' : power === 2 ? '#FFE3EE' : '#E6FAF3',
+      sparkles: [['800px', '300px', 64, '0s'], ['1540px', '640px', 56, '.4s'], ['880px', '700px', 44, '.7s'], ['1560px', '200px', 40, '.2s'], ['760px', '520px', 36, '.9s']].slice(0, power + 2).map(([x, y, s, d]) => ({ x, y, s, d })),
+      isIdle, isReveal, isReg, isDone, partial, showStage: isIdle || isReveal,
+      count, latestTags, prizeRows, resultRows,
+      dropCls: isReg ? (s.flip ? 'w3-drop-a' : 'w3-drop-b') : '',
+      dropColor: caps[n % 5],
+      popClass: isReg ? (s.flip ? 'w3-pop-a' : 'w3-pop-b') : '',
+      bannerText: isEntry ? '扭出 ' + entryTier + ' 中奖者！' : '柚子不酸 来扭蛋啦！',
+      stickerTier: isEntry ? entryTier : tier,
+      stickerMain: isEntry ? '柚子不酸' : prize,
+      stickerSub: isEntry ? '抽中 ' + prize : '柚子不酸 扭到了',
+      doneTitle: partial ? '已经扭出来的' : '中奖啦！',
+      remainText: '报名截止啦 · 还剩 4 个名额', isBig: isReveal && power === 3,
+      tc, tier, prize, capsules, legend, viewer: '柚子不酸',
+      lcd: isReveal ? '扭扭扭…' : '等你来扭',
+      crankCls: isReveal ? 'w3-crank' : 'w3-wiggle',
+      squashCls: isReveal ? 'w3-squash' : '',
+      jiggleCls: isReveal ? 'w3-jiggle' : 'w3-bob',
+      burstSize: ['300px', '420px', '560px'][power - 1],
+      popWord: ['pop', 'POP!', '大奖!!'][power - 1],
+      popSize: ['64px', '96px', '120px'][power - 1],
+      popX: boost ? (power === 3 ? '1470px' : power === 2 ? '1480px' : '1490px') : power === 3 ? '1430px' : '1460px',
+      setCanvas: (el) => { if (el) this.canvas = el; }
+    };
+  }
+}
+</script>
+</body>
+</html>

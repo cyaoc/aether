@@ -1,0 +1,43 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>body{margin:0;background:#888}</style></head>
+<body><div id="root"></div>
+<script>
+// Minimal Design Component renderer for the boards: {{path}} holes, <sc-if>, <sc-for>, ref callbacks, DCLogic state.
+// Query: board=<file in boards/>, props=<JSON of the board's data-props>, freeze=<ms> pins every CSS animation at that moment.
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const html = await (await fetch('/board/' + params.get('board'))).text();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  for (const s of doc.querySelectorAll('helmet style, helmet link')) document.head.appendChild(document.importNode(s, true));
+  const root = document.getElementById('root');
+  let refs = [];
+  class DCLogic { constructor(props) { this.props = props; this.state = null; } setState(s) { this.state = { ...(this.state || {}), ...s }; render(); } }
+  const Component = new Function('DCLogic', doc.querySelector('script[data-dc-script]').textContent + '\nreturn Component;')(DCLogic);
+  const comp = window.dc = new Component(JSON.parse(params.get('props') || '{}'));
+  const hole = /\{\{\s*([\w.$]+)\s*\}\}/;
+  const lookup = (scope, p) => p.split('.').reduce((o, k) => o == null ? undefined : o[k], scope);
+  const sub = (str, scope) => str.replace(new RegExp(hole, 'g'), (_, p) => { const v = lookup(scope, p); return v == null ? '' : String(v); });
+  function walk(node, scope, out) {
+    for (const n of [...node.childNodes]) {
+      if (n.nodeType === 3) { out.appendChild(document.createTextNode(sub(n.textContent, scope))); continue; }
+      if (n.nodeType !== 1) continue;
+      const tag = n.localName;
+      if (tag === 'helmet') continue;
+      if (tag === 'sc-if') { if (lookup(scope, n.getAttribute('value').match(hole)[1])) walk(n, scope, out); continue; }
+      if (tag === 'sc-for') { const as = n.getAttribute('as'); for (const item of lookup(scope, n.getAttribute('list').match(hole)[1]) || []) walk(n, { ...scope, [as]: item }, out); continue; }
+      const el = document.createElementNS(n.namespaceURI, tag);
+      for (const a of n.attributes) {
+        if (a.name.startsWith('hint-')) continue;
+        if (a.name === 'ref') { refs.push([lookup(scope, a.value.match(hole)[1]), el]); continue; }
+        el.setAttribute(a.name, sub(a.value, scope));
+      }
+      walk(n, scope, el);
+      out.appendChild(el);
+    }
+  }
+  function render() { const vals = comp.renderVals(); refs = []; root.replaceChildren(); walk(doc.querySelector('x-dc'), vals, root); for (const [f, el] of refs) if (f) f(el); }
+  render();
+  comp.componentDidMount?.();
+  if (params.has('freeze')) setTimeout(() => { for (const a of document.getAnimations()) { a.pause(); a.currentTime = +params.get('freeze'); } }, 1200);
+})();
+</script></body></html>

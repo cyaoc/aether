@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>PW1 奖池抽奖 星辰召唤 竖屏</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+@font-face{font-family:'Smiley Sans';src:url('/_blob/6b8785fa0c0f9711bc33638407feb81e') format('woff2');font-display:swap}
+.pw1-gold{background:linear-gradient(180deg,#FFFFFF 0%,#FFF1C2 40%,#FFD36B 70%,#E8A93A 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.pw1-spinZ{animation:pw1SpinZ 10s linear infinite}
+.pw1-spinZr{animation:pw1SpinZ 7s linear infinite reverse}
+@keyframes pw1SpinZ{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.pw1-idleRing{animation:pw1Idle 14s linear infinite}
+@keyframes pw1Idle{0%{transform:rotateX(-6deg) rotateY(0deg)}100%{transform:rotateX(-6deg) rotateY(-360deg)}}
+.pw1-sky{animation:pw1Sky 7s infinite}
+@keyframes pw1Sky{0%{opacity:0}4%{opacity:1}88%{opacity:1}95%,100%{opacity:0}}
+.pw1-banner{animation:pw1Banner 7s infinite}
+@keyframes pw1Banner{0%{opacity:0;transform:scale(1.6)}3%{opacity:1;transform:scale(.96)}5%{transform:scale(1)}34%{opacity:1;transform:none}38%,100%{opacity:0;transform:translateY(-40px)}}
+.pw1-ringFade{animation:pw1RingFade 7s infinite}
+@keyframes pw1RingFade{0%,36.5%{opacity:1;transform:none}40%,100%{opacity:0;transform:scale(1.15)}}
+.pw1-spinR0{animation:pw1SpinR0 7s infinite}
+.pw1-spinR1{animation:pw1SpinR1 7s infinite}
+.pw1-spinR2{animation:pw1SpinR2 7s infinite}
+@keyframes pw1SpinR0{0%{transform:rotateX(-6deg) rotateY(0deg);animation-timing-function:cubic-bezier(.08,.75,.14,1)}36%,100%{transform:rotateX(-6deg) rotateY(-792deg)}}
+@keyframes pw1SpinR1{0%{transform:rotateX(-6deg) rotateY(0deg);animation-timing-function:cubic-bezier(.08,.75,.14,1)}36%,100%{transform:rotateX(-6deg) rotateY(-972deg)}}
+@keyframes pw1SpinR2{0%{transform:rotateX(-6deg) rotateY(0deg);animation-timing-function:cubic-bezier(.08,.75,.14,1)}36%,100%{transform:rotateX(-6deg) rotateY(-1008deg)}}
+.pw1-lockFrame{animation:pw1LockFrame 7s infinite}
+@keyframes pw1LockFrame{0%,33%{opacity:0;transform:scale(.8)}36%{opacity:1;transform:scale(1.08)}37.5%{transform:scale(1)}40%,100%{opacity:0}}
+.pw1-meteor{animation:pw1Meteor 7s infinite}
+@keyframes pw1Meteor{0%,30%{opacity:0;transform:translate(600px,-1100px)}30.5%{opacity:1;transform:translate(600px,-1100px);animation-timing-function:cubic-bezier(.5,0,.9,.6)}36.5%{opacity:1;transform:translate(0,0)}37%,100%{opacity:0;transform:translate(0,0)}}
+.pw1-pillar{animation:pw1Pillar 7s infinite}
+@keyframes pw1Pillar{0%,36.5%{opacity:0;transform:scaleX(.2) scaleY(0)}39%{opacity:1;transform:scaleX(1.3) scaleY(1)}43%{transform:scaleX(1) scaleY(1)}82%{opacity:.85}88%,100%{opacity:0;transform:scaleX(.4) scaleY(1)}}
+.pw1-rays{animation:pw1Rays 7s infinite}
+@keyframes pw1Rays{0%,40%{opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(0deg)}46%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(10deg)}84%{opacity:.9;transform:translate(-50%,-50%) scale(1.05) rotate(40deg)}89%,100%{opacity:0;transform:translate(-50%,-50%) scale(1.1) rotate(46deg)}}
+.pw1-glow{animation:pw1Glow 7s infinite}
+@keyframes pw1Glow{0%,36.5%{opacity:0;transform:translate(-50%,-50%) scale(.3)}42%{opacity:1;transform:translate(-50%,-50%) scale(1)}84%{opacity:.8}89%,100%{opacity:0;transform:translate(-50%,-50%) scale(1.1)}}
+.pw1-shock{animation:pw1Shock 7s infinite}
+@keyframes pw1Shock{0%,36.5%{opacity:0;transform:translate(-50%,-50%) scale(.2)}38%{opacity:1}50%,100%{opacity:0;transform:translate(-50%,-50%) scale(2.8)}}
+.pw1-flash2{animation:pw1Flash2 7s infinite}
+@keyframes pw1Flash2{0%,36.4%{opacity:0}37%{opacity:.95}41%{opacity:0}46%{opacity:0}46.8%{opacity:.6}50%,100%{opacity:0}}
+.pw1-flash1{animation:pw1Flash1 7s infinite}
+@keyframes pw1Flash1{0%,36.4%{opacity:0}37%{opacity:.75}41%,100%{opacity:0}}
+.pw1-flash0{animation:pw1Flash0 7s infinite}
+@keyframes pw1Flash0{0%,36.4%{opacity:0}37.5%{opacity:.35}41%,100%{opacity:0}}
+.pw1-card{animation:pw1Card 7s infinite}
+@keyframes pw1Card{0%,38%{opacity:0;transform:translateY(240px) scale(.4)}42.5%{opacity:1;transform:none}86%{opacity:1;transform:none}92%,100%{opacity:0;transform:scale(.9)}}
+.pw1-flip{animation:pw1Flip 7s infinite}
+@keyframes pw1Flip{0%,43%{transform:rotateY(180deg)}48.5%{transform:rotateY(-12deg)}51%{transform:rotateY(4deg)}52.5%,100%{transform:rotateY(0deg)}}
+.pw1-in-a{animation:pw1InA .9s cubic-bezier(.2,.9,.2,1)}
+.pw1-in-b{animation:pw1InB .9s cubic-bezier(.2,.9,.2,1)}
+@keyframes pw1InA{0%{opacity:0;transform:translateY(-40px) scale(.9);box-shadow:0 0 40px rgba(255,211,107,.9)}60%{opacity:1;transform:none}100%{box-shadow:0 0 0 rgba(255,211,107,0)}}
+@keyframes pw1InB{0%{opacity:0;transform:translateY(-40px) scale(.9);box-shadow:0 0 40px rgba(255,211,107,.9)}60%{opacity:1;transform:none}100%{box-shadow:0 0 0 rgba(255,211,107,0)}}
+.pw1-pop-a{animation:pw1PopA .6s ease-out}
+.pw1-pop-b{animation:pw1PopB .6s ease-out}
+@keyframes pw1PopA{0%{transform:scale(1.3);filter:brightness(1.8)}100%{transform:scale(1)}}
+@keyframes pw1PopB{0%{transform:scale(1.3);filter:brightness(1.8)}100%{transform:scale(1)}}
+.pw1-deal{animation:pw1Deal .8s cubic-bezier(.2,.9,.2,1) both}
+@keyframes pw1Deal{0%{opacity:0;transform:translateY(-60px) rotateY(180deg)}60%{opacity:1}100%{opacity:1;transform:none}}
+.pw1-shout{animation:pw1Shout 7s infinite}
+.pw1b-portal{animation:pw1bPortal 7s infinite}
+@keyframes pw1bPortal{0%{opacity:0;transform:translate(-50%,-50%) scale(.25)}5%{opacity:1;transform:translate(-50%,-50%) scale(1)}35.4%{transform:translate(-50%,-50%) scale(.9)}37.4%{transform:translate(-50%,-50%) scale(1.07)}42%{transform:translate(-50%,-50%) scale(1)}88%{opacity:1;transform:translate(-50%,-50%) scale(1)}95%,100%{opacity:0;transform:translate(-50%,-50%) scale(1.05)}}
+.pw1b-fade{animation:pw1bFade 7s infinite}
+@keyframes pw1bFade{0%{opacity:0}5%{opacity:1}88%{opacity:1}95%,100%{opacity:0}}
+.pw1b-swirl{animation:pw1SpinZ 9s linear infinite}
+.pw1b-lines{animation:pw1bLines 7s infinite}
+@keyframes pw1bLines{0%,35.9%{opacity:0;transform:translate(-50%,-50%) scale(1.2) rotate(0deg)}36.2%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0deg)}37%{transform:translate(-50%,-50%) scale(1.03) rotate(1.4deg)}37.8%{transform:translate(-50%,-50%) scale(1) rotate(-1deg)}38.6%{transform:translate(-50%,-50%) scale(1.03) rotate(1.8deg)}39.4%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0deg)}45%,100%{opacity:0;transform:translate(-50%,-50%) scale(.92) rotate(0deg)}}
+.pw1b-ring{animation:pw1bRing 7s infinite}
+@keyframes pw1bRing{0%,36%{opacity:0;transform:translate(-50%,-50%) scale(.3)}36.4%{opacity:1}45%,100%{opacity:0;transform:translate(-50%,-50%) scale(3.1)}}
+.pw1b-ring2{animation:pw1bRing2 7s infinite}
+@keyframes pw1bRing2{0%,37.4%{opacity:0;transform:translate(-50%,-50%) scale(.3)}37.8%{opacity:.9}48%,100%{opacity:0;transform:translate(-50%,-50%) scale(3.1)}}
+.pw1b-halo{animation:pw1bHalo 7s infinite}
+@keyframes pw1bHalo{0%,40%{opacity:0;transform:translate(-50%,-50%) scale(.5) rotate(0deg)}44%{opacity:.95;transform:translate(-50%,-50%) scale(1.05) rotate(40deg)}46%{transform:translate(-50%,-50%) scale(1) rotate(50deg)}86%{opacity:.85;transform:translate(-50%,-50%) scale(1) rotate(160deg)}92%,100%{opacity:0;transform:translate(-50%,-50%) scale(1.1) rotate(180deg)}}
+.pw1b-shake1{animation:pw1bShake1 7s infinite}
+.pw1b-shake2{animation:pw1bShake2 7s infinite}
+@keyframes pw1bShake1{0%,36.1%{transform:none}36.6%{transform:translate(-7px,4px)}37.2%{transform:translate(6px,-5px)}37.8%{transform:translate(-3px,2px)}38.4%,100%{transform:none}}
+@keyframes pw1bShake2{0%,36.1%{transform:none}36.5%{transform:translate(-14px,10px)}37%{transform:translate(12px,-12px)}37.5%{transform:translate(-9px,-6px)}38%{transform:translate(7px,6px)}38.6%{transform:translate(-4px,2px)}39.2%,42.3%{transform:none}42.8%{transform:translate(0,9px)}43.4%,100%{transform:none}}
+.pw1b-shine{animation:pw1bShine 7s infinite}
+@keyframes pw1bShine{0%,53%{transform:translateX(0) skewX(-18deg)}58%{transform:translateX(800px) skewX(-18deg)}58.1%,72%{transform:translateX(0) skewX(-18deg)}77%,100%{transform:translateX(800px) skewX(-18deg)}}
+.pw1b-meteor{animation:pw1bMeteor 7s infinite}
+@keyframes pw1bMeteor{0%,30.5%{opacity:0;transform:translate(360px,-700px);animation-timing-function:cubic-bezier(.5,0,.9,.6)}36.5%{opacity:1;transform:translate(0,0)}37%,100%{opacity:0;transform:translate(0,0)}}
+@keyframes pw1Shout{0%,50%{opacity:0;transform:translateY(24px) scale(.9)}55%{opacity:1;transform:none}84%{opacity:1}88%,100%{opacity:0}}
+/* The textured portal opens from a point at full opacity, so the stream behind never shows through as a patch. */
+.pw1t-portal{animation:pw1tPortal 7s infinite}
+@keyframes pw1tPortal{0%{opacity:1;transform:translate(-50%,-50%) scale(.08)}5%{opacity:1;transform:translate(-50%,-50%) scale(1)}35.4%{transform:translate(-50%,-50%) scale(.9)}37.4%{transform:translate(-50%,-50%) scale(1.07)}42%{transform:translate(-50%,-50%) scale(1)}88%{opacity:1;transform:translate(-50%,-50%) scale(1)}95%,100%{opacity:0;transform:translate(-50%,-50%) scale(1.05)}}
+.pw1t-neb{background:url('/_blob/8d52d2fff2fd7a103469e12fdd01d4cd') center/100% 100% no-repeat;animation:pw1tNeb 7s linear infinite}
+@keyframes pw1tNeb{0%{transform:rotate(-5deg) scale(1.06)}100%{transform:rotate(9deg) scale(1)}}
+.pw1t-circle{-webkit-mask:url('/_blob/2f412325316ad3dcdbbbc5996dd9c7c9') center/100% 100% no-repeat;mask:url('/_blob/2f412325316ad3dcdbbbc5996dd9c7c9') center/100% 100% no-repeat}
+.pw1t-burst{-webkit-mask:url('/_blob/0759df2c4593a9ef909391592b70544e') center/100% 100% no-repeat;mask:url('/_blob/0759df2c4593a9ef909391592b70544e') center/100% 100% no-repeat}
+.pw1t-flare{-webkit-mask:url('/_blob/8aa3a9026f872ece949b419396d3309d') center/100% 100% no-repeat;mask:url('/_blob/8aa3a9026f872ece949b419396d3309d') center/100% 100% no-repeat}
+.pw1t-comet{-webkit-mask:url('/_blob/3f76a04e1582cf3164ee875ea0d46a14') center/100% 100% no-repeat;mask:url('/_blob/3f76a04e1582cf3164ee875ea0d46a14') center/100% 100% no-repeat}
+.pw1t-frame1{border:1px solid transparent;border-image:url('/_blob/ff4118322d49fe8300c50fb6327511c8') 139 75 143 75 / 13% 9.7% 13.3% 9.7% stretch}
+.pw1t-frame2{border:1px solid transparent;border-image:url('/_blob/3a688e981bd9edbf39ee18a5f062fd35') 113 75 75 75 / 11.6% 9.77% 7.7% 9.77% stretch}
+.pw1t-frame3{border:1px solid transparent;border-image:url('/_blob/a2b43dbfa0aa9a6b1d5a5bea1e6787cb') 53 / 5.47% 6.84% stretch}
+.pw1t-face1{background:linear-gradient(180deg, rgba(10, 8, 30, 0.3) 0%, rgba(10, 8, 30, 0.2) 40%, rgba(10, 8, 30, 0.62) 100%),url('/_blob/ede9c84d6c23f72b21f8d36bedfa561f') center/cover}
+.pw1t-face2{background:linear-gradient(180deg, rgba(10, 8, 30, 0.25) 0%, rgba(10, 8, 30, 0.15) 40%, rgba(10, 8, 30, 0.6) 100%),url('/_blob/a601c504ed25007c1b77557e51e6aebe') center/cover}
+.pw1t-face3{background:linear-gradient(180deg, rgba(10, 8, 30, 0.2) 0%, rgba(10, 8, 30, 0.1) 40%, rgba(10, 8, 30, 0.55) 100%),url('/_blob/c06e1ec4b376d39c94accf9760cbf700') center/cover}
+.pw1t-back{background:url('/_blob/e5ab88e947c121781f903c131ed2605b') center/cover}
+</style>
+</helmet>
+<div style="position: relative; width: 1080px; height: 1920px; overflow: hidden; background: {{bg}}; color: #F3F1FF; font-family: 'Smiley Sans', 'PingFang SC', 'Microsoft YaHei UI', sans-serif">
+
+  <sc-if value="{{mock}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; inset: 0; background: {{mockBg}}"></div>
+    <span style="position: absolute; left: 340px; top: 560px; width: 400px; height: 600px; border-radius: 200px 200px 40px 40px; background: {{mockPerson}}"></span>
+  </sc-if>
+  <sc-if value="{{showSafe}}" hint-placeholder-val="{{false}}">
+    <span style="position: absolute; left: 54px; top: 288px; width: 810px; height: 960px; box-sizing: border-box; border: 4px dashed rgba(57, 255, 136, 0.8)"></span>
+  </sc-if>
+  <div style="position: absolute; inset: 0; transform: {{shift}}">
+  <div class="{{shakeCls}}" style="position: absolute; inset: 0">
+
+  <sc-if value="{{texIdle}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; left: 24px; top: 380px; width: 870px; height: 900px; border-radius: 50%; background: radial-gradient(ellipse at 50% 50%, rgba(14, 10, 44, 0.92) 0%, rgba(14, 10, 44, 0.86) 45%, rgba(14, 10, 44, 0) 70%)"></div>
+  </sc-if>
+  <sc-if value="{{isIdle}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; left: 24px; top: 380px; width: 870px; height: 900px; border-radius: 50%; background: radial-gradient(ellipse at 50% 50%, rgba(30, 20, 90, 0.72) 0%, rgba(20, 14, 64, 0.45) 45%, rgba(20, 14, 64, 0) 70%)"></div>
+  </sc-if>
+
+  <sc-if value="{{isReg}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; left: 54px; top: 300px; width: 810px; display: flex; flex-direction: column; align-items: center; gap: 18px">
+      <span style="height: 90px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 16px; padding: 0 30px; border-radius: 45px; border: 2px solid rgba(255, 211, 107, 0.8); background: rgba(14, 12, 44, 0.92)">
+        <span class="pw1-gold" style="font-size: 60px">星辰召唤</span>
+        <span style="height: 44px; display: inline-flex; align-items: center; padding: 0 14px; border-radius: 22px; background: rgba(197, 155, 255, 0.22); color: #E7D9FF; font-size: 30px">报名中</span>
+      </span>
+      <div style="width: 760px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 24px; border-radius: 22px; border: 2px solid rgba(197, 155, 255, 0.7); background: rgba(14, 12, 44, 0.92)">
+        <span style="font-family: 'PingFang SC', sans-serif; font-size: 28px; letter-spacing: 6px; color: #B9B4E0">召唤条件</span>
+        <span style="font-size: 58px; color: #FFFFFF">发弹幕「抽奖」</span>
+      </div>
+      <span style="display: flex; align-items: baseline; gap: 12px; padding: 4px 30px; border-radius: 24px; background: rgba(14, 12, 44, 0.85)">
+        <span class="pw1-gold {{popClass}}" style="display: inline-block; font-size: 116px; line-height: 1.05; font-variant-numeric: tabular-nums">{{count}}</span>
+        <span style="font-size: 38px; color: #E7D9FF">位召唤师已报名</span>
+      </span>
+      <div style="width: 760px; display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{latest}}" as="f" hint-placeholder-count="3">
+          <span class="{{f.cls}}" style="height: 70px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 0 22px; border-radius: 35px; background: rgba(14, 12, 44, 0.9); border: 1px solid rgba(197, 155, 255, 0.5); opacity: {{f.fade}}">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="{{f.color}}" aria-hidden="true"><path d="M12 1.5l2.2 8.3 8.3 2.2-8.3 2.2-2.2 8.3-2.2-8.3-8.3-2.2 8.3-2.2z"></path></svg>
+            <span style="flex: 1; font-size: 48px; color: #FFFFFF">{{f.name}}</span>
+            <span style="font-family: 'PingFang SC', sans-serif; font-size: 28px; color: #B9B4E0">{{f.via}}</span>
+          </span>
+        </sc-for>
+      </div>
+      <div style="width: 760px; display: flex; flex-direction: column; gap: 8px">
+        <sc-for list="{{prizeRows}}" as="p" hint-placeholder-count="3">
+          <span style="height: 64px; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 0 22px; border-radius: 14px; border: 2px solid transparent; background: linear-gradient(120deg, {{p.deep}}, rgba(12, 10, 38, 0.94) 70%) padding-box, {{p.frame}} border-box">
+            <span style="width: 84px; font-size: 40px; background: {{p.frame}}; -webkit-background-clip: text; background-clip: text; color: transparent">{{p.rank}}</span>
+            <span style="font-family: 'PingFang SC', sans-serif; font-size: 30px; font-weight: 700; color: {{p.star}}">{{p.tier}}</span>
+            <span style="flex: 1; font-size: 40px; color: #FFFFFF">{{p.prize}}</span>
+            <span style="font-family: 'PingFang SC', sans-serif; font-size: 30px; color: #B9B4E0">× {{p.quota}}</span>
+          </span>
+        </sc-for>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isDone}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; left: 54px; top: 300px; width: 810px; display: flex; flex-direction: column; align-items: center; gap: 26px">
+      <span class="pw1-gold" style="font-size: 76px; filter: drop-shadow(0 0 18px rgba(255, 211, 107, 0.5))">{{doneTitle}}</span>
+      <span style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; width: 756px; perspective: 1200px">
+        <sc-for list="{{results}}" as="r" hint-placeholder-count="6">
+          <span class="pw1-deal" style="height: 330px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 20px 10px; border-radius: 16px; border: 3px solid transparent; background: linear-gradient(170deg, {{r.deep}}, #0C0A26 75%) padding-box, {{r.frame}} border-box; box-shadow: 0 0 30px {{r.glow}}; animation-delay: {{r.delay}}; isolation: isolate">
+            <sc-if value="{{r.tex}}" hint-placeholder-val="{{false}}">
+              <span class="pw1t-face{{r.n}}" style="position: absolute; inset: 0; z-index: -1; border-radius: 13px"></span>
+            </sc-if>
+            <span style="font-size: 50px; line-height: 1; background: {{r.ink}}; -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8))">{{r.rank}}</span>
+            <span style="font-size: 48px; color: #FFFFFF; text-align: center; line-height: 1.15; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7)">{{r.name}}</span>
+            <span style="font-family: 'PingFang SC', sans-serif; font-size: 28px; font-weight: 700; color: {{r.star}}; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8)">{{r.tier}}</span>
+            <sc-if value="{{r.tex}}" hint-placeholder-val="{{false}}">
+              <span class="pw1t-frame{{r.n}}" style="position: absolute; left: -7px; top: -9px; right: -7px; bottom: -9px; pointer-events: none"></span>
+            </sc-if>
+          </span>
+        </sc-for>
+      </span>
+      <sc-if value="{{partial}}" hint-placeholder-val="{{false}}">
+        <span style="padding: 10px 30px; border-radius: 30px; background: rgba(14, 12, 44, 0.9); border: 1px solid rgba(197, 155, 255, 0.6); font-size: 40px; color: #E7D9FF">{{remainText}}</span>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{oldSky}}" hint-placeholder-val="{{false}}">
+    <div class="pw1-sky" style="position: absolute; inset: 0; background: {{skyBg}}"></div>
+  </sc-if>
+  <sc-if value="{{boostReveal}}" hint-placeholder-val="{{false}}">
+    <div class="pw1b-portal" style="position: absolute; left: 459px; top: 760px; width: {{portal.w}}; height: {{portal.h}}; border-radius: 50%; background: {{portal.bg}}"></div>
+    <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+      <div class="pw1t-portal" style="position: absolute; left: 459px; top: 760px; width: {{portal.w}}; height: {{portal.h}}; border-radius: 50%; background: radial-gradient(ellipse closest-side, rgba(10, 6, 34, 0.94) 0%, rgba(10, 6, 34, 0.9) 60%, rgba(10, 6, 34, 0) 82%)"></div>
+      <div class="pw1t-portal" style="position: absolute; left: 459px; top: 760px; width: {{portal.w}}; height: {{portal.h}}; -webkit-mask-image: radial-gradient(ellipse closest-side, #000 55%, transparent 100%); mask-image: radial-gradient(ellipse closest-side, #000 55%, transparent 100%)">
+        <div style="position: absolute; left: 50%; top: 50%; width: {{portal.h}}; height: {{portal.w}}; transform: translate(-50%, -50%) rotate(90deg)">
+          <div class="pw1t-neb" style="position: absolute; inset: -6%; opacity: {{portal.neb}}"></div>
+        </div>
+      </div>
+    </sc-if>
+    <div class="pw1b-fade" style="position: absolute; left: 459px; top: 760px; width: 0; height: 0; transform: scaleY(1.3)">
+      <div class="pw1b-swirl" style="position: absolute; left: {{portal.swirlPos}}; top: {{portal.swirlPos}}; width: {{portal.swirl}}; height: {{portal.swirl}}; border-radius: 50%; background: conic-gradient(from 0deg, rgba(197, 155, 255, 0) 0deg, {{tc.mainA}} 70deg, rgba(197, 155, 255, 0) 140deg, rgba(124, 196, 255, 0.3) 220deg, rgba(255, 231, 168, 0.32) 290deg, rgba(197, 155, 255, 0) 360deg); -webkit-mask-image: radial-gradient(circle closest-side, transparent 18%, #000 42%, #000 58%, transparent 100%); mask-image: radial-gradient(circle closest-side, transparent 18%, #000 42%, #000 58%, transparent 100%)"></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{showStage}}" hint-placeholder-val="{{true}}">
+  <div style="position: absolute; inset: 0; perspective: 1200px; perspective-origin: 459px 900px">
+    <div style="position: absolute; left: 99px; top: 770px; width: 720px; height: 720px; transform-style: preserve-3d">
+      <div style="position: absolute; inset: 0; transform: rotateX(76deg)">
+        <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+          <div style="position: absolute; inset: 0; filter: drop-shadow(0 0 10px {{circleGlow}})">
+            <div class="pw1-spinZ pw1t-circle" style="position: absolute; inset: 0; background: {{circleColor}}"></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{noTex}}" hint-placeholder-val="{{true}}">
+        <svg class="pw1-spinZ" viewBox="0 0 400 400" width="720" height="720" aria-hidden="true" style="position: absolute; inset: 0; filter: drop-shadow(0 0 10px {{circleGlow}})">
+          <g fill="none" stroke="{{circleColor}}" stroke-width="2.4">
+            <circle cx="200" cy="200" r="192"></circle><circle cx="200" cy="200" r="180" stroke-dasharray="3 7"></circle><circle cx="200" cy="200" r="134"></circle>
+            <polygon points="200,66 316,267 84,267"></polygon><polygon points="200,334 84,133 316,133"></polygon><circle cx="200" cy="200" r="46"></circle>
+          </g>
+        </svg>
+        <svg class="pw1-spinZr" viewBox="0 0 400 400" width="720" height="720" aria-hidden="true" style="position: absolute; inset: 0">
+          <g fill="none" stroke="{{circleColor}}" stroke-width="1.6" opacity="0.7"><circle cx="200" cy="200" r="158" stroke-dasharray="18 10 4 10"></circle><circle cx="200" cy="200" r="88" stroke-dasharray="2 6"></circle></g>
+        </svg>
+        </sc-if>
+        <sc-if value="{{isReveal}}" hint-placeholder-val="{{false}}">
+          <span class="pw1-shock" style="position: absolute; left: 360px; top: 360px; width: 520px; height: 520px; box-sizing: border-box; border-radius: 50%; border: 9px solid {{tc.light}}; box-shadow: 0 0 36px {{tc.main}}"></span>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+
+  <sc-if value="{{isReveal}}" hint-placeholder-val="{{false}}">
+    <sc-if value="{{hasPillar}}" hint-placeholder-val="{{true}}">
+      <div class="pw1-pillar" style="position: absolute; left: {{pillarX}}; top: -60px; width: {{pillarW}}; height: 1200px; transform-origin: 50% 100%; background: linear-gradient(0deg, {{tc.light}} 0%, {{tc.mainA}} 45%, rgba(255, 255, 255, 0) 100%); -webkit-mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent); mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent)"></div>
+    </sc-if>
+    <sc-if value="{{raysTex}}" hint-placeholder-val="{{false}}">
+      <div class="pw1-rays pw1t-burst" style="position: absolute; left: 459px; top: 760px; width: 900px; height: 900px; background: radial-gradient(circle, #FFFFFF 0%, {{tc.light}} 22%, {{tc.main}} 55%)"></div>
+    </sc-if>
+    <sc-if value="{{raysCss}}" hint-placeholder-val="{{true}}">
+      <div class="pw1-rays" style="position: absolute; left: 459px; top: 760px; width: {{rays.size}}; height: {{rays.size}}; border-radius: 50%; background: repeating-conic-gradient(from 0deg, {{rays.color}} 0deg 4deg, rgba(255, 220, 140, 0) 4deg 14deg); -webkit-mask-image: {{rays.mask}}; mask-image: {{rays.mask}}"></div>
+    </sc-if>
+    <div class="pw1-glow" style="position: absolute; left: 459px; top: 760px; width: 1000px; height: 1000px; border-radius: 50%; background: radial-gradient(circle, {{tc.mainA}} 0%, rgba(255, 255, 255, 0) 60%)"></div>
+  </sc-if>
+
+  <sc-if value="{{boostReveal}}" hint-placeholder-val="{{false}}">
+    <sc-if value="{{hasLines}}" hint-placeholder-val="{{true}}">
+      <div class="pw1b-lines" style="position: absolute; left: 459px; top: 760px; width: 2000px; height: 2400px; background: {{linesBg}}; -webkit-mask-image: radial-gradient(ellipse 500px 860px at 50% 50%, transparent 30%, #000 50%, #000 70%, transparent 100%); mask-image: radial-gradient(ellipse 500px 860px at 50% 50%, transparent 30%, #000 50%, #000 70%, transparent 100%)"></div>
+    </sc-if>
+    <span class="pw1b-ring" style="position: absolute; left: 459px; top: 760px; width: 300px; height: 300px; box-sizing: border-box; border-radius: 50%; border: 8px solid {{tc.light}}; box-shadow: 0 0 30px {{tc.main}}, inset 0 0 30px {{tc.mainA}}"></span>
+    <span class="pw1b-ring2" style="position: absolute; left: 459px; top: 760px; width: 300px; height: 300px; box-sizing: border-box; border-radius: 50%; border: 3px solid #FFFFFF; box-shadow: 0 0 18px {{tc.main}}"></span>
+    <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+      <div class="pw1b-halo" style="position: absolute; left: 459px; top: 760px; width: {{portal.haloPx}}; height: {{portal.haloPx}}; filter: drop-shadow(0 0 12px {{tc.main}})">
+        <div class="pw1t-circle" style="position: absolute; inset: 0; background: {{tc.light}}"></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{noTex}}" hint-placeholder-val="{{true}}">
+    <svg class="pw1b-halo" viewBox="0 0 400 400" width="{{portal.halo}}" height="{{portal.halo}}" aria-hidden="true" style="position: absolute; left: 459px; top: 760px; filter: drop-shadow(0 0 12px {{tc.main}})">
+      <g fill="none" stroke="{{tc.light}}" stroke-width="2.2">
+        <circle cx="200" cy="200" r="196"></circle><circle cx="200" cy="200" r="184" stroke-dasharray="2 8"></circle><circle cx="200" cy="200" r="150"></circle>
+        <polygon points="200,52 328,274 72,274"></polygon><polygon points="200,348 72,126 328,126"></polygon><circle cx="200" cy="200" r="118" stroke-dasharray="14 6 3 6"></circle>
+      </g>
+    </svg>
+    </sc-if>
+  </sc-if>
+
+  <canvas ref="{{setCanvas}}" id="pw1fx" width="1080" height="1920" aria-hidden="true" style="position: absolute; inset: 0; width: 1080px; height: 1920px; pointer-events: none"></canvas>
+
+  <div class="{{ringWrapCls}}" style="position: absolute; inset: 0; perspective: 1400px; perspective-origin: 459px 700px">
+    <div class="{{ringCls}}" style="position: absolute; left: 459px; top: 760px; width: 0; height: 0; transform-style: preserve-3d">
+      <sc-for list="{{cards}}" as="c" hint-placeholder-count="10">
+        <span style="position: absolute; left: -90px; top: -125px; width: 180px; height: 250px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; backface-visibility: hidden; transform: rotateY({{c.angle}}) translateZ(340px); border-radius: 14px; border: 3px solid transparent; background: linear-gradient(170deg, {{c.deep}}, #0C0A26 80%) padding-box, {{c.frame}} border-box; box-shadow: 0 0 20px {{c.glow}}">
+          <sc-if value="{{c.tex}}" hint-placeholder-val="{{false}}">
+            <span class="pw1t-face{{c.n}}" style="position: absolute; inset: 0; z-index: -1; border-radius: 11px"></span>
+          </sc-if>
+          <span style="font-size: 30px; color: {{c.star}}">{{c.tier}}</span>
+          <span style="font-size: 38px; line-height: 1.1; color: #FFFFFF; text-align: center; padding: 0 8px; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6)">{{c.name}}</span>
+          <sc-if value="{{c.tex}}" hint-placeholder-val="{{false}}">
+            <span class="pw1t-frame{{c.n}}" style="position: absolute; left: -8px; top: -10px; right: -8px; bottom: -10px; pointer-events: none"></span>
+          </sc-if>
+        </span>
+      </sc-for>
+    </div>
+    <sc-if value="{{isReveal}}" hint-placeholder-val="{{false}}">
+      <span class="pw1-lockFrame" style="position: absolute; left: 324px; top: 599px; width: 270px; height: 360px; box-sizing: border-box; border-radius: 22px; border: 4px solid {{tc.light}}; box-shadow: 0 0 44px {{tc.main}}, inset 0 0 26px {{tc.mainA}}"></span>
+    </sc-if>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{isReveal}}" hint-placeholder-val="{{false}}">
+    <div class="pw1-banner" style="position: absolute; left: 54px; top: 300px; width: 810px; display: flex; justify-content: center">
+      <span style="height: 92px; box-sizing: border-box; display: inline-flex; align-items: center; padding: 0 36px; border-radius: 46px; border: 2px solid {{tc.light}}; background: rgba(14, 12, 44, 0.92); box-shadow: 0 0 30px {{tc.mainA}}; font-size: 54px; color: #FFFFFF">{{bannerText}}</span>
+    </div>
+
+    <sc-if value="{{hasMeteor}}" hint-placeholder-val="{{true}}">
+      <div style="position: absolute; left: 459px; top: 1100px">
+        <div class="{{meteorCls}}" style="position: absolute; left: 0; top: 0">
+          <span style="position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 0 26px 12px {{tc.main}}, 0 0 80px 30px {{tc.mainA}}"></span>
+          <sc-if value="{{noTex}}" hint-placeholder-val="{{true}}">
+          <span style="position: absolute; left: 0; top: -5px; width: {{meteorTail}}; height: 10px; transform-origin: 0 50%; transform: rotate(-61.4deg); border-radius: 5px; background: linear-gradient(90deg, #FFFFFF 0%, {{tc.main}} 18%, rgba(255, 255, 255, 0) 100%)"></span>
+          </sc-if>
+          <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+            <span class="pw1t-flare" style="position: absolute; left: -130px; top: -130px; width: 260px; height: 260px; background: radial-gradient(circle, #FFFFFF 0%, {{tc.light}} 30%, {{tc.main}} 70%)"></span>
+            <span class="pw1t-comet" style="position: absolute; left: {{comet.l}}; top: {{comet.t}}; width: {{comet.w}}; height: {{comet.h}}; transform-origin: {{comet.o}}; transform: rotate(-61.4deg) scale(1.14); background: rgba(28, 14, 70, 0.42)"></span>
+            <span class="pw1t-comet" style="position: absolute; left: {{comet.l}}; top: {{comet.t}}; width: {{comet.w}}; height: {{comet.h}}; transform-origin: {{comet.o}}; transform: rotate(-61.4deg); background: linear-gradient(90deg, #FFFFFF 0%, {{tc.light}} 10%, {{tc.main}} 32%, {{tc.main}} 75%, {{tc.mainA}} 100%)"></span>
+          </sc-if>
+        </div>
+      </div>
+    </sc-if>
+
+    <div class="pw1-card" style="position: absolute; left: 239px; top: 470px; width: 440px; height: 580px; perspective: 1400px">
+      <div class="pw1-flip" style="position: absolute; inset: 0; transform-style: preserve-3d">
+        <div style="position: absolute; inset: 0; box-sizing: border-box; backface-visibility: hidden; transform: rotateY(180deg); border-radius: 22px; border: 4px solid #CDB8FF; background: radial-gradient(circle at 50% 45%, #3A2A9A 0%, #160F4A 60%, #0C0A26 100%); display: flex; align-items: center; justify-content: center; overflow: hidden">
+          <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+            <span class="pw1t-back" style="position: absolute; inset: 0"></span>
+          </sc-if>
+          <sc-if value="{{noTex}}" hint-placeholder-val="{{true}}">
+          <svg width="210" height="210" viewBox="0 0 24 24" fill="none" stroke="#FFE7A8" stroke-width="0.7" aria-hidden="true"><circle cx="12" cy="12" r="10.5"></circle><circle cx="12" cy="12" r="8" stroke-dasharray="0.6 1"></circle><path d="M12 3.5l2 6.2h6.4l-5.2 3.8 2 6.1L12 15.8l-5.2 3.8 2-6.1-5.2-3.8H10z"></path></svg>
+          </sc-if>
+        </div>
+        <div style="position: absolute; inset: 0; box-sizing: border-box; backface-visibility: hidden; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 36px 24px 32px; border-radius: 22px; border: 6px solid transparent; background: radial-gradient(circle at 50% 38%, {{tc.cardIn}} 0%, {{tc.cardMid}} 55%, #0C0A26 100%) padding-box, {{tc.frame}} border-box; box-shadow: 0 0 70px {{tc.main}}; isolation: isolate">
+          <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+            <span class="pw1t-face{{tierN}}" style="position: absolute; inset: 0; z-index: -1; border-radius: 16px"></span>
+          </sc-if>
+          <sc-if value="{{boost}}" hint-placeholder-val="{{false}}">
+            <span style="position: absolute; inset: 0; border-radius: 16px; overflow: hidden; pointer-events: none">
+              <span class="pw1b-shine" style="position: absolute; left: -60%; top: -20%; width: 40%; height: 140%; background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.5) 50%, rgba(255, 255, 255, 0) 100%)"></span>
+            </span>
+          </sc-if>
+          <span style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: {{plate.pad}}; border-radius: 28px; background: {{plate.bg}}">
+            <span style="font-size: 76px; line-height: 1; background: {{tierInk}}; -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 12px {{tc.main}})">{{cardTier}}</span>
+            <span style="display: flex; gap: 4px">
+              <sc-for list="{{stars}}" as="st" hint-placeholder-count="5">
+                <svg width="34" height="34" viewBox="0 0 24 24" fill="{{tc.light}}" aria-hidden="true"><path d="M12 2l2.4 7.2H22l-6.2 4.5 2.4 7.3-6.2-4.5-6.2 4.5 2.4-7.3L2 9.2h7.6z"></path></svg>
+              </sc-for>
+            </span>
+          </span>
+          <span style="font-size: 96px; line-height: 1.05; color: #FFFFFF; text-align: center; text-shadow: 0 0 24px {{tc.main}}">{{cardMain}}</span>
+          <span style="font-size: 50px; color: {{tc.light}}">{{cardSub}}</span>
+          <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+            <span class="pw1t-frame{{tierN}}" style="position: absolute; {{frameIn}} pointer-events: none; filter: drop-shadow(0 0 14px {{tc.mainA}})"></span>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+    <sc-if value="{{isBig}}" hint-placeholder-val="{{true}}">
+      <span class="pw1-shout" style="position: absolute; left: 54px; top: 1090px; width: 810px; text-align: center; font-size: 60px; letter-spacing: 8px">
+        <span style="display: inline-block; padding: {{shout.pad}}; border-radius: 48px; background: {{shout.bg}}; box-shadow: {{shout.shadow}}"><span class="pw1-gold" style="filter: drop-shadow(0 0 16px rgba(255, 211, 107, 0.9))">{{shoutText}}</span></span>
+      </span>
+    </sc-if>
+    <sc-if value="{{oldSky}}" hint-placeholder-val="{{false}}">
+      <div class="{{flashCls}}" style="position: absolute; inset: 0; background: radial-gradient(circle at 42% 42%, #FFFFFF 0%, {{tc.mainA}} 28%, rgba(255, 255, 255, 0) 70%); pointer-events: none"></div>
+    </sc-if>
+    <sc-if value="{{boost}}" hint-placeholder-val="{{false}}">
+      <div class="{{flashCls}}" style="position: absolute; left: 459px; top: 760px; width: 1000px; height: 1600px; transform: translate(-50%, -50%); background: radial-gradient(ellipse closest-side, #FFFFFF 0%, {{tc.mainA}} 45%, rgba(255, 255, 255, 0) 100%); pointer-events: none"></div>
+    </sc-if>
+  </sc-if>
+  </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["奖池","报名"],"default":"奖池"},"stage":{"editor":"enum","options":["转动中","揭晓","报名中","已截止","中奖名单"],"default":"转动中"},"tier":{"editor":"enum","options":["大奖","二奖","三奖"],"default":"大奖"},"stream":{"editor":"boolean","default":true},"showSafe":{"editor":"boolean","default":false},"fx":{"editor":"enum","options":["现在","加强","贴图"],"default":"现在"},"room":{"editor":"enum","options":["示意画面","浅色房间","深色房间","透明"],"default":"示意画面"},"$preview":{"width":1080,"height":1920}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    this.t0 = performance.now();
+    this.spr = new Image();
+    this.spr.src = '/_blob/8aa3a9026f872ece949b419396d3309d';
+    this.tints = {};
+    this.parts = [];
+    this.stars = [];
+    for (let k = 0; k < 200; k++) this.stars.push({ x: Math.random() * 1080, y: Math.random() * 1500, s: 0.6 + Math.random() * 1.8, p: Math.random() * 6.28 });
+    this.portalStars = [];
+    for (let k = 0; k < 220; k++) { const a = Math.random() * 6.283, d = Math.sqrt(Math.random()); this.portalStars.push({ x: 459 + Math.cos(a) * d * 440, y: 760 + Math.sin(a) * d * 620, s: 0.6 + Math.random() * 2, p: Math.random() * 6.28, w: 1 - d * d }); }
+    const loop = (now) => { this.raf = requestAnimationFrame(loop); this.fx(now); };
+    this.raf = requestAnimationFrame(loop);
+    this.ticker = setInterval(() => {
+      if (!this.registering) return;
+      const s = this.state || {};
+      this.setState({ n: ((s.n || 0) + 1) % 40, flip: !s.flip });
+    }, 1500);
+  }
+
+  componentWillUnmount() { cancelAnimationFrame(this.raf); clearInterval(this.ticker); }
+
+  star(g, x, y, r) {
+    g.beginPath();
+    for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, rr = k % 2 === 0 ? r : r * 0.32; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); }
+    g.closePath(); g.fill();
+  }
+
+  // The white flare texture tinted once per color and size; its white core is added back on top.
+  sprite(col, size) {
+    const key = col + size;
+    if (this.tints[key]) return this.tints[key];
+    if (!this.spr.complete || !this.spr.naturalWidth) return null;
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const g = c.getContext('2d');
+    g.drawImage(this.spr, 0, 0, size, size);
+    g.globalCompositeOperation = 'source-in'; g.fillStyle = col; g.fillRect(0, 0, size, size);
+    g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.6; g.drawImage(this.spr, 0, 0, size, size);
+    return (this.tints[key] = c);
+  }
+
+  // Same layers as the landscape version, re-centred on the safe area's middle column (x 459).
+  fx(now) {
+    const c = this.canvas || document.getElementById('pw1fx');
+    if (!c) return;
+    const g = c.getContext('2d');
+    const el = now - this.t0, t = el % 7000, cyc = Math.floor(el / 7000);
+    if (cyc !== this.cyc) { this.cyc = cyc; this.fired = false; if (this.reveal) this.parts = []; }
+    const P = this.parts, cols = this.cols || ['#FFFFFF'], power = this.power || 1;
+    const cx = 459, cy = 760;
+    g.clearRect(0, 0, 1080, 1920);
+    g.globalCompositeOperation = 'lighter';
+    if (!this.reveal) {
+      if (!this.quiet && Math.random() < 0.35) P.push({ x: 199 + Math.random() * 520, y: 1140, vx: (Math.random() - 0.5) * 0.6, vy: -1.2 - Math.random() * 1.6, life: 220, max: 220, s: 2 + Math.random() * 3, c: cols[Math.floor(Math.random() * cols.length)], drag: 1, grav: 0, star: true, tw: true });
+    } else {
+      const sky = t < 280 ? t / 280 : t > 6160 && t < 6650 ? 1 - (t - 6160) / 490 : t >= 6650 ? 0 : 1;
+      for (const s of (this.boost ? this.portalStars : this.stars)) { g.globalAlpha = sky * (s.w ?? 1) * (0.35 + 0.65 * Math.abs(Math.sin(s.p + el * 0.0016))); g.fillStyle = '#FFFFFF'; g.fillRect(s.x, s.y, s.s, s.s); }
+      if (this.boost && power > 1 && t > 1600 && t < 2480) {
+        for (let j = 0; j < power - 1; j++) {
+          const a = Math.random() * 6.283, x = cx + Math.cos(a) * 470, y = cy + Math.sin(a) * 660;
+          P.push({ x, y, vx: (cx - x) / 24, vy: (cy - y) / 24, life: 24, max: 24, s: 2.5, c: cols[j % cols.length], drag: 1, grav: 0, streak: true });
+        }
+      }
+      if (this.meteor && t > 2140 && t < 2550) {
+        const k = (t - 2140) / 410, e = 1 - Math.pow(1 - k, 2), x = 459 + (this.boost ? 360 : 600) * (1 - e), y = 1100 - (this.boost ? 700 : 1100) * (1 - e);
+        for (let j = 0; j < 6; j++) P.push({ x, y, vx: (Math.random() - 0.3) * 3, vy: (Math.random() - 0.7) * 3, life: 40, max: 40, s: 1.5 + Math.random() * 3, c: cols[j % cols.length], drag: 0.96, grav: 0.02 });
+      }
+      if (!this.fired && t >= 2560) {
+        this.fired = true;
+        const n = Math.round((90 + 330 * (power - 1) / 2) * (this.boost ? 1.5 : 1));
+        if (this.boost && power > 1) for (let j = 0; j < 36; j++) { const a = j * Math.PI / 18; P.push({ x: cx, y: cy, vx: Math.cos(a) * 11, vy: Math.sin(a) * 15, life: 60, max: 60, s: 4 + power, c: cols[j % cols.length], drag: 0.93, grav: 0, star: true }); }
+        for (let j = 0; j < n; j++) {
+          const a = Math.random() * Math.PI * 2, sp = 3 + Math.random() * (8 + 7 * power);
+          P.push({ x: cx, y: cy, vx: Math.cos(a) * sp * 0.8, vy: Math.sin(a) * sp - 3, life: 70 + Math.random() * 90, max: 160, s: 2 + Math.random() * (2 + power), c: cols[j % cols.length], drag: 0.95, grav: 0.06, star: j % 4 === 0 });
+        }
+      }
+      if (power > 1 && t > 2900 && t < 6000 && Math.random() < 0.3 * power) P.push({ x: 159 + Math.random() * 600, y: 1180, vx: (Math.random() - 0.5) * 0.8, vy: -1.5 - Math.random() * 2.5, life: 240, max: 240, s: 3 + Math.random() * 5, c: cols[Math.floor(Math.random() * cols.length)], drag: 1, grav: 0, star: true, tw: true });
+    }
+    for (let k = P.length - 1; k >= 0; k--) {
+      const p = P[k];
+      p.vx *= p.drag; p.vy = p.vy * p.drag + p.grav; p.x += p.vx; p.y += p.vy; p.life -= 1;
+      if (p.life <= 0) { P.splice(k, 1); continue; }
+      const a = Math.min(1, p.life / (p.max * 0.4)) * (p.tw ? 0.5 + 0.5 * Math.sin(p.life * 0.3) : 1) * (this.boost ? Math.max(0, Math.min(1, Math.min(p.x - 40, 959 - p.x, p.y - 30, 1690 - p.y) / 140)) : 1);
+      g.fillStyle = p.c;
+      if (p.streak) { g.globalAlpha = a; g.strokeStyle = p.c; g.lineWidth = p.s; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * 5, p.y - p.vy * 5); g.stroke(); continue; }
+      const spr = this.tex && this.sprite(p.c, 128);
+      if (spr) {
+        const r = p.s * (p.star ? 9 : 5);
+        g.globalAlpha = a; g.drawImage(spr, p.x - r, p.y - r, r * 2, r * 2);
+        if (!p.star) { g.beginPath(); g.arc(p.x, p.y, p.s * 0.8, 0, 6.283); g.fill(); }
+        continue;
+      }
+      if (p.star) { g.globalAlpha = a; this.star(g, p.x, p.y, p.s * 2.2); continue; }
+      g.globalAlpha = a * 0.2; g.beginPath(); g.arc(p.x, p.y, p.s * 3.5, 0, 6.283); g.fill();
+      g.globalAlpha = a; g.beginPath(); g.arc(p.x, p.y, p.s, 0, 6.283); g.fill();
+    }
+    // Hit flash: a stretched flare plus a round one, kept inside the narrow portrait source.
+    const hk = (t - 2540) / 900, flash = this.tex && this.reveal && hk > 0 && hk < 1 && this.sprite(this.flashCol, 512);
+    if (flash) {
+      const e = 1 - Math.pow(1 - hk, 3), w = (260 + 220 * e) * [0.55, 0.8, 1][power - 1], h = w * 0.5;
+      g.globalAlpha = Math.pow(1 - hk, 1.6);
+      g.drawImage(flash, cx - w, cy - h, w * 2, h * 2);
+      g.drawImage(flash, cx - w * 0.45, cy - w * 0.45, w * 0.9, w * 0.9);
+    }
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+  }
+
+  renderVals() {
+    const s = this.state || {};
+    const stage = this.props.stage ?? '转动中';
+    const tier = this.props.tier ?? '大奖';
+    const isEntry = (this.props.mode ?? '奖池') === '报名';
+    const stream = this.props.stream !== false && this.props.stream !== 'false';
+    const showSafe = this.props.showSafe === true || this.props.showSafe === 'true';
+    const tex = (this.props.fx ?? '现在') === '贴图';
+    const boost = (this.props.fx ?? '现在') === '加强' || tex;
+    const room = this.props.room ?? '示意画面';
+    const isReveal = stage === '揭晓';
+    const isReg = isEntry && (stage === '报名中' || stage === '转动中');
+    const isDone = isEntry && (stage === '中奖名单' || stage === '已截止');
+    const partial = stage === '已截止';
+    const isIdle = !isEntry && !isReveal;
+    this.registering = isReg;
+    this.quiet = isReg || isDone;
+    const looks = {
+      '大奖': { main: '#FFD36B', mainA: 'rgba(255, 211, 107, 0.55)', light: '#FFE7A8', frame: 'linear-gradient(160deg, #FFFFFF 0%, #FFE7A8 25%, #E8A93A 55%, #FFF1C2 80%, #C98A1B 100%)', deep: 'rgba(110, 78, 14, 0.95)', cardIn: '#5A3F0C', cardMid: '#2A1C05', star: '#FFD36B', glow: 'rgba(255, 211, 107, 0.5)', cols: ['#FFFFFF', '#FFF1C2', '#FFD36B', '#E8A93A'] },
+      '二奖': { main: '#C59BFF', mainA: 'rgba(197, 155, 255, 0.5)', light: '#E3D2FF', frame: 'linear-gradient(160deg, #F5EEFF 0%, #C59BFF 35%, #7C4DFF 65%, #E3D2FF 100%)', deep: 'rgba(70, 40, 140, 0.95)', cardIn: '#4A2A9A', cardMid: '#22125A', star: '#C59BFF', glow: 'rgba(197, 155, 255, 0.45)', cols: ['#FFFFFF', '#E3D2FF', '#C59BFF', '#9F7BFF'] },
+      '三奖': { main: '#7CC4FF', mainA: 'rgba(124, 196, 255, 0.45)', light: '#CDEBFF', frame: 'linear-gradient(160deg, #F0FAFF 0%, #7CC4FF 35%, #2F7FE0 65%, #CDEBFF 100%)', deep: 'rgba(24, 60, 120, 0.95)', cardIn: '#1D4F8C', cardMid: '#0E2650', star: '#7CC4FF', glow: 'rgba(124, 196, 255, 0.4)', cols: ['#FFFFFF', '#CDEBFF', '#7CC4FF'] }
+    };
+    const tc = looks[tier];
+    const power = tier === '大奖' ? 3 : tier === '二奖' ? 2 : 1;
+    this.boost = boost;
+    this.tex = tex; this.flashCol = tc.light;
+    this.reveal = isReveal; this.cols = isReveal ? tc.cols : ['#FFE7A8', '#C59BFF', '#7CC4FF']; this.power = power; this.meteor = power > 1;
+    const pool = [['签名照', '三奖'], ['周边抱枕', '二奖'], ['机械键盘', '大奖'], ['贴纸套装', '三奖'], ['签名照', '三奖'], ['贴纸套装', '三奖'], ['签名照', '三奖'], ['周边抱枕', '二奖'], ['签名照', '三奖'], ['周边抱枕', '二奖']];
+    const prize = tier === '大奖' ? '机械键盘' : tier === '二奖' ? '周边抱枕' : '签名照';
+    const entryTier = { '大奖': '一等奖', '二奖': '二等奖', '三奖': '三等奖' }[tier];
+    const target = tier === '大奖' ? 2 : tier === '二奖' ? 7 : 8;
+    const names = ['一只小鹿', '夜航船', '桃桃乌龙', '晚风', '番茄炒蛋', '阿白', '小满', '星河入梦', '山有木兮', '摸鱼大师'];
+    names[target] = '柚子不酸';
+    const cards = isEntry
+      ? names.map((name, k) => ({ name, tier: '★', angle: (k * 36) + 'deg', frame: tc.frame, deep: 'rgba(40, 28, 110, 0.95)', glow: tc.glow, star: tc.star, tex, n: 4 - power }))
+      : pool.map(([name, tr], k) => ({ name, tier: tr, angle: (k * 36) + 'deg', frame: looks[tr].frame, deep: looks[tr].deep, glow: looks[tr].glow, star: looks[tr].star, tex, n: { '大奖': 1, '二奖': 2, '三奖': 3 }[tr] }));
+
+    const feedNames = ['北北', '海盐', '雨后', '甜筒', '喵了个咪', '十一', '南巷', '橘猫本猫', '早睡早起', '云朵棉花糖'];
+    const n = isReg ? (s.n || 0) : 0;
+    const latest = [0, 1, 2].map((k) => ({
+      name: feedNames[(n + feedNames.length - k) % feedNames.length],
+      via: (n + k) % 3 === 0 ? '送礼' : '弹幕',
+      color: ['#FFD36B', '#C59BFF', '#7CC4FF'][(n + k) % 3],
+      fade: String(1 - k * 0.22),
+      cls: k === 0 ? (s.flip ? 'pw1-in-a' : 'pw1-in-b') : ''
+    }));
+    const prizeRows = [['SSR', '一等奖', '机械键盘', 1, '大奖'], ['SR', '二等奖', '周边抱枕', 2, '二奖'], ['R', '三等奖', '签名照', 3, '三奖']]
+      .map(([rank, tr, p, quota, look]) => ({ rank, tier: tr, prize: p, quota, frame: looks[look].frame, deep: looks[look].deep, star: looks[look].star }));
+    const results = [['SSR', '柚子不酸', '一等奖', '大奖'], ['SR', '桃桃乌龙', '二等奖', '二奖'], ['SR', '南巷', '二等奖', '二奖'], ['R', '番茄炒蛋', '三等奖', '三奖'], ['R', '青柠', '三等奖', '三奖'], ['R', '星河入梦', '三等奖', '三奖']]
+      .map(([rank, name, tr, look], k) => ({ rank, name, tier: tr, frame: looks[look].frame, deep: looks[look].deep, glow: looks[look].glow, star: looks[look].star, delay: (k * 0.14).toFixed(2) + 's', tex, n: { '大奖': 1, '二奖': 2, '三奖': 3 }[look], ink: tex && look !== '大奖' ? (look === '二奖' ? 'linear-gradient(160deg, #FFFFFF 0%, #EBDDFF 55%, #C59BFF 100%)' : 'linear-gradient(160deg, #FFFFFF 0%, #CDEBFF 55%, #7CC4FF 100%)') : looks[look].frame }))
+      .filter((r, k) => !partial || k >= 4);
+    return {
+      stream, showSafe,
+      bg: !stream ? 'repeating-conic-gradient(#D5D9E0 0% 25%, #FFFFFF 0% 50%) 50% / 48px 48px' : room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#3E4A5E',
+      mock: stream && room !== '透明',
+      mockBg: room === '浅色房间' ? 'linear-gradient(180deg, #F4EFE7 0%, #EAE2D5 60%, #CDB89A 61%, #B9A27F 100%)' : room === '深色房间' ? 'linear-gradient(180deg, #16181D 0%, #23262E 60%, #121317 61%, #0C0D10 100%)' : 'linear-gradient(180deg, #4A5A78 0%, #5E7096 50%, #3E4A5E 100%)',
+      mockPerson: room === '浅色房间' ? '#D9CCB8' : room === '深色房间' ? '#2F333C' : 'rgba(255, 255, 255, 0.12)',
+      boost, oldSky: isReveal && !boost, boostReveal: isReveal && boost, hasLines: power > 1,
+      tex, noTex: !tex, tierN: 4 - power, texIdle: tex && isIdle,
+      raysCss: isReveal && power === 3 && !tex, raysTex: isReveal && power === 3 && tex,
+      frameIn: ['left: -29px; top: -64px; right: -29px; bottom: -66px;', 'left: -30px; top: -36px; right: -30px; bottom: -36px;', 'left: -22px; top: -22px; right: -22px; bottom: -22px;'][3 - power],
+      comet: power === 3 ? { l: '-48px', t: '-80px', w: '480px', h: '160px', o: '48px 80px' } : { l: '-36px', t: '-60px', w: '360px', h: '120px', o: '36px 60px' },
+      tierInk: tex && power < 3 ? ['linear-gradient(160deg, #FFFFFF 0%, #CDEBFF 55%, #7CC4FF 100%)', 'linear-gradient(160deg, #FFFFFF 0%, #EBDDFF 55%, #C59BFF 100%)'][power - 1] : tc.frame,
+      plate: tex ? { pad: '8px 30px 12px', bg: 'rgba(10, 8, 30, 0.72)' } : { pad: '0', bg: 'none' },
+      shift: boost ? 'translate(81px, 200px)' : 'none',
+      shakeCls: boost && isReveal ? ['', 'pw1b-shake1', 'pw1b-shake2'][power - 1] : '',
+      portal: power === 3 ? { w: '1000px', h: '1400px', swirl: '900px', swirlPos: '-450px', halo: '820', haloPx: '820px', neb: '1', bg: 'radial-gradient(ellipse closest-side, rgba(14, 8, 44, 0.94) 0%, rgba(34, 20, 104, 0.86) 34%, rgba(70, 44, 170, 0.5) 62%, rgba(70, 44, 170, 0.16) 82%, rgba(70, 44, 170, 0) 100%)' }
+        : power === 2 ? { w: '940px', h: '1240px', swirl: '820px', swirlPos: '-410px', halo: '720', haloPx: '720px', neb: '0.85', bg: 'radial-gradient(ellipse closest-side, rgba(16, 10, 50, 0.9) 0%, rgba(40, 24, 110, 0.78) 36%, rgba(70, 44, 170, 0.42) 64%, rgba(70, 44, 170, 0.12) 84%, rgba(70, 44, 170, 0) 100%)' }
+        : { w: '760px', h: '960px', swirl: '660px', swirlPos: '-330px', halo: '600', haloPx: '600px', neb: '0.7', bg: 'radial-gradient(ellipse closest-side, rgba(14, 12, 44, 0.85) 0%, rgba(28, 36, 100, 0.62) 40%, rgba(40, 60, 140, 0.25) 70%, rgba(40, 60, 140, 0) 100%)' },
+      rays: boost ? { size: '1000px', color: 'rgba(255, 226, 150, 0.6)', mask: 'radial-gradient(circle closest-side, #000 8%, rgba(0, 0, 0, 0.6) 40%, transparent 96%)' } : { size: '1500px', color: 'rgba(255, 220, 140, 0.45)', mask: 'radial-gradient(circle, #000 6%, rgba(0, 0, 0, 0.55) 30%, transparent 60%)' },
+      linesBg: 'repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0) 0deg 2.4deg, ' + tc.light + ' 2.4deg 2.9deg, rgba(255, 255, 255, 0) 2.9deg 8deg), repeating-conic-gradient(from 3deg, rgba(20, 10, 60, 0) 0deg 6deg, rgba(20, 10, 60, 0.7) 6deg 6.4deg, rgba(20, 10, 60, 0) 6.4deg 13deg)',
+      meteorCls: boost ? 'pw1b-meteor' : 'pw1-meteor', meteorTail: boost ? '320px' : '620px',
+      shout: boost ? { pad: '4px 26px 4px 34px', bg: 'rgba(14, 12, 44, 0.92)', shadow: '0 0 0 2px rgba(255, 211, 107, 0.7), 0 0 30px rgba(255, 211, 107, 0.45)' } : { pad: '0', bg: 'none', shadow: 'none' },
+      isIdle, isReveal, isReg, isDone, showStage: isIdle || isReveal,
+      count: (isReg ? 109 : 128) + n, latest, prizeRows, results, partial,
+      doneTitle: partial ? '目前的召唤结果' : '召唤结果',
+      remainText: '报名已截止 · 还剩 4 个名额',
+      popClass: isReg ? (s.flip ? 'pw1-pop-a' : 'pw1-pop-b') : '',
+      bannerText: isEntry ? '正在召唤 · ' + entryTier : '柚子不酸 发起召唤！',
+      cardTier: isEntry ? entryTier : tier,
+      cardMain: isEntry ? '柚子不酸' : prize,
+      cardSub: isEntry ? prize : '柚子不酸',
+      shoutText: isEntry ? '★ 恭喜召唤成功 ★' : '★ 大奖降临 ★',
+      isBig: isReveal && power === 3, hasPillar: power > 1, hasMeteor: power > 1,
+      tc, tier, prize, cards, viewer: '柚子不酸',
+      stars: new Array(power + 2).fill(0),
+      skyBg: power === 3 ? 'radial-gradient(ellipse at 42% 50%, rgba(70, 44, 170, 0.88) 0%, rgba(22, 16, 70, 0.95) 45%, rgba(6, 6, 26, 0.97) 80%)'
+        : power === 2 ? 'radial-gradient(ellipse at 42% 50%, rgba(70, 44, 170, 0.8) 0%, rgba(22, 16, 70, 0.88) 50%, rgba(6, 6, 26, 0.9) 85%)'
+        : 'radial-gradient(ellipse at 42% 42%, rgba(40, 30, 110, 0.7) 0%, rgba(14, 12, 44, 0.65) 45%, rgba(14, 12, 44, 0.2) 80%)',
+      circleColor: isReveal ? tc.light : '#DCD0FF',
+      circleGlow: isReveal ? tc.main : 'rgba(185, 160, 255, 0.9)',
+      pillarX: power === 3 ? '309px' : '359px', pillarW: power === 3 ? '300px' : '200px',
+      ringCls: isReveal ? ['pw1-spinR0', 'pw1-spinR1', 'pw1-spinR2'][tier === '大奖' ? 0 : tier === '二奖' ? 1 : 2] : 'pw1-idleRing',
+      ringWrapCls: isReveal ? 'pw1-ringFade' : '',
+      flashCls: 'pw1-flash' + (power - 1),
+      setCanvas: (el) => { if (el) this.canvas = el; }
+    };
+  }
+}
+</script>
+</body>
+</html>
