@@ -105,6 +105,25 @@ public sealed class LotteryPanelTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task Deleting_the_chosen_prize_set_forgets_it() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        try
+        {
+            await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
+            await Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Delete.ExecuteAsync(null);
+            Assert.IsType<PrizeSetMenuFooter>(Assert.Single(vm.Lottery.PoolPrizeSets.Entries));
+            vm.Lottery.PoolPrizeSets.StartDraft();
+            Assert.Null(vm.Lottery.PoolPrizeSets.DraftName);
+            Assert.DoesNotContain("周末", vm.Lottery.PoolStatusText);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task Invalid_prize_set_uses_the_pool_error_and_room_lists_do_not_leak() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();

@@ -54,8 +54,13 @@ public partial class LotteryViewModel
     internal async Task DeletePrizeSetAsync(LotteryPrizeSet set)
     {
         if (!CanEdit(set.Mode) || CurrentOrLastRoomId is not { } room) return;
-        if (await TryChangeLotteryAsync(set.Mode, lottery => lottery.DeletePrizeSet(room, set.Mode, set.Name)))
-            await RefreshPrizeSetsAsync();
+        if (!await TryChangeLotteryAsync(set.Mode, lottery => lottery.DeletePrizeSet(room, set.Mode, set.Name))) return;
+        if (PrizeSetPicker(set.Mode).Chosen == set.Name)
+        {
+            PrizeSetPicker(set.Mode).Choose(null);
+            OnPropertyChanged(set.Mode == LotteryMode.Pool ? nameof(PoolStatusText) : nameof(EntryStatusText));
+        }
+        await RefreshPrizeSetsAsync();
     }
 
     internal void LoadPrizeSet(LotteryPrizeSet set)
