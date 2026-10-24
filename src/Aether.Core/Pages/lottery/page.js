@@ -149,8 +149,11 @@ function show(state, completedDraw) {
   const draw = lottery?.draws.at(-1);
   const drawKey = draw && deadline ? [themeName,lottery.id,draw.id,deadline].join(' ') : '';
   const drawFrame = lottery && [themeName,lottery.id,lottery.phase,lottery.hidden,draw?.id,!!state.isExamplePlaying].join(' ');
-  // A visibility or pin change does not restart the reveal; expiry uses the latest snapshot.
-  if (!completedDraw && drawing?.frame === drawFrame && (drawKey === drawing.key || !deadline)) return;
+  // A visibility or pin change does not restart the reveal; Core's finished snapshot completes it.
+  if (!completedDraw && drawing?.frame === drawFrame) {
+    if (drawKey === drawing.key) return;
+    if (!deadline) completedDraw = draw.id;
+  }
   const canPin = state.pinnedResults && !state.isExamplePlaying && !deadline &&
     (pool?.phase === 'Idle' || entry?.phase === 'Ended' && entry.hidden);
   const keepPinned = canPin && scene.dataset.theme === themeName && pinnedLottery?.id === lottery.id;

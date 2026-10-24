@@ -389,7 +389,6 @@ public sealed partial class LotteryBrowserTests
         lottery.CloseEntries();
         // Build seven real results without waiting for seven animations; the other test checks their timing.
         for (var i = 0; i < 7; i++) { lottery.DrawEntry(0); h.Time.Advance(LotteryController.DrawDuration); }
-        await ReloadAtCoreTimeAsync(page, pause: false);
         await browser.WaitAsync("document.getElementById('pageNumber').textContent === '1 / 2'");
         await browser.WaitAsync("Array.from(document.querySelectorAll('.winnerCard')).every(c => c.getAnimations().every(a => a.playState === 'finished'))");
         await AssertLayoutAsync(browser);
@@ -419,7 +418,6 @@ public sealed partial class LotteryBrowserTests
         await h.PushAndCollectAsync(watch, Enumerable.Range(1, 7).Select(i => Message(i, $"观众{i}的超长中文昵称星河入梦")).ToArray());
         lottery.CloseEntries();
         for (var i = 0; i < 6; i++) { lottery.DrawEntry(i / 2); h.Time.Advance(LotteryController.DrawDuration); }
-        await ReloadAtCoreTimeAsync(page, pause: false);
         await browser.WaitAsync("document.querySelectorAll('.winnerName').length === 6");
         foreach (var (width, height) in new[] { (1080, 1920), (1920, 1080), (1080, 1920) })
         {

@@ -42,9 +42,9 @@ public sealed partial class LotteryBrowserTests
         }
         lottery.Start([new("第六件", 1, Grade.Third)], "停"); lottery.Stop();
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
-        h.Time.Advance(LotteryController.DrawDuration);
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "advance", budget = 7000 });
         await browser.WaitAsync("document.getElementById('pinnedPageNumber').textContent === '1 / 2'");
+        h.Time.Advance(LotteryController.DrawDuration);
         var fullHeight = (await browser.EvaluateAsync("document.getElementById('pinned').offsetHeight")).GetDouble();
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "advance", budget = 8000 });
         await browser.WaitAsync("document.getElementById('pinnedPageNumber').textContent === '2 / 2'", 12);
@@ -194,7 +194,7 @@ public sealed partial class LotteryBrowserTests
         }
     }
 
-    private static async Task ReloadAtCoreTimeAsync(PageSession page, ChromeBrowser? browser = null, bool pause = true)
+    private static async Task ReloadAtCoreTimeAsync(PageSession page, ChromeBrowser? browser = null)
     {
         browser ??= page.Browser;
         await browser.CommandAsync("Page.addScriptToEvaluateOnNewDocument", new { source = $"{{ const start = performance.now(); Date.now = () => {page.H.Time.GetUtcNow().ToUnixTimeMilliseconds()} + performance.now() - start; }}" });
@@ -202,7 +202,7 @@ public sealed partial class LotteryBrowserTests
         // The initial empty page reports fonts loaded before SSE creates text and requests its font.
         await browser.WaitAsync("document.readyState === 'complete' && document.getElementById('scene').dataset.view");
         await browser.EvaluateAsync("(async()=>{await document.fonts.ready; await new Promise(resolve=>requestAnimationFrame(resolve)); return true;})()");
-        if (pause) await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
+        await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
     }
 
     private static async Task FreezePinnedAsync(ChromeBrowser browser, int milliseconds)
