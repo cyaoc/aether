@@ -21,6 +21,53 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     [Theory]
+    [InlineData(false, LotteryMode.Pool)]
+    [InlineData(true, LotteryMode.Pool)]
+    [InlineData(false, LotteryMode.Entry)]
+    [InlineData(true, LotteryMode.Entry)]
+    public Task Screenshots_prize_set_menu_and_save(bool dark, LotteryMode mode)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory)
+                { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = 4;
+                Lottery lottery = mode == LotteryMode.Pool ? LotteryPanelTests.TestLottery() : EntryLotteryPanelTests.TestLottery();
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
+                await vm.Lottery.SavePrizeSetAsync(mode, "周末福利");
+                var prefix = mode == LotteryMode.Pool ? "pool" : "entry";
+                var picker = window.GetVisualDescendants().OfType<LotteryPrizeSetPicker>()
+                    .Single(picker => picker.DataContext == (mode == LotteryMode.Pool ? vm.Lottery.PoolPrizeSets : vm.Lottery.EntryPrizeSets));
+                var load = picker.FindControl<Button>("LoadButton")!;
+                var menu = (MenuFlyout)load.Flyout!;
+                menu.ShowAt(load);
+                GuiHarness.Flush();
+                GuiHarness.MenuItems(menu).First().RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                menu.ShowAt(load);
+                GuiHarness.Flush();
+                Save(TopLevel.GetTopLevel(GuiHarness.MenuItems(menu).First())!, $"{prefix}-prize-sets-{(dark ? "dark" : "light")}");
+                menu.Hide();
+                var save = picker.FindControl<Button>("SaveButton")!;
+                save.Flyout!.ShowAt(save);
+                picker.FindControl<TextBox>("NameInput")!.Text = "周末福利";
+                GuiHarness.Flush();
+                Save(TopLevel.GetTopLevel(picker.FindControl<TextBox>("NameInput")!)!, $"{prefix}-prize-set-save-{(dark ? "dark" : "light")}");
+                save.Flyout.Hide();
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
     [InlineData(1200, 720, false)]
     [InlineData(1200, 720, true)]
     [InlineData(1040, 600, false)]
@@ -98,6 +145,20 @@ public sealed class VisualReviewTests
                         Draws = [.. draws], DrawUntil = phase == EntryLotteryPhase.Closed ? at.AddSeconds(7) : null,
                     })));
                     Save(window, $"entry-{phase}-{width}-{(dark ? "dark" : "light")}");
+                    if (phase == EntryLotteryPhase.Ended)
+                    {
+                        var ended = (EntryLottery)vm.Lottery.LotteryState.Lottery!;
+                        vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with
+                        {
+                            Lottery = ended with { Draws = [.. ended.Draws.Select((draw, index) => draw with { HiddenFromStream = index == 2 })] },
+                        }));
+                        Save(window, $"entry-hidden-{width}-{(dark ? "dark" : "light")}");
+                        vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with
+                        {
+                            Lottery = ended with { Draws = [.. ended.Draws.Select(draw => draw with { HiddenFromStream = true })] },
+                        }));
+                        Save(window, $"entry-all-hidden-{width}-{(dark ? "dark" : "light")}");
+                    }
                     if (phase != EntryLotteryPhase.Closed) continue;
                     vm.Lottery.Apply(new LotteryUpdate(vm.Lottery.LotteryState with { Lottery = vm.Lottery.LotteryState.Lottery! with { DrawUntil = null } }));
                     window.GetVisualDescendants().OfType<Button>().Single(button => button.Name == "EndEntryButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -153,6 +214,16 @@ public sealed class VisualReviewTests
                 }
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, session with { DrawUntil = at.AddMinutes(6).AddSeconds(7) })));
                 Save(window, $"lottery-Drawing-{(dark ? "dark" : "light")}");
+                var hidden = session with { Draws = session.Draws.SetItem(1, session.Draws[1] with { HiddenFromStream = true }) };
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, hidden)));
+                Save(window, $"lottery-hidden-{(dark ? "dark" : "light")}");
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, session with
+                    { Draws = [.. session.Draws.Select(draw => draw with { HiddenFromStream = true })] })));
+                Save(window, $"lottery-all-hidden-{(dark ? "dark" : "light")}");
+                window.Width = 1040;
+                window.Height = 600;
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, hidden)));
+                Save(window, $"lottery-hidden-1040-{(dark ? "dark" : "light")}");
             }
             finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
             return true;

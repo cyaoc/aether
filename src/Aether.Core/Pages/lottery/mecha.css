@@ -8,10 +8,10 @@
 [data-theme="MechaLock"] .Second { --main:#ffb067; --light:#ffb067; --a:#ffb06780; --dome-w:1560px; --dome-h:900px; --hud:880px; }
 [data-theme="MechaLock"] .Third { --main:#8fd3ff; --light:#8fd3ff; --a:#8fd3ff73; --dome-w:1360px; --dome-h:820px; --hud:780px; }
 [data-theme="MechaLock"] .drawing.Grand { --stripe:#ff3d3d; }
-[data-theme="MechaLock"] .awardRow.Grand,[data-theme="MechaLock"] .winnerCard.Grand { --main:#ff7a1a; }
-[data-theme="MechaLock"] .awardRow.Third,[data-theme="MechaLock"] .winnerCard.Third { --main:#c9d0d8; }
+[data-theme="MechaLock"] .awardRow.Grand,[data-theme="MechaLock"] .winnerCard.Grand,[data-theme="MechaLock"] .pinnedRow.Grand { --main:#ff7a1a; }
+[data-theme="MechaLock"] .awardRow.Third,[data-theme="MechaLock"] .winnerCard.Third,[data-theme="MechaLock"] .pinnedRow.Third { --main:#c9d0d8; }
 [data-theme="MechaLock"] #entryBar:before,[data-theme="MechaLock"] #entryBar:after,[data-theme="MechaLock"] .hazard,[data-theme="MechaLock"] .cardFace:before,[data-theme="MechaLock"] .cardFace:after,
-[data-theme="MechaLock"] #winners:before,[data-theme="MechaLock"] #registrationTitle:before,[data-theme="MechaLock"] #registrationTitle:after { background:repeating-linear-gradient(-45deg,var(--stripe) 0 18px,#0a0c10 18px 36px); }
+[data-theme="MechaLock"] #winners:before,[data-theme="MechaLock"] #registrationTitle:before,[data-theme="MechaLock"] #registrationTitle:after,[data-theme="MechaLock"] #pinned .pinnedHead:before { background:repeating-linear-gradient(-45deg,var(--stripe) 0 18px,#0a0c10 18px 36px); }
 [data-theme="MechaLock"] .gold { background:none; color:#ff7a1a; }
 [data-theme="MechaLock"] .rank { background:none; color:var(--main); -webkit-text-fill-color:currentColor; font-family:var(--condensed); font-weight:700; }
 [data-theme="MechaLock"] .label { font:700 30px var(--condensed); color:#ff7a1a; }
@@ -209,3 +209,36 @@
 [data-theme="MechaLock"][data-orientation="portrait"] .winnerAward { grid-column:2; font-size:26px; }
 [data-theme="MechaLock"][data-orientation="portrait"] #remaining { padding:14px 18px; font-size:40px; line-height:44px; text-align:left; }
 [data-theme="MechaLock"][data-orientation="portrait"] #pageNumber { margin:0; }
+
+/* RB2 / NA2–NC2 / ND2 / NP2: the shared pinned board uses the existing result palette and six-second timeline. */
+[data-theme="MechaLock"] #pinned .Grand { --a:rgba(255,122,26,.35); }
+[data-theme="MechaLock"] #pinned .Second { --a:rgba(255,176,103,.28); }
+[data-theme="MechaLock"] #pinned .Third { --a:rgba(201,208,216,.22); }
+[data-theme="MechaLock"] #pinned .pinnedHead { padding:24px 24px 10px; background:#0a0c10f0; border:2px solid var(--stripe); border-top:0; }
+[data-theme="MechaLock"] #pinned .pinnedHead:before { content:''; position:absolute; left:-2px; right:-2px; top:0; height:12px; }
+[data-theme="MechaLock"] #pinned .pinnedHeadTitle { font-size:56px; color:inherit; }
+[data-theme="MechaLock"] #pinned .pinnedHeadTag { display:inline; font:700 28px var(--condensed); letter-spacing:4px; color:var(--stripe); }
+[data-theme="MechaLock"] #pinned .pinnedHeadCount { font:700 40px var(--condensed); color:#9aa3ae; }
+[data-theme="MechaLock"] #pinned .pinnedRow { padding-left:16px; border-left:10px solid var(--main); background:#0a0c10eb; }
+[data-theme="MechaLock"] #pinned .pinnedRow.Grand { box-shadow:inset 0 0 0 2px rgba(255,122,26,.55); }
+[data-theme="MechaLock"] #pinned .pinnedBadge { width:72px; height:72px; background:var(--main); color:#0a0c10; font:700 50px var(--condensed); }
+[data-theme="MechaLock"] #pinned .pinnedWho { color:#9aa3ae; }
+[data-theme="MechaLock"] #pinned .pinnedName { border-left:5px solid var(--main); background:rgba(255,255,255,.08); }
+[data-theme="MechaLock"] #pinned .effectNew { background:var(--main); color:#0a0c10; font:700 30px/40px var(--condensed); letter-spacing:3px; }
+[data-theme="MechaLock"] #pinned .effectHazard { background:repeating-linear-gradient(-45deg,var(--main) 0 14px,#0a0c10 14px 28px); }
+[data-theme="MechaLock"] #pinned .effectFlash { background:var(--main); }
+[data-theme="MechaLock"] #pinned .effectRing,[data-theme="MechaLock"] #pinned .effectStar,[data-theme="MechaLock"] #pinned .effectTwinkle,[data-theme="MechaLock"] #pinned .effectSweep { display:none; }
+[data-theme="MechaLock"] #pinned .pinnedRow.ambient .effectScan { animation:mechaPinnedScan 8s infinite; animation-delay:var(--d); }
+[data-theme="MechaLock"] #pinned .Grand.ambient .pinnedBadge { animation:mechaPinnedBlink 8s infinite; animation-delay:var(--d); }
+[data-theme="MechaLock"] #pinned.arriving .fresh .effectNew { animation:mechaPinnedTag 6s both; }
+[data-theme="MechaLock"] #pinned.arriving .fresh .effectScan { animation:mechaPinnedScanOnce 6s both; }
+[data-theme="MechaLock"] #pinned.arriving .fresh.Grand .effectBracket,[data-theme="MechaLock"] #pinned.arriving .fresh.Second .effectBracket { animation:mechaPinnedClamp 6s both; }
+[data-theme="MechaLock"] #pinned.arriving .fresh.Grand .effectHazard { animation:mechaPinnedHazard 6s both; }
+[data-theme="MechaLock"] #pinned .pinnedPageLabels>span { padding:0 10px; background:var(--stripe); color:#0a0c10; font:700 34px/44px var(--condensed); }
+[data-theme="MechaLock"] #pinned[data-paging="true"] .pinnedHeadTag { display:none; }
+@keyframes mechaPinnedScan { 0% { opacity:0; top:-48px; } 2% { opacity:1; } 13% { opacity:1; top:100%; } 14%,100% { opacity:0; top:100%; } }
+@keyframes mechaPinnedBlink { 0%,14% { opacity:1; } 15% { opacity:.25; } 16% { opacity:1; } 17% { opacity:.25; } 18%,100% { opacity:1; } }
+@keyframes mechaPinnedTag { 0%,16% { opacity:0; transform:translateY(10px); } 19% { opacity:1; transform:none; } 70% { opacity:1; } 76%,100% { opacity:0; } }
+@keyframes mechaPinnedScanOnce { 0%,18% { opacity:0; top:-48px; } 19% { opacity:1; } 32% { opacity:1; top:100%; } 33%,100% { opacity:0; top:100%; } }
+@keyframes mechaPinnedClamp { 0%,12% { opacity:0; transform:translate(var(--bx),var(--by)); } 17% { opacity:1; transform:none; } 22% { opacity:1; } 23% { opacity:0; } 24% { opacity:1; } 25% { opacity:0; } 26% { opacity:1; } 46% { opacity:1; } 52%,100% { opacity:0; } }
+@keyframes mechaPinnedHazard { 0%,16% { opacity:0; } 18% { opacity:1; } 60% { opacity:1; } 66%,100% { opacity:0; } }

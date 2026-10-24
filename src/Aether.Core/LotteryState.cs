@@ -19,7 +19,10 @@ public abstract record Lottery(string Id, long RoomId, DateTimeOffset StartedAt,
     [JsonIgnore] public bool IsDrawing => DrawUntil is not null;
 }
 
-public abstract record LotteryDraw(string Id, DateTimeOffset DrawnAt);
+public abstract record LotteryDraw(string Id, DateTimeOffset DrawnAt)
+{
+    public bool HiddenFromStream { get; init; }
+}
 
 public sealed record LotteryAward(string Name, string Prize, int Capacity, Grade Grade);
 public sealed record LotteryEntry(long Uid, string Nickname, DateTimeOffset EnteredAt);
@@ -51,6 +54,7 @@ public sealed record LotteryState(long? RoomId, bool Connected, Lottery? Lottery
     /// <summary>The room lock is still held, including while the transport reconnects.</summary>
     public bool CanControl { get; init; } = Connected;
     public LotteryTheme Theme { get; init; } = LotteryTheme.StarSummon;
+    public bool PinnedResults { get; init; }
     public bool IsExamplePlaying { get; init; }
 }
 public sealed record LotteryUpdate(LotteryState State, LotteryState? Example = null);

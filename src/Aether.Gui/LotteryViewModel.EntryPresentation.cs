@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using Aether.Core;
+using CommunityToolkit.Mvvm.Input;
 
 namespace Aether.Gui;
 
@@ -7,6 +8,7 @@ public partial class LotteryViewModel
 {
     private EntryLottery? entryRowsSource;
     private EntryLottery? entryWinnersSource;
+    private bool entryWinnersCanControl;
     private IReadOnlyList<WinnerGroupRow> entryWinnerGroups = [];
     public ObservableCollection<LotteryEntryRow> LotteryEntries { get; } = [];
 
@@ -34,27 +36,40 @@ public partial class LotteryViewModel
         get
         {
             var lottery = LotteryState.Lottery as EntryLottery;
-            if (ReferenceEquals(entryWinnersSource, lottery)) return entryWinnerGroups;
+            if (ReferenceEquals(entryWinnersSource, lottery) && entryWinnersCanControl == CanControlOperation) return entryWinnerGroups;
             entryWinnersSource = lottery;
+            entryWinnersCanControl = CanControlOperation;
             if (lottery is null) return entryWinnerGroups = [];
             var fresh = lottery.IsDrawing ? lottery.Draws[^1] : null;
             return entryWinnerGroups = lottery.Awards.Select((award, index) =>
             {
                 var winners = lottery.Draws.Where(draw => draw.AwardIndex == index).ToArray();
                 return new WinnerGroupRow(award.Name, award.Prize, $"{winners.Length} / {award.Capacity}",
-                    winners.Select(draw => new WinnerRow(draw.Winner.Nickname, Fresh: draw == fresh)).ToArray());
+                    winners.Select(draw => new WinnerRow(draw.Winner.Nickname, Fresh: draw == fresh,
+                        HiddenFromStream: draw.HiddenFromStream, CanToggleVisibility: CanControlOperation,
+                        ToggleVisibilityCommand: new AsyncRelayCommand(() => ToggleDrawVisibilityAsync(draw)))).ToArray());
             }).Where(group => !group.IsEmpty).ToArray();
         }
     }
 
-    public string EntryWinnerCountText => LotteryState.Lottery is EntryLottery { Draws.Length: > 0 } lottery ? $"{lottery.Draws.Length} 人" : "";
+    public string EntryWinnerCountText
+    {
+        get
+        {
+            if (LotteryState.Lottery is not EntryLottery { Draws.Length: > 0 } lottery) return "";
+            var drawnAt = lottery.Draws[0].DrawnAt;
+            var hidden = lottery.Draws.Count(draw => draw.HiddenFromStream);
+            return (IsToday(drawnAt) ? "" : $"{LotteryDate(drawnAt)}开奖 · ") + $"{lottery.Draws.Length} 人"
+                + (hidden > 0 ? $" · {hidden} 人不挂出" : "");
+        }
+    }
     public string LotteryEntryCountText => LotteryState.Lottery is EntryLottery { Entries.Length: > 0 } lottery ? $"{lottery.Entries.Length} 人" : "";
     public bool IsEntryWinnersEmpty => LotteryState.Lottery is not EntryLottery { Draws.Length: > 0 };
     public bool IsLotteryEntriesEmpty => LotteryState.Lottery is not EntryLottery { Entries.Length: > 0 };
     public string EntryVisibilityText => LotteryState.Lottery is EntryLottery { Hidden: true } ? "重新显示" : "收起画面";
     public string EntryStatusText => LotteryState.Lottery is not EntryLottery lottery ? "" : lottery.Phase switch
     {
-        EntryLotteryPhase.Preparing => LotteryState.Connected ? "填好关键字和奖项，点“开始报名”" : "先连直播间，才能开始报名",
+        EntryLotteryPhase.Preparing => EntryPrizeSets.Status ?? (LotteryState.Connected ? "填好关键字和奖项，点“开始报名”" : "先连直播间，才能开始报名"),
         EntryLotteryPhase.Open => $"已有 {lottery.Entries.Length} 人报名，直播画面上显示报名方式和名单",
         EntryLotteryPhase.Closed when lottery.IsDrawing => "直播画面正在播开奖特效",
         EntryLotteryPhase.Closed when lottery.Entries.Length == 0 => "没人报名，没人可抽",

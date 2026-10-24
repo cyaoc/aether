@@ -1,5 +1,6 @@
 using Aether.Core.Tests.Support;
 using System.Text.Json;
+using static Aether.Core.Tests.Support.ServerSentEvents;
 
 namespace Aether.Core.Tests;
 
@@ -286,18 +287,6 @@ public sealed class EntryLotteryTests
         Assert.True((await Event(reader)).Data.GetProperty("lottery").GetProperty("hidden").GetBoolean());
         lottery.SetEntryHidden(false);
         Assert.False((await Event(reader)).Data.GetProperty("lottery").GetProperty("hidden").GetBoolean());
-    }
-
-    private static async Task<(string Name, JsonElement Data)> Event(StreamReader reader)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var name = "";
-        while (await reader.ReadLineAsync(timeout.Token) is { } line)
-        {
-            if (line.StartsWith("event: ")) name = line[7..];
-            if (line.StartsWith("data: ")) return (name, JsonSerializer.Deserialize<JsonElement>(line[6..]));
-        }
-        throw new EndOfStreamException();
     }
 
     [Fact]

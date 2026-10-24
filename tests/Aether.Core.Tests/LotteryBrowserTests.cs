@@ -3,7 +3,7 @@ using Aether.Core.Tests.Support;
 
 namespace Aether.Core.Tests;
 
-public sealed class LotteryBrowserTests
+public sealed partial class LotteryBrowserTests
 {
     [Theory]
     [InlineData(1920, 1080)]

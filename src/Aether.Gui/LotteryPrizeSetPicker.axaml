@@ -1,0 +1,79 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPrizeSetPicker" x:DataType="local:PrizeSetPickerViewModel" Margin="0,-5">
+  <UserControl.Styles>
+    <Style Selector="MenuFlyoutPresenter.prizeSets MenuItem" x:DataType="local:PrizeSetMenuEntry">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="IsEnabled" Value="{Binding IsEnabled}" />
+      <Setter Property="Command" Value="{Binding Command}" />
+      <Setter Property="IsChecked" Value="{Binding Chosen}" />
+      <Setter Property="AutomationProperties.Name" Value="{Binding AccessibleName}" />
+    </Style>
+    <!-- No shortcuts here; dropping their column lets the footer's divider span the menu. -->
+    <Style Selector="MenuFlyoutPresenter.prizeSets MenuItem /template/ TextBlock#PART_InputGestureText">
+      <Setter Property="IsVisible" Value="False" />
+    </Style>
+    <Style Selector="TextBlock.setName">
+      <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+    <Style Selector="TextBlock.setName.accent">
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+  </UserControl.Styles>
+  <UserControl.DataTemplates>
+    <DataTemplate DataType="local:PrizeSetRow">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4" Margin="0,0,28,0">
+        <StackPanel Spacing="3" Margin="10,7">
+          <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="6">
+            <TextBlock Classes="label singleLine setName" Classes.accent="{Binding Chosen}" Text="{Binding Name}" MaxWidth="210" />
+            <TextBlock Grid.Column="1" Classes="caption muted numeric" Text="{Binding Count}" VerticalAlignment="Center" />
+          </Grid>
+          <TextBlock Classes="caption muted singleLine" Text="{Binding Summary}" />
+        </StackPanel>
+        <Button Grid.Column="1" Classes="ghost danger" Width="24" Height="24" MinHeight="24" Padding="0" VerticalAlignment="Center"
+          Command="{Binding Delete}" AutomationProperties.Name="{Binding DeleteName}">
+          <Viewbox Classes="icon remove"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
+        </Button>
+      </Grid>
+    </DataTemplate>
+    <DataTemplate DataType="local:PrizeSetMenuFooter">
+      <StackPanel>
+        <TextBlock Classes="caption muted" Text="{Binding Empty}" IsVisible="{Binding Empty, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="10" />
+        <Border Margin="0,2,0,0" Padding="10,8,10,6" BorderThickness="0,1,0,0" BorderBrush="{DynamicResource Border.Subtle}">
+          <TextBlock Classes="caption muted" Text="{Binding Hint}" />
+        </Border>
+      </StackPanel>
+    </DataTemplate>
+  </UserControl.DataTemplates>
+  <StackPanel Orientation="Horizontal" Spacing="6" Height="30" VerticalAlignment="Center">
+    <Button x:Name="LoadButton" IsEnabled="{Binding CanEdit}" Height="30" MinHeight="0" Padding="10,0,12,0" FontSize="13" ClickMode="Press">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Folder}" /></Viewbox>
+        <TextBlock Text="载入方案" VerticalAlignment="Center" />
+        <Viewbox Classes="icon" Width="14" Height="14" TextElement.Foreground="{DynamicResource Text.Muted}"><Path Data="{StaticResource Icon.ChevronDown}" /></Viewbox>
+      </StackPanel>
+      <Button.Flyout><MenuFlyout Placement="BottomEdgeAlignedRight" VerticalOffset="6" FlyoutPresenterClasses="prizeSets" ItemsSource="{Binding Entries}" /></Button.Flyout>
+    </Button>
+    <Button x:Name="SaveButton" IsEnabled="{Binding CanEdit}" Height="30" MinHeight="0" Padding="10,0,12,0" FontSize="13" ClickMode="Press">
+      <StackPanel Orientation="Horizontal" Spacing="6">
+        <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Save}" /></Viewbox>
+        <TextBlock Text="存为方案" VerticalAlignment="Center" />
+      </StackPanel>
+      <Button.Flyout>
+        <Flyout Placement="BottomEdgeAlignedRight" VerticalOffset="6" FlyoutPresenterClasses="prizeSetSave">
+          <StackPanel Spacing="10">
+            <TextBlock Classes="section" Text="存为方案" />
+            <StackPanel Spacing="6">
+              <TextBlock Classes="label" Text="方案名称" />
+              <TextBox x:Name="NameInput" Text="{Binding DraftName, Mode=TwoWay}" Height="32" MinHeight="32" Padding="10,0" FontSize="13" PlaceholderText="例如 周末福利" AutomationProperties.Name="奖品方案名称" />
+            </StackPanel>
+            <TextBlock x:Name="SaveHint" Classes="caption muted singleLine" Classes.replacement="{Binding ReplacesSet}" Text="{Binding SaveHint}" AutomationProperties.LiveSetting="Polite" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
+              <Button x:Name="CancelButton" Content="取消" Height="30" MinHeight="0" Padding="12,0" FontSize="13" />
+              <Button x:Name="ConfirmButton" Classes="accent" Content="{Binding SaveText}" IsEnabled="{Binding CanSave}" Height="30" MinHeight="0" MinWidth="64" Padding="14,0" FontSize="13" FontWeight="SemiBold" />
+            </StackPanel>
+          </StackPanel>
+        </Flyout>
+      </Button.Flyout>
+    </Button>
+  </StackPanel>
+</UserControl>

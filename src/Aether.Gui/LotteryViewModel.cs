@@ -22,6 +22,8 @@ public partial class LotteryViewModel : ObservableObject
         this.saveSettings = saveSettings;
         this.shutdown = shutdown;
         this.clock = clock;
+        PoolPrizeSets = new(this, LotteryMode.Pool);
+        EntryPrizeSets = new(this, LotteryMode.Entry);
         Prizes.RowChanged += RefreshPoolInputs;
         Awards.RowChanged += RefreshEntryInputs;
         RefreshPoolInputs();
@@ -33,6 +35,8 @@ public partial class LotteryViewModel : ObservableObject
     [ObservableProperty] private bool busy;
     private bool CanBeginOperation => !Busy && LotteryState.Connected;
     private bool CanControlOperation => !Busy && LotteryState.CanControl;
+    private LotteryMode CurrentMode => LotteryState.Lottery is EntryLottery ? LotteryMode.Entry : LotteryMode.Pool;
+    private long? CurrentOrLastRoomId => LotteryState.RoomId ?? settings.LastLotteryRoomId;
     [ObservableProperty]
     private LotteryState lotteryState = new(null, false, null);
 
@@ -72,12 +76,14 @@ public partial class LotteryViewModel : ObservableObject
     internal void Apply(LotteryUpdate update)
     {
         var previous = LotteryState;
+        var previousRoom = CurrentOrLastRoomId;
         LotteryState = update.State;
         if (LotteryState.RoomId is { } room && settings.LastLotteryRoomId != room)
         {
             settings.LastLotteryRoomId = room;
             saveSettings();
         }
+        if (previousRoom != CurrentOrLastRoomId) _ = RefreshPrizeSetsAsync();
         if (previous.RoomId != LotteryState.RoomId || ((previous.Lottery, LotteryState.Lottery) switch
             {
                 (PoolLottery before, PoolLottery after) => before.Id != after.Id || before.Draws != after.Draws
@@ -114,6 +120,21 @@ public partial class LotteryViewModel : ObservableObject
         }
     }
 
+    /// <summary>Like <see cref="ChangeLotteryAsync"/>, but a failure shows under the given mode's panel.</summary>
+    internal async Task<bool> TryChangeLotteryAsync(LotteryMode panel, Action<LotteryController> change)
+    {
+        if (Busy) return false;
+        SetLotteryError(panel, null);
+        try { await ChangeLotteryAsync(change); return true; }
+        catch (Exception error) { SetLotteryError(panel, error.Message); return false; }
+    }
+
+    private void SetLotteryError(LotteryMode panel, string? message)
+    {
+        if (panel == LotteryMode.Pool) PoolLotteryError = message;
+        else EntryLotteryError = message;
+    }
+
     internal void SelectLotteryTheme(LotteryTheme theme)
     {
         client.Lottery.SelectTheme(theme);
@@ -134,6 +155,7 @@ public partial class LotteryViewModel : ObservableObject
         catch { }
         await lotteryUpdates.StopAsync();
         await lotteryHistoryRead.StopAsync();
+        await prizeSetsRead.StopAsync();
     }
 
     private readonly LatestRun lotteryHistoryRead = new();
@@ -154,7 +176,7 @@ public partial class LotteryViewModel : ObservableObject
     internal Task RefreshLotteryHistoryAsync(string? selectedId = null)
     {
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
-        var roomId = LotteryState.RoomId ?? settings.LastLotteryRoomId;
+        var roomId = CurrentOrLastRoomId;
         if (LotteryHistory.FirstOrDefault()?.RoomId != roomId)
         {
             lotteryHistorySelection = null;

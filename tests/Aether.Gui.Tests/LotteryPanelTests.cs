@@ -5,13 +5,237 @@ using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Gui.Tests;
 
 public sealed class LotteryPanelTests
 {
+    [Fact]
+    public Task Prize_set_picker_saves_replaces_loads_and_deletes_without_changing_stop_inputs() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        var page = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var picker = page.FindControl<LotteryPrizeSetPicker>("PoolPrizeSets")!;
+            var save = picker.FindControl<Button>("SaveButton")!;
+            save.Flyout!.ShowAt(save);
+            GuiHarness.Flush();
+            var name = picker.FindControl<TextBox>("NameInput")!;
+            var confirm = picker.FindControl<Button>("ConfirmButton")!;
+            Assert.False(confirm.IsEnabled);
+            name.Text = "周末";
+            GuiHarness.Flush();
+            Assert.True(confirm.IsEnabled);
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 1 && !vm.Lottery.Busy);
+            Assert.Equal("已存为「周末」，下次新开一场可以直接载入", page.FindControl<TextBlock>("StatusText")!.Text);
+            var original = Assert.Single(vm.Lottery.PrizeSets);
+            vm.Lottery.Prizes[0].Name = "键盘";
+            Assert.Equal("限定抱枕", original.Prizes[0].Name);
+            save.Flyout.ShowAt(save);
+            GuiHarness.Flush();
+            Assert.Equal("替换", confirm.Content);
+            Assert.Equal("已有同名方案，保存会替换它", picker.FindControl<TextBlock>("SaveHint")!.Text);
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets[0].Prizes[0].Name == "键盘" && !vm.Lottery.Busy);
+            vm.Lottery.Prizes[0].Name = "改过的草稿";
+            vm.Lottery.StopWord = "等一下";
+            vm.Lottery.Uid = "99";
+            var load = picker.FindControl<Button>("LoadButton")!;
+            load.Flyout!.ShowAt(load);
+            GuiHarness.Flush();
+            var menu = Assert.IsType<MenuFlyout>(load.Flyout);
+            var item = GuiHarness.MenuItems(menu).Single(item => item.DataContext is PrizeSetRow);
+            Assert.Contains(item.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "键盘、贴纸");
+            item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+            Assert.Equal("键盘", vm.Lottery.Prizes[0].Name);
+            Assert.Equal("限定抱枕", Assert.IsType<PoolLottery>(vm.Lottery.LotteryState.Lottery).Prizes[0].Name);
+            Assert.Equal("等一下", vm.Lottery.StopWord);
+            Assert.Equal("99", vm.Lottery.Uid);
+            Assert.Contains("已载入「周末」", vm.Lottery.PoolStatusText);
+            save.Flyout.ShowAt(save);
+            GuiHarness.Flush();
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => !save.Flyout.IsOpen);
+            Assert.Equal("已存为「周末」，下次新开一场可以直接载入", page.FindControl<TextBlock>("StatusText")!.Text);
+            load.Flyout.ShowAt(load);
+            GuiHarness.Flush();
+            item = GuiHarness.MenuItems(menu).Single(item => item.DataContext is PrizeSetRow);
+            Assert.True(item.IsChecked);
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(item.GetVisualDescendants().OfType<Button>().Single())).Invoke();
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 0 && !vm.Lottery.Busy);
+            GuiHarness.Flush();
+            Assert.Contains(GuiHarness.MenuItems(menu).SelectMany(entry => entry.GetVisualDescendants().OfType<TextBlock>()),
+                text => text.Text == "还没有方案，填好后点“存为方案”" && text.IsEffectivelyVisible);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery(PoolLotteryPhase.Spinning))));
+            Assert.False(load.IsEnabled);
+            Assert.False(save.IsEnabled);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task A_new_lottery_forgets_the_chosen_prize_set() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        try
+        {
+            await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
+            Assert.True(Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Chosen);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Id = "next" })));
+            Assert.False(Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Chosen);
+            vm.Lottery.PoolPrizeSets.StartDraft();
+            Assert.Null(vm.Lottery.PoolPrizeSets.DraftName);
+            Assert.DoesNotContain("周末", vm.Lottery.PoolStatusText);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Deleting_the_chosen_prize_set_forgets_it() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        try
+        {
+            await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
+            await Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Delete.ExecuteAsync(null);
+            Assert.IsType<PrizeSetMenuFooter>(Assert.Single(vm.Lottery.PoolPrizeSets.Entries));
+            vm.Lottery.PoolPrizeSets.StartDraft();
+            Assert.Null(vm.Lottery.PoolPrizeSets.DraftName);
+            Assert.DoesNotContain("周末", vm.Lottery.PoolStatusText);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Invalid_prize_set_uses_the_pool_error_and_room_lists_do_not_leak() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        var page = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
+            vm.Lottery.Apply(new LotteryUpdate(new(99, false, TestLottery() with { Id = "other", RoomId = 99 })));
+            await vm.Lottery.RefreshPrizeSetsAsync();
+            Assert.Empty(vm.Lottery.PrizeSets);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, false, TestLottery())));
+            await vm.Lottery.RefreshPrizeSetsAsync();
+            Assert.Equal("周末", Assert.Single(vm.Lottery.PrizeSets).Name);
+            var picker = page.FindControl<LotteryPrizeSetPicker>("PoolPrizeSets")!;
+            var save = picker.FindControl<Button>("SaveButton")!;
+            Assert.True(save.IsEnabled);
+            vm.Lottery.Prizes[0].Name = "";
+            save.Flyout!.ShowAt(save);
+            picker.FindControl<TextBox>("NameInput")!.Text = "无效奖品";
+            GuiHarness.Flush();
+            picker.FindControl<Button>("ConfirmButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => vm.Lottery.PoolLotteryError is not null && !vm.Lottery.Busy);
+            Assert.Equal("请填写奖品名称。", page.FindControl<TextBlock>("ErrorMessage")!.Text);
+            Assert.Single(vm.Lottery.PrizeSets);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Draw_visibility_buttons_use_the_operation_error_channel() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var panel = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = panel, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var pool = TestLottery();
+            pool = pool with { Draws = [new("draw", pool.Prizes[0], 42, "小明", true, DateTimeOffset.UnixEpoch, [])] };
+            // The view has a stale connected snapshot; Core correctly refuses its operation without the room lock.
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, pool)));
+            GuiHarness.Flush();
+            var row = Assert.Single(vm.Lottery.PoolDraws);
+            var eye = GuiHarness.FindRowControl<ToggleButton>(panel, row, "DrawVisibilityButton");
+            Assert.IsAssignableFrom<IToggleProvider>(ControlAutomationPeer.CreatePeerForElement(eye)).Toggle();
+            Assert.NotNull(row.ToggleVisibilityCommand.ExecutionTask);
+            await row.ToggleVisibilityCommand.ExecutionTask;
+            Assert.Equal("请先连接直播间。", vm.Lottery.PoolLotteryError);
+            Assert.False(vm.Lottery.Busy);
+            vm.Lottery.PoolLotteryError = null;
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(panel.FindControl<Button>("HideAllDrawsButton")!)).Invoke();
+            Assert.NotNull(vm.Lottery.HideAllDrawsCommand.ExecutionTask);
+            await vm.Lottery.HideAllDrawsCommand.ExecutionTask;
+            Assert.Equal("请先连接直播间。", vm.Lottery.PoolLotteryError);
+            Assert.False(vm.Lottery.Busy);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Draw_visibility_controls_counts_and_local_dates_follow_the_state() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        var today = new DateTimeOffset(2026, 10, 24, 21, 0, 0, TimeZoneInfo.Local.GetUtcOffset(new DateTime(2026, 10, 24)));
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel(new FakeTimeProvider(today));
+        var panel = new LotteryPanel { DataContext = vm };
+        var window = new Window { Content = panel, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var pool = TestLottery();
+            var old = new PoolDraw("old", pool.Prizes[0], 42, "小明", true, today.AddDays(-4).AddMinutes(12), []);
+            var current = new PoolDraw("today", pool.Prizes[0], null, null, true, today, []);
+            pool = pool with { Draws = [old, current] };
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, pool)));
+            GuiHarness.Flush();
+            var rows = vm.Lottery.PoolDraws;
+            Assert.Equal("21:00", rows[0].Time);
+            Assert.Equal("10月20日 21:12", rows[1].Time);
+            var eye = GuiHarness.FindRowControl<ToggleButton>(panel, rows[1], "DrawVisibilityButton");
+            Assert.False(eye.IsChecked);
+            Assert.True(eye.IsEnabled);
+            Assert.Equal("不挂出：小明的限定抱枕", AutomationProperties.GetName(eye));
+            var all = panel.FindControl<Button>("HideAllDrawsButton")!;
+            Assert.True(all.IsEnabled);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, pool with { Draws = [old with { HiddenFromStream = true }, current] })));
+            GuiHarness.Flush();
+            Assert.Equal("本场 2 次 · 1 条不挂出", panel.FindControl<TextBlock>("DrawCount")!.Text);
+            var hiddenRow = vm.Lottery.PoolDraws[1];
+            eye = GuiHarness.FindRowControl<ToggleButton>(panel, hiddenRow, "DrawVisibilityButton");
+            Assert.True(eye.IsChecked);
+            Assert.Equal("重新挂到直播画面", ToolTip.GetTip(eye));
+            Assert.Equal("10月20日 21:12 · 不挂出", hiddenRow.Time);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, pool with { Draws = [old with { HiddenFromStream = true }, current with { HiddenFromStream = true }] })));
+            GuiHarness.Flush();
+            Assert.False(all.IsEnabled);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, false, pool)));
+            GuiHarness.Flush();
+            Assert.False(all.IsEnabled);
+            Assert.All(vm.Lottery.PoolDraws, row => Assert.False(GuiHarness.FindRowControl<ToggleButton>(panel, row, "DrawVisibilityButton").IsEnabled));
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -119,6 +119,10 @@ internal sealed class GuiHarness : IDisposable
             .Single(control => ReferenceEquals(control.DataContext, row) && control.Name == name);
     }
 
+    /// <summary>The containers an open menu made for its ItemsSource; they live in the popup's own visual tree.</summary>
+    public static IEnumerable<MenuItem> MenuItems(MenuFlyout menu) =>
+        menu.Popup.Child!.GetVisualDescendants().OfType<MenuItem>();
+
     /// <summary>Shows a navigation page and returns its visible ComboBox, scrolled into view.</summary>
     public static ComboBox VisibleComboBox(MainWindow window, int page, string name)
     {
