@@ -482,6 +482,7 @@ public sealed partial class LotteryBrowserTests
             await AssertLayoutAsync(browser);
         }
         await browser.ScreenshotAsync($"{width}-long-{(entry ? "entry" : "pool")}-draw");
+        Assert.True((await browser.EvaluateAsync("document.getElementById('viewer').getBoundingClientRect().bottom < document.getElementById('rank').getBoundingClientRect().top")).GetBoolean(), "The grade label must leave the full winner/prize text visible.");
         var clipped = await browser.EvaluateAsync("['prize','viewer'].map(id => document.getElementById(id)).filter(e => e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1).map(e => ({id:e.id,text:e.textContent,height:e.clientHeight,scrollHeight:e.scrollHeight,font:getComputedStyle(e).fontSize}))");
         Assert.True(clipped.GetArrayLength() == 0, clipped.GetRawText());
         Assert.True((await browser.EvaluateAsync($"['prize','viewer'].every(id => parseFloat(getComputedStyle(document.getElementById(id)).fontSize) >= {(width < height ? 40 : 56)})")).GetBoolean());
