@@ -61,10 +61,10 @@
 [data-theme="MechaLock"] .candidate[data-lock="LOCK ON"]:before,[data-theme="MechaLock"] .candidate[data-lock="LOCK ON"]:after { filter:drop-shadow(0 0 14px var(--main)); animation:mechaLockOn .12s linear; }
 @keyframes mechaLockOn { 0% { opacity:1; transform:none; } 45% { opacity:.2; transform:scale(.9); } 100% { opacity:1; transform:none; } }
 
-/* The grid and its dark plate fade together around the HUD dome. */
-[data-theme="MechaLock"] #summon.drawing .sky { display:block; left:var(--cx); top:var(--cy); width:var(--dome-w); height:var(--dome-h); transform:translate(-50%,-50%); border-radius:50%; background:linear-gradient(#ff7a1a1f 1px,transparent 1px) 0 0/100% 40px,linear-gradient(90deg,#ff7a1a1f 1px,transparent 1px) 0 0/40px 100%,radial-gradient(closest-side,#0a0c10f0,#0a0c10db 50%,transparent); -webkit-mask-image:radial-gradient(closest-side,#000 50%,transparent); }
+/* The original dark plate fades around the separate opaque core. */
+[data-theme="MechaLock"] #summon.drawing .sky { display:block; left:var(--cx); top:var(--cy); width:var(--dome-w); height:var(--dome-h); transform:translate(-50%,-50%); border-radius:50%; background:radial-gradient(closest-side,#0a0c10f0,#0a0c10db 50%,transparent); -webkit-mask-image:radial-gradient(closest-side,#000 50%,transparent); }
 [data-theme="MechaLock"] .drawing .mechaEffect { display:block; }
-[data-theme="MechaLock"] .mechaHud { position:absolute; left:var(--cx); top:var(--cy); width:var(--hud); height:var(--hud); color:#ff7a1a73; animation:mechaHud 7s both; animation-delay:var(--elapsed); }
+[data-theme="MechaLock"] .mechaHud { position:absolute; left:var(--cx); top:var(--cy); width:var(--hud); height:var(--hud); filter:drop-shadow(0 0 8px var(--a)); animation:mechaHud 7s both; animation-delay:var(--elapsed); }
 @keyframes mechaHud { 0% { opacity:0; transform:translate(-50%,-50%) rotate(0deg); } 3.2% { opacity:1; } 88%,100% { opacity:1; transform:translate(-50%,-50%) rotate(60deg); } }
 [data-theme="MechaLock"] .mechaRadar { position:absolute; left:var(--cx); top:var(--cy); width:880px; height:880px; transform:translate(-50%,-50%); animation:mechaRadar 7s both; animation-delay:var(--elapsed); }
 [data-theme="MechaLock"] .mechaRadar:before { content:''; position:absolute; inset:0; border-radius:50%; background:conic-gradient(transparent 280deg,#ff7a1a61 354deg,#ffdcbebf); -webkit-mask-image:radial-gradient(closest-side,#000 55%,transparent); animation:rotate 1.4s linear infinite; animation-delay:var(--elapsed); }
@@ -255,3 +255,20 @@
 [data-theme="MechaLock"][data-orientation="portrait"] .Grand .mechaPanelFrame { --texture-width:30% 17.86%; }
 [data-theme="MechaLock"][data-orientation="portrait"] .Second .mechaPanelFrame { --texture-width:24.3% 14.05%; }
 [data-theme="MechaLock"][data-orientation="portrait"] .Third .mechaPanelFrame { --texture-width:19.07% 11.54%; }
+
+/* Texture wrappers keep the existing scene timing and source-edge mask. */
+[data-theme="MechaLock"] .mechaCore,[data-theme="MechaLock"] .mechaGrid { position:absolute; left:var(--cx); top:var(--cy); width:var(--dome-w); height:var(--dome-h); }
+[data-theme="MechaLock"] .mechaCore { --core-center-color:rgba(10,12,16,.95); --core-color:rgba(10,12,16,.9); --core-animation:mechaCore; --core-duration:7s; animation-timing-function:ease; animation-delay:var(--elapsed); }
+@keyframes mechaCore { from { transform:translate(-50%,-50%) scale(.06); } 4%,100% { transform:translate(-50%,-50%) scale(1); } }
+[data-theme="MechaLock"] .mechaGrid { transform:translate(-50%,-50%); animation:sky 7s both; animation-delay:var(--elapsed); }
+[data-theme="MechaLock"] .mechaGrid>.textureGlow { position:absolute; inset:0; --texture:url("/lottery/textures/mecha/grid.webp"); --texture-color:#ff7a1a; opacity:.6; }
+[data-theme="MechaLock"] .mechaHud>.textureGlow { position:absolute; inset:0; --texture:url("/lottery/textures/mecha/hud.webp"); --texture-color:var(--main); opacity:.8; }
+[data-theme="MechaLock"] .Grand { --shock-size:700px; }
+[data-theme="MechaLock"] .Second { --shock-size:620px; }
+[data-theme="MechaLock"] .Third { --shock-size:520px; }
+[data-theme="MechaLock"] .mechaShock { position:absolute; left:var(--cx); top:var(--cy); width:var(--shock-size); height:var(--shock-size); --texture:url("/lottery/textures/mecha/shock.webp"); --texture-color:radial-gradient(circle,#fff 0%,var(--main) 45%); animation:mechaShock 7s both; animation-delay:var(--elapsed); }
+@keyframes mechaShock { 0%,29.8% { opacity:0; transform:translate(-50%,-50%) scale(.3); } 30.3% { opacity:1; transform:translate(-50%,-50%) scale(1); } 38%,100% { opacity:0; transform:translate(-50%,-50%) scale(1.3); } }
+[data-theme="MechaLock"][data-orientation="portrait"] .mechaGrid { width:var(--dome-h); height:var(--dome-w); transform:translate(-50%,-50%) rotate(90deg); }
+[data-theme="MechaLock"][data-orientation="portrait"] .Grand { --shock-size:600px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .Second { --shock-size:520px; }
+[data-theme="MechaLock"][data-orientation="portrait"] .Third { --shock-size:440px; }
