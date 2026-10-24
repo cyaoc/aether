@@ -636,12 +636,21 @@ public sealed partial class LotteryBrowserTests
         public WatchHarness H { get; } = new(enableLottery: true);
         public IAsyncEnumerator<WatchUpdate> Watch { get; set; } = null!;
         public ChromeBrowser Browser { get; } = new();
+        public System.Diagnostics.Process? ReferenceServer { get; set; }
 
         public async ValueTask DisposeAsync()
         {
-            await using (H)
-            await using (Watch)
-                await Browser.DisposeAsync();
+            try
+            {
+                await using (H)
+                await using (Watch)
+                    await Browser.DisposeAsync();
+            }
+            finally
+            {
+                if (ReferenceServer is { HasExited: false }) ReferenceServer.Kill();
+                ReferenceServer?.Dispose();
+            }
         }
     }
 

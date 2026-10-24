@@ -8,7 +8,10 @@
   const params = new URLSearchParams(location.search);
   const html = await (await fetch('/board/' + params.get('board'))).text();
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  for (const s of doc.querySelectorAll('helmet style, helmet link')) document.head.appendChild(document.importNode(s, true));
+  for (const s of doc.querySelectorAll('helmet style, helmet link:not([href^="https://fonts.googleapis.com/"])')) document.head.appendChild(document.importNode(s, true));
+  const font = document.createElement('style');
+  font.textContent = "@font-face{font-family:'ZCOOL KuaiLe';src:url('/_font/ZCOOLKuaiLe-Regular.ttf') format('truetype');font-display:swap}";
+  document.head.appendChild(font);
   const root = document.getElementById('root');
   let refs = [];
   class DCLogic { constructor(props) { this.props = props; this.state = null; } setState(s) { this.state = { ...(this.state || {}), ...s }; render(); } }

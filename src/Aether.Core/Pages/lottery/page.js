@@ -18,7 +18,8 @@ const themes = {
     viewer:({entry, prize, viewer}) => entry ? prize : viewer,
     banner:({entry, title, viewer}) => entry ? `正在召唤 · ${title}` : viewer ? `${viewer} 发起召唤！` : '星辰召唤',
     winners:['召唤结果','目前的召唤结果'],
-    pinned:{title:'召唤结果', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 次`},
+    pinned:{title:'召唤结果', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 次`,
+      badge:(grade, rank) => { const badge = text('pinnedBadge',rank); themes.StarSummon.decorateCandidate(badge); return badge; }},
     award:award => award.name,
     particles:starSummon,
   },
@@ -37,7 +38,9 @@ const themes = {
     viewer:({entry, prize, viewer}) => entry ? `获得 ${prize}` : viewer && `${viewer} 获得`,
     banner:({entry, title, viewer}) => entry ? `锁定 ${title} 中奖者` : viewer ? `${viewer} 发出锁定指令` : '机甲锁定',
     winners:['作战结果','目前战果'],
-    pinned:{title:'作战结果', tag:'MISSION LOG', count:(count, entry) => `${count} ${entry ? '人' : '次'}`},
+    pinned:{title:'作战结果', tag:'MISSION LOG', count:(count, entry) => `${count} ${entry ? '人' : '次'}`,
+      badge:(grade, rank) => { const badge = mechaEmblem(grade,`${rank} 级`); badge.className += ' pinnedBadge'; return badge; },
+      decorate:row => themes.MechaLock.decorateCandidate(row)},
     award:award => `${award.name} · ${award.prize}`,
     particles:mechaLock,
     scan,
@@ -58,7 +61,8 @@ const themes = {
     banner:({entry, title, viewer}) => entry ? `扭出 ${title} 中奖者！` : viewer ? `${viewer} 来扭蛋啦！` : '来扭蛋啦！',
     shout:grade => ({Grand:'大奖!!',Second:'POP!',Third:'pop'})[grade],
     winners:['中奖啦！','已经扭出来的'],
-    pinned:{title:'中奖啦！', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 颗`},
+    pinned:{title:'中奖啦！', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 颗`,
+      badge:() => text('pinnedBadge gachaCapsule','')},
     closed:'报名截止啦',
     // Name tags line up behind one capsule and award per row.
     group:(draws, cards) => {
@@ -357,7 +361,8 @@ function showPinned(lottery, completedDraw, previousLottery) {
         const effects = text('pinnedEffects','');
         effects.innerHTML = pinnedEffects;
         effects.append(text('effectNew',`NEW · ${t.ranks[grade]}`));
-        row.append(text('pinnedBadge',t.ranks[grade]),label,effects);
+        words.decorate?.(row);
+        row.append(words.badge(grade,t.ranks[grade]),label,effects);
         rows.push(row);
       }
       if (entry) { const name = text(`pinnedName${fill && !oldIds.has(draw.id) ? ' filling' : ''}`,draw.winner.nickname); list.append(name); nodes.set(draw.id,name); }
