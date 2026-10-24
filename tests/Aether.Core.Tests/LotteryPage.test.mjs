@@ -5,13 +5,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const script = readFileSync(new URL('../../src/Aether.Core/Pages/lottery/page.js', import.meta.url), 'utf8');
-function page(width = 1920, height = 1080) {
+function page(width = 1920, height = 1080, loadedTextures = []) {
   let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0, source, animationFrame;
   const timers = new Map(), elements = new Map(), listeners = new Map();
-  let rectangles = [], position;
+  let rectangles = [], drawnImages = [], position;
   const graphics = new Proxy({}, { get: (_, name) => (...args) => {
     if (name === 'translate') position = args;
     if (name === 'rect') rectangles.push(position);
+    if (name === 'drawImage') drawnImages.push(args);
   } });
   const element = () => ({ hidden:true, children:[], dataset:{}, style:{setProperty(k,v){this[k]=v;}},
     className:'', offsetLeft:0, offsetTop:0, offsetWidth:0, scrollHeight:0, clientHeight:0, scrollWidth:0, clientWidth:0,
@@ -20,13 +21,14 @@ function page(width = 1920, height = 1080) {
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.text=''; this.children=children; },
     getContext:()=>graphics });
-  const document = { querySelectorAll:()=>[], createElement:element, getElementById:id=>{
+  const document = { querySelectorAll:()=>loadedTextures.map(name=>({href:`http://localhost/lottery/textures/${name}.webp`})), createElement:element, getElementById:id=>{
     if(!elements.has(id)) elements.set(id,element());
     return elements.get(id);
   }, fonts:{ready:Promise.resolve(),addEventListener(){}} };
   const timer = (callback,delay,repeat) => { const id=++nextId; timers.set(id,{callback,at:now+delay,repeat}); return id; };
   const window = {innerWidth:width,innerHeight:height,addEventListener(name,fn){listeners.set(name,fn);}};
   vm.runInNewContext(readFileSync(new URL('../../src/Aether.Core/Pages/lottery/textures.js', import.meta.url),'utf8') + '\n' + script, { document, window,
+    Image:class { decode(){return Promise.resolve();} },
     Date:class extends Date { static now(){return now;} }, getComputedStyle:()=>({fontSize:'112px'}),
     EventSource:class { constructor(){source=this;} addEventListener(name,fn){listeners.set(name,fn);} },
     requestAnimationFrame:fn=>{animationFrame=fn;return 1;},cancelAnimationFrame:()=>{animationFrame=undefined;},
@@ -34,7 +36,8 @@ function page(width = 1920, height = 1080) {
     clearTimeout:id=>timers.delete(id),clearInterval:id=>timers.delete(id) });
   return { element:id=>document.getElementById(id), state:state=>listeners.get('state')({data:JSON.stringify(state)}),
     hasFrame:()=>!!animationFrame,
-    frame:()=>{rectangles=[]; animationFrame?.(); return rectangles;},
+    frame:()=>{rectangles=[]; drawnImages=[]; animationFrame?.(); return rectangles;},
+    drawnImages:()=>drawnImages,
     resize:(width,height)=>{window.innerWidth=width; window.innerHeight=height; listeners.get('resize')();},
     disconnect:()=>source.onerror(), advance:ms=>{
       const end=now+ms;
@@ -533,4 +536,18 @@ test('glow textures wait for decoding and cache each image, colour and size with
   assert.ok(calls.some(c=>c[0]==='globalCompositeOperation'&&c[1]==='source-in'));
   assert.ok(calls.some(c=>c[0]==='globalCompositeOperation'&&c[1]==='lighter'));
   assert.ok(calls.some(c=>c[0]==='globalAlpha'&&c[1]===.6));
+});
+
+
+test('gacha opening uses the decoded confetti atlas with shape and grade colour crops',async()=>{
+  const p=page(1920,1080,['gacha/confetti']), prize={name:'贴纸',grade:'Third'};
+  await new Promise(resolve=>setImmediate(resolve));
+  p.state({theme:'CapsuleGacha',lottery:{mode:'Pool',id:'pool',phase:'Idle',prizes:[prize],
+    draws:[{id:'draw',prize,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}],drawUntil:'2026-10-17T12:00:07Z'}});
+  p.advance(2000); p.frame();
+  const sprites=p.drawnImages();
+  assert.ok(sprites.length>=30);
+  assert.deepEqual([...new Set(sprites.map(args=>args[1]))].sort((a,b)=>a-b),[0,96,288]);
+  assert.ok(sprites.every(args=>args[2]===192&&args[3]===96&&args[4]===96));
+  assert.ok(sprites.every(args=>args[7]===args[8]&&args[7]>=21.6));
 });
