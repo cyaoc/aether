@@ -194,7 +194,7 @@ public sealed partial class LotteryBrowserTests
         }
     }
 
-    private static async Task ReloadAtCoreTimeAsync(PageSession page, ChromeBrowser? browser = null)
+    private static async Task ReloadAtCoreTimeAsync(PageSession page, ChromeBrowser? browser = null, bool pause = true)
     {
         browser ??= page.Browser;
         await browser.CommandAsync("Page.addScriptToEvaluateOnNewDocument", new { source = $"{{ const start = performance.now(); Date.now = () => {page.H.Time.GetUtcNow().ToUnixTimeMilliseconds()} + performance.now() - start; }}" });
@@ -202,7 +202,7 @@ public sealed partial class LotteryBrowserTests
         // The initial empty page reports fonts loaded before SSE creates text and requests its font.
         await browser.WaitAsync("document.readyState === 'complete' && document.getElementById('scene').dataset.view");
         await browser.EvaluateAsync("(async()=>{await document.fonts.ready; await new Promise(resolve=>requestAnimationFrame(resolve)); return true;})()");
-        await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
+        if (pause) await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
     }
 
     private static async Task FreezePinnedAsync(ChromeBrowser browser, int milliseconds)
