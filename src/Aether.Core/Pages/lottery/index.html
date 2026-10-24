@@ -56,6 +56,7 @@
   <section id="summon" hidden>
     <div class="sky"></div>
     <div class="gachaCore textureCore gachaEffect" aria-hidden="true"></div>
+    <div class="summonPortal textureCore" aria-hidden="true"><div class="summonNebulaClip"><div class="summonNebulaPlane"><div class="summonNebula"></div></div></div></div>
     <div class="gachaSun gachaEffect" aria-hidden="true"></div>
     <div id="gachaMachine" aria-hidden="true">
       <div class="dome"><div id="capsules"></div></div><div class="neck"></div>
@@ -72,30 +73,14 @@
     <span class="mechaPulse mechaEffect" aria-hidden="true"></span><span class="mechaPulse echo mechaEffect" aria-hidden="true"></span>
     <div class="hazards"><div class="hazard top"><span id="warning"></span></div><div class="hazard bottom" aria-hidden="true"></div></div>
     <div class="circleSpace" aria-hidden="true"><div class="circlePlane">
-      <svg class="circle" viewBox="0 0 400 400" width="900" height="900">
-        <g fill="none" stroke="currentColor" stroke-width="2.4">
-          <circle cx="200" cy="200" r="192"/><circle cx="200" cy="200" r="180" stroke-dasharray="3 7"/>
-          <circle cx="200" cy="200" r="134"/><polygon points="200,66 316,267 84,267"/>
-          <polygon points="200,334 84,133 316,133"/><circle cx="200" cy="200" r="46"/>
-        </g>
-      </svg>
-      <svg class="circle reverse" viewBox="0 0 400 400" width="900" height="900">
-        <g fill="none" stroke="currentColor" stroke-width="1.6" opacity=".7">
-          <circle cx="200" cy="200" r="158" stroke-dasharray="18 10 4 10"/><circle cx="200" cy="200" r="88" stroke-dasharray="2 6"/>
-        </g>
-      </svg>
+      <div class="circleGlow"><div class="circle textureGlow"></div></div>
       <span class="shock effect"></span>
     </div></div>
-    <div class="pillar effect" aria-hidden="true"></div><div class="rays effect" aria-hidden="true"></div>
+    <div class="pillar effect" aria-hidden="true"></div><div class="rays effect textureGlow" aria-hidden="true"></div>
     <div class="glow effect" aria-hidden="true"></div>
     <div class="focusLines starEffect" aria-hidden="true"></div>
     <span class="starRing starEffect" aria-hidden="true"></span><span class="starRing echo starEffect" aria-hidden="true"></span>
-    <svg class="aura starEffect" viewBox="0 0 400 400" aria-hidden="true">
-      <g fill="none" stroke="currentColor" stroke-width="2.2">
-        <circle cx="200" cy="200" r="196"/><circle cx="200" cy="200" r="184" stroke-dasharray="2 8"/><circle cx="200" cy="200" r="150"/>
-        <polygon points="200,52 328,274 72,274"/><polygon points="200,348 72,126 328,126"/><circle cx="200" cy="200" r="118" stroke-dasharray="14 6 3 6"/>
-      </g>
-    </svg>
+    <div class="aura starEffect" aria-hidden="true"><div class="textureGlow"></div></div>
     <!-- Transparent video effects can be inserted here later, behind the cards. -->
     <div id="videoEffects" hidden></div>
     <canvas id="particles" width="1920" height="1080" aria-hidden="true"></canvas>
@@ -132,6 +117,7 @@
           <div class="cardTop"><div id="rank" class="rank"></div><div id="stars" aria-hidden="true"></div></div>
           <div id="prize"></div><div id="viewer"></div>
         </div>
+        <span class="mechaPanelFrame textureFrame mechaEffect" aria-hidden="true"></span>
       </div>
     </div>
     <div class="gachaSparkles gachaEffect" aria-hidden="true">
