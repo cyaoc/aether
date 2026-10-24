@@ -72,7 +72,7 @@ public sealed partial class LotteryController : IDisposable
         ObjectDisposedException.ThrowIf(disposed, this);
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("请给方案起个名字。");
         if (!Enum.IsDefined(mode)) throw new ArgumentException("请选择抽奖方式。");
-        if (mode == LotteryMode.Pool) Validate(prizes, DefaultStopWord, null);
+        if (mode == LotteryMode.Pool) Validate(prizes);
         else Validate(awards);
         store().SavePrizeSet(roomId, new(mode, name.Trim(), time.GetUtcNow(),
             mode == LotteryMode.Pool ? prizes.ToImmutableArray() : [],
@@ -130,18 +130,18 @@ public sealed partial class LotteryController : IDisposable
     public static string? ValidateUid(string? text) => string.IsNullOrWhiteSpace(text) || Viewer.TryParseUid(text, out _)
         ? null : InvalidUid;
 
-    private static void Validate(IReadOnlyCollection<PoolPrize> prizes, string stopWord, long? uid)
+    private static void Validate(IReadOnlyCollection<PoolPrize> prizes)
     {
         if (prizes.Count is < 1 or > MaxPrizes) throw new ArgumentException($"奖品须为 1 至 {MaxPrizes} 件。");
         foreach (var prize in prizes)
             if (ValidatePrize(prize) is { } error) throw new ArgumentException(error);
-        if (ValidateStopWord(stopWord) is { } stopWordError) throw new ArgumentException(stopWordError);
-        if (uid <= 0) throw new ArgumentException(InvalidUid);
     }
 
     public void Start(IReadOnlyCollection<PoolPrize> prizes, string stopWord, long? uid = null)
     {
-        Validate(prizes, stopWord, uid);
+        Validate(prizes);
+        if (ValidateStopWord(stopWord) is { } stopWordError) throw new ArgumentException(stopWordError);
+        if (uid <= 0) throw new ArgumentException(InvalidUid);
         lock (gate)
         {
             RequireConnection();

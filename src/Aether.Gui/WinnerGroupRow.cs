@@ -12,6 +12,6 @@ public sealed record WinnerRow(string Name, string? Hint = null, bool Fresh = fa
 {
     public string? ToolTip => Hint is null ? null : $"{Name} · {Hint}";
     public bool HasVisibilityCommand => ToggleVisibilityCommand is not null;
-    public string VisibilityName => $"不挂出：{Name}";
-    public string VisibilityHint => HiddenFromStream ? "重新挂到直播画面" : "不挂到直播画面";
+    public string VisibilityName => DrawVisibility.Name(Name);
+    public string VisibilityHint => DrawVisibility.Hint(HiddenFromStream);
 }

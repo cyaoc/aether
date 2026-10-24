@@ -8,12 +8,15 @@ public partial class LotteryViewModel
     private readonly LatestRun prizeSetsRead = new();
     private long? prizeSetsRoom;
     [ObservableProperty] private IReadOnlyList<LotteryPrizeSet> prizeSets = [];
-    internal long? PrizeSetRoomId => LotteryState.RoomId ?? settings.LastLotteryRoomId;
+    public PrizeSetPickerViewModel PoolPrizeSets { get; }
+    public PrizeSetPickerViewModel EntryPrizeSets { get; }
+
+    internal bool CanEdit(LotteryMode mode) => mode == LotteryMode.Pool ? CanEditPool : CanEditEntry;
 
     internal Task RefreshPrizeSetsAsync()
     {
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
-        var roomId = PrizeSetRoomId;
+        var roomId = CurrentOrLastRoomId;
         if (prizeSetsRoom != roomId) { prizeSetsRoom = roomId; PrizeSets = []; }
         return prizeSetsRead.Start(async token =>
         {
@@ -34,43 +37,42 @@ public partial class LotteryViewModel
         });
     }
 
-    internal async Task SavePrizeSetAsync(LotteryMode mode, string name)
+    internal async Task<bool> SavePrizeSetAsync(LotteryMode mode, string name)
     {
-        if (mode == LotteryMode.Pool ? !CanEditPool : !CanEditEntry) return;
-        var room = PrizeSetRoomId ?? throw new InvalidOperationException("请先连接直播间。");
+        if (!CanEdit(mode)) return false;
+        var room = CurrentOrLastRoomId;
         var prizes = Prizes.Select(row => row.Value).ToArray();
         var awards = Awards.Select(row => row.Value).ToArray();
-        await ChangeLotteryAsync(lottery => lottery.SavePrizeSet(room, mode, name, prizes, awards));
-        var status = $"已存为「{name.Trim()}」，下次新开一场可以直接载入";
-        if (mode == LotteryMode.Pool) poolPrizeSetStatus = status;
-        else entryPrizeSetStatus = status;
+        if (!await TryChangeLotteryAsync(mode, lottery => lottery.SavePrizeSet(
+            room ?? throw new InvalidOperationException("请先连接直播间。"), mode, name, prizes, awards))) return false;
+        PrizeSetPicker(mode).Choose(name.Trim(), saved: true);
         OnPropertyChanged(mode == LotteryMode.Pool ? nameof(PoolStatusText) : nameof(EntryStatusText));
         await RefreshPrizeSetsAsync();
+        return true;
     }
 
     internal async Task DeletePrizeSetAsync(LotteryPrizeSet set)
     {
-        if (set.Mode == LotteryMode.Pool ? !CanEditPool : !CanEditEntry) return;
-        if (PrizeSetRoomId is not { } room) return;
-        await ChangeLotteryAsync(lottery => lottery.DeletePrizeSet(room, set.Mode, set.Name));
-        await RefreshPrizeSetsAsync();
+        if (!CanEdit(set.Mode) || CurrentOrLastRoomId is not { } room) return;
+        if (await TryChangeLotteryAsync(set.Mode, lottery => lottery.DeletePrizeSet(room, set.Mode, set.Name)))
+            await RefreshPrizeSetsAsync();
     }
 
     internal void LoadPrizeSet(LotteryPrizeSet set)
     {
-        if (set.Mode == LotteryMode.Pool ? !CanEditPool : !CanEditEntry) return;
-        var status = $"已载入「{set.Name}」，改了不会动到方案，要更新就再存一次";
+        if (!CanEdit(set.Mode)) return;
+        PrizeSetPicker(set.Mode).Choose(set.Name);
         if (set.Mode == LotteryMode.Pool)
         {
             ReplacePoolPrizes(set.Prizes);
-            poolPrizeSetStatus = status;
             RefreshPoolInputs();
         }
         else
         {
             ReplaceEntryAwards(set.Awards, fromPrizeSet: true);
-            entryPrizeSetStatus = status;
             RefreshEntryInputs();
         }
     }
+
+    private PrizeSetPickerViewModel PrizeSetPicker(LotteryMode mode) => mode == LotteryMode.Pool ? PoolPrizeSets : EntryPrizeSets;
 }

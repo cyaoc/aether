@@ -7,7 +7,6 @@ public partial class LotteryViewModel
 {
     private string? loadedEntryId;
     private bool loadingEntry;
-    private string? entryPrizeSetStatus;
     [ObservableProperty] private string? keyword;
     [ObservableProperty] private string? entryLotteryError;
     [ObservableProperty] private bool confirmingEnd;
@@ -39,7 +38,7 @@ public partial class LotteryViewModel
             loadedEntryId = lottery.Id;
             Keyword = lottery.Keyword;
             ReplaceEntryAwards(lottery.Awards);
-            entryPrizeSetStatus = null;
+            EntryPrizeSets.Choose(null);
             EntryLotteryError = null;
             loadingEntry = false;
         }
@@ -87,13 +86,13 @@ public partial class LotteryViewModel
     internal Task StartEntryAsync()
     {
         if (!CanStartEntry) return Task.CompletedTask;
-        entryPrizeSetStatus = null;
+        EntryPrizeSets.Choose(null);
         var awards = Awards.Select(row => row.Value).ToArray();
         var keyword = Keyword ?? "";
-        return ChangeEntryLotteryAsync(lottery => lottery.StartEntry(awards, keyword));
+        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.StartEntry(awards, keyword));
     }
 
-    internal Task CloseEntriesAsync() => CanCloseEntries ? ChangeEntryLotteryAsync(lottery => lottery.CloseEntries()) : Task.CompletedTask;
+    internal Task CloseEntriesAsync() => CanCloseEntries ? TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.CloseEntries()) : Task.CompletedTask;
 
     internal void RequestEndEntry()
     {
@@ -106,27 +105,19 @@ public partial class LotteryViewModel
     {
         if (!CanEndEntry) return Task.CompletedTask;
         ConfirmingEnd = false;
-        return ChangeEntryLotteryAsync(lottery => lottery.EndEntry());
+        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.EndEntry());
     }
 
     internal Task ToggleEntryHiddenAsync()
     {
         if (!CanToggleHidden || LotteryState.Lottery is not EntryLottery entry) return Task.CompletedTask;
-        return ChangeEntryLotteryAsync(lottery => lottery.SetEntryHidden(!entry.Hidden));
+        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.SetEntryHidden(!entry.Hidden));
     }
 
     public Task DrawEntryAsync(int number)
     {
         var index = number - 1;
         if (index < 0 || index >= Awards.Count || !Awards[index].CanDraw) return Task.CompletedTask;
-        return ChangeEntryLotteryAsync(lottery => lottery.DrawEntry(index));
-    }
-
-    private async Task ChangeEntryLotteryAsync(Action<LotteryController> change)
-    {
-        if (Busy) return;
-        EntryLotteryError = null;
-        try { await ChangeLotteryAsync(change); }
-        catch (Exception error) { EntryLotteryError = error.Message; }
+        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.DrawEntry(index));
     }
 }

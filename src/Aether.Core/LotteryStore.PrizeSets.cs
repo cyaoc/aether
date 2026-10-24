@@ -11,7 +11,7 @@ internal sealed partial class LotteryStore
         using var command = connection.CreateCommand();
         command.CommandText = "SELECT name, saved_at, content FROM lottery_prize_set WHERE room_id = $room AND mode = $mode ORDER BY julianday(saved_at) DESC, rowid DESC";
         command.Parameters.AddWithValue("$room", roomId);
-        command.Parameters.AddWithValue("$mode", mode.ToString());
+        command.Parameters.AddWithValue("$mode", ModeText(mode));
         using var reader = command.ExecuteReader();
         var sets = ImmutableArray.CreateBuilder<LotteryPrizeSet>();
         while (reader.Read())
@@ -27,7 +27,7 @@ internal sealed partial class LotteryStore
         using var command = connection.CreateCommand();
         command.CommandText = "INSERT OR REPLACE INTO lottery_prize_set(room_id, mode, name, saved_at, content) VALUES ($room, $mode, $name, $saved, $content)";
         command.Parameters.AddWithValue("$room", roomId);
-        command.Parameters.AddWithValue("$mode", set.Mode.ToString());
+        command.Parameters.AddWithValue("$mode", ModeText(set.Mode));
         command.Parameters.AddWithValue("$name", set.Name);
         command.Set("$saved", set.SavedAt);
         command.Parameters.AddWithValue("$content", set.Mode == LotteryMode.Pool ? JsonSerializer.Serialize(set.Prizes) : JsonSerializer.Serialize(set.Awards));
@@ -40,7 +40,7 @@ internal sealed partial class LotteryStore
         using var command = connection.CreateCommand();
         command.CommandText = "DELETE FROM lottery_prize_set WHERE room_id = $room AND mode = $mode AND name = $name";
         command.Parameters.AddWithValue("$room", roomId);
-        command.Parameters.AddWithValue("$mode", mode.ToString());
+        command.Parameters.AddWithValue("$mode", ModeText(mode));
         command.Parameters.AddWithValue("$name", name);
         command.ExecuteNonQuery();
     }

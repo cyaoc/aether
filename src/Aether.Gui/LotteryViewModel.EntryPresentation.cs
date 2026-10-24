@@ -57,9 +57,9 @@ public partial class LotteryViewModel
         get
         {
             if (LotteryState.Lottery is not EntryLottery { Draws.Length: > 0 } lottery) return "";
-            var date = FormatLotteryDate(lottery.Draws[0].DrawnAt, dateOnly: true);
+            var drawnAt = lottery.Draws[0].DrawnAt;
             var hidden = lottery.Draws.Count(draw => draw.HiddenFromStream);
-            return (date.Length > 0 ? $"{date}开奖 · " : "") + $"{lottery.Draws.Length} 人"
+            return (IsToday(drawnAt) ? "" : $"{LotteryDate(drawnAt)}开奖 · ") + $"{lottery.Draws.Length} 人"
                 + (hidden > 0 ? $" · {hidden} 人不挂出" : "");
         }
     }
@@ -69,7 +69,7 @@ public partial class LotteryViewModel
     public string EntryVisibilityText => LotteryState.Lottery is EntryLottery { Hidden: true } ? "重新显示" : "收起画面";
     public string EntryStatusText => LotteryState.Lottery is not EntryLottery lottery ? "" : lottery.Phase switch
     {
-        EntryLotteryPhase.Preparing => entryPrizeSetStatus ?? (LotteryState.Connected ? "填好关键字和奖项，点“开始报名”" : "先连直播间，才能开始报名"),
+        EntryLotteryPhase.Preparing => EntryPrizeSets.Status ?? (LotteryState.Connected ? "填好关键字和奖项，点“开始报名”" : "先连直播间，才能开始报名"),
         EntryLotteryPhase.Open => $"已有 {lottery.Entries.Length} 人报名，直播画面上显示报名方式和名单",
         EntryLotteryPhase.Closed when lottery.IsDrawing => "直播画面正在播开奖特效",
         EntryLotteryPhase.Closed when lottery.Entries.Length == 0 => "没人报名，没人可抽",

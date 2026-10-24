@@ -54,9 +54,8 @@ public sealed class LotteryPanelTests
             load.Flyout!.ShowAt(load);
             GuiHarness.Flush();
             var menu = Assert.IsType<MenuFlyout>(load.Flyout);
-            var item = menu.Items.OfType<MenuItem>().Single(item => item.Tag is LotteryPrizeSet);
-            var header = Assert.IsType<Grid>(item.Header);
-            Assert.Contains(header.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "键盘、贴纸");
+            var item = GuiHarness.MenuItems(menu).Single(item => item.DataContext is PrizeSetRow);
+            Assert.Contains(item.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "键盘、贴纸");
             item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
             Assert.Equal("键盘", vm.Lottery.Prizes[0].Name);
             Assert.Equal("限定抱枕", Assert.IsType<PoolLottery>(vm.Lottery.LotteryState.Lottery).Prizes[0].Name);
@@ -70,16 +69,38 @@ public sealed class LotteryPanelTests
             Assert.Equal("已存为「周末」，下次新开一场可以直接载入", page.FindControl<TextBlock>("StatusText")!.Text);
             load.Flyout.ShowAt(load);
             GuiHarness.Flush();
-            item = menu.Items.OfType<MenuItem>().Single(item => item.Tag is LotteryPrizeSet);
-            Assert.Contains("chosen", item.Classes);
-            Assert.IsType<Grid>(item.Header).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            item = GuiHarness.MenuItems(menu).Single(item => item.DataContext is PrizeSetRow);
+            Assert.True(item.IsChecked);
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(item.GetVisualDescendants().OfType<Button>().Single())).Invoke();
             await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 0 && !vm.Lottery.Busy);
-            Assert.Contains(menu.Items.OfType<MenuItem>(), entry => (entry.Header as TextBlock)?.Text == "还没有方案，填好后点“存为方案”");
+            GuiHarness.Flush();
+            Assert.Contains(GuiHarness.MenuItems(menu).SelectMany(entry => entry.GetVisualDescendants().OfType<TextBlock>()),
+                text => text.Text == "还没有方案，填好后点“存为方案”" && text.IsEffectivelyVisible);
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery(PoolLotteryPhase.Spinning))));
             Assert.False(load.IsEnabled);
             Assert.False(save.IsEnabled);
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task A_new_lottery_forgets_the_chosen_prize_set() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        try
+        {
+            await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
+            Assert.True(Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Chosen);
+            vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Id = "next" })));
+            Assert.False(Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Chosen);
+            vm.Lottery.PoolPrizeSets.StartDraft();
+            Assert.Null(vm.Lottery.PoolPrizeSets.DraftName);
+            Assert.DoesNotContain("周末", vm.Lottery.PoolStatusText);
+        }
+        finally { await vm.ShutdownAsync(); }
         return true;
     }, TestContext.Current.CancellationToken);
 
