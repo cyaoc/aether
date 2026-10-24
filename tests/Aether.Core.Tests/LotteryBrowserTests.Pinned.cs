@@ -199,7 +199,9 @@ public sealed partial class LotteryBrowserTests
         browser ??= page.Browser;
         await browser.CommandAsync("Page.addScriptToEvaluateOnNewDocument", new { source = $"{{ const start = performance.now(); Date.now = () => {page.H.Time.GetUtcNow().ToUnixTimeMilliseconds()} + performance.now() - start; }}" });
         await browser.CommandAsync("Page.reload");
-        await browser.WaitAsync("document.readyState === 'complete' && document.fonts.status === 'loaded'");
+        // The initial empty page reports fonts loaded before SSE creates text and requests its font.
+        await browser.WaitAsync("document.readyState === 'complete' && document.getElementById('scene').dataset.view");
+        await browser.EvaluateAsync("(async()=>{await document.fonts.ready; await new Promise(resolve=>requestAnimationFrame(resolve)); return true;})()");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
     }
 
