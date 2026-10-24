@@ -229,7 +229,7 @@ public sealed partial class LotteryBrowserTests
             Array.from(document.querySelectorAll('.rb-row.is-gone,.rb-name.gone,.rb-row.is-hiding,.rb-name.is-hiding,.rb-row.is-fill,.rb-row.amb'),e=>{
               const s=getComputedStyle(e),r=e.getBoundingClientRect();
               return {text:e.textContent,classes:e.className,x:r.x,y:r.y,w:r.width,h:r.height,opacity:s.opacity,height:s.height,maxWidth:s.maxWidth,
-                padding:s.padding,border:s.borderWidth,margin:s.margin,overflow:s.overflow,transform:s.transform,matrix:Array.from(new DOMMatrix(s.transform).toFloat64Array()),delay:s.getPropertyValue('--d'),
+                padding:s.padding,paddingX:parseFloat(s.paddingLeft)+parseFloat(s.paddingRight),border:s.borderWidth,margin:s.margin,marginLeft:parseFloat(s.marginLeft),overflow:s.overflow,transform:s.transform,matrix:Array.from(new DOMMatrix(s.transform).toFloat64Array()),delay:s.getPropertyValue('--d'),
                 animations:e.getAnimations({subtree:true}).map(a=>({name:a.animationName,time:a.currentTime,pending:a.pending,state:a.playState,duration:a.effect.getTiming().duration,delay:a.effect.getTiming().delay,opacity:getComputedStyle(a.effect.target).opacity,transform:getComputedStyle(a.effect.target).transform}))};
             })
             """;
@@ -311,7 +311,7 @@ public sealed partial class LotteryBrowserTests
         }
         var unexplained = differences.Except(geometry.Select(item => item.Detail)).ToList();
         var explained = new List<string>();
-        var sourceGone = expectedMotion.EnumerateArray().FirstOrDefault(row => row.GetProperty("classes").GetString()!.Contains("is-gone", StringComparison.Ordinal));
+        var sourceGone = expectedMotion.EnumerateArray().FirstOrDefault(row => row.GetProperty("classes").GetString()!.Contains("gone", StringComparison.Ordinal));
         var actualGone = actualMotion.EnumerateArray().FirstOrDefault(row => row.GetProperty("classes").GetString()!.Contains("is-hiding", StringComparison.Ordinal));
         var ghost = sourceGone.ValueKind == JsonValueKind.Undefined ? 0 : sourceGone.GetProperty("h").GetDouble() - (actualGone.ValueKind == JsonValueKind.Undefined ? 0 : actualGone.GetProperty("h").GetDouble());
         var ghostLimit = board == "NH1-HideSummon" ? 6 : board == "NH3-HideGacha" ? 8 : 0;
@@ -323,7 +323,17 @@ public sealed partial class LotteryBrowserTests
             if (Math.Abs(target - actual[index].GetProperty(dimension).GetDouble()) <= 1)
                 explained.Add(detail + (residualBorder ? " (original hidden row retains its border height)" : " (ambient delay follows reordered page)"));
             else if (board == "NH4-HideEntrySummon" && milliseconds < 600 && expected[index].GetProperty("prototypeChip").GetBoolean() && dimension is "x" or "w")
-                explained.Add(detail + " (original chip padding/margin interpolate during the demo pre-roll)");
+            {
+                var padding = actualGone.GetProperty("paddingX").GetDouble() - sourceGone.GetProperty("paddingX").GetDouble();
+                var margin = actualGone.GetProperty("marginLeft").GetDouble() - sourceGone.GetProperty("marginLeft").GetDouble();
+                var scale = actualGone.GetProperty("matrix")[0].GetDouble();
+                // Width scales with padding; a centered transform shifts the left edge by half the unscaled remainder.
+                var adjustment = dimension == "w" ? padding * scale : margin + padding * (1 - scale) / 2;
+                if (padding is >= 0 and <= 32 && margin is >= 0 and <= 10 && scale is >= .6 and <= 1 &&
+                    Math.Abs(target + adjustment - actual[index].GetProperty(dimension).GetDouble()) <= 1)
+                    explained.Add(detail + " (original chip padding/margin interpolate during the demo pre-roll)");
+                else unexplained.Add(detail);
+            }
             else unexplained.Add(detail);
         }
         if (prefix != null)
