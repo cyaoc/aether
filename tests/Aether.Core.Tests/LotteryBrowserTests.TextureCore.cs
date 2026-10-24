@@ -5,6 +5,8 @@ namespace Aether.Core.Tests;
 public sealed partial class LotteryBrowserTests
 {
     [Theory]
+    [InlineData(LotteryTheme.MechaLock, 1920, 1080, 740, 740)]
+    [InlineData(LotteryTheme.MechaLock, 1080, 1920, 700, 1130)]
     [InlineData(LotteryTheme.CapsuleGacha, 1920, 1080, 1000, 600)]
     [InlineData(LotteryTheme.CapsuleGacha, 1080, 1920, 780, 920)]
     [InlineData(LotteryTheme.StarSummon, 1920, 1080, 944, 504)]
@@ -18,7 +20,7 @@ public sealed partial class LotteryBrowserTests
         page.H.Client.Lottery.Stop();
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
-        await browser.EvaluateAsync("document.querySelector('.stage').style.visibility='hidden'; document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); a.currentTime=200; }); true");
+        await browser.EvaluateAsync("document.querySelectorAll('.stage,.mechaAlert,.mechaHud,.mechaRadar,.mechaPulse').forEach(e=>e.style.visibility='hidden'); document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); a.currentTime=200; }); true");
         var frames = new List<string>();
         foreach (var colors in new[] { "#fff 0% 25%, #000 0% 50%", "#000 0% 25%, #fff 0% 50%" })
         {

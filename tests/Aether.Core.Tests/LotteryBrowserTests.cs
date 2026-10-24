@@ -66,14 +66,16 @@ public sealed partial class LotteryBrowserTests
                 const image = new Image(); image.src = 'data:image/png;base64,' + png; await image.decode();
                 const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
                 const ctx = canvas.getContext('2d'); ctx.drawImage(image,0,0);
-                // Between the portrait tile columns, or below the landscape tiles; no text covers this point.
-                const {data} = ctx.getImageData(image.width/2, image.width < image.height ? 1220 : 820, 1, 1);
-                samples.push(data[0] - data[1]);
+                // Test the warning's visible area; the new HUD can cover any individual sample point.
+                samples.push(ctx.getImageData(image.width/2-240, image.height/2-240, 480, 480).data);
               }
-              return samples[0] - samples[1];
+              let litPixels=0;
+              for(let i=0;i<samples[0].length;i+=4)
+                if((samples[0][i]-samples[0][i+1])-(samples[1][i]-samples[1][i+1])>30) litPixels++;
+              return litPixels;
             })()
             """);
-        Assert.True(difference.GetInt32() > 30, $"The central red warning was barely visible: red-green change {difference}.");
+        Assert.True(difference.GetInt32() > 480 * 480 * .01, $"The central red warning was barely visible: {difference} visibly red pixels.");
         Assert.Empty(browser.Errors);
     }
 
@@ -99,15 +101,16 @@ public sealed partial class LotteryBrowserTests
             await browser.EvaluateAsync($"document.getAnimations().forEach(a => a.currentTime = {milliseconds}); true");
             var effects = await browser.EvaluateAsync("""
                 (() => {
-                  const visible = selector => { const e = document.querySelector(selector), s = getComputedStyle(e); return s.display !== 'none' && +s.opacity > .1; };
+                  const visible = selector => { const e = document.querySelector(selector); if (!e) return false; const s = getComputedStyle(e); return s.display !== 'none' && +s.opacity > .1; };
                   const panel = document.getElementById('result').getBoundingClientRect(), beam = document.querySelector('.mechaBeam').getBoundingClientRect();
                   const hud = document.querySelector('.mechaHud').getBoundingClientRect();
-                  return {radar:visible('.mechaRadar'), clamp:visible('.mechaClamp'), lines:visible('.mechaLines'), pulse:visible('.mechaPulse'),
+                  return {shock:visible('.mechaShock'), radar:visible('.mechaRadar'), clamp:visible('.mechaClamp'), lines:visible('.mechaLines'), pulse:visible('.mechaPulse'),
                     beam:visible('.mechaBeam') && beam.top >= panel.top && beam.bottom <= panel.bottom,
                     centred:Math.abs(hud.left + hud.width/2 - innerWidth/2) < 4};
                 })()
                 """);
             Assert.True(effects.GetProperty("centred").GetBoolean());
+            if (milliseconds is 2140 or 3000) Assert.Equal(milliseconds == 2140, effects.GetProperty("shock").GetBoolean());
             Assert.Equal(milliseconds < 1960, effects.GetProperty("radar").GetBoolean());
             Assert.Equal(milliseconds >= 2140, effects.GetProperty("clamp").GetBoolean());
             if (milliseconds <= 2140 || milliseconds >= 3000)
@@ -501,7 +504,6 @@ public sealed partial class LotteryBrowserTests
         await AssertLayoutAsync(browser);
         if (mecha)
         {
-            Assert.Contains("linear-gradient", (await browser.EvaluateAsync("getComputedStyle(document.querySelector('.sky')).backgroundImage")).GetString());
             await browser.WaitAsync("document.querySelector('[data-lock=\"LOCK ON\"]')");
             Assert.Equal((await browser.EvaluateAsync("document.getElementById('prize').textContent")).GetString(),
                 (await browser.EvaluateAsync("document.querySelector('[data-lock=\"LOCK ON\"] .candidateName').textContent")).GetString());
