@@ -15,6 +15,7 @@ function page(width = 1920, height = 1080, loadedTextures = []) {
     if (name === 'drawImage') drawnImages.push(args);
   } });
   const element = () => ({ hidden:true, children:[], dataset:{}, style:{setProperty(k,v){this[k]=v;}},
+    setAttribute(name,value) { this[name] = value; },
     className:'', offsetLeft:0, offsetTop:0, offsetWidth:0, scrollHeight:0, clientHeight:0, scrollWidth:0, clientWidth:0,
     set textContent(value) { this.text = String(value); this.children = []; },
     get textContent() { return (this.text || '') + this.children.map(c=>c.textContent ?? c).join(''); },
@@ -381,7 +382,8 @@ test('switching to Mecha Lock refreshes a live draw, locks the winning cell and 
     draws:[{id:'d',prize,uid:42,candidates:[other,prize],drawnAt:'2026-10-17T12:00:00Z'}]};
   p.state({lottery}); p.advance(1000);
   p.state({lottery,theme:'MechaLock'});
-  assert.equal(p.element('rank').textContent,'S 级大奖');
+  assert.equal(p.element('rank').textContent,'大奖');
+  assert.equal(p.element('rank').children[0]['aria-label'],'S 级');
   assert.equal(p.element('summon').style['--elapsed'],'-1s');
   assert.equal(p.element('prize').textContent,'键盘');
   p.advance(1100);
@@ -538,6 +540,18 @@ test('glow textures wait for decoding and cache each image, colour and size with
   assert.ok(calls.some(c=>c[0]==='globalAlpha'&&c[1]===.6));
 });
 
+
+test('Mecha result badges expose the drawn rank in both modes',()=>{
+  for (const [grade,rank] of [['Grand','S'],['Second','A'],['Third','B']]) for (const isEntry of [false,true]) {
+    const p=page(), prize={name:'机械键盘',grade};
+    const draw={...draws[0],prize,award:{...award,grade}};
+    const lottery=isEntry ? {...entry,phase:'Drawing',draws:[draw]} : {mode:'Pool',id:'pool',phase:'Idle',prizes:[prize],draws:[draw]};
+    p.state({theme:'MechaLock',lottery:{...lottery,drawUntil:'2026-10-17T12:00:07Z'}});
+    const badge=p.element('rank').children.find(child=>child.role==='img');
+    assert.ok(badge,'the rank is represented by an accessible badge');
+    assert.equal(badge['aria-label'],`${rank} 级`);
+  }
+});
 
 test('gacha opening uses the decoded confetti atlas with shape and grade colour crops',async()=>{
   const p=page(1920,1080,['gacha/confetti']), prize={name:'贴纸',grade:'Third'};
