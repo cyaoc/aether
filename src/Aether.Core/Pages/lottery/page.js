@@ -112,6 +112,8 @@ function fitAll() {
   // Start all flex siblings at full size before shrinking; growing one later would squeeze the others.
   fitting.forEach(([node, size, portraitSize]) => node.style.fontSize = (portrait ? portraitSize : size) + 'px');
   fitting.forEach(([node, size, portraitSize]) => fit(node, portrait ? portraitSize : size));
+  if (scene.dataset.theme === 'CapsuleGacha')
+    byId('result').dataset.multiline = ['prize','viewer'].some(id => { const node = byId(id); return node.scrollHeight > parseFloat(getComputedStyle(node).lineHeight) * 1.5; });
   // Gacha tilts a banner wider than 780px less, so its ends rise no higher than a 780px one's; a hidden banner measures 0 and keeps 1.
   byId('banner').style.setProperty('--tilt-scale', Math.min(1, 780 / byId('banner').offsetWidth));
 }

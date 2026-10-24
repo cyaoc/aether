@@ -1,11 +1,12 @@
 using System.Text.Json;
-using Aether.Core.Tests.Support;
 
 namespace Aether.Core.Tests;
 
 public sealed partial class LotteryBrowserTests
 {
     [Theory]
+    [InlineData(LotteryTheme.CapsuleGacha, 1920, 1080, 1000, 600)]
+    [InlineData(LotteryTheme.CapsuleGacha, 1080, 1920, 780, 920)]
     [InlineData(LotteryTheme.StarSummon, 1920, 1080, 944, 504)]
     [InlineData(LotteryTheme.StarSummon, 1080, 1920, 524, 944)]
     public async Task Opening_core_hides_the_stream_pattern_at_two_hundred_milliseconds(LotteryTheme theme, int width, int height, int x, int y)
