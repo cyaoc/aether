@@ -2,12 +2,13 @@
 @font-face { font-family:'ZCOOL KuaiLe'; src:url('/lottery/ZCOOLKuaiLe-Regular.ttf') format('truetype'); font-display:swap; }
 #gachaMachine,#capsuleDrop { display:none; }
 [data-theme="CapsuleGacha"] { --ink:#4b2a4f; --paper:#fff8ee; color:var(--ink); font-family:'ZCOOL KuaiLe','PingFang SC','Microsoft YaHei UI',sans-serif; }
+[data-theme="CapsuleGacha"] .gachaCapsule { background:url("/lottery/textures/gacha/capsules.webp") var(--capsule-position) var(--capsule-y, 0%) / 300% 100% no-repeat; }
 /* The capsule icons and crank parts are pseudo-elements, which the page-wide border-box rule does not reach. */
 [data-theme="CapsuleGacha"] ::before,[data-theme="CapsuleGacha"] ::after { box-sizing:border-box; }
 /* --tier inks the grade words; --a and --glow light the capsule and the opening burst; --sun-* and --burst-fill size and colour the "加强" sun and pop sticker. */
-[data-theme="CapsuleGacha"] .Grand { --main:#ffd45e; --tint:#fff2c9; --tier:#8a5a00; --a:rgba(255,212,94,.55); --glow:rgba(255,212,94,.95); --sun-size:1000px; --sun-a:#ffe27a; --sun-b:#fff6d6; --burst-fill:#fff3b0; }
-[data-theme="CapsuleGacha"] .Second { --main:#ff7aae; --tint:#ffe3ee; --tier:#b23a73; --a:rgba(255,122,174,.5); --glow:rgba(255,122,174,.9); --sun-size:900px; --sun-a:#ffb3cf; --sun-b:#ffe6f0; --burst-fill:#ffe3ee; }
-[data-theme="CapsuleGacha"] .Third { --main:#5fd3b0; --tint:#ddf7ee; --tier:#1f7a60; --a:rgba(95,211,176,.45); --glow:rgba(95,211,176,.85); --sun-size:720px; --sun-a:#a8ebd6; --sun-b:#e6faf3; --burst-fill:#e6faf3; }
+[data-theme="CapsuleGacha"] .Grand { --capsule-position:0%; --main:#ffd45e; --tint:#fff2c9; --tier:#8a5a00; --a:rgba(255,212,94,.55); --glow:rgba(255,212,94,.95); --sun-size:1000px; --sun-a:#ffe27a; --sun-b:#fff6d6; --burst-fill:#fff3b0; }
+[data-theme="CapsuleGacha"] .Second { --capsule-position:50%; --main:#ff7aae; --tint:#ffe3ee; --tier:#b23a73; --a:rgba(255,122,174,.5); --glow:rgba(255,122,174,.9); --sun-size:900px; --sun-a:#ffb3cf; --sun-b:#ffe6f0; --burst-fill:#ffe3ee; }
+[data-theme="CapsuleGacha"] .Third { --capsule-position:100%; --main:#5fd3b0; --tint:#ddf7ee; --tier:#1f7a60; --a:rgba(95,211,176,.45); --glow:rgba(95,211,176,.85); --sun-size:720px; --sun-a:#a8ebd6; --sun-b:#e6faf3; --burst-fill:#e6faf3; }
 [data-theme="CapsuleGacha"] .gold,[data-theme="CapsuleGacha"] .rank { background:none; -webkit-text-fill-color:currentColor; color:var(--ink); filter:none; }
 [data-theme="CapsuleGacha"] #themeTitle,[data-theme="CapsuleGacha"] #joinLabel,[data-theme="CapsuleGacha"] #winnerTitle,[data-theme="CapsuleGacha"] #awardsTitle,[data-theme="CapsuleGacha"] #shout,[data-theme="CapsuleGacha"] #pinnedTitle { color:#ff7aae; filter:none; text-shadow:3px 0 var(--ink),-3px 0 var(--ink),0 3px var(--ink),0 -3px var(--ink),2px 2px var(--ink),-2px 2px var(--ink),2px -2px var(--ink),-2px -2px var(--ink),6px 6px var(--ink); }
 [data-theme="CapsuleGacha"] #entryBar,[data-theme="CapsuleGacha"] #awards,[data-theme="CapsuleGacha"] #winners { border:5px solid var(--ink); background:var(--paper); box-shadow:8px 8px var(--ink); border-radius:40px; }
@@ -46,9 +47,9 @@
 [data-theme="CapsuleGacha"] .dome:after { content:''; position:absolute; left:62px; top:46px; width:90px; height:44px; border-radius:50%; background:#ffffffe6; transform:rotate(-28deg); }
 [data-theme="CapsuleGacha"] #capsules { position:absolute; inset:0; animation:gachaBob 2.2s ease-in-out infinite alternate; }
 @keyframes gachaBob { to { transform:translateY(-6px); } }
-[data-theme="CapsuleGacha"] .capsule { position:absolute; width:64px; height:64px; border:3px solid var(--ink); border-radius:50%; background:linear-gradient(var(--cap) 46%,var(--ink) 46% 54%,white 54%); transform:rotate(var(--tilt)); }
+[data-theme="CapsuleGacha"] .capsule { position:absolute; width:64px; height:64px; transform:rotate(var(--tilt)); }
 [data-theme="CapsuleGacha"] .neck { position:absolute; left:130px; top:362px; width:160px; height:54px; border:6px solid var(--ink); border-radius:10px; background:#f2669c; }
-[data-theme="CapsuleGacha"] .machineBody { position:absolute; left:30px; top:400px; width:360px; height:330px; border:6px solid var(--ink); border-radius:36px; background:#ff8db8; box-shadow:8px 8px var(--ink); transform-origin:50% 100%; }
+[data-theme="CapsuleGacha"] .machineBody { position:absolute; left:30px; top:400px; width:360px; height:330px; border:6px solid transparent; border-radius:36px; background:url("/lottery/textures/gacha/body.webp") center / 100% 100% no-repeat; transform-origin:50% 100%; }
 [data-theme="CapsuleGacha"] #machineLabel { position:absolute; left:44px; top:26px; width:260px; height:76px; display:grid; place-items:center; border:5px solid var(--ink); border-radius:14px; background:#cff5e8; font-size:38px; }
 [data-theme="CapsuleGacha"] #summon:not(.drawing) #machineLabel .busy,[data-theme="CapsuleGacha"] .drawing #machineLabel .idle { display:none; }
 [data-theme="CapsuleGacha"] .crank { position:absolute; left:50px; top:136px; width:120px; height:120px; border:6px solid var(--ink); border-radius:50%; background:#ffd45e; animation:gachaWiggle 1.6s ease-in-out infinite alternate; }
@@ -92,7 +93,7 @@
    a wider one tilts by --tilt-scale (780px / its width) so its ends rise no higher. It holds still instead of drifting up. */
 [data-theme="CapsuleGacha"] #banner { top:88px; height:112px; padding:0 46px; border:5px solid var(--ink); border-radius:56px; background:var(--paper); box-shadow:8px 8px var(--ink); font-size:68px; line-height:102px; color:var(--ink); --drift:-30px; --banner-pop:1.15; --banner-start:calc(-8deg * var(--tilt-scale,1)); --banner-tilt:calc(3deg * var(--tilt-scale,1)); --banner-settle:calc(-2deg * var(--tilt-scale,1)); animation-name:gachaBanner; }
 @keyframes gachaBanner { 0% { opacity:0; transform:scale(0) rotate(var(--banner-start)); } 2.2% { opacity:1; transform:scale(var(--banner-pop)) rotate(var(--banner-tilt)); } 3.6% { transform:rotate(var(--banner-settle)); } 25.3% { opacity:1; transform:rotate(var(--banner-settle)); } 29.3%,100% { opacity:0; transform:translateY(var(--drift)); } }
-[data-theme="CapsuleGacha"] .gachaBall { position:absolute; left:745px; top:840px; width:130px; height:130px; border:6px solid var(--ink); border-radius:50%; background:linear-gradient(var(--main) 46%,var(--ink) 46% 54%,white 54%); box-shadow:0 0 0 6px var(--a),0 0 40px var(--glow); animation:gachaBall 7s both; animation-delay:var(--elapsed); }
+[data-theme="CapsuleGacha"] .gachaBall { position:absolute; left:745px; top:840px; width:130px; height:130px; border-radius:50%; box-shadow:0 0 0 6px var(--a),0 0 40px var(--glow); animation:gachaBall 7s both; animation-delay:var(--elapsed); }
 @keyframes gachaBall { 0%,19.8% { opacity:0; transform:scale(.3); } 20.3% { opacity:1; transform:none; } 21.8% { transform:translate(95px,-110px) rotate(120deg); } 23.3% { transform:translate(180px,0) rotate(230deg) scale(1.16,.84); } 24.5% { transform:translate(250px,-60px) rotate(300deg); } 25.5% { transform:translate(310px,0) rotate(380deg) scale(1.12,.88); } 26.8% { transform:translate(370px,-385px) rotate(460deg); } 27.6% { opacity:1; transform:translate(370px,-385px) rotate(470deg) scale(1.3); } 28%,100% { opacity:0; transform:translate(370px,-385px) rotate(470deg) scale(1.3); } }
 [data-theme="CapsuleGacha"] .gachaGlow { left:1180px; top:520px; width:560px; height:560px; border-radius:50%; background:radial-gradient(circle,#fff,var(--a) 35%,transparent 70%); animation-name:gachaBurst; }
 [data-theme="CapsuleGacha"] .Second .gachaGlow { width:420px; height:420px; }
@@ -102,8 +103,8 @@
 [data-theme="CapsuleGacha"] .drawing.Grand .gachaRainbow { display:block; }
 @keyframes gachaRainbow { 0%,27.7% { opacity:0; transform:translate(-50%,-50%) scale(.2); } 29.3% { opacity:1; } 43.3%,100% { opacity:0; transform:translate(-50%,-50%) scale(2.2) rotate(120deg); } }
 [data-theme="CapsuleGacha"] .gachaHalves { position:absolute; left:1115px; top:455px; width:130px; height:130px; }
-[data-theme="CapsuleGacha"] .gachaHalves span { position:absolute; width:100%; height:50%; border:6px solid var(--ink); border-bottom-width:4px; background:var(--main); border-radius:65px 65px 0 0; --hx:-200px; --hy:-240px; --hr:-110deg; animation:gachaHalf 7s both; animation-delay:var(--elapsed); }
-[data-theme="CapsuleGacha"] .gachaHalves span+span { top:50%; border-width:4px 6px 6px; border-radius:0 0 65px 65px; background:white; --hx:220px; --hy:260px; --hr:90deg; }
+[data-theme="CapsuleGacha"] .gachaHalves span { position:absolute; width:100%; height:50%; background-size:300% 200%; --hx:-200px; --hy:-240px; --hr:-110deg; animation:gachaHalf 7s both; animation-delay:var(--elapsed); }
+[data-theme="CapsuleGacha"] .gachaHalves span+span { top:50%; --capsule-y:100%; --hx:220px; --hy:260px; --hr:90deg; }
 @keyframes gachaHalf { 0%,27.7% { opacity:0; transform:none; } 28% { opacity:1; transform:none; } 36.3%,100% { opacity:0; transform:translate(var(--hx),var(--hy)) rotate(var(--hr)); } }
 /* The sticker keeps the board's size and grows only for text that would not fit. */
 [data-theme="CapsuleGacha"] #result { left:860px; top:340px; width:640px; height:auto; perspective:none; animation-name:gachaWinner; }
