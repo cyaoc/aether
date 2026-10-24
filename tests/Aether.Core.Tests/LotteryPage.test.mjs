@@ -516,9 +516,8 @@ function texturePage() {
   vm.runInContext(readFileSync(new URL('../../src/Aether.Core/Pages/lottery/textures.js', import.meta.url),'utf8'),context);
   return {textures:vm.runInContext('textures',context), calls, images, canvases};
 }
-test('texture atlas positions match the supplied three-column and four-by-four sheets',()=>{
+test('confetti cells match the four-by-four atlas',()=>{
   const {textures:t}=texturePage();
-  assert.deepEqual(['Grand','Second','Third'].map(g=>t.gradePosition(g)),['0%','50%','100%']);
   assert.deepEqual(Array.from(t.confettiCell('heart','#ff7aae','Grand')),[0,0,96,96]);
   assert.deepEqual(Array.from(t.confettiCell('star','#ffd45e','Second')),[96,96,96,96]);
   assert.deepEqual(Array.from(t.confettiCell('strip','#5fd3b0','Third')),[192,192,96,96]);
@@ -572,17 +571,17 @@ test('summon flares follow the hit window and portrait width with decoded sprite
     await new Promise(resolve=>setImmediate(resolve));
     p.state({theme:'StarSummon',lottery:{mode:'Pool',id:'pool',phase:'Idle',prizes:[prize],
       draws:[{id:'draw',prize,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}],drawUntil:'2026-10-17T12:00:07Z'}});
-    p.advance(2050); p.frame();
-    assert.ok(p.drawnImages().some(a=>a[0].width===128),'burst particles use the shared decoded sprite');
-    assert.ok(!p.drawnImages().some(a=>a[3]===a[4]*2),'flash has not started at 2050ms');
+    p.advance(1945); p.frame();
+    assert.ok(!p.drawnImages().some(a=>a[3]===a[4]*2),'flash has not started at 1945ms');
     p.advance(450); p.frame();
+    assert.ok(p.drawnImages().some(a=>a[0].width===128),'burst particles use the shared decoded sprite');
     const flash=p.drawnImages().find(a=>a[3]===a[4]*2);
     assert.ok(flash,'hit has a horizontal flare');
     assert.equal(flash[0].width,512,'large impact uses the fixed full-detail sprite');
     assert.equal(flash[3],2*(width===1080 ? 260+220*.875 : 380+520*.875)*scale);
     assert.equal(flash[1]+flash[3]/2,width===1080 ? 459 : 960);
     p.advance(450); p.frame();
-    assert.ok(!p.drawnImages().some(a=>a[3]===a[4]*2),'flash ends at 2950ms');
+    assert.ok(!p.drawnImages().some(a=>a[3]===a[4]*2),'flash ends at 2845ms');
   }
 });
 

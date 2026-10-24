@@ -48,6 +48,8 @@
 [data-theme="MechaLock"] #ring { left:162px; top:380px; width:1596px; height:auto; display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); grid-auto-rows:170px; gap:24px; transform:none; transform-style:flat; animation:none; }
 [data-theme="MechaLock"] .candidate { position:relative; left:auto; top:auto; width:auto; height:auto; padding:8px 8px 0; gap:4px; border:2px solid #ff7a1a73; border-top:10px solid var(--strip,var(--main)); border-radius:0; background:#0c0e13f0; box-shadow:none; transform:none!important; isolation:isolate; }
 [data-theme="MechaLock"] .candidate.viewer { --strip:#ff7a1a; }
+/* The metal tile covers the old orange side lines, as on W2; the grade strip stays on top. */
+[data-theme="MechaLock"] .candidate>.mechaTile { inset:0 -2px -2px; }
 [data-theme="MechaLock"] .candidateLabel { font:700 30px var(--condensed); letter-spacing:4px; color:var(--strip,var(--main)); }
 [data-theme="MechaLock"] .candidateName { width:100%; line-height:1.05; max-height:118px; }
 /* The frame sits 20px outside the tile's border box, as the board's 340 × 210 frame around a 300 × 170 tile. */
@@ -119,13 +121,13 @@
 [data-theme="MechaLock"] .mechaBeam { position:absolute; z-index:1; left:0; right:0; top:0; height:6px; background:var(--main); box-shadow:0 0 22px 8px var(--a); animation:mechaBeam 7s both; animation-delay:var(--elapsed); }
 @keyframes mechaBeam { 0%,34% { opacity:0; transform:translateY(0); } 34.5% { opacity:1; transform:translateY(0); } 38% { opacity:1; transform:translateY(var(--beam-travel)); } 38.5%,62.5% { opacity:0; transform:translateY(0); } 63% { opacity:1; transform:translateY(0); } 66.5% { opacity:1; transform:translateY(var(--beam-travel)); } 67%,100% { opacity:0; transform:translateY(var(--beam-travel)); } }
 [data-theme="MechaLock"] #rank { line-height:1.1; font-family:inherit; font-weight:normal; filter:none; text-shadow:0 0 16px var(--a); display:inline-flex; justify-content:center; align-items:baseline; gap:16px; }
-.mechaEmblem { background:url('textures/mecha/emblems.webp') 0 0 / 300% 100% no-repeat; flex-shrink:0; }
+.mechaEmblem { background:url('/lottery/textures/mecha/emblems.webp') var(--atlas-x) 0 / 300% 100% no-repeat; flex-shrink:0; }
 [data-theme="MechaLock"] #rank .mechaEmblem { width:104px; height:104px; align-self:center; }
-.mechaTile { position:absolute; inset:0; z-index:-1; pointer-events:none; --texture:url('textures/mecha/tile.webp'); --texture-slice:60 fill; --texture-width:var(--tile-corner,26px); }
+.mechaTile { position:absolute; inset:0; z-index:-1; pointer-events:none; --texture:url('/lottery/textures/mecha/tile.webp'); --texture-slice:60 fill; --texture-width:var(--tile-corner,26px); }
 [data-theme="MechaLock"] .mechaPanelFrame { position:absolute; pointer-events:none; filter:drop-shadow(0 0 14px var(--a)); }
-[data-theme="MechaLock"] .Grand .mechaPanelFrame { inset:-40px; --texture:url('textures/mecha/panel-s.webp'); --texture-slice:133; --texture-width:32.6% 12.7%; }
-[data-theme="MechaLock"] .Second .mechaPanelFrame { inset:-55px -47px -69px; --texture:url('textures/mecha/panel-a.webp'); --texture-slice:110 100; --texture-width:26.2% 10.05%; }
-[data-theme="MechaLock"] .Third .mechaPanelFrame { inset:-24px -10px -28px; --texture:url('textures/mecha/panel-b.webp'); --texture-slice:60; --texture-width:20.8% 8.04%; }
+[data-theme="MechaLock"] .Grand .mechaPanelFrame { inset:-40px; --texture:url('/lottery/textures/mecha/panel-s.webp'); --texture-slice:133; --texture-width:32.6% 12.7%; }
+[data-theme="MechaLock"] .Second .mechaPanelFrame { inset:-55px -47px -69px; --texture:url('/lottery/textures/mecha/panel-a.webp'); --texture-slice:110 100; --texture-width:26.2% 10.05%; }
+[data-theme="MechaLock"] .Third .mechaPanelFrame { inset:-24px -10px -28px; --texture:url('/lottery/textures/mecha/panel-b.webp'); --texture-slice:60; --texture-width:20.8% 8.04%; }
 /* Two clipped, offset copies of the name glitch behind it right after the panel opens. */
 [data-theme="MechaLock"] #prize { position:relative; z-index:0; max-height:170px; color:#fff; text-shadow:0 0 30px var(--a); }
 [data-theme="MechaLock"] #prize:before,[data-theme="MechaLock"] #prize:after { content:attr(data-text); position:absolute; inset:0; z-index:-1; opacity:0; text-shadow:none; animation:mechaGlitchA 7s both; animation-delay:var(--elapsed); }
@@ -261,7 +263,7 @@
 
 /* Texture wrappers keep the existing scene timing and source-edge mask. */
 [data-theme="MechaLock"] .mechaCore,[data-theme="MechaLock"] .mechaGrid { position:absolute; left:var(--cx); top:var(--cy); width:var(--dome-w); height:var(--dome-h); }
-[data-theme="MechaLock"] .mechaCore { --core-center-color:rgba(10,12,16,.95); --core-color:rgba(10,12,16,.9); --core-animation:mechaCore; --core-duration:7s; animation-timing-function:ease; animation-delay:var(--elapsed); }
+[data-theme="MechaLock"] .mechaCore { --core-center-color:rgba(10,12,16,.95); --core-color:rgba(10,12,16,.9); animation:mechaCore 7s ease both; animation-delay:var(--elapsed); }
 @keyframes mechaCore { from { transform:translate(-50%,-50%) scale(.06); } 4%,100% { transform:translate(-50%,-50%) scale(1); } }
 [data-theme="MechaLock"] .mechaGrid { transform:translate(-50%,-50%); animation:sky 7s both; animation-delay:var(--elapsed); }
 [data-theme="MechaLock"] .mechaGrid>.textureGlow { position:absolute; inset:0; --texture:url("/lottery/textures/mecha/grid.webp"); --texture-color:#ff7a1a; opacity:.6; }

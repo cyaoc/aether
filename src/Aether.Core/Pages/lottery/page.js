@@ -19,7 +19,7 @@ const themes = {
     banner:({entry, title, viewer}) => entry ? `正在召唤 · ${title}` : viewer ? `${viewer} 发起召唤！` : '星辰召唤',
     winners:['召唤结果','目前的召唤结果'],
     pinned:{title:'召唤结果', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 次`,
-      badge:(grade, rank) => { const badge = text('pinnedBadge',rank); themes.StarSummon.decorateCandidate(badge); return badge; }},
+      badge:rank => { const badge = text('pinnedBadge',rank); themes.StarSummon.decorateCandidate(badge); return badge; }},
     award:award => award.name,
     particles:starSummon,
   },
@@ -33,14 +33,14 @@ const themes = {
       return row;
     },
     cell:(candidate, index) => candidate.viewer ? `PILOT ${String(index + 1).padStart(3,'0')}` : `${themes.MechaLock.ranks[candidate.grade]} · ${grades[candidate.grade]}`,
-    rank:(code, title, entry, grade) => [mechaEmblem(grade,`${code} 级`), entry ? `${title} · 目标确认` : title],
+    rank:(code, title, entry) => [mechaEmblem(`${code} 级`), entry ? `${title} · 目标确认` : title],
     decorateCandidate:card => card.append(text('mechaTile textureFrame','')),
     viewer:({entry, prize, viewer}) => entry ? `获得 ${prize}` : viewer && `${viewer} 获得`,
     banner:({entry, title, viewer}) => entry ? `锁定 ${title} 中奖者` : viewer ? `${viewer} 发出锁定指令` : '机甲锁定',
     winners:['作战结果','目前战果'],
-    winnerRank:grade => mechaEmblem(grade,`${themes.MechaLock.ranks[grade]} 级`),
+    winnerRank:grade => mechaEmblem(`${themes.MechaLock.ranks[grade]} 级`),
     pinned:{title:'作战结果', tag:'MISSION LOG', count:(count, entry) => `${count} ${entry ? '人' : '次'}`,
-      badge:(grade, rank) => { const badge = mechaEmblem(grade,`${rank} 级`); badge.className += ' pinnedBadge'; return badge; },
+      badge:rank => { const badge = mechaEmblem(`${rank} 级`); badge.className += ' pinnedBadge'; return badge; },
       decorate:row => themes.MechaLock.decorateCandidate(row)},
     award:award => `${award.name} · ${award.prize}`,
     particles:mechaLock,
@@ -207,10 +207,9 @@ function show(state, completedDraw) {
   }
   if (entry) showWinners(entry);
 }
-function mechaEmblem(grade, label) {
+function mechaEmblem(label) {
   const emblem = text('mechaEmblem','');
   emblem.setAttribute('role','img'); emblem.setAttribute('aria-label',label);
-  emblem.style.backgroundPosition = `${textures.gradePosition(grade)} 0`;
   return emblem;
 }
 function makeRing(candidates) {
@@ -252,7 +251,7 @@ function drawResult(draw, entry) {
   summon.style.setProperty('--elapsed', `${-elapsed / 1000}s`);
   const t = theme(), words = {entry, title:entry ? draw.award.name : grades[grade], prize:entry ? draw.award.prize : '',
     viewer:viewerName(draw)};
-  byId('rank').replaceChildren(...t.rank(t.ranks[grade], words.title, entry, grade));
+  byId('rank').replaceChildren(...t.rank(t.ranks[grade], words.title, entry));
   byId('stars').innerHTML = starIcon.repeat(powers[grade] + 2);
   byId('prize').textContent = name;
   // The glitch copies of the name are drawn from this attribute.
@@ -364,7 +363,7 @@ function showPinned(lottery, completedDraw, previousLottery) {
         effects.innerHTML = pinnedEffects;
         effects.append(text('effectNew',`NEW · ${t.ranks[grade]}`));
         words.decorate?.(row);
-        row.append(words.badge(grade,t.ranks[grade]),label,effects);
+        row.append(words.badge(t.ranks[grade]),label,effects);
         rows.push(row);
       }
       if (entry) { const name = text(`pinnedName${fill && !oldIds.has(draw.id) ? ' filling' : ''}`,draw.winner.nickname); list.append(name); nodes.set(draw.id,name); }
@@ -517,7 +516,7 @@ function starSummon(start, grade) {
         add({x:cx,y:cy,vx:Math.cos(angle)*speed*spread[0],vy:Math.sin(angle)*speed*spread[1]-3,life:70+Math.random()*90,max:160,s:2+Math.random()*(2+power),c:colors[j%colors.length],drag:.95,grav:.06,kind:j%4===0 ? 'star' : 'dot'});
       }
     }
-    const hit = (age - 2050) / 900;
+    const hit = (age - 1945) / 900;
     const flash = hit > 0 && hit < 1 && textures.tinted('summon/flare',grade === 'Grand' ? '#ffe7a8' : colors[1],512);
     if (flash) {
       const e = 1 - (1 - hit) ** 3;
@@ -556,8 +555,8 @@ function mechaLock(start, grade) {
 // W3/PW3's dome: 18 capsules in the board's slots and colours.
 byId('capsules').replaceChildren(...[[52,268],[112,272],[172,270],[232,268],[292,262],[26,214],[82,216],[140,212],[198,214],[256,210],[312,206],[58,160],[116,158],[174,162],[232,156],[100,106],[160,104],[222,108]]
   .map(([x,y],i) => {
-    const ball = text('capsule gachaCapsule','');
-    ball.style.cssText = `left:${x}px;top:${y}px;--capsule-position:${textures.gradePosition(['Third','Third','Second','Third','Grand','Third','Second','Third','Third'][i % 9])};--tilt:${i * 47 % 90 - 45}deg`;
+    const ball = text(`capsule gachaCapsule ${['Third','Third','Second','Third','Grand','Third','Second','Third','Third'][i % 9]}`,'');
+    ball.style.cssText = `left:${x}px;top:${y}px;--tilt:${i * 47 % 90 - 45}deg`;
     return ball;
   }));
 const capsuleColors = [['#ff7aae','#ffe3ee'],['#5fd3b0','#ddf7ee'],['#a991ff','#ece6ff'],['#ffd45e','#fff2c9'],['#7ccbff','#e0f2ff']];

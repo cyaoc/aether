@@ -12,7 +12,6 @@ const textures = (() => {
   return {
     ready,
     image:name => images.get(name),
-    gradePosition:grade => ({Grand:'0%',Second:'50%',Third:'100%'})[grade],
     confettiCell(shape, color, grade) {
       const row = ({'#ff7aae':0,'#ffb3cf':0,'#ffd45e':1,'#5fd3b0':2,'#bff0df':2,'#a991ff':3,'#7ccbff':3})[color.toLowerCase()] ?? (grade === 'Third' ? 2 : 3);
       return [({heart:0,star:1,strip:2,confetti:2,candy:3,dot:3})[shape] * 96,row * 96,96,96];
@@ -20,7 +19,7 @@ const textures = (() => {
     tinted(name, color, width, height = width) {
       const image = images.get(name);
       if (!image) return null;
-      const key = JSON.stringify([name,color,width,height]);
+      const key = `${name} ${color} ${width} ${height}`;
       if (!tintedImages.has(key)) {
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;

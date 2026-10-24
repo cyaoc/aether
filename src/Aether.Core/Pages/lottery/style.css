@@ -402,8 +402,8 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 .summonPortal { display:none; }
 [data-theme="StarSummon"] .drawing .summonPortal {
   display:block; position:absolute; left:var(--cx); top:var(--cy); width:var(--portal-w); height:var(--portal-h); border-radius:50%;
-  --core-center-color:rgba(10,6,34,.94); --core-color:rgba(10,6,34,.9); --core-animation:summonPortal; --core-duration:7s;
-  animation-timing-function:ease; animation-delay:var(--elapsed);
+  --core-center-color:rgba(10,6,34,.94); --core-color:rgba(10,6,34,.9);
+  animation:summonPortal 7s ease both; animation-delay:var(--elapsed);
 }
 @keyframes summonPortal { 0% { transform:translate(-50%,-50%) scale(.08); } 5% { transform:translate(-50%,-50%) scale(1); } 26.9% { transform:translate(-50%,-50%) scale(.9); } 28.9% { transform:translate(-50%,-50%) scale(1.07); } 33.5%,100% { transform:translate(-50%,-50%) scale(1); } }
 .summonNebulaClip,.summonNebulaPlane { position:absolute; inset:0; }
