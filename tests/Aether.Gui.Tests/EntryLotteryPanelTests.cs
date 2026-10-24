@@ -148,6 +148,7 @@ public sealed class EntryLotteryPanelTests
             Assert.Equal(320, confirm.GetVisualAncestors().OfType<FlyoutPresenter>().Single().Bounds.Width);
             confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 2 && !vm.Lottery.Busy);
+            Assert.Equal("已存为「报名方案」，下次新开一场可以直接载入", page.FindControl<TextBlock>("StatusText")!.Text);
             vm.Lottery.Awards[0].Prize = "限定手办";
             save.Flyout.ShowAt(save);
             GuiHarness.Flush();
@@ -175,6 +176,11 @@ public sealed class EntryLotteryPanelTests
             Assert.Equal("报名参加", vm.Lottery.Keyword);
             Assert.Equal("机械键盘", Assert.IsType<EntryLottery>(vm.Lottery.LotteryState.Lottery).Awards[0].Prize);
             Assert.Contains("已载入「报名方案」", vm.Lottery.EntryStatusText);
+            save.Flyout.ShowAt(save);
+            GuiHarness.Flush();
+            confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await GuiHarness.WaitForAsync(() => !save.Flyout.IsOpen);
+            Assert.Equal("已存为「报名方案」，下次新开一场可以直接载入", page.FindControl<TextBlock>("StatusText")!.Text);
             var first = vm.Lottery.Awards[0];
             GuiHarness.FindRowControl<TextBox>(page, first, "PrizeInput").Text = "";
             GuiHarness.Flush();
