@@ -442,7 +442,11 @@ function particles(start, grade) {
       context.globalAlpha = alpha; context.fillStyle = context.strokeStyle = p.c; context.beginPath();
       // A texture decorates the existing particle; its kind remains the decode-time fallback.
       const bitmap = p.texture && textures.tinted(p.texture,p.c,128);
-      if (bitmap) { context.drawImage(bitmap,p.x - p.width / 2,p.y - (p.height || p.width) / 2,p.width,p.height || p.width); continue; }
+      if (bitmap) {
+        context.drawImage(bitmap,p.x - p.width / 2,p.y - (p.height || p.width) / 2,p.width,p.height || p.width);
+        if (p.texture === 'summon/flare' && p.kind !== 'star') { context.arc(p.x,p.y,p.s * .8,0,6.283); context.fill(); }
+        continue;
+      }
       if (p.kind === 'star') star(p.x,p.y,p.s * 2.2);
       else if (p.kind === 'hex') { context.lineWidth = 2; hex(p.x,p.y,p.s); }
       else if (p.kind === 'spark') { context.lineWidth = p.s; context.moveTo(p.x,p.y); context.lineTo(p.x - p.vx * (p.tail || 2.6),p.y - p.vy * (p.tail || 2.6)); context.stroke(); }
@@ -468,7 +472,8 @@ function starSummon(start, grade) {
   const sky = start === null ? [] : Array.from({length:220},() => ({a:Math.random()*6.283,d:Math.sqrt(Math.random()),s:.6+Math.random()*2,p:Math.random()*6.28}));
   const pick = () => colors[Math.floor(Math.random()*colors.length)];
   let fired = start !== null && Date.now() - start >= 2600;
-  return (now, dt, add) => {
+  return (now, dt, emit) => {
+    const add = p => emit(p.kind === 'spark' ? p : {...p,texture:'summon/flare',width:p.s * (p.kind === 'star' ? 18 : 10)});
     const age = start === null ? 0 : now - start;
     const {cx,cy,idle,rise,sky:[rx,ry],gather:[gx,gy],meteor,ring,spread} = stages[scene.dataset.orientation];
     if (start === null) {
@@ -502,6 +507,15 @@ function starSummon(start, grade) {
         const angle = Math.random() * Math.PI * 2, speed = 3 + Math.random() * (8 + 7 * power);
         add({x:cx,y:cy,vx:Math.cos(angle)*speed*spread[0],vy:Math.sin(angle)*speed*spread[1]-3,life:70+Math.random()*90,max:160,s:2+Math.random()*(2+power),c:colors[j%colors.length],drag:.95,grav:.06,kind:j%4===0 ? 'star' : 'dot'});
       }
+    }
+    const hit = (age - 2050) / 900;
+    const flash = hit > 0 && hit < 1 && textures.tinted('summon/flare',grade === 'Grand' ? '#ffe7a8' : colors[1],128);
+    if (flash) {
+      const e = 1 - (1 - hit) ** 3;
+      const w = (portrait ? 260 + 220 * e : 380 + 520 * e) * [.55,.8,1][power - 1];
+      context.globalAlpha = (1 - hit) ** 1.6;
+      context.drawImage(flash,cx - w,cy - w * .5,w * 2,w);
+      context.drawImage(flash,cx - w * .45,cy - w * .45,w * .9,w * .9);
     }
     if (power > 1 && age > 2300 && age < 6500 && Math.random() < .3 * power * dt)
       add({x:rise[0]+Math.random()*rise[1],y:rise[2],vx:(Math.random()-.5)*.8,vy:-1.5-Math.random()*2.5,life:200,s:3+Math.random()*5,c:pick(),kind:'star',twinkle:true});

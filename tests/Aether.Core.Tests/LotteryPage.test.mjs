@@ -565,3 +565,22 @@ test('gacha opening uses the decoded confetti atlas with shape and grade colour 
   assert.ok(sprites.every(args=>args[2]===192&&args[3]===96&&args[4]===96));
   assert.ok(sprites.every(args=>args[7]===args[8]&&args[7]>=21.6));
 });
+
+test('summon flares follow the hit window and portrait width with decoded sprites',async()=>{
+  for (const [width,height] of [[1920,1080],[1080,1920]]) for (const [grade,scale] of [['Grand',1],['Second',.8],['Third',.55]]) {
+    const p=page(width,height,['summon/flare']), prize={name:'星辰',grade};
+    await new Promise(resolve=>setImmediate(resolve));
+    p.state({theme:'StarSummon',lottery:{mode:'Pool',id:'pool',phase:'Idle',prizes:[prize],
+      draws:[{id:'draw',prize,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}],drawUntil:'2026-10-17T12:00:07Z'}});
+    p.advance(2050); p.frame();
+    assert.ok(p.drawnImages().some(a=>a[0].width===128),'burst particles use the shared decoded sprite');
+    assert.ok(!p.drawnImages().some(a=>a[3]===a[4]*2),'flash has not started at 2050ms');
+    p.advance(450); p.frame();
+    const flash=p.drawnImages().find(a=>a[3]===a[4]*2);
+    assert.ok(flash,'hit has a horizontal flare');
+    assert.equal(flash[3],2*(width===1080 ? 260+220*.875 : 380+520*.875)*scale);
+    assert.equal(flash[1]+flash[3]/2,width===1080 ? 459 : 960);
+    p.advance(450); p.frame();
+    assert.ok(!p.drawnImages().some(a=>a[3]===a[4]*2),'flash ends at 2950ms');
+  }
+});
