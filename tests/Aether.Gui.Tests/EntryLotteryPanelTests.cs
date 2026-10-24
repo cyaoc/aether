@@ -83,6 +83,7 @@ public sealed class EntryLotteryPanelTests
             Assert.Equal("请先连接直播间。", vm.Lottery.EntryLotteryError);
             Assert.False(vm.Lottery.Busy);
 
+            await vm.Lottery.RefreshLotteryHistoryAsync();
             vm.Lottery.SelectedLotteryHistory = lottery;
             var history = new LotteryHistoryPanel { DataContext = vm };
             window.Content = history;

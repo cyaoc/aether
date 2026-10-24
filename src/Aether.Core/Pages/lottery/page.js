@@ -319,6 +319,12 @@ function showPinned(lottery, completedDraw, previousLottery) {
   const newResult = previous && lottery.draws.some(draw => !previous.draws.some(old => old.id === draw.id));
   pinnedPage = previous && !newResult ? Math.min(pinnedPage,pages.length - 1) : 0;
   pinnedLottery = lottery;
+  const updatePageLabel = () => {
+    byId('pinnedPageNumber').textContent = pages.length > 1 ? `${pinnedPage + 1} / ${pages.length}` : '';
+    byId('pinnedPageSize').textContent = `${pages.length} / ${pages.length}`;
+    byId('pinnedPageLabels').hidden = pages.length <= 1;
+  };
+  updatePageLabel();
   const render = (fill = false) => {
     if (!draws.length) { clear(); return; }
     const rows = [], nodes = new Map(), groups = new Map();
@@ -346,9 +352,7 @@ function showPinned(lottery, completedDraw, previousLottery) {
     byId('pinnedRows').className = 'rb-page';
     void byId('pinnedRows').offsetWidth;
     if (pages.length > 1) byId('pinnedRows').className += ' paging';
-    byId('pinnedPageNumber').textContent = pages.length > 1 ? `${pinnedPage + 1} / ${pages.length}` : '';
-    byId('pinnedPageSize').textContent = `${pages.length} / ${pages.length}`;
-    byId('pinnedPageLabels').hidden = pages.length <= 1;
+    updatePageLabel();
     pinnedRows = nodes; pinnedGroups = groups;
   };
   repageWinners = () => showPinned(lottery);
