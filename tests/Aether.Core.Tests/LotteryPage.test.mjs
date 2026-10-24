@@ -82,7 +82,7 @@ test('a large pinned pool only renders the visible page',()=>{
   p.state({pinnedResults:true,lottery:{mode:'Pool',id:'pool',phase:'Idle',
     draws:Array.from({length:1000},(_,i)=>({id:`p${i}`,prize,uid:i+1}))}});
   assert.equal(rendered,5);
-  assert.equal(p.element('pinnedPages').style.height,'548px');
+  assert.equal(p.element('pinnedPages').style.height,'','pool pages keep their CSS height');
   p.advance(8000);
   assert.equal(rendered,10);
   assert.equal(p.element('pinnedPageNumber').textContent,'2 / 200');
@@ -105,22 +105,22 @@ test('pinned pages keep their eight second clock on repeats and only a completed
   const drawing={...state,lottery:{...pool,draws:[...pool.draws,newDraw],drawUntil:'2026-10-17T12:00:23Z'}};
   p.state(drawing); p.advance(7000);
   assert.equal(p.element('scene').dataset.view,'pinned');
-  assert.match(p.element('pinned').className,/st-arrive/);
-  assert.match(p.element('pinnedRows').children[0].className,/is-new/);
+  assert.match(p.element('pinned').className,/arriving/);
+  assert.match(p.element('pinnedRows').children[0].className,/fresh/);
   const arrived=p.element('pinnedRows').children[0];
   p.advance(8000); assert.equal(p.element('pinnedPageNumber').textContent,'2 / 2');
   const pageTwo=p.element('pinnedRows').children[0];
   p.state(drawing); assert.equal(p.element('pinnedRows').children[0],pageTwo,'expired remote deadline does not reset paging');
   p.advance(8000);
-  assert.doesNotMatch(p.element('pinnedRows').children[0].className,/is-new/);
-  assert.match(p.element('pinnedRows').children[0].className,/amb/,'the newest Grand resumes ambience after paging back');
+  assert.doesNotMatch(p.element('pinnedRows').children[0].className,/fresh/);
+  assert.match(p.element('pinnedRows').children[0].className,/ambient/,'the newest Grand resumes ambience after paging back');
   const late=page(); late.advance(30000); late.state(drawing);
-  assert.doesNotMatch(late.element('pinned').className,/st-arrive/);
-  assert.doesNotMatch(late.element('pinnedRows').children[0].className,/is-new/);
+  assert.doesNotMatch(late.element('pinned').className,/arriving/);
+  assert.doesNotMatch(late.element('pinnedRows').children[0].className,/fresh/);
   p.state({...state,lottery:{...pool,draws:[...pool.draws,newDraw,{...newDraw,id:'later'}]}});
   assert.equal(p.element('pinnedPageNumber').textContent,'1 / 2');
   assert.notEqual(p.element('pinnedRows').children[0],arrived);
-  assert.doesNotMatch(p.element('pinned').className,/st-arrive/);
+  assert.doesNotMatch(p.element('pinned').className,/arriving/);
 });
 
 test('SSE reconnect preserves the pinned page without replaying entrance but a cleared or new lottery resets it',()=>{
@@ -134,16 +134,16 @@ test('SSE reconnect preserves the pinned page without replaying entrance but a c
     p.state(state);
     assert.equal(p.element('scene').hidden,false);
     assert.equal(p.element('pinnedPageNumber').textContent,'2 / 2');
-    assert.doesNotMatch(p.element('pinned').className,/st-enter|st-arrive/);
+    assert.doesNotMatch(p.element('pinned').className,/entering|arriving/);
     p.advance(8000); assert.equal(p.element('pinnedPageNumber').textContent,'1 / 2');
     p.advance(8000); p.disconnect();
     p.state({lottery:null}); p.state(state);
     assert.equal(p.element('pinnedPageNumber').textContent,'1 / 2');
-    assert.match(p.element('pinned').className,/st-enter/);
+    assert.match(p.element('pinned').className,/entering/);
     p.advance(8000); p.disconnect();
     p.state({...state,lottery:{...lottery,id:'new-lottery'}});
     assert.equal(p.element('pinnedPageNumber').textContent,'1 / 2');
-    assert.match(p.element('pinned').className,/st-enter/);
+    assert.match(p.element('pinned').className,/entering/);
   }
 });
 
@@ -162,7 +162,7 @@ test('pinned entry groups visible winners by award, repages at six names or thre
   assert.match(p.element('pinnedRows').children[1].textContent,/奖项1 · 奖品1观众2观众3/);
   assert.equal(p.element('pinnedPageNumber').textContent,'1 / 2');
   p.advance(8000); assert.match(p.element('pinnedRows').textContent,/奖项3/);
-  assert.doesNotMatch(p.element('pinned').className,/st-arrive/);
+  assert.doesNotMatch(p.element('pinned').className,/arriving/);
   const hidden=won.map(draw=>({...draw,hiddenFromStream:draw.awardIndex===1}));
   p.state({pinnedResults:true,lottery:{...ended,draws:hidden}});
   p.advance(1400);
@@ -181,25 +181,25 @@ test('hiding a pinned result collapses it before filling, restores without tier 
   const hidden={...pool,draws:won.map(draw=>({...draw,hiddenFromStream:draw.id==='p4'}))};
   show(hidden);
   assert.equal(p.element('pinnedRows').children[1],removed);
-  assert.match(removed.className,/is-hiding/);
+  assert.match(removed.className,/hiding/);
   assert.equal(p.element('pinnedCount').textContent,'共 5 次');
   assert.equal(p.element('pinnedPageLabels').hidden,true,'a single remaining page releases the header before collapse finishes');
   assert.equal(p.element('pinnedPageNumber').textContent,'');
   p.advance(1320);
   assert.doesNotMatch(p.element('pinnedRows').textContent,/UID 5/);
   assert.match(p.element('pinnedRows').textContent,/UID 1/);
-  assert.match(p.element('pinnedRows').children.at(-1).className,/is-fill/);
-  show(pool); assert.doesNotMatch(p.element('pinned').className,/st-arrive|st-enter/);
-  assert.doesNotMatch(p.element('pinnedRows').children[1].className,/is-new|is-fill|is-hiding/);
+  assert.match(p.element('pinnedRows').children.at(-1).className,/filling/);
+  show(pool); assert.doesNotMatch(p.element('pinned').className,/arriving|entering/);
+  assert.doesNotMatch(p.element('pinnedRows').children[1].className,/fresh|filling|hiding/);
   show({...pool,draws:won.map(draw=>({...draw,hiddenFromStream:true}))});
   assert.equal(p.element('pinned').hidden,false,'the last rows also fade before the board disappears');
   p.advance(1320); assert.equal(p.element('scene').hidden,true);
-  show(pool); assert.doesNotMatch(p.element('pinned').className,/st-arrive|st-enter/,'restoring after hiding everything also stays still');
+  show(pool); assert.doesNotMatch(p.element('pinned').className,/arriving|entering/,'restoring after hiding everything also stays still');
   show(hidden); show(null);
   p.advance(10000); assert.equal(p.element('scene').hidden,true,'old transition cannot restore cleared results');
 });
 
-test('flag changes and an early server completion keep the active reveal intact until its local deadline',()=>{
+test('flag changes keep the active reveal intact and Core completing it shows the latest results',()=>{
   const p=page(), prize={name:'键盘',grade:'Grand'}, won={id:'new',prize,uid:42,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'};
   const pool={mode:'Pool',id:'pool',phase:'Idle',draws:[{...won,id:'old'},won],drawUntil:'2026-10-17T12:00:07Z'};
   p.state({lottery:pool});
@@ -207,15 +207,31 @@ test('flag changes and an early server completion keep the active reveal intact 
   p.advance(3000);
   const latest={...pool,draws:[pool.draws[0],{...won,hiddenFromStream:true}]};
   p.state({lottery:latest,pinnedResults:true});
-  assert.equal(p.element('ring').children[0],cell);
-  p.state({lottery:{...latest,drawUntil:null},pinnedResults:true});
   assert.equal(p.element('scene').dataset.view,'drawing');
   assert.equal(p.element('ring').children[0],cell);
-  p.advance(4000);
+  p.state({lottery:{...latest,drawUntil:null},pinnedResults:true});
   assert.equal(p.element('scene').dataset.view,'pinned');
   assert.equal(p.element('pinnedCount').textContent,'共 1 次');
-  assert.doesNotMatch(p.element('pinned').className,/st-arrive/,'a hidden result has no pinned entrance');
+  assert.doesNotMatch(p.element('pinned').className,/arriving/,'a hidden result has no pinned entrance');
   assert.equal(p.hasFrame(),false);
+});
+
+test("Core's finished snapshot ends the reveal and the pinned pool arrival plays once",()=>{
+  const p=page(), prize={name:'键盘',grade:'Grand'}, won={id:'new',prize,uid:42,candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'};
+  const drawing={pinnedResults:true,lottery:{mode:'Pool',id:'pool',phase:'Idle',draws:[{...won,id:'old'},won],drawUntil:'2026-10-17T12:00:07Z'}};
+  p.state(drawing); p.advance(3000);
+  assert.equal(p.element('scene').dataset.view,'drawing');
+  const finished={...drawing,lottery:{...drawing.lottery,drawUntil:null}};
+  p.state(finished);
+  assert.equal(p.element('scene').dataset.view,'pinned','the page does not wait for its own clock');
+  assert.match(p.element('pinned').className,/arriving/);
+  const arrived=p.element('pinnedRows').children[0];
+  assert.match(arrived.className,/fresh/);
+  p.state(finished); p.advance(4000);
+  assert.equal(p.element('pinnedRows').children[0],arrived,'neither a repeated snapshot nor the old local deadline replays it');
+  p.advance(2000);
+  assert.doesNotMatch(p.element('pinned').className,/arriving/);
+  assert.doesNotMatch(arrived.className,/fresh/);
 });
 
 test('hidden winners leave full results, empty awards and pages, and restoring redraws the list',()=>{
