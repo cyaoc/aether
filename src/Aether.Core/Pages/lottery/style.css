@@ -420,3 +420,12 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-theme="StarSummon"] .aura>.textureGlow { position:absolute; inset:0; --texture:url('/lottery/textures/summon/circle.webp'); --texture-color:var(--light); }
 [data-theme="StarSummon"] .rays { left:var(--cx); top:var(--cy); width:960px; height:960px; --texture-color:radial-gradient(circle,#fff,var(--light) 22%,var(--main) 55%); --texture:url('/lottery/textures/summon/burst.webp'); }
 [data-theme="StarSummon"][data-orientation="portrait"] .rays { width:900px; height:900px; }
+
+/* The comet rotates around its bright head; the wider dark copy survives light rooms. */
+[data-theme="StarSummon"] .meteor { --comet-w:600px; --comet-h:200px; --comet-angle:-45.7deg; background:none; box-shadow:none; }
+[data-theme="StarSummon"] .Second .meteor { --comet-w:420px; --comet-h:140px; }
+[data-theme="StarSummon"] .meteor:before,[data-theme="StarSummon"] .meteor:after { content:''; position:absolute; left:calc(50% - var(--comet-w) * .1); top:calc(50% - var(--comet-h) * .5); width:var(--comet-w); height:var(--comet-h); border-radius:0; -webkit-mask:url('/lottery/textures/summon/comet.webp') center/100% 100% no-repeat; transform-origin:10% 50%; }
+[data-theme="StarSummon"] .meteor:before { background:rgba(28,14,70,.42); transform:rotate(var(--comet-angle)) scale(1.14); }
+[data-theme="StarSummon"] .meteor:after { background:linear-gradient(90deg,#fff,var(--light) 10%,var(--main) 32%,var(--main) 75%,var(--a)); transform:rotate(var(--comet-angle)); }
+[data-theme="StarSummon"][data-orientation="portrait"] .meteor { --comet-w:480px; --comet-h:160px; --comet-angle:-61.4deg; }
+[data-theme="StarSummon"][data-orientation="portrait"] .Second .meteor { --comet-w:360px; --comet-h:120px; }
