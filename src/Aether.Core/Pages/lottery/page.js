@@ -222,6 +222,7 @@ function scan(start, winner) {
   };
   scanning = setInterval(update,50); update();
 }
+const viewerName = (draw, fallback = '') => draw.nickname || (draw.uid ? `UID ${draw.uid}` : fallback);
 function drawResult(draw, entry) {
   const grade = entry ? draw.award.grade : draw.prize.grade;
   const elapsed = Math.max(0, Date.now() - Date.parse(draw.drawnAt));
@@ -234,7 +235,7 @@ function drawResult(draw, entry) {
   summon.style.setProperty('--stop', `${-720 - winnerIndex * 360 / cellCount}deg`);
   summon.style.setProperty('--elapsed', `${-elapsed / 1000}s`);
   const t = theme(), words = {entry, title:entry ? draw.award.name : grades[grade], prize:entry ? draw.award.prize : '',
-    viewer:draw.nickname || (draw.uid ? `UID ${draw.uid}` : '')};
+    viewer:viewerName(draw)};
   byId('rank').replaceChildren(...t.rank(t.ranks[grade], words.title, entry));
   byId('stars').innerHTML = starIcon.repeat(powers[grade] + 2);
   byId('prize').textContent = name;
@@ -293,14 +294,14 @@ function winnerPages(draws, limit = 6, groups = 3) {
   }
   return pages;
 }
-const pinnedStar = '<svg class="shape-sum" viewBox="0 0 24 24"><use href="#gachaSparkleShape"/></svg><svg class="shape-gacha" viewBox="0 0 24 24"><use href="#gachaStarShape"/></svg>';
-const pinnedEffects = '<span class="fx-clip"><i class="fx-sweep"></i><i class="fx-scan"></i><i class="fx-flash"></i><i class="fx-haz"></i></span><i class="fx-ring"></i>'
-  + Array.from({length:6},(_,i) => `<span class="fx-star s${i+1}">${pinnedStar}</span>`).join('')
-  + [1,2].map(i => `<span class="fx-tw t${i}">${pinnedStar}</span><svg class="fx-heart h${i}" viewBox="0 0 24 24"><use href="#gachaHeartShape"/></svg>`).join('')
-  + [1,2,3,4].map(i => `<i class="fx-conf c${i}"></i><i class="fx-br b${i}"></i>`).join('');
+const pinnedStar = '<svg class="shapeSummon" viewBox="0 0 24 24"><use href="#gachaSparkleShape"/></svg><svg class="shapeGacha" viewBox="0 0 24 24"><use href="#gachaStarShape"/></svg>';
+const pinnedEffects = '<span class="effectClip"><i class="effectSweep"></i><i class="effectScan"></i><i class="effectFlash"></i><i class="effectHazard"></i></span><i class="effectRing"></i>'
+  + Array.from({length:6},(_,i) => `<span class="effectStar s${i+1}">${pinnedStar}</span>`).join('')
+  + [1,2].map(i => `<span class="effectTwinkle t${i}">${pinnedStar}</span><svg class="effectHeart h${i}" viewBox="0 0 24 24"><use href="#gachaHeartShape"/></svg>`).join('')
+  + [1,2,3,4].map(i => `<i class="effectConfetti c${i}"></i><i class="effectBracket b${i}"></i>`).join('');
 function showPinned(lottery, completedDraw, previousLottery) {
   clearTimeout(hiding); clearInterval(paging);
-  const entry = lottery.mode === 'Entry', t = theme(), words = t.pinned || themes.StarSummon.pinned;
+  const entry = lottery.mode === 'Entry', t = theme(), words = t.pinned;
   const visible = lottery.draws.filter(draw => !draw.hiddenFromStream);
   const draws = entry ? lottery.awards.flatMap((_, index) => visible.filter(draw => draw.awardIndex === index)) : visible.toReversed();
   const oldNodes = pinnedRows, oldGroups = pinnedGroups, oldRows = [...byId('pinnedRows').children];
@@ -310,11 +311,11 @@ function showPinned(lottery, completedDraw, previousLottery) {
   if (!draws.length && !removed.length) return;
   const previous = pinnedLottery;
   const restored = previousLottery?.id === lottery.id && previousLottery.draws.some(old => old.hiddenFromStream && visible.some(draw => draw.id === old.id));
-  const pages = entry ? winnerPages(draws) : Array.from({length:Math.ceil(draws.length / 5)}, (_, index) => draws.slice(index * 5, index * 5 + 5));
+  const pages = entry ? winnerPages(draws) : winnerPages(draws, 5, Infinity);
   view('pinned');
   const board = byId('pinned');
   let arriving = !entry && visible.some(draw => draw.id === completedDraw);
-  board.className = `rb ${entry ? 'm-entry' : 'm-pool'} ${arriving ? 'st-arrive' : previous || restored ? '' : 'st-enter'}`;
+  board.className = `pinnedBoard ${entry ? 'entry' : 'pool'} ${arriving ? 'arriving' : previous || restored ? '' : 'entering'}`;
   byId('pinnedTitle').textContent = words.title;
   byId('pinnedTag').textContent = words.tag || '';
   byId('pinnedCount').textContent = words.count(draws.length, entry);
@@ -336,59 +337,60 @@ function showPinned(lottery, completedDraw, previousLottery) {
       const prize = entry ? draw.award : draw.prize, grade = prize.grade;
       let row;
       if (!entry || draw.awardIndex !== pages[pinnedPage][index - 1]?.awardIndex) {
-        row = text(`rb-row ${grade}${entry ? ' rb-group' : ''}${grade === 'Grand' && !(arriving && draw.id === completedDraw) ? ' amb' : ''}${arriving && draw.id === completedDraw ? ' is-new' : ''}${!entry && fill && !oldIds.has(draw.id) ? ' is-fill' : ''}`, '');
+        row = text(`pinnedRow ${grade}${entry ? ' pinnedGroup' : ''}${grade === 'Grand' && !(arriving && draw.id === completedDraw) ? ' ambient' : ''}${arriving && draw.id === completedDraw ? ' fresh' : ''}${!entry && fill && !oldIds.has(draw.id) ? ' filling' : ''}`, '');
         row.style.setProperty('--d', `${-(rows.length * 2.6) % 8}s`);
-        const label = text('rb-text', '');
-        label.append(text('rb-prize',entry ? `${prize.name} · ${prize.prize}` : prize.name));
-        if (entry) { list = text('rb-names', ''); label.append(list); groups.set(draw.awardIndex,row); }
-        else label.append(text('rb-who',draw.nickname || (draw.uid ? `UID ${draw.uid}` : '主播点停')));
-        const effects = text('rb-fx','');
+        const label = text('pinnedText', '');
+        label.append(text('pinnedPrize',entry ? `${prize.name} · ${prize.prize}` : prize.name));
+        if (entry) { list = text('pinnedNames', ''); label.append(list); groups.set(draw.awardIndex,row); }
+        else label.append(text('pinnedWho',viewerName(draw, '主播点停')));
+        const effects = text('pinnedEffects','');
         effects.innerHTML = pinnedEffects;
-        effects.append(text('fx-new',`NEW · ${t.ranks[grade]}`));
-        row.append(text('rb-badge',t.ranks[grade]),label,effects);
+        effects.append(text('effectNew',`NEW · ${t.ranks[grade]}`));
+        row.append(text('pinnedBadge',t.ranks[grade]),label,effects);
         rows.push(row);
       }
-      if (entry) { const name = text(`rb-name${fill && !oldIds.has(draw.id) ? ' is-fill' : ''}`,draw.winner.nickname); list.append(name); nodes.set(draw.id,name); }
+      if (entry) { const name = text(`pinnedName${fill && !oldIds.has(draw.id) ? ' filling' : ''}`,draw.winner.nickname); list.append(name); nodes.set(draw.id,name); }
       else nodes.set(draw.id,row);
     });
     byId('pinnedRows').replaceChildren(...rows);
-    byId('pinnedRows').className = 'rb-page';
+    byId('pinnedRows').className = 'pinnedPage';
     void byId('pinnedRows').offsetWidth;
     if (pages.length > 1) byId('pinnedRows').className += ' paging';
     updatePageLabel();
     pinnedRows = nodes; pinnedGroups = groups;
   };
   repageWinners = () => showPinned(lottery);
-  let height = entry ? 0 : 548;
+  let height = 0;
   const selectedPage = pinnedPage;
   if (entry) for (let index = 0; index < pages.length; index++) {
     pinnedPage = index; render(); height = Math.max(height,byId('pinnedRows').offsetHeight || 0);
   }
   pinnedPage = selectedPage;
-  byId('pinnedPages').style.height = `${height}px`;
+  // Pool pages keep the CSS height of five rows.
+  byId('pinnedPages').style.height = entry ? `${height}px` : '';
   const startPaging = () => {
     if (pages.length > 1) paging = setInterval(() => { pinnedPage = (pinnedPage + 1) % pages.length; render(); },8000);
   };
   if (removed.length) {
     byId('pinnedRows').replaceChildren(...oldRows);
-    byId('pinnedRows').className = 'rb-page';
+    byId('pinnedRows').className = 'pinnedPage';
     pinnedRows = oldNodes; pinnedGroups = oldGroups;
-    board.className = `rb ${entry ? 'm-entry' : 'm-pool'}`;
-    for (const [,node] of removed) node.className += ' is-hiding';
+    board.className = `pinnedBoard ${entry ? 'entry' : 'pool'}`;
+    for (const [,node] of removed) node.className += ' hiding';
     if (entry) for (const [index, row] of pinnedGroups) {
       if (!visible.some(draw => draw.awardIndex === index)) {
         row.style.setProperty('--row-height',`${row.offsetHeight}px`);
-        row.className += ' is-hiding';
+        row.className += ' hiding';
       }
     }
     hiding = setTimeout(() => { render(true); startPaging(); },1320);
   } else { render(); startPaging(); }
   if (arriving) hiding = setTimeout(() => {
     arriving = false;
-    board.className = board.className.replace(' st-arrive','');
+    board.className = board.className.replace(' arriving','');
     for (const node of pinnedRows.values()) {
-      node.className = node.className.replace(' is-new','');
-      if (node.className.includes('Grand') && !node.className.includes(' amb')) node.className += ' amb';
+      node.className = node.className.replace(' fresh','');
+      if (node.className.includes('Grand') && !node.className.includes(' ambient')) node.className += ' ambient';
     }
   },6000);
 }
