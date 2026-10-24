@@ -19,7 +19,7 @@ internal sealed class ChromeBrowser : IAsyncDisposable
         var executable = Environment.GetEnvironmentVariable("AETHER_TEST_CHROME");
         if (string.IsNullOrEmpty(executable)) Assert.Skip("Set AETHER_TEST_CHROME for real browser acceptance.");
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true };
-        foreach (var arg in new[] { "--headless", "--no-first-run", "--no-default-browser-check", "--remote-debugging-port=0",
+        foreach (var arg in new[] { "--headless", "--disable-threaded-animation", "--no-first-run", "--no-default-browser-check", "--remote-debugging-port=0",
             "--user-data-dir=" + Path.Combine(directory, "chrome"), "about:blank" }) start.ArgumentList.Add(arg);
         var endpoint = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
         process = new Process { StartInfo = start };
