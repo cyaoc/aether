@@ -18,9 +18,9 @@ public partial class LotteryViewModel
 
     public string PinnedResultsHint => PinnedResults ? "下面没变灰的，就是直播画面上挂着的" : "默认关；打开前可以先点‘全部不挂出’";
 
-    private IAsyncRelayCommand? hideAllDrawsCommand;
-    public IAsyncRelayCommand HideAllDrawsCommand => hideAllDrawsCommand ??= new AsyncRelayCommand(
-        () => CanHideAllDraws ? ChangeDrawVisibilityAsync(lottery => lottery.HideAllDrawsFromStream()) : Task.CompletedTask);
+    [RelayCommand]
+    private Task HideAllDrawsAsync() => CanHideAllDraws
+        ? TryChangeLotteryAsync(CurrentMode, lottery => lottery.HideAllDrawsFromStream()) : Task.CompletedTask;
 
     public bool CanHideAllDraws => CanControlOperation && (LotteryState.Lottery switch
     {
@@ -30,18 +30,5 @@ public partial class LotteryViewModel
     });
 
     internal Task ToggleDrawVisibilityAsync(LotteryDraw draw) => CanControlOperation
-        ? ChangeDrawVisibilityAsync(lottery => lottery.SetDrawHiddenFromStream(draw.Id, !draw.HiddenFromStream)) : Task.CompletedTask;
-
-    private async Task ChangeDrawVisibilityAsync(Action<LotteryController> change)
-    {
-        var entry = LotteryState.Lottery is EntryLottery;
-        if (entry) EntryLotteryError = null;
-        else PoolLotteryError = null;
-        try { await ChangeLotteryAsync(change); }
-        catch (Exception error)
-        {
-            if (entry) EntryLotteryError = error.Message;
-            else PoolLotteryError = error.Message;
-        }
-    }
+        ? TryChangeLotteryAsync(CurrentMode, lottery => lottery.SetDrawHiddenFromStream(draw.Id, !draw.HiddenFromStream)) : Task.CompletedTask;
 }

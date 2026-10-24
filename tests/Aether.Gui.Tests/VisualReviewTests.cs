@@ -44,15 +44,16 @@ public sealed class VisualReviewTests
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
                 await vm.Lottery.SavePrizeSetAsync(mode, "周末福利");
                 var prefix = mode == LotteryMode.Pool ? "pool" : "entry";
-                var picker = window.GetVisualDescendants().OfType<LotteryPrizeSetPicker>().Single(picker => picker.Mode == mode);
+                var picker = window.GetVisualDescendants().OfType<LotteryPrizeSetPicker>()
+                    .Single(picker => picker.DataContext == (mode == LotteryMode.Pool ? vm.Lottery.PoolPrizeSets : vm.Lottery.EntryPrizeSets));
                 var load = picker.FindControl<Button>("LoadButton")!;
                 var menu = (MenuFlyout)load.Flyout!;
                 menu.ShowAt(load);
                 GuiHarness.Flush();
-                menu.Items.OfType<MenuItem>().First().RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+                GuiHarness.MenuItems(menu).First().RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
                 menu.ShowAt(load);
                 GuiHarness.Flush();
-                Save(TopLevel.GetTopLevel(menu.Items.OfType<MenuItem>().First())!, $"{prefix}-prize-sets-{(dark ? "dark" : "light")}");
+                Save(TopLevel.GetTopLevel(GuiHarness.MenuItems(menu).First())!, $"{prefix}-prize-sets-{(dark ? "dark" : "light")}");
                 menu.Hide();
                 var save = picker.FindControl<Button>("SaveButton")!;
                 save.Flyout!.ShowAt(save);

@@ -17,7 +17,7 @@ public partial class LotteryViewModel
             historyRowsSource = LotteryHistory;
             return historyRows = LotteryHistory.Select(item =>
             {
-                var date = FormatLotteryDate(item.StartedAt, includeTodayDate: true);
+                var date = LotteryDateTime(item.StartedAt);
                 var status = item.EndedAt is null ? "进行中" : "已结束";
                 var mode = ModeText(item.Mode);
                 var count = item.Mode == LotteryMode.Entry ? $"报名 {item.EntryCount} · 中奖 {item.DrawCount}" : $"抽了 {item.DrawCount} 次";
@@ -72,7 +72,7 @@ public partial class LotteryViewModel
     public bool ShowReturnToCurrent => SelectedLotteryHistory is { EndedAt: null };
     public bool CanReturnToCurrent => SelectedLotteryHistory is not null && SelectedLotteryHistory.Id == LotteryState.Lottery?.Id;
     public bool ShowReturnToCurrentHint => ShowReturnToCurrent && !CanReturnToCurrent;
-    public string HistoryDetailDate => SelectedLotteryHistory is { } lottery ? FormatLotteryDate(lottery.StartedAt, includeTodayDate: true) : "";
+    public string HistoryDetailDate => SelectedLotteryHistory is { } lottery ? LotteryDateTime(lottery.StartedAt) : "";
     public string HistoryDetailSummary => SelectedLotteryHistory switch
     {
         EntryLottery entry => $"{ModeText(LotteryMode.Entry)} · 报名 {entry.EntryCount} 人",
@@ -87,12 +87,13 @@ public partial class LotteryViewModel
         _ => "",
     };
 
-    private string FormatLotteryDate(DateTimeOffset timestamp, bool includeTodayDate = false, bool dateOnly = false)
-    {
-        var at = timestamp.ToLocalTime();
-        var today = clock.GetLocalNow();
-        if (!includeTodayDate && at.Date == today.Date) return dateOnly ? "" : $"{at:HH:mm}";
-        var date = at.Year == today.Year ? $"{at:M月d日}" : $"{at:yyyy年M月d日}";
-        return dateOnly ? date : $"{date} {at:HH:mm}";
-    }
+    private bool IsToday(DateTimeOffset timestamp) => timestamp.ToLocalTime().Date == clock.GetLocalNow().Date;
+
+    // O4 drops the year; an older year keeps it so rows stay unambiguous.
+    private string LotteryDate(DateTimeOffset timestamp) => timestamp.ToLocalTime() is var at && at.Year == clock.GetLocalNow().Year
+        ? $"{at:M月d日}" : $"{at:yyyy年M月d日}";
+
+    private string LotteryDateTime(DateTimeOffset timestamp) => $"{LotteryDate(timestamp)} {timestamp.ToLocalTime():HH:mm}";
+
+    private string DrawTime(DateTimeOffset timestamp) => IsToday(timestamp) ? $"{timestamp.ToLocalTime():HH:mm}" : LotteryDateTime(timestamp);
 }

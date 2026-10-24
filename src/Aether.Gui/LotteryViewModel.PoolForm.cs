@@ -9,7 +9,6 @@ public partial class LotteryViewModel
     private string? loadedPoolId;
     private long? loadedPoolRoom;
     private bool loadingPool;
-    private string? poolPrizeSetStatus;
     [ObservableProperty] private string? uid = "";
     [ObservableProperty] private string? stopWord = LotteryController.DefaultStopWord;
     [ObservableProperty] private string? poolLotteryError;
@@ -44,7 +43,7 @@ public partial class LotteryViewModel
             {
                 PoolLotteryPhase.Spinning => caller is null ? "点“停”开奖" : $"正在等 {caller} 发「{word}」，也可以直接点“停”",
                 _ when PoolDrawing => "直播画面正在播开奖特效",
-                _ when poolPrizeSetStatus is not null => poolPrizeSetStatus,
+                _ when PoolPrizeSets.Status is { } status => status,
                 _ when !LotteryState.Connected => "先连直播间，才能开始抽奖",
                 _ => caller is null ? "没填 UID，开始后要主播点“停”" : $"点“开始”，直播画面上的奖品转起来；只认 {caller} 发的「{word}」",
             };
@@ -64,7 +63,7 @@ public partial class LotteryViewModel
                 loadingPool = true;
                 loadedPoolId = lottery?.Id;
                 ReplacePoolPrizes(lottery?.Prizes);
-                poolPrizeSetStatus = null;
+                PoolPrizeSets.Choose(null);
                 Uid = lottery?.Uid?.ToString(CultureInfo.InvariantCulture) ?? "";
                 StopWord = lottery?.StopWord ?? LotteryController.DefaultStopWord;
                 loadingPool = false;
@@ -106,7 +105,7 @@ public partial class LotteryViewModel
     internal Task StartPoolAsync()
     {
         if (!CanStart) return Task.CompletedTask;
-        poolPrizeSetStatus = null;
+        PoolPrizeSets.Choose(null);
         var prizes = Prizes.Select(row => row.Value).ToArray();
         var word = StopWord ?? "";
         var uid = ParsedUid;

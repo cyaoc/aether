@@ -25,7 +25,7 @@ public partial class LotteryViewModel
             poolDrawsDate = clock.GetLocalNow().Date;
             return poolDraws = lottery is null ? [] : lottery.Draws.Reverse().Select((draw, index) =>
                 new PoolDrawRow(DrawViewer(draw) ?? HostStoppedText, draw.StoppedByHost && draw.Uid is not null,
-                    draw.Prize.Grade, draw.Prize.Name, FormatLotteryDate(draw.DrawnAt) + (draw.HiddenFromStream ? " · 不挂出" : ""),
+                    draw.Prize.Grade, draw.Prize.Name, DrawTime(draw.DrawnAt) + (draw.HiddenFromStream ? " · 不挂出" : ""),
                     lottery.IsDrawing && index == 0, draw.HiddenFromStream, CanControlOperation,
                     new AsyncRelayCommand(() => ToggleDrawVisibilityAsync(draw)))).ToArray();
         }
@@ -40,7 +40,7 @@ public partial class LotteryViewModel
             if (LatestPoolDraw is not { } draw) return "";
             var who = DrawViewer(draw);
             return (draw.StoppedByHost ? who is null ? HostStoppedText : $"{who} · {HostStoppedText}" : $"{who} 喊停")
-                + $" · {draw.DrawnAt.ToLocalTime():HH:mm}";
+                + $" · {DrawTime(draw.DrawnAt)}";
         }
     }
     public Grade LatestPoolDrawGrade => LatestPoolDraw?.Prize.Grade ?? Grade.Grand;
@@ -48,7 +48,7 @@ public partial class LotteryViewModel
     public string PoolDrawCountText => PoolDraws.Count > 0 ? $"本场 {PoolDraws.Count} 次"
         + (PoolDraws.Count(row => row.HiddenFromStream) is > 0 and var hidden ? $" · {hidden} 条不挂出" : "") : "";
     public bool IsPoolDrawsEmpty => PoolDraws.Count == 0;
-    public string LotteryModeText => ModeText(LotteryState.Lottery is EntryLottery ? LotteryMode.Entry : LotteryMode.Pool);
+    public string LotteryModeText => ModeText(CurrentMode);
     public string LotteryPanelPhaseText => LotteryState.Lottery is EntryLottery entry
         ? EntryPhaseText(entry) : LotteryPhaseText.Length > 0 ? LotteryPhaseText : "待机";
     public bool IsLotterySpinning => LotteryState.Lottery is EntryLottery { Phase: EntryLotteryPhase.Open }

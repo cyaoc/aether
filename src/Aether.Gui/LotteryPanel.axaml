@@ -126,8 +126,8 @@
             <StackPanel Spacing="10">
               <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                 <TextBlock Classes="section" Text="奖品" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="1" Classes="hint singleLine" Text="按占比随机抽一件，不会抽完；档次决定开奖特效" VerticalAlignment="Center" ToolTip.Tip="按占比随机抽一件，不会抽完；档次决定开奖特效" />
-                <local:LotteryPrizeSetPicker Grid.Column="2" x:Name="PoolPrizeSets" />
+                <TextBlock Grid.Column="1" Classes="hint" Text="按占比随机抽一件，不会抽完；档次决定开奖特效" VerticalAlignment="Center" />
+                <local:LotteryPrizeSetPicker Grid.Column="2" x:Name="PoolPrizeSets" DataContext="{Binding Lottery.PoolPrizeSets}" />
               </Grid>
               <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8">
                 <ItemsControl x:Name="PrizeRows" Classes="editableRows dividedRows" ItemsSource="{Binding Lottery.Prizes}">

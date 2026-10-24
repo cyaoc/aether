@@ -163,10 +163,10 @@ public sealed class EntryLotteryPanelTests
             load.Flyout!.ShowAt(load);
             GuiHarness.Flush();
             var menu = (MenuFlyout)load.Flyout;
-            var item = Assert.Single(menu.Items.OfType<MenuItem>(), item => item.Tag is LotteryPrizeSet);
-            var set = Assert.IsType<LotteryPrizeSet>(item.Tag);
-            Assert.Equal("报名方案", set.Name);
-            Assert.Contains(Assert.IsType<Grid>(item.Header).GetVisualDescendants().OfType<TextBlock>(),
+            var item = Assert.Single(GuiHarness.MenuItems(menu), item => item.DataContext is PrizeSetRow);
+            Assert.Equal("报名方案", Assert.IsType<PrizeSetRow>(item.DataContext).Name);
+            var set = vm.Lottery.PrizeSets.Single(set => set.Mode == LotteryMode.Entry);
+            Assert.Contains(item.GetVisualDescendants().OfType<TextBlock>(),
                 text => text.Text == "限定手办 ×1、周边抱枕 ×2、签名照 ×3");
             var presenter = item.GetVisualAncestors().OfType<MenuFlyoutPresenter>().Single();
             Assert.Equal(340, presenter.Bounds.Width);
@@ -188,10 +188,10 @@ public sealed class EntryLotteryPanelTests
             Assert.True(GuiHarness.FindRowControl<TextBlock>(page, first, "ErrorMessage").IsVisible);
             load.Flyout.ShowAt(load);
             GuiHarness.Flush();
-            item = Assert.Single(menu.Items.OfType<MenuItem>(), item => item.Tag is LotteryPrizeSet);
+            item = Assert.Single(GuiHarness.MenuItems(menu), item => item.DataContext is PrizeSetRow);
             Assert.Equal(Color.Parse("#E6EBFA"), Assert.IsAssignableFrom<ISolidColorBrush>(item.GetVisualDescendants().OfType<Border>()
                 .Single(border => border.Name == "PART_LayoutRoot").Background).Color);
-            Assert.IsType<Grid>(item.Header).Children.OfType<Button>().Single().RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(item.GetVisualDescendants().OfType<Button>().Single())).Invoke();
             await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.All(set => set.Mode != LotteryMode.Entry) && !vm.Lottery.Busy);
             Assert.Equal(LotteryMode.Pool, Assert.Single(vm.Lottery.PrizeSets).Mode);
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery(EntryLotteryPhase.Open))));
