@@ -38,6 +38,7 @@ const themes = {
     viewer:({entry, prize, viewer}) => entry ? `获得 ${prize}` : viewer && `${viewer} 获得`,
     banner:({entry, title, viewer}) => entry ? `锁定 ${title} 中奖者` : viewer ? `${viewer} 发出锁定指令` : '机甲锁定',
     winners:['作战结果','目前战果'],
+    winnerRank:grade => mechaEmblem(grade,`${themes.MechaLock.ranks[grade]} 级`),
     pinned:{title:'作战结果', tag:'MISSION LOG', count:(count, entry) => `${count} ${entry ? '人' : '次'}`,
       badge:(grade, rank) => { const badge = mechaEmblem(grade,`${rank} 级`); badge.className += ' pinnedBadge'; return badge; },
       decorate:row => themes.MechaLock.decorateCandidate(row)},
@@ -73,7 +74,7 @@ const themes = {
           const row = text(`winnerGroup ${draw.award.grade}`, ''), award = text('winnerAward', draw.award.name);
           award.append(text('winnerPrize', draw.award.prize));
           list = text('winnerList', '');
-          row.append(text('rank', ''), award, list);
+          row.append(text('gachaCapsule', ''), award, list);
           rows.push(row);
         }
         list.append(cards[index]);
@@ -290,7 +291,8 @@ function showWinners(lottery) {
       const card = text(`winnerCard ${draw.award.grade}`, '');
       const name = text('winnerName',draw.winner.nickname);
       card.style.setProperty('--index', index);
-      card.append(...t.group ? [name] : [text('rank',t.ranks[draw.award.grade]),name,text('winnerAward',t.award(draw.award))]);
+      t.decorateCandidate?.(card);
+      card.append(...t.group ? [name] : [t.winnerRank?.(draw.award.grade) || text('rank',t.ranks[draw.award.grade]),name,text('winnerAward',t.award(draw.award))]);
       fitting.push([name,...t.sizes.winnerName]);
       return card;
     });

@@ -597,3 +597,12 @@ test('pinned Mecha results preserve accessible tier images in pool and entry mod
     assert.deepEqual(labels,isEntry ? ['S 级','A 级','B 级'] : ['B 级','A 级','S 级']);
   }
 });
+
+test('winner lists keep accessible Mecha tiers after closing and ending',()=>{
+  for (const phase of ['Closed','Ended']) {
+    const p=page(), awards=['Grand','Second','Third'].map(grade=>({...award,grade}));
+    p.state({theme:'MechaLock',lottery:{...entry,phase,awards,
+      draws:awards.map((award,i)=>({...draws[i],awardIndex:i,award}))}});
+    assert.deepEqual(p.element('winnerCards').children.map(row=>row.children.find(child=>child.role==='img')?.['aria-label']),['S 级','A 级','B 级']);
+  }
+});
