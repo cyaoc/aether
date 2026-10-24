@@ -578,9 +578,22 @@ test('summon flares follow the hit window and portrait width with decoded sprite
     p.advance(450); p.frame();
     const flash=p.drawnImages().find(a=>a[3]===a[4]*2);
     assert.ok(flash,'hit has a horizontal flare');
+    assert.equal(flash[0].width,512,'large impact uses the fixed full-detail sprite');
     assert.equal(flash[3],2*(width===1080 ? 260+220*.875 : 380+520*.875)*scale);
     assert.equal(flash[1]+flash[3]/2,width===1080 ? 459 : 960);
     p.advance(450); p.frame();
     assert.ok(!p.drawnImages().some(a=>a[3]===a[4]*2),'flash ends at 2950ms');
+  }
+});
+
+test('pinned Mecha results preserve accessible tier images in pool and entry modes',()=>{
+  const p=page(), prizes=['Grand','Second','Third'].map(grade=>({name:'奖品',grade}));
+  for (const isEntry of [false,true]) {
+    const lottery=isEntry ? {...entry,phase:'Ended',hidden:true,awards:prizes.map(p=>({...award,...p})),
+      draws:prizes.map((p,i)=>({...draws[i],awardIndex:i,award:{...award,...p}}))} : {mode:'Pool',id:'pool',phase:'Idle',prizes,
+      draws:prizes.map((prize,i)=>({id:`p${i}`,prize}))};
+    p.state({theme:'MechaLock',pinnedResults:true,lottery});
+    const labels=p.element('pinnedRows').children.map(row=>row.children.find(child=>child.role==='img')?.['aria-label']);
+    assert.deepEqual(labels,isEntry ? ['S 级','A 级','B 级'] : ['B 级','A 级','S 级']);
   }
 });

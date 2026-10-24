@@ -18,7 +18,8 @@ const themes = {
     viewer:({entry, prize, viewer}) => entry ? prize : viewer,
     banner:({entry, title, viewer}) => entry ? `正在召唤 · ${title}` : viewer ? `${viewer} 发起召唤！` : '星辰召唤',
     winners:['召唤结果','目前的召唤结果'],
-    pinned:{title:'召唤结果', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 次`},
+    pinned:{title:'召唤结果', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 次`,
+      badge:(grade, rank) => { const badge = text('pinnedBadge',rank); themes.StarSummon.decorateCandidate(badge); return badge; }},
     award:award => award.name,
     particles:starSummon,
   },
@@ -37,7 +38,9 @@ const themes = {
     viewer:({entry, prize, viewer}) => entry ? `获得 ${prize}` : viewer && `${viewer} 获得`,
     banner:({entry, title, viewer}) => entry ? `锁定 ${title} 中奖者` : viewer ? `${viewer} 发出锁定指令` : '机甲锁定',
     winners:['作战结果','目前战果'],
-    pinned:{title:'作战结果', tag:'MISSION LOG', count:(count, entry) => `${count} ${entry ? '人' : '次'}`},
+    pinned:{title:'作战结果', tag:'MISSION LOG', count:(count, entry) => `${count} ${entry ? '人' : '次'}`,
+      badge:(grade, rank) => { const badge = mechaEmblem(grade,`${rank} 级`); badge.className += ' pinnedBadge'; return badge; },
+      decorate:row => themes.MechaLock.decorateCandidate(row)},
     award:award => `${award.name} · ${award.prize}`,
     particles:mechaLock,
     scan,
@@ -58,7 +61,8 @@ const themes = {
     banner:({entry, title, viewer}) => entry ? `扭出 ${title} 中奖者！` : viewer ? `${viewer} 来扭蛋啦！` : '来扭蛋啦！',
     shout:grade => ({Grand:'大奖!!',Second:'POP!',Third:'pop'})[grade],
     winners:['中奖啦！','已经扭出来的'],
-    pinned:{title:'中奖啦！', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 颗`},
+    pinned:{title:'中奖啦！', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 颗`,
+      badge:() => text('pinnedBadge gachaCapsule','')},
     closed:'报名截止啦',
     // Name tags line up behind one capsule and award per row.
     group:(draws, cards) => {
@@ -112,6 +116,8 @@ function fitAll() {
   // Start all flex siblings at full size before shrinking; growing one later would squeeze the others.
   fitting.forEach(([node, size, portraitSize]) => node.style.fontSize = (portrait ? portraitSize : size) + 'px');
   fitting.forEach(([node, size, portraitSize]) => fit(node, portrait ? portraitSize : size));
+  if (scene.dataset.theme === 'CapsuleGacha')
+    byId('result').dataset.multiline = ['prize','viewer'].some(id => { const node = byId(id); return node.scrollHeight > parseFloat(getComputedStyle(node).lineHeight) * 1.5; });
   // Gacha tilts a banner wider than 780px less, so its ends rise no higher than a 780px one's; a hidden banner measures 0 and keeps 1.
   byId('banner').style.setProperty('--tilt-scale', Math.min(1, 780 / byId('banner').offsetWidth));
 }
@@ -355,7 +361,8 @@ function showPinned(lottery, completedDraw, previousLottery) {
         const effects = text('pinnedEffects','');
         effects.innerHTML = pinnedEffects;
         effects.append(text('effectNew',`NEW · ${t.ranks[grade]}`));
-        row.append(text('pinnedBadge',t.ranks[grade]),label,effects);
+        words.decorate?.(row);
+        row.append(words.badge(grade,t.ranks[grade]),label,effects);
         rows.push(row);
       }
       if (entry) { const name = text(`pinnedName${fill && !oldIds.has(draw.id) ? ' filling' : ''}`,draw.winner.nickname); list.append(name); nodes.set(draw.id,name); }
@@ -509,7 +516,7 @@ function starSummon(start, grade) {
       }
     }
     const hit = (age - 2050) / 900;
-    const flash = hit > 0 && hit < 1 && textures.tinted('summon/flare',grade === 'Grand' ? '#ffe7a8' : colors[1],128);
+    const flash = hit > 0 && hit < 1 && textures.tinted('summon/flare',grade === 'Grand' ? '#ffe7a8' : colors[1],512);
     if (flash) {
       const e = 1 - (1 - hit) ** 3;
       const w = (portrait ? 260 + 220 * e : 380 + 520 * e) * [.55,.8,1][power - 1];

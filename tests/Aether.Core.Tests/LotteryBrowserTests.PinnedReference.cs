@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Aether.Core.Tests.Support;
 
@@ -33,9 +35,8 @@ public sealed partial class LotteryBrowserTests
     // ghostLimit: the original hidden row keeps its top and bottom border height (Star Summon 2×3px, Capsule Gacha 2×4px).
     public async Task Pinned_reference_pool_hide_matches_the_original_collapse_and_fill(LotteryTheme theme, string board, int ghostLimit, int elapsed)
     {
-        var root = PinnedReferenceRoot();
         await using var page = await OpenPageAsync(1920, 1080);
-        await using var reference = await OpenPinnedReferenceAsync(page, root, board, 1920, 1080);
+        await using var reference = await OpenPinnedReferenceAsync(page, board, 1920, 1080);
         page.H.Client.Lottery.SelectTheme(theme);
         await SeedPinnedPoolAsync(page, await ReferenceRowsAsync(reference));
         page.H.Client.Lottery.SetPinnedResults(true);
@@ -66,9 +67,9 @@ public sealed partial class LotteryBrowserTests
     [InlineData(3600)]
     public async Task Pinned_reference_entry_hide_matches_the_original_name_collapse(int elapsed)
     {
-        var root = PinnedReferenceRoot(); const string board = "NH4-HideEntrySummon";
+        const string board = "NH4-HideEntrySummon";
         await using var page = await OpenPageAsync(1920, 1080);
-        await using var reference = await OpenPinnedReferenceAsync(page, root, board, 1920, 1080);
+        await using var reference = await OpenPinnedReferenceAsync(page, board, 1920, 1080);
         var lottery = page.H.Client.Lottery;
         await SeedPinnedEntryAsync(page, ["柚子不酸", "一只小鹿", "晚风", "阿狸", "Momo", "小鱼干"]);
         lottery.SetEntryHidden(true); lottery.SetPinnedResults(true);
@@ -103,9 +104,8 @@ public sealed partial class LotteryBrowserTests
     [InlineData(LotteryTheme.CapsuleGacha, "NG3-PageGacha", 2)]
     public async Task Pinned_reference_pages_match_both_original_pages_and_keep_full_height(LotteryTheme theme, string board, int pageNumber)
     {
-        var root = PinnedReferenceRoot();
         await using var page = await OpenPageAsync(1920, 1080);
-        await using var reference = await OpenPinnedReferenceAsync(page, root, board, 1920, 1080);
+        await using var reference = await OpenPinnedReferenceAsync(page, board, 1920, 1080);
         page.H.Client.Lottery.SelectTheme(theme);
         await SeedPinnedPoolAsync(page, await ReferenceRowsAsync(reference));
         page.H.Client.Lottery.SetPinnedResults(true);
@@ -140,9 +140,8 @@ public sealed partial class LotteryBrowserTests
     // exactPixels: the scaled sources (NS) also match pixel for pixel; the unscaled RB/NP boards are compared by layout.
     public async Task Pinned_reference_static_sources_match_the_original_wrapper(LotteryTheme theme, string board, int width, int height, double scale, bool exactPixels)
     {
-        var root = PinnedReferenceRoot();
         await using var page = await OpenPageAsync((int)(width * scale), (int)(height * scale));
-        await using var reference = await OpenPinnedReferenceAsync(page, root, board, width, height);
+        await using var reference = await OpenPinnedReferenceAsync(page, board, width, height);
         page.H.Client.Lottery.SelectTheme(theme);
         await SeedPinnedPoolAsync(page, await ReferenceRowsAsync(reference));
         page.H.Client.Lottery.SetPinnedResults(true);
@@ -187,9 +186,8 @@ public sealed partial class LotteryBrowserTests
     [InlineData(LotteryTheme.CapsuleGacha, "NC3-ArriveGachaThird", 5400)]
     public async Task Pinned_reference_arrivals_match_the_original_entrance(LotteryTheme theme, string board, int milliseconds)
     {
-        var root = PinnedReferenceRoot();
         await using var page = await OpenPageAsync(1920, 1080);
-        await using var reference = await OpenPinnedReferenceAsync(page, root, board, 1920, 1080);
+        await using var reference = await OpenPinnedReferenceAsync(page, board, 1920, 1080);
         page.H.Client.Lottery.SelectTheme(theme);
         var rows = await ReferenceRowsAsync(reference);
         await SeedPinnedPoolAsync(page, rows[..^1]);
@@ -215,9 +213,8 @@ public sealed partial class LotteryBrowserTests
     [InlineData(LotteryTheme.CapsuleGacha, "ND3-PinEntryGacha", 1080, 1920)]
     public async Task Pinned_reference_entry_groups_match_the_original_first_page(LotteryTheme theme, string board, int width, int height)
     {
-        var root = PinnedReferenceRoot();
         await using var page = await OpenPageAsync(width, height);
-        await using var reference = await OpenPinnedReferenceAsync(page, root, board, width, height);
+        await using var reference = await OpenPinnedReferenceAsync(page, board, width, height);
         var lottery = page.H.Client.Lottery;
         lottery.SelectTheme(theme);
         await SeedPinnedEntryAsync(page, PinnedEntryNames(theme));
@@ -244,19 +241,32 @@ public sealed partial class LotteryBrowserTests
         Assert.True(failures.Count == 0, string.Join('\n', failures));
     }
 
-    private static string PinnedReferenceRoot()
+    private static async Task<ChromeBrowser> OpenPinnedReferenceAsync(PageSession page, string board, int width, int height, [CallerFilePath] string source = "")
     {
-        var root = Environment.GetEnvironmentVariable("AETHER_TEST_DESIGN_REFERENCE");
-        Assert.SkipWhen(string.IsNullOrWhiteSpace(root), "Set AETHER_TEST_DESIGN_REFERENCE to the locally rendered original boards.");
-        return root!;
-    }
-
-    private static async Task<ChromeBrowser> OpenPinnedReferenceAsync(PageSession page, string root, string board, int width, int height)
-    {
+        var port = WelcomeAnimationTests.FreePort();
+        var script = Path.GetFullPath("../../docs/design/lottery-textures/tools/server.mjs", Path.GetDirectoryName(source)!);
+        page.ReferenceServer = Process.Start(new ProcessStartInfo("node")
+        {
+            ArgumentList = { script, port.ToString() }, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+        })!;
+        var root = await page.ReferenceServer.StandardOutput.ReadLineAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.StartsWith($"http://localhost:{port}/", root);
+        var kind = board[..2];
+        var props = new
+        {
+            theme = board.Contains("Mecha", StringComparison.Ordinal) ? "机甲锁定" : board.Contains("Gacha", StringComparison.Ordinal) ? "萌系扭蛋" : "星辰召唤",
+            orient = width < height ? "竖屏" : "横屏",
+            mode = board.Contains("Entry", StringComparison.Ordinal) ? "报名" : "奖池",
+            stage = kind == "NH" ? "藏掉一条" : kind == "NG" ? "翻页" : kind is "NA" or "NB" or "NC" ? "新结果进来" : "常挂",
+            tier = kind == "NB" ? "二奖" : kind == "NC" ? "三奖" : "大奖",
+            scale = kind != "NS" ? "100%" : width < height ? "55%" : "50%", fx = "贴图", room = "透明",
+        };
+        var url = $"http://localhost:{port}/render.html?board=RB1-PinBoard.dc.html&props=" + Uri.EscapeDataString(JsonSerializer.Serialize(props));
         var reference = new ChromeBrowser();
         try
         {
-            await reference.OpenAsync(Path.Combine(page.H.DataDirectory, "reference-" + Guid.NewGuid()), root.TrimEnd('/') + "/" + board + ".static.html", width, height);
+            await reference.OpenAsync(Path.Combine(page.H.DataDirectory, "reference-" + Guid.NewGuid()), url, width, height);
+            await reference.WaitAsync("!!document.querySelector('.rb') && document.fonts.status === 'loaded'");
             // Retain all layout ancestors and the original scaled source wrapper. Hide only the room and source-frame decorations.
             await reference.EvaluateAsync("""
                 window.referenceSource = document.querySelector('.rb').parentElement;
@@ -315,7 +325,7 @@ public sealed partial class LotteryBrowserTests
               for(let p=e;p;p=p.parentElement) { const s=getComputedStyle(p); if(+s.opacity<.01 || s.visibility==='hidden' || s.display==='none') return false; }
               return true;
             }).map(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e),gone=document.querySelector('.rb-row.is-gone'); return {prototypeChip:e.matches('.rb-name.gone'),afterGone:!!gone&&!!(gone.compareDocumentPosition(e)&Node.DOCUMENT_POSITION_FOLLOWING),text:e.matches(
-            """ + JsonSerializer.Serialize(string.Join(",", parts[0], parts[3], parts[8])) + ")?'':e.textContent,x:r.x-" + JsonSerializer.Serialize(x) + ",y:r.y-" + JsonSerializer.Serialize(y) + ",w:r.width,h:r.height,font:s.fontSize};}))()";
+            """ + JsonSerializer.Serialize(string.Join(",", parts[0], parts[3], parts[4], parts[8])) + ")?'':e.textContent,x:r.x-" + JsonSerializer.Serialize(x) + ",y:r.y-" + JsonSerializer.Serialize(y) + ",w:r.width,h:r.height,font:s.fontSize};}))()";
         var expected = await reference.EvaluateAsync(Measure(ReferenceParts, clip.x, clip.y));
         var actual = await browser.EvaluateAsync(Measure(PinnedParts, 0, 0));
         string Motion(string selectors) => """
@@ -449,7 +459,12 @@ public sealed partial class LotteryBrowserTests
             for (var index = 0; index < 16; index++) Assert.Equal(sourceTarget.GetProperty("matrix")[index].GetDouble(), actualTarget.GetProperty("matrix")[index].GetDouble(), 2);
         }
         if (exactPixels)
-            Assert.All(pixels.GetProperty("max").EnumerateArray(), channel => Assert.InRange(channel.GetInt32(), 0, 4));
+        {
+            // Empty accessible emblems and the board's transparent text rasterize animated bitmaps differently when scaled.
+            if (board.Contains("Mecha", StringComparison.Ordinal))
+                Assert.All(pixels.GetProperty("paintedMean").EnumerateArray(), channel => Assert.InRange(channel.GetDouble(), 0, .75));
+            else Assert.All(pixels.GetProperty("max").EnumerateArray(), channel => Assert.InRange(channel.GetInt32(), 0, 4));
+        }
         foreach (var row in actualMotion.EnumerateArray().Where(row => row.GetProperty("classes").GetString()!.Contains("filling", StringComparison.Ordinal)))
             Assert.Equal("hidden", row.GetProperty("overflow").GetString());
         failures.AddRange(unexplained.Select(difference => $"{board}@{milliseconds}ms: {difference}"));
