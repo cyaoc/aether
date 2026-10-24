@@ -20,13 +20,13 @@ function page(width = 1920, height = 1080) {
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.text=''; this.children=children; },
     getContext:()=>graphics });
-  const document = { createElement:element, getElementById:id=>{
+  const document = { querySelectorAll:()=>[], createElement:element, getElementById:id=>{
     if(!elements.has(id)) elements.set(id,element());
     return elements.get(id);
   }, fonts:{ready:Promise.resolve(),addEventListener(){}} };
   const timer = (callback,delay,repeat) => { const id=++nextId; timers.set(id,{callback,at:now+delay,repeat}); return id; };
   const window = {innerWidth:width,innerHeight:height,addEventListener(name,fn){listeners.set(name,fn);}};
-  vm.runInNewContext(script, { document, window,
+  vm.runInNewContext(readFileSync(new URL('../../src/Aether.Core/Pages/lottery/textures.js', import.meta.url),'utf8') + '\n' + script, { document, window,
     Date:class extends Date { static now(){return now;} }, getComputedStyle:()=>({fontSize:'112px'}),
     EventSource:class { constructor(){source=this;} addEventListener(name,fn){listeners.set(name,fn);} },
     requestAnimationFrame:fn=>{animationFrame=fn;return 1;},cancelAnimationFrame:()=>{animationFrame=undefined;},
@@ -499,4 +499,38 @@ test('pool spinning has only prizes, each grade reveals the drawn prize, then be
     p.advance(7000); assert.equal(p.element('scene').hidden,true);
     p.advance(7000); assert.equal(p.element('scene').hidden,true);
   }
+});
+
+function texturePage() {
+  const calls = [], images = [], canvases = [];
+  const context = vm.createContext({
+    Image:class { constructor(){images.push(this);} decode(){return Promise.resolve();} },
+    document:{querySelectorAll:()=>[{href:'http://localhost/lottery/textures/summon/flare.webp'}],
+      createElement:()=>{ const canvas={getContext:()=>new Proxy({}, {set:(o,k,v)=>{calls.push([k,v]);return true;},get:(_,k)=>(...args)=>calls.push([k,...args])})}; canvases.push(canvas); return canvas;}},
+  });
+  vm.runInContext(readFileSync(new URL('../../src/Aether.Core/Pages/lottery/textures.js', import.meta.url),'utf8'),context);
+  return {textures:vm.runInContext('textures',context), calls, images, canvases};
+}
+test('texture atlas positions match the supplied three-column and four-by-four sheets',()=>{
+  const {textures:t}=texturePage();
+  assert.deepEqual(['Grand','Second','Third'].map(g=>t.gradePosition(g)),['0%','50%','100%']);
+  assert.deepEqual(Array.from(t.confettiCell('heart','#ff7aae','Grand')),[0,0,96,96]);
+  assert.deepEqual(Array.from(t.confettiCell('star','#ffd45e','Second')),[96,96,96,96]);
+  assert.deepEqual(Array.from(t.confettiCell('strip','#5fd3b0','Third')),[192,192,96,96]);
+  assert.deepEqual(Array.from(t.confettiCell('candy','#7ccbff','Grand')),[288,288,96,96]);
+  assert.deepEqual(Array.from(t.confettiCell('dot','#fff','Third')),[288,192,96,96]);
+});
+test('glow textures wait for decoding and cache each image, colour and size with a white core',async()=>{
+  const {textures:t,calls,canvases}=texturePage();
+  assert.equal(t.tinted('summon/flare','#fff',40,20),null);
+  await t.ready;
+  const first=t.tinted('summon/flare','#fff',40,20);
+  assert.equal(first.width,40); assert.equal(first.height,20);
+  assert.equal(t.tinted('summon/flare','#fff',40,20),first);
+  assert.notEqual(t.tinted('summon/flare','#fc0',40,20),first);
+  assert.notEqual(t.tinted('summon/flare','#fff',80,20),first);
+  assert.equal(canvases.length,3);
+  assert.ok(calls.some(c=>c[0]==='globalCompositeOperation'&&c[1]==='source-in'));
+  assert.ok(calls.some(c=>c[0]==='globalCompositeOperation'&&c[1]==='lighter'));
+  assert.ok(calls.some(c=>c[0]==='globalAlpha'&&c[1]===.6));
 });

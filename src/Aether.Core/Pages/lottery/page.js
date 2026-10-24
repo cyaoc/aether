@@ -431,6 +431,9 @@ function particles(start, grade) {
       const edge = Math.min(p.x + left, canvas.width - p.x - left, p.y + top, canvas.height - p.y - top) - 40;
       const alpha = Math.max(0, Math.min(1, p.life / (p.max * .4))) * Math.max(0, Math.min(1, edge / 140)) * (p.twinkle ? .5 + .5 * Math.sin(p.life * .3) : 1);
       context.globalAlpha = alpha; context.fillStyle = context.strokeStyle = p.c; context.beginPath();
+      // A texture decorates the existing particle; its kind remains the decode-time fallback.
+      const bitmap = p.texture && textures.tinted(p.texture,p.c,128);
+      if (bitmap) { context.drawImage(bitmap,p.x - p.width / 2,p.y - (p.height || p.width) / 2,p.width,p.height || p.width); continue; }
       if (p.kind === 'star') star(p.x,p.y,p.s * 2.2);
       else if (p.kind === 'hex') { context.lineWidth = 2; hex(p.x,p.y,p.s); }
       else if (p.kind === 'spark') { context.lineWidth = p.s; context.moveTo(p.x,p.y); context.lineTo(p.x - p.vx * (p.tail || 2.6),p.y - p.vy * (p.tail || 2.6)); context.stroke(); }

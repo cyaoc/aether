@@ -5,6 +5,26 @@ namespace Aether.Core.Tests;
 
 public sealed partial class LotteryBrowserTests
 {
+    [Fact]
+    public async Task All_lottery_textures_are_decoded_from_local_resources_before_a_draw()
+    {
+        await using var page = await OpenPageAsync(1920, 1080);
+        var browser = page.Browser;
+        var decoded = await browser.EvaluateAsync("""
+            (async () => {
+              await textures.ready;
+              return [...document.querySelectorAll('link[rel="preload"][as="image"]')].filter(link => {
+                const name = link.href.split('/textures/')[1].replace(/\.webp$/, '');
+                return textures.image(name)?.naturalWidth > 0;
+              }).length;
+            })()
+            """);
+        Assert.Equal(28, decoded.GetInt32());
+        Assert.Equal(28, browser.Requests.Where(url => url.EndsWith(".webp", StringComparison.Ordinal)).Distinct().Count());
+        Assert.All(browser.Requests, url => Assert.Equal("localhost", new Uri(url).Host));
+        Assert.Empty(browser.Errors);
+    }
+
     [Theory]
     [InlineData(1920, 1080)]
     [InlineData(1080, 1920)]
