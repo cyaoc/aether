@@ -420,3 +420,13 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-theme="StarSummon"] .aura>.textureGlow { position:absolute; inset:0; --texture:url('/lottery/textures/summon/circle.webp'); --texture-color:var(--light); }
 [data-theme="StarSummon"] .rays { left:var(--cx); top:var(--cy); width:960px; height:960px; --texture-color:radial-gradient(circle,#fff,var(--light) 22%,var(--main) 55%); --texture:url('/lottery/textures/summon/burst.webp'); }
 [data-theme="StarSummon"][data-orientation="portrait"] .rays { width:900px; height:900px; }
+
+/* Result lists share the candidate artwork without changing their paging or deal timing. */
+[data-theme="StarSummon"] .winnerCard { position:relative; isolation:isolate; }
+[data-theme="StarSummon"] .winnerCard>.summonFace { border-radius:15px; }
+[data-theme="StarSummon"] .winnerCard>.summonFrame { inset:-10px -8px; }
+[data-theme="StarSummon"] .winnerCard .rank { background-image:var(--summon-ink); filter:drop-shadow(0 2px 6px #000c); }
+[data-theme="StarSummon"] .winnerName { text-shadow:0 2px 10px #000000b3; }
+[data-theme="StarSummon"] .winnerAward { text-shadow:0 2px 8px #000c; }
+[data-theme="StarSummon"][data-orientation="portrait"] .winnerCard>.summonFace { border-radius:13px; }
+[data-theme="StarSummon"][data-orientation="portrait"] .winnerCard>.summonFrame { inset:-9px -7px; }

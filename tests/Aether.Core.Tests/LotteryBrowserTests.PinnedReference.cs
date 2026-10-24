@@ -243,14 +243,6 @@ public sealed partial class LotteryBrowserTests
 
     private static async Task<ChromeBrowser> OpenPinnedReferenceAsync(PageSession page, string board, int width, int height, [CallerFilePath] string source = "")
     {
-        var port = WelcomeAnimationTests.FreePort();
-        var script = Path.GetFullPath("../../docs/design/lottery-textures/tools/server.mjs", Path.GetDirectoryName(source)!);
-        page.ReferenceServer = Process.Start(new ProcessStartInfo("node")
-        {
-            ArgumentList = { script, port.ToString() }, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
-        })!;
-        var root = await page.ReferenceServer.StandardOutput.ReadLineAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(10));
-        Assert.StartsWith($"http://localhost:{port}/", root);
         var kind = board[..2];
         var props = new
         {
@@ -261,11 +253,9 @@ public sealed partial class LotteryBrowserTests
             tier = kind == "NB" ? "二奖" : kind == "NC" ? "三奖" : "大奖",
             scale = kind != "NS" ? "100%" : width < height ? "55%" : "50%", fx = "贴图", room = "透明",
         };
-        var url = $"http://localhost:{port}/render.html?board=RB1-PinBoard.dc.html&props=" + Uri.EscapeDataString(JsonSerializer.Serialize(props));
-        var reference = new ChromeBrowser();
+        var reference = await OpenDesignReferenceAsync(page, "RB1-PinBoard.dc.html", props, width, height, source);
         try
         {
-            await reference.OpenAsync(Path.Combine(page.H.DataDirectory, "reference-" + Guid.NewGuid()), url, width, height);
             await reference.WaitAsync("!!document.querySelector('.rb') && document.fonts.status === 'loaded'");
             // Retain all layout ancestors and the original scaled source wrapper. Hide only the room and source-frame decorations.
             await reference.EvaluateAsync("""
@@ -277,6 +267,26 @@ public sealed partial class LotteryBrowserTests
                 }
                 document.body.style.background = referenceSource.style.background = '#f0eae4'; true
                 """);
+            return reference;
+        }
+        catch { await reference.DisposeAsync(); throw; }
+    }
+
+    private static async Task<ChromeBrowser> OpenDesignReferenceAsync(PageSession page, string board, object props, int width, int height, [CallerFilePath] string source = "")
+    {
+        var port = WelcomeAnimationTests.FreePort();
+        var script = Path.GetFullPath("../../docs/design/lottery-textures/tools/server.mjs", Path.GetDirectoryName(source)!);
+        page.ReferenceServer = Process.Start(new ProcessStartInfo("node")
+        {
+            ArgumentList = { script, port.ToString() }, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+        })!;
+        var root = await page.ReferenceServer.StandardOutput.ReadLineAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.StartsWith($"http://localhost:{port}/", root);
+        var reference = new ChromeBrowser();
+        try
+        {
+            var url = $"http://localhost:{port}/render.html?board={board}&props=" + Uri.EscapeDataString(JsonSerializer.Serialize(props));
+            await reference.OpenAsync(Path.Combine(page.H.DataDirectory, "reference-" + Guid.NewGuid()), url, width, height);
             return reference;
         }
         catch { await reference.DisposeAsync(); throw; }

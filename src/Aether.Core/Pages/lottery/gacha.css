@@ -126,7 +126,7 @@
 [data-theme="CapsuleGacha"] #winnerTitle { line-height:1.1; }
 [data-theme="CapsuleGacha"] #winnerCards { width:100%; display:flex; flex-direction:column; gap:24px; perspective:none; }
 [data-theme="CapsuleGacha"] .winnerGroup { display:flex; align-items:center; gap:18px; }
-[data-theme="CapsuleGacha"] .winnerGroup .rank { width:76px; height:76px; flex-shrink:0; border:5px solid var(--ink); border-radius:50%; background:linear-gradient(var(--main) 46%,var(--ink) 46% 54%,white 54%); }
+[data-theme="CapsuleGacha"] .winnerGroup>.gachaCapsule { width:76px; height:76px; flex-shrink:0; }
 [data-theme="CapsuleGacha"] .winnerAward { width:170px; flex-shrink:0; color:var(--ink); font:52px 'ZCOOL KuaiLe',sans-serif; }
 [data-theme="CapsuleGacha"] .winnerPrize { display:none; }
 [data-theme="CapsuleGacha"] .winnerList { flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:14px; }
@@ -188,7 +188,7 @@
 [data-theme="CapsuleGacha"][data-orientation="portrait"] #winners { padding:26px 28px 30px; gap:22px; border-width:5px; border-radius:40px; box-shadow:10px 10px var(--ink); }
 [data-theme="CapsuleGacha"][data-orientation="portrait"] #winnerCards { gap:22px; }
 [data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerGroup { flex-wrap:wrap; gap:10px 12px; }
-[data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerGroup .rank { width:52px; height:52px; border-width:4px; }
+[data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerGroup>.gachaCapsule { width:52px; height:52px; }
 [data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerAward { flex:1; min-width:0; width:auto; font-size:40px; }
 [data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerPrize { display:inline; margin-left:12px; font-size:30px; color:#7a5a7e; }
 [data-theme="CapsuleGacha"][data-orientation="portrait"] .winnerList { flex-basis:100%; gap:12px; }
