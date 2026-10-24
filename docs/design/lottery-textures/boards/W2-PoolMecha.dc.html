@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>W2 奖池抽奖 机甲锁定</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+@font-face{font-family:'Smiley Sans';src:url('/_blob/6b8785fa0c0f9711bc33638407feb81e') format('woff2');font-display:swap}
+.w2-cond{font-family:'Bahnschrift SemiCondensed','Bahnschrift','DIN Condensed','Avenir Next Condensed',sans-serif;font-weight:700}
+.w2-hazard{background:repeating-linear-gradient(-45deg,#FF7A1A 0 18px,#0A0C10 18px 36px)}
+.w2-hazardRed{background:repeating-linear-gradient(-45deg,#FF3D3D 0 18px,#0A0C10 18px 36px)}
+.w2-move{animation:w2Move 1s linear infinite}
+@keyframes w2Move{0%{background-position:0 0}100%{background-position:51px 0}}
+.w2-lockIdle{animation:w2LockIdle 4s infinite}
+@keyframes w2LockIdle{0%{transform:translate(142px,360px) scale(1)}8.5%{transform:translate(142px,360px) scale(1)}10%{transform:translate(466px,554px) scale(1)}18.5%{transform:translate(466px,554px) scale(1)}20%{transform:translate(1114px,360px) scale(1)}28.5%{transform:translate(1114px,360px) scale(1)}30%{transform:translate(1114px,554px) scale(1)}38.5%{transform:translate(1114px,554px) scale(1)}40%{transform:translate(466px,360px) scale(1)}48.5%{transform:translate(466px,360px) scale(1)}50%{transform:translate(142px,554px) scale(1)}58.5%{transform:translate(142px,554px) scale(1)}60%{transform:translate(1438px,554px) scale(1)}68.5%{transform:translate(1438px,554px) scale(1)}70%{transform:translate(790px,360px) scale(1)}78.5%{transform:translate(790px,360px) scale(1)}80%{transform:translate(790px,554px) scale(1)}88.5%{transform:translate(790px,554px) scale(1)}90%{transform:translate(1438px,360px) scale(1)}98.5%{transform:translate(1438px,360px) scale(1)}100%{transform:translate(142px,360px) scale(1)}}
+.w2-lockR0{animation:w2LockR0 7s infinite}
+.w2-lockR1{animation:w2LockR1 7s infinite}
+.w2-lockR2{animation:w2LockR2 7s infinite}
+@keyframes w2LockR0{0%{opacity:1;transform:translate(142px,554px) scale(1)}3.5%{transform:translate(142px,554px) scale(1)}4%{transform:translate(142px,360px) scale(1)}5.5%{transform:translate(142px,360px) scale(1)}6%{transform:translate(1114px,554px) scale(1)}7.5%{transform:translate(1114px,554px) scale(1)}8%{transform:translate(1114px,360px) scale(1)}9.5%{transform:translate(1114px,360px) scale(1)}10%{transform:translate(466px,554px) scale(1)}11.5%{transform:translate(466px,554px) scale(1)}12%{transform:translate(466px,360px) scale(1)}14%{transform:translate(466px,360px) scale(1)}14.5%{transform:translate(1438px,554px) scale(1)}16.5%{transform:translate(1438px,554px) scale(1)}17%{transform:translate(1438px,360px) scale(1)}19.5%{transform:translate(1438px,360px) scale(1)}20%{transform:translate(790px,554px) scale(1)}23%{transform:translate(790px,554px) scale(1)}23.5%{transform:translate(790px,360px) scale(1)}27%{transform:translate(790px,360px) scale(1)}27.5%{transform:translate(142px,554px) scale(1)}31%{transform:translate(142px,554px) scale(1)}31.5%{transform:translate(1114px,360px) scale(1)}34.5%{transform:translate(1114px,360px) scale(1)}35%{transform:translate(790px,360px) scale(1)}35.8%{transform:translate(790px,360px) scale(0.9)}36.5%{transform:translate(790px,360px) scale(1)}37.5%{opacity:1;transform:translate(790px,360px) scale(1)}40.5%,100%{opacity:0;transform:translate(790px,360px) scale(1.3)}}
+@keyframes w2LockR1{0%{opacity:1;transform:translate(142px,554px) scale(1)}3.5%{transform:translate(142px,554px) scale(1)}4%{transform:translate(142px,360px) scale(1)}5.5%{transform:translate(142px,360px) scale(1)}6%{transform:translate(1114px,554px) scale(1)}7.5%{transform:translate(1114px,554px) scale(1)}8%{transform:translate(1114px,360px) scale(1)}9.5%{transform:translate(1114px,360px) scale(1)}10%{transform:translate(466px,554px) scale(1)}11.5%{transform:translate(466px,554px) scale(1)}12%{transform:translate(466px,360px) scale(1)}14%{transform:translate(466px,360px) scale(1)}14.5%{transform:translate(1438px,554px) scale(1)}16.5%{transform:translate(1438px,554px) scale(1)}17%{transform:translate(1438px,360px) scale(1)}19.5%{transform:translate(1438px,360px) scale(1)}20%{transform:translate(790px,554px) scale(1)}23%{transform:translate(790px,554px) scale(1)}23.5%{transform:translate(790px,360px) scale(1)}27%{transform:translate(790px,360px) scale(1)}27.5%{transform:translate(142px,554px) scale(1)}31%{transform:translate(142px,554px) scale(1)}31.5%{transform:translate(1114px,360px) scale(1)}34.5%{transform:translate(1114px,360px) scale(1)}35%{transform:translate(790px,554px) scale(1)}35.8%{transform:translate(790px,554px) scale(0.9)}36.5%{transform:translate(790px,554px) scale(1)}37.5%{opacity:1;transform:translate(790px,554px) scale(1)}40.5%,100%{opacity:0;transform:translate(790px,554px) scale(1.3)}}
+@keyframes w2LockR2{0%{opacity:1;transform:translate(142px,554px) scale(1)}3.5%{transform:translate(142px,554px) scale(1)}4%{transform:translate(142px,360px) scale(1)}5.5%{transform:translate(142px,360px) scale(1)}6%{transform:translate(1114px,554px) scale(1)}7.5%{transform:translate(1114px,554px) scale(1)}8%{transform:translate(1114px,360px) scale(1)}9.5%{transform:translate(1114px,360px) scale(1)}10%{transform:translate(466px,554px) scale(1)}11.5%{transform:translate(466px,554px) scale(1)}12%{transform:translate(466px,360px) scale(1)}14%{transform:translate(466px,360px) scale(1)}14.5%{transform:translate(1438px,554px) scale(1)}16.5%{transform:translate(1438px,554px) scale(1)}17%{transform:translate(1438px,360px) scale(1)}19.5%{transform:translate(1438px,360px) scale(1)}20%{transform:translate(790px,554px) scale(1)}23%{transform:translate(790px,554px) scale(1)}23.5%{transform:translate(790px,360px) scale(1)}27%{transform:translate(790px,360px) scale(1)}27.5%{transform:translate(142px,554px) scale(1)}31%{transform:translate(142px,554px) scale(1)}31.5%{transform:translate(1114px,360px) scale(1)}34.5%{transform:translate(1114px,360px) scale(1)}35%{transform:translate(1114px,554px) scale(1)}35.8%{transform:translate(1114px,554px) scale(0.9)}36.5%{transform:translate(1114px,554px) scale(1)}37.5%{opacity:1;transform:translate(1114px,554px) scale(1)}40.5%,100%{opacity:0;transform:translate(1114px,554px) scale(1.3)}}
+.w2-lockOrange{animation:w2LockOrange 7s infinite}
+.w2-lockTier{animation:w2LockTier 7s infinite}
+@keyframes w2LockOrange{0%,34.8%{opacity:1}35.3%,100%{opacity:0}}
+@keyframes w2LockTier{0%,34.8%{opacity:0}35.3%{opacity:1}35.9%{opacity:.2}36.5%,100%{opacity:1}}
+.w2-dim{animation:w2Dim 7s infinite}
+@keyframes w2Dim{0%{opacity:0}4%{opacity:1}88%{opacity:1}95%,100%{opacity:0}}
+.w2-alert{animation:w2Alert 7s infinite}
+@keyframes w2Alert{0%,2%{opacity:0}6%{opacity:.9}10%{opacity:.15}14%{opacity:.8}18%{opacity:.15}22%{opacity:.7}26%{opacity:.15}30%{opacity:.6}34%,100%{opacity:0}}
+.w2-bandTop{animation:w2BandTop 7s infinite}
+.w2-bandBot{animation:w2BandBot 7s infinite}
+@keyframes w2BandTop{0%,1%{transform:translateX(-2000px)}6%{transform:none}86%{transform:none}93%,100%{transform:translateX(2000px)}}
+@keyframes w2BandBot{0%,1%{transform:translateX(2000px)}6%{transform:none}86%{transform:none}93%,100%{transform:translateX(-2000px)}}
+.w2-banner{animation:w2Banner 7s infinite}
+@keyframes w2Banner{0%{opacity:0;transform:scaleX(.1)}3%{opacity:1;transform:scaleX(1.05)}4%{transform:none}34%{opacity:1}38%,100%{opacity:0}}
+.w2-tilesOut{animation:w2TilesOut 7s infinite}
+@keyframes w2TilesOut{0%,36.5%{opacity:1;transform:none}40%,100%{opacity:0;transform:translateY(50px) scale(.92)}}
+.w2-shake2{animation:w2Shake2 7s infinite}
+.w2-shake1{animation:w2Shake1 7s infinite}
+@keyframes w2Shake2{0%,36.8%{transform:none}37.4%{transform:translate(-18px,10px)}38%{transform:translate(16px,-12px)}38.6%{transform:translate(-12px,-8px)}39.2%{transform:translate(9px,7px)}40%,100%{transform:none}}
+@keyframes w2Shake1{0%,36.8%{transform:none}37.4%{transform:translate(-7px,4px)}38%{transform:translate(6px,-4px)}38.8%,100%{transform:none}}
+.w2-flash{animation:w2Flash 7s infinite}
+@keyframes w2Flash{0%,36.6%{opacity:0}37.2%{opacity:1}41%,100%{opacity:0}}
+.w2-reticle{animation:w2Reticle 7s infinite}
+@keyframes w2Reticle{0%,37%{opacity:0;transform:translate(-50%,-50%) scale(2.2) rotate(0deg)}41%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(90deg)}84%{opacity:.8;transform:translate(-50%,-50%) scale(1) rotate(180deg)}89%,100%{opacity:0;transform:translate(-50%,-50%) scale(.8) rotate(200deg)}}
+.w2-panel{animation:w2Panel 7s infinite}
+@keyframes w2Panel{0%,38.6%{opacity:0;transform:scaleY(0)}40.5%{opacity:1;transform:scaleY(1.08)}41.5%{transform:scaleY(1)}86%{opacity:1;transform:none}92%,100%{opacity:0;transform:scaleY(.2)}}
+.w2-glitchA{animation:w2GlitchA 7s infinite}
+.w2-glitchB{animation:w2GlitchB 7s infinite}
+@keyframes w2GlitchA{0%,40.5%{opacity:0;transform:none;clip-path:inset(0 0 0 0)}41%{opacity:1;transform:translate(-20px,0);clip-path:inset(12% 0 50% 0)}42.5%{transform:translate(16px,0);clip-path:inset(60% 0 6% 0)}44%{transform:translate(-8px,0);clip-path:inset(30% 0 36% 0)}45.5%,100%{opacity:0;transform:none;clip-path:inset(0 0 0 0)}}
+@keyframes w2GlitchB{0%,40.5%{opacity:0;transform:none;clip-path:inset(0 0 0 0)}41%{opacity:1;transform:translate(18px,0);clip-path:inset(48% 0 18% 0)}42.5%{transform:translate(-14px,0);clip-path:inset(4% 0 66% 0)}44%{transform:translate(10px,0);clip-path:inset(40% 0 30% 0)}45.5%,100%{opacity:0;transform:none;clip-path:inset(0 0 0 0)}}
+.w2-sub{animation:w2Sub 7s infinite}
+@keyframes w2Sub{0%,44%{opacity:0;letter-spacing:30px}49%{opacity:1;letter-spacing:6px}84%{opacity:1}88%,100%{opacity:0}}
+.w2-in-a{animation:w2InA .6s steps(1,end),w2Slide .6s cubic-bezier(.2,.9,.2,1)}
+.w2-in-b{animation:w2InB .6s steps(1,end),w2Slide .6s cubic-bezier(.2,.9,.2,1)}
+@keyframes w2InA{0%{opacity:.2}25%{opacity:1}40%{opacity:.3}60%,100%{opacity:1}}
+@keyframes w2InB{0%{opacity:.2}25%{opacity:1}40%{opacity:.3}60%,100%{opacity:1}}
+@keyframes w2Slide{0%{transform:translateX(80px)}100%{transform:none}}
+.w2-pop-a{animation:w2PopA .5s ease-out}
+.w2-pop-b{animation:w2PopB .5s ease-out}
+@keyframes w2PopA{0%{transform:scale(1.35);color:#FFFFFF}100%{transform:scale(1)}}
+@keyframes w2PopB{0%{transform:scale(1.35);color:#FFFFFF}100%{transform:scale(1)}}
+.w2-row{animation:w2Row .5s cubic-bezier(.2,.9,.2,1) both}
+.w2b-sweepWrap{animation:w2bSweepWrap 7s infinite}
+@keyframes w2bSweepWrap{0%{opacity:0}4%{opacity:1}35.5%{opacity:1}37.5%,100%{opacity:0}}
+.w2b-sweep{animation:w2bSweep 1.4s linear infinite}
+@keyframes w2bSweep{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+.w2b-hud{animation:w2bHud 7s infinite}
+@keyframes w2bHud{0%{opacity:0;transform:translate(-50%,-50%) rotate(0deg)}4%{opacity:1}88%{opacity:1}95%,100%{opacity:0;transform:translate(-50%,-50%) rotate(60deg)}}
+.w2b-ping{animation:w2bPing 7s infinite}
+@keyframes w2bPing{0%,1.9%{opacity:0;transform:translate(-50%,-50%) scale(1)}2%{opacity:.95;transform:translate(-50%,-50%) scale(1)}8%{opacity:0;transform:translate(-50%,-50%) scale(4.2)}9.9%{opacity:0;transform:translate(-50%,-50%) scale(1)}10%{opacity:.95;transform:translate(-50%,-50%) scale(1)}16%{opacity:0;transform:translate(-50%,-50%) scale(4.2)}17.9%{opacity:0;transform:translate(-50%,-50%) scale(1)}18%{opacity:.95;transform:translate(-50%,-50%) scale(1)}24%{opacity:0;transform:translate(-50%,-50%) scale(4.2)}25.9%{opacity:0;transform:translate(-50%,-50%) scale(1)}26%{opacity:.95;transform:translate(-50%,-50%) scale(1)}32%,100%{opacity:0;transform:translate(-50%,-50%) scale(4.2)}}
+.w2b-lines{animation:w2bLines 7s infinite}
+@keyframes w2bLines{0%,36.7%{opacity:0;transform:translate(-50%,-50%) scale(1.2) rotate(0deg)}37%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0deg)}37.8%{transform:translate(-50%,-50%) scale(1.03) rotate(-1.4deg)}38.6%{transform:translate(-50%,-50%) scale(1) rotate(1deg)}39.4%{opacity:1;transform:translate(-50%,-50%) scale(1.02) rotate(-1.6deg)}45%,100%{opacity:0;transform:translate(-50%,-50%) scale(.92) rotate(0deg)}}
+.w2b-clamp{animation:w2bClamp 7s infinite}
+@keyframes w2bClamp{0%,37%{opacity:0;transform:scale(1.6)}38.4%{opacity:1;transform:scale(.97)}39.2%{transform:scale(1.01)}40%{transform:scale(1)}86%{opacity:1;transform:scale(1)}92%,100%{opacity:0;transform:scale(1.05)}}
+.w2b-beam{animation:w2bBeam 7s infinite}
+@keyframes w2bBeam{0%,41%{opacity:0;transform:translateY(0)}41.5%{opacity:1;transform:translateY(0)}45%{opacity:1;transform:translateY(374px)}45.5%,69.5%{opacity:0;transform:translateY(0)}70%{opacity:1;transform:translateY(0)}73.5%{opacity:1;transform:translateY(374px)}74%,100%{opacity:0;transform:translateY(374px)}}
+/* The textured dome opens from a point at full opacity, so the stream behind never shows through as a patch. */
+.w2t-core{animation:w2tCore 7s infinite}
+@keyframes w2tCore{0%{opacity:1;transform:translate(-50%,-50%) scale(.06)}4%{opacity:1;transform:translate(-50%,-50%) scale(1)}88%{opacity:1;transform:translate(-50%,-50%) scale(1)}95%,100%{opacity:0;transform:translate(-50%,-50%) scale(1)}}
+.w2t-grid{-webkit-mask:url('/_blob/51229bdbd42ed436cc5d69561b964eb5') center/100% 100% no-repeat;mask:url('/_blob/51229bdbd42ed436cc5d69561b964eb5') center/100% 100% no-repeat}
+.w2t-hud{-webkit-mask:url('/_blob/4abf3f1b5b098aff5e1a8d50c8c6a639') center/100% 100% no-repeat;mask:url('/_blob/4abf3f1b5b098aff5e1a8d50c8c6a639') center/100% 100% no-repeat}
+.w2t-shock{-webkit-mask:url('/_blob/7ad836570219965f78609266fea483bc') center/100% 100% no-repeat;mask:url('/_blob/7ad836570219965f78609266fea483bc') center/100% 100% no-repeat;animation:w2tShock 7s infinite}
+@keyframes w2tShock{0%,36.8%{opacity:0;transform:translate(-50%,-50%) scale(.3)}37.3%{opacity:1;transform:translate(-50%,-50%) scale(1)}45%,100%{opacity:0;transform:translate(-50%,-50%) scale(1.3)}}
+.w2t-panel1{border:1px solid transparent;border-image:url('/_blob/b35135be3e38a1edf95cc28c3d1ac3c8') 133 / 32.6% 12.7% stretch}
+.w2t-panel2{border:1px solid transparent;border-image:url('/_blob/22adb19a253138db11544b99abf778dc') 110 100 / 26.2% 10.05% stretch}
+.w2t-panel3{border:1px solid transparent;border-image:url('/_blob/c404508bf074542318888bda7ba8d505') 60 / 20.8% 8.04% stretch}
+.w2t-emblem{background:url('/_blob/bee40ce1b25dfcf3ec229d07c7d5ca0f') 0 0/300% 100% no-repeat}
+.w2t-tile{border:1px solid transparent;border-image:url('/_blob/738b9000eb14ae7d66b0a905b46de0be') 60 fill / 26px stretch}
+@keyframes w2Row{0%{opacity:0;transform:translateX(-60px)}100%{opacity:1;transform:none}}
+</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: {{bg}}; color: #F2F4F7; font-family: 'Smiley Sans', 'PingFang SC', 'Microsoft YaHei UI', sans-serif">
+
+  <sc-if value="{{mock}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; inset: 0; background: {{mockBg}}"></div>
+    <div style="position: absolute; left: 640px; top: 300px; width: 520px; height: 360px; border-radius: 28px; background: {{mockBox}}"></div>
+    <span style="position: absolute; left: 48px; bottom: 12px; font-family: 'PingFang SC', sans-serif; font-size: 18px; color: {{mockInk}}">直播画面（示意）· 抽奖页本身透明</span>
+  </sc-if>
+
+  <sc-if value="{{isReveal}}" hint-placeholder-val="{{false}}">
+    <sc-if value="{{oldSky}}" hint-placeholder-val="{{false}}">
+      <div class="w2-dim" style="position: absolute; inset: 0; background: linear-gradient(rgba(255, 122, 26, 0.05) 1px, transparent 1px) 0 0 / 100% 40px, linear-gradient(90deg, rgba(255, 122, 26, 0.05) 1px, transparent 1px) 0 0 / 40px 100%, radial-gradient(ellipse at 50% 52%, rgba(14, 16, 22, 0.82) 0%, rgba(4, 5, 7, 0.95) 75%)"></div>
+      <sc-if value="{{isBig}}" hint-placeholder-val="{{true}}">
+        <div class="w2-alert" style="position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 50%, rgba(255, 61, 61, 0) 40%, rgba(255, 61, 61, 0.6) 100%)"></div>
+      </sc-if>
+    </sc-if>
+    <sc-if value="{{boost}}" hint-placeholder-val="{{false}}">
+      <div class="w2-dim" style="position: absolute; left: 960px; top: 560px; width: {{dome.w}}; height: {{dome.h}}; transform: translate(-50%, -50%); border-radius: 50%; background: linear-gradient(rgba(255, 122, 26, 0.12) 1px, transparent 1px) 0 0 / 100% 40px, linear-gradient(90deg, rgba(255, 122, 26, 0.12) 1px, transparent 1px) 0 0 / 40px 100%, radial-gradient(ellipse closest-side, rgba(10, 12, 16, 0.94) 0%, rgba(10, 12, 16, 0.86) 50%, rgba(10, 12, 16, 0) 100%); -webkit-mask-image: radial-gradient(ellipse closest-side, #000 50%, transparent 100%); mask-image: radial-gradient(ellipse closest-side, #000 50%, transparent 100%)"></div>
+      <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+        <div class="w2t-core" style="position: absolute; left: 960px; top: 560px; width: {{dome.w}}; height: {{dome.h}}; border-radius: 50%; background: radial-gradient(ellipse closest-side, rgba(10, 12, 16, 0.95) 0%, rgba(10, 12, 16, 0.9) 60%, rgba(10, 12, 16, 0) 82%)"></div>
+        <div class="w2-dim" style="position: absolute; left: 960px; top: 560px; width: {{dome.w}}; height: {{dome.h}}; transform: translate(-50%, -50%)">
+          <div class="w2t-grid" style="position: absolute; inset: 0; background: #FF7A1A; opacity: 0.6"></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{isBig}}" hint-placeholder-val="{{true}}">
+        <div class="w2-alert" style="position: absolute; left: 960px; top: 560px; width: 1500px; height: 860px; transform: translate(-50%, -50%); border-radius: 50%; background: radial-gradient(ellipse closest-side, rgba(255, 61, 61, 0.6) 0%, rgba(255, 61, 61, 0.3) 45%, rgba(255, 61, 61, 0) 100%)"></div>
+      </sc-if>
+      <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+        <div class="w2b-hud" style="position: absolute; left: 960px; top: 560px; width: {{dome.hudPx}}; height: {{dome.hudPx}}; filter: drop-shadow(0 0 8px {{tc.mainA}})">
+          <div class="w2t-hud" style="position: absolute; inset: 0; background: {{tc.main}}; opacity: 0.8"></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{noTex}}" hint-placeholder-val="{{true}}">
+      <svg class="w2b-hud" width="{{dome.hud}}" height="{{dome.hud}}" viewBox="0 0 200 200" aria-hidden="true" style="position: absolute; left: 960px; top: 560px">
+        <g fill="none" stroke="rgba(255, 122, 26, 0.45)" stroke-width="0.6"><circle cx="100" cy="100" r="98" stroke-dasharray="1 3"></circle><circle cx="100" cy="100" r="74"></circle><circle cx="100" cy="100" r="50" stroke-dasharray="6 3"></circle><path d="M100 2v14M100 184v14M2 100h14M184 100h14M30.7 30.7l8 8M169.3 30.7l-8 8M30.7 169.3l8-8M169.3 169.3l-8-8"></path></g>
+      </svg>
+      </sc-if>
+      <div class="w2b-sweepWrap" style="position: absolute; left: 960px; top: 560px; width: 0; height: 0">
+        <div class="w2b-sweep" style="position: absolute; left: -440px; top: -440px; width: 880px; height: 880px; border-radius: 50%; background: conic-gradient(from 0deg, rgba(255, 122, 26, 0) 0deg, rgba(255, 122, 26, 0) 280deg, rgba(255, 122, 26, 0.38) 354deg, rgba(255, 220, 190, 0.75) 360deg); -webkit-mask-image: radial-gradient(circle closest-side, #000 55%, transparent 100%); mask-image: radial-gradient(circle closest-side, #000 55%, transparent 100%)"></div>
+      </div>
+      <sc-if value="{{hasBands}}" hint-placeholder-val="{{true}}">
+        <span class="w2b-ping" style="position: absolute; left: 960px; top: 560px; width: 220px; height: 220px; box-sizing: border-box; border-radius: 50%; border: 6px solid {{tc.main}}; box-shadow: 0 0 24px {{tc.main}}, inset 0 0 24px {{tc.mainA}}"></span>
+        <span class="w2b-ping" style="position: absolute; left: 960px; top: 560px; width: 220px; height: 220px; box-sizing: border-box; border-radius: 50%; border: 3px solid #FFFFFF; animation-delay: .25s"></span>
+      </sc-if>
+    </sc-if>
+    <sc-if value="{{hasBands}}" hint-placeholder-val="{{true}}">
+      <div style="position: absolute; inset: 0; -webkit-mask-image: {{bandMask}}; mask-image: {{bandMask}}">
+        <div style="position: absolute; inset: 0; transform: rotate({{bandTilt.top}})">
+          <div class="w2-bandTop" style="position: absolute; left: 0; top: 130px; width: 1920px; height: 56px; display: flex; align-items: center">
+            <span class="{{bandCls}} w2-move" style="position: absolute; inset: 0"></span>
+            <span class="w2-cond" style="position: relative; margin: 0 auto; height: 40px; display: inline-flex; align-items: center; padding: 0 26px; background: #0A0C10; font-size: 30px; letter-spacing: 10px; color: {{tc.main}}">{{bandText}}</span>
+          </div>
+        </div>
+        <div style="position: absolute; inset: 0; transform: rotate({{bandTilt.bot}})">
+          <div class="w2-bandBot" style="position: absolute; left: 0; top: 860px; width: 1920px; height: 36px">
+            <span class="{{bandCls}} w2-move" style="position: absolute; inset: 0"></span>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </sc-if>
+
+  <sc-if value="{{isIdle}}" hint-placeholder-val="{{true}}">
+  </sc-if>
+
+  <sc-if value="{{isReg}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; left: 60px; top: 800px; width: 1800px; height: 240px; display: flex; align-items: stretch; background: rgba(10, 12, 16, 0.94); box-shadow: inset 0 0 0 2px #FF7A1A">
+      <span class="w2-hazard" style="width: 36px; flex-shrink: 0"></span>
+      <span style="width: 620px; flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 0 30px">
+        <span class="w2-cond" style="font-size: 30px; letter-spacing: 6px; color: #FF7A1A">HOW TO JOIN · 登录方式</span>
+        <span style="font-size: 76px; line-height: 1.1; color: #FFFFFF">发弹幕「抽奖」</span>
+      </span>
+      <span style="width: 2px; margin: 40px 0; flex-shrink: 0; background: rgba(255, 122, 26, 0.5)"></span>
+      <span style="width: 440px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center">
+        <span class="w2-cond {{popClass}}" style="display: inline-block; font-size: 136px; line-height: 1; color: #FF7A1A; text-shadow: 0 0 22px rgba(255, 122, 26, 0.5); font-variant-numeric: tabular-nums">{{count}}</span>
+        <span style="font-size: 44px">人已登录</span>
+      </span>
+      <span style="width: 2px; margin: 40px 0; flex-shrink: 0; background: rgba(255, 122, 26, 0.5)"></span>
+      <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 0 30px">
+        <span class="w2-cond" style="font-size: 30px; letter-spacing: 4px; color: #9AA3AE">NEW PILOT · 刚刚登录</span>
+        <sc-for list="{{latest}}" as="f" hint-placeholder-count="2">
+          <span class="{{f.cls}}" style="font-size: 62px; line-height: 1.1; opacity: {{f.fade}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.name}}</span>
+        </sc-for>
+      </span>
+      <span class="w2-hazard" style="width: 36px; flex-shrink: 0"></span>
+    </div>
+    <div style="position: absolute; left: 1300px; top: 40px; width: 560px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 20px 24px; background: rgba(10, 12, 16, 0.94); box-shadow: inset 0 0 0 2px #FF7A1A">
+      <span style="display: flex; align-items: baseline; gap: 12px">
+        <span style="font-size: 48px">作战奖励</span>
+        <span class="w2-cond" style="font-size: 26px; letter-spacing: 4px; color: #FF7A1A">REWARD</span>
+      </span>
+      <sc-for list="{{prizeRows}}" as="p" hint-placeholder-count="3">
+        <span style="height: 72px; display: flex; align-items: center; gap: 16px">
+          <span class="w2-cond" style="width: 64px; height: 64px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: {{p.color}}; color: #0A0C10; font-size: 52px">{{p.rank}}</span>
+          <span style="flex: 1; min-width: 0; font-size: 56px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.prize}}</span>
+          <span class="w2-cond" style="font-size: 44px; color: #9AA3AE">×{{p.quota}}</span>
+        </span>
+      </sc-for>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isDone}}" hint-placeholder-val="{{false}}">
+    <div style="position: absolute; left: 360px; top: 90px; width: 1200px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; padding: 0 0 26px; background: rgba(10, 12, 16, 0.96); box-shadow: inset 0 0 0 2px #FF7A1A">
+      <span class="w2-hazard" style="height: 16px"></span>
+      <span style="display: flex; align-items: baseline; justify-content: center; gap: 20px; padding: 16px 0 8px">
+        <span style="font-size: 80px">{{doneTitle}}</span>
+        <span class="w2-cond" style="font-size: 30px; letter-spacing: 8px; color: #FF7A1A">MISSION RESULT</span>
+      </span>
+      <sc-for list="{{results}}" as="r" hint-placeholder-count="6">
+        <span class="w2-row" style="height: 100px; display: flex; align-items: center; gap: 24px; margin: 0 34px; padding: 0 24px; background: rgba(255, 255, 255, 0.05); border-left: 10px solid {{r.color}}; animation-delay: {{r.delay}}; position: relative; isolation: isolate">
+          <sc-if value="{{r.tex}}" hint-placeholder-val="{{false}}">
+            <span class="w2t-tile" style="position: absolute; inset: 0; z-index: -1"></span>
+          </sc-if>
+          <sc-if value="{{r.flat}}" hint-placeholder-val="{{true}}">
+          <span class="w2-cond" style="width: 70px; font-size: 64px; color: {{r.color}}">{{r.rank}}</span>
+          </sc-if>
+          <sc-if value="{{r.tex}}" hint-placeholder-val="{{false}}">
+            <span class="w2t-emblem" role="img" aria-label="{{r.rank}}" style="width: 76px; height: 76px; flex-shrink: 0; background-position: {{r.pos}}"></span>
+          </sc-if>
+          <span style="flex: 1; min-width: 0; font-size: 70px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</span>
+          <span style="font-family: 'PingFang SC', sans-serif; font-size: 36px; color: #9AA3AE">{{r.tier}} · {{r.prize}}</span>
+        </span>
+      </sc-for>
+      <sc-if value="{{partial}}" hint-placeholder-val="{{false}}">
+        <span class="w2-cond" style="margin: 6px 34px 0; padding: 16px 24px; border: 2px dashed rgba(255, 122, 26, 0.7); font-size: 48px; letter-spacing: 2px; color: #FFB067">{{remainText}}</span>
+      </sc-if>
+    </div>
+  </sc-if>
+
+  <canvas ref="{{setCanvas}}" id="w2fx" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none"></canvas>
+
+  <div class="{{shakeCls}}" style="position: absolute; inset: 0">
+    <sc-if value="{{isReveal}}" hint-placeholder-val="{{false}}">
+      <div class="w2-banner" style="position: absolute; left: 0; top: 232px; width: 1920px; display: flex; justify-content: center">
+        <span style="height: 96px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 20px; padding: 0 40px; background: rgba(10, 12, 16, 0.96); box-shadow: 0 0 0 2px {{tc.main}}; font-size: 62px; color: #FFFFFF">
+          <span class="w2-cond" style="font-size: 30px; letter-spacing: 6px; color: {{tc.main}}">COMMAND</span>{{bannerText}}
+        </span>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{showStage}}" hint-placeholder-val="{{true}}">
+    <div class="{{tilesCls}}" style="position: absolute; inset: 0">
+      <sc-for list="{{tiles}}" as="tl" hint-placeholder-count="10">
+        <div style="position: absolute; left: {{tl.x}}; top: {{tl.y}}; width: 300px; height: 170px; box-sizing: border-box; display: flex; flex-direction: column; background: rgba(12, 14, 19, 0.94); box-shadow: inset 0 0 0 2px {{tl.line}}; isolation: isolate">
+          <sc-if value="{{tl.tex}}" hint-placeholder-val="{{false}}">
+            <span class="w2t-tile" style="position: absolute; inset: 0; z-index: -1"></span>
+          </sc-if>
+          <span style="height: 10px; flex-shrink: 0; background: {{tl.color}}"></span>
+          <span style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px">
+            <span class="w2-cond" style="font-size: 30px; letter-spacing: 4px; color: {{tl.color}}">{{tl.rank}}</span>
+            <span style="font-size: 56px; line-height: 1.05; color: #FFFFFF">{{tl.name}}</span>
+          </span>
+        </div>
+      </sc-for>
+      <div class="{{lockCls}}" style="position: absolute; left: 0; top: 0; width: 340px; height: 210px">
+        <div class="{{lockOrangeCls}}" style="position: absolute; inset: 0">
+          <span style="position: absolute; left: 0; top: 0; width: 52px; height: 52px; border-left: 7px solid #FF7A1A; border-top: 7px solid #FF7A1A"></span>
+          <span style="position: absolute; right: 0; top: 0; width: 52px; height: 52px; border-right: 7px solid #FF7A1A; border-top: 7px solid #FF7A1A"></span>
+          <span style="position: absolute; left: 0; bottom: 0; width: 52px; height: 52px; border-left: 7px solid #FF7A1A; border-bottom: 7px solid #FF7A1A"></span>
+          <span style="position: absolute; right: 0; bottom: 0; width: 52px; height: 52px; border-right: 7px solid #FF7A1A; border-bottom: 7px solid #FF7A1A"></span>
+          <span class="w2-cond" style="position: absolute; left: 0; top: -38px; font-size: 26px; letter-spacing: 4px; color: #FF7A1A">SCANNING</span>
+        </div>
+        <sc-if value="{{isReveal}}" hint-placeholder-val="{{false}}">
+          <div class="w2-lockTier" style="position: absolute; inset: 0; filter: drop-shadow(0 0 14px {{tc.main}})">
+            <span style="position: absolute; left: 0; top: 0; width: 52px; height: 52px; border-left: 7px solid {{tc.main}}; border-top: 7px solid {{tc.main}}"></span>
+            <span style="position: absolute; right: 0; top: 0; width: 52px; height: 52px; border-right: 7px solid {{tc.main}}; border-top: 7px solid {{tc.main}}"></span>
+            <span style="position: absolute; left: 0; bottom: 0; width: 52px; height: 52px; border-left: 7px solid {{tc.main}}; border-bottom: 7px solid {{tc.main}}"></span>
+            <span style="position: absolute; right: 0; bottom: 0; width: 52px; height: 52px; border-right: 7px solid {{tc.main}}; border-bottom: 7px solid {{tc.main}}"></span>
+            <span class="w2-cond" style="position: absolute; left: 0; top: -38px; font-size: 26px; letter-spacing: 4px; color: {{tc.main}}">LOCK ON</span>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{isReveal}}" hint-placeholder-val="{{false}}">
+      <sc-if value="{{hasReticle}}" hint-placeholder-val="{{true}}">
+        <svg class="w2-reticle" width="980" height="980" viewBox="0 0 200 200" aria-hidden="true" style="position: absolute; left: 960px; top: 560px">
+          <g fill="none" stroke="{{tc.main}}" stroke-width="0.8"><circle cx="100" cy="100" r="96" stroke-dasharray="2 4"></circle><circle cx="100" cy="100" r="84"></circle><path d="M100 0v18M100 182v18M0 100h18M182 100h18"></path></g>
+          <g fill="none" stroke="#FFFFFF" stroke-width="1.2"><path d="M100 10a90 90 0 0 1 66 29"></path><path d="M100 190a90 90 0 0 1-66-29"></path></g>
+        </svg>
+      </sc-if>
+      <sc-if value="{{boostLines}}" hint-placeholder-val="{{true}}">
+        <div class="w2b-lines" style="position: absolute; left: 960px; top: 560px; width: 2000px; height: 2000px; background: repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0) 0deg 2.4deg, {{tc.main}} 2.4deg 3deg, rgba(255, 255, 255, 0) 3deg 7.5deg), repeating-conic-gradient(from 2deg, rgba(255, 255, 255, 0) 0deg 5.6deg, rgba(255, 240, 230, 0.85) 5.6deg 5.9deg, rgba(255, 255, 255, 0) 5.9deg 12deg); -webkit-mask-image: radial-gradient(ellipse 880px 470px at 50% 50%, transparent 32%, #000 52%, #000 70%, transparent 100%); mask-image: radial-gradient(ellipse 880px 470px at 50% 50%, transparent 32%, #000 52%, #000 70%, transparent 100%)"></div>
+      </sc-if>
+      <sc-if value="{{boost}}" hint-placeholder-val="{{false}}">
+        <div class="w2b-clamp" style="position: absolute; left: 378px; top: 338px; width: 1164px; height: 444px; filter: drop-shadow(0 0 12px {{tc.main}})">
+          <span style="position: absolute; left: 0; top: 0; width: 96px; height: 96px; box-sizing: border-box; border-left: 10px solid {{tc.main}}; border-top: 10px solid {{tc.main}}"></span>
+          <span style="position: absolute; right: 0; top: 0; width: 96px; height: 96px; box-sizing: border-box; border-right: 10px solid {{tc.main}}; border-top: 10px solid {{tc.main}}"></span>
+          <span style="position: absolute; left: 0; bottom: 0; width: 96px; height: 96px; box-sizing: border-box; border-left: 10px solid {{tc.main}}; border-bottom: 10px solid {{tc.main}}"></span>
+          <span style="position: absolute; right: 0; bottom: 0; width: 96px; height: 96px; box-sizing: border-box; border-right: 10px solid {{tc.main}}; border-bottom: 10px solid {{tc.main}}"></span>
+          <span class="w2-cond" style="position: absolute; right: 0; top: -46px; font-size: 30px; letter-spacing: 8px; color: {{tc.main}}">TARGET LOCKED</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+        <span class="w2t-shock" style="position: absolute; left: 960px; top: 560px; width: {{shockSize}}; height: {{shockSize}}; background: radial-gradient(circle, #FFFFFF 0%, {{tc.main}} 45%)"></span>
+      </sc-if>
+      <div class="w2-panel" style="position: absolute; left: 410px; top: 370px; width: 1100px; height: 380px; display: flex; flex-direction: column; background: rgba(10, 12, 16, 0.97); box-shadow: 0 0 0 3px {{tc.main}}, 0 0 70px {{tc.mainA}}">
+        <sc-if value="{{boost}}" hint-placeholder-val="{{false}}">
+          <span class="w2b-beam" style="position: absolute; left: 0; top: 0; width: 100%; height: 6px; background: {{tc.main}}; box-shadow: 0 0 22px 8px {{tc.mainA}}"></span>
+        </sc-if>
+        <span class="{{bandCls}}" style="height: 18px; flex-shrink: 0"></span>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px">
+          <span style="display: inline-flex; align-items: baseline; gap: 16px; font-size: 60px; color: {{tc.main}}; text-shadow: 0 0 16px {{tc.mainA}}">
+            <sc-if value="{{noTex}}" hint-placeholder-val="{{true}}">
+            <span class="w2-cond" style="font-size: 64px">{{panelRank}}</span>
+            </sc-if>
+            <sc-if value="{{tex}}" hint-placeholder-val="{{false}}">
+              <span class="w2t-emblem" role="img" aria-label="{{panelRank}}" style="width: 104px; height: 104px; align-self: center; background-position: {{emblemPos}}"></span>
+            </sc-if>{{panelTier}}
+          </span>
+          <span style="position: relative; display: inline-block; font-size: 150px; line-height: 1.02; color: #FFFFFF">
+            <span class="w2-glitchA" aria-hidden="true" style="position: absolute; left: 0; top: 0; color: {{tc.main}}">{{panelMain}}</span>
+            <span class="w2-glitchB" aria-hidden="true" style="position: absolute; left: 0; top: 0; color: #FFFFFF; opacity: .6">{{panelMain}}</span>
+            <span style="position: relative; text-shadow: 0 0 30px {{tc.mainA}}">{{panelMain}}</span>
+          </span>
+          <span class="w2-sub" style="font-size: 58px; color: #FFB067">{{panelSub}}</span>
+        </div>
+        <span class="{{bandCls}}" style="height: 18px; flex-shrink: 0"></span>
+        <sc-if value="{{texFrame}}" hint-placeholder-val="{{false}}">
+          <span class="w2t-panel{{tierN}}" style="position: absolute; {{panelIn}} pointer-events: none; filter: drop-shadow(0 0 14px {{tc.mainA}})"></span>
+        </sc-if>
+      </div>
+      <sc-if value="{{oldSky}}" hint-placeholder-val="{{false}}">
+        <div class="w2-flash" style="position: absolute; inset: 0; background: radial-gradient(circle at 50% 52%, #FFFFFF 0%, {{tc.mainA}} {{flashMid}}, rgba(255, 255, 255, 0) 72%); opacity: 0; pointer-events: none"></div>
+      </sc-if>
+      <sc-if value="{{boost}}" hint-placeholder-val="{{false}}">
+        <div class="w2-flash" style="position: absolute; left: 960px; top: 560px; width: 1800px; height: 960px; transform: translate(-50%, -50%); background: radial-gradient(ellipse closest-side, #FFFFFF 0%, {{tc.mainA}} 45%, rgba(255, 255, 255, 0) 100%); opacity: 0; pointer-events: none"></div>
+      </sc-if>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["奖池","报名"],"default":"奖池"},"stage":{"editor":"enum","options":["转动中","揭晓","报名中","已截止","中奖名单"],"default":"转动中"},"tier":{"editor":"enum","options":["大奖","二奖","三奖"],"default":"大奖"},"stream":{"editor":"boolean","default":true},"fx":{"editor":"enum","options":["现在","加强","贴图"],"default":"现在"},"room":{"editor":"enum","options":["示意画面","浅色房间","深色房间","透明"],"default":"示意画面"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    this.t0 = performance.now();
+    this.parts = [];
+    const loop = (now) => { this.raf = requestAnimationFrame(loop); this.fx(now); };
+    this.raf = requestAnimationFrame(loop);
+    this.ticker = setInterval(() => {
+      if (!this.registering) return;
+      const s = this.state || {};
+      this.setState({ n: ((s.n || 0) + 1) % 40, flip: !s.flip });
+    }, 1500);
+  }
+
+  componentWillUnmount() { cancelAnimationFrame(this.raf); clearInterval(this.ticker); }
+
+  hex(g, x, y, r) {
+    g.beginPath();
+    for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3; g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); }
+    g.closePath(); g.stroke();
+  }
+
+  // Reveal only: sparks and hex shards sized by tier at the lock, then embers for the two higher tiers.
+  fx(now) {
+    const c = this.canvas || document.getElementById('w2fx');
+    if (!c) return;
+    const g = c.getContext('2d');
+    const el = now - this.t0, t = el % 7000, cyc = Math.floor(el / 7000);
+    if (cyc !== this.cyc) { this.cyc = cyc; this.fired = false; this.parts = []; }
+    g.clearRect(0, 0, 1920, 1080);
+    if (!this.reveal) return;
+    const P = this.parts, power = this.power, cols = this.cols;
+    if (!this.fired && t >= 2580) {
+      this.fired = true;
+      const sparks = [60, 180, 380][power - 1], shards = [6, 20, 46][power - 1];
+      for (let k = 0; k < sparks; k++) {
+        const a = Math.random() * Math.PI * 2, sp = 5 + Math.random() * (8 + 7 * power);
+        P.push({ x: 960, y: 560, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7, life: 50 + Math.random() * 70, max: 120, s: 1.5 + Math.random() * 3, c: cols[k % cols.length], kind: 'spark' });
+      }
+      for (let k = 0; k < shards; k++) {
+        const a = Math.random() * Math.PI * 2, sp = 4 + Math.random() * 12;
+        P.push({ x: 960, y: 560, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 90 + Math.random() * 50, max: 140, s: 10 + Math.random() * 26, c: cols[k % cols.length], kind: 'hex' });
+      }
+    }
+    if (power > 1 && t > 2900 && t < 6000 && Math.random() < 0.4 * power) P.push({ x: this.boost ? 520 + Math.random() * 880 : 200 + Math.random() * 1520, y: this.boost ? 980 : 1090, vx: (Math.random() - 0.5) * 0.8, vy: -2 - Math.random() * 3, life: 220, max: 220, s: 1.5 + Math.random() * 2.5, c: cols[0], kind: 'ember' });
+    g.globalCompositeOperation = 'lighter';
+    for (let k = P.length - 1; k >= 0; k--) {
+      const p = P[k];
+      if (p.kind === 'spark') { p.vx *= 0.93; p.vy = p.vy * 0.93 + 0.18; } else if (p.kind === 'hex') { p.vx *= 0.96; p.vy *= 0.96; }
+      p.x += p.vx; p.y += p.vy; p.life -= 1;
+      if (p.life <= 0 || p.y < -20) { P.splice(k, 1); continue; }
+      const a = Math.min(1, p.life / (p.max * 0.4)) * (this.boost ? Math.max(0, Math.min(1, Math.min(p.x - 40, 1880 - p.x, p.y - 30, 1050 - p.y) / 140)) : 1);
+      g.globalAlpha = p.kind === 'ember' ? a * (0.5 + 0.5 * Math.sin(p.life * 0.4)) : a;
+      g.strokeStyle = p.c; g.fillStyle = p.c;
+      if (p.kind === 'hex') { g.lineWidth = 2; this.hex(g, p.x, p.y, p.s); continue; }
+      if (p.kind === 'spark') { g.lineWidth = p.s; g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(p.x - p.vx * 2.6, p.y - p.vy * 2.6); g.stroke(); continue; }
+      g.beginPath(); g.arc(p.x, p.y, p.s, 0, 6.283); g.fill();
+    }
+    g.globalAlpha = 1;
+    g.globalCompositeOperation = 'source-over';
+  }
+
+  renderVals() {
+    const stage = this.props.stage ?? '转动中';
+    const tier = this.props.tier ?? '大奖';
+    const stream = this.props.stream !== false && this.props.stream !== 'false';
+    const tex = (this.props.fx ?? '现在') === '贴图';
+    const boost = (this.props.fx ?? '现在') === '加强' || tex;
+    const room = this.props.room ?? '示意画面';
+    const isReveal = stage === '揭晓';
+    const s = this.state || {};
+    const isEntry = (this.props.mode ?? '奖池') === '报名';
+    const isReg = isEntry && (stage === '报名中' || stage === '转动中');
+    const isDone = isEntry && (stage === '中奖名单' || stage === '已截止');
+    const partial = stage === '已截止';
+    const isIdle = !isEntry && !isReveal;
+    this.registering = isReg;
+    this.quiet = isReg || isDone;
+    const entryTier = { '大奖': '一等奖', '二奖': '二等奖', '三奖': '三等奖' }[tier];
+    const n = isReg ? (s.n || 0) : 0;
+    const count = (isReg ? 109 : 128) + n;
+    const feedNames = ['北北', '海盐', '雨后', '甜筒', '喵了个咪', '十一', '南巷', '橘猫本猫', '早睡早起', '云朵棉花糖'];
+    const latest = [0, 1].map((k) => ({ name: feedNames[(n + feedNames.length - k) % feedNames.length], fade: String(1 - k * 0.35), cls: k === 0 ? (s.flip ? 'w2-in-a' : 'w2-in-b') : '' }));
+    const drawNames = ['一只小鹿', '夜航船', '桃桃乌龙', '晚风', '番茄炒蛋', '阿白', '小满', '星河入梦', '山有木兮', '摸鱼大师'];
+    drawNames[tier === '大奖' ? 2 : tier === '二奖' ? 7 : 8] = '柚子不酸';
+    const looks = {
+      '大奖': { rank: 'S', main: '#FF3D3D', mainA: 'rgba(255, 61, 61, 0.55)', cols: ['#FF3D3D', '#FF7A1A', '#FFB067', '#FFFFFF'] },
+      '二奖': { rank: 'A', main: '#FFB067', mainA: 'rgba(255, 176, 103, 0.5)', cols: ['#FF7A1A', '#FFB067', '#FFFFFF'] },
+      '三奖': { rank: 'B', main: '#8FD3FF', mainA: 'rgba(143, 211, 255, 0.45)', cols: ['#8FD3FF', '#FFFFFF'] }
+    };
+    const tc = looks[tier];
+    const power = tier === '大奖' ? 3 : tier === '二奖' ? 2 : 1;
+    this.reveal = isReveal; this.power = power; this.cols = tc.cols; this.boost = boost;
+    const pool = [['签名照', '三奖'], ['周边抱枕', '二奖'], ['机械键盘', '大奖'], ['贴纸套装', '三奖'], ['签名照', '三奖'], ['贴纸套装', '三奖'], ['签名照', '三奖'], ['周边抱枕', '二奖'], ['签名照', '三奖'], ['周边抱枕', '二奖']];
+    const tiles = (isEntry ? drawNames.map((name, k) => [name, null, k]) : pool.map(([name, tr], k) => [name, tr, k])).map(([name, tr, k]) => {
+      const col = k % 5, row = Math.floor(k / 5);
+      return { name, rank: tr ? looks[tr].rank + ' · ' + tr : 'PILOT ' + String(12 + k * 7).padStart(3, '0'), color: tr ? looks[tr].main : '#FF7A1A', line: 'rgba(255, 122, 26, 0.45)', tex, x: (162 + col * 324) + 'px', y: (380 + row * 194) + 'px' };
+    });
+    const prizeRows = [['S', '机械键盘', 1, '#FF7A1A'], ['A', '周边抱枕', 2, '#FFB067'], ['B', '签名照', 3, '#C9D0D8']].map(([rank, p, quota, color]) => ({ rank, prize: p, quota, color }));
+    const results = [['S', '一等奖', '柚子不酸', '机械键盘', '#FF7A1A'], ['A', '二等奖', '桃桃乌龙', '周边抱枕', '#FFB067'], ['A', '二等奖', '南巷', '周边抱枕', '#FFB067'], ['B', '三等奖', '番茄炒蛋', '签名照', '#C9D0D8'], ['B', '三等奖', '青柠', '签名照', '#C9D0D8'], ['B', '三等奖', '星河入梦', '签名照', '#C9D0D8']]
+      .map(([rank, tr, name, p, color], k) => ({ rank, tier: tr, name, prize: p, color, delay: (k * 0.1).toFixed(2) + 's', tex, flat: !tex, pos: { S: '0 0', A: '50% 0', B: '100% 0' }[rank] }))
+      .filter((r, k) => !partial || k >= 4);
+    const idx = tier === '大奖' ? 0 : tier === '二奖' ? 1 : 2;
+    const prize = tier === '大奖' ? '机械键盘' : tier === '二奖' ? '周边抱枕' : '签名照';
+    return {
+      stream,
+      bg: !stream ? 'repeating-conic-gradient(#D5D9E0 0% 25%, #FFFFFF 0% 50%) 50% / 48px 48px' : room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#2B3038',
+      mock: stream && room !== '透明',
+      mockBg: room === '浅色房间' ? 'linear-gradient(180deg, #F4EFE7 0%, #EAE2D5 56%, #CDB89A 57%, #B9A27F 100%)' : room === '深色房间' ? 'linear-gradient(180deg, #16181D 0%, #23262E 56%, #121317 57%, #0C0D10 100%)' : 'linear-gradient(180deg, #3B4350 0%, #545E6E 56%, #3A414C 57%, #2B3038 100%)',
+      mockBox: room === '浅色房间' ? '#D9CCB8' : room === '深色房间' ? '#2F333C' : '#66707F',
+      mockInk: room === '浅色房间' ? 'rgba(60, 40, 20, 0.55)' : 'rgba(255, 255, 255, 0.55)',
+      tex: tex && isReveal, noTex: !tex, texFrame: tex, tierN: 4 - power, emblemPos: ['100% 0', '50% 0', '0 0'][power - 1],
+      panelIn: ['left: -40px; top: -40px; right: -40px; bottom: -40px;', 'left: -47px; top: -55px; right: -47px; bottom: -69px;', 'left: -10px; top: -24px; right: -10px; bottom: -28px;'][3 - power], shockSize: ['520px', '620px', '700px'][power - 1],
+      boost: boost && isReveal, oldSky: isReveal && !boost, boostLines: boost && isReveal && power > 1,
+      dome: power === 3 ? { w: '1680px', h: '940px', hud: '940', hudPx: '940px' } : power === 2 ? { w: '1560px', h: '900px', hud: '880', hudPx: '880px' } : { w: '1360px', h: '820px', hud: '780', hudPx: '780px' },
+      bandMask: boost ? 'linear-gradient(90deg, transparent 3%, #000 16%, #000 84%, transparent 97%)' : 'none',
+      bandTilt: boost ? { top: '-3deg', bot: '2.5deg' } : { top: '0deg', bot: '0deg' },
+      isIdle, isReveal, isReg, isDone, partial, showStage: isIdle || isReveal,
+      count, latest, prizeRows, results,
+      popClass: isReg ? (s.flip ? 'w2-pop-a' : 'w2-pop-b') : '',
+      bannerText: isEntry ? '锁定 ' + entryTier + ' 中奖者' : '柚子不酸 发出锁定指令',
+      panelRank: tc.rank + ' 级',
+      panelTier: isEntry ? entryTier + ' · 目标确认' : tier,
+      panelMain: isEntry ? '柚子不酸' : prize,
+      panelSub: isEntry ? '获得 ' + prize : '柚子不酸 获得',
+      doneTitle: partial ? '目前战果' : '作战结果',
+      remainText: 'CLOSED · 报名已截止 · 还剩 4 个名额', isBig: isReveal && power === 3, hasBands: power > 1, hasReticle: power > 1,
+      tc, tier, prize, tiles, viewer: '柚子不酸',
+      bandCls: power === 3 ? 'w2-hazardRed' : 'w2-hazard',
+      bandText: power === 3 ? 'WARNING · S 级奖励出现' : 'ALERT · 锁定程序启动',
+      flashMid: ['18%', '28%', '36%'][power - 1],
+      lockCls: isReveal ? 'w2-lockR' + idx : 'w2-lockIdle',
+      lockOrangeCls: isReveal ? 'w2-lockOrange' : '',
+      tilesCls: isReveal ? 'w2-tilesOut' : '',
+      shakeCls: isReveal ? (power === 3 ? 'w2-shake2' : power === 2 ? 'w2-shake1' : '') : '',
+      setCanvas: (el) => { if (el) this.canvas = el; }
+    };
+  }
+}
+</script>
+</body>
+</html>
