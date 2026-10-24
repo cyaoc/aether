@@ -1,5 +1,5 @@
 /* Theme styles supply the image, colour, slice, percentage widths and core dimensions. */
 .textureGlow { background:var(--texture-color); -webkit-mask:var(--texture) center / 100% 100% no-repeat; }
 .textureFrame { border:1px solid transparent; border-image:var(--texture) var(--texture-slice) / var(--texture-width) stretch; }
-.textureCore { background:radial-gradient(ellipse, var(--core-color) 0%, var(--core-color) 60%, transparent 82%); opacity:1; transform-origin:center; animation:var(--core-animation, textureCoreOpen) var(--core-duration, 280ms) ease-out both; }
+.textureCore { background:radial-gradient(ellipse closest-side, var(--core-center-color, var(--core-color)) 0%, var(--core-color) var(--core-radius, 60%), transparent 82%); opacity:1; transform-origin:center; animation:var(--core-animation, textureCoreOpen) var(--core-duration, 280ms) ease-out both; }
 @keyframes textureCoreOpen { from { transform:scale(.06); } to { transform:scale(1); } }
