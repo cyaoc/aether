@@ -41,6 +41,10 @@ public partial class LotteryViewModel
         var prizes = Prizes.Select(row => row.Value).ToArray();
         var awards = Awards.Select(row => row.Value).ToArray();
         await ChangeLotteryAsync(lottery => lottery.SavePrizeSet(room, mode, name, prizes, awards));
+        var status = $"已存为「{name.Trim()}」，下次新开一场可以直接载入";
+        if (mode == LotteryMode.Pool) poolPrizeSetStatus = status;
+        else entryPrizeSetStatus = status;
+        OnPropertyChanged(mode == LotteryMode.Pool ? nameof(PoolStatusText) : nameof(EntryStatusText));
         await RefreshPrizeSetsAsync();
     }
 
