@@ -227,7 +227,8 @@
 [data-theme="MechaLock"] #pinned .pinnedHeadCount { font:700 40px var(--condensed); color:#9aa3ae; }
 [data-theme="MechaLock"] #pinned .pinnedRow { padding-left:16px; border-left:10px solid var(--main); background:#0a0c10eb; }
 [data-theme="MechaLock"] #pinned .pinnedRow.Grand { box-shadow:inset 0 0 0 2px rgba(255,122,26,.55); }
-[data-theme="MechaLock"] #pinned .pinnedBadge { width:72px; height:72px; background:var(--main); color:#0a0c10; font:700 50px var(--condensed); }
+[data-theme="MechaLock"] #pinned .pinnedRow { isolation:isolate; --tile-corner:18px; }
+[data-theme="MechaLock"] #pinned .pinnedBadge { width:80px; height:80px; color:transparent; font:700 50px var(--condensed); }
 [data-theme="MechaLock"] #pinned .pinnedWho { color:#9aa3ae; }
 [data-theme="MechaLock"] #pinned .pinnedName { border-left:5px solid var(--main); background:rgba(255,255,255,.08); }
 [data-theme="MechaLock"] #pinned .effectNew { background:var(--main); color:#0a0c10; font:700 30px/40px var(--condensed); letter-spacing:3px; }

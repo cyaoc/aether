@@ -319,7 +319,12 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-theme="StarSummon"] #pinned .pinnedHeadCount { font-family:'PingFang SC','Microsoft YaHei UI',sans-serif; font-size:32px; color:#b9b4e0; }
 [data-theme="StarSummon"] #pinned .pinnedRow { border-radius:18px; border:3px solid transparent; background:linear-gradient(120deg,var(--deep),#0c0a26f0 70%) padding-box,var(--frame) border-box; box-shadow:0 0 24px var(--glow); }
 [data-theme="StarSummon"] #pinned .pinnedRow.Third { border-width:2px; box-shadow:none; }
-[data-theme="StarSummon"] #pinned .pinnedBadge { width:96px; font-size:58px; line-height:1; background:var(--frame); -webkit-background-clip:text; background-clip:text; color:var(--light); -webkit-text-fill-color:transparent; }
+[data-theme="StarSummon"] #pinned .pinnedBadge { position:relative; isolation:isolate; width:72px; height:96px; border-radius:9px; font-size:30px; line-height:1; color:#fff; -webkit-text-fill-color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.85); }
+[data-theme="StarSummon"] #pinned .pinnedBadge>.summonFace { border-radius:9px; }
+[data-theme="StarSummon"] #pinned .pinnedBadge>.summonFrame { inset:-7px -6px; }
+[data-theme="StarSummon"] #pinned .Grand .pinnedBadge { --summon-art:linear-gradient(rgba(10,8,30,.25),rgba(10,8,30,.45)),var(--summon-face) center/cover; }
+[data-theme="StarSummon"] #pinned .Second .pinnedBadge { --summon-art:linear-gradient(rgba(10,8,30,.2),rgba(10,8,30,.4)),var(--summon-face) center/cover; }
+[data-theme="StarSummon"] #pinned .Third .pinnedBadge { --summon-art:linear-gradient(rgba(10,8,30,.15),rgba(10,8,30,.35)),var(--summon-face) center/cover; }
 [data-theme="StarSummon"] #pinned .pinnedWho { color:#e7d9ff; }
 [data-theme="StarSummon"] #pinned .pinnedName { border-radius:12px; background:rgba(255,255,255,.1); }
 [data-theme="StarSummon"] #pinned .effectStar svg,[data-theme="StarSummon"] #pinned .effectTwinkle svg { fill:var(--light); filter:drop-shadow(0 0 8px var(--main)); }
@@ -371,9 +376,9 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-theme="StarSummon"] #pinned .pinnedPageLabels { font:32px 'PingFang SC','Microsoft YaHei UI',sans-serif; color:#e7d9ff; }
 
 /* Shared illustrations and nine-slice frames also fit the small result cards. */
-[data-theme="StarSummon"] .Grand { --summon-art:linear-gradient(180deg,rgba(10,8,30,.3),rgba(10,8,30,.2) 40%,rgba(10,8,30,.62)),url('/lottery/textures/summon/face-ssr.webp') center/cover; --summon-frame:url('/lottery/textures/summon/frame-ssr.webp'); --summon-slice:139 75 143 75; --summon-width:13% 9.7% 13.3% 9.7%; --summon-inset:-76px -34px -78px; --summon-ink:var(--frame); }
-[data-theme="StarSummon"] .Second { --summon-art:linear-gradient(180deg,rgba(10,8,30,.25),rgba(10,8,30,.15) 40%,rgba(10,8,30,.6)),url('/lottery/textures/summon/face-sr.webp') center/cover; --summon-frame:url('/lottery/textures/summon/frame-sr.webp'); --summon-slice:113 75 75 75; --summon-width:11.6% 9.77% 7.7% 9.77%; --summon-inset:-43px -36px; --summon-ink:linear-gradient(160deg,#fff,#ebddff 55%,#c59bff); }
-[data-theme="StarSummon"] .Third { --summon-art:linear-gradient(180deg,rgba(10,8,30,.2),rgba(10,8,30,.1) 40%,rgba(10,8,30,.55)),url('/lottery/textures/summon/face-r.webp') center/cover; --summon-frame:url('/lottery/textures/summon/frame-r.webp'); --summon-slice:53; --summon-width:5.47% 6.84%; --summon-inset:-26px; --summon-ink:linear-gradient(160deg,#fff,#cdebff 55%,#7cc4ff); }
+[data-theme="StarSummon"] .Grand { --summon-face:url('/lottery/textures/summon/face-ssr.webp'); --summon-art:linear-gradient(180deg,rgba(10,8,30,.3),rgba(10,8,30,.2) 40%,rgba(10,8,30,.62)),var(--summon-face) center/cover; --summon-frame:url('/lottery/textures/summon/frame-ssr.webp'); --summon-slice:139 75 143 75; --summon-width:13% 9.7% 13.3% 9.7%; --summon-inset:-76px -34px -78px; --summon-ink:var(--frame); }
+[data-theme="StarSummon"] .Second { --summon-face:url('/lottery/textures/summon/face-sr.webp'); --summon-art:linear-gradient(180deg,rgba(10,8,30,.25),rgba(10,8,30,.15) 40%,rgba(10,8,30,.6)),var(--summon-face) center/cover; --summon-frame:url('/lottery/textures/summon/frame-sr.webp'); --summon-slice:113 75 75 75; --summon-width:11.6% 9.77% 7.7% 9.77%; --summon-inset:-43px -36px; --summon-ink:linear-gradient(160deg,#fff,#ebddff 55%,#c59bff); }
+[data-theme="StarSummon"] .Third { --summon-face:url('/lottery/textures/summon/face-r.webp'); --summon-art:linear-gradient(180deg,rgba(10,8,30,.2),rgba(10,8,30,.1) 40%,rgba(10,8,30,.55)),var(--summon-face) center/cover; --summon-frame:url('/lottery/textures/summon/frame-r.webp'); --summon-slice:53; --summon-width:5.47% 6.84%; --summon-inset:-26px; --summon-ink:linear-gradient(160deg,#fff,#cdebff 55%,#7cc4ff); }
 .summonFace,.summonFrame { display:none; }
 [data-theme="StarSummon"] .summonFace { display:block; position:absolute; inset:0; z-index:-1; border-radius:18px; background:var(--summon-art); pointer-events:none; }
 [data-theme="StarSummon"] .summonFrame { display:block; position:absolute; inset:var(--summon-inset); --texture:var(--summon-frame); --texture-slice:var(--summon-slice); --texture-width:var(--summon-width); pointer-events:none; }
@@ -415,3 +420,12 @@ body { color:#f3f1ff; font-family:'Smiley Sans','PingFang SC','Microsoft YaHei U
 [data-theme="StarSummon"] .aura>.textureGlow { position:absolute; inset:0; --texture:url('/lottery/textures/summon/circle.webp'); --texture-color:var(--light); }
 [data-theme="StarSummon"] .rays { left:var(--cx); top:var(--cy); width:960px; height:960px; --texture-color:radial-gradient(circle,#fff,var(--light) 22%,var(--main) 55%); --texture:url('/lottery/textures/summon/burst.webp'); }
 [data-theme="StarSummon"][data-orientation="portrait"] .rays { width:900px; height:900px; }
+
+/* The comet rotates around its bright head; the wider dark copy survives light rooms. */
+[data-theme="StarSummon"] .meteor { --comet-w:600px; --comet-h:200px; --comet-angle:-45.7deg; background:none; box-shadow:none; }
+[data-theme="StarSummon"] .Second .meteor { --comet-w:420px; --comet-h:140px; }
+[data-theme="StarSummon"] .meteor:before,[data-theme="StarSummon"] .meteor:after { content:''; position:absolute; left:calc(50% - var(--comet-w) * .1); top:calc(50% - var(--comet-h) * .5); width:var(--comet-w); height:var(--comet-h); border-radius:0; -webkit-mask:url('/lottery/textures/summon/comet.webp') center/100% 100% no-repeat; transform-origin:10% 50%; }
+[data-theme="StarSummon"] .meteor:before { background:rgba(28,14,70,.42); transform:rotate(var(--comet-angle)) scale(1.14); }
+[data-theme="StarSummon"] .meteor:after { background:linear-gradient(90deg,#fff,var(--light) 10%,var(--main) 32%,var(--main) 75%,var(--a)); transform:rotate(var(--comet-angle)); }
+[data-theme="StarSummon"][data-orientation="portrait"] .meteor { --comet-w:480px; --comet-h:160px; --comet-angle:-61.4deg; }
+[data-theme="StarSummon"][data-orientation="portrait"] .Second .meteor { --comet-w:360px; --comet-h:120px; }
