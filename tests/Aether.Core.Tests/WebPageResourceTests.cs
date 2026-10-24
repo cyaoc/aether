@@ -28,6 +28,7 @@ public sealed class WebPageResourceTests
                 ".js" => "text/javascript; charset=utf-8",
                 ".woff2" => "font/woff2",
                 ".ttf" => "font/ttf",
+                ".webp" => "image/webp",
                 _ => throw new InvalidOperationException($"Unexpected page resource: {uri}")
             };
             Assert.Equal(expectedType, response.Content.Headers.ContentType?.ToString());
@@ -45,6 +46,7 @@ public sealed class WebPageResourceTests
         }
         if (name == "lottery")
         {
+            Assert.Equal(28, visited.Count(uri => uri.AbsolutePath.EndsWith(".webp", StringComparison.Ordinal)));
             Assert.Contains(new Uri(http.BaseAddress, "/lottery/SmileySans-Oblique.woff2"), visited);
             Assert.Contains(new Uri(http.BaseAddress, "/lottery/ZCOOLKuaiLe-Regular.ttf"), visited);
         }

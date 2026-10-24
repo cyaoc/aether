@@ -279,6 +279,7 @@ public sealed class WebService : IDisposable
             ".css" => "text/css; charset=utf-8",
             ".js" => "text/javascript; charset=utf-8",
             ".woff2" => "font/woff2",
+            ".webp" => "image/webp",
             ".ttf" => "font/ttf",
             ".txt" => "text/plain; charset=utf-8",
             _ => null
