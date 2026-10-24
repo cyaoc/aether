@@ -13,6 +13,7 @@ const themes = {
     sizes:{ keyword:[76,58], entryCount:[130,116], rank:[84,76], prize:[112,96], viewer:[58,50], winnerName:[72,48] },
     latest:item => text('',item.nickname),
     cell:candidate => candidate.label || grades[candidate.grade],
+    decorateCandidate:card => card.append(text('summonFace',''),text('summonFrame textureFrame','')),
     rank:(code, title) => [title],
     viewer:({entry, prize, viewer}) => entry ? prize : viewer,
     banner:({entry, title, viewer}) => entry ? `正在召唤 · ${title}` : viewer ? `${viewer} 发起召唤！` : '星辰召唤',
@@ -446,7 +447,7 @@ function particles(start, grade) {
       else if (p.kind === 'hex') { context.lineWidth = 2; hex(p.x,p.y,p.s); }
       else if (p.kind === 'spark') { context.lineWidth = p.s; context.moveTo(p.x,p.y); context.lineTo(p.x - p.vx * (p.tail || 2.6),p.y - p.vy * (p.tail || 2.6)); context.stroke(); }
       else if (p.kind === 'ember') { context.arc(p.x,p.y,p.s,0,6.283); context.fill(); }
-      else if (p.kind === 'sticker') sticker(p);
+      else if (p.kind === 'sticker') sticker(p,grade);
       else {
         context.globalAlpha = alpha * .2; context.arc(p.x,p.y,p.s * 3.5,0,6.283); context.fill();
         context.globalAlpha = alpha; context.beginPath(); context.arc(p.x,p.y,p.s,0,6.283); context.fill();
@@ -532,8 +533,8 @@ function mechaLock(start, grade) {
 // W3/PW3's dome: 18 capsules in the board's slots and colours.
 byId('capsules').replaceChildren(...[[52,268],[112,272],[172,270],[232,268],[292,262],[26,214],[82,216],[140,212],[198,214],[256,210],[312,206],[58,160],[116,158],[174,162],[232,156],[100,106],[160,104],[222,108]]
   .map(([x,y],i) => {
-    const ball = text('capsule','');
-    ball.style.cssText = `left:${x}px;top:${y}px;--cap:${['#5fd3b0','#5fd3b0','#ff7aae','#5fd3b0','#ffd45e','#5fd3b0','#ff7aae','#5fd3b0','#5fd3b0'][i % 9]};--tilt:${i * 47 % 90 - 45}deg`;
+    const ball = text('capsule gachaCapsule','');
+    ball.style.cssText = `left:${x}px;top:${y}px;--capsule-position:${textures.gradePosition(['Third','Third','Second','Third','Grand','Third','Second','Third','Third'][i % 9])};--tilt:${i * 47 % 90 - 45}deg`;
     return ball;
   }));
 const capsuleColors = [['#ff7aae','#ffe3ee'],['#5fd3b0','#ddf7ee'],['#a991ff','#ece6ff'],['#ffd45e','#fff2c9'],['#7ccbff','#e0f2ff']];
@@ -542,10 +543,17 @@ function capsuleColor(node, number) {
   node.style.setProperty('--cap', cap); node.style.setProperty('--tint', tint);
   return node;
 }
-// Board W3's outlined particles; the angle follows the remaining life so painting needs no extra state.
-function sticker(p) {
+// The atlas keeps W3's particle motion; undecoded images use the original outlined shapes.
+function sticker(p, grade) {
   const angle = (p.turn || 0) + p.life * (p.spin || 0), r = p.s;
   context.save(); context.translate(p.x + (p.sway === undefined ? 0 : 13 * Math.sin(p.life * .06 + p.sway)), p.y); context.rotate(angle);
+  const sheet = textures.image('gacha/confetti');
+  if (sheet) {
+    if (p.shape === 'confetti') context.scale(1,Math.cos(angle * 2));
+    context.drawImage(sheet,...textures.confettiCell(p.shape,p.c,grade),-r * 1.2,-r * 1.2,r * 2.4,r * 2.4);
+    context.restore();
+    return;
+  }
   context.strokeStyle = '#4b2a4f'; context.lineWidth = 3; context.lineJoin = 'round'; context.beginPath();
   if (p.shape === 'heart') {
     const h = r * .7;
