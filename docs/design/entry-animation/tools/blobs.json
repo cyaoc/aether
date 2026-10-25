@@ -13,5 +13,6 @@
  "017bad25925e8b86b270eb3a65ed7fff": "lib/pixi.js",
  "4e96fe4a1953a4100f9922f45ab6641a": "lib/pixi-filters.js",
  "4baebcf387c0f3280dffcbd0173aece9": "lib/serif-name.woff2",
- "f1df6953c74778fa8fa7a4bee4185626": "lib/barlow.woff2"
+ "f1df6953c74778fa8fa7a4bee4185626": "lib/barlow.woff2",
+ "3d7a08e31609fe87cb25219c91012aae": "textures/moon-red.webp"
 }

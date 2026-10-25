@@ -55,10 +55,10 @@ class Component extends DCLogic {
     const app = new P.Application();
     await app.init({ canvas, width: 1920, height: 1080, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: 1 });
     const load = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
-    const names = ['f795f9994fb41bd4970d91027df201d1', '115e75bc617f8d5fd7fb14fbefd1be6a', '67eb4bfa0717e7112222609a4787a899', 'b7b806ca70959691bdfdd797c0496f04', '37a5b192bf014dc81fa423d2e1d45f6c', '38b992f980c338671fb008bf5ccdaefb', '1b89f838e16a1aae41ef0adb6e836e22'];
+    const names = ['f795f9994fb41bd4970d91027df201d1', '115e75bc617f8d5fd7fb14fbefd1be6a', '67eb4bfa0717e7112222609a4787a899', 'b7b806ca70959691bdfdd797c0496f04', '37a5b192bf014dc81fa423d2e1d45f6c', '38b992f980c338671fb008bf5ccdaefb', '1b89f838e16a1aae41ef0adb6e836e22', '3d7a08e31609fe87cb25219c91012aae'];
     const imgs = await Promise.all(names.map(n => load('/_blob/' + n)));
     await Promise.all([document.fonts.load('900 132px "Noto Serif SC"'), document.fonts.load('500 40px "Barlow Condensed"')]);
-    const [i1, i2, i3, i4, i5, moon, impact] = imgs;
+    const [i1, i2, i3, i4, i5, moon, impact, moonRed] = imgs;
     const tex = img => P.Texture.from(img);
     const canvasOf = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); return c; };
     const silhouette = (img, color) => tex(canvasOf(img.width, img.height, g => { g.drawImage(img, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, img.width, img.height); }));
@@ -69,15 +69,27 @@ class Component extends DCLogic {
     const dim = new P.Sprite(radial([[0, 'rgba(6,6,12,0.55)'], [0.6, 'rgba(4,4,8,0.85)'], [1, 'rgba(0,0,0,1)']]));
     dim.anchor.set(0.5); dim.position.set(960, 540); dim.width = 3000; dim.height = 2000; world.addChild(dim);
 
-    // 60 档 backdrop: two halves of the same moonlit sky, split later along the cut.
-    const cut = { a: [-300, 934], b: [2300, 266] }, n = [0.249, 0.968];
-    const halves = [[-300, -500, 2300, -500, 2300, 266, -300, 934], [-300, 934, 2300, 266, 2300, 1600, -300, 1600]].map(poly => {
+    // What the cut reveals: the same sky's blood-moon side, sitting behind the moonlit halves.
+    const shadeTex = radial([[0, 'rgba(0,0,0,0)'], [0.7, 'rgba(0,0,0,0.35)'], [1, 'rgba(0,0,0,0.8)']]);
+    const red = new P.Container(); red.pivot.set(960, 540); red.position.set(960, 540);
+    const redSky = new P.Sprite(tex(moonRed)); redSky.width = 2160; redSky.height = 1440; redSky.position.set(-120, -200); red.addChild(redSky);
+    const redShade = new P.Sprite(shadeTex); redShade.anchor.set(0.5); redShade.position.set(960, 540); redShade.width = 2600; redShade.height = 1700; red.addChild(redShade);
+    world.addChild(red);
+
+    // 60 档 backdrop: one moonlit sky, cut along the slash's own curve; it slides apart along the cut after the zanshin.
+    const cutPts = [];
+    for (let u = -0.75; u <= 1.3001; u += 0.025) cutPts.push([650 + 1400 * u, 690 - 120 * u - 240 * u * u]);
+    const tangent = [0.968, -0.249], n = [0.249, 0.968];
+    const halves = [[[-400, -600], [2470, -600], ...cutPts.slice().reverse()], [...cutPts, [2470, 1700], [-400, 1700]]].map(poly => {
       const c = new P.Container();
       const sky = new P.Sprite(tex(moon)); sky.width = 2160; sky.height = 1440; sky.position.set(-120, -200); c.addChild(sky);
-      const shade = new P.Sprite(radial([[0, 'rgba(0,0,0,0)'], [0.7, 'rgba(0,0,0,0.35)'], [1, 'rgba(0,0,0,0.8)']])); shade.anchor.set(0.5); shade.position.set(960, 540); shade.width = 2600; shade.height = 1700; c.addChild(shade);
-      const m = new P.Graphics().poly(poly).fill(0xffffff); c.addChild(m); c.mask = m;
+      const shade = new P.Sprite(shadeTex); shade.anchor.set(0.5); shade.position.set(960, 540); shade.width = 2600; shade.height = 1700; c.addChild(shade);
+      const m = new P.Graphics().poly(poly.flat()).fill(0xffffff); c.addChild(m); c.mask = m;
+      c.pivot.set(1350, 570); c.position.set(1350, 570);
       world.addChild(c); return c;
     });
+    const seamC = document.createElement('canvas'); seamC.width = 1920; seamC.height = 1080;
+    const seamTex = tex(seamC), seamSprite = new P.Sprite(seamTex); seamSprite.blendMode = 'add'; world.addChild(seamSprite);
 
     const rim = new P.Sprite(radial([[0, 'rgba(255,60,70,0.55)'], [0.45, 'rgba(200,20,40,0.18)'], [1, 'rgba(0,0,0,0)']]));
     rim.anchor.set(0.5); rim.width = 1100; rim.height = 1100; world.addChild(rim);
@@ -101,6 +113,15 @@ class Component extends DCLogic {
     const tag = new P.Text({ text: '粉丝团', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 30, fill: 0xffffff, letterSpacing: 6 } });
     const lv = new P.Text({ text: 'LV.60', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 40, fill: 0xff5a68, letterSpacing: 6 } });
     tag.position.set(34, -142); lv.position.set(150, -150); nameG.addChild(tag, lv);
+    // Entry caption: says who is coming in from the cut-in, until the strike sweeps it away.
+    const cap = new P.Container(); cap.position.set(600, 900); ui.addChild(cap);
+    const capRule = new P.Graphics(); cap.addChild(capRule);
+    const capName = new P.Text({ text: '柚子不酸', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 50, fill: 0xffffff, letterSpacing: 12 } });
+    capName.anchor.set(0, 1); capName.position.set(30, -10); cap.addChild(capName);
+    const capLv = new P.Text({ text: '粉丝团', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 22, fill: 0xffffff, letterSpacing: 4 } });
+    const capLvN = new P.Text({ text: 'LV.60', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 28, fill: 0xff5a68, letterSpacing: 4 } });
+    capLv.position.set(32, 12); capLvN.position.set(112, 6); cap.addChild(capLv, capLvN);
+    const capMask = new P.Graphics(); cap.addChild(capMask); capName.mask = capMask;
 
     const imp = new P.Container(); world.addChild(imp);
     const impBg = new P.Graphics().rect(-400, -400, 2720, 1880).fill(0xffffff); imp.addChild(impBg);
@@ -117,7 +138,7 @@ class Component extends DCLogic {
     const zoom = new F.ZoomBlurFilter({ strength: 0, center: { x: 1350, y: 570 }, innerRadius: 60 });
     const rgb = new F.RGBSplitFilter({ red: { x: 0, y: 0 }, green: { x: 0, y: 0 }, blue: { x: 0, y: 0 } });
 
-    this.S = { app, canvas, world, ui, dim, halves, n, rim, poses, fit, ghosts, hero, fx, fxTex, nameG, nameGhosts, nameT, nameMask, rule, tag, lv, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, zoom, rgb, cut };
+    this.S = { app, canvas, world, ui, dim, red, halves, n, tangent, cutPts, seamC, seamTex, rim, poses, fit, ghosts, hero, fx, fxTex, nameG, cap, capRule, capName, capLv, capLvN, capMask, nameGhosts, nameT, nameMask, rule, tag, lv, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, zoom, rgb };
     app.ticker.add(() => this.frame());
   }
 
@@ -131,31 +152,39 @@ class Component extends DCLogic {
     const k = (a, b, x) => Math.min(1, Math.max(0, (x - a) / (b - a)));
     const out = p => 1 - Math.pow(1 - p, 3), inq = p => p * p, quint = p => 1 - Math.pow(1 - p, 5);
     const on2 = x => Math.floor(x / 83) * 83;
-    const EXIT = 6180, END = 6600;
+    const EXIT = 6180, END = 6600, SPLIT = 3000;
 
     // Letterbox and dimming.
     const bh = 118 * out(k(0, 280, t)) * (1 - out(k(EXIT + 120, EXIT + 500, l)));
     S.bars[0].clear().rect(0, 0, 1920, bh).fill(0x000000);
     S.bars[1].clear().rect(0, 1080 - bh, 1920, bh).fill(0x000000);
-    S.dim.alpha = (0.42 * out(k(0, 300, l)) + 0.4 * out(k(600, 1300, l)) - 0.4 * out(k(2200, 2900, l))) * (1 - k(EXIT, END, l));
+    S.dim.alpha = (0.42 * out(k(0, 300, l)) + 0.4 * out(k(600, 1300, l)) - 0.4 * out(k(4400, 5000, l))) * (1 - k(EXIT, END, l));
 
-    // Backdrop: fades in during the charge, then splits apart along the cut.
-    const split = out(k(HS0, HS0 + 700, l));
-    S.halves.forEach((h, i) => {
-      const dir = i === 0 ? -1 : 1, d = split * 170 * dir;
-      h.position.set(S.n[0] * d - l * 0.006, S.n[1] * d);
-      h.alpha = 0.95 * out(k(600, 1250, l)) * (1 - k(HS0 + 150, HS0 + 820, l));
-    });
+    // Backdrop: stays whole through the strike; after the zanshin flick the upper piece slides off along the cut and tips,
+    // the lower piece eases back the other way, and both dissolve.
+    const sp = k(SPLIT, SPLIT + 850, l), e = sp * sp, o = out(sp);
+    const cut = {
+      up: [S.tangent[0] * 250 * e - S.n[0] * 16 * o, S.tangent[1] * 250 * e - S.n[1] * 16 * o], upRot: 0.035 * e,
+      dn: [-S.tangent[0] * 80 * e + S.n[0] * 10 * o, -S.tangent[1] * 80 * e + S.n[1] * 10 * o], dnRot: -0.01 * e,
+      fade: 1 - inq(k(SPLIT + 300, SPLIT + 950, l)), drift: -l * 0.006
+    };
+    S.halves[0].position.set(1350 + cut.up[0] + cut.drift, 570 + cut.up[1]); S.halves[0].rotation = cut.upRot;
+    S.halves[1].position.set(1350 + cut.dn[0] + cut.drift, 570 + cut.dn[1]); S.halves[1].rotation = cut.dnRot;
+    for (const h of S.halves) h.alpha = 0.95 * out(k(600, 1250, l)) * cut.fade;
+    // The blood-moon side shows through the opening, holds a beat once the moonlit pieces are gone, then gives way to the stream.
+    S.red.alpha = (l >= SPLIT ? 1 : 0) * (1 - inq(k(4400, 5000, l)));
+    S.red.scale.set(1 + 0.03 * k(SPLIT, 5000, l)); S.red.position.set(960 + cut.drift, 540);
+    this.drawSeam(l, k, out, cut);
 
     // Hero poses: cut-in, charge, smear, follow-through, zanshin.
-    const pose = l < 520 ? 0 : l < 1950 ? 1 : l < 2034 ? 2 : l < 2900 ? 3 : 4;
+    const pose = l < 520 ? 0 : l < 1950 ? 1 : l < 2034 ? 2 : l < 2700 ? 3 : 4;
     const [ph, px] = S.fit[pose], tx = S.poses[pose];
     let x = 420, y = 1080;
     if (pose === 0) x += -980 * (1 - quint(k(250, 520, l)));
     if (pose === 1) { y += 20 * (1 - out(k(520, 660, l))); x += 16 * k(660, 1950, on2(l)); }
     if (pose === 2) x += 30;
     if (pose === 3) x += 48 - 10 * out(k(2034, 2500, l));
-    if (pose === 4) x += 20 * k(2900, 6000, on2(l));
+    if (pose === 4) x += 20 * k(2700, 6000, on2(l));
     x -= 70 * k(EXIT, END, l);
     S.hero.texture = tx; S.hero.height = ph; S.hero.scale.x = S.hero.scale.y;
     S.hero.position.set(x - px * S.hero.width, y);
@@ -177,7 +206,7 @@ class Component extends DCLogic {
     let rot = -0.014 * inq(k(520, 1950, l)) * (l < 1950 ? 1 : 0);
     let sx = 0, sy = 0;
     const shakeAt = (t0, amp, dur) => { const p = k(t0, t0 + dur, t); if (p <= 0 || p >= 1) return; const a = amp * (1 - p) * (1 - p); sx += Math.sin(t * 0.21) * a; sy += Math.cos(t * 0.17) * a * 0.6; };
-    shakeAt(1950, 8, 140); shakeAt(HS1, 30, 520);
+    shakeAt(1950, 8, 140); shakeAt(HS1, 30, 520); shakeAt(SPLIT + 120, 5, 160);
     for (const c of [S.world, S.ui]) { c.scale.set(cam); c.rotation = rot; c.position.set(960 + sx, 540 + sy); }
 
     // Strike effects.
@@ -213,12 +242,42 @@ class Component extends DCLogic {
     S.nameG.alpha = 1 - k(EXIT, END - 120, l);
     S.nameG.position.set(1010 + 80 * inq(k(EXIT, END, l)), 700);
 
-    this.drawFx(t, l, k, out);
+    // Entry caption: a rule slides out from the hero's feet, the name wipes in on it; the strike's wind sweeps it off.
+    const cr = quint(k(420, 720, l)), cw = 420 * cr, gone = k(1950, 2060, l);
+    S.capRule.clear().rect(0, 0, cw, 2).fill({ color: 0xffffff, alpha: 0.85 }).rect(0, -6, 14 * cr, 14).fill(0xff3b4e);
+    S.capMask.clear().rect(20, -90, 400 * out(k(560, 860, l)), 100).fill(0xffffff);
+    S.capLv.alpha = S.capLvN.alpha = out(k(760, 1000, l));
+    S.cap.alpha = (l >= 420 ? 1 : 0) * (1 - gone); S.cap.position.set(600 + 260 * gone * gone, 900 - 30 * gone);
+
+    this.drawFx(t, l, k, out, inq);
     S.fxTex.source.update();
   }
 
+  // The cut hangs in the sky behind the hero; when the sky gives way each piece carries a lit edge and the seam flares.
+  drawSeam(l, k, out, cut) {
+    const S = this.S, g = S.seamC.getContext('2d');
+    g.clearRect(0, 0, 1920, 1080);
+    if (l >= 2080 && l < 3950) {
+      g.globalCompositeOperation = 'lighter'; g.lineCap = 'round'; g.lineJoin = 'round';
+      const path = (dx, dy, rot) => { const c = Math.cos(rot), s = Math.sin(rot); g.beginPath(); S.cutPts.forEach((p, i) => { const x = p[0] - 1350, y = p[1] - 570, X = 1350 + x * c - y * s + dx, Y = 570 + x * s + y * c + dy; i ? g.lineTo(X, Y) : g.moveTo(X, Y); }); };
+      const stroke = (w, color) => { g.lineWidth = w; g.strokeStyle = color; g.stroke(); };
+      const open = out(k(3000, 3260, l)), a = k(2080, 2200, l) * (1 - k(3450, 3950, l)), flick = 0.8 + 0.2 * Math.sin(l * 0.045);
+      path(cut.drift, 0, 0);
+      stroke(12 + 40 * open, 'rgba(255,40,70,' + 0.2 * a * flick + ')');
+      stroke(3 + 10 * open, 'rgba(255,150,160,' + 0.6 * a + ')');
+      stroke(1.4 + 3 * open, 'rgba(255,255,255,' + a * (1 - 0.6 * open) + ')');
+      if (l >= 3000) for (const [d, r] of [[cut.up, cut.upRot], [cut.dn, cut.dnRot]]) {
+        path(d[0] + cut.drift, d[1], r);
+        stroke(10, 'rgba(255,60,80,' + 0.35 * cut.fade * open + ')');
+        stroke(2, 'rgba(255,235,235,' + 0.9 * cut.fade * open + ')');
+      }
+      g.globalCompositeOperation = 'source-over';
+    }
+    S.seamTex.source.update();
+  }
+
   // Slash ribbon, charge particles, sparks and embers, drawn additively each frame.
-  drawFx(t, l, k, out) {
+  drawFx(t, l, k, out, inq) {
     const S = this.S, g = S.fx.getContext('2d');
     g.clearRect(0, 0, 1920, 1080);
     g.globalCompositeOperation = 'lighter';
@@ -289,13 +348,24 @@ class Component extends DCLogic {
         }
       }
     }
-    // The cut stays in the air as a hairline while the sky splits.
-    if (l >= 2080 && l < 3000) {
-      const a = 1 - k(2500, 3000, l), [ax, ay] = S.cut.a, [bx, by] = S.cut.b;
-      g.strokeStyle = 'rgba(255,240,240,' + a + ')'; g.lineWidth = 2.5;
-      g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke();
-      g.strokeStyle = 'rgba(255,60,80,' + 0.4 * a + ')'; g.lineWidth = 12;
-      g.beginPath(); g.moveTo(ax, ay); g.lineTo(bx, by); g.stroke();
+    // The zanshin flick: a short glint on the blade right before the sky gives way.
+    const fl = k(2930, 3130, l);
+    if (fl > 0 && fl < 1) {
+      const a = Math.sin(fl * Math.PI), [gx, gy] = [612, 922];
+      g.strokeStyle = 'rgba(255,255,255,' + a + ')'; g.lineWidth = 2.5; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(gx - 90 * a, gy); g.lineTo(gx + 90 * a, gy); g.moveTo(gx, gy - 50 * a); g.lineTo(gx, gy + 50 * a); g.stroke();
+    }
+    // Embers peel off both lips of the seam as it opens.
+    if (l >= 3000 && l < 4300) {
+      const e = l - 3000;
+      for (let i = 0; i < 130; i++) {
+        const t0 = rnd(i, 30) * 520, life = 600 + rnd(i, 31) * 700, q = (e - t0) / life;
+        if (q <= 0 || q >= 1) continue;
+        const u = -0.45 + rnd(i, 32) * 1.6, x0 = 650 + 1400 * u, y0 = 690 - 120 * u - 240 * u * u, side = i % 2 ? 1 : -1, v = 30 + rnd(i, 33) * 110;
+        const px = x0 + (0.249 * v * 1.4 + 0.968 * 50) * side * q, py = y0 + (0.968 * v * 1.4 - 0.249 * 50) * side * q - 40 * q;
+        g.fillStyle = 'rgba(255,' + (120 + (i % 3) * 50) + ',125,' + Math.sin(q * Math.PI) * 0.9 + ')';
+        g.beginPath(); g.arc(px, py, 1.2 + rnd(i, 34) * 2.2, 0, Math.PI * 2); g.fill();
+      }
     }
     // Sparks thrown off the hit, mostly across the cut.
     const sp = l - 2080;
