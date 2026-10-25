@@ -27,6 +27,9 @@ public partial class WelcomeSettingsPage : SettingsPage
         LoadSettings();
     }
 
+    private void OnlineViewerSelected(object? sender, OnlineRankViewer viewer) =>
+        ((EditableRow)((OnlineRankPicker)sender!).DataContext!).RevealErrors();
+
     protected override void LoadRows()
     {
         LoadWelcomeTexts();

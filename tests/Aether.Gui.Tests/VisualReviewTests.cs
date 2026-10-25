@@ -811,6 +811,53 @@ public sealed class VisualReviewTests
         }, TestContext.Current.CancellationToken);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_online_rank_welcome(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  uids: [12345, 28816620]\n");
+            h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json(System.Text.Json.JsonSerializer.Serialize(new
+            {
+                code = 0, data = new { count = 430, item = Enumerable.Range(1, 100).Select(index => new
+                {
+                    uid = index == 1 ? 12345L : index == 2 ? 3494000012300417L : index,
+                    name = index == 1 ? "柚子不酸" : index == 2 ? "一只小鹿" : index == 6 ? "今天也要努力学习不然就要挂科了超长昵称" : $"观众 {index}"
+                }) }
+            })));
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory)
+                { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                vm.Apply(new Connected(7734200, 24680));
+                window.Navigation.SelectedIndex = 2;
+                GuiHarness.Flush();
+                var page = window.GetVisualDescendants().OfType<WelcomeSettingsPage>().Single();
+                var row = Add(page, WelcomeCondition.Uid);
+                var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, row, "OnlinePicker");
+                var button = picker.FindControl<Button>("PickerButton")!;
+                button.BringIntoView();
+                GuiHarness.Flush();
+                button.Flyout!.ShowAt(button);
+                await GuiHarness.WaitForAsync(() => picker.FindControl<ListBox>("RankList")!.ItemCount == 100);
+                var suffix = dark ? "dark" : "light";
+                Save(window, $"online-rank-welcome-{suffix}");
+                Save(TopLevel.GetTopLevel(picker.FindControl<TextBlock>("RankSummary")!)!, $"online-rank-welcome-popup-{suffix}");
+                button.Flyout.Hide();
+            }
+            finally { window.Close(); await vm.ShutdownAsync(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
     private static Task Render(int width, int height, bool dark) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
