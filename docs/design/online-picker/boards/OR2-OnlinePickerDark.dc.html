@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>OR2 喊停观众从在线榜选 深色</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.orRow[aria-selected="false"]:hover{background:var(--or-hover) !important}
+</style>
+</helmet>
+<div style="width: 1200px; height: 720px">
+  <dc-import name="OR1-OnlinePicker" dark="true" hint-size="1200px,720px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1200,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

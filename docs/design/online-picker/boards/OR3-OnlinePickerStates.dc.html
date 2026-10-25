@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>OR3 在线榜浮层和按钮各状态</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1200px; height: 800px; display: flex; flex-direction: column; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei UI', 'Segoe UI', sans-serif; font-size: 14px">
+  <sc-for list="{{bands}}" as="b" hint-placeholder-count="2">
+    <div style="flex: 1; min-height: 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; padding: 20px 32px; background: {{b.t.content}}; color: {{b.t.primary}}; border-bottom: 1px solid {{b.t.border}}">
+
+      <div style="display: flex; gap: 32px; align-items: flex-start">
+        <sc-for list="{{b.popovers}}" as="p" hint-placeholder-count="3">
+          <div style="width: 340px; display: flex; flex-direction: column; gap: 8px">
+            <span style="font-size: 12px; color: {{b.t.muted}}; white-space: nowrap">{{p.label}}</span>
+            <div role="dialog" aria-label="{{p.label}}" style="box-sizing: border-box; display: flex; flex-direction: column; padding: 4px; border: 1px solid {{b.t.border}}; border-radius: 8px; background: {{b.t.card}}; box-shadow: {{b.t.shadow}}">
+              <div style="display: flex; align-items: baseline; gap: 8px; padding: 8px 10px 6px">
+                <span style="font-size: 13px; font-weight: 600; white-space: nowrap">在线榜</span>
+              </div>
+              <sc-if value="{{p.loading}}" hint-placeholder-val="{{false}}">
+                <div role="status" style="height: 112px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: {{b.t.muted}}; white-space: nowrap">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.22-8.56"></path></svg>
+                  正在读取在线榜…
+                </div>
+              </sc-if>
+              <sc-if value="{{p.message}}" hint-placeholder-val="{{true}}">
+                <div style="display: flex; flex-direction: column; gap: 4px; padding: 14px 10px 16px">
+                  <span style="font-size: 13px; color: {{p.titleColor}}; white-space: nowrap">{{p.title}}</span>
+                  <span style="font-size: 12px; color: {{b.t.muted}}; white-space: nowrap">{{p.detail}}</span>
+                </div>
+              </sc-if>
+              <span style="margin-top: 2px; padding: 8px 10px 6px; border-top: 1px solid {{b.t.subtle}}; font-size: 12px; color: {{b.t.muted}}; white-space: nowrap">每次打开都重新读；点一位观众，把 UID 填到左边</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 132px auto; align-items: center; column-gap: 16px; row-gap: 8px">
+        <sc-for list="{{b.rows}}" as="r" hint-placeholder-count="4">
+          <span style="font-size: 12px; color: {{b.t.muted}}; white-space: nowrap">{{r.label}}</span>
+          <span style="display: flex; align-items: center; gap: 8px">
+            <input aria-label="{{r.inputLabel}}" readonly="{{r.readonly}}" value="{{r.uid}}" placeholder="观众 UID" style="width: 150px; height: 32px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{r.inputBorder}}; border-radius: 6px; background: {{r.inputBg}}; color: {{r.inputColor}}; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums">
+            <button type="button" aria-label="{{r.pickLabel}}" aria-haspopup="listbox" aria-expanded="{{r.expanded}}" disabled="{{r.disabled}}" title="{{r.tip}}" style="width: 32px; height: 32px; padding: 0; border: 1px solid {{r.border}}; border-radius: 6px; background: {{r.bg}}; color: {{r.color}}; display: inline-flex; align-items: center; justify-content: center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </button>
+            <span style="font-size: 12px; color: {{r.hintColor}}; white-space: nowrap">{{r.hint}}</span>
+          </span>
+        </sc-for>
+      </div>
+
+    </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1200,"height":800}}'>
+class Component extends DCLogic {
+  renderVals() {
+    // Shipped Theme.axaml tokens, same as OR1.
+    const light = {
+      content: '#FFFFFF', card: '#FFFFFF', border: '#E3E6EB', subtle: '#EEF0F3', control: '#D5D9E0',
+      primary: '#16181D', secondary: '#3D4350', muted: '#5B6270', disabled: '#B4BAC4',
+      accent: '#3358D4', accentText: '#2A47B0', success: '#166534', danger: '#B91C1C', readonlyBg: '#F6F7F9',
+      shadow: '0 8px 24px rgba(22, 24, 29, 0.12), 0 1px 2px rgba(22, 24, 29, 0.08)'
+    };
+    const dark = {
+      content: '#1B1C1F', card: '#222428', border: '#2E3136', subtle: '#26282C', control: '#3A3E45',
+      primary: '#E8EAED', secondary: '#C2C6CE', muted: '#9097A3', disabled: '#4A4F57',
+      accent: '#8DA2FB', accentText: '#B4C3FF', success: '#6FD08C', danger: '#F87171', readonlyBg: '#141518',
+      shadow: '0 8px 24px rgba(0, 0, 0, 0.45)'
+    };
+    const band = (t) => ({
+      t,
+      popovers: [
+        { label: '读取中 · 打开就读，一般不到 1 秒', loading: true, message: false },
+        { label: '读不到 · 显示 B站 或网络给的原因', loading: false, message: true, title: '读不到在线榜：请求超时', titleColor: t.danger, detail: '关掉再点一次会重新读；也可以直接填 UID' },
+        { label: '榜上没人 · 没开播时常见', loading: false, message: true, title: '在线榜上还没有人', titleColor: t.secondary, detail: '没开播时一般是空的；也可以直接填 UID' }
+      ],
+      rows: [
+        { label: '能选 · 浮层打开中', uid: '', hint: '不填就只能主播点“停”', hintColor: t.muted, open: true },
+        { label: '选好之后', uid: '12345', hint: '柚子不酸 · 在线榜', hintColor: t.success },
+        { label: '没连直播间', uid: '', hint: '连上直播间后才能从在线榜选', hintColor: t.muted, off: true },
+        { label: '转动中 · 不能改', uid: '12345', hint: '柚子不酸 · 在线榜', hintColor: t.success, off: true, locked: true }
+      ].map((r) => ({
+        label: r.label, uid: r.uid, hint: r.hint, hintColor: r.hintColor,
+        inputLabel: '喊停观众 UID · ' + r.label,
+        readonly: r.locked ? 'true' : 'false',
+        inputBorder: r.locked ? t.border : t.control,
+        inputBg: r.locked ? t.readonlyBg : t.content,
+        inputColor: r.locked ? t.muted : t.primary,
+        pickLabel: '从在线榜选 · ' + r.label,
+        expanded: r.open ? 'true' : 'false',
+        disabled: r.off ? 'true' : 'false',
+        tip: r.off ? (r.locked ? '转动中不能换人' : '连上直播间后才能选') : '从在线榜选',
+        border: r.open ? t.accent : r.off ? t.border : t.control,
+        bg: t.card,
+        color: r.open ? t.accentText : r.off ? t.disabled : t.secondary
+      }))
+    });
+    return { bands: [band(light), band(dark)] };
+  }
+}
+</script>
+</body>
+</html>
