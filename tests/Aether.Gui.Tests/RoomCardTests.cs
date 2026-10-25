@@ -29,7 +29,7 @@ public sealed class RoomCardTests
             Assert.Contains("7734200", CardText());
             Assert.Contains("连接中", CardText());
             time.Advance(TimeSpan.FromMinutes(3));
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             Dispatcher.UIThread.RunJobs();
             Assert.Contains("已连接 · 0 分钟", CardText());
             time.Advance(TimeSpan.FromSeconds(59));
@@ -42,11 +42,11 @@ public sealed class RoomCardTests
             Dispatcher.UIThread.RunJobs();
             Assert.Contains("重连中", CardText());
             time.Advance(TimeSpan.FromMinutes(2));
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             Dispatcher.UIThread.RunJobs();
             Assert.Contains("已连接 · 3 分钟", CardText());
             viewModel.ConnectionState = RoomConnectionState.Disconnected;
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             Dispatcher.UIThread.RunJobs();
             Assert.Contains("已连接 · 0 分钟", CardText());
         }

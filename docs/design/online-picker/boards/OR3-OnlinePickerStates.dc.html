@@ -79,7 +79,7 @@ class Component extends DCLogic {
       t,
       popovers: [
         { label: '读取中 · 打开就读，一般不到 1 秒', loading: true, message: false },
-        { label: '读不到 · 显示 B站 或网络给的原因', loading: false, message: true, title: '读不到在线榜：请求超时', titleColor: t.danger, detail: '关掉再点一次会重新读；也可以直接填 UID' },
+        { label: '读不到 · 显示 B站 或网络给的原因', loading: false, message: true, title: '读取在线榜失败：请求超时', titleColor: t.danger, detail: '关掉再点一次会重新读；也可以直接填 UID' },
         { label: '榜上没人 · 没开播时常见', loading: false, message: true, title: '在线榜上还没有人', titleColor: t.secondary, detail: '没开播时一般是空的；也可以直接填 UID' }
       ],
       rows: [

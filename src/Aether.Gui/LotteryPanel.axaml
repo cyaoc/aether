@@ -181,6 +181,7 @@
                 <TextBlock Classes="label" Text="这次谁来喊" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
                   <TextBox x:Name="UidInput" Text="{Binding Lottery.Uid, Mode=TwoWay}" IsReadOnly="{Binding !Lottery.CanEditPool}" Classes="numeric" Width="150" Height="32" MinHeight="32" FontSize="13" PlaceholderText="观众 UID" AutomationProperties.Name="喊停观众 UID" Classes.invalid="{Binding #UidError.IsVisible}" />
+                  <local:OnlineRankPicker x:Name="OnlinePicker" Host="{Binding}" Target="{Binding #UidInput}" AccessibleName="从在线榜选喊停观众" DisabledReason="转动中不能换人" />
                   <TextBlock x:Name="ViewerHint" Classes="caption singleLine" Text="{Binding Lottery.PoolViewerHint}" Classes.success="{Binding Lottery.PoolViewerKnown}" Classes.muted="{Binding !Lottery.PoolViewerKnown}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
                 </StackPanel>
                 <TextBlock Grid.Row="1" Grid.Column="1" x:Name="UidError" Classes="error" Text="{Binding Lottery.UidError}" IsVisible="{Binding Lottery.UidError, Converter={x:Static ObjectConverters.IsNotNull}}" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" />

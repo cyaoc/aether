@@ -48,7 +48,7 @@ public sealed class RecentRoomsTests
             await requested.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Empty(harness.LoadSettings().RecentRooms);
             viewModel.RoomNumber = "999";
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             Assert.Equal(["006"], viewModel.RecentRooms);
             Assert.Equal(["006"], harness.LoadSettings().RecentRooms);
             var restarted = harness.CreateViewModel();
@@ -74,9 +74,9 @@ public sealed class RecentRoomsTests
                 viewModel.RoomNumber = room;
                 viewModel.ConnectCommand.Execute(null);
                 await requested.WaitAsync(TimeSpan.FromSeconds(5));
-                viewModel.Apply(new Connected());
+                viewModel.Apply(new Connected(7734200, 24680));
                 viewModel.Apply(new Reconnecting());
-                viewModel.Apply(new Connected());
+                viewModel.Apply(new Connected(7734200, 24680));
                 viewModel.ConnectCommand.Cancel();
                 await viewModel.ConnectCommand.ExecutionTask!;
                 Assert.Equal(room, viewModel.RoomNumber);
@@ -100,10 +100,10 @@ public sealed class RecentRoomsTests
             viewModel.RoomNumber = "6";
             viewModel.ConnectCommand.Execute(null);
             await requested.WaitAsync(TimeSpan.FromSeconds(5));
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             File.Delete(harness.SettingsFile);
             viewModel.Apply(new Reconnecting());
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             Assert.False(File.Exists(harness.SettingsFile));
             Assert.Equal(["6"], viewModel.RecentRooms);
         }
@@ -124,7 +124,7 @@ public sealed class RecentRoomsTests
             viewModel.RoomNumber = "6";
             viewModel.ConnectCommand.Execute(null);
             await requested.WaitAsync(TimeSpan.FromSeconds(5));
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             var reloaded = harness.LoadSettings();
             Assert.False(reloaded.KeepRecentDanmaku);
             Assert.Equal(["6"], reloaded.RecentRooms);
@@ -171,7 +171,7 @@ public sealed class RecentRoomsTests
             viewModel.ConnectCommand.Execute(null);
             await requested.WaitAsync(TimeSpan.FromSeconds(5));
             viewModel.ConnectCommand.Cancel();
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             await viewModel.ConnectCommand.ExecutionTask!;
             Assert.Empty(viewModel.RecentRooms);
             Assert.False(File.Exists(harness.SettingsFile));
@@ -194,7 +194,7 @@ public sealed class RecentRoomsTests
             viewModel.RoomNumber = "6";
             viewModel.ConnectCommand.Execute(null);
             await requested.WaitAsync(TimeSpan.FromSeconds(5));
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             Assert.True(viewModel.IsConnected);
             Assert.True(viewModel.ConnectCommand.IsRunning);
             Assert.Equal(["6"], viewModel.RecentRooms);

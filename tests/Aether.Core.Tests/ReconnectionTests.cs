@@ -30,7 +30,7 @@ public sealed class ReconnectionTests
         Assert.IsType<WatchQrCode>(updates.Current);
         // Once resolved, even a changed short-number mapping must not change this room connection.
         h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
-            """{"code":0,"data":{"room_id":999}}""";
+            """{"code":0,"data":{"room_id":999,"uid":24680}}""";
         Assert.True(await h.AdvancePollAsync(updates));
         Assert.IsType<Connected>(updates.Current);
         Assert.Equal(8, h.Http.Requests.Count(r => r.Uri.AbsolutePath.EndsWith("room_init")));
@@ -410,12 +410,12 @@ public sealed class ReconnectionTests
         await h.AdvanceRetryAsync(updates, 1);
         Assert.IsType<Reconnecting>(updates.Current);
         await h.AdvanceRetryAsync(updates, 2);
-        Assert.IsType<Connected>(updates.Current);
+        Assert.Equal(new Connected(7734200, 24680), updates.Current);
         await first.DisconnectAsync();
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Reconnecting>(updates.Current);
         await h.AdvanceRetryAsync(updates, 1);
-        Assert.IsType<Connected>(updates.Current);
+        Assert.Equal(new Connected(7734200, 24680), updates.Current);
         await second.PushAsync(FakeDanmakuServer.Packet(5,
             System.Text.Encoding.UTF8.GetBytes("""{"cmd":"DANMU_MSG","info":[[],"恢复了",[0,"观众"]]}"""), 0));
         Assert.True(await updates.MoveNextAsync());

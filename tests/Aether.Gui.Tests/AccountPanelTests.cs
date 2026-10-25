@@ -123,18 +123,18 @@ public sealed class AccountPanelTests
             Assert.Equal("测试账号", viewModel.AccountStatus.Text);
             if (reconnecting)
             {
-                viewModel.Apply(new Connected());
+                viewModel.Apply(new Connected(7734200, 24680));
                 viewModel.Apply(new Reconnecting());
             }
             harness.NavResponse = _ => Task.FromResult(GuiHarness.AccountResponse("扫码后的账号"));
             viewModel.Apply(new WatchQrCode("https://example.test/login"));
             Assert.True(viewModel.HasQrCode);
-            viewModel.Apply(reconnecting ? new Connected() : new Connecting());
+            viewModel.Apply(reconnecting ? new Connected(7734200, 24680) : new Connecting());
             Assert.False(viewModel.HasQrCode);
             await WaitForAsync(() => VisibleText(window).Contains("扫码后的账号"));
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             viewModel.Apply(new Reconnecting());
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             Assert.Equal(2, harness.NavRequests);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }

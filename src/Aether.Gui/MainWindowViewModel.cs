@@ -54,6 +54,7 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasRoomConnection))]
     [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
     private RoomConnectionState connectionState = RoomConnectionState.Disconnected;
+    private Connected? connectedRoom;
     private long? connectedAt;
     private ITimer? connectionTimer;
 
@@ -117,6 +118,10 @@ public partial class MainWindowViewModel : ObservableObject
     public static FuncValueConverter<int, bool> IsGovernor { get; } = new(tier => tier == 3);
     public static FuncValueConverter<string?, string> ReplyPrefix { get; } = new(name => string.IsNullOrEmpty(name) ? "" : $"@{name} ");
 
+    /// <summary>Only while connected: the picker that calls this is disabled otherwise.</summary>
+    internal Task<OnlineRank> GetOnlineRankAsync(CancellationToken cancellationToken) =>
+        client.GetOnlineRankAsync(connectedRoom!.RoomId, connectedRoom.BroadcasterUid, cancellationToken);
+
     public Task StartAsync(string dataDirectory)
     {
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
@@ -132,6 +137,7 @@ public partial class MainWindowViewModel : ObservableObject
         connectionTimer?.Dispose();
         connectionTimer = null;
         connectedAt = null;
+        connectedRoom = null;
         SendQueue.EndPending();
     }
 
@@ -258,7 +264,8 @@ public partial class MainWindowViewModel : ObservableObject
                 EndQrLogin();
                 ConnectionState = RoomConnectionState.Connecting;
                 break;
-            case Connected:
+            case Connected connected:
+                connectedRoom = connected;
                 EndQrLogin();
                 connectedAt ??= clock.GetTimestamp();
                 connectionTimer ??= clock.CreateTimer(_ => Dispatcher.UIThread.Post(() =>

@@ -62,13 +62,42 @@ internal sealed class BilibiliApi
         return status;
     }
 
-    public async Task<long> ResolveRoomIdAsync(long roomId, CancellationToken cancellationToken)
+    public async Task<(long RoomId, long BroadcasterUid)> ResolveRoomAsync(long roomId, CancellationToken cancellationToken)
     {
         var (_, room) = await GetAsync($"https://api.live.bilibili.com/room/v1/Room/room_init?id={roomId.ToString(CultureInfo.InvariantCulture)}",
             LiveReferer, $"直播间 {roomId} 查询", cancellationToken);
         var realRoomId = room.GetProperty("room_id").GetInt64();
         if (realRoomId <= 0) throw new InvalidDataException("B站未返回有效的真实房间号。");
-        return realRoomId;
+        if (!room.TryGetProperty("uid", out var uid) || !uid.TryGetInt64(out var broadcasterUid) || broadcasterUid <= 0)
+            throw new InvalidDataException("B站未返回有效的主播 UID。");
+        return (realRoomId, broadcasterUid);
+    }
+
+    public async Task<OnlineRank> GetOnlineRankAsync(long roomId, long broadcasterUid, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var (_, data) = await GetAsync(FormattableString.Invariant(
+                $"https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank?ruid={broadcasterUid}&room_id={roomId}&page=1&page_size=100&type=online_rank&switch=contribution_rank&platform=web&web_location=444.8"),
+                FormattableString.Invariant($"{LiveReferer}{roomId}"), "读取在线榜", cancellationToken);
+            // An empty rank may come back as null rather than [], which is still 在线榜上还没有人.
+            var viewers = data.TryGetProperty("item", out var items) && items.ValueKind == JsonValueKind.Array
+                ? items.EnumerateArray()
+                    .Where(item => item.GetProperty("uid").GetInt64() > 0)
+                    .Select(item => new OnlineRankViewer(item.GetProperty("uid").GetInt64(), item.GetProperty("name").GetString() ?? ""))
+                    .ToArray()
+                : [];
+            return new(data.GetProperty("count").GetInt32(), viewers);
+        }
+        // HttpClient's own timeout arrives as a cancellation nobody asked for; its English message means nothing to a streamer.
+        catch (OperationCanceledException error) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("读取在线榜失败：请求超时", error);
+        }
+        catch (HttpRequestException error)
+        {
+            throw new InvalidOperationException($"读取在线榜失败：{error.Message}", error);
+        }
     }
 
     public async Task<(long Mid, string Buvid, string Token, Uri Server)> GetConnectionAsync(

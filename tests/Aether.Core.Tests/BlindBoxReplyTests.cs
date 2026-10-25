@@ -366,12 +366,12 @@ public sealed class BlindBoxReplyTests
         h.Time.SetLocalTimeZone(TimeZoneInfo.CreateCustomTimeZone("test", TimeSpan.FromHours(-7), "test", "test"));
         await h.LoginAsync();
         var sent = CaptureSends(h);
-        h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] = """{"code":0,"data":{"room_id":999}}""";
+        h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] = """{"code":0,"data":{"room_id":999,"uid":24680}}""";
         await using (var otherRoom = await h.WatchConnectedAsync())
         {
             await h.PushAndSyncAsync(otherRoom, Gift(midnight, price: 99900));
         }
-        h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] = """{"code":0,"data":{"room_id":7734200}}""";
+        h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] = """{"code":0,"data":{"room_id":7734200,"uid":24680}}""";
         await using var updates = await h.WatchConnectedAsync();
         await h.Server.PushRoomMessageAsync(Gift(midnight.AddSeconds(-1), price: 99900));
         await h.Server.PushRoomMessageAsync(Gift(midnight, price: 6000));

@@ -21,6 +21,51 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_online_rank_lottery(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory)
+                { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                vm.Apply(new Connected(7734200, 24680));
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery() with { Uid = 1 })));
+                window.Navigation.SelectedIndex = 4;
+                GuiHarness.Flush();
+                var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().Single(x => x.IsEffectivelyVisible);
+                var button = picker.FindControl<Button>("PickerButton")!;
+                foreach (var state in new[] { "list", "loading", "error", "empty" })
+                {
+                    h.OnlineRankResponse = async (_, token) =>
+                    {
+                        if (state == "loading") await Task.Delay(Timeout.Infinite, token);
+                        if (state == "error") return GuiHarness.Json("""{"code":-400,"message":"请求错误"}""");
+                        return OnlineRankList.Response(430, state == "empty" ? [] : OnlineRankList.Top100(first: 1));
+                    };
+                    button.Flyout!.ShowAt(button);
+                    if (state != "loading")
+                        await GuiHarness.WaitForAsync(() => !picker.FindControl<Grid>("Loading")!.IsVisible);
+                    GuiHarness.Flush();
+                    var suffix = $"{state}-{(dark ? "dark" : "light")}";
+                    Save(window, $"online-rank-lottery-{suffix}");
+                    button.Flyout.Hide();
+                }
+            }
+            finally { window.Close(); await vm.ShutdownAsync(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
     [InlineData(false, LotteryMode.Pool)]
     [InlineData(true, LotteryMode.Pool)]
     [InlineData(false, LotteryMode.Entry)]
@@ -535,6 +580,49 @@ public sealed class VisualReviewTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_online_rank_animation(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            Directory.CreateDirectory(Path.Combine(h.DataDirectory, "videos"));
+            File.WriteAllText(Path.Combine(h.DataDirectory, "videos", "柚子不酸.mp4"), "video");
+            File.WriteAllText(Path.Combine(h.DataDirectory, "videos", "晚风进场.webm"), "video");
+            Settings.Save(h.DataDirectory, new Dictionary<string, string>
+            {
+                ["welcome_animation_videos.12345"] = "柚子不酸.mp4",
+                ["welcome_animation_videos.28816620"] = "晚风进场.webm"
+            });
+            h.OnlineRankResponse = OnlineRankList.Answer(430, OnlineRankList.Top100());
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory)
+                { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                vm.Apply(new Connected(7734200, 24680));
+                window.Navigation.SelectedIndex = 3;
+                GuiHarness.Flush();
+                var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().First(x => x.IsEffectivelyVisible);
+                var button = picker.FindControl<Button>("PickerButton")!;
+                button.Flyout!.ShowAt(button);
+                await GuiHarness.WaitForAsync(() => picker.FindControl<ListBox>("RankList")!.ItemCount == 100);
+                var suffix = dark ? "dark" : "light";
+                Save(window, $"online-rank-animation-{suffix}");
+                Save(TopLevel.GetTopLevel(picker.FindControl<ListBox>("RankList")!)!, $"online-rank-animation-popup-{suffix}");
+                button.Flyout.Hide();
+            }
+            finally { window.Close(); await vm.ShutdownAsync(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
     [InlineData(1200, 720, false)]
     [InlineData(1200, 720, true)]
     [InlineData(1040, 600, false)]
@@ -760,6 +848,46 @@ public sealed class VisualReviewTests
         }, TestContext.Current.CancellationToken);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_online_rank_welcome(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  uids: [12345, 28816620]\n");
+            h.OnlineRankResponse = OnlineRankList.Answer(430, OnlineRankList.Top100());
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory)
+                { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                vm.Apply(new Connected(7734200, 24680));
+                window.Navigation.SelectedIndex = 2;
+                GuiHarness.Flush();
+                var page = window.GetVisualDescendants().OfType<WelcomeSettingsPage>().Single();
+                var row = Add(page, WelcomeCondition.Uid);
+                var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, row, "OnlinePicker");
+                var button = picker.FindControl<Button>("PickerButton")!;
+                button.BringIntoView();
+                GuiHarness.Flush();
+                button.Flyout!.ShowAt(button);
+                await GuiHarness.WaitForAsync(() => picker.FindControl<ListBox>("RankList")!.ItemCount == 100);
+                var suffix = dark ? "dark" : "light";
+                Save(window, $"online-rank-welcome-{suffix}");
+                Save(TopLevel.GetTopLevel(picker.FindControl<TextBlock>("RankSummary")!)!, $"online-rank-welcome-popup-{suffix}");
+                button.Flyout.Hide();
+            }
+            finally { window.Close(); await vm.ShutdownAsync(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
     private static Task Render(int width, int height, bool dark) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -785,7 +913,7 @@ public sealed class VisualReviewTests
             await viewModel.ReadAccountCommand.ExecutionTask!;
             viewModel.ConnectCommand.Execute(null);
             await roomStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             clock.Advance(TimeSpan.FromMinutes(42));
             var time = new DateTimeOffset(2026, 10, 12, 20, 41, 0, TimeSpan.FromHours(8));
             var names = new[] { "一只小鹿", "柚子不酸", "Aether助手", "晚风吹过山岗", "夜航船", "是阿橙呀", "momo_7", "路过的猫" };

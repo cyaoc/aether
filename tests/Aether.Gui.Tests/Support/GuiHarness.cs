@@ -46,6 +46,10 @@ internal sealed class GuiHarness : IDisposable
     {
         set => http.RoomResponse = value;
     }
+    public Func<Uri, CancellationToken, Task<HttpResponseMessage>> OnlineRankResponse
+    {
+        set => http.OnlineRankResponse = value;
+    }
     public List<Uri> RejectedRequests => http.RejectedRequests;
 
     public static HttpResponseMessage Json(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
@@ -167,10 +171,14 @@ internal sealed class GuiHarness : IDisposable
         public int NavRequests;
         public Func<Uri, CancellationToken, Task<HttpResponseMessage>>? LoginResponse { get; set; }
         public Func<Uri, CancellationToken, Task<HttpResponseMessage>>? RoomResponse { get; set; }
+        public Func<Uri, CancellationToken, Task<HttpResponseMessage>>? OnlineRankResponse { get; set; }
         public List<Uri> RejectedRequests { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            if (request.Method == HttpMethod.Get && request.RequestUri?.GetLeftPart(UriPartial.Path) ==
+                "https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank" && OnlineRankResponse is { } onlineRankResponse)
+                return onlineRankResponse(request.RequestUri, cancellationToken);
             if (request.Method == HttpMethod.Get && request.RequestUri is { } uri &&
                 (uri.GetLeftPart(UriPartial.Path) is "https://api.bilibili.com/x/frontend/finger/spi"
                     or "https://passport.bilibili.com/x/passport-login/web/qrcode/generate"
