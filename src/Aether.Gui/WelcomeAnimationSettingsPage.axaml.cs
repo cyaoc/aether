@@ -22,9 +22,6 @@ public partial class WelcomeAnimationSettingsPage : SettingsPage
         LoadSettings();
     }
 
-    private void SelectOnlineViewer(object? sender, OnlineRankViewer viewer) =>
-        ((WelcomeAnimationRow)((OnlineRankPicker)sender!).DataContext!).RevealErrors();
-
     private void OpenGeneralSettings(object? sender, RoutedEventArgs e) => GeneralSettingsRequested?.Invoke();
     protected override void LoadRows() => LoadAnimations();
     protected override bool RowsChanged => AnimationDraft;

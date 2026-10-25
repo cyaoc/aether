@@ -35,14 +35,18 @@ public sealed class OnlineRankTests
             _ => throw new TaskCanceledException("timeout")
         };
         var error = await Assert.ThrowsAnyAsync<Exception>(() => h.Client.GetOnlineRankAsync(7734200, 24680, h.Stop.Token));
-        Assert.Contains("读取在线榜", error.Message);
+        Assert.StartsWith("读取在线榜失败", error.Message);
+        if (failure == "api") Assert.Equal("读取在线榜失败（-400）：请求错误", error.Message);
+        if (failure == "timeout") Assert.Equal("读取在线榜失败：请求超时", error.Message);
     }
 
-    [Fact]
-    public async Task Empty_rank_stays_empty()
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("null")]
+    public async Task Empty_rank_stays_empty(string items)
     {
         await using var h = new WatchHarness();
-        h.Http.Respond = (_, _) => Task.FromResult(FakeBilibiliHttp.Json("""{"code":0,"data":{"count":0,"item":[]}}"""));
+        h.Http.Respond = (_, _) => Task.FromResult(FakeBilibiliHttp.Json($$$"""{"code":0,"data":{"count":0,"item":{{{items}}}}}"""));
         var rank = await h.Client.GetOnlineRankAsync(7734200, 24680, h.Stop.Token);
         Assert.Equal(0, rank.Count);
         Assert.Empty(rank.Viewers);

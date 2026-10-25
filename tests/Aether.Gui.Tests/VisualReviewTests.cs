@@ -49,12 +49,7 @@ public sealed class VisualReviewTests
                     {
                         if (state == "loading") await Task.Delay(Timeout.Infinite, token);
                         if (state == "error") return GuiHarness.Json("""{"code":-400,"message":"请求错误"}""");
-                        var viewers = state == "empty" ? [] : Enumerable.Range(1, 100).Select(index => new
-                        {
-                            uid = index == 2 ? 3494000012300417L : index,
-                            name = index == 1 ? "柚子不酸" : index == 2 ? "一只小鹿" : index == 6 ? "今天也要努力学习不然就要挂科了超长昵称" : $"观众 {index}"
-                        }).ToArray();
-                        return GuiHarness.Json(System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { count = 430, item = viewers } }));
+                        return OnlineRankList.Response(430, state == "empty" ? [] : OnlineRankList.Top100(first: 1));
                     };
                     button.Flyout!.ShowAt(button);
                     if (state != "loading")
@@ -602,14 +597,7 @@ public sealed class VisualReviewTests
                 ["welcome_animation_videos.12345"] = "柚子不酸.mp4",
                 ["welcome_animation_videos.28816620"] = "晚风进场.webm"
             });
-            h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json(System.Text.Json.JsonSerializer.Serialize(new
-            {
-                code = 0, data = new { count = 430, item = Enumerable.Range(1, 100).Select(index => new
-                {
-                    uid = index == 1 ? 12345L : index == 2 ? 3494000012300417L : index,
-                    name = index == 1 ? "柚子不酸" : index == 2 ? "一只小鹿" : index == 6 ? "今天也要努力学习不然就要挂科了超长昵称" : $"观众 {index}"
-                }) }
-            })));
+            h.OnlineRankResponse = OnlineRankList.Answer(430, OnlineRankList.Top100());
             var vm = h.CreateViewModel();
             var window = new MainWindow(h.DataDirectory)
                 { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
@@ -871,14 +859,7 @@ public sealed class VisualReviewTests
             using var h = new GuiHarness();
             await h.SaveCredentialAsync();
             File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  uids: [12345, 28816620]\n");
-            h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json(System.Text.Json.JsonSerializer.Serialize(new
-            {
-                code = 0, data = new { count = 430, item = Enumerable.Range(1, 100).Select(index => new
-                {
-                    uid = index == 1 ? 12345L : index == 2 ? 3494000012300417L : index,
-                    name = index == 1 ? "柚子不酸" : index == 2 ? "一只小鹿" : index == 6 ? "今天也要努力学习不然就要挂科了超长昵称" : $"观众 {index}"
-                }) }
-            })));
+            h.OnlineRankResponse = OnlineRankList.Answer(430, OnlineRankList.Top100());
             var vm = h.CreateViewModel();
             var window = new MainWindow(h.DataDirectory)
                 { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
@@ -932,7 +913,7 @@ public sealed class VisualReviewTests
             await viewModel.ReadAccountCommand.ExecutionTask!;
             viewModel.ConnectCommand.Execute(null);
             await roomStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             clock.Advance(TimeSpan.FromMinutes(42));
             var time = new DateTimeOffset(2026, 10, 12, 20, 41, 0, TimeSpan.FromHours(8));
             var names = new[] { "一只小鹿", "柚子不酸", "Aether助手", "晚风吹过山岗", "夜航船", "是阿橙呀", "momo_7", "路过的猫" };

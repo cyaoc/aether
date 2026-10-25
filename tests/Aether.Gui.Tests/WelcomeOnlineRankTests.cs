@@ -4,6 +4,8 @@ using static Aether.Gui.Tests.Support.ConditionList;
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Raw;
+using Avalonia.Headless;
 using Avalonia.Interactivity;
 
 namespace Aether.Gui.Tests;
@@ -16,7 +18,7 @@ public sealed class WelcomeOnlineRankTests
         using var h = new GuiHarness();
         Directory.CreateDirectory(h.DataDirectory);
         File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  uids: [42]\n");
-        h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"count":12,"item":[{"uid":42,"name":"柚子"},{"uid":99,"name":"小鹿"}]}}"""));
+        h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));
         var page = new WelcomeSettingsPage(h.DataDirectory) { DataContext = vm };
@@ -29,35 +31,59 @@ public sealed class WelcomeOnlineRankTests
             var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, row, "OnlinePicker");
             var button = picker.FindControl<Button>("PickerButton")!;
             Assert.Equal("从在线榜选第 2 位指定观众", new ButtonAutomationPeer(button).GetName());
-            await Choose(0);
+            await OnlineRankList.ChooseAsync(picker, 0);
             Assert.Equal("42", GuiHarness.FindRowControl<TextBox>(page, row, "UidInput").Text);
             Assert.Equal("和上面那条重复了", GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage").Text);
             Assert.Equal("42", original.Uid);
-            await Choose(1);
+            await OnlineRankList.ChooseAsync(picker, 1);
             Assert.Equal("99", row.Uid);
             Assert.False(GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage").IsVisible);
             Assert.True(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
-            button.Flyout!.ShowAt(button);
-            await GuiHarness.WaitForAsync(() => picker.FindControl<ListBox>("RankList")!.ItemCount == 2);
-            Assert.Equal(1, picker.FindControl<ListBox>("RankList")!.SelectedIndex);
-            button.Flyout.Hide();
+            Assert.Equal(1, (await OnlineRankList.OpenAsync(picker, 2)).SelectedIndex);
+            button.Flyout!.Hide();
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal([42L, 99L], Settings.Load(h.DataDirectory).WelcomeUids.Value);
-
-            async Task Choose(int index)
-            {
-                button.Flyout!.ShowAt(button);
-                await GuiHarness.WaitForAsync(() => picker.FindControl<ListBox>("RankList")!.ItemCount == 2);
-                var list = picker.FindControl<ListBox>("RankList")!;
-                list.SelectedIndex = index;
-                list.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
-                GuiHarness.Flush();
-                Assert.False(button.Flyout.IsOpen);
-            }
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
         return true;
     }, TestContext.Current.CancellationToken);
+    [Fact]
+    public Task Opening_the_picker_on_a_new_row_is_still_filling_it_in() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        Directory.CreateDirectory(h.DataDirectory);
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  uids: [42]\n");
+        h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
+        var vm = h.CreateViewModel();
+        vm.Apply(new Connected(7734200, 24680));
+        var page = new WelcomeSettingsPage(h.DataDirectory) { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var original = Rows(page).Single(row => row.Kind == WelcomeCondition.Uid);
+            var row = Add(page, WelcomeCondition.Uid);
+            var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, row, "OnlinePicker");
+            var error = GuiHarness.FindRowControl<TextBlock>(page, row, "ErrorMessage");
+            Assert.True(GuiHarness.FindRowControl<TextBox>(page, row, "UidInput").IsFocused);
+            window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
+            Assert.True(OnlineRankList.Button(picker).IsFocused);
+            Assert.False(error.IsVisible);
+            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
+            await GuiHarness.WaitForAsync(() => OnlineRankList.List(picker).ItemCount == 2);
+            GuiHarness.Flush();
+            Assert.False(error.IsVisible);
+            OnlineRankList.Button(picker).Flyout!.Hide();
+            GuiHarness.Flush();
+            GuiHarness.FindRowControl<TextBox>(page, original, "UidInput").Focus();
+            GuiHarness.Flush();
+            Assert.Equal("填一个 UID，或删掉这条", error.Text);
+            Assert.True(error.IsVisible);
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -85,7 +111,7 @@ public sealed class WelcomeOnlineRankTests
             Assert.Equal("连上直播间后才能选", ToolTip.GetTip(button));
             vm.Apply(new Connected(7734200, 24680));
             Assert.Equal(!readOnly, button.IsEnabled);
-            Assert.Equal(readOnly ? "此项只读，不能从在线榜选" : "从在线榜选", ToolTip.GetTip(button));
+            Assert.Equal(readOnly ? "这项是多行写法，请在设置文件里改" : "从在线榜选", ToolTip.GetTip(button));
             vm.Apply(new Reconnecting());
             Assert.False(button.IsEnabled);
             Assert.Equal("连上直播间后才能选", ToolTip.GetTip(button));

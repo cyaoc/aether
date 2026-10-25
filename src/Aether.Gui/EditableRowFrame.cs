@@ -13,7 +13,10 @@ public sealed class EditableRowFrame : Border
         DataContextChanged += (_, _) => WatchRow(DataContext as EditableRow);
         AttachedToVisualTree += (_, _) => WatchRow(DataContext as EditableRow);
         DetachedFromVisualTree += (_, _) => WatchRow(null);
-        LostFocus += (_, _) => row?.RevealErrors();
+        LostFocus += (_, _) =>
+        {
+            if (!this.GetVisualDescendants().OfType<OnlineRankPicker>().Any(picker => picker.HoldsFocus)) row?.RevealErrors();
+        };
     }
 
     private void WatchRow(EditableRow? current)

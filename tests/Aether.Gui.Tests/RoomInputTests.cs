@@ -157,7 +157,7 @@ public sealed class RoomInputTests
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
             var uri = await requested.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal("?id=42", uri.Query);
-            viewModel.Apply(new Connected());
+            viewModel.Apply(new Connected(7734200, 24680));
             viewModel.ConnectCommand.Cancel();
             await viewModel.ConnectCommand.ExecutionTask!;
             GuiHarness.Flush();

@@ -80,13 +80,21 @@ internal sealed class BilibiliApi
             var (_, data) = await GetAsync(FormattableString.Invariant(
                 $"https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank?ruid={broadcasterUid}&room_id={roomId}&page=1&page_size=100&type=online_rank&switch=contribution_rank&platform=web&web_location=444.8"),
                 FormattableString.Invariant($"{LiveReferer}{roomId}"), "读取在线榜", cancellationToken);
-            var viewers = data.GetProperty("item").EnumerateArray()
-                .Where(item => item.GetProperty("uid").GetInt64() > 0)
-                .Select(item => new OnlineRankViewer(item.GetProperty("uid").GetInt64(), item.GetProperty("name").GetString()!))
-                .ToArray();
+            // An empty rank may come back as null rather than [], which is still 在线榜上还没有人.
+            var viewers = data.TryGetProperty("item", out var items) && items.ValueKind == JsonValueKind.Array
+                ? items.EnumerateArray()
+                    .Where(item => item.GetProperty("uid").GetInt64() > 0)
+                    .Select(item => new OnlineRankViewer(item.GetProperty("uid").GetInt64(), item.GetProperty("name").GetString() ?? ""))
+                    .ToArray()
+                : [];
             return new(data.GetProperty("count").GetInt32(), viewers);
         }
-        catch (Exception error) when (!cancellationToken.IsCancellationRequested && error is HttpRequestException or OperationCanceledException)
+        // HttpClient's own timeout arrives as a cancellation nobody asked for; its English message means nothing to a streamer.
+        catch (OperationCanceledException error) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new InvalidOperationException("读取在线榜失败：请求超时", error);
+        }
+        catch (HttpRequestException error)
         {
             throw new InvalidOperationException($"读取在线榜失败：{error.Message}", error);
         }

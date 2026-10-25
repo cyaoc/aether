@@ -28,7 +28,7 @@ public sealed class WelcomeAnimationSettingsTests
             ["welcome_animation_videos.42"] = "first.mp4",
             ["welcome_animation_videos.43"] = "second.webm"
         });
-        h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"count":12,"item":[{"uid":42,"name":"柚子"},{"uid":99,"name":"小鹿"}]}}"""));
+        h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));
         var page = new WelcomeAnimationSettingsPage(h.DataDirectory) { DataContext = vm };
@@ -40,14 +40,11 @@ public sealed class WelcomeAnimationSettingsTests
             var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, rows[0], "OnlinePicker");
             var button = picker.FindControl<Button>("PickerButton")!;
             Assert.Equal("从在线榜选第 1 位观众", new ButtonAutomationPeer(button).GetName());
-            button.Flyout!.ShowAt(button);
-            var list = picker.FindControl<ListBox>("RankList")!;
-            await GuiHarness.WaitForAsync(() => list.ItemCount == 2);
+            var list = await OnlineRankList.OpenAsync(picker, 2);
             Assert.Equal(0, list.SelectedIndex);
             Assert.Contains("把 UID 填到这一行", picker.FindControl<TextBlock>("Footer")!.Text);
-            list.SelectedIndex = 1;
-            list.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
-            Assert.False(button.Flyout.IsOpen);
+            button.Flyout!.Hide();
+            await OnlineRankList.ChooseAsync(picker, 1);
             Assert.Equal("99", GuiHarness.FindRowControl<TextBox>(page, rows[0], "UidInput").Text);
             Assert.Equal("43", GuiHarness.FindRowControl<TextBox>(page, rows[1], "UidInput").Text);
             Assert.Equal("first.mp4", GuiHarness.FindRowControl<TextBlock>(page, rows[0], "FileNameText").Text);
@@ -71,7 +68,7 @@ public sealed class WelcomeAnimationSettingsTests
             ["welcome_animation.enabled"] = "true",
             ["welcome_animation_videos.42"] = "first.mp4"
         });
-        h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"count":12,"item":[{"uid":42,"name":"柚子"},{"uid":99,"name":"小鹿"}]}}"""));
+        h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));
         var page = new WelcomeAnimationSettingsPage(h.DataDirectory, () => Task.FromResult<string?>(source)) { DataContext = vm };
@@ -84,17 +81,10 @@ public sealed class WelcomeAnimationSettingsTests
             var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, row, "OnlinePicker");
             var button = picker.FindControl<Button>("PickerButton")!;
             Assert.Equal("从在线榜选第 2 位观众", new ButtonAutomationPeer(button).GetName());
-            button.Flyout!.ShowAt(button);
-            var list = picker.FindControl<ListBox>("RankList")!;
-            await GuiHarness.WaitForAsync(() => list.ItemCount == 2);
-            list.SelectedIndex = 0;
-            list.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            await OnlineRankList.ChooseAsync(picker, 0);
             Assert.Equal("和上面那条重复了", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
-            button.Flyout.ShowAt(button);
-            await GuiHarness.WaitForAsync(() => list.ItemCount == 2);
-            list.SelectedIndex = 1;
-            list.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            await OnlineRankList.ChooseAsync(picker, 1);
             Assert.Equal("保存后才能试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             GuiHarness.FindRowControl<TextBox>(page, row, "UidInput").Text = "42";
             Assert.Equal("和上面那条重复了", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
@@ -132,7 +122,7 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("连上直播间后才能选", ToolTip.GetTip(button));
             vm.Apply(new Connected(7734200, 24680));
             Assert.Equal(!readOnly, button.IsEnabled);
-            Assert.Equal(readOnly ? "此项只读，不能从在线榜选" : "从在线榜选", ToolTip.GetTip(button));
+            Assert.Equal(readOnly ? "这些映射不能逐行编辑，请在设置文件里改" : "从在线榜选", ToolTip.GetTip(button));
             vm.Apply(new Reconnecting());
             Assert.False(button.IsEnabled);
             Assert.Equal("连上直播间后才能选", ToolTip.GetTip(button));

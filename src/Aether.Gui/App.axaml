@@ -4,6 +4,7 @@
              RequestedThemeVariant="Default">
   <Application.Resources>
     <x:String x:Key="SettingsReadOnlyHint">这项是多行写法，请在设置文件里改</x:String>
+    <x:String x:Key="AnimationVideosReadOnlyHint">这些映射不能逐行编辑，请在设置文件里改</x:String>
   </Application.Resources>
   <Application.Styles>
     <FluentTheme>

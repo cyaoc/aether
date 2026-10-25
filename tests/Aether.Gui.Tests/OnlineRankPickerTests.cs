@@ -20,7 +20,7 @@ public sealed class OnlineRankPickerTests
         h.OnlineRankResponse = (uri, _) =>
         {
             Assert.Contains("ruid=24680&room_id=7734200", uri.Query);
-            return Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"count":12,"item":[{"uid":42,"name":"柚子"},{"uid":99,"name":"小鹿"}]}}"""));
+            return Task.FromResult(OnlineRankList.Response(12, OnlineRankList.TwoViewers));
         };
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));
@@ -32,13 +32,8 @@ public sealed class OnlineRankPickerTests
         {
             var picker = page.FindControl<OnlineRankPicker>("OnlinePicker")!;
             var button = picker.FindControl<Button>("PickerButton")!;
-            button.Flyout!.ShowAt(button);
-            await GuiHarness.WaitForAsync(() => picker.FindControl<ListBox>("RankList")!.ItemCount == 2);
-            var list = picker.FindControl<ListBox>("RankList")!;
-            list.SelectedIndex = 0;
-            list.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            await OnlineRankList.ChooseAsync(picker, 0);
             Assert.Equal("42", page.FindControl<TextBox>("UidInput")!.Text);
-            Assert.False(button.Flyout!.IsOpen);
             Assert.Equal("柚子 · 在线榜", page.FindControl<TextBlock>("ViewerHint")!.Text);
             page.FindControl<TextBox>("UidInput")!.Text = "99";
             page.FindControl<TextBox>("UidInput")!.Text = "42";
@@ -55,7 +50,7 @@ public sealed class OnlineRankPickerTests
     public Task Mouse_and_keyboard_choose_with_existing_uid_highlighted(bool keyboard) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();
-        h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"count":12,"item":[{"uid":42,"name":"柚子"},{"uid":99,"name":"小鹿"}]}}"""));
+        h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));
         vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, Pool())));
@@ -87,6 +82,8 @@ public sealed class OnlineRankPickerTests
             var list = picker.FindControl<ListBox>("RankList")!;
             Assert.Equal(0, list.SelectedIndex);
             Assert.Equal("前 2 位 · 在线 12 人", picker.FindControl<TextBlock>("RankSummary")!.Text);
+            Assert.Equal(["1", "柚子", "42"], OnlineRankList.RowText(list, 0));
+            Assert.Equal(["2", "小鹿", "99"], OnlineRankList.RowText(list, 1));
             var popup = TopLevel.GetTopLevel(list)!;
             if (keyboard)
             {
@@ -185,7 +182,7 @@ public sealed class OnlineRankPickerTests
             h.OnlineRankResponse = (uri, _) =>
             {
                 Assert.Contains("ruid=555&room_id=999", uri.Query);
-                return Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"count":0,"item":[]}}"""));
+                return Task.FromResult(OnlineRankList.Response(0));
             };
             vm.Apply(new Connected(999, 555));
             button.Flyout.ShowAt(button);
@@ -196,7 +193,7 @@ public sealed class OnlineRankPickerTests
             h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":-400,"message":"请求错误"}"""));
             button.Flyout.ShowAt(button);
             await GuiHarness.WaitForAsync(() => picker.FindControl<TextBlock>("MessageText")!.Text!.Contains("请求错误"));
-            Assert.StartsWith("读不到在线榜：读取在线榜", picker.FindControl<TextBlock>("MessageText")!.Text);
+            Assert.Equal("读取在线榜失败（-400）：请求错误", picker.FindControl<TextBlock>("MessageText")!.Text);
             Assert.Equal("关掉再点一次会重新读；也可以直接填 UID", picker.FindControl<TextBlock>("MessageHint")!.Text);
             button.Flyout.Hide();
             page.FindControl<TextBox>("UidInput")!.Text = "123";
@@ -226,9 +223,9 @@ public sealed class OnlineRankPickerTests
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, Pool() with { Phase = PoolLotteryPhase.Spinning })));
             Assert.False(button.Flyout!.IsOpen);
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, Pool())));
-            h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"count":0,"item":[]}}"""));
+            h.OnlineRankResponse = OnlineRankList.Answer(0);
             button.Flyout.ShowAt(button);
-            oldResponse.SetResult(GuiHarness.Json("""{"code":0,"data":{"count":1,"item":[{"uid":42,"name":"过期"}]}}"""));
+            oldResponse.SetResult(OnlineRankList.Response(1, (42, "过期")));
             await GuiHarness.WaitForAsync(() => picker.FindControl<TextBlock>("MessageText")!.Text == "在线榜上还没有人");
             Assert.Equal(0, picker.FindControl<ListBox>("RankList")!.ItemCount);
             Assert.Equal("", vm.Lottery.Uid);
@@ -241,7 +238,7 @@ public sealed class OnlineRankPickerTests
     public Task Danmaku_name_takes_priority_and_new_lottery_forgets_rank_name() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();
-        h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"count":1,"item":[{"uid":42,"name":"在线昵称"}]}}"""));
+        h.OnlineRankResponse = OnlineRankList.Answer(1, (42, "在线昵称"));
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));
         vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, Pool())));
@@ -252,11 +249,7 @@ public sealed class OnlineRankPickerTests
         {
             var picker = page.FindControl<OnlineRankPicker>("OnlinePicker")!;
             var button = picker.FindControl<Button>("PickerButton")!;
-            button.Flyout!.ShowAt(button);
-            await GuiHarness.WaitForAsync(() => picker.FindControl<ListBox>("RankList")!.ItemCount == 1);
-            var list = picker.FindControl<ListBox>("RankList")!;
-            list.SelectedIndex = 0;
-            list.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            await OnlineRankList.ChooseAsync(picker, 0, rows: 1);
             Assert.Equal("在线昵称 · 在线榜", page.FindControl<TextBlock>("ViewerHint")!.Text);
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, Pool() with { Viewers = ImmutableDictionary<long, string>.Empty.Add(42, "弹幕昵称") })));
             Assert.Equal("弹幕昵称 · 这场发过弹幕", page.FindControl<TextBlock>("ViewerHint")!.Text);

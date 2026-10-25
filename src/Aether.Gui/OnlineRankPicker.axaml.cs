@@ -17,14 +17,17 @@ public partial class OnlineRankPicker : UserControl
     public static readonly StyledProperty<MainWindowViewModel?> HostProperty = AvaloniaProperty.Register<OnlineRankPicker, MainWindowViewModel?>(nameof(Host));
     public static readonly StyledProperty<TextBox?> TargetProperty = AvaloniaProperty.Register<OnlineRankPicker, TextBox?>(nameof(Target));
     public static readonly StyledProperty<string> AccessibleNameProperty = AvaloniaProperty.Register<OnlineRankPicker, string>(nameof(AccessibleName), "从在线榜选");
-    public static readonly StyledProperty<string> DisabledReasonProperty = AvaloniaProperty.Register<OnlineRankPicker, string>(nameof(DisabledReason), "此项只读，不能从在线榜选");
+    public static readonly StyledProperty<string> DisabledReasonProperty = AvaloniaProperty.Register<OnlineRankPicker, string>(nameof(DisabledReason), "");
     public static readonly StyledProperty<string> FillTargetTextProperty = AvaloniaProperty.Register<OnlineRankPicker, string>(nameof(FillTargetText), "左边");
     public MainWindowViewModel? Host { get => GetValue(HostProperty); set => SetValue(HostProperty, value); }
     public TextBox? Target { get => GetValue(TargetProperty); set => SetValue(TargetProperty, value); }
     public string AccessibleName { get => GetValue(AccessibleNameProperty); set => SetValue(AccessibleNameProperty, value); }
+    /// <summary>The tooltip while connected but <see cref="Target"/> is read-only.</summary>
     public string DisabledReason { get => GetValue(DisabledReasonProperty); set => SetValue(DisabledReasonProperty, value); }
     public string FillTargetText { get => GetValue(FillTargetTextProperty); set => SetValue(FillTargetTextProperty, value); }
     public event EventHandler<OnlineRankViewer>? Selected;
+    /// <summary>Focus on the button or in the open list is still filling in the UID, so the row does not count it as leaving.</summary>
+    internal bool HoldsFocus => PickerFlyout.IsOpen || TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() == PickerButton;
     private readonly LatestRun read = new();
     private Flyout PickerFlyout => (Flyout)PickerButton.Flyout!;
 
@@ -51,38 +54,31 @@ public partial class OnlineRankPicker : UserControl
             if (e.InitialPressMouseButton == MouseButton.Left && e.Source is Visual visual &&
                 visual.GetSelfAndVisualAncestors().OfType<ListBoxItem>().Any()) Choose();
         };
-        DetachedFromVisualTree += (_, _) => { PickerFlyout.Hide(); _ = read.StopAsync(); Unsubscribe(); };
-        AttachedToVisualTree += (_, _) => { Subscribe(); Refresh(); };
+        AttachedToVisualTree += (_, _) => { Watch(Host, Target, true); Refresh(); };
+        DetachedFromVisualTree += (_, _) => { PickerFlyout.Hide(); _ = read.StopAsync(); Watch(Host, Target, false); };
         Refresh();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (change.Property == HostProperty)
+        if (change.Property != HostProperty && change.Property != TargetProperty && change.Property != DisabledReasonProperty) return;
+        if (this.IsAttachedToVisualTree())
         {
-            if (change.OldValue is MainWindowViewModel old) old.PropertyChanged -= HostChanged;
-            if (change.NewValue is MainWindowViewModel next) { next.PropertyChanged -= HostChanged; next.PropertyChanged += HostChanged; }
+            Watch(change.OldValue as MainWindowViewModel, change.OldValue as TextBox, false);
+            Watch(change.NewValue as MainWindowViewModel, change.NewValue as TextBox, true);
         }
-        if (change.Property == TargetProperty)
-        {
-            if (change.OldValue is TextBox old) old.PropertyChanged -= TargetChanged;
-            if (change.NewValue is TextBox next) { next.PropertyChanged -= TargetChanged; next.PropertyChanged += TargetChanged; }
-        }
-        if (PickerButton is not null) Refresh();
+        Refresh();
     }
 
-    private void Subscribe()
+    // Only while attached, so a recycled row never stays reachable from the long-lived main view model.
+    private void Watch(MainWindowViewModel? host, TextBox? target, bool on)
     {
-        Unsubscribe();
-        if (Host is { } host) host.PropertyChanged += HostChanged;
-        if (Target is { } target) target.PropertyChanged += TargetChanged;
-    }
-
-    private void Unsubscribe()
-    {
-        if (Host is { } host) host.PropertyChanged -= HostChanged;
-        if (Target is { } target) target.PropertyChanged -= TargetChanged;
+        if (host is not null) host.PropertyChanged -= HostChanged;
+        if (target is not null) target.PropertyChanged -= TargetChanged;
+        if (!on) return;
+        if (host is not null) host.PropertyChanged += HostChanged;
+        if (target is not null) target.PropertyChanged += TargetChanged;
     }
 
     private void HostChanged(object? sender, PropertyChangedEventArgs e)
@@ -135,9 +131,10 @@ public partial class OnlineRankPicker : UserControl
             }, DispatcherPriority.Loaded);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        catch (Exception error)
+        // Core's message already names the operation, e.g. 读取在线榜失败（-400）：请求错误.
+        catch (Exception error) when (!token.IsCancellationRequested)
         {
-            if (!token.IsCancellationRequested) ShowMessage($"读不到在线榜：{error.Message}", "关掉再点一次会重新读；也可以直接填 UID", true);
+            ShowMessage(error.Message, "关掉再点一次会重新读；也可以直接填 UID", true);
         }
     }
 
@@ -147,7 +144,7 @@ public partial class OnlineRankPicker : UserControl
         MessagePanel.IsVisible = true;
         MessageText.Text = message;
         MessageText.Classes.Set("error", error);
-        MessageText.Classes.Set("secondary", !error);
+        MessageText.Classes.Set("label", !error);
         MessageHint.Text = hint;
     }
 
@@ -155,6 +152,8 @@ public partial class OnlineRankPicker : UserControl
     {
         if (!PickerButton.IsEnabled || Target is not { } target || RankList.SelectedItem is not OnlineRankRow row) return;
         target.SetCurrentValue(TextBox.TextProperty, row.Viewer.Uid.ToString(CultureInfo.InvariantCulture));
+        // A pick is the end of filling in this row's UID, as leaving the box would be.
+        (DataContext as EditableRow)?.RevealErrors();
         Selected?.Invoke(this, row.Viewer);
         PickerFlyout.Hide();
     }

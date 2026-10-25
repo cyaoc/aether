@@ -118,12 +118,9 @@ public partial class MainWindowViewModel : ObservableObject
     public static FuncValueConverter<int, bool> IsGovernor { get; } = new(tier => tier == 3);
     public static FuncValueConverter<string?, string> ReplyPrefix { get; } = new(name => string.IsNullOrEmpty(name) ? "" : $"@{name} ");
 
-    internal Task<OnlineRank> GetOnlineRankAsync(CancellationToken cancellationToken)
-    {
-        if (!IsConnected || connectedRoom is not { } room)
-            throw new InvalidOperationException("连上直播间后才能选");
-        return client.GetOnlineRankAsync(room.RoomId, room.BroadcasterUid, cancellationToken);
-    }
+    /// <summary>Only while connected: the picker that calls this is disabled otherwise.</summary>
+    internal Task<OnlineRank> GetOnlineRankAsync(CancellationToken cancellationToken) =>
+        client.GetOnlineRankAsync(connectedRoom!.RoomId, connectedRoom.BroadcasterUid, cancellationToken);
 
     public Task StartAsync(string dataDirectory)
     {
