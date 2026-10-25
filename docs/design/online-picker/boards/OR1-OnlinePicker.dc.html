@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>OR1 喊停观众从在线榜选</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#3358D4}a:hover{color:#2A47B0}
+.orRow[aria-selected="false"]:hover{background:var(--or-hover) !important}
+</style>
+</helmet>
+<div style="position: relative; width: 1200px; height: 720px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: {{t.content}}; color: {{t.primary}}; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei UI', 'Segoe UI', sans-serif; font-size: 14px; --or-hover: {{t.subtle}}">
+
+  <div style="height: 36px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: {{t.titleBar}}; border-bottom: 1px solid {{t.border}}">
+    <span style="width: 12px; height: 12px; border-radius: 50%; background: #FF5F57"></span>
+    <span style="width: 12px; height: 12px; border-radius: 50%; background: #FEBC2E"></span>
+    <span style="width: 12px; height: 12px; border-radius: 50%; background: #28C840"></span>
+    <span style="flex: 1; text-align: center; font-size: 13px; color: {{t.muted}}; margin-right: 52px">Aether</span>
+  </div>
+
+  <div style="flex: 1; min-height: 0; display: flex">
+    <nav aria-label="功能" style="width: 224px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; padding: 14px 12px; background: {{t.sidebar}}; border-right: 1px solid {{t.border}}">
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid {{t.border}}; border-radius: 10px; background: {{t.card}}">
+        <span style="font-size: 12px; color: {{t.muted}}">直播间</span>
+        <span style="font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">1768506153</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: {{roomColor}}">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: {{roomDot}}"></span>{{roomText}}
+        </span>
+        <button type="button" style="white-space: nowrap; height: 30px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 13px">{{roomButton}}</button>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <sc-for list="{{nav}}" as="item" hint-placeholder-count="7">
+          <a href="#" aria-current="{{item.current}}" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; text-decoration: none; background: {{item.bg}}; color: {{item.color}}; font-weight: {{item.weight}}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.icon}}"></path></svg>
+            <span style="flex: 1">{{item.label}}</span>
+            <span style="font-size: 12px; font-weight: 500; color: {{item.badgeColor}}">{{item.badge}}</span>
+          </a>
+        </sc-for>
+      </div>
+      <span style="flex: 1"></span>
+      <div style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px">
+        <span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: {{t.accent}}; color: {{t.onAccent}}; display: inline-flex; align-items: center; justify-content: center; font-weight: 600">A</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+          <span style="font-weight: 600">Aether助手</span>
+          <span style="font-size: 12px; color: {{t.muted}}">已登录</span>
+        </span>
+      </div>
+    </nav>
+
+    <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+      <div style="height: 60px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-bottom: 1px solid {{t.border}}">
+        <h1 style="margin: 0; font-size: 18px; font-weight: 600">抽奖</h1>
+        <span role="tablist" aria-label="抽奖视图" style="display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; background: {{t.subtle}}">
+          <button type="button" role="tab" aria-selected="true" style="white-space: nowrap; height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 13px; font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12)">本场</button>
+          <a href="#" role="tab" aria-selected="false" style="height: 28px; box-sizing: border-box; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 6px; color: {{t.secondary}}; font-size: 13px; text-decoration: none">历史 5</a>
+        </span>
+        <span style="height: 24px; display: inline-flex; align-items: center; padding: 0 8px; border-radius: 6px; background: {{t.subtle}}; color: {{t.secondary}}; font-size: 12px; font-weight: 600">奖池抽奖</span>
+        <span role="status" style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border: 1px solid {{t.border}}; border-radius: 999px; background: {{t.subtle}}; color: {{t.secondary}}; font-size: 12px; font-weight: 600">
+          <span style="width: 7px; height: 7px; border-radius: 50%; background: {{t.disabled}}"></span>待机
+        </span>
+        <span style="flex: 1"></span>
+        <a href="#" style="height: 32px; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font-size: 13px; font-weight: 600; text-decoration: none">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          新开一场
+        </a>
+      </div>
+
+      <div style="flex: 1; min-height: 0; display: flex">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+          <div style="flex: 1; min-height: 0; overflow: hidden; padding: 18px 20px; display: flex; flex-direction: column; gap: 22px">
+
+            <section aria-labelledby="or1-prize" style="display: flex; flex-direction: column; gap: 10px">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span id="or1-prize" style="font-weight: 600; white-space: nowrap">奖品</span>
+                <span style="flex: 1; font-size: 13px; color: {{t.muted}}; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">按占比随机抽一件，不会抽完；档次决定开奖特效</span>
+              </div>
+              <div style="display: flex; flex-direction: column; border: 1px solid {{t.border}}; border-radius: 8px">
+                <sc-for list="{{prizes}}" as="p" hint-placeholder-count="4">
+                  <div style="display: flex; align-items: center; gap: 8px; min-height: 48px; box-sizing: border-box; padding: 8px 6px 8px 12px; border-top: {{p.divider}}">
+                    <input aria-label="{{p.nameLabel}}" value="{{p.name}}" style="flex: 1; min-width: 0; height: 32px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit; font-size: 13px">
+                    <label style="white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: {{t.secondary}}">占比
+                      <input aria-label="{{p.amountLabel}}" inputmode="numeric" value="{{p.amount}}" style="width: 52px; height: 32px; box-sizing: border-box; padding: 0 8px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit; font-size: 13px; text-align: right; font-variant-numeric: tabular-nums">
+                    </label>
+                    <span style="width: 40px; flex-shrink: 0; text-align: right; font-size: 12px; color: {{t.muted}}; font-variant-numeric: tabular-nums">{{p.percent}}</span>
+                    <span style="flex-shrink: 0; height: 30px; box-sizing: border-box; display: inline-flex; align-items: center; padding: 0 9px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{p.tagBg}}; color: {{p.tagColor}}; font-size: 12px; font-weight: 700">{{p.tier}}</span>
+                    <button type="button" aria-label="{{p.removeLabel}}" style="white-space: nowrap; width: 30px; height: 30px; flex-shrink: 0; border: 0; border-radius: 6px; background: transparent; color: {{t.muted}}; display: inline-flex; align-items: center; justify-content: center">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                </sc-for>
+              </div>
+              <span>
+                <button type="button" style="white-space: nowrap; height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 13px">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                  添加奖品
+                </button>
+                <span style="margin-left: 8px; font-size: 12px; color: {{t.muted}}; white-space: nowrap">最多 10 件；新开一场会带出上一场的奖品、口令和 UID</span>
+              </span>
+            </section>
+
+            <section aria-labelledby="or1-who" style="display: flex; flex-direction: column; gap: 10px">
+              <div style="display: flex; align-items: baseline; gap: 8px">
+                <span id="or1-who" style="font-weight: 600">谁来喊停</span>
+                <span style="font-size: 13px; color: {{t.muted}}; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">每次只认一位观众，别人发了不算；不填就只能主播点“停”</span>
+              </div>
+              <div style="display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 10px; row-gap: 10px">
+                <label for="or1-uid" style="white-space: nowrap; font-size: 13px; color: {{t.secondary}}">这次谁来喊</label>
+                <span style="display: flex; align-items: center; gap: 8px; min-width: 0">
+                  <input id="or1-uid" inputmode="numeric" value="{{uid}}" onChange="{{onUid}}" placeholder="观众 UID" style="width: 150px; height: 32px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums">
+
+                  <span style="position: relative; flex-shrink: 0; display: inline-flex">
+                    <button type="button" aria-label="从在线榜选喊停观众" aria-haspopup="listbox" aria-expanded="{{pickExpanded}}" disabled="{{pickDisabled}}" title="{{pickTip}}" onClick="{{togglePick}}" style="width: 32px; height: 32px; padding: 0; border: 1px solid {{pickBorder}}; border-radius: 6px; background: {{t.card}}; color: {{pickColor}}; display: inline-flex; align-items: center; justify-content: center; cursor: pointer">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    </button>
+
+                    <sc-if value="{{pickOpen}}" hint-placeholder-val="{{true}}">
+                      <div role="dialog" aria-labelledby="or1-rank-title" style="position: absolute; left: 0; bottom: 38px; z-index: 5; width: 340px; box-sizing: border-box; display: flex; flex-direction: column; padding: 4px; border: 1px solid {{t.border}}; border-radius: 8px; background: {{t.card}}; box-shadow: {{t.shadow}}">
+                        <div style="display: flex; align-items: baseline; gap: 8px; padding: 8px 10px 6px">
+                          <span id="or1-rank-title" style="font-size: 13px; font-weight: 600; white-space: nowrap">在线榜</span>
+                          <span style="font-size: 12px; color: {{t.muted}}; white-space: nowrap; font-variant-numeric: tabular-nums">{{rankMeta}}</span>
+                        </div>
+
+                        <sc-if value="{{showList}}" hint-placeholder-val="{{true}}">
+                          <div role="listbox" aria-label="在线榜上的观众" style="max-height: 256px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px">
+                            <sc-for list="{{viewers}}" as="v" hint-placeholder-count="8">
+                              <button type="button" role="option" class="orRow" aria-selected="{{v.sel}}" onClick="{{v.pick}}" style="height: 32px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 10px 0 6px; border: 0; border-radius: 6px; background: {{v.bg}}; color: {{v.color}}; font: inherit; font-size: 13px; text-align: left; cursor: pointer">
+                                <span style="width: 24px; flex-shrink: 0; text-align: right; font-size: 12px; color: {{t.muted}}; font-variant-numeric: tabular-nums">{{v.rank}}</span>
+                                <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: {{v.weight}}">{{v.name}}</span>
+                                <span style="flex-shrink: 0; font-size: 12px; color: {{t.muted}}; font-variant-numeric: tabular-nums">{{v.uid}}</span>
+                              </button>
+                            </sc-for>
+                          </div>
+                        </sc-if>
+
+                        <sc-if value="{{showLoading}}" hint-placeholder-val="{{false}}">
+                          <div role="status" style="height: 112px; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 12px; color: {{t.muted}}; white-space: nowrap">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-6.22-8.56"></path></svg>
+                            正在读取在线榜…
+                          </div>
+                        </sc-if>
+
+                        <sc-if value="{{showError}}" hint-placeholder-val="{{false}}">
+                          <div role="alert" style="display: flex; flex-direction: column; gap: 4px; padding: 14px 10px 16px">
+                            <span style="font-size: 13px; color: {{t.danger}}; white-space: nowrap">读不到在线榜：请求超时</span>
+                            <span style="font-size: 12px; color: {{t.muted}}; white-space: nowrap">关掉再点一次会重新读；也可以直接填 UID</span>
+                          </div>
+                        </sc-if>
+
+                        <sc-if value="{{showEmpty}}" hint-placeholder-val="{{false}}">
+                          <div style="display: flex; flex-direction: column; gap: 4px; padding: 14px 10px 16px">
+                            <span style="font-size: 13px; color: {{t.secondary}}; white-space: nowrap">在线榜上还没有人</span>
+                            <span style="font-size: 12px; color: {{t.muted}}; white-space: nowrap">没开播时一般是空的；也可以直接填 UID</span>
+                          </div>
+                        </sc-if>
+
+                        <span style="margin-top: 2px; padding: 8px 10px 6px; border-top: 1px solid {{t.subtle}}; font-size: 12px; color: {{t.muted}}; white-space: nowrap">每次打开都重新读；点一位观众，把 UID 填到左边</span>
+                      </div>
+                    </sc-if>
+                  </span>
+
+                  <span role="status" style="min-width: 0; font-size: 12px; color: {{hintColor}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{hint}}</span>
+                </span>
+                <label for="or1-word" style="white-space: nowrap; font-size: 13px; color: {{t.secondary}}">口令</label>
+                <span style="display: flex; align-items: center; gap: 8px">
+                  <input id="or1-word" value="停" style="width: 150px; height: 32px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit; font-size: 13px">
+                  <span style="font-size: 12px; color: {{t.muted}}">弹幕内容和口令完全一样才算</span>
+                </span>
+              </div>
+            </section>
+
+            <section aria-labelledby="or1-look" style="display: flex; flex-direction: column; gap: 10px">
+              <div style="display: flex; align-items: baseline; gap: 8px">
+                <span id="or1-look" style="font-weight: 600">直播画面主题</span>
+                <span style="font-size: 13px; color: {{t.muted}}; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">两种抽奖共用 · 素材 1920×1080 是横屏，1080×1920 是竖屏</span>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px">
+                <sc-for list="{{templates}}" as="tp" hint-placeholder-count="3">
+                  <span style="display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 8px; border: {{tp.border}}; border-radius: 8px; background: {{t.card}}">
+                    <span style="position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: 4px; overflow: hidden; background: {{tp.bg}}">
+                      <span style="position: absolute; left: 20%; top: 30%; width: 60%; height: 40%; border-radius: 4px; border: 1px solid {{tp.accent}}; box-shadow: 0 0 10px {{tp.accent}}"></span>
+                    </span>
+                    <span style="align-self: stretch; font-size: 13px; font-weight: 600">{{tp.name}}</span>
+                  </span>
+                </sc-for>
+              </div>
+            </section>
+          </div>
+
+          <div style="flex-shrink: 0; display: flex; align-items: center; gap: 10px; padding: 12px 20px 18px; border-top: 1px solid {{t.subtle}}">
+            <span role="status" style="flex: 1; min-width: 0; font-size: 12px; color: {{t.muted}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{status}}</span>
+            <button type="button" style="white-space: nowrap; height: 34px; min-width: 96px; padding: 0 16px; border: 0; border-radius: 6px; background: {{t.accent}}; color: {{t.onAccent}}; font: inherit; font-weight: 600">开始</button>
+          </div>
+        </div>
+
+        <aside aria-label="抽奖记录" style="width: 280px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; border-left: 1px solid {{t.border}}; background: {{t.aside}}">
+          <div style="display: flex; flex-direction: column; gap: 6px; padding: 14px 16px 12px; border-bottom: 1px solid {{t.subtle}}">
+            <span style="display: flex; align-items: center; gap: 10px">
+              <span role="switch" aria-checked="false" aria-label="常挂到直播画面" style="width: 44px; height: 26px; flex-shrink: 0; position: relative; border-radius: 999px; background: {{t.control}}">
+                <span style="position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2)"></span>
+              </span>
+              <span style="font-size: 13px; font-weight: 600; white-space: nowrap">常挂到直播画面</span>
+            </span>
+            <span style="font-size: 12px; color: {{t.muted}}; white-space: nowrap">默认关；打开前可以先点“全部不挂出”</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 10px 8px 16px">
+            <span style="font-weight: 600">抽奖记录</span>
+            <span style="font-size: 12px; color: {{t.muted}}; white-space: nowrap; font-variant-numeric: tabular-nums">本场 3 次</span>
+          </div>
+          <div style="flex: 1; min-height: 0; display: flex; flex-direction: column">
+            <sc-for list="{{records}}" as="r" hint-placeholder-count="3">
+              <div style="display: flex; flex-direction: column; gap: 2px; padding: 7px 10px 7px 16px; border-bottom: 1px solid {{t.subtle}}">
+                <span style="display: flex; align-items: center; gap: 6px; font-size: 13px">
+                  <span style="flex-shrink: 0; font-weight: 600; max-width: 84px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.who}}</span>
+                  <span style="flex-shrink: 0; height: 18px; display: inline-flex; align-items: center; padding: 0 5px; border-radius: 4px; background: {{r.tagBg}}; color: {{r.tagColor}}; font-size: 11px; font-weight: 700">{{r.tier}}</span>
+                  <span style="min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.prize}}</span>
+                </span>
+                <span style="font-size: 12px; color: {{t.muted}}; font-variant-numeric: tabular-nums">{{r.time}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"state":{"editor":"enum","options":["列表","读取中","读不到","榜上没人","没连直播间"],"default":"列表"},"open":{"editor":"boolean","default":true},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
+class Component extends DCLogic {
+  tokens(dark) {
+    // Shipped Theme.axaml tokens, same as U1.
+    return dark ? {
+      content: '#1B1C1F', sidebar: '#141518', card: '#222428', aside: '#18191C', titleBar: '#202124',
+      border: '#2E3136', subtle: '#26282C', control: '#3A3E45',
+      primary: '#E8EAED', secondary: '#C2C6CE', muted: '#9097A3', disabled: '#4A4F57',
+      accent: '#8DA2FB', accentText: '#B4C3FF', accentTint: '#262F52', onAccent: '#141518',
+      success: '#6FD08C', danger: '#F87171',
+      gold: '#F2C46D', goldTint: '#33280F', purple: '#C9B2FF', purpleTint: '#2B2244', blue: '#8FC8FF', blueTint: '#16283D',
+      shadow: '0 8px 24px rgba(0, 0, 0, 0.45)'
+    } : {
+      content: '#FFFFFF', sidebar: '#F6F7F9', card: '#FFFFFF', aside: '#FAFBFC', titleBar: '#F3F4F6',
+      border: '#E3E6EB', subtle: '#EEF0F3', control: '#D5D9E0',
+      primary: '#16181D', secondary: '#3D4350', muted: '#5B6270', disabled: '#B4BAC4',
+      accent: '#3358D4', accentText: '#2A47B0', accentTint: '#E6EBFA', onAccent: '#FFFFFF',
+      success: '#166534', danger: '#B91C1C',
+      gold: '#8A5A00', goldTint: '#FDF1D6', purple: '#5B3AB0', purpleTint: '#EFE8FF', blue: '#1F5FA8', blueTint: '#E3F0FC',
+      shadow: '0 8px 24px rgba(22, 24, 29, 0.12), 0 1px 2px rgba(22, 24, 29, 0.08)'
+    };
+  }
+
+  // 100 made-up viewers in rank order; the endpoint returns at most the top 100.
+  viewers() {
+    const fixed = [['柚子不酸', '12345'], ['一只小鹿', '3494000012300417'], ['晚风', '28816620'], ['阿狸', '3546771908471926'], ['橘猫不吃鱼', '3493118594861092'], ['今天也要努力学习不然就要挂科了啊', '402377711']];
+    const a = ['布丁', '咸鱼', '奶盖', '月亮', '星星', '竹子', '汽水', '团子', '饼干', '海盐', '芋圆', '可乐'];
+    const b = ['不睡觉', '路过', '一号', '酱', '呀', '本人', '在摸鱼', '爱吃糖', '超快乐', '想下班', '在线', '冲鸭'];
+    const list = fixed.slice();
+    for (let i = 0; list.length < 100; i++) {
+      const x = i % 12, y = Math.floor(i / 12);
+      const n = (i + 7) * 7919351 * 1013;
+      const uid = i % 4 === 0 ? String(10000 + (n % 899990000)) : String(3490000000000000 + (n % 9999999999999));
+      list.push([a[x] + b[(x + y * 5) % 12], uid]);
+    }
+    return list;
+  }
+
+  renderVals() {
+    const s = this.state || {};
+    const dark = this.props.dark === true || this.props.dark === 'true';
+    const t = this.tokens(dark);
+    const state = this.props.state ?? '列表';
+    const offline = state === '没连直播间';
+    const open = !offline && (s.open !== undefined ? s.open : this.props.open !== false && this.props.open !== 'false');
+    const uid = s.uid !== undefined ? s.uid : '';
+    const picked = s.picked || '';
+    const all = this.viewers();
+    const look = {
+      '大奖': { color: t.gold, bg: t.goldTint },
+      '二奖': { color: t.purple, bg: t.purpleTint },
+      '三奖': { color: t.blue, bg: t.blueTint }
+    };
+    const prizes = [['机械键盘', 1, '大奖'], ['周边抱枕', 3, '二奖'], ['签名照', 4, '三奖'], ['贴纸套装', 2, '三奖']];
+    const total = prizes.reduce((sum, p) => sum + p[1], 0);
+
+    return {
+      t,
+      roomText: offline ? '未连接' : '已连接 · 42 分钟', roomColor: offline ? t.muted : t.success,
+      roomDot: offline ? t.disabled : '#22C55E', roomButton: offline ? '连接' : '断开',
+      uid,
+      onUid: (e) => this.setState({ uid: e.target.value, picked: '' }),
+      hint: picked ? picked + ' · 在线榜' : uid ? '这场还没发过弹幕，喊停后显示昵称' : '不填就只能主播点“停”',
+      hintColor: picked ? t.success : t.muted,
+      pickOpen: open, pickExpanded: open ? 'true' : 'false',
+      pickDisabled: offline, pickTip: offline ? '连上直播间后才能选' : '从在线榜选',
+      pickBorder: open ? t.accent : offline ? t.border : t.control,
+      pickColor: open ? t.accentText : offline ? t.disabled : t.secondary,
+      togglePick: () => this.setState({ open: !open }),
+      rankMeta: state === '列表' ? '前 100 位 · 在线 430 人' : '',
+      showList: state === '列表', showLoading: state === '读取中',
+      showError: state === '读不到', showEmpty: state === '榜上没人',
+      viewers: all.map(([name, id], i) => {
+        const on = id === uid.trim();
+        return {
+          rank: String(i + 1), name, uid: id,
+          sel: on ? 'true' : 'false',
+          bg: on ? t.accentTint : 'transparent',
+          color: on ? t.accentText : t.primary, weight: on ? 600 : 400,
+          pick: () => this.setState({ uid: id, picked: name, open: false })
+        };
+      }),
+      prizes: prizes.map(([name, amount, tier], n) => ({
+        name, amount: String(amount), tier,
+        percent: Math.round(amount * 100 / total) + '%',
+        divider: n === 0 ? '0' : '1px solid ' + t.subtle,
+        nameLabel: '第 ' + (n + 1) + ' 个奖品', amountLabel: name + '的占比', removeLabel: '删除' + name,
+        tagBg: look[tier].bg, tagColor: look[tier].color
+      })),
+      status: offline ? '没连直播间也能开始，只是没人能喊停，只能主播点“停”' : '点“开始”，直播画面上的奖品转起来',
+      templates: [
+        ['星辰召唤', '#120E3A', '#FFD36B', true],
+        ['机甲锁定', '#0A0C10', '#FF7A1A', false],
+        ['萌系扭蛋', '#FFE3EE', '#FF7AAE', false]
+      ].map(([name, bg, accent, on]) => ({ name, bg, accent, border: on ? '2px solid ' + t.accent : '1px solid ' + t.border })),
+      records: [['一只小鹿', '签名照', '三奖', '20:36'], ['主播点停', '周边抱枕', '二奖', '20:32'], ['柚子不酸', '机械键盘', '大奖', '20:30']]
+        .map(([who, prize, tier, time]) => ({ who, prize, tier, time, tagBg: look[tier].bg, tagColor: look[tier].color })),
+      nav: [
+        ['弹幕', 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', '8'],
+        ['盲盒统计', 'M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z', '开'],
+        ['进场欢迎', 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3', '开'],
+        ['欢迎动画', 'M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4', '开'],
+        ['抽奖', 'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4zM14 5v2M14 11v2M14 17v2', '', true],
+        ['发送队列', 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z', '2 条待发'],
+        ['通用设置', 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6', '']
+      ].map(([label, icon, badge, active]) => ({
+        label, icon, badge,
+        current: active ? 'page' : 'false',
+        bg: active ? t.accentTint : 'transparent',
+        color: active ? t.accentText : t.secondary,
+        weight: active ? 600 : 400,
+        badgeColor: badge === '开' ? t.success : badge ? t.accentText : t.muted
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>
