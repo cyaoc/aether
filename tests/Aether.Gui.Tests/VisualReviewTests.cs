@@ -38,7 +38,7 @@ public sealed class VisualReviewTests
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
                 vm.Apply(new Connected(7734200, 24680));
-                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery())));
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery() with { Uid = 1 })));
                 window.Navigation.SelectedIndex = 4;
                 GuiHarness.Flush();
                 var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().Single(x => x.IsEffectivelyVisible);
@@ -62,7 +62,6 @@ public sealed class VisualReviewTests
                     GuiHarness.Flush();
                     var suffix = $"{state}-{(dark ? "dark" : "light")}";
                     Save(window, $"online-rank-lottery-{suffix}");
-                    Save(TopLevel.GetTopLevel(picker.FindControl<TextBlock>("RankSummary")!)!, $"online-rank-popup-{suffix}");
                     button.Flyout.Hide();
                 }
             }
