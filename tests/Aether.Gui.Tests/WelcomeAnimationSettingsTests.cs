@@ -4,6 +4,7 @@ using Avalonia.Automation;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using System.Net;
@@ -16,6 +17,130 @@ namespace Aether.Gui.Tests;
 
 public sealed class WelcomeAnimationSettingsTests
 {
+    [Fact]
+    public Task Online_rank_selection_changes_only_the_target_uid_and_keeps_its_video() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        Video(h, "videos", "first.mp4");
+        Video(h, "videos", "second.webm");
+        Settings.Save(h.DataDirectory, new Dictionary<string, string>
+        {
+            ["welcome_animation_videos.42"] = "first.mp4",
+            ["welcome_animation_videos.43"] = "second.webm"
+        });
+        h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"count":12,"item":[{"uid":42,"name":"柚子"},{"uid":99,"name":"小鹿"}]}}"""));
+        var vm = h.CreateViewModel();
+        vm.Apply(new Connected(7734200, 24680));
+        var page = new WelcomeAnimationSettingsPage(h.DataDirectory) { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var rows = Rows(page);
+            var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, rows[0], "OnlinePicker");
+            var button = picker.FindControl<Button>("PickerButton")!;
+            Assert.Equal("从在线榜选第 1 位观众", new ButtonAutomationPeer(button).GetName());
+            button.Flyout!.ShowAt(button);
+            var list = picker.FindControl<ListBox>("RankList")!;
+            await GuiHarness.WaitForAsync(() => list.ItemCount == 2);
+            Assert.Equal(0, list.SelectedIndex);
+            Assert.Contains("把 UID 填到这一行", picker.FindControl<TextBlock>("Footer")!.Text);
+            list.SelectedIndex = 1;
+            list.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            Assert.False(button.Flyout.IsOpen);
+            Assert.Equal("99", GuiHarness.FindRowControl<TextBox>(page, rows[0], "UidInput").Text);
+            Assert.Equal("43", GuiHarness.FindRowControl<TextBox>(page, rows[1], "UidInput").Text);
+            Assert.Equal("first.mp4", GuiHarness.FindRowControl<TextBlock>(page, rows[0], "FileNameText").Text);
+            Assert.Equal("second.webm", GuiHarness.FindRowControl<TextBlock>(page, rows[1], "FileNameText").Text);
+            await Save(page);
+            Assert.Equal("first.mp4", Settings.Load(h.DataDirectory).WelcomeAnimationVideos[99].Value);
+            Assert.DoesNotContain("小鹿", File.ReadAllText(Settings.FilePath(h.DataDirectory)));
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Online_rank_new_row_reveals_duplicate_then_can_save_and_test_a_different_uid() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        Video(h, "videos", "first.mp4");
+        var source = Video(h, "source", "second.webm");
+        Settings.Save(h.DataDirectory, new Dictionary<string, string>
+        {
+            ["welcome_animation.enabled"] = "true",
+            ["welcome_animation_videos.42"] = "first.mp4"
+        });
+        h.OnlineRankResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"count":12,"item":[{"uid":42,"name":"柚子"},{"uid":99,"name":"小鹿"}]}}"""));
+        var vm = h.CreateViewModel();
+        vm.Apply(new Connected(7734200, 24680));
+        var page = new WelcomeAnimationSettingsPage(h.DataDirectory, () => Task.FromResult<string?>(source)) { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            Click(page, "AddAnimationButton");
+            var row = Rows(page)[1];
+            var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, row, "OnlinePicker");
+            var button = picker.FindControl<Button>("PickerButton")!;
+            Assert.Equal("从在线榜选第 2 位观众", new ButtonAutomationPeer(button).GetName());
+            button.Flyout!.ShowAt(button);
+            var list = picker.FindControl<ListBox>("RankList")!;
+            await GuiHarness.WaitForAsync(() => list.ItemCount == 2);
+            list.SelectedIndex = 0;
+            list.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            Assert.Equal("和上面那条重复了", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
+            button.Flyout.ShowAt(button);
+            await GuiHarness.WaitForAsync(() => list.ItemCount == 2);
+            list.SelectedIndex = 1;
+            list.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            Assert.Equal("保存后才能试播", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            GuiHarness.FindRowControl<TextBox>(page, row, "UidInput").Text = "42";
+            Assert.Equal("和上面那条重复了", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
+            GuiHarness.FindRowControl<TextBox>(page, row, "UidInput").Text = "99";
+            await Save(page);
+            vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+            var savedRow = Rows(page).Single(r => r.UidText == "99");
+            Assert.True(GuiHarness.FindRowControl<Button>(page, savedRow, "TestButton").IsEnabled);
+            Assert.Equal("second.webm", Settings.Load(h.DataDirectory).WelcomeAnimationVideos[99].Value);
+            Assert.Equal("video", File.ReadAllText(source));
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Online_rank_button_obeys_connection_and_mapping_editability(bool readOnly) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        Directory.CreateDirectory(h.DataDirectory);
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), readOnly
+            ? "welcome_animation_videos: {42: video.mp4}\n"
+            : "welcome_animation_videos:\n  42: video.mp4\n");
+        var vm = h.CreateViewModel();
+        var page = new WelcomeAnimationSettingsPage(h.DataDirectory) { DataContext = vm };
+        var window = new Window { Content = page, Width = 976, Height = 720 };
+        window.Show();
+        try
+        {
+            var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, Rows(page).Single(), "OnlinePicker");
+            var button = picker.FindControl<Button>("PickerButton")!;
+            Assert.False(button.IsEnabled);
+            Assert.Equal("连上直播间后才能选", ToolTip.GetTip(button));
+            vm.Apply(new Connected(7734200, 24680));
+            Assert.Equal(!readOnly, button.IsEnabled);
+            Assert.Equal(readOnly ? "此项只读，不能从在线榜选" : "从在线榜选", ToolTip.GetTip(button));
+            vm.Apply(new Reconnecting());
+            Assert.False(button.IsEnabled);
+            Assert.Equal("连上直播间后才能选", ToolTip.GetTip(button));
+        }
+        finally { window.Close(); await vm.ShutdownAsync(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task Animation_accessible_names_keep_their_uid_after_removing_the_first() => HeadlessApp.Session.Dispatch(() =>
     {

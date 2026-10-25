@@ -130,21 +130,22 @@
             <DataTemplate x:DataType="local:WelcomeAnimationRow">
               <local:EditableRowFrame BorderBrush="{DynamicResource Border.Subtle}" Padding="12,8,6,8">
                 <StackPanel Spacing="4">
-                  <Grid ColumnDefinitions="104,*,Auto,30" ColumnSpacing="8">
+                  <Grid ColumnDefinitions="104,32,*,Auto,30" ColumnSpacing="8">
                     <TextBox x:Name="UidInput" Classes="numeric rowFocus" Text="{Binding UidText, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding VisibleError, Converter={x:Static ObjectConverters.IsNotNull}}" Height="32" MinHeight="32" FontSize="13" PlaceholderText="输入 UID" AutomationProperties.Name="观众 UID" />
-                    <Button Grid.Column="1" x:Name="FileButton" Command="{Binding $parent[local:WelcomeAnimationSettingsPage].ChooseAnimationAsync}" CommandParameter="{Binding}" IsEnabled="{Binding CanEdit}" Classes.missing="{Binding Missing}" ToolTip.Tip="点击更换视频" AutomationProperties.Name="{Binding FileAccessibleName}" Classes="ghost" Height="32" Padding="8,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <local:OnlineRankPicker Grid.Column="1" x:Name="OnlinePicker" Target="{Binding #UidInput}" Host="{Binding $parent[local:WelcomeAnimationSettingsPage].DataContext}" AccessibleName="{Binding Number, StringFormat=从在线榜选第 {0} 位观众}" FillTargetText="这一行" Selected="SelectOnlineViewer" />
+                    <Button Grid.Column="2" x:Name="FileButton" Command="{Binding $parent[local:WelcomeAnimationSettingsPage].ChooseAnimationAsync}" CommandParameter="{Binding}" IsEnabled="{Binding CanEdit}" Classes.missing="{Binding Missing}" ToolTip.Tip="点击更换视频" AutomationProperties.Name="{Binding FileAccessibleName}" Classes="ghost" Height="32" Padding="8,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                       <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
                         <Viewbox Classes="icon" Width="16" Height="16"><Path x:Name="FileIcon" Data="{Binding FileIcon}" /></Viewbox>
                         <TextBlock Grid.Column="1" x:Name="FileNameText" Text="{Binding FileName}" TextDecorations="{Binding FileNameDecorations}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                       </Grid>
                     </Button>
-                    <Button Grid.Column="2" x:Name="TestButton" Command="{Binding $parent[local:WelcomeAnimationSettingsPage].TestAnimation}" CommandParameter="{Binding}" IsEnabled="{Binding CanTest}" Classes.playing="{Binding Playing}" Classes.stoppable="{Binding Stoppable}" AutomationProperties.Name="{Binding TestAccessibleName}" Height="30" MinHeight="30" Padding="8,0,10,0">
+                    <Button Grid.Column="3" x:Name="TestButton" Command="{Binding $parent[local:WelcomeAnimationSettingsPage].TestAnimation}" CommandParameter="{Binding}" IsEnabled="{Binding CanTest}" Classes.playing="{Binding Playing}" Classes.stoppable="{Binding Stoppable}" AutomationProperties.Name="{Binding TestAccessibleName}" Height="30" MinHeight="30" Padding="8,0,10,0">
                       <StackPanel Orientation="Horizontal" Spacing="4">
                         <Viewbox Classes="icon" Width="14" Height="14"><Path x:Name="TestIcon" Data="{Binding TestIcon}" StrokeThickness="2" /></Viewbox>
                         <TextBlock x:Name="TestText" Text="{Binding TestText}" VerticalAlignment="Center" />
                       </StackPanel>
                     </Button>
-                    <Button Grid.Column="3" x:Name="RemoveButton" Command="{Binding Remove}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding CanEdit}" AutomationProperties.Name="{Binding RemoveAccessibleName}" Classes="ghost danger" Width="30" Height="30">
+                    <Button Grid.Column="4" x:Name="RemoveButton" Command="{Binding Remove}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding CanEdit}" AutomationProperties.Name="{Binding RemoveAccessibleName}" Classes="ghost danger" Width="30" Height="30">
                       <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
                     </Button>
                   </Grid>
