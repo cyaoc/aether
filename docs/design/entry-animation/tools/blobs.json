@@ -1,0 +1,17 @@
+{
+ "f795f9994fb41bd4970d91027df201d1": "textures/hero-1.webp",
+ "5fe8724985e7ca838bf5479cdec1d6fd": "textures/hero-2.webp",
+ "9dc66d983a9b6ff5f71aac776f984b87": "textures/hero-3.webp",
+ "e171ac03f39a0f65864d0f15b9ee136e": "textures/hero-4.webp",
+ "bfd32fc9aa9ad1983f2259669bd5d540": "textures/gold-sword.webp",
+ "1b89f838e16a1aae41ef0adb6e836e22": "textures/impact.webp",
+ "115e75bc617f8d5fd7fb14fbefd1be6a": "textures/pose-2.webp",
+ "67eb4bfa0717e7112222609a4787a899": "textures/pose-3.webp",
+ "b7b806ca70959691bdfdd797c0496f04": "textures/pose-4.webp",
+ "37a5b192bf014dc81fa423d2e1d45f6c": "textures/pose-5.webp",
+ "38b992f980c338671fb008bf5ccdaefb": "textures/moon.webp",
+ "017bad25925e8b86b270eb3a65ed7fff": "lib/pixi.js",
+ "4e96fe4a1953a4100f9922f45ab6641a": "lib/pixi-filters.js",
+ "4baebcf387c0f3280dffcbd0173aece9": "lib/serif-name.woff2",
+ "f1df6953c74778fa8fa7a4bee4185626": "lib/barlow.woff2"
+}
