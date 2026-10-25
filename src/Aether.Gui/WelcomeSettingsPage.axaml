@@ -13,7 +13,12 @@
             <Viewbox IsVisible="{Binding HasHeading}" Classes="icon"><Path Data="{Binding Icon}" TextElement.Foreground="{DynamicResource Text.Muted}" /></Viewbox>
             <TextBlock Grid.Column="1" x:Name="TypeName" Text="{Binding Name}" IsVisible="{Binding HasHeading}" Classes="label" VerticalAlignment="Center" />
             <Grid Grid.Column="2">
-              <TextBox x:Name="UidInput" Classes="numeric rowFocus" Text="{Binding Uid, Mode=TwoWay}" IsVisible="{Binding IsUid}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding #ErrorMessage.IsVisible}" MaxWidth="200" HorizontalAlignment="Stretch" PlaceholderText="输入 UID" AutomationProperties.Name="指定观众 UID" />
+              <Grid IsVisible="{Binding IsUid}" ColumnDefinitions="200,Auto" ColumnSpacing="8" HorizontalAlignment="Left">
+                <TextBox x:Name="UidInput" Classes="numeric rowFocus" Text="{Binding Uid, Mode=TwoWay}" IsVisible="{Binding IsUid}" IsReadOnly="{Binding !CanEdit}" Classes.invalid="{Binding #ErrorMessage.IsVisible}" MaxWidth="200" HorizontalAlignment="Stretch" PlaceholderText="输入 UID" AutomationProperties.Name="指定观众 UID" />
+                <local:OnlineRankPicker Grid.Column="1" x:Name="OnlinePicker" Target="{Binding #UidInput}" Height="{Binding #UidInput.Bounds.Height}"
+                  Host="{Binding $parent[local:WelcomeSettingsPage].DataContext}" FillTargetText="这一行"
+                  AccessibleName="{Binding Number, StringFormat='从在线榜选第 {0} 位指定观众'}" Selected="OnlineViewerSelected" />
+              </Grid>
               <Grid IsVisible="{Binding !IsUid}" ColumnDefinitions="Auto,Auto,Auto" HorizontalAlignment="Left">
                 <TextBlock Classes="label" Text="达到" VerticalAlignment="Center" Margin="0,0,12,0" />
                 <!-- NumericUpDown initializes its text from Value when its template attaches. -->
