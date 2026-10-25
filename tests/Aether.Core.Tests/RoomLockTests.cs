@@ -149,7 +149,7 @@ public sealed class RoomLockTests
         await secondHarness.LoginAsync();
         var secondRoomId = sharedDirectory ? 7734201 : 7734200;
         secondHarness.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
-            $$$"""{"code":0,"data":{"room_id":{{{secondRoomId}}}}}""";
+            $$$"""{"code":0,"data":{"room_id":{{{secondRoomId}}},"uid":24680}}""";
         using var other = new AetherClient(secondHarness.Http, secondHarness.Server.ConnectAsync,
             secondHarness.Time, secondHarness.Logger, sharedDirectory ? h.DataDirectory : secondHarness.DataDirectory);
         await using var first = h.Watch();
