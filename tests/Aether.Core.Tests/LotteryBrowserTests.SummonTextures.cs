@@ -23,7 +23,7 @@ public sealed partial class LotteryBrowserTests
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
         await browser.EvaluateAsync("document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); a.currentTime=4000; }); true");
         var screenshot = await browser.CommandAsync("Page.captureScreenshot", new { format = "png" });
-        // Compare clear points on the card to the design's illustration and dark gradient, not CSS names.
+        // Stay clear of the frame's inner glow when comparing the illustration and dark gradient.
         var difference = await browser.EvaluateAsync("""
             (async () => {
               const [png, face, stops] =
@@ -42,7 +42,7 @@ public sealed partial class LotteryBrowserTests
               [0,.4,1].forEach((stop,i)=>shade.addColorStop(stop,`rgba(10,8,30,${stops[i]})`));
               ref.fillStyle=shade; ref.fillRect(0,0,w,h);
               let error=0, samples=0;
-              for (const x of [28,36,44]) for (const y of [160,168,176]) {
+              for (const x of [56,64,72]) for (const y of [160,168,176]) {
                 const a=ctx.getImageData(Math.round(card.left+6+x),Math.round(card.top+6+y),1,1).data;
                 const b=ref.getImageData(x,y,1,1).data;
                 for(let i=0;i<3;i++){error+=Math.abs(a[i]-b[i]);samples++;}
