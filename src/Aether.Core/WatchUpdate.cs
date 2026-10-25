@@ -6,7 +6,7 @@ public sealed record WatchQrCode(string Content) : WatchUpdate;
 
 public sealed record Connecting : WatchUpdate;
 
-public sealed record Connected : WatchUpdate;
+public sealed record Connected(long RoomId = 0, long BroadcasterUid = 0) : WatchUpdate;
 
 public sealed record Reconnecting : WatchUpdate;
 

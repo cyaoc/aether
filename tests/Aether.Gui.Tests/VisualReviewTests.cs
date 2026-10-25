@@ -21,6 +21,57 @@ namespace Aether.Gui.Tests;
 public sealed class VisualReviewTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_online_rank_lottery(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory)
+                { DataContext = vm, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                vm.Apply(new Connected(7734200, 24680));
+                vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery())));
+                window.Navigation.SelectedIndex = 4;
+                GuiHarness.Flush();
+                var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().Single(x => x.IsEffectivelyVisible);
+                var button = picker.FindControl<Button>("PickerButton")!;
+                foreach (var state in new[] { "list", "loading", "error", "empty" })
+                {
+                    h.OnlineRankResponse = async (_, token) =>
+                    {
+                        if (state == "loading") await Task.Delay(Timeout.Infinite, token);
+                        if (state == "error") return GuiHarness.Json("""{"code":-400,"message":"请求错误"}""");
+                        var viewers = state == "empty" ? [] : Enumerable.Range(1, 100).Select(index => new
+                        {
+                            uid = index == 2 ? 3494000012300417L : index,
+                            name = index == 1 ? "柚子不酸" : index == 2 ? "一只小鹿" : index == 6 ? "今天也要努力学习不然就要挂科了超长昵称" : $"观众 {index}"
+                        }).ToArray();
+                        return GuiHarness.Json(System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { count = 430, item = viewers } }));
+                    };
+                    button.Flyout!.ShowAt(button);
+                    if (state != "loading")
+                        await GuiHarness.WaitForAsync(() => !picker.FindControl<Grid>("Loading")!.IsVisible);
+                    GuiHarness.Flush();
+                    var suffix = $"{state}-{(dark ? "dark" : "light")}";
+                    Save(window, $"online-rank-lottery-{suffix}");
+                    Save(TopLevel.GetTopLevel(picker.FindControl<TextBlock>("RankSummary")!)!, $"online-rank-popup-{suffix}");
+                    button.Flyout.Hide();
+                }
+            }
+            finally { window.Close(); await vm.ShutdownAsync(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
     [InlineData(false, LotteryMode.Pool)]
     [InlineData(true, LotteryMode.Pool)]
     [InlineData(false, LotteryMode.Entry)]

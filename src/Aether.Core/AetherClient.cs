@@ -60,6 +60,14 @@ public sealed partial class AetherClient : IDisposable
             ConnectWebSocketAsync, TimeProvider.System, logger,
             dataDirectory) { }
 
+    /// <summary>Reads the room's online rank anonymously without changing the room connection.</summary>
+    public Task<OnlineRank> GetOnlineRankAsync(long roomId, long broadcasterUid, CancellationToken cancellationToken = default)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(roomId);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(broadcasterUid);
+        return Api(credential: null).GetOnlineRankAsync(roomId, broadcasterUid, cancellationToken);
+    }
+
     public IAsyncEnumerable<LoginUpdate> LoginAsync(CancellationToken cancellationToken = default) =>
         EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
 

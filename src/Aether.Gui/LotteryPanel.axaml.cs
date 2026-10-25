@@ -11,6 +11,7 @@ public partial class LotteryPanel : UserControl
     public LotteryPanel()
     {
         InitializeComponent();
+        OnlinePicker.Selected += (_, viewer) => viewModel?.Lottery.SelectOnlineViewer(viewer);
         ViewTabs.SelectionChanged += (_, _) =>
         {
             Refresh();

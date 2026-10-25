@@ -28,6 +28,7 @@ public sealed class WatchTests
         h.Http.Responses["https://api.bilibili.com/x/frontend/finger/spi"] =
             """{"code":0,"data":{"b_3":"must-not-replace-saved-buvid"}}""";
         await using var updates = await h.WatchConnectedAsync();
+        Assert.Equal(new Connected(7734200, 24680), updates.Current);
         var packet = await h.Server.NextRequestAsync();
         Assert.Equal(7, System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(packet.AsSpan(8)));
         using var auth = System.Text.Json.JsonDocument.Parse(packet.AsMemory(16));
@@ -72,4 +73,19 @@ public sealed class WatchTests
         Assert.Contains("直播间不存在", error.Message);
         Assert.Equal("/room/v1/Room/room_init", Assert.Single(h.Http.Requests).Uri.AbsolutePath);
     }
+    [Theory]
+    [InlineData("")]
+    [InlineData(",\"uid\":0")]
+    [InlineData(",\"uid\":-1")]
+    public async Task Missing_or_invalid_broadcaster_uid_ends_without_connecting(string uid)
+    {
+        await using var h = new WatchHarness();
+        h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
+            "{\"code\":0,\"data\":{\"room_id\":7734200" + uid + "}}";
+        await using var updates = h.Watch();
+        var error = await Assert.ThrowsAsync<InvalidDataException>(async () => await updates.MoveNextAsync());
+        Assert.Contains("主播 UID", error.Message);
+        Assert.Single(h.Http.Requests);
+    }
+
 }
