@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const script = readFileSync(new URL('../../src/Aether.Core/Pages/lottery/page.js', import.meta.url), 'utf8');
-function page(width = 1920, height = 1080, loadedTextures = []) {
+function page(width = 1920, height = 1080, loadedTextures = [], withoutToReversed = false) {
   let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0, source, animationFrame;
   const timers = new Map(), elements = new Map(), listeners = new Map();
   let rectangles = [], drawnImages = [], position;
@@ -28,7 +28,8 @@ function page(width = 1920, height = 1080, loadedTextures = []) {
   }, fonts:{ready:Promise.resolve(),addEventListener(){}} };
   const timer = (callback,delay,repeat) => { const id=++nextId; timers.set(id,{callback,at:now+delay,repeat}); return id; };
   const window = {innerWidth:width,innerHeight:height,addEventListener(name,fn){listeners.set(name,fn);}};
-  vm.runInNewContext(readFileSync(new URL('../../src/Aether.Core/Pages/lottery/textures.js', import.meta.url),'utf8') + '\n' + script, { document, window,
+  vm.runInNewContext((withoutToReversed ? 'delete Array.prototype.toReversed;\n' : '') +
+    readFileSync(new URL('../../src/Aether.Core/Pages/lottery/textures.js', import.meta.url),'utf8') + '\n' + script, { document, window,
     Image:class { decode(){return Promise.resolve();} },
     Date:class extends Date { static now(){return now;} }, getComputedStyle:()=>({fontSize:'112px'}),
     EventSource:class { constructor(){source=this;} addEventListener(name,fn){listeners.set(name,fn);} },
@@ -57,6 +58,22 @@ const entry = {mode:'Entry',id:'entry',phase:'Open',keyword:'<img onerror=alert(
   latestEntries:[{nickname:'甲'},{nickname:'乙'},{nickname:'丙'}],awards:[award],draws:[],remaining:8,hidden:false,drawUntil:null};
 const draws = Array.from({length:7},(_,i)=>({id:`d${i}`,awardIndex:0,award,winner:{uid:i+1,nickname:`观众${i+1}`},
   candidates:['甲','乙'],drawnAt:'2026-10-17T12:00:00Z'}));
+
+for(const [width,height] of [[1080,1920],[1920,1080]]) test(`the first pool draw stays pinned without toReversed at ${width}x${height}`,()=>{
+  const p=page(width,height,[],true), prize={name:'机械键盘',grade:'Grand'};
+  p.state({theme:'StarSummon',pinnedResults:true,lottery:{mode:'Pool',id:'pool',phase:'Idle',prizes:[prize],
+    draws:[{id:'first',prize,uid:42,nickname:'小明',candidates:[prize],drawnAt:'2026-10-17T12:00:00Z'}],
+    drawUntil:'2026-10-17T12:00:07Z'}});
+  assert.equal(p.element('scene').hidden,false);
+  assert.equal(p.element('scene').dataset.view,'drawing');
+  assert.equal(p.element('prize').textContent,'机械键盘');
+  p.advance(7000);
+  assert.equal(p.element('scene').hidden,false);
+  assert.equal(p.element('scene').dataset.view,'pinned');
+  assert.equal(p.element('pinned').hidden,false);
+  assert.equal(p.element('pinnedCount').textContent,'共 1 次');
+  assert.match(p.element('pinnedRows').textContent,/机械键盘小明/);
+});
 
 test('pinned pool results show visible draws newest first without canvas work and yield to active views',()=>{
   const p=page(), prize={name:'<b>键盘</b>',grade:'Grand'};

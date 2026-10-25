@@ -319,7 +319,7 @@ function showPinned(lottery, completedDraw, previousLottery) {
   clearTimeout(hiding); clearInterval(paging);
   const entry = lottery.mode === 'Entry', t = theme(), words = t.pinned;
   const visible = lottery.draws.filter(draw => !draw.hiddenFromStream);
-  const draws = entry ? lottery.awards.flatMap((_, index) => visible.filter(draw => draw.awardIndex === index)) : visible.toReversed();
+  const draws = entry ? lottery.awards.flatMap((_, index) => visible.filter(draw => draw.awardIndex === index)) : visible.reverse();
   const oldNodes = pinnedRows, oldGroups = pinnedGroups, oldRows = [...byId('pinnedRows').children];
   const oldIds = new Set(oldNodes.keys());
   const hiddenIds = new Set(lottery.draws.filter(draw => draw.hiddenFromStream).map(draw => draw.id));
