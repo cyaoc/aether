@@ -9,6 +9,7 @@ public partial class LotteryViewModel
     private string? loadedPoolId;
     private long? loadedPoolRoom;
     private bool loadingPool;
+    private OnlineRankViewer? onlineViewer;
     [ObservableProperty] private string? uid = "";
     [ObservableProperty] private string? stopWord = LotteryController.DefaultStopWord;
     [ObservableProperty] private string? poolLotteryError;
@@ -28,9 +29,10 @@ public partial class LotteryViewModel
     public string? StopWordError => LotteryController.ValidateStopWord(StopWord);
     private long? ParsedUid => Viewer.TryParseUid(Uid, out var parsed) ? parsed : null;
     private string? PoolViewer => ParsedUid is { } uid ? (LotteryState.Lottery as PoolLottery)?.Viewers.GetValueOrDefault(uid) : null;
-    public bool PoolViewerKnown => PoolViewer is not null;
+    public bool PoolViewerKnown => PoolViewer is not null || onlineViewer is not null;
     public string PoolViewerHint => UidError is not null ? "" : ParsedUid is null ? "不填就只能主播点“停”"
-        : PoolViewer is { } viewer ? $"{viewer} · 这场发过弹幕" : "这场还没发过弹幕，喊停后显示昵称";
+        : PoolViewer is { } viewer ? $"{viewer} · 这场发过弹幕"
+        : onlineViewer is { } selected ? $"{selected.Nickname} · 在线榜" : "这场还没发过弹幕，喊停后显示昵称";
     public string PoolStatusText
     {
         get
@@ -50,7 +52,17 @@ public partial class LotteryViewModel
         }
     }
 
-    partial void OnUidChanged(string? value) => RefreshPoolInputs();
+    internal void SelectOnlineViewer(OnlineRankViewer viewer)
+    {
+        onlineViewer = viewer;
+        RefreshPoolInputs();
+    }
+
+    partial void OnUidChanged(string? value)
+    {
+        onlineViewer = null;
+        RefreshPoolInputs();
+    }
     partial void OnStopWordChanged(string? value) => RefreshPoolInputs();
 
     private void RefreshPoolForm()
@@ -61,6 +73,7 @@ public partial class LotteryViewModel
             if (loadedPoolId != lottery?.Id || loadedPoolRoom is not null && loadedPoolRoom != LotteryState.RoomId)
             {
                 loadingPool = true;
+                onlineViewer = null;
                 loadedPoolId = lottery?.Id;
                 ReplacePoolPrizes(lottery?.Prizes);
                 PoolPrizeSets.Choose(null);

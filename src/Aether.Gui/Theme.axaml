@@ -537,7 +537,7 @@
   <Style Selector="NumericUpDown /template/ ButtonSpinner#PART_Spinner /template/ RepeatButton:disabled PathIcon">
     <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
   </Style>
-  <Style Selector="local|LotteryPrizeSetPicker Button.open">
+  <Style Selector="local|LotteryPrizeSetPicker Button.open, local|OnlineRankPicker Button.open">
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
   </Style>
   <Style Selector="FlyoutPresenter.prizeSetSave">
