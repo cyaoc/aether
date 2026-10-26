@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>EV2 进场动画 一般人 40 档 三连斩</title>
+<script src="./support.js"></script>
+<script src="/_blob/017bad25925e8b86b270eb3a65ed7fff"></script>
+<script src="/_blob/4e96fe4a1953a4100f9922f45ab6641a"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+@font-face{font-family:'Noto Serif SC';font-weight:900;src:url('/_blob/4baebcf387c0f3280dffcbd0173aece9') format('woff2')}
+@font-face{font-family:'Barlow Condensed';font-weight:500;src:url('/_blob/f1df6953c74778fa8fa7a4bee4185626') format('woff2')}
+</style>
+</helmet>
+<div id="ev2-root" style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: {{bg}}">
+  <sc-if value="{{mock}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; inset: 0; background: {{mockBg}}"></div>
+    <div style="position: absolute; left: 640px; top: 300px; width: 520px; height: 360px; border-radius: 28px; background: {{mockBox}}"></div>
+    <span style="position: absolute; left: 48px; top: 20px; font-family: 'PingFang SC', sans-serif; font-size: 18px; color: {{mockInk}}">直播画面（示意）· 进场动画所在的页面本身透明</span>
+  </sc-if>
+  <canvas id="ev2-gl" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"pause":{"editor":"enum","options":["播放","蓄力","冲刺","第一刀","举刀","第二刀","回身","上撩","冲击帧","余波","亮名","斩铁","里世界"],"default":"播放"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["示意画面","浅色房间","深色房间","透明"],"default":"示意画面"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    if (this.loopFn) return;
+    this.loopFn = () => { this.tick(); requestAnimationFrame(this.loopFn); };
+    requestAnimationFrame(this.loopFn);
+  }
+
+  // Boots Pixi on the board's canvas and re-binds the clock whenever the markup or the props change.
+  tick() {
+    const canvas = document.getElementById('ev2-gl'), root = document.getElementById('ev2-root');
+    if (!canvas || !root || !this.cfg || !window.PIXI) return;
+    if (canvas !== this.canvas && !this.booting) { this.booting = true; this.boot(canvas).finally(() => { this.booting = false; }); }
+    if (!this.S || this.S.canvas !== canvas) return;
+    if (root !== this.root || this.cfg !== this.boundCfg) {
+      this.root = root; this.boundCfg = this.cfg;
+      for (const a of root.getAnimations()) a.cancel();
+      const span = this.cfg.cycle / this.cfg.speed;
+      this.master = root.animate([{ outlineColor: 'transparent' }, { outlineColor: 'transparent' }], { duration: span, iterations: Infinity });
+      if (this.cfg.pauseAt != null) { this.master.pause(); this.master.currentTime = this.cfg.pauseAt / this.cfg.speed; }
+    }
+  }
+
+  async boot(canvas) {
+    const P = PIXI, F = PIXI.filters;
+    this.canvas = canvas;
+    if (this.S) { this.S.app.destroy(); this.S = null; }
+    const app = new P.Application();
+    await app.init({ canvas, width: 1920, height: 1080, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: 1 });
+    const load = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+    const names = ['115e75bc617f8d5fd7fb14fbefd1be6a', '1c7a70bfab754681aee2ffeb917ac339', '50c3749ffd1d4751683421a32c66fcff', 'b612d7f6d7de096f347399c9117de8f7', '3faeaf56aa91c083f3f7aa9c275fbf63', 'bf29b43f32599957781aa3a541f4f0df', '29e10238d4580ab3bd147434f8165b26', 'e137dd02705aa8b8d9487ad3f2a7aecf', '8a8f2e02185cf263966cda96a7401785', '082ab954667f7cf75e403f0dfb59d960', '37a5b192bf014dc81fa423d2e1d45f6c', '38b992f980c338671fb008bf5ccdaefb', '1b89f838e16a1aae41ef0adb6e836e22', '3d7a08e31609fe87cb25219c91012aae'];
+    const imgs = await Promise.all(names.map(n => load('/_blob/' + n)));
+    await Promise.all([document.fonts.load('900 132px "Noto Serif SC"'), document.fonts.load('500 40px "Barlow Condensed"')]);
+    const [moon, impact, moonRed] = imgs.slice(11);
+    const tex = img => P.Texture.from(img);
+    const canvasOf = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); return c; };
+    // Poses are cut at the knees; fade that edge so a camera tilt never shows it.
+    const faded = img => canvasOf(img.width, img.height, g => { g.drawImage(img, 0, 0); const r = g.createLinearGradient(0, img.height - 120, 0, img.height); r.addColorStop(0, 'rgba(0,0,0,0)'); r.addColorStop(1, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-out'; g.fillStyle = r; g.fillRect(0, img.height - 120, img.width, 120); });
+    const silhouette = (img, color) => tex(canvasOf(img.width, img.height, g => { g.drawImage(img, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, img.width, img.height); }));
+    const radial = (stops) => tex(canvasOf(512, 512, g => { const r = g.createRadialGradient(256, 256, 0, 256, 256, 256); for (const [o, c] of stops) r.addColorStop(o, c); g.fillStyle = r; g.fillRect(0, 0, 512, 512); }));
+
+    // The action chain. Every pose is placed by its hips (hip, in its own image's pixels) at a scale s that keeps the
+    // figure about the same size; the slashes are built from points measured in the same images, so each slash runs
+    // along the smear painted in its smear frame and ends exactly at the blade tip of the pose that finishes the cut.
+    const keys = ['charge', 'dash', 'draw', 'drawEnd', 'wind', 'smear2', 'cut2', 'spin', 'smear3', 'cut3', 'zan'];
+    const anchors = [[[520, 720], 0.731], [[880, 720], 0.682], [[700, 700], 0.684], [[700, 700], 0.684], [[520, 850], 0.889], [[780, 820], 0.848], [[440, 640], 0.733], [[760, 780], 0.666], [[430, 800], 0.9], [[460, 880], 0.812], [[330, 680], 0.771]];
+    const PO = {};
+    keys.forEach((key, i) => { const c = faded(imgs[i]); PO[key] = { img: c, tex: tex(c), hip: anchors[i][0], s: anchors[i][1] }; });
+    const HIP = [720, 760];
+    const W = (p, q, hip = HIP) => [hip[0] + (q[0] - p.hip[0]) * p.s, hip[1] + (q[1] - p.hip[1]) * p.s];
+    // Catmull-Rom through the measured points, about every 10 px.
+    const spline = pts => {
+      const out = [];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+        const n = Math.max(2, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / 10));
+        for (let j = 0; j < n; j++) { const t = j / n, t2 = t * t, t3 = t2 * t; out.push([0, 1].map(d => 0.5 * (2 * p1[d] + (p2[d] - p0[d]) * t + (2 * p0[d] - 5 * p1[d] + 4 * p2[d] - p3[d]) * t2 + (3 * p1[d] - p0[d] - 3 * p2[d] + p3[d]) * t3))); }
+      }
+      out.push(pts[pts.length - 1]); return out;
+    };
+    // A polyline walked by arc length: at(u) gives the point, the normal and whether that stretch passes behind the hero.
+    const pathOf = (pts, back) => {
+      if (pts.length < 2) pts = [[960, 540], [961, 540]];
+      const n = pts.length, L = [0], N = [];
+      for (let i = 1; i < n; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+      for (let i = 0; i < n; i++) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], m = Math.hypot(dx, dy) || 1; N.push([-dy / m, dx / m]); }
+      const tot = L[n - 1];
+      const at = u => {
+        const s = Math.min(1, Math.max(0, u)) * tot; let lo = 0, hi = n - 1;
+        while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (L[mid] <= s) lo = mid; else hi = mid; }
+        const f = (s - L[lo]) / ((L[hi] - L[lo]) || 1), p = pts[lo], q = pts[hi];
+        return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f, N[lo][0] + (N[hi][0] - N[lo][0]) * f, N[lo][1] + (N[hi][1] - N[lo][1]) * f, back ? back[lo] : false];
+      };
+      return { pts, at };
+    };
+
+    // Cut 1, the draw: from the scabbard mouth at the hip, low across the front and curling up round the hand into the
+    // tip of the follow-through (the draw smear without its smear).
+    const t1 = spline([W(PO.draw, [600, 660]), W(PO.draw, [900, 820]), W(PO.draw, [1200, 850]), W(PO.draw, [1500, 800]), W(PO.draw, [1750, 650]), W(PO.draw, [1880, 450]), W(PO.drawEnd, [1910, 160])]);
+    // Cut 2: from the raised blade's tip, along the overhead smear, down into the low tip of the finished cut.
+    const t2 = spline([W(PO.wind, [10, 5]), W(PO.smear2, [500, 60]), W(PO.smear2, [1000, 110]), W(PO.smear2, [1300, 260]), W(PO.smear2, [1550, 500]), W(PO.smear2, [1700, 800]), W(PO.smear2, [1760, 1050]), W(PO.cut2, [1765, 1155])]);
+    // Cut 3: the spin smear's loop round the waist (its far half behind the hero), then the rising smear up to the raised tip.
+    const loop = [], loopBack = [];
+    for (let i = 0; i <= 50; i++) {
+      const th = -(Math.PI + 0.5) * i / 50, x = 880 * Math.cos(th), y = 125 * Math.sin(th);
+      loop.push(W(PO.spin, [880 + x * Math.cos(0.09) - y * Math.sin(0.09), 680 + x * Math.sin(0.09) + y * Math.cos(0.09)])); loopBack.push(Math.sin(th) < 0);
+    }
+    const rise = [W(PO.smear3, [20, 975]), W(PO.smear3, [250, 1000]), W(PO.smear3, [450, 930]), W(PO.smear3, [600, 820]), W(PO.smear3, [700, 650]), W(PO.smear3, [760, 450]), W(PO.smear3, [770, 250]), W(PO.smear3, [750, 100]), W(PO.cut3, [775, 15])];
+    const t3rise = spline([loop[loop.length - 1], ...rise]).slice(1);
+    // The zanshin flick: down the right side from the raised tip into the low blade of the closing stance.
+    const t4 = spline([W(PO.cut3, [775, 15]), [1240, 380], [1250, 760], W(PO.zan, [780, 1120])]);
+    const front = (pts, u) => pts.map((_, i) => i / (pts.length - 1) < u);
+    const blades = [pathOf(t1, front(t1, 0.05)), pathOf(t2), pathOf([...loop, ...t3rise], [...loopBack, ...t3rise.map(() => false)]), pathOf(t4)];
+    const H3 = t3rise[t3rise.length - 1];
+
+    // The cuts a straight blade leaves are straight: each is the chord of the stretch of its slash still lit on the frame
+    // it lands (from the slash's tail to the blade tip), run right across the sky. Each slash's tail catches up as it
+    // swings, so what is lit at the hit is nearly straight and the cut lies along it. Cut 3 splits the sky into the hero's side and the far side; cuts 1 and 2 only break up the far side.
+    // Each side is a polygon closed round a big circle.
+    const C0 = [960, 540], RR = 5000;
+    const reach = (p, q) => { const d = [p[0] - q[0], p[1] - q[1]], m = Math.hypot(d[0], d[1]), u = [d[0] / m, d[1] / m], w = [p[0] - C0[0], p[1] - C0[1]], b = w[0] * u[0] + w[1] * u[1], t = -b + Math.sqrt(b * b - (w[0] * w[0] + w[1] * w[1] - RR * RR)); return [p[0] + u[0] * t, p[1] + u[1] * t]; };
+    const sides = line => [1, -1].map(dir => {
+      const ang = p => Math.atan2(p[1] - C0[1], p[0] - C0[0]), a0 = ang(line[0]), a1 = ang(line[line.length - 1]);
+      let da = a0 - a1; if (dir > 0) while (da <= 0) da += 2 * Math.PI; else while (da >= 0) da -= 2 * Math.PI;
+      return [...line, ...Array.from({ length: 65 }, (_, i) => [C0[0] + RR * Math.cos(a1 + da * i / 64), C0[1] + RR * Math.sin(a1 + da * i / 64)])];
+    });
+    const inside = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+    // TAILS: how much of each slash has already drawn in by the frame it lands (the slashes below use the same values).
+    const TAILS = [0.15, 0.5, 0.68];
+    const chordOf = (P, u0) => { const a = P.at(u0), b = P.at(1); return [reach([a[0], a[1]], [b[0], b[1]]), reach([b[0], b[1]], [a[0], a[1]])]; };
+    const scars = TAILS.map((u0, i) => chordOf(blades[i], u0));
+    const dense = ([a, b]) => Array.from({ length: 1001 }, (_, i) => [a[0] + (b[0] - a[0]) * i / 1000, a[1] + (b[1] - a[1]) * i / 1000]);
+    const [s1, s2, s3] = scars.map(sides);
+    const near = inside(s3[0], 700, 450) ? 0 : 1, L3 = s3[near], R3 = s3[1 - near];
+    const cellDefs = [[L3]];
+    for (const r1 of s1) for (const r2 of s2) cellDefs.push([R3, r2, r1]);
+    const cells = [];
+    for (const regions of cellDefs) {
+      let n = 0, cx = 0, cy = 0;
+      for (let x = -60; x <= 1980; x += 30) for (let y = -60; y <= 1140; y += 30) if (regions.every(r => inside(r, x, y))) { n++; cx += x; cy += y; }
+      if (n >= 12) cells.push({ regions, c: [cx / n, cy / n], n, near: regions.length === 1 });
+    }
+
+    const stage = app.stage;
+    const world = new P.Container(); world.pivot.set(960, 540); world.position.set(960, 540); stage.addChild(world);
+    const dim = new P.Sprite(radial([[0, 'rgba(6,6,12,0.55)'], [0.6, 'rgba(4,4,8,0.85)'], [1, 'rgba(0,0,0,1)']]));
+    dim.anchor.set(0.5); dim.position.set(960, 540); dim.width = 3400; dim.height = 2400; world.addChild(dim);
+
+    // The sky is mirrored for 40 档 so the moon sits up and left behind the hero, clear of every cut (splitting the moon is 60 档's).
+    const shadeTex = radial([[0, 'rgba(0,0,0,0)'], [0.7, 'rgba(0,0,0,0.35)'], [1, 'rgba(0,0,0,0.8)']]);
+    const skyOf = (img, parent) => {
+      const sky = new P.Sprite(tex(img)); sky.width = 2400; sky.height = 1600; sky.scale.x *= -1; sky.position.set(2160, -260); parent.addChild(sky);
+      const shade = new P.Sprite(shadeTex); shade.anchor.set(0.5); shade.position.set(960, 540); shade.width = 2800; shade.height = 1900; parent.addChild(shade);
+    };
+    const red = new P.Container(); red.pivot.set(960, 540); red.position.set(960, 540); skyOf(moonRed, red); world.addChild(red);
+    const pieces = cells.map(cell => {
+      const c = new P.Container(); let host = c;
+      for (const r of cell.regions) { const m = new P.Graphics().poly(r.flat()).fill(0xffffff); c.addChild(m); const inner = new P.Container(); inner.mask = m; host.addChild(inner); host = inner; }
+      skyOf(moon, host);
+      c.pivot.set(cell.c[0], cell.c[1]); c.position.set(cell.c[0], cell.c[1]);
+      const d = [cell.c[0] - 760, cell.c[1] - 560], m = Math.hypot(d[0], d[1]) || 1;
+      const dir = cell.near ? [-0.92, 0.38] : [d[0] / m, d[1] / m];
+      world.addChild(c);
+      return { ...cell, c, dir, dist: cell.near ? 110 : 240 + Math.min(120, cell.n * 0.25), rot: cell.near ? -0.012 : 0.03 * Math.sign(dir[0] || 1) * (dir[1] < 0 ? 1 : 0.5) };
+    });
+    // Effects canvases cover a margin round the screen, since the camera tilts and zooms.
+    const OX = 300, OY = 400;
+    const backC = document.createElement('canvas'); backC.width = 1920 + 2 * OX; backC.height = 1080 + 2 * OY;
+    const backTex = tex(backC), backSprite = new P.Sprite(backTex); backSprite.blendMode = 'add'; backSprite.position.set(-OX, -OY); world.addChild(backSprite);
+
+    const rim = new P.Sprite(radial([[0, 'rgba(255,60,70,0.55)'], [0.45, 'rgba(200,20,40,0.18)'], [1, 'rgba(0,0,0,0)']]));
+    rim.anchor.set(0.5); rim.width = 1100; rim.height = 1100; world.addChild(rim);
+    const ghosts = [0, 1].map(() => { const s = new P.Sprite(PO.charge.tex); s.alpha = 0; world.addChild(s); return s; });
+    const hero = new P.Sprite(PO.charge.tex); world.addChild(hero);
+
+    const fx = document.createElement('canvas'); fx.width = backC.width; fx.height = backC.height;
+    const fxTex = tex(fx), fxSprite = new P.Sprite(fxTex); fxSprite.blendMode = 'add'; fxSprite.position.set(-OX, -OY); world.addChild(fxSprite);
+
+    const ui = new P.Container(); ui.pivot.set(960, 540); stage.addChild(ui);
+    const nameG = new P.Container(); nameG.position.set(1000, 860); nameG.rotation = -0.06; ui.addChild(nameG);
+    const nameStyle = { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 132, fill: 0xffffff, letterSpacing: 26 };
+    const nameGhosts = [0, 1].map(() => { const t = new P.Text({ text: '柚子不酸', style: { ...nameStyle, fill: 0xff4d5e } }); t.anchor.set(0, 0.5); nameG.addChild(t); return t; });
+    const nameT = new P.Text({ text: '柚子不酸', style: nameStyle }); nameT.anchor.set(0, 0.5); nameG.addChild(nameT);
+    const nameMask = new P.Graphics(); nameG.addChild(nameMask); nameT.mask = nameMask;
+    const rule = new P.Graphics(); nameG.addChild(rule);
+    const tag = new P.Text({ text: '粉丝团', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 30, fill: 0xffffff, letterSpacing: 6 } });
+    const lv = new P.Text({ text: 'LV.40', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 40, fill: 0xff5a68, letterSpacing: 6 } });
+    tag.position.set(34, -142); lv.position.set(150, -150); nameG.addChild(tag, lv);
+    // Entry caption: says who is coming in from the cut-in, until the dash's wind sweeps it away.
+    const cap = new P.Container(); cap.position.set(600, 900); ui.addChild(cap);
+    const capRule = new P.Graphics(); cap.addChild(capRule);
+    const capName = new P.Text({ text: '柚子不酸', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 50, fill: 0xffffff, letterSpacing: 12 } });
+    capName.anchor.set(0, 1); capName.position.set(30, -10); cap.addChild(capName);
+    const capLv = new P.Text({ text: '粉丝团', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 22, fill: 0xffffff, letterSpacing: 4 } });
+    const capLvN = new P.Text({ text: 'LV.40', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 28, fill: 0xff5a68, letterSpacing: 4 } });
+    capLv.position.set(32, 12); capLvN.position.set(112, 6); cap.addChild(capLv, capLvN);
+    const capMask = new P.Graphics(); cap.addChild(capMask); capName.mask = capMask;
+
+    const imp = new P.Container(); world.addChild(imp);
+    const impBg = new P.Graphics().rect(-1200, -1200, 4320, 3480).fill(0xffffff); imp.addChild(impBg);
+    const impLines = new P.Sprite(tex(impact)); impLines.anchor.set(0.5); impLines.width = impLines.height = 3000; imp.addChild(impLines);
+    const silB = new P.Sprite(silhouette(PO.cut3.img, '#000')), silW = new P.Sprite(silhouette(PO.cut3.img, '#fff'));
+    for (const s of [silB, silW]) { s.scale.set(PO.cut3.s); s.position.set(HIP[0] - PO.cut3.hip[0] * PO.cut3.s, HIP[1] - PO.cut3.hip[1] * PO.cut3.s); imp.addChild(s); }
+
+    const flash = new P.Graphics().rect(-1200, -1200, 4320, 3480).fill(0xffffff); world.addChild(flash);
+    const bars = [new P.Graphics(), new P.Graphics()]; stage.addChild(...bars);
+    stage.setChildIndex(ui, stage.children.indexOf(world) + 1);
+
+    const bloom = new F.AdvancedBloomFilter({ threshold: 0.6, bloomScale: 1.15, brightness: 1, blur: 7, quality: 5 });
+    const shock = new F.ShockwaveFilter({ center: { x: H3[0], y: H3[1] + 110 }, speed: 1500, amplitude: 54, wavelength: 240, brightness: 1.15, radius: -1 });
+    const zoom = new F.ZoomBlurFilter({ strength: 0, center: { x: H3[0], y: H3[1] + 110 }, innerRadius: 60 });
+    const rgb = new F.RGBSplitFilter({ red: { x: 0, y: 0 }, green: { x: 0, y: 0 }, blue: { x: 0, y: 0 } });
+
+    const onScreen = p => p[0] > -60 && p[0] < 1980 && p[1] > -60 && p[1] < 1140;
+    this.S = {
+      app, canvas, world, ui, dim, red, pieces, scars, R3, blades, H3, PO, HIP, W, OX, OY, backC, backTex, rim, ghosts, hero, fx, fxTex,
+      emberSrc: scars.map((s, i) => pathOf(dense(s).filter(p => onScreen(p) && (i === 2 || inside(R3, p[0], p[1]))))),
+      nameG, cap, capRule, capName, capLv, capLvN, capMask, nameGhosts, nameT, nameMask, rule, tag, lv, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, zoom, rgb
+    };
+    app.ticker.add(() => this.frame());
+  }
+
+  frame() {
+    const S = this.S, C = this.cfg;
+    if (!S || !this.master || !C) return;
+    const span = C.cycle / C.speed;
+    const t = ((this.master.currentTime || 0) % span) * C.speed;
+    // Three hit stops, at logical times L1–L3 for 70, 70 and 160 ms of real time: real time keeps running (shake,
+    // impact frames) while everything else holds. HR are the real times they start.
+    const L1 = 1624, L2 = 1875, L3 = 2127, HS = [[L1, 70], [L2, 70], [L3, 160]], HR = [1624, 1945, 2267], REL3 = 2427;
+    let l = null, acc = 0;
+    for (const [s, d] of HS) { if (t < s + acc) break; if (t < s + acc + d) { l = s; break; } acc += d; }
+    if (l === null) l = t - acc;
+    const k = (a, b, x) => Math.min(1, Math.max(0, (x - a) / (b - a)));
+    const out = p => 1 - Math.pow(1 - p, 3), inq = p => p * p, quint = p => 1 - Math.pow(1 - p, 5);
+    const on2 = x => Math.floor(x / 83) * 83;
+    // The chain, one beat per pose; smear frames hold two frames, the raised blade three.
+    const DASH = 1400, DRAW = 1540, WIND = 1666, SM2 = 1791, SPIN = 1917, SM3 = 2001, P8 = 2085;
+    const NAME = 2427, ZAN = 2747, FLARE = 2927, SPLIT = 3107, RED0 = 4700, RED1 = 5300, EXIT = 6750, END = 7170;
+
+    // Letterbox and dimming.
+    const bh = 118 * out(k(0, 280, t)) * (1 - out(k(EXIT + 120, EXIT + 500, l)));
+    S.bars[0].clear().rect(0, 0, 1920, bh).fill(0x000000);
+    S.bars[1].clear().rect(0, 1080 - bh, 1920, bh).fill(0x000000);
+    S.dim.alpha = (0.42 * out(k(0, 300, l)) + 0.4 * out(k(600, 1300, l)) - 0.4 * out(k(RED0, RED1, l))) * (1 - k(EXIT, END, l));
+
+    // Backdrop: whole through the combo; after the zanshin the scars flare in cut order, then the far side of cut 3
+    // breaks along cuts 1 and 2 and every piece slides off, faster and faster, and dissolves.
+    const sp = k(SPLIT, SPLIT + 850, l), e = sp * sp, drift = -l * 0.006;
+    const fade = 1 - inq(k(SPLIT + 400, SPLIT + 1000, l));
+    for (const p of S.pieces) {
+      p.dx = p.dir[0] * p.dist * e + drift; p.dy = p.dir[1] * p.dist * e; p.r = p.rot * e;
+      p.c.position.set(p.c.pivot.x + p.dx, p.c.pivot.y + p.dy); p.c.rotation = p.r;
+      p.c.alpha = 0.95 * out(k(600, 1250, l)) * fade;
+    }
+    // The blood-moon side shows through the openings, holds a beat once the moonlit pieces are gone, then gives way to the stream.
+    S.red.alpha = (l >= SPLIT ? 1 : 0) * (1 - inq(k(RED0, RED1, l)));
+    S.red.scale.set(1 + 0.03 * k(SPLIT, RED1, l)); S.red.position.set(960 + drift, 540);
+
+    // Hero: one pose per beat, placed by its hips.
+    const keyAt = l < DASH ? 'charge' : l < DRAW ? 'dash' : l < L1 ? 'draw' : l < WIND ? 'drawEnd' : l < SM2 ? 'wind' : l < L2 ? 'smear2' : l < SPIN ? 'cut2' : l < SM3 ? 'spin' : l < P8 ? 'smear3' : l < ZAN + 42 ? 'cut3' : 'zan';
+    const po = S.PO[keyAt];
+    let hx = S.HIP[0], hy = S.HIP[1];
+    if (keyAt === 'charge') { hx = 430 - 980 * (1 - quint(k(250, 520, l))) + 16 * k(660, DASH, on2(l)); hy += 20 * (1 - out(k(520, 660, l))); }
+    if (keyAt === 'dash') hx = 446 + 194 * quint(k(DASH, DRAW, l));
+    if (keyAt === 'zan') hx += 20 * k(ZAN, 6400, on2(l));
+    hx -= 70 * k(EXIT, END, l);
+    S.hero.texture = po.tex; S.hero.scale.set(po.s); S.hero.position.set(hx - po.hip[0] * po.s, hy - po.hip[1] * po.s);
+    S.hero.alpha = (l < 250 ? 0 : 1) * (1 - k(EXIT, END, l));
+    // Afterimages trail the cut-in, the dash and every smear frame, opposite to the motion.
+    const gOff = l < 520 ? [-70, 0] : keyAt === 'dash' ? [-110, 0] : keyAt === 'draw' ? [-34, 0] : keyAt === 'smear2' ? [-26, -30] : keyAt === 'spin' ? [40, 0] : keyAt === 'smear3' ? [-22, 30] : null;
+    const ghostOn = gOff && l >= 250;
+    S.ghosts.forEach((g, i) => {
+      g.texture = po.tex; g.scale.set(po.s);
+      if (gOff) g.position.set(S.hero.x + (i + 1) * gOff[0], S.hero.y + (i + 1) * gOff[1]);
+      g.alpha = ghostOn ? (i ? 0.16 : 0.32) : 0; g.tint = 0xff6070;
+    });
+    S.rim.position.set(hx, 640);
+    S.rim.alpha = (0.5 * out(k(400, 900, l)) + 0.5 * out(k(1100, DASH, l)) - 0.4 * k(L3 + 240, L3 + 940, l)) * (1 - k(EXIT, END, l));
+    S.rim.scale.set((1100 + 300 * k(1100, DASH, l)) / 512);
+
+    // Camera follows the blade: a slow push in the charge, a punch on the draw, up with the raised blade, a whip down
+    // with cut 2 (so its low tip stays in frame), back level through the spin, then up with the rising cut and the big
+    // punch centred on its tip, and a long settle. The zoom pivots on Fp, which only moves while the zoom is 1.
+    let Fp = [960, 540], cam = 1 + 0.05 * inq(k(520, DASH, l)), camY = 0, rot = -0.01 * inq(k(520, DASH, l));
+    if (l >= DRAW) { cam = 1.05 + 0.02 * out(k(DRAW, L1, l)); rot = -0.01 * (1 - out(k(DRAW, 1700, l))); }
+    if (l >= WIND) camY = 80 * out(k(WIND, SM2, l));
+    if (l >= SM2) camY = 80 - 320 * out(k(SM2, L2, l));
+    if (l >= L2) rot = 0.014 * (1 - out(k(L2, SM3, l)));
+    if (l >= SPIN) { camY = -240 * (1 - out(k(SPIN, SM3, l))); cam = 1.07 - 0.07 * out(k(SPIN, SM3, l)); }
+    if (l >= SM3) { Fp = S.H3; cam = 1; camY = 110 * out(k(SM3, P8, l)); rot = 0; }
+    if (l >= P8) { camY = 110; cam = 1 + 0.15 * out(k(P8, L3, l)); }
+    if (l >= L3) { cam = 1.15 - 0.15 * out(k(L3, ZAN, l)); camY = 110 * (1 - out(k(L3, ZAN, l))); }
+    if (l >= ZAN) { Fp = [960, 540]; cam = 1 + 0.025 * k(ZAN, 6600, l); camY = 0; }
+    let sx = 0, sy = 0;
+    // Shake runs on real time. With a direction it mostly moves along the cut.
+    const shakeAt = (t0, amp, dur, dir) => {
+      const p = k(t0, t0 + dur, t); if (p <= 0 || p >= 1) return; const a = amp * (1 - p) * (1 - p);
+      if (!dir) { sx += Math.sin(t * 0.21) * a; sy += Math.cos(t * 0.17) * a * 0.6; return; }
+      const s = Math.sin(t * 0.21) * a, c = Math.cos(t * 0.17) * a * 0.25;
+      sx += dir[0] * s - dir[1] * c; sy += dir[1] * s + dir[0] * c;
+    };
+    shakeAt(HR[0], 14, 220, [1, 0]); shakeAt(HR[1], 16, 220, [0.94, 0.33]); shakeAt(P8 + 140, 8, 140);
+    shakeAt(REL3, 32, 520, [0.42, -0.91]); shakeAt(SPLIT + 300 + 120, 5, 160);
+    for (const c of [S.world, S.ui]) { c.pivot.set(Fp[0], Fp[1]); c.scale.set(cam); c.rotation = rot; c.position.set(Fp[0] + sx, Fp[1] + sy + camY); }
+
+    // Cut 3's effects: one white frame, two impact frames, then the shockwave, radial blur and colour split at its tip.
+    S.flash.alpha = l >= P8 && l < L3 ? 0.85 : 0;
+    const impA = t >= HR[2] && t < HR[2] + 40, impB = t >= HR[2] + 40 && t < HR[2] + 80;
+    S.imp.visible = impA || impB;
+    if (S.imp.visible) {
+      S.impBg.tint = impA ? 0xffffff : 0x000000;
+      S.impLines.tint = impA ? 0x000000 : 0xffffff; S.impLines.position.set(S.H3[0], S.H3[1]);
+      S.silB.visible = impA; S.silW.visible = impB;
+    }
+    const released = t >= REL3, sw = released && l < L3 + 520;
+    S.shock.time = (l - L3) / 1000; S.shock.amplitude = 54 * (1 - k(L3, L3 + 520, l));
+    S.zoom.strength = 0.17 * (1 - out(k(L3, L3 + 300, l)));
+    const rs = 13 * (1 - out(k(L3, L3 + 480, l)));
+    S.rgb.red = { x: -rs, y: 0 }; S.rgb.blue = { x: rs, y: 0 };
+    const filters = [S.bloom];
+    if (sw) filters.push(S.shock);
+    if (released && S.zoom.strength > 0.005) filters.push(S.zoom);
+    if (released && rs > 0.5) filters.push(S.rgb);
+    S.world.filters = S.imp.visible ? null : filters;
+
+    // Name: cut out from left to right, with red afterimages, then the thin rule and the level label.
+    const reveal = out(k(NAME, NAME + 260, l));
+    const nw = S.nameT.width + 40;
+    S.nameMask.clear().rect(-20, -120, nw * reveal, 240).fill(0xffffff);
+    S.nameGhosts.forEach((g, i) => { g.position.set(36 * (i + 1), -8 * (i + 1)); g.alpha = (i ? 0.22 : 0.45) * k(NAME, NAME + 50, l) * (1 - k(NAME + 180, NAME + 570, l)); });
+    const rw = (nw - 20) * out(k(NAME + 140, NAME + 480, l));
+    S.rule.clear().rect(0, -98, rw, 2).fill({ color: 0xffffff, alpha: 0.85 }).rect(0, -104, 22 * k(NAME + 140, NAME + 240, l), 14).fill(0xff3b4e);
+    S.tag.alpha = S.lv.alpha = out(k(NAME + 260, NAME + 540, l));
+    S.nameG.alpha = 1 - k(EXIT, END - 120, l);
+    S.nameG.position.set(1000 + 80 * inq(k(EXIT, END, l)), 860);
+
+    // Entry caption: a rule slides out from the hero's feet, the name wipes in on it; the dash's wind sweeps it off.
+    const cr = quint(k(420, 720, l)), cw = 420 * cr, gone = k(1450, 1570, l);
+    S.capRule.clear().rect(0, 0, cw, 2).fill({ color: 0xffffff, alpha: 0.85 }).rect(0, -6, 14 * cr, 14).fill(0xff3b4e);
+    S.capMask.clear().rect(20, -90, 400 * out(k(560, 860, l)), 100).fill(0xffffff);
+    S.capLv.alpha = S.capLvN.alpha = out(k(760, 1000, l));
+    S.cap.alpha = (l >= 420 ? 1 : 0) * (1 - gone); S.cap.position.set(600 + 260 * gone * gone, 900 - 30 * gone);
+
+    this.drawFx(l, k, out, { L1, L2, L3, DASH, SPIN, ZAN, FLARE, SPLIT, END, hx, drift, fade, charge: keyAt === 'charge' ? [hx, hy] : null });
+    S.fxTex.source.update(); S.backTex.source.update();
+  }
+
+  // Slashes, scars, particles, in world coordinates. Two additive canvases: one behind the hero (scars, the far half
+  // of the spin loop, the draw leaving the scabbard), one in front.
+  drawFx(l, k, out, T) {
+    const S = this.S, g = S.fx.getContext('2d'), gb = S.backC.getContext('2d');
+    for (const c of [g, gb]) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, c.canvas.width, c.canvas.height); c.setTransform(1, 0, 0, 1, S.OX, S.OY); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; }
+    const rnd = (i, s) => { const v = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return v - Math.floor(v); };
+    const band = (P, u0, u1, w, inner, rgb, alpha) => {
+      if (u1 - u0 < 0.002) return;
+      const N = 90;
+      let prev = null;
+      for (let i = 0; i <= N; i++) {
+        const f = i / N, [px, py, nx, ny, back] = P.at(u0 + (u1 - u0) * f);
+        const ww = w * Math.pow(Math.sin(Math.PI * Math.min(1, f * 1.08)), 0.5) * (0.25 + 0.75 * f);
+        const o = [px - nx * ww, py - ny * ww], q = [px + nx * ww * inner, py + ny * ww * inner];
+        if (prev) {
+          const c = back ? gb : g;
+          c.fillStyle = 'rgba(' + rgb + ',' + (alpha * Math.pow(f, 0.9)) + ')';
+          c.beginPath(); c.moveTo(prev[0][0], prev[0][1]); c.lineTo(o[0], o[1]); c.lineTo(q[0], q[1]); c.lineTo(prev[1][0], prev[1][1]); c.closePath(); c.fill();
+        }
+        prev = [o, q];
+      }
+    };
+    const arcLine = (P, u0, u1, off, width, color) => {
+      if (u1 - u0 < 0.002) return;
+      g.strokeStyle = color; g.lineWidth = width; g.beginPath();
+      let pen = false;
+      for (let i = 0; i <= 40; i++) {
+        const [px, py, nx, ny, back] = P.at(u0 + (u1 - u0) * i / 40);
+        if (back) { pen = false; continue; }
+        pen ? g.lineTo(px - nx * off, py - ny * off) : g.moveTo(px - nx * off, py - ny * off); pen = true;
+      }
+      g.stroke();
+    };
+    // A slash: a sharp crescent whose head is the blade tip, held bright through its hit stop, then frayed into strands.
+    const slash = (P, head, tail, head2, w, fray, seed, alphaMul = 1) => {
+      const a = (1 - fray) * alphaMul; w *= 1 - 0.55 * fray;
+      band(P, tail, head, w * 2.6, 0.25, '255,30,60', 0.16 * a);
+      band(P, tail, head, w, 0.08, '255,58,80', 0.8 * a);
+      band(P, tail, head, w * 0.34, 0.03, '255,240,240', a);
+      for (let s = 0; s < 7; s++) {
+        const off = 10 + s * w * 0.12, len = (0.55 + rnd(s, seed) * 0.4) * (head - tail);
+        arcLine(P, Math.max(tail, head - len), head - rnd(s, seed + 1) * 0.08 * (head - tail), off, 1 + (s % 2), 'rgba(255,' + (200 - s * 18) + ',' + (210 - s * 18) + ',' + (0.55 * a) + ')');
+      }
+      arcLine(P, Math.max(tail, head2 - 0.7 * (head - tail)), head2, w * 1.35, 2, 'rgba(255,255,255,' + 0.8 * a + ')');
+      if (fray > 0) {
+        for (let s = 0; s < 9; s++) {
+          const off = (s / 8 - 0.3) * 90 + fray * 50 * (s - 3), v0 = 0.08 + fray * (0.2 + rnd(s, seed + 2) * 0.5), v1 = 1 - fray * (0.1 + rnd(s, seed + 3) * 0.6);
+          if (v1 > v0) arcLine(P, tail + (head - tail) * v0, tail + (head - tail) * v1, off, 1 + rnd(s, seed + 4) * 1.6, 'rgba(255,' + (120 + s * 12) + ',140,' + (0.6 * (1 - fray)) + ')');
+        }
+      }
+    };
+    // Sparks thrown off a hit at the blade tip, mostly across the cut.
+    const sparks = (P, t0, count, power, seed) => {
+      const sp = l - t0;
+      if (sp <= 0 || sp >= 1000) return;
+      for (let i = 0; i < count; i++) {
+        const life = 420 + rnd(i, seed) * 560; if (sp > life) continue;
+        const [x0, y0, nx, ny] = P.at(0.82 + rnd(i, seed + 1) * 0.18), side = rnd(i, seed + 2) < 0.5 ? -1 : 1;
+        const v = (300 + rnd(i, seed + 3) * 1300) * power, s = sp / 1000, spread = (rnd(i, seed + 4) - 0.5) * 0.9;
+        const dx = nx * side + spread, dy = ny * side + spread * 0.3;
+        const px = x0 + dx * v * s, py = y0 + dy * v * s + 500 * s * s, q = 1 - sp / life;
+        g.strokeStyle = i % 4 ? 'rgba(255,110,120,' + q + ')' : 'rgba(255,255,255,' + q + ')'; g.lineWidth = 1.5 + rnd(i, seed + 5) * 2.5;
+        g.beginPath(); g.moveTo(px, py); g.lineTo(px - dx * v * 0.03, py - dy * v * 0.03); g.stroke();
+      }
+    };
+    const glint = (x, y, p, len) => {
+      if (p <= 0 || p >= 1) return;
+      const a = Math.sin(p * Math.PI);
+      g.strokeStyle = 'rgba(255,255,255,' + a + ')'; g.lineWidth = 2.5;
+      g.beginPath(); g.moveTo(x - len * a, y); g.lineTo(x + len * a, y); g.moveTo(x, y - len * 0.6 * a); g.lineTo(x, y + len * 0.6 * a); g.stroke();
+    };
+
+    // Charge: sparks are pulled into the hilt while the hero holds the stance; a glint on the hilt before the dash.
+    if (T.charge && l > 650) {
+      const hilt = S.W(S.PO.charge, [760, 715], T.charge);
+      for (let i = 0; i < 90; i++) {
+        const s0 = 650 + rnd(i, 1) * 620, dur = 380 + rnd(i, 2) * 260, p = (l - s0) / dur;
+        if (p < 0 || p > 1) continue;
+        const ang = rnd(i, 3) * Math.PI * 2, r0 = 360 + rnd(i, 4) * 420, r = r0 * (1 - p * p), r2 = r0 * (1 - Math.max(0, p - 0.12) ** 2);
+        g.strokeStyle = i % 3 ? 'rgba(255,120,130,' + (0.9 * Math.sin(p * Math.PI)) + ')' : 'rgba(255,255,255,' + Math.sin(p * Math.PI) + ')';
+        g.lineWidth = 1.5 + rnd(i, 5) * 2;
+        g.beginPath(); g.moveTo(hilt[0] + Math.cos(ang) * r, hilt[1] + Math.sin(ang) * r); g.lineTo(hilt[0] + Math.cos(ang) * r2, hilt[1] + Math.sin(ang) * r2); g.stroke();
+      }
+      glint(hilt[0], hilt[1], k(1240, 1390, l), 100);
+    }
+    // Dash: a dust streak along the ground behind the hero.
+    if (l >= T.DASH && l < 1800) {
+      const p = k(T.DASH, 1540, l), a = 1 - k(1560, 1800, l);
+      for (let s = 0; s < 6; s++) {
+        const y = 1000 + s * 9, x1 = 446 + 194 * p + 160, x0 = 160 + rnd(s, 40) * 120 + 300 * k(1540, 1800, l);
+        g.strokeStyle = 'rgba(255,' + (150 + s * 15) + ',150,' + (0.35 * a * (1 - s / 7)) + ')'; g.lineWidth = 2 + (s % 2);
+        g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y - 4); g.stroke();
+      }
+    }
+    // The raised blade glints once before it comes down.
+    glint(...S.W(S.PO.wind, [300, 120]), k(1700, 1785, l), 70);
+
+    // The slashes: "da, da, boom". Each head reaches its blade tip on the frame the finishing pose appears.
+    const B = S.blades;
+    if (l >= 1545 && l < T.L1 + 420) slash(B[0], out(k(1545, 1620, l)), 0.15 * out(k(1570, 1660, l)), out(k(1560, 1635, l)), 60, k(T.L1, T.L1 + 420, l), 21);
+    if (l >= 1795 && l < T.L2 + 420) slash(B[1], out(k(1795, 1870, l)), 0.5 * out(k(1800, 1870, l)), out(k(1810, 1885, l)), 66, k(T.L2, T.L2 + 420, l), 31);
+    if (l >= T.SPIN && l < T.L3 + 520) slash(B[2], k(T.SPIN, 2080, l), 0.45 * out(k(1975, 2050, l)) + 0.23 * out(k(2040, 2105, l)), k(T.SPIN + 20, 2095, l), 92, k(T.L3, T.L3 + 520, l), 41);
+    if (l >= T.ZAN && l < T.ZAN + 260) slash(B[3], out(k(T.ZAN, T.ZAN + 60, l)), out(k(T.ZAN + 20, T.ZAN + 160, l)), out(k(T.ZAN + 10, T.ZAN + 70, l)), 26, 0, 51, 0.7 * (1 - k(T.ZAN + 80, T.ZAN + 260, l)));
+    sparks(B[0], T.L1, 70, 0.7, 10); sparks(B[1], T.L2, 70, 0.7, 50); sparks(B[2], T.L3, 160, 1, 60);
+
+    // The straight cuts hang behind the hero from each hit; cuts 1 and 2 only show on cut 3's far side. Before the
+    // break they flare once each, in cut order.
+    const open = out(k(T.SPLIT, T.SPLIT + 260, l)), flick = 0.8 + 0.2 * Math.sin(l * 0.045);
+    const trace = (c, pts) => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); };
+    const clipTo = (c, poly) => { trace(c, poly); c.closePath(); c.clip(); };
+    const stroke = (w, color) => { gb.lineWidth = w; gb.strokeStyle = color; gb.stroke(); };
+    S.scars.forEach((pts, i) => {
+      const hit = [T.L1, T.L2, T.L3][i], a = k(hit, hit + 120, l) * (1 - k(T.SPLIT + 450, T.SPLIT + 950, l));
+      if (a <= 0) return;
+      const fl = Math.sin(Math.PI * k(T.FLARE + 70 * i, T.FLARE + 70 * i + 160, l)), wide = Math.max(open, 0.6 * fl);
+      // Cuts 1 and 2 land whole; once cut 3 lands, their stretch on the hero's side fades out and the rest dims, so cut 3's
+      // cut holds the frame until all three flare before the break.
+      const dim = i < 2 ? Math.max(1 - 0.75 * k(T.L3 + 200, T.L3 + 500, l), fl, open) : 1;
+      const passes = i < 2 ? [[S.R3, a * dim], [null, a * (1 - k(T.L3, T.L3 + 300, l))]] : [[null, a]];
+      for (const [clip, pa] of passes) {
+        if (pa <= 0.002) continue;
+        gb.save(); gb.translate(T.drift, 0);
+        if (clip) clipTo(gb, clip); else if (i < 2) { trace(gb, S.R3); gb.closePath(); gb.rect(-5000, -5000, 10000, 10000); gb.clip('evenodd'); }
+        trace(gb, pts);
+        stroke(12 + 40 * wide, 'rgba(255,40,70,' + (0.2 + 0.25 * fl) * pa * flick + ')');
+        stroke(3 + 10 * wide, 'rgba(255,150,160,' + (0.6 + 0.3 * fl) * pa + ')');
+        stroke(1.4 + 3 * wide, 'rgba(255,255,255,' + pa * (1 - 0.6 * open) + ')');
+        gb.restore();
+      }
+    });
+    // Once open, each piece carries a lit lip along its own edges (the hero's side is bounded by cut 3 alone).
+    if (l >= T.SPLIT) for (const p of S.pieces) {
+      gb.save();
+      gb.translate(p.c.pivot.x + p.dx, p.c.pivot.y + p.dy); gb.rotate(p.r); gb.translate(-p.c.pivot.x, -p.c.pivot.y);
+      for (const r of p.regions) clipTo(gb, r);
+      for (const pts of p.near ? [S.scars[2]] : S.scars) { trace(gb, pts); stroke(10, 'rgba(255,60,80,' + 0.35 * T.fade * open + ')'); stroke(2, 'rgba(255,235,235,' + 0.9 * T.fade * open + ')'); }
+      gb.restore();
+    }
+
+    // The zanshin: a glint on the low blade right after the flick.
+    glint(...S.W(S.PO.zan, [540, 880], [T.hx, S.HIP[1]]), k(T.ZAN + 100, T.ZAN + 300, l), 90);
+    // Embers peel off the lips of every seam as the sky opens.
+    if (l >= T.SPLIT && l < T.SPLIT + 1300) {
+      const e = l - T.SPLIT;
+      for (let i = 0; i < 160; i++) {
+        const t0 = rnd(i, 30) * 520, life = 600 + rnd(i, 31) * 700, q = (e - t0) / life;
+        if (q <= 0 || q >= 1) continue;
+        const [x0, y0, nx, ny] = S.emberSrc[i % 3].at(rnd(i, 32)), side = i % 2 ? 1 : -1, v = 30 + rnd(i, 33) * 110;
+        const px = x0 + nx * v * 1.4 * side * q + T.drift, py = y0 + ny * v * 1.4 * side * q - 40 * q;
+        g.fillStyle = 'rgba(255,' + (120 + (i % 3) * 50) + ',125,' + Math.sin(q * Math.PI) * 0.9 + ')';
+        g.beginPath(); g.arc(px, py, 1.2 + rnd(i, 34) * 2.2, 0, Math.PI * 2); g.fill();
+      }
+    }
+    // Embers rise during the zanshin hold.
+    if (l > T.L3 + 240 && l < T.END) {
+      const fade = k(T.L3 + 240, T.L3 + 740, l) * (1 - k(T.END - 400, T.END, l));
+      for (let i = 0; i < 46; i++) {
+        const life = 2200 + rnd(i, 16) * 1800, ph = ((l + rnd(i, 17) * life) % life) / life;
+        const px = 200 + rnd(i, 18) * 1700 + Math.sin(ph * 6 + i) * 20, py = 1000 - ph * 520 - rnd(i, 19) * 200;
+        g.fillStyle = 'rgba(255,' + (90 + (i % 3) * 50) + ',100,' + (Math.sin(ph * Math.PI) * fade * 0.8) + ')';
+        g.beginPath(); g.arc(px, py, 1.5 + rnd(i, 20) * 2.5, 0, Math.PI * 2); g.fill();
+      }
+    }
+    for (const c of [g, gb]) c.globalCompositeOperation = 'source-over';
+  }
+
+  renderVals() {
+    const room = this.props.room ?? '示意画面';
+    const pause = this.props.pause ?? '播放';
+    const speed = { '1 倍': 1, '0.5 倍': 0.5, '0.25 倍': 0.25 }[this.props.speed ?? '1 倍'];
+    const pauseAt = { '播放': null, '蓄力': 1200, '冲刺': 1470, '第一刀': 1650, '举刀': 1760, '第二刀': 1960, '回身': 2100, '上撩': 2185, '冲击帧': 2275, '余波': 2560, '亮名': 3150, '斩铁': 3700, '里世界': 4800 }[pause];
+    this.cfg = { cycle: 8500, speed, pauseAt };
+    return {
+      bg: room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#2C3644',
+      mock: room !== '透明',
+      mockBg: room === '浅色房间' ? 'linear-gradient(180deg, #F4EFE7 0%, #EAE2D5 56%, #CDB89A 57%, #B9A27F 100%)' : room === '深色房间' ? 'linear-gradient(180deg, #16181D 0%, #23262E 56%, #121317 57%, #0C0D10 100%)' : 'linear-gradient(180deg, #3D4C66 0%, #536585 56%, #3A4658 57%, #2C3644 100%)',
+      mockBox: room === '浅色房间' ? '#D9CCB8' : room === '深色房间' ? '#2F333C' : '#63769A',
+      mockInk: room === '浅色房间' ? 'rgba(60, 40, 20, 0.55)' : 'rgba(255, 255, 255, 0.55)'
+    };
+  }
+}
+</script>
+</body>
+</html>

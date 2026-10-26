@@ -6,13 +6,20 @@
  "bfd32fc9aa9ad1983f2259669bd5d540": "textures/gold-sword.webp",
  "1b89f838e16a1aae41ef0adb6e836e22": "textures/impact.webp",
  "115e75bc617f8d5fd7fb14fbefd1be6a": "textures/pose-2.webp",
- "67eb4bfa0717e7112222609a4787a899": "textures/pose-3.webp",
- "b7b806ca70959691bdfdd797c0496f04": "textures/pose-4.webp",
  "37a5b192bf014dc81fa423d2e1d45f6c": "textures/pose-5.webp",
  "38b992f980c338671fb008bf5ccdaefb": "textures/moon.webp",
  "017bad25925e8b86b270eb3a65ed7fff": "lib/pixi.js",
  "4e96fe4a1953a4100f9922f45ab6641a": "lib/pixi-filters.js",
  "4baebcf387c0f3280dffcbd0173aece9": "lib/serif-name.woff2",
  "f1df6953c74778fa8fa7a4bee4185626": "lib/barlow.woff2",
- "3d7a08e31609fe87cb25219c91012aae": "textures/moon-red.webp"
+ "3d7a08e31609fe87cb25219c91012aae": "textures/moon-red.webp",
+ "1c7a70bfab754681aee2ffeb917ac339": "textures/pose-6.webp",
+ "29e10238d4580ab3bd147434f8165b26": "textures/pose-7.webp",
+ "082ab954667f7cf75e403f0dfb59d960": "textures/pose-8.webp",
+ "3faeaf56aa91c083f3f7aa9c275fbf63": "textures/pose-9.webp",
+ "bf29b43f32599957781aa3a541f4f0df": "textures/pose-10.webp",
+ "8a8f2e02185cf263966cda96a7401785": "textures/pose-12.webp",
+ "e137dd02705aa8b8d9487ad3f2a7aecf": "textures/pose-11.webp",
+ "50c3749ffd1d4751683421a32c66fcff": "textures/pose-13.webp",
+ "b612d7f6d7de096f347399c9117de8f7": "textures/pose-14.webp"
 }
