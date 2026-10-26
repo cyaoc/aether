@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<title>EV1 进场动画样片 一般人 60 档</title>
+<title>EV1 进场动画 一般人 30 档 一闪</title>
 <script src="./support.js"></script>
 <script src="/_blob/017bad25925e8b86b270eb3a65ed7fff"></script>
 <script src="/_blob/4e96fe4a1953a4100f9922f45ab6641a"></script>
@@ -152,7 +152,7 @@ class Component extends DCLogic {
     const nameMask = new P.Graphics(); nameG.addChild(nameMask); nameT.mask = nameMask;
     const rule = new P.Graphics(); nameG.addChild(rule);
     const tag = new P.Text({ text: '粉丝团', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 30, fill: 0xffffff, letterSpacing: 6 } });
-    const lv = new P.Text({ text: 'LV.60', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 40, fill: 0xff5a68, letterSpacing: 6 } });
+    const lv = new P.Text({ text: 'LV.30', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 40, fill: 0xff5a68, letterSpacing: 6 } });
     tag.position.set(34, -142); lv.position.set(150, -150); nameG.addChild(tag, lv);
     // Entry caption: says who is coming in from the cut-in, until the strike sweeps it away.
     const cap = new P.Container(); cap.position.set(600, 900); ui.addChild(cap);
@@ -160,7 +160,7 @@ class Component extends DCLogic {
     const capName = new P.Text({ text: '柚子不酸', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 50, fill: 0xffffff, letterSpacing: 12 } });
     capName.anchor.set(0, 1); capName.position.set(30, -10); cap.addChild(capName);
     const capLv = new P.Text({ text: '粉丝团', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 22, fill: 0xffffff, letterSpacing: 4 } });
-    const capLvN = new P.Text({ text: 'LV.60', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 28, fill: 0xff5a68, letterSpacing: 4 } });
+    const capLvN = new P.Text({ text: 'LV.30', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 28, fill: 0xff5a68, letterSpacing: 4 } });
     capLv.position.set(32, 12); capLvN.position.set(112, 6); cap.addChild(capLv, capLvN);
     const capMask = new P.Graphics(); cap.addChild(capMask); capName.mask = capMask;
 
@@ -179,8 +179,11 @@ class Component extends DCLogic {
     const zoom = new F.ZoomBlurFilter({ strength: 0, center: { x: H[0], y: H[1] }, innerRadius: 60 });
     const rgb = new F.RGBSplitFilter({ red: { x: 0, y: 0 }, green: { x: 0, y: 0 }, blue: { x: 0, y: 0 } });
 
+    // The zanshin flick: from the follow-through's raised tip down close to the body (left of the name) into the low
+    // blade of the closing stance.
+    const flick = pathOf(spline([H, [1100, 500], [880, 820], placed(4, 420, [780, 1120])]));
     const onScreen = p => p[0] > -60 && p[0] < 1980 && p[1] > -60 && p[1] < 1140;
-    this.S = { app, canvas, world, ui, dim, red, halves, n, tangent, H, cutLine, slash, seamPath: pathOf(Array.from({ length: 1001 }, (_, i) => [cutLine[0][0] + (cutLine[1][0] - cutLine[0][0]) * i / 1000, cutLine[0][1] + (cutLine[1][1] - cutLine[0][1]) * i / 1000]).filter(onScreen)), seamC, seamTex, rim, poses, fit, ghosts, hero, fx, fxTex, nameG, cap, capRule, capName, capLv, capLvN, capMask, nameGhosts, nameT, nameMask, rule, tag, lv, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, zoom, rgb };
+    this.S = { app, canvas, world, ui, dim, red, halves, n, tangent, H, cutLine, slash, flick, seamPath: pathOf(Array.from({ length: 1001 }, (_, i) => [cutLine[0][0] + (cutLine[1][0] - cutLine[0][0]) * i / 1000, cutLine[0][1] + (cutLine[1][1] - cutLine[0][1]) * i / 1000]).filter(onScreen)), seamC, seamTex, rim, poses, fit, ghosts, hero, fx, fxTex, nameG, cap, capRule, capName, capLv, capLvN, capMask, nameGhosts, nameT, nameMask, rule, tag, lv, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, zoom, rgb };
     app.ticker.add(() => this.frame());
   }
 
@@ -218,12 +221,12 @@ class Component extends DCLogic {
     S.red.scale.set(1 + 0.03 * k(SPLIT, 5000, l)); S.red.position.set(960 + cut.drift, 540);
     this.drawSeam(l, k, out, cut);
 
-    // Hero poses: cut-in, charge, smear, follow-through, zanshin.
-    const pose = l < 520 ? 0 : l < 1950 ? 1 : l < 2034 ? 2 : l < 2700 ? 3 : 4;
+    // Hero poses: the iaido stance (it slides in for the cut-in, sword still sheathed, and holds through the charge),
+    // the draw smear, the follow-through, zanshin.
+    const pose = l < 1950 ? 1 : l < 2034 ? 2 : l < 2700 ? 3 : 4;
     const [ph, px] = S.fit[pose], tx = S.poses[pose];
     let x = 420, y = 1080;
-    if (pose === 0) x += -980 * (1 - quint(k(250, 520, l)));
-    if (pose === 1) { y += 20 * (1 - out(k(520, 660, l))); x += 16 * k(660, 1950, on2(l)); }
+    if (pose === 1) { x += -980 * (1 - quint(k(250, 520, l))) + 16 * k(660, 1950, on2(l)); y += 20 * (1 - out(k(520, 660, l))); }
     if (pose === 2) x += 30;
     if (pose === 3) x += 48 - 10 * out(k(2034, 2500, l));
     if (pose === 4) x += 20 * k(2700, 6000, on2(l));
@@ -235,7 +238,7 @@ class Component extends DCLogic {
     S.ghosts.forEach((g, i) => {
       const on = (l >= 250 && l < 520) || (l >= 1950 && l < 2120);
       g.texture = tx; g.height = ph; g.scale.x = g.scale.y;
-      g.position.set(S.hero.x - (i + 1) * (pose === 0 ? 70 : 34), y);
+      g.position.set(S.hero.x - (i + 1) * (l < 520 ? 70 : 34), y);
       g.alpha = on ? (i ? 0.16 : 0.32) : 0; g.tint = 0xff6070;
     });
     S.rim.position.set(420, 640);
@@ -325,12 +328,12 @@ class Component extends DCLogic {
     g.globalCompositeOperation = 'lighter';
     const rnd = (i, s) => { const x = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return x - Math.floor(x); };
     const Q = u => S.slash.at(u).slice(0, 2), D = u => S.slash.at(u).slice(2, 4);
-    const band = (u0, u1, w, inner, rgb, alpha) => {
+    const band = (u0, u1, w, inner, rgb, alpha, P = S.slash) => {
       if (u1 - u0 < 0.002) return;
       const N = 70;
       let prev = null;
       for (let i = 0; i <= N; i++) {
-        const f = i / N, u = u0 + (u1 - u0) * f, p = Q(u), nm = D(u);
+        const f = i / N, u = u0 + (u1 - u0) * f, r = P.at(u), p = r, nm = [r[2], r[3]];
         const ww = w * Math.pow(Math.sin(Math.PI * Math.min(1, f * 1.08)), 0.5) * (0.25 + 0.75 * f);
         const o = [p[0] - nm[0] * ww, p[1] - nm[1] * ww], q = [p[0] + nm[0] * ww * inner, p[1] + nm[1] * ww * inner];
         if (prev) {
@@ -388,7 +391,15 @@ class Component extends DCLogic {
         }
       }
     }
-    // The zanshin flick: a short glint on the blade right before the sky gives way.
+    // The zanshin flick: the blade swings down from the raised follow-through into the closing stance, leaving a thin
+    // crescent that fades at once.
+    if (l >= 2700 && l < 2960) {
+      const head = out(k(2700, 2760, l)), tail = out(k(2720, 2860, l)), a = 0.7 * (1 - k(2780, 2960, l));
+      band(tail, head, 26 * 2.6, 0.25, '255,30,60', 0.16 * a, S.flick);
+      band(tail, head, 26, 0.08, '255,58,80', 0.8 * a, S.flick);
+      band(tail, head, 26 * 0.34, 0.03, '255,240,240', a, S.flick);
+    }
+    // Then a short glint on the blade right before the sky gives way.
     const fl = k(2930, 3130, l);
     if (fl > 0 && fl < 1) {
       const a = Math.sin(fl * Math.PI), [gx, gy] = [612, 922];
