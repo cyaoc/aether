@@ -7,7 +7,7 @@ codex exec --skip-git-repo-check -s workspace-write -C <目录> [-i <参考图>]
   "Use your built-in image generation tool (not code) to create ONE image, then copy the generated PNG file to <路径>. Do not write any code. Image: <下面的描述>"
 ```
 
-生成后裁到不透明区域、缩到高 1200，存成 WebP。冲击帧这类白底黑图把亮度转成透明度、颜色换成白色。
+生成后用 `tools/process.py` 处理：人物裁到不透明区域、缩到高 1200，存成 WebP；冲击帧这类黑底白图把亮度转成透明度、颜色换成白色。
 
 ## 主角四种身份（hero-1 到 hero-4）
 

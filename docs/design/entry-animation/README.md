@@ -18,6 +18,8 @@ node docs/design/entry-animation/tools/server.mjs 8795
 
 浏览器打开 `http://localhost:8795/render.html?board=EV1-EntrySlice.dc.html&props=<JSON>&freeze=<毫秒>`。`props` 是画板的 data-props：`pause`（播放 / 蓄力 / 出招 / 冲击帧 / 余波 / 亮名 / 残心）、`speed`（1 倍 / 0.5 倍 / 0.25 倍）、`room`（示意画面 / 浅色房间 / 深色房间 / 透明）。`freeze` 把时钟钉在那个毫秒。
 
+生图后的处理用 `tools/process.py`（裁到不透明区域、发光图转白色加透明、边缘渐隐、背景压成 WebP；需要 Pillow 和 NumPy）。上传到画布后，把新 blob id 和文件对应写进 `tools/blobs.json`。
+
 截图要用 `node docs/design/entry-animation/tools/cdp-shot.mjs "<上面的地址>" out.png 5000`：WebGL 画板一直在渲染，`chrome --headless --screenshot` 等不到空闲，截不出来。
 
 ## 时间轴（一轮 7.6 秒，动画本身约 6.6 秒）
