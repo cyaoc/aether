@@ -122,8 +122,9 @@ class Component extends DCLogic {
 
     // The cuts a straight blade leaves are straight: each is the chord of the stretch of its slash still lit on the frame
     // it lands (from the slash's tail to the blade tip), run right across the sky. Each slash's tail catches up as it
-    // swings, so what is lit at the hit is nearly straight and the cut lies along it. Cut 3 splits the sky into the hero's side and the far side; cuts 1 and 2 only break up the far side.
-    // Each side is a polygon closed round a big circle.
+    // swings, so what is lit at the hit is nearly straight and the cut lies along it. The sky breaks along all three, full
+    // length, so it opens along the very lines the viewer saw land; the moon sits whole in one piece. Each side of a line
+    // is a polygon closed round a big circle, and each piece is one side of every line.
     const C0 = [960, 540], RR = 5000;
     const reach = (p, q) => { const d = [p[0] - q[0], p[1] - q[1]], m = Math.hypot(d[0], d[1]), u = [d[0] / m, d[1] / m], w = [p[0] - C0[0], p[1] - C0[1]], b = w[0] * u[0] + w[1] * u[1], t = -b + Math.sqrt(b * b - (w[0] * w[0] + w[1] * w[1] - RR * RR)); return [p[0] + u[0] * t, p[1] + u[1] * t]; };
     const sides = line => [1, -1].map(dir => {
@@ -138,14 +139,12 @@ class Component extends DCLogic {
     const scars = TAILS.map((u0, i) => chordOf(blades[i], u0));
     const dense = ([a, b]) => Array.from({ length: 1001 }, (_, i) => [a[0] + (b[0] - a[0]) * i / 1000, a[1] + (b[1] - a[1]) * i / 1000]);
     const [s1, s2, s3] = scars.map(sides);
-    const near = inside(s3[0], 700, 450) ? 0 : 1, L3 = s3[near], R3 = s3[1 - near];
-    const cellDefs = [[L3]];
-    for (const r1 of s1) for (const r2 of s2) cellDefs.push([R3, r2, r1]);
     const cells = [];
-    for (const regions of cellDefs) {
+    for (const r1 of s1) for (const r2 of s2) for (const r3 of s3) {
+      const regions = [r3, r2, r1];
       let n = 0, cx = 0, cy = 0;
       for (let x = -60; x <= 1980; x += 30) for (let y = -60; y <= 1140; y += 30) if (regions.every(r => inside(r, x, y))) { n++; cx += x; cy += y; }
-      if (n >= 12) cells.push({ regions, c: [cx / n, cy / n], n, near: regions.length === 1 });
+      if (n >= 12) cells.push({ regions, c: [cx / n, cy / n], n });
     }
 
     const stage = app.stage;
@@ -165,10 +164,9 @@ class Component extends DCLogic {
       for (const r of cell.regions) { const m = new P.Graphics().poly(r.flat()).fill(0xffffff); c.addChild(m); const inner = new P.Container(); inner.mask = m; host.addChild(inner); host = inner; }
       skyOf(moon, host);
       c.pivot.set(cell.c[0], cell.c[1]); c.position.set(cell.c[0], cell.c[1]);
-      const d = [cell.c[0] - 760, cell.c[1] - 560], m = Math.hypot(d[0], d[1]) || 1;
-      const dir = cell.near ? [-0.92, 0.38] : [d[0] / m, d[1] / m];
+      const d = [cell.c[0] - 760, cell.c[1] - 560], m = Math.hypot(d[0], d[1]) || 1, dir = [d[0] / m, d[1] / m];
       world.addChild(c);
-      return { ...cell, c, dir, dist: cell.near ? 110 : 240 + Math.min(120, cell.n * 0.25), rot: cell.near ? -0.012 : 0.03 * Math.sign(dir[0] || 1) * (dir[1] < 0 ? 1 : 0.5) };
+      return { ...cell, c, dir, dist: 240 + Math.min(120, cell.n * 0.25), rot: 0.03 * Math.sign(dir[0] || 1) * (dir[1] < 0 ? 1 : 0.5) };
     });
     // Effects canvases cover a margin round the screen, since the camera tilts and zooms.
     const OX = 300, OY = 400;
@@ -220,8 +218,8 @@ class Component extends DCLogic {
 
     const onScreen = p => p[0] > -60 && p[0] < 1980 && p[1] > -60 && p[1] < 1140;
     this.S = {
-      app, canvas, world, ui, dim, red, pieces, scars, R3, blades, H3, PO, HIP, W, OX, OY, backC, backTex, rim, ghosts, hero, fx, fxTex,
-      emberSrc: scars.map((s, i) => pathOf(dense(s).filter(p => onScreen(p) && (i === 2 || inside(R3, p[0], p[1]))))),
+      app, canvas, world, ui, dim, red, pieces, scars, blades, H3, PO, HIP, W, OX, OY, backC, backTex, rim, ghosts, hero, fx, fxTex,
+      emberSrc: scars.map(s => pathOf(dense(s).filter(onScreen))),
       nameG, cap, capRule, capName, capLv, capLvN, capMask, nameGhosts, nameT, nameMask, rule, tag, lv, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, zoom, rgb
     };
     app.ticker.add(() => this.frame());
@@ -251,8 +249,8 @@ class Component extends DCLogic {
     S.bars[1].clear().rect(0, 1080 - bh, 1920, bh).fill(0x000000);
     S.dim.alpha = (0.42 * out(k(0, 300, l)) + 0.4 * out(k(600, 1300, l)) - 0.4 * out(k(RED0, RED1, l))) * (1 - k(EXIT, END, l));
 
-    // Backdrop: whole through the combo; after the zanshin the scars flare in cut order, then the far side of cut 3
-    // breaks along cuts 1 and 2 and every piece slides off, faster and faster, and dissolves.
+    // Backdrop: whole through the combo; after the zanshin the scars flare in cut order, then the sky breaks along all
+    // three and every piece slides off, faster and faster, and dissolves.
     const sp = k(SPLIT, SPLIT + 850, l), e = sp * sp, drift = -l * 0.006;
     const fade = 1 - inq(k(SPLIT + 400, SPLIT + 1000, l));
     for (const p of S.pieces) {
@@ -458,8 +456,7 @@ class Component extends DCLogic {
     if (l >= T.ZAN && l < T.ZAN + 260) slash(B[3], out(k(T.ZAN, T.ZAN + 60, l)), out(k(T.ZAN + 20, T.ZAN + 160, l)), out(k(T.ZAN + 10, T.ZAN + 70, l)), 26, 0, 51, 0.7 * (1 - k(T.ZAN + 80, T.ZAN + 260, l)));
     sparks(B[0], T.L1, 70, 0.7, 10); sparks(B[1], T.L2, 70, 0.7, 50); sparks(B[2], T.L3, 160, 1, 60);
 
-    // The straight cuts hang behind the hero from each hit; cuts 1 and 2 only show on cut 3's far side. Before the
-    // break they flare once each, in cut order.
+    // The straight cuts hang behind the hero from each hit, full length. Before the break they flare once each, in cut order.
     const open = out(k(T.SPLIT, T.SPLIT + 260, l)), flick = 0.8 + 0.2 * Math.sin(l * 0.045);
     const trace = (c, pts) => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); };
     const clipTo = (c, poly) => { trace(c, poly); c.closePath(); c.clip(); };
@@ -468,27 +465,20 @@ class Component extends DCLogic {
       const hit = [T.L1, T.L2, T.L3][i], a = k(hit, hit + 120, l) * (1 - k(T.SPLIT + 450, T.SPLIT + 950, l));
       if (a <= 0) return;
       const fl = Math.sin(Math.PI * k(T.FLARE + 70 * i, T.FLARE + 70 * i + 160, l)), wide = Math.max(open, 0.6 * fl);
-      // Cuts 1 and 2 land whole; once cut 3 lands, their stretch on the hero's side fades out and the rest dims, so cut 3's
-      // cut holds the frame until all three flare before the break.
-      const dim = i < 2 ? Math.max(1 - 0.75 * k(T.L3 + 200, T.L3 + 500, l), fl, open) : 1;
-      const passes = i < 2 ? [[S.R3, a * dim], [null, a * (1 - k(T.L3, T.L3 + 300, l))]] : [[null, a]];
-      for (const [clip, pa] of passes) {
-        if (pa <= 0.002) continue;
-        gb.save(); gb.translate(T.drift, 0);
-        if (clip) clipTo(gb, clip); else if (i < 2) { trace(gb, S.R3); gb.closePath(); gb.rect(-5000, -5000, 10000, 10000); gb.clip('evenodd'); }
-        trace(gb, pts);
-        stroke(12 + 40 * wide, 'rgba(255,40,70,' + (0.2 + 0.25 * fl) * pa * flick + ')');
-        stroke(3 + 10 * wide, 'rgba(255,150,160,' + (0.6 + 0.3 * fl) * pa + ')');
-        stroke(1.4 + 3 * wide, 'rgba(255,255,255,' + pa * (1 - 0.6 * open) + ')');
-        gb.restore();
-      }
+      // Once cut 3 lands, cuts 1 and 2 dim, so cut 3's cut holds the frame until all three flare before the break.
+      const pa = a * (i < 2 ? Math.max(1 - 0.75 * k(T.L3 + 200, T.L3 + 500, l), fl, open) : 1);
+      gb.save(); gb.translate(T.drift, 0); trace(gb, pts);
+      stroke(12 + 40 * wide, 'rgba(255,40,70,' + (0.2 + 0.25 * fl) * pa * flick + ')');
+      stroke(3 + 10 * wide, 'rgba(255,150,160,' + (0.6 + 0.3 * fl) * pa + ')');
+      stroke(1.4 + 3 * wide, 'rgba(255,255,255,' + pa * (1 - 0.6 * open) + ')');
+      gb.restore();
     });
-    // Once open, each piece carries a lit lip along its own edges (the hero's side is bounded by cut 3 alone).
+    // Once open, each piece carries a lit lip along its own edges.
     if (l >= T.SPLIT) for (const p of S.pieces) {
       gb.save();
       gb.translate(p.c.pivot.x + p.dx, p.c.pivot.y + p.dy); gb.rotate(p.r); gb.translate(-p.c.pivot.x, -p.c.pivot.y);
       for (const r of p.regions) clipTo(gb, r);
-      for (const pts of p.near ? [S.scars[2]] : S.scars) { trace(gb, pts); stroke(10, 'rgba(255,60,80,' + 0.35 * T.fade * open + ')'); stroke(2, 'rgba(255,235,235,' + 0.9 * T.fade * open + ')'); }
+      for (const pts of S.scars) { trace(gb, pts); stroke(10, 'rgba(255,60,80,' + 0.35 * T.fade * open + ')'); stroke(2, 'rgba(255,235,235,' + 0.9 * T.fade * open + ')'); }
       gb.restore();
     }
 
