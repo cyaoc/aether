@@ -1,0 +1,614 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>EV3 进场动画 一般人 50 档 飞燕五连</title>
+<script src="./support.js"></script>
+<script src="/_blob/017bad25925e8b86b270eb3a65ed7fff"></script>
+<script src="/_blob/4e96fe4a1953a4100f9922f45ab6641a"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+@font-face{font-family:'LXGW WenKai';src:url('/_blob/0c4f2ae7ae0a4cbf673d5481347d25df') format('woff2')}
+</style>
+</helmet>
+<div id="ev3-root" style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: {{bg}}">
+  <sc-if value="{{mock}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; inset: 0; background: {{mockBg}}"></div>
+    <div style="position: absolute; left: 640px; top: 300px; width: 520px; height: 360px; border-radius: 28px; background: {{mockBox}}"></div>
+    <span style="position: absolute; left: 48px; top: 20px; font-family: 'PingFang SC', sans-serif; font-size: 18px; color: {{mockInk}}">直播画面（示意）· 进场动画所在的页面本身透明</span>
+  </sc-if>
+  <canvas id="ev3-gl" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"pause":{"editor":"enum","options":["播放","蓄力","上挑","第一刀","燕返","横扫","上撩","滞空","落斩","冲击帧","余波","第二道冲击波","亮名","入鞘","定格","斩铁","里世界"],"default":"播放"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["示意画面","浅色房间","深色房间","透明"],"default":"示意画面"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    if (this.loopFn) return;
+    this.loopFn = () => { this.tick(); requestAnimationFrame(this.loopFn); };
+    requestAnimationFrame(this.loopFn);
+  }
+
+  // Boots Pixi on the board's canvas and re-binds the clock whenever the markup or the props change.
+  tick() {
+    const canvas = document.getElementById('ev3-gl'), root = document.getElementById('ev3-root');
+    if (!canvas || !root || !this.cfg || !window.PIXI) return;
+    if (canvas !== this.canvas && !this.booting) { this.booting = true; this.boot(canvas).finally(() => { this.booting = false; }); }
+    if (!this.S || this.S.canvas !== canvas) return;
+    if (root !== this.root || this.cfg !== this.boundCfg) {
+      this.root = root; this.boundCfg = this.cfg;
+      for (const a of root.getAnimations()) a.cancel();
+      const span = this.cfg.cycle / this.cfg.speed;
+      this.master = root.animate([{ outlineColor: 'transparent' }, { outlineColor: 'transparent' }], { duration: span, iterations: Infinity });
+      if (this.cfg.pauseAt != null) { this.master.pause(); this.master.currentTime = this.cfg.pauseAt / this.cfg.speed; }
+    }
+  }
+
+  async boot(canvas) {
+    const P = PIXI, F = PIXI.filters;
+    this.canvas = canvas;
+    if (this.S) { this.S.app.destroy(); this.S = null; }
+    const app = new P.Application();
+    await app.init({ canvas, width: 1920, height: 1080, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: 1 });
+    const load = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+    const names = ['687adf105e182ecfbb3a9f74f86e1116', 'c2c3e9c9a862962ba1cb809de0df7f79', 'ab7acced17c1c3e2b4972d9e6b971b16', 'b6977d16d6fb5d69016a075bc75d3e00', '0d55a8634557a54181012505cdaedaac', '3c75ad42bb6bdbc7ecee5120f7b7f259', '48e93f57b0c04d8ff9f611ed8d1f41c4', 'dddf98a2349bf73018635477bfba5b1c', '8c1e90b77c2f3e5a62cffb645dafa650', '9ba63b9742dd68e4bc9860893c2520be', 'cd3173dd6fbba24ee0fda26a20f0a137', '7b86fec152fb8be6aabe1414d417a639', 'fe7133844365ec5da26469c8a96ad0ee', '38b992f980c338671fb008bf5ccdaefb', '1b89f838e16a1aae41ef0adb6e836e22', '3d7a08e31609fe87cb25219c91012aae'];
+    const imgs = await Promise.all(names.map(n => load('/_blob/' + n)));
+    await document.fonts.load('132px "LXGW WenKai"');
+    const [moon, impact, moonRed] = imgs.slice(13);
+    const tex = img => P.Texture.from(img);
+    const canvasOf = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); return c; };
+    const silhouette = (img, color) => tex(canvasOf(img.width, img.height, g => { g.drawImage(img, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, img.width, img.height); }));
+    const radial = (stops) => tex(canvasOf(512, 512, g => { const r = g.createRadialGradient(256, 256, 0, 256, 256, 256); for (const [o, c] of stops) r.addColorStop(o, c); g.fillStyle = r; g.fillRect(0, 0, 512, 512); }));
+
+    // The action chain: five cuts, each mid-cut pose -> finishing pose. Every pose is placed by its hips (hip, in its own
+    // image's pixels) at the scale s that makes the blade the same length. The images hold the figure only: the light is drawn
+    // here, along the path of the blade tip. AT is where the hips sit in the world (the ground is y = 1180): he starts on the
+    // left and the moon hangs ahead of him on the right. Every cut starts where the last one ended, and only the last is a
+    // full chop: he rises, cuts back down his own line, turns on through a level sweep, and the same turn carries the blade up
+    // behind his head, so it is already raised at the top of the leap.
+    const keys = ['stance', 'smear1', 'cut1', 'smear2', 'cut2', 'smear3', 'cut3', 'smear4', 'cut4', 'wind', 'smear5', 'land', 'into', 'home'];
+    const image = [0, 1, 2, 3, 4, 5, 5, 6, 7, 8, 9, 10, 11, 12];
+    const anchors = [[[900, 480], 0.79], [[350, 590], 0.8], [[510, 790], 0.78], [[600, 640], 0.71], [[570, 640], 0.62], [[510, 380], 0.77], [[510, 380], 0.77], [[530, 770], 0.82], [[537, 800], 0.89], [[810, 680], 0.69], [[430, 700], 0.83], [[480, 600], 0.71], [[804, 440], 0.74], [[804, 440], 0.74]];
+    const PO = {};
+    keys.forEach((key, i) => { const c = imgs[image[i]]; PO[key] = { img: c, tex: tex(c), hip: anchors[i][0], s: anchors[i][1] }; });
+    const AT = { stance: [700, 706], smear1: [860, 640], cut1: [990, 590], smear2: [1200, 430], cut2: [980, 470], smear3: [960, 700], cut3: [1000, 700], smear4: [960, 500], cut4: [960, 470], wind: [960, 420], smear5: [1010, 640], land: [1060, 824], into: [1060, 681], home: [1060, 679] };
+    const W = (key, q, hip = AT[key]) => { const p = PO[key]; return [hip[0] + (q[0] - p.hip[0]) * p.s, hip[1] + (q[1] - p.hip[1]) * p.s]; };
+    const TIP0 = W('stance', [428, 873]), TIP1 = W('cut1', [1084, 30]), TIP2 = W('cut2', [150, 1037]), TIP3 = W('cut3', [1500, 156]), TIP4 = W('cut4', [274, 31]), TIPW = W('wind', [189, 68]), TIP5 = W('land', [1393, 867]);
+    // Cut 1 carries the hero up this far while it holds, so cut 2 starts from the risen tip.
+    const CLIMB = 160, TIP1R = [TIP1[0] + 15, TIP1[1] - CLIMB];
+    // Catmull-Rom through the measured points, about every 10 px; seg says which span each point came from.
+    const spline = pts => {
+      const out = [], seg = [];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(pts.length - 1, i + 2)];
+        const n = Math.max(2, Math.ceil(Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) / 10));
+        for (let j = 0; j < n; j++) { const t = j / n, t2 = t * t, t3 = t2 * t; out.push([0, 1].map(d => 0.5 * (2 * p1[d] + (p2[d] - p0[d]) * t + (2 * p0[d] - 5 * p1[d] + 4 * p2[d] - p3[d]) * t2 + (3 * p1[d] - p0[d] - 3 * p2[d] + p3[d]) * t3))); seg.push(i); }
+      }
+      out.push(pts[pts.length - 1]); seg.push(pts.length - 2); return { pts: out, seg };
+    };
+    // A polyline walked by arc length: at(u) gives the point, the normal and whether that stretch passes behind the hero.
+    const pathOf = (pts, back) => {
+      if (pts.length < 2) pts = [[960, 540], [961, 540]];
+      const n = pts.length, L = [0], N = [];
+      for (let i = 1; i < n; i++) L.push(L[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+      for (let i = 0; i < n; i++) { const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], dx = b[0] - a[0], dy = b[1] - a[1], m = Math.hypot(dx, dy) || 1; N.push([-dy / m, dx / m]); }
+      const tot = L[n - 1];
+      const at = u => {
+        const s = Math.min(1, Math.max(0, u)) * tot; let lo = 0, hi = n - 1;
+        while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (L[mid] <= s) lo = mid; else hi = mid; }
+        const f = (s - L[lo]) / ((L[hi] - L[lo]) || 1), p = pts[lo], q = pts[hi];
+        return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f, N[lo][0] + (N[hi][0] - N[lo][0]) * f, N[lo][1] + (N[hi][1] - N[lo][1]) * f, back ? back[lo] : false];
+      };
+      return { pts, at };
+    };
+    // A slash through measured points; the spans listed in behind pass behind the hero's body.
+    const slashPath = (pts, behind = []) => { const s = spline(pts); return pathOf(s.pts, s.seg.map(i => behind.includes(i))); };
+    const at = (key, list) => list.map(q => W(key, q));
+
+    // 1 rising: from the tip down by the back foot, low past the legs (behind them) and up into the raised tip.
+    // 2 swallow-return: from the risen tip straight back down the way it came, to the lower left.
+    // 3 sweep: the turn goes on; the tip comes round low in front of him and runs out flat to the right.
+    // 4 rising: the same turn lifts it, a long diagonal from the right across the top of him to the upper left.
+    // 5 plunge: from the blade already behind his head, over and down, the one full-power cut, into the ground.
+    // 6 the blade coming back out of the ground, up to the scabbard mouth as he stands.
+    const blades = [
+      slashPath([TIP0, [640, 1070], [1000, 980], [1320, 720], W('smear1', [1102, 389]), [1460, 230], TIP1], [0, 1]),
+      slashPath([TIP1R, [1130, -20], W('smear2', [125, 300]), [760, 440], TIP2]),
+      slashPath([TIP2, [850, 760], [1100, 745], [1420, 680], TIP3]),
+      slashPath([TIP3, [1560, 290], [1240, 30], W('smear4', [480, 31]), TIP4]),
+      slashPath([TIPW, [760, -120], [1100, -70], [1400, 190], W('smear5', [1074, 764]), TIP5]),
+      slashPath([TIP5, [1570, 830], [1370, 680], W('into', [850, 394])])
+    ];
+
+    // The cuts a straight blade leaves are straight: each is the chord of the stretch of its slash still lit on the frame
+    // it lands (from the slash's tail to the blade tip), run right across the sky. The moon sits whole in the wedge the
+    // cuts leave open on the right (cutting the moon is 60 档's).
+    const C0 = [960, 540], RR = 5000;
+    const reach = (p, q) => { const d = [p[0] - q[0], p[1] - q[1]], m = Math.hypot(d[0], d[1]), u = [d[0] / m, d[1] / m], w = [p[0] - C0[0], p[1] - C0[1]], b = w[0] * u[0] + w[1] * u[1], t = -b + Math.sqrt(b * b - (w[0] * w[0] + w[1] * w[1] - RR * RR)); return [p[0] + u[0] * t, p[1] + u[1] * t]; };
+    const inside = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+    // TAILS: how much of each slash has already drawn in by the frame it lands (the slashes below use the same values).
+    const TAILS = [0.4, 0.35, 0.4, 0.35, 0.55];
+    const chordOf = (Pth, u0) => { const a = Pth.at(u0), b = Pth.at(1); return [reach([a[0], a[1]], [b[0], b[1]]), reach([b[0], b[1]], [a[0], a[1]])]; };
+    const scars = TAILS.map((u0, i) => chordOf(blades[i], u0));
+    const dense = ([a, b]) => Array.from({ length: 1001 }, (_, i) => [a[0] + (b[0] - a[0]) * i / 1000, a[1] + (b[1] - a[1]) * i / 1000]);
+    // The five cuts all run on right across the sky, so the sky breaks along the very lines the viewer saw land. They
+    // fan out from near one point above the hero's leap; each cell is a big disc clipped by one side of each line. Every
+    // cell the closing wide shot can see is kept, however thin, so no hole opens before the break.
+    const clipHalf = (poly, [a, b], sgn) => {
+      const side = p => sgn * ((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])), out = [];
+      for (let i = 0; i < poly.length; i++) {
+        const p = poly[i], q = poly[(i + 1) % poly.length], sp = side(p), sq = side(q);
+        if (sp >= 0) out.push(p);
+        if ((sp >= 0) !== (sq >= 0)) { const t = sp / (sp - sq); out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]); }
+      }
+      return out;
+    };
+    const disc = Array.from({ length: 96 }, (_, i) => [C0[0] + RR * Math.cos(i / 96 * 2 * Math.PI), C0[1] + RR * Math.sin(i / 96 * 2 * Math.PI)]);
+    const VIEW = [-300, -300, 2600, 1300];
+    const cells = [];
+    for (let m = 0; m < 1 << scars.length; m++) {
+      let poly = disc;
+      scars.forEach((line, i) => { if (poly.length >= 3) poly = clipHalf(poly, line, m >> i & 1 ? 1 : -1); });
+      if (poly.length < 3) continue;
+      const xs = poly.map(q => q[0]), ys = poly.map(q => q[1]);
+      if (Math.max(...xs) < VIEW[0] || Math.min(...xs) > VIEW[2] || Math.max(...ys) < VIEW[1] || Math.min(...ys) > VIEW[3]) continue;
+      let n = 0, cx = 0, cy = 0;
+      for (let x = VIEW[0]; x <= VIEW[2]; x += 25) for (let y = VIEW[1]; y <= VIEW[3]; y += 25) if (inside(poly, x, y)) { n++; cx += x; cy += y; }
+      cells.push({ poly, n, c: n ? [cx / n, cy / n] : poly.reduce((a, q) => [a[0] + q[0] / poly.length, a[1] + q[1] / poly.length], [0, 0]) });
+    }
+
+    const stage = app.stage;
+    const world = new P.Container(); stage.addChild(world);
+    const dim = new P.Sprite(radial([[0, 'rgba(6,6,12,0.55)'], [0.6, 'rgba(4,4,8,0.85)'], [1, 'rgba(0,0,0,1)']]));
+    dim.anchor.set(0.5); dim.position.set(960, 540); dim.width = 4400; dim.height = 3400; world.addChild(dim);
+
+    // The sky is set so the moon is at MOON (radius about 297), up and right of the leap, ahead of the hero.
+    // It is padded so the wide shots and tilts never run off its edge: mirror images of itself at the sides (no moon
+    // near them), its top and bottom strips flipped and stretched above and below (a full mirror there would show a
+    // second moon), the top one fading into the dark of the zenith.
+    const MOON = [1960, 90], SKY = 1.5625, PAD = 520;
+    const padded = img => {
+      const w = img.width + 2 * PAD, h = img.height;
+      const row = canvasOf(w, h, g => { for (let i = -1; i <= 1; i++) { const fx = i !== 0; g.save(); g.translate(PAD + i * img.width + (fx ? img.width : 0), 0); g.scale(fx ? -1 : 1, 1); g.drawImage(img, 0, 0); g.restore(); } });
+      return canvasOf(w, h + 2 * PAD, g => {
+        g.drawImage(row, 0, PAD);
+        g.save(); g.translate(0, PAD); g.scale(1, -1); g.drawImage(row, 0, 0, w, 100, 0, 0, w, PAD); g.restore();
+        const top = g.createLinearGradient(0, 0, 0, PAD + 60); top.addColorStop(0, 'rgba(6,8,13,1)'); top.addColorStop(1, 'rgba(6,8,13,0)'); g.fillStyle = top; g.fillRect(0, 0, w, PAD + 60);
+        g.save(); g.translate(0, h + 2 * PAD); g.scale(1, -1); g.drawImage(row, 0, h - 100, w, 100, 0, 0, w, PAD); g.restore();
+      });
+    };
+    const moonTex = tex(padded(moon)), redTex = tex(padded(moonRed));
+    const shadeTex = radial([[0, 'rgba(0,0,0,0)'], [0.7, 'rgba(0,0,0,0.35)'], [1, 'rgba(0,0,0,0.8)']]);
+    const skyOf = (t, parent) => {
+      const sky = new P.Sprite(t); sky.scale.set(SKY); sky.position.set(MOON[0] - (1006 + PAD) * SKY, MOON[1] - (292 + PAD) * SKY); parent.addChild(sky);
+      const shade = new P.Sprite(shadeTex); shade.anchor.set(0.5); shade.position.set(960, 540); shade.width = 3800; shade.height = 2800; parent.addChild(shade);
+    };
+    const red = new P.Container(); red.pivot.set(960, 540); red.position.set(960, 540); skyOf(redTex, red); world.addChild(red);
+    // Pieces fly out from where the cuts fan out, above the leap.
+    const BURST = [1200, 200];
+    const pieces = cells.map(cell => {
+      const c = new P.Container(), m = new P.Graphics().poly(cell.poly.flat()).fill(0xffffff), inner = new P.Container();
+      c.addChild(m); inner.mask = m; c.addChild(inner); skyOf(moonTex, inner);
+      c.pivot.set(cell.c[0], cell.c[1]); c.position.set(cell.c[0], cell.c[1]);
+      const d = [cell.c[0] - BURST[0], cell.c[1] - BURST[1]], len = Math.hypot(d[0], d[1]) || 1, dir = [d[0] / len, d[1] / len];
+      world.addChild(c);
+      return { ...cell, c, dir, dist: 240 + Math.min(120, cell.n * 0.25), rot: 0.03 * Math.sign(dir[0] || 1) * (dir[1] < 0 ? 1 : 0.5) };
+    });
+    // Effects canvases cover a margin round the screen, since the camera swings a long way and pulls back to 0.71.
+    const OX = 760, OY = 560;
+    const backC = document.createElement('canvas'); backC.width = 1920 + 2 * OX; backC.height = 1080 + 2 * OY;
+    const backTex = tex(backC), backSprite = new P.Sprite(backTex); backSprite.blendMode = 'add'; backSprite.position.set(-OX, -OY); world.addChild(backSprite);
+
+    const rim = new P.Sprite(radial([[0, 'rgba(255,60,70,0.55)'], [0.45, 'rgba(200,20,40,0.18)'], [1, 'rgba(0,0,0,0)']]));
+    rim.anchor.set(0.5); rim.width = 1100; rim.height = 1100; world.addChild(rim);
+    const ghosts = [0, 1].map(() => { const s = new P.Sprite(PO.stance.tex); s.alpha = 0; world.addChild(s); return s; });
+    const hero = new P.Sprite(PO.stance.tex); hero.tint = 0xe0e0e0; world.addChild(hero);
+
+    const fx = document.createElement('canvas'); fx.width = backC.width; fx.height = backC.height;
+    const fxTex = tex(fx), fxSprite = new P.Sprite(fxTex); fxSprite.blendMode = 'add'; fxSprite.position.set(-OX, -OY); world.addChild(fxSprite);
+
+    const ui = new P.Container(); stage.addChild(ui);
+    // The name is cut out in the closing wide shot, in the open sky to the left of where the cuts fan out.
+    const NAME_AT = [640, 260];
+    const nameG = new P.Container(); nameG.position.set(...NAME_AT); nameG.rotation = -0.06; ui.addChild(nameG);
+    // The strokes are thickened: at this size the Kai's own weight is too light against the blade light.
+    const nameStyle = { fontFamily: 'LXGW WenKai', fontSize: 132, fill: 0xffffff, stroke: { color: 0xffffff, width: 4, join: 'round' }, letterSpacing: 16 };
+    const nameGhosts = [0, 1].map(() => { const t = new P.Text({ text: '柚子_Sour', style: { ...nameStyle, fill: 0xff4d5e, stroke: { color: 0xff4d5e, width: 4, join: 'round' } } }); t.anchor.set(0, 0.5); nameG.addChild(t); return t; });
+    const nameT = new P.Text({ text: '柚子_Sour', style: nameStyle }); nameT.anchor.set(0, 0.5); nameG.addChild(nameT);
+    const nameMask = new P.Graphics(); nameG.addChild(nameMask); nameT.mask = nameMask;
+    // Entry caption: says who is coming in from the cut-in, until the take-off's wind sweeps it away. It sits on the
+    // ground in front of the hero and is drawn larger, since the opening shot is wide.
+    const cap = new P.Container(); cap.position.set(1240, 1040); cap.scale.set(1.3); ui.addChild(cap);
+    const capName = new P.Text({ text: '柚子_Sour', style: { fontFamily: 'LXGW WenKai', fontSize: 52, fill: 0xffffff, stroke: { color: 0xffffff, width: 1.6, join: 'round' }, letterSpacing: 8 } });
+    capName.anchor.set(0, 1); capName.position.set(30, -10); cap.addChild(capName);
+    const capMask = new P.Graphics(); cap.addChild(capMask); capName.mask = capMask;
+
+    const imp = new P.Container(); world.addChild(imp);
+    const impBg = new P.Graphics().rect(-1800, -1800, 5520, 4680).fill(0xffffff); imp.addChild(impBg);
+    const impLines = new P.Sprite(tex(impact)); impLines.anchor.set(0.5); impLines.width = impLines.height = 5200; imp.addChild(impLines);
+    const silB = new P.Sprite(silhouette(PO.land.img, '#000')), silW = new P.Sprite(silhouette(PO.land.img, '#fff'));
+    for (const s of [silB, silW]) { s.pivot.set(...PO.land.hip); s.scale.set(PO.land.s); s.position.set(...AT.land); imp.addChild(s); }
+
+    const flash = new P.Graphics().rect(-1800, -1800, 5520, 4680).fill(0xffffff); world.addChild(flash);
+    const bars = [new P.Graphics(), new P.Graphics()]; stage.addChild(...bars);
+    stage.setChildIndex(ui, stage.children.indexOf(world) + 1);
+
+    const bloom = new F.AdvancedBloomFilter({ threshold: 0.9, bloomScale: 1.15, brightness: 1, blur: 7, quality: 5 });
+    const shock = new F.ShockwaveFilter({ center: { x: 0, y: 0 }, speed: 1500, amplitude: 54, wavelength: 240, brightness: 1.15, radius: -1 });
+    const shock2 = new F.ShockwaveFilter({ center: { x: 0, y: 0 }, speed: 1100, amplitude: 30, wavelength: 420, brightness: 1.08, radius: -1 });
+    const zoom = new F.ZoomBlurFilter({ strength: 0, center: { x: 0, y: 0 }, innerRadius: 60 });
+    const rgb = new F.RGBSplitFilter({ red: { x: 0, y: 0 }, green: { x: 0, y: 0 }, blue: { x: 0, y: 0 } });
+
+    const onScreen = p => p[0] > VIEW[0] && p[0] < VIEW[2] && p[1] > VIEW[1] && p[1] < VIEW[3];
+    this.S = {
+      app, canvas, world, ui, dim, red, pieces, scars, blades, TAILS, PO, AT, W, TIP5, NAME_AT, OX, OY, backC, backTex, rim, ghosts, hero, fx, fxTex,
+      emberSrc: scars.map(s => pathOf(dense(s).filter(onScreen))),
+      nameG, cap, capName, capMask, nameGhosts, nameT, nameMask, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, shock2, zoom, rgb
+    };
+    app.ticker.add(() => this.frame());
+  }
+
+  frame() {
+    const S = this.S, C = this.cfg;
+    if (!S || !this.master || !C) return;
+    const span = C.cycle / C.speed;
+    const t = ((this.master.currentTime || 0) % span) * C.speed;
+    // Five hit stops, at logical times L1–L5: cut 1 holds 90 ms of real time, the air cuts 60, 50 and 50 as they come
+    // faster and faster, and the landing 160 (after its white frame). Real time keeps running (shake, impact frames)
+    // while everything else holds. HR are the real times they start; REL5 is when the landing lets go.
+    const L1 = 1724, L2 = 1920, L3 = 2040, L4 = 2130, L5 = 2636;
+    const HS = [[L1, 90], [L2, 60], [L3, 50], [L4, 50], [L5, 180]], HR = [1724, 2010, 2190, 2330, 2886], REL5 = 3066;
+    let l = null, acc = 0;
+    for (const [s, d] of HS) { if (t < s + acc) break; if (t < s + acc + d) { l = s; break; } acc += d; }
+    if (l === null) l = t - acc;
+    const k = (a, b, x) => Math.min(1, Math.max(0, (x - a) / (b - a)));
+    const out = p => 1 - Math.pow(1 - p, 3), inq = p => p * p, quint = p => 1 - Math.pow(1 - p, 5), smooth = p => p * p * (3 - 2 * p);
+    const mix = (a, b, p) => a + (b - a) * p;
+    const on2 = x => Math.floor(x / 83) * 83;
+    // The chain, one beat per pose; smear frames hold two frames. The gaps between the hits shrink (286, 180, 140 ms of
+    // real time) and the longest hold comes right before the last one: the blade raised overhead for 340 ms.
+    const SM1 = 1640, SM2 = 1836, SM3 = 1956, SM4 = 2046, WIND = 2170, SM5 = 2510, LAND = 2594;
+    const WAVE2 = 2816, BACK0 = 3000, ZAN = 3380, NAME = 3420, INTO = 3400, HOME = 3610;
+    const FLARE = 3650, SPLIT = 4020, RED0 = 5770, RED1 = 6370, EXIT = 7550, END = 7970;
+
+    // Letterbox and dimming.
+    const bh = 118 * out(k(0, 280, t)) * (1 - out(k(EXIT + 120, EXIT + 500, l)));
+    S.bars[0].clear().rect(0, 0, 1920, bh).fill(0x000000);
+    S.bars[1].clear().rect(0, 1080 - bh, 1920, bh).fill(0x000000);
+    S.dim.alpha = (0.42 * out(k(0, 300, l)) + 0.4 * out(k(600, 1300, l)) - 0.4 * out(k(RED0, RED1, l))) * (1 - k(EXIT, END, l));
+
+    // Backdrop: whole through the move; after the zanshin the five scars flare in cut order, then the sky breaks along
+    // them and every piece slides off away from the hero, faster and faster, and dissolves.
+    const sp = k(SPLIT, SPLIT + 850, l), e = sp * sp, drift = -l * 0.006;
+    const fade = 1 - inq(k(SPLIT + 400, SPLIT + 1000, l));
+    for (const p of S.pieces) {
+      p.dx = p.dir[0] * p.dist * e + drift; p.dy = p.dir[1] * p.dist * e; p.r = p.rot * e;
+      p.c.position.set(p.c.pivot.x + p.dx, p.c.pivot.y + p.dy); p.c.rotation = p.r;
+      p.c.alpha = 0.95 * out(k(600, 1250, l)) * fade;
+    }
+    // The blood-moon side shows through the openings, holds a beat once the moonlit pieces are gone, then gives way to the stream.
+    S.red.alpha = (l >= SPLIT ? 1 : 0) * (1 - inq(k(RED0, RED1, l)));
+    S.red.scale.set(1 + 0.03 * k(SPLIT, RED1, l)); S.red.position.set(960 + drift, 540);
+
+    // Hero: one pose per beat, placed by its hips.
+    const keyAt = l < SM1 ? 'stance' : l < L1 ? 'smear1' : l < SM2 ? 'cut1' : l < L2 ? 'smear2' : l < SM3 ? 'cut2' : l < L3 ? 'smear3' : l < SM4 ? 'cut3' : l < L4 ? 'smear4' : l < WIND ? 'cut4' : l < SM5 ? 'wind' : l < LAND ? 'smear5' : l < INTO ? 'land' : l < HOME ? 'into' : 'home';
+    const po = S.PO[keyAt];
+    let [hx, hy] = S.AT[keyAt];
+    // The stance slides in from the left dragging its tip, then edges forward through the charge.
+    const stanceX = x => 700 - 1100 * (1 - quint(k(250, 520, x))) - 16 * (1 - k(660, SM1, on2(x)));
+    if (keyAt === 'stance') { hx = stanceX(l); hy += 20 * (1 - out(k(520, 660, l))); }
+    // The rising slash carries the hero up; the air cuts follow at once.
+    if (keyAt === 'cut1') { const p = out(k(L1, SM2, on2(l))); hx += 15 * p; hy -= 160 * p; }
+    if (keyAt === 'cut2') hy -= 10 * k(L2, SM3, l);
+    // The chop's recoil lifts the hero into the wind-up, which settles a little higher while it holds.
+    if (keyAt === 'wind') { const p = out(k(WIND, SM5, on2(l))); hx += 10 * (1 - p); hy += 40 * (1 - p); }
+    if (keyAt === 'into') hy += 80 * (1 - quint(k(INTO, INTO + 100, l)));
+    if (l >= ZAN) hx += 20 * k(ZAN, ZAN + 3100, on2(l));
+    hx -= 70 * k(EXIT, END, l);
+    const place = (s, p, x, y) => { s.texture = p.tex; s.pivot.set(p.hip[0], p.hip[1]); s.scale.set(p.s); s.position.set(x, y); };
+    place(S.hero, po, hx, hy);
+    S.hero.alpha = (l < 250 ? 0 : 1) * (1 - k(EXIT, END, l));
+    // Afterimages trail the cut-in, the take-off, the climb and the air cuts, opposite to the motion.
+    const gOff = l < 520 ? [-70, 0] : keyAt === 'smear1' ? [-14, 46] : keyAt === 'cut1' && l > L1 ? [0, 40] : keyAt === 'smear2' ? [34, -38] : keyAt === 'smear3' ? [-40, 10] : keyAt === 'smear4' ? [0, 44] : null;
+    S.ghosts.forEach((g, i) => {
+      place(g, po, hx + (gOff ? (i + 1) * gOff[0] : 0), hy + (gOff ? (i + 1) * gOff[1] : 0));
+      g.alpha = gOff && l >= 250 ? (i ? 0.16 : 0.32) : 0; g.tint = 0xff6070;
+    });
+    // The red glow stays low while the hero is in the air, so it never tints the moon.
+    const air = k(L1, L1 + 120, l) * (1 - k(LAND, LAND + 120, l));
+    S.rim.position.set(hx, hy - 140);
+    S.rim.alpha = (0.5 * out(k(400, 900, l)) + 0.5 * out(k(1100, SM1, l)) - 0.4 * k(L5 + 240, L5 + 940, l)) * (1 - 0.85 * air) * (1 - k(EXIT, END, l));
+    S.rim.scale.set((1100 + 300 * k(1100, SM1, l)) / 512);
+
+    // Camera: a centre (cx, cy) in world units and a zoom. A wide low shot shows the tip on the ground through the
+    // charge; it whips up with the rising slash, then follows each air cut's blade: down-left with the swallow-return,
+    // up with the spin, down with the chop. It settles on the wind-up beside the moon and pushes in slowly while the
+    // blade is held overhead; the plunge's two smear frames leave it behind (the smear shoots off the bottom of the frame),
+    // then it cuts down onto the ground and the buried tip for the landing. As the hero rises it pulls back up into a wide
+    // shot of the sky the five cuts crossed, at the zoom they were cut at, so the sky breaks along lines the viewer has seen
+    // land: the crossing of the air cuts sits high in the middle with the moon whole beside it, as when they were cut, and
+    // the hero stands and sheathes his sword under it, the whole figure in frame.
+    let cx = 1100, cy = 656, z = 0.88 + 0.03 * inq(k(520, SM1, l)), rot = -0.008 * inq(k(520, SM1, l)), p;
+    if (l >= SM1) { p = out(k(SM1, L1, l)); cx = mix(1100, 1180, p); cy = mix(656, 440, p); z = 0.91 + 0.01 * p; rot = -0.008 * (1 - p); }
+    if (l >= L1) { cy = 440 - 130 * out(k(L1, SM2, l)); z = 0.92; rot = 0; }
+    if (l >= SM2) { p = out(k(SM2, L2, l)); cx = mix(1180, 1000, p); cy = mix(310, 300, p); z = mix(0.92, 0.86, p); }
+    if (l >= SM3) { p = out(k(SM3, L3, l)); cx = mix(1000, 1180, p); cy = mix(300, 620, p); z = 0.86; }
+    if (l >= SM4) { p = out(k(SM4, L4, l)); cx = mix(1180, 1100, p); cy = mix(620, 200, p); z = 0.86; }
+    if (l >= WIND) { p = out(k(WIND, WIND + 120, l)); cx = mix(1100, 1000, p); cy = mix(200, 440, p); z = mix(0.86, 0.88, p) + 0.04 * inq(k(WIND + 120, SM5, l)); }
+    if (l >= SM5) { cx = 1000; cy = 440; z = 0.92; }
+    if (l >= LAND) { cx = 1240; cy = 676; z = 0.95; rot = 0.012 * (1 - out(k(L5, BACK0, l))); }
+    if (l >= BACK0) { p = smooth(k(BACK0, ZAN, l)); cx = mix(1240, 1270, p); cy = mix(676, 620, p); z = mix(0.95, 0.9, p) + 0.015 * k(ZAN, ZAN + 3300, l); rot = 0; }
+    let sx = 0, sy = 0;
+    // Shake runs on real time. With a direction it mostly moves along the cut; each air cut shakes harder than the last.
+    const shakeAt = (t0, amp, dur, dir) => {
+      const q = k(t0, t0 + dur, t); if (q <= 0 || q >= 1) return; const a = amp * (1 - q) * (1 - q);
+      if (!dir) { sx += Math.sin(t * 0.21) * a; sy += Math.cos(t * 0.17) * a * 0.6; return; }
+      const s = Math.sin(t * 0.21) * a, c = Math.cos(t * 0.17) * a * 0.25;
+      sx += dir[0] * s - dir[1] * c; sy += dir[1] * s + dir[0] * c;
+    };
+    shakeAt(HR[0], 16, 240, [0.36, -0.93]); shakeAt(HR[1], 10, 170, [-0.66, 0.75]); shakeAt(HR[2], 12, 170, [1, 0]); shakeAt(HR[3], 15, 200, [-0.85, -0.52]);
+    shakeAt(REL5, 34, 520, [0.19, 0.98]); shakeAt(REL5 + 180, 18, 300, [0, 1]); shakeAt(SPLIT + 430 + 260, 5, 160);
+    for (const c of [S.world, S.ui]) { c.pivot.set(cx, cy); c.scale.set(z); c.rotation = rot; c.position.set(960 + sx, 540 + sy); }
+    const toScreen = q => { const x = (q[0] - cx) * z, y = (q[1] - cy) * z, c = Math.cos(rot), s = Math.sin(rot); return { x: 960 + sx + x * c - y * s, y: 540 + sy + x * s + y * c }; };
+
+    // The plunge's effects: one white frame, two impact frames, then two shockwaves from the buried tip (the blade
+    // biting the ground, then the knee coming down), with the radial blur and colour split.
+    S.flash.alpha = l >= LAND && l < L5 ? 0.85 : 0;
+    const impA = t >= HR[4] && t < HR[4] + 40, impB = t >= HR[4] + 40 && t < HR[4] + 80;
+    S.imp.visible = impA || impB;
+    if (S.imp.visible) {
+      S.impBg.tint = impA ? 0xffffff : 0x000000;
+      S.impLines.tint = impA ? 0x000000 : 0xffffff; S.impLines.position.set(S.TIP5[0], S.TIP5[1]);
+      S.silB.visible = impA; S.silW.visible = impB;
+    }
+    const hit = toScreen(S.TIP5);
+    const released = t >= REL5, sw = released && l < L5 + 520, sw2 = l >= WAVE2 && l < WAVE2 + 700;
+    S.shock.center = hit; S.shock2.center = hit; S.zoom.center = hit;
+    S.shock.time = (l - L5) / 1000; S.shock.amplitude = 54 * (1 - k(L5, L5 + 520, l));
+    // The second wave starts already 275 px out, so its centre never twists the buried tip into a swirl.
+    S.shock2.time = 0.25 + (l - WAVE2) / 1000; S.shock2.amplitude = 30 * (1 - k(WAVE2, WAVE2 + 700, l));
+    S.zoom.strength = 0.17 * (1 - out(k(L5, L5 + 300, l)));
+    const rs = 13 * (1 - out(k(L5, L5 + 480, l)));
+    S.rgb.red = { x: -rs, y: 0 }; S.rgb.blue = { x: rs, y: 0 };
+    const filters = [S.bloom];
+    if (sw) filters.push(S.shock);
+    if (sw2) filters.push(S.shock2);
+    if (released && S.zoom.strength > 0.005) filters.push(S.zoom);
+    if (released && rs > 0.5) filters.push(S.rgb);
+    S.world.filters = S.imp.visible ? null : filters;
+
+    // Name: cut out from left to right, with red afterimages.
+    const reveal = out(k(NAME, NAME + 260, l));
+    const nw = S.nameT.width + 40;
+    S.nameMask.clear().rect(-20, -120, nw * reveal, 240).fill(0xffffff);
+    S.nameGhosts.forEach((g, i) => { g.position.set(36 * (i + 1), -8 * (i + 1)); g.alpha = (i ? 0.22 : 0.45) * k(NAME, NAME + 50, l) * (1 - k(NAME + 180, NAME + 570, l)); });
+    S.nameG.alpha = 1 - k(EXIT, END - 120, l);
+    S.nameG.position.set(S.NAME_AT[0] + 80 * inq(k(EXIT, END, l)), S.NAME_AT[1]);
+
+    // Entry caption: the name wipes in on the ground in front of the hero; the take-off's wind sweeps it off.
+    const gone = k(1590, 1700, l);
+    S.capMask.clear().rect(20, -90, 400 * out(k(560, 860, l)), 100).fill(0xffffff);
+    S.cap.alpha = (l >= 420 ? 1 : 0) * (1 - gone); S.cap.position.set(1240 + 260 * gone * gone, 1040 - 30 * gone);
+
+    this.drawFx(l, k, out, { L: [L1, L2, L3, L4, L5], SM: [SM1, SM2, SM3, SM4, SM5], LAND, WIND, WAVE2, ZAN, INTO, HOME, FLARE, SPLIT, END, hx, hy, drift, fade, stanceX, keyAt });
+    S.fxTex.source.update(); S.backTex.source.update();
+  }
+
+  // Slashes, scars, particles, in world coordinates. Two additive canvases: one behind the hero (scars, the part of each
+  // slash that passes behind the body), one in front.
+  drawFx(l, k, out, T) {
+    const S = this.S, g = S.fx.getContext('2d'), gb = S.backC.getContext('2d');
+    for (const c of [g, gb]) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, c.canvas.width, c.canvas.height); c.setTransform(1, 0, 0, 1, S.OX, S.OY); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; }
+    const rnd = (i, s) => { const v = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return v - Math.floor(v); };
+    const band = (P, u0, u1, w, inner, rgb, alpha) => {
+      if (u1 - u0 < 0.002) return;
+      const N = 90;
+      let prev = null;
+      for (let i = 0; i <= N; i++) {
+        const f = i / N, [px, py, nx, ny, back] = P.at(u0 + (u1 - u0) * f);
+        const ww = w * Math.pow(Math.sin(Math.PI * Math.min(1, f * 1.08)), 0.5) * (0.25 + 0.75 * f);
+        const o = [px - nx * ww, py - ny * ww], q = [px + nx * ww * inner, py + ny * ww * inner];
+        if (prev) {
+          const c = back ? gb : g;
+          c.fillStyle = 'rgba(' + rgb + ',' + (alpha * Math.pow(f, 0.9)) + ')';
+          c.beginPath(); c.moveTo(prev[0][0], prev[0][1]); c.lineTo(o[0], o[1]); c.lineTo(q[0], q[1]); c.lineTo(prev[1][0], prev[1][1]); c.closePath(); c.fill();
+        }
+        prev = [o, q];
+      }
+    };
+    const arcLine = (P, u0, u1, off, width, color) => {
+      if (u1 - u0 < 0.002) return;
+      g.strokeStyle = color; g.lineWidth = width; g.beginPath();
+      let pen = false;
+      for (let i = 0; i <= 40; i++) {
+        const [px, py, nx, ny, back] = P.at(u0 + (u1 - u0) * i / 40);
+        if (back) { pen = false; continue; }
+        pen ? g.lineTo(px - nx * off, py - ny * off) : g.moveTo(px - nx * off, py - ny * off); pen = true;
+      }
+      g.stroke();
+    };
+    // A slash: a sharp crescent whose head is the blade tip, held bright through its hit stop, then frayed into strands.
+    const slash = (P, head, tail, head2, w, fray, seed, alphaMul = 1) => {
+      const a = (1 - fray) * alphaMul; w *= 1 - 0.55 * fray;
+      band(P, tail, head, w * 2.6, 0.25, '255,30,60', 0.16 * a);
+      band(P, tail, head, w, 0.08, '255,58,80', 0.8 * a);
+      band(P, tail, head, w * 0.34, 0.03, '255,240,240', a);
+      for (let s = 0; s < 7; s++) {
+        const off = 10 + s * w * 0.12, len = (0.55 + rnd(s, seed) * 0.4) * (head - tail);
+        arcLine(P, Math.max(tail, head - len), head - rnd(s, seed + 1) * 0.08 * (head - tail), off, 1 + (s % 2), 'rgba(255,' + (200 - s * 18) + ',' + (210 - s * 18) + ',' + (0.55 * a) + ')');
+      }
+      arcLine(P, Math.max(tail, head2 - 0.7 * (head - tail)), head2, w * 1.35, 2, 'rgba(255,255,255,' + 0.8 * a + ')');
+      if (fray > 0) {
+        for (let s = 0; s < 9; s++) {
+          const off = (s / 8 - 0.3) * 90 + fray * 50 * (s - 3), v0 = 0.08 + fray * (0.2 + rnd(s, seed + 2) * 0.5), v1 = 1 - fray * (0.1 + rnd(s, seed + 3) * 0.6);
+          if (v1 > v0) arcLine(P, tail + (head - tail) * v0, tail + (head - tail) * v1, off, 1 + rnd(s, seed + 4) * 1.6, 'rgba(255,' + (120 + s * 12) + ',140,' + (0.6 * (1 - fray)) + ')');
+        }
+      }
+    };
+    // Sparks thrown off a hit at the blade tip, mostly across the cut.
+    const sparks = (P, t0, count, power, seed) => {
+      const sp = l - t0;
+      if (sp <= 0 || sp >= 1000) return;
+      for (let i = 0; i < count; i++) {
+        const life = 420 + rnd(i, seed) * 560; if (sp > life) continue;
+        const [x0, y0, nx, ny] = P.at(0.82 + rnd(i, seed + 1) * 0.18), side = rnd(i, seed + 2) < 0.5 ? -1 : 1;
+        const v = (300 + rnd(i, seed + 3) * 1300) * power, s = sp / 1000, spread = (rnd(i, seed + 4) - 0.5) * 0.9;
+        const dx = nx * side + spread, dy = ny * side + spread * 0.3;
+        const px = x0 + dx * v * s, py = y0 + dy * v * s + 500 * s * s, q = 1 - sp / life;
+        g.strokeStyle = i % 4 ? 'rgba(255,110,120,' + q + ')' : 'rgba(255,255,255,' + q + ')'; g.lineWidth = 1.5 + rnd(i, seed + 5) * 2.5;
+        g.beginPath(); g.moveTo(px, py); g.lineTo(px - dx * v * 0.03, py - dy * v * 0.03); g.stroke();
+      }
+    };
+    const glint = (x, y, p, len) => {
+      if (p <= 0 || p >= 1) return;
+      const a = Math.sin(p * Math.PI);
+      g.strokeStyle = 'rgba(255,255,255,' + a + ')'; g.lineWidth = 2.5;
+      g.beginPath(); g.moveTo(x - len * a, y); g.lineTo(x + len * a, y); g.moveTo(x, y - len * 0.6 * a); g.lineTo(x, y + len * 0.6 * a); g.stroke();
+    };
+    const glow = (x, y, r, rgb, a) => {
+      if (a <= 0.003) return;
+      const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(' + rgb + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+    };
+    const lerp = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+    // Motes drawn in to the blade (hilt to tip) while a wind-up holds.
+    const gather = (hilt, tip, t0, t1, count, seed, rgb) => {
+      for (let i = 0; i < count; i++) {
+        const s0 = t0 + rnd(i, seed) * (t1 - t0 - 300), dur = 300 + rnd(i, seed + 1) * 260, p = (l - s0) / dur;
+        if (p < 0 || p > 1) continue;
+        const to = lerp(hilt, tip, rnd(i, seed + 6)), ang = rnd(i, seed + 3) * Math.PI * 2, r0 = 260 + rnd(i, seed + 4) * 360, r = r0 * (1 - p * p), r2 = r0 * (1 - Math.max(0, p - 0.12) ** 2);
+        g.strokeStyle = i % 3 ? 'rgba(' + rgb + ',' + (0.9 * Math.sin(p * Math.PI)) + ')' : 'rgba(255,255,255,' + Math.sin(p * Math.PI) + ')';
+        g.lineWidth = 1.5 + rnd(i, seed + 5) * 2;
+        g.beginPath(); g.moveTo(to[0] + Math.cos(ang) * r, to[1] + Math.sin(ang) * r); g.lineTo(to[0] + Math.cos(ang) * r2, to[1] + Math.sin(ang) * r2); g.stroke();
+      }
+    };
+
+    // The stance: the tip drags along the ground through the cut-in and throws sparks back; through the charge the
+    // ground under the tip glows, sparks are pulled into the blade, and a glint runs from the hilt down to the tip.
+    if (l >= 250 && l < 1100) {
+      for (let i = 0; i < 80; i++) {
+        const tb = 250 + rnd(i, 70) * 330, life = 240 + rnd(i, 71) * 420, q = (l - tb) / life;
+        if (q <= 0 || q >= 1) continue;
+        const [x0, y0] = S.W('stance', [428, 873], [T.stanceX(tb), S.AT.stance[1]]), s = (l - tb) / 1000;
+        const vx = -(120 + rnd(i, 72) * 520), vy = -(180 + rnd(i, 73) * 520), px = x0 + vx * s, py = Math.min(y0, y0 + vy * s + 1300 * s * s);
+        g.strokeStyle = i % 4 ? 'rgba(255,120,110,' + (1 - q) + ')' : 'rgba(255,240,220,' + (1 - q) + ')'; g.lineWidth = 1.5 + rnd(i, 74) * 2;
+        g.beginPath(); g.moveTo(px, py); g.lineTo(px - vx * 0.025, py - vy * 0.025); g.stroke();
+      }
+    }
+    if (T.keyAt === 'stance' && l > 250) {
+      const hip = [T.stanceX(l), S.AT.stance[1]], hilt = S.W('stance', [893, 672], hip), tip = S.W('stance', [428, 873], hip);
+      glow(tip[0], tip[1], 70 + 50 * k(520, T.SM[0], l), '255,60,70', 0.22 + 0.4 * k(520, T.SM[0], l));
+      if (l > 650) gather(hilt, tip, 650, T.SM[0], 90, 1, '255,120,130');
+      const gp = k(1490, 1630, l);
+      if (gp > 0 && gp < 1) glint(...lerp(hilt, tip, gp), Math.min(0.99, 0.15 + gp * 0.7), 80);
+    }
+    // The wind-up before the plunge, the longest hold: motes are drawn into the raised blade and it glints once.
+    if (T.keyAt === 'wind') {
+      const hip = [T.hx, T.hy], hilt = S.W('wind', [763, 170], hip), tip = S.W('wind', [189, 68], hip);
+      gather(hilt, tip, T.WIND + 40, T.SM[4], 70, 81, '255,120,130');
+      glint(...S.W('wind', [480, 120], hip), k(T.SM[4] - 130, T.SM[4] - 40, l), 90);
+    }
+
+    // The slashes: "da — da-da-da — (hold) — boom". Each head reaches its blade tip on the frame the finishing pose
+    // appears; the air cuts fray quickly so they never pile up.
+    const B = S.blades, widths = [56, 52, 56, 58, 72], frays = [420, 300, 300, 320, 520];
+    for (let i = 0; i < 5; i++) {
+      const s0 = T.SM[i], hit = i === 4 ? T.LAND : T.L[i], end = T.L[i];
+      if (l >= s0 + 4 && l < end + frays[i]) slash(B[i], out(k(s0 + 4, hit - 4, l)), S.TAILS[i] * out(k(s0 + 20, hit, l)), out(k(s0 + 12, hit + 8, l)), widths[i], k(end, end + frays[i], l), 21 + 10 * i);
+    }
+    if (l >= T.INTO - 130 && l < T.INTO + 110) slash(B[5], k(T.INTO - 130, T.INTO, l), k(T.INTO - 90, T.INTO + 80, l), k(T.INTO - 130, T.INTO, l), 22, 0, 81, 0.75);
+    [[80, 0.8], [60, 0.6], [70, 0.65], [90, 0.75], [170, 1]].forEach(([n, pw], i) => sparks(B[i], T.L[i], n, pw, 10 + 10 * i));
+
+    // The landing's second wave: when the knee comes down, a low light spreads flat along the ground from the buried
+    // tip and the dust is pushed out both ways.
+    const tip5 = S.TIP5, w2 = l - T.WAVE2;
+    if (w2 > 0 && w2 < 900) {
+      const p = w2 / 900, e = out(p);
+      g.save(); g.translate(tip5[0], tip5[1] - 10); g.scale(1, 0.1); glow(0, 0, 120 + 1000 * e, '255,80,90', 0.45 * (1 - p)); g.restore();
+      for (let i = 0; i < 70; i++) {
+        const side = i % 2 ? 1 : -1, v = 300 + rnd(i, 91) * 900, life = 0.5 + rnd(i, 92) * 0.5; if (p > life) continue;
+        const q = p / life, x = tip5[0] + side * v * out(q) * 0.9, y = tip5[1] - 8 - rnd(i, 93) * 70 * out(q) - 30 * q;
+        g.fillStyle = 'rgba(255,' + (140 + (i % 3) * 30) + ',130,' + 0.5 * (1 - q) + ')';
+        g.beginPath(); g.arc(x, y, 1.5 + rnd(i, 94) * 3, 0, Math.PI * 2); g.fill();
+      }
+    }
+
+    // The straight cuts hang behind the hero from each hit, full length. Once the plunge lands, the four air cuts dim so its
+    // cut holds the frame; before the break all five flare once each, in cut order, then the sky breaks along them.
+    const open = out(k(T.SPLIT, T.SPLIT + 260, l)), flick = 0.8 + 0.2 * Math.sin(l * 0.045);
+    const trace = (c, pts) => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); };
+    const clipTo = (c, poly) => { trace(c, poly); c.closePath(); c.clip(); };
+    const stroke = (w, color) => { gb.lineWidth = w; gb.strokeStyle = color; gb.stroke(); };
+    S.scars.forEach((pts, i) => {
+      const a = k(T.L[i], T.L[i] + 120, l) * (1 - k(T.SPLIT + 450, T.SPLIT + 950, l));
+      if (a <= 0) return;
+      const fl = Math.sin(Math.PI * k(T.FLARE + 60 * i, T.FLARE + 60 * i + 160, l)), wide = Math.max(open, 0.6 * fl);
+      const pa = a * (i < 4 ? Math.max(1 - 0.7 * k(T.L[4], T.L[4] + 200, l), fl, open) : 1);
+      gb.save(); gb.translate(T.drift, 0); trace(gb, pts);
+      stroke(12 + 40 * wide, 'rgba(255,40,70,' + (0.2 + 0.25 * fl) * pa * flick + ')');
+      stroke(3 + 10 * wide, 'rgba(255,150,160,' + (0.6 + 0.3 * fl) * pa + ')');
+      stroke(1.4 + 3 * wide, 'rgba(255,255,255,' + pa * (1 - 0.6 * open) + ')');
+      gb.restore();
+    });
+    // Once open, each piece carries a lit lip along its own edges.
+    if (l >= T.SPLIT) for (const p of S.pieces) {
+      gb.save();
+      gb.translate(p.c.pivot.x + p.dx, p.c.pivot.y + p.dy); gb.rotate(p.r); gb.translate(-p.c.pivot.x, -p.c.pivot.y);
+      clipTo(gb, p.poly);
+      for (const pts of S.scars) { trace(gb, pts); stroke(10, 'rgba(255,60,80,' + 0.35 * T.fade * open + ')'); stroke(2, 'rgba(255,235,235,' + 0.9 * T.fade * open + ')'); }
+      gb.restore();
+    }
+
+    // The bare steel catches the light as it slides home; a hard glint on the guard marks the click.
+    if (l >= T.INTO && l < T.HOME) {
+      const [a, b] = [S.W('into', [850, 394], [T.hx, T.hy]), S.W('into', [1030, 394], [T.hx, T.hy])];
+      g.strokeStyle = 'rgba(255,255,255,' + 0.85 * Math.sin(k(T.INTO, T.HOME, l) * Math.PI) + ')'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    }
+    glint(...S.W('home', [908, 392], [T.hx, T.hy]), k(T.HOME, T.HOME + 200, l), 120);
+    // Embers peel off the lips of every seam as the sky opens.
+    if (l >= T.SPLIT && l < T.SPLIT + 1300) {
+      const e = l - T.SPLIT;
+      for (let i = 0; i < 200; i++) {
+        const t0 = rnd(i, 30) * 520, life = 600 + rnd(i, 31) * 700, q = (e - t0) / life;
+        if (q <= 0 || q >= 1) continue;
+        const [x0, y0, nx, ny] = S.emberSrc[i % S.emberSrc.length].at(rnd(i, 32)), side = i % 2 ? 1 : -1, v = 30 + rnd(i, 33) * 110;
+        const px = x0 + nx * v * 1.4 * side * q + T.drift, py = y0 + ny * v * 1.4 * side * q - 40 * q;
+        g.fillStyle = 'rgba(255,' + (120 + (i % 3) * 50) + ',125,' + Math.sin(q * Math.PI) * 0.9 + ')';
+        g.beginPath(); g.arc(px, py, 1.2 + rnd(i, 34) * 2.2, 0, Math.PI * 2); g.fill();
+      }
+    }
+    // Embers rise from the landing on through the zanshin.
+    if (l > T.L[4] + 240 && l < T.END) {
+      const fade = k(T.L[4] + 240, T.L[4] + 740, l) * (1 - k(T.END - 400, T.END, l));
+      for (let i = 0; i < 46; i++) {
+        const life = 2200 + rnd(i, 16) * 1800, ph = ((l + rnd(i, 17) * life) % life) / life;
+        const px = 200 + rnd(i, 18) * 1700 + Math.sin(ph * 6 + i) * 20, py = 1000 - ph * 520 - rnd(i, 19) * 200;
+        g.fillStyle = 'rgba(255,' + (90 + (i % 3) * 50) + ',100,' + (Math.sin(ph * Math.PI) * fade * 0.8) + ')';
+        g.beginPath(); g.arc(px, py, 1.5 + rnd(i, 20) * 2.5, 0, Math.PI * 2); g.fill();
+      }
+    }
+    for (const c of [g, gb]) c.globalCompositeOperation = 'source-over';
+  }
+
+  renderVals() {
+    const room = this.props.room ?? '示意画面';
+    const pause = this.props.pause ?? '播放';
+    const speed = { '1 倍': 1, '0.5 倍': 0.5, '0.25 倍': 0.25 }[this.props.speed ?? '1 倍'];
+    const pauseAt = { '播放': null, '蓄力': 1300, '上挑': 1690, '第一刀': 1760, '燕返': 2030, '横扫': 2205, '上撩': 2350, '滞空': 2600, '落斩': 2800, '冲击帧': 2900, '余波': 3150, '第二道冲击波': 3330, '亮名': 3900, '入鞘': 3950, '定格': 4070, '斩铁': 5150, '里世界': 6300 }[pause];
+    this.cfg = { cycle: 9400, speed, pauseAt };
+    return {
+      bg: room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#2C3644',
+      mock: room !== '透明',
+      mockBg: room === '浅色房间' ? 'linear-gradient(180deg, #F4EFE7 0%, #EAE2D5 56%, #CDB89A 57%, #B9A27F 100%)' : room === '深色房间' ? 'linear-gradient(180deg, #16181D 0%, #23262E 56%, #121317 57%, #0C0D10 100%)' : 'linear-gradient(180deg, #3D4C66 0%, #536585 56%, #3A4658 57%, #2C3644 100%)',
+      mockBox: room === '浅色房间' ? '#D9CCB8' : room === '深色房间' ? '#2F333C' : '#63769A',
+      mockInk: room === '浅色房间' ? 'rgba(60, 40, 20, 0.55)' : 'rgba(255, 255, 255, 0.55)'
+    };
+  }
+}
+</script>
+</body>
+</html>

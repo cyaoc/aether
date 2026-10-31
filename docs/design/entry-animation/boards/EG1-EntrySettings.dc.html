@@ -1,0 +1,577 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>EG1 进场欢迎和送礼动画</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#3358D4}a:hover{color:#2A47B0}
+.egOption:hover{background:var(--eg-hover) !important}
+</style>
+</helmet>
+<div style="position: relative; width: 1200px; height: 720px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; background: {{t.content}}; color: {{t.primary}}; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei UI', 'Segoe UI', sans-serif; font-size: 14px; --eg-hover: {{t.subtle}}">
+
+  <div style="height: 36px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: {{t.titleBar}}; border-bottom: 1px solid {{t.border}}">
+    <span style="width: 12px; height: 12px; border-radius: 50%; background: #FF5F57"></span>
+    <span style="width: 12px; height: 12px; border-radius: 50%; background: #FEBC2E"></span>
+    <span style="width: 12px; height: 12px; border-radius: 50%; background: #28C840"></span>
+    <span style="flex: 1; text-align: center; font-size: 13px; color: {{t.muted}}; margin-right: 52px">Aether</span>
+  </div>
+
+  <div style="flex: 1; min-height: 0; display: flex">
+    <nav aria-label="功能" style="width: 224px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; padding: 14px 12px; background: {{t.sidebar}}; border-right: 1px solid {{t.border}}">
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid {{t.border}}; border-radius: 10px; background: {{t.card}}">
+        <span style="font-size: 12px; color: {{t.muted}}">直播间</span>
+        <span style="font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">1768506153</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: {{t.success}}">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: #22C55E"></span>已连接 · 42 分钟
+        </span>
+        <button type="button" style="white-space: nowrap; height: 30px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 13px">断开</button>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <sc-for list="{{nav}}" as="item" hint-placeholder-count="7">
+          <a href="#" aria-current="{{item.current}}" onClick="{{item.go}}" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; text-decoration: none; background: {{item.bg}}; color: {{item.color}}; font-weight: {{item.weight}}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.icon}}"></path></svg>
+            <span style="flex: 1; white-space: nowrap">{{item.label}}</span>
+            <span style="font-size: 12px; font-weight: 500; white-space: nowrap; color: {{item.badgeColor}}; font-variant-numeric: tabular-nums">{{item.badge}}</span>
+          </a>
+        </sc-for>
+      </div>
+
+      <span style="flex: 1"></span>
+
+      <div style="display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px">
+        <span style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; background: {{t.accent}}; color: {{t.onAccent}}; display: inline-flex; align-items: center; justify-content: center; font-weight: 600">A</span>
+        <span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+          <span style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Aether助手</span>
+          <span style="font-size: 12px; color: {{t.muted}}">已登录</span>
+        </span>
+      </div>
+    </nav>
+
+    <main style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+      <div style="height: 60px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-bottom: 1px solid {{t.border}}">
+        <h1 style="margin: 0; font-size: 18px; font-weight: 600; white-space: nowrap">{{pageTitle}}</h1>
+        <sc-if value="{{showTabs}}" hint-placeholder-val="{{true}}">
+          <div role="tablist" aria-label="进场欢迎的表达方式" style="display: inline-flex; gap: 2px; padding: 3px; border-radius: 8px; background: {{t.subtle}}">
+            <sc-for list="{{tabs}}" as="k" hint-placeholder-count="2">
+              <button type="button" role="tab" aria-selected="{{k.sel}}" onClick="{{k.pick}}" style="white-space: nowrap; height: 28px; padding: 0 12px; border: 0; border-radius: 6px; background: {{k.bg}}; box-shadow: {{k.shadow}}; color: {{k.color}}; font: inherit; font-size: 13px; font-weight: {{k.weight}}; cursor: pointer">{{k.text}}</button>
+            </sc-for>
+          </div>
+        </sc-if>
+        <button type="button" role="switch" aria-checked="{{mainSw.on}}" aria-label="{{switchLabel}}" onClick="{{mainSw.toggle}}" style="white-space: nowrap; width: 44px; height: 26px; flex-shrink: 0; position: relative; border: 0; border-radius: 999px; background: {{mainSw.bg}}; padding: 0; cursor: pointer">
+          <span style="position: absolute; top: 3px; left: {{mainSw.knob}}; width: 20px; height: 20px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2)"></span>
+        </button>
+        <span style="font-size: 12px; color: {{t.muted}}; white-space: nowrap">{{pageHint}}</span>
+      </div>
+
+      <div style="flex: 1; min-height: 0; display: flex">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+          <div style="flex: 1; min-height: 0; overflow-y: auto; padding: 18px 20px; display: flex; flex-direction: column; gap: 18px">
+
+            <sc-if value="{{showVideo}}" hint-placeholder-val="{{true}}">
+            <div role="status" style="flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 12px; border: 1px solid {{video.border}}; border-radius: 8px; background: {{video.bg}}">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{video.color}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="{{video.icon}}"></path></svg>
+              <span style="flex: 1; min-width: 0; font-size: 13px; font-weight: 600; white-space: nowrap; color: {{video.color}}">{{video.title}}</span>
+              <a href="#" onClick="{{noop}}" style="flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 8px; border-radius: 6px; font-size: 13px; white-space: nowrap; text-decoration: none; color: {{t.accentText}}">
+                地址和端口在通用设置
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+              </a>
+            </div>
+            </sc-if>
+
+            <sc-if value="{{showDanmaku}}" hint-placeholder-val="{{false}}">
+              <section aria-label="欢迎语" style="flex-shrink: 0; display: flex; flex-direction: column; gap: 8px">
+                <div style="display: flex; align-items: baseline; gap: 10px">
+                  <span style="font-weight: 600; white-space: nowrap">欢迎语</span>
+                  <span style="flex: 1; font-size: 13px; white-space: nowrap; color: {{t.muted}}">写几条就每次随机挑一条发</span>
+                  <span style="font-size: 12px; white-space: nowrap; color: {{t.muted}}; font-variant-numeric: tabular-nums">2 条</span>
+                </div>
+                <sc-for list="{{texts}}" as="w" hint-placeholder-count="2">
+                  <div style="display: flex; align-items: center">
+                    <input aria-label="{{w.label}}" value="{{w.value}}" style="flex: 1; min-width: 0; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit">
+                    <button type="button" aria-label="{{w.removeLabel}}" style="width: 28px; height: 28px; flex-shrink: 0; margin-left: 8px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: {{t.muted}}; display: inline-flex; align-items: center; justify-content: center">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                </sc-for>
+                <div style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: {{t.muted}}">
+                  <span style="margin-right: 2px; white-space: nowrap">插入</span>
+                  <sc-for list="{{chips}}" as="c" hint-placeholder-count="3">
+                    <button type="button" style="white-space: nowrap; height: 26px; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 13px; background: transparent; color: {{t.secondary}}; font: inherit; font-size: 12px">{{c.text}}</button>
+                  </sc-for>
+                </div>
+                <span style="font-size: 12px; line-height: 18px; color: {{t.muted}}">{{braceHint}}</span>
+                <button type="button" style="align-self: flex-start; white-space: nowrap; height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: transparent; color: {{t.secondary}}; font: inherit; font-size: 13px">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                  添加欢迎语
+                </button>
+              </section>
+              <section aria-label="欢迎条件" style="flex-shrink: 0; display: flex; flex-direction: column; gap: 8px">
+                <div style="display: flex; align-items: baseline; gap: 10px">
+                  <span style="font-weight: 600; white-space: nowrap">欢迎条件</span>
+                  <span style="flex: 1; font-size: 13px; white-space: nowrap; color: {{t.muted}}">满足任意一条就欢迎</span>
+                  <span style="font-size: 12px; white-space: nowrap; color: {{t.muted}}; font-variant-numeric: tabular-nums">3 条</span>
+                </div>
+                <sc-for list="{{conds}}" as="c" hint-placeholder-count="3">
+                  <div style="display: flex; align-items: center; min-height: 36px">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0; margin-right: 8px"><path d="{{c.icon}}"></path></svg>
+                    <span style="width: 90px; flex-shrink: 0; margin-right: 8px; font-size: 13px; white-space: nowrap; color: {{t.secondary}}">{{c.name}}</span>
+                    <sc-if value="{{c.hasWord}}" hint-placeholder-val="{{true}}">
+                      <span style="flex-shrink: 0; margin-right: 12px; font-size: 13px; color: {{t.secondary}}">达到</span>
+                    </sc-if>
+                    <input aria-label="{{c.name}}" value="{{c.value}}" style="width: {{c.width}}; flex-shrink: 0; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums">
+                    <span style="flex-shrink: 0; margin-left: 8px; font-size: 13px; color: {{t.secondary}}">{{c.unit}}</span>
+                    <span style="flex: 1"></span>
+                    <button type="button" aria-label="{{c.removeLabel}}" style="width: 28px; height: 28px; flex-shrink: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; color: {{t.muted}}; display: inline-flex; align-items: center; justify-content: center">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                    </button>
+                  </div>
+                </sc-for>
+                <button type="button" style="align-self: flex-start; white-space: nowrap; height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: transparent; color: {{t.secondary}}; font: inherit; font-size: 13px">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                  添加条件
+                </button>
+              </section>
+            </sc-if>
+
+            <sc-if value="{{showEntry}}" hint-placeholder-val="{{true}}">
+              <section aria-label="粉丝团等级" style="flex-shrink: 0; display: flex; align-items: center; gap: 10px">
+                <span style="font-weight: 600; white-space: nowrap">粉丝团等级</span>
+                <span style="position: relative; display: inline-flex">
+                  <button type="button" aria-label="粉丝团等级门槛" aria-haspopup="listbox" aria-expanded="{{level.expanded}}" onClick="{{level.toggle}}" style="white-space: nowrap; width: 124px; height: 36px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border: 1px solid {{level.border}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; cursor: pointer">
+                    {{level.text}}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+                  </button>
+                  <sc-if value="{{level.open}}" hint-placeholder-val="{{false}}">
+                    <div role="listbox" aria-label="粉丝团等级门槛" style="position: absolute; left: 0; top: 40px; z-index: 5; width: 124px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px; border: 1px solid {{t.border}}; border-radius: 8px; background: {{t.card}}; box-shadow: {{t.shadow}}">
+                      <sc-for list="{{level.options}}" as="o" hint-placeholder-count="5">
+                        <button type="button" role="option" class="egOption" aria-selected="{{o.sel}}" onClick="{{o.pick}}" style="white-space: nowrap; height: 32px; flex-shrink: 0; padding: 0 10px; border: 0; border-radius: 6px; background: {{o.bg}}; color: {{o.color}}; font: inherit; font-size: 13px; font-weight: {{o.weight}}; font-variant-numeric: tabular-nums; text-align: left; cursor: pointer">{{o.text}}</button>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </span>
+                <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">够等级的观众进场时按等级定档</span>
+              </section>
+            </sc-if>
+
+            <sc-if value="{{showGift}}" hint-placeholder-val="{{true}}">
+              <section aria-labelledby="eg-gift" style="flex-shrink: 0; display: flex; flex-direction: column; gap: 10px">
+                <div style="display: flex; align-items: baseline; gap: 8px">
+                  <span id="eg-gift" style="font-weight: 600; white-space: nowrap">投入门槛</span>
+                  <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">一轮投入够到哪档，当场播一次；停手 3 秒算送完，不需要粉丝团</span>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 12px">
+                  <sc-for list="{{spends}}" as="g" hint-placeholder-count="4">
+                    <span style="display: flex; flex-direction: column; gap: 6px">
+                      <span style="font-size: 13px; white-space: nowrap; color: {{t.secondary}}">{{g.name}}</span>
+                      <span style="display: flex; align-items: center; gap: 6px">
+                        <input aria-label="{{g.label}}" aria-invalid="{{g.invalid}}" inputmode="numeric" value="{{g.value}}" onChange="{{g.onValue}}" style="flex: 1; min-width: 0; max-width: 100px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{g.border}}; border-radius: 6px; background: {{t.content}}; box-shadow: {{g.ring}}; color: {{t.primary}}; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums">
+                        <span style="font-size: 13px; white-space: nowrap; color: {{t.secondary}}">电池</span>
+                      </span>
+                    </span>
+                  </sc-for>
+                </div>
+                <sc-if value="{{hasSpendError}}" hint-placeholder-val="{{false}}">
+                  <span style="font-size: 12px; line-height: 18px; white-space: nowrap; color: {{t.danger}}">{{spendError}}</span>
+                </sc-if>
+              </section>
+            </sc-if>
+
+            <sc-if value="{{showTest}}" hint-placeholder-val="{{true}}">
+              <section aria-labelledby="eg-test" style="flex-shrink: 0; display: flex; flex-direction: column; gap: 10px">
+                <div style="display: flex; align-items: baseline; gap: 8px">
+                  <span id="eg-test" style="font-weight: 600; white-space: nowrap">试播</span>
+                  <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">在直播画面上播一次，看位置和声音，不发弹幕</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <input aria-label="试播昵称" placeholder="输入昵称" value="{{nick}}" onChange="{{onNick}}" style="flex: 1; min-width: 0; max-width: 200px; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit; font-size: 14px">
+                  <span style="position: relative; display: inline-flex">
+                    <button type="button" aria-label="试播的档" aria-haspopup="listbox" aria-expanded="{{tier.expanded}}" onClick="{{tier.toggle}}" style="white-space: nowrap; width: 100px; height: 36px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border: 1px solid {{tier.border}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; cursor: pointer">
+                      {{tier.text}}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+                    </button>
+                    <sc-if value="{{tier.open}}" hint-placeholder-val="{{false}}">
+                      <div role="listbox" aria-label="试播的档" style="position: absolute; left: 0; top: 40px; z-index: 5; width: 100px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px; border: 1px solid {{t.border}}; border-radius: 8px; background: {{t.card}}; box-shadow: {{t.shadow}}">
+                        <sc-for list="{{tier.options}}" as="o" hint-placeholder-count="4">
+                          <button type="button" role="option" class="egOption" aria-selected="{{o.sel}}" onClick="{{o.pick}}" style="white-space: nowrap; height: 32px; flex-shrink: 0; padding: 0 10px; border: 0; border-radius: 6px; background: {{o.bg}}; color: {{o.color}}; font: inherit; font-size: 13px; font-weight: {{o.weight}}; font-variant-numeric: tabular-nums; text-align: left; cursor: pointer">{{o.text}}</button>
+                        </sc-for>
+                      </div>
+                    </sc-if>
+                  </span>
+                  <button type="button" aria-label="{{play.label}}" disabled="{{play.disabled}}" onClick="{{play.click}}" style="white-space: nowrap; height: 36px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 0 12px 0 10px; border: 1px solid {{play.border}}; border-radius: 6px; background: {{play.bg}}; color: {{play.color}}; font: inherit; font-size: 13px; cursor: {{play.cursor}}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{play.icon}}"></path></svg>
+                    {{play.text}}
+                  </button>
+                  <span style="flex: 1; min-width: 0"></span>
+                  <sc-if value="{{showVolume}}" hint-placeholder-val="{{true}}">
+                  <label for="eg-volume" style="font-size: 13px; white-space: nowrap; color: {{t.secondary}}">音量</label>
+                  <input id="eg-volume" inputmode="numeric" value="{{volume}}" onChange="{{onVolume}}" style="width: 64px; flex-shrink: 0; height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums">
+                  <span style="font-size: 13px; white-space: nowrap; color: {{t.secondary}}">%</span>
+                  </sc-if>
+                </div>
+              </section>
+            </sc-if>
+
+            <sc-if value="{{showList}}" hint-placeholder-val="{{true}}">
+              <section aria-labelledby="eg-viewers" style="flex-shrink: 0; display: flex; flex-direction: column; gap: 8px">
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <span id="eg-viewers" style="font-weight: 600; white-space: nowrap">指定观众</span>
+                                    <span style="min-width: 0; font-size: 13px; color: {{t.muted}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">指定的优先于粉丝团等级；选不播，进场时不播</span>
+                  <span style="flex: 1"></span>
+                  <span style="font-size: 12px; white-space: nowrap; color: {{t.muted}}; font-variant-numeric: tabular-nums">{{listCount}}</span>
+                </div>
+                <div style="display: flex; flex-direction: column; border: 1px solid {{t.border}}; border-radius: 8px">
+                  <sc-for list="{{rows}}" as="r" hint-placeholder-count="3">
+                    <div style="display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border-top: {{r.divider}}">
+                      <input aria-label="{{r.label}}" inputmode="numeric" placeholder="输入 UID" value="{{r.uid}}" onChange="{{r.onValue}}" style="width: 150px; flex-shrink: 0; height: 32px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.content}}; color: {{t.primary}}; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums">
+                      <button type="button" aria-label="{{r.pickLabel}}" title="从在线榜选" style="width: 32px; height: 32px; flex-shrink: 0; padding: 0; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.secondary}}; display: inline-flex; align-items: center; justify-content: center">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                      </button>
+                                              <span style="position: relative; flex-shrink: 0; display: inline-flex">
+                          <button type="button" aria-label="{{r.typeLabel}}" aria-haspopup="listbox" aria-expanded="{{r.type.expanded}}" onClick="{{r.type.toggle}}" style="white-space: nowrap; width: 104px; height: 32px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 10px; border: 1px solid {{r.type.border}}; border-radius: 6px; background: {{t.content}}; color: {{r.typeColor}}; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums; cursor: pointer">
+                            {{r.type.text}}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+                          </button>
+                          <sc-if value="{{r.type.open}}" hint-placeholder-val="{{false}}">
+                            <div role="listbox" aria-label="{{r.typeLabel}}" style="position: absolute; left: 0; bottom: 36px; z-index: 5; width: 104px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px; border: 1px solid {{t.border}}; border-radius: 8px; background: {{t.card}}; box-shadow: {{t.shadow}}">
+                              <sc-for list="{{r.type.options}}" as="o" hint-placeholder-count="6">
+                                <button type="button" role="option" class="egOption" aria-selected="{{o.sel}}" onClick="{{o.pick}}" style="white-space: nowrap; height: 30px; flex-shrink: 0; padding: 0 10px; border: 0; border-radius: 6px; background: {{o.bg}}; color: {{o.color}}; font: inherit; font-size: 13px; font-weight: {{o.weight}}; font-variant-numeric: tabular-nums; text-align: left; cursor: pointer">{{o.text}}</button>
+                              </sc-for>
+                            </div>
+                          </sc-if>
+                        </span>
+                      <span style="flex: 1; min-width: 0; display: flex">
+                        <sc-if value="{{r.isVideo}}" hint-placeholder-val="{{false}}">
+                          <button type="button" aria-label="{{r.fileLabel}}" style="white-space: nowrap; flex: 1; min-width: 0; height: 32px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border: 0; border-radius: 6px; background: transparent; color: {{r.fileColor}}; font: inherit; font-size: 13px; text-align: left">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink: 0"><path d="{{filmIcon}}"></path></svg>
+                            <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.fileText}}</span>
+                          </button>
+                        </sc-if>
+                      </span>
+                      <sc-if value="{{r.isVideo}}" hint-placeholder-val="{{false}}">
+                        <button type="button" aria-label="{{r.playLabel}}" disabled="{{r.playDisabled}}" style="white-space: nowrap; height: 30px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; padding: 0 10px 0 8px; border: 1px solid {{r.playBorder}}; border-radius: 6px; background: transparent; color: {{r.playColor}}; font: inherit; font-size: 13px">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{playIcon}}"></path></svg>
+                          试播
+                        </button>
+                      </sc-if>
+                      <button type="button" aria-label="{{r.removeLabel}}" onClick="{{r.remove}}" style="white-space: nowrap; width: 30px; height: 30px; flex-shrink: 0; border: 0; border-radius: 6px; background: transparent; color: {{t.muted}}; display: inline-flex; align-items: center; justify-content: center; cursor: pointer">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg>
+                      </button>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px">
+                  <button type="button" onClick="{{addViewer}}" style="white-space: nowrap; height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 13px; cursor: pointer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+                    添加观众
+                  </button>
+                  <span style="font-size: 12px; color: {{t.muted}}; white-space: nowrap">选欢迎动画时挑一个 MP4 或 WebM，保存时复制到数据目录</span>
+                </div>
+              </section>
+            </sc-if>
+          </div>
+
+          <div style="flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 20px 18px; border-top: 1px solid {{t.subtle}}">
+            <span style="font-size: 12px; white-space: nowrap; color: {{statusColor}}">{{status}}</span>
+            <button type="button" disabled="{{saveDisabled}}" onClick="{{save}}" style="white-space: nowrap; height: 34px; min-width: 80px; padding: 0 16px; border: 0; border-radius: 6px; background: {{saveBg}}; color: {{saveColor}}; font: inherit; font-weight: 600; cursor: pointer">保存</button>
+          </div>
+        </div>
+
+        <aside aria-label="{{asideTitle}}" style="width: 300px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; border-left: 1px solid {{t.border}}; background: {{t.aside}}">
+          <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 18px 16px 10px">
+            <span style="font-weight: 600; white-space: nowrap">{{asideTitle}}</span>
+            <span style="font-size: 12px; white-space: nowrap; color: {{t.muted}}; font-variant-numeric: tabular-nums">{{feedCount}}</span>
+          </div>
+          <div style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column">
+            <sc-for list="{{feed}}" as="f" hint-placeholder-count="5">
+              <div style="display: flex; flex-direction: column; gap: 4px; padding: 10px 16px; border-bottom: 1px solid {{t.subtle}}">
+                <span style="display: flex; align-items: baseline; gap: 6px; font-size: 13px">
+                  <span style="font-weight: 600; max-width: 150px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.n}}</span>
+                  <span style="font-size: 12px; white-space: nowrap; color: {{t.muted}}">{{f.why}}</span>
+                  <span style="flex: 1"></span>
+                  <span style="font-size: 12px; color: {{t.muted}}; font-variant-numeric: tabular-nums">{{f.t}}</span>
+                </span>
+                <span style="font-size: 13px; color: {{t.secondary}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.detail}}</span>
+                <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; white-space: nowrap; color: {{f.color}}">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{f.icon}}"></path></svg>
+                  {{f.status}}
+                </span>
+              </div>
+            </sc-for>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"page":{"editor":"enum","options":["进场欢迎","送礼动画"],"default":"进场欢迎"},"tab":{"editor":"enum","options":["动画","弹幕"],"default":"动画"},"scene":{"editor":"enum","options":["默认","报错和试播中","视频页没连上"],"default":"默认"},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
+class Component extends DCLogic {
+  tokens(dark) {
+    return dark ? {
+      content: '#1B1C1F', sidebar: '#141518', card: '#222428', aside: '#18191C', titleBar: '#202124',
+      border: '#2E3136', subtle: '#26282C', control: '#3A3E45',
+      primary: '#E8EAED', secondary: '#C2C6CE', muted: '#9097A3', disabled: '#4A4F57',
+      accent: '#8DA2FB', accentText: '#B4C3FF', accentTint: '#262F52', onAccent: '#141518',
+      success: '#6FD08C', danger: '#F87171',
+      warnBg: '#2A2114', warnBorder: '#5A4318', warnText: '#F2C46D',
+      switchOff: '#4A4F57', saveOffBg: '#262F52', saveOffText: '#6B7591',
+      shadow: '0 8px 24px rgba(0, 0, 0, 0.45)', tabShadow: '0 1px 2px rgba(0, 0, 0, 0.4)'
+    } : {
+      content: '#FFFFFF', sidebar: '#F6F7F9', card: '#FFFFFF', aside: '#FAFBFC', titleBar: '#F3F4F6',
+      border: '#E3E6EB', subtle: '#EEF0F3', control: '#D5D9E0',
+      primary: '#16181D', secondary: '#3D4350', muted: '#5B6270', disabled: '#B4BAC4',
+      accent: '#3358D4', accentText: '#2A47B0', accentTint: '#E6EBFA', onAccent: '#FFFFFF',
+      success: '#166534', danger: '#B91C1C',
+      warnBg: '#FEF8EC', warnBorder: '#F5D9A8', warnText: '#78350F',
+      switchOff: '#B4BAC4', saveOffBg: '#C9D3F2', saveOffText: '#FFFFFF',
+      shadow: '0 8px 24px rgba(22, 24, 29, 0.12), 0 1px 2px rgba(22, 24, 29, 0.08)', tabShadow: '0 1px 2px rgba(0, 0, 0, 0.12)'
+    };
+  }
+
+  // Every dropdown here uses the app's ComboBox popup.
+  select(t, id, value, options, onPick) {
+    const open = (this.state || {}).menu === id;
+    return {
+      text: value, open,
+      expanded: open ? 'true' : 'false',
+      border: open ? t.accent : t.control,
+      toggle: () => this.setState({ menu: open ? '' : id }),
+      options: options.map((text) => {
+        const on = text === value;
+        return {
+          text, sel: on ? 'true' : 'false',
+          bg: on ? t.accentTint : 'transparent', color: on ? t.accentText : t.primary, weight: on ? 600 : 400,
+          pick: () => { onPick(text); this.setState({ menu: '' }); }
+        };
+      })
+    };
+  }
+
+  // The app's plain ToggleSwitch.
+  toggle(t, key, on) {
+    return {
+      on: on ? 'true' : 'false',
+      bg: on ? t.accent : t.switchOff,
+      knob: on ? '21px' : '3px',
+      toggle: () => this.setState({ [key]: !on, justSaved: false })
+    };
+  }
+
+  renderVals() {
+    const s = this.state || {};
+    const dark = this.props.dark === true || this.props.dark === 'true';
+    const scene = this.props.scene ?? '默认';
+    const page = s.page ?? this.props.page ?? '进场欢迎';
+    const isGift = page === '送礼动画';
+    const tab = s.tab ?? this.props.tab ?? '动画';
+    const isDanmaku = !isGift && tab === '弹幕';
+    const t = this.tokens(dark);
+    const icons = {
+      film: 'M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4',
+      ok: 'M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3',
+      alert: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01',
+      check: 'M20 6L9 17l-5-5',
+      skip: 'M12 22a10 10 0 1 0 0-20a10 10 0 0 0 0 20zM8 12h8',
+      play: 'M6 4l14 8-14 8z',
+      stop: 'M6 6h12v12H6z',
+      wave: 'M3 10v4M7 7v10M11 4v16M15 8v8M19 11v2',
+      spark: 'M12 3l2.4 5.6L20 11l-5.6 2.4L12 19l-2.4-5.6L4 11l5.6-2.4z',
+      heart: 'M12 21s-7-4.6-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.4-9 9-9 9z'
+    };
+
+    const seedRows = [
+      { uid: '12345', type: '40 档', file: '' },
+      { uid: '28816620', type: '不播', file: '' },
+      { uid: '67890', type: '欢迎动画', file: '老板驾到.webm' }
+    ];
+    const goodSpends = ['100', '500', '2000', '10000'];
+    const base = { level: '30 级起', rows: seedRows, spends: goodSpends, volume: '80', entryOff: false, giftOff: false, danmakuOff: false };
+    const saved = s.saved || base;
+    const v = {
+      level: s.level ?? base.level,
+      rows: s.rows ?? base.rows,
+      spends: s.spends ?? (scene === '报错和试播中' ? ['100', '500', '400', '10000'] : goodSpends),
+      volume: s.volume ?? base.volume,
+      entryOff: s.entryOff ?? false, giftOff: s.giftOff ?? false, danmakuOff: s.danmakuOff ?? false
+    };
+    const nick = s.nick ?? '柚子不酸';
+    const tierValue = s.tier ?? '60 档';
+    const playing = s.playing ?? scene === '报错和试播中';
+    const connected = scene !== '视频页没连上';
+
+    const nums = v.spends.map((x) => (/^[0-9]+$/.test(x.trim()) ? parseInt(x, 10) : NaN));
+    const empty = nums.some((n) => !(n > 0));
+    const bad = nums.map((n, k) => !(n > 0) || (k > 0 && !(n > nums[k - 1])));
+    const spendBad = isGift && bad.some(Boolean);
+    const compare = (o) => JSON.stringify(isGift ? [o.spends, o.giftOff] : isDanmaku ? [o.danmakuOff] : [o.level, o.rows, o.volume, o.entryOff]);
+    const dirty = compare(v) !== compare(saved);
+    const canSave = dirty && !spendBad;
+
+    const nav = [
+      ['弹幕', 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z', '8'],
+      ['盲盒统计', 'M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z', '开'],
+      ['进场欢迎', 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3', v.entryOff && v.danmakuOff ? '' : '开'],
+      ['送礼动画', icons.heart, v.giftOff ? '' : '开'],
+      ['抽奖', 'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4zM14 5v2M14 11v2M14 17v2', ''],
+      ['发送队列', 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z', '2 条待发'],
+      ['通用设置', 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6', '']
+    ].map(([label, icon, badge]) => {
+      const active = label === page;
+      const reachable = label === '进场欢迎' || label === '送礼动画';
+      return {
+        label, icon, badge,
+        current: active ? 'page' : 'false',
+        bg: active ? t.accentTint : 'transparent',
+        color: active ? t.accentText : t.secondary,
+        weight: active ? 600 : 400,
+        badgeColor: badge === '开' ? t.success : t.muted,
+        go: (e) => { if (e && e.preventDefault) e.preventDefault(); if (reachable) this.setState({ page: label, menu: '' }); }
+      };
+    });
+
+    const tabs = ['弹幕', '动画'].map((text) => {
+      const on = text === tab;
+      return {
+        text, sel: on ? 'true' : 'false',
+        bg: on ? t.card : 'transparent', shadow: on ? t.tabShadow : 'none',
+        color: on ? t.primary : t.secondary, weight: on ? 600 : 400,
+        pick: () => this.setState({ tab: text, menu: '' })
+      };
+    });
+
+    const video = connected
+      ? { title: '视频页：已有 1 个推流软件连着', icon: icons.ok, color: t.success, bg: t.card, border: t.border }
+      : { title: '视频页还没有推流软件连着，先在直播姬里加好再试播', icon: icons.alert, color: t.warnText, bg: t.warnBg, border: t.warnBorder };
+
+    const setRow = (i, patch) => this.setState({ rows: v.rows.map((x, k) => (k === i ? { ...x, ...patch } : x)), justSaved: false });
+    const typeOptions = ['30 档', '40 档', '50 档', '60 档', '欢迎动画', '不播'];
+    const rows = v.rows.map((r, i) => {
+      const n = i;
+      const isVideo = r.type === '欢迎动画';
+      return {
+        uid: r.uid,
+        divider: n === 0 ? '0' : '1px solid ' + t.subtle,
+        label: '第 ' + (n + 1) + ' 位观众的 UID',
+        pickLabel: '从在线榜选第 ' + (n + 1) + ' 位观众',
+        onValue: (e) => setRow(i, { uid: e.target.value }),
+        typeLabel: '第 ' + (n + 1) + ' 位观众播什么',
+        typeColor: r.type === '不播' ? t.muted : t.primary,
+        type: this.select(t, 'row' + i, r.type, typeOptions, (x) => setRow(i, { type: x })),
+        isVideo,
+        fileText: r.file || '选一个视频',
+        fileColor: r.file ? t.accentText : t.muted,
+        fileLabel: r.file ? '更换视频：' + r.file : '选一个视频',
+        playLabel: '试播 ' + (r.uid || '这位观众') + ' 的欢迎动画',
+        playDisabled: !connected || !r.file,
+        playBorder: connected && r.file ? t.control : t.border,
+        playColor: connected && r.file ? t.primary : t.disabled,
+        removeLabel: '删除这位观众：' + (r.uid || '空 UID'),
+        remove: () => this.setState({ rows: v.rows.filter((_, k) => k !== i), justSaved: false })
+      };
+    });
+
+    const spends = ['30 档', '40 档', '50 档', '60 档'].map((name, k) => ({
+      name,
+      label: name + '的投入门槛（电池）',
+      value: v.spends[k],
+      invalid: bad[k] ? 'true' : 'false',
+      border: bad[k] ? t.danger : t.control,
+      ring: bad[k] ? 'inset 0 0 0 1px ' + t.danger : 'none',
+      onValue: (e) => this.setState({ spends: v.spends.map((x, i) => (i === k ? e.target.value : x)), justSaved: false })
+    }));
+
+    const canPlay = connected && nick.trim().length > 0;
+    const play = {
+      text: playing ? '停止' : '试播',
+      label: playing ? '停止试播' : '试播 ' + tierValue,
+      icon: playing ? icons.stop : icons.play,
+      disabled: playing ? false : !canPlay,
+      border: playing ? t.accent : canPlay ? t.control : t.border,
+      bg: playing ? t.accentTint : 'transparent',
+      color: playing ? t.accentText : canPlay ? t.primary : t.disabled,
+      cursor: playing || canPlay ? 'pointer' : 'default',
+      click: () => this.setState({ playing: !playing })
+    };
+
+    const feedRows = isDanmaku ? [
+      ['20:41:05', '夜航船', '欢迎舰长夜航船', '已发送', t.success, icons.check, '舰长'],
+      ['20:41:00', '柚子不酸', '欢迎柚子不酸', '已发送', t.success, icons.check, '粉丝团 34 级'],
+      ['20:40:10', '是阿橙呀', '欢迎是阿橙呀', '已发送', t.success, icons.check, 'UID 12345'],
+      ['20:39:12', '一只小鹿', '欢迎一只小鹿', '已发送', t.success, icons.check, '粉丝团 41 级'],
+      ['20:35:02', '今天也要努力学习不然就要挂科', '欢迎今天也要努力学习不然就要挂科', '没发：欢迎语超过弹幕字数上限 20', t.warnText, icons.alert, '舰长']
+    ] : isGift ? [
+      ['20:41:26', '夜航船', '40 档 · 这一轮投入 560 电池', '已播放', t.success, icons.check],
+      ['20:38:05', '柚子不酸', '30 档 · 这一轮投入 120 电池', '已播放', t.success, icons.check],
+      ['20:30:44', '是阿橙呀', '60 档 · 这一轮投入 12000 电池', '已播放', t.success, icons.check],
+      ['20:22:10', '一只小鹿', '30 档 · 这一轮投入 100 电池', '没播：上一个还没播完', t.muted, icons.skip],
+      ['20:15:02', '晚风吹过山岗', '50 档 · 这一轮投入 2100 电池', '没播：没有推流软件连着', t.warnText, icons.alert]
+    ] : [
+      ['20:41:00', '柚子不酸', '30 档 · 粉丝团 34 级', '已播放', t.success, icons.check],
+      ['20:40:52', '小明', '欢迎动画 · 老板驾到.webm', '已播放', t.success, icons.check],
+      ['20:40:10', '是阿橙呀', '40 档 · 指定观众', '已播放', t.success, icons.check],
+      ['20:39:12', '一只小鹿', '40 档 · 粉丝团 41 级', '没播：上一个还没播完', t.muted, icons.skip],
+      ['20:35:02', '晚风吹过山岗', '30 档 · 粉丝团 30 级', '没播：没有推流软件连着', t.warnText, icons.alert]
+    ];
+    if (playing && !isDanmaku) feedRows.unshift(['20:41:40', '试播', tierValue + ' · ' + (nick || '没填昵称'), '播放中', t.accentText, icons.wave]);
+    const feed = feedRows.slice(0, 5).map(([time, n, detail, status, color, icon, why]) => ({ t: time, n, detail, status, color, icon, why: why || '' }));
+
+    const status = spendBad ? (empty ? '门槛要填正整数，改好后才能保存' : '门槛要一档比一档高，改好后才能保存')
+      : dirty ? '有未保存的修改'
+      : s.justSaved ? '已保存' : '没有未保存的修改';
+
+    return {
+      t, nav, video, rows, spends, play, feed,
+      pageTitle: page,
+      pageHint: isGift ? '保存后，下一次送礼生效' : isDanmaku ? '下次连接直播间时生效' : '保存后，下一次进场生效',
+      switchLabel: isGift ? '送礼动画' : isDanmaku ? '欢迎弹幕' : '进场动画',
+      mainSw: isGift ? this.toggle(t, 'giftOff', !v.giftOff) : isDanmaku ? this.toggle(t, 'danmakuOff', !v.danmakuOff) : this.toggle(t, 'entryOff', !v.entryOff),
+      showTabs: !isGift, tabs,
+      asideTitle: isDanmaku ? '最近欢迎' : '最近播放',
+      showVideo: !isDanmaku,
+      showDanmaku: isDanmaku,
+      texts: ['欢迎{大航海}{昵称}', '{@}今天也来啦'].map((value, n) => ({ value, label: '欢迎语第 ' + (n + 1) + ' 条', removeLabel: '删除第 ' + (n + 1) + ' 条欢迎语' })),
+      chips: [{ text: '@观众' }, { text: '昵称' }, { text: '大航海身份' }],
+      braceHint: '英文、数字、半角符号算 1，其他字符算 2。上限自动读取账号的。可用 {@}（只能放开头）、{昵称}、{大航海}；用 {{ 和 }} 转义花括号。',
+      conds: [
+        ['指定观众', 'M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2M16 7a4 4 0 1 1-8 0a4 4 0 0 1 8 0z', '12345', '', '200px', false],
+        ['粉丝团等级', 'M12 15a7 7 0 1 0 0-14a7 7 0 0 0 0 14zM8.2 13.9L7 23l5-3l5 3l-1.2-9.1', '10', '级', '120px', true],
+        ['大航海身份', 'M12 2l3 6 6 .9-4.5 4.3 1 6.3L12 16.5 6.500 19.500l1-6.300L3 8.900 9 8z', '舰长', '', '132px', true]
+      ].map(([name, icon, value, unit, width, hasWord]) => ({ name, icon, value, unit, width, hasWord, removeLabel: '删除条件：' + name })),
+      feedCount: '共 ' + (feedRows.length + 7) + ' 次',
+      filmIcon: icons.film, playIcon: icons.play,
+      noop: (e) => { if (e && e.preventDefault) e.preventDefault(); },
+      showEntry: !isGift && !isDanmaku,
+      showGift: isGift,
+      showTest: !isDanmaku,
+      showVolume: !isGift,
+      showList: !isGift && !isDanmaku,
+      listCount: rows.length + ' 位',
+      level: this.select(t, 'level', v.level, ['30 级起', '40 级起', '50 级起', '60 级起', '不按等级'], (x) => this.setState({ level: x, justSaved: false })),
+      tier: this.select(t, 'tier', tierValue, ['30 档', '40 档', '50 档', '60 档'], (x) => this.setState({ tier: x })),
+      addViewer: () => this.setState({ rows: v.rows.concat([{ uid: '', type: '30 档', file: '' }]), justSaved: false }),
+      hasSpendError: spendBad,
+      spendError: empty ? '门槛要填正整数' : '每一档的门槛要比上一档高',
+      nick,
+      onNick: (e) => this.setState({ nick: e.target.value }),
+      volume: v.volume,
+      onVolume: (e) => this.setState({ volume: e.target.value, justSaved: false }),
+      status,
+      statusColor: spendBad ? t.danger : dirty ? t.accentText : t.muted,
+      saveDisabled: !canSave,
+      saveBg: canSave ? t.accent : t.saveOffBg,
+      saveColor: canSave ? t.onAccent : t.saveOffText,
+      save: () => this.setState({ saved: v, justSaved: true })
+    };
+  }
+}
+</script>
+</body>
+</html>
