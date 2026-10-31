@@ -60,3 +60,31 @@
 
 - 进场消息解码后有 UID、昵称、大航海身份、本直播间粉丝团等级、荣耀等级；头像没解析。观众头像画风五花八门，会和动画画风冲突，所以不用头像。
 - 礼物现在只解码盲盒；隐藏款要算所有付费礼物的投入，还要解码大航海开通、续费的消息，价格字段（续费可能打折）要先抓包确认。
+
+## 八、招式怎么设计（文献，2026-10-30）
+
+60 档两版动作都被否后查的。标记都是文献；真实剑术的部分只取动作结构，画面上会夸张。
+
+- **全剑连居合第十一本「总切」是一套步步前进的五连斩**：右脚在前逐刀前进，依次是头侧、肩、腋下到腹、水平、竖劈，最后横向血振、纳刀。[AKBAN wiki：Sō-giri](https://www.akban.org/wiki/Seitei_gata_-_Sō-giri_総切り)；[Seiteigata](https://kampaibudokai.org/Seiteigata3.htm)
+- **刀落和脚落同时**，不是踏完再砍；后脚跟上一步；水平斩不停刀，刀尖直接回到头顶接竖劈。[全剑连《指导上的留意点》英译](https://kendoargentina.org/wp-content/uploads/2025/04/ZNKR-Iai-Instructional-Considerations-2023-ENG.pdf)
+- **拔刀靠左手和胯**：鞘引（saya-biki）是转胯把刀鞘往后拉，右拳对准对手。同上；[Nakakura 研习记录](https://www.kampaibudokai.org/Nakakura.htm)
+- **序破急**：序是平静地积蓄，破在刀尖离鞘那一刻，急是快速收束，最后一刀带着前面积累的全部张力。这是一位练习者的解读。[The Iaido Journal](https://www.ejmas.com/tin/2007tin/tinart_boylan_0703.html)
+- **连招衔接**：上一招的结束姿势要接近下一招的起始姿势；每个方向的攻击要有自己的胯、肩和步法，不是同一动作转个方向；双手武器靠转胯发力，收势深。[Combat Animation for Games](https://mocaponline.com/blogs/mocap-news/combat-animation-game-dev-guide)
+- **力量感**：重招靠更长的预备和停顿；过冲姿势（overshoot）是打实了的“脆”感的来源。[Gnomon：Animating Stylized Attacks](https://bmc.thegnomonworkshop.com/workshops/animating-stylized-attacks-in-maya)
+- **起手姿势要一眼看出要来了**；命中判定只有 2–4 帧，靠瞬间性。[Anatomy of an Enemy Attack in Dark Souls 3](https://www.gamedeveloper.com/game-platforms/anatomy-of-an-enemy-attack-in-dark-souls-3)
+- **华丽的大招**：Omnislash 这类大招的结构是把对手打上天、空中连斩十几刀、最后一击收尾。[SmashWiki：Omnislash](https://www.ssbwiki.com/Omnislash)
+- **纳刀当终结**：一类居合演出里，对手要等主角纳刀才倒下，刀镡碰鞘的声音就是结束的信号。这条来自玩家讨论。[DMC5 讨论](https://steamcommunity.com/app/601150/discussions/0/3110267314130769845/?l=dutch)
+- **冲击帧的密度**：中村丰的一段名场面 31 秒里有 41 个冲击帧，还有大量方块状碎屑。[AnimeClick](https://www.animeclick.it/news/65864-larma-segreta-di-todoroki-e-di-studio-bones-lanimazione-di-yutaka-nakamura)
+- 没查到绝区零、崩铁大招的逐帧拆解，也没查到超必杀演出结构的权威资料，上面只能作原则用。
+
+## 九、人物生图的提示词（文献 + 实测，2026-10-30）
+
+- OpenAI 的指南没有专门讲手和人体，但要求按场景、主体、细节、约束的顺序写，明确写出排除项和不许变的东西，并描述人物和物体的交互（例子是 “hands naturally gripping the handlebars”）。[GPT Image Prompting Guide](https://developers.openai.com/cookbook/examples/multimodal/image-gen-models-prompting-guide)
+- 负面词的常见集合：bad anatomy、bad hands、extra fingers、missing fingers、fused fingers、extra arms、extra hands、malformed limbs。[Stable Diffusion Art](https://stable-diffusion-art.com/?p=8884)；[Segmind](https://blog.segmind.com/best-negative-prompts-in-stable-diffusion/)
+- 只靠负面词不够：“模型不知道手该长什么样时，负面里堆 bad hands 没多大用”，要在正面描述手的状态；出了哪种错才加哪个词。[Anima 负面提示词](https://lilting.ch/en/articles/anima-negative-prompt-shorten-illustrious)。这些资料都是别的模型的经验，codex 没有单独的负面参数，写在提示词正文里。
+- 实测：
+  - 按新写法从零生成的图（pose-15 测试版），近处右手看到手背、远处左手看到指尖，是一对真正的左右手。
+  - 在原图上加胳膊，模型抄出同一只手（pose-39 被用户指出两只右手）。
+  - 写“刀和手臂成一条直线”，刀柄必然穿过手腕（pose-44、45）。
+  - 只写“右手握刀柄”时，拔刀前的右手会落到刀鞘上，要写明沿刀从前到后的顺序。
+  - 写明顺序后重测，右手在刀柄上，左手手指扣着鞘口，手和刀柄都对。拔刀拖影里左拳还是空的，没握住刀鞘，已补写法和负面词，这条还没重测。

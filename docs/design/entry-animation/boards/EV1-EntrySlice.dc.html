@@ -12,8 +12,7 @@
 <helmet>
 <style>
 body{margin:0}
-@font-face{font-family:'Noto Serif SC';font-weight:900;src:url('/_blob/4baebcf387c0f3280dffcbd0173aece9') format('woff2')}
-@font-face{font-family:'Barlow Condensed';font-weight:500;src:url('/_blob/f1df6953c74778fa8fa7a4bee4185626') format('woff2')}
+@font-face{font-family:'LXGW WenKai';src:url('/_blob/0c4f2ae7ae0a4cbf673d5481347d25df') format('woff2')}
 </style>
 </helmet>
 <div id="ev1-root" style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: {{bg}}">
@@ -25,7 +24,7 @@ body{margin:0}
   <canvas id="ev1-gl" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"pause":{"editor":"enum","options":["播放","蓄力","出招","冲击帧","余波","亮名","残心"],"default":"播放"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["示意画面","浅色房间","深色房间","透明"],"default":"示意画面"},"$preview":{"width":1920,"height":1080}}'>
+<script type="text/x-dc" data-dc-script data-props='{"pause":{"editor":"enum","options":["播放","蓄力","出招","冲击帧","余波","亮名","收刀","残心"],"default":"播放"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["示意画面","浅色房间","深色房间","透明"],"default":"示意画面"},"$preview":{"width":1920,"height":1080}}'>
 class Component extends DCLogic {
   componentDidMount() {
     if (this.loopFn) return;
@@ -55,18 +54,26 @@ class Component extends DCLogic {
     const app = new P.Application();
     await app.init({ canvas, width: 1920, height: 1080, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: 1 });
     const load = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
-    const names = ['f795f9994fb41bd4970d91027df201d1', '115e75bc617f8d5fd7fb14fbefd1be6a', '50c3749ffd1d4751683421a32c66fcff', 'b612d7f6d7de096f347399c9117de8f7', '37a5b192bf014dc81fa423d2e1d45f6c', '38b992f980c338671fb008bf5ccdaefb', '1b89f838e16a1aae41ef0adb6e836e22', '3d7a08e31609fe87cb25219c91012aae'];
+    const names = ['44c7aacaadf078f20f81e28b82b07722', '7278602b657db134b5b156eaacfef798', '249fac8d1576a201714b59a263ece05f', '7b86fec152fb8be6aabe1414d417a639', 'fe7133844365ec5da26469c8a96ad0ee', '38b992f980c338671fb008bf5ccdaefb', '1b89f838e16a1aae41ef0adb6e836e22', '3d7a08e31609fe87cb25219c91012aae'];
     const imgs = await Promise.all(names.map(n => load('/_blob/' + n)));
-    await Promise.all([document.fonts.load('900 132px "Noto Serif SC"'), document.fonts.load('500 40px "Barlow Condensed"')]);
-    const [i1, i2, i3, i4, i5, moon, impact, moonRed] = imgs;
+    await document.fonts.load('132px "LXGW WenKai"');
+    const [p0, p1, p2, p3, p4, moon, impact, moonRed] = imgs;
     const tex = img => P.Texture.from(img);
     const canvasOf = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); return c; };
     const silhouette = (img, color) => tex(canvasOf(img.width, img.height, g => { g.drawImage(img, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, img.width, img.height); }));
     const radial = (stops) => tex(canvasOf(512, 512, g => { const r = g.createRadialGradient(256, 256, 0, 256, 256, 256); for (const [o, c] of stops) r.addColorStop(o, c); g.fillStyle = r; g.fillRect(0, 0, 512, 512); }));
-    // Per pose: display height and the torso's x as a share of the image width, so poses line up.
-    const fit = [[900, 0.45], [880, 0.52], [820, 0.3244], [820, 0.3358], [900, 0.42]];
-    // Where a pixel of pose i lands on screen when its torso sits at x (images stand on the bottom edge).
-    const placed = (i, x, p) => { const img = imgs[i], sc = fit[i][0] / img.height; return [x - fit[i][1] * img.width * sc + p[0] * sc, 1080 - img.height * sc + p[1] * sc]; };
+    // Per pose: the hips and the soles in image pixels, and the scale that makes the head the same size on screen.
+    const POSE = [
+      { hip: [840, 540], s: 0.63, sole: 953 },   // the coiled lunge
+      { hip: [530, 480], s: 0.7, sole: 899 },    // halfway through the draw
+      { hip: [480, 516], s: 0.7, sole: 888 },    // the stop, blade at full stretch
+      { hip: [804, 440], s: 0.77, sole: 1006 },  // sheathing
+      { hip: [804, 440], s: 0.77, sole: 1009 }   // home
+    ];
+    // He stands on the ground line; X is where his hips are. He starts on the left, facing the moon on the right, and the
+    // draw carries him across the frame.
+    const GROUND = 930, X0 = 530, X1 = 920;
+    const placed = (i, X, p) => { const q = POSE[i]; return [X + (p[0] - q.hip[0]) * q.s, GROUND + (p[1] - q.sole) * q.s]; };
     // Catmull-Rom through the measured points, about every 10 px.
     const spline = pts => {
       const out = [];
@@ -90,15 +97,16 @@ class Component extends DCLogic {
         return [p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f, N[lo][0] + (N[hi][0] - N[lo][0]) * f, N[lo][1] + (N[hi][1] - N[lo][1]) * f];
       } };
     };
-    // The slash: from the scabbard mouth at the hip, along the smear painted in the draw frame (pose 2, torso at 450),
-    // curling up round the hand into the blade tip of the follow-through (pose 3, torso at 468). H, the hit, is that tip.
-    const slashPts = spline([[600, 660], [900, 820], [1200, 850], [1500, 800], [1750, 650], [1880, 450]].map(p => placed(2, 450, p)).concat([placed(3, 468, [1910, 160])]));
-    const slash = pathOf(slashPts), H = slashPts[slashPts.length - 1];
+    // The slash is the path of the blade tip: from the scabbard mouth in the charge, one long flat line that rises a little to
+    // the tip at the stop. H, the hit, is that tip.
+    const mouth = placed(0, X0, [1190, 557]), H = placed(2, X1, [1485, 317]);
+    const slashPts = spline([0, 0.25, 0.5, 0.75, 1].map(u => [mouth[0] + (H[0] - mouth[0]) * u, mouth[1] + (H[1] - mouth[1]) * u + 22 * Math.sin(Math.PI * u)]));
+    const slash = pathOf(slashPts);
     // The cut a straight blade leaves is straight: the chord of the slash as it lands (from its tail at the hit to the
     // tip), run right across the sky. Each side of it is a polygon closed round a big circle.
     const C0 = [960, 540], RR = 5000;
     const reach = (p, q) => { const d = [p[0] - q[0], p[1] - q[1]], m = Math.hypot(d[0], d[1]), u = [d[0] / m, d[1] / m], w = [p[0] - C0[0], p[1] - C0[1]], b = w[0] * u[0] + w[1] * u[1], t = -b + Math.sqrt(b * b - (w[0] * w[0] + w[1] * w[1] - RR * RR)); return [p[0] + u[0] * t, p[1] + u[1] * t]; };
-    const ca = slash.at(0.12).slice(0, 2), cd = [H[0] - ca[0], H[1] - ca[1]], cm = Math.hypot(cd[0], cd[1]);
+    const ca = slash.at(0.5).slice(0, 2), cd = [H[0] - ca[0], H[1] - ca[1]], cm = Math.hypot(cd[0], cd[1]);
     const tangent = [cd[0] / cm, cd[1] / cm], n = [-tangent[1], tangent[0]];
     const cutLine = [reach(ca, H), reach(H, ca)];
     const sides = [1, -1].map(dir => {
@@ -116,16 +124,16 @@ class Component extends DCLogic {
     // What the cut reveals: the same sky's blood-moon side, sitting behind the moonlit halves.
     const shadeTex = radial([[0, 'rgba(0,0,0,0)'], [0.7, 'rgba(0,0,0,0.35)'], [1, 'rgba(0,0,0,0.8)']]);
     const red = new P.Container(); red.pivot.set(960, 540); red.position.set(960, 540);
-    const redSky = new P.Sprite(tex(moonRed)); redSky.width = 2160; redSky.height = 1440; redSky.scale.x *= -1; redSky.position.set(2040, -200); red.addChild(redSky);
+    const redSky = new P.Sprite(tex(moonRed)); redSky.width = 2160; redSky.height = 1440; redSky.position.set(-120, -200); red.addChild(redSky);
     const redShade = new P.Sprite(shadeTex); redShade.anchor.set(0.5); redShade.position.set(960, 540); redShade.width = 2600; redShade.height = 1700; red.addChild(redShade);
     world.addChild(red);
 
-    // Backdrop: one moonlit sky, mirrored so the moon sits behind the hero, clear of the cut (splitting the moon is 60 档's).
+    // Backdrop: one moonlit sky, the moon up on the right, ahead of the hero and clear of the cut (splitting the moon is 60 档's).
     // After the zanshin the side with the moon slides off along the straight cut.
-    const moonSide = inside(sides[0], 614, 210) ? 0 : 1;
+    const moonSide = inside(sides[0], 1295, 210) ? 0 : 1;
     const halves = [sides[moonSide], sides[1 - moonSide]].map(poly => {
       const c = new P.Container();
-      const sky = new P.Sprite(tex(moon)); sky.width = 2160; sky.height = 1440; sky.scale.x *= -1; sky.position.set(2040, -200); c.addChild(sky);
+      const sky = new P.Sprite(tex(moon)); sky.width = 2160; sky.height = 1440; sky.position.set(-120, -200); c.addChild(sky);
       const shade = new P.Sprite(shadeTex); shade.anchor.set(0.5); shade.position.set(960, 540); shade.width = 2600; shade.height = 1700; c.addChild(shade);
       const m = new P.Graphics().poly(poly.flat()).fill(0xffffff); c.addChild(m); c.mask = m;
       c.pivot.set(H[0], H[1]); c.position.set(H[0], H[1]);
@@ -137,53 +145,44 @@ class Component extends DCLogic {
     const rim = new P.Sprite(radial([[0, 'rgba(255,60,70,0.55)'], [0.45, 'rgba(200,20,40,0.18)'], [1, 'rgba(0,0,0,0)']]));
     rim.anchor.set(0.5); rim.width = 1100; rim.height = 1100; world.addChild(rim);
 
-    const poses = [i1, i2, i3, i4, i5].map(tex);
-    const ghosts = [0, 1].map(() => { const s = new P.Sprite(poses[0]); s.anchor.set(0, 1); s.alpha = 0; world.addChild(s); return s; });
-    const hero = new P.Sprite(poses[0]); hero.anchor.set(0, 1); world.addChild(hero);
+    const poses = [p0, p1, p2, p3, p4].map(tex);
+    const ghosts = [0, 1, 2].map(() => { const s = new P.Sprite(poses[0]); s.alpha = 0; world.addChild(s); return s; });
+    const hero = new P.Sprite(poses[0]); hero.tint = 0xe0e0e0; world.addChild(hero);
 
     const fx = document.createElement('canvas'); fx.width = 1920; fx.height = 1080;
     const fxTex = tex(fx), fxSprite = new P.Sprite(fxTex); fxSprite.blendMode = 'add'; world.addChild(fxSprite);
 
     const ui = new P.Container(); ui.pivot.set(960, 540); stage.addChild(ui);
-    const nameG = new P.Container(); nameG.position.set(1010, 700); nameG.rotation = -0.12; ui.addChild(nameG);
-    const nameStyle = { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 132, fill: 0xffffff, letterSpacing: 26 };
-    const nameGhosts = [0, 1].map(() => { const t = new P.Text({ text: '柚子不酸', style: { ...nameStyle, fill: 0xff4d5e } }); t.anchor.set(0, 0.5); nameG.addChild(t); return t; });
-    const nameT = new P.Text({ text: '柚子不酸', style: nameStyle }); nameT.anchor.set(0, 0.5); nameG.addChild(nameT);
+    const nameG = new P.Container(); nameG.position.set(70, 330); nameG.rotation = -0.12; ui.addChild(nameG);
+    // The strokes are thickened: at this size the Kai's own weight is too light against the blade light.
+    const nameStyle = { fontFamily: 'LXGW WenKai', fontSize: 132, fill: 0xffffff, stroke: { color: 0xffffff, width: 4, join: 'round' }, letterSpacing: 16 };
+    const nameGhosts = [0, 1].map(() => { const t = new P.Text({ text: 'さくら月影', style: { ...nameStyle, fill: 0xff4d5e, stroke: { color: 0xff4d5e, width: 4, join: 'round' } } }); t.anchor.set(0, 0.5); nameG.addChild(t); return t; });
+    const nameT = new P.Text({ text: 'さくら月影', style: nameStyle }); nameT.anchor.set(0, 0.5); nameG.addChild(nameT);
     const nameMask = new P.Graphics(); nameG.addChild(nameMask); nameT.mask = nameMask;
-    const rule = new P.Graphics(); nameG.addChild(rule);
-    const tag = new P.Text({ text: '粉丝团', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 30, fill: 0xffffff, letterSpacing: 6 } });
-    const lv = new P.Text({ text: 'LV.30', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 40, fill: 0xff5a68, letterSpacing: 6 } });
-    tag.position.set(34, -142); lv.position.set(150, -150); nameG.addChild(tag, lv);
     // Entry caption: says who is coming in from the cut-in, until the strike sweeps it away.
-    const cap = new P.Container(); cap.position.set(600, 900); ui.addChild(cap);
-    const capRule = new P.Graphics(); cap.addChild(capRule);
-    const capName = new P.Text({ text: '柚子不酸', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 50, fill: 0xffffff, letterSpacing: 12 } });
+    const cap = new P.Container(); cap.position.set(1000, 900); ui.addChild(cap);
+    const capName = new P.Text({ text: 'さくら月影', style: { fontFamily: 'LXGW WenKai', fontSize: 52, fill: 0xffffff, stroke: { color: 0xffffff, width: 1.6, join: 'round' }, letterSpacing: 8 } });
     capName.anchor.set(0, 1); capName.position.set(30, -10); cap.addChild(capName);
-    const capLv = new P.Text({ text: '粉丝团', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 22, fill: 0xffffff, letterSpacing: 4 } });
-    const capLvN = new P.Text({ text: 'LV.30', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 28, fill: 0xff5a68, letterSpacing: 4 } });
-    capLv.position.set(32, 12); capLvN.position.set(112, 6); cap.addChild(capLv, capLvN);
     const capMask = new P.Graphics(); cap.addChild(capMask); capName.mask = capMask;
 
     const imp = new P.Container(); world.addChild(imp);
     const impBg = new P.Graphics().rect(-400, -400, 2720, 1880).fill(0xffffff); imp.addChild(impBg);
-    const impLines = new P.Sprite(tex(impact)); impLines.anchor.set(0.5); impLines.width = impLines.height = 2600; imp.addChild(impLines);
-    const silB = new P.Sprite(silhouette(i4, '#000')), silW = new P.Sprite(silhouette(i4, '#fff'));
-    for (const s of [silB, silW]) { s.anchor.set(0, 1); imp.addChild(s); }
+    const impLines = new P.Sprite(tex(impact)); impLines.anchor.set(0.5); impLines.width = impLines.height = 4400; imp.addChild(impLines);
+    const silB = new P.Sprite(silhouette(p2, '#000')), silW = new P.Sprite(silhouette(p2, '#fff'));
+    imp.addChild(silB, silW);
+    const silTexB = silB.texture, silTexW = silW.texture;
 
     const flash = new P.Graphics().rect(-400, -400, 2720, 1880).fill(0xffffff); world.addChild(flash);
     const bars = [new P.Graphics(), new P.Graphics()]; stage.addChild(...bars);
     stage.setChildIndex(ui, stage.children.indexOf(world) + 1);
 
-    const bloom = new F.AdvancedBloomFilter({ threshold: 0.6, bloomScale: 1.15, brightness: 1, blur: 7, quality: 5 });
+    const bloom = new F.AdvancedBloomFilter({ threshold: 0.9, bloomScale: 1.15, brightness: 1, blur: 7, quality: 5 });
     const shock = new F.ShockwaveFilter({ center: { x: H[0], y: H[1] }, speed: 1500, amplitude: 46, wavelength: 240, brightness: 1.15, radius: -1 });
     const zoom = new F.ZoomBlurFilter({ strength: 0, center: { x: H[0], y: H[1] }, innerRadius: 60 });
     const rgb = new F.RGBSplitFilter({ red: { x: 0, y: 0 }, green: { x: 0, y: 0 }, blue: { x: 0, y: 0 } });
 
-    // The zanshin flick: from the follow-through's raised tip down close to the body (left of the name) into the low
-    // blade of the closing stance.
-    const flick = pathOf(spline([H, [1100, 500], [880, 820], placed(4, 420, [780, 1120])]));
     const onScreen = p => p[0] > -60 && p[0] < 1980 && p[1] > -60 && p[1] < 1140;
-    this.S = { app, canvas, world, ui, dim, red, halves, n, tangent, H, cutLine, slash, flick, seamPath: pathOf(Array.from({ length: 1001 }, (_, i) => [cutLine[0][0] + (cutLine[1][0] - cutLine[0][0]) * i / 1000, cutLine[0][1] + (cutLine[1][1] - cutLine[0][1]) * i / 1000]).filter(onScreen)), seamC, seamTex, rim, poses, fit, ghosts, hero, fx, fxTex, nameG, cap, capRule, capName, capLv, capLvN, capMask, nameGhosts, nameT, nameMask, rule, tag, lv, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, zoom, rgb };
+    this.S = { app, canvas, world, ui, dim, red, halves, n, tangent, H, cutLine, slash, seamPath: pathOf(Array.from({ length: 1001 }, (_, i) => [cutLine[0][0] + (cutLine[1][0] - cutLine[0][0]) * i / 1000, cutLine[0][1] + (cutLine[1][1] - cutLine[0][1]) * i / 1000]).filter(onScreen)), seamC, seamTex, rim, poses, silTexB, silTexW, POSE, GROUND, X0, X1, hilt: placed(0, X0 + 16, [1224, 557]), steel: [placed(3, X1, [850, 394]), placed(3, X1, [1030, 394])], click: placed(4, X1, [908, 392]), ghosts, hero, fx, fxTex, nameG, cap, capName, capMask, nameGhosts, nameT, nameMask, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, zoom, rgb };
     app.ticker.add(() => this.frame());
   }
 
@@ -197,7 +196,7 @@ class Component extends DCLogic {
     const k = (a, b, x) => Math.min(1, Math.max(0, (x - a) / (b - a)));
     const out = p => 1 - Math.pow(1 - p, 3), inq = p => p * p, quint = p => 1 - Math.pow(1 - p, 5);
     const on2 = x => Math.floor(x / 83) * 83;
-    const EXIT = 6180, END = 6600, SPLIT = 3000;
+    const EXIT = 6180, END = 6600, SPLIT = 3000, FLASH = 1950, HIT = 2034, SHEATHE = 2700, CLICK = 2930;
 
     // Letterbox and dimming.
     const bh = 118 * out(k(0, 280, t)) * (1 - out(k(EXIT + 120, EXIT + 500, l)));
@@ -221,27 +220,26 @@ class Component extends DCLogic {
     S.red.scale.set(1 + 0.03 * k(SPLIT, 5000, l)); S.red.position.set(960 + cut.drift, 540);
     this.drawSeam(l, k, out, cut);
 
-    // Hero poses: the iaido stance (it slides in for the cut-in, sword still sheathed, and holds through the charge),
-    // the draw smear, the follow-through, zanshin.
-    const pose = l < 1950 ? 1 : l < 2034 ? 2 : l < 2700 ? 3 : 4;
-    const [ph, px] = S.fit[pose], tx = S.poses[pose];
-    let x = 420, y = 1080;
-    if (pose === 1) { x += -980 * (1 - quint(k(250, 520, l))) + 16 * k(660, 1950, on2(l)); y += 20 * (1 - out(k(520, 660, l))); }
-    if (pose === 2) x += 30;
-    if (pose === 3) x += 48 - 10 * out(k(2034, 2500, l));
-    if (pose === 4) x += 20 * k(2700, 6000, on2(l));
-    x -= 70 * k(EXIT, END, l);
-    S.hero.texture = tx; S.hero.height = ph; S.hero.scale.x = S.hero.scale.y;
-    S.hero.position.set(x - px * S.hero.width, y);
+    // Hero poses: the coiled lunge (it slides in for the cut-in and holds through the charge), the draw as he shoots along
+    // the ground, the stop with the blade at full stretch; then he stands and the sword goes home, and only then the sky opens.
+    const pose = l < FLASH ? 0 : l < HIT ? 1 : l < SHEATHE ? 2 : l < CLICK ? 3 : 4;
+    const stand = (sp, i, X, y) => { const q = S.POSE[i]; sp.texture = S.poses[i]; sp.scale.set(q.s); sp.position.set(X - q.hip[0] * q.s, S.GROUND - q.sole * q.s + y); };
+    const dash = k(FLASH, HIT, l), XS = S.X0 + 16;
+    let X = S.X1, y = 0;
+    if (pose === 0) { X = S.X0 - 980 * (1 - quint(k(250, 520, l))) + 16 * k(660, FLASH, on2(l)); y = 20 * (1 - out(k(520, 660, l))); }
+    if (pose === 1) X = XS + (S.X1 - XS) * dash;
+    if (pose >= 3) X += 20 * k(CLICK, 6000, on2(l));
+    X -= 70 * k(EXIT, END, l);
+    stand(S.hero, pose, X, y);
     S.hero.alpha = (l < 250 ? 0 : 1) * (1 - k(EXIT, END, l));
-    // Afterimages trail the cut-in and the swing.
+    // Afterimages trail the cut-in and hang along the ground he has just crossed.
     S.ghosts.forEach((g, i) => {
-      const on = (l >= 250 && l < 520) || (l >= 1950 && l < 2120);
-      g.texture = tx; g.height = ph; g.scale.x = g.scale.y;
-      g.position.set(S.hero.x - (i + 1) * (l < 520 ? 70 : 34), y);
-      g.alpha = on ? (i ? 0.16 : 0.32) : 0; g.tint = 0xff6070;
+      const cutIn = l >= 250 && l < 520, trail = l >= FLASH && l < HIT + 120;
+      if (cutIn) stand(g, 0, X - (i + 1) * 70, y);
+      if (trail) stand(g, 1, XS + (S.X1 - XS) * Math.max(0, dash - (i + 1) * 0.22), 0);
+      g.alpha = (cutIn || trail ? [0.34, 0.22, 0.14][i] : 0) * (1 - k(HIT, HIT + 120, l)); g.tint = 0xff6070;
     });
-    S.rim.position.set(420, 640);
+    S.rim.position.set(l < FLASH ? S.X0 : S.X1, 660);
     S.rim.alpha = (0.5 * out(k(400, 900, l)) + 0.5 * out(k(1500, 1950, l)) - 0.4 * k(2300, 3000, l)) * (1 - k(EXIT, END, l));
     S.rim.scale.set((1100 + 300 * k(1500, 1950, l)) / 512);
 
@@ -251,7 +249,7 @@ class Component extends DCLogic {
     let rot = -0.014 * inq(k(520, 1950, l)) * (l < 1950 ? 1 : 0);
     let sx = 0, sy = 0;
     const shakeAt = (t0, amp, dur) => { const p = k(t0, t0 + dur, t); if (p <= 0 || p >= 1) return; const a = amp * (1 - p) * (1 - p); sx += Math.sin(t * 0.21) * a; sy += Math.cos(t * 0.17) * a * 0.6; };
-    shakeAt(1950, 8, 140); shakeAt(HS1, 30, 520); shakeAt(SPLIT + 120, 5, 160);
+    shakeAt(1950, 8, 140); shakeAt(HS1, 30, 520); shakeAt(CLICK + 120, 7, 130); shakeAt(SPLIT + 120, 5, 160);
     for (const c of [S.world, S.ui]) { c.scale.set(cam); c.rotation = rot; c.position.set(960 + sx, 540 + sy); }
 
     // Strike effects.
@@ -261,8 +259,7 @@ class Component extends DCLogic {
     if (S.imp.visible) {
       S.impBg.tint = impA ? 0xffffff : 0x000000;
       S.impLines.tint = impA ? 0x000000 : 0xffffff; S.impLines.position.set(S.H[0], S.H[1]);
-      const [h4, p4] = S.fit[3];
-      for (const s of [S.silB, S.silW]) { s.height = h4; s.scale.x = s.scale.y; s.position.set(420 + 48 - p4 * s.width, 1080); }
+      for (const s of [S.silB, S.silW]) { stand(s, 2, S.X1, 0); s.texture = s === S.silB ? S.silTexB : S.silTexW; }
       S.silB.visible = impA; S.silW.visible = impB;
     }
     const released = t >= HS1, sw = released && l < HS0 + 520;
@@ -276,25 +273,20 @@ class Component extends DCLogic {
     if (released && rs > 0.5) filters.push(S.rgb);
     S.world.filters = S.imp.visible ? null : filters;
 
-    // Name: cut out along the slash, with red afterimages, then the thin rule and the level label.
+    // Name: cut out along the slash, with red afterimages.
     const reveal = out(k(2380, 2640, l));
     const nw = S.nameT.width + 40;
     S.nameMask.clear().rect(-20, -120, nw * reveal, 240).fill(0xffffff);
     S.nameGhosts.forEach((g, i) => { g.position.set(36 * (i + 1), -8 * (i + 1)); g.alpha = (i ? 0.22 : 0.45) * k(2380, 2430, l) * (1 - k(2560, 2950, l)); });
-    const rw = (nw - 20) * out(k(2520, 2860, l));
-    S.rule.clear().rect(0, -98, rw, 2).fill({ color: 0xffffff, alpha: 0.85 }).rect(0, -104, 22 * k(2520, 2620, l), 14).fill(0xff3b4e);
-    S.tag.alpha = S.lv.alpha = out(k(2640, 2920, l));
     S.nameG.alpha = 1 - k(EXIT, END - 120, l);
-    S.nameG.position.set(1010 + 80 * inq(k(EXIT, END, l)), 700);
+    S.nameG.position.set(70 - 80 * inq(k(EXIT, END, l)), 330);
 
-    // Entry caption: a rule slides out from the hero's feet, the name wipes in on it; the strike's wind sweeps it off.
-    const cr = quint(k(420, 720, l)), cw = 420 * cr, gone = k(1950, 2060, l);
-    S.capRule.clear().rect(0, 0, cw, 2).fill({ color: 0xffffff, alpha: 0.85 }).rect(0, -6, 14 * cr, 14).fill(0xff3b4e);
+    // Entry caption: the name wipes in at the hero's feet; the strike's wind sweeps it off.
+    const gone = k(1950, 2060, l);
     S.capMask.clear().rect(20, -90, 400 * out(k(560, 860, l)), 100).fill(0xffffff);
-    S.capLv.alpha = S.capLvN.alpha = out(k(760, 1000, l));
-    S.cap.alpha = (l >= 420 ? 1 : 0) * (1 - gone); S.cap.position.set(600 + 260 * gone * gone, 900 - 30 * gone);
+    S.cap.alpha = (l >= 420 ? 1 : 0) * (1 - gone); S.cap.position.set(1000 + 260 * gone * gone, 900 - 30 * gone);
 
-    this.drawFx(t, l, k, out, inq);
+    this.drawFx(t, l, k, out, inq, SHEATHE, CLICK);
     S.fxTex.source.update();
   }
 
@@ -322,7 +314,7 @@ class Component extends DCLogic {
   }
 
   // Slash ribbon, charge particles, sparks and embers, drawn additively each frame.
-  drawFx(t, l, k, out, inq) {
+  drawFx(t, l, k, out, inq, SHEATHE, CLICK) {
     const S = this.S, g = S.fx.getContext('2d');
     g.clearRect(0, 0, 1920, 1080);
     g.globalCompositeOperation = 'lighter';
@@ -351,7 +343,7 @@ class Component extends DCLogic {
     };
 
     // Charge: sparks are pulled into the hilt while the hero holds the stance.
-    const hilt = [660, 735];
+    const hilt = S.hilt;
     if (l > 650 && l < 1960) {
       g.lineCap = 'round';
       for (let i = 0; i < 110; i++) {
@@ -373,8 +365,8 @@ class Component extends DCLogic {
 
     // The slash: a sharp crescent sweeps out, holds bright through the hit stop, then frays into strands.
     if (l >= 1960 && l < 2700) {
-      const head = out(k(1960, 2060, l)), tail = 0.12 * out(k(2000, 2120, l)), fray = k(2080, 2600, l);
-      const w = 78 * (1 - 0.55 * fray), a = 1 - fray;
+      const head = out(k(1960, 2060, l)), tail = 0.5 * out(k(2000, 2120, l)), fray = k(2080, 2600, l);
+      const w = 62 * (1 - 0.55 * fray), a = 1 - fray;
       band(tail, head, w * 2.6, 0.25, '255,30,60', 0.16 * a);
       band(tail, head, w, 0.08, '255,58,80', 0.8 * a);
       band(tail, head, w * 0.34, 0.03, '255,240,240', a);
@@ -391,20 +383,17 @@ class Component extends DCLogic {
         }
       }
     }
-    // The zanshin flick: the blade swings down from the raised follow-through into the closing stance, leaving a thin
-    // crescent that fades at once.
-    if (l >= 2700 && l < 2960) {
-      const head = out(k(2700, 2760, l)), tail = out(k(2720, 2860, l)), a = 0.7 * (1 - k(2780, 2960, l));
-      band(tail, head, 26 * 2.6, 0.25, '255,30,60', 0.16 * a, S.flick);
-      band(tail, head, 26, 0.08, '255,58,80', 0.8 * a, S.flick);
-      band(tail, head, 26 * 0.34, 0.03, '255,240,240', a, S.flick);
+    // The bare steel catches the light as it slides home; a hard glint on the guard marks the click, and then the sky gives way.
+    if (l >= SHEATHE && l < CLICK) {
+      const a = Math.sin(k(SHEATHE, CLICK, l) * Math.PI), [p, q] = S.steel;
+      g.strokeStyle = 'rgba(255,255,255,' + 0.85 * a + ')'; g.lineWidth = 3; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(p[0], p[1]); g.lineTo(q[0], q[1]); g.stroke();
     }
-    // Then a short glint on the blade right before the sky gives way.
-    const fl = k(2930, 3130, l);
+    const fl = k(CLICK, CLICK + 200, l);
     if (fl > 0 && fl < 1) {
-      const a = Math.sin(fl * Math.PI), [gx, gy] = [612, 922];
+      const a = Math.sin(fl * Math.PI), [gx, gy] = S.click;
       g.strokeStyle = 'rgba(255,255,255,' + a + ')'; g.lineWidth = 2.5; g.lineCap = 'round';
-      g.beginPath(); g.moveTo(gx - 90 * a, gy); g.lineTo(gx + 90 * a, gy); g.moveTo(gx, gy - 50 * a); g.lineTo(gx, gy + 50 * a); g.stroke();
+      g.beginPath(); g.moveTo(gx - 120 * a, gy); g.lineTo(gx + 120 * a, gy); g.moveTo(gx, gy - 70 * a); g.lineTo(gx, gy + 70 * a); g.stroke();
     }
     // Embers peel off both lips of the seam as it opens.
     if (l >= 3000 && l < 4300) {
@@ -449,7 +438,7 @@ class Component extends DCLogic {
     const room = this.props.room ?? '示意画面';
     const pause = this.props.pause ?? '播放';
     const speed = { '1 倍': 1, '0.5 倍': 0.5, '0.25 倍': 0.25 }[this.props.speed ?? '1 倍'];
-    const pauseAt = { '播放': null, '蓄力': 1500, '出招': 1990, '冲击帧': 2100, '余波': 2420, '亮名': 3300, '残心': 4800 }[pause];
+    const pauseAt = { '播放': null, '蓄力': 1500, '出招': 1990, '冲击帧': 2100, '余波': 2420, '亮名': 2800, '收刀': 3040, '残心': 4800 }[pause];
     this.cfg = { cycle: 7600, speed, pauseAt };
     return {
       bg: room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#2C3644',

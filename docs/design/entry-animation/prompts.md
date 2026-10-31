@@ -9,6 +9,41 @@ codex exec --skip-git-repo-check -s workspace-write -C <目录> [-i <参考图>]
 
 生成后用 `tools/process.py` 处理：人物裁到不透明区域、缩到高 1200，存成 WebP；冲击帧这类黑底白图把亮度转成透明度、颜色换成白色。
 
+## 人物图的固定写法（必须照做）
+
+**先定设定图**：每个身份开工前先生成三视图（`textures/sheet-hero.webp`，正面、右侧、背面）和武器设定图（`textures/sheet-sword.webp`），定死人物、衣服、靴子、刀和刀鞘。所有姿势都以这两张作前两张参考，收招图再加对应的拖影帧作第三张。`gen.sh` 会检查第一张参考是不是 `sheet-*`，不是就报错。用户原话：“要保持人物的一致性最好先生成人物（包括武器）的三视图、然后以这个三视图来生成人物的各个动作”。
+
+**一般人的标准**：右手握刀，刀挂左胯。靴子红底，刀柄无流苏。刀身等于头顶到胯的距离，刀柄约是刀身的三分之一，只有透视可以让它看起来变短。
+
+**刀不靠模型画**：刀长、笔直、刃的朝向，提示词都控制不住。生成后用 `tools/paste-blade.py` 把设定图上的刀身贴到每张图上（世界长度约 370 px）。刃的朝向规则：刃迎着砍的方向，刀背在拇指一侧；刀尖在刀背一侧；挂在腰上时刃朝上。
+
+人物和法相一律用 `tools/gen.sh` 生成：`gen.sh <目录> <输出名> <提示词文件> <参考图>...`。脚本会自动在提示词后面接上 `tools/prompt-anatomy.txt`（正面写清人体、左右手、刀怎么握）和 `tools/prompt-negative.txt`（负面提示词），只有背景和特效才写 `BACKGROUND=1` 跳过。2026-10-30 用户要求：“负面提示词必须有、防止二次犯错”。
+
+提示词顺序按 OpenAI 的提示词指南：场景 → 人物 → 关键细节 → 约束。负面词只能拦已经犯过的错，模型不知道手该长什么样时写再多也没用（资料见调查记录第九节），所以每张都先正面写清手和物体的关系。新犯一种错，就把它加进 `prompt-negative.txt`。
+
+几条固定的句子，直接抄（完整写法在 `tools/prompts-final.json`）：
+
+- 机位：`CAMERA: the angle of the middle figure of the model sheet, turned about 25 degrees toward the viewer. He faces the LEFT edge of the image, so we look at the LEFT side of his body and a little of his chest: his LEFT shoulder, LEFT arm, LEFT hip and LEFT leg are nearest to us, and his RIGHT arm reaches across in front of his chest or belly, in plain view.`
+- 佩刀：`The sword is worn on his LEFT hip, the side nearest us, in plain view: one single perfectly straight black scabbard, its mouth at the front of the hip and its tail sticking out behind him toward the RIGHT edge of the image.`
+- 左手：`His near LEFT arm hangs from the shoulder with the elbow bent back, the whole arm in plain view, and the LEFT hand grips the scabbard just below its mouth at the front of the left hip: we see the BACK of this hand with its silver star and all its knuckles.`
+- 刀在鞘里：`ORDER ALONG THE SWORD, from the LEFT of the image to the right: the pommel, then his RIGHT hand wrapped around the hilt, then the round guard, then his LEFT hand on the scabbard, then the rest of the scabbard.`
+- 双手握刀：`BOTH hands hold the hilt: the far RIGHT hand directly behind the guard and the near LEFT hand at the pommel end, about one fist apart. We see the BACK of the near LEFT hand with its silver star, and the fingers of the RIGHT hand wrapped around the hilt beyond it.`
+
+**朝向**：主角右手握刀、刀挂左胯，图不镜像。朝左时胸口可以转向镜头，刀鞘和左手都在近侧，两条胳膊不用交叉。朝右一律写纯侧面（`PURE SIDE view … His chest is NOT turned toward the viewer`），两条胳膊并排向前：胸口转向镜头时两臂必须交叉，模型会画成不交叉，握刀的手就成了左手。提示词里要写沿刀的顺序（`ORDER ALONG THE SWORD`），空着的手写握拳。
+
+**图里不画拖影**：提示词写 `No motion streak, no motion blur, no ghosted blades`，刀光全部由画板画。图里画拖影时刀长、弧度和终点都控制不住。
+
+**刀**：刀身、刀鞘都是笔直的。一侧是亮的刃，另一侧是深色刀背，刃在刀尖处斜着升上去，和刀背相交。用户先后指出“刀居然不是直的”“刀刃方向反了”。
+
+不要这样做：
+
+- **不要在原图上“加一条胳膊”**：模型会照抄现成的手，得到两只右手（pose-39）。手不对就整张重画。
+- **不要让另一条胳膊“藏起来不画”**：全身大动作要看得到两条胳膊。
+- **不要写“刀和手臂成一条直线”**：刀柄只能穿过手腕（pose-44、45）。前臂和刀柄要有约 120° 的夹角；突刺用双手。
+- **不要写“只看到手指”**：模型会画出没有手和手臂连着的手指，留在刀鞘上（pose-60、71、72）。每只手都要看得到前臂。
+- **不要让人物倒立翻滚**：倒立时脚和关节容易画错（pose-65、66）。要圆环就用拖影画，人保持头上脚下。
+- **不要给错朝向**：写了“朝左、看到右半身”这种不成立的机位，手和刀的左右就全乱了。
+
 ## 主角四种身份（hero-1 到 hero-4）
 
 先出一张四人设定图，保证是同一个人；但四个人互相重叠，切不开。于是再把设定图作参考（`-i`），每次只重画一个人，得到 `hero-1`（一般人）到 `hero-4`（总督）。
@@ -21,7 +56,9 @@ codex exec --skip-git-repo-check -s workspace-write -C <目录> [-i <参考图>]
 
 > The attached image is a character sheet with the same anime character shown four times, numbered 1 to 4 from left to right. … Image: Portrait 1024x1536. Only figure number N from the sheet, alone, redrawn at full size: exactly the same character, same outfit, same weapon, same colors, same three-quarter back view with the face hidden in shadow, same anime splash-art style and rim light. The figure fills the frame height, head near the top, cropped at mid-thigh by the bottom edge, and every part of the outfit and weapon fits inside the frame. Fully transparent background with a real alpha channel: no background color, no other figures, no floor, no shadow, no text.
 
-## 一般人的动作姿势（pose-2 到 pose-5）
+## 一般人的动作姿势（早期记录）
+
+**从这里到「其他」都是早期版本的记录，图已全部重画，写法不要照抄。每张现行图的提示词和参考图在 `tools/prompts-final.json`。**
 
 都以 `hero-1` 作参考，共同的结尾：
 
@@ -67,9 +104,59 @@ codex exec --skip-git-repo-check -s workspace-write -C <目录> [-i <参考图>]
 - pose-21 单膝落地（hero-1、旧 pose-20）：Landscape 1536x1024. The landing that ends the plunging slash of the second reference image, three-quarter back view, the character faces toward the RIGHT side of the image: down on ONE knee, the left knee on the ground and the right foot planted forward, the body low, compact and upright again, the head bowed so the face is completely hidden by hair and deep shadow. Both hands grip the hilt in front of the right hip and the katana has been driven into the ground at the front right: the blade points down to the LOWER RIGHT at about 40 degrees, the same direction as the blade at the end of the slash in the second reference image, and its tip is sunk into the ground exactly at the level of the knee and the sole of the front foot (the ground itself is not drawn; the visible blade simply ends at ground level). Jacket tails, red ribbons and hair blasted outward and upward by the impact of the landing.
 - pose-22 起身甩刀（hero-1、pose-21、pose-5、上一版 pose-22）：Landscape 1536x1024. Rising from the kneeling pose of the second reference image toward the calm standing pose of the third reference image, three-quarter back view, the character faces toward the RIGHT side of the image: halfway up, the front leg pushing the body up, the back knee just lifted off the ground, the torso almost upright. The RIGHT arm has pulled the katana out of the ground and snaps it out to the right in a sharp blood-shaking flick (chiburi): the right arm extended out to the right, the blade held at arm's length pointing to the LOWER RIGHT at about 25 degrees below horizontal. The LEFT hand rests on the scabbard at the LEFT HIP, in front of the body, thumb on the scabbard mouth, the left elbow bent at the side. ANATOMY: exactly two arms and two hands, both in FRONT of the torso; no arm or hand reaches behind the back. Jacket tails and red ribbons swing with the flick. Same framing and size as the fourth reference image.（第一版左手往身后甩，手背到身后；改成左手在左胯按刀鞘。）
 
+**下面到「其他」之前是 60 档被否的旧版本（pose-31–53、oni-1–6），素材已删除，只留作记录，写法不要照抄。现行提示词在 `tools/prompts-final.json`。**
+
+60 档斩月（2026-10-27，EV4）。第一版 9 张都是三分之四背面，刀和双手横在后腰上、拖影从后腰起，用户说“背后握刀、在身后拔刀、这不别扭么”；全部改成侧身重画。刀挂在腰上的姿势都用下面两段，代替三分之四背面那句：
+
+- 侧身（VIEW，机位写反了，只留作记录，不要再用）：seen in a clear SIDE PROFILE from the character's LEFT side: the character faces toward the RIGHT edge of the image and we see the left shoulder, left arm, left hip and left leg nearest to us, clearly NOT a back view and NOT a front view. The head is bowed and turned slightly away from the viewer, the face completely covered by messy hair and deep shadow (no eyes, nose or mouth visible).
+- 佩刀（SWORD）：The black scabbard is worn at the LEFT HIP on the side nearest the viewer: its mouth is at the front of the left hip and the scabbard sticks out BACKWARD toward the LEFT edge of the image behind the hip. The katana, the scabbard and both hands stay at the FRONT of the body and on the near side; nothing passes across the back.
+
+每张人物图都带下面这段负向约束（`gen.sh` 自动附加）。codex 的生图没有单独的负向参数，直接写进提示词正文；要点是点名具体的错误，再正面写明有几只手。用户原话：“这种ai错画不是网上有一堆负向提示词么、这些不是应该写入porompt里面约束么”。
+
+> ARMS CHECK: count them before finishing: exactly one left arm and one right arm; each arm runs unbroken from its shoulder through the elbow and the forearm to its own hand, and each hand is attached to a forearm you can see. DO NOT DRAW: a third hand, a third arm, an extra hand, an extra arm, a floating hand, a disconnected hand, a hand with no arm, an arm with no hand, duplicated limbs, extra legs, extra feet, extra fingers, missing fingers, fused fingers, six fingers, deformed hands, mutated hands, malformed limbs, broken or twisted wrists, bad anatomy, a second sword, a second scabbard, a duplicated hilt.
+
+共同结尾同 50 档（ANATOMY、FULL BODY、透明底），参考图第一张都是 `hero-1`：
+
+- pose-31 纳刀途中（hero-1）：Portrait. Sheathing the sword (noto) after a blood-shaking flick, VIEW. Standing almost upright … SWORD. The LEFT hand holds the scabbard mouth at the front of the left hip. The RIGHT hand holds the hilt in front of the chest and pushes the katana back into the scabbard: the blade is already two thirds inside. The hilt, the guard, a short forearm-length stretch of bare steel, the scabbard mouth and the scabbard form ONE straight line.（第一版写的是背面，刀身斜着戳向刀鞘中段，没进鞘口。）
+- pose-32 纳刀完（hero-1、pose-31）：pose-31 同一站姿，刀全进鞘，右手按刀柄，左手握鞘口、拇指按刀镡。
+- pose-33 居合架势（hero-1）：Landscape. The deepest iaido draw stance, VIEW. A very low, wide crouch … The katana is SHEATHED. SWORD. The LEFT hand grips the scabbard just below the guard at the front of the left hip, the left thumb pressing against the guard; the RIGHT hand reaches across in FRONT of the belly and grips the hilt, which points FORWARD toward the right.
+- pose-34 鲤口特写（hero-1、pose-33）：Extreme close-up cut-in shot from the side, framed tightly on the front of the character's LEFT HIP … the left THUMB pushes the round guard forward, sliding a few centimeters of bright steel out of the scabbard mouth, one sharp thin white glint along it. No head and no face in the frame.
+- pose-51 穿屏拖影（hero-1、pose-35，后者已不用）：Landscape. The instant of an explosive dash-through iaido cut, VIEW. The whole body is launched low and flat toward the RIGHT, both feet off the ground … the near LEFT hand pulls the scabbard back at the front of the left hip; the RIGHT arm whips out in front of the body toward the upper right. SMEAR: starts at the scabbard mouth, sweeps forward low, rises along a long, nearly STRAIGHT diagonal … The katana keeps its NORMAL length.
+- pose-52 急停收招（pose-51、hero-1）：the character brakes to a hard skidding stop toward the RIGHT … the front heel digging into the ground, the body leaning back against the momentum; the arms stay as in the first reference image … Hair, jacket tails and ribbons are whipped FORWARD toward the right by the sudden stop. One single straight scabbard.
+- pose-53 刀镡撞鞘（只用 pose-34）：Exactly the same extreme close-up … the katana has been SLAMMED shut. The round guard is now pressed hard flat against the scabbard mouth, NO bare steel is visible at all. No sparks, no glow, no effects.
+
+60 档第二版把大招前的动作全部重做（用户：“60挡大招前面的动作用了50挡动作、重复感官不好”），pose-35、36 和 oni-2、3 已删除。五刀和缓步全程朝左，用下面的朝左写法。
+
+- 朝左（VIEWL）：seen in a clear SIDE PROFILE from the character's RIGHT side: the character faces toward the LEFT edge of the image and we see the right shoulder, right arm, right hip and right leg nearest to us, clearly NOT a back view and NOT a front view.
+- 朝左的佩刀：The black scabbard is worn at the LEFT HIP on the FAR side of the body: only its rear end shows, sticking out backward toward the RIGHT edge of the image behind the hips, one single straight scabbard.
+**更正**：上面两段的方向写反了。人物面朝画面左边时，离镜头近的是左半身，面朝右时才是右半身；所以这批朝左的图其实是左手持刀，刀在右胯，等于右手持刀的镜像。pose-37–45 第一版还让另一条胳膊“藏在身后不画”，用户指出只有一只手、不符合人体结构，已以原图作底补上第二条胳膊：左手握鞘口，pose-15 双手握刀（提示词写 “Change ONE thing only: ADD the ... arm, which is missing”，动作和刀位不变）。不要再用“藏手臂”的写法。
+
+参考图：第一张 `hero-1`，第二张是左右翻过来的 pose-32、33 或 36，只定机位（写明 “shows the camera angle only; do not copy its pose”）。收招图都以拖影帧作第一张参考，写明 “do not change, mirror or swap the arms”。
+
+- pose-37、38 缓步：Walking slowly and calmly toward the LEFT … the hand just beside the hilt, not gripping it.（38 以 37 作参考，迈另一只脚。）
+- pose-39 沉身：Sinking suddenly low to spring forward … the near RIGHT hand has just gripped the hilt.
+- pose-40、41 滑步低扫：a knee-sliding draw-cut … a long, flat crescent streak that sweeps LOW and nearly HORIZONTAL toward the left at knee height.
+- pose-42、43 起身上撩：a rising slash that springs up out of a low slide … rises along a long, nearly STRAIGHT diagonal at about 55 degrees toward the upper LEFT.
+- pose-44、45 长突：A full-body lunging THRUST … the katana continuing the arm in one straight line … a long, perfectly STRAIGHT, narrow streak, no curve at all.
+- pose-46、47 跨步袈裟：BOTH hands grip the hilt together in front of the chest … from the UPPER RIGHT to the LOWER LEFT at about 60 degrees.
+- pose-48、49 踏地唐竹：the front foot has just slammed down flat … one STRAIGHT VERTICAL line down in front of the body to the ground.
+- pose-50 回身血振（hero-1、pose-36）：Having just whipped around to face the other way, a sharp blood-shaking flick … 朝右的 VIEW 和佩刀写法。
+
+赤鬼武者法相：第一张 oni-1 定造型（大铠、两根长鬼角的兜、破烂的赤黑阵羽织，身体是暗红的墨和余烬光，腰以下化成墨烟，侧身、脸藏在盔檐阴影里），之后每张都拿已有的法相图作第一张参考：
+
+- oni-1 法相居合（旧 oni-2、pose-33）：the arms and hands are arranged exactly as in the first reference image … the katana is still fully SHEATHED … EXACTLY two arms and two hands in the whole image … no third hand.（拿旧 oni-1 和 pose-33 作参考时多画了一只手，用户指出。）
+- oni-4 法相穿屏拖影（旧 oni-2、pose-51）：和 pose-51 同一姿势，拖影同样从左胯前的鞘口起。
+- oni-5 法相急停（只用 oni-4）：Exactly the same image as the reference … the SAME arms and hands in exactly the same places … remove the white-red streak completely … Do not change, mirror or swap the arms. 披风和墨烟被急停甩向前方。（同时拿主角图作参考时，前伸的手臂和拖影帧反了，用户指出。）
+- oni-6 法相收刀（oni-1）：standing tall and upright. The sword has just been SLAMMED back into its scabbard … FULLY SHEATHED … one single straight line.
+
+旧档按同样的写法改成侧身（2026-10-30），动作、刀位和原来一样：pose-2、pose-6（hero-1、pose-33，膝盖处截断）；pose-13（hero-1、pose-2、pose-35）；pose-14（pose-13、hero-1，同 pose-36 的写法）。上面 40 档段落里 pose-2、6、13、14 的提示词是旧版，留作记录。
+
+pose-15 拖刀起势（全身）：写“左手按刀鞘”时两次画出没有手臂的手。先去掉那只手和多出来的第二段刀鞘，再以这张作底加上第二条胳膊，双手握刀。
+
 ## 其他
 
 - moon（60 档的月夜背景）：Landscape 1536x1024. Cinematic anime background art: a deep night sky over a dark horizon, a huge pale full moon slightly right of center partly veiled by thin ink-wash clouds, faint red haze near the horizon, very dark and moody, desaturated with deep navy and black tones, Japanese ink-wash (sumi-e) brush texture in the clouds, no characters, no buildings in the foreground, no text.
+- day（60 档血月世界碎掉后露出的现实世界，只以 moon 作参考）：Landscape 1536x1024. The REAL WORLD side of exactly the same sky as the reference image: identical composition, the same cloud shapes in the same positions, the same horizon line and the same dark rolling hills, the same Japanese ink-wash (sumi-e) brush texture and the same level of detail; only the time of day and the colours change. Daytime: a calm, deep cerulean blue sky; the clouds are white and pale ivory with slate-blue ink shadows on their undersides; sunlight comes from the upper right, where the moon is in the reference: the moon is gone, replaced by a soft warm sun glow behind a thin veil of cloud. The hills stay layered ink-wash silhouettes in deep blue-grey with pale mist between them, not green, no individual trees. Muted, painterly, cinematic anime background art by the same hand as the reference. Not photographic, not a 3D render, not oversaturated, no pixelated mosaic edges, no lens-flare rays, no moon, no characters, no buildings, no text.（第一版同时参考月夜和血月、没写远山怎么画，出来是写实绿树林，用户说画风不一样。）
 - moon-red（斩开后露出的血月里世界，以 moon 为构图参考，`-i moon.png`）：Landscape 1536x1024. The 'other side' of exactly the same sky: identical composition, the full moon in exactly the same position and size, the same cloud shapes and horizon line, but transformed into a blood-red world: a glowing crimson blood moon, deep red and black ink-wash (sumi-e) clouds lit from within, faint embers drifting upward, darker vignette at the edges, ominous and powerful, cinematic anime background art, no characters, no text.
 - impact（冲击帧的集中线）：Square 1254x1254. Manga impact frame: a powerful radial burst of sharp white concentration lines (shuuchuu-sen) exploding outward from the center, with jagged white ink splashes and spiky shock shapes near the center, high-contrast brutal anime fight style. Pure solid black background (#000000). White only, no grey wash, no color, no text.
 - gold-sword（总督身后的金剑）：Portrait 1024x1536. One single ornate floating golden sword pointing straight down, perfectly vertical and centered, long blade, jeweled gold crossguard and hilt, faint gold glow, anime game item art, crisp lineart and cel shading. Fully transparent background with a real alpha channel, nothing else in the image, no text.

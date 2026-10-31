@@ -12,8 +12,7 @@
 <helmet>
 <style>
 body{margin:0}
-@font-face{font-family:'Noto Serif SC';font-weight:900;src:url('/_blob/4baebcf387c0f3280dffcbd0173aece9') format('woff2')}
-@font-face{font-family:'Barlow Condensed';font-weight:500;src:url('/_blob/f1df6953c74778fa8fa7a4bee4185626') format('woff2')}
+@font-face{font-family:'LXGW WenKai';src:url('/_blob/0c4f2ae7ae0a4cbf673d5481347d25df') format('woff2')}
 </style>
 </helmet>
 <div id="ev2-root" style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: {{bg}}">
@@ -25,7 +24,7 @@ body{margin:0}
   <canvas id="ev2-gl" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"pause":{"editor":"enum","options":["播放","蓄力","冲刺","第一刀","举刀","第二刀","回身","上撩","冲击帧","余波","亮名","斩铁","里世界"],"default":"播放"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["示意画面","浅色房间","深色房间","透明"],"default":"示意画面"},"$preview":{"width":1920,"height":1080}}'>
+<script type="text/x-dc" data-dc-script data-props='{"pause":{"editor":"enum","options":["播放","蓄力","冲刺","第一刀","回身","上撩","回刀","重劈","冲击帧","余波","亮名","入鞘","定格","斩铁","里世界"],"default":"播放"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["示意画面","浅色房间","深色房间","透明"],"default":"示意画面"},"$preview":{"width":1920,"height":1080}}'>
 class Component extends DCLogic {
   componentDidMount() {
     if (this.loopFn) return;
@@ -55,26 +54,23 @@ class Component extends DCLogic {
     const app = new P.Application();
     await app.init({ canvas, width: 1920, height: 1080, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: 1 });
     const load = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
-    const names = ['115e75bc617f8d5fd7fb14fbefd1be6a', '1c7a70bfab754681aee2ffeb917ac339', '50c3749ffd1d4751683421a32c66fcff', 'b612d7f6d7de096f347399c9117de8f7', '3faeaf56aa91c083f3f7aa9c275fbf63', 'bf29b43f32599957781aa3a541f4f0df', '29e10238d4580ab3bd147434f8165b26', 'e137dd02705aa8b8d9487ad3f2a7aecf', '8a8f2e02185cf263966cda96a7401785', '082ab954667f7cf75e403f0dfb59d960', '37a5b192bf014dc81fa423d2e1d45f6c', '38b992f980c338671fb008bf5ccdaefb', '1b89f838e16a1aae41ef0adb6e836e22', '3d7a08e31609fe87cb25219c91012aae'];
+    const names = ['d05e3ae4b0df6766218c9cb7056d512a', '54490268e284e2a74b2c7fb66fef9d62', 'b33effb2738a086c7edec921f6293c7f', '4de8b2e1eaa08351b20b0d72d15acff8', '1f29a58d070ccfe19e7ad1613efad654', 'c2ce99416b962427caec0beee566f012', 'b78d80b46a279b1f829e2fb230d5d18f', '5088c2892621dc807e7bfb1f405484bf', 'd4aa23672f6d3f8a27934529088b185c', '7b86fec152fb8be6aabe1414d417a639', 'fe7133844365ec5da26469c8a96ad0ee', '38b992f980c338671fb008bf5ccdaefb', '1b89f838e16a1aae41ef0adb6e836e22', '3d7a08e31609fe87cb25219c91012aae'];
     const imgs = await Promise.all(names.map(n => load('/_blob/' + n)));
-    await Promise.all([document.fonts.load('900 132px "Noto Serif SC"'), document.fonts.load('500 40px "Barlow Condensed"')]);
+    await document.fonts.load('132px "LXGW WenKai"');
     const [moon, impact, moonRed] = imgs.slice(11);
     const tex = img => P.Texture.from(img);
     const canvasOf = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); return c; };
-    // Poses are cut at the knees; fade that edge so a camera tilt never shows it.
-    const faded = img => canvasOf(img.width, img.height, g => { g.drawImage(img, 0, 0); const r = g.createLinearGradient(0, img.height - 120, 0, img.height); r.addColorStop(0, 'rgba(0,0,0,0)'); r.addColorStop(1, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-out'; g.fillStyle = r; g.fillRect(0, img.height - 120, img.width, 120); });
     const silhouette = (img, color) => tex(canvasOf(img.width, img.height, g => { g.drawImage(img, 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, img.width, img.height); }));
     const radial = (stops) => tex(canvasOf(512, 512, g => { const r = g.createRadialGradient(256, 256, 0, 256, 256, 256); for (const [o, c] of stops) r.addColorStop(o, c); g.fillStyle = r; g.fillRect(0, 0, 512, 512); }));
 
-    // The action chain. Every pose is placed by its hips (hip, in its own image's pixels) at a scale s that keeps the
-    // figure about the same size; the slashes are built from points measured in the same images, so each slash runs
-    // along the smear painted in its smear frame and ends exactly at the blade tip of the pose that finishes the cut.
-    const keys = ['charge', 'dash', 'draw', 'drawEnd', 'wind', 'smear2', 'cut2', 'spin', 'smear3', 'cut3', 'zan'];
-    const anchors = [[[520, 720], 0.731], [[880, 720], 0.682], [[700, 700], 0.684], [[700, 700], 0.684], [[520, 850], 0.889], [[780, 820], 0.848], [[440, 640], 0.733], [[760, 780], 0.666], [[430, 800], 0.9], [[460, 880], 0.812], [[330, 680], 0.771]];
-    const PO = {};
-    keys.forEach((key, i) => { const c = faded(imgs[i]); PO[key] = { img: c, tex: tex(c), hip: anchors[i][0], s: anchors[i][1] }; });
-    const HIP = [720, 760];
-    const W = (p, q, hip = HIP) => [hip[0] + (q[0] - p.hip[0]) * p.s, hip[1] + (q[1] - p.hip[1]) * p.s];
+    // The action chain. Every pose stands on the ground line with its hips at X, at the scale that makes the blade the same
+    // length, and each one takes him further right. The images hold the figure only: the light is drawn here, along the path
+    // of the blade tip, and each slash ends exactly at the tip of the pose that finishes the cut.
+    const keys = ['charge', 'draw', 'cut1', 'wind', 'smear2', 'cut2', 'spin', 'smear3', 'cut3', 'into', 'home'];
+    const anchors = [[[960, 420], 0.7, 973, 640], [[730, 440], 0.7, 934, 720], [[560, 420], 0.65, 986, 780, 50], [[642, 787], 0.658, 1483, 880], [[640, 500], 0.683, 983, 900, -30], [[663, 563], 0.627, 983, 1000, -50], [[1010, 462], 0.72, 996, 800], [[512, 800], 0.706, 1546, 800], [[558, 814], 0.679, 1576, 840], [[804, 440], 0.7, 1006, 1010, -50], [[804, 440], 0.7, 1009, 1010, -50]];
+    const PO = {}, GROUND = 1010;
+    keys.forEach((key, i) => { const [hip, s, sole, X, dy = 0] = anchors[i]; PO[key] = { img: imgs[i], tex: tex(imgs[i]), hip, s, sole, X, dy }; });
+    const W = (key, q, X = PO[key].X) => { const p = PO[key]; return [X + (q[0] - p.hip[0]) * p.s, GROUND + p.dy + (q[1] - p.sole) * p.s]; };
     // Catmull-Rom through the measured points, about every 10 px.
     const spline = pts => {
       const out = [];
@@ -101,24 +97,29 @@ class Component extends DCLogic {
       return { pts, at };
     };
 
-    // Cut 1, the draw: from the scabbard mouth at the hip, low across the front and curling up round the hand into the
-    // tip of the follow-through (the draw smear without its smear).
-    const t1 = spline([W(PO.draw, [600, 660]), W(PO.draw, [900, 820]), W(PO.draw, [1200, 850]), W(PO.draw, [1500, 800]), W(PO.draw, [1750, 650]), W(PO.draw, [1880, 450]), W(PO.drawEnd, [1910, 160])]);
-    // Cut 2: from the raised blade's tip, along the overhead smear, down into the low tip of the finished cut.
-    const t2 = spline([W(PO.wind, [10, 5]), W(PO.smear2, [500, 60]), W(PO.smear2, [1000, 110]), W(PO.smear2, [1300, 260]), W(PO.smear2, [1550, 500]), W(PO.smear2, [1700, 800]), W(PO.smear2, [1760, 1050]), W(PO.cut2, [1765, 1155])]);
-    // Cut 3: the spin smear's loop round the waist (its far half behind the hero), then the rising smear up to the raised tip.
-    const loop = [], loopBack = [];
+    // Cut 1, the draw on the run: out of the scabbard mouth at the hip, a flat level line to the tip at full stretch.
+    const H1 = W('cut1', [1520, 194]);
+    const t1 = spline([W('draw', [860, 400]), W('draw', [1200, 372]), W('draw', [1509, 337]), H1]);
+    // Cut 2: the level cut carries him round. The tip goes on past him, behind him (the far half of the loop), comes out on
+    // his left (the pose facing us), and rises across his front to the raised tip.
+    const TL = W('spin', [125, 389]), loop = [], loopBack = [], CX = TL[0] + 568, CY = TL[1] + 67;
     for (let i = 0; i <= 50; i++) {
-      const th = -(Math.PI + 0.5) * i / 50, x = 880 * Math.cos(th), y = 125 * Math.sin(th);
-      loop.push(W(PO.spin, [880 + x * Math.cos(0.09) - y * Math.sin(0.09), 680 + x * Math.sin(0.09) + y * Math.cos(0.09)])); loopBack.push(Math.sin(th) < 0);
+      const th = -0.7 - (Math.PI - 0.2) * i / 50;
+      loop.push([CX + 568 * Math.cos(th), CY + 120 * Math.sin(th) + 67 * Math.cos(th)]); loopBack.push(Math.sin(th) < 0);
     }
-    const rise = [W(PO.smear3, [20, 975]), W(PO.smear3, [250, 1000]), W(PO.smear3, [450, 930]), W(PO.smear3, [600, 820]), W(PO.smear3, [700, 650]), W(PO.smear3, [760, 450]), W(PO.smear3, [770, 250]), W(PO.smear3, [750, 100]), W(PO.cut3, [775, 15])];
-    const t3rise = spline([loop[loop.length - 1], ...rise]).slice(1);
-    // The zanshin flick: down the right side from the raised tip into the low blade of the closing stance.
-    const t4 = spline([W(PO.cut3, [775, 15]), [1240, 380], [1250, 760], W(PO.zan, [780, 1120])]);
-    const front = (pts, u) => pts.map((_, i) => i / (pts.length - 1) < u);
-    const blades = [pathOf(t1, front(t1, 0.05)), pathOf(t2), pathOf([...loop, ...t3rise], [...loopBack, ...t3rise.map(() => false)]), pathOf(t4)];
-    const H3 = t3rise[t3rise.length - 1];
+    const H2 = W('cut3', [1069, 31]);
+    const lead = spline([H1, [(H1[0] + loop[0][0]) / 2 + 12, (H1[1] + loop[0][1]) / 2 - 8], loop[0]]).slice(0, -1);
+    const t3rise = spline([loop[loop.length - 1], [560, 735], [820, 640], [1000, 360], [1120, 120], H2]).slice(1);
+    // The blade does not stop up there: it carries on over his head, where his left hand comes up to the hilt.
+    const TW = W('wind', [335, 56]);
+    const t5 = spline([H2, [1030, -90], [860, -60], TW]);
+    // Cut 3, the heavy chop: over the top and down through the tip of the mid-cut pose into the low tip of the finish. He
+    // steps forward as it falls, which draws the arc out into a long diagonal. It ends low, so the sword can go straight home.
+    const H3 = W('cut2', [1480, 866]);
+    const t2 = spline([TW, [920, 30], [1170, 150], W('smear2', [1423, 45]), [1490, 620], H3]);
+    // From the low finish the blade comes back up to the scabbard mouth at his hip.
+    const t6 = spline([H3, [1400, 740], [1240, 620], W('into', [850, 394])]);
+    const blades = [pathOf(t1), pathOf([...lead, ...loop, ...t3rise], [...lead.map(() => false), ...loopBack, ...t3rise.map(() => false)]), pathOf(t2), pathOf(t6), pathOf(t5)];
 
     // The cuts a straight blade leaves are straight: each is the chord of the stretch of its slash still lit on the frame
     // it lands (from the slash's tail to the blade tip), run right across the sky. Each slash's tail catches up as it
@@ -134,7 +135,7 @@ class Component extends DCLogic {
     });
     const inside = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
     // TAILS: how much of each slash has already drawn in by the frame it lands (the slashes below use the same values).
-    const TAILS = [0.15, 0.5, 0.68];
+    const TAILS = [0.35, 0.68, 0.3];
     const chordOf = (P, u0) => { const a = P.at(u0), b = P.at(1); return [reach([a[0], a[1]], [b[0], b[1]]), reach([b[0], b[1]], [a[0], a[1]])]; };
     const scars = TAILS.map((u0, i) => chordOf(blades[i], u0));
     const dense = ([a, b]) => Array.from({ length: 1001 }, (_, i) => [a[0] + (b[0] - a[0]) * i / 1000, a[1] + (b[1] - a[1]) * i / 1000]);
@@ -152,10 +153,10 @@ class Component extends DCLogic {
     const dim = new P.Sprite(radial([[0, 'rgba(6,6,12,0.55)'], [0.6, 'rgba(4,4,8,0.85)'], [1, 'rgba(0,0,0,1)']]));
     dim.anchor.set(0.5); dim.position.set(960, 540); dim.width = 3400; dim.height = 2400; world.addChild(dim);
 
-    // The sky is mirrored for 40 档 so the moon sits up and left behind the hero, clear of every cut (splitting the moon is 60 档's).
+    // The moon hangs up on the right, ahead of the hero, clear of every cut (splitting the moon is 60 档's).
     const shadeTex = radial([[0, 'rgba(0,0,0,0)'], [0.7, 'rgba(0,0,0,0.35)'], [1, 'rgba(0,0,0,0.8)']]);
     const skyOf = (img, parent) => {
-      const sky = new P.Sprite(tex(img)); sky.width = 2400; sky.height = 1600; sky.scale.x *= -1; sky.position.set(2160, -260); parent.addChild(sky);
+      const sky = new P.Sprite(tex(img)); sky.width = 2600; sky.height = 1733; sky.position.set(-13, -394); parent.addChild(sky);
       const shade = new P.Sprite(shadeTex); shade.anchor.set(0.5); shade.position.set(960, 540); shade.width = 2800; shade.height = 1900; parent.addChild(shade);
     };
     const red = new P.Container(); red.pivot.set(960, 540); red.position.set(960, 540); skyOf(moonRed, red); world.addChild(red);
@@ -164,7 +165,7 @@ class Component extends DCLogic {
       for (const r of cell.regions) { const m = new P.Graphics().poly(r.flat()).fill(0xffffff); c.addChild(m); const inner = new P.Container(); inner.mask = m; host.addChild(inner); host = inner; }
       skyOf(moon, host);
       c.pivot.set(cell.c[0], cell.c[1]); c.position.set(cell.c[0], cell.c[1]);
-      const d = [cell.c[0] - 760, cell.c[1] - 560], m = Math.hypot(d[0], d[1]) || 1, dir = [d[0] / m, d[1] / m];
+      const d = [cell.c[0] - 900, cell.c[1] - 560], m = Math.hypot(d[0], d[1]) || 1, dir = [d[0] / m, d[1] / m];
       world.addChild(c);
       return { ...cell, c, dir, dist: 240 + Math.min(120, cell.n * 0.25), rot: 0.03 * Math.sign(dir[0] || 1) * (dir[1] < 0 ? 1 : 0.5) };
     });
@@ -176,51 +177,45 @@ class Component extends DCLogic {
     const rim = new P.Sprite(radial([[0, 'rgba(255,60,70,0.55)'], [0.45, 'rgba(200,20,40,0.18)'], [1, 'rgba(0,0,0,0)']]));
     rim.anchor.set(0.5); rim.width = 1100; rim.height = 1100; world.addChild(rim);
     const ghosts = [0, 1].map(() => { const s = new P.Sprite(PO.charge.tex); s.alpha = 0; world.addChild(s); return s; });
-    const hero = new P.Sprite(PO.charge.tex); world.addChild(hero);
+    const hero = new P.Sprite(PO.charge.tex); hero.tint = 0xe0e0e0; world.addChild(hero);
 
     const fx = document.createElement('canvas'); fx.width = backC.width; fx.height = backC.height;
     const fxTex = tex(fx), fxSprite = new P.Sprite(fxTex); fxSprite.blendMode = 'add'; fxSprite.position.set(-OX, -OY); world.addChild(fxSprite);
 
     const ui = new P.Container(); ui.pivot.set(960, 540); stage.addChild(ui);
-    const nameG = new P.Container(); nameG.position.set(1000, 860); nameG.rotation = -0.06; ui.addChild(nameG);
-    const nameStyle = { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 132, fill: 0xffffff, letterSpacing: 26 };
-    const nameGhosts = [0, 1].map(() => { const t = new P.Text({ text: '柚子不酸', style: { ...nameStyle, fill: 0xff4d5e } }); t.anchor.set(0, 0.5); nameG.addChild(t); return t; });
-    const nameT = new P.Text({ text: '柚子不酸', style: nameStyle }); nameT.anchor.set(0, 0.5); nameG.addChild(nameT);
+    const nameG = new P.Container(); nameG.position.set(30, 420); nameG.rotation = -0.06; ui.addChild(nameG);
+    // The strokes are thickened: at this size the Kai's own weight is too light against the blade light.
+    const nameStyle = { fontFamily: 'LXGW WenKai', fontSize: 132, fill: 0xffffff, stroke: { color: 0xffffff, width: 4, join: 'round' }, letterSpacing: 16 };
+    const nameGhosts = [0, 1].map(() => { const t = new P.Text({ text: 'Yuzu_Sour', style: { ...nameStyle, fill: 0xff4d5e, stroke: { color: 0xff4d5e, width: 4, join: 'round' } } }); t.anchor.set(0, 0.5); nameG.addChild(t); return t; });
+    const nameT = new P.Text({ text: 'Yuzu_Sour', style: nameStyle }); nameT.anchor.set(0, 0.5); nameG.addChild(nameT);
     const nameMask = new P.Graphics(); nameG.addChild(nameMask); nameT.mask = nameMask;
-    const rule = new P.Graphics(); nameG.addChild(rule);
-    const tag = new P.Text({ text: '粉丝团', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 30, fill: 0xffffff, letterSpacing: 6 } });
-    const lv = new P.Text({ text: 'LV.40', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 40, fill: 0xff5a68, letterSpacing: 6 } });
-    tag.position.set(34, -142); lv.position.set(150, -150); nameG.addChild(tag, lv);
     // Entry caption: says who is coming in from the cut-in, until the dash's wind sweeps it away.
-    const cap = new P.Container(); cap.position.set(600, 900); ui.addChild(cap);
-    const capRule = new P.Graphics(); cap.addChild(capRule);
-    const capName = new P.Text({ text: '柚子不酸', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 50, fill: 0xffffff, letterSpacing: 12 } });
+    const cap = new P.Container(); cap.position.set(1060, 900); ui.addChild(cap);
+    const capName = new P.Text({ text: 'Yuzu_Sour', style: { fontFamily: 'LXGW WenKai', fontSize: 52, fill: 0xffffff, stroke: { color: 0xffffff, width: 1.6, join: 'round' }, letterSpacing: 8 } });
     capName.anchor.set(0, 1); capName.position.set(30, -10); cap.addChild(capName);
-    const capLv = new P.Text({ text: '粉丝团', style: { fontFamily: 'Noto Serif SC', fontWeight: '900', fontSize: 22, fill: 0xffffff, letterSpacing: 4 } });
-    const capLvN = new P.Text({ text: 'LV.40', style: { fontFamily: 'Barlow Condensed', fontWeight: '500', fontSize: 28, fill: 0xff5a68, letterSpacing: 4 } });
-    capLv.position.set(32, 12); capLvN.position.set(112, 6); cap.addChild(capLv, capLvN);
     const capMask = new P.Graphics(); cap.addChild(capMask); capName.mask = capMask;
 
     const imp = new P.Container(); world.addChild(imp);
     const impBg = new P.Graphics().rect(-1200, -1200, 4320, 3480).fill(0xffffff); imp.addChild(impBg);
-    const impLines = new P.Sprite(tex(impact)); impLines.anchor.set(0.5); impLines.width = impLines.height = 3000; imp.addChild(impLines);
-    const silB = new P.Sprite(silhouette(PO.cut3.img, '#000')), silW = new P.Sprite(silhouette(PO.cut3.img, '#fff'));
-    for (const s of [silB, silW]) { s.scale.set(PO.cut3.s); s.position.set(HIP[0] - PO.cut3.hip[0] * PO.cut3.s, HIP[1] - PO.cut3.hip[1] * PO.cut3.s); imp.addChild(s); }
+    const impLines = new P.Sprite(tex(impact)); impLines.anchor.set(0.5); impLines.width = impLines.height = 4600; imp.addChild(impLines);
+    const silB = new P.Sprite(silhouette(PO.cut2.img, '#000')), silW = new P.Sprite(silhouette(PO.cut2.img, '#fff'));
+    for (const s of [silB, silW]) { s.scale.set(PO.cut2.s); s.position.set(PO.cut2.X - PO.cut2.hip[0] * PO.cut2.s, GROUND + PO.cut2.dy - PO.cut2.sole * PO.cut2.s); imp.addChild(s); }
 
     const flash = new P.Graphics().rect(-1200, -1200, 4320, 3480).fill(0xffffff); world.addChild(flash);
     const bars = [new P.Graphics(), new P.Graphics()]; stage.addChild(...bars);
     stage.setChildIndex(ui, stage.children.indexOf(world) + 1);
 
-    const bloom = new F.AdvancedBloomFilter({ threshold: 0.6, bloomScale: 1.15, brightness: 1, blur: 7, quality: 5 });
-    const shock = new F.ShockwaveFilter({ center: { x: H3[0], y: H3[1] + 110 }, speed: 1500, amplitude: 54, wavelength: 240, brightness: 1.15, radius: -1 });
-    const zoom = new F.ZoomBlurFilter({ strength: 0, center: { x: H3[0], y: H3[1] + 110 }, innerRadius: 60 });
+    const CAM3 = -30;
+    const bloom = new F.AdvancedBloomFilter({ threshold: 0.9, bloomScale: 1.15, brightness: 1, blur: 7, quality: 5 });
+    const shock = new F.ShockwaveFilter({ center: { x: H3[0], y: H3[1] + CAM3 }, speed: 1500, amplitude: 54, wavelength: 240, brightness: 1.15, radius: -1 });
+    const zoom = new F.ZoomBlurFilter({ strength: 0, center: { x: H3[0], y: H3[1] + CAM3 }, innerRadius: 60 });
     const rgb = new F.RGBSplitFilter({ red: { x: 0, y: 0 }, green: { x: 0, y: 0 }, blue: { x: 0, y: 0 } });
 
     const onScreen = p => p[0] > -60 && p[0] < 1980 && p[1] > -60 && p[1] < 1140;
     this.S = {
-      app, canvas, world, ui, dim, red, pieces, scars, blades, H3, PO, HIP, W, OX, OY, backC, backTex, rim, ghosts, hero, fx, fxTex,
+      app, canvas, world, ui, dim, red, pieces, scars, blades, H3, PO, GROUND, CAM3, W, OX, OY, backC, backTex, rim, ghosts, hero, fx, fxTex,
       emberSrc: scars.map(s => pathOf(dense(s).filter(onScreen))),
-      nameG, cap, capRule, capName, capLv, capLvN, capMask, nameGhosts, nameT, nameMask, rule, tag, lv, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, zoom, rgb
+      nameG, cap, capName, capMask, nameGhosts, nameT, nameMask, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, zoom, rgb
     };
     app.ticker.add(() => this.frame());
   }
@@ -239,9 +234,9 @@ class Component extends DCLogic {
     const k = (a, b, x) => Math.min(1, Math.max(0, (x - a) / (b - a)));
     const out = p => 1 - Math.pow(1 - p, 3), inq = p => p * p, quint = p => 1 - Math.pow(1 - p, 5);
     const on2 = x => Math.floor(x / 83) * 83;
-    // The chain, one beat per pose; smear frames hold two frames, the raised blade three.
-    const DASH = 1400, DRAW = 1540, WIND = 1666, SM2 = 1791, SPIN = 1917, SM3 = 2001, P8 = 2085;
-    const NAME = 2427, ZAN = 2747, FLARE = 2927, SPLIT = 3107, RED0 = 4700, RED1 = 5300, EXIT = 6750, END = 7170;
+    // The chain, one beat per pose. The heaviest cut comes last and ends low, so the sword can go straight home from there.
+    const DASH = 1400, DRAW = 1540, SPIN = 1666, SM3 = 1750, RISE = 1834, WIND = 1917, SM2 = 2001, P8 = 2085, CAM3 = S.CAM3;
+    const NAME = 2427, INTO = 2747, HOME = 2947, FLARE = 2977, SPLIT = 3157, RED0 = 4700, RED1 = 5300, EXIT = 6750, END = 7170;
 
     // Letterbox and dimming.
     const bh = 118 * out(k(0, 280, t)) * (1 - out(k(EXIT + 120, EXIT + 500, l)));
@@ -263,17 +258,18 @@ class Component extends DCLogic {
     S.red.scale.set(1 + 0.03 * k(SPLIT, RED1, l)); S.red.position.set(960 + drift, 540);
 
     // Hero: one pose per beat, placed by its hips.
-    const keyAt = l < DASH ? 'charge' : l < DRAW ? 'dash' : l < L1 ? 'draw' : l < WIND ? 'drawEnd' : l < SM2 ? 'wind' : l < L2 ? 'smear2' : l < SPIN ? 'cut2' : l < SM3 ? 'spin' : l < P8 ? 'smear3' : l < ZAN + 42 ? 'cut3' : 'zan';
+    const keyAt = l < DRAW ? 'charge' : l < L1 ? 'draw' : l < SPIN ? 'cut1' : l < SM3 ? 'spin' : l < RISE ? 'smear3' : l < WIND ? 'cut3' : l < SM2 ? 'wind' : l < P8 ? 'smear2' : l < INTO ? 'cut2' : l < HOME ? 'into' : 'home';
     const po = S.PO[keyAt];
-    let hx = S.HIP[0], hy = S.HIP[1];
-    if (keyAt === 'charge') { hx = 430 - 980 * (1 - quint(k(250, 520, l))) + 16 * k(660, DASH, on2(l)); hy += 20 * (1 - out(k(520, 660, l))); }
-    if (keyAt === 'dash') hx = 446 + 194 * quint(k(DASH, DRAW, l));
-    if (keyAt === 'zan') hx += 20 * k(ZAN, 6400, on2(l));
+    let hx = po.X, lift = 0;
+    if (keyAt === 'charge') { hx = (l < DASH ? po.X + 16 * k(660, DASH, on2(l)) : po.X + 16 + 64 * quint(k(DASH, DRAW, l))) - 980 * (1 - quint(k(250, 520, l))); lift = 20 * (1 - out(k(520, 660, l))); }
+    // He rises out of the lunge and stands as the sword goes home.
+    if (keyAt === 'into') lift = 70 * (1 - quint(k(INTO, INTO + 100, l)));
+    if (l >= INTO) hx += 20 * k(INTO, 6400, on2(l));
     hx -= 70 * k(EXIT, END, l);
-    S.hero.texture = po.tex; S.hero.scale.set(po.s); S.hero.position.set(hx - po.hip[0] * po.s, hy - po.hip[1] * po.s);
+    S.hero.texture = po.tex; S.hero.scale.set(po.s); S.hero.position.set(hx - po.hip[0] * po.s, S.GROUND + po.dy - po.sole * po.s + lift);
     S.hero.alpha = (l < 250 ? 0 : 1) * (1 - k(EXIT, END, l));
-    // Afterimages trail the cut-in, the dash and every smear frame, opposite to the motion.
-    const gOff = l < 520 ? [-70, 0] : keyAt === 'dash' ? [-110, 0] : keyAt === 'draw' ? [-34, 0] : keyAt === 'smear2' ? [-26, -30] : keyAt === 'spin' ? [40, 0] : keyAt === 'smear3' ? [-22, 30] : null;
+    // Afterimages trail the cut-in, the dash and every mid-cut frame, opposite to the motion.
+    const gOff = l < 520 ? [-70, 0] : keyAt === 'charge' && l >= DASH ? [-110, 0] : keyAt === 'draw' ? [-34, 0] : keyAt === 'smear2' ? [-26, -30] : keyAt === 'spin' ? [40, 0] : keyAt === 'smear3' ? [-22, 30] : keyAt === 'into' && l < INTO + 90 ? [0, 30] : null;
     const ghostOn = gOff && l >= 250;
     S.ghosts.forEach((g, i) => {
       g.texture = po.tex; g.scale.set(po.s);
@@ -284,19 +280,17 @@ class Component extends DCLogic {
     S.rim.alpha = (0.5 * out(k(400, 900, l)) + 0.5 * out(k(1100, DASH, l)) - 0.4 * k(L3 + 240, L3 + 940, l)) * (1 - k(EXIT, END, l));
     S.rim.scale.set((1100 + 300 * k(1100, DASH, l)) / 512);
 
-    // Camera follows the blade: a slow push in the charge, a punch on the draw, up with the raised blade, a whip down
-    // with cut 2 (so its low tip stays in frame), back level through the spin, then up with the rising cut and the big
-    // punch centred on its tip, and a long settle. The zoom pivots on Fp, which only moves while the zoom is 1.
+    // Camera follows the blade: a slow push in the charge, a punch on the draw, back level through the spin, up with the rising
+    // cut, then a whip down with the chop and the big punch centred on its low tip, and a long settle. The zoom pivots on Fp,
+    // which only moves while the zoom is 1.
     let Fp = [960, 540], cam = 1 + 0.05 * inq(k(520, DASH, l)), camY = 0, rot = -0.01 * inq(k(520, DASH, l));
     if (l >= DRAW) { cam = 1.05 + 0.02 * out(k(DRAW, L1, l)); rot = -0.01 * (1 - out(k(DRAW, 1700, l))); }
-    if (l >= WIND) camY = 80 * out(k(WIND, SM2, l));
-    if (l >= SM2) camY = 80 - 320 * out(k(SM2, L2, l));
-    if (l >= L2) rot = 0.014 * (1 - out(k(L2, SM3, l)));
-    if (l >= SPIN) { camY = -240 * (1 - out(k(SPIN, SM3, l))); cam = 1.07 - 0.07 * out(k(SPIN, SM3, l)); }
-    if (l >= SM3) { Fp = S.H3; cam = 1; camY = 110 * out(k(SM3, P8, l)); rot = 0; }
-    if (l >= P8) { camY = 110; cam = 1 + 0.15 * out(k(P8, L3, l)); }
-    if (l >= L3) { cam = 1.15 - 0.15 * out(k(L3, ZAN, l)); camY = 110 * (1 - out(k(L3, ZAN, l))); }
-    if (l >= ZAN) { Fp = [960, 540]; cam = 1 + 0.025 * k(ZAN, 6600, l); camY = 0; }
+    if (l >= SPIN) { cam = 1.07 - 0.07 * out(k(SPIN, SM3, l)); rot = 0; }
+    if (l >= SM3) { cam = 1; camY = 170 * out(k(SM3, RISE, l)); }
+    if (l >= SM2) { Fp = S.H3; camY = 170 + (CAM3 - 170) * out(k(SM2, P8, l)); }
+    if (l >= P8) { camY = CAM3; cam = 1 + 0.15 * out(k(P8, L3, l)); }
+    if (l >= L3) { cam = 1.15 - 0.15 * out(k(L3, INTO, l)); camY = CAM3 * (1 - out(k(L3, INTO, l))); }
+    if (l >= INTO) { Fp = [960, 540]; cam = 1 + 0.025 * k(INTO, 6600, l); camY = 0; }
     let sx = 0, sy = 0;
     // Shake runs on real time. With a direction it mostly moves along the cut.
     const shakeAt = (t0, amp, dur, dir) => {
@@ -305,8 +299,8 @@ class Component extends DCLogic {
       const s = Math.sin(t * 0.21) * a, c = Math.cos(t * 0.17) * a * 0.25;
       sx += dir[0] * s - dir[1] * c; sy += dir[1] * s + dir[0] * c;
     };
-    shakeAt(HR[0], 14, 220, [1, 0]); shakeAt(HR[1], 16, 220, [0.94, 0.33]); shakeAt(P8 + 140, 8, 140);
-    shakeAt(REL3, 32, 520, [0.42, -0.91]); shakeAt(SPLIT + 300 + 120, 5, 160);
+    shakeAt(HR[0], 14, 220, [1, 0]); shakeAt(HR[1], 16, 220, [0.42, -0.91]); shakeAt(P8 + 140, 8, 140);
+    shakeAt(REL3, 32, 520, [0.6, 0.8]); shakeAt(HOME + 300, 7, 130); shakeAt(SPLIT + 300 + 120, 5, 160);
     for (const c of [S.world, S.ui]) { c.pivot.set(Fp[0], Fp[1]); c.scale.set(cam); c.rotation = rot; c.position.set(Fp[0] + sx, Fp[1] + sy + camY); }
 
     // Cut 3's effects: one white frame, two impact frames, then the shockwave, radial blur and colour split at its tip.
@@ -329,25 +323,20 @@ class Component extends DCLogic {
     if (released && rs > 0.5) filters.push(S.rgb);
     S.world.filters = S.imp.visible ? null : filters;
 
-    // Name: cut out from left to right, with red afterimages, then the thin rule and the level label.
+    // Name: cut out from left to right, with red afterimages.
     const reveal = out(k(NAME, NAME + 260, l));
     const nw = S.nameT.width + 40;
     S.nameMask.clear().rect(-20, -120, nw * reveal, 240).fill(0xffffff);
     S.nameGhosts.forEach((g, i) => { g.position.set(36 * (i + 1), -8 * (i + 1)); g.alpha = (i ? 0.22 : 0.45) * k(NAME, NAME + 50, l) * (1 - k(NAME + 180, NAME + 570, l)); });
-    const rw = (nw - 20) * out(k(NAME + 140, NAME + 480, l));
-    S.rule.clear().rect(0, -98, rw, 2).fill({ color: 0xffffff, alpha: 0.85 }).rect(0, -104, 22 * k(NAME + 140, NAME + 240, l), 14).fill(0xff3b4e);
-    S.tag.alpha = S.lv.alpha = out(k(NAME + 260, NAME + 540, l));
     S.nameG.alpha = 1 - k(EXIT, END - 120, l);
-    S.nameG.position.set(1000 + 80 * inq(k(EXIT, END, l)), 860);
+    S.nameG.position.set(30 - 80 * inq(k(EXIT, END, l)), 420);
 
-    // Entry caption: a rule slides out from the hero's feet, the name wipes in on it; the dash's wind sweeps it off.
-    const cr = quint(k(420, 720, l)), cw = 420 * cr, gone = k(1450, 1570, l);
-    S.capRule.clear().rect(0, 0, cw, 2).fill({ color: 0xffffff, alpha: 0.85 }).rect(0, -6, 14 * cr, 14).fill(0xff3b4e);
+    // Entry caption: the name wipes in at the hero's feet; the dash's wind sweeps it off.
+    const gone = k(1450, 1570, l);
     S.capMask.clear().rect(20, -90, 400 * out(k(560, 860, l)), 100).fill(0xffffff);
-    S.capLv.alpha = S.capLvN.alpha = out(k(760, 1000, l));
-    S.cap.alpha = (l >= 420 ? 1 : 0) * (1 - gone); S.cap.position.set(600 + 260 * gone * gone, 900 - 30 * gone);
+    S.cap.alpha = (l >= 420 ? 1 : 0) * (1 - gone); S.cap.position.set(1060 + 260 * gone * gone, 900 - 30 * gone);
 
-    this.drawFx(l, k, out, { L1, L2, L3, DASH, SPIN, ZAN, FLARE, SPLIT, END, hx, drift, fade, charge: keyAt === 'charge' ? [hx, hy] : null });
+    this.drawFx(l, k, out, { L1, L2, L3, DASH, WIND, SM2, SPIN, INTO, HOME, FLARE, SPLIT, END, hx, drift, fade, charge: keyAt === 'charge' && l < DASH ? hx : null });
     S.fxTex.source.update(); S.backTex.source.update();
   }
 
@@ -425,7 +414,7 @@ class Component extends DCLogic {
 
     // Charge: sparks are pulled into the hilt while the hero holds the stance; a glint on the hilt before the dash.
     if (T.charge && l > 650) {
-      const hilt = S.W(S.PO.charge, [760, 715], T.charge);
+      const hilt = S.W('charge', [1181, 417], T.charge);
       for (let i = 0; i < 90; i++) {
         const s0 = 650 + rnd(i, 1) * 620, dur = 380 + rnd(i, 2) * 260, p = (l - s0) / dur;
         if (p < 0 || p > 1) continue;
@@ -440,20 +429,21 @@ class Component extends DCLogic {
     if (l >= T.DASH && l < 1800) {
       const p = k(T.DASH, 1540, l), a = 1 - k(1560, 1800, l);
       for (let s = 0; s < 6; s++) {
-        const y = 1000 + s * 9, x1 = 446 + 194 * p + 160, x0 = 160 + rnd(s, 40) * 120 + 300 * k(1540, 1800, l);
+        const y = 945 + s * 9, x1 = 656 + 64 * p + 160, x0 = 160 + rnd(s, 40) * 120 + 300 * k(1540, 1800, l);
         g.strokeStyle = 'rgba(255,' + (150 + s * 15) + ',150,' + (0.35 * a * (1 - s / 7)) + ')'; g.lineWidth = 2 + (s % 2);
         g.beginPath(); g.moveTo(x0, y); g.lineTo(x1, y - 4); g.stroke();
       }
     }
-    // The raised blade glints once before it comes down.
-    glint(...S.W(S.PO.wind, [300, 120]), k(1700, 1785, l), 70);
+    // The raised blade glints once as it comes over.
+    glint(...S.W('wind', [556, 182]), k(T.WIND - 20, T.SM2 - 20, l), 70);
 
     // The slashes: "da, da, boom". Each head reaches its blade tip on the frame the finishing pose appears.
     const B = S.blades;
-    if (l >= 1545 && l < T.L1 + 420) slash(B[0], out(k(1545, 1620, l)), 0.15 * out(k(1570, 1660, l)), out(k(1560, 1635, l)), 60, k(T.L1, T.L1 + 420, l), 21);
-    if (l >= 1795 && l < T.L2 + 420) slash(B[1], out(k(1795, 1870, l)), 0.5 * out(k(1800, 1870, l)), out(k(1810, 1885, l)), 66, k(T.L2, T.L2 + 420, l), 31);
-    if (l >= T.SPIN && l < T.L3 + 520) slash(B[2], k(T.SPIN, 2080, l), 0.45 * out(k(1975, 2050, l)) + 0.23 * out(k(2040, 2105, l)), k(T.SPIN + 20, 2095, l), 92, k(T.L3, T.L3 + 520, l), 41);
-    if (l >= T.ZAN && l < T.ZAN + 260) slash(B[3], out(k(T.ZAN, T.ZAN + 60, l)), out(k(T.ZAN + 20, T.ZAN + 160, l)), out(k(T.ZAN + 10, T.ZAN + 70, l)), 26, 0, 51, 0.7 * (1 - k(T.ZAN + 80, T.ZAN + 260, l)));
+    if (l >= 1545 && l < T.L1 + 420) slash(B[0], out(k(1545, 1620, l)), 0.35 * out(k(1570, 1660, l)), out(k(1560, 1635, l)), 60, k(T.L1, T.L1 + 420, l), 21);
+    if (l >= T.SPIN && l < T.L2 + 160) slash(B[1], k(T.SPIN, 1829, l), 0.45 * out(k(1724, 1799, l)) + 0.23 * out(k(1789, 1854, l)), k(T.SPIN + 20, 1844, l), 72, k(T.L2, T.L2 + 160, l), 31);
+    if (l >= 1885 && l < T.SM2 + 60) slash(B[4], k(1885, T.SM2 - 10, l), k(1915, T.SM2 + 40, l), k(1885, T.SM2 - 10, l), 22, 0, 71, 0.7);
+    if (l >= T.SM2 + 4 && l < T.L3 + 520) slash(B[2], out(k(T.SM2 + 4, 2081, l)), 0.3 * out(k(T.SM2 + 8, 2081, l)), out(k(T.SM2 + 16, 2096, l)), 92, k(T.L3, T.L3 + 520, l), 41);
+    if (l >= T.INTO - 120 && l < T.INTO + 110) slash(B[3], k(T.INTO - 120, T.INTO, l), k(T.INTO - 80, T.INTO + 80, l), k(T.INTO - 120, T.INTO, l), 22, 0, 81, 0.75);
     sparks(B[0], T.L1, 70, 0.7, 10); sparks(B[1], T.L2, 70, 0.7, 50); sparks(B[2], T.L3, 160, 1, 60);
 
     // The straight cuts hang behind the hero from each hit, full length. Before the break they flare once each, in cut order.
@@ -482,8 +472,13 @@ class Component extends DCLogic {
       gb.restore();
     }
 
-    // The zanshin: a glint on the low blade right after the flick.
-    glint(...S.W(S.PO.zan, [540, 880], [T.hx, S.HIP[1]]), k(T.ZAN + 100, T.ZAN + 300, l), 90);
+    // The bare steel catches the light as it slides home; a hard glint on the guard marks the click, and then the sky breaks.
+    if (l >= T.INTO && l < T.HOME) {
+      const [a, b] = [S.W('into', [850, 394], T.hx), S.W('into', [1030, 394], T.hx)];
+      g.strokeStyle = 'rgba(255,255,255,' + 0.85 * Math.sin(k(T.INTO, T.HOME, l) * Math.PI) + ')'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke();
+    }
+    glint(...S.W('home', [908, 392], T.hx), k(T.HOME, T.HOME + 200, l), 120);
     // Embers peel off the lips of every seam as the sky opens.
     if (l >= T.SPLIT && l < T.SPLIT + 1300) {
       const e = l - T.SPLIT;
@@ -513,7 +508,7 @@ class Component extends DCLogic {
     const room = this.props.room ?? '示意画面';
     const pause = this.props.pause ?? '播放';
     const speed = { '1 倍': 1, '0.5 倍': 0.5, '0.25 倍': 0.25 }[this.props.speed ?? '1 倍'];
-    const pauseAt = { '播放': null, '蓄力': 1200, '冲刺': 1470, '第一刀': 1650, '举刀': 1760, '第二刀': 1960, '回身': 2100, '上撩': 2185, '冲击帧': 2275, '余波': 2560, '亮名': 3150, '斩铁': 3700, '里世界': 4800 }[pause];
+    const pauseAt = { '播放': null, '蓄力': 1200, '冲刺': 1470, '第一刀': 1650, '回身': 1780, '上撩': 1870, '回刀': 2100, '重劈': 2190, '冲击帧': 2275, '余波': 2560, '亮名': 2900, '入鞘': 3130, '定格': 3270, '斩铁': 3800, '里世界': 4800 }[pause];
     this.cfg = { cycle: 8500, speed, pauseAt };
     return {
       bg: room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#2C3644',
