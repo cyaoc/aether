@@ -46,10 +46,10 @@ public sealed class SendQueueUpdateTests
     }
 
     [Theory]
-    [InlineData("welcome.uids", "[10001]", WelcomeCondition.Uid, null, "UID")]
-    [InlineData("welcome.fan_club_level", "21", WelcomeCondition.FanClubLevel, "47", "粉丝团等级")]
-    [InlineData("welcome.guard", "舰长", WelcomeCondition.Guard, "舰长", "大航海身份")]
-    [InlineData("welcome.wealth_level", "30", WelcomeCondition.WealthLevel, "45", "荣耀等级")]
+    [InlineData("welcome_danmaku.uids", "[10001]", WelcomeCondition.Uid, null, "UID")]
+    [InlineData("welcome_danmaku.fan_club_level", "21", WelcomeCondition.FanClubLevel, "47", "粉丝团等级")]
+    [InlineData("welcome_danmaku.guard", "1", WelcomeCondition.Guard, "舰长", "大航海身份")]
+    [InlineData("welcome_danmaku.wealth_level", "30", WelcomeCondition.WealthLevel, "45", "荣耀等级")]
     public async Task Welcome_reports_queued_sending_and_sent_with_the_same_id_and_local_time(
         string setting, string threshold, WelcomeCondition condition, string? value, string conditionName)
     {
@@ -58,7 +58,7 @@ public sealed class SendQueueUpdateTests
         h.Time.SetLocalTimeZone(TimeZoneInfo.CreateCustomTimeZone("test+08", TimeSpan.FromHours(8), "test", "test"));
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.guard"] = "关闭", [setting] = threshold
+            ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.guard"] = "0", [setting] = threshold
         });
         var sent = CaptureSends(h);
         var release = HoldSends(h);
@@ -108,7 +108,7 @@ public sealed class SendQueueUpdateTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["send.interval_seconds"] = interval.ToString()
+            ["welcome_danmaku.enabled"] = "true", ["send.interval_seconds"] = interval.ToString()
         });
         var sent = CaptureSends(h, RateLimited, succeeds ? Accepted : RateLimited);
         await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
@@ -149,9 +149,9 @@ public sealed class SendQueueUpdateTests
     }
 
     [Theory]
-    [InlineData("{大航海}", 20, "welcome.uids", "[10001]", WelcomeCondition.Uid, null, "欢迎语拼出来是空的", "")]
-    [InlineData("{大航海}", 20, "welcome.fan_club_level", "21", WelcomeCondition.FanClubLevel, "47", "欢迎语拼出来是空的", "")]
-    [InlineData("欢迎回家", 1, "welcome.wealth_level", "30", WelcomeCondition.WealthLevel, "45", "欢迎语超过弹幕字数上限 1", "欢迎回家")]
+    [InlineData("{大航海}", 20, "welcome_danmaku.uids", "[10001]", WelcomeCondition.Uid, null, "欢迎语拼出来是空的", "")]
+    [InlineData("{大航海}", 20, "welcome_danmaku.fan_club_level", "21", WelcomeCondition.FanClubLevel, "47", "欢迎语拼出来是空的", "")]
+    [InlineData("欢迎回家", 1, "welcome_danmaku.wealth_level", "30", WelcomeCondition.WealthLevel, "45", "欢迎语超过弹幕字数上限 1", "欢迎回家")]
     public async Task Rejected_welcome_reports_only_not_queued_with_its_text_condition_and_reason(
         string text, int limit, string setting, string threshold, WelcomeCondition condition, string? value, string reason, string expectedText)
     {
@@ -159,7 +159,7 @@ public sealed class SendQueueUpdateTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.texts"] = Settings.TextListText([text]), [setting] = threshold
+            ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.texts"] = Settings.TextListText([text]), [setting] = threshold
         });
         h.Http.SetDanmakuLengthLimit(limit);
         var sent = CaptureSends(h);
@@ -191,7 +191,7 @@ public sealed class SendQueueUpdateTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.enabled"] = "true" });
         var sent = CaptureSends(h);
         var release = HoldSends(h, attempt: 1);
         await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
@@ -261,7 +261,7 @@ public sealed class SendQueueUpdateTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["blind_box.announce"] = "false"
+            ["welcome_danmaku.enabled"] = "true", ["blind_box.announce"] = "false"
         });
         var sent = CaptureSends(h);
         var releaseWelcome = HoldSends(h, attempt: 1);
@@ -428,7 +428,7 @@ public sealed class SendQueueUpdateTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.texts"] = Settings.TextListText(["{大航海}"]), ["welcome.uids"] = "[10001]"
+            ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.texts"] = Settings.TextListText(["{大航海}"]), ["welcome_danmaku.uids"] = "[10001]"
         });
         var sent = CaptureSends(h);
         HoldSends(h, attempt: 1);

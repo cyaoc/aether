@@ -38,7 +38,7 @@ public partial class WelcomeSettingsPage : SettingsPage
         new(settings.WelcomeTexts.Name, settings.WelcomeTexts.CanEdit, Settings.TextListText(WelcomeTexts.Select(row => row.Value))),
         new(settings.WelcomeUids.Name, settings.WelcomeUids.CanEdit, WelcomeUidsText()),
         new(settings.WelcomeFanClubLevel.Name, settings.WelcomeFanClubLevel.CanEdit, ConditionValue(WelcomeCondition.FanClubLevel, Settings.WelcomeLevelOff.ToString(CultureInfo.InvariantCulture))),
-        new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, ConditionValue(WelcomeCondition.Guard, Settings.WelcomeGuards[0])),
+        new(settings.WelcomeGuard.Name, settings.WelcomeGuard.CanEdit, Settings.WelcomeGuards.ToList().IndexOf(ConditionValue(WelcomeCondition.Guard, Settings.WelcomeGuards[0])).ToString(System.Globalization.CultureInfo.InvariantCulture)),
         new(settings.WelcomeWealthLevel.Name, settings.WelcomeWealthLevel.CanEdit, ConditionValue(WelcomeCondition.WealthLevel, Settings.WelcomeLevelOff.ToString(CultureInfo.InvariantCulture)))
     ];
 

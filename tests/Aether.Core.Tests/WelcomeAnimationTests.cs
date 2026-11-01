@@ -45,7 +45,7 @@ public sealed class WelcomeAnimationTests
         await using var h = new WatchHarness();
         await Start(h, 10001);
         using var connected = await Page.ConnectAsync(h);
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "false" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = "false" });
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
         Assert.True(h.Client.WebService.Status.Running);
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
@@ -74,7 +74,7 @@ public sealed class WelcomeAnimationTests
         await observed.WaitAsync(update => update is WebServiceStatus { VideoConnections: 1, LotteryConnections: 1 });
         foreach (var enabled in new[] { false, true })
         {
-            Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = Settings.BooleanText(enabled) });
+            Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = Settings.BooleanText(enabled) });
             await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
             Assert.Equal(1, h.Client.WebService.Status.VideoConnections);
             Assert.Equal(1, h.Client.WebService.Status.LotteryConnections);
@@ -256,7 +256,7 @@ public sealed class WelcomeAnimationTests
         await Start(h, 10001);
         await using var updates = await h.WatchConnectedAsync();
         using var connected = await Page.ConnectAsync(h);
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "false" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = "false" });
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
         // The room connection still runs on the settings it started with, where the switch was on.
         await h.PushAndSyncAsync(updates, EntryV2Fixture.Message());
@@ -491,7 +491,7 @@ public sealed class WelcomeAnimationTests
         var port = rawSocket ? ((IPEndPoint)tcp.LocalEndpoint).Port : new Uri(first.Client.WebService.Status.Origin).Port;
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation.enabled"] = "true", ["web_service.port"] = port.ToString()
+            ["entry_animation.enabled"] = "true", ["web_service.port"] = port.ToString()
         });
         await using var observed = new Observations(h);
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
@@ -640,13 +640,13 @@ public sealed class WelcomeAnimationTests
     {
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation.enabled"] = "true", ["web_service.port"] = FreePort().ToString()
+            ["entry_animation.enabled"] = "true", ["web_service.port"] = FreePort().ToString()
         });
         Directory.CreateDirectory(Path.Combine(h.DataDirectory, "videos"));
         foreach (var uid in uids)
         {
             File.WriteAllText(Path.Combine(h.DataDirectory, "videos", $"{uid}.mp4"), uid.ToString());
-            Settings.Save(h.DataDirectory, new Dictionary<string, string> { [$"welcome_animation_videos.{uid}"] = $"{uid}.mp4" });
+            Settings.Save(h.DataDirectory, new Dictionary<string, string> { [$"entry_animation_viewers.{uid}"] = $"{uid}.mp4" });
         }
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
     }

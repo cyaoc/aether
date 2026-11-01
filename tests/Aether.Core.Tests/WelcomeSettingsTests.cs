@@ -23,7 +23,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     [Fact]
     public void Multiple_welcome_texts_are_valid_setting_input()
     {
-        Assert.Null(Settings.Validate("welcome.texts", "[\"欢迎{昵称}\", \"{@}欢迎回家\"]"));
+        Assert.Null(Settings.Validate("welcome_danmaku.texts", "[\"欢迎{昵称}\", \"{@}欢迎回家\"]"));
     }
 
     [Theory]
@@ -32,7 +32,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Single_line_lists_preserve_each_text_and_its_order(string value, string[] expected)
     {
         Directory.CreateDirectory(h.DataDirectory);
-        File.WriteAllText(Settings.FilePath(h.DataDirectory), $"welcome:\n  texts: {value}\n");
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), $"welcome_danmaku:\n  texts: {value}\n");
         var settings = Settings.Load(h.DataDirectory);
         Assert.Null(settings.Error);
         Assert.Equal(expected, settings.WelcomeTexts.Value);
@@ -50,13 +50,13 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Invalid_list_or_item_reports_the_setting_and_line(string value)
     {
         Directory.CreateDirectory(h.DataDirectory);
-        var yaml = $"# 保留\nwelcome:\n  texts: {value}\n";
+        var yaml = $"# 保留\nwelcome_danmaku:\n  texts: {value}\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
         var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
-        Assert.Equal("welcome.texts", error.SettingName);
+        Assert.Equal("welcome_danmaku.texts", error.SettingName);
         Assert.Equal(3, error.LineNumber);
         Assert.Equal(yaml, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
-        Assert.NotNull(Settings.Validate("welcome.texts", value));
+        Assert.NotNull(Settings.Validate("welcome_danmaku.texts", value));
     }
 
     [Theory]
@@ -65,14 +65,14 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Multiline_lists_load_but_cannot_be_edited_in_place(string value)
     {
         Directory.CreateDirectory(h.DataDirectory);
-        File.WriteAllText(Settings.FilePath(h.DataDirectory), $"welcome:\n  texts: {value}\n");
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), $"welcome_danmaku:\n  texts: {value}\n");
         var settings = Settings.Load(h.DataDirectory);
         Assert.Null(settings.Error);
         Assert.Equal(["欢迎{昵称}", "{@}欢迎回家"], settings.WelcomeTexts.Value);
         Assert.False(settings.WelcomeTexts.CanEdit);
         var before = File.ReadAllText(Settings.FilePath(h.DataDirectory));
         Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory,
-            new Dictionary<string, string> { ["welcome.texts"] = "['欢迎']" }));
+            new Dictionary<string, string> { ["welcome_danmaku.texts"] = "['欢迎']" }));
         Assert.Equal(before, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
     }
 
@@ -82,7 +82,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         string[] texts = ["他说\"你好\"\\来啦,{{花}}", "{@}欢迎", "{昵称}#你好"];
         var value = Settings.TextListText(texts);
         Assert.Equal("""["他说\"你好\"\\来啦,{{花}}", "{@}欢迎", "{昵称}#你好"]""", value);
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.texts"] = value });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.texts"] = value });
         var settings = Settings.Load(h.DataDirectory);
         Assert.Null(settings.Error);
         Assert.Equal(texts, settings.WelcomeTexts.Value);
@@ -94,12 +94,12 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     {
         Settings.Load(h.DataDirectory);
         var path = Settings.FilePath(h.DataDirectory);
-        File.WriteAllText(path, "welcome:\n  texts: ['回来啦', '欢迎'] # 保留\n");
+        File.WriteAllText(path, "welcome_danmaku:\n  texts: ['回来啦', '欢迎'] # 保留\n");
         var settings = Settings.Load(h.DataDirectory);
         var before = File.ReadAllText(path);
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.texts"] = "[回来啦, 欢迎]" }, settings);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.texts"] = "[回来啦, 欢迎]" }, settings);
         Assert.Equal(before, File.ReadAllText(path));
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.texts"] = "[欢迎, 回来啦]" }, settings);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.texts"] = "[欢迎, 回来啦]" }, settings);
         Assert.Equal(before.Replace("['回来啦', '欢迎']", "[\"欢迎\", \"回来啦\"]"), File.ReadAllText(path));
     }
 
@@ -107,14 +107,14 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Old_text_is_only_an_unknown_key_and_does_not_supply_the_list()
     {
         Directory.CreateDirectory(h.DataDirectory);
-        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  text: '欢迎回来'\n");
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome_danmaku:\n  text: '欢迎回来'\n");
         var settings = Settings.Load(h.DataDirectory, h.Logger);
         Assert.Null(settings.Error);
-        Assert.Equal(["welcome.text"], settings.UnknownKeys);
+        Assert.Equal(["welcome_danmaku.text"], settings.UnknownKeys);
         Assert.Equal(["欢迎{大航海}{昵称}"], settings.WelcomeTexts.Value);
         var warning = Assert.Single(h.Logger.Entries);
         Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, warning.Level);
-        Assert.Contains("未知设置键：welcome.text", warning.Message);
+        Assert.Contains("未知设置键：welcome_danmaku.text", warning.Message);
     }
 
     [Fact]
@@ -126,7 +126,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Assert.Equal("欢迎{大航海}{昵称}", settings.WelcomeTexts.Value[0]);
         Assert.Empty(settings.WelcomeUids.Value);
         Assert.Equal(0, settings.WelcomeFanClubLevel.Value);
-        Assert.Equal("舰长", settings.WelcomeGuard.Value);
+        Assert.Equal(1, settings.WelcomeGuard.Value);
         Assert.Equal(0, settings.WelcomeWealthLevel.Value);
         var template = File.ReadAllText(Settings.FilePath(h.DataDirectory)).ReplaceLineEndings("\n");
         var section = template[template.IndexOf("# 进场欢迎", StringComparison.Ordinal)..].Split("\n\n")[0] + "\n";
@@ -140,14 +140,14 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Assert.Contains("# 本直播间粉丝团等级达到多少就欢迎，0 表示不按粉丝团等级欢迎\n  fan_club_level: 0", section);
         Assert.Contains("# 荣耀等级达到多少就欢迎，0 表示不按荣耀等级欢迎\n  wealth_level: 0", section);
         Assert.Empty(settings.UnknownKeys);
-        const string before = "web_service:\r\nwelcome_animation:\r\nwelcome_animation_videos:\r\n# 保留\r\nlog:\r\nblind_box:\r\nsend:\r\n";
+        const string before = "web_service:\r\nentry_animation:\r\ngift_animation:\r\nentry_animation_viewers:\r\n# 保留\r\nlog:\r\nblind_box:\r\nsend:\r\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
         Assert.Null(Settings.Load(h.DataDirectory).Error);
         var after = File.ReadAllText(Settings.FilePath(h.DataDirectory));
         Assert.Equal(before + "\r\n" + section.ReplaceLineEndings("\r\n"), after);
         Settings.Load(h.DataDirectory);
         Assert.Equal(after, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
-        File.WriteAllText(Settings.FilePath(h.DataDirectory), before + "welcome:\n");
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), before + "welcome_danmaku:\n");
         var missing = Settings.Load(h.DataDirectory);
         Assert.Equal(settings.WelcomeTexts.Value[0], missing.WelcomeTexts.Value[0]);
         Assert.Empty(missing.WelcomeUids.Value);
@@ -161,12 +161,12 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Welcome_conditions_save_on_their_lines_and_preserve_comments_and_other_settings()
     {
         Settings.Load(h.DataDirectory);
-        const string before = "web_service:\r\nwelcome_animation:\r\nwelcome_animation_videos:\r\n# 保留\r\nlog:\r\nblind_box:\r\nsend:\r\nwelcome:\r\n  uids: [42]  # 老朋友\r\n  fan_club_level: 0 # 老粉\r\n  guard: 舰长\r\n  wealth_level: 0 # 荣耀\r\nfuture: 保留\r\n";
+        const string before = "web_service:\r\nentry_animation:\r\ngift_animation:\r\nentry_animation_viewers:\r\n# 保留\r\nlog:\r\nblind_box:\r\nsend:\r\nwelcome_danmaku:\r\n  uids: [42]  # 老朋友\r\n  fan_club_level: 0 # 老粉\r\n  guard: 1\r\n  wealth_level: 0 # 荣耀\r\nfuture: 保留\r\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
         var changes = new Dictionary<string, string>
         {
-            ["welcome.uids"] = "[2147483648, 9223372036854775807]",
-            ["welcome.fan_club_level"] = "21", ["welcome.wealth_level"] = "45"
+            ["welcome_danmaku.uids"] = "[2147483648, 9223372036854775807]",
+            ["welcome_danmaku.fan_club_level"] = "21", ["welcome_danmaku.wealth_level"] = "45"
         };
         Settings.Save(h.DataDirectory, changes);
         var expected = before.Replace("[42]", "[2147483648, 9223372036854775807]")
@@ -179,10 +179,10 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
         Assert.Equal(21, loaded.WelcomeFanClubLevel.Value);
         Assert.Equal(45, loaded.WelcomeWealthLevel.Value);
         // Equal numeric values keep the original spelling, as scalar settings do.
-        changes["welcome.uids"] = "[ 02147483648, 9223372036854775807 ]";
+        changes["welcome_danmaku.uids"] = "[ 02147483648, 9223372036854775807 ]";
         Settings.Save(h.DataDirectory, changes);
         Assert.Equal(expected, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.uids"] = "[]" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.uids"] = "[]" });
         Assert.Empty(Settings.Load(h.DataDirectory).WelcomeUids.Value);
     }
 
@@ -190,13 +190,13 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Save_inserts_missing_welcome_conditions_after_existing_settings()
     {
         Settings.Load(h.DataDirectory);
-        const string before = "welcome:\n  guard: 提督 # 保留\nfuture: 保留\n";
+        const string before = "welcome_danmaku:\n  guard: 2 # 保留\nfuture: 保留\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.uids"] = "[12345, 67890]", ["welcome.fan_club_level"] = "21", ["welcome.wealth_level"] = "45"
+            ["welcome_danmaku.uids"] = "[12345, 67890]", ["welcome_danmaku.fan_club_level"] = "21", ["welcome_danmaku.wealth_level"] = "45"
         });
-        Assert.Equal("welcome:\n  guard: 提督 # 保留\n  uids: [12345, 67890]\n  fan_club_level: 21\n  wealth_level: 45\nfuture: 保留\n",
+        Assert.Equal("welcome_danmaku:\n  guard: 2 # 保留\n  uids: [12345, 67890]\n  fan_club_level: 21\n  wealth_level: 45\nfuture: 保留\n",
             File.ReadAllText(Settings.FilePath(h.DataDirectory)));
     }
 
@@ -225,21 +225,21 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     {
         Settings.Load(h.DataDirectory);
         var path = Settings.FilePath(h.DataDirectory);
-        var yaml = $"# 保留\nwelcome:\n  {key}: {value}\n";
+        var yaml = $"# 保留\nwelcome_danmaku:\n  {key}: {value}\n";
         File.WriteAllText(path, yaml);
         var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
-        Assert.Equal("welcome." + key, error.SettingName);
+        Assert.Equal("welcome_danmaku." + key, error.SettingName);
         Assert.Equal(3, error.LineNumber);
         Assert.EndsWith(key == "uids"
             ? "必须是 [12345, 67890] 形式的单行数字列表，每项为 int64 范围内的正整数；[] 表示空列表。"
             : "必须为非负整数。", error.Message);
         Assert.Equal(yaml, File.ReadAllText(path));
 
-        const string valid = "welcome:\n  uids: []\n  fan_club_level: 0\n  wealth_level: 0\n";
+        const string valid = "welcome_danmaku:\n  uids: []\n  fan_club_level: 0\n  wealth_level: 0\n";
         File.WriteAllText(path, valid);
         var saveError = Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory,
-            new Dictionary<string, string> { ["welcome." + key] = value }));
-        Assert.Equal("welcome." + key, saveError.SettingName);
+            new Dictionary<string, string> { ["welcome_danmaku." + key] = value }));
+        Assert.Equal("welcome_danmaku." + key, saveError.SettingName);
         Assert.Equal(1, saveError.LineNumber); // Invalid form input has no source line yet.
         Assert.Equal(valid, File.ReadAllText(path));
     }
@@ -248,14 +248,14 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void A_single_line_uid_list_in_a_flow_group_loads_but_cannot_be_line_edited()
     {
         Settings.Load(h.DataDirectory);
-        const string yaml = "web_service:\nwelcome_animation:\nwelcome_animation_videos:\nlog:\nblind_box:\nsend:\nwelcome: {uids: [12345]}\n";
+        const string yaml = "web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\nlog:\nblind_box:\nsend:\nwelcome_danmaku: {uids: [12345]}\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
         var loaded = Settings.Load(h.DataDirectory);
         Assert.Null(loaded.Error);
         Assert.Equal([12345L], loaded.WelcomeUids.Value);
         Assert.False(loaded.WelcomeUids.CanEdit);
         Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory,
-            new Dictionary<string, string> { ["welcome.uids"] = "[67890]" }));
+            new Dictionary<string, string> { ["welcome_danmaku.uids"] = "[67890]" }));
         Assert.Equal(yaml, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
     }
 
@@ -263,21 +263,21 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Save_changes_only_requested_welcome_lines()
     {
         Settings.Load(h.DataDirectory);
-        const string before = "welcome:\n  enabled: false # 开关\n  texts: ['欢迎{昵称}'] # 正文\n  guard: 舰长 # 档位\nfuture: 保留\n";
+        const string before = "welcome_danmaku:\n  enabled: false # 开关\n  texts: ['欢迎{昵称}'] # 正文\n  guard: 1 # 档位\nfuture: 保留\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), before);
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.texts"] = Settings.TextListText(["欢迎{大航海}{昵称}"]),
-            ["welcome.guard"] = "提督"
+            ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.texts"] = Settings.TextListText(["欢迎{大航海}{昵称}"]),
+            ["welcome_danmaku.guard"] = "2"
         });
         var expected = before.Replace("false", "true").Replace("['欢迎{昵称}']", "[\"欢迎{大航海}{昵称}\"]")
-            .Replace("舰长", "提督");
+            .Replace("guard: 1", "guard: 2");
         Assert.Equal(expected, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
         var loaded = Settings.Load(h.DataDirectory);
         Assert.Null(loaded.Error);
         Assert.True(loaded.WelcomeEnabled.Value);
         Assert.Equal("欢迎{大航海}{昵称}", loaded.WelcomeTexts.Value[0]);
-        Assert.Equal("提督", loaded.WelcomeGuard.Value);
+        Assert.Equal(2, loaded.WelcomeGuard.Value);
     }
 
     [Theory]
@@ -286,14 +286,14 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Old_max_length_is_only_an_unknown_key_and_is_preserved(string value)
     {
         Settings.Load(h.DataDirectory);
-        var yaml = $"web_service:\nwelcome_animation:\nwelcome_animation_videos:\nlog:\nblind_box:\nsend:\nwelcome:\n  max_length: {value} # 保留\n";
+        var yaml = $"web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\nlog:\nblind_box:\nsend:\nwelcome_danmaku:\n  max_length: {value} # 保留\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
         var settings = Settings.Load(h.DataDirectory, h.Logger);
         Assert.Null(settings.Error);
-        Assert.Equal(["welcome.max_length"], settings.UnknownKeys);
+        Assert.Equal(["welcome_danmaku.max_length"], settings.UnknownKeys);
         var warning = Assert.Single(h.Logger.Entries);
         Assert.Equal(Microsoft.Extensions.Logging.LogLevel.Warning, warning.Level);
-        Assert.Contains("未知设置键：welcome.max_length", warning.Message);
+        Assert.Contains("未知设置键：welcome_danmaku.max_length", warning.Message);
         Assert.Equal(yaml, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
     }
 
@@ -301,7 +301,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     [InlineData("enabled", "yes")]
     [InlineData("enabled", "[]")]
     [InlineData("guard", "船长")]
-    [InlineData("guard", "3")]
+    [InlineData("guard", "4")]
     [InlineData("guard", "[]")]
     [InlineData("texts", "[]")]
     [InlineData("texts", "''")]
@@ -309,10 +309,10 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public async Task Invalid_values_refuse_watching_at_their_line(string key, string value)
     {
         Directory.CreateDirectory(h.DataDirectory);
-        File.WriteAllText(Settings.FilePath(h.DataDirectory), $"welcome:\n  {key}: {value}\n");
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), $"welcome_danmaku:\n  {key}: {value}\n");
         await using var updates = h.Watch();
         var error = await Assert.ThrowsAsync<SettingsException>(() => updates.MoveNextAsync().AsTask());
-        Assert.Equal("welcome." + key, error.SettingName);
+        Assert.Equal("welcome_danmaku." + key, error.SettingName);
         Assert.Equal(2, error.LineNumber);
         Assert.Empty(h.Http.Requests);
     }
@@ -327,7 +327,7 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     {
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.texts"] = Settings.TextListText([text])
+            ["welcome_danmaku.texts"] = Settings.TextListText([text])
         });
         var settings = Settings.Load(h.DataDirectory);
         Assert.Null(settings.Error);
@@ -348,23 +348,23 @@ public sealed class WelcomeSettingsTests : IAsyncDisposable
     public void Invalid_text_reports_its_line_and_keeps_the_file(string text, string reason)
     {
         Directory.CreateDirectory(h.DataDirectory);
-        var yaml = $"welcome:\n  enabled: true\n  texts: [{text}]\n";
+        var yaml = $"welcome_danmaku:\n  enabled: true\n  texts: [{text}]\n";
         File.WriteAllText(Settings.FilePath(h.DataDirectory), yaml);
         var loaded = Settings.Load(h.DataDirectory);
         var error = Assert.IsType<SettingsException>(loaded.Error);
-        Assert.Equal("welcome.texts", error.SettingName);
+        Assert.Equal("welcome_danmaku.texts", error.SettingName);
         Assert.Equal(3, error.LineNumber);
         Assert.Contains(reason, error.Message);
         // Kept as written, so the settings window shows the text the error is about.
         Assert.Equal(text[1..^1], loaded.WelcomeTexts.Value[0]);
         Assert.Equal(yaml, File.ReadAllText(Settings.FilePath(h.DataDirectory)));
-        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  texts: ['欢迎']\n");
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome_danmaku:\n  texts: ['欢迎']\n");
         var beforeSave = File.ReadAllText(Settings.FilePath(h.DataDirectory));
         var saveError = Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.texts"] = Settings.TextListText([text[1..^1]])
+            ["welcome_danmaku.texts"] = Settings.TextListText([text[1..^1]])
         }));
-        Assert.Equal("welcome.texts", saveError.SettingName);
+        Assert.Equal("welcome_danmaku.texts", saveError.SettingName);
         // Like every other rejected input, reported at line 1: the input is wrong, not the file.
         Assert.Equal(1, saveError.LineNumber);
         Assert.Contains(reason, saveError.Message);

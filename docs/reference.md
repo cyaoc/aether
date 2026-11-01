@@ -17,18 +17,26 @@ blind_box:
   announce: true
 send:
   interval_seconds: 1
-welcome:
+welcome_danmaku:
   enabled: false
   texts: ["欢迎{大航海}{昵称}"]
   uids: []
   fan_club_level: 0
-  guard: 舰长
+  guard: 1
   wealth_level: 0
-welcome_animation:
+entry_animation:
   enabled: false
+  fan_club_level: 30
+  volume: 80
+gift_animation:
+  enabled: false
+  tier_30_spend: 100
+  tier_40_spend: 500
+  tier_50_spend: 2000
+  tier_60_spend: 10000
 web_service:
   port: 17890
-welcome_animation_videos:
+entry_animation_viewers:
 ```
 
 `log.retention_days` 是日志保留天数，必须为正整数，默认 30；`log.level` 是文件日志最低级别，
@@ -79,18 +87,18 @@ bot 主动 @播报这一轮的投入和盈亏，例如“本次投入300电池 �
 
 ## 进场欢迎
 
-`welcome.enabled` 默认 `false`，开启后，观众进场时满足任意一个欢迎条件就发一条欢迎弹幕：UID 在 `uids` 中、本直播间粉丝团等级达到 `fan_club_level`、大航海身份达到 `guard` 档位，或荣耀等级达到 `wealth_level`。同时命中多个条件也只欢迎一次，日志按 UID > 粉丝团等级 > 大航海身份 > 荣耀等级记录第一个命中的条件。
-`uids` 是正整数（int64）的单行列表，例如 `[12345, 67890]`，默认 `[]`，表示不按 UID 欢迎。`fan_club_level` 和 `wealth_level` 是非负整数，达到门槛（含门槛本身）就命中，默认 `0`，表示不按该等级欢迎。粉丝团只认进场时佩戴的本直播间主播的粉丝团，灯牌熄灭也算；戴着别的主播粉丝团的观众不按粉丝团等级欢迎。`guard` 可选 `关闭`、`舰长`、`提督`、`总督`，默认 `舰长`；选 `提督` 时欢迎提督和总督。
+`welcome_danmaku.enabled` 默认 `false`，开启后，观众进场时满足任意一个欢迎条件就发一条欢迎弹幕：UID 在 `uids` 中、本直播间粉丝团等级达到 `fan_club_level`、大航海身份达到 `guard` 档位，或荣耀等级达到 `wealth_level`。同时命中多个条件也只欢迎一次，日志按 UID > 粉丝团等级 > 大航海身份 > 荣耀等级记录第一个命中的条件。
+`uids` 是正整数（int64）的单行列表，例如 `[12345, 67890]`，默认 `[]`，表示不按 UID 欢迎。`fan_club_level` 和 `wealth_level` 是非负整数，达到门槛（含门槛本身）就命中，默认 `0`，表示不按该等级欢迎。粉丝团只认进场时佩戴的本直播间主播的粉丝团，灯牌熄灭也算；戴着别的主播粉丝团的观众不按粉丝团等级欢迎。`guard` 可选 0（关闭）、1（舰长及以上）、2（提督及以上）、3（总督），默认 1。
 处理 `INTERACT_WORD_V2`、`ENTRY_EFFECT`、`ENTRY_EFFECT_MUST_RECEIVE` 的进场通知，uid 为 0 时不欢迎。同一直播间连接中，同一位观众的非零 `trigger_time` 和上一次相同时只保留先到的通知，Debug 日志记录丢掉的消息类型；0 不合并，自动重连保留上一次记录，新直播间连接重新开始。合并后的进场同时交给进场欢迎和欢迎动画；不从在线榜推断进场。特效的身份取自 `uinfo`，粉丝团等级只认 `medal.ruid == target_id`（本直播间主播）的粉丝团。进场欢迎或欢迎动画开启时，每个直播间连接首次收到带版本的进场格式、或版本切换时记一条 Information；每种不认识的 cmd 各警告一次“进场消息格式可能变了”；两者都关闭时既不解码进场消息，也不记录或警告进场消息格式。
-`welcome.texts` 是单行欢迎语列表，例如 `["欢迎{大航海}{昵称}", "{@}欢迎回家"]`，默认 `["欢迎{大航海}{昵称}"]`，只有一条也写成列表。每次欢迎纯随机挑一条，可以和上次重复；每条都必填，列表不能为空，也不能只有 `{@}`。支持 `{@}`（只能放开头，发送时 @观众）、`{昵称}`、`{大航海}`；花括号本身用 `{{` 和 `}}`。每条加双引号，文字里的双引号和反斜杠分别写成 `\"` 和 `\\`。英文、数字、半角符号算 1，其他字符算 2（按 Unicode 码点计数）。上限自动读取账号的：开启进场欢迎时，每次连接直播间（包括重连）从 B站 读取，失败时按 20 处理并记一条警告。`{@}` 不占字数；昵称太长时从尾部按码点截短，不加省略号。昵称截到空后正文仍超过上限，或拼出来的正文为空时（例如只写 `{大航海}` 而观众不是大航海身份），不进入发送队列，记一条警告，“最近欢迎”显示原因，不换一条重试。旧的 `welcome.text` 只记未知键警告，欢迎语使用 `texts` 的默认值；不迁移旧值。
+`welcome_danmaku.texts` 是单行欢迎语列表，例如 `["欢迎{大航海}{昵称}", "{@}欢迎回家"]`，默认 `["欢迎{大航海}{昵称}"]`，只有一条也写成列表。每次欢迎纯随机挑一条，可以和上次重复；每条都必填，列表不能为空，也不能只有 `{@}`。支持 `{@}`（只能放开头，发送时 @观众）、`{昵称}`、`{大航海}`；花括号本身用 `{{` 和 `}}`。每条加双引号，文字里的双引号和反斜杠分别写成 `\"` 和 `\\`。英文、数字、半角符号算 1，其他字符算 2（按 Unicode 码点计数）。上限自动读取账号的：开启进场欢迎时，每次连接直播间（包括重连）从 B站 读取，失败时按 20 处理并记一条警告。`{@}` 不占字数；昵称太长时从尾部按码点截短，不加省略号。昵称截到空后正文仍超过上限，或拼出来的正文为空时（例如只写 `{大航海}` 而观众不是大航海身份），不进入发送队列，记一条警告，“最近欢迎”显示原因，不换一条重试。旧的 `welcome_danmaku.text` 只记未知键警告，欢迎语使用 `texts` 的默认值；不迁移旧值。
 已有 `welcome` 分组缺少 `texts` 时沿用 ADR 0004：读取时使用默认值，修改欢迎语并保存时才补写该项；缺整个分组时补写模板。
 欢迎在进队时定好正文，和查询、播报按进队顺序发送，沿用发送间隔、同正文 5 秒等待和失败规则；不按观众合并。每次尝试（含重试）前，距进场到达已满 30 秒的欢迎会丢弃并记日志。跨重连保留，直播间连接结束时清空并计数。CLI 的 stderr 日志显示“进场欢迎”和“发送弹幕成功：欢迎观众”；这些设置在下次观看直播间时生效，可在设置文件或 GUI 侧栏的“进场欢迎”页修改。
 
 ## 欢迎动画
 
-`welcome_animation.enabled` 默认 `false`。网页服务独立使用 `web_service.port`，默认 `17890`，接受 1–65535。
+`entry_animation.enabled` 默认 `false`。网页服务独立使用 `web_service.port`，默认 `17890`，接受 1–65535。
 旧键 `welcome_animation.port` 只记未知键警告，不迁移；旧视频目录也不迁移。缺少 `web_service` 整组时自动追加模板，已有分组中缺 `port` 时读取默认值、保存时补写。
-`welcome_animation_videos` 的每行是 `UID: 文件名`；UID 是 int64 范围内的正整数，文件名是 `.mp4` 或 `.webm`，
+`entry_animation_viewers` 的每行是 `UID: 文件名`；UID 是 int64 范围内的正整数，文件名是 `.mp4` 或 `.webm`，
 不能包含路径。文件放在 `data/videos/`；找不到时只警告，该观众不播放。空分组表示没有观众。
 无效 UID 或文件名会报告所在行。Core 支持保留周围注释的添加、替换和整行删除。
 
@@ -272,6 +280,8 @@ dotnet test --project tests/Aether.Core.Tests --filter-class Aether.Core.Tests.P
 [刷新登录凭据](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/login/cookie_refresh.md)、
 [wbi 签名](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/misc/sign/wbi.md)。
 
+动画名单 `entry_animation_viewers` 每行可填 0（不播）、30/40/50/60（指定进场档）或视频文件名。`entry_animation.fan_club_level` 默认 30，0 表示不按等级；`volume` 默认 80，接受 0–100。
+送礼动画 `gift_animation.enabled` 默认 false，四档 `tier_30_spend`、`tier_40_spend`、`tier_50_spend`、`tier_60_spend` 默认 100、500、2000、10000 电池，必须为正整数且逐档递增。动画设置 GUI 保存后下一次进场或送礼生效，CLI 下次观看生效；欢迎弹幕下次连接生效。旧设置名不迁移。
 ### 一轮送礼
 
 普通付费礼物按 `coin_type: gold` 的 `total_coin` 计投入，盲盒按盲盒投入计；免费礼物不计。

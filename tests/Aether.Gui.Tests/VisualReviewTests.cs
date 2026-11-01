@@ -373,10 +373,10 @@ public sealed class VisualReviewTests
             Directory.CreateDirectory(Settings.VideoDirectory(harness.DataDirectory));
             foreach (var (uid, file) in new[] { (12345, "小鹿的欢迎动画.mp4"), (67890, "星光入场.webm") })
             {
-                Settings.Save(harness.DataDirectory, new Dictionary<string, string> { [$"welcome_animation_videos.{uid}"] = file });
+                Settings.Save(harness.DataDirectory, new Dictionary<string, string> { [$"entry_animation_viewers.{uid}"] = file });
                 File.WriteAllText(Path.Combine(Settings.VideoDirectory(harness.DataDirectory), file), "video");
             }
-            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
+            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = "true" });
             var viewModel = harness.CreateViewModel(new FakeTimeProvider());
             var window = new MainWindow(harness.DataDirectory)
             {
@@ -421,7 +421,7 @@ public sealed class VisualReviewTests
             using var harness = new GuiHarness();
             await harness.SaveCredentialAsync();
             File.WriteAllText(Settings.FilePath(harness.DataDirectory),
-                $"welcome:\n  texts: {Settings.TextListText(Enumerable.Range(1, 12).Select(i => $"欢迎{{昵称}}回到直播间 · {i}"))}\n  uids: [{string.Join(", ", Enumerable.Range(12345670, 20))}]\n  fan_club_level: 21\n  guard: 舰长\n  wealth_level: 45\n");
+                $"welcome_danmaku:\n  texts: {Settings.TextListText(Enumerable.Range(1, 12).Select(i => $"欢迎{{昵称}}回到直播间 · {i}"))}\n  uids: [{string.Join(", ", Enumerable.Range(12345670, 20))}]\n  fan_club_level: 21\n  guard: 1\n  wealth_level: 45\n");
             var viewModel = harness.CreateViewModel();
             var window = new MainWindow(harness.DataDirectory)
             {
@@ -546,8 +546,8 @@ public sealed class VisualReviewTests
             await harness.SaveCredentialAsync();
             Settings.Save(harness.DataDirectory, new Dictionary<string, string>
             {
-                ["welcome.enabled"] = "true", ["welcome.fan_club_level"] = "12",
-                ["welcome.texts"] = Settings.TextListText(["欢迎{大航海}{昵称}", "{@}欢迎回家", "晚上好{昵称}，今天也来啦"])
+                ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.fan_club_level"] = "12",
+                ["welcome_danmaku.texts"] = Settings.TextListText(["欢迎{大航海}{昵称}", "{@}欢迎回家", "晚上好{昵称}，今天也来啦"])
             });
             var viewModel = harness.CreateViewModel();
             var window = new MainWindow(harness.DataDirectory)
@@ -594,8 +594,8 @@ public sealed class VisualReviewTests
             File.WriteAllText(Path.Combine(h.DataDirectory, "videos", "晚风进场.webm"), "video");
             Settings.Save(h.DataDirectory, new Dictionary<string, string>
             {
-                ["welcome_animation_videos.12345"] = "柚子不酸.mp4",
-                ["welcome_animation_videos.28816620"] = "晚风进场.webm"
+                ["entry_animation_viewers.12345"] = "柚子不酸.mp4",
+                ["entry_animation_viewers.28816620"] = "晚风进场.webm"
             });
             h.OnlineRankResponse = OnlineRankList.Answer(430, OnlineRankList.Top100());
             var vm = h.CreateViewModel();
@@ -638,10 +638,10 @@ public sealed class VisualReviewTests
             Directory.CreateDirectory(Path.Combine(harness.DataDirectory, "videos"));
             foreach (var (uid, file) in videos)
             {
-                Settings.Save(harness.DataDirectory, new Dictionary<string, string> { [$"welcome_animation_videos.{uid}"] = file });
+                Settings.Save(harness.DataDirectory, new Dictionary<string, string> { [$"entry_animation_viewers.{uid}"] = file });
                 if (uid != 13579) File.WriteAllText(Path.Combine(harness.DataDirectory, "videos", file), "video");
             }
-            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
+            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = "true" });
             var viewModel = harness.CreateViewModel(new FakeTimeProvider());
             var window = new MainWindow(harness.DataDirectory)
             {
@@ -858,7 +858,7 @@ public sealed class VisualReviewTests
         {
             using var h = new GuiHarness();
             await h.SaveCredentialAsync();
-            File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  uids: [12345, 28816620]\n");
+            File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome_danmaku:\n  uids: [12345, 28816620]\n");
             h.OnlineRankResponse = OnlineRankList.Answer(430, OnlineRankList.Top100());
             var vm = h.CreateViewModel();
             var window = new MainWindow(h.DataDirectory)

@@ -21,11 +21,11 @@ public sealed class NumericInputTests
           retention_days: 1
         send:
           interval_seconds: 1
-        welcome:
+        welcome_danmaku:
           uids: [1234567890123456]
           fan_club_level: 1
           wealth_level: 1
-          guard: 舰长
+          guard: 1
         """;
 
     [Theory]

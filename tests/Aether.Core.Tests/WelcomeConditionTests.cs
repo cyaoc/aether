@@ -17,7 +17,7 @@ public sealed class WelcomeConditionTests : IDisposable
     [InlineData("[]", 10001, null)]
     [InlineData("[9223372036854775807]", long.MaxValue, "UID")]
     public void Specified_uids_match_exactly_including_int64_values(string uids, long uid, string? match) =>
-        Assert.Equal(match, Match(new() { ["welcome.uids"] = uids }, Viewer(uid: uid)));
+        Assert.Equal(match, Match(new() { ["welcome_danmaku.uids"] = uids }, Viewer(uid: uid)));
 
     [Theory]
     [InlineData(21, 21L, "粉丝团等级 21")]
@@ -26,20 +26,20 @@ public sealed class WelcomeConditionTests : IDisposable
     [InlineData(0, 47L, null)]
     [InlineData(21, null, null)]
     public void Fan_club_threshold_is_inclusive_and_requires_a_fan_club(int threshold, long? level, string? match) =>
-        Assert.Equal(match, Match(new() { ["welcome.fan_club_level"] = threshold.ToString(CultureInfo.InvariantCulture) },
+        Assert.Equal(match, Match(new() { ["welcome_danmaku.fan_club_level"] = threshold.ToString(CultureInfo.InvariantCulture) },
             Viewer(fanClubLevel: level)));
 
     [Theory]
-    [InlineData("舰长", 0, null)]
-    [InlineData("舰长", 3, "大航海身份 舰长")]
-    [InlineData("提督", 3, null)]
-    [InlineData("提督", 2, "大航海身份 提督")]
-    [InlineData("提督", 1, "大航海身份 总督")]
-    [InlineData("关闭", 1, null)]
-    [InlineData("关闭", 2, null)]
-    [InlineData("关闭", 3, null)]
+    [InlineData("1", 0, null)]
+    [InlineData("1", 3, "大航海身份 舰长")]
+    [InlineData("2", 3, null)]
+    [InlineData("2", 2, "大航海身份 提督")]
+    [InlineData("2", 1, "大航海身份 总督")]
+    [InlineData("0", 1, null)]
+    [InlineData("0", 2, null)]
+    [InlineData("0", 3, null)]
     public void Guard_threshold_is_inclusive_and_can_be_disabled(string threshold, long privilegeType, string? match) =>
-        Assert.Equal(match, Match(new() { ["welcome.guard"] = threshold }, Viewer(privilegeType: privilegeType)));
+        Assert.Equal(match, Match(new() { ["welcome_danmaku.guard"] = threshold }, Viewer(privilegeType: privilegeType)));
 
     [Theory]
     [InlineData(45, 45, "荣耀等级 45")]
@@ -47,19 +47,19 @@ public sealed class WelcomeConditionTests : IDisposable
     [InlineData(45, 46, "荣耀等级 46")]
     [InlineData(0, 45, null)]
     public void Wealth_alone_can_welcome_a_viewer_without_guard_status(int threshold, long level, string? match) =>
-        Assert.Equal(match, Match(new() { ["welcome.wealth_level"] = threshold.ToString(CultureInfo.InvariantCulture) },
+        Assert.Equal(match, Match(new() { ["welcome_danmaku.wealth_level"] = threshold.ToString(CultureInfo.InvariantCulture) },
             Viewer(wealthLevel: level)));
 
     [Theory]
-    [InlineData("[10001]", 21, "舰长", "UID")]
-    [InlineData("[]", 21, "舰长", "粉丝团等级 47")]
-    [InlineData("[]", 0, "舰长", "大航海身份 舰长")]
-    [InlineData("[]", 0, "关闭", "荣耀等级 45")]
+    [InlineData("[10001]", 21, "1", "UID")]
+    [InlineData("[]", 21, "1", "粉丝团等级 47")]
+    [InlineData("[]", 0, "1", "大航海身份 舰长")]
+    [InlineData("[]", 0, "0", "荣耀等级 45")]
     public void Multiple_matches_return_only_the_first_condition(string uids, int fanClub, string guard, string match) =>
         Assert.Equal(match, Match(new()
         {
-            ["welcome.uids"] = uids, ["welcome.fan_club_level"] = fanClub.ToString(CultureInfo.InvariantCulture),
-            ["welcome.guard"] = guard, ["welcome.wealth_level"] = "45"
+            ["welcome_danmaku.uids"] = uids, ["welcome_danmaku.fan_club_level"] = fanClub.ToString(CultureInfo.InvariantCulture),
+            ["welcome_danmaku.guard"] = guard, ["welcome_danmaku.wealth_level"] = "45"
         }, Viewer(privilegeType: 3, fanClubLevel: 47, wealthLevel: 45)));
 
     [Theory]
@@ -72,7 +72,7 @@ public sealed class WelcomeConditionTests : IDisposable
     public void Matched_result_includes_rendered_text_mention_and_rejection_reason(
         string template, int limit, string text, bool mention, string? reason)
     {
-        var result = CreateWelcome(new() { ["welcome.uids"] = "[10001]", ["welcome.texts"] = Settings.TextListText([template]) }).Evaluate(Viewer(), limit);
+        var result = CreateWelcome(new() { ["welcome_danmaku.uids"] = "[10001]", ["welcome_danmaku.texts"] = Settings.TextListText([template]) }).Evaluate(Viewer(), limit);
         Assert.NotNull(result);
         Assert.Equal(text, result.Text);
         Assert.Equal(mention, result.Mention);
@@ -86,8 +86,8 @@ public sealed class WelcomeConditionTests : IDisposable
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.uids"] = "[10001]", ["welcome.fan_club_level"] = "21",
-            ["welcome.guard"] = "舰长", ["welcome.wealth_level"] = "45", ["welcome.texts"] = Settings.TextListText(["{@}欢迎{大航海}{昵称}"])
+            ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.uids"] = "[10001]", ["welcome_danmaku.fan_club_level"] = "21",
+            ["welcome_danmaku.guard"] = "1", ["welcome_danmaku.wealth_level"] = "45", ["welcome_danmaku.texts"] = Settings.TextListText(["{@}欢迎{大航海}{昵称}"])
         });
         var sent = CaptureSends(h);
         await using (var updates = await h.WatchConnectedAsync())
@@ -115,7 +115,7 @@ public sealed class WelcomeConditionTests : IDisposable
 
     private Welcome CreateWelcome(Dictionary<string, string> changes)
     {
-        changes.TryAdd("welcome.guard", "关闭");
+        changes.TryAdd("welcome_danmaku.guard", "0");
         Settings.Save(dataDirectory, changes);
         var settings = Settings.Load(dataDirectory);
         Assert.Null(settings.Error);

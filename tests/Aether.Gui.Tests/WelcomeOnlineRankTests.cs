@@ -17,7 +17,7 @@ public sealed class WelcomeOnlineRankTests
     {
         using var h = new GuiHarness();
         Directory.CreateDirectory(h.DataDirectory);
-        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  uids: [42]\n");
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome_danmaku:\n  uids: [42]\n");
         h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));
@@ -52,7 +52,7 @@ public sealed class WelcomeOnlineRankTests
     {
         using var h = new GuiHarness();
         Directory.CreateDirectory(h.DataDirectory);
-        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  uids: [42]\n");
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome_danmaku:\n  uids: [42]\n");
         h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));
@@ -92,8 +92,8 @@ public sealed class WelcomeOnlineRankTests
         using var h = new GuiHarness();
         Directory.CreateDirectory(h.DataDirectory);
         File.WriteAllText(Settings.FilePath(h.DataDirectory), readOnly
-            ? "welcome: {enabled: true, texts: ['欢迎{昵称}'], uids: [42], fan_club_level: 21, guard: 提督, wealth_level: 45}\n"
-            : "welcome:\n  uids: [42]\n");
+            ? "welcome_danmaku: {enabled: true, texts: ['欢迎{昵称}'], uids: [42], fan_club_level: 21, guard: 2, wealth_level: 45}\n"
+            : "welcome_danmaku:\n  uids: [42]\n");
         var vm = h.CreateViewModel();
         var page = new WelcomeSettingsPage(h.DataDirectory) { DataContext = vm };
         var window = new Window { Content = page, Width = 976, Height = 720 };

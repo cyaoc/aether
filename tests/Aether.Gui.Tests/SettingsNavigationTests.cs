@@ -159,7 +159,7 @@ public sealed class SettingsNavigationTests
 
     [Theory]
     [InlineData("log:\n  level: @bad\n", "第 2 行")]
-    [InlineData("welcome:\n  uids:\n    - 42\n", "welcome.uids")]
+    [InlineData("welcome_danmaku:\n  uids:\n    - 42\n", "welcome_danmaku.uids")]
     public Task Every_page_shows_file_errors_and_disables_save(string yaml, string expected) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();

@@ -18,8 +18,8 @@ public sealed class WelcomeTests
         await using var h = new WatchHarness();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.uids"] = "[10001]",
-            ["welcome.texts"] = Settings.TextListText(["欢迎{昵称}", "{@}欢迎回家", "{大航海}", "这条欢迎语肯定超过十个汉字"])
+            ["welcome_danmaku.uids"] = "[10001]",
+            ["welcome_danmaku.texts"] = Settings.TextListText(["欢迎{昵称}", "{@}欢迎回家", "{大航海}", "这条欢迎语肯定超过十个汉字"])
         });
         var random = new FixedRandom(selected);
         var welcome = new Welcome(Settings.Load(h.DataDirectory), random);
@@ -256,7 +256,7 @@ public sealed class WelcomeTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         Enable(h);
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = Settings.BooleanText(enabled) });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.enabled"] = Settings.BooleanText(enabled) });
         var sent = CaptureSends(h);
         await using (var updates = await h.WatchConnectedAsync())
         {
@@ -367,7 +367,7 @@ public sealed class WelcomeTests
     {
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.texts"] = Settings.TextListText([text])
+            ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.texts"] = Settings.TextListText([text])
         });
         h.Http.SetDanmakuLengthLimit(limit);
     }
@@ -380,7 +380,7 @@ public sealed class WelcomeTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         Enable(h, text, limit);
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.uids"] = "[10001]" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.uids"] = "[10001]" });
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(guard: 0));
