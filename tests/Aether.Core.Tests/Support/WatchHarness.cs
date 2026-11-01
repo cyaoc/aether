@@ -41,20 +41,21 @@ internal sealed class WatchHarness : IAsyncDisposable
         new(http ?? new FakeBilibiliHttp { Respond = Http.Respond }, connectWebSocket, Time, Logger, DataDirectory);
 
     /// <summary>Watches room 6 on <paramref name="client"/> (this harness's own by default) until <see cref="Stop"/>.</summary>
-    public IAsyncEnumerator<WatchUpdate> Watch(AetherClient? client = null, bool includeSendQueueUpdates = false) =>
-        WatchUpdates(client ?? Client, includeSendQueueUpdates).GetAsyncEnumerator(Stop.Token);
+    public IAsyncEnumerator<WatchUpdate> Watch(AetherClient? client = null, bool includeSendQueueUpdates = false, bool includeGiftRounds = false) =>
+        WatchUpdates(client ?? Client, includeSendQueueUpdates, includeGiftRounds).GetAsyncEnumerator(Stop.Token);
 
     // Tests of receiving and sending HTTP keep their existing stream; progress tests opt into the full stream.
-    private async IAsyncEnumerable<WatchUpdate> WatchUpdates(AetherClient client, bool includeSendQueueUpdates)
+    private async IAsyncEnumerable<WatchUpdate> WatchUpdates(AetherClient client, bool includeSendQueueUpdates, bool includeGiftRounds)
     {
         await foreach (var update in client.WatchAsync(6, enableLottery, Stop.Token))
-            if (includeSendQueueUpdates || update is not SendQueueUpdate) yield return update;
+            if ((includeSendQueueUpdates || update is not SendQueueUpdate)
+                && (includeGiftRounds || update is not GiftRoundEnded)) yield return update;
     }
 
     /// <summary>Watches room 6 and returns once the room connection reports Connected.</summary>
-    public async Task<IAsyncEnumerator<WatchUpdate>> WatchConnectedAsync(AetherClient? client = null, bool includeSendQueueUpdates = false)
+    public async Task<IAsyncEnumerator<WatchUpdate>> WatchConnectedAsync(AetherClient? client = null, bool includeSendQueueUpdates = false, bool includeGiftRounds = false)
     {
-        var updates = Watch(client, includeSendQueueUpdates);
+        var updates = Watch(client, includeSendQueueUpdates, includeGiftRounds);
         Assert.True(await updates.MoveNextAsync());
         Assert.IsType<Connecting>(updates.Current);
         Assert.True(await updates.MoveNextAsync());

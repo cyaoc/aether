@@ -282,3 +282,9 @@ dotnet test --project tests/Aether.Core.Tests --filter-class Aether.Core.Tests.P
 
 动画名单 `entry_animation_viewers` 每行可填 0（不播）、30/40/50/60（指定进场档）或视频文件名。`entry_animation.fan_club_level` 默认 30，0 表示不按等级；`volume` 默认 80，接受 0–100。
 送礼动画 `gift_animation.enabled` 默认 false，四档 `tier_30_spend`、`tier_40_spend`、`tier_50_spend`、`tier_60_spend` 默认 100、500、2000、10000 电池，必须为正整数且逐档递增。动画设置 GUI 保存后下一次进场或送礼生效，CLI 下次观看生效；欢迎弹幕下次连接生效。旧设置名不迁移。
+### 一轮送礼
+
+普通付费礼物按 `coin_type: gold` 的 `total_coin` 计投入，盲盒按盲盒投入计；免费礼物不计。
+每个直播间的观众各自累计，停手 3 秒结束一轮，和一轮盲盒互不影响；自动重连保留，主动断开清空。
+uid 为 0 只记录日志；目前不按 tid 去重。大航海开通、续费尚未接入。
+V2 已使用本地人气票消息验证；V1 使用 BAC 示例，未实测。批量、折扣、包裹仍缺真实样本，金额待实战 Trace 核对。
