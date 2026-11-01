@@ -74,7 +74,7 @@ public sealed partial class AetherClient
                                 readDanmakuLengthLimit = true;
                             }
                             decoder = new DanmakuProtocol.Decoder(realRoomId.Value, client.logger,
-                                () => Settings.WelcomeEnabled.Value || client.WelcomeAnimation.Enabled);
+                                () => Settings.WelcomeEnabled.Value || client.WebService.Video.Settings?.EntryAnimationEnabled.Value == true);
                         }
                         await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {

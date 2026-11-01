@@ -8,19 +8,13 @@ public sealed class VideoPageBrowserTests
     [Fact]
     public async Task Stopping_a_test_play_pauses_and_clears_the_real_video_page_and_it_can_play_again()
     {
-        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
-            Assert.Skip("Set AETHER_TEST_CHROME for real video browser acceptance.");
         await using var h = new WatchHarness();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string>
-        {
-            ["entry_animation.enabled"] = "true", ["web_service.port"] = Aether.Core.Tests.WelcomeAnimationTests.FreePort().ToString()
-        });
         Directory.CreateDirectory(Settings.VideoDirectory(h.DataDirectory));
-        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(Settings.VideoDirectory(h.DataDirectory), "welcome_danmaku.mp4"));
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "welcome_danmaku.mp4" });
-        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
-        await using var browser = new ChromeBrowser();
-        await browser.OpenAsync(h.DataDirectory, h.Client.WebService.Status.VideoAddress);
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(Settings.VideoDirectory(h.DataDirectory), "welcome.mp4"));
+        await using var browser = await ChromeBrowser.OpenVideoPageAsync(h, new Dictionary<string, string>
+        {
+            ["entry_animation.enabled"] = "true", ["entry_animation_viewers.10001"] = "welcome.mp4"
+        });
         await h.WaitForLogAsync("视频页 1 个推流软件");
         // Keep the short fixture playing until Stop; muting removes the headless browser's autoplay gate.
         await browser.EvaluateAsync("document.querySelector('video').muted = true; document.querySelector('video').loop = true;");

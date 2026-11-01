@@ -14,8 +14,8 @@ video { width: 100%; height: 100%; object-fit: contain; visibility: hidden; }
 <script>
 const video = document.querySelector('video');
 let active;
-const animation = import('/video/animations/runtime.mjs');
-animation.then(module=>module.preload()).catch(()=>{});
+const runtime = () => import('/video/animations/runtime.mjs');
+runtime().then(module=>module.preload()).catch(()=>{});
 function clear() {
   if (!active) return;
   active.abort.abort();
@@ -51,7 +51,7 @@ events.onmessage = async event => {
   active = item;
   try {
     if (item.animation) {
-      const module = await animation;
+      const module = await runtime();
       await module.play(item,document.querySelector('canvas'),(success,reason)=>finish(item,success,reason));
       return;
     }

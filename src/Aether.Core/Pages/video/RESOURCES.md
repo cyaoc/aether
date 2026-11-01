@@ -35,3 +35,7 @@ including browser output latency, as in the design sound preview.
 - https://freesound.org/people/nekoninja/sounds/370204/ — samurai-slash
 - https://freesound.org/people/XfiXy8/sounds/467292/ — sword-re-sheathed
 - https://freesound.org/people/unfa/sounds/221528/ — glass-break
+
+## Deliberate difference from the boards
+
+EV3's take-off column computes its alpha from the colour string, so the board fills it with whatever colour the last band left on the canvas. `pillar` in `toolkit.mjs` uses the colours and fade EV3 meant, the same as EV4's.

@@ -68,6 +68,9 @@ public abstract class SettingsPage : TemplatedControl
         AvaloniaProperty.Register<SettingsPage, string>(nameof(DirtyText), "");
     public string DirtyText { get => GetValue(DirtyTextProperty); protected set => SetValue(DirtyTextProperty, value); }
 
+    public static readonly StyledProperty<bool> DirtyBlockedProperty = AvaloniaProperty.Register<SettingsPage, bool>(nameof(DirtyBlocked));
+    public bool DirtyBlocked { get => GetValue(DirtyBlockedProperty); protected set => SetValue(DirtyBlockedProperty, value); }
+
     public static readonly StyledProperty<bool> CanSaveProperty =
         AvaloniaProperty.Register<SettingsPage, bool>(nameof(CanSave), false);
     public bool CanSave { get => GetValue(CanSaveProperty); protected set => SetValue(CanSaveProperty, value); }

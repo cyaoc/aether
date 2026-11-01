@@ -140,7 +140,7 @@ public sealed class WelcomeAnimationTests
         h.Client.WelcomeAnimation.TestPlay(10001);
         var first = await page.NextAsync();
         var source = new PlaybackSource(h.Client.WebService, h.Time, h.Logger, "进场动画", true);
-        source.TestPlay(new PlaybackContent.Animation("general-30", "测试"));
+        source.TestPlay(PlaybackContent.General(EntryTier.Parse(30)!.Value, "测试"));
         h.Time.Advance(TimeSpan.FromMilliseconds(milliseconds));
         await page.ReportAsync(first);
         if (plays) await page.ReportAsync(await page.NextAsync());
@@ -158,7 +158,7 @@ public sealed class WelcomeAnimationTests
         await Start(h, 10001);
         using var page = await Page.ConnectAsync(h);
         var source = new PlaybackSource(h.Client.WebService, h.Time, h.Logger, "进场动画", true);
-        source.TestPlay(new PlaybackContent.Animation(AnimationId.General(EntryTier.Parse(30)!.Value), "真实昵称"));
+        source.TestPlay(PlaybackContent.General(EntryTier.Parse(30)!.Value, "真实昵称"));
         var first = await page.NextAsync();
         Assert.Equal("general-30", first.Content);
         Assert.Equal("真实昵称", first.Nickname);
@@ -171,7 +171,7 @@ public sealed class WelcomeAnimationTests
         Assert.Equal(0, second.Volume);
         await page.ReportAsync(second);
         await using var playingObserved = new Observations(h);
-        source.TestPlay(new PlaybackContent.Animation("general-40", "测试"));
+        source.TestPlay(PlaybackContent.General(EntryTier.Parse(40)!.Value, "测试"));
         var third = await page.NextAsync();
         await playingObserved.WaitAsync(update => update is SourcePlayback { State: PlaybackState.Playing } playing && playing.Id == third.Id);
         source.StopTestPlay(third.Id);

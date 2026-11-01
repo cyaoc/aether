@@ -45,7 +45,7 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                   <StackPanel VerticalAlignment="Center" Spacing="4">
                     <TextBlock Classes="caption muted" Text="没有未保存的修改" IsVisible="{Binding !#DirtyMessage.IsVisible}" />
-                    <TextBlock x:Name="DirtyMessage" Classes="caption accent" Text="{TemplateBinding DirtyText}" IsVisible="{TemplateBinding IsDirty}" />
+                    <TextBlock x:Name="DirtyMessage" Classes="caption accent" Classes.blocked="{TemplateBinding DirtyBlocked}" Text="{TemplateBinding DirtyText}" IsVisible="{TemplateBinding IsDirty}" />
                     <TextBlock x:Name="Message" Classes="caption" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" Text="{TemplateBinding Message}"
                       IsVisible="{Binding #Message.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                   </StackPanel>

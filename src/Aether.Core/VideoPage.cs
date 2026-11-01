@@ -15,10 +15,12 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
     private sealed record Playback(string Id, PlaybackContent Content, string Source, long ReceivedAt,
         Func<string?>? SkipReason, Action<VideoPlayback>? Updated);
 
-    private int volume = 80;
-    internal void Apply(Settings settings) { lock (service.Gate) volume = settings.EntryAnimationVolume.Value; }
-    public void Enqueue(string fileName, string source) => Enqueue(new PlaybackContent.Video(fileName), source);
-    public void Enqueue(PlaybackContent content, string source) => Enqueue(content, source, timeProvider.GetTimestamp(), null, null);
+    private Settings? settings;
+    /// <summary>The settings applied last. Playback sources and the room's decoder read these, not their room connection's,
+    /// so a save reaches them without reconnecting.</summary>
+    internal Settings? Settings { get { lock (service.Gate) return settings; } }
+    internal void Apply(Settings snapshot) { lock (service.Gate) settings = snapshot; }
+    public void Enqueue(string fileName, string source) => Enqueue(new PlaybackContent.Video(fileName), source, timeProvider.GetTimestamp(), null, null);
 
     internal void Enqueue(PlaybackContent content, string source, long receivedAt, Func<string?>? skipReason, Action<VideoPlayback>? updated)
     {
@@ -74,8 +76,8 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
                 {
                     object payload;
                     lock (service.Gate) payload = item.Content is PlaybackContent.Animation animation
-                        ? new { id = item.Id, animation = animation.Identifier, nickname = animation.Nickname, volume }
-                        : new { id = item.Id, volume };
+                        ? new { id = item.Id, animation = animation.Identifier, nickname = animation.Nickname, volume = settings!.EntryAnimationVolume.Value }
+                        : new { id = item.Id, volume = settings!.EntryAnimationVolume.Value };
                     var sent = await service.BroadcastAsync(this, new(null, payload), token);
                     if (sent == 0) { Report(item, PlaybackState.Skipped, "没有推流软件连着"); continue; }
                     Report(item, PlaybackState.Playing);

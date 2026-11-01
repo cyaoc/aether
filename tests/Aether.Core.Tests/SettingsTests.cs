@@ -28,7 +28,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Write("# 保留\nwelcome_danmaku:\n  enabled: true\n");
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Null(settings.Error);
-        Assert.False(settings.WelcomeAnimationEnabled.Value);
+        Assert.False(settings.EntryAnimationEnabled.Value);
         Assert.Equal(17890, settings.WebServicePort.Value);
         Assert.Empty(settings.WelcomeAnimationVideos);
         Assert.Null(Settings.Validate("entry_animation.enabled", "false"));
@@ -105,9 +105,9 @@ public sealed class SettingsTests : IAsyncDisposable
         Write(yaml);
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Null(settings.Error);
-        Assert.False(settings.CanEditWelcomeAnimationVideos);
+        Assert.False(settings.CanEditEntryAnimationViewers);
         Assert.Equal("a.mp4", settings.WelcomeAnimationVideos[42].Value);
-        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimations(harness.DataDirectory,
+        Assert.Throws<SettingsException>(() => Settings.SaveAnimationViewers(harness.DataDirectory,
             new Dictionary<string, string>(), new Dictionary<long, string>(), settings));
         Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
             new Dictionary<string, string> { ["entry_animation_viewers.43"] = "b.mp4" }));
@@ -122,7 +122,7 @@ public sealed class SettingsTests : IAsyncDisposable
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Null(settings.Error);
         Assert.False(settings.WelcomeAnimationVideos[42].CanEdit);
-        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimations(harness.DataDirectory,
+        Assert.Throws<SettingsException>(() => Settings.SaveAnimationViewers(harness.DataDirectory,
             new Dictionary<string, string>(), new Dictionary<long, string>(), settings));
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
     }
@@ -141,9 +141,9 @@ public sealed class SettingsTests : IAsyncDisposable
         var replaced = yaml.Replace("原片.mp4", "新片.webm").Replace("log:", "  43: '# 进场.mp4'\r\nlog:");
         Assert.Equal(replaced, File.ReadAllText(SettingsPath));
         Assert.Equal("新片.webm", Settings.Load(harness.DataDirectory).WelcomeAnimationVideos[42].Value);
-        Settings.SaveWelcomeAnimations(harness.DataDirectory, new Dictionary<string, string>(),
+        Settings.SaveAnimationViewers(harness.DataDirectory, new Dictionary<string, string>(),
             new Dictionary<long, string> { [43] = "# 进场.mp4" }, Settings.Load(harness.DataDirectory));
-        Settings.SaveWelcomeAnimations(harness.DataDirectory, new Dictionary<string, string>(),
+        Settings.SaveAnimationViewers(harness.DataDirectory, new Dictionary<string, string>(),
             new Dictionary<long, string>(), Settings.Load(harness.DataDirectory));
         var deleted = yaml.Replace($"  {uid}: 原片.mp4 # 保留\r\n", "");
         Assert.Equal(deleted, File.ReadAllText(SettingsPath));
@@ -160,13 +160,13 @@ public sealed class SettingsTests : IAsyncDisposable
         var snapshot = Settings.Load(harness.DataDirectory);
         var before = File.ReadAllText(SettingsPath);
         var changes = new Dictionary<string, string> { ["entry_animation.enabled"] = "true", ["web_service.port"] = "17891" };
-        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimations(harness.DataDirectory, changes,
+        Assert.Throws<SettingsException>(() => Settings.SaveAnimationViewers(harness.DataDirectory, changes,
             new Dictionary<long, string> { [44] = "../bad.mp4" }, snapshot));
         Assert.Equal(before, File.ReadAllText(SettingsPath));
-        Settings.SaveWelcomeAnimations(harness.DataDirectory, changes,
+        Settings.SaveAnimationViewers(harness.DataDirectory, changes,
             new Dictionary<long, string> { [43] = "shared.webm", [44] = "new.mp4" }, snapshot);
         var saved = Settings.Load(harness.DataDirectory);
-        Assert.True(saved.WelcomeAnimationEnabled.Value);
+        Assert.True(saved.EntryAnimationEnabled.Value);
         Assert.Equal(17891, saved.WebServicePort.Value);
         Assert.Equal(new long[] { 43, 44 }, saved.WelcomeAnimationVideos.Keys.Order());
         Assert.Equal("new.mp4", saved.WelcomeAnimationVideos[44].Value);
@@ -210,7 +210,7 @@ public sealed class SettingsTests : IAsyncDisposable
         foreach (var line in File.ReadAllText(SettingsPath).ReplaceLineEndings("\n").Split('\n'))
             if (Regex.Match(line, @"^(\w+):$") is { Success: true } header) templateGroup = header.Groups[1].Value;
             else if (Regex.Match(line, @"^  (\w+):") is { Success: true } key) templateNames.Add(templateGroup + "." + key.Groups[1].Value);
-        Assert.Equal(Settings.AllDefinitions.Where(definition => definition is not Settings.VideoGroupDefinition).Select(definition => definition.Name).Order(), templateNames.Order());
+        Assert.Equal(Settings.AllDefinitions.Where(definition => definition is not Settings.ViewerGroupDefinition).Select(definition => definition.Name).Order(), templateNames.Order());
         // Keep every group present so Load cannot fill it from Template and hide a mismatched definition default.
         Write(string.Concat(Settings.AllDefinitions.Select(definition => definition.Group).Distinct().Select(group => group + ":\n")));
         var missing = Settings.Load(harness.DataDirectory);
@@ -219,7 +219,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(Values(fromTemplate), Values(missing));
 
         static IEnumerable<(string, string)> Values(Settings settings) =>
-            Settings.AllDefinitions.Where(definition => definition is not Settings.VideoGroupDefinition)
+            Settings.AllDefinitions.Where(definition => definition is not Settings.ViewerGroupDefinition)
                 .Select(definition => (definition.Name, definition.ValueText(settings, definition.Name)));
     }
 

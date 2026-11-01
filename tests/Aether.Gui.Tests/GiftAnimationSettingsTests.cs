@@ -19,13 +19,22 @@ public sealed class GiftAnimationSettingsTests
         try
         {
             var inputs = page.GetVisualDescendants().OfType<NumericUpDown>().ToArray();
+            var error = page.FindControl<TextBlock>("ThresholdError")!;
             inputs[1].Text = "50";
             GuiHarness.Flush();
             Assert.False(page.CanSave);
-            Assert.True(page.FindControl<TextBlock>("ThresholdError")!.IsVisible);
+            Assert.Equal("每一档的门槛要比上一档高", error.Text);
+            Assert.Equal("门槛要一档比一档高，改好后才能保存", page.DirtyText);
+            Assert.True(inputs[1].Classes.Contains("invalid"));
+            inputs[1].Text = "";
+            GuiHarness.Flush();
+            Assert.Equal("门槛要填正整数", error.Text);
+            Assert.Equal("门槛要填正整数，改好后才能保存", page.DirtyText);
             inputs[1].Text = "600";
             GuiHarness.Flush();
             Assert.True(page.CanSave);
+            Assert.False(error.IsVisible);
+            Assert.False(inputs[1].Classes.Contains("invalid"));
             vm.ConnectionState = RoomConnectionState.Connected;
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await page.PendingSave;

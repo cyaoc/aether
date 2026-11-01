@@ -1,5 +1,5 @@
 <local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
- xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.GiftAnimationSettingsPage" x:DataType="local:MainWindowViewModel">
+ xmlns:local="using:Aether.Gui" xmlns:core="using:Aether.Core" x:Class="Aether.Gui.GiftAnimationSettingsPage" x:DataType="local:MainWindowViewModel">
  <local:SettingsPage.HeaderContent>
   <ToggleSwitch x:Name="EnabledInput" Classes="plain" AutomationProperties.Name="送礼动画" />
  </local:SettingsPage.HeaderContent>
@@ -9,12 +9,11 @@
    <local:VideoPageStatusBar x:Name="PageStatus" />
    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,12,0,0">
     <TextBlock Classes="section" Text="投入门槛" />
-    <TextBlock Grid.Column="1" Classes="hint" Text="停手 3 秒算一轮，取最高档，不要求粉丝团" />
+    <TextBlock Grid.Column="1" Classes="hint" Text="一轮投入够到哪档，当场播一次；停手 3 秒算送完，不需要粉丝团" />
    </Grid>
    <WrapPanel x:Name="ThresholdRows" />
    <TextBlock x:Name="ThresholdError" Classes="hint" Foreground="{DynamicResource Danger}" TextWrapping="Wrap" IsVisible="False" />
-   <local:AnimationTestBar x:Name="TestBar" Source="送礼动画" Margin="0,12,0,0" />
-   <TextBlock Classes="hint" Text="音量和进场欢迎的动画分页共用，试播使用已保存的音量。" />
+   <local:AnimationTestBar x:Name="TestBar" Source="{x:Static core:PlaybackSource.Gift}" Margin="0,12,0,0" />
   </StackPanel>
  </local:SettingsPage.BodyContent>
  <local:SettingsPage.ActivityContent>

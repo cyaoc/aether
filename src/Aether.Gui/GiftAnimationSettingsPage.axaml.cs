@@ -33,29 +33,23 @@ public partial class GiftAnimationSettingsPage : SettingsPage
             Bind(input, readOnly, null, settings => settings.GiftAnimationThresholds[index]);
         }
         PageStatus.GeneralSettingsRequested += () => GeneralSettingsRequested?.Invoke();
-        TestBar.TestRequested += (tier, nickname) => viewModel?.WebService.TestGift(tier, nickname);
-        TestBar.StopRequested += id => viewModel?.WebService.StopGift(id);
         LoadSettings();
     }
     protected override bool ReconnectAfterSave => false;
+    private bool notPositive;
     protected override bool ShowRowErrors()
     {
-        var values = new List<int>();
-        foreach (var input in thresholds)
-        {
-            if (!int.TryParse(input.Text, out var value))
-            {
-                ThresholdError.Text = Settings.GiftThresholdRule;
-                ThresholdError.IsVisible = true;
-                return true;
-            }
-            values.Add(value);
-        }
+        var values = thresholds.Select(input => int.TryParse(input.Text, out var value) ? value : 0).ToArray();
         var invalid = Settings.InvalidGiftThreshold(values);
-        ThresholdError.Text = invalid is null ? "" : Settings.GiftThresholdRule;
-        ThresholdError.IsVisible = invalid is not null;
+        notPositive = values.Any(value => value <= 0);
+        ThresholdError.Text = invalid is null ? "" : notPositive ? "门槛要填正整数" : "每一档的门槛要比上一档高";
+        ThresholdError.IsVisible = DirtyBlocked = invalid is not null;
+        foreach (var (input, index) in thresholds.Select((input, index) => (input, index)))
+            input.Classes.Set("invalid", values[index] <= (index == 0 ? 0 : values[index - 1]));
         return invalid is not null;
     }
+    protected override string DirtyDescription => !ThresholdError.IsVisible ? base.DirtyDescription
+        : notPositive ? "门槛要填正整数，改好后才能保存" : "门槛要一档比一档高，改好后才能保存";
     protected override async Task<string> AfterSave(Settings saved, string result)
     {
         if (viewModel is not null) await viewModel.WebService.ApplyWebSettingsAsync(saved);

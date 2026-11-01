@@ -1,6 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.RecentPlaybackList" x:DataType="local:RecentPlaybackList">
 <UserControl.Resources>
-    <DataTemplate x:Key="AnimationActivityTemplate" x:DataType="local:WelcomeAnimationItem">
+    <DataTemplate x:Key="AnimationActivityTemplate" x:DataType="local:PlaybackItem">
       <Border Classes="activityRow">
         <StackPanel Spacing="4">
           <local:ActivityHeader>

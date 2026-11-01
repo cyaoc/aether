@@ -22,8 +22,8 @@ export class AudioTrack {
   }
   frame(milliseconds) {
     const t = milliseconds / 1000, ctx = this.ctx;
-    if (ctx.state && ctx.state !== 'running') return;
-    const latency = (ctx.baseLatency || 0) + (ctx.outputLatency || 0);
+    if (ctx.state !== 'running') return;
+    const latency = ctx.baseLatency + (ctx.outputLatency || 0);
     this.cues.forEach((c, i) => {
       if (this.fired.has(i) || c.startAt - t - latency >= .12) return;
       this.fired.add(i);
@@ -44,6 +44,6 @@ export class AudioTrack {
   stop() {
     for (const source of this.playing) source.stop();
     this.playing = [];
-    this.master.disconnect?.();
+    this.master.disconnect();
   }
 }

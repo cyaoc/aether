@@ -4,7 +4,7 @@ namespace Aether.Gui;
 public sealed class WelcomePanel : Grid
 {
     public WelcomeSettingsPage Danmaku { get; }
-    public WelcomeAnimationSettingsPage Animation { get; }
+    public AnimationSettingsPage Animation { get; }
     public IEnumerable<SettingsPage> Pages => [Danmaku, Animation];
     public WelcomePanel(string dataDirectory)
     {

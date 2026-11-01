@@ -7,30 +7,30 @@ using Avalonia.Media;
 
 namespace Aether.Gui;
 
-public partial class WelcomeAnimationSettingsPage
+public partial class AnimationSettingsPage
 {
     private readonly Func<Task<string?>>? pickAnimationVideo;
-    internal EditableRows<WelcomeAnimationRow> Animations { get; } = new(0);
+    internal EditableRows<AnimationViewerRow> Animations { get; } = new(0);
     private string AnimationDirectory => Settings.VideoDirectory(dataDirectory);
 
     private void LoadAnimations()
     {
         Animations.Clear();
         foreach (var (uid, choice) in settings.EntryAnimationViewers)
-            Animations.Add(new(uid.ToString(CultureInfo.InvariantCulture), choice.Value.Video ?? "", settings.CanEditWelcomeAnimationVideos && choice.CanEdit)
+            Animations.Add(new(uid.ToString(CultureInfo.InvariantCulture), choice.Value.Video ?? "", settings.CanEditEntryAnimationViewers && choice.CanEdit)
                 { Choice = choice.Value.Video is not null ? "欢迎动画" : choice.Value.Tier?.ToString() ?? "不播" });
-        AddAnimationButton.IsEnabled = settings.CanEditWelcomeAnimationVideos;
-        AnimationVideosReadOnly.IsVisible = !settings.CanEditWelcomeAnimationVideos;
+        AddAnimationButton.IsEnabled = settings.CanEditEntryAnimationViewers;
+        AnimationViewersReadOnly.IsVisible = !settings.CanEditEntryAnimationViewers;
     }
 
-    public void TestAnimation(WelcomeAnimationRow row)
+    public void TestAnimation(AnimationViewerRow row)
     {
         RefreshAnimations();
         if (row.CanTest && row.Uid is { } uid) viewModel?.WebService.TestOrStopAnimation(uid, row.FileName);
     }
 
     /// <summary>The row holds the video the settings file maps its UID to, with no new file picked.</summary>
-    private bool MatchesFile(WelcomeAnimationRow row) => row.SourcePath is null && row.Uid is { } uid
+    private bool MatchesFile(AnimationViewerRow row) => row.SourcePath is null && row.Uid is { } uid
         && settings.EntryAnimationViewers.TryGetValue(uid, out var choice) && choice.Value.ToString() == row.SettingValue;
 
     private bool AnimationDraft => Animations.Count != settings.EntryAnimationViewers.Count || !Animations.All(MatchesFile);
@@ -58,13 +58,14 @@ public partial class WelcomeAnimationSettingsPage
                 row.CanTest = false;
                 continue;
             }
-            invalid |= string.IsNullOrEmpty(row.FileName);
-            var exists = File.Exists(row.SourcePath ?? Path.Combine(AnimationDirectory, row.FileName));
+            invalid |= !row.HasFile;
+            var exists = !row.HasFile || File.Exists(row.SourcePath ?? Path.Combine(AnimationDirectory, row.FileName));
             row.Missing = !exists;
             row.FileIcon = Icon(exists ? "Icon.Animation" : "Icon.Alert");
             row.FileNameDecorations = exists ? null : TextDecorations.Strikethrough;
             // Show what blocks saving or playing first, then the last playback failure, then progress.
             var (note, tone, icon) = row.VisibleError is { } error ? (error, "error", "Icon.Alert")
+                : !row.HasFile ? ("", null, "Icon.Info")
                 : !exists ? ("找不到视频文件，点文件名重新选择", "error", "Icon.Alert")
                 : failed ? ("上次播放失败：格式不支持，换成 H.264 编码的 MP4", "error", "Icon.Fail")
                 : !saved ? ("保存后才能试播", null, "Icon.Info")
@@ -75,7 +76,7 @@ public partial class WelcomeAnimationSettingsPage
             row.NoteError = tone == "error";
             row.NotePlaying = tone == "playing";
             var who = row.Uid is { } owner ? $"{owner} 的" : "";
-            row.FileAccessibleName = $"更换{who}视频：{row.FileName}";
+            row.FileAccessibleName = row.HasFile ? $"更换{who}视频：{row.FileName}" : "选一个视频";
             var (action, testIcon, testText) = canStop ? ("停止试播", "Icon.Stop", "停止")
                 : playing ? ("正在播放", "Icon.Wave", "播放中") : ("试播", "Icon.Play", "试播");
             row.TestAccessibleName = action + who + "欢迎动画";
@@ -84,7 +85,7 @@ public partial class WelcomeAnimationSettingsPage
             row.Stoppable = canStop;
             row.TestIcon = Icon(testIcon);
             row.TestText = testText;
-            row.CanTest = canStop || row.Error is null && saved && hasPages && exists && !busy;
+            row.CanTest = canStop || row.Error is null && saved && hasPages && exists && row.HasFile && !busy;
         }
         var count = Animations.Count;
         AnimationCount.Text = count > 0 ? $"{count} 位" : "";
@@ -93,9 +94,9 @@ public partial class WelcomeAnimationSettingsPage
         return invalid;
     }
 
-    public async Task ChooseAnimationAsync(WelcomeAnimationRow? row = null)
+    public async Task ChooseAnimationAsync(AnimationViewerRow? row = null)
     {
-        if (!settings.CanEditWelcomeAnimationVideos || row?.CanEdit == false) return;
+        if (!settings.CanEditEntryAnimationViewers || row?.CanEdit == false) return;
         try
         {
             var path = pickAnimationVideo is not null ? await pickAnimationVideo() : await PickVideoAsync();

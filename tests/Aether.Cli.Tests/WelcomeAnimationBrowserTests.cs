@@ -15,11 +15,7 @@ public sealed class WelcomeAnimationBrowserTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        using var available = new TcpListener(IPAddress.Loopback, 0);
-        available.Start();
-        var port = ((IPEndPoint)available.LocalEndpoint).Port;
-        available.Stop();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = Settings.BooleanText(giftEnabled), ["web_service.port"] = port.ToString() });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = Settings.BooleanText(giftEnabled), ["web_service.port"] = Aether.Core.Tests.WelcomeAnimationTests.FreePort().ToString() });
         var watching = WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,
             _ => throw new InvalidOperationException("Already logged in"), h.Stop.Token);
         try
@@ -51,8 +47,8 @@ public sealed class WelcomeAnimationBrowserTests
         });
         var videos = Path.Combine(h.DataDirectory, "videos");
         Directory.CreateDirectory(videos);
-        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(videos, "welcome_danmaku.mp4"));
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "welcome_danmaku.mp4" });
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(videos, "welcome.mp4"));
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "welcome.mp4" });
         var output = Console.Out;
         using var captured = new StringWriter();
         Console.SetOut(TextWriter.Synchronized(captured));

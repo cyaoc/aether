@@ -14,7 +14,7 @@ public enum PlaybackState { Queued, Playing, Completed, Failed, Skipped, NoRepor
 
 /// <param name="Nickname">The viewer's nickname when they entered; a test play has none.</param>
 public sealed record SourcePlayback(string Id, long Uid, string ContentSummary, bool IsTest,
-    PlaybackState State, string? Reason = null, string? Nickname = null, string Source = "欢迎动画", string TriggerReason = "动画名单") : WebServiceUpdate
+    PlaybackState State, string? Reason = null, string? Nickname = null, string Source = PlaybackSource.Welcome, string TriggerReason = "动画名单") : WebServiceUpdate
 {
     /// <summary>The state as logs and shells name it.</summary>
     public string Progress => State switch

@@ -1,13 +1,12 @@
-import {cutCells,canvasOf,k,out,inq,quint,smooth,on2,rnd,trace,clipTo,spline,pathOf,reach as extend,chordOf,onScreen,dense,at as placePoints,textures,drawing,shakeAt,stroke as strokePath,sparks as emitSparks,slash as sharedSlash} from './toolkit.mjs';
-import {createName, createCaption,pieces as makePieces,framing,caption,revealName} from './scenes.mjs';
+import {C0, cutCells, canvasOf, k, out, inq, quint, smooth, on2, rnd, mix, lerp, logicalTime, realTimes, trace, spline, pathOf, chord, scarsOf, seamsOf, shakes, projection, drawing, beginFx, stroke, sparks, gather, glow, spray, pillar, stones, seamEmbers, risingEmbers, pieceLips} from './toolkit.mjs';
+import {createStage, createFx, createFigure, createStrike, createName, createCaption, createPieces, scatter, framing, caption, revealName, whiteFlash, aim} from './scenes.mjs';
 
 export class Moon {
-  constructor({app,canvas,images,character,nickname}) {
+  constructor({app,images,character,kit,nickname}) {
     const P=PIXI,F=P.filters;
-    this.character=character;
-    const {tex,silhouette,radial,dispose}=textures(P);
-    this.disposeTextures=dispose;
-    const [oni1Img, oni2Img, oni3Img, oni4Img, moon, impact, moonRed, day] = images.slice(20);
+    const {tex,silhouette,radial,post}=kit;
+    const palette=this.palette=character.palette;
+    const {moon, impact, 'moon-red': moonRed, day} = images;
 
     // The action chain. Every pose is placed by its hips (hip, in its own image's pixels) at the scale s that makes the blade
     // the same length, and may be turned by rot. AT is where the hips sit in the world (the ground is y = 1180, the moon hangs
@@ -18,9 +17,9 @@ export class Moon {
     // MEASURED: points on the poses and the oni, in their own image pixels.
     const THR = -0.6, DIVE = 0.3;
     const placements = {charge:{s:0.66},smear1:{s:0.78},cut1:{s:0.8},smear2:{s:0.654},cut2:{s:0.654},smear3:{s:0.92},cut3:{s:0.855},smear4:{s:0.694,rot:THR},cut4:{s:0.705,rot:THR},smear5:{s:0.737},cut5:{s:0.737},noto:{s:0.7},iai:{s:0.7},cutin:{s:1},smear6:{s:0.787,rot:.45},cut6:{s:0.648},turn:{s:0.71},slam:{s:0.7},fall:{s:0.62},slamin:{s:1}};
-    const M = Object.fromEntries(Object.entries(character.anchors.moon).map(([key,points])=>[key,{...points,...placements[key]}]));
+    const M = Object.fromEntries(Object.entries(character.poses.moon).map(([key,points])=>[key,{...points,...placements[key]}]));
     const PO = {};
-    keys.forEach((key, i) => { PO[key] = { img: images[i], tex: tex(images[i]), hip: M[key].hip, s: M[key].s, rot: M[key].rot || 0 }; });
+    keys.forEach(key => { const img = images[M[key].image]; PO[key] = { img, tex: tex(img), hip: M[key].hip, s: M[key].s, rot: M[key].rot || 0 }; });
     const GROUND = 1180, onGround = (key, x) => [x, GROUND - (M[key].sole - M[key].hip[1]) * M[key].s];
     const SKY = 2, MR = 192, MOON_R = MR * SKY, MC = [1006, 292], MOON = [2000, -280];
     // The moon cut's line runs through the moon's centre, from the hover at the upper left to the exit at the lower right.
@@ -39,12 +38,7 @@ export class Moon {
     Object.assign(AT, { turn: [AT.cut6[0] + 10, AT.cut6[1] + 10], slam: [AT.cut6[0] + 10, AT.cut6[1] - 20], fall: [AT.cut6[0] + 40, AT.cut6[1] - 20] });
     const MOUTH0 = W('iai', M.iai.mouth), TIP8 = W('turn', M.turn.tip);
     const ringOf = (key, [cx, cy, a, b], from, to, n = 70) => Array.from({ length: n + 1 }, (_, i) => { const th = from + (to - from) * i / n; return { p: W(key, [cx + a * Math.cos(th), cy + (b ?? a) * Math.sin(th)]), th }; });
-    // Catmull-Rom through the measured points, about every 10 px; seg says which span each point came from.
-
-    // A polyline walked by arc length: at(u) gives the point, the normal and whether that stretch passes behind the hero.
-
     const slashPath = (pts, behind = []) => { const s = spline(pts); return pathOf(s.pts, s.seg.map(i => behind.includes(i))); };
-    const at = (key,list) => placePoints(W,key,list);
 
     // 1 the rising draw, out of the scabbard mouth, forward and then steeply up. 2 the level ring, whose far half passes behind
     // him. 3 the wheel: the blade goes straight on down from the ring, right round him and over to the lower right. 4 the
@@ -66,13 +60,12 @@ export class Moon {
 
     // The cuts a straight blade leaves are straight: each is the chord of the stretch of its slash still lit on the frame
     // it lands (from the slash's tail to the blade tip), run right across the sky.
-    const C0 = [960, 540], RR = 6000;
-    const reach = (p,q) => extend(p,q,6000);
+    const RR = 6000;
 
     const TAILS = [0.45, 0.76, 0.6, 0.2, 0.86, 0.5];
 
-    const scars = [0, 1, 2, 3, 4].map(i => chordOf(blades[i], TAILS[i],6000));
-    scars.push([reach(onCut(-100), onCut(100)), reach(onCut(100), onCut(-100))]);
+    const scars = scarsOf(blades, TAILS.slice(0, 5), RR);
+    scars.push(chord(onCut(-100), onCut(100), RR));
 
     // The oni mirrors the hero about twice as large. In the stance its hands are on his. Its dash runs along the moon cut,
     // its tip beyond his, and it stops past the moon with the hero in front of it; it slams the sword home where it stopped.
@@ -80,12 +73,12 @@ export class Moon {
     const rotv = (v, a) => [v[0] * Math.cos(a) - v[1] * Math.sin(a), v[0] * Math.sin(a) + v[1] * Math.cos(a)];
     const OTIP = onCut(MOON_R + 960), ROT_O = 0.5;
     const ONI = {
-      oni1: { img: oni1Img, anchor: M.oni1.tsuba, at: W('iai', M.iai.tsuba), rot: 0 },
-      oni2: { img: oni2Img, anchor: M.oni2.tip, at: OTIP, rot: ROT_O },
-      oni3: { img: oni3Img, anchor: M.oni3.tip, at: OTIP, rot: 0 }
+      oni1: { img: images[M.oni1.image], anchor: M.oni1.tsuba, at: W('iai', M.iai.tsuba), rot: 0 },
+      oni2: { img: images[M.oni2.image], anchor: M.oni2.tip, at: OTIP, rot: ROT_O },
+      oni3: { img: images[M.oni3.image], anchor: M.oni3.tip, at: OTIP, rot: 0 }
     };
     const OW = (o, q) => { const v = rotv([(q[0] - o.anchor[0]) * SO, (q[1] - o.anchor[1]) * SO], o.rot); return [o.at[0] + v[0], o.at[1] + v[1]]; };
-    ONI.oni4 = { img: oni4Img, anchor: M.oni4.head, at: [AT.slam[0] - 340, AT.slam[1] - 470], rot: 0 };
+    ONI.oni4 = { img: images[M.oni4.image], anchor: M.oni4.head, at: [AT.slam[0] - 340, AT.slam[1] - 470], rot: 0 };
     for (const o of Object.values(ONI)) o.tex = tex(o.img);
     blades.push(slashPath([[MOUTH0[0] + N6[0] * 300, MOUTH0[1] + N6[1] * 300], (d => [d[0] + N6[0] * 140, d[1] + N6[1] * 140])(onCut(-MOON_R - 320)), (d => [d[0] + N6[0] * 50, d[1] + N6[1] * 50])(onCut(-MOON_R)), MOON, onCut(MOON_R + 300), OTIP]));
     blades.push(slashPath([T6, [T6[0] + 40, T6[1] - 150], TIP8]));
@@ -135,7 +128,7 @@ export class Moon {
         g.save(); g.translate(0, h + 2 * PADV); g.scale(1, -1); g.drawImage(row, 0, h - 100, w, 100, 0, 0, w, PADV); g.restore();
       });
     };
-    const moonTex = tex(padded(moon)), redTex = tex(padded(noMoon(moonRed, '40,4,8'))), dayTex = tex(day);
+    const moonTex = tex(padded(moon)), redTex = tex(padded(noMoon(moonRed, palette.worldSky))), dayTex = tex(day);
     const redDisc = tex(discOf(moonRed));
     const shadeTex = radial([[0, 'rgba(0,0,0,0)'], [0.7, 'rgba(0,0,0,0.35)'], [1, 'rgba(0,0,0,0.8)']]);
     const lightShadeTex = radial([[0, 'rgba(0,0,0,0)'], [0.75, 'rgba(0,0,0,0.12)'], [1, 'rgba(0,0,0,0.4)']]);
@@ -153,10 +146,7 @@ export class Moon {
       return c;
     };
 
-    const stage = app.stage;
-    const world = new P.Container(); stage.addChild(world);
-    const dim = new P.Sprite(radial([[0, 'rgba(6,6,12,0.55)'], [0.6, 'rgba(4,4,8,0.85)'], [1, 'rgba(0,0,0,1)']]));
-    dim.anchor.set(0.5); dim.position.set(960, 540); dim.width = 6400; dim.height = 4400; world.addChild(dim);
+    const {world, ui, dim} = createStage(P, app, kit, [6400, 4400]);
     // The moonlit night the stream sees first, until the stance's ink has dyed it red. Under the blood-moon world, the
     // real world in daylight: whole, never cut, shown only once the blood-moon world breaks away.
     const base = new P.Container(); world.addChild(base); skyOf(moonTex, base);
@@ -173,45 +163,37 @@ export class Moon {
     const pieceLayer = new P.Container(); redAll.addChild(pieceLayer);
     // Pieces are blasted out from the hero's hands as he slams the sword home.
     const MOUTH2 = W('slam', M.slam.mouth), BURST = MOUTH2;
-    const pieces = makePieces(P,cells,pieceLayer,inner=>skyOf(redTex,inner,0x6c6c6c),BURST,{base:1000,max:600,factor:.4,rotation:.22,down:.6});
+    const pieces = createPieces(P,cells,pieceLayer,inner=>skyOf(redTex,inner,0x6c6c6c),BURST,{base:1000,max:600,factor:.4,rotation:.22,down:.6});
     const redHalves = [half(redDisc, true, 0xc8c8c8), half(redDisc, false, 0xc8c8c8)]; redAll.addChild(...redHalves);
 
     // The oni stands in front of the sky and behind the hero.
     const oniWrap = new P.Container(); world.addChild(oniWrap);
     const oniMask = new P.Graphics(); oniWrap.addChild(oniMask);
-    const oni = new P.Sprite(ONI.oni1.tex); oni.tint = 0xd0c0c0; oniWrap.addChild(oni); oni.mask = oniMask;
+    const oni = new P.Sprite(ONI.oni1.tex); oni.tint = palette.oniTint; oniWrap.addChild(oni); oni.mask = oniMask;
 
     // Effects canvases follow the camera (the screen plus a margin for the shake), drawn in world units.
     const FM = 220, FW = 1920 + 2 * FM, FH = 1080 + 2 * FM;
-    const backC = document.createElement('canvas'); backC.width = FW; backC.height = FH;
-    const backTex = tex(backC), backSprite = new P.Sprite(backTex); backSprite.blendMode = 'add'; world.addChild(backSprite);
+    const back = createFx(P, kit, world, FW, FH);
 
     // Each cut leaves an afterimage of ink where it finished; they all strike together, then melt into the oni.
-    const inkOf = img => tex(canvasOf(img.width, img.height, g => { g.drawImage(img, 0, 0); g.globalCompositeOperation = 'color'; g.fillStyle = '#c01424'; g.fillRect(0, 0, img.width, img.height); g.globalCompositeOperation = 'multiply'; g.fillStyle = '#8a7878'; g.fillRect(0, 0, img.width, img.height); g.globalCompositeOperation = 'destination-in'; g.drawImage(img, 0, 0); }));
-    const shades = [1, 2, 3, 4, 5].map(i => { const key = 'cut' + i, p = PO[key], st = new P.Sprite(inkOf(p.img)); st.pivot.set(...p.hip); st.scale.set(p.s); st.rotation = p.rot; st.position.set(...AT[key]); st.alpha = 0; st.tint = 0xff7070; world.addChild(st); return st; });
+    const inkOf = img => tex(canvasOf(img.width, img.height, g => { g.drawImage(img, 0, 0); g.globalCompositeOperation = 'color'; g.fillStyle = palette.inkTint; g.fillRect(0, 0, img.width, img.height); g.globalCompositeOperation = 'multiply'; g.fillStyle = palette.inkShade; g.fillRect(0, 0, img.width, img.height); g.globalCompositeOperation = 'destination-in'; g.drawImage(img, 0, 0); }));
+    const shades = [1, 2, 3, 4, 5].map(i => { const key = 'cut' + i, p = PO[key], st = new P.Sprite(inkOf(p.img)); st.pivot.set(...p.hip); st.scale.set(p.s); st.rotation = p.rot; st.position.set(...AT[key]); st.alpha = 0; st.tint = palette.shadeTint; world.addChild(st); return st; });
 
-    const rim = new P.Sprite(radial([[0, 'rgba(255,60,70,0.55)'], [0.45, 'rgba(200,20,40,0.18)'], [1, 'rgba(0,0,0,0)']]));
-    rim.anchor.set(0.5); rim.width = 1100; rim.height = 1100; world.addChild(rim);
-    const ghosts = [0, 1].map(() => { const s = new P.Sprite(PO.charge.tex); s.alpha = 0; world.addChild(s); return s; });
-    const hero = new P.Sprite(PO.charge.tex); hero.tint = 0xe0e0e0; world.addChild(hero);
+    const {rim, ghosts, hero} = createFigure(P, kit, world, palette, PO.charge.tex, 2);
 
-    const fx = document.createElement('canvas'); fx.width = FW; fx.height = FH;
-    const fxTex = tex(fx), fxSprite = new P.Sprite(fxTex); fxSprite.blendMode = 'add'; world.addChild(fxSprite);
+    const fx = createFx(P, kit, world, FW, FH);
 
-    const ui = new P.Container(); stage.addChild(ui);
     // Entry caption: says who is coming in from the cut-in, until the take-off's wind sweeps it away. It sits on the
     // ground in front of the hero and is drawn larger, since the opening shot is wide.
     const cap = new P.Container(); cap.position.set(1180, 1118); cap.scale.set(1.5); ui.addChild(cap);
     const {capName,capMask}=createCaption(P,cap,nickname,620);
     // The name, cut out in the daylight beside the hero; a soft dark shadow keeps the white type readable on the bright sky.
     const nameG = new P.Container(); nameG.rotation = -0.05; ui.addChild(nameG);
-    const {nameGhosts,nameT,nameMask}=createName(P,nameG,nickname,character.palette.nameGhost,{color:0x000000,alpha:.85,blur:18,distance:0});
+    const {nameGhosts,nameT,nameMask}=createName(P,nameG,nickname,palette.nameGhost,{color:0x000000,alpha:.85,blur:18,distance:0});
 
     // Three sets of impact frames: the afterimages' strike (every afterimage and the cuts), the moon cut (the oni in grey
     // behind the hero, the cut across the moon) and the slam (the oni, the hero sheathing, every cut at once).
-    const imp = new P.Container(); world.addChild(imp);
-    const impBg = new P.Graphics().rect(-4000, -4000, 12000, 10000).fill(0xffffff); imp.addChild(impBg);
-    const impLines = new P.Sprite(tex(impact)); impLines.anchor.set(0.5); impLines.width = impLines.height = 9000; imp.addChild(impLines);
+    const {imp, impBg, impLines, flash} = createStrike(P, kit, world, impact, [-4000, -4000, 12000, 10000], 9000);
     const impG = new P.Graphics(); imp.addChild(impG);
     const silOf = (img, place) => { const sb = new P.Sprite(silhouette(img, '#000')), sw = new P.Sprite(silhouette(img, '#fff')); for (const s of [sb, sw]) { place(s); imp.addChild(s); } return [sb, sw]; };
     const placeHero = (key, hipAt) => s => { s.pivot.set(...PO[key].hip); s.scale.set(PO[key].s); s.rotation = PO[key].rot; s.position.set(...hipAt); };
@@ -220,24 +202,17 @@ export class Moon {
     const halo = (key, hipAt) => silOf(PO[key].img, s => { placeHero(key, hipAt)(s); s.scale.set(PO[key].s * 1.03); }).reverse();
     const sils = {
       shade: [1, 2, 3, 4, 5].map(i => silOf(PO['cut' + i].img, placeHero('cut' + i, AT['cut' + i]))),
-      cut: [silOf(oni3Img, placeOni(ONI.oni3)), halo('cut6', AT.cut6), silOf(PO.cut6.img, placeHero('cut6', AT.cut6))],
-      click: [silOf(oni4Img, placeOni(ONI.oni4)), halo('slam', AT.slam), silOf(PO.slam.img, placeHero('slam', AT.slam))]
+      cut: [silOf(ONI.oni3.img, placeOni(ONI.oni3)), halo('cut6', AT.cut6), silOf(PO.cut6.img, placeHero('cut6', AT.cut6))],
+      click: [silOf(ONI.oni4.img, placeOni(ONI.oni4)), halo('slam', AT.slam), silOf(PO.slam.img, placeHero('slam', AT.slam))]
     };
 
-    const flash = new P.Graphics().rect(-4000, -4000, 12000, 10000).fill(0xffffff); world.addChild(flash);
     // The cut-in: a close shot of the left hip as the thumb pushes the guard out.
-    const cutin = new P.Container(); stage.addChild(cutin);
+    const cutin = new P.Container(); app.stage.addChild(cutin);
     const cutBg = new P.Sprite(redTex); cutBg.tint = 0x3a3a3a; cutBg.scale.set(3.2); cutBg.position.set(-1500, -2600); cutin.addChild(cutBg);
-    cutBg.filters = [new F.KawaseBlurFilter({ strength: 18, quality: 4 })];
+    cutBg.filters = [kit.filter(new F.KawaseBlurFilter({ strength: 18, quality: 4 }))];
     const cutPose = new P.Sprite(PO.cutin.tex); cutPose.anchor.set(0.5); cutPose.position.set(960, 540); cutin.addChild(cutPose);
     const cutFx = new P.Graphics(); cutin.addChild(cutFx);
-    const bars = [new P.Graphics(), new P.Graphics()]; stage.addChild(...bars);
-
-    const bloom = new F.AdvancedBloomFilter({ threshold: 0.9, bloomScale: 1.15, brightness: 1, blur: 7, quality: 5 });
-    const shock = new F.ShockwaveFilter({ center: { x: 0, y: 0 }, speed: 1500, amplitude: 54, wavelength: 240, brightness: 1.15, radius: -1 });
-    const shock2 = new F.ShockwaveFilter({ center: { x: 0, y: 0 }, speed: 1100, amplitude: 30, wavelength: 420, brightness: 1.08, radius: -1 });
-    const zoom = new F.ZoomBlurFilter({ strength: 0, center: { x: 0, y: 0 }, innerRadius: 60 });
-    const rgb = new F.RGBSplitFilter({ red: { x: 0, y: 0 }, green: { x: 0, y: 0 }, blue: { x: 0, y: 0 } });
+    const bars = [new P.Graphics(), new P.Graphics()]; app.stage.addChild(...bars);
 
     // Camera framings: the wide shot of the dive, from the hover to past the moon (the sky breaks in it too), and the shot
     // the oni rises in, up to its horns.
@@ -247,11 +222,11 @@ export class Moon {
     nameG.position.set(CLOSE[0] + (260 - 960) / CLOSE[2], CLOSE[1] + (470 - 540) / CLOSE[2]); nameG.scale.set(1.4);
 
     this.S = {
-      app, canvas, cutBg, world, ui, dim, base, dayLayer, shades, redWrap, waveMask, redAll, redWhole, pieceLayer, pieces, redHalves, oniWrap, oniMask, oni, ONI, OW, SO, M,
-      scars, blades, TAILS, PO, AT, W, GROUND, SC, T6, OTIP, MOUTH2, MOUTH0, BURST, MOON, MOON_R, U6, N6, ANG6, WIDE, RISECAM, CLOSE, backC, backTex, backSprite, rim, ghosts, hero, fx, fxTex, fxSprite, FM,
-      emberSrc: scars.map(s => pathOf(dense(s,1200).filter(p=>onScreen(p,VIEW)))),
+      world, ui, dim, base, dayLayer, shades, redWrap, waveMask, redAll, redWhole, pieceLayer, pieces, redHalves, oniWrap, oniMask, oni, ONI, OW, SO, M,
+      scars, blades, TAILS, PO, AT, W, GROUND, SC, T6, OTIP, MOUTH2, MOUTH0, BURST, MOON, MOON_R, U6, N6, ANG6, WIDE, RISECAM, CLOSE, back, rim, ghosts, hero, fx, FM,
+      seams: seamsOf(scars, VIEW, 1200),
       cap, capName, capMask, nameG, nameGhosts, nameT, nameMask,
-      imp, impBg, impLines, impG, sils, flash, cutin, cutPose, cutFx, bars, bloom, shock, shock2, zoom, rgb
+      imp, impBg, impLines, impG, sils, flash, cutin, cutPose, cutFx, bars, ...post
     };
 
   }
@@ -264,13 +239,8 @@ export class Moon {
     const NOTO = 2360, IAI = 2640, ONI0 = 2660, ONI1 = 3160, CUTIN = 3220, CUTOUT = 3470, SM6 = 3580, HIT6 = 3664, L6 = 3706;
     const RISE2 = 4260, SLAM0 = 4600, CLICK = 4690, SHATTER = 4692, FALL = 4900, TITLE = 5100, BACK0 = 6950, BACK1 = 7550, EXIT = 7650, END = 8050;
     const HS = [[L1, 90], [L2, 60], [L3, 50], [L4, 50], [L5, 60], [LS, 130], [L6, 240], [CLICK, 234]];
-    const HR = []; { let a = 0; for (const [s0, d] of HS) { HR.push(s0 + a); a += d; } }
-    const REL5 = HR[5] + 130, REL6 = HR[6] + 240, REL7 = HR[7] + 234;
-    let l = null, acc = 0;
-    for (const [s, d] of HS) { if (t < s + acc) break; if (t < s + acc + d) { l = s; break; } acc += d; }
-    if (l === null) l = t - acc;
-
-    const mix = (a, b, p) => a + (b - a) * p;
+    const HR = realTimes(HS), REL5 = HR[5] + 130, REL6 = HR[6] + 240, REL7 = HR[7] + 234;
+    const l = logicalTime(t, HS);
 
     // Letterbox and dimming.
     framing(S,t,l,{height:118,barIn:[0,280],barOut:[EXIT+120,EXIT+500],dimIn:[[.42,0,300],[.4,600,1300],[-.4,BACK0,BACK1]],dimOut:[EXIT,END]});
@@ -297,10 +267,7 @@ export class Moon {
     const sp = k(SHATTER, SHATTER + 640, l), e = out(sp), drift = -Math.max(0, l - SHATTER) * 0.006;
     const fade = 1 - inq(k(SHATTER + 120, SHATTER + 400, l));
     S.redWhole.visible = l < SHATTER; S.pieceLayer.visible = l >= SHATTER;
-    for (const p of S.pieces) {
-      p.dx = p.dir[0] * p.dist * e + drift; p.dy = p.dir[1] * p.dist * e; p.r = p.rot * e;
-      p.c.position.set(p.c.pivot.x + p.dx, p.c.pivot.y + p.dy); p.c.rotation = p.r; p.c.alpha = fade;
-    }
+    scatter(S.pieces, e, drift, 0, fade);
     S.redHalves.forEach(h => { h.alpha = 1 - k(SHATTER + 120, SHATTER + 400, l); });
     // The afterimages each appear as he leaves them, flare as they strike together, and melt away towards him.
     const melt = k(IAI - 80, ONI0 + 300, l), shadeFrom = [SM2, SM3, SM4, SM5, NOTO], strike = Math.sin(Math.PI * k(SMS, LS + 160, l));
@@ -330,7 +297,7 @@ export class Moon {
     const gOff = l < 520 ? [-70, 0] : keyAt === 'smear1' ? [-20, 60] : keyAt === 'smear2' ? [-50, 30] : keyAt === 'smear3' ? [-40, 40] : keyAt === 'smear4' ? [-70, 48] : keyAt === 'smear5' ? [0, 50] : keyAt === 'smear6' ? [-S.U6[0] * 250, -S.U6[1] * 250] : null;
     S.ghosts.forEach((g, i) => {
       place(g, po, hx + (gOff ? (i + 1) * gOff[0] : 0), hy + (gOff ? (i + 1) * gOff[1] : 0));
-      g.alpha = gOff && l >= 250 ? (i ? 0.16 : 0.32) : 0; g.tint = 0xff6070;
+      g.alpha = gOff && l >= 250 ? (i ? 0.16 : 0.32) : 0; g.tint = this.palette.ghost;
     });
     S.rim.position.set(hx, hy - 140);
     S.rim.alpha = (0.5 * out(k(400, 900, l)) + 0.5 * out(k(1100, SM1, l)) - 0.3 * k(LAND + 240, LAND + 940, l)) * (1 - k(SHATTER, SHATTER + 600, l));
@@ -368,16 +335,13 @@ export class Moon {
     if (l >= CUTOUT) { cx = WIDE[0]; cy = WIDE[1]; z = WIDE[2] + 0.008 * k(CUTOUT, SM6, l); }
     if (l >= HIT6) { p = 1 - smooth(k(L6, L6 + 700, l)); cx = mix(2300, 2400, p); cy = mix(-120, -40, p); z = mix(0.8, 0.95, p); }
     if (l >= SHATTER) { p = smooth(k(SHATTER, FALL + 200, l)); cx = mix(cx, S.CLOSE[0], p); cy = mix(cy, S.CLOSE[1], p); z = mix(z, S.CLOSE[2], p); p = 1 - out(k(SHATTER, SHATTER + 520, l)); cx = mix(cx, S.BURST[0], 0.3 * p); cy = mix(cy, S.BURST[1], 0.3 * p); z += 0.16 * p + 0.015 * k(TITLE, END, l); }
-    let sx = 0, sy = 0;
-    // Shake runs on real time. With a direction it mostly moves along the cut.
-    const shake = (...args) => {const d=shakeAt(t,...args);sx+=d[0];sy+=d[1];};
-    shake(HR[0], 24, 300, [0, -1]); shake(HR[1], 12, 170, [1, 0]); shake(HR[2], 14, 170, [0.65, 0.76]); shake(HR[3], 16, 190, [0.82, -0.56]); shake(HR[4], 18, 200, [0, -1]);
-    shake(REL5, 30, 420); shake(REL6, 46, 660, S.U6); shake(REL6 + 180, 22, 320, [0, 1]); shake(REL7, 44, 620);
-    for (const c of [S.world, S.ui]) { c.pivot.set(cx, cy); c.scale.set(z); c.rotation = rot; c.position.set(960 + sx, 540 + sy); }
-    const toScreen = q => { const x = (q[0] - cx) * z, y = (q[1] - cy) * z, c = Math.cos(rot), s = Math.sin(rot); return { x: 960 + sx + x * c - y * s, y: 540 + sy + x * s + y * c }; };
+    const [sx, sy] = shakes(t, [[HR[0], 24, 300, [0, -1]], [HR[1], 12, 170, [1, 0]], [HR[2], 14, 170, [0.65, 0.76]], [HR[3], 16, 190, [0.82, -0.56]], [HR[4], 18, 200, [0, -1]],
+      [REL5, 30, 420], [REL6, 46, 660, S.U6], [REL6 + 180, 22, 320, [0, 1]], [REL7, 44, 620]]);
+    aim(S, [cx, cy], [960 + sx, 540 + sy], z, rot);
+    const toScreen = projection(cx, cy, z, rot, sx, sy);
     // The effects canvases cover the view plus a margin.
     const ox = cx - (960 + S.FM) / z, oy = cy - (540 + S.FM) / z;
-    for (const s of [S.fxSprite, S.backSprite]) { s.position.set(ox, oy); s.scale.set(1 / z); }
+    for (const s of [S.fx.sprite, S.back.sprite]) { s.position.set(ox, oy); s.scale.set(1 / z); }
 
     // The cut-ins: the left hip fills the frame. Before the moon cut the thumb pushes the guard out and a glint runs along
     // the bared steel; at the end the guard has been slammed home and everything stops on it.
@@ -399,7 +363,7 @@ export class Moon {
     }
 
     // The moon cut's white frame, then the three sets of impact frames, each two frames of black and white.
-    S.flash.alpha = l >= HIT6 && l < L6 ? 0.85 : 0;
+    whiteFlash(S.flash, l, HIT6, L6);
     const set = [['shade', HR[5]], ['cut', HR[6]], ['click', HR[7] + 100]].find(([, t0]) => t >= t0 && t < t0 + 84), white = set && t < set[1] + 42;
     S.imp.visible = !!set;
     if (set) {
@@ -443,143 +407,103 @@ export class Moon {
     revealName(S,l,{start:TITLE,end:TITLE+260,ghostIn:TITLE+50,ghostOut:TITLE+180,ghostEnd:TITLE+570,exit:EXIT,finish:END,x:null,y:null});
     S.nameG.visible=l>=TITLE;
 
-    this.drawFx(l, k, out, { skyY, L: [L1, L2, L3, L4, L5], SM: [SM1, SM2, SM3, SM4, SM5], SMS, LS, NOTO, IAI, ONI0, ONI1, CUTIN, CUTOUT, SM6, HIT6, L6, RISE2, SLAM0, CLICK, SHATTER, BACK0, END, hx, hy, keyAt, drift, fade, WAVE_O, wave, waveR, edgeY, rise, gone, z, ox, oy });
-    S.fxTex.source.update(); S.backTex.source.update();
+    this.drawFx(l, { skyY, L: [L1, L2, L3, L4, L5], SM: [SM1, SM2, SM3, SM4, SM5], SMS, LS, NOTO, IAI, ONI0, ONI1, CUTIN, CUTOUT, SM6, HIT6, L6, RISE2, SLAM0, CLICK, SHATTER, BACK0, END, hx, hy, keyAt, drift, fade, WAVE_O, wave, waveR, edgeY, rise, gone, z, ox, oy });
+    S.fx.update(); S.back.update();
   }
 
   // Slashes, scars, particles, in world coordinates. Two additive canvases: one behind the hero (scars, the oni's
   // slash, the part of each slash that passes behind the body), one in front.
-  drawFx(l, k, out, T) {
-    const S = this.S, g = S.fx.getContext('2d'), gb = S.backC.getContext('2d');
-    for (const c of [g, gb]) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, c.canvas.width, c.canvas.height); c.setTransform(T.z, 0, 0, T.z, -T.ox * T.z, -T.oy * T.z); c.globalCompositeOperation = 'lighter'; c.lineCap = 'round'; c.lineJoin = 'round'; }
-
-    // A slash: a sharp crescent whose head is the blade tip, held bright through its hit stop, then frayed into strands.
-    const draw=drawing(g,gb), {band,arcLine,glint}=draw;
-    const slash=(path,head,tail,head2,w,fray,seed,alpha=1,cv)=>sharedSlash(draw,this.character.palette,path,head,tail,head2,w,fray,seed,alpha,cv);
+  drawFx(l, T) {
+    const S = this.S, palette = this.palette, g = S.fx.g, gb = S.back.g, O = T.WAVE_O;
+    beginFx([g, gb], [T.z, 0, 0, T.z, -T.ox * T.z, -T.oy * T.z]);
+    const {glint, slash, swing} = drawing(g, gb, palette);
     // Sparks thrown off a hit at the blade tip, mostly across the cut.
-    const sparksAt=(x,y,nx,ny,t0,count,power,seed)=>emitSparks(g,l-t0,count,power,seed,()=>[x,y,nx,ny],this.character.palette.spark);
-    const sparks = (P, t0, count, power, seed) => { for (let j = 0; j < 4; j++) { const [x0, y0, nx, ny] = P.at(0.82 + j * 0.06); sparksAt(x0, y0, nx, ny, t0, count / 4, power, seed + j * 7); } };
-
-    const glow = (x, y, r, rgb, a, cv = g) => {
-      if (a <= 0.003) return;
-      const gr = cv.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(' + rgb + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
-      cv.fillStyle = gr; cv.beginPath(); cv.arc(x, y, r, 0, Math.PI * 2); cv.fill();
-    };
-    const lerp = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
-    // Motes drawn in to a blade (hilt to tip) while a wind-up holds.
-    const gather = (hilt, tip, t0, t1, count, seed, rgb, reach = 1) => {
-      for (let i = 0; i < count; i++) {
-        const s0 = t0 + rnd(i, seed) * (t1 - t0 - 300), dur = 300 + rnd(i, seed + 1) * 260, p = (l - s0) / dur;
-        if (p < 0 || p > 1) continue;
-        const to = lerp(hilt, tip, rnd(i, seed + 6)), ang = rnd(i, seed + 3) * Math.PI * 2, r0 = (260 + rnd(i, seed + 4) * 360) * reach, r = r0 * (1 - p * p), r2 = r0 * (1 - Math.max(0, p - 0.12) ** 2);
-        g.strokeStyle = i % 3 ? 'rgba(' + rgb + ',' + (0.9 * Math.sin(p * Math.PI)) + ')' : 'rgba(255,255,255,' + Math.sin(p * Math.PI) + ')';
-        g.lineWidth = (1.5 + rnd(i, seed + 5) * 2) * reach;
-        g.beginPath(); g.moveTo(to[0] + Math.cos(ang) * r, to[1] + Math.sin(ang) * r); g.lineTo(to[0] + Math.cos(ang) * r2, to[1] + Math.sin(ang) * r2); g.stroke();
-      }
+    const sparksAt = (x, y, nx, ny, t0, count, power, seed) => sparks(g, l - t0, count, power, seed, () => [x, y, nx, ny], palette.spark);
+    const bladeSparks = (P, t0, count, power, seed) => { for (let j = 0; j < 4; j++) { const [x0, y0, nx, ny] = P.at(0.82 + j * 0.06); sparksAt(x0, y0, nx, ny, t0, count / 4, power, seed + j * 7); } };
+    // A ring of ink where he kicks off the air, flattened and turned to lie on what he kicked.
+    const inkRing = ([x, y], rotation, squash, q, radius, [width, coreWidth], core) => {
+      gb.save(); gb.translate(x, y); gb.rotate(rotation); gb.scale(1, squash);
+      for (const [w, rgb] of [[width, palette.ink], [coreWidth, core]]) { gb.strokeStyle = 'rgba(' + rgb + ',' + (1 - q) * 0.9 + ')'; gb.lineWidth = w * (1 - q) + 1; gb.beginPath(); gb.arc(0, 0, radius, 0, Math.PI * 2); gb.stroke(); }
+      gb.restore();
     };
 
-    const O = T.WAVE_O;
-    // Kicked-up grit, thrown one way along the ground.
-    const spray = (x0, y0, t0, n, dir, seed) => {
-      const sp = l - t0; if (sp <= 0 || sp >= 800) return;
-      for (let i = 0; i < n; i++) {
-        const life = 300 + rnd(i, seed) * 480; if (sp > life) continue;
-        const q = sp / life, s = sp / 1000, v = 300 + rnd(i, seed + 1) * 1500, up = 300 + rnd(i, seed + 2) * 1300;
-        const px = x0 + dir * v * s + (rnd(i, seed + 3) - 0.5) * 200, py = Math.min(y0, y0 - up * s + 1800 * s * s), n2 = 18 + rnd(i, seed + 4) * 40;
-        g.strokeStyle = i % 5 ? 'rgba(255,50,60,' + (1 - q) + ')' : 'rgba(255,225,215,' + (1 - q) + ')'; g.lineWidth = 2 + rnd(i, seed + 5) * 3.5;
-        g.beginPath(); g.moveTo(px, py); g.lineTo(px - dir * n2, py + (rnd(i, seed + 6) - 0.5) * 16); g.stroke();
-      }
-    };
     // The charge: the ground under him glows and cracks, stones lift off it, motes are drawn into the hilt.
     const hx0 = S.AT.charge[0], gy = S.GROUND - 6, ca = k(640, 1300, l) * (1 - k(T.SM[0] + 40, T.SM[0] + 200, l));
     if (ca > 0) {
-      g.save(); g.translate(hx0, gy); g.scale(1, 0.12); glow(0, 0, 200 + 900 * ca, '255,60,70', 0.5 * ca); g.restore();
+      g.save(); g.translate(hx0, gy); g.scale(1, 0.12); glow(g, 0, 0, 200 + 900 * ca, palette.rim, 0.5 * ca); g.restore();
       for (let i = 0; i < 12; i++) {
         const dir = i % 2 ? 1 : -1, len = (160 + rnd(i, 3) * 620) * ca; let x = hx0 + dir * 30, y = gy;
-        gb.strokeStyle = 'rgba(255,90,90,' + 0.9 * ca + ')'; gb.lineWidth = 2.5; gb.beginPath(); gb.moveTo(x, y);
+        gb.strokeStyle = 'rgba(' + palette.crack + ',' + 0.9 * ca + ')'; gb.lineWidth = 2.5; gb.beginPath(); gb.moveTo(x, y);
         for (let j = 1; j <= 6; j++) { x += dir * len / 6; y += (rnd(i, j) - 0.45) * 22; gb.lineTo(x, y); }
         gb.stroke();
       }
       for (let i = 0; i < 46; i++) {
         const x = hx0 + (rnd(i, 5) - 0.5) * 1400, r = 7 + rnd(i, 6) * 24, h = (80 + rnd(i, 7) * 420) * inq(k(760 + rnd(i, 8) * 400, 1500, l)), a0 = rnd(i, 9) * 6.28 + l * 0.001 * (rnd(i, 10) - 0.5);
         const y = gy - h + Math.sin(l * 0.003 + i) * 6;
-        g.fillStyle = 'rgba(255,70,80,' + 0.85 * ca + ')'; g.beginPath();
+        g.fillStyle = 'rgba(' + palette.groundGlow + ',' + 0.85 * ca + ')'; g.beginPath();
         for (let j = 0; j < 4; j++) { const a2 = a0 + j * 1.57, r2 = r * (0.7 + 0.4 * rnd(i + j, 11)); j ? g.lineTo(x + Math.cos(a2) * r2, y + Math.sin(a2) * r2) : g.moveTo(x + Math.cos(a2) * r2, y + Math.sin(a2) * r2); }
         g.closePath(); g.fill();
       }
     }
     if (T.keyAt === 'charge' && l > 520) {
       const hilt = S.W('charge', S.M.charge.tsuba, [T.hx, T.hy]);
-      gather(hilt, hilt, 700, T.SM[0], 110, 1, '255,120,130', 1.4);
+      gather(g, l, {hilt, start: 700, span: T.SM[0] - 1000, count: 110, color: palette.charge, reach: 1.4});
       glint(hilt[0], hilt[1], k(1370, 1480, l), 110);
     }
     // The launch: the ground bursts under him, stones are flung up, and a pillar of light stands where he left.
     const lq = (l - T.SM[0]) / 620;
     if (lq > 0 && lq < 1) {
-      spray(hx0, gy, T.SM[0], 170, 1, 300); spray(hx0, gy, T.SM[0], 170, -1, 320);
-      g.save(); g.translate(hx0, gy); g.scale(1, 0.14); glow(0, 0, 300 + 1500 * out(lq), '255,70,80', 0.8 * (1 - lq)); g.restore();
-      const w = 130 * (1 - lq) * (1 - lq) + 4;
-      for (const [m, c] of [[3.2, '255,40,60,0.3'], [1.4, '255,120,130,0.7'], [0.5, '255,255,255,1']]) { const v = c.split(','); gb.fillStyle = 'rgba(' + v.slice(0, 3).join(',') + ',' + v[3] * (1 - lq) + ')'; gb.beginPath(); gb.moveTo(hx0 - w * m, gy); gb.lineTo(hx0 + w * m, gy); gb.lineTo(S.AT.cut1[0] + 40, -600); gb.lineTo(S.AT.cut1[0] + 20, -600); gb.closePath(); gb.fill(); }
-      for (let i = 0; i < 64; i++) {
-        const s = (l - T.SM[0]) / 1000, a0 = -1.57 + (rnd(i, 13) - 0.5) * 1.5, v = 700 + rnd(i, 14) * 1500, x = hx0 + Math.cos(a0) * v * s, y = gy + Math.sin(a0) * v * s + 900 * s * s, r = 6 + rnd(i, 15) * 20, a2 = rnd(i, 16) * 6 + s * 9;
-        g.fillStyle = 'rgba(255,' + (70 + (i % 3) * 40) + ',80,' + (1 - lq) + ')'; g.beginPath(); for (let j = 0; j < 4; j++) { const b = a2 + j * 1.57; j ? g.lineTo(x + Math.cos(b) * r, y + Math.sin(b) * r) : g.moveTo(x + Math.cos(b) * r, y + Math.sin(b) * r); } g.closePath(); g.fill();
-      }
+      spray(g, l, palette, hx0, gy, T.SM[0], 170, 1, 300); spray(g, l, palette, hx0, gy, T.SM[0], 170, -1, 320);
+      g.save(); g.translate(hx0, gy); g.scale(1, 0.14); glow(g, 0, 0, 300 + 1500 * out(lq), palette.groundGlow, 0.8 * (1 - lq)); g.restore();
+      pillar(gb, palette, hx0, gy, [S.AT.cut1[0], -600], 130, lq);
+      stones(g, l, palette.shard, hx0, gy, T.SM[0], lq, 64, 13);
     }
     // Each kick off the air bursts a ring of ink under his feet.
     [[T.SM[1], S.AT.cut2], [T.SM[2], S.AT.cut3], [T.SM[3], S.AT.cut4], [T.SM[4], S.AT.cut5]].forEach(([t0, at], i) => {
       const q = (l - t0) / 380; if (q <= 0 || q >= 1) return;
-      gb.save(); gb.translate(at[0] - 40, at[1] + 240); gb.rotate(-0.2 + 0.1 * i); gb.scale(1, 0.26);
-      for (const [w, c] of [[30, 'rgba(255,40,55,'], [6, 'rgba(255,220,220,']]) { gb.strokeStyle = c + (1 - q) * 0.9 + ')'; gb.lineWidth = w * (1 - q) + 1; gb.beginPath(); gb.arc(0, 0, 70 + 460 * out(q), 0, Math.PI * 2); gb.stroke(); }
-      gb.restore();
+      inkRing([at[0] - 40, at[1] + 240], -0.2 + 0.1 * i, 0.26, q, 70 + 460 * out(q), [30, 6], palette.inkSoft);
     });
     // The dive: a burn along its whole line, and a ring of ink where he kicks off the air.
     const ds = l - T.SM6, kick = S.MOUTH0, end = S.T6;
     if (ds > 0 && ds < 900) {
       const q = ds / 900, e = out(k(0, 84, ds));
-      gb.save(); gb.translate(kick[0], kick[1]); gb.rotate(S.ANG6 + 1.57); gb.scale(1, 0.3);
-      for (const [w, c] of [[40, 'rgba(255,40,55,'], [8, 'rgba(255,230,230,']]) { gb.strokeStyle = c + (1 - q) * 0.9 + ')'; gb.lineWidth = w * (1 - q) + 1; gb.beginPath(); gb.arc(0, 0, 90 + 700 * out(q), 0, Math.PI * 2); gb.stroke(); }
-      gb.restore();
-      for (const [w, c] of [[30, '255,40,60,0.28'], [7, '255,170,170,0.75'], [2.5, '255,255,255,1']]) {
-        const v = c.split(','); gb.strokeStyle = 'rgba(' + v.slice(0, 3).join(',') + ',' + v[3] * (1 - q) + ')'; gb.lineWidth = w;
+      inkRing(kick, S.ANG6 + 1.57, 0.3, q, 90 + 700 * out(q), [40, 8], palette.inkCore);
+      for (const [w, rgb, a] of palette.burn) {
+        gb.strokeStyle = 'rgba(' + rgb + ',' + a * (1 - q) + ')'; gb.lineWidth = w;
         gb.beginPath(); gb.moveTo(kick[0], kick[1]); gb.lineTo(kick[0] + (end[0] - kick[0]) * e, kick[1] + (end[1] - kick[1]) * e); gb.stroke();
       }
     }
     // The skid: a ring of ink off the air under his boots, thrown forward.
     const boot = S.W('cut6', S.M.cut6.boot), skq = (l - T.HIT6) / 620;
     if (skq > 0 && skq < 1) {
-      gb.save(); gb.translate(boot[0], boot[1]); gb.rotate(1.2); gb.scale(1, 0.3);
-      for (const [w, c] of [[34, 'rgba(255,40,55,'], [7, 'rgba(255,230,230,']]) { gb.strokeStyle = c + (1 - skq) * 0.9 + ')'; gb.lineWidth = w * (1 - skq) + 1; gb.beginPath(); gb.arc(0, 0, 60 + 520 * out(skq), 0, Math.PI * 2); gb.stroke(); }
-      gb.restore();
+      inkRing(boot, 1.2, 0.3, skq, 60 + 520 * out(skq), [34, 7], palette.inkCore);
       sparksAt(boot[0], boot[1], 0.9, -0.2, T.HIT6, 110, 1.1, 340);
     }
     // The ink front opening the blood-moon world: a thin red rim and a wider dark-red haze on the moving edge; the moon
     // takes a red halo as the front passes it.
     if (T.wave > 0 && T.wave < 1) {
       const r = T.waveR;
-      for (const [w, a] of [[60, 0.16], [14, 0.4], [3, 0.9]]) {
-        gb.strokeStyle = 'rgba(255,' + (w < 10 ? 120 : 40) + ',60,' + a + ')'; gb.lineWidth = w; gb.beginPath();
+      for (const [w, rgb, a] of palette.waveEdge) {
+        gb.strokeStyle = 'rgba(' + rgb + ',' + a + ')'; gb.lineWidth = w; gb.beginPath();
         for (let i = 0; i <= 120; i++) { const a2 = i / 120 * Math.PI * 2, rr = r * (1 + 0.05 * Math.sin(a2 * 7 + l * 0.003) + 0.035 * Math.sin(a2 * 17 - l * 0.005)); const x = O[0] + Math.cos(a2) * rr, y = O[1] + Math.sin(a2) * rr; i ? gb.lineTo(x, y) : gb.moveTo(x, y); }
         gb.stroke();
       }
     }
     const mdist = Math.hypot(S.MOON[0] - O[0], S.MOON[1] - O[1]), mHit = 640 + 700 * 0.6;
-    if (T.waveR > mdist - S.MOON_R) glow(S.MOON[0], S.MOON[1] + T.skyY, S.MOON_R * 1.5, '255,40,50', 0.35 * Math.min(1, (T.waveR - mdist + S.MOON_R) / 400) * (1 - 0.5 * k(mHit + 300, mHit + 900, l)) * (1 - k(T.SHATTER, T.SHATTER + 600, l)), gb);
+    if (T.waveR > mdist - S.MOON_R) glow(gb, S.MOON[0], S.MOON[1] + T.skyY, S.MOON_R * 1.5, palette.moonHalo, 0.35 * Math.min(1, (T.waveR - mdist + S.MOON_R) / 400) * (1 - 0.5 * k(mHit + 300, mHit + 900, l)) * (1 - k(T.SHATTER, T.SHATTER + 600, l)));
     // The slashes: five, each sooner after the last; all five again from the afterimages; then the moon cut.
     const B = S.blades, widths = [70, 60, 72, 44, 62], frays = [420, 300, 300, 280, 320];
     for (let i = 0; i < 5; i++) {
-      const s0 = T.SM[i], hit = T.L[i], end2 = T.L[i];
-      if (l >= s0 + 4 && l < end2 + frays[i]) slash(B[i], out(k(s0 + 4, hit - 4, l)), S.TAILS[i] * out(k(s0 + 20, hit, l)), out(k(s0 + 12, hit + 8, l)), widths[i], k(end2, end2 + frays[i], l), 21 + 10 * i);
-      if (l >= T.SMS + 4 && l < T.LS + 460) slash(B[i], out(k(T.SMS + 4, T.LS - 4, l)), S.TAILS[i] * out(k(T.SMS + 20, T.LS, l)), out(k(T.SMS + 12, T.LS + 8, l)), widths[i] * 1.35, k(T.LS, T.LS + 460, l), 61 + 10 * i);
+      swing(B[i], l, {from: T.SM[i], hit: T.L[i], hold: frays[i], tail: S.TAILS[i], width: widths[i], seed: 21 + 10 * i});
+      swing(B[i], l, {from: T.SMS, hit: T.LS, hold: 460, tail: S.TAILS[i], width: widths[i] * 1.35, seed: 61 + 10 * i});
     }
-    [[110, 1], [70, 0.7], [80, 0.75], [80, 0.8], [90, 0.85]].forEach(([n, pw], i) => { sparks(B[i], T.L[i], n, pw, 10 + 10 * i); sparks(B[i], T.LS, n, pw * 1.2, 110 + 10 * i); });
-    if (l >= T.LS + 40 && l < T.NOTO + 90) slash(B[8], k(T.LS + 40, T.NOTO, l), k(T.LS + 70, T.NOTO + 60, l), k(T.LS + 40, T.NOTO, l), 22, 0, 161, 0.7);
-    if (l >= T.RISE2 - 30 && l < T.RISE2 + 230) slash(B[7], out(k(T.RISE2 - 30, T.RISE2 + 30, l)), out(k(T.RISE2 - 10, T.RISE2 + 130, l)), out(k(T.RISE2 - 20, T.RISE2 + 40, l)), 34, 0, 91, 0.8 * (1 - k(T.RISE2 + 50, T.RISE2 + 230, l)));
+    [[110, 1], [70, 0.7], [80, 0.75], [80, 0.8], [90, 0.85]].forEach(([n, pw], i) => { bladeSparks(B[i], T.L[i], n, pw, 10 + 10 * i); bladeSparks(B[i], T.LS, n, pw * 1.2, 110 + 10 * i); });
+    if (l >= T.LS + 40 && l < T.NOTO + 90) slash(B[8], {head: k(T.LS + 40, T.NOTO, l), tail: k(T.LS + 70, T.NOTO + 60, l), head2: k(T.LS + 40, T.NOTO, l), width: 22, fray: 0, seed: 161, alpha: 0.7});
+    if (l >= T.RISE2 - 30 && l < T.RISE2 + 230) slash(B[7], {head: out(k(T.RISE2 - 30, T.RISE2 + 30, l)), tail: out(k(T.RISE2 - 10, T.RISE2 + 130, l)), head2: out(k(T.RISE2 - 20, T.RISE2 + 40, l)), width: 34, fray: 0, seed: 91, alpha: 0.8 * (1 - k(T.RISE2 + 50, T.RISE2 + 230, l))});
     // The moon cut: the oni's huge crescent behind the hero's, on the same frames.
-    if (l >= T.SM6 + 4 && l < T.L6 + 700) {
-      const hd = out(k(T.SM6 + 4, T.HIT6 - 4, l)), tl = 0.5 * out(k(T.SM6 + 20, T.HIT6, l)), h2 = out(k(T.SM6 + 12, T.HIT6 + 8, l)), fr = k(T.L6, T.L6 + 700, l);
-      slash(B[6], hd, tl, h2, 240, fr, 141, 1, gb);
-      slash(B[5], hd, tl, h2, 84, fr, 131);
-    }
+    const moonCut = {from: T.SM6, hit: T.HIT6, end: T.L6, hold: 700, tail: 0.5};
+    swing(B[6], l, {...moonCut, width: 240, seed: 141, canvas: gb});
+    swing(B[5], l, {...moonCut, width: 84, seed: 131});
     // Sparks where the cut crosses the moon's rim, and at both blade tips.
     for (const sgn of [-1, 1]) sparksAt(S.MOON[0] + sgn * S.U6[0] * S.MOON_R, S.MOON[1] + sgn * S.U6[1] * S.MOON_R, S.N6[0], S.N6[1], T.L6, 80, 1.2, 150 + sgn * 5);
     sparksAt(S.T6[0], S.T6[1], S.N6[0], S.N6[1], T.L6, 100, 1.3, 170);
@@ -594,29 +518,32 @@ export class Moon {
       const to = S.W('iai', S.M.iai.tsuba);
       for (let i = 1; i <= 5; i++) {
         const a = S.AT['cut' + i], c2 = [a[0] + 260 * (i % 2 ? 1 : -1), (a[1] + to[1]) / 2];
-        gb.strokeStyle = 'rgba(255,40,55,' + 0.7 * Math.sin(mq * Math.PI) + ')'; gb.lineWidth = 12; gb.beginPath();
+        gb.strokeStyle = 'rgba(' + palette.ink + ',' + 0.7 * Math.sin(mq * Math.PI) + ')'; gb.lineWidth = 12; gb.beginPath();
         for (let j = 0; j <= 24; j++) { const f = (j / 24) * out(mq), f1 = 1 - f, x = f1 * f1 * a[0] + 2 * f1 * f * c2[0] + f * f * to[0], y = f1 * f1 * a[1] + 2 * f1 * f * c2[1] + f * f * to[1]; j ? gb.lineTo(x, y) : gb.moveTo(x, y); }
-        gb.stroke(); gb.strokeStyle = 'rgba(255,200,200,' + 0.9 * Math.sin(mq * Math.PI) + ')'; gb.lineWidth = 2.5; gb.stroke();
+        gb.stroke(); gb.strokeStyle = 'rgba(' + palette.inkThread + ',' + 0.9 * Math.sin(mq * Math.PI) + ')'; gb.lineWidth = 2.5; gb.stroke();
       }
     }
     // The oni rising: a red rim of ink on its rising edge; then motes from the whole sky into both hilts, and after the
     // cut-in both guards glint on the same frame.
     if (T.rise > 0 && T.rise < 1) {
-      gb.strokeStyle = 'rgba(255,50,60,0.5)'; gb.lineWidth = 10; gb.beginPath();
+      gb.strokeStyle = 'rgba(' + palette.inkEdge + ',0.5)'; gb.lineWidth = 10; gb.beginPath();
       for (let x = 1320; x <= 3120; x += 40) { const y = T.edgeY + 34 * Math.sin(x * 0.009 + l * 0.004) + 20 * Math.sin(x * 0.023 - l * 0.007); x > 1320 ? gb.lineTo(x, y) : gb.moveTo(x, y); }
       gb.stroke();
     }
     if (T.keyAt === 'iai') {
       const tsuH = S.W('iai', S.M.iai.tsuba), tsuO = S.OW(S.ONI.oni1, S.M.oni1.tsuba);
-      if (l > T.ONI1 - 200) { gather(tsuH, tsuH, T.ONI1 - 200, T.CUTIN, 90, 201, '255,120,130', 2); gather(tsuO, tsuO, T.ONI1 - 200, T.CUTIN, 40, 211, '255,90,100', 2.6); }
+      if (l > T.ONI1 - 200) {
+        const start = T.ONI1 - 200, span = T.CUTIN - start - 300;
+        gather(g, l, {hilt: tsuH, start, span, count: 90, seed: 201, color: palette.charge, reach: 2});
+        gather(g, l, {hilt: tsuO, start, span, count: 40, seed: 211, color: palette.chargeFar, reach: 2.6});
+      }
       const gq = k(T.CUTOUT + 30, T.SM6 - 16, l); glint(...tsuH, gq, 90);
     }
 
     // The straight cuts hang behind the hero from each hit, full length. After the strike the five air cuts dim; the
     // moon cut lands bright across the moon. On the click all six flare at once, then the world breaks along them.
     const open = out(k(T.SHATTER, T.SHATTER + 160, l)), flickA = 0.8 + 0.2 * Math.sin(l * 0.045);
-
-    const stroke=(w,color)=>strokePath(gb,w,color);
+    const dayward = ([night, day]) => night.map((c, i) => mix(c, day[i], open)).join(',');
     const hitAt = [T.L[0], T.L[1], T.L[2], T.L[3], T.L[4], T.L6];
     S.scars.forEach((pts, i) => {
       // The cuts belong to the blood-moon world: they are gone with it, never left lying across the real one.
@@ -625,59 +552,41 @@ export class Moon {
       const fl = l >= T.SHATTER ? 1 - k(T.SHATTER, T.SHATTER + 300, l) : 0, wide = Math.max(open, 0.6 * fl);
       const pa = a * (i < 5 ? Math.max(1 - 0.75 * k(T.L[4] + 200, T.L[4] + 600, l) * (1 - 0.6 * k(T.L6, T.L6 + 200, l)), fl, open) : 1);
       gb.save(); if (l >= T.SHATTER) gb.translate(T.drift, 0); trace(gb, pts);
-      stroke(12 + 56 * wide, 'rgba(255,' + (40 + 170 * open) + ',' + (70 + 110 * open) + ',' + (0.2 + 0.3 * fl) * pa * flickA + ')');
-      stroke(3 + 18 * wide, 'rgba(255,' + (150 + 90 * open) + ',' + (160 + 60 * open) + ',' + (0.6 + 0.3 * fl) * pa + ')');
-      stroke(1.4 + 3 * wide, 'rgba(255,255,255,' + pa * (1 - 0.6 * open) + ')');
+      stroke(gb, 12 + 56 * wide, 'rgba(' + dayward(palette.scarGlow) + ',' + (0.2 + 0.3 * fl) * pa * flickA + ')');
+      stroke(gb, 3 + 18 * wide, 'rgba(' + dayward(palette.scarEdge) + ',' + (0.6 + 0.3 * fl) * pa + ')');
+      stroke(gb, 1.4 + 3 * wide, 'rgba(255,255,255,' + pa * (1 - 0.6 * open) + ')');
       gb.restore();
     });
     // The moon's cut faces glow as the halves part, and red mist bleeds out of the gap.
     if (l >= T.CLICK) {
       const ga = out(k(T.CLICK, T.CLICK + 300, l)) * (1 - k(T.SHATTER + 100, T.SHATTER + 380, l));
-      if (ga > 0) S.redHalves.forEach((h, i) => {
+      if (ga > 0) S.redHalves.forEach(h => {
         const c = [h.position.x, h.position.y], u = S.U6, r = S.MOON_R, rot = h.rotation, ru = [u[0] * Math.cos(rot) - u[1] * Math.sin(rot), u[0] * Math.sin(rot) + u[1] * Math.cos(rot)];
-        gb.lineWidth = 16; gb.strokeStyle = 'rgba(255,60,70,' + 0.4 * ga + ')'; gb.beginPath(); gb.moveTo(c[0] - ru[0] * r, c[1] - ru[1] * r); gb.lineTo(c[0] + ru[0] * r, c[1] + ru[1] * r); gb.stroke();
-        gb.lineWidth = 3; gb.strokeStyle = 'rgba(255,235,235,' + 0.9 * ga + ')'; gb.stroke();
+        gb.lineWidth = 16; gb.strokeStyle = 'rgba(' + palette.rim + ',' + 0.4 * ga + ')'; gb.beginPath(); gb.moveTo(c[0] - ru[0] * r, c[1] - ru[1] * r); gb.lineTo(c[0] + ru[0] * r, c[1] + ru[1] * r); gb.stroke();
+        gb.lineWidth = 3; gb.strokeStyle = 'rgba(' + palette.seamCore + ',' + 0.9 * ga + ')'; gb.stroke();
       });
       const e = l - T.CLICK;
       for (let i = 0; i < 70; i++) {
         const life = 900 + rnd(i, 41) * 900, t0 = rnd(i, 42) * 1400, q = (e - t0) / life;
         if (q <= 0 || q >= 1) continue;
         const f = rnd(i, 43) * 2 - 1, p0 = [S.MOON[0] + S.U6[0] * f * S.MOON_R * 0.9, S.MOON[1] + S.U6[1] * f * S.MOON_R * 0.9 + 40 * k(T.CLICK, T.CLICK + 1500, l)];
-        g.fillStyle = 'rgba(255,' + (50 + (i % 3) * 40) + ',70,' + 0.7 * Math.sin(q * Math.PI) * (1 - k(T.SHATTER, T.SHATTER + 600, l)) + ')';
+        g.fillStyle = 'rgba(' + palette.moonMist[0] + ',' + (palette.moonMist[1] + (i % 3) * 40) + ',' + palette.moonMist[2] + ',' + 0.7 * Math.sin(q * Math.PI) * (1 - k(T.SHATTER, T.SHATTER + 600, l)) + ')';
         g.beginPath(); g.arc(p0[0] + (rnd(i, 44) - 0.5) * 60 * q, p0[1] + 140 * q * q + 20 * q, 1.5 + rnd(i, 45) * 2.5, 0, Math.PI * 2); g.fill();
       }
     }
-    // Once broken, each piece carries a lit lip along its own edges.
-    if (l >= T.SHATTER) for (const p of S.pieces) {
-      gb.save();
-      gb.translate(p.c.pivot.x + p.dx, p.c.pivot.y + p.dy); gb.rotate(p.r); gb.translate(-p.c.pivot.x, -p.c.pivot.y);
-      clipTo(gb, p.poly);
-      for (const pts of S.scars) { trace(gb, pts); stroke(10, 'rgba(255,60,80,' + 0.35 * T.fade * open + ')'); stroke(2, 'rgba(255,235,235,' + 0.9 * T.fade * open + ')'); }
-      gb.restore();
-    }
+    if (l >= T.SHATTER) pieceLips(gb, S.pieces, S.scars, palette, T.fade * open);
     // The burst: daylight rushes in behind the hero, never over him, and shards of the blood-moon sky are thrown out.
     const bq = (l - T.SHATTER) / 640;
     if (bq >= 0 && bq < 1) {
-      glow(S.BURST[0], S.BURST[1], 500 + 1500 * out(bq), '255,225,190', 0.42 * (1 - bq) * (1 - bq), gb);
+      glow(gb, S.BURST[0], S.BURST[1], 500 + 1500 * out(bq), palette.daylight, 0.42 * (1 - bq) * (1 - bq));
       for (let i = 0; i < 170; i++) {
         const a = rnd(i, 60) * Math.PI * 2, r = (120 + rnd(i, 61) * 2600) * out(Math.min(1, bq * (0.7 + rnd(i, 62)))), n = 14 + rnd(i, 63) * 40, q = 1 - bq;
         const x = S.BURST[0] + Math.cos(a) * r, y = S.BURST[1] + Math.sin(a) * r;
-        g.strokeStyle = i % 4 ? 'rgba(255,50,60,' + q + ')' : 'rgba(255,240,225,' + q + ')'; g.lineWidth = 2 + rnd(i, 64) * 5;
+        g.strokeStyle = 'rgba(' + (i % 4 ? palette.shatter : palette.shatterCore) + ',' + q + ')'; g.lineWidth = 2 + rnd(i, 64) * 5;
         g.beginPath(); g.moveTo(x, y); g.lineTo(x - Math.cos(a) * n, y - Math.sin(a) * n); g.stroke();
       }
     }
-    // Embers peel off the lips of every seam as the world breaks.
-    if (l >= T.SHATTER && l < T.SHATTER + 900) {
-      const e = l - T.SHATTER;
-      for (let i = 0; i < 220; i++) {
-        const t0 = rnd(i, 30) * 520, life = 600 + rnd(i, 31) * 700, q = (e - t0) / life;
-        if (q <= 0 || q >= 1) continue;
-        const [x0, y0, nx, ny] = S.emberSrc[i % S.emberSrc.length].at(rnd(i, 32)), side = i % 2 ? 1 : -1, v = 30 + rnd(i, 33) * 110;
-        const px = x0 + nx * v * 1.4 * side * q + T.drift, py = y0 + ny * v * 1.4 * side * q - 40 * q;
-        g.fillStyle = 'rgba(255,' + (120 + (i % 3) * 50) + ',125,' + Math.sin(q * Math.PI) * 0.9 + ')';
-        g.beginPath(); g.arc(px, py, 1.2 + rnd(i, 34) * 2.2, 0, Math.PI * 2); g.fill();
-      }
-    }
+    seamEmbers(g, l, {start: T.SHATTER, span: 900, count: 220, seams: S.seams, color: palette.seamEmber, drift: T.drift});
     // The oni blown away: embers stream off its body and drift up and back.
     if (T.gone > 0 && T.gone < 1) {
       const c = S.OW(S.ONI.oni4, S.M.oni4.head);
@@ -685,25 +594,11 @@ export class Moon {
         const t0 = rnd(i, 50) * 0.5, q = (T.gone - t0) / 0.5;
         if (q <= 0 || q >= 1) continue;
         const px = c[0] - 700 + rnd(i, 51) * 1100 - 260 * q, py = c[1] - 100 + rnd(i, 52) * 900 - 380 * q;
-        g.fillStyle = 'rgba(255,' + (60 + (i % 3) * 40) + ',70,' + 0.8 * Math.sin(q * Math.PI) + ')';
+        g.fillStyle = 'rgba(' + palette.oniEmber[0] + ',' + (palette.oniEmber[1] + (i % 3) * 40) + ',' + palette.oniEmber[2] + ',' + 0.8 * Math.sin(q * Math.PI) + ')';
         g.beginPath(); g.arc(px, py, 2 + rnd(i, 53) * 3, 0, Math.PI * 2); g.fill();
       }
     }
     // Embers rise from the landing on to the end.
-    if (l > T.L[4] + 240 && l < T.END) {
-      const fade = k(T.L[4] + 240, T.L[4] + 740, l) * (1 - k(T.SHATTER, T.SHATTER + 600, l));
-      for (let i = 0; i < 60; i++) {
-        const life = 2200 + rnd(i, 16) * 1800, ph = ((l + rnd(i, 17) * life) % life) / life;
-        const px = -200 + rnd(i, 18) * 2800 + Math.sin(ph * 6 + i) * 20, py = 1100 - ph * 800 - rnd(i, 19) * 300;
-        g.fillStyle = 'rgba(255,' + (90 + (i % 3) * 50) + ',100,' + (Math.sin(ph * Math.PI) * fade * 0.8) + ')';
-        g.beginPath(); g.arc(px, py, 1.5 + rnd(i, 20) * 2.5, 0, Math.PI * 2); g.fill();
-      }
-    }
-    for (const c of [g, gb]) c.globalCompositeOperation = 'source-over';
-  }
-
-  destroy() {
-    this.disposeTextures();
-    for(const filter of [this.S.bloom,this.S.shock,this.S.shock2,this.S.zoom,this.S.rgb,...this.S.cutBg.filters])filter.destroy();
+    risingEmbers(g, l, {from: T.L[4] + 240, to: T.END, color: palette.ember, fadeOut: [T.SHATTER, T.SHATTER + 600], count: 60, across: [-200, 2800], rise: [1100, 800, 300]});
   }
 }

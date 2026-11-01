@@ -26,7 +26,7 @@ public sealed class SettingsPageTests
         [
             new BlindBoxSettingsPage(harness.DataDirectory),
             new WelcomeSettingsPage(harness.DataDirectory),
-            new WelcomeAnimationSettingsPage(harness.DataDirectory),
+            new AnimationSettingsPage(harness.DataDirectory),
             new GiftAnimationSettingsPage(harness.DataDirectory),
             new SendSettingsPage(harness.DataDirectory),
             new GeneralSettingsPage(harness.DataDirectory)

@@ -64,19 +64,23 @@ public sealed class Settings
           # 荣耀等级达到多少就欢迎，0 表示不按荣耀等级欢迎
           wealth_level: 0
 
-        # 进场欢迎：动画，GUI 保存后下一次进场生效；CLI 下次观看时生效
+        # 进场欢迎：动画。进场动画和欢迎动画共用这个开关；GUI 保存后下一次进场生效，CLI 下次观看时生效
         entry_animation:
-          # 进场动画和欢迎动画共用开关
           enabled: false
-          # 粉丝团等级门槛：30、40、50、60，0 表示不按等级
+          # 粉丝团等级门槛：30、40、50 或 60，0 表示不按等级
           fan_club_level: 30
-          # 进场动画、欢迎动画和送礼动画共用音量，0–100，0 静音
+          # 音量，0 到 100，0 表示静音；进场动画、欢迎动画和送礼动画共用
           volume: 80
+
+        # 动画名单：一行一位，值是 30、40、50、60，0 表示不播，或视频文件名
+        # UID 必须为正整数；视频放在 data/videos/，只能是 .mp4、.webm 文件名，不能带路径
+        entry_animation_viewers:
+          # 12345: 40
 
         # 送礼动画，GUI 保存后下一次送礼生效；CLI 下次观看时生效
         gift_animation:
           enabled: false
-          # 各档投入门槛（电池），必须为正整数且逐档递增
+          # 每一档的投入门槛（电池），必须是正整数，一档比一档高
           tier_30_spend: 100
           tier_40_spend: 500
           tier_50_spend: 2000
@@ -86,11 +90,6 @@ public sealed class Settings
         web_service:
           # 端口 1–65535；GUI 保存后立即生效，所有浏览器素材的地址都要跟着改
           port: 17890
-
-        # 动画名单，每行一位观众：UID: 0、30、40、50、60 或视频文件名
-        # UID 必须为正整数；0 不播；视频放在 data/videos/，仅 .mp4、.webm 文件名
-        entry_animation_viewers:
-          # 12345: 小明进场.mp4
 
         """;
 
@@ -136,7 +135,7 @@ public sealed class Settings
     public Setting<bool> GiftAnimationEnabled => Get(GiftOn);
     public IReadOnlyList<Setting<int>> GiftAnimationThresholds => GiftThresholds.Select(Get).ToArray();
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
-    private static readonly VideoGroupDefinition AnimationVideos = Register(new VideoGroupDefinition("entry_animation_viewers"));
+    private static readonly ViewerGroupDefinition AnimationViewers = Register(new ViewerGroupDefinition("entry_animation_viewers"));
     /// <summary>Adding a setting means registering its definition here, adding its property and a line in Template,
     /// then a Bind call in its GUI settings page (composite settings need their row code instead).
     /// The GUI coverage test catches settings omitted from the pages.</summary>
@@ -159,11 +158,10 @@ public sealed class Settings
     public Setting<int> WelcomeFanClubLevel => Get(WelcomeFanClub);
     public Setting<int> WelcomeGuard => Get(WelcomeGuardTier);
     public Setting<int> WelcomeWealthLevel => Get(WelcomeWealth);
-    public Setting<bool> WelcomeAnimationEnabled => Get(AnimationOn);
     public Setting<int> WebServicePort => Get(WebPort);
-    public IReadOnlyDictionary<long, Setting<AnimationChoice>> EntryAnimationViewers => AnimationVideos.Items(this);
+    public IReadOnlyDictionary<long, Setting<AnimationChoice>> EntryAnimationViewers => AnimationViewers.Items(this);
     public IReadOnlyDictionary<long, Setting<string>> WelcomeAnimationVideos => EntryAnimationViewers.Where(pair => pair.Value.Value.Video is not null).ToDictionary(pair => pair.Key, pair => new Setting<string>(pair.Value.Name, pair.Value.Value.Video!, pair.Value.CanEdit));
-    public bool CanEditWelcomeAnimationVideos => AnimationVideos.CanEdit(this);
+    public bool CanEditEntryAnimationViewers => AnimationViewers.CanEdit(this);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
     private readonly Dictionary<string, object> values = [];
@@ -215,25 +213,16 @@ public sealed class Settings
     public static void Save(string dataDirectory, IReadOnlyDictionary<string, string> changes, Settings? snapshot = null) =>
         Save(dataDirectory, Definitions, changes, snapshot);
 
-    /// <summary>Commits the animation form in one write; mappings added outside the form are left alone.</summary>
-    public static void SaveWelcomeAnimations(string dataDirectory, IReadOnlyDictionary<string, string> changes,
-        IReadOnlyDictionary<long, string> videos, Settings snapshot)
-    {
-        var choices = snapshot.EntryAnimationViewers.Where(pair => pair.Value.Value.Video is null)
-            .ToDictionary(pair => pair.Key, pair => pair.Value.Value.ToString());
-        foreach (var (uid, fileName) in videos) choices[uid] = fileName;
-        SaveAnimationViewers(dataDirectory, changes, choices, snapshot);
-    }
-
+    /// <summary>Commits the animation form in one write; viewers added outside the form are left alone.</summary>
     public static void SaveAnimationViewers(string dataDirectory, IReadOnlyDictionary<string, string> changes,
         IReadOnlyDictionary<long, string> choices, Settings snapshot)
     {
         var edits = changes.ToDictionary(pair => pair.Key, pair => (string?)pair.Value);
-        foreach (var uid in snapshot.EntryAnimationViewers.Keys.Except(choices.Keys)) edits[AnimationVideos.ItemName(uid)] = null;
+        foreach (var uid in snapshot.EntryAnimationViewers.Keys.Except(choices.Keys)) edits[AnimationViewers.ItemName(uid)] = null;
         foreach (var (uid, choice) in choices)
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(uid);
-            edits[AnimationVideos.ItemName(uid)] = choice;
+            edits[AnimationViewers.ItemName(uid)] = choice;
         }
         SaveChanges(dataDirectory, Definitions, edits, snapshot);
     }
@@ -271,11 +260,9 @@ public sealed class Settings
         // Later offsets first so earlier ones stay valid; inserts at one offset keep the order they were added in.
         foreach (var (_, edit) in edits.Index().OrderByDescending(edit => edit.Item.Start).ThenByDescending(edit => edit.Index))
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
-        var proposed = new Settings();
         var document = new YamlStream();
         document.Load(new StringReader(text));
-        proposed.root = (YamlMappingNode)document.Documents[0].RootNode;
-        if (ValidateGroups(proposed.root, path) is { } groupError) throw groupError;
+        if (ValidateGiftThresholds((YamlMappingNode)document.Documents[0].RootNode, path) is { } thresholdError) throw thresholdError;
         AtomicFile.Write(path, [.. current.encoding.GetPreamble(), .. current.encoding.GetBytes(text)]);
 
         void EditGroup(string groupName, IEnumerable<(Definition Definition, string Name, string? Value)> groupChanges)
@@ -414,7 +401,7 @@ public sealed class Settings
         return null;
     }
 
-    private static SettingsException? ValidateGroups(YamlMappingNode root, string path)
+    private static SettingsException? ValidateGiftThresholds(YamlMappingNode root, string path)
     {
         if (!root.Children.TryGetValue(new YamlScalarNode("gift_animation"), out var node) || node is not YamlMappingNode group) return null;
         var fields = GiftThresholds.Select(definition => group.Children.TryGetValue(new YamlScalarNode(definition.Name.Split('.')[1]), out var field) ? field : null).ToArray();
@@ -466,7 +453,7 @@ public sealed class Settings
             var seenNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var (groupKey, groupValue) in root.Children) LoadGroup(groupKey, groupValue);
             settings.UnknownKeys = unknown.AsReadOnly();
-            settings.Error ??= ValidateGroups(root, path);
+            settings.Error ??= ValidateGiftThresholds(root, path);
 
             void LoadGroup(YamlNode groupKey, YamlNode groupValue)
             {
@@ -660,7 +647,7 @@ public sealed class Settings
 
     /// <summary>The welcome animation videos: a group whose keys are viewer UIDs read from the file, each mapped to a video file name.
     /// Numeric aliases such as 007 and 7 name the same item, and null deletes one.</summary>
-    internal sealed class VideoGroupDefinition(string name) : Definition(name)
+    internal sealed class ViewerGroupDefinition(string name) : Definition(name)
     {
         private sealed class GroupValues
         {

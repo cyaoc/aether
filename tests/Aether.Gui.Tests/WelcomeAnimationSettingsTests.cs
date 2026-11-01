@@ -31,7 +31,7 @@ public sealed class WelcomeAnimationSettingsTests
         h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));
-        var page = new WelcomeAnimationSettingsPage(h.DataDirectory) { DataContext = vm };
+        var page = new AnimationSettingsPage(h.DataDirectory) { DataContext = vm };
         var window = new Window { Content = page, Width = 976, Height = 720 };
         window.Show();
         try
@@ -71,12 +71,12 @@ public sealed class WelcomeAnimationSettingsTests
         h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));
-        var page = new WelcomeAnimationSettingsPage(h.DataDirectory, () => Task.FromResult<string?>(source)) { DataContext = vm };
+        var page = new AnimationSettingsPage(h.DataDirectory, () => Task.FromResult<string?>(source)) { DataContext = vm };
         var window = new Window { Content = page, Width = 976, Height = 720 };
         window.Show();
         try
         {
-            ((WelcomeAnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
+            ((AnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
         GuiHarness.Flush();
             var row = Rows(page)[1];
             var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, row, "OnlinePicker");
@@ -112,7 +112,7 @@ public sealed class WelcomeAnimationSettingsTests
             ? "entry_animation_viewers: {42: video.mp4}\n"
             : "gift_animation:\nentry_animation_viewers:\n  42: video.mp4\n");
         var vm = h.CreateViewModel();
-        var page = new WelcomeAnimationSettingsPage(h.DataDirectory) { DataContext = vm };
+        var page = new AnimationSettingsPage(h.DataDirectory) { DataContext = vm };
         var window = new Window { Content = page, Width = 976, Height = 720 };
         window.Show();
         try
@@ -137,7 +137,7 @@ public sealed class WelcomeAnimationSettingsTests
     {
         using var harness = new GuiHarness();
         var source = Video(harness, "source", "video.mp4");
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(source));
+        var page = new AnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(source));
         var window = new Window { Content = page };
         window.Show();
         try
@@ -197,7 +197,7 @@ public sealed class WelcomeAnimationSettingsTests
     [Theory]
     [InlineData("没有推流软件连着", true)]
     [InlineData("排队超过 30 秒", true)]
-    [InlineData(WelcomeAnimation.PreviousPending, false)]
+    [InlineData(PlaybackSource.PreviousPending, false)]
     public Task Skipped_playback_keeps_its_specific_reason(string reason, bool unplayed) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -217,15 +217,15 @@ public sealed class WelcomeAnimationSettingsTests
     {
         using var harness = new GuiHarness();
         var choices = new Queue<string?>([null, Video(harness, "source", "not-video.txt")]);
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult(choices.Dequeue()));
+        var page = new AnimationSettingsPage(harness.DataDirectory, () => Task.FromResult(choices.Dequeue()));
         var window = new Window { Content = page };
         window.Show();
         try
         {
-            ((WelcomeAnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
+            ((AnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
         GuiHarness.Flush();
             Assert.Empty(Rows(page));
-            ((WelcomeAnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
+            ((AnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
         GuiHarness.Flush();
             Assert.Empty(Rows(page));
             Assert.Contains(".mp4", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
@@ -245,7 +245,7 @@ public sealed class WelcomeAnimationSettingsTests
         var missing = Video(harness, "source", "missing.webm");
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "video.mp4" });
         var selected = new Queue<string>([source, missing]);
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(selected.Dequeue()));
+        var page = new AnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(selected.Dequeue()));
         var window = new Window { Content = page };
         window.Show();
         try
@@ -276,13 +276,13 @@ public sealed class WelcomeAnimationSettingsTests
     {
         using var harness = new GuiHarness();
         var source = Video(harness, "source", "video.mp4");
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(source));
+        var page = new AnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(source));
         var window = new Window { Content = page };
         window.Show();
         try
         {
             Add(page, "42");
-            ((WelcomeAnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
+            ((AnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
         GuiHarness.Flush();
             var row = Rows(page)[1];
             var input = GuiHarness.FindRowControl<TextBox>(page, row, "UidInput");
@@ -325,7 +325,7 @@ public sealed class WelcomeAnimationSettingsTests
         using var harness = new GuiHarness();
         Video(harness, "videos", "video.mp4");
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "video.mp4" });
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory);
+        var page = new AnimationSettingsPage(harness.DataDirectory);
         var window = new Window { Content = page };
         window.Show();
         try
@@ -361,7 +361,7 @@ public sealed class WelcomeAnimationSettingsTests
         var viewModel = harness.CreateViewModel();
         await viewModel.WebService.ApplyWebSettingsAsync(Settings.Load(harness.DataDirectory));
         var replacement = Video(harness, "source", "video.mp4");
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(replacement)) { DataContext = viewModel };
+        var page = new AnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(replacement)) { DataContext = viewModel };
         var window = new Window { Content = page };
         window.Show();
         try
@@ -419,7 +419,7 @@ public sealed class WelcomeAnimationSettingsTests
         using var harness = new GuiHarness();
         Directory.CreateDirectory(harness.DataDirectory);
         File.WriteAllText(Settings.FilePath(harness.DataDirectory), yaml);
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory);
+        var page = new AnimationSettingsPage(harness.DataDirectory);
         var general = new GeneralSettingsPage(harness.DataDirectory);
         var window = new Window { Content = page };
         window.Show();
@@ -444,7 +444,7 @@ public sealed class WelcomeAnimationSettingsTests
         var first = Video(harness, "source", "first.mp4");
         var second = Video(harness, "source", "second.webm");
         var selected = new Queue<string>([first, second]);
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(selected.Dequeue()));
+        var page = new AnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(selected.Dequeue()));
         var window = new Window { Content = page };
         window.Show();
         try
@@ -475,7 +475,7 @@ public sealed class WelcomeAnimationSettingsTests
         var second = Video(harness, "second", "欢迎.mp4", "second video");
         var replacement = Video(harness, "third", "欢迎.mp4", "replacement video");
         var selected = new Queue<string>([first, second, replacement]);
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(selected.Dequeue()));
+        var page = new AnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(selected.Dequeue()));
         var window = new Window { Content = page };
         window.Show();
         try
@@ -522,9 +522,9 @@ public sealed class WelcomeAnimationSettingsTests
     }
 
     private static string Copy(GuiHarness harness, string name) => Path.Combine(harness.DataDirectory, "videos", name);
-    private static WelcomeAnimationRow[] Rows(SettingsPage page) => ((WelcomeAnimationSettingsPage)page).Animations.ToArray();
+    private static AnimationViewerRow[] Rows(SettingsPage page) => ((AnimationSettingsPage)page).Animations.ToArray();
     private static void Click(Control control, string name) { GuiHarness.FindVisual<Button>(control, name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); GuiHarness.Flush(); }
-    private static void Click(SettingsPage page, WelcomeAnimationRow row, string name)
+    private static void Click(SettingsPage page, AnimationViewerRow row, string name)
     {
         Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
             GuiHarness.FindRowControl<Button>(page, row, name))).Invoke();
@@ -532,7 +532,7 @@ public sealed class WelcomeAnimationSettingsTests
     }
     private static void Add(SettingsPage page, string uid)
     {
-        ((WelcomeAnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
+        ((AnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
         GuiHarness.Flush();
         GuiHarness.FindRowControl<TextBox>(page, Rows(page)[^1], "UidInput").Text = uid;
         GuiHarness.Flush();
@@ -584,7 +584,7 @@ public sealed class WelcomeAnimationSettingsTests
     {
         using var harness = new GuiHarness();
         var viewModel = harness.CreateViewModel();
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory) { DataContext = viewModel };
+        var page = new AnimationSettingsPage(harness.DataDirectory) { DataContext = viewModel };
         var window = new Window { Content = page };
         window.Show();
         try
@@ -608,7 +608,7 @@ public sealed class WelcomeAnimationSettingsTests
         const string nickname = "小鹿";
         using var harness = new GuiHarness();
         var viewModel = harness.CreateViewModel();
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory) { DataContext = viewModel };
+        var page = new AnimationSettingsPage(harness.DataDirectory) { DataContext = viewModel };
         var window = new Window { Content = page };
         window.Show();
         try
@@ -888,7 +888,7 @@ public sealed class WelcomeAnimationSettingsTests
         Directory.CreateDirectory(harness.DataDirectory);
         var source = Path.Combine(harness.DataDirectory, "欢迎.mp4");
         File.WriteAllText(source, "original video");
-        var page = new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(source));
+        var page = new AnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(source));
         var window = new Window { Content = page };
         window.Show();
         try

@@ -31,17 +31,18 @@ public sealed class EntryAnimationSettingsTests
         Assert.Equal(expected, EntryTier.FromSpend(coins, [100, 500, 2000, 10000])?.Value);
 
     [Fact]
-    public async Task Video_form_save_preserves_tiers_and_off_rows()
+    public async Task Viewer_form_save_writes_each_row_and_drops_removed_ones()
     {
         await using var h = new WatchHarness();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> {
-            ["entry_animation_viewers.1"] = "40", ["entry_animation_viewers.2"] = "0", ["entry_animation_viewers.3"] = "old.webm" });
+            ["entry_animation_viewers.1"] = "40", ["entry_animation_viewers.2"] = "0", ["entry_animation_viewers.3"] = "old.webm", ["entry_animation_viewers.4"] = "50" });
         var snapshot = Settings.Load(h.DataDirectory);
-        Settings.SaveWelcomeAnimations(h.DataDirectory, new Dictionary<string, string>(), new Dictionary<long, string> { [3] = "new.webm" }, snapshot);
+        Settings.SaveAnimationViewers(h.DataDirectory, new Dictionary<string, string>(), new Dictionary<long, string> { [1] = "40", [2] = "0", [3] = "new.webm" }, snapshot);
         var saved = Settings.Load(h.DataDirectory);
         Assert.Equal(40, saved.EntryAnimationViewers[1].Value.Tier?.Value);
         Assert.Equal(AnimationChoice.Off, saved.EntryAnimationViewers[2].Value);
         Assert.Equal("new.webm", saved.EntryAnimationViewers[3].Value.Video);
+        Assert.False(saved.EntryAnimationViewers.ContainsKey(4));
     }
 
     [Fact]

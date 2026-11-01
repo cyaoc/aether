@@ -7,6 +7,7 @@ public sealed class PlaybackSource(WebService service, TimeProvider timeProvider
 {
     private readonly HashSet<long> pendingViewers = [];
     private string? playingTest;
+    public const string Entry = "进场动画", Gift = "送礼动画", Welcome = "欢迎动画";
     public const string PreviousPending = "上一个还没播完";
 
     public void StopTestPlay(string id)
@@ -14,7 +15,7 @@ public sealed class PlaybackSource(WebService service, TimeProvider timeProvider
         lock (service.Gate) if (playingTest == id) service.Video.Stop(id);
     }
 
-    public void TestPlay(PlaybackContent content) => Enqueue(0, null, content, "试播", timeProvider.GetTimestamp(), CancellationToken.None, true);
+    public void TestPlay(PlaybackContent.Animation content) => Enqueue(0, null, content, content.Nickname, timeProvider.GetTimestamp(), CancellationToken.None, true);
 
     internal void Enqueue(long uid, string? nickname, PlaybackContent content, string triggerReason, long receivedAt, CancellationToken roomStopped, bool isTest = false)
     {

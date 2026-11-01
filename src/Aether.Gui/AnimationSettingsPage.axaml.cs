@@ -2,14 +2,14 @@ using Aether.Core;
 
 namespace Aether.Gui;
 
-public partial class WelcomeAnimationSettingsPage : SettingsPage
+public partial class AnimationSettingsPage : SettingsPage
 {
     private long[] replaced = [];
     public event Action? GeneralSettingsRequested;
 
-    public WelcomeAnimationSettingsPage() : this(DataDirectory.Locate()) { }
+    public AnimationSettingsPage() : this(DataDirectory.Locate()) { }
 
-    public WelcomeAnimationSettingsPage(string dataDirectory, Func<Task<string?>>? pickAnimationVideo = null) : base(dataDirectory)
+    public AnimationSettingsPage(string dataDirectory, Func<Task<string?>>? pickAnimationVideo = null) : base(dataDirectory)
     {
         this.pickAnimationVideo = pickAnimationVideo;
         InitializeComponent();
@@ -17,14 +17,12 @@ public partial class WelcomeAnimationSettingsPage : SettingsPage
         Animations.RowChanged += Validate;
         Title = "进场欢迎";
         PageStatus.GeneralSettingsRequested += () => GeneralSettingsRequested?.Invoke();
-        TestBar.TestRequested += (tier, nickname) => viewModel?.WebService.TestEntry(tier, nickname);
-        TestBar.StopRequested += id => viewModel?.WebService.StopEntry(id);
         TimingHint = "保存后，下一次进场生效";
-        FanClubInput.ItemsSource = new[] { 0 }.Concat(EntryTier.All.Select(tier => tier.Value)).ToArray();
+        FanClubInput.ItemsSource = EntryTier.All.Select(tier => tier.Value).Append(0).ToArray();
         FanClubInput.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<int>((value, _) => new Avalonia.Controls.TextBlock { Text = value == 0 ? "不按等级" : $"{value} 级起" });
         Bind(FanClubInput, FanClubReadOnly, null, s => s.EntryAnimationFanClubLevel);
         Bind(VolumeInput, VolumeReadOnly, null, s => s.EntryAnimationVolume);
-        Bind(AnimationInput, AnimationReadOnly, null, s => s.WelcomeAnimationEnabled);
+        Bind(AnimationInput, AnimationReadOnly, null, s => s.EntryAnimationEnabled);
         AddAnimationButton.Click += (_, _) => Animations.AddNew(new("", "", true, true) { Choice = EntryTier.All[0].ToString() });
         LoadSettings();
     }

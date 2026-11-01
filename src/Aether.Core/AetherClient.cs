@@ -48,9 +48,6 @@ public sealed partial class AetherClient : IDisposable
     public async Task ApplyWebSettingsAsync(Settings settings)
     {
         if (settings.Error is { } error) throw error;
-        WelcomeAnimation.Apply(settings);
-        EntryAnimation.Apply(settings);
-        GiftAnimation.Apply(settings);
         WebService.Video.Apply(settings);
         await WebService.StartAsync(settings.WebServicePort.Value).ConfigureAwait(false);
     }

@@ -13,14 +13,10 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     internal bool AnimationReloading => !animationReload.Current.IsCompleted;
     /// <summary>Raised when anything an animation row shows may have changed: page status, playback, failures or a reload.</summary>
     internal event Action? AnimationRowsChanged;
-    public RecentItems<WelcomeAnimationItem> RecentAnimations { get; } = [];
-    public IReadOnlyList<WelcomeAnimationItem> RecentEntryAnimations => RecentAnimations.Where(item => item.Playback.Source != "送礼动画").ToArray();
-    public IReadOnlyList<WelcomeAnimationItem> RecentGiftAnimations => RecentAnimations.Where(item => item.Playback.Source == "送礼动画").ToArray();
+    public RecentItems<PlaybackItem> RecentAnimations { get; } = [];
+    public IReadOnlyList<PlaybackItem> RecentEntryAnimations => RecentAnimations.Where(item => item.Playback.Source != PlaybackSource.Gift).ToArray();
+    public IReadOnlyList<PlaybackItem> RecentGiftAnimations => RecentAnimations.Where(item => item.Playback.Source == PlaybackSource.Gift).ToArray();
     internal SourcePlayback? PlayingForSource(string source) => playingAnimation?.Source == source ? playingAnimation : null;
-    internal void TestGift(EntryTier tier, string nickname) => client.GiftAnimation.TestPlay(tier, nickname);
-    internal void StopGift(string id) => client.GiftAnimation.StopTestPlay(id);
-    internal void TestEntry(EntryTier tier, string nickname) => client.EntryAnimation.TestPlay(tier, nickname);
-    internal void StopEntry(string id) => client.EntryAnimation.StopTestPlay(id);
     private readonly HashSet<string> pendingAnimations = [];
     private readonly HashSet<(long Uid, string FileName)> failedAnimationVideos = [];
     private SourcePlayback? playingAnimation;
@@ -31,7 +27,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     {
         if (animationSettings is { } previous
             && previous.Error?.Message == snapshot.Error?.Message
-            && previous.WelcomeAnimationEnabled.Value == snapshot.WelcomeAnimationEnabled.Value
+            && previous.EntryAnimationEnabled.Value == snapshot.EntryAnimationEnabled.Value
             && previous.WebServicePort.Value == snapshot.WebServicePort.Value
             && previous.EntryAnimationFanClubLevel.Value == snapshot.EntryAnimationFanClubLevel.Value
             && previous.EntryAnimationVolume.Value == snapshot.EntryAnimationVolume.Value
@@ -49,13 +45,9 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         animationSettings = snapshot;
         if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Start(ObserveAnimationsAsync);
         var reload = animationReload.Start(ReloadAsync);
-        OnPropertyChanged(nameof(RecentEntryAnimations));
-        OnPropertyChanged(nameof(RecentGiftAnimations));
-        AnimationRowsChanged?.Invoke();
+        NotifyAnimationRows();
         await reload;
-        OnPropertyChanged(nameof(RecentEntryAnimations));
-        OnPropertyChanged(nameof(RecentGiftAnimations));
-        AnimationRowsChanged?.Invoke();
+        NotifyAnimationRows();
 
         async Task ReloadAsync(CancellationToken _)
         {
@@ -144,7 +136,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         {
             if (playback.IsTest) testPlayPending = false;
             var existing = RecentAnimations.FirstOrDefault(item => item.Playback.Id == playback.Id);
-            var item = new WelcomeAnimationItem(playback, existing?.OccurredAt ?? clock.GetLocalNow());
+            var item = new PlaybackItem(playback, existing?.OccurredAt ?? clock.GetLocalNow());
             if (existing is null) RecentAnimations.Insert(0, item);
             else RecentAnimations[RecentAnimations.IndexOf(existing)] = item;
             if (playback.State is PlaybackState.Queued or PlaybackState.Playing)
@@ -161,9 +153,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             if (playback.State == PlaybackState.Failed) failedAnimationVideos.Add((playback.Uid, playback.ContentSummary));
         }
         else return; // A VideoPlayback alone changes no animation row.
-        OnPropertyChanged(nameof(RecentEntryAnimations));
-        OnPropertyChanged(nameof(RecentGiftAnimations));
-        AnimationRowsChanged?.Invoke();
+        NotifyAnimationRows();
     }
 
     /// <summary>Core plays in arrival order and the list is newest first, so queued items count up from the bottom.</summary>
@@ -182,9 +172,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     internal void ForgetAnimationFailures(IReadOnlyCollection<long> replaced)
     {
         failedAnimationVideos.RemoveWhere(video => replaced.Contains(video.Uid));
-        OnPropertyChanged(nameof(RecentEntryAnimations));
-        OnPropertyChanged(nameof(RecentGiftAnimations));
-        AnimationRowsChanged?.Invoke();
+        NotifyAnimationRows();
     }
     internal SourcePlayback? PlayingAnimation(long uid, string fileName) =>
         playingAnimation is { } playing && playing.Uid == uid && playing.ContentSummary == fileName ? playing : null;
@@ -201,12 +189,36 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         }
         if (AnimationReloading || AnimationBusy || !HasVideoConnections || shutdown.IsCancellationRequested
             || !AnimationVideoSaved(uid, fileName)) return;
-        // Disable immediately, before the queued update crosses back to the UI thread.
+        PendTestPlay();
+        client.WelcomeAnimation.TestPlay(uid);
+    }
+
+    internal void TestAnimation(string source, EntryTier tier, string nickname)
+    {
+        if (AnimationReloading || AnimationBusy || !HasVideoConnections || shutdown.IsCancellationRequested) return;
+        PendTestPlay();
+        Action<EntryTier, string> play = source == PlaybackSource.Gift ? client.GiftAnimation.TestPlay : client.EntryAnimation.TestPlay;
+        play(tier, nickname);
+    }
+
+    internal void StopAnimation(string source, string id)
+    {
+        Action<string> stop = source == PlaybackSource.Gift ? client.GiftAnimation.StopTestPlay : client.EntryAnimation.StopTestPlay;
+        stop(id);
+    }
+
+    // Disable immediately, before the queued update crosses back to the UI thread.
+    private void PendTestPlay()
+    {
         testPlayPending = true;
+        NotifyAnimationRows();
+    }
+
+    private void NotifyAnimationRows()
+    {
         OnPropertyChanged(nameof(RecentEntryAnimations));
         OnPropertyChanged(nameof(RecentGiftAnimations));
         AnimationRowsChanged?.Invoke();
-        client.WelcomeAnimation.TestPlay(uid);
     }
 
     internal void ClearAnimationHistory()
@@ -216,10 +228,10 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
 }
 
 /// <param name="Position">Place among the queued items, from 1; 0 once it is no longer queued.</param>
-public sealed record WelcomeAnimationItem(SourcePlayback Playback, DateTimeOffset OccurredAt, int Position = 0)
+public sealed record PlaybackItem(SourcePlayback Playback, DateTimeOffset OccurredAt, int Position = 0)
 {
-    public string ContentDetail => Playback.Source == "欢迎动画" ? $"欢迎动画 · {Playback.ContentSummary}"
-        : $"{Playback.ContentSummary.Replace("general-", "")} 档 · {Playback.TriggerReason}";
+    public string ContentDetail => Playback.Source == PlaybackSource.Welcome ? $"欢迎动画 · {Playback.ContentSummary}"
+        : $"{Playback.ContentSummary} · {Playback.TriggerReason}";
     public string Name => Playback.IsTest ? "试播" : Playback.Nickname ?? $"UID {Playback.Uid}";
     /// <summary>Null when Name already says it all, so the header gets no separating space.</summary>
     public string? Detail => Playback.IsTest || Playback.Nickname is null ? null : $"UID {Playback.Uid}";
@@ -233,7 +245,7 @@ public sealed record WelcomeAnimationItem(SourcePlayback Playback, DateTimeOffse
     public bool Playing => Playback.State == PlaybackState.Playing;
     public bool Failed => Playback.State == PlaybackState.Failed;
     /// <summary>A viewer already has a pending animation, so the skipped reentry stays quiet.</summary>
-    public bool PreviousPending => Playback is { State: PlaybackState.Skipped, Reason: WelcomeAnimation.PreviousPending };
+    public bool PreviousPending => Playback is { State: PlaybackState.Skipped, Reason: PlaybackSource.PreviousPending };
     public bool Completed => Playback.State == PlaybackState.Completed;
     public bool Stopped => Playback.State == PlaybackState.Stopped;
     /// <summary>Not played for a reason the streamer may want to act on.</summary>
