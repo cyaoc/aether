@@ -33,10 +33,10 @@ export const pathOf = (pts, back) => {
       };
       return { pts, at };
     };
-const C0 = [960,540], RR = 5000;
-export const reach = (p, q) => { const d = [p[0] - q[0], p[1] - q[1]], m = Math.hypot(d[0], d[1]), u = [d[0] / m, d[1] / m], w = [p[0] - C0[0], p[1] - C0[1]], b = w[0] * u[0] + w[1] * u[1], t = -b + Math.sqrt(b * b - (w[0] * w[0] + w[1] * w[1] - RR * RR)); return [p[0] + u[0] * t, p[1] + u[1] * t]; };
+const C0 = [960,540];
+export const reach = (p, q, radius = 5000) => { const d = [p[0] - q[0], p[1] - q[1]], m = Math.hypot(d[0], d[1]), u = [d[0] / m, d[1] / m], w = [p[0] - C0[0], p[1] - C0[1]], b = w[0] * u[0] + w[1] * u[1], t = -b + Math.sqrt(b * b - (w[0] * w[0] + w[1] * w[1] - radius * radius)); return [p[0] + u[0] * t, p[1] + u[1] * t]; };
 export const onScreen = (p, view = [-60,-60,1980,1140]) => p[0]>view[0] && p[0]<view[2] && p[1]>view[1] && p[1]<view[3];
-export const chordOf = (path,u0) => { const a=path.at(u0),b=path.at(1);return [reach(a,b),reach(b,a)]; };
+export const chordOf = (path,u0,radius=5000) => { const a=path.at(u0),b=path.at(1);return [reach(a,b,radius),reach(b,a,radius)]; };
 export const scars = (paths,tails) => tails.map((u,i)=>chordOf(paths[i],u));
 export const dense = ([a,b], count=1000) => Array.from({length:count+1},(_,i)=>[a[0]+(b[0]-a[0])*i/count,a[1]+(b[1]-a[1])*i/count]);
 export const at = (place,key,points) => points.map(point=>place(key,point));
@@ -103,3 +103,21 @@ export function sparks(g, elapsed, count, power, seed, sample, color) {
     g.beginPath();g.moveTo(px,py);g.lineTo(px-dx*v*.03,py-dy*v*.03);g.stroke();
   }
 }
+
+export const slash = ({band,arcLine},palette,P, head, tail, head2, w, fray, seed, alphaMul = 1, cv) => {
+  const a = (1 - fray) * alphaMul; w *= 1 - 0.55 * fray;
+  band(P, tail, head, w * 2.6, 0.25, palette.slashAura, 0.16 * a,cv);
+  band(P, tail, head, w, 0.08, palette.slash, 0.8 * a,cv);
+  band(P, tail, head, w * 0.34, 0.03, palette.slashCore, a,cv);
+  for (let s = 0; s < 7; s++) {
+    const off = 10 + s * w * 0.12, len = (0.55 + rnd(s, seed) * 0.4) * (head - tail);
+    arcLine(P, Math.max(tail, head - len), head - rnd(s, seed + 1) * 0.08 * (head - tail), off, 1 + (s % 2), 'rgba('+palette.strand[0]+',' + (palette.strand[1] - s * 18) + ',' + (palette.strand[2] - s * 18) + ',' + (0.55 * a) + ')',cv);
+  }
+  arcLine(P, Math.max(tail, head2 - 0.7 * (head - tail)), head2, w * 1.35, 2, 'rgba(255,255,255,' + 0.8 * a + ')',cv);
+  if (fray > 0) {
+    for (let s = 0; s < 9; s++) {
+      const off = (s / 8 - 0.3) * 90 + fray * 50 * (s - 3), v0 = 0.08 + fray * (0.2 + rnd(s, seed + 2) * 0.5), v1 = 1 - fray * (0.1 + rnd(s, seed + 3) * 0.6);
+      if (v1 > v0) arcLine(P, tail + (head - tail) * v0, tail + (head - tail) * v1, off, 1 + rnd(s, seed + 4) * 1.6, 'rgba('+palette.fray[0]+',' + (palette.fray[1] + s * 12) + ','+palette.fray[2]+',' + (0.6 * (1 - fray)) + ')',cv);
+    }
+  }
+};
