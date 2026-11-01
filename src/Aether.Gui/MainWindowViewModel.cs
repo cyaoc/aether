@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Reflection;
 using Aether.Core;
 using Avalonia.Data.Converters;
 using Avalonia.Media.Imaging;
@@ -111,6 +112,8 @@ public partial class MainWindowViewModel : ObservableObject
 
     private const int RecentDanmakuLimit = 1000;
     public static string KeepRecentDanmakuLabel { get; } = $"只保留最近 {RecentDanmakuLimit} 条";
+    public static string AppVersion { get; } = "v" + typeof(MainWindowViewModel).Assembly
+        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
     public static IMultiValueConverter IsAccountDanmaku { get; } = new FuncMultiValueConverter<object?, bool>(
         values => values.ToArray() is [long uid, Account account] && uid == account.Uid);
     public static FuncValueConverter<int, bool> IsCaptain { get; } = new(tier => tier == 1);
