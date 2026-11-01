@@ -28,10 +28,10 @@ export function pieces(P, cells, parent, drawSky, burst, motion) {
     return {...cell,c,dir,dist:motion.base+Math.min(motion.max,cell.n*motion.factor),rot:motion.rotation*Math.sign(dir[0]||1)*(dir[1]<0?1:motion.down)};
   });
 }
-export function revealName(S,l,{start,end,ghostIn,ghostOut,ghostEnd,exit,finish,x=70,y=330}) {
+export function revealName(S,l,{start,end,ghostIn,ghostOut,ghostEnd,exit,finish,x=70,y=330,dx=-80}) {
   S.nameMask.clear().rect(-20,-120,(S.nameT.width+40)*out(k(start,end,l)),240).fill(0xffffff);
   S.nameGhosts.forEach((g,i)=>{g.position.set(36*(i+1),-8*(i+1));g.alpha=(i?.22:.45)*k(start,ghostIn,l)*(1-k(ghostOut,ghostEnd,l));});
-  S.nameG.alpha=1-k(exit,finish-120,l);S.nameG.position.set(x-80*k(exit,finish,l)**2,y);
+  S.nameG.alpha=1-k(exit,finish-120,l);if(x!==null && y!==null)S.nameG.position.set(x+dx*k(exit,finish,l)**2,y);
 }
 export function caption(S,l,{start,revealStart,revealEnd,exitStart,exitEnd,x,y,dx=260,dy=-30,width=400}) {
   const gone=k(exitStart,exitEnd,l);

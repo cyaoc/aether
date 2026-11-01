@@ -103,3 +103,21 @@ export function sparks(g, elapsed, count, power, seed, sample, color) {
     g.beginPath();g.moveTo(px,py);g.lineTo(px-dx*v*.03,py-dy*v*.03);g.stroke();
   }
 }
+
+export const slash = ({band,arcLine},palette,P, head, tail, head2, w, fray, seed, alphaMul = 1, cv) => {
+  const a = (1 - fray) * alphaMul; w *= 1 - 0.55 * fray;
+  band(P, tail, head, w * 2.6, 0.25, palette.slashAura, 0.16 * a,cv);
+  band(P, tail, head, w, 0.08, palette.slash, 0.8 * a,cv);
+  band(P, tail, head, w * 0.34, 0.03, palette.slashCore, a,cv);
+  for (let s = 0; s < 7; s++) {
+    const off = 10 + s * w * 0.12, len = (0.55 + rnd(s, seed) * 0.4) * (head - tail);
+    arcLine(P, Math.max(tail, head - len), head - rnd(s, seed + 1) * 0.08 * (head - tail), off, 1 + (s % 2), 'rgba('+palette.strand[0]+',' + (palette.strand[1] - s * 18) + ',' + (palette.strand[2] - s * 18) + ',' + (0.55 * a) + ')',cv);
+  }
+  arcLine(P, Math.max(tail, head2 - 0.7 * (head - tail)), head2, w * 1.35, 2, 'rgba(255,255,255,' + 0.8 * a + ')',cv);
+  if (fray > 0) {
+    for (let s = 0; s < 9; s++) {
+      const off = (s / 8 - 0.3) * 90 + fray * 50 * (s - 3), v0 = 0.08 + fray * (0.2 + rnd(s, seed + 2) * 0.5), v1 = 1 - fray * (0.1 + rnd(s, seed + 3) * 0.6);
+      if (v1 > v0) arcLine(P, tail + (head - tail) * v0, tail + (head - tail) * v1, off, 1 + rnd(s, seed + 4) * 1.6, 'rgba('+palette.fray[0]+',' + (palette.fray[1] + s * 12) + ','+palette.fray[2]+',' + (0.6 * (1 - fray)) + ')',cv);
+    }
+  }
+};
