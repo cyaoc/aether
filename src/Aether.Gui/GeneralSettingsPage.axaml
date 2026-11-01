@@ -86,7 +86,7 @@
               <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
                 <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Animation}" Stroke="{DynamicResource Accent.Text}" /></Viewbox>
                 <TextBlock Grid.Column="1" Text="视频页" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Classes="caption muted singleLine" Text="欢迎动画在这里播放" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Classes="caption muted singleLine" Text="欢迎动画、进场动画和送礼动画在这里播放" VerticalAlignment="Center" />
                 <StackPanel Grid.Column="3" Classes="pageStatus" Classes.connected="{Binding WebService.HasVideoConnections}" Classes.waiting="{Binding WebService.ShowVideoSetup}" Orientation="Horizontal" Spacing="6">
                   <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
                   <TextBlock x:Name="VideoConnectionsText" Text="{Binding WebService.VideoConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />

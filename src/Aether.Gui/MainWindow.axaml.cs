@@ -28,12 +28,14 @@ public partial class MainWindow : Window
         general = new GeneralSettingsPage(dataDirectory);
         var welcome = new WelcomePanel(dataDirectory);
         var animation = welcome.Animation;
+        var gift = new GiftAnimationSettingsPage(dataDirectory);
         // Navigation items and PageHost children share one order, after the danmaku page.
-        Control[] pages = [new BlindBoxSettingsPage(dataDirectory), welcome, new LotteryPanel(), new SendSettingsPage(dataDirectory), general];
+        Control[] pages = [new BlindBoxSettingsPage(dataDirectory), welcome, gift, new LotteryPanel(), new SendSettingsPage(dataDirectory), general];
         foreach (var page in pages) page.IsVisible = false;
         PageHost.Children.AddRange(pages);
         foreach (var page in SettingsPages) page.SaveCompleted += RefreshSettingsStatus;
         animation.GeneralSettingsRequested += ShowGeneralSettings;
+        gift.GeneralSettingsRequested += ShowGeneralSettings;
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
         // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
@@ -100,6 +102,7 @@ public partial class MainWindow : Window
         // An invalid file has no usable saved values to advertise.
         ShowEnabled(BlindBoxStatus, current.Error is null ? current.BlindBoxEnabled.Value : null);
         ShowEnabled(WelcomeStatus, current.Error is null ? (current.WelcomeEnabled.Value || current.EntryAnimationEnabled.Value) : null);
+        ShowEnabled(GiftAnimationStatus, current.Error is null ? current.GiftAnimationEnabled.Value : null);
         if (IsVisible && DataContext is MainWindowViewModel viewModel) _ = viewModel.WebService.RefreshWebServiceAsync(current);
         foreach (var page in SettingsPages) page.RefreshFileStatus(current);
     }

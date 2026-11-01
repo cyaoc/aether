@@ -82,7 +82,7 @@ public sealed class LoginPageTests
             Assert.Contains("等待扫码", VisibleText(window));
             Assert.True(navigation.IsEffectivelyVisible);
             Assert.False(window.FindControl<Panel>("PageHost")!.IsEffectivelyVisible);
-            navigation.SelectedIndex = 3;
+            navigation.SelectedIndex = 4;
             Assert.Contains("登录已失效，请重新扫码", VisibleText(window));
             var disconnect = Assert.Single(window.GetVisualDescendants().OfType<Button>(), x => Equals(x.Content, "断开") && x.IsEffectivelyVisible);
             Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(disconnect)).Invoke();
@@ -90,7 +90,7 @@ public sealed class LoginPageTests
             Assert.False(viewModel.HasRoomConnection);
             Assert.False(viewModel.HasQrCode);
             Assert.True(window.FindControl<Panel>("PageHost")!.IsEffectivelyVisible);
-            Assert.Equal(3, navigation.SelectedIndex);
+            Assert.Equal(4, navigation.SelectedIndex);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
         return true;
