@@ -9,6 +9,29 @@ namespace Aether.Core.Tests;
 public sealed class WelcomeAnimationTests
 {
     [Theory]
+    [InlineData(29, null, null, 0)]
+    [InlineData(39, null, "general-30", 0)]
+    [InlineData(99, null, "general-60", 0)]
+    [InlineData(60, "40", "general-40", 0)]
+    [InlineData(60, "0", null, 0)]
+    [InlineData(50, null, "general-50", 1)]
+    [InlineData(50, null, "general-50", 2)]
+    [InlineData(50, null, "general-50", 3)]
+    public async Task Entry_animation_uses_list_before_fan_club_level(int level, string? choice, string? expected, int guard)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await Start(h);
+        if (choice is not null) Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = choice });
+        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+        using var page = await Page.ConnectAsync(h);
+        await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates, EntryEffectFixture.Message("ENTRY_EFFECT", fanClubLevel: level, guard: guard));
+        if (expected is null) await page.AssertNoPlayAsync();
+        else { var play = await page.NextAsync(); Assert.Equal(expected, play.Content); await page.ReportAsync(play); }
+    }
+
+    [Theory]
     [InlineData(30000, true)]
     [InlineData(30001, false)]
     public async Task Animation_uses_the_same_queue_timeout(int milliseconds, bool plays)
@@ -50,8 +73,10 @@ public sealed class WelcomeAnimationTests
         Assert.Equal("10001", second.Content);
         Assert.Equal(0, second.Volume);
         await page.ReportAsync(second);
+        await using var playingObserved = new Observations(h);
         source.TestPlay(new PlaybackContent.Animation("general-40", "测试"));
         var third = await page.NextAsync();
+        await playingObserved.WaitAsync(update => update is SourcePlayback { State: PlaybackState.Playing } playing && playing.Id == third.Id);
         source.StopTestPlay(third.Id);
         Assert.Equal(third.Id, await page.NextStopAsync());
     }
@@ -315,6 +340,8 @@ public sealed class WelcomeAnimationTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await Start(h, 10001, 9876543210);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.fan_club_level"] = "0" });
+        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
         using var page = await Page.ConnectAsync(h);
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(uid: 404), EntryV2Fixture.Message());

@@ -31,7 +31,7 @@ public sealed class SettingsPageTests
             new GeneralSettingsPage(harness.DataDirectory)
         ];
         Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name)
-            .Where(name => name is not ("entry_animation.fan_club_level" or "entry_animation.volume") && !name.StartsWith("gift_animation.")).Order(),
+            .Where(name => !name.StartsWith("gift_animation.")).Order(),
             pages.SelectMany(page => page.FieldNames).Order());
     }, TestContext.Current.CancellationToken);
 
@@ -1162,7 +1162,7 @@ public sealed class SettingsPageTests
             main.Show();
             try
             {
-                main.FindControl<ListBox>("Navigation")!.SelectedIndex = 6;
+                main.FindControl<ListBox>("Navigation")!.SelectedIndex = 5;
                 GuiHarness.Flush();
                 var window = main.GetVisualDescendants().OfType<SettingsPage>().Single(page => page.IsEffectivelyVisible);
                 Assert.Empty(main.OwnedWindows);

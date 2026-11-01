@@ -219,13 +219,21 @@ public sealed class Settings
     public static void SaveWelcomeAnimations(string dataDirectory, IReadOnlyDictionary<string, string> changes,
         IReadOnlyDictionary<long, string> videos, Settings snapshot)
     {
+        var choices = snapshot.EntryAnimationViewers.Where(pair => pair.Value.Value.Video is null)
+            .ToDictionary(pair => pair.Key, pair => pair.Value.Value.ToString());
+        foreach (var (uid, fileName) in videos) choices[uid] = fileName;
+        SaveAnimationViewers(dataDirectory, changes, choices, snapshot);
+    }
+
+    public static void SaveAnimationViewers(string dataDirectory, IReadOnlyDictionary<string, string> changes,
+        IReadOnlyDictionary<long, string> choices, Settings snapshot)
+    {
         var edits = changes.ToDictionary(pair => pair.Key, pair => (string?)pair.Value);
-        foreach (var uid in snapshot.WelcomeAnimationVideos.Keys.Except(videos.Keys))
-            edits[AnimationVideos.ItemName(uid)] = null;
-        foreach (var (uid, fileName) in videos)
+        foreach (var uid in snapshot.EntryAnimationViewers.Keys.Except(choices.Keys)) edits[AnimationVideos.ItemName(uid)] = null;
+        foreach (var (uid, choice) in choices)
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(uid);
-            edits[AnimationVideos.ItemName(uid)] = fileName;
+            edits[AnimationVideos.ItemName(uid)] = choice;
         }
         SaveChanges(dataDirectory, Definitions, edits, snapshot);
     }

@@ -1,5 +1,4 @@
 using Aether.Core;
-using Avalonia.Interactivity;
 
 namespace Aether.Gui;
 
@@ -16,14 +15,20 @@ public partial class WelcomeAnimationSettingsPage : SettingsPage
         InitializeComponent();
         AnimationRows.ItemsSource = Animations;
         Animations.RowChanged += Validate;
-        Title = "欢迎动画";
+        Title = "进场欢迎";
+        PageStatus.GeneralSettingsRequested += () => GeneralSettingsRequested?.Invoke();
+        TestBar.TestRequested += (tier, nickname) => viewModel?.WebService.TestEntry(tier, nickname);
+        TestBar.StopRequested += id => viewModel?.WebService.StopEntry(id);
         TimingHint = "保存后，下一次进场生效";
+        FanClubInput.ItemsSource = new[] { 0 }.Concat(EntryTier.All.Select(tier => tier.Value)).ToArray();
+        FanClubInput.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<int>((value, _) => new Avalonia.Controls.TextBlock { Text = value == 0 ? "不按等级" : $"{value} 级起" });
+        Bind(FanClubInput, FanClubReadOnly, null, s => s.EntryAnimationFanClubLevel);
+        Bind(VolumeInput, VolumeReadOnly, null, s => s.EntryAnimationVolume);
         Bind(AnimationInput, AnimationReadOnly, null, s => s.WelcomeAnimationEnabled);
-        AddAnimationButton.Click += async (_, _) => await ChooseAnimationAsync();
+        AddAnimationButton.Click += (_, _) => Animations.AddNew(new("", "", true, true) { Choice = EntryTier.All[0].ToString() });
         LoadSettings();
     }
 
-    private void OpenGeneralSettings(object? sender, RoutedEventArgs e) => GeneralSettingsRequested?.Invoke();
     protected override bool ReconnectAfterSave => false;
     protected override void LoadRows() => LoadAnimations();
     protected override bool RowsChanged => AnimationDraft;
@@ -32,7 +37,7 @@ public partial class WelcomeAnimationSettingsPage : SettingsPage
 
     protected override Task<string> WriteSettings(Dictionary<string, string> changes)
     {
-        var rows = Animations.ToDictionary(row => row.Uid!.Value, row => (row.FileName, row.SourcePath));
+        var rows = Animations.ToDictionary(row => row.Uid!.Value, row => (FileName: row.SettingValue, SourcePath: row.IsVideo ? row.SourcePath : null));
         replaced = rows.Where(pair => pair.Value.SourcePath is not null).Select(pair => pair.Key).ToArray();
         var snapshot = settings;
         return Task.Run(() => SaveAnimationFiles(changes, rows, snapshot));

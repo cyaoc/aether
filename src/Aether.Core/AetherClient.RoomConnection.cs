@@ -67,7 +67,7 @@ public sealed partial class AetherClient
                             }
                             features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
                                 round => output.TryWrite(round)));
-                            features.Add(new WelcomeAnimationFeature(client.WelcomeAnimation, animationStop.Token));
+                            features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop.Token));
                             if (Settings.WelcomeEnabled.Value)
                             {
                                 features.Add(new WelcomeFeature(Settings, sendQueue));

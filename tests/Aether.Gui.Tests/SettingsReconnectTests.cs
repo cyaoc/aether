@@ -13,10 +13,10 @@ public sealed class SettingsReconnectTests
 {
     [Theory]
     [InlineData(RoomConnectionState.Disconnected, 1, false)]
-    [InlineData(RoomConnectionState.Connected, 6, false)]
+    [InlineData(RoomConnectionState.Connected, 5, false)]
     [InlineData(RoomConnectionState.Connected, 2, true)]
     [InlineData(RoomConnectionState.Connected, 1, true)]
-    [InlineData(RoomConnectionState.Reconnecting, 5, true)]
+    [InlineData(RoomConnectionState.Reconnecting, 4, true)]
     public Task Only_room_settings_saved_during_a_connection_show_a_notice(RoomConnectionState state, int index, bool notice) =>
         HeadlessApp.Session.Dispatch(async () =>
         {
@@ -27,7 +27,7 @@ public sealed class SettingsReconnectTests
             window.Show();
             try
             {
-                foreach (var otherIndex in new[] { 1, 2, 3, 5, 6 })
+                foreach (var otherIndex in new[] { 1, 2, 4, 5 })
                 {
                     window.Navigation.SelectedIndex = otherIndex;
                     GuiHarness.Flush();
@@ -44,13 +44,13 @@ public sealed class SettingsReconnectTests
                         GuiHarness.Flush();
                         break;
                     case 2: page.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked = true; break;
-                    case 5: page.FindControl<NumericUpDown>("SendIntervalInput")!.Text = "7"; break;
-                    case 6: page.FindControl<NumericUpDown>("RetentionInput")!.Text = "7"; break;
+                    case 4: page.FindControl<NumericUpDown>("SendIntervalInput")!.Text = "7"; break;
+                    case 5: page.FindControl<NumericUpDown>("RetentionInput")!.Text = "7"; break;
                 }
                 GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal(notice, GuiHarness.FindVisual<Border>(page, "ReconnectNotice").IsVisible);
                 viewModel.ConnectionState = RoomConnectionState.Disconnected;
-                Assert.All(window.GetVisualDescendants().OfType<SettingsPage>(),
+                Assert.All(window.GetVisualDescendants().OfType<SettingsPage>().Where(other => other.GetVisualDescendants().OfType<Border>().Any(border => border.Name == "ReconnectNotice")),
                     other => Assert.False(GuiHarness.FindVisual<Border>(other, "ReconnectNotice").IsVisible));
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
