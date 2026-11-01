@@ -6,9 +6,11 @@ namespace Aether.Cli.Tests;
 public sealed class ComboAnimationBrowserTests
 {
     [Theory]
-    [InlineData("40", 7550)]
-    [InlineData("50", 8480)]
-    public async Task Combo_finishes_after_all_sound_cues_and_clears_the_stage(string tier, int duration)
+    [InlineData("30", 6800, 1950, 2760, 6300)]
+    [InlineData("40", 7550, 1450, 2987, 7050)]
+    [InlineData("50", 8480, 1590, 4193, 7980)]
+    [InlineData("60", 9064, 1450, 6274, 8564)]
+    public async Task Combo_finishes_after_all_sound_cues_and_clears_the_stage(string tier, int duration, int capEnd, int nameStart, int nameEnd)
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
             Assert.Skip("Set AETHER_TEST_CHROME for real animation browser acceptance.");
@@ -32,7 +34,7 @@ public sealed class ComboAnimationBrowserTests
               entry.create=context=>{
                 const scene=create(context),frame=scene.frame.bind(scene);
                 window.fitFailures=[];
-                const capEnd={{(tier == "40" ? 1450 : 1590)}},nameStart={{(tier == "40" ? 2987 : 4193)}},nameEnd={{(tier == "40" ? 7050 : 7980)}};
+                const capEnd={{capEnd}},nameStart={{nameStart}},nameEnd={{nameEnd}};
                 const check=(text,label,t)=>{
                   const bounds=text.getBounds();
                   if(bounds.minX<0 || bounds.maxX>1920 || text.text!==context.nickname)
@@ -57,7 +59,8 @@ public sealed class ComboAnimationBrowserTests
             (await browser.EvaluateAsync("JSON.stringify(completed)")).GetString());
         Assert.True((await browser.EvaluateAsync($"tail.t==={duration} && tail.hero===0 && tail.dim===0 && tail.bar===0")).GetBoolean());
         Assert.Equal((await browser.EvaluateAsync($"cues['{tier}'].length")).GetInt32(), (await browser.EvaluateAsync("started")).GetInt32());
-        Assert.Equal("[]", (await browser.EvaluateAsync("JSON.stringify(fitFailures)")).GetString());
+        Assert.True((await browser.EvaluateAsync("fitFailures.length===0")).GetBoolean(),
+            (await browser.EvaluateAsync("JSON.stringify(fitFailures.slice(0,3))")).GetString());
         Assert.Equal("hidden", (await browser.EvaluateAsync("document.querySelector('canvas').style.visibility")).GetString());
         Assert.Empty(browser.Errors);
     }

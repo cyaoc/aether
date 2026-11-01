@@ -30,3 +30,14 @@ test('name reveal retains existing leftward exit and permits move-owned position
   revealName(scene,200,{...timing,x:null,y:null});
   assert.equal(positions.length,2);
 });
+
+import {cutCells} from '../../src/Aether.Core/Pages/video/animations/toolkit.mjs';
+test('cut cells retain thin visible fragments even when no sample falls inside',()=>{
+  const cells=cutCells([[[99,-200],[99,200]]],[0,0],100,[-100,-100,100,100]);
+  assert.equal(cells.length,2);
+  const thin=cells.find(cell=>cell.poly.every(([x])=>x>=99));
+  assert.equal(thin.n,0);
+  assert.ok(thin.c.every(Number.isFinite));
+  assert.ok(thin.c[0]>99 && thin.c[0]<100);
+  assert.equal(cutCells([[[99,-200],[99,200]]],[0,0],100,[-100,-100,0,100]).length,1);
+});

@@ -1,5 +1,5 @@
 import {canvasOf, inside, k, out, inq, quint, on2, rnd, spline, pathOf, reach, onScreen, textures, drawing, shakeAt, stroke, sparks} from './toolkit.mjs';
-import {fitText, framing, sky, revealName, caption, impactFrame, whiteFlash} from './scenes.mjs';
+import {createName, createCaption, framing, sky, revealName, caption, impactFrame, whiteFlash} from './scenes.mjs';
 
 export class Slice {
   constructor({app, canvas, images, character, nickname}) {
@@ -69,18 +69,10 @@ export class Slice {
 
     const ui = new P.Container(); ui.pivot.set(960, 540); stage.addChild(ui);
     const nameG = new P.Container(); nameG.position.set(70, 330); nameG.rotation = -0.12; ui.addChild(nameG);
-    // The strokes are thickened: at this size the Kai's own weight is too light against the blade light.
-    const nameStyle = { fontFamily: ['LXGW WenKai','sans-serif'], fontSize: 132, fill: 0xffffff, stroke: { color: 0xffffff, width: 4, join: 'round' }, letterSpacing: 16 };
-    const nameGhosts = [0, 1].map(() => { const t = new P.Text({ text: nickname, style: { ...nameStyle, fill: this.palette.nameGhost, stroke: { color: this.palette.nameGhost, width: 4, join: 'round' } } }); t.anchor.set(0, 0.5); nameG.addChild(t); return t; });
-    const nameT = new P.Text({ text: nickname, style: nameStyle }); nameT.anchor.set(0, 0.5); nameG.addChild(nameT);
-    fitText([nameT, ...nameGhosts], 1100);
-    const nameMask = new P.Graphics(); nameG.addChild(nameMask); nameT.mask = nameMask;
+    const {nameGhosts,nameT,nameMask}=createName(P,nameG,nickname,this.palette.nameGhost);
     // Entry caption: says who is coming in from the cut-in, until the strike sweeps it away.
     const cap = new P.Container(); cap.position.set(1000, 900); ui.addChild(cap);
-    const capName = new P.Text({ text: nickname, style: { fontFamily: ['LXGW WenKai','sans-serif'], fontSize: 52, fill: 0xffffff, stroke: { color: 0xffffff, width: 1.6, join: 'round' }, letterSpacing: 8 } });
-    fitText([capName], 820);
-    capName.anchor.set(0, 1); capName.position.set(30, -10); cap.addChild(capName);
-    const capMask = new P.Graphics(); cap.addChild(capMask); capName.mask = capMask;
+    const {capName,capMask}=createCaption(P,cap,nickname,780);
 
     const imp = new P.Container(); world.addChild(imp);
     const impBg = new P.Graphics().rect(-400, -400, 2720, 1880).fill(0xffffff); imp.addChild(impBg);

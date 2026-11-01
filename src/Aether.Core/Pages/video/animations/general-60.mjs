@@ -1,5 +1,5 @@
-import {canvasOf,inside,k,out,inq,quint,smooth,on2,rnd,trace,clipTo,spline,pathOf,reach as extend,chordOf,onScreen,dense,at as placePoints,textures,drawing,shakeAt,stroke as strokePath,sparks as emitSparks,slash as sharedSlash} from './toolkit.mjs';
-import {fitText,pieces as makePieces,framing,caption,revealName} from './scenes.mjs';
+import {cutCells,canvasOf,k,out,inq,quint,smooth,on2,rnd,trace,clipTo,spline,pathOf,reach as extend,chordOf,onScreen,dense,at as placePoints,textures,drawing,shakeAt,stroke as strokePath,sparks as emitSparks,slash as sharedSlash} from './toolkit.mjs';
+import {createName, createCaption,pieces as makePieces,framing,caption,revealName} from './scenes.mjs';
 
 export class Moon {
   constructor({app,canvas,images,character,nickname}) {
@@ -95,28 +95,8 @@ export class Moon {
 
     // The six cuts run right across the sky, so it breaks along the very lines the viewer saw land. Each cell is a big
     // disc clipped by one side of each line; every cell the wide shot can see is kept, however thin.
-    const clipHalf = (poly, [a, b], sgn) => {
-      const side = p => sgn * ((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])), out = [];
-      for (let i = 0; i < poly.length; i++) {
-        const p = poly[i], q = poly[(i + 1) % poly.length], sp = side(p), sq = side(q);
-        if (sp >= 0) out.push(p);
-        if ((sp >= 0) !== (sq >= 0)) { const t = sp / (sp - sq); out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]); }
-      }
-      return out;
-    };
-    const disc = Array.from({ length: 96 }, (_, i) => [C0[0] + RR * Math.cos(i / 96 * 2 * Math.PI), C0[1] + RR * Math.sin(i / 96 * 2 * Math.PI)]);
     const VIEW = [-800, -1500, 3700, 1500];
-    const cells = [];
-    for (let m = 0; m < 1 << scars.length; m++) {
-      let poly = disc;
-      scars.forEach((line, i) => { if (poly.length >= 3) poly = clipHalf(poly, line, m >> i & 1 ? 1 : -1); });
-      if (poly.length < 3) continue;
-      const xs = poly.map(q => q[0]), ys = poly.map(q => q[1]);
-      if (Math.max(...xs) < VIEW[0] || Math.min(...xs) > VIEW[2] || Math.max(...ys) < VIEW[1] || Math.min(...ys) > VIEW[3]) continue;
-      let n = 0, cx = 0, cy = 0;
-      for (let x = VIEW[0]; x <= VIEW[2]; x += 25) for (let y = VIEW[1]; y <= VIEW[3]; y += 25) if (inside(poly, x, y)) { n++; cx += x; cy += y; }
-      cells.push({ poly, n, c: n ? [cx / n, cy / n] : poly.reduce((a, q) => [a[0] + q[0] / poly.length, a[1] + q[1] / poly.length], [0, 0]) });
-    }
+    const cells = cutCells(scars,C0,RR,VIEW);
 
     // The sky is the moonlit night, scaled so the moon sits at MOON, high on the right. The moon is lifted out into two
     // halves split along the moon cut (the sky under it is painted dark), so the halves can part. The sky is padded for
@@ -222,18 +202,10 @@ export class Moon {
     // Entry caption: says who is coming in from the cut-in, until the take-off's wind sweeps it away. It sits on the
     // ground in front of the hero and is drawn larger, since the opening shot is wide.
     const cap = new P.Container(); cap.position.set(1180, 1118); cap.scale.set(1.5); ui.addChild(cap);
-    const capName = new P.Text({ text: nickname, style: { fontFamily: ['LXGW WenKai','sans-serif'], fontSize: 52, fill: 0xffffff, stroke: { color: 0xffffff, width: 1.6, join: 'round' }, letterSpacing: 8 } });
-    fitText([capName],820);
-    capName.anchor.set(0, 1); capName.position.set(30, -10); cap.addChild(capName);
-    const capMask = new P.Graphics(); cap.addChild(capMask); capName.mask = capMask;
+    const {capName,capMask}=createCaption(P,cap,nickname,620);
     // The name, cut out in the daylight beside the hero; a soft dark shadow keeps the white type readable on the bright sky.
     const nameG = new P.Container(); nameG.rotation = -0.05; ui.addChild(nameG);
-    // The strokes are thickened: at this size the Kai's own weight is too light against the blade light.
-    const nameStyle = { fontFamily: ['LXGW WenKai','sans-serif'], fontSize: 132, fill: 0xffffff, stroke: { color: 0xffffff, width: 4, join: 'round' }, letterSpacing: 16 };
-    const nameGhosts = [0, 1].map(() => { const t = new P.Text({ text: nickname, style: { ...nameStyle, fill: 0xff4d5e, stroke: { color: 0xff4d5e, width: 4, join: 'round' } } }); t.anchor.set(0, 0.5); nameG.addChild(t); return t; });
-    const nameT = new P.Text({ text: nickname, style: { ...nameStyle, dropShadow: { color: 0x000000, alpha: 0.85, blur: 18, distance: 0 } } }); nameT.anchor.set(0, 0.5); nameG.addChild(nameT);
-    fitText([nameT,...nameGhosts],1100);
-    const nameMask = new P.Graphics(); nameG.addChild(nameMask); nameT.mask = nameMask;
+    const {nameGhosts,nameT,nameMask}=createName(P,nameG,nickname,character.palette.nameGhost,{color:0x000000,alpha:.85,blur:18,distance:0});
 
     // Three sets of impact frames: the afterimages' strike (every afterimage and the cuts), the moon cut (the oni in grey
     // behind the hero, the cut across the moon) and the slam (the oni, the hero sheathing, every cut at once).

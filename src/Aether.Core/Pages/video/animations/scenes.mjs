@@ -50,3 +50,23 @@ export function framing(S,t,l,{height,barIn,barOut,dimIn,dimOut}) {
   letterbox(S.bars,height*out(k(...barIn,t))*(1-out(k(...barOut,l))));
   S.dim.alpha=dimIn.reduce((alpha,[amount,start,end])=>alpha+amount*out(k(start,end,l)),0)*(1-k(...dimOut,l));
 }
+
+export function createName(P,parent,nickname,ghostColor,dropShadow) {
+  const style = {fontFamily:['LXGW WenKai','sans-serif'],fontSize:132,fill:0xffffff,stroke:{color:0xffffff,width:4,join:'round'},letterSpacing:16};
+  const nameGhosts = [0,1].map(()=>{
+    const text=new P.Text({text:nickname,style:{...style,fill:ghostColor,stroke:{color:ghostColor,width:4,join:'round'}}});
+    text.anchor.set(0,.5);parent.addChild(text);return text;
+  });
+  const nameT=new P.Text({text:nickname,style:dropShadow?{...style,dropShadow}:style});
+  nameT.anchor.set(0,.5);parent.addChild(nameT);
+  fitText([nameT,...nameGhosts],1100);
+  const nameMask=new P.Graphics();parent.addChild(nameMask);nameT.mask=nameMask;
+  return {nameGhosts,nameT,nameMask};
+}
+export function createCaption(P,parent,nickname,width) {
+  const capName=new P.Text({text:nickname,style:{fontFamily:['LXGW WenKai','sans-serif'],fontSize:52,fill:0xffffff,stroke:{color:0xffffff,width:1.6,join:'round'},letterSpacing:8}});
+  fitText([capName],width);
+  capName.anchor.set(0,1);capName.position.set(30,-10);parent.addChild(capName);
+  const capMask=new P.Graphics();parent.addChild(capMask);capName.mask=capMask;
+  return {capName,capMask};
+}

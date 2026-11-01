@@ -121,3 +121,28 @@ export const slash = ({band,arcLine},palette,P, head, tail, head2, w, fray, seed
     }
   }
 };
+
+export function cutCells(scars,C0,RR,VIEW) {
+  const clipHalf = (poly, [a, b], sgn) => {
+    const side = p => sgn * ((b[0] - a[0]) * (p[1] - a[1]) - (b[1] - a[1]) * (p[0] - a[0])), out = [];
+    for (let i = 0; i < poly.length; i++) {
+      const p = poly[i], q = poly[(i + 1) % poly.length], sp = side(p), sq = side(q);
+      if (sp >= 0) out.push(p);
+      if ((sp >= 0) !== (sq >= 0)) { const t = sp / (sp - sq); out.push([p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t]); }
+    }
+    return out;
+  };
+  const disc = Array.from({ length: 96 }, (_, i) => [C0[0] + RR * Math.cos(i / 96 * 2 * Math.PI), C0[1] + RR * Math.sin(i / 96 * 2 * Math.PI)]);
+  const cells = [];
+  for (let m = 0; m < 1 << scars.length; m++) {
+    let poly = disc;
+    scars.forEach((line, i) => { if (poly.length >= 3) poly = clipHalf(poly, line, m >> i & 1 ? 1 : -1); });
+    if (poly.length < 3) continue;
+    const xs = poly.map(q => q[0]), ys = poly.map(q => q[1]);
+    if (Math.max(...xs) < VIEW[0] || Math.min(...xs) > VIEW[2] || Math.max(...ys) < VIEW[1] || Math.min(...ys) > VIEW[3]) continue;
+    let n = 0, cx = 0, cy = 0;
+    for (let x = VIEW[0]; x <= VIEW[2]; x += 25) for (let y = VIEW[1]; y <= VIEW[3]; y += 25) if (inside(poly, x, y)) { n++; cx += x; cy += y; }
+    cells.push({ poly, n, c: n ? [cx / n, cy / n] : poly.reduce((a, q) => [a[0] + q[0] / poly.length, a[1] + q[1] / poly.length], [0, 0]) });
+  }
+  return cells;
+}
