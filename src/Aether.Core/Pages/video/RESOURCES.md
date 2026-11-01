@@ -6,7 +6,7 @@ PixiJS 8.12.0 and pixi-filters 6.1.4 are the design package's pinned distributio
 
 ## Nickname font
 
-LXGW WenKai Medium, SIL Open Font License (see `lib/OFL.txt`). Original from
+LXGW WenKai Medium, SIL Open Font License (see `lib/LXGWWenKai-OFL.txt`). Original from
 https://github.com/lxgw/LxgwWenKai/blob/main/fonts/TTF/LXGWWenKai-Medium.ttf,
 Git blob SHA `8776123c24ebf011b0ecc6923708cef2d9cadfb0` (25,800,076 bytes).
 
