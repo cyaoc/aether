@@ -24,7 +24,7 @@ internal static class DanmakuProtocol
     internal abstract record DecodedEvent;
     internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
     internal sealed record DanmakuReceived(Danmaku Danmaku) : RoomEvent;
-    internal sealed record BlindBoxesReceived(BlindBox[] BlindBoxes, long ReceivedTimestamp) : RoomEvent;
+    internal sealed record GiftsReceived(Gift[] Gifts, long ReceivedTimestamp) : RoomEvent;
     internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : RoomEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
@@ -121,7 +121,7 @@ internal static class DanmakuProtocol
                     })];
                 }
                 else if (GiftMessages.Decode(command, root, body, logger) is { Length: > 0 } boxes)
-                    decoded = [new BlindBoxesReceived(boxes, receivedTimestamp)];
+                    decoded = [new GiftsReceived(boxes, receivedTimestamp)];
                 else if (parseEntries && EntryMessages.Decode(command, root, roomId) is { } entry)
                     decoded = [new EntryReceived(entry, receivedTimestamp)];
             }

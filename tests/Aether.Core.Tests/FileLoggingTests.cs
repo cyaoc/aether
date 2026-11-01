@@ -93,7 +93,7 @@ public sealed class FileLoggingTests
         const string body = """{"cmd":"DANMU_MSG","info":[[],"内容",[0,"观众"]]}""";
         var ignored = new[]
         {
-            """{"cmd":"SEND_GIFT","data":{"uid":0,"uname":"测试观众"}}""",
+            """{"cmd":"SEND_GIFT","data":{"coin_type":"silver"}}""",
             """{"cmd":"SEND_GIFT_V2","data":{"pb":""}}""",
             """{"cmd":"COMBO_SEND","data":{}}""",
             "{\r\n  \"cmd\": \"FUTURE_EVENT\",\n  \"text\": \"escaped\\nline\"\r\n}",
