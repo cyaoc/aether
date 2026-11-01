@@ -27,7 +27,6 @@ internal static class SendGiftV2
                 default: reader.Skip(field, type); break;
             }
         }
-        if (box.BlindGiftId == 0) yield break;
         foreach (var item in items) yield return ReadItem(box, item);
     }
 

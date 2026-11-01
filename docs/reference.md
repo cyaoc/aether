@@ -271,3 +271,10 @@ dotnet test --project tests/Aether.Core.Tests --filter-class Aether.Core.Tests.P
 [扫码登录](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/login/login_action/QR.md)、
 [刷新登录凭据](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/login/cookie_refresh.md)、
 [wbi 签名](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/misc/sign/wbi.md)。
+
+### 一轮送礼
+
+普通付费礼物按 `coin_type: gold` 的 `total_coin` 计投入，盲盒按盲盒投入计；免费礼物不计。
+每个直播间的观众各自累计，停手 3 秒结束一轮，和一轮盲盒互不影响；自动重连保留，主动断开清空。
+uid 为 0 只记录日志；目前不按 tid 去重。大航海开通、续费尚未接入。
+V2 已使用本地人气票消息验证；V1 使用 BAC 示例，未实测。批量、折扣、包裹仍缺真实样本，金额待实战 Trace 核对。

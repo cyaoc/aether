@@ -9,7 +9,6 @@ namespace Aether.Core;
 /// Reconnects keep it, pacing included; the end of the room connection clears it.</summary>
 internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan interval, ChannelWriter<WatchUpdate> output)
 {
-    private static readonly TimeSpan QuietWindow = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan SameTextWindow = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan WelcomeLifetime = TimeSpan.FromSeconds(30);
     // Process-wide, so a shell that keeps items across room connections never sees an id twice.
@@ -33,8 +32,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         public Announcement Item = item;
         public BlindBoxTally Tally = new(0, 0);
         public long Count;
-        public long LastReceived;
-        public ITimer Timer = null!;
+        public QuietTimer Timer = null!;
         public bool Queued;
     }
 
@@ -163,30 +161,19 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         {
             round = new(new(Interlocked.Increment(ref nextId), box.Uid, box.Nickname));
             rounds.Add(box.Uid, round);
-            round.Timer = time.CreateTimer(_ =>
+            round.Timer = new QuietTimer(time, gate, () =>
             {
-                lock (gate)
-                    if (rounds.TryGetValue(box.Uid, out var current) && current == round) QueueWhenQuiet(round);
-            }, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+                if (!round.Queued)
+                {
+                    round.Queued = true;
+                    Queue(round.Item);
+                }
+            });
         }
         round.Item = round.Item with { Nickname = box.Nickname };
         round.Tally = new(checked(round.Tally.Spend + box.Spend), checked(round.Tally.OpenedValue + box.OpenedValue));
         round.Count++;
-        round.LastReceived = receivedAt;
-        QueueWhenQuiet(round);
-    }
-
-    // Called under the gate, including by timers that may have fired just before a new gift reset the deadline.
-    private void QueueWhenQuiet(Round round)
-    {
-        if (round.Queued) return;
-        var remaining = QuietWindow - time.GetElapsedTime(round.LastReceived);
-        if (remaining > TimeSpan.Zero) round.Timer.Change(remaining, Timeout.InfiniteTimeSpan);
-        else
-        {
-            round.Queued = true;
-            Queue(round.Item);
-        }
+        round.Timer.Reset(receivedAt);
     }
 
     /// <summary>Counts and clears pending queries, welcomes and rounds, including rounds still waiting for silence.</summary>
@@ -306,7 +293,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                     round.Tally = new(round.Tally.Spend - done.Tally.Spend, round.Tally.OpenedValue - done.Tally.OpenedValue);
                     round.Item = round.Item with { Id = Interlocked.Increment(ref nextId) };
                     round.Queued = false;
-                    QueueWhenQuiet(round);
+                    round.Timer.Check();
                 }
                 return;
             }

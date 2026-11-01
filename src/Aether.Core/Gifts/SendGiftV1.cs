@@ -6,13 +6,16 @@ internal static class SendGiftV1
 {
     public static IEnumerable<(string? CoinType, BlindBox Box)> Decode(JsonElement data)
     {
-        if (!data.TryGetProperty("blind_gift", out var blind) || blind.ValueKind == JsonValueKind.Null) yield break;
-        yield return (data.GetProperty("coin_type").GetString(), new BlindBox(
+        data.TryGetProperty("blind_gift", out var blind);
+        var isBlind = blind.ValueKind == JsonValueKind.Object;
+        var coinType = data.GetProperty("coin_type").GetString();
+        if (!isBlind && coinType != "gold") yield break;
+        yield return (coinType, new BlindBox(
             Uid: data.GetProperty("uid").GetInt64(),
             Nickname: data.GetProperty("uname").GetString() ?? throw new JsonException("缺少观众昵称。"),
-            BlindGiftId: blind.GetProperty("original_gift_id").GetInt64(),
-            BlindGiftName: blind.GetProperty("original_gift_name").GetString() ?? throw new JsonException("缺少盲盒名称。"),
-            BlindGiftPrice: blind.GetProperty("original_gift_price").GetInt64(),
+            BlindGiftId: isBlind ? blind.GetProperty("original_gift_id").GetInt64() : 0,
+            BlindGiftName: isBlind ? blind.GetProperty("original_gift_name").GetString() ?? throw new JsonException("缺少盲盒名称。") : "",
+            BlindGiftPrice: isBlind ? blind.GetProperty("original_gift_price").GetInt64() : 0,
             OpenedGiftId: data.GetProperty("giftId").GetInt64(),
             OpenedGiftName: data.GetProperty("giftName").GetString() ?? throw new JsonException("缺少开出礼物名称。"),
             OpenedGiftPrice: data.GetProperty("price").GetInt64(),
