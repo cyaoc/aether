@@ -103,7 +103,7 @@ export class Triple {
     // Entry caption: says who is coming in from the cut-in, until the dash's wind sweeps it away.
     const cap = new P.Container(); cap.position.set(1060, 900); ui.addChild(cap);
     const capName = new P.Text({ text: nickname, style: { fontFamily: ['LXGW WenKai','sans-serif'], fontSize: 52, fill: 0xffffff, stroke: { color: 0xffffff, width: 1.6, join: 'round' }, letterSpacing: 8 } });
-    fitText([capName],820);
+    fitText([capName],760);
     capName.anchor.set(0, 1); capName.position.set(30, -10); cap.addChild(capName);
     const capMask = new P.Graphics(); cap.addChild(capMask); capName.mask = capMask;
 

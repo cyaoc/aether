@@ -31,10 +31,20 @@ public sealed class ComboAnimationBrowserTests
               const entry=registry['general-{{tier}}'],create=entry.create;
               entry.create=context=>{
                 const scene=create(context),frame=scene.frame.bind(scene);
-                frame(1000);
-                const bounds=scene.S.capName.getBounds();
-                window.nameFits=bounds.minX>=0 && bounds.maxX<=1920 && scene.S.nameT.text===context.nickname;
-                scene.frame=t=>{frame(t);window.tail={t,hero:scene.S.hero.alpha,dim:scene.S.dim.alpha,bar:scene.S.bars[0].height};};
+                window.fitFailures=[];
+                const capEnd={{(tier == "40" ? 1450 : 1590)}},nameStart={{(tier == "40" ? 2987 : 4193)}},nameEnd={{(tier == "40" ? 7050 : 7980)}};
+                const check=(text,label,t)=>{
+                  const bounds=text.getBounds();
+                  if(bounds.minX<0 || bounds.maxX>1920 || text.text!==context.nickname)
+                    fitFailures.push({label,t,left:bounds.minX,right:bounds.maxX,text:text.text});
+                };
+                scene.frame=t=>{
+                  frame(t);
+                  if(t>=860 && t<=capEnd)check(scene.S.capName,'caption',t);
+                  if(t>=nameStart && t<=nameEnd)check(scene.S.nameT,'name',t);
+                  window.tail={t,hero:scene.S.hero.alpha,dim:scene.S.dim.alpha,bar:scene.S.bars[0].height};
+                };
+                for(const t of [860,1000,capEnd,nameStart,nameEnd])scene.frame(t);
                 return scene;
               };
               window.completed=[];window.abort=new AbortController();
@@ -47,7 +57,7 @@ public sealed class ComboAnimationBrowserTests
             (await browser.EvaluateAsync("JSON.stringify(completed)")).GetString());
         Assert.True((await browser.EvaluateAsync($"tail.t==={duration} && tail.hero===0 && tail.dim===0 && tail.bar===0")).GetBoolean());
         Assert.Equal((await browser.EvaluateAsync($"cues['{tier}'].length")).GetInt32(), (await browser.EvaluateAsync("started")).GetInt32());
-        Assert.True((await browser.EvaluateAsync("nameFits")).GetBoolean());
+        Assert.Equal("[]", (await browser.EvaluateAsync("JSON.stringify(fitFailures)")).GetString());
         Assert.Equal("hidden", (await browser.EvaluateAsync("document.querySelector('canvas').style.visibility")).GetString());
         Assert.Empty(browser.Errors);
     }
