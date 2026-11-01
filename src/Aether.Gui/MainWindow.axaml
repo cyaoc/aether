@@ -47,6 +47,8 @@
           </StackPanel>
         </Grid>
       </Border>
+      <TextBlock Classes="caption numeric" Foreground="{DynamicResource Text.Secondary}" Text="{x:Static local:MainWindowViewModel.AppVersion}"
+                 HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="44,0,0,14" />
       <StackPanel Grid.Column="1" Spacing="12" Margin="20" VerticalAlignment="Center" HorizontalAlignment="Center">
         <TextBlock Text="扫码登录 B站" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
         <TextBlock Classes="singleLine secondary muted" Text="登录后选择直播间，下次打开直接进入" TextAlignment="Center" />
@@ -72,7 +74,7 @@
     </Grid>
     <Grid ColumnDefinitions="224,*" IsVisible="{Binding !IsLoginPage}">
       <Border Padding="12,14" BorderThickness="0,0,1,0" BorderBrush="{DynamicResource Border}" Background="{DynamicResource Surface.Sidebar}">
-        <Grid RowDefinitions="Auto,*,Auto">
+        <Grid RowDefinitions="Auto,*,Auto,Auto">
           <StackPanel Spacing="12">
             <Border Classes="card">
               <StackPanel Spacing="8">
@@ -173,6 +175,7 @@
               <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Logout}" /></Viewbox>
             </Button>
           </Grid>
+          <TextBlock Grid.Row="3" Classes="caption muted numeric" Text="{x:Static local:MainWindowViewModel.AppVersion}" Margin="6,10,0,0" />
         </Grid>
       </Border>
       <Panel Grid.Column="1">
