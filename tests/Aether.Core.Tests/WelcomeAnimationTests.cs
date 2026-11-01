@@ -8,6 +8,126 @@ namespace Aether.Core.Tests;
 
 public sealed class WelcomeAnimationTests
 {
+    [Fact]
+    public async Task Gift_rounds_use_settings_at_completion_and_same_viewer_can_queue_twice()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await Start(h);
+        using var page = await Page.ConnectAsync(h);
+        await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
+        var gift = BlindGiftFixture.With(data => { data["blind_gift"] = null; data["total_coin"] = 10000; });
+        await h.PushAndSyncAsync(updates, gift);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = "true", ["gift_animation.tier_30_spend"] = "50" });
+        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates));
+        var first = await page.NextAsync();
+        await h.PushAndSyncAsync(updates, gift);
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates));
+        await page.AssertNoPlayAsync();
+        await page.ReportAsync(first);
+        var second = await page.NextAsync();
+        Assert.Equal("general-30", second.Content);
+        Assert.NotEqual(first.Id, second.Id);
+        await page.ReportAsync(second);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = "false" });
+        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+        await h.PushAndSyncAsync(updates, gift);
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates));
+        await page.AssertNoPlayAsync();
+    }
+
+    [Theory]
+    [InlineData(30000, true)]
+    [InlineData(30001, false)]
+    public async Task Gift_queue_timeout_starts_when_round_ends(int milliseconds, bool plays)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await Start(h, 10001);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = "true" });
+        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+        using var page = await Page.ConnectAsync(h);
+        await using var observed = new Observations(h);
+        await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
+        h.Client.WelcomeAnimation.TestPlay(10001);
+        var first = await page.NextAsync();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.With(data => { data["blind_gift"] = null; data["total_coin"] = 10000; }));
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates));
+        h.Time.Advance(TimeSpan.FromMilliseconds(milliseconds));
+        await page.ReportAsync(first);
+        if (plays) Assert.Equal("general-30", (await page.NextAsync()).Content);
+        else
+        {
+            await observed.WaitAsync(update => update is SourcePlayback { Source: "送礼动画", Reason: "排队超过 30 秒" });
+            await page.AssertNoPlayAsync();
+        }
+    }
+
+    [Fact]
+    public async Task Gift_animation_test_play_ignores_switch_and_can_stop()
+    {
+        await using var h = new WatchHarness();
+        await Start(h);
+        using var page = await Page.ConnectAsync(h);
+        await using var observed = new Observations(h);
+        h.Client.GiftAnimation.TestPlay(EntryTier.All[0], "试播昵称");
+        var play = await page.NextAsync();
+        await observed.WaitAsync(update => update is SourcePlayback { Source: "送礼动画", State: PlaybackState.Playing });
+        h.Client.GiftAnimation.StopTestPlay(play.Id);
+        Assert.Equal(play.Id, await page.NextStopAsync());
+    }
+
+    [Theory]
+    [InlineData(9999, null)]
+    [InlineData(10000, "general-30")]
+    [InlineData(50000, "general-40")]
+    [InlineData(200001, "general-50")]
+    [InlineData(1000000, "general-60")]
+    public async Task Gift_animation_uses_exact_spend_and_ignores_entry_list(long coins, string? expected)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await Start(h);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> {
+            ["gift_animation.enabled"] = "true", ["entry_animation_viewers.10001"] = "0" });
+        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+        using var page = await Page.ConnectAsync(h);
+        await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.With(data => { data["blind_gift"] = null; data["total_coin"] = coins; }));
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates));
+        if (expected is null) await page.AssertNoPlayAsync();
+        else { var play = await page.NextAsync(); Assert.Equal(expected, play.Content); await page.ReportAsync(play); }
+    }
+
+    [Theory]
+    [InlineData(29, null, null, 0)]
+    [InlineData(39, null, "general-30", 0)]
+    [InlineData(99, null, "general-60", 0)]
+    [InlineData(60, "40", "general-40", 0)]
+    [InlineData(60, "0", null, 0)]
+    [InlineData(50, null, "general-50", 1)]
+    [InlineData(50, null, "general-50", 2)]
+    [InlineData(50, null, "general-50", 3)]
+    public async Task Entry_animation_uses_list_before_fan_club_level(int level, string? choice, string? expected, int guard)
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await Start(h);
+        if (choice is not null) Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = choice });
+        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+        using var page = await Page.ConnectAsync(h);
+        await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates, EntryEffectFixture.Message("ENTRY_EFFECT", fanClubLevel: level, guard: guard));
+        if (expected is null) await page.AssertNoPlayAsync();
+        else { var play = await page.NextAsync(); Assert.Equal(expected, play.Content); await page.ReportAsync(play); }
+    }
+
     [Theory]
     [InlineData(30000, true)]
     [InlineData(30001, false)]
@@ -50,8 +170,10 @@ public sealed class WelcomeAnimationTests
         Assert.Equal("10001", second.Content);
         Assert.Equal(0, second.Volume);
         await page.ReportAsync(second);
+        await using var playingObserved = new Observations(h);
         source.TestPlay(new PlaybackContent.Animation("general-40", "测试"));
         var third = await page.NextAsync();
+        await playingObserved.WaitAsync(update => update is SourcePlayback { State: PlaybackState.Playing } playing && playing.Id == third.Id);
         source.StopTestPlay(third.Id);
         Assert.Equal(third.Id, await page.NextStopAsync());
     }
@@ -315,6 +437,8 @@ public sealed class WelcomeAnimationTests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await Start(h, 10001, 9876543210);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.fan_club_level"] = "0" });
+        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
         using var page = await Page.ConnectAsync(h);
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, EntryV2Fixture.Message(uid: 404), EntryV2Fixture.Message());

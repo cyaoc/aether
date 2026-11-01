@@ -27,11 +27,11 @@ public sealed class SettingsPageTests
             new BlindBoxSettingsPage(harness.DataDirectory),
             new WelcomeSettingsPage(harness.DataDirectory),
             new WelcomeAnimationSettingsPage(harness.DataDirectory),
+            new GiftAnimationSettingsPage(harness.DataDirectory),
             new SendSettingsPage(harness.DataDirectory),
             new GeneralSettingsPage(harness.DataDirectory)
         ];
-        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name)
-            .Where(name => name is not ("entry_animation.fan_club_level" or "entry_animation.volume") && !name.StartsWith("gift_animation.")).Order(),
+        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name).Order(),
             pages.SelectMany(page => page.FieldNames).Order());
     }, TestContext.Current.CancellationToken);
 

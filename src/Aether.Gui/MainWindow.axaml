@@ -127,11 +127,12 @@
                   <TextBlock Grid.Column="2" x:Name="WelcomeStatus" Classes="caption muted" />
                 </Grid>
               </ListBoxItem>
+
               <ListBoxItem>
                 <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
                   <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Animation}" /></Viewbox>
-                  <TextBlock Grid.Column="1" Text="欢迎动画" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="2" x:Name="AnimationStatus" Classes="caption muted" />
+                  <TextBlock Grid.Column="1" Text="送礼动画" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" x:Name="GiftAnimationStatus" Classes="caption muted" />
                 </Grid>
               </ListBoxItem>
               <ListBoxItem>

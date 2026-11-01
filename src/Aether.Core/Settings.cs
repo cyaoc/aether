@@ -219,13 +219,21 @@ public sealed class Settings
     public static void SaveWelcomeAnimations(string dataDirectory, IReadOnlyDictionary<string, string> changes,
         IReadOnlyDictionary<long, string> videos, Settings snapshot)
     {
+        var choices = snapshot.EntryAnimationViewers.Where(pair => pair.Value.Value.Video is null)
+            .ToDictionary(pair => pair.Key, pair => pair.Value.Value.ToString());
+        foreach (var (uid, fileName) in videos) choices[uid] = fileName;
+        SaveAnimationViewers(dataDirectory, changes, choices, snapshot);
+    }
+
+    public static void SaveAnimationViewers(string dataDirectory, IReadOnlyDictionary<string, string> changes,
+        IReadOnlyDictionary<long, string> choices, Settings snapshot)
+    {
         var edits = changes.ToDictionary(pair => pair.Key, pair => (string?)pair.Value);
-        foreach (var uid in snapshot.WelcomeAnimationVideos.Keys.Except(videos.Keys))
-            edits[AnimationVideos.ItemName(uid)] = null;
-        foreach (var (uid, fileName) in videos)
+        foreach (var uid in snapshot.EntryAnimationViewers.Keys.Except(choices.Keys)) edits[AnimationVideos.ItemName(uid)] = null;
+        foreach (var (uid, choice) in choices)
         {
             ArgumentOutOfRangeException.ThrowIfNegativeOrZero(uid);
-            edits[AnimationVideos.ItemName(uid)] = fileName;
+            edits[AnimationVideos.ItemName(uid)] = choice;
         }
         SaveChanges(dataDirectory, Definitions, edits, snapshot);
     }
@@ -398,20 +406,22 @@ public sealed class Settings
         }
     }
 
+    public const string GiftThresholdRule = "四档投入门槛必须为正整数且逐档递增。";
+    public static int? InvalidGiftThreshold(IReadOnlyList<int> thresholds)
+    {
+        for (var index = 0; index < thresholds.Count; index++)
+            if (thresholds[index] <= (index == 0 ? 0 : thresholds[index - 1])) return index;
+        return null;
+    }
+
     private static SettingsException? ValidateGroups(YamlMappingNode root, string path)
     {
         if (!root.Children.TryGetValue(new YamlScalarNode("gift_animation"), out var node) || node is not YamlMappingNode group) return null;
-        var previous = 0;
-        foreach (var definition in GiftThresholds)
-        {
-            var key = definition.Name.Split('.')[1];
-            var value = definition.Initial.Value;
-            group.Children.TryGetValue(new YamlScalarNode(key), out var field);
-            if (field is YamlScalarNode { Value: { } text } && int.TryParse(text, out var parsed)) value = parsed;
-            if (value <= previous) return new(path, field?.Start.Line ?? node.Start.Line, definition.Name, "四档投入门槛必须为正整数且逐档递增。");
-            previous = value;
-        }
-        return null;
+        var fields = GiftThresholds.Select(definition => group.Children.TryGetValue(new YamlScalarNode(definition.Name.Split('.')[1]), out var field) ? field : null).ToArray();
+        var thresholds = fields.Select((field, index) => field is YamlScalarNode { Value: { } text } && int.TryParse(text, out var value)
+            ? value : GiftThresholds[index].Initial.Value).ToArray();
+        return InvalidGiftThreshold(thresholds) is { } invalid
+            ? new(path, fields[invalid]?.Start.Line ?? node.Start.Line, GiftThresholds[invalid].Name, GiftThresholdRule) : null;
     }
 
     private static string NewlineOf(string source)

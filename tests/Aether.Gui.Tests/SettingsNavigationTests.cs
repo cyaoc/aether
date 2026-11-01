@@ -202,7 +202,7 @@ public sealed class SettingsNavigationTests
             var navigation = window.FindControl<ListBox>("Navigation");
             Assert.NotNull(navigation);
             Assert.Equal(7, navigation.ItemCount);
-            Assert.Equal(new[] { "弹幕", "盲盒统计", "进场欢迎", "欢迎动画", "抽奖", "发送队列", "通用设置" },
+            Assert.Equal(new[] { "弹幕", "盲盒统计", "进场欢迎", "送礼动画", "抽奖", "发送队列", "通用设置" },
                 navigation.Items.Cast<ListBoxItem>().Select(item => ((Grid)item.Content!).Children.OfType<TextBlock>().First().Text));
             Assert.Null(window.FindControl<Button>("SettingsButton"));
             var path = Settings.FilePath(harness.DataDirectory);

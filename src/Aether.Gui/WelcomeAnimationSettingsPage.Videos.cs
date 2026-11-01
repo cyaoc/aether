@@ -16,8 +16,9 @@ public partial class WelcomeAnimationSettingsPage
     private void LoadAnimations()
     {
         Animations.Clear();
-        foreach (var (uid, video) in settings.WelcomeAnimationVideos)
-            Animations.Add(new(uid.ToString(CultureInfo.InvariantCulture), video.Value, settings.CanEditWelcomeAnimationVideos && video.CanEdit));
+        foreach (var (uid, choice) in settings.EntryAnimationViewers)
+            Animations.Add(new(uid.ToString(CultureInfo.InvariantCulture), choice.Value.Video ?? "", settings.CanEditWelcomeAnimationVideos && choice.CanEdit)
+                { Choice = choice.Value.Video is not null ? "欢迎动画" : choice.Value.Tier?.ToString() ?? "不播" });
         AddAnimationButton.IsEnabled = settings.CanEditWelcomeAnimationVideos;
         AnimationVideosReadOnly.IsVisible = !settings.CanEditWelcomeAnimationVideos;
     }
@@ -30,9 +31,9 @@ public partial class WelcomeAnimationSettingsPage
 
     /// <summary>The row holds the video the settings file maps its UID to, with no new file picked.</summary>
     private bool MatchesFile(WelcomeAnimationRow row) => row.SourcePath is null && row.Uid is { } uid
-        && settings.WelcomeAnimationVideos.TryGetValue(uid, out var video) && video.Value == row.FileName;
+        && settings.EntryAnimationViewers.TryGetValue(uid, out var choice) && choice.Value.ToString() == row.SettingValue;
 
-    private bool AnimationDraft => Animations.Count != settings.WelcomeAnimationVideos.Count || !Animations.All(MatchesFile);
+    private bool AnimationDraft => Animations.Count != settings.EntryAnimationViewers.Count || !Animations.All(MatchesFile);
 
     private bool RefreshAnimations()
     {
@@ -51,6 +52,13 @@ public partial class WelcomeAnimationSettingsPage
                 : row.Uid is not { } uid ? "UID 必须是正整数"
                 : !uids.Add(uid) ? "和上面那条重复了" : null;
             invalid |= row.Error is not null;
+            if (!row.IsVideo)
+            {
+                row.RowMessage = row.VisibleError ?? "";
+                row.CanTest = false;
+                continue;
+            }
+            invalid |= string.IsNullOrEmpty(row.FileName);
             var exists = File.Exists(row.SourcePath ?? Path.Combine(AnimationDirectory, row.FileName));
             row.Missing = !exists;
             row.FileIcon = Icon(exists ? "Icon.Animation" : "Icon.Alert");
@@ -182,7 +190,7 @@ public partial class WelcomeAnimationSettingsPage
                 }
                 videos[uid] = name;
             }
-            Settings.SaveWelcomeAnimations(dataDirectory, changes, videos, snapshot);
+            Settings.SaveAnimationViewers(dataDirectory, changes, videos, snapshot);
         }
         catch (Exception failure)
         {

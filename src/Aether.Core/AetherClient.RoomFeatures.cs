@@ -126,12 +126,12 @@ public sealed partial class AetherClient
         }
     }
 
-    private sealed class WelcomeAnimationFeature(WelcomeAnimation animation, CancellationToken roomStopped) : IRoomFeature
+    private sealed class EntryAnimationFeature(EntryAnimation animation, CancellationToken roomStopped) : IRoomFeature
     {
         public void Handle(RoomEvent e)
         {
             if (e is DanmakuProtocol.EntryReceived { Entry: var entry, ReceivedTimestamp: var timestamp })
-                animation.Enqueue(entry.Uid, entry.Nickname, timestamp, roomStopped);
+                animation.Enqueue(entry, timestamp, roomStopped);
         }
     }
 

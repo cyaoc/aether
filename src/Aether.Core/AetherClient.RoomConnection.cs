@@ -66,8 +66,8 @@ public sealed partial class AetherClient
                                 features.Add(new BlindBoxRecordFeature(client.stores, realRoomId.Value, sendQueue, Settings.BlindBoxAnnounce.Value));
                             }
                             features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
-                                round => output.TryWrite(round)));
-                            features.Add(new WelcomeAnimationFeature(client.WelcomeAnimation, animationStop.Token));
+                                round => { client.GiftAnimation.Enqueue(round, animationStop.Token); output.TryWrite(round); }));
+                            features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop.Token));
                             if (Settings.WelcomeEnabled.Value)
                             {
                                 features.Add(new WelcomeFeature(Settings, sendQueue));

@@ -25,6 +25,9 @@ public abstract class SettingsPage : TemplatedControl
     /// <summary>Raised once Save has written the file or failed to, so other views can reread it.</summary>
     public event Action? SaveCompleted;
 
+    public static readonly StyledProperty<Control?> HeaderTabsProperty = AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderTabs));
+    public Control? HeaderTabs { get => GetValue(HeaderTabsProperty); set => SetValue(HeaderTabsProperty, value); }
+
     public static readonly StyledProperty<Control?> HeaderContentProperty =
         AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderContent), null);
     public Control? HeaderContent { get => GetValue(HeaderContentProperty); set => SetValue(HeaderContentProperty, value); }

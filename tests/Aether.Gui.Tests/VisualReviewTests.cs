@@ -23,6 +23,82 @@ public sealed class VisualReviewTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public Task Screenshots_gift_animation(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = "true" });
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory) { DataContext = vm, Width = 1200, Height = 720,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                vm.Apply(new Connected(1768506153, 24680));
+                window.Navigation.SelectedIndex = 3;
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new SourcePlayback("gift", 12345, "general-40", false, PlaybackState.Completed, Nickname: "夜航船", Source: "送礼动画", TriggerReason: "一轮投入 560 电池"));
+                vm.WebService.Apply(new SourcePlayback("gift2", 67890, "general-60", false, PlaybackState.Skipped, "没有推流软件连着", "柚子不酸", "送礼动画", "一轮投入 12000 电池"));
+                GuiHarness.Flush();
+                Save(window, $"gift-animation-{(dark ? "dark" : "light")}");
+                var input = window.GetVisualDescendants().OfType<GiftAnimationSettingsPage>().Single().GetVisualDescendants().OfType<NumericUpDown>().ElementAt(1);
+                input.Text = "50";
+                GuiHarness.Flush();
+                Save(window, $"gift-animation-invalid-{(dark ? "dark" : "light")}");
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_entry_welcome_tabs(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            Directory.CreateDirectory(Settings.VideoDirectory(h.DataDirectory));
+            File.WriteAllText(Path.Combine(Settings.VideoDirectory(h.DataDirectory), "老板驾到.webm"), "video");
+            Settings.Save(h.DataDirectory, new Dictionary<string, string> {
+                ["entry_animation.enabled"] = "true", ["entry_animation_viewers.12345"] = "40",
+                ["entry_animation_viewers.28816620"] = "0", ["entry_animation_viewers.67890"] = "老板驾到.webm" });
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory) { DataContext = vm, Width = 1200, Height = 720,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                vm.Apply(new Connected(1768506153, 24680));
+                window.Navigation.SelectedIndex = 2;
+                var welcome = window.GetVisualDescendants().OfType<WelcomePanel>().Single();
+                welcome.Select(1);
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new SourcePlayback("entry", 12345, "general-30", false, PlaybackState.Completed, Nickname: "柚子不酸", Source: "进场动画", TriggerReason: "粉丝团 34 级"));
+                GuiHarness.Flush();
+                Assert.Equal(80m, welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Value);
+                Assert.Equal("80", welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Text);
+                Save(window, $"entry-welcome-animation-{(dark ? "dark" : "light")}");
+                welcome.Select(0);
+                GuiHarness.Flush();
+                Save(window, $"entry-welcome-danmaku-{(dark ? "dark" : "light")}");
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public Task Screenshots_online_rank_lottery(bool dark)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
@@ -401,7 +477,8 @@ public sealed class VisualReviewTests
                     Save(window, $"web-service-N{(dark ? 2 : 1)}-{name}");
                 }
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1));
-                window.Navigation.SelectedIndex = 3;
+                window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 viewModel.WebService.Apply(new SourcePlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
                 Save(window, $"welcome-animation-N3-{(dark ? "dark" : "light")}");
             }
@@ -606,7 +683,8 @@ public sealed class VisualReviewTests
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
                 vm.Apply(new Connected(7734200, 24680));
-                window.Navigation.SelectedIndex = 3;
+                window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 GuiHarness.Flush();
                 var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().First(x => x.IsEffectivelyVisible);
                 var button = picker.FindControl<Button>("PickerButton")!;
@@ -652,7 +730,8 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 3;
+                window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 var page = window.GetVisualDescendants().OfType<WelcomeAnimationSettingsPage>().Single();
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
                 foreach (var (state, index) in new[] { PlaybackState.Completed, PlaybackState.Failed, PlaybackState.NoReport, PlaybackState.Skipped, PlaybackState.Queued }.Select((state, index) => (state, index)))

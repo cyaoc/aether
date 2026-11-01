@@ -14,6 +14,13 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     /// <summary>Raised when anything an animation row shows may have changed: page status, playback, failures or a reload.</summary>
     internal event Action? AnimationRowsChanged;
     public RecentItems<WelcomeAnimationItem> RecentAnimations { get; } = [];
+    public IReadOnlyList<WelcomeAnimationItem> RecentEntryAnimations => RecentAnimations.Where(item => item.Playback.Source != "送礼动画").ToArray();
+    public IReadOnlyList<WelcomeAnimationItem> RecentGiftAnimations => RecentAnimations.Where(item => item.Playback.Source == "送礼动画").ToArray();
+    internal SourcePlayback? PlayingForSource(string source) => playingAnimation?.Source == source ? playingAnimation : null;
+    internal void TestGift(EntryTier tier, string nickname) => client.GiftAnimation.TestPlay(tier, nickname);
+    internal void StopGift(string id) => client.GiftAnimation.StopTestPlay(id);
+    internal void TestEntry(EntryTier tier, string nickname) => client.EntryAnimation.TestPlay(tier, nickname);
+    internal void StopEntry(string id) => client.EntryAnimation.StopTestPlay(id);
     private readonly HashSet<string> pendingAnimations = [];
     private readonly HashSet<(long Uid, string FileName)> failedAnimationVideos = [];
     private SourcePlayback? playingAnimation;
@@ -42,8 +49,12 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         animationSettings = snapshot;
         if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Start(ObserveAnimationsAsync);
         var reload = animationReload.Start(ReloadAsync);
+        OnPropertyChanged(nameof(RecentEntryAnimations));
+        OnPropertyChanged(nameof(RecentGiftAnimations));
         AnimationRowsChanged?.Invoke();
         await reload;
+        OnPropertyChanged(nameof(RecentEntryAnimations));
+        OnPropertyChanged(nameof(RecentGiftAnimations));
         AnimationRowsChanged?.Invoke();
 
         async Task ReloadAsync(CancellationToken _)
@@ -150,6 +161,8 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             if (playback.State == PlaybackState.Failed) failedAnimationVideos.Add((playback.Uid, playback.ContentSummary));
         }
         else return; // A VideoPlayback alone changes no animation row.
+        OnPropertyChanged(nameof(RecentEntryAnimations));
+        OnPropertyChanged(nameof(RecentGiftAnimations));
         AnimationRowsChanged?.Invoke();
     }
 
@@ -169,6 +182,8 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     internal void ForgetAnimationFailures(IReadOnlyCollection<long> replaced)
     {
         failedAnimationVideos.RemoveWhere(video => replaced.Contains(video.Uid));
+        OnPropertyChanged(nameof(RecentEntryAnimations));
+        OnPropertyChanged(nameof(RecentGiftAnimations));
         AnimationRowsChanged?.Invoke();
     }
     internal SourcePlayback? PlayingAnimation(long uid, string fileName) =>
@@ -188,6 +203,8 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             || !AnimationVideoSaved(uid, fileName)) return;
         // Disable immediately, before the queued update crosses back to the UI thread.
         testPlayPending = true;
+        OnPropertyChanged(nameof(RecentEntryAnimations));
+        OnPropertyChanged(nameof(RecentGiftAnimations));
         AnimationRowsChanged?.Invoke();
         client.WelcomeAnimation.TestPlay(uid);
     }
@@ -201,6 +218,8 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
 /// <param name="Position">Place among the queued items, from 1; 0 once it is no longer queued.</param>
 public sealed record WelcomeAnimationItem(SourcePlayback Playback, DateTimeOffset OccurredAt, int Position = 0)
 {
+    public string ContentDetail => Playback.Source == "欢迎动画" ? $"欢迎动画 · {Playback.ContentSummary}"
+        : $"{Playback.ContentSummary.Replace("general-", "")} 档 · {Playback.TriggerReason}";
     public string Name => Playback.IsTest ? "试播" : Playback.Nickname ?? $"UID {Playback.Uid}";
     /// <summary>Null when Name already says it all, so the header gets no separating space.</summary>
     public string? Detail => Playback.IsTest || Playback.Nickname is null ? null : $"UID {Playback.Uid}";

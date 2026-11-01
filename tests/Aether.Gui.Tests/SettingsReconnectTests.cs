@@ -50,7 +50,7 @@ public sealed class SettingsReconnectTests
                 GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal(notice, GuiHarness.FindVisual<Border>(page, "ReconnectNotice").IsVisible);
                 viewModel.ConnectionState = RoomConnectionState.Disconnected;
-                Assert.All(window.GetVisualDescendants().OfType<SettingsPage>(),
+                Assert.All(window.GetVisualDescendants().OfType<SettingsPage>().Where(other => other.GetVisualDescendants().OfType<Border>().Any(border => border.Name == "ReconnectNotice")),
                     other => Assert.False(GuiHarness.FindVisual<Border>(other, "ReconnectNotice").IsVisible));
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
