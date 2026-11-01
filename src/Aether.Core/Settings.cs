@@ -46,7 +46,7 @@ public sealed class Settings
           interval_seconds: 1
 
         # 进场欢迎，下次观看直播间时生效
-        welcome:
+        welcome_danmaku:
           # true 或 false，满足下面任意一个欢迎条件的观众进场时，发一条欢迎弹幕
           enabled: false
           # 欢迎语列表，可以写多条，每次随机发一条；列表和每一条都不能为空
@@ -59,24 +59,37 @@ public sealed class Settings
           uids: []
           # 本直播间粉丝团等级达到多少就欢迎，0 表示不按粉丝团等级欢迎
           fan_club_level: 0
-          # 大航海身份达到哪一档就欢迎：关闭、舰长、提督、总督；提督表示提督和总督
-          guard: 舰长
+          # 大航海身份门槛：0 关闭，1 舰长及以上，2 提督及以上，3 总督
+          guard: 1
           # 荣耀等级达到多少就欢迎，0 表示不按荣耀等级欢迎
           wealth_level: 0
 
-        # 欢迎动画，下次观看直播间时生效；先开 Aether，再开推流软件
-        welcome_animation:
-          # true 或 false，映射里有这位观众时，进场在直播画面上播放
+        # 进场欢迎：动画，GUI 保存后下一次进场生效；CLI 下次观看时生效
+        entry_animation:
+          # 进场动画和欢迎动画共用开关
           enabled: false
+          # 粉丝团等级门槛：30、40、50、60，0 表示不按等级
+          fan_club_level: 30
+          # 进场动画、欢迎动画和送礼动画共用音量，0–100，0 静音
+          volume: 80
+
+        # 送礼动画，GUI 保存后下一次送礼生效；CLI 下次观看时生效
+        gift_animation:
+          enabled: false
+          # 各档投入门槛（电池），必须为正整数且逐档递增
+          tier_30_spend: 100
+          tier_40_spend: 500
+          tier_50_spend: 2000
+          tier_60_spend: 10000
 
         # 网页服务，视频页 /video、抽奖页 /lottery 都从这里打开；先开 Aether 再开推流软件
         web_service:
           # 端口 1–65535；GUI 保存后立即生效，所有浏览器素材的地址都要跟着改
           port: 17890
 
-        # 欢迎动画的视频，放在 data/videos/ 里，每行一位观众：UID: 文件名
-        # UID 必须为正整数；文件名只能是 .mp4 或 .webm，不能带路径；空分组表示没有观众
-        welcome_animation_videos:
+        # 动画名单，每行一位观众：UID: 0、30、40、50、60 或视频文件名
+        # UID 必须为正整数；0 不播；视频放在 data/videos/，仅 .mp4、.webm 文件名
+        entry_animation_viewers:
           # 12345: 小明进场.mp4
 
         """;
@@ -102,19 +115,28 @@ public sealed class Settings
     private static readonly Definition<string> MonthlyKeyword = Register(Definition.RequiredText("blind_box.monthly_keyword", "本月盲盒"));
     private static readonly Definition<bool> Announce = Register(Definition.Boolean("blind_box.announce", true));
     private static readonly Definition<int> SendInterval = Register(Definition.Number("send.interval_seconds", 1, "必须为正整数。", seconds => seconds > 0));
-    private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome.enabled", false));
-    private static readonly Definition<IReadOnlyList<string>> WelcomeTextList = Register(Definition.TextList("welcome.texts", ["欢迎{大航海}{昵称}"],
+    private static readonly Definition<bool> WelcomeOn = Register(Definition.Boolean("welcome_danmaku.enabled", false));
+    private static readonly Definition<IReadOnlyList<string>> WelcomeTextList = Register(Definition.TextList("welcome_danmaku.texts", ["欢迎{大航海}{昵称}"],
         texts => texts.Count == 0 ? "欢迎语列表不能为空。" : texts.Select(Core.WelcomeText.Validate).FirstOrDefault(error => error is not null)));
-    private static readonly Definition<IReadOnlyList<long>> WelcomeUidList = Register(Definition.NumberList("welcome.uids", []));
+    private static readonly Definition<IReadOnlyList<long>> WelcomeUidList = Register(Definition.NumberList("welcome_danmaku.uids", []));
     public const int WelcomeLevelOff = 0;
-    private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome.fan_club_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
-    /// <summary>The values welcome.guard accepts: 关闭, then 大航海身份 from low to high, so each one's index is its tier.</summary>
+    private static readonly Definition<int> WelcomeFanClub = Register(Definition.Number("welcome_danmaku.fan_club_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
+    /// <summary>The values welcome_danmaku.guard accepts: 关闭, then 大航海身份 from low to high, so each one's index is its tier.</summary>
     public static IReadOnlyList<string> WelcomeGuards { get; } = ["关闭", "舰长", "提督", "总督"];
-    private static readonly Definition<string> WelcomeGuardTier = Register(Definition.Choice("welcome.guard", "舰长", WelcomeGuards));
-    private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome.wealth_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
-    private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("welcome_animation.enabled", false));
+    private static readonly Definition<int> WelcomeGuardTier = Register(Definition.Choice("welcome_danmaku.guard", 1, new[] { 0, 1, 2, 3 }));
+    private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome_danmaku.wealth_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
+    private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("entry_animation.enabled", false));
+    private static readonly Definition<int> AnimationLevel = Register(Definition.Number("entry_animation.fan_club_level", 30, "必须是 0、30、40、50、60。", value => value == 0 || EntryTier.Parse(value) is not null));
+    private static readonly Definition<int> AnimationVolume = Register(Definition.Number("entry_animation.volume", 80, "必须是 0–100。", value => value is >= 0 and <= 100));
+    private static readonly Definition<bool> GiftOn = Register(Definition.Boolean("gift_animation.enabled", false));
+    private static readonly Definition<int>[] GiftThresholds = EntryTier.All.Select((tier, index) => Register(Definition.Number($"gift_animation.tier_{tier}_spend", new[] { 100, 500, 2000, 10000 }[index], "必须为正整数。", value => value > 0))).ToArray();
+    public Setting<bool> EntryAnimationEnabled => Get(AnimationOn);
+    public Setting<int> EntryAnimationFanClubLevel => Get(AnimationLevel);
+    public Setting<int> EntryAnimationVolume => Get(AnimationVolume);
+    public Setting<bool> GiftAnimationEnabled => Get(GiftOn);
+    public IReadOnlyList<Setting<int>> GiftAnimationThresholds => GiftThresholds.Select(Get).ToArray();
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
-    private static readonly VideoGroupDefinition AnimationVideos = Register(new VideoGroupDefinition("welcome_animation_videos"));
+    private static readonly VideoGroupDefinition AnimationVideos = Register(new VideoGroupDefinition("entry_animation_viewers"));
     /// <summary>Adding a setting means registering its definition here, adding its property and a line in Template,
     /// then a Bind call in its GUI settings page (composite settings need their row code instead).
     /// The GUI coverage test catches settings omitted from the pages.</summary>
@@ -135,11 +157,12 @@ public sealed class Settings
     public Setting<IReadOnlyList<string>> WelcomeTexts => Get(WelcomeTextList);
     public Setting<IReadOnlyList<long>> WelcomeUids => Get(WelcomeUidList);
     public Setting<int> WelcomeFanClubLevel => Get(WelcomeFanClub);
-    public Setting<string> WelcomeGuard => Get(WelcomeGuardTier);
+    public Setting<int> WelcomeGuard => Get(WelcomeGuardTier);
     public Setting<int> WelcomeWealthLevel => Get(WelcomeWealth);
     public Setting<bool> WelcomeAnimationEnabled => Get(AnimationOn);
     public Setting<int> WebServicePort => Get(WebPort);
-    public IReadOnlyDictionary<long, Setting<string>> WelcomeAnimationVideos => AnimationVideos.Items(this);
+    public IReadOnlyDictionary<long, Setting<AnimationChoice>> EntryAnimationViewers => AnimationVideos.Items(this);
+    public IReadOnlyDictionary<long, Setting<string>> WelcomeAnimationVideos => EntryAnimationViewers.Where(pair => pair.Value.Value.Video is not null).ToDictionary(pair => pair.Key, pair => new Setting<string>(pair.Value.Name, pair.Value.Value.Video!, pair.Value.CanEdit));
     public bool CanEditWelcomeAnimationVideos => AnimationVideos.CanEdit(this);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
@@ -240,6 +263,11 @@ public sealed class Settings
         // Later offsets first so earlier ones stay valid; inserts at one offset keep the order they were added in.
         foreach (var (_, edit) in edits.Index().OrderByDescending(edit => edit.Item.Start).ThenByDescending(edit => edit.Index))
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
+        var proposed = new Settings();
+        var document = new YamlStream();
+        document.Load(new StringReader(text));
+        proposed.root = (YamlMappingNode)document.Documents[0].RootNode;
+        if (ValidateGroups(proposed.root, path) is { } groupError) throw groupError;
         AtomicFile.Write(path, [.. current.encoding.GetPreamble(), .. current.encoding.GetBytes(text)]);
 
         void EditGroup(string groupName, IEnumerable<(Definition Definition, string Name, string? Value)> groupChanges)
@@ -370,6 +398,22 @@ public sealed class Settings
         }
     }
 
+    private static SettingsException? ValidateGroups(YamlMappingNode root, string path)
+    {
+        if (!root.Children.TryGetValue(new YamlScalarNode("gift_animation"), out var node) || node is not YamlMappingNode group) return null;
+        var previous = 0;
+        foreach (var definition in GiftThresholds)
+        {
+            var key = definition.Name.Split('.')[1];
+            var value = definition.Initial.Value;
+            group.Children.TryGetValue(new YamlScalarNode(key), out var field);
+            if (field is YamlScalarNode { Value: { } text } && int.TryParse(text, out var parsed)) value = parsed;
+            if (value <= previous) return new(path, field?.Start.Line ?? node.Start.Line, definition.Name, "四档投入门槛必须为正整数且逐档递增。");
+            previous = value;
+        }
+        return null;
+    }
+
     private static string NewlineOf(string source)
     {
         var firstBreak = source.AsSpan().IndexOfAny(LineBreaks);
@@ -412,6 +456,7 @@ public sealed class Settings
             var seenNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var (groupKey, groupValue) in root.Children) LoadGroup(groupKey, groupValue);
             settings.UnknownKeys = unknown.AsReadOnly();
+            settings.Error ??= ValidateGroups(root, path);
 
             void LoadGroup(YamlNode groupKey, YamlNode groupValue)
             {
@@ -610,7 +655,7 @@ public sealed class Settings
         private sealed class GroupValues
         {
             public bool CanEdit { get; set; } = true;
-            public Dictionary<long, Setting<string>> Items { get; } = [];
+            public Dictionary<long, Setting<AnimationChoice>> Items { get; } = [];
         }
 
         private static readonly GroupValues Unread = new();
@@ -624,7 +669,7 @@ public sealed class Settings
             return (GroupValues)value;
         }
 
-        public IReadOnlyDictionary<long, Setting<string>> Items(Settings settings) => Read(settings).Items;
+        public IReadOnlyDictionary<long, Setting<AnimationChoice>> Items(Settings settings) => Read(settings).Items;
         public string ItemName(long uid) => Name + "." + uid.ToString(CultureInfo.InvariantCulture);
         public override bool Contains(string name) => name.StartsWith(Name + ".", StringComparison.Ordinal);
         private bool TryParseUid(string name, out long uid)
@@ -633,10 +678,14 @@ public sealed class Settings
             return Contains(name) && Viewer.TryParseUid(name[(Name.Length + 1)..], out uid);
         }
         public override string? Resolve(string name) => TryParseUid(name, out var uid) ? ItemName(uid) : null;
-        private Definition<string> Item(string name) => RequiredText(Resolve(name)!, "", ValidateVideoFileName);
+        private Definition<AnimationChoice> Item(string name) => new(Resolve(name)!, AnimationChoice.Off, ChoiceRule,
+            (node, _) => node is YamlScalarNode { Value: { } text } && AnimationChoice.Parse(text) is { } choice ? (true, choice) : default,
+            text => AnimationChoice.Parse(text) is { } choice ? (true, choice) : default,
+            choice => Emit([choice.ToString()])[1..^1]);
+        private const string ChoiceRule = "必须是 0、30、40、50、60 或纯 .mp4、.webm 文件名，不能带路径。";
         public override string? Validate(string name, string? text) => text is null ? null : Item(name).Validate(name, text);
         public override string Format(string name, string text) => Item(name).Format(name, text);
-        public override string ValueText(Settings settings, string name) => Item(name).ValueText(settings, name);
+        public override string ValueText(Settings settings, string name) => settings.values.ContainsKey(Resolve(name)!) ? Item(name).ValueText(settings, name) : "";
         public override bool CanEdit(Settings settings, string? name = null) =>
             Read(settings).CanEdit && (name is null || Item(name).CanEdit(settings));
         public override void MarkEditable(Settings settings, bool canEdit) => Write(settings).CanEdit = canEdit;
@@ -649,7 +698,7 @@ public sealed class Settings
             string? reason = null;
             if (!seenNames.Add(item.Name)) reason = "UID 重复，请只保留一项。";
             else if (!singleLine || item.Read(settings, node, canEdit && key.Anchor.IsEmpty, singleLine) is { })
-                reason = "必须是单行的纯文件名，扩展名为 .mp4 或 .webm，不能带路径。";
+                reason = ChoiceRule;
             Write(settings).Items[uid] = settings.Get(item);
             return reason;
         }

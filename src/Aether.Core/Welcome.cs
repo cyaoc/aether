@@ -8,7 +8,7 @@ internal sealed class Welcome(Settings settings, Random? random = null)
     private readonly WelcomeText[] welcomeTexts = settings.WelcomeTexts.Value.Select(text => new WelcomeText(text)).ToArray();
     private readonly Random random = random ?? Random.Shared;
     // On the same scale as Entry.GuardTier; 0 is 关闭.
-    private readonly int guardThreshold = Settings.WelcomeGuards.ToList().IndexOf(settings.WelcomeGuard.Value);
+    private readonly int guardThreshold = settings.WelcomeGuard.Value;
 
     internal enum Rejection { EmptyText, TooLong }
 

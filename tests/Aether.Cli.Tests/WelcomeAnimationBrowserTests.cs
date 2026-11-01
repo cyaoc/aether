@@ -40,12 +40,12 @@ public sealed class WelcomeAnimationBrowserTests
         availablePort.Stop();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation.enabled"] = "true", ["web_service.port"] = port.ToString()
+            ["entry_animation.enabled"] = "true", ["web_service.port"] = port.ToString()
         });
         var videos = Path.Combine(h.DataDirectory, "videos");
         Directory.CreateDirectory(videos);
-        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(videos, "welcome.mp4"));
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.10001"] = "welcome.mp4" });
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome_danmaku.mp4"), Path.Combine(videos, "welcome_danmaku.mp4"));
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "welcome_danmaku.mp4" });
         var output = Console.Out;
         using var captured = new StringWriter();
         Console.SetOut(TextWriter.Synchronized(captured));

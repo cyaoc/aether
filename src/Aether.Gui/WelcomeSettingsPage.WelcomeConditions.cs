@@ -22,8 +22,8 @@ public partial class WelcomeSettingsPage
             WelcomeUids.Add(new(WelcomeCondition.Uid, uid.ToString(CultureInfo.InvariantCulture), settings.WelcomeUids.CanEdit));
         if (settings.WelcomeFanClubLevel.Value > Settings.WelcomeLevelOff)
             WelcomeThresholds.Add(new(WelcomeCondition.FanClubLevel, settings.WelcomeFanClubLevel.Value.ToString(CultureInfo.InvariantCulture), settings.WelcomeFanClubLevel.CanEdit));
-        if (settings.WelcomeGuard.Value != Settings.WelcomeGuards[0])
-            WelcomeThresholds.Add(new(WelcomeCondition.Guard, settings.WelcomeGuard.Value, settings.WelcomeGuard.CanEdit));
+        if (settings.WelcomeGuard.Value != 0)
+            WelcomeThresholds.Add(new(WelcomeCondition.Guard, Settings.WelcomeGuards[settings.WelcomeGuard.Value], settings.WelcomeGuard.CanEdit));
         if (settings.WelcomeWealthLevel.Value > Settings.WelcomeLevelOff)
             WelcomeThresholds.Add(new(WelcomeCondition.WealthLevel, settings.WelcomeWealthLevel.Value.ToString(CultureInfo.InvariantCulture), settings.WelcomeWealthLevel.CanEdit));
         loadedConditionKinds = Conditions.Select(row => row.Kind).ToArray();
@@ -90,7 +90,7 @@ public partial class WelcomeSettingsPage
     private string ConditionValue(WelcomeCondition kind, string absent) =>
         Conditions.FirstOrDefault(row => row.Kind == kind)?.Value ?? absent;
 
-    /// <summary>The UID rows as welcome.uids text. Their order means nothing, so the file's UIDs in another order
+    /// <summary>The UID rows as welcome_danmaku.uids text. Their order means nothing, so the file's UIDs in another order
     /// (one removed and added back) keep the file's text.</summary>
     private string WelcomeUidsText()
     {

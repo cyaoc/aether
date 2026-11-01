@@ -25,8 +25,8 @@ public sealed class WelcomeAnimationSettingsTests
         Video(h, "videos", "second.webm");
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation_videos.42"] = "first.mp4",
-            ["welcome_animation_videos.43"] = "second.webm"
+            ["entry_animation_viewers.42"] = "first.mp4",
+            ["entry_animation_viewers.43"] = "second.webm"
         });
         h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
         var vm = h.CreateViewModel();
@@ -65,8 +65,8 @@ public sealed class WelcomeAnimationSettingsTests
         var source = Video(h, "source", "second.webm");
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation.enabled"] = "true",
-            ["welcome_animation_videos.42"] = "first.mp4"
+            ["entry_animation.enabled"] = "true",
+            ["entry_animation_viewers.42"] = "first.mp4"
         });
         h.OnlineRankResponse = OnlineRankList.Answer(12, OnlineRankList.TwoViewers);
         var vm = h.CreateViewModel();
@@ -108,8 +108,8 @@ public sealed class WelcomeAnimationSettingsTests
         using var h = new GuiHarness();
         Directory.CreateDirectory(h.DataDirectory);
         File.WriteAllText(Settings.FilePath(h.DataDirectory), readOnly
-            ? "welcome_animation_videos: {42: video.mp4}\n"
-            : "welcome_animation_videos:\n  42: video.mp4\n");
+            ? "entry_animation_viewers: {42: video.mp4}\n"
+            : "gift_animation:\nentry_animation_viewers:\n  42: video.mp4\n");
         var vm = h.CreateViewModel();
         var page = new WelcomeAnimationSettingsPage(h.DataDirectory) { DataContext = vm };
         var window = new Window { Content = page, Width = 976, Height = 720 };
@@ -240,7 +240,7 @@ public sealed class WelcomeAnimationSettingsTests
         var owned = Video(harness, "videos", "video.mp4", "old video");
         var source = Video(harness, "source", "video.mp4", "new video");
         var missing = Video(harness, "source", "missing.webm");
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.42"] = "video.mp4" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "video.mp4" });
         var selected = new Queue<string>([source, missing]);
         var page = new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(selected.Dequeue()));
         var window = new Window { Content = page };
@@ -320,7 +320,7 @@ public sealed class WelcomeAnimationSettingsTests
     {
         using var harness = new GuiHarness();
         Video(harness, "videos", "video.mp4");
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.42"] = "video.mp4" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "video.mp4" });
         var page = new WelcomeAnimationSettingsPage(harness.DataDirectory);
         var window = new Window { Content = page };
         window.Show();
@@ -352,8 +352,8 @@ public sealed class WelcomeAnimationSettingsTests
     {
         using var harness = new GuiHarness();
         var path = Video(harness, "videos", "video.mp4");
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.42"] = "video.mp4" });
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "video.mp4" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = "true" });
         var viewModel = harness.CreateViewModel();
         await viewModel.WebService.ApplyWebSettingsAsync(Settings.Load(harness.DataDirectory));
         var replacement = Video(harness, "source", "video.mp4");
@@ -408,8 +408,8 @@ public sealed class WelcomeAnimationSettingsTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData("welcome_animation:\n  enabled: |-\n    true\nweb_service:\n  port: |-\n    17891\nwelcome_animation_videos: {42: video.mp4}\n")]
-    [InlineData("welcome_animation: {enabled: true}\nweb_service: {port: 17891}\nwelcome_animation_videos:\n  &viewer 42: video.mp4\nother: *viewer\n")]
+    [InlineData("entry_animation:\n  enabled: |-\n    true\nweb_service:\n  port: |-\n    17891\nentry_animation_viewers: {42: video.mp4}\n")]
+    [InlineData("entry_animation: {enabled: true}\nweb_service: {port: 17891}\ngift_animation:\nentry_animation_viewers:\n  &viewer 42: video.mp4\nother: *viewer\n")]
     public Task Noneditable_settings_keep_controls_read_only_and_explain_where_to_edit(string yaml) => HeadlessApp.Session.Dispatch(() =>
     {
         using var harness = new GuiHarness();
@@ -489,7 +489,7 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("replacement video", File.ReadAllText(Copy(harness, "欢迎.mp4")));
             Assert.Equal("second video", File.ReadAllText(Copy(harness, "欢迎 (2).mp4")));
             // A mapping added in the settings file after this draft was opened must keep its shared video.
-            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.44"] = "欢迎.mp4" });
+            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.44"] = "欢迎.mp4" });
             Click(page, Rows(page)[0], "RemoveButton");
             await Save(page);
             Assert.Equal("replacement video", File.ReadAllText(Copy(harness, "欢迎.mp4")));
@@ -646,7 +646,7 @@ public sealed class WelcomeAnimationSettingsTests
         harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
         var port = FreePort();
         Video(harness, "videos", "trial.mp4", "trial video");
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.42"] = "trial.mp4" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "trial.mp4" });
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
@@ -777,10 +777,10 @@ public sealed class WelcomeAnimationSettingsTests
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
         Video(harness, "videos", "video.mp4");
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.42"] = "video.mp4" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "video.mp4" });
         Settings.Save(harness.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation.enabled"] = "true", ["web_service.port"] = FreePort().ToString()
+            ["entry_animation.enabled"] = "true", ["web_service.port"] = FreePort().ToString()
         });
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
@@ -817,10 +817,10 @@ public sealed class WelcomeAnimationSettingsTests
         await harness.SaveCredentialAsync();
         Video(harness, "videos", "old.mp4", "old video");
         Video(harness, "videos", "new.mp4", "new video");
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.42"] = "old.mp4" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "old.mp4" });
         Settings.Save(harness.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation.enabled"] = "true", ["web_service.port"] = FreePort().ToString()
+            ["entry_animation.enabled"] = "true", ["web_service.port"] = FreePort().ToString()
         }, Settings.Load(harness.DataDirectory));
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
@@ -837,8 +837,8 @@ public sealed class WelcomeAnimationSettingsTests
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             if (draft) GuiHarness.FindRowControl<TextBox>(page, Rows(page).Single(), "UidInput").Text = "44";
             GuiHarness.Flush();
-            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.42"] = "new.mp4" });
-            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.43"] = "new.mp4" });
+            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "new.mp4" });
+            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.43"] = "new.mp4" });
             window.Navigation.SelectedIndex = 0;
             window.Navigation.SelectedIndex = 3;
             GuiHarness.Flush();

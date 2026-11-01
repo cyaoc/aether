@@ -15,7 +15,7 @@ public sealed class WelcomeLengthTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.enabled"] = "true" });
         h.Http.SetDanmakuLengthLimit(limit);
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
@@ -47,7 +47,7 @@ public sealed class WelcomeLengthTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.enabled"] = "true" });
         h.Http.Responses[InfoUrl] = response;
         if (response == NetworkFailure) h.Http.FailOnce(InfoUrl, new HttpRequestException("test network failure"));
         if (response == "timeout") h.Http.FailOnce(InfoUrl, new TaskCanceledException("test request timeout"));
@@ -68,7 +68,7 @@ public sealed class WelcomeLengthTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.enabled"] = "true" });
         h.Http.SetDanmakuLengthLimit(80);
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
@@ -91,7 +91,7 @@ public sealed class WelcomeLengthTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.enabled"] = "true" });
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         h.Http.Intercept(InfoUrl, (_, token, _) => FakeBilibiliHttp.HangUntilCancelledAsync(requested, token));
         await using var updates = h.Watch();
@@ -113,7 +113,7 @@ public sealed class WelcomeLengthTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.texts"] = Settings.TextListText([text])
+            ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.texts"] = Settings.TextListText([text])
         });
         h.Http.SetDanmakuLengthLimit(limit);
         var sent = CaptureSends(h);
