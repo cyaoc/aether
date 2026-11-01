@@ -645,10 +645,32 @@ public sealed class WelcomeAnimationSettingsTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task Web_service_runs_without_login_or_enabled_features_and_restarts_only_for_a_saved_port() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Logged_out_stays_on_login_page_while_web_service_serves_video_and_lottery_pages() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = FreePort().ToString() });
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(5) };
+        window.Show();
+        try
+        {
+            await GuiHarness.WaitForAsync(() => viewModel.IsLoginPage && viewModel.WebService.WebServiceStatus.Running);
+            Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
+            Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
+            Assert.True(viewModel.IsLoginPage);
+            Assert.False(viewModel.ConnectCommand.CanExecute(null));
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Web_service_runs_without_enabled_features_and_restarts_only_for_a_saved_port() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
         var port = FreePort();
         Video(harness, "videos", "trial.mp4", "trial video");
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "trial.mp4" });
@@ -659,12 +681,10 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => viewModel.IsLoginPage && viewModel.WebService.WebServiceStatus.Running);
-            Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
-            Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
-            window.FindControl<Button>("OpenSettingsWithoutLoginButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await GuiHarness.WaitForAsync(() => !viewModel.IsLoginPage);
-            Assert.Equal(6, window.Navigation.SelectedIndex);
+            await GuiHarness.WaitForAsync(() => viewModel.AccountStatus.Account is not null && viewModel.WebService.WebServiceStatus.Running);
+            Assert.False(viewModel.IsLoginPage);
+            window.Navigation.SelectedIndex = 6;
+            GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Equal("端口保存后立即生效；日志设置重启后生效", GuiHarness.FindVisual<TextBlock>(general, "TimingHint").Text);
             using var response = await http.GetAsync(viewModel.WebService.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);

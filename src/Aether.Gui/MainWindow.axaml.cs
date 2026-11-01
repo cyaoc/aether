@@ -78,13 +78,6 @@ public partial class MainWindow : Window
             _ = viewModel.StartAsync(dataDirectory);
     }
 
-    private async void OpenSettingsWithoutLogin(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not MainWindowViewModel viewModel) return;
-        await viewModel.OpenSettingsCommand.ExecuteAsync(null);
-        ShowGeneralSettings();
-    }
-
     private void ShowGeneralSettings() => Navigation.SelectedIndex = PageHost.Children.IndexOf(general);
 
     private void Navigate(object? sender, SelectionChangedEventArgs e)

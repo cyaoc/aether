@@ -293,18 +293,6 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task OpenSettingsAsync()
-    {
-        LoginCommand.Cancel();
-        if (LoginCommand.ExecutionTask is { } login) await login;
-        ClearQrCode();
-        IsLoginPage = false;
-    }
-
-    [RelayCommand]
-    private void OpenLoginPage() => ShowLoginPage();
-
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task ReadAccountAsync()
     {

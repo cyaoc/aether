@@ -69,7 +69,6 @@
         </Border>
         <TextBlock Classes="singleLine secondary" Text="打开 B站 App 扫一扫，在手机上确认" FontWeight="SemiBold" TextAlignment="Center" />
         <TextBlock Classes="singleLine caption muted" Text="二维码过期后会自动换新" TextAlignment="Center" />
-        <Button x:Name="OpenSettingsWithoutLoginButton" Content="先设置，无需登录" Classes="ghost" HorizontalAlignment="Center" Click="OpenSettingsWithoutLogin" />
       </StackPanel>
     </Grid>
     <Grid ColumnDefinitions="224,*" IsVisible="{Binding !IsLoginPage}">
@@ -168,7 +167,6 @@
               <TextBlock Classes="secondary singleLine" Text="{Binding AccountStatus.Text}" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
               <TextBlock Classes="caption muted" Text="已登录" IsVisible="{Binding AccountStatus.Account, Converter={x:Static ObjectConverters.IsNotNull}}" />
               <Button x:Name="RetryAccountButton" Content="重试" Command="{Binding ReadAccountCommand}" IsVisible="{Binding AccountStatus.ReadFailed}" />
-              <Button Content="登录账号" Command="{Binding OpenLoginPageCommand}" IsVisible="{Binding IsLoggedOut}" />
             </StackPanel>
             <Button Grid.Column="2" x:Name="LogoutButton" Classes="ghost danger" Padding="6" VerticalAlignment="Center" Click="ConfirmLogout"
                     ToolTip.Tip="退出登录" AutomationProperties.Name="退出登录" IsEnabled="{Binding !IsLoggingOut}" IsVisible="{Binding !IsLoggedOut}">
