@@ -27,11 +27,11 @@ public sealed class SettingsPageTests
             new BlindBoxSettingsPage(harness.DataDirectory),
             new WelcomeSettingsPage(harness.DataDirectory),
             new WelcomeAnimationSettingsPage(harness.DataDirectory),
+            new GiftAnimationSettingsPage(harness.DataDirectory),
             new SendSettingsPage(harness.DataDirectory),
             new GeneralSettingsPage(harness.DataDirectory)
         ];
-        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name)
-            .Where(name => !name.StartsWith("gift_animation.")).Order(),
+        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name).Order(),
             pages.SelectMany(page => page.FieldNames).Order());
     }, TestContext.Current.CancellationToken);
 
@@ -1162,7 +1162,7 @@ public sealed class SettingsPageTests
             main.Show();
             try
             {
-                main.FindControl<ListBox>("Navigation")!.SelectedIndex = 5;
+                main.FindControl<ListBox>("Navigation")!.SelectedIndex = 6;
                 GuiHarness.Flush();
                 var window = main.GetVisualDescendants().OfType<SettingsPage>().Single(page => page.IsEffectivelyVisible);
                 Assert.Empty(main.OwnedWindows);

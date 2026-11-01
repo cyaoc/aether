@@ -23,6 +23,41 @@ public sealed class VisualReviewTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public Task Screenshots_gift_animation(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = "true" });
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory) { DataContext = vm, Width = 1200, Height = 720,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                vm.Apply(new Connected(1768506153, 24680));
+                window.Navigation.SelectedIndex = 3;
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new SourcePlayback("gift", 12345, "general-40", false, PlaybackState.Completed, Nickname: "夜航船", Source: "送礼动画", TriggerReason: "一轮投入 560 电池"));
+                vm.WebService.Apply(new SourcePlayback("gift2", 67890, "general-60", false, PlaybackState.Skipped, "没有推流软件连着", "柚子不酸", "送礼动画", "一轮投入 12000 电池"));
+                GuiHarness.Flush();
+                Save(window, $"gift-animation-{(dark ? "dark" : "light")}");
+                var input = window.GetVisualDescendants().OfType<GiftAnimationSettingsPage>().Single().GetVisualDescendants().OfType<NumericUpDown>().ElementAt(1);
+                input.Text = "50";
+                GuiHarness.Flush();
+                Save(window, $"gift-animation-invalid-{(dark ? "dark" : "light")}");
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public Task Screenshots_entry_welcome_tabs(bool dark)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
@@ -80,7 +115,7 @@ public sealed class VisualReviewTests
                 await vm.ReadAccountCommand.ExecutionTask!;
                 vm.Apply(new Connected(7734200, 24680));
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery() with { Uid = 1 })));
-                window.Navigation.SelectedIndex = 3;
+                window.Navigation.SelectedIndex = 4;
                 GuiHarness.Flush();
                 var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().Single(x => x.IsEffectivelyVisible);
                 var button = picker.FindControl<Button>("PickerButton")!;
@@ -125,7 +160,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 3;
+                window.Navigation.SelectedIndex = 4;
                 Lottery lottery = mode == LotteryMode.Pool ? LotteryPanelTests.TestLottery() : EntryLotteryPanelTests.TestLottery();
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
                 await vm.Lottery.SavePrizeSetAsync(mode, "周末福利");
@@ -172,7 +207,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 3;
+                window.Navigation.SelectedIndex = 4;
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
                 var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
                 var tabs = panel.FindControl<ListBox>("ViewTabs")!;
@@ -210,7 +245,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 3;
+                window.Navigation.SelectedIndex = 4;
                 var at = new DateTimeOffset(2026, 10, 17, 20, 30, 0, TimeSpan.FromHours(8));
                 string[] names = ["一只小鹿", "柚子不酸", "夜航船", "桃桃乌龙", "番茄炒蛋", "青柠", "橘猫本猫", "南巷"];
                 var lottery = EntryLotteryPanelTests.TestLottery() with
@@ -278,7 +313,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 3;
+                window.Navigation.SelectedIndex = 4;
                 // Canvas V1's pool and records: a viewer's stop, a host stop with no UID, and a host stop for a named viewer.
                 PoolPrize[] prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second),
                     new("签名照", 4, Grade.Third), new("贴纸套装", 2, Grade.Third)];
@@ -428,7 +463,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 GuiHarness.Flush();
                 foreach (var (name, state) in new[]
                 {
@@ -861,7 +896,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 var number = page.FindControl<NumericUpDown>("SendIntervalInput")!;
@@ -881,8 +916,8 @@ public sealed class VisualReviewTests
                 Capture("error");
                 text.Text = "1";
                 File.WriteAllText(Settings.FilePath(harness.DataDirectory), "send:\n  interval_seconds: |-\n    1\n");
+                window.Navigation.SelectedIndex = 6;
                 window.Navigation.SelectedIndex = 5;
-                window.Navigation.SelectedIndex = 4;
                 Capture("readonly");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }

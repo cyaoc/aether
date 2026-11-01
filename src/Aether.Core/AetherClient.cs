@@ -18,6 +18,7 @@ public sealed partial class AetherClient : IDisposable
     private readonly string dataDirectory;
     public WebService WebService { get; }
     public WelcomeAnimation WelcomeAnimation { get; }
+    public GiftAnimation GiftAnimation { get; }
     public EntryAnimation EntryAnimation { get; }
     public LotteryController Lottery { get; }
     private readonly Lazy<Stores> stores;
@@ -40,6 +41,7 @@ public sealed partial class AetherClient : IDisposable
         WebService = new(dataDirectory, timeProvider, logger, Lottery);
         WelcomeAnimation = new(WebService, timeProvider, logger);
         EntryAnimation = new(WebService, WelcomeAnimation, timeProvider, logger);
+        GiftAnimation = new(WebService, timeProvider, logger);
     }
 
     /// <summary>Applies feature settings immediately; only a port change restarts the web service.</summary>
@@ -48,6 +50,7 @@ public sealed partial class AetherClient : IDisposable
         if (settings.Error is { } error) throw error;
         WelcomeAnimation.Apply(settings);
         EntryAnimation.Apply(settings);
+        GiftAnimation.Apply(settings);
         WebService.Video.Apply(settings);
         await WebService.StartAsync(settings.WebServicePort.Value).ConfigureAwait(false);
     }

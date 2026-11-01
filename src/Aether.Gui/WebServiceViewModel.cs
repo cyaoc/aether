@@ -17,6 +17,8 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     public IReadOnlyList<WelcomeAnimationItem> RecentEntryAnimations => RecentAnimations.Where(item => item.Playback.Source != "送礼动画").ToArray();
     public IReadOnlyList<WelcomeAnimationItem> RecentGiftAnimations => RecentAnimations.Where(item => item.Playback.Source == "送礼动画").ToArray();
     internal SourcePlayback? PlayingForSource(string source) => playingAnimation?.Source == source ? playingAnimation : null;
+    internal void TestGift(EntryTier tier, string nickname) => client.GiftAnimation.TestPlay(tier, nickname);
+    internal void StopGift(string id) => client.GiftAnimation.StopTestPlay(id);
     internal void TestEntry(EntryTier tier, string nickname) => client.EntryAnimation.TestPlay(tier, nickname);
     internal void StopEntry(string id) => client.EntryAnimation.StopTestPlay(id);
     private readonly HashSet<string> pendingAnimations = [];

@@ -664,7 +664,7 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
             window.FindControl<Button>("OpenSettingsWithoutLoginButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => !viewModel.IsLoginPage);
-            Assert.Equal(5, window.Navigation.SelectedIndex);
+            Assert.Equal(6, window.Navigation.SelectedIndex);
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Equal("端口保存后立即生效；日志设置重启后生效", GuiHarness.FindVisual<TextBlock>(general, "TimingHint").Text);
             using var response = await http.GetAsync(viewModel.WebService.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
@@ -704,7 +704,7 @@ public sealed class WelcomeAnimationSettingsTests
             await GuiHarness.WaitForAsync(() => viewModel.WebService.RecentAnimations.Single().Playback.State == PlaybackState.Stopped);
             Assert.Equal("试播", GuiHarness.FindRowControl<TextBlock>(animation, playingRow, "TestText").Text);
             Click(animation, "OpenGeneralSettingsButton");
-            Assert.Equal(5, window.Navigation.SelectedIndex);
+            Assert.Equal(6, window.Navigation.SelectedIndex);
             var nextPort = FreePort();
             general.FindControl<NumericUpDown>("WebPortInput")!.Text = nextPort.ToString();
             GuiHarness.Flush();
@@ -714,8 +714,8 @@ public sealed class WelcomeAnimationSettingsTests
             GuiHarness.Flush();
             await GuiHarness.WaitForAsync(() => general.IsEnabled);
             // Rereading the saved file validates the page again; that is not an edit, so the result stays.
-            window.Navigation.SelectedIndex = 4;
             window.Navigation.SelectedIndex = 5;
+            window.Navigation.SelectedIndex = 6;
             GuiHarness.Flush();
             Assert.Equal("已保存，网页服务已换到新端口", GuiHarness.FindVisual<TextBlock>(general, "Message").Text);
             Assert.Equal(nextPort, viewModel.WebService.WebServiceStatus.Port);
@@ -960,7 +960,7 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            Assert.Equal(6, window.Navigation.ItemCount);
+            Assert.Equal(7, window.Navigation.ItemCount);
             window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
             GuiHarness.Flush();

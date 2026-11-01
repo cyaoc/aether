@@ -17,7 +17,7 @@ public sealed class ComboBoxStyleTests
     [InlineData(true)]
     public Task All_three_dropdowns_share_the_card_items_and_open_state(bool dark) => Dispatch(dark, window =>
     {
-        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (5, "LogLevelInput"), (2, "GuardInput") })
+        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (6, "LogLevelInput"), (2, "GuardInput") })
         {
             var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
             var glyph = input.GetVisualDescendants().OfType<PathIcon>().Single(x => x.Name == "DropDownGlyph");
