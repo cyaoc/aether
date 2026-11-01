@@ -2,7 +2,11 @@
 
 Design source: `docs/design/entry-animation` at `0464bd8eeceb3c2a47331ab8e05fab8a896ae86c`.
 All 51 textures referenced by EV1–EV4 are copied without changes. Design originals remain in place.
-PixiJS 8.12.0 and pixi-filters 6.1.4 are the design package's pinned distributions; MIT notices are in their headers.
+PixiJS 8.12.0 and pixi-filters 6.1.4 are the design package's pinned distributions; their original JavaScript files and header notices are unchanged.
+Full MIT licenses are copied from the matching upstream tags and published under `Licenses/`:
+
+- `lib/PixiJS-LICENSE.txt`: https://github.com/pixijs/pixijs/blob/v8.12.0/LICENSE
+- `lib/pixi-filters-LICENSE.txt`: https://github.com/pixijs/filters/blob/v6.1.4/LICENSE
 
 ## Nickname font
 
