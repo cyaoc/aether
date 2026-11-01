@@ -1,45 +1,48 @@
 # 进场动画音效
 
-每档一条预混好的音轨，播放时和动画同时起步。`cues.json` 记每档用哪段素材、放在第几秒、多响，`python3 tools/mix-audio.py` 重新混出 `tier-*.ogg`。
+声音由动画帧触发，不预混。动画时钟不动，播到哪一帧就触发那一帧的声音，各层各自触发。每档的声音和时间点在 `events.json`，调试流程见 `WORKFLOW.md` 第九节。
 
-现在只有一般人 30 档的粗混 `tier-30.ogg`。40、50、60 档按同样的规则写进 `cues.json`，天空裂开的声音还没选。
+## 一般人的声音
+
+| 层 | 做法 |
+|---|---|
+| 太鼓 BGM | 完整循环，从开场响到结束，最重的一记落在最后一刀 |
+| 太鼓渐快 | 蓄力的紧张感靠它，由慢到快、由轻到重，第一刀前 0.16 秒停住 |
+| 前几刀 | 切割声加单击太鼓，连斩时每一刀稍微变调 |
+| 最后一刀 | 完整的切割声，最响点对准白闪 |
+| 入鞘 | 刀镡碰鞘时一声 |
+| 世界碎裂 | 只有 60 档，拍刀之后 |
 
 ## 规则
 
-低频按流派定，不是统一一套。
+- 对齐最响的点，不是文件开头。用完整的声音，不要截短。
+- 顿帧不静音，切割声的尾巴自然盖过定格。
+- 蓄力不用金属声，否则和斩击分不开；要有节拍才紧张。
+- 低频按流派定。一般人是太刀，不用爆破声和重低音；重低音和碎石声留给提督的巨剑；舰长、总督做到时再定。
+- 重量靠太鼓，音色靠小扬声器也能听到的频段：能量都在 200 Hz 以下的声音，电脑和手机基本放不出来。
 
-| 流派 | 声音方向 |
-|---|---|
-| 一般人（太刀） | 薄、快、利，不用重低音 |
-| 提督（巨剑） | 重低音和碎石声放在这里 |
-| 舰长（双刀）、总督（剑帝） | 做到时再定 |
+试过什么、为什么否掉，见 `WORKFLOW.md` 第九节的结论表。
 
-一般人的节奏：
+## 本地试听
 
-1. 蓄力几乎无声：很轻的风声，出刀前一声细刀鸣，然后静一拍。
-2. 斩击是短而利的切割声。
-3. 顿帧那 0.12 秒全静，再浮出轻的金属余韵，不补重响。
-4. 刀镡碰鞘时一声入鞘。
+```bash
+node tools/server.mjs 8813
+open "http://localhost:8813/render.html?board=EV2-EntryTriple.dc.html&sound=40"
+```
 
-## 试听时否掉的
-
-- 上升类的 riser：用户说"和飞机引擎一样、浮夸了"。
-- 命中加重低音：用户说这是太刀，主要是切割，这样像钝器，顿帧也一样。
-- 试听时把所有声音拉到一样响会失真：蓄力单独听和出刀一样大，要放进整段里听。
+页面上每一层都有开关，默认全关，下一轮循环生效。
 
 ## 来源
 
-都是 Freesound 上的 CC0，署名不是必须的，都已打开页面确认。
+都是 Freesound 上的 CC0，已打开页面确认，署名不是必须的。
 
 | 用途 | 文件 | 作者 |
 |---|---|---|
-| 蓄力风声 | [gentle-wind](https://freesound.org/people/fthgurdy/sounds/528944/) | fthgurdy |
-| 细刀鸣 | [unsheath_sword](https://freesound.org/people/Qat/sounds/107589/) | Qat |
-| 斩击 | [samurai-slash](https://freesound.org/people/nekoninja/sounds/370204/) | nekoninja |
-| 金属余韵 | [samurai-slash2](https://freesound.org/people/nekoninja/sounds/512785/) | nekoninja |
+| 太鼓 BGM | [Taiko Drumloop 003](https://freesound.org/people/Xinematix/sounds/491279/) | Xinematix |
+| 太鼓渐快、前几刀的单击 | [taiko](https://freesound.org/people/Anuj_Shrestha1/sounds/486140/) | Anuj_Shrestha1 |
+| 60 档残影齐斩的单击 | [taiko2](https://freesound.org/people/Anuj_Shrestha1/sounds/486141/) | Anuj_Shrestha1 |
+| 切割声 | [samurai-slash](https://freesound.org/people/nekoninja/sounds/370204/) | nekoninja |
 | 入鞘 | [sword-re-sheathed](https://freesound.org/people/XfiXy8/sounds/467292/) | XfiXy8 |
 | 60 档世界碎裂 | [glass-break](https://freesound.org/people/unfa/sounds/221528/) | unfa |
 
 glass-break 的作者不同意用于训练生成式模型，放进动画没有影响，但不要拿它跑模型工具。
-
-从 Freesound 下载原文件要登录。在已登录的浏览器里打开 `https://freesound.org/people/<作者>/sounds/<编号>/download/` 就能下；连续下载要放慢，否则会被限流。
