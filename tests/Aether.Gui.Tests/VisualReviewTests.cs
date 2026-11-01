@@ -23,6 +23,82 @@ public sealed class VisualReviewTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public Task Screenshots_gift_animation(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = "true" });
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory) { DataContext = vm, Width = 1200, Height = 720,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                vm.Apply(new Connected(1768506153, 24680));
+                window.Navigation.SelectedIndex = 3;
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new SourcePlayback("gift", 12345, "40 档", false, PlaybackState.Completed, Nickname: "夜航船", Source: "送礼动画", TriggerReason: "这一轮投入 560 电池"));
+                vm.WebService.Apply(new SourcePlayback("gift2", 67890, "60 档", false, PlaybackState.Skipped, "没有推流软件连着", "柚子不酸", "送礼动画", "这一轮投入 12000 电池"));
+                GuiHarness.Flush();
+                Save(window, $"gift-animation-{(dark ? "dark" : "light")}");
+                var input = window.GetVisualDescendants().OfType<GiftAnimationSettingsPage>().Single().GetVisualDescendants().OfType<NumericUpDown>().ElementAt(1);
+                input.Text = "50";
+                GuiHarness.Flush();
+                Save(window, $"gift-animation-invalid-{(dark ? "dark" : "light")}");
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Screenshots_entry_welcome_tabs(bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var h = new GuiHarness();
+            await h.SaveCredentialAsync();
+            Directory.CreateDirectory(Settings.VideoDirectory(h.DataDirectory));
+            File.WriteAllText(Path.Combine(Settings.VideoDirectory(h.DataDirectory), "老板驾到.webm"), "video");
+            Settings.Save(h.DataDirectory, new Dictionary<string, string> {
+                ["entry_animation.enabled"] = "true", ["entry_animation_viewers.12345"] = "40",
+                ["entry_animation_viewers.28816620"] = "0", ["entry_animation_viewers.67890"] = "老板驾到.webm" });
+            var vm = h.CreateViewModel();
+            var window = new MainWindow(h.DataDirectory) { DataContext = vm, Width = 1200, Height = 720,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
+            window.Show();
+            try
+            {
+                await vm.ReadAccountCommand.ExecutionTask!;
+                vm.Apply(new Connected(1768506153, 24680));
+                window.Navigation.SelectedIndex = 2;
+                var welcome = window.GetVisualDescendants().OfType<WelcomePanel>().Single();
+                welcome.Select(1);
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new SourcePlayback("entry", 12345, "30 档", false, PlaybackState.Completed, Nickname: "柚子不酸", Source: "进场动画", TriggerReason: "粉丝团 34 级"));
+                GuiHarness.Flush();
+                Assert.Equal(80m, welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Value);
+                Assert.Equal("80", welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Text);
+                Save(window, $"entry-welcome-animation-{(dark ? "dark" : "light")}");
+                welcome.Select(0);
+                GuiHarness.Flush();
+                Save(window, $"entry-welcome-danmaku-{(dark ? "dark" : "light")}");
+            }
+            finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public Task Screenshots_online_rank_lottery(bool dark)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
@@ -373,10 +449,10 @@ public sealed class VisualReviewTests
             Directory.CreateDirectory(Settings.VideoDirectory(harness.DataDirectory));
             foreach (var (uid, file) in new[] { (12345, "小鹿的欢迎动画.mp4"), (67890, "星光入场.webm") })
             {
-                Settings.Save(harness.DataDirectory, new Dictionary<string, string> { [$"welcome_animation_videos.{uid}"] = file });
+                Settings.Save(harness.DataDirectory, new Dictionary<string, string> { [$"entry_animation_viewers.{uid}"] = file });
                 File.WriteAllText(Path.Combine(Settings.VideoDirectory(harness.DataDirectory), file), "video");
             }
-            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
+            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = "true" });
             var viewModel = harness.CreateViewModel(new FakeTimeProvider());
             var window = new MainWindow(harness.DataDirectory)
             {
@@ -401,8 +477,9 @@ public sealed class VisualReviewTests
                     Save(window, $"web-service-N{(dark ? 2 : 1)}-{name}");
                 }
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1));
-                window.Navigation.SelectedIndex = 3;
-                viewModel.WebService.Apply(new WelcomeAnimationPlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
+                window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
+                viewModel.WebService.Apply(new SourcePlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
                 Save(window, $"welcome-animation-N3-{(dark ? "dark" : "light")}");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -421,7 +498,7 @@ public sealed class VisualReviewTests
             using var harness = new GuiHarness();
             await harness.SaveCredentialAsync();
             File.WriteAllText(Settings.FilePath(harness.DataDirectory),
-                $"welcome:\n  texts: {Settings.TextListText(Enumerable.Range(1, 12).Select(i => $"欢迎{{昵称}}回到直播间 · {i}"))}\n  uids: [{string.Join(", ", Enumerable.Range(12345670, 20))}]\n  fan_club_level: 21\n  guard: 舰长\n  wealth_level: 45\n");
+                $"welcome_danmaku:\n  texts: {Settings.TextListText(Enumerable.Range(1, 12).Select(i => $"欢迎{{昵称}}回到直播间 · {i}"))}\n  uids: [{string.Join(", ", Enumerable.Range(12345670, 20))}]\n  fan_club_level: 21\n  guard: 1\n  wealth_level: 45\n");
             var viewModel = harness.CreateViewModel();
             var window = new MainWindow(harness.DataDirectory)
             {
@@ -482,7 +559,7 @@ public sealed class VisualReviewTests
             var video = Path.Combine(harness.DataDirectory, "欢迎动画.mp4");
             File.WriteAllText(video, "video");
             SettingsPage page = kind == "animation"
-                ? new WelcomeAnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(video))
+                ? new AnimationSettingsPage(harness.DataDirectory, () => Task.FromResult<string?>(video))
                 : new WelcomeSettingsPage(harness.DataDirectory);
             var window = new Window
             {
@@ -505,7 +582,7 @@ public sealed class VisualReviewTests
                         .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     GuiHarness.Flush();
                     input = kind == "text" ? WelcomeTextList.Input(page, 1)
-                        : GuiHarness.FindRowControl<TextBox>(page, ((WelcomeAnimationSettingsPage)page).Animations.Single(), "UidInput");
+                        : GuiHarness.FindRowControl<TextBox>(page, ((AnimationSettingsPage)page).Animations.Single(), "UidInput");
                     row = input.GetVisualAncestors().OfType<EditableRowFrame>().Single();
                 }
                 Capture("new", false);
@@ -546,8 +623,8 @@ public sealed class VisualReviewTests
             await harness.SaveCredentialAsync();
             Settings.Save(harness.DataDirectory, new Dictionary<string, string>
             {
-                ["welcome.enabled"] = "true", ["welcome.fan_club_level"] = "12",
-                ["welcome.texts"] = Settings.TextListText(["欢迎{大航海}{昵称}", "{@}欢迎回家", "晚上好{昵称}，今天也来啦"])
+                ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.fan_club_level"] = "12",
+                ["welcome_danmaku.texts"] = Settings.TextListText(["欢迎{大航海}{昵称}", "{@}欢迎回家", "晚上好{昵称}，今天也来啦"])
             });
             var viewModel = harness.CreateViewModel();
             var window = new MainWindow(harness.DataDirectory)
@@ -594,8 +671,8 @@ public sealed class VisualReviewTests
             File.WriteAllText(Path.Combine(h.DataDirectory, "videos", "晚风进场.webm"), "video");
             Settings.Save(h.DataDirectory, new Dictionary<string, string>
             {
-                ["welcome_animation_videos.12345"] = "柚子不酸.mp4",
-                ["welcome_animation_videos.28816620"] = "晚风进场.webm"
+                ["entry_animation_viewers.12345"] = "柚子不酸.mp4",
+                ["entry_animation_viewers.28816620"] = "晚风进场.webm"
             });
             h.OnlineRankResponse = OnlineRankList.Answer(430, OnlineRankList.Top100());
             var vm = h.CreateViewModel();
@@ -606,7 +683,8 @@ public sealed class VisualReviewTests
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
                 vm.Apply(new Connected(7734200, 24680));
-                window.Navigation.SelectedIndex = 3;
+                window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 GuiHarness.Flush();
                 var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().First(x => x.IsEffectivelyVisible);
                 var button = picker.FindControl<Button>("PickerButton")!;
@@ -638,10 +716,10 @@ public sealed class VisualReviewTests
             Directory.CreateDirectory(Path.Combine(harness.DataDirectory, "videos"));
             foreach (var (uid, file) in videos)
             {
-                Settings.Save(harness.DataDirectory, new Dictionary<string, string> { [$"welcome_animation_videos.{uid}"] = file });
+                Settings.Save(harness.DataDirectory, new Dictionary<string, string> { [$"entry_animation_viewers.{uid}"] = file });
                 if (uid != 13579) File.WriteAllText(Path.Combine(harness.DataDirectory, "videos", file), "video");
             }
-            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation.enabled"] = "true" });
+            Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = "true" });
             var viewModel = harness.CreateViewModel(new FakeTimeProvider());
             var window = new MainWindow(harness.DataDirectory)
             {
@@ -652,11 +730,12 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 3;
-                var page = window.GetVisualDescendants().OfType<WelcomeAnimationSettingsPage>().Single();
+                window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
+                var page = window.GetVisualDescendants().OfType<AnimationSettingsPage>().Single();
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
                 foreach (var (state, index) in new[] { PlaybackState.Completed, PlaybackState.Failed, PlaybackState.NoReport, PlaybackState.Skipped, PlaybackState.Queued }.Select((state, index) => (state, index)))
-                    viewModel.WebService.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
+                    viewModel.WebService.Apply(new SourcePlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
                         Nickname: index switch { 1 => "柚子不酸", 2 => "bili_6508617762", _ => null }));
                 Capture("connected");
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
@@ -664,11 +743,11 @@ public sealed class VisualReviewTests
                 viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"));
                 Capture("port-occupied");
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
-                viewModel.WebService.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
+                viewModel.WebService.Apply(new SourcePlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
                 Capture("playing");
-                viewModel.WebService.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Stopped));
+                viewModel.WebService.Apply(new SourcePlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Stopped));
                 Capture("stopped");
-                viewModel.WebService.Apply(new WelcomeAnimationPlayback("real", 1234567890123456, videos[1234567890123456], false, PlaybackState.Playing));
+                viewModel.WebService.Apply(new SourcePlayback("real", 1234567890123456, videos[1234567890123456], false, PlaybackState.Playing));
                 Capture("entry-playing");
                 var rows = page.Animations.ToArray();
                 GuiHarness.FindRowControl<TextBox>(page, rows[0], "UidInput").Text = "";
@@ -858,7 +937,7 @@ public sealed class VisualReviewTests
         {
             using var h = new GuiHarness();
             await h.SaveCredentialAsync();
-            File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome:\n  uids: [12345, 28816620]\n");
+            File.WriteAllText(Settings.FilePath(h.DataDirectory), "welcome_danmaku:\n  uids: [12345, 28816620]\n");
             h.OnlineRankResponse = OnlineRankList.Answer(430, OnlineRankList.Top100());
             var vm = h.CreateViewModel();
             var window = new MainWindow(h.DataDirectory)

@@ -8,17 +8,20 @@ namespace Aether.Cli.Tests;
 
 public sealed class WelcomeAnimationBrowserTests
 {
-    [Fact]
-    public async Task Watch_leaves_web_service_stopped_when_welcome_animation_is_off()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Watch_starts_web_service_for_gift_animation_alone(bool giftEnabled)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = Settings.BooleanText(giftEnabled), ["web_service.port"] = Aether.Core.Tests.WelcomeAnimationTests.FreePort().ToString() });
         var watching = WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,
             _ => throw new InvalidOperationException("Already logged in"), h.Stop.Token);
         try
         {
             await h.WaitForLogAsync("已连接弹幕服务器");
-            Assert.False(h.Client.WebService.Status.Running);
+            Assert.Equal(giftEnabled, h.Client.WebService.Status.Running);
         }
         finally { await h.Stop.CancelAsync(); await watching; }
     }
@@ -40,12 +43,12 @@ public sealed class WelcomeAnimationBrowserTests
         availablePort.Stop();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome_animation.enabled"] = "true", ["web_service.port"] = port.ToString()
+            ["entry_animation.enabled"] = "true", ["web_service.port"] = port.ToString()
         });
         var videos = Path.Combine(h.DataDirectory, "videos");
         Directory.CreateDirectory(videos);
         File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(videos, "welcome.mp4"));
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.10001"] = "welcome.mp4" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "welcome.mp4" });
         var output = Console.Out;
         using var captured = new StringWriter();
         Console.SetOut(TextWriter.Synchronized(captured));

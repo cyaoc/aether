@@ -25,6 +25,9 @@ public abstract class SettingsPage : TemplatedControl
     /// <summary>Raised once Save has written the file or failed to, so other views can reread it.</summary>
     public event Action? SaveCompleted;
 
+    public static readonly StyledProperty<Control?> HeaderTabsProperty = AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderTabs));
+    public Control? HeaderTabs { get => GetValue(HeaderTabsProperty); set => SetValue(HeaderTabsProperty, value); }
+
     public static readonly StyledProperty<Control?> HeaderContentProperty =
         AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderContent), null);
     public Control? HeaderContent { get => GetValue(HeaderContentProperty); set => SetValue(HeaderContentProperty, value); }
@@ -64,6 +67,9 @@ public abstract class SettingsPage : TemplatedControl
     public static readonly StyledProperty<string> DirtyTextProperty =
         AvaloniaProperty.Register<SettingsPage, string>(nameof(DirtyText), "");
     public string DirtyText { get => GetValue(DirtyTextProperty); protected set => SetValue(DirtyTextProperty, value); }
+
+    public static readonly StyledProperty<bool> DirtyBlockedProperty = AvaloniaProperty.Register<SettingsPage, bool>(nameof(DirtyBlocked));
+    public bool DirtyBlocked { get => GetValue(DirtyBlockedProperty); protected set => SetValue(DirtyBlockedProperty, value); }
 
     public static readonly StyledProperty<bool> CanSaveProperty =
         AvaloniaProperty.Register<SettingsPage, bool>(nameof(CanSave), false);

@@ -12,32 +12,32 @@ public sealed class SettingsTests : IAsyncDisposable
     [Fact]
     public void Web_service_port_is_appended_and_legacy_animation_port_only_warns()
     {
-        Write("welcome_animation:\n  enabled: false\n  port: invalid\n");
+        Write("entry_animation:\n  enabled: false\n  port: invalid\n");
         var settings = Settings.Load(harness.DataDirectory, harness.Logger);
         Assert.Null(settings.Error);
-        Assert.Contains("welcome_animation.port", settings.UnknownKeys);
+        Assert.Contains("entry_animation.port", settings.UnknownKeys);
         Assert.Null(Settings.Validate("web_service.port", "17890"));
         Assert.Contains("web_service:\n", File.ReadAllText(SettingsPath));
         Assert.Contains("port: 17890", File.ReadAllText(SettingsPath));
-        Assert.Contains(harness.Logger.Entries, entry => entry.Level == LogLevel.Warning && entry.Message.Contains("welcome_animation.port"));
+        Assert.Contains(harness.Logger.Entries, entry => entry.Level == LogLevel.Warning && entry.Message.Contains("entry_animation.port"));
     }
 
     [Fact]
     public void Welcome_animation_defaults_and_empty_video_group_are_appended_once()
     {
-        Write("# 保留\nwelcome:\n  enabled: true\n");
+        Write("# 保留\nwelcome_danmaku:\n  enabled: true\n");
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Null(settings.Error);
-        Assert.False(settings.WelcomeAnimationEnabled.Value);
+        Assert.False(settings.EntryAnimationEnabled.Value);
         Assert.Equal(17890, settings.WebServicePort.Value);
         Assert.Empty(settings.WelcomeAnimationVideos);
-        Assert.Null(Settings.Validate("welcome_animation.enabled", "false"));
+        Assert.Null(Settings.Validate("entry_animation.enabled", "false"));
         Assert.Null(Settings.Validate("web_service.port", "17890"));
         var text = File.ReadAllText(SettingsPath);
-        Assert.StartsWith("# 保留\nwelcome:\n  enabled: true\n", text);
-        Assert.Contains("welcome_animation:\n", text);
+        Assert.StartsWith("# 保留\nwelcome_danmaku:\n  enabled: true\n", text);
+        Assert.Contains("entry_animation:\n", text);
         Assert.Contains("port: 17890", text);
-        Assert.Contains("welcome_animation_videos:\n", text);
+        Assert.Contains("entry_animation_viewers:\n", text);
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
         Assert.Equal(text, File.ReadAllText(SettingsPath));
     }
@@ -57,11 +57,11 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("1", "|\n    x.mp4")]
     public void Invalid_animation_mapping_reports_its_line_and_leaves_the_file_untouched(string uid, string value)
     {
-        var yaml = $"# 视频\nwelcome_animation_videos:\n  {uid}: {value}\n";
+        var yaml = $"# 视频\nentry_animation_viewers:\n  {uid}: {value}\n";
         Write(yaml);
         var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
         Assert.Equal(3, error.LineNumber);
-        Assert.Equal("welcome_animation_videos." + uid, error.SettingName);
+        Assert.Equal("entry_animation_viewers." + uid, error.SettingName);
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
     }
 
@@ -80,7 +80,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [Fact]
     public void Missing_animation_files_warn_without_invalidating_or_removing_the_mapping()
     {
-        Write("welcome_animation_videos:\n  42: 找不到.mp4\n");
+        Write("gift_animation:\nentry_animation_viewers:\n  42: 找不到.mp4\n");
         var loaded = Settings.Load(harness.DataDirectory, harness.Logger);
         Assert.Null(loaded.Error);
         Assert.Equal("找不到.mp4", loaded.WelcomeAnimationVideos[42].Value);
@@ -92,7 +92,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [Fact]
     public void Numeric_aliases_of_the_same_uid_are_rejected()
     {
-        Write("welcome_animation_videos:\n  01: a.mp4\n  1: b.mp4\n");
+        Write("entry_animation_viewers:\n  01: a.mp4\n  1: b.mp4\n");
         var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
         Assert.Equal(3, error.LineNumber);
         Assert.Contains("重复", error.Message);
@@ -101,28 +101,28 @@ public sealed class SettingsTests : IAsyncDisposable
     [Fact]
     public void Flow_mapping_is_readable_but_cannot_be_line_edited()
     {
-        const string yaml = "welcome_animation_videos: {42: a.mp4}\n...\n";
+        const string yaml = "entry_animation_viewers: {42: a.mp4}\n...\n";
         Write(yaml);
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Null(settings.Error);
-        Assert.False(settings.CanEditWelcomeAnimationVideos);
+        Assert.False(settings.CanEditEntryAnimationViewers);
         Assert.Equal("a.mp4", settings.WelcomeAnimationVideos[42].Value);
-        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimations(harness.DataDirectory,
+        Assert.Throws<SettingsException>(() => Settings.SaveAnimationViewers(harness.DataDirectory,
             new Dictionary<string, string>(), new Dictionary<long, string>(), settings));
         Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
-            new Dictionary<string, string> { ["welcome_animation_videos.43"] = "b.mp4" }));
+            new Dictionary<string, string> { ["entry_animation_viewers.43"] = "b.mp4" }));
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
     }
 
     [Fact]
     public void Deleting_a_uid_key_with_an_anchor_must_not_break_aliases_elsewhere()
     {
-        const string yaml = "welcome_animation_videos:\n  &who 42: a.mp4\nother:\n  uid: *who\n...\n";
+        const string yaml = "gift_animation:\nentry_animation_viewers:\n  &who 42: a.mp4\nother:\n  uid: *who\n...\n";
         Write(yaml);
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Null(settings.Error);
         Assert.False(settings.WelcomeAnimationVideos[42].CanEdit);
-        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimations(harness.DataDirectory,
+        Assert.Throws<SettingsException>(() => Settings.SaveAnimationViewers(harness.DataDirectory,
             new Dictionary<string, string>(), new Dictionary<long, string>(), settings));
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
     }
@@ -133,22 +133,22 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("'42 '")]
     public void Animation_mapping_add_replace_delete_preserves_other_lines_and_encoding(string uid)
     {
-        var yaml = $"# 我的文件\r\nwelcome_animation_videos:\r\n  # 观众\r\n  {uid}: 原片.mp4 # 保留\r\nlog:\r\n  level: Debug\r\n...\r\n";
+        var yaml = $"# 我的文件\r\ngift_animation:\r\nentry_animation_viewers:\r\n  # 观众\r\n  {uid}: 原片.mp4 # 保留\r\nlog:\r\n  level: Debug\r\n...\r\n";
         Directory.CreateDirectory(harness.DataDirectory);
         File.WriteAllText(SettingsPath, yaml, System.Text.Encoding.Unicode);
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.42"] = "新片.webm" });
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.43"] = "# 进场.mp4" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "新片.webm" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.43"] = "# 进场.mp4" });
         var replaced = yaml.Replace("原片.mp4", "新片.webm").Replace("log:", "  43: '# 进场.mp4'\r\nlog:");
         Assert.Equal(replaced, File.ReadAllText(SettingsPath));
         Assert.Equal("新片.webm", Settings.Load(harness.DataDirectory).WelcomeAnimationVideos[42].Value);
-        Settings.SaveWelcomeAnimations(harness.DataDirectory, new Dictionary<string, string>(),
+        Settings.SaveAnimationViewers(harness.DataDirectory, new Dictionary<string, string>(),
             new Dictionary<long, string> { [43] = "# 进场.mp4" }, Settings.Load(harness.DataDirectory));
-        Settings.SaveWelcomeAnimations(harness.DataDirectory, new Dictionary<string, string>(),
+        Settings.SaveAnimationViewers(harness.DataDirectory, new Dictionary<string, string>(),
             new Dictionary<long, string>(), Settings.Load(harness.DataDirectory));
         var deleted = yaml.Replace($"  {uid}: 原片.mp4 # 保留\r\n", "");
         Assert.Equal(deleted, File.ReadAllText(SettingsPath));
         Assert.Empty(Settings.Load(harness.DataDirectory).WelcomeAnimationVideos);
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.44"] = "最后.mp4" });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.44"] = "最后.mp4" });
         Assert.Equal(deleted.Replace("log:", "  44: 最后.mp4\r\nlog:"), File.ReadAllText(SettingsPath));
         Assert.True(File.ReadAllBytes(SettingsPath).AsSpan().StartsWith(System.Text.Encoding.Unicode.GetPreamble()));
     }
@@ -156,17 +156,17 @@ public sealed class SettingsTests : IAsyncDisposable
     [Fact]
     public void Welcome_animation_form_save_updates_switch_port_and_mapping_together_or_not_at_all()
     {
-        Write("welcome_animation:\n  enabled: false # 开关\nweb_service:\n  port: 17890\nwelcome_animation_videos:\n  42: old.mp4\n  43: shared.webm\n");
+        Write("entry_animation:\n  enabled: false # 开关\nweb_service:\n  port: 17890\ngift_animation:\nentry_animation_viewers:\n  42: old.mp4\n  43: shared.webm\n");
         var snapshot = Settings.Load(harness.DataDirectory);
         var before = File.ReadAllText(SettingsPath);
-        var changes = new Dictionary<string, string> { ["welcome_animation.enabled"] = "true", ["web_service.port"] = "17891" };
-        Assert.Throws<SettingsException>(() => Settings.SaveWelcomeAnimations(harness.DataDirectory, changes,
+        var changes = new Dictionary<string, string> { ["entry_animation.enabled"] = "true", ["web_service.port"] = "17891" };
+        Assert.Throws<SettingsException>(() => Settings.SaveAnimationViewers(harness.DataDirectory, changes,
             new Dictionary<long, string> { [44] = "../bad.mp4" }, snapshot));
         Assert.Equal(before, File.ReadAllText(SettingsPath));
-        Settings.SaveWelcomeAnimations(harness.DataDirectory, changes,
+        Settings.SaveAnimationViewers(harness.DataDirectory, changes,
             new Dictionary<long, string> { [43] = "shared.webm", [44] = "new.mp4" }, snapshot);
         var saved = Settings.Load(harness.DataDirectory);
-        Assert.True(saved.WelcomeAnimationEnabled.Value);
+        Assert.True(saved.EntryAnimationEnabled.Value);
         Assert.Equal(17891, saved.WebServicePort.Value);
         Assert.Equal(new long[] { 43, 44 }, saved.WelcomeAnimationVideos.Keys.Order());
         Assert.Equal("new.mp4", saved.WelcomeAnimationVideos[44].Value);
@@ -176,7 +176,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [Fact]
     public void An_existing_five_second_interval_is_preserved()
     {
-        const string yaml = "web_service:\nwelcome_animation:\nwelcome_animation_videos:\nwelcome:\nlog:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
+        const string yaml = "web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\nwelcome_danmaku:\nlog:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
         Write(yaml);
         Assert.Equal(5, Settings.Load(harness.DataDirectory).SendIntervalSeconds.Value);
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
@@ -187,7 +187,7 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Assert.Contains("announce: true", File.ReadAllText(SettingsPath));
-        Write("web_service:\nwelcome_animation:\nwelcome_animation_videos:\nwelcome:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 今日盲盒 # 关键字\n");
+        Write("web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\nwelcome_danmaku:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 今日盲盒 # 关键字\n");
         var before = File.ReadAllText(SettingsPath);
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
@@ -210,7 +210,7 @@ public sealed class SettingsTests : IAsyncDisposable
         foreach (var line in File.ReadAllText(SettingsPath).ReplaceLineEndings("\n").Split('\n'))
             if (Regex.Match(line, @"^(\w+):$") is { Success: true } header) templateGroup = header.Groups[1].Value;
             else if (Regex.Match(line, @"^  (\w+):") is { Success: true } key) templateNames.Add(templateGroup + "." + key.Groups[1].Value);
-        Assert.Equal(Settings.AllDefinitions.Where(definition => definition is not Settings.VideoGroupDefinition).Select(definition => definition.Name).Order(), templateNames.Order());
+        Assert.Equal(Settings.AllDefinitions.Where(definition => definition is not Settings.ViewerGroupDefinition).Select(definition => definition.Name).Order(), templateNames.Order());
         // Keep every group present so Load cannot fill it from Template and hide a mismatched definition default.
         Write(string.Concat(Settings.AllDefinitions.Select(definition => definition.Group).Distinct().Select(group => group + ":\n")));
         var missing = Settings.Load(harness.DataDirectory);
@@ -219,7 +219,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(Values(fromTemplate), Values(missing));
 
         static IEnumerable<(string, string)> Values(Settings settings) =>
-            Settings.AllDefinitions.Where(definition => definition is not Settings.VideoGroupDefinition)
+            Settings.AllDefinitions.Where(definition => definition is not Settings.ViewerGroupDefinition)
                 .Select(definition => (definition.Name, definition.ValueText(settings, definition.Name)));
     }
 
@@ -653,7 +653,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("Critical", LogLevel.Critical)]
     public void Reads_known_values_without_rewriting_the_file(string level, LogLevel expected)
     {
-        var yaml = $"web_service:\nwelcome_animation:\nwelcome_animation_videos:\n# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\nwelcome:\n";
+        var yaml = $"web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\n# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\nwelcome_danmaku:\n";
         Write(yaml);
         var before = File.ReadAllBytes(SettingsPath);
 
@@ -860,7 +860,7 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     // Isolated definitions exercise text and list editing independently of the shipped settings' validation.
-    private static readonly Settings.Definition<string> Greeting = Settings.Definition.Text("welcome.greeting", "");
+    private static readonly Settings.Definition<string> Greeting = Settings.Definition.Text("welcome_danmaku.greeting", "");
 
     [Theory]
     [InlineData("{观众} 欢迎", "'{观众} 欢迎'")]
@@ -871,50 +871,50 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("你好", "你好")]
     public void Text_settings_are_quoted_only_when_yaml_needs_it_and_read_back_as_typed(string text, string written)
     {
-        Write("# 欢迎\nwelcome:\n  greeting: 旧的  # 行尾\nlog:\n  level: Debug\n");
+        Write("# 欢迎\nwelcome_danmaku:\n  greeting: 旧的  # 行尾\nlog:\n  level: Debug\n");
 
-        Settings.Save(harness.DataDirectory, [Greeting], new Dictionary<string, string> { ["welcome.greeting"] = text });
+        Settings.Save(harness.DataDirectory, [Greeting], new Dictionary<string, string> { ["welcome_danmaku.greeting"] = text });
 
-        Assert.Equal($"# 欢迎\nwelcome:\n  greeting: {written}  # 行尾\nlog:\n  level: Debug\n", File.ReadAllText(SettingsPath));
+        Assert.Equal($"# 欢迎\nwelcome_danmaku:\n  greeting: {written}  # 行尾\nlog:\n  level: Debug\n", File.ReadAllText(SettingsPath));
         var loaded = Settings.Load(harness.DataDirectory, [Greeting]);
         Assert.Null(loaded.Error);
-        Assert.Equal(new Setting<string>("welcome.greeting", text), loaded.Get(Greeting));
+        Assert.Equal(new Setting<string>("welcome_danmaku.greeting", text), loaded.Get(Greeting));
     }
 
-    private static readonly Settings.Definition<IReadOnlyList<string>> Viewers = Settings.Definition.TextList("welcome.viewers", []);
+    private static readonly Settings.Definition<IReadOnlyList<string>> Viewers = Settings.Definition.TextList("welcome_danmaku.viewers", []);
 
     [Fact]
     public void One_line_lists_are_rewritten_in_place_while_block_lists_stay_read_only()
     {
-        Write("welcome:\n  viewers: [甲, '乙']  # 名单\n");
+        Write("welcome_danmaku:\n  viewers: [甲, '乙']  # 名单\n");
         var loaded = Settings.Load(harness.DataDirectory, [Viewers]);
         Assert.Equal(["甲", "乙"], loaded.Get(Viewers).Value);
         Assert.True(loaded.Get(Viewers).CanEdit);
 
-        Settings.Save(harness.DataDirectory, [Viewers], new Dictionary<string, string> { ["welcome.viewers"] = "[甲, '{丙}', 'a, b']" });
+        Settings.Save(harness.DataDirectory, [Viewers], new Dictionary<string, string> { ["welcome_danmaku.viewers"] = "[甲, '{丙}', 'a, b']" });
 
-        Assert.Equal("welcome:\n  viewers: [\"甲\", \"{丙}\", \"a, b\"]  # 名单\n", File.ReadAllText(SettingsPath));
+        Assert.Equal("welcome_danmaku:\n  viewers: [\"甲\", \"{丙}\", \"a, b\"]  # 名单\n", File.ReadAllText(SettingsPath));
         Assert.Equal(["甲", "{丙}", "a, b"], Settings.Load(harness.DataDirectory, [Viewers]).Get(Viewers).Value);
 
-        Write("welcome:\n  viewers:\n    - 甲\n");
+        Write("welcome_danmaku:\n  viewers:\n    - 甲\n");
         loaded = Settings.Load(harness.DataDirectory, [Viewers]);
         Assert.Null(loaded.Error);
         Assert.Equal(["甲"], loaded.Get(Viewers).Value);
         Assert.False(loaded.Get(Viewers).CanEdit);
         Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory, [Viewers],
-            new Dictionary<string, string> { ["welcome.viewers"] = "[乙]" }));
-        Assert.Equal("welcome:\n  viewers:\n    - 甲\n", File.ReadAllText(SettingsPath));
+            new Dictionary<string, string> { ["welcome_danmaku.viewers"] = "[乙]" }));
+        Assert.Equal("welcome_danmaku:\n  viewers:\n    - 甲\n", File.ReadAllText(SettingsPath));
     }
 
     [Theory]
-    [InlineData("welcome.viewers", "甲")]
-    [InlineData("welcome.viewers", "[[甲]]")]
-    [InlineData("welcome.viewers", "[甲")]
-    [InlineData("welcome.greeting", "两\n行")]
-    [InlineData("welcome.viewers", "[[a],\n  b: 7\n    c]")]
+    [InlineData("welcome_danmaku.viewers", "甲")]
+    [InlineData("welcome_danmaku.viewers", "[[甲]]")]
+    [InlineData("welcome_danmaku.viewers", "[甲")]
+    [InlineData("welcome_danmaku.greeting", "两\n行")]
+    [InlineData("welcome_danmaku.viewers", "[[a],\n  b: 7\n    c]")]
     public void Invalid_text_or_list_input_is_rejected_without_writing(string name, string value)
     {
-        const string yaml = "welcome:\n  greeting: 你好\n  viewers: [甲]\n";
+        const string yaml = "welcome_danmaku:\n  greeting: 你好\n  viewers: [甲]\n";
         Write(yaml);
 
         Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory, [Greeting, Viewers],
@@ -924,9 +924,9 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("welcome:\n  greeting: 你好\n", "welcome.viewers", "[甲, 乙]", "welcome:\n  greeting: 你好\n  viewers: [\"甲\", \"乙\"]\n")]
-    [InlineData("welcome:\n  viewers: [甲]  # 名单\nlog: {}\n", "welcome.greeting", "你好",
-        "welcome:\n  viewers: [甲]  # 名单\n  greeting: 你好\nlog: {}\n")]
+    [InlineData("welcome_danmaku:\n  greeting: 你好\n", "welcome_danmaku.viewers", "[甲, 乙]", "welcome_danmaku:\n  greeting: 你好\n  viewers: [\"甲\", \"乙\"]\n")]
+    [InlineData("welcome_danmaku:\n  viewers: [甲]  # 名单\nlog: {}\n", "welcome_danmaku.greeting", "你好",
+        "welcome_danmaku:\n  viewers: [甲]  # 名单\n  greeting: 你好\nlog: {}\n")]
     public void Missing_text_or_list_settings_are_added_after_the_groups_last_line(string yaml, string name, string value, string expected)
     {
         Write(yaml);
@@ -963,7 +963,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [Fact]
     public void A_flow_list_spread_over_lines_is_read_only()
     {
-        Write("welcome:\n  viewers: [甲,\n    乙]\n");
+        Write("welcome_danmaku:\n  viewers: [甲,\n    乙]\n");
 
         var loaded = Settings.Load(harness.DataDirectory, [Viewers]);
 

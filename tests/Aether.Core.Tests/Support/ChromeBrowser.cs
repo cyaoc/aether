@@ -14,6 +14,36 @@ internal sealed class ChromeBrowser : IAsyncDisposable
     public List<string> Requests { get; } = [];
     public List<string> Errors { get; } = [];
 
+    /// <summary>Starts the web service on a free port and opens its video page.</summary>
+    public static async Task<ChromeBrowser> OpenVideoPageAsync(WatchHarness harness, IReadOnlyDictionary<string, string>? settings = null)
+    {
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string>(settings ?? new Dictionary<string, string>()) { ["web_service.port"] = WelcomeAnimationTests.FreePort().ToString() });
+        await harness.Client.ApplyWebSettingsAsync(Settings.Load(harness.DataDirectory));
+        var browser = new ChromeBrowser();
+        await browser.OpenAsync(harness.DataDirectory, harness.Client.WebService.Status.VideoAddress);
+        return browser;
+    }
+
+    /// <summary>Loads the animation runtime into window.animationModule and runs <paramref name="afterFrame"/>, with scene,
+    /// t and context in scope, after every frame of one animation.</summary>
+    public async Task WatchFramesAsync(string animation, string afterFrame, string onCreate = "")
+    {
+        await EvaluateAsync("(async()=>{window.animationModule=await import('/video/animations/runtime.mjs');await animationModule.preload();return true;})()");
+        await EvaluateAsync($$"""
+            (async()=>{
+              const {registry}=await import('/video/animations/registry.mjs');
+              const entry=registry['{{animation}}'],create=entry.create;
+              entry.create=context=>{
+                const scene=create(context),frame=scene.frame.bind(scene);
+                scene.frame=t=>{frame(t);{{afterFrame}}};
+                {{onCreate}}
+                return scene;
+              };
+              return true;
+            })()
+            """);
+    }
+
     public async Task OpenAsync(string directory, string url, int width = 1920, int height = 1080)
     {
         var executable = Environment.GetEnvironmentVariable("AETHER_TEST_CHROME");

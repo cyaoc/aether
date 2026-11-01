@@ -196,7 +196,8 @@ public sealed class WebService : IDisposable
                 requests.Add(HandleAsync(context, token));
             }
         }
-        catch (Exception error) when (token.IsCancellationRequested && error is HttpListenerException or ObjectDisposedException or OperationCanceledException) { }
+        // Windows may bind its request-queue handle just as StopAsync closes it.
+        catch (Exception error) when (token.IsCancellationRequested && error is HttpListenerException or ObjectDisposedException or OperationCanceledException or ArgumentException { ParamName: "handle" }) { }
         finally { await Task.WhenAll(requests); }
     }
 
@@ -277,7 +278,9 @@ public sealed class WebService : IDisposable
         {
             ".html" => "text/html; charset=utf-8",
             ".css" => "text/css; charset=utf-8",
-            ".js" => "text/javascript; charset=utf-8",
+            ".js" or ".mjs" => "text/javascript; charset=utf-8",
+            ".json" => "application/json; charset=utf-8",
+            ".ogg" => "audio/ogg",
             ".woff2" => "font/woff2",
             ".webp" => "image/webp",
             ".ttf" => "font/ttf",

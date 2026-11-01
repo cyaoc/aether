@@ -43,6 +43,57 @@ public sealed partial class AetherClient
         }
     }
 
+    private sealed class GiftRoundFeature(TimeProvider time, ILogger logger, long roomId,
+        Action<GiftRoundEnded> ended) : IRoomFeature
+    {
+        private sealed class Round(long uid, string nickname)
+        {
+            public long Uid = uid;
+            public string Nickname = nickname;
+            public long Spend;
+            public QuietTimer Timer = null!;
+        }
+        private readonly object gate = new();
+        private readonly Dictionary<long, Round> rounds = [];
+
+        public void Handle(RoomEvent e)
+        {
+            lock (gate)
+            {
+                if (e is RoomConnectionEnded)
+                {
+                    foreach (var round in rounds.Values) round.Timer.Dispose();
+                    rounds.Clear();
+                }
+                if (e is not DanmakuProtocol.GiftsReceived received) return;
+                // shortcut: no tid deduplication; add it if real captures show duplicate gift pushes.
+                foreach (var gift in received.Gifts)
+                {
+                    if (gift.Uid == 0)
+                    {
+                        logger.LogInformation("uid 为 0 的观众送礼，未计入一轮送礼");
+                        continue;
+                    }
+                    if (!rounds.TryGetValue(gift.Uid, out var round))
+                    {
+                        round = new(gift.Uid, gift.Nickname);
+                        rounds.Add(gift.Uid, round);
+                        round.Timer = new QuietTimer(time, gate, () =>
+                        {
+                            rounds.Remove(round.Uid);
+                            round.Timer.Dispose();
+                            ended(new(roomId, round.Uid, round.Nickname, round.Spend,
+                                time.GetUtcNow(), time.GetTimestamp()));
+                        });
+                    }
+                    round.Nickname = gift.Nickname;
+                    round.Spend = checked(round.Spend + gift.Spend);
+                    round.Timer.Reset(received.ReceivedTimestamp);
+                }
+            }
+        }
+    }
+
     private sealed class BlindBoxQueryFeature(Settings settings, SendQueue sendQueue, ILogger logger) : IRoomFeature
     {
         private readonly string dailyKeyword = settings.BlindBoxDailyKeyword.Value.Trim();
@@ -69,18 +120,18 @@ public sealed partial class AetherClient
         {
             // ponytail: a synchronous SQLite write on the receive loop (busy waits up to Microsoft.Data.Sqlite's 30 s
             // command timeout, well inside the 60 s idle deadline); hand it to a background writer if a room ever stalls on it.
-            if (e is DanmakuProtocol.BlindBoxesReceived received)
-                sendQueue.Record(received.BlindBoxes, received.ReceivedTimestamp,
+            if (e is DanmakuProtocol.GiftsReceived received)
+                sendQueue.Record(received.Gifts.Where(gift => gift.BlindBox is not null).Select(gift => gift.BlindBox!).ToArray(), received.ReceivedTimestamp,
                     box => stores.Value.BlindBoxes.Save(roomId, box) && announce);
         }
     }
 
-    private sealed class WelcomeAnimationFeature(WelcomeAnimation animation, CancellationToken roomStopped) : IRoomFeature
+    private sealed class EntryAnimationFeature(EntryAnimation animation, CancellationToken roomStopped) : IRoomFeature
     {
         public void Handle(RoomEvent e)
         {
             if (e is DanmakuProtocol.EntryReceived { Entry: var entry, ReceivedTimestamp: var timestamp })
-                animation.Enqueue(entry.Uid, entry.Nickname, timestamp, roomStopped);
+                animation.Enqueue(entry, timestamp, roomStopped);
         }
     }
 

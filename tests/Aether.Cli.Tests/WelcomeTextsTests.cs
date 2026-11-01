@@ -13,8 +13,8 @@ public sealed class WelcomeTextsTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true",
-            ["welcome.texts"] = Settings.TextListText(["欢迎{昵称}", "{@}欢迎回家"])
+            ["welcome_danmaku.enabled"] = "true",
+            ["welcome_danmaku.texts"] = Settings.TextListText(["欢迎{昵称}", "{@}欢迎回家"])
         });
         var sent = CaptureSends(h);
         var watching = WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,

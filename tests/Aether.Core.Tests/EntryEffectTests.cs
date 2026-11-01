@@ -18,12 +18,12 @@ public sealed class EntryEffectTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome_animation.enabled"] = "true",
+            ["welcome_danmaku.enabled"] = "true", ["entry_animation.enabled"] = "true",
             ["web_service.port"] = WelcomeAnimationTests.FreePort().ToString()
         });
         Directory.CreateDirectory(Settings.VideoDirectory(h.DataDirectory));
         File.WriteAllText(Path.Combine(Settings.VideoDirectory(h.DataDirectory), "entry.mp4"), "video");
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_animation_videos.10001"] = "entry.mp4" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "entry.mp4" });
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false });
         using var page = await http.GetAsync(h.Client.WebService.Status.VideoAddress + "/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
@@ -45,7 +45,7 @@ public sealed class EntryEffectTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.enabled"] = "true" });
         await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
         var progress = await h.PushAndCollectAsync(updates,
             EntryEffectFixture.Message(triggerTime: 10),
@@ -64,7 +64,7 @@ public sealed class EntryEffectTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.enabled"] = "true" });
         await using (var updates = await h.WatchConnectedAsync())
         {
             await h.PushAndSyncAsync(updates, EntryEffectFixture.Message(triggerTime: 10));
@@ -90,8 +90,8 @@ public sealed class EntryEffectTests
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.guard"] = "舰长",
-            ["welcome.fan_club_level"] = "1", ["welcome.wealth_level"] = "1"
+            ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.guard"] = "1",
+            ["welcome_danmaku.fan_club_level"] = "1", ["welcome_danmaku.wealth_level"] = "1"
         });
         await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
         var progress = await h.PushAndCollectAsync(updates,
@@ -101,11 +101,11 @@ public sealed class EntryEffectTests
     }
 
     [Theory]
-    [InlineData("ENTRY_EFFECT", "welcome.uids", "[10001]", 90001, true)]
-    [InlineData("ENTRY_EFFECT_MUST_RECEIVE", "welcome.guard", "舰长", 90001, true)]
-    [InlineData("ENTRY_EFFECT", "welcome.wealth_level", "45", 90001, true)]
-    [InlineData("ENTRY_EFFECT_MUST_RECEIVE", "welcome.fan_club_level", "47", 90001, true)]
-    [InlineData("ENTRY_EFFECT", "welcome.fan_club_level", "47", 90002, false)]
+    [InlineData("ENTRY_EFFECT", "welcome_danmaku.uids", "[10001]", 90001, true)]
+    [InlineData("ENTRY_EFFECT_MUST_RECEIVE", "welcome_danmaku.guard", "1", 90001, true)]
+    [InlineData("ENTRY_EFFECT", "welcome_danmaku.wealth_level", "45", 90001, true)]
+    [InlineData("ENTRY_EFFECT_MUST_RECEIVE", "welcome_danmaku.fan_club_level", "47", 90001, true)]
+    [InlineData("ENTRY_EFFECT", "welcome_danmaku.fan_club_level", "47", 90002, false)]
     public async Task Effect_alone_uses_identity_and_only_this_rooms_fan_club(
         string command, string condition, string value, long medalAnchor, bool welcomed)
     {
@@ -113,8 +113,8 @@ public sealed class EntryEffectTests
         await h.LoginAsync();
         var settings = new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.uids"] = "[]", ["welcome.guard"] = "关闭",
-            ["welcome.wealth_level"] = "0", ["welcome.fan_club_level"] = "0"
+            ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.uids"] = "[]", ["welcome_danmaku.guard"] = "0",
+            ["welcome_danmaku.wealth_level"] = "0", ["welcome_danmaku.fan_club_level"] = "0"
         };
         settings[condition] = value;
         Settings.Save(h.DataDirectory, settings);
@@ -130,7 +130,7 @@ public sealed class EntryEffectTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome.enabled"] = "true", ["welcome.guard"] = "舰长" });
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.guard"] = "1" });
         await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
         var progress = await h.PushAndCollectAsync(updates, EntryEffectFixture.Message(fanClubLevel: -1, medalAnchor: 90002));
         Assert.Empty(progress.OfType<SendQueueUpdate>());

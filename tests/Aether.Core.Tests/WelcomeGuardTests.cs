@@ -34,19 +34,19 @@ public sealed class WelcomeGuardTests
     }
 
     [Theory]
-    [InlineData("舰长", 3, "舰长")]
-    [InlineData("舰长", 2, "提督")]
-    [InlineData("舰长", 1, "总督")]
-    [InlineData("提督", 3, null)]
-    [InlineData("提督", 2, "提督")]
-    [InlineData("提督", 1, "总督")]
-    [InlineData("总督", 3, null)]
-    [InlineData("总督", 2, null)]
-    [InlineData("总督", 1, "总督")]
-    [InlineData("关闭", 1, null)]
-    [InlineData("关闭", 2, null)]
-    [InlineData("关闭", 3, null)]
-    [InlineData("舰长", 0, null)]
+    [InlineData("1", 3, "舰长")]
+    [InlineData("1", 2, "提督")]
+    [InlineData("1", 1, "总督")]
+    [InlineData("2", 3, null)]
+    [InlineData("2", 2, "提督")]
+    [InlineData("2", 1, "总督")]
+    [InlineData("3", 3, null)]
+    [InlineData("3", 2, null)]
+    [InlineData("3", 1, "总督")]
+    [InlineData("0", 1, null)]
+    [InlineData("0", 2, null)]
+    [InlineData("0", 3, null)]
+    [InlineData("1", 0, null)]
     public async Task Guard_threshold_welcomes_only_qualifying_entries(string threshold, long guard, string? guardName)
     {
         await using var h = new WatchHarness();
@@ -117,7 +117,7 @@ public sealed class WelcomeGuardTests
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        EnableGuardWelcome(h, "总督", wealthLevel: "45");
+        EnableGuardWelcome(h, "3", wealthLevel: "45");
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
         var guard = Bytes(6, [.. Integer(7, 99), .. Integer(1, 2)]);
@@ -134,11 +134,11 @@ public sealed class WelcomeGuardTests
         Assert.DoesNotContain(h.Logger.Entries, entry => entry.Level == LogLevel.Warning);
     }
 
-    // Other conditions are off so only the 大航海身份 can welcome.
-    private static void EnableGuardWelcome(WatchHarness h, string guard = "舰长", string wealthLevel = "0") =>
+    // Other conditions are off so only the 大航海身份 can welcome_danmaku.
+    private static void EnableGuardWelcome(WatchHarness h, string guard = "1", string wealthLevel = "0") =>
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["welcome.enabled"] = "true", ["welcome.guard"] = guard,
-            ["welcome.uids"] = "[]", ["welcome.fan_club_level"] = "0", ["welcome.wealth_level"] = wealthLevel
+            ["welcome_danmaku.enabled"] = "true", ["welcome_danmaku.guard"] = guard,
+            ["welcome_danmaku.uids"] = "[]", ["welcome_danmaku.fan_club_level"] = "0", ["welcome_danmaku.wealth_level"] = wealthLevel
         });
 }

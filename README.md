@@ -76,9 +76,10 @@ aether logout           # 退出登录，删除本地凭据
 | 分组 | 内容 | 默认 | 生效时机 |
 | --- | --- | --- | --- |
 | `blind_box` | 盲盒统计开关、查询关键字、播报开关 | 开启 | 下次连接直播间 |
-| `welcome` | 进场欢迎开关、欢迎语、欢迎条件 | 关闭 | 下次连接直播间 |
-| `welcome_animation` | 欢迎动画开关 | 关闭 | 下次连接直播间；GUI 保存为关后立即停止推送 |
-| `welcome_animation_videos` | 观众 UID → 视频文件名 | 空 | GUI 保存后立即应用；CLI 下次 watch |
+| `welcome_danmaku` | 欢迎弹幕开关、欢迎语、欢迎条件 | 关闭 | 下次连接直播间 |
+| `entry_animation` | 进场动画和欢迎动画的开关、粉丝团等级门槛、音量 | 关闭 | GUI 保存后立即应用；CLI 下次 watch |
+| `entry_animation_viewers` | 动画名单：观众 UID → 进场档、0（不播）或视频文件名 | 空 | GUI 保存后立即应用；CLI 下次 watch |
+| `gift_animation` | 送礼动画开关、四档投入门槛 | 关闭 | GUI 保存后立即应用；CLI 下次 watch |
 | `web_service` | 视频页、抽奖页共用端口 | 17890 | GUI 保存后立即重启服务；CLI 下次 watch |
 | `send` | 两次发送之间的秒数 | 1 | 下次连接直播间 |
 | `log` | 日志保留天数、日志级别 | 30 天、Information | 重启 |
@@ -95,21 +96,21 @@ CLI 和 GUI 放在同一目录时共用 `data/`，分开放则各自登录。同
 
 ### 欢迎动画
 
-**GUI**：在“欢迎动画”页打开开关，点“添加观众”选 MP4 或 WebM 视频、填 UID，保存时视频复制到 `data/videos/`。
-不用登录或连接直播间：GUI 开着就运行网页服务，与功能开关无关。“通用设置”显示端口、视频页和抽奖页地址及各自的连接数；欢迎动画保存为开后可以试播。
+**GUI**：在“进场欢迎”的“动画”分页打开开关，点“添加观众”，选欢迎动画和 MP4 或 WebM 视频、填 UID，保存时视频复制到 `data/videos/`。
+不用登录或连接直播间：GUI 开着就运行网页服务，与功能开关无关。“通用设置”显示端口、视频页和抽奖页地址及各自的连接数；视频保存后就能试播，不看开关。
 
 **CLI**：把 MP4 或 WebM 视频放到 `data/videos/`，在 `data/aether.yml` 中打开开关并填写映射：
 
 ```yaml
-welcome_animation:
+entry_animation:
   enabled: true
 web_service:
   port: 17890
-welcome_animation_videos:
+entry_animation_viewers:
   12345: 小明进场.mp4
 ```
 
-CLI 只在 `aether watch <房间号>` 期间、并且欢迎动画开启时运行网页服务，视频页地址打印到 stdout。
+CLI 只在 `aether watch <房间号>` 期间、并且进场动画或送礼动画开启时运行网页服务，视频页地址打印到 stdout。
 
 先打开 GUI 或运行 `watch`，再在同一台电脑上的直播姬添加“浏览器”素材或 OBS 添加“浏览器”来源，
 视频页地址填 `http://localhost:17890/video`；横屏尺寸 1920 × 1080，竖屏 1080 × 1920。若画面一直空白，右键素材 → 刷新。

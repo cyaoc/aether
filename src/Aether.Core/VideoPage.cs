@@ -12,17 +12,22 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
     private readonly Channel<Playback> queue = Channel.CreateUnbounded<Playback>(new UnboundedChannelOptions { SingleReader = true });
     private Playback? current;
     private TaskCompletionSource<(PlaybackState State, string? Reason)>? reported;
-    private sealed record Playback(string Id, string FileName, string Source, long ReceivedAt,
+    private sealed record Playback(string Id, PlaybackContent Content, string Source, long ReceivedAt,
         Func<string?>? SkipReason, Action<VideoPlayback>? Updated);
 
-    public void Enqueue(string fileName, string source) => Enqueue(fileName, source, timeProvider.GetTimestamp(), null, null);
+    private Settings? settings;
+    /// <summary>The settings applied last. Playback sources and the room's decoder read these, not their room connection's,
+    /// so a save reaches them without reconnecting.</summary>
+    internal Settings? Settings { get { lock (service.Gate) return settings; } }
+    internal void Apply(Settings snapshot) { lock (service.Gate) settings = snapshot; }
+    public void Enqueue(string fileName, string source) => Enqueue(new PlaybackContent.Video(fileName), source, timeProvider.GetTimestamp(), null, null);
 
-    internal void Enqueue(string fileName, string source, long receivedAt, Func<string?>? skipReason, Action<VideoPlayback>? updated)
+    internal void Enqueue(PlaybackContent content, string source, long receivedAt, Func<string?>? skipReason, Action<VideoPlayback>? updated)
     {
-        if (Settings.ValidateVideoFileName(fileName) is { } error) throw new ArgumentException(error, nameof(fileName));
+        if (content is PlaybackContent.Video video && Settings.ValidateVideoFileName(video.FileName) is { } error) throw new ArgumentException(error, nameof(content));
         lock (service.Gate)
         {
-            var item = new Playback(Ids.New(), fileName, source, receivedAt, skipReason, updated);
+            var item = new Playback(Ids.New(), content, source, receivedAt, skipReason, updated);
             if (!service.Status.Running) Report(item, PlaybackState.Skipped, service.Status.Error ?? "网页服务未运行");
             else if (service.Status.VideoConnections == 0) Report(item, PlaybackState.Skipped, "没有推流软件连着");
             else { Report(item, PlaybackState.Queued); queue.Writer.TryWrite(item); }
@@ -38,7 +43,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
 
     private void Report(Playback item, PlaybackState state, string? reason = null)
     {
-        var update = new VideoPlayback(item.Id, item.FileName, item.Source, state, reason);
+        var update = new VideoPlayback(item.Id, item.Content.Summary, item.Source, state, reason);
         service.Publish(update);
         // Only under the gate when the caller holds it: the source logs, which should not hold up requests.
         item.Updated?.Invoke(update);
@@ -54,7 +59,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
             await foreach (var item in reader.ReadAllAsync(token))
             {
                 TaskCompletionSource<(PlaybackState State, string? Reason)> completion;
-                var exists = File.Exists(VideoPath(item.FileName));
+                var exists = item.Content is not PlaybackContent.Video file || File.Exists(VideoPath(file.FileName));
                 lock (service.Gate)
                 {
                     // The source's reason first: an entry from an ended room connection reports that, not its queue wait.
@@ -69,7 +74,10 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
                 // Once pushed, the room ending does not cut the video short: pages outlive room connections (ADR 0006).
                 try
                 {
-                    var payload = new { id = item.Id };
+                    object payload;
+                    lock (service.Gate) payload = item.Content is PlaybackContent.Animation animation
+                        ? new { id = item.Id, animation = animation.Identifier, nickname = animation.Nickname, volume = settings!.EntryAnimationVolume.Value }
+                        : new { id = item.Id, volume = settings!.EntryAnimationVolume.Value };
                     var sent = await service.BroadcastAsync(this, new(null, payload), token);
                     if (sent == 0) { Report(item, PlaybackState.Skipped, "没有推流软件连着"); continue; }
                     Report(item, PlaybackState.Playing);
@@ -77,7 +85,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
                     {
                         var result = await completion.Task.WaitAsync(TimeSpan.FromMinutes(2), timeProvider, token);
                         if (result.State == PlaybackState.Stopped)
-                            await service.BroadcastAsync(this, new("stop", payload), token);
+                            await service.BroadcastAsync(this, new("stop", new { id = item.Id }), token);
                         Report(item, result.State, result.Reason);
                     }
                     catch (TimeoutException) { Report(item, PlaybackState.NoReport, "等了 2 分钟"); }
@@ -99,7 +107,7 @@ public sealed class VideoPage(WebService service, string dataDirectory, TimeProv
         if (request.HttpMethod == "GET" && path.StartsWith(FileRoutePrefix, StringComparison.Ordinal))
         {
             string? fileName;
-            lock (service.Gate) fileName = current is { } item && item.Id == path[FileRoutePrefix.Length..] ? item.FileName : null;
+            lock (service.Gate) fileName = current is { } item && item.Id == path[FileRoutePrefix.Length..] && item.Content is PlaybackContent.Video video ? video.FileName : null;
             if (fileName is null) return false;
             try
             {

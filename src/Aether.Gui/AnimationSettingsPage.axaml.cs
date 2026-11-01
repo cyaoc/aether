@@ -1,36 +1,41 @@
 using Aether.Core;
-using Avalonia.Interactivity;
 
 namespace Aether.Gui;
 
-public partial class WelcomeAnimationSettingsPage : SettingsPage
+public partial class AnimationSettingsPage : SettingsPage
 {
     private long[] replaced = [];
     public event Action? GeneralSettingsRequested;
 
-    public WelcomeAnimationSettingsPage() : this(DataDirectory.Locate()) { }
+    public AnimationSettingsPage() : this(DataDirectory.Locate()) { }
 
-    public WelcomeAnimationSettingsPage(string dataDirectory, Func<Task<string?>>? pickAnimationVideo = null) : base(dataDirectory)
+    public AnimationSettingsPage(string dataDirectory, Func<Task<string?>>? pickAnimationVideo = null) : base(dataDirectory)
     {
         this.pickAnimationVideo = pickAnimationVideo;
         InitializeComponent();
         AnimationRows.ItemsSource = Animations;
         Animations.RowChanged += Validate;
-        Title = "欢迎动画";
-        Bind(AnimationInput, AnimationReadOnly, null, s => s.WelcomeAnimationEnabled);
-        AddAnimationButton.Click += async (_, _) => await ChooseAnimationAsync();
+        Title = "进场欢迎";
+        PageStatus.GeneralSettingsRequested += () => GeneralSettingsRequested?.Invoke();
+        TimingHint = "保存后，下一次进场生效";
+        FanClubInput.ItemsSource = EntryTier.All.Select(tier => tier.Value).Append(0).ToArray();
+        FanClubInput.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<int>((value, _) => new Avalonia.Controls.TextBlock { Text = value == 0 ? "不按等级" : $"{value} 级起" });
+        Bind(FanClubInput, FanClubReadOnly, null, s => s.EntryAnimationFanClubLevel);
+        Bind(VolumeInput, VolumeReadOnly, null, s => s.EntryAnimationVolume);
+        Bind(AnimationInput, AnimationReadOnly, null, s => s.EntryAnimationEnabled);
+        AddAnimationButton.Click += (_, _) => Animations.AddNew(new("", "", true, true) { Choice = EntryTier.All[0].ToString() });
         LoadSettings();
     }
 
-    private void OpenGeneralSettings(object? sender, RoutedEventArgs e) => GeneralSettingsRequested?.Invoke();
+    protected override bool ReconnectAfterSave => false;
     protected override void LoadRows() => LoadAnimations();
     protected override bool RowsChanged => AnimationDraft;
     protected override bool ShowRowErrors() => RefreshAnimations();
-    internal override IEnumerable<string> FieldNames => base.FieldNames.Append("welcome_animation_videos");
+    internal override IEnumerable<string> FieldNames => base.FieldNames.Append("entry_animation_viewers");
 
     protected override Task<string> WriteSettings(Dictionary<string, string> changes)
     {
-        var rows = Animations.ToDictionary(row => row.Uid!.Value, row => (row.FileName, row.SourcePath));
+        var rows = Animations.ToDictionary(row => row.Uid!.Value, row => (FileName: row.SettingValue, SourcePath: row.IsVideo ? row.SourcePath : null));
         replaced = rows.Where(pair => pair.Value.SourcePath is not null).Select(pair => pair.Key).ToArray();
         var snapshot = settings;
         return Task.Run(() => SaveAnimationFiles(changes, rows, snapshot));

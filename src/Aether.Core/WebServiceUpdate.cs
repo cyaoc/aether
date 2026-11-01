@@ -13,8 +13,8 @@ public sealed record WebServiceStatus(bool Running, int Port, int VideoConnectio
 public enum PlaybackState { Queued, Playing, Completed, Failed, Skipped, NoReport, Stopped }
 
 /// <param name="Nickname">The viewer's nickname when they entered; a test play has none.</param>
-public sealed record WelcomeAnimationPlayback(string Id, long Uid, string FileName, bool IsTest,
-    PlaybackState State, string? Reason = null, string? Nickname = null) : WebServiceUpdate
+public sealed record SourcePlayback(string Id, long Uid, string ContentSummary, bool IsTest,
+    PlaybackState State, string? Reason = null, string? Nickname = null, string Source = PlaybackSource.Welcome, string TriggerReason = "动画名单") : WebServiceUpdate
 {
     /// <summary>The state as logs and shells name it.</summary>
     public string Progress => State switch
@@ -26,4 +26,4 @@ public sealed record WelcomeAnimationPlayback(string Id, long Uid, string FileNa
     };
 }
 
-public sealed record VideoPlayback(string Id, string FileName, string Source, PlaybackState State, string? Reason = null) : WebServiceUpdate;
+public sealed record VideoPlayback(string Id, string ContentSummary, string Source, PlaybackState State, string? Reason = null) : WebServiceUpdate;

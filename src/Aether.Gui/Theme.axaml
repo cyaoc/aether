@@ -177,6 +177,7 @@
       <StreamGeometry x:Key="Icon.Danmaku">M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z</StreamGeometry>
       <StreamGeometry x:Key="Icon.BlindBox">M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z</StreamGeometry>
       <StreamGeometry x:Key="Icon.Welcome">M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Gift">M12 21s-7-4.6-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.4-9 9-9 9z</StreamGeometry>
       <StreamGeometry x:Key="Icon.Animation">M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4</StreamGeometry>
       <StreamGeometry x:Key="Icon.Play">M7 4l13 8-13 8z</StreamGeometry>
       <StreamGeometry x:Key="Icon.Stop">M6 6h12v12H6z</StreamGeometry>
@@ -255,6 +256,9 @@
   </Style>
   <Style Selector="TextBlock.accent">
     <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+  </Style>
+  <Style Selector="TextBlock.blocked">
+    <Setter Property="Foreground" Value="{DynamicResource Danger}" />
   </Style>
   <Style Selector="Button">
     <Setter Property="Background" Value="Transparent" />

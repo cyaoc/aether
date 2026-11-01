@@ -13,10 +13,13 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     internal bool AnimationReloading => !animationReload.Current.IsCompleted;
     /// <summary>Raised when anything an animation row shows may have changed: page status, playback, failures or a reload.</summary>
     internal event Action? AnimationRowsChanged;
-    public RecentItems<WelcomeAnimationItem> RecentAnimations { get; } = [];
+    public RecentItems<PlaybackItem> RecentAnimations { get; } = [];
+    public IReadOnlyList<PlaybackItem> RecentEntryAnimations => RecentAnimations.Where(item => item.Playback.Source != PlaybackSource.Gift).ToArray();
+    public IReadOnlyList<PlaybackItem> RecentGiftAnimations => RecentAnimations.Where(item => item.Playback.Source == PlaybackSource.Gift).ToArray();
+    internal SourcePlayback? PlayingForSource(string source) => playingAnimation?.Source == source ? playingAnimation : null;
     private readonly HashSet<string> pendingAnimations = [];
     private readonly HashSet<(long Uid, string FileName)> failedAnimationVideos = [];
-    private WelcomeAnimationPlayback? playingAnimation;
+    private SourcePlayback? playingAnimation;
     private bool testPlayPending;
     internal bool AnimationBusy => testPlayPending || pendingAnimations.Count > 0;
 
@@ -24,10 +27,14 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     {
         if (animationSettings is { } previous
             && previous.Error?.Message == snapshot.Error?.Message
-            && previous.WelcomeAnimationEnabled.Value == snapshot.WelcomeAnimationEnabled.Value
+            && previous.EntryAnimationEnabled.Value == snapshot.EntryAnimationEnabled.Value
             && previous.WebServicePort.Value == snapshot.WebServicePort.Value
-            && previous.WelcomeAnimationVideos.Count == snapshot.WelcomeAnimationVideos.Count
-            && previous.WelcomeAnimationVideos.All(pair => snapshot.WelcomeAnimationVideos.TryGetValue(pair.Key, out var video) && video.Value == pair.Value.Value))
+            && previous.EntryAnimationFanClubLevel.Value == snapshot.EntryAnimationFanClubLevel.Value
+            && previous.EntryAnimationVolume.Value == snapshot.EntryAnimationVolume.Value
+            && previous.GiftAnimationEnabled.Value == snapshot.GiftAnimationEnabled.Value
+            && previous.GiftAnimationThresholds.Select(value => value.Value).SequenceEqual(snapshot.GiftAnimationThresholds.Select(value => value.Value))
+            && previous.EntryAnimationViewers.Count == snapshot.EntryAnimationViewers.Count
+            && previous.EntryAnimationViewers.All(pair => snapshot.EntryAnimationViewers.TryGetValue(pair.Key, out var choice) && choice.Value == pair.Value.Value))
             return animationReload.Current;
         return ApplyWebSettingsAsync(snapshot);
     }
@@ -38,9 +45,9 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         animationSettings = snapshot;
         if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Start(ObserveAnimationsAsync);
         var reload = animationReload.Start(ReloadAsync);
-        AnimationRowsChanged?.Invoke();
+        NotifyAnimationRows();
         await reload;
-        AnimationRowsChanged?.Invoke();
+        NotifyAnimationRows();
 
         async Task ReloadAsync(CancellationToken _)
         {
@@ -125,11 +132,11 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
                 testPlayPending = false;
             }
         }
-        else if (update is WelcomeAnimationPlayback playback)
+        else if (update is SourcePlayback playback)
         {
             if (playback.IsTest) testPlayPending = false;
             var existing = RecentAnimations.FirstOrDefault(item => item.Playback.Id == playback.Id);
-            var item = new WelcomeAnimationItem(playback, existing?.OccurredAt ?? clock.GetLocalNow());
+            var item = new PlaybackItem(playback, existing?.OccurredAt ?? clock.GetLocalNow());
             if (existing is null) RecentAnimations.Insert(0, item);
             else RecentAnimations[RecentAnimations.IndexOf(existing)] = item;
             if (playback.State is PlaybackState.Queued or PlaybackState.Playing)
@@ -143,10 +150,10 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             if (playback.State == PlaybackState.Playing) playingAnimation = playback;
             else if (playingAnimation?.Id == playback.Id) playingAnimation = null;
             // #125: the failure hint stays until the video is replaced, even if a later playback works.
-            if (playback.State == PlaybackState.Failed) failedAnimationVideos.Add((playback.Uid, playback.FileName));
+            if (playback.State == PlaybackState.Failed) failedAnimationVideos.Add((playback.Uid, playback.ContentSummary));
         }
         else return; // A VideoPlayback alone changes no animation row.
-        AnimationRowsChanged?.Invoke();
+        NotifyAnimationRows();
     }
 
     /// <summary>Core plays in arrival order and the list is newest first, so queued items count up from the bottom.</summary>
@@ -165,10 +172,10 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     internal void ForgetAnimationFailures(IReadOnlyCollection<long> replaced)
     {
         failedAnimationVideos.RemoveWhere(video => replaced.Contains(video.Uid));
-        AnimationRowsChanged?.Invoke();
+        NotifyAnimationRows();
     }
-    internal WelcomeAnimationPlayback? PlayingAnimation(long uid, string fileName) =>
-        playingAnimation is { } playing && playing.Uid == uid && playing.FileName == fileName ? playing : null;
+    internal SourcePlayback? PlayingAnimation(long uid, string fileName) =>
+        playingAnimation is { } playing && playing.Uid == uid && playing.ContentSummary == fileName ? playing : null;
 
     internal bool AnimationVideoSaved(long uid, string fileName) => animationSettings is { } snapshot
         && snapshot.WelcomeAnimationVideos.TryGetValue(uid, out var video) && video.Value == fileName;
@@ -181,12 +188,37 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             return;
         }
         if (AnimationReloading || AnimationBusy || !HasVideoConnections || shutdown.IsCancellationRequested
-            || animationSettings?.WelcomeAnimationEnabled.Value != true
             || !AnimationVideoSaved(uid, fileName)) return;
-        // Disable immediately, before the queued update crosses back to the UI thread.
-        testPlayPending = true;
-        AnimationRowsChanged?.Invoke();
+        PendTestPlay();
         client.WelcomeAnimation.TestPlay(uid);
+    }
+
+    internal void TestAnimation(string source, EntryTier tier, string nickname)
+    {
+        if (AnimationReloading || AnimationBusy || !HasVideoConnections || shutdown.IsCancellationRequested) return;
+        PendTestPlay();
+        Action<EntryTier, string> play = source == PlaybackSource.Gift ? client.GiftAnimation.TestPlay : client.EntryAnimation.TestPlay;
+        play(tier, nickname);
+    }
+
+    internal void StopAnimation(string source, string id)
+    {
+        Action<string> stop = source == PlaybackSource.Gift ? client.GiftAnimation.StopTestPlay : client.EntryAnimation.StopTestPlay;
+        stop(id);
+    }
+
+    // Disable immediately, before the queued update crosses back to the UI thread.
+    private void PendTestPlay()
+    {
+        testPlayPending = true;
+        NotifyAnimationRows();
+    }
+
+    private void NotifyAnimationRows()
+    {
+        OnPropertyChanged(nameof(RecentEntryAnimations));
+        OnPropertyChanged(nameof(RecentGiftAnimations));
+        AnimationRowsChanged?.Invoke();
     }
 
     internal void ClearAnimationHistory()
@@ -196,8 +228,10 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
 }
 
 /// <param name="Position">Place among the queued items, from 1; 0 once it is no longer queued.</param>
-public sealed record WelcomeAnimationItem(WelcomeAnimationPlayback Playback, DateTimeOffset OccurredAt, int Position = 0)
+public sealed record PlaybackItem(SourcePlayback Playback, DateTimeOffset OccurredAt, int Position = 0)
 {
+    public string ContentDetail => Playback.Source == PlaybackSource.Welcome ? $"欢迎动画 · {Playback.ContentSummary}"
+        : $"{Playback.ContentSummary} · {Playback.TriggerReason}";
     public string Name => Playback.IsTest ? "试播" : Playback.Nickname ?? $"UID {Playback.Uid}";
     /// <summary>Null when Name already says it all, so the header gets no separating space.</summary>
     public string? Detail => Playback.IsTest || Playback.Nickname is null ? null : $"UID {Playback.Uid}";
@@ -211,7 +245,7 @@ public sealed record WelcomeAnimationItem(WelcomeAnimationPlayback Playback, Dat
     public bool Playing => Playback.State == PlaybackState.Playing;
     public bool Failed => Playback.State == PlaybackState.Failed;
     /// <summary>A viewer already has a pending animation, so the skipped reentry stays quiet.</summary>
-    public bool PreviousPending => Playback is { State: PlaybackState.Skipped, Reason: WelcomeAnimation.PreviousPending };
+    public bool PreviousPending => Playback is { State: PlaybackState.Skipped, Reason: PlaybackSource.PreviousPending };
     public bool Completed => Playback.State == PlaybackState.Completed;
     public bool Stopped => Playback.State == PlaybackState.Stopped;
     /// <summary>Not played for a reason the streamer may want to act on.</summary>

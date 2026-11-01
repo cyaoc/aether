@@ -65,19 +65,16 @@ public sealed partial class AetherClient
                                 features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));
                                 features.Add(new BlindBoxRecordFeature(client.stores, realRoomId.Value, sendQueue, Settings.BlindBoxAnnounce.Value));
                             }
-                            var parseEntries = false;
-                            if (Settings.WelcomeAnimationEnabled.Value)
-                            {
-                                features.Add(new WelcomeAnimationFeature(client.WelcomeAnimation, animationStop.Token));
-                                parseEntries = true;
-                            }
+                            features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
+                                round => { client.GiftAnimation.Enqueue(round, animationStop.Token); output.TryWrite(round); }));
+                            features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop.Token));
                             if (Settings.WelcomeEnabled.Value)
                             {
                                 features.Add(new WelcomeFeature(Settings, sendQueue));
-                                parseEntries = true;
                                 readDanmakuLengthLimit = true;
                             }
-                            decoder = new DanmakuProtocol.Decoder(realRoomId.Value, client.logger, parseEntries);
+                            decoder = new DanmakuProtocol.Decoder(realRoomId.Value, client.logger,
+                                () => Settings.WelcomeEnabled.Value || client.WebService.Video.Settings?.EntryAnimationEnabled.Value == true);
                         }
                         await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {

@@ -26,7 +26,8 @@ public sealed class SettingsPageTests
         [
             new BlindBoxSettingsPage(harness.DataDirectory),
             new WelcomeSettingsPage(harness.DataDirectory),
-            new WelcomeAnimationSettingsPage(harness.DataDirectory),
+            new AnimationSettingsPage(harness.DataDirectory),
+            new GiftAnimationSettingsPage(harness.DataDirectory),
             new SendSettingsPage(harness.DataDirectory),
             new GeneralSettingsPage(harness.DataDirectory)
         ];
@@ -62,7 +63,7 @@ public sealed class SettingsPageTests
             Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
         });
 
-    private static string WelcomeListYaml(bool uids, int count) => "welcome:\n  " + (uids
+    private static string WelcomeListYaml(bool uids, int count) => "welcome_danmaku:\n  " + (uids
         ? $"uids: [{string.Join(", ", Enumerable.Range(1, count))}]"
         : $"texts: {Settings.TextListText(Enumerable.Range(1, count).Select(i => $"欢迎{i}"))}") + "\n";
 
@@ -153,7 +154,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Uid_group_disappears_when_empty_and_menu_reuses_the_group() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42, 43]\n  guard: 关闭\n", (page, _) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  uids: [42, 43]\n  guard: 0\n", (page, _) =>
         {
             GuiHarness.Flush();
             var group = page.FindControl<StackPanel>("UidGroup");
@@ -312,7 +313,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Existing_uid_validates_without_waiting_for_blur() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42]\n", (page, _) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  uids: [42]\n", (page, _) =>
         {
             var row = Row(page, WelcomeCondition.Uid);
             var input = GuiHarness.FindRowControl<TextBox>(page, row, "UidInput")!;
@@ -375,7 +376,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Insert_buttons_remember_the_last_edited_row_and_follow_it_after_deletion() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  texts: [欢迎, 回家, 晚上好]\n", (page, _) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  texts: [欢迎, 回家, 晚上好]\n", (page, _) =>
         {
             var input = WelcomeTextList.Input(page, 1);
             input.Focus();
@@ -404,7 +405,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Clicking_another_rows_remove_button_keeps_the_insert_target() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  texts: [欢迎, 回家, 晚上好]\n", (page, _) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  texts: [欢迎, 回家, 晚上好]\n", (page, _) =>
         {
             WelcomeTextList.Input(page).Focus();
             var remove = GuiHarness.FindRowControl<Button>(page, WelcomeTextList.Rows(page)[2], "RemoveButton");
@@ -422,7 +423,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Saved_welcome_page_keeps_its_save_message_after_reloading_rows() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  texts: [欢迎]\n  uids: [12345]\n", (page, _) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  texts: [欢迎]\n  uids: [12345]\n", (page, _) =>
         {
             WelcomeTextList.Input(page).Text = "欢迎回家";
             GuiHarness.Flush();
@@ -436,7 +437,7 @@ public sealed class SettingsPageTests
     [InlineData("\n    - 欢迎\n    - '{@}欢迎回家'")]
     [InlineData("[欢迎,\n    '{@}欢迎回家']")]
     public Task Multiline_welcome_texts_are_all_read_only_and_other_settings_can_be_saved(string value) =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), $"welcome:\n  enabled: false\n  texts: {value}\n", (page, path) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), $"welcome_danmaku:\n  enabled: false\n  texts: {value}\n", (page, path) =>
         {
             var before = File.ReadAllText(path);
             Assert.Equal(2, WelcomeTextList.Rows(page).Length);
@@ -458,7 +459,7 @@ public sealed class SettingsPageTests
             GuiHarness.Flush();
             Assert.True(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("welcome:\n  enabled: false", "welcome:\n  enabled: true"), File.ReadAllText(path));
+            Assert.Equal(before.Replace("welcome_danmaku:\n  enabled: false", "welcome_danmaku:\n  enabled: true"), File.ReadAllText(path));
         });
 
     [Fact]
@@ -482,7 +483,7 @@ public sealed class SettingsPageTests
     [InlineData("提督")]
     [InlineData("总督")]
     public Task Welcome_fields_display_and_save_only_changed_lines(string guard) =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "# 保留\r\nwelcome:\r\n  enabled: false # 开关\r\n  texts: ['欢迎{昵称}'] # 正文\r\n  max_length: 20 # 上限\r\n  uids: [42] # 老朋友\r\n  fan_club_level: 1 # 老粉\r\n  guard: 舰长 # 档位\r\n  wealth_level: 2 # 荣耀\r\nfuture: 保留\r\n", (window, path) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "# 保留\r\nwelcome_danmaku:\r\n  enabled: false # 开关\r\n  texts: ['欢迎{昵称}'] # 正文\r\n  max_length: 20 # 上限\r\n  uids: [42] # 老朋友\r\n  fan_club_level: 1 # 老粉\r\n  guard: 1 # 档位\r\n  wealth_level: 2 # 荣耀\r\nfuture: 保留\r\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
             var enabled = window.FindControl<ToggleSwitch>("WelcomeInput");
@@ -530,16 +531,16 @@ public sealed class SettingsPageTests
                 .Replace("texts: ['欢迎{昵称}']", "texts: [\"{@}欢迎{大航海}{昵称}回家\"]")
                 .Replace("uids: [42]", "uids: [2147483648, 9223372036854775807]")
                 .Replace("fan_club_level: 1", "fan_club_level: 21")
-                .Replace("guard: 舰长", $"guard: {guard}")
+                .Replace("guard: 1", $"guard: {Settings.WelcomeGuards.ToList().IndexOf(guard)}")
                 .Replace("wealth_level: 2", "wealth_level: 45"), File.ReadAllText(path));
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
             Assert.Null(settings.Error);
             Assert.True(settings.WelcomeEnabled.Value);
             Assert.Equal("{@}欢迎{大航海}{昵称}回家", settings.WelcomeTexts.Value[0]);
-            Assert.Contains("welcome.max_length", settings.UnknownKeys);
+            Assert.Contains("welcome_danmaku.max_length", settings.UnknownKeys);
             Assert.Equal([2147483648L, long.MaxValue], settings.WelcomeUids.Value);
             Assert.Equal(21, settings.WelcomeFanClubLevel.Value);
-            Assert.Equal(guard, settings.WelcomeGuard.Value);
+            Assert.Equal(Settings.WelcomeGuards.ToList().IndexOf(guard), settings.WelcomeGuard.Value);
             Assert.Equal(45, settings.WelcomeWealthLevel.Value);
         });
 
@@ -587,7 +588,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Welcome_condition_accessible_names_keep_their_kind_after_removal() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  guard: 关闭\n", (page, _) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  guard: 0\n", (page, _) =>
         {
             Add(page, WelcomeCondition.Uid);
             Add(page, WelcomeCondition.FanClubLevel);
@@ -610,7 +611,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Removing_all_conditions_saves_disabled_values_and_shows_empty_state() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42, 43] # 观众\n  fan_club_level: 1 # 粉丝团\n  guard: 舰长 # 大航海\n  wealth_level: 10 # 荣耀\n", (page, path) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  uids: [42, 43] # 观众\n  fan_club_level: 1 # 粉丝团\n  guard: 1 # 大航海\n  wealth_level: 10 # 荣耀\n", (page, path) =>
         {
             var before = File.ReadAllText(path);
             Assert.Equal(new[] { WelcomeCondition.Uid, WelcomeCondition.Uid, WelcomeCondition.FanClubLevel, WelcomeCondition.Guard, WelcomeCondition.WealthLevel }, Rows(page).Select(row => row.Kind));
@@ -621,14 +622,14 @@ public sealed class SettingsPageTests
             Assert.True(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Assert.Equal(before.Replace("uids: [42, 43]", "uids: []").Replace("fan_club_level: 1", "fan_club_level: 0")
-                .Replace("guard: 舰长", "guard: 关闭").Replace("wealth_level: 10", "wealth_level: 0"), File.ReadAllText(path));
+                .Replace("guard: 1", "guard: 0").Replace("wealth_level: 10", "wealth_level: 0"), File.ReadAllText(path));
             Assert.Empty(Rows(page));
             Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
         });
 
     [Fact]
     public Task Removing_and_restoring_equivalent_conditions_is_not_a_change() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42]\n  fan_club_level: 1\n  guard: 舰长\n  wealth_level: 10\n", (page, path) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  uids: [42]\n  fan_club_level: 1\n  guard: 1\n  wealth_level: 10\n", (page, path) =>
         {
             var before = File.ReadAllText(path);
             foreach (var row in Rows(page)) Remove(page, row);
@@ -644,7 +645,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task A_uid_removed_and_added_back_after_the_others_is_not_a_change() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42, 43]\n", (page, _) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  uids: [42, 43]\n", (page, _) =>
         {
             Remove(page, Rows(page)[0]);
             GuiHarness.FindRowControl<TextBox>(page, Add(page, WelcomeCondition.Uid), "UidInput")!.Text = "42";
@@ -656,11 +657,11 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Duplicate_uids_in_the_file_are_reported_without_making_a_draft() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42, 42]\n", (page, path) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  uids: [42, 42]\n", (page, path) =>
         {
             Assert.Equal("和上面那条重复了", GuiHarness.FindRowControl<TextBlock>(page, Rows(page)[1], "ErrorMessage")!.Text);
             Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
-            File.WriteAllText(path, "welcome:\n  uids: [42]\n");
+            File.WriteAllText(path, "welcome_danmaku:\n  uids: [42]\n");
             page.RefreshFileStatus(Settings.Load(Path.GetDirectoryName(path)!));
             Assert.Equal(["42"], UidLabels(page));
             Assert.False(GuiHarness.FindRowControl<TextBlock>(page, Rows(page)[0], "ErrorMessage")!.IsVisible);
@@ -679,7 +680,7 @@ public sealed class SettingsPageTests
     [InlineData("9223372036854775808", "UID 必须是正整数")]
     [InlineData("0042", "和上面那条重复了")]
     public Task Invalid_uid_is_reported_on_its_row_and_can_be_corrected(string value, string message) =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  uids: [42]\n", (page, path) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  uids: [42]\n", (page, path) =>
         {
             var before = File.ReadAllText(path);
             var originalRow = Row(page, WelcomeCondition.Uid);
@@ -769,7 +770,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Read_only_disabled_conditions_cannot_be_added() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome: {uids: [], fan_club_level: 0, guard: 关闭, wealth_level: 0}\n", (page, _) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku: {uids: [], fan_club_level: 0, guard: 0, wealth_level: 0}\n", (page, _) =>
         {
             Assert.Empty(Rows(page));
             Assert.True(page.FindControl<Grid>("EmptyConditions")!.IsVisible);
@@ -786,7 +787,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task A_multiline_threshold_without_a_row_is_named_and_cannot_be_added() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  wealth_level: |-\n    0\n", (page, _) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  wealth_level: |-\n    0\n", (page, _) =>
         {
             var hint = page.FindControl<TextBlock>("ConditionsReadOnly")!;
             Assert.True(hint.IsVisible);
@@ -800,7 +801,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task A_multiline_threshold_is_read_only_while_other_conditions_can_be_saved() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n  fan_club_level: |-\n    21\n  guard: 舰长\n", (page, path) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n  fan_club_level: |-\n    21\n  guard: 1\n", (page, path) =>
         {
             var before = File.ReadAllText(path);
             var row = Row(page, WelcomeCondition.FanClubLevel);
@@ -813,7 +814,7 @@ public sealed class SettingsPageTests
             Assert.Same(row, Row(page, WelcomeCondition.FanClubLevel));
             Remove(page, Row(page, WelcomeCondition.Guard));
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("guard: 舰长", "guard: 关闭"), File.ReadAllText(path));
+            Assert.Equal(before.Replace("guard: 1", "guard: 0"), File.ReadAllText(path));
         });
 
     [Theory]
@@ -858,7 +859,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Welcome_defaults_and_help_are_shown_and_missing_values_can_be_saved() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome:\n", (window, path) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku:\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
             Assert.False(window.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked);
@@ -884,7 +885,7 @@ public sealed class SettingsPageTests
 
     [Fact]
     public Task Flow_welcome_group_is_read_only_and_preserved_when_other_settings_are_saved() =>
-        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome: {enabled: true, texts: ['欢迎{昵称}'], uids: [12345, 67890], fan_club_level: 21, guard: 提督, wealth_level: 45}\n", (window, path) =>
+        WithSettingsPage(dir => new WelcomeSettingsPage(dir), "welcome_danmaku: {enabled: true, texts: ['欢迎{昵称}'], uids: [12345, 67890], fan_club_level: 21, guard: 2, wealth_level: 45}\n", (window, path) =>
         {
             var before = File.ReadAllText(path);
             Assert.True(window.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked);
@@ -1271,7 +1272,7 @@ public sealed class SettingsPageTests
         button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.Equal("{@}欢迎{{@}}", text.Text);
-        Assert.Null(Settings.Validate("welcome.texts", Settings.TextListText([text.Text!])));
+        Assert.Null(Settings.Validate("welcome_danmaku.texts", Settings.TextListText([text.Text!])));
     });
 
     private static Task WithSettingsPage(Func<string, SettingsPage> createPage, string? yaml, Action<SettingsPage, string> test) =>

@@ -4,12 +4,13 @@
       <ControlTemplate TargetType="local:SettingsPage" x:DataType="local:MainWindowViewModel">
         <Grid RowDefinitions="60,Auto,*">
           <Border Classes="pageHeader">
-            <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="12">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,*" ColumnSpacing="12">
               <TextBlock x:Name="PageTitle" Classes="h1" VerticalAlignment="Center" Text="{TemplateBinding Title}" />
-              <Panel Grid.Column="1" IsEnabled="{TemplateBinding FileError, Converter={x:Static ObjectConverters.IsNull}}">
+              <ContentPresenter Grid.Column="1" Content="{TemplateBinding HeaderTabs}" VerticalAlignment="Center" />
+              <Panel Grid.Column="2" IsEnabled="{TemplateBinding FileError, Converter={x:Static ObjectConverters.IsNull}}">
                 <ContentPresenter Content="{TemplateBinding HeaderContent}" />
               </Panel>
-              <TextBlock Grid.Column="2" x:Name="TimingHint" Classes="caption muted singleLine" VerticalAlignment="Center" Text="{TemplateBinding TimingHint}" />
+              <TextBlock Grid.Column="3" x:Name="TimingHint" Classes="caption muted singleLine" VerticalAlignment="Center" Text="{TemplateBinding TimingHint}" />
             </Grid>
           </Border>
           <StackPanel Grid.Row="1">
@@ -44,7 +45,7 @@
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                   <StackPanel VerticalAlignment="Center" Spacing="4">
                     <TextBlock Classes="caption muted" Text="没有未保存的修改" IsVisible="{Binding !#DirtyMessage.IsVisible}" />
-                    <TextBlock x:Name="DirtyMessage" Classes="caption accent" Text="{TemplateBinding DirtyText}" IsVisible="{TemplateBinding IsDirty}" />
+                    <TextBlock x:Name="DirtyMessage" Classes="caption accent" Classes.blocked="{TemplateBinding DirtyBlocked}" Text="{TemplateBinding DirtyText}" IsVisible="{TemplateBinding IsDirty}" />
                     <TextBlock x:Name="Message" Classes="caption" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" Text="{TemplateBinding Message}"
                       IsVisible="{Binding #Message.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                   </StackPanel>
@@ -61,4 +62,25 @@
       </ControlTemplate>
     </Setter>
   </Style>
+    <Style Selector="ListBox.viewTabs">
+      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+      <Setter Property="Padding" Value="3" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="ItemsPanel"><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="2" /></ItemsPanelTemplate></Setter>
+    </Style>
+    <Style Selector="ListBox.viewTabs ListBoxItem">
+      <Setter Property="Height" Value="28" />
+      <Setter Property="MinHeight" Value="0" />
+      <Setter Property="Padding" Value="12,0" />
+      <Setter Property="CornerRadius" Value="6" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+    </Style>
+    <Style Selector="ListBox.viewTabs ListBoxItem:selected /template/ ContentPresenter, ListBox.viewTabs ListBoxItem:selected:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Surface.Card}" />
+      <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="BoxShadow" Value="0 1 2 0 #1F000000" />
+    </Style>
 </Styles>
