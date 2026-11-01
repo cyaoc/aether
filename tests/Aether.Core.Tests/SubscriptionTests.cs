@@ -4,6 +4,24 @@ namespace Aether.Core.Tests;
 
 public sealed class SubscriptionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Immediately_stopping_the_web_service_does_not_fault_and_releases_its_port(bool yieldBeforeStop)
+    {
+        await using var h = new WatchHarness();
+        var service = h.Client.WebService;
+        var port = WelcomeAnimationTests.FreePort();
+        for (var attempt = 0; attempt < 100; attempt++)
+        {
+            await service.StartAsync(port);
+            Assert.True(service.Status.Running);
+            if (yieldBeforeStop) await Task.Yield();
+            await service.StopAsync().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
+            Assert.False(service.Status.Running);
+        }
+    }
+
     [Fact]
     public async Task Web_service_readers_receive_their_own_snapshot_and_drain_status_changes_on_disposal()
     {
