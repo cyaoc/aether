@@ -33,10 +33,10 @@ export const pathOf = (pts, back) => {
       };
       return { pts, at };
     };
-const C0 = [960,540], RR = 5000;
-export const reach = (p, q) => { const d = [p[0] - q[0], p[1] - q[1]], m = Math.hypot(d[0], d[1]), u = [d[0] / m, d[1] / m], w = [p[0] - C0[0], p[1] - C0[1]], b = w[0] * u[0] + w[1] * u[1], t = -b + Math.sqrt(b * b - (w[0] * w[0] + w[1] * w[1] - RR * RR)); return [p[0] + u[0] * t, p[1] + u[1] * t]; };
+const C0 = [960,540];
+export const reach = (p, q, radius = 5000) => { const d = [p[0] - q[0], p[1] - q[1]], m = Math.hypot(d[0], d[1]), u = [d[0] / m, d[1] / m], w = [p[0] - C0[0], p[1] - C0[1]], b = w[0] * u[0] + w[1] * u[1], t = -b + Math.sqrt(b * b - (w[0] * w[0] + w[1] * w[1] - radius * radius)); return [p[0] + u[0] * t, p[1] + u[1] * t]; };
 export const onScreen = (p, view = [-60,-60,1980,1140]) => p[0]>view[0] && p[0]<view[2] && p[1]>view[1] && p[1]<view[3];
-export const chordOf = (path,u0) => { const a=path.at(u0),b=path.at(1);return [reach(a,b),reach(b,a)]; };
+export const chordOf = (path,u0,radius=5000) => { const a=path.at(u0),b=path.at(1);return [reach(a,b,radius),reach(b,a,radius)]; };
 export const scars = (paths,tails) => tails.map((u,i)=>chordOf(paths[i],u));
 export const dense = ([a,b], count=1000) => Array.from({length:count+1},(_,i)=>[a[0]+(b[0]-a[0])*i/count,a[1]+(b[1]-a[1])*i/count]);
 export const at = (place,key,points) => points.map(point=>place(key,point));
