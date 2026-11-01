@@ -81,20 +81,24 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
     [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
+    [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
     [NotifyPropertyChangedFor(nameof(IsLoggedOut))]
     private AccountStatus accountStatus = AccountStatus.Reading;
+    [ObservableProperty] private bool isSplashVisible = true;
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(ConnectCommand))]
-    [NotifyCanExecuteChangedFor(nameof(ReconnectCommand))]
-    [NotifyCanExecuteChangedFor(nameof(LoginCommand))]
-    private bool isLoginPage;
+    [NotifyPropertyChangedFor(nameof(IsSplashOpaque))]
+    private double splashOpacity = 1;
+    // Pages turn enabled as the fade starts: their disabled look must not show through it.
+    public bool IsSplashOpaque => SplashOpacity == 1;
+    internal TimeSpan SplashMinimumDuration { get; set; } = TimeSpan.FromMilliseconds(600);
+    public TimeSpan SplashFadeDuration { get; internal set; } = TimeSpan.FromMilliseconds(150);
     [ObservableProperty] private string loginError = "";
     private readonly LatestRun accountRead = new();
     private readonly CancellationTokenSource shutdown = new();
 
-    private bool CanConnect => AccountStatus != AccountStatus.LoggedOut && !IsLoginPage && !IsLoggingOut && !IsRestarting && !shutdown.IsCancellationRequested;
+    private bool CanConnect => !IsLoggedOut && !IsLoggingOut && !IsRestarting && !shutdown.IsCancellationRequested;
     private bool CanReconnect => CanConnect && HasRoomConnection;
-    private bool CanLogin => IsLoginPage && !IsLoggingOut && !shutdown.IsCancellationRequested;
+    private bool CanLogin => IsLoggedOut && !IsLoggingOut && !shutdown.IsCancellationRequested;
     public bool IsConnected => ConnectionState == RoomConnectionState.Connected;
     public bool HasRoomConnection => ConnectionState != RoomConnectionState.Disconnected;
     public string Status => ConnectionState switch
@@ -131,7 +135,28 @@ public partial class MainWindowViewModel : ObservableObject
         // The 抽奖页 and the GUI read the same lottery, so the GUI starts following it with the web service.
         Lottery.ObserveLottery();
         var webSettings = WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
-        return Task.WhenAll(webSettings, ReadAccountCommand.ExecuteAsync(null));
+        return Task.WhenAll(webSettings, FinishStartupAsync());
+    }
+
+    private async Task FinishStartupAsync()
+    {
+        try
+        {
+            var minimum = Task.Delay(SplashMinimumDuration, clock, shutdown.Token);
+            try { await ReadAccountCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(3), clock, shutdown.Token); }
+            catch (TimeoutException)
+            {
+                logger.LogError("账号信息读取超时");
+                // Not awaited: opening SQLite ignores the token, and a late result is dropped either way.
+                _ = accountRead.StopAsync();
+                AccountStatus = AccountStatus.Failed;
+            }
+            await minimum;
+            SplashOpacity = 0;
+            await Task.Delay(SplashFadeDuration, clock, shutdown.Token);
+            IsSplashVisible = false;
+        }
+        catch (OperationCanceledException) when (shutdown.IsCancellationRequested) { }
     }
 
     partial void OnConnectionStateChanged(RoomConnectionState value)
@@ -229,7 +254,6 @@ public partial class MainWindowViewModel : ObservableObject
                     if (update is LoginQrCode qr) await Dispatcher.UIThread.InvokeAsync(() => ShowQrCode(qr.Content));
             }, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested(); // Core ends the stream quietly when cancelled.
-            IsLoginPage = false;
             // A read that still finds no account brings the login page back with a fresh code.
             _ = ReadAccountAsync();
         }
@@ -293,18 +317,6 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
-    private async Task OpenSettingsAsync()
-    {
-        LoginCommand.Cancel();
-        if (LoginCommand.ExecutionTask is { } login) await login;
-        ClearQrCode();
-        IsLoginPage = false;
-    }
-
-    [RelayCommand]
-    private void OpenLoginPage() => ShowLoginPage();
-
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task ReadAccountAsync()
     {
@@ -324,7 +336,7 @@ public partial class MainWindowViewModel : ObservableObject
                 {
                     await StopWatchingAsync();
                     token.ThrowIfCancellationRequested();
-                    ShowLoginPage();
+                    StartLogin();
                 }
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested) { }
@@ -337,10 +349,9 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    private void ShowLoginPage()
+    private void StartLogin()
     {
         if (shutdown.IsCancellationRequested) return;
-        IsLoginPage = true;
         if (LoginCommand.CanExecute(null)) LoginCommand.Execute(null);
     }
 
@@ -369,7 +380,7 @@ public partial class MainWindowViewModel : ObservableObject
         }
         finally { IsLoggingOut = false; }
         // The stopped read left the panel on 读取中, and a failed logout may have kept the credential.
-        if (loggedOut) ShowLoginPage();
+        if (loggedOut) StartLogin();
         else _ = ReadAccountAsync();
     }
 

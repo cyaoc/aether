@@ -3,8 +3,8 @@
         xmlns:local="using:Aether.Gui" xmlns:core="using:Aether.Core"
         x:Class="Aether.Gui.MainWindow" x:DataType="local:MainWindowViewModel"
         Title="Aether" Width="1200" Height="720" MinWidth="1040" MinHeight="600">
-  <Panel>
-    <Grid x:Name="LoginPage" ColumnDefinitions="400,*" IsVisible="{Binding IsLoginPage}">
+  <Panel IsEnabled="{Binding !IsSplashOpaque}">
+    <Grid x:Name="LoginPage" ColumnDefinitions="400,*" IsVisible="{Binding IsLoggedOut}">
       <Border Background="{DynamicResource Accent.Tint}" Padding="44,56">
         <Grid RowDefinitions="Auto,*,Auto">
           <StackPanel Spacing="14">
@@ -69,10 +69,9 @@
         </Border>
         <TextBlock Classes="singleLine secondary" Text="打开 B站 App 扫一扫，在手机上确认" FontWeight="SemiBold" TextAlignment="Center" />
         <TextBlock Classes="singleLine caption muted" Text="二维码过期后会自动换新" TextAlignment="Center" />
-        <Button x:Name="OpenSettingsWithoutLoginButton" Content="先设置，无需登录" Classes="ghost" HorizontalAlignment="Center" Click="OpenSettingsWithoutLogin" />
       </StackPanel>
     </Grid>
-    <Grid ColumnDefinitions="224,*" IsVisible="{Binding !IsLoginPage}">
+    <Grid x:Name="MainPage" ColumnDefinitions="224,*" IsVisible="{Binding !IsLoggedOut}">
       <Border Padding="12,14" BorderThickness="0,0,1,0" BorderBrush="{DynamicResource Border}" Background="{DynamicResource Surface.Sidebar}">
         <Grid RowDefinitions="Auto,*,Auto,Auto">
           <StackPanel Spacing="12">
@@ -168,10 +167,9 @@
               <TextBlock Classes="secondary singleLine" Text="{Binding AccountStatus.Text}" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
               <TextBlock Classes="caption muted" Text="已登录" IsVisible="{Binding AccountStatus.Account, Converter={x:Static ObjectConverters.IsNotNull}}" />
               <Button x:Name="RetryAccountButton" Content="重试" Command="{Binding ReadAccountCommand}" IsVisible="{Binding AccountStatus.ReadFailed}" />
-              <Button Content="登录账号" Command="{Binding OpenLoginPageCommand}" IsVisible="{Binding IsLoggedOut}" />
             </StackPanel>
             <Button Grid.Column="2" x:Name="LogoutButton" Classes="ghost danger" Padding="6" VerticalAlignment="Center" Click="ConfirmLogout"
-                    ToolTip.Tip="退出登录" AutomationProperties.Name="退出登录" IsEnabled="{Binding !IsLoggingOut}" IsVisible="{Binding !IsLoggedOut}">
+                    ToolTip.Tip="退出登录" AutomationProperties.Name="退出登录" IsEnabled="{Binding !IsLoggingOut}">
               <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Logout}" /></Viewbox>
             </Button>
           </Grid>
@@ -263,5 +261,15 @@
         </StackPanel>
       </Panel>
     </Grid>
+    <Panel x:Name="SplashScreen" Background="#0F1550" IsVisible="{Binding IsSplashVisible}" Opacity="{Binding SplashOpacity}">
+      <Panel.Transitions>
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="{Binding SplashFadeDuration}" />
+        </Transitions>
+      </Panel.Transitions>
+      <Image Source="avares://Aether.Gui/Assets/splash.webp" Stretch="UniformToFill" AutomationProperties.Name="Aether" />
+      <TextBlock Text="Aether" Margin="44,56,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+                 FontSize="30" FontWeight="Bold" Foreground="White" />
+    </Panel>
   </Panel>
 </Window>

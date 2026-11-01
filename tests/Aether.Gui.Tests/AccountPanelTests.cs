@@ -14,6 +14,32 @@ namespace Aether.Gui.Tests;
 public sealed class AccountPanelTests
 {
     [Fact]
+    public Task Retrying_failed_account_read_that_reports_logged_out_switches_to_login_page() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        harness.NavResponse = _ => throw new HttpRequestException("offline");
+        harness.HoldLoginRequests();
+        var viewModel = harness.CreateViewModel();
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            await viewModel.ReadAccountCommand.ExecutionTask!;
+            Assert.True(window.MainPage.IsEffectivelyVisible);
+            harness.NavResponse = _ => Task.FromResult(Json("""{"code":-101}"""));
+            await viewModel.ReadAccountCommand.ExecuteAsync(null);
+            Assert.True(window.LoginPage.IsEffectivelyVisible);
+            Assert.False(window.MainPage.IsEffectivelyVisible);
+            Assert.False(viewModel.IsSplashVisible);
+            Assert.True(viewModel.LoginCommand.IsRunning);
+            Assert.False(viewModel.ConnectCommand.CanExecute(null));
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task Confirming_logout_after_background_account_read_starts_login_cancels_that_login() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -25,7 +51,7 @@ public sealed class AccountPanelTests
         harness.LoginResponse = async (_, token) =>
         {
             var first = ++logins == 1;
-            try { return await new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token); }
+            try { return await NoResponse(token); }
             finally { if (first) cancelled = token.IsCancellationRequested; }
         };
         var viewModel = harness.CreateViewModel();
@@ -57,7 +83,7 @@ public sealed class AccountPanelTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+        harness.HoldLoginRequests();
         harness.NavResponse = _ => throw new HttpRequestException("offline");
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
@@ -97,6 +123,7 @@ public sealed class AccountPanelTests
             await WaitForAsync(() => VisibleText(window).Contains("扫码登录 B站"));
             Assert.False(window.FindControl<ListBox>("Navigation")!.IsEffectivelyVisible);
             Assert.Equal("https://passport.bilibili.com/login/exit/v2", Assert.Single(harness.RejectedRequests).AbsoluteUri);
+            Assert.Equal(3, harness.NavRequests); // Successful logout does not read the account again.
             harness.RejectedRequests.Clear(); // The real logout attempted HTTP; the fake still rejected it and Core removed the local credential.
             await viewModel.ReadAccountCommand.ExecuteAsync(null);
             Assert.Null(viewModel.AccountStatus.Account);
@@ -146,7 +173,7 @@ public sealed class AccountPanelTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+        harness.HoldLoginRequests();
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         harness.NavResponse = _ => response.Task;
         var viewModel = harness.CreateViewModel();

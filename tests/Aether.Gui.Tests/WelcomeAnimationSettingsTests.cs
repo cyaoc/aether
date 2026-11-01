@@ -8,7 +8,6 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 using System.Net;
-using System.Net.Sockets;
 using Avalonia.Input.Platform;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -645,11 +644,11 @@ public sealed class WelcomeAnimationSettingsTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task Web_service_runs_without_login_or_enabled_features_and_restarts_only_for_a_saved_port() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Web_service_runs_without_enabled_features_and_restarts_only_for_a_saved_port() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
-        var port = FreePort();
+        await harness.SaveCredentialAsync();
+        var port = GuiHarness.FreePort();
         Video(harness, "videos", "trial.mp4", "trial video");
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "trial.mp4" });
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
@@ -659,12 +658,10 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => viewModel.IsLoginPage && viewModel.WebService.WebServiceStatus.Running);
-            Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
-            Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
-            window.FindControl<Button>("OpenSettingsWithoutLoginButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await GuiHarness.WaitForAsync(() => !viewModel.IsLoginPage);
-            Assert.Equal(6, window.Navigation.SelectedIndex);
+            await GuiHarness.WaitForAsync(() => viewModel.AccountStatus.Account is not null && viewModel.WebService.WebServiceStatus.Running);
+            Assert.False(viewModel.IsLoggedOut);
+            window.Navigation.SelectedIndex = 6;
+            GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Equal("端口保存后立即生效；日志设置重启后生效", GuiHarness.FindVisual<TextBlock>(general, "TimingHint").Text);
             using var response = await http.GetAsync(viewModel.WebService.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
@@ -705,7 +702,7 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("试播", GuiHarness.FindRowControl<TextBlock>(animation, playingRow, "TestText").Text);
             Click(animation, "OpenGeneralSettingsButton");
             Assert.Equal(6, window.Navigation.SelectedIndex);
-            var nextPort = FreePort();
+            var nextPort = GuiHarness.FreePort();
             general.FindControl<NumericUpDown>("WebPortInput")!.Text = nextPort.ToString();
             GuiHarness.Flush();
             Assert.Equal(port, viewModel.WebService.WebServiceStatus.Port);
@@ -725,7 +722,7 @@ public sealed class WelcomeAnimationSettingsTests
             general.FindControl<NumericUpDown>("RetentionInput")!.Text = "31";
             GuiHarness.Flush();
             Assert.Equal("", GuiHarness.FindVisual<TextBlock>(general, "Message").Text);
-            var externalPort = FreePort();
+            var externalPort = GuiHarness.FreePort();
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = externalPort.ToString() });
             window.Navigation.SelectedIndex = 0;
             await GuiHarness.WaitForAsync(() => viewModel.WebService.WebServiceStatus.Port == externalPort && viewModel.WebService.WebServiceStatus.Running);
@@ -740,7 +737,7 @@ public sealed class WelcomeAnimationSettingsTests
     public Task Closing_releases_web_service_port_before_login_finishes() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
-        var port = FreePort();
+        var port = GuiHarness.FreePort();
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
         var started = new TaskCompletionSource();
         var release = new TaskCompletionSource();
@@ -772,13 +769,6 @@ public sealed class WelcomeAnimationSettingsTests
         return true;
     }, TestContext.Current.CancellationToken);
 
-    private static int FreePort()
-    {
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
-
     [Fact]
     public Task Invalid_external_settings_preserve_the_running_service_and_playback_status() => HeadlessApp.Session.Dispatch(async () =>
     {
@@ -788,7 +778,7 @@ public sealed class WelcomeAnimationSettingsTests
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "video.mp4" });
         Settings.Save(harness.DataDirectory, new Dictionary<string, string>
         {
-            ["entry_animation.enabled"] = "true", ["web_service.port"] = FreePort().ToString()
+            ["entry_animation.enabled"] = "true", ["web_service.port"] = GuiHarness.FreePort().ToString()
         });
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
@@ -829,7 +819,7 @@ public sealed class WelcomeAnimationSettingsTests
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "old.mp4" });
         Settings.Save(harness.DataDirectory, new Dictionary<string, string>
         {
-            ["entry_animation.enabled"] = "true", ["web_service.port"] = FreePort().ToString()
+            ["entry_animation.enabled"] = "true", ["web_service.port"] = GuiHarness.FreePort().ToString()
         }, Settings.Load(harness.DataDirectory));
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };

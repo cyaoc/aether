@@ -7,6 +7,7 @@
   <ItemGroup>
     <AvaloniaResource Include="../../docs/design/app-icon/aether.ico" Link="Assets/aether.ico" />
     <AvaloniaResource Include="../../docs/design/app-icon/aether.icns" Link="Assets/aether.icns" />
+    <AvaloniaResource Include="../../docs/design/splash/textures/splash.webp" Link="Assets/splash.webp" />
     <None Update="ThirdPartyNotices.txt" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="../Aether.Core/Aether.Core.csproj" />
     <PackageReference Include="Avalonia" />

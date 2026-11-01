@@ -64,13 +64,7 @@ public sealed class SettingsNavigationTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        var requested = new TaskCompletionSource();
-        harness.RoomResponse = async (_, token) =>
-        {
-            requested.TrySetResult();
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
-        };
+        var requested = harness.HoldRoomRequest();
         var viewModel = harness.CreateViewModel();
         viewModel.RoomNumber = "6";
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
@@ -83,10 +77,10 @@ public sealed class SettingsNavigationTests
             (index == 2 ? WelcomeTextList.Input(page) : page.FindControl<TextBox>(field)!).Focus();
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
             GuiHarness.Flush();
-            Assert.False(requested.Task.IsCompleted);
+            Assert.False(requested.IsCompleted);
             window.FindControl<StackPanel>("RoomInputPanel")!.GetVisualDescendants().OfType<TextBox>().Single().Focus();
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
-            await requested.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await requested.WaitAsync(TimeSpan.FromSeconds(5));
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
         return true;

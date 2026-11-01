@@ -38,6 +38,11 @@ public partial class MainWindow : Window
         gift.GeneralSettingsRequested += ShowGeneralSettings;
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
+        // Nothing has focus while the splash fades over the enabled page, so stopping Tab keeps every key out of it.
+        AddHandler(KeyDownEvent, (_, e) =>
+        {
+            if (e.Key == Key.Tab && DataContext is MainWindowViewModel { IsSplashVisible: true }) e.Handled = true;
+        }, RoutingStrategies.Tunnel);
         // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
         RoomInput.AddHandler(KeyDownEvent, OnRoomInputKeyDown, RoutingStrategies.Tunnel);
         RoomInput.DropDownOpened += (_, _) => MoveRoomCaretToEnd();
@@ -76,13 +81,6 @@ public partial class MainWindow : Window
         base.OnOpened(e);
         if (DataContext is MainWindowViewModel viewModel)
             _ = viewModel.StartAsync(dataDirectory);
-    }
-
-    private async void OpenSettingsWithoutLogin(object? sender, RoutedEventArgs e)
-    {
-        if (DataContext is not MainWindowViewModel viewModel) return;
-        await viewModel.OpenSettingsCommand.ExecuteAsync(null);
-        ShowGeneralSettings();
     }
 
     private void ShowGeneralSettings() => Navigation.SelectedIndex = PageHost.Children.IndexOf(general);

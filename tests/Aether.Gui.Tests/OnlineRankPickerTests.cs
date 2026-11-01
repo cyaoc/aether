@@ -149,8 +149,7 @@ public sealed class OnlineRankPickerTests
         h.OnlineRankResponse = async (_, token) =>
         {
             requested.TrySetResult(token);
-            await Task.Delay(Timeout.Infinite, token);
-            return GuiHarness.Json("{}");
+            return await GuiHarness.NoResponse(token);
         };
         var vm = h.CreateViewModel();
         vm.Apply(new Connected(7734200, 24680));

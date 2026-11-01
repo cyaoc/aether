@@ -19,13 +19,13 @@ public sealed class AppVersionTests
     public Task Login_page_shows_the_version() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+        harness.HoldLoginRequests();
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
         {
-            await WaitForAsync(() => viewModel.IsLoginPage);
+            await WaitForAsync(() => viewModel.IsLoggedOut);
             Assert.Single(VersionTexts(window));
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
@@ -43,7 +43,7 @@ public sealed class AppVersionTests
         try
         {
             await viewModel.ReadAccountCommand.ExecutionTask!;
-            Assert.False(viewModel.IsLoginPage);
+            Assert.False(viewModel.IsLoggedOut);
             for (var page = 0; page < window.Navigation.ItemCount; page++)
             {
                 window.Navigation.SelectedIndex = page;

@@ -1,5 +1,6 @@
 using Aether.Core;
 using System.Net;
+using System.Net.Sockets;
 using Avalonia;
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
@@ -30,8 +31,18 @@ internal sealed class GuiHarness : IDisposable
 
     public GuiSettings LoadSettings() => GuiSettings.Load(DataDirectory, NullLogger<GuiSettings>.Instance);
 
-    public MainWindowViewModel CreateViewModel(TimeProvider? timeProvider = null) =>
-        new(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings(), timeProvider ?? TimeProvider.System);
+    public MainWindowViewModel CreateViewModel(TimeProvider? timeProvider = null, bool keepSplashTiming = false)
+    {
+        var viewModel = new MainWindowViewModel(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings(), timeProvider ?? TimeProvider.System);
+        if (!keepSplashTiming)
+        {
+            viewModel.SplashMinimumDuration = TimeSpan.Zero;
+            viewModel.SplashFadeDuration = TimeSpan.Zero;
+            viewModel.SplashOpacity = 0;
+            viewModel.IsSplashVisible = false;
+        }
+        return viewModel;
+    }
 
     public Func<CancellationToken, Task<HttpResponseMessage>> NavResponse
     {
@@ -54,6 +65,13 @@ internal sealed class GuiHarness : IDisposable
 
     public static HttpResponseMessage Json(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
 
+    public static int FreePort()
+    {
+        using var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        return ((IPEndPoint)listener.LocalEndpoint).Port;
+    }
+
     /// <summary>A nav response for the account that <see cref="SaveCredentialAsync"/> saves (UID 123).</summary>
     public static HttpResponseMessage AccountResponse(string nickname = "测试账号") =>
         Json($$$"""{"code":0,"data":{"isLogin":true,"mid":123,"uname":"{{{nickname}}}"}}""");
@@ -73,15 +91,20 @@ internal sealed class GuiHarness : IDisposable
         command.ExecuteNonQuery();
     }
 
+    /// <summary>A response that never arrives, so the request stays pending until cancelled.</summary>
+    public static Task<HttpResponseMessage> NoResponse(CancellationToken token) =>
+        new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+
+    public void HoldLoginRequests() => LoginResponse = (_, token) => NoResponse(token);
+
     /// <summary>Holds room_init until cancelled, so a connection stays at "connecting"; completes with the request.</summary>
     public Task<Uri> HoldRoomRequest()
     {
         var requested = new TaskCompletionSource<Uri>();
-        RoomResponse = async (uri, token) =>
+        RoomResponse = (uri, token) =>
         {
             requested.TrySetResult(uri);
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
+            return NoResponse(token);
         };
         return requested.Task;
     }
