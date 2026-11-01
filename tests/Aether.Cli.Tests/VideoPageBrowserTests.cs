@@ -29,16 +29,16 @@ public sealed class VideoPageBrowserTests
         for (var attempt = 0; attempt < 2; attempt++)
         {
             h.Client.WelcomeAnimation.TestPlay(10001);
-            WelcomeAnimationPlayback playing;
+            SourcePlayback playing;
             do { Assert.True(await updates.MoveNextAsync()); }
-            while (updates.Current is not WelcomeAnimationPlayback { State: PlaybackState.Playing });
-            playing = (WelcomeAnimationPlayback)updates.Current;
+            while (updates.Current is not SourcePlayback { State: PlaybackState.Playing });
+            playing = (SourcePlayback)updates.Current;
             await browser.WaitAsync("document.querySelector('video').style.visibility === 'visible' && !document.querySelector('video').paused");
             h.Client.WelcomeAnimation.StopTestPlay(playing.Id);
             await browser.WaitAsync("document.querySelector('video').style.visibility === 'hidden' && document.querySelector('video').paused && !document.querySelector('video').hasAttribute('src')");
             do { Assert.True(await updates.MoveNextAsync()); }
-            while (updates.Current is not WelcomeAnimationPlayback { State: PlaybackState.Stopped });
-            Assert.Equal(playing.Id, ((WelcomeAnimationPlayback)updates.Current).Id);
+            while (updates.Current is not SourcePlayback { State: PlaybackState.Stopped });
+            Assert.Equal(playing.Id, ((SourcePlayback)updates.Current).Id);
         }
         Assert.Empty(browser.Errors);
     }

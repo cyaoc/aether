@@ -28,7 +28,7 @@ internal static class DanmakuProtocol
     internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : RoomEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
-    private sealed class FormatNotices(ILogger logger, bool parseEntries)
+    private sealed class FormatNotices(ILogger logger, Func<bool> parseEntries)
     {
         private readonly Dictionary<string, string> versions = [];
         private readonly HashSet<string> unknownCommands = [];
@@ -40,7 +40,7 @@ internal static class DanmakuProtocol
             {
                 _ when command.StartsWith("DANMU_MSG", StringComparison.Ordinal) => ("弹幕", null),
                 _ when command.StartsWith("SEND_GIFT", StringComparison.Ordinal) => ("礼物", GiftMessages.Version(command)),
-                _ when parseEntries && (command == "INTERACT_WORD" || command.StartsWith("INTERACT_WORD_", StringComparison.Ordinal))
+                _ when parseEntries() && (command == "INTERACT_WORD" || command.StartsWith("INTERACT_WORD_", StringComparison.Ordinal))
                     => ("进场", EntryMessages.Version(command)),
                 _ => (null, null)
             };
@@ -68,7 +68,7 @@ internal static class DanmakuProtocol
     public static byte[] CreateHeartbeat() => Pack(Operation.Heartbeat, []);
 
     /// <summary>One room connection's decoder; reconnects keep its format notices and entry history.</summary>
-    internal sealed class Decoder(long roomId, ILogger logger, bool parseEntries)
+    internal sealed class Decoder(long roomId, ILogger logger, Func<bool> parseEntries)
     {
         private readonly FormatNotices notices = new(logger, parseEntries);
         // shortcut: keeps every viewer seen this room connection; prune it if a huge room's connection grows too large.
@@ -122,7 +122,7 @@ internal static class DanmakuProtocol
                 }
                 else if (GiftMessages.Decode(command, root, body, logger) is { Length: > 0 } boxes)
                     decoded = [new GiftsReceived(boxes, receivedTimestamp)];
-                else if (parseEntries && EntryMessages.Decode(command, root, roomId) is { } entry)
+                else if (parseEntries() && EntryMessages.Decode(command, root, roomId) is { } entry)
                     decoded = [new EntryReceived(entry, receivedTimestamp)];
             }
             // Only message decoding is inside this boundary; frame errors still end the stream.

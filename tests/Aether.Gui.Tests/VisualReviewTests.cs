@@ -402,7 +402,7 @@ public sealed class VisualReviewTests
                 }
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1));
                 window.Navigation.SelectedIndex = 3;
-                viewModel.WebService.Apply(new WelcomeAnimationPlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
+                viewModel.WebService.Apply(new SourcePlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
                 Save(window, $"welcome-animation-N3-{(dark ? "dark" : "light")}");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -656,7 +656,7 @@ public sealed class VisualReviewTests
                 var page = window.GetVisualDescendants().OfType<WelcomeAnimationSettingsPage>().Single();
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
                 foreach (var (state, index) in new[] { PlaybackState.Completed, PlaybackState.Failed, PlaybackState.NoReport, PlaybackState.Skipped, PlaybackState.Queued }.Select((state, index) => (state, index)))
-                    viewModel.WebService.Apply(new WelcomeAnimationPlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
+                    viewModel.WebService.Apply(new SourcePlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
                         Nickname: index switch { 1 => "柚子不酸", 2 => "bili_6508617762", _ => null }));
                 Capture("connected");
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
@@ -664,11 +664,11 @@ public sealed class VisualReviewTests
                 viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"));
                 Capture("port-occupied");
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
-                viewModel.WebService.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
+                viewModel.WebService.Apply(new SourcePlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
                 Capture("playing");
-                viewModel.WebService.Apply(new WelcomeAnimationPlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Stopped));
+                viewModel.WebService.Apply(new SourcePlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Stopped));
                 Capture("stopped");
-                viewModel.WebService.Apply(new WelcomeAnimationPlayback("real", 1234567890123456, videos[1234567890123456], false, PlaybackState.Playing));
+                viewModel.WebService.Apply(new SourcePlayback("real", 1234567890123456, videos[1234567890123456], false, PlaybackState.Playing));
                 Capture("entry-playing");
                 var rows = page.Animations.ToArray();
                 GuiHarness.FindRowControl<TextBox>(page, rows[0], "UidInput").Text = "";

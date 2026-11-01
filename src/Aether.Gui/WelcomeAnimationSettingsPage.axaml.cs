@@ -17,12 +17,14 @@ public partial class WelcomeAnimationSettingsPage : SettingsPage
         AnimationRows.ItemsSource = Animations;
         Animations.RowChanged += Validate;
         Title = "欢迎动画";
+        TimingHint = "保存后，下一次进场生效";
         Bind(AnimationInput, AnimationReadOnly, null, s => s.WelcomeAnimationEnabled);
         AddAnimationButton.Click += async (_, _) => await ChooseAnimationAsync();
         LoadSettings();
     }
 
     private void OpenGeneralSettings(object? sender, RoutedEventArgs e) => GeneralSettingsRequested?.Invoke();
+    protected override bool ReconnectAfterSave => false;
     protected override void LoadRows() => LoadAnimations();
     protected override bool RowsChanged => AnimationDraft;
     protected override bool ShowRowErrors() => RefreshAnimations();

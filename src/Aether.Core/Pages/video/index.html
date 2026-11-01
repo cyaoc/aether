@@ -50,6 +50,7 @@ events.onmessage = async event => {
     const blob = await response.blob();
     if (active !== item) return;
     item.url = URL.createObjectURL(blob);
+    video.volume = item.volume / 100;
     video.src = item.url;
     await video.play();
     if (active === item) video.style.visibility = 'visible';

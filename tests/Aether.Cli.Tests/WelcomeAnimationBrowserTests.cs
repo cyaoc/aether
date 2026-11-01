@@ -8,17 +8,24 @@ namespace Aether.Cli.Tests;
 
 public sealed class WelcomeAnimationBrowserTests
 {
-    [Fact]
-    public async Task Watch_leaves_web_service_stopped_when_welcome_animation_is_off()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Watch_starts_web_service_for_gift_animation_alone(bool giftEnabled)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
+        using var available = new TcpListener(IPAddress.Loopback, 0);
+        available.Start();
+        var port = ((IPEndPoint)available.LocalEndpoint).Port;
+        available.Stop();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = Settings.BooleanText(giftEnabled), ["web_service.port"] = port.ToString() });
         var watching = WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,
             _ => throw new InvalidOperationException("Already logged in"), h.Stop.Token);
         try
         {
             await h.WaitForLogAsync("已连接弹幕服务器");
-            Assert.False(h.Client.WebService.Status.Running);
+            Assert.Equal(giftEnabled, h.Client.WebService.Status.Running);
         }
         finally { await h.Stop.CancelAsync(); await watching; }
     }

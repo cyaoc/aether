@@ -45,6 +45,7 @@ public sealed partial class AetherClient : IDisposable
     {
         if (settings.Error is { } error) throw error;
         WelcomeAnimation.Apply(settings);
+        WebService.Video.Apply(settings);
         await WebService.StartAsync(settings.WebServicePort.Value).ConfigureAwait(false);
     }
 
