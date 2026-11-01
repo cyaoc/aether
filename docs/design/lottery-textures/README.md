@@ -3,6 +3,7 @@
 2026-10-24 在设计稿画布上定稿（画布是私有的，实现时以本目录为准）。三套主题的开奖特效、主体元素、
 中奖名单和常挂结果都换成位图素材，横屏、竖屏都有。实现任务：[GitHub Issue #242](https://github.com/cyaoc/aether/issues/242)。
 2026-10-25 星辰召唤的三张牌面重做成日、月、星（旧版太花，字下面显脏），用法和数值不变。
+2026-11-01 星辰召唤的常挂结果改回档次色渐变文字，不用小卡：[GitHub Issue #280](https://github.com/cyaoc/aether/issues/280)。
 
 - `textures/`：定稿素材，28 张 WebP，约 2 MB。**直接用，不要重新生成**；来源见 `prompts.md`。
 - `boards/`：画板源码。所有数值（时间轴、位置、尺寸、切片、上色）以这里为准，本文只做导读。
@@ -136,7 +137,7 @@ node docs/design/lottery-textures/tools/server.mjs 8793
 ![名单](preview/winners-summon.webp) ![名单](preview/winners-mecha.webp) ![名单](preview/winners-gacha.webp)
 ![常挂](preview/pinned-summon.webp) ![常挂](preview/pinned-mecha.webp) ![常挂](preview/pinned-gacha.webp)
 
-只把档位标记换成和开奖同一套的小图，不加特效，名单和“已截止”是同一套排版：
+只把档位标记换成和开奖同一套的小图（星辰召唤的常挂结果除外），不加特效，名单和“已截止”是同一套排版：
 
 - 星辰召唤：名单小卡用档次牌面和卡框，名字、档次字加深色投影；常挂结果的 SSR/SR/R 保留档次色渐变文字。
 - 机甲锁定：每行左边的字母换成徽章，行底换成金属底板（常挂结果角 18 px），颜色左边条保留。
