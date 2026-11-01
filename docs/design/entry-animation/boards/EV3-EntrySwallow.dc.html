@@ -74,7 +74,7 @@ class Component extends DCLogic {
     const anchors = [[[900, 480], 0.79], [[350, 590], 0.8], [[510, 790], 0.78], [[600, 640], 0.71], [[570, 640], 0.62], [[510, 380], 0.77], [[510, 380], 0.77], [[530, 770], 0.82], [[537, 800], 0.89], [[810, 680], 0.69], [[430, 700], 0.83], [[480, 600], 0.71], [[804, 440], 0.74], [[804, 440], 0.74]];
     const PO = {};
     keys.forEach((key, i) => { const c = imgs[image[i]]; PO[key] = { img: c, tex: tex(c), hip: anchors[i][0], s: anchors[i][1] }; });
-    const AT = { stance: [700, 706], smear1: [860, 640], cut1: [990, 590], smear2: [1200, 430], cut2: [980, 470], smear3: [960, 700], cut3: [1000, 700], smear4: [960, 500], cut4: [960, 470], wind: [960, 420], smear5: [1010, 640], land: [1060, 824], into: [1060, 681], home: [1060, 679] };
+    const AT = { stance: [700, 706], smear1: [860, 560], cut1: [990, 430], smear2: [1200, 200], cut2: [980, 240], smear3: [960, 300], cut3: [1000, 300], smear4: [960, 160], cut4: [960, 130], wind: [960, -40], smear5: [1010, 460], land: [1060, 824], into: [1060, 681], home: [1060, 679] };
     const W = (key, q, hip = AT[key]) => { const p = PO[key]; return [hip[0] + (q[0] - p.hip[0]) * p.s, hip[1] + (q[1] - p.hip[1]) * p.s]; };
     const TIP0 = W('stance', [428, 873]), TIP1 = W('cut1', [1084, 30]), TIP2 = W('cut2', [150, 1037]), TIP3 = W('cut3', [1500, 156]), TIP4 = W('cut4', [274, 31]), TIPW = W('wind', [189, 68]), TIP5 = W('land', [1393, 867]);
     // Cut 1 carries the hero up this far while it holds, so cut 2 starts from the risen tip.
@@ -115,11 +115,11 @@ class Component extends DCLogic {
     // 5 plunge: from the blade already behind his head, over and down, the one full-power cut, into the ground.
     // 6 the blade coming back out of the ground, up to the scabbard mouth as he stands.
     const blades = [
-      slashPath([TIP0, [640, 1070], [1000, 980], [1320, 720], W('smear1', [1102, 389]), [1460, 230], TIP1], [0, 1]),
-      slashPath([TIP1R, [1130, -20], W('smear2', [125, 300]), [760, 440], TIP2]),
-      slashPath([TIP2, [850, 760], [1100, 745], [1420, 680], TIP3]),
-      slashPath([TIP3, [1560, 290], [1240, 30], W('smear4', [480, 31]), TIP4]),
-      slashPath([TIPW, [760, -120], [1100, -70], [1400, 190], W('smear5', [1074, 764]), TIP5]),
+      slashPath([TIP0, [640, 1070], [1000, 980], [1320, 720], W('smear1', [1102, 389]), [1460, 70], TIP1], [0, 1]),
+      slashPath([TIP1R, [1130, -260], W('smear2', [125, 300]), [760, 210], TIP2]),
+      slashPath([TIP2, [850, 300], [1100, 180], [1420, 140], TIP3]),
+      slashPath([TIP3, [1560, -50], [1240, -310], W('smear4', [480, 31]), TIP4]),
+      slashPath([TIPW, [760, -580], [1100, -530], [1400, -280], W('smear5', [1074, 764]), TIP5]),
       slashPath([TIP5, [1570, 830], [1370, 680], W('into', [850, 394])])
     ];
 
@@ -147,7 +147,7 @@ class Component extends DCLogic {
       return out;
     };
     const disc = Array.from({ length: 96 }, (_, i) => [C0[0] + RR * Math.cos(i / 96 * 2 * Math.PI), C0[1] + RR * Math.sin(i / 96 * 2 * Math.PI)]);
-    const VIEW = [-300, -300, 2600, 1300];
+    const VIEW = [-300, -800, 2600, 1300];
     const cells = [];
     for (let m = 0; m < 1 << scars.length; m++) {
       let poly = disc;
@@ -169,7 +169,7 @@ class Component extends DCLogic {
     // It is padded so the wide shots and tilts never run off its edge: mirror images of itself at the sides (no moon
     // near them), its top and bottom strips flipped and stretched above and below (a full mirror there would show a
     // second moon), the top one fading into the dark of the zenith.
-    const MOON = [1960, 90], SKY = 1.5625, PAD = 520;
+    const MOON = [2000, -220], SKY = 1.5625, PAD = 520;
     const padded = img => {
       const w = img.width + 2 * PAD, h = img.height;
       const row = canvasOf(w, h, g => { for (let i = -1; i <= 1; i++) { const fx = i !== 0; g.save(); g.translate(PAD + i * img.width + (fx ? img.width : 0), 0); g.scale(fx ? -1 : 1, 1); g.drawImage(img, 0, 0); g.restore(); } });
@@ -188,7 +188,7 @@ class Component extends DCLogic {
     };
     const red = new P.Container(); red.pivot.set(960, 540); red.position.set(960, 540); skyOf(redTex, red); world.addChild(red);
     // Pieces fly out from where the cuts fan out, above the leap.
-    const BURST = [1200, 200];
+    const BURST = [1400, -100];
     const pieces = cells.map(cell => {
       const c = new P.Container(), m = new P.Graphics().poly(cell.poly.flat()).fill(0xffffff), inner = new P.Container();
       c.addChild(m); inner.mask = m; c.addChild(inner); skyOf(moonTex, inner);
@@ -244,7 +244,7 @@ class Component extends DCLogic {
 
     const onScreen = p => p[0] > VIEW[0] && p[0] < VIEW[2] && p[1] > VIEW[1] && p[1] < VIEW[3];
     this.S = {
-      app, canvas, world, ui, dim, red, pieces, scars, blades, TAILS, PO, AT, W, TIP5, NAME_AT, OX, OY, backC, backTex, rim, ghosts, hero, fx, fxTex,
+      app, canvas, world, ui, dim, red, pieces, scars, blades, TAILS, PO, AT, W, TIP5, SKYD: 400, NAME_AT, OX, OY, backC, backTex, rim, ghosts, hero, fx, fxTex,
       emberSrc: scars.map(s => pathOf(dense(s).filter(onScreen))),
       nameG, cap, capName, capMask, nameGhosts, nameT, nameMask, imp, impBg, impLines, silB, silW, flash, bars, bloom, shock, shock2, zoom, rgb
     };
@@ -259,8 +259,8 @@ class Component extends DCLogic {
     // Five hit stops, at logical times L1–L5: cut 1 holds 90 ms of real time, the air cuts 60, 50 and 50 as they come
     // faster and faster, and the landing 160 (after its white frame). Real time keeps running (shake, impact frames)
     // while everything else holds. HR are the real times they start; REL5 is when the landing lets go.
-    const L1 = 1724, L2 = 1920, L3 = 2040, L4 = 2130, L5 = 2636;
-    const HS = [[L1, 90], [L2, 60], [L3, 50], [L4, 50], [L5, 180]], HR = [1724, 2010, 2190, 2330, 2886], REL5 = 3066;
+    const L1 = 1724, L2 = 1920, L3 = 2040, L4 = 2130, L5 = 2719;
+    const HS = [[L1, 90], [L2, 60], [L3, 50], [L4, 50], [L5, 180]], HR = [1724, 2010, 2190, 2330, 2969], REL5 = 3149;
     let l = null, acc = 0;
     for (const [s, d] of HS) { if (t < s + acc) break; if (t < s + acc + d) { l = s; break; } acc += d; }
     if (l === null) l = t - acc;
@@ -270,9 +270,9 @@ class Component extends DCLogic {
     const on2 = x => Math.floor(x / 83) * 83;
     // The chain, one beat per pose; smear frames hold two frames. The gaps between the hits shrink (286, 180, 140 ms of
     // real time) and the longest hold comes right before the last one: the blade raised overhead for 340 ms.
-    const SM1 = 1640, SM2 = 1836, SM3 = 1956, SM4 = 2046, WIND = 2170, SM5 = 2510, LAND = 2594;
-    const WAVE2 = 2816, BACK0 = 3000, ZAN = 3380, NAME = 3420, INTO = 3400, HOME = 3610;
-    const FLARE = 3650, SPLIT = 4020, RED0 = 5770, RED1 = 6370, EXIT = 7550, END = 7970;
+    const SM1 = 1640, SM2 = 1836, SM3 = 1956, SM4 = 2046, WIND = 2170, SM5 = 2510, LAND = 2677;
+    const WAVE2 = 2899, BACK0 = 3083, ZAN = 3463, NAME = 3503, INTO = 3483, HOME = 3693;
+    const FLARE = 3733, SPLIT = 4103, RED0 = 5770, RED1 = 6370, EXIT = 7550, END = 7970;
 
     // Letterbox and dimming.
     const bh = 118 * out(k(0, 280, t)) * (1 - out(k(EXIT + 120, EXIT + 500, l)));
@@ -282,16 +282,18 @@ class Component extends DCLogic {
 
     // Backdrop: whole through the move; after the zanshin the five scars flare in cut order, then the sky breaks along
     // them and every piece slides off away from the hero, faster and faster, and dissolves.
+    // The sky is far off, so from the ground it hangs lower: the moon is in the opening shot and the crossing of the cuts in the closing one.
+    const scarY = l >= LAND ? S.SKYD : 0, skyY = l >= LAND ? S.SKYD : S.SKYD * (1 - k(SM1, L3, l));
     const sp = k(SPLIT, SPLIT + 850, l), e = sp * sp, drift = -l * 0.006;
     const fade = 1 - inq(k(SPLIT + 400, SPLIT + 1000, l));
     for (const p of S.pieces) {
-      p.dx = p.dir[0] * p.dist * e + drift; p.dy = p.dir[1] * p.dist * e; p.r = p.rot * e;
+      p.dx = p.dir[0] * p.dist * e + drift; p.dy = p.dir[1] * p.dist * e + skyY; p.r = p.rot * e;
       p.c.position.set(p.c.pivot.x + p.dx, p.c.pivot.y + p.dy); p.c.rotation = p.r;
       p.c.alpha = 0.95 * out(k(600, 1250, l)) * fade;
     }
     // The blood-moon side shows through the openings, holds a beat once the moonlit pieces are gone, then gives way to the stream.
     S.red.alpha = (l >= SPLIT ? 1 : 0) * (1 - inq(k(RED0, RED1, l)));
-    S.red.scale.set(1 + 0.03 * k(SPLIT, RED1, l)); S.red.position.set(960 + drift, 540);
+    S.red.scale.set(1 + 0.03 * k(SPLIT, RED1, l)); S.red.position.set(960 + drift, 540 + skyY);
 
     // Hero: one pose per beat, placed by its hips.
     const keyAt = l < SM1 ? 'stance' : l < L1 ? 'smear1' : l < SM2 ? 'cut1' : l < L2 ? 'smear2' : l < SM3 ? 'cut2' : l < L3 ? 'smear3' : l < SM4 ? 'cut3' : l < L4 ? 'smear4' : l < WIND ? 'cut4' : l < SM5 ? 'wind' : l < LAND ? 'smear5' : l < INTO ? 'land' : l < HOME ? 'into' : 'home';
@@ -305,6 +307,9 @@ class Component extends DCLogic {
     if (keyAt === 'cut2') hy -= 10 * k(L2, SM3, l);
     // The chop's recoil lifts the hero into the wind-up, which settles a little higher while it holds.
     if (keyAt === 'wind') { const p = out(k(WIND, SM5, on2(l))); hx += 10 * (1 - p); hy += 40 * (1 - p); }
+    // The plunge falls right through the frame, one step every 42 ms, and out of the bottom before the cut to the ground.
+    const plunge = keyAt === 'smear5' ? (Math.floor((l - SM5) / 42) + 1) / 4 : 0;
+    if (keyAt === 'smear5') hy = mix(S.AT.wind[1], hy, plunge);
     if (keyAt === 'into') hy += 80 * (1 - quint(k(INTO, INTO + 100, l)));
     if (l >= ZAN) hx += 20 * k(ZAN, ZAN + 3100, on2(l));
     hx -= 70 * k(EXIT, END, l);
@@ -312,7 +317,7 @@ class Component extends DCLogic {
     place(S.hero, po, hx, hy);
     S.hero.alpha = (l < 250 ? 0 : 1) * (1 - k(EXIT, END, l));
     // Afterimages trail the cut-in, the take-off, the climb and the air cuts, opposite to the motion.
-    const gOff = l < 520 ? [-70, 0] : keyAt === 'smear1' ? [-14, 46] : keyAt === 'cut1' && l > L1 ? [0, 40] : keyAt === 'smear2' ? [34, -38] : keyAt === 'smear3' ? [-40, 10] : keyAt === 'smear4' ? [0, 44] : null;
+    const gOff = l < 520 ? [-70, 0] : keyAt === 'smear1' ? [-14, 90] : keyAt === 'cut1' && l > L1 ? [0, 70] : keyAt === 'smear2' ? [34, -38] : keyAt === 'smear3' ? [-40, 10] : keyAt === 'smear4' ? [0, 44] : keyAt === 'smear5' ? [0, -130] : null;
     S.ghosts.forEach((g, i) => {
       place(g, po, hx + (gOff ? (i + 1) * gOff[0] : 0), hy + (gOff ? (i + 1) * gOff[1] : 0));
       g.alpha = gOff && l >= 250 ? (i ? 0.16 : 0.32) : 0; g.tint = 0xff6070;
@@ -332,13 +337,13 @@ class Component extends DCLogic {
     // land: the crossing of the air cuts sits high in the middle with the moon whole beside it, as when they were cut, and
     // the hero stands and sheathes his sword under it, the whole figure in frame.
     let cx = 1100, cy = 656, z = 0.88 + 0.03 * inq(k(520, SM1, l)), rot = -0.008 * inq(k(520, SM1, l)), p;
-    if (l >= SM1) { p = out(k(SM1, L1, l)); cx = mix(1100, 1180, p); cy = mix(656, 440, p); z = 0.91 + 0.01 * p; rot = -0.008 * (1 - p); }
-    if (l >= L1) { cy = 440 - 130 * out(k(L1, SM2, l)); z = 0.92; rot = 0; }
-    if (l >= SM2) { p = out(k(SM2, L2, l)); cx = mix(1180, 1000, p); cy = mix(310, 300, p); z = mix(0.92, 0.86, p); }
-    if (l >= SM3) { p = out(k(SM3, L3, l)); cx = mix(1000, 1180, p); cy = mix(300, 620, p); z = 0.86; }
-    if (l >= SM4) { p = out(k(SM4, L4, l)); cx = mix(1180, 1100, p); cy = mix(620, 200, p); z = 0.86; }
-    if (l >= WIND) { p = out(k(WIND, WIND + 120, l)); cx = mix(1100, 1000, p); cy = mix(200, 440, p); z = mix(0.86, 0.88, p) + 0.04 * inq(k(WIND + 120, SM5, l)); }
-    if (l >= SM5) { cx = 1000; cy = 440; z = 0.92; }
+    if (l >= SM1) { p = out(k(SM1, L1, l)); cx = mix(1100, 1180, p); cy = mix(656, 230, p); z = 0.91 + 0.01 * p; rot = -0.008 * (1 - p); }
+    if (l >= L1) { cy = 230 - 100 * out(k(L1, SM2, l)); z = 0.92; rot = 0; }
+    if (l >= SM2) { p = out(k(SM2, L2, l)); cx = mix(1180, 1000, p); cy = mix(130, 100, p); z = mix(0.92, 0.86, p); }
+    if (l >= SM3) { p = out(k(SM3, L3, l)); cx = mix(1000, 1180, p); cy = mix(100, 200, p); z = 0.86; }
+    if (l >= SM4) { p = out(k(SM4, L4, l)); cx = mix(1180, 1100, p); cy = mix(200, -160, p); z = 0.86; }
+    if (l >= WIND) { p = out(k(WIND, WIND + 120, l)); cx = mix(1100, 1080, p); cy = mix(-160, -60, p); z = mix(0.86, 0.88, p) + 0.04 * inq(k(WIND + 120, SM5, l)); }
+    if (l >= SM5) { cx = 1080; cy = -60; z = 0.92; }
     if (l >= LAND) { cx = 1240; cy = 676; z = 0.95; rot = 0.012 * (1 - out(k(L5, BACK0, l))); }
     if (l >= BACK0) { p = smooth(k(BACK0, ZAN, l)); cx = mix(1240, 1270, p); cy = mix(676, 620, p); z = mix(0.95, 0.9, p) + 0.015 * k(ZAN, ZAN + 3300, l); rot = 0; }
     let sx = 0, sy = 0;
@@ -393,7 +398,7 @@ class Component extends DCLogic {
     S.capMask.clear().rect(20, -90, 400 * out(k(560, 860, l)), 100).fill(0xffffff);
     S.cap.alpha = (l >= 420 ? 1 : 0) * (1 - gone); S.cap.position.set(1240 + 260 * gone * gone, 1040 - 30 * gone);
 
-    this.drawFx(l, k, out, { L: [L1, L2, L3, L4, L5], SM: [SM1, SM2, SM3, SM4, SM5], LAND, WIND, WAVE2, ZAN, INTO, HOME, FLARE, SPLIT, END, hx, hy, drift, fade, stanceX, keyAt });
+    this.drawFx(l, k, out, { scarY, L: [L1, L2, L3, L4, L5], SM: [SM1, SM2, SM3, SM4, SM5], LAND, WIND, WAVE2, ZAN, INTO, HOME, FLARE, SPLIT, END, hx, hy, drift, fade, stanceX, keyAt });
     S.fxTex.source.update(); S.backTex.source.update();
   }
 
@@ -486,6 +491,45 @@ class Component extends DCLogic {
       }
     };
 
+    // Kicked-up grit, thrown one way along the ground.
+    const spray = (x0, y0, t0, n, dir, seed) => {
+      const sp = l - t0; if (sp <= 0 || sp >= 800) return;
+      for (let i = 0; i < n; i++) {
+        const life = 300 + rnd(i, seed) * 480; if (sp > life) continue;
+        const q = sp / life, s = sp / 1000, v = 300 + rnd(i, seed + 1) * 1500, up = 300 + rnd(i, seed + 2) * 1300;
+        const px = x0 + dir * v * s + (rnd(i, seed + 3) - 0.5) * 200, py = Math.min(y0, y0 - up * s + 1800 * s * s), n2 = 18 + rnd(i, seed + 4) * 40;
+        g.strokeStyle = i % 5 ? 'rgba(255,50,60,' + (1 - q) + ')' : 'rgba(255,225,215,' + (1 - q) + ')'; g.lineWidth = 2 + rnd(i, seed + 5) * 3.5;
+        g.beginPath(); g.moveTo(px, py); g.lineTo(px - dir * n2, py + (rnd(i, seed + 6) - 0.5) * 16); g.stroke();
+      }
+    };
+    // The ground bursts where he kicks off and where the blade lands: a flat flash, grit both ways, stones thrown up, and on
+    // the take-off a column of light up to where he has gone (60 档 does this bigger).
+    const burst = (x0, y0, t0, top, seed) => {
+      const q = (l - t0) / 620; if (q <= 0 || q >= 1) return;
+      spray(x0, y0, t0, 130, 1, seed); spray(x0, y0, t0, 130, -1, seed + 20);
+      g.save(); g.translate(x0, y0); g.scale(1, 0.14); glow(0, 0, 260 + 1300 * out(q), '255,70,80', 0.8 * (1 - q)); g.restore();
+      // The column is gone before the next cut lands.
+      const c = Math.min(1, q * 2.2);
+      if (top && c < 1) {
+        const w = 96 * (1 - c) * (1 - c) + 4;
+        for (const [m, c] of [[3.2, '255,40,60,0.3'], [1.4, '255,120,130,0.7'], [0.5, '255,255,255,1']]) { const v = c.split(','); gb.fillStyle = 'rgba(' + v.slice(0, 3).join(',') + ',' + v[3] * (1 - c) + ')'; gb.beginPath(); gb.moveTo(x0 - w * m, y0); gb.lineTo(x0 + w * m, y0); gb.lineTo(top[0] + 40, top[1]); gb.lineTo(top[0] + 20, top[1]); gb.closePath(); gb.fill(); }
+      }
+      for (let i = 0; i < 48; i++) {
+        const s = (l - t0) / 1000, a0 = -1.57 + (rnd(i, seed + 40) - 0.5) * 1.5, v = 700 + rnd(i, seed + 41) * 1500, x = x0 + Math.cos(a0) * v * s, y = y0 + Math.sin(a0) * v * s + 900 * s * s, r = 6 + rnd(i, seed + 42) * 20, a2 = rnd(i, seed + 43) * 6 + s * 9;
+        g.fillStyle = 'rgba(255,' + (70 + (i % 3) * 40) + ',80,' + (1 - q) + ')'; g.beginPath(); for (let j = 0; j < 4; j++) { const b = a2 + j * 1.57; j ? g.lineTo(x + Math.cos(b) * r, y + Math.sin(b) * r) : g.moveTo(x + Math.cos(b) * r, y + Math.sin(b) * r); } g.closePath(); g.fill();
+      }
+    };
+    burst(S.AT.stance[0], 1094, T.SM[0], [S.AT.cut1[0], -500], 300);
+    burst(S.TIP5[0], S.TIP5[1], T.L[4], null, 360);
+    // Speed lines rush up past him as he falls.
+    if (T.keyAt === 'smear5') {
+      for (let i = 0; i < 44; i++) {
+        const x = T.hx + (rnd(i, 95) - 0.5) * 1700, y0 = -560 + rnd(i, 96) * 900, n = 180 + rnd(i, 97) * 420;
+        g.strokeStyle = i % 4 ? 'rgba(255,90,100,0.45)' : 'rgba(255,255,255,0.7)'; g.lineWidth = 1.5 + rnd(i, 98) * 2.5;
+        g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y0 + n); g.stroke();
+      }
+    }
+
     // The stance: the tip drags along the ground through the cut-in and throws sparks back; through the charge the
     // ground under the tip glows, sparks are pulled into the blade, and a glint runs from the hilt down to the tip.
     if (l >= 250 && l < 1100) {
@@ -547,7 +591,7 @@ class Component extends DCLogic {
       if (a <= 0) return;
       const fl = Math.sin(Math.PI * k(T.FLARE + 60 * i, T.FLARE + 60 * i + 160, l)), wide = Math.max(open, 0.6 * fl);
       const pa = a * (i < 4 ? Math.max(1 - 0.7 * k(T.L[4], T.L[4] + 200, l), fl, open) : 1);
-      gb.save(); gb.translate(T.drift, 0); trace(gb, pts);
+      gb.save(); gb.translate(T.drift, T.scarY); trace(gb, pts);
       stroke(12 + 40 * wide, 'rgba(255,40,70,' + (0.2 + 0.25 * fl) * pa * flick + ')');
       stroke(3 + 10 * wide, 'rgba(255,150,160,' + (0.6 + 0.3 * fl) * pa + ')');
       stroke(1.4 + 3 * wide, 'rgba(255,255,255,' + pa * (1 - 0.6 * open) + ')');
@@ -576,7 +620,7 @@ class Component extends DCLogic {
         const t0 = rnd(i, 30) * 520, life = 600 + rnd(i, 31) * 700, q = (e - t0) / life;
         if (q <= 0 || q >= 1) continue;
         const [x0, y0, nx, ny] = S.emberSrc[i % S.emberSrc.length].at(rnd(i, 32)), side = i % 2 ? 1 : -1, v = 30 + rnd(i, 33) * 110;
-        const px = x0 + nx * v * 1.4 * side * q + T.drift, py = y0 + ny * v * 1.4 * side * q - 40 * q;
+        const px = x0 + nx * v * 1.4 * side * q + T.drift, py = y0 + ny * v * 1.4 * side * q - 40 * q + T.scarY;
         g.fillStyle = 'rgba(255,' + (120 + (i % 3) * 50) + ',125,' + Math.sin(q * Math.PI) * 0.9 + ')';
         g.beginPath(); g.arc(px, py, 1.2 + rnd(i, 34) * 2.2, 0, Math.PI * 2); g.fill();
       }
@@ -598,7 +642,7 @@ class Component extends DCLogic {
     const room = this.props.room ?? '示意画面';
     const pause = this.props.pause ?? '播放';
     const speed = { '1 倍': 1, '0.5 倍': 0.5, '0.25 倍': 0.25 }[this.props.speed ?? '1 倍'];
-    const pauseAt = { '播放': null, '蓄力': 1300, '上挑': 1690, '第一刀': 1760, '燕返': 2030, '横扫': 2205, '上撩': 2350, '滞空': 2600, '落斩': 2800, '冲击帧': 2900, '余波': 3150, '第二道冲击波': 3330, '亮名': 3900, '入鞘': 3950, '定格': 4070, '斩铁': 5150, '里世界': 6300 }[pause];
+    const pauseAt = { '播放': null, '蓄力': 1300, '上挑': 1690, '第一刀': 1760, '燕返': 2030, '横扫': 2205, '上撩': 2350, '滞空': 2600, '落斩': 2860, '冲击帧': 2985, '余波': 3230, '第二道冲击波': 3410, '亮名': 3980, '入鞘': 4030, '定格': 4150, '斩铁': 5150, '里世界': 6300 }[pause];
     this.cfg = { cycle: 9400, speed, pauseAt };
     return {
       bg: room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#2C3644',
