@@ -25,7 +25,7 @@ public sealed class AppVersionTests
         window.Show();
         try
         {
-            await WaitForAsync(() => viewModel.IsLoginPage);
+            await WaitForAsync(() => viewModel.IsLoggedOut);
             Assert.Single(VersionTexts(window));
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
@@ -43,7 +43,7 @@ public sealed class AppVersionTests
         try
         {
             await viewModel.ReadAccountCommand.ExecutionTask!;
-            Assert.False(viewModel.IsLoginPage);
+            Assert.False(viewModel.IsLoggedOut);
             for (var page = 0; page < window.Navigation.ItemCount; page++)
             {
                 window.Navigation.SelectedIndex = page;

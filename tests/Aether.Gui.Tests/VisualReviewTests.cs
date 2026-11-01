@@ -403,10 +403,10 @@ public sealed class VisualReviewTests
                     await GuiHarness.WaitForAsync(() => ToolTip.GetIsOpen(status));
                     window.MouseMove(default);
                 }
-                viewModel.IsLoginPage = true;
+                viewModel.AccountStatus = AccountStatus.LoggedOut;
                 viewModel.Apply(new WatchQrCode("https://example.test/visual-review"));
                 CheckFixedText();
-                viewModel.IsLoginPage = false;
+                viewModel.AccountStatus = AccountStatus.Failed;
                 CheckFixedText();
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -1069,7 +1069,7 @@ public sealed class VisualReviewTests
             // Keep the real parse error while removing the per-run temporary directory from its fixture text.
             fileMessage.Text = fileMessage.Text!.Replace(harness.DataDirectory, "/aether-visual-review");
             Capture("settings-error");
-            viewModel.IsLoginPage = true;
+            viewModel.AccountStatus = AccountStatus.LoggedOut;
             viewModel.Apply(new WatchQrCode("https://example.test/visual-review"));
             Capture("login");
         }
@@ -1078,6 +1078,36 @@ public sealed class VisualReviewTests
 
         void Capture(string page) => Save(window, $"{page}-{width}x{height}-{(dark ? "dark" : "light")}");
     }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(1200, 720, false)]
+    [InlineData(1200, 720, true)]
+    [InlineData(1040, 600, false)]
+    [InlineData(1040, 600, true)]
+    public Task Splash_screen(int width, int height, bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+            var viewModel = harness.CreateViewModel(new FakeTimeProvider(), splashTiming: true);
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, Width = width, Height = height,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
+                Assert.True(viewModel.IsSplashVisible);
+                Save(window, $"splash-{width}x{height}-{(dark ? "dark" : "light")}");
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+    }
 
     private static void Save(TopLevel topLevel, string fileName)
     {

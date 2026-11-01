@@ -656,7 +656,7 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => viewModel.IsLoginPage && viewModel.WebService.WebServiceStatus.Running);
+            await GuiHarness.WaitForAsync(() => viewModel.IsLoggedOut && viewModel.WebService.WebServiceStatus.Running);
             Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
             Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
             Assert.False(viewModel.ConnectCommand.CanExecute(null));
@@ -681,7 +681,7 @@ public sealed class WelcomeAnimationSettingsTests
         try
         {
             await GuiHarness.WaitForAsync(() => viewModel.AccountStatus.Account is not null && viewModel.WebService.WebServiceStatus.Running);
-            Assert.False(viewModel.IsLoginPage);
+            Assert.False(viewModel.IsLoggedOut);
             window.Navigation.SelectedIndex = 6;
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);

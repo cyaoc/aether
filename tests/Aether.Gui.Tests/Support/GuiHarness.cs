@@ -30,8 +30,16 @@ internal sealed class GuiHarness : IDisposable
 
     public GuiSettings LoadSettings() => GuiSettings.Load(DataDirectory, NullLogger<GuiSettings>.Instance);
 
-    public MainWindowViewModel CreateViewModel(TimeProvider? timeProvider = null) =>
-        new(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings(), timeProvider ?? TimeProvider.System);
+    public MainWindowViewModel CreateViewModel(TimeProvider? timeProvider = null, bool splashTiming = false)
+    {
+        var viewModel = new MainWindowViewModel(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings(), timeProvider ?? TimeProvider.System);
+        if (!splashTiming)
+        {
+            viewModel.SplashMinimumDuration = TimeSpan.Zero;
+            viewModel.SplashFadeDuration = TimeSpan.Zero;
+        }
+        return viewModel;
+    }
 
     public Func<CancellationToken, Task<HttpResponseMessage>> NavResponse
     {

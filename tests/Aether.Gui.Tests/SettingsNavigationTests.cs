@@ -77,6 +77,7 @@ public sealed class SettingsNavigationTests
         window.Show();
         try
         {
+            await GuiHarness.WaitForAsync(() => !viewModel.IsSplashVisible);
             window.FindControl<ListBox>("Navigation")!.SelectedIndex = index;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
