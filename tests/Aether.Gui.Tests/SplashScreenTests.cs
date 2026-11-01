@@ -5,11 +5,8 @@ using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.VisualTree;
 using Microsoft.Data.Sqlite;
-using System.Net;
-using System.Net.Sockets;
 using Avalonia.Controls;
 using Avalonia.Animation;
-using Avalonia.Threading;
 using Microsoft.Extensions.Time.Testing;
 using static Aether.Gui.Tests.Support.GuiHarness;
 
@@ -23,7 +20,7 @@ public sealed class SplashScreenTests
         var clock = new FakeTimeProvider();
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        var viewModel = harness.CreateViewModel(clock, splashTiming: true);
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
@@ -39,8 +36,7 @@ public sealed class SplashScreenTests
             Flush();
             Assert.True(splash.IsEffectivelyVisible);
             Assert.Equal(1, splash.Opacity);
-            clock.Advance(TimeSpan.FromMilliseconds(1));
-            await WaitForAsync(() => viewModel.SplashOpacity == 0);
+            await BeginFadeAsync(clock, viewModel, milliseconds: 1);
             await WaitForAsync(() => { Flush(); return splash.Opacity is > 0 and < 1; });
             Assert.True(splash.IsEffectivelyVisible);
             clock.Advance(TimeSpan.FromMilliseconds(149));
@@ -51,9 +47,10 @@ public sealed class SplashScreenTests
             Assert.Contains("测试账号", VisibleText(window));
             Assert.False(window.LoginPage.IsEffectivelyVisible);
         }
-        finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData("no-credential")]
     [InlineData("logged-in")]
@@ -66,8 +63,8 @@ public sealed class SplashScreenTests
         if (outcome != "no-credential") await harness.SaveCredentialAsync();
         var response = new TaskCompletionSource<HttpResponseMessage>();
         harness.NavResponse = token => response.Task.WaitAsync(token);
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
-        var viewModel = harness.CreateViewModel(clock, splashTiming: true);
+        harness.HoldLoginRequests();
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
@@ -96,8 +93,7 @@ public sealed class SplashScreenTests
                 Assert.True(viewModel.ConnectCommand.CanExecute(null));
             }
             Assert.True(viewModel.IsSplashVisible);
-            clock.Advance(TimeSpan.FromMilliseconds(150));
-            await WaitForAsync(() => !viewModel.IsSplashVisible);
+            await FinishFadeAsync(clock, viewModel);
             Assert.Equal(loggedOut, viewModel.IsLoggedOut);
             Assert.Equal(outcome == "no-credential" ? 0 : 1, harness.NavRequests);
         }
@@ -105,10 +101,8 @@ public sealed class SplashScreenTests
         return true;
     }, TestContext.Current.CancellationToken);
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public Task Timeout_cancels_account_read_discards_late_result_and_allows_retry(bool lateLoggedOut) => HeadlessApp.Session.Dispatch(async () =>
+    [Fact]
+    public Task Timeout_cancels_account_read_and_allows_retry() => HeadlessApp.Session.Dispatch(async () =>
     {
         var clock = new FakeTimeProvider();
         using var harness = new GuiHarness();
@@ -116,7 +110,7 @@ public sealed class SplashScreenTests
         var response = new TaskCompletionSource<HttpResponseMessage>();
         CancellationToken readToken = default;
         harness.NavResponse = token => { readToken = token; return response.Task.WaitAsync(token); };
-        var viewModel = harness.CreateViewModel(clock, splashTiming: true);
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
         var startup = viewModel.StartAsync(harness.DataDirectory);
         try
         {
@@ -125,23 +119,47 @@ public sealed class SplashScreenTests
             Flush();
             Assert.Equal(AccountStatus.Reading, viewModel.AccountStatus);
             Assert.Equal(1, viewModel.SplashOpacity);
-            clock.Advance(TimeSpan.FromMilliseconds(1));
-            await WaitForAsync(() => viewModel.SplashOpacity == 0);
+            await BeginFadeAsync(clock, viewModel, milliseconds: 1);
             Assert.True(readToken.IsCancellationRequested);
-            Assert.True(viewModel.ReadAccountCommand.ExecutionTask!.IsCompleted);
+            await viewModel.ReadAccountCommand.ExecutionTask!;
             Assert.Equal(AccountStatus.Failed, viewModel.AccountStatus);
-            clock.Advance(TimeSpan.FromMilliseconds(150));
+            await FinishFadeAsync(clock, viewModel);
             await startup.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.False(viewModel.IsSplashVisible);
             Assert.True(viewModel.ConnectCommand.CanExecute(null));
-            response.SetResult(lateLoggedOut ? Json("""{"code":-101}""") : AccountResponse("迟到账号"));
-            Flush();
-            Assert.Equal(AccountStatus.Failed, viewModel.AccountStatus);
             harness.NavResponse = _ => Task.FromResult(AccountResponse("重试账号"));
             await viewModel.ReadAccountCommand.ExecuteAsync(null);
             Assert.Equal("重试账号", viewModel.AccountStatus.Text);
         }
         finally { await viewModel.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Timeout_does_not_wait_for_a_stuck_read_and_discards_its_late_result(bool lateLoggedOut) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        var clock = new FakeTimeProvider();
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        var stuck = new TaskCompletionSource<HttpResponseMessage>();
+        harness.NavResponse = _ => stuck.Task;
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
+        var startup = viewModel.StartAsync(harness.DataDirectory);
+        try
+        {
+            await WaitForAsync(() => harness.NavRequests == 1);
+            await BeginFadeAsync(clock, viewModel, milliseconds: 3000);
+            Assert.Equal(AccountStatus.Failed, viewModel.AccountStatus);
+            await FinishFadeAsync(clock, viewModel);
+            await startup.WaitAsync(TimeSpan.FromSeconds(5));
+            stuck.SetResult(lateLoggedOut ? Json("""{"code":-101}""") : AccountResponse("迟到账号"));
+            await viewModel.ReadAccountCommand.ExecutionTask!;
+            Flush();
+            Assert.Equal(AccountStatus.Failed, viewModel.AccountStatus);
+            Assert.False(viewModel.LoginCommand.IsRunning);
+        }
+        finally { stuck.TrySetCanceled(); await viewModel.ShutdownAsync(); }
         return true;
     }, TestContext.Current.CancellationToken);
 
@@ -154,7 +172,7 @@ public sealed class SplashScreenTests
         using var harness = new GuiHarness();
         if (!loggedOut) await harness.SaveCredentialAsync();
         harness.LoginResponse = (_, _) => Task.FromResult(Json("""{"code":-352,"message":"test"}"""));
-        var viewModel = harness.CreateViewModel(clock, splashTiming: true);
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
         viewModel.RoomNumber = "6";
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
@@ -167,24 +185,27 @@ public sealed class SplashScreenTests
             Assert.True(target.IsEffectivelyVisible);
             Assert.False(target.IsEffectivelyEnabled);
             Assert.False(target.Focus());
-            var point = target.TranslatePoint(new Point(5, 5), window)!.Value;
-            window.MouseDown(point, MouseButton.Left);
-            window.MouseUp(point, MouseButton.Left);
-            window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, "\t");
-            window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
-            window.KeyTextInput("123");
-            Flush();
-            Assert.Equal("6", viewModel.RoomNumber);
-            Assert.False(viewModel.HasRoomConnection);
-            Assert.False(target.IsFocused);
-            Assert.Empty(harness.RejectedRequests);
-            clock.Advance(TimeSpan.FromMilliseconds(600));
-            await WaitForAsync(() => viewModel.SplashOpacity == 0);
-            Assert.False(target.IsEffectivelyEnabled);
-            clock.Advance(TimeSpan.FromMilliseconds(150));
-            await WaitForAsync(() => !viewModel.IsSplashVisible);
+            AssertInputStopsAtSplash();
+            await BeginFadeAsync(clock, viewModel);
             Assert.True(target.IsEffectivelyEnabled);
+            AssertInputStopsAtSplash();
+            await FinishFadeAsync(clock, viewModel);
             Assert.True(target.Focus());
+
+            void AssertInputStopsAtSplash()
+            {
+                var point = target.TranslatePoint(new Point(5, 5), window)!.Value;
+                window.MouseDown(point, MouseButton.Left);
+                window.MouseUp(point, MouseButton.Left);
+                window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, "\t");
+                window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
+                window.KeyTextInput("123");
+                Flush();
+                Assert.Equal("6", viewModel.RoomNumber);
+                Assert.False(viewModel.HasRoomConnection);
+                Assert.Null(window.FocusManager!.GetFocusedElement());
+                Assert.Empty(harness.RejectedRequests);
+            }
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
         return true;
@@ -200,22 +221,22 @@ public sealed class SplashScreenTests
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
         if (stage == "reading")
-            harness.NavResponse = token => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
-        var viewModel = harness.CreateViewModel(clock, splashTiming: true);
-        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+            harness.NavResponse = NoResponse;
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
+        var window = new MainWindow(harness.DataDirectory);
         window.Show();
+        window.DataContext = viewModel;
+        // Started here, not by OnOpened which discards the task, so a throwing splash timer fails the test.
+        var startup = viewModel.StartAsync(harness.DataDirectory);
         try
         {
             await WaitForAsync(() => harness.NavRequests == 1);
             if (stage != "reading") await viewModel.ReadAccountCommand.ExecutionTask!;
-            if (stage == "fade")
-            {
-                clock.Advance(TimeSpan.FromMilliseconds(600));
-                await WaitForAsync(() => viewModel.SplashOpacity == 0);
-            }
+            if (stage == "fade") await BeginFadeAsync(clock, viewModel);
             Assert.True(viewModel.IsSplashVisible);
             window.Close();
             await WaitForAsync(() => !window.IsVisible);
+            await startup.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.True(viewModel.ReadAccountCommand.ExecutionTask!.IsCompleted);
             Assert.False(viewModel.WebService.WebServiceStatus.Running);
         }
@@ -230,11 +251,7 @@ public sealed class SplashScreenTests
     {
         var clock = new FakeTimeProvider();
         using var harness = new GuiHarness();
-        using var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = FreePort().ToString() });
         if (newerDatabase)
         {
             using var connection = new SqliteConnection($"Data Source={Path.Combine(harness.DataDirectory, "aether.db")};Pooling=False");
@@ -243,8 +260,8 @@ public sealed class SplashScreenTests
             command.CommandText = "PRAGMA user_version = 999";
             command.ExecuteNonQuery();
         }
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
-        var viewModel = harness.CreateViewModel(clock, splashTiming: true);
+        harness.HoldLoginRequests();
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(5) };
         window.Show();
@@ -252,21 +269,36 @@ public sealed class SplashScreenTests
         {
             await WaitForAsync(() => viewModel.WebService.WebServiceStatus.Running);
             Assert.True(viewModel.IsSplashVisible);
-            Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
-            Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
+            await AssertPagesServedAsync();
             await viewModel.ReadAccountCommand.ExecutionTask!;
             Assert.Equal(newerDatabase ? AccountStatus.Failed : AccountStatus.LoggedOut, viewModel.AccountStatus);
-            clock.Advance(TimeSpan.FromMilliseconds(600));
-            await WaitForAsync(() => viewModel.SplashOpacity == 0);
-            clock.Advance(TimeSpan.FromMilliseconds(150));
-            await WaitForAsync(() => !viewModel.IsSplashVisible);
+            await BeginFadeAsync(clock, viewModel);
+            await FinishFadeAsync(clock, viewModel);
             Assert.Equal(newerDatabase, window.MainPage.IsEffectivelyVisible);
+            Assert.Equal(!newerDatabase, window.LoginPage.IsEffectivelyVisible);
+            Assert.Equal(newerDatabase, viewModel.ConnectCommand.CanExecute(null));
             Assert.True(viewModel.WebService.WebServiceStatus.Running);
-            Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
-            Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
+            await AssertPagesServedAsync();
+
+            async Task AssertPagesServedAsync()
+            {
+                Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
+                Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
+            }
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
 
+    private static async Task BeginFadeAsync(FakeTimeProvider clock, MainWindowViewModel viewModel, int milliseconds = 600)
+    {
+        clock.Advance(TimeSpan.FromMilliseconds(milliseconds));
+        await WaitForAsync(() => viewModel.SplashOpacity == 0);
+    }
+
+    private static async Task FinishFadeAsync(FakeTimeProvider clock, MainWindowViewModel viewModel)
+    {
+        clock.Advance(TimeSpan.FromMilliseconds(150));
+        await WaitForAsync(() => !viewModel.IsSplashVisible);
+    }
 }

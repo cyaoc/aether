@@ -85,14 +85,18 @@ public partial class MainWindowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsLoggedOut))]
     private AccountStatus accountStatus = AccountStatus.Reading;
     [ObservableProperty] private bool isSplashVisible = true;
-    [ObservableProperty] private double splashOpacity = 1;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSplashOpaque))]
+    private double splashOpacity = 1;
+    // Pages turn enabled as the fade starts: their disabled look must not show through it.
+    public bool IsSplashOpaque => SplashOpacity == 1;
     internal TimeSpan SplashMinimumDuration { get; set; } = TimeSpan.FromMilliseconds(600);
     public TimeSpan SplashFadeDuration { get; internal set; } = TimeSpan.FromMilliseconds(150);
     [ObservableProperty] private string loginError = "";
     private readonly LatestRun accountRead = new();
     private readonly CancellationTokenSource shutdown = new();
 
-    private bool CanConnect => AccountStatus != AccountStatus.LoggedOut && !IsLoggingOut && !IsRestarting && !shutdown.IsCancellationRequested;
+    private bool CanConnect => !IsLoggedOut && !IsLoggingOut && !IsRestarting && !shutdown.IsCancellationRequested;
     private bool CanReconnect => CanConnect && HasRoomConnection;
     private bool CanLogin => IsLoggedOut && !IsLoggingOut && !shutdown.IsCancellationRequested;
     public bool IsConnected => ConnectionState == RoomConnectionState.Connected;
@@ -139,17 +143,15 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             var minimum = Task.Delay(SplashMinimumDuration, clock, shutdown.Token);
-            var limit = Task.Delay(TimeSpan.FromSeconds(3), clock, shutdown.Token);
-            var read = ReadAccountCommand.ExecuteAsync(null);
-            if (await Task.WhenAny(read, limit) == limit)
+            try { await ReadAccountCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(3), clock, shutdown.Token); }
+            catch (TimeoutException)
             {
-                await accountRead.StopAsync();
-                shutdown.Token.ThrowIfCancellationRequested();
+                logger.LogError("账号信息读取超时");
+                // Not awaited: opening SQLite ignores the token, and a late result is dropped either way.
+                _ = accountRead.StopAsync();
                 AccountStatus = AccountStatus.Failed;
             }
-            else await read;
             await minimum;
-            shutdown.Token.ThrowIfCancellationRequested();
             SplashOpacity = 0;
             await Task.Delay(SplashFadeDuration, clock, shutdown.Token);
             IsSplashVisible = false;

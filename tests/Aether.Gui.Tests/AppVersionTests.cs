@@ -19,7 +19,7 @@ public sealed class AppVersionTests
     public Task Login_page_shows_the_version() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+        harness.HoldLoginRequests();
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();

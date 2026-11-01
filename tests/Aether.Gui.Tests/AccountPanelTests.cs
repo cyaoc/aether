@@ -14,18 +14,18 @@ namespace Aether.Gui.Tests;
 public sealed class AccountPanelTests
 {
     [Fact]
-    public Task Retrying_failed_account_read_that_reports_logged_out_switches_to_login() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Retrying_failed_account_read_that_reports_logged_out_switches_to_login_page() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
         harness.NavResponse = _ => throw new HttpRequestException("offline");
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+        harness.HoldLoginRequests();
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
         {
-            await WaitForAsync(() => !viewModel.IsSplashVisible);
+            await viewModel.ReadAccountCommand.ExecutionTask!;
             Assert.True(window.MainPage.IsEffectivelyVisible);
             harness.NavResponse = _ => Task.FromResult(Json("""{"code":-101}"""));
             await viewModel.ReadAccountCommand.ExecuteAsync(null);
@@ -51,7 +51,7 @@ public sealed class AccountPanelTests
         harness.LoginResponse = async (_, token) =>
         {
             var first = ++logins == 1;
-            try { return await new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token); }
+            try { return await NoResponse(token); }
             finally { if (first) cancelled = token.IsCancellationRequested; }
         };
         var viewModel = harness.CreateViewModel();
@@ -83,7 +83,7 @@ public sealed class AccountPanelTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+        harness.HoldLoginRequests();
         harness.NavResponse = _ => throw new HttpRequestException("offline");
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
@@ -173,7 +173,7 @@ public sealed class AccountPanelTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+        harness.HoldLoginRequests();
         var response = new TaskCompletionSource<HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
         harness.NavResponse = _ => response.Task;
         var viewModel = harness.CreateViewModel();

@@ -20,7 +20,7 @@ public sealed class LoginPageTests
         await harness.SaveCredentialAsync();
         var account = new TaskCompletionSource<HttpResponseMessage>();
         harness.NavResponse = token => account.Task.WaitAsync(token);
-        harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
+        harness.HoldLoginRequests();
         var requested = new TaskCompletionSource();
         var release = new TaskCompletionSource();
         var roomRequests = 0;
@@ -31,8 +31,7 @@ public sealed class LoginPageTests
                 requested.SetResult();
                 await release.Task;
             }
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
+            return await NoResponse(token);
         };
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
@@ -227,11 +226,7 @@ public sealed class LoginPageTests
     public Task Startup_without_credential_shows_login_without_requesting_account() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
-        harness.LoginResponse = async (_, token) =>
-        {
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
-        };
+        harness.HoldLoginRequests();
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();

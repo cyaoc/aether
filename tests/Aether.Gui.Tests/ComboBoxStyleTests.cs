@@ -116,11 +116,7 @@ public sealed class ComboBoxStyleTests
             DataContext = viewModel, Height = 1000, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
         };
         window.Show();
-        try
-        {
-            await GuiHarness.WaitForAsync(() => !viewModel.IsSplashVisible);
-            test(window);
-        }
+        try { test(window); }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);

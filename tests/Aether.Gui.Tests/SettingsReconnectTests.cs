@@ -82,8 +82,7 @@ public sealed class SettingsReconnectTests
                     token.ThrowIfCancellationRequested();
                 }
                 secondStarted.TrySetResult();
-                await Task.Delay(Timeout.Infinite, token);
-                throw new InvalidOperationException("A canceled request must not finish.");
+                return await GuiHarness.NoResponse(token);
             };
             var viewModel = harness.CreateViewModel();
             viewModel.RoomNumber = "6";

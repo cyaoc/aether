@@ -41,7 +41,6 @@ public sealed class NumericInputTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => !viewModel.IsSplashVisible);
             foreach (var (index, name, unit) in new[]
             {
                 (5, "发送间隔秒数", "秒"), (6, "日志保留天数", "天"),
@@ -112,7 +111,6 @@ public sealed class NumericInputTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => !viewModel.IsSplashVisible);
             foreach (var index in new[] { 5, 6, 2 })
             {
                 window.Navigation.SelectedIndex = index;
@@ -188,7 +186,6 @@ public sealed class NumericInputTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => !viewModel.IsSplashVisible);
             foreach (var (index, name, expectedWidth) in new[]
             {
                 (1, "DailyKeywordInput", 240), (1, "MonthlyKeywordInput", 240), (6, "LogLevelInput", 200),

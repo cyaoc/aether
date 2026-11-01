@@ -235,7 +235,6 @@ public sealed class RoomInputTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => !viewModel.IsSplashVisible);
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
             input.IsDropDownOpen = true;
@@ -275,7 +274,6 @@ public sealed class RoomInputTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => !viewModel.IsSplashVisible);
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
             if (count > 0)
@@ -327,7 +325,6 @@ public sealed class RoomInputTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => !viewModel.IsSplashVisible);
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
             var text = EditorOf(input);
@@ -372,7 +369,6 @@ public sealed class RoomInputTests
         window.Show();
         try
         {
-            await GuiHarness.WaitForAsync(() => !viewModel.IsSplashVisible);
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
             Assert.Equal("房间号", AutomationProperties.GetName(input));

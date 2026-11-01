@@ -123,7 +123,7 @@ public sealed class VisualReviewTests
                 {
                     h.OnlineRankResponse = async (_, token) =>
                     {
-                        if (state == "loading") await Task.Delay(Timeout.Infinite, token);
+                        if (state == "loading") return await GuiHarness.NoResponse(token);
                         if (state == "error") return GuiHarness.Json("""{"code":-400,"message":"请求错误"}""");
                         return OnlineRankList.Response(430, state == "empty" ? [] : OnlineRankList.Top100(first: 1));
                     };
@@ -972,13 +972,7 @@ public sealed class VisualReviewTests
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
         harness.NavResponse = _ => Task.FromResult(GuiHarness.AccountResponse("Aether助手"));
-        var roomStarted = new TaskCompletionSource();
-        harness.RoomResponse = async (_, token) =>
-        {
-            roomStarted.TrySetResult();
-            await Task.Delay(Timeout.Infinite, token);
-            throw new InvalidOperationException();
-        };
+        var roomStarted = harness.HoldRoomRequest();
         Settings.Load(harness.DataDirectory);
         var path = Settings.FilePath(harness.DataDirectory);
         File.WriteAllText(path, File.ReadAllText(path).Replace("enabled: false", "enabled: true").Replace("uids: []", "uids: [1234567890123456, 67890]"));
@@ -991,7 +985,7 @@ public sealed class VisualReviewTests
         {
             await viewModel.ReadAccountCommand.ExecutionTask!;
             viewModel.ConnectCommand.Execute(null);
-            await roomStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await roomStarted.WaitAsync(TimeSpan.FromSeconds(5));
             viewModel.Apply(new Connected(7734200, 24680));
             clock.Advance(TimeSpan.FromMinutes(42));
             var time = new DateTimeOffset(2026, 10, 12, 20, 41, 0, TimeSpan.FromHours(8));
@@ -1090,8 +1084,8 @@ public sealed class VisualReviewTests
         return HeadlessApp.Session.Dispatch(async () =>
         {
             using var harness = new GuiHarness();
-            harness.LoginResponse = (_, token) => new TaskCompletionSource<HttpResponseMessage>().Task.WaitAsync(token);
-            var viewModel = harness.CreateViewModel(new FakeTimeProvider(), splashTiming: true);
+            harness.HoldLoginRequests();
+            var viewModel = harness.CreateViewModel(new FakeTimeProvider(), keepSplashTiming: true);
             var window = new MainWindow(harness.DataDirectory)
             {
                 DataContext = viewModel, Width = width, Height = height,
