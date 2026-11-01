@@ -19,7 +19,7 @@ const themes = {
     banner:({entry, title, viewer}) => entry ? `正在召唤 · ${title}` : viewer ? `${viewer} 发起召唤！` : '星辰召唤',
     winners:['召唤结果','目前的召唤结果'],
     pinned:{title:'召唤结果', count:(count, entry) => entry ? `${count} 人中奖` : `共 ${count} 次`,
-      badge:rank => { const badge = text('pinnedBadge',rank); themes.StarSummon.decorateCandidate(badge); return badge; }},
+      badge:rank => text('pinnedBadge',rank)},
     award:award => award.name,
     particles:starSummon,
   },
