@@ -9,13 +9,15 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const port = Number(process.argv[2] ?? 8795);
 const blobs = JSON.parse(fs.readFileSync(path.join(here, 'blobs.json'), 'utf8'));
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.webp': 'image/webp', '.woff2': 'font/woff2', '.ttf': 'font/ttf' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.webp': 'image/webp', '.woff2': 'font/woff2', '.ttf': 'font/ttf', '.ogg': 'audio/ogg', '.json': 'application/json' };
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   let file;
   if (url.pathname === '/render.html') file = path.join(here, 'render.html');
   else if (url.pathname.startsWith('/board/')) file = path.join(root, 'boards', path.basename(decodeURIComponent(url.pathname)));
+  else if (url.pathname.startsWith('/audio/sources/')) file = path.join(root, 'audio', 'sources', path.basename(decodeURIComponent(url.pathname)));
+  else if (url.pathname.startsWith('/audio/')) file = path.join(root, 'audio', path.basename(decodeURIComponent(url.pathname)));
   else if (url.pathname.startsWith('/_blob/') && blobs[path.basename(url.pathname)]) file = path.resolve(root, blobs[path.basename(url.pathname)]);
   if (!file || !fs.existsSync(file)) { res.writeHead(404); res.end(); return; }
   res.writeHead(200, { 'content-type': types[path.extname(file)] || 'application/octet-stream' });

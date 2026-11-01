@@ -25,6 +25,8 @@ node docs/design/entry-animation/tools/server.mjs 8795
 
 浏览器打开 `http://localhost:8795/render.html?board=<画板文件>&props=<JSON>&freeze=<毫秒>`，画板文件是 `EV1-EntrySlice.dc.html`、`EV2-EntryTriple.dc.html` 或 `EV3-EntrySwallow.dc.html`。`props` 是画板的 data-props：`pause`（定格到某一拍）、`speed`（1 倍 / 0.5 倍 / 0.25 倍）、`room`（示意画面 / 浅色房间 / 深色房间 / 透明）。`freeze` 把时钟钉在那个毫秒。
 
+要带声音看，地址加 `&sound=<30、40、50 或 60>`，页面上有逐层的开关，见 `audio/README.md`。
+
 截图要用 `node docs/design/entry-animation/tools/cdp-shot.mjs "<上面的地址>" out.png 5000`：WebGL 画板一直在渲染，`chrome --headless --screenshot` 等不到空闲，截不出来。一次只截一张，几个 Chrome 同时跑会钉不住时钟。
 
 人物图用 `tools/gen.sh` 生成，每张现行图的提示词和参考图在 `tools/prompts-final.json`。模型画不准刀，生成后用 `tools/paste-blade.py` 把 `textures/blade.webp`（从武器设定图抠下来的刀身）贴到每张图上，刀身世界长度统一约 370 px。生图后的处理用 `tools/process.py`（裁到不透明区域、发光图转白色加透明、边缘渐隐、背景压成 WebP；需要 Pillow 和 NumPy）。上传到画布后，把新 blob id 和文件对应写进 `tools/blobs.json`。
