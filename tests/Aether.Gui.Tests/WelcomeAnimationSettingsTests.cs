@@ -659,7 +659,6 @@ public sealed class WelcomeAnimationSettingsTests
             await GuiHarness.WaitForAsync(() => viewModel.IsLoginPage && viewModel.WebService.WebServiceStatus.Running);
             Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
             Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
-            Assert.True(viewModel.IsLoginPage);
             Assert.False(viewModel.ConnectCommand.CanExecute(null));
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
