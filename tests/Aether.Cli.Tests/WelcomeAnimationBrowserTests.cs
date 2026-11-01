@@ -51,7 +51,7 @@ public sealed class WelcomeAnimationBrowserTests
         });
         var videos = Path.Combine(h.DataDirectory, "videos");
         Directory.CreateDirectory(videos);
-        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome_danmaku.mp4"), Path.Combine(videos, "welcome_danmaku.mp4"));
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(videos, "welcome_danmaku.mp4"));
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "welcome_danmaku.mp4" });
         var output = Console.Out;
         using var captured = new StringWriter();

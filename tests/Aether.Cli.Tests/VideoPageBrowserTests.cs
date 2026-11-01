@@ -16,7 +16,7 @@ public sealed class VideoPageBrowserTests
             ["entry_animation.enabled"] = "true", ["web_service.port"] = Aether.Core.Tests.WelcomeAnimationTests.FreePort().ToString()
         });
         Directory.CreateDirectory(Settings.VideoDirectory(h.DataDirectory));
-        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome_danmaku.mp4"), Path.Combine(Settings.VideoDirectory(h.DataDirectory), "welcome_danmaku.mp4"));
+        File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(Settings.VideoDirectory(h.DataDirectory), "welcome_danmaku.mp4"));
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "welcome_danmaku.mp4" });
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
         await using var browser = new ChromeBrowser();
