@@ -6,6 +6,13 @@ namespace Aether.Gui;
 
 public partial class WelcomeAnimationRow(string uid, string fileName, bool canEdit, bool isNew = false) : EditableRow(isNew, canEdit)
 {
+    public static IReadOnlyList<string> Choices { get; } = EntryTier.All.Select(tier => tier.ToString()).Concat(["欢迎动画", "不播"]).ToArray();
+    public static Avalonia.Controls.Templates.IDataTemplate ChoiceTemplate { get; } = new Avalonia.Controls.Templates.FuncDataTemplate<string>((value, _) =>
+        new Avalonia.Controls.TextBlock { Text = int.TryParse(value, out var number) ? $"{value} 档" : value });
+    private string choice = "欢迎动画";
+    public string Choice { get => choice; set { SetInput(ref choice, value); OnPropertyChanged(nameof(IsVideo)); } }
+    public bool IsVideo => Choice == "欢迎动画";
+    public string SettingValue => IsVideo ? FileName : Choice == "不播" ? "0" : Choice;
     private string uidText = uid;
     private string fileName = fileName;
     private string? sourcePath;

@@ -1,0 +1,73 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.RecentPlaybackList" x:DataType="local:RecentPlaybackList">
+<UserControl.Resources>
+    <DataTemplate x:Key="AnimationActivityTemplate" x:DataType="local:WelcomeAnimationItem">
+      <Border Classes="activityRow">
+        <StackPanel Spacing="4">
+          <local:ActivityHeader>
+            <TextBlock Classes="secondary" TextWrapping="Wrap"><Run Text="{Binding Name}" FontWeight="SemiBold" /><Run Text="{Binding Detail, StringFormat=' {0}', TargetNullValue=''}" Foreground="{DynamicResource Text.Muted}" FontFeatures="tnum" /></TextBlock>
+            <TextBlock Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" />
+          </local:ActivityHeader>
+          <TextBlock Classes="label singleLine" Text="{Binding ContentDetail}" />
+          <Grid Classes="playbackStatus" Classes.playing="{Binding Playing}" Classes.completed="{Binding Completed}" Classes.failed="{Binding Failed}"
+            Classes.unplayed="{Binding Unplayed}" Classes.skipped="{Binding PreviousPending}" Classes.stopped="{Binding Stopped}" ColumnDefinitions="Auto,*" ColumnSpacing="5">
+            <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path StrokeThickness="2" /></Viewbox>
+            <TextBlock Grid.Column="1" x:Name="PlaybackStatus" Text="{Binding Status}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap" />
+          </Grid>
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+</UserControl.Resources>
+<UserControl.Styles>    <Style Selector="Grid.playbackStatus">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Clock}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.playing Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Wave}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.completed">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.completed Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Check}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.failed">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Danger}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.failed Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Fail}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.unplayed">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Warning.Text}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.unplayed Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Alert}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.skipped">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.skipped Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Skip}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.stopped">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
+    </Style>
+    <Style Selector="Grid.playbackStatus.stopped Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Stop}" />
+    </Style>
+</UserControl.Styles>
+<Grid DataContext="{Binding $parent[local:RecentPlaybackList]}">
+    <Grid RowDefinitions="Auto,*">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="16,18,16,2">
+        <TextBlock Classes="section" Text="最近播放" />
+        <Panel Grid.Column="1">
+          <TextBlock Classes="caption muted numeric" Text="{Binding ItemsSource.Count, StringFormat=共 {0:N0} 次}" IsVisible="{Binding !!ItemsSource.Count}" VerticalAlignment="Center" />
+        </Panel>
+      </Grid>
+      <Panel Grid.Row="1">
+        <ListBox x:Name="RecentAnimationsList" Classes="plain aside" ItemsSource="{Binding ItemsSource}" ItemTemplate="{StaticResource AnimationActivityTemplate}" AutomationProperties.Name="最近播放" />
+        <TextBlock Classes="hint" Text="暂无播放记录" Margin="16,8" IsVisible="{Binding !ItemsSource.Count}" />
+      </Panel>
+    </Grid>
+</Grid></UserControl>

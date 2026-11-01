@@ -1,0 +1,10 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="Aether.Gui.AnimationTestBar">
+  <StackPanel Spacing="8">
+    <StackPanel Orientation="Horizontal" Spacing="8"><TextBlock Classes="section" Text="试播" /><TextBlock Classes="hint" Text="在直播画面上播一次，看位置和声音，不发弹幕" /></StackPanel>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <TextBox x:Name="NicknameInput" Text="柚子不酸" Width="170" AutomationProperties.Name="试播昵称" />
+      <ComboBox x:Name="TierInput" Width="100" AutomationProperties.Name="试播进场档" />
+      <Button x:Name="PlayButton" Content="▷ 试播" Click="Play" />
+    </StackPanel>
+  </StackPanel>
+</UserControl>

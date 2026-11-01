@@ -26,13 +26,13 @@ public partial class MainWindow : Window
         InitializeComponent();
         this.dataDirectory = dataDirectory;
         general = new GeneralSettingsPage(dataDirectory);
-        var animation = new WelcomeAnimationSettingsPage(dataDirectory);
+        var welcome = new WelcomePanel(dataDirectory);
+        var animation = welcome.Animation;
         // Navigation items and PageHost children share one order, after the danmaku page.
-        Control[] pages = [new BlindBoxSettingsPage(dataDirectory), new WelcomeSettingsPage(dataDirectory),
-            animation, new LotteryPanel(), new SendSettingsPage(dataDirectory), general];
+        Control[] pages = [new BlindBoxSettingsPage(dataDirectory), welcome, new LotteryPanel(), new SendSettingsPage(dataDirectory), general];
         foreach (var page in pages) page.IsVisible = false;
         PageHost.Children.AddRange(pages);
-        foreach (var page in PageHost.Children.OfType<SettingsPage>()) page.SaveCompleted += RefreshSettingsStatus;
+        foreach (var page in SettingsPages) page.SaveCompleted += RefreshSettingsStatus;
         animation.GeneralSettingsRequested += ShowGeneralSettings;
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
@@ -99,11 +99,12 @@ public partial class MainWindow : Window
         var current = Settings.Load(dataDirectory);
         // An invalid file has no usable saved values to advertise.
         ShowEnabled(BlindBoxStatus, current.Error is null ? current.BlindBoxEnabled.Value : null);
-        ShowEnabled(WelcomeStatus, current.Error is null ? current.WelcomeEnabled.Value : null);
-        ShowEnabled(AnimationStatus, current.Error is null ? current.WelcomeAnimationEnabled.Value : null);
+        ShowEnabled(WelcomeStatus, current.Error is null ? (current.WelcomeEnabled.Value || current.EntryAnimationEnabled.Value) : null);
         if (IsVisible && DataContext is MainWindowViewModel viewModel) _ = viewModel.WebService.RefreshWebServiceAsync(current);
-        foreach (var page in PageHost.Children.OfType<SettingsPage>()) page.RefreshFileStatus(current);
+        foreach (var page in SettingsPages) page.RefreshFileStatus(current);
     }
+
+    private IEnumerable<SettingsPage> SettingsPages => PageHost.Children.SelectMany(page => page is WelcomePanel welcome ? welcome.Pages : page is SettingsPage settings ? new[] { settings } : []);
 
     private static void ShowEnabled(TextBlock status, bool? enabled)
     {
@@ -232,7 +233,7 @@ public partial class MainWindow : Window
         if (closing) return;
         closing = true;
         IsEnabled = false;
-        await Task.WhenAll(PageHost.Children.OfType<SettingsPage>().Select(page => page.PendingSave));
+        await Task.WhenAll(SettingsPages.Select(page => page.PendingSave));
         if (DataContext is MainWindowViewModel viewModel) await viewModel.ShutdownAsync();
         canClose = true;
         Dispatcher.UIThread.Post(Close);

@@ -76,7 +76,8 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            Click(page, "AddAnimationButton");
+            ((WelcomeAnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
+        GuiHarness.Flush();
             var row = Rows(page)[1];
             var picker = GuiHarness.FindRowControl<OnlineRankPicker>(page, row, "OnlinePicker");
             var button = picker.FindControl<Button>("PickerButton")!;
@@ -221,9 +222,11 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            Click(page, "AddAnimationButton");
+            ((WelcomeAnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
+        GuiHarness.Flush();
             Assert.Empty(Rows(page));
-            Click(page, "AddAnimationButton");
+            ((WelcomeAnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
+        GuiHarness.Flush();
             Assert.Empty(Rows(page));
             Assert.Contains(".mp4", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
         }
@@ -279,7 +282,8 @@ public sealed class WelcomeAnimationSettingsTests
         try
         {
             Add(page, "42");
-            Click(page, "AddAnimationButton");
+            ((WelcomeAnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
+        GuiHarness.Flush();
             var row = Rows(page)[1];
             var input = GuiHarness.FindRowControl<TextBox>(page, row, "UidInput");
             Assert.True(input.IsFocused);
@@ -519,7 +523,7 @@ public sealed class WelcomeAnimationSettingsTests
 
     private static string Copy(GuiHarness harness, string name) => Path.Combine(harness.DataDirectory, "videos", name);
     private static WelcomeAnimationRow[] Rows(SettingsPage page) => ((WelcomeAnimationSettingsPage)page).Animations.ToArray();
-    private static void Click(Control control, string name) { control.FindControl<Button>(name)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); GuiHarness.Flush(); }
+    private static void Click(Control control, string name) { GuiHarness.FindVisual<Button>(control, name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); GuiHarness.Flush(); }
     private static void Click(SettingsPage page, WelcomeAnimationRow row, string name)
     {
         Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
@@ -528,7 +532,8 @@ public sealed class WelcomeAnimationSettingsTests
     }
     private static void Add(SettingsPage page, string uid)
     {
-        Click(page, "AddAnimationButton");
+        ((WelcomeAnimationSettingsPage)page).ChooseAnimationAsync().GetAwaiter().GetResult();
+        GuiHarness.Flush();
         GuiHarness.FindRowControl<TextBox>(page, Rows(page)[^1], "UidInput").Text = uid;
         GuiHarness.Flush();
     }
@@ -587,7 +592,7 @@ public sealed class WelcomeAnimationSettingsTests
             viewModel.WebService.Apply(new SourcePlayback("one", 42, "欢迎.mp4", true, PlaybackState.Queued));
             viewModel.WebService.Apply(new SourcePlayback("one", 42, "欢迎.mp4", true, state, reason));
             GuiHarness.Flush();
-            var list = page.FindControl<ListBox>("RecentAnimationsList")!;
+            var list = GuiHarness.FindVisual<ListBox>(page, "RecentAnimationsList");
             Assert.Equal(1, list.ItemCount);
             Assert.Contains(expected, GuiHarness.VisibleText(window));
             Assert.Contains("试播", GuiHarness.VisibleText(window));
@@ -610,7 +615,7 @@ public sealed class WelcomeAnimationSettingsTests
         {
             viewModel.WebService.Apply(new SourcePlayback("one", 42, "欢迎.mp4", false, PlaybackState.Completed, Nickname: nickname));
             GuiHarness.Flush();
-            var list = page.FindControl<ListBox>("RecentAnimationsList")!;
+            var list = GuiHarness.FindVisual<ListBox>(page, "RecentAnimationsList");
             var text = list.ContainerFromIndex(0)!.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible).ToArray();
             var header = Assert.Single(text, x => new TextBlockAutomationPeer(x).GetName() == $"{nickname} UID 42");
             var time = text.Single(x => x.Text == viewModel.WebService.RecentAnimations.Single().OccurredAt.ToString("HH:mm:ss"));
@@ -659,13 +664,14 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
             window.FindControl<Button>("OpenSettingsWithoutLoginButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await GuiHarness.WaitForAsync(() => !viewModel.IsLoginPage);
-            Assert.Equal(6, window.Navigation.SelectedIndex);
+            Assert.Equal(5, window.Navigation.SelectedIndex);
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Equal("端口保存后立即生效；日志设置重启后生效", GuiHarness.FindVisual<TextBlock>(general, "TimingHint").Text);
             using var response = await http.GetAsync(viewModel.WebService.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
             using var reader = new StreamReader(await response.Content.ReadAsStreamAsync());
             await GuiHarness.WaitForAsync(() => viewModel.WebService.HasVideoConnections);
-            window.Navigation.SelectedIndex = 3;
+            window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
             var animation = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Null(animation.FindControl<NumericUpDown>("WebPortInput"));
             foreach (var enabled in new[] { true, false, true })
@@ -698,7 +704,7 @@ public sealed class WelcomeAnimationSettingsTests
             await GuiHarness.WaitForAsync(() => viewModel.WebService.RecentAnimations.Single().Playback.State == PlaybackState.Stopped);
             Assert.Equal("试播", GuiHarness.FindRowControl<TextBlock>(animation, playingRow, "TestText").Text);
             Click(animation, "OpenGeneralSettingsButton");
-            Assert.Equal(6, window.Navigation.SelectedIndex);
+            Assert.Equal(5, window.Navigation.SelectedIndex);
             var nextPort = FreePort();
             general.FindControl<NumericUpDown>("WebPortInput")!.Text = nextPort.ToString();
             GuiHarness.Flush();
@@ -708,8 +714,8 @@ public sealed class WelcomeAnimationSettingsTests
             GuiHarness.Flush();
             await GuiHarness.WaitForAsync(() => general.IsEnabled);
             // Rereading the saved file validates the page again; that is not an edit, so the result stays.
+            window.Navigation.SelectedIndex = 4;
             window.Navigation.SelectedIndex = 5;
-            window.Navigation.SelectedIndex = 6;
             GuiHarness.Flush();
             Assert.Equal("已保存，网页服务已换到新端口", GuiHarness.FindVisual<TextBlock>(general, "Message").Text);
             Assert.Equal(nextPort, viewModel.WebService.WebServiceStatus.Port);
@@ -797,7 +803,8 @@ public sealed class WelcomeAnimationSettingsTests
             await GuiHarness.WaitForAsync(() => viewModel.WebService.RecentAnimations.Any(item => item.Playing));
             var before = viewModel.WebService.WebServiceStatus;
             File.WriteAllText(Settings.FilePath(harness.DataDirectory), "web_service:\n  port: invalid\n");
-            window.Navigation.SelectedIndex = 3;
+            window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
             GuiHarness.Flush();
             Assert.Equal(before, viewModel.WebService.WebServiceStatus);
             Assert.True(viewModel.WebService.AnimationBusy);
@@ -833,7 +840,8 @@ public sealed class WelcomeAnimationSettingsTests
             await GuiHarness.WaitForAsync(() => viewModel.WebService.WebServiceStatus.Running);
             using var original = await http.GetAsync(viewModel.WebService.VideoAddressText + "/events", HttpCompletionOption.ResponseHeadersRead);
             await GuiHarness.WaitForAsync(() => viewModel.WebService.HasVideoConnections);
-            window.Navigation.SelectedIndex = 3;
+            window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
             GuiHarness.Flush();
             Assert.True(viewModel.WebService.HasVideoConnections);
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
@@ -842,7 +850,8 @@ public sealed class WelcomeAnimationSettingsTests
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.42"] = "new.mp4" });
             Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.43"] = "new.mp4" });
             window.Navigation.SelectedIndex = 0;
-            window.Navigation.SelectedIndex = 3;
+            window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
             GuiHarness.Flush();
             Assert.Equal(1, viewModel.WebService.WebServiceStatus.VideoConnections);
             using var reader = new StreamReader(await original.Content.ReadAsStreamAsync());
@@ -884,7 +893,7 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            page.FindControl<Button>("AddAnimationButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await page.ChooseAnimationAsync();
             GuiHarness.Flush();
             var row = Assert.Single(Rows(page));
             Assert.Equal("", GuiHarness.FindRowControl<TextBox>(page, row, "UidInput").Text);
@@ -951,11 +960,12 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            Assert.Equal(7, window.Navigation.ItemCount);
-            window.Navigation.SelectedIndex = 3;
+            Assert.Equal(6, window.Navigation.ItemCount);
+            window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            Assert.Equal("欢迎动画", GuiHarness.FindVisual<TextBlock>(page, "PageTitle").Text);
+            Assert.Equal("进场欢迎", GuiHarness.FindVisual<TextBlock>(page, "PageTitle").Text);
             Assert.True(page.FindControl<Control>("EmptyAnimations")!.IsEffectivelyVisible);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
         }
