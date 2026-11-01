@@ -9,7 +9,7 @@ internal static class WatchCommand
     {
         try
         {
-            if (settings.WelcomeAnimationEnabled.Value) await client.ApplyWebSettingsAsync(settings);
+            if (settings.EntryAnimationEnabled.Value || settings.GiftAnimationEnabled.Value) await client.ApplyWebSettingsAsync(settings);
             if (client.WebService.Status.Running)
                 await Console.Out.WriteLineAsync($"视频页：{client.WebService.Status.VideoAddress}");
             await foreach (var update in client.WatchAsync(roomId, cancellationToken))

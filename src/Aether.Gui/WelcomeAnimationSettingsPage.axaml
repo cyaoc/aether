@@ -8,7 +8,7 @@
             <TextBlock Classes="secondary" TextWrapping="Wrap"><Run Text="{Binding Name}" FontWeight="SemiBold" /><Run Text="{Binding Detail, StringFormat=' {0}', TargetNullValue=''}" Foreground="{DynamicResource Text.Muted}" FontFeatures="tnum" /></TextBlock>
             <TextBlock Classes="caption muted numeric" Text="{Binding OccurredAt, StringFormat={}{0:HH:mm:ss}}" />
           </local:ActivityHeader>
-          <TextBlock Classes="label singleLine" Text="{Binding Playback.FileName}" />
+          <TextBlock Classes="label singleLine" Text="{Binding Playback.ContentSummary}" />
           <Grid Classes="playbackStatus" Classes.playing="{Binding Playing}" Classes.completed="{Binding Completed}" Classes.failed="{Binding Failed}"
             Classes.unplayed="{Binding Unplayed}" Classes.skipped="{Binding PreviousPending}" Classes.stopped="{Binding Stopped}" ColumnDefinitions="Auto,*" ColumnSpacing="5">
             <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path StrokeThickness="2" /></Viewbox>

@@ -41,7 +41,7 @@ public partial class WelcomeAnimationSettingsPage
         foreach (var row in Animations)
         {
             var saved = MatchesFile(row) && (viewModel is null || viewModel.WebService.AnimationVideoSaved(row.Uid!.Value, row.FileName));
-            var hasPages = settings.WelcomeAnimationEnabled.Value && viewModel?.WebService.HasVideoConnections == true;
+            var hasPages = viewModel?.WebService.HasVideoConnections == true;
             var busy = viewModel?.WebService.AnimationBusy == true || viewModel?.WebService.AnimationReloading == true;
             var playback = row.SourcePath is null && row.Uid is { } playingUid ? viewModel?.WebService.PlayingAnimation(playingUid, row.FileName) : null;
             var failed = row.SourcePath is null && row.Uid is { } failedUid && viewModel?.WebService.AnimationFailed(failedUid, row.FileName) == true;

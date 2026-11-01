@@ -67,19 +67,14 @@ public sealed partial class AetherClient
                             }
                             features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
                                 round => output.TryWrite(round)));
-                            var parseEntries = false;
-                            if (Settings.WelcomeAnimationEnabled.Value)
-                            {
-                                features.Add(new WelcomeAnimationFeature(client.WelcomeAnimation, animationStop.Token));
-                                parseEntries = true;
-                            }
+                            features.Add(new WelcomeAnimationFeature(client.WelcomeAnimation, animationStop.Token));
                             if (Settings.WelcomeEnabled.Value)
                             {
                                 features.Add(new WelcomeFeature(Settings, sendQueue));
-                                parseEntries = true;
                                 readDanmakuLengthLimit = true;
                             }
-                            decoder = new DanmakuProtocol.Decoder(realRoomId.Value, client.logger, parseEntries);
+                            decoder = new DanmakuProtocol.Decoder(realRoomId.Value, client.logger,
+                                () => Settings.WelcomeEnabled.Value || client.WelcomeAnimation.Enabled);
                         }
                         await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {
