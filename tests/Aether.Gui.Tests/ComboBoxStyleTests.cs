@@ -15,6 +15,43 @@ public sealed class ComboBoxStyleTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public Task Dropdown_fits_longest_unselected_item_without_resizing_input(bool dark) => Dispatch(dark, window =>
+    {
+        const string longest = "1234567890123456789012345678901234567890";
+        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (6, "LogLevelInput") })
+        {
+            var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
+            input.ItemsSource = new[] { "1", longest };
+            input.SelectedIndex = 0;
+            GuiHarness.Flush();
+            var width = input.Bounds.Width;
+            input.IsDropDownOpen = true;
+            GuiHarness.Flush();
+            var item = input.ContainerFromIndex(1)!;
+            var card = item.GetVisualAncestors().OfType<Border>().Single(x => x.Name == "PopupBorder");
+            Assert.True(card.Bounds.Width > width);
+            Assert.Equal(width, input.Bounds.Width);
+            var text = item.GetVisualDescendants().OfType<TextBlock>().Single(x => x.Text == longest);
+            Assert.False(Assert.Single(text.TextLayout.TextLines).HasCollapsed);
+            Assert.True(text.Bounds.Width >= text.TextLayout.Width);
+            if (name == "RoomInput")
+            {
+                var remove = item.GetVisualDescendants().OfType<Button>().Single();
+                Assert.Equal(new Size(24, 24), remove.Bounds.Size);
+                Assert.True(text.TranslatePoint(new Point(text.Bounds.Width, 0), item)!.Value.X <=
+                            remove.TranslatePoint(default, item)!.Value.X);
+                Assert.True(remove.TranslatePoint(new Point(24, 0), card)!.Value.X <= card.Bounds.Width - card.Padding.Right);
+            }
+            input.SelectedIndex = 1;
+            input.IsDropDownOpen = false;
+            GuiHarness.Flush();
+            Assert.Equal(width, input.Bounds.Width);
+        }
+    });
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public Task All_three_dropdowns_share_the_card_items_and_open_state(bool dark) => Dispatch(dark, window =>
     {
         foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (6, "LogLevelInput"), (2, "GuardInput") })

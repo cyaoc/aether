@@ -444,7 +444,7 @@
     <Setter Property="Padding" Value="4" />
     <Setter Property="BoxShadow" Value="{DynamicResource PopupShadow}" />
     <Setter Property="Margin" Value="{StaticResource PopupShadowSpace}" />
-    <Setter Property="Width" Value="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}" />
+    <Setter Property="MinWidth" Value="{Binding Bounds.Width, RelativeSource={RelativeSource TemplatedParent}}" />
   </Style>
   <Style Selector="ComboBox:dropdownopen /template/ ItemsPresenter#PART_ItemsPresenter">
     <Setter Property="Margin" Value="0" />
