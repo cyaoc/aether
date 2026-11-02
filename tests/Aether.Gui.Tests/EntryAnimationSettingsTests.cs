@@ -8,6 +8,46 @@ namespace Aether.Gui.Tests;
 
 public sealed class EntryAnimationSettingsTests
 {
+    [Theory]
+    [InlineData(0, "仅按下方指定观众设置播放")]
+    [InlineData(30, "达到门槛后，按实际等级播放对应档位")]
+    [InlineData(40, "达到门槛后，按实际等级播放对应档位")]
+    [InlineData(50, "达到门槛后，按实际等级播放对应档位")]
+    [InlineData(60, "达到门槛后，按实际等级播放对应档位")]
+    public Task Fan_club_hint_follows_selection_and_saved_settings(int level, string hint) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.fan_club_level"] = level.ToString() });
+        var page = new AnimationSettingsPage(h.DataDirectory);
+        var window = new Window { Content = page, Width = 1040, Height = 600 };
+        window.Show();
+        try
+        {
+            GuiHarness.Flush();
+            var input = GuiHarness.FindVisual<ComboBox>(page, "FanClubInput");
+            Assert.Equal(level, input.SelectedItem);
+            Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == hint);
+            input.SelectedItem = 0;
+            GuiHarness.Flush();
+            Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "仅按下方指定观众设置播放");
+            input.SelectedItem = 40;
+            GuiHarness.Flush();
+            Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "达到门槛后，按实际等级播放对应档位");
+            input.SelectedItem = level == 0 ? 30 : 0;
+            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await page.PendingSave;
+            Assert.Equal(level == 0 ? 30 : 0, Settings.Load(h.DataDirectory).EntryAnimationFanClubLevel.Value);
+            var reopened = new AnimationSettingsPage(h.DataDirectory);
+            window.Content = reopened;
+            GuiHarness.Flush();
+            Assert.Equal(level == 0 ? 30 : 0, GuiHarness.FindVisual<ComboBox>(reopened, "FanClubInput").SelectedItem);
+            Assert.Contains(reopened.GetVisualDescendants().OfType<TextBlock>(), text => text.Text ==
+                (level == 0 ? "达到门槛后，按实际等级播放对应档位" : "仅按下方指定观众设置播放"));
+        }
+        finally { window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task Animation_list_saves_tier_video_and_off_and_tabs_preserve_drafts() => HeadlessApp.Session.Dispatch(async () =>
     {

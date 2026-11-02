@@ -47,11 +47,11 @@
     <StackPanel Spacing="10">
       <TextBlock x:Name="AnimationReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <local:VideoPageStatusBar x:Name="PageStatus" />
-      <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8">
-        <TextBlock Classes="section" Text="粉丝团等级" VerticalAlignment="Center" />
-        <ComboBox x:Name="FanClubInput" Width="125" AutomationProperties.Name="粉丝团等级门槛" />
-        <TextBlock Classes="hint" Text="够等级的观众进场时按等级定档" VerticalAlignment="Center" />
-      </StackPanel>
+      <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10" Margin="0,8">
+        <TextBlock Classes="section" Text="按粉丝团等级播放" VerticalAlignment="Center" />
+        <ComboBox Grid.Column="1" x:Name="FanClubInput" Width="125" AutomationProperties.Name="粉丝团等级门槛" />
+        <TextBlock Grid.Column="2" x:Name="FanClubHint" Classes="hint" TextWrapping="Wrap" VerticalAlignment="Center" />
+      </Grid>
       <TextBlock x:Name="FanClubReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
         <local:AnimationTestBar x:Name="TestBar" />
