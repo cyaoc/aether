@@ -56,9 +56,11 @@ public sealed class VisualReviewTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public Task Screenshots_entry_welcome_tabs(bool dark)
+    [InlineData(false, 1200, 720)]
+    [InlineData(true, 1200, 720)]
+    [InlineData(false, 1040, 600)]
+    [InlineData(true, 1040, 600)]
+    public Task Screenshots_entry_welcome_tabs(bool dark, int width, int height)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
         return HeadlessApp.Session.Dispatch(async () =>
@@ -71,7 +73,7 @@ public sealed class VisualReviewTests
                 ["entry_animation.enabled"] = "true", ["entry_animation_viewers.12345"] = "40",
                 ["entry_animation_viewers.28816620"] = "0", ["entry_animation_viewers.67890"] = "老板驾到.webm" });
             var vm = h.CreateViewModel();
-            var window = new MainWindow(h.DataDirectory) { DataContext = vm, Width = 1200, Height = 720,
+            var window = new MainWindow(h.DataDirectory) { DataContext = vm, Width = width, Height = height,
                 RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
             window.Show();
             try
@@ -86,10 +88,18 @@ public sealed class VisualReviewTests
                 GuiHarness.Flush();
                 Assert.Equal(80m, welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Value);
                 Assert.Equal("80", welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Text);
-                Save(window, $"entry-welcome-animation-{(dark ? "dark" : "light")}");
+                Save(window, $"entry-welcome-animation-{width}-{(dark ? "dark" : "light")}");
+                var fanClub = welcome.Animation.FindControl<ComboBox>("FanClubInput")!;
+                fanClub.SelectedItem = 0;
+                GuiHarness.Flush();
+                Save(window, $"entry-welcome-animation-off-{width}-{(dark ? "dark" : "light")}");
+                fanClub.IsDropDownOpen = true;
+                GuiHarness.Flush();
+                Save(window, $"entry-welcome-animation-options-{width}-{(dark ? "dark" : "light")}");
+                fanClub.IsDropDownOpen = false;
                 welcome.Select(0);
                 GuiHarness.Flush();
-                Save(window, $"entry-welcome-danmaku-{(dark ? "dark" : "light")}");
+                Save(window, $"entry-welcome-danmaku-{width}-{(dark ? "dark" : "light")}");
             }
             finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
             return true;

@@ -18,8 +18,10 @@ public partial class AnimationSettingsPage : SettingsPage
         Title = "进场欢迎";
         PageStatus.GeneralSettingsRequested += () => GeneralSettingsRequested?.Invoke();
         TimingHint = "保存后，下一次进场生效";
-        FanClubInput.ItemsSource = EntryTier.All.Select(tier => tier.Value).Append(0).ToArray();
-        FanClubInput.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<int>((value, _) => new Avalonia.Controls.TextBlock { Text = value == 0 ? "不按等级" : $"{value} 级起" });
+        FanClubInput.ItemsSource = EntryTier.All.Select(tier => tier.Value).Prepend(0).ToArray();
+        FanClubInput.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<int>((value, _) => new Avalonia.Controls.TextBlock { Text = value == 0 ? "关闭" : $"{value} 级起" });
+        FanClubInput.SelectionChanged += (_, _) => Avalonia.Controls.ToolTip.SetTip(FanClubInput, FanClubInput.SelectedItem is 0
+            ? "仅按下方指定观众设置播放" : "达到门槛后，按实际等级播放对应档位");
         Bind(FanClubInput, FanClubReadOnly, null, s => s.EntryAnimationFanClubLevel);
         Bind(VolumeInput, VolumeReadOnly, null, s => s.EntryAnimationVolume);
         Bind(AnimationInput, AnimationReadOnly, null, s => s.EntryAnimationEnabled);
