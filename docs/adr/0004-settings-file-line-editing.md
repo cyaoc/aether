@@ -11,4 +11,5 @@
 - 以后加的设置（欢迎条件等）都要设计成这个形状。用户手改成多行写法或嵌套结构时，表单把该项设为只读，提示去设置文件里编辑。
   - 例外：`welcome_danmaku.uids` 只接受单行的 `[12345, 67890]` 写法，写成多行时读取设置报错并指出所在行，不改为只读（[#75](https://github.com/cyaoc/aether/issues/75)）。
   - 例外：`entry_animation_viewers` 每行是 `UID: 值`，键由用户写入而不是预先登记；值写成多行时同样报错并指出所在行，不改为只读（[#126](https://github.com/cyaoc/aether/issues/126)）。
+  - 例外：顶层的 `format_version` 是设置文件的版本（[ADR 0011](0011-data-upgrade-from-0-2-3.md)），不是分组，也不算设置，由程序维护，GUI 不显示。
 - 默认值写进了文件，以后版本改默认值，已经生成的文件不会跟着变。

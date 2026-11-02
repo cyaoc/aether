@@ -300,3 +300,7 @@ _Avoid_: 安装包
 **需运行时版 (Framework-dependent Package)**:
 不带 .NET 运行时的发布包，体积小，要先装好 .NET 10 Runtime。
 _Avoid_: 普通版、精简版
+
+**升级 (Upgrade)**:
+新版本读到旧版本留下的数据时，把它改成当前格式。
+_Avoid_: 迁移

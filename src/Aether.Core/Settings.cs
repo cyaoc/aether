@@ -22,6 +22,9 @@ public sealed class SettingsException(string filePath, long lineNumber, string s
 public sealed class Settings
 {
     private const string Template = """
+        # 设置文件格式版本，由程序维护
+        format_version: 1
+
         # 日志设置，修改后重启程序生效
         log:
           # 日志保留天数，必须为正整数
@@ -93,7 +96,7 @@ public sealed class Settings
 
         """;
 
-    private const string LineBreaks = "\r\n\u0085\u2028\u2029"; // YAML also accepts Unicode line breaks.
+    internal const string LineBreaks = "\r\n\u0085\u2028\u2029"; // YAML also accepts Unicode line breaks.
 
     // Static fields initialise in text order: this list must stay above every Register(...) below.
     private static readonly List<Definition> Definitions = [];
@@ -164,6 +167,7 @@ public sealed class Settings
     public bool CanEditEntryAnimationViewers => AnimationViewers.CanEdit(this);
     public IReadOnlyList<string> UnknownKeys { get; private set; } = [];
     public SettingsException? Error { get; private set; }
+    public int? UpgradedFromVersion { get; private set; }
     private readonly Dictionary<string, object> values = [];
     private string source = "";
     private Encoding encoding = Encoding.UTF8;
@@ -334,9 +338,9 @@ public sealed class Settings
     private static bool IsYamlFailure(Exception error) => error is YamlException
         || error is InvalidOperationException && error.TargetSite?.DeclaringType?.Namespace?.StartsWith("YamlDotNet") == true;
 
-    private static List<Tokens.Token> Scan(string source)
+    internal static List<Tokens.Token> Scan(string source)
     {
-        var scanner = new Scanner(new StringReader(source));
+        var scanner = new Scanner(new StringReader(source), skipComments: false);
         var tokens = new List<Tokens.Token>();
         while (scanner.MoveNext()) tokens.Add(scanner.Current!);
         return tokens;
@@ -344,7 +348,7 @@ public sealed class Settings
 
     /// <summary>Where a node's text ends. YamlDotNet ends a collection node at its opening bracket,
     /// so a flow list or map ends just past the bracket that closes it.</summary>
-    private static Mark EndOf(List<Tokens.Token> tokens, YamlNode node)
+    internal static Mark EndOf(List<Tokens.Token> tokens, YamlNode node)
     {
         if (node is not (YamlSequenceNode { Style: SequenceStyle.Flow } or YamlMappingNode { Style: MappingStyle.Flow })) return node.End;
         var depth = 0;
@@ -361,7 +365,7 @@ public sealed class Settings
     /// so file editors see settings added by an upgrade. Failing to append leaves the file and the defaults as they are.</summary>
     public static Settings Load(string dataDirectory, ILogger? logger = null)
     {
-        var settings = Load(dataDirectory, Definitions, logger);
+        var settings = Read(dataDirectory, Definitions, logger, upgrade: true);
         if (settings.Error is not null) return settings;
         var missing = Definitions.Where(definition => definition.CanEdit(settings)
             && settings.root?.Children.Keys.Any(key => key is YamlScalarNode { Value: var name } && name == definition.Group) != true)
@@ -383,7 +387,9 @@ public sealed class Settings
         {
             AtomicFile.Write(FilePath(dataDirectory), [.. settings.encoding.GetPreamble(), .. settings.encoding.GetBytes(settings.source + appended)]);
             // Refresh node offsets as well as values, so Save can edit the appended defaults in place.
-            return Load(dataDirectory, Definitions);
+            var refreshed = Load(dataDirectory, Definitions);
+            refreshed.UpgradedFromVersion = settings.UpgradedFromVersion;
+            return refreshed;
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
@@ -411,14 +417,17 @@ public sealed class Settings
             ? new(path, fields[invalid]?.Start.Line ?? node.Start.Line, GiftThresholds[invalid].Name, GiftThresholdRule) : null;
     }
 
-    private static string NewlineOf(string source)
+    internal static string NewlineOf(string source)
     {
         var firstBreak = source.AsSpan().IndexOfAny(LineBreaks);
         return firstBreak < 0 ? "\n" : source.AsSpan(firstBreak).StartsWith("\r\n") ? "\r\n" : source[firstBreak].ToString();
     }
 
     /// <param name="definitions">The settings this file may hold; only tests pass anything but <see cref="Definitions"/>.</param>
-    internal static Settings Load(string dataDirectory, IReadOnlyList<Definition> definitions, ILogger? logger = null)
+    internal static Settings Load(string dataDirectory, IReadOnlyList<Definition> definitions, ILogger? logger = null) =>
+        Read(dataDirectory, definitions, logger, upgrade: false);
+
+    private static Settings Read(string dataDirectory, IReadOnlyList<Definition> definitions, ILogger? logger, bool upgrade)
     {
         var path = FilePath(dataDirectory);
         var settings = new Settings();
@@ -440,11 +449,34 @@ public sealed class Settings
             MarkEditable(definitions, lossless);
             var yaml = new YamlStream();
             yaml.Load(new StringReader(settings.source));
-            var tokens = Scan(settings.source);
             if (yaml.Documents.Count == 0) return settings;
             if (yaml.Documents.Count != 1)
                 throw new SettingsException(path, yaml.Documents[1].RootNode.Start.Line, "YAML", "只允许一个设置文档。");
             var root = RequireMapping(yaml.Documents[0].RootNode, "YAML");
+            var versionEntry = root.Children.Where(pair => pair.Key is YamlScalarNode { Value: "format_version" }).ToArray();
+            var version = 0;
+            if (versionEntry.Length > 0)
+            {
+                var value = versionEntry[0].Value;
+                if (versionEntry.Length != 1 || value is not YamlScalarNode { Value: { } number }
+                    || !int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out version))
+                    throw new SettingsException(path, value.Start.Line, "format_version", "必须为非负整数，请修正设置文件版本。");
+                if (version > SettingsUpgrade.CurrentVersion)
+                    throw new SettingsException(path, value.Start.Line, "format_version", "文件版本高于当前程序，请使用更新版本的 Aether。");
+            }
+            var original = settings.source;
+            if (upgrade && version < SettingsUpgrade.CurrentVersion)
+            {
+                settings.source = SettingsUpgrade.Apply(original, version, path);
+                if (settings.source != original)
+                {
+                    if (!lossless)
+                        throw new SettingsException(path, 1, "升级", "文件编码无法无损改写，请先将设置文件转换为 UTF-8，再重试。");
+                    yaml.Load(new StringReader(settings.source));
+                    root = RequireMapping(yaml.Documents[0].RootNode, "YAML");
+                }
+            }
+            var tokens = Scan(settings.source);
             settings.root = root;
             var rootEditable = lossless && root.Style == MappingStyle.Block && root.Anchor.IsEmpty;
             MarkEditable(definitions, rootEditable);
@@ -454,10 +486,21 @@ public sealed class Settings
             foreach (var (groupKey, groupValue) in root.Children) LoadGroup(groupKey, groupValue);
             settings.UnknownKeys = unknown.AsReadOnly();
             settings.Error ??= ValidateGiftThresholds(root, path);
+            if (settings.Error is null && settings.source != original)
+            {
+                try { AtomicFile.Write(path, [.. settings.encoding.GetPreamble(), .. settings.encoding.GetBytes(settings.source)]); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                {
+                    throw new SettingsException(path, 1, "升级", $"无法写入升级后的设置：{error.Message}。请检查文件和目录的写入权限后重试。");
+                }
+                settings.UpgradedFromVersion = version;
+                logger?.LogInformation("设置文件已从格式版本 {FromVersion} 升级到 {ToVersion}", version, SettingsUpgrade.CurrentVersion);
+            }
 
             void LoadGroup(YamlNode groupKey, YamlNode groupValue)
             {
                 var groupName = KeyName(groupKey);
+                if (groupName == "format_version") return;
                 var known = definitions.Where(definition => definition.Group == groupName).ToArray();
                 if (known.Length == 0)
                 {
