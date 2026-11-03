@@ -9,6 +9,207 @@ public sealed class SettingsTests : IAsyncDisposable
     private readonly WatchHarness harness = new();
     private string SettingsPath => Path.Combine(harness.DataDirectory, "aether.yml");
 
+    [Theory]
+    [InlineData("关闭", 0)]
+    [InlineData("舰长", 1)]
+    [InlineData("提督", 2)]
+    [InlineData("总督", 3)]
+    public void Upgrade_converts_each_guard_tier(string old, int expected)
+    {
+        Write($"welcome:\n  guard: '{old}' # 我的门槛\n");
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(expected, settings.WelcomeGuard.Value);
+        Assert.Equal(0, settings.UpgradedFromVersion);
+        Assert.Contains("# 我的门槛", File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("true", 0, 100)]
+    [InlineData("false", 30, 80)]
+    public void Upgrade_keeps_animation_behavior_or_new_defaults(string enabled, int level, int volume)
+    {
+        Write($"welcome_animation:\n  enabled: {enabled} # 开关\n");
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(level, settings.EntryAnimationFanClubLevel.Value);
+        Assert.Equal(volume, settings.EntryAnimationVolume.Value);
+        Assert.Equal(enabled == "true", File.ReadAllText(SettingsPath).Contains("fan_club_level: 0\n  volume: 100"));
+    }
+
+    [Theory]
+    [InlineData("utf-8", "\n")]
+    [InlineData("utf-8", "\r\n")]
+    [InlineData("utf-16", "\r\n")]
+    public void Upgrade_preserves_encoding_tags_indentation_and_document_markers(string encodingName, string newline)
+    {
+        var encoding = System.Text.Encoding.GetEncoding(encodingName);
+        var original = "---\n  !!str 'welcome':\n    !!str guard: 提督 # 保留\n  welcome_animation:\n    enabled: true\n...\n".ReplaceLineEndings(newline);
+        Write(original);
+        File.WriteAllText(SettingsPath, original, encoding);
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(2, settings.WelcomeGuard.Value);
+        var expected = original.Replace("  !!str 'welcome':", "  # 设置文件格式版本，由程序维护" + newline + "  format_version: 1" + newline + newline + "  !!str welcome_danmaku:")
+            .Replace("guard: 提督", "guard: 2").Replace("welcome_animation:", "entry_animation:")
+            .Replace("enabled: true" + newline, "enabled: true" + newline + "    fan_club_level: 0" + newline + "    volume: 100" + newline);
+        Assert.Equal(encoding.GetPreamble().Concat(encoding.GetBytes(expected)), File.ReadAllBytes(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_keeps_added_animation_lines_when_a_template_comment_follows_them()
+    {
+        Write("welcome_animation:\n  enabled: true\n# 欢迎动画的视频，放在 data/videos/ 里，每行一位观众：UID: 文件名\nwelcome_animation_videos:\n  1: a.mp4\n");
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(0, settings.EntryAnimationFanClubLevel.Value);
+        Assert.Equal(100, settings.EntryAnimationVolume.Value);
+        Assert.Contains("  volume: 100\n# 动画名单：一行一位，值是 30、40、50、60，0 表示不播，或视频文件名\nentry_animation_viewers:",
+            File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_is_written_before_an_invalid_value_is_reported_so_its_line_matches_the_file()
+    {
+        Write("send:\n  interval_seconds: 0\nwelcome:\n  guard: 舰长\n");
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        var lines = File.ReadAllLines(SettingsPath);
+        Assert.Equal("  interval_seconds: 0", lines[error.LineNumber - 1]);
+        Assert.Contains("welcome_danmaku:", lines);
+    }
+
+    [Fact]
+    public void Upgrade_only_replaces_exact_template_comments_and_keeps_unknown_content()
+    {
+        const string old = "# 大航海身份达到哪一档就欢迎：关闭、舰长、提督、总督；提督表示提督和总督";
+        Write($"# 我的说明\nwelcome:\n  {old}\n  guard: 提督\n  {old}（自改）\n  custom: yes\nother: |\n  {old}\n");
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Contains("welcome_danmaku.custom", settings.UnknownKeys);
+        var text = File.ReadAllText(SettingsPath);
+        Assert.Contains("# 大航海身份门槛：0 关闭，1 舰长及以上，2 提督及以上，3 总督", text);
+        Assert.Contains(old + "（自改）", text);
+        Assert.Contains("other: |\n  " + old, text);
+        Assert.Contains("# 我的说明", text);
+    }
+
+    [Theory]
+    [InlineData("2")]
+    [InlineData("-1")]
+    [InlineData("word")]
+    [InlineData("1.5")]
+    [InlineData("[]")]
+    [InlineData("null")]
+    public void Invalid_or_future_format_version_prevents_all_writes(string version)
+    {
+        Write($"format_version: {version}\nwelcome:\n  guard: 提督\n");
+        var before = File.ReadAllBytes(SettingsPath);
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal("format_version", error.SettingName);
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+        Assert.Throws<SettingsException>(() => Settings.Save(harness.DataDirectory,
+            new Dictionary<string, string> { ["log.level"] = "Debug" }));
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("{welcome: {guard: 提督}}")]
+    [InlineData("welcome_animation: {enabled: true}")]
+    [InlineData("welcome: [")]
+    [InlineData("other: &g 提督\nwelcome:\n  guard: *g")]
+    [InlineData("other: &g\n  guard: 提督\nwelcome: *g")]
+    [InlineData("other: &a\n  enabled: true\nwelcome_animation: *a")]
+    public void Failed_upgrade_does_not_append_groups_and_retries_after_repair(string text)
+    {
+        Write(text);
+        var before = File.ReadAllBytes(SettingsPath);
+        Assert.NotNull(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+        Write("welcome:\n  guard: 提督\n");
+        Assert.Equal(2, Settings.Load(harness.DataDirectory).WelcomeGuard.Value);
+        Assert.Contains("format_version: 1", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_rejects_lossy_encoding_without_appending_groups()
+    {
+        Write("welcome:\n  enabled: true\n# ");
+        // GBK bytes for Chinese text cannot round-trip through the default UTF-8 reader.
+        var before = File.ReadAllBytes(SettingsPath).Concat(new byte[] { 0xc4, 0xe3, 0xba, 0xc3 }).ToArray();
+        File.WriteAllBytes(SettingsPath, before);
+        Assert.Contains("UTF-8", Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error).Message);
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+    }
+
+    [Fact, System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    public void Upgrade_write_failure_preserves_file_and_retries()
+    {
+        if (OperatingSystem.IsWindows()) Assert.Skip("Unix file modes only.");
+        Write("welcome:\n  enabled: true\n");
+        var before = File.ReadAllBytes(SettingsPath);
+        var mode = File.GetUnixFileMode(harness.DataDirectory);
+        File.SetUnixFileMode(harness.DataDirectory, UnixFileMode.UserRead | UnixFileMode.UserExecute);
+        try
+        {
+            Assert.NotNull(Settings.Load(harness.DataDirectory).Error);
+            Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+        }
+        finally { File.SetUnixFileMode(harness.DataDirectory, mode); }
+        Assert.True(Settings.Load(harness.DataDirectory).WelcomeEnabled.Value);
+        Assert.Contains("format_version: 1", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_does_not_merge_old_groups_into_existing_new_groups()
+    {
+        Write("welcome:\n  enabled: true\nwelcome_danmaku:\n  enabled: false\nwelcome_animation:\n  enabled: true\nentry_animation:\n  enabled: false\nwelcome_animation_videos:\n  42: old.mp4\nentry_animation_viewers:\n  42: new.mp4\n...\n");
+        var before = File.ReadAllBytes(SettingsPath);
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.False(settings.WelcomeEnabled.Value);
+        Assert.False(settings.EntryAnimationEnabled.Value);
+        Assert.Equal("new.mp4", settings.WelcomeAnimationVideos[42].Value);
+        Assert.Contains("welcome.enabled", settings.UnknownKeys);
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+    }
+
+    // The fixture is the frozen v0.2.3 Template with non-default values; keep it unchanged.
+    [Fact]
+    public void Upgrade_preserves_the_v023_settings_and_is_idempotent()
+    {
+        Write(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "settings-v0.2.3.yml")));
+        var settings = Settings.Load(harness.DataDirectory, harness.Logger);
+        Assert.Null(settings.Error);
+        Assert.Empty(settings.UnknownKeys);
+        Assert.Equal(0, settings.UpgradedFromVersion);
+        Assert.Contains(harness.Logger.Entries, entry => entry.Level == LogLevel.Information && entry.Message.Contains("升级"));
+        Assert.True(settings.WelcomeEnabled.Value);
+        Assert.Equal(new[] { "欢迎{昵称}", "{@}欢迎回家" }, settings.WelcomeTexts.Value);
+        Assert.Equal(new long[] { 12345, 67890 }, settings.WelcomeUids.Value);
+        Assert.Equal(12, settings.WelcomeFanClubLevel.Value);
+        Assert.Equal(2, settings.WelcomeGuard.Value);
+        Assert.Equal(25, settings.WelcomeWealthLevel.Value);
+        Assert.True(settings.EntryAnimationEnabled.Value);
+        Assert.Equal(0, settings.EntryAnimationFanClubLevel.Value);
+        Assert.Equal(100, settings.EntryAnimationVolume.Value);
+        Assert.Equal("小明进场.mp4", settings.WelcomeAnimationVideos[12345].Value);
+        Assert.Equal(17, settings.LogRetentionDays.Value);
+        Assert.Equal(LogLevel.Debug, settings.LogLevel.Value);
+        Assert.True(settings.BlindBoxEnabled.Value);
+        Assert.False(settings.BlindBoxAnnounce.Value);
+        Assert.Equal("今天", settings.BlindBoxDailyKeyword.Value);
+        Assert.Equal("本月", settings.BlindBoxMonthlyKeyword.Value);
+        Assert.Equal(3, settings.SendIntervalSeconds.Value);
+        Assert.Equal(17891, settings.WebServicePort.Value);
+        Assert.Contains("gift_animation:", File.ReadAllText(SettingsPath));
+        // The version goes where Template has it, above the log group's own comment.
+        Assert.StartsWith("# 设置文件格式版本，由程序维护\nformat_version: 1\n\n# 日志设置，修改后重启程序生效\nlog:",
+            File.ReadAllText(SettingsPath).ReplaceLineEndings("\n"));
+        var bytes = File.ReadAllBytes(SettingsPath);
+        Assert.Null(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(bytes, File.ReadAllBytes(SettingsPath));
+    }
+
     [Fact]
     public void Web_service_port_is_appended_and_legacy_animation_port_only_warns()
     {
@@ -204,6 +405,9 @@ public sealed class SettingsTests : IAsyncDisposable
         // Each default is written twice, in Template and in its definition; this keeps the two from drifting apart.
         var fromTemplate = Settings.Load(harness.DataDirectory);
         Assert.Null(fromTemplate.Error);
+        Assert.Empty(fromTemplate.UnknownKeys);
+        Assert.Null(fromTemplate.UpgradedFromVersion);
+        Assert.Contains("format_version: 1", File.ReadAllText(SettingsPath));
         // A definition without its line in Template would read its own default on both sides below.
         string? templateGroup = null;
         var templateNames = new List<string>();

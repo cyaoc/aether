@@ -63,6 +63,8 @@ public static class FileLogging
             var settingsLog = Logger.ForContext("SourceContext", "Aether.Core.Settings");
             if (settings.Error is { } error)
                 settingsLog.Error(error, "读取设置失败，日志使用默认值；开始直播间连接前需修正设置");
+            if (settings.UpgradedFromVersion is { } version)
+                settingsLog.Information("设置文件已从格式版本 {FromVersion} 升级到 {ToVersion}", version, SettingsUpgrade.CurrentVersion);
             if (settings.UnknownKeys.Count > 0)
                 settingsLog.Warning("未知设置键：{Keys}", string.Join("、", settings.UnknownKeys));
             DeleteExpiredLogs(logs);
