@@ -381,9 +381,12 @@ public sealed class Settings
         var newline = NewlineOf(settings.source);
         var appended = string.Join("\n\n", sections).TrimEnd('\n');
         appended = string.Join(newline, appended.Split('\n').Select(line => indent + line)) + newline;
-        // A blank line before the appended groups, as between the template's groups.
+        // A blank line before the appended groups, as between the template's groups, unless the file already ends with one.
         if (settings.source.Length > 0)
-            appended = (LineBreaks.Contains(settings.source[^1]) ? newline : newline + newline) + appended;
+        {
+            var breaks = settings.source[settings.source.TrimEnd().Length..].Replace("\r\n", "\n").Count(LineBreaks.Contains);
+            appended = string.Concat(Enumerable.Repeat(newline, Math.Max(0, 2 - breaks))) + appended;
+        }
         try
         {
             AtomicFile.Write(FilePath(dataDirectory), [.. settings.encoding.GetPreamble(), .. settings.encoding.GetBytes(settings.source + appended)]);

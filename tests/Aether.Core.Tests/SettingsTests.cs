@@ -201,7 +201,8 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal("本月", settings.BlindBoxMonthlyKeyword.Value);
         Assert.Equal(3, settings.SendIntervalSeconds.Value);
         Assert.Equal(17891, settings.WebServicePort.Value);
-        Assert.Contains("gift_animation:", File.ReadAllText(SettingsPath));
+        // The fixture already ends with a blank line, so the appended group gets no second one.
+        Assert.Contains("  12345: 小明进场.mp4\n\n# 送礼动画", File.ReadAllText(SettingsPath).ReplaceLineEndings("\n"));
         // The version goes where Template has it, above the log group's own comment.
         Assert.StartsWith("# 设置文件格式版本，由程序维护\nformat_version: 1\n\n# 日志设置，修改后重启程序生效\nlog:",
             File.ReadAllText(SettingsPath).ReplaceLineEndings("\n"));
@@ -578,14 +579,16 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("utf-8", "\n", true)]
-    [InlineData("utf-16", "\r\n", true)]
-    [InlineData("utf-16BE", "\r\n", false)]
-    public void Load_appends_commented_missing_groups_without_changing_existing_bytes(string encodingName, string newline, bool finalNewline)
+    [InlineData("utf-8", "\n", 1)]
+    [InlineData("utf-8", "\n", 2)]
+    [InlineData("utf-16", "\r\n", 1)]
+    [InlineData("utf-16", "\r\n", 2)]
+    [InlineData("utf-16BE", "\r\n", 0)]
+    public void Load_appends_commented_missing_groups_without_changing_existing_bytes(string encodingName, string newline, int finalNewlines)
     {
         Directory.CreateDirectory(harness.DataDirectory);
         var encoding = System.Text.Encoding.GetEncoding(encodingName);
-        var yaml = "# 保留 🌙\nlog:\n  level: Debug # 级别".ReplaceLineEndings(newline) + (finalNewline ? newline : "");
+        var yaml = "# 保留 🌙\nlog:\n  level: Debug # 级别".ReplaceLineEndings(newline) + string.Concat(Enumerable.Repeat(newline, finalNewlines));
         File.WriteAllText(SettingsPath, yaml, encoding);
         var before = File.ReadAllBytes(SettingsPath);
 
@@ -597,7 +600,8 @@ public sealed class SettingsTests : IAsyncDisposable
         var after = File.ReadAllBytes(SettingsPath);
         Assert.Equal(before, after[..before.Length]);
         var appended = encoding.GetString(after[before.Length..]).ReplaceLineEndings("\n");
-        Assert.StartsWith(finalNewline ? "\n# " : "\n\n# ", appended); // A blank line, as between the template's groups.
+        // Exactly one blank line, as between the template's groups, counting one the file already ends with.
+        Assert.StartsWith(new string('\n', Math.Max(0, 2 - finalNewlines)) + "# ", appended);
         Assert.Contains("# 盲盒统计，下次观看直播间时生效\nblind_box:\n  # true 或 false，false 时既不记录，也不回复和播报\n  enabled: true\n  # 今日查询关键字，非空文字\n  daily_keyword: 今日盲盒\n", appended);
         Assert.Contains("# 发送队列，下次观看直播间时生效\nsend:\n  # 两次发送之间的秒数，必须为正整数\n  interval_seconds: 1\n", appended);
         Assert.DoesNotContain("retention_days", appended);
