@@ -108,6 +108,13 @@ a{color:#3358D4}a:hover{color:#2A47B0}
             </div>
           </section>
 
+          <section style="display: flex; align-items: center; gap: 16px">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 3px">
+              <h2 style="margin: 0; font-size: 14px; font-weight: 600">看板娘</h2>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">从标题飘带后面探出来主持；关掉后，她的位置能多放 3 行</span>
+            </div>
+            <button type="button" role="switch" aria-checked="{{mascot.on}}" aria-label="看板娘" onClick="{{mascot.toggle}}" style="position: relative; width: 40px; height: 22px; border: 0; border-radius: 11px; background: {{mascot.bg}}; padding: 0"><span style="position: absolute; top: 3px; left: {{mascot.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+          </section>
         </div>
 
         <footer style="height: 64px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-top: 1px solid {{t.border}}">
@@ -223,7 +230,7 @@ class Component extends DCLogic {
     const scene = this.props.scene ?? '默认';
     const [w, h] = (this.props.size ?? '1200 × 720') === '1040 × 600' ? [1040, 600] : [1200, 720];
     const connected = scene !== '没连直播间';
-    const enabled = s.enabled ?? true;
+    const enabled = s.enabled ?? true, mascotOn = s.mascot ?? true;
     const mode = s.mode ?? (scene === '按累计总价' ? 2 : 1);
     const threshold = 100;
     const cleared = s.cleared === true;
@@ -262,7 +269,7 @@ class Component extends DCLogic {
       { id: 1, title: '按礼物单价', note: '单价达到门槛的礼物上榜；盲盒按开出的礼物算' },
       { id: 2, title: '按累计总价', note: '同一位观众送的同一种礼物，单价 × 个数达到门槛就上榜' }
     ].map(m => ({ ...m, checked: m.id === mode ? 'true' : 'false', ring: '2px solid ' + (m.id === mode ? t.accent : t.control), dot: m.id === mode ? t.accent : 'transparent', pick: () => this.setState({ mode: m.id }) }));
-    const dirty = mode !== (scene === '按累计总价' ? 2 : 1) || enabled !== true;
+    const dirty = mode !== (scene === '按累计总价' ? 2 : 1) || enabled !== true || mascotOn !== true;
     const pageOk = scene !== '礼物榜页没连上';
     const asideCount = rows.length ? '共 ' + rows.length + ' 位' : '';
     const emptyText = !connected ? '连上直播间后，这里显示这个直播间的礼物榜。' : !enabled ? '礼物榜关着，不记录也不显示。' : '还没有人上榜。达到门槛的礼物会出现在这里和直播画面上。';
@@ -274,7 +281,7 @@ class Component extends DCLogic {
 
     return {
       t, w, h, connected, offline: !connected, isBoard: page === '礼物榜', isGeneral: page === '通用设置', nav, pages,
-      onSwitch: this.toggle(t, 'enabled', enabled), modes, threshold: String(threshold),
+      onSwitch: this.toggle(t, 'enabled', enabled), mascot: this.toggle(t, 'mascot', mascotOn), modes, threshold: String(threshold),
       pageOk: pageOk && enabled, pageWaiting: !pageOk && enabled,
       rows, hasRows: rows.length > 0, noRows: rows.length === 0, asideCount, emptyText, count: rows.length,
       clearDisabled: !connected || rows.length === 0 ? 'true' : null, clearColor: !connected || rows.length === 0 ? t.disabled : t.danger,

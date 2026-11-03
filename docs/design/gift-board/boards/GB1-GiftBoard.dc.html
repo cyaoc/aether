@@ -32,7 +32,7 @@ body{margin:0}
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"env":{"editor":"enum","options":["横屏·右","横屏·左","竖屏","矮素材"],"default":"横屏·右"},"scene":{"editor":"enum","options":["演示","太长滚动"],"default":"演示"},"pause":{"editor":"enum","options":["播放","平时","新上榜·飞入","新上榜·展开","加数","超车","新第一·光带","新第一·欢呼"],"default":"播放"},"outline":{"editor":"boolean","default":true},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["明亮画面","浅色房间","深色房间","透明"],"default":"明亮画面"},"$preview":{"width":1920,"height":1080}}'>
+<script type="text/x-dc" data-dc-script data-props='{"env":{"editor":"enum","options":["横屏·右","横屏·左","竖屏","矮素材"],"default":"横屏·右"},"scene":{"editor":"enum","options":["演示","太长滚动"],"default":"演示"},"mascot":{"editor":"enum","options":["显示","关闭"],"default":"显示"},"pause":{"editor":"enum","options":["播放","平时","新上榜·飞入","新上榜·展开","加数","超车","新第一·光带","新第一·欢呼"],"default":"播放"},"outline":{"editor":"boolean","default":true},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["明亮画面","浅色房间","深色房间","透明"],"default":"明亮画面"},"$preview":{"width":1920,"height":1080}}'>
 class Component extends DCLogic {
   componentDidMount() {
     if (this.loopFn) return;
@@ -73,8 +73,10 @@ class Component extends DCLogic {
     // Everything below is measured from the component's top-left, in design pixels.
     // Cards and pills share one content column, x 20–460, and one set of inner columns (rank, avatar, name, gift, count).
     const L = { W: 480, CX: 20, CW: 440, ROW_X: 20, ROW_W: 440, ROW_H: 50, PITCH: 60,
-      MZ: 220,          // room above the ribbon for the mascot, who is always there
+      MZ: 220,          // room above the ribbon for the mascot; with her switched off the list moves up into it
+      NO_MZ: 8,
       MIN_H: 820,       // the mascot, the ribbon, the top three and three rows; a shorter page scales the whole board down
+      MIN_H_NO: 608,    // the same without the mascot
       BANNER_C: 40, CARDS_Y: 92, ROWS_Y: 416, BOTTOM: 12,
       COL: { rank: 62, avatar: 148, name: 192, gift: 376, count: 442 } };
     const CARDS = [{ y: 0, h: 98 }, { y: 110, h: 90 }, { y: 212, h: 90 }];
@@ -231,14 +233,14 @@ class Component extends DCLogic {
     if (S.scene) S.scene.destroy({ children: true });
     for (const k of ['backSprite', 'popSprite', 'fxSprite']) if (S[k]) S[k].destroy();
     // Width sets the scale, unless the page is too short for the minimum board; then height does and the board centres.
-    const [W, H] = C.stage, [sbx, by, bw, bh] = C.box, s = Math.min(bw / L.W, bh / L.MIN_H), HD = bh / s, bx = sbx + (bw - L.W * s) / 2;
+    const mascotOn = C.mascot !== '关闭' && !!S.tex.idle;
+    const [W, H] = C.stage, [sbx, by, bw, bh] = C.box, s = Math.min(bw / L.W, bh / (mascotOn ? L.MIN_H : L.MIN_H_NO)), HD = bh / s, bx = sbx + (bw - L.W * s) / 2;
     if (S.app.renderer.width !== W || S.app.renderer.height !== H) S.app.renderer.resize(W, H);
     S.back = S.mk(W, H, () => {}); S.pop = S.mk(W, H, () => {}); S.fx = S.mk(W, H, () => {});
     S.backTex = PIXI.Texture.from(S.back); S.popTex = PIXI.Texture.from(S.pop); S.fxTex = PIXI.Texture.from(S.fx);
     S.backSprite = new P.Sprite(S.backTex); S.popSprite = new P.Sprite(S.popTex); S.fxSprite = new P.Sprite(S.fxTex); S.backSprite.blendMode = S.fxSprite.blendMode = 'add';
     S.app.stage.addChild(S.backSprite);
-    const mascotOn = !!S.tex.idle;
-    const top = L.MZ;
+    const top = mascotOn ? L.MZ : L.NO_MZ;
     const rowsY = top + L.ROWS_Y, viewH = HD - rowsY - L.BOTTOM;
     Object.assign(S, { W, H, box: [bx, by], s, HD, top, rowsY, viewH, mascotOn });
 
@@ -359,7 +361,8 @@ class Component extends DCLogic {
     else for (const sl of S.slots) sl.plate.alpha = sl.num.alpha = 1;
 
     const G = {};
-    const spriteHome = [L.W / 2 + 118, S.top - 150];
+    // Beside the mascot's shoulder; with her switched off the sprite sits on the ribbon's right end.
+    const spriteHome = S.mascotOn ? [L.W / 2 + 118, S.top - 150] : [448, S.top + 34];
     S.spriteAt = spriteHome;
     let spriteSpin = 0, blink = (t % 4500) < 140, cheerA = 0, hop = 0, spritePulse = 0;
     for (const e of S.entries) {
@@ -472,7 +475,7 @@ class Component extends DCLogic {
           burst(37, c[0], c[1], 1620, 12, 1100, 170);
           // The cheer fills the space above the ribbon: slow rays and a halo behind her, confetti and stars thrown up
           // from behind the ribbon, a shine running along the ribbon and a ring of sparkles round the sprite.
-          const mc = [L.W / 2, S.top - 96], ray = k(880, 1080, u) * (1 - k(2500, 3100, u));
+          const mc = [L.W / 2, S.top - 96], ray = S.mascotOn ? k(880, 1080, u) * (1 - k(2500, 3100, u)) : 0;
           if (ray > 0) {
             bk.save(); bk.translate(mc[0], mc[1]); bk.rotate(u * 0.0004);
             for (let i = 0; i < 14; i++) {
@@ -484,7 +487,7 @@ class Component extends DCLogic {
             bk.fillStyle = halo; bk.beginPath(); bk.arc(0, 0, 150, 0, Math.PI * 2); bk.fill(); bk.restore();
           }
           const C0 = 950, life = 2300;
-          if (u >= C0 && u < C0 + life) {
+          if (S.mascotOn && u >= C0 && u < C0 + life) {
             const tt = (u - C0) / 1000, fade = 1 - k(C0 + life * 0.7, C0 + life, u), cols = ['#FFD36B', '#FFFFFF', '#6F86FF', '#FF9EC4', '#9FE3FF'];
             for (let i = 0; i < 70; i++) {
               const x0 = 150 + 180 * rnd(i, 71), vx = (rnd(i, 72) - 0.5) * 560, vy = -(560 + 480 * rnd(i, 73));
@@ -498,7 +501,7 @@ class Component extends DCLogic {
           const sh = k(950, 1350, u);
           if (sh > 0 && sh < 1) { const x = lerp(40, 440, io(sh)), y0 = S.top + 8, gr = fx.createLinearGradient(x - 40, 0, x + 40, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); fx.fillStyle = gr; fx.beginPath(); fx.moveTo(x - 30, y0); fx.lineTo(x + 50, y0); fx.lineTo(x + 30, y0 + 64); fx.lineTo(x - 50, y0 + 64); fx.closePath(); fx.fill(); }
           const ring = k(950, 1150, u) * (1 - k(1500, 1750, u));
-          if (ring > 0) for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + u * 0.006; sparkle(S.spriteAt[0] + Math.cos(a) * 46, S.spriteAt[1] + Math.sin(a) * 40, 0.32, ring); }
+          if (S.mascotOn && ring > 0) for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + u * 0.006; sparkle(S.spriteAt[0] + Math.cos(a) * 46, S.spriteAt[1] + Math.sin(a) * 40, 0.32, ring); }
         }
       }
     }
@@ -508,8 +511,8 @@ class Component extends DCLogic {
     if (S.idle) { S.idle.alpha = 1 - (S.cheer ? cheerA : 0); }
     if (S.cheer) S.cheer.alpha = cheerA;
     S.sprite.texture = blink ? S.tex.spriteBlink : S.tex.sprite;
-    S.sprite.position.set(spriteHome[0], spriteHome[1] + 6 * Math.sin(t * 0.0016) + hop);
-    S.sprite.rotation = 0.08 * Math.sin(t * 0.0011) + spriteSpin; S.sprite.scale.set(0.4 * (1 + 0.25 * spritePulse));
+    S.sprite.position.set(spriteHome[0], spriteHome[1] + (S.mascotOn ? 6 * Math.sin(t * 0.0016) + hop : 2 * Math.sin(t * 0.0016)));
+    S.sprite.rotation = 0.08 * Math.sin(t * 0.0011) + spriteSpin; S.sprite.scale.set((S.mascotOn ? 0.4 : 0.28) * (1 + 0.25 * spritePulse));
     for (const g of [bk, pop, fx]) { g.restore(); g.globalCompositeOperation = 'source-over'; }
     S.backTex.source.update(); S.popTex.source.update(); S.fxTex.source.update();
   }
@@ -518,15 +521,15 @@ class Component extends DCLogic {
     const D = this.data();
     const room = this.props.room ?? '明亮画面', scene = this.props.scene ?? '演示', pause = this.props.pause ?? '播放';
     const envName = this.props.env ?? '横屏·右', env = D.ENV[envName] || D.ENV['横屏·右'];
-    const outline = this.props.outline !== false && this.props.outline !== 'false';
+    const mascot = this.props.mascot ?? '显示', outline = this.props.outline !== false && this.props.outline !== 'false';
     const speed = { '1 倍': 1, '0.5 倍': 0.5, '0.25 倍': 0.25 }[this.props.speed ?? '1 倍'];
     const pauseAt = { '播放': null, '平时': 600, '新上榜·飞入': 1520, '新上榜·展开': 1840, '加数': 3330, '超车': 5520, '新第一·光带': 8900, '新第一·欢呼': 9300 }[pause];
     const [stageW, stageH] = env.stage, [boxX, boxY, boxW, boxH] = env.box;
-    this.cfg = { scene, stage: env.stage, box: env.box, layout: [scene, envName].join('|'), cycle: scene === '太长滚动' ? 24000 : 13000, speed, pauseAt };
-    const scale = Math.round(Math.min(boxW / D.L.W, boxH / D.L.MIN_H) * 100) / 100;
+    this.cfg = { scene, stage: env.stage, box: env.box, mascot, layout: [scene, envName, mascot].join('|'), cycle: scene === '太长滚动' ? 24000 : 13000, speed, pauseAt };
+    const scale = Math.round(Math.min(boxW / D.L.W, boxH / (mascot === '关闭' ? D.L.MIN_H_NO : D.L.MIN_H)) * 100) / 100;
     return {
       stageW, stageH, boxX, boxY, boxW, boxH, labelY: Math.max(4, boxY - 28), outline,
-      boxLabel: '浏览器素材 ' + boxW + ' × ' + boxH + (scale > 1 ? '（同一组件放大 ' + scale + ' 倍）' : scale < 1 ? '（太矮，整张榜缩到 ' + scale + ' 倍居中）' : ''),
+      boxLabel: '浏览器素材 ' + boxW + ' × ' + boxH + (scale > 1 ? '（同一组件放大 ' + scale + ' 倍）' : scale < 1 ? '（太矮，整张榜缩到 ' + scale + ' 倍居中）' : '') + (mascot === '关闭' ? ' · 关闭看板娘' : ''),
       stageLabel: env.label + ' · 礼物榜所在的页面本身透明',
       bg: room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#2C3644',
       mock: room !== '透明', photo: room === '明亮画面',
