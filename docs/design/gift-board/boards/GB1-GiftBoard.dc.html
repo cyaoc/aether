@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>GB1 星夜应援礼物榜</title>
+<script src="./support.js"></script>
+<script src="/_blob/017bad25925e8b86b270eb3a65ed7fff"></script>
+<script src="/_blob/4e96fe4a1953a4100f9922f45ab6641a"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+@font-face{font-family:'Noto Sans SC';font-weight:500;src:url('/_blob/32c8462cf1c8872aefca109c033c67a6') format('woff2')}
+@font-face{font-family:'Noto Sans SC';font-weight:800;src:url('/_blob/001d47a8cd1cd133407b1a4360b5b6f2') format('woff2')}
+@font-face{font-family:'Playfair Num';font-style:italic;font-weight:800;src:url('/_blob/39f25f52ef5f8ee9867814a38aefbe7b') format('woff2')}
+</style>
+</helmet>
+<div id="gb1-root" style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: {{bg}}">
+  <sc-if value="{{mock}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; inset: 0; background: {{mockBg}}"></div>
+    <sc-if value="{{photo}}" hint-placeholder-val="{{true}}">
+      <img src="/_blob/552189aaefafefb9ecabdea565a88ccf" alt="" style="position: absolute; inset: 0; width: 1920px; height: 1080px; object-fit: cover">
+    </sc-if>
+    <sc-if value="{{box}}" hint-placeholder-val="{{false}}">
+      <div style="position: absolute; left: 260px; top: 260px; width: 700px; height: 460px; border-radius: 28px; background: {{mockBox}}"></div>
+    </sc-if>
+    <span style="position: absolute; left: 48px; top: 20px; font-family: 'PingFang SC', sans-serif; font-size: 18px; color: {{mockInk}}">直播画面（示意）· 礼物榜所在的页面本身透明</span>
+  </sc-if>
+  <canvas id="gb1-gl" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"scene":{"editor":"enum","options":["演示","太长滚动"],"default":"演示"},"pause":{"editor":"enum","options":["播放","平时","新上榜·飞入","新上榜·展开","加数","超车","新第一·光带","新第一·欢呼"],"default":"播放"},"mascot":{"editor":"enum","options":["显示","关闭"],"default":"显示"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["明亮画面","示意画面","浅色房间","深色房间","透明"],"default":"明亮画面"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    if (this.loopFn) return;
+    this.loopFn = () => { this.tick(); requestAnimationFrame(this.loopFn); };
+    requestAnimationFrame(this.loopFn);
+  }
+
+  data() {
+    if (this.D) return this.D;
+    const GIFT = { cyc: 'f3354966376e926d73d4ef00c78df1c7', balloon: 'f2fcd3a85fbc41231fae4a35940a23a1', wing: 'e3ec38bc23126827e33b8c7a65449e75', praise: 'f9b2c715d9df5188b59e63ec38d16fa9', bouquet: 'ef088eca47c338c3286aa905508d6abe', dream: 'a77dab6252d59748f4ff903c352d8fb6', cheers: '18a203ffa6cc733cedf069f624325064', letter: '1b91ff51f4a341b9c0a23dc8a53f9191', ship: 'ba08efe9afbea20078b924687d9e2fbf', crystal: 'be6cd7f508867c1ec81ff40d878608c5', guardwing: '83f7622edba067976fc4db75a5905ce1', bkela: 'f77c3f6167d9c01d00c8886622fc7c85', boat: '5e1690f04a31c0c7717907396c33abe5' };
+    // B站's guard_level: 1 总督, 2 提督, 3 舰长. Frames come from roomGiftList guard_resources, badges from icon-guard{n}.png.
+    const FRAME = { 1: 'ccd797bfce90a7d064e089fd1177c668', 2: '62905c47bea70bd17e01053ff703f13b', 3: '18dcabfa80ce8d372993c5c61f6b59cc' };
+    const BADGE = { 1: 'af70d19449786f7ded08dd9b86520a67', 2: 'bca265a20135968fffe716ed1ac17eaa', 3: '7d69b48acd01ec64d5368655161d461a' };
+    const MASCOT = { idle: '759e48f0236b4456a3425eb7798cd3fb', cheer: '0fd535cdbdaa4e35341c7ca9de0d34d5' }, BANNER = '1418e5ad9910b79ce6f80c5f11f17b21';
+    // Sample avatars for the board only; on stream every row shows the viewer's own avatar.
+    const AVATAR = ['e222aabd9a0c1c5541a86b7b4d82f942', 'dafde21f1d9c5b68ff7f751f20739923', 'c620d7f4bc5af562ce5ffd444676ff76', '6d0f7caff30f5aeb137edd01a4566882', '232103fa1a828cf6abfaa0f38f77ee18', 'fe74bf47e64cdfb2bcb9e7b82e0b5fb9', '9a8ff6273af0377beb655e5a706329d3', 'bcd5c5164273cf384ca19b7a4a0048d8', 'e6fca7276cf94c054a7f9f49c542d0c9', '8a343577fdd5c70379a9198a27823463', 'e5e91c992fb93d22181fc4360158ffb8', 'b983e6ae5179fd006a444e444faa6b9f', '7c06c75d684972b87cea95a8875f334e', '4f310e5da043acede3bf691558878db3', '16c73bb7fedd325159647c3d6cc5c0de', '0f4430b615cac01b7810b7521a933def'];
+    // [id, nickname, gift key or guard level, unit price in 电池, count]
+    const DEMO = [
+      ['lily', '月下Lily', 'cyc', 12450, 1], ['ryu', '龍騰雲海', 'balloon', 2000, 5], ['sakura', 'さくら月影', 3, 1980, 1],
+      ['yuzu', '柚子不酸', 'wing', 1000, 1], ['sour', 'Yuzu_Sour', 'praise', 330, 2], ['rain', '夜雨听风', 'dream', 199, 3],
+      ['koi', '星屑Koi', 'cheers', 66, 8], ['egret', '白鹭', 'letter', 52, 5], ['kimetsu', '鬼滅の刃推し', 'bouquet', 220, 4]
+    ];
+    const EVENTS = [
+      { at: 1000, kind: 'new', id: 'kimetsu' }, { at: 3200, kind: 'more', id: 'koi', n: 9 },
+      { at: 5000, kind: 'pass', id: 'sour', n: 3 }, { at: 7600, kind: 'top', id: 'ryu', n: 7 }
+    ];
+    const LONG = [
+      ['ryu', '龍騰雲海', 1, 199980, 1], ['lily', '月下Lily', 'ship', 29990, 1], ['kaze', 'Kaze_09', 2, 19980, 1],
+      ['yuzu', '柚子不酸', 'cyc', 12450, 1], ['sakura', 'さくら月影', 3, 1980, 3], ['sour', 'Yuzu_Sour', 'guardwing', 2000, 2],
+      ['kimetsu', '鬼滅の刃推し', 'balloon', 2000, 2], ['rain', '夜雨听风', 3, 1580, 1], ['koi', '星屑Koi', 'crystal', 1000, 1],
+      ['egret', '白鹭', 'wing', 1000, 1], ['mochi', 'Mochi团子', 'praise', 330, 3], ['lime', '青柠', 'bouquet', 220, 4],
+      ['lane', '南巷', 'dream', 199, 4], ['tomato', '番茄炒蛋', 'bkela', 99, 6], ['peach', '桃桃乌龙', 'letter', 52, 9],
+      ['wind', '晚风', 'boat', 52, 5]
+    ];
+    // No panel: a title ribbon, three floating cards, then floating pills on a 60 px pitch, in list-local pixels.
+    const L = { PX: 1440, PY: 118, PW: 440, PH: 784, CX: 0, CW: 440, ROWS_Y: 424, ROW_X: 20, ROW_W: 420, ROW_H: 50, PITCH: 60, VIEW_H: 360 };
+    const CARDS = [{ y: 100, h: 98 }, { y: 210, h: 90 }, { y: 312, h: 90 }];
+    // Gold, silver-white and ice-blue rims: the cards also differ in size and numeral, never in hue alone.
+    const RIM = [
+      { stops: ['#fff3c8', '#f6cb62', '#d8962a'], glow: 'rgba(255,196,80,0.85)', num: ['#fff6d6', '#f7c95a', '#c9851d'], ring: 0xf6cb62 },
+      { stops: ['#ffffff', '#e3e9f4', '#a9b5cb'], glow: 'rgba(225,235,255,0.7)', num: ['#ffffff', '#e2e8f3', '#9ea9bf'], ring: 0xe3e9f4 },
+      { stops: ['#eaf3ff', '#9ec6ff', '#5b8cff'], glow: 'rgba(120,170,255,0.8)', num: ['#f2f8ff', '#a8ccff', '#5b8cff'], ring: 0x9ec6ff }
+    ];
+    this.D = { GIFT, FRAME, BADGE, MASCOT, BANNER, AVATAR, DEMO, EVENTS, LONG, L, CARDS, RIM };
+    return this.D;
+  }
+
+  tick() {
+    const canvas = document.getElementById('gb1-gl'), root = document.getElementById('gb1-root');
+    if (!canvas || !root || !this.cfg || !window.PIXI) return;
+    if (canvas !== this.canvas && !this.booting) { this.booting = true; this.boot(canvas).finally(() => { this.booting = false; }); }
+    if (!this.S || this.S.canvas !== canvas) return;
+    if (root !== this.root || this.cfg !== this.boundCfg) {
+      this.root = root;
+      if (!this.boundCfg || this.boundCfg.scene !== this.cfg.scene || !this.S.scene) this.build(this.cfg.scene);
+      this.boundCfg = this.cfg;
+      for (const a of root.getAnimations()) a.cancel();
+      const span = this.cfg.cycle / this.cfg.speed;
+      this.master = root.animate([{ outlineColor: 'transparent' }, { outlineColor: 'transparent' }], { duration: span, iterations: Infinity });
+      if (this.cfg.pauseAt != null) { this.master.pause(); this.master.currentTime = this.cfg.pauseAt / this.cfg.speed; }
+    }
+  }
+
+  async boot(canvas) {
+    const P = PIXI, D = this.data(), L = D.L;
+    this.canvas = canvas;
+    if (this.S) { this.S.app.destroy(); this.S = null; }
+    const app = new P.Application();
+    await app.init({ canvas, width: 1920, height: 1080, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: 1 });
+    const load = id => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = '/_blob/' + id; });
+    const ids = { ...D.GIFT, idle: D.MASCOT.idle, cheer: D.MASCOT.cheer, banner: D.BANNER };
+    D.AVATAR.forEach((id, i) => { ids['av' + i] = id; });
+    for (const n of [1, 2, 3]) { ids['frame' + n] = D.FRAME[n]; ids['badge' + n] = D.BADGE[n]; }
+    const img = {};
+    await Promise.all(Object.entries(ids).map(async ([k, id]) => { img[k] = await load(id); }));
+    await Promise.all([document.fonts.load('500 28px "Noto Sans SC"', '月下Lily龍'), document.fonts.load('800 44px "Noto Sans SC"', '礼物榜×0123456789'), document.fonts.load('italic 800 60px "Playfair Num"', '0123456789')]);
+
+    const mk = (w, h, draw) => { const c = document.createElement('canvas'); c.width = Math.ceil(w); c.height = Math.ceil(h); draw(c.getContext('2d'), c); return c; };
+    const T = c => P.Texture.from(c);
+    const rr = (g, x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+    const grad = (g, x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach((c, i) => gr.addColorStop(Array.isArray(c) ? c[0] : i / (stops.length - 1), Array.isArray(c) ? c[1] : c)); return gr; };
+    const seeded = s => { let h = 2166136261; for (const ch of String(s)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; }; };
+    const fit = (g, text, maxW) => { if (g.measureText(text).width <= maxW) return text; let s = text; while (s.length > 1 && g.measureText(s + '…').width > maxW) s = s.slice(0, -1); return s + '…'; };
+    const SANS = '"Noto Sans SC", "PingFang SC", sans-serif', NUM = '"Playfair Num", Georgia, serif';
+    const PAD = 40;  // room around glass shapes for their outer glow
+
+    const titleTex = T(mk(300, 80, g => {
+      g.font = '800 40px ' + SANS; g.textAlign = 'center'; g.textBaseline = 'middle'; g.letterSpacing = '6px';
+      g.shadowColor = 'rgba(16,24,110,0.9)'; g.shadowBlur = 8; g.shadowOffsetY = 2; g.fillStyle = '#ffffff'; g.fillText('礼物榜', 153, 42);
+      g.shadowColor = 'rgba(190,210,255,0.9)'; g.shadowBlur = 14; g.shadowOffsetY = 0; g.fillText('礼物榜', 153, 42);
+    }));
+    // Floating frosted cards: a dark translucent body so white text reads on bright scenes, a frost of light over it,
+    // the tier's metal rim with its glow, and a soft shadow underneath so the card sits above the stream.
+    const shadow = (g, x, y, w, h, r, a) => { g.save(); g.filter = 'blur(9px)'; g.fillStyle = 'rgba(6,10,40,' + a + ')'; rr(g, x, y + 7, w, h, r); g.fill(); g.restore(); };
+    const cardTex = i => T(mk(L.CW + PAD * 2, D.CARDS[i].h + PAD * 2, g => {
+      const w = L.CW, h = D.CARDS[i].h, R = D.RIM[i];
+      g.translate(PAD, PAD);
+      shadow(g, 4, 2, w - 8, h - 4, 18, 0.45);
+      g.save(); rr(g, 0, 0, w, h, 18); g.clip();
+      g.fillStyle = 'rgba(20,28,96,0.5)'; g.fillRect(0, 0, w, h);
+      g.fillStyle = grad(g, 0, 0, 0, h, ['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.12)']); g.fillRect(0, 0, w, h);
+      const tint = [['rgba(255,196,90,0.42)', 'rgba(255,196,90,0)'], ['rgba(235,242,255,0.26)', 'rgba(235,242,255,0)'], ['rgba(110,165,255,0.34)', 'rgba(110,165,255,0)']][i];
+      const tg = g.createRadialGradient(60, h / 2, 6, 60, h / 2, w * 0.7); tg.addColorStop(0, tint[0]); tg.addColorStop(1, tint[1]); g.fillStyle = tg; g.fillRect(0, 0, w, h);
+      g.fillStyle = grad(g, 0, 0, 0, h * 0.45, ['rgba(255,255,255,0.20)', 'rgba(255,255,255,0)']); g.fillRect(0, 0, w, h * 0.45);
+      g.restore();
+      g.shadowColor = R.glow; g.shadowBlur = i === 0 ? 22 : 15;
+      g.lineWidth = i === 0 ? 2.8 : 2.2; g.strokeStyle = grad(g, 0, 0, w, h, R.stops); rr(g, 1.2, 1.2, w - 2.4, h - 2.4, 17); g.stroke(); g.stroke();
+      g.shadowBlur = 0; g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,0.32)'; rr(g, 5, 5, w - 10, h - 10, 13); g.stroke();
+    }));
+    const rowTex = T(mk(L.ROW_W + PAD * 2, L.ROW_H + PAD * 2, g => {
+      const w = L.ROW_W, h = L.ROW_H;
+      g.translate(PAD, PAD);
+      shadow(g, 4, 0, w - 8, h - 2, h / 2, 0.4);
+      rr(g, 0, 0, w, h, h / 2); g.fillStyle = grad(g, 0, 0, 0, h, ['rgba(30,42,140,0.66)', 'rgba(14,20,80,0.66)']); g.fill();
+      g.fillStyle = grad(g, 0, 0, 0, h / 2, ['rgba(255,255,255,0.16)', 'rgba(255,255,255,0)']); rr(g, 2, 2, w - 4, h / 2, h / 2 - 2); g.fill();
+      g.shadowColor = 'rgba(150,180,255,0.7)'; g.shadowBlur = 8;
+      g.lineWidth = 1.6; g.strokeStyle = grad(g, 0, 0, w, 0, ['rgba(225,235,255,0.95)', 'rgba(170,195,255,0.75)', 'rgba(225,235,255,0.9)']); rr(g, 0.8, 0.8, w - 1.6, h - 1.6, h / 2 - 0.8); g.stroke();
+    }));
+    // Rank numerals: big slanted italics; the top three get a thin slanted divider after them.
+    const numTex = (n, stops, size, slash) => T(mk(size * (slash ? 1.9 : 1.4), size * 1.4, g => {
+      g.font = 'italic 800 ' + size + 'px ' + NUM; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.shadowColor = 'rgba(10,16,80,0.7)'; g.shadowBlur = 10; g.fillStyle = grad(g, 0, size * 0.25, 0, size * 1.15, stops); g.fillText(String(n), size * 0.7, size * 0.74);
+      if (slash) { g.shadowBlur = 0; g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 2; g.beginPath(); g.moveTo(size * 1.42, size * 0.42); g.lineTo(size * 1.24, size * 1.08); g.stroke(); }
+    }));
+    const nameTex = (text, maxW) => {
+      const probe = mk(1, 1, () => {}).getContext('2d'); probe.font = '500 28px ' + SANS;
+      const s = fit(probe, text, maxW), w = probe.measureText(s).width;
+      return T(mk(w + 16, 48, g => { g.font = '500 28px ' + SANS; g.textBaseline = 'middle'; g.shadowColor = 'rgba(10,16,90,0.8)'; g.shadowBlur = 6; g.fillStyle = '#ffffff'; g.fillText(s, 8, 25); }));
+    };
+    const countCache = {};
+    const countTex = n => countCache[n] || (countCache[n] = T(mk(120, 48, g => {
+      g.font = '800 26px ' + SANS; g.textAlign = 'right'; g.textBaseline = 'middle'; g.shadowColor = 'rgba(10,16,90,0.8)'; g.shadowBlur = 6; g.fillStyle = '#ffffff';
+      g.fillText('×' + n, 112, 25);
+    })));
+    const PALETTE = [['#8fb2ff', '#3a4fd8'], ['#ffc2d9', '#d0568a'], ['#a8f0e0', '#2c9c86'], ['#ffd9a0', '#d4862e'], ['#d6c2ff', '#7a4fd8'], ['#b9e4ff', '#2f86c9']];
+    const avatarTex = text => T(mk(128, 128, g => {
+      const r = seeded(text), [a, b] = PALETTE[Math.floor(r() * PALETTE.length)];
+      g.fillStyle = grad(g, 20, 10, 108, 118, [a, b]); g.beginPath(); g.arc(64, 64, 62, 0, Math.PI * 2); g.fill();
+      g.font = '800 58px ' + SANS; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ffffff'; g.fillText([...text][0], 64, 68);
+    }));
+    // The app's chat-bubble sprite: glossy white, two upright royal-blue pill eyes, no mouth.
+    const spriteTex = blink => T(mk(160, 160, g => {
+      g.translate(80, 76);
+      g.shadowColor = 'rgba(160,190,255,0.9)'; g.shadowBlur = 24; g.fillStyle = '#ffffff';
+      rr(g, -54, -42, 108, 84, 30); g.fill();
+      g.beginPath(); g.moveTo(-36, 30); g.lineTo(-46, 58); g.lineTo(-12, 38); g.closePath(); g.fill();
+      g.shadowBlur = 0; g.fillStyle = grad(g, -54, -42, 54, 42, ['#ffffff', '#e8eeff']); rr(g, -54, -42, 108, 84, 30); g.fill();
+      g.fillStyle = '#3d52f0';
+      for (const x of [-18, 18]) { if (blink) { rr(g, x - 7, -2, 14, 6, 3); g.fill(); } else { rr(g, x - 7, -20, 14, 36, 7); g.fill(); } }
+    }));
+    const starTex = T(mk(128, 128, g => {
+      const c = 64, glow = g.createRadialGradient(c, c, 0, c, c, 60); glow.addColorStop(0, 'rgba(255,255,255,0.9)'); glow.addColorStop(0.2, 'rgba(200,215,255,0.35)'); glow.addColorStop(1, 'rgba(160,180,255,0)');
+      g.fillStyle = glow; g.fillRect(0, 0, 128, 128);
+      g.fillStyle = '#fff'; g.beginPath(); g.moveTo(c, 6); g.quadraticCurveTo(c + 5, c - 5, c + 58, c); g.quadraticCurveTo(c + 5, c + 5, c, 122); g.quadraticCurveTo(c - 5, c + 5, c - 58, c); g.quadraticCurveTo(c - 5, c - 5, c, 6); g.fill();
+    }));
+    const fadeTex = T(mk(L.PW, L.VIEW_H + 8, g => { const h = L.VIEW_H + 8, gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(24 / h, '#fff'); gr.addColorStop(1 - 36 / h, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, L.PW, h); }));
+    // Cut-out mascot poses, trimmed to their opaque area.
+    const trim = im => { if (!im) return null; const c = mk(im.width, im.height, g => g.drawImage(im, 0, 0)), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let x0 = c.width, y0 = c.height, x1 = 0, y1 = 0; for (let y = 0; y < c.height; y += 2) for (let x = 0; x < c.width; x += 2) if (d[(y * c.width + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return T(mk(x1 - x0 + 2, y1 - y0 + 2, g => g.drawImage(c, -x0, -y0))); };
+
+    const tex = {
+      title: titleTex, cards: [0, 1, 2].map(cardTex), row: rowTex, star: starTex, fade: fadeTex,
+      sprite: spriteTex(false), spriteBlink: spriteTex(true), idle: trim(img.idle), cheer: trim(img.cheer),
+      cardNums: [0, 1, 2].map(i => numTex(i + 1, D.RIM[i].num, 70, true)), rowNums: {}, gifts: {}, frames: {}, badges: {},
+      banner: img.banner ? trim(img.banner) : null, avatars: D.AVATAR.map((_, i) => img['av' + i] ? P.Texture.from(img['av' + i]) : null)
+    };
+    for (let n = 4; n <= 40; n++) tex.rowNums[n] = numTex(n, ['#ffffff', '#dfe6ff', '#b8c6ff'], 30);
+    // B站's images can fail to load; a missing one draws nothing rather than stopping the board.
+    const remote = im => im ? P.Texture.from(im) : P.Texture.EMPTY;
+    for (const k of Object.keys(D.GIFT)) tex.gifts[k] = remote(img[k]);
+    for (const n of [1, 2, 3]) { tex.frames[n] = remote(img['frame' + n]); tex.badges[n] = remote(img['badge' + n]); }
+
+    const back = mk(1920, 1080, () => {}), fx = mk(1920, 1080, () => {});
+    const backTex = T(back), fxTex = T(fx), backSprite = new P.Sprite(backTex), fxSprite = new P.Sprite(fxTex);
+    backSprite.blendMode = 'add'; fxSprite.blendMode = 'add';
+    app.stage.addChild(backSprite);
+    this.S = { app, canvas, tex, back, fx, backTex, fxTex, backSprite, fxSprite, nameTex, countTex, avatarTex, seeded, PAD };
+    this.S.avatarOf = (name, i) => tex.avatars[i % tex.avatars.length] || avatarTex(name);
+    this.boundCfg = null;
+    app.ticker.add(() => this.frame());
+  }
+
+  build(scene) {
+    const P = PIXI, S = this.S, D = this.data(), L = D.L, PAD = S.PAD;
+    if (S.scene) S.scene.destroy({ children: true });
+    const root = new P.Container(); S.app.stage.addChildAt(root, 1);
+    const panel = new P.Container(); panel.position.set(L.PX, L.PY); root.addChild(panel);
+    if (S.tex.banner) { const b = new P.Sprite(S.tex.banner); b.anchor.set(0.5); b.scale.set(380 / S.tex.banner.width); b.position.set(L.PW / 2, 46); panel.addChild(b); }
+    const title = new P.Sprite(S.tex.title); title.anchor.set(0.5); title.position.set(L.PW / 2, 44); panel.addChild(title);
+    const cards = D.CARDS.map((c, i) => {
+      const g = new P.Container(); g.position.set(L.CX, c.y); panel.addChild(g);
+      const plate = new P.Sprite(S.tex.cards[i]); plate.position.set(-PAD, -PAD); g.addChild(plate);
+      const flare = new P.Sprite(S.tex.cards[i]); flare.position.set(-PAD, -PAD); flare.blendMode = 'add'; flare.alpha = 0; g.addChild(flare);
+      const num = new P.Sprite(S.tex.cardNums[i]); num.anchor.set(0.37, 0.5); num.position.set(42, c.h / 2 + 2); num.scale.set(i === 0 ? 0.92 : 0.84); g.addChild(num);
+      let star = null;
+      if (i === 0) { star = new P.Sprite(S.tex.star); star.anchor.set(0.5); star.blendMode = 'add'; star.position.set(L.CW - 8, 6); star.scale.set(0.32); g.addChild(star); }
+      return { g, plate, flare, num, star };
+    });
+    const long = scene === '太长滚动';
+    const list = long ? D.LONG : D.DEMO;
+    const rows = new P.Container(); panel.addChild(rows);
+    const rowCount = long ? list.length - 3 : 6, copies = long ? 2 : 1, slots = [];
+    for (let c = 0; c < copies; c++) for (let k = 0; k < rowCount; k++) {
+      const plate = new P.Sprite(S.tex.row), num = new P.Sprite(S.tex.rowNums[k + 4]); num.anchor.set(0.5);
+      rows.addChild(plate, num); slots.push({ k, c, plate, num });
+    }
+    if (long) { const fade = new P.Sprite(S.tex.fade); fade.position.set(0, L.ROWS_Y - 4); panel.addChild(fade); rows.mask = fade; }
+    const entriesTop = new P.Container(); entriesTop.sortableChildren = true; panel.addChild(entriesTop);
+    const entriesRows = new P.Container(); rows.addChild(entriesRows);
+
+    const make = (row, copy, layer) => {
+      const [id, name, gift, price, count] = row, guard = typeof gift === 'number' ? gift : 0;
+      const c = new P.Container(); layer.addChild(c);
+      const plate = new P.Sprite(S.tex.row); plate.alpha = 0; c.addChild(plate);
+      const ring = new P.Graphics(); c.addChild(ring);
+      const av = new P.Sprite(S.avatarOf(name, list.indexOf(row))); av.anchor.set(0.5); c.addChild(av);
+      let frame = null;
+      if (guard) { frame = new P.Sprite(S.tex.frames[guard]); frame.anchor.set(0.4975, 0.505); c.addChild(frame); }
+      // Cards leave a name 146 px at 29 px type, rows 214 px at 23 px; both textures are drawn at 28 px.
+      const nm = new P.Sprite(S.nameTex(name, 146 * 28 / 29)); nm.anchor.set(0, 0.5); c.addChild(nm);
+      const nmRow = new P.Sprite(S.nameTex(name, 214 * 28 / 23)); nmRow.anchor.set(0, 0.5); c.addChild(nmRow);
+      const icon = new P.Sprite(guard ? S.tex.badges[guard] : S.tex.gifts[gift]); icon.anchor.set(0.5); c.addChild(icon);
+      const cnt = new P.Sprite(S.countTex(count)); cnt.anchor.set(1, 0.5); c.addChild(cnt);
+      const clip = new P.Graphics(); c.addChild(clip);
+      return { id, name, guard, count, copy, c, plate, ring, av, frame, nm, nmRow, icon, cnt, clip };
+    };
+    const entries = long ? list.map((row, i) => i < 3 ? [make(row, 0, entriesTop)] : [make(row, 0, entriesRows), make(row, 1, entriesRows)]).flat() : list.map(row => make(row, 0, entriesTop));
+
+    let evs = [];
+    if (!long) {
+      const value = (counts, id) => list.find(x => x[0] === id)[3] * counts[id];
+      const orderOf = (counts, present) => list.map(r => r[0]).filter(id => present.has(id)).sort((a, b) => value(counts, b) - value(counts, a) || list.findIndex(r => r[0] === a) - list.findIndex(r => r[0] === b));
+      const counts = Object.fromEntries(list.map(r => [r[0], r[4]])), present = new Set(list.map(r => r[0]).filter(id => !D.EVENTS.some(e => e.kind === 'new' && e.id === id)));
+      const slotsOf = order => Object.fromEntries(order.map((id, i) => [id, i]));
+      let order = orderOf(counts, present);
+      S.slot0 = slotsOf(order); S.count0 = { ...counts };
+      for (const e of D.EVENTS) {
+        const prev = slotsOf(order), prevCounts = { ...counts };
+        if (e.kind === 'new') present.add(e.id); else counts[e.id] = e.n;
+        order = orderOf(counts, present);
+        evs.push({ ...e, prev, next: slotsOf(order), prevCounts, counts: { ...counts } });
+      }
+    }
+    // The mascot leans on the panel's lower-left corner, in front of it; the sprite floats by her shoulder.
+    const mascot = new P.Container(); root.addChild(mascot); const MASCOT_H = 430;
+    const idle = S.tex.idle ? new P.Sprite(S.tex.idle) : null, cheer = S.tex.cheer ? new P.Sprite(S.tex.cheer) : null;
+    for (const m of [idle, cheer]) if (m) { m.anchor.set(0.5, 1); m.scale.set(MASCOT_H / m.texture.height); mascot.addChild(m); }
+    const sprite = new P.Sprite(S.tex.sprite); sprite.anchor.set(0.5); sprite.scale.set(0.5); root.addChild(sprite);
+    root.addChild(S.fxSprite);
+    Object.assign(S, { scene: root, panel, cards, rows, slots, rowCount, entries, evs, long, list, mascot, idle, cheer, sprite });
+  }
+
+  geom(s) {
+    const D = this.data(), L = D.L;
+    if (s < 3) {
+      const c = D.CARDS[s], big = s === 0;
+      return { y: c.y, h: c.h, ax: L.CX + 128, ay: c.y + c.h / 2, ar: big ? 33 : 30, nx: L.CX + 172, ny: c.y + c.h / 2, ns: big ? 29 : 27, ix: L.CX + L.CW - 90, iy: c.y + c.h / 2, is: big ? 46 : 42, cx: L.CX + L.CW - 18, cy: c.y + c.h / 2, cs: big ? 1.05 : 0.95, tier: s };
+    }
+    const y = L.ROWS_Y + (s - 3) * L.PITCH;
+    const x = L.ROW_X;
+    return { y, h: L.ROW_H, ax: x + 82, ay: y + L.ROW_H / 2, ar: 19, nx: x + 112, ny: y + L.ROW_H / 2, ns: 23, ix: x + L.ROW_W - 82, iy: y + L.ROW_H / 2, is: 34, cx: x + L.ROW_W - 20, cy: y + L.ROW_H / 2, cs: 0.84, tier: 3 };
+  }
+
+  frame() {
+    const S = this.S, C = this.cfg, D = this.data(), L = D.L, PAD = S.PAD;
+    if (!S || !S.scene || !this.master || !C) return;
+    const span = C.cycle / C.speed, t = ((this.master.currentTime || 0) % span) * C.speed;
+    const k = (a, b, x) => Math.min(1, Math.max(0, (x - a) / (b - a)));
+    const out = p => 1 - Math.pow(1 - p, 3), inq = p => p * p, io = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+    const back = p => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+    const lerp = (a, b, p) => a + (b - a) * p;
+    const lerpG = (a, b, p) => { const o = {}; for (const key in a) o[key] = lerp(a[key], b[key], p); o.tier = p < 0.5 ? a.tier : b.tier; return o; };
+    const rnd = (i, s) => { const x = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return x - Math.floor(x); };
+    const bk = S.back.getContext('2d'), fx = S.fx.getContext('2d');
+    bk.clearRect(0, 0, 1920, 1080); fx.clearRect(0, 0, 1920, 1080);
+    bk.globalCompositeOperation = fx.globalCompositeOperation = 'lighter';
+
+    const loopLen = S.rowCount * L.PITCH + L.PITCH;
+    const scroll = S.long ? (t / C.cycle) * loopLen : 0;
+    const wrapY = y => { if (!S.long) return y; let v = y - scroll; if (v < L.ROWS_Y - loopLen + L.VIEW_H) v += loopLen * 2; return v; };
+    const ev = S.evs.filter(e => t >= e.at).pop(), u = ev ? t - ev.at : 1e9;
+    const filled = S.long ? Infinity : Object.keys(ev ? ev.next : S.slot0).length;
+    for (const sl of S.slots) {
+      const y = wrapY(L.ROWS_Y + sl.k * L.PITCH + sl.c * loopLen);
+      sl.plate.position.set(L.ROW_X - PAD, y - PAD); sl.num.position.set(L.ROW_X + 38, y + L.ROW_H / 2 + 1); sl.num.scale.set(0.9);
+      const shown = (!S.long || (y > L.ROWS_Y - L.PITCH && y < L.ROWS_Y + L.VIEW_H)) && sl.k + 3 < filled;
+      sl.plate.visible = sl.num.visible = shown;
+    }
+    // A new row's slot appears only once its capsule has unfolded there.
+    if (ev && ev.kind === 'new' && u < 1300) { const s = ev.next[ev.id] - 3; for (const sl of S.slots) if (sl.k === s) { sl.plate.visible = sl.num.visible = u > 640; sl.plate.alpha = sl.num.alpha = k(640, 760, u); } }
+    else for (const sl of S.slots) sl.plate.alpha = sl.num.alpha = 1;
+
+    const G = {};
+    S.spriteAt = [L.PX - 250, L.PY + L.PH + 50 - 370];
+    let spriteSpin = 0, blink = (t % 4500) < 140, cheerA = 0, hop = 0, spritePulse = 0;
+    for (const e of S.entries) {
+      let g, visible = true, arc = 0;
+      if (S.long) {
+        const i = S.list.findIndex(r => r[0] === e.id);
+        g = this.geom(i);
+        if (i >= 3) { const y = wrapY(g.y + e.copy * loopLen), dy = y - g.y; for (const key of ['y', 'ay', 'ny', 'iy', 'cy']) g[key] += dy; visible = g.y > L.ROWS_Y - L.PITCH && g.y < L.ROWS_Y + L.VIEW_H; }
+      } else if (!ev) {
+        if (S.slot0[e.id] == null) visible = false; else g = this.geom(S.slot0[e.id]);
+      } else {
+        const a = ev.prev[e.id], b = ev.next[e.id];
+        if (b == null) visible = false;
+        else if (a == null || a === b) g = this.geom(b);
+        else {
+          const riser = e.id === ev.id;
+          const [m0, m1] = ev.kind === 'new' ? [0, 260] : ev.kind === 'pass' ? [200, 800] : [300, 1000];
+          const p = k(m0, m1, u), q = ev.kind === 'new' ? out(p) : riser ? back(p) : io(p);
+          g = lerpG(this.geom(a), this.geom(b), q);
+          if (riser) arc = 26 * Math.sin(Math.PI * Math.min(1, p));
+        }
+      }
+      e.c.visible = visible;
+      if (!visible) continue;
+      G[e.id + e.copy] = g;
+      let count = S.long ? e.count : !ev ? S.count0[e.id] : ev.prevCounts[e.id];
+      let alpha = 1, avS = 1, avA = 1, nameDx = 0, nameA = 1, iconS = 1, iconA = 1, cntS = 1, cntA = 1, open = 1, z = 0, plateA = 0, lift = 1;
+      const pop = (at, before, after) => { if (u < at) { count = before; return; } count = after; const p = k(at, at + 320, u); cntS = 1 + 0.6 * (1 - back(p)) * (p < 1 ? 1 : 0) + (p < 0.25 ? 0.6 * (p / 0.25) : 0) * 0; cntS = p < 0.2 ? lerp(1, 1.6, p / 0.2) : lerp(1.6, 1, back(k(0.2, 1, p))); };
+      if (ev && e.id === ev.id) {
+        z = 10;
+        if (ev.kind === 'new') {
+          count = ev.counts[e.id];
+          open = out(k(620, 860, u)); plateA = k(600, 700, u) * (1 - k(1100, 1300, u));
+          avS = back(k(700, 900, u)); avA = k(700, 780, u);
+          nameDx = -18 * (1 - out(k(760, 980, u))); nameA = k(760, 900, u);
+          iconS = back(k(820, 1020, u)); iconA = k(820, 900, u);
+          cntS = back(k(880, 1080, u)); cntA = k(880, 960, u);
+        } else if (ev.kind === 'more') {
+          pop(0, ev.prevCounts[e.id], ev.counts[e.id]); iconS = 1 + 0.15 * Math.sin(Math.PI * k(0, 300, u)); blink = u < 160;
+        } else if (ev.kind === 'pass') {
+          pop(0, ev.prevCounts[e.id], ev.counts[e.id]); plateA = Math.sin(Math.PI * k(150, 850, u)); lift = 1 + 0.04 * Math.sin(Math.PI * k(200, 800, u));
+        } else if (ev.kind === 'top') {
+          pop(0, ev.prevCounts[e.id], ev.counts[e.id]); plateA = Math.sin(Math.PI * k(250, 1050, u)); lift = 1 + 0.05 * Math.sin(Math.PI * k(300, 1000, u));
+        }
+      } else if (ev && (ev.kind === 'pass' || ev.kind === 'top') && ev.prev[e.id] === ev.next[ev.id]) {
+        alpha = 1 - 0.5 * Math.sin(Math.PI * k(ev.kind === 'pass' ? 200 : 300, ev.kind === 'pass' ? 800 : 1000, u));
+      }
+      if (ev && ev.kind === 'top') { cheerA = k(900, 1020, u) * (1 - k(3000, 3150, u)); hop = -22 * Math.sin(Math.PI * k(900, 1300, u)); spriteSpin = 2 * Math.PI * io(k(950, 1550, u)); }
+      e.c.alpha = alpha; e.c.zIndex = z;
+      const ox = arc;
+      // The riser carries its own capsule so it covers whatever it passes; cards keep their numeral column clear.
+      // The riser's backing takes the shape of the slot it is crossing: a card among the top three, a pill below.
+      e.plate.texture = g.tier < 3 ? S.tex.cards[g.tier] : S.tex.row;
+      e.plate.alpha = plateA; e.plate.position.set((g.tier < 3 ? L.CX : L.ROW_X) - PAD + ox, (g.tier < 3 ? g.y : g.y + (g.h - L.ROW_H) / 2) - PAD);
+      e.ring.clear().circle(g.ax + ox, g.ay, g.ar + 1.5).stroke({ width: g.tier < 3 ? 2.4 : 1.6, color: g.tier < 3 ? D.RIM[g.tier].ring : 0xffffff, alpha: e.guard ? 0 : 0.9 });
+      e.av.position.set(g.ax + ox, g.ay); e.av.width = e.av.height = 2 * g.ar * avS * lift; e.av.alpha = avA;
+      if (e.frame) { e.frame.position.set(g.ax + ox, g.ay); e.frame.width = e.frame.height = (2 * g.ar / 0.7) * avS * lift; e.frame.alpha = avA; }
+      for (const [sp, on] of [[e.nm, g.tier < 3], [e.nmRow, g.tier === 3]]) { sp.position.set(g.nx - 8 * g.ns / 28 + ox + nameDx, g.ny); sp.scale.set(g.ns / 28 * lift); sp.alpha = on ? nameA : 0; }
+      e.icon.position.set(g.ix + ox, g.iy); e.icon.width = e.icon.height = g.is * iconS * lift; e.icon.alpha = iconA;
+      e.cnt.texture = S.countTex(count); e.cnt.position.set(g.cx + ox, g.cy); e.cnt.scale.set(g.cs * cntS * lift); e.cnt.alpha = cntA;
+      if (open < 1) { const x0 = L.CX + ox, w = L.CW * open; e.clip.clear().rect(x0, g.y - 10, w, g.h + 20).fill(0xffffff); e.c.mask = e.clip; }
+      else { e.c.mask = null; e.clip.clear(); }
+    }
+
+    // Light ribbons drifting behind the panel: thin glowing curves, slowly breathing.
+    const ribbon = (ctx, pts, w, a, col) => {
+      if (a <= 0) return;
+      ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; ctx.quadraticCurveTo(pts[i][0], pts[i][1], mx, my); }
+      ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+      for (const [lw, al] of [[w * 6, 0.12], [w * 2.4, 0.3], [w, 0.9]]) { ctx.lineWidth = lw; ctx.strokeStyle = 'rgba(' + col + ',' + a * al + ')'; ctx.stroke(); }
+    };
+    // Idle sparkle on the 1st card, every three seconds.
+    const c0 = S.cards[0], tw = (t % 3000) / 600;
+    c0.star.scale.set(0.3 + 0.16 * (tw < 1 ? Math.sin(Math.PI * tw) : 0)); c0.star.rotation = 0.4 * (tw < 1 ? tw : 0);
+    for (const c of S.cards) c.flare.alpha = 0;
+
+    const sparkle = (x, y, s, a) => { if (a <= 0) return; const r = 26 * s; const gr = fx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,' + a + ')'); gr.addColorStop(0.25, 'rgba(190,210,255,' + a * 0.4 + ')'); gr.addColorStop(1, 'rgba(150,180,255,0)'); fx.fillStyle = gr; fx.beginPath(); fx.arc(x, y, r, 0, Math.PI * 2); fx.fill();
+      fx.fillStyle = 'rgba(255,255,255,' + a + ')'; fx.beginPath(); fx.moveTo(x, y - r); fx.quadraticCurveTo(x + r * 0.08, y - r * 0.08, x + r, y); fx.quadraticCurveTo(x + r * 0.08, y + r * 0.08, x, y + r); fx.quadraticCurveTo(x - r * 0.08, y + r * 0.08, x - r, y); fx.quadraticCurveTo(x - r * 0.08, y - r * 0.08, x, y - r); fx.fill(); };
+    const burst = (seed, x, y, u0, n, life, spread) => { if (u < u0 || u > u0 + life) return; const p = (u - u0) / life; for (let i = 0; i < n; i++) { const a = rnd(i, seed) * Math.PI * 2, d = spread * (0.4 + 0.6 * rnd(i, seed + 1)) * out(p); sparkle(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.7, (0.35 + 0.4 * rnd(i, seed + 2)) * (1 - p * 0.5), (1 - p)); } };
+    const comet = (pts, head, len, a) => { for (let i = 0; i < 24; i++) { const q = head - i * len / 24; if (q < 0) break; const p = pts(q), f = 1 - i / 24; fx.fillStyle = 'rgba(200,215,255,' + 0.45 * a * f + ')'; fx.beginPath(); fx.arc(p[0], p[1], 3 + 13 * f, 0, Math.PI * 2); fx.fill(); } const h = pts(head); fx.fillStyle = 'rgba(255,255,255,' + a + ')'; fx.beginPath(); fx.ellipse(h[0], h[1], 26, 9, 0, 0, Math.PI * 2); fx.fill(); sparkle(h[0], h[1], 1.1, a); };
+    const toStage = (x, y) => [L.PX + x, L.PY + y];
+
+    if (ev && u < 3300) {
+      const gN = G[ev.id + 0];
+      if (ev.kind === 'new' && gN) {
+        // The sprite fires a capsule of light like a danmaku; it arcs over to the slot and unfolds into the row.
+        const [tx, ty] = toStage(L.CX + 30, gN.y + gN.h / 2), [sx, sy] = S.spriteAt, path = q => [lerp(sx, tx, io(q)), lerp(sy, ty, io(q)) - 140 * Math.sin(Math.PI * q)];
+        const fly = k(200, 640, u); if (fly > 0 && u < 760) comet(path, fly, 0.45, 1 - k(640, 760, u));
+        spritePulse = Math.sin(Math.PI * k(140, 300, u));
+        const sw = k(640, 1000, u); if (sw > 0 && sw < 1) { const x = L.PX + L.CX + L.CW * out(sw), y0 = L.PY + gN.y; const gr = fx.createLinearGradient(x - 120, 0, x, 0); gr.addColorStop(0, 'rgba(200,215,255,0)'); gr.addColorStop(1, 'rgba(230,238,255,0.65)'); fx.fillStyle = gr; fx.fillRect(x - 120, y0 + 2, 120, gN.h - 4); }
+        const [ex, ey] = toStage(L.CX + L.CW - 30, gN.y + gN.h / 2); burst(7, ex, ey, 980, 6, 600, 60);
+      }
+      if (ev.kind === 'more' && gN) { const [x, y] = toStage(gN.cx - 24, gN.cy); burst(13, x, y, 0, 7, 700, 54); }
+      if ((ev.kind === 'pass' || ev.kind === 'top') && gN) {
+        const top = ev.kind === 'top', [m0, m1] = top ? [300, 1000] : [200, 800], p = k(m0, m1, u);
+        const from = this.geom(ev.prev[ev.id]), to = this.geom(ev.next[ev.id]);
+        // The riser rides an arc of light that bulges out past the panel's right edge.
+        if (p > 0 && u < m1 + 400) {
+          const fade = 1 - k(m1, m1 + 400, u), pts = [];
+          for (let i = 0; i <= 24; i++) { const q = i / 24 * Math.min(1, p); const y = lerp(from.y + from.h / 2, to.y + to.h / 2, q); pts.push([L.PX + L.CX + L.CW + 4 + 26 * Math.sin(Math.PI * q), L.PY + y]); }
+          if (pts.length > 2) ribbon(fx, pts, 2, 0.8 * fade, top ? '255,226,160' : '190,210,255');
+        }
+        const [x, y] = toStage(gN.cx - 30, gN.cy); burst(top ? 29 : 19, x, y, 0, 6, 600, 50);
+        if (!top) { const [lx, ly] = toStage(L.CX + L.CW - 20, to.y + to.h / 2); burst(23, lx, ly, 800, 5, 500, 40); }
+        if (top) {
+          // Ribbons spiral in around the 1st card, then the gold rim flares and the star blooms.
+          const c = toStage(L.CX + L.CW / 2, D.CARDS[0].y + D.CARDS[0].h / 2), sp = k(900, 1650, u);
+          if (sp > 0 && sp < 1) for (let r = 0; r < 3; r++) { const pts = []; for (let i = 0; i <= 30; i++) { const a = r * 2.09 + sp * 7 + i * 0.12, rad = lerp(320, 30, out(sp)) * (0.7 + 0.3 * i / 30); pts.push([c[0] + Math.cos(a) * rad * 1.15, c[1] + Math.sin(a) * rad * 0.42]); } ribbon(fx, pts, 2.2, 0.9 * Math.sin(Math.PI * sp), r === 0 ? '255,226,160' : '190,210,255'); }
+          const fl = k(1600, 1680, u) * (1 - k(1800, 2600, u)); S.cards[0].flare.alpha = 0.45 * fl;
+          c0.star.scale.set(c0.star.scale.x + 0.7 * fl);
+          const gr = fx.createRadialGradient(c[0], c[1], 0, c[0], c[1], 360); gr.addColorStop(0, 'rgba(255,230,170,' + 0.3 * fl + ')'); gr.addColorStop(1, 'rgba(255,200,120,0)'); fx.fillStyle = gr; fx.fillRect(c[0] - 360, c[1] - 360, 720, 720);
+          burst(37, c[0], c[1], 1620, 12, 1100, 260);
+        }
+      }
+    }
+    // Mascot: breathing idle, a hop into the cheer pose when someone takes first place.
+    const show = C.mascot !== '关闭' && S.idle;
+    S.mascot.visible = S.sprite.visible = !!show;
+    if (show) {
+      const mx = L.PX - 120, my = L.PY + L.PH + 50, br = Math.sin(t * 0.0021);
+      S.mascot.position.set(mx, my + hop + br * 1.5);
+      if (S.idle) { S.idle.alpha = 1 - cheerA; S.idle.scale.y = (430 / S.idle.texture.height) * (1 + 0.006 * br); }
+      if (S.cheer) S.cheer.alpha = cheerA;
+      S.sprite.texture = blink ? S.tex.spriteBlink : S.tex.sprite;
+      S.sprite.position.set(mx - 130, my - 370 + 8 * Math.sin(t * 0.0016) + hop); S.sprite.rotation = 0.08 * Math.sin(t * 0.0011) + spriteSpin; S.sprite.scale.set(0.5 * (1 + 0.25 * spritePulse));
+    }
+    bk.globalCompositeOperation = fx.globalCompositeOperation = 'source-over';
+    S.backTex.source.update(); S.fxTex.source.update();
+  }
+
+  renderVals() {
+    const room = this.props.room ?? '明亮画面', scene = this.props.scene ?? '演示', pause = this.props.pause ?? '播放';
+    const speed = { '1 倍': 1, '0.5 倍': 0.5, '0.25 倍': 0.25 }[this.props.speed ?? '1 倍'];
+    const pauseAt = { '播放': null, '平时': 600, '新上榜·飞入': 1520, '新上榜·展开': 1840, '加数': 3330, '超车': 5520, '新第一·光带': 8900, '新第一·欢呼': 9300 }[pause];
+    this.cfg = { scene, cycle: scene === '太长滚动' ? 24000 : 13000, speed, pauseAt, mascot: this.props.mascot ?? '显示' };
+    return {
+      bg: room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#2C3644',
+      mock: room !== '透明', photo: room === '明亮画面', box: room !== '明亮画面',
+      mockBg: room === '浅色房间' ? 'linear-gradient(180deg, #F4EFE7 0%, #EAE2D5 56%, #CDB89A 57%, #B9A27F 100%)' : room === '深色房间' ? 'linear-gradient(180deg, #16181D 0%, #23262E 56%, #121317 57%, #0C0D10 100%)' : 'linear-gradient(180deg, #3B4A5E 0%, #4C5D74 56%, #2C3644 57%, #232B37 100%)',
+      mockBox: room === '浅色房间' ? '#D9CCB8' : room === '深色房间' ? '#2F333C' : '#63769A',
+      mockInk: room === '浅色房间' ? 'rgba(60, 40, 20, 0.55)' : 'rgba(255, 255, 255, 0.55)'
+    };
+  }
+}
+</script>
+</body>
+</html>
