@@ -276,7 +276,7 @@ class Component extends DCLogic {
     const pages = [
       { name: '视频页', note: '欢迎动画、进场动画和送礼动画在这里播放', icon: icons.film, url: 'http://localhost:17890/video', status: '2 个推流软件连着', statusColor: t.success },
       { name: '抽奖页', note: '报名、开奖和中奖名单', icon: icons.ticket, url: 'http://localhost:17890/lottery', status: '1 个推流软件连着', statusColor: t.success },
-      { name: '礼物榜页', note: '送礼观众的排行', icon: icons.trophy, url: 'http://localhost:17890/gift-board', status: pageOk ? '1 个推流软件连着' : '还没有推流软件连着', statusColor: pageOk ? t.success : t.warnText }
+      { name: '礼物榜页', note: '送礼观众的排行 · 素材 480 × 1000，可放大', icon: icons.trophy, url: 'http://localhost:17890/gift-board', status: pageOk ? '1 个推流软件连着' : '还没有推流软件连着', statusColor: pageOk ? t.success : t.warnText }
     ].map((p, i) => ({ ...p, divider: i ? '1px solid ' + t.border : '0', bg: 'transparent' }));
 
     return {

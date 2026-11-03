@@ -5,8 +5,6 @@
  "32c8462cf1c8872aefca109c033c67a6": "lib/noto-500-sample.woff2",
  "001d47a8cd1cd133407b1a4360b5b6f2": "lib/noto-800-sample.woff2",
  "39f25f52ef5f8ee9867814a38aefbe7b": "lib/playfair-num.woff2",
- "759e48f0236b4456a3425eb7798cd3fb": "textures/mascot-idle.webp",
- "0fd535cdbdaa4e35341c7ca9de0d34d5": "textures/mascot-cheer.webp",
  "1418e5ad9910b79ce6f80c5f11f17b21": "textures/banner.webp",
  "dafde21f1d9c5b68ff7f751f20739923": "textures/avatars/blossom.webp",
  "e5e91c992fb93d22181fc4360158ffb8": "textures/avatars/cake.webp",
@@ -42,5 +40,7 @@
  "18dcabfa80ce8d372993c5c61f6b59cc": "https://i0.hdslb.com/bfs/live/80f732943cc3367029df65e267960d56736a82ee.png",
  "af70d19449786f7ded08dd9b86520a67": "https://i0.hdslb.com/bfs/activity-plat/static/20211222/627754775478985e330c25a90ec7baf0/icon-guard1.png",
  "bca265a20135968fffe716ed1ac17eaa": "https://i0.hdslb.com/bfs/activity-plat/static/20211222/627754775478985e330c25a90ec7baf0/icon-guard2.png",
- "7d69b48acd01ec64d5368655161d461a": "https://i0.hdslb.com/bfs/activity-plat/static/20211222/627754775478985e330c25a90ec7baf0/icon-guard3.png"
+ "7d69b48acd01ec64d5368655161d461a": "https://i0.hdslb.com/bfs/activity-plat/static/20211222/627754775478985e330c25a90ec7baf0/icon-guard3.png",
+ "090a9c6fbf44eb805169e594c941fe36": "textures/mascot-peek-idle.webp",
+ "6e75e624f243d07b98f3d0a0d7019870": "textures/mascot-peek-cheer.webp"
 }

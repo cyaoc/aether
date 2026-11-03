@@ -1,16 +1,16 @@
 // Screenshots a board that never goes idle (the WebGL ticker keeps running), through the DevTools protocol.
-// node tools/cdp-shot.mjs "<render.html url>" <out.png> [waitMs]; console errors are printed.
+// node tools/cdp-shot.mjs "<render.html url>" <out.png> [waitMs] [width] [height]; console errors are printed.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const [url, out, wait = '5000'] = process.argv.slice(2);
+const [url, out, wait = '5000', width = '1920', height = '1080'] = process.argv.slice(2);
 const port = 9400 + Math.floor(Math.random() * 500);
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-'));
 // Headless Chrome on macOS renders WebGL on the GPU through Metal; `chrome --headless --screenshot` never fires here.
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
-  '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, '--window-size=1920,1080', '--hide-scrollbars',
+  '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, `--window-size=${width},${height}`, '--hide-scrollbars',
   '--use-angle=metal', '--no-first-run', 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 try {
@@ -31,7 +31,7 @@ try {
   });
   const send = (method, params = {}) => new Promise(r => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
   await send('Runtime.enable');
-  await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  await send('Emulation.setDeviceMetricsOverride', { width: +width, height: +height, deviceScaleFactor: 1, mobile: false });
   await send('Page.navigate', { url });
   await sleep(+wait);
   const shot = await send('Page.captureScreenshot', { format: 'png' });

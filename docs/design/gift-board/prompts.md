@@ -1,24 +1,24 @@
 # 素材来源
 
-`textures/` 里的图在 2026-11-04 由 Codex CLI 0.166 的内置生图功能（OpenAI 图像生成）生成，再用 Pillow 转成 WebP（quality 88，method 6）。生成时带了参考图：启动页插画 `docs/design/splash/textures/splash.webp`、软件图标 `docs/design/app-icon/aether-1024.png`，以及概念图。概念图有两版：第一版是整块底板、看板娘扶着榜挥手（没放进本目录），第二版是定稿的悬浮卡片 `preview/concept.webp`。这里只作来源记录，**实现时直接用定稿，不要重新生成**。
+`textures/` 里的图在 2026-11-04 由 Codex CLI 0.166 的内置生图功能（OpenAI 图像生成）生成，再用 Pillow 转成 WebP（quality 88，method 6）。生成时带了参考图：启动页插画 `docs/design/splash/textures/splash.webp`、软件图标 `docs/design/app-icon/aether-1024.png`，以及概念图。概念图有两版：第一版是整块底板、看板娘扶着榜挥手（没放进本目录），第二版是定稿的悬浮卡片 `preview/concept.webp`。看板娘后来从“站在榜的左边”改成“从飘带后面探出”，好让同一个组件放在左边、右边、竖屏都一样。这里只作来源记录，**实现时直接用定稿，不要重新生成**。
 
-人物图的提示词总会接上启动页设计包的人体段落和负向词：`docs/design/splash/tools/prompt-anatomy.txt`、`prompt-negative.txt`（概念图允许出现界面和文字，删掉了负向词里禁止文字和界面的那一句）。四张姿势图的每只手都放大检查过：五根手指，顺着手臂接到肩膀。
+人物图的提示词总会接上启动页设计包的人体段落和负向词：`docs/design/splash/tools/prompt-anatomy.txt`、`prompt-negative.txt`（概念图允许出现界面和文字，删掉了负向词里禁止文字和界面的那一句）。姿势图的每只手都放大检查过：五根手指，顺着手臂接到肩膀。
 
-## 看板娘姿势（`mascot-idle.webp`、`mascot-cheer.webp`）
+## 看板娘姿势（`mascot-peek-idle.webp`、`mascot-peek-cheer.webp`）
 
-参考图依次是第一版概念图（看板娘的姿势照它）和启动页插画。各跑两张，挑了取景一致的一对；生成的 PNG 本身带透明通道，只裁掉透明边，缩到 700 宽。
+从飘带后面探出上半身的两个姿势。参考图依次是第一版的看板娘姿势（已确认的人物）和启动页插画。两个姿势各跑两张，挑了重叠后脸最对得上的一对（idle-1、cheer-1）；生成的 PNG 本身带透明通道，等比缩到 768 × 1152，不裁边，两张保持同一张画布、同一比例。
 
 共用段落：
 
-> A clean cut-out character sprite for a live-stream overlay, portrait canvas 1024x1536. The ORIGINAL heroine from the attached references, exactly the same person, face, hair, headset and outfit as in the references: an adult woman of about 22 with a slender, modest figure and a bright friendly smile, long silver-white hair with soft blue tips, large blue eyes, a slim white streaming headset with a small boom microphone, and the modest white-and-royal-blue idol-tech jacket with a high collar, full sleeves, gold trims, a white belt, and a matching pleated skirt. Style exactly like the references: top-tier modern anime game key art, clean confident line art, cel shading with soft luminous gradients, rich detail. Framing: drawn from the hips up, centered, the top of her hair at least 6 percent below the top edge, both hands fully inside the canvas at least 6 percent from every edge. Only the heroine: no leaderboard, no panel, no UI, no chat-bubble sprite, no light ribbons, no sparkles, no ground, no shadow on a floor. The background must be fully TRANSPARENT (alpha). If you cannot output transparency, use a perfectly flat solid #00FF00 chroma-key green instead, with no green anywhere on her.
+> A clean cut-out character sprite for a live-stream overlay, portrait canvas 1024x1536. The ORIGINAL heroine from the attached references, exactly the same person, face, hair, headset and outfit: an adult woman of about 22 with a slender, modest figure, long silver-white hair with soft blue tips, large blue eyes, a slim white streaming headset with a small boom microphone, the modest white-and-royal-blue idol-tech jacket with a high collar, full sleeves and gold trims. Style exactly like the references: top-tier modern anime game key art, clean confident line art, cel shading with soft luminous gradients. She is peeking up from behind a horizontal ledge, like a host leaning over the top of a sign: only her upper body is drawn, and the bottom of the figure ends in a perfectly straight horizontal cut at 84 percent of the image height (everything below is hidden behind the sign and must be empty). Scale and placement, the same in every pose of this series: she is centered horizontally, her shoulders span about 46 percent of the image width, her chin is at about 52 percent of the image height. Nothing else: no sign, no ledge, no panel, no UI, no chat-bubble sprite, no ribbons, no sparkles. The background must be fully TRANSPARENT (alpha). If you cannot output transparency, use a perfectly flat solid #00FF00 chroma-key green instead, with no green anywhere on her.
 
-平时（`mascot-idle.webp`）：
+平时（`mascot-peek-idle.webp`）：
 
-> Pose: the same pose as the heroine in the first reference image: she leans slightly toward the right of the image, her LEFT forearm resting horizontally at chest height as if laid on top of a ledge at the right side, the forearm and relaxed hand reaching to about 90 percent of the image width, fingers draped down naturally; her RIGHT hand raised beside her shoulder in a small cheerful open-palm wave, all five digits visible; a warm open smile looking at the viewer; hair flowing gently to the left.
+> Pose: she leans forward slightly with BOTH forearms resting horizontally on the top of the hidden sign, the forearms lying flat along the line at 80 to 84 percent of the image height, one hand resting lightly on the other wrist in front of her, all fingers relaxed and well shaped; a warm, friendly open smile at the viewer, head tilted a little; hair falling over her shoulders and down in front of the sign line.
 
-欢呼（`mascot-cheer.webp`）：
+欢呼（`mascot-peek-cheer.webp`）：
 
-> Pose: a joyful celebration: both arms raised high above her shoulders in a cheer, both hands open with all five digits visible on each hand, a big happy open-mouthed smile with her eyes curved shut in delight, her body lifted in a small hop, hair and ribbons swinging upward with the motion.
+> Pose: a joyful cheer: both arms raised high above her head, both hands open with all five digits visible on each hand, a big happy open-mouthed smile with her eyes curved shut in delight, hair and ribbons swinging upward; her body is still cut off by the same straight line at 84 percent of the image height, and both raised hands stay at least 5 percent below the top edge.
 
 ## 标题飘带（`banner.webp`）
 
