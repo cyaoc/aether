@@ -361,7 +361,8 @@ public sealed class Settings
         return node.End;
     }
 
-    /// <summary>Reads the settings file, appending the template's section for each group a valid file lacks entirely,
+    /// <summary>Reads the settings file, first upgrading an older format in place (<see cref="SettingsUpgrade"/>),
+    /// then appending the template's section for each group a valid file lacks entirely,
     /// so file editors see settings added by an upgrade. Failing to append leaves the file and the defaults as they are.</summary>
     public static Settings Load(string dataDirectory, ILogger? logger = null)
     {
@@ -486,7 +487,8 @@ public sealed class Settings
             foreach (var (groupKey, groupValue) in root.Children) LoadGroup(groupKey, groupValue);
             settings.UnknownKeys = unknown.AsReadOnly();
             settings.Error ??= ValidateGiftThresholds(root, path);
-            if (settings.Error is null && settings.source != original)
+            // Written even when a value is invalid: the upgrade never causes one, and its line must match the file on disk.
+            if (settings.source != original)
             {
                 try { AtomicFile.Write(path, [.. settings.encoding.GetPreamble(), .. settings.encoding.GetBytes(settings.source)]); }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException)

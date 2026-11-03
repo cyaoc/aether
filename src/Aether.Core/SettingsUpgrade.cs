@@ -8,6 +8,9 @@ internal static class SettingsUpgrade
 {
     internal const int CurrentVersion = 1;
 
+    // The 0.2.x spellings, frozen here rather than read from Settings.WelcomeGuards, which may change.
+    private static readonly string[] V0Guards = ["关闭", "舰长", "提督", "总督"];
+
     internal static string Apply(string source, int version, string path)
     {
         while (version < CurrentVersion)
@@ -45,13 +48,13 @@ internal static class SettingsUpgrade
             if (group.Old == "welcome")
                 foreach (var pair in mapping.Children.Where(pair => pair.Key is YamlScalarNode { Value: "guard" }))
                     if (pair.Value is YamlScalarNode { Value: { } guard }
-                        && Array.IndexOf(new[] { "关闭", "舰长", "提督", "总督" }, guard) is var tier && tier >= 0)
+                        && Array.IndexOf(V0Guards, guard) is var tier && tier >= 0)
                         ReplaceScalar(pair.Value, tier.ToString(System.Globalization.CultureInfo.InvariantCulture));
             if (group.Old != "welcome_animation") continue;
             foreach (var (key, value) in mapping.Children)
             {
-                if (key is not YamlScalarNode { Value: "enabled" } || value is not YamlScalarNode { Value: { } enabled }
-                    || !bool.TryParse(enabled, out var on) || !on) continue;
+                // Only the spelling Settings reads as on; True or TRUE never worked in 0.2.x either.
+                if (key is not YamlScalarNode { Value: "enabled" } || value is not YamlScalarNode { Value: "true" }) continue;
                 if (mapping.Style != MappingStyle.Block || key.Start.Line != Settings.EndOf(tokens, value).Line)
                     throw CannotEdit(mapping);
                 var at = LineEnd((int)Settings.EndOf(tokens, value).Index);
@@ -88,11 +91,16 @@ internal static class SettingsUpgrade
         else
         {
             var first = tokens.OfType<Tokens.BlockMappingStart>().First();
-            var at = LineStart((int)first.Start.Index);
-            if (!string.IsNullOrWhiteSpace(source[at..(int)first.Start.Index])) throw CannotEdit(root);
-            edits.Add((at, 0, new string(' ', (int)first.Start.Column - 1) + "format_version: 1" + newline));
+            var indent = new string(' ', (int)first.Start.Column - 1);
+            // Above the comments that lead the first group, as in Template, so they stay with the group they describe.
+            var lead = tokens.IndexOf(first);
+            while (lead > 0 && tokens[lead - 1] is Tokens.Comment { IsInline: false }) lead--;
+            var at = LineStart((int)tokens[lead].Start.Index);
+            if (!string.IsNullOrWhiteSpace(source[at..(int)tokens[lead].Start.Index])) throw CannotEdit(root);
+            edits.Add((at, 0, indent + "# 设置文件格式版本，由程序维护" + newline + indent + "format_version: 1" + newline + newline));
         }
-        foreach (var edit in edits.OrderByDescending(edit => edit.Start))
+        // Replacements before inserts at the same offset, so an insert is never removed as the text it precedes.
+        foreach (var edit in edits.OrderByDescending(edit => edit.Start).ThenByDescending(edit => edit.Length))
             source = source.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
         return source;
 

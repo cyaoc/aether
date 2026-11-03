@@ -9,7 +9,6 @@ public sealed class SettingsTests : IAsyncDisposable
     private readonly WatchHarness harness = new();
     private string SettingsPath => Path.Combine(harness.DataDirectory, "aether.yml");
 
-    // Frozen v0.2.3 Template with non-default values; keep this fixture unchanged.
     [Theory]
     [InlineData("关闭", 0)]
     [InlineData("舰长", 1)]
@@ -51,10 +50,32 @@ public sealed class SettingsTests : IAsyncDisposable
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Null(settings.Error);
         Assert.Equal(2, settings.WelcomeGuard.Value);
-        var expected = original.Replace("  !!str 'welcome':", "  format_version: 1" + newline + "  !!str welcome_danmaku:")
+        var expected = original.Replace("  !!str 'welcome':", "  # 设置文件格式版本，由程序维护" + newline + "  format_version: 1" + newline + newline + "  !!str welcome_danmaku:")
             .Replace("guard: 提督", "guard: 2").Replace("welcome_animation:", "entry_animation:")
             .Replace("enabled: true" + newline, "enabled: true" + newline + "    fan_club_level: 0" + newline + "    volume: 100" + newline);
         Assert.Equal(encoding.GetPreamble().Concat(encoding.GetBytes(expected)), File.ReadAllBytes(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_keeps_added_animation_lines_when_a_template_comment_follows_them()
+    {
+        Write("welcome_animation:\n  enabled: true\n# 欢迎动画的视频，放在 data/videos/ 里，每行一位观众：UID: 文件名\nwelcome_animation_videos:\n  1: a.mp4\n");
+        var settings = Settings.Load(harness.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal(0, settings.EntryAnimationFanClubLevel.Value);
+        Assert.Equal(100, settings.EntryAnimationVolume.Value);
+        Assert.Contains("  volume: 100\n# 动画名单：一行一位，值是 30、40、50、60，0 表示不播，或视频文件名\nentry_animation_viewers:",
+            File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_is_written_before_an_invalid_value_is_reported_so_its_line_matches_the_file()
+    {
+        Write("send:\n  interval_seconds: 0\nwelcome:\n  guard: 舰长\n");
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+        var lines = File.ReadAllLines(SettingsPath);
+        Assert.Equal("  interval_seconds: 0", lines[error.LineNumber - 1]);
+        Assert.Contains("welcome_danmaku:", lines);
     }
 
     [Fact]
@@ -152,6 +173,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(before, File.ReadAllBytes(SettingsPath));
     }
 
+    // The fixture is the frozen v0.2.3 Template with non-default values; keep it unchanged.
     [Fact]
     public void Upgrade_preserves_the_v023_settings_and_is_idempotent()
     {
@@ -180,6 +202,9 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(3, settings.SendIntervalSeconds.Value);
         Assert.Equal(17891, settings.WebServicePort.Value);
         Assert.Contains("gift_animation:", File.ReadAllText(SettingsPath));
+        // The version goes where Template has it, above the log group's own comment.
+        Assert.StartsWith("# 设置文件格式版本，由程序维护\nformat_version: 1\n\n# 日志设置，修改后重启程序生效\nlog:",
+            File.ReadAllText(SettingsPath).ReplaceLineEndings("\n"));
         var bytes = File.ReadAllBytes(SettingsPath);
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
         Assert.Equal(bytes, File.ReadAllBytes(SettingsPath));

@@ -9,6 +9,7 @@
 CLI 和 GUI 共用 bot 设置文件 `data/aether.yml`（数据目录位置见下文“数据目录与数据库”）。首次运行时自动生成带中文注释的模板，默认值是生效的行：
 
 ```yaml
+format_version: 1
 log:
   retention_days: 30
   level: Information
