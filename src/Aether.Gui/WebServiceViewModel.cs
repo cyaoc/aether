@@ -43,7 +43,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     {
         if (shutdown.IsCancellationRequested) return;
         animationSettings = snapshot;
-        if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Start(ObserveAnimationsAsync);
+        if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Follow(client.WebService.GetUpdatesAsync, Apply, logger, "网页服务状态订阅中断");
         var reload = animationReload.Start(ReloadAsync);
         NotifyAnimationRows();
         await reload;
@@ -65,16 +65,6 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
                 Apply(snapshot.Error is not null ? client.WebService.Status : client.WebService.Status with { Error = error.Message });
             }
         }
-    }
-
-    private async Task ObserveAnimationsAsync(CancellationToken token)
-    {
-        try
-        {
-            await foreach (var update in client.WebService.GetUpdatesAsync(token)) Apply(update);
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        catch (Exception error) { logger.LogError(error, "网页服务状态订阅中断"); }
     }
 
     internal async Task StopAsync()
