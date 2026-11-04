@@ -88,4 +88,18 @@ public sealed class WatchTests
         Assert.Single(h.Http.Requests);
     }
 
+    [Theory]
+    [InlineData(",\"live_time\":1700000000")]
+    [InlineData(",\"live_status\":1")]
+    public async Task A_room_without_its_live_status_or_live_time_ends_without_connecting(string present)
+    {
+        await using var h = new WatchHarness();
+        h.Http.Responses[FakeBilibiliHttp.RoomInitUrl] = "{\"code\":0,\"data\":{\"room_id\":7734200,\"uid\":24680" + present + "}}";
+        await using var updates = h.Watch();
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(async () => await updates.MoveNextAsync());
+
+        Assert.Single(h.Http.Requests);
+    }
+
 }

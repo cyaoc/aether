@@ -6,7 +6,7 @@ namespace Aether.Core;
 /// <summary>The 礼物榜's totals, one row per viewer and kind of gift in each 期. A room's latest 期 is the one that counts.</summary>
 internal sealed class GiftBoardStore(Database database)
 {
-    private const string OpenPeriod = "INSERT INTO gift_board_period (room_id, started_at, live_time) SELECT $room, $at, $live";
+    private const string InsertPeriod = "INSERT INTO gift_board_period (room_id, started_at, live_time) SELECT $room, $at, $live";
 
     private const string InsertTotal = """
         INSERT INTO gift_board_total (period_id, uid, gift_key, nickname, face_url, gift_name, icon_url, guard_level,
@@ -86,7 +86,7 @@ internal sealed class GiftBoardStore(Database database)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = OpenPeriod;
+        command.CommandText = InsertPeriod;
         BindPeriod(command, roomId, at, liveTime);
         command.ExecuteNonQuery();
     }
@@ -97,7 +97,7 @@ internal sealed class GiftBoardStore(Database database)
         using var connection = database.Open();
         using var command = connection.CreateCommand();
         // IS NOT, so that a 期 opened off air (null) differs from every live_time, and a room without a 期 gets its first.
-        command.CommandText = OpenPeriod + """
+        command.CommandText = InsertPeriod + """
              WHERE $live IS NOT (SELECT live_time FROM gift_board_period
                 WHERE id = (SELECT MAX(id) FROM gift_board_period WHERE room_id = $room))
             """;
@@ -150,7 +150,7 @@ internal sealed class GiftBoardStore(Database database)
         command.CommandText = "SELECT MAX(id) FROM gift_board_period WHERE room_id = $room";
         command.Parameters.AddWithValue("$room", roomId);
         if (command.ExecuteScalar() is long period) return period;
-        command.CommandText = OpenPeriod + " RETURNING id";
+        command.CommandText = InsertPeriod + " RETURNING id";
         command.Parameters.Clear();
         BindPeriod(command, roomId, at, liveTime);
         return (long)command.ExecuteScalar()!;

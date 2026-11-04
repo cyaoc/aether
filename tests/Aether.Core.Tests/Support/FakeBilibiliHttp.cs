@@ -21,6 +21,9 @@ internal sealed class FakeBilibiliHttp : HttpMessageHandler
             code = 0, data = new { room_id = roomId, uid = 24680, live_status = liveStatus, live_time = liveTime }
         });
 
+    /// <summary>Makes room_init say the default room has been live since <paramref name="liveTime"/>.</summary>
+    public void SetLive(long liveTime) => SetRoom(liveStatus: 1, liveTime: liveTime);
+
     /// <summary>Makes getInfoByUser report this 弹幕字数上限.</summary>
     public void SetDanmakuLengthLimit(int limit) => Responses[DanmakuLengthLimitUrl] =
         System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { property = new { danmu = new { length = limit } } } });

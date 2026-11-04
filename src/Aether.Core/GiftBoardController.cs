@@ -44,23 +44,24 @@ public sealed class GiftBoardController : IDisposable
         }
     }
 
-    internal void Connect(long room, long? live)
+    /// <param name="liveTime">When the room's 一场直播 began as room_init says, null off air.</param>
+    internal void Connect(long room, long? liveTime)
     {
         lock (gate)
         {
             // A reconnect of the same room connection comes through here too and changes nothing.
             if (roomId == room) return;
             roomId = room;
-            EnterLive(room, live);
+            EnterLive(room, liveTime);
         }
     }
 
     /// <summary>The room's 一场直播 as room_init says after a LIVE message.</summary>
-    internal void UpdateLiveTime(long room, long? live)
+    internal void UpdateLiveTime(long room, long? liveTime)
     {
         lock (gate)
         {
-            if (roomId == room) EnterLive(room, live);
+            if (roomId == room) EnterLive(room, liveTime);
         }
     }
 
@@ -76,10 +77,10 @@ public sealed class GiftBoardController : IDisposable
     }
 
     /// <summary>Takes the room's 一场直播 as just read from room_init: a different show than the latest 期 belongs to opens a new 期.</summary>
-    private void EnterLive(long room, long? live)
+    private void EnterLive(long room, long? liveTime)
     {
-        liveTime = live;
-        if (live is { } began && settings.GiftBoardEnabled.Value && settings.GiftBoardResetOnLive.Value)
+        this.liveTime = liveTime;
+        if (liveTime is { } began && settings.GiftBoardEnabled.Value && settings.GiftBoardResetOnLive.Value)
             store().OpenForLive(room, time.GetUtcNow(), began);
         Publish();
     }

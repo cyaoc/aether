@@ -62,18 +62,16 @@ internal static class TestDatabase
         return rows;
     }
 
-    public sealed record GiftBoardPeriodRow(long RoomId, long? LiveTime);
-
-    /// <summary>Every gift_board_period row, oldest first, all columns but id and started_at.</summary>
-    public static List<GiftBoardPeriodRow> GiftBoardPeriods(string dataDirectory)
+    /// <summary>The live_time of every gift_board_period row, oldest first: one entry per 期, null for one opened off air.</summary>
+    public static List<long?> GiftBoardLiveTimes(string dataDirectory)
     {
         using var connection = Open(dataDirectory);
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT room_id, live_time FROM gift_board_period ORDER BY id";
+        command.CommandText = "SELECT live_time FROM gift_board_period ORDER BY id";
         using var reader = command.ExecuteReader();
-        List<GiftBoardPeriodRow> rows = [];
-        while (reader.Read()) rows.Add(new(reader.GetInt64(0), reader.IsDBNull(1) ? null : reader.GetInt64(1)));
-        return rows;
+        List<long?> times = [];
+        while (reader.Read()) times.Add(reader.GetNullable<long>(0));
+        return times;
     }
 
     /// <summary>When each gift_board_total row was first and last sent, in insertion order.</summary>

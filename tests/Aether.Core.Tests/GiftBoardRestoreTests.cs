@@ -1,11 +1,10 @@
 using Aether.Core.Tests.Support;
+using static Aether.Core.Tests.Support.GiftBoardStates;
 
 namespace Aether.Core.Tests;
 
 public sealed class GiftBoardRestoreTests
 {
-    private const long ShowA = 1700000000;
-    private const long ShowB = 1700100000;
     // Short enough that two steps between messages stay inside the room connection's 60 s idle limit.
     private static readonly TimeSpan Step = TimeSpan.FromSeconds(20);
 
@@ -20,14 +19,17 @@ public sealed class GiftBoardRestoreTests
         h.Client.GiftBoard.Clear();
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(nickname: "新昵称", num: 3, tid: "c"),
             UserToastFixture.Message(uid: 10003, price: 534000, num: 3, payflowId: "p2"), BlindGiftFixture.Ordinary(uid: 10004, nickname: "丁", tid: "d"));
+        await using var states = h.Client.GiftBoard.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        Assert.Equal(3, (await h.NextAsync(states)).Rows.Length);
 
         h.Client.GiftBoard.Restore();
 
         // 舰长 cost 198000 for one month and 534000 for three, so four months at 183000 each.
+        var restored = (await h.NextAsync(states)).Rows;
         Assert.Equal([("10003/guard:3", 183000L, 4L), ("10001/gift:32698", 1500L, 5L), ("10002/gift:32698", 1500L, 1L), ("10004/gift:32698", 1500L, 1L)],
-            (await h.BoardRowsAsync()).Select(row => (row.Id, row.Price, row.Num)));
-        Assert.Equal("新昵称", (await h.BoardRowsAsync()).Single(row => row.Id == "10001/gift:32698").Nickname);
-        Assert.Single(TestDatabase.GiftBoardPeriods(h.DataDirectory));
+            restored.Select(row => (row.Id, row.Price, row.Num)));
+        Assert.Equal("新昵称", restored.Single(row => row.Id == "10001/gift:32698").Nickname);
+        Assert.Single(TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
     }
 
     [Fact]
@@ -85,8 +87,7 @@ public sealed class GiftBoardRestoreTests
     {
         await using var h = new WatchHarness();
         h.Http.SetRoom(roomId: 999);
-        await using (var other = await h.WatchWithGiftBoardAsync())
-            await h.PushAndSyncAsync(other, BlindGiftFixture.Ordinary());
+        await h.WatchAndLeaveAGiftAsync();
         h.Http.SetRoom();
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(uid: 20002));
@@ -98,34 +99,33 @@ public sealed class GiftBoardRestoreTests
     public async Task Restoring_after_a_new_show_opened_a_board_brings_the_old_one_back_and_remembers_the_show()
     {
         await using var h = new WatchHarness();
-        h.Http.SetRoom(liveStatus: 1, liveTime: ShowA);
-        await using (var updates = await h.WatchWithGiftBoardAsync())
-            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
-        h.Http.SetRoom(liveStatus: 1, liveTime: ShowB);
+        h.Http.SetLive(ShowA);
+        await h.WatchAndLeaveAGiftAsync();
+        h.Http.SetLive(ShowB);
         await using (var next = await h.WatchConnectedAsync())
         {
-            await h.PushAndSyncAsync(next, BlindGiftFixture.Ordinary(uid: 20002, tid: "b"));
+            await h.PushAndSyncAsync(next, BlindGiftFixture.Ordinary(uid: 20002));
             h.Client.GiftBoard.Restore();
         }
 
         await using var again = await h.WatchConnectedAsync();
 
         Assert.Equal(2, (await h.BoardRowsAsync()).Length);
-        Assert.Equal<long?>([ShowB], TestDatabase.GiftBoardPeriods(h.DataDirectory).Select(period => period.LiveTime));
+        Assert.Equal<long?>([ShowB], TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
     }
 
     [Fact]
-    public async Task Restoring_does_not_touch_the_blind_box_statistics()
+    public async Task Clearing_and_restoring_leave_the_blind_box_statistics_alone()
     {
         await using var h = new WatchHarness();
         await using var updates = await h.WatchWithGiftBoardAsync();
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Json);
-        h.Client.GiftBoard.Clear();
         var before = TestDatabase.BlindBoxRows(h.DataDirectory);
         Assert.NotEmpty(before);
 
+        h.Client.GiftBoard.Clear();
+        Assert.Equal(before, TestDatabase.BlindBoxRows(h.DataDirectory));
         h.Client.GiftBoard.Restore();
-
         Assert.Equal(before, TestDatabase.BlindBoxRows(h.DataDirectory));
     }
 

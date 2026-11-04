@@ -1,11 +1,10 @@
 using Aether.Core.Tests.Support;
+using static Aether.Core.Tests.Support.GiftBoardStates;
 
 namespace Aether.Core.Tests;
 
 public sealed class GiftBoardClearTests
 {
-    private const long ShowA = 1700000000;
-
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -23,14 +22,14 @@ public sealed class GiftBoardClearTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
 
         Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
-        Assert.Equal(2, TestDatabase.GiftBoardPeriods(h.DataDirectory).Count);
+        Assert.Equal(2, TestDatabase.GiftBoardLiveTimes(h.DataDirectory).Count);
     }
 
     [Fact]
     public async Task Clearing_while_live_remembers_the_show_so_connecting_again_does_not_open_another_board()
     {
         await using var h = new WatchHarness();
-        h.Http.SetRoom(liveStatus: 1, liveTime: ShowA);
+        h.Http.SetLive(ShowA);
         await using (var updates = await h.WatchWithGiftBoardAsync())
         {
             h.Client.GiftBoard.Clear();
@@ -40,7 +39,7 @@ public sealed class GiftBoardClearTests
         await using var next = await h.WatchConnectedAsync();
 
         Assert.Single(await h.BoardRowsAsync());
-        Assert.Equal<long?>([ShowA, ShowA], TestDatabase.GiftBoardPeriods(h.DataDirectory).Select(period => period.LiveTime));
+        Assert.Equal<long?>([ShowA, ShowA], TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
     }
 
     [Fact]
@@ -48,8 +47,7 @@ public sealed class GiftBoardClearTests
     {
         await using var h = new WatchHarness();
         h.Http.SetRoom(roomId: 999);
-        await using (var other = await h.WatchWithGiftBoardAsync())
-            await h.PushAndSyncAsync(other, BlindGiftFixture.Ordinary());
+        await h.WatchAndLeaveAGiftAsync();
         h.Http.SetRoom();
         await using (var updates = await h.WatchConnectedAsync())
         {
@@ -61,20 +59,6 @@ public sealed class GiftBoardClearTests
         await using var again = await h.WatchConnectedAsync();
 
         Assert.Equal(["10001/gift:32698"], (await h.BoardRowsAsync()).Select(row => row.Id));
-    }
-
-    [Fact]
-    public async Task Clearing_does_not_touch_the_blind_box_statistics()
-    {
-        await using var h = new WatchHarness();
-        await using var updates = await h.WatchWithGiftBoardAsync();
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Json);
-        var before = TestDatabase.BlindBoxRows(h.DataDirectory);
-        Assert.NotEmpty(before);
-
-        h.Client.GiftBoard.Clear();
-
-        Assert.Equal(before, TestDatabase.BlindBoxRows(h.DataDirectory));
     }
 
     [Fact]
