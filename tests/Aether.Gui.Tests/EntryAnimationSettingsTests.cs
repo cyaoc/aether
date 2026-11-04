@@ -54,6 +54,34 @@ public sealed class EntryAnimationSettingsTests
         return true;
     }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public Task Volume_slider_jumps_to_where_the_track_is_pressed_and_follows_the_thumb_to_whole_numbers() => HeadlessApp.Session.Dispatch(() =>
+    {
+        using var h = new GuiHarness();
+        var page = new AnimationSettingsPage(h.DataDirectory);
+        var window = new Window { Content = page, Width = 1040, Height = 600 };
+        window.Show();
+        try
+        {
+            GuiHarness.Flush();
+            var volume = GuiHarness.FindVisual<Slider>(page, "VolumeInput");
+            var track = GuiHarness.FindVisual<Track>(volume, "PART_Track");
+            Point At(double x) => track.TranslatePoint(new Point(x, track.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(At(0), MouseButton.Left);
+            window.MouseUp(At(0), MouseButton.Left);
+            Assert.Equal(0, volume.Value);
+            var thumb = volume.GetVisualDescendants().OfType<Thumb>().Single();
+            var grip = thumb.TranslatePoint(new Point(thumb.Bounds.Width / 2, thumb.Bounds.Height / 2), window)!.Value;
+            window.MouseDown(grip, MouseButton.Left);
+            window.MouseMove(At(track.Bounds.Width * .4321));
+            window.MouseUp(At(track.Bounds.Width * .4321), MouseButton.Left);
+            Assert.InRange(volume.Value, 40, 45);
+            Assert.Equal(Math.Round(volume.Value), volume.Value);
+        }
+        finally { window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     // The test bar needs 350-odd of the 476 a 1040-wide window leaves beside the recent list, so the slider takes what is left.
     [Theory]
     [InlineData(1200, true)]
