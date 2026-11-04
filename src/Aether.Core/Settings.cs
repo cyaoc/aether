@@ -89,7 +89,22 @@ public sealed class Settings
           tier_50_spend: 2000
           tier_60_spend: 10000
 
-        # 网页服务，视频页 /video、抽奖页 /lottery 都从这里打开；先开 Aether 再开推流软件
+        # 礼物榜，网页服务的 /gift-board 页面；GUI 保存后立即生效，CLI 下次观看时生效
+        gift_board:
+          # true 或 false，false 时不记录也不显示
+          enabled: false
+          # 上榜门槛（电池），必须为正整数
+          threshold: 100
+          # 门槛比的是：1 礼物单价，2 同一观众同一礼物累计的总价
+          threshold_by: 1
+          # true 或 false，是否显示看板娘；关掉后她的位置用来多放几行礼物
+          mascot: true
+          # true 或 false，每场开播自动换一张新榜；false 时只在 GUI 点“清空礼物榜”时换
+          reset_on_live: true
+          # 新的第一名时那一声的音量，0 到 100，0 表示不响
+          volume: 60
+
+        # 网页服务，视频页 /video、抽奖页 /lottery、礼物榜页 /gift-board 都从这里打开；先开 Aether 再开推流软件
         web_service:
           # 端口 1–65535；GUI 保存后立即生效，所有浏览器素材的地址都要跟着改
           port: 17890
@@ -129,14 +144,29 @@ public sealed class Settings
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome_danmaku.wealth_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
     private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("entry_animation.enabled", false));
     private static readonly Definition<int> AnimationLevel = Register(Definition.Number("entry_animation.fan_club_level", 30, "必须是 0、30、40、50、60。", value => value == 0 || EntryTier.Parse(value) is not null));
-    private static readonly Definition<int> AnimationVolume = Register(Definition.Number("entry_animation.volume", 80, "必须是 0–100。", value => value is >= 0 and <= 100));
+    private static readonly Definition<int> AnimationVolume = Register(Definition.Volume("entry_animation.volume", 80));
     private static readonly Definition<bool> GiftOn = Register(Definition.Boolean("gift_animation.enabled", false));
     private static readonly Definition<int>[] GiftThresholds = EntryTier.All.Select((tier, index) => Register(Definition.Number($"gift_animation.tier_{tier}_spend", new[] { 100, 500, 2000, 10000 }[index], "必须为正整数。", value => value > 0))).ToArray();
+    /// <summary>The values gift_board.threshold_by accepts: what the 上榜门槛 is compared with.</summary>
+    public const int GiftBoardByUnitPrice = 1;
+    public const int GiftBoardByTotalPrice = 2;
+    private static readonly Definition<bool> BoardOn = Register(Definition.Boolean("gift_board.enabled", false));
+    private static readonly Definition<int> BoardThreshold = Register(Definition.Number("gift_board.threshold", 100, "必须为正整数。", value => value > 0));
+    private static readonly Definition<int> BoardThresholdBy = Register(Definition.Choice("gift_board.threshold_by", GiftBoardByUnitPrice, new[] { GiftBoardByUnitPrice, GiftBoardByTotalPrice }));
+    private static readonly Definition<bool> BoardMascot = Register(Definition.Boolean("gift_board.mascot", true));
+    private static readonly Definition<bool> BoardResetOnLive = Register(Definition.Boolean("gift_board.reset_on_live", true));
+    private static readonly Definition<int> BoardVolume = Register(Definition.Volume("gift_board.volume", 60));
     public Setting<bool> EntryAnimationEnabled => Get(AnimationOn);
     public Setting<int> EntryAnimationFanClubLevel => Get(AnimationLevel);
     public Setting<int> EntryAnimationVolume => Get(AnimationVolume);
     public Setting<bool> GiftAnimationEnabled => Get(GiftOn);
     public IReadOnlyList<Setting<int>> GiftAnimationThresholds => GiftThresholds.Select(Get).ToArray();
+    public Setting<bool> GiftBoardEnabled => Get(BoardOn);
+    public Setting<int> GiftBoardThreshold => Get(BoardThreshold);
+    public Setting<int> GiftBoardThresholdBy => Get(BoardThresholdBy);
+    public Setting<bool> GiftBoardMascot => Get(BoardMascot);
+    public Setting<bool> GiftBoardResetOnLive => Get(BoardResetOnLive);
+    public Setting<int> GiftBoardVolume => Get(BoardVolume);
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private static readonly ViewerGroupDefinition AnimationViewers = Register(new ViewerGroupDefinition("entry_animation_viewers"));
     /// <summary>Adding a setting means registering its definition here, adding its property and a line in Template,
@@ -609,6 +639,10 @@ public sealed class Settings
         public static Definition<bool> Boolean(string name, bool initial) => ScalarSetting(name, initial, "必须为 true 或 false。",
             text => text.Trim() switch { "true" => (true, true), "false" => (true, false), _ => default },
             BooleanText);
+
+        /// <summary>A volume from 0 to 100, where 0 is silent.</summary>
+        public static Definition<int> Volume(string name, int initial) =>
+            Number(name, initial, "必须是 0–100。", value => value is >= 0 and <= 100);
 
         /// <summary>One of <paramref name="choices"/>, written exactly as its name.</summary>
         public static Definition<T> Choice<T>(string name, T initial, IReadOnlyList<T> choices) where T : notnull =>
