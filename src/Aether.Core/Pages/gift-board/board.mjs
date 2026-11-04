@@ -45,7 +45,12 @@ export class Board {
     const t = this.clock.currentTime;
     this.advanceScroll(t);
     if (this.event && t - this.event.startedAt >= EVENTS[this.event.kind].duration) this.finish();
-    for (let change; !this.event && (change = this.changes.take());) this.begin(change, t);
+    // A redraw takes no time, so the next change may start in the same frame.
+    while (!this.event) {
+      const change = this.changes.take();
+      if (!change) break;
+      this.begin(change, t);
+    }
     if (!this.scene) return;
     const u = this.event && t - this.event.startedAt;
     const riser = this.scene.update(t, this.scroll, this.event);
