@@ -68,7 +68,8 @@ public sealed partial class AetherClient
                             }
                             features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
                                 round => { client.GiftAnimation.Enqueue(round, animationStop.Token); output.TryWrite(round); }));
-                            features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value));
+                            features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value, client.logger,
+                                async () => (await client.Api(credential: null).ResolveRoomAsync(realRoomId.Value, animationStop.Token)).LiveTime));
                             features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop.Token));
                             if (Settings.WelcomeEnabled.Value)
                             {

@@ -55,6 +55,15 @@ public sealed class GiftBoardController : IDisposable
         }
     }
 
+    /// <summary>The room's 一场直播 as room_init says after a LIVE message.</summary>
+    internal void UpdateLiveTime(long room, long? live)
+    {
+        lock (gate)
+        {
+            if (roomId == room) EnterLive(room, live);
+        }
+    }
+
     internal void EndRoom(long room)
     {
         lock (gate)
