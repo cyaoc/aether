@@ -2,7 +2,7 @@
 // (design package GB1). Everything is drawn in design pixels and clipped to the board, so nothing leaves it.
 import { CARDS, LAYOUT, spriteHome } from './layout.mjs';
 import { EVENTS, easeInOut, flare } from './motion.mjs';
-import { canvasOf, k, mix, out, rnd } from '../video/animations/toolkit.mjs';
+import { canvasOf, glow, k, mix, out, rnd } from '../video/animations/toolkit.mjs';
 
 const GOLD = '255,226,160', ICE = '190,210,255';
 const CONFETTI = ['#FFD36B', '#FFFFFF', '#6F86FF', '#FF9EC4', '#9FE3FF'];
@@ -205,14 +205,8 @@ export class Effects {
 
   // The gold rim flares (the scene lights the card) and a warm glow and a burst of sparks open behind it.
   bloom(middle) {
-    const { g, u } = this, level = flare(u);
-    if (level > 0) {
-      const warmth = g.createRadialGradient(middle[0], middle[1], 0, middle[0], middle[1], 220);
-      warmth.addColorStop(0, 'rgba(255,230,170,' + 0.3 * level + ')');
-      warmth.addColorStop(1, 'rgba(255,200,120,0)');
-      g.fillStyle = warmth;
-      g.fillRect(middle[0] - 220, middle[1] - 220, 440, 440);
-    }
+    const { g, u } = this;
+    glow(g, middle[0], middle[1], 220, '255,230,170', 0.3 * flare(u), '255,200,120');
     this.burst({ seed: 37, x: middle[0], y: middle[1], at: 1620, count: 12, life: 1100, spread: 170 });
   }
 
@@ -246,13 +240,7 @@ export class Effects {
       g.closePath();
       g.fill();
     }
-    const halo = g.createRadialGradient(0, 0, 0, 0, 0, 150);
-    halo.addColorStop(0, 'rgba(255,245,220,' + 0.4 * strength + ')');
-    halo.addColorStop(1, 'rgba(255,230,180,0)');
-    g.fillStyle = halo;
-    g.beginPath();
-    g.arc(0, 0, 150, 0, Math.PI * 2);
-    g.fill();
+    glow(g, 0, 0, 150, '255,245,220', 0.4 * strength, '255,230,180');
     g.restore();
   }
 

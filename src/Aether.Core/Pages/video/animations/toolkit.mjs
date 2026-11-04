@@ -198,9 +198,10 @@ export function gather(g, l, { hilt, tip = hilt, start, span, count, color, seed
 // EV1 and EV2's charge: sparks pulled into the hilt from further out, over longer, on seeds laid out one closer.
 export const charge = (g, l, { hilt, span, count, color }) => gather(g, l, { hilt, start: 650, span, count, color, life: [380, 260], ring: [360, 420], gap: 0 });
 
-export function glow(c, x, y, r, rgb, a) {
+// The glow fades out to nothing in `edge`, which is `rgb` unless given.
+export function glow(c, x, y, r, rgb, a, edge = rgb) {
   if (a <= 0.003) return;
-  const gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(' + rgb + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+  const gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(' + rgb + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + edge + ',0)');
   c.fillStyle = gr; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
 }
 
