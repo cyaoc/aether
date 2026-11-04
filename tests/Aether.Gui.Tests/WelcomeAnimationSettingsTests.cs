@@ -522,7 +522,6 @@ public sealed class WelcomeAnimationSettingsTests
 
     private static string Copy(GuiHarness harness, string name) => Path.Combine(harness.DataDirectory, "videos", name);
     private static AnimationViewerRow[] Rows(SettingsPage page) => ((AnimationSettingsPage)page).Animations.ToArray();
-    private static void Click(Control control, string name) { GuiHarness.FindVisual<Button>(control, name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); GuiHarness.Flush(); }
     private static void Click(SettingsPage page, AnimationViewerRow row, string name)
     {
         Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(
@@ -701,7 +700,7 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal(id, stopped.RootElement.GetProperty("id").GetString());
             await GuiHarness.WaitForAsync(() => viewModel.WebService.RecentAnimations.Single().Playback.State == PlaybackState.Stopped);
             Assert.Equal("试播", GuiHarness.FindRowControl<TextBlock>(animation, playingRow, "TestText").Text);
-            Click(animation, "OpenGeneralSettingsButton");
+            GuiHarness.Click(animation, "OpenGeneralSettingsButton");
             Assert.Equal(7, window.Navigation.SelectedIndex);
             var nextPort = GuiHarness.FreePort();
             general.FindControl<NumericUpDown>("WebPortInput")!.Text = nextPort.ToString();
@@ -909,6 +908,7 @@ public sealed class WelcomeAnimationSettingsTests
     [Theory]
     [InlineData(true, 2, 1, 3, null, "运行中", "视频页：已有 2 个推流软件连着")]
     [InlineData(true, 2, 0, 0, null, "运行中", "视频页：已有 2 个推流软件连着")]
+    [InlineData(true, 0, 0, 0, null, "运行中", "视频页还没有推流软件连着，先在直播姬里加好再试播")]
     [InlineData(true, 0, 1, 0, null, "运行中", "视频页还没有推流软件连着，先在直播姬里加好再试播")]
     [InlineData(true, 0, 0, 1, null, "运行中", "视频页还没有推流软件连着，先在直播姬里加好再试播")]
     [InlineData(false, 0, 0, 0, "端口 17891 被别的程序占用", "没打开：端口 17891 被别的程序占用", "网页服务没打开：端口 17891 被别的程序占用，试播和进场都播不了")]

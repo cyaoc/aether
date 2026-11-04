@@ -398,7 +398,12 @@ public sealed partial class VisualReviewTests
                 for (var index = 0; index < window.Navigation.ItemCount; index++)
                 {
                     window.Navigation.SelectedIndex = index;
-                    CheckFixedText();
+                    var checkedTexts = CheckFixedText();
+                    // The pages the gift board added are among those checked, not skipped by an exception or a page that is not shown.
+                    if (index == Array.IndexOf(ReviewedPages, "gift-board"))
+                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "上榜门槛", "每场开播换新榜", "新的第一名时响一声", "清空礼物榜", "当前榜单" });
+                    if (index == Array.IndexOf(ReviewedPages, "general"))
+                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "礼物榜页", "送礼观众的排行", "480 × 1000，可以等比放大" });
                 }
                 var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);
                 var status = general.FindControl<TextBlock>("WebServiceStatusText")!;
@@ -425,28 +430,35 @@ public sealed partial class VisualReviewTests
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
             return true;
 
-            void CheckFixedText()
+            string[] CheckFixedText()
             {
                 GuiHarness.Flush();
                 var texts = window.GetVisualDescendants().OfType<TextBlock>()
-                    .Where(t => t.IsEffectivelyVisible && !string.IsNullOrEmpty(t.Text));
+                    .Where(t => t.IsEffectivelyVisible && !string.IsNullOrEmpty(t.Text)).ToArray();
                 foreach (var text in texts)
                 {
                     // These are multi-sentence help, not single-line captions.
-                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" or "BoardEmpty" or "PageSetupSteps" ||
+                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" ||
                         text.GetVisualAncestors().OfType<Control>().Any(c =>
                             c.Name is "SetupHelp" or "EmptyConditions")) continue;
+                    // The gift board's empty list and a status bar's steps wrap too, but all of their words show.
+                    if (text.Name is "BoardEmpty" or "PageSetupSteps")
+                    {
+                        Assert.True(text.TextLayout.Height <= text.Bounds.Height + 1 && text.TextLayout.Width <= text.Bounds.Width + 1, $"Clipped help: {text.Text}");
+                        continue;
+                    }
                     Assert.True(text.TextWrapping == TextWrapping.NoWrap, $"Wrapping: {text.Text}");
                     var line = Assert.Single(text.TextLayout.TextLines);
                     Assert.True(line.Width > 0 && text.Bounds.Height >= line.Height - 1, $"Hidden: {text.Text}");
                     Assert.True(line.Width <= text.Bounds.Width + 1, $"Clipped: {text.Text}");
                     if (line.HasCollapsed) Assert.Equal(text.Text, ToolTip.GetTip(text));
-                    // A vertical stack puts its caption under the heading on purpose, as a switch's title does.
-                    if (text.Classes.Contains("section") && text.Parent is Panel row and not StackPanel { Orientation: Orientation.Vertical })
+                    // A switch, a choice or a slider is titled by a heading with its caption under it, on purpose.
+                    if (text.Classes.Contains("section") && text.Parent is Panel row && !TitlesAControl(row))
                         foreach (var hint in row.Children.OfType<TextBlock>().Where(t => t.Classes.Contains("hint")))
                             Assert.True(hint.Bounds.Top < text.Bounds.Bottom && text.Bounds.Top < hint.Bounds.Bottom,
                                 $"Caption below heading: {text.Text}");
                 }
+                return [.. texts.Select(text => text.Text!)];
             }
         }, TestContext.Current.CancellationToken);
 
@@ -1117,6 +1129,10 @@ public sealed partial class VisualReviewTests
             return true;
         }, TestContext.Current.CancellationToken);
     }
+
+    /// <summary>The stack of a heading with its caption under it, beside a toggle or a slider or inside a radio button.</summary>
+    private static bool TitlesAControl(Panel row) => row is StackPanel { Orientation: Orientation.Vertical } stack
+        && (stack.Parent is RadioButton || stack.Parent is Grid grid && grid.Children.Any(child => child is ToggleSwitch or Slider));
 
     private static void Save(TopLevel topLevel, string fileName)
     {

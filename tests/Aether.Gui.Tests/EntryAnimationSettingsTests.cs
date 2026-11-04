@@ -54,13 +54,11 @@ public sealed class EntryAnimationSettingsTests
             volume.Value = 65;
             GuiHarness.Flush();
             Assert.True(page.CanSave);
-            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await page.PendingSave;
+            await GuiHarness.SaveAsync(page);
             Assert.Equal(65, Settings.Load(h.DataDirectory).EntryAnimationVolume.Value);
             Assert.False(page.CanSave);
             volume.Value = 0;
-            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await page.PendingSave;
+            await GuiHarness.SaveAsync(page);
             Assert.Equal(0, Settings.Load(h.DataDirectory).EntryAnimationVolume.Value);
             var reopened = new AnimationSettingsPage(h.DataDirectory);
             window.Content = reopened;
@@ -178,8 +176,7 @@ public sealed class EntryAnimationSettingsTests
             GuiHarness.Flush();
             Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "达到门槛后，按实际等级播放对应档位");
             input.SelectedItem = level == 0 ? 30 : 0;
-            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await page.PendingSave;
+            await GuiHarness.SaveAsync(page);
             Assert.Equal(level == 0 ? 30 : 0, Settings.Load(h.DataDirectory).EntryAnimationFanClubLevel.Value);
             var reopened = new AnimationSettingsPage(h.DataDirectory);
             window.Content = reopened;
@@ -220,9 +217,7 @@ public sealed class EntryAnimationSettingsTests
             Assert.Equal("保存后，下一次进场生效", page.TimingHint);
             Assert.Equal(1, ((ListBox)panel.Danmaku.HeaderTabs!).SelectedIndex);
             Assert.Equal("50", page.Animations[0].Choice);
-            GuiHarness.Flush();
-            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await page.PendingSave;
+            await GuiHarness.SaveAsync(page);
             var saved = Settings.Load(h.DataDirectory);
             Assert.Null(saved.Error);
             Assert.Equal(50, saved.EntryAnimationViewers[1].Value.Tier?.Value);
