@@ -16,7 +16,7 @@ internal static class BlindBoxPeriodName
 /// for an ordinary gift's item (no BlindGift*); FaceUrl and IconUrl are the viewer's avatar and the opened gift's icon.</summary>
 internal sealed record BlindBox(long Uid, string Nickname, long BlindGiftId, string BlindGiftName,
     long BlindGiftPrice, long OpenedGiftId, string OpenedGiftName, long OpenedGiftPrice, long Num, long Spend,
-    long OpenedValue, long Timestamp, string? Tid, bool Shown, string RawMessage)
+    long OpenedValue, long Timestamp, string? Tid, bool Shown)
 {
     public string FaceUrl { get; init; } = "";
     public string IconUrl { get; init; } = "";
@@ -82,9 +82,9 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO blind_box (room_id, uid, nickname, blind_gift_id, blind_gift_name, blind_gift_price,
-                opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid, raw_message)
+                opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid)
             VALUES ($roomId, $uid, $nickname, $blindGiftId, $blindGiftName, $blindGiftPrice,
-                $openedGiftId, $openedGiftName, $openedGiftPrice, $num, $spend, $openedValue, $timestamp, $tid, $rawMessage)
+                $openedGiftId, $openedGiftName, $openedGiftPrice, $num, $spend, $openedValue, $timestamp, $tid)
             ON CONFLICT (tid) DO NOTHING;
             """;
         command.Parameters.AddWithValue("$roomId", roomId);
@@ -101,7 +101,6 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
         command.Parameters.AddWithValue("$openedValue", blindBox.OpenedValue);
         command.Parameters.AddWithValue("$timestamp", blindBox.Timestamp);
         command.Set("$tid", blindBox.Tid);
-        command.Parameters.AddWithValue("$rawMessage", blindBox.RawMessage);
         if (command.ExecuteNonQuery() == 0)
         {
             // Name the ignored amounts, so a shared tid (a broken key assumption) can be told apart and recovered from the log.

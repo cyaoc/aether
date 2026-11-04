@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using Aether.Core.Gifts;
 using Aether.Core.Tests.Support;
@@ -152,6 +151,6 @@ public sealed class GiftDecodingTests
         var root = document.RootElement;
         var command = root.GetProperty("cmd").GetString();
         Assert.NotNull(command);
-        return GiftMessages.Decode(command, root, Encoding.UTF8.GetBytes(message), logger ?? NullLogger.Instance);
+        return GiftMessages.Decode(command, root, logger ?? NullLogger.Instance);
     }
 }
