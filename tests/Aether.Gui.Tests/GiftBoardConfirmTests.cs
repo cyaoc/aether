@@ -1,6 +1,5 @@
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
-using Avalonia.Interactivity;
 using static Aether.Gui.Tests.Support.GiftBoardScene;
 
 namespace Aether.Gui.Tests;
@@ -43,20 +42,20 @@ public sealed class GiftBoardConfirmTests
         scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450), PaidGift(2, "龍騰雲海", "告白气球", 2000, 5));
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 2);
 
-        Click(scene, "AskClearButton");
+        GuiHarness.Click(scene.Page, "AskClearButton");
         Assert.Equal("清空后直播画面上的礼物榜也会变空，确定吗？", AskedText(scene));
         Assert.True(IsShown(scene, "ConfirmClearButton"));
         Assert.False(IsShown(scene, "ConfirmRestoreButton"));
         Assert.False(IsShown(scene, "PART_SaveButton"));
 
-        Click(scene, "CancelConfirmButton");
+        GuiHarness.Click(scene.Page, "CancelConfirmButton");
         Assert.Null(AskedText(scene));
         Assert.True(IsShown(scene, "PART_SaveButton"));
         Assert.Equal(2, scene.Listed().Length);
 
-        Click(scene, "AskClearButton");
+        GuiHarness.Click(scene.Page, "AskClearButton");
         scene.Clock.Advance(TimeSpan.FromMinutes(12));
-        Click(scene, "ConfirmClearButton");
+        GuiHarness.Click(scene.Page, "ConfirmClearButton");
         Assert.Null(AskedText(scene));
         Assert.Equal("已清空直播间 1768506153 的礼物榜", GuiHarness.FindVisual<TextBlock>(scene.Page, "Message").Text);
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 0);
@@ -74,16 +73,16 @@ public sealed class GiftBoardConfirmTests
         scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450), PaidGift(2, "龍騰雲海", "告白气球", 2000, 5));
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 2 && Offered(scene).Restore);
 
-        Click(scene, "AskRestoreButton");
+        GuiHarness.Click(scene.Page, "AskRestoreButton");
         Assert.Equal("上一期（11月3日，4 位）会合并回来，确定吗？", AskedText(scene));
         Assert.True(IsShown(scene, "ConfirmRestoreButton"));
         Assert.False(IsShown(scene, "ConfirmClearButton"));
 
-        Click(scene, "CancelConfirmButton");
+        GuiHarness.Click(scene.Page, "CancelConfirmButton");
         Assert.Equal(2, scene.Listed().Length);
 
-        Click(scene, "AskRestoreButton");
-        Click(scene, "ConfirmRestoreButton");
+        GuiHarness.Click(scene.Page, "AskRestoreButton");
+        GuiHarness.Click(scene.Page, "ConfirmRestoreButton");
         Assert.Equal("已恢复上一期", GuiHarness.FindVisual<TextBlock>(scene.Page, "Message").Text);
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 5);
         Assert.Equal(["1 南風知我意 提督 ×1 19980 电池", "2 龍騰雲海 告白气球 ×8 16000 电池", "3 月下Lily 次元之城 ×1 12450 电池",
@@ -100,7 +99,7 @@ public sealed class GiftBoardConfirmTests
         scene.Board.Clear();
         await GuiHarness.WaitForAsync(() => Offered(scene).Restore && scene.Listed().Length == 0);
 
-        Click(scene, "AskRestoreButton");
+        GuiHarness.Click(scene.Page, "AskRestoreButton");
         Assert.Equal("上一期（11月3日，2 位）会恢复回来，确定吗？", AskedText(scene));
     }, On);
 
@@ -110,7 +109,7 @@ public sealed class GiftBoardConfirmTests
         scene.Connect();
         scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450));
         await GuiHarness.WaitForAsync(() => Offered(scene).Clear);
-        Click(scene, "AskClearButton");
+        GuiHarness.Click(scene.Page, "AskClearButton");
         Assert.NotNull(AskedText(scene));
 
         scene.Disconnect();
@@ -128,11 +127,4 @@ public sealed class GiftBoardConfirmTests
         IsShown(scene, "ConfirmText") ? scene.Page.FindControl<TextBlock>("ConfirmText")!.Text : null;
 
     private static bool IsShown(GiftBoardScene scene, string name) => GuiHarness.FindVisual<Control>(scene.Page, name).IsEffectivelyVisible;
-
-    private static void Click(GiftBoardScene scene, string name)
-    {
-        GuiHarness.Flush();
-        GuiHarness.FindVisual<Button>(scene.Page, name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        GuiHarness.Flush();
-    }
 }

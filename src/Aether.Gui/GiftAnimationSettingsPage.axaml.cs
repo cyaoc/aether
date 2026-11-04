@@ -35,7 +35,7 @@ public partial class GiftAnimationSettingsPage : SettingsPage
         PageStatus.GeneralSettingsRequested += () => GeneralSettingsRequested?.Invoke();
         LoadSettings();
     }
-    protected override bool ReconnectAfterSave => false;
+    protected override bool AppliesToWebService => true;
     private bool notPositive;
     protected override bool ShowRowErrors()
     {
@@ -50,9 +50,4 @@ public partial class GiftAnimationSettingsPage : SettingsPage
     }
     protected override string DirtyDescription => !ThresholdError.IsVisible ? base.DirtyDescription
         : notPositive ? "门槛要填正整数，改好后才能保存" : "门槛要一档比一档高，改好后才能保存";
-    protected override async Task<string> AfterSave(Settings saved, string result)
-    {
-        if (viewModel is not null) await viewModel.WebService.ApplyWebSettingsAsync(saved);
-        return result;
-    }
 }

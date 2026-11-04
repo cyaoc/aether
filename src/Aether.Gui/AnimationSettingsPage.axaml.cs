@@ -29,7 +29,7 @@ public partial class AnimationSettingsPage : SettingsPage
         LoadSettings();
     }
 
-    protected override bool ReconnectAfterSave => false;
+    protected override bool AppliesToWebService => true;
     protected override void LoadRows() => LoadAnimations();
     protected override bool RowsChanged => AnimationDraft;
     protected override bool ShowRowErrors() => RefreshAnimations();
@@ -45,11 +45,8 @@ public partial class AnimationSettingsPage : SettingsPage
 
     protected override async Task<string> AfterSave(Settings saved, string result)
     {
-        if (viewModel is not null)
-        {
-            await viewModel.WebService.ApplyWebSettingsAsync(saved);
-            viewModel.WebService.ForgetAnimationFailures(replaced);
-        }
+        result = await base.AfterSave(saved, result);
+        viewModel?.WebService.ForgetAnimationFailures(replaced);
         return result;
     }
 

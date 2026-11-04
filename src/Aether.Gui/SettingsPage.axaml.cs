@@ -137,7 +137,8 @@ public abstract class SettingsPage : TemplatedControl
         pageLayout.RowDefinitions[1].Height = stacked ? GridLength.Star : new GridLength(0);
     }
 
-    protected virtual bool ReconnectAfterSave => true;
+    /// <summary>Whether saving applies this page's settings to the web service at once; otherwise they wait for the next room connection.</summary>
+    protected virtual bool AppliesToWebService => false;
     protected virtual string DirtyDescription => "有未保存的修改";
     protected virtual bool RowsChanged => false;
     protected virtual void LoadRows() { }
@@ -312,7 +313,12 @@ public abstract class SettingsPage : TemplatedControl
         return Task.FromResult("已保存。");
     }
 
-    protected virtual Task<string> AfterSave(Settings saved, string result) => Task.FromResult(result);
+    protected virtual async Task<string> AfterSave(Settings saved, string result)
+    {
+        if (AppliesToWebService && viewModel is not null) await viewModel.WebService.ApplyWebSettingsAsync(saved);
+        return result;
+    }
+
     protected virtual void ReloadAfterFailure() => LoadSettings();
 
     private async void Save(object? sender, RoutedEventArgs e)
@@ -336,7 +342,7 @@ public abstract class SettingsPage : TemplatedControl
                 result = await AfterSave(settings, result);
                 SaveCompleted?.Invoke();
                 Message = result;
-                ShowReconnectNotice = ReconnectAfterSave && viewModel?.HasRoomConnection == true;
+                ShowReconnectNotice = !AppliesToWebService && viewModel?.HasRoomConnection == true;
             }
         }
         catch (Exception error) when (error is SettingsException or IOException or UnauthorizedAccessException)

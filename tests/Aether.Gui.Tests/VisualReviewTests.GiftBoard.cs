@@ -1,7 +1,5 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
-using Avalonia.Controls;
-using Avalonia.Interactivity;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.Time.Testing;
@@ -43,14 +41,14 @@ public sealed partial class VisualReviewTests
                 shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 0));
                 shoot.Capture("gift-board-page-waiting");
                 shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1));
-                shoot.Click("AskClearButton");
+                GuiHarness.Click(shoot.Page, "AskClearButton");
                 shoot.Capture("gift-board-clear-confirm");
-                shoot.Click("CancelConfirmButton");
-                shoot.Click("AskRestoreButton");
+                GuiHarness.Click(shoot.Page, "CancelConfirmButton");
+                GuiHarness.Click(shoot.Page, "AskRestoreButton");
                 shoot.Capture("gift-board-restore-confirm");
-                shoot.Click("CancelConfirmButton");
-                shoot.Click("AskRestoreButton");
-                shoot.Click("ConfirmRestoreButton");
+                GuiHarness.Click(shoot.Page, "CancelConfirmButton");
+                GuiHarness.Click(shoot.Page, "AskRestoreButton");
+                GuiHarness.Click(shoot.Page, "ConfirmRestoreButton");
                 await GuiHarness.WaitForAsync(() => shoot.ViewModel.GiftBoard.Rows.Count == 9);
                 shoot.Capture("gift-board-restored");
             });
@@ -85,13 +83,6 @@ public sealed partial class VisualReviewTests
     private sealed record BoardShot(MainWindow Window, MainWindowViewModel ViewModel, GiftBoardSettingsPage Page, Look Look)
     {
         public void Capture(string scene) => Save(Window, $"{scene}-{Look.Suffix}");
-
-        public void Click(string name)
-        {
-            GuiHarness.Flush();
-            GuiHarness.FindVisual<Button>(Page, name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            GuiHarness.Flush();
-        }
     }
 
     /// <summary>The 礼物榜 section of canvas GS1 in a main window: the room connected (or not), the board of 4 November 20:03 with the 期 of 3 November before it.</summary>

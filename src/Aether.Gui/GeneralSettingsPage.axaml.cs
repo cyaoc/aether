@@ -32,7 +32,7 @@ public partial class GeneralSettingsPage : SettingsPage
         LoadSettings();
     }
 
-    protected override bool ReconnectAfterSave => false;
+    protected override bool AppliesToWebService => true;
     private bool PortChanged => settings.WebServicePort.CanEdit && WebPortInput.Text != original.GetValueOrDefault(settings.WebServicePort.Name);
     protected override string DirtyDescription => PortChanged ? "保存后网页服务换到新端口，直播姬里的地址要跟着改" : base.DirtyDescription;
 
@@ -44,12 +44,8 @@ public partial class GeneralSettingsPage : SettingsPage
 
     protected override async Task<string> AfterSave(Settings saved, string result)
     {
-        if (viewModel is not null)
-        {
-            await viewModel.WebService.ApplyWebSettingsAsync(saved);
-            if (savedPortChanged && viewModel.WebService.WebServiceStatus.Running) result = "已保存，网页服务已换到新端口";
-        }
-        return result;
+        result = await base.AfterSave(saved, result);
+        return savedPortChanged && viewModel?.WebService.WebServiceStatus.Running == true ? "已保存，网页服务已换到新端口" : result;
     }
 
     private async void CopyPageAddress(object? sender, RoutedEventArgs e)

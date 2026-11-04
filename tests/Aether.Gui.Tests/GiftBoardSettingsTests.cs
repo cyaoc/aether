@@ -9,35 +9,24 @@ namespace Aether.Gui.Tests;
 public sealed class GiftBoardSettingsTests
 {
     [Fact]
-    public Task The_navigation_lists_the_gift_board_after_the_gift_animation_and_shows_its_saved_switch() => HeadlessApp.Session.Dispatch(async () =>
+    public Task The_navigation_lists_the_gift_board_after_the_gift_animation_and_shows_its_saved_switch() => OnMainWindow(async (h, vm, window) =>
     {
-        using var h = new GuiHarness();
-        await h.SaveCredentialAsync();
-        var vm = h.CreateViewModel();
-        var window = new MainWindow(h.DataDirectory) { DataContext = vm };
-        window.Show();
-        try
-        {
-            var status = window.FindControl<TextBlock>("GiftBoardStatus")!;
-            var gift = (ListBoxItem)window.Navigation.Items[3]!;
-            Assert.Equal("送礼动画", ((Grid)gift.Content!).Children.OfType<TextBlock>().First().Text);
-            Assert.Equal("礼物榜", ((Grid)((ListBoxItem)window.Navigation.Items[4]!).Content!).Children.OfType<TextBlock>().First().Text);
-            Assert.Equal("关", status.Text);
+        var status = window.FindControl<TextBlock>("GiftBoardStatus")!;
+        var gift = (ListBoxItem)window.Navigation.Items[3]!;
+        Assert.Equal("送礼动画", ((Grid)gift.Content!).Children.OfType<TextBlock>().First().Text);
+        Assert.Equal("礼物榜", ((Grid)((ListBoxItem)window.Navigation.Items[4]!).Content!).Children.OfType<TextBlock>().First().Text);
+        Assert.Equal("关", status.Text);
 
-            window.Navigation.SelectedIndex = 4;
-            GuiHarness.Flush();
-            var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            Assert.IsType<GiftBoardSettingsPage>(page);
-            page.FindControl<ToggleSwitch>("EnabledInput")!.IsChecked = true;
-            GuiHarness.Flush();
-            Assert.Equal("关", status.Text);
-            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await page.PendingSave;
-            Assert.Equal("开", status.Text);
-        }
-        finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
-        return true;
-    }, TestContext.Current.CancellationToken);
+        window.Navigation.SelectedIndex = 4;
+        GuiHarness.Flush();
+        var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
+        Assert.IsType<GiftBoardSettingsPage>(page);
+        page.FindControl<ToggleSwitch>("EnabledInput")!.IsChecked = true;
+        GuiHarness.Flush();
+        Assert.Equal("关", status.Text);
+        await GuiHarness.SaveAsync(page);
+        Assert.Equal("开", status.Text);
+    });
 
     [Fact]
     public Task Every_input_is_saved_and_shown_again_when_the_page_is_reopened() => GiftBoardScene.Run(async scene =>
@@ -52,7 +41,7 @@ public sealed class GiftBoardSettingsTests
         page.FindControl<ToggleSwitch>("ResetOnLiveInput")!.IsChecked = false;
         page.FindControl<ToggleSwitch>("MascotInput")!.IsChecked = false;
         page.FindControl<Slider>("VolumeInput")!.Value = 25;
-        await Save(page);
+        await GuiHarness.SaveAsync(scene.Page);
 
         var saved = Settings.Load(scene.DataDirectory);
         Assert.Equal((true, 250, Settings.GiftBoardByTotalPrice, false, false, 25),
@@ -71,7 +60,7 @@ public sealed class GiftBoardSettingsTests
         scene.ViewModel.ConnectionState = RoomConnectionState.Connected;
         scene.Page.FindControl<ToggleSwitch>("MascotInput")!.IsChecked = false;
         scene.Page.FindControl<Slider>("VolumeInput")!.Value = 25;
-        await Save(scene.Page);
+        await GuiHarness.SaveAsync(scene.Page);
 
         Assert.Equal("保存后立即生效", scene.Page.TimingHint);
         Assert.False(scene.Page.ShowReconnectNotice);
@@ -80,27 +69,16 @@ public sealed class GiftBoardSettingsTests
     });
 
     [Fact]
-    public Task A_setting_edited_in_the_file_reaches_the_board_when_a_page_is_next_shown() => HeadlessApp.Session.Dispatch(async () =>
+    public Task A_setting_edited_in_the_file_reaches_the_board_when_a_page_is_next_shown() => OnMainWindow(async (h, vm, window) =>
     {
-        using var h = new GuiHarness();
-        await h.SaveCredentialAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = GuiHarness.FreePort().ToString() });
-        var vm = h.CreateViewModel();
-        var window = new MainWindow(h.DataDirectory) { DataContext = vm };
-        window.Show();
-        try
-        {
-            await GuiHarness.WaitForAsync(() => vm.WebService.WebServiceStatus.Running);
-            Assert.Equal(60, (await h.Client.GiftBoard.CurrentAsync()).Volume);
+        await GuiHarness.WaitForAsync(() => vm.WebService.WebServiceStatus.Running);
+        Assert.Equal(60, (await h.Client.GiftBoard.CurrentAsync()).Volume);
 
-            Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_board.volume"] = "10" });
-            window.Navigation.SelectedIndex = 4;
-            await GuiHarness.WaitForAsync(() => !vm.WebService.AnimationReloading);
-            Assert.Equal(10, (await h.Client.GiftBoard.CurrentAsync()).Volume);
-        }
-        finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
-        return true;
-    }, TestContext.Current.CancellationToken);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_board.volume"] = "10" });
+        window.Navigation.SelectedIndex = 4;
+        await GuiHarness.WaitForAsync(() => !vm.WebService.AnimationReloading);
+        Assert.Equal(10, (await h.Client.GiftBoard.CurrentAsync()).Volume);
+    });
 
     [Theory]
     [InlineData("0")]
@@ -142,29 +120,27 @@ public sealed class GiftBoardSettingsTests
     });
 
     [Fact]
-    public Task The_status_bar_sends_the_streamer_to_the_general_settings_for_the_address_and_size() => HeadlessApp.Session.Dispatch(async () =>
+    public Task The_status_bar_sends_the_streamer_to_the_general_settings_for_the_address_and_size() => OnMainWindow((h, vm, window) =>
+    {
+        window.Navigation.SelectedIndex = 4;
+        GuiHarness.Flush();
+        var page = window.GetVisualDescendants().OfType<GiftBoardSettingsPage>().Single();
+        GuiHarness.FindVisual<Button>(page, "OpenGeneralSettingsButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Assert.Equal(7, window.Navigation.SelectedIndex);
+        return Task.CompletedTask;
+    });
+
+    /// <summary>The main window over a data directory whose web service has a port of its own.</summary>
+    private static Task OnMainWindow(Func<GuiHarness, MainWindowViewModel, MainWindow, Task> check) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();
         await h.SaveCredentialAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = GuiHarness.FreePort().ToString() });
         var vm = h.CreateViewModel();
         var window = new MainWindow(h.DataDirectory) { DataContext = vm };
         window.Show();
-        try
-        {
-            window.Navigation.SelectedIndex = 4;
-            GuiHarness.Flush();
-            var page = window.GetVisualDescendants().OfType<GiftBoardSettingsPage>().Single();
-            GuiHarness.FindVisual<Button>(page, "OpenGeneralSettingsButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(7, window.Navigation.SelectedIndex);
-        }
+        try { await check(h, vm, window); }
         finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
-
-    private static async Task Save(SettingsPage page)
-    {
-        GuiHarness.Flush();
-        GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        await page.PendingSave;
-    }
 }

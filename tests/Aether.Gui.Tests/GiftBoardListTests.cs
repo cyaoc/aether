@@ -58,8 +58,7 @@ public sealed class GiftBoardListTests
         GuiHarness.Flush();
         Assert.StartsWith("还没有人上榜", empty.Text);
 
-        GuiHarness.FindVisual<Button>(scene.Page, "PART_SaveButton").RaiseEvent(new(Button.ClickEvent));
-        await scene.Page.PendingSave;
+        await GuiHarness.SaveAsync(scene.Page);
         Assert.Equal("礼物榜关着，不记录也不显示。", empty.Text);
     }, On);
 
@@ -74,7 +73,7 @@ public sealed class GiftBoardListTests
         GuiHarness.Flush();
         Assert.Single(scene.Listed());
 
-        GuiHarness.FindVisual<Button>(scene.Page, "PART_SaveButton").RaiseEvent(new(Button.ClickEvent));
+        await GuiHarness.SaveAsync(scene.Page);
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 2);
         Assert.Equal(["1 月下Lily 次元之城 ×1 12450 电池", "2 星屑Koi 干杯 ×8 528 电池"], scene.Listed());
     }, [.. On, ("gift_board.threshold", "100")]);

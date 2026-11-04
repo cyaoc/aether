@@ -6,6 +6,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Controls.Presenters;
 using Avalonia.Headless;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Microsoft.Data.Sqlite;
@@ -173,6 +174,21 @@ internal sealed class GuiHarness : IDisposable
     public static void AssertSameBaseline(TextBlock header, TextBlock time, Visual root) =>
         Assert.Equal(header.TranslatePoint(new Point(0, header.TextLayout.Baseline), root)!.Value.Y,
             time.TranslatePoint(new Point(0, time.TextLayout.Baseline), root)!.Value.Y, 0.5);
+
+    /// <summary>Clicks the named button, with the layout settled before and after.</summary>
+    public static void Click(Visual parent, string name)
+    {
+        Flush();
+        FindVisual<Button>(parent, name).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        Flush();
+    }
+
+    /// <summary>Clicks a settings page's 保存 and waits until the save is done.</summary>
+    public static async Task SaveAsync(SettingsPage page)
+    {
+        Click(page, "PART_SaveButton");
+        await page.PendingSave;
+    }
 
     public static async Task WaitForAsync(Func<bool> condition)
     {

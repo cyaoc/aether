@@ -26,13 +26,7 @@ public partial class GiftBoardSettingsPage : SettingsPage
         LoadSettings();
     }
 
-    protected override bool ReconnectAfterSave => false;
-
-    protected override async Task<string> AfterSave(Settings saved, string result)
-    {
-        if (viewModel is not null) await viewModel.WebService.ApplyWebSettingsAsync(saved);
-        return result;
-    }
+    protected override bool AppliesToWebService => true;
 
     protected override void LoadRows() => ShowEmptyList();
 
