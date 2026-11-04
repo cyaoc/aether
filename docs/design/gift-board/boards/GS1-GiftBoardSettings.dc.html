@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>GS1 礼物榜设置</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#3358D4}a:hover{color:#2A47B0}
+</style>
+</helmet>
+<div style="position: relative; width: {{w}}px; height: {{h}}px; box-sizing: border-box; display: flex; overflow: hidden; background: {{t.content}}; color: {{t.primary}}; font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; font-size: 14px">
+
+  <nav aria-label="功能" style="width: 224px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; padding: 14px 12px; background: {{t.sidebar}}; border-right: 1px solid {{t.border}}">
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid {{t.border}}; border-radius: 10px; background: {{t.card}}">
+      <span style="font-size: 12px; color: {{t.muted}}">直播间</span>
+      <sc-if value="{{connected}}" hint-placeholder-val="{{true}}">
+        <span style="font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">1768506153</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: {{t.success}}"><span style="width: 8px; height: 8px; border-radius: 50%; background: #22C55E"></span>已连接 · 42 分钟</span>
+        <button type="button" style="height: 30px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 13px">断开</button>
+      </sc-if>
+      <sc-if value="{{offline}}" hint-placeholder-val="{{false}}">
+        <span style="height: 34px; box-sizing: border-box; display: flex; align-items: center; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; font-size: 14px; color: {{t.disabled}}">房间号</span>
+        <button type="button" style="height: 30px; border: 0; border-radius: 6px; background: {{t.accent}}; color: {{t.onAccent}}; font: inherit; font-size: 13px; font-weight: 600">连接</button>
+      </sc-if>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <sc-for list="{{nav}}" as="item" hint-placeholder-count="8">
+        <a href="#" aria-current="{{item.current}}" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; text-decoration: none; background: {{item.bg}}; color: {{item.color}}; font-weight: {{item.weight}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.icon}}"></path></svg>
+          <span style="flex: 1; white-space: nowrap">{{item.label}}</span>
+          <span style="font-size: 12px; font-weight: 600; color: {{item.badgeColor}}; white-space: nowrap">{{item.badge}}</span>
+        </a>
+      </sc-for>
+    </div>
+    <div style="flex: 1"></div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 4px">
+      <span style="width: 32px; height: 32px; border-radius: 50%; background: {{t.accent}}; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700">测</span>
+      <span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600; font-size: 13px">测试账号</span><span style="font-size: 12px; color: {{t.muted}}">已登录</span></span>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
+    </div>
+    <span style="font-size: 12px; color: {{t.muted}}; padding: 0 4px">v0.0.0-dev</span>
+  </nav>
+
+  <sc-if value="{{isBoard}}" hint-placeholder-val="{{true}}">
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <header style="height: 60px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 0 20px; border-bottom: 1px solid {{t.border}}">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700; white-space: nowrap">礼物榜</h1>
+      <button type="button" role="switch" aria-checked="{{onSwitch.on}}" aria-label="礼物榜" onClick="{{onSwitch.toggle}}" style="position: relative; width: 40px; height: 22px; border: 0; border-radius: 11px; background: {{onSwitch.bg}}; padding: 0"><span style="position: absolute; top: 3px; left: {{onSwitch.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+      <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">保存后立即生效</span>
+      <span style="flex: 1"></span>
+      <sc-if value="{{offline}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">连上直播间后才能清空和恢复</span></sc-if>
+      <button type="button" onClick="{{askRestore}}" disabled="{{restoreDisabled}}" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; margin-right: -8px; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{restoreColor}}; font: inherit; font-size: 13px; white-space: nowrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg>恢复上一期
+      </button>
+      <button type="button" onClick="{{askClear}}" disabled="{{clearDisabled}}" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{clearColor}}; font: inherit; font-size: 13px; white-space: nowrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"></path></svg>清空礼物榜
+      </button>
+    </header>
+    <div style="flex: 1; min-height: 0; display: flex">
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+        <div style="flex: 1; min-height: 0; overflow: hidden; box-sizing: border-box; padding: 18px 20px; display: flex; flex-direction: column; gap: 22px">
+          <sc-if value="{{pageOk}}" hint-placeholder-val="{{true}}">
+            <div style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border: 1px solid {{t.border}}; border-radius: 8px">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.success}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3"></path></svg>
+              <span style="font-size: 13px; font-weight: 600; color: {{t.success}}; white-space: nowrap">礼物榜页：已有 1 个推流软件连着</span>
+              <span style="flex: 1"></span>
+              <a href="#" style="font-size: 13px; text-decoration: none; white-space: nowrap">地址和宽高在通用设置 ›</a>
+            </div>
+          </sc-if>
+          <sc-if value="{{pageWaiting}}" hint-placeholder-val="{{false}}">
+            <div style="display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid {{t.warnBorder}}; border-radius: 8px; background: {{t.warnBg}}; color: {{t.warnText}}">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"></path></svg>
+                <span style="font-size: 13px; font-weight: 600; white-space: nowrap">礼物榜页：还没有推流软件连着</span>
+                <span style="flex: 1"></span>
+                <a href="#" style="font-size: 13px; text-decoration: none; white-space: nowrap">地址和宽高在通用设置 ›</a>
+              </div>
+              <span style="font-size: 13px; line-height: 18px">在直播姬里添加浏览器素材，地址和宽高照通用设置里“礼物榜页”那一行填；已经加过的，右键素材 → 刷新。</span>
+            </div>
+          </sc-if>
+
+          <section style="display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; align-items: baseline; gap: 10px">
+              <h2 style="margin: 0; font-size: 15px; font-weight: 700; white-space: nowrap">上榜门槛</h2>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">达到门槛的礼物才显示在礼物榜上</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <div style="display: flex; height: 36px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden">
+                <label for="gs-threshold" style="position: absolute; width: 1px; height: 1px; overflow: hidden">上榜门槛（电池）</label>
+                <input id="gs-threshold" value="{{threshold}}" style="width: 62px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; color: {{t.primary}}; background: {{t.card}}; outline: none">
+                <span style="width: 30px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></span>
+                <span style="width: 30px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
+              </div>
+              <span style="font-size: 14px">电池</span>
+            </div>
+            <div role="radiogroup" aria-label="门槛比的是" style="display: flex; flex-direction: column; gap: 2px; margin-top: 4px">
+              <sc-for list="{{modes}}" as="m" hint-placeholder-count="2">
+                <button type="button" role="radio" aria-checked="{{m.checked}}" onClick="{{m.pick}}" style="display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px 8px 2px; border: 0; background: transparent; color: {{t.primary}}; font: inherit; text-align: left; cursor: pointer">
+                  <span style="width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; box-sizing: border-box; border-radius: 50%; border: {{m.ring}}; display: flex; align-items: center; justify-content: center"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{m.dot}}"></span></span>
+                  <span style="display: flex; flex-direction: column; gap: 3px">
+                    <span style="font-size: 14px; font-weight: 600; white-space: nowrap">{{m.title}}</span>
+                    <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">{{m.note}}</span>
+                  </span>
+                </button>
+              </sc-for>
+            </div>
+          </section>
+
+          <section style="display: flex; align-items: center; gap: 16px">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 3px">
+              <h2 style="margin: 0; font-size: 14px; font-weight: 600">每场开播换新榜</h2>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">直播跨天也还是同一张；关掉后，只在点“清空礼物榜”时换</span>
+            </div>
+            <button type="button" role="switch" aria-checked="{{perLive.on}}" aria-label="每场开播换新榜" onClick="{{perLive.toggle}}" style="position: relative; width: 40px; height: 22px; border: 0; border-radius: 11px; background: {{perLive.bg}}; padding: 0"><span style="position: absolute; top: 3px; left: {{perLive.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+          </section>
+
+          <section style="display: flex; align-items: center; gap: 16px">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 3px">
+              <h2 style="margin: 0; font-size: 14px; font-weight: 600">看板娘</h2>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">从标题飘带后面探出来主持；关掉后，她的位置能多放 3 行</span>
+            </div>
+            <button type="button" role="switch" aria-checked="{{mascot.on}}" aria-label="看板娘" onClick="{{mascot.toggle}}" style="position: relative; width: 40px; height: 22px; border: 0; border-radius: 11px; background: {{mascot.bg}}; padding: 0"><span style="position: absolute; top: 3px; left: {{mascot.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+          </section>
+        </div>
+
+        <footer style="height: 64px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-top: 1px solid {{t.border}}">
+          <sc-if value="{{confirming}}" hint-placeholder-val="{{false}}">
+            <span style="flex: 1"></span>
+            <span style="font-size: 14px; white-space: nowrap">清空后直播画面上的礼物榜也会变空，确定吗？</span>
+            <button type="button" onClick="{{cancelClear}}" style="height: 36px; padding: 0 16px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px">取消</button>
+            <button type="button" onClick="{{doClear}}" style="height: 36px; padding: 0 22px; border: 0; border-radius: 6px; background: #B91C1C; color: #fff; font: inherit; font-size: 14px; font-weight: 600">清空</button>
+          </sc-if>
+          <sc-if value="{{confirmingRestore}}" hint-placeholder-val="{{false}}">
+            <span style="flex: 1"></span>
+            <span style="font-size: 14px; white-space: nowrap">{{restoreText}}</span>
+            <button type="button" onClick="{{cancelRestore}}" style="height: 36px; padding: 0 16px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px">取消</button>
+            <button type="button" onClick="{{doRestore}}" style="height: 36px; padding: 0 22px; border: 0; border-radius: 6px; background: {{t.accent}}; color: {{t.onAccent}}; font: inherit; font-size: 14px; font-weight: 600">恢复</button>
+          </sc-if>
+          <sc-if value="{{notConfirming}}" hint-placeholder-val="{{true}}">
+            <span style="flex: 1; font-size: 13px; color: {{t.secondary}}; white-space: nowrap">{{footerText}}</span>
+            <button type="button" disabled="{{saveDisabled}}" style="height: 36px; width: 80px; border: 0; border-radius: 6px; background: {{saveBg}}; color: {{saveColor}}; font: inherit; font-size: 14px; font-weight: 600">保存</button>
+          </sc-if>
+        </footer>
+      </div>
+
+      <aside aria-label="当前榜单" style="width: 300px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; border-left: 1px solid {{t.border}}; background: {{t.aside}}">
+        <div style="display: flex; flex-wrap: wrap; align-items: baseline; padding: 20px 16px 10px; row-gap: 4px">
+          <h2 style="margin: 0; flex: 1; font-size: 15px; font-weight: 700">当前榜单</h2>
+          <span style="font-size: 13px; color: {{t.muted}}">{{asideCount}}</span>
+          <sc-if value="{{periodText}}" hint-placeholder-val="本期从 11月4日 20:03 开始"><span style="flex-basis: 100%; font-size: 12px; color: {{t.muted}}; white-space: nowrap">{{periodText}}</span></sc-if>
+        </div>
+        <sc-if value="{{hasRows}}" hint-placeholder-val="{{true}}">
+          <ol style="list-style: none; margin: 0; padding: 0 16px; display: flex; flex-direction: column">
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+              <li style="display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid {{t.border}}">
+                <span style="width: 18px; flex-shrink: 0; text-align: center; font-size: 14px; font-weight: 700; font-style: italic; font-variant-numeric: tabular-nums; color: {{r.rankColor}}">{{r.rank}}</span>
+                <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                  <span style="font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</span>
+                  <span style="font-size: 12px; color: {{t.muted}}; white-space: nowrap">{{r.gift}}</span>
+                </span>
+                <span style="font-size: 12px; color: {{t.secondary}}; font-variant-numeric: tabular-nums; white-space: nowrap">{{r.value}}</span>
+              </li>
+            </sc-for>
+          </ol>
+        </sc-if>
+        <sc-if value="{{noRows}}" hint-placeholder-val="{{false}}">
+          <span style="padding: 24px 16px; font-size: 13px; line-height: 20px; color: {{t.muted}}">{{emptyText}}</span>
+        </sc-if>
+      </aside>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{isGeneral}}" hint-placeholder-val="{{false}}">
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <header style="height: 60px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 36px; padding: 0 20px; border-bottom: 1px solid {{t.border}}">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 700">通用设置</h1>
+      <span style="font-size: 13px; color: {{t.muted}}">端口保存后立即生效；日志设置重启后生效</span>
+    </header>
+    <div style="flex: 1; min-height: 0; overflow: hidden; box-sizing: border-box; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; align-items: baseline; gap: 6px"><h2 style="margin: 0; font-size: 15px; font-weight: 700">网页服务</h2><span style="font-size: 13px; color: {{t.secondary}}">直播姬里的浏览器素材从这里打开页面</span></div>
+      <div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid {{t.border}}; border-radius: 8px">
+        <span style="display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: {{t.success}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3"></path></svg>运行中</span>
+        <span style="font-size: 13px; color: {{t.secondary}}; padding-left: 26px">GUI 开着就一直运行，不用登录、不用连直播间。先开 Aether，再开直播姬。</span>
+      </div>
+      <span style="font-size: 14px">端口</span>
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="display: flex; height: 36px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden"><span style="width: 62px; display: flex; align-items: center; padding: 0 10px; font-size: 14px">17890</span><span style="width: 30px; border-left: 1px solid {{t.control}}"></span><span style="width: 30px; border-left: 1px solid {{t.control}}"></span></div>
+        <span style="font-size: 13px; color: {{t.secondary}}">改了端口，直播姬里所有浏览器素材的地址都要跟着改</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 6px"><span style="font-size: 14px">页面</span><span style="font-size: 13px; color: {{t.secondary}}">每个页面在直播姬里各加一个浏览器素材，宽高照每行写的填</span></div>
+      <div style="display: flex; flex-direction: column; border: 1px solid {{t.border}}; border-radius: 8px">
+        <sc-for list="{{pages}}" as="p" hint-placeholder-count="3">
+          <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border-top: {{p.divider}}; background: {{p.bg}}">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{t.accent}}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{p.icon}}"></path></svg>
+              <span style="font-size: 14px; font-weight: 600; white-space: nowrap">{{p.name}}</span>
+              <span style="flex: 1; font-size: 13px; color: {{t.secondary}}; white-space: nowrap">{{p.note}}</span>
+              <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: {{p.statusColor}}; white-space: nowrap"><span style="width: 6px; height: 6px; border-radius: 50%; background: {{p.statusColor}}"></span>{{p.status}}</span>
+            </div>
+            <div style="display: flex; gap: 8px">
+              <span style="flex: 1; height: 32px; box-sizing: border-box; display: flex; align-items: center; padding: 0 10px; border-radius: 6px; background: {{t.subtle}}; font-family: Menlo, Consolas, monospace; font-size: 13px">{{p.url}}</span>
+              <span style="width: 262px; flex-shrink: 0; display: flex; align-items: center; gap: 6px; font-size: 13px; color: {{t.secondary}}; white-space: nowrap"><svg width="14" height="14" style="flex-shrink: 0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3"></path></svg>{{p.size}}</span>
+              <button type="button" aria-label="复制{{p.name}}地址" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 13px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 9h11v11H9zM5 15H4V4h11v1"></path></svg>复制</button>
+            </div>
+            <sc-if value="{{p.waiting}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; line-height: 18px; color: {{t.warnText}}">还没有推流软件连着。在直播姬里添加浏览器素材，地址和宽高照这一行填；已经加过的，右键素材 → 刷新。</span></sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <footer style="height: 64px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; padding: 0 20px; border-top: 1px solid {{t.border}}">
+      <span style="flex: 1; font-size: 13px; color: {{t.secondary}}">没有未保存的修改</span>
+      <button type="button" disabled="true" style="height: 36px; width: 80px; border: 0; border-radius: 6px; background: {{t.saveOffBg}}; color: {{t.saveOffText}}; font: inherit; font-size: 14px; font-weight: 600">保存</button>
+    </footer>
+  </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"page":{"editor":"enum","options":["礼物榜","通用设置"],"default":"礼物榜"},"scene":{"editor":"enum","options":["默认","清空确认","恢复确认","已恢复","没连直播间","按累计总价","礼物榜页没连上"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
+class Component extends DCLogic {
+  // The app's theme tokens, as on the other GUI boards.
+  tokens(dark) {
+    return dark ? {
+      content: '#1B1C1F', sidebar: '#141518', card: '#222428', aside: '#18191C', border: '#2E3136', subtle: '#26282C', control: '#3A3E45',
+      primary: '#E8EAED', secondary: '#C2C6CE', muted: '#9097A3', disabled: '#4A4F57',
+      accent: '#8DA2FB', accentText: '#B4C3FF', accentTint: '#262F52', onAccent: '#141518', success: '#6FD08C', danger: '#F87171',
+      warnBg: '#2A2114', warnBorder: '#5A4318', warnText: '#F2C46D', switchOff: '#4A4F57', saveOffBg: '#262F52', saveOffText: '#6B7591'
+    } : {
+      content: '#FFFFFF', sidebar: '#F6F7F9', card: '#FFFFFF', aside: '#FAFBFC', border: '#E3E6EB', subtle: '#EEF0F3', control: '#D5D9E0',
+      primary: '#16181D', secondary: '#3D4350', muted: '#5B6270', disabled: '#B4BAC4',
+      accent: '#3358D4', accentText: '#2A47B0', accentTint: '#E6EBFA', onAccent: '#FFFFFF', success: '#166534', danger: '#B91C1C',
+      warnBg: '#FEF8EC', warnBorder: '#F5D9A8', warnText: '#78350F', switchOff: '#B4BAC4', saveOffBg: '#C9D3F2', saveOffText: '#FFFFFF'
+    };
+  }
+
+  toggle(t, key, on) {
+    return { on: on ? 'true' : 'false', bg: on ? t.accent : t.switchOff, knob: on ? '21px' : '3px', toggle: () => this.setState({ [key]: !on }) };
+  }
+
+  renderVals() {
+    const s = this.state || {};
+    const dark = this.props.dark === true || this.props.dark === 'true';
+    const t = this.tokens(dark);
+    const page = this.props.page ?? '礼物榜';
+    const scene = this.props.scene ?? '默认';
+    const [w, h] = (this.props.size ?? '1200 × 720') === '1040 × 600' ? [1040, 600] : [1200, 720];
+    const connected = scene !== '没连直播间';
+    const enabled = s.enabled ?? true, mascotOn = s.mascot ?? true, perLiveOn = s.perLive ?? true;
+    const mode = s.mode ?? (scene === '按累计总价' ? 2 : 1);
+    const threshold = 100;
+    const cleared = s.cleared === true;
+    // 已恢复 without a clear first = the 11月4日 board merged with the 11月3日 period (e.g. after an unwanted auto switch).
+    const merged = !cleared && (s.restored ?? scene === '已恢复');
+    const restoredNote = s.restoredNote ?? scene === '已恢复';
+    const confirming = connected && !cleared && (s.confirming ?? scene === '清空确认');
+    const confirmingRestore = connected && !confirming && !merged && (s.confirmingRestore ?? scene === '恢复确认');
+
+    // [nickname, gift, unit price in 电池, count]
+    const all = [
+      ['月下Lily', '次元之城', 12450, 1], ['龍騰雲海', '告白气球', 2000, 5], ['さくら月影', '舰长', 1980, 1], ['柚子不酸', '天空之翼', 1000, 1],
+      ['鬼滅の刃推し', '告白花束', 220, 4], ['Yuzu_Sour', '花式夸夸', 330, 2], ['夜雨听风', '星河入梦', 199, 3], ['星屑Koi', '干杯', 66, 8], ['白鹭', '情书', 52, 5]
+    ];
+    const shown = all.filter(([, , p, n]) => (mode === 1 ? p : p * n) >= threshold).sort((a, b) => b[2] * b[3] - a[2] * a[3]);
+    // The 11月3日 20:01 period; restoring merges it back: same viewer + same gift adds up.
+    const prev = [['龍騰雲海', '告白气球', 2000, 3], ['Aki秋', '为你加冕', 4500, 1], ['南風知我意', '提督', 19980, 1], ['夜雨听风', '星河入梦', 199, 2]];
+    const current = shown.map(r => [...r]);
+    if (merged) {
+      for (const [n, g, p, c] of prev) {
+        const hit = current.find(r => r[0] === n && r[1] === g);
+        if (hit) hit[3] += c; else if ((mode === 1 ? p : p * c) >= threshold) current.push([n, g, p, c]);
+      }
+      current.sort((a, b) => b[2] * b[3] - a[2] * a[3]);
+    }
+    const rows = connected && enabled && !cleared ? current.map(([name, gift, p, n], i) => ({
+      rank: String(i + 1), name, gift: gift + ' ×' + n, value: (p * n) + ' 电池', rankColor: i < 3 ? ['#C9851D', t.muted, '#5B8CFF'][i] : t.muted
+    })) : [];
+
+    const icons = {
+      danmaku: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
+      box: 'M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z',
+      entry: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3',
+      heart: 'M12 21s-7-4.6-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.4-9 9-9 9z',
+      trophy: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z',
+      ticket: 'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4zM14 5v2M14 11v2M14 17v2',
+      send: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
+      sliders: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+      film: 'M4 4h16v16H4zM8 4v16M16 4v16M4 9h4M4 15h4M16 9h4M16 15h4'
+    };
+    // 礼物榜 sits right after 送礼动画: both are about gifts.
+    const nav = [['弹幕', icons.danmaku, connected ? '8' : '0'], ['盲盒统计', icons.box, '开'], ['进场欢迎', icons.entry, '开'], ['送礼动画', icons.heart, '开'],
+      ['礼物榜', icons.trophy, enabled ? '开' : '关'], ['抽奖', icons.ticket, ''], ['发送队列', icons.send, ''], ['通用设置', icons.sliders, '']].map(([label, icon, badge]) => {
+      const active = label === page;
+      return { label, icon, badge, current: active ? 'page' : 'false', bg: active ? t.accentTint : 'transparent', color: active ? t.accentText : t.secondary,
+        weight: active ? 600 : 400, badgeColor: badge === '开' ? t.success : t.muted };
+    });
+
+    const modes = [
+      { id: 1, title: '按礼物单价', note: '单价达到门槛的礼物上榜；盲盒按开出的礼物算' },
+      { id: 2, title: '按累计总价', note: '同一位观众送的同一种礼物，单价 × 个数达到门槛就上榜' }
+    ].map(m => ({ ...m, checked: m.id === mode ? 'true' : 'false', ring: '2px solid ' + (m.id === mode ? t.accent : t.control), dot: m.id === mode ? t.accent : 'transparent', pick: () => this.setState({ mode: m.id }) }));
+    const dirty = mode !== (scene === '按累计总价' ? 2 : 1) || enabled !== true || mascotOn !== true || perLiveOn !== true;
+    const pageOk = scene !== '礼物榜页没连上';
+    const asideCount = rows.length ? '共 ' + rows.length + ' 位' : '';
+    const emptyText = !connected ? '连上直播间后，这里显示这个直播间的礼物榜。' : !enabled ? '礼物榜关着，不记录也不显示。' : '还没有人上榜。达到门槛的礼物会出现在这里和直播画面上。';
+    const pages = [
+      { name: '视频页', note: '欢迎动画、进场动画和送礼动画在这里播放', size: '1920 × 1080', icon: icons.film, url: 'http://localhost:17890/video', status: '2 个推流软件连着', statusColor: t.success },
+      { name: '抽奖页', note: '报名、开奖和中奖名单', size: '横屏 1920 × 1080 · 竖屏 1080 × 1920', icon: icons.ticket, url: 'http://localhost:17890/lottery', status: '1 个推流软件连着', statusColor: t.success },
+      { name: '礼物榜页', note: '送礼观众的排行', size: '480 × 1000，可以等比放大', icon: icons.trophy, url: 'http://localhost:17890/gift-board', status: pageOk ? '1 个推流软件连着' : '还没有推流软件连着', statusColor: pageOk ? t.success : t.warnText }
+    ].map((p, i) => ({ ...p, waiting: p.statusColor === t.warnText, divider: i ? '1px solid ' + t.border : '0', bg: 'transparent' }));
+
+    return {
+      t, w, h, connected, offline: !connected, isBoard: page === '礼物榜', isGeneral: page === '通用设置', nav, pages,
+      onSwitch: this.toggle(t, 'enabled', enabled), perLive: this.toggle(t, 'perLive', perLiveOn), mascot: this.toggle(t, 'mascot', mascotOn), modes, threshold: String(threshold),
+      pageOk: pageOk && enabled, pageWaiting: !pageOk && enabled,
+      rows, hasRows: rows.length > 0, noRows: rows.length === 0, asideCount, emptyText, count: rows.length,
+      clearDisabled: !connected || rows.length === 0 ? 'true' : null, clearColor: !connected || rows.length === 0 ? t.disabled : t.danger,
+      confirming, confirmingRestore, notConfirming: !confirming && !confirmingRestore,
+      restoreDisabled: connected ? null : 'true', restoreColor: connected ? t.primary : t.disabled,
+      restoreText: cleared ? '上一期（11月4日，' + shown.length + ' 位）会恢复回来，确定吗？' : '上一期（11月3日，' + prev.length + ' 位）会合并回来，确定吗？',
+      askRestore: () => this.setState({ confirmingRestore: true, confirming: false }), cancelRestore: () => this.setState({ confirmingRestore: false }),
+      doRestore: () => this.setState(cleared ? { confirmingRestore: false, cleared: false, restoredNote: true } : { confirmingRestore: false, restored: true, restoredNote: true }),
+      periodText: !connected ? '' : merged ? '本期从 11月3日 20:01 开始' : cleared ? '本期从 11月4日 21:15 开始' : '本期从 11月4日 20:03 开始',
+      askClear: () => this.setState({ confirming: true, confirmingRestore: false }), cancelClear: () => this.setState({ confirming: false }), doClear: () => this.setState({ confirming: false, cleared: true, restoredNote: false }),
+      footerText: restoredNote ? '已恢复上一期' : cleared ? '已清空直播间 1768506153 的礼物榜' : dirty ? '有未保存的修改' : '没有未保存的修改',
+      saveDisabled: dirty ? null : 'true', saveBg: dirty ? t.accent : t.saveOffBg, saveColor: dirty ? t.onAccent : t.saveOffText
+    };
+  }
+}
+</script>
+</body>
+</html>

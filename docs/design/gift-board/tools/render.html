@@ -1,0 +1,120 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>body{margin:0;background:#888}</style></head>
+<body><div id="root"></div>
+<script>
+// Minimal Design Component renderer for the boards: {{path}} holes, <sc-if>, <sc-for>, ref callbacks, DCLogic state.
+// Query: board=<file in boards/>, props=<JSON of the board's data-props>, freeze=<ms> pins every CSS animation at that moment.
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const html = await (await fetch('/board/' + params.get('board'))).text();
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+  for (const s of doc.querySelectorAll('helmet style, helmet link:not([href^="https://fonts.googleapis.com/"])')) document.head.appendChild(document.importNode(s, true));
+  // Boards may load uploaded scripts in <head> after support.js; load them before the component runs.
+  for (const s of doc.head.querySelectorAll('script[src]:not([src="./support.js"])')) await new Promise((ok, no) => { const el = document.createElement('script'); el.src = s.getAttribute('src'); el.onload = ok; el.onerror = no; document.head.appendChild(el); });
+  const root = document.getElementById('root');
+  let refs = [];
+  class DCLogic { constructor(props) { this.props = props; this.state = null; } setState(s) { this.state = { ...(this.state || {}), ...s }; render(); } }
+  const Component = new Function('DCLogic', doc.querySelector('script[data-dc-script]').textContent + '\nreturn Component;')(DCLogic);
+  const comp = window.dc = new Component(JSON.parse(params.get('props') || '{}'));
+  const hole = /\{\{\s*([\w.$]+)\s*\}\}/;
+  const lookup = (scope, p) => p.split('.').reduce((o, k) => o == null ? undefined : o[k], scope);
+  const sub = (str, scope) => str.replace(new RegExp(hole, 'g'), (_, p) => { const v = lookup(scope, p); return v == null ? '' : String(v); });
+  function walk(node, scope, out) {
+    for (const n of [...node.childNodes]) {
+      if (n.nodeType === 3) { out.appendChild(document.createTextNode(sub(n.textContent, scope))); continue; }
+      if (n.nodeType !== 1) continue;
+      const tag = n.localName;
+      if (tag === 'helmet') continue;
+      if (tag === 'sc-if') { if (lookup(scope, n.getAttribute('value').match(hole)[1])) walk(n, scope, out); continue; }
+      if (tag === 'sc-for') { const as = n.getAttribute('as'); for (const item of lookup(scope, n.getAttribute('list').match(hole)[1]) || []) walk(n, { ...scope, [as]: item }, out); continue; }
+      const el = document.createElementNS(n.namespaceURI, tag);
+      for (const a of n.attributes) {
+        if (a.name.startsWith('hint-')) continue;
+        if (a.name === 'ref') { refs.push([lookup(scope, a.value.match(hole)[1]), el]); continue; }
+        el.setAttribute(a.name, sub(a.value, scope));
+      }
+      walk(n, scope, el);
+      out.appendChild(el);
+    }
+  }
+  function render() { const vals = comp.renderVals(); refs = []; root.replaceChildren(); walk(doc.querySelector('x-dc'), vals, root); for (const [f, el] of refs) if (f) f(el); }
+  render();
+  comp.componentDidMount?.();
+  // sound=<tier> triggers audio/events.json from the board's own clock, as a game does: the animation keeps its timing,
+  // and each sound is scheduled so its loudest moment reaches the speakers on its frame.
+  if (params.has('sound')) {
+    const tier = params.get('sound');
+    root.style.zoom = innerWidth / 1920;
+    const bar = document.body.appendChild(document.createElement('div'));
+    bar.style.cssText = 'position:fixed;left:16px;top:16px;z-index:9;display:flex;gap:8px;align-items:center;font:14px sans-serif;color:#fff';
+    for (const [t, board] of Object.entries({ 30: 'EV1-EntrySlice', 40: 'EV2-EntryTriple', 50: 'EV3-EntrySwallow', 60: 'EV4-EntryMoon' })) {
+      const a = bar.appendChild(document.createElement('a'));
+      a.textContent = t + ' 档'; a.href = `?board=${board}.dc.html&sound=${t}`;
+      a.style.cssText = `padding:6px 10px;border-radius:6px;background:${t === tier ? '#3358D4' : '#000a'};color:#fff;text-decoration:none`;
+    }
+    const start = bar.appendChild(document.createElement('button'));
+    start.textContent = '加载中…'; start.disabled = true;
+    start.style.cssText = 'padding:6px 10px;border:0;border-radius:6px;background:#fff;color:#16181D';
+    const info = bar.appendChild(document.createElement('span'));
+    const ctx = new AudioContext({ latencyHint: 'interactive' });
+    const cues = (await (await fetch('/audio/events.json')).json())[tier];
+    const buffers = {};
+    for (const f of new Set(cues.map(c => c.file))) buffers[f] = await ctx.decodeAudioData(await (await fetch('/audio/sources/' + encodeURIComponent(f))).arrayBuffer());
+    for (const c of cues) {
+      const b = buffers[c.file], rate = c.rate ?? 1, from = c.from ?? 0, end = Math.min(b.duration, from + (c.length ?? b.duration));
+      let top = 0, at = from;
+      for (let ch = 0; ch < b.numberOfChannels; ch++) { const d = b.getChannelData(ch); for (let i = Math.floor(from * b.sampleRate); i < end * b.sampleRate; i++) if (Math.abs(d[i]) > top) { top = Math.abs(d[i]); at = i / b.sampleRate; } }
+      Object.assign(c, { buffer: b, rate, from, end, level: 10 ** (c.peak / 20) / top, startAt: c.at ?? c.t - (at - from) / rate });
+    }
+    // Every layer starts off, so sounds can be added back one at a time and judged alone.
+    const on = new Set();
+    try { for (const l of JSON.parse(localStorage.getItem('soundLayers') || '[]')) on.add(l); } catch {}
+    const panel = document.body.appendChild(document.createElement('div'));
+    panel.style.cssText = 'position:fixed;left:16px;top:60px;z-index:9;display:flex;flex-direction:column;gap:6px;padding:10px 12px;border-radius:8px;background:#000c;color:#fff;font:14px sans-serif';
+    for (const layer of [...new Set(cues.map(c => c.layer))].sort()) {
+      const row = panel.appendChild(document.createElement('label'));
+      row.style.cssText = 'display:flex;gap:8px;align-items:center;cursor:pointer';
+      const box = row.appendChild(document.createElement('input'));
+      box.type = 'checkbox'; box.checked = on.has(layer);
+      box.onchange = () => { box.checked ? on.add(layer) : on.delete(layer); try { localStorage.setItem('soundLayers', JSON.stringify([...on])); } catch {} };
+      row.append(layer.replace(/^\d+ /, ''));
+    }
+    let playing = [], fired = new Set(), last = 0, running = false;
+    const stopAll = () => { for (const n of playing) { try { n.stop(); } catch {} } playing = []; fired = new Set(); };
+    const fire = (c, t, latency) => {
+      const src = ctx.createBufferSource(), gain = ctx.createGain();
+      src.buffer = c.buffer; src.playbackRate.value = c.rate; src.connect(gain).connect(ctx.destination);
+      const wait = Math.max(0, c.startAt - t - latency), skip = Math.max(0, t + latency - c.startAt) * c.rate;
+      const when = ctx.currentTime + wait, left = (c.end - c.from - skip) / c.rate;
+      gain.gain.setValueAtTime(c.fadeIn ? 0 : c.level, when);
+      if (c.fadeIn) gain.gain.linearRampToValueAtTime(c.level, when + c.fadeIn);
+      if (c.fadeOut) { gain.gain.setValueAtTime(c.level, when + Math.max(0, left - c.fadeOut)); gain.gain.linearRampToValueAtTime(0, when + left); }
+      src.start(when, c.from + skip, left * c.rate);
+      playing.push(src);
+    };
+    const follow = () => {
+      if (running) {
+        const span = comp.cfg.cycle / comp.cfg.speed, t = (comp.master.currentTime % span) / 1000;
+        if (t < last) stopAll();
+        last = t;
+        const latency = ctx.baseLatency + (ctx.outputLatency || 0);
+        info.textContent = '声音输出延迟 ' + Math.round(latency * 1000) + ' 毫秒';
+        cues.forEach((c, i) => {
+          if (!on.has(c.layer) || fired.has(i) || c.startAt - t - latency >= 0.12) return;
+          fired.add(i);
+          // A layer ticked after its moment waits for the next loop; only a sound that starts before the board does joins late.
+          if (t > 0.1 && c.startAt < t - 0.1) return;
+          fire(c, t, latency);
+        });
+      }
+      requestAnimationFrame(follow);
+    };
+    requestAnimationFrame(follow);
+    start.textContent = '点这里带声音播放'; start.disabled = false;
+    start.onclick = async () => { await ctx.resume(); stopAll(); comp.master.currentTime = 0; last = 0; running = true; };
+    window.soundDebug = () => ({ running, fired: fired.size, of: cues.length, master: Math.round(comp.master.currentTime), ctx: ctx.state, latency: ctx.baseLatency + (ctx.outputLatency || 0) });
+  }
+  // Boards may bind their animations a few frames late, so keep re-pinning them.
+  if (params.has('freeze')) setInterval(() => { for (const a of document.getAnimations()) { if (a.currentTime !== +params.get('freeze')) { a.pause(); a.currentTime = +params.get('freeze'); } } }, 100);
+})();
+</script></body></html>

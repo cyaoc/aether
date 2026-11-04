@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>GB1 星夜应援礼物榜</title>
+<script src="./support.js"></script>
+<script src="/_blob/017bad25925e8b86b270eb3a65ed7fff"></script>
+<script src="/_blob/4e96fe4a1953a4100f9922f45ab6641a"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+@font-face{font-family:'Noto Sans SC';font-weight:500;src:url('/_blob/32c8462cf1c8872aefca109c033c67a6') format('woff2')}
+@font-face{font-family:'Noto Sans SC';font-weight:800;src:url('/_blob/001d47a8cd1cd133407b1a4360b5b6f2') format('woff2')}
+@font-face{font-family:'Playfair Num';font-style:italic;font-weight:800;src:url('/_blob/39f25f52ef5f8ee9867814a38aefbe7b') format('woff2')}
+</style>
+</helmet>
+<div id="gb1-root" style="position: relative; width: {{stageW}}px; height: {{stageH}}px; overflow: hidden; background: {{bg}}">
+  <sc-if value="{{mock}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; inset: 0; background: {{mockBg}}"></div>
+    <sc-if value="{{photo}}" hint-placeholder-val="{{true}}">
+      <img src="/_blob/552189aaefafefb9ecabdea565a88ccf" alt="" style="position: absolute; inset: 0; width: {{stageW}}px; height: {{stageH}}px; object-fit: cover">
+    </sc-if>
+    <span style="position: absolute; left: 48px; top: 16px; font-family: 'PingFang SC', sans-serif; font-size: 18px; color: {{mockInk}}">{{stageLabel}}</span>
+  </sc-if>
+  <canvas id="gb1-gl" width="{{stageW}}" height="{{stageH}}" aria-hidden="true" style="position: absolute; inset: 0; width: {{stageW}}px; height: {{stageH}}px"></canvas>
+  <sc-if value="{{outline}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; left: {{boxX}}px; top: {{boxY}}px; width: {{boxW}}px; height: {{boxH}}px; box-sizing: border-box; border: 1.5px dashed rgba(255,255,255,0.7); pointer-events: none"></div>
+    <span style="position: absolute; left: {{boxX}}px; top: {{labelY}}px; padding: 2px 8px; border-radius: 4px; background: rgba(10,14,40,0.6); font-family: 'PingFang SC', sans-serif; font-size: 15px; color: #fff; white-space: nowrap">{{boxLabel}}</span>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"env":{"editor":"enum","options":["横屏·右","横屏·左","竖屏","矮素材"],"default":"横屏·右"},"scene":{"editor":"enum","options":["演示","太长滚动"],"default":"演示"},"mascot":{"editor":"enum","options":["显示","关闭"],"default":"显示"},"pause":{"editor":"enum","options":["播放","平时","新上榜·飞入","新上榜·展开","加数","超车","新第一·光带","新第一·欢呼"],"default":"播放"},"outline":{"editor":"boolean","default":true},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["明亮画面","浅色房间","深色房间","透明"],"default":"明亮画面"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  componentDidMount() {
+    if (this.loopFn) return;
+    this.loopFn = () => { this.tick(); requestAnimationFrame(this.loopFn); };
+    requestAnimationFrame(this.loopFn);
+  }
+
+  data() {
+    if (this.D) return this.D;
+    const GIFT = { cyc: 'f3354966376e926d73d4ef00c78df1c7', balloon: 'f2fcd3a85fbc41231fae4a35940a23a1', wing: 'e3ec38bc23126827e33b8c7a65449e75', praise: 'f9b2c715d9df5188b59e63ec38d16fa9', bouquet: 'ef088eca47c338c3286aa905508d6abe', dream: 'a77dab6252d59748f4ff903c352d8fb6', cheers: '18a203ffa6cc733cedf069f624325064', letter: '1b91ff51f4a341b9c0a23dc8a53f9191', ship: 'ba08efe9afbea20078b924687d9e2fbf', crystal: 'be6cd7f508867c1ec81ff40d878608c5', guardwing: '83f7622edba067976fc4db75a5905ce1', bkela: 'f77c3f6167d9c01d00c8886622fc7c85', boat: '5e1690f04a31c0c7717907396c33abe5' };
+    // B站's guard_level: 1 总督, 2 提督, 3 舰长. Frames come from roomGiftList guard_resources, badges from icon-guard{n}.png.
+    const FRAME = { 1: 'ccd797bfce90a7d064e089fd1177c668', 2: '62905c47bea70bd17e01053ff703f13b', 3: '18dcabfa80ce8d372993c5c61f6b59cc' };
+    const BADGE = { 1: 'af70d19449786f7ded08dd9b86520a67', 2: 'bca265a20135968fffe716ed1ac17eaa', 3: '7d69b48acd01ec64d5368655161d461a' };
+    // The mascot peeks over the title ribbon. Both poses share one canvas; the anchor is where each pose's body is cut off.
+    const MASCOT = { idle: '090a9c6fbf44eb805169e594c941fe36', cheer: '6e75e624f243d07b98f3d0a0d7019870', idleCut: 1352 / 1536, cheerCut: 1278 / 1536, scale: 0.17 };
+    const BANNER = '1418e5ad9910b79ce6f80c5f11f17b21';
+    // Sample avatars for the board only; on stream every row shows the viewer's own avatar.
+    const AVATAR = ['e222aabd9a0c1c5541a86b7b4d82f942', 'dafde21f1d9c5b68ff7f751f20739923', 'c620d7f4bc5af562ce5ffd444676ff76', '6d0f7caff30f5aeb137edd01a4566882', '232103fa1a828cf6abfaa0f38f77ee18', 'fe74bf47e64cdfb2bcb9e7b82e0b5fb9', '9a8ff6273af0377beb655e5a706329d3', 'bcd5c5164273cf384ca19b7a4a0048d8', 'e6fca7276cf94c054a7f9f49c542d0c9', '8a343577fdd5c70379a9198a27823463', 'e5e91c992fb93d22181fc4360158ffb8', 'b983e6ae5179fd006a444e444faa6b9f', '7c06c75d684972b87cea95a8875f334e', '4f310e5da043acede3bf691558878db3', '16c73bb7fedd325159647c3d6cc5c0de', '0f4430b615cac01b7810b7521a933def'];
+    // [id, nickname, gift key or guard level, unit price in 电池, count]
+    const DEMO = [
+      ['lily', '月下Lily', 'cyc', 12450, 1], ['ryu', '龍騰雲海', 'balloon', 2000, 5], ['sakura', 'さくら月影', 3, 1980, 1],
+      ['yuzu', '柚子不酸', 'wing', 1000, 1], ['sour', 'Yuzu_Sour', 'praise', 330, 2], ['rain', '夜雨听风', 'dream', 199, 3],
+      ['koi', '星屑Koi', 'cheers', 66, 8], ['egret', '白鹭', 'letter', 52, 5], ['kimetsu', '鬼滅の刃推し', 'bouquet', 220, 4]
+    ];
+    const EVENTS = [
+      { at: 1000, kind: 'new', id: 'kimetsu' }, { at: 3200, kind: 'more', id: 'koi', n: 9 },
+      { at: 5000, kind: 'pass', id: 'sour', n: 3 }, { at: 7600, kind: 'top', id: 'ryu', n: 7 }
+    ];
+    const LONG = [
+      ['ryu', '龍騰雲海', 1, 199980, 1], ['lily', '月下Lily', 'ship', 29990, 1], ['kaze', 'Kaze_09', 2, 19980, 1],
+      ['yuzu', '柚子不酸', 'cyc', 12450, 1], ['sakura', 'さくら月影', 3, 1980, 3], ['sour', 'Yuzu_Sour', 'guardwing', 2000, 2],
+      ['kimetsu', '鬼滅の刃推し', 'balloon', 2000, 2], ['rain', '夜雨听风', 3, 1580, 1], ['koi', '星屑Koi', 'crystal', 1000, 1],
+      ['egret', '白鹭', 'wing', 1000, 1], ['mochi', 'Mochi团子', 'praise', 330, 3], ['lime', '青柠', 'bouquet', 220, 4],
+      ['lane', '南巷', 'dream', 199, 4], ['tomato', '番茄炒蛋', 'bkela', 99, 6], ['peach', '桃桃乌龙', 'letter', 52, 9],
+      ['wind', '晚风', 'boat', 52, 5]
+    ];
+    // The whole board is one component 480 design pixels wide; it never assumes where on the stream it sits.
+    // Everything below is measured from the component's top-left, in design pixels.
+    // Cards and pills share one content column, x 20–460, and one set of inner columns (rank, avatar, name, gift, count).
+    const L = { W: 480, CX: 20, CW: 440, ROW_X: 20, ROW_W: 440, ROW_H: 50, PITCH: 60,
+      MZ: 220,          // room above the ribbon for the mascot; with her switched off the list moves up into it
+      NO_MZ: 8,
+      MIN_H: 820,       // the mascot, the ribbon, the top three and three rows; a shorter page scales the whole board down
+      MIN_H_NO: 608,    // the same without the mascot
+      BANNER_C: 40, CARDS_Y: 92, ROWS_Y: 416, BOTTOM: 12,
+      COL: { rank: 62, avatar: 148, name: 192, gift: 376, count: 442 } };
+    const CARDS = [{ y: 0, h: 98 }, { y: 110, h: 90 }, { y: 212, h: 90 }];
+    // Gold, silver-white and ice-blue rims: the cards also differ in size and numeral, never in hue alone.
+    const RIM = [
+      { stops: ['#fff3c8', '#f6cb62', '#d8962a'], glow: 'rgba(255,196,80,0.85)', num: ['#fff6d6', '#f7c95a', '#c9851d'], ring: 0xf6cb62 },
+      { stops: ['#ffffff', '#e3e9f4', '#a9b5cb'], glow: 'rgba(225,235,255,0.7)', num: ['#ffffff', '#e2e8f3', '#9ea9bf'], ring: 0xe3e9f4 },
+      { stops: ['#eaf3ff', '#9ec6ff', '#5b8cff'], glow: 'rgba(120,170,255,0.8)', num: ['#f2f8ff', '#a8ccff', '#5b8cff'], ring: 0x9ec6ff }
+    ];
+    // Where the browser source sits in each sample stream; the board only ever sees its own width and height.
+    const ENV = {
+      '横屏·右': { stage: [1920, 1080], box: [1400, 40, 480, 1000], label: '横屏直播画面 1920 × 1080（示意）' },
+      '横屏·左': { stage: [1920, 1080], box: [40, 40, 480, 1000], label: '横屏直播画面 1920 × 1080（示意）' },
+      '竖屏': { stage: [1080, 1920], box: [450, 610, 600, 1250], label: '竖屏直播画面 1080 × 1920（示意）' },
+      '矮素材': { stage: [1920, 1080], box: [1400, 220, 480, 640], label: '横屏直播画面 1920 × 1080（示意）' }
+    };
+    this.D = { GIFT, FRAME, BADGE, MASCOT, BANNER, AVATAR, DEMO, EVENTS, LONG, L, CARDS, RIM, ENV };
+    return this.D;
+  }
+
+  tick() {
+    const canvas = document.getElementById('gb1-gl'), root = document.getElementById('gb1-root');
+    if (!canvas || !root || !this.cfg || !window.PIXI) return;
+    if (canvas !== this.canvas && !this.booting) { this.booting = true; this.boot(canvas).finally(() => { this.booting = false; }); }
+    if (!this.S || this.S.canvas !== canvas) return;
+    if (root !== this.root || this.cfg !== this.boundCfg) {
+      this.root = root;
+      if (!this.boundCfg || this.boundCfg.layout !== this.cfg.layout || !this.S.scene) this.build();
+      this.boundCfg = this.cfg;
+      for (const a of root.getAnimations()) a.cancel();
+      const span = this.cfg.cycle / this.cfg.speed;
+      this.master = root.animate([{ outlineColor: 'transparent' }, { outlineColor: 'transparent' }], { duration: span, iterations: Infinity });
+      if (this.cfg.pauseAt != null) { this.master.pause(); this.master.currentTime = this.cfg.pauseAt / this.cfg.speed; }
+    }
+  }
+
+  async boot(canvas) {
+    const P = PIXI, D = this.data(), L = D.L;
+    this.canvas = canvas;
+    if (this.S) { this.S.app.destroy(); this.S = null; }
+    const app = new P.Application();
+    await app.init({ canvas, width: canvas.width, height: canvas.height, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: 1 });
+    const load = id => new Promise(ok => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = '/_blob/' + id; });
+    const ids = { ...D.GIFT, idle: D.MASCOT.idle, cheer: D.MASCOT.cheer, banner: D.BANNER };
+    D.AVATAR.forEach((id, i) => { ids['av' + i] = id; });
+    for (const n of [1, 2, 3]) { ids['frame' + n] = D.FRAME[n]; ids['badge' + n] = D.BADGE[n]; }
+    const img = {};
+    await Promise.all(Object.entries(ids).map(async ([k, id]) => { img[k] = await load(id); }));
+    await Promise.all([document.fonts.load('500 28px "Noto Sans SC"', '月下Lily龍'), document.fonts.load('800 44px "Noto Sans SC"', '礼物榜×0123456789'), document.fonts.load('italic 800 60px "Playfair Num"', '0123456789')]);
+
+    const mk = (w, h, draw) => { const c = document.createElement('canvas'); c.width = Math.ceil(w); c.height = Math.ceil(h); draw(c.getContext('2d'), c); return c; };
+    const T = c => P.Texture.from(c);
+    const rr = (g, x, y, w, h, r) => { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+    const grad = (g, x0, y0, x1, y1, stops) => { const gr = g.createLinearGradient(x0, y0, x1, y1); stops.forEach((c, i) => gr.addColorStop(Array.isArray(c) ? c[0] : i / (stops.length - 1), Array.isArray(c) ? c[1] : c)); return gr; };
+    const seeded = s => { let h = 2166136261; for (const ch of String(s)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; }; };
+    const fit = (g, text, maxW) => { if (g.measureText(text).width <= maxW) return text; let s = text; while (s.length > 1 && g.measureText(s + '…').width > maxW) s = s.slice(0, -1); return s + '…'; };
+    const SANS = '"Noto Sans SC", "PingFang SC", sans-serif', NUM = '"Playfair Num", Georgia, serif';
+    const PAD = 40;  // room around glass shapes for their outer glow
+
+    const titleTex = T(mk(300, 80, g => {
+      g.font = '800 40px ' + SANS; g.textAlign = 'center'; g.textBaseline = 'middle'; g.letterSpacing = '6px';
+      g.shadowColor = 'rgba(16,24,110,0.9)'; g.shadowBlur = 8; g.shadowOffsetY = 2; g.fillStyle = '#ffffff'; g.fillText('礼物榜', 153, 42);
+      g.shadowColor = 'rgba(190,210,255,0.9)'; g.shadowBlur = 14; g.shadowOffsetY = 0; g.fillText('礼物榜', 153, 42);
+    }));
+    // Floating frosted cards: a dark translucent body so white text reads on bright scenes, a frost of light over it,
+    // the tier's metal rim with its glow, and a soft shadow underneath so the card sits above the stream.
+    const shadow = (g, x, y, w, h, r, a) => { g.save(); g.filter = 'blur(9px)'; g.fillStyle = 'rgba(6,10,40,' + a + ')'; rr(g, x, y + 7, w, h, r); g.fill(); g.restore(); };
+    const cardTex = i => T(mk(L.CW + PAD * 2, D.CARDS[i].h + PAD * 2, g => {
+      const w = L.CW, h = D.CARDS[i].h, R = D.RIM[i];
+      g.translate(PAD, PAD);
+      shadow(g, 4, 2, w - 8, h - 4, 18, 0.45);
+      g.save(); rr(g, 0, 0, w, h, 18); g.clip();
+      g.fillStyle = 'rgba(20,28,96,0.5)'; g.fillRect(0, 0, w, h);
+      g.fillStyle = grad(g, 0, 0, 0, h, ['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.12)']); g.fillRect(0, 0, w, h);
+      const tint = [['rgba(255,196,90,0.42)', 'rgba(255,196,90,0)'], ['rgba(235,242,255,0.26)', 'rgba(235,242,255,0)'], ['rgba(110,165,255,0.34)', 'rgba(110,165,255,0)']][i];
+      const tg = g.createRadialGradient(60, h / 2, 6, 60, h / 2, w * 0.7); tg.addColorStop(0, tint[0]); tg.addColorStop(1, tint[1]); g.fillStyle = tg; g.fillRect(0, 0, w, h);
+      g.fillStyle = grad(g, 0, 0, 0, h * 0.45, ['rgba(255,255,255,0.20)', 'rgba(255,255,255,0)']); g.fillRect(0, 0, w, h * 0.45);
+      g.restore();
+      g.shadowColor = R.glow; g.shadowBlur = i === 0 ? 22 : 15;
+      g.lineWidth = i === 0 ? 2.8 : 2.2; g.strokeStyle = grad(g, 0, 0, w, h, R.stops); rr(g, 1.2, 1.2, w - 2.4, h - 2.4, 17); g.stroke(); g.stroke();
+      g.shadowBlur = 0; g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,0.32)'; rr(g, 5, 5, w - 10, h - 10, 13); g.stroke();
+    }));
+    const rowTex = T(mk(L.ROW_W + PAD * 2, L.ROW_H + PAD * 2, g => {
+      const w = L.ROW_W, h = L.ROW_H;
+      g.translate(PAD, PAD);
+      shadow(g, 4, 0, w - 8, h - 2, h / 2, 0.4);
+      rr(g, 0, 0, w, h, h / 2); g.fillStyle = grad(g, 0, 0, 0, h, ['rgba(30,42,140,0.66)', 'rgba(14,20,80,0.66)']); g.fill();
+      g.fillStyle = grad(g, 0, 0, 0, h / 2, ['rgba(255,255,255,0.16)', 'rgba(255,255,255,0)']); rr(g, 2, 2, w - 4, h / 2, h / 2 - 2); g.fill();
+      g.shadowColor = 'rgba(150,180,255,0.7)'; g.shadowBlur = 8;
+      g.lineWidth = 1.6; g.strokeStyle = grad(g, 0, 0, w, 0, ['rgba(225,235,255,0.95)', 'rgba(170,195,255,0.75)', 'rgba(225,235,255,0.9)']); rr(g, 0.8, 0.8, w - 1.6, h - 1.6, h / 2 - 0.8); g.stroke();
+    }));
+    // Rank numerals: big slanted italics; the top three get a thin slanted divider after them.
+    const numTex = (n, stops, size, slash) => T(mk(size * (slash ? 1.9 : 1.4), size * 1.4, g => {
+      g.font = 'italic 800 ' + size + 'px ' + NUM; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.shadowColor = 'rgba(10,16,80,0.7)'; g.shadowBlur = 10; g.fillStyle = grad(g, 0, size * 0.25, 0, size * 1.15, stops); g.fillText(String(n), size * 0.7, size * 0.74);
+      if (slash) { g.shadowBlur = 0; g.strokeStyle = 'rgba(255,255,255,0.55)'; g.lineWidth = 2; g.beginPath(); g.moveTo(size * 1.42, size * 0.42); g.lineTo(size * 1.24, size * 1.08); g.stroke(); }
+    }));
+    const nameTex = (text, maxW) => {
+      const probe = mk(1, 1, () => {}).getContext('2d'); probe.font = '500 28px ' + SANS;
+      const s = fit(probe, text, maxW), w = probe.measureText(s).width;
+      return T(mk(w + 16, 48, g => { g.font = '500 28px ' + SANS; g.textBaseline = 'middle'; g.shadowColor = 'rgba(10,16,90,0.8)'; g.shadowBlur = 6; g.fillStyle = '#ffffff'; g.fillText(s, 8, 25); }));
+    };
+    const countCache = {};
+    const countTex = n => countCache[n] || (countCache[n] = T(mk(120, 48, g => {
+      g.font = '800 26px ' + SANS; g.textAlign = 'right'; g.textBaseline = 'middle'; g.shadowColor = 'rgba(10,16,90,0.8)'; g.shadowBlur = 6; g.fillStyle = '#ffffff';
+      g.fillText('×' + n, 112, 25);
+    })));
+    const PALETTE = [['#8fb2ff', '#3a4fd8'], ['#ffc2d9', '#d0568a'], ['#a8f0e0', '#2c9c86'], ['#ffd9a0', '#d4862e'], ['#d6c2ff', '#7a4fd8'], ['#b9e4ff', '#2f86c9']];
+    const avatarTex = text => T(mk(128, 128, g => {
+      const r = seeded(text), [a, b] = PALETTE[Math.floor(r() * PALETTE.length)];
+      g.fillStyle = grad(g, 20, 10, 108, 118, [a, b]); g.beginPath(); g.arc(64, 64, 62, 0, Math.PI * 2); g.fill();
+      g.font = '800 58px ' + SANS; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#ffffff'; g.fillText([...text][0], 64, 68);
+    }));
+    // The app's chat-bubble sprite: glossy white, two upright royal-blue pill eyes, no mouth.
+    const spriteTex = blink => T(mk(160, 160, g => {
+      g.translate(80, 76);
+      g.shadowColor = 'rgba(160,190,255,0.9)'; g.shadowBlur = 24; g.fillStyle = '#ffffff';
+      rr(g, -54, -42, 108, 84, 30); g.fill();
+      g.beginPath(); g.moveTo(-36, 30); g.lineTo(-46, 58); g.lineTo(-12, 38); g.closePath(); g.fill();
+      g.shadowBlur = 0; g.fillStyle = grad(g, -54, -42, 54, 42, ['#ffffff', '#e8eeff']); rr(g, -54, -42, 108, 84, 30); g.fill();
+      g.fillStyle = '#3d52f0';
+      for (const x of [-18, 18]) { if (blink) { rr(g, x - 7, -2, 14, 6, 3); g.fill(); } else { rr(g, x - 7, -20, 14, 36, 7); g.fill(); } }
+    }));
+    const starTex = T(mk(128, 128, g => {
+      const c = 64, glow = g.createRadialGradient(c, c, 0, c, c, 60); glow.addColorStop(0, 'rgba(255,255,255,0.9)'); glow.addColorStop(0.2, 'rgba(200,215,255,0.35)'); glow.addColorStop(1, 'rgba(160,180,255,0)');
+      g.fillStyle = glow; g.fillRect(0, 0, 128, 128);
+      g.fillStyle = '#fff'; g.beginPath(); g.moveTo(c, 6); g.quadraticCurveTo(c + 5, c - 5, c + 58, c); g.quadraticCurveTo(c + 5, c + 5, c, 122); g.quadraticCurveTo(c - 5, c + 5, c - 58, c); g.quadraticCurveTo(c - 5, c - 5, c, 6); g.fill();
+    }));
+    const trim = im => { if (!im) return null; const c = mk(im.width, im.height, g => g.drawImage(im, 0, 0)), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let x0 = c.width, y0 = c.height, x1 = 0, y1 = 0; for (let y = 0; y < c.height; y += 2) for (let x = 0; x < c.width; x += 2) if (d[(y * c.width + x) * 4 + 3] > 20) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; } return T(mk(x1 - x0 + 2, y1 - y0 + 2, g => g.drawImage(c, -x0, -y0))); };
+    // B站's images can fail to load; a missing one draws nothing rather than stopping the board.
+    const remote = im => im ? P.Texture.from(im) : P.Texture.EMPTY;
+
+    const tex = {
+      title: titleTex, cards: [0, 1, 2].map(cardTex), row: rowTex, star: starTex,
+      sprite: spriteTex(false), spriteBlink: spriteTex(true),
+      idle: img.idle ? P.Texture.from(img.idle) : null, cheer: img.cheer ? P.Texture.from(img.cheer) : null,
+      cardNums: [0, 1, 2].map(i => numTex(i + 1, D.RIM[i].num, 70, true)), rowNums: {}, gifts: {}, frames: {}, badges: {},
+      banner: img.banner ? trim(img.banner) : null, avatars: D.AVATAR.map((_, i) => img['av' + i] ? P.Texture.from(img['av' + i]) : null)
+    };
+    for (let n = 4; n <= 40; n++) tex.rowNums[n] = numTex(n, ['#ffffff', '#dfe6ff', '#b8c6ff'], 30);
+    for (const k of Object.keys(D.GIFT)) tex.gifts[k] = remote(img[k]);
+    for (const n of [1, 2, 3]) { tex.frames[n] = remote(img['frame' + n]); tex.badges[n] = remote(img['badge' + n]); }
+
+    this.S = { app, canvas, tex, nameTex, countTex, avatarTex, seeded, PAD, mk };
+    this.S.avatarOf = (name, i) => tex.avatars[i % tex.avatars.length] || avatarTex(name);
+    this.boundCfg = null;
+    app.ticker.add(() => this.frame());
+  }
+
+  // Lays the component out from its own size only: width sets the scale, height sets how many rows fit and
+  // whether the mascot has room. The sample stream around it decides nothing.
+  build() {
+    const P = PIXI, S = this.S, C = this.cfg, D = this.data(), L = D.L, PAD = S.PAD;
+    if (S.scene) S.scene.destroy({ children: true });
+    for (const k of ['backSprite', 'popSprite', 'fxSprite']) if (S[k]) S[k].destroy();
+    // Width sets the scale, unless the page is too short for the minimum board; then height does and the board centres.
+    const mascotOn = C.mascot !== '关闭' && !!S.tex.idle;
+    const [W, H] = C.stage, [sbx, by, bw, bh] = C.box, s = Math.min(bw / L.W, bh / (mascotOn ? L.MIN_H : L.MIN_H_NO)), HD = bh / s, bx = sbx + (bw - L.W * s) / 2;
+    if (S.app.renderer.width !== W || S.app.renderer.height !== H) S.app.renderer.resize(W, H);
+    S.back = S.mk(W, H, () => {}); S.pop = S.mk(W, H, () => {}); S.fx = S.mk(W, H, () => {});
+    S.backTex = PIXI.Texture.from(S.back); S.popTex = PIXI.Texture.from(S.pop); S.fxTex = PIXI.Texture.from(S.fx);
+    S.backSprite = new P.Sprite(S.backTex); S.popSprite = new P.Sprite(S.popTex); S.fxSprite = new P.Sprite(S.fxTex); S.backSprite.blendMode = S.fxSprite.blendMode = 'add';
+    S.app.stage.addChild(S.backSprite);
+    const top = mascotOn ? L.MZ : L.NO_MZ;
+    const rowsY = top + L.ROWS_Y, viewH = HD - rowsY - L.BOTTOM;
+    Object.assign(S, { W, H, box: [bx, by], s, HD, top, rowsY, viewH, mascotOn });
+
+    // The layout keeps every sprite inside the component, and the effect canvases clip to it (see frame), so nothing
+    // relies on the browser source cutting it off.
+    const root = new P.Container(); root.position.set(bx, by); root.scale.set(s); S.app.stage.addChild(root);
+    const mascot = new P.Container(); root.addChild(mascot);
+    const idle = mascotOn ? new P.Sprite(S.tex.idle) : null, cheer = mascotOn && S.tex.cheer ? new P.Sprite(S.tex.cheer) : null;
+    if (idle) { idle.anchor.set(0.5, D.MASCOT.idleCut); idle.scale.set(D.MASCOT.scale * 1536 / S.tex.idle.height); mascot.addChild(idle); }
+    if (cheer) { cheer.anchor.set(0.5, D.MASCOT.cheerCut); cheer.scale.set(D.MASCOT.scale * 1536 / S.tex.cheer.height); mascot.addChild(cheer); }
+    const panel = new P.Container(); root.addChild(panel);
+    if (S.tex.banner) { const b = new P.Sprite(S.tex.banner); b.anchor.set(0.5); b.scale.set(380 / S.tex.banner.width); b.position.set(L.W / 2, top + L.BANNER_C); panel.addChild(b); }
+    const title = new P.Sprite(S.tex.title); title.anchor.set(0.5); title.position.set(L.W / 2, top + L.BANNER_C - 2); panel.addChild(title);
+    const cards = D.CARDS.map((c, i) => {
+      const g = new P.Container(); g.position.set(L.CX, top + L.CARDS_Y + c.y); panel.addChild(g);
+      const plate = new P.Sprite(S.tex.cards[i]); plate.position.set(-PAD, -PAD); g.addChild(plate);
+      const flare = new P.Sprite(S.tex.cards[i]); flare.position.set(-PAD, -PAD); flare.blendMode = 'add'; flare.alpha = 0; g.addChild(flare);
+      const num = new P.Sprite(S.tex.cardNums[i]); num.anchor.set(0.37, 0.5); num.position.set(L.COL.rank - L.CX, c.h / 2 + 2); num.scale.set(i === 0 ? 0.92 : 0.84); g.addChild(num);
+      let star = null;
+      if (i === 0) { star = new P.Sprite(S.tex.star); star.anchor.set(0.5); star.blendMode = 'add'; star.position.set(L.CW - 8, 6); star.scale.set(0.32); g.addChild(star); }
+      return { g, plate, flare, num, star };
+    });
+    const long = C.scene === '太长滚动';
+    const list = long ? D.LONG : D.DEMO;
+    // Rows below the cards: as many as the height allows; the rest scroll.
+    const fit = Math.max(1, Math.floor((viewH + (L.PITCH - L.ROW_H)) / L.PITCH));
+    const rowCount = long ? list.length - 3 : 6, scrolls = rowCount > fit;
+    const rows = new P.Container(); panel.addChild(rows);
+    const copies = scrolls ? 2 : 1, slots = [];
+    for (let c = 0; c < copies; c++) for (let k = 0; k < rowCount; k++) {
+      const plate = new P.Sprite(S.tex.row), num = new P.Sprite(S.tex.rowNums[k + 4]); num.anchor.set(0.5);
+      rows.addChild(plate, num); slots.push({ k, c, plate, num });
+    }
+    if (scrolls) {
+      const fadeTex = PIXI.Texture.from(S.mk(L.W, viewH + 8, g => { const h = viewH + 8, gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(24 / h, '#fff'); gr.addColorStop(1 - 36 / h, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, L.W, h); }));
+      const fade = new P.Sprite(fadeTex); fade.position.set(0, rowsY - 4); panel.addChild(fade); rows.mask = fade;
+    }
+    const entriesTop = new P.Container(); entriesTop.sortableChildren = true; panel.addChild(entriesTop);
+    const entriesRows = new P.Container(); rows.addChild(entriesRows);
+
+    const make = (row, copy, layer) => {
+      const [id, name, gift, price, count] = row, guard = typeof gift === 'number' ? gift : 0;
+      const c = new P.Container(); layer.addChild(c);
+      const plate = new P.Sprite(S.tex.row); plate.alpha = 0; c.addChild(plate);
+      const ring = new P.Graphics(); c.addChild(ring);
+      const av = new P.Sprite(S.avatarOf(name, list.indexOf(row))); av.anchor.set(0.5); c.addChild(av);
+      let frame = null;
+      if (guard) { frame = new P.Sprite(S.tex.frames[guard]); frame.anchor.set(0.4975, 0.505); c.addChild(frame); }
+      // Names start on the same column everywhere: cards leave them 150 px at 29 px type, pills 156 px at 23 px;
+      // both textures are drawn at 28 px.
+      const nm = new P.Sprite(S.nameTex(name, 150 * 28 / 29)); nm.anchor.set(0, 0.5); c.addChild(nm);
+      const nmRow = new P.Sprite(S.nameTex(name, 156 * 28 / 23)); nmRow.anchor.set(0, 0.5); c.addChild(nmRow);
+      const icon = new P.Sprite(guard ? S.tex.badges[guard] : S.tex.gifts[gift]); icon.anchor.set(0.5); c.addChild(icon);
+      const cnt = new P.Sprite(S.countTex(count)); cnt.anchor.set(1, 0.5); c.addChild(cnt);
+      const clip = new P.Graphics(); c.addChild(clip);
+      return { id, name, guard, count, copy, c, plate, ring, av, frame, nm, nmRow, icon, cnt, clip };
+    };
+    const entries = long ? list.map((row, i) => i < 3 ? [make(row, 0, entriesTop)] : (scrolls ? [make(row, 0, entriesRows), make(row, 1, entriesRows)] : [make(row, 0, entriesRows)])).flat() : list.map(row => make(row, 0, entriesTop));
+
+    let evs = [];
+    if (!long) {
+      const value = (counts, id) => list.find(x => x[0] === id)[3] * counts[id];
+      const orderOf = (counts, present) => list.map(r => r[0]).filter(id => present.has(id)).sort((a, b) => value(counts, b) - value(counts, a) || list.findIndex(r => r[0] === a) - list.findIndex(r => r[0] === b));
+      const counts = Object.fromEntries(list.map(r => [r[0], r[4]])), present = new Set(list.map(r => r[0]).filter(id => !D.EVENTS.some(e => e.kind === 'new' && e.id === id)));
+      const slotsOf = order => Object.fromEntries(order.map((id, i) => [id, i]));
+      let order = orderOf(counts, present);
+      S.slot0 = slotsOf(order); S.count0 = { ...counts };
+      for (const e of D.EVENTS) {
+        const prev = slotsOf(order), prevCounts = { ...counts };
+        if (e.kind === 'new') present.add(e.id); else counts[e.id] = e.n;
+        order = orderOf(counts, present);
+        evs.push({ ...e, prev, next: slotsOf(order), prevCounts, counts: { ...counts } });
+      }
+    }
+    // The sprite floats by the mascot's shoulder; with the mascot hidden it rests on the ribbon's right end.
+    const sprite = new P.Sprite(S.tex.sprite); sprite.anchor.set(0.5); root.addChild(sprite);
+    Object.assign(S, { scene: root, panel, cards, rows, slots, rowCount, scrolls, entries, evs, long, list, mascot, idle, cheer, sprite });
+    S.app.stage.addChild(S.popSprite, S.fxSprite);
+  }
+
+  geom(s) {
+    const D = this.data(), L = D.L, top = this.S.top;
+    if (s < 3) {
+      const c = D.CARDS[s], big = s === 0, y = top + L.CARDS_Y + c.y;
+      return { y, h: c.h, ax: L.COL.avatar, ay: y + c.h / 2, ar: big ? 33 : 30, nx: L.COL.name, ny: y + c.h / 2, ns: big ? 29 : 27, ix: L.COL.gift, iy: y + c.h / 2, is: big ? 46 : 42, cx: L.COL.count, cy: y + c.h / 2, cs: big ? 1.05 : 0.95, tier: s };
+    }
+    const y = this.S.rowsY + (s - 3) * L.PITCH;
+    return { y, h: L.ROW_H, ax: L.COL.avatar, ay: y + L.ROW_H / 2, ar: 19, nx: L.COL.name, ny: y + L.ROW_H / 2, ns: 23, ix: L.COL.gift, iy: y + L.ROW_H / 2, is: 34, cx: L.COL.count, cy: y + L.ROW_H / 2, cs: 0.84, tier: 3 };
+  }
+
+  frame() {
+    const S = this.S, C = this.cfg, D = this.data(), L = D.L, PAD = S.PAD;
+    if (!S || !S.scene || !this.master || !C) return;
+    const span = C.cycle / C.speed, t = ((this.master.currentTime || 0) % span) * C.speed;
+    const k = (a, b, x) => Math.min(1, Math.max(0, (x - a) / (b - a)));
+    const out = p => 1 - Math.pow(1 - p, 3), inq = p => p * p, io = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+    const back = p => { const c1 = 1.7, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+    const lerp = (a, b, p) => a + (b - a) * p;
+    const lerpG = (a, b, p) => { const o = {}; for (const key in a) o[key] = lerp(a[key], b[key], p); o.tier = p < 0.5 ? a.tier : b.tier; return o; };
+    const rnd = (i, s) => { const x = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return x - Math.floor(x); };
+    const bk = S.back.getContext('2d'), pop = S.pop.getContext('2d'), fx = S.fx.getContext('2d');
+    // Effects are drawn in component pixels and clipped to the component, so none of them depends on where it sits.
+    for (const g of [bk, pop, fx]) { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, S.W, S.H); g.setTransform(S.s, 0, 0, S.s, S.box[0], S.box[1]); g.save(); g.beginPath(); g.rect(0, 0, L.W, S.HD); g.clip(); g.globalCompositeOperation = g === pop ? 'source-over' : 'lighter'; }
+
+    const loopLen = S.rowCount * L.PITCH + L.PITCH;
+    const scroll = S.scrolls ? (t / C.cycle) * loopLen : 0;
+    const wrapY = y => { if (!S.scrolls) return y; let v = y - scroll; if (v < S.rowsY - loopLen + S.viewH) v += loopLen * 2; return v; };
+    const ev = S.evs.filter(e => t >= e.at).pop(), u = ev ? t - ev.at : 1e9;
+    const filled = S.long ? Infinity : Object.keys(ev ? ev.next : S.slot0).length;
+    for (const sl of S.slots) {
+      const y = wrapY(S.rowsY + sl.k * L.PITCH + sl.c * loopLen);
+      sl.plate.position.set(L.ROW_X - PAD, y - PAD); sl.num.position.set(L.COL.rank, y + L.ROW_H / 2 + 1); sl.num.scale.set(0.9);
+      const shown = (!S.scrolls || (y > S.rowsY - L.PITCH && y < S.rowsY + S.viewH)) && sl.k + 3 < filled;
+      sl.plate.visible = sl.num.visible = shown;
+    }
+    // A new row's slot appears only once its capsule has unfolded there.
+    if (ev && ev.kind === 'new' && u < 1300) { const s = ev.next[ev.id] - 3; for (const sl of S.slots) if (sl.k === s) { sl.plate.visible = sl.num.visible = u > 640; sl.plate.alpha = sl.num.alpha = k(640, 760, u); } }
+    else for (const sl of S.slots) sl.plate.alpha = sl.num.alpha = 1;
+
+    const G = {};
+    // Beside the mascot's shoulder; with her switched off the sprite sits on the ribbon's right end.
+    const spriteHome = S.mascotOn ? [L.W / 2 + 118, S.top - 150] : [448, S.top + 34];
+    S.spriteAt = spriteHome;
+    let spriteSpin = 0, blink = (t % 4500) < 140, cheerA = 0, hop = 0, spritePulse = 0;
+    for (const e of S.entries) {
+      let g, visible = true, arc = 0;
+      if (S.long) {
+        const i = S.list.findIndex(r => r[0] === e.id);
+        g = this.geom(i);
+        if (i >= 3 && S.scrolls) { const y = wrapY(g.y + e.copy * loopLen), dy = y - g.y; for (const key of ['y', 'ay', 'ny', 'iy', 'cy']) g[key] += dy; visible = g.y > S.rowsY - L.PITCH && g.y < S.rowsY + S.viewH; }
+      } else if (!ev) {
+        if (S.slot0[e.id] == null) visible = false; else g = this.geom(S.slot0[e.id]);
+      } else {
+        const a = ev.prev[e.id], b = ev.next[e.id];
+        if (b == null) visible = false;
+        else if (a == null || a === b) g = this.geom(b);
+        else {
+          const riser = e.id === ev.id;
+          const [m0, m1] = ev.kind === 'new' ? [0, 260] : ev.kind === 'pass' ? [200, 800] : [300, 1000];
+          const p = k(m0, m1, u), q = ev.kind === 'new' ? out(p) : riser ? back(p) : io(p);
+          g = lerpG(this.geom(a), this.geom(b), q);
+          if (riser) arc = 14 * Math.sin(Math.PI * Math.min(1, p));
+        }
+      }
+      e.c.visible = visible;
+      if (!visible) continue;
+      G[e.id + e.copy] = g;
+      let count = S.long ? e.count : !ev ? S.count0[e.id] : ev.prevCounts[e.id];
+      let alpha = 1, avS = 1, avA = 1, nameDx = 0, nameA = 1, iconS = 1, iconA = 1, cntS = 1, cntA = 1, open = 1, z = 0, plateA = 0, lift = 1;
+      const pop = (at, before, after) => { if (u < at) { count = before; return; } count = after; const p = k(at, at + 320, u); cntS = p < 0.2 ? lerp(1, 1.6, p / 0.2) : lerp(1.6, 1, back(k(0.2, 1, p))); };
+      if (ev && e.id === ev.id) {
+        z = 10;
+        if (ev.kind === 'new') {
+          count = ev.counts[e.id];
+          open = out(k(620, 860, u)); plateA = k(600, 700, u) * (1 - k(1100, 1300, u));
+          avS = back(k(700, 900, u)); avA = k(700, 780, u);
+          nameDx = -18 * (1 - out(k(760, 980, u))); nameA = k(760, 900, u);
+          iconS = back(k(820, 1020, u)); iconA = k(820, 900, u);
+          cntS = back(k(880, 1080, u)); cntA = k(880, 960, u);
+        } else if (ev.kind === 'more') {
+          pop(0, ev.prevCounts[e.id], ev.counts[e.id]); iconS = 1 + 0.15 * Math.sin(Math.PI * k(0, 300, u)); blink = u < 160;
+        } else if (ev.kind === 'pass') {
+          pop(0, ev.prevCounts[e.id], ev.counts[e.id]); plateA = Math.sin(Math.PI * k(150, 850, u)); lift = 1 + 0.04 * Math.sin(Math.PI * k(200, 800, u));
+        } else if (ev.kind === 'top') {
+          pop(0, ev.prevCounts[e.id], ev.counts[e.id]); plateA = Math.sin(Math.PI * k(250, 1050, u)); lift = 1 + 0.05 * Math.sin(Math.PI * k(300, 1000, u));
+        }
+      } else if (ev && (ev.kind === 'pass' || ev.kind === 'top') && ev.prev[e.id] === ev.next[ev.id]) {
+        alpha = 1 - 0.5 * Math.sin(Math.PI * k(ev.kind === 'pass' ? 200 : 300, ev.kind === 'pass' ? 800 : 1000, u));
+      }
+      if (ev && ev.kind === 'top') { cheerA = k(900, 1020, u) * (1 - k(3000, 3150, u)); hop = -10 * Math.sin(Math.PI * k(900, 1300, u)); spriteSpin = 2 * Math.PI * io(k(950, 1550, u)); }
+      e.c.alpha = alpha; e.c.zIndex = z;
+      const ox = arc;
+      // The riser's backing takes the shape of the slot it is crossing: a card among the top three, a pill below.
+      e.plate.texture = g.tier < 3 ? S.tex.cards[g.tier] : S.tex.row;
+      e.plate.alpha = plateA; e.plate.position.set((g.tier < 3 ? L.CX : L.ROW_X) - PAD + ox, (g.tier < 3 ? g.y : g.y + (g.h - L.ROW_H) / 2) - PAD);
+      e.ring.clear().circle(g.ax + ox, g.ay, g.ar + 1.5).stroke({ width: g.tier < 3 ? 2.4 : 1.6, color: g.tier < 3 ? D.RIM[g.tier].ring : 0xffffff, alpha: e.guard ? 0 : 0.9 });
+      e.av.position.set(g.ax + ox, g.ay); e.av.width = e.av.height = 2 * g.ar * avS * lift; e.av.alpha = avA;
+      if (e.frame) { e.frame.position.set(g.ax + ox, g.ay); e.frame.width = e.frame.height = (2 * g.ar / 0.7) * avS * lift; e.frame.alpha = avA; }
+      for (const [sp, on] of [[e.nm, g.tier < 3], [e.nmRow, g.tier === 3]]) { sp.position.set(g.nx - 8 * g.ns / 28 + ox + nameDx, g.ny); sp.scale.set(g.ns / 28 * lift); sp.alpha = on ? nameA : 0; }
+      e.icon.position.set(g.ix + ox, g.iy); e.icon.width = e.icon.height = g.is * iconS * lift; e.icon.alpha = iconA;
+      e.cnt.texture = S.countTex(count); e.cnt.position.set(g.cx + ox, g.cy); e.cnt.scale.set(g.cs * cntS * lift); e.cnt.alpha = cntA;
+      if (open < 1) { const x0 = L.CX + ox, w = L.CW * open; e.clip.clear().rect(x0, g.y - 10, w, g.h + 20).fill(0xffffff); e.c.mask = e.clip; }
+      else { e.c.mask = null; e.clip.clear(); }
+    }
+
+    const ribbon = (ctx, pts, w, a, col) => {
+      if (a <= 0) return;
+      ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length - 1; i++) { const mx = (pts[i][0] + pts[i + 1][0]) / 2, my = (pts[i][1] + pts[i + 1][1]) / 2; ctx.quadraticCurveTo(pts[i][0], pts[i][1], mx, my); }
+      ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+      for (const [lw, al] of [[w * 6, 0.12], [w * 2.4, 0.3], [w, 0.9]]) { ctx.lineWidth = lw; ctx.strokeStyle = 'rgba(' + col + ',' + a * al + ')'; ctx.stroke(); }
+    };
+    // Idle sparkle on the 1st card, every three seconds.
+    const c0 = S.cards[0], tw = (t % 3000) / 600;
+    c0.star.scale.set(0.3 + 0.16 * (tw < 1 ? Math.sin(Math.PI * tw) : 0)); c0.star.rotation = 0.4 * (tw < 1 ? tw : 0);
+    for (const c of S.cards) c.flare.alpha = 0;
+
+    const sparkle = (x, y, s, a) => { if (a <= 0) return; const r = 26 * s; const gr = fx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(255,255,255,' + a + ')'); gr.addColorStop(0.25, 'rgba(190,210,255,' + a * 0.4 + ')'); gr.addColorStop(1, 'rgba(150,180,255,0)'); fx.fillStyle = gr; fx.beginPath(); fx.arc(x, y, r, 0, Math.PI * 2); fx.fill();
+      fx.fillStyle = 'rgba(255,255,255,' + a + ')'; fx.beginPath(); fx.moveTo(x, y - r); fx.quadraticCurveTo(x + r * 0.08, y - r * 0.08, x + r, y); fx.quadraticCurveTo(x + r * 0.08, y + r * 0.08, x, y + r); fx.quadraticCurveTo(x - r * 0.08, y + r * 0.08, x - r, y); fx.quadraticCurveTo(x - r * 0.08, y - r * 0.08, x, y - r); fx.fill(); };
+    const burst = (seed, x, y, u0, n, life, spread) => { if (u < u0 || u > u0 + life) return; const p = (u - u0) / life; for (let i = 0; i < n; i++) { const a = rnd(i, seed) * Math.PI * 2, d = spread * (0.4 + 0.6 * rnd(i, seed + 1)) * out(p); sparkle(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.7, (0.35 + 0.4 * rnd(i, seed + 2)) * (1 - p * 0.5), (1 - p)); } };
+    const comet = (pts, head, len, a) => { for (let i = 0; i < 24; i++) { const q = head - i * len / 24; if (q < 0) break; const p = pts(q), f = 1 - i / 24; fx.fillStyle = 'rgba(200,215,255,' + 0.45 * a * f + ')'; fx.beginPath(); fx.arc(p[0], p[1], 3 + 13 * f, 0, Math.PI * 2); fx.fill(); } const h = pts(head); fx.fillStyle = 'rgba(255,255,255,' + a + ')'; fx.beginPath(); fx.ellipse(h[0], h[1], 26, 9, 0, 0, Math.PI * 2); fx.fill(); sparkle(h[0], h[1], 1.1, a); };
+
+    if (ev && u < 3300) {
+      const gN = G[ev.id + 0];
+      if (ev.kind === 'new' && gN) {
+        // The sprite fires a capsule of light like a danmaku; it arcs down to the slot and unfolds into the row.
+        const tx = L.CX + 30, ty = gN.y + gN.h / 2, [sx, sy] = S.spriteAt, path = q => [lerp(sx, tx, io(q)), lerp(sy, ty, io(q)) - 60 * Math.sin(Math.PI * q)];
+        const fly = k(200, 640, u); if (fly > 0 && u < 760) comet(path, fly, 0.45, 1 - k(640, 760, u));
+        spritePulse = Math.sin(Math.PI * k(140, 300, u));
+        const sw = k(640, 1000, u); if (sw > 0 && sw < 1) { const x = L.CX + L.CW * out(sw); const gr = fx.createLinearGradient(x - 120, 0, x, 0); gr.addColorStop(0, 'rgba(200,215,255,0)'); gr.addColorStop(1, 'rgba(230,238,255,0.65)'); fx.fillStyle = gr; fx.fillRect(x - 120, gN.y + 2, 120, gN.h - 4); }
+        burst(7, L.CX + L.CW - 30, gN.y + gN.h / 2, 980, 6, 600, 50);
+      }
+      if (ev.kind === 'more' && gN) burst(13, gN.cx - 24, gN.cy, 0, 7, 700, 50);
+      if ((ev.kind === 'pass' || ev.kind === 'top') && gN) {
+        const top = ev.kind === 'top', [m0, m1] = top ? [300, 1000] : [200, 800], p = k(m0, m1, u);
+        const from = this.geom(ev.prev[ev.id]), to = this.geom(ev.next[ev.id]);
+        // The riser rides a light trail along the list's right edge, inside the component's margin.
+        if (p > 0 && u < m1 + 400) {
+          const fade = 1 - k(m1, m1 + 400, u), pts = [];
+          for (let i = 0; i <= 24; i++) { const q = i / 24 * Math.min(1, p); pts.push([L.CX + L.CW + 4 + 12 * Math.sin(Math.PI * q), lerp(from.y + from.h / 2, to.y + to.h / 2, q)]); }
+          if (pts.length > 2) ribbon(fx, pts, 2, 0.8 * fade, top ? '255,226,160' : '190,210,255');
+        }
+        burst(top ? 29 : 19, gN.cx - 30, gN.cy, 0, 6, 600, 46);
+        if (!top) burst(23, L.CX + L.CW - 20, to.y + to.h / 2, 800, 5, 500, 36);
+        if (top) {
+          // Ribbons spiral in around the 1st card, then the gold rim flares and the star blooms; all inside the component.
+          const c = [L.W / 2, S.top + L.CARDS_Y + D.CARDS[0].h / 2], sp = k(900, 1650, u);
+          if (sp > 0 && sp < 1) for (let r = 0; r < 3; r++) { const pts = []; for (let i = 0; i <= 30; i++) { const a = r * 2.09 + sp * 7 + i * 0.12, rad = lerp(205, 30, out(sp)) * (0.7 + 0.3 * i / 30); pts.push([c[0] + Math.cos(a) * rad * 1.1, c[1] + Math.sin(a) * rad * 0.42]); } ribbon(fx, pts, 2.2, 0.9 * Math.sin(Math.PI * sp), r === 0 ? '255,226,160' : '190,210,255'); }
+          const fl = k(1600, 1680, u) * (1 - k(1800, 2600, u)); S.cards[0].flare.alpha = 0.45 * fl;
+          c0.star.scale.set(c0.star.scale.x + 0.7 * fl);
+          const gr = fx.createRadialGradient(c[0], c[1], 0, c[0], c[1], 220); gr.addColorStop(0, 'rgba(255,230,170,' + 0.3 * fl + ')'); gr.addColorStop(1, 'rgba(255,200,120,0)'); fx.fillStyle = gr; fx.fillRect(c[0] - 220, c[1] - 220, 440, 440);
+          burst(37, c[0], c[1], 1620, 12, 1100, 170);
+          // The cheer fills the space above the ribbon: slow rays and a halo behind her, confetti and stars thrown up
+          // from behind the ribbon, a shine running along the ribbon and a ring of sparkles round the sprite.
+          const mc = [L.W / 2, S.top - 96], ray = S.mascotOn ? k(880, 1080, u) * (1 - k(2500, 3100, u)) : 0;
+          if (ray > 0) {
+            bk.save(); bk.translate(mc[0], mc[1]); bk.rotate(u * 0.0004);
+            for (let i = 0; i < 14; i++) {
+              const a0 = i * Math.PI * 2 / 14, gr = bk.createRadialGradient(0, 0, 10, 0, 0, 250);
+              gr.addColorStop(0, 'rgba(255,240,200,' + 0.42 * ray + ')'); gr.addColorStop(1, 'rgba(255,220,150,0)');
+              bk.fillStyle = gr; bk.beginPath(); bk.moveTo(0, 0); bk.arc(0, 0, 250, a0 - 0.09, a0 + 0.09); bk.closePath(); bk.fill();
+            }
+            const halo = bk.createRadialGradient(0, 0, 0, 0, 0, 150); halo.addColorStop(0, 'rgba(255,245,220,' + 0.4 * ray + ')'); halo.addColorStop(1, 'rgba(255,230,180,0)');
+            bk.fillStyle = halo; bk.beginPath(); bk.arc(0, 0, 150, 0, Math.PI * 2); bk.fill(); bk.restore();
+          }
+          const C0 = 950, life = 2300;
+          if (S.mascotOn && u >= C0 && u < C0 + life) {
+            const tt = (u - C0) / 1000, fade = 1 - k(C0 + life * 0.7, C0 + life, u), cols = ['#FFD36B', '#FFFFFF', '#6F86FF', '#FF9EC4', '#9FE3FF'];
+            for (let i = 0; i < 70; i++) {
+              const x0 = 150 + 180 * rnd(i, 71), vx = (rnd(i, 72) - 0.5) * 560, vy = -(560 + 480 * rnd(i, 73));
+              const x = x0 + vx * tt + 16 * Math.sin(tt * 7 + i), y = S.top + 24 + vy * tt + 0.5 * 1100 * tt * tt;
+              if (i % 4 === 0) { sparkle(x, y, 0.3 + 0.25 * rnd(i, 74), fade); continue; }
+              pop.save(); pop.translate(x, y); pop.rotate(tt * (4 + 6 * rnd(i, 75)) + i); pop.scale(1, Math.abs(Math.cos(tt * 9 + i)) + 0.15);
+              pop.globalAlpha = fade; pop.fillStyle = cols[i % cols.length]; pop.fillRect(-5, -2.5, 10, 5); pop.restore();
+            }
+            pop.globalAlpha = 1;
+          }
+          const sh = k(950, 1350, u);
+          if (sh > 0 && sh < 1) { const x = lerp(40, 440, io(sh)), y0 = S.top + 8, gr = fx.createLinearGradient(x - 40, 0, x + 40, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); fx.fillStyle = gr; fx.beginPath(); fx.moveTo(x - 30, y0); fx.lineTo(x + 50, y0); fx.lineTo(x + 30, y0 + 64); fx.lineTo(x - 50, y0 + 64); fx.closePath(); fx.fill(); }
+          const ring = k(950, 1150, u) * (1 - k(1500, 1750, u));
+          if (S.mascotOn && ring > 0) for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + u * 0.006; sparkle(S.spriteAt[0] + Math.cos(a) * 46, S.spriteAt[1] + Math.sin(a) * 40, 0.32, ring); }
+        }
+      }
+    }
+    // Mascot: breathing idle, a small hop into the cheer pose when someone takes first place.
+    const br = Math.sin(t * 0.0021);
+    S.mascot.position.set(L.W / 2, S.top + 12 + hop + br * 1);
+    if (S.idle) { S.idle.alpha = 1 - (S.cheer ? cheerA : 0); }
+    if (S.cheer) S.cheer.alpha = cheerA;
+    S.sprite.texture = blink ? S.tex.spriteBlink : S.tex.sprite;
+    S.sprite.position.set(spriteHome[0], spriteHome[1] + (S.mascotOn ? 6 * Math.sin(t * 0.0016) + hop : 2 * Math.sin(t * 0.0016)));
+    S.sprite.rotation = 0.08 * Math.sin(t * 0.0011) + spriteSpin; S.sprite.scale.set((S.mascotOn ? 0.4 : 0.28) * (1 + 0.25 * spritePulse));
+    for (const g of [bk, pop, fx]) { g.restore(); g.globalCompositeOperation = 'source-over'; }
+    S.backTex.source.update(); S.popTex.source.update(); S.fxTex.source.update();
+  }
+
+  renderVals() {
+    const D = this.data();
+    const room = this.props.room ?? '明亮画面', scene = this.props.scene ?? '演示', pause = this.props.pause ?? '播放';
+    const envName = this.props.env ?? '横屏·右', env = D.ENV[envName] || D.ENV['横屏·右'];
+    const mascot = this.props.mascot ?? '显示', outline = this.props.outline !== false && this.props.outline !== 'false';
+    const speed = { '1 倍': 1, '0.5 倍': 0.5, '0.25 倍': 0.25 }[this.props.speed ?? '1 倍'];
+    const pauseAt = { '播放': null, '平时': 600, '新上榜·飞入': 1520, '新上榜·展开': 1840, '加数': 3330, '超车': 5520, '新第一·光带': 8900, '新第一·欢呼': 9300 }[pause];
+    const [stageW, stageH] = env.stage, [boxX, boxY, boxW, boxH] = env.box;
+    this.cfg = { scene, stage: env.stage, box: env.box, mascot, layout: [scene, envName, mascot].join('|'), cycle: scene === '太长滚动' ? 24000 : 13000, speed, pauseAt };
+    const scale = Math.round(Math.min(boxW / D.L.W, boxH / (mascot === '关闭' ? D.L.MIN_H_NO : D.L.MIN_H)) * 100) / 100;
+    return {
+      stageW, stageH, boxX, boxY, boxW, boxH, labelY: Math.max(4, boxY - 28), outline,
+      boxLabel: '浏览器素材 ' + boxW + ' × ' + boxH + (scale > 1 ? '（同一组件放大 ' + scale + ' 倍）' : scale < 1 ? '（太矮，整张榜缩到 ' + scale + ' 倍居中）' : '') + (mascot === '关闭' ? ' · 关闭看板娘' : ''),
+      stageLabel: env.label + ' · 礼物榜所在的页面本身透明',
+      bg: room === '透明' ? 'transparent' : room === '浅色房间' ? '#B9A27F' : room === '深色房间' ? '#0C0D10' : '#2C3644',
+      mock: room !== '透明', photo: room === '明亮画面',
+      mockBg: room === '浅色房间' ? 'linear-gradient(180deg, #F4EFE7 0%, #EAE2D5 56%, #CDB89A 57%, #B9A27F 100%)' : room === '深色房间' ? 'linear-gradient(180deg, #16181D 0%, #23262E 56%, #121317 57%, #0C0D10 100%)' : 'linear-gradient(180deg, #3B4A5E 0%, #4C5D74 56%, #2C3644 57%, #232B37 100%)',
+      mockInk: room === '浅色房间' ? 'rgba(60, 40, 20, 0.55)' : 'rgba(255, 255, 255, 0.75)'
+    };
+  }
+}
+</script>
+</body>
+</html>
