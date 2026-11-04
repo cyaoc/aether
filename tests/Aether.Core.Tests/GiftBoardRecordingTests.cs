@@ -18,7 +18,7 @@ public sealed class GiftBoardRecordingTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(num: 2));
 
         var row = Assert.Single(await h.BoardRowsAsync());
-        Assert.Equal(new GiftBoardRow("10001/gift:32698", "测试观众", Face, "小蛋糕", Icon, 0, 1500, 2), row);
+        Assert.Equal(new GiftBoardRow("10001/gift:32698", 10001, "测试观众", Face, "小蛋糕", Icon, 0, 3000, 2), row);
     }
 
     [Fact]
@@ -56,8 +56,27 @@ public sealed class GiftBoardRecordingTests
 
         // 舰长 cost 534000 for 3 months and 198000 for 1, so 4 months at 183000 each; 提督 ranks above it.
         Assert.Equal([
-            new GiftBoardRow("10001/guard:2", "测试观众", UserToastFixture.TestFace, "提督", "", 2, 1998000, 1),
-            new GiftBoardRow("10001/guard:3", "测试观众", UserToastFixture.TestFace, "舰长", "", 3, 183000, 4)], await h.BoardRowsAsync());
+            new GiftBoardRow("10001/guard:2", 10001, "测试观众", UserToastFixture.TestFace, "提督", "", 2, 1998000, 1),
+            new GiftBoardRow("10001/guard:3", 10001, "测试观众", UserToastFixture.TestFace, "舰长", "", 3, 732000, 4)], await h.BoardRowsAsync());
+    }
+
+    [Fact]
+    public async Task Guard_months_bought_at_different_prices_add_up_to_exactly_what_was_paid_and_so_does_a_restore()
+    {
+        await using var h = new WatchHarness();
+        await using var updates = await h.WatchWithGiftBoardAsync();
+        // 舰长 at its list price and at the 续费 price, one month at a time, 7 months before a clear and 7 after: averaging the
+        // price in whole 金瓜子 after each one would already be 6 short before the clear and 14 short after the restore.
+        string[] Months(int from) => [.. Enumerable.Range(from, 7).Select(i => UserToastFixture.Message(price: i % 2 == 0 ? 198000 : 168000, payflowId: $"p{i}"))];
+
+        await h.PushAndSyncAsync(updates, Months(0));
+        Assert.Equal((1296000L, 7L), (await h.BoardRowsAsync()) is [var before] ? (before.Value, before.Num) : default);
+        h.Client.GiftBoard.Clear();
+        await h.PushAndSyncAsync(updates, Months(7));
+        h.Client.GiftBoard.Restore();
+
+        var row = Assert.Single(await h.BoardRowsAsync());
+        Assert.Equal((2562000L, 14L, 183000L), (row.Value, row.Num, row.Price));
     }
 
     [Fact]
@@ -87,6 +106,27 @@ public sealed class GiftBoardRecordingTests
         var warning = Assert.Single(h.Logger.Entries, entry => entry.Level == LogLevel.Warning).Message;
         Assert.Contains("重复推送的礼物，已忽略", warning);
         Assert.Contains("dup", warning);
+    }
+
+    [Fact]
+    public async Task A_broken_board_database_is_logged_danmaku_keep_coming_and_the_gift_counts_when_pushed_again()
+    {
+        await using var h = new WatchHarness();
+        await using var updates = await h.WatchWithGiftBoardAsync();
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "ALTER TABLE gift_board_total RENAME TO unavailable_total";
+        command.ExecuteNonQuery();
+
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
+        Assert.Contains(h.Logger.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains("礼物榜读写数据库失败"));
+
+        command.CommandText = "ALTER TABLE unavailable_total RENAME TO gift_board_total";
+        command.ExecuteNonQuery();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
+        Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
+        Assert.DoesNotContain(h.Logger.Entries, entry => entry.Message.Contains("重复推送的礼物"));
     }
 
     [Fact]

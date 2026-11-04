@@ -94,6 +94,7 @@ public sealed partial class AetherClient
         }
     }
 
+    /// <summary>The 礼物榜 rides along like the lottery: its database failing is logged, and danmaku keep coming.</summary>
     private sealed class GiftBoardFeature(GiftBoardController board, long roomId, ILogger logger,
         Func<Task<long?>> readLiveTime) : IRoomFeature
     {
@@ -102,18 +103,25 @@ public sealed partial class AetherClient
             switch (e)
             {
                 case TransportConnected connected:
-                    board.Connect(roomId, connected.LiveTime);
+                    RunBoard(() => board.Connect(roomId, connected.LiveTime));
                     break;
                 case DanmakuProtocol.LiveReceived:
                     _ = UpdateLiveTimeAsync();
                     break;
                 case DanmakuProtocol.GiftsReceived received:
-                    board.Receive(roomId, received.Gifts);
+                    RunBoard(() => board.Receive(roomId, received.Gifts));
                     break;
                 case RoomConnectionEnded:
                     board.EndRoom(roomId);
                     break;
             }
+        }
+
+        private void RunBoard(Action run)
+        {
+            try { run(); }
+            catch (Exception error) when (error is SqliteException or IOException)
+            { logger.LogError(error, "礼物榜读写数据库失败，弹幕照常接收：{Error}", error.Message); }
         }
 
         // The receive loop never waits on B站's HTTP API, so a LIVE message starts the room_init read and moves on.

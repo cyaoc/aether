@@ -1,5 +1,6 @@
 import { Changes } from './changes.mjs';
 import { Effects } from './effects.mjs';
+import { picturesOf } from './entry.mjs';
 import { fitLayout, slotsOf } from './layout.mjs';
 import { EVENTS, SCROLL_PER_MS } from './motion.mjs';
 import { Scene } from './scene.mjs';
@@ -21,7 +22,10 @@ export class Board {
   }
 
   receive(state) {
-    this.changes.receive(state);
+    // The latest saved volume, whichever state is waiting its turn; it reaches a cheer already playing too.
+    this.volume = state.volume;
+    this.track?.volume(state.volume);
+    if (this.changes.receive(state)) this.interrupt();
     this.sound.prepare(state.volume);
   }
 
@@ -41,12 +45,13 @@ export class Board {
     this.state = state;
   }
 
-  // A board that is drawn over as a whole (another show, a clear, a restore) lets go of the names and counts of the old one, so
-  // that a run of days does not keep a picture of every viewer it ever showed.
-  forget() {
+  // A board that is drawn over as a whole (another show, a clear, a restore) lets go of the names and counts of the old one, and
+  // of the pictures the new one does not show, so that a run of days does not keep a picture of every viewer it ever showed.
+  forget(state) {
     this.scene?.destroy();
     this.scene = undefined;
     this.kit.textures.forget();
+    this.kit.images.keepOnly(new Set(state.rows.flatMap(row => Object.values(picturesOf(row)))));
   }
 
   frame() {
@@ -75,13 +80,19 @@ export class Board {
 
   begin({ kind, id, debut, state }, t) {
     const before = this.state;
-    if (kind === 'redraw') this.forget();
+    if (kind === 'redraw') this.forget(state);
     this.show(state);
     if (kind === 'redraw') return;
     this.event = { kind, id, debut, startedAt: t, slots: slotsOf(before.rows) };
     this.app.canvas.dataset.event = kind;
-    // Only a new first place sounds; with the volume at 0 there is no track.
-    if (kind === 'top') this.track = this.sound.track(state.volume);
+    // Only a new first place sounds.
+    if (kind === 'top') this.track = this.sound.track(this.volume);
+  }
+
+  // The event playing is out of date: it stops where it is, its sound with it.
+  interrupt() {
+    this.track?.stop();
+    this.finish();
   }
 
   finish() {

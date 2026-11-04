@@ -7,6 +7,7 @@ namespace Aether.Gui;
 public partial class GiftBoardSettingsPage : SettingsPage
 {
     public event Action? GeneralSettingsRequested;
+    private GiftBoardViewModel? board;
 
     public GiftBoardSettingsPage() : this(DataDirectory.Locate()) { }
 
@@ -28,12 +29,18 @@ public partial class GiftBoardSettingsPage : SettingsPage
 
     protected override bool AppliesToWebService => true;
 
-    protected override void LoadRows() => ShowEmptyList();
-
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
+        if (board is not null) board.PropertyChanged -= OnBoardChanged;
+        board = viewModel?.GiftBoard;
+        if (board is not null) board.PropertyChanged += OnBoardChanged;
         ShowEmptyList();
+    }
+
+    private void OnBoardChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(GiftBoardViewModel.Enabled)) ShowEmptyList();
     }
 
     protected override void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
@@ -48,19 +55,23 @@ public partial class GiftBoardSettingsPage : SettingsPage
 
     private void CancelConfirmation(object? sender, RoutedEventArgs e) => viewModel?.GiftBoard.CancelConfirmation();
 
-    private void Confirm(object? sender, RoutedEventArgs e)
+    private async void Confirm(object? sender, RoutedEventArgs e)
     {
         if (viewModel is null) return;
-        Message = viewModel.GiftBoard.Confirm() switch
+        var room = viewModel.RoomNumber;
+        var (done, error) = await viewModel.GiftBoard.ConfirmAsync();
+        Message = (done, error) switch
         {
-            GiftBoardConfirmation.Clear => $"已清空直播间 {viewModel.RoomNumber} 的礼物榜",
-            GiftBoardConfirmation.Restore => "已恢复上一期",
+            (GiftBoardConfirmation.Clear, { } reason) => $"清空失败：{reason}",
+            (GiftBoardConfirmation.Restore, { } reason) => $"恢复失败：{reason}",
+            (GiftBoardConfirmation.Clear, _) => $"已清空直播间 {room} 的礼物榜",
+            (GiftBoardConfirmation.Restore, _) => "已恢复上一期",
             _ => Message,
         };
     }
 
-    // The list is empty for one of three reasons; the board being off is the saved switch, as the list follows what was saved.
+    // The list is empty for one of three reasons; the board being off is the switch Core applied, as the list follows it.
     private void ShowEmptyList() => BoardEmpty.Text = viewModel is not { HasRoomConnection: true } ? "连上直播间后，这里显示这个直播间的礼物榜。"
-        : !settings.GiftBoardEnabled.Value ? "礼物榜关着，不记录也不显示。"
+        : !viewModel.GiftBoard.Enabled ? "礼物榜关着，不记录也不显示。"
         : "还没有人上榜。达到门槛的礼物会出现在这里和直播画面上。";
 }

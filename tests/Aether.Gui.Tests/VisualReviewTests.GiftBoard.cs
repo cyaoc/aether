@@ -1,5 +1,6 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia.Controls;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.Time.Testing;
@@ -58,7 +59,8 @@ public sealed partial class VisualReviewTests
         GuiHarness.Click(shoot.Page, "CancelConfirmButton");
         GuiHarness.Click(shoot.Page, "AskRestoreButton");
         GuiHarness.Click(shoot.Page, "ConfirmRestoreButton");
-        await GuiHarness.WaitForAsync(() => shoot.ViewModel.GiftBoard.Rows.Count == 9);
+        await GuiHarness.WaitForAsync(() => shoot.ViewModel.GiftBoard.Rows.Count == 9
+            && GuiHarness.FindVisual<TextBlock>(shoot.Page, "Message").Text == "已恢复上一期");
         shoot.Capture("gift-board-restored");
     }
 

@@ -32,12 +32,17 @@ export class Changes {
     this.waiting = [];
   }
 
+  /** Returns true when the state replaces the board as a whole: one that no gift made, such as a clear, a restore, a room left
+   * or a new connection's first. Whatever was playing or waiting is then out of date, and the state is drawn next. */
   receive(state) {
     const change = this.last ? compare(this.last, state) : REDRAW;
     this.last = state;
-    if (!change) return;
+    if (!change) return false;
+    const replaces = change === REDRAW && !state.fromGift;
+    if (replaces) this.waiting = [];
     this.waiting.push({ ...change, state });
     if (this.waiting.length > BACKLOG_LIMIT) this.waiting = [{ ...REDRAW, state }];
+    return replaces;
   }
 
   take() {

@@ -33,6 +33,14 @@ public sealed partial class GiftBoardBrowserTests
         true
         """;
 
+    /// <summary>Records every gain the page makes, in order: a track's master gain comes before the gain of its sound.</summary>
+    private const string RecordGains = """
+        window.gains = [];
+        const createGain = BaseAudioContext.prototype.createGain;
+        BaseAudioContext.prototype.createGain = function () { const gain = createGain.call(this); gains.push(gain); return gain; };
+        true
+        """;
+
     /// <summary>The gift board on, a room connected, and a Chrome that is not open yet.</summary>
     private static async Task<PageSession> StartAsync(params (string Name, string Value)[] settings)
     {

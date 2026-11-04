@@ -57,7 +57,7 @@ public sealed class GiftBoardConfirmTests
         scene.Clock.Advance(TimeSpan.FromMinutes(12));
         GuiHarness.Click(scene.Page, "ConfirmClearButton");
         Assert.Null(AskedText(scene));
-        Assert.Equal("已清空直播间 1768506153 的礼物榜", GuiHarness.FindVisual<TextBlock>(scene.Page, "Message").Text);
+        await GuiHarness.WaitForAsync(() => Footer(scene) == "已清空直播间 1768506153 的礼物榜");
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 0);
         Assert.Equal("本期从 11月4日 20:15 开始", scene.Page.FindControl<TextBlock>("BoardPeriod")!.Text);
     }, On);
@@ -83,7 +83,7 @@ public sealed class GiftBoardConfirmTests
 
         GuiHarness.Click(scene.Page, "AskRestoreButton");
         GuiHarness.Click(scene.Page, "ConfirmRestoreButton");
-        Assert.Equal("已恢复上一期", GuiHarness.FindVisual<TextBlock>(scene.Page, "Message").Text);
+        await GuiHarness.WaitForAsync(() => Footer(scene) == "已恢复上一期");
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 5);
         Assert.Equal(["1 南風知我意 提督 ×1 19980 电池", "2 龍騰雲海 告白气球 ×8 16000 电池", "3 月下Lily 次元之城 ×1 12450 电池",
             "4 Aki秋 为你加冕 ×1 4500 电池", "5 夜雨听风 星河入梦 ×2 398 电池"], scene.Listed());
@@ -116,6 +116,35 @@ public sealed class GiftBoardConfirmTests
         await GuiHarness.WaitForAsync(() => AskedText(scene) is null);
         Assert.True(IsShown(scene, "PART_SaveButton"));
     }, On);
+
+    [Fact]
+    public Task A_clear_or_restore_that_fails_says_so_in_the_footer_and_the_window_carries_on() => Run(async scene =>
+    {
+        scene.Connect();
+        scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450));
+        scene.Board.Clear();
+        scene.Give(PaidGift(2, "龍騰雲海", "告白气球", 2000, 5));
+        await GuiHarness.WaitForAsync(() => Offered(scene) is (true, true, false));
+        using var database = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(scene.DataDirectory, "aether.db")};Pooling=False");
+        database.Open();
+        using var command = database.CreateCommand();
+        command.CommandText = "ALTER TABLE gift_board_total RENAME TO unavailable_total; ALTER TABLE gift_board_period RENAME TO unavailable_period";
+        command.ExecuteNonQuery();
+
+        GuiHarness.Click(scene.Page, "AskClearButton");
+        GuiHarness.Click(scene.Page, "ConfirmClearButton");
+        await GuiHarness.WaitForAsync(() => Footer(scene).StartsWith("清空失败："));
+        GuiHarness.Click(scene.Page, "AskRestoreButton");
+        GuiHarness.Click(scene.Page, "ConfirmRestoreButton");
+        await GuiHarness.WaitForAsync(() => Footer(scene).StartsWith("恢复失败："));
+
+        command.CommandText = "ALTER TABLE unavailable_total RENAME TO gift_board_total; ALTER TABLE unavailable_period RENAME TO gift_board_period";
+        command.ExecuteNonQuery();
+        Assert.Equal(1, scene.Listed().Length);
+        Assert.True(Offered(scene).Restore);
+    }, On);
+
+    private static string Footer(GiftBoardScene scene) => GuiHarness.FindVisual<TextBlock>(scene.Page, "Message").Text ?? "";
 
     /// <summary>Whether clearing and restoring are on offer, and whether the header says they need a room.</summary>
     private static (bool Clear, bool Restore, bool NeedsRoom) Offered(GiftBoardScene scene) =>

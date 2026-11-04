@@ -108,6 +108,60 @@ public sealed partial class GiftBoardBrowserTests
     }
 
     [Fact]
+    public async Task A_clear_during_a_cheer_stops_it_and_its_sound_at_once_and_shows_the_empty_board()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 1000);
+        await page.ClickAsync();
+        await page.Browser.EvaluateAsync(RecordSounds);
+        await page.PauseClockAsync();
+        await page.GiveAsync(1, 3000);
+        await page.GiveAsync(2, 5000);
+        await page.WaitForEventAsync("top");
+        await page.SetEventTimeAsync(300);
+
+        // The clock stands still: the cheer and the one waiting behind it give way to the cleared board without playing out.
+        var received = page.Browser.EventSourceMessages.Count;
+        page.H.Client.GiftBoard.Clear();
+        await page.WaitForStatesAsync(received + 1);
+        await page.Browser.EvaluateAsync(TwoFrames);
+        Assert.Equal("", await page.PlayingAsync());
+        await page.WaitForTransparentAsync(100, (int)(Mascot + CardsY + 49));
+        await page.StepClockAsync(5000);
+        Assert.Equal(0, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
+    public async Task A_volume_saved_while_a_cheer_plays_or_waits_is_the_one_both_are_heard_at()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 1000);
+        await page.ClickAsync();
+        await page.Browser.EvaluateAsync(RecordSounds);
+        await page.Browser.EvaluateAsync(RecordGains);
+        await page.PauseClockAsync();
+        await page.GiveAsync(1, 3000);
+        await page.WaitForEventAsync("top");
+        foreach (var time in new[] { 300, 500, 600, 700, 800, 1000 }) await page.SetEventTimeAsync(time);
+        await page.GiveAsync(2, 5000);
+        Assert.Equal(1, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
+
+        // Saving the volume changes nothing on the board, so no state is played for it.
+        var received = page.Browser.EventSourceMessages.Count;
+        await page.H.ApplySettingsAsync(("gift_board.volume", "0"));
+        await page.WaitForStatesAsync(received + 1);
+        await page.Browser.EvaluateAsync(TwoFrames);
+        Assert.Equal(0, (await page.Browser.EvaluateAsync("gains[0].gain.value")).GetDouble());
+
+        // The new first place that was waiting plays without a sound.
+        await page.SetEventTimeAsync(3300);
+        await page.WaitForEventAsync("top");
+        foreach (var time in new[] { 300, 500, 600, 700, 800, 1000, 1500 }) await page.SetEventTimeAsync(time);
+        Assert.Equal(1, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
+    }
+
+    [Fact]
     public async Task A_backlog_of_more_than_three_jumps_to_the_latest_state_and_what_it_skips_is_neither_played_nor_heard()
     {
         await using var page = await StartAsync();

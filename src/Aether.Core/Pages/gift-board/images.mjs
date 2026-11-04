@@ -23,8 +23,20 @@ export class RemoteImages {
     if (!url) return PIXI.Texture.EMPTY;
     if (!this.textures.has(url)) {
       this.textures.set(url, PIXI.Texture.EMPTY);
-      loadImage(url, REMOTE).then(image => this.textures.set(url, PIXI.Texture.from(image)), () => {});
+      // A picture let go of while it loaded is not kept, nor is a second load of one that has arrived.
+      loadImage(url, REMOTE).then(image => {
+        if (this.textures.get(url) === PIXI.Texture.EMPTY) this.textures.set(url, PIXI.Texture.from(image));
+      }, () => {});
     }
     return this.textures.get(url);
+  }
+
+  /** Destroys every picture but those at the addresses in `kept`, the ones the board still shows. */
+  keepOnly(kept) {
+    for (const [url, texture] of this.textures) {
+      if (kept.has(url)) continue;
+      if (texture !== PIXI.Texture.EMPTY) texture.destroy(true);
+      this.textures.delete(url);
+    }
   }
 }

@@ -1,3 +1,4 @@
+using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using static Aether.Gui.Tests.Support.GiftBoardScene;
@@ -18,12 +19,13 @@ public sealed class GiftBoardListTests
     }, On);
 
     [Fact]
-    public Task The_list_counts_its_rows_and_says_when_the_period_began() => Run(async scene =>
+    public Task The_list_counts_its_viewers_and_says_when_the_period_began() => Run(async scene =>
     {
         scene.GoToToday();
         scene.Connect();
-        scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450), PaidGift(2, "龍騰雲海", "告白气球", 2000, 5));
-        await GuiHarness.WaitForAsync(() => scene.Listed().Length == 2);
+        // 月下Lily is on the board twice, once for each gift.
+        scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450), PaidGift(2, "龍騰雲海", "告白气球", 2000, 5), PaidGift(1, "月下Lily", "告白气球", 2000));
+        await GuiHarness.WaitForAsync(() => scene.Listed().Length == 3);
 
         Assert.Equal("共 2 位", scene.Page.FindControl<TextBlock>("BoardCount")!.Text);
         Assert.Equal("本期从 11月4日 20:03 开始", scene.Page.FindControl<TextBlock>("BoardPeriod")!.Text);
@@ -56,7 +58,26 @@ public sealed class GiftBoardListTests
         Assert.StartsWith("还没有人上榜", empty.Text);
 
         await GuiHarness.SaveAsync(scene.Page);
-        Assert.Equal("礼物榜关着，不记录也不显示。", empty.Text);
+        await GuiHarness.WaitForAsync(() => empty.Text == "礼物榜关着，不记录也不显示。");
+    }, On);
+
+    [Fact]
+    public Task An_empty_list_follows_the_switch_Core_applied_while_the_form_keeps_a_draft() => Run(async scene =>
+    {
+        var empty = scene.Page.FindControl<TextBlock>("BoardEmpty")!;
+        scene.Connect();
+        var threshold = scene.Page.FindControl<NumericUpDown>("ThresholdInput")!;
+        threshold.Value = 5;
+        GuiHarness.Flush();
+
+        // The board is switched off in the file elsewhere and Core applies it, as on going to another page and back.
+        Settings.Save(scene.DataDirectory, new Dictionary<string, string> { ["gift_board.enabled"] = "false" }, Settings.Load(scene.DataDirectory));
+        var saved = Settings.Load(scene.DataDirectory);
+        scene.Board.Apply(saved);
+        scene.Page.RefreshFileStatus(saved);
+
+        await GuiHarness.WaitForAsync(() => empty.Text == "礼物榜关着，不记录也不显示。");
+        Assert.Equal(5, threshold.Value);
     }, On);
 
     [Fact]

@@ -81,6 +81,25 @@ test('more than three waiting changes jump to the latest state, and later ones f
   assert.deepEqual(kinds(changes), ['new f']);
 });
 
+test('a board no gift made replaces whatever waits, and says so, so that what is playing can stop', () => {
+  const changes = started(board(a));
+  assert.equal(changes.receive(gift(a, b)), false);
+  assert.equal(changes.receive(gift(a, b, c)), false);
+  assert.equal(changes.receive(board()), true);
+  assert.deepEqual(kinds(changes), ['redraw']);
+  assert.equal(changes.receive(board(a)), true);
+  const reconnected = new Changes();
+  assert.equal(reconnected.receive(board(a)), true);
+});
+
+test('changes a gift made wait their turn, even a redraw, and a board that looks the same replaces nothing', () => {
+  const changes = started(board(a, b));
+  assert.equal(changes.receive(gift(a, b, c)), false);
+  assert.equal(changes.receive(gift(row('a', 2), row('b', 2), c)), false);
+  assert.equal(changes.receive({ ...board(row('a', 2), row('b', 2), c), volume: 0 }), false);
+  assert.deepEqual(kinds(changes), ['new c', 'redraw']);
+});
+
 test('after a new connection the first state is drawn straight again and the old queue is dropped', () => {
   const changes = started(board(a));
   changes.receive(gift(a, b));

@@ -17,29 +17,28 @@ internal sealed class GiftBoardStore(Database database)
 
     private const string InsertTotal = """
         INSERT INTO gift_board_total (period_id, uid, gift_key, nickname, face_url, gift_name, icon_url, guard_level,
-            price, num, first_at, last_at)
+            value, num, first_at, last_at)
         """;
 
-    // Adding to a row that is already there, whether one gift or a whole 期 merged in. A price is the total spent over the
-    // total count, so a 大航海 renewed at another price still adds up to what was paid; the later nickname, avatar and
-    // icon win, and the row spans from the earlier first_at to the later last_at.
+    // Adding to a row that is already there, whether one gift or a whole 期 merged in. Values and counts add up exactly, so a
+    // 大航海 renewed at another price still adds up to what was paid; the later nickname, avatar and icon win, and the row spans
+    // from the earlier first_at to the later last_at.
     private const string AddToRow = """
         ON CONFLICT (period_id, uid, gift_key) DO UPDATE SET
             nickname = excluded.nickname, face_url = excluded.face_url, gift_name = excluded.gift_name,
-            icon_url = excluded.icon_url, price = (price * num + excluded.price * excluded.num) / (num + excluded.num),
-            num = num + excluded.num, first_at = MIN(first_at, excluded.first_at), last_at = MAX(last_at, excluded.last_at)
+            icon_url = excluded.icon_url, value = value + excluded.value, num = num + excluded.num, first_at = MIN(first_at, excluded.first_at), last_at = MAX(last_at, excluded.last_at)
         """;
 
     private const string Upsert = $"""
         {InsertTotal}
-        VALUES ($period, $uid, $key, $nickname, $face, $giftName, $icon, $guard, $price, $num, $at, $at)
+        VALUES ($period, $uid, $key, $nickname, $face, $giftName, $icon, $guard, $value, $num, $at, $at)
         {AddToRow};
         """;
 
     // The 期 merged in is the later one, so its nickname, avatar and icon are the latest.
     private const string MergeLatest = $"""
         {InsertTotal}
-        SELECT $previous, uid, gift_key, nickname, face_url, gift_name, icon_url, guard_level, price, num, first_at, last_at
+        SELECT $previous, uid, gift_key, nickname, face_url, gift_name, icon_url, guard_level, value, num, first_at, last_at
         FROM gift_board_total WHERE period_id = $current
         {AddToRow};
         DELETE FROM gift_board_total WHERE period_id = $current;
@@ -53,15 +52,15 @@ internal sealed class GiftBoardStore(Database database)
         using var connection = database.Open();
         using var command = connection.CreateCommand();
         command.CommandText = $"""
-            SELECT uid, gift_key, nickname, face_url, gift_name, icon_url, guard_level, price, num FROM gift_board_total
+            SELECT uid, gift_key, nickname, face_url, gift_name, icon_url, guard_level, value, num FROM gift_board_total
             WHERE period_id = ({LatestPeriodId})
-            ORDER BY price * num DESC, first_at, rowid;
+            ORDER BY value DESC, first_at, rowid;
             """;
         command.Parameters.AddWithValue("$room", roomId);
         var rows = ImmutableArray.CreateBuilder<GiftBoardRow>();
         using var reader = command.ExecuteReader();
         while (reader.Read())
-            rows.Add(new($"{reader.GetInt64(0)}/{reader.GetString(1)}", reader.GetString(2), reader.GetString(3),
+            rows.Add(new($"{reader.GetInt64(0)}/{reader.GetString(1)}", reader.GetInt64(0), reader.GetString(2), reader.GetString(3),
                 reader.GetString(4), reader.GetString(5), reader.GetInt32(6), reader.GetInt64(7), reader.GetInt64(8)));
         return rows.ToImmutable();
     }
@@ -166,7 +165,7 @@ internal sealed class GiftBoardStore(Database database)
         command.Parameters.AddWithValue("$giftName", gift.GiftName);
         command.Parameters.AddWithValue("$icon", gift.IconUrl);
         command.Parameters.AddWithValue("$guard", gift.GuardLevel);
-        command.Parameters.AddWithValue("$price", gift.Price);
+        command.Parameters.AddWithValue("$value", checked(gift.Price * gift.Num));
         command.Parameters.AddWithValue("$num", gift.Num);
         command.Set("$at", at);
         command.ExecuteNonQuery();

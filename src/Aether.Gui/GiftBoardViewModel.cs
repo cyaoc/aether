@@ -15,10 +15,20 @@ public enum GiftBoardConfirmation { None, Clear, Restore }
 public partial class GiftBoardViewModel(AetherClient client, ILogger logger, TimeProvider clock, CancellationToken shutdown) : ObservableObject
 {
     private readonly LatestRun updates = new();
+    private Task change = Task.CompletedTask;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasRows), nameof(CanClear), nameof(CountText))]
     private IReadOnlyList<GiftBoardListRow> rows = [];
+
+    // The viewers on the board: one viewer can have a row for each kind of gift.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CountText))]
+    private int viewers;
+
+    /// <summary>Whether the board is on in the settings Core last applied, which a draft on the page does not change.</summary>
+    [ObservableProperty]
+    private bool enabled;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PeriodText), nameof(ConfirmText))]
@@ -38,7 +48,7 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
     public bool Confirming => Confirmation != GiftBoardConfirmation.None;
     public bool ConfirmingClear => Confirmation == GiftBoardConfirmation.Clear;
     public bool ConfirmingRestore => Confirmation == GiftBoardConfirmation.Restore;
-    public string CountText => HasRows ? $"共 {Rows.Count} 位" : "";
+    public string CountText => HasRows ? $"共 {Viewers} 位" : "";
     public string PeriodText => Period is { } current ? $"本期从 {LocalDateText.DateAndTime(current.StartedAt, clock.GetLocalNow())} 开始" : "";
 
     public string ConfirmText => Confirmation switch
@@ -62,13 +72,21 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
         updates.Follow(client.GiftBoard.GetUpdatesAsync, Apply, logger, "礼物榜状态订阅中断");
     }
 
-    internal Task StopAsync() => updates.StopAsync();
+    internal async Task StopAsync()
+    {
+        // The page reports failures; closing still waits until a clear or restore has finished writing.
+        try { await change; }
+        catch { }
+        await updates.StopAsync();
+    }
 
     internal void Apply(GiftBoardState state)
     {
+        Viewers = state.Rows.Select(row => row.Uid).Distinct().Count();
         // A row's value is in 金瓜子, and a 大航海 averaged over its months can be a fraction of a 电池.
         Rows = [.. state.Rows.Select((row, index) => new GiftBoardListRow(index + 1, row.Nickname, $"{row.GiftName} ×{row.Num}",
             Battery.Text(row.Value)))];
+        Enabled = state.Enabled;
         Period = state.Period;
         Previous = state.Previous;
         // What was asked for can no longer be done, e.g. the room was left.
@@ -82,14 +100,18 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
 
     internal void CancelConfirmation() => Confirmation = GiftBoardConfirmation.None;
 
-    /// <summary>Does what the footer asked, if it can still be done; returns what was done.</summary>
-    internal GiftBoardConfirmation Confirm()
+    /// <summary>Does what the footer asked, if it can still be done, off the UI thread. Returns what was done, and why it
+    /// failed if it did: the database could not be written, or the room was left in the meantime.</summary>
+    internal async Task<(GiftBoardConfirmation Done, string? Error)> ConfirmAsync()
     {
         var done = CanConfirm ? Confirmation : GiftBoardConfirmation.None;
         Confirmation = GiftBoardConfirmation.None;
-        // shortcut: runs the SQLite write on the UI thread, as Save writes the settings file here; move it off if restoring a very long 总榜 stalls the window.
-        if (done == GiftBoardConfirmation.Clear) client.GiftBoard.Clear();
-        if (done == GiftBoardConfirmation.Restore) client.GiftBoard.Restore();
-        return done;
+        if (done == GiftBoardConfirmation.None) return (done, null);
+        try
+        {
+            await (change = Task.Run(done == GiftBoardConfirmation.Clear ? client.GiftBoard.Clear : client.GiftBoard.Restore));
+            return (done, null);
+        }
+        catch (Exception error) { return (done, error.Message); }
     }
 }

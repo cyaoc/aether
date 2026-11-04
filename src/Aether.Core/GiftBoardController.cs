@@ -93,7 +93,13 @@ public sealed class GiftBoardController : IDisposable
             var accepted = gifts.Where(Accept).ToArray();
             if (accepted.Length == 0) return;
             // shortcut: reads and writes SQLite on the receive loop, as the blind box store does; move off it if a busy room lags.
-            store().Add(room, accepted, time.GetUtcNow(), liveTime);
+            try { store().Add(room, accepted, time.GetUtcNow(), liveTime); }
+            catch
+            {
+                // Nothing was recorded, so the same gifts pushed again are not repeats.
+                foreach (var gift in accepted) if (gift.Tid is { } tid) seen.Remove(tid);
+                throw;
+            }
             subscribers.Publish(State() with { FromGift = true });
         }
     }
@@ -140,7 +146,7 @@ public sealed class GiftBoardController : IDisposable
     private GiftBoardState State()
     {
         var periods = roomId is { } room ? store().Periods(room) : [];
-        return new(Rows(), settings.GiftBoardMascot.Value, settings.GiftBoardVolume.Value,
+        return new(Rows(), settings.GiftBoardEnabled.Value, settings.GiftBoardMascot.Value, settings.GiftBoardVolume.Value,
             periods.ElementAtOrDefault(0), periods.ElementAtOrDefault(1));
     }
 

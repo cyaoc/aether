@@ -124,6 +124,7 @@ internal sealed class Database
             // 礼物榜 totals per 期 (ADR 0012); a new 期 leaves the older ones in place.
             // live_time: Unix time the 一场直播 began that the 期 belongs to, null when it was opened off air.
             // gift_key: gift:<gift id> or guard:<level>, so an opened gift and the same gift sent directly share a row.
+            // value: what the row's gifts were worth in all (金瓜子), kept whole so that gifts at different prices add up exactly.
             command.CommandText = """
                 CREATE TABLE gift_board_period (
                     id INTEGER PRIMARY KEY, room_id INTEGER NOT NULL, started_at TEXT NOT NULL, live_time INTEGER
@@ -132,7 +133,7 @@ internal sealed class Database
                 CREATE TABLE gift_board_total (
                     period_id INTEGER NOT NULL REFERENCES gift_board_period(id), uid INTEGER NOT NULL, gift_key TEXT NOT NULL,
                     nickname TEXT NOT NULL, face_url TEXT NOT NULL, gift_name TEXT NOT NULL, icon_url TEXT NOT NULL,
-                    guard_level INTEGER NOT NULL, price INTEGER NOT NULL, num INTEGER NOT NULL,
+                    guard_level INTEGER NOT NULL, value INTEGER NOT NULL, num INTEGER NOT NULL,
                     first_at TEXT NOT NULL, last_at TEXT NOT NULL,
                     PRIMARY KEY (period_id, uid, gift_key)
                 );

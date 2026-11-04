@@ -16,11 +16,18 @@ const leftAligned = texture => {
   return sprite;
 };
 
+/** The B站 pictures a row shows: its avatar, the guard frame round it, and its gift icon or guard badge. */
+export const picturesOf = row => ({
+  face: row.faceUrl,
+  frame: GUARD_FRAME[row.guardLevel],
+  icon: row.guardLevel ? GUARD_BADGE[row.guardLevel] : row.iconUrl
+});
+
 export class Entry {
   /** `copy` is 0, or 1 for the second copy of a row in a scrolling list. */
   constructor(row, copy, kit) {
     const { textures } = kit;
-    Object.assign(this, { row, copy, kit });
+    Object.assign(this, { row, copy, kit, pictures: picturesOf(row) });
     this.container = new PIXI.Container();
     this.plate = new PIXI.Sprite(textures.row);
     this.plate.alpha = 0;
@@ -59,7 +66,7 @@ export class Entry {
 
   placePicture(g, { avatarScale, avatarAlpha, lift }, arc) {
     const { row, kit } = this;
-    this.avatar.texture = row.faceUrl ? kit.images.texture(row.faceUrl) : kit.textures.initial(row.nickname);
+    this.avatar.texture = row.faceUrl ? kit.images.texture(this.pictures.face) : kit.textures.initial(row.nickname);
     this.avatar.position.set(g.ax + arc, g.ay);
     this.avatar.width = this.avatar.height = 2 * g.ar * avatarScale * lift;
     this.avatar.alpha = avatarAlpha;
@@ -68,7 +75,7 @@ export class Entry {
       width: g.tier < 3 ? 2.4 : 1.6, color: g.tier < 3 ? RIM[g.tier].ring : 0xffffff, alpha: row.guardLevel ? 0 : 0.9
     });
     if (!this.frame) return;
-    this.frame.texture = kit.images.texture(GUARD_FRAME[row.guardLevel]);
+    this.frame.texture = kit.images.texture(this.pictures.frame);
     this.frame.position.set(g.ax + arc, g.ay);
     // The frame is 0.7 of the avatar's width; the picture shows through its middle.
     this.frame.width = this.frame.height = (2 * g.ar / 0.7) * avatarScale * lift;
@@ -84,8 +91,7 @@ export class Entry {
   }
 
   placeIcon(g, { iconScale, iconAlpha, lift }, arc) {
-    const { row, kit } = this;
-    this.icon.texture = kit.images.texture(row.guardLevel ? GUARD_BADGE[row.guardLevel] : row.iconUrl);
+    this.icon.texture = this.kit.images.texture(this.pictures.icon);
     this.icon.position.set(g.ix + arc, g.iy);
     this.icon.width = this.icon.height = g.is * iconScale * lift;
     this.icon.alpha = iconAlpha;
