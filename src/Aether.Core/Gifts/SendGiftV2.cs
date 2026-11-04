@@ -32,6 +32,9 @@ internal static class SendGiftV2
         foreach (var item in items) yield return ReadItem(box, item);
     }
 
+    private static string ReadIconUrl(ReadOnlyMemory<byte> snapshot) =>
+        ProtobufReader.LastValue(snapshot, 1, (reader, type) => reader.Text(type), "");
+
     private static BlindBox ReadBlindGift(BlindBox box, ReadOnlyMemory<byte> bytes)
     {
         var reader = new ProtobufReader(bytes);
@@ -64,7 +67,7 @@ internal static class SendGiftV2
                 case 8: coinType = reader.Text(type); break;
                 case 9: box = box with { Tid = reader.Text(type) }; break;
                 case 10: box = box with { Timestamp = reader.Int64(type) }; break;
-                case 35: box = box with { IconUrl = ProtobufReader.LastValue(reader.Bytes(type), 1, (image, kind) => image.Text(kind), "") }; break;
+                case 35: box = box with { IconUrl = ReadIconUrl(reader.Bytes(type)) }; break;
                 default: reader.Skip(field, type); break;
             }
         }

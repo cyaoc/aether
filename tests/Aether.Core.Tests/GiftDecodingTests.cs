@@ -73,6 +73,7 @@ public sealed class GiftDecodingTests
 
     // Prices are 金瓜子 from the streamer's 2026-11 price list. A push's price is the unit price up to the single-month
     // list price (198000 舰长, 1998000 提督, 19998000 总督) and the total above it; a unit other than 月 counts once.
+    // No capture of a push with num above 1 or another unit exists, so those rows are synthetic (Fixtures/README.md).
     [Theory]
     [InlineData(3, 138000, 1, "月", 138000, 1, 138000)]
     [InlineData(3, 168000, 1, "月", 168000, 1, 168000)]
@@ -90,7 +91,7 @@ public sealed class GiftDecodingTests
     [InlineData(3, 198000, 3, "月", 594000, 3, 198000)]
     [InlineData(3, 99000, 1, "5天", 99000, 1, 99000)]
     [InlineData(3, 99000, 2, "5天", 99000, 1, 99000)]
-    public void A_purchases_spend_count_and_unit_price_follow_the_price_rule(
+    public void The_spend_count_and_unit_price_of_a_purchase_follow_the_price_rule(
         int guardLevel, long price, long num, string unit, long spend, long count, long unitPrice)
     {
         var gift = Assert.Single(Decode(UserToastFixture.Message(guardLevel, price, num, unit)));
@@ -114,6 +115,10 @@ public sealed class GiftDecodingTests
     public void A_purchase_with_an_impossible_level_price_count_or_viewer_is_a_format_error(
         int guardLevel, long price, long num, long uid) =>
         Assert.Throws<FormatException>(() => Decode(UserToastFixture.Message(guardLevel, price, num, uid: uid)));
+
+    [Fact]
+    public void A_purchase_whose_spend_overflows_is_rejected() =>
+        Assert.Throws<OverflowException>(() => Decode(UserToastFixture.Message(num: long.MaxValue)));
 
     [Fact]
     public void An_ordinary_purchase_is_not_logged()

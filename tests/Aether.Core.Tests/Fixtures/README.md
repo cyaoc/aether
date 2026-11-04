@@ -35,8 +35,8 @@
 （`USER_TOAST_MSG_V2`，文档更新 2024-08-01）、
 [blivedm 的 `UserToastV2Message`](https://github.com/xfgryujk/blivedm/blob/master/blivedm/models/web.py)
 和 [blivechat 的 `userToastV2Callback`](https://github.com/xfgryujk/blivechat/blob/master/frontend/src/api/chat/ChatClientDirectWeb.js)
-读取的字段取；单月 138000 的价格取自
-[BAC 的 USER_TOAST_MSG 示例](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/message_stream.md)。
+读取的字段取；单月 138000、198000 的价格取自
+[BAC 的 USER_TOAST_MSG、GUARD_BUY 示例](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/message_stream.md)。
 uid、昵称、头像地址和 `payflow_id` 是测试值。
 一次买多个月（`num` 大于 1）和 `unit` 不是“月”的推送没有任何公开抓包，按公开字段名和主播提供的 2026-11 价格表合成
 （价格表见 [行为参考](../../../docs/reference.md#大航海开通和续费)）；`option.source` 为 2 的那一条也是合成的，依据是

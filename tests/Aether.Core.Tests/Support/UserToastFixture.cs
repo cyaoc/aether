@@ -3,9 +3,10 @@ using System.Text.Json.Nodes;
 namespace Aether.Core.Tests.Support;
 
 // USER_TOAST_MSG_V2: the JSON shape and the fields kept here follow sjh8130/bili_danmaku's Testing.md (updated 2024-08-01),
-// blivedm's UserToastV2Message and blivechat's userToastV2Callback; the 138000 price is the one in BAC's USER_TOAST_MSG
-// sample. uid, names, face and payflow_id are test values. Pushes of several months or of a unit other than 月 have never
-// been captured: they are built from those field names and the streamer's 2026-11 price list. This is not a capture.
+// blivedm's UserToastV2Message and blivechat's userToastV2Callback; the 138000 and 198000 prices are the ones in BAC's
+// USER_TOAST_MSG and GUARD_BUY samples. uid, names, face and payflow_id are test values. Pushes of several months or of
+// a unit other than 月 have never been captured: they are built from those field names and the streamer's 2026-11 price
+// list. This is not a capture.
 internal static class UserToastFixture
 {
     public const string TestFace = "https://i0.hdslb.com/bfs/face/test-toast.jpg";
