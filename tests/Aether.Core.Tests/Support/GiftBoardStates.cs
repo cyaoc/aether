@@ -4,6 +4,9 @@ namespace Aether.Core.Tests.Support;
 
 internal static class GiftBoardStates
 {
+    /// <summary>When two shows began (Unix seconds); the second is more than a day after the first.</summary>
+    public const long ShowA = 1700000000, ShowB = 1700100000;
+
     /// <summary>The board as it is now: a new subscription starts with the current state.</summary>
     public static async Task<GiftBoardState> CurrentAsync(this GiftBoardController board, CancellationToken token)
     {
@@ -23,6 +26,14 @@ internal static class GiftBoardStates
         await h.ApplySettingsAsync(("gift_board.enabled", "true"), ("gift_board.threshold", threshold.ToString()),
             ("gift_board.threshold_by", thresholdBy.ToString()));
         return await h.WatchConnectedAsync();
+    }
+
+    /// <summary>Like <see cref="WatchWithGiftBoardAsync"/> for the room as <see cref="FakeBilibiliHttp.SetRoom"/> has it, then puts
+    /// one gift on the board and disconnects, so that the next connection meets a board with a gift on it.</summary>
+    public static async Task WatchAndLeaveAGiftAsync(this WatchHarness h)
+    {
+        await using var updates = await h.WatchWithGiftBoardAsync();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
     }
 
     /// <summary>Reads pushed states until one satisfies <paramref name="match"/>; returns all read, that one last.</summary>

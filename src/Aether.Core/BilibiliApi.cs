@@ -14,6 +14,10 @@ internal sealed class BilibiliApi
 {
     private const string LiveReferer = "https://live.bilibili.com/";
     private const string LoginReferer = "https://www.bilibili.com/";
+    // room_init's live_status is 0 off air, 1 live, 2 rerun; its live_time is 0001-01-01 UTC in Unix seconds while the room
+    // is not live. Source: bilibili-API-collect, docs/live/info.md (获取房间页初始化信息).
+    private const int LiveStatusLive = 1;
+    private const long NotLiveTime = -62170012800;
     private readonly HttpClient http;
     private readonly TimeProvider timeProvider;
     private readonly Credential? credential;
@@ -62,7 +66,8 @@ internal sealed class BilibiliApi
         return status;
     }
 
-    public async Task<(long RoomId, long BroadcasterUid)> ResolveRoomAsync(long roomId, CancellationToken cancellationToken)
+    /// <summary>The real room id, the broadcaster, and when the 一场直播 under way began as Unix seconds, null when the room is not live.</summary>
+    public async Task<(long RoomId, long BroadcasterUid, long? LiveTime)> ResolveRoomAsync(long roomId, CancellationToken cancellationToken)
     {
         var (_, room) = await GetAsync($"https://api.live.bilibili.com/room/v1/Room/room_init?id={roomId.ToString(CultureInfo.InvariantCulture)}",
             LiveReferer, $"直播间 {roomId} 查询", cancellationToken);
@@ -70,7 +75,9 @@ internal sealed class BilibiliApi
         if (realRoomId <= 0) throw new InvalidDataException("B站未返回有效的真实房间号。");
         if (!room.TryGetProperty("uid", out var uid) || !uid.TryGetInt64(out var broadcasterUid) || broadcasterUid <= 0)
             throw new InvalidDataException("B站未返回有效的主播 UID。");
-        return (realRoomId, broadcasterUid);
+        var liveTime = room.GetProperty("live_time").GetInt64();
+        var live = room.GetProperty("live_status").GetInt32() == LiveStatusLive && liveTime != NotLiveTime;
+        return (realRoomId, broadcasterUid, live ? liveTime : null);
     }
 
     public async Task<OnlineRank> GetOnlineRankAsync(long roomId, long broadcasterUid, CancellationToken cancellationToken)
