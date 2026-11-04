@@ -10,33 +10,33 @@ namespace Aether.Gui.Tests;
 public sealed class BrowserSourceSizeTests
 {
     private static readonly Regex Size = new(@"\d{3,4}\s*[×x]\s*\d{3,4}");
-    private static readonly string[] SetupHelps = ["VideoSetupHelp", "LotterySetupHelp", "GiftBoardSetupHelp"];
+    private static readonly string[] Pages = ["Video", "Lottery", "GiftBoard"];
 
     [Fact]
-    public Task Page_list_writes_each_pages_size_on_its_row_and_the_note_sends_the_streamer_there() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1), page =>
+    public Task Page_list_writes_each_pages_size_on_its_row_and_the_note_sends_the_streamer_there() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1, 0), page =>
     {
         Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "每个页面在直播姬里各加一个浏览器素材，宽高照每行写的填");
-        Assert.Equal("1920 × 1080", page.FindControl<ContentControl>("VideoSize")!.Content);
-        Assert.Equal("横屏 1920 × 1080 · 竖屏 1080 × 1920", page.FindControl<ContentControl>("LotterySize")!.Content);
-        Assert.Equal("480 × 1000，可以等比放大", page.FindControl<ContentControl>("GiftBoardSize")!.Content);
+        Assert.Equal(["1920 × 1080", "横屏 1920 × 1080 · 竖屏 1080 × 1920", "480 × 1000，可以等比放大"],
+            Pages.Select(name => GuiHarness.FindPageRowControl<ContentControl>(page, name, "PageSize").Content));
     });
 
     [Fact]
-    public Task Page_sizes_line_up_in_one_column_whatever_each_one_says() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1), page =>
+    public Task Page_sizes_line_up_in_one_column_whatever_each_one_says() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1, 0), page =>
     {
-        double Left(Control control) => control.TranslatePoint(default, page)!.Value.X;
-        Assert.Equal(Left(page.FindControl<ContentControl>("VideoSize")!), Left(page.FindControl<ContentControl>("LotterySize")!), 0.5);
-        Assert.Equal(Left(page.FindControl<ContentControl>("VideoSize")!), Left(page.FindControl<ContentControl>("GiftBoardSize")!), 0.5);
-        Assert.Equal(Left(page.FindControl<Button>("CopyVideoAddressButton")!), Left(page.FindControl<Button>("CopyLotteryAddressButton")!), 0.5);
-        Assert.Equal(Left(page.FindControl<Button>("CopyVideoAddressButton")!), Left(page.FindControl<Button>("CopyGiftBoardAddressButton")!), 0.5);
+        double Left<T>(string name, string control) where T : Control => GuiHarness.FindPageRowControl<T>(page, name, control).TranslatePoint(default, page)!.Value.X;
+        foreach (var name in Pages.Skip(1))
+        {
+            Assert.Equal(Left<ContentControl>("Video", "PageSize"), Left<ContentControl>(name, "PageSize"), 0.5);
+            Assert.Equal(Left<Button>("Video", "CopyButton"), Left<Button>(name, "CopyButton"), 0.5);
+        }
     });
 
     [Fact]
-    public Task A_page_nobody_is_connected_to_is_told_to_take_its_address_and_size_from_its_own_row() => OnGeneralSettings(new WebServiceStatus(true, 17890, 0, 0), page =>
+    public Task A_page_nobody_is_connected_to_is_told_to_take_its_address_and_size_from_its_own_row() => OnGeneralSettings(new WebServiceStatus(true, 17890, 0, 0, 0), page =>
     {
-        foreach (var name in SetupHelps)
+        foreach (var name in Pages)
             Assert.Equal("还没有推流软件连着。在直播姬里添加浏览器素材，地址和宽高照这一行填；已经加过的，右键素材 → 刷新。",
-                GuiHarness.FindVisual<Grid>(page, name).GetVisualDescendants().OfType<TextBlock>().Single().Text);
+                GuiHarness.FindPageRowControl<Grid>(page, name, "SetupHelp").GetVisualDescendants().OfType<TextBlock>().Single().Text);
     });
 
     [Fact]
@@ -91,7 +91,7 @@ public sealed class BrowserSourceSizeTests
         try
         {
             await viewModel.ReadAccountCommand.ExecutionTask!;
-            viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
+            viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0, 0));
             for (var index = 0; index < window.Navigation.ItemCount; index++)
             {
                 window.Navigation.SelectedIndex = index;

@@ -17,7 +17,7 @@ public sealed class PageStatusBarTests
     public Task Status_bar_tells_the_state_of_the_page_it_is_given_in_that_pages_words(bool running, int connections, string? error,
         string text, string tone, string? steps) => HeadlessApp.Session.Dispatch(() =>
     {
-        var bar = new PageStatusBar { DataContext = new WebPageStatus(new WebServiceStatus(running, 17890, 9, 9, error), connections, Sample) };
+        var bar = new PageStatusBar { DataContext = new WebPageStatus(new WebServiceStatus(running, 17890, 9, 9, 0, error), connections, Sample) };
         var window = new Window { Content = bar };
         window.Show();
         try

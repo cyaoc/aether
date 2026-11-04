@@ -68,22 +68,17 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
     {
         // A row's value is in 金瓜子, and a 大航海 averaged over its months can be a fraction of a 电池.
         Rows = [.. state.Rows.Select((row, index) => new GiftBoardListRow(index + 1, row.Nickname, $"{row.GiftName} ×{row.Num}",
-            $"{(decimal)row.Value / GiftBoardController.CoinsPerBattery:0.##} 电池"))];
+            Battery.Text(row.Value)))];
         Period = state.Period;
         Previous = state.Previous;
         // What was asked for can no longer be done, e.g. the room was left.
         if (!CanConfirm) Confirmation = GiftBoardConfirmation.None;
     }
 
-    internal void RequestClear()
-    {
-        if (CanClear) Confirmation = GiftBoardConfirmation.Clear;
-    }
+    // Their buttons are only enabled while there is something to clear or to restore.
+    internal void RequestClear() => Confirmation = GiftBoardConfirmation.Clear;
 
-    internal void RequestRestore()
-    {
-        if (CanRestore) Confirmation = GiftBoardConfirmation.Restore;
-    }
+    internal void RequestRestore() => Confirmation = GiftBoardConfirmation.Restore;
 
     internal void CancelConfirmation() => Confirmation = GiftBoardConfirmation.None;
 

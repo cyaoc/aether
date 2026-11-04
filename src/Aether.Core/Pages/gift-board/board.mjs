@@ -41,6 +41,14 @@ export class Board {
     this.state = state;
   }
 
+  // A board that is drawn over as a whole (another show, a clear, a restore) lets go of the names and counts of the old one, so
+  // that a run of days does not keep a picture of every viewer it ever showed.
+  forget() {
+    this.scene?.destroy();
+    this.scene = undefined;
+    this.kit.textures.forget();
+  }
+
   frame() {
     const t = this.clock.currentTime;
     this.advanceScroll(t);
@@ -65,11 +73,12 @@ export class Board {
     if (this.scene?.scrolls && !this.event) this.scroll = (this.scroll + SCROLL_PER_MS * elapsed) % this.scene.lap;
   }
 
-  begin({ kind, id, state }, t) {
+  begin({ kind, id, debut, state }, t) {
     const before = this.state;
+    if (kind === 'redraw') this.forget();
     this.show(state);
     if (kind === 'redraw') return;
-    this.event = { kind, id, startedAt: t, slots: slotsOf(before.rows) };
+    this.event = { kind, id, debut, startedAt: t, slots: slotsOf(before.rows) };
     this.app.canvas.dataset.event = kind;
     // Only a new first place sounds; with the volume at 0 there is no track.
     if (kind === 'top') this.track = this.sound.track(state.volume);

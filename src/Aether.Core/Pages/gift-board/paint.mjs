@@ -33,10 +33,11 @@ export function seeded(text) {
   };
 }
 
-/** The text, or its beginning and an ellipsis, so that it is at most `maxWidth` wide in the font the context has now. */
+/** The text, or its beginning and an ellipsis, so that it is at most `maxWidth` wide in the font the context has now. It is cut
+ * between characters, never inside an emoji or a rare character that takes two UTF-16 units. */
 export function fitText(g, text, maxWidth) {
   if (g.measureText(text).width <= maxWidth) return text;
-  let cut = text;
-  while (cut.length > 1 && g.measureText(cut + '…').width > maxWidth) cut = cut.slice(0, -1);
-  return cut + '…';
+  const characters = [...text];
+  while (characters.length > 1 && g.measureText(characters.join('') + '…').width > maxWidth) characters.pop();
+  return characters.join('') + '…';
 }

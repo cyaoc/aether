@@ -60,7 +60,8 @@ internal sealed class GiftBoardScene : IAsyncDisposable
 
     /// <summary>A paid gift: <paramref name="batteries"/> is the price of one, and a giftId stays the same for the same name.</summary>
     public static Gift PaidGift(long uid, string nickname, string giftName, long batteries, long num = 1) =>
-        new(uid, nickname, batteries * 100 * num, null) { GiftId = giftName.GetHashCode(), GiftName = giftName, Price = batteries * 100, Num = num };
+        new(uid, nickname, Battery.ToCoins(batteries) * num, null)
+        { GiftId = giftName.GetHashCode(), GiftName = giftName, Price = Battery.ToCoins(batteries), Num = num };
 
     public void GoToToday() => Clock.SetUtcNow(Today);
 

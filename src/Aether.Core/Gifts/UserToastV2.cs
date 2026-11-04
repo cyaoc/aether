@@ -46,7 +46,7 @@ internal static class UserToastV2
         {
             GiftId = data.GetProperty("gift_info").GetProperty("gift_id").GetInt64(),
             GiftName = Guard.Name(Guard.TierFromPrivilegeType(level)), Price = spend / months, Num = months,
-            FaceUrl = viewer.GetProperty("face").GetString() ?? throw new JsonException("缺少观众头像。"),
+            FaceUrl = GiftMessages.OptionalText(viewer, "face"),
             Tid = data.GetProperty("pay_info").GetProperty("payflow_id").GetString() is { Length: > 0 } payflowId ? payflowId : null,
             GuardLevel = level
         };

@@ -20,4 +20,9 @@ public sealed record GiftBoardPeriod(DateTimeOffset StartedAt, int Viewers);
 /// 期 the rows come from and Previous the one <see cref="GiftBoardController.Restore"/> would merge it into; both are null
 /// while no room is connected, Previous also when there is no earlier 期. The 礼物榜页 does not use them.</summary>
 public sealed record GiftBoardState(ImmutableArray<GiftBoardRow> Rows, bool Mascot, int Volume,
-    GiftBoardPeriod? Period, GiftBoardPeriod? Previous);
+    GiftBoardPeriod? Period, GiftBoardPeriod? Previous)
+{
+    /// <summary>True only for the state a received gift made. The 礼物榜页 plays the change as an animation only then: any other
+    /// state, such as a saved setting, a clear, a restore or a subscriber's first, is drawn as it is.</summary>
+    public bool FromGift { get; init; }
+}

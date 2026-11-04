@@ -7,8 +7,6 @@ namespace Aether.Core;
 /// 礼物榜页 and the GUI what to show. It follows the settings last applied, so a save needs no new room connection.</summary>
 public sealed class GiftBoardController : IDisposable
 {
-    /// <summary>1 电池 = 100 金瓜子 (GLOSSARY).</summary>
-    public const long CoinsPerBattery = 100;
     private readonly object gate = new();
     private readonly Func<GiftBoardStore> store;
     private readonly TimeProvider time;
@@ -40,7 +38,9 @@ public sealed class GiftBoardController : IDisposable
         lock (gate)
         {
             settings = snapshot;
-            Publish();
+            // The board may just have been switched on during a show that began after its latest 期.
+            if (roomId is { } room) EnterLive(room, liveTime);
+            else Publish();
         }
     }
 
@@ -94,7 +94,7 @@ public sealed class GiftBoardController : IDisposable
             if (accepted.Length == 0) return;
             // shortcut: reads and writes SQLite on the receive loop, as the blind box store does; move off it if a busy room lags.
             store().Add(room, accepted, time.GetUtcNow(), liveTime);
-            Publish();
+            subscribers.Publish(State() with { FromGift = true });
         }
     }
 
@@ -147,7 +147,7 @@ public sealed class GiftBoardController : IDisposable
     private ImmutableArray<GiftBoardRow> Rows()
     {
         if (!settings.GiftBoardEnabled.Value || roomId is not { } room) return [];
-        var minimum = settings.GiftBoardThreshold.Value * CoinsPerBattery;
+        var minimum = Battery.ToCoins(settings.GiftBoardThreshold.Value);
         var byTotal = settings.GiftBoardThresholdBy.Value == Settings.GiftBoardByTotalPrice;
         // shortcut: reads the whole 期 on every change; filter in SQL if a long-running 总榜 slows it.
         return [.. store().Rows(room).Where(row => (byTotal ? row.Value : row.Price) >= minimum)];

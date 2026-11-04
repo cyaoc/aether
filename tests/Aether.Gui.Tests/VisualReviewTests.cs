@@ -44,7 +44,7 @@ public sealed partial class VisualReviewTests
                 await vm.ReadAccountCommand.ExecutionTask!;
                 vm.Apply(new Connected(1768506153, 24680));
                 window.Navigation.SelectedIndex = 3;
-                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
                 vm.WebService.Apply(new SourcePlayback("gift", 12345, "40 档", false, PlaybackState.Completed, Nickname: "夜航船", Source: "送礼动画", TriggerReason: "这一轮投入 560 电池"));
                 vm.WebService.Apply(new SourcePlayback("gift2", 67890, "60 档", false, PlaybackState.Skipped, "没有推流软件连着", "柚子不酸", "送礼动画", "这一轮投入 12000 电池"));
                 GuiHarness.Flush();
@@ -87,7 +87,7 @@ public sealed partial class VisualReviewTests
                 window.Navigation.SelectedIndex = 2;
                 var welcome = window.GetVisualDescendants().OfType<WelcomePanel>().Single();
                 welcome.Select(1);
-                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
                 vm.WebService.Apply(new SourcePlayback("entry", 12345, "30 档", false, PlaybackState.Completed, Nickname: "柚子不酸", Source: "进场动画", TriggerReason: "粉丝团 34 级"));
                 GuiHarness.Flush();
                 Assert.Equal(80, welcome.Animation.FindControl<Slider>("VolumeInput")!.Value);
@@ -394,11 +394,16 @@ public sealed partial class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0, 0));
                 for (var index = 0; index < window.Navigation.ItemCount; index++)
                 {
                     window.Navigation.SelectedIndex = index;
-                    CheckFixedText();
+                    var checkedTexts = CheckFixedText();
+                    // The pages the gift board added are among those checked, not skipped by an exception or a page that is not shown.
+                    if (index == Array.IndexOf(ReviewedPages, "gift-board"))
+                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "上榜门槛", "每场开播换新榜", "新的第一名时响一声", "清空礼物榜", "当前榜单" });
+                    if (index == Array.IndexOf(ReviewedPages, "general"))
+                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "礼物榜页", "送礼观众的排行", "480 × 1000，可以等比放大" });
                 }
                 var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);
                 var status = general.FindControl<TextBlock>("WebServiceStatusText")!;
@@ -425,28 +430,35 @@ public sealed partial class VisualReviewTests
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
             return true;
 
-            void CheckFixedText()
+            string[] CheckFixedText()
             {
                 GuiHarness.Flush();
                 var texts = window.GetVisualDescendants().OfType<TextBlock>()
-                    .Where(t => t.IsEffectivelyVisible && !string.IsNullOrEmpty(t.Text));
+                    .Where(t => t.IsEffectivelyVisible && !string.IsNullOrEmpty(t.Text)).ToArray();
                 foreach (var text in texts)
                 {
                     // These are multi-sentence help, not single-line captions.
-                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" or "BoardEmpty" or "PageSetupSteps" ||
+                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" ||
                         text.GetVisualAncestors().OfType<Control>().Any(c =>
-                            c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "GiftBoardSetupHelp" or "EmptyConditions")) continue;
+                            c.Name is "SetupHelp" or "EmptyConditions")) continue;
+                    // The gift board's empty list and a status bar's steps wrap too, but all of their words show.
+                    if (text.Name is "BoardEmpty" or "PageSetupSteps")
+                    {
+                        Assert.True(text.TextLayout.Height <= text.Bounds.Height + 1 && text.TextLayout.Width <= text.Bounds.Width + 1, $"Clipped help: {text.Text}");
+                        continue;
+                    }
                     Assert.True(text.TextWrapping == TextWrapping.NoWrap, $"Wrapping: {text.Text}");
                     var line = Assert.Single(text.TextLayout.TextLines);
                     Assert.True(line.Width > 0 && text.Bounds.Height >= line.Height - 1, $"Hidden: {text.Text}");
                     Assert.True(line.Width <= text.Bounds.Width + 1, $"Clipped: {text.Text}");
                     if (line.HasCollapsed) Assert.Equal(text.Text, ToolTip.GetTip(text));
-                    // A vertical stack puts its caption under the heading on purpose, as a switch's title does.
-                    if (text.Classes.Contains("section") && text.Parent is Panel row and not StackPanel { Orientation: Orientation.Vertical })
+                    // A switch, a choice or a slider is titled by a heading with its caption under it, on purpose.
+                    if (text.Classes.Contains("section") && text.Parent is Panel row && !TitlesAControl(row))
                         foreach (var hint in row.Children.OfType<TextBlock>().Where(t => t.Classes.Contains("hint")))
                             Assert.True(hint.Bounds.Top < text.Bounds.Bottom && text.Bounds.Top < hint.Bounds.Bottom,
                                 $"Caption below heading: {text.Text}");
                 }
+                return [.. texts.Select(text => text.Text ?? "")];
             }
         }, TestContext.Current.CancellationToken);
 
@@ -485,14 +497,14 @@ public sealed partial class VisualReviewTests
                 {
                     ("connected", new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1)),
                     ("partial", new WebServiceStatus(true, 17890, 1, 0, GiftBoardConnections: 1)),
-                    ("setup", new WebServiceStatus(true, 17890, 0, 0)),
-                    ("occupied", new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"))
+                    ("setup", new WebServiceStatus(true, 17890, 0, 0, 0)),
+                    ("occupied", new WebServiceStatus(false, 17890, 0, 0, 0, "端口 17890 被别的程序占用"))
                 })
                 {
                     viewModel.WebService.Apply(state);
                     Save(window, $"web-service-N{(dark ? 2 : 1)}-{name}-{width}x{height}");
                 }
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1, 0));
                 window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 viewModel.WebService.Apply(new SourcePlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
@@ -749,16 +761,16 @@ public sealed partial class VisualReviewTests
                 window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 var page = window.GetVisualDescendants().OfType<AnimationSettingsPage>().Single();
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0, 0));
                 foreach (var (state, index) in new[] { PlaybackState.Completed, PlaybackState.Failed, PlaybackState.NoReport, PlaybackState.Skipped, PlaybackState.Queued }.Select((state, index) => (state, index)))
                     viewModel.WebService.Apply(new SourcePlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
                         Nickname: index switch { 1 => "柚子不酸", 2 => "bili_6508617762", _ => null }));
                 Capture("connected");
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0, 0));
                 Capture("setup");
-                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"));
+                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, 0, "端口 17890 被别的程序占用"));
                 Capture("port-occupied");
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
                 viewModel.WebService.Apply(new SourcePlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
                 Capture("playing");
                 viewModel.WebService.Apply(new SourcePlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Stopped));
@@ -778,7 +790,7 @@ public sealed partial class VisualReviewTests
                 await GuiHarness.WaitForAsync(() => page.IsEnabled);
                 viewModel.WebService.RecentAnimations.Clear();
                 GuiHarness.FindVisual<TextBlock>(page, "Message").Text = "";
-                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, 0));
                 GuiHarness.Flush();
                 // Settle the transition, then redraw its final edges instead of reusing an intermediate frame.
                 await Task.Delay(300, TestContext.Current.CancellationToken);
@@ -1117,6 +1129,10 @@ public sealed partial class VisualReviewTests
             return true;
         }, TestContext.Current.CancellationToken);
     }
+
+    /// <summary>The stack of a heading with its caption under it, beside a toggle or a slider or inside a radio button.</summary>
+    private static bool TitlesAControl(Panel row) => row is StackPanel { Orientation: Orientation.Vertical } stack
+        && (stack.Parent is RadioButton || stack.Parent is Grid grid && grid.Children.Any(child => child is ToggleSwitch or Slider));
 
     private static void Save(TopLevel topLevel, string fileName)
     {

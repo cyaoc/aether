@@ -227,23 +227,32 @@ function trimmed(image) {
   return PIXI.Texture.from(canvasOf(right - left + 2, bottom - top + 2, g => g.drawImage(canvas, -left, -top)));
 }
 
-const memo = make => {
+/** `make` is called once for each list of arguments; `clear()` destroys everything made, so the next call makes it again. */
+export const memo = make => {
   const made = new Map();
-  return (...args) => {
+  const recall = (...args) => {
     const key = args.join('\u0001');
     if (!made.has(key)) made.set(key, make(...args));
     return made.get(key);
   };
+  recall.clear = () => {
+    for (const texture of made.values()) texture.destroy(true);
+    made.clear();
+  };
+  return recall;
 };
 
 /** Everything the scene draws with; `local` holds the loaded banner and mascot images. Names, counts and the like are made on
- * first use and kept. */
+ * first use and kept until `forget()`. */
 export function createTextures(local) {
+  const [rowNumeral, name, count, initial] = [rowNumeralTexture, nameTexture, countTexture, initialTexture].map(memo);
   return {
     title: titleTexture(), cards: CARDS.map((_, rank) => cardTexture(rank)), row: rowTexture(), star: starTexture(),
     sprite: spriteTexture(EYES.open), spriteBlink: spriteTexture(EYES.blink),
-    cardNumerals: CARDS.map((_, rank) => cardNumeralTexture(rank)), rowNumeral: memo(rowNumeralTexture),
+    cardNumerals: CARDS.map((_, rank) => cardNumeralTexture(rank)), rowNumeral,
     banner: trimmed(local.banner), idle: PIXI.Texture.from(local.idle), cheer: PIXI.Texture.from(local.cheer),
-    name: memo(nameTexture), count: memo(countTexture), initial: memo(initialTexture)
+    name, count, initial,
+    /** Lets go of every texture made on first use, for the pictures of a board that is gone. */
+    forget: () => [rowNumeral, name, count, initial].forEach(made => made.clear())
   };
 }

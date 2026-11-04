@@ -39,22 +39,54 @@ public sealed partial class GiftBoardBrowserTests
         await page.ClickAsync();
         await page.Browser.EvaluateAsync(RecordSounds);
         await page.PauseClockAsync();
-        // Three viewers appear, the first adds to the first place, the third climbs past the second and then takes first place.
-        var steps = new (long Uid, long Num, string Event)[] { (1, 1, "new"), (2, 1, "new"), (3, 1, "new"), (1, 1, "more"), (3, 2, "pass"), (3, 4, "top") };
+        // The first viewer appears in first place, two more below, the first adds to the first place, the third climbs past the
+        // second and then takes first place.
+        var steps = new (long Uid, long Num, string Event)[] { (1, 1, "top"), (2, 1, "new"), (3, 1, "new"), (1, 1, "more"), (3, 2, "pass"), (3, 4, "top") };
+        var heard = 0;
         foreach (var (uid, num, expected) in steps)
         {
             await page.GiveAsync(uid, 4000 - uid * 1000, num);
             await page.WaitForEventAsync(expected);
             if (expected == "top") foreach (var time in new[] { 300, 500, 600, 700, 800, 1000, 1500, 2500 }) await page.SetEventTimeAsync(time);
             await page.SettleAsync();
-            Assert.Equal(expected == "top" ? 1 : 0, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
+            if (expected == "top") heard++;
+            Assert.Equal(heard, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
         }
-        var sound = await page.Browser.EvaluateAsync("sounds[0]");
-        // The sound is the sparkle, and its loudest moment is heard 950 ms after the event started. The audio clock moves on a few
+        // Each sound is the sparkle, and its loudest moment is heard 950 ms after the event started. The audio clock moves on a few
         // milliseconds between the page reading it and the sound starting, which the measure cannot tell from an early sound.
-        Assert.InRange(sound.GetProperty("peakAfterEventStart").GetDouble(), 0.93, 0.951);
-        Assert.InRange(sound.GetProperty("length").GetDouble(), 2.5, 3);
+        foreach (var index in new[] { 0, 1 })
+        {
+            var sound = await page.Browser.EvaluateAsync($"sounds[{index}]");
+            Assert.InRange(sound.GetProperty("peakAfterEventStart").GetDouble(), 0.93, 0.951);
+            Assert.InRange(sound.GetProperty("length").GetDouble(), 2.5, 3);
+        }
         Assert.Empty(page.Browser.Errors);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task A_viewer_who_appears_in_first_place_is_a_new_first_place_with_or_without_the_mascot(bool mascot)
+    {
+        await using var page = await StartAsync(("gift_board.mascot", mascot ? "true" : "false"));
+        await page.OpenAsync(480, 1000);
+        await page.ClickAsync();
+        await page.Browser.EvaluateAsync(RecordSounds);
+        await page.PauseClockAsync();
+        var firstCard = (100, (int)((mascot ? Mascot : NoMascot) + CardsY + 49));
+        // On an empty board, and then on a board with a viewer in first place that the newcomer outbids.
+        foreach (var (uid, price) in new (long, long)[] { (1, 3000), (2, 5000) })
+        {
+            await page.GiveAsync(uid, price);
+            await page.WaitForEventAsync("top");
+            // The row is built as a new row is: its place stays empty until the row unfolds there, and it is whole once the cheer is under way.
+            await page.SetEventTimeAsync(400);
+            Assert.Equal(0, (await page.AlphaAsync([firstCard]))[0]);
+            foreach (var time in new[] { 500, 600, 700, 800, 1000, 1100 }) await page.SetEventTimeAsync(time);
+            Assert.True((await page.AlphaAsync([firstCard]))[0] > 100);
+            await page.SettleAsync();
+        }
+        Assert.Equal(2, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
     }
 
     [Fact]
@@ -79,17 +111,18 @@ public sealed partial class GiftBoardBrowserTests
     public async Task A_backlog_of_more_than_three_jumps_to_the_latest_state_and_what_it_skips_is_neither_played_nor_heard()
     {
         await using var page = await StartAsync();
+        await page.GiveAsync(1, 3000);
         await page.OpenAsync(480, 1000);
         await page.ClickAsync();
         await page.Browser.EvaluateAsync(RecordSounds);
         await page.PauseClockAsync();
-        await page.GiveAsync(1, 3000);
-        await page.WaitForEventAsync("new");
-        // Behind the playing change wait a new viewer, another, a new first place, and then a fourth change.
         await page.GiveAsync(2, 2000);
+        await page.WaitForEventAsync("new");
+        // Behind the playing change wait a new viewer, a new first place, another new viewer, and then a fourth change.
         await page.GiveAsync(3, 1000);
         await page.GiveAsync(2, 2000, 5);
         await page.GiveAsync(4, 500);
+        await page.GiveAsync(5, 400);
         await page.StepClockAsync(1700);
         // The first change has played; the four behind it became one redraw of the latest board, without the new first place's sound.
         Assert.Equal("", await page.PlayingAsync());
@@ -120,6 +153,85 @@ public sealed partial class GiftBoardBrowserTests
         await page.WaitForTransparentAsync(100, (int)(NoMascot + RowsY + 25));
         Assert.Equal("", await page.PlayingAsync());
         Assert.Equal(0, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
+    }
+
+    [Fact]
+    public async Task A_threshold_that_puts_a_single_viewer_on_an_empty_board_is_drawn_at_once_without_a_cheer()
+    {
+        await using var page = await StartAsync(("gift_board.threshold", "100"));
+        await page.GiveAsync(1, 5000);
+        await page.OpenAsync(480, 1000);
+        await page.ClickAsync();
+        await page.Browser.EvaluateAsync(RecordSounds);
+        await page.PauseClockAsync();
+
+        // The viewer sent 50 电池, under the threshold: lowering it brings one row in first place, but no gift did it.
+        await page.H.ApplySettingsAsync(("gift_board.threshold", "1"));
+        await page.WaitForSolidAsync(100, (int)(Mascot + CardsY + 49));
+        Assert.Equal("", await page.PlayingAsync());
+        await page.StepClockAsync(2000);
+        Assert.Equal(0, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
+    }
+
+    // Three cards and four pills on a 480 × 640 page, which has room for three pills: the pills scroll.
+    private static readonly (long Uid, long Price)[] ScrollingList = [(1, 5000), (2, 4000), (3, 3000), (4, 2000), (5, 1000), (6, 500), (7, 100)];
+    private const double ShortScale = 640.0 / 820;
+    // Down the middle of the cards' and pills' column (the board is centred, at its scale), and where the cards and the pills start.
+    private static readonly int ListColumn = (int)((480 - 480 * ShortScale) / 2 + 100 * ShortScale);
+    private static readonly int CardsTop = (int)((Mascot + CardsY) * ShortScale), ListTop = (int)((Mascot + RowsY) * ShortScale);
+
+    private static async Task<PageSession> OpenScrollingListAsync()
+    {
+        var page = await StartAsync(("gift_board.volume", "0"));
+        try
+        {
+            foreach (var (uid, price) in ScrollingList) await page.GiveAsync(uid, price);
+            await page.OpenAsync(480, 640);
+            await page.PauseClockAsync();
+            return page;
+        }
+        catch
+        {
+            await page.DisposeAsync();
+            throw;
+        }
+    }
+
+    private static Task<bool[]> CardsAsync(PageSession page) => page.OpaqueColumnAsync(ListColumn, CardsTop, ListTop - CardsTop);
+
+    private static Task<bool[]> PillsAsync(PageSession page) => page.OpaqueColumnAsync(ListColumn, ListTop, 640 - ListTop);
+
+    [Fact]
+    public async Task A_list_too_long_for_the_page_scrolls_from_the_fourth_row_in_a_loop()
+    {
+        await using var page = await OpenScrollingListAsync();
+        var (cards, pills) = (await CardsAsync(page), await PillsAsync(page));
+
+        await page.StepClockAsync(1000);
+
+        Assert.Equal(cards, await CardsAsync(page));
+        Assert.NotEqual(pills, await PillsAsync(page));
+        // A lap is all four pills and one empty row, 300 design pixels, at the 840 design pixels in 24 seconds that the list scrolls.
+        await page.StepClockAsync(8571 - 1000);
+        Assert.InRange((await PillsAsync(page)).Zip(pills).Count(pair => pair.First != pair.Second), 0, 2);
+    }
+
+    [Fact]
+    public async Task The_list_stands_still_while_an_event_plays_and_scrolls_on_when_it_is_over()
+    {
+        await using var page = await OpenScrollingListAsync();
+        // The fifth viewer sends as much again: no one changes places, so this is an event on a pill and nothing else.
+        await page.GiveAsync(5, 1000);
+        await page.WaitForEventAsync("more");
+
+        await page.SetEventTimeAsync(100);
+        var pills = await PillsAsync(page);
+        await page.SetEventTimeAsync(600);
+        Assert.Equal(pills, await PillsAsync(page));
+
+        await page.SettleAsync();
+        await page.StepClockAsync(1000);
+        Assert.NotEqual(pills, await PillsAsync(page));
     }
 
     [Fact]
@@ -175,7 +287,7 @@ public sealed partial class GiftBoardBrowserTests
         var gift = JsonNode.Parse(BlindGiftFixture.Ordinary(uid: 1, nickname: "月下Lily"))!;
         gift["data"]!["face"] = "";
         await page.PushAsync(gift.ToJsonString());
-        await page.WaitForEventAsync("new");
+        await page.WaitForEventAsync("top");
         await page.SettleAsync();
         // Left of the avatar's middle the disc is solid; the translucent card on its own never is.
         Assert.Equal(255, (await page.AlphaAsync([(126, (int)(Mascot + CardsY + 49))]))[0]);

@@ -1,70 +1,9 @@
 <local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.GeneralSettingsPage">
-  <local:SettingsPage.Resources>
-    <x:String x:Key="BrowserSourceSteps">还没有推流软件连着。在直播姬里添加浏览器素材，地址和宽高照这一行填；已经加过的，右键素材 → 刷新。</x:String>
-  </local:SettingsPage.Resources>
   <local:SettingsPage.Styles>
-    <Style Selector="Button.copy Path">
-      <Setter Property="Data" Value="{StaticResource Icon.Copy}" />
-    </Style>
-    <Style Selector="Button.copy TextBlock">
-      <Setter Property="Text" Value="复制" />
-    </Style>
-    <Style Selector="Button.copy.copied StackPanel">
-      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
-    </Style>
-    <Style Selector="Button.copy.copied Path">
-      <Setter Property="Data" Value="{StaticResource Icon.Check}" />
-    </Style>
-    <Style Selector="Button.copy.copied TextBlock">
-      <Setter Property="Text" Value="已复制" />
-    </Style>
-    <Style Selector="StackPanel.pageStatus">
-      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
-    </Style>
-    <Style Selector="StackPanel.pageStatus > Ellipse">
-      <Setter Property="Fill" Value="{DynamicResource Text.Disabled}" />
-    </Style>
-    <Style Selector="StackPanel.pageStatus.connected">
-      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
-    </Style>
-    <Style Selector="StackPanel.pageStatus.connected > Ellipse">
-      <Setter Property="Fill" Value="{DynamicResource Success}" />
-    </Style>
-    <Style Selector="StackPanel.pageStatus.waiting">
-      <Setter Property="TextElement.Foreground" Value="{DynamicResource Warning.Text}" />
-    </Style>
-    <Style Selector="StackPanel.pageStatus.waiting > Ellipse">
-      <Setter Property="Fill" Value="{DynamicResource Warning.Dot}" />
-    </Style>
-    <Style Selector="TextBox.address">
-      <Setter Property="MinHeight" Value="32" />
-      <Setter Property="Height" Value="32" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="FontFamily" Value="Menlo, Consolas" />
-      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
-    </Style>
-    <!-- A page's browser source size; the text column is shared, so every row's size column is as wide as the longest. -->
-    <Style Selector="ContentControl.pageSize">
-      <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
-      <Setter Property="FontSize" Value="13" />
-      <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="Template">
-        <ControlTemplate>
-          <Grid ColumnSpacing="6">
-            <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="Auto" />
-              <ColumnDefinition Width="Auto" SharedSizeGroup="PageSize" />
-            </Grid.ColumnDefinitions>
-            <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Scan}" /></Viewbox>
-            <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" VerticalContentAlignment="Center" />
-          </Grid>
-        </ControlTemplate>
-      </Setter>
-    </Style>
-    <Style Selector="ContentControl.pageSize /template/ Viewbox.icon">
-      <Setter Property="Width" Value="14" />
-      <Setter Property="Height" Value="14" />
+    <Style Selector="local|WebPageRow.divided">
+      <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
     </Style>
   </local:SettingsPage.Styles>
   <local:SettingsPage.BodyContent>
@@ -102,87 +41,14 @@
             <TextBlock Classes="label" Text="页面" VerticalAlignment="Center" />
             <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="每个页面在直播姬里各加一个浏览器素材，宽高照每行写的填" VerticalAlignment="Center" />
           </Grid>
-          <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Grid.IsSharedSizeScope="True">
+          <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Grid.IsSharedSizeScope="True" Button.Click="CopyPageAddress">
             <StackPanel>
-            <StackPanel Spacing="8" Margin="12,10">
-              <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
-                <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Animation}" Stroke="{DynamicResource Accent.Text}" /></Viewbox>
-                <TextBlock Grid.Column="1" Text="视频页" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Classes="caption muted singleLine" Text="欢迎动画、进场动画和送礼动画在这里播放" VerticalAlignment="Center" />
-                <StackPanel Grid.Column="3" Classes="pageStatus" Classes.connected="{Binding WebService.HasVideoConnections}" Classes.waiting="{Binding WebService.ShowVideoSetup}" Orientation="Horizontal" Spacing="6">
-                  <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
-                  <TextBlock x:Name="VideoConnectionsText" Text="{Binding WebService.VideoConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
-                </StackPanel>
-              </Grid>
-              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <TextBox x:Name="VideoAddress" Classes="address" Text="{Binding WebService.VideoAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="视频页地址" />
-                <ContentControl Grid.Column="1" x:Name="VideoSize" Classes="pageSize" Content="1920 × 1080" />
-                <Button Grid.Column="2" x:Name="CopyVideoAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.VideoAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制视频页地址">
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
-                    <TextBlock VerticalAlignment="Center" />
-                  </StackPanel>
-                </Button>
-              </Grid>
-              <Grid x:Name="VideoSetupHelp" ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding WebService.ShowVideoSetup}" TextElement.Foreground="{DynamicResource Warning.Text}">
-                <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
-                <TextBlock Grid.Column="1" Classes="caption" LineHeight="18" TextWrapping="Wrap" Text="{StaticResource BrowserSourceSteps}" />
-              </Grid>
-            </StackPanel>
-              <Border BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0">
-            <StackPanel Spacing="8" Margin="12,10">
-              <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
-                <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Lottery}" Stroke="{DynamicResource Accent.Text}" /></Viewbox>
-                <TextBlock Grid.Column="1" Text="抽奖页" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Classes="caption muted singleLine" Text="报名、开奖和中奖名单" VerticalAlignment="Center" />
-                <StackPanel Grid.Column="3" Classes="pageStatus" Classes.connected="{Binding WebService.HasLotteryConnections}" Classes.waiting="{Binding WebService.ShowLotterySetup}" Orientation="Horizontal" Spacing="6">
-                  <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
-                  <TextBlock x:Name="LotteryConnectionsText" Text="{Binding WebService.LotteryConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
-                </StackPanel>
-              </Grid>
-              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <TextBox x:Name="LotteryAddress" Classes="address" Text="{Binding WebService.LotteryAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="抽奖页地址" />
-                <ContentControl Grid.Column="1" x:Name="LotterySize" Classes="pageSize" Content="横屏 1920 × 1080 · 竖屏 1080 × 1920" />
-                <Button Grid.Column="2" x:Name="CopyLotteryAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.LotteryAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制抽奖页地址">
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
-                    <TextBlock VerticalAlignment="Center" />
-                  </StackPanel>
-                </Button>
-              </Grid>
-              <Grid x:Name="LotterySetupHelp" ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding WebService.ShowLotterySetup}" TextElement.Foreground="{DynamicResource Warning.Text}">
-                <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
-                <TextBlock Grid.Column="1" Classes="caption" LineHeight="18" TextWrapping="Wrap" Text="{StaticResource BrowserSourceSteps}" />
-              </Grid>
-            </StackPanel>
-              </Border>
-              <Border BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0">
-            <StackPanel Spacing="8" Margin="12,10">
-              <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
-                <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Trophy}" Stroke="{DynamicResource Accent.Text}" /></Viewbox>
-                <TextBlock Grid.Column="1" Text="礼物榜页" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Classes="caption muted singleLine" Text="送礼观众的排行" VerticalAlignment="Center" />
-                <StackPanel Grid.Column="3" Classes="pageStatus" Classes.connected="{Binding WebService.HasGiftBoardConnections}" Classes.waiting="{Binding WebService.ShowGiftBoardSetup}" Orientation="Horizontal" Spacing="6">
-                  <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
-                  <TextBlock x:Name="GiftBoardConnectionsText" Text="{Binding WebService.GiftBoardConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
-                </StackPanel>
-              </Grid>
-              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
-                <TextBox x:Name="GiftBoardAddress" Classes="address" Text="{Binding WebService.GiftBoardAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="礼物榜页地址" />
-                <ContentControl Grid.Column="1" x:Name="GiftBoardSize" Classes="pageSize" Content="480 × 1000，可以等比放大" />
-                <Button Grid.Column="2" x:Name="CopyGiftBoardAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.GiftBoardAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制礼物榜页地址">
-                  <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
-                    <TextBlock VerticalAlignment="Center" />
-                  </StackPanel>
-                </Button>
-              </Grid>
-              <Grid x:Name="GiftBoardSetupHelp" ColumnDefinitions="Auto,*" ColumnSpacing="6" IsVisible="{Binding WebService.ShowGiftBoardSetup}" TextElement.Foreground="{DynamicResource Warning.Text}">
-                <Viewbox Classes="icon" Width="13" Height="13" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
-                <TextBlock Grid.Column="1" Classes="caption" LineHeight="18" TextWrapping="Wrap" Text="{StaticResource BrowserSourceSteps}" />
-              </Grid>
-            </StackPanel>
-              </Border>
+              <local:WebPageRow x:Name="VideoRow" DataContext="{Binding WebService.Video}" Icon="{StaticResource Icon.Animation}"
+                Purpose="欢迎动画、进场动画和送礼动画在这里播放" Size="1920 × 1080" />
+              <local:WebPageRow x:Name="LotteryRow" Classes="divided" DataContext="{Binding WebService.Lottery}" Icon="{StaticResource Icon.Lottery}"
+                Purpose="报名、开奖和中奖名单" Size="横屏 1920 × 1080 · 竖屏 1080 × 1920" />
+              <local:WebPageRow x:Name="GiftBoardRow" Classes="divided" DataContext="{Binding WebService.GiftBoard}" Icon="{StaticResource Icon.Trophy}"
+                Purpose="送礼观众的排行" Size="480 × 1000，可以等比放大" />
             </StackPanel>
           </Border>
         </StackPanel>

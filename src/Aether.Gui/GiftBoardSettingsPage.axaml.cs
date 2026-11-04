@@ -32,14 +32,13 @@ public partial class GiftBoardSettingsPage : SettingsPage
 
     protected override void OnDataContextChanged(EventArgs e)
     {
-        if (viewModel is not null) viewModel.PropertyChanged -= OnRoomStateChanged;
         base.OnDataContextChanged(e);
-        if (viewModel is not null) viewModel.PropertyChanged += OnRoomStateChanged;
         ShowEmptyList();
     }
 
-    private void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
+    protected override void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
     {
+        base.OnRoomStateChanged(sender, e);
         if (e.PropertyName == nameof(MainWindowViewModel.HasRoomConnection)) ShowEmptyList();
     }
 

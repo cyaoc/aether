@@ -48,9 +48,10 @@ public partial class GeneralSettingsPage : SettingsPage
         return savedPortChanged && viewModel?.WebService.WebServiceStatus.Running == true ? "已保存，网页服务已换到新端口" : result;
     }
 
+    // Every page row's copy button, heard here as the click reaches the page list.
     private async void CopyPageAddress(object? sender, RoutedEventArgs e)
     {
-        if (sender is not Button button) return;
+        if (e.Source is not Button button) return;
         try
         {
             if (TopLevel.GetTopLevel(this)?.Clipboard is not { } clipboard) return;

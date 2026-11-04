@@ -41,6 +41,15 @@ internal static class GiftMessages
         return result.ToArray();
     }
 
+    /// <summary>The text at <paramref name="path"/>, "" when any step is missing or null: avatars and icons are optional, so
+    /// a gift without them still counts.</summary>
+    internal static string OptionalText(JsonElement element, params string[] path)
+    {
+        foreach (var name in path)
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out element)) return "";
+        return element.GetString() ?? "";
+    }
+
     // Checked here for every version: protobuf leaves zero and empty fields out, so a missing send time or name
     // arrives as 0 or "" rather than failing to parse.
     private static void Validate(BlindBox box)

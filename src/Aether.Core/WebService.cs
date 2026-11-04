@@ -19,7 +19,7 @@ public sealed class WebService : IDisposable
     private readonly WebPage[] pages;
     private readonly Subscribers<WebServiceUpdate> subscribers;
     private readonly HashSet<Connection> connections = [];
-    private WebServiceStatus status = new(false, Settings.WebPort.Initial.Value, 0, 0);
+    private WebServiceStatus status = new(false, Settings.WebPort.Initial.Value, 0, 0, 0);
     private HttpListener? listener;
     private CancellationTokenSource? stop;
     private Task running = Task.CompletedTask;
@@ -63,7 +63,7 @@ public sealed class WebService : IDisposable
         {
             // Another StartAsync won the race; starting again would leak its listener.
             if (stop is not null) throw new InvalidOperationException("网页服务正在启动，请稍后再试。");
-            status = new(false, port, 0, 0);
+            status = new(false, port, 0, 0, 0);
             var server = new HttpListener();
             server.Prefixes.Add(status.Origin + "/");
             try { server.Start(); }
