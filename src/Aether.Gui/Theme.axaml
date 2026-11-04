@@ -419,6 +419,7 @@
     <Setter Property="Template">
       <ControlTemplate>
         <Grid>
+          <!-- The near-zero star takes only what the track's 180 cap leaves, so the speaker and track stay at the right. -->
           <Grid.ColumnDefinitions>
             <ColumnDefinition Width="0.001*" />
             <ColumnDefinition Width="Auto" />

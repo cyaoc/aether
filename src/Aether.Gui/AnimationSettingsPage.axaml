@@ -53,6 +53,7 @@
         <TextBlock Grid.Column="2" x:Name="FanClubHint" Classes="hint" TextWrapping="Wrap" VerticalAlignment="Center" />
       </Grid>
       <TextBlock x:Name="FanClubReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+      <!-- The test bar keeps its width; the slider (Width NaN) takes what is left and shortens its track in a narrow window. -->
       <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
         <local:AnimationTestBar x:Name="TestBar" />
         <Slider Grid.Column="1" x:Name="VolumeInput" Classes="volume" Width="NaN" VerticalAlignment="Bottom" AutomationProperties.Name="动画音量" />
