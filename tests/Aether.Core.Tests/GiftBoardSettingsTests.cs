@@ -4,7 +4,8 @@ namespace Aether.Core.Tests;
 
 public sealed class GiftBoardSettingsTests
 {
-    private const string Group = """
+    // A raw string literal takes the line endings of the checkout, so compare in one form.
+    private static readonly string Group = """
         # 礼物榜，网页服务的 /gift-board 页面；GUI 保存后立即生效，CLI 下次观看时生效
         gift_board:
           # true 或 false，false 时不记录也不显示
@@ -20,7 +21,7 @@ public sealed class GiftBoardSettingsTests
           # 新的第一名时那一声的音量，0 到 100，0 表示不响
           volume: 60
 
-        """;
+        """.ReplaceLineEndings("\n");
 
     [Fact]
     public async Task A_new_settings_file_has_the_gift_board_off_with_its_defaults()
