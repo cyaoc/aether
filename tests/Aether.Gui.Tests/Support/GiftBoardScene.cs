@@ -9,13 +9,14 @@ namespace Aether.Gui.Tests.Support;
 /// client behind it. Connecting and giving go straight to Core, the way a room connection would.</summary>
 internal sealed class GiftBoardScene : IAsyncDisposable
 {
-    public const long Room = 1768506153;
+    public const long RoomId = 1768506153;
 
     /// <summary>Settings that turn the board on at a threshold of 1 电池.</summary>
     public static readonly (string Name, string Value)[] On = [("gift_board.enabled", "true"), ("gift_board.threshold", "1")];
 
-    /// <summary>20:03 on 4 November 2026, local time, when the clock starts.</summary>
-    public static readonly DateTimeOffset Start = new(new DateTime(2026, 11, 4, 20, 3, 0, DateTimeKind.Local));
+    /// <summary>When the scene's clock starts (3 November 2026, local time), and when <see cref="GoToToday"/> sets it.</summary>
+    public static readonly DateTimeOffset Yesterday = new(new DateTime(2026, 11, 3, 20, 1, 0, DateTimeKind.Local));
+    public static readonly DateTimeOffset Today = new(new DateTime(2026, 11, 4, 20, 3, 0, DateTimeKind.Local));
 
     private readonly GuiHarness harness;
     private readonly Window window;
@@ -45,7 +46,7 @@ internal sealed class GiftBoardScene : IAsyncDisposable
 
     private static GiftBoardScene Open((string Name, string Value)[] settings)
     {
-        var clock = new FakeTimeProvider(Start);
+        var clock = new FakeTimeProvider(Yesterday);
         var harness = new GuiHarness(clock);
         // Saving starts the web service, which gets a port of its own.
         var saved = new Dictionary<string, string> { ["web_service.port"] = GuiHarness.FreePort().ToString() };
@@ -64,22 +65,24 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     public static Gift PaidGift(long uid, string nickname, string giftName, long batteries, long num = 1) =>
         new(uid, nickname, batteries * 100 * num, null) { GiftId = giftName.GetHashCode(), GiftName = giftName, Price = batteries * 100, Num = num };
 
+    public void GoToToday() => Clock.SetUtcNow(Today);
+
     /// <summary>The GUI and the board both connect to <see cref="Room"/>.</summary>
     public void Connect()
     {
-        ViewModel.RoomNumber = Room.ToString();
+        ViewModel.RoomNumber = RoomId.ToString();
         ViewModel.ConnectionState = RoomConnectionState.Connected;
-        Board.Connect(Room, liveTime: null);
+        Board.Connect(RoomId, liveTime: null);
     }
 
     /// <summary>The streamer clicked 断开.</summary>
     public void Disconnect()
     {
         ViewModel.ConnectionState = RoomConnectionState.Disconnected;
-        Board.EndRoom(Room);
+        Board.EndRoom(RoomId);
     }
 
-    public void Give(params Gift[] gifts) => Board.Receive(Room, gifts);
+    public void Give(params Gift[] gifts) => Board.Receive(RoomId, gifts);
 
     /// <summary>The board as Core reports it now: a new subscription starts with the current state.</summary>
     public async Task<GiftBoardState> StateAsync()

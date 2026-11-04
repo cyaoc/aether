@@ -32,6 +32,19 @@ public abstract class SettingsPage : TemplatedControl
         AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderContent), null);
     public Control? HeaderContent { get => GetValue(HeaderContentProperty); set => SetValue(HeaderContentProperty, value); }
 
+    /// <summary>Buttons at the right end of the title bar.</summary>
+    public static readonly StyledProperty<Control?> HeaderActionsProperty =
+        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderActions), null);
+    public Control? HeaderActions { get => GetValue(HeaderActionsProperty); set => SetValue(HeaderActionsProperty, value); }
+
+    /// <summary>What the footer asks the streamer to confirm; it takes the place of the save line while Confirming.</summary>
+    public static readonly StyledProperty<Control?> ConfirmContentProperty =
+        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(ConfirmContent), null);
+    public Control? ConfirmContent { get => GetValue(ConfirmContentProperty); set => SetValue(ConfirmContentProperty, value); }
+
+    public static readonly StyledProperty<bool> ConfirmingProperty = AvaloniaProperty.Register<SettingsPage, bool>(nameof(Confirming));
+    public bool Confirming { get => GetValue(ConfirmingProperty); set => SetValue(ConfirmingProperty, value); }
+
     public static readonly StyledProperty<Control?> HeaderNoteProperty =
         AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderNote), null);
     public Control? HeaderNote { get => GetValue(HeaderNoteProperty); set => SetValue(HeaderNoteProperty, value); }

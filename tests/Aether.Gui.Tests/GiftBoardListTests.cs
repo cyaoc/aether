@@ -20,6 +20,7 @@ public sealed class GiftBoardListTests
     [Fact]
     public Task The_list_counts_its_rows_and_says_when_the_period_began() => Run(async scene =>
     {
+        scene.GoToToday();
         scene.Connect();
         scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450), PaidGift(2, "龍騰雲海", "告白气球", 2000, 5));
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 2);

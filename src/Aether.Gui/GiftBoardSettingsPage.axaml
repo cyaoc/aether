@@ -1,8 +1,26 @@
 <local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-  xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.GiftBoardSettingsPage">
+  xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.GiftBoardSettingsPage"
+  Confirming="{Binding GiftBoard.Confirming}">
   <local:SettingsPage.HeaderContent>
     <ToggleSwitch x:Name="EnabledInput" Classes="plain" AutomationProperties.Name="礼物榜" />
   </local:SettingsPage.HeaderContent>
+  <local:SettingsPage.HeaderActions>
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <TextBlock x:Name="OfflineHint" Classes="hint" Text="连上直播间后才能清空和恢复" Margin="0,0,8,0" VerticalAlignment="Center" IsVisible="{Binding !HasRoomConnection}" />
+      <Button x:Name="AskRestoreButton" Height="32" MinHeight="32" Padding="12,0" IsEnabled="{Binding GiftBoard.CanRestore}" Click="AskRestore">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Undo}" StrokeThickness="2" /></Viewbox>
+          <TextBlock Text="恢复上一期" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
+      <Button x:Name="AskClearButton" Classes="danger" BorderBrush="{DynamicResource Border.Control}" Height="32" MinHeight="32" Padding="12,0" IsEnabled="{Binding GiftBoard.CanClear}" Click="AskClear">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Trash}" StrokeThickness="2" /></Viewbox>
+          <TextBlock Text="清空礼物榜" VerticalAlignment="Center" />
+        </StackPanel>
+      </Button>
+    </StackPanel>
+  </local:SettingsPage.HeaderActions>
   <local:SettingsPage.BodyContent>
     <StackPanel Spacing="22">
       <TextBlock x:Name="EnabledReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
@@ -66,6 +84,14 @@
       </StackPanel>
     </StackPanel>
   </local:SettingsPage.BodyContent>
+  <local:SettingsPage.ConfirmContent>
+    <StackPanel Orientation="Horizontal" Spacing="10">
+      <TextBlock x:Name="ConfirmText" Classes="singleLine" FontSize="13" Foreground="{DynamicResource Text.Secondary}" Text="{Binding GiftBoard.ConfirmText}" VerticalAlignment="Center" />
+      <Button x:Name="CancelConfirmButton" Content="取消" Height="34" Padding="14,0" Click="CancelConfirmation" />
+      <Button x:Name="ConfirmClearButton" Classes="dangerSolid" Content="清空" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsVisible="{Binding GiftBoard.ConfirmingClear}" Click="Confirm" />
+      <Button x:Name="ConfirmRestoreButton" Classes="accent" Content="恢复" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsVisible="{Binding GiftBoard.ConfirmingRestore}" Click="Confirm" />
+    </StackPanel>
+  </local:SettingsPage.ConfirmContent>
   <local:SettingsPage.ActivityContent>
     <Grid RowDefinitions="Auto,*">
       <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="2" Margin="16,18,16,8">

@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using Aether.Core;
+using Avalonia.Interactivity;
 
 namespace Aether.Gui;
 
@@ -37,6 +38,23 @@ public partial class GiftBoardSettingsPage : SettingsPage
     private void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainWindowViewModel.HasRoomConnection)) ShowEmptyList();
+    }
+
+    private void AskClear(object? sender, RoutedEventArgs e) => viewModel?.GiftBoard.RequestClear();
+
+    private void AskRestore(object? sender, RoutedEventArgs e) => viewModel?.GiftBoard.RequestRestore();
+
+    private void CancelConfirmation(object? sender, RoutedEventArgs e) => viewModel?.GiftBoard.CancelConfirmation();
+
+    private void Confirm(object? sender, RoutedEventArgs e)
+    {
+        if (viewModel is null) return;
+        Message = viewModel.GiftBoard.Confirm() switch
+        {
+            GiftBoardConfirmation.Clear => $"已清空直播间 {viewModel.RoomNumber} 的礼物榜",
+            GiftBoardConfirmation.Restore => "已恢复上一期",
+            _ => Message,
+        };
     }
 
     // The list is empty for one of three reasons; the board being off is the saved switch, as the list follows what was saved.
