@@ -92,11 +92,13 @@ internal static class TestDatabase
         return names;
     }
 
-    public static long CredentialCount(string dataDirectory)
+    public static long RowCount(string dataDirectory, string table)
     {
         using var connection = Open(dataDirectory);
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM credential";
+        command.CommandText = $"SELECT COUNT(*) FROM {table}";
         return (long)command.ExecuteScalar()!;
     }
+
+    public static long CredentialCount(string dataDirectory) => RowCount(dataDirectory, "credential");
 }

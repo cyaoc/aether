@@ -17,7 +17,7 @@ public sealed class DatabaseUpgradeTests
 
         var blindBoxes = new BlindBoxStore(new Database(h.DataDirectory), h.Logger);
 
-        Assert.Equal(6L, TestDatabase.UserVersion(h.DataDirectory));
+        Assert.Equal(7L, TestDatabase.UserVersion(h.DataDirectory));
         Assert.DoesNotContain("raw_message", TestDatabase.Columns(h.DataDirectory, "blind_box"));
         Assert.Equal(5, before.Count);
         Assert.Equal(before, TestDatabase.BlindBoxRows(h.DataDirectory));
@@ -43,6 +43,18 @@ public sealed class DatabaseUpgradeTests
     }
 
     [Fact]
+    public async Task Version_five_database_gets_empty_gift_board_tables()
+    {
+        await using var h = new WatchHarness();
+        TestDatabase.Restore(h.DataDirectory, Sample);
+
+        h.Client.Lottery.GetHistory(Room);
+
+        Assert.Equal(0L, TestDatabase.RowCount(h.DataDirectory, "gift_board_period"));
+        Assert.Equal(0L, TestDatabase.RowCount(h.DataDirectory, "gift_board_total"));
+    }
+
+    [Fact]
     public async Task Opening_the_upgraded_database_again_does_not_upgrade_it_again()
     {
         await using var h = new WatchHarness();
@@ -52,6 +64,6 @@ public sealed class DatabaseUpgradeTests
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
 
         Assert.NotEmpty(restarted.Lottery.GetHistory(Room));
-        Assert.Equal(6L, TestDatabase.UserVersion(h.DataDirectory));
+        Assert.Equal(7L, TestDatabase.UserVersion(h.DataDirectory));
     }
 }

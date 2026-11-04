@@ -385,7 +385,7 @@ public sealed class WelcomeAnimationTests
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var time = new PausedTimerProvider(() => { entered.SetResult(); release.Wait(); });
-        using var service = new WebService(h.DataDirectory, time, h.Logger, h.Client.Lottery);
+        using var service = new WebService(h.DataDirectory, time, h.Logger, h.Client.Lottery, h.Client.GiftBoard);
         var ports = new HashSet<int>();
         while (ports.Count < 3) ports.Add(FreePort());
         var candidates = ports.ToArray();

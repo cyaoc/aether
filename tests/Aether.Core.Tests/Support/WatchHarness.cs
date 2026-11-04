@@ -103,6 +103,16 @@ internal sealed class WatchHarness : IAsyncDisposable
         return updates.Current;
     }
 
+    /// <summary>Saves <paramref name="changes"/> to the settings file and applies it the way a shell does after a save. The web
+    /// service runs on a free port, which stays the same through later calls so that open pages stay connected.</summary>
+    public async Task ApplySettingsAsync(params (string Name, string Value)[] changes)
+    {
+        var port = Client.WebService.Status is { Running: true } running ? running.Port : WelcomeAnimationTests.FreePort();
+        Settings.Save(DataDirectory, new Dictionary<string, string>(changes.Select(change => KeyValuePair.Create(change.Name, change.Value)))
+            { ["web_service.port"] = port.ToString() });
+        await Client.ApplyWebSettingsAsync(Settings.Load(DataDirectory));
+    }
+
     public async Task LoginAsync()
     {
         await using var updates = Client.LoginAsync(Stop.Token).GetAsyncEnumerator(Stop.Token);

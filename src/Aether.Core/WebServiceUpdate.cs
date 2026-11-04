@@ -2,12 +2,14 @@ namespace Aether.Core;
 
 public abstract record WebServiceUpdate;
 
-public sealed record WebServiceStatus(bool Running, int Port, int VideoConnections, int LotteryConnections, string? Error = null) : WebServiceUpdate
+public sealed record WebServiceStatus(bool Running, int Port, int VideoConnections, int LotteryConnections, string? Error = null,
+    int GiftBoardConnections = 0) : WebServiceUpdate
 {
     /// <summary>What a browser source is given; ADR 0006 binds the page to localhost only.</summary>
     public string Origin => $"http://localhost:{Port}";
     public string VideoAddress => Origin + "/video";
     public string LotteryAddress => Origin + "/lottery";
+    public string GiftBoardAddress => Origin + "/gift-board";
 }
 
 public enum PlaybackState { Queued, Playing, Completed, Failed, Skipped, NoReport, Stopped }

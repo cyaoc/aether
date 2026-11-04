@@ -25,15 +25,17 @@ public sealed class WebService : IDisposable
     private Task running = Task.CompletedTask;
     public VideoPage Video { get; }
     public LotteryPage Lottery { get; }
+    public GiftBoardPage GiftBoard { get; }
 
-    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, LotteryController lottery)
+    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, LotteryController lottery, GiftBoardController giftBoard)
     {
         this.timeProvider = timeProvider;
         this.logger = logger;
         subscribers = new(Gate);
         Video = new(this, dataDirectory, timeProvider);
         Lottery = new(this, lottery);
-        pages = [Video, Lottery];
+        GiftBoard = new(giftBoard);
+        pages = [Video, Lottery, GiftBoard];
     }
 
     /// <summary>One streaming software's event stream to a page.</summary>
@@ -100,7 +102,7 @@ public sealed class WebService : IDisposable
             foreach (var connection in connections) Abort(connection.Response);
             listener!.Close();
             connections.Clear();
-            status = status with { Running = false, VideoConnections = 0, LotteryConnections = 0 };
+            status = status with { Running = false, VideoConnections = 0, LotteryConnections = 0, GiftBoardConnections = 0 };
             Publish(status);
             pending = running;
         }
@@ -123,8 +125,9 @@ public sealed class WebService : IDisposable
     private void ConnectionsChanged()
     {
         var counts = pages.ToDictionary(page => page, page => connections.Count(connection => connection.Page == page));
-        status = status with { VideoConnections = counts[Video], LotteryConnections = counts[Lottery] };
-        logger.LogInformation("网页服务：视频页 {VideoCount} 个推流软件，抽奖页 {LotteryCount} 个推流软件", status.VideoConnections, status.LotteryConnections);
+        status = status with { VideoConnections = counts[Video], LotteryConnections = counts[Lottery], GiftBoardConnections = counts[GiftBoard] };
+        logger.LogInformation("网页服务：视频页 {VideoCount} 个推流软件，抽奖页 {LotteryCount} 个推流软件，礼物榜页 {GiftBoardCount} 个推流软件",
+            status.VideoConnections, status.LotteryConnections, status.GiftBoardConnections);
         Publish(status);
         foreach (var (page, count) in counts)
             if (count == 0) page.Disconnected();

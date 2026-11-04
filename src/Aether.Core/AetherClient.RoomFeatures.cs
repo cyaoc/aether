@@ -94,6 +94,25 @@ public sealed partial class AetherClient
         }
     }
 
+    private sealed class GiftBoardFeature(GiftBoardController board, long roomId) : IRoomFeature
+    {
+        public void Handle(RoomEvent e)
+        {
+            switch (e)
+            {
+                case TransportConnected:
+                    board.Connect(roomId);
+                    break;
+                case DanmakuProtocol.GiftsReceived received:
+                    board.Receive(roomId, received.Gifts);
+                    break;
+                case RoomConnectionEnded:
+                    board.EndRoom(roomId);
+                    break;
+            }
+        }
+    }
+
     private sealed class BlindBoxQueryFeature(Settings settings, SendQueue sendQueue, ILogger logger) : IRoomFeature
     {
         private readonly string dailyKeyword = settings.BlindBoxDailyKeyword.Value.Trim();
