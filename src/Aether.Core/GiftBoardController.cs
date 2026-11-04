@@ -40,7 +40,9 @@ public sealed class GiftBoardController : IDisposable
         lock (gate)
         {
             settings = snapshot;
-            Publish();
+            // The board may just have been switched on during a show that began after its latest 期.
+            if (roomId is { } room) EnterLive(room, liveTime);
+            else Publish();
         }
     }
 

@@ -78,6 +78,26 @@ public sealed class GiftBoardPeriodTests
         Assert.Single(TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
     }
 
+    // The room was connected while the board was off, or while it kept the board across shows, and a new show began meanwhile.
+    [Theory]
+    [InlineData("gift_board.enabled")]
+    [InlineData("gift_board.reset_on_live")]
+    public async Task Turning_a_switch_on_during_a_show_that_the_latest_board_does_not_belong_to_opens_a_board_for_it(string setting)
+    {
+        await using var h = new WatchHarness();
+        h.Http.SetLive(ShowA);
+        await h.WatchAndLeaveAGiftAsync();
+        await h.ApplySettingsAsync((setting, "false"));
+        h.Http.SetLive(ShowB);
+        await using var updates = await h.WatchConnectedAsync();
+
+        await h.ApplySettingsAsync((setting, "true"));
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(uid: 20002, tid: "this-show"));
+
+        Assert.Equal<long?>([ShowA, ShowB], TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
+        Assert.Equal(["20002/gift:32698"], (await h.BoardRowsAsync()).Select(row => row.Id));
+    }
+
     [Fact]
     public async Task The_first_gift_opens_a_board_that_remembers_the_show_under_way()
     {
