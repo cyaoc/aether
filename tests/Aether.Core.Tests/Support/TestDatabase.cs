@@ -76,6 +76,18 @@ internal static class TestDatabase
         return rows;
     }
 
+    /// <summary>When each gift_board_total row was first and last sent, in insertion order.</summary>
+    public static List<(DateTimeOffset FirstAt, DateTimeOffset LastAt)> GiftBoardTimes(string dataDirectory)
+    {
+        using var connection = Open(dataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT first_at, last_at FROM gift_board_total ORDER BY rowid";
+        using var reader = command.ExecuteReader();
+        List<(DateTimeOffset, DateTimeOffset)> times = [];
+        while (reader.Read()) times.Add((reader.GetDateTimeOffset(0), reader.GetDateTimeOffset(1)));
+        return times;
+    }
+
     /// <summary>Writes the database an older release left behind: runs a frozen sample from Fixtures on a new file.</summary>
     public static void Restore(string dataDirectory, string fixture)
     {

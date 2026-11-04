@@ -93,7 +93,7 @@ public sealed class GiftBoardController : IDisposable
             var accepted = gifts.Where(Accept).ToArray();
             if (accepted.Length == 0) return;
             // shortcut: reads and writes SQLite on the receive loop, as the blind box store does; move off it if a busy room lags.
-            store().Add(room, accepted, time.GetUtcNow());
+            store().Add(room, accepted, time.GetUtcNow(), liveTime);
             Publish();
         }
     }
@@ -105,6 +105,17 @@ public sealed class GiftBoardController : IDisposable
         lock (gate)
         {
             store().Open(ConnectedRoom(), time.GetUtcNow(), liveTime);
+            Publish();
+        }
+    }
+
+    /// <summary>Merges the connected room's latest 期 back into the one before it, as if the board had never moved on. A show
+    /// under way is remembered, as with <see cref="Clear"/>.</summary>
+    public void Restore()
+    {
+        lock (gate)
+        {
+            if (!store().Restore(ConnectedRoom(), liveTime)) throw new InvalidOperationException("没有上一期可以恢复。");
             Publish();
         }
     }
@@ -126,7 +137,12 @@ public sealed class GiftBoardController : IDisposable
 
     private void Publish() => subscribers.Publish(State());
 
-    private GiftBoardState State() => new(Rows(), settings.GiftBoardMascot.Value, settings.GiftBoardVolume.Value);
+    private GiftBoardState State()
+    {
+        var periods = roomId is { } room ? store().Periods(room) : [];
+        return new(Rows(), settings.GiftBoardMascot.Value, settings.GiftBoardVolume.Value,
+            periods.ElementAtOrDefault(0), periods.ElementAtOrDefault(1));
+    }
 
     private ImmutableArray<GiftBoardRow> Rows()
     {
