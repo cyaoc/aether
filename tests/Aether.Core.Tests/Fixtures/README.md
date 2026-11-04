@@ -20,7 +20,7 @@
 编码 `discount_price=6`、`total_coin=7`，投入分别为 5000、40000、5000，开出价值为 2500、41600、1500。
 原样本省略的 uid、uname、tid、timestamp、switch 为测试补值，**这不是原始抓包**。
 非 gold、重复 tid、switch=false、坏载荷及未知 wire 字段都是合成边界。
-`BlindBoxV2Tests` 通过 `WatchAsync` 验证实际数据库行、原始外层 JSON、日志以及后续消息仍能接收。
+`BlindBoxV2Tests` 通过 `WatchAsync` 验证实际数据库行、日志以及后续消息仍能接收。
 
 ## 2026-10-05 真实流量
 
@@ -137,5 +137,5 @@ V2 的 base64/protobuf 载荷也可能含个人信息，不能只修改外层 JS
 - 礼物名称/id、数量、金额、送出时间戳、字段存在性及礼物项顺序保持。
   对保留字段逐项比较，确认重新解码后的业务值与原始捕获一致。
 
-`BlindBoxV2Tests` 已接入这五条样本，验证普通礼物不入库、六个盲盒礼物项的数量、金额、tid 和外层 JSON。
+`BlindBoxV2Tests` 已接入这五条样本，验证普通礼物不入库、六个盲盒礼物项的数量、金额和 tid。
 这是脱敏样本的离线回放验证，不代表本次新增了现场送礼验证。

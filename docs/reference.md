@@ -58,7 +58,7 @@ entry_animation_viewers:
 ## 盲盒统计
 
 `blind_box.enabled` 只接受 `true` 或 `false`，默认 `true`，关闭后既不记录，也不回复和播报；下次观看直播间时生效，自动重连不重新读取。
-启用时把 V1 `SEND_GIFT` 和 V2 `SEND_GIFT_V2` 的 gold 盲盒记入 `data/aether.db`，保存原始外层 JSON（V2 包含 `pb` 原文）；金额为整数金瓜子，
+启用时把 V1 `SEND_GIFT` 和 V2 `SEND_GIFT_V2` 的 gold 盲盒记入 `data/aether.db`，不保存原始消息（要核对金额，把 `log.level` 设为 `Trace`；升级后，旧版本记下的原文会被删掉）；金额为整数金瓜子，
 投入按 `total_coin`、开出价值按 `price × num`。相同 `tid` 只记录一次：内容也相同时视为重复推送，警告里带上被忽略的开出礼物、个数和投入；内容不同时警告 `tid` 可能不是按礼物项唯一，金额可从警告补回。数字形式的 `tid` 按其数字文本保存。以下情况都未实测确认，所以在默认日志级别下可见：uid 为 0 的盲盒（可能是神秘人）不记录，记一条 Information；带 `blind_gift` 但不是 gold 的礼物不记录并警告；`switch` 为 false 的盲盒照常记录并警告。
 每条消息按 cmd 选择版本，V2 的每个 `gift_list` 项各记一行，兼容 `data.pb` 和 `data.data.pb`；损坏消息写 Warning 后跳过，继续接收后续消息。不累计 `COMBO_SEND` / `COMBO_END`。每条记录的观众、礼物和金额可在 Information 日志中查看。
 
@@ -273,10 +273,11 @@ Ctrl+C 取消则保留本地凭据。
 数据目录遵循 [ADR 0002](adr/0002-portable-data-directory.md)：Release 用程序目录下的 `data/`；
 Debug 从程序目录向上寻找 `Aether.slnx`，用其所在目录下的 `data/`，找不到则退回程序目录。
 与启动命令所在目录无关。SQLite 文件是 `data/aether.db`，使用 WAL；`PRAGMA user_version`
-记录表结构版本，当前为 5。升级使用手写 SQL，并与版本号在同一事务中提交。
+记录表结构版本，当前为 6。升级使用手写 SQL，并与版本号在同一事务中提交。
 v2 升级到 v3 保留登录凭据，新增 `blind_box` 表，按真实房间号、观众 uid 和送出时间建立索引。
 v3 到 v4 把抽奖表纳入版本号，保留已有表和数据；v0.2.x 已有的抽奖表结构不变。
 v4 到 v5 给 `lottery_draw` 加不挂出标记 `hidden_from_stream`（开奖结果的 JSON 不变），新增 `lottery_prize_set` 存奖品方案：按直播间、抽奖方式和名称唯一，内容是一列 JSON。
+v5 到 v6 删除 `blind_box` 的 `raw_message` 列：盲盒不再保存原始消息，已记下的原文随列一起删除，其余数据不变。
 `credential` 表只存一行，保存完整 cookie 名值 JSON、refresh_token、UTC 保存时间和检查时间 `checked_at`。
 v1 升级后保留原凭据，检查时间为空，下次连接立即检查；扫码或刷新保存时检查时间等于保存时间。
 凭据暂存明文，`data/` 已被 Git 忽略；连接开启 `secure_delete`，删除或覆盖的凭据不会残留在文件里。

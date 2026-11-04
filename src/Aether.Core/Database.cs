@@ -20,7 +20,7 @@ internal sealed class Database
         command.Transaction = transaction;
         command.CommandText = "PRAGMA user_version";
         var version = (long)command.ExecuteScalar()!;
-        if (version > 5) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
+        if (version > 6) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
         if (version == 0)
         {
             // Schema upgrades are handwritten and committed with user_version in the same transaction.
@@ -111,6 +111,12 @@ internal sealed class Database
                 );
                 PRAGMA user_version = 5;
                 """;
+            command.ExecuteNonQuery();
+        }
+        if (version < 6)
+        {
+            // Nothing ever read the saved messages; the Trace log is how amounts get checked.
+            command.CommandText = "ALTER TABLE blind_box DROP COLUMN raw_message; PRAGMA user_version = 6;";
             command.ExecuteNonQuery();
         }
         transaction.Commit();

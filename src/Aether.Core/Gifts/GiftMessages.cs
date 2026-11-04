@@ -1,4 +1,3 @@
-using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
@@ -14,11 +13,10 @@ internal static class GiftMessages
 
     public static string? Version(string command) => Decoders.TryGetValue(command, out var decoder) ? decoder.Version : null;
 
-    public static Gift[] Decode(string command, JsonElement root, ReadOnlyMemory<byte> body, ILogger logger)
+    public static Gift[] Decode(string command, JsonElement root, ILogger logger)
     {
         if (!Decoders.TryGetValue(command, out var decoder)) return [];
         List<Gift> result = [];
-        string? rawMessage = null;
         foreach (var (coinType, box) in decoder.Decode(root.GetProperty("data")))
         {
             // No source has ever shown a non-gold blind box; skip it, but loudly.
@@ -36,8 +34,7 @@ internal static class GiftMessages
             result.Add(new Gift(box.Uid, box.Nickname, box.Spend, box.BlindGiftId == 0 ? null : box with
             {
                 OpenedValue = checked(box.OpenedGiftPrice * box.Num),
-                Tid = string.IsNullOrEmpty(box.Tid) ? null : box.Tid,
-                RawMessage = rawMessage ??= Encoding.UTF8.GetString(body.Span)
+                Tid = string.IsNullOrEmpty(box.Tid) ? null : box.Tid
             }));
         }
         return result.ToArray();
