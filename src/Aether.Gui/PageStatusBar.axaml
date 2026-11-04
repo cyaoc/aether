@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.PageStatusBar" x:DataType="local:WebPageStatus">
+      <Border x:Name="PageStatusCard" Classes="card notice" Padding="12,8,8,8" Classes.warning="{Binding Waiting}" Classes.error="{Binding Failed}">
+        <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+          <Panel>
+            <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding Connected}"><Path Data="{StaticResource Icon.Ok}" Stroke="{DynamicResource Success}" StrokeThickness="2" /></Viewbox>
+            <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding Waiting}"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
+            <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding Failed}"><Path Data="{StaticResource Icon.Fail}" StrokeThickness="2" /></Viewbox>
+            <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding Off}"><Path Data="{StaticResource Icon.Info}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
+          </Panel>
+          <TextBlock Grid.Column="1" x:Name="PageStatusText" Classes="secondary singleLine" Classes.success="{Binding Connected}" Classes.muted="{Binding Off}" FontWeight="SemiBold" Text="{Binding Text}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+          <Button Grid.Column="2" x:Name="OpenGeneralSettingsButton" Classes="ghost" Height="30" Padding="8,0" Foreground="{DynamicResource Accent.Text}" Click="OpenGeneralSettings">
+            <StackPanel Orientation="Horizontal" Spacing="4">
+              <TextBlock Text="地址和端口在通用设置" FontSize="13" VerticalAlignment="Center" />
+              <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Next}" StrokeThickness="2" /></Viewbox>
+            </StackPanel>
+          </Button>
+          <TextBlock Grid.Row="1" Grid.ColumnSpan="3" x:Name="PageSetupSteps" Classes="secondary" LineHeight="18" TextWrapping="Wrap" Margin="0,6,0,0"
+            Text="{Binding SetupSteps}" IsVisible="{Binding SetupSteps, Converter={x:Static StringConverters.IsNotNullOrEmpty}, FallbackValue=False}" />
+        </Grid>
+      </Border>
+</UserControl>

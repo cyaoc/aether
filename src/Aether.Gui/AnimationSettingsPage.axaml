@@ -46,7 +46,7 @@
   <local:SettingsPage.BodyContent>
     <StackPanel Spacing="10">
       <TextBlock x:Name="AnimationReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-      <local:VideoPageStatusBar x:Name="PageStatus" />
+      <local:PageStatusBar x:Name="PageStatus" DataContext="{Binding WebService.Video}" />
       <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10" Margin="0,8">
         <TextBlock Classes="section" Text="按粉丝团等级播放" VerticalAlignment="Center" />
         <ComboBox Grid.Column="1" x:Name="FanClubInput" Width="125" AutomationProperties.Name="粉丝团等级门槛" />
