@@ -458,7 +458,7 @@ public sealed partial class VisualReviewTests
                             Assert.True(hint.Bounds.Top < text.Bounds.Bottom && text.Bounds.Top < hint.Bounds.Bottom,
                                 $"Caption below heading: {text.Text}");
                 }
-                return [.. texts.Select(text => text.Text!)];
+                return [.. texts.Select(text => text.Text ?? "")];
             }
         }, TestContext.Current.CancellationToken);
 

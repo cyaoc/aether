@@ -47,7 +47,7 @@ internal static class GiftMessages
     {
         foreach (var name in path)
             if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out element)) return "";
-        return element.ValueKind == JsonValueKind.Null ? "" : element.GetString()!;
+        return element.GetString() ?? "";
     }
 
     // Checked here for every version: protobuf leaves zero and empty fields out, so a missing send time or name

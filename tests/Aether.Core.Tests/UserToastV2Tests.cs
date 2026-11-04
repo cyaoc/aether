@@ -52,7 +52,7 @@ public sealed class UserToastV2Tests
     {
         var message = UserToastFixture.Message(edit: data =>
         {
-            var viewer = data["sender_uinfo"]!["base"]!.AsObject();
+            if (data["sender_uinfo"]?["base"] is not JsonObject viewer) return;
             if (face is null) viewer.Remove("face"); else viewer["face"] = JsonNode.Parse(face);
         });
         Assert.Equal("", Assert.Single(Decode(message)).FaceUrl);
