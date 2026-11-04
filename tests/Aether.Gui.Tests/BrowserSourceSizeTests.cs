@@ -10,6 +10,7 @@ namespace Aether.Gui.Tests;
 public sealed class BrowserSourceSizeTests
 {
     private static readonly Regex Size = new(@"\d{3,4}\s*[×x]\s*\d{3,4}");
+    private static readonly string[] SetupHelps = ["VideoSetupHelp", "LotterySetupHelp"];
 
     [Fact]
     public Task Page_list_writes_each_pages_size_in_one_column_that_lines_up() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1), page =>
@@ -27,7 +28,7 @@ public sealed class BrowserSourceSizeTests
     [Fact]
     public Task A_page_nobody_is_connected_to_is_told_to_take_its_address_and_size_from_its_own_row() => OnGeneralSettings(new WebServiceStatus(true, 17890, 0, 0), page =>
     {
-        foreach (var name in new[] { "VideoSetupHelp", "LotterySetupHelp" })
+        foreach (var name in SetupHelps)
             Assert.Equal("还没有推流软件连着。在直播姬里添加浏览器素材，地址和宽高照这一行填；已经加过的，右键素材 → 刷新。",
                 GuiHarness.FindVisual<Grid>(page, name).GetVisualDescendants().OfType<TextBlock>().Single().Text);
     });
@@ -85,7 +86,7 @@ public sealed class BrowserSourceSizeTests
             for (var index = 0; index < window.Navigation.ItemCount; index++)
             {
                 window.Navigation.SelectedIndex = index;
-                foreach (var tab in index == 2 ? new[] { 0, 1 } : [0])
+                for (var tab = 0; tab < (index == 2 ? 2 : 1); tab++)
                 {
                     if (index == 2) window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(tab);
                     GuiHarness.Flush();
