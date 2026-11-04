@@ -110,6 +110,14 @@ a{color:#3358D4}a:hover{color:#2A47B0}
 
           <section style="display: flex; align-items: center; gap: 16px">
             <div style="flex: 1; display: flex; flex-direction: column; gap: 3px">
+              <h2 style="margin: 0; font-size: 14px; font-weight: 600">每场开播换新榜</h2>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">直播跨天也还是同一张；关掉后，只在点“清空礼物榜”时换</span>
+            </div>
+            <button type="button" role="switch" aria-checked="{{perLive.on}}" aria-label="每场开播换新榜" onClick="{{perLive.toggle}}" style="position: relative; width: 40px; height: 22px; border: 0; border-radius: 11px; background: {{perLive.bg}}; padding: 0"><span style="position: absolute; top: 3px; left: {{perLive.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+          </section>
+
+          <section style="display: flex; align-items: center; gap: 16px">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 3px">
               <h2 style="margin: 0; font-size: 14px; font-weight: 600">看板娘</h2>
               <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">从标题飘带后面探出来主持；关掉后，她的位置能多放 3 行</span>
             </div>
@@ -230,7 +238,7 @@ class Component extends DCLogic {
     const scene = this.props.scene ?? '默认';
     const [w, h] = (this.props.size ?? '1200 × 720') === '1040 × 600' ? [1040, 600] : [1200, 720];
     const connected = scene !== '没连直播间';
-    const enabled = s.enabled ?? true, mascotOn = s.mascot ?? true;
+    const enabled = s.enabled ?? true, mascotOn = s.mascot ?? true, perLiveOn = s.perLive ?? true;
     const mode = s.mode ?? (scene === '按累计总价' ? 2 : 1);
     const threshold = 100;
     const cleared = s.cleared === true;
@@ -269,7 +277,7 @@ class Component extends DCLogic {
       { id: 1, title: '按礼物单价', note: '单价达到门槛的礼物上榜；盲盒按开出的礼物算' },
       { id: 2, title: '按累计总价', note: '同一位观众送的同一种礼物，单价 × 个数达到门槛就上榜' }
     ].map(m => ({ ...m, checked: m.id === mode ? 'true' : 'false', ring: '2px solid ' + (m.id === mode ? t.accent : t.control), dot: m.id === mode ? t.accent : 'transparent', pick: () => this.setState({ mode: m.id }) }));
-    const dirty = mode !== (scene === '按累计总价' ? 2 : 1) || enabled !== true || mascotOn !== true;
+    const dirty = mode !== (scene === '按累计总价' ? 2 : 1) || enabled !== true || mascotOn !== true || perLiveOn !== true;
     const pageOk = scene !== '礼物榜页没连上';
     const asideCount = rows.length ? '共 ' + rows.length + ' 位' : '';
     const emptyText = !connected ? '连上直播间后，这里显示这个直播间的礼物榜。' : !enabled ? '礼物榜关着，不记录也不显示。' : '还没有人上榜。达到门槛的礼物会出现在这里和直播画面上。';
@@ -281,7 +289,7 @@ class Component extends DCLogic {
 
     return {
       t, w, h, connected, offline: !connected, isBoard: page === '礼物榜', isGeneral: page === '通用设置', nav, pages,
-      onSwitch: this.toggle(t, 'enabled', enabled), mascot: this.toggle(t, 'mascot', mascotOn), modes, threshold: String(threshold),
+      onSwitch: this.toggle(t, 'enabled', enabled), perLive: this.toggle(t, 'perLive', perLiveOn), mascot: this.toggle(t, 'mascot', mascotOn), modes, threshold: String(threshold),
       pageOk: pageOk && enabled, pageWaiting: !pageOk && enabled,
       rows, hasRows: rows.length > 0, noRows: rows.length === 0, asideCount, emptyText, count: rows.length,
       clearDisabled: !connected || rows.length === 0 ? 'true' : null, clearColor: !connected || rows.length === 0 ? t.disabled : t.danger,
