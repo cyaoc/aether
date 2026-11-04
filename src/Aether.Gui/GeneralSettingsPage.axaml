@@ -1,7 +1,7 @@
 <local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.GeneralSettingsPage">
   <local:SettingsPage.Resources>
-    <x:String x:Key="BrowserSourceSteps">还没有推流软件连着。在直播姬里添加浏览器素材，地址填上面这个；已经加过的，右键素材 → 刷新。</x:String>
+    <x:String x:Key="BrowserSourceSteps">还没有推流软件连着。在直播姬里添加浏览器素材，地址和宽高照这一行填；已经加过的，右键素材 → 刷新。</x:String>
   </local:SettingsPage.Resources>
   <local:SettingsPage.Styles>
     <Style Selector="Button.copy Path">
@@ -44,6 +44,28 @@
       <Setter Property="FontFamily" Value="Menlo, Consolas" />
       <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
     </Style>
+    <!-- A page's browser source size; the text column is shared, so every row's size column is as wide as the longest. -->
+    <Style Selector="ContentControl.pageSize">
+      <Setter Property="Foreground" Value="{DynamicResource Text.Secondary}" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <Grid ColumnSpacing="6">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto" />
+              <ColumnDefinition Width="Auto" SharedSizeGroup="PageSize" />
+            </Grid.ColumnDefinitions>
+            <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Scan}" /></Viewbox>
+            <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" VerticalContentAlignment="Center" />
+          </Grid>
+        </ControlTemplate>
+      </Setter>
+    </Style>
+    <Style Selector="ContentControl.pageSize /template/ Viewbox.icon">
+      <Setter Property="Width" Value="14" />
+      <Setter Property="Height" Value="14" />
+    </Style>
   </local:SettingsPage.Styles>
   <local:SettingsPage.BodyContent>
     <StackPanel Spacing="8">
@@ -78,9 +100,9 @@
         <StackPanel Spacing="6">
           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
             <TextBlock Classes="label" Text="页面" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="每个页面在直播姬里各加一个浏览器素材：横屏 1920 × 1080，竖屏 1080 × 1920" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="每个页面在直播姬里各加一个浏览器素材，宽高照每行写的填" VerticalAlignment="Center" />
           </Grid>
-          <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8">
+          <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Grid.IsSharedSizeScope="True">
             <StackPanel>
             <StackPanel Spacing="8" Margin="12,10">
               <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="8">
@@ -92,9 +114,10 @@
                   <TextBlock x:Name="VideoConnectionsText" Text="{Binding WebService.VideoConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
                 </StackPanel>
               </Grid>
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <TextBox x:Name="VideoAddress" Classes="address" Text="{Binding WebService.VideoAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="视频页地址" />
-                <Button Grid.Column="1" x:Name="CopyVideoAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.VideoAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制视频页地址">
+                <ContentControl Grid.Column="1" x:Name="VideoSize" Classes="pageSize" Content="1920 × 1080" />
+                <Button Grid.Column="2" x:Name="CopyVideoAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.VideoAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制视频页地址">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
                     <TextBlock VerticalAlignment="Center" />
@@ -117,9 +140,10 @@
                   <TextBlock x:Name="LotteryConnectionsText" Text="{Binding WebService.LotteryConnectionsText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
                 </StackPanel>
               </Grid>
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+              <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                 <TextBox x:Name="LotteryAddress" Classes="address" Text="{Binding WebService.LotteryAddressText, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="抽奖页地址" />
-                <Button Grid.Column="1" x:Name="CopyLotteryAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.LotteryAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制抽奖页地址">
+                <ContentControl Grid.Column="1" x:Name="LotterySize" Classes="pageSize" Content="横屏 1920 × 1080 · 竖屏 1080 × 1920" />
+                <Button Grid.Column="2" x:Name="CopyLotteryAddressButton" Classes="copy" Click="CopyPageAddress" Tag="{Binding WebService.LotteryAddressText}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="复制抽奖页地址">
                   <StackPanel Orientation="Horizontal" Spacing="6">
                     <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
                     <TextBlock VerticalAlignment="Center" />

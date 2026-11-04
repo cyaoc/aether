@@ -86,8 +86,7 @@ public sealed class VisualReviewTests
                 vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
                 vm.WebService.Apply(new SourcePlayback("entry", 12345, "30 档", false, PlaybackState.Completed, Nickname: "柚子不酸", Source: "进场动画", TriggerReason: "粉丝团 34 级"));
                 GuiHarness.Flush();
-                Assert.Equal(80m, welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Value);
-                Assert.Equal("80", welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Text);
+                Assert.Equal(80, welcome.Animation.FindControl<Slider>("VolumeInput")!.Value);
                 Save(window, $"entry-welcome-animation-{width}-{(dark ? "dark" : "light")}");
                 var fanClub = welcome.Animation.FindControl<ComboBox>("FanClubInput")!;
                 fanClub.SelectedItem = 0;
@@ -447,9 +446,11 @@ public sealed class VisualReviewTests
         }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public Task Screenshots_web_service_and_video_status(bool dark)
+    [InlineData(1200, 720, false)]
+    [InlineData(1200, 720, true)]
+    [InlineData(1040, 600, false)]
+    [InlineData(1040, 600, true)]
+    public Task Screenshots_web_service_and_video_status(int width, int height, bool dark)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
         return HeadlessApp.Session.Dispatch(async () =>
@@ -466,7 +467,7 @@ public sealed class VisualReviewTests
             var viewModel = harness.CreateViewModel(new FakeTimeProvider());
             var window = new MainWindow(harness.DataDirectory)
             {
-                DataContext = viewModel, Width = 1200, Height = 720,
+                DataContext = viewModel, Width = width, Height = height,
                 RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
             };
             window.Show();
@@ -484,13 +485,13 @@ public sealed class VisualReviewTests
                 })
                 {
                     viewModel.WebService.Apply(state);
-                    Save(window, $"web-service-N{(dark ? 2 : 1)}-{name}");
+                    Save(window, $"web-service-N{(dark ? 2 : 1)}-{name}-{width}x{height}");
                 }
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1));
                 window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 viewModel.WebService.Apply(new SourcePlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
-                Save(window, $"welcome-animation-N3-{(dark ? "dark" : "light")}");
+                Save(window, $"welcome-animation-N3-{(dark ? "dark" : "light")}-{width}x{height}");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
             return true;
