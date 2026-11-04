@@ -4,8 +4,6 @@ namespace Aether.Core.Tests;
 
 public sealed class GiftBoardPushTests
 {
-    private const string RoomInit = "https://api.live.bilibili.com/room/v1/Room/room_init";
-
     [Fact]
     public async Task The_current_state_comes_first_and_every_change_follows()
     {
@@ -93,7 +91,7 @@ public sealed class GiftBoardPushTests
         await using (var first = await h.WatchWithGiftBoardAsync())
             await h.PushAndSyncAsync(first, BlindGiftFixture.Ordinary(tid: "first-room"));
 
-        h.Http.Responses[RoomInit] = """{"code":0,"data":{"room_id":999,"uid":24680}}""";
+        h.Http.SetRoom(roomId: 999);
         await using (var other = await h.WatchConnectedAsync())
         {
             Assert.Empty(await h.BoardRowsAsync());
@@ -101,7 +99,7 @@ public sealed class GiftBoardPushTests
             Assert.Equal(["20002/gift:32698"], (await h.BoardRowsAsync()).Select(row => row.Id));
         }
 
-        h.Http.Responses[RoomInit] = """{"code":0,"data":{"room_id":7734200,"uid":24680}}""";
+        h.Http.SetRoom();
         await using var again = await h.WatchConnectedAsync();
         Assert.Equal(["10001/gift:32698"], (await h.BoardRowsAsync()).Select(row => row.Id));
     }

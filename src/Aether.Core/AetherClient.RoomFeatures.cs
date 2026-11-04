@@ -94,14 +94,18 @@ public sealed partial class AetherClient
         }
     }
 
-    private sealed class GiftBoardFeature(GiftBoardController board, long roomId) : IRoomFeature
+    private sealed class GiftBoardFeature(GiftBoardController board, long roomId, ILogger logger,
+        Func<Task<long?>> readLiveTime) : IRoomFeature
     {
         public void Handle(RoomEvent e)
         {
             switch (e)
             {
-                case TransportConnected:
-                    board.Connect(roomId);
+                case TransportConnected connected:
+                    board.Connect(roomId, connected.LiveTime);
+                    break;
+                case DanmakuProtocol.LiveReceived:
+                    _ = UpdateLiveTimeAsync();
                     break;
                 case DanmakuProtocol.GiftsReceived received:
                     board.Receive(roomId, received.Gifts);
@@ -110,6 +114,16 @@ public sealed partial class AetherClient
                     board.EndRoom(roomId);
                     break;
             }
+        }
+
+        // The receive loop never waits on B站's HTTP API, so a LIVE message starts the room_init read and moves on.
+        // The room connection ending cancels a read, which needs no word.
+        // shortcut: a read that times out also surfaces as a cancellation and goes unlogged; log it if that ever hides a miss.
+        private async Task UpdateLiveTimeAsync()
+        {
+            try { board.UpdateLiveTime(roomId, await readLiveTime()); }
+            catch (Exception error) when (error is not OperationCanceledException)
+            { logger.LogWarning(error, "开播后更新礼物榜失败，没有按这一场换新的一期：{Error}", error.Message); }
         }
     }
 
