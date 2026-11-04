@@ -13,6 +13,8 @@ internal sealed class ChromeBrowser : IAsyncDisposable
     private int nextId;
     public List<string> Requests { get; } = [];
     public List<string> Errors { get; } = [];
+    /// <summary>The data of every server-sent event the page has received. It grows while a command is running.</summary>
+    public List<string> EventSourceMessages { get; } = [];
 
     /// <summary>Starts the web service on a free port and opens its video page.</summary>
     public static async Task<ChromeBrowser> OpenVideoPageAsync(WatchHarness harness, IReadOnlyDictionary<string, string>? settings = null)
@@ -102,6 +104,7 @@ internal sealed class ChromeBrowser : IAsyncDisposable
             {
                 if (name.GetString() == "Network.requestWillBeSent") Requests.Add(root.GetProperty("params").GetProperty("request").GetProperty("url").GetString()!);
                 if (name.GetString() == "Runtime.exceptionThrown") Errors.Add(root.ToString());
+                if (name.GetString() == "Network.eventSourceMessageReceived") EventSourceMessages.Add(root.GetProperty("params").GetProperty("data").GetString()!);
             }
         }
     }
