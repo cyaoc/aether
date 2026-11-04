@@ -117,7 +117,8 @@ public sealed partial class AetherClient
         }
 
         // The receive loop never waits on B站's HTTP API, so a LIVE message starts the room_init read and moves on.
-        // A read cancelled by the room connection ending needs no word.
+        // The room connection ending cancels a read, which needs no word.
+        // shortcut: a read that times out also surfaces as a cancellation and goes unlogged; log it if that ever hides a miss.
         private async Task UpdateLiveTimeAsync()
         {
             try { board.UpdateLiveTime(roomId, await readLiveTime()); }

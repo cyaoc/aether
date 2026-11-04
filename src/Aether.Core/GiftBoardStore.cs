@@ -8,6 +8,12 @@ internal sealed class GiftBoardStore(Database database)
 {
     private const string InsertPeriod = "INSERT INTO gift_board_period (room_id, started_at, live_time) SELECT $room, $at, $live";
 
+    // IS NOT, so that a 期 opened off air (live_time null) differs from every show, and a room without a 期 gets its first.
+    private const string UnlessLatestIsThisShow = """
+         WHERE $live IS NOT (SELECT live_time FROM gift_board_period
+            WHERE id = (SELECT MAX(id) FROM gift_board_period WHERE room_id = $room))
+        """;
+
     private const string InsertTotal = """
         INSERT INTO gift_board_total (period_id, uid, gift_key, nickname, face_url, gift_name, icon_url, guard_level,
             price, num, first_at, last_at)
@@ -82,28 +88,10 @@ internal sealed class GiftBoardStore(Database database)
 
     /// <summary>Opens a new 期 for the room, leaving the older ones as they are. <paramref name="liveTime"/> is when the
     /// 一场直播 under way began, null off air.</summary>
-    public void Open(long roomId, DateTimeOffset at, long? liveTime)
-    {
-        using var connection = database.Open();
-        using var command = connection.CreateCommand();
-        command.CommandText = InsertPeriod;
-        BindPeriod(command, roomId, at, liveTime);
-        command.ExecuteNonQuery();
-    }
+    public void Open(long roomId, DateTimeOffset at, long? liveTime) => Insert(InsertPeriod, roomId, at, liveTime);
 
     /// <summary>Opens a new 期 unless the room's latest one already belongs to the 一场直播 that began at <paramref name="liveTime"/>.</summary>
-    public void OpenForLive(long roomId, DateTimeOffset at, long liveTime)
-    {
-        using var connection = database.Open();
-        using var command = connection.CreateCommand();
-        // IS NOT, so that a 期 opened off air (null) differs from every live_time, and a room without a 期 gets its first.
-        command.CommandText = InsertPeriod + """
-             WHERE $live IS NOT (SELECT live_time FROM gift_board_period
-                WHERE id = (SELECT MAX(id) FROM gift_board_period WHERE room_id = $room))
-            """;
-        BindPeriod(command, roomId, at, liveTime);
-        command.ExecuteNonQuery();
-    }
+    public void OpenForLive(long roomId, DateTimeOffset at, long liveTime) => Insert(InsertPeriod + UnlessLatestIsThisShow, roomId, at, liveTime);
 
     /// <summary>Merges the room's latest 期 into the one before it, which becomes the latest, in one transaction. Returns false,
     /// changing nothing, when there is no earlier 期. <paramref name="liveTime"/> is the 一场直播 under way, if any: the
@@ -136,6 +124,15 @@ internal sealed class GiftBoardStore(Database database)
         using var reader = command.ExecuteReader();
         while (reader.Read()) periods.Add((reader.GetInt64(0), new(reader.GetDateTimeOffset(1), reader.GetInt32(2))));
         return periods.ToImmutable();
+    }
+
+    private void Insert(string statement, long roomId, DateTimeOffset at, long? liveTime)
+    {
+        using var connection = database.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = statement;
+        BindPeriod(command, roomId, at, liveTime);
+        command.ExecuteNonQuery();
     }
 
     private static void BindPeriod(SqliteCommand command, long roomId, DateTimeOffset at, long? liveTime)

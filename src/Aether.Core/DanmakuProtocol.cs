@@ -26,7 +26,8 @@ internal static class DanmakuProtocol
     internal sealed record DanmakuReceived(Danmaku Danmaku) : RoomEvent;
     internal sealed record GiftsReceived(Gift[] Gifts, long ReceivedTimestamp) : RoomEvent;
     internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : RoomEvent;
-    /// <summary>B站's LIVE message: the room started streaming. A show can push several; the message itself says nothing a feature trusts.</summary>
+    /// <summary>B站's LIVE message: the room started streaming. Several can come at once and only the first packet carries the
+    /// start time, so a feature reads room_init for it instead.</summary>
     internal sealed record LiveReceived : RoomEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
