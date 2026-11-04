@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Aether.Core.Tests.Support;
 using Microsoft.Extensions.Logging;
 using static Aether.Core.Tests.Support.GiftDecoder;
@@ -41,6 +42,20 @@ public sealed class UserToastV2Tests
     {
         var gift = Assert.Single(Decode(UserToastFixture.Message(guardLevel, price, num, unit)));
         Assert.Equal((spend, count, unitPrice), (gift.Spend, gift.Num, gift.Price));
+    }
+
+    // B站 often leaves the avatar out of a purchase.
+    [Theory]
+    [InlineData(null)]
+    [InlineData("null")]
+    public void A_purchase_without_a_face_still_counts_with_an_empty_address(string? face)
+    {
+        var message = UserToastFixture.Message(edit: data =>
+        {
+            var viewer = data["sender_uinfo"]!["base"]!.AsObject();
+            if (face is null) viewer.Remove("face"); else viewer["face"] = JsonNode.Parse(face);
+        });
+        Assert.Equal("", Assert.Single(Decode(message)).FaceUrl);
     }
 
     [Fact]

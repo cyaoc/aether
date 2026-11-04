@@ -10,7 +10,7 @@
 仅保留解析和金额核对相关字段；uid、昵称、tid/rnd 换成固定测试值，勋章、接收者及连击嵌套个人信息已裁掉。
 礼物榜要的头像 `face`（BAC 示例里有这个字段）和礼物图标 `gift_info.img_basic`（字段取自
 [blivedm 的 `SendGiftMessage`](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py)）
-是测试补值，地址为合成，不是真实头像或图标。
+是测试补值，地址为合成，不是真实头像或图标；解码时这两项缺了都按空地址处理，没有抓包说明真实消息一定带。
 测试代码中的多条投递、连击、重复 tid、缺失 tid 和异常字段是合成边界，不能代替真实 V1 验证。
 以后获得真实 V1 样本，按下文隐私处理要求另加文件并记录来源，不覆盖此重建样本。
 

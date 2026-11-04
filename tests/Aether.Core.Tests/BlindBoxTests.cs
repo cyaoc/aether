@@ -210,8 +210,6 @@ public sealed class BlindBoxTests
     [InlineData("total_coin", "null")]
     [InlineData("blind_gift", "{}")]
     [InlineData("uname", "null")]
-    [InlineData("face", "null")]
-    [InlineData("gift_info", "{}")]
     public async Task Malformed_blind_box_is_warned_without_losing_later_messages(string field, string json)
     {
         await using var h = new WatchHarness();
