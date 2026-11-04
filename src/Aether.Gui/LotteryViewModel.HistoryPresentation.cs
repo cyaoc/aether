@@ -89,11 +89,9 @@ public partial class LotteryViewModel
 
     private bool IsToday(DateTimeOffset timestamp) => timestamp.ToLocalTime().Date == clock.GetLocalNow().Date;
 
-    // O4 drops the year; an older year keeps it so rows stay unambiguous.
-    private string LotteryDate(DateTimeOffset timestamp) => timestamp.ToLocalTime() is var at && at.Year == clock.GetLocalNow().Year
-        ? $"{at:M月d日}" : $"{at:yyyy年M月d日}";
+    private string LotteryDate(DateTimeOffset timestamp) => LocalDateText.Date(timestamp, clock.GetLocalNow());
 
-    private string LotteryDateTime(DateTimeOffset timestamp) => $"{LotteryDate(timestamp)} {timestamp.ToLocalTime():HH:mm}";
+    private string LotteryDateTime(DateTimeOffset timestamp) => LocalDateText.DateAndTime(timestamp, clock.GetLocalNow());
 
     private string DrawTime(DateTimeOffset timestamp) => IsToday(timestamp) ? $"{timestamp.ToLocalTime():HH:mm}" : LotteryDateTime(timestamp);
 }
