@@ -100,11 +100,5 @@ internal static class TestDatabase
         return (long)command.ExecuteScalar()!;
     }
 
-    public static long CredentialCount(string dataDirectory)
-    {
-        using var connection = Open(dataDirectory);
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM credential";
-        return (long)command.ExecuteScalar()!;
-    }
+    public static long CredentialCount(string dataDirectory) => RowCount(dataDirectory, "credential");
 }

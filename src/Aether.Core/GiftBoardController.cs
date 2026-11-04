@@ -15,6 +15,7 @@ public sealed class GiftBoardController : IDisposable
     private readonly ILogger logger;
     private readonly Subscribers<GiftBoardState> subscribers;
     // The tids this room connection has seen; the next room connection starts over.
+    // shortcut: never pruned, so a very long room connection keeps every tid; prune it if that grows too large.
     private readonly HashSet<string> seen = [];
     // The defaults keep the board off until a shell applies its settings file.
     private Settings settings = new();
