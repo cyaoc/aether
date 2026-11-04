@@ -24,6 +24,41 @@ public sealed class GiftBoardPushTests
         Assert.Equal((1, 30), (changed[^1].Rows.Length, changed[^1].Volume));
     }
 
+    // The 礼物榜页 plays an animation only for what a gift changed; every other state is drawn as it is.
+    [Fact]
+    public async Task Only_the_state_a_received_gift_made_comes_from_a_gift()
+    {
+        await using var h = new WatchHarness();
+        await using var updates = await h.WatchWithGiftBoardAsync();
+        await using var states = h.Client.GiftBoard.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        Assert.False((await h.NextAsync(states)).FromGift);
+
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
+        Assert.True((await h.NextAsync(states)).FromGift);
+
+        h.Client.GiftBoard.Clear();
+        Assert.False((await h.NextAsync(states)).FromGift);
+        h.Client.GiftBoard.Restore();
+        Assert.False((await h.NextAsync(states)).FromGift);
+        await h.ApplySettingsAsync(("gift_board.mascot", "false"));
+        Assert.False((await h.NextAsync(states)).FromGift);
+        await updates.DisposeAsync();
+        Assert.False((await h.NextAsync(states)).FromGift);
+    }
+
+    [Fact]
+    public async Task A_subscriber_after_a_gift_starts_with_a_state_that_is_not_from_one()
+    {
+        await using var h = new WatchHarness();
+        await using var updates = await h.WatchWithGiftBoardAsync();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
+
+        var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
+
+        Assert.Single(state.Rows);
+        Assert.False(state.FromGift);
+    }
+
     [Fact]
     public async Task The_board_is_empty_when_it_is_off_or_there_is_no_room_connection()
     {

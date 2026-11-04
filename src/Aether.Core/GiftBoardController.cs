@@ -96,7 +96,7 @@ public sealed class GiftBoardController : IDisposable
             if (accepted.Length == 0) return;
             // shortcut: reads and writes SQLite on the receive loop, as the blind box store does; move off it if a busy room lags.
             store().Add(room, accepted, time.GetUtcNow(), liveTime);
-            Publish();
+            subscribers.Publish(State() with { FromGift = true });
         }
     }
 
