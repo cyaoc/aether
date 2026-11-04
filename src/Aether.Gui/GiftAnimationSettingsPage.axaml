@@ -6,7 +6,7 @@
  <local:SettingsPage.BodyContent>
   <StackPanel Spacing="12">
    <TextBlock x:Name="EnabledReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-   <local:VideoPageStatusBar x:Name="PageStatus" />
+   <local:PageStatusBar x:Name="PageStatus" DataContext="{Binding WebService.Video}" />
    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,12,0,0">
     <TextBlock Classes="section" Text="投入门槛" />
     <TextBlock Grid.Column="1" Classes="hint" Text="一轮投入够到哪档，当场播一次；停手 3 秒算送完，不需要粉丝团" />

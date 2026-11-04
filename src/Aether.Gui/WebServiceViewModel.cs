@@ -86,6 +86,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(Video))]
     [NotifyPropertyChangedFor(nameof(VideoPageText))]
     [NotifyPropertyChangedFor(nameof(VideoAddressText))]
     [NotifyPropertyChangedFor(nameof(LotteryAddressText))]
@@ -101,11 +102,12 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     [NotifyPropertyChangedFor(nameof(LotteryConnectionsText))]
     private WebServiceStatus webServiceStatus = client.WebService.Status;
 
-    public bool HasVideoConnections => WebServiceStatus is { Running: true, VideoConnections: > 0 };
+    public WebPageStatus Video => new(WebServiceStatus, WebServiceStatus.VideoConnections, WebPageTexts.Video);
+    public bool HasVideoConnections => Video.Connected;
     public bool HasLotteryConnections => WebServiceStatus is { Running: true, LotteryConnections: > 0 };
     public bool HasWebServiceError => WebServiceStatus.Error is not null;
     public bool IsWebServiceOff => WebServiceStatus is { Running: false, Error: null };
-    public bool ShowVideoSetup => WebServiceStatus is { Running: true, VideoConnections: 0 };
+    public bool ShowVideoSetup => Video.Waiting;
     public bool ShowLotterySetup => WebServiceStatus is { Running: true, LotteryConnections: 0 };
     public string VideoAddressText => WebServiceStatus.VideoAddress;
     public string LotteryAddressText => WebServiceStatus.LotteryAddress;
@@ -115,10 +117,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     public string VideoConnectionsText => ConnectionsText(WebServiceStatus.VideoConnections);
     public string LotteryConnectionsText => ConnectionsText(WebServiceStatus.LotteryConnections);
     private string ConnectionsText(int count) => !WebServiceStatus.Running ? "服务没打开" : count > 0 ? $"{count} 个推流软件连着" : "还没有连着";
-    public string VideoPageText => WebServiceStatus.Error is { } error ? $"网页服务没打开：{error}，试播和进场都播不了"
-        : !WebServiceStatus.Running ? "网页服务没打开，试播和进场都播不了"
-        : HasVideoConnections ? $"视频页：已有 {WebServiceStatus.VideoConnections} 个推流软件连着"
-        : "视频页还没有推流软件连着，先在直播姬里加好再试播";
+    public string VideoPageText => Video.Text;
 
     internal void Apply(WebServiceUpdate update)
     {

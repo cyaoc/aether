@@ -46,20 +46,17 @@
   <local:SettingsPage.BodyContent>
     <StackPanel Spacing="10">
       <TextBlock x:Name="AnimationReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-      <local:VideoPageStatusBar x:Name="PageStatus" />
+      <local:PageStatusBar x:Name="PageStatus" DataContext="{Binding WebService.Video}" />
       <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="10" Margin="0,8">
         <TextBlock Classes="section" Text="按粉丝团等级播放" VerticalAlignment="Center" />
         <ComboBox Grid.Column="1" x:Name="FanClubInput" Width="125" AutomationProperties.Name="粉丝团等级门槛" />
         <TextBlock Grid.Column="2" x:Name="FanClubHint" Classes="hint" TextWrapping="Wrap" VerticalAlignment="Center" />
       </Grid>
       <TextBlock x:Name="FanClubReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <!-- The test bar keeps its width; the slider (Width NaN) takes what is left and shortens its track in a narrow window. -->
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
         <local:AnimationTestBar x:Name="TestBar" />
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Bottom">
-          <TextBlock Text="音量" VerticalAlignment="Center" Classes="hint" />
-          <NumericUpDown x:Name="VolumeInput" Minimum="0" Maximum="100" Width="120" FormatString="0.############################" AutomationProperties.Name="动画音量" />
-          <TextBlock Text="%" VerticalAlignment="Center" />
-        </StackPanel>
+        <Slider Grid.Column="1" x:Name="VolumeInput" Classes="volume" Width="NaN" VerticalAlignment="Bottom" AutomationProperties.Name="动画音量" />
       </Grid>
       <TextBlock x:Name="VolumeReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,12,0,0">
