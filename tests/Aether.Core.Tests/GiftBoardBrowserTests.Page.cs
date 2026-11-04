@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text.Json;
 using Aether.Core.Tests.Support;
 
@@ -83,12 +82,12 @@ public sealed partial class GiftBoardBrowserTests
         }
 
         /// <summary>Waits until the page has received that many states, the one it gets on connecting included.</summary>
-        public async Task WaitForStatesAsync(int count)
+        public Task WaitForStatesAsync(int count) => Eventually.TrueAsync(async () =>
         {
-            var wait = Stopwatch.StartNew();
-            while (Browser.EventSourceMessages.Count < count && wait.Elapsed < TimeSpan.FromSeconds(10)) await Browser.EvaluateAsync("true");
-            Assert.True(Browser.EventSourceMessages.Count >= count, $"The page received {Browser.EventSourceMessages.Count} states, not {count}.");
-        }
+            // The browser's states are collected while a command is answered.
+            await Browser.EvaluateAsync("true");
+            return Browser.EventSourceMessages.Count >= count;
+        });
 
         /// <summary>That many viewers, the first of them sending the most.</summary>
         public async Task GiveToAsync(int viewers)
@@ -153,12 +152,8 @@ public sealed partial class GiftBoardBrowserTests
 
         public Task WaitForTransparentAsync(int x, int y) => WaitForAlphaAsync(x, y, alpha => alpha == 0);
 
-        private async Task WaitForAlphaAsync(int x, int y, Func<int, bool> reached)
-        {
-            for (var attempt = 0; attempt < 100; attempt++)
-                if (reached((await AlphaAsync([(x, y)]))[0])) return;
-            Assert.Fail($"The page never became what was waited for at ({x}, {y}).");
-        }
+        private Task WaitForAlphaAsync(int x, int y, Func<int, bool> reached) =>
+            Eventually.TrueAsync(async () => reached((await AlphaAsync([(x, y)]))[0]));
 
         /// <summary>The first and the last column along row <paramref name="y"/> that are mostly opaque.</summary>
         public async Task<(int Left, int Right)> OpaqueEdgesAsync(int y, int width)
