@@ -21,6 +21,7 @@ public sealed partial class AetherClient : IDisposable
     public GiftAnimation GiftAnimation { get; }
     public EntryAnimation EntryAnimation { get; }
     public LotteryController Lottery { get; }
+    public GiftBoardController GiftBoard { get; }
     private readonly Lazy<Stores> stores;
 
     public AetherClient(HttpMessageHandler httpHandler, Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket,
@@ -35,9 +36,11 @@ public sealed partial class AetherClient : IDisposable
         stores = new(() =>
         {
             var database = new Database(dataDirectory);
-            return new Stores(new CredentialStore(database), new BlindBoxStore(database, logger), new LotteryStore(database));
+            return new Stores(new CredentialStore(database), new BlindBoxStore(database, logger), new LotteryStore(database),
+                new GiftBoardStore(database));
         }, LazyThreadSafetyMode.PublicationOnly);
         Lottery = new(() => stores.Value.Lotteries, timeProvider, logger, random ?? Random.Shared);
+        GiftBoard = new(() => stores.Value.GiftBoards, timeProvider, logger);
         WebService = new(dataDirectory, timeProvider, logger, Lottery);
         WelcomeAnimation = new(WebService, timeProvider, logger);
         EntryAnimation = new(WebService, WelcomeAnimation, timeProvider, logger);
@@ -49,10 +52,11 @@ public sealed partial class AetherClient : IDisposable
     {
         if (settings.Error is { } error) throw error;
         WebService.Video.Apply(settings);
+        GiftBoard.Apply(settings);
         await WebService.StartAsync(settings.WebServicePort.Value).ConfigureAwait(false);
     }
 
-    private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes, LotteryStore Lotteries);
+    private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes, LotteryStore Lotteries, GiftBoardStore GiftBoards);
 
     private static readonly TimeSpan CredentialCheckInterval = TimeSpan.FromHours(24);
 
@@ -296,7 +300,7 @@ public sealed partial class AetherClient : IDisposable
         catch { socket.Dispose(); throw; }
     }
 
-    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); http.Dispose(); }
+    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); GiftBoard.Dispose(); http.Dispose(); }
 }
 
 public static class AetherHosting
