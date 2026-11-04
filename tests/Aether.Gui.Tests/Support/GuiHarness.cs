@@ -27,6 +27,9 @@ internal sealed class GuiHarness : IDisposable
         timeProvider ?? TimeProvider.System, NullLogger<AetherClient>.Instance, DataDirectory);
 
     public AetherClient Client => client;
+
+    /// <summary>The navigation items that are settings pages: all but the danmaku and the lottery.</summary>
+    public static readonly int[] SettingsPages = [1, 2, 3, 4, 6, 7];
     public string DataDirectory { get; } = Path.Combine(Path.GetTempPath(), "aether-gui-tests-" + Guid.NewGuid());
     public string SettingsFile => Path.Combine(DataDirectory, "gui.yml");
 

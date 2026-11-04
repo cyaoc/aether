@@ -28,6 +28,12 @@ public partial class GiftBoardSettingsPage : SettingsPage
 
     protected override bool ReconnectAfterSave => false;
 
+    protected override async Task<string> AfterSave(Settings saved, string result)
+    {
+        if (viewModel is not null) await viewModel.WebService.ApplyWebSettingsAsync(saved);
+        return result;
+    }
+
     protected override void LoadRows() => ShowEmptyList();
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -64,10 +70,4 @@ public partial class GiftBoardSettingsPage : SettingsPage
     private void ShowEmptyList() => BoardEmpty.Text = viewModel is not { HasRoomConnection: true } ? "连上直播间后，这里显示这个直播间的礼物榜。"
         : !settings.GiftBoardEnabled.Value ? "礼物榜关着，不记录也不显示。"
         : "还没有人上榜。达到门槛的礼物会出现在这里和直播画面上。";
-
-    protected override async Task<string> AfterSave(Settings saved, string result)
-    {
-        if (viewModel is not null) await viewModel.WebService.ApplyWebSettingsAsync(saved);
-        return result;
-    }
 }

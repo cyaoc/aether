@@ -27,7 +27,7 @@ public sealed class SettingsReconnectTests
             window.Show();
             try
             {
-                foreach (var otherIndex in new[] { 1, 2, 3, 4, 6, 7 })
+                foreach (var otherIndex in GuiHarness.SettingsPages)
                 {
                     window.Navigation.SelectedIndex = otherIndex;
                     GuiHarness.Flush();

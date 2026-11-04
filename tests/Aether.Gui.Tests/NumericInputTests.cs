@@ -14,6 +14,9 @@ namespace Aether.Gui.Tests;
 
 public sealed class NumericInputTests
 {
+    // The send, general and welcome pages.
+    private static readonly int[] PagesWithNumbers = [6, 7, 2];
+
     private const string SettingsText = """
         web_service:
           port: 1
@@ -111,7 +114,7 @@ public sealed class NumericInputTests
         window.Show();
         try
         {
-            foreach (var index in new[] { 6, 7, 2 })
+            foreach (var index in PagesWithNumbers)
             {
                 window.Navigation.SelectedIndex = index;
                 GuiHarness.Flush();

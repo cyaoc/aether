@@ -21,6 +21,9 @@ namespace Aether.Gui.Tests;
 
 public sealed partial class VisualReviewTests
 {
+    // In navigation order.
+    private static readonly string[] ReviewedPages = ["danmaku", "blind-box", "welcome", "welcome-animation", "gift-board", "lottery", "send-queue", "general"];
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -1028,11 +1031,10 @@ public sealed partial class VisualReviewTests
                 { Text = "@" + nickname + " 投入52电池 亏12.6电池", RetrySeconds = 1 });
             }
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "gift-board", "lottery", "send-queue", "general" };
-            for (var i = 0; i < pages.Length; i++)
+            for (var i = 0; i < ReviewedPages.Length; i++)
             {
                 navigation.SelectedIndex = i;
-                Capture(pages[i]);
+                Capture(ReviewedPages[i]);
                 if (i == 2)
                 {
                     var uid = window.GetVisualDescendants().OfType<TextBox>().Single(x => x.IsEffectivelyVisible && x.Text == "1234567890123456");
