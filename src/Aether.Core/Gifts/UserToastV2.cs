@@ -60,6 +60,7 @@ internal static class UserToastV2
         : price <= monthlyPrice ? (checked(price * num), num)
         : (price, num);
 
+    // B站's guard_level: 1 总督, 2 提督, 3 舰长.
     private static long MonthlyPrice(int level) => level switch
     {
         1 => GovernorMonthlyPrice,
