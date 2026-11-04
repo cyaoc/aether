@@ -76,17 +76,25 @@ public sealed partial class GiftBoardBrowserTests
     }
 
     [Fact]
-    public async Task A_backlog_of_more_than_three_jumps_to_the_latest_state_and_the_changes_between_are_not_played()
+    public async Task A_backlog_of_more_than_three_jumps_to_the_latest_state_and_what_it_skips_is_neither_played_nor_heard()
     {
-        await using var page = await StartAsync(("gift_board.volume", "0"));
+        await using var page = await StartAsync();
         await page.OpenAsync(480, 1000);
+        await page.ClickAsync();
+        await page.Browser.EvaluateAsync(RecordSounds);
         await page.PauseClockAsync();
-        await page.GiveToAsync(5);
+        await page.GiveAsync(1, 3000);
         await page.WaitForEventAsync("new");
+        // Behind the playing change wait a new viewer, another, a new first place, and then a fourth change.
+        await page.GiveAsync(2, 2000);
+        await page.GiveAsync(3, 1000);
+        await page.GiveAsync(2, 2000, 5);
+        await page.GiveAsync(4, 500);
         await page.StepClockAsync(1700);
-        // The first change has played; the four behind it became one redraw of the latest board instead of four more animations.
+        // The first change has played; the four behind it became one redraw of the latest board, without the new first place's sound.
         Assert.Equal("", await page.PlayingAsync());
-        Assert.All(await page.AlphaAsync([(100, (int)(Mascot + RowsY + 25)), (100, (int)(Mascot + RowsY + Pitch + 25))]), alpha => Assert.True(alpha > 100));
+        Assert.All(await page.AlphaAsync([(100, (int)(Mascot + RowsY + 25))]), alpha => Assert.True(alpha > 100));
+        Assert.Equal(0, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
     }
 
     [Fact]
@@ -105,6 +113,11 @@ public sealed partial class GiftBoardBrowserTests
         // Switching the mascot off lifts the board; that is a redraw, not an animation, and it needs no clock step.
         await page.H.ApplySettingsAsync(("gift_board.mascot", "false"));
         await page.WaitForSolidAsync(100, (int)(NoMascot + RowsY + 25));
+        Assert.Equal("", await page.PlayingAsync());
+
+        // A higher threshold takes rows off the board: another redraw.
+        await page.H.ApplySettingsAsync(("gift_board.threshold", "49"));
+        await page.WaitForTransparentAsync(100, (int)(NoMascot + RowsY + 25));
         Assert.Equal("", await page.PlayingAsync());
         Assert.Equal(0, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
     }

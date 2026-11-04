@@ -149,11 +149,15 @@ public sealed partial class GiftBoardBrowserTests
         }
 
         /// <summary>Waits until the page is solid at the point, as a pill's body is.</summary>
-        public async Task WaitForSolidAsync(int x, int y)
+        public Task WaitForSolidAsync(int x, int y) => WaitForAlphaAsync(x, y, alpha => alpha > 100);
+
+        public Task WaitForTransparentAsync(int x, int y) => WaitForAlphaAsync(x, y, alpha => alpha == 0);
+
+        private async Task WaitForAlphaAsync(int x, int y, Func<int, bool> reached)
         {
             for (var attempt = 0; attempt < 100; attempt++)
-                if ((await AlphaAsync([(x, y)]))[0] > 100) return;
-            Assert.Fail($"The page never became solid at ({x}, {y}).");
+                if (reached((await AlphaAsync([(x, y)]))[0])) return;
+            Assert.Fail($"The page never became what was waited for at ({x}, {y}).");
         }
 
         /// <summary>The first and the last column along row <paramref name="y"/> that are mostly opaque.</summary>
