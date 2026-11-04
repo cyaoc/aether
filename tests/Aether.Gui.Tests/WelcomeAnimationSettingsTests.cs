@@ -549,6 +549,7 @@ public sealed class WelcomeAnimationSettingsTests
     [Theory]
     [InlineData("Video", "/video")]
     [InlineData("Lottery", "/lottery")]
+    [InlineData("GiftBoard", "/gift-board")]
     public Task Copy_address_reports_success_for_two_seconds(string pageName, string path) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
