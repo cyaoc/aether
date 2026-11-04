@@ -1,7 +1,9 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -49,6 +51,40 @@ public sealed class EntryAnimationSettingsTests
             Assert.Equal(0, GuiHarness.FindVisual<Slider>(reopened, "VolumeInput").Value);
         }
         finally { window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    // The test bar needs 350-odd of the 476 a 1040-wide window leaves beside the recent list, so the slider takes what is left.
+    [Theory]
+    [InlineData(1200, true)]
+    [InlineData(1040, false)]
+    public Task Volume_slider_ends_the_test_row_and_gives_way_to_the_test_bar_when_the_window_is_narrow(int width, bool full) => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        await h.SaveCredentialAsync();
+        var viewModel = h.CreateViewModel();
+        var window = new MainWindow(h.DataDirectory) { DataContext = viewModel, Width = width, Height = 720 };
+        window.Show();
+        try
+        {
+            await viewModel.ReadAccountCommand.ExecutionTask!;
+            window.Navigation.SelectedIndex = 2;
+            window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
+            GuiHarness.Flush();
+            var page = window.GetVisualDescendants().OfType<AnimationSettingsPage>().Single();
+            var volume = GuiHarness.FindVisual<Slider>(page, "VolumeInput");
+            var track = GuiHarness.FindVisual<Track>(volume, "PART_Track");
+            var speaker = volume.GetVisualDescendants().OfType<Viewbox>().Single();
+            var play = GuiHarness.FindVisual<Button>(page, "PlayButton");
+            var contentEdge = GuiHarness.FindVisual<Grid>(page, "EmptyAnimations");
+            double Left(Control control) => control.TranslatePoint(default, window)!.Value.X;
+            double Right(Control control) => Left(control) + control.Bounds.Width;
+            Assert.Equal(Right(contentEdge), Right(track), 0.5);
+            Assert.True(Right(play) <= Left(speaker));
+            if (full) Assert.Equal(180, track.Bounds.Width, 0.5);
+            else Assert.InRange(track.Bounds.Width, 40, 179);
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
 

@@ -406,17 +406,25 @@
   <Style Selector="ToggleSwitch.plain /template/ ContentPresenter#PART_OnContentPresenter, ToggleSwitch.plain /template/ ContentPresenter#PART_OffContentPresenter">
     <Setter Property="IsVisible" Value="False" />
   </Style>
-  <!-- The volume slider of canvases EG1 and GS1: a speaker and a 180-wide track filled up to a round white thumb, no number.
-       Slider looks for the PART_ names; the colours are set on those parts so Fluent's hover and pressed brushes do not reach them. -->
+  <!-- The volume slider of canvases EG1 and GS1: a speaker (18 + 10 apart) and a 180-wide track filled up to a round white thumb, no
+       number. A slider whose Width is NaN fills a slot instead, keeps the speaker and track at the right and shortens the track when
+       the slot is short. Slider looks for the PART_ names; the colours are set on those parts so Fluent's hover and pressed
+       brushes do not reach them. -->
   <Style Selector="Slider.volume">
+    <Setter Property="Width" Value="208" />
     <Setter Property="Height" Value="36" />
     <Setter Property="IsSnapToTickEnabled" Value="True" />
     <Setter Property="TickFrequency" Value="1" />
     <Setter Property="Template">
       <ControlTemplate>
-        <Grid ColumnDefinitions="Auto,180" ColumnSpacing="10">
-          <Viewbox Classes="icon" TextElement.Foreground="{DynamicResource Text.Secondary}"><Path Data="{StaticResource Icon.Volume}" /></Viewbox>
-          <Track Grid.Column="1" Name="PART_Track" Orientation="Horizontal" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value, Mode=TwoWay}">
+        <Grid>
+          <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="0.001*" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" MaxWidth="180" />
+          </Grid.ColumnDefinitions>
+          <Viewbox Grid.Column="1" Classes="icon" Margin="0,0,10,0" TextElement.Foreground="{DynamicResource Text.Secondary}"><Path Data="{StaticResource Icon.Volume}" /></Viewbox>
+          <Track Grid.Column="2" Name="PART_Track" Orientation="Horizontal" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value, Mode=TwoWay}">
             <Track.DecreaseButton><RepeatButton Name="PART_DecreaseButton" Focusable="False" /></Track.DecreaseButton>
             <Track.IncreaseButton><RepeatButton Name="PART_IncreaseButton" Focusable="False" /></Track.IncreaseButton>
             <Thumb />

@@ -53,9 +53,9 @@
         <TextBlock Grid.Column="2" x:Name="FanClubHint" Classes="hint" TextWrapping="Wrap" VerticalAlignment="Center" />
       </Grid>
       <TextBlock x:Name="FanClubReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
         <local:AnimationTestBar x:Name="TestBar" />
-        <Slider Grid.Column="1" x:Name="VolumeInput" Classes="volume" VerticalAlignment="Bottom" AutomationProperties.Name="动画音量" />
+        <Slider Grid.Column="1" x:Name="VolumeInput" Classes="volume" Width="NaN" VerticalAlignment="Bottom" AutomationProperties.Name="动画音量" />
       </Grid>
       <TextBlock x:Name="VolumeReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,12,0,0">
