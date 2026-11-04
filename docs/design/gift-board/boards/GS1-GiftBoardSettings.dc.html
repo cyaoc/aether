@@ -53,7 +53,10 @@ a{color:#3358D4}a:hover{color:#2A47B0}
       <button type="button" role="switch" aria-checked="{{onSwitch.on}}" aria-label="礼物榜" onClick="{{onSwitch.toggle}}" style="position: relative; width: 40px; height: 22px; border: 0; border-radius: 11px; background: {{onSwitch.bg}}; padding: 0"><span style="position: absolute; top: 3px; left: {{onSwitch.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
       <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">保存后立即生效</span>
       <span style="flex: 1"></span>
-      <sc-if value="{{offline}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">连上直播间后才能清空</span></sc-if>
+      <sc-if value="{{offline}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">连上直播间后才能清空和恢复</span></sc-if>
+      <button type="button" onClick="{{askRestore}}" disabled="{{restoreDisabled}}" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; margin-right: -8px; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{restoreColor}}; font: inherit; font-size: 13px; white-space: nowrap">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg>恢复上一期
+      </button>
       <button type="button" onClick="{{askClear}}" disabled="{{clearDisabled}}" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{clearColor}}; font: inherit; font-size: 13px; white-space: nowrap">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"></path></svg>清空礼物榜
       </button>
@@ -132,6 +135,12 @@ a{color:#3358D4}a:hover{color:#2A47B0}
             <button type="button" onClick="{{cancelClear}}" style="height: 36px; padding: 0 16px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px">取消</button>
             <button type="button" onClick="{{doClear}}" style="height: 36px; padding: 0 22px; border: 0; border-radius: 6px; background: #B91C1C; color: #fff; font: inherit; font-size: 14px; font-weight: 600">清空</button>
           </sc-if>
+          <sc-if value="{{confirmingRestore}}" hint-placeholder-val="{{false}}">
+            <span style="flex: 1"></span>
+            <span style="font-size: 14px; white-space: nowrap">{{restoreText}}</span>
+            <button type="button" onClick="{{cancelRestore}}" style="height: 36px; padding: 0 16px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px">取消</button>
+            <button type="button" onClick="{{doRestore}}" style="height: 36px; padding: 0 22px; border: 0; border-radius: 6px; background: {{t.accent}}; color: {{t.onAccent}}; font: inherit; font-size: 14px; font-weight: 600">恢复</button>
+          </sc-if>
           <sc-if value="{{notConfirming}}" hint-placeholder-val="{{true}}">
             <span style="flex: 1; font-size: 13px; color: {{t.secondary}}; white-space: nowrap">{{footerText}}</span>
             <button type="button" disabled="{{saveDisabled}}" style="height: 36px; width: 80px; border: 0; border-radius: 6px; background: {{saveBg}}; color: {{saveColor}}; font: inherit; font-size: 14px; font-weight: 600">保存</button>
@@ -140,9 +149,10 @@ a{color:#3358D4}a:hover{color:#2A47B0}
       </div>
 
       <aside aria-label="当前榜单" style="width: 300px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; border-left: 1px solid {{t.border}}; background: {{t.aside}}">
-        <div style="display: flex; align-items: baseline; padding: 20px 16px 10px">
+        <div style="display: flex; flex-wrap: wrap; align-items: baseline; padding: 20px 16px 10px; row-gap: 4px">
           <h2 style="margin: 0; flex: 1; font-size: 15px; font-weight: 700">当前榜单</h2>
           <span style="font-size: 13px; color: {{t.muted}}">{{asideCount}}</span>
+          <sc-if value="{{periodText}}" hint-placeholder-val="本期从 11月4日 20:03 开始"><span style="flex-basis: 100%; font-size: 12px; color: {{t.muted}}; white-space: nowrap">{{periodText}}</span></sc-if>
         </div>
         <sc-if value="{{hasRows}}" hint-placeholder-val="{{true}}">
           <ol style="list-style: none; margin: 0; padding: 0 16px; display: flex; flex-direction: column">
@@ -209,7 +219,7 @@ a{color:#3358D4}a:hover{color:#2A47B0}
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"page":{"editor":"enum","options":["礼物榜","通用设置"],"default":"礼物榜"},"scene":{"editor":"enum","options":["默认","清空确认","没连直播间","按累计总价","礼物榜页没连上"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
+<script type="text/x-dc" data-dc-script data-props='{"page":{"editor":"enum","options":["礼物榜","通用设置"],"default":"礼物榜"},"scene":{"editor":"enum","options":["默认","清空确认","恢复确认","已恢复","没连直播间","按累计总价","礼物榜页没连上"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
 class Component extends DCLogic {
   // The app's theme tokens, as on the other GUI boards.
   tokens(dark) {
@@ -242,7 +252,11 @@ class Component extends DCLogic {
     const mode = s.mode ?? (scene === '按累计总价' ? 2 : 1);
     const threshold = 100;
     const cleared = s.cleared === true;
+    // 已恢复 without a clear first = the 11月4日 board merged with the 11月3日 period (e.g. after an unwanted auto switch).
+    const merged = !cleared && (s.restored ?? scene === '已恢复');
+    const restoredNote = s.restoredNote ?? scene === '已恢复';
     const confirming = connected && !cleared && (s.confirming ?? scene === '清空确认');
+    const confirmingRestore = connected && !confirming && !merged && (s.confirmingRestore ?? scene === '恢复确认');
 
     // [nickname, gift, unit price in 电池, count]
     const all = [
@@ -250,7 +264,17 @@ class Component extends DCLogic {
       ['鬼滅の刃推し', '告白花束', 220, 4], ['Yuzu_Sour', '花式夸夸', 330, 2], ['夜雨听风', '星河入梦', 199, 3], ['星屑Koi', '干杯', 66, 8], ['白鹭', '情书', 52, 5]
     ];
     const shown = all.filter(([, , p, n]) => (mode === 1 ? p : p * n) >= threshold).sort((a, b) => b[2] * b[3] - a[2] * a[3]);
-    const rows = connected && enabled && !cleared ? shown.map(([name, gift, p, n], i) => ({
+    // The 11月3日 20:01 period; restoring merges it back: same viewer + same gift adds up.
+    const prev = [['龍騰雲海', '告白气球', 2000, 3], ['Aki秋', '为你加冕', 4500, 1], ['南風知我意', '提督', 19980, 1], ['夜雨听风', '星河入梦', 199, 2]];
+    const current = shown.map(r => [...r]);
+    if (merged) {
+      for (const [n, g, p, c] of prev) {
+        const hit = current.find(r => r[0] === n && r[1] === g);
+        if (hit) hit[3] += c; else if ((mode === 1 ? p : p * c) >= threshold) current.push([n, g, p, c]);
+      }
+      current.sort((a, b) => b[2] * b[3] - a[2] * a[3]);
+    }
+    const rows = connected && enabled && !cleared ? current.map(([name, gift, p, n], i) => ({
       rank: String(i + 1), name, gift: gift + ' ×' + n, value: (p * n) + ' 电池', rankColor: i < 3 ? ['#C9851D', t.muted, '#5B8CFF'][i] : t.muted
     })) : [];
 
@@ -293,9 +317,14 @@ class Component extends DCLogic {
       pageOk: pageOk && enabled, pageWaiting: !pageOk && enabled,
       rows, hasRows: rows.length > 0, noRows: rows.length === 0, asideCount, emptyText, count: rows.length,
       clearDisabled: !connected || rows.length === 0 ? 'true' : null, clearColor: !connected || rows.length === 0 ? t.disabled : t.danger,
-      confirming, notConfirming: !confirming,
-      askClear: () => this.setState({ confirming: true }), cancelClear: () => this.setState({ confirming: false }), doClear: () => this.setState({ confirming: false, cleared: true }),
-      footerText: cleared ? '已清空直播间 1768506153 的礼物榜' : dirty ? '有未保存的修改' : '没有未保存的修改',
+      confirming, confirmingRestore, notConfirming: !confirming && !confirmingRestore,
+      restoreDisabled: connected ? null : 'true', restoreColor: connected ? t.primary : t.disabled,
+      restoreText: cleared ? '上一期（11月4日，' + shown.length + ' 位）会恢复回来，确定吗？' : '上一期（11月3日，' + prev.length + ' 位）会合并回来，确定吗？',
+      askRestore: () => this.setState({ confirmingRestore: true, confirming: false }), cancelRestore: () => this.setState({ confirmingRestore: false }),
+      doRestore: () => this.setState(cleared ? { confirmingRestore: false, cleared: false, restoredNote: true } : { confirmingRestore: false, restored: true, restoredNote: true }),
+      periodText: !connected ? '' : merged ? '本期从 11月3日 20:01 开始' : cleared ? '本期从 11月4日 21:15 开始' : '本期从 11月4日 20:03 开始',
+      askClear: () => this.setState({ confirming: true, confirmingRestore: false }), cancelClear: () => this.setState({ confirming: false }), doClear: () => this.setState({ confirming: false, cleared: true, restoredNote: false }),
+      footerText: restoredNote ? '已恢复上一期' : cleared ? '已清空直播间 1768506153 的礼物榜' : dirty ? '有未保存的修改' : '没有未保存的修改',
       saveDisabled: dirty ? null : 'true', saveBg: dirty ? t.accent : t.saveOffBg, saveColor: dirty ? t.onAccent : t.saveOffText
     };
   }
