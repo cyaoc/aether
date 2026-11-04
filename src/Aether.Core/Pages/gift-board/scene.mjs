@@ -1,10 +1,10 @@
 // The Pixi scene of one board: the mascot, the ribbon, the top three cards, the pills and the sprite (design package GB1). It is
 // built for a layout and a list of rows; every frame it is placed again from the clock, the scroll and the running event.
 import { CARDS, LAYOUT, TOP_COUNT, lapLength, scrolledY, shiftedGeometry, slotGeometry, slotsOf, spriteHome } from './layout.mjs';
-import { EVENTS, ambient, easeBack, easeInOut, easeOut, entryMotion, flare, lerpGeometry, ramp, twinkle, unfolded } from './motion.mjs';
+import { EVENTS, ambient, easeBack, easeInOut, entryMotion, flare, lerpGeometry, twinkle, unfolded } from './motion.mjs';
 import { Entry } from './entry.mjs';
 import { PAD } from './paint.mjs';
-import { canvasOf } from '../video/animations/toolkit.mjs';
+import { canvasOf, k, out } from '../video/animations/toolkit.mjs';
 
 // The pose pictures are 1536 high; the body is cut off at this fraction of it, which goes behind the ribbon.
 const MASCOT = { idleCut: 1352 / 1536, cheerCut: 1278 / 1536, scale: 0.17 };
@@ -107,11 +107,11 @@ export class Scene {
     this.panel.addChild(this.rowsLayer);
     this.slotPlates = [];
     for (let copy = 0; copy < copies; copy++)
-      for (let k = 0; k < this.rowCount; k++) {
-        const plate = new PIXI.Sprite(textures.row), numeral = new PIXI.Sprite(textures.rowNumeral(k + TOP_COUNT + 1));
+      for (let pill = 0; pill < this.rowCount; pill++) {
+        const plate = new PIXI.Sprite(textures.row), numeral = new PIXI.Sprite(textures.rowNumeral(pill + TOP_COUNT + 1));
         numeral.anchor.set(0.5);
         this.rowsLayer.addChild(plate, numeral);
-        this.slotPlates.push({ k, copy, plate, numeral });
+        this.slotPlates.push({ pill, copy, plate, numeral });
       }
     this.entryRows = new PIXI.Container();
     this.rowsLayer.addChild(this.entryRows);
@@ -159,8 +159,8 @@ export class Scene {
     return event?.kind === 'new' && slot === this.slots[event.id] ? unfolded(u) : 1;
   }
 
-  rowY(k, copy, scroll) {
-    const y = this.layout.rowsY + k * LAYOUT.rowPitch;
+  rowY(pill, copy, scroll) {
+    const y = this.layout.rowsY + pill * LAYOUT.rowPitch;
     return this.scrolls ? scrolledY(this.layout, this.lap, scroll, y + copy * this.lap) : y;
   }
 
@@ -171,13 +171,13 @@ export class Scene {
   }
 
   placeSlotPlates(frame) {
-    for (const { k, copy, plate, numeral } of this.slotPlates) {
-      const y = this.rowY(k, copy, frame.scroll);
+    for (const { pill, copy, plate, numeral } of this.slotPlates) {
+      const y = this.rowY(pill, copy, frame.scroll);
       plate.position.set(LAYOUT.contentX - PAD, y - PAD);
       numeral.position.set(LAYOUT.columns.rank, y + LAYOUT.rowHeight / 2 + 1);
       numeral.scale.set(0.9);
-      plate.visible = numeral.visible = this.inWindow(y) && k + TOP_COUNT < this.rows.length;
-      plate.alpha = numeral.alpha = this.slotAlpha(k + TOP_COUNT, frame);
+      plate.visible = numeral.visible = this.inWindow(y) && pill + TOP_COUNT < this.rows.length;
+      plate.alpha = numeral.alpha = this.slotAlpha(pill + TOP_COUNT, frame);
     }
   }
 
@@ -202,7 +202,7 @@ export class Scene {
 
   // A row that changes place slides from its old slot to its new one, easing in its own way; the climber also swings out to the right.
   slide(from, to, rising, { event, u }) {
-    const progress = ramp(...EVENTS[event.kind].move, u), ease = event.kind === 'new' ? easeOut : rising ? easeBack : easeInOut;
+    const progress = k(...EVENTS[event.kind].move, u), ease = event.kind === 'new' ? out : rising ? easeBack : easeInOut;
     return { g: lerpGeometry(from, to, ease(progress)), arc: rising ? 14 * Math.sin(Math.PI * Math.min(1, progress)) : 0 };
   }
 

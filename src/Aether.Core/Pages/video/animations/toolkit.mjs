@@ -1,8 +1,9 @@
 // Geometry and drawing algorithms lifted from EV1–EV4 at 0464bd8.
 export const C0 = [960, 540];
-// A picture of this site, loaded; the video page's animations and the gift board page both load their textures with it.
-export const loadImage = src => new Promise((resolve, reject) => {
-  const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error('动画贴图加载失败：' + src)); img.src = src;
+// A picture, loaded; the video page's animations and the gift board page both load their textures with it. `properties` are set on
+// the image before it starts loading.
+export const loadImage = (src, properties) => new Promise((resolve, reject) => {
+  const img = Object.assign(new Image(), properties); img.onload = () => resolve(img); img.onerror = () => reject(new Error('动画贴图加载失败：' + src)); img.src = src;
 });
 export const canvasOf = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); return c; };
 export const inside = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
