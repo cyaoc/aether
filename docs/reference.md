@@ -37,6 +37,13 @@ gift_animation:
   tier_40_spend: 500
   tier_50_spend: 2000
   tier_60_spend: 10000
+gift_board:
+  enabled: false
+  threshold: 100
+  threshold_by: 1
+  mascot: true
+  reset_on_live: true
+  volume: 60
 web_service:
   port: 17890
 entry_animation_viewers:
@@ -118,8 +125,8 @@ bot 主动 @播报这一轮的投入和盈亏，例如“本次投入300电池 �
 文件名不能包含路径。文件放在 `data/videos/`；找不到时只警告，该观众不播放。空分组表示没有观众。
 无效 UID 或文件名会报告所在行。Core 支持保留周围注释的添加、替换和整行删除。
 
-网页服务提供视频页 `/video` 和抽奖页 `/lottery`，各自在推流软件里添加浏览器素材，独立统计 SSE 连接数；`/` 返回 404。抽奖页显示报名抽奖和奖池抽奖，没有要显示的内容时透明。GUI 打开“常挂到直播画面”后，抽奖页在奖池抽奖待机、或报名抽奖结束并收起画面时，显示当前这一场没标不挂出的常挂结果；开关只在内存里，默认关，重开 GUI 回到关。
-GUI 打开就启动网页服务，不需要登录或连接直播间，不跟功能开关启停。CLI 在进场动画或送礼动画开启的 `watch` 期间启动，并向 stdout 打印视频页地址，结束时停止。页面使用 SSE 自动重连，每 15 秒心跳一次。
+网页服务提供视频页 `/video`、抽奖页 `/lottery` 和礼物榜页 `/gift-board`，各自在推流软件里添加浏览器素材，独立统计 SSE 连接数；`/` 返回 404。抽奖页显示报名抽奖和奖池抽奖，没有要显示的内容时透明。GUI 打开“常挂到直播画面”后，抽奖页在奖池抽奖待机、或报名抽奖结束并收起画面时，显示当前这一场没标不挂出的常挂结果；开关只在内存里，默认关，重开 GUI 回到关。
+GUI 打开就启动网页服务，不需要登录或连接直播间，不跟功能开关启停。CLI 在进场动画、送礼动画或礼物榜开启的 `watch` 期间启动，并向 stdout 打印视频页地址（礼物榜开启时再打印礼物榜页地址），结束时停止。页面使用 SSE 自动重连，每 15 秒心跳一次。
 视频页接收视频编号和音量，或动画编号、动画标识、昵称和音量，不接收 UID 或试播标记。视频仍按编号下载文件；回报接口是 `/video/report`。
 动画名单里选了视频的观众进场就入队；bot 账号和主播不特殊处理，不受欢迎弹幕条件影响。
 一次推一个视频，任意页面回报成功或失败后再推下一个；页面全部断开时不再等，最长等待 2 分钟，这两种都记为“没收到播放回报”。
@@ -171,6 +178,18 @@ B站 每次上舰先推一条 `source` 为 0 的、再推一条 2 的，只认 0
 - `unit` 不是“月”的情况：公开资料只说正常为“月”，其他内容以 `unit` 为准，没有抓包。
 
 测试样本是按公开字段名和上面的价格表合成的，不是抓包，见[测试数据说明](../tests/Aether.Core.Tests/Fixtures/README.md#user_toast_msg_v2-合成样本)；字段来自 [blivedm](https://github.com/xfgryujk/blivedm/blob/master/blivedm/models/web.py)、[blivechat](https://github.com/xfgryujk/blivechat/blob/master/frontend/src/api/chat/ChatClientDirectWeb.js)、[sjh8130/bili_danmaku](https://github.com/sjh8130/bili_danmaku/blob/HEAD/Testing.md) 和 [BAC 的 USER_TOAST_MSG](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/message_stream.md)，2024 年 7 月的调价见 [IT之家](https://www.ithome.com/0/780/661.htm)。
+
+## 礼物榜
+
+`gift_board` 分组控制礼物榜，也就是网页服务的 `/gift-board` 页面：`enabled` 默认 `false`，关闭时不记录也不显示；`threshold` 是上榜门槛（电池），必须为正整数，默认 100；`threshold_by` 是门槛比什么，`1` 比礼物单价，`2` 比同一观众同一礼物累计的总价，默认 1；`mascot` 是否显示看板娘，默认 `true`；`reset_on_live` 是否每场开播自动换一张新榜，默认 `true`；`volume` 是新的第一名那一声的音量，0–100 的整数，默认 60，0 表示不响。
+缺这一组的旧文件按默认值处理，不升 `format_version`，读取时补上模板，GUI 保存时按追加规则补写。GUI 保存后立即生效（经 `AetherClient.ApplyWebSettingsAsync`），CLI 下次 `watch` 时生效。
+
+礼物榜开着、bot 连着直播间时，把 V1 `SEND_GIFT`、V2 `SEND_GIFT_V2` 的付费礼物（盲盒按开出的礼物算）和 `USER_TOAST_MSG_V2` 的大航海开通、续费，按“一位观众的一种礼物”累计，记进 `data/aether.db` 里这个直播间最新的一期；还没有期时先开一期。礼物键是 `gift:<礼物 id>` 或 `guard:<1|2|3>`：盲盒开出的礼物和直接送的同一种礼物合并，大航海按等级一行。每行存昵称、头像地址、礼物名、礼物图标地址、单价（金瓜子）、累计个数，以及第一次和最后一次收到的时间；昵称、头像、礼物名、图标以最后一次为准，单价是累计的总投入除以总个数，所以大航海续费价和开通价不同时，价值仍是实际付的钱。时间用 Aether 收到时的时间，B站 不补发历史。礼物榜自己存一份汇总，不读 `blind_box`，两边互不影响（[ADR 0012](adr/0012-gift-board-stores-its-own-totals.md)）。
+uid 为 0 的礼物（可能是神秘人，未实测）不上榜，记一条 Information。同一个直播间连接里，礼物按 `tid`、大航海按 `payflow_id` 去重：见过的第二次不计入，记一条 Warning“礼物榜：重复推送的礼物，已忽略”，带上 `tid`、礼物和个数；`tid` 为空的不去重；V1 和 V2 共用一份见过的号。号只存在内存里，自动重连保留，断开或换直播间清掉。只有 Aether 连着直播间时收到的礼物才会上榜。
+
+显示时才按当前设置筛选，所以改门槛立即生效：比单价时，单价 ≥ 门槛就上榜；比累计总价时，单价 × 个数 ≥ 门槛就上榜，刚好等于也上榜；1 电池 = 100 金瓜子。上榜的行按单价 × 个数从高到低排，一样时第一次收到的在前。
+
+`AetherClient.GiftBoard.GetUpdatesAsync` 先给当前状态，之后每次变化给一份完整状态，GUI 和礼物榜页用同一份：按顺序的上榜行（标识、昵称、头像地址、礼物名、礼物图标地址、大航海等级、单价、个数）、`mascot` 和 `volume`。礼物榜关闭、或者没有直播间连接（从没连过，或者点了“断开”）时是空列表；断线后自动重连还算同一个直播间连接，重连中状态不变；换到别的直播间时给那个直播间最新的一期。网页服务的 `gift-board` 页面把它当作 SSE 事件 `state` 推到 `/gift-board/events`，同样先推当前状态，再每次变化推一份；网页服务状态和连接日志里带上礼物榜页的推流软件连接数。
 
 ## GUI
 
@@ -303,11 +322,12 @@ Ctrl+C 取消则保留本地凭据。
 数据目录遵循 [ADR 0002](adr/0002-portable-data-directory.md)：Release 用程序目录下的 `data/`；
 Debug 从程序目录向上寻找 `Aether.slnx`，用其所在目录下的 `data/`，找不到则退回程序目录。
 与启动命令所在目录无关。SQLite 文件是 `data/aether.db`，使用 WAL；`PRAGMA user_version`
-记录表结构版本，当前为 6。升级使用手写 SQL，并与版本号在同一事务中提交。
+记录表结构版本，当前为 7。升级使用手写 SQL，并与版本号在同一事务中提交。
 v2 升级到 v3 保留登录凭据，新增 `blind_box` 表，按真实房间号、观众 uid 和送出时间建立索引。
 v3 到 v4 把抽奖表纳入版本号，保留已有表和数据；v0.2.x 已有的抽奖表结构不变。
 v4 到 v5 给 `lottery_draw` 加不挂出标记 `hidden_from_stream`（开奖结果的 JSON 不变），新增 `lottery_prize_set` 存奖品方案：按直播间、抽奖方式和名称唯一，内容是一列 JSON。
 v5 到 v6 删除 `blind_box` 的 `raw_message` 列：盲盒不再保存原始消息，已记下的原文随列一起删除，其余数据不变。
+v6 到 v7 新增礼物榜的 `gift_board_period`（期：直播间、开始时间、所属那一场的开播时间）和 `gift_board_total`（按期、观众、礼物键累计的一行），两张表是空的，其余数据不变。
 `credential` 表只存一行，保存完整 cookie 名值 JSON、refresh_token、UTC 保存时间和检查时间 `checked_at`。
 v1 升级后保留原凭据，检查时间为空，下次连接立即检查；扫码或刷新保存时检查时间等于保存时间。
 凭据暂存明文，`data/` 已被 Git 忽略；连接开启 `secure_delete`，删除或覆盖的凭据不会残留在文件里。
