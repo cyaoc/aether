@@ -80,13 +80,14 @@ aether logout           # 退出登录，删除本地凭据
 | `entry_animation` | 进场动画和欢迎动画的开关、粉丝团等级门槛、音量 | 关闭 | GUI 保存后立即应用；CLI 下次 watch |
 | `entry_animation_viewers` | 动画名单：观众 UID → 进场档、0（不播）或视频文件名 | 空 | GUI 保存后立即应用；CLI 下次 watch |
 | `gift_animation` | 送礼动画开关、四档投入门槛 | 关闭 | GUI 保存后立即应用；CLI 下次 watch |
-| `web_service` | 视频页、抽奖页共用端口 | 17890 | GUI 保存后立即重启服务；CLI 下次 watch |
+| `gift_board` | 礼物榜开关、上榜门槛和比法、看板娘、每场开播换新榜、音量 | 关闭 | GUI 保存后立即应用；CLI 下次 watch |
+| `web_service` | 视频页、抽奖页、礼物榜页共用端口 | 17890 | GUI 保存后立即重启服务；CLI 下次 watch |
 | `send` | 两次发送之间的秒数 | 1 | 下次连接直播间 |
 | `log` | 日志保留天数、日志级别 | 30 天、Information | 重启 |
 
 `data/` 里还有：
 
-- `aether.db`：登录凭据（**明文**）、盲盒记录和抽奖记录。不要分享 `data/`；macOS / Linux 上权限为 0600。
+- `aether.db`：登录凭据（**明文**）、盲盒记录、抽奖记录和礼物榜记录。不要分享 `data/`；macOS / Linux 上权限为 0600。
 - `logs/`：按天滚动的日志。`log.level` 设为 `Trace` 会记下每条原始消息，含观众个人信息，只在抓包时临时开启。
 
 CLI 和 GUI 放在同一目录时共用 `data/`，分开放则各自登录。同一个 `data/` 里，一个直播间同时只能有一个连接。
@@ -110,7 +111,7 @@ entry_animation_viewers:
   12345: 小明进场.mp4
 ```
 
-CLI 只在 `aether watch <房间号>` 期间、并且进场动画或送礼动画开启时运行网页服务，视频页地址打印到 stdout。
+CLI 只在 `aether watch <房间号>` 期间、并且进场动画、送礼动画或礼物榜开启时运行网页服务，视频页地址打印到 stdout（礼物榜开启时再打印礼物榜页地址）。
 
 先打开 GUI 或运行 `watch`，再在同一台电脑上的直播姬添加“浏览器”素材或 OBS 添加“浏览器”来源，
 视频页地址填 `http://localhost:17890/video`；横屏尺寸 1920 × 1080，竖屏 1080 × 1920。若画面一直空白，右键素材 → 刷新。
