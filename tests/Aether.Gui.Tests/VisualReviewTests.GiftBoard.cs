@@ -39,7 +39,7 @@ public sealed partial class VisualReviewTests
         {
             await ShootBoardAsync(look, [], connected: true, async shoot =>
             {
-                shoot.Capture("gift-board");
+                shoot.Capture("gift-board-connected");
                 shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 0));
                 shoot.Capture("gift-board-page-waiting");
                 shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1));

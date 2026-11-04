@@ -37,13 +37,13 @@
         <TextBlock x:Name="ThresholdReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
         <TextBlock x:Name="ThresholdError" Classes="error" />
         <StackPanel Margin="0,4,0,0">
-          <RadioButton x:Name="ByUnitPriceInput" Classes="choice" GroupName="ThresholdBy">
+          <RadioButton x:Name="ByUnitPriceInput" Classes="choice" GroupName="ThresholdBy" AutomationProperties.Name="按礼物单价">
             <StackPanel Spacing="3">
               <TextBlock Classes="section" Text="按礼物单价" />
               <TextBlock Classes="hint" Text="单价达到门槛的礼物上榜；盲盒按开出的礼物算" />
             </StackPanel>
           </RadioButton>
-          <RadioButton x:Name="ByTotalPriceInput" Classes="choice" GroupName="ThresholdBy">
+          <RadioButton x:Name="ByTotalPriceInput" Classes="choice" GroupName="ThresholdBy" AutomationProperties.Name="按累计总价">
             <StackPanel Spacing="3">
               <TextBlock Classes="section" Text="按累计总价" />
               <TextBlock Classes="hint" Text="同一位观众送的同一种礼物，单价 × 个数达到门槛就上榜" />

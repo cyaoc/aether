@@ -67,7 +67,7 @@ internal sealed class GiftBoardScene : IAsyncDisposable
 
     public void GoToToday() => Clock.SetUtcNow(Today);
 
-    /// <summary>The GUI and the board both connect to <see cref="Room"/>.</summary>
+    /// <summary>The GUI and the board both connect to <see cref="RoomId"/>.</summary>
     public void Connect()
     {
         ViewModel.RoomNumber = RoomId.ToString();
@@ -83,13 +83,6 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     }
 
     public void Give(params Gift[] gifts) => Board.Receive(RoomId, gifts);
-
-    /// <summary>The board as Core reports it now: a new subscription starts with the current state.</summary>
-    public async Task<GiftBoardState> StateAsync()
-    {
-        await foreach (var state in Board.GetUpdatesAsync(TestContext.Current.CancellationToken)) return state;
-        throw new InvalidOperationException("The gift board ended without a state.");
-    }
 
     /// <summary>What each line of the 当前榜单 says: its place, nickname, gift and value, as the eye reads them.</summary>
     public string[] Listed() => Page.FindControl<ListBox>("BoardList")!.GetVisualDescendants().OfType<ListBoxItem>()

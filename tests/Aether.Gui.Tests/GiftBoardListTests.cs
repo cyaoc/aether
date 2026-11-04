@@ -14,7 +14,7 @@ public sealed class GiftBoardListTests
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 3);
 
         Assert.Equal(["1 月下Lily 次元之城 ×1 12450 电池", "2 龍騰雲海 告白气球 ×5 10000 电池", "3 柚子不酸 天空之翼 ×1 1000 电池"], scene.Listed());
-        Assert.Equal((await scene.StateAsync()).Rows.Select(row => row.Nickname), scene.Listed().Select(line => line.Split(' ')[1]));
+        Assert.Equal((await scene.Board.CurrentAsync()).Rows.Select(row => row.Nickname), scene.Listed().Select(line => line.Split(' ')[1]));
     }, On);
 
     [Fact]

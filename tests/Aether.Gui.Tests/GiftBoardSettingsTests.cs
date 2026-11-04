@@ -75,9 +75,32 @@ public sealed class GiftBoardSettingsTests
 
         Assert.Equal("保存后立即生效", scene.Page.TimingHint);
         Assert.False(scene.Page.ShowReconnectNotice);
-        var state = await scene.StateAsync();
+        var state = await scene.Board.CurrentAsync();
         Assert.Equal((false, 25), (state.Mascot, state.Volume));
     });
+
+    [Fact]
+    public Task A_setting_edited_in_the_file_reaches_the_board_when_a_page_is_next_shown() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        await h.SaveCredentialAsync();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = GuiHarness.FreePort().ToString() });
+        var vm = h.CreateViewModel();
+        var window = new MainWindow(h.DataDirectory) { DataContext = vm };
+        window.Show();
+        try
+        {
+            await GuiHarness.WaitForAsync(() => vm.WebService.WebServiceStatus.Running);
+            Assert.Equal(60, (await h.Client.GiftBoard.CurrentAsync()).Volume);
+
+            Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_board.volume"] = "10" });
+            window.Navigation.SelectedIndex = 4;
+            await GuiHarness.WaitForAsync(() => !vm.WebService.AnimationReloading);
+            Assert.Equal(10, (await h.Client.GiftBoard.CurrentAsync()).Volume);
+        }
+        finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
 
     [Theory]
     [InlineData("0")]
