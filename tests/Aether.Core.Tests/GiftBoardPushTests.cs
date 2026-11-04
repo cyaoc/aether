@@ -47,13 +47,23 @@ public sealed class GiftBoardPushTests
     }
 
     [Fact]
+    public async Task Turning_the_board_off_pushes_an_empty_board()
+    {
+        await using var h = new WatchHarness();
+        await using var updates = await h.WatchWithGiftBoardAsync();
+        await using var states = await SubscribeAfterAGiftAsync(h, updates);
+
+        await h.ApplySettingsAsync(("gift_board.enabled", "false"));
+
+        Assert.Empty((await h.NextAsync(states)).Rows);
+    }
+
+    [Fact]
     public async Task Ending_the_room_connection_pushes_an_empty_board()
     {
         await using var h = new WatchHarness();
         var updates = await h.WatchWithGiftBoardAsync();
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
-        await using var states = h.Client.GiftBoard.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.Single((await h.NextAsync(states)).Rows);
+        await using var states = await SubscribeAfterAGiftAsync(h, updates);
 
         await updates.DisposeAsync();
 
@@ -65,14 +75,12 @@ public sealed class GiftBoardPushTests
     {
         await using var h = new WatchHarness();
         await using var updates = await h.WatchWithGiftBoardAsync();
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
-        await using var states = h.Client.GiftBoard.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        Assert.Single((await h.NextAsync(states)).Rows);
+        await using var states = await SubscribeAfterAGiftAsync(h, updates);
 
         await h.Server.DisconnectAsync();
         Assert.IsType<Reconnecting>(await h.NextAsync(updates));
         await h.AdvanceRetryAsync(updates, 1);
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "b"));
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "another"));
 
         // The next state pushed is the one the new gift made: nothing, least of all an empty board, came between.
         Assert.Equal(2, Assert.Single((await h.NextAsync(states)).Rows).Num);
@@ -96,5 +104,14 @@ public sealed class GiftBoardPushTests
         h.Http.Responses[RoomInit] = """{"code":0,"data":{"room_id":7734200,"uid":24680}}""";
         await using var again = await h.WatchConnectedAsync();
         Assert.Equal(["10001/gift:32698"], (await h.BoardRowsAsync()).Select(row => row.Id));
+    }
+
+    /// <summary>Puts one gift on the board and subscribes, so the first state read is the board with that gift on it.</summary>
+    private static async Task<IAsyncEnumerator<GiftBoardState>> SubscribeAfterAGiftAsync(WatchHarness h, IAsyncEnumerator<WatchUpdate> updates)
+    {
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
+        var states = h.Client.GiftBoard.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        Assert.Single((await h.NextAsync(states)).Rows);
+        return states;
     }
 }
