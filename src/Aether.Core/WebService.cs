@@ -291,12 +291,20 @@ public sealed class WebService : IDisposable
             _ => null
         };
         if (contentType is null) return false;
-        using var content = typeof(WebService).Assembly.GetManifestResourceStream("Aether.Core.Pages" + path.Replace('/', '.'));
+        using var content = typeof(WebService).Assembly.GetManifestResourceStream(ResourceName(path));
         if (content is null) return false;
         response.ContentType = contentType;
         response.ContentLength64 = content.Length;
         await content.CopyToAsync(response.OutputStream, token);
         return true;
+    }
+
+    /// <summary>MSBuild names an embedded file after its folders, with each '-' in a folder name turned into '_' (gift-board
+    /// becomes gift_board), and keeps the file name as it is.</summary>
+    private static string ResourceName(string path)
+    {
+        var file = path.LastIndexOf('/');
+        return ("Aether.Core.Pages" + path[..file].Replace('-', '_') + path[file..]).Replace('/', '.');
     }
 
     /// <summary>A request still finishing after StopAsync closed the listener has nothing left to abort on Windows.</summary>
