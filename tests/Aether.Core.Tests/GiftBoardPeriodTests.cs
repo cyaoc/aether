@@ -78,6 +78,20 @@ public sealed class GiftBoardPeriodTests
     }
 
     [Fact]
+    public async Task The_first_gift_opens_a_board_that_remembers_the_show_under_way()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await h.ApplySettingsAsync(("gift_board.enabled", "true"), ("gift_board.reset_on_live", "false"));
+        h.Http.SetRoom(liveStatus: 1, liveTime: ShowA);
+        await using var updates = await h.WatchConnectedAsync();
+
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
+
+        Assert.Equal<long?>([ShowA], TestDatabase.GiftBoardPeriods(h.DataDirectory).Select(period => period.LiveTime));
+    }
+
+    [Fact]
     public async Task Nothing_is_opened_while_the_board_is_off()
     {
         await using var h = new WatchHarness();

@@ -20,7 +20,7 @@ public sealed class GiftBoardController : IDisposable
     // The defaults keep the board off until a shell applies its settings file.
     private Settings settings = new();
     private long? roomId;
-    // When the 一场直播 the room is in began (Unix seconds); null off air, and while no room is connected.
+    // When the 一场直播 the connected room is in began (Unix seconds), as last read from room_init; null off air.
     private long? liveTime;
 
     internal GiftBoardController(Func<GiftBoardStore> store, TimeProvider time, ILogger logger)
@@ -70,7 +70,6 @@ public sealed class GiftBoardController : IDisposable
         {
             if (roomId != room) return;
             roomId = null;
-            liveTime = null;
             seen.Clear();
             Publish();
         }
