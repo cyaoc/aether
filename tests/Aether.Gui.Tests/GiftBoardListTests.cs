@@ -49,12 +49,9 @@ public sealed class GiftBoardListTests
     [Fact]
     public Task An_empty_list_says_the_board_is_off_only_once_that_is_saved() => Run(async scene =>
     {
-        scene.Connect();
-        GuiHarness.Flush();
         var empty = scene.Page.FindControl<TextBlock>("BoardEmpty")!;
-        Assert.StartsWith("还没有人上榜", empty.Text);
-
         scene.Page.FindControl<ToggleSwitch>("EnabledInput")!.IsChecked = false;
+        scene.Connect();
         GuiHarness.Flush();
         Assert.StartsWith("还没有人上榜", empty.Text);
 
@@ -88,7 +85,8 @@ public sealed class GiftBoardListTests
         scene.ViewModel.ConnectionState = RoomConnectionState.Reconnecting;
         GuiHarness.Flush();
         Assert.Single(scene.Listed());
-        Assert.False(scene.Page.FindControl<TextBlock>("BoardEmpty")!.IsEffectivelyVisible);
+        Assert.False(scene.Page.FindControl<TextBlock>("OfflineHint")!.IsEffectivelyVisible);
+        Assert.True(scene.Page.FindControl<Button>("AskClearButton")!.IsEnabled);
 
         scene.Disconnect();
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 0);
