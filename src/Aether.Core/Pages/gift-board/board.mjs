@@ -41,6 +41,14 @@ export class Board {
     this.state = state;
   }
 
+  // A board that is drawn over as a whole (another show, a clear, a restore) lets go of the names and counts of the old one, so
+  // that a run of days does not keep a picture of every viewer it ever showed.
+  forget() {
+    this.scene?.destroy();
+    this.scene = undefined;
+    this.kit.textures.forget();
+  }
+
   frame() {
     const t = this.clock.currentTime;
     this.advanceScroll(t);
@@ -67,6 +75,7 @@ export class Board {
 
   begin({ kind, id, state }, t) {
     const before = this.state;
+    if (kind === 'redraw') this.forget();
     this.show(state);
     if (kind === 'redraw') return;
     this.event = { kind, id, startedAt: t, slots: slotsOf(before.rows) };
