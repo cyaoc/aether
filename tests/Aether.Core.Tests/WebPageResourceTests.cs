@@ -51,6 +51,12 @@ public sealed class WebPageResourceTests
             Assert.Contains(new Uri(http.BaseAddress, "/lottery/SmileySans-Oblique.woff2"), visited);
             Assert.Contains(new Uri(http.BaseAddress, "/lottery/ZCOOLKuaiLe-Regular.ttf"), visited);
         }
+        if (name == "gift-board")
+        {
+            Assert.Equal(3, visited.Count(uri => uri.AbsolutePath.EndsWith(".webp", StringComparison.Ordinal)));
+            Assert.Equal(3, visited.Count(uri => uri.AbsolutePath.EndsWith(".woff2", StringComparison.Ordinal)));
+            Assert.Equal(12, visited.Count(uri => uri.AbsolutePath.EndsWith(".mjs", StringComparison.Ordinal)));
+        }
     }
 
     [Theory]

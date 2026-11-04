@@ -45,3 +45,12 @@ export function scrolledY(layout, lap, scroll, y) {
   const moved = y - scroll;
   return moved < layout.rowsY - lap + layout.viewHeight ? moved + lap * 2 : moved;
 }
+
+/** Each row's slot: its rank counted from 0. */
+export const slotsOf = rows => Object.fromEntries(rows.map((row, rank) => [row.id, rank]));
+
+/** The same place `dy` design pixels lower. */
+export const shiftedGeometry = (g, dy) => ({ ...g, y: g.y + dy, ay: g.ay + dy, ny: g.ny + dy, iy: g.iy + dy, cy: g.cy + dy });
+
+/** Where the bubble sprite floats: by the mascot's shoulder, or on the ribbon's right end once she is switched off. */
+export const spriteHome = layout => layout.mascot ? [LAYOUT.width / 2 + 118, layout.top - 150] : [448, layout.top + 34];
