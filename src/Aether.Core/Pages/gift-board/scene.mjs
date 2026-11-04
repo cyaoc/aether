@@ -1,7 +1,7 @@
 // The Pixi scene of one board: the mascot, the ribbon, the top three cards, the pills and the sprite (design package GB1). It is
 // built for a layout and a list of rows; every frame it is placed again from the clock, the scroll and the running event.
 import { CARDS, LAYOUT, TOP_COUNT, lapLength, scrolledY, shiftedGeometry, slotGeometry, slotsOf, spriteHome } from './layout.mjs';
-import { EVENTS, ambient, easeBack, easeInOut, entryMotion, flare, lerpGeometry, twinkle, unfolded } from './motion.mjs';
+import { EVENTS, ambient, easeBack, easeInOut, entryMotion, flare, lerpGeometry, rowKind, twinkle, unfolded } from './motion.mjs';
 import { Entry } from './entry.mjs';
 import { PAD } from './paint.mjs';
 import { canvasOf, k, out } from '../video/animations/toolkit.mjs';
@@ -151,12 +151,12 @@ export class Scene {
     });
     const riser = this.placeEntries(frame);
     this.placeFirstStar(frame);
-    this.placeMascot(t, ambient(event?.kind, frame.u, t));
+    this.placeMascot(t, ambient(event, frame.u, t));
     return riser;
   }
 
   slotAlpha(slot, { event, u }) {
-    return event?.kind === 'new' && slot === this.slots[event.id] ? unfolded(u) : 1;
+    return rowKind(event) === 'new' && slot === this.slots[event.id] ? unfolded(u) : 1;
   }
 
   rowY(pill, copy, scroll) {
@@ -197,12 +197,12 @@ export class Scene {
     const rising = id === event?.id, { g, arc } = moving ? this.slide(from, to, rising, frame) : { g: to, arc: 0 };
     if (g.tier === 3 && !this.inWindow(g.y)) return undefined;
     const role = rising ? 'rising' : event && before === this.slots[event.id] ? 'overtaken' : 'other';
-    return { g, from, to, moving, arc, motion: entryMotion(event?.kind, role, u) };
+    return { g, from, to, moving, arc, motion: entryMotion(rowKind(event), role, u) };
   }
 
   // A row that changes place slides from its old slot to its new one, easing in its own way; the climber also swings out to the right.
   slide(from, to, rising, { event, u }) {
-    const progress = k(...EVENTS[event.kind].move, u), ease = event.kind === 'new' ? out : rising ? easeBack : easeInOut;
+    const kind = rowKind(event), progress = k(...EVENTS[kind].move, u), ease = kind === 'new' ? out : rising ? easeBack : easeInOut;
     return { g: lerpGeometry(from, to, ease(progress)), arc: rising ? 14 * Math.sin(Math.PI * Math.min(1, progress)) : 0 };
   }
 

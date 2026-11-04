@@ -44,3 +44,10 @@ Original: https://github.com/google/fonts/blob/main/ofl/playfairdisplay/Playfair
 - The list stands still while an event plays, as the design package asks. An event in a scrolling list keeps the rows where the scroll
   left them; the rows that change place leave the list's fade mask for the event, the others stay behind it.
 - With no rows the page still shows the ribbon and the mascot.
+- A row that appears in first place, on an empty board too, is a new first place, which the board has no scene for. The row is built on
+  the new row's timeline (the rows below make room, the sprite fires its capsule) and the cheer, the gold rim and the sound follow
+  the new first place's, both from the event's start; there is no climb, so no trail along the list's right edge.
+- Only a state a received gift made (`fromGift`) is played as an event; a restore or a new threshold that changes one row is drawn
+  as it is.
+- A redraw as a whole destroys the textures made for the names, counts and initials of the old board; the board keeps them for ever.
+- A name is cut between characters (code points), so an emoji at the cut is never left in half.

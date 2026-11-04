@@ -170,8 +170,12 @@ export class Effects {
 
   top(riser, event) {
     const middle = [LAYOUT.width / 2, this.layout.top + LAYOUT.cardsY + CARDS[0].h / 2];
-    this.trail(riser, event, GOLD);
-    this.burst({ seed: 29, x: riser.g.cx - 30, y: riser.g.cy, at: 0, count: 6, life: 600, spread: 46 });
+    // A row with no place to climb from is fired at its slot by the sprite instead.
+    if (event.debut) this.newRow(riser);
+    else {
+      this.trail(riser, event, GOLD);
+      this.burst({ seed: 29, x: riser.g.cx - 30, y: riser.g.cy, at: 0, count: 6, life: 600, spread: 46 });
+    }
     this.spiral(middle);
     this.bloom(middle);
     if (this.layout.mascot) this.cheer();

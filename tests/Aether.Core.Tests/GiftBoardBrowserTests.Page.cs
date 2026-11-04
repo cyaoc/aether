@@ -167,6 +167,13 @@ public sealed partial class GiftBoardBrowserTests
             return (Array.FindIndex(alphas, alpha => alpha >= 120), Array.FindLastIndex(alphas, alpha => alpha >= 120));
         }
 
+        /// <summary>Whether the page is mostly opaque at every second point of column <paramref name="x"/> from <paramref name="from"/> down.</summary>
+        public async Task<bool[]> OpaqueColumnAsync(int x, int from, int height)
+        {
+            var alphas = await AlphaAsync(Enumerable.Range(0, height / 2).Select(step => (x, from + 2 * step)));
+            return [.. alphas.Select(alpha => alpha >= 120)];
+        }
+
         public async ValueTask DisposeAsync()
         {
             await using (H)

@@ -54,13 +54,19 @@ export function entryMotion(kind, role, u) {
   return REST;
 }
 
-/** The chat-bubble sprite and the mascot: they blink, and pulse, hop and spin with the events. `kind` is undefined between events. */
-export function ambient(kind, u, t) {
+/** The event whose timeline the rows follow. A row that appears in first place (`debut`) is built, and the rows below it are made
+ * room for, as with a new row; what is cheered above it is the new first place's. */
+export const rowKind = event => event?.debut ? 'new' : event?.kind;
+
+const spritePulse = u => Math.sin(Math.PI * k(140, 300, u));
+
+/** The chat-bubble sprite and the mascot: they blink, and pulse, hop and spin with the events. `event` is undefined between events. */
+export function ambient(event, u, t) {
   const idle = { blink: t % 4500 < 140, spritePulse: 0, cheer: 0, hop: 0, spin: 0 };
-  if (kind === 'more') return { ...idle, blink: u < 160 };
-  if (kind === 'new') return { ...idle, spritePulse: Math.sin(Math.PI * k(140, 300, u)) };
-  if (kind !== 'top') return idle;
-  return { ...idle, cheer: k(900, 1020, u) * (1 - k(3000, 3150, u)), hop: -10 * Math.sin(Math.PI * k(900, 1300, u)), spin: 2 * Math.PI * easeInOut(k(950, 1550, u)) };
+  if (event?.kind === 'more') return { ...idle, blink: u < 160 };
+  if (event?.kind === 'new') return { ...idle, spritePulse: spritePulse(u) };
+  if (event?.kind !== 'top') return idle;
+  return { ...idle, spritePulse: event.debut ? spritePulse(u) : 0, cheer: k(900, 1020, u) * (1 - k(3000, 3150, u)), hop: -10 * Math.sin(Math.PI * k(900, 1300, u)), spin: 2 * Math.PI * easeInOut(k(950, 1550, u)) };
 }
 
 /** A new row's own slot stays empty until the row has unfolded there, then its backing appears. */

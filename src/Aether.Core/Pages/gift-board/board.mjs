@@ -73,12 +73,12 @@ export class Board {
     if (this.scene?.scrolls && !this.event) this.scroll = (this.scroll + SCROLL_PER_MS * elapsed) % this.scene.lap;
   }
 
-  begin({ kind, id, state }, t) {
+  begin({ kind, id, debut, state }, t) {
     const before = this.state;
     if (kind === 'redraw') this.forget();
     this.show(state);
     if (kind === 'redraw') return;
-    this.event = { kind, id, startedAt: t, slots: slotsOf(before.rows) };
+    this.event = { kind, id, debut, startedAt: t, slots: slotsOf(before.rows) };
     this.app.canvas.dataset.event = kind;
     // Only a new first place sounds; with the volume at 0 there is no track.
     if (kind === 'top') this.track = this.sound.track(state.volume);
