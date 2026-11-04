@@ -9,9 +9,13 @@ internal static class WatchCommand
     {
         try
         {
-            if (settings.EntryAnimationEnabled.Value || settings.GiftAnimationEnabled.Value) await client.ApplyWebSettingsAsync(settings);
+            if (settings.EntryAnimationEnabled.Value || settings.GiftAnimationEnabled.Value || settings.GiftBoardEnabled.Value)
+                await client.ApplyWebSettingsAsync(settings);
             if (client.WebService.Status.Running)
+            {
                 await Console.Out.WriteLineAsync($"视频页：{client.WebService.Status.VideoAddress}");
+                if (settings.GiftBoardEnabled.Value) await Console.Out.WriteLineAsync($"礼物榜页：{client.WebService.Status.GiftBoardAddress}");
+            }
             await foreach (var update in client.WatchAsync(roomId, cancellationToken))
             {
                 switch (update)
