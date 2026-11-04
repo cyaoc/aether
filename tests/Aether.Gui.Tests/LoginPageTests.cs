@@ -62,7 +62,8 @@ public sealed class LoginPageTests
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
         harness.NavResponse = _ => throw new HttpRequestException("offline");
-        harness.RoomResponse = (_, _) => Task.FromResult(GuiHarness.Json("""{"code":0,"data":{"room_id":6,"uid":24680}}"""));
+        harness.RoomResponse = (_, _) => Task.FromResult(GuiHarness.Json(
+            """{"code":0,"data":{"room_id":6,"uid":24680,"live_status":0,"live_time":-62170012800}}"""));
         harness.LoginResponse = (uri, _) => Task.FromResult(LoginResponse(uri));
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };

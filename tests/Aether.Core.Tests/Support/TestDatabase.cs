@@ -62,6 +62,20 @@ internal static class TestDatabase
         return rows;
     }
 
+    public sealed record GiftBoardPeriodRow(long RoomId, long? LiveTime);
+
+    /// <summary>Every gift_board_period row, oldest first, all columns but id and started_at.</summary>
+    public static List<GiftBoardPeriodRow> GiftBoardPeriods(string dataDirectory)
+    {
+        using var connection = Open(dataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT room_id, live_time FROM gift_board_period ORDER BY id";
+        using var reader = command.ExecuteReader();
+        List<GiftBoardPeriodRow> rows = [];
+        while (reader.Read()) rows.Add(new(reader.GetInt64(0), reader.IsDBNull(1) ? null : reader.GetInt64(1)));
+        return rows;
+    }
+
     /// <summary>Writes the database an older release left behind: runs a frozen sample from Fixtures on a new file.</summary>
     public static void Restore(string dataDirectory, string fixture)
     {

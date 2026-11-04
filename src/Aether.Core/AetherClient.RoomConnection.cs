@@ -27,6 +27,7 @@ public sealed partial class AetherClient
         // Each is set once and kept across reconnects.
         private long? realRoomId;
         private long broadcasterUid;
+        private long? liveTime;
         private FileStream? roomLock;
         private IDisposable? roomScope;
         private DanmakuProtocol.Decoder? decoder;
@@ -52,7 +53,7 @@ public sealed partial class AetherClient
                     try
                     {
                         if (realRoomId is null)
-                            (realRoomId, broadcasterUid) = await client.Api(credential: null)
+                            (realRoomId, broadcasterUid, liveTime) = await client.Api(credential: null)
                                 .ResolveRoomAsync(roomId, cancellationToken);
                         if (roomLock is null)
                         {
@@ -217,7 +218,7 @@ public sealed partial class AetherClient
                                 heartbeat = SendHeartbeatsAsync(socket, connectionStop);
                                 credentialChecks = RefreshCredentialWhileConnectedAsync(connectionStop, cancellationToken);
                                 client.logger.LogInformation("已连接弹幕服务器 {Server}", connection.Server);
-                                Handle(new TransportConnected(danmakuLengthLimit));
+                                Handle(new TransportConnected(danmakuLengthLimit, liveTime));
                                 yield return new Connected(realRoomId, broadcasterUid);
                                 // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it;
                                 // on the thread pool, as it would otherwise run its first SQLite query right here on the receive loop.

@@ -6,6 +6,8 @@ namespace Aether.Core;
 /// <summary>The 礼物榜's totals, one row per viewer and kind of gift in each 期. A room's latest 期 is the one that counts.</summary>
 internal sealed class GiftBoardStore(Database database)
 {
+    private const string OpenPeriod = "INSERT INTO gift_board_period (room_id, started_at, live_time) SELECT $room, $at, $live";
+
     // A price is the total spent over the total count, so a 大航海 renewed at another price still adds up to what was paid.
     private const string Upsert = """
         INSERT INTO gift_board_total (period_id, uid, gift_key, nickname, face_url, gift_name, icon_url, guard_level,
@@ -46,6 +48,38 @@ internal sealed class GiftBoardStore(Database database)
         var period = LatestPeriod(command, roomId, at);
         foreach (var gift in gifts) Accumulate(command, period, gift, at);
         transaction.Commit();
+    }
+
+    /// <summary>Opens a new 期 for the room, leaving the older ones as they are. <paramref name="liveTime"/> is when the
+    /// 一场直播 under way began, null off air.</summary>
+    public void Open(long roomId, DateTimeOffset at, long? liveTime)
+    {
+        using var connection = database.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = OpenPeriod;
+        BindPeriod(command, roomId, at, liveTime);
+        command.ExecuteNonQuery();
+    }
+
+    /// <summary>Opens a new 期 unless the room's latest one already belongs to the 一场直播 that began at <paramref name="liveTime"/>.</summary>
+    public void OpenForLive(long roomId, DateTimeOffset at, long liveTime)
+    {
+        using var connection = database.Open();
+        using var command = connection.CreateCommand();
+        // IS NOT, so that a 期 opened off air (null) differs from every live_time, and a room without a 期 gets its first.
+        command.CommandText = OpenPeriod + """
+             WHERE $live IS NOT (SELECT live_time FROM gift_board_period
+                WHERE id = (SELECT MAX(id) FROM gift_board_period WHERE room_id = $room))
+            """;
+        BindPeriod(command, roomId, at, liveTime);
+        command.ExecuteNonQuery();
+    }
+
+    private static void BindPeriod(SqliteCommand command, long roomId, DateTimeOffset at, long? liveTime)
+    {
+        command.Parameters.AddWithValue("$room", roomId);
+        command.Set("$at", at);
+        command.Set("$live", liveTime);
     }
 
     private static long LatestPeriod(SqliteCommand command, long roomId, DateTimeOffset at)

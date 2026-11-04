@@ -20,6 +20,8 @@ public sealed class GiftBoardController : IDisposable
     // The defaults keep the board off until a shell applies its settings file.
     private Settings settings = new();
     private long? roomId;
+    // When the 一场直播 the room is in began (Unix seconds); null off air, and while no room is connected.
+    private long? liveTime;
 
     internal GiftBoardController(Func<GiftBoardStore> store, TimeProvider time, ILogger logger)
     {
@@ -42,14 +44,14 @@ public sealed class GiftBoardController : IDisposable
         }
     }
 
-    internal void Connect(long room)
+    internal void Connect(long room, long? live)
     {
         lock (gate)
         {
             // A reconnect of the same room connection comes through here too and changes nothing.
             if (roomId == room) return;
             roomId = room;
-            Publish();
+            EnterLive(room, live);
         }
     }
 
@@ -59,9 +61,19 @@ public sealed class GiftBoardController : IDisposable
         {
             if (roomId != room) return;
             roomId = null;
+            liveTime = null;
             seen.Clear();
             Publish();
         }
+    }
+
+    /// <summary>Takes the room's 一场直播 as just read from room_init: a different show than the latest 期 belongs to opens a new 期.</summary>
+    private void EnterLive(long room, long? live)
+    {
+        liveTime = live;
+        if (live is { } began && settings.GiftBoardEnabled.Value && settings.GiftBoardResetOnLive.Value)
+            store().OpenForLive(room, time.GetUtcNow(), began);
+        Publish();
     }
 
     internal void Receive(long room, IEnumerable<Gift> gifts)

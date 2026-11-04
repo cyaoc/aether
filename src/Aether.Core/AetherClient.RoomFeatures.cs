@@ -100,8 +100,8 @@ public sealed partial class AetherClient
         {
             switch (e)
             {
-                case TransportConnected:
-                    board.Connect(roomId);
+                case TransportConnected connected:
+                    board.Connect(roomId, connected.LiveTime);
                     break;
                 case DanmakuProtocol.GiftsReceived received:
                     board.Receive(roomId, received.Gifts);
