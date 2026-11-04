@@ -47,6 +47,23 @@ public sealed class GiftBoardListTests
     }, [("gift_board.enabled", enabled ? "true" : "false")]);
 
     [Fact]
+    public Task An_empty_list_says_the_board_is_off_only_once_that_is_saved() => Run(async scene =>
+    {
+        scene.Connect();
+        GuiHarness.Flush();
+        var empty = scene.Page.FindControl<TextBlock>("BoardEmpty")!;
+        Assert.StartsWith("还没有人上榜", empty.Text);
+
+        scene.Page.FindControl<ToggleSwitch>("EnabledInput")!.IsChecked = false;
+        GuiHarness.Flush();
+        Assert.StartsWith("还没有人上榜", empty.Text);
+
+        GuiHarness.FindVisual<Button>(scene.Page, "PART_SaveButton").RaiseEvent(new(Button.ClickEvent));
+        await scene.Page.PendingSave;
+        Assert.Equal("礼物榜关着，不记录也不显示。", empty.Text);
+    }, On);
+
+    [Fact]
     public Task The_list_follows_the_saved_comparison_and_not_the_unsaved_one() => Run(async scene =>
     {
         scene.Connect();
