@@ -299,6 +299,17 @@
     <Setter Property="BorderBrush" Value="{DynamicResource Accent.Tint}" />
     <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
   </Style>
+  <!-- The solid red button that confirms a destructive action (canvases O1 and GS3). -->
+  <Style Selector="Button.dangerSolid">
+    <Setter Property="Background" Value="{DynamicResource Danger}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.OnSolid}" />
+  </Style>
+  <Style Selector="Button.dangerSolid:pointerover /template/ ContentPresenter, Button.dangerSolid:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Danger}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
+    <Setter Property="Foreground" Value="{DynamicResource Accent.OnSolid}" />
+  </Style>
   <Style Selector="Button.ghost">
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="MinWidth" Value="0" />

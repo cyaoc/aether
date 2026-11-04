@@ -19,17 +19,6 @@
       <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
       <Setter Property="TextElement.FontWeight" Value="SemiBold" />
     </Style>
-    <!-- The confirming 结束 is the canvas's solid danger button. -->
-    <Style Selector="Button#ConfirmEndButton">
-      <Setter Property="Background" Value="{DynamicResource Danger}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
-      <Setter Property="Foreground" Value="{DynamicResource Accent.OnSolid}" />
-    </Style>
-    <Style Selector="Button#ConfirmEndButton:pointerover /template/ ContentPresenter, Button#ConfirmEndButton:pressed /template/ ContentPresenter">
-      <Setter Property="Background" Value="{DynamicResource Danger}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Danger}" />
-      <Setter Property="Foreground" Value="{DynamicResource Accent.OnSolid}" />
-    </Style>
     <!-- 抽一个 as canvas O1: a draw that cannot run is an outline, green with a check once the award is full. -->
     <Style Selector="Button#DrawButton Path">
       <Setter Property="Data" Value="{StaticResource Icon.Dice}" />
@@ -130,7 +119,7 @@
             <Button x:Name="StartEntryButton" IsEnabled="{Binding Lottery.CanStartEntry}" IsVisible="{Binding Lottery.EntryPreparing}" Classes="accent" Content="开始报名" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
             <Button x:Name="CloseEntriesButton" IsEnabled="{Binding Lottery.CanCloseEntries}" IsVisible="{Binding Lottery.EntryOpen}" Classes="accent" Content="截止报名" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
             <Button x:Name="EndEntryButton" IsEnabled="{Binding Lottery.CanEndEntry}" IsVisible="{Binding Lottery.ShowEndEntry}" Content="结束这场抽奖" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
-            <Button x:Name="ConfirmEndButton" IsEnabled="{Binding Lottery.CanEndEntry}" Content="结束" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsVisible="{Binding Lottery.ConfirmingEnd}" />
+            <Button x:Name="ConfirmEndButton" Classes="dangerSolid" IsEnabled="{Binding Lottery.CanEndEntry}" Content="结束" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsVisible="{Binding Lottery.ConfirmingEnd}" />
             <Button x:Name="VisibilityButton" IsEnabled="{Binding Lottery.CanToggleHidden}" IsVisible="{Binding Lottery.EntryEnded}" Content="{Binding Lottery.EntryVisibilityText}" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" />
           </StackPanel>
         </Grid>
