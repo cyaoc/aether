@@ -67,6 +67,9 @@ export function ambient(kind, u, t) {
   return { ...idle, cheer: ramp(900, 1020, u) * (1 - ramp(3000, 3150, u)), hop: -10 * Math.sin(Math.PI * ramp(900, 1300, u)), spin: 2 * Math.PI * easeInOut(ramp(950, 1550, u)) };
 }
 
+/** A new row's own slot stays empty until the row has unfolded there, then its backing appears. */
+export const unfolded = u => ramp(640, 760, u);
+
 /** The first card's star twinkles every three seconds; a new first place makes the gold rim flare and the star bloom. */
 export function twinkle(t) {
   const tw = (t % 3000) / 600;

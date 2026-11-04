@@ -1,7 +1,7 @@
 // The Pixi scene of one board: the mascot, the ribbon, the top three cards, the pills and the sprite (design package GB1). It is
 // built for a layout and a list of rows; every frame it is placed again from the clock, the scroll and the running event.
 import { CARDS, LAYOUT, TOP_COUNT, lapLength, scrolledY, shiftedGeometry, slotGeometry, slotsOf, spriteHome } from './layout.mjs';
-import { EVENTS, ambient, easeBack, easeInOut, easeOut, entryMotion, flare, lerpGeometry, ramp, twinkle } from './motion.mjs';
+import { EVENTS, ambient, easeBack, easeInOut, easeOut, entryMotion, flare, lerpGeometry, ramp, twinkle, unfolded } from './motion.mjs';
 import { Entry } from './entry.mjs';
 import { PAD, paint } from './paint.mjs';
 
@@ -54,7 +54,7 @@ export class Scene {
     this.root.addChild(this.panel);
     const banner = new PIXI.Sprite(textures.banner);
     banner.anchor.set(0.5);
-    banner.scale.set(380 / textures.banner.width);
+    banner.scale.set(LAYOUT.bannerWidth / textures.banner.width);
     banner.position.set(LAYOUT.width / 2, top + LAYOUT.bannerCenter);
     const title = new PIXI.Sprite(textures.title);
     title.anchor.set(0.5);
@@ -122,8 +122,8 @@ export class Scene {
     this.fadeTexture = PIXI.Texture.from(paint(LAYOUT.width, height, g => {
       const fade = g.createLinearGradient(0, 0, 0, height);
       fade.addColorStop(0, 'rgba(255,255,255,0)');
-      fade.addColorStop(24 / height, '#fff');
-      fade.addColorStop(1 - 36 / height, '#fff');
+      fade.addColorStop(LAYOUT.fadeTop / height, '#fff');
+      fade.addColorStop(1 - LAYOUT.fadeBottom / height, '#fff');
       fade.addColorStop(1, 'rgba(255,255,255,0)');
       g.fillStyle = fade;
       g.fillRect(0, 0, LAYOUT.width, height);
@@ -154,9 +154,8 @@ export class Scene {
     return riser;
   }
 
-  // A new row's own slot stays empty until the row has unfolded there.
   slotAlpha(slot, { event, u }) {
-    return event?.kind === 'new' && u < 1300 && slot === this.slots[event.id] ? ramp(640, 760, u) : 1;
+    return event?.kind === 'new' && slot === this.slots[event.id] ? unfolded(u) : 1;
   }
 
   rowY(k, copy, scroll) {
@@ -188,17 +187,22 @@ export class Scene {
 
   /** What an entry shows this frame, or nothing when it is out of sight: its geometry (between two slots while it moves), its
    * motion and how far it swings out. */
-  placement(entry, { event, u, scroll }) {
-    const id = entry.row.id, slot = this.slots[id], before = event?.slots[id];
+  placement(entry, frame) {
+    const { event, u, scroll } = frame, id = entry.row.id, slot = this.slots[id], before = event?.slots[id];
     // The second copy of a row only exists among the pills.
     if (entry.copy > 0 && Math.min(slot, before ?? slot) < TOP_COUNT) return undefined;
-    const to = this.geometryAt(slot, entry.copy, scroll), rising = id === event?.id, moving = before != null && before !== slot;
+    const to = this.geometryAt(slot, entry.copy, scroll), moving = before != null && before !== slot;
     const from = moving ? this.geometryAt(before, entry.copy, scroll) : to;
-    const progress = moving ? ramp(...EVENTS[event.kind].move, u) : 1;
-    const g = moving ? lerpGeometry(from, to, (event.kind === 'new' ? easeOut : rising ? easeBack : easeInOut)(progress)) : to;
+    const rising = id === event?.id, { g, arc } = moving ? this.slide(from, to, rising, frame) : { g: to, arc: 0 };
     if (g.tier === 3 && !this.inWindow(g.y)) return undefined;
     const role = rising ? 'rising' : event && before === this.slots[event.id] ? 'overtaken' : 'other';
-    return { g, from, to, moving, arc: rising && moving ? 14 * Math.sin(Math.PI * Math.min(1, progress)) : 0, motion: entryMotion(event?.kind, role, u) };
+    return { g, from, to, moving, arc, motion: entryMotion(event?.kind, role, u) };
+  }
+
+  // A row that changes place slides from its old slot to its new one, easing in its own way; the climber also swings out to the right.
+  slide(from, to, rising, { event, u }) {
+    const progress = ramp(...EVENTS[event.kind].move, u), ease = event.kind === 'new' ? easeOut : rising ? easeBack : easeInOut;
+    return { g: lerpGeometry(from, to, ease(progress)), arc: rising ? 14 * Math.sin(Math.PI * Math.min(1, progress)) : 0 };
   }
 
   placeEntries(frame) {
@@ -225,12 +229,12 @@ export class Scene {
 
   placeMascot(t, motion) {
     const { layout } = this, { textures } = this.kit, [homeX, homeY] = spriteHome(layout);
+    // She breathes, 1 px up and down; the sprite floats and tilts a little, and floats less once the mascot is hidden.
     this.mascot.position.set(LAYOUT.width / 2, layout.top + 12 + motion.hop + Math.sin(t * 0.0021));
     if (this.idle) {
       this.idle.alpha = 1 - motion.cheer;
       this.cheer.alpha = motion.cheer;
     }
-    // With the mascot hidden the sprite rests on the ribbon's right end.
     this.sprite.texture = motion.blink ? textures.spriteBlink : textures.sprite;
     this.sprite.position.set(homeX, homeY + (layout.mascot ? 6 * Math.sin(t * 0.0016) + motion.hop : 2 * Math.sin(t * 0.0016)));
     this.sprite.rotation = 0.08 * Math.sin(t * 0.0011) + motion.spin;

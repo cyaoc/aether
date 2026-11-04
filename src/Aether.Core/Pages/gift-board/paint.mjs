@@ -12,7 +12,8 @@ export function paint(width, height, draw) {
   return canvas;
 }
 
-export function roundRect(g, x, y, w, h, r) {
+/** The path of a rounded rectangle `[x, y, w, h]` with corners of radius `r`. */
+export function roundRect(g, [x, y, w, h], r) {
   g.beginPath();
   g.moveTo(x + r, y);
   g.arcTo(x + w, y, x + w, y + h, r);
@@ -22,18 +23,10 @@ export function roundRect(g, x, y, w, h, r) {
   g.closePath();
 }
 
-/** A linear gradient whose colours are spread evenly from the start to the end. */
-export function gradient(g, x0, y0, x1, y1, colors) {
+/** A linear gradient from point `from` to point `to` whose colours are spread evenly along it. */
+export function gradient(g, [x0, y0], [x1, y1], colors) {
   const result = g.createLinearGradient(x0, y0, x1, y1);
   colors.forEach((color, i) => result.addColorStop(i / (colors.length - 1), color));
-  return result;
-}
-
-/** A radial gradient from `inner` at its centre to `outer` at the rim. */
-export function glow(g, x, y, radius, inner, outer) {
-  const result = g.createRadialGradient(x, y, 0, x, y, radius);
-  result.addColorStop(0, inner);
-  result.addColorStop(1, outer);
   return result;
 }
 

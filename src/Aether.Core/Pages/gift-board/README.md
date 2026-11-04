@@ -32,5 +32,14 @@ Original: https://github.com/google/fonts/blob/main/ofl/playfairdisplay/Playfair
 ## Deliberate differences from the board
 
 - The rows, the order and the counts come from the pushed state, so the board's fixed `DEMO`, `LONG` and `EVENTS` lists are gone.
+  An event is played for the change between two pushed states, one after another; the board's scenes are made to the clock.
 - The page draws as soon as it can and does not wait for the pictures: B站's images appear when they have loaded, and a failed one stays empty.
 - The idle blink of the bubble sprite goes on after a count-increase event; the board stops it for good after the first one.
+- `easeBack` is the board's overshooting ease multiplied out, so that it is exactly 0 at 0. The board's `1 + 2.7 (p - 1)^3 + 1.7 (p - 1)^2`
+  leaves -2.2e-16 there, and Pixi keeps the sign of a sprite's scale when it sets its width: an avatar or icon sized with that mirrored
+  upside down for good. The board never shows it because its previews jump past the start of an event.
+- The scene is masked to the board's own rectangle. The board's canvases are clipped, but its first-card star, scaled up for a new first
+  place, reached past the right edge into the page's margin where the page is wider than the board.
+- The list stands still while an event plays, as the design package asks. An event in a scrolling list keeps the rows where the scroll
+  left them; the rows that change place leave the list's fade mask for the event, the others stay behind it.
+- With no rows the page still shows the ribbon and the mascot.

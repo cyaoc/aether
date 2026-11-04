@@ -31,11 +31,11 @@ const titleTexture = () => PIXI.Texture.from(paint(300, 80, g => {
 }));
 
 // A soft shadow under a card or pill so it floats above the stream.
-function shadow(g, x, y, w, h, r, alpha) {
+function shadow(g, [x, y, w, h], radius, alpha) {
   g.save();
   g.filter = 'blur(9px)';
   g.fillStyle = 'rgba(6,10,40,' + alpha + ')';
-  roundRect(g, x, y + 7, w, h, r);
+  roundRect(g, [x, y + 7, w, h], radius);
   g.fill();
   g.restore();
 }
@@ -43,18 +43,18 @@ function shadow(g, x, y, w, h, r, alpha) {
 // A dark translucent body so white text reads on bright scenes, a frost of light over it and the rank's tint on its left.
 function paintCardBody(g, w, h, rim) {
   g.save();
-  roundRect(g, 0, 0, w, h, 18);
+  roundRect(g, [0, 0, w, h], 18);
   g.clip();
   g.fillStyle = 'rgba(20,28,96,0.5)';
   g.fillRect(0, 0, w, h);
-  g.fillStyle = gradient(g, 0, 0, 0, h, ['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.12)']);
+  g.fillStyle = gradient(g, [0, 0], [0, h], ['rgba(255,255,255,0.22)', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0.12)']);
   g.fillRect(0, 0, w, h);
   const tint = g.createRadialGradient(60, h / 2, 6, 60, h / 2, w * 0.7);
   tint.addColorStop(0, rim.tint[0]);
   tint.addColorStop(1, rim.tint[1]);
   g.fillStyle = tint;
   g.fillRect(0, 0, w, h);
-  g.fillStyle = gradient(g, 0, 0, 0, h * 0.45, ['rgba(255,255,255,0.20)', 'rgba(255,255,255,0)']);
+  g.fillStyle = gradient(g, [0, 0], [0, h * 0.45], ['rgba(255,255,255,0.20)', 'rgba(255,255,255,0)']);
   g.fillRect(0, 0, w, h * 0.45);
   g.restore();
 }
@@ -64,21 +64,21 @@ function paintCardRim(g, w, h, rim) {
   g.shadowColor = rim.glow;
   g.shadowBlur = rim.blur;
   g.lineWidth = rim.width;
-  g.strokeStyle = gradient(g, 0, 0, w, h, rim.stops);
-  roundRect(g, 1.2, 1.2, w - 2.4, h - 2.4, 17);
+  g.strokeStyle = gradient(g, [0, 0], [w, h], rim.stops);
+  roundRect(g, [1.2, 1.2, w - 2.4, h - 2.4], 17);
   g.stroke();
   g.stroke();
   g.shadowBlur = 0;
   g.lineWidth = 1;
   g.strokeStyle = 'rgba(255,255,255,0.32)';
-  roundRect(g, 5, 5, w - 10, h - 10, 13);
+  roundRect(g, [5, 5, w - 10, h - 10], 13);
   g.stroke();
 }
 
 const cardTexture = rank => PIXI.Texture.from(paint(LAYOUT.contentWidth + PAD * 2, CARDS[rank].h + PAD * 2, g => {
   const w = LAYOUT.contentWidth, h = CARDS[rank].h;
   g.translate(PAD, PAD);
-  shadow(g, 4, 2, w - 8, h - 4, 18, 0.45);
+  shadow(g, [4, 2, w - 8, h - 4], 18, 0.45);
   paintCardBody(g, w, h, RIM[rank]);
   paintCardRim(g, w, h, RIM[rank]);
 }));
@@ -86,18 +86,18 @@ const cardTexture = rank => PIXI.Texture.from(paint(LAYOUT.contentWidth + PAD * 
 const rowTexture = () => PIXI.Texture.from(paint(LAYOUT.contentWidth + PAD * 2, LAYOUT.rowHeight + PAD * 2, g => {
   const w = LAYOUT.contentWidth, h = LAYOUT.rowHeight;
   g.translate(PAD, PAD);
-  shadow(g, 4, 0, w - 8, h - 2, h / 2, 0.4);
-  roundRect(g, 0, 0, w, h, h / 2);
-  g.fillStyle = gradient(g, 0, 0, 0, h, ['rgba(30,42,140,0.66)', 'rgba(14,20,80,0.66)']);
+  shadow(g, [4, 0, w - 8, h - 2], h / 2, 0.4);
+  roundRect(g, [0, 0, w, h], h / 2);
+  g.fillStyle = gradient(g, [0, 0], [0, h], ['rgba(30,42,140,0.66)', 'rgba(14,20,80,0.66)']);
   g.fill();
-  g.fillStyle = gradient(g, 0, 0, 0, h / 2, ['rgba(255,255,255,0.16)', 'rgba(255,255,255,0)']);
-  roundRect(g, 2, 2, w - 4, h / 2, h / 2 - 2);
+  g.fillStyle = gradient(g, [0, 0], [0, h / 2], ['rgba(255,255,255,0.16)', 'rgba(255,255,255,0)']);
+  roundRect(g, [2, 2, w - 4, h / 2], h / 2 - 2);
   g.fill();
   g.shadowColor = 'rgba(150,180,255,0.7)';
   g.shadowBlur = 8;
   g.lineWidth = 1.6;
-  g.strokeStyle = gradient(g, 0, 0, w, 0, ['rgba(225,235,255,0.95)', 'rgba(170,195,255,0.75)', 'rgba(225,235,255,0.9)']);
-  roundRect(g, 0.8, 0.8, w - 1.6, h - 1.6, h / 2 - 0.8);
+  g.strokeStyle = gradient(g, [0, 0], [w, 0], ['rgba(225,235,255,0.95)', 'rgba(170,195,255,0.75)', 'rgba(225,235,255,0.9)']);
+  roundRect(g, [0.8, 0.8, w - 1.6, h - 1.6], h / 2 - 0.8);
   g.stroke();
 }));
 
@@ -108,7 +108,7 @@ const numeralTexture = (n, colors, size, divider) => PIXI.Texture.from(paint(siz
   g.textBaseline = 'middle';
   g.shadowColor = 'rgba(10,16,80,0.7)';
   g.shadowBlur = 10;
-  g.fillStyle = gradient(g, 0, size * 0.25, 0, size * 1.15, colors);
+  g.fillStyle = gradient(g, [0, size * 0.25], [0, size * 1.15], colors);
   g.fillText(String(n), size * 0.7, size * 0.74);
   if (!divider) return;
   g.shadowBlur = 0;
@@ -147,7 +147,7 @@ const countTexture = n => PIXI.Texture.from(paint(120, 48, g => {
 // A viewer without a picture gets the first character of the name on a colour the name always gets.
 const initialTexture = name => PIXI.Texture.from(paint(128, 128, g => {
   const random = seeded(name), [from, to] = AVATAR_COLORS[Math.floor(random() * AVATAR_COLORS.length)];
-  g.fillStyle = gradient(g, 20, 10, 108, 118, [from, to]);
+  g.fillStyle = gradient(g, [20, 10], [108, 118], [from, to]);
   g.beginPath();
   g.arc(64, 64, 62, 0, Math.PI * 2);
   g.fill();
@@ -164,7 +164,7 @@ const spriteTexture = blink => PIXI.Texture.from(paint(160, 160, g => {
   g.shadowColor = 'rgba(160,190,255,0.9)';
   g.shadowBlur = 24;
   g.fillStyle = '#ffffff';
-  roundRect(g, -54, -42, 108, 84, 30);
+  roundRect(g, [-54, -42, 108, 84], 30);
   g.fill();
   g.beginPath();
   g.moveTo(-36, 30);
@@ -173,13 +173,13 @@ const spriteTexture = blink => PIXI.Texture.from(paint(160, 160, g => {
   g.closePath();
   g.fill();
   g.shadowBlur = 0;
-  g.fillStyle = gradient(g, -54, -42, 54, 42, ['#ffffff', '#e8eeff']);
-  roundRect(g, -54, -42, 108, 84, 30);
+  g.fillStyle = gradient(g, [-54, -42], [54, 42], ['#ffffff', '#e8eeff']);
+  roundRect(g, [-54, -42, 108, 84], 30);
   g.fill();
   g.fillStyle = '#3d52f0';
   for (const x of [-18, 18]) {
-    if (blink) roundRect(g, x - 7, -2, 14, 6, 3);
-    else roundRect(g, x - 7, -20, 14, 36, 7);
+    if (blink) roundRect(g, [x - 7, -2, 14, 6], 3);
+    else roundRect(g, [x - 7, -20, 14, 36], 7);
     g.fill();
   }
 }));

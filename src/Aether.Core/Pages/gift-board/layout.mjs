@@ -8,7 +8,8 @@ export const LAYOUT = {
   zoneWithoutMascot: 8,
   minHeight: 820,                    // the mascot, the ribbon, the top three and three rows; a shorter page scales the board down
   minHeightWithoutMascot: 608,
-  bannerCenter: 40, cardsY: 92, rowsY: 416, bottom: 12
+  bannerCenter: 40, bannerWidth: 380, cardsY: 92, rowsY: 416, bottom: 12,
+  fadeTop: 24, fadeBottom: 36        // a scrolling list fades out over this many pixels at its top and bottom
 };
 export const CARDS = [{ y: 0, h: 98 }, { y: 110, h: 90 }, { y: 212, h: 90 }];
 export const TOP_COUNT = CARDS.length;
