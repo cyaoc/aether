@@ -75,15 +75,10 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
         if (!CanConfirm) Confirmation = GiftBoardConfirmation.None;
     }
 
-    internal void RequestClear()
-    {
-        if (CanClear) Confirmation = GiftBoardConfirmation.Clear;
-    }
+    // Their buttons are only enabled while there is something to clear or to restore.
+    internal void RequestClear() => Confirmation = GiftBoardConfirmation.Clear;
 
-    internal void RequestRestore()
-    {
-        if (CanRestore) Confirmation = GiftBoardConfirmation.Restore;
-    }
+    internal void RequestRestore() => Confirmation = GiftBoardConfirmation.Restore;
 
     internal void CancelConfirmation() => Confirmation = GiftBoardConfirmation.None;
 

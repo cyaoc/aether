@@ -365,7 +365,7 @@ public abstract class SettingsPage : TemplatedControl
     }
 
     // The room connection the notice warned about has ended (disconnected, reconnected or failed).
-    private void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
+    protected virtual void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainWindowViewModel.HasRoomConnection) && viewModel?.HasRoomConnection != true)
             ShowReconnectNotice = false;
