@@ -19,6 +19,10 @@ export class Scene {
     this.root = new PIXI.Container();
     this.root.position.set(layout.x, 0);
     this.root.scale.set(layout.scale);
+    // Nothing of the board, its glow and star included, is drawn beyond its own rectangle, whatever the page around it.
+    const board = new PIXI.Graphics().rect(0, 0, LAYOUT.width, layout.designHeight).fill(0xffffff);
+    this.root.addChild(board);
+    this.root.mask = board;
     this.buildMascot();
     this.buildPanel();
     this.buildEntries();
