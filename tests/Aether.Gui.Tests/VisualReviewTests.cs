@@ -86,8 +86,7 @@ public sealed class VisualReviewTests
                 vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
                 vm.WebService.Apply(new SourcePlayback("entry", 12345, "30 档", false, PlaybackState.Completed, Nickname: "柚子不酸", Source: "进场动画", TriggerReason: "粉丝团 34 级"));
                 GuiHarness.Flush();
-                Assert.Equal(80m, welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Value);
-                Assert.Equal("80", welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Text);
+                Assert.Equal(80, welcome.Animation.FindControl<Slider>("VolumeInput")!.Value);
                 Save(window, $"entry-welcome-animation-{width}-{(dark ? "dark" : "light")}");
                 var fanClub = welcome.Animation.FindControl<ComboBox>("FanClubInput")!;
                 fanClub.SelectedItem = 0;

@@ -1,6 +1,9 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 
@@ -8,6 +11,66 @@ namespace Aether.Gui.Tests;
 
 public sealed class EntryAnimationSettingsTests
 {
+    [Fact]
+    public Task Volume_slider_steps_by_one_and_ten_from_the_keyboard_and_saves_entry_animation_volume() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.volume"] = "30" });
+        var page = new AnimationSettingsPage(h.DataDirectory);
+        var window = new Window { Content = page, Width = 1040, Height = 600 };
+        window.Show();
+        try
+        {
+            GuiHarness.Flush();
+            var volume = GuiHarness.FindVisual<Slider>(page, "VolumeInput");
+            Assert.Equal(30, volume.Value);
+            Assert.Equal("动画音量", AutomationProperties.GetName(volume));
+            volume.Focus();
+            foreach (var (key, physical, expected) in new[] { (Key.Right, PhysicalKey.ArrowRight, 31), (Key.PageUp, PhysicalKey.PageUp, 41),
+                (Key.Left, PhysicalKey.ArrowLeft, 40), (Key.PageDown, PhysicalKey.PageDown, 30), (Key.Home, PhysicalKey.Home, 0), (Key.End, PhysicalKey.End, 100) })
+            {
+                window.KeyPress(key, RawInputModifiers.None, physical, null);
+                Assert.Equal(expected, volume.Value);
+            }
+            volume.Value = 65;
+            GuiHarness.Flush();
+            Assert.True(page.CanSave);
+            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await page.PendingSave;
+            Assert.Equal(65, Settings.Load(h.DataDirectory).EntryAnimationVolume.Value);
+            Assert.False(page.CanSave);
+            volume.Value = 0;
+            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await page.PendingSave;
+            Assert.Equal(0, Settings.Load(h.DataDirectory).EntryAnimationVolume.Value);
+            var reopened = new AnimationSettingsPage(h.DataDirectory);
+            window.Content = reopened;
+            GuiHarness.Flush();
+            Assert.Equal(0, GuiHarness.FindVisual<Slider>(reopened, "VolumeInput").Value);
+        }
+        finally { window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task A_multi_line_volume_leaves_the_slider_off_and_points_to_the_settings_file() => HeadlessApp.Session.Dispatch(() =>
+    {
+        using var h = new GuiHarness();
+        Directory.CreateDirectory(h.DataDirectory);
+        File.WriteAllText(Settings.FilePath(h.DataDirectory), "entry_animation:\n  volume: |-\n    80\n");
+        var page = new AnimationSettingsPage(h.DataDirectory);
+        var window = new Window { Content = page, Width = 1040, Height = 600 };
+        window.Show();
+        try
+        {
+            GuiHarness.Flush();
+            Assert.False(GuiHarness.FindVisual<Slider>(page, "VolumeInput").IsEnabled);
+            Assert.True(GuiHarness.FindVisual<TextBlock>(page, "VolumeReadOnly").IsVisible);
+        }
+        finally { window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Theory]
     [InlineData(0, "仅按下方指定观众设置播放")]
     [InlineData(30, "达到门槛后，按实际等级播放对应档位")]

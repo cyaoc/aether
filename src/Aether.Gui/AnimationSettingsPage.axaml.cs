@@ -23,7 +23,7 @@ public partial class AnimationSettingsPage : SettingsPage
         FanClubInput.SelectionChanged += (_, _) => FanClubHint.Text = FanClubInput.SelectedItem is 0
             ? "仅按下方指定观众设置播放" : "达到门槛后，按实际等级播放对应档位";
         Bind(FanClubInput, FanClubReadOnly, null, s => s.EntryAnimationFanClubLevel);
-        Bind(VolumeInput, VolumeReadOnly, null, s => s.EntryAnimationVolume);
+        Bind(VolumeInput, VolumeReadOnly, s => s.EntryAnimationVolume);
         Bind(AnimationInput, AnimationReadOnly, null, s => s.EntryAnimationEnabled);
         AddAnimationButton.Click += (_, _) => Animations.AddNew(new("", "", true, true) { Choice = EntryTier.All[0].ToString() });
         LoadSettings();
