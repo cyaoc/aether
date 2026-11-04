@@ -135,12 +135,42 @@ GUI 打开就启动网页服务，不需要登录或连接直播间，不跟功�
 
 普通付费礼物按 `coin_type: gold` 的 `total_coin` 计投入，盲盒按盲盒投入计；免费礼物不计。
 每个直播间的观众各自累计，停手 3 秒结束一轮，和一轮盲盒互不影响；自动重连保留，主动断开清空。
-uid 为 0 只记录日志；目前不按 tid 去重。大航海开通、续费尚未接入。
+uid 为 0 只记录日志；目前不按 tid 去重。大航海开通、续费已接入：按实际付的价格计入一轮送礼的投入，和普通礼物在 3 秒内连着送算同一轮（算法见下一节“大航海开通和续费”）。
 V2 已使用本地人气票消息验证；V1 使用 BAC 示例，未实测。批量、折扣、包裹仍缺真实样本，金额待实战 Trace 核对。
+V1、V2 礼物消息还解出礼物 id、名称、单价、个数、观众头像地址、礼物图标地址和 `tid`（盲盒取它开出的礼物），供礼物榜使用：V1 缺 `face` 或 `gift_info.img_basic` 按损坏消息处理，V2 缺这两项按空地址处理。
 
 送礼动画在一轮结束时读取最新开关和门槛，按实际投入取达到的最高一档，不要求粉丝团，也不受进场名单影响。同一观众的多轮送礼分别排队，30 秒排队时限从各轮结束时开始。GUI 可调整四档门槛、试播并查看最近播放；门槛不递增时不能保存。
 
 三种动画试播都不看开关，要求视频页连着；欢迎动画还要求视频已保存。进场动画、送礼动画和欢迎动画共用先来先播的播放队列、30 秒排队时限和结果回报；音量取实际推送时的最新设置。
+
+### 大航海开通和续费
+
+观众开通、续费舰长、提督、总督时，`USER_TOAST_MSG_V2`（JSON）当作一份礼物进入一轮送礼，和普通礼物一样触发送礼动画和隐藏款。读取 `sender_uinfo.uid`、`sender_uinfo.base.name`、`sender_uinfo.base.face`（大航海消息常常不带，为空）、`guard_info.guard_level`（1 总督、2 提督、3 舰长）、`pay_info.num`、`pay_info.price`、`pay_info.unit`、`pay_info.payflow_id`、`gift_info.gift_id` 和 `option.source`。
+B站 每次上舰先推一条 `source` 为 0 的、再推一条 2 的，只认 0；`GUARD_BUY` 的 `price` 永远是原价 198 元，不用。字段缺失按损坏消息处理，写 Warning 后跳过，继续接收后续消息；`guard_level` 不是 1 到 3、`num` 不是正数、`price` 或 `uid` 为负也一样。uid 为 0 只记录日志，`price` 为 0 的和免费礼物一样不算投入。
+
+`price` 是实际付的价格，已经包含优惠，不用另算折扣：公开抓包里的 138000、168000、198000 都对得上下面的现价，2021、2022 年抓包里的 158000 是 2024 年 7 月调价前的续费价。主播提供的 B站 现价（2026-11，单位电池，10 电池 = 1 元 = 1000 金瓜子）：
+
+| | 1 个月 | 3 个月 | 6 个月 | 12 个月 | 续费 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 舰长 | 1980 | 5340 | 10380 | 20460 | 1680 |
+| 提督 | 19980 | 51940 | 99880 | 195760 | 15990 |
+| 总督 | 199980 | 519940 | 没提供 | 没提供 | 159990 |
+
+舰长连续包月每月自动扣 1380。续费只能按月买。网上资料里的舰长 1580、提督 15980、总督 159980 电池是调价前的旧价。
+
+`unit` 是“月”时 `num` 是月数，投入按下面算；三档单月原价（舰长 198000、提督 1998000、总督 19998000 金瓜子）是 `UserToastV2` 里的常量，B站 调整原价时要跟着改：
+
+- `price` 不超过这一级的单月原价：`price` 是单价，投入 = `price × num`，个数是 `num`；
+- `price` 超过这一级的单月原价：`price` 已经是总价，投入 = `price`，个数仍是 `num`；
+- `unit` 不是“月”（例如“5天”）：按一次计，个数 1，投入 = `price`。
+
+单价 = 投入 ÷ 个数（取整）。两种理解能从数值分出来：单月价和多个月折算的每月价都不超过单月原价，多个月的总价都超过它（最低的舰长 3 个月 534000）。推的如果是取整后的单价，乘回去和真实总价最多差几个金瓜子（提督 12 个月：1631333 × 12 = 19575996，真实总价 19576000）。`num` 大于 1 或 `unit` 不是“月”时，把原始的 `guard_level`、`num`、`price`、`unit` 记一条 Information 日志，上实战时核对。
+
+未验证：
+- 一次买多个月（`num` 大于 1）时 `price` 是单价还是总价：公开资料里没有抓包，blivechat 按 `price × num` 算，blivedm-go 按总价算，都没给出依据；上面的规则只是按数值区分的兼容办法；
+- `unit` 不是“月”的情况：公开资料只说正常为“月”，其他内容以 `unit` 为准，没有抓包。
+
+测试样本是按公开字段名和上面的价格表合成的，不是抓包，见[测试数据说明](../tests/Aether.Core.Tests/Fixtures/README.md#user_toast_msg_v2-合成样本)；字段来自 [blivedm](https://github.com/xfgryujk/blivedm/blob/master/blivedm/models/web.py)、[blivechat](https://github.com/xfgryujk/blivechat/blob/master/frontend/src/api/chat/ChatClientDirectWeb.js)、[sjh8130/bili_danmaku](https://github.com/sjh8130/bili_danmaku/blob/HEAD/Testing.md) 和 [BAC 的 USER_TOAST_MSG](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/message_stream.md)，2024 年 7 月的调价见 [IT之家](https://www.ithome.com/0/780/661.htm)。
 
 ## GUI
 
