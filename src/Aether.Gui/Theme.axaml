@@ -476,6 +476,31 @@
   <Style Selector="Slider.volume:disabled">
     <Setter Property="Opacity" Value="0.4" />
   </Style>
+  <!-- A choice with its explanation under it, as the ways of comparing the 上榜门槛 on canvas GS1: a ring that holds a dot when picked. -->
+  <Style Selector="RadioButton.choice">
+    <Setter Property="Padding" Value="2,8,10,8" />
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="Transparent" Padding="{TemplateBinding Padding}">
+          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+            <Border Name="Ring" Width="18" Height="18" Margin="0,1,0,0" VerticalAlignment="Top" CornerRadius="9" BorderThickness="2" BorderBrush="{DynamicResource Border.Control}">
+              <Ellipse Name="Dot" Width="8" Height="8" Fill="Transparent" />
+            </Border>
+            <ContentPresenter Grid.Column="1" Content="{TemplateBinding Content}" />
+          </Grid>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="RadioButton.choice:checked /template/ Border#Ring">
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+  </Style>
+  <Style Selector="RadioButton.choice:checked /template/ Ellipse#Dot">
+    <Setter Property="Fill" Value="{DynamicResource Accent}" />
+  </Style>
+  <Style Selector="RadioButton.choice:disabled">
+    <Setter Property="Opacity" Value="0.4" />
+  </Style>
   <Style Selector="TextBox, NumericUpDown, ComboBox">
     <Setter Property="MinHeight" Value="36" />
     <Setter Property="FontSize" Value="14" />

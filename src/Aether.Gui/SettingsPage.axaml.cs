@@ -195,6 +195,16 @@ public abstract class SettingsPage : TemplatedControl
         input.PropertyChanged += (_, e) => { if (e.Property == RangeBase.ValueProperty) Validate(); };
     }
 
+    /// <summary>One radio button per value of a choice setting; the checked one is the input.</summary>
+    protected void Bind((int Value, RadioButton Button)[] choices, TextBlock readOnly, Func<Settings, Setting<int>> select)
+    {
+        Register(setting => Show(choices, readOnly, setting),
+            () => choices.Where(choice => choice.Button.IsChecked == true).Select(choice => choice.Value.ToString(CultureInfo.InvariantCulture)).FirstOrDefault(),
+            null, select);
+        foreach (var (_, button) in choices)
+            button.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Validate(); };
+    }
+
     private void Register<T>(Action<Setting<T>> show, Func<string?> input, TextBlock? error, Func<Settings, Setting<T>> select) =>
         bindings.Add((() => show(select(settings)), () =>
         {
@@ -237,6 +247,16 @@ public abstract class SettingsPage : TemplatedControl
     {
         input.Value = setting.Value;
         input.IsEnabled = setting.CanEdit;
+        readOnly.IsVisible = !setting.CanEdit;
+    }
+
+    private static void Show((int Value, RadioButton Button)[] choices, TextBlock readOnly, Setting<int> setting)
+    {
+        foreach (var (value, button) in choices)
+        {
+            button.IsChecked = value == setting.Value;
+            button.IsEnabled = setting.CanEdit;
+        }
         readOnly.IsVisible = !setting.CanEdit;
     }
 

@@ -26,6 +26,7 @@ internal sealed class GuiHarness : IDisposable
         (_, _) => throw new InvalidOperationException("GUI tests must not connect a WebSocket."),
         timeProvider ?? TimeProvider.System, NullLogger<AetherClient>.Instance, DataDirectory);
 
+    public AetherClient Client => client;
     public string DataDirectory { get; } = Path.Combine(Path.GetTempPath(), "aether-gui-tests-" + Guid.NewGuid());
     public string SettingsFile => Path.Combine(DataDirectory, "gui.yml");
 

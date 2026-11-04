@@ -28,12 +28,11 @@ public sealed class SettingsPageTests
             new WelcomeSettingsPage(harness.DataDirectory),
             new AnimationSettingsPage(harness.DataDirectory),
             new GiftAnimationSettingsPage(harness.DataDirectory),
+            new GiftBoardSettingsPage(harness.DataDirectory),
             new SendSettingsPage(harness.DataDirectory),
             new GeneralSettingsPage(harness.DataDirectory)
         ];
-        // The 礼物榜 section and its page come with #305; until then no page edits gift_board.*.
-        Assert.Equal(Settings.AllDefinitions.Where(definition => definition.Group != "gift_board").Select(definition => definition.Name).Order(),
-            pages.SelectMany(page => page.FieldNames).Order());
+        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name).Order(), pages.SelectMany(page => page.FieldNames).Order());
     }, TestContext.Current.CancellationToken);
 
     [Theory]

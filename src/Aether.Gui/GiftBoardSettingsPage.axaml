@@ -6,6 +6,64 @@
   <local:SettingsPage.BodyContent>
     <StackPanel Spacing="22">
       <TextBlock x:Name="EnabledReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+      <StackPanel Spacing="10">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+          <TextBlock Classes="section" Text="上榜门槛" />
+          <TextBlock Grid.Column="1" Classes="hint" Text="达到门槛的礼物才显示在礼物榜上" />
+        </Grid>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <NumericUpDown x:Name="ThresholdInput" Minimum="1" Classes.invalid="{Binding #ThresholdError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="上榜门槛（电池）" />
+          <TextBlock Text="电池" VerticalAlignment="Center" />
+        </StackPanel>
+        <TextBlock x:Name="ThresholdReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+        <TextBlock x:Name="ThresholdError" Classes="error" />
+        <StackPanel Margin="0,4,0,0">
+          <RadioButton x:Name="ByUnitPriceInput" Classes="choice" GroupName="ThresholdBy">
+            <StackPanel Spacing="3">
+              <TextBlock Classes="section" Text="按礼物单价" />
+              <TextBlock Classes="hint" Text="单价达到门槛的礼物上榜；盲盒按开出的礼物算" />
+            </StackPanel>
+          </RadioButton>
+          <RadioButton x:Name="ByTotalPriceInput" Classes="choice" GroupName="ThresholdBy">
+            <StackPanel Spacing="3">
+              <TextBlock Classes="section" Text="按累计总价" />
+              <TextBlock Classes="hint" Text="同一位观众送的同一种礼物，单价 × 个数达到门槛就上榜" />
+            </StackPanel>
+          </RadioButton>
+        </StackPanel>
+        <TextBlock x:Name="ThresholdByReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <StackPanel Spacing="3">
+            <TextBlock Classes="section" Text="每场开播换新榜" />
+            <TextBlock Classes="hint" Text="直播跨天也还是同一张；关掉后，只在点“清空礼物榜”时换" />
+          </StackPanel>
+          <ToggleSwitch Grid.Column="1" x:Name="ResetOnLiveInput" Classes="plain" AutomationProperties.Name="每场开播换新榜" />
+        </Grid>
+        <TextBlock x:Name="ResetOnLiveReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+          <StackPanel Spacing="3">
+            <TextBlock Classes="section" Text="看板娘" />
+            <TextBlock Classes="hint" Text="从标题飘带后面探出来主持；关掉后，她的位置能多放 3 行" />
+          </StackPanel>
+          <ToggleSwitch Grid.Column="1" x:Name="MascotInput" Classes="plain" AutomationProperties.Name="看板娘" />
+        </Grid>
+        <TextBlock x:Name="MascotReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <!-- The slider (Width NaN) takes what the text leaves and shortens its track in a narrow window. -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+          <StackPanel Spacing="3">
+            <TextBlock Classes="section" Text="新的第一名时响一声" />
+            <TextBlock Classes="hint" Text="看板娘欢呼时一声柔和的星光；拉到最左就不响" />
+          </StackPanel>
+          <Slider Grid.Column="1" x:Name="VolumeInput" Classes="volume" Width="NaN" VerticalAlignment="Center" AutomationProperties.Name="新的第一名音量" />
+        </Grid>
+        <TextBlock x:Name="VolumeReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+      </StackPanel>
     </StackPanel>
   </local:SettingsPage.BodyContent>
 </local:SettingsPage>

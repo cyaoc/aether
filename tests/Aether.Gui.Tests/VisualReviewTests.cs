@@ -9,6 +9,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
@@ -437,7 +438,8 @@ public sealed class VisualReviewTests
                     Assert.True(line.Width > 0 && text.Bounds.Height >= line.Height - 1, $"Hidden: {text.Text}");
                     Assert.True(line.Width <= text.Bounds.Width + 1, $"Clipped: {text.Text}");
                     if (line.HasCollapsed) Assert.Equal(text.Text, ToolTip.GetTip(text));
-                    if (text.Classes.Contains("section") && text.Parent is Panel row)
+                    // A vertical stack puts its caption under the heading on purpose, as a switch's title does.
+                    if (text.Classes.Contains("section") && text.Parent is Panel row and not StackPanel { Orientation: Orientation.Vertical })
                         foreach (var hint in row.Children.OfType<TextBlock>().Where(t => t.Classes.Contains("hint")))
                             Assert.True(hint.Bounds.Top < text.Bounds.Bottom && text.Bounds.Top < hint.Bounds.Bottom,
                                 $"Caption below heading: {text.Text}");
