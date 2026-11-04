@@ -7,7 +7,10 @@
 为骨架（其中 `blind_gift` 原为 null），按
 [调研笔记第 2.1 节](../../../docs/research/blind-box-gift-events.md#21-v1-真实样本)
 引用的 Pcrab 第三方日志补入星月盲盒、小蛋糕、单价、投入和时间戳。
-仅保留解析和金额核对相关字段；uid、昵称、tid/rnd 换成固定测试值，头像、勋章、接收者及连击嵌套个人信息已裁掉。
+仅保留解析和金额核对相关字段；uid、昵称、tid/rnd 换成固定测试值，勋章、接收者及连击嵌套个人信息已裁掉。
+礼物榜要的头像 `face`（BAC 示例里有这个字段）和礼物图标 `gift_info.img_basic`（字段取自
+[blivedm 的 `SendGiftMessage`](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py)）
+是测试补值，地址为合成，不是真实头像或图标。
 测试代码中的多条投递、连击、重复 tid、缺失 tid 和异常字段是合成边界，不能代替真实 V1 验证。
 以后获得真实 V1 样本，按下文隐私处理要求另加文件并记录来源，不覆盖此重建样本。
 
@@ -19,6 +22,9 @@
 [字段号更正](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5105694004)
 编码 `discount_price=6`、`total_coin=7`，投入分别为 5000、40000、5000，开出价值为 2500、41600、1500。
 原样本省略的 uid、uname、tid、timestamp、switch 为测试补值，**这不是原始抓包**。
+头像 `face`（广播字段 3）和礼物图标 `gift_info.img_basic`（礼物项字段 35 下的字段 1，依据
+[blivedm 的 `pb.py`](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/pb.py)）
+同样是合成地址。
 非 gold、重复 tid、switch=false、坏载荷及未知 wire 字段都是合成边界。
 `BlindBoxV2Tests` 通过 `WatchAsync` 验证实际数据库行、原始外层 JSON、日志以及后续消息仍能接收。
 

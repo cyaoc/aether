@@ -27,19 +27,29 @@ internal static class GiftMessages
                 if (box.BlindGiftId != 0) logger.LogWarning("收到 coin_type 为 {CoinType} 的盲盒，从未见过这种情况，未记录", coinType);
                 continue;
             }
-            // Checked here for every version: protobuf leaves zero and empty fields out, so a missing send time or name
-            // arrives as 0 or "" rather than failing to parse.
-            if (box.Uid < 0 || box.BlindGiftId < 0 || box.OpenedGiftId <= 0 || box.BlindGiftPrice < 0
-                || box.OpenedGiftPrice < 0 || box.Num <= 0 || box.Spend < 0 || box.Timestamp <= 0
-                || (box.BlindGiftId != 0 && box.BlindGiftName.Length == 0) || box.OpenedGiftName.Length == 0)
-                throw new FormatException("盲盒的标识、名称、金额、个数或送出时间无效。");
+            Validate(box);
+            var tid = string.IsNullOrEmpty(box.Tid) ? null : box.Tid;
             result.Add(new Gift(box.Uid, box.Nickname, box.Spend, box.BlindGiftId == 0 ? null : box with
             {
                 OpenedValue = checked(box.OpenedGiftPrice * box.Num),
-                Tid = string.IsNullOrEmpty(box.Tid) ? null : box.Tid,
+                Tid = tid,
                 RawMessage = rawMessage ??= Encoding.UTF8.GetString(body.Span)
-            }));
+            })
+            {
+                GiftId = box.OpenedGiftId, GiftName = box.OpenedGiftName, Price = box.OpenedGiftPrice, Num = box.Num,
+                FaceUrl = box.FaceUrl, IconUrl = box.IconUrl, Tid = tid
+            });
         }
         return result.ToArray();
+    }
+
+    // Checked here for every version: protobuf leaves zero and empty fields out, so a missing send time or name
+    // arrives as 0 or "" rather than failing to parse.
+    private static void Validate(BlindBox box)
+    {
+        if (box.Uid < 0 || box.BlindGiftId < 0 || box.OpenedGiftId <= 0 || box.BlindGiftPrice < 0
+            || box.OpenedGiftPrice < 0 || box.Num <= 0 || box.Spend < 0 || box.Timestamp <= 0
+            || (box.BlindGiftId != 0 && box.BlindGiftName.Length == 0) || box.OpenedGiftName.Length == 0)
+            throw new FormatException("盲盒的标识、名称、金额、个数或送出时间无效。");
     }
 }

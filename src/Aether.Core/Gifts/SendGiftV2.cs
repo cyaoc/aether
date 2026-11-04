@@ -4,7 +4,8 @@ namespace Aether.Core.Gifts;
 
 internal static class SendGiftV2
 {
-    // Field numbers: blivedm PR #86, issuecomment-5104705486 (SendGiftBroadcast, BlindGift, GiftItem).
+    // Field numbers: blivedm PR #86, issuecomment-5104705486 (SendGiftBroadcast, BlindGift, GiftItem); the gift icon
+    // (GiftItem 35 -> img_basic 1) is from blivedm's models/pb.py (SendGiftV2GiftMaterialSnapShot).
     public static IEnumerable<(string? CoinType, BlindBox Box)> Decode(JsonElement data)
     {
         var pb = data.TryGetProperty("pb", out var direct) ? direct : data.GetProperty("data").GetProperty("pb");
@@ -21,6 +22,7 @@ internal static class SendGiftV2
             {
                 case 1: box = box with { Uid = reader.Int64(type) }; break;
                 case 2: box = box with { Nickname = reader.Text(type) }; break;
+                case 3: box = box with { FaceUrl = reader.Text(type) }; break;
                 case 9: box = ReadBlindGift(box, reader.Bytes(type)); break;
                 case 10: items.Add(reader.Bytes(type)); break;
                 case 11: box = box with { Shown = reader.Int64(type) != 0 }; break;
@@ -62,6 +64,7 @@ internal static class SendGiftV2
                 case 8: coinType = reader.Text(type); break;
                 case 9: box = box with { Tid = reader.Text(type) }; break;
                 case 10: box = box with { Timestamp = reader.Int64(type) }; break;
+                case 35: box = box with { IconUrl = ProtobufReader.LastValue(reader.Bytes(type), 1, (image, kind) => image.Text(kind), "") }; break;
                 default: reader.Skip(field, type); break;
             }
         }
