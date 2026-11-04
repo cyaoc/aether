@@ -42,6 +42,7 @@ public abstract class SettingsPage : TemplatedControl
         AvaloniaProperty.Register<SettingsPage, Control?>(nameof(ConfirmContent), null);
     public Control? ConfirmContent { get => GetValue(ConfirmContentProperty); set => SetValue(ConfirmContentProperty, value); }
 
+    /// <summary>Whether the footer shows <see cref="ConfirmContent"/> instead of the save line; a page binds it to its own question.</summary>
     public static readonly StyledProperty<bool> ConfirmingProperty = AvaloniaProperty.Register<SettingsPage, bool>(nameof(Confirming));
     public bool Confirming { get => GetValue(ConfirmingProperty); set => SetValue(ConfirmingProperty, value); }
 
