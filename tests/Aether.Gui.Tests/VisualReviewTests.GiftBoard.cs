@@ -35,45 +35,47 @@ public sealed partial class VisualReviewTests
         var look = new Look(width, height, dark);
         return HeadlessApp.Session.Dispatch(async () =>
         {
-            await ShootBoardAsync(look, [], connected: true, async shoot =>
-            {
-                shoot.Capture("gift-board-connected");
-                shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 0));
-                shoot.Capture("gift-board-page-waiting");
-                shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1));
-                GuiHarness.Click(shoot.Page, "AskClearButton");
-                shoot.Capture("gift-board-clear-confirm");
-                GuiHarness.Click(shoot.Page, "CancelConfirmButton");
-                GuiHarness.Click(shoot.Page, "AskRestoreButton");
-                shoot.Capture("gift-board-restore-confirm");
-                GuiHarness.Click(shoot.Page, "CancelConfirmButton");
-                GuiHarness.Click(shoot.Page, "AskRestoreButton");
-                GuiHarness.Click(shoot.Page, "ConfirmRestoreButton");
-                await GuiHarness.WaitForAsync(() => shoot.ViewModel.GiftBoard.Rows.Count == 9);
-                shoot.Capture("gift-board-restored");
-            });
-            await ShootBoardAsync(look, [("gift_board.threshold_by", "2")], connected: true, shoot =>
-            {
-                shoot.Capture("gift-board-total");
-                return Task.CompletedTask;
-            });
-            await ShootBoardAsync(look, [], connected: false, shoot =>
-            {
-                shoot.Capture("gift-board-offline");
-                return Task.CompletedTask;
-            });
+            await ShootConnectedBoardAsync(look, [], ShootConfirmationsAsync);
+            await ShootConnectedBoardAsync(look, [("gift_board.threshold_by", "2")], Capturing("gift-board-total"));
+            await ShootOfflineBoardAsync(look, [], Capturing("gift-board-offline"));
             // The page list of the general settings, with the 礼物榜页 connected and not.
-            await ShootBoardAsync(look, [], connected: true, shoot =>
-            {
-                shoot.Window.Navigation.SelectedIndex = 7;
-                shoot.Capture("general-gift-board-pages");
-                shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 0));
-                shoot.Capture("general-gift-board-waiting");
-                return Task.CompletedTask;
-            });
+            await ShootConnectedBoardAsync(look, [], ShootPageListAsync);
             return true;
         }, TestContext.Current.CancellationToken);
     }
+
+    private static async Task ShootConfirmationsAsync(BoardShot shoot)
+    {
+        shoot.Capture("gift-board-connected");
+        shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 0));
+        shoot.Capture("gift-board-page-waiting");
+        shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1));
+        GuiHarness.Click(shoot.Page, "AskClearButton");
+        shoot.Capture("gift-board-clear-confirm");
+        GuiHarness.Click(shoot.Page, "CancelConfirmButton");
+        GuiHarness.Click(shoot.Page, "AskRestoreButton");
+        shoot.Capture("gift-board-restore-confirm");
+        GuiHarness.Click(shoot.Page, "CancelConfirmButton");
+        GuiHarness.Click(shoot.Page, "AskRestoreButton");
+        GuiHarness.Click(shoot.Page, "ConfirmRestoreButton");
+        await GuiHarness.WaitForAsync(() => shoot.ViewModel.GiftBoard.Rows.Count == 9);
+        shoot.Capture("gift-board-restored");
+    }
+
+    private static Task ShootPageListAsync(BoardShot shoot)
+    {
+        shoot.Window.Navigation.SelectedIndex = 7;
+        shoot.Capture("general-gift-board-pages");
+        shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 0));
+        shoot.Capture("general-gift-board-waiting");
+        return Task.CompletedTask;
+    }
+
+    private static Func<BoardShot, Task> Capturing(string scene) => shoot =>
+    {
+        shoot.Capture(scene);
+        return Task.CompletedTask;
+    };
 
     private readonly record struct Look(int Width, int Height, bool Dark)
     {
@@ -85,8 +87,35 @@ public sealed partial class VisualReviewTests
         public void Capture(string scene) => Save(Window, $"{scene}-{Look.Suffix}");
     }
 
-    /// <summary>The 礼物榜 section of canvas GS1 in a main window: the room connected (or not), the board of 4 November 20:03 with the 期 of 3 November before it.</summary>
-    private static async Task ShootBoardAsync(Look look, (string Name, string Value)[] settings, bool connected, Func<BoardShot, Task> shoot)
+    /// <summary>What a board scene is set up with: the harness and its clock, the room request the window holds, and the window's view model.</summary>
+    private sealed record BoardStage(GuiHarness Harness, FakeTimeProvider Clock, Task RoomStarted, MainWindowViewModel ViewModel);
+
+    private static Task ShootConnectedBoardAsync(Look look, (string Name, string Value)[] settings, Func<BoardShot, Task> shoot) =>
+        ShootBoardAsync(look, settings, ConnectAsync, shoot);
+
+    private static Task ShootOfflineBoardAsync(Look look, (string Name, string Value)[] settings, Func<BoardShot, Task> shoot) =>
+        ShootBoardAsync(look, settings, _ => Task.CompletedTask, shoot);
+
+    /// <summary>The earlier 期 first, then 42 minutes of connection before the board of the day (canvas GS1).</summary>
+    private static async Task ConnectAsync(BoardStage stage)
+    {
+        var (harness, clock, roomStarted, viewModel) = stage;
+        var board = harness.Client.GiftBoard;
+        board.Connect(RoomId, liveTime: null);
+        board.Receive(RoomId, BoardBefore);
+        clock.SetUtcNow(new DateTimeOffset(new DateTime(2026, 11, 4, 19, 21, 0, DateTimeKind.Local)));
+        viewModel.RoomNumber = RoomId.ToString();
+        viewModel.ConnectCommand.Execute(null);
+        await roomStarted.WaitAsync(TimeSpan.FromSeconds(5));
+        viewModel.Apply(new Connected(RoomId, 24680));
+        clock.Advance(TimeSpan.FromMinutes(42));
+        board.Clear();
+        board.Receive(RoomId, BoardToday);
+        await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Period is { Viewers: 9 });
+    }
+
+    /// <summary>The 礼物榜 section of canvas GS1 in a main window, after <paramref name="prepare"/> has put the board and the room in the state to shoot.</summary>
+    private static async Task ShootBoardAsync(Look look, (string Name, string Value)[] settings, Func<BoardStage, Task> prepare, Func<BoardShot, Task> shoot)
     {
         var clock = new FakeTimeProvider(Yesterday);
         using var harness = new GuiHarness(clock);
@@ -103,23 +132,8 @@ public sealed partial class VisualReviewTests
         try
         {
             await viewModel.ReadAccountCommand.ExecutionTask!;
-            var board = harness.Client.GiftBoard;
-            board.Apply(Settings.Load(harness.DataDirectory));
-            if (connected)
-            {
-                // The earlier 期 first, then 42 minutes of connection before the board of the day.
-                board.Connect(RoomId, liveTime: null);
-                board.Receive(RoomId, BoardBefore);
-                clock.SetUtcNow(new DateTimeOffset(new DateTime(2026, 11, 4, 19, 21, 0, DateTimeKind.Local)));
-                viewModel.RoomNumber = RoomId.ToString();
-                viewModel.ConnectCommand.Execute(null);
-                await roomStarted.WaitAsync(TimeSpan.FromSeconds(5));
-                viewModel.Apply(new Connected(RoomId, 24680));
-                clock.Advance(TimeSpan.FromMinutes(42));
-                board.Clear();
-                board.Receive(RoomId, BoardToday);
-                await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Period is { Viewers: 9 });
-            }
+            harness.Client.GiftBoard.Apply(Settings.Load(harness.DataDirectory));
+            await prepare(new(harness, clock, roomStarted, viewModel));
             viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1));
             window.Navigation.SelectedIndex = 4;
             GuiHarness.Flush();
