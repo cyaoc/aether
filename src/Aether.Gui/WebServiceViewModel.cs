@@ -80,48 +80,19 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Video))]
-    [NotifyPropertyChangedFor(nameof(VideoPageText))]
-    [NotifyPropertyChangedFor(nameof(VideoAddressText))]
-    [NotifyPropertyChangedFor(nameof(LotteryAddressText))]
-    [NotifyPropertyChangedFor(nameof(GiftBoard))]
-    [NotifyPropertyChangedFor(nameof(GiftBoardAddressText))]
-    [NotifyPropertyChangedFor(nameof(HasGiftBoardConnections))]
-    [NotifyPropertyChangedFor(nameof(ShowGiftBoardSetup))]
-    [NotifyPropertyChangedFor(nameof(GiftBoardConnectionsText))]
-    [NotifyPropertyChangedFor(nameof(HasVideoConnections))]
-    [NotifyPropertyChangedFor(nameof(HasLotteryConnections))]
-    [NotifyPropertyChangedFor(nameof(HasWebServiceError))]
-    [NotifyPropertyChangedFor(nameof(IsWebServiceOff))]
-    [NotifyPropertyChangedFor(nameof(ShowVideoSetup))]
-    [NotifyPropertyChangedFor(nameof(ShowLotterySetup))]
-    [NotifyPropertyChangedFor(nameof(ServiceStatusText))]
-    [NotifyPropertyChangedFor(nameof(ServiceHelpText))]
-    [NotifyPropertyChangedFor(nameof(VideoConnectionsText))]
-    [NotifyPropertyChangedFor(nameof(LotteryConnectionsText))]
+    [NotifyPropertyChangedFor(nameof(Video), nameof(Lottery), nameof(GiftBoard), nameof(HasVideoConnections))]
+    [NotifyPropertyChangedFor(nameof(HasWebServiceError), nameof(IsWebServiceOff), nameof(ServiceStatusText), nameof(ServiceHelpText))]
     private WebServiceStatus webServiceStatus = client.WebService.Status;
 
-    public WebPageStatus Video => new(WebServiceStatus, WebServiceStatus.VideoConnections, WebPageTexts.Video);
-    public WebPageStatus GiftBoard => new(WebServiceStatus, WebServiceStatus.GiftBoardConnections, WebPageTexts.GiftBoard);
+    public WebPageStatus Video => new(WebServiceStatus, WebServiceStatus.VideoConnections, WebPageTexts.Video) { Address = WebServiceStatus.VideoAddress };
+    public WebPageStatus Lottery => new(WebServiceStatus, WebServiceStatus.LotteryConnections, WebPageTexts.Lottery) { Address = WebServiceStatus.LotteryAddress };
+    public WebPageStatus GiftBoard => new(WebServiceStatus, WebServiceStatus.GiftBoardConnections, WebPageTexts.GiftBoard) { Address = WebServiceStatus.GiftBoardAddress };
     public bool HasVideoConnections => Video.Connected;
-    public bool HasLotteryConnections => WebServiceStatus is { Running: true, LotteryConnections: > 0 };
-    public bool HasGiftBoardConnections => GiftBoard.Connected;
     public bool HasWebServiceError => WebServiceStatus.Error is not null;
     public bool IsWebServiceOff => WebServiceStatus is { Running: false, Error: null };
-    public bool ShowVideoSetup => Video.Waiting;
-    public bool ShowLotterySetup => WebServiceStatus is { Running: true, LotteryConnections: 0 };
-    public bool ShowGiftBoardSetup => GiftBoard.Waiting;
-    public string VideoAddressText => WebServiceStatus.VideoAddress;
-    public string LotteryAddressText => WebServiceStatus.LotteryAddress;
-    public string GiftBoardAddressText => WebServiceStatus.GiftBoardAddress;
     public string ServiceStatusText => WebServiceStatus.Error is { } error ? "没打开：" + error : WebServiceStatus.Running ? "运行中" : "未运行";
     public string ServiceHelpText => HasWebServiceError ? "换一个端口并保存，再把直播姬里所有浏览器素材的地址改成新的。"
         : WebServiceStatus.Running ? "GUI 开着就一直运行，不用登录、不用连直播间。先开 Aether，再开直播姬。" : "";
-    public string VideoConnectionsText => ConnectionsText(WebServiceStatus.VideoConnections);
-    public string LotteryConnectionsText => ConnectionsText(WebServiceStatus.LotteryConnections);
-    public string GiftBoardConnectionsText => ConnectionsText(WebServiceStatus.GiftBoardConnections);
-    private string ConnectionsText(int count) => !WebServiceStatus.Running ? "服务没打开" : count > 0 ? $"{count} 个推流软件连着" : "还没有连着";
-    public string VideoPageText => Video.Text;
 
     internal void Apply(WebServiceUpdate update)
     {

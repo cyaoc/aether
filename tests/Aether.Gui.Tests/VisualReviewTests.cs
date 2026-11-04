@@ -435,7 +435,7 @@ public sealed partial class VisualReviewTests
                     // These are multi-sentence help, not single-line captions.
                     if (text.Name is "WelcomeTextHint" or "WebServiceHelp" or "BoardEmpty" or "PageSetupSteps" ||
                         text.GetVisualAncestors().OfType<Control>().Any(c =>
-                            c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "GiftBoardSetupHelp" or "EmptyConditions")) continue;
+                            c.Name is "SetupHelp" or "EmptyConditions")) continue;
                     Assert.True(text.TextWrapping == TextWrapping.NoWrap, $"Wrapping: {text.Text}");
                     var line = Assert.Single(text.TextLayout.TextLines);
                     Assert.True(line.Width > 0 && text.Bounds.Height >= line.Height - 1, $"Hidden: {text.Text}");
