@@ -90,7 +90,7 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.Equal("和上面那条重复了", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             GuiHarness.FindRowControl<TextBox>(page, row, "UidInput").Text = "99";
             await Save(page);
-            vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+            vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
             var savedRow = Rows(page).Single(r => r.UidText == "99");
             Assert.True(GuiHarness.FindRowControl<Button>(page, savedRow, "TestButton").IsEnabled);
             Assert.Equal("second.webm", Settings.Load(h.DataDirectory).WelcomeAnimationVideos[99].Value);
@@ -368,7 +368,7 @@ public sealed class WelcomeAnimationSettingsTests
             var row = Rows(page).Single();
             var button = GuiHarness.FindRowControl<Button>(page, row, "TestButton");
             Assert.False(button.IsEnabled);
-            viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+            viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
             Assert.True(button.IsEnabled);
             viewModel.WebService.Apply(new SourcePlayback("other", 43, "other.mp4", false, PlaybackState.Queued));
             Assert.False(button.IsEnabled);
@@ -395,7 +395,7 @@ public sealed class WelcomeAnimationSettingsTests
             Assert.False(button.IsEnabled);
             viewModel.WebService.Apply(new SourcePlayback("real", 42, "video.mp4", false, PlaybackState.Completed));
             File.Delete(path);
-            viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
+            viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0, 0));
             Assert.False(button.IsEnabled);
             Assert.Contains("找不到视频文件", GuiHarness.FindRowControl<TextBlock>(page, row, "RowMessage").Text);
             Assert.NotNull(GuiHarness.FindRowControl<TextBlock>(page, row, "FileNameText").TextDecorations);
@@ -559,7 +559,7 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            viewModel.WebService.Apply(new WebServiceStatus(true, 17891, 0, 0));
+            viewModel.WebService.Apply(new WebServiceStatus(true, 17891, 0, 0, 0));
             GuiHarness.Flush();
             var button = page.FindControl<Button>("Copy" + pageName + "AddressButton")!;
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -922,7 +922,7 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            viewModel.WebService.Apply(new WebServiceStatus(running, 17891, videos, lotteries, error, giftBoards));
+            viewModel.WebService.Apply(new WebServiceStatus(running, 17891, videos, lotteries, giftBoards, error));
             GuiHarness.Flush();
             Assert.Equal(expected, page.FindControl<TextBlock>("WebServiceStatusText")!.Text);
             Assert.Equal("http://localhost:17891/video", page.FindControl<TextBox>("VideoAddress")!.Text);

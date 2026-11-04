@@ -249,7 +249,7 @@ public sealed class EntryAnimationSettingsTests
             Assert.False(Settings.Load(h.DataDirectory).EntryAnimationEnabled.Value);
             var play = GuiHarness.FindVisual<Button>(page, "PlayButton");
             Assert.False(play.IsEnabled);
-            vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+            vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
             Assert.True(play.IsEnabled);
             Assert.Equal(60, Assert.IsType<EntryTier>(GuiHarness.FindVisual<ComboBox>(page, "TierInput").SelectedItem).Value);
             var nickname = GuiHarness.FindVisual<TextBox>(page, "NicknameInput");

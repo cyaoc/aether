@@ -44,7 +44,7 @@ public sealed partial class VisualReviewTests
                 await vm.ReadAccountCommand.ExecutionTask!;
                 vm.Apply(new Connected(1768506153, 24680));
                 window.Navigation.SelectedIndex = 3;
-                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
                 vm.WebService.Apply(new SourcePlayback("gift", 12345, "40 档", false, PlaybackState.Completed, Nickname: "夜航船", Source: "送礼动画", TriggerReason: "这一轮投入 560 电池"));
                 vm.WebService.Apply(new SourcePlayback("gift2", 67890, "60 档", false, PlaybackState.Skipped, "没有推流软件连着", "柚子不酸", "送礼动画", "这一轮投入 12000 电池"));
                 GuiHarness.Flush();
@@ -87,7 +87,7 @@ public sealed partial class VisualReviewTests
                 window.Navigation.SelectedIndex = 2;
                 var welcome = window.GetVisualDescendants().OfType<WelcomePanel>().Single();
                 welcome.Select(1);
-                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
                 vm.WebService.Apply(new SourcePlayback("entry", 12345, "30 档", false, PlaybackState.Completed, Nickname: "柚子不酸", Source: "进场动画", TriggerReason: "粉丝团 34 级"));
                 GuiHarness.Flush();
                 Assert.Equal(80, welcome.Animation.FindControl<Slider>("VolumeInput")!.Value);
@@ -394,7 +394,7 @@ public sealed partial class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0, 0));
                 for (var index = 0; index < window.Navigation.ItemCount; index++)
                 {
                     window.Navigation.SelectedIndex = index;
@@ -485,14 +485,14 @@ public sealed partial class VisualReviewTests
                 {
                     ("connected", new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1)),
                     ("partial", new WebServiceStatus(true, 17890, 1, 0, GiftBoardConnections: 1)),
-                    ("setup", new WebServiceStatus(true, 17890, 0, 0)),
-                    ("occupied", new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"))
+                    ("setup", new WebServiceStatus(true, 17890, 0, 0, 0)),
+                    ("occupied", new WebServiceStatus(false, 17890, 0, 0, 0, "端口 17890 被别的程序占用"))
                 })
                 {
                     viewModel.WebService.Apply(state);
                     Save(window, $"web-service-N{(dark ? 2 : 1)}-{name}-{width}x{height}");
                 }
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1, 0));
                 window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 viewModel.WebService.Apply(new SourcePlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
@@ -749,16 +749,16 @@ public sealed partial class VisualReviewTests
                 window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 var page = window.GetVisualDescendants().OfType<AnimationSettingsPage>().Single();
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0, 0));
                 foreach (var (state, index) in new[] { PlaybackState.Completed, PlaybackState.Failed, PlaybackState.NoReport, PlaybackState.Skipped, PlaybackState.Queued }.Select((state, index) => (state, index)))
                     viewModel.WebService.Apply(new SourcePlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
                         Nickname: index switch { 1 => "柚子不酸", 2 => "bili_6508617762", _ => null }));
                 Capture("connected");
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0, 0));
                 Capture("setup");
-                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"));
+                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, 0, "端口 17890 被别的程序占用"));
                 Capture("port-occupied");
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
                 viewModel.WebService.Apply(new SourcePlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
                 Capture("playing");
                 viewModel.WebService.Apply(new SourcePlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Stopped));
@@ -778,7 +778,7 @@ public sealed partial class VisualReviewTests
                 await GuiHarness.WaitForAsync(() => page.IsEnabled);
                 viewModel.WebService.RecentAnimations.Clear();
                 GuiHarness.FindVisual<TextBlock>(page, "Message").Text = "";
-                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, 0));
                 GuiHarness.Flush();
                 // Settle the transition, then redraw its final edges instead of reusing an intermediate frame.
                 await Task.Delay(300, TestContext.Current.CancellationToken);

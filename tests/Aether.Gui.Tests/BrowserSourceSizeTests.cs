@@ -13,7 +13,7 @@ public sealed class BrowserSourceSizeTests
     private static readonly string[] SetupHelps = ["VideoSetupHelp", "LotterySetupHelp", "GiftBoardSetupHelp"];
 
     [Fact]
-    public Task Page_list_writes_each_pages_size_on_its_row_and_the_note_sends_the_streamer_there() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1), page =>
+    public Task Page_list_writes_each_pages_size_on_its_row_and_the_note_sends_the_streamer_there() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1, 0), page =>
     {
         Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "每个页面在直播姬里各加一个浏览器素材，宽高照每行写的填");
         Assert.Equal("1920 × 1080", page.FindControl<ContentControl>("VideoSize")!.Content);
@@ -22,7 +22,7 @@ public sealed class BrowserSourceSizeTests
     });
 
     [Fact]
-    public Task Page_sizes_line_up_in_one_column_whatever_each_one_says() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1), page =>
+    public Task Page_sizes_line_up_in_one_column_whatever_each_one_says() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1, 0), page =>
     {
         double Left(Control control) => control.TranslatePoint(default, page)!.Value.X;
         Assert.Equal(Left(page.FindControl<ContentControl>("VideoSize")!), Left(page.FindControl<ContentControl>("LotterySize")!), 0.5);
@@ -32,7 +32,7 @@ public sealed class BrowserSourceSizeTests
     });
 
     [Fact]
-    public Task A_page_nobody_is_connected_to_is_told_to_take_its_address_and_size_from_its_own_row() => OnGeneralSettings(new WebServiceStatus(true, 17890, 0, 0), page =>
+    public Task A_page_nobody_is_connected_to_is_told_to_take_its_address_and_size_from_its_own_row() => OnGeneralSettings(new WebServiceStatus(true, 17890, 0, 0, 0), page =>
     {
         foreach (var name in SetupHelps)
             Assert.Equal("还没有推流软件连着。在直播姬里添加浏览器素材，地址和宽高照这一行填；已经加过的，右键素材 → 刷新。",
@@ -91,7 +91,7 @@ public sealed class BrowserSourceSizeTests
         try
         {
             await viewModel.ReadAccountCommand.ExecutionTask!;
-            viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
+            viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0, 0));
             for (var index = 0; index < window.Navigation.ItemCount; index++)
             {
                 window.Navigation.SelectedIndex = index;

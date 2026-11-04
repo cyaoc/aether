@@ -110,7 +110,7 @@ public sealed class GiftBoardSettingsTests
     public Task The_status_bar_tells_how_the_gift_board_page_is_connected(bool running, int connections, string? error, string text, string? steps) => GiftBoardScene.Run(scene =>
     {
         // The video and lottery pages have nine connections each, which this page must not count as its own.
-        scene.ViewModel.WebService.Apply(new WebServiceStatus(running, 17890, 9, 9, error, connections));
+        scene.ViewModel.WebService.Apply(new WebServiceStatus(running, 17890, 9, 9, connections, error));
         GuiHarness.Flush();
         Assert.Equal(text, GuiHarness.FindVisual<TextBlock>(scene.Page, "PageStatusText").Text);
         var help = GuiHarness.FindVisual<TextBlock>(scene.Page, "PageSetupSteps");

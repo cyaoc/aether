@@ -371,7 +371,7 @@ public sealed class WelcomeAnimationTests
         var port = FreePort();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
-        Assert.Equal(new WebServiceStatus(true, port, 0, 0), h.Client.WebService.Status);
+        Assert.Equal(new WebServiceStatus(true, port, 0, 0, 0), h.Client.WebService.Status);
         await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync("/video", h.Stop.Token));
         using var restarted = await Page.ConnectAsync(h);
         h.Client.WelcomeAnimation.TestPlay(10001);

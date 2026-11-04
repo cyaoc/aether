@@ -2,8 +2,8 @@ namespace Aether.Core;
 
 public abstract record WebServiceUpdate;
 
-public sealed record WebServiceStatus(bool Running, int Port, int VideoConnections, int LotteryConnections, string? Error = null,
-    int GiftBoardConnections = 0) : WebServiceUpdate
+public sealed record WebServiceStatus(bool Running, int Port, int VideoConnections, int LotteryConnections, int GiftBoardConnections,
+    string? Error = null) : WebServiceUpdate
 {
     /// <summary>What a browser source is given; ADR 0006 binds the page to localhost only.</summary>
     public string Origin => $"http://localhost:{Port}";
