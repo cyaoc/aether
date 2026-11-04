@@ -6,8 +6,12 @@ namespace Aether.Core.Tests.Support;
 // Rebuilt from https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5103541545,
 // corrected by #issuecomment-5105694004: discount_price=6, total_coin=7.
 // uid, uname, tid, timestamp and switch were omitted there and are synthetic; this is not a capture.
+// face (field 3) and gift_info.img_basic (35.1) follow blivedm's models/pb.py; their test URLs are synthetic too.
 internal static class BlindGiftV2Fixture
 {
+    public const string TestFace = "https://i0.hdslb.com/bfs/face/test-v2.jpg";
+    public const string TestIcon = "https://s1.hdslb.com/bfs/live/test-v2.png";
+
     public static byte[][] TenBoxes =>
     [
         Item(35311, "好运柚叶", 1, 2500, 5000, "test-v2-1"),
@@ -21,9 +25,10 @@ internal static class BlindGiftV2Fixture
         return JsonSerializer.Serialize(new { cmd = "SEND_GIFT_V2", data = nested ? (object)new { data = payload } : payload });
     }
 
-    public static byte[] Broadcast(byte[][]? items = null, long uid = 10001, long blindId = 35206, bool? shown = true) =>
+    public static byte[] Broadcast(byte[][]? items = null, long uid = 10001, long blindId = 35206, bool? shown = true,
+        string? face = TestFace) =>
     [
-        .. Integer(1, uid), .. Text(2, "测试观众"),
+        .. Integer(1, uid), .. Text(2, "测试观众"), .. (face is null ? [] : Text(3, face)),
         .. Bytes(9, [.. Integer(1, 144), .. Integer(2, blindId), .. Text(3, "幸运盲盒"),
             .. Text(5, "爆出"), .. Integer(6, 5000)]),
         .. (items ?? TenBoxes).SelectMany(item => Bytes(10, item)),
@@ -31,11 +36,13 @@ internal static class BlindGiftV2Fixture
     ];
 
     public static byte[] Item(long id = 35311, string name = "好运柚叶", long num = 1, long price = 2500,
-        long spend = 5000, string? tid = "test-v2-1", string coin = "gold", long timestamp = 1732634266) =>
+        long spend = 5000, string? tid = "test-v2-1", string coin = "gold", long timestamp = 1732634266,
+        string? icon = TestIcon) =>
     [
         .. Integer(1, id), .. Text(2, name), .. Integer(3, num), .. Integer(5, price),
         .. Integer(6, price), .. Integer(7, spend), .. Text(8, coin),
-        .. (tid is null ? [] : Text(9, tid)), .. Integer(10, timestamp)
+        .. (tid is null ? [] : Text(9, tid)), .. Integer(10, timestamp),
+        .. (icon is null ? [] : Bytes(35, Text(1, icon)))
     ];
 
     public static byte[] Integer(int field, long value) => [.. Varint((ulong)field << 3), .. Varint(unchecked((ulong)value))];

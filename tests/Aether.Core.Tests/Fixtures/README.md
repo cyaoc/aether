@@ -7,7 +7,10 @@
 为骨架（其中 `blind_gift` 原为 null），按
 [调研笔记第 2.1 节](../../../docs/research/blind-box-gift-events.md#21-v1-真实样本)
 引用的 Pcrab 第三方日志补入星月盲盒、小蛋糕、单价、投入和时间戳。
-仅保留解析和金额核对相关字段；uid、昵称、tid/rnd 换成固定测试值，头像、勋章、接收者及连击嵌套个人信息已裁掉。
+仅保留解析和金额核对相关字段；uid、昵称、tid/rnd 换成固定测试值，勋章、接收者及连击嵌套个人信息已裁掉。
+礼物榜要的头像 `face`（BAC 示例里有这个字段）和礼物图标 `gift_info.img_basic`（字段取自
+[blivedm 的 `SendGiftMessage`](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py)）
+是测试补值，地址为合成，不是真实头像或图标。
 测试代码中的多条投递、连击、重复 tid、缺失 tid 和异常字段是合成边界，不能代替真实 V1 验证。
 以后获得真实 V1 样本，按下文隐私处理要求另加文件并记录来源，不覆盖此重建样本。
 
@@ -19,8 +22,26 @@
 [字段号更正](https://github.com/xfgryujk/blivedm/pull/86#issuecomment-5105694004)
 编码 `discount_price=6`、`total_coin=7`，投入分别为 5000、40000、5000，开出价值为 2500、41600、1500。
 原样本省略的 uid、uname、tid、timestamp、switch 为测试补值，**这不是原始抓包**。
+头像 `face`（广播字段 3）和礼物图标 `gift_info.img_basic`（礼物项字段 35 下的字段 1，依据
+[blivedm 的 `pb.py`](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/pb.py)）
+同样是合成地址。
 非 gold、重复 tid、switch=false、坏载荷及未知 wire 字段都是合成边界。
-`BlindBoxV2Tests` 通过 `WatchAsync` 验证实际数据库行、原始外层 JSON、日志以及后续消息仍能接收。
+`BlindBoxV2Tests` 通过 `WatchAsync` 验证实际数据库行、日志以及后续消息仍能接收。
+
+## USER_TOAST_MSG_V2 合成样本
+
+`Support/UserToastFixture.cs` 在测试代码里拼 JSON，**这不是抓包**。保留的字段按
+[sjh8130/bili_danmaku 的抓包笔记](https://github.com/sjh8130/bili_danmaku/blob/HEAD/Testing.md)
+（`USER_TOAST_MSG_V2`，文档更新 2024-08-01）、
+[blivedm 的 `UserToastV2Message`](https://github.com/xfgryujk/blivedm/blob/master/blivedm/models/web.py)
+和 [blivechat 的 `userToastV2Callback`](https://github.com/xfgryujk/blivechat/blob/master/frontend/src/api/chat/ChatClientDirectWeb.js)
+读取的字段取；单月 138000、198000 的价格取自
+[BAC 的 USER_TOAST_MSG、GUARD_BUY 示例](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/message_stream.md)。
+uid、昵称、头像地址和 `payflow_id` 是测试值。
+一次买多个月（`num` 大于 1）和 `unit` 不是“月”的推送没有任何公开抓包，按公开字段名和主播提供的 2026-11 价格表合成
+（价格表见 [行为参考](../../../docs/reference.md#大航海开通和续费)）；`option.source` 为 2 的那一条也是合成的，依据是
+blivechat 和 blivedm 的说明：上舰时先推 0 的，再推 2 的。
+`GiftDecodingTests` 在解码层覆盖价格表里的各种组合，`GiftRoundTests` 验证进入一轮送礼、重复推送和缺字段时的警告。
 
 ## 2026-10-05 真实流量
 
@@ -137,5 +158,5 @@ V2 的 base64/protobuf 载荷也可能含个人信息，不能只修改外层 JS
 - 礼物名称/id、数量、金额、送出时间戳、字段存在性及礼物项顺序保持。
   对保留字段逐项比较，确认重新解码后的业务值与原始捕获一致。
 
-`BlindBoxV2Tests` 已接入这五条样本，验证普通礼物不入库、六个盲盒礼物项的数量、金额、tid 和外层 JSON。
+`BlindBoxV2Tests` 已接入这五条样本，验证普通礼物不入库、六个盲盒礼物项的数量、金额和 tid。
 这是脱敏样本的离线回放验证，不代表本次新增了现场送礼验证。

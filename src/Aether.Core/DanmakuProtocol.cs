@@ -120,7 +120,7 @@ internal static class DanmakuProtocol
                         WealthLevel = NumberAt(ArrayItem(info, 16), 0)
                     })];
                 }
-                else if (GiftMessages.Decode(command, root, body, logger) is { Length: > 0 } boxes)
+                else if (GiftMessages.Decode(command, root, logger) is { Length: > 0 } boxes)
                     decoded = [new GiftsReceived(boxes, receivedTimestamp)];
                 else if (parseEntries() && EntryMessages.Decode(command, root, roomId) is { } entry)
                     decoded = [new EntryReceived(entry, receivedTimestamp)];
