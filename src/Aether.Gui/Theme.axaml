@@ -53,6 +53,9 @@
         </Border>
       </DataTemplate>
       <CornerRadius x:Key="ControlCornerRadius">6</CornerRadius>
+      <!-- The places of the 当前榜单 that the 礼物榜页 gives a tone: first gold, third ice blue (canvas GS1); second stays muted. -->
+      <SolidColorBrush x:Key="Rank.Gold" Color="#C9851D" />
+      <SolidColorBrush x:Key="Rank.Blue" Color="#5B8CFF" />
       <BoxShadows x:Key="QrShadow">0 8 28 0 #18000000</BoxShadows>
       <!-- Room for PopupShadow around a popup card; Popup discounts its child's margin, so the card does not shift. -->
       <Thickness x:Key="PopupShadowSpace">24,16,24,32</Thickness>
@@ -883,6 +886,20 @@
   <Style Selector="Border.badge.neutralBadge">
     <Setter Property="Background" Value="{DynamicResource Badge.Neutral}" />
     <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Secondary}" />
+  </Style>
+  <Style Selector="TextBlock.rank">
+    <Setter Property="Foreground" Value="{DynamicResource Text.Muted}" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="FontStyle" Value="Italic" />
+    <Setter Property="TextAlignment" Value="Center" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+    <Setter Property="TextElement.FontFeatures" Value="tnum" />
+  </Style>
+  <Style Selector="TextBlock.rank[Text=1]">
+    <Setter Property="Foreground" Value="{DynamicResource Rank.Gold}" />
+  </Style>
+  <Style Selector="TextBlock.rank[Text=3]">
+    <Setter Property="Foreground" Value="{DynamicResource Rank.Blue}" />
   </Style>
   <Style Selector="TextBlock.sendStatus">
     <Setter Property="TextElement.FontFeatures" Value="tnum" />

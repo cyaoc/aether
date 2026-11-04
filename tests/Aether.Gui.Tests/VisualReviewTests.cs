@@ -19,7 +19,7 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Gui.Tests;
 
-public sealed class VisualReviewTests
+public sealed partial class VisualReviewTests
 {
     [Theory]
     [InlineData(false)]
@@ -430,7 +430,7 @@ public sealed class VisualReviewTests
                 foreach (var text in texts)
                 {
                     // These are multi-sentence help, not single-line captions.
-                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" ||
+                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" or "BoardEmpty" ||
                         text.GetVisualAncestors().OfType<Control>().Any(c =>
                             c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "EmptyConditions")) continue;
                     Assert.True(text.TextWrapping == TextWrapping.NoWrap, $"Wrapping: {text.Text}");

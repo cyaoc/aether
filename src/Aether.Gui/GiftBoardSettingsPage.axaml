@@ -66,4 +66,33 @@
       </StackPanel>
     </StackPanel>
   </local:SettingsPage.BodyContent>
+  <local:SettingsPage.ActivityContent>
+    <Grid RowDefinitions="Auto,*">
+      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="2" Margin="16,18,16,8">
+        <TextBlock Classes="section" Text="当前榜单" />
+        <TextBlock Grid.Column="1" x:Name="BoardCount" Classes="caption muted numeric" Text="{Binding GiftBoard.CountText}" VerticalAlignment="Center" />
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" x:Name="BoardPeriod" Classes="caption muted singleLine" Text="{Binding GiftBoard.PeriodText}"
+          IsVisible="{Binding GiftBoard.PeriodText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+      </Grid>
+      <Panel Grid.Row="1">
+        <ListBox x:Name="BoardList" Classes="plain aside" ItemsSource="{Binding GiftBoard.Rows}" IsVisible="{Binding GiftBoard.HasRows}" AutomationProperties.Name="当前榜单">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="local:GiftBoardListRow">
+              <Border Classes="activityRow">
+                <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                  <TextBlock Classes="rank" Text="{Binding Rank}" />
+                  <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock Classes="singleLine" Text="{Binding Nickname}" FontWeight="SemiBold" />
+                    <TextBlock Classes="caption muted singleLine" Text="{Binding Gift}" />
+                  </StackPanel>
+                  <TextBlock Grid.Column="2" Classes="caption numeric" Text="{Binding Value}" Foreground="{DynamicResource Text.Secondary}" VerticalAlignment="Center" />
+                </Grid>
+              </Border>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+        <TextBlock x:Name="BoardEmpty" Classes="hint" TextWrapping="Wrap" Margin="16,8" IsVisible="{Binding !GiftBoard.HasRows}" />
+      </Panel>
+    </Grid>
+  </local:SettingsPage.ActivityContent>
 </local:SettingsPage>

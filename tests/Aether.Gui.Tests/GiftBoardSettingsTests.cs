@@ -40,8 +40,9 @@ public sealed class GiftBoardSettingsTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task Every_input_is_saved_and_shown_again_when_the_page_is_reopened() => OnPage(async (h, vm, page) =>
+    public Task Every_input_is_saved_and_shown_again_when_the_page_is_reopened() => GiftBoardScene.Run(async scene =>
     {
+        var page = scene.Page;
         Assert.True(page.FindControl<RadioButton>("ByUnitPriceInput")!.IsChecked);
         Assert.Equal(60, page.FindControl<Slider>("VolumeInput")!.Value);
 
@@ -53,11 +54,11 @@ public sealed class GiftBoardSettingsTests
         page.FindControl<Slider>("VolumeInput")!.Value = 25;
         await Save(page);
 
-        var saved = Settings.Load(h.DataDirectory);
+        var saved = Settings.Load(scene.DataDirectory);
         Assert.Equal((true, 250, Settings.GiftBoardByTotalPrice, false, false, 25),
             (saved.GiftBoardEnabled.Value, saved.GiftBoardThreshold.Value, saved.GiftBoardThresholdBy.Value,
                 saved.GiftBoardResetOnLive.Value, saved.GiftBoardMascot.Value, saved.GiftBoardVolume.Value));
-        var reopened = new GiftBoardSettingsPage(h.DataDirectory);
+        var reopened = new GiftBoardSettingsPage(scene.DataDirectory);
         Assert.Equal("250", reopened.FindControl<NumericUpDown>("ThresholdInput")!.Text);
         Assert.False(reopened.FindControl<RadioButton>("ByUnitPriceInput")!.IsChecked);
         Assert.True(reopened.FindControl<RadioButton>("ByTotalPriceInput")!.IsChecked);
@@ -65,16 +66,16 @@ public sealed class GiftBoardSettingsTests
     });
 
     [Fact]
-    public Task Saving_takes_effect_at_once_without_asking_for_a_reconnect() => OnPage(async (h, vm, page) =>
+    public Task Saving_takes_effect_at_once_without_asking_for_a_reconnect() => GiftBoardScene.Run(async scene =>
     {
-        vm.ConnectionState = RoomConnectionState.Connected;
-        page.FindControl<ToggleSwitch>("MascotInput")!.IsChecked = false;
-        page.FindControl<Slider>("VolumeInput")!.Value = 25;
-        await Save(page);
+        scene.ViewModel.ConnectionState = RoomConnectionState.Connected;
+        scene.Page.FindControl<ToggleSwitch>("MascotInput")!.IsChecked = false;
+        scene.Page.FindControl<Slider>("VolumeInput")!.Value = 25;
+        await Save(scene.Page);
 
-        Assert.Equal("保存后立即生效", page.TimingHint);
-        Assert.False(page.ShowReconnectNotice);
-        var state = await h.Client.GiftBoard.CurrentAsync();
+        Assert.Equal("保存后立即生效", scene.Page.TimingHint);
+        Assert.False(scene.Page.ShowReconnectNotice);
+        var state = await scene.StateAsync();
         Assert.Equal((false, 25), (state.Mascot, state.Volume));
     });
 
@@ -83,37 +84,23 @@ public sealed class GiftBoardSettingsTests
     [InlineData("-3")]
     [InlineData("1.5")]
     [InlineData("")]
-    public Task A_threshold_that_is_not_a_positive_integer_cannot_be_saved(string text) => OnPage((h, vm, page) =>
+    public Task A_threshold_that_is_not_a_positive_integer_cannot_be_saved(string text) => GiftBoardScene.Run(scene =>
     {
-        var input = page.FindControl<NumericUpDown>("ThresholdInput")!;
-        var error = page.FindControl<TextBlock>("ThresholdError")!;
+        var input = scene.Page.FindControl<NumericUpDown>("ThresholdInput")!;
+        var error = scene.Page.FindControl<TextBlock>("ThresholdError")!;
         input.Text = text;
         GuiHarness.Flush();
-        Assert.False(page.CanSave);
+        Assert.False(scene.Page.CanSave);
         Assert.True(error.IsVisible);
         Assert.Contains("必须为正整数", error.Text);
         Assert.Contains("invalid", input.Classes);
 
         input.Text = "1";
         GuiHarness.Flush();
-        Assert.True(page.CanSave);
+        Assert.True(scene.Page.CanSave);
         Assert.False(error.IsVisible);
         return Task.CompletedTask;
     });
-
-    /// <summary>The page in a window of the minimum size, over a data directory whose web service takes a port of its own.</summary>
-    private static Task OnPage(Func<GuiHarness, MainWindowViewModel, GiftBoardSettingsPage, Task> check) => HeadlessApp.Session.Dispatch(async () =>
-    {
-        using var h = new GuiHarness();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = GuiHarness.FreePort().ToString() });
-        var vm = h.CreateViewModel();
-        var page = new GiftBoardSettingsPage(h.DataDirectory) { DataContext = vm };
-        var window = new Window { Content = page, Width = 1040, Height = 600 };
-        window.Show();
-        try { await check(h, vm, page); }
-        finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
-        return true;
-    }, TestContext.Current.CancellationToken);
 
     private static async Task Save(SettingsPage page)
     {
