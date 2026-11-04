@@ -8,10 +8,11 @@ internal sealed class GiftBoardStore(Database database)
 {
     private const string InsertPeriod = "INSERT INTO gift_board_period (room_id, started_at, live_time) SELECT $room, $at, $live";
 
+    private const string LatestPeriodId = "SELECT MAX(id) FROM gift_board_period WHERE room_id = $room";
+
     // IS NOT, so that a 期 opened off air (live_time null) differs from every show, and a room without a 期 gets its first.
-    private const string UnlessLatestIsThisShow = """
-         WHERE $live IS NOT (SELECT live_time FROM gift_board_period
-            WHERE id = (SELECT MAX(id) FROM gift_board_period WHERE room_id = $room))
+    private const string UnlessLatestIsThisShow = $"""
+         WHERE $live IS NOT (SELECT live_time FROM gift_board_period WHERE id = ({LatestPeriodId}))
         """;
 
     private const string InsertTotal = """
@@ -51,9 +52,9 @@ internal sealed class GiftBoardStore(Database database)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = """
+        command.CommandText = $"""
             SELECT uid, gift_key, nickname, face_url, gift_name, icon_url, guard_level, price, num FROM gift_board_total
-            WHERE period_id = (SELECT MAX(id) FROM gift_board_period WHERE room_id = $room)
+            WHERE period_id = ({LatestPeriodId})
             ORDER BY price * num DESC, first_at, rowid;
             """;
         command.Parameters.AddWithValue("$room", roomId);
@@ -144,7 +145,7 @@ internal sealed class GiftBoardStore(Database database)
 
     private static long LatestPeriod(SqliteCommand command, long roomId, DateTimeOffset at, long? liveTime)
     {
-        command.CommandText = "SELECT MAX(id) FROM gift_board_period WHERE room_id = $room";
+        command.CommandText = LatestPeriodId;
         command.Parameters.AddWithValue("$room", roomId);
         if (command.ExecuteScalar() is long period) return period;
         command.CommandText = InsertPeriod + " RETURNING id";
