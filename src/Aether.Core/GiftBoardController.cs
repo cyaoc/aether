@@ -7,8 +7,6 @@ namespace Aether.Core;
 /// 礼物榜页 and the GUI what to show. It follows the settings last applied, so a save needs no new room connection.</summary>
 public sealed class GiftBoardController : IDisposable
 {
-    /// <summary>1 电池 = 100 金瓜子 (GLOSSARY).</summary>
-    public const long CoinsPerBattery = 100;
     private readonly object gate = new();
     private readonly Func<GiftBoardStore> store;
     private readonly TimeProvider time;
@@ -149,7 +147,7 @@ public sealed class GiftBoardController : IDisposable
     private ImmutableArray<GiftBoardRow> Rows()
     {
         if (!settings.GiftBoardEnabled.Value || roomId is not { } room) return [];
-        var minimum = settings.GiftBoardThreshold.Value * CoinsPerBattery;
+        var minimum = Battery.ToCoins(settings.GiftBoardThreshold.Value);
         var byTotal = settings.GiftBoardThresholdBy.Value == Settings.GiftBoardByTotalPrice;
         // shortcut: reads the whole 期 on every change; filter in SQL if a long-running 总榜 slows it.
         return [.. store().Rows(room).Where(row => (byTotal ? row.Value : row.Price) >= minimum)];

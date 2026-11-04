@@ -40,7 +40,7 @@ internal sealed record BlindBoxTally(long Spend, long OpenedValue)
         return $"投入{Text(spend)}电池 {result}";
 
         // Round to one decimal first, so whole numbers drop the ".0" and the words always match the number shown.
-        static decimal Batteries(long coins) => Math.Round(coins / 100m, 1, MidpointRounding.AwayFromZero);
+        static decimal Batteries(long coins) => Math.Round(Battery.FromCoins(coins), 1, MidpointRounding.AwayFromZero);
         static string Text(decimal batteries) => batteries.ToString(batteries % 1 == 0 ? "0" : "0.0", CultureInfo.InvariantCulture);
     }
 }
