@@ -94,7 +94,7 @@ public sealed class BrowserSourceSizeTests
                     if (index == 2) window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(tab);
                     GuiHarness.Flush();
                     var sizes = GuiHarness.VisibleText(window).Where(text => text is not null && Size.IsMatch(text)).ToArray();
-                    Assert.Equal(index == 6 ? ["1920 × 1080", "横屏 1920 × 1080 · 竖屏 1080 × 1920"] : [], sizes);
+                    Assert.Equal(index == 7 ? ["1920 × 1080", "横屏 1920 × 1080 · 竖屏 1080 × 1920"] : [], sizes);
                 }
             }
         }

@@ -18,7 +18,7 @@ public sealed class ComboBoxStyleTests
     public Task Dropdown_fits_longest_unselected_item_without_resizing_input(bool dark) => Dispatch(dark, window =>
     {
         const string longest = "1234567890123456789012345678901234567890";
-        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (6, "LogLevelInput") })
+        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (7, "LogLevelInput") })
         {
             var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
             input.ItemsSource = new[] { "1", longest };
@@ -54,7 +54,7 @@ public sealed class ComboBoxStyleTests
     [InlineData(true)]
     public Task All_three_dropdowns_share_the_card_items_and_open_state(bool dark) => Dispatch(dark, window =>
     {
-        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (6, "LogLevelInput"), (2, "GuardInput") })
+        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (7, "LogLevelInput"), (2, "GuardInput") })
         {
             var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
             var glyph = input.GetVisualDescendants().OfType<PathIcon>().Single(x => x.Name == "DropDownGlyph");

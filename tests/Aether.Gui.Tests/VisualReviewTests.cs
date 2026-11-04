@@ -124,7 +124,7 @@ public sealed class VisualReviewTests
                 await vm.ReadAccountCommand.ExecutionTask!;
                 vm.Apply(new Connected(7734200, 24680));
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery() with { Uid = 1 })));
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 GuiHarness.Flush();
                 var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().Single(x => x.IsEffectivelyVisible);
                 var button = picker.FindControl<Button>("PickerButton")!;
@@ -169,7 +169,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 Lottery lottery = mode == LotteryMode.Pool ? LotteryPanelTests.TestLottery() : EntryLotteryPanelTests.TestLottery();
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
                 await vm.Lottery.SavePrizeSetAsync(mode, "周末福利");
@@ -216,7 +216,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
                 var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
                 var tabs = panel.FindControl<ListBox>("ViewTabs")!;
@@ -254,7 +254,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 var at = new DateTimeOffset(2026, 10, 17, 20, 30, 0, TimeSpan.FromHours(8));
                 string[] names = ["一只小鹿", "柚子不酸", "夜航船", "桃桃乌龙", "番茄炒蛋", "青柠", "橘猫本猫", "南巷"];
                 var lottery = EntryLotteryPanelTests.TestLottery() with
@@ -322,7 +322,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 // Canvas V1's pool and records: a viewer's stop, a host stop with no UID, and a host stop for a named viewer.
                 PoolPrize[] prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second),
                     new("签名照", 4, Grade.Third), new("贴纸套装", 2, Grade.Third)];
@@ -474,7 +474,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 6;
+                window.Navigation.SelectedIndex = 7;
                 GuiHarness.Flush();
                 foreach (var (name, state) in new[]
                 {
@@ -866,7 +866,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                foreach (var (pageIndex, name) in new[] { (6, "LogLevelInput"), (2, "GuardInput") })
+                foreach (var (pageIndex, name) in new[] { (7, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
                     input.IsDropDownOpen = true;
@@ -907,7 +907,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 var number = page.FindControl<NumericUpDown>("SendIntervalInput")!;
@@ -927,8 +927,8 @@ public sealed class VisualReviewTests
                 Capture("error");
                 text.Text = "1";
                 File.WriteAllText(Settings.FilePath(harness.DataDirectory), "send:\n  interval_seconds: |-\n    1\n");
+                window.Navigation.SelectedIndex = 7;
                 window.Navigation.SelectedIndex = 6;
-                window.Navigation.SelectedIndex = 5;
                 Capture("readonly");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -1026,7 +1026,7 @@ public sealed class VisualReviewTests
                 { Text = "@" + nickname + " 投入52电池 亏12.6电池", RetrySeconds = 1 });
             }
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "lottery", "send-queue", "general" };
+            var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "gift-board", "lottery", "send-queue", "general" };
             for (var i = 0; i < pages.Length; i++)
             {
                 navigation.SelectedIndex = i;
@@ -1066,7 +1066,7 @@ public sealed class VisualReviewTests
                 Add(welcome, kind);
             Capture("welcome-levels");
             File.WriteAllText(path, "log:\n  level: @bad\n");
-            navigation.SelectedIndex = 6;
+            navigation.SelectedIndex = 7;
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
             var fileMessage = GuiHarness.FindVisual<TextBlock>(general, "FileMessage");

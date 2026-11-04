@@ -1,0 +1,11 @@
+<local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.GiftBoardSettingsPage">
+  <local:SettingsPage.HeaderContent>
+    <ToggleSwitch x:Name="EnabledInput" Classes="plain" AutomationProperties.Name="礼物榜" />
+  </local:SettingsPage.HeaderContent>
+  <local:SettingsPage.BodyContent>
+    <StackPanel Spacing="22">
+      <TextBlock x:Name="EnabledReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+    </StackPanel>
+  </local:SettingsPage.BodyContent>
+</local:SettingsPage>

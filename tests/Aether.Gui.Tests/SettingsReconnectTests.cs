@@ -13,10 +13,10 @@ public sealed class SettingsReconnectTests
 {
     [Theory]
     [InlineData(RoomConnectionState.Disconnected, 1, false)]
-    [InlineData(RoomConnectionState.Connected, 6, false)]
+    [InlineData(RoomConnectionState.Connected, 7, false)]
     [InlineData(RoomConnectionState.Connected, 2, true)]
     [InlineData(RoomConnectionState.Connected, 1, true)]
-    [InlineData(RoomConnectionState.Reconnecting, 5, true)]
+    [InlineData(RoomConnectionState.Reconnecting, 6, true)]
     public Task Only_room_settings_saved_during_a_connection_show_a_notice(RoomConnectionState state, int index, bool notice) =>
         HeadlessApp.Session.Dispatch(async () =>
         {
@@ -27,7 +27,7 @@ public sealed class SettingsReconnectTests
             window.Show();
             try
             {
-                foreach (var otherIndex in new[] { 1, 2, 3, 5, 6 })
+                foreach (var otherIndex in new[] { 1, 2, 3, 4, 6, 7 })
                 {
                     window.Navigation.SelectedIndex = otherIndex;
                     GuiHarness.Flush();
@@ -44,8 +44,8 @@ public sealed class SettingsReconnectTests
                         GuiHarness.Flush();
                         break;
                     case 2: page.FindControl<ToggleSwitch>("WelcomeInput")!.IsChecked = true; break;
-                    case 5: page.FindControl<NumericUpDown>("SendIntervalInput")!.Text = "7"; break;
-                    case 6: page.FindControl<NumericUpDown>("RetentionInput")!.Text = "7"; break;
+                    case 6: page.FindControl<NumericUpDown>("SendIntervalInput")!.Text = "7"; break;
+                    case 7: page.FindControl<NumericUpDown>("RetentionInput")!.Text = "7"; break;
                 }
                 GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 Assert.Equal(notice, GuiHarness.FindVisual<Border>(page, "ReconnectNotice").IsVisible);

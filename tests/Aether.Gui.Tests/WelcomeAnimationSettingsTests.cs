@@ -660,7 +660,7 @@ public sealed class WelcomeAnimationSettingsTests
         {
             await GuiHarness.WaitForAsync(() => viewModel.AccountStatus.Account is not null && viewModel.WebService.WebServiceStatus.Running);
             Assert.False(viewModel.IsLoggedOut);
-            window.Navigation.SelectedIndex = 6;
+            window.Navigation.SelectedIndex = 7;
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             Assert.Equal("端口保存后立即生效；日志设置重启后生效", GuiHarness.FindVisual<TextBlock>(general, "TimingHint").Text);
@@ -701,7 +701,7 @@ public sealed class WelcomeAnimationSettingsTests
             await GuiHarness.WaitForAsync(() => viewModel.WebService.RecentAnimations.Single().Playback.State == PlaybackState.Stopped);
             Assert.Equal("试播", GuiHarness.FindRowControl<TextBlock>(animation, playingRow, "TestText").Text);
             Click(animation, "OpenGeneralSettingsButton");
-            Assert.Equal(6, window.Navigation.SelectedIndex);
+            Assert.Equal(7, window.Navigation.SelectedIndex);
             var nextPort = GuiHarness.FreePort();
             general.FindControl<NumericUpDown>("WebPortInput")!.Text = nextPort.ToString();
             GuiHarness.Flush();
@@ -711,8 +711,8 @@ public sealed class WelcomeAnimationSettingsTests
             GuiHarness.Flush();
             await GuiHarness.WaitForAsync(() => general.IsEnabled);
             // Rereading the saved file validates the page again; that is not an edit, so the result stays.
-            window.Navigation.SelectedIndex = 5;
             window.Navigation.SelectedIndex = 6;
+            window.Navigation.SelectedIndex = 7;
             GuiHarness.Flush();
             Assert.Equal("已保存，网页服务已换到新端口", GuiHarness.FindVisual<TextBlock>(general, "Message").Text);
             Assert.Equal(nextPort, viewModel.WebService.WebServiceStatus.Port);
@@ -950,7 +950,7 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            Assert.Equal(7, window.Navigation.ItemCount);
+            Assert.Equal(8, window.Navigation.ItemCount);
             window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
             GuiHarness.Flush();
