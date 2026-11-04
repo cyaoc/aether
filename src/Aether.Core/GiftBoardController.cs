@@ -98,6 +98,19 @@ public sealed class GiftBoardController : IDisposable
         }
     }
 
+    /// <summary>Opens a new, empty 期 for the connected room. The old ones stay in the database, and a show under way is
+    /// remembered, so connecting again during it does not open yet another.</summary>
+    public void Clear()
+    {
+        lock (gate)
+        {
+            store().Open(ConnectedRoom(), time.GetUtcNow(), liveTime);
+            Publish();
+        }
+    }
+
+    private long ConnectedRoom() => roomId ?? throw new InvalidOperationException("没有连着直播间。");
+
     private bool Accept(Gift gift)
     {
         if (gift.Uid == 0)
