@@ -13,15 +13,18 @@ public sealed class BrowserSourceSizeTests
     private static readonly string[] SetupHelps = ["VideoSetupHelp", "LotterySetupHelp"];
 
     [Fact]
-    public Task Page_list_writes_each_pages_size_in_one_column_that_lines_up() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1), page =>
+    public Task Page_list_writes_each_pages_size_on_its_row_and_the_note_sends_the_streamer_there() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1), page =>
     {
         Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "每个页面在直播姬里各加一个浏览器素材，宽高照每行写的填");
-        var video = page.FindControl<ContentControl>("VideoSize")!;
-        var lottery = page.FindControl<ContentControl>("LotterySize")!;
-        Assert.Equal("1920 × 1080", video.Content);
-        Assert.Equal("横屏 1920 × 1080 · 竖屏 1080 × 1920", lottery.Content);
+        Assert.Equal("1920 × 1080", page.FindControl<ContentControl>("VideoSize")!.Content);
+        Assert.Equal("横屏 1920 × 1080 · 竖屏 1080 × 1920", page.FindControl<ContentControl>("LotterySize")!.Content);
+    });
+
+    [Fact]
+    public Task Page_sizes_line_up_in_one_column_whatever_each_one_says() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1), page =>
+    {
         double Left(Control control) => control.TranslatePoint(default, page)!.Value.X;
-        Assert.Equal(Left(video), Left(lottery), 0.5);
+        Assert.Equal(Left(page.FindControl<ContentControl>("VideoSize")!), Left(page.FindControl<ContentControl>("LotterySize")!), 0.5);
         Assert.Equal(Left(page.FindControl<Button>("CopyVideoAddressButton")!), Left(page.FindControl<Button>("CopyLotteryAddressButton")!), 0.5);
     });
 

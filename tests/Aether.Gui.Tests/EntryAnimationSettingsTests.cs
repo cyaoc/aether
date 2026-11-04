@@ -14,7 +14,32 @@ namespace Aether.Gui.Tests;
 public sealed class EntryAnimationSettingsTests
 {
     [Fact]
-    public Task Volume_slider_steps_by_one_and_ten_from_the_keyboard_and_saves_entry_animation_volume() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Volume_slider_is_named_and_steps_by_one_and_ten_from_the_keyboard() => HeadlessApp.Session.Dispatch(() =>
+    {
+        using var h = new GuiHarness();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.volume"] = "30" });
+        var page = new AnimationSettingsPage(h.DataDirectory);
+        var window = new Window { Content = page, Width = 1040, Height = 600 };
+        window.Show();
+        try
+        {
+            GuiHarness.Flush();
+            var volume = GuiHarness.FindVisual<Slider>(page, "VolumeInput");
+            Assert.Equal("动画音量", AutomationProperties.GetName(volume));
+            volume.Focus();
+            foreach (var (key, physical, expected) in new[] { (Key.Right, PhysicalKey.ArrowRight, 31), (Key.PageUp, PhysicalKey.PageUp, 41),
+                (Key.Left, PhysicalKey.ArrowLeft, 40), (Key.PageDown, PhysicalKey.PageDown, 30), (Key.Home, PhysicalKey.Home, 0), (Key.End, PhysicalKey.End, 100) })
+            {
+                window.KeyPress(key, RawInputModifiers.None, physical, null);
+                Assert.Equal(expected, volume.Value);
+            }
+        }
+        finally { window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Volume_slider_shows_and_saves_entry_animation_volume_with_zero_as_the_far_left() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.volume"] = "30" });
@@ -26,14 +51,6 @@ public sealed class EntryAnimationSettingsTests
             GuiHarness.Flush();
             var volume = GuiHarness.FindVisual<Slider>(page, "VolumeInput");
             Assert.Equal(30, volume.Value);
-            Assert.Equal("动画音量", AutomationProperties.GetName(volume));
-            volume.Focus();
-            foreach (var (key, physical, expected) in new[] { (Key.Right, PhysicalKey.ArrowRight, 31), (Key.PageUp, PhysicalKey.PageUp, 41),
-                (Key.Left, PhysicalKey.ArrowLeft, 40), (Key.PageDown, PhysicalKey.PageDown, 30), (Key.Home, PhysicalKey.Home, 0), (Key.End, PhysicalKey.End, 100) })
-            {
-                window.KeyPress(key, RawInputModifiers.None, physical, null);
-                Assert.Equal(expected, volume.Value);
-            }
             volume.Value = 65;
             GuiHarness.Flush();
             Assert.True(page.CanSave);
