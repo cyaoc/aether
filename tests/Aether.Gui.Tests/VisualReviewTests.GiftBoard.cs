@@ -91,12 +91,7 @@ public sealed partial class VisualReviewTests
         var clock = new FakeTimeProvider(Yesterday);
         using var harness = new GuiHarness(clock);
         await harness.SaveCredentialAsync();
-        var saved = new Dictionary<string, string>
-        {
-            ["gift_board.enabled"] = "true", ["gift_board.threshold"] = "100", ["web_service.port"] = GuiHarness.FreePort().ToString()
-        };
-        foreach (var (name, value) in settings) saved[name] = value;
-        Settings.Save(harness.DataDirectory, saved);
+        harness.SaveSettings([("gift_board.enabled", "true"), ("gift_board.threshold", "100"), .. settings]);
         var roomStarted = harness.HoldRoomRequest();
         var viewModel = harness.CreateViewModel(clock);
         var window = new MainWindow(harness.DataDirectory)

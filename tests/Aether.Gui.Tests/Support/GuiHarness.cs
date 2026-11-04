@@ -114,6 +114,14 @@ internal sealed class GuiHarness : IDisposable
         return requested.Task;
     }
 
+    /// <summary>Saves settings over a web service port of its own, so that saving a page does not start the service on the default one.</summary>
+    public void SaveSettings(params (string Name, string Value)[] settings)
+    {
+        var saved = new Dictionary<string, string> { ["web_service.port"] = FreePort().ToString() };
+        foreach (var (name, value) in settings) saved[name] = value;
+        Settings.Save(DataDirectory, saved);
+    }
+
     public void SaveRecentRooms(params string[] rooms)
     {
         var settings = LoadSettings();

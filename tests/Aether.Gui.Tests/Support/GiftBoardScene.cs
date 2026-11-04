@@ -48,10 +48,7 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     {
         var clock = new FakeTimeProvider(Yesterday);
         var harness = new GuiHarness(clock);
-        // Saving starts the web service, which gets a port of its own.
-        var saved = new Dictionary<string, string> { ["web_service.port"] = GuiHarness.FreePort().ToString() };
-        foreach (var (name, value) in settings) saved[name] = value;
-        Settings.Save(harness.DataDirectory, saved);
+        harness.SaveSettings(settings);
         harness.Client.GiftBoard.Apply(Settings.Load(harness.DataDirectory));
         var viewModel = harness.CreateViewModel(clock);
         var page = new GiftBoardSettingsPage(harness.DataDirectory) { DataContext = viewModel };

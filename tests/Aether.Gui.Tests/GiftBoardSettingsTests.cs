@@ -135,7 +135,7 @@ public sealed class GiftBoardSettingsTests
     {
         using var h = new GuiHarness();
         await h.SaveCredentialAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = GuiHarness.FreePort().ToString() });
+        h.SaveSettings();
         var vm = h.CreateViewModel();
         var window = new MainWindow(h.DataDirectory) { DataContext = vm };
         window.Show();
