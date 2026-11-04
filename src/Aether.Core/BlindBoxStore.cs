@@ -12,10 +12,15 @@ internal static class BlindBoxPeriodName
 }
 
 /// <summary>One blind box gift item: the box bought (BlindGift*) and the gift it opened (OpenedGift*). Amounts are
-/// integer 金瓜子, Timestamp is B站's send time in Unix seconds, and Shown is the message's switch.</summary>
+/// integer 金瓜子, Timestamp is B站's send time in Unix seconds, and Shown is the message's switch. The decoders also use it
+/// for an ordinary gift's item (no BlindGift*); FaceUrl and IconUrl are the viewer's avatar and the opened gift's icon.</summary>
 internal sealed record BlindBox(long Uid, string Nickname, long BlindGiftId, string BlindGiftName,
     long BlindGiftPrice, long OpenedGiftId, string OpenedGiftName, long OpenedGiftPrice, long Num, long Spend,
-    long OpenedValue, long Timestamp, string? Tid, bool Shown);
+    long OpenedValue, long Timestamp, string? Tid, bool Shown)
+{
+    public string FaceUrl { get; init; } = "";
+    public string IconUrl { get; init; } = "";
+}
 
 /// <summary>投入 and 开出价值 in 金瓜子: one viewer's 盲盒统计, or the part of a 一轮盲盒 one announcement reports.</summary>
 internal sealed record BlindBoxTally(long Spend, long OpenedValue)

@@ -65,12 +65,6 @@ internal static class InteractWordV2
     }
 
     /// <summary>Field 1 of a wealth or guard message, merged over <paramref name="level"/>.</summary>
-    private static long ReadLevel(ReadOnlyMemory<byte> bytes, long level)
-    {
-        var reader = new ProtobufReader(bytes);
-        while (reader.TryRead(out var field, out var type))
-            if (field == 1) level = reader.Int64(type);
-            else reader.Skip(field, type);
-        return level;
-    }
+    private static long ReadLevel(ReadOnlyMemory<byte> bytes, long level) =>
+        ProtobufReader.LastValue(bytes, 1, (reader, type) => reader.Int64(type), level);
 }
