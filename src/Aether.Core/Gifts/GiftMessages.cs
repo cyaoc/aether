@@ -16,6 +16,7 @@ internal static class GiftMessages
 
     public static Gift[] Decode(string command, JsonElement root, ReadOnlyMemory<byte> body, ILogger logger)
     {
+        if (command == "USER_TOAST_MSG_V2") return UserToastV2.Decode(root.GetProperty("data"), logger);
         if (!Decoders.TryGetValue(command, out var decoder)) return [];
         List<Gift> result = [];
         string? rawMessage = null;
