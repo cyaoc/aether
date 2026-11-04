@@ -39,26 +39,38 @@ public sealed partial class VisualReviewTests
         {
             await ShootBoardAsync(look, [], connected: true, async shoot =>
             {
-                shoot.Capture("");
+                shoot.Capture("gift-board");
+                shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 0));
+                shoot.Capture("gift-board-page-waiting");
+                shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1));
                 shoot.Click("AskClearButton");
-                shoot.Capture("-clear-confirm");
+                shoot.Capture("gift-board-clear-confirm");
                 shoot.Click("CancelConfirmButton");
                 shoot.Click("AskRestoreButton");
-                shoot.Capture("-restore-confirm");
+                shoot.Capture("gift-board-restore-confirm");
                 shoot.Click("CancelConfirmButton");
                 shoot.Click("AskRestoreButton");
                 shoot.Click("ConfirmRestoreButton");
                 await GuiHarness.WaitForAsync(() => shoot.ViewModel.GiftBoard.Rows.Count == 9);
-                shoot.Capture("-restored");
+                shoot.Capture("gift-board-restored");
             });
             await ShootBoardAsync(look, [("gift_board.threshold_by", "2")], connected: true, shoot =>
             {
-                shoot.Capture("-total");
+                shoot.Capture("gift-board-total");
                 return Task.CompletedTask;
             });
             await ShootBoardAsync(look, [], connected: false, shoot =>
             {
-                shoot.Capture("-offline");
+                shoot.Capture("gift-board-offline");
+                return Task.CompletedTask;
+            });
+            // The page list of the general settings, with the 礼物榜页 connected and not.
+            await ShootBoardAsync(look, [], connected: true, shoot =>
+            {
+                shoot.Window.Navigation.SelectedIndex = 7;
+                shoot.Capture("general-gift-board-pages");
+                shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 0));
+                shoot.Capture("general-gift-board-waiting");
                 return Task.CompletedTask;
             });
             return true;
@@ -72,7 +84,7 @@ public sealed partial class VisualReviewTests
 
     private sealed record BoardShot(MainWindow Window, MainWindowViewModel ViewModel, GiftBoardSettingsPage Page, Look Look)
     {
-        public void Capture(string scene) => Save(Window, $"gift-board{scene}-{Look.Suffix}");
+        public void Capture(string scene) => Save(Window, $"{scene}-{Look.Suffix}");
 
         public void Click(string name)
         {

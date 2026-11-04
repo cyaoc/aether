@@ -102,6 +102,42 @@ public sealed class GiftBoardSettingsTests
         return Task.CompletedTask;
     });
 
+    [Theory]
+    [InlineData(true, 1, null, "礼物榜页：已有 1 个推流软件连着", null)]
+    [InlineData(true, 0, null, "礼物榜页：还没有推流软件连着", "在直播姬里添加浏览器素材，地址和宽高照通用设置里“礼物榜页”那一行填；已经加过的，右键素材 → 刷新。")]
+    [InlineData(false, 0, "端口 17890 被别的程序占用", "网页服务没打开：端口 17890 被别的程序占用，礼物榜页显示不了", null)]
+    public Task The_status_bar_tells_how_the_gift_board_page_is_connected(bool running, int connections, string? error, string text, string? steps) => GiftBoardScene.Run(scene =>
+    {
+        // The video and lottery pages have nine connections each, which this page must not count as its own.
+        scene.ViewModel.WebService.Apply(new WebServiceStatus(running, 17890, 9, 9, error, connections));
+        GuiHarness.Flush();
+        Assert.Equal(text, GuiHarness.FindVisual<TextBlock>(scene.Page, "PageStatusText").Text);
+        var help = GuiHarness.FindVisual<TextBlock>(scene.Page, "PageSetupSteps");
+        Assert.Equal(steps is not null, help.IsEffectivelyVisible);
+        Assert.Equal(steps ?? "", help.Text ?? "");
+        return Task.CompletedTask;
+    });
+
+    [Fact]
+    public Task The_status_bar_sends_the_streamer_to_the_general_settings_for_the_address_and_size() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        await h.SaveCredentialAsync();
+        var vm = h.CreateViewModel();
+        var window = new MainWindow(h.DataDirectory) { DataContext = vm };
+        window.Show();
+        try
+        {
+            window.Navigation.SelectedIndex = 4;
+            GuiHarness.Flush();
+            var page = window.GetVisualDescendants().OfType<GiftBoardSettingsPage>().Single();
+            GuiHarness.FindVisual<Button>(page, "OpenGeneralSettingsButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(7, window.Navigation.SelectedIndex);
+        }
+        finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     private static async Task Save(SettingsPage page)
     {
         GuiHarness.Flush();

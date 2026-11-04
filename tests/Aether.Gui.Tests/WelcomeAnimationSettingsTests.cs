@@ -906,13 +906,13 @@ public sealed class WelcomeAnimationSettingsTests
     }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(true, 2, 1, null, "运行中", "视频页：已有 2 个推流软件连着")]
-    [InlineData(true, 2, 0, null, "运行中", "视频页：已有 2 个推流软件连着")]
-    [InlineData(true, 0, 1, null, "运行中", "视频页还没有推流软件连着，先在直播姬里加好再试播")]
-    [InlineData(true, 0, 0, null, "运行中", "视频页还没有推流软件连着，先在直播姬里加好再试播")]
-    [InlineData(false, 0, 0, "端口 17891 被别的程序占用", "没打开：端口 17891 被别的程序占用", "网页服务没打开：端口 17891 被别的程序占用，试播和进场都播不了")]
-    [InlineData(false, 0, 0, null, "未运行", "网页服务没打开，试播和进场都播不了")]
-    public Task Web_service_card_shows_each_page_count_setup_and_errors(bool running, int videos, int lotteries, string? error, string expected, string videoRow) => HeadlessApp.Session.Dispatch(async () =>
+    [InlineData(true, 2, 1, 3, null, "运行中", "视频页：已有 2 个推流软件连着")]
+    [InlineData(true, 2, 0, 0, null, "运行中", "视频页：已有 2 个推流软件连着")]
+    [InlineData(true, 0, 1, 0, null, "运行中", "视频页还没有推流软件连着，先在直播姬里加好再试播")]
+    [InlineData(true, 0, 0, 1, null, "运行中", "视频页还没有推流软件连着，先在直播姬里加好再试播")]
+    [InlineData(false, 0, 0, 0, "端口 17891 被别的程序占用", "没打开：端口 17891 被别的程序占用", "网页服务没打开：端口 17891 被别的程序占用，试播和进场都播不了")]
+    [InlineData(false, 0, 0, 0, null, "未运行", "网页服务没打开，试播和进场都播不了")]
+    public Task Web_service_card_shows_each_page_count_setup_and_errors(bool running, int videos, int lotteries, int giftBoards, string? error, string expected, string videoRow) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         var viewModel = harness.CreateViewModel();
@@ -921,16 +921,19 @@ public sealed class WelcomeAnimationSettingsTests
         window.Show();
         try
         {
-            viewModel.WebService.Apply(new WebServiceStatus(running, 17891, videos, lotteries, error));
+            viewModel.WebService.Apply(new WebServiceStatus(running, 17891, videos, lotteries, error, giftBoards));
             GuiHarness.Flush();
             Assert.Equal(expected, page.FindControl<TextBlock>("WebServiceStatusText")!.Text);
             Assert.Equal("http://localhost:17891/video", page.FindControl<TextBox>("VideoAddress")!.Text);
             Assert.Equal("http://localhost:17891/lottery", page.FindControl<TextBox>("LotteryAddress")!.Text);
+            Assert.Equal("http://localhost:17891/gift-board", page.FindControl<TextBox>("GiftBoardAddress")!.Text);
             string Count(int count) => !running ? "服务没打开" : count > 0 ? $"{count} 个推流软件连着" : "还没有连着";
             Assert.Equal(Count(videos), page.FindControl<TextBlock>("VideoConnectionsText")!.Text);
             Assert.Equal(Count(lotteries), page.FindControl<TextBlock>("LotteryConnectionsText")!.Text);
+            Assert.Equal(Count(giftBoards), page.FindControl<TextBlock>("GiftBoardConnectionsText")!.Text);
             Assert.Equal(running && videos == 0, page.FindControl<Control>("VideoSetupHelp")!.IsVisible);
             Assert.Equal(running && lotteries == 0, page.FindControl<Control>("LotterySetupHelp")!.IsVisible);
+            Assert.Equal(running && giftBoards == 0, page.FindControl<Control>("GiftBoardSetupHelp")!.IsVisible);
             var help = page.FindControl<TextBlock>("WebServiceHelp")!;
             Assert.Equal(running || error is not null, help.IsVisible);
             if (error is not null) Assert.StartsWith("换一个端口并保存", help.Text);

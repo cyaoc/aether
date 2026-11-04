@@ -29,13 +29,15 @@ public partial class MainWindow : Window
         var welcome = new WelcomePanel(dataDirectory);
         var animation = welcome.Animation;
         var gift = new GiftAnimationSettingsPage(dataDirectory);
+        var board = new GiftBoardSettingsPage(dataDirectory);
         // Navigation items and PageHost children share one order, after the danmaku page.
-        Control[] pages = [new BlindBoxSettingsPage(dataDirectory), welcome, gift, new GiftBoardSettingsPage(dataDirectory), new LotteryPanel(), new SendSettingsPage(dataDirectory), general];
+        Control[] pages = [new BlindBoxSettingsPage(dataDirectory), welcome, gift, board, new LotteryPanel(), new SendSettingsPage(dataDirectory), general];
         foreach (var page in pages) page.IsVisible = false;
         PageHost.Children.AddRange(pages);
         foreach (var page in SettingsPages) page.SaveCompleted += RefreshSettingsStatus;
         animation.GeneralSettingsRequested += ShowGeneralSettings;
         gift.GeneralSettingsRequested += ShowGeneralSettings;
+        board.GeneralSettingsRequested += ShowGeneralSettings;
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
         // Nothing has focus while the splash fades over the enabled page, so stopping Tab keeps every key out of it.

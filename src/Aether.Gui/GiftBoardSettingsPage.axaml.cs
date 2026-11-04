@@ -6,6 +6,8 @@ namespace Aether.Gui;
 
 public partial class GiftBoardSettingsPage : SettingsPage
 {
+    public event Action? GeneralSettingsRequested;
+
     public GiftBoardSettingsPage() : this(DataDirectory.Locate()) { }
 
     public GiftBoardSettingsPage(string dataDirectory) : base(dataDirectory)
@@ -20,6 +22,7 @@ public partial class GiftBoardSettingsPage : SettingsPage
         Bind(ResetOnLiveInput, ResetOnLiveReadOnly, null, settings => settings.GiftBoardResetOnLive);
         Bind(MascotInput, MascotReadOnly, null, settings => settings.GiftBoardMascot);
         Bind(VolumeInput, VolumeReadOnly, settings => settings.GiftBoardVolume);
+        PageStatus.GeneralSettingsRequested += () => GeneralSettingsRequested?.Invoke();
         LoadSettings();
     }
 

@@ -24,6 +24,7 @@
   <local:SettingsPage.BodyContent>
     <StackPanel Spacing="22">
       <TextBlock x:Name="EnabledReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+      <local:PageStatusBar x:Name="PageStatus" DataContext="{Binding WebService.GiftBoard}" />
       <StackPanel Spacing="10">
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
           <TextBlock Classes="section" Text="上榜门槛" />

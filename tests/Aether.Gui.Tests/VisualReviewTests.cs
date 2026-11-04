@@ -430,9 +430,9 @@ public sealed partial class VisualReviewTests
                 foreach (var text in texts)
                 {
                     // These are multi-sentence help, not single-line captions.
-                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" or "BoardEmpty" ||
+                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" or "BoardEmpty" or "PageSetupSteps" ||
                         text.GetVisualAncestors().OfType<Control>().Any(c =>
-                            c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "EmptyConditions")) continue;
+                            c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "GiftBoardSetupHelp" or "EmptyConditions")) continue;
                     Assert.True(text.TextWrapping == TextWrapping.NoWrap, $"Wrapping: {text.Text}");
                     var line = Assert.Single(text.TextLayout.TextLines);
                     Assert.True(line.Width > 0 && text.Bounds.Height >= line.Height - 1, $"Hidden: {text.Text}");
@@ -480,8 +480,8 @@ public sealed partial class VisualReviewTests
                 GuiHarness.Flush();
                 foreach (var (name, state) in new[]
                 {
-                    ("connected", new WebServiceStatus(true, 17890, 2, 1)),
-                    ("partial", new WebServiceStatus(true, 17890, 1, 0)),
+                    ("connected", new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1)),
+                    ("partial", new WebServiceStatus(true, 17890, 1, 0, GiftBoardConnections: 1)),
                     ("setup", new WebServiceStatus(true, 17890, 0, 0)),
                     ("occupied", new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"))
                 })
