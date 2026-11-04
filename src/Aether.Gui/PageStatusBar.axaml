@@ -10,7 +10,7 @@
           <TextBlock Grid.Column="1" x:Name="PageStatusText" Classes="secondary singleLine" Classes.success="{Binding Connected}" Classes.muted="{Binding Off}" FontWeight="SemiBold" Text="{Binding Text}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
           <Button Grid.Column="2" x:Name="OpenGeneralSettingsButton" Classes="ghost" Height="30" Padding="8,0" Foreground="{DynamicResource Accent.Text}" Click="OpenGeneralSettings">
             <StackPanel Orientation="Horizontal" Spacing="4">
-              <TextBlock Text="地址和端口在通用设置" FontSize="13" VerticalAlignment="Center" />
+              <TextBlock Text="地址和宽高在通用设置" FontSize="13" VerticalAlignment="Center" />
               <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Next}" StrokeThickness="2" /></Viewbox>
             </StackPanel>
           </Button>
