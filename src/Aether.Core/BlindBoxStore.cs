@@ -15,7 +15,7 @@ internal static class BlindBoxPeriodName
 /// integer 金瓜子, Timestamp is B站's send time in Unix seconds, and Shown is the message's switch.</summary>
 internal sealed record BlindBox(long Uid, string Nickname, long BlindGiftId, string BlindGiftName,
     long BlindGiftPrice, long OpenedGiftId, string OpenedGiftName, long OpenedGiftPrice, long Num, long Spend,
-    long OpenedValue, long Timestamp, string? Tid, bool Shown, string RawMessage);
+    long OpenedValue, long Timestamp, string? Tid, bool Shown);
 
 /// <summary>投入 and 开出价值 in 金瓜子: one viewer's 盲盒统计, or the part of a 一轮盲盒 one announcement reports.</summary>
 internal sealed record BlindBoxTally(long Spend, long OpenedValue)
@@ -77,9 +77,9 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO blind_box (room_id, uid, nickname, blind_gift_id, blind_gift_name, blind_gift_price,
-                opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid, raw_message)
+                opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid)
             VALUES ($roomId, $uid, $nickname, $blindGiftId, $blindGiftName, $blindGiftPrice,
-                $openedGiftId, $openedGiftName, $openedGiftPrice, $num, $spend, $openedValue, $timestamp, $tid, $rawMessage)
+                $openedGiftId, $openedGiftName, $openedGiftPrice, $num, $spend, $openedValue, $timestamp, $tid)
             ON CONFLICT (tid) DO NOTHING;
             """;
         command.Parameters.AddWithValue("$roomId", roomId);
@@ -96,7 +96,6 @@ internal sealed class BlindBoxStore(Database database, ILogger logger)
         command.Parameters.AddWithValue("$openedValue", blindBox.OpenedValue);
         command.Parameters.AddWithValue("$timestamp", blindBox.Timestamp);
         command.Set("$tid", blindBox.Tid);
-        command.Parameters.AddWithValue("$rawMessage", blindBox.RawMessage);
         if (command.ExecuteNonQuery() == 0)
         {
             // Name the ignored amounts, so a shared tid (a broken key assumption) can be told apart and recovered from the log.

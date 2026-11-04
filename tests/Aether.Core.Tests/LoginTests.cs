@@ -26,7 +26,7 @@ public sealed class LoginTests : IDisposable
         time, logger, dataDirectory);
 
     [Fact]
-    public async Task First_credential_operation_creates_version_five_database_with_lottery_tables_in_wal_mode()
+    public async Task First_credential_operation_creates_version_six_database_with_lottery_tables_in_wal_mode()
     {
         using var client = CreateClient();
         Assert.False(Directory.Exists(dataDirectory));
@@ -35,7 +35,7 @@ public sealed class LoginTests : IDisposable
         using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        Assert.Equal(5L, command.ExecuteScalar());
+        Assert.Equal(6L, command.ExecuteScalar());
         command.CommandText = "PRAGMA journal_mode";
         Assert.Equal("wal", command.ExecuteScalar());
         command.CommandText = "SELECT COUNT(*) FROM credential";
@@ -48,15 +48,9 @@ public sealed class LoginTests : IDisposable
     }
 
     [Fact]
-    public void Version_three_database_keeps_lottery_credential_and_blind_boxes_when_opened_as_version_five()
+    public void Version_three_database_keeps_lottery_credential_and_blind_boxes_when_opened_as_version_six()
     {
-        Directory.CreateDirectory(dataDirectory);
-        using (var connection = TestDatabase.Open(dataDirectory))
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "database-v0.2.1.sql"));
-            command.ExecuteNonQuery();
-        }
+        TestDatabase.Restore(dataDirectory, "database-v0.2.1.sql");
 
         using var client = CreateClient();
         var history = Assert.Single(client.Lottery.GetHistory(7734200));
@@ -87,12 +81,10 @@ public sealed class LoginTests : IDisposable
         Assert.Equal(DateTimeOffset.Parse("2023-12-10T00:00:00Z"), credential.SavedAt);
         Assert.Equal(DateTimeOffset.Parse("2023-12-10T01:00:00Z"), TestDatabase.CheckedAt(dataDirectory));
         Assert.Equal(new TestDatabase.BlindBoxRow(7734200, 42, "测试观众", 100, "测试盲盒", 1000,
-            200, "测试礼物", 2000, 2, 2000, 4000, 1702204169, "legacy-tid", """{"cmd":"SEND_GIFT"}"""),
+            200, "测试礼物", 2000, 2, 2000, 4000, 1702204169, "legacy-tid"),
             Assert.Single(TestDatabase.BlindBoxRows(dataDirectory)));
-        using var reopened = TestDatabase.Open(dataDirectory);
-        using var version = reopened.CreateCommand();
-        version.CommandText = "PRAGMA user_version";
-        Assert.Equal(5L, version.ExecuteScalar());
+        Assert.DoesNotContain("raw_message", TestDatabase.Columns(dataDirectory, "blind_box"));
+        Assert.Equal(6L, TestDatabase.UserVersion(dataDirectory));
     }
 
     [Fact]
@@ -247,10 +239,10 @@ public sealed class LoginTests : IDisposable
     public async Task Failed_database_open_is_retried_by_the_next_operation_on_the_same_client()
     {
         using (var setup = CreateClient()) await setup.LogoutAsync(TestContext.Current.CancellationToken);
-        SetUserVersion(6);
+        SetUserVersion(7);
         using var client = CreateClient();
         await Assert.ThrowsAsync<InvalidOperationException>(() => client.LogoutAsync(TestContext.Current.CancellationToken));
-        SetUserVersion(5);
+        SetUserVersion(6);
         await client.LogoutAsync(TestContext.Current.CancellationToken);
         AssertNoCredential();
     }

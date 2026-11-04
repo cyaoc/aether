@@ -41,7 +41,7 @@ internal static class TestDatabase
 
     public sealed record BlindBoxRow(long RoomId, long Uid, string Nickname, long BlindGiftId, string BlindGiftName,
         long BlindGiftPrice, long OpenedGiftId, string OpenedGiftName, long OpenedGiftPrice, long Num, long Spend,
-        long OpenedValue, long Timestamp, string? Tid, string RawMessage);
+        long OpenedValue, long Timestamp, string? Tid);
 
     /// <summary>Every blind_box row in insertion order, all columns but id.</summary>
     public static List<BlindBoxRow> BlindBoxRows(string dataDirectory)
@@ -50,7 +50,7 @@ internal static class TestDatabase
         using var command = connection.CreateCommand();
         command.CommandText = """
             SELECT room_id, uid, nickname, blind_gift_id, blind_gift_name, blind_gift_price,
-                opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid, raw_message
+                opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid
             FROM blind_box ORDER BY id;
             """;
         using var reader = command.ExecuteReader();
@@ -58,9 +58,38 @@ internal static class TestDatabase
         while (reader.Read()) rows.Add(new(
             reader.GetInt64(0), reader.GetInt64(1), reader.GetString(2), reader.GetInt64(3), reader.GetString(4),
             reader.GetInt64(5), reader.GetInt64(6), reader.GetString(7), reader.GetInt64(8), reader.GetInt64(9),
-            reader.GetInt64(10), reader.GetInt64(11), reader.GetInt64(12), reader.IsDBNull(13) ? null : reader.GetString(13),
-            reader.GetString(14)));
+            reader.GetInt64(10), reader.GetInt64(11), reader.GetInt64(12), reader.IsDBNull(13) ? null : reader.GetString(13)));
         return rows;
+    }
+
+    /// <summary>Writes the database an older release left behind: runs a frozen sample from Fixtures on a new file.</summary>
+    public static void Restore(string dataDirectory, string fixture)
+    {
+        Directory.CreateDirectory(dataDirectory);
+        using var connection = Open(dataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", fixture));
+        command.ExecuteNonQuery();
+    }
+
+    public static long UserVersion(string dataDirectory)
+    {
+        using var connection = Open(dataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = "PRAGMA user_version";
+        return (long)command.ExecuteScalar()!;
+    }
+
+    public static List<string> Columns(string dataDirectory, string table)
+    {
+        using var connection = Open(dataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT name FROM pragma_table_info($table)";
+        command.Parameters.AddWithValue("$table", table);
+        using var reader = command.ExecuteReader();
+        List<string> names = [];
+        while (reader.Read()) names.Add(reader.GetString(0));
+        return names;
     }
 
     public static long CredentialCount(string dataDirectory)
