@@ -40,18 +40,13 @@
   function render() { const vals = comp.renderVals(); refs = []; root.replaceChildren(); walk(doc.querySelector('x-dc'), vals, root); for (const [f, el] of refs) if (f) f(el); }
   render();
   comp.componentDidMount?.();
-  // sound=<tier> triggers audio/events.json from the board's own clock, as a game does: the animation keeps its timing,
+  // sound=<group> triggers that group of audio/events.json from the board's own clock, as a game does: the animation keeps its timing,
   // and each sound is scheduled so its loudest moment reaches the speakers on its frame.
   if (params.has('sound')) {
     const tier = params.get('sound');
     root.style.zoom = innerWidth / 1920;
     const bar = document.body.appendChild(document.createElement('div'));
     bar.style.cssText = 'position:fixed;left:16px;top:16px;z-index:9;display:flex;gap:8px;align-items:center;font:14px sans-serif;color:#fff';
-    for (const [t, board] of Object.entries({ 30: 'EV1-EntrySlice', 40: 'EV2-EntryTriple', 50: 'EV3-EntrySwallow', 60: 'EV4-EntryMoon' })) {
-      const a = bar.appendChild(document.createElement('a'));
-      a.textContent = t + ' 档'; a.href = `?board=${board}.dc.html&sound=${t}`;
-      a.style.cssText = `padding:6px 10px;border-radius:6px;background:${t === tier ? '#3358D4' : '#000a'};color:#fff;text-decoration:none`;
-    }
     const start = bar.appendChild(document.createElement('button'));
     start.textContent = '加载中…'; start.disabled = true;
     start.style.cssText = 'padding:6px 10px;border:0;border-radius:6px;background:#fff;color:#16181D';
