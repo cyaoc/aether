@@ -1,7 +1,8 @@
 // The board's textures, drawn once on 2D canvases (design package GB1): the glass cards and pills, the rank numerals, the
 // title, the names and counts, the sprite and the star. The local pictures come in as loaded images.
 import { CARDS, LAYOUT } from './layout.mjs';
-import { NUMERALS, PAD, SANS, fitText, gradient, paint, roundRect, seeded } from './paint.mjs';
+import { NUMERALS, PAD, SANS, fitText, gradient, roundRect, seeded } from './paint.mjs';
+import { canvasOf } from '../video/animations/toolkit.mjs';
 
 // Gold, silver-white and ice-blue rims: the cards also differ in size and numeral, never in hue alone.
 export const RIM = [
@@ -12,9 +13,12 @@ export const RIM = [
 // Names are drawn at 28 px and scaled to 29, 27 or 23 px; a card leaves a name 150 px, a pill 156 px.
 export const NAME_WIDTH = { card: 150 * 28 / 29, row: 156 * 28 / 23 };
 const ROW_NUMERAL = ['#ffffff', '#dfe6ff', '#b8c6ff'];
+const CARD_NUMERAL_SIZE = 70, ROW_NUMERAL_SIZE = 30;
+// The bubble sprite's two eyes, wide open or blinking: top, height and corner radius of each pill.
+const EYES = { open: [-20, 36, 7], blink: [-2, 6, 3] };
 const AVATAR_COLORS = [['#8fb2ff', '#3a4fd8'], ['#ffc2d9', '#d0568a'], ['#a8f0e0', '#2c9c86'], ['#ffd9a0', '#d4862e'], ['#d6c2ff', '#7a4fd8'], ['#b9e4ff', '#2f86c9']];
 
-const titleTexture = () => PIXI.Texture.from(paint(300, 80, g => {
+const titleTexture = () => PIXI.Texture.from(canvasOf(300, 80, g => {
   g.font = '800 40px ' + SANS;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
@@ -75,7 +79,7 @@ function paintCardRim(g, w, h, rim) {
   g.stroke();
 }
 
-const cardTexture = rank => PIXI.Texture.from(paint(LAYOUT.contentWidth + PAD * 2, CARDS[rank].h + PAD * 2, g => {
+const cardTexture = rank => PIXI.Texture.from(canvasOf(LAYOUT.contentWidth + PAD * 2, CARDS[rank].h + PAD * 2, g => {
   const w = LAYOUT.contentWidth, h = CARDS[rank].h;
   g.translate(PAD, PAD);
   shadow(g, [4, 2, w - 8, h - 4], 18, 0.45);
@@ -83,7 +87,7 @@ const cardTexture = rank => PIXI.Texture.from(paint(LAYOUT.contentWidth + PAD * 
   paintCardRim(g, w, h, RIM[rank]);
 }));
 
-const rowTexture = () => PIXI.Texture.from(paint(LAYOUT.contentWidth + PAD * 2, LAYOUT.rowHeight + PAD * 2, g => {
+const rowTexture = () => PIXI.Texture.from(canvasOf(LAYOUT.contentWidth + PAD * 2, LAYOUT.rowHeight + PAD * 2, g => {
   const w = LAYOUT.contentWidth, h = LAYOUT.rowHeight;
   g.translate(PAD, PAD);
   shadow(g, [4, 0, w - 8, h - 2], h / 2, 0.4);
@@ -101,8 +105,8 @@ const rowTexture = () => PIXI.Texture.from(paint(LAYOUT.contentWidth + PAD * 2, 
   g.stroke();
 }));
 
-// Rank numerals: big slanted italics; the top three get a thin slanted divider after them.
-const numeralTexture = (n, colors, size, divider) => PIXI.Texture.from(paint(size * (divider ? 1.9 : 1.4), size * 1.4, g => {
+// Rank numerals: big slanted italics in the rank's colours.
+function paintNumeral(g, n, colors, size) {
   g.font = 'italic 800 ' + size + 'px ' + NUMERALS;
   g.textAlign = 'center';
   g.textBaseline = 'middle';
@@ -110,7 +114,14 @@ const numeralTexture = (n, colors, size, divider) => PIXI.Texture.from(paint(siz
   g.shadowBlur = 10;
   g.fillStyle = gradient(g, [0, size * 0.25], [0, size * 1.15], colors);
   g.fillText(String(n), size * 0.7, size * 0.74);
-  if (!divider) return;
+}
+
+const rowNumeralTexture = rank => PIXI.Texture.from(canvasOf(ROW_NUMERAL_SIZE * 1.4, ROW_NUMERAL_SIZE * 1.4, g => paintNumeral(g, rank, ROW_NUMERAL, ROW_NUMERAL_SIZE)));
+
+// The top three get a thin slanted divider after the numeral.
+const cardNumeralTexture = rank => PIXI.Texture.from(canvasOf(CARD_NUMERAL_SIZE * 1.9, CARD_NUMERAL_SIZE * 1.4, g => {
+  const size = CARD_NUMERAL_SIZE;
+  paintNumeral(g, rank + 1, RIM[rank].numerals, size);
   g.shadowBlur = 0;
   g.strokeStyle = 'rgba(255,255,255,0.55)';
   g.lineWidth = 2;
@@ -121,10 +132,10 @@ const numeralTexture = (n, colors, size, divider) => PIXI.Texture.from(paint(siz
 }));
 
 function nameTexture(text, maxWidth) {
-  const probe = paint(1, 1, () => {}).getContext('2d');
+  const probe = canvasOf(1, 1, () => {}).getContext('2d');
   probe.font = '500 28px ' + SANS;
   const shown = fitText(probe, text, maxWidth);
-  return PIXI.Texture.from(paint(probe.measureText(shown).width + 16, 48, g => {
+  return PIXI.Texture.from(canvasOf(Math.ceil(probe.measureText(shown).width + 16), 48, g => {
     g.font = '500 28px ' + SANS;
     g.textBaseline = 'middle';
     g.shadowColor = 'rgba(10,16,90,0.8)';
@@ -134,7 +145,7 @@ function nameTexture(text, maxWidth) {
   }));
 }
 
-const countTexture = n => PIXI.Texture.from(paint(120, 48, g => {
+const countTexture = n => PIXI.Texture.from(canvasOf(120, 48, g => {
   g.font = '800 26px ' + SANS;
   g.textAlign = 'right';
   g.textBaseline = 'middle';
@@ -145,7 +156,7 @@ const countTexture = n => PIXI.Texture.from(paint(120, 48, g => {
 }));
 
 // A viewer without a picture gets the first character of the name on a colour the name always gets.
-const initialTexture = name => PIXI.Texture.from(paint(128, 128, g => {
+const initialTexture = name => PIXI.Texture.from(canvasOf(128, 128, g => {
   const random = seeded(name), [from, to] = AVATAR_COLORS[Math.floor(random() * AVATAR_COLORS.length)];
   g.fillStyle = gradient(g, [20, 10], [108, 118], [from, to]);
   g.beginPath();
@@ -158,8 +169,8 @@ const initialTexture = name => PIXI.Texture.from(paint(128, 128, g => {
   g.fillText([...name][0], 64, 68);
 }));
 
-// The app's chat-bubble sprite: glossy white, two upright royal-blue pill eyes, no mouth.
-const spriteTexture = blink => PIXI.Texture.from(paint(160, 160, g => {
+// The app's chat-bubble sprite: glossy white, two royal-blue pill eyes, no mouth.
+const spriteTexture = ([eyeTop, eyeHeight, eyeRadius]) => PIXI.Texture.from(canvasOf(160, 160, g => {
   g.translate(80, 76);
   g.shadowColor = 'rgba(160,190,255,0.9)';
   g.shadowBlur = 24;
@@ -178,13 +189,12 @@ const spriteTexture = blink => PIXI.Texture.from(paint(160, 160, g => {
   g.fill();
   g.fillStyle = '#3d52f0';
   for (const x of [-18, 18]) {
-    if (blink) roundRect(g, [x - 7, -2, 14, 6], 3);
-    else roundRect(g, [x - 7, -20, 14, 36], 7);
+    roundRect(g, [x - 7, eyeTop, 14, eyeHeight], eyeRadius);
     g.fill();
   }
 }));
 
-const starTexture = () => PIXI.Texture.from(paint(128, 128, g => {
+const starTexture = () => PIXI.Texture.from(canvasOf(128, 128, g => {
   const c = 64, halo = g.createRadialGradient(c, c, 0, c, c, 60);
   halo.addColorStop(0, 'rgba(255,255,255,0.9)');
   halo.addColorStop(0.2, 'rgba(200,215,255,0.35)');
@@ -203,7 +213,7 @@ const starTexture = () => PIXI.Texture.from(paint(128, 128, g => {
 
 // The picture cropped to the pixels that are not transparent (sampled every other pixel).
 function trimmed(image) {
-  const canvas = paint(image.width, image.height, g => g.drawImage(image, 0, 0));
+  const canvas = canvasOf(image.width, image.height, g => g.drawImage(image, 0, 0));
   const { data } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
   let left = canvas.width, top = canvas.height, right = 0, bottom = 0;
   for (let y = 0; y < canvas.height; y += 2)
@@ -214,7 +224,7 @@ function trimmed(image) {
       right = Math.max(right, x);
       bottom = Math.max(bottom, y);
     }
-  return PIXI.Texture.from(paint(right - left + 2, bottom - top + 2, g => g.drawImage(canvas, -left, -top)));
+  return PIXI.Texture.from(canvasOf(right - left + 2, bottom - top + 2, g => g.drawImage(canvas, -left, -top)));
 }
 
 const memo = make => {
@@ -231,9 +241,8 @@ const memo = make => {
 export function createTextures(local) {
   return {
     title: titleTexture(), cards: CARDS.map((_, rank) => cardTexture(rank)), row: rowTexture(), star: starTexture(),
-    sprite: spriteTexture(false), spriteBlink: spriteTexture(true),
-    cardNumerals: CARDS.map((_, rank) => numeralTexture(rank + 1, RIM[rank].numerals, 70, true)),
-    rowNumeral: memo(rank => numeralTexture(rank, ROW_NUMERAL, 30, false)),
+    sprite: spriteTexture(EYES.open), spriteBlink: spriteTexture(EYES.blink),
+    cardNumerals: CARDS.map((_, rank) => cardNumeralTexture(rank)), rowNumeral: memo(rowNumeralTexture),
     banner: trimmed(local.banner), idle: PIXI.Texture.from(local.idle), cheer: PIXI.Texture.from(local.cheer),
     name: memo(nameTexture), count: memo(countTexture), initial: memo(initialTexture)
   };

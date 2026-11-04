@@ -2,7 +2,7 @@
 // (design package GB1). Everything is drawn in design pixels and clipped to the board, so nothing leaves it.
 import { CARDS, LAYOUT, spriteHome } from './layout.mjs';
 import { EVENTS, easeInOut, easeOut, flare, lerp, ramp, scatter } from './motion.mjs';
-import { paint } from './paint.mjs';
+import { canvasOf } from '../video/animations/toolkit.mjs';
 
 const GOLD = '255,226,160', ICE = '190,210,255';
 const CONFETTI = ['#FFD36B', '#FFFFFF', '#6F86FF', '#FF9EC4', '#9FE3FF'];
@@ -10,7 +10,7 @@ const CONFETTI = ['#FFD36B', '#FFFFFF', '#6F86FF', '#FF9EC4', '#9FE3FF'];
 class Layer {
   /** `blend` is 'add' for light that sums up and 'normal' for confetti that keeps its colours. */
   constructor(width, height, blend) {
-    this.canvas = paint(width, height, () => {});
+    this.canvas = canvasOf(width, height, () => {});
     this.context = this.canvas.getContext('2d');
     this.texture = PIXI.Texture.from(this.canvas);
     this.sprite = new PIXI.Sprite(this.texture);

@@ -1,7 +1,8 @@
 // The timelines of the four events and the easing they use (design package README, 动画). Times are milliseconds since the event began.
-export const ramp = (from, to, x) => Math.min(1, Math.max(0, (x - from) / (to - from)));
-export const lerp = (a, b, p) => a + (b - a) * p;
-export const easeOut = p => 1 - Math.pow(1 - p, 3);
+// The video page's toolkit already has the ramp from 0 to 1, the ease out, the mix of two numbers and the repeatable pseudo-random number.
+import { k as ramp, mix as lerp, out as easeOut, rnd as scatter } from '../video/animations/toolkit.mjs';
+
+export { ramp, lerp, easeOut, scatter };
 export const easeInOut = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
 // Overshoots and settles on 1: the board's 1 + 2.7 (p - 1)^3 + 1.7 (p - 1)^2 multiplied out, which is exactly 0 at 0.
 export const easeBack = p => p * (4.7 + p * (2.7 * p - 6.4));
@@ -12,9 +13,6 @@ export function lerpGeometry(a, b, p) {
   g.tier = p < 0.5 ? a.tier : b.tier;
   return g;
 }
-
-/** A repeatable pseudo-random number in 0..1 for the i-th spark of a seed. */
-export const scatter = (i, seed) => { const x = Math.sin(i * 127.1 + seed * 311.7) * 43758.5453; return x - Math.floor(x); };
 
 /** `duration` is when the event's last effect has ended; `move` is the window in which the rows change places. */
 export const EVENTS = {

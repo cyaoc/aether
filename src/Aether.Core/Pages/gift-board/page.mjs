@@ -1,7 +1,8 @@
 import { Board } from './board.mjs';
-import { RemoteImages, loadImage } from './images.mjs';
+import { RemoteImages } from './images.mjs';
 import { CheerSound } from './sound.mjs';
 import { createTextures } from './textures.mjs';
+import { loadImage } from '../video/animations/toolkit.mjs';
 
 const [banner, idle, cheer] = await Promise.all(['banner', 'mascot-peek-idle', 'mascot-peek-cheer'].map(name => loadImage(`/gift-board/textures/${name}.webp`)));
 await Promise.all([

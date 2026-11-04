@@ -121,7 +121,7 @@ public sealed partial class GiftBoardBrowserTests
             await page.SettleAsync();
         }
         // The board is 0.78 of its width and centred, so its sides leave 52 px of margin that the rays and confetti would reach.
-        var margins = Enumerable.Range(0, 640 / 8).SelectMany(row => new[] { 10, 45, 435, 470 }.Select(x => (x, row * 8))).ToList();
+        var margins = Enumerable.Range(0, 640 / 8).SelectMany(row => MarginColumns.Select(x => (x, row * 8))).ToList();
         Assert.All(await page.AlphaAsync(margins), alpha => Assert.Equal(0, alpha));
         await page.GiveAsync(2, 2000, 3);
         await page.WaitForEventAsync("top");
@@ -137,7 +137,7 @@ public sealed partial class GiftBoardBrowserTests
     {
         await using var page = await StartAsync(("gift_board.volume", "0"));
         await page.OpenAsync(480, 1000);
-        await page.Browser.CommandAsync("Network.setBlockedURLs", new { urls = new[] { "*://*.hdslb.com/*" } });
+        await page.Browser.CommandAsync("Network.setBlockedURLs", new { urls = BilibiliPictureHosts });
         await page.Browser.EvaluateAsync("window.pictures = []; const Original = Image; window.Image = class extends Original { constructor() { super(); pictures.push(this); } }; true");
         await page.PauseClockAsync();
         await page.GiveAsync(1, 3000);

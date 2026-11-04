@@ -3,15 +3,6 @@ export const SANS = '"Noto Sans SC", "PingFang SC", sans-serif';
 export const NUMERALS = '"Playfair Num", Georgia, serif';
 export const PAD = 40;   // room around glass shapes for their outer glow
 
-/** A canvas of the given size with `draw(context)` already run on it. */
-export function paint(width, height, draw) {
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.ceil(width);
-  canvas.height = Math.ceil(height);
-  draw(canvas.getContext('2d'));
-  return canvas;
-}
-
 /** The path of a rounded rectangle `[x, y, w, h]` with corners of radius `r`. */
 export function roundRect(g, [x, y, w, h], r) {
   g.beginPath();

@@ -3,7 +3,8 @@
 import { CARDS, LAYOUT, TOP_COUNT, lapLength, scrolledY, shiftedGeometry, slotGeometry, slotsOf, spriteHome } from './layout.mjs';
 import { EVENTS, ambient, easeBack, easeInOut, easeOut, entryMotion, flare, lerpGeometry, ramp, twinkle, unfolded } from './motion.mjs';
 import { Entry } from './entry.mjs';
-import { PAD, paint } from './paint.mjs';
+import { PAD } from './paint.mjs';
+import { canvasOf } from '../video/animations/toolkit.mjs';
 
 // The pose pictures are 1536 high; the body is cut off at this fraction of it, which goes behind the ribbon.
 const MASCOT = { idleCut: 1352 / 1536, cheerCut: 1278 / 1536, scale: 0.17 };
@@ -119,7 +120,7 @@ export class Scene {
 
   addFade() {
     const { viewHeight, rowsY } = this.layout, height = viewHeight + 8;
-    this.fadeTexture = PIXI.Texture.from(paint(LAYOUT.width, height, g => {
+    this.fadeTexture = PIXI.Texture.from(canvasOf(LAYOUT.width, Math.ceil(height), g => {
       const fade = g.createLinearGradient(0, 0, 0, height);
       fade.addColorStop(0, 'rgba(255,255,255,0)');
       fade.addColorStop(LAYOUT.fadeTop / height, '#fff');

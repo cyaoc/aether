@@ -1,11 +1,8 @@
 import {registry} from './registry.mjs';
 import {AudioTrack, prepareCues} from './audio.mjs';
-import {resources} from './toolkit.mjs';
+import {loadImage, resources} from './toolkit.mjs';
 
 const root = '/video/';
-const image = src => new Promise((resolve, reject) => {
-  const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error('动画贴图加载失败：' + src)); img.src = src;
-});
 const script = src => new Promise((resolve, reject) => {
   const tag = document.createElement('script'); tag.src = src; tag.onload = resolve; tag.onerror = () => reject(new Error('动画脚本加载失败')); document.head.append(tag);
 });
@@ -15,7 +12,7 @@ async function load() {
   const ctx = audio ??= new AudioContext({latencyHint: 'interactive'});
   const entries = Object.entries(registry), images = new Map(), cues = {};
   for (const character of new Set(entries.map(([, entry]) => entry.character))) {
-    images.set(character, Object.fromEntries(await Promise.all(Object.entries(character.textures).map(async ([key, path]) => [key, await image(root + path)]))));
+    images.set(character, Object.fromEntries(await Promise.all(Object.entries(character.textures).map(async ([key, path]) => [key, await loadImage(root + path)]))));
     const response = await fetch(root + character.audio);
     if (!response.ok) throw new Error('动画声音清单加载失败');
     const events = await response.json(), buffers = {};

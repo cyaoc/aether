@@ -2,7 +2,8 @@
 
 Design source: `docs/design/gift-board` at `6c2338a`. The drawing, the layout constants and the event timelines are ported from
 `boards/GB1-GiftBoard.dc.html`; the demo data and the board's mock stream are not.
-PixiJS is the video page's `/video/lib/pixi.js`, and the sound uses the video page's `animations/audio.mjs`; neither is copied.
+PixiJS is the video page's `/video/lib/pixi.js`, the sound uses the video page's `animations/audio.mjs`, and the canvas, ramp, ease-out,
+mix and pseudo-random helpers are the ones in its `animations/toolkit.mjs`; none of them is copied.
 
 ## Textures
 

@@ -8,6 +8,9 @@ public sealed partial class GiftBoardBrowserTests
 {
     // Where the board's cards and pills are, in design pixels (design package README, 画面).
     private const double Mascot = 220, NoMascot = 8, CardsY = 92, RowsY = 416, Pitch = 60;
+    // Columns outside a 480-wide board that is 0.78 of a 480-wide page and centred in it.
+    private static readonly int[] MarginColumns = [10, 45, 435, 470];
+    private static readonly string[] BilibiliPictureHosts = ["*://*.hdslb.com/*"];
     private const string Canvas = "document.querySelector('canvas')";
     private const string Playing = Canvas + ".dataset.event";
     private const string Clock = "document.getAnimations()[0]";

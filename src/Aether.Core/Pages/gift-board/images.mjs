@@ -1,11 +1,4 @@
-// Pictures. The page's own are loaded before it draws; B站's (avatars, gift icons, guard frames and badges) as they are asked for.
-export const loadImage = src => new Promise((resolve, reject) => {
-  const image = new Image();
-  image.onload = () => resolve(image);
-  image.onerror = () => reject(new Error('礼物榜页的图片加载失败：' + src));
-  image.src = src;
-});
-
+// B站's pictures: avatars, gift icons, guard frames and badges, loaded as they are asked for.
 // B站's official guard avatar frames and badges by guard_level (1 总督, 2 提督, 3 舰长), from the design package's tools/blobs.json.
 const BADGE_ROOT = 'https://i0.hdslb.com/bfs/activity-plat/static/20211222/627754775478985e330c25a90ec7baf0/';
 export const GUARD_FRAME = {
