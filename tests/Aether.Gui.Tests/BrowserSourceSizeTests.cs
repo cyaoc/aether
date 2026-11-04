@@ -10,7 +10,7 @@ namespace Aether.Gui.Tests;
 public sealed class BrowserSourceSizeTests
 {
     private static readonly Regex Size = new(@"\d{3,4}\s*[×x]\s*\d{3,4}");
-    private static readonly string[] SetupHelps = ["VideoSetupHelp", "LotterySetupHelp"];
+    private static readonly string[] SetupHelps = ["VideoSetupHelp", "LotterySetupHelp", "GiftBoardSetupHelp"];
 
     [Fact]
     public Task Page_list_writes_each_pages_size_on_its_row_and_the_note_sends_the_streamer_there() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1), page =>
@@ -18,6 +18,7 @@ public sealed class BrowserSourceSizeTests
         Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "每个页面在直播姬里各加一个浏览器素材，宽高照每行写的填");
         Assert.Equal("1920 × 1080", page.FindControl<ContentControl>("VideoSize")!.Content);
         Assert.Equal("横屏 1920 × 1080 · 竖屏 1080 × 1920", page.FindControl<ContentControl>("LotterySize")!.Content);
+        Assert.Equal("480 × 1000，可以等比放大", page.FindControl<ContentControl>("GiftBoardSize")!.Content);
     });
 
     [Fact]
@@ -25,7 +26,9 @@ public sealed class BrowserSourceSizeTests
     {
         double Left(Control control) => control.TranslatePoint(default, page)!.Value.X;
         Assert.Equal(Left(page.FindControl<ContentControl>("VideoSize")!), Left(page.FindControl<ContentControl>("LotterySize")!), 0.5);
+        Assert.Equal(Left(page.FindControl<ContentControl>("VideoSize")!), Left(page.FindControl<ContentControl>("GiftBoardSize")!), 0.5);
         Assert.Equal(Left(page.FindControl<Button>("CopyVideoAddressButton")!), Left(page.FindControl<Button>("CopyLotteryAddressButton")!), 0.5);
+        Assert.Equal(Left(page.FindControl<Button>("CopyVideoAddressButton")!), Left(page.FindControl<Button>("CopyGiftBoardAddressButton")!), 0.5);
     });
 
     [Fact]
@@ -44,7 +47,10 @@ public sealed class BrowserSourceSizeTests
         window.Show();
         try
         {
-            foreach (SettingsPage page in new SettingsPage[] { new AnimationSettingsPage(harness.DataDirectory), new GiftAnimationSettingsPage(harness.DataDirectory) })
+            foreach (SettingsPage page in new SettingsPage[]
+            {
+                new AnimationSettingsPage(harness.DataDirectory), new GiftAnimationSettingsPage(harness.DataDirectory), new GiftBoardSettingsPage(harness.DataDirectory)
+            })
             {
                 window.Content = page;
                 GuiHarness.Flush();
@@ -94,7 +100,7 @@ public sealed class BrowserSourceSizeTests
                     if (index == 2) window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(tab);
                     GuiHarness.Flush();
                     var sizes = GuiHarness.VisibleText(window).Where(text => text is not null && Size.IsMatch(text)).ToArray();
-                    Assert.Equal(index == 6 ? ["1920 × 1080", "横屏 1920 × 1080 · 竖屏 1080 × 1920"] : [], sizes);
+                    Assert.Equal(index == 7 ? ["1920 × 1080", "横屏 1920 × 1080 · 竖屏 1080 × 1920", "480 × 1000，可以等比放大"] : [], sizes);
                 }
             }
         }

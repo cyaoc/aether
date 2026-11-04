@@ -21,4 +21,6 @@ public sealed record WebPageStatus(WebServiceStatus Service, int Connections, We
 public sealed record WebPageTexts(string Name, string WaitingText, string OffEffect, string? SetupSteps = null)
 {
     public static readonly WebPageTexts Video = new("视频页", "视频页还没有推流软件连着，先在直播姬里加好再试播", "试播和进场都播不了");
+    public static readonly WebPageTexts GiftBoard = new("礼物榜页", "礼物榜页：还没有推流软件连着", "礼物榜页显示不了",
+        "在直播姬里添加浏览器素材，地址和宽高照通用设置里“礼物榜页”那一行填；已经加过的，右键素材 → 刷新。");
 }

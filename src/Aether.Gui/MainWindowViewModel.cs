@@ -41,11 +41,13 @@ public partial class MainWindowViewModel : ObservableObject
         roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
         WebService = new(client, logger, clock, shutdown.Token);
         Lottery = new(client, logger, settings, SaveGuiSettings, clock, shutdown.Token);
+        GiftBoard = new(client, logger, clock, shutdown.Token);
     }
 
     public SendQueueViewModel SendQueue { get; } = new();
     public WebServiceViewModel WebService { get; }
     public LotteryViewModel Lottery { get; }
+    public GiftBoardViewModel GiftBoard { get; }
     [ObservableProperty] private bool keepRecentDanmaku;
     [ObservableProperty] private string roomNumber;
     public string[] RecentRooms => settings.RecentRooms;
@@ -134,6 +136,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
         // The 抽奖页 and the GUI read the same lottery, so the GUI starts following it with the web service.
         Lottery.ObserveLottery();
+        GiftBoard.Observe();
         var webSettings = WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
         return Task.WhenAll(webSettings, FinishStartupAsync());
     }
@@ -402,6 +405,7 @@ public partial class MainWindowViewModel : ObservableObject
         var accountStopped = accountRead.StopAsync();
         await WebService.StopAsync();
         await Lottery.StopAsync();
+        await GiftBoard.StopAsync();
         await accountStopped;
         await StopWatchingAsync();
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;

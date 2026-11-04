@@ -9,6 +9,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
@@ -18,8 +19,11 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Gui.Tests;
 
-public sealed class VisualReviewTests
+public sealed partial class VisualReviewTests
 {
+    // In navigation order.
+    private static readonly string[] ReviewedPages = ["danmaku", "blind-box", "welcome", "welcome-animation", "gift-board", "lottery", "send-queue", "general"];
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -124,7 +128,7 @@ public sealed class VisualReviewTests
                 await vm.ReadAccountCommand.ExecutionTask!;
                 vm.Apply(new Connected(7734200, 24680));
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery() with { Uid = 1 })));
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 GuiHarness.Flush();
                 var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().Single(x => x.IsEffectivelyVisible);
                 var button = picker.FindControl<Button>("PickerButton")!;
@@ -169,7 +173,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 Lottery lottery = mode == LotteryMode.Pool ? LotteryPanelTests.TestLottery() : EntryLotteryPanelTests.TestLottery();
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
                 await vm.Lottery.SavePrizeSetAsync(mode, "周末福利");
@@ -216,7 +220,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
                 var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
                 var tabs = panel.FindControl<ListBox>("ViewTabs")!;
@@ -254,7 +258,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 var at = new DateTimeOffset(2026, 10, 17, 20, 30, 0, TimeSpan.FromHours(8));
                 string[] names = ["一只小鹿", "柚子不酸", "夜航船", "桃桃乌龙", "番茄炒蛋", "青柠", "橘猫本猫", "南巷"];
                 var lottery = EntryLotteryPanelTests.TestLottery() with
@@ -322,7 +326,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 // Canvas V1's pool and records: a viewer's stop, a host stop with no UID, and a host stop for a named viewer.
                 PoolPrize[] prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second),
                     new("签名照", 4, Grade.Third), new("贴纸套装", 2, Grade.Third)];
@@ -429,15 +433,16 @@ public sealed class VisualReviewTests
                 foreach (var text in texts)
                 {
                     // These are multi-sentence help, not single-line captions.
-                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" ||
+                    if (text.Name is "WelcomeTextHint" or "WebServiceHelp" or "BoardEmpty" or "PageSetupSteps" ||
                         text.GetVisualAncestors().OfType<Control>().Any(c =>
-                            c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "EmptyConditions")) continue;
+                            c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "GiftBoardSetupHelp" or "EmptyConditions")) continue;
                     Assert.True(text.TextWrapping == TextWrapping.NoWrap, $"Wrapping: {text.Text}");
                     var line = Assert.Single(text.TextLayout.TextLines);
                     Assert.True(line.Width > 0 && text.Bounds.Height >= line.Height - 1, $"Hidden: {text.Text}");
                     Assert.True(line.Width <= text.Bounds.Width + 1, $"Clipped: {text.Text}");
                     if (line.HasCollapsed) Assert.Equal(text.Text, ToolTip.GetTip(text));
-                    if (text.Classes.Contains("section") && text.Parent is Panel row)
+                    // A vertical stack puts its caption under the heading on purpose, as a switch's title does.
+                    if (text.Classes.Contains("section") && text.Parent is Panel row and not StackPanel { Orientation: Orientation.Vertical })
                         foreach (var hint in row.Children.OfType<TextBlock>().Where(t => t.Classes.Contains("hint")))
                             Assert.True(hint.Bounds.Top < text.Bounds.Bottom && text.Bounds.Top < hint.Bounds.Bottom,
                                 $"Caption below heading: {text.Text}");
@@ -474,12 +479,12 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 6;
+                window.Navigation.SelectedIndex = 7;
                 GuiHarness.Flush();
                 foreach (var (name, state) in new[]
                 {
-                    ("connected", new WebServiceStatus(true, 17890, 2, 1)),
-                    ("partial", new WebServiceStatus(true, 17890, 1, 0)),
+                    ("connected", new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1)),
+                    ("partial", new WebServiceStatus(true, 17890, 1, 0, GiftBoardConnections: 1)),
                     ("setup", new WebServiceStatus(true, 17890, 0, 0)),
                     ("occupied", new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"))
                 })
@@ -866,7 +871,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                foreach (var (pageIndex, name) in new[] { (6, "LogLevelInput"), (2, "GuardInput") })
+                foreach (var (pageIndex, name) in new[] { (7, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
                     input.IsDropDownOpen = true;
@@ -907,7 +912,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 var number = page.FindControl<NumericUpDown>("SendIntervalInput")!;
@@ -927,8 +932,8 @@ public sealed class VisualReviewTests
                 Capture("error");
                 text.Text = "1";
                 File.WriteAllText(Settings.FilePath(harness.DataDirectory), "send:\n  interval_seconds: |-\n    1\n");
+                window.Navigation.SelectedIndex = 7;
                 window.Navigation.SelectedIndex = 6;
-                window.Navigation.SelectedIndex = 5;
                 Capture("readonly");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -1026,11 +1031,10 @@ public sealed class VisualReviewTests
                 { Text = "@" + nickname + " 投入52电池 亏12.6电池", RetrySeconds = 1 });
             }
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "lottery", "send-queue", "general" };
-            for (var i = 0; i < pages.Length; i++)
+            for (var i = 0; i < ReviewedPages.Length; i++)
             {
                 navigation.SelectedIndex = i;
-                Capture(pages[i]);
+                Capture(ReviewedPages[i]);
                 if (i == 2)
                 {
                     var uid = window.GetVisualDescendants().OfType<TextBox>().Single(x => x.IsEffectivelyVisible && x.Text == "1234567890123456");
@@ -1066,7 +1070,7 @@ public sealed class VisualReviewTests
                 Add(welcome, kind);
             Capture("welcome-levels");
             File.WriteAllText(path, "log:\n  level: @bad\n");
-            navigation.SelectedIndex = 6;
+            navigation.SelectedIndex = 7;
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
             var fileMessage = GuiHarness.FindVisual<TextBlock>(general, "FileMessage");

@@ -7,8 +7,8 @@ namespace Aether.Core;
 /// 礼物榜页 and the GUI what to show. It follows the settings last applied, so a save needs no new room connection.</summary>
 public sealed class GiftBoardController : IDisposable
 {
-    // 1 电池 = 100 金瓜子 (GLOSSARY).
-    private const long CoinsPerBattery = 100;
+    /// <summary>1 电池 = 100 金瓜子 (GLOSSARY).</summary>
+    public const long CoinsPerBattery = 100;
     private readonly object gate = new();
     private readonly Func<GiftBoardStore> store;
     private readonly TimeProvider time;

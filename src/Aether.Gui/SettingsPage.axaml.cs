@@ -32,6 +32,20 @@ public abstract class SettingsPage : TemplatedControl
         AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderContent), null);
     public Control? HeaderContent { get => GetValue(HeaderContentProperty); set => SetValue(HeaderContentProperty, value); }
 
+    /// <summary>Buttons at the right end of the title bar.</summary>
+    public static readonly StyledProperty<Control?> HeaderActionsProperty =
+        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderActions), null);
+    public Control? HeaderActions { get => GetValue(HeaderActionsProperty); set => SetValue(HeaderActionsProperty, value); }
+
+    /// <summary>What the footer asks the streamer to confirm; it takes the place of the save line while Confirming.</summary>
+    public static readonly StyledProperty<Control?> ConfirmContentProperty =
+        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(ConfirmContent), null);
+    public Control? ConfirmContent { get => GetValue(ConfirmContentProperty); set => SetValue(ConfirmContentProperty, value); }
+
+    /// <summary>Whether the footer shows <see cref="ConfirmContent"/> instead of the save line; a page binds it to its own question.</summary>
+    public static readonly StyledProperty<bool> ConfirmingProperty = AvaloniaProperty.Register<SettingsPage, bool>(nameof(Confirming));
+    public bool Confirming { get => GetValue(ConfirmingProperty); set => SetValue(ConfirmingProperty, value); }
+
     public static readonly StyledProperty<Control?> HeaderNoteProperty =
         AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderNote), null);
     public Control? HeaderNote { get => GetValue(HeaderNoteProperty); set => SetValue(HeaderNoteProperty, value); }
@@ -124,7 +138,8 @@ public abstract class SettingsPage : TemplatedControl
         pageLayout.RowDefinitions[1].Height = stacked ? GridLength.Star : new GridLength(0);
     }
 
-    protected virtual bool ReconnectAfterSave => true;
+    /// <summary>Whether saving applies this page's settings to the web service at once; otherwise they wait for the next room connection.</summary>
+    protected virtual bool AppliesToWebService => false;
     protected virtual string DirtyDescription => "有未保存的修改";
     protected virtual bool RowsChanged => false;
     protected virtual void LoadRows() { }
@@ -195,6 +210,16 @@ public abstract class SettingsPage : TemplatedControl
         input.PropertyChanged += (_, e) => { if (e.Property == RangeBase.ValueProperty) Validate(); };
     }
 
+    /// <summary>One radio button per value of a choice setting; the checked one is the input.</summary>
+    protected void Bind((int Value, RadioButton Button)[] choices, TextBlock readOnly, Func<Settings, Setting<int>> select)
+    {
+        Register(setting => Show(choices, readOnly, setting),
+            () => choices.Where(choice => choice.Button.IsChecked == true).Select(choice => choice.Value.ToString(CultureInfo.InvariantCulture)).FirstOrDefault(),
+            null, select);
+        foreach (var (_, button) in choices)
+            button.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Validate(); };
+    }
+
     private void Register<T>(Action<Setting<T>> show, Func<string?> input, TextBlock? error, Func<Settings, Setting<T>> select) =>
         bindings.Add((() => show(select(settings)), () =>
         {
@@ -240,6 +265,16 @@ public abstract class SettingsPage : TemplatedControl
         readOnly.IsVisible = !setting.CanEdit;
     }
 
+    private static void Show((int Value, RadioButton Button)[] choices, TextBlock readOnly, Setting<int> setting)
+    {
+        foreach (var (value, button) in choices)
+        {
+            button.IsChecked = value == setting.Value;
+            button.IsEnabled = setting.CanEdit;
+        }
+        readOnly.IsVisible = !setting.CanEdit;
+    }
+
     protected readonly record struct Field(string Name, bool CanEdit, string? Input, TextBlock? Error = null);
 
     /// <summary>Each setting this page edits; reading, validating and saving share this list.</summary>
@@ -279,7 +314,12 @@ public abstract class SettingsPage : TemplatedControl
         return Task.FromResult("已保存。");
     }
 
-    protected virtual Task<string> AfterSave(Settings saved, string result) => Task.FromResult(result);
+    protected virtual async Task<string> AfterSave(Settings saved, string result)
+    {
+        if (AppliesToWebService && viewModel is not null) await viewModel.WebService.ApplyWebSettingsAsync(saved);
+        return result;
+    }
+
     protected virtual void ReloadAfterFailure() => LoadSettings();
 
     private async void Save(object? sender, RoutedEventArgs e)
@@ -303,7 +343,7 @@ public abstract class SettingsPage : TemplatedControl
                 result = await AfterSave(settings, result);
                 SaveCompleted?.Invoke();
                 Message = result;
-                ShowReconnectNotice = ReconnectAfterSave && viewModel?.HasRoomConnection == true;
+                ShowReconnectNotice = !AppliesToWebService && viewModel?.HasRoomConnection == true;
             }
         }
         catch (Exception error) when (error is SettingsException or IOException or UnauthorizedAccessException)

@@ -33,17 +33,21 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             && previous.EntryAnimationVolume.Value == snapshot.EntryAnimationVolume.Value
             && previous.GiftAnimationEnabled.Value == snapshot.GiftAnimationEnabled.Value
             && previous.GiftAnimationThresholds.Select(value => value.Value).SequenceEqual(snapshot.GiftAnimationThresholds.Select(value => value.Value))
+            && GiftBoardValues(previous) == GiftBoardValues(snapshot)
             && previous.EntryAnimationViewers.Count == snapshot.EntryAnimationViewers.Count
             && previous.EntryAnimationViewers.All(pair => snapshot.EntryAnimationViewers.TryGetValue(pair.Key, out var choice) && choice.Value == pair.Value.Value))
             return animationReload.Current;
         return ApplyWebSettingsAsync(snapshot);
     }
 
+    private static (bool Enabled, int Threshold, int By, bool Mascot, bool ResetOnLive, int Volume) GiftBoardValues(Settings settings) => (settings.GiftBoardEnabled.Value, settings.GiftBoardThreshold.Value,
+        settings.GiftBoardThresholdBy.Value, settings.GiftBoardMascot.Value, settings.GiftBoardResetOnLive.Value, settings.GiftBoardVolume.Value);
+
     public async Task ApplyWebSettingsAsync(Settings snapshot)
     {
         if (shutdown.IsCancellationRequested) return;
         animationSettings = snapshot;
-        if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Start(ObserveAnimationsAsync);
+        if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Follow(client.WebService.GetUpdatesAsync, Apply, logger, "网页服务状态订阅中断");
         var reload = animationReload.Start(ReloadAsync);
         NotifyAnimationRows();
         await reload;
@@ -67,16 +71,6 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         }
     }
 
-    private async Task ObserveAnimationsAsync(CancellationToken token)
-    {
-        try
-        {
-            await foreach (var update in client.WebService.GetUpdatesAsync(token)) Apply(update);
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        catch (Exception error) { logger.LogError(error, "网页服务状态订阅中断"); }
-    }
-
     internal async Task StopAsync()
     {
         await animationReload.StopAsync();
@@ -90,6 +84,11 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     [NotifyPropertyChangedFor(nameof(VideoPageText))]
     [NotifyPropertyChangedFor(nameof(VideoAddressText))]
     [NotifyPropertyChangedFor(nameof(LotteryAddressText))]
+    [NotifyPropertyChangedFor(nameof(GiftBoard))]
+    [NotifyPropertyChangedFor(nameof(GiftBoardAddressText))]
+    [NotifyPropertyChangedFor(nameof(HasGiftBoardConnections))]
+    [NotifyPropertyChangedFor(nameof(ShowGiftBoardSetup))]
+    [NotifyPropertyChangedFor(nameof(GiftBoardConnectionsText))]
     [NotifyPropertyChangedFor(nameof(HasVideoConnections))]
     [NotifyPropertyChangedFor(nameof(HasLotteryConnections))]
     [NotifyPropertyChangedFor(nameof(HasWebServiceError))]
@@ -103,19 +102,24 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     private WebServiceStatus webServiceStatus = client.WebService.Status;
 
     public WebPageStatus Video => new(WebServiceStatus, WebServiceStatus.VideoConnections, WebPageTexts.Video);
+    public WebPageStatus GiftBoard => new(WebServiceStatus, WebServiceStatus.GiftBoardConnections, WebPageTexts.GiftBoard);
     public bool HasVideoConnections => Video.Connected;
     public bool HasLotteryConnections => WebServiceStatus is { Running: true, LotteryConnections: > 0 };
+    public bool HasGiftBoardConnections => GiftBoard.Connected;
     public bool HasWebServiceError => WebServiceStatus.Error is not null;
     public bool IsWebServiceOff => WebServiceStatus is { Running: false, Error: null };
     public bool ShowVideoSetup => Video.Waiting;
     public bool ShowLotterySetup => WebServiceStatus is { Running: true, LotteryConnections: 0 };
+    public bool ShowGiftBoardSetup => GiftBoard.Waiting;
     public string VideoAddressText => WebServiceStatus.VideoAddress;
     public string LotteryAddressText => WebServiceStatus.LotteryAddress;
+    public string GiftBoardAddressText => WebServiceStatus.GiftBoardAddress;
     public string ServiceStatusText => WebServiceStatus.Error is { } error ? "没打开：" + error : WebServiceStatus.Running ? "运行中" : "未运行";
     public string ServiceHelpText => HasWebServiceError ? "换一个端口并保存，再把直播姬里所有浏览器素材的地址改成新的。"
         : WebServiceStatus.Running ? "GUI 开着就一直运行，不用登录、不用连直播间。先开 Aether，再开直播姬。" : "";
     public string VideoConnectionsText => ConnectionsText(WebServiceStatus.VideoConnections);
     public string LotteryConnectionsText => ConnectionsText(WebServiceStatus.LotteryConnections);
+    public string GiftBoardConnectionsText => ConnectionsText(WebServiceStatus.GiftBoardConnections);
     private string ConnectionsText(int count) => !WebServiceStatus.Running ? "服务没打开" : count > 0 ? $"{count} 个推流软件连着" : "还没有连着";
     public string VideoPageText => Video.Text;
 
