@@ -8,12 +8,12 @@ namespace Aether.Core.Tests;
 public sealed class UserToastV2Tests
 {
     [Fact]
-    public void A_guard_purchase_is_a_gift_of_its_level_at_its_cost()
+    public void A_guard_purchase_is_a_gift_of_its_level_at_its_cost_by_a_viewer_of_that_level()
     {
         Assert.Equal(new Gift(10001, "测试观众", 198000)
         {
             GiftId = 10003, GiftName = "舰长", Price = 198000, Num = 1, Value = 198000, FaceUrl = UserToastFixture.TestFace,
-            Tid = UserToastFixture.TestPayflowId, GuardLevel = 3
+            Tid = UserToastFixture.TestPayflowId, GuardLevel = 3, ViewerGuardLevel = 3
         }, Assert.Single(Decode(UserToastFixture.Message())));
     }
 

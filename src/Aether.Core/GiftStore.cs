@@ -23,10 +23,10 @@ internal sealed class GiftStore(Database database, ILogger logger)
         using var connection = database.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
-            INSERT INTO gift_record (room_id, uid, nickname, face_url, gift_id, gift_name, icon_url, guard_level, gift_key, num,
-                spend, value, blind_gift_id, blind_gift_name, blind_gift_price, tid, timestamp, for_blind_box, board_period)
-            VALUES ($roomId, $uid, $nickname, $faceUrl, $giftId, $giftName, $iconUrl, $guardLevel, $giftKey, $num,
-                $spend, $value, $blindGiftId, $blindGiftName, $blindGiftPrice, $tid, $timestamp, $forBlindBox, $boardPeriod)
+            INSERT INTO gift_record (room_id, uid, nickname, face_url, gift_id, gift_name, icon_url, guard_level, viewer_guard_level,
+                gift_key, num, spend, value, blind_gift_id, blind_gift_name, blind_gift_price, tid, timestamp, for_blind_box, board_period)
+            VALUES ($roomId, $uid, $nickname, $faceUrl, $giftId, $giftName, $iconUrl, $guardLevel, $viewerGuardLevel,
+                $giftKey, $num, $spend, $value, $blindGiftId, $blindGiftName, $blindGiftPrice, $tid, $timestamp, $forBlindBox, $boardPeriod)
             ON CONFLICT (tid) DO NOTHING
             RETURNING 1;
             """;
@@ -38,6 +38,7 @@ internal sealed class GiftStore(Database database, ILogger logger)
         command.Parameters.AddWithValue("$giftName", gift.GiftName);
         command.Parameters.AddWithValue("$iconUrl", gift.IconUrl);
         command.Parameters.AddWithValue("$guardLevel", gift.GuardLevel);
+        command.Parameters.AddWithValue("$viewerGuardLevel", gift.ViewerGuardLevel);
         command.Parameters.AddWithValue("$giftKey", gift.BoardKey);
         command.Parameters.AddWithValue("$num", gift.Num);
         command.Parameters.AddWithValue("$spend", gift.Spend);

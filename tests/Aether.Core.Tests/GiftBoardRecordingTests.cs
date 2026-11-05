@@ -22,7 +22,7 @@ public sealed class GiftBoardRecordingTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(num: 2));
 
         var row = Assert.Single(await h.BoardRowsAsync());
-        Assert.Equal(new GiftBoardRow("10001/gift:32698", 10001, "测试观众", Face, "小蛋糕", Icon, 0, 3000, 2), row);
+        Assert.Equal(new GiftBoardRow("10001/gift:32698", 10001, "测试观众", Face, "小蛋糕", Icon, 0, 0, 3000, 2), row);
     }
 
     [Fact]
@@ -105,6 +105,38 @@ public sealed class GiftBoardRecordingTests
         Assert.Equal(("", 198000L), (row.FaceUrl, row.Value));
     }
 
+    // B站 tells a gift's sender's 大航海身份; a purchase tells only the level bought.
+    [Fact]
+    public async Task A_purchase_does_not_lower_the_guard_a_gift_told_on_any_of_its_viewers_rows_also_when_read_back()
+    {
+        await using var h = new WatchHarness();
+        await using (var updates = await h.WatchWithGiftBoardAsync())
+        {
+            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(guardLevel: 1), UserToastFixture.Message(payflowId: "a"));
+            Assert.Equal([(3, 1), (0, 1)], (await h.BoardRowsAsync()).Select(row => (row.GuardLevel, row.ViewerGuardLevel)));
+        }
+
+        await using var next = await h.WatchConnectedAsync();
+        Assert.Equal([(3, 1), (0, 1)], (await h.BoardRowsAsync()).Select(row => (row.GuardLevel, row.ViewerGuardLevel)));
+    }
+
+    [Fact]
+    public async Task A_purchase_puts_the_level_bought_on_all_its_viewers_rows_until_a_later_gift_tells_the_guard_again()
+    {
+        await using var h = new WatchHarness();
+        await using (var updates = await h.WatchWithGiftBoardAsync())
+        {
+            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"), UserToastFixture.Message(payflowId: "b"));
+            Assert.Equal([(3, 3), (0, 3)], (await h.BoardRowsAsync()).Select(row => (row.GuardLevel, row.ViewerGuardLevel)));
+        }
+
+        await using var next = await h.WatchConnectedAsync();
+        Assert.Equal([(3, 3), (0, 3)], (await h.BoardRowsAsync()).Select(row => (row.GuardLevel, row.ViewerGuardLevel)));
+        // The 舰长 ran out: B站 tells the next gift's sender has none.
+        await h.PushAndSyncAsync(next, BlindGiftFixture.Ordinary(tid: "c", guardLevel: 0));
+        Assert.Equal([(3, 0), (0, 0)], (await h.BoardRowsAsync()).Select(row => (row.GuardLevel, row.ViewerGuardLevel)));
+    }
+
     private static string WithoutFace(string payflowId) =>
         UserToastFixture.Message(payflowId: payflowId, edit: data => data["sender_uinfo"]!["base"]!.AsObject().Remove("face"));
 
@@ -117,10 +149,10 @@ public sealed class GiftBoardRecordingTests
         await h.PushAndSyncAsync(updates, UserToastFixture.Message(price: 534000, num: 3, payflowId: "a"),
             UserToastFixture.Message(price: 198000, payflowId: "b"), UserToastFixture.Message(guardLevel: 2, price: 1998000, payflowId: "c"));
 
-        // 舰长 cost 534000 for 3 months and 198000 for 1, so 4 months at 183000 each; 提督 ranks above it.
+        // 舰长 cost 534000 for 3 months and 198000 for 1, so 4 months at 183000 each; 提督 ranks above it, and its viewer is a 提督.
         Assert.Equal([
-            new GiftBoardRow("10001/guard:2", 10001, "测试观众", UserToastFixture.TestFace, "提督", "", 2, 1998000, 1),
-            new GiftBoardRow("10001/guard:3", 10001, "测试观众", UserToastFixture.TestFace, "舰长", "", 3, 732000, 4)], await h.BoardRowsAsync());
+            new GiftBoardRow("10001/guard:2", 10001, "测试观众", UserToastFixture.TestFace, "提督", "", 2, 2, 1998000, 1),
+            new GiftBoardRow("10001/guard:3", 10001, "测试观众", UserToastFixture.TestFace, "舰长", "", 3, 2, 732000, 4)], await h.BoardRowsAsync());
     }
 
     [Fact]

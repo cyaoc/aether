@@ -1,5 +1,5 @@
-// One viewer's row on the board: the avatar (with the guard frame), the name, the gift icon and the count. The scene gives it a
-// geometry (a card or a pill) and a motion every frame.
+// One viewer's row on the board: the avatar (with the frame of the viewer's 大航海身份), the name, the gift icon and the count. The
+// scene gives it a geometry (a card or a pill) and a motion every frame.
 import { LAYOUT } from './layout.mjs';
 import { GUARD_BADGE, GUARD_FRAME } from './images.mjs';
 import { NAME_WIDTH, RIM } from './textures.mjs';
@@ -16,10 +16,11 @@ const leftAligned = texture => {
   return sprite;
 };
 
-/** The B站 pictures a row shows: its avatar, the guard frame round it, and its gift icon or guard badge. */
+/** The B站 pictures a row shows: its avatar, the frame of its viewer's 大航海身份 round it, and its gift icon or the badge of the
+ * 大航海 bought. */
 export const picturesOf = row => ({
   face: row.faceUrl,
-  frame: GUARD_FRAME[row.guardLevel],
+  frame: GUARD_FRAME[row.viewerGuardLevel],
   icon: row.guardLevel ? GUARD_BADGE[row.guardLevel] : row.iconUrl
 });
 
@@ -33,7 +34,9 @@ export class Entry {
     this.plate.alpha = 0;
     this.ring = new PIXI.Graphics();
     this.avatar = centred(PIXI.Texture.EMPTY);
-    this.frame = row.guardLevel ? centred(PIXI.Texture.EMPTY) : null;
+    // B站's avatars are square; the picture shows as a circle.
+    this.avatar.mask = this.avatarClip = new PIXI.Graphics();
+    this.frame = row.viewerGuardLevel ? centred(PIXI.Texture.EMPTY) : null;
     if (this.frame) this.frame.anchor.set(0.4975, 0.505);
     this.cardName = leftAligned(textures.name(row.nickname, NAME_WIDTH.card));
     this.rowName = leftAligned(textures.name(row.nickname, NAME_WIDTH.row));
@@ -41,7 +44,7 @@ export class Entry {
     this.count = new PIXI.Sprite(textures.count(row.num));
     this.count.anchor.set(1, 0.5);
     this.clip = new PIXI.Graphics();
-    this.container.addChild(...[this.plate, this.ring, this.avatar, this.frame, this.cardName, this.rowName, this.icon, this.count, this.clip].filter(Boolean));
+    this.container.addChild(...[this.plate, this.ring, this.avatar, this.avatarClip, this.frame, this.cardName, this.rowName, this.icon, this.count, this.clip].filter(Boolean));
   }
 
   /** Puts the row at geometry `g`, looking as `motion` says, `arc` design pixels to the right (a climber swings out of the list). */
@@ -71,9 +74,10 @@ export class Entry {
     this.avatar.position.set(g.ax + arc, g.ay);
     this.avatar.width = this.avatar.height = 2 * g.ar * avatarScale * lift;
     this.avatar.alpha = avatarAlpha;
+    this.avatarClip.clear().circle(g.ax + arc, g.ay, g.ar * avatarScale * lift).fill(0xffffff);
     // A guard's picture wears B站's frame instead of the ring.
     this.ring.clear().circle(g.ax + arc, g.ay, g.ar + 1.5).stroke({
-      width: g.tier < 3 ? 2.4 : 1.6, color: g.tier < 3 ? RIM[g.tier].ring : 0xffffff, alpha: row.guardLevel ? 0 : 0.9
+      width: g.tier < 3 ? 2.4 : 1.6, color: g.tier < 3 ? RIM[g.tier].ring : 0xffffff, alpha: row.viewerGuardLevel ? 0 : 0.9
     });
     if (!this.frame) return;
     this.frame.texture = kit.images.texture(this.pictures.frame);

@@ -169,23 +169,29 @@ public sealed class GiftBoardController : IDisposable
         var key = GiftBoardRow.IdOf(gift.Uid, gift.BoardKey);
         // B站 often leaves the avatar out, of a 大航海 purchase most of all: the gift then keeps the one its viewer has.
         var face = gift.FaceUrl.Length > 0 ? gift.FaceUrl : FaceOf(gift.Uid);
+        var guard = gift.ViewerGuardAfter(ViewerOf(gift.Uid)?.ViewerGuardLevel ?? 0);
         totals[key] = totals.TryGetValue(key, out var total)
             ? (total.Row with
             {
                 Nickname = gift.Nickname, FaceUrl = face, GiftName = gift.GiftName, IconUrl = gift.IconUrl,
                 Value = checked(total.Row.Value + gift.Value), Num = checked(total.Row.Num + gift.Num)
             }, total.First)
-            : (new(key, gift.Uid, gift.Nickname, face, gift.GiftName, gift.IconUrl, gift.GuardLevel, gift.Value, gift.Num), ++sequence);
-        if (face.Length > 0) SetFace(gift.Uid, face);
+            : (new(key, gift.Uid, gift.Nickname, face, gift.GiftName, gift.IconUrl, gift.GuardLevel, guard, gift.Value, gift.Num),
+                ++sequence);
+        if (face.Length > 0) SetRows(gift.Uid, row => row with { FaceUrl = face });
+        SetRows(gift.Uid, row => row with { ViewerGuardLevel = guard });
     }
 
-    // A viewer's rows all show the latest avatar any of them was given, as the database gives them back.
-    private string FaceOf(long uid) => totals.Values.Select(total => total.Row).FirstOrDefault(row => row.Uid == uid)?.FaceUrl ?? "";
+    // A viewer's rows all show the latest avatar any of them was given and the 大航海身份 the latest gift told, as the database
+    // gives them back.
+    private GiftBoardRow? ViewerOf(long uid) => totals.Values.Select(total => total.Row).FirstOrDefault(row => row.Uid == uid);
 
-    private bool SetFace(long uid, string face)
+    private string FaceOf(long uid) => ViewerOf(uid)?.FaceUrl ?? "";
+
+    private bool SetRows(long uid, Func<GiftBoardRow, GiftBoardRow> change)
     {
-        var changed = totals.Where(pair => pair.Value.Row.Uid == uid && pair.Value.Row.FaceUrl != face).ToList();
-        foreach (var (key, total) in changed) totals[key] = (total.Row with { FaceUrl = face }, total.First);
+        var changed = totals.Where(pair => pair.Value.Row.Uid == uid && change(pair.Value.Row) != pair.Value.Row).ToList();
+        foreach (var (key, total) in changed) totals[key] = (change(total.Row), total.First);
         return changed.Count > 0;
     }
 
@@ -203,7 +209,7 @@ public sealed class GiftBoardController : IDisposable
                     lock (gate)
                     {
                         // A room left or switched, or an avatar a gift brought meanwhile, keeps what it has.
-                        if (roomId == room && FaceOf(uid).Length == 0 && SetFace(uid, face)) Publish();
+                        if (roomId == room && FaceOf(uid).Length == 0 && SetRows(uid, row => row with { FaceUrl = face })) Publish();
                     }
                 }
                 catch (Exception error)

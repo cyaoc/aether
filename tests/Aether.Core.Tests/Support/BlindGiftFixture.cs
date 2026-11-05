@@ -17,10 +17,12 @@ internal static class BlindGiftFixture
     }
 
     /// <summary>An ordinary gift of the fixture's 小蛋糕 shape, with its own <paramref name="tid"/> (none when null), <paramref name="price"/>
-    /// and <paramref name="num"/>; the fixture's viewer unless <paramref name="uid"/> says otherwise.</summary>
+    /// and <paramref name="num"/>; the fixture's viewer unless <paramref name="uid"/> says otherwise, telling the sender's
+    /// <paramref name="guardLevel"/> (no guard_level when null, as in the fixture).</summary>
     public static string Ordinary(long uid = 10001, string nickname = "测试观众", long giftId = 32698, string giftName = "小蛋糕",
-        long price = 1500, long num = 1, string? tid = "test-v1-1") => With(data =>
+        long price = 1500, long num = 1, string? tid = "test-v1-1", int? guardLevel = null) => With(data =>
     {
+        if (guardLevel is { } level) data["guard_level"] = level;
         data["blind_gift"] = null;
         data["uid"] = uid;
         data["uname"] = nickname;

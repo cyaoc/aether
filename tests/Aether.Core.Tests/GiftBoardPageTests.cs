@@ -32,8 +32,10 @@ public sealed class GiftBoardPageTests
         Assert.True(state.GetProperty("running").GetBoolean());
         var row = Assert.Single(state.GetProperty("rows").EnumerateArray());
         Assert.Equal(new GiftBoardRow("10001/gift:32698", 10001, "测试观众", "https://i0.hdslb.com/bfs/face/test-v1.jpg", "小蛋糕",
-            "https://s1.hdslb.com/bfs/live/test-v1.png", 0, 3000, 2), JsonSerializer.Deserialize<GiftBoardRow>(row, WebService.Json));
+            "https://s1.hdslb.com/bfs/live/test-v1.png", 0, 0, 3000, 2), JsonSerializer.Deserialize<GiftBoardRow>(row, WebService.Json));
         Assert.False(row.TryGetProperty("price", out _));
+        // The name the page picks the avatar frame by.
+        Assert.Equal(0, row.GetProperty("viewerGuardLevel").GetInt32());
     }
 
     [Fact]

@@ -48,7 +48,7 @@ internal static class UserToastV2
             GiftName = Guard.Name(Guard.TierFromPrivilegeType(level)), Price = spend / months, Num = months, Value = spend,
             FaceUrl = GiftMessages.OptionalText(viewer, "face"),
             Tid = data.GetProperty("pay_info").GetProperty("payflow_id").GetString() is { Length: > 0 } payflowId ? payflowId : null,
-            GuardLevel = level
+            GuardLevel = level, ViewerGuardLevel = level
         };
     }
 

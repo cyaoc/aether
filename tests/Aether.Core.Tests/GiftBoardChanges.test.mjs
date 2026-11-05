@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Changes } from '../../src/Aether.Core/Pages/gift-board/changes.mjs';
 
-const row = (id, num = 1) => ({ id, nickname: id, faceUrl: '', giftName: '礼物', iconUrl: '', guardLevel: 0, price: 100, num });
+const row = (id, num = 1) => ({ id, nickname: id, faceUrl: '', giftName: '礼物', iconUrl: '', guardLevel: 0, viewerGuardLevel: 0, price: 100, num });
 const board = (...rows) => ({ rows, running: true, options: { threshold: 1, thresholdBy: 1, mascot: true, volume: 60 }, fromGift: false });
 const withOptions = (state, options) => ({ ...state, options: { ...state.options, ...options } });
 // The state a received gift made: only such a state is played as an event.
@@ -124,6 +124,12 @@ test('a state that only brings avatars B站 left out of the gifts is drawn in it
   assert.equal(changes.receive(gift(a, b, c)), false);
   assert.equal(changes.receive(board(a, b, { ...c, faceUrl: 'face' })), false);
   assert.deepEqual(kinds(changes), ['new c', 'pictures']);
+});
+
+test('a gift below the threshold that tells the guard of a viewer on the board is drawn in its turn as pictures', () => {
+  const changes = started(board(a, b));
+  assert.equal(changes.receive(gift(a, { ...b, viewerGuardLevel: 1 })), false);
+  assert.deepEqual(kinds(changes), ['pictures']);
 });
 
 test('avatars that keep coming while an event plays wait as one change that is still only pictures', () => {

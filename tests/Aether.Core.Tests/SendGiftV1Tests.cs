@@ -41,6 +41,25 @@ public sealed class SendGiftV1Tests
     public void V1_gift_without_icon_still_counts_with_an_empty_address(string? giftInfo) =>
         Assert.Equal((Face, ""), Urls("gift_info", giftInfo));
 
+    [Theory]
+    [InlineData("1", 1)]
+    [InlineData("3", 3)]
+    [InlineData("0", 0)]
+    [InlineData(null, 0)]
+    [InlineData("null", 0)]
+    [InlineData("4", 0)]
+    [InlineData("-1", 0)]
+    [InlineData("\"3\"", 0)]
+    public void V1_gift_tells_its_senders_guard_and_counts_with_none_when_guard_level_is_missing_or_unknown(string? json, int guard)
+    {
+        var message = BlindGiftFixture.With(data =>
+        {
+            data["blind_gift"] = null;
+            if (json is not null) data["guard_level"] = JsonNode.Parse(json);
+        });
+        Assert.Equal(guard, Assert.Single(Decode(message)).ViewerGuardLevel);
+    }
+
     /// <summary>The ordinary gift's avatar and icon addresses with <paramref name="field"/> set to <paramref name="json"/>,
     /// or removed when that is null.</summary>
     private static (string Face, string Icon) Urls(string field, string? json)

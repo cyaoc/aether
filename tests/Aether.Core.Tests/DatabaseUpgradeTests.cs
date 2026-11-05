@@ -2,7 +2,8 @@ using Aether.Core.Tests.Support;
 
 namespace Aether.Core.Tests;
 
-/// <summary>Opens the frozen samples of what releases left behind: v0.2.1, and v0.2.2 to v0.3.1 (database version 5).</summary>
+/// <summary>Opens the frozen samples of what releases left behind: v0.2.1, v0.2.2 to v0.3.1 (database version 5) and v0.4.0
+/// (version 6).</summary>
 public sealed class DatabaseUpgradeTests
 {
     private const string Sample = "database-v0.3.1.sql";
@@ -19,7 +20,7 @@ public sealed class DatabaseUpgradeTests
 
         _ = new Database(h.DataDirectory);
 
-        Assert.Equal(6L, TestDatabase.UserVersion(h.DataDirectory));
+        Assert.Equal(7L, TestDatabase.UserVersion(h.DataDirectory));
         Assert.Equal(boxes, before.Count);
         Assert.Equal(before, TestDatabase.BlindBoxRows(h.DataDirectory));
         // Every row is one of them: none is on the board, and the board has no 期 yet.
@@ -67,7 +68,19 @@ public sealed class DatabaseUpgradeTests
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
 
         Assert.NotEmpty(restarted.Lottery.GetHistory(Room));
-        Assert.Equal(6L, TestDatabase.UserVersion(h.DataDirectory));
+        Assert.Equal(7L, TestDatabase.UserVersion(h.DataDirectory));
+    }
+
+    [Fact]
+    public async Task Version_six_database_gives_a_guard_purchase_the_level_bought_as_its_viewers_guard_and_any_other_gift_none()
+    {
+        await using var h = new WatchHarness();
+        TestDatabase.Restore(h.DataDirectory, "database-v0.4.0.sql");
+
+        _ = new Database(h.DataDirectory);
+
+        Assert.Equal(7L, TestDatabase.UserVersion(h.DataDirectory));
+        Assert.Equal([0L, 3L, 0L], TestDatabase.ViewerGuardLevels(h.DataDirectory));
     }
 
     [Fact]
