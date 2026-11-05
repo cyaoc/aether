@@ -409,26 +409,40 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     // Stop the web service first so later cleanup cannot hold its port; finish draws, and end a running 礼物榜 期, before
-    // disconnecting the room they require.
+    // disconnecting the room they require. A step that fails is only logged: the window is closing all the same.
     public async Task ShutdownAsync()
     {
-        shutdown.Cancel();
-        ConnectCommand.NotifyCanExecuteChanged();
-        ReconnectCommand.NotifyCanExecuteChanged();
-        LoginCommand.NotifyCanExecuteChanged();
-        LoginCommand.Cancel();
-        LogoutCommand.Cancel();
+        RunShutdownStep("取消进行中的操作", shutdown.Cancel);
+        RunShutdownStep("刷新连接按钮", ConnectCommand.NotifyCanExecuteChanged);
+        RunShutdownStep("刷新重连按钮", ReconnectCommand.NotifyCanExecuteChanged);
+        RunShutdownStep("刷新登录按钮", LoginCommand.NotifyCanExecuteChanged);
+        RunShutdownStep("取消登录", LoginCommand.Cancel);
+        RunShutdownStep("取消退出登录", LogoutCommand.Cancel);
         var accountStopped = accountRead.StopAsync();
-        await WebService.StopAsync();
-        await Lottery.StopAsync();
-        await GiftBoard.EndBeforeLeavingAsync();
-        await GiftBoard.StopAsync();
-        await accountStopped;
-        await StopWatchingAsync();
-        if (ReconnectCommand.ExecutionTask is { } restart) await restart;
-        if (LogoutCommand.ExecutionTask is { } task) await task;
-        if (LoginCommand.ExecutionTask is { } login) await login;
+        await RunShutdownStepAsync("停网页服务", WebService.StopAsync);
+        await RunShutdownStepAsync("停抽奖", Lottery.StopAsync);
+        await RunShutdownStepAsync("结束礼物榜这一期", GiftBoard.EndBeforeLeavingAsync);
+        await RunShutdownStepAsync("停礼物榜", GiftBoard.StopAsync);
+        await RunShutdownStepAsync("停账号读取", () => accountStopped);
+        await RunShutdownStepAsync("断开直播间", StopWatchingAsync);
+        await RunShutdownStepAsync("等重连结束", () => ReconnectCommand.ExecutionTask ?? Task.CompletedTask);
+        await RunShutdownStepAsync("等退出登录结束", () => LogoutCommand.ExecutionTask ?? Task.CompletedTask);
+        await RunShutdownStepAsync("等登录结束", () => LoginCommand.ExecutionTask ?? Task.CompletedTask);
     }
+
+    private async Task RunShutdownStepAsync(string step, Func<Task> run)
+    {
+        try { await run(); }
+        catch (Exception error) { LogShutdownStepFailed(step, error); }
+    }
+
+    private void RunShutdownStep(string step, Action run)
+    {
+        try { run(); }
+        catch (Exception error) { LogShutdownStepFailed(step, error); }
+    }
+
+    private void LogShutdownStepFailed(string step, Exception error) => logger.LogError(error, "关窗口时{Step}失败", step);
 
     // Reconnects skip Connecting, so a QR login can end at either update.
     private void EndQrLogin()

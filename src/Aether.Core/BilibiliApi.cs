@@ -277,8 +277,9 @@ internal sealed class BilibiliApi
         return (code, root.TryGetProperty("data", out var data) ? data.Clone() : default);
     }
 
-    /// <summary>A rate limit throws <see cref="DanmakuRateLimitedException"/>; code 0 with a non-empty message is a
-    /// filtered or refused danmaku. Sources: docs/research/blind-box-gift-events.md sections 6 and 7.</summary>
+    /// <summary>A rate limit throws <see cref="DanmakuRateLimitedException"/>. Code 0 counts as sent only when message is
+    /// the empty string: a non-empty, null or missing message is a danmaku B站 filtered, refused or did not confirm.
+    /// Sources: docs/research/blind-box-gift-events.md section 6 (发弹幕) and 7.6's 判断成功.</summary>
     private static void CheckDanmakuSent(JsonElement root, int code, string operation)
     {
         var message = root.TryGetProperty("message", out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;

@@ -25,7 +25,7 @@ public sealed class GiftAnimationSettingsTests
             Assert.False(page.CanSave);
             Assert.Equal("每一档的门槛要比上一档高", error.Text);
             Assert.Equal("门槛要一档比一档高，改好后才能保存", page.DirtyText);
-            Assert.True(inputs[1].Classes.Contains("invalid"));
+            Assert.Contains("invalid", inputs[1].Classes);
             inputs[1].Text = "";
             GuiHarness.Flush();
             Assert.Equal("门槛要填正整数", error.Text);
@@ -34,7 +34,7 @@ public sealed class GiftAnimationSettingsTests
             GuiHarness.Flush();
             Assert.True(page.CanSave);
             Assert.False(error.IsVisible);
-            Assert.False(inputs[1].Classes.Contains("invalid"));
+            Assert.DoesNotContain("invalid", inputs[1].Classes);
             vm.ConnectionState = RoomConnectionState.Connected;
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await page.PendingSave;

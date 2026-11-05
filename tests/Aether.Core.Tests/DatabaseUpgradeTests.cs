@@ -69,4 +69,28 @@ public sealed class DatabaseUpgradeTests
         Assert.NotEmpty(restarted.Lottery.GetHistory(Room));
         Assert.Equal(6L, TestDatabase.UserVersion(h.DataDirectory));
     }
+
+    [Fact]
+    public async Task A_new_database_opens_again_at_the_version_it_was_made_with()
+    {
+        await using var h = new WatchHarness();
+        _ = new Database(h.DataDirectory);
+        var made = TestDatabase.UserVersion(h.DataDirectory);
+
+        _ = new Database(h.DataDirectory);
+
+        Assert.Equal(made, TestDatabase.UserVersion(h.DataDirectory));
+    }
+
+    [Fact]
+    public async Task A_database_from_a_newer_release_is_refused()
+    {
+        await using var h = new WatchHarness();
+        _ = new Database(h.DataDirectory);
+        TestDatabase.SetUserVersion(h.DataDirectory, Database.CurrentVersion + 1);
+
+        var error = Assert.Throws<InvalidOperationException>(() => new Database(h.DataDirectory));
+
+        Assert.Equal("数据库版本高于当前程序支持的版本。", error.Message);
+    }
 }

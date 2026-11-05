@@ -5,6 +5,9 @@ namespace Aether.Core;
 /// <summary><c>aether.db</c> in the data directory: WAL journal, schema version in <c>PRAGMA user_version</c>.</summary>
 internal sealed class Database
 {
+    /// <summary>The user_version the last upgrade step below sets; a database above it comes from a newer release.</summary>
+    public const long CurrentVersion = 6;
+
     private readonly string connectionString;
 
     public Database(string dataDirectory)
@@ -20,7 +23,7 @@ internal sealed class Database
         command.Transaction = transaction;
         command.CommandText = "PRAGMA user_version";
         var version = (long)command.ExecuteScalar()!;
-        if (version > 6) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
+        if (version > CurrentVersion) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
         if (version == 0)
         {
             // Schema upgrades are handwritten and committed with user_version in the same transaction.

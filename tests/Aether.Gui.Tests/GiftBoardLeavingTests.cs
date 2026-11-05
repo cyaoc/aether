@@ -87,6 +87,40 @@ public sealed class GiftBoardLeavingTests
         Assert.True((await h.Client.GiftBoard.CurrentAsync()).Running);
     });
 
+    // The web service stops first, and its failing does not keep the 期 running, the room connected or the window open.
+    // Stopping the web service refreshes what its rows show, and that refresh now fails.
+    [Fact]
+    public Task A_closing_step_that_fails_skips_none_after_it_and_the_window_still_closes() =>
+        ClosesDespite(viewModel => viewModel.WebService.PropertyChanged += (_, _) => throw new InvalidOperationException("网页服务出错"));
+
+    // Closing first refreshes the buttons, before any step; a refresh that fails skips none of the steps either. It fails once:
+    // the connect command refreshes them again itself when its run ends.
+    [Fact]
+    public Task A_closing_action_before_the_steps_that_fails_skips_none_of_them() => ClosesDespite(viewModel =>
+    {
+        var failed = false;
+        viewModel.ConnectCommand.CanExecuteChanged += (_, _) =>
+        {
+            if (failed) return;
+            failed = true;
+            throw new InvalidOperationException("按钮刷新出错");
+        };
+    });
+
+    private static Task ClosesDespite(Action<MainWindowViewModel> fail) => Run(async (h, clock, viewModel, window) =>
+    {
+        await ConnectAsync(h, viewModel);
+        h.Client.GiftBoard.StartNewPeriod(RoomId);
+        await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Running);
+        fail(viewModel);
+
+        window.Close();
+        await GuiHarness.WaitForAsync(() => !window.IsVisible);
+
+        Assert.Equal(RoomConnectionState.Disconnected, viewModel.ConnectionState);
+        Assert.Equal(GiftBoardPhase.Ended, (await h.Client.GiftBoard.CurrentAsync()).Phase);
+    });
+
     // Whether to end is decided once the writes before it are done: a 期 the streamer started just before stopping, before the
     // panel heard of it, ends too.
     [Fact]

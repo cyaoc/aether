@@ -95,6 +95,14 @@ internal static class TestDatabase
         return (long)command.ExecuteScalar()!;
     }
 
+    public static void SetUserVersion(string dataDirectory, long version)
+    {
+        using var connection = Open(dataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = $"PRAGMA user_version = {version}";
+        command.ExecuteNonQuery();
+    }
+
     public static List<string> Columns(string dataDirectory, string table)
     {
         using var connection = Open(dataDirectory);
