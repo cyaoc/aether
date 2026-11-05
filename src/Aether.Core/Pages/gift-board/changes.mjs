@@ -46,10 +46,11 @@ export class Changes {
     if (!change) return false;
     const replaces = change === REDRAW && !state.fromGift;
     if (replaces) this.waiting = [];
-    // Avatars that come one after another wait as one change, so they never pile up into a redraw that puts out a landing's light.
+    // Avatars take no time and wait as one change when they come one after another; only the gifts' changes count towards the
+    // backlog, so avatars never pile up into a redraw that puts out a landing's light.
     if (change.kind === 'pictures' && this.waiting.at(-1)?.kind === 'pictures') this.waiting.at(-1).state = state;
     else this.waiting.push({ ...change, state });
-    if (this.waiting.length > BACKLOG_LIMIT) this.waiting = [{ ...REDRAW, state }];
+    if (this.waiting.filter(({ kind }) => kind !== 'pictures').length > BACKLOG_LIMIT) this.waiting = [{ ...REDRAW, state }];
     return replaces;
   }
 

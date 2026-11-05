@@ -137,6 +137,15 @@ test('avatars that keep coming while an event plays wait as one change that is s
     ['pictures', ['face-a', 'face-b', 'face-c', 'face-d'], undefined]);
 });
 
+test('avatars between the changes of gifts take no place in the backlog', () => {
+  const changes = started(board(a, b, c, d));
+  const [c2, d2] = [row('c', 2), row('d', 2)];
+  const faced = row => ({ ...row, faceUrl: 'face-' + row.id });
+  for (const state of [gift(a, b, c2, d), board(a, b, faced(c2), d), gift(a, b, faced(c2), d2), board(a, b, faced(c2), faced(d2))])
+    assert.equal(changes.receive(state), false);
+  assert.deepEqual(kinds(changes), ['more c', 'pictures', 'more d', 'pictures']);
+});
+
 test('after a new connection the first state is drawn straight again and the old queue is dropped', () => {
   const changes = started(board(a));
   changes.receive(gift(a, b));
