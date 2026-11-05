@@ -409,7 +409,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     // Stop the web service first so later cleanup cannot hold its port; finish draws, and end a running 礼物榜 期, before
-    // disconnecting the room they require.
+    // disconnecting the room they require. A step that fails is only logged: the window is closing all the same.
     public async Task ShutdownAsync()
     {
         shutdown.Cancel();
@@ -419,15 +419,24 @@ public partial class MainWindowViewModel : ObservableObject
         LoginCommand.Cancel();
         LogoutCommand.Cancel();
         var accountStopped = accountRead.StopAsync();
-        await WebService.StopAsync();
-        await Lottery.StopAsync();
-        await GiftBoard.EndBeforeLeavingAsync();
-        await GiftBoard.StopAsync();
-        await accountStopped;
-        await StopWatchingAsync();
-        if (ReconnectCommand.ExecutionTask is { } restart) await restart;
-        if (LogoutCommand.ExecutionTask is { } task) await task;
-        if (LoginCommand.ExecutionTask is { } login) await login;
+        await RunShutdownStepAsync("停网页服务", WebService.StopAsync);
+        await RunShutdownStepAsync("停抽奖", Lottery.StopAsync);
+        await RunShutdownStepAsync("结束礼物榜这一期", GiftBoard.EndBeforeLeavingAsync);
+        await RunShutdownStepAsync("停礼物榜", GiftBoard.StopAsync);
+        await RunShutdownStepAsync("停账号读取", () => accountStopped);
+        await RunShutdownStepAsync("断开直播间", StopWatchingAsync);
+        await RunShutdownStepAsync("等重连、退出登录和登录结束", async () =>
+        {
+            if (ReconnectCommand.ExecutionTask is { } restart) await restart;
+            if (LogoutCommand.ExecutionTask is { } task) await task;
+            if (LoginCommand.ExecutionTask is { } login) await login;
+        });
+    }
+
+    private async Task RunShutdownStepAsync(string step, Func<Task> run)
+    {
+        try { await run(); }
+        catch (Exception error) { logger.LogError(error, "关窗口时{Step}失败", step); }
     }
 
     // Reconnects skip Connecting, so a QR login can end at either update.
