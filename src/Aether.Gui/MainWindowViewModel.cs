@@ -412,12 +412,12 @@ public partial class MainWindowViewModel : ObservableObject
     // disconnecting the room they require. A step that fails is only logged: the window is closing all the same.
     public async Task ShutdownAsync()
     {
-        shutdown.Cancel();
-        ConnectCommand.NotifyCanExecuteChanged();
-        ReconnectCommand.NotifyCanExecuteChanged();
-        LoginCommand.NotifyCanExecuteChanged();
-        LoginCommand.Cancel();
-        LogoutCommand.Cancel();
+        RunShutdownStep("取消进行中的操作", shutdown.Cancel);
+        RunShutdownStep("刷新连接按钮", ConnectCommand.NotifyCanExecuteChanged);
+        RunShutdownStep("刷新重连按钮", ReconnectCommand.NotifyCanExecuteChanged);
+        RunShutdownStep("刷新登录按钮", LoginCommand.NotifyCanExecuteChanged);
+        RunShutdownStep("取消登录", LoginCommand.Cancel);
+        RunShutdownStep("取消退出登录", LogoutCommand.Cancel);
         var accountStopped = accountRead.StopAsync();
         await RunShutdownStepAsync("停网页服务", WebService.StopAsync);
         await RunShutdownStepAsync("停抽奖", Lottery.StopAsync);
@@ -433,8 +433,16 @@ public partial class MainWindowViewModel : ObservableObject
     private async Task RunShutdownStepAsync(string step, Func<Task> run)
     {
         try { await run(); }
-        catch (Exception error) { logger.LogError(error, "关窗口时{Step}失败", step); }
+        catch (Exception error) { LogShutdownStepFailed(step, error); }
     }
+
+    private void RunShutdownStep(string step, Action run)
+    {
+        try { run(); }
+        catch (Exception error) { LogShutdownStepFailed(step, error); }
+    }
+
+    private void LogShutdownStepFailed(string step, Exception error) => logger.LogError(error, "关窗口时{Step}失败", step);
 
     // Reconnects skip Connecting, so a QR login can end at either update.
     private void EndQrLogin()
