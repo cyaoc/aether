@@ -40,7 +40,8 @@ public sealed partial class AetherClient : IDisposable
                 new LotteryStore(database), new GiftBoardStore(database));
         }, LazyThreadSafetyMode.PublicationOnly);
         Lottery = new(() => stores.Value.Lotteries, timeProvider, logger, random ?? Random.Shared);
-        GiftBoard = new(() => stores.Value.GiftBoards, timeProvider);
+        GiftBoard = new(() => stores.Value.GiftBoards, timeProvider,
+            uid => Api(credential: null).GetFaceAsync(uid, CancellationToken.None), logger);
         WebService = new(dataDirectory, timeProvider, logger, Lottery, GiftBoard);
         WelcomeAnimation = new(WebService, timeProvider, logger);
         EntryAnimation = new(WebService, WelcomeAnimation, timeProvider, logger);

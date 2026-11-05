@@ -66,7 +66,8 @@ export class Entry {
 
   placePicture(g, { avatarScale, avatarAlpha, lift }, arc) {
     const { row, kit } = this;
-    this.avatar.texture = row.faceUrl ? kit.images.texture(this.pictures.face) : kit.textures.initial(row.nickname);
+    // A viewer without a picture, or whose picture failed to load, shows the first character of the name.
+    this.avatar.texture = (row.faceUrl && kit.images.texture(this.pictures.face)) || kit.textures.initial(row.nickname);
     this.avatar.position.set(g.ax + arc, g.ay);
     this.avatar.width = this.avatar.height = 2 * g.ar * avatarScale * lift;
     this.avatar.alpha = avatarAlpha;

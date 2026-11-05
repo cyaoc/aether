@@ -119,6 +119,13 @@ test('changes a gift made wait their turn, even a redraw, and a board that looks
   assert.deepEqual(kinds(changes), ['new c', 'redraw']);
 });
 
+test('a state that only brings avatars B站 left out of the gifts is drawn in its turn and cuts nothing off', () => {
+  const changes = started(board(a, b));
+  assert.equal(changes.receive(gift(a, b, c)), false);
+  assert.equal(changes.receive(board(a, b, { ...c, faceUrl: 'face' })), false);
+  assert.deepEqual(kinds(changes), ['new c', 'pictures']);
+});
+
 test('after a new connection the first state is drawn straight again and the old queue is dropped', () => {
   const changes = started(board(a));
   changes.receive(gift(a, b));

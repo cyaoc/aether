@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
 
@@ -11,6 +12,8 @@ public sealed class GiftBoardController : IDisposable
     private readonly object gate = new();
     private readonly Func<GiftBoardStore> store;
     private readonly TimeProvider time;
+    private readonly Func<long, Task<string>> faceOf;
+    private readonly ILogger logger;
     private readonly Subscribers<GiftBoardState> subscribers;
     private long? roomId;
     // The connected room's latest 期, and all its rows whatever the 上榜门槛 (which is applied when showing them), by row Id.
@@ -26,10 +29,13 @@ public sealed class GiftBoardController : IDisposable
 
     private static readonly GiftBoardSnapshot Empty = new(null, null, null, [], [], 0);
 
-    internal GiftBoardController(Func<GiftBoardStore> store, TimeProvider time)
+    /// <param name="faceOf">Asks B站 for a viewer's avatar by uid.</param>
+    internal GiftBoardController(Func<GiftBoardStore> store, TimeProvider time, Func<long, Task<string>> faceOf, ILogger logger)
     {
         this.store = store;
         this.time = time;
+        this.faceOf = faceOf;
+        this.logger = logger;
         subscribers = new(gate);
     }
 
@@ -48,6 +54,7 @@ public sealed class GiftBoardController : IDisposable
             roomId = room;
             Load(snapshot);
             Publish();
+            FillFaces(room, totals.Values.Select(total => total.Row.Uid));
         }
     }
 
@@ -73,7 +80,7 @@ public sealed class GiftBoardController : IDisposable
             if (roomId != room) return _ => null;
             var period = Running ? board.PeriodId : null;
             Dictionary<string, long?> repeats = [];
-            var added = false;
+            List<long> added = [];
             foreach (var gift in gifts)
             {
                 // uid 0 is not recorded, which GiftStore reports.
@@ -82,10 +89,11 @@ public sealed class GiftBoardController : IDisposable
                 else if (period is not null)
                 {
                     Add(gift);
-                    added = true;
+                    added.Add(gift.Uid);
                 }
             }
-            if (added) subscribers.Publish(State() with { FromGift = true });
+            if (added.Count > 0) subscribers.Publish(State() with { FromGift = true });
+            FillFaces(room, added);
             return gift => gift.Tid is { } tid && repeats.TryGetValue(tid, out var first) ? first : period;
         }
     }
@@ -159,13 +167,48 @@ public sealed class GiftBoardController : IDisposable
     private void Add(Gift gift)
     {
         var key = GiftBoardRow.IdOf(gift.Uid, gift.BoardKey);
+        // B站 often leaves the avatar out, of a 大航海 purchase most of all: the gift then keeps the one its viewer has.
+        var face = gift.FaceUrl.Length > 0 ? gift.FaceUrl : FaceOf(gift.Uid);
         totals[key] = totals.TryGetValue(key, out var total)
             ? (total.Row with
             {
-                Nickname = gift.Nickname, FaceUrl = gift.FaceUrl, GiftName = gift.GiftName, IconUrl = gift.IconUrl,
+                Nickname = gift.Nickname, FaceUrl = face, GiftName = gift.GiftName, IconUrl = gift.IconUrl,
                 Value = checked(total.Row.Value + gift.Value), Num = checked(total.Row.Num + gift.Num)
             }, total.First)
-            : (new(key, gift.Uid, gift.Nickname, gift.FaceUrl, gift.GiftName, gift.IconUrl, gift.GuardLevel, gift.Value, gift.Num), ++sequence);
+            : (new(key, gift.Uid, gift.Nickname, face, gift.GiftName, gift.IconUrl, gift.GuardLevel, gift.Value, gift.Num), ++sequence);
+        if (face.Length > 0) SetFace(gift.Uid, face);
+    }
+
+    // A viewer's rows all show the latest avatar any of them was given, as the database gives them back.
+    private string FaceOf(long uid) => totals.Values.Select(total => total.Row).FirstOrDefault(row => row.Uid == uid)?.FaceUrl ?? "";
+
+    private bool SetFace(long uid, string face)
+    {
+        var changed = totals.Where(pair => pair.Value.Row.Uid == uid && pair.Value.Row.FaceUrl != face).ToList();
+        foreach (var (key, total) in changed) totals[key] = (total.Row with { FaceUrl = face }, total.First);
+        return changed.Count > 0;
+    }
+
+    // Asks B站 for the avatar of each of these viewers still without one, after the gifts are counted, so the board waits for
+    // neither, and pushes it when it comes. shortcut: asked once per message or connection, not again on failure; retry if
+    // avatars still go missing.
+    private void FillFaces(long room, IEnumerable<long> uids)
+    {
+        foreach (var uid in uids.Distinct().Where(uid => FaceOf(uid).Length == 0).ToList())
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var face = await faceOf(uid);
+                    lock (gate)
+                    {
+                        // A room left or switched, or an avatar a gift brought meanwhile, keeps what it has.
+                        if (roomId == room && face.Length > 0 && FaceOf(uid).Length == 0 && SetFace(uid, face)) Publish();
+                    }
+                }
+                catch (Exception error)
+                { logger.LogWarning(error, "礼物榜读取观众 {Uid} 的头像失败，先显示昵称首字：{Error}", uid, error.Message); }
+            });
     }
 
     private void Load(GiftBoardSnapshot snapshot)
