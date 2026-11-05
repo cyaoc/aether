@@ -102,7 +102,7 @@ node docs/design/gift-board/tools/server.mjs 8799
 - **素材**：Freesound 上 nomiqbomi 的 [Sparkle](https://freesound.org/people/nomiqbomi/sounds/578803/)（CC0，已打开页面确认，署名不是必须的），原文件放在 `audio/sources/`，**直接用，不要换**。
 - **时间点**：最响的点对准新第一名事件开始后 950 ms，也就是看板娘换成欢呼、彩带抛出来的那一帧。关掉看板娘时照样在这一刻响，正好是三道光带开始绕第一名转的时候。用完整的声音，不截短、不预混。
 - **怎么播**：照视频页的做法，用 `video/animations/audio.mjs` 的 `prepareCues` 和 `AudioTrack`，由页面自己的动画时钟按帧触发，提前按输出延迟安排；`events.json` 里的写法（`t`、`peak`）和它一致，`peak` 是 −12 dB。
-- **音量**：`gift_board.volume`，0 到 100，默认 60，0 时不响。GUI 用拉杆调，和动画音量是同一个控件。
+- **音量**：跟着期存（[ADR 0014](../../adr/0014-gift-board-runs-in-periods-like-a-lottery.md)），0 到 100，默认 60，0 时不响。GUI 用拉杆调，和动画音量是同一个控件。
 - 页面刚连上时画出来的第一份状态不播动画，也就不响。不和视频页的声音互相避让：同一份大礼物的送礼动画要等一轮送完、停手 3 秒后才播，那时这一声早已响完。
 
 本地试听：`http://localhost:8799/render.html?board=GB1-GiftBoard.dc.html&sound=cheer`，点左上角“点这里带声音播放”，再勾上声音，下一轮循环生效；新的第一名在每轮第 7.6 秒。

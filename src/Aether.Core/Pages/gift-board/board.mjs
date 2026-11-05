@@ -41,6 +41,8 @@ export class Board {
     this.state = state;
     this.scene?.destroy();
     this.scene = undefined;
+    // A board that changes gift by gift lets go of the names and counts the one before it last showed and this one does not.
+    this.kit.textures.sweep();
     if (!state.running) return;
     this.layout = fitLayout(this.app.screen.width, this.app.screen.height, state.options.mascot);
     this.scene = new Scene(this.kit, this.layout, state.rows);
@@ -70,7 +72,7 @@ export class Board {
     // Without a scene there is no event either, and the effects clear what they last drew.
     const riser = this.scene?.update(t, this.scroll, this.event);
     this.effects.draw(this.layout, this.event, u, riser);
-    this.track?.frame(u);
+    this.event?.track?.frame(u);
   }
 
   // The list scrolls steadily, and stands still while an event plays.
@@ -87,11 +89,14 @@ export class Board {
     if (kind === 'redraw') return;
     this.event = { kind, id, debut, startedAt: t, slots: slotsOf(before.rows) };
     this.app.canvas.dataset.event = kind;
-    // Only a new first place sounds.
-    if (kind === 'top') this.track = this.sound.track(this.volume);
+    // Only a new first place sounds. Its sound rings on a little past its event, so the track is kept for a new volume or an
+    // interruption to reach until the next cheer takes its place.
+    if (kind !== 'top') return;
+    this.track?.stop();
+    this.event.track = this.track = this.sound.track(this.volume);
   }
 
-  // The event playing is out of date: it stops where it is, its sound with it.
+  // The event playing is out of date: it stops where it is, and the last cheer's sound with it.
   interrupt() {
     this.track?.stop();
     this.finish();
@@ -99,7 +104,6 @@ export class Board {
 
   finish() {
     this.event = undefined;
-    this.track = undefined;
     this.app.canvas.dataset.event = '';
   }
 }

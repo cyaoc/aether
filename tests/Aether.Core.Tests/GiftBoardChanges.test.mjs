@@ -47,8 +47,8 @@ test('removing rows, emptying, changing several rows or switching the mascot red
 });
 
 test('a state that no gift made is drawn straight, even when it adds, grows or moves just one row', () => {
-  const restored = [board(a, b, c, d), board(a, b, row('c', 2)), board(a, row('c', 2), b), board(row('c', 2), a, b), board(d, a, b, c)];
-  for (const state of restored) assert.deepEqual(play(started(board(a, b, c)), state), ['redraw']);
+  const notFromGift = [board(a, b, c, d), board(a, b, row('c', 2)), board(a, row('c', 2), b), board(row('c', 2), a, b), board(d, a, b, c)];
+  for (const state of notFromGift) assert.deepEqual(play(started(board(a, b, c)), state), ['redraw']);
   assert.deepEqual(play(started(board()), board(a)), ['redraw']);
 });
 
@@ -59,6 +59,15 @@ test('a 期 ended or continued is drawn straight and replaces what waits, though
   assert.deepEqual(kinds(changes), ['redraw']);
   assert.equal(changes.receive(board(row('a', 2), b)), true);
   assert.deepEqual(kinds(changes), ['redraw']);
+});
+
+test('a new threshold or comparison is drawn straight and replaces what waits, though its rows stay the same', () => {
+  for (const options of [{ threshold: 2 }, { thresholdBy: 2 }]) {
+    const changes = started(board(a, b));
+    changes.receive(gift(row('a', 2), b));
+    assert.equal(changes.receive(withOptions(board(row('a', 2), b), options)), true);
+    assert.deepEqual(kinds(changes), ['redraw']);
+  }
 });
 
 test('a state that shows the same board, such as a new volume or a gift below the threshold, plays nothing', () => {

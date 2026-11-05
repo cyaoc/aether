@@ -3,11 +3,13 @@ const BACKLOG_LIMIT = 3;   // more changes than this waiting jump to the latest 
 const REDRAW = { kind: 'redraw' };
 
 /** One gift changes one row: it appears (`new`, or `top` with `debut` when it appears in first place), its count grows (`more`), it
- * climbs (`pass`), or it takes first place (`top`). Anything else, such as rows removed, several rows changed, the mascot
- * switched or the 期 ended or continued, is redrawn without animation, and a state that shows the same board is nothing. A state
- * that no gift made is redrawn too, even when it happens to change one row: a new threshold must not cheer. */
+ * climbs (`pass`), or it takes first place (`top`). Anything else, such as rows removed, several rows changed, the threshold or
+ * the mascot changed or the 期 ended or continued, is redrawn without animation, and a state that shows the same board is
+ * nothing. A state that no gift made is redrawn too, even when it happens to change one row: a new threshold must not cheer. */
 function compare(before, after) {
-  if (before.running !== after.running || before.options.mascot !== after.options.mascot) return REDRAW;
+  // Every option but the volume, which reaches what is playing, changes the board even where the rows stay the same.
+  const optionChanged = Object.keys(after.options).some(name => name !== 'volume' && before.options[name] !== after.options[name]);
+  if (before.running !== after.running || optionChanged) return REDRAW;
   const earlier = new Map(before.rows.map((row, rank) => [row.id, { num: row.num, rank }]));
   const changed = after.rows.map((row, rank) => ({ row, rank, old: earlier.get(row.id) })).filter(({ row, old }) => old?.num !== row.num);
   const kept = after.rows.filter(row => earlier.has(row.id)).length;

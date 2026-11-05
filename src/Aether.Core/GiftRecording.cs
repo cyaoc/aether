@@ -14,10 +14,11 @@ internal sealed class GiftRecording(GiftStore store, GiftBoardController board, 
     public void Record(IReadOnlyList<Gift> gifts, Action<Func<Gift, bool>> writeAll)
     {
         // On the board first: the database neither delays nor decides what the 礼物榜页 shows.
-        var period = board.Take(roomId, gifts);
+        var periodOf = board.Take(roomId, gifts);
         bool Write(Gift gift)
         {
             var forBlindBox = blindBoxes && gift.Blind is not null;
+            var period = periodOf(gift);
             if (!forBlindBox && period is null) return false;
             try { return store.Save(roomId, gift, forBlindBox, period) && forBlindBox; }
             // A 盲盒 the 盲盒统计 wanted is never lost quietly: its failure ends the room connection, as it always has.

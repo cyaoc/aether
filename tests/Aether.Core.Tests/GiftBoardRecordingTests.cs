@@ -1,4 +1,5 @@
 using Aether.Core.Tests.Support;
+using static Aether.Core.Tests.Support.GiftBoardStates;
 using Microsoft.Extensions.Logging;
 using static Aether.Core.Tests.Support.BlindGiftV2Fixture;
 
@@ -137,6 +138,63 @@ public sealed class GiftBoardRecordingTests
         Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
     }
 
+    // A gift belongs to the 期 it was counted in, so a push again that makes up its failed write goes there, not into a 期
+    // started in between, where the board never showed it.
+    [Fact]
+    public async Task A_failed_write_made_up_after_a_new_period_began_goes_into_the_period_the_gift_was_counted_in()
+    {
+        await using var h = new WatchHarness();
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
+        using var command = connection.CreateCommand();
+        await using (var updates = await h.WatchWithGiftBoardAsync())
+        {
+            connection.Open();
+            command.CommandText = "ALTER TABLE gift_record RENAME TO unavailable_record";
+            command.ExecuteNonQuery();
+            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
+            command.CommandText = "ALTER TABLE unavailable_record RENAME TO gift_record";
+            command.ExecuteNonQuery();
+            h.Client.GiftBoard.EndPeriod(RoomId);
+            h.Client.GiftBoard.StartNewPeriod(RoomId);
+
+            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
+            Assert.Empty(await h.BoardRowsAsync());
+        }
+
+        await using var next = await h.WatchConnectedAsync();
+        Assert.Empty(await h.BoardRowsAsync());
+        Assert.Equal(1L, TestDatabase.GiftRecords(h.DataDirectory));
+    }
+
+    // The database writes a tid once, whatever it was written for, so the board counts none it already has: not on the
+    // room connection that wrote it, and not on the next.
+    [Fact]
+    public async Task A_tid_recorded_in_an_earlier_period_or_only_for_the_blind_box_statistics_does_not_count_on_a_new_one()
+    {
+        await using var h = new WatchHarness();
+        var earlier = BlindGiftFixture.Ordinary(tid: "earlier");
+        var box = BlindGiftFixture.Gift(new DateTimeOffset(2026, 11, 4, 20, 0, 0, TimeSpan.FromHours(8)));
+        await using (var updates = await h.WatchWithGiftBoardAsync())
+        {
+            await h.PushAndSyncAsync(updates, earlier);
+            h.Client.GiftBoard.EndPeriod(RoomId);
+            await h.PushAndSyncAsync(updates, box);
+            h.Client.GiftBoard.StartNewPeriod(RoomId);
+            await h.PushAndSyncAsync(updates, box);
+            Assert.Empty(await h.BoardRowsAsync());
+        }
+
+        await using (var updates = await h.WatchConnectedAsync())
+        {
+            await h.PushAndSyncAsync(updates, earlier, box);
+            Assert.Empty(await h.BoardRowsAsync());
+        }
+
+        await using var next = await h.WatchConnectedAsync();
+        Assert.Empty(await h.BoardRowsAsync());
+        Assert.Equal(2L, TestDatabase.GiftRecords(h.DataDirectory));
+    }
+
     [Fact]
     public async Task A_board_that_cannot_be_read_leaves_danmaku_coming_and_is_read_on_the_next_connection()
     {
@@ -220,11 +278,11 @@ public sealed class GiftBoardRecordingTests
         var board = h.Client.GiftBoard;
 
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Gift(sentAt));
-        board.EndPeriod();
+        board.EndPeriod(RoomId);
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Gift(sentAt.AddMinutes(1)));
-        board.ContinuePeriod();
-        board.EndPeriod();
-        board.StartNewPeriod();
+        board.ContinuePeriod(RoomId);
+        board.EndPeriod(RoomId);
+        board.StartNewPeriod(RoomId);
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Gift(sentAt.AddMinutes(2)));
 
         // The board has only what its running 期 took: the first and the last went into two different ones.

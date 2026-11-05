@@ -1,3 +1,4 @@
+using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using static Aether.Gui.Tests.Support.GiftBoardScene;
@@ -22,7 +23,7 @@ public sealed class GiftBoardPeriodTests
         await GuiHarness.WaitForAsync(() => Read(scene).Status == "统计中");
         Assert.Equal(new Header("统计中", true, false, false, false), Read(scene));
 
-        scene.Board.EndPeriod();
+        scene.Board.EndPeriod(RoomId);
         await GuiHarness.WaitForAsync(() => Read(scene).Status == "已结束");
         Assert.Equal(new Header("已结束", false, true, true, false), Read(scene));
 
@@ -80,7 +81,7 @@ public sealed class GiftBoardPeriodTests
         scene.Connect();
         scene.Start();
         scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450));
-        scene.Board.EndPeriod();
+        scene.Board.EndPeriod(RoomId);
         await GuiHarness.WaitForAsync(() => Read(scene).Status == "已结束");
 
         GuiHarness.Click(scene.Page, "NewPeriodButton");
@@ -101,7 +102,7 @@ public sealed class GiftBoardPeriodTests
         scene.Connect();
         scene.Start();
         scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450));
-        scene.Board.EndPeriod();
+        scene.Board.EndPeriod(RoomId);
         await GuiHarness.WaitForAsync(() => Read(scene).Continue);
 
         GuiHarness.Click(scene.Page, "ContinueButton");
@@ -145,6 +146,33 @@ public sealed class GiftBoardPeriodTests
         GuiHarness.Click(scene.Page, "NewPeriodButton");
         await GuiHarness.WaitForAsync(() => Read(scene).Status == "统计中");
         Assert.False(IsShown(scene, "ErrorMessage"));
+    });
+
+    // The panel's writes wait their turn off the UI thread, so the room can change between asking and doing: what was asked
+    // for in one room is not done to the next.
+    [Fact]
+    public Task An_action_asked_for_in_one_room_is_not_done_in_the_room_switched_to_before_it_runs() => Run(async scene =>
+    {
+        const long other = 24680;
+        scene.Board.Connect(other);
+        scene.Board.StartNewPeriod(other);
+        scene.Board.EndRoom(other);
+        scene.Connect();
+        scene.Start();
+        await GuiHarness.WaitForAsync(() => Read(scene).End);
+        GuiHarness.Click(scene.Page, "EndButton");
+
+        // Straight on, so the panel has not heard of the switch yet when the streamer acts.
+        scene.Board.EndRoom(RoomId);
+        scene.Board.Connect(other);
+        var board = scene.ViewModel.GiftBoard;
+        board.Threshold = 333;
+        // Both writes are done once the confirmed one is: Core refused them for the room they were asked for in.
+        await board.ConfirmAsync(RoomId.ToString());
+
+        var state = await scene.Board.CurrentAsync();
+        Assert.True(state.Running);
+        Assert.Equal(GiftBoardOptions.Default, state.Options);
     });
 
     /// <summary>The state in the header, null when it shows none, and which of its buttons are there to click.</summary>

@@ -81,8 +81,8 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     /// <summary>Starts a 期 in the connected room at <paramref name="threshold"/> 电池, as the streamer would in the panel.</summary>
     public void Start(int threshold = 1)
     {
-        Board.SetOptions(GiftBoardOptions.Default with { Threshold = threshold });
-        Board.StartNewPeriod();
+        Board.SetOptions(RoomId, GiftBoardOptions.Default with { Threshold = threshold });
+        Board.StartNewPeriod(RoomId);
     }
 
     /// <summary>The streamer clicked 断开.</summary>

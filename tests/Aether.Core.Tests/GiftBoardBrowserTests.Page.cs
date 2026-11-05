@@ -15,9 +15,13 @@ public sealed partial class GiftBoardBrowserTests
     private const string Clock = "document.getAnimations()[0]";
     private const string TwoFrames = "new Promise(done => requestAnimationFrame(() => requestAnimationFrame(() => done(true))))";
 
-    /// <summary>Records every sound the page starts, with when its loudest moment is heard, counted from the start of the event.</summary>
+    /// <summary>Records every sound the page starts, with when its loudest moment is heard, counted from the start of the event,
+    /// and counts the sounds it stops.</summary>
     private const string RecordSounds = $$"""
         window.sounds = [];
+        window.stopped = 0;
+        const stop = AudioBufferSourceNode.prototype.stop;
+        AudioBufferSourceNode.prototype.stop = function () { stopped++; return stop.apply(this, arguments); };
         const start = AudioBufferSourceNode.prototype.start;
         AudioBufferSourceNode.prototype.start = function (when, offset) {
           const ctx = this.context, buffer = this.buffer;

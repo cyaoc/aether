@@ -227,17 +227,28 @@ function trimmed(image) {
   return PIXI.Texture.from(canvasOf(right - left + 2, bottom - top + 2, g => g.drawImage(canvas, -left, -top)));
 }
 
-/** `make` is called once for each list of arguments; `clear()` destroys everything made, so the next call makes it again. */
+/** `make` is called once for each list of arguments; `sweep()` destroys what was not asked for since the sweep before, and
+ * `clear()` everything made, so the next call makes it again. */
 export const memo = make => {
-  const made = new Map();
+  const made = new Map(), asked = new Set();
   const recall = (...args) => {
     const key = args.join('\u0001');
     if (!made.has(key)) made.set(key, make(...args));
+    asked.add(key);
     return made.get(key);
+  };
+  recall.sweep = () => {
+    for (const [key, texture] of made) {
+      if (asked.has(key)) continue;
+      texture.destroy(true);
+      made.delete(key);
+    }
+    asked.clear();
   };
   recall.clear = () => {
     for (const texture of made.values()) texture.destroy(true);
     made.clear();
+    asked.clear();
   };
   return recall;
 };
@@ -252,6 +263,8 @@ export function createTextures(local) {
     cardNumerals: CARDS.map((_, rank) => cardNumeralTexture(rank)), rowNumeral,
     banner: trimmed(local.banner), idle: PIXI.Texture.from(local.idle), cheer: PIXI.Texture.from(local.cheer),
     name, count, initial,
+    /** Lets go of the textures made on first use that nothing asked for since the sweep before. */
+    sweep: () => [rowNumeral, name, count, initial].forEach(made => made.sweep()),
     /** Lets go of every texture made on first use, for the pictures of a board that is gone. */
     forget: () => [rowNumeral, name, count, initial].forEach(made => made.clear())
   };

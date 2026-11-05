@@ -22,3 +22,14 @@ test('clearing destroys every texture made, its source too, and the next call ma
   assert.deepEqual(destroyedWithSource, [true, true]);
   assert.notEqual(counts(1), old[0]);
 });
+
+test('sweeping destroys what was not asked for since the sweep before, so counts that went by do not pile up', () => {
+  const counts = memo(make);
+  for (let num = 1; num <= 3; num++) counts(num);
+  counts.sweep();
+  const kept = counts(3);
+  destroyedWithSource.length = 0;
+  counts.sweep();
+  assert.deepEqual(destroyedWithSource, [true, true]);
+  assert.equal(counts(3), kept);
+});

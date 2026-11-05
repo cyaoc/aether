@@ -16,8 +16,9 @@ public sealed class GiftBoardController : IDisposable
     // The connected room's latest 期, and all its rows whatever the 上榜门槛 (which is applied when showing them), by row Id.
     private GiftBoardSnapshot board = Empty;
     private readonly Dictionary<string, (GiftBoardRow Row, long First)> totals = [];
-    // The tids counted since the room connected, and those of its latest 期 before: a push B站 repeats counts once, written or not.
-    private readonly HashSet<string> counted = [];
+    // Each tid the room's 收礼记录 has or its connection has seen, with the 期 the board counted it in, null for none: a push B站
+    // repeats counts once, in that 期, written or not.
+    private readonly Dictionary<string, long?> counted = [];
     // The order in which totals first appeared, after every 收礼记录 row read.
     private long sequence;
     // The latest 期's options, or those the room's first 期 will start with.
@@ -62,29 +63,36 @@ public sealed class GiftBoardController : IDisposable
     }
 
     /// <summary>Counts gifts of <paramref name="room"/> while its 期 runs and pushes the state they made, the one the 礼物榜页
-    /// plays. Returns the 期 they belong to, for their 收礼记录 rows, or null when the board takes none. A tid already counted
-    /// is B站 pushing it again and counts once; it still belongs to the 期, so its write can report the repeat.</summary>
-    internal long? Take(long room, IEnumerable<Gift> gifts)
+    /// plays. Returns the 期 each gift belongs to, for its 收礼记录 row, null for one the board did not take. A tid seen before
+    /// is B站 pushing it again: it counts once and belongs to the 期 it first came in, so its write reports the repeat, or makes
+    /// up one that failed, there.</summary>
+    internal Func<Gift, long?> Take(long room, IEnumerable<Gift> gifts)
     {
         lock (gate)
         {
-            if (roomId != room || !Running) return null;
+            if (roomId != room) return _ => null;
+            var period = Running ? board.PeriodId : null;
+            Dictionary<string, long?> repeats = [];
             var added = false;
             foreach (var gift in gifts)
             {
                 // uid 0 is not recorded, which GiftStore reports.
-                if (gift.Uid == 0 || gift.Tid is { } tid && !counted.Add(tid)) continue;
-                Add(gift);
-                added = true;
+                if (gift.Uid == 0) continue;
+                if (gift.Tid is { } tid && !counted.TryAdd(tid, period)) repeats[tid] = counted[tid];
+                else if (period is not null)
+                {
+                    Add(gift);
+                    added = true;
+                }
             }
             if (added) subscribers.Publish(State() with { FromGift = true });
-            return board.PeriodId;
+            return gift => gift.Tid is { } tid && repeats.TryGetValue(tid, out var first) ? first : period;
         }
     }
 
-    /// <summary>Starts a new 期 for the connected room, with the options the last one had; the old ones stay in the database.
-    /// The running 期 has to be ended first.</summary>
-    public void StartNewPeriod() => Change(room =>
+    /// <summary>Starts a new 期 for <paramref name="room"/>, with the options the last one had; the old ones stay in the
+    /// database. The running 期 has to be ended first.</summary>
+    public void StartNewPeriod(long room) => Change(room, () =>
     {
         if (Running) throw new InvalidOperationException("这一期还在统计，先结束再开始新一期。");
         var at = time.GetUtcNow();
@@ -92,8 +100,8 @@ public sealed class GiftBoardController : IDisposable
         totals.Clear();
     });
 
-    /// <summary>Ends the connected room's running 期: it takes no more gifts and the 礼物榜页 shows nothing.</summary>
-    public void EndPeriod() => Change(room =>
+    /// <summary>Ends <paramref name="room"/>'s running 期: it takes no more gifts and the 礼物榜页 shows nothing.</summary>
+    public void EndPeriod(long room) => Change(room, () =>
     {
         if (board.Period is not { EndedAt: null } running) throw new InvalidOperationException("没有在统计的一期。");
         var at = time.GetUtcNow();
@@ -101,41 +109,39 @@ public sealed class GiftBoardController : IDisposable
         board = board with { Period = running with { EndedAt = at } };
     });
 
-    /// <summary>Runs the connected room's ended 期 again.</summary>
-    public void ContinuePeriod() => Change(room =>
+    /// <summary>Runs <paramref name="room"/>'s ended 期 again.</summary>
+    public void ContinuePeriod(long room) => Change(room, () =>
     {
         if (board.Period is not { EndedAt: not null } ended) throw new InvalidOperationException("没有结束的一期可以继续。");
         store().Continue(room);
         board = board with { Period = ended with { EndedAt = null } };
     });
 
-    /// <summary>Gives the connected room's latest 期 these options, at once; a room without one starts its first with them.</summary>
-    public void SetOptions(GiftBoardOptions changed)
+    /// <summary>Gives <paramref name="room"/>'s latest 期 these options, at once; a room without one starts its first with them.</summary>
+    public void SetOptions(long room, GiftBoardOptions changed)
     {
         if (changed.Error is { } error) throw new ArgumentException(error, nameof(changed));
-        lock (gate)
+        Change(room, () =>
         {
-            var room = ConnectedRoom();
             if (board.Period is not null) store().SetOptions(room, changed);
             options = changed;
-            Publish();
-        }
+        });
     }
 
-    // The database first: a change it refuses leaves the board as it was. The totals stay in memory, gifts on their way to
-    // the database with them.
-    private void Change(Action<long> change)
+    // Each change names the room it is for, so one asked for before the room was left or switched is refused, not made to
+    // the room connected since. The database first: a change it refuses leaves the board as it was. The totals stay in
+    // memory, gifts on their way to the database with them.
+    private void Change(long room, Action change)
     {
         lock (gate)
         {
-            change(ConnectedRoom());
+            if (roomId != room) throw new InvalidOperationException($"没有连着直播间 {room}。");
+            change();
             Publish();
         }
     }
 
     private bool Running => GiftBoardPeriod.PhaseOf(board.Period) == GiftBoardPhase.Running;
-
-    private long ConnectedRoom() => roomId ?? throw new InvalidOperationException("没有连着直播间。");
 
     private void Add(Gift gift)
     {
@@ -156,13 +162,13 @@ public sealed class GiftBoardController : IDisposable
         totals.Clear();
         foreach (var total in snapshot.Totals) totals[total.Row.Id] = total;
         counted.Clear();
-        counted.UnionWith(snapshot.Tids);
+        foreach (var (tid, period) in snapshot.Tids) counted[tid] = period;
         sequence = snapshot.LastRecord;
     }
 
     private void Publish() => subscribers.Publish(State());
 
-    private GiftBoardState State() => new(Rows(), options, roomId is not null, board.Period);
+    private GiftBoardState State() => new(Rows(), options, roomId, board.Period);
 
     // From the highest 价值 down, equal values by who was sent first.
     private ImmutableArray<GiftBoardRow> Rows()

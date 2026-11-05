@@ -42,7 +42,7 @@ public sealed class GiftBoardListTests
     {
         if (connected) scene.Connect();
         if (started) scene.Start();
-        if (ended) scene.Board.EndPeriod();
+        if (ended) scene.Board.EndPeriod(RoomId);
 
         var empty = scene.Page.FindControl<TextBlock>("BoardEmpty")!;
         await GuiHarness.WaitForAsync(() => empty.Text == text);

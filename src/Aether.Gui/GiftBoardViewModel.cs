@@ -18,8 +18,10 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
     private readonly LatestRun updates = new();
     // Core's writes, one after another off the UI thread, so the last option set is the one that stays.
     private Task change = Task.CompletedTask;
+    // The room Core last reported: each write names the room it was asked for in, and Core refuses it once that room is gone.
+    private long? roomId;
     private int optionWrites;
-    // The options Core last reported, and those the inputs show.
+    // The options Core last reported, and those the inputs last showed or sent to Core.
     private GiftBoardOptions reported = GiftBoardOptions.Default;
     private GiftBoardOptions shown = GiftBoardOptions.Default;
     private bool showing;
@@ -143,12 +145,13 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
             Battery.Text(row.Value)))];
         // A room joined or left: what the last action did belongs to the room before.
         if (Connected != state.Connected) Message = Error = null;
+        var roomChanged = roomId != state.RoomId;
+        roomId = state.RoomId;
         Connected = state.Connected;
         Phase = state.Phase;
         Period = state.Period;
         reported = state.Options;
-        // While the streamer is still changing the options, Core reports ones the inputs have moved past.
-        if (optionWrites == 0) ShowOptions(reported);
+        FollowCore(roomChanged);
         // What was asked for can no longer be done, e.g. the room was left.
         if (Confirmation == GiftBoardConfirmation.End && !Running || Confirmation == GiftBoardConfirmation.NewPeriod && !Ended)
             Confirmation = GiftBoardConfirmation.None;
@@ -183,13 +186,14 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
     private Task StartNewPeriodAsync(string room) =>
         RunAsync(client.GiftBoard.StartNewPeriod, "开始新一期失败", $"已为直播间 {room} 开始新的一期");
 
-    // Core refuses what the state no longer allows, such as a room left in the meantime, and the failure says why.
-    private async Task RunAsync(Action action, string failed, string done)
+    // Core refuses what the state no longer allows, such as a room left or switched in the meantime, and the failure says why.
+    private async Task RunAsync(Action<long> action, string failed, string done)
     {
+        if (roomId is not { } room) return;
         Error = null;
         try
         {
-            await Write(action);
+            await Write(() => action(room));
             Message = done;
         }
         catch (Exception exception) { Error = $"{failed}：{exception.Message}"; }
@@ -215,6 +219,14 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
 
     partial void OnVolumeChanged(double value) => _ = SetOptionsAsync();
 
+    // While the streamer's writes are on their way, Core reports options the inputs have moved past; once they are all back,
+    // the inputs show Core's if they differ, and leave alone a threshold still being typed if not. Another room's options
+    // are shown at once, whatever is still on its way to the room before.
+    private void FollowCore(bool roomChanged = false)
+    {
+        if (roomChanged || optionWrites == 0 && reported != shown) ShowOptions(reported);
+    }
+
     private void ShowOptions(GiftBoardOptions options)
     {
         showing = true;
@@ -237,16 +249,15 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
         var options = new GiftBoardOptions(whole, ThresholdBy, Mascot, (int)Math.Round(Volume));
         ThresholdError = options.Error;
         if (ThresholdError is not null) return;
-        if (options == shown) return;
+        if (options == shown || roomId is not { } room) return;
         shown = options;
         optionWrites++;
-        try { await Write(() => client.GiftBoard.SetOptions(options)); }
-        catch (Exception exception)
+        try { await Write(() => client.GiftBoard.SetOptions(room, options)); }
+        catch (Exception exception) { Error = $"改选项失败：{exception.Message}"; }
+        finally
         {
-            Error = $"改选项失败：{exception.Message}";
-            // The inputs go back to what Core still has.
-            if (optionWrites == 1) ShowOptions(reported);
+            optionWrites--;
+            FollowCore();
         }
-        finally { optionWrites--; }
     }
 }

@@ -3,10 +3,11 @@ using System.Collections.Immutable;
 namespace Aether.Core;
 
 /// <summary>A room's latest 期 as the 收礼记录 has it: its id, the 期 itself and its options, all null for a room that has
-/// never had one; its totals, one per viewer and 礼物键, each with the 收礼记录 row of its first gift; the tids of its gifts;
-/// and the last 收礼记录 row, which every gift counted from here on comes after.</summary>
+/// never had one; its totals, one per viewer and 礼物键, each with the 收礼记录 row of its first gift; every tid of the room's
+/// 收礼记录, with the 期 the board counted it in (null for none); and the last 收礼记录 row, which every gift counted from here on
+/// comes after.</summary>
 internal sealed record GiftBoardSnapshot(long? PeriodId, GiftBoardPeriod? Period, GiftBoardOptions? Options,
-    ImmutableArray<(GiftBoardRow Row, long First)> Totals, ImmutableArray<string> Tids, long LastRecord);
+    ImmutableArray<(GiftBoardRow Row, long First)> Totals, ImmutableArray<(string Tid, long? Period)> Tids, long LastRecord);
 
 /// <summary>The 礼物榜's 期 (ADR 0014). Each 收礼记录 row names the 期 the board counted it in (ADR 0013), and a room's latest
 /// 期 is the one that counts; it runs until it is ended.</summary>
@@ -24,17 +25,23 @@ internal sealed class GiftBoardStore(Database database)
         command.Transaction = transaction;
         command.CommandText = "SELECT COALESCE(MAX(id), 0) FROM gift_record";
         var last = (long)command.ExecuteScalar()!;
+        command.Parameters.AddWithValue("$room", roomId);
+        // The database writes a tid once, whatever 期 it came in, so the board must not count any of them again.
+        // shortcut: the room's every tid stays in memory while it is connected; read only recent ones if a room's 收礼记录 reaches millions.
+        command.CommandText = "SELECT tid, board_period FROM gift_record WHERE room_id = $room AND tid IS NOT NULL";
+        var tids = ImmutableArray.CreateBuilder<(string, long?)>();
+        using (var reader = command.ExecuteReader())
+            while (reader.Read()) tids.Add((reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetInt64(1)));
         command.CommandText = $"""
             SELECT id, started_at, ended_at, threshold, threshold_by, mascot, volume FROM gift_board_period
             WHERE id = {LatestPeriodId};
             """;
-        command.Parameters.AddWithValue("$room", roomId);
         long id;
         GiftBoardPeriod period;
         GiftBoardOptions options;
         using (var reader = command.ExecuteReader())
         {
-            if (!reader.Read()) return new(null, null, null, [], [], last);
+            if (!reader.Read()) return new(null, null, null, [], tids.ToImmutable(), last);
             id = reader.GetInt64(0);
             period = new(reader.GetDateTimeOffset(1), reader.IsDBNull(2) ? null : reader.GetDateTimeOffset(2));
             options = new(reader.GetInt32(3), reader.GetInt32(4), reader.GetBoolean(5), reader.GetInt32(6));
@@ -56,10 +63,6 @@ internal sealed class GiftBoardStore(Database database)
                 totals.Add((new(GiftBoardRow.IdOf(reader.GetInt64(0), reader.GetString(1)), reader.GetInt64(0), reader.GetString(2),
                     reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetInt32(6), reader.GetInt64(7),
                     reader.GetInt64(8)), reader.GetInt64(9)));
-        command.CommandText = "SELECT tid FROM gift_record WHERE board_period = $period AND tid IS NOT NULL";
-        var tids = ImmutableArray.CreateBuilder<string>();
-        using (var reader = command.ExecuteReader())
-            while (reader.Read()) tids.Add(reader.GetString(0));
         return new(id, period, options, totals.ToImmutable(), tids.ToImmutable(), last);
     }
 

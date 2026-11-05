@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Aether.Core.Tests.Support;
+using static Aether.Core.Tests.Support.GiftBoardStates;
 
 namespace Aether.Core.Tests;
 
@@ -123,7 +124,7 @@ public sealed partial class GiftBoardBrowserTests
 
         // The clock stands still: the cheer and the one waiting behind it give way to the ended 期 without playing out.
         var received = page.Browser.EventSourceMessages.Count;
-        page.H.Client.GiftBoard.EndPeriod();
+        page.H.Client.GiftBoard.EndPeriod(RoomId);
         await page.WaitForStatesAsync(received + 1);
         await page.Browser.EvaluateAsync(TwoFrames);
         Assert.Equal("", await page.PlayingAsync());
@@ -160,6 +161,34 @@ public sealed partial class GiftBoardBrowserTests
         await page.WaitForEventAsync("top");
         foreach (var time in new[] { 300, 500, 600, 700, 800, 1000, 1500 }) await page.SetEventTimeAsync(time);
         Assert.Equal(1, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
+    }
+
+    // The sparkle rings on a little past the end of its event, at 3250 ms: a volume saved or a 期 ended then still reaches it.
+    [Fact]
+    public async Task A_cheer_ringing_on_past_its_event_still_takes_a_new_volume_and_stops_when_the_period_ends()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 1000);
+        await page.ClickAsync();
+        await page.Browser.EvaluateAsync(RecordSounds);
+        await page.Browser.EvaluateAsync(RecordGains);
+        await page.PauseClockAsync();
+        await page.GiveAsync(1, 3000);
+        await page.WaitForEventAsync("top");
+        foreach (var time in new[] { 300, 500, 600, 700, 800, 1000, 3300 }) await page.SetEventTimeAsync(time);
+        Assert.Equal("", await page.PlayingAsync());
+        Assert.Equal(1, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
+
+        var received = page.Browser.EventSourceMessages.Count;
+        await page.H.SetOptionsAsync(options => options with { Volume = 30 });
+        await page.WaitForStatesAsync(received + 1);
+        Assert.Equal(0.3, (await page.Browser.EvaluateAsync("gains[0].gain.value")).GetDouble(), 6);
+
+        page.H.Client.GiftBoard.EndPeriod(RoomId);
+        await page.WaitForStatesAsync(received + 2);
+        await page.Browser.EvaluateAsync(TwoFrames);
+        Assert.Equal(1, (await page.Browser.EvaluateAsync("stopped")).GetInt32());
+        Assert.Empty(page.Browser.Errors);
     }
 
     [Fact]
@@ -199,7 +228,7 @@ public sealed partial class GiftBoardBrowserTests
         // Down the middle of the page, through where the mascot, the ribbon, the cards and the pills would be.
         Assert.All(await page.AlphaAsync(Enumerable.Range(0, 50).Select(step => (240, step * 20))), alpha => Assert.Equal(0, alpha));
 
-        h.Client.GiftBoard.StartNewPeriod();
+        h.Client.GiftBoard.StartNewPeriod(RoomId);
 
         // An empty board still has its ribbon.
         await page.WaitForSolidAsync(240, (int)(Mascot + 40));
@@ -211,16 +240,16 @@ public sealed partial class GiftBoardBrowserTests
     {
         await using var page = await StartAsync();
         await page.GiveToAsync(2);
-        page.H.Client.GiftBoard.EndPeriod();
+        page.H.Client.GiftBoard.EndPeriod(RoomId);
         // Down the middle of the page, through the mascot, the ribbon, the cards and the pills.
         var middle = Enumerable.Range(0, 50).Select(step => (240, step * 20)).ToArray();
         await page.OpenAsync(480, 1000);
         await page.Browser.EvaluateAsync(TwoFrames);
         Assert.All(await page.AlphaAsync(middle), alpha => Assert.Equal(0, alpha));
 
-        page.H.Client.GiftBoard.ContinuePeriod();
+        page.H.Client.GiftBoard.ContinuePeriod(RoomId);
         await page.WaitForSolidAsync(100, (int)(Mascot + CardsY + 49));
-        page.H.Client.GiftBoard.EndPeriod();
+        page.H.Client.GiftBoard.EndPeriod(RoomId);
         await page.WaitForTransparentAsync(100, (int)(Mascot + CardsY + 49));
         Assert.All(await page.AlphaAsync(middle), alpha => Assert.Equal(0, alpha));
         Assert.Empty(page.Browser.Errors);

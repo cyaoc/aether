@@ -45,11 +45,14 @@ public sealed record GiftBoardPeriod(DateTimeOffset StartedAt, DateTimeOffset? E
     };
 }
 
-/// <summary>What the 礼物榜页 and the GUI show: the rows of the room's latest 期 in rank order and its options. Connected is
-/// whether a room is connected; Period is the latest 期, null when the room has never had one or no room is connected. An
-/// ended 期 keeps its rows, which the GUI still lists.</summary>
-public sealed record GiftBoardState(ImmutableArray<GiftBoardRow> Rows, GiftBoardOptions Options, bool Connected, GiftBoardPeriod? Period)
+/// <summary>What the 礼物榜页 and the GUI show: the rows of the room's latest 期 in rank order and its options. RoomId is the
+/// connected room, null when none is, and the one the GUI's actions name; Period is the latest 期, null when the room has never
+/// had one or no room is connected. An ended 期 keeps its rows, which the GUI still lists.</summary>
+public sealed record GiftBoardState(ImmutableArray<GiftBoardRow> Rows, GiftBoardOptions Options, [property: JsonIgnore] long? RoomId,
+    GiftBoardPeriod? Period)
 {
+    public bool Connected => RoomId is not null;
+
     public GiftBoardPhase Phase => GiftBoardPeriod.PhaseOf(Period);
 
     /// <summary>Whether the latest 期 is running: only then does the 礼物榜页 show the board; otherwise it draws nothing.</summary>

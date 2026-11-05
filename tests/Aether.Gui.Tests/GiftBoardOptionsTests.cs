@@ -3,6 +3,8 @@ using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
+using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Aether.Gui.Tests;
 
@@ -21,12 +23,12 @@ public sealed class GiftBoardOptionsTests
         Assert.False(status.IsEffectivelyVisible);
 
         GiftBoardScene.ConnectBoard(h, GiftBoardScene.RoomId);
-        h.Client.GiftBoard.StartNewPeriod();
+        h.Client.GiftBoard.StartNewPeriod(GiftBoardScene.RoomId);
         await GuiHarness.WaitForAsync(() => status.IsEffectivelyVisible);
         Assert.Equal("统计中", status.Text);
         Assert.Contains("success", status.Classes);
 
-        h.Client.GiftBoard.EndPeriod();
+        h.Client.GiftBoard.EndPeriod(GiftBoardScene.RoomId);
         await GuiHarness.WaitForAsync(() => !status.IsEffectivelyVisible);
     });
 
@@ -54,10 +56,73 @@ public sealed class GiftBoardOptionsTests
         Assert.True(page.FindControl<RadioButton>("ByTotalPriceInput")!.IsChecked);
         Assert.False(page.FindControl<ToggleSwitch>("MascotInput")!.IsChecked);
         Assert.Equal(25, page.FindControl<Slider>("VolumeInput")!.Value);
-        scene.Board.EndPeriod();
-        scene.Board.StartNewPeriod();
+        scene.Board.EndPeriod(GiftBoardScene.RoomId);
+        scene.Board.StartNewPeriod(GiftBoardScene.RoomId);
         Assert.Equal(changed, (await scene.Board.CurrentAsync()).Options);
     });
+
+    // The options belong to the room's 期: once the panel hears of another room it shows that room's, even while a write for
+    // the room before still waits its turn, so changing one of them leaves the others as that room has them.
+    [Fact]
+    public Task After_a_room_switch_changing_one_option_keeps_the_new_rooms_others() => GiftBoardScene.Run(async scene =>
+    {
+        const long other = 24680;
+        scene.Board.Connect(other);
+        scene.Board.StartNewPeriod(other);
+        var otherState = await scene.Board.CurrentAsync();
+        scene.Board.EndRoom(other);
+        scene.Connect();
+        scene.Start();
+        await GuiHarness.WaitForAsync(() => scene.Page.FindControl<StackPanel>("Options")!.IsEffectivelyEnabled);
+
+        // In one go, so the write for this room has not come back when the panel hears of the other one.
+        var board = scene.ViewModel.GiftBoard;
+        board.Threshold = 333;
+        scene.Board.EndRoom(GiftBoardScene.RoomId);
+        scene.Board.Connect(other);
+        board.Apply(otherState);
+        Assert.Equal<decimal?>(GiftBoardOptions.Default.Threshold, board.Threshold);
+        board.Volume = 30;
+
+        await GuiHarness.WaitForAsync(async () => (await scene.Board.CurrentAsync()).Options.Volume == 30);
+        Assert.Equal(GiftBoardOptions.Default with { Volume = 30 }, (await scene.Board.CurrentAsync()).Options);
+    });
+
+    // A write still on its way when the same room is connected again can be reported by Core before the panel sees it come
+    // back, after the reconnect showed the threshold saved before it: once it is back the inputs show what Core saved, so
+    // changing one option does not put the others back. Core's states take a detour through the thread pool, so this panel
+    // is told them by the test, in that order; the writes still go to Core.
+    [Fact]
+    public Task After_reconnecting_the_same_room_changing_one_option_keeps_what_a_waiting_write_saved() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var core = h.Client.GiftBoard;
+        GiftBoardScene.ConnectBoard(h, GiftBoardScene.RoomId);
+        core.StartNewPeriod(GiftBoardScene.RoomId);
+        var saved = await core.CurrentAsync();
+        var board = new GiftBoardViewModel(h.Client, NullLogger.Instance, TimeProvider.System, TestContext.Current.CancellationToken);
+        board.Apply(saved);
+
+        // The database is busy, so the threshold is still on its way.
+        using var database = new SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
+        database.Open();
+        using var command = database.CreateCommand();
+        command.CommandText = "BEGIN IMMEDIATE";
+        command.ExecuteNonQuery();
+        board.Threshold = 333;
+        board.Apply(new GiftBoardState([], GiftBoardOptions.Default, null, null));
+        board.Apply(saved);
+        board.Apply(saved with { Options = saved.Options with { Threshold = 333 } });
+        Assert.Equal<decimal?>(saved.Options.Threshold, board.Threshold);
+        command.CommandText = "ROLLBACK";
+        command.ExecuteNonQuery();
+
+        await GuiHarness.WaitForAsync(() => board.Threshold == 333);
+        board.Volume = 30;
+        await board.StopAsync();
+        Assert.Equal(GiftBoardOptions.Default with { Threshold = 333, Volume = 30 }, (await core.CurrentAsync()).Options);
+        return true;
+    }, TestContext.Current.CancellationToken);
 
     [Fact]
     public Task Without_a_room_the_options_are_greyed_out_and_the_footer_says_why() => GiftBoardScene.Run(scene =>

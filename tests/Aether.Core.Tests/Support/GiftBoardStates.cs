@@ -4,6 +4,9 @@ namespace Aether.Core.Tests.Support;
 
 internal static class GiftBoardStates
 {
+    /// <summary>The room <see cref="FakeBilibiliHttp.SetRoom"/> answers with unless told otherwise.</summary>
+    public const long RoomId = 7734200;
+
     /// <summary>The board as it is now: a new subscription starts with the current state.</summary>
     public static async Task<GiftBoardState> CurrentAsync(this GiftBoardController board, CancellationToken token)
     {
@@ -24,14 +27,16 @@ internal static class GiftBoardStates
         h.EnableLotteryAndGiftBoard = true;
         var updates = await h.WatchConnectedAsync();
         var board = h.Client.GiftBoard;
-        board.SetOptions(GiftBoardOptions.Default with { Threshold = threshold, ThresholdBy = thresholdBy });
-        if (!(await board.CurrentAsync(h.Stop.Token)).Running) board.StartNewPeriod();
+        var state = await board.CurrentAsync(h.Stop.Token);
+        var room = state.RoomId ?? throw new InvalidOperationException("The gift board did not connect.");
+        board.SetOptions(room, GiftBoardOptions.Default with { Threshold = threshold, ThresholdBy = thresholdBy });
+        if (!state.Running) board.StartNewPeriod(room);
         return updates;
     }
 
     /// <summary>Changes some of the board's options, keeping the others.</summary>
     public static async Task SetOptionsAsync(this WatchHarness h, Func<GiftBoardOptions, GiftBoardOptions> change) =>
-        h.Client.GiftBoard.SetOptions(change((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Options));
+        h.Client.GiftBoard.SetOptions(RoomId, change((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Options));
 
     /// <summary>Like <see cref="WatchWithGiftBoardAsync"/> for the room as <see cref="FakeBilibiliHttp.SetRoom"/> has it, then puts
     /// one gift on the board and disconnects, so that the next connection meets a board with a gift on it.</summary>

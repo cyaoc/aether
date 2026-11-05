@@ -47,7 +47,8 @@ Original: https://github.com/google/fonts/blob/main/ofl/playfairdisplay/Playfair
 - A row that appears in first place, on an empty board too, is a new first place, which the board has no scene for. The row is built on
   the new row's timeline (the rows below make room, the sprite fires its capsule) and the cheer, the gold rim and the sound follow
   the new first place's, both from the event's start; there is no climb, so no trail along the list's right edge.
-- Only a state a received gift made (`fromGift`) is played as an event; a restore or a new threshold that changes one row is drawn
-  as it is.
-- A redraw as a whole destroys the textures made for the names, counts and initials of the old board; the board keeps them for ever.
+- Only a state a received gift made (`fromGift`) is played as an event; a 期 started, ended or continued, or a new threshold or
+  comparison, is drawn as it is, even when it changes one row or none.
+- A redraw as a whole destroys the textures made for the names, counts and initials of the old board, and each new board lets go of
+  those the one before it used and it does not, so counts that go by do not pile up; the board keeps them for ever.
 - A name is cut between characters (code points), so an emoji at the cut is never left in half.

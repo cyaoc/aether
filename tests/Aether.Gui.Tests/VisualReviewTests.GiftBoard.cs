@@ -51,7 +51,7 @@ public sealed partial class VisualReviewTests
         shoot.Capture("gift-board-end-confirm");
         GuiHarness.Click(shoot.Page, "CancelConfirmButton");
         shoot.Stage.Clock.SetUtcNow(new DateTimeOffset(new DateTime(2026, 11, 4, 22, 41, 0, DateTimeKind.Local)));
-        shoot.Stage.Harness.Client.GiftBoard.EndPeriod();
+        shoot.Stage.Harness.Client.GiftBoard.EndPeriod(RoomId);
         await GuiHarness.WaitForAsync(() => shoot.ViewModel.GiftBoard.Ended);
         shoot.Capture("gift-board-ended");
         GuiHarness.Click(shoot.Page, "NewPeriodButton");
@@ -105,8 +105,8 @@ public sealed partial class VisualReviewTests
     {
         await ConnectAsync(stage);
         var board = stage.Harness.Client.GiftBoard;
-        board.SetOptions(options(GiftBoardOptions.Default));
-        board.StartNewPeriod();
+        board.SetOptions(RoomId, options(GiftBoardOptions.Default));
+        board.StartNewPeriod(RoomId);
         Give(stage.Harness, RoomId, BoardToday);
         var rows = (await board.CurrentAsync()).Rows.Length;
         await GuiHarness.WaitForAsync(() => stage.ViewModel.GiftBoard.Rows.Count == rows);

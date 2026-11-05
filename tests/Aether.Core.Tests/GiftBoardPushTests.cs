@@ -1,4 +1,5 @@
 using Aether.Core.Tests.Support;
+using static Aether.Core.Tests.Support.GiftBoardStates;
 
 namespace Aether.Core.Tests;
 
@@ -35,7 +36,7 @@ public sealed class GiftBoardPushTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
         Assert.True((await h.NextAsync(states)).FromGift);
 
-        foreach (var change in new Action[] { board.EndPeriod, board.ContinuePeriod, board.EndPeriod, board.StartNewPeriod })
+        foreach (var change in new Action[] { () => board.EndPeriod(RoomId), () => board.ContinuePeriod(RoomId), () => board.EndPeriod(RoomId), () => board.StartNewPeriod(RoomId) })
         {
             change();
             Assert.False((await h.NextAsync(states)).FromGift);
@@ -77,7 +78,7 @@ public sealed class GiftBoardPushTests
         await using var updates = await h.WatchWithGiftBoardAsync();
         await using var states = await SubscribeAfterAGiftAsync(h, updates);
 
-        h.Client.GiftBoard.EndPeriod();
+        h.Client.GiftBoard.EndPeriod(RoomId);
 
         var ended = await h.NextAsync(states);
         Assert.False(ended.Running);
