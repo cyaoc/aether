@@ -31,6 +31,20 @@ public sealed class SendGiftV2Tests
         });
     }
 
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1, 1)]
+    [InlineData(3, 3)]
+    [InlineData(4, 0)]
+    public void V2_gift_tells_its_senders_guard_on_every_item_and_counts_with_none_when_it_is_unknown(long level, int guard) =>
+        Assert.Equal([guard, guard],
+            Decode(Message(Broadcast([Item(), Item(tid: "test-v2-2")], guardLevel: level))).Select(gift => gift.ViewerGuardLevel));
+
+    [Fact]
+    public void V2_gifts_whose_guard_level_is_not_a_number_still_count_with_no_guard() =>
+        Assert.Equal([0, 0], Decode(Message([.. Broadcast([Item(), Item(tid: "test-v2-2")], guardLevel: 3), .. Text(5, "3")]))
+            .Select(gift => gift.ViewerGuardLevel));
+
     [Fact]
     public void V2_gift_without_face_or_icon_still_counts_with_empty_urls()
     {

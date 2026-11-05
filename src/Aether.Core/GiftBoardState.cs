@@ -5,9 +5,11 @@ namespace Aether.Core;
 
 /// <summary>One viewer's accumulated gift of one kind on the 礼物榜. Amounts are integer 金瓜子, and Value, what the 礼物榜 ranks
 /// by, is everything the row's gifts were worth. Id stays the same while the row lives, so the 礼物榜页 can tell a new row from a
-/// changed one. GuardLevel is 0 for a gift, else B站's guard_level (1 总督, 2 提督, 3 舰长) and IconUrl is empty.</summary>
+/// changed one. GuardLevel is 0 for a gift, else B站's guard_level (1 总督, 2 提督, 3 舰长) and IconUrl is empty.
+/// ViewerGuardLevel is the viewer's 大航海身份 in the same levels, 0 for none, the same on all of the viewer's rows: it picks the
+/// avatar frame, GuardLevel the badge.</summary>
 public sealed record GiftBoardRow(string Id, long Uid, string Nickname, string FaceUrl, string GiftName, string IconUrl,
-    int GuardLevel, long Value, long Num)
+    int GuardLevel, int ViewerGuardLevel, long Value, long Num)
 {
     /// <summary>The unit price, averaged over the count when the row's gifts were bought at different prices.</summary>
     [JsonIgnore] public long Price => Value / Num;

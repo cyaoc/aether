@@ -26,9 +26,10 @@ internal static class BlindGiftV2Fixture
     }
 
     public static byte[] Broadcast(byte[][]? items = null, long uid = 10001, long blindId = 35206, bool? shown = true,
-        string? face = TestFace) =>
+        string? face = TestFace, long guardLevel = 0) =>
     [
         .. Integer(1, uid), .. Text(2, "测试观众"), .. (face is null ? [] : Text(3, face)),
+        .. (guardLevel == 0 ? [] : Integer(5, guardLevel)),
         .. Bytes(9, [.. Integer(1, 144), .. Integer(2, blindId), .. Text(3, "幸运盲盒"),
             .. Text(5, "爆出"), .. Integer(6, 5000)]),
         .. (items ?? TenBoxes).SelectMany(item => Bytes(10, item)),

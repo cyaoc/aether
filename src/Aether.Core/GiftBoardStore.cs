@@ -57,7 +57,14 @@ internal sealed class GiftBoardStore(Database database)
                 COALESCE((SELECT face_url FROM gift_record AS known
                     WHERE known.board_period = $period AND known.uid = totals.uid AND known.face_url <> ''
                     ORDER BY known.id DESC LIMIT 1), ''),
-                latest.gift_name, latest.icon_url, latest.guard_level, totals.value, totals.num, totals.first
+                latest.gift_name, latest.icon_url, latest.guard_level,
+                -- Their 大航海身份 is the one their latest gift told, raised by the purchases since (Gift.ViewerGuardAfter): the
+                -- highest of these is the lowest level above 0.
+                COALESCE((SELECT MIN(told.viewer_guard_level) FROM gift_record AS told
+                    WHERE told.board_period = $period AND told.uid = totals.uid AND told.viewer_guard_level > 0
+                        AND told.id >= COALESCE((SELECT MAX(gift.id) FROM gift_record AS gift
+                            WHERE gift.board_period = $period AND gift.uid = totals.uid AND gift.guard_level = 0), 0)), 0),
+                totals.value, totals.num, totals.first
             FROM totals JOIN gift_record AS latest ON latest.id = totals.last;
             """;
         command.Parameters.AddWithValue("$period", id);
@@ -65,8 +72,8 @@ internal sealed class GiftBoardStore(Database database)
         using (var reader = command.ExecuteReader())
             while (reader.Read())
                 totals.Add((new(GiftBoardRow.IdOf(reader.GetInt64(0), reader.GetString(1)), reader.GetInt64(0), reader.GetString(2),
-                    reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetInt32(6), reader.GetInt64(7),
-                    reader.GetInt64(8)), reader.GetInt64(9)));
+                    reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetInt32(6), reader.GetInt32(7),
+                    reader.GetInt64(8), reader.GetInt64(9)), reader.GetInt64(10)));
         return new(id, period, options, totals.ToImmutable(), tids.ToImmutable(), last);
     }
 

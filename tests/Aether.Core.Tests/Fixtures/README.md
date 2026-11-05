@@ -11,6 +11,8 @@
 礼物榜要的头像 `face`（BAC 示例里有这个字段）和礼物图标 `gift_info.img_basic`（字段取自
 [blivedm 的 `SendGiftMessage`](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/web.py)）
 是测试补值，地址为合成，不是真实头像或图标；解码时这两项缺了都按空地址处理，没有抓包说明真实消息一定带。
+送礼人的大航海身份 `guard_level`（字段取自同一个 `GiftMessage`，0 非舰队、1 总督、2 提督、3 舰长）样本里没有，
+测试按需补值，缺了按 0 处理；没有抓包证明它是本直播间的身份。
 测试代码中的多条投递、连击、重复 tid、缺失 tid 和异常字段是合成边界，不能代替真实 V1 验证。
 以后获得真实 V1 样本，按下文隐私处理要求另加文件并记录来源，不覆盖此重建样本。
 
@@ -24,7 +26,7 @@
 原样本省略的 uid、uname、tid、timestamp、switch 为测试补值，**这不是原始抓包**。
 头像 `face`（广播字段 3）和礼物图标 `gift_info.img_basic`（礼物项字段 35 下的字段 1，依据
 [blivedm 的 `pb.py`](https://github.com/xfgryujk/blivedm/blob/3bf17fe862b8c2fc6bc04c81c3f0c5db95de93d6/blivedm/models/pb.py)）
-同样是合成地址。
+同样是合成地址。送礼人的大航海身份（广播字段 5，依据同一个 `pb.py` 的 `SendGiftBroadcast.guard_level`）由测试按需补值。
 非 gold、重复 tid、switch=false、坏载荷及未知 wire 字段都是合成边界。
 `BlindBoxV2Tests` 通过 `WatchAsync` 验证实际数据库行、日志以及后续消息仍能接收。
 

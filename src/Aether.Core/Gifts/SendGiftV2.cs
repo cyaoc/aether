@@ -5,7 +5,7 @@ namespace Aether.Core.Gifts;
 internal static class SendGiftV2
 {
     // Field numbers: blivedm PR #86, issuecomment-5104705486 (SendGiftBroadcast, BlindGift, GiftItem); the gift icon
-    // (GiftItem 35 -> img_basic 1) is from blivedm's models/pb.py (SendGiftV2GiftMaterialSnapShot).
+    // (GiftItem 35 -> img_basic 1) and the sender's guard_level (SendGiftBroadcast 5) are from blivedm's models/pb.py.
     public static IEnumerable<(string? CoinType, Gift Gift)> Decode(JsonElement data)
     {
         var pb = data.TryGetProperty("pb", out var direct) ? direct : data.GetProperty("data").GetProperty("pb");
@@ -21,6 +21,9 @@ internal static class SendGiftV2
                 case 1: gift = gift with { Uid = reader.Int64(type) }; break;
                 case 2: gift = gift with { Nickname = reader.Text(type) }; break;
                 case 3: gift = gift with { FaceUrl = reader.Text(type) }; break;
+                // Only the avatar frame hangs on guard_level, so one that is not a varint is no guard and the gifts still count.
+                case 5 when type != 0: reader.Skip(field, type); gift = gift with { ViewerGuardLevel = 0 }; break;
+                case 5: gift = gift with { ViewerGuardLevel = GiftMessages.GuardLevel(reader.Int64(type)) }; break;
                 case 9: gift = gift with { Blind = ReadBlindGift(gift.Blind, reader.Bytes(type)) }; break;
                 case 10: items.Add(reader.Bytes(type)); break;
                 case 11: gift = gift with { Shown = reader.Int64(type) != 0 }; break;

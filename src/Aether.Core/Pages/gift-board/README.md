@@ -52,6 +52,9 @@ Original: https://github.com/google/fonts/blob/main/ofl/playfairdisplay/Playfair
 - A redraw as a whole destroys the textures made for the names, counts and initials of the old board, and each new board lets go of
   those the one before it used and it does not, so counts that go by do not pile up; the board keeps them for ever.
 - A name is cut between characters (code points), so an emoji at the cut is never left in half.
+- B站's avatars are square pictures; the page clips them to the circle the board's drawn avatars are.
+- The guard frame is the viewer's 大航海身份 (`viewerGuardLevel`), on all of a viewer's rows; the board frames only a 大航海's row,
+  by the level bought. The badge of a 大航海's row is still the level bought (`guardLevel`).
 - The board's `fx` prop is gone: the page always draws the top three's flowing light (`流光`), and the board's `EVENTS_FLOW` demo is not used.
 - The flowing light on a card comes and goes with the card, as its rim and glass do: none on a card no row fills yet, and none while a
   new row is about to unfold into a card of the top three (a row that appears in first place too), fading in as it unfolds there.

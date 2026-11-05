@@ -115,6 +115,17 @@ internal static class TestDatabase
         return names;
     }
 
+    public static List<long> ViewerGuardLevels(string dataDirectory)
+    {
+        using var connection = Open(dataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT viewer_guard_level FROM gift_record ORDER BY id";
+        using var reader = command.ExecuteReader();
+        List<long> levels = [];
+        while (reader.Read()) levels.Add(reader.GetInt64(0));
+        return levels;
+    }
+
     public static long RowCount(string dataDirectory, string table)
     {
         using var connection = Open(dataDirectory);

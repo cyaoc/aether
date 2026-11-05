@@ -6,7 +6,7 @@ namespace Aether.Core;
 internal sealed class Database
 {
     /// <summary>The user_version the last upgrade step below sets; a database above it comes from a newer release.</summary>
-    public const long CurrentVersion = 6;
+    public const long CurrentVersion = 7;
 
     private readonly string connectionString;
 
@@ -149,6 +149,17 @@ internal sealed class Database
                 CREATE INDEX gift_board_period_room ON gift_board_period (room_id);
                 CREATE UNIQUE INDEX gift_board_period_running ON gift_board_period (room_id) WHERE ended_at IS NULL;
                 PRAGMA user_version = 6;
+                """;
+            command.ExecuteNonQuery();
+        }
+        if (version < 7)
+        {
+            // viewer_guard_level: the viewer's 大航海身份 the gift told in B站's guard_level, 0 for none; a 大航海 tells the level
+            // bought, and older gifts told none.
+            command.CommandText = """
+                ALTER TABLE gift_record ADD COLUMN viewer_guard_level INTEGER NOT NULL DEFAULT 0;
+                UPDATE gift_record SET viewer_guard_level = guard_level;
+                PRAGMA user_version = 7;
                 """;
             command.ExecuteNonQuery();
         }

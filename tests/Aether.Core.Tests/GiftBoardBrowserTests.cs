@@ -474,4 +474,26 @@ public sealed partial class GiftBoardBrowserTests
         // Left of the avatar's middle the disc is solid; the translucent card on its own never is.
         Assert.Equal(255, (await page.AlphaAsync([(126, (int)(Mascot + CardsY + 49))]))[0]);
     }
+
+    [Fact]
+    public async Task A_square_bilibili_avatar_shows_as_a_circle()
+    {
+        await using var page = await StartAsync(options => options with { Volume = 0 });
+        await page.OpenAsync(480, 1000);
+        await page.Browser.EvaluateAsync("window.pictures = []; const Original = Image; window.Image = class extends Original { constructor() { super(); pictures.push(this); } }; true");
+        await page.PauseClockAsync();
+        var gift = JsonNode.Parse(BlindGiftFixture.Ordinary(uid: 1))!;
+        // An opaque white 8 × 8 picture.
+        gift["data"]!["face"] = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAD0lEQVR4nGP4TwAwjAwFAIS1/wF0QtmAAAAAAElFTkSuQmCC";
+        await page.PushAsync(gift.ToJsonString());
+        await page.WaitForEventAsync("top");
+        await page.Browser.WaitAsync("pictures.some(picture => picture.src.startsWith('data:') && picture.complete)");
+        await page.SettleAsync();
+        // The first card's avatar is a 33 px circle round (148, middle): its middle is the white picture, and a corner of the
+        // square it fills, 42 px from the middle, is the translucent card behind.
+        var middle = (int)(Mascot + CardsY + 49);
+        var alpha = await page.AlphaAsync([(148, middle), (148 - 30, middle - 30), (148 + 30, middle + 30)]);
+        Assert.Equal(255, alpha[0]);
+        Assert.All(alpha[1..], corner => Assert.True(corner < 255, $"corner alpha {corner}"));
+    }
 }

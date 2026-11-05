@@ -43,6 +43,10 @@ internal static class GiftMessages
         return element.GetString() ?? "";
     }
 
+    /// <summary>A gift message's guard_level as its sender's 大航海身份, 0 for any but 1 总督, 2 提督 and 3 舰长: it only picks
+    /// the avatar frame on the 礼物榜, so a gift with an odd one still counts.</summary>
+    internal static int GuardLevel(long level) => level is >= 1 and <= 3 ? (int)level : 0;
+
     // Checked here for every version: protobuf leaves zero and empty fields out, so a missing send time or name
     // arrives as 0 or "" rather than failing to parse.
     private static void Validate(Gift gift)
