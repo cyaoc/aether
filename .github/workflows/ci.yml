@@ -16,4 +16,4 @@ jobs:
           global-json-file: global.json
       - run: dotnet build
       - run: dotnet test --no-build
-      - run: node --test tests/Aether.Core.Tests/LotteryPage.test.mjs tests/Aether.Core.Tests/VideoAnimation.test.mjs tests/Aether.Core.Tests/VideoMoon.test.mjs tests/Aether.Core.Tests/VideoAnimationMoves.test.mjs tests/Aether.Core.Tests/GiftBoardChanges.test.mjs tests/Aether.Core.Tests/GiftBoardLayout.test.mjs tests/Aether.Core.Tests/GiftBoardMotion.test.mjs tests/Aether.Core.Tests/GiftBoardPaint.test.mjs tests/Aether.Core.Tests/GiftBoardSound.test.mjs tests/Aether.Core.Tests/GiftBoardTextures.test.mjs
+      - run: node --test tests/Aether.Core.Tests/LotteryPage.test.mjs tests/Aether.Core.Tests/VideoAnimation.test.mjs tests/Aether.Core.Tests/VideoMoon.test.mjs tests/Aether.Core.Tests/VideoAnimationMoves.test.mjs tests/Aether.Core.Tests/GiftBoardChanges.test.mjs tests/Aether.Core.Tests/GiftBoardLayout.test.mjs tests/Aether.Core.Tests/GiftBoardImages.test.mjs tests/Aether.Core.Tests/GiftBoardMotion.test.mjs tests/Aether.Core.Tests/GiftBoardPaint.test.mjs tests/Aether.Core.Tests/GiftBoardSound.test.mjs tests/Aether.Core.Tests/GiftBoardTextures.test.mjs
