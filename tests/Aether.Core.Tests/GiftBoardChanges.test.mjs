@@ -119,6 +119,33 @@ test('changes a gift made wait their turn, even a redraw, and a board that looks
   assert.deepEqual(kinds(changes), ['new c', 'redraw']);
 });
 
+test('a state that only brings avatars B站 left out of the gifts is drawn in its turn and cuts nothing off', () => {
+  const changes = started(board(a, b));
+  assert.equal(changes.receive(gift(a, b, c)), false);
+  assert.equal(changes.receive(board(a, b, { ...c, faceUrl: 'face' })), false);
+  assert.deepEqual(kinds(changes), ['new c', 'pictures']);
+});
+
+test('avatars that keep coming while an event plays wait as one change that is still only pictures', () => {
+  const changes = started(board(a, b, c, d));
+  changes.receive(gift(a, b, c, row('d', 2)));
+  changes.take();
+  const faced = n => board(...[a, b, c, row('d', 2)].map((row, i) => i < n ? { ...row, faceUrl: 'face-' + row.id } : row));
+  for (let n = 1; n <= 4; n++) assert.equal(changes.receive(faced(n)), false);
+  const change = changes.take();
+  assert.deepEqual([change.kind, change.state.rows.map(row => row.faceUrl), changes.take()],
+    ['pictures', ['face-a', 'face-b', 'face-c', 'face-d'], undefined]);
+});
+
+test('avatars between the changes of gifts take no place in the backlog', () => {
+  const changes = started(board(a, b, c, d));
+  const [c2, d2] = [row('c', 2), row('d', 2)];
+  const faced = row => ({ ...row, faceUrl: 'face-' + row.id });
+  for (const state of [gift(a, b, c2, d), board(a, b, faced(c2), d), gift(a, b, faced(c2), d2), board(a, b, faced(c2), faced(d2))])
+    assert.equal(changes.receive(state), false);
+  assert.deepEqual(kinds(changes), ['more c', 'pictures', 'more d', 'pictures']);
+});
+
 test('after a new connection the first state is drawn straight again and the old queue is dropped', () => {
   const changes = started(board(a));
   changes.receive(gift(a, b));

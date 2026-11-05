@@ -54,10 +54,14 @@ internal sealed class GiftBoardScene : IAsyncDisposable
         return new(harness, clock, viewModel, page, window);
     }
 
-    /// <summary>A paid gift: <paramref name="batteries"/> is the price of one, and a giftId stays the same for the same name.</summary>
+    /// <summary>A paid gift: <paramref name="batteries"/> is the price of one, and a giftId stays the same for the same name. It
+    /// brings an avatar, so the board does not ask B站 for one.</summary>
     public static Gift PaidGift(long uid, string nickname, string giftName, long batteries, long num = 1) =>
         new(uid, nickname, Battery.ToCoins(batteries) * num)
-        { GiftId = giftName.GetHashCode(), GiftName = giftName, Price = Battery.ToCoins(batteries), Num = num, Value = Battery.ToCoins(batteries) * num };
+        {
+            GiftId = giftName.GetHashCode(), GiftName = giftName, Price = Battery.ToCoins(batteries), Num = num, Value = Battery.ToCoins(batteries) * num,
+            FaceUrl = $"https://i0.hdslb.com/bfs/face/test-{uid}.jpg"
+        };
 
     /// <summary>Connects the board of <paramref name="harness"/>'s client to <paramref name="room"/>, the way a room connection would.</summary>
     public static void ConnectBoard(GuiHarness harness, long room) => harness.Client.GiftBoard.Connect(room);

@@ -88,7 +88,8 @@ export class Board {
     const before = this.state;
     if (kind === 'redraw') this.forget(state);
     this.show(state);
-    if (kind === 'redraw') return;
+    // Avatars that came after their gift are drawn in, leaving the scroll and the light of a landing as they are.
+    if (kind === 'redraw' || kind === 'pictures') return;
     this.event = { kind, id, debut, startedAt: t, slots: slotsOf(before.rows) };
     this.app.canvas.dataset.event = kind;
     // A landing lights its card on past the end of its event, until the next landing's event begins or the board is drawn over.

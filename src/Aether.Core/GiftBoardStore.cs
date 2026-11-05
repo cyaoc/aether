@@ -52,8 +52,12 @@ internal sealed class GiftBoardStore(Database database)
                 WHERE board_period = $period
                 GROUP BY uid, gift_key
             )
-            SELECT totals.uid, totals.gift_key, latest.nickname, latest.face_url, latest.gift_name, latest.icon_url,
-                latest.guard_level, totals.value, totals.num, totals.first
+            -- A viewer's rows show the latest avatar any of their gifts brought: B站 often leaves it out of a 大航海 purchase.
+            SELECT totals.uid, totals.gift_key, latest.nickname,
+                COALESCE((SELECT face_url FROM gift_record AS known
+                    WHERE known.board_period = $period AND known.uid = totals.uid AND known.face_url <> ''
+                    ORDER BY known.id DESC LIMIT 1), ''),
+                latest.gift_name, latest.icon_url, latest.guard_level, totals.value, totals.num, totals.first
             FROM totals JOIN gift_record AS latest ON latest.id = totals.last;
             """;
         command.Parameters.AddWithValue("$period", id);

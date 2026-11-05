@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using Aether.Core.Tests.Support;
 using static Aether.Core.Tests.Support.GiftBoardStates;
 using Microsoft.Extensions.Logging;
@@ -9,6 +10,8 @@ public sealed class GiftBoardRecordingTests
 {
     private const string Face = "https://i0.hdslb.com/bfs/face/test-v1.jpg";
     private const string Icon = "https://s1.hdslb.com/bfs/live/test-v1.png";
+    private const string FaceInfoUrl = "https://api.live.bilibili.com/live_user/v1/Master/info";
+    private const string FetchedFace = "https://i0.hdslb.com/bfs/face/fetched.jpg";
 
     [Fact]
     public async Task A_gift_sent_while_connected_goes_on_the_board_with_what_the_page_draws()
@@ -45,6 +48,65 @@ public sealed class GiftBoardRecordingTests
         var row = Assert.Single(await h.BoardRowsAsync());
         Assert.Equal(("10001/gift:32698", "小蛋糕", 1500L, 2L), (row.Id, row.GiftName, row.Price, row.Num));
     }
+
+    // B站 often leaves the avatar out of a 大航海 purchase.
+    [Fact]
+    public async Task A_gift_without_an_avatar_keeps_the_latest_one_its_viewer_brought_also_when_read_back()
+    {
+        await using var h = new WatchHarness();
+        await using (var updates = await h.WatchWithGiftBoardAsync())
+        {
+            await h.PushAndSyncAsync(updates, UserToastFixture.Message(payflowId: "a"), BlindGiftFixture.Ordinary(), WithoutFace("b"));
+            Assert.Equal([Face, Face], (await h.BoardRowsAsync()).Select(row => row.FaceUrl));
+        }
+
+        await using var next = await h.WatchConnectedAsync();
+        Assert.Equal([Face, Face], (await h.BoardRowsAsync()).Select(row => row.FaceUrl));
+    }
+
+    [Fact]
+    public async Task A_viewer_still_without_an_avatar_gets_bilibilis_after_the_gift_counts_and_again_on_the_next_connection()
+    {
+        await using var h = new WatchHarness();
+        h.Http.Responses[FaceInfoUrl] = System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { info = new { uid = 10001, face = FetchedFace } } });
+        await using var states = h.Client.GiftBoard.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        await using (var updates = await h.WatchWithGiftBoardAsync())
+        {
+            Assert.Empty((await h.NextAsync(states)).Rows);
+            await h.PushAndSyncAsync(updates, WithoutFace("a"));
+
+            var read = await h.ReadUntilAsync(states, state => state.Rows is [{ FaceUrl: FetchedFace }]);
+            // The gift is counted first; its avatar comes in a state of its own, not as another gift.
+            Assert.Equal([("", true), (FetchedFace, false)], read[^2..].Select(state => (state.Rows[0].FaceUrl, state.FromGift)));
+            Assert.Contains(h.Http.Requests, request => request.Uri.ToString() == FaceInfoUrl + "?uid=10001");
+        }
+        await h.ReadUntilAsync(states, state => state.Rows.IsEmpty);
+
+        // Not written down, so a new room connection reads the row back without it and asks again.
+        await using var next = await h.WatchConnectedAsync();
+        await h.ReadUntilAsync(states, state => state.Rows is [{ FaceUrl: FetchedFace }]);
+    }
+
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, "")]
+    [InlineData(true, null)]
+    public async Task An_avatar_bilibili_does_not_give_is_a_warning_and_the_gift_counts_without_one(bool answers, string? face)
+    {
+        await using var h = new WatchHarness();
+        if (answers)
+            h.Http.Responses[FaceInfoUrl] = System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { info = new { uid = 10001, face } } });
+        await using var updates = await h.WatchWithGiftBoardAsync();
+
+        await h.PushAndSyncAsync(updates, WithoutFace("a"));
+
+        await h.WaitForLogAsync(LogLevel.Warning, "礼物榜读取观众 10001 的头像失败");
+        var row = Assert.Single(await h.BoardRowsAsync());
+        Assert.Equal(("", 198000L), (row.FaceUrl, row.Value));
+    }
+
+    private static string WithoutFace(string payflowId) =>
+        UserToastFixture.Message(payflowId: payflowId, edit: data => data["sender_uinfo"]!["base"]!.AsObject().Remove("face"));
 
     [Fact]
     public async Task A_guard_purchase_is_one_row_per_level_priced_by_what_was_paid_for_each_month()
