@@ -18,9 +18,9 @@ public sealed class GiftBoardPageTests
         var (name, first) = await Event(reader);
         Assert.Equal("state", name);
         Assert.Equal(0, first.GetProperty("rows").GetArrayLength());
-        Assert.False(first.GetProperty("shown").GetBoolean());
-        Assert.True(first.GetProperty("mascot").GetBoolean());
-        Assert.Equal(60, first.GetProperty("volume").GetInt32());
+        Assert.False(first.GetProperty("running").GetBoolean());
+        Assert.True(first.GetProperty("options").GetProperty("mascot").GetBoolean());
+        Assert.Equal(60, first.GetProperty("options").GetProperty("volume").GetInt32());
         Assert.False(first.GetProperty("fromGift").GetBoolean());
 
         await using var updates = await h.WatchWithGiftBoardAsync();
@@ -29,7 +29,7 @@ public sealed class GiftBoardPageTests
         do state = (await Event(reader)).Data; while (state.GetProperty("rows").GetArrayLength() == 0);
 
         Assert.True(state.GetProperty("fromGift").GetBoolean());
-        Assert.True(state.GetProperty("shown").GetBoolean());
+        Assert.True(state.GetProperty("running").GetBoolean());
         var row = Assert.Single(state.GetProperty("rows").EnumerateArray());
         Assert.Equal(new GiftBoardRow("10001/gift:32698", 10001, "测试观众", "https://i0.hdslb.com/bfs/face/test-v1.jpg", "小蛋糕",
             "https://s1.hdslb.com/bfs/live/test-v1.png", 0, 3000, 2), JsonSerializer.Deserialize<GiftBoardRow>(row, WebService.Json));

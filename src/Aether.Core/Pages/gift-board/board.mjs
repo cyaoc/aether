@@ -23,10 +23,10 @@ export class Board {
 
   receive(state) {
     // The latest saved volume, whichever state is waiting its turn; it reaches a cheer already playing too.
-    this.volume = state.volume;
-    this.track?.volume(state.volume);
+    this.volume = state.options.volume;
+    this.track?.volume(state.options.volume);
     if (this.changes.receive(state)) this.interrupt();
-    this.sound.prepare(state.volume);
+    this.sound.prepare(state.options.volume);
   }
 
   resize(width, height) {
@@ -41,8 +41,8 @@ export class Board {
     this.state = state;
     this.scene?.destroy();
     this.scene = undefined;
-    if (!state.shown) return;
-    this.layout = fitLayout(this.app.screen.width, this.app.screen.height, state.mascot);
+    if (!state.running) return;
+    this.layout = fitLayout(this.app.screen.width, this.app.screen.height, state.options.mascot);
     this.scene = new Scene(this.kit, this.layout, state.rows);
     this.app.stage.addChildAt(this.scene.root, 1);
   }

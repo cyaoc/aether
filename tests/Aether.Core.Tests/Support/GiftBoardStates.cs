@@ -25,7 +25,7 @@ internal static class GiftBoardStates
         var updates = await h.WatchConnectedAsync();
         var board = h.Client.GiftBoard;
         board.SetOptions(GiftBoardOptions.Default with { Threshold = threshold, ThresholdBy = thresholdBy });
-        if (!(await board.CurrentAsync(h.Stop.Token)).Shown) board.StartNewPeriod();
+        if (!(await board.CurrentAsync(h.Stop.Token)).Running) board.StartNewPeriod();
         return updates;
     }
 

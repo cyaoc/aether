@@ -11,15 +11,15 @@ public sealed class GiftBoardPushTests
         await using var states = h.Client.GiftBoard.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
 
         var first = await h.NextAsync(states);
-        Assert.Equal((0, false, false), (first.Rows.Length, first.Shown, first.Connected));
+        Assert.Equal((0, false, false), (first.Rows.Length, first.Running, first.Connected));
 
         await using var updates = await h.WatchWithGiftBoardAsync();
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
         await h.ReadUntilAsync(states, state => state.Rows.Length == 1);
 
         await h.SetOptionsAsync(options => options with { Mascot = false, Volume = 30 });
-        var changed = await h.ReadUntilAsync(states, state => !state.Mascot);
-        Assert.Equal((1, 30), (changed[^1].Rows.Length, changed[^1].Volume));
+        var changed = await h.ReadUntilAsync(states, state => !state.Options.Mascot);
+        Assert.Equal((1, 30), (changed[^1].Rows.Length, changed[^1].Options.Volume));
     }
 
     // The 礼物榜页 plays an animation only for what a gift changed; every other state is drawn as it is.
@@ -80,7 +80,7 @@ public sealed class GiftBoardPushTests
         h.Client.GiftBoard.EndPeriod();
 
         var ended = await h.NextAsync(states);
-        Assert.False(ended.Shown);
+        Assert.False(ended.Running);
         Assert.Single(ended.Rows);
     }
 

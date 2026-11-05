@@ -19,7 +19,7 @@ public sealed class GiftBoardPeriodTests
 
         var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
         Assert.True(state.Connected);
-        Assert.False(state.Shown);
+        Assert.False(state.Running);
         Assert.Null(state.Period);
         Assert.Equal(0L, TestDatabase.GiftRecords(h.DataDirectory));
     }
@@ -37,7 +37,7 @@ public sealed class GiftBoardPeriodTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
 
         var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
-        Assert.True(state.Shown);
+        Assert.True(state.Running);
         Assert.Equal(new GiftBoardPeriod(started, null), state.Period);
         Assert.Equal(1, Assert.Single(state.Rows).Num);
     }
@@ -55,7 +55,7 @@ public sealed class GiftBoardPeriodTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
 
         var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
-        Assert.False(state.Shown);
+        Assert.False(state.Running);
         Assert.Equal(new GiftBoardPeriod(started, ended), state.Period);
         Assert.Equal(1, Assert.Single(state.Rows).Num);
         Assert.Equal(1L, TestDatabase.GiftRecords(h.DataDirectory));
@@ -75,7 +75,7 @@ public sealed class GiftBoardPeriodTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
 
         var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
-        Assert.True(state.Shown);
+        Assert.True(state.Running);
         Assert.Equal(new GiftBoardPeriod(started, null), state.Period);
         Assert.Equal(2, Assert.Single(state.Rows).Num);
     }
@@ -152,11 +152,11 @@ public sealed class GiftBoardPeriodTests
             Assert.IsType<Reconnecting>(await h.NextAsync(updates));
             await h.AdvanceRetryAsync(updates, 1);
             await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "b"));
-            Assert.True((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Shown);
+            Assert.True((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Running);
         }
         await using (var next = await h.WatchConnectedAsync())
         {
-            Assert.True((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Shown);
+            Assert.True((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Running);
             h.Client.GiftBoard.EndPeriod();
         }
 
@@ -164,7 +164,7 @@ public sealed class GiftBoardPeriodTests
         await using var again = await h.WatchConnectedAsync(restarted);
 
         var state = await restarted.GiftBoard.CurrentAsync(h.Stop.Token);
-        Assert.False(state.Shown);
+        Assert.False(state.Running);
         Assert.Equal(5, state.Options.Threshold);
         Assert.Equal(2, Assert.Single(state.Rows).Num);
         Assert.Equal(1L, TestDatabase.GiftBoardPeriods(h.DataDirectory));
@@ -188,7 +188,7 @@ public sealed class GiftBoardPeriodTests
         await using var again = await h.WatchConnectedAsync();
 
         var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
-        Assert.True(state.Shown);
+        Assert.True(state.Running);
         Assert.Equal(["10001/gift:32698"], state.Rows.Select(row => row.Id));
     }
 

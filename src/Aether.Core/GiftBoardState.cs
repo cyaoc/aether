@@ -52,14 +52,10 @@ public sealed record GiftBoardState(ImmutableArray<GiftBoardRow> Rows, GiftBoard
 {
     public GiftBoardPhase Phase => GiftBoardPeriod.PhaseOf(Period);
 
-    /// <summary>Whether the 礼物榜页 shows the board: only while the 期 is running; otherwise it draws nothing.</summary>
-    public bool Shown => Phase == GiftBoardPhase.Running;
+    /// <summary>Whether the latest 期 is running: only then does the 礼物榜页 show the board; otherwise it draws nothing.</summary>
+    public bool Running => Phase == GiftBoardPhase.Running;
 
     /// <summary>True only for the state a received gift made. The 礼物榜页 plays the change as an animation only then: any other
     /// state, such as new options, a 期 started, ended or continued, or a subscriber's first, is drawn as it is.</summary>
     public bool FromGift { get; init; }
-
-    // What the 礼物榜页 reads of the options.
-    public bool Mascot => Options.Mascot;
-    public int Volume => Options.Volume;
 }
