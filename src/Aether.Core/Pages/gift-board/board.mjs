@@ -1,8 +1,8 @@
 import { Changes } from './changes.mjs';
 import { Effects } from './effects.mjs';
 import { picturesOf } from './entry.mjs';
-import { fitLayout, slotsOf } from './layout.mjs';
-import { EVENTS, SCROLL_PER_MS } from './motion.mjs';
+import { CARDS, fitLayout, slotsOf } from './layout.mjs';
+import { EVENTS, SCROLL_PER_MS, landing, sinceLanding } from './motion.mjs';
 import { Scene } from './scene.mjs';
 
 /** The gift board on a canvas: it shows each pushed state, plays the event the change calls for, and scrolls a long list.
@@ -50,10 +50,12 @@ export class Board {
   }
 
   // A board that is drawn over as a whole (a 期 started, ended or continued, another room) lets go of the names and counts of the old one, and
-  // of the pictures the new one does not show, so that a run of days does not keep a picture of every viewer it ever showed.
+  // of the pictures the new one does not show, so that a run of days does not keep a picture of every viewer it ever showed. The
+  // light of the last row to land in its top three goes with it.
   forget(state) {
     this.scene?.destroy();
     this.scene = undefined;
+    this.landing = undefined;
     this.kit.textures.forget();
     this.kit.images.keepOnly(new Set(state.rows.flatMap(row => Object.values(picturesOf(row)))));
   }
@@ -68,10 +70,10 @@ export class Board {
       if (!change) break;
       this.begin(change, t);
     }
-    const u = this.event && t - this.event.startedAt;
+    const u = this.event && t - this.event.startedAt, landedAgo = CARDS.map((_, rank) => sinceLanding(this.landing, rank, t));
     // Without a scene there is no event either, and the effects clear what they last drew.
-    const riser = this.scene?.update(t, this.scroll, this.event);
-    this.effects.draw(this.layout, this.event, u, riser);
+    const riser = this.scene?.update(t, this.scroll, this.event, landedAgo);
+    this.effects.draw(this.scene, t, landedAgo, this.event, riser);
     this.event?.track?.frame(u);
   }
 
@@ -89,6 +91,9 @@ export class Board {
     if (kind === 'redraw') return;
     this.event = { kind, id, debut, startedAt: t, slots: slotsOf(before.rows) };
     this.app.canvas.dataset.event = kind;
+    // A landing lights its card on past the end of its event, until the next landing's event begins or the board is drawn over.
+    const lands = landing(this.event, this.scene.slots[id]);
+    if (lands) this.landing = { slot: lands.slot, at: t + lands.at };
     // Only a new first place sounds. Its sound rings on a little past its event, so the track is kept for a new volume or an
     // interruption to reach until the next cheer takes its place.
     if (kind !== 'top') return;

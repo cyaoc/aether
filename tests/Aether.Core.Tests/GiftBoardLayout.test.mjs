@@ -1,7 +1,7 @@
 // Run with: node --test tests/Aether.Core.Tests/GiftBoardLayout.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fitLayout, lapLength, scrolledY, slotGeometry } from '../../src/Aether.Core/Pages/gift-board/layout.mjs';
+import { RIM_RADIUS, fitLayout, lapLength, rimBox, rimLength, rimPoint, scrolledY, slotGeometry } from '../../src/Aether.Core/Pages/gift-board/layout.mjs';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} is not ${expected}`);
 
@@ -49,4 +49,44 @@ test('a row copy that has scrolled out of the top for good comes back below its 
   assert.equal(scrolledY(layout, lap, 200, 636), 436);
   assert.equal(scrolledY(layout, lap, 500, 636), 1816);
   assert.equal(scrolledY(layout, lap, 500, 636 + lap), 976);
+});
+
+test("the light runs round a card's rim from where the top edge leaves its left corner, clockwise and back", () => {
+  const layout = fitLayout(480, 1000, true), box = rimBox(layout, 0), [x, y, w, h] = box, length = rimLength(box);
+  // The first card drawn in by 1.2 on every side, with corners of 17.
+  assert.deepEqual(box, [21.2, 313.2, 437.6, 95.6]);
+  assert.equal(RIM_RADIUS, 17);
+  assert.deepEqual(rimPoint(box, 0), [x + 17, y]);
+  const back = rimPoint(box, length);
+  near(back[0], x + 17);
+  near(back[1], y);
+  // A little past the start it is further right on the top edge, and a little before it, coming up the left side.
+  assert.ok(rimPoint(box, 5)[0] > x + 17);
+  assert.ok(rimPoint(box, -5)[0] < x + 17 && rimPoint(box, -5)[1] > y);
+});
+
+test("every point on a corner of the rim is 17 from that corner's centre", () => {
+  const box = rimBox(fitLayout(480, 1000, true), 1), [x, y, w, h] = box, r = 17, q = Math.PI * r / 2;
+  const straight = [w - 2 * r, h - 2 * r];
+  const centres = [[x + w - r, y + r], [x + w - r, y + h - r], [x + r, y + h - r], [x + r, y + r]];
+  let s = straight[0];
+  centres.forEach(([cx, cy], corner) => {
+    for (const along of [0.2, 0.5, 0.8]) {
+      const [px, py] = rimPoint(box, s + along * q);
+      near(Math.hypot(px - cx, py - cy), r);
+    }
+    s += q + straight[(corner + 1) % 2];
+  });
+});
+
+test('walking the rim a pixel at a time never jumps', () => {
+  for (const rank of [0, 1, 2]) {
+    const box = rimBox(fitLayout(480, 1000, true), rank), length = rimLength(box);
+    let last = rimPoint(box, 0);
+    for (let s = 1; s <= Math.ceil(length); s++) {
+      const point = rimPoint(box, s);
+      assert.ok(Math.hypot(point[0] - last[0], point[1] - last[1]) <= 1.0001, `rank ${rank} at ${s}`);
+      last = point;
+    }
+  }
 });

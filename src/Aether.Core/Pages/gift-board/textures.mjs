@@ -1,6 +1,6 @@
 // The board's textures, drawn once on 2D canvases (design package GB1): the glass cards and pills, the rank numerals, the
 // title, the names and counts, the sprite and the star. The local pictures come in as loaded images.
-import { CARDS, LAYOUT } from './layout.mjs';
+import { CARDS, LAYOUT, RIM_RADIUS, rimOf } from './layout.mjs';
 import { NUMERALS, PAD, SANS, fitText, gradient, roundRect, seeded } from './paint.mjs';
 import { canvasOf } from '../video/animations/toolkit.mjs';
 
@@ -69,7 +69,7 @@ function paintCardRim(g, w, h, rim) {
   g.shadowBlur = rim.blur;
   g.lineWidth = rim.width;
   g.strokeStyle = gradient(g, [0, 0], [w, h], rim.stops);
-  roundRect(g, [1.2, 1.2, w - 2.4, h - 2.4], 17);
+  roundRect(g, rimOf([0, 0, w, h]), RIM_RADIUS);
   g.stroke();
   g.stroke();
   g.shadowBlur = 0;

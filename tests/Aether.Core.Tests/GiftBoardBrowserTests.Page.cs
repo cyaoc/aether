@@ -143,7 +143,14 @@ public sealed partial class GiftBoardBrowserTests
         }
 
         /// <summary>How opaque the page is, 0 to 255, at each point, from a screenshot.</summary>
-        public async Task<int[]> AlphaAsync(IEnumerable<(int X, int Y)> points)
+        public async Task<int[]> AlphaAsync(IEnumerable<(int X, int Y)> points) => [.. (await PixelsAsync(points)).Select(pixel => pixel[3])];
+
+        /// <summary>How much light the page gives at each point: its red, green and blue, each weighted by how opaque it is there.</summary>
+        public async Task<double[]> LightAsync(IEnumerable<(int X, int Y)> points) =>
+            [.. (await PixelsAsync(points)).Select(pixel => (pixel[0] + pixel[1] + pixel[2]) * pixel[3] / 255.0)];
+
+        /// <summary>The red, green, blue and alpha, 0 to 255, at each point, from a screenshot.</summary>
+        public async Task<int[][]> PixelsAsync(IEnumerable<(int X, int Y)> points)
         {
             var shot = await Browser.CommandAsync("Page.captureScreenshot", new { format = "png" });
             var sampled = await Browser.EvaluateAsync($$"""
@@ -155,10 +162,10 @@ public sealed partial class GiftBoardBrowserTests
                   canvas.width = image.width; canvas.height = image.height;
                   const g = canvas.getContext('2d');
                   g.drawImage(image, 0, 0);
-                  return {{JsonSerializer.Serialize(points.Select(point => new[] { point.X, point.Y }))}}.map(([x, y]) => g.getImageData(x, y, 1, 1).data[3]);
+                  return {{JsonSerializer.Serialize(points.Select(point => new[] { point.X, point.Y }))}}.map(([x, y]) => [...g.getImageData(x, y, 1, 1).data]);
                 })()
                 """);
-            return [.. sampled.EnumerateArray().Select(alpha => alpha.GetInt32())];
+            return [.. sampled.EnumerateArray().Select(pixel => pixel.EnumerateArray().Select(channel => channel.GetInt32()).ToArray())];
         }
 
         /// <summary>Waits until the page is solid at the point, as a pill's body is.</summary>

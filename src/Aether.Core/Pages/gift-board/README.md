@@ -1,6 +1,6 @@
 # Gift board page resources
 
-Design source: `docs/design/gift-board` at `6c2338a`. The drawing, the layout constants and the event timelines are ported from
+Design source: `docs/design/gift-board` at `7e6758f`. The drawing, the layout constants and the event timelines are ported from
 `boards/GB1-GiftBoard.dc.html`; the demo data and the board's mock stream are not.
 PixiJS is the video page's `/video/lib/pixi.js`, the sound uses the video page's `animations/audio.mjs`, and the canvas, ramp, ease-out,
 mix and pseudo-random helpers are the ones in its `animations/toolkit.mjs`; none of them is copied.
@@ -52,3 +52,10 @@ Original: https://github.com/google/fonts/blob/main/ofl/playfairdisplay/Playfair
 - A redraw as a whole destroys the textures made for the names, counts and initials of the old board, and each new board lets go of
   those the one before it used and it does not, so counts that go by do not pile up; the board keeps them for ever.
 - A name is cut between characters (code points), so an emoji at the cut is never left in half.
+- The board's `fx` prop is gone: the page always draws the top three's flowing light (`流光`), and the board's `EVENTS_FLOW` demo is not used.
+- The flowing light on a card comes and goes with the card, as its rim and glass do: none on a card no row fills yet, and none while a
+  new row is about to unfold into a card of the top three (a row that appears in first place too), fading in as it unfolds there.
+  The board's cards are always there.
+- The light of a row landing among the top three outlasts its event, until the next landing's event begins or the board is drawn over;
+  the board lets the next event of any kind end it. The page plays the next change as soon as an event ends, and a 超车 ends 500 ms
+  after its landing, so that would cut a fading rim off.
