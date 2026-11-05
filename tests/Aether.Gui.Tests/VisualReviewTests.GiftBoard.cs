@@ -1,6 +1,5 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
-using Avalonia.Controls;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.Time.Testing;

@@ -1,4 +1,3 @@
-using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using static Aether.Gui.Tests.Support.GiftBoardScene;

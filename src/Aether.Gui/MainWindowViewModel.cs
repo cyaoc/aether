@@ -211,7 +211,7 @@ public partial class MainWindowViewModel : ObservableObject
         SaveGuiSettings();
     }
 
-    [RelayCommand(CanExecute = nameof(CanConnect), IncludeCancelCommand = true)]
+    [RelayCommand(CanExecute = nameof(CanConnect))]
     private async Task ConnectAsync(CancellationToken cancellationToken)
     {
         if (!Room.TryParseNumber(RoomNumber, out var roomId))
