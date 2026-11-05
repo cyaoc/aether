@@ -236,9 +236,16 @@ public partial class MainWindow : Window
         if (closing) return;
         closing = true;
         IsEnabled = false;
-        await Task.WhenAll(SettingsPages.Select(page => page.PendingSave));
-        if (DataContext is MainWindowViewModel viewModel) await viewModel.ShutdownAsync();
-        canClose = true;
-        Dispatcher.UIThread.Post(Close);
+        try
+        {
+            await Task.WhenAll(SettingsPages.Select(page => page.PendingSave));
+            if (DataContext is MainWindowViewModel viewModel) await viewModel.ShutdownAsync();
+        }
+        // A disabled window left open could not be closed again.
+        finally
+        {
+            canClose = true;
+            Dispatcher.UIThread.Post(Close);
+        }
     }
 }
