@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { Changes } from '../../src/Aether.Core/Pages/gift-board/changes.mjs';
 
 const row = (id, num = 1) => ({ id, nickname: id, faceUrl: '', giftName: '礼物', iconUrl: '', guardLevel: 0, price: 100, num });
-const board = (...rows) => ({ rows, mascot: true, volume: 60, fromGift: false });
+const board = (...rows) => ({ rows, shown: true, mascot: true, volume: 60, fromGift: false });
 // The state a received gift made: only such a state is played as an event.
 const gift = (...rows) => ({ ...board(...rows), fromGift: true });
 const [a, b, c, d] = ['a', 'b', 'c', 'd'].map(id => row(id));
@@ -49,6 +49,15 @@ test('a state that no gift made is drawn straight, even when it adds, grows or m
   const restored = [board(a, b, c, d), board(a, b, row('c', 2)), board(a, row('c', 2), b), board(row('c', 2), a, b), board(d, a, b, c)];
   for (const state of restored) assert.deepEqual(play(started(board(a, b, c)), state), ['redraw']);
   assert.deepEqual(play(started(board()), board(a)), ['redraw']);
+});
+
+test('a 期 ended or continued is drawn straight and replaces what waits, though its rows stay the same', () => {
+  const changes = started(board(a, b));
+  changes.receive(gift(row('a', 2), b));
+  assert.equal(changes.receive({ ...board(row('a', 2), b), shown: false }), true);
+  assert.deepEqual(kinds(changes), ['redraw']);
+  assert.equal(changes.receive(board(row('a', 2), b)), true);
+  assert.deepEqual(kinds(changes), ['redraw']);
 });
 
 test('a state that shows the same board, such as a new volume or a gift below the threshold, plays nothing', () => {

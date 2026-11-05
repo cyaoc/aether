@@ -9,7 +9,7 @@ public sealed partial class AetherClient
 {
     /// <summary>One room connection: from resolving the room until it ends, across every reconnect.
     /// Runs on its own and reports to <paramref name="output"/>; whoever reads it never paces it.</summary>
-    private sealed class RoomConnection(AetherClient client, long roomId, Settings settings, ChannelWriter<WatchUpdate> output, bool enableLottery)
+    private sealed class RoomConnection(AetherClient client, long roomId, Settings settings, ChannelWriter<WatchUpdate> output, bool enableLotteryAndGiftBoard)
     {
         // No data at all for this long, not even a heartbeat reply, means the room connection is dead.
         private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(60);
@@ -27,7 +27,6 @@ public sealed partial class AetherClient
         // Each is set once and kept across reconnects.
         private long? realRoomId;
         private long broadcasterUid;
-        private long? liveTime;
         private FileStream? roomLock;
         private IDisposable? roomScope;
         private DanmakuProtocol.Decoder? decoder;
@@ -53,23 +52,23 @@ public sealed partial class AetherClient
                     try
                     {
                         if (realRoomId is null)
-                            (realRoomId, broadcasterUid, liveTime) = await client.Api(credential: null)
+                            (realRoomId, broadcasterUid) = await client.Api(credential: null)
                                 .ResolveRoomAsync(roomId, cancellationToken);
                         if (roomLock is null)
                         {
                             roomLock = AcquireRoomLock(realRoomId.Value);
                             roomScope = client.logger.BeginRoomScope(realRoomId.Value);
                             client.logger.LogInformation("直播间连接开始");
-                            if (enableLottery) features.Add(new LotteryFeature(client.Lottery, client.logger, realRoomId.Value));
-                            if (Settings.BlindBoxEnabled.Value)
+                            if (enableLotteryAndGiftBoard)
                             {
-                                features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));
-                                features.Add(new BlindBoxRecordFeature(client.stores, realRoomId.Value, sendQueue, Settings.BlindBoxAnnounce.Value));
+                                features.Add(new LotteryFeature(client.Lottery, client.logger, realRoomId.Value));
+                                features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value, client.logger));
                             }
+                            if (Settings.BlindBoxEnabled.Value) features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));
+                            features.Add(new GiftRecordFeature(new(client.stores.Value.Gifts, client.GiftBoard, client.logger,
+                                realRoomId.Value, Settings.BlindBoxEnabled.Value), sendQueue, Settings.BlindBoxAnnounce.Value));
                             features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
                                 round => { client.GiftAnimation.Enqueue(round, animationStop.Token); output.TryWrite(round); }));
-                            features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value, client.logger,
-                                async () => (await client.Api(credential: null).ResolveRoomAsync(realRoomId.Value, animationStop.Token)).LiveTime));
                             features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop.Token));
                             if (Settings.WelcomeEnabled.Value)
                             {
@@ -219,7 +218,7 @@ public sealed partial class AetherClient
                                 heartbeat = SendHeartbeatsAsync(socket, connectionStop);
                                 credentialChecks = RefreshCredentialWhileConnectedAsync(connectionStop, cancellationToken);
                                 client.logger.LogInformation("已连接弹幕服务器 {Server}", connection.Server);
-                                Handle(new TransportConnected(danmakuLengthLimit, liveTime));
+                                Handle(new TransportConnected(danmakuLengthLimit));
                                 yield return new Connected(realRoomId, broadcasterUid);
                                 // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it;
                                 // on the thread pool, as it would otherwise run its first SQLite query right here on the receive loop.

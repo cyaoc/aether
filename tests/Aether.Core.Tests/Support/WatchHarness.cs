@@ -14,11 +14,12 @@ internal sealed class WatchHarness : IAsyncDisposable
     /// <summary>A danmaku whose arrival shows every room message pushed before it has been handled.</summary>
     public const string SyncDanmaku = """{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""";
     public AetherClient Client { get; }
-    private readonly bool enableLottery;
+    /// <summary>Whether the room connection runs the lottery and the 礼物榜, as the GUI's does.</summary>
+    public bool EnableLotteryAndGiftBoard { get; set; }
 
-    public WatchHarness(Func<Uri, CancellationToken, Task<System.Net.WebSockets.WebSocket>>? connectWebSocket = null, Random? random = null, bool enableLottery = false)
+    public WatchHarness(Func<Uri, CancellationToken, Task<System.Net.WebSockets.WebSocket>>? connectWebSocket = null, Random? random = null, bool enableLotteryAndGiftBoard = false)
     {
-        this.enableLottery = enableLottery;
+        EnableLotteryAndGiftBoard = enableLotteryAndGiftBoard;
         Http.SetRoom();
         Http.ConfigureLogin();
         Http.Responses[FakeBilibiliHttp.NavUrl] =
@@ -46,7 +47,7 @@ internal sealed class WatchHarness : IAsyncDisposable
     // Tests of receiving and sending HTTP keep their existing stream; progress tests opt into the full stream.
     private async IAsyncEnumerable<WatchUpdate> WatchUpdates(AetherClient client, bool includeSendQueueUpdates, bool includeGiftRounds)
     {
-        await foreach (var update in client.WatchAsync(6, enableLottery, Stop.Token))
+        await foreach (var update in client.WatchAsync(6, EnableLotteryAndGiftBoard, Stop.Token))
             if ((includeSendQueueUpdates || update is not SendQueueUpdate)
                 && (includeGiftRounds || update is not GiftRoundEnded)) yield return update;
     }

@@ -13,17 +13,34 @@ public sealed record GiftBoardRow(string Id, long Uid, string Nickname, string F
     [JsonIgnore] public long Price => Value / Num;
 }
 
-/// <summary>One 期 of a room's 礼物榜. Viewers counts everyone with a gift in it, whatever the 上榜门槛, so 0 means the 期 is empty.</summary>
-public sealed record GiftBoardPeriod(DateTimeOffset StartedAt, int Viewers);
+/// <summary>A 期's options (ADR 0014): the 上榜门槛 in 电池 and what it compares (<see cref="ByUnitPrice"/> or
+/// <see cref="ByTotalPrice"/>), whether the 礼物榜页 shows the mascot, and the volume (0–100) of the sound for a new first place.
+/// They apply at once, and a new 期 starts with the last one's.</summary>
+public sealed record GiftBoardOptions(int Threshold, int ThresholdBy, bool Mascot, int Volume)
+{
+    public const int ByUnitPrice = 1, ByTotalPrice = 2;
 
-/// <summary>What the 礼物榜页 and the GUI show: the rows in rank order, and the settings the page follows. Enabled is whether
-/// the board is on in the settings last applied. Period is the 期 the rows come from and Previous the one
-/// <see cref="GiftBoardController.Restore"/> would merge it into; both are null while no room is connected, Previous also when
-/// there is no earlier 期. The 礼物榜页 uses none of these three.</summary>
-public sealed record GiftBoardState(ImmutableArray<GiftBoardRow> Rows, bool Enabled, bool Mascot, int Volume,
-    GiftBoardPeriod? Period, GiftBoardPeriod? Previous)
+    public static readonly GiftBoardOptions Default = new(100, ByUnitPrice, true, 60);
+
+    /// <summary>Why the options cannot be used, or null when they can.</summary>
+    public string? Error => Threshold < 1 ? "上榜门槛必须是正整数。" : ThresholdBy is not (ByUnitPrice or ByTotalPrice) ? "门槛比法只能是 1 或 2。"
+        : Volume is < 0 or > 100 ? "音量必须是 0 到 100 的整数。" : null;
+}
+
+/// <summary>One 期 of a room's 礼物榜: when it began, and when it ended, null while it is running.</summary>
+public sealed record GiftBoardPeriod(DateTimeOffset StartedAt, DateTimeOffset? EndedAt);
+
+/// <summary>What the 礼物榜页 and the GUI show: the rows of the room's latest 期 in rank order and its options. Shown is true
+/// only while that 期 is running; otherwise the 礼物榜页 draws nothing, while the GUI still lists an ended 期's rows. Connected is
+/// whether a room is connected; Period is the latest 期, null when the room has never had one or no room is connected.</summary>
+public sealed record GiftBoardState(ImmutableArray<GiftBoardRow> Rows, bool Shown, GiftBoardOptions Options, bool Connected,
+    GiftBoardPeriod? Period)
 {
     /// <summary>True only for the state a received gift made. The 礼物榜页 plays the change as an animation only then: any other
-    /// state, such as a saved setting, a clear, a restore or a subscriber's first, is drawn as it is.</summary>
+    /// state, such as new options, a 期 started, ended or continued, or a subscriber's first, is drawn as it is.</summary>
     public bool FromGift { get; init; }
+
+    // What the 礼物榜页 reads of the options.
+    public bool Mascot => Options.Mascot;
+    public int Volume => Options.Volume;
 }

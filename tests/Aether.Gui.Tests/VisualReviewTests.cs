@@ -401,7 +401,7 @@ public sealed partial class VisualReviewTests
                     var checkedTexts = CheckFixedText();
                     // The pages the gift board added are among those checked, not skipped by an exception or a page that is not shown.
                     if (index == Array.IndexOf(ReviewedPages, "gift-board"))
-                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "上榜门槛", "每场开播换新榜", "新的第一名时响一声", "清空礼物榜", "当前榜单" });
+                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "上榜门槛", "新的第一名时响一声", "开始新一期", "当前榜单" });
                     if (index == Array.IndexOf(ReviewedPages, "general"))
                         Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "礼物榜页", "送礼观众的排行", "480 × 1000，可以等比放大" });
                 }

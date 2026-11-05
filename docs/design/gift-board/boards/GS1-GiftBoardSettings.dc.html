@@ -148,13 +148,13 @@ a{color:#3358D4}a:hover{color:#2A47B0}
         <footer style="height: 64px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-top: 1px solid {{t.border}}">
           <sc-if value="{{confirming}}" hint-placeholder-val="{{false}}">
             <span style="flex: 1"></span>
-            <span style="font-size: 14px; white-space: nowrap">开始新一期后，直播画面上的礼物榜从零算起，确定吗？</span>
+            <span style="font-size: 14px; white-space: nowrap">开始新一期后，画面上的榜从零算起，确定吗？</span>
             <button type="button" onClick="{{cancelClear}}" style="height: 36px; padding: 0 16px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px">取消</button>
             <button type="button" onClick="{{doClear}}" style="height: 36px; padding: 0 22px; border: 0; border-radius: 6px; background: {{t.accent}}; color: {{t.onAccent}}; font: inherit; font-size: 14px; font-weight: 600">开始</button>
           </sc-if>
           <sc-if value="{{confirmingEnd}}" hint-placeholder-val="{{false}}">
             <span style="flex: 1"></span>
-            <span style="font-size: 14px; white-space: nowrap">结束后不再记录，直播画面上的榜也会收起，确定吗？</span>
+            <span style="font-size: 14px; white-space: nowrap">结束后不再记录，画面上的榜也会收起，确定吗？</span>
             <button type="button" onClick="{{cancelEnd}}" style="height: 36px; padding: 0 16px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px">取消</button>
             <button type="button" onClick="{{doEnd}}" style="height: 36px; padding: 0 22px; border: 0; border-radius: 6px; background: {{t.dangerSolid}}; color: #fff; font: inherit; font-size: 14px; font-weight: 600">结束</button>
           </sc-if>

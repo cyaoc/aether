@@ -35,7 +35,7 @@ public sealed class LotteryHistoryTests
     [Fact]
     public async Task Pool_history_details_return_the_ended_lottery_with_the_complete_draw()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -63,7 +63,7 @@ public sealed class LotteryHistoryTests
     [Fact]
     public async Task Entry_history_details_return_all_registration_and_draw_fields()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -87,7 +87,7 @@ public sealed class LotteryHistoryTests
     [Fact]
     public async Task History_orders_by_time_then_creation_and_marks_replaced_preparation_as_ended()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -107,7 +107,7 @@ public sealed class LotteryHistoryTests
     [Fact]
     public async Task History_includes_both_modes_and_unfinished_lotteries_after_restart()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         Assert.Empty(h.Client.Lottery.GetHistory(7734200));
         await h.LoginAsync();
         var updates = await h.WatchConnectedAsync();

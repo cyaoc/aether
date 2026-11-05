@@ -36,16 +36,18 @@ export class Board {
     if (this.state) this.show(this.state);
   }
 
-  // The board for a state, drawn from scratch.
+  // The board for a state, drawn from scratch; a 期 that is not running is not on the page at all.
   show(state) {
-    this.layout = fitLayout(this.app.screen.width, this.app.screen.height, state.mascot);
+    this.state = state;
     this.scene?.destroy();
+    this.scene = undefined;
+    if (!state.shown) return;
+    this.layout = fitLayout(this.app.screen.width, this.app.screen.height, state.mascot);
     this.scene = new Scene(this.kit, this.layout, state.rows);
     this.app.stage.addChildAt(this.scene.root, 1);
-    this.state = state;
   }
 
-  // A board that is drawn over as a whole (another show, a clear, a restore) lets go of the names and counts of the old one, and
+  // A board that is drawn over as a whole (a 期 started, ended or continued, another room) lets go of the names and counts of the old one, and
   // of the pictures the new one does not show, so that a run of days does not keep a picture of every viewer it ever showed.
   forget(state) {
     this.scene?.destroy();
@@ -64,9 +66,9 @@ export class Board {
       if (!change) break;
       this.begin(change, t);
     }
-    if (!this.scene) return;
     const u = this.event && t - this.event.startedAt;
-    const riser = this.scene.update(t, this.scroll, this.event);
+    // Without a scene there is no event either, and the effects clear what they last drew.
+    const riser = this.scene?.update(t, this.scroll, this.event);
     this.effects.draw(this.layout, this.event, u, riser);
     this.track?.frame(u);
   }

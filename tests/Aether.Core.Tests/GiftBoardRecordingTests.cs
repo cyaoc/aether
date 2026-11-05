@@ -61,19 +61,20 @@ public sealed class GiftBoardRecordingTests
     }
 
     [Fact]
-    public async Task Guard_months_bought_at_different_prices_add_up_to_exactly_what_was_paid_and_so_does_a_restore()
+    public async Task Guard_months_bought_at_different_prices_add_up_to_exactly_what_was_paid_also_when_read_back()
     {
         await using var h = new WatchHarness();
-        await using var updates = await h.WatchWithGiftBoardAsync();
-        // 舰长 at its list price and at the 续费 price, one month at a time, 7 months before a clear and 7 after: averaging the
-        // price in whole 金瓜子 after each one would already be 6 short before the clear and 14 short after the restore.
+        // 舰长 at its list price and at the 续费 price, one month at a time, 7 months before a new room connection reads the board
+        // back from the 收礼记录 and 7 after: averaging the price in whole 金瓜子 after each one would come out short.
         string[] Months(int from) => [.. Enumerable.Range(from, 7).Select(i => UserToastFixture.Message(price: i % 2 == 0 ? 198000 : 168000, payflowId: $"p{i}"))];
+        await using (var updates = await h.WatchWithGiftBoardAsync())
+        {
+            await h.PushAndSyncAsync(updates, Months(0));
+            Assert.Equal((1296000L, 7L), (await h.BoardRowsAsync()) is [var before] ? (before.Value, before.Num) : default);
+        }
 
-        await h.PushAndSyncAsync(updates, Months(0));
-        Assert.Equal((1296000L, 7L), (await h.BoardRowsAsync()) is [var before] ? (before.Value, before.Num) : default);
-        h.Client.GiftBoard.Clear();
-        await h.PushAndSyncAsync(updates, Months(7));
-        h.Client.GiftBoard.Restore();
+        await using var next = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(next, Months(7));
 
         var row = Assert.Single(await h.BoardRowsAsync());
         Assert.Equal((2562000L, 14L, 183000L), (row.Value, row.Num, row.Price));
@@ -88,7 +89,7 @@ public sealed class GiftBoardRecordingTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(uid: 0), UserToastFixture.Message(uid: 0));
 
         Assert.Empty(await h.BoardRowsAsync());
-        Assert.Equal(2, h.Logger.Entries.Count(entry => entry.Level == LogLevel.Information && entry.Message.Contains("未上礼物榜")));
+        Assert.Equal(2, h.Logger.Entries.Count(entry => entry.Level == LogLevel.Information && entry.Message.Contains("uid 为 0 的礼物未记录")));
     }
 
     [Theory]
@@ -116,13 +117,13 @@ public sealed class GiftBoardRecordingTests
         using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "ALTER TABLE gift_board_total RENAME TO unavailable_total";
+        command.CommandText = "ALTER TABLE gift_record RENAME TO unavailable_record";
         command.ExecuteNonQuery();
 
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
         Assert.Contains(h.Logger.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains("礼物榜读写数据库失败"));
 
-        command.CommandText = "ALTER TABLE unavailable_total RENAME TO gift_board_total";
+        command.CommandText = "ALTER TABLE unavailable_record RENAME TO gift_record";
         command.ExecuteNonQuery();
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
         Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
@@ -155,7 +156,7 @@ public sealed class GiftBoardRecordingTests
     }
 
     [Fact]
-    public async Task A_reconnect_keeps_the_seen_tids_but_a_new_room_connection_starts_over()
+    public async Task A_tid_pushed_again_after_a_reconnect_or_on_a_new_room_connection_still_counts_once()
     {
         await using var h = new WatchHarness();
         await using (var updates = await h.WatchWithGiftBoardAsync())
@@ -172,25 +173,11 @@ public sealed class GiftBoardRecordingTests
         await using var next = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(next, BlindGiftFixture.Ordinary(tid: "same"));
 
-        Assert.Equal(2, Assert.Single(await h.BoardRowsAsync()).Num);
-    }
-
-    [Fact]
-    public async Task Nothing_is_recorded_while_the_board_is_off_and_saving_the_switch_takes_effect_at_once()
-    {
-        await using var h = new WatchHarness();
-        await h.LoginAsync();
-        await using var updates = await h.WatchConnectedAsync();
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "while-off"));
-
-        await h.ApplySettingsAsync(("gift_board.enabled", "true"), ("gift_board.threshold", "1"));
-        Assert.Empty(await h.BoardRowsAsync());
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "while-on"));
-
         Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
     }
 
+    // The same gift, as V1 and as V2 carry it.
     private static string Ordinary(string version, string tid) => version == "v1"
-        ? BlindGiftFixture.Ordinary(tid: tid)
-        : Message(Broadcast([Item(tid: tid)], blindId: 0));
+        ? BlindGiftFixture.Ordinary(giftId: 35311, giftName: "好运柚叶", price: 2500, tid: tid)
+        : Message(Broadcast([Item(spend: 2500, tid: tid)], blindId: 0));
 }

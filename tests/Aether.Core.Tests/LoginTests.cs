@@ -26,7 +26,7 @@ public sealed class LoginTests : IDisposable
         time, logger, dataDirectory);
 
     [Fact]
-    public async Task First_credential_operation_creates_version_seven_database_with_lottery_tables_in_wal_mode()
+    public async Task First_credential_operation_creates_version_six_database_with_lottery_tables_in_wal_mode()
     {
         using var client = CreateClient();
         Assert.False(Directory.Exists(dataDirectory));
@@ -35,7 +35,7 @@ public sealed class LoginTests : IDisposable
         using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        Assert.Equal(7L, command.ExecuteScalar());
+        Assert.Equal(6L, command.ExecuteScalar());
         command.CommandText = "PRAGMA journal_mode";
         Assert.Equal("wal", command.ExecuteScalar());
         command.CommandText = "SELECT COUNT(*) FROM credential";
@@ -83,8 +83,8 @@ public sealed class LoginTests : IDisposable
         Assert.Equal(new TestDatabase.BlindBoxRow(7734200, 42, "测试观众", 100, "测试盲盒", 1000,
             200, "测试礼物", 2000, 2, 2000, 4000, 1702204169, "legacy-tid"),
             Assert.Single(TestDatabase.BlindBoxRows(dataDirectory)));
-        Assert.DoesNotContain("raw_message", TestDatabase.Columns(dataDirectory, "blind_box"));
-        Assert.Equal(7L, TestDatabase.UserVersion(dataDirectory));
+        Assert.Empty(TestDatabase.Columns(dataDirectory, "blind_box"));
+        Assert.Equal(6L, TestDatabase.UserVersion(dataDirectory));
     }
 
     [Fact]
@@ -239,10 +239,10 @@ public sealed class LoginTests : IDisposable
     public async Task Failed_database_open_is_retried_by_the_next_operation_on_the_same_client()
     {
         using (var setup = CreateClient()) await setup.LogoutAsync(TestContext.Current.CancellationToken);
-        SetUserVersion(8);
+        SetUserVersion(7);
         using var client = CreateClient();
         await Assert.ThrowsAsync<InvalidOperationException>(() => client.LogoutAsync(TestContext.Current.CancellationToken));
-        SetUserVersion(7);
+        SetUserVersion(6);
         await client.LogoutAsync(TestContext.Current.CancellationToken);
         AssertNoCredential();
     }

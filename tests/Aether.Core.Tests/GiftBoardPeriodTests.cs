@@ -1,170 +1,211 @@
 using Aether.Core.Tests.Support;
-using Microsoft.Extensions.Logging;
-using static Aether.Core.Tests.Support.GiftBoardStates;
 
 namespace Aether.Core.Tests;
 
-/// <summary>When the 礼物榜 moves on to a new 期 by itself: a room_init that says the room is live, or a LIVE message.</summary>
+/// <summary>The 礼物榜 runs in 期 like a lottery (ADR 0014): the streamer starts, ends and continues one in the GUI, and only a
+/// running 期 takes gifts and shows on the 礼物榜页.</summary>
 public sealed class GiftBoardPeriodTests
 {
-    // The LIVE sample in bilibili-API-collect's message_stream.md, with this test room's id. The message itself is never
-    // trusted for the start time (only its first packet carries one): room_init is read again instead.
-    private const string Live = """
-        {"cmd":"LIVE","live_key":"234304209915761953","voice_background":"","sub_session_key":"234304209915761953sub_time:1651036923",
-         "live_platform":"pc","live_model":0,"live_time":1651036923,"roomid":7734200}
-        """;
+    // Short enough that a step between messages stays inside the room connection's 60 s idle limit.
+    private static readonly TimeSpan Step = TimeSpan.FromSeconds(20);
 
     [Fact]
-    public async Task Connecting_to_a_show_that_began_at_another_time_opens_a_new_board_and_keeps_the_old_one()
+    public async Task Before_the_first_period_nothing_is_recorded_or_shown()
     {
-        await using var h = new WatchHarness();
-        h.Http.SetLive(ShowA);
-        await h.WatchAndLeaveAGiftAsync();
-
-        h.Http.SetLive(ShowB);
-        await using var next = await h.WatchConnectedAsync();
-
-        Assert.Empty(await h.BoardRowsAsync());
-        Assert.Equal<long?>([ShowA, ShowB], TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
-    }
-
-    // 0 hours is a plain reconnect; 30 hours later is on another calendar day wherever the streamer is.
-    [Theory]
-    [InlineData(0)]
-    [InlineData(30)]
-    public async Task Connecting_again_to_the_same_show_keeps_the_board_even_past_midnight(int hoursLater)
-    {
-        await using var h = new WatchHarness();
-        h.Http.SetLive(ShowA);
-        await h.WatchAndLeaveAGiftAsync();
-
-        h.Time.Advance(TimeSpan.FromHours(hoursLater));
-        await using var next = await h.WatchConnectedAsync();
-
-        Assert.Single(await h.BoardRowsAsync());
-        Assert.Single(TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
-    }
-
-    // A rerun is live_status 2, and B站 gives the epoch-like live_time of an off-air room even while it says 1.
-    [Theory]
-    [InlineData(0, FakeBilibiliHttp.NotLiveTime)]
-    [InlineData(2, ShowB)]
-    [InlineData(1, FakeBilibiliHttp.NotLiveTime)]
-    public async Task Connecting_to_a_room_that_is_not_live_keeps_the_board(int liveStatus, long liveTime)
-    {
-        await using var h = new WatchHarness();
-        h.Http.SetLive(ShowA);
-        await h.WatchAndLeaveAGiftAsync();
-
-        h.Http.SetRoom(liveStatus: liveStatus, liveTime: liveTime);
-        await using var next = await h.WatchConnectedAsync();
-
-        Assert.Single(await h.BoardRowsAsync());
-        Assert.Single(TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
-    }
-
-    [Fact]
-    public async Task Without_the_per_show_switch_a_new_show_keeps_the_board()
-    {
-        await using var h = new WatchHarness();
-        h.Http.SetLive(ShowA);
-        await h.WatchAndLeaveAGiftAsync();
-        await h.ApplySettingsAsync(("gift_board.reset_on_live", "false"));
-
-        h.Http.SetLive(ShowB);
-        await using var next = await h.WatchConnectedAsync();
-
-        Assert.Single(await h.BoardRowsAsync());
-        Assert.Single(TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
-    }
-
-    // The room was connected while the board was off, or while it kept the board across shows, and a new show began meanwhile.
-    [Theory]
-    [InlineData("gift_board.enabled")]
-    [InlineData("gift_board.reset_on_live")]
-    public async Task Turning_a_switch_on_during_a_show_that_the_latest_board_does_not_belong_to_opens_a_board_for_it(string setting)
-    {
-        await using var h = new WatchHarness();
-        h.Http.SetLive(ShowA);
-        await h.WatchAndLeaveAGiftAsync();
-        await h.ApplySettingsAsync((setting, "false"));
-        h.Http.SetLive(ShowB);
-        await using var updates = await h.WatchConnectedAsync();
-
-        await h.ApplySettingsAsync((setting, "true"));
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(uid: 20002, tid: "this-show"));
-
-        Assert.Equal<long?>([ShowA, ShowB], TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
-        Assert.Equal(["20002/gift:32698"], (await h.BoardRowsAsync()).Select(row => row.Id));
-    }
-
-    [Fact]
-    public async Task The_first_gift_opens_a_board_that_remembers_the_show_under_way()
-    {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
-        await h.ApplySettingsAsync(("gift_board.enabled", "true"), ("gift_board.reset_on_live", "false"));
-        h.Http.SetLive(ShowA);
         await using var updates = await h.WatchConnectedAsync();
-
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
 
-        Assert.Equal<long?>([ShowA], TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
+        var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
+        Assert.True(state.Connected);
+        Assert.False(state.Shown);
+        Assert.Null(state.Period);
+        Assert.Equal(0L, TestDatabase.GiftRecords(h.DataDirectory));
     }
 
     [Fact]
-    public async Task Nothing_is_opened_while_the_board_is_off()
+    public async Task A_started_period_records_and_shows_the_gifts_sent_from_then_on()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
-        await h.ApplySettingsAsync(("gift_board.enabled", "false"));
-        h.Http.SetLive(ShowA);
-
         await using var updates = await h.WatchConnectedAsync();
-        h.Http.SetLive(ShowB);
-        await h.PushAndSyncAsync(updates, Live);
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "before"));
+        h.Client.GiftBoard.SetOptions(GiftBoardOptions.Default with { Threshold = 1 });
+        var started = h.Time.GetUtcNow();
+        h.Client.GiftBoard.StartNewPeriod();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
 
-        Assert.Empty(TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
+        var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
+        Assert.True(state.Shown);
+        Assert.Equal(new GiftBoardPeriod(started, null), state.Period);
+        Assert.Equal(1, Assert.Single(state.Rows).Num);
     }
 
     [Fact]
-    public async Task A_LIVE_message_opens_a_new_board_when_the_room_is_live_since_another_time()
+    public async Task An_ended_period_records_nothing_more_and_leaves_the_page_but_keeps_its_rows()
     {
         await using var h = new WatchHarness();
         await using var updates = await h.WatchWithGiftBoardAsync();
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
+        var started = h.Time.GetUtcNow();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "during"));
+        h.Time.Advance(Step);
+        var ended = h.Time.GetUtcNow();
+        h.Client.GiftBoard.EndPeriod();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
 
-        h.Http.SetLive(ShowA);
-        await h.PushAndSyncAsync(updates, Live);
-
-        Assert.Empty(await h.BoardRowsAsync());
-        Assert.Equal<long?>([null, ShowA], TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
+        var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
+        Assert.False(state.Shown);
+        Assert.Equal(new GiftBoardPeriod(started, ended), state.Period);
+        Assert.Equal(1, Assert.Single(state.Rows).Num);
+        Assert.Equal(1L, TestDatabase.GiftRecords(h.DataDirectory));
     }
 
     [Fact]
-    public async Task Several_LIVE_messages_for_one_show_open_only_one_new_board()
+    public async Task A_continued_period_runs_on_from_what_it_had()
     {
         await using var h = new WatchHarness();
-        h.Http.SetLive(ShowA);
         await using var updates = await h.WatchWithGiftBoardAsync();
+        var started = h.Time.GetUtcNow();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "before"));
+        h.Client.GiftBoard.EndPeriod();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "while-ended"));
 
-        h.Http.SetLive(ShowB);
-        await h.PushAndSyncAsync(updates, Live, Live, Live);
+        h.Client.GiftBoard.ContinuePeriod();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
 
-        Assert.Equal<long?>([ShowA, ShowB], TestDatabase.GiftBoardLiveTimes(h.DataDirectory));
+        var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
+        Assert.True(state.Shown);
+        Assert.Equal(new GiftBoardPeriod(started, null), state.Period);
+        Assert.Equal(2, Assert.Single(state.Rows).Num);
     }
 
     [Fact]
-    public async Task A_failed_read_after_a_LIVE_message_is_logged_and_the_room_connection_goes_on()
+    public async Task A_new_period_starts_empty_with_the_options_of_the_last_one()
+    {
+        await using var h = new WatchHarness();
+        await using var updates = await h.WatchWithGiftBoardAsync(threshold: 5);
+        await h.SetOptionsAsync(options => options with { Mascot = false, Volume = 30 });
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "before"));
+        h.Client.GiftBoard.EndPeriod();
+
+        h.Client.GiftBoard.StartNewPeriod();
+        var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
+        Assert.Empty(state.Rows);
+        Assert.Equal(GiftBoardOptions.Default with { Threshold = 5, Mascot = false, Volume = 30 }, state.Options);
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
+
+        Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
+        Assert.Equal(2L, TestDatabase.GiftBoardPeriods(h.DataDirectory));
+    }
+
+    [Fact]
+    public async Task A_new_period_waits_for_the_running_one_to_end_and_only_an_ended_one_continues()
+    {
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await h.LoginAsync();
+        await using var updates = await h.WatchConnectedAsync();
+        var board = h.Client.GiftBoard;
+        Assert.Equal("没有在统计的一期。", Assert.Throws<InvalidOperationException>(board.EndPeriod).Message);
+        Assert.Equal("没有结束的一期可以继续。", Assert.Throws<InvalidOperationException>(board.ContinuePeriod).Message);
+
+        board.StartNewPeriod();
+        Assert.Equal("这一期还在统计，先结束再开始新一期。", Assert.Throws<InvalidOperationException>(board.StartNewPeriod).Message);
+        Assert.Throws<InvalidOperationException>(board.ContinuePeriod);
+        board.EndPeriod();
+        Assert.Throws<InvalidOperationException>(board.EndPeriod);
+
+        Assert.Equal(1L, TestDatabase.GiftBoardPeriods(h.DataDirectory));
+    }
+
+    [Fact]
+    public async Task A_reconnect_a_new_room_connection_or_a_restart_leaves_the_period_as_it_was()
+    {
+        await using var h = new WatchHarness();
+        await using (var updates = await h.WatchWithGiftBoardAsync(threshold: 5))
+        {
+            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
+            await h.Server.DisconnectAsync();
+            Assert.IsType<Reconnecting>(await h.NextAsync(updates));
+            await h.AdvanceRetryAsync(updates, 1);
+            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "b"));
+            Assert.True((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Shown);
+        }
+        await using (var next = await h.WatchConnectedAsync())
+        {
+            Assert.True((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Shown);
+            h.Client.GiftBoard.EndPeriod();
+        }
+
+        using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
+        await using var again = await h.WatchConnectedAsync(restarted);
+
+        var state = await restarted.GiftBoard.CurrentAsync(h.Stop.Token);
+        Assert.False(state.Shown);
+        Assert.Equal(5, state.Options.Threshold);
+        Assert.Equal(2, Assert.Single(state.Rows).Num);
+        Assert.Equal(1L, TestDatabase.GiftBoardPeriods(h.DataDirectory));
+    }
+
+    [Fact]
+    public async Task Each_room_has_its_own_periods()
+    {
+        await using var h = new WatchHarness();
+        h.Http.SetRoom(roomId: 999);
+        await h.WatchAndLeaveAGiftAsync();
+        h.Http.SetRoom();
+        await using (var updates = await h.WatchWithGiftBoardAsync())
+        {
+            Assert.Empty(await h.BoardRowsAsync());
+            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(uid: 20002));
+            h.Client.GiftBoard.EndPeriod();
+        }
+
+        h.Http.SetRoom(roomId: 999);
+        await using var again = await h.WatchConnectedAsync();
+
+        var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
+        Assert.True(state.Shown);
+        Assert.Equal(["10001/gift:32698"], state.Rows.Select(row => row.Id));
+    }
+
+    [Fact]
+    public async Task A_room_connection_without_the_gift_board_records_nothing_for_it()
+    {
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await h.LoginAsync();
+        await using (var gui = await h.WatchConnectedAsync()) h.Client.GiftBoard.StartNewPeriod();
+
+        h.EnableLotteryAndGiftBoard = false;
+        await using var cli = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(cli, BlindGiftFixture.Ordinary());
+
+        Assert.False((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Connected);
+        Assert.Equal(0L, TestDatabase.GiftRecords(h.DataDirectory));
+    }
+
+    [Fact]
+    public async Task Without_a_room_connection_no_period_starts_and_no_option_changes()
+    {
+        await using var h = new WatchHarness();
+
+        Assert.Throws<InvalidOperationException>(h.Client.GiftBoard.StartNewPeriod);
+        Assert.Throws<InvalidOperationException>(() => h.Client.GiftBoard.SetOptions(GiftBoardOptions.Default));
+    }
+
+    [Theory]
+    [InlineData(0, GiftBoardOptions.ByUnitPrice, 60, "上榜门槛必须是正整数。")]
+    [InlineData(1, 3, 60, "门槛比法只能是 1 或 2。")]
+    [InlineData(1, GiftBoardOptions.ByTotalPrice, 101, "音量必须是 0 到 100 的整数。")]
+    public async Task Options_that_cannot_be_used_are_refused(int threshold, int thresholdBy, int volume, string error)
     {
         await using var h = new WatchHarness();
         await using var updates = await h.WatchWithGiftBoardAsync();
-        h.Http.FailOnce(FakeBilibiliHttp.RoomInitUrl, new HttpRequestException("测试断网"));
 
-        await h.PushAndSyncAsync(updates, Live);
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
+        var refused = Assert.Throws<ArgumentException>(() =>
+            h.Client.GiftBoard.SetOptions(new(threshold, thresholdBy, true, volume)));
 
-        Assert.Contains("测试断网", Assert.Single(h.Logger.Entries, entry => entry.Level == LogLevel.Warning).Message);
-        Assert.Single(await h.BoardRowsAsync());
+        Assert.StartsWith(error, refused.Message);
+        Assert.Equal(1, (await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Options.Threshold);
     }
 }

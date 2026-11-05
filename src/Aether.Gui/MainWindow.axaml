@@ -140,7 +140,7 @@
                 <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
                   <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Trophy}" /></Viewbox>
                   <TextBlock Grid.Column="1" Text="礼物榜" VerticalAlignment="Center" />
-                  <TextBlock Grid.Column="2" x:Name="GiftBoardStatus" Classes="caption muted" />
+                  <TextBlock Grid.Column="2" x:Name="GiftBoardStatus" Classes="caption success" Text="统计中" IsVisible="{Binding GiftBoard.Running}" />
                 </Grid>
               </ListBoxItem>
               <ListBoxItem>

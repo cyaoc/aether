@@ -8,17 +8,24 @@ namespace Aether.Gui;
 public sealed record GiftBoardListRow(int Rank, string Nickname, string Gift, string Value);
 
 /// <summary>What the footer asks the streamer to confirm.</summary>
-public enum GiftBoardConfirmation { None, Clear, Restore }
+public enum GiftBoardConfirmation { None, End, NewPeriod }
 
-/// <summary>The 礼物榜 section's view of the connected room's 礼物榜: what Core reports, and the clear and restore it offers.
-/// It lists the rows Core reports and does no ranking of its own.</summary>
+/// <summary>The 礼物榜 section's view of the connected room's 礼物榜, run in 期 like a lottery (ADR 0014): the state Core reports,
+/// the 期 actions it allows, and the options of the latest 期, which apply as soon as they are changed. Core decides the state
+/// and the ranking; this only shows them.</summary>
 public partial class GiftBoardViewModel(AetherClient client, ILogger logger, TimeProvider clock, CancellationToken shutdown) : ObservableObject
 {
     private readonly LatestRun updates = new();
+    // Core's writes, one after another off the UI thread, so the last option set is the one that stays.
     private Task change = Task.CompletedTask;
+    private int optionWrites;
+    // The options Core last reported, and those the inputs show.
+    private GiftBoardOptions reported = GiftBoardOptions.Default;
+    private GiftBoardOptions shown = GiftBoardOptions.Default;
+    private bool showing;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasRows), nameof(CanClear), nameof(CountText))]
+    [NotifyPropertyChangedFor(nameof(HasRows), nameof(CountText))]
     private IReadOnlyList<GiftBoardListRow> rows = [];
 
     // The viewers on the board: one viewer can have a row for each kind of gift.
@@ -26,45 +33,90 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
     [NotifyPropertyChangedFor(nameof(CountText))]
     private int viewers;
 
-    /// <summary>Whether the board is on in the settings Core last applied, which a draft on the page does not change.</summary>
     [ObservableProperty]
-    private bool enabled;
+    [NotifyPropertyChangedFor(nameof(NotStarted), nameof(FooterText), nameof(EmptyText))]
+    private bool connected;
+
+    /// <summary>Whether the latest 期 is running: it takes gifts and shows on the 礼物榜页.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusText), nameof(EmptyText))]
+    private bool running;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(PeriodText), nameof(ConfirmText))]
+    [NotifyPropertyChangedFor(nameof(Ended), nameof(NotStarted), nameof(StatusText), nameof(PeriodText), nameof(EmptyText))]
     private GiftBoardPeriod? period;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CanRestore), nameof(ConfirmText))]
-    private GiftBoardPeriod? previous;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Confirming), nameof(ConfirmingClear), nameof(ConfirmingRestore), nameof(ConfirmText))]
+    [NotifyPropertyChangedFor(nameof(Confirming), nameof(ConfirmingEnd), nameof(ConfirmingNewPeriod))]
     private GiftBoardConfirmation confirmation;
 
+    /// <summary>What the last action did; the footer shows the hint for the options until there is one.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(FooterText))]
+    private string? message;
+
+    [ObservableProperty]
+    private string? error;
+
+    // The inputs start at the options Core starts with.
+    [ObservableProperty]
+    private decimal? threshold = GiftBoardOptions.Default.Threshold;
+
+    [ObservableProperty]
+    private string? thresholdError;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ByUnitPrice), nameof(ByTotalPrice))]
+    private int thresholdBy = GiftBoardOptions.Default.ThresholdBy;
+
+    [ObservableProperty]
+    private bool mascot = GiftBoardOptions.Default.Mascot;
+
+    [ObservableProperty]
+    private double volume = GiftBoardOptions.Default.Volume;
+
+    public bool Ended => Period is { EndedAt: not null };
+    public bool NotStarted => Connected && Period is null;
     public bool HasRows => Rows.Count > 0;
-    public bool CanClear => HasRows;
-    public bool CanRestore => Previous is not null;
     public bool Confirming => Confirmation != GiftBoardConfirmation.None;
-    public bool ConfirmingClear => Confirmation == GiftBoardConfirmation.Clear;
-    public bool ConfirmingRestore => Confirmation == GiftBoardConfirmation.Restore;
+    public bool ConfirmingEnd => Confirmation == GiftBoardConfirmation.End;
+    public bool ConfirmingNewPeriod => Confirmation == GiftBoardConfirmation.NewPeriod;
+    public string StatusText => Running ? "统计中" : Ended ? "已结束" : "还没开始";
     public string CountText => HasRows ? $"共 {Viewers} 位" : "";
-    public string PeriodText => Period is { } current ? $"本期从 {LocalDateText.DateAndTime(current.StartedAt, clock.GetLocalNow())} 开始" : "";
 
-    public string ConfirmText => Confirmation switch
+    public bool ByUnitPrice
     {
-        GiftBoardConfirmation.Clear => "清空后直播画面上的礼物榜也会变空，确定吗？",
-        GiftBoardConfirmation.Restore when Previous is { } earlier =>
-            $"上一期（{LocalDateText.Date(earlier.StartedAt, clock.GetLocalNow())}，{earlier.Viewers} 位）会{(Period is { Viewers: 0 } ? "恢复" : "合并")}回来，确定吗？",
-        _ => "",
-    };
+        get => ThresholdBy == GiftBoardOptions.ByUnitPrice;
+        set { if (value) ThresholdBy = GiftBoardOptions.ByUnitPrice; }
+    }
 
-    private bool CanConfirm => Confirmation switch
+    public bool ByTotalPrice
     {
-        GiftBoardConfirmation.Clear => CanClear,
-        GiftBoardConfirmation.Restore => CanRestore,
-        _ => false,
-    };
+        get => ThresholdBy == GiftBoardOptions.ByTotalPrice;
+        set { if (value) ThresholdBy = GiftBoardOptions.ByTotalPrice; }
+    }
+
+    public string PeriodText
+    {
+        get
+        {
+            var now = clock.GetLocalNow();
+            return Period switch
+            {
+                { EndedAt: { } ended } current => $"本期 {LocalDateText.DateAndTime(current.StartedAt, now)} – " +
+                    (ended.ToLocalTime().Date == current.StartedAt.ToLocalTime().Date ? $"{ended.ToLocalTime():HH:mm}" : LocalDateText.DateAndTime(ended, now)) + "，已结束",
+                { } current => $"本期从 {LocalDateText.DateAndTime(current.StartedAt, now)} 开始",
+                null => "",
+            };
+        }
+    }
+
+    public string FooterText => Message ?? (Connected ? "选项改了立即生效，开始新一期时沿用" : "选项跟着直播间的期，连上直播间后才能改");
+
+    public string EmptyText => !Connected ? "连上直播间后，这里显示这个直播间的礼物榜。"
+        : Period is null ? "还没有开始统计。点右上角“开始新一期”，之后收到的礼物会出现在这里和直播画面上。"
+        : Running ? "还没有人上榜。达到门槛的礼物会出现在这里和直播画面上。"
+        : "这一期没有人上榜。";
 
     internal void Observe()
     {
@@ -74,7 +126,7 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
 
     internal async Task StopAsync()
     {
-        // The page reports failures; closing still waits until a clear or restore has finished writing.
+        // Each write reports its own failure; closing still waits until the last one has finished.
         try { await change; }
         catch { }
         await updates.StopAsync();
@@ -86,32 +138,112 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
         // A row's value is in 金瓜子, and a 大航海 averaged over its months can be a fraction of a 电池.
         Rows = [.. state.Rows.Select((row, index) => new GiftBoardListRow(index + 1, row.Nickname, $"{row.GiftName} ×{row.Num}",
             Battery.Text(row.Value)))];
-        Enabled = state.Enabled;
+        // A room joined or left: what the last action did belongs to the room before.
+        if (Connected != state.Connected) Message = Error = null;
+        Connected = state.Connected;
+        Running = state.Shown;
         Period = state.Period;
-        Previous = state.Previous;
+        reported = state.Options;
+        // While the streamer is still changing the options, Core reports ones the inputs have moved past.
+        if (optionWrites == 0) ShowOptions(reported);
         // What was asked for can no longer be done, e.g. the room was left.
-        if (!CanConfirm) Confirmation = GiftBoardConfirmation.None;
+        if (Confirmation == GiftBoardConfirmation.End && !Running || Confirmation == GiftBoardConfirmation.NewPeriod && !Ended)
+            Confirmation = GiftBoardConfirmation.None;
     }
 
-    // Their buttons are only enabled while there is something to clear or to restore.
-    internal void RequestClear() => Confirmation = GiftBoardConfirmation.Clear;
+    internal void AskEnd() => Confirmation = GiftBoardConfirmation.End;
 
-    internal void RequestRestore() => Confirmation = GiftBoardConfirmation.Restore;
+    /// <summary>Starts a new 期 at once when the room has none; after an ended one, asks first.</summary>
+    internal Task AskNewPeriodAsync(string room)
+    {
+        if (!Ended) return StartNewPeriodAsync(room);
+        Confirmation = GiftBoardConfirmation.NewPeriod;
+        return Task.CompletedTask;
+    }
 
     internal void CancelConfirmation() => Confirmation = GiftBoardConfirmation.None;
 
-    /// <summary>Does what the footer asked, if it can still be done, off the UI thread. Returns what was done, and why it
-    /// failed if it did: the database could not be written, or the room was left in the meantime.</summary>
-    internal async Task<(GiftBoardConfirmation Done, string? Error)> ConfirmAsync()
+    internal Task ConfirmAsync(string room)
     {
-        var done = CanConfirm ? Confirmation : GiftBoardConfirmation.None;
+        var confirmed = Confirmation;
         Confirmation = GiftBoardConfirmation.None;
-        if (done == GiftBoardConfirmation.None) return (done, null);
+        return confirmed switch
+        {
+            GiftBoardConfirmation.End => RunAsync(client.GiftBoard.EndPeriod, "结束这一期失败", "已结束这一期，直播画面上的榜已收起"),
+            GiftBoardConfirmation.NewPeriod => StartNewPeriodAsync(room),
+            _ => Task.CompletedTask,
+        };
+    }
+
+    internal Task ContinueAsync() => RunAsync(client.GiftBoard.ContinuePeriod, "继续这一期失败", "已继续这一期，画面上重新显示榜");
+
+    private Task StartNewPeriodAsync(string room) =>
+        RunAsync(client.GiftBoard.StartNewPeriod, "开始新一期失败", $"已为直播间 {room} 开始新的一期");
+
+    // Core refuses what the state no longer allows, such as a room left in the meantime, and the failure says why.
+    private async Task RunAsync(Action action, string failed, string done)
+    {
+        Error = null;
         try
         {
-            await (change = Task.Run(done == GiftBoardConfirmation.Clear ? client.GiftBoard.Clear : client.GiftBoard.Restore));
-            return (done, null);
+            await Write(action);
+            Message = done;
         }
-        catch (Exception error) { return (done, error.Message); }
+        catch (Exception exception) { Error = $"{failed}：{exception.Message}"; }
+    }
+
+    private Task Write(Action write)
+    {
+        var previous = change;
+        return change = Task.Run(async () =>
+        {
+            // The one before reported its own failure.
+            try { await previous; }
+            catch { }
+            write();
+        });
+    }
+
+    partial void OnThresholdChanged(decimal? value) => _ = SetOptionsAsync();
+
+    partial void OnThresholdByChanged(int value) => _ = SetOptionsAsync();
+
+    partial void OnMascotChanged(bool value) => _ = SetOptionsAsync();
+
+    partial void OnVolumeChanged(double value) => _ = SetOptionsAsync();
+
+    private void ShowOptions(GiftBoardOptions options)
+    {
+        showing = true;
+        Threshold = options.Threshold;
+        ThresholdBy = options.ThresholdBy;
+        Mascot = options.Mascot;
+        Volume = options.Volume;
+        ThresholdError = null;
+        shown = options;
+        showing = false;
+    }
+
+    // The inputs are only enabled while a room is connected; a threshold that is not a whole number of 电池 stays on the
+    // page with its error until it is one.
+    private async Task SetOptionsAsync()
+    {
+        if (showing) return;
+        // Not a whole number of 电池 (or none at all) is refused like zero.
+        var whole = Threshold is { } value && value == decimal.Truncate(value) && value is >= 0 and <= int.MaxValue ? (int)value : 0;
+        var options = new GiftBoardOptions(whole, ThresholdBy, Mascot, (int)Math.Round(Volume));
+        ThresholdError = options.Error;
+        if (ThresholdError is not null) return;
+        if (options == shown) return;
+        shown = options;
+        optionWrites++;
+        try { await Write(() => client.GiftBoard.SetOptions(options)); }
+        catch (Exception exception)
+        {
+            Error = $"改选项失败：{exception.Message}";
+            // The inputs go back to what Core still has.
+            if (optionWrites == 1) ShowOptions(reported);
+        }
+        finally { optionWrites--; }
     }
 }

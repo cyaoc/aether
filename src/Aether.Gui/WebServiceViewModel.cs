@@ -33,15 +33,11 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             && previous.EntryAnimationVolume.Value == snapshot.EntryAnimationVolume.Value
             && previous.GiftAnimationEnabled.Value == snapshot.GiftAnimationEnabled.Value
             && previous.GiftAnimationThresholds.Select(value => value.Value).SequenceEqual(snapshot.GiftAnimationThresholds.Select(value => value.Value))
-            && GiftBoardValues(previous) == GiftBoardValues(snapshot)
             && previous.EntryAnimationViewers.Count == snapshot.EntryAnimationViewers.Count
             && previous.EntryAnimationViewers.All(pair => snapshot.EntryAnimationViewers.TryGetValue(pair.Key, out var choice) && choice.Value == pair.Value.Value))
             return animationReload.Current;
         return ApplyWebSettingsAsync(snapshot);
     }
-
-    private static (bool Enabled, int Threshold, int By, bool Mascot, bool ResetOnLive, int Volume) GiftBoardValues(Settings settings) => (settings.GiftBoardEnabled.Value, settings.GiftBoardThreshold.Value,
-        settings.GiftBoardThresholdBy.Value, settings.GiftBoardMascot.Value, settings.GiftBoardResetOnLive.Value, settings.GiftBoardVolume.Value);
 
     public async Task ApplyWebSettingsAsync(Settings snapshot)
     {

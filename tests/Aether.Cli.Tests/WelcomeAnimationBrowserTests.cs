@@ -9,50 +9,22 @@ namespace Aether.Cli.Tests;
 public sealed class WelcomeAnimationBrowserTests
 {
     [Theory]
-    [InlineData("gift_animation.enabled", false)]
-    [InlineData("gift_animation.enabled", true)]
-    [InlineData("gift_board.enabled", false)]
-    [InlineData("gift_board.enabled", true)]
-    public async Task Watch_starts_web_service_for_one_page_feature_alone(string setting, bool enabled)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Watch_starts_web_service_for_gift_animation_alone(bool giftEnabled)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { [setting] = Settings.BooleanText(enabled), ["web_service.port"] = Aether.Core.Tests.WelcomeAnimationTests.FreePort().ToString() });
-        var watching = Watch(h);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = Settings.BooleanText(giftEnabled), ["web_service.port"] = Aether.Core.Tests.WelcomeAnimationTests.FreePort().ToString() });
+        var watching = WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,
+            _ => throw new InvalidOperationException("Already logged in"), h.Stop.Token);
         try
         {
             await h.WaitForLogAsync("已连接弹幕服务器");
-            Assert.Equal(enabled, h.Client.WebService.Status.Running);
+            Assert.Equal(giftEnabled, h.Client.WebService.Status.Running);
         }
         finally { await h.Stop.CancelAsync(); await watching; }
     }
-
-    [Fact]
-    public async Task Watch_prints_the_gift_board_page_address_when_the_board_is_on()
-    {
-        await using var h = new WatchHarness();
-        await h.LoginAsync();
-        var port = Aether.Core.Tests.WelcomeAnimationTests.FreePort();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_board.enabled"] = "true", ["web_service.port"] = port.ToString() });
-        var output = Console.Out;
-        using var captured = new StringWriter();
-        Console.SetOut(TextWriter.Synchronized(captured));
-        var watching = Watch(h);
-        try
-        {
-            await h.WaitForLogAsync("已连接弹幕服务器");
-            Assert.Contains($"礼物榜页：http://localhost:{port}/gift-board", captured.ToString());
-        }
-        finally
-        {
-            await h.Stop.CancelAsync();
-            await watching;
-            Console.SetOut(output);
-        }
-    }
-
-    private static Task Watch(WatchHarness h) => WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,
-        _ => throw new InvalidOperationException("Already logged in"), h.Stop.Token);
 
     [Theory]
     [InlineData(false)]

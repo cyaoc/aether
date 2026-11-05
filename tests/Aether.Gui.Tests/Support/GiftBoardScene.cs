@@ -1,6 +1,7 @@
 using Aether.Core;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Gui.Tests.Support;
@@ -11,9 +12,6 @@ internal sealed class GiftBoardScene : IAsyncDisposable
 {
     public const long RoomId = 1768506153;
 
-    /// <summary>Settings that turn the board on at a threshold of 1 电池.</summary>
-    public static readonly (string Name, string Value)[] On = [("gift_board.enabled", "true"), ("gift_board.threshold", "1")];
-
     /// <summary>When the scene's clock starts (3 November 2026, local time), and when <see cref="GoToToday"/> sets it.</summary>
     public static readonly DateTimeOffset Yesterday = new(new DateTime(2026, 11, 3, 20, 1, 0, DateTimeKind.Local));
     public static readonly DateTimeOffset Today = new(new DateTime(2026, 11, 4, 20, 3, 0, DateTimeKind.Local));
@@ -21,7 +19,7 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     private readonly GuiHarness harness;
     private readonly Window window;
 
-    private GiftBoardScene(GuiHarness harness, FakeTimeProvider clock, MainWindowViewModel viewModel, GiftBoardSettingsPage page, Window window)
+    private GiftBoardScene(GuiHarness harness, FakeTimeProvider clock, MainWindowViewModel viewModel, GiftBoardPanel page, Window window)
     {
         this.harness = harness;
         Clock = clock;
@@ -32,26 +30,24 @@ internal sealed class GiftBoardScene : IAsyncDisposable
 
     public FakeTimeProvider Clock { get; }
     public MainWindowViewModel ViewModel { get; }
-    public GiftBoardSettingsPage Page { get; }
+    public GiftBoardPanel Page { get; }
     public GiftBoardController Board => harness.Client.GiftBoard;
     public string DataDirectory => harness.DataDirectory;
 
-    /// <summary>Runs <paramref name="check"/> on the UI thread over a scene whose saved settings are the defaults, but for <paramref name="settings"/>.</summary>
-    public static Task Run(Func<GiftBoardScene, Task> check, params (string Name, string Value)[] settings) => HeadlessApp.Session.Dispatch(async () =>
+    /// <summary>Runs <paramref name="check"/> on the UI thread over a scene with no room connected.</summary>
+    public static Task Run(Func<GiftBoardScene, Task> check) => HeadlessApp.Session.Dispatch(async () =>
     {
-        await using var scene = Open(settings);
+        await using var scene = Open();
         await check(scene);
         return true;
     }, TestContext.Current.CancellationToken);
 
-    private static GiftBoardScene Open((string Name, string Value)[] settings)
+    private static GiftBoardScene Open()
     {
         var clock = new FakeTimeProvider(Yesterday);
         var harness = new GuiHarness(clock);
-        harness.SaveSettings(settings);
-        harness.Client.GiftBoard.Apply(Settings.Load(harness.DataDirectory));
         var viewModel = harness.CreateViewModel(clock);
-        var page = new GiftBoardSettingsPage(harness.DataDirectory) { DataContext = viewModel };
+        var page = new GiftBoardPanel { DataContext = viewModel };
         var window = new Window { Content = page, Width = 1040, Height = 600 };
         window.Show();
         viewModel.GiftBoard.Observe();
@@ -60,8 +56,17 @@ internal sealed class GiftBoardScene : IAsyncDisposable
 
     /// <summary>A paid gift: <paramref name="batteries"/> is the price of one, and a giftId stays the same for the same name.</summary>
     public static Gift PaidGift(long uid, string nickname, string giftName, long batteries, long num = 1) =>
-        new(uid, nickname, Battery.ToCoins(batteries) * num, null)
-        { GiftId = giftName.GetHashCode(), GiftName = giftName, Price = Battery.ToCoins(batteries), Num = num };
+        new(uid, nickname, Battery.ToCoins(batteries) * num)
+        { GiftId = giftName.GetHashCode(), GiftName = giftName, Price = Battery.ToCoins(batteries), Num = num, Value = Battery.ToCoins(batteries) * num };
+
+    /// <summary>Connects the board of <paramref name="harness"/>'s client to <paramref name="room"/>, the way a room connection would.</summary>
+    public static void ConnectBoard(GuiHarness harness, long room) => harness.Client.GiftBoard.Connect(room);
+
+    /// <summary>Records gifts sent in <paramref name="room"/> through the 收礼记录, the way a room connection with the 盲盒统计
+    /// off would.</summary>
+    public static void Give(GuiHarness harness, long room, IEnumerable<Gift> gifts) =>
+        new GiftRecording(new GiftStore(new Database(harness.DataDirectory), NullLogger.Instance), harness.Client.GiftBoard,
+            NullLogger.Instance, room, blindBoxes: false).Record(gifts);
 
     public void GoToToday() => Clock.SetUtcNow(Today);
 
@@ -70,7 +75,14 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     {
         ViewModel.RoomNumber = RoomId.ToString();
         ViewModel.ConnectionState = RoomConnectionState.Connected;
-        Board.Connect(RoomId, liveTime: null);
+        ConnectBoard(harness, RoomId);
+    }
+
+    /// <summary>Starts a 期 in the connected room at <paramref name="threshold"/> 电池, as the streamer would in the panel.</summary>
+    public void Start(int threshold = 1)
+    {
+        Board.SetOptions(GiftBoardOptions.Default with { Threshold = threshold });
+        Board.StartNewPeriod();
     }
 
     /// <summary>The streamer clicked 断开.</summary>
@@ -80,7 +92,7 @@ internal sealed class GiftBoardScene : IAsyncDisposable
         Board.EndRoom(RoomId);
     }
 
-    public void Give(params Gift[] gifts) => Board.Receive(RoomId, gifts);
+    public void Give(params Gift[] gifts) => Give(harness, RoomId, gifts);
 
     /// <summary>What each line of the 当前榜单 says: its place, nickname, gift and value, as the eye reads them.</summary>
     public string[] Listed() => Page.FindControl<ListBox>("BoardList")!.GetVisualDescendants().OfType<ListBoxItem>()

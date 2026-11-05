@@ -28,7 +28,6 @@ public sealed class SettingsPageTests
             new WelcomeSettingsPage(harness.DataDirectory),
             new AnimationSettingsPage(harness.DataDirectory),
             new GiftAnimationSettingsPage(harness.DataDirectory),
-            new GiftBoardSettingsPage(harness.DataDirectory),
             new SendSettingsPage(harness.DataDirectory),
             new GeneralSettingsPage(harness.DataDirectory)
         ];

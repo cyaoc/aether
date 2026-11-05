@@ -29,8 +29,8 @@ internal sealed class GuiHarness : IDisposable
 
     public AetherClient Client => client;
 
-    /// <summary>The navigation items that are settings pages: all but the danmaku and the lottery.</summary>
-    public static readonly int[] SettingsPages = [1, 2, 3, 4, 6, 7];
+    /// <summary>The navigation items that are settings pages: all but the danmaku, the 礼物榜 and the lottery.</summary>
+    public static readonly int[] SettingsPages = [1, 2, 3, 6, 7];
     public string DataDirectory { get; } = Path.Combine(Path.GetTempPath(), "aether-gui-tests-" + Guid.NewGuid());
     public string SettingsFile => Path.Combine(DataDirectory, "gui.yml");
 
@@ -202,10 +202,12 @@ internal sealed class GuiHarness : IDisposable
         await page.PendingSave;
     }
 
-    public static async Task WaitForAsync(Func<bool> condition)
+    public static Task WaitForAsync(Func<bool> condition) => WaitForAsync(() => Task.FromResult(condition()));
+
+    public static async Task WaitForAsync(Func<Task<bool>> condition)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        while (!condition())
+        while (!await condition())
         {
             await Task.Delay(10, timeout.Token);
             Dispatcher.UIThread.RunJobs();

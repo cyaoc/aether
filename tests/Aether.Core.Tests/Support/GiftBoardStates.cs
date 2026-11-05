@@ -4,9 +4,6 @@ namespace Aether.Core.Tests.Support;
 
 internal static class GiftBoardStates
 {
-    /// <summary>When two shows began (Unix seconds); the second is more than a day after the first.</summary>
-    public const long ShowA = 1700000000, ShowB = 1700100000;
-
     /// <summary>The board as it is now: a new subscription starts with the current state.</summary>
     public static async Task<GiftBoardState> CurrentAsync(this GiftBoardController board, CancellationToken token)
     {
@@ -17,16 +14,24 @@ internal static class GiftBoardStates
     public static async Task<ImmutableArray<GiftBoardRow>> BoardRowsAsync(this WatchHarness h) =>
         (await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Rows;
 
-    /// <summary>Logs in, turns the gift board on at <paramref name="threshold"/> 电池 compared as <paramref name="thresholdBy"/>
-    /// (see <see cref="Settings.GiftBoardByUnitPrice"/>), and watches room 6 until it is connected.</summary>
+    /// <summary>Logs in, watches room 6 as the GUI does until it is connected, and runs a 期 there at <paramref name="threshold"/>
+    /// 电池 compared as <paramref name="thresholdBy"/> (see <see cref="GiftBoardOptions.ByUnitPrice"/>), the other options at
+    /// their defaults. A 期 already running goes on.</summary>
     public static async Task<IAsyncEnumerator<WatchUpdate>> WatchWithGiftBoardAsync(this WatchHarness h, int threshold = 1,
-        int thresholdBy = Settings.GiftBoardByUnitPrice)
+        int thresholdBy = GiftBoardOptions.ByUnitPrice)
     {
         await h.LoginAsync();
-        await h.ApplySettingsAsync(("gift_board.enabled", "true"), ("gift_board.threshold", threshold.ToString()),
-            ("gift_board.threshold_by", thresholdBy.ToString()));
-        return await h.WatchConnectedAsync();
+        h.EnableLotteryAndGiftBoard = true;
+        var updates = await h.WatchConnectedAsync();
+        var board = h.Client.GiftBoard;
+        board.SetOptions(GiftBoardOptions.Default with { Threshold = threshold, ThresholdBy = thresholdBy });
+        if (!(await board.CurrentAsync(h.Stop.Token)).Shown) board.StartNewPeriod();
+        return updates;
     }
+
+    /// <summary>Changes some of the board's options, keeping the others.</summary>
+    public static async Task SetOptionsAsync(this WatchHarness h, Func<GiftBoardOptions, GiftBoardOptions> change) =>
+        h.Client.GiftBoard.SetOptions(change((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Options));
 
     /// <summary>Like <see cref="WatchWithGiftBoardAsync"/> for the room as <see cref="FakeBilibiliHttp.SetRoom"/> has it, then puts
     /// one gift on the board and disconnects, so that the next connection meets a board with a gift on it.</summary>

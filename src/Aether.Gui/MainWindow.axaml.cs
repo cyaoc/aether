@@ -29,7 +29,7 @@ public partial class MainWindow : Window
         var welcome = new WelcomePanel(dataDirectory);
         var animation = welcome.Animation;
         var gift = new GiftAnimationSettingsPage(dataDirectory);
-        var board = new GiftBoardSettingsPage(dataDirectory);
+        var board = new GiftBoardPanel();
         // Navigation items and PageHost children share one order, after the danmaku page.
         Control[] pages = [new BlindBoxSettingsPage(dataDirectory), welcome, gift, board, new LotteryPanel(), new SendSettingsPage(dataDirectory), general];
         foreach (var page in pages) page.IsVisible = false;
@@ -103,7 +103,6 @@ public partial class MainWindow : Window
         ShowEnabled(BlindBoxStatus, current.Error is null ? current.BlindBoxEnabled.Value : null);
         ShowEnabled(WelcomeStatus, current.Error is null ? (current.WelcomeEnabled.Value || current.EntryAnimationEnabled.Value) : null);
         ShowEnabled(GiftAnimationStatus, current.Error is null ? current.GiftAnimationEnabled.Value : null);
-        ShowEnabled(GiftBoardStatus, current.Error is null ? current.GiftBoardEnabled.Value : null);
         if (IsVisible && DataContext is MainWindowViewModel viewModel) _ = viewModel.WebService.RefreshWebServiceAsync(current);
         foreach (var page in SettingsPages) page.RefreshFileStatus(current);
     }

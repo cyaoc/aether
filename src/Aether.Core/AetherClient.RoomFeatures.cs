@@ -94,44 +94,23 @@ public sealed partial class AetherClient
         }
     }
 
-    /// <summary>The 礼物榜 rides along like the lottery: its database failing is logged, and danmaku keep coming.</summary>
-    private sealed class GiftBoardFeature(GiftBoardController board, long roomId, ILogger logger,
-        Func<Task<long?>> readLiveTime) : IRoomFeature
+    /// <summary>The 礼物榜 rides along like the lottery: its database failing is logged, and danmaku keep coming. A reconnect
+    /// is still the same room connection and leaves the board as it is.</summary>
+    private sealed class GiftBoardFeature(GiftBoardController board, long roomId, ILogger logger) : IRoomFeature
     {
         public void Handle(RoomEvent e)
         {
             switch (e)
             {
-                case TransportConnected connected:
-                    RunBoard(() => board.Connect(roomId, connected.LiveTime));
-                    break;
-                case DanmakuProtocol.LiveReceived:
-                    _ = UpdateLiveTimeAsync();
-                    break;
-                case DanmakuProtocol.GiftsReceived received:
-                    RunBoard(() => board.Receive(roomId, received.Gifts));
+                case TransportConnected:
+                    try { board.Connect(roomId); }
+                    catch (Exception error) when (GiftRecording.IsDatabaseFailure(error))
+                    { logger.LogError(error, "礼物榜读写数据库失败，弹幕照常接收：{Error}", error.Message); }
                     break;
                 case RoomConnectionEnded:
                     board.EndRoom(roomId);
                     break;
             }
-        }
-
-        private void RunBoard(Action run)
-        {
-            try { run(); }
-            catch (Exception error) when (error is SqliteException or IOException)
-            { logger.LogError(error, "礼物榜读写数据库失败，弹幕照常接收：{Error}", error.Message); }
-        }
-
-        // The receive loop never waits on B站's HTTP API, so a LIVE message starts the room_init read and moves on.
-        // The room connection ending cancels a read, which needs no word.
-        // shortcut: a read that times out also surfaces as a cancellation and goes unlogged; log it if that ever hides a miss.
-        private async Task UpdateLiveTimeAsync()
-        {
-            try { board.UpdateLiveTime(roomId, await readLiveTime()); }
-            catch (Exception error) when (error is not OperationCanceledException)
-            { logger.LogWarning(error, "开播后更新礼物榜失败，没有按这一场换新的一期：{Error}", error.Message); }
         }
     }
 
@@ -155,15 +134,16 @@ public sealed partial class AetherClient
         }
     }
 
-    private sealed class BlindBoxRecordFeature(Lazy<Stores> stores, long roomId, SendQueue sendQueue, bool announce) : IRoomFeature
+    /// <summary>Writes the room's paid gifts to the 收礼记录; a 盲盒 newly recorded for the 盲盒统计 joins its viewer's 一轮盲盒
+    /// when announcing is on.</summary>
+    private sealed class GiftRecordFeature(GiftRecording recording, SendQueue sendQueue, bool announce) : IRoomFeature
     {
         public void Handle(RoomEvent e)
         {
             // ponytail: a synchronous SQLite write on the receive loop (busy waits up to Microsoft.Data.Sqlite's 30 s
             // command timeout, well inside the 60 s idle deadline); hand it to a background writer if a room ever stalls on it.
-            if (e is DanmakuProtocol.GiftsReceived received)
-                sendQueue.Record(received.Gifts.Where(gift => gift.BlindBox is not null).Select(gift => gift.BlindBox!).ToArray(), received.ReceivedTimestamp,
-                    box => stores.Value.BlindBoxes.Save(roomId, box) && announce);
+            if (e is DanmakuProtocol.GiftsReceived { Gifts: var gifts, ReceivedTimestamp: var receivedAt })
+                recording.Record(gifts, write => sendQueue.Record(gifts, receivedAt, gift => write(gift) && announce));
         }
     }
 

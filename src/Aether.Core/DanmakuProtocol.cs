@@ -26,9 +26,6 @@ internal static class DanmakuProtocol
     internal sealed record DanmakuReceived(Danmaku Danmaku) : RoomEvent;
     internal sealed record GiftsReceived(Gift[] Gifts, long ReceivedTimestamp) : RoomEvent;
     internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : RoomEvent;
-    /// <summary>B站's LIVE message: the room started streaming. Several can come at once and only the first packet carries the
-    /// start time, so a feature reads room_init for it instead.</summary>
-    internal sealed record LiveReceived : RoomEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
     private sealed class FormatNotices(ILogger logger, Func<bool> parseEntries)
@@ -123,8 +120,6 @@ internal static class DanmakuProtocol
                         WealthLevel = NumberAt(ArrayItem(info, 16), 0)
                     })];
                 }
-                else if (command == "LIVE")
-                    decoded = [new LiveReceived()];
                 else if (GiftMessages.Decode(command, root, logger) is { Length: > 0 } boxes)
                     decoded = [new GiftsReceived(boxes, receivedTimestamp)];
                 else if (parseEntries() && EntryMessages.Decode(command, root, roomId) is { } entry)

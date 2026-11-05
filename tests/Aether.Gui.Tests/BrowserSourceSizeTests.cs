@@ -47,9 +47,9 @@ public sealed class BrowserSourceSizeTests
         window.Show();
         try
         {
-            foreach (SettingsPage page in new SettingsPage[]
+            foreach (Control page in new Control[]
             {
-                new AnimationSettingsPage(harness.DataDirectory), new GiftAnimationSettingsPage(harness.DataDirectory), new GiftBoardSettingsPage(harness.DataDirectory)
+                new AnimationSettingsPage(harness.DataDirectory), new GiftAnimationSettingsPage(harness.DataDirectory), new GiftBoardPanel()
             })
             {
                 window.Content = page;

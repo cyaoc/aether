@@ -9,9 +9,10 @@ public sealed class SendGiftV2Tests
     public void V2_gift_carries_what_the_gift_board_records_and_its_own_tid()
     {
         var message = Message(Broadcast([Item(num: 3, spend: 7500, tid: "test-v2-9")], blindId: 0));
-        Assert.Equal(new Gift(10001, "测试观众", 7500, null)
+        Assert.Equal(new Gift(10001, "测试观众", 7500)
         {
-            GiftId = 35311, GiftName = "好运柚叶", Price = 2500, Num = 3, Tid = "test-v2-9", FaceUrl = TestFace, IconUrl = TestIcon
+            GiftId = 35311, GiftName = "好运柚叶", Price = 2500, Num = 3, Value = 7500, Timestamp = 1732634266, Tid = "test-v2-9",
+            FaceUrl = TestFace, IconUrl = TestIcon
         }, Assert.Single(Decode(message)));
     }
 
@@ -26,7 +27,7 @@ public sealed class SendGiftV2Tests
         Assert.All(gifts, gift =>
         {
             Assert.Equal(TestFace, gift.FaceUrl);
-            Assert.Equal(35206, Assert.IsType<BlindBox>(gift.BlindBox).BlindGiftId);
+            Assert.Equal(35206, Assert.IsType<BlindGift>(gift.Blind).Id);
         });
     }
 

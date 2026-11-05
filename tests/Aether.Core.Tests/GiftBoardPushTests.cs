@@ -8,19 +8,17 @@ public sealed class GiftBoardPushTests
     public async Task The_current_state_comes_first_and_every_change_follows()
     {
         await using var h = new WatchHarness();
-        await h.LoginAsync();
-        await h.ApplySettingsAsync(("gift_board.enabled", "true"), ("gift_board.threshold", "1"), ("gift_board.mascot", "false"), ("gift_board.volume", "0"));
         await using var states = h.Client.GiftBoard.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
 
         var first = await h.NextAsync(states);
-        Assert.Equal((0, false, 0), (first.Rows.Length, first.Mascot, first.Volume));
+        Assert.Equal((0, false, false), (first.Rows.Length, first.Shown, first.Connected));
 
-        await using var updates = await h.WatchConnectedAsync();
+        await using var updates = await h.WatchWithGiftBoardAsync();
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
         await h.ReadUntilAsync(states, state => state.Rows.Length == 1);
 
-        await h.ApplySettingsAsync(("gift_board.mascot", "true"), ("gift_board.volume", "30"));
-        var changed = await h.ReadUntilAsync(states, state => state.Mascot);
+        await h.SetOptionsAsync(options => options with { Mascot = false, Volume = 30 });
+        var changed = await h.ReadUntilAsync(states, state => !state.Mascot);
         Assert.Equal((1, 30), (changed[^1].Rows.Length, changed[^1].Volume));
     }
 
@@ -30,17 +28,19 @@ public sealed class GiftBoardPushTests
     {
         await using var h = new WatchHarness();
         await using var updates = await h.WatchWithGiftBoardAsync();
-        await using var states = h.Client.GiftBoard.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        var board = h.Client.GiftBoard;
+        await using var states = board.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.False((await h.NextAsync(states)).FromGift);
 
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
         Assert.True((await h.NextAsync(states)).FromGift);
 
-        h.Client.GiftBoard.Clear();
-        Assert.False((await h.NextAsync(states)).FromGift);
-        h.Client.GiftBoard.Restore();
-        Assert.False((await h.NextAsync(states)).FromGift);
-        await h.ApplySettingsAsync(("gift_board.mascot", "false"));
+        foreach (var change in new Action[] { board.EndPeriod, board.ContinuePeriod, board.EndPeriod, board.StartNewPeriod })
+        {
+            change();
+            Assert.False((await h.NextAsync(states)).FromGift);
+        }
+        await h.SetOptionsAsync(options => options with { Mascot = false });
         Assert.False((await h.NextAsync(states)).FromGift);
         await updates.DisposeAsync();
         Assert.False((await h.NextAsync(states)).FromGift);
@@ -60,19 +60,10 @@ public sealed class GiftBoardPushTests
     }
 
     [Fact]
-    public async Task The_board_is_empty_when_it_is_off_or_there_is_no_room_connection()
+    public async Task The_board_is_empty_without_a_room_connection()
     {
         await using var h = new WatchHarness();
-        await using (var updates = await h.WatchWithGiftBoardAsync())
-        {
-            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
-            Assert.Single(await h.BoardRowsAsync());
-
-            await h.ApplySettingsAsync(("gift_board.enabled", "false"));
-            Assert.Empty(await h.BoardRowsAsync());
-            await h.ApplySettingsAsync(("gift_board.enabled", "true"));
-            Assert.Single(await h.BoardRowsAsync());
-        }
+        await h.WatchAndLeaveAGiftAsync();
 
         Assert.Empty(await h.BoardRowsAsync());
         await using var next = await h.WatchConnectedAsync();
@@ -80,15 +71,17 @@ public sealed class GiftBoardPushTests
     }
 
     [Fact]
-    public async Task Turning_the_board_off_pushes_an_empty_board()
+    public async Task Ending_the_period_pushes_its_rows_as_no_longer_shown()
     {
         await using var h = new WatchHarness();
         await using var updates = await h.WatchWithGiftBoardAsync();
         await using var states = await SubscribeAfterAGiftAsync(h, updates);
 
-        await h.ApplySettingsAsync(("gift_board.enabled", "false"));
+        h.Client.GiftBoard.EndPeriod();
 
-        Assert.Empty((await h.NextAsync(states)).Rows);
+        var ended = await h.NextAsync(states);
+        Assert.False(ended.Shown);
+        Assert.Single(ended.Rows);
     }
 
     [Fact]
@@ -117,26 +110,6 @@ public sealed class GiftBoardPushTests
 
         // The next state pushed is the one the new gift made: nothing, least of all an empty board, came between.
         Assert.Equal(2, Assert.Single((await h.NextAsync(states)).Rows).Num);
-    }
-
-    [Fact]
-    public async Task Another_room_shows_its_own_board_and_the_first_comes_back_with_it()
-    {
-        await using var h = new WatchHarness();
-        await using (var first = await h.WatchWithGiftBoardAsync())
-            await h.PushAndSyncAsync(first, BlindGiftFixture.Ordinary(tid: "first-room"));
-
-        h.Http.SetRoom(roomId: 999);
-        await using (var other = await h.WatchConnectedAsync())
-        {
-            Assert.Empty(await h.BoardRowsAsync());
-            await h.PushAndSyncAsync(other, BlindGiftFixture.Ordinary(uid: 20002, tid: "other-room"));
-            Assert.Equal(["20002/gift:32698"], (await h.BoardRowsAsync()).Select(row => row.Id));
-        }
-
-        h.Http.SetRoom();
-        await using var again = await h.WatchConnectedAsync();
-        Assert.Equal(["10001/gift:32698"], (await h.BoardRowsAsync()).Select(row => row.Id));
     }
 
     /// <summary>Puts one gift on the board and subscribes, so the first state read is the board with that gift on it.</summary>

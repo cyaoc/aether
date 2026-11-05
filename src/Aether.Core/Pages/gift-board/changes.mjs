@@ -3,11 +3,11 @@ const BACKLOG_LIMIT = 3;   // more changes than this waiting jump to the latest 
 const REDRAW = { kind: 'redraw' };
 
 /** One gift changes one row: it appears (`new`, or `top` with `debut` when it appears in first place), its count grows (`more`), it
- * climbs (`pass`), or it takes first place (`top`). Anything else, such as rows removed, several rows changed or the mascot
- * switched, is redrawn without animation, and a state that shows the same board is nothing. A state that no gift made is redrawn
- * too, even when it happens to change one row: a restore or a new threshold must not cheer. */
+ * climbs (`pass`), or it takes first place (`top`). Anything else, such as rows removed, several rows changed, the mascot
+ * switched or the 期 ended or continued, is redrawn without animation, and a state that shows the same board is nothing. A state
+ * that no gift made is redrawn too, even when it happens to change one row: a new threshold must not cheer. */
 function compare(before, after) {
-  if (before.mascot !== after.mascot) return REDRAW;
+  if (before.shown !== after.shown || before.mascot !== after.mascot) return REDRAW;
   const earlier = new Map(before.rows.map((row, rank) => [row.id, { num: row.num, rank }]));
   const changed = after.rows.map((row, rank) => ({ row, rank, old: earlier.get(row.id) })).filter(({ row, old }) => old?.num !== row.num);
   const kept = after.rows.filter(row => earlier.has(row.id)).length;
@@ -32,8 +32,8 @@ export class Changes {
     this.waiting = [];
   }
 
-  /** Returns true when the state replaces the board as a whole: one that no gift made, such as a clear, a restore, a room left
-   * or a new connection's first. Whatever was playing or waiting is then out of date, and the state is drawn next. */
+  /** Returns true when the state replaces the board as a whole: one that no gift made, such as a 期 started, ended or
+   * continued, a room left or a new connection's first. Whatever was playing or waiting is then out of date, and the state is drawn next. */
   receive(state) {
     const change = this.last ? compare(this.last, state) : REDRAW;
     this.last = state;

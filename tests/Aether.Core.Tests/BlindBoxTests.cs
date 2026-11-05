@@ -35,7 +35,7 @@ public sealed class BlindBoxTests
         await h.PushAndSyncAsync(updates, Gift);
         using var connection = TestDatabase.Open(h.DataDirectory);
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM blind_box";
+        command.CommandText = "SELECT COUNT(*) FROM gift_record";
         Assert.Equal(0L, command.ExecuteScalar());
         Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("记录盲盒"));
     }
@@ -254,7 +254,7 @@ public sealed class BlindBoxTests
         using (var connection = TestDatabase.Open(h.DataDirectory))
         using (var command = connection.CreateCommand())
         {
-            command.CommandText = "CREATE TRIGGER fail_gift BEFORE INSERT ON blind_box BEGIN SELECT RAISE(ABORT, 'test write failure'); END;";
+            command.CommandText = "CREATE TRIGGER fail_gift BEFORE INSERT ON gift_record BEGIN SELECT RAISE(ABORT, 'test write failure'); END;";
             command.ExecuteNonQuery();
         }
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(Gift), 0));

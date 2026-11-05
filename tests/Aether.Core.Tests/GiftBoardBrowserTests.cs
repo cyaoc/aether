@@ -15,7 +15,7 @@ public sealed partial class GiftBoardBrowserTests
     [InlineData(480, 640, true, 9, 3, 640.0 / 820)]
     public async Task The_board_scales_by_the_page_width_and_shows_the_rows_its_height_allows(int width, int height, bool mascot, int viewers, int fit, double scale)
     {
-        await using var page = await StartAsync(("gift_board.mascot", mascot ? "true" : "false"), ("gift_board.volume", "0"));
+        await using var page = await StartAsync(options => options with { Mascot = mascot, Volume = 0 });
         await page.OpenAsync(width, height);
         await page.PauseClockAsync();
         await page.GiveToAsync(viewers);
@@ -68,7 +68,7 @@ public sealed partial class GiftBoardBrowserTests
     [InlineData(false)]
     public async Task A_viewer_who_appears_in_first_place_is_a_new_first_place_with_or_without_the_mascot(bool mascot)
     {
-        await using var page = await StartAsync(("gift_board.mascot", mascot ? "true" : "false"));
+        await using var page = await StartAsync(options => options with { Mascot = mascot });
         await page.OpenAsync(480, 1000);
         await page.ClickAsync();
         await page.Browser.EvaluateAsync(RecordSounds);
@@ -92,7 +92,7 @@ public sealed partial class GiftBoardBrowserTests
     [Fact]
     public async Task A_volume_of_zero_loads_no_sound_and_plays_none()
     {
-        await using var page = await StartAsync(("gift_board.volume", "0"));
+        await using var page = await StartAsync(options => options with { Volume = 0 });
         await page.OpenAsync(480, 1000);
         await page.ClickAsync();
         await page.Browser.EvaluateAsync(RecordSounds);
@@ -108,7 +108,7 @@ public sealed partial class GiftBoardBrowserTests
     }
 
     [Fact]
-    public async Task A_clear_during_a_cheer_stops_it_and_its_sound_at_once_and_shows_the_empty_board()
+    public async Task Ending_the_period_during_a_cheer_stops_it_and_its_sound_at_once_and_leaves_the_page_transparent()
     {
         await using var page = await StartAsync();
         await page.OpenAsync(480, 1000);
@@ -120,13 +120,13 @@ public sealed partial class GiftBoardBrowserTests
         await page.WaitForEventAsync("top");
         await page.SetEventTimeAsync(300);
 
-        // The clock stands still: the cheer and the one waiting behind it give way to the cleared board without playing out.
+        // The clock stands still: the cheer and the one waiting behind it give way to the ended 期 without playing out.
         var received = page.Browser.EventSourceMessages.Count;
-        page.H.Client.GiftBoard.Clear();
+        page.H.Client.GiftBoard.EndPeriod();
         await page.WaitForStatesAsync(received + 1);
         await page.Browser.EvaluateAsync(TwoFrames);
         Assert.Equal("", await page.PlayingAsync());
-        await page.WaitForTransparentAsync(100, (int)(Mascot + CardsY + 49));
+        Assert.All(await page.AlphaAsync(Enumerable.Range(0, 50).Select(step => (240, step * 20))), alpha => Assert.Equal(0, alpha));
         await page.StepClockAsync(5000);
         Assert.Equal(0, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
         Assert.Empty(page.Browser.Errors);
@@ -149,7 +149,7 @@ public sealed partial class GiftBoardBrowserTests
 
         // Saving the volume changes nothing on the board, so no state is played for it.
         var received = page.Browser.EventSourceMessages.Count;
-        await page.H.ApplySettingsAsync(("gift_board.volume", "0"));
+        await page.H.SetOptionsAsync(options => options with { Volume = 0 });
         await page.WaitForStatesAsync(received + 1);
         await page.Browser.EvaluateAsync(TwoFrames);
         Assert.Equal(0, (await page.Browser.EvaluateAsync("gains[0].gain.value")).GetDouble());
@@ -185,6 +185,26 @@ public sealed partial class GiftBoardBrowserTests
     }
 
     [Fact]
+    public async Task An_ended_period_leaves_the_page_transparent_and_a_continued_one_shows_again()
+    {
+        await using var page = await StartAsync();
+        await page.GiveToAsync(2);
+        page.H.Client.GiftBoard.EndPeriod();
+        // Down the middle of the page, through the mascot, the ribbon, the cards and the pills.
+        var middle = Enumerable.Range(0, 50).Select(step => (240, step * 20)).ToArray();
+        await page.OpenAsync(480, 1000);
+        await page.Browser.EvaluateAsync(TwoFrames);
+        Assert.All(await page.AlphaAsync(middle), alpha => Assert.Equal(0, alpha));
+
+        page.H.Client.GiftBoard.ContinuePeriod();
+        await page.WaitForSolidAsync(100, (int)(Mascot + CardsY + 49));
+        page.H.Client.GiftBoard.EndPeriod();
+        await page.WaitForTransparentAsync(100, (int)(Mascot + CardsY + 49));
+        Assert.All(await page.AlphaAsync(middle), alpha => Assert.Equal(0, alpha));
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
     public async Task The_first_state_is_drawn_whole_without_animation_or_sound_and_a_board_that_changes_shape_is_redrawn()
     {
         await using var page = await StartAsync();
@@ -198,12 +218,12 @@ public sealed partial class GiftBoardBrowserTests
         Assert.All(await page.AlphaAsync([(100, (int)(Mascot + RowsY + 25)), (100, (int)(Mascot + RowsY + Pitch + 25))]), alpha => Assert.True(alpha > 100));
 
         // Switching the mascot off lifts the board; that is a redraw, not an animation, and it needs no clock step.
-        await page.H.ApplySettingsAsync(("gift_board.mascot", "false"));
+        await page.H.SetOptionsAsync(options => options with { Mascot = false });
         await page.WaitForSolidAsync(100, (int)(NoMascot + RowsY + 25));
         Assert.Equal("", await page.PlayingAsync());
 
         // A higher threshold takes rows off the board: another redraw.
-        await page.H.ApplySettingsAsync(("gift_board.threshold", "49"));
+        await page.H.SetOptionsAsync(options => options with { Threshold = 49 });
         await page.WaitForTransparentAsync(100, (int)(NoMascot + RowsY + 25));
         Assert.Equal("", await page.PlayingAsync());
         Assert.Equal(0, (await page.Browser.EvaluateAsync("sounds.length")).GetInt32());
@@ -212,7 +232,7 @@ public sealed partial class GiftBoardBrowserTests
     [Fact]
     public async Task A_threshold_that_puts_a_single_viewer_on_an_empty_board_is_drawn_at_once_without_a_cheer()
     {
-        await using var page = await StartAsync(("gift_board.threshold", "100"));
+        await using var page = await StartAsync(options => options with { Threshold = 100 });
         await page.GiveAsync(1, 5000);
         await page.OpenAsync(480, 1000);
         await page.ClickAsync();
@@ -220,7 +240,7 @@ public sealed partial class GiftBoardBrowserTests
         await page.PauseClockAsync();
 
         // The viewer sent 50 电池, under the threshold: lowering it brings one row in first place, but no gift did it.
-        await page.H.ApplySettingsAsync(("gift_board.threshold", "1"));
+        await page.H.SetOptionsAsync(options => options with { Threshold = 1 });
         await page.WaitForSolidAsync(100, (int)(Mascot + CardsY + 49));
         Assert.Equal("", await page.PlayingAsync());
         await page.StepClockAsync(2000);
@@ -236,7 +256,7 @@ public sealed partial class GiftBoardBrowserTests
 
     private static async Task<PageSession> OpenScrollingListAsync()
     {
-        var page = await StartAsync(("gift_board.volume", "0"));
+        var page = await StartAsync(options => options with { Volume = 0 });
         try
         {
             foreach (var (uid, price) in ScrollingList) await page.GiveAsync(uid, price);
@@ -291,7 +311,7 @@ public sealed partial class GiftBoardBrowserTests
     [Fact]
     public async Task Effects_are_drawn_inside_the_board_and_never_beyond_it()
     {
-        await using var page = await StartAsync(("gift_board.volume", "0"));
+        await using var page = await StartAsync(options => options with { Volume = 0 });
         await page.OpenAsync(480, 640);
         await page.PauseClockAsync();
         foreach (var uid in new long[] { 1, 2, 3 })
@@ -314,7 +334,7 @@ public sealed partial class GiftBoardBrowserTests
     [Fact]
     public async Task Pictures_come_from_the_bilibili_host_without_a_referrer_and_a_missing_one_does_not_stop_the_page()
     {
-        await using var page = await StartAsync(("gift_board.volume", "0"));
+        await using var page = await StartAsync(options => options with { Volume = 0 });
         await page.OpenAsync(480, 1000);
         await page.Browser.CommandAsync("Network.setBlockedURLs", new { urls = BilibiliPictureHosts });
         await page.Browser.EvaluateAsync("window.pictures = []; const Original = Image; window.Image = class extends Original { constructor() { super(); pictures.push(this); } }; true");
@@ -335,7 +355,7 @@ public sealed partial class GiftBoardBrowserTests
     [Fact]
     public async Task A_viewer_without_a_picture_gets_a_disc_with_the_first_character_of_the_name()
     {
-        await using var page = await StartAsync(("gift_board.volume", "0"));
+        await using var page = await StartAsync(options => options with { Volume = 0 });
         await page.OpenAsync(480, 1000);
         await page.PauseClockAsync();
         var gift = JsonNode.Parse(BlindGiftFixture.Ordinary(uid: 1, nickname: "月下Lily"))!;

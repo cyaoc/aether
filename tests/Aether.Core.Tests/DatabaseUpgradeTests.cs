@@ -2,25 +2,40 @@ using Aether.Core.Tests.Support;
 
 namespace Aether.Core.Tests;
 
-/// <summary>Opens the frozen sample of what releases v0.2.2 to v0.3.1 left behind (database version 5).</summary>
+/// <summary>Opens the frozen samples of what releases left behind: v0.2.1, and v0.2.2 to v0.3.1 (database version 5).</summary>
 public sealed class DatabaseUpgradeTests
 {
     private const string Sample = "database-v0.3.1.sql";
     private const long Room = 7734200;
 
+    [Theory]
+    [InlineData("database-v0.2.1.sql", 1)]
+    [InlineData(Sample, 5)]
+    public async Task An_older_database_moves_every_blind_box_into_the_gift_record_and_drops_the_old_table(string sample, int boxes)
+    {
+        await using var h = new WatchHarness();
+        TestDatabase.Restore(h.DataDirectory, sample);
+        var before = TestDatabase.LegacyBlindBoxRows(h.DataDirectory);
+
+        _ = new Database(h.DataDirectory);
+
+        Assert.Equal(6L, TestDatabase.UserVersion(h.DataDirectory));
+        Assert.Equal(boxes, before.Count);
+        Assert.Equal(before, TestDatabase.BlindBoxRows(h.DataDirectory));
+        // Every row is one of them: none is on the board, and the board has no 期 yet.
+        Assert.Equal(boxes, TestDatabase.RowCount(h.DataDirectory, "gift_record"));
+        Assert.Equal(0L, TestDatabase.RowCount(h.DataDirectory, "gift_board_period"));
+        Assert.Empty(TestDatabase.Columns(h.DataDirectory, "blind_box"));
+    }
+
     [Fact]
-    public async Task Version_five_database_loses_blind_box_raw_messages_and_keeps_their_values_and_tallies()
+    public async Task Version_five_database_keeps_its_blind_box_tallies()
     {
         await using var h = new WatchHarness();
         TestDatabase.Restore(h.DataDirectory, Sample);
-        var before = TestDatabase.BlindBoxRows(h.DataDirectory);
 
-        var blindBoxes = new BlindBoxStore(new Database(h.DataDirectory), h.Logger);
+        var blindBoxes = new BlindBoxStore(new Database(h.DataDirectory));
 
-        Assert.Equal(7L, TestDatabase.UserVersion(h.DataDirectory));
-        Assert.DoesNotContain("raw_message", TestDatabase.Columns(h.DataDirectory, "blind_box"));
-        Assert.Equal(5, before.Count);
-        Assert.Equal(before, TestDatabase.BlindBoxRows(h.DataDirectory));
         // Viewer 42 sent one box on 31 October, one on 1 November and two on 2 November, Beijing time.
         var at = new DateTimeOffset(2026, 11, 2, 12, 0, 0, TimeSpan.FromHours(8));
         Assert.Equal(new BlindBoxTally(3000, 4500), blindBoxes.Tally(Room, 42, at, BlindBoxPeriod.Daily));
@@ -43,18 +58,6 @@ public sealed class DatabaseUpgradeTests
     }
 
     [Fact]
-    public async Task Version_five_database_gets_empty_gift_board_tables()
-    {
-        await using var h = new WatchHarness();
-        TestDatabase.Restore(h.DataDirectory, Sample);
-
-        h.Client.Lottery.GetHistory(Room);
-
-        Assert.Equal(0L, TestDatabase.RowCount(h.DataDirectory, "gift_board_period"));
-        Assert.Equal(0L, TestDatabase.RowCount(h.DataDirectory, "gift_board_total"));
-    }
-
-    [Fact]
     public async Task Opening_the_upgraded_database_again_does_not_upgrade_it_again()
     {
         await using var h = new WatchHarness();
@@ -64,6 +67,6 @@ public sealed class DatabaseUpgradeTests
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
 
         Assert.NotEmpty(restarted.Lottery.GetHistory(Room));
-        Assert.Equal(7L, TestDatabase.UserVersion(h.DataDirectory));
+        Assert.Equal(6L, TestDatabase.UserVersion(h.DataDirectory));
     }
 }

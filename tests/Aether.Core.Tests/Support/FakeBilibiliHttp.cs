@@ -11,18 +11,10 @@ internal sealed class FakeBilibiliHttp : HttpMessageHandler
     public const string NavUrl = "https://api.bilibili.com/x/web-interface/nav";
     public const string DanmakuLengthLimitUrl = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser";
     public const string RoomInitUrl = "https://api.live.bilibili.com/room/v1/Room/room_init";
-    /// <summary>room_init's live_time for a room that is not live: 0001-01-01 UTC as Unix seconds (bilibili-API-collect, live/info).</summary>
-    public const long NotLiveTime = -62170012800;
 
-    /// <summary>Makes room_init answer for this room. <paramref name="liveStatus"/> is B站's: 0 off air, 1 live, 2 rerun.</summary>
-    public void SetRoom(long roomId = 7734200, int liveStatus = 0, long liveTime = NotLiveTime) => Responses[RoomInitUrl] =
-        System.Text.Json.JsonSerializer.Serialize(new
-        {
-            code = 0, data = new { room_id = roomId, uid = 24680, live_status = liveStatus, live_time = liveTime }
-        });
-
-    /// <summary>Makes room_init say the default room has been live since <paramref name="liveTime"/>.</summary>
-    public void SetLive(long liveTime) => SetRoom(liveStatus: 1, liveTime: liveTime);
+    /// <summary>Makes room_init answer for this room.</summary>
+    public void SetRoom(long roomId = 7734200) => Responses[RoomInitUrl] =
+        System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { room_id = roomId, uid = 24680 } });
 
     /// <summary>Makes getInfoByUser report this 弹幕字数上限.</summary>
     public void SetDanmakuLengthLimit(int limit) => Responses[DanmakuLengthLimitUrl] =

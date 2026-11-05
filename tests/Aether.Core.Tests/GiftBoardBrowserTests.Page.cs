@@ -41,16 +41,18 @@ public sealed partial class GiftBoardBrowserTests
         true
         """;
 
-    /// <summary>The gift board on, a room connected, and a Chrome that is not open yet.</summary>
-    private static async Task<PageSession> StartAsync(params (string Name, string Value)[] settings)
+    /// <summary>A room connected with a 期 running, its options changed by <paramref name="options"/>, and a Chrome that is not
+    /// open yet.</summary>
+    private static async Task<PageSession> StartAsync(Func<GiftBoardOptions, GiftBoardOptions>? options = null)
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
             Assert.Skip("Set AETHER_TEST_CHROME for real gift board browser acceptance.");
         var h = new WatchHarness();
+        await h.ApplySettingsAsync();
         var page = new PageSession(h, await h.WatchWithGiftBoardAsync());
         try
         {
-            if (settings.Length > 0) await h.ApplySettingsAsync(settings);
+            if (options is not null) await h.SetOptionsAsync(options);
             return page;
         }
         catch

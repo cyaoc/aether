@@ -227,7 +227,7 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             // Core runs the room connection off the UI thread; this loop only shows what it reports.
-            await foreach (var update in client.WatchAsync(roomId, enableLottery: true, cancellationToken))
+            await foreach (var update in client.WatchAsync(roomId, enableLotteryAndGiftBoard: true, cancellationToken))
                 Apply(update);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }

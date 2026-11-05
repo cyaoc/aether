@@ -378,7 +378,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [Fact]
     public void An_existing_five_second_interval_is_preserved()
     {
-        const string yaml = "web_service:\nentry_animation:\ngift_animation:\ngift_board:\nentry_animation_viewers:\nwelcome_danmaku:\nlog:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
+        const string yaml = "web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\nwelcome_danmaku:\nlog:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
         Write(yaml);
         Assert.Equal(5, Settings.Load(harness.DataDirectory).SendIntervalSeconds.Value);
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
@@ -389,7 +389,7 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Assert.Contains("announce: true", File.ReadAllText(SettingsPath));
-        Write("web_service:\nentry_animation:\ngift_animation:\ngift_board:\nentry_animation_viewers:\nwelcome_danmaku:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 今日盲盒 # 关键字\n");
+        Write("web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\nwelcome_danmaku:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 今日盲盒 # 关键字\n");
         var before = File.ReadAllText(SettingsPath);
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
@@ -861,7 +861,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("Critical", LogLevel.Critical)]
     public void Reads_known_values_without_rewriting_the_file(string level, LogLevel expected)
     {
-        var yaml = $"web_service:\nentry_animation:\ngift_animation:\ngift_board:\nentry_animation_viewers:\n# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\nwelcome_danmaku:\n";
+        var yaml = $"web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\n# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\nwelcome_danmaku:\n";
         Write(yaml);
         var before = File.ReadAllBytes(SettingsPath);
 

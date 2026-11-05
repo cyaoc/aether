@@ -43,16 +43,25 @@ internal static class TestDatabase
         long BlindGiftPrice, long OpenedGiftId, string OpenedGiftName, long OpenedGiftPrice, long Num, long Spend,
         long OpenedValue, long Timestamp, string? Tid);
 
-    /// <summary>Every blind_box row in insertion order, all columns but id.</summary>
-    public static List<BlindBoxRow> BlindBoxRows(string dataDirectory)
+    /// <summary>Every 盲盒 the 收礼记录 holds for the 盲盒统计, in insertion order.</summary>
+    public static List<BlindBoxRow> BlindBoxRows(string dataDirectory) => ReadBlindBoxes(dataDirectory, """
+        SELECT room_id, uid, nickname, blind_gift_id, blind_gift_name, blind_gift_price,
+            gift_id, gift_name, value / num, num, spend, value, timestamp, tid
+        FROM gift_record WHERE for_blind_box = 1 ORDER BY id;
+        """);
+
+    /// <summary>Every row of the blind_box table releases up to v0.3.1 kept, before an upgrade moves them, all columns but id.</summary>
+    public static List<BlindBoxRow> LegacyBlindBoxRows(string dataDirectory) => ReadBlindBoxes(dataDirectory, """
+        SELECT room_id, uid, nickname, blind_gift_id, blind_gift_name, blind_gift_price,
+            opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid
+        FROM blind_box ORDER BY id;
+        """);
+
+    private static List<BlindBoxRow> ReadBlindBoxes(string dataDirectory, string query)
     {
         using var connection = Open(dataDirectory);
         using var command = connection.CreateCommand();
-        command.CommandText = """
-            SELECT room_id, uid, nickname, blind_gift_id, blind_gift_name, blind_gift_price,
-                opened_gift_id, opened_gift_name, opened_gift_price, num, spend, opened_value, timestamp, tid
-            FROM blind_box ORDER BY id;
-            """;
+        command.CommandText = query;
         using var reader = command.ExecuteReader();
         List<BlindBoxRow> rows = [];
         while (reader.Read()) rows.Add(new(
@@ -62,29 +71,11 @@ internal static class TestDatabase
         return rows;
     }
 
-    /// <summary>The live_time of every gift_board_period row, oldest first: one entry per 期, null for one opened off air.</summary>
-    public static List<long?> GiftBoardLiveTimes(string dataDirectory)
-    {
-        using var connection = Open(dataDirectory);
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT live_time FROM gift_board_period ORDER BY id";
-        using var reader = command.ExecuteReader();
-        List<long?> times = [];
-        while (reader.Read()) times.Add(reader.GetNullable<long>(0));
-        return times;
-    }
+    /// <summary>How many gifts the 收礼记录 holds, in every room.</summary>
+    public static long GiftRecords(string dataDirectory) => RowCount(dataDirectory, "gift_record");
 
-    /// <summary>When each gift_board_total row was first and last sent, in insertion order.</summary>
-    public static List<(DateTimeOffset FirstAt, DateTimeOffset LastAt)> GiftBoardTimes(string dataDirectory)
-    {
-        using var connection = Open(dataDirectory);
-        using var command = connection.CreateCommand();
-        command.CommandText = "SELECT first_at, last_at FROM gift_board_total ORDER BY rowid";
-        using var reader = command.ExecuteReader();
-        List<(DateTimeOffset, DateTimeOffset)> times = [];
-        while (reader.Read()) times.Add((reader.GetDateTimeOffset(0), reader.GetDateTimeOffset(1)));
-        return times;
-    }
+    /// <summary>How many 期 the 礼物榜 has begun, in every room.</summary>
+    public static long GiftBoardPeriods(string dataDirectory) => RowCount(dataDirectory, "gift_board_period");
 
     /// <summary>Writes the database an older release left behind: runs a frozen sample from Fixtures on a new file.</summary>
     public static void Restore(string dataDirectory, string fixture)

@@ -6,78 +6,66 @@ using Avalonia.VisualTree;
 
 namespace Aether.Gui.Tests;
 
-public sealed class GiftBoardSettingsTests
+public sealed class GiftBoardOptionsTests
 {
     [Fact]
-    public Task The_navigation_lists_the_gift_board_after_the_gift_animation_and_shows_its_saved_switch() => OnMainWindow(async (h, vm, window) =>
+    public Task The_navigation_lists_the_gift_board_after_the_gift_animation_and_says_when_it_is_recording() => OnMainWindow(async (h, vm, window) =>
     {
         var status = window.FindControl<TextBlock>("GiftBoardStatus")!;
         var gift = (ListBoxItem)window.Navigation.Items[3]!;
         Assert.Equal("送礼动画", ((Grid)gift.Content!).Children.OfType<TextBlock>().First().Text);
         Assert.Equal("礼物榜", ((Grid)((ListBoxItem)window.Navigation.Items[4]!).Content!).Children.OfType<TextBlock>().First().Text);
-        Assert.Equal("关", status.Text);
-
         window.Navigation.SelectedIndex = 4;
         GuiHarness.Flush();
-        var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-        Assert.IsType<GiftBoardSettingsPage>(page);
-        page.FindControl<ToggleSwitch>("EnabledInput")!.IsChecked = true;
-        GuiHarness.Flush();
-        Assert.Equal("关", status.Text);
-        await GuiHarness.SaveAsync(page);
-        Assert.Equal("开", status.Text);
+        Assert.Single(window.GetVisualDescendants().OfType<GiftBoardPanel>(), panel => panel.IsEffectivelyVisible);
+        Assert.False(status.IsEffectivelyVisible);
+
+        GiftBoardScene.ConnectBoard(h, GiftBoardScene.RoomId);
+        h.Client.GiftBoard.StartNewPeriod();
+        await GuiHarness.WaitForAsync(() => status.IsEffectivelyVisible);
+        Assert.Equal("统计中", status.Text);
+        Assert.Contains("success", status.Classes);
+
+        h.Client.GiftBoard.EndPeriod();
+        await GuiHarness.WaitForAsync(() => !status.IsEffectivelyVisible);
     });
 
     [Fact]
-    public Task Every_input_is_saved_and_shown_again_when_the_page_is_reopened() => GiftBoardScene.Run(async scene =>
+    public Task Every_option_applies_at_once_and_stays_with_the_period() => GiftBoardScene.Run(async scene =>
     {
         var page = scene.Page;
-        Assert.True(page.FindControl<RadioButton>("ByUnitPriceInput")!.IsChecked);
-        Assert.Equal(60, page.FindControl<Slider>("VolumeInput")!.Value);
+        scene.Connect();
+        scene.Start();
+        await GuiHarness.WaitForAsync(() => page.FindControl<StackPanel>("Options")!.IsEffectivelyEnabled);
+        Assert.Equal("选项改了立即生效，开始新一期时沿用", page.FindControl<TextBlock>("FooterText")!.Text);
 
-        page.FindControl<ToggleSwitch>("EnabledInput")!.IsChecked = true;
         page.FindControl<NumericUpDown>("ThresholdInput")!.Text = "250";
         page.FindControl<RadioButton>("ByTotalPriceInput")!.IsChecked = true;
-        page.FindControl<ToggleSwitch>("ResetOnLiveInput")!.IsChecked = false;
         page.FindControl<ToggleSwitch>("MascotInput")!.IsChecked = false;
         page.FindControl<Slider>("VolumeInput")!.Value = 25;
-        await GuiHarness.SaveAsync(scene.Page);
+        var changed = new GiftBoardOptions(250, GiftBoardOptions.ByTotalPrice, false, 25);
+        await GuiHarness.WaitForAsync(async () => (await scene.Board.CurrentAsync()).Options == changed);
 
-        var saved = Settings.Load(scene.DataDirectory);
-        Assert.Equal((true, 250, Settings.GiftBoardByTotalPrice, false, false, 25),
-            (saved.GiftBoardEnabled.Value, saved.GiftBoardThreshold.Value, saved.GiftBoardThresholdBy.Value,
-                saved.GiftBoardResetOnLive.Value, saved.GiftBoardMascot.Value, saved.GiftBoardVolume.Value));
-        var reopened = new GiftBoardSettingsPage(scene.DataDirectory);
-        Assert.Equal("250", reopened.FindControl<NumericUpDown>("ThresholdInput")!.Text);
-        Assert.False(reopened.FindControl<RadioButton>("ByUnitPriceInput")!.IsChecked);
-        Assert.True(reopened.FindControl<RadioButton>("ByTotalPriceInput")!.IsChecked);
-        Assert.Equal(25, reopened.FindControl<Slider>("VolumeInput")!.Value);
+        // The room left and joined again: the inputs show the 期's options, and a new 期 starts with them.
+        scene.Disconnect();
+        await GuiHarness.WaitForAsync(() => page.FindControl<NumericUpDown>("ThresholdInput")!.Text == "100");
+        scene.Connect();
+        await GuiHarness.WaitForAsync(() => page.FindControl<NumericUpDown>("ThresholdInput")!.Text == "250");
+        Assert.True(page.FindControl<RadioButton>("ByTotalPriceInput")!.IsChecked);
+        Assert.False(page.FindControl<ToggleSwitch>("MascotInput")!.IsChecked);
+        Assert.Equal(25, page.FindControl<Slider>("VolumeInput")!.Value);
+        scene.Board.EndPeriod();
+        scene.Board.StartNewPeriod();
+        Assert.Equal(changed, (await scene.Board.CurrentAsync()).Options);
     });
 
     [Fact]
-    public Task Saving_takes_effect_at_once_without_asking_for_a_reconnect() => GiftBoardScene.Run(async scene =>
+    public Task Without_a_room_the_options_are_greyed_out_and_the_footer_says_why() => GiftBoardScene.Run(scene =>
     {
-        scene.ViewModel.ConnectionState = RoomConnectionState.Connected;
-        scene.Page.FindControl<ToggleSwitch>("MascotInput")!.IsChecked = false;
-        scene.Page.FindControl<Slider>("VolumeInput")!.Value = 25;
-        await GuiHarness.SaveAsync(scene.Page);
-
-        Assert.Equal("保存后立即生效", scene.Page.TimingHint);
-        Assert.False(scene.Page.ShowReconnectNotice);
-        var state = await scene.Board.CurrentAsync();
-        Assert.Equal((false, 25), (state.Mascot, state.Volume));
-    });
-
-    [Fact]
-    public Task A_setting_edited_in_the_file_reaches_the_board_when_a_page_is_next_shown() => OnMainWindow(async (h, vm, window) =>
-    {
-        await GuiHarness.WaitForAsync(() => vm.WebService.WebServiceStatus.Running);
-        Assert.Equal(60, (await h.Client.GiftBoard.CurrentAsync()).Volume);
-
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_board.volume"] = "10" });
-        window.Navigation.SelectedIndex = 4;
-        await GuiHarness.WaitForAsync(() => !vm.WebService.AnimationReloading);
-        Assert.Equal(10, (await h.Client.GiftBoard.CurrentAsync()).Volume);
+        GuiHarness.Flush();
+        Assert.False(scene.Page.FindControl<StackPanel>("Options")!.IsEffectivelyEnabled);
+        Assert.Equal("选项跟着直播间的期，连上直播间后才能改", scene.Page.FindControl<TextBlock>("FooterText")!.Text);
+        return Task.CompletedTask;
     });
 
     [Theory]
@@ -85,22 +73,24 @@ public sealed class GiftBoardSettingsTests
     [InlineData("-3")]
     [InlineData("1.5")]
     [InlineData("")]
-    public Task A_threshold_that_is_not_a_positive_integer_cannot_be_saved(string text) => GiftBoardScene.Run(scene =>
+    public Task A_threshold_that_is_not_a_positive_integer_is_shown_wrong_and_not_applied(string text) => GiftBoardScene.Run(async scene =>
     {
+        scene.Connect();
+        scene.Start(threshold: 7);
         var input = scene.Page.FindControl<NumericUpDown>("ThresholdInput")!;
         var error = scene.Page.FindControl<TextBlock>("ThresholdError")!;
+        await GuiHarness.WaitForAsync(() => input.Text == "7");
+
         input.Text = text;
         GuiHarness.Flush();
-        Assert.False(scene.Page.CanSave);
         Assert.True(error.IsVisible);
-        Assert.Contains("必须为正整数", error.Text);
+        Assert.Equal("上榜门槛必须是正整数。", error.Text);
         Assert.Contains("invalid", input.Classes);
+        Assert.Equal(7, (await scene.Board.CurrentAsync()).Options.Threshold);
 
         input.Text = "1";
-        GuiHarness.Flush();
-        Assert.True(scene.Page.CanSave);
+        await GuiHarness.WaitForAsync(async () => (await scene.Board.CurrentAsync()).Options.Threshold == 1);
         Assert.False(error.IsVisible);
-        return Task.CompletedTask;
     });
 
     [Theory]
@@ -124,7 +114,7 @@ public sealed class GiftBoardSettingsTests
     {
         window.Navigation.SelectedIndex = 4;
         GuiHarness.Flush();
-        var page = window.GetVisualDescendants().OfType<GiftBoardSettingsPage>().Single();
+        var page = window.GetVisualDescendants().OfType<GiftBoardPanel>().Single();
         GuiHarness.FindVisual<Button>(page, "OpenGeneralSettingsButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         Assert.Equal(7, window.Navigation.SelectedIndex);
         return Task.CompletedTask;

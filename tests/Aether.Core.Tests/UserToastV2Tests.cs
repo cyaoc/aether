@@ -10,9 +10,9 @@ public sealed class UserToastV2Tests
     [Fact]
     public void A_guard_purchase_is_a_gift_of_its_level_at_its_cost()
     {
-        Assert.Equal(new Gift(10001, "测试观众", 198000, null)
+        Assert.Equal(new Gift(10001, "测试观众", 198000)
         {
-            GiftId = 10003, GiftName = "舰长", Price = 198000, Num = 1, FaceUrl = UserToastFixture.TestFace,
+            GiftId = 10003, GiftName = "舰长", Price = 198000, Num = 1, Value = 198000, FaceUrl = UserToastFixture.TestFace,
             Tid = UserToastFixture.TestPayflowId, GuardLevel = 3
         }, Assert.Single(Decode(UserToastFixture.Message())));
     }

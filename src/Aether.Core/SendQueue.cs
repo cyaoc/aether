@@ -143,19 +143,19 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         });
     }
 
-    /// <summary>Records a whole gift message; <paramref name="save"/> returns whether a box was newly recorded and joins
-    /// its viewer's 一轮盲盒.</summary>
-    public void Record(BlindBox[] boxes, long receivedAt, Func<BlindBox, bool> save)
+    /// <summary>Records a whole gift message; <paramref name="save"/> returns whether a gift was newly recorded as a 盲盒 to
+    /// announce, which then joins its viewer's 一轮盲盒.</summary>
+    public void Record(IEnumerable<Gift> gifts, long receivedAt, Func<Gift, bool> save)
     {
         // A SQLite write can wait for another process; neither a deadline nor a send snapshot may split this message.
         // ponytail: the sender's snapshot and the quiet-window timers wait with the receive loop, up to SQLite's 30 s
         // busy timeout; mark the message as arriving under the gate and save outside it if that stall ever matters.
         lock (gate)
-            foreach (var box in boxes)
-                if (save(box)) Add(box, receivedAt);
+            foreach (var gift in gifts)
+                if (save(gift)) Add(gift, receivedAt);
     }
 
-    private void Add(BlindBox box, long receivedAt)
+    private void Add(Gift box, long receivedAt)
     {
         if (!rounds.TryGetValue(box.Uid, out var round))
         {
@@ -171,7 +171,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             });
         }
         round.Item = round.Item with { Nickname = box.Nickname };
-        round.Tally = new(checked(round.Tally.Spend + box.Spend), checked(round.Tally.OpenedValue + box.OpenedValue));
+        round.Tally = new(checked(round.Tally.Spend + box.Spend), checked(round.Tally.OpenedValue + box.Value));
         round.Count++;
         round.Timer.Reset(receivedAt);
     }

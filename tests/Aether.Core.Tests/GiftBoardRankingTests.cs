@@ -21,7 +21,7 @@ public sealed class GiftBoardRankingTests
     public async Task By_total_price_gifts_of_one_kind_add_up_to_the_threshold()
     {
         await using var h = new WatchHarness();
-        await using var updates = await h.WatchWithGiftBoardAsync(threshold: 10, thresholdBy: Settings.GiftBoardByTotalPrice);
+        await using var updates = await h.WatchWithGiftBoardAsync(threshold: 10, thresholdBy: GiftBoardOptions.ByTotalPrice);
 
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(giftId: 1, giftName: "三个", price: 300, num: 3, tid: "a"),
             BlindGiftFixture.Ordinary(giftId: 2, giftName: "刚好", price: 500, num: 2, tid: "b"));
@@ -39,10 +39,10 @@ public sealed class GiftBoardRankingTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(price: 300, num: 4));
         Assert.Empty(await h.BoardRowsAsync());
 
-        await h.ApplySettingsAsync(("gift_board.threshold_by", Settings.GiftBoardByTotalPrice.ToString()));
+        await h.SetOptionsAsync(options => options with { ThresholdBy = GiftBoardOptions.ByTotalPrice });
         Assert.Single(await h.BoardRowsAsync());
 
-        await h.ApplySettingsAsync(("gift_board.threshold", "13"));
+        await h.SetOptionsAsync(options => options with { Threshold = 13 });
         Assert.Empty(await h.BoardRowsAsync());
     }
 

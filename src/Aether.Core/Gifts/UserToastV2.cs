@@ -42,10 +42,10 @@ internal static class UserToastV2
         var viewer = sender.GetProperty("base");
         var uid = sender.GetProperty("uid").GetInt64();
         if (uid < 0) throw new FormatException("大航海的 uid 无效。");
-        return new Gift(uid, viewer.GetProperty("name").GetString() ?? throw new JsonException("缺少观众昵称。"), spend, null)
+        return new Gift(uid, viewer.GetProperty("name").GetString() ?? throw new JsonException("缺少观众昵称。"), spend)
         {
             GiftId = data.GetProperty("gift_info").GetProperty("gift_id").GetInt64(),
-            GiftName = Guard.Name(Guard.TierFromPrivilegeType(level)), Price = spend / months, Num = months,
+            GiftName = Guard.Name(Guard.TierFromPrivilegeType(level)), Price = spend / months, Num = months, Value = spend,
             FaceUrl = GiftMessages.OptionalText(viewer, "face"),
             Tid = data.GetProperty("pay_info").GetProperty("payflow_id").GetString() is { Length: > 0 } payflowId ? payflowId : null,
             GuardLevel = level
