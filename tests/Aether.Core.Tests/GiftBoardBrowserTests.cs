@@ -186,6 +186,27 @@ public sealed partial class GiftBoardBrowserTests
     }
 
     [Fact]
+    public async Task The_page_is_transparent_before_the_first_period_and_shows_the_board_once_it_starts()
+    {
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
+            Assert.Skip("Set AETHER_TEST_CHROME for real gift board browser acceptance.");
+        var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await h.ApplySettingsAsync();
+        await h.LoginAsync();
+        await using var page = new PageSession(h, await h.WatchConnectedAsync());
+        await page.OpenAsync(480, 1000);
+        await page.Browser.EvaluateAsync(TwoFrames);
+        // Down the middle of the page, through where the mascot, the ribbon, the cards and the pills would be.
+        Assert.All(await page.AlphaAsync(Enumerable.Range(0, 50).Select(step => (240, step * 20))), alpha => Assert.Equal(0, alpha));
+
+        h.Client.GiftBoard.StartNewPeriod();
+
+        // An empty board still has its ribbon.
+        await page.WaitForSolidAsync(240, (int)(Mascot + 40));
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
     public async Task An_ended_period_leaves_the_page_transparent_and_a_continued_one_shows_again()
     {
         await using var page = await StartAsync();

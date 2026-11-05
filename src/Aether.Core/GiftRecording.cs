@@ -10,8 +10,8 @@ namespace Aether.Core;
 internal sealed class GiftRecording(GiftStore store, GiftBoardController board, ILogger logger, long roomId, bool blindBoxes)
 {
     /// <summary>Records one message's gifts. <paramref name="writeAll"/> runs the writes, gift by gift, through the function it
-    /// is given, which returns whether that gift was newly recorded as a 盲盒 for the 盲盒统计; without it they run in order.</summary>
-    public void Record(IReadOnlyList<Gift> gifts, Action<Func<Gift, bool>>? writeAll = null)
+    /// is given, which returns whether that gift was newly recorded as a 盲盒 for the 盲盒统计.</summary>
+    public void Record(IReadOnlyList<Gift> gifts, Action<Func<Gift, bool>> writeAll)
     {
         // On the board first: the database neither delays nor decides what the 礼物榜页 shows.
         var period = board.Take(roomId, gifts);
@@ -27,9 +27,7 @@ internal sealed class GiftRecording(GiftStore store, GiftBoardController board, 
                 return false;
             }
         }
-        if (writeAll is null)
-            foreach (var gift in gifts) Write(gift);
-        else writeAll(Write);
+        writeAll(Write);
     }
 
     internal static bool IsDatabaseFailure(Exception error) => error is SqliteException or IOException;

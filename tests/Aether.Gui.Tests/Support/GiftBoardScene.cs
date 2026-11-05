@@ -64,9 +64,9 @@ internal sealed class GiftBoardScene : IAsyncDisposable
 
     /// <summary>Records gifts sent in <paramref name="room"/> through the 收礼记录, the way a room connection with the 盲盒统计
     /// off would.</summary>
-    public static void Give(GuiHarness harness, long room, IEnumerable<Gift> gifts) =>
+    public static void Give(GuiHarness harness, long room, IReadOnlyList<Gift> gifts) =>
         new GiftRecording(new GiftStore(new Database(harness.DataDirectory), NullLogger.Instance), harness.Client.GiftBoard,
-            NullLogger.Instance, room, blindBoxes: false).Record([.. gifts]);
+            NullLogger.Instance, room, blindBoxes: false).Record(gifts, write => { foreach (var gift in gifts) write(gift); });
 
     public void GoToToday() => Clock.SetUtcNow(Today);
 

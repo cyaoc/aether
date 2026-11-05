@@ -207,6 +207,32 @@ public sealed class GiftBoardRecordingTests
         Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
     }
 
+    // One record serves both (ADR 0013): the board's 期 coming and going changes nothing in the 盲盒统计, on or off.
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task The_blind_box_statistics_count_the_same_whatever_the_board_does(bool blindBoxes)
+    {
+        await using var h = new WatchHarness();
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = Settings.BooleanText(blindBoxes) });
+        var sentAt = new DateTimeOffset(2026, 11, 4, 20, 0, 0, TimeSpan.FromHours(8));
+        await using var updates = await h.WatchWithGiftBoardAsync();
+        var board = h.Client.GiftBoard;
+
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Gift(sentAt));
+        board.EndPeriod();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Gift(sentAt.AddMinutes(1)));
+        board.ContinuePeriod();
+        board.EndPeriod();
+        board.StartNewPeriod();
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Gift(sentAt.AddMinutes(2)));
+
+        // The board has only what its running 期 took: the first and the last went into two different ones.
+        Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
+        var tally = new BlindBoxStore(new Database(h.DataDirectory)).Tally(7734200, 10001, sentAt, BlindBoxPeriod.Daily);
+        Assert.Equal(blindBoxes ? new BlindBoxTally(15000, 4500) : null, tally);
+    }
+
     // The same gift, as V1 and as V2 carry it.
     private static string Ordinary(string version, string tid) => version == "v1"
         ? BlindGiftFixture.Ordinary(giftId: 35311, giftName: "好运柚叶", price: 2500, tid: tid)

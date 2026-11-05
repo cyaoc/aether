@@ -53,7 +53,7 @@ internal sealed class GiftBoardStore(Database database)
         var totals = ImmutableArray.CreateBuilder<(GiftBoardRow, long)>();
         using (var reader = command.ExecuteReader())
             while (reader.Read())
-                totals.Add((new($"{reader.GetInt64(0)}/{reader.GetString(1)}", reader.GetInt64(0), reader.GetString(2),
+                totals.Add((new(GiftBoardRow.IdOf(reader.GetInt64(0), reader.GetString(1)), reader.GetInt64(0), reader.GetString(2),
                     reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetInt32(6), reader.GetInt64(7),
                     reader.GetInt64(8)), reader.GetInt64(9)));
         command.CommandText = "SELECT tid FROM gift_record WHERE board_period = $period AND tid IS NOT NULL";

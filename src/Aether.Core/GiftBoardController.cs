@@ -133,13 +133,13 @@ public sealed class GiftBoardController : IDisposable
         }
     }
 
-    private bool Running => board.Period is { EndedAt: null };
+    private bool Running => GiftBoardPeriod.PhaseOf(board.Period) == GiftBoardPhase.Running;
 
     private long ConnectedRoom() => roomId ?? throw new InvalidOperationException("没有连着直播间。");
 
     private void Add(Gift gift)
     {
-        var key = $"{gift.Uid}/{gift.BoardKey}";
+        var key = GiftBoardRow.IdOf(gift.Uid, gift.BoardKey);
         totals[key] = totals.TryGetValue(key, out var total)
             ? (total.Row with
             {
@@ -162,7 +162,7 @@ public sealed class GiftBoardController : IDisposable
 
     private void Publish() => subscribers.Publish(State());
 
-    private GiftBoardState State() => new(Rows(), Running, options, roomId is not null, board.Period);
+    private GiftBoardState State() => new(Rows(), options, roomId is not null, board.Period);
 
     // From the highest 价值 down, equal values by who was sent first.
     private ImmutableArray<GiftBoardRow> Rows()

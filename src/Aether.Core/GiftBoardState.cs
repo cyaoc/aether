@@ -11,6 +11,9 @@ public sealed record GiftBoardRow(string Id, long Uid, string Nickname, string F
 {
     /// <summary>The unit price, averaged over the count when the row's gifts were bought at different prices.</summary>
     [JsonIgnore] public long Price => Value / Num;
+
+    /// <summary>The Id of the row of <paramref name="uid"/>'s gifts with this 礼物键.</summary>
+    internal static string IdOf(long uid, string giftKey) => $"{uid}/{giftKey}";
 }
 
 /// <summary>A 期's options (ADR 0014): the 上榜门槛 in 电池 and what it compares (<see cref="ByUnitPrice"/> or
@@ -27,15 +30,31 @@ public sealed record GiftBoardOptions(int Threshold, int ThresholdBy, bool Masco
         : Volume is < 0 or > 100 ? "音量必须是 0 到 100 的整数。" : null;
 }
 
-/// <summary>One 期 of a room's 礼物榜: when it began, and when it ended, null while it is running.</summary>
-public sealed record GiftBoardPeriod(DateTimeOffset StartedAt, DateTimeOffset? EndedAt);
+/// <summary>Where a room's latest 期 stands (ADR 0014): 还没开始 (it has never had one), 统计中 or 已结束.</summary>
+public enum GiftBoardPhase { NotStarted, Running, Ended }
 
-/// <summary>What the 礼物榜页 and the GUI show: the rows of the room's latest 期 in rank order and its options. Shown is true
-/// only while that 期 is running; otherwise the 礼物榜页 draws nothing, while the GUI still lists an ended 期's rows. Connected is
-/// whether a room is connected; Period is the latest 期, null when the room has never had one or no room is connected.</summary>
-public sealed record GiftBoardState(ImmutableArray<GiftBoardRow> Rows, bool Shown, GiftBoardOptions Options, bool Connected,
-    GiftBoardPeriod? Period)
+/// <summary>One 期 of a room's 礼物榜: when it began, and when it ended, null while it is running.</summary>
+public sealed record GiftBoardPeriod(DateTimeOffset StartedAt, DateTimeOffset? EndedAt)
 {
+    /// <summary>The phase of a room whose latest 期 is <paramref name="period"/>, null when it has never had one.</summary>
+    public static GiftBoardPhase PhaseOf(GiftBoardPeriod? period) => period switch
+    {
+        null => GiftBoardPhase.NotStarted,
+        { EndedAt: null } => GiftBoardPhase.Running,
+        _ => GiftBoardPhase.Ended,
+    };
+}
+
+/// <summary>What the 礼物榜页 and the GUI show: the rows of the room's latest 期 in rank order and its options. Connected is
+/// whether a room is connected; Period is the latest 期, null when the room has never had one or no room is connected. An
+/// ended 期 keeps its rows, which the GUI still lists.</summary>
+public sealed record GiftBoardState(ImmutableArray<GiftBoardRow> Rows, GiftBoardOptions Options, bool Connected, GiftBoardPeriod? Period)
+{
+    public GiftBoardPhase Phase => GiftBoardPeriod.PhaseOf(Period);
+
+    /// <summary>Whether the 礼物榜页 shows the board: only while the 期 is running; otherwise it draws nothing.</summary>
+    public bool Shown => Phase == GiftBoardPhase.Running;
+
     /// <summary>True only for the state a received gift made. The 礼物榜页 plays the change as an animation only then: any other
     /// state, such as new options, a 期 started, ended or continued, or a subscriber's first, is drawn as it is.</summary>
     public bool FromGift { get; init; }

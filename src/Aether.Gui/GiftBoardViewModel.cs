@@ -37,13 +37,13 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
     [NotifyPropertyChangedFor(nameof(NotStarted), nameof(FooterText), nameof(EmptyText))]
     private bool connected;
 
-    /// <summary>Whether the latest 期 is running: it takes gifts and shows on the 礼物榜页.</summary>
+    /// <summary>Where the latest 期 stands, as Core reports it; only a running one takes gifts and shows on the 礼物榜页.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusText), nameof(EmptyText))]
-    private bool running;
+    [NotifyPropertyChangedFor(nameof(Running), nameof(Ended), nameof(NotStarted), nameof(StatusText), nameof(EmptyText))]
+    private GiftBoardPhase phase;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Ended), nameof(NotStarted), nameof(StatusText), nameof(PeriodText), nameof(EmptyText))]
+    [NotifyPropertyChangedFor(nameof(PeriodText))]
     private GiftBoardPeriod? period;
 
     [ObservableProperty]
@@ -75,13 +75,14 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
     [ObservableProperty]
     private double volume = GiftBoardOptions.Default.Volume;
 
-    public bool Ended => Period is { EndedAt: not null };
-    public bool NotStarted => Connected && Period is null;
+    public bool Running => Phase == GiftBoardPhase.Running;
+    public bool Ended => Phase == GiftBoardPhase.Ended;
+    public bool NotStarted => Connected && Phase == GiftBoardPhase.NotStarted;
     public bool HasRows => Rows.Count > 0;
     public bool Confirming => Confirmation != GiftBoardConfirmation.None;
     public bool ConfirmingEnd => Confirmation == GiftBoardConfirmation.End;
     public bool ConfirmingNewPeriod => Confirmation == GiftBoardConfirmation.NewPeriod;
-    public string StatusText => Running ? "统计中" : Ended ? "已结束" : "还没开始";
+    public string StatusText => Phase switch { GiftBoardPhase.Running => "统计中", GiftBoardPhase.Ended => "已结束", _ => "还没开始" };
     public string CountText => HasRows ? $"共 {Viewers} 位" : "";
 
     public bool ByUnitPrice
@@ -113,10 +114,12 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
 
     public string FooterText => Message ?? (Connected ? "选项改了立即生效，开始新一期时沿用" : "选项跟着直播间的期，连上直播间后才能改");
 
-    public string EmptyText => !Connected ? "连上直播间后，这里显示这个直播间的礼物榜。"
-        : Period is null ? "还没有开始统计。点右上角“开始新一期”，之后收到的礼物会出现在这里和直播画面上。"
-        : Running ? "还没有人上榜。达到门槛的礼物会出现在这里和直播画面上。"
-        : "这一期没有人上榜。";
+    public string EmptyText => !Connected ? "连上直播间后，这里显示这个直播间的礼物榜。" : Phase switch
+    {
+        GiftBoardPhase.NotStarted => "还没有开始统计。点右上角“开始新一期”，之后收到的礼物会出现在这里和直播画面上。",
+        GiftBoardPhase.Running => "还没有人上榜。达到门槛的礼物会出现在这里和直播画面上。",
+        _ => "这一期没有人上榜。",
+    };
 
     internal void Observe()
     {
@@ -141,7 +144,7 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
         // A room joined or left: what the last action did belongs to the room before.
         if (Connected != state.Connected) Message = Error = null;
         Connected = state.Connected;
-        Running = state.Shown;
+        Phase = state.Phase;
         Period = state.Period;
         reported = state.Options;
         // While the streamer is still changing the options, Core reports ones the inputs have moved past.
