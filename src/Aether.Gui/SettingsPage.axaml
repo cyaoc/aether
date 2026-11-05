@@ -11,7 +11,6 @@
                 <ContentPresenter Content="{TemplateBinding HeaderContent}" />
               </Panel>
               <TextBlock Grid.Column="3" x:Name="TimingHint" Classes="caption muted singleLine" VerticalAlignment="Center" Text="{TemplateBinding TimingHint}" />
-              <ContentPresenter Grid.Column="3" Content="{TemplateBinding HeaderActions}" HorizontalAlignment="Right" VerticalAlignment="Center" />
             </Grid>
           </Border>
           <StackPanel Grid.Row="1">
@@ -44,15 +43,13 @@
               </Grid>
               <Border Grid.Row="1" BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="20,12,20,18">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                  <StackPanel VerticalAlignment="Center" Spacing="4" IsVisible="{TemplateBinding Confirming, Converter={x:Static BoolConverters.Not}}">
+                  <StackPanel VerticalAlignment="Center" Spacing="4">
                     <TextBlock Classes="caption muted" Text="没有未保存的修改" IsVisible="{Binding !#DirtyMessage.IsVisible}" />
                     <TextBlock x:Name="DirtyMessage" Classes="caption accent" Classes.blocked="{TemplateBinding DirtyBlocked}" Text="{TemplateBinding DirtyText}" IsVisible="{TemplateBinding IsDirty}" />
                     <TextBlock x:Name="Message" Classes="caption" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" Text="{TemplateBinding Message}"
                       IsVisible="{Binding #Message.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                   </StackPanel>
-                  <Button Grid.Column="1" x:Name="PART_SaveButton" Content="保存" Classes="accent" MinWidth="80" Height="34" IsEnabled="{TemplateBinding CanSave}" VerticalAlignment="Center"
-                    IsVisible="{TemplateBinding Confirming, Converter={x:Static BoolConverters.Not}}" />
-                  <ContentPresenter Grid.ColumnSpan="2" Content="{TemplateBinding ConfirmContent}" IsVisible="{TemplateBinding Confirming}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                  <Button Grid.Column="1" x:Name="PART_SaveButton" Content="保存" Classes="accent" MinWidth="80" Height="34" IsEnabled="{TemplateBinding CanSave}" VerticalAlignment="Center" />
                 </Grid>
               </Border>
             </Grid>

@@ -32,20 +32,6 @@ public abstract class SettingsPage : TemplatedControl
         AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderContent), null);
     public Control? HeaderContent { get => GetValue(HeaderContentProperty); set => SetValue(HeaderContentProperty, value); }
 
-    /// <summary>Buttons at the right end of the title bar.</summary>
-    public static readonly StyledProperty<Control?> HeaderActionsProperty =
-        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderActions), null);
-    public Control? HeaderActions { get => GetValue(HeaderActionsProperty); set => SetValue(HeaderActionsProperty, value); }
-
-    /// <summary>What the footer asks the streamer to confirm; it takes the place of the save line while Confirming.</summary>
-    public static readonly StyledProperty<Control?> ConfirmContentProperty =
-        AvaloniaProperty.Register<SettingsPage, Control?>(nameof(ConfirmContent), null);
-    public Control? ConfirmContent { get => GetValue(ConfirmContentProperty); set => SetValue(ConfirmContentProperty, value); }
-
-    /// <summary>Whether the footer shows <see cref="ConfirmContent"/> instead of the save line; a page binds it to its own question.</summary>
-    public static readonly StyledProperty<bool> ConfirmingProperty = AvaloniaProperty.Register<SettingsPage, bool>(nameof(Confirming));
-    public bool Confirming { get => GetValue(ConfirmingProperty); set => SetValue(ConfirmingProperty, value); }
-
     public static readonly StyledProperty<Control?> HeaderNoteProperty =
         AvaloniaProperty.Register<SettingsPage, Control?>(nameof(HeaderNote), null);
     public Control? HeaderNote { get => GetValue(HeaderNoteProperty); set => SetValue(HeaderNoteProperty, value); }
@@ -210,16 +196,6 @@ public abstract class SettingsPage : TemplatedControl
         input.PropertyChanged += (_, e) => { if (e.Property == RangeBase.ValueProperty) Validate(); };
     }
 
-    /// <summary>One radio button per value of a choice setting; the checked one is the input.</summary>
-    protected void Bind((int Value, RadioButton Button)[] choices, TextBlock readOnly, Func<Settings, Setting<int>> select)
-    {
-        Register(setting => Show(choices, readOnly, setting),
-            () => choices.Where(choice => choice.Button.IsChecked == true).Select(choice => choice.Value.ToString(CultureInfo.InvariantCulture)).FirstOrDefault(),
-            null, select);
-        foreach (var (_, button) in choices)
-            button.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Validate(); };
-    }
-
     private void Register<T>(Action<Setting<T>> show, Func<string?> input, TextBlock? error, Func<Settings, Setting<T>> select) =>
         bindings.Add((() => show(select(settings)), () =>
         {
@@ -262,16 +238,6 @@ public abstract class SettingsPage : TemplatedControl
     {
         input.Value = setting.Value;
         input.IsEnabled = setting.CanEdit;
-        readOnly.IsVisible = !setting.CanEdit;
-    }
-
-    private static void Show((int Value, RadioButton Button)[] choices, TextBlock readOnly, Setting<int> setting)
-    {
-        foreach (var (value, button) in choices)
-        {
-            button.IsChecked = value == setting.Value;
-            button.IsEnabled = setting.CanEdit;
-        }
         readOnly.IsVisible = !setting.CanEdit;
     }
 
@@ -365,7 +331,7 @@ public abstract class SettingsPage : TemplatedControl
     }
 
     // The room connection the notice warned about has ended (disconnected, reconnected or failed).
-    protected virtual void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
+    private void OnRoomStateChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(MainWindowViewModel.HasRoomConnection) && viewModel?.HasRoomConnection != true)
             ShowReconnectNotice = false;
