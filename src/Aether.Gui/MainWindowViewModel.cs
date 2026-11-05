@@ -425,12 +425,9 @@ public partial class MainWindowViewModel : ObservableObject
         await RunShutdownStepAsync("停礼物榜", GiftBoard.StopAsync);
         await RunShutdownStepAsync("停账号读取", () => accountStopped);
         await RunShutdownStepAsync("断开直播间", StopWatchingAsync);
-        await RunShutdownStepAsync("等重连、退出登录和登录结束", async () =>
-        {
-            if (ReconnectCommand.ExecutionTask is { } restart) await restart;
-            if (LogoutCommand.ExecutionTask is { } task) await task;
-            if (LoginCommand.ExecutionTask is { } login) await login;
-        });
+        await RunShutdownStepAsync("等重连结束", () => ReconnectCommand.ExecutionTask ?? Task.CompletedTask);
+        await RunShutdownStepAsync("等退出登录结束", () => LogoutCommand.ExecutionTask ?? Task.CompletedTask);
+        await RunShutdownStepAsync("等登录结束", () => LoginCommand.ExecutionTask ?? Task.CompletedTask);
     }
 
     private async Task RunShutdownStepAsync(string step, Func<Task> run)
