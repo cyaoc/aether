@@ -73,13 +73,14 @@ internal sealed class BilibiliApi
         return (realRoomId, broadcasterUid);
     }
 
-    /// <summary>A viewer's avatar address, or the empty string for none.</summary>
+    /// <summary>A viewer's avatar address.</summary>
     public async Task<string> GetFaceAsync(long uid, CancellationToken cancellationToken)
     {
         var (_, data) = await GetAsync(
             $"https://api.live.bilibili.com/live_user/v1/Master/info?uid={uid.ToString(CultureInfo.InvariantCulture)}",
             LiveReferer, $"读取观众 {uid} 的头像", cancellationToken);
-        return data.GetProperty("info").GetProperty("face").GetString() ?? "";
+        return data.GetProperty("info").GetProperty("face").GetString() is { Length: > 0 } face
+            ? face : throw new InvalidDataException("B站未返回头像。");
     }
 
     public async Task<OnlineRank> GetOnlineRankAsync(long roomId, long broadcasterUid, CancellationToken cancellationToken)

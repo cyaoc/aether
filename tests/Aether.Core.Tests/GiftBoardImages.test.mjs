@@ -53,7 +53,7 @@ test('a picture let go of while it loads is not kept when it arrives', async () 
   assert.equal(images.textures.size, 0);
 });
 
-test('a picture that fails is null until it is tried again a while later, three loads at most', async t => {
+test('a picture that fails stays null while it is tried again a while later, three loads at most', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   loads.length = 0;
   const images = new RemoteImages();
@@ -62,6 +62,7 @@ test('a picture that fails is null until it is tried again a while later, three 
     await fail('a');
     assert.equal(images.texture('a'), null);
     t.mock.timers.tick(RETRY_MS);
+    assert.equal(images.texture('a'), null);
   }
   assert.equal(loads.length, 3);
 });

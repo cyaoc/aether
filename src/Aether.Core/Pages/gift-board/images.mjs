@@ -25,17 +25,21 @@ export class RemoteImages {
    * (a sprite then shows nothing, and an avatar its stand-in). */
   texture(url) {
     if (!url) return PIXI.Texture.EMPTY;
-    if (!this.textures.has(url)) this.load(url, 1);
+    if (!this.textures.has(url)) {
+      this.textures.set(url, PIXI.Texture.EMPTY);
+      this.load(url, 1);
+    }
     return this.textures.get(url);
   }
 
   // A picture let go of while it loaded or waited to be tried again is not kept, nor is a second load of one that has arrived.
+  // One tried again stays null, its stand-in showing, until it arrives.
   load(url, attempt) {
-    this.textures.set(url, PIXI.Texture.EMPTY);
+    const pending = () => [PIXI.Texture.EMPTY, null].includes(this.textures.get(url));
     loadImage(url, REMOTE).then(image => {
-      if (this.textures.get(url) === PIXI.Texture.EMPTY) this.textures.set(url, PIXI.Texture.from(image));
+      if (pending()) this.textures.set(url, PIXI.Texture.from(image));
     }, () => {
-      if (this.textures.get(url) !== PIXI.Texture.EMPTY) return;
+      if (!pending()) return;
       this.textures.set(url, null);
       if (attempt < LOADS) setTimeout(() => this.textures.get(url) === null && this.load(url, attempt + 1), RETRY_MS);
     });

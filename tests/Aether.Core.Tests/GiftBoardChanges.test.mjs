@@ -126,6 +126,17 @@ test('a state that only brings avatars B站 left out of the gifts is drawn in it
   assert.deepEqual(kinds(changes), ['new c', 'pictures']);
 });
 
+test('avatars that keep coming while an event plays wait as one change that is still only pictures', () => {
+  const changes = started(board(a, b, c, d));
+  changes.receive(gift(a, b, c, row('d', 2)));
+  changes.take();
+  const faced = n => board(...[a, b, c, row('d', 2)].map((row, i) => i < n ? { ...row, faceUrl: 'face-' + row.id } : row));
+  for (let n = 1; n <= 4; n++) assert.equal(changes.receive(faced(n)), false);
+  const change = changes.take();
+  assert.deepEqual([change.kind, change.state.rows.map(row => row.faceUrl), changes.take()],
+    ['pictures', ['face-a', 'face-b', 'face-c', 'face-d'], undefined]);
+});
+
 test('after a new connection the first state is drawn straight again and the old queue is dropped', () => {
   const changes = started(board(a));
   changes.receive(gift(a, b));

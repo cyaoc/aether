@@ -203,7 +203,7 @@ public sealed class GiftBoardController : IDisposable
                     lock (gate)
                     {
                         // A room left or switched, or an avatar a gift brought meanwhile, keeps what it has.
-                        if (roomId == room && face.Length > 0 && FaceOf(uid).Length == 0 && SetFace(uid, face)) Publish();
+                        if (roomId == room && FaceOf(uid).Length == 0 && SetFace(uid, face)) Publish();
                     }
                 }
                 catch (Exception error)

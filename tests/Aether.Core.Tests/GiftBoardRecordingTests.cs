@@ -87,10 +87,15 @@ public sealed class GiftBoardRecordingTests
         await h.ReadUntilAsync(states, state => state.Rows is [{ FaceUrl: FetchedFace }]);
     }
 
-    [Fact]
-    public async Task An_avatar_bilibili_does_not_give_is_a_warning_and_the_gift_counts_without_one()
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, "")]
+    [InlineData(true, null)]
+    public async Task An_avatar_bilibili_does_not_give_is_a_warning_and_the_gift_counts_without_one(bool answers, string? face)
     {
         await using var h = new WatchHarness();
+        if (answers)
+            h.Http.Responses[FaceInfoUrl] = System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { info = new { uid = 10001, face } } });
         await using var updates = await h.WatchWithGiftBoardAsync();
 
         await h.PushAndSyncAsync(updates, WithoutFace("a"));
