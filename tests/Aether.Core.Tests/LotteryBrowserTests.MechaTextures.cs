@@ -18,7 +18,8 @@ public sealed partial class LotteryBrowserTests
         h.Client.Lottery.SelectTheme(LotteryTheme.MechaLock);
         h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
         h.Client.Lottery.Stop();
-        await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
+        // Smiley Sans starts loading only with the lottery's text; a rect measured before it swaps in is 9–12px off the screenshot's emblem.
+        await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing' && document.fonts.status === 'loaded'");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
         await browser.EvaluateAsync("document.body.style.background = '#f0eae4'; document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); a.currentTime = 4000; }); true");
         var badge = await browser.EvaluateAsync("""
