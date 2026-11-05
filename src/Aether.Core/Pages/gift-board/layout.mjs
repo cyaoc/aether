@@ -55,3 +55,35 @@ export const shiftedGeometry = (g, dy) => ({ ...g, y: g.y + dy, ay: g.ay + dy, n
 
 /** Where the bubble sprite floats: by the mascot's shoulder, or on the ribbon's right end once she is switched off. */
 export const spriteHome = layout => layout.mascot ? [LAYOUT.width / 2 + 118, layout.top - 150] : [448, layout.top + 34];
+
+// A card's rim, which the top three's flowing light runs along (design package README, 前三名流光).
+export const RIM_RADIUS = 17;
+
+/** The rim of a card `[x, y, w, h]`: the card drawn in by 1.2 on every side, with corners of RIM_RADIUS. */
+export const rimOf = ([x, y, w, h]) => [x + 1.2, y + 1.2, w - 2.4, h - 2.4];
+
+/** The rim of the card of `rank` on the board. */
+export const rimBox = (layout, rank) => rimOf([LAYOUT.contentX, layout.top + LAYOUT.cardsY + CARDS[rank].y, LAYOUT.contentWidth, CARDS[rank].h]);
+
+export const rimLength = ([, , w, h]) => 2 * (w + h - 4 * RIM_RADIUS) + 2 * Math.PI * RIM_RADIUS;
+
+/** The point `s` along the rim, clockwise from where the top edge leaves its left corner; any `s` wraps round. */
+export function rimPoint(box, s) {
+  const [x, y, w, h] = box, r = RIM_RADIUS, a = w - 2 * r, b = h - 2 * r, q = Math.PI * r / 2, length = rimLength(box);
+  const corner = (cx, cy, from, d) => [cx + r * Math.cos(from + d / r), cy + r * Math.sin(from + d / r)];
+  s = ((s % length) + length) % length;
+  if (s < a) return [x + r + s, y];
+  s -= a;
+  if (s < q) return corner(x + w - r, y + r, -Math.PI / 2, s);
+  s -= q;
+  if (s < b) return [x + w, y + r + s];
+  s -= b;
+  if (s < q) return corner(x + w - r, y + h - r, 0, s);
+  s -= q;
+  if (s < a) return [x + w - r - s, y + h];
+  s -= a;
+  if (s < q) return corner(x + r, y + h - r, Math.PI / 2, s);
+  s -= q;
+  if (s < b) return [x, y + h - r - s];
+  return corner(x + r, y + r, Math.PI, s - b);
+}

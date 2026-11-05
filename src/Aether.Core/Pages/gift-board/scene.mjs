@@ -1,7 +1,7 @@
 // The Pixi scene of one board: the mascot, the ribbon, the top three cards, the pills and the sprite (design package GB1). It is
 // built for a layout and a list of rows; every frame it is placed again from the clock, the scroll and the running event.
 import { CARDS, LAYOUT, TOP_COUNT, lapLength, scrolledY, shiftedGeometry, slotGeometry, slotsOf, spriteHome } from './layout.mjs';
-import { EVENTS, ambient, easeBack, easeInOut, entryMotion, flare, lerpGeometry, rowKind, twinkle, unfolded } from './motion.mjs';
+import { EVENTS, ambient, cardFlash, easeBack, easeInOut, entryMotion, flare, lerpGeometry, numeralPop, rowKind, twinkle, unfolded } from './motion.mjs';
 import { Entry } from './entry.mjs';
 import { PAD } from './paint.mjs';
 import { canvasOf, k, out } from '../video/animations/toolkit.mjs';
@@ -61,6 +61,8 @@ export class Scene {
     title.anchor.set(0.5);
     title.position.set(LAYOUT.width / 2, top + LAYOUT.bannerCenter - 2);
     this.panel.addChild(banner, title);
+    this.flares = [];
+    this.numerals = [];
     this.cards = CARDS.map((card, rank) => this.addCard(card, rank));
     this.buildRows();
     this.topLayer = new PIXI.Container();
@@ -74,28 +76,29 @@ export class Scene {
     this.panel.addChild(container);
     const plate = new PIXI.Sprite(textures.cards[rank]);
     plate.position.set(-PAD, -PAD);
+    // The same card again, added on top, lights the card up: it flashes as a row lands and flares gold for a new first place.
+    const light = new PIXI.Sprite(textures.cards[rank]);
+    light.position.set(-PAD, -PAD);
+    light.blendMode = 'add';
+    light.alpha = 0;
     const numeral = new PIXI.Sprite(textures.cardNumerals[rank]);
     numeral.anchor.set(0.37, 0.5);
     numeral.position.set(LAYOUT.columns.rank - LAYOUT.contentX, card.h / 2 + 2);
-    numeral.scale.set(rank === 0 ? 0.92 : 0.84);
-    container.addChild(plate, numeral);
+    container.addChild(plate, light, numeral);
+    this.flares.push(light);
+    this.numerals.push(numeral);
     if (rank === 0) this.decorateFirstCard(container);
     return container;
   }
 
-  // The first card flares gold and its four-pointed star blooms when someone takes first place.
+  // The first card's four-pointed star blooms when someone takes first place.
   decorateFirstCard(container) {
     const { textures } = this.kit;
-    this.flare = new PIXI.Sprite(textures.cards[0]);
-    this.flare.position.set(-PAD, -PAD);
-    this.flare.blendMode = 'add';
-    this.flare.alpha = 0;
     this.star = new PIXI.Sprite(textures.star);
     this.star.anchor.set(0.5);
     this.star.blendMode = 'add';
     this.star.position.set(LAYOUT.contentWidth - 8, 6);
     this.star.scale.set(0.32);
-    container.addChildAt(this.flare, 1);
     container.addChild(this.star);
   }
 
@@ -140,14 +143,16 @@ export class Scene {
     for (const entry of this.entries) this.topLayer.addChild(entry.container);
   }
 
-  /** Places everything for the clock `t`, the list scrolled by `scroll` and the running `event` (none between events).
-   * Returns the climbing row's place, which the effects follow. */
-  update(t, scroll, event) {
+  /** Places everything for the clock `t`, the list scrolled by `scroll`, the running `event` (none between events) and how long
+   * ago a row landed in each of the top three's cards, `landedAgo`. Returns the climbing row's place, which the effects follow. */
+  update(t, scroll, event, landedAgo) {
     const frame = { t, scroll, event, u: event && t - event.startedAt };
     this.placeSlotPlates(frame);
     this.cards.forEach((card, rank) => {
       card.visible = rank < this.rows.length;
       card.alpha = this.slotAlpha(rank, frame);
+      this.numerals[rank].scale.set((rank === 0 ? 0.92 : 0.84) * numeralPop(landedAgo[rank]));
+      if (rank > 0) this.flares[rank].alpha = cardFlash(landedAgo[rank]);
     });
     const riser = this.placeEntries(frame);
     this.placeFirstStar(frame);
@@ -225,7 +230,7 @@ export class Scene {
     const { scale, rotation } = twinkle(t), level = event?.kind === 'top' ? flare(u) : 0;
     this.star.scale.set(scale + 0.7 * level);
     this.star.rotation = rotation;
-    this.flare.alpha = 0.45 * level;
+    this.flares[0].alpha = 0.45 * level;
   }
 
   placeMascot(t, motion) {

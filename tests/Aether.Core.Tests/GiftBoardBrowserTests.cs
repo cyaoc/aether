@@ -332,12 +332,16 @@ public sealed partial class GiftBoardBrowserTests
         await using var page = await OpenScrollingListAsync();
         var (cards, pills) = (await CardsAsync(page), await PillsAsync(page));
 
-        await page.StepClockAsync(1000);
+        // In 18 seconds the light round the cards' rims, a lap in 6 or 9 seconds, comes back where it was, and spills over the gaps
+        // between the cards just as before; the sheen and the soft lights, which do not come back, stay inside the cards, which are
+        // opaque anyway. The list has scrolled on.
+        await page.StepClockAsync(18000);
 
         Assert.Equal(cards, await CardsAsync(page));
         Assert.NotEqual(pills, await PillsAsync(page));
-        // A lap is all four pills and one empty row, 300 design pixels, at the 840 design pixels in 24 seconds that the list scrolls.
-        await page.StepClockAsync(8571 - 1000);
+        // A lap is all four pills and one empty row, 300 design pixels, at the 840 design pixels in 24 seconds that the list scrolls:
+        // 8571 ms. Three laps bring it back.
+        await page.StepClockAsync(25714 - 18000);
         Assert.InRange((await PillsAsync(page)).Zip(pills).Count(pair => pair.First != pair.Second), 0, 2);
     }
 
@@ -373,6 +377,12 @@ public sealed partial class GiftBoardBrowserTests
         // The board is 0.78 of its width and centred, so its sides leave 52 px of margin that the rays and confetti would reach.
         var margins = Enumerable.Range(0, 640 / 8).SelectMany(row => MarginColumns.Select(x => (x, row * 8))).ToList();
         Assert.All(await page.AlphaAsync(margins), alpha => Assert.Equal(0, alpha));
+        // The light flowing round the top three's rims goes on between events, its glow a little past the cards' edges.
+        foreach (var _ in Enumerable.Range(0, 4))
+        {
+            await page.StepClockAsync(1700);
+            Assert.All(await page.AlphaAsync(margins), alpha => Assert.Equal(0, alpha));
+        }
         await page.GiveAsync(2, 2000, 3);
         await page.WaitForEventAsync("top");
         foreach (var time in new[] { 1100, 1500, 2000, 2600, 3100 })
@@ -380,6 +390,53 @@ public sealed partial class GiftBoardBrowserTests
             await page.SetEventTimeAsync(time);
             Assert.All(await page.AlphaAsync(margins), alpha => Assert.Equal(0, alpha));
         }
+    }
+
+    [Fact]
+    public async Task Between_events_light_flows_round_the_top_three_and_the_rows_below_stand_still()
+    {
+        await using var page = await StartAsync(options => options with { Volume = 0 });
+        await page.OpenAsync(480, 1000);
+        await page.PauseClockAsync();
+        await page.GiveToAsync(4);
+        await page.SettleAsync();
+        // The middles of the first card's left, bottom and top edges, away from its star, and the fourth row's pill.
+        var top = (int)(Mascot + CardsY);
+        var rim = new[] { (21, top + 49), (240, top + 97), (150, top + 1) };
+        var pill = new[] { (100, (int)(Mascot + RowsY + 25)) };
+        var (rimBefore, pillBefore) = (await page.PixelsAsync(rim), await page.PixelsAsync(pill));
+
+        await page.StepClockAsync(1500);
+
+        var rimAfter = await page.PixelsAsync(rim);
+        Assert.Contains(Enumerable.Range(0, rim.Length), point => !rimBefore[point].SequenceEqual(rimAfter[point]));
+        Assert.Equal(pillBefore[0], (await page.PixelsAsync(pill))[0]);
+        Assert.Equal("", await page.PlayingAsync());
+    }
+
+    [Fact]
+    public async Task A_viewer_who_climbs_into_third_place_lights_up_the_whole_rim_of_that_card()
+    {
+        await using var page = await StartAsync(options => options with { Volume = 0 });
+        await page.OpenAsync(480, 1000);
+        await page.PauseClockAsync();
+        await page.GiveToAsync(4);
+        await page.SettleAsync();
+        // The middles of the third card's four edges, 3 px out, where its own rim and glow do not fill the light up already. The
+        // climb's trail and sparks also light the right edge at this moment; the other three show the rim alone.
+        var (y, h) = ((int)(Mascot + CardsY + 212), 90);
+        var edges = new[] { (240, y - 3), (462, y + h / 2), (240, y + h + 2), (17, y + h / 2) };
+
+        // The fourth viewer's 4600 grows to 4750, past the third's 4700 and short of the second's 4800; the climb ends 800 ms into the event.
+        await page.GiveAsync(10004, 150);
+        await page.WaitForEventAsync("pass");
+        await page.SetEventTimeAsync(800 + 200);
+        var lit = await page.LightAsync(edges);
+        // The same moment of the arcs' lap 90 seconds on (ten laps of the 9-second arcs and nine of the 10-second sheen), when the
+        // landing's light has long faded: the arcs moving round the rim alone would decide a comparison with any other moment.
+        await page.SetEventTimeAsync(800 + 200 + 90000);
+        var settled = await page.LightAsync(edges);
+        Assert.All(Enumerable.Range(0, edges.Length), edge => Assert.True(lit[edge] > settled[edge] + 20, $"edge {edge}: {lit[edge]} after landing, {settled[edge]} later"));
     }
 
     [Fact]

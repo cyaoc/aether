@@ -1,10 +1,14 @@
-// The light the events add: sparks, a comet, light ribbons, rays and confetti, drawn on three 2D canvases as big as the page
-// (design package GB1). Everything is drawn in design pixels and clipped to the board, so nothing leaves it.
-import { CARDS, LAYOUT, spriteHome } from './layout.mjs';
-import { EVENTS, easeInOut, flare } from './motion.mjs';
-import { canvasOf, glow, k, mix, out, rnd } from '../video/animations/toolkit.mjs';
+// The light that flows over the top three's cards, and the light the events add: sparks, a comet, light ribbons, rays and
+// confetti, drawn on three 2D canvases as big as the page (design package GB1). Everything is drawn in design pixels and clipped
+// to the board, so nothing leaves it.
+import { CARDS, LAYOUT, RIM_RADIUS, rimBox, rimLength, rimPoint, spriteHome } from './layout.mjs';
+import { EVENTS, arcHead, easeInOut, flare, lightSwell, rimFlood, sheenSweep } from './motion.mjs';
+import { gradient, roundRect } from './paint.mjs';
+import { canvasOf, glow, k, mix, out, rnd, stroke } from '../video/animations/toolkit.mjs';
 
 const GOLD = '255,226,160', ICE = '190,210,255';
+// The top three's flowing light by rank, gold, silver and ice, and the near-white core of its lines.
+const FLOW = ['255,206,110', '230,238,255', '140,190,255'], CORE = ['255,246,214', '255,255,255', '220,236,255'];
 const CONFETTI = ['#FFD36B', '#FFFFFF', '#6F86FF', '#FF9EC4', '#9FE3FF'];
 
 class Layer {
@@ -42,7 +46,7 @@ class Layer {
 }
 
 export class Effects {
-  /** The rays go under everything on the stage, the confetti and the light over it. */
+  /** The rays and the cards' soft lights go under everything on the stage, the confetti and the light over it. */
   constructor(stage, width, height) {
     this.rays = new Layer(width, height, 'add');
     this.confetti = new Layer(width, height, 'normal');
@@ -53,15 +57,104 @@ export class Effects {
     stage.addChild(this.confetti.sprite, this.light.sprite);
   }
 
-  /** Draws the running event's effects `u` ms into it, following the climbing row `riser` (as the scene placed it). The canvases
-   * are only cleared and uploaded while an event runs, and once more when it ends. */
-  draw(layout, event, u, riser) {
-    if (!event && !this.drawn) return;
-    this.drawn = Boolean(event);
-    Object.assign(this, { layout, u });
-    for (const layer of this.layers) layer.begin(layout);
+  /** Draws the light on the `scene`'s top three by the clock `t` and how long ago a row landed in each of their cards,
+   * `landedAgo`, and the running `event`'s effects, following the climbing row `riser` (as the scene placed it). The canvases
+   * are cleared and uploaded every frame there is a scene, and once more when it is gone. */
+  draw(scene, t, landedAgo, event, riser) {
+    if (!scene && !this.drawn) return;
+    this.drawn = Boolean(scene);
+    if (scene) Object.assign(this, { layout: scene.layout, u: event && t - event.startedAt });
+    for (const layer of this.layers) layer.begin(this.layout);
+    if (scene) this.flow(scene.cards, t, landedAgo);
     if (event && riser) this.paintEvent(riser, event);
     for (const layer of this.layers) layer.end();
+  }
+
+  // 流光 (design package README, 前三名流光): on each card of the top three two arcs of light chase each other round the rim, two
+  // soft lights drift under the glass and a sheen sweeps across now and then. A row landing in a card floods it with light. The
+  // light comes and goes with its card, which a new row unfolds into.
+  flow(cards, t, landedAgo) {
+    cards.forEach((card, rank) => {
+      const shown = card.visible ? card.alpha : 0;
+      if (shown <= 0) return;
+      const ago = landedAgo[rank], box = rimBox(this.layout, rank), length = rimLength(box), first = rank === 0;
+      this.softLights(rank, box, t, shown * (first ? 0.85 : 0.55) * lightSwell(ago));
+      const head = length * arcHead(rank, t, ago), arc = length * (first ? 0.3 : 0.24), strength = shown * (first ? 0.9 : 0.6);
+      this.rimArc(rank, box, head, arc, strength);
+      this.rimArc(rank, box, head + length / 2, arc, strength);
+      this.wholeRim(rank, box, shown * rimFlood(ago));
+      const { progress, strength: brightness } = sheenSweep(rank, t, ago);
+      this.sheen(rank, box, progress, shown * brightness);
+    });
+  }
+
+  // Two broad soft lights drifting under the glass, on the rays' canvas: the card's translucent body keeps them off the text.
+  softLights(rank, box, t, alpha) {
+    const g = this.rays.context, [x, y, w, h] = box;
+    g.save();
+    roundRect(g, box, RIM_RADIUS);
+    g.clip();
+    for (let j = 0; j < 2; j++) {
+      const cx = x + w * (0.5 + 0.42 * Math.sin(t * (j ? 0.00031 : 0.00023) + rank * 1.7 + j * 2.6));
+      glow(g, cx, y + h * (0.5 + 0.3 * Math.sin(t * 0.0004 + j * 1.3)), 170, FLOW[rank], alpha);
+    }
+    g.restore();
+  }
+
+  // One arc `length` long along the rim up to `head`, brightening from its tail in steps of 8 px: wide and faint, medium, thin and
+  // near white, with a soft light on its head.
+  rimArc(rank, box, head, length, alpha) {
+    const { g } = this, steps = Math.round(length / 8);
+    g.lineCap = 'butt';
+    for (let j = 0; j < steps; j++) {
+      const s0 = head - length * (j + 1) / steps, s1 = head - length * j / steps, fade = Math.pow(1 - j / steps, 1.4);
+      const [x0, y0] = rimPoint(box, s0), [xm, ym] = rimPoint(box, (s0 + s1) / 2), [x1, y1] = rimPoint(box, s1);
+      g.beginPath();
+      g.moveTo(x0, y0);
+      g.lineTo(xm, ym);
+      g.lineTo(x1, y1);
+      this.layeredStroke([[22, 0.1, FLOW[rank]], [9, 0.32, FLOW[rank]], [3, 0.95, CORE[rank]]], alpha * fade);
+    }
+    const [x, y] = rimPoint(box, head), halo = g.createRadialGradient(x, y, 0, x, y, 26);
+    halo.addColorStop(0, 'rgba(255,255,255,' + 0.9 * alpha + ')');
+    halo.addColorStop(0.3, 'rgba(' + FLOW[rank] + ',' + 0.4 * alpha + ')');
+    halo.addColorStop(1, 'rgba(' + FLOW[rank] + ',0)');
+    g.fillStyle = halo;
+    g.beginPath();
+    g.arc(x, y, 26, 0, Math.PI * 2);
+    g.fill();
+  }
+
+  // The whole rim lit evenly, for a row that has just landed.
+  wholeRim(rank, box, alpha) {
+    if (alpha <= 0) return;
+    roundRect(this.g, box, RIM_RADIUS);
+    this.layeredStroke([[26, 0.14, FLOW[rank]], [10, 0.4, FLOW[rank]], [3.5, 1, CORE[rank]]], alpha);
+  }
+
+  /** Strokes the path once for each `[line width, strength, colour]`, from wide and faint to thin and bright. */
+  layeredStroke(layers, alpha) {
+    for (const [lineWidth, strength, color] of layers) stroke(this.g, lineWidth, 'rgba(' + color + ',' + alpha * strength + ')');
+  }
+
+  // A wide slanted band led by a sharp line, `progress` of the way across from 140 left of the card to 140 right of it, cut to
+  // the card's shape.
+  sheen(rank, box, progress, alpha) {
+    if (progress <= 0 || progress >= 1) return;
+    const { g } = this, [x, y, w, h] = box, c = x + mix(-140, w + 140, easeInOut(progress)), e = alpha * Math.sin(Math.PI * progress);
+    // Each runs along (180, -h) through the card's middle, `half` either side of `cx`, clear at both ends and `color` in the middle.
+    const along = (cx, half, color) => {
+      const n = Math.hypot(180, h), ux = 180 / n * half, uy = -h / n * half;
+      return gradient(g, [cx - ux, y + h / 2 - uy], [cx + ux, y + h / 2 + uy], ['rgba(255,255,255,0)', color, 'rgba(255,255,255,0)']);
+    };
+    g.save();
+    roundRect(g, box, RIM_RADIUS);
+    g.clip();
+    g.fillStyle = along(c, 70, 'rgba(' + FLOW[rank] + ',' + 0.3 * e + ')');
+    g.fillRect(x, y, w, h);
+    g.fillStyle = along(c + 46, 5, 'rgba(255,255,255,' + 0.55 * e + ')');
+    g.fillRect(x, y, w, h);
+    g.restore();
   }
 
   paintEvent(riser, event) {
@@ -134,11 +227,7 @@ export class Effects {
     for (let i = 1; i < points.length - 1; i++)
       g.quadraticCurveTo(points[i][0], points[i][1], (points[i][0] + points[i + 1][0]) / 2, (points[i][1] + points[i + 1][1]) / 2);
     g.lineTo(last[0], last[1]);
-    for (const [lineWidth, strength] of [[width * 6, 0.12], [width * 2.4, 0.3], [width, 0.9]]) {
-      g.lineWidth = lineWidth;
-      g.strokeStyle = 'rgba(' + color + ',' + alpha * strength + ')';
-      g.stroke();
-    }
+    this.layeredStroke([[width * 6, 0.12, color], [width * 2.4, 0.3, color], [width, 0.9, color]], alpha);
   }
 
   // The sprite fires a capsule of light like a danmaku; it arcs down to the slot and unfolds into the row.

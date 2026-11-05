@@ -1,4 +1,5 @@
 // The timelines of the four events and the easing they use (design package README, 动画). Times are milliseconds since the event began.
+import { TOP_COUNT } from './layout.mjs';
 import { k, mix, out } from '../video/animations/toolkit.mjs';
 
 export const easeInOut = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
@@ -78,3 +79,46 @@ export function twinkle(t) {
   return { scale: 0.3 + 0.16 * (tw < 1 ? Math.sin(Math.PI * tw) : 0), rotation: 0.4 * (tw < 1 ? tw : 0) };
 }
 export const flare = u => k(1600, 1680, u) * (1 - k(1800, 2600, u));
+
+// 流光 on the top three's cards (design package README, 前三名流光). `rank` counts from 0, `t` is the page clock and `landedAgo`
+// how long ago a row landed in the card, Infinity when none has.
+
+/** Where the head of a card's first arc is, as a fraction of its rim: a lap in 6 s on the first card, 9 s on the others. A new first
+ * place's arcs spin two laps more in 1600 ms and end up where they would have been. */
+export function arcHead(rank, t, landedAgo) {
+  const spin = rank === 0 ? 2 * easeInOut(k(0, 1600, landedAgo)) : 0;
+  return (t / (rank === 0 ? 6000 : 9000) + spin + 0.37 * rank) % 1;
+}
+
+// When, in ms into its timeline, a row's unfold or move into its new place ends.
+const LANDS = { new: 860, pass: EVENTS.pass.move[1], top: EVENTS.top.move[1] };
+
+/** Where and when the row an event is about lands among the top three, now that it is in `slot`: it is new there or has climbed
+ * there. A row that drops or only grows does not land. */
+export function landing(event, slot) {
+  const before = event.slots[event.id];
+  return slot < TOP_COUNT && (before === undefined || before > slot) ? { slot, at: LANDS[rowKind(event)] } : undefined;
+}
+
+/** How far across its card the sheen is, swept between 0 and 1, and how bright: in 1100 ms every 5 s on the first card and every
+ * 10 s on the others, 3.3 s apart. A row that has just landed sweeps its card once in 700 ms, 1.6 times as bright. */
+export function sheenSweep(rank, t, landedAgo) {
+  if (landedAgo < 700) return { progress: landedAgo / 700, strength: 1.6 };
+  const phase = rank === 0 ? t % 5000 : (t + 10000 - 3300 * rank) % 10000;
+  return { progress: phase / 1100, strength: 1 };
+}
+
+/** A row that has just landed lights its card's whole rim: it comes on in 80 ms and fades back to the arcs from 150 to 1200 ms. */
+export const rimFlood = landedAgo => k(0, 80, landedAgo) * (1 - k(150, 1200, landedAgo));
+/** The soft lights under a card swell to 1.8 times when a row lands in it and settle back in 1800 ms. */
+export const lightSwell = landedAgo => 1 + 0.8 * (1 - k(0, 1800, landedAgo));
+/** A card below the first flashes as a row lands in it, fading out in 360 ms. */
+export const cardFlash = landedAgo => 0.5 * (1 - k(0, 360, landedAgo));
+/** The card's rank number pops to 1.3 times in 95 ms and eases back by 380 ms. */
+export function numeralPop(landedAgo) {
+  const p = k(0, 380, landedAgo);
+  return p < 0.25 ? mix(1, 1.3, p / 0.25) : mix(1.3, 1, out(k(0.25, 1, p)));
+}
+
+/** How long ago a row landed in the card of `rank`, by the clock `t`, for a landing `landed` at a clock time. */
+export const sinceLanding = (landed, rank, t) => landed?.slot === rank && t >= landed.at ? t - landed.at : Infinity;
