@@ -153,6 +153,8 @@ dotnet run --project src/Aether.Cli -- watch <房间号>
 dotnet run --project src/Aether.Gui
 ```
 
+浏览器验收测试（抽奖页、礼物榜页、CLI 欢迎动画）只在本机 macOS 跑，CI 不跑，没设开关时 `dotnet test` 会全部跳过：把 `AETHER_TEST_CHROME` 设成 Chrome 的路径（如 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`）再运行 `dotnet test`，全量约 18 分钟。
+
 Debug 版使用仓库根目录的 `data/`。推送 `v*` tag 后，[Release 工作流](.github/workflows/release.yml) 构建发布包并上传到 GitHub Release。
 
 - [术语表](GLOSSARY.md) · [架构决策](docs/adr/) · [行为参考](docs/reference.md) · [协议测试数据](tests/Aether.Core.Tests/Fixtures/README.md)
