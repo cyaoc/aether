@@ -183,6 +183,16 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
 
     internal Task ContinueAsync() => RunAsync(client.GiftBoard.ContinuePeriod, "继续这一期失败", "已继续这一期，画面上重新显示榜");
 
+    /// <summary>Ends a running 期 because the streamer is stopping (断开, closing Aether or logging out; not a reconnect to apply
+    /// settings), while its room is still connected (ADR 0014). Core decides once the writes before it are done, so a 期 started
+    /// just before ends too. A failure is only logged: the streamer leaves all the same, and the 期 goes on running.</summary>
+    internal async Task EndBeforeLeavingAsync()
+    {
+        if (roomId is not { } room) return;
+        try { await Write(() => client.GiftBoard.EndPeriodOnLeaving(room)); }
+        catch (Exception exception) { logger.LogError(exception, "断开时结束礼物榜这一期失败：{Error}", exception.Message); }
+    }
+
     private Task StartNewPeriodAsync(string room) =>
         RunAsync(client.GiftBoard.StartNewPeriod, "开始新一期失败", $"已为直播间 {room} 开始新的一期");
 

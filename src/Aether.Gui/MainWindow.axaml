@@ -101,7 +101,7 @@
                     <Ellipse Classes="status" Width="7" Height="7" VerticalAlignment="Center" Classes.connected="{Binding IsConnected}" />
                     <TextBlock Classes="connection" Classes.connected="{Binding IsConnected}" Text="{Binding Status}" AutomationProperties.LiveSetting="Polite" />
                   </StackPanel>
-                  <Button Content="断开" HorizontalAlignment="Stretch" Command="{Binding ConnectCancelCommand}" />
+                  <Button x:Name="DisconnectButton" Content="断开" HorizontalAlignment="Stretch" Command="{Binding DisconnectCommand}" />
                 </StackPanel>
               </StackPanel>
             </Border>

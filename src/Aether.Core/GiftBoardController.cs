@@ -104,10 +104,23 @@ public sealed class GiftBoardController : IDisposable
     public void EndPeriod(long room) => Change(room, () =>
     {
         if (board.Period is not { EndedAt: null } running) throw new InvalidOperationException("没有在统计的一期。");
-        var at = time.GetUtcNow();
-        store().End(room, at);
-        board = board with { Period = running with { EndedAt = at } };
+        End(room, running);
     });
+
+    /// <summary>Ends <paramref name="room"/>'s 期 if it is running, because the streamer is stopping (断开, closing Aether or
+    /// logging out; ADR 0014); one not running is left as it is. A locked database is waited for a second at most, so leaving is
+    /// not held up by it: the 期 then goes on running.</summary>
+    public void EndPeriodOnLeaving(long room) => Change(room, () =>
+    {
+        if (board.Period is { EndedAt: null } running) End(room, running, busySeconds: 1);
+    });
+
+    private void End(long room, GiftBoardPeriod running, int? busySeconds = null)
+    {
+        var at = time.GetUtcNow();
+        store().End(room, at, busySeconds);
+        board = board with { Period = running with { EndedAt = at } };
+    }
 
     /// <summary>Runs <paramref name="room"/>'s ended 期 again.</summary>
     public void ContinuePeriod(long room) => Change(room, () =>

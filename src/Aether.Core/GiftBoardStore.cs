@@ -74,9 +74,11 @@ internal sealed class GiftBoardStore(Database database)
         RETURNING id;
         """, roomId, at, options)!;
 
-    /// <summary>Ends the room's running 期.</summary>
-    public void End(long roomId, DateTimeOffset at) =>
-        Execute($"UPDATE gift_board_period SET ended_at = $at WHERE id = {LatestPeriodId} AND ended_at IS NULL;", roomId, at);
+    /// <summary>Ends the room's running 期, waiting for a locked database at most <paramref name="busySeconds"/>, or
+    /// Microsoft.Data.Sqlite's default when not given.</summary>
+    public void End(long roomId, DateTimeOffset at, int? busySeconds = null) =>
+        Execute($"UPDATE gift_board_period SET ended_at = $at WHERE id = {LatestPeriodId} AND ended_at IS NULL;", roomId, at,
+            busySeconds: busySeconds);
 
     /// <summary>Runs the room's latest 期 again after it was ended.</summary>
     public void Continue(long roomId) => Execute($"UPDATE gift_board_period SET ended_at = NULL WHERE id = {LatestPeriodId};", roomId);
@@ -87,11 +89,13 @@ internal sealed class GiftBoardStore(Database database)
         WHERE id = {LatestPeriodId};
         """, roomId, options: options);
 
-    private object? Execute(string statement, long roomId, DateTimeOffset? at = null, GiftBoardOptions? options = null)
+    private object? Execute(string statement, long roomId, DateTimeOffset? at = null, GiftBoardOptions? options = null,
+        int? busySeconds = null)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
         command.CommandText = statement;
+        if (busySeconds is { } seconds) command.CommandTimeout = seconds;
         command.Parameters.AddWithValue("$room", roomId);
         command.Set("$at", at);
         if (options is not null)
