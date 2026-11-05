@@ -11,7 +11,7 @@ public sealed class EntryLotteryTests
     [Fact]
     public async Task Eligible_entries_run_out_after_each_viewer_has_won()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var controller = h.Client.Lottery;
@@ -36,7 +36,7 @@ public sealed class EntryLotteryTests
     [InlineData(true, true)]
     public async Task Restart_restores_the_latest_lottery_after_ending_hiding_or_replacing_an_entry_lottery(bool hidden, bool replaced)
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -71,7 +71,7 @@ public sealed class EntryLotteryTests
     [Fact]
     public async Task Only_exact_trimmed_keywords_during_registration_enter_once_per_uid()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         Assert.Throws<InvalidOperationException>(() => h.Client.Lottery.StartEntry(Awards, "抽奖"));
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
@@ -99,7 +99,7 @@ public sealed class EntryLotteryTests
     public async Task Draw_is_uniform_excludes_winners_and_locks_for_seven_seconds(long pick, long expectedUid)
     {
         var random = new PickRandom(pick);
-        await using var h = new WatchHarness(random: random, enableLottery: true);
+        await using var h = new WatchHarness(random: random, enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -147,7 +147,7 @@ public sealed class EntryLotteryTests
     [InlineData(true)]
     public async Task Restart_restores_registration_draws_and_ended_visibility(bool ended)
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         var updates = await h.WatchConnectedAsync();
         h.Client.Lottery.New(LotteryMode.Entry);
@@ -197,7 +197,7 @@ public sealed class EntryLotteryTests
     [Fact]
     public async Task New_carries_only_the_last_settings_of_the_selected_mode()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -238,7 +238,7 @@ public sealed class EntryLotteryTests
     [Fact]
     public async Task Browser_receives_every_phase_snapshot_recent_entries_draws_and_visibility_in_state_only()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
@@ -292,7 +292,7 @@ public sealed class EntryLotteryTests
     [Fact]
     public async Task Invalid_settings_and_illegal_phase_changes_do_not_change_the_lottery()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -322,7 +322,7 @@ public sealed class EntryLotteryTests
     [Fact]
     public async Task Failed_draw_write_is_atomic_and_failed_completion_retries()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;

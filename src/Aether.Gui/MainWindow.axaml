@@ -101,7 +101,7 @@
                     <Ellipse Classes="status" Width="7" Height="7" VerticalAlignment="Center" Classes.connected="{Binding IsConnected}" />
                     <TextBlock Classes="connection" Classes.connected="{Binding IsConnected}" Text="{Binding Status}" AutomationProperties.LiveSetting="Polite" />
                   </StackPanel>
-                  <Button Content="断开" HorizontalAlignment="Stretch" Command="{Binding ConnectCancelCommand}" />
+                  <Button x:Name="DisconnectButton" Content="断开" HorizontalAlignment="Stretch" Command="{Binding DisconnectCommand}" />
                 </StackPanel>
               </StackPanel>
             </Border>
@@ -134,6 +134,13 @@
                   <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Gift}" /></Viewbox>
                   <TextBlock Grid.Column="1" Text="送礼动画" VerticalAlignment="Center" />
                   <TextBlock Grid.Column="2" x:Name="GiftAnimationStatus" Classes="caption muted" />
+                </Grid>
+              </ListBoxItem>
+              <ListBoxItem>
+                <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                  <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Trophy}" /></Viewbox>
+                  <TextBlock Grid.Column="1" Text="礼物榜" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" x:Name="GiftBoardStatus" Classes="caption success" Text="{Binding GiftBoard.StatusText}" IsVisible="{Binding GiftBoard.Running}" />
                 </Grid>
               </ListBoxItem>
               <ListBoxItem>

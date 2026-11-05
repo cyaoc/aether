@@ -8,7 +8,7 @@ public sealed class LotteryPrizeSetTests
     [Fact]
     public async Task Prize_sets_are_scoped_ordered_replaceable_and_survive_a_new_client()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         var lottery = h.Client.Lottery;
         lottery.SavePrizeSet(7734200, LotteryMode.Pool, " 周末 ", [new("抱枕", 2, Grade.Grand)], []);
         lottery.SavePrizeSet(7734200, LotteryMode.Entry, "周末", [], [new("幸运奖", "贴纸", 3, Grade.Third)]);
@@ -35,7 +35,7 @@ public sealed class LotteryPrizeSetTests
     [Fact]
     public async Task Prize_set_validation_matches_starting_each_lottery()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         var lottery = h.Client.Lottery;
         PoolPrize[][] invalidPrizes = [[], Enumerable.Repeat(new PoolPrize("贴纸", 1, Grade.Third), 11).ToArray(),
             [new("", 1, Grade.Grand)], [new("贴纸", 0, Grade.Third)], [new("贴纸", 1, (Grade)99)]];

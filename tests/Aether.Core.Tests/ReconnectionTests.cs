@@ -29,8 +29,7 @@ public sealed class ReconnectionTests
         await h.AdvanceRetryAsync(updates, 30);
         Assert.IsType<WatchQrCode>(updates.Current);
         // Once resolved, even a changed short-number mapping must not change this room connection.
-        h.Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
-            """{"code":0,"data":{"room_id":999,"uid":24680}}""";
+        h.Http.SetRoom(roomId: 999);
         Assert.True(await h.AdvancePollAsync(updates));
         Assert.IsType<Connected>(updates.Current);
         Assert.Equal(8, h.Http.Requests.Count(r => r.Uri.AbsolutePath.EndsWith("room_init")));
@@ -181,7 +180,7 @@ public sealed class ReconnectionTests
         {
             connection.Open();
             using var command = connection.CreateCommand();
-            command.CommandText = "PRAGMA user_version = 6";
+            command.CommandText = "PRAGMA user_version = 8";
             command.ExecuteNonQuery();
         }
         using var client = new AetherClient(h.Http, h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);

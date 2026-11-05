@@ -96,14 +96,7 @@ public partial class LotteryViewModel : ObservableObject
     internal void ObserveLottery()
     {
         if (shutdown.IsCancellationRequested || !lotteryUpdates.Current.IsCompleted) return;
-        lotteryUpdates.Start(ReadAsync);
-
-        async Task ReadAsync(CancellationToken token)
-        {
-            try { await foreach (var update in client.Lottery.GetUpdatesAsync(token)) Apply(update); }
-            catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-            catch (Exception error) { logger.LogError(error, "抽奖状态订阅中断"); }
-        }
+        lotteryUpdates.Follow(client.Lottery.GetUpdatesAsync, Apply, logger, "抽奖状态订阅中断");
     }
 
     internal Task ChangeLotteryAsync(Action<LotteryController> change)

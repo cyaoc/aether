@@ -21,6 +21,7 @@ public sealed partial class AetherClient : IDisposable
     public GiftAnimation GiftAnimation { get; }
     public EntryAnimation EntryAnimation { get; }
     public LotteryController Lottery { get; }
+    public GiftBoardController GiftBoard { get; }
     private readonly Lazy<Stores> stores;
 
     public AetherClient(HttpMessageHandler httpHandler, Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket,
@@ -35,10 +36,12 @@ public sealed partial class AetherClient : IDisposable
         stores = new(() =>
         {
             var database = new Database(dataDirectory);
-            return new Stores(new CredentialStore(database), new BlindBoxStore(database, logger), new LotteryStore(database));
+            return new Stores(new CredentialStore(database), new BlindBoxStore(database), new GiftStore(database, logger),
+                new LotteryStore(database), new GiftBoardStore(database));
         }, LazyThreadSafetyMode.PublicationOnly);
         Lottery = new(() => stores.Value.Lotteries, timeProvider, logger, random ?? Random.Shared);
-        WebService = new(dataDirectory, timeProvider, logger, Lottery);
+        GiftBoard = new(() => stores.Value.GiftBoards, timeProvider);
+        WebService = new(dataDirectory, timeProvider, logger, Lottery, GiftBoard);
         WelcomeAnimation = new(WebService, timeProvider, logger);
         EntryAnimation = new(WebService, WelcomeAnimation, timeProvider, logger);
         GiftAnimation = new(WebService, timeProvider, logger);
@@ -52,7 +55,8 @@ public sealed partial class AetherClient : IDisposable
         await WebService.StartAsync(settings.WebServicePort.Value).ConfigureAwait(false);
     }
 
-    private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes, LotteryStore Lotteries);
+    private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes, GiftStore Gifts, LotteryStore Lotteries,
+        GiftBoardStore GiftBoards);
 
     private static readonly TimeSpan CredentialCheckInterval = TimeSpan.FromHours(24);
 
@@ -102,19 +106,19 @@ public sealed partial class AetherClient : IDisposable
     }
 
     public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, CancellationToken cancellationToken = default) =>
-        WatchAsync(roomId, enableLottery: false, cancellationToken);
+        WatchAsync(roomId, enableLotteryAndGiftBoard: false, cancellationToken);
 
-    /// <summary>The GUI opts in to lotteries; the CLI watches without one.</summary>
-    public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, bool enableLottery, CancellationToken cancellationToken = default)
+    /// <summary>The GUI opts in to lotteries and the 礼物榜 (ADR 0014); the CLI watches without them.</summary>
+    public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, bool enableLotteryAndGiftBoard, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(roomId);
-        return EndOnCancellation(RunRoomConnectionAsync(roomId, enableLottery, cancellationToken), cancellationToken);
+        return EndOnCancellation(RunRoomConnectionAsync(roomId, enableLotteryAndGiftBoard, cancellationToken), cancellationToken);
     }
 
     /// <summary>Core runs the room connection on its own; the caller only reads what it reports,
     /// so a slow reader never holds up receiving, heartbeats or the idle deadline.</summary>
     private async IAsyncEnumerable<WatchUpdate> RunRoomConnectionAsync(
-        long roomId, bool enableLottery, [EnumeratorCancellation] CancellationToken cancellationToken)
+        long roomId, bool enableLotteryAndGiftBoard, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // ponytail: unbounded, so a reader that stops for good grows memory; bound it if a stalled shell ever matters.
         var updates = Channel.CreateUnbounded<WatchUpdate>(new UnboundedChannelOptions { SingleReader = true });
@@ -150,7 +154,7 @@ public sealed partial class AetherClient : IDisposable
             {
                 var settings = Settings.Load(dataDirectory, logger);
                 if (settings.Error is { } settingsError) throw settingsError;
-                await new RoomConnection(this, roomId, settings, updates.Writer, enableLottery).RunAsync(stop.Token);
+                await new RoomConnection(this, roomId, settings, updates.Writer, enableLotteryAndGiftBoard).RunAsync(stop.Token);
             }
             finally { updates.Writer.Complete(); }
         }
@@ -296,7 +300,7 @@ public sealed partial class AetherClient : IDisposable
         catch { socket.Dispose(); throw; }
     }
 
-    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); http.Dispose(); }
+    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); GiftBoard.Dispose(); http.Dispose(); }
 }
 
 public static class AetherHosting

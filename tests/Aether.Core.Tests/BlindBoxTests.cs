@@ -10,16 +10,15 @@ public sealed class BlindBoxTests
     private static string Gift => BlindGiftFixture.Json;
 
     [Fact]
-    public async Task V1_blind_box_is_saved_with_real_room_integer_amounts_and_original_message()
+    public async Task V1_blind_box_is_saved_with_real_room_integer_amounts()
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        var raw = Gift;
-        await h.PushAndSyncAsync(updates, raw);
+        await h.PushAndSyncAsync(updates, Gift);
 
         Assert.Equal(new TestDatabase.BlindBoxRow(7734200L, 10001L, "测试观众", 32649L, "星月盲盒", 5000L,
-            32698L, "小蛋糕", 1500L, 1L, 5000L, 1500L, 1732634266L, "test-v1-1", raw),
+            32698L, "小蛋糕", 1500L, 1L, 5000L, 1500L, 1732634266L, "test-v1-1"),
             Assert.Single(TestDatabase.BlindBoxRows(h.DataDirectory)));
         var logged = Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Information && e.Message.Contains("记录盲盒"));
         foreach (var expected in new[] { "测试观众", "星月盲盒", "小蛋糕", "1", "5000", "1500" })
@@ -36,7 +35,7 @@ public sealed class BlindBoxTests
         await h.PushAndSyncAsync(updates, Gift);
         using var connection = TestDatabase.Open(h.DataDirectory);
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COUNT(*) FROM blind_box";
+        command.CommandText = "SELECT COUNT(*) FROM gift_record";
         Assert.Equal(0L, command.ExecuteScalar());
         Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("记录盲盒"));
     }
@@ -255,7 +254,7 @@ public sealed class BlindBoxTests
         using (var connection = TestDatabase.Open(h.DataDirectory))
         using (var command = connection.CreateCommand())
         {
-            command.CommandText = "CREATE TRIGGER fail_gift BEFORE INSERT ON blind_box BEGIN SELECT RAISE(ABORT, 'test write failure'); END;";
+            command.CommandText = "CREATE TRIGGER fail_gift BEFORE INSERT ON gift_record BEGIN SELECT RAISE(ABORT, 'test write failure'); END;";
             command.ExecuteNonQuery();
         }
         await h.Server.PushAsync(FakeDanmakuServer.Packet(5, Encoding.UTF8.GetBytes(Gift), 0));

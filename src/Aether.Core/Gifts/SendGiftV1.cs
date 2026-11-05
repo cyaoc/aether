@@ -4,30 +4,32 @@ namespace Aether.Core.Gifts;
 
 internal static class SendGiftV1
 {
-    public static IEnumerable<(string? CoinType, BlindBox Box)> Decode(JsonElement data)
+    public static IEnumerable<(string? CoinType, Gift Gift)> Decode(JsonElement data)
     {
         data.TryGetProperty("blind_gift", out var blind);
         var isBlind = blind.ValueKind == JsonValueKind.Object;
         var coinType = data.GetProperty("coin_type").GetString();
         if (!isBlind && coinType != "gold") yield break;
-        yield return (coinType, new BlindBox(
+        yield return (coinType, new Gift(
             Uid: data.GetProperty("uid").GetInt64(),
             Nickname: data.GetProperty("uname").GetString() ?? throw new JsonException("缺少观众昵称。"),
-            BlindGiftId: isBlind ? blind.GetProperty("original_gift_id").GetInt64() : 0,
-            BlindGiftName: isBlind ? blind.GetProperty("original_gift_name").GetString() ?? throw new JsonException("缺少盲盒名称。") : "",
-            BlindGiftPrice: isBlind ? blind.GetProperty("original_gift_price").GetInt64() : 0,
-            OpenedGiftId: data.GetProperty("giftId").GetInt64(),
-            OpenedGiftName: data.GetProperty("giftName").GetString() ?? throw new JsonException("缺少开出礼物名称。"),
-            OpenedGiftPrice: data.GetProperty("price").GetInt64(),
-            Num: data.GetProperty("num").GetInt64(),
-            Spend: data.GetProperty("total_coin").GetInt64(),
-            OpenedValue: 0,
-            Timestamp: data.GetProperty("timestamp").GetInt64(),
+            Spend: data.GetProperty("total_coin").GetInt64())
+        {
+            Blind = isBlind ? new(blind.GetProperty("original_gift_id").GetInt64(),
+                blind.GetProperty("original_gift_name").GetString() ?? throw new JsonException("缺少盲盒名称。"),
+                blind.GetProperty("original_gift_price").GetInt64()) : null,
+            GiftId = data.GetProperty("giftId").GetInt64(),
+            GiftName = data.GetProperty("giftName").GetString() ?? throw new JsonException("缺少开出礼物名称。"),
+            Price = data.GetProperty("price").GetInt64(),
+            Num = data.GetProperty("num").GetInt64(),
+            Timestamp = data.GetProperty("timestamp").GetInt64(),
             // BAC types tid as num although every sample so far is a string; either way it is kept as text.
-            Tid: !data.TryGetProperty("tid", out var id) ? null
+            Tid = !data.TryGetProperty("tid", out var id) ? null
                 : id.ValueKind == JsonValueKind.Number ? id.GetRawText() : id.GetString(),
             // JSON spells false out, so only an explicit false hides the gift; a message without switch counts as shown.
-            Shown: !data.TryGetProperty("switch", out var shown) || shown.ValueKind != JsonValueKind.False,
-            RawMessage: ""));
+            Shown = !data.TryGetProperty("switch", out var shown) || shown.ValueKind != JsonValueKind.False,
+            FaceUrl = GiftMessages.OptionalText(data, "face"),
+            IconUrl = GiftMessages.OptionalText(data, "gift_info", "img_basic")
+        });
     }
 }

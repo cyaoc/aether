@@ -9,7 +9,7 @@ public sealed class LotteryPinnedTests
     [Fact]
     public async Task Pinned_results_are_shared_across_connections_but_not_saved_or_used_by_examples()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         var lottery = h.Client.Lottery;
         await using var updates = lottery.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.False((await h.NextAsync(updates)).State.PinnedResults);
@@ -38,7 +38,7 @@ public sealed class LotteryPinnedTests
     [Fact]
     public async Task Live_page_state_contains_the_pinned_results_switch()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         h.Client.Lottery.SetPinnedResults(true);
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false })

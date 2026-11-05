@@ -89,7 +89,7 @@ public sealed class Settings
           tier_50_spend: 2000
           tier_60_spend: 10000
 
-        # 网页服务，视频页 /video、抽奖页 /lottery 都从这里打开；先开 Aether 再开推流软件
+        # 网页服务，视频页 /video、抽奖页 /lottery、礼物榜页 /gift-board 都从这里打开；先开 Aether 再开推流软件
         web_service:
           # 端口 1–65535；GUI 保存后立即生效，所有浏览器素材的地址都要跟着改
           port: 17890
@@ -129,7 +129,7 @@ public sealed class Settings
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome_danmaku.wealth_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
     private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("entry_animation.enabled", false));
     private static readonly Definition<int> AnimationLevel = Register(Definition.Number("entry_animation.fan_club_level", 30, "必须是 0、30、40、50、60。", value => value == 0 || EntryTier.Parse(value) is not null));
-    private static readonly Definition<int> AnimationVolume = Register(Definition.Number("entry_animation.volume", 80, "必须是 0–100。", value => value is >= 0 and <= 100));
+    private static readonly Definition<int> AnimationVolume = Register(Definition.Volume("entry_animation.volume", 80));
     private static readonly Definition<bool> GiftOn = Register(Definition.Boolean("gift_animation.enabled", false));
     private static readonly Definition<int>[] GiftThresholds = EntryTier.All.Select((tier, index) => Register(Definition.Number($"gift_animation.tier_{tier}_spend", new[] { 100, 500, 2000, 10000 }[index], "必须为正整数。", value => value > 0))).ToArray();
     public Setting<bool> EntryAnimationEnabled => Get(AnimationOn);
@@ -609,6 +609,10 @@ public sealed class Settings
         public static Definition<bool> Boolean(string name, bool initial) => ScalarSetting(name, initial, "必须为 true 或 false。",
             text => text.Trim() switch { "true" => (true, true), "false" => (true, false), _ => default },
             BooleanText);
+
+        /// <summary>A volume from 0 to 100, where 0 is silent.</summary>
+        public static Definition<int> Volume(string name, int initial) =>
+            Number(name, initial, "必须是 0–100。", value => value is >= 0 and <= 100);
 
         /// <summary>One of <paramref name="choices"/>, written exactly as its name.</summary>
         public static Definition<T> Choice<T>(string name, T initial, IReadOnlyList<T> choices) where T : notnull =>

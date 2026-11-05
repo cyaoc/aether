@@ -9,6 +9,7 @@ using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Styling;
@@ -18,8 +19,11 @@ using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Gui.Tests;
 
-public sealed class VisualReviewTests
+public sealed partial class VisualReviewTests
 {
+    // In navigation order.
+    private static readonly string[] ReviewedPages = ["danmaku", "blind-box", "welcome", "welcome-animation", "gift-board", "lottery", "send-queue", "general"];
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -40,7 +44,7 @@ public sealed class VisualReviewTests
                 await vm.ReadAccountCommand.ExecutionTask!;
                 vm.Apply(new Connected(1768506153, 24680));
                 window.Navigation.SelectedIndex = 3;
-                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
                 vm.WebService.Apply(new SourcePlayback("gift", 12345, "40 档", false, PlaybackState.Completed, Nickname: "夜航船", Source: "送礼动画", TriggerReason: "这一轮投入 560 电池"));
                 vm.WebService.Apply(new SourcePlayback("gift2", 67890, "60 档", false, PlaybackState.Skipped, "没有推流软件连着", "柚子不酸", "送礼动画", "这一轮投入 12000 电池"));
                 GuiHarness.Flush();
@@ -83,11 +87,10 @@ public sealed class VisualReviewTests
                 window.Navigation.SelectedIndex = 2;
                 var welcome = window.GetVisualDescendants().OfType<WelcomePanel>().Single();
                 welcome.Select(1);
-                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
                 vm.WebService.Apply(new SourcePlayback("entry", 12345, "30 档", false, PlaybackState.Completed, Nickname: "柚子不酸", Source: "进场动画", TriggerReason: "粉丝团 34 级"));
                 GuiHarness.Flush();
-                Assert.Equal(80m, welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Value);
-                Assert.Equal("80", welcome.Animation.FindControl<NumericUpDown>("VolumeInput")!.Text);
+                Assert.Equal(80, welcome.Animation.FindControl<Slider>("VolumeInput")!.Value);
                 Save(window, $"entry-welcome-animation-{width}-{(dark ? "dark" : "light")}");
                 var fanClub = welcome.Animation.FindControl<ComboBox>("FanClubInput")!;
                 fanClub.SelectedItem = 0;
@@ -125,7 +128,7 @@ public sealed class VisualReviewTests
                 await vm.ReadAccountCommand.ExecutionTask!;
                 vm.Apply(new Connected(7734200, 24680));
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery() with { Uid = 1 })));
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 GuiHarness.Flush();
                 var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().Single(x => x.IsEffectivelyVisible);
                 var button = picker.FindControl<Button>("PickerButton")!;
@@ -170,7 +173,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 Lottery lottery = mode == LotteryMode.Pool ? LotteryPanelTests.TestLottery() : EntryLotteryPanelTests.TestLottery();
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
                 await vm.Lottery.SavePrizeSetAsync(mode, "周末福利");
@@ -217,7 +220,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
                 var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
                 var tabs = panel.FindControl<ListBox>("ViewTabs")!;
@@ -255,7 +258,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 var at = new DateTimeOffset(2026, 10, 17, 20, 30, 0, TimeSpan.FromHours(8));
                 string[] names = ["一只小鹿", "柚子不酸", "夜航船", "桃桃乌龙", "番茄炒蛋", "青柠", "橘猫本猫", "南巷"];
                 var lottery = EntryLotteryPanelTests.TestLottery() with
@@ -323,7 +326,7 @@ public sealed class VisualReviewTests
             try
             {
                 await vm.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 4;
+                window.Navigation.SelectedIndex = 5;
                 // Canvas V1's pool and records: a viewer's stop, a host stop with no UID, and a host stop for a named viewer.
                 PoolPrize[] prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second),
                     new("签名照", 4, Grade.Third), new("贴纸套装", 2, Grade.Third)];
@@ -391,11 +394,16 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0, 0));
                 for (var index = 0; index < window.Navigation.ItemCount; index++)
                 {
                     window.Navigation.SelectedIndex = index;
-                    CheckFixedText();
+                    var checkedTexts = CheckFixedText();
+                    // The pages the gift board added are among those checked, not skipped by an exception or a page that is not shown.
+                    if (index == Array.IndexOf(ReviewedPages, "gift-board"))
+                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "上榜门槛", "新的第一名时响一声", "开始新一期", "当前榜单" });
+                    if (index == Array.IndexOf(ReviewedPages, "general"))
+                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "礼物榜页", "送礼观众的排行", "480 × 1000，可以等比放大" });
                 }
                 var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);
                 var status = general.FindControl<TextBlock>("WebServiceStatusText")!;
@@ -422,34 +430,44 @@ public sealed class VisualReviewTests
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
             return true;
 
-            void CheckFixedText()
+            string[] CheckFixedText()
             {
                 GuiHarness.Flush();
                 var texts = window.GetVisualDescendants().OfType<TextBlock>()
-                    .Where(t => t.IsEffectivelyVisible && !string.IsNullOrEmpty(t.Text));
+                    .Where(t => t.IsEffectivelyVisible && !string.IsNullOrEmpty(t.Text)).ToArray();
                 foreach (var text in texts)
                 {
                     // These are multi-sentence help, not single-line captions.
                     if (text.Name is "WelcomeTextHint" or "WebServiceHelp" ||
                         text.GetVisualAncestors().OfType<Control>().Any(c =>
-                            c.Name is "VideoSetupHelp" or "LotterySetupHelp" or "EmptyConditions")) continue;
+                            c.Name is "SetupHelp" or "EmptyConditions")) continue;
+                    // The gift board's empty list and a status bar's steps wrap too, but all of their words show.
+                    if (text.Name is "BoardEmpty" or "PageSetupSteps")
+                    {
+                        Assert.True(text.TextLayout.Height <= text.Bounds.Height + 1 && text.TextLayout.Width <= text.Bounds.Width + 1, $"Clipped help: {text.Text}");
+                        continue;
+                    }
                     Assert.True(text.TextWrapping == TextWrapping.NoWrap, $"Wrapping: {text.Text}");
                     var line = Assert.Single(text.TextLayout.TextLines);
                     Assert.True(line.Width > 0 && text.Bounds.Height >= line.Height - 1, $"Hidden: {text.Text}");
                     Assert.True(line.Width <= text.Bounds.Width + 1, $"Clipped: {text.Text}");
                     if (line.HasCollapsed) Assert.Equal(text.Text, ToolTip.GetTip(text));
-                    if (text.Classes.Contains("section") && text.Parent is Panel row)
+                    // A switch, a choice or a slider is titled by a heading with its caption under it, on purpose.
+                    if (text.Classes.Contains("section") && text.Parent is Panel row && !TitlesAControl(row))
                         foreach (var hint in row.Children.OfType<TextBlock>().Where(t => t.Classes.Contains("hint")))
                             Assert.True(hint.Bounds.Top < text.Bounds.Bottom && text.Bounds.Top < hint.Bounds.Bottom,
                                 $"Caption below heading: {text.Text}");
                 }
+                return [.. texts.Select(text => text.Text ?? "")];
             }
         }, TestContext.Current.CancellationToken);
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public Task Screenshots_web_service_and_video_status(bool dark)
+    [InlineData(1200, 720, false)]
+    [InlineData(1200, 720, true)]
+    [InlineData(1040, 600, false)]
+    [InlineData(1040, 600, true)]
+    public Task Screenshots_web_service_and_video_status(int width, int height, bool dark)
     {
         Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
         return HeadlessApp.Session.Dispatch(async () =>
@@ -466,31 +484,31 @@ public sealed class VisualReviewTests
             var viewModel = harness.CreateViewModel(new FakeTimeProvider());
             var window = new MainWindow(harness.DataDirectory)
             {
-                DataContext = viewModel, Width = 1200, Height = 720,
+                DataContext = viewModel, Width = width, Height = height,
                 RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
             };
             window.Show();
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 6;
+                window.Navigation.SelectedIndex = 7;
                 GuiHarness.Flush();
                 foreach (var (name, state) in new[]
                 {
-                    ("connected", new WebServiceStatus(true, 17890, 2, 1)),
-                    ("partial", new WebServiceStatus(true, 17890, 1, 0)),
-                    ("setup", new WebServiceStatus(true, 17890, 0, 0)),
-                    ("occupied", new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"))
+                    ("connected", new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1)),
+                    ("partial", new WebServiceStatus(true, 17890, 1, 0, GiftBoardConnections: 1)),
+                    ("setup", new WebServiceStatus(true, 17890, 0, 0, 0)),
+                    ("occupied", new WebServiceStatus(false, 17890, 0, 0, 0, "端口 17890 被别的程序占用"))
                 })
                 {
                     viewModel.WebService.Apply(state);
-                    Save(window, $"web-service-N{(dark ? 2 : 1)}-{name}");
+                    Save(window, $"web-service-N{(dark ? 2 : 1)}-{name}-{width}x{height}");
                 }
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 1, 0));
                 window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 viewModel.WebService.Apply(new SourcePlayback("one", 12345, "小鹿的欢迎动画.mp4", true, PlaybackState.Completed));
-                Save(window, $"welcome-animation-N3-{(dark ? "dark" : "light")}");
+                Save(window, $"welcome-animation-N3-{(dark ? "dark" : "light")}-{width}x{height}");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
             return true;
@@ -743,16 +761,16 @@ public sealed class VisualReviewTests
                 window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 var page = window.GetVisualDescendants().OfType<AnimationSettingsPage>().Single();
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 0, 0));
                 foreach (var (state, index) in new[] { PlaybackState.Completed, PlaybackState.Failed, PlaybackState.NoReport, PlaybackState.Skipped, PlaybackState.Queued }.Select((state, index) => (state, index)))
                     viewModel.WebService.Apply(new SourcePlayback(index.ToString(), index == 1 ? 67890 : 24680, index == 1 ? "星光入场.webm" : "很长的专属欢迎动画文件名.mp4", index == 0, state, state == PlaybackState.Skipped ? "上一个还没播完" : null,
                         Nickname: index switch { 1 => "柚子不酸", 2 => "bili_6508617762", _ => null }));
                 Capture("connected");
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0, 0));
                 Capture("setup");
-                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, "端口 17890 被别的程序占用"));
+                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, 0, "端口 17890 被别的程序占用"));
                 Capture("port-occupied");
-                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
                 viewModel.WebService.Apply(new SourcePlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Playing));
                 Capture("playing");
                 viewModel.WebService.Apply(new SourcePlayback("playing", 1234567890123456, videos[1234567890123456], true, PlaybackState.Stopped));
@@ -772,7 +790,7 @@ public sealed class VisualReviewTests
                 await GuiHarness.WaitForAsync(() => page.IsEnabled);
                 viewModel.WebService.RecentAnimations.Clear();
                 GuiHarness.FindVisual<TextBlock>(page, "Message").Text = "";
-                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0));
+                viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, 0));
                 GuiHarness.Flush();
                 // Settle the transition, then redraw its final edges instead of reusing an intermediate frame.
                 await Task.Delay(300, TestContext.Current.CancellationToken);
@@ -865,7 +883,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                foreach (var (pageIndex, name) in new[] { (6, "LogLevelInput"), (2, "GuardInput") })
+                foreach (var (pageIndex, name) in new[] { (7, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
                     input.IsDropDownOpen = true;
@@ -906,7 +924,7 @@ public sealed class VisualReviewTests
             try
             {
                 await viewModel.ReadAccountCommand.ExecutionTask!;
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 var number = page.FindControl<NumericUpDown>("SendIntervalInput")!;
@@ -926,8 +944,8 @@ public sealed class VisualReviewTests
                 Capture("error");
                 text.Text = "1";
                 File.WriteAllText(Settings.FilePath(harness.DataDirectory), "send:\n  interval_seconds: |-\n    1\n");
+                window.Navigation.SelectedIndex = 7;
                 window.Navigation.SelectedIndex = 6;
-                window.Navigation.SelectedIndex = 5;
                 Capture("readonly");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -1025,11 +1043,10 @@ public sealed class VisualReviewTests
                 { Text = "@" + nickname + " 投入52电池 亏12.6电池", RetrySeconds = 1 });
             }
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            var pages = new[] { "danmaku", "blind-box", "welcome", "welcome-animation", "lottery", "send-queue", "general" };
-            for (var i = 0; i < pages.Length; i++)
+            for (var i = 0; i < ReviewedPages.Length; i++)
             {
                 navigation.SelectedIndex = i;
-                Capture(pages[i]);
+                Capture(ReviewedPages[i]);
                 if (i == 2)
                 {
                     var uid = window.GetVisualDescendants().OfType<TextBox>().Single(x => x.IsEffectivelyVisible && x.Text == "1234567890123456");
@@ -1065,7 +1082,7 @@ public sealed class VisualReviewTests
                 Add(welcome, kind);
             Capture("welcome-levels");
             File.WriteAllText(path, "log:\n  level: @bad\n");
-            navigation.SelectedIndex = 6;
+            navigation.SelectedIndex = 7;
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
             var fileMessage = GuiHarness.FindVisual<TextBlock>(general, "FileMessage");
@@ -1112,6 +1129,10 @@ public sealed class VisualReviewTests
             return true;
         }, TestContext.Current.CancellationToken);
     }
+
+    /// <summary>The stack of a heading with its caption under it, beside a toggle or a slider or inside a radio button.</summary>
+    private static bool TitlesAControl(Panel row) => row is StackPanel { Orientation: Orientation.Vertical } stack
+        && (stack.Parent is RadioButton || stack.Parent is Grid grid && grid.Children.Any(child => child is ToggleSwitch or Slider));
 
     private static void Save(TopLevel topLevel, string fileName)
     {

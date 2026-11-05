@@ -31,8 +31,7 @@ public sealed class SettingsPageTests
             new SendSettingsPage(harness.DataDirectory),
             new GeneralSettingsPage(harness.DataDirectory)
         ];
-        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name).Order(),
-            pages.SelectMany(page => page.FieldNames).Order());
+        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name).Order(), pages.SelectMany(page => page.FieldNames).Order());
     }, TestContext.Current.CancellationToken);
 
     [Theory]
@@ -1162,7 +1161,7 @@ public sealed class SettingsPageTests
             main.Show();
             try
             {
-                main.FindControl<ListBox>("Navigation")!.SelectedIndex = 6;
+                main.FindControl<ListBox>("Navigation")!.SelectedIndex = 7;
                 GuiHarness.Flush();
                 var window = main.GetVisualDescendants().OfType<SettingsPage>().Single(page => page.IsEffectivelyVisible);
                 Assert.Empty(main.OwnedWindows);

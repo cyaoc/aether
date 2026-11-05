@@ -50,16 +50,26 @@ a{color:#3358D4}a:hover{color:#2A47B0}
   <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
     <header style="height: 60px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 16px; padding: 0 20px; border-bottom: 1px solid {{t.border}}">
       <h1 style="margin: 0; font-size: 18px; font-weight: 700; white-space: nowrap">礼物榜</h1>
-      <button type="button" role="switch" aria-checked="{{onSwitch.on}}" aria-label="礼物榜" onClick="{{onSwitch.toggle}}" style="position: relative; width: 40px; height: 22px; border: 0; border-radius: 11px; background: {{onSwitch.bg}}; padding: 0"><span style="position: absolute; top: 3px; left: {{onSwitch.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
-      <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">保存后立即生效</span>
+      <sc-if value="{{connected}}" hint-placeholder-val="{{true}}">
+        <span role="status" style="display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 12px; background: {{state.bg}}; color: {{state.color}}; font-size: 13px; font-weight: 600; white-space: nowrap"><span style="width: 8px; height: 8px; box-sizing: border-box; border-radius: {{state.dotRadius}}; background: {{state.dot}}; border: {{state.dotBorder}}"></span>{{state.label}}</span>
+      </sc-if>
       <span style="flex: 1"></span>
-      <sc-if value="{{offline}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">连上直播间后才能清空和恢复</span></sc-if>
-      <button type="button" onClick="{{askRestore}}" disabled="{{restoreDisabled}}" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; margin-right: -8px; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{restoreColor}}; font: inherit; font-size: 13px; white-space: nowrap">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg>恢复上一期
-      </button>
-      <button type="button" onClick="{{askClear}}" disabled="{{clearDisabled}}" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{clearColor}}; font: inherit; font-size: 13px; white-space: nowrap">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"></path></svg>清空礼物榜
-      </button>
+      <sc-if value="{{offline}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">连上直播间后才能开始统计</span></sc-if>
+      <sc-if value="{{recording}}" hint-placeholder-val="{{true}}">
+        <button type="button" onClick="{{askEnd}}" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 13px; white-space: nowrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6h12v12H6z"></path></svg>结束这一期
+        </button>
+      </sc-if>
+      <sc-if value="{{ended}}" hint-placeholder-val="{{false}}">
+        <button type="button" onClick="{{doContinue}}" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; margin-right: -8px; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 13px; white-space: nowrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>继续这一期
+        </button>
+      </sc-if>
+      <sc-if value="{{notRecording}}" hint-placeholder-val="{{false}}">
+        <button type="button" onClick="{{askClear}}" disabled="{{clearDisabled}}" style="height: 32px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid {{startBorder}}; border-radius: 6px; background: {{startBg}}; color: {{startColor}}; font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>开始新一期
+        </button>
+      </sc-if>
     </header>
     <div style="flex: 1; min-height: 0; display: flex">
       <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
@@ -84,7 +94,7 @@ a{color:#3358D4}a:hover{color:#2A47B0}
             </div>
           </sc-if>
 
-          <section style="display: flex; flex-direction: column; gap: 10px">
+          <section style="display: flex; flex-direction: column; gap: 10px; opacity: {{optionsOpacity}}">
             <div style="display: flex; align-items: baseline; gap: 10px">
               <h2 style="margin: 0; font-size: 15px; font-weight: 700; white-space: nowrap">上榜门槛</h2>
               <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">达到门槛的礼物才显示在礼物榜上</span>
@@ -111,15 +121,7 @@ a{color:#3358D4}a:hover{color:#2A47B0}
             </div>
           </section>
 
-          <section style="display: flex; align-items: center; gap: 16px">
-            <div style="flex: 1; display: flex; flex-direction: column; gap: 3px">
-              <h2 style="margin: 0; font-size: 14px; font-weight: 600">每场开播换新榜</h2>
-              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">直播跨天也还是同一张；关掉后，只在点“清空礼物榜”时换</span>
-            </div>
-            <button type="button" role="switch" aria-checked="{{perLive.on}}" aria-label="每场开播换新榜" onClick="{{perLive.toggle}}" style="position: relative; width: 40px; height: 22px; border: 0; border-radius: 11px; background: {{perLive.bg}}; padding: 0"><span style="position: absolute; top: 3px; left: {{perLive.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
-          </section>
-
-          <section style="display: flex; align-items: center; gap: 16px">
+          <section style="display: flex; align-items: center; gap: 16px; opacity: {{optionsOpacity}}">
             <div style="flex: 1; display: flex; flex-direction: column; gap: 3px">
               <h2 style="margin: 0; font-size: 14px; font-weight: 600">看板娘</h2>
               <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">从标题飘带后面探出来主持；关掉后，她的位置能多放 3 行</span>
@@ -127,7 +129,7 @@ a{color:#3358D4}a:hover{color:#2A47B0}
             <button type="button" role="switch" aria-checked="{{mascot.on}}" aria-label="看板娘" onClick="{{mascot.toggle}}" style="position: relative; width: 40px; height: 22px; border: 0; border-radius: 11px; background: {{mascot.bg}}; padding: 0"><span style="position: absolute; top: 3px; left: {{mascot.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
           </section>
 
-          <section style="display: flex; align-items: center; gap: 16px">
+          <section style="display: flex; align-items: center; gap: 16px; opacity: {{optionsOpacity}}">
             <div style="flex: 1; display: flex; flex-direction: column; gap: 3px">
               <h2 style="margin: 0; font-size: 14px; font-weight: 600">新的第一名时响一声</h2>
               <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">看板娘欢呼时一声柔和的星光；拉到最左就不响</span>
@@ -146,19 +148,18 @@ a{color:#3358D4}a:hover{color:#2A47B0}
         <footer style="height: 64px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-top: 1px solid {{t.border}}">
           <sc-if value="{{confirming}}" hint-placeholder-val="{{false}}">
             <span style="flex: 1"></span>
-            <span style="font-size: 14px; white-space: nowrap">清空后直播画面上的礼物榜也会变空，确定吗？</span>
+            <span style="font-size: 14px; white-space: nowrap">开始新一期后，画面上的榜从零算起，确定吗？</span>
             <button type="button" onClick="{{cancelClear}}" style="height: 36px; padding: 0 16px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px">取消</button>
-            <button type="button" onClick="{{doClear}}" style="height: 36px; padding: 0 22px; border: 0; border-radius: 6px; background: #B91C1C; color: #fff; font: inherit; font-size: 14px; font-weight: 600">清空</button>
+            <button type="button" onClick="{{doClear}}" style="height: 36px; padding: 0 22px; border: 0; border-radius: 6px; background: {{t.accent}}; color: {{t.onAccent}}; font: inherit; font-size: 14px; font-weight: 600">开始</button>
           </sc-if>
-          <sc-if value="{{confirmingRestore}}" hint-placeholder-val="{{false}}">
+          <sc-if value="{{confirmingEnd}}" hint-placeholder-val="{{false}}">
             <span style="flex: 1"></span>
-            <span style="font-size: 14px; white-space: nowrap">{{restoreText}}</span>
-            <button type="button" onClick="{{cancelRestore}}" style="height: 36px; padding: 0 16px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px">取消</button>
-            <button type="button" onClick="{{doRestore}}" style="height: 36px; padding: 0 22px; border: 0; border-radius: 6px; background: {{t.accent}}; color: {{t.onAccent}}; font: inherit; font-size: 14px; font-weight: 600">恢复</button>
+            <span style="font-size: 14px; white-space: nowrap">结束后不再记录，画面上的榜也会收起，确定吗？</span>
+            <button type="button" onClick="{{cancelEnd}}" style="height: 36px; padding: 0 16px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px">取消</button>
+            <button type="button" onClick="{{doEnd}}" style="height: 36px; padding: 0 22px; border: 0; border-radius: 6px; background: {{t.dangerSolid}}; color: #fff; font: inherit; font-size: 14px; font-weight: 600">结束</button>
           </sc-if>
           <sc-if value="{{notConfirming}}" hint-placeholder-val="{{true}}">
             <span style="flex: 1; font-size: 13px; color: {{t.secondary}}; white-space: nowrap">{{footerText}}</span>
-            <button type="button" disabled="{{saveDisabled}}" style="height: 36px; width: 80px; border: 0; border-radius: 6px; background: {{saveBg}}; color: {{saveColor}}; font: inherit; font-size: 14px; font-weight: 600">保存</button>
           </sc-if>
         </footer>
       </div>
@@ -236,19 +237,19 @@ a{color:#3358D4}a:hover{color:#2A47B0}
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"page":{"editor":"enum","options":["礼物榜","通用设置"],"default":"礼物榜"},"scene":{"editor":"enum","options":["默认","清空确认","恢复确认","已恢复","没连直播间","按累计总价","礼物榜页没连上"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
+<script type="text/x-dc" data-dc-script data-props='{"page":{"editor":"enum","options":["礼物榜","通用设置"],"default":"礼物榜"},"scene":{"editor":"enum","options":["默认","结束确认","已结束","开始新一期确认","还没开始","没连直播间","按累计总价","礼物榜页没连上"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
 class Component extends DCLogic {
   // The app's theme tokens, as on the other GUI boards.
   tokens(dark) {
     return dark ? {
       content: '#1B1C1F', sidebar: '#141518', card: '#222428', aside: '#18191C', border: '#2E3136', subtle: '#26282C', control: '#3A3E45',
       primary: '#E8EAED', secondary: '#C2C6CE', muted: '#9097A3', disabled: '#4A4F57',
-      accent: '#8DA2FB', accentText: '#B4C3FF', accentTint: '#262F52', onAccent: '#141518', success: '#6FD08C', danger: '#F87171',
+      accent: '#8DA2FB', accentText: '#B4C3FF', accentTint: '#262F52', onAccent: '#141518', success: '#6FD08C', successTint: '#17301F', danger: '#F87171', dangerSolid: '#DC2626',
       warnBg: '#2A2114', warnBorder: '#5A4318', warnText: '#F2C46D', switchOff: '#4A4F57', saveOffBg: '#262F52', saveOffText: '#6B7591'
     } : {
       content: '#FFFFFF', sidebar: '#F6F7F9', card: '#FFFFFF', aside: '#FAFBFC', border: '#E3E6EB', subtle: '#EEF0F3', control: '#D5D9E0',
       primary: '#16181D', secondary: '#3D4350', muted: '#5B6270', disabled: '#B4BAC4',
-      accent: '#3358D4', accentText: '#2A47B0', accentTint: '#E6EBFA', onAccent: '#FFFFFF', success: '#166534', danger: '#B91C1C',
+      accent: '#3358D4', accentText: '#2A47B0', accentTint: '#E6EBFA', onAccent: '#FFFFFF', success: '#166534', successTint: '#E7F5EC', danger: '#B91C1C', dangerSolid: '#B91C1C',
       warnBg: '#FEF8EC', warnBorder: '#F5D9A8', warnText: '#78350F', switchOff: '#B4BAC4', saveOffBg: '#C9D3F2', saveOffText: '#FFFFFF'
     };
   }
@@ -265,15 +266,18 @@ class Component extends DCLogic {
     const scene = this.props.scene ?? '默认';
     const [w, h] = (this.props.size ?? '1200 × 720') === '1040 × 600' ? [1040, 600] : [1200, 720];
     const connected = scene !== '没连直播间';
-    const enabled = s.enabled ?? true, mascotOn = s.mascot ?? true, perLiveOn = s.perLive ?? true;
+    const mascotOn = s.mascot ?? true;
     const mode = s.mode ?? (scene === '按累计总价' ? 2 : 1);
     const threshold = 100;
-    const cleared = s.cleared === true;
-    // 已恢复 without a clear first = the 11月4日 board merged with the 11月3日 period (e.g. after an unwanted auto switch).
-    const merged = !cleared && (s.restored ?? scene === '已恢复');
-    const restoredNote = s.restoredNote ?? scene === '已恢复';
-    const confirming = connected && !cleared && (s.confirming ?? scene === '清空确认');
-    const confirmingRestore = connected && !confirming && !merged && (s.confirmingRestore ?? scene === '恢复确认');
+    // A 期 runs from 开始新一期 to 结束这一期, and only a running one records and shows on the stream; a new one can only begin
+    // once the last has ended. Ended or not started, the 礼物榜页 is transparent while this list keeps the ended 期 for the
+    // streamer. 还没开始: this room has never had a 期. fresh: a 期 started on this board, with nobody in it yet.
+    const fresh = s.fresh === true;
+    const status = s.status ?? (scene === '已结束' || scene === '开始新一期确认' ? 'ended' : scene === '还没开始' ? 'none' : 'recording');
+    const recording = connected && status === 'recording';
+    const ended = connected && status === 'ended';
+    const confirmingEnd = recording && (s.confirmingEnd ?? scene === '结束确认');
+    const confirming = ended && (s.confirming ?? scene === '开始新一期确认');
 
     // [nickname, gift, unit price in 电池, count]
     const all = [
@@ -281,17 +285,7 @@ class Component extends DCLogic {
       ['鬼滅の刃推し', '告白花束', 220, 4], ['Yuzu_Sour', '花式夸夸', 330, 2], ['夜雨听风', '星河入梦', 199, 3], ['星屑Koi', '干杯', 66, 8], ['白鹭', '情书', 52, 5]
     ];
     const shown = all.filter(([, , p, n]) => (mode === 1 ? p : p * n) >= threshold).sort((a, b) => b[2] * b[3] - a[2] * a[3]);
-    // The 11月3日 20:01 period; restoring merges it back: same viewer + same gift adds up.
-    const prev = [['龍騰雲海', '告白气球', 2000, 3], ['Aki秋', '为你加冕', 4500, 1], ['南風知我意', '提督', 19980, 1], ['夜雨听风', '星河入梦', 199, 2]];
-    const current = shown.map(r => [...r]);
-    if (merged) {
-      for (const [n, g, p, c] of prev) {
-        const hit = current.find(r => r[0] === n && r[1] === g);
-        if (hit) hit[3] += c; else if ((mode === 1 ? p : p * c) >= threshold) current.push([n, g, p, c]);
-      }
-      current.sort((a, b) => b[2] * b[3] - a[2] * a[3]);
-    }
-    const rows = connected && enabled && !cleared ? current.map(([name, gift, p, n], i) => ({
+    const rows = connected && status !== 'none' && !fresh ? shown.map(([name, gift, p, n], i) => ({
       rank: String(i + 1), name, gift: gift + ' ×' + n, value: (p * n) + ' 电池', rankColor: i < 3 ? ['#C9851D', t.muted, '#5B8CFF'][i] : t.muted
     })) : [];
 
@@ -308,20 +302,29 @@ class Component extends DCLogic {
     };
     // 礼物榜 sits right after 送礼动画: both are about gifts.
     const nav = [['弹幕', icons.danmaku, connected ? '8' : '0'], ['盲盒统计', icons.box, '开'], ['进场欢迎', icons.entry, '开'], ['送礼动画', icons.heart, '开'],
-      ['礼物榜', icons.trophy, enabled ? '开' : '关'], ['抽奖', icons.ticket, ''], ['发送队列', icons.send, ''], ['通用设置', icons.sliders, '']].map(([label, icon, badge]) => {
+      ['礼物榜', icons.trophy, recording ? '统计中' : ''], ['抽奖', icons.ticket, ''], ['发送队列', icons.send, ''], ['通用设置', icons.sliders, '']].map(([label, icon, badge]) => {
       const active = label === page;
       return { label, icon, badge, current: active ? 'page' : 'false', bg: active ? t.accentTint : 'transparent', color: active ? t.accentText : t.secondary,
-        weight: active ? 600 : 400, badgeColor: badge === '开' ? t.success : t.muted };
+        weight: active ? 600 : 400, badgeColor: badge === '开' || badge === '统计中' ? t.success : t.muted };
     });
 
     const modes = [
       { id: 1, title: '按礼物单价', note: '单价达到门槛的礼物上榜；盲盒按开出的礼物算' },
       { id: 2, title: '按累计总价', note: '同一位观众送的同一种礼物，单价 × 个数达到门槛就上榜' }
     ].map(m => ({ ...m, checked: m.id === mode ? 'true' : 'false', ring: '2px solid ' + (m.id === mode ? t.accent : t.control), dot: m.id === mode ? t.accent : 'transparent', pick: () => this.setState({ mode: m.id }) }));
-    const dirty = mode !== (scene === '按累计总价' ? 2 : 1) || enabled !== true || mascotOn !== true || perLiveOn !== true;
     const pageOk = scene !== '礼物榜页没连上';
-    const asideCount = rows.length ? '共 ' + rows.length + ' 位' : '';
-    const emptyText = !connected ? '连上直播间后，这里显示这个直播间的礼物榜。' : !enabled ? '礼物榜关着，不记录也不显示。' : '还没有人上榜。达到门槛的礼物会出现在这里和直播画面上。';
+    // Viewers, not rows: one viewer can be on the board for two gifts.
+    const asideCount = rows.length ? '共 ' + new Set(rows.map(r => r.name)).size + ' 位' : '';
+    const emptyText = !connected ? '连上直播间后，这里显示这个直播间的礼物榜。'
+      : status === 'none' ? '还没有开始统计。点右上角“开始新一期”，之后收到的礼物会出现在这里和直播画面上。'
+      : status === 'ended' ? '这一期没有人上榜。' : '还没有人上榜。达到门槛的礼物会出现在这里和直播画面上。';
+    // Not by color alone: a filled dot and 统计中 while recording, a hollow square and 已结束 after.
+    const state = status === 'recording'
+      ? { label: '统计中', color: t.success, bg: t.successTint, dot: t.success, dotRadius: '50%', dotBorder: '0' }
+      : status === 'ended'
+        ? { label: '已结束', color: t.secondary, bg: t.subtle, dot: 'transparent', dotRadius: '1px', dotBorder: '1.5px solid ' + t.muted }
+        : { label: '还没开始', color: t.secondary, bg: t.subtle, dot: 'transparent', dotRadius: '50%', dotBorder: '1.5px solid ' + t.muted };
+    const startDisabled = !connected;
     const pages = [
       { name: '视频页', note: '欢迎动画、进场动画和送礼动画在这里播放', size: '1920 × 1080', icon: icons.film, url: 'http://localhost:17890/video', status: '2 个推流软件连着', statusColor: t.success },
       { name: '抽奖页', note: '报名、开奖和中奖名单', size: '横屏 1920 × 1080 · 竖屏 1080 × 1920', icon: icons.ticket, url: 'http://localhost:17890/lottery', status: '1 个推流软件连着', statusColor: t.success },
@@ -330,19 +333,27 @@ class Component extends DCLogic {
 
     return {
       t, w, h, connected, offline: !connected, isBoard: page === '礼物榜', isGeneral: page === '通用设置', nav, pages,
-      onSwitch: this.toggle(t, 'enabled', enabled), perLive: this.toggle(t, 'perLive', perLiveOn), mascot: this.toggle(t, 'mascot', mascotOn), modes, threshold: String(threshold),
-      pageOk: pageOk && enabled, pageWaiting: !pageOk && enabled,
+      mascot: this.toggle(t, 'mascot', mascotOn), modes, threshold: String(threshold), state, recording,
+      // The options belong to the room's 期, so they wait for a room.
+      pageOk, pageWaiting: !pageOk, optionsOpacity: connected ? '1' : '0.45',
       rows, hasRows: rows.length > 0, noRows: rows.length === 0, asideCount, emptyText, count: rows.length,
-      clearDisabled: !connected || rows.length === 0 ? 'true' : null, clearColor: !connected || rows.length === 0 ? t.disabled : t.danger,
-      confirming, confirmingRestore, notConfirming: !confirming && !confirmingRestore,
-      restoreDisabled: connected ? null : 'true', restoreColor: connected ? t.primary : t.disabled,
-      restoreText: cleared ? '上一期（11月4日，' + shown.length + ' 位）会恢复回来，确定吗？' : '上一期（11月3日，' + prev.length + ' 位）会合并回来，确定吗？',
-      askRestore: () => this.setState({ confirmingRestore: true, confirming: false }), cancelRestore: () => this.setState({ confirmingRestore: false }),
-      doRestore: () => this.setState(cleared ? { confirmingRestore: false, cleared: false, restoredNote: true } : { confirmingRestore: false, restored: true, restoredNote: true }),
-      periodText: !connected ? '' : merged ? '本期从 11月3日 20:01 开始' : cleared ? '本期从 11月4日 21:15 开始' : '本期从 11月4日 20:03 开始',
-      askClear: () => this.setState({ confirming: true, confirmingRestore: false }), cancelClear: () => this.setState({ confirming: false }), doClear: () => this.setState({ confirming: false, cleared: true, restoredNote: false }),
-      footerText: restoredNote ? '已恢复上一期' : cleared ? '已清空直播间 1768506153 的礼物榜' : dirty ? '有未保存的修改' : '没有未保存的修改',
-      saveDisabled: dirty ? null : 'true', saveBg: dirty ? t.accent : t.saveOffBg, saveColor: dirty ? t.onAccent : t.saveOffText
+      // A new 期 needs a room.
+      clearDisabled: startDisabled ? 'true' : null, ended, notRecording: !recording,
+      startBg: startDisabled ? t.card : t.accent, startColor: startDisabled ? t.disabled : t.onAccent, startBorder: startDisabled ? t.control : t.accent,
+      confirming, confirmingEnd, notConfirming: !confirming && !confirmingEnd,
+      askEnd: () => this.setState({ confirmingEnd: true }), cancelEnd: () => this.setState({ confirmingEnd: false }),
+      doEnd: () => this.setState({ confirmingEnd: false, status: 'ended', note: 'ended' }),
+      // Continuing is undone by ending again, so it asks nothing.
+      doContinue: () => this.setState({ status: 'recording', confirming: false, note: 'continued' }),
+      periodText: !connected || status === 'none' ? ''
+        : fresh ? (status === 'ended' ? '本期 11月4日 21:15 – 21:16，已结束' : '本期从 11月4日 21:15 开始')
+        : status === 'ended' ? '本期 11月4日 20:03 – 22:41，已结束' : '本期从 11月4日 20:03 开始',
+      // Nothing on the board yet: starting needs no question.
+      askClear: () => this.setState(status === 'none' ? { status: 'recording', fresh: true, note: 'started' } : { confirming: true }),
+      cancelClear: () => this.setState({ confirming: false }),
+      doClear: () => this.setState({ confirming: false, status: 'recording', fresh: true, note: 'started' }),
+      footerText: { started: '已为直播间 1768506153 开始新的一期', ended: '已结束这一期，直播画面上的榜已收起', continued: '已继续这一期，画面上重新显示榜' }[s.note]
+        ?? (connected ? '选项改了立即生效，开始新一期时沿用' : '选项跟着直播间的期，连上直播间后才能改')
     };
   }
 }

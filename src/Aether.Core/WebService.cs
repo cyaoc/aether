@@ -19,21 +19,23 @@ public sealed class WebService : IDisposable
     private readonly WebPage[] pages;
     private readonly Subscribers<WebServiceUpdate> subscribers;
     private readonly HashSet<Connection> connections = [];
-    private WebServiceStatus status = new(false, Settings.WebPort.Initial.Value, 0, 0);
+    private WebServiceStatus status = new(false, Settings.WebPort.Initial.Value, 0, 0, 0);
     private HttpListener? listener;
     private CancellationTokenSource? stop;
     private Task running = Task.CompletedTask;
     public VideoPage Video { get; }
     public LotteryPage Lottery { get; }
+    public GiftBoardPage GiftBoard { get; }
 
-    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, LotteryController lottery)
+    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, LotteryController lottery, GiftBoardController giftBoard)
     {
         this.timeProvider = timeProvider;
         this.logger = logger;
         subscribers = new(Gate);
         Video = new(this, dataDirectory, timeProvider);
         Lottery = new(this, lottery);
-        pages = [Video, Lottery];
+        GiftBoard = new(giftBoard);
+        pages = [Video, Lottery, GiftBoard];
     }
 
     /// <summary>One streaming software's event stream to a page.</summary>
@@ -61,7 +63,7 @@ public sealed class WebService : IDisposable
         {
             // Another StartAsync won the race; starting again would leak its listener.
             if (stop is not null) throw new InvalidOperationException("网页服务正在启动，请稍后再试。");
-            status = new(false, port, 0, 0);
+            status = new(false, port, 0, 0, 0);
             var server = new HttpListener();
             server.Prefixes.Add(status.Origin + "/");
             try { server.Start(); }
@@ -100,7 +102,7 @@ public sealed class WebService : IDisposable
             foreach (var connection in connections) Abort(connection.Response);
             listener!.Close();
             connections.Clear();
-            status = status with { Running = false, VideoConnections = 0, LotteryConnections = 0 };
+            status = status with { Running = false, VideoConnections = 0, LotteryConnections = 0, GiftBoardConnections = 0 };
             Publish(status);
             pending = running;
         }
@@ -123,8 +125,9 @@ public sealed class WebService : IDisposable
     private void ConnectionsChanged()
     {
         var counts = pages.ToDictionary(page => page, page => connections.Count(connection => connection.Page == page));
-        status = status with { VideoConnections = counts[Video], LotteryConnections = counts[Lottery] };
-        logger.LogInformation("网页服务：视频页 {VideoCount} 个推流软件，抽奖页 {LotteryCount} 个推流软件", status.VideoConnections, status.LotteryConnections);
+        status = status with { VideoConnections = counts[Video], LotteryConnections = counts[Lottery], GiftBoardConnections = counts[GiftBoard] };
+        logger.LogInformation("网页服务：视频页 {VideoCount} 个推流软件，抽奖页 {LotteryCount} 个推流软件，礼物榜页 {GiftBoardCount} 个推流软件",
+            status.VideoConnections, status.LotteryConnections, status.GiftBoardConnections);
         Publish(status);
         foreach (var (page, count) in counts)
             if (count == 0) page.Disconnected();
@@ -288,12 +291,20 @@ public sealed class WebService : IDisposable
             _ => null
         };
         if (contentType is null) return false;
-        using var content = typeof(WebService).Assembly.GetManifestResourceStream("Aether.Core.Pages" + path.Replace('/', '.'));
+        using var content = typeof(WebService).Assembly.GetManifestResourceStream(ResourceName(path));
         if (content is null) return false;
         response.ContentType = contentType;
         response.ContentLength64 = content.Length;
         await content.CopyToAsync(response.OutputStream, token);
         return true;
+    }
+
+    /// <summary>MSBuild names an embedded file after its folders, with each '-' in a folder name turned into '_' (gift-board
+    /// becomes gift_board), and keeps the file name as it is.</summary>
+    private static string ResourceName(string path)
+    {
+        var file = path.LastIndexOf('/');
+        return ("Aether.Core.Pages" + path[..file].Replace('-', '_') + path[file..]).Replace('/', '.');
     }
 
     /// <summary>A request still finishing after StopAsync closed the listener has nothing left to abort on Windows.</summary>

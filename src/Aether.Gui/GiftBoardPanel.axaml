@@ -1,0 +1,140 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.GiftBoardPanel" x:DataType="local:MainWindowViewModel">
+  <!-- Canvases GS1–GS13: the 礼物榜 runs in 期 like a lottery, its options apply at once, and there is nothing to save. -->
+  <Grid RowDefinitions="60,*">
+    <Border Classes="pageHeader">
+      <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="16">
+        <TextBlock Classes="h1" Text="礼物榜" VerticalAlignment="Center" />
+        <Border Grid.Column="1" x:Name="StatusChip" Classes="phaseChip" Classes.success="{Binding GiftBoard.Running}" IsVisible="{Binding GiftBoard.Connected}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <!-- Not by colour alone: a dot while recording, a hollow square once ended, a hollow circle before the first 期. -->
+            <Ellipse Width="8" Height="8" VerticalAlignment="Center" IsVisible="{Binding GiftBoard.Running}" />
+            <Rectangle Classes="hollow" Width="8" Height="8" RadiusX="1" RadiusY="1" VerticalAlignment="Center" IsVisible="{Binding GiftBoard.Ended}" />
+            <Ellipse Classes="hollow" Width="8" Height="8" VerticalAlignment="Center" IsVisible="{Binding GiftBoard.NotStarted}" />
+            <TextBlock x:Name="StatusText" Text="{Binding GiftBoard.StatusText}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+          </StackPanel>
+        </Border>
+        <TextBlock Grid.Column="3" x:Name="OfflineHint" Classes="hint" Text="连上直播间后才能开始统计" VerticalAlignment="Center" IsVisible="{Binding !GiftBoard.Connected}" />
+        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button x:Name="EndButton" Height="32" MinHeight="32" Padding="12,0" IsVisible="{Binding GiftBoard.Running}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Stop}" /></Viewbox>
+              <TextBlock Text="结束这一期" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="ContinueButton" Height="32" MinHeight="32" Padding="12,0" IsVisible="{Binding GiftBoard.Ended}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Play}" /></Viewbox>
+              <TextBlock Text="继续这一期" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button x:Name="NewPeriodButton" Classes="accent" Height="32" MinHeight="32" Padding="12,0" FontWeight="SemiBold"
+            IsVisible="{Binding !GiftBoard.Running}" IsEnabled="{Binding GiftBoard.Connected}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Add}" StrokeThickness="2" /></Viewbox>
+              <TextBlock Text="开始新一期" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+      </Grid>
+    </Border>
+    <Grid Grid.Row="1" ColumnDefinitions="*,Auto">
+      <Grid RowDefinitions="*,Auto">
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled" Padding="20,18">
+          <StackPanel Spacing="22">
+            <local:PageStatusBar x:Name="PageStatus" DataContext="{Binding WebService.GiftBoard}" />
+            <StackPanel x:Name="Options" Spacing="22" IsEnabled="{Binding GiftBoard.Connected}">
+              <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                  <TextBlock Classes="section" Text="上榜门槛" />
+                  <TextBlock Grid.Column="1" Classes="hint" Text="达到门槛的礼物才显示在礼物榜上" />
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <NumericUpDown x:Name="ThresholdInput" Value="{Binding GiftBoard.Threshold, Mode=TwoWay}" Classes.invalid="{Binding #ThresholdError.IsVisible}"
+                    FormatString="0.############################" AutomationProperties.Name="上榜门槛（电池）" />
+                  <TextBlock Text="电池" VerticalAlignment="Center" />
+                </StackPanel>
+                <TextBlock x:Name="ThresholdError" Classes="error" Text="{Binding GiftBoard.ThresholdError}"
+                  IsVisible="{Binding GiftBoard.ThresholdError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" AutomationProperties.LiveSetting="Polite" />
+                <StackPanel Margin="0,4,0,0">
+                  <RadioButton x:Name="ByUnitPriceInput" Classes="choice" GroupName="ThresholdBy" IsChecked="{Binding GiftBoard.ByUnitPrice, Mode=TwoWay}" AutomationProperties.Name="按礼物单价">
+                    <StackPanel Spacing="3">
+                      <TextBlock Classes="section" Text="按礼物单价" />
+                      <TextBlock Classes="hint" Text="单价达到门槛的礼物上榜；盲盒按开出的礼物算" />
+                    </StackPanel>
+                  </RadioButton>
+                  <RadioButton x:Name="ByTotalPriceInput" Classes="choice" GroupName="ThresholdBy" IsChecked="{Binding GiftBoard.ByTotalPrice, Mode=TwoWay}" AutomationProperties.Name="按累计总价">
+                    <StackPanel Spacing="3">
+                      <TextBlock Classes="section" Text="按累计总价" />
+                      <TextBlock Classes="hint" Text="同一位观众送的同一种礼物，单价 × 个数达到门槛就上榜" />
+                    </StackPanel>
+                  </RadioButton>
+                </StackPanel>
+              </StackPanel>
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="section" Text="看板娘" />
+                  <TextBlock Classes="hint" Text="从标题飘带后面探出来主持；关掉后，她的位置能多放 3 行" />
+                </StackPanel>
+                <ToggleSwitch Grid.Column="1" x:Name="MascotInput" Classes="plain" IsChecked="{Binding GiftBoard.Mascot, Mode=TwoWay}" AutomationProperties.Name="看板娘" />
+              </Grid>
+              <!-- The slider (Width NaN) takes what the text leaves and shortens its track in a narrow window. -->
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+                <StackPanel Spacing="3">
+                  <TextBlock Classes="section" Text="新的第一名时响一声" />
+                  <TextBlock Classes="hint" Text="看板娘欢呼时一声柔和的星光；拉到最左就不响" />
+                </StackPanel>
+                <Slider Grid.Column="1" x:Name="VolumeInput" Classes="volume" Width="NaN" VerticalAlignment="Center" Value="{Binding GiftBoard.Volume, Mode=TwoWay}" AutomationProperties.Name="新的第一名音量" />
+              </Grid>
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+        <Border Grid.Row="1" Height="64" BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="20,12,20,18">
+          <Panel>
+            <StackPanel VerticalAlignment="Center" Spacing="4" IsVisible="{Binding !GiftBoard.Confirming}">
+              <TextBlock x:Name="FooterText" Classes="secondary singleLine" Text="{Binding GiftBoard.FooterText}" AutomationProperties.LiveSetting="Polite" />
+              <TextBlock x:Name="ErrorMessage" Classes="caption error singleLine" Text="{Binding GiftBoard.Error}"
+                IsVisible="{Binding GiftBoard.Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" AutomationProperties.LiveSetting="Polite" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" VerticalAlignment="Center" IsVisible="{Binding GiftBoard.Confirming}">
+              <TextBlock x:Name="ConfirmEndText" Classes="secondary singleLine" Text="结束后不再记录，画面上的榜也会收起，确定吗？" VerticalAlignment="Center" IsVisible="{Binding GiftBoard.ConfirmingEnd}" />
+              <TextBlock x:Name="ConfirmNewPeriodText" Classes="secondary singleLine" Text="开始新一期后，画面上的榜从零算起，确定吗？" VerticalAlignment="Center" IsVisible="{Binding GiftBoard.ConfirmingNewPeriod}" />
+              <Button x:Name="CancelConfirmButton" Content="取消" Height="34" Padding="14,0" />
+              <Button x:Name="ConfirmEndButton" Classes="dangerSolid" Content="结束" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsVisible="{Binding GiftBoard.ConfirmingEnd}" />
+              <Button x:Name="ConfirmNewPeriodButton" Classes="accent" Content="开始" Height="34" MinWidth="96" Padding="16,0" FontWeight="SemiBold" IsVisible="{Binding GiftBoard.ConfirmingNewPeriod}" />
+            </StackPanel>
+          </Panel>
+        </Border>
+      </Grid>
+      <Border Grid.Column="1" Width="300" Background="{DynamicResource Surface.Aside}" BorderBrush="{DynamicResource Border}" BorderThickness="1,0,0,0">
+        <Grid RowDefinitions="Auto,*">
+          <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="2" Margin="16,18,16,8">
+            <TextBlock Classes="section" Text="当前榜单" />
+            <TextBlock Grid.Column="1" x:Name="BoardCount" Classes="caption muted numeric" Text="{Binding GiftBoard.CountText}" VerticalAlignment="Center" />
+            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" x:Name="BoardPeriod" Classes="caption muted singleLine" Text="{Binding GiftBoard.PeriodText}"
+              IsVisible="{Binding GiftBoard.PeriodText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+          </Grid>
+          <Panel Grid.Row="1">
+            <ListBox x:Name="BoardList" Classes="plain aside" ItemsSource="{Binding GiftBoard.Rows}" IsVisible="{Binding GiftBoard.HasRows}" AutomationProperties.Name="当前榜单">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="local:GiftBoardListRow">
+                  <Border Classes="activityRow">
+                    <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                      <TextBlock Classes="rank" Text="{Binding Rank}" />
+                      <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Classes="singleLine" Text="{Binding Nickname}" FontWeight="SemiBold" />
+                        <TextBlock Classes="caption muted singleLine" Text="{Binding Gift}" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="2" Classes="caption numeric" Text="{Binding Value}" Foreground="{DynamicResource Text.Secondary}" VerticalAlignment="Center" />
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock x:Name="BoardEmpty" Classes="hint" TextWrapping="Wrap" Margin="16,24" Text="{Binding GiftBoard.EmptyText}" IsVisible="{Binding !GiftBoard.HasRows}" />
+          </Panel>
+        </Grid>
+      </Border>
+    </Grid>
+  </Grid>
+</UserControl>

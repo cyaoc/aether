@@ -20,7 +20,7 @@ internal sealed class Database
         command.Transaction = transaction;
         command.CommandText = "PRAGMA user_version";
         var version = (long)command.ExecuteScalar()!;
-        if (version > 5) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
+        if (version > 6) throw new InvalidOperationException("数据库版本高于当前程序支持的版本。");
         if (version == 0)
         {
             // Schema upgrades are handwritten and committed with user_version in the same transaction.
@@ -110,6 +110,42 @@ internal sealed class Database
                     UNIQUE(room_id, mode, name)
                 );
                 PRAGMA user_version = 5;
+                """;
+            command.ExecuteNonQuery();
+        }
+        if (version < 6)
+        {
+            // The 收礼记录 the 盲盒统计 and the 礼物榜 share (ADR 0013): one row per paid gift, marked by which of the two wanted
+            // it. value: Price × Num for a gift (a 盲盒's 开出价值), the 投入 for a 大航海; blind_gift_*: the 盲盒 it came out of,
+            // null for any other gift; timestamp: B站's send time in Unix seconds, null for a 大航海; gift_key: the 礼物键,
+            // gift:<gift id> or guard:<level>, so an opened gift and the same gift sent directly add up. The 盲盒统计 only marks
+            // 盲盒; board_period is the 期 the 礼物榜 counted the gift in, null when it did not. Every blind_box row moves over as
+            // a 盲盒 the 盲盒统计 recorded, and raw_message, which nothing ever read, goes with the old table.
+            // 期 (ADR 0014): ended_at is null while it runs, and a room runs one at most; threshold (电池), threshold_by, mascot
+            // and volume are its options.
+            command.CommandText = """
+                CREATE TABLE gift_record (
+                    id INTEGER PRIMARY KEY, room_id INTEGER NOT NULL, uid INTEGER NOT NULL, nickname TEXT NOT NULL,
+                    face_url TEXT NOT NULL, gift_id INTEGER NOT NULL, gift_name TEXT NOT NULL, icon_url TEXT NOT NULL,
+                    guard_level INTEGER NOT NULL, gift_key TEXT NOT NULL, num INTEGER NOT NULL, spend INTEGER NOT NULL, value INTEGER NOT NULL,
+                    blind_gift_id INTEGER, blind_gift_name TEXT, blind_gift_price INTEGER, tid TEXT UNIQUE, timestamp INTEGER,
+                    for_blind_box INTEGER NOT NULL, board_period INTEGER
+                );
+                CREATE INDEX gift_record_blind_box ON gift_record (room_id, uid, timestamp) WHERE for_blind_box = 1;
+                CREATE INDEX gift_record_board ON gift_record (board_period) WHERE board_period IS NOT NULL;
+                INSERT INTO gift_record (room_id, uid, nickname, face_url, gift_id, gift_name, icon_url, guard_level, gift_key, num,
+                    spend, value, blind_gift_id, blind_gift_name, blind_gift_price, tid, timestamp, for_blind_box)
+                SELECT room_id, uid, nickname, '', opened_gift_id, opened_gift_name, '', 0, 'gift:' || opened_gift_id, num, spend,
+                    opened_value, blind_gift_id, blind_gift_name, blind_gift_price, tid, timestamp, 1
+                FROM blind_box ORDER BY id;
+                DROP TABLE blind_box;
+                CREATE TABLE gift_board_period (
+                    id INTEGER PRIMARY KEY, room_id INTEGER NOT NULL, started_at TEXT NOT NULL, ended_at TEXT,
+                    threshold INTEGER NOT NULL, threshold_by INTEGER NOT NULL, mascot INTEGER NOT NULL, volume INTEGER NOT NULL
+                );
+                CREATE INDEX gift_board_period_room ON gift_board_period (room_id);
+                CREATE UNIQUE INDEX gift_board_period_running ON gift_board_period (room_id) WHERE ended_at IS NULL;
+                PRAGMA user_version = 6;
                 """;
             command.ExecuteNonQuery();
         }

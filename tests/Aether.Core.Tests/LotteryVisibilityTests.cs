@@ -7,7 +7,7 @@ public sealed class LotteryVisibilityTests
     [Fact]
     public async Task Hidden_entry_winners_remain_ineligible_and_bulk_hiding_does_not_change_the_draw()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         await using var watch = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -39,7 +39,7 @@ public sealed class LotteryVisibilityTests
     [Fact]
     public async Task Visibility_requires_the_room_lock_and_cannot_change_another_lottery()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         var lottery = h.Client.Lottery;
         Assert.Throws<InvalidOperationException>(() => lottery.SetDrawHiddenFromStream("missing", true));
         Assert.Throws<InvalidOperationException>(lottery.HideAllDrawsFromStream);
@@ -64,7 +64,7 @@ public sealed class LotteryVisibilityTests
     [Fact]
     public async Task Pool_draw_visibility_is_published_restorable_and_persisted_without_removing_history()
     {
-        await using var h = new WatchHarness(enableLottery: true);
+        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
         await h.LoginAsync();
         var watch = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;

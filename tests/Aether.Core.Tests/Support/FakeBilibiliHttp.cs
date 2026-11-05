@@ -10,6 +10,11 @@ internal sealed class FakeBilibiliHttp : HttpMessageHandler
 
     public const string NavUrl = "https://api.bilibili.com/x/web-interface/nav";
     public const string DanmakuLengthLimitUrl = "https://api.live.bilibili.com/xlive/web-room/v1/index/getInfoByUser";
+    public const string RoomInitUrl = "https://api.live.bilibili.com/room/v1/Room/room_init";
+
+    /// <summary>Makes room_init answer for this room.</summary>
+    public void SetRoom(long roomId = 7734200) => Responses[RoomInitUrl] =
+        System.Text.Json.JsonSerializer.Serialize(new { code = 0, data = new { room_id = roomId, uid = 24680 } });
 
     /// <summary>Makes getInfoByUser report this 弹幕字数上限.</summary>
     public void SetDanmakuLengthLimit(int limit) => Responses[DanmakuLengthLimitUrl] =

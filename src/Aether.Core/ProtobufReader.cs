@@ -65,6 +65,17 @@ internal sealed class ProtobufReader(ReadOnlyMemory<byte> data)
         }
     }
 
+    /// <summary>The last value of <paramref name="field"/> in <paramref name="message"/> as <paramref name="read"/> reads it,
+    /// <paramref name="absent"/> when the message leaves it out; every other field is skipped.</summary>
+    public static T LastValue<T>(ReadOnlyMemory<byte> message, int field, Func<ProtobufReader, int, T> read, T absent)
+    {
+        var reader = new ProtobufReader(message);
+        while (reader.TryRead(out var current, out var type))
+            if (current == field) absent = read(reader, type);
+            else reader.Skip(current, type);
+        return absent;
+    }
+
     private ulong Varint()
     {
         ulong value = 0;

@@ -14,13 +14,13 @@ internal sealed class WatchHarness : IAsyncDisposable
     /// <summary>A danmaku whose arrival shows every room message pushed before it has been handled.</summary>
     public const string SyncDanmaku = """{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""";
     public AetherClient Client { get; }
-    private readonly bool enableLottery;
+    /// <summary>Whether the room connection runs the lottery and the 礼物榜, as the GUI's does.</summary>
+    public bool EnableLotteryAndGiftBoard { get; set; }
 
-    public WatchHarness(Func<Uri, CancellationToken, Task<System.Net.WebSockets.WebSocket>>? connectWebSocket = null, Random? random = null, bool enableLottery = false)
+    public WatchHarness(Func<Uri, CancellationToken, Task<System.Net.WebSockets.WebSocket>>? connectWebSocket = null, Random? random = null, bool enableLotteryAndGiftBoard = false)
     {
-        this.enableLottery = enableLottery;
-        Http.Responses["https://api.live.bilibili.com/room/v1/Room/room_init"] =
-            """{"code":0,"data":{"room_id":7734200,"uid":24680}}""";
+        EnableLotteryAndGiftBoard = enableLotteryAndGiftBoard;
+        Http.SetRoom();
         Http.ConfigureLogin();
         Http.Responses[FakeBilibiliHttp.NavUrl] =
             """{"code":0,"data":{"isLogin":true,"mid":9876543210,"wbi_img":{"img_url":"https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png","sub_url":"https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png"}}}""";
@@ -47,7 +47,7 @@ internal sealed class WatchHarness : IAsyncDisposable
     // Tests of receiving and sending HTTP keep their existing stream; progress tests opt into the full stream.
     private async IAsyncEnumerable<WatchUpdate> WatchUpdates(AetherClient client, bool includeSendQueueUpdates, bool includeGiftRounds)
     {
-        await foreach (var update in client.WatchAsync(6, enableLottery, Stop.Token))
+        await foreach (var update in client.WatchAsync(6, EnableLotteryAndGiftBoard, Stop.Token))
             if ((includeSendQueueUpdates || update is not SendQueueUpdate)
                 && (includeGiftRounds || update is not GiftRoundEnded)) yield return update;
     }
@@ -101,6 +101,16 @@ internal sealed class WatchHarness : IAsyncDisposable
             }
         }
         return updates.Current;
+    }
+
+    /// <summary>Saves <paramref name="changes"/> to the settings file and applies it the way a shell does after a save. The web
+    /// service runs on a free port, which stays the same through later calls so that open pages stay connected.</summary>
+    public async Task ApplySettingsAsync(params (string Name, string Value)[] changes)
+    {
+        var port = Client.WebService.Status is { Running: true } running ? running.Port : WelcomeAnimationTests.FreePort();
+        Settings.Save(DataDirectory, new Dictionary<string, string>(changes.Select(change => KeyValuePair.Create(change.Name, change.Value)))
+            { ["web_service.port"] = port.ToString() });
+        await Client.ApplyWebSettingsAsync(Settings.Load(DataDirectory));
     }
 
     public async Task LoginAsync()

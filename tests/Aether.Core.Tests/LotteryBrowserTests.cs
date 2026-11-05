@@ -635,7 +635,7 @@ public sealed partial class LotteryBrowserTests
     /// <summary>A connected room with the lottery page open in Chrome, closed browser first.</summary>
     private sealed class PageSession : IAsyncDisposable
     {
-        public WatchHarness H { get; } = new(enableLottery: true);
+        public WatchHarness H { get; } = new(enableLotteryAndGiftBoard: true);
         public IAsyncEnumerator<WatchUpdate> Watch { get; set; } = null!;
         public ChromeBrowser Browser { get; } = new();
         public System.Diagnostics.Process? ReferenceServer { get; set; }

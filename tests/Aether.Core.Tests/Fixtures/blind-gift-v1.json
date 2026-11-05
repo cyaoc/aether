@@ -5,8 +5,12 @@
     "coin_type": "gold",
     "uid": 10001,
     "uname": "测试观众",
+    "face": "https://i0.hdslb.com/bfs/face/test-v1.jpg",
     "giftId": 32698,
     "giftName": "小蛋糕",
+    "gift_info": {
+      "img_basic": "https://s1.hdslb.com/bfs/live/test-v1.png"
+    },
     "num": 1,
     "price": 1500,
     "discount_price": 1500,

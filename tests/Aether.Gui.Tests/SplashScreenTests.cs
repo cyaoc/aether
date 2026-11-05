@@ -282,8 +282,8 @@ public sealed class SplashScreenTests
 
             async Task AssertPagesServedAsync()
             {
-                Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.VideoAddressText));
-                Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.LotteryAddressText));
+                Assert.Contains("<video", await http.GetStringAsync(viewModel.WebService.Video.Address));
+                Assert.Contains("/lottery/page.js", await http.GetStringAsync(viewModel.WebService.Lottery.Address));
             }
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }

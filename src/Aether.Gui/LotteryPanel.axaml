@@ -2,39 +2,6 @@
   xmlns:local="using:Aether.Gui" x:Class="Aether.Gui.LotteryPanel" x:DataType="local:MainWindowViewModel">
   <UserControl.Styles>
     <!-- 本场 / 历史 as on canvases O1 and O4: a subtle strip, the picked view raised as a card. -->
-    <!-- Phase chip, as on canvases V1 and O1: neutral while idle, accent while spinning or open, warning while drawing, success once ended. -->
-    <Style Selector="Border#PhaseChip">
-      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
-      <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Secondary}" />
-    </Style>
-    <Style Selector="Border#PhaseChip Ellipse">
-      <Setter Property="Fill" Value="{DynamicResource Text.Disabled}" />
-    </Style>
-    <Style Selector="Border#PhaseChip.spinning">
-      <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Accent.Tint}" />
-      <Setter Property="TextElement.Foreground" Value="{DynamicResource Accent.Text}" />
-    </Style>
-    <Style Selector="Border#PhaseChip.spinning Ellipse">
-      <Setter Property="Fill" Value="{DynamicResource Accent}" />
-    </Style>
-    <Style Selector="Border#PhaseChip.drawing">
-      <Setter Property="Background" Value="{DynamicResource Warning.Background}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Warning.Border}" />
-      <Setter Property="TextElement.Foreground" Value="{DynamicResource Warning.Text}" />
-    </Style>
-    <Style Selector="Border#PhaseChip.drawing Ellipse">
-      <Setter Property="Fill" Value="{DynamicResource Warning.Dot}" />
-    </Style>
-    <Style Selector="Border#PhaseChip.ended">
-      <Setter Property="Background" Value="{DynamicResource Success.Tint}" />
-      <Setter Property="BorderBrush" Value="{DynamicResource Success.Tint}" />
-      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
-    </Style>
-    <Style Selector="Border#PhaseChip.ended Ellipse">
-      <Setter Property="Fill" Value="{DynamicResource Success}" />
-    </Style>
     <Style Selector="Button#NewButton, Button#CancelButton">
       <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
     </Style>
@@ -80,8 +47,9 @@
         <Border Grid.Column="2" x:Name="ModeChip" Height="24" Padding="8,0" CornerRadius="6" Background="{DynamicResource Border.Subtle}" VerticalAlignment="Center">
           <TextBlock x:Name="ModeText" Classes="caption" Text="{Binding Lottery.LotteryModeText}" Foreground="{DynamicResource Text.Secondary}" FontWeight="SemiBold" VerticalAlignment="Center" />
         </Border>
-        <Border Grid.Column="3" x:Name="PhaseChip" Height="24" Padding="10,0" CornerRadius="12" BorderThickness="1" VerticalAlignment="Center"
-          Classes.spinning="{Binding Lottery.IsLotterySpinning}" Classes.drawing="{Binding Lottery.IsLotteryDrawing}" Classes.ended="{Binding Lottery.IsLotteryEnded}">
+        <!-- Accent while spinning or open, warning while drawing, success once ended (canvases V1 and O1). -->
+        <Border Grid.Column="3" x:Name="PhaseChip" Classes="phaseChip"
+          Classes.accent="{Binding Lottery.IsLotterySpinning}" Classes.warning="{Binding Lottery.IsLotteryDrawing}" Classes.success="{Binding Lottery.IsLotteryEnded}">
           <StackPanel Orientation="Horizontal" Spacing="6">
             <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
             <TextBlock x:Name="PhaseText" Classes="caption" Text="{Binding Lottery.LotteryPanelPhaseText}" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />

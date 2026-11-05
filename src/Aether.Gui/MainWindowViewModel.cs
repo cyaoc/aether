@@ -41,11 +41,17 @@ public partial class MainWindowViewModel : ObservableObject
         roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
         WebService = new(client, logger, clock, shutdown.Token);
         Lottery = new(client, logger, settings, SaveGuiSettings, clock, shutdown.Token);
+        GiftBoard = new(client, logger, clock, shutdown.Token);
+        ConnectCommand.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ConnectCommand.CanBeCanceled)) DisconnectCommand.NotifyCanExecuteChanged();
+        };
     }
 
     public SendQueueViewModel SendQueue { get; } = new();
     public WebServiceViewModel WebService { get; }
     public LotteryViewModel Lottery { get; }
+    public GiftBoardViewModel GiftBoard { get; }
     [ObservableProperty] private bool keepRecentDanmaku;
     [ObservableProperty] private string roomNumber;
     public string[] RecentRooms => settings.RecentRooms;
@@ -98,6 +104,7 @@ public partial class MainWindowViewModel : ObservableObject
 
     private bool CanConnect => !IsLoggedOut && !IsLoggingOut && !IsRestarting && !shutdown.IsCancellationRequested;
     private bool CanReconnect => CanConnect && HasRoomConnection;
+    private bool CanDisconnect => ConnectCommand.CanBeCanceled;
     private bool CanLogin => IsLoggedOut && !IsLoggingOut && !shutdown.IsCancellationRequested;
     public bool IsConnected => ConnectionState == RoomConnectionState.Connected;
     public bool HasRoomConnection => ConnectionState != RoomConnectionState.Disconnected;
@@ -134,6 +141,7 @@ public partial class MainWindowViewModel : ObservableObject
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
         // The 抽奖页 and the GUI read the same lottery, so the GUI starts following it with the web service.
         Lottery.ObserveLottery();
+        GiftBoard.Observe();
         var webSettings = WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
         return Task.WhenAll(webSettings, FinishStartupAsync());
     }
@@ -203,7 +211,7 @@ public partial class MainWindowViewModel : ObservableObject
         SaveGuiSettings();
     }
 
-    [RelayCommand(CanExecute = nameof(CanConnect), IncludeCancelCommand = true)]
+    [RelayCommand(CanExecute = nameof(CanConnect))]
     private async Task ConnectAsync(CancellationToken cancellationToken)
     {
         if (!Room.TryParseNumber(RoomNumber, out var roomId))
@@ -224,7 +232,7 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             // Core runs the room connection off the UI thread; this loop only shows what it reports.
-            await foreach (var update in client.WatchAsync(roomId, enableLottery: true, cancellationToken))
+            await foreach (var update in client.WatchAsync(roomId, enableLotteryAndGiftBoard: true, cancellationToken))
                 Apply(update);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { }
@@ -264,6 +272,15 @@ public partial class MainWindowViewModel : ObservableObject
             LoginError = $"登录失败：{error.Message}";
         }
         finally { ClearQrCode(); }
+    }
+
+    /// <summary>The 断开 button: the streamer stops, so a running 礼物榜 期 ends before the room connection does. It can be
+    /// clicked when the connection can be cancelled, as the cancel command the button used before.</summary>
+    [RelayCommand(CanExecute = nameof(CanDisconnect))]
+    private async Task DisconnectAsync()
+    {
+        await GiftBoard.EndBeforeLeavingAsync();
+        ConnectCommand.Cancel();
     }
 
     [RelayCommand(CanExecute = nameof(CanReconnect))]
@@ -366,6 +383,7 @@ public partial class MainWindowViewModel : ObservableObject
             LoginCommand.Cancel();
             await accountRead.StopAsync();
             if (LoginCommand.ExecutionTask is { } login) await login;
+            await GiftBoard.EndBeforeLeavingAsync();
             await StopWatchingAsync();
             if (ReconnectCommand.ExecutionTask is { } restart) await restart;
             await Task.Run(() => client.LogoutAsync(cancellationToken), cancellationToken);
@@ -390,7 +408,8 @@ public partial class MainWindowViewModel : ObservableObject
         if (ConnectCommand.ExecutionTask is { } task) await task;
     }
 
-    // Stop the web service first so later cleanup cannot hold its port; finish draws before disconnecting the room they require.
+    // Stop the web service first so later cleanup cannot hold its port; finish draws, and end a running 礼物榜 期, before
+    // disconnecting the room they require.
     public async Task ShutdownAsync()
     {
         shutdown.Cancel();
@@ -402,6 +421,8 @@ public partial class MainWindowViewModel : ObservableObject
         var accountStopped = accountRead.StopAsync();
         await WebService.StopAsync();
         await Lottery.StopAsync();
+        await GiftBoard.EndBeforeLeavingAsync();
+        await GiftBoard.StopAsync();
         await accountStopped;
         await StopWatchingAsync();
         if (ReconnectCommand.ExecutionTask is { } restart) await restart;

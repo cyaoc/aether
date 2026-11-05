@@ -1,5 +1,10 @@
 // Geometry and drawing algorithms lifted from EV1–EV4 at 0464bd8.
 export const C0 = [960, 540];
+// A picture, loaded; the video page's animations and the gift board page both load their textures with it. `properties` are set on
+// the image before it starts loading.
+export const loadImage = (src, properties) => new Promise((resolve, reject) => {
+  const img = Object.assign(new Image(), properties); img.onload = () => resolve(img); img.onerror = () => reject(new Error('动画贴图加载失败：' + src)); img.src = src;
+});
 export const canvasOf = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d')); return c; };
 export const inside = (poly, x, y) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const a = poly[i], b = poly[j]; if ((a[1] > y) !== (b[1] > y) && x < (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
 export const k = (a, b, x) => Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -193,9 +198,10 @@ export function gather(g, l, { hilt, tip = hilt, start, span, count, color, seed
 // EV1 and EV2's charge: sparks pulled into the hilt from further out, over longer, on seeds laid out one closer.
 export const charge = (g, l, { hilt, span, count, color }) => gather(g, l, { hilt, start: 650, span, count, color, life: [380, 260], ring: [360, 420], gap: 0 });
 
-export function glow(c, x, y, r, rgb, a) {
+// The glow fades out to nothing in `edge`, which is `rgb` unless given.
+export function glow(c, x, y, r, rgb, a, edge = rgb) {
   if (a <= 0.003) return;
-  const gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(' + rgb + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+  const gr = c.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, 'rgba(' + rgb + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + edge + ',0)');
   c.fillStyle = gr; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
 }
 

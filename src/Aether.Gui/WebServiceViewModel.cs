@@ -43,7 +43,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     {
         if (shutdown.IsCancellationRequested) return;
         animationSettings = snapshot;
-        if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Start(ObserveAnimationsAsync);
+        if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Follow(client.WebService.GetUpdatesAsync, Apply, logger, "网页服务状态订阅中断");
         var reload = animationReload.Start(ReloadAsync);
         NotifyAnimationRows();
         await reload;
@@ -67,16 +67,6 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         }
     }
 
-    private async Task ObserveAnimationsAsync(CancellationToken token)
-    {
-        try
-        {
-            await foreach (var update in client.WebService.GetUpdatesAsync(token)) Apply(update);
-        }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        catch (Exception error) { logger.LogError(error, "网页服务状态订阅中断"); }
-    }
-
     internal async Task StopAsync()
     {
         await animationReload.StopAsync();
@@ -86,39 +76,19 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(VideoPageText))]
-    [NotifyPropertyChangedFor(nameof(VideoAddressText))]
-    [NotifyPropertyChangedFor(nameof(LotteryAddressText))]
-    [NotifyPropertyChangedFor(nameof(HasVideoConnections))]
-    [NotifyPropertyChangedFor(nameof(HasLotteryConnections))]
-    [NotifyPropertyChangedFor(nameof(HasWebServiceError))]
-    [NotifyPropertyChangedFor(nameof(IsWebServiceOff))]
-    [NotifyPropertyChangedFor(nameof(ShowVideoSetup))]
-    [NotifyPropertyChangedFor(nameof(ShowLotterySetup))]
-    [NotifyPropertyChangedFor(nameof(ServiceStatusText))]
-    [NotifyPropertyChangedFor(nameof(ServiceHelpText))]
-    [NotifyPropertyChangedFor(nameof(VideoConnectionsText))]
-    [NotifyPropertyChangedFor(nameof(LotteryConnectionsText))]
+    [NotifyPropertyChangedFor(nameof(Video), nameof(Lottery), nameof(GiftBoard), nameof(HasVideoConnections))]
+    [NotifyPropertyChangedFor(nameof(HasWebServiceError), nameof(IsWebServiceOff), nameof(ServiceStatusText), nameof(ServiceHelpText))]
     private WebServiceStatus webServiceStatus = client.WebService.Status;
 
-    public bool HasVideoConnections => WebServiceStatus is { Running: true, VideoConnections: > 0 };
-    public bool HasLotteryConnections => WebServiceStatus is { Running: true, LotteryConnections: > 0 };
+    public WebPageStatus Video => new(WebServiceStatus, WebServiceStatus.VideoConnections, WebPageTexts.Video) { Address = WebServiceStatus.VideoAddress };
+    public WebPageStatus Lottery => new(WebServiceStatus, WebServiceStatus.LotteryConnections, WebPageTexts.Lottery) { Address = WebServiceStatus.LotteryAddress };
+    public WebPageStatus GiftBoard => new(WebServiceStatus, WebServiceStatus.GiftBoardConnections, WebPageTexts.GiftBoard) { Address = WebServiceStatus.GiftBoardAddress };
+    public bool HasVideoConnections => Video.Connected;
     public bool HasWebServiceError => WebServiceStatus.Error is not null;
     public bool IsWebServiceOff => WebServiceStatus is { Running: false, Error: null };
-    public bool ShowVideoSetup => WebServiceStatus is { Running: true, VideoConnections: 0 };
-    public bool ShowLotterySetup => WebServiceStatus is { Running: true, LotteryConnections: 0 };
-    public string VideoAddressText => WebServiceStatus.VideoAddress;
-    public string LotteryAddressText => WebServiceStatus.LotteryAddress;
     public string ServiceStatusText => WebServiceStatus.Error is { } error ? "没打开：" + error : WebServiceStatus.Running ? "运行中" : "未运行";
     public string ServiceHelpText => HasWebServiceError ? "换一个端口并保存，再把直播姬里所有浏览器素材的地址改成新的。"
         : WebServiceStatus.Running ? "GUI 开着就一直运行，不用登录、不用连直播间。先开 Aether，再开直播姬。" : "";
-    public string VideoConnectionsText => ConnectionsText(WebServiceStatus.VideoConnections);
-    public string LotteryConnectionsText => ConnectionsText(WebServiceStatus.LotteryConnections);
-    private string ConnectionsText(int count) => !WebServiceStatus.Running ? "服务没打开" : count > 0 ? $"{count} 个推流软件连着" : "还没有连着";
-    public string VideoPageText => WebServiceStatus.Error is { } error ? $"网页服务没打开：{error}，试播和进场都播不了"
-        : !WebServiceStatus.Running ? "网页服务没打开，试播和进场都播不了"
-        : HasVideoConnections ? $"视频页：已有 {WebServiceStatus.VideoConnections} 个推流软件连着"
-        : "视频页还没有推流软件连着，先在直播姬里加好再试播";
 
     internal void Apply(WebServiceUpdate update)
     {

@@ -124,7 +124,8 @@ public abstract class SettingsPage : TemplatedControl
         pageLayout.RowDefinitions[1].Height = stacked ? GridLength.Star : new GridLength(0);
     }
 
-    protected virtual bool ReconnectAfterSave => true;
+    /// <summary>Whether saving applies this page's settings to the web service at once; otherwise they wait for the next room connection.</summary>
+    protected virtual bool AppliesToWebService => false;
     protected virtual string DirtyDescription => "有未保存的修改";
     protected virtual bool RowsChanged => false;
     protected virtual void LoadRows() { }
@@ -188,6 +189,13 @@ public abstract class SettingsPage : TemplatedControl
         input.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Validate(); };
     }
 
+    /// <summary>The slider snaps to whole numbers, so any position is a valid setting and needs no error label.</summary>
+    protected void Bind(Slider input, TextBlock readOnly, Func<Settings, Setting<int>> select)
+    {
+        Register(setting => Show(input, readOnly, setting), () => input.Value.ToString(CultureInfo.InvariantCulture), null, select);
+        input.PropertyChanged += (_, e) => { if (e.Property == RangeBase.ValueProperty) Validate(); };
+    }
+
     private void Register<T>(Action<Setting<T>> show, Func<string?> input, TextBlock? error, Func<Settings, Setting<T>> select) =>
         bindings.Add((() => show(select(settings)), () =>
         {
@@ -222,6 +230,13 @@ public abstract class SettingsPage : TemplatedControl
     private static void Show(ToggleSwitch input, TextBlock readOnly, Setting<bool> setting)
     {
         input.IsChecked = setting.Value;
+        input.IsEnabled = setting.CanEdit;
+        readOnly.IsVisible = !setting.CanEdit;
+    }
+
+    private static void Show(Slider input, TextBlock readOnly, Setting<int> setting)
+    {
+        input.Value = setting.Value;
         input.IsEnabled = setting.CanEdit;
         readOnly.IsVisible = !setting.CanEdit;
     }
@@ -265,7 +280,12 @@ public abstract class SettingsPage : TemplatedControl
         return Task.FromResult("已保存。");
     }
 
-    protected virtual Task<string> AfterSave(Settings saved, string result) => Task.FromResult(result);
+    protected virtual async Task<string> AfterSave(Settings saved, string result)
+    {
+        if (AppliesToWebService && viewModel is not null) await viewModel.WebService.ApplyWebSettingsAsync(saved);
+        return result;
+    }
+
     protected virtual void ReloadAfterFailure() => LoadSettings();
 
     private async void Save(object? sender, RoutedEventArgs e)
@@ -289,7 +309,7 @@ public abstract class SettingsPage : TemplatedControl
                 result = await AfterSave(settings, result);
                 SaveCompleted?.Invoke();
                 Message = result;
-                ShowReconnectNotice = ReconnectAfterSave && viewModel?.HasRoomConnection == true;
+                ShowReconnectNotice = !AppliesToWebService && viewModel?.HasRoomConnection == true;
             }
         }
         catch (Exception error) when (error is SettingsException or IOException or UnauthorizedAccessException)

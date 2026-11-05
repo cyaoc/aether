@@ -41,7 +41,7 @@ public sealed class GiftAnimationSettingsTests
             Assert.Equal(600, Settings.Load(h.DataDirectory).GiftAnimationThresholds[1].Value);
             Assert.False(page.ShowReconnectNotice);
             Assert.Equal("保存后，下一次送礼生效", page.TimingHint);
-            vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0));
+            vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
             Assert.True(GuiHarness.FindVisual<Button>(page, "PlayButton").IsEnabled);
         }
         finally { await vm.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }

@@ -16,6 +16,22 @@ internal static class BlindGiftFixture
         return root.ToJsonString();
     }
 
+    /// <summary>An ordinary gift of the fixture's 小蛋糕 shape, with its own <paramref name="tid"/> (none when null), <paramref name="price"/>
+    /// and <paramref name="num"/>; the fixture's viewer unless <paramref name="uid"/> says otherwise.</summary>
+    public static string Ordinary(long uid = 10001, string nickname = "测试观众", long giftId = 32698, string giftName = "小蛋糕",
+        long price = 1500, long num = 1, string? tid = "test-v1-1") => With(data =>
+    {
+        data["blind_gift"] = null;
+        data["uid"] = uid;
+        data["uname"] = nickname;
+        data["giftId"] = giftId;
+        data["giftName"] = giftName;
+        data["price"] = price;
+        data["num"] = num;
+        data["total_coin"] = price * num;
+        if (tid is null) data.Remove("tid"); else data["tid"] = tid;
+    });
+
     /// <summary>One fresh blind box (its own tid) sent at <paramref name="sentAt"/>; the rest keeps the fixture's values
     /// unless given.</summary>
     public static string Gift(DateTimeOffset sentAt, long uid = 10001, long spend = 5000, long price = 1500,

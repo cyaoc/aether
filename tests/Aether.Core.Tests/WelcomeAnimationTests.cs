@@ -88,7 +88,15 @@ public sealed class WelcomeAnimationTests
     [InlineData(50000, "general-40")]
     [InlineData(200001, "general-50")]
     [InlineData(1000000, "general-60")]
-    public async Task Gift_animation_uses_exact_spend_and_ignores_entry_list(long coins, string? expected)
+    public Task Gift_animation_uses_exact_spend_and_ignores_entry_list(long coins, string? expected) =>
+        AssertGiftAnimationAsync(BlindGiftFixture.With(data => { data["blind_gift"] = null; data["total_coin"] = coins; }), expected);
+
+    // 198000 金瓜子 is 1980 电池: past the default 500 of tier 40, short of the 2000 of tier 50.
+    [Fact]
+    public Task A_guard_purchase_plays_the_gift_animation_for_what_it_cost() =>
+        AssertGiftAnimationAsync(UserToastFixture.Message(), "general-40");
+
+    private static async Task AssertGiftAnimationAsync(string gift, string? expected)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
@@ -98,7 +106,7 @@ public sealed class WelcomeAnimationTests
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
         using var page = await Page.ConnectAsync(h);
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.With(data => { data["blind_gift"] = null; data["total_coin"] = coins; }));
+        await h.PushAndSyncAsync(updates, gift);
         h.Time.Advance(TimeSpan.FromSeconds(3));
         Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates));
         if (expected is null) await page.AssertNoPlayAsync();
@@ -363,7 +371,7 @@ public sealed class WelcomeAnimationTests
         var port = FreePort();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["web_service.port"] = port.ToString() });
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
-        Assert.Equal(new WebServiceStatus(true, port, 0, 0), h.Client.WebService.Status);
+        Assert.Equal(new WebServiceStatus(true, port, 0, 0, 0), h.Client.WebService.Status);
         await Assert.ThrowsAsync<HttpRequestException>(() => http.GetAsync("/video", h.Stop.Token));
         using var restarted = await Page.ConnectAsync(h);
         h.Client.WelcomeAnimation.TestPlay(10001);
@@ -377,7 +385,7 @@ public sealed class WelcomeAnimationTests
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var time = new PausedTimerProvider(() => { entered.SetResult(); release.Wait(); });
-        using var service = new WebService(h.DataDirectory, time, h.Logger, h.Client.Lottery);
+        using var service = new WebService(h.DataDirectory, time, h.Logger, h.Client.Lottery, h.Client.GiftBoard);
         var ports = new HashSet<int>();
         while (ports.Count < 3) ports.Add(FreePort());
         var candidates = ports.ToArray();

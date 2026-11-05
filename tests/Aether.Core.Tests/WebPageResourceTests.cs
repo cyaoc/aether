@@ -9,6 +9,7 @@ public sealed class WebPageResourceTests
     [Theory]
     [InlineData("video")]
     [InlineData("lottery")]
+    [InlineData("gift-board")]
     public async Task Page_and_its_recursive_local_references_are_served_with_their_content_types(string name)
     {
         await using var h = new WatchHarness();
@@ -25,7 +26,7 @@ public sealed class WebPageResourceTests
             {
                 "" or ".html" => "text/html; charset=utf-8",
                 ".css" => "text/css; charset=utf-8",
-                ".js" => "text/javascript; charset=utf-8",
+                ".js" or ".mjs" => "text/javascript; charset=utf-8",
                 ".woff2" => "font/woff2",
                 ".ttf" => "font/ttf",
                 ".webp" => "image/webp",
@@ -35,7 +36,7 @@ public sealed class WebPageResourceTests
             Assert.NotEmpty(await response.Content.ReadAsByteArrayAsync(h.Stop.Token));
             if (!expectedType.StartsWith("text/", StringComparison.Ordinal)) continue;
             var text = await response.Content.ReadAsStringAsync(h.Stop.Token);
-            foreach (Match match in Regex.Matches(text, """(?:\b(?:href|src)\s*=\s*["']|\burl\(\s*["']?)([^"'()\s>]+)"""))
+            foreach (Match match in Regex.Matches(text, """(?:\b(?:href|src)\s*=\s*["']|\burl\(\s*["']?|\bfrom\s*["'])([^"'()\s>]+)"""))
             {
                 var reference = match.Groups[1].Value;
                 if (reference.StartsWith('#')) continue;
@@ -50,11 +51,18 @@ public sealed class WebPageResourceTests
             Assert.Contains(new Uri(http.BaseAddress, "/lottery/SmileySans-Oblique.woff2"), visited);
             Assert.Contains(new Uri(http.BaseAddress, "/lottery/ZCOOLKuaiLe-Regular.ttf"), visited);
         }
+        if (name == "gift-board")
+        {
+            Assert.Equal(3, visited.Count(uri => uri.AbsolutePath.EndsWith(".webp", StringComparison.Ordinal)));
+            Assert.Equal(3, visited.Count(uri => uri.AbsolutePath.EndsWith(".woff2", StringComparison.Ordinal)));
+            Assert.Equal(12, visited.Count(uri => uri.AbsolutePath.EndsWith(".mjs", StringComparison.Ordinal)));
+        }
     }
 
     [Theory]
     [InlineData("video")]
     [InlineData("lottery")]
+    [InlineData("gift-board")]
     public async Task Explicit_index_returns_the_same_page(string name)
     {
         await using var h = new WatchHarness();
@@ -68,14 +76,16 @@ public sealed class WebPageResourceTests
     }
 
     [Theory]
-    [InlineData("OFL.txt")]
-    [InlineData("ZCOOLKuaiLe-OFL.txt")]
-    public async Task Font_licenses_are_served_as_plain_text(string file)
+    [InlineData("lottery/OFL.txt")]
+    [InlineData("lottery/ZCOOLKuaiLe-OFL.txt")]
+    [InlineData("gift-board/fonts/NotoSansSC-OFL.txt")]
+    [InlineData("gift-board/fonts/PlayfairDisplay-OFL.txt")]
+    public async Task Font_licenses_are_served_as_plain_text(string path)
     {
         await using var h = new WatchHarness();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
-        using var response = await http.GetAsync($"lottery/{file}", h.Stop.Token);
+        using var response = await http.GetAsync(path, h.Stop.Token);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/plain; charset=utf-8", response.Content.Headers.ContentType?.ToString());
         Assert.Contains("SIL OPEN FONT LICENSE", await response.Content.ReadAsStringAsync(h.Stop.Token));
@@ -87,6 +97,7 @@ public sealed class WebPageResourceTests
     [InlineData("GET", "/video/missing.html")]
     [InlineData("GET", "/lottery/missing.css")]
     [InlineData("GET", "/lottery/README.md")]
+    [InlineData("GET", "/gift-board/README.md")]
     [InlineData("GET", "/lottery/page.map")]
     [InlineData("GET", "/unknown/index.html")]
     [InlineData("POST", "/video")]

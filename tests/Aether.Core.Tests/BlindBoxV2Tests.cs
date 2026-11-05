@@ -9,22 +9,21 @@ public sealed class BlindBoxV2Tests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Ten_boxes_expand_into_three_rows_with_item_amounts_and_original_outer_json(bool nested)
+    public async Task Ten_boxes_expand_into_three_rows_with_item_amounts(bool nested)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        var raw = Message(nested: nested);
-        await h.PushAndSyncAsync(updates, raw);
+        await h.PushAndSyncAsync(updates, Message(nested: nested));
 
         var rows = TestDatabase.BlindBoxRows(h.DataDirectory);
         Assert.Equal(3, rows.Count);
         Assert.Equal(new TestDatabase.BlindBoxRow(7734200L, 10001L, "测试观众", 35206L, "幸运盲盒", 5000L,
-            35311L, "好运柚叶", 2500L, 1L, 5000L, 2500L, 1732634266L, "test-v2-1", raw), rows[0]);
+            35311L, "好运柚叶", 2500L, 1L, 5000L, 2500L, 1732634266L, "test-v2-1"), rows[0]);
         Assert.Equal(new TestDatabase.BlindBoxRow(7734200L, 10001L, "测试观众", 35206L, "幸运盲盒", 5000L,
-            35208L, "星光铃铛", 5200L, 8L, 40000L, 41600L, 1732634266L, "test-v2-2", raw), rows[1]);
+            35208L, "星光铃铛", 5200L, 8L, 40000L, 41600L, 1732634266L, "test-v2-2"), rows[1]);
         Assert.Equal(new TestDatabase.BlindBoxRow(7734200L, 10001L, "测试观众", 35206L, "幸运盲盒", 5000L,
-            35207L, "幸运泡泡", 1500L, 1L, 5000L, 1500L, 1732634266L, "test-v2-3", raw), rows[2]);
+            35207L, "幸运泡泡", 1500L, 1L, 5000L, 1500L, 1732634266L, "test-v2-3"), rows[2]);
         Assert.DoesNotContain(h.Logger.Entries, e => e.Level == LogLevel.Warning);
         Assert.Equal(3, h.Logger.Entries.Count(e => e.Message.StartsWith("记录盲盒")));
         Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Trace && e.Message.Contains("SEND_GIFT_V2"));
@@ -45,8 +44,6 @@ public sealed class BlindBoxV2Tests
         Assert.Equal(new long[] { 9000, 2000, 48000, 54000, 9000, 16000 }, rows.Select(row => row.OpenedValue));
         Assert.Equal(new[] { "test-id-03", "test-id-05", "test-id-07", "test-id-09", "test-id-11", "test-id-13" },
             rows.Select(row => row.Tid));
-        Assert.Equal(new[] { messages[1], messages[2], messages[2], messages[2], messages[3], messages[4] },
-            rows.Select(row => row.RawMessage));
         Assert.All(rows, row => { Assert.Equal(32251L, row.BlindGiftId); Assert.Equal(15000L, row.BlindGiftPrice); });
         // Expected values decoded independently from the same capture (see docs/research/2026-10-09-gift-capture.md).
         Assert.All(rows, row => { Assert.Equal(10001L, row.Uid); Assert.Equal("测试观众", row.Nickname); Assert.Equal("心动盲盒", row.BlindGiftName); });
