@@ -66,7 +66,7 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     /// off would.</summary>
     public static void Give(GuiHarness harness, long room, IEnumerable<Gift> gifts) =>
         new GiftRecording(new GiftStore(new Database(harness.DataDirectory), NullLogger.Instance), harness.Client.GiftBoard,
-            NullLogger.Instance, room, blindBoxes: false).Record(gifts);
+            NullLogger.Instance, room, blindBoxes: false).Record([.. gifts]);
 
     public void GoToToday() => Clock.SetUtcNow(Today);
 

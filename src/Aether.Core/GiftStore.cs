@@ -2,13 +2,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
 
-/// <summary>The 收礼记录 (ADR 0013): one row per paid gift, flagged by whether the 盲盒统计 and the 礼物榜 wanted it. The two
-/// read it each in their own way; a push B站 repeats is written once.</summary>
+/// <summary>The 收礼记录 (ADR 0013): one row per paid gift, marked by whether the 盲盒统计 wanted it and the 期 the 礼物榜
+/// counted it in. The two read it each in their own way; a push B站 repeats is written once.</summary>
 internal sealed class GiftStore(Database database, ILogger logger)
 {
-    /// <summary>Writes <paramref name="gift"/> flagged for the 盲盒统计 and for the 礼物榜 as given. Returns its row's id when it
-    /// is newly written, null for uid 0 and for a tid seen before.</summary>
-    public long? Save(long roomId, Gift gift, bool forBlindBox, bool forBoard)
+    /// <summary>Writes <paramref name="gift"/> marked for the 盲盒统计 and with the board's 期 as given. Returns whether it was
+    /// newly written: not for uid 0, nor for a tid written before.</summary>
+    public bool Save(long roomId, Gift gift, bool forBlindBox, long? boardPeriod)
     {
         if (gift.Uid == 0)
         {
@@ -18,17 +18,17 @@ internal sealed class GiftStore(Database database, ILogger logger)
                     box.Name, gift.GiftName, gift.Num, gift.Spend, gift.Tid);
             else
                 logger.LogInformation("uid 为 0 的礼物未记录（可能是神秘人），礼物 {Gift}，个数 {Num}，tid：{Tid}", gift.GiftName, gift.Num, gift.Tid);
-            return null;
+            return false;
         }
         using var connection = database.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO gift_record (room_id, uid, nickname, face_url, gift_id, gift_name, icon_url, guard_level, gift_key, num,
-                spend, value, blind_gift_id, blind_gift_name, blind_gift_price, tid, timestamp, for_blind_box, for_board)
+                spend, value, blind_gift_id, blind_gift_name, blind_gift_price, tid, timestamp, for_blind_box, board_period)
             VALUES ($roomId, $uid, $nickname, $faceUrl, $giftId, $giftName, $iconUrl, $guardLevel, $giftKey, $num,
-                $spend, $value, $blindGiftId, $blindGiftName, $blindGiftPrice, $tid, $timestamp, $forBlindBox, $forBoard)
+                $spend, $value, $blindGiftId, $blindGiftName, $blindGiftPrice, $tid, $timestamp, $forBlindBox, $boardPeriod)
             ON CONFLICT (tid) DO NOTHING
-            RETURNING id;
+            RETURNING 1;
             """;
         command.Parameters.AddWithValue("$roomId", roomId);
         command.Parameters.AddWithValue("$uid", gift.Uid);
@@ -48,8 +48,8 @@ internal sealed class GiftStore(Database database, ILogger logger)
         command.Set("$tid", gift.Tid);
         command.Set("$timestamp", gift.Timestamp);
         command.Parameters.AddWithValue("$forBlindBox", forBlindBox);
-        command.Parameters.AddWithValue("$forBoard", forBoard);
-        if (command.ExecuteScalar() is not long id)
+        command.Set("$boardPeriod", boardPeriod);
+        if (command.ExecuteScalar() is null)
         {
             // Name the ignored amounts, so a shared tid (a broken key assumption) can be told apart and recovered from the log.
             command.CommandText = """
@@ -63,10 +63,10 @@ internal sealed class GiftStore(Database database, ILogger logger)
                 logger.LogWarning("tid {Tid} 已记录过另一份不同的礼物，这一条未记录，tid 可能不是按礼物项唯一："
                     + "观众 {Nickname}（{Uid}），盲盒 {BlindGift}，开出礼物 {Gift}，个数 {Num}，投入 {Spend} 金瓜子，开出价值 {OpenedValue} 金瓜子",
                     gift.Tid, gift.Nickname, gift.Uid, gift.Blind?.Name, gift.GiftName, gift.Num, gift.Spend, gift.Value);
-            return null;
+            return false;
         }
         if (forBlindBox && gift.Blind is { } blind) LogBlindBox(gift, blind);
-        return id;
+        return true;
     }
 
     private void LogBlindBox(Gift gift, BlindGift blind)

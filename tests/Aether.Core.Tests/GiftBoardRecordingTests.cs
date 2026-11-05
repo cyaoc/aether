@@ -110,24 +110,55 @@ public sealed class GiftBoardRecordingTests
     }
 
     [Fact]
-    public async Task A_broken_board_database_is_logged_danmaku_keep_coming_and_the_gift_counts_when_pushed_again()
+    public async Task A_gift_the_database_cannot_take_stays_on_the_board_and_a_push_again_writes_it_without_counting_twice()
     {
         await using var h = new WatchHarness();
-        await using var updates = await h.WatchWithGiftBoardAsync();
+        using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
+        using var command = connection.CreateCommand();
+        await using (var updates = await h.WatchWithGiftBoardAsync())
+        {
+            connection.Open();
+            command.CommandText = "ALTER TABLE gift_record RENAME TO unavailable_record";
+            command.ExecuteNonQuery();
+
+            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
+            Assert.Contains(h.Logger.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains("礼物榜写数据库失败"));
+            Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
+
+            command.CommandText = "ALTER TABLE unavailable_record RENAME TO gift_record";
+            command.ExecuteNonQuery();
+            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
+            Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
+            // The database never had it, so this push is no repeat there: it is the one written.
+            Assert.DoesNotContain(h.Logger.Entries, entry => entry.Message.Contains("重复推送的礼物"));
+        }
+
+        await using var next = await h.WatchConnectedAsync();
+        Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
+    }
+
+    [Fact]
+    public async Task A_board_that_cannot_be_read_leaves_danmaku_coming_and_is_read_on_the_next_connection()
+    {
+        await using var h = new WatchHarness();
+        await h.WatchAndLeaveAGiftAsync();
         using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
         connection.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "ALTER TABLE gift_record RENAME TO unavailable_record";
+        command.CommandText = "ALTER TABLE gift_board_period RENAME TO unavailable_period";
         command.ExecuteNonQuery();
 
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
-        Assert.Contains(h.Logger.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains("礼物榜读写数据库失败"));
+        await using (var updates = await h.WatchConnectedAsync())
+        {
+            Assert.Contains(h.Logger.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains("礼物榜读数据库失败"));
+            Assert.False((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Connected);
+            await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "while-unread"));
+        }
 
-        command.CommandText = "ALTER TABLE unavailable_record RENAME TO gift_record";
+        command.CommandText = "ALTER TABLE unavailable_period RENAME TO gift_board_period";
         command.ExecuteNonQuery();
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
+        await using var next = await h.WatchConnectedAsync();
         Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
-        Assert.DoesNotContain(h.Logger.Entries, entry => entry.Message.Contains("重复推送的礼物"));
     }
 
     [Fact]

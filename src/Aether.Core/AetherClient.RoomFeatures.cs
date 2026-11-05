@@ -105,7 +105,7 @@ public sealed partial class AetherClient
                 case TransportConnected:
                     try { board.Connect(roomId); }
                     catch (Exception error) when (GiftRecording.IsDatabaseFailure(error))
-                    { logger.LogError(error, "礼物榜读写数据库失败，弹幕照常接收：{Error}", error.Message); }
+                    { logger.LogError(error, "礼物榜读数据库失败，弹幕照常接收，重连时再读：{Error}", error.Message); }
                     break;
                 case RoomConnectionEnded:
                     board.EndRoom(roomId);

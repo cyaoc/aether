@@ -2,14 +2,14 @@ using System.Collections.Immutable;
 
 namespace Aether.Core;
 
-/// <summary>A room's latest 期 as the 收礼记录 has it: the 期 itself and its options, null for a room that has never had one, and
-/// its totals, one per viewer and 礼物键, each with the 收礼记录 row of its first gift. Through is the last 收礼记录 row read:
-/// anything up to it is in the totals or belongs to an earlier 期.</summary>
-internal sealed record GiftBoardSnapshot(GiftBoardPeriod? Period, GiftBoardOptions? Options,
-    ImmutableArray<(GiftBoardRow Row, long First)> Totals, long Through);
+/// <summary>A room's latest 期 as the 收礼记录 has it: its id, the 期 itself and its options, all null for a room that has
+/// never had one; its totals, one per viewer and 礼物键, each with the 收礼记录 row of its first gift; the tids of its gifts;
+/// and the last 收礼记录 row, which every gift counted from here on comes after.</summary>
+internal sealed record GiftBoardSnapshot(long? PeriodId, GiftBoardPeriod? Period, GiftBoardOptions? Options,
+    ImmutableArray<(GiftBoardRow Row, long First)> Totals, ImmutableArray<string> Tids, long LastRecord);
 
-/// <summary>The 礼物榜's 期 (ADR 0014), each a boundary in the 收礼记录 (ADR 0013): the board's rows after it and up to the next
-/// one. A room's latest 期 is the one that counts; it runs until it is ended.</summary>
+/// <summary>The 礼物榜's 期 (ADR 0014). Each 收礼记录 row names the 期 the board counted it in (ADR 0013), and a room's latest
+/// 期 is the one that counts; it runs until it is ended.</summary>
 internal sealed class GiftBoardStore(Database database)
 {
     private const string LatestPeriodId = "(SELECT MAX(id) FROM gift_board_period WHERE room_id = $room)";
@@ -22,50 +22,54 @@ internal sealed class GiftBoardStore(Database database)
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
+        command.CommandText = "SELECT COALESCE(MAX(id), 0) FROM gift_record";
+        var last = (long)command.ExecuteScalar()!;
         command.CommandText = $"""
-            SELECT started_at, ended_at, after_record, threshold, threshold_by, mascot, volume FROM gift_board_period
+            SELECT id, started_at, ended_at, threshold, threshold_by, mascot, volume FROM gift_board_period
             WHERE id = {LatestPeriodId};
             """;
         command.Parameters.AddWithValue("$room", roomId);
-        GiftBoardPeriod? period = null;
-        GiftBoardOptions? options = null;
-        long after = 0;
+        long id;
+        GiftBoardPeriod period;
+        GiftBoardOptions options;
         using (var reader = command.ExecuteReader())
-            if (reader.Read())
-            {
-                period = new(reader.GetDateTimeOffset(0), reader.IsDBNull(1) ? null : reader.GetDateTimeOffset(1));
-                after = reader.GetInt64(2);
-                options = new(reader.GetInt32(3), reader.GetInt32(4), reader.GetBoolean(5), reader.GetInt32(6));
-            }
-        command.CommandText = "SELECT COALESCE(MAX(id), 0) FROM gift_record";
-        var through = (long)command.ExecuteScalar()!;
-        if (period is null) return new(null, null, [], through);
+        {
+            if (!reader.Read()) return new(null, null, null, [], [], last);
+            id = reader.GetInt64(0);
+            period = new(reader.GetDateTimeOffset(1), reader.IsDBNull(2) ? null : reader.GetDateTimeOffset(2));
+            options = new(reader.GetInt32(3), reader.GetInt32(4), reader.GetBoolean(5), reader.GetInt32(6));
+        }
         command.CommandText = """
             WITH totals AS (
                 SELECT uid, gift_key, SUM(value) AS value, SUM(num) AS num, MIN(id) AS first, MAX(id) AS last FROM gift_record
-                WHERE room_id = $room AND for_board = 1 AND id > $after AND id <= $through
+                WHERE board_period = $period
                 GROUP BY uid, gift_key
             )
             SELECT totals.uid, totals.gift_key, latest.nickname, latest.face_url, latest.gift_name, latest.icon_url,
                 latest.guard_level, totals.value, totals.num, totals.first
             FROM totals JOIN gift_record AS latest ON latest.id = totals.last;
             """;
-        command.Parameters.AddWithValue("$after", after);
-        command.Parameters.AddWithValue("$through", through);
+        command.Parameters.AddWithValue("$period", id);
         var totals = ImmutableArray.CreateBuilder<(GiftBoardRow, long)>();
         using (var reader = command.ExecuteReader())
             while (reader.Read())
                 totals.Add((new($"{reader.GetInt64(0)}/{reader.GetString(1)}", reader.GetInt64(0), reader.GetString(2),
                     reader.GetString(3), reader.GetString(4), reader.GetString(5), reader.GetInt32(6), reader.GetInt64(7),
                     reader.GetInt64(8)), reader.GetInt64(9)));
-        return new(period, options, totals.ToImmutable(), through);
+        command.CommandText = "SELECT tid FROM gift_record WHERE board_period = $period AND tid IS NOT NULL";
+        var tids = ImmutableArray.CreateBuilder<string>();
+        using (var reader = command.ExecuteReader())
+            while (reader.Read()) tids.Add(reader.GetString(0));
+        return new(id, period, options, totals.ToImmutable(), tids.ToImmutable(), last);
     }
 
-    /// <summary>Starts a new 期 for the room with these options; the older ones stay as they are. The room must not have one running.</summary>
-    public void Start(long roomId, DateTimeOffset at, GiftBoardOptions options) => Execute("""
-        INSERT INTO gift_board_period (room_id, started_at, after_record, threshold, threshold_by, mascot, volume)
-        SELECT $room, $at, COALESCE((SELECT MAX(id) FROM gift_record), 0), $threshold, $by, $mascot, $volume;
-        """, roomId, at, options);
+    /// <summary>Starts a new 期 for the room with these options and returns its id; the older ones stay as they are. The
+    /// room must not have one running.</summary>
+    public long Start(long roomId, DateTimeOffset at, GiftBoardOptions options) => (long)Execute("""
+        INSERT INTO gift_board_period (room_id, started_at, threshold, threshold_by, mascot, volume)
+        VALUES ($room, $at, $threshold, $by, $mascot, $volume)
+        RETURNING id;
+        """, roomId, at, options)!;
 
     /// <summary>Ends the room's running 期.</summary>
     public void End(long roomId, DateTimeOffset at) =>
@@ -80,7 +84,7 @@ internal sealed class GiftBoardStore(Database database)
         WHERE id = {LatestPeriodId};
         """, roomId, options: options);
 
-    private void Execute(string statement, long roomId, DateTimeOffset? at = null, GiftBoardOptions? options = null)
+    private object? Execute(string statement, long roomId, DateTimeOffset? at = null, GiftBoardOptions? options = null)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
@@ -94,6 +98,6 @@ internal sealed class GiftBoardStore(Database database)
             command.Parameters.AddWithValue("$mascot", options.Mascot);
             command.Parameters.AddWithValue("$volume", options.Volume);
         }
-        command.ExecuteNonQuery();
+        return command.ExecuteScalar();
     }
 }

@@ -118,7 +118,8 @@ public sealed partial class GiftBoardBrowserTests
         await page.GiveAsync(1, 3000);
         await page.GiveAsync(2, 5000);
         await page.WaitForEventAsync("top");
-        await page.SetEventTimeAsync(300);
+        // Mid-cheer, and early enough that the sparkle is not scheduled yet even when the audio output reports a long latency.
+        await page.SetEventTimeAsync(100);
 
         // The clock stands still: the cheer and the one waiting behind it give way to the ended 期 without playing out.
         var received = page.Browser.EventSourceMessages.Count;

@@ -99,6 +99,29 @@ public sealed class GiftBoardPeriodTests
         Assert.Equal(2L, TestDatabase.GiftBoardPeriods(h.DataDirectory));
     }
 
+    // A gift goes on the board before it is written, so the streamer can start a new 期 in between; it was counted in the
+    // 期 before, and that is the one its row names.
+    [Fact]
+    public async Task A_gift_counted_just_before_a_new_period_is_written_into_the_period_it_was_counted_in()
+    {
+        const long room = 7734200;
+        await using var h = new WatchHarness();
+        var board = h.Client.GiftBoard;
+        Gift gift = new(10001, "测试观众", 1000) { GiftId = 1, GiftName = "礼物", Price = 1000, Num = 1, Value = 1000, Tid = "between" };
+        await using (var updates = await h.WatchWithGiftBoardAsync())
+        {
+            var counted = board.Take(room, [gift]);
+            board.EndPeriod();
+            board.StartNewPeriod();
+            new GiftStore(new Database(h.DataDirectory), h.Logger).Save(room, gift, forBlindBox: false, counted);
+            Assert.Empty(await h.BoardRowsAsync());
+        }
+
+        await using var next = await h.WatchConnectedAsync();
+        Assert.Empty(await h.BoardRowsAsync());
+        Assert.Equal(1L, TestDatabase.GiftRecords(h.DataDirectory));
+    }
+
     [Fact]
     public async Task A_new_period_waits_for_the_running_one_to_end_and_only_an_ended_one_continues()
     {
