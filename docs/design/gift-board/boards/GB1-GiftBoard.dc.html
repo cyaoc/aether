@@ -32,7 +32,7 @@ body{margin:0}
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"env":{"editor":"enum","options":["横屏·右","横屏·左","竖屏","矮素材"],"default":"横屏·右"},"scene":{"editor":"enum","options":["演示","太长滚动"],"default":"演示"},"mascot":{"editor":"enum","options":["显示","关闭"],"default":"显示"},"pause":{"editor":"enum","options":["播放","平时","新上榜·飞入","新上榜·展开","加数","超车","新第一·光带","新第一·欢呼"],"default":"播放"},"outline":{"editor":"boolean","default":true},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["明亮画面","浅色房间","深色房间","透明"],"default":"明亮画面"},"$preview":{"width":1920,"height":1080}}'>
+<script type="text/x-dc" data-dc-script data-props='{"env":{"editor":"enum","options":["横屏·右","横屏·左","竖屏","矮素材"],"default":"横屏·右"},"scene":{"editor":"enum","options":["演示","太长滚动"],"default":"演示"},"mascot":{"editor":"enum","options":["显示","关闭"],"default":"显示"},"fx":{"editor":"enum","options":["原样","流光"],"default":"原样"},"pause":{"editor":"enum","options":["播放","平时","新上榜·飞入","新上榜·展开","加数","超车","新第一·光带","新第一·欢呼","流光·平时","流光·升进前三","流光·新第一"],"default":"播放"},"outline":{"editor":"boolean","default":true},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["明亮画面","浅色房间","深色房间","透明"],"default":"明亮画面"},"$preview":{"width":1920,"height":1080}}'>
 class Component extends DCLogic {
   componentDidMount() {
     if (this.loopFn) return;
@@ -61,6 +61,8 @@ class Component extends DCLogic {
       { at: 1000, kind: 'new', id: 'kimetsu' }, { at: 3200, kind: 'more', id: 'koi', n: 9 },
       { at: 5000, kind: 'pass', id: 'sour', n: 3 }, { at: 7600, kind: 'top', id: 'ryu', n: 7 }
     ];
+    // The 流光 demo: someone climbs into 3rd, then someone takes 1st; the rest of the loop is idle.
+    const EVENTS_FLOW = [{ at: 2600, kind: 'pass', id: 'yuzu', n: 2 }, { at: 6400, kind: 'top', id: 'ryu', n: 7 }];
     const LONG = [
       ['ryu', '龍騰雲海', 1, 199980, 1], ['lily', '月下Lily', 'ship', 29990, 1], ['kaze', 'Kaze_09', 2, 19980, 1],
       ['yuzu', '柚子不酸', 'cyc', 12450, 1], ['sakura', 'さくら月影', 3, 1980, 3], ['sour', 'Yuzu_Sour', 'guardwing', 2000, 2],
@@ -93,7 +95,7 @@ class Component extends DCLogic {
       '竖屏': { stage: [1080, 1920], box: [450, 610, 600, 1250], label: '竖屏直播画面 1080 × 1920（示意）' },
       '矮素材': { stage: [1920, 1080], box: [1400, 220, 480, 640], label: '横屏直播画面 1920 × 1080（示意）' }
     };
-    this.D = { GIFT, FRAME, BADGE, MASCOT, BANNER, AVATAR, DEMO, EVENTS, LONG, L, CARDS, RIM, ENV };
+    this.D = { GIFT, FRAME, BADGE, MASCOT, BANNER, AVATAR, DEMO, EVENTS, EVENTS_FLOW, LONG, L, CARDS, RIM, ENV };
     return this.D;
   }
 
@@ -304,11 +306,12 @@ class Component extends DCLogic {
     if (!long) {
       const value = (counts, id) => list.find(x => x[0] === id)[3] * counts[id];
       const orderOf = (counts, present) => list.map(r => r[0]).filter(id => present.has(id)).sort((a, b) => value(counts, b) - value(counts, a) || list.findIndex(r => r[0] === a) - list.findIndex(r => r[0] === b));
-      const counts = Object.fromEntries(list.map(r => [r[0], r[4]])), present = new Set(list.map(r => r[0]).filter(id => !D.EVENTS.some(e => e.kind === 'new' && e.id === id)));
+      const EV = C.fx === '原样' ? D.EVENTS : D.EVENTS_FLOW;
+      const counts = Object.fromEntries(list.map(r => [r[0], r[4]])), present = new Set(list.map(r => r[0]).filter(id => !EV.some(e => e.kind === 'new' && e.id === id)));
       const slotsOf = order => Object.fromEntries(order.map((id, i) => [id, i]));
       let order = orderOf(counts, present);
       S.slot0 = slotsOf(order); S.count0 = { ...counts };
-      for (const e of D.EVENTS) {
+      for (const e of EV) {
         const prev = slotsOf(order), prevCounts = { ...counts };
         if (e.kind === 'new') present.add(e.id); else counts[e.id] = e.n;
         order = orderOf(counts, present);
@@ -505,6 +508,90 @@ class Component extends DCLogic {
         }
       }
     }
+    // 流光: light flows over the top three's cards; nothing touches the avatars, names or icons.
+    // - Rim: two long arcs of light chase each other round each card (1st gold, a lap per 6 s; 2nd silver and 3rd ice,
+    //   9 s and fainter), their glow spilling a little past the edge.
+    // - Face: two broad soft lights in the card's colour drift slowly under the glass.
+    // - Sheen: a wide band led by a sharp line sweeps across the card (1st every 5 s, 2nd and 3rd every 10 s).
+    // A row that climbs into the top three floods its card: the whole rim lights up and fades back to the arcs, a bright
+    // fast sheen, the face lights swell, the numeral pops; in 2nd or 3rd the card flashes too, and a new 1st's arcs spin
+    // twice more before they settle.
+    if (C.fx === '流光') {
+      const FLOW = ['255,206,110', '230,238,255', '140,190,255'], CORE = ['255,246,214', '255,255,255', '220,236,255'], R = 17;
+      const rimBox = i => { const c = D.CARDS[i]; return [L.CX + 1.2, S.top + L.CARDS_Y + c.y + 1.2, L.CW - 2.4, c.h - 2.4]; };
+      const rimLen = ([, , w, h]) => 2 * (w - 2 * R + h - 2 * R) + 2 * Math.PI * R;
+      const cardPath = (ctx, [x, y, w, h]) => { ctx.beginPath(); ctx.moveTo(x + R, y); ctx.arcTo(x + w, y, x + w, y + h, R); ctx.arcTo(x + w, y + h, x, y + h, R); ctx.arcTo(x, y + h, x, y, R); ctx.arcTo(x, y, x + w, y, R); ctx.closePath(); };
+      // The point `s` px along the rounded rim, clockwise from the top edge's left end.
+      const rimPt = ([x, y, w, h], s) => {
+        const a = w - 2 * R, b = h - 2 * R, q = Math.PI * R / 2, P = 2 * (a + b) + 4 * q, arc = (cx, cy, a0, d) => [cx + R * Math.cos(a0 + d / R), cy + R * Math.sin(a0 + d / R)];
+        s = ((s % P) + P) % P;
+        if (s < a) return [x + R + s, y]; s -= a;
+        if (s < q) return arc(x + w - R, y + R, -Math.PI / 2, s); s -= q;
+        if (s < b) return [x + w, y + R + s]; s -= b;
+        if (s < q) return arc(x + w - R, y + h - R, 0, s); s -= q;
+        if (s < a) return [x + w - R - s, y + h]; s -= a;
+        if (s < q) return arc(x + R, y + h - R, Math.PI / 2, s); s -= q;
+        if (s < b) return [x, y + h - R - s]; s -= b;
+        return arc(x + R, y + R, Math.PI, s);
+      };
+      // One arc along the rim, brightening from its tail to its head: wide and faint, medium, thin and near white.
+      const arcLight = (i, head, len, a) => {
+        const box = rimBox(i), n = Math.round(len / 8);
+        fx.lineCap = 'butt';
+        for (let j = 0; j < n; j++) {
+          const s0 = head - len * (j + 1) / n, s1 = head - len * j / n, f = Math.pow(1 - j / n, 1.4), p0 = rimPt(box, s0), pm = rimPt(box, (s0 + s1) / 2), p1 = rimPt(box, s1);
+          fx.beginPath(); fx.moveTo(p0[0], p0[1]); fx.lineTo(pm[0], pm[1]); fx.lineTo(p1[0], p1[1]);
+          for (const [lw, al, col] of [[22, 0.1, FLOW[i]], [9, 0.32, FLOW[i]], [3, 0.95, CORE[i]]]) { fx.lineWidth = lw; fx.strokeStyle = 'rgba(' + col + ',' + a * al * f + ')'; fx.stroke(); }
+        }
+        const [hx, hy] = rimPt(box, head), gr = fx.createRadialGradient(hx, hy, 0, hx, hy, 26);
+        gr.addColorStop(0, 'rgba(255,255,255,' + 0.9 * a + ')'); gr.addColorStop(0.3, 'rgba(' + FLOW[i] + ',' + 0.4 * a + ')'); gr.addColorStop(1, 'rgba(' + FLOW[i] + ',0)');
+        fx.fillStyle = gr; fx.beginPath(); fx.arc(hx, hy, 26, 0, Math.PI * 2); fx.fill();
+      };
+      // The whole rim lit evenly, for a row that has just landed.
+      const ring = (i, a) => {
+        if (a <= 0) return;
+        for (const [lw, al, col] of [[26, 0.14, FLOW[i]], [10, 0.4, FLOW[i]], [3.5, 1, CORE[i]]]) { fx.lineWidth = lw; fx.strokeStyle = 'rgba(' + col + ',' + a * al + ')'; cardPath(fx, rimBox(i)); fx.stroke(); }
+      };
+      // Two broad soft lights drifting under the glass: drawn on the back canvas, under the card's translucent body.
+      const glow = (i, a) => {
+        const box = rimBox(i), [x, y, w, h] = box;
+        bk.save(); cardPath(bk, box); bk.clip();
+        for (let j = 0; j < 2; j++) {
+          const cx = x + w * (0.5 + 0.42 * Math.sin(t * (j ? 0.00031 : 0.00023) + i * 1.7 + j * 2.6)), cy = y + h * (0.5 + 0.3 * Math.sin(t * 0.0004 + j * 1.3));
+          const gr = bk.createRadialGradient(cx, cy, 0, cx, cy, 170); gr.addColorStop(0, 'rgba(' + FLOW[i] + ',' + a + ')'); gr.addColorStop(1, 'rgba(' + FLOW[i] + ',0)');
+          bk.fillStyle = gr; bk.fillRect(x, y, w, h);
+        }
+        bk.restore();
+      };
+      // A wide slanted band with a sharp line ahead of it, sweeping left to right, cut to the card's shape.
+      const sheen = (i, p, a) => {
+        if (p <= 0 || p >= 1) return;
+        const box = rimBox(i), [x, y, w, h] = box, c = x + lerp(-140, w + 140, io(p)), e = a * Math.sin(Math.PI * p);
+        const along = (cx, half) => { const n = Math.hypot(180, h), ux = 180 / n * half, uy = -h / n * half; return fx.createLinearGradient(cx - ux, y + h / 2 - uy, cx + ux, y + h / 2 + uy); };
+        fx.save(); cardPath(fx, box); fx.clip();
+        const band = along(c, 70); band.addColorStop(0, 'rgba(255,255,255,0)'); band.addColorStop(0.5, 'rgba(' + FLOW[i] + ',' + 0.3 * e + ')'); band.addColorStop(1, 'rgba(255,255,255,0)');
+        fx.fillStyle = band; fx.fillRect(x, y, w, h);
+        const line = along(c + 46, 5); line.addColorStop(0, 'rgba(255,255,255,0)'); line.addColorStop(0.5, 'rgba(255,255,255,' + 0.55 * e + ')'); line.addColorStop(1, 'rgba(255,255,255,0)');
+        fx.fillStyle = line; fx.fillRect(x, y, w, h);
+        fx.restore();
+      };
+      // Where a climbing row lands among the top three, and when (its move or unfold ends there).
+      const land = ev && ev.next[ev.id] < 3 && (ev.prev[ev.id] == null || ev.prev[ev.id] > ev.next[ev.id]) ? { slot: ev.next[ev.id], at: ev.kind === 'new' ? 860 : ev.kind === 'pass' ? 800 : 1000 } : null;
+      for (let i = 0; i < 3; i++) {
+        const cd = S.cards[i], base = i === 0 ? 0.92 : 0.84, P = rimLen(rimBox(i));
+        const hit = land && land.slot === i && u >= land.at ? u - land.at : -1, fresh = hit >= 0 && hit < 1800;
+        glow(i, (i === 0 ? 0.85 : 0.55) * (1 + (fresh ? 0.8 * (1 - k(0, 1800, hit)) : 0)));
+        const spin = i === 0 && hit >= 0 ? 2 * io(k(0, 1600, hit)) : 0, head = P * ((t / (i === 0 ? 6000 : 9000) + spin + i * 0.37) % 1);
+        const a = i === 0 ? 0.9 : 0.6, len = P * (i === 0 ? 0.3 : 0.24);
+        arcLight(i, head, len, a); arcLight(i, head + P / 2, len, a);
+        ring(i, fresh ? k(0, 80, hit) * (1 - k(150, 1200, hit)) : 0);
+        if (i > 0 && hit >= 0) cd.flare.alpha = Math.max(cd.flare.alpha, 0.5 * (1 - k(0, 360, hit)));
+        const pp = hit >= 0 ? k(0, 380, hit) : 1, bump = pp < 1 ? (pp < 0.25 ? lerp(1, 1.3, pp / 0.25) : lerp(1.3, 1, out(k(0.25, 1, pp)))) : 1;
+        cd.num.scale.set(base * bump);
+        const ph = i === 0 ? t % 5000 : (t + 10000 - 3300 * i) % 10000;
+        if (fresh && hit < 700) sheen(i, hit / 700, 1.6); else sheen(i, ph / 1100, 1);
+      }
+    }
     // Mascot: breathing idle, a small hop into the cheer pose when someone takes first place.
     const br = Math.sin(t * 0.0021);
     S.mascot.position.set(L.W / 2, S.top + 12 + hop + br * 1);
@@ -521,11 +608,11 @@ class Component extends DCLogic {
     const D = this.data();
     const room = this.props.room ?? '明亮画面', scene = this.props.scene ?? '演示', pause = this.props.pause ?? '播放';
     const envName = this.props.env ?? '横屏·右', env = D.ENV[envName] || D.ENV['横屏·右'];
-    const mascot = this.props.mascot ?? '显示', outline = this.props.outline !== false && this.props.outline !== 'false';
+    const mascot = this.props.mascot ?? '显示', outline = this.props.outline !== false && this.props.outline !== 'false', fx = this.props.fx ?? '原样';
     const speed = { '1 倍': 1, '0.5 倍': 0.5, '0.25 倍': 0.25 }[this.props.speed ?? '1 倍'];
-    const pauseAt = { '播放': null, '平时': 600, '新上榜·飞入': 1520, '新上榜·展开': 1840, '加数': 3330, '超车': 5520, '新第一·光带': 8900, '新第一·欢呼': 9300 }[pause];
+    const pauseAt = { '播放': null, '平时': 600, '新上榜·飞入': 1520, '新上榜·展开': 1840, '加数': 3330, '超车': 5520, '新第一·光带': 8900, '新第一·欢呼': 9300, '流光·平时': 550, '流光·升进前三': 3650, '流光·新第一': 7700 }[pause];
     const [stageW, stageH] = env.stage, [boxX, boxY, boxW, boxH] = env.box;
-    this.cfg = { scene, stage: env.stage, box: env.box, mascot, layout: [scene, envName, mascot].join('|'), cycle: scene === '太长滚动' ? 24000 : 13000, speed, pauseAt };
+    this.cfg = { scene, stage: env.stage, box: env.box, mascot, fx, layout: [scene, envName, mascot, fx].join('|'), cycle: scene === '太长滚动' ? 24000 : 13000, speed, pauseAt };
     const scale = Math.round(Math.min(boxW / D.L.W, boxH / (mascot === '关闭' ? D.L.MIN_H_NO : D.L.MIN_H)) * 100) / 100;
     return {
       stageW, stageH, boxX, boxY, boxW, boxH, labelY: Math.max(4, boxY - 28), outline,
