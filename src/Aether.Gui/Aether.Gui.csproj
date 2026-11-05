@@ -8,6 +8,7 @@
     <AvaloniaResource Include="../../docs/design/app-icon/aether.ico" Link="Assets/aether.ico" />
     <AvaloniaResource Include="../../docs/design/app-icon/aether.icns" Link="Assets/aether.icns" />
     <AvaloniaResource Include="../../docs/design/splash/textures/splash.webp" Link="Assets/splash.webp" />
+    <AvaloniaResource Include="../../docs/design/login/textures/login.webp" Link="Assets/login.webp" />
     <None Update="ThirdPartyNotices.txt" CopyToOutputDirectory="PreserveNewest" />
     <ProjectReference Include="../Aether.Core/Aether.Core.csproj" />
     <PackageReference Include="Avalonia" />
