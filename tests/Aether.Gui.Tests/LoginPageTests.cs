@@ -57,7 +57,7 @@ public sealed class LoginPageTests
     [Theory]
     [InlineData(0)]
     [InlineData(2)]
-    public Task Watch_login_keeps_sidebar_covers_selected_page_and_disconnect_ends_connection(int pageIndex) => HeadlessApp.Session.Dispatch(async () =>
+    public Task Watch_login_disables_navigation_covers_selected_page_and_disconnect_ends_connection(int pageIndex) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
@@ -80,16 +80,16 @@ public sealed class LoginPageTests
             Assert.Contains("登录已失效，请重新扫码", VisibleText(window));
             Assert.Contains("等待扫码", VisibleText(window));
             Assert.True(navigation.IsEffectivelyVisible);
+            Assert.False(navigation.IsEffectivelyEnabled);
             Assert.False(window.FindControl<Panel>("PageHost")!.IsEffectivelyVisible);
-            navigation.SelectedIndex = 4;
-            Assert.Contains("登录已失效，请重新扫码", VisibleText(window));
             var disconnect = Assert.Single(window.GetVisualDescendants().OfType<Button>(), x => Equals(x.Content, "断开") && x.IsEffectivelyVisible);
             Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(disconnect)).Invoke();
             await viewModel.ConnectCommand.ExecutionTask!.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.False(viewModel.HasRoomConnection);
             Assert.False(viewModel.HasQrCode);
             Assert.True(window.FindControl<Panel>("PageHost")!.IsEffectivelyVisible);
-            Assert.Equal(4, navigation.SelectedIndex);
+            Assert.True(navigation.IsEffectivelyEnabled);
+            Assert.Equal(pageIndex, navigation.SelectedIndex);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Dispatcher.UIThread.RunJobs(); }
         return true;

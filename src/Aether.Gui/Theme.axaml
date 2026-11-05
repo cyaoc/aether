@@ -747,6 +747,9 @@
   <Style Selector="ListBox.plain">
     <Setter Property="Padding" Value="0,8,0,12" />
   </Style>
+  <Style Selector="ListBox.nav:disabled">
+    <Setter Property="Opacity" Value="0.4" />
+  </Style>
   <Style Selector="ListBox.nav ListBoxItem">
     <Setter Property="Height" Value="36" />
     <Setter Property="Padding" Value="12,0" />
