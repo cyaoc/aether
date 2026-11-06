@@ -58,6 +58,12 @@ jobs:
                 dotnet publish "$project" -c Release -r "$rid" --self-contained "$self_contained" \
                   -p:Version="$version" -p:IncludeSourceRevisionInInformationalVersion=false -o "$output"
                 cp LICENSE "$output/"
+                for pdb in libSkiaSharp.pdb libHarfBuzzSharp.pdb; do
+                  if [[ -e "$output/$pdb" ]]; then
+                    echo "Expected no $pdb in $package" >&2
+                    exit 1
+                  fi
+                done
                 if [[ "$app" == cli && "$rid" == *-"$runner_arch" ]]; then
                   executable="$output/aether"
                   if [[ "$rid" == win-* ]]; then executable+=".exe"; fi
