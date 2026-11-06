@@ -154,7 +154,8 @@ public partial class MainWindowViewModel : ObservableObject
         try
         {
             var minimum = Task.Delay(SplashMinimumDuration, clock, shutdown.Token);
-            updater.CleanUp();
+            // Off the UI thread, so the splash shows at once even with a whole unpacked package left behind.
+            await Task.Run(updater.CleanUp);
             var check = settings.AutoUpdate ? updater.CheckAsync(shutdown.Token) : Task.FromResult<ReleaseUpdate?>(null);
             loginWaitsForSplash = true;
             try { await ReadAccountCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(3), clock, shutdown.Token); }

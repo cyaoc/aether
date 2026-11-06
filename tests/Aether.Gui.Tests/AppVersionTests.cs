@@ -42,7 +42,7 @@ public sealed class AppVersionTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             Assert.False(viewModel.IsLoggedOut);
             for (var page = 0; page < window.Navigation.ItemCount; page++)
             {

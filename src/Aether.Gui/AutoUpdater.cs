@@ -108,6 +108,8 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
                 var archive = await DownloadAsync(tag, update.Package, progress, cancellationToken);
                 await Task.Run(() => Unpack(tag, archive, staging, progress));
             }
+            // A GUI opened from here since the check would load some of the new version's files later.
+            if (AnotherGuiRuns()) throw new IOException("程序目录里又开了一个 GUI，这次不更新");
             await Task.Run(() => Install(tag, staging, progress));
             return true;
         }
@@ -130,6 +132,8 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     /// <summary>Deletes what the last update left: the replaced files (*.old) and .update/. A file the old process still holds stays until next time.</summary>
     public void CleanUp()
     {
+        // Another GUI here may be installing, and these are what it moves in and puts back if that fails.
+        if (AnotherGuiRuns()) return;
         TryDelete(() => Directory.Delete(UpdateDirectory, recursive: true));
         TryDelete(() =>
         {

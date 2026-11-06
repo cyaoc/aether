@@ -103,7 +103,7 @@ public sealed class ThemeTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "夜航船", "晚上好") { Uid = 999 });
             GuiHarness.Flush();
             var row = Assert.IsType<ListBoxItem>(window.DanmakuList.ContainerFromIndex(0));
@@ -149,7 +149,7 @@ public sealed class ThemeTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             for (var i = 0; i < 4; i++)
                 viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "观众", "晚上好")
                     { Uid = i == 0 ? 123 : 1000 + i, GuardTier = i, FanClubLevel = 47, WealthLevel = 45 });

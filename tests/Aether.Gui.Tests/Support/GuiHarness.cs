@@ -211,6 +211,13 @@ internal sealed class GuiHarness : IDisposable
         await page.PendingSave;
     }
 
+    /// <summary>Waits for the account read under way; the window starts its first once the splash has cleaned up after the last update.</summary>
+    public static async Task AccountReadAsync(MainWindowViewModel viewModel)
+    {
+        await WaitForAsync(() => viewModel.ReadAccountCommand.ExecutionTask is not null);
+        await viewModel.ReadAccountCommand.ExecutionTask!;
+    }
+
     public static Task WaitForAsync(Func<bool> condition) => WaitForAsync(() => Task.FromResult(condition()));
 
     public static async Task WaitForAsync(Func<Task<bool>> condition)

@@ -41,7 +41,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await vm.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(vm);
                 vm.Apply(new Connected(1768506153, 24680));
                 window.Navigation.SelectedIndex = 3;
                 vm.WebService.Apply(new WebServiceStatus(true, 17890, 1, 0, 0));
@@ -82,7 +82,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await vm.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(vm);
                 vm.Apply(new Connected(1768506153, 24680));
                 window.Navigation.SelectedIndex = 2;
                 var welcome = window.GetVisualDescendants().OfType<WelcomePanel>().Single();
@@ -125,7 +125,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await vm.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(vm);
                 vm.Apply(new Connected(7734200, 24680));
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery() with { Uid = 1 })));
                 window.Navigation.SelectedIndex = 5;
@@ -172,7 +172,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await vm.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(vm);
                 window.Navigation.SelectedIndex = 5;
                 Lottery lottery = mode == LotteryMode.Pool ? LotteryPanelTests.TestLottery() : EntryLotteryPanelTests.TestLottery();
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
@@ -219,7 +219,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await vm.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(vm);
                 window.Navigation.SelectedIndex = 5;
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
                 var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
@@ -257,7 +257,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await vm.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(vm);
                 window.Navigation.SelectedIndex = 5;
                 var at = new DateTimeOffset(2026, 10, 17, 20, 30, 0, TimeSpan.FromHours(8));
                 string[] names = ["一只小鹿", "柚子不酸", "夜航船", "桃桃乌龙", "番茄炒蛋", "青柠", "橘猫本猫", "南巷"];
@@ -325,7 +325,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await vm.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(vm);
                 window.Navigation.SelectedIndex = 5;
                 // Canvas V1's pool and records: a viewer's stop, a host stop with no UID, and a host stop for a named viewer.
                 PoolPrize[] prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second),
@@ -393,7 +393,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0, 0));
                 for (var index = 0; index < window.Navigation.ItemCount; index++)
                 {
@@ -490,7 +490,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 window.Navigation.SelectedIndex = 7;
                 GuiHarness.Flush();
                 foreach (var (name, state) in new[]
@@ -536,7 +536,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 window.Navigation.SelectedIndex = 2;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);
@@ -663,7 +663,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 window.Navigation.SelectedIndex = 2;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<WelcomeSettingsPage>().Single();
@@ -709,7 +709,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await vm.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(vm);
                 vm.Apply(new Connected(7734200, 24680));
                 window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
@@ -757,7 +757,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
                 var page = window.GetVisualDescendants().OfType<AnimationSettingsPage>().Single();
@@ -839,7 +839,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 Capture(window, "normal");
                 var input = window.FindControl<ComboBox>("RoomInput")!;
                 input.GetVisualDescendants().OfType<TextBox>().Single().Focus();
@@ -882,7 +882,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 foreach (var (pageIndex, name) in new[] { (7, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
@@ -923,7 +923,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 window.Navigation.SelectedIndex = 6;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
@@ -973,7 +973,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await vm.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(vm);
                 vm.Apply(new Connected(7734200, 24680));
                 window.Navigation.SelectedIndex = 2;
                 GuiHarness.Flush();
@@ -1011,7 +1011,7 @@ public sealed partial class VisualReviewTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             viewModel.ConnectCommand.Execute(null);
             await roomStarted.WaitAsync(TimeSpan.FromSeconds(5));
             viewModel.Apply(new Connected(7734200, 24680));
@@ -1121,7 +1121,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 Assert.True(viewModel.IsSplashVisible);
                 Save(window, $"splash-{width}x{height}-{(dark ? "dark" : "light")}");
             }
@@ -1151,7 +1151,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 // The design's sample values: 12.0 of 25.0 MB downloaded.
                 viewModel.Update = new UpdateProgress("v0.5.0", true, 48, 12 << 20, 25 << 20);
                 Capture("download");
@@ -1190,7 +1190,7 @@ public sealed partial class VisualReviewTests
             window.Show();
             try
             {
-                await viewModel.ReadAccountCommand.ExecutionTask!;
+                await GuiHarness.AccountReadAsync(viewModel);
                 window.Navigation.SelectedIndex = Array.IndexOf(ReviewedPages, "general");
                 Capture("on");
                 var page = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();

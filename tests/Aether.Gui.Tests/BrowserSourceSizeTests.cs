@@ -90,7 +90,7 @@ public sealed class BrowserSourceSizeTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 0, 0, 0));
             for (var index = 0; index < window.Navigation.ItemCount; index++)
             {

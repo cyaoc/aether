@@ -69,7 +69,7 @@ public sealed class LoginPageTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             Assert.Contains("账号信息读取失败", VisibleText(window));
             var navigation = window.FindControl<ListBox>("Navigation")!;
             navigation.SelectedIndex = pageIndex;
@@ -232,7 +232,7 @@ public sealed class LoginPageTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             Assert.Contains("扫码登录 B站", VisibleText(window));
             Assert.False(window.FindControl<ListBox>("Navigation")!.IsEffectivelyVisible);
             Assert.False(viewModel.ConnectCommand.CanExecute(null));

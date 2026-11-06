@@ -32,7 +32,7 @@ public sealed class SplashScreenTests
             var transition = Assert.IsType<DoubleTransition>(Assert.Single(splash.Transitions!));
             Assert.Equal(TimeSpan.FromMilliseconds(150), transition.Duration);
             Assert.True(splash.IsEffectivelyVisible);
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             Assert.Equal("测试账号", viewModel.AccountStatus.Text);
             clock.Advance(TimeSpan.FromMilliseconds(599));
             Flush();
@@ -123,7 +123,7 @@ public sealed class SplashScreenTests
             Assert.Equal(1, viewModel.SplashOpacity);
             await BeginFadeAsync(clock, viewModel, milliseconds: 1);
             Assert.True(readToken.IsCancellationRequested);
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             Assert.Equal(AccountStatus.Failed, viewModel.AccountStatus);
             await FinishFadeAsync(clock, viewModel);
             await startup.WaitAsync(TimeSpan.FromSeconds(5));
@@ -156,7 +156,7 @@ public sealed class SplashScreenTests
             await FinishFadeAsync(clock, viewModel);
             await startup.WaitAsync(TimeSpan.FromSeconds(5));
             stuck.SetResult(lateLoggedOut ? Json("""{"code":-101}""") : AccountResponse("迟到账号"));
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             Flush();
             Assert.Equal(AccountStatus.Failed, viewModel.AccountStatus);
             Assert.False(viewModel.LoginCommand.IsRunning);
@@ -180,7 +180,7 @@ public sealed class SplashScreenTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             if (loggedOut) await viewModel.LoginCommand.ExecutionTask!;
             Flush();
             Control target = loggedOut ? window.FindControl<Button>("RetryLoginButton")! : window.RoomInput.GetVisualDescendants().OfType<TextBox>().Single();
@@ -233,7 +233,7 @@ public sealed class SplashScreenTests
         try
         {
             await WaitForAsync(() => harness.NavRequests == 1);
-            if (stage != "reading") await viewModel.ReadAccountCommand.ExecutionTask!;
+            if (stage != "reading") await GuiHarness.AccountReadAsync(viewModel);
             if (stage == "fade") await BeginFadeAsync(clock, viewModel);
             Assert.True(viewModel.IsSplashVisible);
             window.Close();
@@ -272,7 +272,7 @@ public sealed class SplashScreenTests
             await WaitForAsync(() => viewModel.WebService.WebServiceStatus.Running);
             Assert.True(viewModel.IsSplashVisible);
             await AssertPagesServedAsync();
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             Assert.Equal(newerDatabase ? AccountStatus.Failed : AccountStatus.LoggedOut, viewModel.AccountStatus);
             await BeginFadeAsync(clock, viewModel);
             await FinishFadeAsync(clock, viewModel);
@@ -312,7 +312,7 @@ public sealed class SplashScreenTests
         {
             await WaitForAsync(() => harness.NavRequests == 1 && harness.GitHub.Requests.Count == 1);
             account.SetResult(Json("""{"code":-101}"""));
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             clock.Advance(TimeSpan.FromMilliseconds(2999));
             Flush();
             Assert.True(viewModel.IsLoggedOut);
