@@ -1,7 +1,7 @@
 // Run with: node --test tests/Aether.Core.Tests/GiftBoardMotion.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { EVENTS, ambient, arcHead, easeBack, entryMotion, landing, rowKind, sheenSweep, sinceLanding } from '../../src/Aether.Core/Pages/gift-board/motion.mjs';
+import { EVENTS, ambient, arcHead, easeBack, entryMotion, landing, nameTurn, rowKind, sheenSweep, sinceLanding } from '../../src/Aether.Core/Pages/gift-board/motion.mjs';
 
 test('the overshooting ease starts at exactly 0, ends at 1 and never dips below 0', () => {
   // A scale that rounding left slightly below 0 would mirror the sprite for good: Pixi keeps the sign of a sprite's scale.
@@ -95,4 +95,35 @@ test("a row landing in a card sweeps it once, faster and brighter, in place of i
   // At 2000 the first card has no sheen of its own.
   assert.deepEqual(sheenSweep(0, 2000, 350), { progress: 0.5, strength: 1.6 });
   assert.ok(!sweeping(0, 2000, 700));
+});
+
+// The top three's long names take turns (design package README, 长名字和头像框间距). `overs` is how far each card's name runs past its
+// window, in texture pixels (28 px type): 56 of them are 58 design pixels at the first card's 29 px, 54 at the others' 27 px, which
+// scroll at 40 a second in 1450 and 1350 ms.
+const turnAt = (overs, t) => {
+  const turn = nameTurn(overs, t);
+  return turn && [turn.rank, Math.round(turn.offset * 1000) / 1000, Math.round(turn.alpha * 1000) / 1000];
+};
+
+test('no name scrolls while all of the top three fit their cards', () => {
+  for (const t of [0, 2500, 9000]) assert.equal(nameTurn([0, 0, 0], t), undefined);
+  assert.equal(nameTurn([], 2500), undefined);
+});
+
+test('the names that do not fit scroll one at a time from the top, still, at 40 a second, still at the end and fading back', () => {
+  const overs = [56, 56, 0];
+  // The first card's: 2000 still, 1450 scrolling, 1500 at its end, 250 fading out and 250 back in at its start.
+  assert.deepEqual([0, 1999, 2725, 3450, 4949].map(t => turnAt(overs, t)), [[0, 0, 1], [0, 0, 1], [0, 28, 1], [0, 56, 1], [0, 56, 1]]);
+  assert.deepEqual([5075, 5200, 5325].map(t => turnAt(overs, t)), [[0, 56, 0.5], [0, 0, 0], [0, 0, 0.5]]);
+  // Then the second card's, 5450 on, at its own type size: 1350 to scroll the same 56.
+  assert.deepEqual([5450, 7450, 8125, 8800, 10300].map(t => turnAt(overs, t)), [[1, 0, 1], [1, 0, 1], [1, 28, 1], [1, 56, 1], [1, 56, 1]]);
+  assert.deepEqual([10425, 10550, 10675].map(t => turnAt(overs, t)), [[1, 56, 0.5], [1, 0, 0], [1, 0, 0.5]]);
+  // The third card's name fits and never takes a turn; after the second's the first's comes round again.
+  for (let t = 0; t < 10800; t += 50) assert.notEqual(turnAt(overs, t)[0], 2, `at ${t}`);
+  assert.deepEqual([10800, 10800 + 2725].map(t => turnAt(overs, t)), [[0, 0, 1], [0, 28, 1]]);
+});
+
+test("when only the third card's name does not fit, only it scrolls", () => {
+  for (let t = 0; t < 20000; t += 250) assert.equal(nameTurn([0, 0, 56], t).rank, 2);
+  assert.deepEqual(turnAt([0, 0, 56], 2675), [2, 28, 1]);
 });

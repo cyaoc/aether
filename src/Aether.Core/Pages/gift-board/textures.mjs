@@ -1,7 +1,7 @@
 // The board's textures, drawn once on 2D canvases (design package GB1): the glass cards and pills, the rank numerals, the
 // title, the names and counts, the sprite and the star. The local pictures come in as loaded images.
 import { CARDS, LAYOUT, RIM_RADIUS, rimOf } from './layout.mjs';
-import { NUMERALS, PAD, SANS, fitText, gradient, roundRect, seeded } from './paint.mjs';
+import { NUMERALS, PAD, SANS, drawNameWindow, gradient, roundRect, seeded } from './paint.mjs';
 import { canvasOf } from '../video/animations/toolkit.mjs';
 
 // Gold, silver-white and ice-blue rims: the cards also differ in size and numeral, never in hue alone.
@@ -10,8 +10,8 @@ export const RIM = [
   { stops: ['#ffffff', '#e3e9f4', '#a9b5cb'], glow: 'rgba(225,235,255,0.7)', numerals: ['#ffffff', '#e2e8f3', '#9ea9bf'], ring: 0xe3e9f4, tint: ['rgba(235,242,255,0.26)', 'rgba(235,242,255,0)'], width: 2.2, blur: 15 },
   { stops: ['#eaf3ff', '#9ec6ff', '#5b8cff'], glow: 'rgba(120,170,255,0.8)', numerals: ['#f2f8ff', '#a8ccff', '#5b8cff'], ring: 0x9ec6ff, tint: ['rgba(110,165,255,0.34)', 'rgba(110,165,255,0)'], width: 2.2, blur: 15 }
 ];
-// Names are drawn at 28 px and scaled to 29, 27 or 23 px; a card leaves a name 150 px, a pill 156 px.
-export const NAME_WIDTH = { card: 150 * 28 / 29, row: 156 * 28 / 23 };
+// Names are drawn at 28 px and scaled to 29, 27 or 23 px; a card shows 145 px of a name, a pill 151 px.
+export const NAME_WIDTH = { card: 145 * 28 / 29, row: 151 * 28 / 23 };
 const ROW_NUMERAL = ['#ffffff', '#dfe6ff', '#b8c6ff'];
 const CARD_NUMERAL_SIZE = 70, ROW_NUMERAL_SIZE = 30;
 // The bubble sprite's two eyes, wide open or blinking: top, height and corner radius of each pill.
@@ -131,18 +131,33 @@ const cardNumeralTexture = rank => PIXI.Texture.from(canvasOf(CARD_NUMERAL_SIZE 
   g.stroke();
 }));
 
-function nameTexture(text, maxWidth) {
+/** A name in a window `width` texture pixels wide, shown from its start: `over` is how far the name runs past the window, and
+ * `show(offset)` shows it from `offset` along instead. The whole name is drawn once and kept for that (GB1's `fullName`). */
+function nameTexture(text, width) {
   const probe = canvasOf(1, 1, () => {}).getContext('2d');
   probe.font = '500 28px ' + SANS;
-  const shown = fitText(probe, text, maxWidth);
-  return PIXI.Texture.from(canvasOf(Math.ceil(probe.measureText(shown).width + 16), 48, g => {
+  const name = { width: probe.measureText(text).width };
+  name.canvas = canvasOf(Math.ceil(name.width + 16), 48, g => {
     g.font = '500 28px ' + SANS;
     g.textBaseline = 'middle';
     g.shadowColor = 'rgba(10,16,90,0.8)';
     g.shadowBlur = 6;
     g.fillStyle = '#ffffff';
-    g.fillText(shown, 8, 25);
-  }));
+    g.fillText(text, 8, 25);
+  });
+  let shownFrom = 0;
+  const shown = canvasOf(Math.ceil(width + 16), 48, g => drawNameWindow(g, name, width, 0)), texture = PIXI.Texture.from(shown);
+  return {
+    texture,
+    over: Math.max(0, name.width - width),
+    show(offset) {
+      if (offset === shownFrom) return;
+      shownFrom = offset;
+      drawNameWindow(shown.getContext('2d'), name, width, offset);
+      texture.source.update();
+    },
+    destroy: withSource => texture.destroy(withSource)
+  };
 }
 
 const countTexture = n => PIXI.Texture.from(canvasOf(120, 48, g => {
@@ -254,18 +269,21 @@ export const memo = make => {
 };
 
 /** Everything the scene draws with; `local` holds the loaded banner and mascot images. Names, counts and the like are made on
- * first use and kept until `forget()`. */
+ * first use and kept until `forget()`. A pill's name always shows from its start and is made once for each name; a card's name
+ * scrolls, so each row gets its own, even when two rows share a name. */
 export function createTextures(local) {
-  const [rowNumeral, name, count, initial] = [rowNumeralTexture, nameTexture, countTexture, initialTexture].map(memo);
+  const cardNameTexture = (id, text) => nameTexture(text, NAME_WIDTH.card);
+  const made = [rowNumeralTexture, nameTexture, cardNameTexture, countTexture, initialTexture].map(memo);
+  const [rowNumeral, name, cardName, count, initial] = made;
   return {
     title: titleTexture(), cards: CARDS.map((_, rank) => cardTexture(rank)), row: rowTexture(), star: starTexture(),
     sprite: spriteTexture(EYES.open), spriteBlink: spriteTexture(EYES.blink),
     cardNumerals: CARDS.map((_, rank) => cardNumeralTexture(rank)), rowNumeral,
     banner: trimmed(local.banner), idle: PIXI.Texture.from(local.idle), cheer: PIXI.Texture.from(local.cheer),
-    name, count, initial,
+    name, cardName, count, initial,
     /** Lets go of the textures made on first use that nothing asked for since the sweep before. */
-    sweep: () => [rowNumeral, name, count, initial].forEach(made => made.sweep()),
+    sweep: () => made.forEach(textures => textures.sweep()),
     /** Lets go of every texture made on first use, for the pictures of a board that is gone. */
-    forget: () => [rowNumeral, name, count, initial].forEach(made => made.clear())
+    forget: () => made.forEach(textures => textures.clear())
   };
 }

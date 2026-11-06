@@ -2,7 +2,7 @@
 export const LAYOUT = {
   width: 480,
   contentX: 20, contentWidth: 440,   // the top three and the rows share this column and the inner columns below
-  columns: { rank: 62, avatar: 148, name: 192, gift: 376, count: 442 },
+  columns: { rank: 54, avatar: 140, name: 197, gift: 376, count: 442 },
   rowHeight: 50, rowPitch: 60,
   mascotZone: 220,                   // room above the ribbon for the mascot; without her the list moves up into it
   zoneWithoutMascot: 8,
@@ -15,7 +15,7 @@ export const CARDS = [{ y: 0, h: 98 }, { y: 110, h: 90 }, { y: 212, h: 90 }];
 export const TOP_COUNT = CARDS.length;
 
 // Avatar radius, name size, icon size and count scale by rank: the first card, the other two cards, a row.
-const SIZES = [{ ar: 33, ns: 29, is: 46, cs: 1.05 }, { ar: 30, ns: 27, is: 42, cs: 0.95 }, { ar: 30, ns: 27, is: 42, cs: 0.95 }, { ar: 19, ns: 23, is: 34, cs: 0.84 }];
+export const SIZES = [{ ar: 33, ns: 29, is: 46, cs: 1.05 }, { ar: 30, ns: 27, is: 42, cs: 0.95 }, { ar: 30, ns: 27, is: 42, cs: 0.95 }, { ar: 19, ns: 23, is: 34, cs: 0.84 }];
 
 /** Lays the board out from the page's own size: the width sets the scale and the height sets how many rows fit. A page
  * shorter than the minimum board scales it down by its height and centres it. */

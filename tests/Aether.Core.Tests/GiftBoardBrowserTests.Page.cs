@@ -81,8 +81,11 @@ public sealed partial class GiftBoardBrowserTests
         }
 
         /// <summary>The viewer sends <paramref name="num"/> more of the same gift at <paramref name="price"/> 金瓜子 each.</summary>
-        public Task GiveAsync(long uid, long price, long num = 1) =>
-            PushAsync(BlindGiftFixture.Ordinary(uid: uid, nickname: "观众" + uid, price: price, num: num, tid: Guid.NewGuid().ToString()));
+        public Task GiveAsync(long uid, long price, long num = 1) => GiveAsync(uid, "观众" + uid, price, num);
+
+        /// <summary>The same, from a viewer called <paramref name="nickname"/>.</summary>
+        public Task GiveAsync(long uid, string nickname, long price, long num = 1) =>
+            PushAsync(BlindGiftFixture.Ordinary(uid: uid, nickname: nickname, price: price, num: num, tid: Guid.NewGuid().ToString()));
 
         /// <summary>Pushes a gift through the room. Once the page is open this returns when the board's new state has reached it
         /// and the page has had frames to start whatever it calls for.</summary>
@@ -113,6 +116,9 @@ public sealed partial class GiftBoardBrowserTests
 
         /// <summary>Stops the page's clock; from here the page only moves when a test moves it.</summary>
         public async Task PauseClockAsync() => await Browser.EvaluateAsync($"{Clock}.pause(); {TwoFrames}");
+
+        public async Task SetClockAsync(int milliseconds) =>
+            await Browser.EvaluateAsync($"{Clock}.currentTime = {milliseconds}; {TwoFrames}");
 
         public async Task StepClockAsync(int milliseconds) =>
             await Browser.EvaluateAsync($"{Clock}.currentTime += {milliseconds}; {TwoFrames}");

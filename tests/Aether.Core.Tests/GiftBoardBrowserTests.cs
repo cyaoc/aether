@@ -326,6 +326,9 @@ public sealed partial class GiftBoardBrowserTests
 
     private static Task<bool[]> PillsAsync(PageSession page) => page.OpaqueColumnAsync(ListColumn, ListTop, 640 - ListTop);
 
+    /// <summary>How many of the points two looks at the page see differently.</summary>
+    private static int Differing(bool[] before, bool[] after) => before.Zip(after).Count(pair => pair.First != pair.Second);
+
     [Fact]
     public async Task A_list_too_long_for_the_page_scrolls_from_the_fourth_row_in_a_loop()
     {
@@ -342,7 +345,7 @@ public sealed partial class GiftBoardBrowserTests
         // A lap is all four pills and one empty row, 300 design pixels, at the 840 design pixels in 24 seconds that the list scrolls:
         // 8571 ms. Three laps bring it back.
         await page.StepClockAsync(25714 - 18000);
-        Assert.InRange((await PillsAsync(page)).Zip(pills).Count(pair => pair.First != pair.Second), 0, 2);
+        Assert.InRange(Differing(await PillsAsync(page), pills), 0, 2);
     }
 
     [Fact]
@@ -489,11 +492,104 @@ public sealed partial class GiftBoardBrowserTests
         await page.WaitForEventAsync("top");
         await page.Browser.WaitAsync("pictures.some(picture => picture.src.startsWith('data:') && picture.complete)");
         await page.SettleAsync();
-        // The first card's avatar is a 33 px circle round (148, middle): its middle is the white picture, and a corner of the
+        // The first card's avatar is a 33 px circle round (140, middle): its middle is the white picture, and a corner of the
         // square it fills, 42 px from the middle, is the translucent card behind.
         var middle = (int)(Mascot + CardsY + 49);
-        var alpha = await page.AlphaAsync([(148, middle), (148 - 30, middle - 30), (148 + 30, middle + 30)]);
+        var alpha = await page.AlphaAsync([(140, middle), (140 - 30, middle - 30), (140 + 30, middle + 30)]);
         Assert.Equal(255, alpha[0]);
         Assert.All(alpha[1..], corner => Assert.True(corner < 255, $"corner alpha {corner}"));
+    }
+
+    // Names in 28 px CJK characters, 28 texture pixels each: a card shows 140 of them and a pill 183.8. The first card's name runs
+    // 112 past its window, scrolled in 2900 ms at 29 px; the second's 140, in 3375 ms at 27 px; the third's fits; the fourth's does not
+    // fit its pill. The first card's turn ends 2000 + 2900 + 1500 + 500 ms on, and the second card's name scrolls 8900–12275 ms on.
+    private static readonly (long Uid, string Name, long Price)[] LongNames =
+        [(1, "一只想去看海的橘猫", 5000), (2, "凌晨三点的便利店店员", 4000), (3, "小鹿乱撞", 3000), (4, "今天也要好好吃饭呀", 2000)];
+
+    /// <summary>The page with <see cref="LongNames"/> on it, its clock stopped at 20000, when the last of their events has ended and
+    /// the names start taking turns. The clock is set first so that the sheen sweeping the second card, which whitens much of its
+    /// name's window, comes at known moments: 3300–4400 ms into every 10 seconds.</summary>
+    private static async Task<PageSession> OpenLongNamesAsync()
+    {
+        var page = await StartAsync(options => options with { Volume = 0 });
+        try
+        {
+            await page.OpenAsync(480, 1000);
+            await page.PauseClockAsync();
+            await page.SetClockAsync(0);
+            // Each gift's event starts on a step of SettleAsync: 0, 5000, 10000 and 15000.
+            foreach (var (uid, name, price) in LongNames) await page.GiveAsync(uid, name, price);
+            await page.SettleAsync();
+            return page;
+        }
+        catch
+        {
+            await page.DisposeAsync();
+            throw;
+        }
+    }
+
+    /// <summary>Where the names in the three cards and the first pill are white, along three lines through their windows: the
+    /// white of the text.</summary>
+    private static async Task<bool[][]> NamesAsync(PageSession page)
+    {
+        (int Middle, int Width)[] windows = [((int)(Mascot + CardsY + 49), 145), ((int)(Mascot + CardsY + 155), 135), ((int)(Mascot + CardsY + 257), 135), ((int)(Mascot + RowsY + 25), 151)];
+        var points = windows.Select(window => (from dy in new[] { -5, 0, 5 } from x in Enumerable.Range(197, window.Width) select (x, window.Middle + dy)).ToList()).ToList();
+        var white = (await page.PixelsAsync(points.SelectMany(window => window))).Select(pixel => pixel[..3].All(channel => channel >= 250)).ToArray();
+        var at = 0;
+        return [.. points.Select(window => white[at..(at += window.Count)])];
+    }
+
+    // The light flowing over a card whitens a point or two at the edges of the characters; a name that has moved changes dozens.
+    private static void AssertStill(bool[] before, bool[] after) => Assert.InRange(Differing(before, after), 0, 2);
+
+    private static void AssertMoved(bool[] before, bool[] after) => Assert.InRange(Differing(before, after), 30, int.MaxValue);
+
+    [Fact]
+    public async Task The_top_threes_names_that_do_not_fit_scroll_one_at_a_time_from_the_top_and_the_rest_stand_at_their_starts()
+    {
+        await using var page = await OpenLongNamesAsync();
+        var start = await NamesAsync(page);
+        Assert.All(start, name => Assert.Contains(true, name));
+
+        // The first card's name stands at its start for 2 seconds, then scrolls; nothing else moves.
+        await page.StepClockAsync(1900);
+        AssertStill(start[0], (await NamesAsync(page))[0]);
+        await page.StepClockAsync(1100);
+        var firstScrolls = await NamesAsync(page);
+        AssertMoved(start[0], firstScrolls[0]);
+        foreach (var other in new[] { 1, 2, 3 }) AssertStill(start[other], firstScrolls[other]);
+
+        // Its turn is over and the second card's name is scrolling; the first is back at its start.
+        await page.StepClockAsync(10500 - 3000);
+        var secondScrolls = await NamesAsync(page);
+        AssertStill(start[0], secondScrolls[0]);
+        AssertMoved(start[1], secondScrolls[1]);
+        foreach (var other in new[] { 2, 3 }) AssertStill(start[other], secondScrolls[other]);
+    }
+
+    [Fact]
+    public async Task A_scrolling_name_is_back_at_its_start_while_an_event_plays_and_for_2_seconds_after_it()
+    {
+        await using var page = await OpenLongNamesAsync();
+        var start = (await NamesAsync(page))[0];
+        await page.StepClockAsync(3450);
+        AssertMoved(start, (await NamesAsync(page))[0]);
+
+        // The fourth viewer's 2000 grows to 3500, past the third's 3000.
+        await page.GiveAsync(4, LongNames[3].Name, 1500);
+        await page.WaitForEventAsync("pass");
+        foreach (var time in new[] { 0, 650, 1250 })
+        {
+            await page.SetEventTimeAsync(time);
+            AssertStill(start, (await NamesAsync(page))[0]);
+        }
+
+        await page.SetEventTimeAsync(1300);
+        Assert.Equal("", await page.PlayingAsync());
+        await page.StepClockAsync(1900);
+        AssertStill(start, (await NamesAsync(page))[0]);
+        await page.StepClockAsync(1100);
+        AssertMoved(start, (await NamesAsync(page))[0]);
     }
 }

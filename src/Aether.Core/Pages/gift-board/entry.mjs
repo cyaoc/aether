@@ -38,8 +38,9 @@ export class Entry {
     this.avatar.mask = this.avatarClip = new PIXI.Graphics();
     this.frame = row.viewerGuardLevel ? centred(PIXI.Texture.EMPTY) : null;
     if (this.frame) this.frame.anchor.set(0.4975, 0.505);
-    this.cardName = leftAligned(textures.name(row.nickname, NAME_WIDTH.card));
-    this.rowName = leftAligned(textures.name(row.nickname, NAME_WIDTH.row));
+    this.cardWindow = textures.cardName(row.id, row.nickname);
+    this.cardName = leftAligned(this.cardWindow.texture);
+    this.rowName = leftAligned(textures.name(row.nickname, NAME_WIDTH.row).texture);
     this.icon = centred(PIXI.Texture.EMPTY);
     this.count = new PIXI.Sprite(textures.count(row.num));
     this.count.anchor.set(1, 0.5);
@@ -47,13 +48,14 @@ export class Entry {
     this.container.addChild(...[this.plate, this.ring, this.avatar, this.avatarClip, this.frame, this.cardName, this.rowName, this.icon, this.count, this.clip].filter(Boolean));
   }
 
-  /** Puts the row at geometry `g`, looking as `motion` says, `arc` design pixels to the right (a climber swings out of the list). */
-  apply(g, motion, arc) {
+  /** Puts the row at geometry `g`, looking as `motion` says, `arc` design pixels to the right (a climber swings out of the list).
+   * `turn` is how far along a card shows the name (`offset`) and how opaque (`alpha`), as its turn to scroll has it. */
+  apply(g, motion, arc, turn) {
     this.container.alpha = motion.alpha;
     this.container.zIndex = motion.z;
     this.placePlate(g, motion.plateAlpha, arc);
     this.placePicture(g, motion, arc);
-    this.placeName(g, motion, arc);
+    this.placeName(g, motion, arc, turn);
     this.placeIcon(g, motion, arc);
     this.placeCount(g, motion, arc);
     this.placeReveal(g, motion.open, arc);
@@ -87,11 +89,13 @@ export class Entry {
     this.frame.alpha = avatarAlpha;
   }
 
-  placeName(g, { nameShift, nameAlpha, lift }, arc) {
-    for (const [sprite, shown] of [[this.cardName, g.tier < 3], [this.rowName, g.tier === 3]]) {
+  placeName(g, { nameShift, nameAlpha, lift }, arc, { offset, alpha }) {
+    // Only a card's name scrolls; a pill's always shows from its start.
+    this.cardWindow.show(offset);
+    for (const [sprite, shown, turnAlpha] of [[this.cardName, g.tier < 3, alpha], [this.rowName, g.tier === 3, 1]]) {
       sprite.position.set(g.nx - 8 * g.ns / 28 + arc + nameShift, g.ny);
       sprite.scale.set(g.ns / 28 * lift);
-      sprite.alpha = shown ? nameAlpha : 0;
+      sprite.alpha = shown ? nameAlpha * turnAlpha : 0;
     }
   }
 

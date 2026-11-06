@@ -1,7 +1,7 @@
 // Run with: node --test tests/Aether.Core.Tests/GiftBoardLayout.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RIM_RADIUS, fitLayout, lapLength, rimBox, rimLength, rimPoint, scrolledY, slotGeometry } from '../../src/Aether.Core/Pages/gift-board/layout.mjs';
+import { LAYOUT, RIM_RADIUS, fitLayout, lapLength, rimBox, rimLength, rimPoint, scrolledY, slotGeometry } from '../../src/Aether.Core/Pages/gift-board/layout.mjs';
 
 const near = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} is not ${expected}`);
 
@@ -39,7 +39,10 @@ test('the top three and the rows share the columns and differ in size by rank', 
   assert.deepEqual([first.y, second.y, third.y, row.y], [312, 422, 524, 636]);
   assert.deepEqual([first.h, second.h, third.h, row.h], [98, 90, 90, 50]);
   assert.deepEqual([first.ar, second.ar, third.ar, row.ar], [33, 30, 30, 19]);
-  for (const g of [first, second, third, row]) assert.deepEqual([g.ax, g.nx, g.ix, g.cx], [148, 192, 376, 442]);
+  for (const g of [first, second, third, row]) assert.deepEqual([g.ax, g.nx, g.ix, g.cx], [140, 197, 376, 442]);
+  assert.equal(LAYOUT.columns.rank, 54);
+  // The first card's 总督 frame reaches about 47 right of the avatar's middle; the name starts 10 past it.
+  assert.equal(first.nx - first.ax, 57);
   assert.equal(slotGeometry(layout, 4).y, row.y + 60);
 });
 

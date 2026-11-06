@@ -1,13 +1,15 @@
 // The Pixi scene of one board: the mascot, the ribbon, the top three cards, the pills and the sprite (design package GB1). It is
 // built for a layout and a list of rows; every frame it is placed again from the clock, the scroll and the running event.
 import { CARDS, LAYOUT, TOP_COUNT, lapLength, scrolledY, shiftedGeometry, slotGeometry, slotsOf, spriteHome } from './layout.mjs';
-import { EVENTS, ambient, cardFlash, easeBack, easeInOut, entryMotion, flare, lerpGeometry, numeralPop, rowKind, twinkle, unfolded } from './motion.mjs';
+import { EVENTS, ambient, cardFlash, easeBack, easeInOut, entryMotion, flare, lerpGeometry, nameTurn, numeralPop, rowKind, twinkle, unfolded } from './motion.mjs';
 import { Entry } from './entry.mjs';
 import { PAD } from './paint.mjs';
 import { canvasOf, k, out } from '../video/animations/toolkit.mjs';
 
 // The pose pictures are 1536 high; the body is cut off at this fraction of it, which goes behind the ribbon.
 const MASCOT = { idleCut: 1352 / 1536, cheerCut: 1278 / 1536, scale: 0.17 };
+// A name that is not taking its turn to scroll shows from its start.
+const STILL_NAME = { offset: 0, alpha: 1 };
 
 export class Scene {
   /** `rows` are the board's rows in rank order; `kit` is `{ textures, images }`. */
@@ -17,6 +19,8 @@ export class Scene {
     this.rowCount = Math.max(0, rows.length - TOP_COUNT);
     this.lap = lapLength(this.rowCount);
     this.scrolls = this.rowCount > layout.fit;
+    // How far each of the top three's names runs past its card, for their turns to scroll.
+    this.nameOvers = rows.slice(0, TOP_COUNT).map(row => kit.textures.cardName(row.id, row.nickname).over);
     this.root = new PIXI.Container();
     this.root.position.set(layout.x, 0);
     this.root.scale.set(layout.scale);
@@ -143,10 +147,11 @@ export class Scene {
     for (const entry of this.entries) this.topLayer.addChild(entry.container);
   }
 
-  /** Places everything for the clock `t`, the list scrolled by `scroll`, the running `event` (none between events) and how long
-   * ago a row landed in each of the top three's cards, `landedAgo`. Returns the climbing row's place, which the effects follow. */
-  update(t, scroll, event, landedAgo) {
-    const frame = { t, scroll, event, u: event && t - event.startedAt };
+  /** Places everything for the clock `t`, the list scrolled by `scroll`, the running `event` (none between events), how long
+   * ago a row landed in each of the top three's cards, `landedAgo`, and how long the names have been taking turns to scroll,
+   * `nameClock`. Returns the climbing row's place, which the effects follow. */
+  update(t, scroll, event, landedAgo, nameClock) {
+    const frame = { t, scroll, event, u: event && t - event.startedAt, turn: nameTurn(this.nameOvers, nameClock) };
     this.placeSlotPlates(frame);
     this.cards.forEach((card, rank) => {
       card.visible = rank < this.rows.length;
@@ -220,7 +225,7 @@ export class Scene {
       // Pills in a scrolling list are masked; anything that changes place, and the top three, are not.
       const layer = this.scrolls && !placement.moving && this.slots[entry.row.id] >= TOP_COUNT ? this.entryRows : this.topLayer;
       if (entry.container.parent !== layer) layer.addChild(entry.container);
-      entry.apply(placement.g, placement.motion, placement.arc);
+      entry.apply(placement.g, placement.motion, placement.arc, frame.turn?.rank === this.slots[entry.row.id] ? frame.turn : STILL_NAME);
       if (entry.row.id === frame.event?.id) riser ??= placement;
     }
     return riser;
