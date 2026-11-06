@@ -27,7 +27,10 @@ public sealed class AutoUpdaterTests : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(programDirectory)) Directory.Delete(programDirectory, recursive: true);
+        // Windows can hold a program's file for a moment after it exits, as the copied PING.EXE some tests run from here.
+        for (var attempt = 1; Directory.Exists(programDirectory); attempt++)
+            try { Directory.Delete(programDirectory, recursive: true); }
+            catch (Exception error) when (attempt < 50 && error is IOException or UnauthorizedAccessException) { Thread.Sleep(100); }
     }
 
     [Theory]
