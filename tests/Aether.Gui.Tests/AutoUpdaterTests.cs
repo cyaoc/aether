@@ -371,8 +371,10 @@ public sealed class AutoUpdaterTests : IDisposable
     public void Windows_renames_a_loaded_dll()
     {
         Assert.SkipUnless(OperatingSystem.IsWindows(), "Only Windows refuses to overwrite a loaded dll.");
-        var copy = Path.Combine(programDirectory, "Aether.Core.dll");
-        File.Copy(typeof(Aether.Core.Room).Assembly.Location, copy, overwrite: true);
+        // Not the program directory, which Dispose deletes: the loaded copy stays mapped until the test process exits.
+        var copy = Path.Combine(Path.GetTempPath(), "aether-loaded-dll-" + Guid.NewGuid().ToString("N"), "Aether.Core.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(copy)!);
+        File.Copy(typeof(Aether.Core.Room).Assembly.Location, copy);
         System.Reflection.Assembly.LoadFile(copy);
         File.Move(copy, copy + ".old");
         Assert.True(File.Exists(copy + ".old"));
