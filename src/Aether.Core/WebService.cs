@@ -201,8 +201,10 @@ public sealed class WebService : IDisposable
                 requests.Add(HandleAsync(context, token));
             }
         }
-        // Windows may bind its request-queue handle just as StopAsync closes it.
-        catch (Exception error) when (token.IsCancellationRequested && error is HttpListenerException or ObjectDisposedException or OperationCanceledException or ArgumentException { ParamName: "handle" }) { }
+        // Windows may bind its request-queue handle just as StopAsync closes it, and a loop that comes back for the next request
+        // after the close finds the listener no longer started.
+        catch (Exception error) when (token.IsCancellationRequested && error is HttpListenerException or ObjectDisposedException or OperationCanceledException
+            or InvalidOperationException or ArgumentException { ParamName: "handle" }) { }
         finally { await Task.WhenAll(requests); }
     }
 
