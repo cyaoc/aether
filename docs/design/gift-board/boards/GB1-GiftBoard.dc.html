@@ -32,7 +32,7 @@ body{margin:0}
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"env":{"editor":"enum","options":["横屏·右","横屏·左","竖屏","矮素材"],"default":"横屏·右"},"scene":{"editor":"enum","options":["演示","太长滚动"],"default":"演示"},"mascot":{"editor":"enum","options":["显示","关闭"],"default":"显示"},"fx":{"editor":"enum","options":["原样","流光"],"default":"原样"},"pause":{"editor":"enum","options":["播放","平时","新上榜·飞入","新上榜·展开","加数","超车","新第一·光带","新第一·欢呼","流光·平时","流光·升进前三","流光·新第一"],"default":"播放"},"outline":{"editor":"boolean","default":true},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["明亮画面","浅色房间","深色房间","透明"],"default":"明亮画面"},"$preview":{"width":1920,"height":1080}}'>
+<script type="text/x-dc" data-dc-script data-props='{"env":{"editor":"enum","options":["横屏·右","横屏·左","竖屏","矮素材"],"default":"横屏·右"},"scene":{"editor":"enum","options":["演示","太长滚动","长名字"],"default":"演示"},"names":{"editor":"enum","options":["原样","改后"],"default":"原样"},"mascot":{"editor":"enum","options":["显示","关闭"],"default":"显示"},"fx":{"editor":"enum","options":["原样","流光"],"default":"原样"},"pause":{"editor":"enum","options":["播放","平时","新上榜·飞入","新上榜·展开","加数","超车","新第一·光带","新第一·欢呼","流光·平时","流光·升进前三","流光·新第一"],"default":"播放"},"outline":{"editor":"boolean","default":true},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"room":{"editor":"enum","options":["明亮画面","浅色房间","深色房间","透明"],"default":"明亮画面"},"$preview":{"width":1920,"height":1080}}'>
 class Component extends DCLogic {
   componentDidMount() {
     if (this.loopFn) return;
@@ -71,6 +71,13 @@ class Component extends DCLogic {
       ['lane', '南巷', 'dream', 199, 4], ['tomato', '番茄炒蛋', 'bkela', 99, 6], ['peach', '桃桃乌龙', 'letter', 52, 9],
       ['wind', '晚风', 'boat', 52, 5]
     ];
+    // Long names, to judge the name rules. A sixth item is the viewer's 大航海身份, whose frame they wear on every row.
+    const NAMES = [
+      ['orange', '一只想去看海的橘猫', 'ship', 29990, 1, 1], ['rainbow', 'Midnight_Rainbow_07', 'cyc', 12450, 2, 2], ['deer', '小鹿乱撞', 'guardwing', 2000, 3, 3],
+      ['meal', '今天也要好好吃饭呀', 3, 1980, 1], ['egret', '白鹭', 'balloon', 2000, 1], ['sakura', 'さくら色の帰り道', 'wing', 1000, 1],
+      ['rain', '夜雨听风', 'praise', 330, 2], ['clerk', '凌晨三点的便利店店员', 3, 1980, 1], ['kaze', 'Kaze_09', 'bouquet', 220, 4],
+      ['tomato', '番茄炒蛋不加糖', 'letter', 52, 9]
+    ];
     // The whole board is one component 480 design pixels wide; it never assumes where on the stream it sits.
     // Everything below is measured from the component's top-left, in design pixels.
     // Cards and pills share one content column, x 20–460, and one set of inner columns (rank, avatar, name, gift, count).
@@ -80,7 +87,11 @@ class Component extends DCLogic {
       MIN_H: 820,       // the mascot, the ribbon, the top three and three rows; a shorter page scales the whole board down
       MIN_H_NO: 608,    // the same without the mascot
       BANNER_C: 40, CARDS_Y: 92, ROWS_Y: 416, BOTTOM: 12,
-      COL: { rank: 62, avatar: 148, name: 192, gift: 376, count: 442 } };
+      COL: { rank: 62, avatar: 148, name: 192, gift: 376, count: 442 },
+      // 改后: rank and avatar 8 px left, names 5 px right, so the widest frame (1st card) ends 10 px before a name.
+      // Names end where they did: cards leave them 145 px at 29 px type, pills 151 px at 23 px (textures at 28 px).
+      COL_NEW: { rank: 54, avatar: 140, name: 197, gift: 376, count: 442 },
+      NAME_NEW: { card: 145 * 28 / 29, row: 151 * 28 / 23 } };
     const CARDS = [{ y: 0, h: 98 }, { y: 110, h: 90 }, { y: 212, h: 90 }];
     // Gold, silver-white and ice-blue rims: the cards also differ in size and numeral, never in hue alone.
     const RIM = [
@@ -95,7 +106,7 @@ class Component extends DCLogic {
       '竖屏': { stage: [1080, 1920], box: [450, 610, 600, 1250], label: '竖屏直播画面 1080 × 1920（示意）' },
       '矮素材': { stage: [1920, 1080], box: [1400, 220, 480, 640], label: '横屏直播画面 1920 × 1080（示意）' }
     };
-    this.D = { GIFT, FRAME, BADGE, MASCOT, BANNER, AVATAR, DEMO, EVENTS, EVENTS_FLOW, LONG, L, CARDS, RIM, ENV };
+    this.D = { GIFT, FRAME, BADGE, MASCOT, BANNER, AVATAR, DEMO, EVENTS, EVENTS_FLOW, LONG, NAMES, L, CARDS, RIM, ENV };
     return this.D;
   }
 
@@ -181,6 +192,26 @@ class Component extends DCLogic {
       const s = fit(probe, text, maxW), w = probe.measureText(s).width;
       return T(mk(w + 16, 48, g => { g.font = '500 28px ' + SANS; g.textBaseline = 'middle'; g.shadowColor = 'rgba(10,16,90,0.8)'; g.shadowBlur = 6; g.fillStyle = '#ffffff'; g.fillText(s, 8, 25); }));
     };
+    // 改后: the whole name is drawn once, and a window `win` wide shows it from `off` along; an edge with more name
+    // beyond it fades out over 20 px instead of an ellipsis.
+    const fullName = text => {
+      const probe = mk(1, 1, () => {}).getContext('2d'); probe.font = '500 28px ' + SANS;
+      const w = probe.measureText(text).width;
+      return { w, c: mk(w + 16, 48, g => { g.font = '500 28px ' + SANS; g.textBaseline = 'middle'; g.shadowColor = 'rgba(10,16,90,0.8)'; g.shadowBlur = 6; g.fillStyle = '#ffffff'; g.fillText(text, 8, 25); }) };
+    };
+    const drawWindow = (cv, full, win, off) => {
+      const g = cv.getContext('2d'), F = 20, h = cv.height;
+      const right = Math.min(1, Math.max(0, (full.w - win - off) / F)), left = Math.min(1, off / F);
+      g.globalCompositeOperation = 'source-over'; g.clearRect(0, 0, cv.width, h); g.drawImage(full.c, -off, 0);
+      g.globalCompositeOperation = 'destination-out';
+      const fade = (from, to, a, solidX, solidW) => {
+        const gr = g.createLinearGradient(from, 0, to, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,' + a + ')');
+        g.fillStyle = gr; g.fillRect(Math.min(from, to), 0, F, h); g.fillStyle = 'rgba(0,0,0,' + a + ')'; g.fillRect(solidX, 0, solidW, h);
+      };
+      if (right > 0) fade(8 + win - F, 8 + win, right, 8 + win, cv.width);
+      if (left > 0) fade(8 + F, 8, left, 0, 8);
+      g.globalCompositeOperation = 'source-over';
+    };
     const countCache = {};
     const countTex = n => countCache[n] || (countCache[n] = T(mk(120, 48, g => {
       g.font = '800 26px ' + SANS; g.textAlign = 'right'; g.textBaseline = 'middle'; g.shadowColor = 'rgba(10,16,90,0.8)'; g.shadowBlur = 6; g.fillStyle = '#ffffff';
@@ -222,7 +253,7 @@ class Component extends DCLogic {
     for (const k of Object.keys(D.GIFT)) tex.gifts[k] = remote(img[k]);
     for (const n of [1, 2, 3]) { tex.frames[n] = remote(img['frame' + n]); tex.badges[n] = remote(img['badge' + n]); }
 
-    this.S = { app, canvas, tex, nameTex, countTex, avatarTex, seeded, PAD, mk };
+    this.S = { app, canvas, tex, nameTex, fullName, drawWindow, countTex, avatarTex, seeded, PAD, mk };
     this.S.avatarOf = (name, i) => tex.avatars[i % tex.avatars.length] || avatarTex(name);
     this.boundCfg = null;
     app.ticker.add(() => this.frame());
@@ -244,7 +275,7 @@ class Component extends DCLogic {
     S.app.stage.addChild(S.backSprite);
     const top = mascotOn ? L.MZ : L.NO_MZ;
     const rowsY = top + L.ROWS_Y, viewH = HD - rowsY - L.BOTTOM;
-    Object.assign(S, { W, H, box: [bx, by], s, HD, top, rowsY, viewH, mascotOn });
+    Object.assign(S, { W, H, box: [bx, by], s, HD, top, rowsY, viewH, mascotOn, col: C.names === '改后' ? L.COL_NEW : L.COL });
 
     // The layout keeps every sprite inside the component, and the effect canvases clip to it (see frame), so nothing
     // relies on the browser source cutting it off.
@@ -260,13 +291,13 @@ class Component extends DCLogic {
       const g = new P.Container(); g.position.set(L.CX, top + L.CARDS_Y + c.y); panel.addChild(g);
       const plate = new P.Sprite(S.tex.cards[i]); plate.position.set(-PAD, -PAD); g.addChild(plate);
       const flare = new P.Sprite(S.tex.cards[i]); flare.position.set(-PAD, -PAD); flare.blendMode = 'add'; flare.alpha = 0; g.addChild(flare);
-      const num = new P.Sprite(S.tex.cardNums[i]); num.anchor.set(0.37, 0.5); num.position.set(L.COL.rank - L.CX, c.h / 2 + 2); num.scale.set(i === 0 ? 0.92 : 0.84); g.addChild(num);
+      const num = new P.Sprite(S.tex.cardNums[i]); num.anchor.set(0.37, 0.5); num.position.set(S.col.rank - L.CX, c.h / 2 + 2); num.scale.set(i === 0 ? 0.92 : 0.84); g.addChild(num);
       let star = null;
       if (i === 0) { star = new P.Sprite(S.tex.star); star.anchor.set(0.5); star.blendMode = 'add'; star.position.set(L.CW - 8, 6); star.scale.set(0.32); g.addChild(star); }
       return { g, plate, flare, num, star };
     });
-    const long = C.scene === '太长滚动';
-    const list = long ? D.LONG : D.DEMO;
+    const long = C.scene !== '演示';
+    const list = C.scene === '长名字' ? D.NAMES : long ? D.LONG : D.DEMO;
     // Rows below the cards: as many as the height allows; the rest scroll.
     const fit = Math.max(1, Math.floor((viewH + (L.PITCH - L.ROW_H)) / L.PITCH));
     const rowCount = long ? list.length - 3 : 6, scrolls = rowCount > fit;
@@ -284,21 +315,29 @@ class Component extends DCLogic {
     const entriesRows = new P.Container(); rows.addChild(entriesRows);
 
     const make = (row, copy, layer) => {
-      const [id, name, gift, price, count] = row, guard = typeof gift === 'number' ? gift : 0;
+      const [id, name, gift, price, count, viewerGuard] = row, guard = typeof gift === 'number' ? gift : 0, frameLevel = viewerGuard ?? guard;
       const c = new P.Container(); layer.addChild(c);
       const plate = new P.Sprite(S.tex.row); plate.alpha = 0; c.addChild(plate);
       const ring = new P.Graphics(); c.addChild(ring);
       const av = new P.Sprite(S.avatarOf(name, list.indexOf(row))); av.anchor.set(0.5); c.addChild(av);
       let frame = null;
-      if (guard) { frame = new P.Sprite(S.tex.frames[guard]); frame.anchor.set(0.4975, 0.505); c.addChild(frame); }
+      if (frameLevel) { frame = new P.Sprite(S.tex.frames[frameLevel]); frame.anchor.set(0.4975, 0.505); c.addChild(frame); }
       // Names start on the same column everywhere: cards leave them 150 px at 29 px type, pills 156 px at 23 px;
       // both textures are drawn at 28 px.
-      const nm = new P.Sprite(S.nameTex(name, 150 * 28 / 29)); nm.anchor.set(0, 0.5); c.addChild(nm);
-      const nmRow = new P.Sprite(S.nameTex(name, 156 * 28 / 23)); nmRow.anchor.set(0, 0.5); c.addChild(nmRow);
+      let nm, nmRow, full = null, cardWin = null;
+      if (C.names === '改后') {
+        full = S.fullName(name);
+        cardWin = S.mk(L.NAME_NEW.card + 16, 48, () => {}); S.drawWindow(cardWin, full, L.NAME_NEW.card, 0);
+        const rowWin = S.mk(L.NAME_NEW.row + 16, 48, () => {}); S.drawWindow(rowWin, full, L.NAME_NEW.row, 0);
+        nm = new P.Sprite(P.Texture.from(cardWin)); nmRow = new P.Sprite(P.Texture.from(rowWin));
+      } else {
+        nm = new P.Sprite(S.nameTex(name, 150 * 28 / 29)); nmRow = new P.Sprite(S.nameTex(name, 156 * 28 / 23));
+      }
+      nm.anchor.set(0, 0.5); c.addChild(nm); nmRow.anchor.set(0, 0.5); c.addChild(nmRow);
       const icon = new P.Sprite(guard ? S.tex.badges[guard] : S.tex.gifts[gift]); icon.anchor.set(0.5); c.addChild(icon);
       const cnt = new P.Sprite(S.countTex(count)); cnt.anchor.set(1, 0.5); c.addChild(cnt);
       const clip = new P.Graphics(); c.addChild(clip);
-      return { id, name, guard, count, copy, c, plate, ring, av, frame, nm, nmRow, icon, cnt, clip };
+      return { id, name, guard: frameLevel, count, copy, c, plate, ring, av, frame, nm, nmRow, full, cardWin, off: 0, icon, cnt, clip };
     };
     const entries = long ? list.map((row, i) => i < 3 ? [make(row, 0, entriesTop)] : (scrolls ? [make(row, 0, entriesRows), make(row, 1, entriesRows)] : [make(row, 0, entriesRows)])).flat() : list.map(row => make(row, 0, entriesTop));
 
@@ -325,13 +364,13 @@ class Component extends DCLogic {
   }
 
   geom(s) {
-    const D = this.data(), L = D.L, top = this.S.top;
+    const D = this.data(), L = D.L, top = this.S.top, col = this.S.col;
     if (s < 3) {
       const c = D.CARDS[s], big = s === 0, y = top + L.CARDS_Y + c.y;
-      return { y, h: c.h, ax: L.COL.avatar, ay: y + c.h / 2, ar: big ? 33 : 30, nx: L.COL.name, ny: y + c.h / 2, ns: big ? 29 : 27, ix: L.COL.gift, iy: y + c.h / 2, is: big ? 46 : 42, cx: L.COL.count, cy: y + c.h / 2, cs: big ? 1.05 : 0.95, tier: s };
+      return { y, h: c.h, ax: col.avatar, ay: y + c.h / 2, ar: big ? 33 : 30, nx: col.name, ny: y + c.h / 2, ns: big ? 29 : 27, ix: col.gift, iy: y + c.h / 2, is: big ? 46 : 42, cx: col.count, cy: y + c.h / 2, cs: big ? 1.05 : 0.95, tier: s };
     }
     const y = this.S.rowsY + (s - 3) * L.PITCH;
-    return { y, h: L.ROW_H, ax: L.COL.avatar, ay: y + L.ROW_H / 2, ar: 19, nx: L.COL.name, ny: y + L.ROW_H / 2, ns: 23, ix: L.COL.gift, iy: y + L.ROW_H / 2, is: 34, cx: L.COL.count, cy: y + L.ROW_H / 2, cs: 0.84, tier: 3 };
+    return { y, h: L.ROW_H, ax: col.avatar, ay: y + L.ROW_H / 2, ar: 19, nx: col.name, ny: y + L.ROW_H / 2, ns: 23, ix: col.gift, iy: y + L.ROW_H / 2, is: 34, cx: col.count, cy: y + L.ROW_H / 2, cs: 0.84, tier: 3 };
   }
 
   frame() {
@@ -355,7 +394,7 @@ class Component extends DCLogic {
     const filled = S.long ? Infinity : Object.keys(ev ? ev.next : S.slot0).length;
     for (const sl of S.slots) {
       const y = wrapY(S.rowsY + sl.k * L.PITCH + sl.c * loopLen);
-      sl.plate.position.set(L.ROW_X - PAD, y - PAD); sl.num.position.set(L.COL.rank, y + L.ROW_H / 2 + 1); sl.num.scale.set(0.9);
+      sl.plate.position.set(L.ROW_X - PAD, y - PAD); sl.num.position.set(S.col.rank, y + L.ROW_H / 2 + 1); sl.num.scale.set(0.9);
       const shown = (!S.scrolls || (y > S.rowsY - L.PITCH && y < S.rowsY + S.viewH)) && sl.k + 3 < filled;
       sl.plate.visible = sl.num.visible = shown;
     }
@@ -368,6 +407,21 @@ class Component extends DCLogic {
     const spriteHome = S.mascotOn ? [L.W / 2 + 118, S.top - 150] : [448, S.top + 34];
     S.spriteAt = spriteHome;
     let spriteSpin = 0, blink = (t % 4500) < 140, cheerA = 0, hop = 0, spritePulse = 0;
+    // 改后: the top three's names that do not fit take turns, from the top, one at a time: 2 s still, then 40 px a second
+    // to the end, 1.5 s still, and a fade back to the start. Pills never scroll. While an event plays, no name moves.
+    let turn = null;
+    if (C.names === '改后' && (!ev || u > 3200)) {
+      const slotOf = e => S.long ? S.list.findIndex(r => r[0] === e.id) : (ev ? ev.next : S.slot0)[e.id];
+      const turns = S.entries.filter(e => e.copy === 0 && slotOf(e) < 3 && e.full.w > L.NAME_NEW.card).sort((a, b) => slotOf(a) - slotOf(b)).map(e => {
+        const over = e.full.w - L.NAME_NEW.card, scrollMs = over * (slotOf(e) === 0 ? 29 : 27) / 28 / 40 * 1000;
+        return { e, over, scrollMs, ms: 2000 + scrollMs + 1500 + 500 };
+      });
+      const total = turns.reduce((sum, x) => sum + x.ms, 0);
+      // The turns start over from the top once an event is over; the long scenes have no events.
+      const since = S.long ? (this.master.currentTime || 0) * C.speed : ev ? u - 3200 : t;
+      let lt = total ? since % total : 0;
+      for (const x of turns) { if (lt < x.ms) { turn = { ...x, lt }; break; } lt -= x.ms; }
+    }
     for (const e of S.entries) {
       let g, visible = true, arc = 0;
       if (S.long) {
@@ -422,7 +476,14 @@ class Component extends DCLogic {
       e.ring.clear().circle(g.ax + ox, g.ay, g.ar + 1.5).stroke({ width: g.tier < 3 ? 2.4 : 1.6, color: g.tier < 3 ? D.RIM[g.tier].ring : 0xffffff, alpha: e.guard ? 0 : 0.9 });
       e.av.position.set(g.ax + ox, g.ay); e.av.width = e.av.height = 2 * g.ar * avS * lift; e.av.alpha = avA;
       if (e.frame) { e.frame.position.set(g.ax + ox, g.ay); e.frame.width = e.frame.height = (2 * g.ar / 0.7) * avS * lift; e.frame.alpha = avA; }
-      for (const [sp, on] of [[e.nm, g.tier < 3], [e.nmRow, g.tier === 3]]) { sp.position.set(g.nx - 8 * g.ns / 28 + ox + nameDx, g.ny); sp.scale.set(g.ns / 28 * lift); sp.alpha = on ? nameA : 0; }
+      let nameOff = 0, turnA = 1;
+      if (turn && turn.e === e) {
+        const lt = turn.lt, fadeAt = turn.ms - 500;
+        nameOff = lt < 2000 ? 0 : lt < 2000 + turn.scrollMs ? turn.over * (lt - 2000) / turn.scrollMs : turn.over;
+        if (lt >= fadeAt) { const p = k(fadeAt, turn.ms, lt); turnA = Math.abs(1 - 2 * p); if (p >= 0.5) nameOff = 0; }
+      }
+      if (e.full && nameOff !== e.off) { e.off = nameOff; S.drawWindow(e.cardWin, e.full, L.NAME_NEW.card, nameOff); e.nm.texture.source.update(); }
+      for (const [sp, on] of [[e.nm, g.tier < 3], [e.nmRow, g.tier === 3]]) { sp.position.set(g.nx - 8 * g.ns / 28 + ox + nameDx, g.ny); sp.scale.set(g.ns / 28 * lift); sp.alpha = on ? nameA * (sp === e.nm ? turnA : 1) : 0; }
       e.icon.position.set(g.ix + ox, g.iy); e.icon.width = e.icon.height = g.is * iconS * lift; e.icon.alpha = iconA;
       e.cnt.texture = S.countTex(count); e.cnt.position.set(g.cx + ox, g.cy); e.cnt.scale.set(g.cs * cntS * lift); e.cnt.alpha = cntA;
       if (open < 1) { const x0 = L.CX + ox, w = L.CW * open; e.clip.clear().rect(x0, g.y - 10, w, g.h + 20).fill(0xffffff); e.c.mask = e.clip; }
@@ -608,11 +669,11 @@ class Component extends DCLogic {
     const D = this.data();
     const room = this.props.room ?? '明亮画面', scene = this.props.scene ?? '演示', pause = this.props.pause ?? '播放';
     const envName = this.props.env ?? '横屏·右', env = D.ENV[envName] || D.ENV['横屏·右'];
-    const mascot = this.props.mascot ?? '显示', outline = this.props.outline !== false && this.props.outline !== 'false', fx = this.props.fx ?? '原样';
+    const mascot = this.props.mascot ?? '显示', outline = this.props.outline !== false && this.props.outline !== 'false', fx = this.props.fx ?? '原样', names = this.props.names ?? '原样';
     const speed = { '1 倍': 1, '0.5 倍': 0.5, '0.25 倍': 0.25 }[this.props.speed ?? '1 倍'];
     const pauseAt = { '播放': null, '平时': 600, '新上榜·飞入': 1520, '新上榜·展开': 1840, '加数': 3330, '超车': 5520, '新第一·光带': 8900, '新第一·欢呼': 9300, '流光·平时': 550, '流光·升进前三': 3650, '流光·新第一': 7700 }[pause];
     const [stageW, stageH] = env.stage, [boxX, boxY, boxW, boxH] = env.box;
-    this.cfg = { scene, stage: env.stage, box: env.box, mascot, fx, layout: [scene, envName, mascot, fx].join('|'), cycle: scene === '太长滚动' ? 24000 : 13000, speed, pauseAt };
+    this.cfg = { scene, stage: env.stage, box: env.box, mascot, fx, names, layout: [scene, envName, mascot, fx, names].join('|'), cycle: { '太长滚动': 24000, '长名字': 14000 }[scene] ?? 13000, speed, pauseAt };
     const scale = Math.round(Math.min(boxW / D.L.W, boxH / (mascot === '关闭' ? D.L.MIN_H_NO : D.L.MIN_H)) * 100) / 100;
     return {
       stageW, stageH, boxX, boxY, boxW, boxH, labelY: Math.max(4, boxY - 28), outline,
