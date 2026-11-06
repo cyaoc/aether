@@ -377,7 +377,8 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             using (process)
                 try
                 {
-                    found |= process.Id != Environment.ProcessId && process.MainModule?.FileName is { } file &&
+                    // Windows can list a process for a moment after it has exited.
+                    found |= process.Id != Environment.ProcessId && !process.HasExited && process.MainModule?.FileName is { } file &&
                         string.Equals(Path.GetDirectoryName(Path.GetFullPath(file)), directory, StringComparison.OrdinalIgnoreCase);
                 }
                 // A process that has exited or belongs to another user is not one of ours.
