@@ -1,4 +1,6 @@
 using System.Net;
+using System.Net.Sockets;
+using System.Text;
 using System.Text.RegularExpressions;
 using Aether.Core.Tests.Support;
 
@@ -113,5 +115,30 @@ public sealed class WebPageResourceTests
         using var request = new HttpRequestMessage(new HttpMethod(method), path);
         using var response = await http.SendAsync(request, h.Stop.Token);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/lottery/../../Fixtures/blind-gift-v1.json")]
+    [InlineData("/lottery/%2e%2e/%2e%2e/Fixtures/blind-gift-v1.json")]
+    [InlineData("/lottery/..%2f..%2fFixtures%2fblind-gift-v1.json")]
+    [InlineData("/lottery/..%5c..%5cFixtures%5cblind-gift-v1.json")]
+    [InlineData("/lottery/{base}Fixtures/blind-gift-v1.json")]
+    [InlineData("/lottery/{base}Fixtures%5cblind-gift-v1.json")]
+    public async Task Request_paths_cannot_reach_files_outside_the_pages_directory(string path)
+    {
+        // The raw request line keeps the dot segments that HttpClient would resolve before sending.
+        await using var h = new WatchHarness();
+        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
+        Assert.NotEmpty(BlindGiftFixture.Json);
+        var address = new Uri(h.Client.WebService.Status.Origin);
+        var target = path.Replace("{base}", AppContext.BaseDirectory.Replace('\\', '/'), StringComparison.Ordinal);
+        using var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+        await socket.ConnectAsync(address.Host, address.Port, h.Stop.Token);
+        await using var stream = new NetworkStream(socket);
+        await stream.WriteAsync(Encoding.ASCII.GetBytes($"GET {target} HTTP/1.1\r\nHost: {address.Authority}\r\nConnection: close\r\n\r\n"), h.Stop.Token);
+        using var reader = new StreamReader(stream);
+        Assert.StartsWith("HTTP/1.1 404 ", await reader.ReadLineAsync(h.Stop.Token));
+        // HttpListener already resolves the dot segments and keeps the escapes, so the check behind it gets the decoded path too.
+        Assert.Null(WebService.PagesFile(Uri.UnescapeDataString(target)));
     }
 }

@@ -13,6 +13,8 @@ public sealed class WebService : IDisposable
     internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
     private const string Retry = "retry: 2000\n\n";
     private const string Heartbeat = ": heartbeat\n\n";
+    // Both sides go through GetFullPath so Windows expands 8.3 short names in the program directory alike.
+    private static readonly string PagesDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "Pages")) + Path.DirectorySeparatorChar;
     internal object Gate { get; } = new();
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
@@ -290,21 +292,19 @@ public sealed class WebService : IDisposable
             ".txt" => "text/plain; charset=utf-8",
             _ => null
         };
-        if (contentType is null) return false;
-        using var content = typeof(WebService).Assembly.GetManifestResourceStream(ResourceName(path));
-        if (content is null) return false;
+        if (contentType is null || PagesFile(path) is not { } file) return false;
+        await using var content = File.OpenRead(file);
         response.ContentType = contentType;
         response.ContentLength64 = content.Length;
         await content.CopyToAsync(response.OutputStream, token);
         return true;
     }
 
-    /// <summary>MSBuild names an embedded file after its folders, with each '-' in a folder name turned into '_' (gift-board
-    /// becomes gift_board), and keeps the file name as it is.</summary>
-    private static string ResourceName(string path)
+    /// <summary>The request path is outside input: anything that resolves outside Pages counts as a missing file.</summary>
+    internal static string? PagesFile(string path)
     {
-        var file = path.LastIndexOf('/');
-        return ("Aether.Core.Pages" + path[..file].Replace('-', '_') + path[file..]).Replace('/', '.');
+        var file = Path.GetFullPath(Path.Join(PagesDirectory, path));
+        return file.StartsWith(PagesDirectory, StringComparison.Ordinal) && File.Exists(file) ? file : null;
     }
 
     /// <summary>A request still finishing after StopAsync closed the listener has nothing left to abort on Windows.</summary>
