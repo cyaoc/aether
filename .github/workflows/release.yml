@@ -93,11 +93,30 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           pattern: packages-*
           path: artifacts/packages
           merge-multiple: true
+      - name: Make and check GUI delta packages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # This tag has no release yet, so the latest one (never a draft or prerelease) is the previous version.
+          previous=$(gh release view --json tagName --jq .tagName)
+          for package in artifacts/packages/aether-gui-*; do
+            name=$(basename "$package")
+            extension=.tar.gz
+            if [[ "$name" == *.zip ]]; then extension=.zip; fi
+            old_name="aether-gui-$previous-${name#"aether-gui-$TAG-"}"
+            delta="${package%"$extension"}-from-$previous$extension"
+            gh release download "$previous" --pattern "$old_name" --dir artifacts/previous
+            python3 scripts/delta-package.py make "$previous" "artifacts/previous/$old_name" "$package" "$delta"
+            python3 scripts/delta-package.py check "artifacts/previous/$old_name" "$package" "$delta"
+          done
       - name: Create release with all packages
         shell: bash
         env:
@@ -105,8 +124,8 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           packages=(artifacts/packages/*)
-          if [[ "${#packages[@]}" != 14 ]]; then
-            echo "Expected 14 release packages, got: ${#packages[@]}" >&2
+          if [[ "${#packages[@]}" != 20 ]]; then
+            echo "Expected 20 release packages, got: ${#packages[@]}" >&2
             exit 1
           fi
           url="https://github.com/$GH_REPO/releases/download/$TAG"
@@ -122,6 +141,8 @@ jobs:
           | macOS Intel | GUI | [下载]($url/aether-gui-$TAG-osx-x64.tar.gz) | [下载]($url/aether-gui-$TAG-osx-x64-framework-dependent.tar.gz) |
           | macOS Apple Silicon | CLI | [下载]($url/aether-cli-$TAG-osx-arm64.tar.gz) | [下载]($url/aether-cli-$TAG-osx-arm64-framework-dependent.tar.gz) |
           | macOS Apple Silicon | GUI | [下载]($url/aether-gui-$TAG-osx-arm64.tar.gz) | [下载]($url/aether-gui-$TAG-osx-arm64-framework-dependent.tar.gz) |
+
+          带 \`-from-\` 的包给自动更新用，不用手动下载。
 
           解压到可写目录。首次启动、macOS/Windows 放行和升级方法见 [下载说明](https://github.com/$GH_REPO/blob/$TAG/README.md#下载)。
 
