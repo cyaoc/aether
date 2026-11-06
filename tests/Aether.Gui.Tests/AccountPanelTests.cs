@@ -25,7 +25,7 @@ public sealed class AccountPanelTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             Assert.True(window.MainPage.IsEffectivelyVisible);
             harness.NavResponse = _ => Task.FromResult(Json("""{"code":-101}"""));
             await viewModel.ReadAccountCommand.ExecuteAsync(null);
@@ -146,7 +146,7 @@ public sealed class AccountPanelTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             Assert.Equal("测试账号", viewModel.AccountStatus.Text);
             if (reconnecting)
             {

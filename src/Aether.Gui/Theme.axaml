@@ -288,6 +288,17 @@
     <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
     <Setter Property="Foreground" Value="{DynamicResource Text.Disabled}" />
   </Style>
+  <!-- The splash's 跳过 sits on the illustration in either theme. -->
+  <Style Selector="Button.splash">
+    <Setter Property="Background" Value="#26FFFFFF" />
+    <Setter Property="BorderBrush" Value="#4DFFFFFF" />
+    <Setter Property="Foreground" Value="White" />
+  </Style>
+  <Style Selector="Button.splash:pointerover /template/ ContentPresenter, Button.splash:pressed /template/ ContentPresenter">
+    <Setter Property="Background" Value="#40FFFFFF" />
+    <Setter Property="BorderBrush" Value="#4DFFFFFF" />
+    <Setter Property="Foreground" Value="White" />
+  </Style>
   <Style Selector="Button.accent">
     <Setter Property="Background" Value="{DynamicResource Accent}" />
     <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />

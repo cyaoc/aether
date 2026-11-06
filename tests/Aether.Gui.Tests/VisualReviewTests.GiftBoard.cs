@@ -128,7 +128,7 @@ public sealed partial class VisualReviewTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             var stage = new BoardStage(harness, clock, roomStarted, viewModel);
             await prepare(stage);
             viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1));

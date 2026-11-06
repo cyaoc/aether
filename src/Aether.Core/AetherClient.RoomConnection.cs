@@ -17,10 +17,6 @@ public sealed partial class AetherClient
         // The web player's own fallback (danmu_length||20) when getInfoByUser gives no 弹幕字数上限.
         private const int FallbackDanmakuLengthLimit = 20;
 
-        // .NET exposes ERROR_SHARING_VIOLATION on Windows, but raw EWOULDBLOCK on Unix (35 on macOS, 11 on Linux).
-        private static readonly int RoomLockHeldHResult = OperatingSystem.IsWindows()
-            ? unchecked((int)0x80070020) : OperatingSystem.IsMacOS() ? 35 : 11;
-
         /// <summary>The settings this room connection started with; reconnects keep them.</summary>
         public Settings Settings { get; } = settings;
 
@@ -166,7 +162,7 @@ public sealed partial class AetherClient
                     Options = FileOptions.DeleteOnClose,
                 });
             }
-            catch (IOException error) when (error.HResult == RoomLockHeldHResult)
+            catch (IOException error) when (FileLock.IsHeld(error))
             {
                 throw new InvalidOperationException($"直播间 {realRoomId} 已有直播间连接（可能在另一个 CLI 或 GUI 里）。", error);
             }

@@ -3,8 +3,9 @@
         xmlns:local="using:Aether.Gui" xmlns:core="using:Aether.Core"
         x:Class="Aether.Gui.MainWindow" x:DataType="local:MainWindowViewModel"
         Title="Aether" Width="1200" Height="720" MinWidth="1040" MinHeight="600">
-  <Panel IsEnabled="{Binding !IsSplashOpaque}">
-    <Grid x:Name="LoginPage" ColumnDefinitions="*,*" Background="#0F1550" ClipToBounds="True" IsVisible="{Binding IsLoggedOut}">
+  <Panel>
+    <!-- The pages under the splash are disabled, not the splash itself: its 跳过 must stay clickable. -->
+    <Grid x:Name="LoginPage" ColumnDefinitions="*,*" Background="#0F1550" ClipToBounds="True" IsVisible="{Binding IsLoggedOut}" IsEnabled="{Binding !IsSplashOpaque}">
       <Image Grid.ColumnSpan="2" Source="avares://Aether.Gui/Assets/login.webp" Stretch="UniformToFill" AutomationProperties.Name="Aether" />
       <TextBlock Text="Aether" Margin="44,56,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
                  FontSize="30" FontWeight="Bold" Foreground="White" />
@@ -30,7 +31,7 @@
         </StackPanel>
       </Border>
     </Grid>
-    <Grid x:Name="MainPage" ColumnDefinitions="224,*" IsVisible="{Binding !IsLoggedOut}">
+    <Grid x:Name="MainPage" ColumnDefinitions="224,*" IsVisible="{Binding !IsLoggedOut}" IsEnabled="{Binding !IsSplashOpaque}">
       <Border Padding="12,14" BorderThickness="0,0,1,0" BorderBrush="{DynamicResource Border}" Background="{DynamicResource Surface.Sidebar}">
         <Grid RowDefinitions="Auto,*,Auto,Auto">
           <StackPanel Spacing="12">
@@ -236,6 +237,18 @@
       <Image Source="avares://Aether.Gui/Assets/splash.webp" Stretch="UniformToFill" AutomationProperties.Name="Aether" />
       <TextBlock Text="Aether" Margin="44,56,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
                  FontSize="30" FontWeight="Bold" Foreground="White" />
+      <StackPanel Width="360" Spacing="10" Margin="44,110,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+                  IsVisible="{Binding UpdateProgress, Converter={x:Static ObjectConverters.IsNotNull}}">
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="White" Text="{Binding UpdateProgress.Text}" AutomationProperties.LiveSetting="Polite" />
+          <TextBlock Grid.Column="1" Classes="caption numeric" Foreground="White" Opacity="0.8" Text="{Binding UpdateProgress.Size}" VerticalAlignment="Center"
+                     IsVisible="{Binding UpdateProgress.Downloading}" />
+        </Grid>
+        <ProgressBar Minimum="0" Maximum="100" Value="{Binding UpdateProgress.Percent}" Height="6" MinHeight="6" MinWidth="0" CornerRadius="3"
+                     Foreground="White" Background="#33FFFFFF" AutomationProperties.Name="{Binding UpdateProgress.Text}" />
+        <Button x:Name="SkipUpdateButton" Classes="splash" Content="跳过，先用当前版本" Margin="0,6,0,0" Padding="12,6" CornerRadius="6"
+                Command="{Binding SkipUpdateCommand}" IsVisible="{Binding UpdateProgress.Downloading}" />
+      </StackPanel>
     </Panel>
   </Panel>
 </Window>

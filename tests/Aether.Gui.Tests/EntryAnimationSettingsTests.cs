@@ -110,7 +110,7 @@ public sealed class EntryAnimationSettingsTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             window.Navigation.SelectedIndex = 2;
             window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(1);
             GuiHarness.Flush();

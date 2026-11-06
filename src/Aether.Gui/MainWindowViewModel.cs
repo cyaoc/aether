@@ -29,14 +29,16 @@ public partial class MainWindowViewModel : ObservableObject
     private readonly ILogger<MainWindowViewModel> logger;
     private readonly GuiSettings settings;
     private readonly TimeProvider clock;
+    private readonly AutoUpdater updater;
 
     public MainWindowViewModel(AetherClient client, ILogger<MainWindowViewModel> logger, GuiSettings settings,
-        TimeProvider clock)
+        TimeProvider clock, AutoUpdater updater)
     {
         this.client = client;
         this.logger = logger;
         this.settings = settings;
         this.clock = clock;
+        this.updater = updater;
         keepRecentDanmaku = settings.KeepRecentDanmaku;
         roomNumber = settings.RecentRooms.FirstOrDefault() ?? "";
         WebService = new(client, logger, clock, shutdown.Token);
@@ -55,6 +57,7 @@ public partial class MainWindowViewModel : ObservableObject
     [ObservableProperty] private bool keepRecentDanmaku;
     [ObservableProperty] private string roomNumber;
     public string[] RecentRooms => settings.RecentRooms;
+    internal GuiSettings GuiSettings => settings;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Status))]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
@@ -99,6 +102,13 @@ public partial class MainWindowViewModel : ObservableObject
     internal TimeSpan SplashMinimumDuration { get; set; } = TimeSpan.FromMilliseconds(600);
     public TimeSpan SplashFadeDuration { get; internal set; } = TimeSpan.FromMilliseconds(150);
     [ObservableProperty] private string loginError = "";
+    /// <summary>The update the splash shows, from when it is found until the window closes or the splash fades.</summary>
+    [ObservableProperty] private UpdateProgress? updateProgress;
+    /// <summary>Raised once an update is installed: the window closes and the new version starts.</summary>
+    public event Action? UpdateInstalled;
+    private Task updating = Task.CompletedTask;
+    // The startup read only notes a missing account: the splash decides when the QR login starts.
+    private bool nextReadDefersLogin;
     private readonly LatestRun accountRead = new();
     private readonly CancellationTokenSource shutdown = new();
 
@@ -136,21 +146,18 @@ public partial class MainWindowViewModel : ObservableObject
     internal Task<OnlineRank> GetOnlineRankAsync(CancellationToken cancellationToken) =>
         client.GetOnlineRankAsync(connectedRoom!.RoomId, connectedRoom.BroadcasterUid, cancellationToken);
 
-    public Task StartAsync(string dataDirectory)
+    /// <summary>The splash's motion table (docs/design/splash): it decides once the account read and the update check are both done.
+    /// An update holds it until the new version restarts; otherwise the QR login and web service start, and it fades.</summary>
+    public async Task StartAsync(string dataDirectory)
     {
-        if (shutdown.IsCancellationRequested) return Task.CompletedTask;
-        // The 抽奖页 and the GUI read the same lottery, so the GUI starts following it with the web service.
-        Lottery.ObserveLottery();
-        GiftBoard.Observe();
-        var webSettings = WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger));
-        return Task.WhenAll(webSettings, FinishStartupAsync());
-    }
-
-    private async Task FinishStartupAsync()
-    {
+        if (shutdown.IsCancellationRequested) return;
         try
         {
             var minimum = Task.Delay(SplashMinimumDuration, clock, shutdown.Token);
+            // Off the UI thread, so the splash shows at once even with a whole unpacked package left behind.
+            await Task.Run(updater.CleanUp);
+            var check = settings.AutoUpdate ? Task.Run(() => updater.CheckAsync(shutdown.Token)) : Task.FromResult<ReleaseUpdate?>(null);
+            nextReadDefersLogin = true;
             try { await ReadAccountCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(3), clock, shutdown.Token); }
             catch (TimeoutException)
             {
@@ -159,13 +166,41 @@ public partial class MainWindowViewModel : ObservableObject
                 _ = accountRead.StopAsync();
                 AccountStatus = AccountStatus.Failed;
             }
-            await minimum;
-            SplashOpacity = 0;
-            await Task.Delay(SplashFadeDuration, clock, shutdown.Token);
-            IsSplashVisible = false;
+            if (await check is { } release)
+            {
+                IProgress<UpdateProgress?> progress = new Progress<UpdateProgress?>(value => UpdateProgress = value);
+                // Closing the window waits for this, so an install is never cut off halfway.
+                var installing = updater.UpdateAsync(release, progress, shutdown.Token);
+                updating = installing;
+                if (await installing)
+                {
+                    if (!shutdown.IsCancellationRequested) UpdateInstalled?.Invoke();
+                    return;
+                }
+                // Skipped or failed: the splash goes on as with no update, showing nothing. Reported like the steps, it lands after them.
+                progress.Report(null);
+            }
+            shutdown.Token.ThrowIfCancellationRequested();
+            if (IsLoggedOut) StartLogin();
+            // The web service starts after the decision, so an old version still holding its port never meets the new one.
+            // The 抽奖页 and the GUI read the same lottery, so the GUI starts following it with the web service.
+            Lottery.ObserveLottery();
+            GiftBoard.Observe();
+            await Task.WhenAll(WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger)), FadeAsync());
+
+            async Task FadeAsync()
+            {
+                await minimum;
+                SplashOpacity = 0;
+                await Task.Delay(SplashFadeDuration, clock, shutdown.Token);
+                IsSplashVisible = false;
+            }
         }
         catch (OperationCanceledException) when (shutdown.IsCancellationRequested) { }
     }
+
+    [RelayCommand]
+    private void SkipUpdate() => updater.Skip();
 
     partial void OnConnectionStateChanged(RoomConnectionState value)
     {
@@ -337,6 +372,8 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task ReadAccountAsync()
     {
+        var startLogin = !nextReadDefersLogin;
+        nextReadDefersLogin = false;
         if (IsLoggingOut || shutdown.IsCancellationRequested) return Task.CompletedTask;
         AccountStatus = AccountStatus.Reading;
         return accountRead.Start(ReadAsync);
@@ -349,7 +386,7 @@ public partial class MainWindowViewModel : ObservableObject
                 var result = await Task.Run(() => client.GetAccountAsync(token), token);
                 token.ThrowIfCancellationRequested();
                 AccountStatus = AccountStatus.Of(result);
-                if (result is null)
+                if (result is null && startLogin)
                 {
                     await StopWatchingAsync();
                     token.ThrowIfCancellationRequested();
@@ -419,6 +456,7 @@ public partial class MainWindowViewModel : ObservableObject
         RunShutdownStep("取消登录", LoginCommand.Cancel);
         RunShutdownStep("取消退出登录", LogoutCommand.Cancel);
         var accountStopped = accountRead.StopAsync();
+        await RunShutdownStepAsync("等自动更新结束", () => updating);
         await RunShutdownStepAsync("停网页服务", WebService.StopAsync);
         await RunShutdownStepAsync("停抽奖", Lottery.StopAsync);
         await RunShutdownStepAsync("结束礼物榜这一期", GiftBoard.EndBeforeLeavingAsync);

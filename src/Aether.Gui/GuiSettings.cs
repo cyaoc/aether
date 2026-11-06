@@ -15,6 +15,8 @@ public sealed class GuiSettings
     private const int RecentRoomLimit = 5;
 
     public bool KeepRecentDanmaku { get; set; } = true;
+    /// <summary>ADR 0015: here rather than in the settings file, whose upgrade would turn it off for every existing user.</summary>
+    public bool AutoUpdate { get; set; } = true;
     public long? LastLotteryRoomId { get; set; }
 
     // Most recent first. Every write goes through here, so a hand-edited gui.yml and a new connection follow one rule.
@@ -37,6 +39,8 @@ public sealed class GuiSettings
                 : [];
             if (values.GetValueOrDefault(nameof(KeepRecentDanmaku)) is string keep && bool.TryParse(keep, out var value))
                 settings.KeepRecentDanmaku = value;
+            if (values.GetValueOrDefault(nameof(AutoUpdate)) is string update && bool.TryParse(update, out var autoUpdate))
+                settings.AutoUpdate = autoUpdate;
             if (values.GetValueOrDefault(nameof(LastLotteryRoomId)) is string lastRoom && Room.TryParseNumber(lastRoom, out var roomId))
                 settings.LastLotteryRoomId = roomId;
             settings.RecentRooms = values.GetValueOrDefault(nameof(RecentRooms)) switch

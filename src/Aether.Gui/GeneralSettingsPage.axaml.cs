@@ -4,6 +4,7 @@ using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Aether.Gui;
 
@@ -11,6 +12,7 @@ public partial class GeneralSettingsPage : SettingsPage
 {
     private readonly Dictionary<Button, IDisposable> copyFeedback = [];
     private bool savedPortChanged;
+    private bool savedAutoUpdate;
 
     public GeneralSettingsPage() : this(DataDirectory.Locate()) { }
 
@@ -18,12 +20,13 @@ public partial class GeneralSettingsPage : SettingsPage
     {
         InitializeComponent();
         Title = "通用设置";
-        TimingHint = "端口保存后立即生效；日志设置重启后生效";
+        TimingHint = "端口保存后立即生效；日志设置重启后生效；自动更新下次打开时生效";
         LogLevelInput.ItemsSource = Settings.LogLevels;
         // Save appends missing groups in this order, so log stays ahead of web_service.
         Bind(RetentionInput, RetentionReadOnly, RetentionError, s => s.LogRetentionDays);
         Bind(LogLevelInput, LogLevelReadOnly, LogLevelError, s => s.LogLevel);
         Bind(WebPortInput, WebPortReadOnly, WebPortError, s => s.WebServicePort);
+        ValidateOnToggle(AutoUpdateInput);
         DetachedFromVisualTree += (_, _) =>
         {
             foreach (var (button, timer) in copyFeedback) { timer.Dispose(); button.Classes.Set("copied", false); }
@@ -36,10 +39,24 @@ public partial class GeneralSettingsPage : SettingsPage
     private bool PortChanged => settings.WebServicePort.CanEdit && WebPortInput.Text != original.GetValueOrDefault(settings.WebServicePort.Name);
     protected override string DirtyDescription => PortChanged ? "保存后网页服务换到新端口，直播姬里的地址要跟着改" : base.DirtyDescription;
 
-    protected override Task<string> WriteSettings(Dictionary<string, string> changes)
+    // The switch lives in the GUI settings (ADR 0015) but saves with the page. The window's own copy is the one changed,
+    // or its next save of gui.yml would write the old value back.
+    private GuiSettings Gui => viewModel?.GuiSettings ?? GuiSettings.Load(dataDirectory, NullLogger<GuiSettings>.Instance);
+    protected override void LoadRows() => AutoUpdateInput.IsChecked = savedAutoUpdate = Gui.AutoUpdate;
+    protected override bool RowsChanged => AutoUpdateInput.IsChecked != savedAutoUpdate;
+
+    protected override async Task<string> WriteSettings(Dictionary<string, string> changes)
     {
         savedPortChanged = PortChanged;
-        return base.WriteSettings(changes);
+        var result = await base.WriteSettings(changes);
+        // An unchanged switch leaves gui.yml alone, so it cannot fail a save of the settings file.
+        if (!RowsChanged) return result;
+        var gui = Gui;
+        gui.AutoUpdate = AutoUpdateInput.IsChecked == true;
+        // The window's copy must not keep a value gui.yml never got: the reload after a failure would show it as saved.
+        try { gui.Save(); }
+        catch { gui.AutoUpdate = savedAutoUpdate; throw; }
+        return result;
     }
 
     protected override async Task<string> AfterSave(Settings saved, string result)

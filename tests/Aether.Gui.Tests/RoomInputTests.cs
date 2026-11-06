@@ -25,7 +25,7 @@ public sealed class RoomInputTests
         window.Show();
         try
         {
-            await vm.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(vm);
             EditorOf(window.FindControl<ComboBox>("RoomInput")!).Text = "+123";
             await vm.ConnectCommand.ExecuteAsync(null);
             GuiHarness.Flush();
@@ -51,7 +51,7 @@ public sealed class RoomInputTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
             EditorOf(input).Focus();
@@ -93,7 +93,7 @@ public sealed class RoomInputTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
             var arrow = input.TranslatePoint(new Point(input.Bounds.Width - 16, input.Bounds.Height / 2), window)!.Value;
@@ -143,7 +143,7 @@ public sealed class RoomInputTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
             Assert.True(input.IsEditable);
@@ -179,7 +179,7 @@ public sealed class RoomInputTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
             var text = EditorOf(input);
@@ -205,7 +205,7 @@ public sealed class RoomInputTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             var input = window.FindControl<ComboBox>("RoomInput")!;
             GuiHarness.Flush();
             var text = EditorOf(input);

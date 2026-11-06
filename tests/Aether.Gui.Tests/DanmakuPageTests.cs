@@ -66,7 +66,7 @@ public sealed class DanmakuPageTests
         window.Show();
         try
         {
-            await viewModel.ReadAccountCommand.ExecutionTask!;
+            await GuiHarness.AccountReadAsync(viewModel);
             viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "观众", "今日盲盒")
                 { Uid = 999, GuardTier = tier, FanClubLevel = 47, WealthLevel = 45, ReplyName = "深蓝色的机器人" });
             viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, accountNickname, "回复正文")
@@ -144,7 +144,7 @@ public sealed class DanmakuPageTests
             {
                 if (accountState == "failed") response.SetException(new HttpRequestException("offline"));
                 if (accountState == "known") response.SetResult(GuiHarness.AccountResponse());
-                if (accountState != "loading") await viewModel.ReadAccountCommand.ExecutionTask!;
+                if (accountState != "loading") await GuiHarness.AccountReadAsync(viewModel);
                 viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "同名观众", "账号发的") { Uid = 123, GuardTier = guardTier });
                 viewModel.Apply(new Danmaku(DateTimeOffset.UnixEpoch, "同名观众", "别人发的") { Uid = 999, GuardTier = guardTier });
                 GuiHarness.Flush();
@@ -153,7 +153,7 @@ public sealed class DanmakuPageTests
                 if (accountState == "loading")
                 {
                     response.SetResult(GuiHarness.AccountResponse());
-                    await viewModel.ReadAccountCommand.ExecutionTask!;
+                    await GuiHarness.AccountReadAsync(viewModel);
                     GuiHarness.Flush();
                     AssertRow(0, true);
                     AssertRow(1, false);

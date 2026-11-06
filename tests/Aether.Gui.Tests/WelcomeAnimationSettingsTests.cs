@@ -663,7 +663,7 @@ public sealed class WelcomeAnimationSettingsTests
             window.Navigation.SelectedIndex = 7;
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
-            Assert.Equal("端口保存后立即生效；日志设置重启后生效", GuiHarness.FindVisual<TextBlock>(general, "TimingHint").Text);
+            Assert.Equal("端口保存后立即生效；日志设置重启后生效；自动更新下次打开时生效", GuiHarness.FindVisual<TextBlock>(general, "TimingHint").Text);
             using var response = await http.GetAsync(viewModel.WebService.Video.Address + "/events", HttpCompletionOption.ResponseHeadersRead);
             using var reader = new StreamReader(await response.Content.ReadAsStreamAsync());
             await GuiHarness.WaitForAsync(() => viewModel.WebService.HasVideoConnections);
