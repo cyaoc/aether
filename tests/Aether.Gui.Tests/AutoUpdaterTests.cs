@@ -129,6 +129,17 @@ public sealed class AutoUpdaterTests : IDisposable
     }
 
     [Fact]
+    public void A_gui_that_loaded_its_assembly_before_an_update_finished_is_outdated()
+    {
+        var onDisk = Path.Combine(programDirectory, "Aether.Gui.dll");
+        File.Copy(typeof(AutoUpdater).Assembly.Location, onDisk);
+        Assert.False(AutoUpdater.IsOutdated(programDirectory));
+        // Any assembly of another version stands in for the next release's Aether.Gui.dll.
+        File.Copy(typeof(object).Assembly.Location, onDisk, overwrite: true);
+        Assert.True(AutoUpdater.IsOutdated(programDirectory));
+    }
+
+    [Fact]
     public async Task Update_stops_before_installing_when_a_gui_opening_holds_the_install_lock()
     {
         gitHub.Add(MacPackage, Package(MacPackage, V050));

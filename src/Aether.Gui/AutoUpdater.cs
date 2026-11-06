@@ -143,6 +143,17 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return false; }
     }
 
+    /// <summary>Whether this program's own assembly differs from the one now in <paramref name="programDirectory"/>: it was loaded
+    /// before an update finished moving in, and what it loads from here on would be the new version's.</summary>
+    public static bool IsOutdated(string programDirectory)
+    {
+        try
+        {
+            return AssemblyName.GetAssemblyName(Path.Combine(programDirectory, "Aether.Gui.dll")).Version != typeof(AutoUpdater).Assembly.GetName().Version;
+        }
+        catch (Exception error) when (error is IOException or BadImageFormatException or UnauthorizedAccessException) { return false; }
+    }
+
     /// <summary>Stops the download under way; once it has finished, there is nothing left to skip.</summary>
     public void Skip()
     {
