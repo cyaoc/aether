@@ -118,15 +118,16 @@ public sealed class WebPageResourceTests
     }
 
     [Theory]
-    [InlineData("/lottery/../../Fixtures/blind-gift-v1.json")]
-    [InlineData("/lottery/%2e%2e/%2e%2e/Fixtures/blind-gift-v1.json")]
-    [InlineData("/lottery/..%2f..%2fFixtures%2fblind-gift-v1.json")]
-    [InlineData("/lottery/..%5c..%5cFixtures%5cblind-gift-v1.json")]
-    [InlineData("/lottery/{base}Fixtures/blind-gift-v1.json")]
-    [InlineData("/lottery/{base}Fixtures%5cblind-gift-v1.json")]
-    public async Task Request_paths_cannot_reach_files_outside_the_pages_directory(string path)
+    [InlineData("/lottery/../../Fixtures/blind-gift-v1.json", 403)]
+    [InlineData("/lottery/%2e%2e/%2e%2e/Fixtures/blind-gift-v1.json", 403)]
+    [InlineData("/lottery/..%2f..%2fFixtures%2fblind-gift-v1.json", 403)]
+    [InlineData("/lottery/..%5c..%5cFixtures%5cblind-gift-v1.json", 403)]
+    [InlineData("/lottery/{base}Fixtures/blind-gift-v1.json", 404)]
+    [InlineData("/lottery/{base}Fixtures%5cblind-gift-v1.json", 404)]
+    public async Task Request_paths_cannot_reach_files_outside_the_pages_directory(string path, int windowsStatus)
     {
         // The raw request line keeps the dot segments that HttpClient would resolve before sending.
+        // http.sys answers 403 itself to a path that climbs above the root, before the web service sees it.
         await using var h = new WatchHarness();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         Assert.NotEmpty(BlindGiftFixture.Json);
@@ -137,8 +138,8 @@ public sealed class WebPageResourceTests
         await using var stream = new NetworkStream(socket);
         await stream.WriteAsync(Encoding.ASCII.GetBytes($"GET {target} HTTP/1.1\r\nHost: {address.Authority}\r\nConnection: close\r\n\r\n"), h.Stop.Token);
         using var reader = new StreamReader(stream);
-        Assert.StartsWith("HTTP/1.1 404 ", await reader.ReadLineAsync(h.Stop.Token));
-        // HttpListener already resolves the dot segments and keeps the escapes, so the check behind it gets the decoded path too.
+        Assert.StartsWith($"HTTP/1.1 {(OperatingSystem.IsWindows() ? windowsStatus : 404)} ", await reader.ReadLineAsync(h.Stop.Token));
+        // HttpListener resolves the dot segments or rejects them before the web service, so the check behind it gets the decoded path too.
         Assert.Null(WebService.PagesFile(Uri.UnescapeDataString(target)));
     }
 }
