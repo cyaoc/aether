@@ -77,7 +77,7 @@ public sealed class AutoUpdaterTests : IDisposable
     public async Task Check_gives_up_after_3_seconds()
     {
         var never = new TaskCompletionSource();
-        gitHub.ReleaseHeld = never.Task;
+        gitHub.BeforeRelease = () => never.Task;
         gitHub.Add(MacPackage, Package(MacPackage, V050));
         var check = Updater().CheckAsync(TestContext.Current.CancellationToken);
         clock.Advance(TimeSpan.FromMilliseconds(2999));

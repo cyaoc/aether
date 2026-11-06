@@ -108,7 +108,7 @@ public partial class MainWindowViewModel : ObservableObject
     public event Action? UpdateInstalled;
     private Task updating = Task.CompletedTask;
     // The startup read only notes a missing account: the splash decides when the QR login starts.
-    private bool startupRead;
+    private bool loginWaitsForSplash;
     private readonly LatestRun accountRead = new();
     private readonly CancellationTokenSource shutdown = new();
 
@@ -156,7 +156,7 @@ public partial class MainWindowViewModel : ObservableObject
             var minimum = Task.Delay(SplashMinimumDuration, clock, shutdown.Token);
             updater.CleanUp();
             var check = settings.AutoUpdate ? updater.CheckAsync(shutdown.Token) : Task.FromResult<ReleaseUpdate?>(null);
-            startupRead = true;
+            loginWaitsForSplash = true;
             try { await ReadAccountCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(3), clock, shutdown.Token); }
             catch (TimeoutException)
             {
@@ -165,7 +165,7 @@ public partial class MainWindowViewModel : ObservableObject
                 _ = accountRead.StopAsync();
                 AccountStatus = AccountStatus.Failed;
             }
-            finally { startupRead = false; }
+            finally { loginWaitsForSplash = false; }
             if (await check is { } release)
             {
                 // Closing the window waits for this, so an install is never cut off halfway.
@@ -176,6 +176,9 @@ public partial class MainWindowViewModel : ObservableObject
                     if (!shutdown.IsCancellationRequested) UpdateInstalled?.Invoke();
                     return;
                 }
+                // Skipped or failed: the splash goes on as with no update, showing nothing. Posted the way Progress<T> posts its
+                // reports, so it lands after the last one.
+                SynchronizationContext.Current!.Post(_ => Update = null, null);
             }
             shutdown.Token.ThrowIfCancellationRequested();
             if (IsLoggedOut) StartLogin();
@@ -381,7 +384,7 @@ public partial class MainWindowViewModel : ObservableObject
                 var result = await Task.Run(() => client.GetAccountAsync(token), token);
                 token.ThrowIfCancellationRequested();
                 AccountStatus = AccountStatus.Of(result);
-                if (result is null && !startupRead)
+                if (result is null && !loginWaitsForSplash)
                 {
                     await StopWatchingAsync();
                     token.ThrowIfCancellationRequested();

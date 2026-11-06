@@ -15,8 +15,8 @@ internal sealed class FakeGitHub : HttpMessageHandler
 
     public string Tag { get; set; } = "v0.5.0";
     public List<string> Requests { get; } = [];
-    /// <summary>Set to hold the release response, e.g. past the check's time limit.</summary>
-    public Task? ReleaseHeld { get; set; }
+    /// <summary>Called as the release is requested; the response waits for the task it returns, e.g. past the check's time limit.</summary>
+    public Func<Task>? BeforeRelease { get; set; }
     /// <summary>Set to stop each download after its first <see cref="HeldStream.FirstChunk"/> bytes until the task completes.</summary>
     public Task? DownloadHeld { get; set; }
 
@@ -34,7 +34,7 @@ internal sealed class FakeGitHub : HttpMessageHandler
         Assert.NotEmpty(request.Headers.UserAgent);
         if (uri == LatestRelease)
         {
-            if (ReleaseHeld is { } held) await held.WaitAsync(cancellationToken);
+            if (BeforeRelease is { } before) await before().WaitAsync(cancellationToken);
             var release = new
             {
                 tag_name = Tag,

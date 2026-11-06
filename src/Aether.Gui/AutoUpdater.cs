@@ -31,7 +31,7 @@ public sealed record UpdateProgress(string Tag, bool Downloading, double Percent
 public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, string programDirectory, string version,
     string? runtimeIdentifier, bool selfContained, TimeProvider clock, ILogger logger)
 {
-    private static readonly JsonSerializerOptions GitHubJson = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
+    private static readonly JsonSerializerOptions SnakeCaseJson = new() { PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower };
     private readonly Lock gate = new();
     private CancellationTokenSource? download;
 
@@ -60,12 +60,12 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             using var request = Request(latestRelease);
             using var response = await http.SendAsync(request, linked.Token);
             response.EnsureSuccessStatusCode();
-            var release = await response.Content.ReadFromJsonAsync<GitHubRelease>(GitHubJson, linked.Token);
+            var release = await response.Content.ReadFromJsonAsync<GitHubRelease>(SnakeCaseJson, linked.Token);
             if (release?.TagName is not { } tag || !TagPattern().IsMatch(tag) || !Version.TryParse(tag[1..], out var latest) || latest <= current) return null;
             var name = $"aether-gui-{tag}-{rid}{(selfContained ? "" : "-framework-dependent")}";
             var extension = rid.StartsWith("win-") ? ".zip" : ".tar.gz";
             if (Asset(name + extension) is not { } package) return null;
-            logger.LogInformation("发现新版本 {Tag}", tag);
+            logger.LogWarning("发现新版本 {Tag}", tag);
             return new(tag, package, Asset($"{name}-from-v{version}{extension}"));
 
             ReleaseAsset? Asset(string assetName)
@@ -116,7 +116,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             // Whatever went wrong, this version opens as usual and the next start tries again.
             if (error is OperationCanceledException) logger.LogWarning("没有装新版本 {Tag}：下载已取消", update.Tag);
             else logger.LogWarning(error, "没有装新版本 {Tag}", update.Tag);
-            Try(() => Directory.Delete(UpdateDirectory, recursive: true));
+            TryDelete(() => Directory.Delete(UpdateDirectory, recursive: true));
             return false;
         }
     }
@@ -130,13 +130,13 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     /// <summary>Deletes what the last update left: the replaced files (*.old) and .update/. A file the old process still holds stays until next time.</summary>
     public void CleanUp()
     {
-        Try(() => Directory.Delete(UpdateDirectory, recursive: true));
-        Try(() =>
+        TryDelete(() => Directory.Delete(UpdateDirectory, recursive: true));
+        TryDelete(() =>
         {
             var directories = Directory.EnumerateDirectories(programDirectory).Where(directory => !Reserved(Path.GetFileName(directory)));
             foreach (var old in Directory.EnumerateFiles(programDirectory, "*.old")
                 .Concat(directories.SelectMany(directory => Directory.EnumerateFiles(directory, "*.old", SearchOption.AllDirectories))))
-                Try(() => File.Delete(old));
+                TryDelete(() => File.Delete(old));
         });
     }
 
@@ -160,7 +160,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
 
     private async Task<string> DownloadAsync(string tag, ReleaseAsset asset, IProgress<UpdateProgress> progress, CancellationToken cancellationToken)
     {
-        progress.Report(new(tag, true, 0, 0, asset.Size));
+        progress.Report(new(tag, Downloading: true, 0, 0, asset.Size));
         Directory.CreateDirectory(UpdateDirectory);
         var path = Path.Combine(UpdateDirectory, asset.Name);
         using var skip = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -180,7 +180,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
                 if ((downloaded += read) > asset.Size) throw new InvalidDataException($"{asset.Name} 比 GitHub 说的 {asset.Size} 字节大");
                 sha256.AppendData(buffer, 0, read);
                 await file.WriteAsync(buffer.AsMemory(0, read), skip.Token);
-                progress.Report(new(tag, true, 100.0 * downloaded / asset.Size, downloaded, asset.Size));
+                progress.Report(new(tag, Downloading: true, 100.0 * downloaded / asset.Size, downloaded, asset.Size));
             }
             if (Convert.ToHexStringLower(sha256.GetHashAndReset()) != asset.Sha256) throw new InvalidDataException($"{asset.Name} 的 sha256 和 GitHub 说的不一样");
         }
@@ -189,7 +189,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             lock (gate) download = null;
         }
         // Checking the digest belongs to the download's last moment; installing starts from 0.
-        progress.Report(new(tag, false, 0));
+        progress.Report(new(tag, Downloading: false, 0));
         return path;
     }
 
@@ -201,7 +201,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
         foreach (var (name, extract) in Entries(archive))
         {
             extract(Target(staging, name.Split('/', 2) is [_, var path] ? path : throw new InvalidDataException($"{name} 不在发布包的目录里")));
-            progress.Report(new(tag, false, 50.0 * ++done / count));
+            progress.Report(new(tag, Downloading: false, 50.0 * ++done / count));
         }
     }
 
@@ -211,7 +211,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     {
         foreach (var (name, extract) in Entries(archive)) extract(Target(staging, name));
         var manifestPath = Path.Combine(staging, "manifest.json");
-        var manifest = JsonSerializer.Deserialize<DeltaManifest>(File.ReadAllBytes(manifestPath), GitHubJson)?.Files
+        var manifest = JsonSerializer.Deserialize<DeltaManifest>(File.ReadAllBytes(manifestPath), SnakeCaseJson)?.Files
             ?? throw new InvalidDataException("差异包的清单里没有文件");
         // The manifest describes the program; it is not one of its files.
         File.Delete(manifestPath);
@@ -221,7 +221,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             var file = Target(staging, path);
             if (!File.Exists(file)) file = Target(programDirectory, path);
             if (!File.Exists(file) || !string.Equals(Sha256(file), sha256, StringComparison.OrdinalIgnoreCase)) return false;
-            progress.Report(new(tag, false, 50.0 * ++done / manifest.Count));
+            progress.Report(new(tag, Downloading: false, 50.0 * ++done / manifest.Count));
         }
         return true;
     }
@@ -245,7 +245,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
                 }
                 File.Move(source, target);
                 added.Add(target);
-                progress.Report(new(tag, false, 50 + 50.0 * added.Count / files.Length));
+                progress.Report(new(tag, Downloading: false, 50 + 50.0 * added.Count / files.Length));
             }
         }
         catch
@@ -320,7 +320,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
         return Convert.ToHexStringLower(SHA256.HashData(file));
     }
 
-    private static void Try(Action delete)
+    private static void TryDelete(Action delete)
     {
         try { delete(); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }

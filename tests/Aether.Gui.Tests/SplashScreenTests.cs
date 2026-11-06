@@ -303,7 +303,7 @@ public sealed class SplashScreenTests
         var account = new TaskCompletionSource<HttpResponseMessage>();
         harness.NavResponse = token => account.Task.WaitAsync(token);
         var check = new TaskCompletionSource();
-        harness.GitHub.ReleaseHeld = check.Task;
+        harness.GitHub.BeforeRelease = () => check.Task;
         harness.GitHub.Tag = "v0.4.0";
         harness.ReleaseVersion = "0.4.0";
         var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
@@ -354,6 +354,11 @@ public sealed class SplashScreenTests
             Assert.True(viewModel.LoginCommand.IsRunning);
             Assert.True(viewModel.WebService.WebServiceStatus.Running);
             Assert.False(Directory.Exists(Path.Combine(harness.ProgramDirectory, ".update")));
+            // As with no update, the fading splash shows nothing over the title, and Tab finds nothing on it.
+            await WaitForAsync(() => viewModel.Update is null);
+            Flush();
+            Assert.False(skip.IsEffectivelyVisible);
+            Assert.DoesNotContain("正在下载新版本 v0.5.0", VisibleText(window));
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
         return true;
@@ -428,6 +433,34 @@ public sealed class SplashScreenTests
         Assert.False(Directory.Exists(Path.Combine(harness.ProgramDirectory, ".update")));
         Assert.False(viewModel.LoginCommand.IsRunning);
         Assert.Equal(0, restarts);
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Startup_cleans_up_the_last_update_before_reading_the_account_and_checking() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        foreach (var leftover in new[] { "Aether.Gui.old", ".update/v0.4.0/Aether.Gui" })
+        {
+            var path = Path.Combine(harness.ProgramDirectory, leftover);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, "");
+        }
+        // Whether the leftovers were gone when each request went out.
+        var cleaned = new System.Collections.Concurrent.ConcurrentQueue<bool>();
+        bool Cleaned() => !Directory.EnumerateFileSystemEntries(harness.ProgramDirectory).Any();
+        harness.NavResponse = _ => { cleaned.Enqueue(Cleaned()); return Task.FromResult(AccountResponse()); };
+        harness.GitHub.BeforeRelease = () => { cleaned.Enqueue(Cleaned()); return Task.CompletedTask; };
+        harness.ReleaseVersion = "0.4.0";
+        var viewModel = harness.CreateViewModel(new FakeTimeProvider(), keepSplashTiming: true);
+        try
+        {
+            _ = viewModel.StartAsync(harness.DataDirectory);
+            await WaitForAsync(() => cleaned.Count == 2);
+            Assert.Equal([true, true], cleaned);
+        }
+        finally { await viewModel.ShutdownAsync(); }
         return true;
     }, TestContext.Current.CancellationToken);
 
