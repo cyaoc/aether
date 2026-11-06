@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Aether.Core;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Gui;
@@ -35,9 +36,10 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     private readonly Lock gate = new();
     private CancellationTokenSource? download;
 
-    private string UpdateDirectory => Path.Combine(programDirectory, ".update");
-    // Held only while files are moved in: FileShare.None is a sharing lock on Windows and an flock between .NET processes elsewhere.
-    private static string InstallLock(string programDirectory) => Path.Combine(programDirectory, ".update", "install.lock");
+    private const string UpdateFolder = ".update";
+    private string UpdateDirectory => Path.Combine(programDirectory, UpdateFolder);
+    // Held only while files are moved in (FileLock).
+    private static string InstallLock(string programDirectory) => Path.Combine(programDirectory, UpdateFolder, "install.lock");
 
     /// <summary>This program, as release.yml published it; a dotnet build has no runtime identifier and never updates.</summary>
     public static AutoUpdater ForThisProgram(ILogger<AutoUpdater> logger, TimeProvider clock)
@@ -46,7 +48,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
         string? Metadata(string key) => assembly.GetCustomAttributes<AssemblyMetadataAttribute>().FirstOrDefault(item => item.Key == key)?.Value;
         // The download has no time limit: the streamer can skip it instead.
         return new(new HttpClient { Timeout = Timeout.InfiniteTimeSpan }, new Uri("https://api.github.com/repos/cyaoc/aether/releases/latest"),
-            AppContext.BaseDirectory, assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion,
+            AppContext.BaseDirectory, MainWindowViewModel.AppVersion[1..],
             Metadata("RuntimeIdentifier"), bool.TryParse(Metadata("SelfContained"), out var value) && value, clock, logger);
     }
 
@@ -65,7 +67,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             var release = await response.Content.ReadFromJsonAsync<GitHubRelease>(SnakeCaseJson, linked.Token);
             if (release?.TagName is not { } tag || !TagPattern().IsMatch(tag) || !Version.TryParse(tag[1..], out var latest) || latest <= current) return null;
             var name = $"aether-gui-{tag}-{rid}{(selfContained ? "" : "-framework-dependent")}";
-            var extension = rid.StartsWith("win-") ? ".zip" : ".tar.gz";
+            var extension = rid.StartsWith("win-", StringComparison.Ordinal) ? ".zip" : ".tar.gz";
             if (Asset(name + extension) is not { } package) return null;
             logger.LogWarning("发现新版本 {Tag}", tag);
             return new(tag, package, Asset($"{name}-from-v{version}{extension}"));
@@ -97,7 +99,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             var prepared = false;
             if (update.Delta is { } delta)
             {
-                var archive = await DownloadAsync(tag, delta, progress, cancellationToken);
+                var archive = await Task.Run(() => DownloadAsync(tag, delta, progress, cancellationToken));
                 prepared = await Task.Run(() => PrepareDelta(tag, archive, staging, progress));
                 if (!prepared)
                 {
@@ -107,7 +109,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             }
             if (!prepared)
             {
-                var archive = await DownloadAsync(tag, update.Package, progress, cancellationToken);
+                var archive = await Task.Run(() => DownloadAsync(tag, update.Package, progress, cancellationToken));
                 await Task.Run(() => Unpack(tag, archive, staging, progress));
             }
             // A GUI opened from here would run a mix of old and new files. Taking the lock before looking for one means a GUI
@@ -123,7 +125,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
         catch (Exception error)
         {
             // Whatever went wrong, this version opens as usual and the next start tries again.
-            if (error is OperationCanceledException) logger.LogWarning("没有装新版本 {Tag}：下载已取消", update.Tag);
+            if (error is OperationCanceledException) logger.LogInformation("没有装新版本 {Tag}：下载已取消", update.Tag);
             else logger.LogWarning(error, "没有装新版本 {Tag}", update.Tag);
             TryDelete(() => Directory.Delete(UpdateDirectory, recursive: true));
             return false;
@@ -139,7 +141,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             using var _ = new FileStream(InstallLock(programDirectory), FileMode.Open, FileAccess.Read, FileShare.None);
             return false;
         }
-        catch (IOException error) when (error is not (FileNotFoundException or DirectoryNotFoundException)) { return true; }
+        catch (IOException error) when (FileLock.IsHeld(error)) { return true; }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return false; }
     }
 
@@ -312,7 +314,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     /// <summary>Each file in a .zip or .tar.gz, by its path in the archive, with the way to write it out to a new file.</summary>
     private static IEnumerable<(string Name, Action<string> Extract)> Entries(string archive)
     {
-        if (archive.EndsWith(".zip"))
+        if (archive.EndsWith(".zip", StringComparison.Ordinal))
         {
             using var zip = ZipFile.OpenRead(archive);
             foreach (var entry in zip.Entries.Where(entry => !entry.FullName.EndsWith('/')))
@@ -347,7 +349,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     }
 
     private static bool Reserved(string name) =>
-        name.Equals("data", StringComparison.OrdinalIgnoreCase) || name.Equals(".update", StringComparison.OrdinalIgnoreCase);
+        name.Equals("data", StringComparison.OrdinalIgnoreCase) || name.Equals(UpdateFolder, StringComparison.OrdinalIgnoreCase);
 
     private static string Sha256(string path)
     {
@@ -364,14 +366,19 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     // ADR 0003 lets several GUIs run, and replacing the files would have another one load the new version's later.
     private bool AnotherGuiRuns()
     {
+        // Both sides go through GetFullPath so Windows expands 8.3 short names alike, as WebService does.
         var directory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(programDirectory));
+        Process[] processes;
+        try { processes = Process.GetProcessesByName("Aether.Gui"); }
+        // Not knowing counts as one running: nothing gets cleaned up or installed under it.
+        catch (Exception error) when (error is Win32Exception or InvalidOperationException or PlatformNotSupportedException) { return true; }
         var found = false;
-        foreach (var process in Process.GetProcessesByName("Aether.Gui"))
+        foreach (var process in processes)
             using (process)
                 try
                 {
-                    found |= process.Id != Environment.ProcessId &&
-                        string.Equals(Path.GetDirectoryName(process.MainModule?.FileName), directory, StringComparison.OrdinalIgnoreCase);
+                    found |= process.Id != Environment.ProcessId && process.MainModule?.FileName is { } file &&
+                        string.Equals(Path.GetDirectoryName(Path.GetFullPath(file)), directory, StringComparison.OrdinalIgnoreCase);
                 }
                 // A process that has exited or belongs to another user is not one of ours.
                 catch (Exception error) when (error is Win32Exception or InvalidOperationException) { }

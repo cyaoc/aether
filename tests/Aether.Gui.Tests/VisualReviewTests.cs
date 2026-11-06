@@ -1153,11 +1153,11 @@ public sealed partial class VisualReviewTests
             {
                 await GuiHarness.AccountReadAsync(viewModel);
                 // The design's sample values: 12.0 of 25.0 MB downloaded.
-                viewModel.Update = new UpdateProgress("v0.5.0", true, 48, 12 << 20, 25 << 20);
+                viewModel.UpdateProgress = new UpdateProgress("v0.5.0", true, 48, 12 << 20, 25 << 20);
                 Capture("download");
                 window.FindControl<Button>("SkipUpdateButton")!.Focus(NavigationMethod.Tab);
                 Capture("download-focus");
-                viewModel.Update = new UpdateProgress("v0.5.0", false, 90);
+                viewModel.UpdateProgress = new UpdateProgress("v0.5.0", false, 90);
                 Capture("install");
                 Assert.True(viewModel.IsSplashVisible);
             }

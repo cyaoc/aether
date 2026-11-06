@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using Aether.Core;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
@@ -27,7 +26,7 @@ public partial class GeneralSettingsPage : SettingsPage
         Bind(RetentionInput, RetentionReadOnly, RetentionError, s => s.LogRetentionDays);
         Bind(LogLevelInput, LogLevelReadOnly, LogLevelError, s => s.LogLevel);
         Bind(WebPortInput, WebPortReadOnly, WebPortError, s => s.WebServicePort);
-        AutoUpdateInput.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Validate(); };
+        ValidateOnToggle(AutoUpdateInput);
         DetachedFromVisualTree += (_, _) =>
         {
             foreach (var (button, timer) in copyFeedback) { timer.Dispose(); button.Classes.Set("copied", false); }
@@ -50,9 +49,13 @@ public partial class GeneralSettingsPage : SettingsPage
     {
         savedPortChanged = PortChanged;
         var result = await base.WriteSettings(changes);
+        // An unchanged switch leaves gui.yml alone, so it cannot fail a save of the settings file.
+        if (!RowsChanged) return result;
         var gui = Gui;
         gui.AutoUpdate = AutoUpdateInput.IsChecked == true;
-        gui.Save();
+        // The window's copy must not keep a value gui.yml never got: the reload after a failure would show it as saved.
+        try { gui.Save(); }
+        catch { gui.AutoUpdate = savedAutoUpdate; throw; }
         return result;
     }
 

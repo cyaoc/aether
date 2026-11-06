@@ -415,7 +415,7 @@ public sealed class AutoUpdaterTests : IDisposable
     private Dictionary<string, string> ProgramFiles() => Snapshot()
         .Where(entry => entry.Value != "/" && !entry.Key.EndsWith(".old") && !entry.Key.StartsWith(".update/")).ToDictionary();
 
-    private async Task<bool> UpdateAsync(AutoUpdater updater, Action<UpdateProgress>? report = null) =>
+    private static async Task<bool> UpdateAsync(AutoUpdater updater, Action<UpdateProgress>? report = null) =>
         await updater.CheckAsync(TestContext.Current.CancellationToken) is { } update &&
         await updater.UpdateAsync(update, new Reports(report ?? (_ => { })), TestContext.Current.CancellationToken);
 

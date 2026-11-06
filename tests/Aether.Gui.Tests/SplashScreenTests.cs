@@ -341,7 +341,7 @@ public sealed class SplashScreenTests
         window.Show();
         try
         {
-            await WaitForAsync(() => viewModel.Update?.Downloaded == FakeGitHub.HeldStream.FirstChunk);
+            await WaitForAsync(() => viewModel.UpdateProgress?.Downloaded == FakeGitHub.HeldStream.FirstChunk);
             clock.Advance(TimeSpan.FromMinutes(10));
             Flush();
             Assert.True(viewModel.IsLoggedOut);
@@ -355,7 +355,7 @@ public sealed class SplashScreenTests
             Assert.True(viewModel.WebService.WebServiceStatus.Running);
             Assert.False(Directory.Exists(Path.Combine(harness.ProgramDirectory, ".update")));
             // As with no update, the fading splash shows nothing over the title, and Tab finds nothing on it.
-            await WaitForAsync(() => viewModel.Update is null);
+            await WaitForAsync(() => viewModel.UpdateProgress is null);
             Flush();
             Assert.False(skip.IsEffectivelyVisible);
             Assert.DoesNotContain("正在下载新版本 v0.5.0", VisibleText(window));
@@ -375,7 +375,7 @@ public sealed class SplashScreenTests
         window.Show();
         try
         {
-            await WaitForAsync(() => viewModel.Update?.Downloaded == FakeGitHub.HeldStream.FirstChunk);
+            await WaitForAsync(() => viewModel.UpdateProgress?.Downloaded == FakeGitHub.HeldStream.FirstChunk);
             Flush();
             var skip = window.FindControl<Button>("SkipUpdateButton")!;
             for (var i = 0; i < 3; i++)
@@ -410,7 +410,7 @@ public sealed class SplashScreenTests
             Flush();
             Assert.Equal(1, restarts);
             Assert.Equal("gui 0.5.0", File.ReadAllText(Path.Combine(harness.ProgramDirectory, "Aether.Gui")));
-            Assert.Equal(new UpdateProgress("v0.5.0", false, 100), viewModel.Update);
+            Assert.Equal(new UpdateProgress("v0.5.0", false, 100), viewModel.UpdateProgress);
             AssertStillDeciding(viewModel);
         }
         finally { await viewModel.ShutdownAsync(); }
@@ -427,7 +427,7 @@ public sealed class SplashScreenTests
         var restarts = 0;
         viewModel.UpdateInstalled += () => restarts++;
         var startup = viewModel.StartAsync(harness.DataDirectory);
-        await WaitForAsync(() => viewModel.Update?.Downloaded == FakeGitHub.HeldStream.FirstChunk);
+        await WaitForAsync(() => viewModel.UpdateProgress?.Downloaded == FakeGitHub.HeldStream.FirstChunk);
         await viewModel.ShutdownAsync();
         await startup.WaitAsync(TimeSpan.FromSeconds(5));
         Assert.False(Directory.Exists(Path.Combine(harness.ProgramDirectory, ".update")));
@@ -441,7 +441,8 @@ public sealed class SplashScreenTests
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        foreach (var leftover in new[] { "Aether.Gui.old", ".update/v0.4.0/Aether.Gui" })
+        string[] leftovers = ["Aether.Gui.old", ".update/v0.4.0/Aether.Gui"];
+        foreach (var leftover in leftovers)
         {
             var path = Path.Combine(harness.ProgramDirectory, leftover);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);

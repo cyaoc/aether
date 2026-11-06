@@ -1087,6 +1087,17 @@ public sealed class SettingsPageTests
         });
 
     [Fact]
+    public Task Saving_other_general_settings_leaves_gui_settings_alone() =>
+        WithSettingsPage(dir => new GeneralSettingsPage(dir), null, (page, path) =>
+        {
+            page.FindControl<NumericUpDown>("RetentionInput")!.Text = "14";
+            Dispatcher.UIThread.RunJobs();
+            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Equal(14, Settings.Load(Path.GetDirectoryName(path)!).LogRetentionDays.Value);
+            Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(path)!, "gui.yml")));
+        });
+
+    [Fact]
     public Task Main_window_keeps_saved_auto_update_when_it_saves_gui_settings_itself() =>
         HeadlessApp.Session.Dispatch(async () =>
         {
@@ -1106,6 +1117,34 @@ public sealed class SettingsPageTests
                 viewModel.KeepRecentDanmaku = false;
                 Assert.False(harness.LoadSettings().AutoUpdate);
                 Assert.False(harness.LoadSettings().KeepRecentDanmaku);
+            }
+            finally { await viewModel.ShutdownAsync(); main.Close(); Dispatcher.UIThread.RunJobs(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Auto_update_that_gui_settings_could_not_save_goes_back_to_the_saved_value() =>
+        HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            harness.SaveSettings();
+            var viewModel = harness.CreateViewModel();
+            var main = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+            main.Show();
+            try
+            {
+                main.Navigation.SelectedIndex = 7;
+                GuiHarness.Flush();
+                var page = main.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+                var input = page.FindControl<ToggleSwitch>("AutoUpdateInput")!;
+                // A directory where gui.yml goes fails its save.
+                Directory.CreateDirectory(harness.SettingsFile);
+                input.IsChecked = false;
+                await GuiHarness.SaveAsync(page);
+                Assert.True(viewModel.GuiSettings.AutoUpdate);
+                Assert.True(input.IsChecked);
+                Assert.NotEqual("已保存。", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
             }
             finally { await viewModel.ShutdownAsync(); main.Close(); Dispatcher.UIThread.RunJobs(); }
             return true;

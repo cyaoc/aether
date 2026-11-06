@@ -237,18 +237,17 @@
       <Image Source="avares://Aether.Gui/Assets/splash.webp" Stretch="UniformToFill" AutomationProperties.Name="Aether" />
       <TextBlock Text="Aether" Margin="44,56,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
                  FontSize="30" FontWeight="Bold" Foreground="White" />
-      <StackPanel x:Name="UpdateProgress" Width="360" Spacing="10" Margin="44,110,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
-                  IsVisible="{Binding Update, Converter={x:Static ObjectConverters.IsNotNull}}">
+      <StackPanel Width="360" Spacing="10" Margin="44,110,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
+                  IsVisible="{Binding UpdateProgress, Converter={x:Static ObjectConverters.IsNotNull}}">
         <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-          <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="White" Text="{Binding Update.Text}" AutomationProperties.LiveSetting="Polite" />
-          <TextBlock Grid.Column="1" Classes="caption numeric" Foreground="White" Opacity="0.8" Text="{Binding Update.Size}" VerticalAlignment="Center"
-                     IsVisible="{Binding Update.Downloading}" />
+          <TextBlock FontSize="14" FontWeight="SemiBold" Foreground="White" Text="{Binding UpdateProgress.Text}" AutomationProperties.LiveSetting="Polite" />
+          <TextBlock Grid.Column="1" Classes="caption numeric" Foreground="White" Opacity="0.8" Text="{Binding UpdateProgress.Size}" VerticalAlignment="Center"
+                     IsVisible="{Binding UpdateProgress.Downloading}" />
         </Grid>
-        <ProgressBar Minimum="0" Maximum="100" Value="{Binding Update.Percent}" Height="6" MinHeight="6" MinWidth="0" CornerRadius="3"
-                     Foreground="White" Background="#33FFFFFF" AutomationProperties.Name="{Binding Update.Text}" />
+        <ProgressBar Minimum="0" Maximum="100" Value="{Binding UpdateProgress.Percent}" Height="6" MinHeight="6" MinWidth="0" CornerRadius="3"
+                     Foreground="White" Background="#33FFFFFF" AutomationProperties.Name="{Binding UpdateProgress.Text}" />
         <Button x:Name="SkipUpdateButton" Classes="splash" Content="跳过，先用当前版本" Margin="0,6,0,0" Padding="12,6" CornerRadius="6"
-                Foreground="White" Background="#26FFFFFF" BorderBrush="#4DFFFFFF" BorderThickness="1"
-                Command="{Binding SkipUpdateCommand}" IsVisible="{Binding Update.Downloading}" />
+                Command="{Binding SkipUpdateCommand}" IsVisible="{Binding UpdateProgress.Downloading}" />
       </StackPanel>
     </Panel>
   </Panel>

@@ -103,12 +103,12 @@ public partial class MainWindowViewModel : ObservableObject
     public TimeSpan SplashFadeDuration { get; internal set; } = TimeSpan.FromMilliseconds(150);
     [ObservableProperty] private string loginError = "";
     /// <summary>The update the splash shows, from when it is found until the window closes or the splash fades.</summary>
-    [ObservableProperty] private UpdateProgress? update;
+    [ObservableProperty] private UpdateProgress? updateProgress;
     /// <summary>Raised once an update is installed: the window closes and the new version starts.</summary>
     public event Action? UpdateInstalled;
     private Task updating = Task.CompletedTask;
     // The startup read only notes a missing account: the splash decides when the QR login starts.
-    private bool loginWaitsForSplash;
+    private bool nextReadDefersLogin;
     private readonly LatestRun accountRead = new();
     private readonly CancellationTokenSource shutdown = new();
 
@@ -156,8 +156,8 @@ public partial class MainWindowViewModel : ObservableObject
             var minimum = Task.Delay(SplashMinimumDuration, clock, shutdown.Token);
             // Off the UI thread, so the splash shows at once even with a whole unpacked package left behind.
             await Task.Run(updater.CleanUp);
-            var check = settings.AutoUpdate ? updater.CheckAsync(shutdown.Token) : Task.FromResult<ReleaseUpdate?>(null);
-            loginWaitsForSplash = true;
+            var check = settings.AutoUpdate ? Task.Run(() => updater.CheckAsync(shutdown.Token)) : Task.FromResult<ReleaseUpdate?>(null);
+            nextReadDefersLogin = true;
             try { await ReadAccountCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(3), clock, shutdown.Token); }
             catch (TimeoutException)
             {
@@ -166,20 +166,19 @@ public partial class MainWindowViewModel : ObservableObject
                 _ = accountRead.StopAsync();
                 AccountStatus = AccountStatus.Failed;
             }
-            finally { loginWaitsForSplash = false; }
             if (await check is { } release)
             {
+                IProgress<UpdateProgress?> progress = new Progress<UpdateProgress?>(value => UpdateProgress = value);
                 // Closing the window waits for this, so an install is never cut off halfway.
-                var installing = updater.UpdateAsync(release, new Progress<UpdateProgress>(value => Update = value), shutdown.Token);
+                var installing = updater.UpdateAsync(release, progress, shutdown.Token);
                 updating = installing;
                 if (await installing)
                 {
                     if (!shutdown.IsCancellationRequested) UpdateInstalled?.Invoke();
                     return;
                 }
-                // Skipped or failed: the splash goes on as with no update, showing nothing. Posted the way Progress<T> posts its
-                // reports, so it lands after the last one.
-                SynchronizationContext.Current!.Post(_ => Update = null, null);
+                // Skipped or failed: the splash goes on as with no update, showing nothing. Reported like the steps, it lands after them.
+                progress.Report(null);
             }
             shutdown.Token.ThrowIfCancellationRequested();
             if (IsLoggedOut) StartLogin();
@@ -373,6 +372,8 @@ public partial class MainWindowViewModel : ObservableObject
     [RelayCommand(AllowConcurrentExecutions = true)]
     private Task ReadAccountAsync()
     {
+        var startLogin = !nextReadDefersLogin;
+        nextReadDefersLogin = false;
         if (IsLoggingOut || shutdown.IsCancellationRequested) return Task.CompletedTask;
         AccountStatus = AccountStatus.Reading;
         return accountRead.Start(ReadAsync);
@@ -385,7 +386,7 @@ public partial class MainWindowViewModel : ObservableObject
                 var result = await Task.Run(() => client.GetAccountAsync(token), token);
                 token.ThrowIfCancellationRequested();
                 AccountStatus = AccountStatus.Of(result);
-                if (result is null && !loginWaitsForSplash)
+                if (result is null && startLogin)
                 {
                     await StopWatchingAsync();
                     token.ThrowIfCancellationRequested();
