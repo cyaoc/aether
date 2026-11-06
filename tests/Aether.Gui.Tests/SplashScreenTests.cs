@@ -7,6 +7,8 @@ using Avalonia.VisualTree;
 using Microsoft.Data.Sqlite;
 using Avalonia.Controls;
 using Avalonia.Animation;
+using Avalonia.Automation.Peers;
+using Avalonia.Automation.Provider;
 using Microsoft.Extensions.Time.Testing;
 using static Aether.Gui.Tests.Support.GuiHarness;
 
@@ -289,6 +291,193 @@ public sealed class SplashScreenTests
         finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
         return true;
     }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Account_read_and_update_check_start_together_and_the_splash_decides_after_both() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        var clock = new FakeTimeProvider();
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        harness.SaveSettings();
+        harness.HoldLoginRequests();
+        var account = new TaskCompletionSource<HttpResponseMessage>();
+        harness.NavResponse = token => account.Task.WaitAsync(token);
+        var check = new TaskCompletionSource();
+        harness.GitHub.ReleaseHeld = check.Task;
+        harness.GitHub.Tag = "v0.4.0";
+        harness.ReleaseVersion = "0.4.0";
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
+        var startup = viewModel.StartAsync(harness.DataDirectory);
+        try
+        {
+            await WaitForAsync(() => harness.NavRequests == 1 && harness.GitHub.Requests.Count == 1);
+            account.SetResult(Json("""{"code":-101}"""));
+            await viewModel.ReadAccountCommand.ExecutionTask!;
+            clock.Advance(TimeSpan.FromMilliseconds(2999));
+            Flush();
+            Assert.True(viewModel.IsLoggedOut);
+            AssertStillDeciding(viewModel);
+            check.SetResult();
+            await WaitForAsync(() => viewModel.SplashOpacity == 0);
+            Assert.True(viewModel.LoginCommand.IsRunning);
+            Assert.True(viewModel.WebService.WebServiceStatus.Running);
+            await FinishFadeAsync(clock, viewModel);
+            await startup.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { await viewModel.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Update_holds_the_splash_without_login_or_web_service_until_skipped() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        var clock = new FakeTimeProvider();
+        using var harness = new GuiHarness();
+        harness.SaveSettings();
+        harness.HoldLoginRequests();
+        HoldUpdateDownload(harness);
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            await WaitForAsync(() => viewModel.Update?.Downloaded == FakeGitHub.HeldStream.FirstChunk);
+            clock.Advance(TimeSpan.FromMinutes(10));
+            Flush();
+            Assert.True(viewModel.IsLoggedOut);
+            AssertStillDeciding(viewModel);
+            Assert.Contains("正在下载新版本 v0.5.0", VisibleText(window));
+            var skip = window.FindControl<Button>("SkipUpdateButton")!;
+            Assert.True(skip.IsEffectivelyVisible && skip.IsEffectivelyEnabled);
+            Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(skip)).Invoke();
+            await WaitForAsync(() => viewModel.SplashOpacity == 0);
+            Assert.True(viewModel.LoginCommand.IsRunning);
+            Assert.True(viewModel.WebService.WebServiceStatus.Running);
+            Assert.False(Directory.Exists(Path.Combine(harness.ProgramDirectory, ".update")));
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Tab_stays_on_the_skip_button_while_the_splash_shows() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        await harness.SaveCredentialAsync();
+        HoldUpdateDownload(harness);
+        var viewModel = harness.CreateViewModel(new FakeTimeProvider(), keepSplashTiming: true);
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+        window.Show();
+        try
+        {
+            await WaitForAsync(() => viewModel.Update?.Downloaded == FakeGitHub.HeldStream.FirstChunk);
+            Flush();
+            var skip = window.FindControl<Button>("SkipUpdateButton")!;
+            for (var i = 0; i < 3; i++)
+            {
+                window.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, "\t");
+                Flush();
+                Assert.Same(skip, window.FocusManager!.GetFocusedElement());
+            }
+            window.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, "\t");
+            Flush();
+            Assert.Same(skip, window.FocusManager!.GetFocusedElement());
+        }
+        finally { await viewModel.ShutdownAsync(); window.Close(); Flush(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Installed_update_keeps_the_splash_and_asks_for_a_restart() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        var clock = new FakeTimeProvider();
+        using var harness = new GuiHarness();
+        harness.SaveSettings();
+        harness.HoldLoginRequests();
+        AddUpdate(harness);
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
+        var restarts = 0;
+        viewModel.UpdateInstalled += () => restarts++;
+        try
+        {
+            await viewModel.StartAsync(harness.DataDirectory).WaitAsync(TimeSpan.FromSeconds(5));
+            clock.Advance(TimeSpan.FromSeconds(1));
+            Flush();
+            Assert.Equal(1, restarts);
+            Assert.Equal("gui 0.5.0", File.ReadAllText(Path.Combine(harness.ProgramDirectory, "Aether.Gui")));
+            Assert.Equal(new UpdateProgress("v0.5.0", false, 100), viewModel.Update);
+            AssertStillDeciding(viewModel);
+        }
+        finally { await viewModel.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Closing_during_the_download_deletes_it() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        harness.HoldLoginRequests();
+        HoldUpdateDownload(harness);
+        var viewModel = harness.CreateViewModel(new FakeTimeProvider(), keepSplashTiming: true);
+        var restarts = 0;
+        viewModel.UpdateInstalled += () => restarts++;
+        var startup = viewModel.StartAsync(harness.DataDirectory);
+        await WaitForAsync(() => viewModel.Update?.Downloaded == FakeGitHub.HeldStream.FirstChunk);
+        await viewModel.ShutdownAsync();
+        await startup.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(Directory.Exists(Path.Combine(harness.ProgramDirectory, ".update")));
+        Assert.False(viewModel.LoginCommand.IsRunning);
+        Assert.Equal(0, restarts);
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Auto_update_off_does_not_check() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        var clock = new FakeTimeProvider();
+        using var harness = new GuiHarness();
+        var settings = harness.LoadSettings();
+        settings.AutoUpdate = false;
+        settings.Save();
+        harness.SaveSettings();
+        harness.HoldLoginRequests();
+        AddUpdate(harness);
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
+        var startup = viewModel.StartAsync(harness.DataDirectory);
+        try
+        {
+            await BeginFadeAsync(clock, viewModel);
+            await FinishFadeAsync(clock, viewModel);
+            await startup.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Empty(harness.GitHub.Requests);
+            Assert.True(viewModel.LoginCommand.IsRunning);
+        }
+        finally { await viewModel.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    private static void AssertStillDeciding(MainWindowViewModel viewModel)
+    {
+        Assert.True(viewModel.IsSplashVisible);
+        Assert.Equal(1, viewModel.SplashOpacity);
+        Assert.False(viewModel.LoginCommand.IsRunning);
+        Assert.False(viewModel.WebService.WebServiceStatus.Running);
+    }
+
+    /// <summary>Makes the window's program v0.4.0, with v0.5.0 on GitHub.</summary>
+    private static void AddUpdate(GuiHarness harness)
+    {
+        const string package = "aether-gui-v0.5.0-osx-arm64.tar.gz";
+        harness.ReleaseVersion = "0.4.0";
+        harness.GitHub.Add(package, FakeGitHub.Package(package, new Dictionary<string, string> { ["Aether.Gui"] = "gui 0.5.0" }));
+    }
+
+    /// <summary>Like <see cref="AddUpdate"/>, with the download stopped for good after its first bytes.</summary>
+    private static void HoldUpdateDownload(GuiHarness harness)
+    {
+        AddUpdate(harness);
+        harness.GitHub.DownloadHeld = new TaskCompletionSource().Task;
+    }
 
     private static async Task BeginFadeAsync(FakeTimeProvider clock, MainWindowViewModel viewModel, int milliseconds = 600)
     {

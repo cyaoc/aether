@@ -10,6 +10,19 @@
     <StackPanel Spacing="8">
       <StackPanel Spacing="10" Margin="0,0,0,14">
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+          <TextBlock Classes="section" Text="软件更新" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="hint numeric" Text="{Binding Source={x:Static local:MainWindowViewModel.AppVersion}, StringFormat=当前版本 {0}}" VerticalAlignment="Center" />
+        </Grid>
+        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+          <StackPanel Spacing="4">
+            <TextBlock Classes="label" Text="打开时自动更新" />
+            <TextBlock Classes="hint" Text="有新版本就在启动页上下载安装；关掉后一直用当前版本" />
+          </StackPanel>
+          <ToggleSwitch Grid.Column="1" x:Name="AutoUpdateInput" Classes="plain" AutomationProperties.Name="打开时自动更新" />
+        </Grid>
+      </StackPanel>
+      <StackPanel Spacing="10" Margin="0,0,0,14">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
           <TextBlock Classes="section" Text="网页服务" VerticalAlignment="Center" />
           <TextBlock Grid.Column="1" Classes="hint" Text="直播姬里的浏览器素材从这里打开页面" VerticalAlignment="Center" />
         </Grid>

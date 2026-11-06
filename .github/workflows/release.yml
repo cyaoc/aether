@@ -144,7 +144,7 @@ jobs:
 
           带 \`-from-\` 的包给自动更新用，不用手动下载。
 
-          解压到可写目录。首次启动、macOS/Windows 放行和升级方法见 [下载说明](https://github.com/$GH_REPO/blob/$TAG/README.md#下载)。
+          解压到可写目录。首次启动、macOS/Windows 放行和更新方法见 [下载说明](https://github.com/$GH_REPO/blob/$TAG/README.md#下载)。
 
           EOF
           gh release create "$TAG" "${packages[@]}" --verify-tag --title "$TAG" \

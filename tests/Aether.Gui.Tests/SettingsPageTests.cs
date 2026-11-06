@@ -1066,6 +1066,52 @@ public sealed class SettingsPageTests
         });
 
     [Fact]
+    public Task Auto_update_is_on_without_gui_settings_and_saves_to_them_only_with_the_page() =>
+        WithSettingsPage(dir => new GeneralSettingsPage(dir), null, (page, path) =>
+        {
+            var dataDirectory = Path.GetDirectoryName(path)!;
+            var guiSettings = Path.Combine(dataDirectory, "gui.yml");
+            var input = page.FindControl<ToggleSwitch>("AutoUpdateInput")!;
+            Assert.True(input.IsChecked);
+            input.IsChecked = false;
+            GuiHarness.Flush();
+            Assert.Equal("有未保存的修改", GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").Text);
+            Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
+            Assert.False(File.Exists(guiSettings));
+            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            Assert.Contains("AutoUpdate: false", File.ReadAllText(guiSettings));
+            Assert.Equal("已保存。", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
+            Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
+            Assert.False(new GeneralSettingsPage(dataDirectory).FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked);
+            Assert.DoesNotContain("update", File.ReadAllText(path), StringComparison.OrdinalIgnoreCase);
+        });
+
+    [Fact]
+    public Task Main_window_keeps_saved_auto_update_when_it_saves_gui_settings_itself() =>
+        HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            harness.SaveSettings();
+            var viewModel = harness.CreateViewModel();
+            var main = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
+            main.Show();
+            try
+            {
+                main.Navigation.SelectedIndex = 7;
+                GuiHarness.Flush();
+                var page = main.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+                page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked = false;
+                await GuiHarness.SaveAsync(page);
+                viewModel.KeepRecentDanmaku = false;
+                Assert.False(harness.LoadSettings().AutoUpdate);
+                Assert.False(harness.LoadSettings().KeepRecentDanmaku);
+            }
+            finally { await viewModel.ShutdownAsync(); main.Close(); Dispatcher.UIThread.RunJobs(); }
+            return true;
+        }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task Multiline_level_is_read_only() =>
         WithSettingsPage(dir => new GeneralSettingsPage(dir), "log:\n  level: |-\n    Debug\n", (window, _) =>
         {

@@ -40,10 +40,13 @@ public partial class MainWindow : Window
         board.GeneralSettingsRequested += ShowGeneralSettings;
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
-        // Nothing has focus while the splash fades over the enabled page, so stopping Tab keeps every key out of it.
+        // Tab stays on the splash's own controls, only 跳过 while an update downloads: the pages it covers turn enabled as it fades,
+        // and focus must not reach them.
         AddHandler(KeyDownEvent, (_, e) =>
         {
-            if (e.Key == Key.Tab && DataContext is MainWindowViewModel { IsSplashVisible: true }) e.Handled = true;
+            if (e.Key != Key.Tab || DataContext is not MainWindowViewModel { IsSplashVisible: true }) return;
+            e.Handled = true;
+            if (SkipUpdateButton.IsEffectivelyVisible) SkipUpdateButton.Focus(NavigationMethod.Tab);
         }, RoutingStrategies.Tunnel);
         // Check before ComboBox handles Enter: selecting an item closes its popup during the same event.
         RoomInput.AddHandler(KeyDownEvent, OnRoomInputKeyDown, RoutingStrategies.Tunnel);

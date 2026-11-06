@@ -19,6 +19,9 @@
     <PackageReference Include="QRCoder" />
     <PackageReference Include="YamlDotNet" />
     <InternalsVisibleTo Include="Aether.Gui.Tests" />
+    <!-- Auto-update downloads the package this program was published as (ADR 0015); a dotnet build has no RID and never updates. -->
+    <AssemblyMetadata Include="RuntimeIdentifier" Value="$(RuntimeIdentifier)" />
+    <AssemblyMetadata Include="SelfContained" Value="$(SelfContained)" />
   </ItemGroup>
   <!-- SkiaSharp 3.119.2+ and HarfBuzzSharp ship their Windows native .pdb as native assets; dropping them here also keeps them out of
        deps.json, which would fail startup if the files were deleted after publish. Remove once mono/SkiaSharp#4165 is fixed. -->

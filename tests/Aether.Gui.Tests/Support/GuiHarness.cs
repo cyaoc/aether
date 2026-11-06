@@ -36,9 +36,18 @@ internal sealed class GuiHarness : IDisposable
 
     public GuiSettings LoadSettings() => GuiSettings.Load(DataDirectory, NullLogger<GuiSettings>.Instance);
 
+    /// <summary>GitHub for the auto-update check, which only a release build makes; see <see cref="ReleaseVersion"/>.</summary>
+    public FakeGitHub GitHub { get; } = new();
+    public string ProgramDirectory => DataDirectory + "-program";
+    /// <summary>The release version the window's program reports; null keeps the dev build, which never checks for updates.</summary>
+    public string? ReleaseVersion { get; set; }
+
     public MainWindowViewModel CreateViewModel(TimeProvider? timeProvider = null, bool keepSplashTiming = false)
     {
-        var viewModel = new MainWindowViewModel(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings(), timeProvider ?? TimeProvider.System);
+        var clock = timeProvider ?? TimeProvider.System;
+        var updater = new AutoUpdater(new HttpClient(GitHub), new Uri(FakeGitHub.LatestRelease), ProgramDirectory, ReleaseVersion ?? "0.0.0-dev",
+            "osx-arm64", true, clock, NullLogger.Instance);
+        var viewModel = new MainWindowViewModel(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings(), clock, updater);
         if (!keepSplashTiming)
         {
             viewModel.SplashMinimumDuration = TimeSpan.Zero;
@@ -218,6 +227,7 @@ internal sealed class GuiHarness : IDisposable
     {
         client.Dispose();
         if (Directory.Exists(DataDirectory)) Directory.Delete(DataDirectory, recursive: true);
+        if (Directory.Exists(ProgramDirectory)) Directory.Delete(ProgramDirectory, recursive: true);
         Assert.Empty(http.RejectedRequests);
     }
 

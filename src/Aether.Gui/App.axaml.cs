@@ -25,10 +25,20 @@ public partial class App : Application
                 logger.LogCritical(args.Exception, "UI 线程未处理异常");
             Dispatcher.UIThread.UnhandledException += LogUiException;
             logger.LogInformation("GUI 已启动");
-            desktop.MainWindow = new MainWindow(dataDirectory) { DataContext = host.Services.GetRequiredService<MainWindowViewModel>() };
+            var viewModel = host.Services.GetRequiredService<MainWindowViewModel>();
+            var window = new MainWindow(dataDirectory) { DataContext = viewModel };
+            desktop.MainWindow = window;
+            var restart = false;
+            viewModel.UpdateInstalled += () =>
+            {
+                restart = true;
+                window.Close();
+            };
             desktop.Exit += (_, _) =>
             {
                 Dispatcher.UIThread.UnhandledException -= LogUiException;
+                // As late as it can be, so the new version's clean-up finds the old files let go.
+                if (restart) host.Services.GetRequiredService<AutoUpdater>().Restart();
                 host.Dispose();
             };
         }
@@ -44,6 +54,8 @@ public partial class App : Application
         builder.Services.AddSingleton(services => GuiSettings.Load(
             dataDirectory, services.GetRequiredService<ILogger<GuiSettings>>()));
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton(services => AutoUpdater.ForThisProgram(
+            services.GetRequiredService<ILogger<AutoUpdater>>(), services.GetRequiredService<TimeProvider>()));
         builder.Services.AddSingleton<MainWindowViewModel>();
         return builder.Build();
     }

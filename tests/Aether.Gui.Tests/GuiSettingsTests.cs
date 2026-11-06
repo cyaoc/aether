@@ -28,6 +28,21 @@ public sealed class GuiSettingsTests : IDisposable
         Assert.True(harness.LoadSettings().KeepRecentDanmaku);
     }
 
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("AutoUpdate: false", false)]
+    [InlineData("AutoUpdate: maybe", true)]
+    [InlineData("AutoUpdate: [false]\nKeepRecentDanmaku: false", true)]
+    public void Auto_update_is_on_unless_saved_off(string? yaml, bool expected)
+    {
+        if (yaml is not null)
+        {
+            Directory.CreateDirectory(harness.DataDirectory);
+            File.WriteAllText(harness.SettingsFile, yaml);
+        }
+        Assert.Equal(expected, harness.LoadSettings().AutoUpdate);
+    }
+
     [Fact]
     public void Unknown_keys_do_not_discard_known_settings()
     {

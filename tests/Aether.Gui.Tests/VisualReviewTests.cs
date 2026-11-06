@@ -1130,6 +1130,82 @@ public sealed partial class VisualReviewTests
         }, TestContext.Current.CancellationToken);
     }
 
+    [Theory]
+    [InlineData(1200, 720, false)]
+    [InlineData(1200, 720, true)]
+    [InlineData(1040, 600, false)]
+    [InlineData(1040, 600, true)]
+    public Task Splash_screen_updating(int width, int height, bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            harness.HoldLoginRequests();
+            var viewModel = harness.CreateViewModel(new FakeTimeProvider(), keepSplashTiming: true);
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, Width = width, Height = height,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
+                // The design's sample values: 12.0 of 25.0 MB downloaded.
+                viewModel.Update = new UpdateProgress("v0.5.0", true, 48, 12 << 20, 25 << 20);
+                Capture("download");
+                window.FindControl<Button>("SkipUpdateButton")!.Focus(NavigationMethod.Tab);
+                Capture("download-focus");
+                viewModel.Update = new UpdateProgress("v0.5.0", false, 90);
+                Capture("install");
+                Assert.True(viewModel.IsSplashVisible);
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+
+            void Capture(string state) => Save(window, $"update-{state}-{width}x{height}-{(dark ? "dark" : "light")}");
+        }, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(1200, 720, false)]
+    [InlineData(1200, 720, true)]
+    [InlineData(1040, 600, false)]
+    [InlineData(1040, 600, true)]
+    public Task Screenshots_auto_update_setting(int width, int height, bool dark)
+    {
+        Assert.SkipWhen(HeadlessApp.ScreenshotDirectory is null, "Set AETHER_SCREENSHOT_DIR to render screenshots.");
+        return HeadlessApp.Session.Dispatch(async () =>
+        {
+            using var harness = new GuiHarness();
+            await harness.SaveCredentialAsync();
+            harness.SaveSettings();
+            var viewModel = harness.CreateViewModel();
+            var window = new MainWindow(harness.DataDirectory)
+            {
+                DataContext = viewModel, Width = width, Height = height,
+                RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            };
+            window.Show();
+            try
+            {
+                await viewModel.ReadAccountCommand.ExecutionTask!;
+                window.Navigation.SelectedIndex = Array.IndexOf(ReviewedPages, "general");
+                Capture("on");
+                var page = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+                page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked = false;
+                Capture("dirty");
+                await GuiHarness.SaveAsync(page);
+                Capture("saved");
+            }
+            finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
+            return true;
+
+            void Capture(string state) => Save(window, $"update-setting-{state}-{width}x{height}-{(dark ? "dark" : "light")}");
+        }, TestContext.Current.CancellationToken);
+    }
+
     /// <summary>The stack of a heading with its caption under it, beside a toggle or a slider or inside a radio button.</summary>
     private static bool TitlesAControl(Panel row) => row is StackPanel { Orientation: Orientation.Vertical } stack
         && (stack.Parent is RadioButton || stack.Parent is Grid grid && grid.Children.Any(child => child is ToggleSwitch or Slider));
