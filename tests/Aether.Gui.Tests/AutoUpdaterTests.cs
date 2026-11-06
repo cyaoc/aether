@@ -115,6 +115,40 @@ public sealed class AutoUpdaterTests : IDisposable
     }
 
     [Fact]
+    public async Task A_gui_opening_during_the_install_finds_it_installing()
+    {
+        gitHub.Add(MacPackage, Package(MacPackage, V050));
+        var updater = Updater();
+        var during = new List<bool>();
+        Assert.False(AutoUpdater.IsInstalling(programDirectory));
+        // From the first file moved in to the last: a GUI opened then would run a mix of old and new files.
+        Assert.True(await UpdateAsync(updater, report => { if (report is { Downloading: false, Percent: > 50 }) during.Add(AutoUpdater.IsInstalling(programDirectory)); }));
+        Assert.Equal([true, true, true, true, true], during);
+        // Released before the new version starts, or it would quit too.
+        Assert.False(AutoUpdater.IsInstalling(programDirectory));
+    }
+
+    [Fact]
+    public async Task Update_stops_before_installing_when_a_gui_opening_holds_the_install_lock()
+    {
+        gitHub.Add(MacPackage, Package(MacPackage, V050));
+        var updater = Updater();
+        var update = await updater.CheckAsync(TestContext.Current.CancellationToken);
+        FileStream? opening = null;
+        try
+        {
+            // Taken the moment the download ends, as a GUI opening then would while it looks.
+            Assert.False(await updater.UpdateAsync(update!, new Reports(report =>
+            {
+                if (report is { Downloading: false, Percent: 0 })
+                    opening = new FileStream(Path.Combine(programDirectory, ".update", "install.lock"), FileMode.OpenOrCreate, FileAccess.Read, FileShare.None);
+            }), TestContext.Current.CancellationToken));
+        }
+        finally { opening?.Dispose(); }
+        Assert.Equal(V040, ProgramFiles());
+    }
+
+    [Fact]
     public async Task Clean_up_leaves_the_last_update_alone_while_another_gui_runs_from_the_program_directory()
     {
         SkipUnlessWindows();

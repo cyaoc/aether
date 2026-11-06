@@ -36,6 +36,8 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     private CancellationTokenSource? download;
 
     private string UpdateDirectory => Path.Combine(programDirectory, ".update");
+    // Held only while files are moved in: FileShare.None is a sharing lock on Windows and an flock between .NET processes elsewhere.
+    private static string InstallLock(string programDirectory) => Path.Combine(programDirectory, ".update", "install.lock");
 
     /// <summary>This program, as release.yml published it; a dotnet build has no runtime identifier and never updates.</summary>
     public static AutoUpdater ForThisProgram(ILogger<AutoUpdater> logger, TimeProvider clock)
@@ -108,9 +110,14 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
                 var archive = await DownloadAsync(tag, update.Package, progress, cancellationToken);
                 await Task.Run(() => Unpack(tag, archive, staging, progress));
             }
-            // A GUI opened from here since the check would load some of the new version's files later.
-            if (AnotherGuiRuns()) throw new IOException("程序目录里又开了一个 GUI，这次不更新");
-            await Task.Run(() => Install(tag, staging, progress));
+            // A GUI opened from here would run a mix of old and new files. Taking the lock before looking for one means a GUI
+            // opening meanwhile either shows up in that look, or finds the lock held and quits (Program.Main).
+            using (new FileStream(InstallLock(programDirectory), new FileStreamOptions
+                { Mode = FileMode.Create, Access = FileAccess.Write, Share = FileShare.None, Options = FileOptions.DeleteOnClose }))
+            {
+                if (AnotherGuiRuns()) throw new IOException("程序目录里又开了一个 GUI，这次不更新");
+                await Task.Run(() => Install(tag, staging, progress));
+            }
             return true;
         }
         catch (Exception error)
@@ -121,6 +128,19 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             TryDelete(() => Directory.Delete(UpdateDirectory, recursive: true));
             return false;
         }
+    }
+
+    /// <summary>Whether a GUI is moving an update into <paramref name="programDirectory"/> right now. One opened meanwhile quits instead
+    /// of running a mix of old and new files; the installing one then opens the new version.</summary>
+    public static bool IsInstalling(string programDirectory)
+    {
+        try
+        {
+            using var _ = new FileStream(InstallLock(programDirectory), FileMode.Open, FileAccess.Read, FileShare.None);
+            return false;
+        }
+        catch (IOException error) when (error is not (FileNotFoundException or DirectoryNotFoundException)) { return true; }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { return false; }
     }
 
     /// <summary>Stops the download under way; once it has finished, there is nothing left to skip.</summary>

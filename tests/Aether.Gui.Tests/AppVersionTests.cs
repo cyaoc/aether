@@ -55,6 +55,20 @@ public sealed class AppVersionTests
         return true;
     }, TestContext.Current.CancellationToken);
 
+    [Fact]
+    public void Gui_opened_while_an_update_installs_quits_before_showing_anything()
+    {
+        // Program.Main looks in the program directory, which for tests is their own output directory.
+        var update = Path.Combine(AppContext.BaseDirectory, ".update");
+        Directory.CreateDirectory(update);
+        try
+        {
+            using (new FileStream(Path.Combine(update, "install.lock"), FileMode.Create, FileAccess.Write, FileShare.None))
+                Assert.Equal(0, Program.Main([]));
+        }
+        finally { Directory.Delete(update, recursive: true); }
+    }
+
     private static IEnumerable<TextBlock> VersionTexts(Window window) =>
         window.GetVisualDescendants().OfType<TextBlock>().Where(x => x.IsEffectivelyVisible && x.Text == MainWindowViewModel.AppVersion);
 }
