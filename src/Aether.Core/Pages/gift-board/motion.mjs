@@ -1,5 +1,5 @@
 // The timelines of the four events and the easing they use (design package README, 动画). Times are milliseconds since the event began.
-import { TOP_COUNT } from './layout.mjs';
+import { SIZES, TOP_COUNT } from './layout.mjs';
 import { k, mix, out } from '../video/animations/toolkit.mjs';
 
 export const easeInOut = p => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
@@ -122,3 +122,27 @@ export function numeralPop(landedAgo) {
 
 /** How long ago a row landed in the card of `rank`, by the clock `t`, for a landing `landed` at a clock time. */
 export const sinceLanding = (landed, rank, t) => landed?.slot === rank && t >= landed.at ? t - landed.at : Infinity;
+
+// The top three's names that do not fit their cards take turns (design package README, 长名字和头像框间距): each stands at its start
+// for 2 s, scrolls to its end at 40 design pixels a second, stands there 1.5 s, and fades out and back in at its start in 500 ms.
+const NAME_STILL = 2000, NAME_AT_END = 1500, NAME_FADE_BACK = 500, NAME_SPEED = 40;
+
+/** Which of the top three's names is scrolling `t` ms into the names' turns, how far along (`offset`, in the 28 px pixels names are
+ * drawn in) and how opaque it is; `overs` is how far each card's name runs past its window, 0 for a name that fits. Undefined when
+ * every name fits. */
+export function nameTurn(overs, t) {
+  const turns = overs.flatMap((over, rank) => {
+    const scrolling = over * SIZES[rank].ns / 28 * 1000 / NAME_SPEED;
+    return over > 0 ? [{ rank, over, scrolling, length: NAME_STILL + scrolling + NAME_AT_END + NAME_FADE_BACK }] : [];
+  });
+  if (turns.length === 0) return undefined;
+  let u = t % turns.reduce((sum, turn) => sum + turn.length, 0);
+  for (const { rank, over, scrolling, length } of turns) {
+    if (u >= length) {
+      u -= length;
+      continue;
+    }
+    const fade = k(length - NAME_FADE_BACK, length, u);
+    return { rank, offset: fade < 0.5 ? over * k(NAME_STILL, NAME_STILL + scrolling, u) : 0, alpha: Math.abs(1 - 2 * fade) };
+  }
+}

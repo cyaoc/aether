@@ -1,6 +1,6 @@
 # Gift board page resources
 
-Design source: `docs/design/gift-board` at `7e6758f`. The drawing, the layout constants and the event timelines are ported from
+Design source: `docs/design/gift-board` at `b217259`. The drawing, the layout constants and the event timelines are ported from
 `boards/GB1-GiftBoard.dc.html`; the demo data and the board's mock stream are not.
 PixiJS is the video page's `/video/lib/pixi.js`, the sound uses the video page's `animations/audio.mjs`, and the canvas, ramp, ease-out,
 mix and pseudo-random helpers are the ones in its `animations/toolkit.mjs`; none of them is copied.
@@ -51,7 +51,8 @@ Original: https://github.com/google/fonts/blob/main/ofl/playfairdisplay/Playfair
   comparison, is drawn as it is, even when it changes one row or none.
 - A redraw as a whole destroys the textures made for the names, counts and initials of the old board, and each new board lets go of
   those the one before it used and it does not, so counts that go by do not pile up; the board keeps them for ever.
-- A name is cut between characters (code points), so an emoji at the cut is never left in half.
+- The top three's long names take turns again from the first card when an event is over, which is each event's own duration in
+  `EVENTS`; the board ends every event 3200 ms in.
 - B站's avatars are square pictures; the page clips them to the circle the board's drawn avatars are.
 - The guard frame is the viewer's 大航海身份 (`viewerGuardLevel`), on all of a viewer's rows; the board frames only a 大航海's row,
   by the level bought. The badge of a 大航海's row is still the level bought (`guardLevel`).

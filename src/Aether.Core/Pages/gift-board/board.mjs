@@ -9,7 +9,7 @@ import { Scene } from './scene.mjs';
  * `clock` is the page's one animation: its currentTime is the time of every frame, so a test can stop it anywhere and step it. */
 export class Board {
   constructor(app, kit, clock, sound) {
-    Object.assign(this, { app, kit, clock, sound, changes: new Changes(), scroll: 0, lastTime: clock.currentTime });
+    Object.assign(this, { app, kit, clock, sound, changes: new Changes(), scroll: 0, nameClock: 0, lastTime: clock.currentTime });
     this.effects = new Effects(app.stage, app.screen.width, app.screen.height);
     // The canvas says what it is playing, for anyone watching it from outside.
     this.app.canvas.dataset.event = '';
@@ -51,18 +51,19 @@ export class Board {
 
   // A board that is drawn over as a whole (a 期 started, ended or continued, another room) lets go of the names and counts of the old one, and
   // of the pictures the new one does not show, so that a run of days does not keep a picture of every viewer it ever showed. The
-  // light of the last row to land in its top three goes with it.
+  // light of the last row to land in its top three goes with it, and the names' turns to scroll start over from the first card.
   forget(state) {
     this.scene?.destroy();
     this.scene = undefined;
     this.landing = undefined;
+    this.nameClock = 0;
     this.kit.textures.forget();
     this.kit.images.keepOnly(new Set(state.rows.flatMap(row => Object.values(picturesOf(row)))));
   }
 
   frame() {
     const t = this.clock.currentTime;
-    this.advanceScroll(t);
+    this.advance(t);
     if (this.event && t - this.event.startedAt >= EVENTS[this.event.kind].duration) this.finish();
     // A redraw takes no time, so the next change may start in the same frame.
     while (!this.event) {
@@ -72,16 +73,19 @@ export class Board {
     }
     const u = this.event && t - this.event.startedAt, landedAgo = CARDS.map((_, rank) => sinceLanding(this.landing, rank, t));
     // Without a scene there is no event either, and the effects clear what they last drew.
-    const riser = this.scene?.update(t, this.scroll, this.event, landedAgo);
+    const riser = this.scene?.update(t, this.scroll, this.event, landedAgo, this.nameClock);
     this.effects.draw(this.scene, t, landedAgo, this.event, riser);
     this.event?.track?.frame(u);
   }
 
-  // The list scrolls steadily, and stands still while an event plays.
-  advanceScroll(t) {
+  // The list scrolls steadily and the top three's long names take turns to scroll (`nameClock` is how long they have been at it);
+  // both stand still while an event plays.
+  advance(t) {
     const elapsed = Math.max(0, t - this.lastTime);
     this.lastTime = t;
-    if (this.scene?.scrolls && !this.event) this.scroll = (this.scroll + SCROLL_PER_MS * elapsed) % this.scene.lap;
+    if (this.event) return;
+    if (this.scene?.scrolls) this.scroll = (this.scroll + SCROLL_PER_MS * elapsed) % this.scene.lap;
+    this.nameClock += elapsed;
   }
 
   begin({ kind, id, debut, state }, t) {
@@ -91,6 +95,8 @@ export class Board {
     // Avatars that came after their gift are drawn in, leaving the scroll and the light of a landing as they are.
     if (kind === 'redraw' || kind === 'pictures') return;
     this.event = { kind, id, debut, startedAt: t, slots: slotsOf(before.rows) };
+    // The names stand at their starts through the event, and take turns again from the first card once it is over.
+    this.nameClock = 0;
     this.app.canvas.dataset.event = kind;
     // A landing lights its card on past the end of its event, until the next landing's event begins or the board is drawn over.
     const lands = landing(this.event, this.scene.slots[id]);
