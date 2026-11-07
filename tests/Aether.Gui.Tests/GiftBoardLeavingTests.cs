@@ -1,9 +1,7 @@
-using System.Diagnostics;
 using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
-using Microsoft.Data.Sqlite;
 using Avalonia.Controls;
 using Microsoft.Extensions.Time.Testing;
 using static Aether.Gui.Tests.Support.GiftBoardScene;
@@ -62,29 +60,6 @@ public sealed class GiftBoardLeavingTests
 
         Assert.Equal(RoomConnectionState.Disconnected, viewModel.ConnectionState);
         Assert.Equal(before.Period, (await h.Client.GiftBoard.CurrentAsync()).Period);
-    });
-
-    [Fact]
-    public Task A_period_a_locked_database_keeps_from_ending_goes_on_running_and_the_room_is_left_at_once() => Run(async (h, clock, viewModel, window) =>
-    {
-        await ConnectAsync(h, viewModel);
-        h.Client.GiftBoard.StartNewPeriod(RoomId);
-        await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Running);
-        // Another program holds the database, longer than leaving may wait for it.
-        using var database = new SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
-        database.Open();
-        using var command = database.CreateCommand();
-        command.CommandText = "BEGIN IMMEDIATE";
-        command.ExecuteNonQuery();
-
-        var leaving = Stopwatch.StartNew();
-        await ClickDisconnectAsync(viewModel, window);
-
-        Assert.InRange(leaving.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(10));
-        Assert.Equal(RoomConnectionState.Disconnected, viewModel.ConnectionState);
-        command.CommandText = "ROLLBACK";
-        command.ExecuteNonQuery();
-        Assert.True((await h.Client.GiftBoard.CurrentAsync()).Running);
     });
 
     // The web service stops first, and its failing does not keep the 期 running, the room connected or the window open.

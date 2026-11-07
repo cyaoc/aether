@@ -116,17 +116,16 @@ public sealed class GiftBoardController : IDisposable
     });
 
     /// <summary>Ends <paramref name="room"/>'s 期 if it is running, because the streamer is stopping (断开, closing Aether or
-    /// logging out; ADR 0014); one not running is left as it is. A locked database is waited for a second at most, so leaving is
-    /// not held up by it: the 期 then goes on running.</summary>
+    /// logging out; ADR 0014); one not running is left as it is.</summary>
     public void EndPeriodOnLeaving(long room) => Change(room, () =>
     {
-        if (board.Period is { EndedAt: null } running) End(room, running, busySeconds: 1);
+        if (board.Period is { EndedAt: null } running) End(room, running);
     });
 
-    private void End(long room, GiftBoardPeriod running, int? busySeconds = null)
+    private void End(long room, GiftBoardPeriod running)
     {
         var at = time.GetUtcNow();
-        store().End(room, at, busySeconds);
+        store().End(room, at);
         board = board with { Period = running with { EndedAt = at } };
     }
 

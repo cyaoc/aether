@@ -148,9 +148,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     /// announce, which then joins its viewer's 一轮盲盒.</summary>
     public void Record(IEnumerable<Gift> gifts, long receivedAt, Func<Gift, bool> save)
     {
-        // A SQLite write can wait for another process; neither a deadline nor a send snapshot may split this message.
-        // ponytail: the sender's snapshot and the quiet-window timers wait with the receive loop, up to SQLite's 30 s
-        // busy timeout; mark the message as arriving under the gate and save outside it if that stall ever matters.
+        // Neither a deadline nor a send snapshot may split this message.
         lock (gate)
             foreach (var gift in gifts)
                 if (save(gift)) Add(gift, receivedAt);

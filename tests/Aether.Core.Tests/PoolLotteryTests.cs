@@ -34,35 +34,6 @@ public sealed class PoolLotteryTests
         Assert.False(h.Client.Lottery.State.Lottery.IsDrawing);
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Ended_room_connection_cannot_overwrite_the_next_owners_lottery(bool drawing)
-    {
-        await using var h = new WatchHarness(enableStreamOverlay: true);
-        await h.LoginAsync();
-        var first = await h.WatchConnectedAsync();
-        h.Client.Lottery.Start(Prizes, "停", 42);
-        if (drawing) h.Client.Lottery.Stop();
-        await first.DisposeAsync();
-        Assert.False(h.Client.Lottery.State.CanControl);
-        var nextTime = new RecordingTimeProvider(h.Time.GetUtcNow());
-        using var next = new AetherClient(new FakeBilibiliHttp { Respond = h.Http.Respond }, h.Server.ConnectAsync,
-            nextTime, h.Logger, h.DataDirectory);
-        var second = await h.WatchConnectedAsync(next);
-        if (drawing) nextTime.Advance(LotteryController.DrawDuration);
-        else next.Lottery.Cancel();
-        next.Lottery.Start([new("新奖品", 1, Grade.Second)], "开", 99);
-        Assert.Throws<InvalidOperationException>(h.Client.Lottery.Stop);
-        Assert.Throws<InvalidOperationException>(h.Client.Lottery.Cancel);
-        h.Time.Advance(LotteryController.DrawDuration);
-        await second.DisposeAsync();
-        await using var refreshed = await h.WatchConnectedAsync(next);
-        Assert.Equal(PoolLotteryPhase.Spinning, Assert.IsType<PoolLottery>(next.Lottery.State.Lottery).Phase);
-        Assert.Equal("新奖品", Assert.Single(Assert.IsType<PoolLottery>(next.Lottery.State.Lottery).Prizes).Name);
-        Assert.Equal(99, Assert.IsType<PoolLottery>(next.Lottery.State.Lottery).Uid);
-    }
-
     [Fact]
     public async Task Watch_without_GUI_opt_in_does_not_resume_or_run_lotteries()
     {
@@ -307,12 +278,13 @@ public sealed class PoolLotteryTests
         lottery.Start(Prizes, "停");
         lottery.Stop();
         await first.DisposeAsync();
-        h.Time.Advance(LotteryController.DrawDuration);
         using var connection = new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
         connection.Open();
         using var command = connection.CreateCommand();
         command.CommandText = "CREATE TRIGGER fail_recovery BEFORE UPDATE ON lottery BEGIN SELECT RAISE(FAIL, 'unavailable'); END";
         command.ExecuteNonQuery();
+        // The draw ends after the room connection did, and saving that fails too, so the database still has it drawing.
+        h.Time.Advance(LotteryController.DrawDuration);
         await using var reconnected = await h.WatchConnectedAsync();
         Assert.False(lottery.State.Connected);
         command.CommandText = "DROP TRIGGER fail_recovery";

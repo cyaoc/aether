@@ -305,15 +305,7 @@ public sealed partial class LotteryController : IDisposable
     private void FinishDraw(string id, DateTimeOffset until)
     {
         if (disposed || state.Lottery is not { IsDrawing: true } lottery || lottery.Id != id || lottery.DrawUntil != until) return;
-        var finished = lottery with { DrawUntil = null };
-        if (!state.CanControl)
-        {
-            // A different process may own the room now; its next load uses the persisted draw deadline.
-            state = state with { Lottery = finished };
-            Publish();
-            return;
-        }
-        Save(finished);
+        Save(lottery with { DrawUntil = null });
     }
 
     private void Save(Lottery lottery, LotteryDraw? draw = null)
