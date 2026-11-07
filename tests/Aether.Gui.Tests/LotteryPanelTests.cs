@@ -118,7 +118,7 @@ public sealed class LotteryPanelTests
         try
         {
             await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
-            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 1);
+            await h.IdleAsync();
             Assert.True(Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Chosen);
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Id = "next" })));
             Assert.False(Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Chosen);
@@ -141,9 +141,9 @@ public sealed class LotteryPanelTests
         try
         {
             await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
-            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 1);
+            await h.IdleAsync();
             await Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Delete.ExecuteAsync(null);
-            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 0);
+            await h.IdleAsync();
             Assert.IsType<PrizeSetMenuFooter>(Assert.Single(vm.Lottery.PoolPrizeSets.Entries));
             vm.Lottery.PoolPrizeSets.StartDraft();
             Assert.Null(vm.Lottery.PoolPrizeSets.DraftName);
@@ -166,7 +166,7 @@ public sealed class LotteryPanelTests
         {
             await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
             vm.Lottery.Apply(new LotteryUpdate(new(99, false, TestLottery() with { Id = "other", RoomId = 99 })));
-            await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 1);
+            await h.IdleAsync();
             Assert.Equal("周末", Assert.Single(vm.Lottery.PrizeSets).Name);
             // Without a room connection the sets still list and load.
             vm.Lottery.Apply(new LotteryUpdate(new(null, false, null)));

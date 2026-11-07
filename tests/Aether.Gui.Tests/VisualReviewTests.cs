@@ -179,7 +179,7 @@ public sealed partial class VisualReviewTests
                 Lottery lottery = mode == LotteryMode.Pool ? LotteryPanelTests.TestLottery() : EntryLotteryPanelTests.TestLottery();
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
                 await vm.Lottery.SavePrizeSetAsync(mode, "周末福利");
-                await GuiHarness.WaitForAsync(() => vm.Lottery.PrizeSets.Count == 1);
+                await h.IdleAsync();
                 var prefix = mode == LotteryMode.Pool ? "pool" : "entry";
                 var picker = window.GetVisualDescendants().OfType<LotteryPrizeSetPicker>()
                     .Single(picker => picker.DataContext == (mode == LotteryMode.Pool ? vm.Lottery.PoolPrizeSets : vm.Lottery.EntryPrizeSets));
