@@ -12,27 +12,6 @@ public sealed class CredentialRefreshTests
     private const string Nav = FakeBilibiliHttp.NavUrl;
 
     [Fact]
-    public async Task Credential_saved_elsewhere_while_old_credential_nav_is_pending_is_adopted_during_qr_wait()
-    {
-        await using var h = new WatchHarness();
-        await h.LoginAsync();
-        h.Http.Intercept(Nav, async (request, _, next) =>
-        {
-            if (!request.Headers.GetValues("Cookie").Single().Contains("SESSDATA=saved-session")) return await next();
-            await LoginElsewhereAsync(h);
-            return FakeBilibiliHttp.Json("""{"code":-101,"data":{"isLogin":false}}""");
-        });
-        await using var updates = h.Watch();
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<WatchQrCode>(updates.Current);
-        Assert.True(await h.AdvancePollAsync(updates));
-        Assert.IsType<Connecting>(updates.Current);
-        Assert.Equal("external-token", h.SavedCredential().RefreshToken);
-        Assert.Contains("SESSDATA=external-session", h.Http.Requests.Last(r => r.Uri.AbsoluteUri == Nav).Cookie);
-        Assert.DoesNotContain(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Poll);
-    }
-
-    [Fact]
     public async Task Rejected_credential_ends_the_connection_after_danmaku_received_before_the_check()
     {
         await using var h = new WatchHarness();
@@ -121,60 +100,6 @@ public sealed class CredentialRefreshTests
             using var auth = System.Text.Json.JsonDocument.Parse((await second.NextRequestAsync()).AsMemory(16));
             Assert.Equal(7734200, auth.RootElement.GetProperty("roomid").GetInt64());
             Assert.Equal(9876543210, auth.RootElement.GetProperty("uid").GetInt64());
-        }
-        finally
-        {
-            await h.Stop.CancelAsync();
-            await next;
-        }
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Waiting_for_qr_adopts_another_process_credential_only_after_nav_validates_it(bool valid)
-    {
-        await using var h = new WatchHarness();
-        await using var updates = h.Watch();
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<WatchQrCode>(updates.Current);
-        await LoginElsewhereAsync(h);
-        if (!valid) h.Http.Responses[Nav] = """{"code":-101,"data":{"isLogin":false}}""";
-        Assert.True(await h.AdvancePollAsync(updates));
-        Assert.IsType(valid ? typeof(Connecting) : typeof(WatchQrCode), updates.Current);
-        Assert.Equal(!valid, h.Logger.Entries.Any(e => e.Message.Contains("新的登录凭据未生效")));
-        Assert.Contains("SESSDATA=external-session", Assert.Single(h.Http.Requests, r => r.Uri.AbsoluteUri == Nav).Cookie);
-        Assert.DoesNotContain(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Poll);
-        Assert.DoesNotContain(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Info);
-        Assert.Equal("external-token", h.SavedCredential().RefreshToken);
-    }
-
-    [Fact]
-    public async Task Logout_during_qr_wait_does_not_complete_login_and_network_retry_can_adopt_external_credential()
-    {
-        await using var h = new WatchHarness();
-        await h.LoginAsync();
-        var validNav = h.Http.Responses[Nav];
-        h.Http.Responses[Nav] = """{"code":-101,"data":{"isLogin":false}}""";
-        await using var updates = h.Watch();
-        await updates.MoveNextAsync();
-        Assert.IsType<WatchQrCode>(updates.Current);
-        await h.Client.LogoutAsync(h.Stop.Token);
-        h.Http.Responses[Poll] = """{"code":0,"data":{"code":86101}}""";
-        h.Http.FailOnce("/x/passport-login/web/qrcode/poll", new HttpRequestException("offline"));
-        var next = updates.MoveNextAsync().AsTask();
-        try
-        {
-            h.Time.Advance(TimeSpan.FromSeconds(2));
-            await h.WaitForLogAsync("2 秒后重试");
-            Assert.False(next.IsCompleted);
-            Assert.Null(h.Server.ConnectedUri);
-            h.Http.Responses[Nav] = validNav;
-            await LoginElsewhereAsync(h);
-            h.Time.Advance(TimeSpan.FromSeconds(2));
-            Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
-            Assert.IsType<Connecting>(updates.Current);
-            Assert.Equal("external-token", h.SavedCredential().RefreshToken);
         }
         finally
         {
@@ -518,32 +443,6 @@ public sealed class CredentialRefreshTests
             Assert.IsType<Danmaku>(updates.Current);
             Assert.Equal("external-token", h.SavedCredential().RefreshToken);
             Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("请重新扫码"));
-        }
-        finally
-        {
-            await h.Stop.CancelAsync();
-            await next;
-        }
-    }
-
-    [Fact]
-    public async Task Logout_elsewhere_during_connection_neither_checks_nor_disconnects()
-    {
-        await using var h = new WatchHarness();
-        await h.LoginAsync();
-        h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
-        ConfigureRefresh(h);
-        await using var updates = await h.WatchConnectedAsync();
-        await h.Client.LogoutAsync(h.Stop.Token);
-        var next = updates.MoveNextAsync().AsTask();
-        try
-        {
-            h.Time.Advance(TimeSpan.FromSeconds(10));
-            await Task.Delay(100, h.Stop.Token); // Let the due check wake before proving the connection outlived it.
-            await h.Server.PushAsync(DanmakuPacket());
-            Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
-            Assert.IsType<Danmaku>(updates.Current);
-            Assert.DoesNotContain(h.Http.Requests, r => r.Uri.GetLeftPart(UriPartial.Path) == Info);
         }
         finally
         {

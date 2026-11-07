@@ -135,8 +135,7 @@ public sealed partial class AetherClient
             var api = client.Api(credential);
             while (!await api.IsLoggedInAsync(cancellationToken))
             {
-                await foreach (var update in client.LoginCoreAsync(cancellationToken,
-                    acceptExternalCredential: true, previousToken: credential?.RefreshToken))
+                await foreach (var update in client.LoginCoreAsync(cancellationToken))
                     if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
                 credential = credentials.Load();
                 api = client.Api(credential);
@@ -260,8 +259,6 @@ public sealed partial class AetherClient
                     // An overdue check failed transiently; give it another opportunity without a busy loop.
                     await Task.Delay(delay is { } remaining && remaining > TimeSpan.Zero
                         ? remaining : TimeSpan.FromSeconds(30), client.timeProvider, stop.Token);
-                    // Signed out elsewhere: this connection keeps going and the next reconnect asks for a scan.
-                    if (client.stores.Value.Credentials.Load() is null) return;
                     // Gone after the check means B站 rejected the refresh and the credential was deleted.
                     if (await client.RefreshCredentialIfDueAsync(stop.Token, cancellationToken) is null)
                     {

@@ -178,9 +178,7 @@ public sealed partial class AetherClient : IDisposable
         }
     }
 
-    private async IAsyncEnumerable<LoginUpdate> LoginCoreAsync(
-        [EnumeratorCancellation] CancellationToken cancellationToken, bool acceptExternalCredential = false,
-        string? previousToken = null)
+    private async IAsyncEnumerable<LoginUpdate> LoginCoreAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // Everything that can fail on its own runs before the first QR code, so no scan is wasted.
         var credentials = stores.Value.Credentials;
@@ -195,12 +193,6 @@ public sealed partial class AetherClient : IDisposable
             {
                 await poll;
                 poll = Task.Delay(TimeSpan.FromSeconds(2), timeProvider, cancellationToken);
-                if (acceptExternalCredential && credentials.Load() is { } external && external.RefreshToken != previousToken)
-                {
-                    yield return new LoggedIn(); // The watch flow validates it with nav; do not save over another process.
-                    yield break;
-                }
-                // A failed poll goes round the loop, so the retry still checks for an external credential first.
                 if (await TryLoginRequestAsync(() => api.PollQrCodeAsync(qr.Key, cancellationToken), cancellationToken)
                     is not (var state, var credential)) continue;
                 if (state == QrCodeState.Waiting) continue;
