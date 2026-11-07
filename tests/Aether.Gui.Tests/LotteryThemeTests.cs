@@ -2,6 +2,7 @@ using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Time.Testing;
 using System.Net;
@@ -11,6 +12,34 @@ namespace Aether.Gui.Tests;
 
 public sealed class LotteryThemeTests
 {
+    // The window does not wait for the change, as the call it replaces was synchronous; what it throws still reaches the UI
+    // thread, where the window logs it.
+    [Fact]
+    public Task A_theme_change_that_fails_is_raised_on_the_UI_thread() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var raised = new List<Exception>();
+        void Raise(object? sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            raised.Add(e.Exception);
+            e.Handled = true;
+        }
+        Dispatcher.UIThread.UnhandledException += Raise;
+        try
+        {
+            vm.Lottery.SelectLotteryTheme((LotteryTheme)99);
+            await h.IdleAsync();
+            Assert.Equal("请选择直播画面主题。", Assert.Single(raised).Message);
+        }
+        finally
+        {
+            Dispatcher.UIThread.UnhandledException -= Raise;
+            await vm.ShutdownAsync();
+        }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task Both_panels_share_pinned_results_and_explain_what_will_be_shown() => HeadlessApp.Session.Dispatch(async () =>
     {

@@ -155,13 +155,13 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     {
         if (PlayingAnimation(uid, fileName) is { IsTest: true } playing)
         {
-            _ = client.WebService.StopTestPlayAsync(playing.Id);
+            client.WebService.StopTestPlayAsync(playing.Id).RaiseFailure();
             return;
         }
         if (AnimationReloading || AnimationBusy || !HasVideoConnections || shutdown.IsCancellationRequested
             || !AnimationVideoSaved(uid, fileName)) return;
         PendTestPlay();
-        _ = client.WebService.TestPlayWelcomeAsync(uid);
+        client.WebService.TestPlayWelcomeAsync(uid).RaiseFailure();
     }
 
     internal void TestAnimation(string source, EntryTier tier, string nickname)
@@ -169,10 +169,10 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         if (AnimationReloading || AnimationBusy || !HasVideoConnections || shutdown.IsCancellationRequested) return;
         PendTestPlay();
         Func<EntryTier, string, Task> play = source == PlaybackSource.Gift ? client.WebService.TestPlayGiftAsync : client.WebService.TestPlayEntryAsync;
-        _ = play(tier, nickname);
+        play(tier, nickname).RaiseFailure();
     }
 
-    internal void StopAnimation(string id) => _ = client.WebService.StopTestPlayAsync(id);
+    internal void StopAnimation(string id) => client.WebService.StopTestPlayAsync(id).RaiseFailure();
 
     // Disable immediately, before the queued update crosses back to the UI thread.
     private void PendTestPlay()

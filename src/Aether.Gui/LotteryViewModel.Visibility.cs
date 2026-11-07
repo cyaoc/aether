@@ -10,7 +10,7 @@ public partial class LotteryViewModel
         get => LotteryState.PinnedResults;
         set
         {
-            if (value != PinnedResults) _ = ShowAfterAsync(client.Lottery.SetPinnedResultsAsync(value));
+            if (value != PinnedResults) ShowAfterAsync(client.Lottery.SetPinnedResultsAsync(value)).RaiseFailure();
         }
     }
 

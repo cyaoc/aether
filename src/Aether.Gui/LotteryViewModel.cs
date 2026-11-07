@@ -109,7 +109,7 @@ public partial class LotteryViewModel : ObservableObject
         else EntryLotteryError = message;
     }
 
-    internal void SelectLotteryTheme(LotteryTheme theme) => _ = ShowAfterAsync(client.Lottery.SelectThemeAsync(theme));
+    internal void SelectLotteryTheme(LotteryTheme theme) => ShowAfterAsync(client.Lottery.SelectThemeAsync(theme)).RaiseFailure();
 
     internal Task PlayLotteryExampleAsync() => shutdown.IsCancellationRequested ? Task.CompletedTask
         : ShowAfterAsync(client.WebService.Lottery.PlayExampleAsync());
