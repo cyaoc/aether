@@ -152,10 +152,11 @@ internal sealed class WatchHarness : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await Stop.CancelAsync();
-        // The shell stops the web service, as disposing the client no longer does; some tests stop it, and Core, themselves.
-        if (Client.WebService.Status.Running) await Client.WebService.StopAsync();
         // Core's steps read and write data/, deleted below, also those of a client the test has disposed.
         foreach (var client in sharing.Prepend(Client)) await client.IdleAsync();
+        // Disposing the client only closes the listener; the shell waits for the serving, which reads data/ too, to wind down.
+        // Some tests stop the service, or dispose the client, themselves.
+        if (Client.WebService.Status.Running) await Client.WebService.StopAsync();
         Client.Dispose();
         await Server.DisposeAsync();
         Stop.Dispose();
