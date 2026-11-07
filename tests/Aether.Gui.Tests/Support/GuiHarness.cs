@@ -49,10 +49,10 @@ internal sealed class GuiHarness : IDisposable
         var updater = new AutoUpdater(new HttpClient(GitHub), new Uri(FakeGitHub.LatestRelease), ProgramDirectory, ReleaseVersion ?? "0.0.0-dev",
             "osx-arm64", true, clock, NullLogger.Instance);
         var viewModel = new MainWindowViewModel(client, NullLogger<MainWindowViewModel>.Instance, clock, updater);
-        // What the window's start reads in the background, at once, so tests that never open a window see it too.
-        viewModel.ShowGuiState(viewModel.ReadGuiState());
         if (!keepSplashTiming)
         {
+            // What the start reads behind the splash, shown at once: these tests skip the splash, and many open no window.
+            viewModel.ShowGuiState(viewModel.ReadGuiState());
             viewModel.SplashMinimumDuration = TimeSpan.Zero;
             viewModel.SplashFadeDuration = TimeSpan.Zero;
             viewModel.SplashOpacity = 0;

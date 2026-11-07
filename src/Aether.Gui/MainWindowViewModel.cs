@@ -52,6 +52,7 @@ public partial class MainWindowViewModel : ObservableObject
     public GiftBoardViewModel GiftBoard { get; }
     // Written as a whole: every change saves the row, and the state's own rule keeps the recent rooms in shape.
     private GuiState guiState = GuiState.Default;
+    private bool guiStateShown;
     public bool KeepRecentDanmaku
     {
         get => guiState.KeepRecentDanmaku;
@@ -119,6 +120,8 @@ public partial class MainWindowViewModel : ObservableObject
     // The startup read only notes a missing account: the splash decides when the QR login starts.
     private bool nextReadDefersLogin;
     private readonly LatestRun accountRead = new();
+    // The start's move of gui.yml and its state read write data/ off the UI thread; closing waits, so none outlives the window.
+    private Task startupWrites = Task.CompletedTask;
     private readonly CancellationTokenSource shutdown = new();
 
     private bool CanConnect => !IsLoggedOut && !IsLoggingOut && !IsRestarting && !shutdown.IsCancellationRequested;
@@ -167,16 +170,19 @@ public partial class MainWindowViewModel : ObservableObject
             var minimum = Task.Delay(SplashMinimumDuration, clock, shutdown.Token);
             // Off the UI thread, so the splash shows at once even with a whole unpacked package left behind.
             await Task.Run(updater.CleanUp);
-            // Before the update check and the state read, which both take what gui.yml held. While it is still there its switch
-            // decides, so a broken settings file never updates someone who turned updates off; a settings file whose values
-            // cannot be used means on (ADR 0016).
-            var autoUpdate = await Task.Run(() => GuiFileUpgrade.Run(dataDirectory, client, logger)
-                ?? (Settings.Load(dataDirectory, logger) is { Error: null } settings ? settings.AutoUpdateEnabled.Value : true));
+            // A close during the clean-up found no startup writes to wait for, so none may start after it.
+            shutdown.Token.ThrowIfCancellationRequested();
+            // gui.yml moves before the update check and the state read, which both take what it held. While it is still there
+            // its switch decides, so a broken settings file never updates someone who turned updates off; a settings file
+            // whose values cannot be used means on (ADR 0016).
+            var preparing = Task.Run(() => (
+                AutoUpdate: GuiFileUpgrade.Run(dataDirectory, client, logger)
+                    ?? (Settings.Load(dataDirectory, logger) is { Error: null } settings ? settings.AutoUpdateEnabled.Value : true),
+                State: ReadGuiState()));
+            startupWrites = preparing;
+            var (autoUpdate, read) = await preparing;
+            ShowGuiState(read);
             var check = autoUpdate ? Task.Run(() => updater.CheckAsync(shutdown.Token)) : Task.FromResult<ReleaseUpdate?>(null);
-            var shown = guiState;
-            var read = await Task.Run(ReadGuiState);
-            // A change made while reading is newer than what was read.
-            if (ReferenceEquals(guiState, shown)) ShowGuiState(read);
             nextReadDefersLogin = true;
             try { await ReadAccountCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(3), clock, shutdown.Token); }
             catch (TimeoutException)
@@ -242,15 +248,17 @@ public partial class MainWindowViewModel : ObservableObject
         }
     }
 
-    /// <summary>The room input stays empty until this fills it with the latest room connected; one already typed in stays.</summary>
+    /// <summary>Once per window: the room input stays empty until this fills it with the latest room connected. Later calls,
+    /// such as a read that finishes after a change, are ignored.</summary>
     internal void ShowGuiState(GuiState state)
     {
-        // Not through the setters, so showing what was read does not save it back; the same rooms again leave the list alone.
-        var shown = guiState;
+        if (guiStateShown) return;
+        guiStateShown = true;
+        // Not through the setters, so showing what was read does not save it back.
         guiState = state;
-        if (shown.KeepRecentDanmaku != state.KeepRecentDanmaku) OnPropertyChanged(nameof(KeepRecentDanmaku));
-        if (!shown.RecentRooms.SequenceEqual(state.RecentRooms)) OnPropertyChanged(nameof(RecentRooms));
-        if (RoomNumber.Length == 0) RoomNumber = RecentRooms.FirstOrDefault() ?? "";
+        OnPropertyChanged(nameof(KeepRecentDanmaku));
+        OnPropertyChanged(nameof(RecentRooms));
+        RoomNumber = RecentRooms.FirstOrDefault() ?? "";
     }
 
     private void SaveGuiState()
@@ -490,6 +498,7 @@ public partial class MainWindowViewModel : ObservableObject
         RunShutdownStep("取消退出登录", LogoutCommand.Cancel);
         var accountStopped = accountRead.StopAsync();
         await RunShutdownStepAsync("等自动更新结束", () => updating);
+        await RunShutdownStepAsync("等启动时的读写结束", () => startupWrites);
         await RunShutdownStepAsync("停网页服务", WebService.StopAsync);
         await RunShutdownStepAsync("停抽奖", Lottery.StopAsync);
         await RunShutdownStepAsync("结束礼物榜这一期", GiftBoard.EndBeforeLeavingAsync);
