@@ -51,7 +51,7 @@ public sealed record PoolLottery(string Id, long RoomId, string StopWord, DateTi
     : Lottery(Id, RoomId, StartedAt, EndedAt, DrawUntil);
 public sealed record LotteryState(long? RoomId, bool Connected, Lottery? Lottery)
 {
-    /// <summary>The room lock is still held, including while the transport reconnects.</summary>
+    /// <summary>The room connection is still running, including while the transport reconnects.</summary>
     public bool CanControl { get; init; } = Connected;
     public LotteryTheme Theme { get; init; } = LotteryTheme.StarSummon;
     public bool PinnedResults { get; init; }

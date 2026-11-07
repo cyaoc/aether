@@ -84,13 +84,11 @@ public sealed partial class AetherClient : IDisposable
         EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
 
     /// <summary>Reads the saved credential's account; returns null when not logged in. Request failures propagate to the caller.</summary>
-    /// <remarks>Read-only: does not refresh or delete the credential, and takes no room lock.</remarks>
+    /// <remarks>Read-only: does not refresh or delete the credential.</remarks>
     public async Task<Account?> GetAccountAsync(CancellationToken cancellationToken = default) =>
         await Api(stores.Value.Credentials.Load()).GetAccountAsync(cancellationToken);
 
     /// <summary>Signs out on B站 when possible; the local credential is deleted either way unless the caller cancels.</summary>
-    /// <remarks>Takes no room lock. A room connection running elsewhere on this data directory keeps going,
-    /// and its next reconnect asks for a scan.</remarks>
     public async Task LogoutAsync(CancellationToken cancellationToken = default)
     {
         var credentials = stores.Value.Credentials;
@@ -145,7 +143,7 @@ public sealed partial class AetherClient : IDisposable
             if (!running.IsCompleted)
             {
                 await stop.CancelAsync();
-                // Wait, so the room lock is free once the caller's DisposeAsync returns. The caller has stopped reading,
+                // Wait, so the room connection has ended once the caller's DisposeAsync returns. The caller has stopped reading,
                 // and RoomConnection already logged any real failure, so there is nobody left to report it to.
                 try { await running; }
                 catch { }

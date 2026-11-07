@@ -23,7 +23,7 @@ public sealed partial class AetherClient
         // Each is set once and kept across reconnects.
         private long? realRoomId;
         private long broadcasterUid;
-        private FileStream? roomLock;
+        private bool started;
         private IDisposable? roomScope;
         private DanmakuProtocol.Decoder? decoder;
         private bool readDanmakuLengthLimit;
@@ -50,9 +50,9 @@ public sealed partial class AetherClient
                         if (realRoomId is null)
                             (realRoomId, broadcasterUid) = await client.Api(credential: null)
                                 .ResolveRoomAsync(roomId, cancellationToken);
-                        if (roomLock is null)
+                        if (!started)
                         {
-                            roomLock = AcquireRoomLock(realRoomId.Value);
+                            started = true;
                             roomScope = client.logger.BeginRoomScope(realRoomId.Value);
                             client.logger.LogInformation("直播间连接开始");
                             if (enableStreamOverlay)
@@ -102,7 +102,7 @@ public sealed partial class AetherClient
                             client.logger.LogWarning(exception, "连接弹幕服务器失败，{Seconds} 秒后重试：{Error}", retrySeconds, reason ?? error.Message);
                     }
                     // The caller records every failure for the process; this copy only tells the room's file how it ended.
-                    catch (Exception error) when (roomLock is not null && !cancellationToken.IsCancellationRequested)
+                    catch (Exception error) when (started && !cancellationToken.IsCancellationRequested)
                     {
                         client.logger.LogError(error, "直播间连接失败");
                         throw;
@@ -119,11 +119,10 @@ public sealed partial class AetherClient
             {
                 animationStop.Cancel();
                 var discarded = sendQueue.Clear();
-                if (roomLock is not null)
+                if (started)
                     client.logger.LogInformation("直播间连接结束，发送队列丢掉 {Count} 条待发弹幕", discarded);
                 roomScope?.Dispose();
-                if (roomLock is not null) Handle(new RoomConnectionEnded());
-                roomLock?.Dispose();
+                if (started) Handle(new RoomConnectionEnded());
             }
         }
 
@@ -147,28 +146,6 @@ public sealed partial class AetherClient
             yield return new Connecting();
             await foreach (var update in ReceiveUpdatesAsync(realRoomId, api, cancellationToken))
                 yield return update;
-        }
-
-        // ponytail: On Unix this is a best-effort flock: .NET silently skips it when DOTNET_SYSTEM_IO_DISABLEFILELOCKING is set
-        // or the filesystem rejects flock (some network mounts). Fine while data/ sits on a local disk, as the README asks.
-        // For OpenOrCreate + FileShare.None + DeleteOnClose, .NET verifies the inode after locking on Unix
-        // and reopens if another owner deleted/replaced the path during handoff.
-        private FileStream AcquireRoomLock(long realRoomId)
-        {
-            Directory.CreateDirectory(client.dataDirectory);
-            var path = Path.Combine(client.dataDirectory, FormattableString.Invariant($"room-{realRoomId}.lock"));
-            try
-            {
-                return new FileStream(path, new FileStreamOptions
-                {
-                    Mode = FileMode.OpenOrCreate, Access = FileAccess.ReadWrite, Share = FileShare.None,
-                    Options = FileOptions.DeleteOnClose,
-                });
-            }
-            catch (IOException error) when (FileLock.IsHeld(error))
-            {
-                throw new InvalidOperationException($"直播间 {realRoomId} 已有直播间连接（可能在另一个 CLI 或 GUI 里）。", error);
-            }
         }
 
         private async IAsyncEnumerable<WatchUpdate> ReceiveUpdatesAsync(

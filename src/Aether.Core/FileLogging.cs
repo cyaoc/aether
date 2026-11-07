@@ -57,7 +57,7 @@ public static class FileLogging
                     outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] ({ProcessId}) {SourceContext}: {Message:lj}{NewLine}{Exception}"),
                     // Unbuffered and closed after every event, so exit has nothing left to flush.
                     // ponytail: reopen per event so an idle GUI never holds a previous room's file;
-                    // tie cached sinks to room-lock lifetime only if logging throughput needs it.
+                    // tie cached sinks to the room connection's lifetime only if logging throughput needs it.
                     sinkMapCountLimit: 0)
                 .CreateLogger();
             var settingsLog = Logger.ForContext("SourceContext", "Aether.Core.Settings");
