@@ -101,14 +101,13 @@ public sealed partial class AetherClient
             client.logger.LogInformation("直播间连接开始");
             decoder = new DanmakuProtocol.Decoder(realRoomId, client.logger,
                 () => Settings.WelcomeEnabled.Value || client.WebService.Settings?.EntryAnimationEnabled.Value == true);
-            return new(post => CreateState(realRoomId, post, animationStop), client.steps, client.logger);
+            return client.regions.Create(timers => CreateState(realRoomId, timers, animationStop));
         }
 
         /// <summary>The region's state: the 发送队列, and the features in the order they handle each event.</summary>
-        private RoomConnectionState CreateState(long realRoomId, Action<Action> post, CancellationToken animationStop)
+        private RoomConnectionState CreateState(long realRoomId, StepTimers timers, CancellationToken animationStop)
         {
-            var sendQueue = new SendQueue(client.timeProvider, client.logger,
-                TimeSpan.FromSeconds(Settings.SendIntervalSeconds.Value), output, post);
+            var sendQueue = new SendQueue(timers, client.logger, TimeSpan.FromSeconds(Settings.SendIntervalSeconds.Value), output);
             List<IRoomFeature> features = [];
             if (enableStreamOverlay)
             {
@@ -120,8 +119,8 @@ public sealed partial class AetherClient
                 realRoomId, Settings.BlindBoxEnabled.Value), sendQueue, Settings.BlindBoxAnnounce.Value));
             if (enableStreamOverlay)
             {
-                features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId,
-                    round => { client.WebService.PlayGiftRound(round, animationStop); output.TryWrite(round); }, post));
+                features.Add(new GiftRoundFeature(timers, client.logger, realRoomId,
+                    round => { client.WebService.PlayGiftRound(round, animationStop); output.TryWrite(round); }));
                 features.Add(new EntryAnimationFeature(client.WebService, animationStop));
             }
             if (Settings.WelcomeEnabled.Value) features.Add(new WelcomeFeature(Settings, sendQueue));

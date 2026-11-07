@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace Aether.Core;
 
 /// <summary>The GUI state region's facade (ADR 0017): the GUI changes what it keeps between runs through these commands and shows
@@ -8,7 +6,8 @@ public sealed class GuiStateFacade
 {
     private readonly Region<GuiStateController> region;
 
-    internal GuiStateFacade(GuiStateController state, PendingSteps steps, ILogger logger) => region = new(state, steps, logger);
+    internal GuiStateFacade(Regions regions, Func<GuiStateStore> store) =>
+        region = regions.Create(_ => new GuiStateController(store, regions.Logger));
 
     /// <summary>The current state first, then one per change.</summary>
     public IAsyncEnumerable<GuiState> GetUpdatesAsync(CancellationToken token = default) =>

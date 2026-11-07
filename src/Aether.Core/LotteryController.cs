@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace Aether.Core;
 
 /// <summary>The lottery region's state (ADR 0017): one room's lottery, independent of the browser and the room transport
-/// lifetime, and the 奖品方案. Its timers post their steps through the region.</summary>
+/// lifetime, and the 奖品方案. Its timers post their steps to the region.</summary>
 public sealed partial class LotteryController
 {
     public static readonly TimeSpan DrawDuration = TimeSpan.FromSeconds(7);
@@ -20,26 +20,23 @@ public sealed partial class LotteryController
     private const string DrawInProgress = "请等本次开奖结束。";
     private const string InvalidUid = "UID 必须是正整数或留空";
     private readonly Func<LotteryStore> store;
+    private readonly StepTimers timers;
     private readonly TimeProvider time;
     private readonly ILogger logger;
     private readonly Random random;
-    private readonly Action<Action> post;
-    private readonly Action<LotteryState> report;
     private LotteryState state = new(null, false, null);
     private ITimer? drawTimer;
 
-    /// <param name="post">Queues a step on the lottery region, which the timers do when they fire.</param>
-    /// <param name="report">Takes each state reported, as the snapshot anyone may read.</param>
-    internal LotteryController(Func<LotteryStore> store, TimeProvider time, ILogger logger, Random random, Action<Action> post,
-        Action<LotteryState> report)
+    internal LotteryController(Func<LotteryStore> store, StepTimers timers, ILogger logger, Random random)
     {
         this.store = store;
-        this.time = time;
+        this.timers = timers;
+        time = timers.Time;
         this.logger = logger;
         this.random = random;
-        this.post = post;
-        this.report = report;
     }
+
+    internal LotteryState State => state;
 
     internal LotteryUpdate Update => new(state, example);
 
@@ -261,7 +258,7 @@ public sealed partial class LotteryController
         var remaining = until - time.GetUtcNow();
         if (remaining <= TimeSpan.Zero) { FinishDraw(id, until); return; }
         drawTimer?.Dispose();
-        drawTimer = time.CreateTimer(_ => post(() => TryFinishDraw(id, until)), null, remaining, Timeout.InfiniteTimeSpan);
+        drawTimer = timers.Start(remaining, () => TryFinishDraw(id, until));
     }
 
     private void TryFinishDraw(string id, DateTimeOffset until)
@@ -295,11 +292,7 @@ public sealed partial class LotteryController
         Broadcast();
     }
 
-    private void Broadcast()
-    {
-        Subscribers.Publish(Update);
-        report(state);
-    }
+    private void Broadcast() => Subscribers.Publish(Update);
 
     /// <summary>The region's last step: no timer fires again, and every reader's updates end.</summary>
     internal void Dispose()

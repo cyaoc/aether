@@ -11,11 +11,11 @@ internal sealed class QuietTimer : IDisposable
     private long lastReceived;
     private bool disposed;
 
-    public QuietTimer(TimeProvider time, Action<Action> post, Action quiet)
+    public QuietTimer(StepTimers timers, Action quiet)
     {
-        this.time = time;
+        time = timers.Time;
         this.quiet = quiet;
-        timer = time.CreateTimer(_ => post(Check), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        timer = timers.Start(Timeout.InfiniteTimeSpan, Check);
     }
 
     public void Reset(long receivedAt)

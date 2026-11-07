@@ -6,11 +6,13 @@ namespace Aether.Core.Tests;
 /// <summary>ADR 0017: a region runs one step at a time, in the order the steps came.</summary>
 public sealed class RegionTests
 {
-    private readonly PendingSteps steps = new();
     private readonly RecordingLogger logger = new();
+    private readonly Regions regions;
     private readonly List<int> state = [];
 
-    private Region<List<int>> NewRegion() => new(state, steps, logger);
+    public RegionTests() => regions = new(TimeProvider.System, logger);
+
+    private Region<List<int>> NewRegion() => regions.Create(_ => state);
 
     [Fact]
     public async Task Steps_run_in_the_order_they_came()
@@ -45,7 +47,7 @@ public sealed class RegionTests
     {
         var region = NewRegion();
 
-        region.Post(_ => throw new InvalidOperationException("坏了"));
+        region.Post(void (_) => throw new InvalidOperationException("坏了"));
         region.Post(s => s.Add(1));
 
         var after = await region.Run(s => s.ToArray());
@@ -62,7 +64,7 @@ public sealed class RegionTests
         region.Post(s => s.Add(1));
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => region.Run(s => s.Count));
-        await steps.IdleAsync();
+        await regions.IdleAsync();
         Assert.Empty(state);
     }
 
@@ -70,11 +72,11 @@ public sealed class RegionTests
     public async Task Idle_waits_for_a_step_that_a_step_posted_to_another_region()
     {
         var first = NewRegion();
-        var second = new Region<List<int>>([], steps, logger);
+        var second = regions.Create(_ => new List<int>());
         var ran = false;
 
         first.Post(_ => second.Post(_ => ran = true));
-        await steps.IdleAsync();
+        await regions.IdleAsync();
 
         Assert.True(ran);
     }

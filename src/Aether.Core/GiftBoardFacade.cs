@@ -11,11 +11,11 @@ public sealed class GiftBoardFacade
     private readonly ILogger logger;
 
     /// <param name="faceOf">Asks B站 for a viewer's avatar by uid.</param>
-    internal GiftBoardFacade(GiftBoardController state, Func<long, Task<string>> faceOf, PendingSteps steps, ILogger logger)
+    internal GiftBoardFacade(Regions regions, Func<GiftBoardStore> store, Func<long, Task<string>> faceOf)
     {
-        region = new(state, steps, logger);
+        region = regions.Create(_ => new GiftBoardController(store, regions.Time, regions.Logger));
         this.faceOf = faceOf;
-        this.logger = logger;
+        logger = regions.Logger;
     }
 
     /// <summary>The current state first, then one per change.</summary>

@@ -7,10 +7,9 @@ namespace Aether.Core;
 
 /// <summary>One room connection's 发送队列: blind box queries, announcements and welcomes, paced to avoid B站's rate limits.
 /// Reconnects keep it, pacing included; the end of the room connection clears it. Part of the room connection region's state
-/// (ADR 0017): only its steps touch it, the sending loop's included, and its quiet-window timers <paramref name="post"/> theirs.
+/// (ADR 0017): only its steps touch it, the sending loop's included, and its quiet-window <paramref name="timers"/> post theirs.
 /// </summary>
-internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan interval, ChannelWriter<WatchUpdate> output,
-    Action<Action> post)
+internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan interval, ChannelWriter<WatchUpdate> output)
 {
     private static readonly TimeSpan SameTextWindow = TimeSpan.FromSeconds(5);
     // A timer accepts at most uint.MaxValue - 1 milliseconds, even for a valid longer setting.
@@ -18,6 +17,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     private static readonly TimeSpan WelcomeLifetime = TimeSpan.FromSeconds(30);
     // Process-wide, so a shell that keeps items across room connections never sees an id twice.
     private static long nextId;
+    private readonly TimeProvider time = timers.Time;
 
     /// <summary>One queued send, addressed to a viewer.</summary>
     internal abstract record Item(long Id, long Uid, string Nickname);
@@ -166,7 +166,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         {
             round = new(new(Interlocked.Increment(ref nextId), box.Uid, box.Nickname));
             rounds.Add(box.Uid, round);
-            round.Timer = new QuietTimer(time, post, () =>
+            round.Timer = new QuietTimer(timers, () =>
             {
                 if (!round.Queued)
                 {

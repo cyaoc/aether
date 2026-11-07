@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
 
@@ -8,13 +7,16 @@ namespace Aether.Core;
 public sealed class LotteryFacade
 {
     private readonly Region<LotteryController> region;
-    private LotteryState snapshot = new(null, false, null);
+    private readonly Func<LotteryState> state;
 
-    internal LotteryFacade(Func<LotteryStore> store, TimeProvider time, Random random, PendingSteps steps, ILogger logger) =>
-        region = new(post => new(store, time, logger, random, post, state => Volatile.Write(ref snapshot, state)), steps, logger);
+    internal LotteryFacade(Regions regions, Func<LotteryStore> store, Random random)
+    {
+        region = regions.Create(timers => new LotteryController(store, timers, regions.Logger, random));
+        state = region.Snapshot(s => s.State);
+    }
 
-    /// <summary>The state as last reported (ADR 0017 convention 6).</summary>
-    public LotteryState State => Volatile.Read(ref snapshot);
+    /// <summary>The state as the last step left it (ADR 0017 convention 6).</summary>
+    public LotteryState State => state();
 
     /// <summary>The current state first, then one per change.</summary>
     public IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync(CancellationToken token = default) =>

@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Logging;
-
 namespace Aether.Core;
 
 /// <summary>The account region's facade (ADR 0017): the saved credential is read and written only in its steps, while the requests
@@ -9,7 +7,7 @@ internal sealed class AccountFacade
     private readonly Region<Func<CredentialStore>> region;
 
     /// <param name="store">Opens the database on first use, so the first step can throw like any other store call.</param>
-    public AccountFacade(Func<CredentialStore> store, PendingSteps steps, ILogger logger) => region = new(store, steps, logger);
+    public AccountFacade(Regions regions, Func<CredentialStore> store) => region = regions.Create(_ => store);
 
     public Task<Credential?> LoadAsync() => region.Run(store => store().Load());
 

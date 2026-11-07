@@ -5,7 +5,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Aether.Core.Entries;
-using Microsoft.Extensions.Logging;
 using Connection = Aether.Core.WebService.Connection;
 
 namespace Aether.Core;
@@ -20,28 +19,30 @@ public sealed class WebServiceFacade
     private const string Heartbeat = ": heartbeat\n\n";
     // Both sides go through GetFullPath so Windows expands 8.3 short names in the program directory alike.
     private static readonly string PagesDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "Pages")) + Path.DirectorySeparatorChar;
-    private readonly WebServiceSnapshot snapshot = new();
     private readonly Region<WebService> region;
+    private readonly Func<WebServiceStatus> status;
+    private readonly Func<Settings?> settings;
     private readonly TimeProvider timeProvider;
     private readonly WebPage[] pages;
 
-    internal WebServiceFacade(string dataDirectory, TimeProvider timeProvider, ILogger logger, PendingSteps steps,
-        LotteryFacade lottery, GiftBoardFacade giftBoard)
+    internal WebServiceFacade(Regions regions, string dataDirectory, LotteryFacade lottery, GiftBoardFacade giftBoard)
     {
-        this.timeProvider = timeProvider;
+        timeProvider = regions.Time;
         // shortcut: pending videos are unbounded; add a capacity if playback sources can flood the queue.
         var queue = Channel.CreateUnbounded<VideoQueue.Playback>(new UnboundedChannelOptions { SingleReader = true });
-        region = new(new WebService(snapshot, queue.Writer, timeProvider, logger), steps, logger);
+        region = regions.Create(_ => new WebService(queue.Writer, regions.Time, regions.Logger));
+        status = region.Snapshot(s => s.Status);
+        settings = region.Snapshot(s => s.Settings);
         Lottery = new(this, lottery);
         pages = [new VideoPage(this, region, queue.Reader, dataDirectory, timeProvider), Lottery, new GiftBoardPage(giftBoard)];
     }
 
     public LotteryPage Lottery { get; }
 
-    public WebServiceStatus Status => snapshot.Status;
+    public WebServiceStatus Status => status();
 
-    /// <inheritdoc cref="WebServiceSnapshot.Settings"/>
-    public Settings? Settings => snapshot.Settings;
+    /// <inheritdoc cref="WebService.Settings"/>
+    public Settings? Settings => settings();
 
     /// <summary>Subscribe independently of WatchAsync. The first update is the current service status.</summary>
     public IAsyncEnumerable<WebServiceUpdate> GetUpdatesAsync(CancellationToken cancellationToken = default) =>

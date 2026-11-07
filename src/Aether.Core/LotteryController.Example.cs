@@ -50,8 +50,7 @@ public sealed partial class LotteryController
             Broadcast();
             exampleTimer?.Dispose();
             if (++index < frames.Length)
-                exampleTimer = time.CreateTimer(_ => post(Advance), null,
-                    TimeSpan.FromTicks(Math.Max(0, (now.AddSeconds(frames[index].At) - time.GetUtcNow()).Ticks)), Timeout.InfiniteTimeSpan);
+                exampleTimer = timers.Start(TimeSpan.FromTicks(Math.Max(0, (now.AddSeconds(frames[index].At) - time.GetUtcNow()).Ticks)), Advance);
             else exampleRun = null;
         }
         Advance();

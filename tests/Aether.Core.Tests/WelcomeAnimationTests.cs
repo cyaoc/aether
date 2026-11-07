@@ -401,7 +401,7 @@ public sealed class WelcomeAnimationTests
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var time = new PausedTimerProvider(() => { entered.SetResult(); release.Wait(); });
-        var service = new WebServiceFacade(h.DataDirectory, time, h.Logger, new PendingSteps(), h.Client.Lottery, h.Client.GiftBoard);
+        var service = new WebServiceFacade(new Regions(time, h.Logger), h.DataDirectory, h.Client.Lottery, h.Client.GiftBoard);
         var ports = new HashSet<int>();
         while (ports.Count < 3) ports.Add(FreePort());
         var candidates = ports.ToArray();

@@ -9,15 +9,13 @@ namespace Aether.Core;
 /// any of this.</summary>
 internal sealed class WebService
 {
-    private readonly WebServiceSnapshot snapshot;
     private readonly ILogger logger;
     private readonly HashSet<Connection> connections = [];
     private (HttpListener Listener, CancellationTokenSource Stop)? serving;
     private Task running = Task.CompletedTask;
 
-    public WebService(WebServiceSnapshot snapshot, ChannelWriter<VideoQueue.Playback> queue, TimeProvider timeProvider, ILogger logger)
+    public WebService(ChannelWriter<VideoQueue.Playback> queue, TimeProvider timeProvider, ILogger logger)
     {
-        this.snapshot = snapshot;
         this.logger = logger;
         Video = new(this, queue, timeProvider);
         WelcomeAnimation = new(this, timeProvider, logger);
@@ -39,10 +37,13 @@ internal sealed class WebService
     public WelcomeAnimation WelcomeAnimation { get; }
     public EntryAnimation EntryAnimation { get; }
     public GiftAnimation GiftAnimation { get; }
-    public WebServiceStatus Status => snapshot.Status;
-    public Settings? Settings => snapshot.Settings;
+    public WebServiceStatus Status { get; private set; } = new(false, Settings.WebPort.Initial.Value, 0, 0, 0);
 
-    public void Apply(Settings settings) => snapshot.Settings = settings;
+    /// <summary>The settings applied last. Playback sources and the room's decoder read these, not their room connection's,
+    /// so a save reaches them without reconnecting.</summary>
+    public Settings? Settings { get; private set; }
+
+    public void Apply(Settings settings) => Settings = settings;
 
     /// <summary>Only a changed port restarts existing connections.</summary>
     public bool Serves(int port) => serving is not null && Status.Port == port;
@@ -146,7 +147,7 @@ internal sealed class WebService
 
     private void Report(WebServiceStatus status)
     {
-        snapshot.Status = status;
+        Status = status;
         Subscribers.Publish(status);
     }
 
@@ -156,17 +157,4 @@ internal sealed class WebService
         try { response.Abort(); }
         catch (ObjectDisposedException) { }
     }
-}
-
-/// <summary>What the web service region showed when its last step ended (ADR 0017 convention 6): its steps write it, anyone reads it.</summary>
-internal sealed class WebServiceSnapshot
-{
-    private WebServiceStatus status = new(false, Settings.WebPort.Initial.Value, 0, 0, 0);
-    private Settings? settings;
-
-    public WebServiceStatus Status { get => Volatile.Read(ref status); set => Volatile.Write(ref status, value); }
-
-    /// <summary>The settings applied last. Playback sources and the room's decoder read these, not their room connection's,
-    /// so a save reaches them without reconnecting.</summary>
-    public Settings? Settings { get => Volatile.Read(ref settings); set => Volatile.Write(ref settings, value); }
 }

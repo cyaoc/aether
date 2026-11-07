@@ -22,7 +22,7 @@ public sealed partial class AetherClient : IDisposable
     public GuiStateFacade GuiState { get; }
     private readonly AccountFacade account;
     private readonly Lazy<Stores> stores;
-    private readonly PendingSteps steps = new();
+    private readonly Regions regions;
 
     public AetherClient(HttpMessageHandler httpHandler, Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket,
         TimeProvider timeProvider, ILogger<AetherClient> logger, string dataDirectory, Random? random = null)
@@ -39,17 +39,16 @@ public sealed partial class AetherClient : IDisposable
             return new Stores(new CredentialStore(database), new BlindBoxStore(database), new GiftStore(database, logger),
                 new LotteryStore(database), new GiftBoardStore(database), new GuiStateStore(database));
         }, LazyThreadSafetyMode.PublicationOnly);
-        Lottery = new(() => stores.Value.Lotteries, timeProvider, random ?? Random.Shared, steps, logger);
-        GiftBoard = new(new GiftBoardController(() => stores.Value.GiftBoards, timeProvider, logger),
-            uid => Api(credential: null).GetFaceAsync(uid, CancellationToken.None), steps, logger);
-        WebService = new(dataDirectory, timeProvider, logger, steps, Lottery, GiftBoard);
-        GuiState = new(new GuiStateController(() => stores.Value.GuiStates, logger), steps, logger);
-        account = new(() => stores.Value.Credentials, steps, logger);
+        regions = new(timeProvider, logger);
+        Lottery = new(regions, () => stores.Value.Lotteries, random ?? Random.Shared);
+        GiftBoard = new(regions, () => stores.Value.GiftBoards, uid => Api(credential: null).GetFaceAsync(uid, CancellationToken.None));
+        WebService = new(regions, dataDirectory, Lottery, GiftBoard);
+        GuiState = new(regions, () => stores.Value.GuiStates);
+        account = new(regions, () => stores.Value.Credentials);
     }
 
-    /// <summary>Waits until every region has run the steps queued so far, and those they queue for each other (ADR 0017). It does
-    /// not wait for outside flows, such as a network request.</summary>
-    public Task IdleAsync() => steps.IdleAsync();
+    /// <inheritdoc cref="Regions.IdleAsync"/>
+    public Task IdleAsync() => regions.IdleAsync();
 
     private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes, GiftStore Gifts, LotteryStore Lotteries,
         GiftBoardStore GiftBoards, GuiStateStore GuiStates);

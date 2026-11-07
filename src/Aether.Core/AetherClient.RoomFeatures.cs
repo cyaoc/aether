@@ -39,9 +39,9 @@ public sealed partial class AetherClient
         }
     }
 
-    private sealed class GiftRoundFeature(TimeProvider time, ILogger logger, long roomId,
-        Action<GiftRoundEnded> ended, Action<Action> post) : IRoomFeature
+    private sealed class GiftRoundFeature(StepTimers timers, ILogger logger, long roomId, Action<GiftRoundEnded> ended) : IRoomFeature
     {
+        private readonly TimeProvider time = timers.Time;
         private sealed class Round(long uid, string nickname)
         {
             public long Uid = uid;
@@ -71,7 +71,7 @@ public sealed partial class AetherClient
                 {
                     round = new(gift.Uid, gift.Nickname);
                     rounds.Add(gift.Uid, round);
-                    round.Timer = new QuietTimer(time, post, () =>
+                    round.Timer = new QuietTimer(timers, () =>
                     {
                         rounds.Remove(round.Uid);
                         round.Timer.Dispose();
