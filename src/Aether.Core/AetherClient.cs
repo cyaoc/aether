@@ -16,10 +16,7 @@ public sealed partial class AetherClient : IDisposable
     private readonly TimeProvider timeProvider;
     private readonly ILogger<AetherClient> logger;
     private readonly string dataDirectory;
-    public WebService WebService { get; }
-    public WelcomeAnimation WelcomeAnimation { get; }
-    public GiftAnimation GiftAnimation { get; }
-    public EntryAnimation EntryAnimation { get; }
+    public WebServiceFacade WebService { get; }
     public LotteryController Lottery { get; }
     public GiftBoardController GiftBoard { get; }
     public GuiStateFacade GuiState { get; }
@@ -44,24 +41,13 @@ public sealed partial class AetherClient : IDisposable
         Lottery = new(() => stores.Value.Lotteries, timeProvider, logger, random ?? Random.Shared);
         GiftBoard = new(() => stores.Value.GiftBoards, timeProvider,
             uid => Api(credential: null).GetFaceAsync(uid, CancellationToken.None), logger);
-        WebService = new(dataDirectory, timeProvider, logger, Lottery, GiftBoard);
-        WelcomeAnimation = new(WebService, timeProvider, logger);
-        EntryAnimation = new(WebService, WelcomeAnimation, timeProvider, logger);
-        GiftAnimation = new(WebService, timeProvider, logger);
+        WebService = new(dataDirectory, timeProvider, logger, steps, Lottery, GiftBoard);
         GuiState = new(new GuiStateController(() => stores.Value.GuiStates, logger), steps, logger);
     }
 
     /// <summary>Waits until every region has run the steps queued so far, and those they queue for each other (ADR 0017). It does
     /// not wait for outside flows, such as a network request.</summary>
     public Task IdleAsync() => steps.IdleAsync();
-
-    /// <summary>Applies feature settings immediately; only a port change restarts the web service.</summary>
-    public async Task ApplyWebSettingsAsync(Settings settings)
-    {
-        if (settings.Error is { } error) throw error;
-        WebService.Video.Apply(settings);
-        await WebService.StartAsync(settings.WebServicePort.Value).ConfigureAwait(false);
-    }
 
     private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes, GiftStore Gifts, LotteryStore Lotteries,
         GiftBoardStore GiftBoards, GuiStateStore GuiStates);
@@ -298,7 +284,7 @@ public sealed partial class AetherClient : IDisposable
         catch { socket.Dispose(); throw; }
     }
 
-    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); GiftBoard.Dispose(); GuiState.Stop(); http.Dispose(); }
+    public void Dispose() { WebService.Stop(); Lottery.Dispose(); GiftBoard.Dispose(); GuiState.Stop(); http.Dispose(); }
 }
 
 public static class AetherHosting

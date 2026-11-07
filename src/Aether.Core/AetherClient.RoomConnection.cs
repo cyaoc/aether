@@ -66,8 +66,8 @@ public sealed partial class AetherClient
                             if (enableStreamOverlay)
                             {
                                 features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
-                                    round => { client.GiftAnimation.Enqueue(round, animationStop.Token); output.TryWrite(round); }));
-                                features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop.Token));
+                                    round => { client.WebService.PlayGiftRound(round, animationStop.Token); output.TryWrite(round); }));
+                                features.Add(new EntryAnimationFeature(client.WebService, animationStop.Token));
                             }
                             if (Settings.WelcomeEnabled.Value)
                             {
@@ -75,7 +75,7 @@ public sealed partial class AetherClient
                                 readDanmakuLengthLimit = true;
                             }
                             decoder = new DanmakuProtocol.Decoder(realRoomId.Value, client.logger,
-                                () => Settings.WelcomeEnabled.Value || client.WebService.Video.Settings?.EntryAnimationEnabled.Value == true);
+                                () => Settings.WelcomeEnabled.Value || client.WebService.Settings?.EntryAnimationEnabled.Value == true);
                         }
                         await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {

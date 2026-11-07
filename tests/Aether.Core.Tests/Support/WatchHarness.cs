@@ -110,7 +110,7 @@ internal sealed class WatchHarness : IAsyncDisposable
         var port = Client.WebService.Status is { Running: true } running ? running.Port : WelcomeAnimationTests.FreePort();
         Settings.Save(DataDirectory, new Dictionary<string, string>(changes.Select(change => KeyValuePair.Create(change.Name, change.Value)))
             { ["web_service.port"] = port.ToString() });
-        await Client.ApplyWebSettingsAsync(Settings.Load(DataDirectory));
+        await Client.WebService.ApplySettingsAsync(Settings.Load(DataDirectory));
     }
 
     public async Task LoginAsync()
@@ -147,6 +147,8 @@ internal sealed class WatchHarness : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await Stop.CancelAsync();
+        // The shell stops the web service, as disposing the client no longer does; some tests stop it, and Core, themselves.
+        if (Client.WebService.Status.Running) await Client.WebService.StopAsync();
         Client.Dispose();
         await Server.DisposeAsync();
         Stop.Dispose();
