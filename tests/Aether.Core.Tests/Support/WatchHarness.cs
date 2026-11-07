@@ -14,6 +14,7 @@ internal sealed class WatchHarness : IAsyncDisposable
     /// <summary>A danmaku whose arrival shows every room message pushed before it has been handled.</summary>
     public const string SyncDanmaku = """{"cmd":"DANMU_MSG","info":[[],"同步",[0,"观众"]]}""";
     public AetherClient Client { get; }
+    private readonly List<AetherClient> sharing = [];
     /// <summary>Whether the room connection runs the 直播画面功能, as the GUI's does.</summary>
     public bool EnableStreamOverlay { get; set; }
 
@@ -37,8 +38,12 @@ internal sealed class WatchHarness : IAsyncDisposable
 
     /// <summary>Another shell's client on this data directory, with its own cookies and request log.</summary>
     public AetherClient ClientSharingData(
-        Func<Uri, CancellationToken, Task<System.Net.WebSockets.WebSocket>> connectWebSocket, FakeBilibiliHttp? http = null) =>
-        new(http ?? new FakeBilibiliHttp { Respond = Http.Respond }, connectWebSocket, Time, Logger, DataDirectory);
+        Func<Uri, CancellationToken, Task<System.Net.WebSockets.WebSocket>> connectWebSocket, FakeBilibiliHttp? http = null)
+    {
+        AetherClient client = new(http ?? new FakeBilibiliHttp { Respond = Http.Respond }, connectWebSocket, Time, Logger, DataDirectory);
+        sharing.Add(client);
+        return client;
+    }
 
     /// <summary>Watches room 6 on <paramref name="client"/> (this harness's own by default) until <see cref="Stop"/>.</summary>
     public IAsyncEnumerator<WatchUpdate> Watch(AetherClient? client = null, bool includeSendQueueUpdates = false, bool includeGiftRounds = false) =>
@@ -147,6 +152,8 @@ internal sealed class WatchHarness : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await Stop.CancelAsync();
+        // Core's steps read and write data/, deleted below, also those of a client the test has disposed.
+        foreach (var client in sharing.Prepend(Client)) await client.IdleAsync();
         Client.Dispose();
         await Server.DisposeAsync();
         Stop.Dispose();
