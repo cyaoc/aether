@@ -16,7 +16,8 @@ public partial class LotteryViewModel
     internal void ObservePrizeSets()
     {
         if (shutdown.IsCancellationRequested || !prizeSetUpdates.Current.IsCompleted) return;
-        prizeSetUpdates.Follow(client.Lottery.GetPrizeSetUpdatesAsync, sets => PrizeSets = sets, logger, "奖品方案订阅中断");
+        prizeSetUpdates.Follow(client.Lottery.GetPrizeSetUpdatesAsync, sets => PrizeSets = sets,
+            error => PoolLotteryError = EntryLotteryError = $"读取奖品方案失败：{error.Message}");
     }
 
     internal async Task<bool> SavePrizeSetAsync(LotteryMode mode, string name)

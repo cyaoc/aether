@@ -43,7 +43,8 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     {
         if (shutdown.IsCancellationRequested) return;
         animationSettings = snapshot;
-        if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Follow(client.WebService.GetUpdatesAsync, Apply, logger, "网页服务状态订阅中断");
+        if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Follow(client.WebService.GetUpdatesAsync, Apply,
+            error => logger.LogError(error, "网页服务状态订阅中断"));
         var reload = animationReload.Start(ReloadAsync);
         NotifyAnimationRows();
         await reload;

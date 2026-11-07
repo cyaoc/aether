@@ -85,6 +85,29 @@ public sealed class LotteryPanelTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task Prize_sets_that_cannot_be_read_say_so_under_both_panels() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        await h.SaveCredentialAsync();
+        using (var connection = h.OpenDatabase())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "DROP TABLE lottery_prize_set";
+            command.ExecuteNonQuery();
+        }
+        var vm = h.CreateViewModel();
+        try
+        {
+            vm.Lottery.ObservePrizeSets();
+            await h.IdleAsync();
+            Assert.StartsWith("读取奖品方案失败：", vm.Lottery.PoolLotteryError);
+            Assert.Equal(vm.Lottery.PoolLotteryError, vm.Lottery.EntryLotteryError);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task A_new_lottery_forgets_the_chosen_prize_set() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();

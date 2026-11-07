@@ -234,7 +234,7 @@ public partial class MainWindowViewModel : ObservableObject
     internal void ObserveGuiState()
     {
         if (shutdown.IsCancellationRequested || !guiStateUpdates.Current.IsCompleted) return;
-        guiStateUpdates.Follow(client.GuiState.GetUpdatesAsync, Show, logger, "GUI 状态订阅中断");
+        guiStateUpdates.Follow(client.GuiState.GetUpdatesAsync, Show, error => logger.LogError(error, "GUI 状态订阅中断"));
     }
 
     /// <summary>Core's first report fills the room input while it is still empty; later ones keep what is typed, which a changed
