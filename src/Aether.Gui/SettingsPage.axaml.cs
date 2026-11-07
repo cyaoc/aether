@@ -186,12 +186,8 @@ public abstract class SettingsPage : TemplatedControl
     protected void Bind(ToggleSwitch input, TextBlock readOnly, TextBlock? error, Func<Settings, Setting<bool>> select)
     {
         Register(setting => Show(input, readOnly, setting), () => Settings.BooleanText(input.IsChecked == true), error, select);
-        ValidateOnToggle(input);
-    }
-
-    /// <summary>For a switch a page saves itself (see <see cref="RowsChanged"/>), as <see cref="Bind(ToggleSwitch, TextBlock, TextBlock?, Func{Settings, Setting{bool}})"/> does for a setting.</summary>
-    protected void ValidateOnToggle(ToggleSwitch input) =>
         input.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Validate(); };
+    }
 
     /// <summary>The slider snaps to whole numbers, so any position is a valid setting and needs no error label.</summary>
     protected void Bind(Slider input, TextBlock readOnly, Func<Settings, Setting<int>> select)

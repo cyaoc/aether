@@ -67,7 +67,7 @@ public sealed partial class Settings
           # 荣耀等级达到多少就欢迎，0 表示不按荣耀等级欢迎
           wealth_level: 0
 
-        # 进场欢迎：动画。进场动画和欢迎动画共用这个开关；GUI 保存后下一次进场生效，CLI 下次观看时生效
+        # 进场欢迎：动画。进场动画和欢迎动画共用这个开关；只在 GUI 里生效，保存后下一次进场生效
         entry_animation:
           enabled: false
           # 粉丝团等级门槛：30、40、50 或 60，0 表示不按等级
@@ -75,12 +75,12 @@ public sealed partial class Settings
           # 音量，0 到 100，0 表示静音；进场动画、欢迎动画和送礼动画共用
           volume: 80
 
-        # 动画名单：一行一位，值是 30、40、50、60，0 表示不播，或视频文件名
+        # 动画名单：一行一位，值是 30、40、50、60，0 表示不播，或视频文件名；只在 GUI 里生效
         # UID 必须为正整数；视频放在 data/videos/，只能是 .mp4、.webm 文件名，不能带路径
         entry_animation_viewers:
           # 12345: 40
 
-        # 送礼动画，GUI 保存后下一次送礼生效；CLI 下次观看时生效
+        # 送礼动画，只在 GUI 里生效，保存后下一次送礼生效
         gift_animation:
           enabled: false
           # 每一档的投入门槛（电池），必须是正整数，一档比一档高
@@ -89,10 +89,15 @@ public sealed partial class Settings
           tier_50_spend: 2000
           tier_60_spend: 10000
 
-        # 网页服务，视频页 /video、抽奖页 /lottery、礼物榜页 /gift-board 都从这里打开；先开 Aether 再开推流软件
+        # 网页服务，视频页 /video、抽奖页 /lottery、礼物榜页 /gift-board 都从这里打开；只在 GUI 里生效，先开 Aether 再开推流软件
         web_service:
-          # 端口 1–65535；GUI 保存后立即生效，所有浏览器素材的地址都要跟着改
+          # 端口 1–65535；保存后立即生效，所有浏览器素材的地址都要跟着改
           port: 17890
+
+        # 自动更新，只在 GUI 里生效，下次打开 GUI 时生效
+        auto_update:
+          # true 或 false，打开 GUI 时检查并自动更新
+          enabled: true
 
         """;
 
@@ -140,6 +145,7 @@ public sealed partial class Settings
     public IReadOnlyList<Setting<int>> GiftAnimationThresholds => GiftThresholds.Select(Get).ToArray();
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private static readonly ViewerGroupDefinition AnimationViewers = Register(new ViewerGroupDefinition("entry_animation_viewers"));
+    private static readonly Definition<bool> AutoUpdate = Register(Definition.Boolean("auto_update.enabled", true));
     /// <summary>Adding a setting means registering its definition here, adding its property and a line in Template,
     /// then a Bind call in its GUI settings page (composite settings need their row code instead).
     /// The GUI coverage test catches settings omitted from the pages.</summary>
@@ -164,6 +170,7 @@ public sealed partial class Settings
     public Setting<int> WelcomeGuard => Get(WelcomeGuardTier);
     public Setting<int> WelcomeWealthLevel => Get(WelcomeWealth);
     public Setting<int> WebServicePort => Get(WebPort);
+    public Setting<bool> AutoUpdateEnabled => Get(AutoUpdate);
     public IReadOnlyDictionary<long, Setting<AnimationChoice>> EntryAnimationViewers => AnimationViewers.Items(this);
     public IReadOnlyDictionary<long, Setting<string>> WelcomeAnimationVideos => EntryAnimationViewers.Where(pair => pair.Value.Value.Video is not null).ToDictionary(pair => pair.Key, pair => new Setting<string>(pair.Value.Name, pair.Value.Value.Video!, pair.Value.CanEdit));
     public bool CanEditEntryAnimationViewers => AnimationViewers.CanEdit(this);

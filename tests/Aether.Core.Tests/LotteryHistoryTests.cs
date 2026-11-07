@@ -33,9 +33,29 @@ public sealed class LotteryHistoryTests
     }
 
     [Fact]
+    public async Task The_last_lottery_room_is_where_the_latest_started_lottery_was_held_whatever_the_offsets()
+    {
+        await using var h = new WatchHarness();
+        Assert.Null(h.Client.Lottery.GetLastLotteryRoom());
+        using (var connection = TestDatabase.Open(h.DataDirectory))
+        using (var command = connection.CreateCommand())
+        {
+            // 21:00+08:00 is 13:00 UTC, before 12:30-05:30 (18:00 UTC), though it sorts after it as text.
+            command.CommandText = """
+                INSERT INTO lottery (id, room_id, mode, stop_word, started_at, phase) VALUES
+                    ('late', 42, 'pool', '停', '2026-10-19T12:30:00.0000000-05:30', 0),
+                    ('early', 7734200, 'pool', '停', '2026-10-19T21:00:00.0000000+08:00', 0);
+                """;
+            command.ExecuteNonQuery();
+        }
+
+        Assert.Equal(42L, h.Client.Lottery.GetLastLotteryRoom());
+    }
+
+    [Fact]
     public async Task Pool_history_details_return_the_ended_lottery_with_the_complete_draw()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -63,7 +83,7 @@ public sealed class LotteryHistoryTests
     [Fact]
     public async Task Entry_history_details_return_all_registration_and_draw_fields()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -87,7 +107,7 @@ public sealed class LotteryHistoryTests
     [Fact]
     public async Task History_orders_by_time_then_creation_and_marks_replaced_preparation_as_ended()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -107,7 +127,7 @@ public sealed class LotteryHistoryTests
     [Fact]
     public async Task History_includes_both_modes_and_unfinished_lotteries_after_restart()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         Assert.Empty(h.Client.Lottery.GetHistory(7734200));
         await h.LoginAsync();
         var updates = await h.WatchConnectedAsync();

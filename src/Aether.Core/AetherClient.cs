@@ -37,7 +37,7 @@ public sealed partial class AetherClient : IDisposable
         {
             var database = new Database(dataDirectory);
             return new Stores(new CredentialStore(database), new BlindBoxStore(database), new GiftStore(database, logger),
-                new LotteryStore(database), new GiftBoardStore(database));
+                new LotteryStore(database), new GiftBoardStore(database), new GuiStateStore(database));
         }, LazyThreadSafetyMode.PublicationOnly);
         Lottery = new(() => stores.Value.Lotteries, timeProvider, logger, random ?? Random.Shared);
         GiftBoard = new(() => stores.Value.GiftBoards, timeProvider,
@@ -57,7 +57,10 @@ public sealed partial class AetherClient : IDisposable
     }
 
     private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes, GiftStore Gifts, LotteryStore Lotteries,
-        GiftBoardStore GiftBoards);
+        GiftBoardStore GiftBoards, GuiStateStore GuiStates);
+
+    /// <summary>Opens the database on first use, so reading it can throw like any other store call.</summary>
+    public GuiStateStore GuiState => stores.Value.GuiStates;
 
     private static readonly TimeSpan CredentialCheckInterval = TimeSpan.FromHours(24);
 
@@ -107,19 +110,19 @@ public sealed partial class AetherClient : IDisposable
     }
 
     public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, CancellationToken cancellationToken = default) =>
-        WatchAsync(roomId, enableLotteryAndGiftBoard: false, cancellationToken);
+        WatchAsync(roomId, enableStreamOverlay: false, cancellationToken);
 
-    /// <summary>The GUI opts in to lotteries and the 礼物榜 (ADR 0014); the CLI watches without them.</summary>
-    public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, bool enableLotteryAndGiftBoard, CancellationToken cancellationToken = default)
+    /// <summary>The GUI opts in to the 直播画面功能 (ADR 0003); the CLI watches without them.</summary>
+    public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, bool enableStreamOverlay, CancellationToken cancellationToken = default)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(roomId);
-        return EndOnCancellation(RunRoomConnectionAsync(roomId, enableLotteryAndGiftBoard, cancellationToken), cancellationToken);
+        return EndOnCancellation(RunRoomConnectionAsync(roomId, enableStreamOverlay, cancellationToken), cancellationToken);
     }
 
     /// <summary>Core runs the room connection on its own; the caller only reads what it reports,
     /// so a slow reader never holds up receiving, heartbeats or the idle deadline.</summary>
     private async IAsyncEnumerable<WatchUpdate> RunRoomConnectionAsync(
-        long roomId, bool enableLotteryAndGiftBoard, [EnumeratorCancellation] CancellationToken cancellationToken)
+        long roomId, bool enableStreamOverlay, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         // ponytail: unbounded, so a reader that stops for good grows memory; bound it if a stalled shell ever matters.
         var updates = Channel.CreateUnbounded<WatchUpdate>(new UnboundedChannelOptions { SingleReader = true });
@@ -155,7 +158,7 @@ public sealed partial class AetherClient : IDisposable
             {
                 var settings = Settings.Load(dataDirectory, logger);
                 if (settings.Error is { } settingsError) throw settingsError;
-                await new RoomConnection(this, roomId, settings, updates.Writer, enableLotteryAndGiftBoard).RunAsync(stop.Token);
+                await new RoomConnection(this, roomId, settings, updates.Writer, enableStreamOverlay).RunAsync(stop.Token);
             }
             finally { updates.Writer.Complete(); }
         }

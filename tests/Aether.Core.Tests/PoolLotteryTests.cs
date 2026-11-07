@@ -12,7 +12,7 @@ public sealed class PoolLotteryTests
     [Fact]
     public async Task Queued_callback_from_previous_draw_cannot_finish_the_next_draw()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         var first = await h.WatchConnectedAsync();
         h.Client.Lottery.Start(Prizes, "停");
@@ -39,7 +39,7 @@ public sealed class PoolLotteryTests
     [InlineData(true)]
     public async Task Ended_room_connection_cannot_overwrite_the_next_owners_lottery(bool drawing)
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         var first = await h.WatchConnectedAsync();
         h.Client.Lottery.Start(Prizes, "停", 42);
@@ -66,7 +66,7 @@ public sealed class PoolLotteryTests
     [Fact]
     public async Task Watch_without_GUI_opt_in_does_not_resume_or_run_lotteries()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         var gui = await h.WatchConnectedAsync();
         h.Client.Lottery.Start(Prizes, "停", 42);
@@ -90,7 +90,7 @@ public sealed class PoolLotteryTests
     [InlineData(3, "贴纸")]
     public async Task Weights_host_stop_and_cancel_preserve_the_pool(long pick, string expected)
     {
-        await using var h = new WatchHarness(random: new FixedRandom(pick), enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(random: new FixedRandom(pick), enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -134,7 +134,7 @@ public sealed class PoolLotteryTests
     [Fact]
     public async Task Reconnect_and_restart_restore_active_lottery_draws_and_draw_deadline_and_only_reconnect_keeps_viewers()
     {
-        await using var h = new WatchHarness(random: new FixedRandom(0), enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(random: new FixedRandom(0), enableStreamOverlay: true);
         await h.LoginAsync();
         var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -177,7 +177,7 @@ public sealed class PoolLotteryTests
     [Fact]
     public async Task New_lottery_ends_the_previous_one_and_validation_rejects_invalid_input()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -209,7 +209,7 @@ public sealed class PoolLotteryTests
     [Fact]
     public async Task Browser_gets_snapshot_changes_and_draws_in_state_only_and_cannot_control_the_lottery()
     {
-        await using var h = new WatchHarness(random: new FixedRandom(1), enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(random: new FixedRandom(1), enableStreamOverlay: true);
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
         using var response = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
@@ -251,7 +251,7 @@ public sealed class PoolLotteryTests
     [Fact]
     public async Task Browser_clears_once_the_room_connection_ends_and_shows_the_lottery_again_on_reconnect()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
         await h.LoginAsync();
@@ -268,7 +268,7 @@ public sealed class PoolLotteryTests
     [Fact]
     public async Task Only_the_named_viewer_can_stop_and_a_draw_locks_the_next_draw_for_seven_seconds()
     {
-        await using var h = new WatchHarness(random: new FixedRandom(0), enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(random: new FixedRandom(0), enableStreamOverlay: true);
         var lottery = h.Client.Lottery;
         Assert.Throws<InvalidOperationException>(() => lottery.Start(Prizes, "停", 42));
         await h.LoginAsync();
@@ -300,7 +300,7 @@ public sealed class PoolLotteryTests
     [Fact]
     public async Task Failed_expired_draw_recovery_retries_on_the_next_danmaku()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         var first = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -328,7 +328,7 @@ public sealed class PoolLotteryTests
     [Fact]
     public async Task Failed_reconnect_load_keeps_the_draw_timer_and_retries_on_the_next_danmaku()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -361,7 +361,7 @@ public sealed class PoolLotteryTests
     [Fact]
     public async Task A_broken_lottery_database_is_logged_and_danmaku_keep_coming()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         h.Client.Lottery.New(LotteryMode.Pool);

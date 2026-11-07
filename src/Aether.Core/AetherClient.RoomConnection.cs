@@ -9,7 +9,7 @@ public sealed partial class AetherClient
 {
     /// <summary>One room connection: from resolving the room until it ends, across every reconnect.
     /// Runs on its own and reports to <paramref name="output"/>; whoever reads it never paces it.</summary>
-    private sealed class RoomConnection(AetherClient client, long roomId, Settings settings, ChannelWriter<WatchUpdate> output, bool enableLotteryAndGiftBoard)
+    private sealed class RoomConnection(AetherClient client, long roomId, Settings settings, ChannelWriter<WatchUpdate> output, bool enableStreamOverlay)
     {
         // No data at all for this long, not even a heartbeat reply, means the room connection is dead.
         private static readonly TimeSpan IdleTimeout = TimeSpan.FromSeconds(60);
@@ -55,7 +55,7 @@ public sealed partial class AetherClient
                             roomLock = AcquireRoomLock(realRoomId.Value);
                             roomScope = client.logger.BeginRoomScope(realRoomId.Value);
                             client.logger.LogInformation("直播间连接开始");
-                            if (enableLotteryAndGiftBoard)
+                            if (enableStreamOverlay)
                             {
                                 features.Add(new LotteryFeature(client.Lottery, client.logger, realRoomId.Value));
                                 features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value, client.logger));
@@ -63,9 +63,12 @@ public sealed partial class AetherClient
                             if (Settings.BlindBoxEnabled.Value) features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));
                             features.Add(new GiftRecordFeature(new(client.stores.Value.Gifts, client.GiftBoard, client.logger,
                                 realRoomId.Value, Settings.BlindBoxEnabled.Value), sendQueue, Settings.BlindBoxAnnounce.Value));
-                            features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
-                                round => { client.GiftAnimation.Enqueue(round, animationStop.Token); output.TryWrite(round); }));
-                            features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop.Token));
+                            if (enableStreamOverlay)
+                            {
+                                features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
+                                    round => { client.GiftAnimation.Enqueue(round, animationStop.Token); output.TryWrite(round); }));
+                                features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop.Token));
+                            }
                             if (Settings.WelcomeEnabled.Value)
                             {
                                 features.Add(new WelcomeFeature(Settings, sendQueue));

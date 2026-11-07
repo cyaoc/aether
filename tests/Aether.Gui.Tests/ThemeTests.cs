@@ -29,7 +29,7 @@ public sealed class ThemeTests
             var retention = Assert.Single(window.GetVisualDescendants().OfType<ToggleSwitch>(), x => x.IsEffectivelyVisible);
             Assert.Equal("只保留最近 1000 条", AutomationProperties.GetName(retention));
             retention.IsChecked = false;
-            Assert.False(harness.LoadSettings().KeepRecentDanmaku);
+            Assert.False(harness.LoadGuiState().KeepRecentDanmaku);
             var navigation = window.FindControl<ListBox>("Navigation")!;
             foreach (var index in new[] { 1, 2 })
             {

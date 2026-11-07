@@ -24,7 +24,7 @@ internal static class GiftBoardStates
         int thresholdBy = GiftBoardOptions.ByUnitPrice)
     {
         await h.LoginAsync();
-        h.EnableLotteryAndGiftBoard = true;
+        h.EnableStreamOverlay = true;
         var updates = await h.WatchConnectedAsync();
         var board = h.Client.GiftBoard;
         var state = await board.CurrentAsync(h.Stop.Token);

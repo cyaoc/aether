@@ -70,7 +70,7 @@ public sealed class RoomInputTests
             Assert.Equal("", EditorOf(input).SelectedText);
             Assert.True(EditorOf(input).IsFocused);
             Assert.Equal(index == 0 ? new[] { "42" } : ["6"], viewModel.RecentRooms);
-            Assert.Equal(viewModel.RecentRooms, harness.LoadSettings().RecentRooms);
+            Assert.Equal(viewModel.RecentRooms, harness.LoadGuiState().RecentRooms);
             Assert.Null(viewModel.ConnectCommand.ExecutionTask);
             // Typing goes on at the end of the box, even after the room it shows was deleted.
             window.KeyTextInput("7");
@@ -125,7 +125,7 @@ public sealed class RoomInputTests
             Assert.Equal("42", input.Text);
             Assert.False(viewModel.HasRoomConnection);
             Assert.Null(viewModel.ConnectCommand.ExecutionTask);
-            Assert.Equal(["6", "42"], harness.LoadSettings().RecentRooms);
+            Assert.Equal(["6", "42"], harness.LoadGuiState().RecentRooms);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;
@@ -253,7 +253,7 @@ public sealed class RoomInputTests
             input.SelectedIndex = 0;
             window.KeyPress(Key.Delete, RawInputModifiers.Shift, PhysicalKey.Delete, null);
             Assert.Equal(["42"], viewModel.RecentRooms);
-            Assert.Equal(["42"], harness.LoadSettings().RecentRooms);
+            Assert.Equal(["42"], harness.LoadGuiState().RecentRooms);
             Assert.Null(viewModel.ConnectCommand.ExecutionTask);
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -289,7 +289,7 @@ public sealed class RoomInputTests
                 Assert.Equal("", EditorOf(input).SelectedText);
                 var presenter = EditorOf(input).GetVisualDescendants().OfType<TextPresenter>().Single();
                 Assert.Equal(presenter.SelectionStart, presenter.SelectionEnd);
-                Assert.Empty(harness.LoadSettings().RecentRooms);
+                Assert.Empty(harness.LoadGuiState().RecentRooms);
             }
             Assert.Empty(viewModel.RecentRooms);
             Assert.False(input.IsDropDownOpen);

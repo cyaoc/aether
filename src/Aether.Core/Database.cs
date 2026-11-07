@@ -6,7 +6,7 @@ namespace Aether.Core;
 internal sealed class Database
 {
     /// <summary>The user_version the last upgrade step below sets; a database above it comes from a newer release.</summary>
-    public const long CurrentVersion = 7;
+    public const long CurrentVersion = 8;
 
     private readonly string connectionString;
 
@@ -160,6 +160,60 @@ internal sealed class Database
                 ALTER TABLE gift_record ADD COLUMN viewer_guard_level INTEGER NOT NULL DEFAULT 0;
                 UPDATE gift_record SET viewer_guard_level = guard_level;
                 PRAGMA user_version = 7;
+                """;
+            command.ExecuteNonQuery();
+        }
+        if (version < 8)
+        {
+            // gui_state: what the GUI keeps between runs (ADR 0016), one row; recent_rooms is a JSON array of the room numbers
+            // as typed, the latest connected first. 奖品方案 stop being kept per room: a name two rooms shared stays with the
+            // set saved last, and each other set gets its room in its name, so none is lost.
+            command.CommandText = """
+                CREATE TABLE gui_state (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    keep_recent_danmaku INTEGER NOT NULL,
+                    recent_rooms TEXT NOT NULL
+                );
+                INSERT INTO gui_state VALUES (1, 1, '[]');
+                CREATE TABLE lottery_prize_set_v8 (
+                    mode TEXT NOT NULL, name TEXT NOT NULL, saved_at TEXT NOT NULL, content TEXT NOT NULL,
+                    UNIQUE(mode, name)
+                );
+                """;
+            command.ExecuteNonQuery();
+            command.CommandText = """
+                SELECT room_id, mode, name, saved_at, content FROM lottery_prize_set
+                ORDER BY mode, name, julianday(saved_at) DESC, rowid DESC
+                """;
+            var sets = new List<(long Room, string Mode, string Name, string SavedAt, string Content)>();
+            using (var reader = command.ExecuteReader())
+                while (reader.Read())
+                    sets.Add((reader.GetInt64(0), reader.GetString(1), reader.GetString(2), reader.GetString(3), reader.GetString(4)));
+            // Named here, not in SQL: a set may already be called what a renamed one would be, so the name is tried until free.
+            // Each original name stays with the set saved last, so all of them are taken before any other is chosen.
+            var taken = sets.Select(set => (set.Mode, set.Name)).ToHashSet();
+            command.CommandText = "INSERT INTO lottery_prize_set_v8 (mode, name, saved_at, content) VALUES ($mode, $name, $saved, $content)";
+            foreach (var group in sets.GroupBy(set => (set.Mode, set.Name)))
+                foreach (var (set, index) in group.Select((set, index) => (set, index)))
+                {
+                    var name = set.Name;
+                    if (index > 0)
+                    {
+                        name = $"{set.Name}（直播间 {set.Room}）";
+                        for (var copy = 2; !taken.Add((set.Mode, name)); copy++) name = $"{set.Name}（直播间 {set.Room}，{copy}）";
+                    }
+                    command.Parameters.Clear();
+                    command.Parameters.AddWithValue("$mode", set.Mode);
+                    command.Parameters.AddWithValue("$name", name);
+                    command.Parameters.AddWithValue("$saved", set.SavedAt);
+                    command.Parameters.AddWithValue("$content", set.Content);
+                    command.ExecuteNonQuery();
+                }
+            command.Parameters.Clear();
+            command.CommandText = """
+                DROP TABLE lottery_prize_set;
+                ALTER TABLE lottery_prize_set_v8 RENAME TO lottery_prize_set;
+                PRAGMA user_version = 8;
                 """;
             command.ExecuteNonQuery();
         }

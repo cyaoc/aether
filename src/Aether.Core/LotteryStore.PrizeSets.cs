@@ -5,12 +5,11 @@ namespace Aether.Core;
 
 internal sealed partial class LotteryStore
 {
-    public ImmutableArray<LotteryPrizeSet> PrizeSets(long roomId, LotteryMode mode)
+    public ImmutableArray<LotteryPrizeSet> PrizeSets(LotteryMode mode)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT name, saved_at, content FROM lottery_prize_set WHERE room_id = $room AND mode = $mode ORDER BY julianday(saved_at) DESC, rowid DESC";
-        command.Parameters.AddWithValue("$room", roomId);
+        command.CommandText = "SELECT name, saved_at, content FROM lottery_prize_set WHERE mode = $mode ORDER BY julianday(saved_at) DESC, rowid DESC";
         command.Parameters.AddWithValue("$mode", ModeText(mode));
         using var reader = command.ExecuteReader();
         var sets = ImmutableArray.CreateBuilder<LotteryPrizeSet>();
@@ -21,12 +20,11 @@ internal sealed partial class LotteryStore
         return sets.ToImmutable();
     }
 
-    public void SavePrizeSet(long roomId, LotteryPrizeSet set)
+    public void SavePrizeSet(LotteryPrizeSet set)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "INSERT OR REPLACE INTO lottery_prize_set(room_id, mode, name, saved_at, content) VALUES ($room, $mode, $name, $saved, $content)";
-        command.Parameters.AddWithValue("$room", roomId);
+        command.CommandText = "INSERT OR REPLACE INTO lottery_prize_set(mode, name, saved_at, content) VALUES ($mode, $name, $saved, $content)";
         command.Parameters.AddWithValue("$mode", ModeText(set.Mode));
         command.Parameters.AddWithValue("$name", set.Name);
         command.Set("$saved", set.SavedAt);
@@ -34,12 +32,11 @@ internal sealed partial class LotteryStore
         command.ExecuteNonQuery();
     }
 
-    public void DeletePrizeSet(long roomId, LotteryMode mode, string name)
+    public void DeletePrizeSet(LotteryMode mode, string name)
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM lottery_prize_set WHERE room_id = $room AND mode = $mode AND name = $name";
-        command.Parameters.AddWithValue("$room", roomId);
+        command.CommandText = "DELETE FROM lottery_prize_set WHERE mode = $mode AND name = $name";
         command.Parameters.AddWithValue("$mode", ModeText(mode));
         command.Parameters.AddWithValue("$name", name);
         command.ExecuteNonQuery();

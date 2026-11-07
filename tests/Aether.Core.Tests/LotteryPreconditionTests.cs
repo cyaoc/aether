@@ -12,7 +12,7 @@ public sealed class LotteryPreconditionTests
     [InlineData(true)]
     public async Task Disposed_controller_rejects_pool_and_entry_operations(bool stop)
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -33,7 +33,7 @@ public sealed class LotteryPreconditionTests
     [InlineData(true)]
     public async Task Reconnecting_blocks_starts_but_allows_stopping_or_cancelling_the_pool(bool stop)
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -61,7 +61,7 @@ public sealed class LotteryPreconditionTests
     [Fact]
     public async Task Reconnecting_allows_closing_drawing_ending_and_hiding_an_entry_lottery()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -100,7 +100,7 @@ public sealed class LotteryPreconditionTests
     [InlineData(true)]
     public async Task A_pool_blocks_start_while_spinning_or_drawing_but_only_drawing_blocks_new(bool drawing)
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
@@ -129,7 +129,7 @@ public sealed class LotteryPreconditionTests
     [Fact]
     public async Task An_entry_draw_blocks_drawing_and_ending_without_replacing_mode_or_phase_errors()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;

@@ -54,19 +54,27 @@ public sealed partial class LotteryController : IDisposable
         return store().History(roomId);
     }
 
+    /// <summary>The room whose history to show without a room connection: where the last lottery was held, null before any.</summary>
+    public long? GetLastLotteryRoom()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        return store().LastLotteryRoom();
+    }
+
     public Lottery? GetHistoryDetails(long roomId, string id)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         return store().Load(roomId, id: id);
     }
 
-    public ImmutableArray<LotteryPrizeSet> GetPrizeSets(long roomId, LotteryMode mode)
+    /// <summary>奖品方案 are kept per 抽奖方式, for every room alike.</summary>
+    public ImmutableArray<LotteryPrizeSet> GetPrizeSets(LotteryMode mode)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        return store().PrizeSets(roomId, mode);
+        return store().PrizeSets(mode);
     }
 
-    public void SavePrizeSet(long roomId, LotteryMode mode, string name,
+    public void SavePrizeSet(LotteryMode mode, string name,
         IReadOnlyCollection<PoolPrize> prizes, IReadOnlyCollection<LotteryAward> awards)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
@@ -74,15 +82,15 @@ public sealed partial class LotteryController : IDisposable
         if (!Enum.IsDefined(mode)) throw new ArgumentException("请选择抽奖方式。");
         if (mode == LotteryMode.Pool) Validate(prizes);
         else Validate(awards);
-        store().SavePrizeSet(roomId, new(mode, name.Trim(), time.GetUtcNow(),
+        store().SavePrizeSet(new(mode, name.Trim(), time.GetUtcNow(),
             mode == LotteryMode.Pool ? prizes.ToImmutableArray() : [],
             mode == LotteryMode.Entry ? awards.ToImmutableArray() : []));
     }
 
-    public void DeletePrizeSet(long roomId, LotteryMode mode, string name)
+    public void DeletePrizeSet(LotteryMode mode, string name)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        store().DeletePrizeSet(roomId, mode, name);
+        store().DeletePrizeSet(mode, name);
     }
 
     public IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync(CancellationToken token = default) =>

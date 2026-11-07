@@ -379,7 +379,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [Fact]
     public void An_existing_five_second_interval_is_preserved()
     {
-        const string yaml = "web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\nwelcome_danmaku:\nlog:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
+        const string yaml = "auto_update:\nweb_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\nwelcome_danmaku:\nlog:\nblind_box:\nsend:\n  interval_seconds: 5 # 保留原值\n";
         Write(yaml);
         Assert.Equal(5, Settings.Load(harness.DataDirectory).SendIntervalSeconds.Value);
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
@@ -390,7 +390,7 @@ public sealed class SettingsTests : IAsyncDisposable
     {
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Assert.Contains("announce: true", File.ReadAllText(SettingsPath));
-        Write("web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\nwelcome_danmaku:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 今日盲盒 # 关键字\n");
+        Write("auto_update:\nweb_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\nwelcome_danmaku:\nlog:\nsend:\n# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 今日盲盒 # 关键字\n");
         var before = File.ReadAllText(SettingsPath);
         Assert.True(Settings.Load(harness.DataDirectory).BlindBoxAnnounce.Value);
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
@@ -550,10 +550,13 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Contains("下次观看直播间时生效", template);
         Assert.Contains("blind_box:\n  # true 或 false，false 时既不记录，也不回复和播报\n  enabled: true", template.ReplaceLineEndings("\n"));
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
-        Assert.Equal(template.Replace("enabled: true", "enabled: false"), File.ReadAllText(SettingsPath));
+        Assert.Equal(BlindBoxOff(template), File.ReadAllText(SettingsPath));
         Assert.Empty(Settings.Load(harness.DataDirectory).UnknownKeys);
         Assert.False(Settings.Load(harness.DataDirectory).BlindBoxEnabled.Value);
     }
+
+    // blind_box.enabled is the template's first switch that is on; auto_update.enabled further down is on too.
+    private static string BlindBoxOff(string text) => new Regex("enabled: true").Replace(text, "enabled: false", 1);
 
     [Theory]
     [InlineData("true", true)]
@@ -625,7 +628,7 @@ public sealed class SettingsTests : IAsyncDisposable
 
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
         Assert.Equal(encoding.GetPreamble().Concat(encoding.GetBytes(
-            encoding.GetString(after[encoding.GetPreamble().Length..]).Replace("enabled: true", "enabled: false"))),
+            BlindBoxOff(encoding.GetString(after[encoding.GetPreamble().Length..])))),
             File.ReadAllBytes(SettingsPath));
     }
 
@@ -647,7 +650,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Contains("send:", after);
         Assert.True(settings.BlindBoxEnabled.CanEdit);
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["blind_box.enabled"] = "false" });
-        Assert.Equal(after.Replace("enabled: true", "enabled: false"), File.ReadAllText(SettingsPath));
+        Assert.Equal(BlindBoxOff(after), File.ReadAllText(SettingsPath));
     }
 
     [Fact, System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
@@ -876,7 +879,7 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("Critical", LogLevel.Critical)]
     public void Reads_known_values_without_rewriting_the_file(string level, LogLevel expected)
     {
-        var yaml = $"web_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\n# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\nwelcome_danmaku:\n";
+        var yaml = $"auto_update:\nweb_service:\nentry_animation:\ngift_animation:\nentry_animation_viewers:\n# 我的注释\nlog:\n  retention_days: 7 # 一周\n  level: {level}\nblind_box:\nsend:\nwelcome_danmaku:\n";
         Write(yaml);
         var before = File.ReadAllBytes(SettingsPath);
 

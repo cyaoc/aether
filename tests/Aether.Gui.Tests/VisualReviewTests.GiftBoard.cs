@@ -129,6 +129,8 @@ public sealed partial class VisualReviewTests
         try
         {
             await GuiHarness.AccountReadAsync(viewModel);
+            // The started web service's own status first, or it can land over the one set for the shot.
+            await GuiHarness.WaitForAsync(() => viewModel.WebService.WebServiceStatus.Running);
             var stage = new BoardStage(harness, clock, roomStarted, viewModel);
             await prepare(stage);
             viewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 1));

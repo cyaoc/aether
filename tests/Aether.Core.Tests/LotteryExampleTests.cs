@@ -7,7 +7,7 @@ public sealed class LotteryExampleTests
     [Fact]
     public async Task Ordinary_chat_keeps_the_example_playing_but_a_real_draw_takes_the_screen_back()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         await h.LoginAsync();
         await using var watch = await h.WatchConnectedAsync();
@@ -52,7 +52,7 @@ public sealed class LotteryExampleTests
     [Fact]
     public async Task A_live_change_cancels_the_example_and_keeps_real_history_and_stale_timers_separate()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         await h.LoginAsync();
         await using var watch = await h.WatchConnectedAsync();

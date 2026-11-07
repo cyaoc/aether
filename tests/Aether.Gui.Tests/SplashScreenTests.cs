@@ -174,8 +174,8 @@ public sealed class SplashScreenTests
         using var harness = new GuiHarness();
         if (!loggedOut) await harness.SaveCredentialAsync();
         harness.LoginResponse = (_, _) => Task.FromResult(Json("""{"code":-352,"message":"test"}"""));
+        harness.SaveRecentRooms("6");
         var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
-        viewModel.RoomNumber = "6";
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
         window.Show();
         try
@@ -470,10 +470,7 @@ public sealed class SplashScreenTests
     {
         var clock = new FakeTimeProvider();
         using var harness = new GuiHarness();
-        var settings = harness.LoadSettings();
-        settings.AutoUpdate = false;
-        settings.Save();
-        harness.SaveSettings();
+        harness.SaveSettings(("auto_update.enabled", "false"));
         harness.HoldLoginRequests();
         AddUpdate(harness);
         var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
@@ -485,6 +482,56 @@ public sealed class SplashScreenTests
             await startup.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Empty(harness.GitHub.Requests);
             Assert.True(viewModel.LoginCommand.IsRunning);
+        }
+        finally { await viewModel.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task A_settings_file_whose_values_cannot_be_used_checks_for_updates() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        var clock = new FakeTimeProvider();
+        using var harness = new GuiHarness();
+        Directory.CreateDirectory(harness.DataDirectory);
+        File.WriteAllText(Settings.FilePath(harness.DataDirectory), "auto_update:\n  enabled: false\nweb_service:\n  port: invalid\n");
+        harness.HoldLoginRequests();
+        harness.GitHub.Tag = "v0.4.0";
+        harness.ReleaseVersion = "0.4.0";
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
+        var startup = viewModel.StartAsync(harness.DataDirectory);
+        try
+        {
+            await BeginFadeAsync(clock, viewModel);
+            await FinishFadeAsync(clock, viewModel);
+            await startup.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal([FakeGitHub.LatestRelease], harness.GitHub.Requests);
+        }
+        finally { await viewModel.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Old_gui_yml_with_auto_update_off_is_moved_before_the_first_check_and_fills_the_room_input() =>
+        HeadlessApp.Session.Dispatch(async () =>
+    {
+        var clock = new FakeTimeProvider();
+        using var harness = new GuiHarness();
+        harness.SaveSettings();
+        File.WriteAllText(harness.LegacyGuiFile, "AutoUpdate: false\nRecentRooms: ['006', '42']");
+        harness.HoldLoginRequests();
+        AddUpdate(harness);
+        var viewModel = harness.CreateViewModel(clock, keepSplashTiming: true);
+        Assert.Equal("", viewModel.RoomNumber);
+        var startup = viewModel.StartAsync(harness.DataDirectory);
+        try
+        {
+            await BeginFadeAsync(clock, viewModel);
+            await FinishFadeAsync(clock, viewModel);
+            await startup.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Empty(harness.GitHub.Requests);
+            Assert.Equal("006", viewModel.RoomNumber);
+            Assert.Equal(["006", "42"], viewModel.RecentRooms);
+            Assert.False(File.Exists(harness.LegacyGuiFile));
         }
         finally { await viewModel.ShutdownAsync(); }
         return true;

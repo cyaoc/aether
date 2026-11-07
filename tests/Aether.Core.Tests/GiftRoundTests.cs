@@ -8,7 +8,7 @@ public sealed class GiftRoundTests
     [Fact]
     public async Task Ordinary_paid_gifts_form_a_round_after_three_seconds_of_silence()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
         var gift = BlindGiftFixture.With(d => { d["blind_gift"] = null; d["total_coin"] = 1234; });
@@ -27,7 +27,7 @@ public sealed class GiftRoundTests
     [Fact]
     public async Task A_guard_purchase_joins_the_viewers_round_and_counts_once_when_pushed_twice()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
         await h.PushAndSyncAsync(updates, BlindGiftFixture.With(d => { d["blind_gift"] = null; d["total_coin"] = 1234; }));
@@ -41,7 +41,7 @@ public sealed class GiftRoundTests
     [Fact]
     public async Task A_guard_purchase_by_uid_0_is_only_logged()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
         await h.PushAndSyncAsync(updates, UserToastFixture.Message(uid: 0));
@@ -58,7 +58,7 @@ public sealed class GiftRoundTests
     [InlineData("option")]
     public async Task A_guard_purchase_missing_a_field_is_warned_without_losing_the_next_one(string field)
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
         await h.PushAndSyncAsync(updates, UserToastFixture.Message(edit: data => data.Remove(field)), UserToastFixture.Message());
@@ -74,7 +74,7 @@ public sealed class GiftRoundTests
     [InlineData(true)]
     public async Task V2_paid_items_use_total_coin_and_silver_is_ignored(bool capture)
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
         var message = capture
@@ -91,7 +91,7 @@ public sealed class GiftRoundTests
     [Fact]
     public async Task Gift_rounds_are_independent_by_viewer_and_do_not_deduplicate_tid()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
@@ -110,7 +110,7 @@ public sealed class GiftRoundTests
     [Fact]
     public async Task Reconnect_keeps_the_deadline_but_ending_the_room_discards_the_round()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
         await using (var updates = await h.WatchConnectedAsync(includeGiftRounds: true))

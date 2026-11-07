@@ -219,7 +219,7 @@ public sealed partial class GiftBoardBrowserTests
     {
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
             Assert.Skip("Set AETHER_TEST_CHROME for real gift board browser acceptance.");
-        var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        var h = new WatchHarness(enableStreamOverlay: true);
         await h.ApplySettingsAsync();
         await h.LoginAsync();
         await using var page = new PageSession(h, await h.WatchConnectedAsync());

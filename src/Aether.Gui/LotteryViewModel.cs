@@ -8,18 +8,13 @@ public partial class LotteryViewModel : ObservableObject
 {
     private readonly AetherClient client;
     private readonly ILogger logger;
-    private readonly GuiSettings settings;
-    private readonly Action saveSettings;
     private readonly CancellationToken shutdown;
     private readonly TimeProvider clock;
 
-    public LotteryViewModel(AetherClient client, ILogger logger, GuiSettings settings, Action saveSettings,
-        TimeProvider clock, CancellationToken shutdown)
+    public LotteryViewModel(AetherClient client, ILogger logger, TimeProvider clock, CancellationToken shutdown)
     {
         this.client = client;
         this.logger = logger;
-        this.settings = settings;
-        this.saveSettings = saveSettings;
         this.shutdown = shutdown;
         this.clock = clock;
         PoolPrizeSets = new(this, LotteryMode.Pool);
@@ -36,7 +31,6 @@ public partial class LotteryViewModel : ObservableObject
     private bool CanBeginOperation => !Busy && LotteryState.Connected;
     private bool CanControlOperation => !Busy && LotteryState.CanControl;
     private LotteryMode CurrentMode => LotteryState.Lottery is EntryLottery ? LotteryMode.Entry : LotteryMode.Pool;
-    private long? CurrentOrLastRoomId => LotteryState.RoomId ?? settings.LastLotteryRoomId;
     [ObservableProperty]
     private LotteryState lotteryState = new(null, false, null);
 
@@ -76,14 +70,7 @@ public partial class LotteryViewModel : ObservableObject
     internal void Apply(LotteryUpdate update)
     {
         var previous = LotteryState;
-        var previousRoom = CurrentOrLastRoomId;
         LotteryState = update.State;
-        if (LotteryState.RoomId is { } room && settings.LastLotteryRoomId != room)
-        {
-            settings.LastLotteryRoomId = room;
-            saveSettings();
-        }
-        if (previousRoom != CurrentOrLastRoomId) _ = RefreshPrizeSetsAsync();
         if (previous.RoomId != LotteryState.RoomId || ((previous.Lottery, LotteryState.Lottery) switch
             {
                 (PoolLottery before, PoolLottery after) => before.Id != after.Id || before.Draws != after.Draws
@@ -169,8 +156,9 @@ public partial class LotteryViewModel : ObservableObject
     internal Task RefreshLotteryHistoryAsync(string? selectedId = null)
     {
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
-        var roomId = CurrentOrLastRoomId;
-        if (LotteryHistory.FirstOrDefault()?.RoomId != roomId)
+        // Without a room connection, the room is read with the history: the one where the last lottery was held.
+        var roomId = LotteryState.RoomId;
+        if (roomId is not null && LotteryHistory.FirstOrDefault()?.RoomId != roomId)
         {
             lotteryHistorySelection = null;
             LotteryHistory = [];
@@ -189,7 +177,7 @@ public partial class LotteryViewModel : ObservableObject
                 if (token.IsCancellationRequested || shutdown.IsCancellationRequested) return;
                 var result = await Task.Run(() =>
                 {
-                    var items = roomId is { } room ? client.Lottery.GetHistory(room) : [];
+                    var items = (roomId ?? client.Lottery.GetLastLotteryRoom()) is { } room ? client.Lottery.GetHistory(room) : [];
                     var selected = items.FirstOrDefault(item => item.Id == selectedId) ?? items.FirstOrDefault();
                     var details = selected is null ? null : client.Lottery.GetHistoryDetails(selected.RoomId, selected.Id);
                     return (items, details);

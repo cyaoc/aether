@@ -32,9 +32,10 @@ internal sealed class GuiHarness : IDisposable
     /// <summary>The navigation items that are settings pages: all but the danmaku, the 礼物榜 and the lottery.</summary>
     public static readonly int[] SettingsPages = [1, 2, 3, 6, 7];
     public string DataDirectory { get; } = Path.Combine(Path.GetTempPath(), "aether-gui-tests-" + Guid.NewGuid());
-    public string SettingsFile => Path.Combine(DataDirectory, "gui.yml");
+    /// <summary>Where releases before ADR 0016 kept the GUI's own settings; only the upgrade reads it.</summary>
+    public string LegacyGuiFile => Path.Combine(DataDirectory, "gui.yml");
 
-    public GuiSettings LoadSettings() => GuiSettings.Load(DataDirectory, NullLogger<GuiSettings>.Instance);
+    public GuiState LoadGuiState() => client.GuiState.Load();
 
     /// <summary>GitHub for the auto-update check, which only a release build makes; see <see cref="ReleaseVersion"/>.</summary>
     public FakeGitHub GitHub { get; } = new();
@@ -47,9 +48,11 @@ internal sealed class GuiHarness : IDisposable
         var clock = timeProvider ?? TimeProvider.System;
         var updater = new AutoUpdater(new HttpClient(GitHub), new Uri(FakeGitHub.LatestRelease), ProgramDirectory, ReleaseVersion ?? "0.0.0-dev",
             "osx-arm64", true, clock, NullLogger.Instance);
-        var viewModel = new MainWindowViewModel(client, NullLogger<MainWindowViewModel>.Instance, LoadSettings(), clock, updater);
+        var viewModel = new MainWindowViewModel(client, NullLogger<MainWindowViewModel>.Instance, clock, updater);
         if (!keepSplashTiming)
         {
+            // What the start reads behind the splash, shown at once: these tests skip the splash, and many open no window.
+            viewModel.ShowGuiState(viewModel.ReadGuiState());
             viewModel.SplashMinimumDuration = TimeSpan.Zero;
             viewModel.SplashFadeDuration = TimeSpan.Zero;
             viewModel.SplashOpacity = 0;
@@ -90,12 +93,19 @@ internal sealed class GuiHarness : IDisposable
     public static HttpResponseMessage AccountResponse(string nickname = "测试账号") =>
         Json($$$"""{"code":0,"data":{"isLogin":true,"mid":123,"uname":"{{{nickname}}}"}}""");
 
+    /// <summary>The data directory's aether.db, opened beside the client's own connections.</summary>
+    public SqliteConnection OpenDatabase()
+    {
+        var connection = new SqliteConnection($"Data Source={Path.Combine(DataDirectory, "aether.db")};Pooling=False");
+        connection.Open();
+        return connection;
+    }
+
     public async Task SaveCredentialAsync()
     {
         // Seed the real store so tests unrelated to login can enter the main window.
         await client.GetAccountAsync();
-        using var connection = new SqliteConnection($"Data Source={Path.Combine(DataDirectory, "aether.db")};Pooling=False");
-        connection.Open();
+        using var connection = OpenDatabase();
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO credential (id, cookies, refresh_token, saved_at, checked_at)
@@ -131,11 +141,16 @@ internal sealed class GuiHarness : IDisposable
         Settings.Save(DataDirectory, saved);
     }
 
-    public void SaveRecentRooms(params string[] rooms)
+    public void SaveRecentRooms(params string[] rooms) => client.GuiState.Save(LoadGuiState() with { RecentRooms = [.. rooms] });
+
+    /// <summary>Makes every later read or write of the GUI state fail, as a damaged database would.</summary>
+    public void BreakGuiState()
     {
-        var settings = LoadSettings();
-        settings.RecentRooms = rooms;
-        settings.Save();
+        client.GuiState.Load();
+        using var connection = OpenDatabase();
+        using var command = connection.CreateCommand();
+        command.CommandText = "DROP TABLE gui_state";
+        command.ExecuteNonQuery();
     }
 
     /// <summary>Delivers numbered danmaku the way a watch stream would; Content is the running number.</summary>

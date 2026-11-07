@@ -14,7 +14,7 @@ public sealed class EntryEffectTests
     [InlineData("INTERACT_WORD_V2", "ENTRY_EFFECT_MUST_RECEIVE", "ENTRY_EFFECT")]
     public async Task Same_entry_welcomes_once_using_the_first_notification(string first, string second, string third)
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {

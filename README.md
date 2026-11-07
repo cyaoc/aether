@@ -18,6 +18,8 @@ B站直播 bot：用你的 B站账号连接直播间，看弹幕、统计盲盒�
 - **发送队列**：所有弹幕排队发送，控制间隔，相同内容至少隔 5 秒，被限流时重试一次。
 - **便携**：数据都在程序旁边的 `data/` 里，整个目录拷走即可。
 
+欢迎动画、进场动画、送礼动画、抽奖和礼物榜叠在直播画面上，只在 GUI 里有；CLI 不开网页服务，其余功能两边都有。
+
 ## 下载
 
 从 [Releases](https://github.com/cyaoc/aether/releases/latest) 下载对应系统的包：`aether-gui-*` 是图形界面，`aether-cli-*` 是命令行。
@@ -88,16 +90,19 @@ aether logout           # 退出登录，删除本地凭据
 | --- | --- | --- | --- |
 | `blind_box` | 盲盒统计开关、查询关键字、播报开关 | 开启 | 下次连接直播间 |
 | `welcome_danmaku` | 欢迎弹幕开关、欢迎语、欢迎条件 | 关闭 | 下次连接直播间 |
-| `entry_animation` | 进场动画和欢迎动画的开关、粉丝团等级门槛、音量 | 关闭 | GUI 保存后立即应用；CLI 下次 watch |
-| `entry_animation_viewers` | 动画名单：观众 UID → 进场档、0（不播）或视频文件名 | 空 | GUI 保存后立即应用；CLI 下次 watch |
-| `gift_animation` | 送礼动画开关、四档投入门槛 | 关闭 | GUI 保存后立即应用；CLI 下次 watch |
-| `web_service` | 视频页、抽奖页、礼物榜页共用端口 | 17890 | GUI 保存后立即重启服务；CLI 下次 watch |
+| `entry_animation` | 进场动画和欢迎动画的开关、粉丝团等级门槛、音量 | 关闭 | 保存后立即应用，只在 GUI |
+| `entry_animation_viewers` | 动画名单：观众 UID → 进场档、0（不播）或视频文件名 | 空 | 保存后立即应用，只在 GUI |
+| `gift_animation` | 送礼动画开关、四档投入门槛 | 关闭 | 保存后立即应用，只在 GUI |
+| `web_service` | 视频页、抽奖页、礼物榜页共用端口 | 17890 | 保存后立即重启服务，只在 GUI |
 | `send` | 两次发送之间的秒数 | 1 | 下次连接直播间 |
 | `log` | 日志保留天数、日志级别 | 30 天、Information | 重启 |
+| `auto_update` | 打开 GUI 时检查并自动更新 | 开启 | 下次打开 GUI |
+
+标着“只在 GUI”的分组 CLI 用不上，但照常读和校验，写错了照样报错。
 
 `data/` 里还有：
 
-- `aether.db`：登录凭据（**明文**）、收礼记录（盲盒统计和礼物榜共用）、礼物榜的期和抽奖记录。不要分享 `data/`；macOS / Linux 上权限为 0600。
+- `aether.db`：登录凭据（**明文**）、收礼记录（盲盒统计和礼物榜共用）、礼物榜的期、抽奖记录和奖品方案，以及 GUI 记下的最近的房间号和“只保留最近 1000 条”。不要分享 `data/`；macOS / Linux 上权限为 0600。
 - `logs/`：按天滚动的日志。`log.level` 设为 `Trace` 会记下每条原始消息，含观众个人信息，只在抓包时临时开启。
 
 CLI 和 GUI 放在同一目录时共用 `data/`，分开放则各自登录。同一个 `data/` 里，一个直播间同时只能有一个连接。
@@ -110,20 +115,9 @@ CLI 和 GUI 放在同一目录时共用 `data/`，分开放则各自登录。同
 **GUI**：在“进场欢迎”的“动画”分页打开开关，点“添加观众”，选欢迎动画和 MP4 或 WebM 视频、填 UID，保存时视频复制到 `data/videos/`。
 不用连接直播间：GUI 开着就运行网页服务（登录页上也在运行），与功能开关无关。登录后，“通用设置”显示端口，以及视频页、抽奖页和礼物榜页的地址、浏览器素材的宽高和各自的连接数；视频保存后就能试播，不看开关。
 
-**CLI**：把 MP4 或 WebM 视频放到 `data/videos/`，在 `data/aether.yml` 中打开开关并填写映射：
+CLI 没有视频页，不运行网页服务；欢迎动画、进场动画和送礼动画请用 GUI。
 
-```yaml
-entry_animation:
-  enabled: true
-web_service:
-  port: 17890
-entry_animation_viewers:
-  12345: 小明进场.mp4
-```
-
-CLI 只在 `aether watch <房间号>` 期间、并且进场动画或送礼动画开启时运行网页服务，视频页地址打印到 stdout。礼物榜和抽奖只在 GUI 里用。
-
-先打开 GUI 或运行 `watch`，再在同一台电脑上的直播姬添加“浏览器”素材或 OBS 添加“浏览器”来源，
+先打开 GUI，再在同一台电脑上的直播姬添加“浏览器”素材或 OBS 添加“浏览器”来源，
 视频页地址填 `http://localhost:17890/video`，尺寸 1920 × 1080。若画面一直空白，右键素材 → 刷新。
 抽奖页地址为 `http://localhost:17890/lottery`，横屏 1920 × 1080、竖屏 1080 × 1920 都行，在没有抽奖时透明。
 礼物榜页地址为 `http://localhost:17890/gift-board`，建议 480 × 1000，可以等比放大；它只有榜那么大，放在画面的哪里由你在推流软件里摆。根地址 `/` 返回 404。
@@ -163,7 +157,7 @@ dotnet run --project src/Aether.Cli -- watch <房间号>
 dotnet run --project src/Aether.Gui
 ```
 
-浏览器验收测试（抽奖页、礼物榜页、CLI 欢迎动画）只在本机 macOS 跑，CI 不跑，没设开关时 `dotnet test` 会全部跳过：把 `AETHER_TEST_CHROME` 设成 Chrome 的路径（如 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`）再运行 `dotnet test`，全量约 18 分钟。
+浏览器验收测试（视频页、抽奖页、礼物榜页）只在本机 macOS 跑，CI 不跑，没设开关时 `dotnet test` 会全部跳过：把 `AETHER_TEST_CHROME` 设成 Chrome 的路径（如 `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`）再运行 `dotnet test`，全量约 18 分钟。
 
 Debug 版使用仓库根目录的 `data/`。推送 `v*` tag 后，[Release 工作流](.github/workflows/release.yml) 构建发布包并上传到 GitHub Release。
 

@@ -26,7 +26,7 @@ public sealed class LoginTests : IDisposable
         time, logger, dataDirectory);
 
     [Fact]
-    public async Task First_credential_operation_creates_version_seven_database_with_lottery_tables_in_wal_mode()
+    public async Task First_credential_operation_creates_version_eight_database_with_lottery_tables_in_wal_mode()
     {
         using var client = CreateClient();
         Assert.False(Directory.Exists(dataDirectory));
@@ -35,7 +35,7 @@ public sealed class LoginTests : IDisposable
         using var connection = TestDatabase.Open(dataDirectory);
         using var command = connection.CreateCommand();
         command.CommandText = "PRAGMA user_version";
-        Assert.Equal(7L, command.ExecuteScalar());
+        Assert.Equal(8L, command.ExecuteScalar());
         command.CommandText = "PRAGMA journal_mode";
         Assert.Equal("wal", command.ExecuteScalar());
         command.CommandText = "SELECT COUNT(*) FROM credential";
@@ -48,7 +48,7 @@ public sealed class LoginTests : IDisposable
     }
 
     [Fact]
-    public void Version_three_database_keeps_lottery_credential_and_blind_boxes_when_opened_as_version_seven()
+    public void Version_three_database_keeps_lottery_credential_and_blind_boxes_when_opened_as_version_eight()
     {
         TestDatabase.Restore(dataDirectory, "database-v0.2.1.sql");
 
@@ -84,7 +84,7 @@ public sealed class LoginTests : IDisposable
             200, "测试礼物", 2000, 2, 2000, 4000, 1702204169, "legacy-tid"),
             Assert.Single(TestDatabase.BlindBoxRows(dataDirectory)));
         Assert.Empty(TestDatabase.Columns(dataDirectory, "blind_box"));
-        Assert.Equal(7L, TestDatabase.UserVersion(dataDirectory));
+        Assert.Equal(8L, TestDatabase.UserVersion(dataDirectory));
     }
 
     [Fact]

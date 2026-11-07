@@ -51,8 +51,6 @@ public partial class App : Application
         builder.Logging.ClearProviders();
         builder.Logging.AddDebug();
         builder.AddAether(dataDirectory);
-        builder.Services.AddSingleton(services => GuiSettings.Load(
-            dataDirectory, services.GetRequiredService<ILogger<GuiSettings>>()));
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton(services => AutoUpdater.ForThisProgram(
             services.GetRequiredService<ILogger<AutoUpdater>>(), services.GetRequiredService<TimeProvider>()));

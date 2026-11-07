@@ -124,7 +124,7 @@ public sealed class LotteryPanelTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task Invalid_prize_set_uses_the_pool_error_and_room_lists_do_not_leak() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Invalid_prize_set_uses_the_pool_error_and_every_room_or_none_sees_the_same_sets() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();
         var vm = h.CreateViewModel();
@@ -137,7 +137,14 @@ public sealed class LotteryPanelTests
             await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
             vm.Lottery.Apply(new LotteryUpdate(new(99, false, TestLottery() with { Id = "other", RoomId = 99 })));
             await vm.Lottery.RefreshPrizeSetsAsync();
-            Assert.Empty(vm.Lottery.PrizeSets);
+            Assert.Equal("周末", Assert.Single(vm.Lottery.PrizeSets).Name);
+            // Without a room connection the sets still list and load.
+            vm.Lottery.Apply(new LotteryUpdate(new(null, false, null)));
+            await vm.Lottery.RefreshPrizeSetsAsync();
+            var set = Assert.Single(vm.Lottery.PrizeSets);
+            vm.Lottery.Prizes[0].Name = "改过";
+            vm.Lottery.LoadPrizeSet(set);
+            Assert.Equal(set.Prizes[0].Name, vm.Lottery.Prizes[0].Name);
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, false, TestLottery())));
             await vm.Lottery.RefreshPrizeSetsAsync();
             Assert.Equal("周末", Assert.Single(vm.Lottery.PrizeSets).Name);
