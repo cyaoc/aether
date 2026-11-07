@@ -535,6 +535,25 @@ public sealed class BlindBoxAnnouncementTests
         Assert.Contains(h.Logger.Entries, e => e.Message.Contains("60 秒未收到任何数据"));
     }
 
+    [Fact]
+    public async Task A_quiet_window_due_after_the_room_connection_ends_queues_nothing_and_logs_no_error()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using (var updates = await h.WatchConnectedAsync())
+        {
+            await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
+            // The quiet-window timer is armed later than created; held, it is due as the room connection ends.
+            h.Time.HoldCallbacksFor = Timeout.InfiniteTimeSpan;
+            h.Time.Advance(TimeSpan.FromSeconds(3));
+        }
+        h.Time.HoldCallbacksFor = null;
+        h.Time.RunHeldCallbacks();
+        await h.Client.IdleAsync();
+        Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("盲盒播报] 进队") || e.Level == LogLevel.Error);
+        Assert.Contains(h.Logger.Entries, e => e.Message.Contains("直播间连接结束，发送队列丢掉 1 条待发弹幕"));
+    }
+
     private static void AssertAnnouncement(Dictionary<string, string> form, string message, long uid = 10001)
     {
         Assert.Equal(message, form["msg"]);

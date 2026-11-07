@@ -71,7 +71,8 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     public static async Task GiveAsync(GuiHarness harness, long room, IReadOnlyList<Gift> gifts)
     {
         var periodOf = await harness.Client.GiftBoard.TakeAsync(room, gifts);
-        new GiftRecording(new GiftStore(new Database(harness.DataDirectory), NullLogger.Instance), NullLogger.Instance, room, blindBoxes: false)
+        var store = new GiftStore(new Database(harness.DataDirectory), NullLogger.Instance);
+        new GiftRecording(() => store, NullLogger.Instance, room, blindBoxes: false)
             .Record(periodOf, write => { foreach (var gift in gifts) write(gift); });
     }
 
