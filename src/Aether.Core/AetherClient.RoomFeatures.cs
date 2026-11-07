@@ -43,8 +43,20 @@ public sealed partial class AetherClient
         }
     }
 
+    /// <summary>A room connection region's state (ADR 0017): the features and the 发送队列 they share, touched only in its
+    /// steps. An event is one step, which every feature handles in turn.</summary>
+    private sealed class RoomConnectionState(SendQueue sendQueue, IReadOnlyList<IRoomFeature> features)
+    {
+        public SendQueue SendQueue => sendQueue;
+
+        public void Handle(RoomEvent e)
+        {
+            foreach (var feature in features) feature.Handle(e);
+        }
+    }
+
     private sealed class GiftRoundFeature(TimeProvider time, ILogger logger, long roomId,
-        Action<GiftRoundEnded> ended) : IRoomFeature
+        Action<GiftRoundEnded> ended, Action<Action> post) : IRoomFeature
     {
         private sealed class Round(long uid, string nickname)
         {
@@ -53,43 +65,39 @@ public sealed partial class AetherClient
             public long Spend;
             public QuietTimer Timer = null!;
         }
-        private readonly object gate = new();
         private readonly Dictionary<long, Round> rounds = [];
 
         public void Handle(RoomEvent e)
         {
-            lock (gate)
+            if (e is RoomConnectionEnded)
             {
-                if (e is RoomConnectionEnded)
+                foreach (var round in rounds.Values) round.Timer.Dispose();
+                rounds.Clear();
+            }
+            if (e is not DanmakuProtocol.GiftsReceived received) return;
+            // shortcut: no tid deduplication; add it if real captures show duplicate gift pushes.
+            foreach (var gift in received.Gifts)
+            {
+                if (gift.Uid == 0)
                 {
-                    foreach (var round in rounds.Values) round.Timer.Dispose();
-                    rounds.Clear();
+                    logger.LogInformation("uid 为 0 的观众送礼，未计入一轮送礼");
+                    continue;
                 }
-                if (e is not DanmakuProtocol.GiftsReceived received) return;
-                // shortcut: no tid deduplication; add it if real captures show duplicate gift pushes.
-                foreach (var gift in received.Gifts)
+                if (!rounds.TryGetValue(gift.Uid, out var round))
                 {
-                    if (gift.Uid == 0)
+                    round = new(gift.Uid, gift.Nickname);
+                    rounds.Add(gift.Uid, round);
+                    round.Timer = new QuietTimer(time, post, () =>
                     {
-                        logger.LogInformation("uid 为 0 的观众送礼，未计入一轮送礼");
-                        continue;
-                    }
-                    if (!rounds.TryGetValue(gift.Uid, out var round))
-                    {
-                        round = new(gift.Uid, gift.Nickname);
-                        rounds.Add(gift.Uid, round);
-                        round.Timer = new QuietTimer(time, gate, () =>
-                        {
-                            rounds.Remove(round.Uid);
-                            round.Timer.Dispose();
-                            ended(new(roomId, round.Uid, round.Nickname, round.Spend,
-                                time.GetUtcNow(), time.GetTimestamp()));
-                        });
-                    }
-                    round.Nickname = gift.Nickname;
-                    round.Spend = checked(round.Spend + gift.Spend);
-                    round.Timer.Reset(received.ReceivedTimestamp);
+                        rounds.Remove(round.Uid);
+                        round.Timer.Dispose();
+                        ended(new(roomId, round.Uid, round.Nickname, round.Spend,
+                            time.GetUtcNow(), time.GetTimestamp()));
+                    });
                 }
+                round.Nickname = gift.Nickname;
+                round.Spend = checked(round.Spend + gift.Spend);
+                round.Timer.Reset(received.ReceivedTimestamp);
             }
         }
     }
@@ -140,8 +148,8 @@ public sealed partial class AetherClient
     {
         public void Handle(RoomEvent e)
         {
-            // ponytail: a synchronous SQLite write on the receive loop (busy waits up to Microsoft.Data.Sqlite's 30 s
-            // command timeout, well inside the 60 s idle deadline); hand it to a background writer if a room ever stalls on it.
+            // ponytail: a synchronous SQLite write in a step the receive loop waits for (busy waits up to Microsoft.Data.Sqlite's
+            // 30 s command timeout, well inside the 60 s idle deadline); hand it to a background writer if a room ever stalls on it.
             if (e is DanmakuProtocol.GiftsReceived { Gifts: var gifts, ReceivedTimestamp: var receivedAt, PeriodOf: var periodOf })
                 recording.Record(periodOf, write => sendQueue.Record(gifts, receivedAt, gift => write(gift) && announce));
         }
