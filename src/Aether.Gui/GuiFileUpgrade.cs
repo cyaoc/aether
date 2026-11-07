@@ -12,35 +12,34 @@ internal static class GuiFileUpgrade
 {
     private static readonly IDeserializer Deserializer = new DeserializerBuilder().Build();
 
-    /// <summary>The auto-update switch gui.yml held, which this start goes by; null once there is no gui.yml.</summary>
+    /// <summary>The auto-update switch gui.yml held, which this start goes by; null once there is no gui.yml. The files are read
+    /// and written on the thread pool, and the GUI state goes to Core's command.</summary>
     public static async Task<bool?> RunAsync(string dataDirectory, AetherClient client, ILogger logger)
     {
         var path = Path.Combine(dataDirectory, "gui.yml");
-        if (!File.Exists(path)) return null;
-        string text;
-        try { text = File.ReadAllText(path); }
-        // Unreadable: the settings file decides, as the page shows it.
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
-        {
-            logger.LogWarning(error, "读取 gui.yml 失败，这次不升级，按设置文件：{Error}", error.Message);
-            return null;
-        }
-        var (autoUpdate, state) = Parse(text, logger);
+        if (await Task.Run(Read) is not (var autoUpdate, var state)) return null;
         // The settings file first, the database only once it took the switch: while the file cannot take it, each start
         // would otherwise put gui.yml's old rooms back over the ones remembered since.
         // Load first, so a file without the group gets the template's section with its comment before the value is set.
-        var moved = await TryAsync(() =>
+        var moved = await TryAsync(() => Task.Run(() =>
         {
             Settings.Load(dataDirectory, logger);
             Settings.Save(dataDirectory, new Dictionary<string, string> { ["auto_update.enabled"] = Settings.BooleanText(autoUpdate) });
-            return Task.CompletedTask;
-        }, "自动更新开关") && await TryAsync(() => client.GuiState.ReplaceAsync(state), MainWindowViewModel.GuiStateText);
-        if (moved) await TryAsync(() =>
-        {
-            File.Delete(path);
-            return Task.CompletedTask;
-        }, "删除");
+        }), "自动更新开关") && await TryAsync(() => client.GuiState.ReplaceAsync(state), MainWindowViewModel.GuiStateText);
+        if (moved) await TryAsync(() => Task.Run(() => File.Delete(path)), "删除");
         return autoUpdate;
+
+        (bool AutoUpdate, GuiState State)? Read()
+        {
+            if (!File.Exists(path)) return null;
+            try { return Parse(File.ReadAllText(path), logger); }
+            // Unreadable: the settings file decides, as the page shows it.
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            {
+                logger.LogWarning(error, "读取 gui.yml 失败，这次不升级，按设置文件：{Error}", error.Message);
+                return null;
+            }
+        }
 
         async Task<bool> TryAsync(Func<Task> move, string what)
         {

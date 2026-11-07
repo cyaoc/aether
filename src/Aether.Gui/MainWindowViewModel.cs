@@ -168,8 +168,7 @@ public partial class MainWindowViewModel : ObservableObject
             // gui.yml moves before the update check and before the window follows the GUI state, which both take what it held.
             // While it is still there its switch decides, so a broken settings file never updates someone who turned updates
             // off; a settings file whose values cannot be used means on (ADR 0016).
-            var preparing = Task.Run(async () => await GuiFileUpgrade.RunAsync(dataDirectory, client, logger)
-                ?? (Settings.Load(dataDirectory, logger) is { Error: null } settings ? settings.AutoUpdateEnabled.Value : true));
+            var preparing = PrepareAsync();
             startupWrites = preparing;
             var autoUpdate = await preparing;
             ObserveGuiState();
@@ -204,6 +203,9 @@ public partial class MainWindowViewModel : ObservableObject
             Lottery.ObserveLottery();
             GiftBoard.Observe();
             await Task.WhenAll(WebService.ApplyWebSettingsAsync(Settings.Load(dataDirectory, logger)), FadeAsync());
+
+            async Task<bool> PrepareAsync() => await GuiFileUpgrade.RunAsync(dataDirectory, client, logger)
+                ?? await Task.Run(() => Settings.Load(dataDirectory, logger) is { Error: null } settings ? settings.AutoUpdateEnabled.Value : true);
 
             async Task FadeAsync()
             {
