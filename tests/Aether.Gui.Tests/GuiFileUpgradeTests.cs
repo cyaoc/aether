@@ -25,7 +25,7 @@ public sealed class GuiFileUpgradeTests : IDisposable
 
         Assert.False(Settings.Load(harness.DataDirectory).AutoUpdateEnabled.Value);
         Assert.Contains("# 自动更新，只在 GUI 里生效，下次打开 GUI 时生效\nauto_update:\n  # true 或 false，打开 GUI 时检查并自动更新\n  enabled: false\n",
-            File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
+            File.ReadAllText(Settings.FilePath(harness.DataDirectory)).ReplaceLineEndings("\n"));
         var state = harness.LoadGuiState();
         Assert.False(state.KeepRecentDanmaku);
         Assert.Equal(["006", "42"], state.RecentRooms);
