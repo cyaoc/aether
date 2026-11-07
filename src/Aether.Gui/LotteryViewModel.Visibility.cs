@@ -10,9 +10,7 @@ public partial class LotteryViewModel
         get => LotteryState.PinnedResults;
         set
         {
-            if (value == PinnedResults) return;
-            client.Lottery.SetPinnedResults(value);
-            Apply(new LotteryUpdate(client.Lottery.State));
+            if (value != PinnedResults) _ = ShowAfterAsync(client.Lottery.SetPinnedResultsAsync(value));
         }
     }
 
@@ -20,7 +18,7 @@ public partial class LotteryViewModel
 
     [RelayCommand]
     private Task HideAllDrawsAsync() => CanHideAllDraws
-        ? TryChangeLotteryAsync(CurrentMode, lottery => lottery.HideAllDrawsFromStream()) : Task.CompletedTask;
+        ? TryChangeLotteryAsync(CurrentMode, lottery => lottery.HideAllDrawsFromStreamAsync()) : Task.CompletedTask;
 
     public bool CanHideAllDraws => CanControlOperation && (LotteryState.Lottery switch
     {
@@ -30,5 +28,5 @@ public partial class LotteryViewModel
     });
 
     internal Task ToggleDrawVisibilityAsync(LotteryDraw draw) => CanControlOperation
-        ? TryChangeLotteryAsync(CurrentMode, lottery => lottery.SetDrawHiddenFromStream(draw.Id, !draw.HiddenFromStream)) : Task.CompletedTask;
+        ? TryChangeLotteryAsync(CurrentMode, lottery => lottery.SetDrawHiddenFromStreamAsync(draw.Id, !draw.HiddenFromStream)) : Task.CompletedTask;
 }

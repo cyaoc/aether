@@ -89,10 +89,10 @@ public partial class LotteryViewModel
         EntryPrizeSets.Choose(null);
         var awards = Awards.Select(row => row.Value).ToArray();
         var keyword = Keyword ?? "";
-        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.StartEntry(awards, keyword));
+        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.StartEntryAsync(awards, keyword));
     }
 
-    internal Task CloseEntriesAsync() => CanCloseEntries ? TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.CloseEntries()) : Task.CompletedTask;
+    internal Task CloseEntriesAsync() => CanCloseEntries ? TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.CloseEntriesAsync()) : Task.CompletedTask;
 
     internal void RequestEndEntry()
     {
@@ -105,19 +105,19 @@ public partial class LotteryViewModel
     {
         if (!CanEndEntry) return Task.CompletedTask;
         ConfirmingEnd = false;
-        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.EndEntry());
+        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.EndEntryAsync());
     }
 
     internal Task ToggleEntryHiddenAsync()
     {
         if (!CanToggleHidden || LotteryState.Lottery is not EntryLottery entry) return Task.CompletedTask;
-        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.SetEntryHidden(!entry.Hidden));
+        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.SetEntryHiddenAsync(!entry.Hidden));
     }
 
     public Task DrawEntryAsync(int number)
     {
         var index = number - 1;
         if (index < 0 || index >= Awards.Count || !Awards[index].CanDraw) return Task.CompletedTask;
-        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.DrawEntry(index));
+        return TryChangeLotteryAsync(LotteryMode.Entry, lottery => lottery.DrawEntryAsync(index));
     }
 }

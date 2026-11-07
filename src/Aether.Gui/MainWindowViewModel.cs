@@ -461,9 +461,9 @@ public partial class MainWindowViewModel : ObservableObject
         if (ConnectCommand.ExecutionTask is { } task) await task;
     }
 
-    // Stop the web service first so later cleanup cannot hold its port; finish draws, and end a running 礼物榜 期, before
-    // disconnecting the room they require; let Core's regions finish last, so the last change is saved. A step that fails is
-    // only logged: the window is closing all the same.
+    // Stop the web service first so later cleanup cannot hold its port; end a running 礼物榜 期 before disconnecting the room it
+    // requires (a lottery change already queued runs before the room's end does); let Core's regions finish last, so the last
+    // change is saved. A step that fails is only logged: the window is closing all the same.
     public async Task ShutdownAsync()
     {
         RunShutdownStep("取消进行中的操作", shutdown.Cancel);
@@ -476,7 +476,6 @@ public partial class MainWindowViewModel : ObservableObject
         await RunShutdownStepAsync("等自动更新结束", () => updating);
         await RunShutdownStepAsync("等启动时的读写结束", () => startupWrites);
         await RunShutdownStepAsync("停网页服务", WebService.StopAsync);
-        await RunShutdownStepAsync("停抽奖", Lottery.StopAsync);
         await RunShutdownStepAsync("结束礼物榜这一期", GiftBoard.EndBeforeLeavingAsync);
         await RunShutdownStepAsync("停礼物榜", GiftBoard.StopAsync);
         await RunShutdownStepAsync("停账号读取", () => accountStopped);

@@ -46,9 +46,9 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
-        h.Client.Lottery.SelectTheme(LotteryTheme.MechaLock);
-        h.Client.Lottery.Start([new("机械键盘", 1, Grade.Grand)], "停", 42);
-        h.Client.Lottery.Stop();
+        await h.Client.Lottery.SelectThemeAsync(LotteryTheme.MechaLock);
+        await h.Client.Lottery.StartAsync([new("机械键盘", 1, Grade.Grand)], "停", 42);
+        await h.Client.Lottery.StopAsync();
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
         // Freeze the deadline too: screenshot speed must not decide whether the scene is still visible.
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
@@ -90,9 +90,9 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
-        h.Client.Lottery.SelectTheme(LotteryTheme.MechaLock);
-        h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
-        h.Client.Lottery.Stop();
+        await h.Client.Lottery.SelectThemeAsync(LotteryTheme.MechaLock);
+        await h.Client.Lottery.StartAsync([new("机械键盘", 1, grade)], "停", 42);
+        await h.Client.Lottery.StopAsync();
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
         await browser.EvaluateAsync("document.body.style.background = '#f0eae4'; document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); }); true");
@@ -139,8 +139,8 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(width, height);
         var (h, watch, browser) = (page.H, page.Watch, page.Browser);
-        h.Client.Lottery.SelectTheme(LotteryTheme.CapsuleGacha);
-        h.Client.Lottery.Start([new("机械键盘", 1, Grade.Grand)], "停", 42);
+        await h.Client.Lottery.SelectThemeAsync(LotteryTheme.CapsuleGacha);
+        await h.Client.Lottery.StartAsync([new("机械键盘", 1, Grade.Grand)], "停", 42);
         await h.PushAndCollectAsync(watch, Message(42, nickname, "停"));
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
@@ -173,9 +173,9 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
-        h.Client.Lottery.SelectTheme(LotteryTheme.CapsuleGacha);
-        h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
-        h.Client.Lottery.Stop();
+        await h.Client.Lottery.SelectThemeAsync(LotteryTheme.CapsuleGacha);
+        await h.Client.Lottery.StartAsync([new("机械键盘", 1, grade)], "停", 42);
+        await h.Client.Lottery.StopAsync();
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
         await browser.EvaluateAsync("document.body.style.background = '#f0eae4'; document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); }); true");
@@ -221,12 +221,12 @@ public sealed partial class LotteryBrowserTests
         var mecha = theme == LotteryTheme.MechaLock;
         var gacha = theme == LotteryTheme.CapsuleGacha;
         Assert.True((await browser.EvaluateAsync("document.getElementById('scene').hidden")).GetBoolean());
-        lottery.New(LotteryMode.Entry);
+        await lottery.NewAsync(LotteryMode.Entry);
         LotteryAward[] awards = [new("一等奖", "机械键盘", 1, Grade.Grand), new("二等奖", "周边抱枕", 1, Grade.Second), new("三等奖", "签名照", 1, Grade.Third)];
-        lottery.StartEntry(awards, "抽奖");
+        await lottery.StartEntryAsync(awards, "抽奖");
         await h.PushAndCollectAsync(watch, Message(1, "柚子不酸"), Message(2, "星河入梦"), Message(3, "一只小鹿"));
         await browser.WaitAsync("document.getElementById('entryCount').textContent === '3'");
-        lottery.SelectTheme(theme);
+        await lottery.SelectThemeAsync(theme);
         await browser.WaitAsync($"document.getElementById('scene').dataset.theme === '{theme}'");
         Assert.Equal(gacha ? "扭蛋抽奖" : mecha ? "目标锁定" : "星辰召唤", (await browser.EvaluateAsync("document.getElementById('themeTitle').textContent")).GetString());
         await browser.WaitAsync(gacha ? "document.fonts.check('56px \"ZCOOL KuaiLe\"')" : "document.fonts.check('56px \"Smiley Sans\"')");
@@ -238,43 +238,43 @@ public sealed partial class LotteryBrowserTests
         await AssertLayoutAsync(browser);
         await browser.WaitAsync("Array.from(document.querySelectorAll('#registration *')).every(e => e.getAnimations().every(a => a.playState === 'finished'))");
         await browser.ScreenshotAsync($"{width}-entry-open");
-        lottery.CloseEntries();
+        await lottery.CloseEntriesAsync();
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'winners'");
         await AssertLayoutAsync(browser);
         await browser.ScreenshotAsync($"{width}-entry-closed-empty");
         for (var index = 0; index < awards.Length; index++)
         {
             SyncClock();
-            lottery.DrawEntry(index);
+            await lottery.DrawEntryAsync(index);
             await AssertDrawAsync(browser, awards[index].Grade, "entry", theme);
             SyncClock();
         }
-        lottery.EndEntry();
+        await lottery.EndEntryAsync();
         await browser.WaitAsync($"document.getElementById('winnerTitle').textContent === '{(gacha ? "中奖啦！" : mecha ? "作战结果" : "召唤结果")}'");
         await browser.WaitAsync("Array.from(document.querySelectorAll('.winnerCard')).every(card => card.getAnimations().every(animation => animation.playState === 'finished'))");
         await AssertLayoutAsync(browser);
         await browser.ScreenshotAsync($"{width}-entry-ended");
-        lottery.SetEntryHidden(true);
+        await lottery.SetEntryHiddenAsync(true);
         await browser.WaitAsync("document.getElementById('scene').hidden");
-        lottery.SetEntryHidden(false);
+        await lottery.SetEntryHiddenAsync(false);
         await browser.WaitAsync("!document.getElementById('scene').hidden");
-        lottery.New(LotteryMode.Pool);
+        await lottery.NewAsync(LotteryMode.Pool);
         foreach (var award in awards)
         {
             SyncClock();
-            lottery.Start([new(award.Prize, 1, award.Grade)], "停", 42);
+            await lottery.StartAsync([new(award.Prize, 1, award.Grade)], "停", 42);
             await browser.WaitAsync("document.getElementById('scene').dataset.view === 'spinning'");
             Assert.Equal("", (await browser.EvaluateAsync("document.getElementById('banner').textContent")).GetString());
             await AssertLayoutAsync(browser);
             await browser.ScreenshotAsync($"{width}-pool-spinning");
             SyncClock();
-            lottery.Stop();
+            await lottery.StopAsync();
             await AssertDrawAsync(browser, award.Grade, "pool", theme);
             SyncClock();
         }
         await watch.DisposeAsync();
         SyncClock();
-        h.Client.WebService.Lottery.PlayExample();
+        await h.Client.WebService.Lottery.PlayExampleAsync();
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'registration'");
         await browser.ScreenshotAsync($"{width}-example-entry");
         // Advance Core with real time so CSS, JS timers and SSE deadlines are checked together.
@@ -286,8 +286,9 @@ public sealed partial class LotteryBrowserTests
             if (second == 17) await browser.ScreenshotAsync($"{width}-example-pool-draw");
         }
         await browser.WaitAsync("document.getElementById('scene').hidden");
+        await h.Client.IdleAsync();
         Assert.False(lottery.State.IsExamplePlaying);
-        Assert.Equal(2, lottery.GetHistory(7734200).Length);
+        Assert.Equal(2, (await lottery.GetHistoryAsync(7734200)).Length);
         Assert.Empty(browser.Errors);
         Assert.Contains(browser.Requests, url => url.EndsWith(gacha ? "/lottery/ZCOOLKuaiLe-Regular.ttf" : "/lottery/SmileySans-Oblique.woff2"));
         Assert.All(browser.Requests.Where(url => !url.StartsWith("data:")), url => Assert.Equal("localhost", new Uri(url).Host));
@@ -304,7 +305,7 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
-        h.Client.Lottery.SelectTheme(theme);
+        await h.Client.Lottery.SelectThemeAsync(theme);
         await browser.EvaluateAsync("document.body.style.background = 'rgb(17, 231, 103)'; true");
         async Task AssertEdgesAsync(string moment)
         {
@@ -332,11 +333,11 @@ public sealed partial class LotteryBrowserTests
         foreach (var grade in new[] { Grade.Grand, Grade.Second, Grade.Third })
         {
             h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
-            h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
+            await h.Client.Lottery.StartAsync([new("机械键盘", 1, grade)], "停", 42);
             await browser.WaitAsync("document.getElementById('scene').dataset.view === 'spinning'");
             await AssertEdgesAsync($"{grade}-edges-spinning");
             h.Time.Advance(DateTimeOffset.UtcNow - h.Time.GetUtcNow());
-            h.Client.Lottery.Stop();
+            await h.Client.Lottery.StopAsync();
             await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
             foreach (var milliseconds in new[] { 350, 1400, 1850, 2000, 2300, 2800, 4000, 6000 })
             {
@@ -361,8 +362,8 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(1080, 1920);
         var (h, watch, browser) = (page.H, page.Watch, page.Browser);
-        h.Client.Lottery.SelectTheme(theme);
-        h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
+        await h.Client.Lottery.SelectThemeAsync(theme);
+        await h.Client.Lottery.StartAsync([new("机械键盘", 1, grade)], "停", 42);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'spinning'");
         await browser.ScreenshotAsync("portrait-scanning");
         await h.PushAndCollectAsync(watch, Message(42, "观众的超长中文昵称星河入梦与漫天星光", "停"));
@@ -388,10 +389,10 @@ public sealed partial class LotteryBrowserTests
         await using var page = await OpenPageAsync(1080, 1920);
         var (h, watch, browser) = (page.H, page.Watch, page.Browser);
         var lottery = h.Client.Lottery;
-        lottery.SelectTheme(theme);
-        lottery.New(LotteryMode.Entry);
+        await lottery.SelectThemeAsync(theme);
+        await lottery.NewAsync(LotteryMode.Entry);
         const string keyword = "欢迎参加星辰召唤特别纪念限定抽奖活动";
-        lottery.StartEntry(Enumerable.Range(1, awards).Select(i => new LotteryAward($"第{i}个特别纪念奖项", "星辰召唤限量纪念版机械键盘", 10, Grade.Grand)).ToArray(), keyword);
+        await lottery.StartEntryAsync(Enumerable.Range(1, awards).Select(i => new LotteryAward($"第{i}个特别纪念奖项", "星辰召唤限量纪念版机械键盘", 10, Grade.Grand)).ToArray(), keyword);
         var messages = Enumerable.Range(1, 7).Select(i => Message(i, $"观众{i}的超长中文昵称星河入梦", keyword)).ToArray();
         await h.PushAndCollectAsync(watch, messages);
         await browser.WaitAsync("document.getElementById('entryCount').textContent === '7'");
@@ -409,9 +410,9 @@ public sealed partial class LotteryBrowserTests
             await AssertLayoutAsync(browser);
             Assert.Equal(portrait ? 3 : 2, (await browser.EvaluateAsync("Array.from(document.querySelectorAll('#latestEntries > div')).filter(e => e.getBoundingClientRect().height > 0).length")).GetInt32());
         }
-        lottery.CloseEntries();
+        await lottery.CloseEntriesAsync();
         // Build seven real results without waiting for seven animations; the other test checks their timing.
-        for (var i = 0; i < 7; i++) { lottery.DrawEntry(0); h.Time.Advance(LotteryController.DrawDuration); }
+        for (var i = 0; i < 7; i++) { await lottery.DrawEntryAsync(0); h.Time.Advance(LotteryController.DrawDuration); }
         await browser.WaitAsync("document.getElementById('pageNumber').textContent === '1 / 2'");
         await browser.WaitAsync("Array.from(document.querySelectorAll('.winnerCard')).every(c => c.getAnimations().every(a => a.playState === 'finished'))");
         await AssertLayoutAsync(browser);
@@ -422,7 +423,7 @@ public sealed partial class LotteryBrowserTests
         await browser.WaitAsync("Array.from(document.querySelectorAll('.winnerCard')).every(c => c.getAnimations().every(a => a.playState === 'finished'))");
         await AssertLayoutAsync(browser);
         await browser.ScreenshotAsync("1080-winners-page-2");
-        lottery.EndEntry();
+        await lottery.EndEntryAsync();
         await browser.WaitAsync($"document.getElementById('winnerTitle').textContent === '{(theme == LotteryTheme.CapsuleGacha ? "中奖啦！" : theme == LotteryTheme.MechaLock ? "作战结果" : "召唤结果")}'");
         await browser.WaitAsync("Array.from(document.querySelectorAll('.winnerCard')).every(c => c.getAnimations().every(a => a.playState === 'finished'))");
         await AssertLayoutAsync(browser);
@@ -435,12 +436,12 @@ public sealed partial class LotteryBrowserTests
         await using var page = await OpenPageAsync(1920, 1080);
         var (h, watch, browser) = (page.H, page.Watch, page.Browser);
         var lottery = h.Client.Lottery;
-        lottery.SelectTheme(LotteryTheme.CapsuleGacha);
-        lottery.New(LotteryMode.Entry);
-        lottery.StartEntry(Enumerable.Range(1, 3).Select(i => new LotteryAward($"第{i}个特别纪念奖项", "限量纪念版机械键盘", 3, Grade.Grand)).ToArray(), "抽奖");
+        await lottery.SelectThemeAsync(LotteryTheme.CapsuleGacha);
+        await lottery.NewAsync(LotteryMode.Entry);
+        await lottery.StartEntryAsync(Enumerable.Range(1, 3).Select(i => new LotteryAward($"第{i}个特别纪念奖项", "限量纪念版机械键盘", 3, Grade.Grand)).ToArray(), "抽奖");
         await h.PushAndCollectAsync(watch, Enumerable.Range(1, 7).Select(i => Message(i, $"观众{i}的超长中文昵称星河入梦")).ToArray());
-        lottery.CloseEntries();
-        for (var i = 0; i < 6; i++) { lottery.DrawEntry(i / 2); h.Time.Advance(LotteryController.DrawDuration); }
+        await lottery.CloseEntriesAsync();
+        for (var i = 0; i < 6; i++) { await lottery.DrawEntryAsync(i / 2); h.Time.Advance(LotteryController.DrawDuration); }
         await browser.WaitAsync("document.querySelectorAll('.winnerName').length === 6");
         foreach (var (width, height) in new[] { (1080, 1920), (1920, 1080), (1080, 1920) })
         {
@@ -450,7 +451,7 @@ public sealed partial class LotteryBrowserTests
             await AssertLayoutAsync(browser);
         }
         await browser.ScreenshotAsync("1080-grouped-winners-rotated");
-        lottery.EndEntry();
+        await lottery.EndEntryAsync();
         await browser.WaitAsync("document.querySelectorAll('.winnerName').length === 6");
         await browser.WaitAsync("Array.from(document.querySelectorAll('.winnerCard')).every(c => c.getAnimations().every(a => a.playState === 'finished'))");
         await AssertLayoutAsync(browser);
@@ -468,15 +469,15 @@ public sealed partial class LotteryBrowserTests
         var (h, watch, browser) = (page.H, page.Watch, page.Browser);
         var lottery = h.Client.Lottery;
         const string name = "观众的超长中文昵称星河入梦与漫天星光", prize = "星辰召唤特别纪念限量联名豪华版无线机械键盘和配套主题礼盒";
-        lottery.SelectTheme(LotteryTheme.CapsuleGacha);
+        await lottery.SelectThemeAsync(LotteryTheme.CapsuleGacha);
         if (entry)
         {
-            lottery.New(LotteryMode.Entry);
-            lottery.StartEntry([new("一等奖", prize, 1, Grade.Grand)], "抽奖");
+            await lottery.NewAsync(LotteryMode.Entry);
+            await lottery.StartEntryAsync([new("一等奖", prize, 1, Grade.Grand)], "抽奖");
         }
-        else lottery.Start([new(prize, 1, Grade.Grand)], "停", 42);
+        else await lottery.StartAsync([new(prize, 1, Grade.Grand)], "停", 42);
         await h.PushAndCollectAsync(watch, Message(42, name, entry ? "抽奖" : "停"));
-        if (entry) { lottery.CloseEntries(); lottery.DrawEntry(0); }
+        if (entry) { await lottery.CloseEntriesAsync(); await lottery.DrawEntryAsync(0); }
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing' && document.fonts.status === 'loaded'");
         await browser.EvaluateAsync("document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); }); true");
         foreach (var milliseconds in new[] { 154, 252, 3000 })

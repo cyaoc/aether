@@ -10,7 +10,7 @@ public sealed class LotteryHistoryTests
     public async Task History_preserves_saved_timestamp_offsets_and_nullable_fields(string? endedAt)
     {
         await using var h = new WatchHarness();
-        Assert.Empty(h.Client.Lottery.GetHistory(7734200));
+        Assert.Empty(await h.Client.Lottery.GetHistoryAsync(7734200));
         using (var connection = TestDatabase.Open(h.DataDirectory))
         using (var command = connection.CreateCommand())
         {
@@ -22,8 +22,8 @@ public sealed class LotteryHistoryTests
             command.ExecuteNonQuery();
         }
 
-        var history = Assert.Single(h.Client.Lottery.GetHistory(7734200));
-        var details = Assert.IsType<PoolLottery>(h.Client.Lottery.GetHistoryDetails(7734200, "saved"));
+        var history = Assert.Single(await h.Client.Lottery.GetHistoryAsync(7734200));
+        var details = Assert.IsType<PoolLottery>(await h.Client.Lottery.GetHistoryDetailsAsync(7734200, "saved"));
         Assert.Equal("2026-10-19T08:01:02.1234567+08:00", history.StartedAt.ToString("O"));
         Assert.Equal("2026-10-19T08:01:02.1234567+08:00", details.StartedAt.ToString("O"));
         Assert.Equal(endedAt, history.EndedAt?.ToString("O"));
@@ -36,7 +36,7 @@ public sealed class LotteryHistoryTests
     public async Task The_last_lottery_room_is_where_the_latest_started_lottery_was_held_whatever_the_offsets()
     {
         await using var h = new WatchHarness();
-        Assert.Null(h.Client.Lottery.GetLastLotteryRoom());
+        Assert.Null(await h.Client.Lottery.GetLastLotteryRoomAsync());
         using (var connection = TestDatabase.Open(h.DataDirectory))
         using (var command = connection.CreateCommand())
         {
@@ -49,7 +49,7 @@ public sealed class LotteryHistoryTests
             command.ExecuteNonQuery();
         }
 
-        Assert.Equal(42L, h.Client.Lottery.GetLastLotteryRoom());
+        Assert.Equal(42L, (await h.Client.Lottery.GetLastLotteryRoomAsync()));
     }
 
     [Fact]
@@ -59,14 +59,16 @@ public sealed class LotteryHistoryTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.Start([new("键盘", 1, Grade.Grand), new("贴纸", 3, Grade.Third)], "开", 42);
+        await lottery.StartAsync([new("键盘", 1, Grade.Grand), new("贴纸", 3, Grade.Third)], "开", 42);
         await h.PushAndCollectAsync(updates, """{"cmd":"DANMU_MSG","info":[[],"开",[42,"小明"]]}""");
+        await h.Client.IdleAsync();
         h.Time.Advance(LotteryController.DrawDuration);
+        await h.Client.IdleAsync();
         var original = Assert.IsType<PoolLottery>(lottery.State.Lottery);
         var endedAt = h.Time.GetUtcNow();
-        lottery.New(LotteryMode.Entry);
+        await lottery.NewAsync(LotteryMode.Entry);
 
-        var details = Assert.IsType<PoolLottery>(lottery.GetHistoryDetails(7734200, original.Id));
+        var details = Assert.IsType<PoolLottery>(await lottery.GetHistoryDetailsAsync(7734200, original.Id));
         Assert.Equal(original.Id, details.Id);
         Assert.Equal(original.RoomId, details.RoomId);
         Assert.Equal(original.StartedAt, details.StartedAt);
@@ -87,20 +89,20 @@ public sealed class LotteryHistoryTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.New(LotteryMode.Entry);
-        lottery.StartEntry([new("幸运奖", "抱枕", 2, Grade.Second)], "参加");
+        await lottery.NewAsync(LotteryMode.Entry);
+        await lottery.StartEntryAsync([new("幸运奖", "抱枕", 2, Grade.Second)], "参加");
         await h.PushAndCollectAsync(updates,
             """{"cmd":"DANMU_MSG","info":[[],"参加",[7,"七七"]]}""",
             """{"cmd":"DANMU_MSG","info":[[],"参加",[42,"小明"]]}""");
-        lottery.CloseEntries();
-        lottery.DrawEntry(0);
+        await lottery.CloseEntriesAsync();
+        await lottery.DrawEntryAsync(0);
         h.Time.Advance(LotteryController.DrawDuration);
-        lottery.EndEntry();
-        lottery.SetEntryHidden(true);
+        await lottery.EndEntryAsync();
+        await lottery.SetEntryHiddenAsync(true);
         var original = Assert.IsType<EntryLottery>(lottery.State.Lottery);
-        lottery.New(LotteryMode.Pool);
+        await lottery.NewAsync(LotteryMode.Pool);
 
-        var details = Assert.IsType<EntryLottery>(lottery.GetHistoryDetails(7734200, original.Id));
+        var details = Assert.IsType<EntryLottery>(await lottery.GetHistoryDetailsAsync(7734200, original.Id));
         Assert.Equivalent(original, details);
     }
 
@@ -111,13 +113,13 @@ public sealed class LotteryHistoryTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.New(LotteryMode.Entry);
+        await lottery.NewAsync(LotteryMode.Entry);
         var first = lottery.State.Lottery!.Id;
-        lottery.New(LotteryMode.Pool);
+        await lottery.NewAsync(LotteryMode.Pool);
         var second = lottery.State.Lottery!.Id;
-        lottery.New(LotteryMode.Entry);
+        await lottery.NewAsync(LotteryMode.Entry);
         var third = lottery.State.Lottery!.Id;
-        var history = lottery.GetHistory(7734200);
+        var history = await lottery.GetHistoryAsync(7734200);
         Assert.Equal(new[] { third, second, first }, history.Select(item => item.Id));
         Assert.Null(history[0].EndedAt);
         Assert.All(history.Skip(1), item => Assert.NotNull(item.EndedAt));
@@ -128,29 +130,30 @@ public sealed class LotteryHistoryTests
     public async Task History_includes_both_modes_and_unfinished_lotteries_after_restart()
     {
         await using var h = new WatchHarness(enableStreamOverlay: true);
-        Assert.Empty(h.Client.Lottery.GetHistory(7734200));
+        Assert.Empty(await h.Client.Lottery.GetHistoryAsync(7734200));
         await h.LoginAsync();
         var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.Start([new("键盘", 1, Grade.Grand)], "开", 42);
+        await lottery.StartAsync([new("键盘", 1, Grade.Grand)], "开", 42);
         await h.PushAndCollectAsync(updates, """{"cmd":"DANMU_MSG","info":[[],"开",[42,"小明"]]}""");
+        await h.Client.IdleAsync();
         var poolId = lottery.State.Lottery!.Id;
-        Assert.Null(Assert.Single(lottery.GetHistory(7734200)).EndedAt);
+        Assert.Null(Assert.Single(await lottery.GetHistoryAsync(7734200)).EndedAt);
         h.Time.Advance(LotteryController.DrawDuration);
-        lottery.New(LotteryMode.Entry);
-        lottery.StartEntry([new("幸运奖", "抱枕", 2, Grade.Second)], "参加");
+        await lottery.NewAsync(LotteryMode.Entry);
+        await lottery.StartEntryAsync([new("幸运奖", "抱枕", 2, Grade.Second)], "参加");
         await h.PushAndCollectAsync(updates, """{"cmd":"DANMU_MSG","info":[[],"参加",[7,"七七"]]}""");
-        lottery.CloseEntries();
-        lottery.DrawEntry(0);
+        await lottery.CloseEntriesAsync();
+        await lottery.DrawEntryAsync(0);
         var entryId = lottery.State.Lottery!.Id;
         h.Time.Advance(LotteryController.DrawDuration);
-        lottery.EndEntry();
-        lottery.New(LotteryMode.Pool);
+        await lottery.EndEntryAsync();
+        await lottery.NewAsync(LotteryMode.Pool);
         var currentId = lottery.State.Lottery!.Id;
         await updates.DisposeAsync();
         h.Client.Dispose();
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
-        var history = restarted.Lottery.GetHistory(7734200);
+        var history = await restarted.Lottery.GetHistoryAsync(7734200);
         Assert.Equal(new[] { currentId, entryId, poolId }, history.Select(item => item.Id));
         Assert.Null(history[0].EndedAt);
         Assert.All(history.Skip(1), item => Assert.NotNull(item.EndedAt));
@@ -159,20 +162,20 @@ public sealed class LotteryHistoryTests
         Assert.Equal(1, history[1].DrawCount);
         Assert.Equal("幸运奖", Assert.Single(history[1].Awards).Name);
         Assert.Equal("键盘", Assert.Single(history[2].Prizes).Name);
-        var entry = Assert.IsType<EntryLottery>(restarted.Lottery.GetHistoryDetails(7734200, entryId));
+        var entry = Assert.IsType<EntryLottery>(await restarted.Lottery.GetHistoryDetailsAsync(7734200, entryId));
         Assert.Equal("参加", entry.Keyword);
         var entryDraw = Assert.Single(entry.Draws);
         Assert.Equal("七七", entryDraw.Winner.Nickname);
         Assert.Equal("抱枕", entryDraw.Award.Prize);
-        var pool = Assert.IsType<PoolLottery>(restarted.Lottery.GetHistoryDetails(7734200, poolId));
+        var pool = Assert.IsType<PoolLottery>(await restarted.Lottery.GetHistoryDetailsAsync(7734200, poolId));
         Assert.Equal("开", pool.StopWord);
         var poolDraw = Assert.Single(pool.Draws);
         Assert.Equal(42, poolDraw.Uid);
         Assert.Equal("小明", poolDraw.Nickname);
         Assert.Equal("键盘", poolDraw.Prize.Name);
-        Assert.Empty(restarted.Lottery.GetHistory(999));
-        Assert.Null(restarted.Lottery.GetHistoryDetails(999, poolId));
-        Assert.Null(restarted.Lottery.GetHistoryDetails(7734200, "missing"));
+        Assert.Empty(await restarted.Lottery.GetHistoryAsync(999));
+        Assert.Null(await restarted.Lottery.GetHistoryDetailsAsync(999, poolId));
+        Assert.Null(await restarted.Lottery.GetHistoryDetailsAsync(7734200, "missing"));
         Assert.Null(restarted.Lottery.State.RoomId);
     }
 }

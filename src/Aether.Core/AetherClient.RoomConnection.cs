@@ -57,7 +57,7 @@ public sealed partial class AetherClient
                             client.logger.LogInformation("直播间连接开始");
                             if (enableStreamOverlay)
                             {
-                                features.Add(new LotteryFeature(client.Lottery, client.logger, realRoomId.Value));
+                                features.Add(new LotteryFeature(client.Lottery, realRoomId.Value));
                                 features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value, client.logger));
                             }
                             if (Settings.BlindBoxEnabled.Value) features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));

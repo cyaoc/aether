@@ -21,33 +21,30 @@ public sealed partial class LotteryController
         RequireNotDrawing();
     }
 
-    public void New(LotteryMode mode)
+    internal void New(LotteryMode mode)
     {
         if (!Enum.IsDefined(mode)) throw new ArgumentException("请选择抽奖方式。");
-        lock (gate)
+        RequireConnection();
+        RequireNew();
+        var now = time.GetUtcNow();
+        Lottery next;
+        if (mode == LotteryMode.Entry)
         {
-            RequireConnection();
-            RequireNew();
-            var now = time.GetUtcNow();
-            Lottery next;
-            if (mode == LotteryMode.Entry)
-            {
-                var previous = store().Load(state.RoomId!.Value, LotteryMode.Entry) as EntryLottery;
-                next = new EntryLottery(Ids.New(), state.RoomId.Value,
-                    previous?.Keyword ?? "抽奖", now, previous?.Awards ?? [new("一等奖", "", 1, Grade.Grand)], [], []);
-            }
-            else
-            {
-                var previous = store().Load(state.RoomId!.Value, LotteryMode.Pool) as PoolLottery;
-                next = NewPoolLottery(previous?.Prizes ?? [DefaultPrize], previous?.StopWord ?? DefaultStopWord)
-                    with { Uid = previous?.Uid };
-            }
-            store().Save(next, endCurrentAt: now);
-            state = state with { Lottery = next };
-            drawTimer?.Dispose();
-            Publish();
-            logger.LogInformation("抽奖新开一场：直播间 {RoomId}，方式 {Mode}", state.RoomId, mode);
+            var previous = store().Load(state.RoomId!.Value, LotteryMode.Entry) as EntryLottery;
+            next = new EntryLottery(Ids.New(), state.RoomId.Value,
+                previous?.Keyword ?? "抽奖", now, previous?.Awards ?? [new("一等奖", "", 1, Grade.Grand)], [], []);
         }
+        else
+        {
+            var previous = store().Load(state.RoomId!.Value, LotteryMode.Pool) as PoolLottery;
+            next = NewPoolLottery(previous?.Prizes ?? [DefaultPrize], previous?.StopWord ?? DefaultStopWord)
+                with { Uid = previous?.Uid };
+        }
+        store().Save(next, endCurrentAt: now);
+        state = state with { Lottery = next };
+        drawTimer?.Dispose();
+        Publish();
+        logger.LogInformation("抽奖新开一场：直播间 {RoomId}，方式 {Mode}", state.RoomId, mode);
     }
 
     private static void Validate(IReadOnlyCollection<LotteryAward> awards)
@@ -57,69 +54,54 @@ public sealed partial class LotteryController
             if (ValidateAward(award) is { } error) throw new ArgumentException(error);
     }
 
-    public void StartEntry(IReadOnlyCollection<LotteryAward> awards, string keyword)
+    internal void StartEntry(IReadOnlyCollection<LotteryAward> awards, string keyword)
     {
         if (ValidateKeyword(keyword) is { } keywordError) throw new ArgumentException(keywordError);
         Validate(awards);
-        lock (gate)
-        {
-            RequireConnection();
-            var lottery = RequireEntry(EntryLotteryPhase.Preparing);
-            Save(lottery with { Keyword = keyword.Trim(), Awards = awards.ToImmutableArray(), Phase = EntryLotteryPhase.Open });
-            logger.LogInformation("报名抽奖开始报名：直播间 {RoomId}，抽奖 {LotteryId}，关键字 {Keyword}", state.RoomId, lottery.Id, keyword.Trim());
-        }
+        RequireConnection();
+        var lottery = RequireEntry(EntryLotteryPhase.Preparing);
+        Save(lottery with { Keyword = keyword.Trim(), Awards = awards.ToImmutableArray(), Phase = EntryLotteryPhase.Open });
+        logger.LogInformation("报名抽奖开始报名：直播间 {RoomId}，抽奖 {LotteryId}，关键字 {Keyword}", state.RoomId, lottery.Id, keyword.Trim());
     }
 
-    public void CloseEntries()
+    internal void CloseEntries()
     {
-        lock (gate)
-        {
-            var lottery = RequireEntry(EntryLotteryPhase.Open);
-            Save(lottery with { Phase = EntryLotteryPhase.Closed });
-            logger.LogInformation("报名抽奖截止：抽奖 {LotteryId}，共 {Count} 人", lottery.Id, lottery.Entries.Length);
-        }
+        var lottery = RequireEntry(EntryLotteryPhase.Open);
+        Save(lottery with { Phase = EntryLotteryPhase.Closed });
+        logger.LogInformation("报名抽奖截止：抽奖 {LotteryId}，共 {Count} 人", lottery.Id, lottery.Entries.Length);
     }
 
-    public void DrawEntry(int awardIndex)
+    internal void DrawEntry(int awardIndex)
     {
-        lock (gate)
-        {
-            var lottery = RequireEntry(EntryLotteryPhase.Closed);
-            RequireNotDrawing();
-            if (awardIndex < 0 || awardIndex >= lottery.Awards.Length) throw new ArgumentOutOfRangeException(nameof(awardIndex));
-            var award = lottery.Awards[awardIndex];
-            if (lottery.Draws.Count(draw => draw.AwardIndex == awardIndex) >= award.Capacity)
-                throw new InvalidOperationException("这个奖项的名额已满。");
-            if (!lottery.HasEligibleEntries) throw new InvalidOperationException(NoEligibleEntries + "。");
-            var winners = lottery.Draws.Select(draw => draw.Winner.Uid).ToHashSet();
-            var available = lottery.Entries.Where(entry => !winners.Contains(entry.Uid)).ToArray();
-            var pick = (int)random.NextInt64(available.Length);
-            // Display cells repeat when fewer than ten viewers remain; they do not affect the uniform draw.
-            var candidates = Enumerable.Range(0, DrawCells).Select(index => available[(pick + index) % available.Length].Nickname).ToImmutableArray();
-            var now = time.GetUtcNow();
-            var draw = new EntryDraw(Ids.New(), awardIndex, award, available[pick], now, candidates);
-            Save(lottery with { Draws = lottery.Draws.Add(draw), DrawUntil = now + DrawDuration }, draw);
-            ResumeDraw();
-            logger.LogInformation("报名抽奖开奖：抽奖 {LotteryId}，奖项 {Award}，奖品 {Prize}，观众 {Uid} {Nickname}",
-                lottery.Id, award.Name, award.Prize, draw.Winner.Uid, draw.Winner.Nickname);
-        }
+        var lottery = RequireEntry(EntryLotteryPhase.Closed);
+        RequireNotDrawing();
+        if (awardIndex < 0 || awardIndex >= lottery.Awards.Length) throw new ArgumentOutOfRangeException(nameof(awardIndex));
+        var award = lottery.Awards[awardIndex];
+        if (lottery.Draws.Count(draw => draw.AwardIndex == awardIndex) >= award.Capacity)
+            throw new InvalidOperationException("这个奖项的名额已满。");
+        if (!lottery.HasEligibleEntries) throw new InvalidOperationException(NoEligibleEntries + "。");
+        var winners = lottery.Draws.Select(draw => draw.Winner.Uid).ToHashSet();
+        var available = lottery.Entries.Where(entry => !winners.Contains(entry.Uid)).ToArray();
+        var pick = (int)random.NextInt64(available.Length);
+        // Display cells repeat when fewer than ten viewers remain; they do not affect the uniform draw.
+        var candidates = Enumerable.Range(0, DrawCells).Select(index => available[(pick + index) % available.Length].Nickname).ToImmutableArray();
+        var now = time.GetUtcNow();
+        var draw = new EntryDraw(Ids.New(), awardIndex, award, available[pick], now, candidates);
+        Save(lottery with { Draws = lottery.Draws.Add(draw), DrawUntil = now + DrawDuration }, draw);
+        ResumeDraw();
+        logger.LogInformation("报名抽奖开奖：抽奖 {LotteryId}，奖项 {Award}，奖品 {Prize}，观众 {Uid} {Nickname}",
+            lottery.Id, award.Name, award.Prize, draw.Winner.Uid, draw.Winner.Nickname);
     }
 
-    public void EndEntry()
+    internal void EndEntry()
     {
-        lock (gate)
-        {
-            var lottery = RequireEntry(EntryLotteryPhase.Closed);
-            RequireNotDrawing();
-            Save(lottery with { Phase = EntryLotteryPhase.Ended, EndedAt = time.GetUtcNow() });
-            logger.LogInformation("报名抽奖结束：抽奖 {LotteryId}，共 {Count} 人中奖", lottery.Id, lottery.Draws.Length);
-        }
+        var lottery = RequireEntry(EntryLotteryPhase.Closed);
+        RequireNotDrawing();
+        Save(lottery with { Phase = EntryLotteryPhase.Ended, EndedAt = time.GetUtcNow() });
+        logger.LogInformation("报名抽奖结束：抽奖 {LotteryId}，共 {Count} 人中奖", lottery.Id, lottery.Draws.Length);
     }
 
-    public void SetEntryHidden(bool hidden)
-    {
-        lock (gate) Save(RequireEntry(EntryLotteryPhase.Ended) with { Hidden = hidden });
-    }
+    internal void SetEntryHidden(bool hidden) => Save(RequireEntry(EntryLotteryPhase.Ended) with { Hidden = hidden });
 
     private EntryLottery RequireEntry(EntryLotteryPhase phase)
     {

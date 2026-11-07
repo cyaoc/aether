@@ -29,7 +29,7 @@ public sealed class WebService : IDisposable
     public LotteryPage Lottery { get; }
     public GiftBoardPage GiftBoard { get; }
 
-    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, LotteryController lottery, GiftBoardController giftBoard)
+    public WebService(string dataDirectory, TimeProvider timeProvider, ILogger logger, LotteryFacade lottery, GiftBoardController giftBoard)
     {
         this.timeProvider = timeProvider;
         this.logger = logger;

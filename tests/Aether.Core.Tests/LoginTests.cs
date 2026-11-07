@@ -48,12 +48,12 @@ public sealed class LoginTests : IDisposable
     }
 
     [Fact]
-    public void Version_three_database_keeps_lottery_credential_and_blind_boxes_when_opened_as_version_eight()
+    public async Task Version_three_database_keeps_lottery_credential_and_blind_boxes_when_opened_as_version_eight()
     {
         TestDatabase.Restore(dataDirectory, "database-v0.2.1.sql");
 
         using var client = CreateClient();
-        var history = Assert.Single(client.Lottery.GetHistory(7734200));
+        var history = Assert.Single(await client.Lottery.GetHistoryAsync(7734200));
         Assert.Equal("legacy-pool", history.Id);
         Assert.Equal(LotteryMode.Pool, history.Mode);
         Assert.Equal(DateTimeOffset.Parse("2023-12-10T00:00:00Z"), history.StartedAt);
@@ -61,7 +61,7 @@ public sealed class LoginTests : IDisposable
         Assert.Equal("开", history.StopWord);
         Assert.Equal(1, history.DrawCount);
         Assert.Equal(new PoolPrize("键盘", 1, Grade.Grand), Assert.Single(history.Prizes));
-        var lottery = Assert.IsType<PoolLottery>(client.Lottery.GetHistoryDetails(7734200, history.Id));
+        var lottery = Assert.IsType<PoolLottery>(await client.Lottery.GetHistoryDetailsAsync(7734200, history.Id));
         var draw = Assert.Single(lottery.Draws);
         Assert.Equal("legacy-draw", draw.Id);
         Assert.Equal(history.Prizes[0], draw.Prize);

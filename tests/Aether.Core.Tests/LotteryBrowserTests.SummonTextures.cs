@@ -16,8 +16,8 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
-        h.Client.Lottery.Start([new("星辰召唤特别纪念限量联名豪华版无线机械键盘和配套主题礼盒", 1, grade)], "停", 42);
-        h.Client.Lottery.Stop();
+        await h.Client.Lottery.StartAsync([new("星辰召唤特别纪念限量联名豪华版无线机械键盘和配套主题礼盒", 1, grade)], "停", 42);
+        await h.Client.Lottery.StopAsync();
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
         await browser.EvaluateAsync("textures.ready");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });

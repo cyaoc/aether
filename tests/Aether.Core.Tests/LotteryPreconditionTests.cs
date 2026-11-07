@@ -16,15 +16,15 @@ public sealed class LotteryPreconditionTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.Start(Prizes, "停");
+        await lottery.StartAsync(Prizes, "停");
         var before = lottery.State;
         lottery.Dispose();
-        Assert.Throws<ObjectDisposedException>(() => { if (stop) lottery.Stop(); else lottery.Cancel(); });
-        Assert.Throws<ObjectDisposedException>(() => lottery.StartEntry(Awards, "抽奖"));
-        Assert.Throws<ObjectDisposedException>(lottery.CloseEntries);
-        Assert.Throws<ObjectDisposedException>(() => lottery.DrawEntry(0));
-        Assert.Throws<ObjectDisposedException>(lottery.EndEntry);
-        Assert.Throws<ObjectDisposedException>(() => lottery.SetEntryHidden(true));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stop ? lottery.StopAsync() : lottery.CancelAsync());
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => lottery.StartEntryAsync(Awards, "抽奖"));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(lottery.CloseEntriesAsync);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => lottery.DrawEntryAsync(0));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(lottery.EndEntryAsync);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => lottery.SetEntryHiddenAsync(true));
         Assert.Equal(before, lottery.State);
     }
 
@@ -37,21 +37,22 @@ public sealed class LotteryPreconditionTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.Start(Prizes, "停");
+        await lottery.StartAsync(Prizes, "停");
         await h.Server.DisconnectAsync();
         Assert.IsType<Reconnecting>(await h.NextAsync(updates));
+        await h.Client.IdleAsync();
         Assert.False(lottery.State.Connected);
         Assert.True(lottery.State.CanControl);
         var before = lottery.State;
-        Assert.Equal("请先连接直播间。", Assert.Throws<InvalidOperationException>(() => lottery.New(LotteryMode.Pool)).Message);
-        Assert.Equal("请先连接直播间。", Assert.Throws<InvalidOperationException>(() => lottery.Start(Prizes, "停")).Message);
-        Assert.Equal("请先连接直播间。", Assert.Throws<InvalidOperationException>(() => lottery.StartEntry(Awards, "抽奖")).Message);
-        Assert.Equal("请选择抽奖方式。", Assert.Throws<ArgumentException>(() => lottery.New((LotteryMode)99)).Message);
-        Assert.Equal("口令不能为空", Assert.Throws<ArgumentException>(() => lottery.Start(Prizes, " ")).Message);
-        Assert.Equal("报名关键字不能为空", Assert.Throws<ArgumentException>(() => lottery.StartEntry(Awards, " ")).Message);
+        Assert.Equal("请先连接直播间。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.NewAsync(LotteryMode.Pool))).Message);
+        Assert.Equal("请先连接直播间。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.StartAsync(Prizes, "停"))).Message);
+        Assert.Equal("请先连接直播间。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.StartEntryAsync(Awards, "抽奖"))).Message);
+        Assert.Equal("请选择抽奖方式。", (await Assert.ThrowsAsync<ArgumentException>(() => lottery.NewAsync((LotteryMode)99))).Message);
+        Assert.Equal("口令不能为空", (await Assert.ThrowsAsync<ArgumentException>(() => lottery.StartAsync(Prizes, " "))).Message);
+        Assert.Equal("报名关键字不能为空", (await Assert.ThrowsAsync<ArgumentException>(() => lottery.StartEntryAsync(Awards, " "))).Message);
         Assert.Equal(before, lottery.State);
 
-        if (stop) lottery.Stop(); else lottery.Cancel();
+        if (stop) await lottery.StopAsync(); else await lottery.CancelAsync();
         var pool = Assert.IsType<PoolLottery>(lottery.State.Lottery);
         Assert.Equal(PoolLotteryPhase.Idle, pool.Phase);
         Assert.Equal(stop, pool.IsDrawing);
@@ -65,33 +66,35 @@ public sealed class LotteryPreconditionTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.New(LotteryMode.Entry);
-        lottery.StartEntry(Awards, "抽奖");
+        await lottery.NewAsync(LotteryMode.Entry);
+        await lottery.StartEntryAsync(Awards, "抽奖");
         await h.PushAndCollectAsync(updates, """{"cmd":"DANMU_MSG","info":[[],"抽奖",[42,"小明"]]}""");
         h.Server.ReplyToAuthentication = false;
         await h.Server.DisconnectAsync();
         Assert.IsType<Reconnecting>(await h.NextAsync(updates));
+        await h.Client.IdleAsync();
         Assert.False(lottery.State.Connected);
         Assert.True(lottery.State.CanControl);
         var before = lottery.State;
-        Assert.Equal("请先连接直播间。", Assert.Throws<InvalidOperationException>(() => lottery.New(LotteryMode.Pool)).Message);
-        Assert.Equal("请先连接直播间。", Assert.Throws<InvalidOperationException>(() => lottery.Start(Prizes, "停")).Message);
-        Assert.Equal("请先连接直播间。", Assert.Throws<InvalidOperationException>(() => lottery.StartEntry(Awards, "抽奖")).Message);
+        Assert.Equal("请先连接直播间。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.NewAsync(LotteryMode.Pool))).Message);
+        Assert.Equal("请先连接直播间。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.StartAsync(Prizes, "停"))).Message);
+        Assert.Equal("请先连接直播间。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.StartEntryAsync(Awards, "抽奖"))).Message);
         Assert.Equal(before, lottery.State);
 
-        lottery.CloseEntries();
+        await lottery.CloseEntriesAsync();
         Assert.Equal(EntryLotteryPhase.Closed, Assert.IsType<EntryLottery>(lottery.State.Lottery).Phase);
-        lottery.DrawEntry(0);
+        await lottery.DrawEntryAsync(0);
         Assert.Equal(42, Assert.Single(Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws).Winner.Uid);
         h.Time.Advance(LotteryController.DrawDuration);
+        await h.Client.IdleAsync();
         Assert.False(lottery.State.Connected);
         Assert.True(lottery.State.CanControl);
         Assert.False(lottery.State.Lottery!.IsDrawing);
-        lottery.EndEntry();
+        await lottery.EndEntryAsync();
         Assert.Equal(EntryLotteryPhase.Ended, Assert.IsType<EntryLottery>(lottery.State.Lottery).Phase);
-        lottery.SetEntryHidden(true);
+        await lottery.SetEntryHiddenAsync(true);
         Assert.True(Assert.IsType<EntryLottery>(lottery.State.Lottery).Hidden);
-        lottery.SetEntryHidden(false);
+        await lottery.SetEntryHiddenAsync(false);
         Assert.False(Assert.IsType<EntryLottery>(lottery.State.Lottery).Hidden);
     }
 
@@ -104,23 +107,23 @@ public sealed class LotteryPreconditionTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.Start(Prizes, "停");
-        if (drawing) lottery.Stop();
+        await lottery.StartAsync(Prizes, "停");
+        if (drawing) await lottery.StopAsync();
         var before = lottery.State;
-        Assert.Equal("请等本次开奖结束。", Assert.Throws<InvalidOperationException>(() => lottery.Start(Prizes, "停")).Message);
-        Assert.Equal("当前阶段不能执行此操作。", Assert.Throws<InvalidOperationException>(() => lottery.StartEntry(Awards, "抽奖")).Message);
-        Assert.Equal("当前阶段不能执行此操作。", Assert.Throws<InvalidOperationException>(() => lottery.DrawEntry(0)).Message);
-        Assert.Equal("当前阶段不能执行此操作。", Assert.Throws<InvalidOperationException>(lottery.EndEntry).Message);
+        Assert.Equal("请等本次开奖结束。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.StartAsync(Prizes, "停"))).Message);
+        Assert.Equal("当前阶段不能执行此操作。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.StartEntryAsync(Awards, "抽奖"))).Message);
+        Assert.Equal("当前阶段不能执行此操作。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.DrawEntryAsync(0))).Message);
+        Assert.Equal("当前阶段不能执行此操作。", (await Assert.ThrowsAsync<InvalidOperationException>(lottery.EndEntryAsync)).Message);
         if (drawing)
         {
-            Assert.Equal("请等本次开奖结束。", Assert.Throws<InvalidOperationException>(() => lottery.New(LotteryMode.Pool)).Message);
-            Assert.Equal("当前没有转动中的抽奖。", Assert.Throws<InvalidOperationException>(lottery.Cancel).Message);
-            Assert.Equal("当前没有转动中的抽奖。", Assert.Throws<InvalidOperationException>(lottery.Stop).Message);
+            Assert.Equal("请等本次开奖结束。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.NewAsync(LotteryMode.Pool))).Message);
+            Assert.Equal("当前没有转动中的抽奖。", (await Assert.ThrowsAsync<InvalidOperationException>(lottery.CancelAsync)).Message);
+            Assert.Equal("当前没有转动中的抽奖。", (await Assert.ThrowsAsync<InvalidOperationException>(lottery.StopAsync)).Message);
             Assert.Equal(before, lottery.State);
         }
         else
         {
-            lottery.New(LotteryMode.Pool);
+            await lottery.NewAsync(LotteryMode.Pool);
             Assert.NotEqual(before.Lottery!.Id, lottery.State.Lottery!.Id);
             Assert.Equal(PoolLotteryPhase.Idle, Assert.IsType<PoolLottery>(lottery.State.Lottery).Phase);
         }
@@ -133,23 +136,23 @@ public sealed class LotteryPreconditionTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.New(LotteryMode.Entry);
-        lottery.StartEntry(Awards, "抽奖");
+        await lottery.NewAsync(LotteryMode.Entry);
+        await lottery.StartEntryAsync(Awards, "抽奖");
         await h.PushAndCollectAsync(updates, """{"cmd":"DANMU_MSG","info":[[],"抽奖",[42,"小明"]]}""");
-        lottery.CloseEntries();
-        lottery.DrawEntry(0);
+        await lottery.CloseEntriesAsync();
+        await lottery.DrawEntryAsync(0);
         var before = lottery.State;
         Assert.True(before.Lottery!.IsDrawing);
-        Assert.Equal("先结束这一场才能新开。", Assert.Throws<InvalidOperationException>(() => lottery.New(LotteryMode.Pool)).Message);
-        Assert.Equal("请先新开一场奖池抽奖。", Assert.Throws<InvalidOperationException>(() => lottery.Start(Prizes, "停")).Message);
-        Assert.Equal("请等本次开奖结束。", Assert.Throws<InvalidOperationException>(() => lottery.DrawEntry(0)).Message);
-        Assert.Equal("请等本次开奖结束。", Assert.Throws<InvalidOperationException>(() => lottery.DrawEntry(-1)).Message);
-        Assert.Equal("请等本次开奖结束。", Assert.Throws<InvalidOperationException>(lottery.EndEntry).Message);
-        Assert.Equal("当前阶段不能执行此操作。", Assert.Throws<InvalidOperationException>(() => lottery.StartEntry(Awards, "抽奖")).Message);
-        Assert.Equal("当前阶段不能执行此操作。", Assert.Throws<InvalidOperationException>(lottery.CloseEntries).Message);
-        Assert.Equal("当前阶段不能执行此操作。", Assert.Throws<InvalidOperationException>(() => lottery.SetEntryHidden(true)).Message);
-        Assert.Equal("当前没有转动中的抽奖。", Assert.Throws<InvalidOperationException>(lottery.Cancel).Message);
-        Assert.Equal("当前没有转动中的抽奖。", Assert.Throws<InvalidOperationException>(lottery.Stop).Message);
+        Assert.Equal("先结束这一场才能新开。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.NewAsync(LotteryMode.Pool))).Message);
+        Assert.Equal("请先新开一场奖池抽奖。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.StartAsync(Prizes, "停"))).Message);
+        Assert.Equal("请等本次开奖结束。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.DrawEntryAsync(0))).Message);
+        Assert.Equal("请等本次开奖结束。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.DrawEntryAsync(-1))).Message);
+        Assert.Equal("请等本次开奖结束。", (await Assert.ThrowsAsync<InvalidOperationException>(lottery.EndEntryAsync)).Message);
+        Assert.Equal("当前阶段不能执行此操作。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.StartEntryAsync(Awards, "抽奖"))).Message);
+        Assert.Equal("当前阶段不能执行此操作。", (await Assert.ThrowsAsync<InvalidOperationException>(lottery.CloseEntriesAsync)).Message);
+        Assert.Equal("当前阶段不能执行此操作。", (await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.SetEntryHiddenAsync(true))).Message);
+        Assert.Equal("当前没有转动中的抽奖。", (await Assert.ThrowsAsync<InvalidOperationException>(lottery.CancelAsync)).Message);
+        Assert.Equal("当前没有转动中的抽奖。", (await Assert.ThrowsAsync<InvalidOperationException>(lottery.StopAsync)).Message);
         Assert.Equal(before, lottery.State);
     }
 }

@@ -68,7 +68,7 @@ public sealed partial class PrizeSetPickerViewModel : ObservableObject
 
     internal void StartDraft() => DraftName = Chosen;
 
-    internal Task RefreshAsync() => lottery.RefreshPrizeSetsAsync();
+    internal void Observe() => lottery.ObservePrizeSets();
 
     internal async Task<bool> SaveAsync() => CanSave && await lottery.SavePrizeSetAsync(mode, Name!);
 }

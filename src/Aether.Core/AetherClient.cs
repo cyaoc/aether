@@ -20,7 +20,7 @@ public sealed partial class AetherClient : IDisposable
     public WelcomeAnimation WelcomeAnimation { get; }
     public GiftAnimation GiftAnimation { get; }
     public EntryAnimation EntryAnimation { get; }
-    public LotteryController Lottery { get; }
+    public LotteryFacade Lottery { get; }
     public GiftBoardController GiftBoard { get; }
     public GuiStateFacade GuiState { get; }
     private readonly Lazy<Stores> stores;
@@ -41,7 +41,7 @@ public sealed partial class AetherClient : IDisposable
             return new Stores(new CredentialStore(database), new BlindBoxStore(database), new GiftStore(database, logger),
                 new LotteryStore(database), new GiftBoardStore(database), new GuiStateStore(database));
         }, LazyThreadSafetyMode.PublicationOnly);
-        Lottery = new(() => stores.Value.Lotteries, timeProvider, logger, random ?? Random.Shared);
+        Lottery = new(() => stores.Value.Lotteries, timeProvider, random ?? Random.Shared, steps, logger);
         GiftBoard = new(() => stores.Value.GiftBoards, timeProvider,
             uid => Api(credential: null).GetFaceAsync(uid, CancellationToken.None), logger);
         WebService = new(dataDirectory, timeProvider, logger, Lottery, GiftBoard);

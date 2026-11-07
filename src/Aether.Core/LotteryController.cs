@@ -1,10 +1,13 @@
 using System.Collections.Immutable;
+using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
 
-/// <summary>One room's lottery, independent of the browser and the room transport lifetime.</summary>
-public sealed partial class LotteryController : IDisposable
+/// <summary>The lottery region's state (ADR 0017): one room's lottery, independent of the browser and the room transport
+/// lifetime, and the 奖品方案. Its timers post their steps through the region.</summary>
+public sealed partial class LotteryController
 {
     public static readonly TimeSpan DrawDuration = TimeSpan.FromSeconds(7);
     public const int MaxPrizes = 10;
@@ -16,67 +19,53 @@ public sealed partial class LotteryController : IDisposable
     private const string ConnectionRequired = "请先连接直播间。";
     private const string DrawInProgress = "请等本次开奖结束。";
     private const string InvalidUid = "UID 必须是正整数或留空";
-    private readonly object gate = new();
     private readonly Func<LotteryStore> store;
     private readonly TimeProvider time;
     private readonly ILogger logger;
     private readonly Random random;
-    private readonly Subscribers<LotteryUpdate> subscribers = new();
+    private readonly Action<Action<LotteryController>> post;
     private LotteryState state = new(null, false, null);
     private ITimer? drawTimer;
-    private bool disposed;
 
-    internal LotteryController(Func<LotteryStore> store, TimeProvider time, ILogger logger, Random random)
+    /// <param name="post">Queues a step on the lottery region, which the timers do when they fire.</param>
+    internal LotteryController(Func<LotteryStore> store, TimeProvider time, ILogger logger, Random random,
+        Action<Action<LotteryController>> post)
     {
         this.store = store;
         this.time = time;
         this.logger = logger;
         this.random = random;
+        this.post = post;
     }
 
-    public LotteryState State { get { lock (gate) return state; } }
+    internal LotteryState State => state;
 
-    public void SetPinnedResults(bool enabled)
+    internal LotteryUpdate Update => new(state, example);
+
+    internal Subscribers<LotteryUpdate> Subscribers { get; } = new();
+
+    internal Subscribers<ImmutableArray<LotteryPrizeSet>> PrizeSetSubscribers { get; } = new();
+
+    /// <summary>奖品方案 are kept per 抽奖方式, for every room alike; 奖池抽奖's come first.</summary>
+    internal ImmutableArray<LotteryPrizeSet> PrizeSets => [.. store().PrizeSets(LotteryMode.Pool), .. store().PrizeSets(LotteryMode.Entry)];
+
+    internal void SetPinnedResults(bool enabled)
     {
-        lock (gate)
-        {
-            ObjectDisposedException.ThrowIf(disposed, this);
-            state = state with { PinnedResults = enabled };
-            Broadcast();
-        }
+        state = state with { PinnedResults = enabled };
+        Broadcast();
     }
 
     /// <summary>Read-only, including unfinished lotteries; no room connection is required.</summary>
-    public ImmutableArray<LotteryHistory> GetHistory(long roomId)
-    {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        return store().History(roomId);
-    }
+    internal ImmutableArray<LotteryHistory> GetHistory(long roomId) => store().History(roomId);
 
     /// <summary>The room whose history to show without a room connection: where the last lottery was held, null before any.</summary>
-    public long? GetLastLotteryRoom()
-    {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        return store().LastLotteryRoom();
-    }
+    internal long? GetLastLotteryRoom() => store().LastLotteryRoom();
 
-    public Lottery? GetHistoryDetails(long roomId, string id)
-    {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        return store().Load(roomId, id: id);
-    }
+    internal Lottery? GetHistoryDetails(long roomId, string id) => store().Load(roomId, id: id);
 
-    /// <summary>奖品方案 are kept per 抽奖方式, for every room alike.</summary>
-    public ImmutableArray<LotteryPrizeSet> GetPrizeSets(LotteryMode mode)
-    {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        return store().PrizeSets(mode);
-    }
-
-    public void SavePrizeSet(LotteryMode mode, string name,
+    internal void SavePrizeSet(LotteryMode mode, string name,
         IReadOnlyCollection<PoolPrize> prizes, IReadOnlyCollection<LotteryAward> awards)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("请给方案起个名字。");
         if (!Enum.IsDefined(mode)) throw new ArgumentException("请选择抽奖方式。");
         if (mode == LotteryMode.Pool) Validate(prizes);
@@ -84,54 +73,50 @@ public sealed partial class LotteryController : IDisposable
         store().SavePrizeSet(new(mode, name.Trim(), time.GetUtcNow(),
             mode == LotteryMode.Pool ? prizes.ToImmutableArray() : [],
             mode == LotteryMode.Entry ? awards.ToImmutableArray() : []));
+        PrizeSetSubscribers.Publish(PrizeSets);
     }
 
-    public void DeletePrizeSet(LotteryMode mode, string name)
+    internal void DeletePrizeSet(LotteryMode mode, string name)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
         store().DeletePrizeSet(mode, name);
+        PrizeSetSubscribers.Publish(PrizeSets);
     }
 
-    public IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync(CancellationToken token = default) => Subscribers<LotteryUpdate>.ReadAsync(
-        subscriber =>
-        {
-            lock (gate)
-            {
-                ObjectDisposedException.ThrowIf(disposed, this);
-                subscribers.Add(subscriber, new(state, Example: example));
-            }
-            return Task.CompletedTask;
-        },
-        subscriber => { lock (gate) subscribers.Remove(subscriber); }, token);
-
-    internal void Connect(long roomId)
+    /// <summary>The room connection's lottery rides along: its database failing is logged, and danmaku keep coming. A failed
+    /// initial load is retried on the next danmaku, without reconnecting the room.</summary>
+    internal void FollowRoom(long roomId, Danmaku? danmaku)
     {
-        lock (gate)
+        try
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
-            var lottery = store().Load(roomId);
-            // Who has spoken lives only in memory, so a transport reconnect keeps it and a restart starts over.
-            if (lottery is PoolLottery pool && state.Lottery is PoolLottery previous && previous.Id == pool.Id)
-                lottery = pool with { Viewers = previous.Viewers };
-            drawTimer?.Dispose();
-            // Recovery may write an expired draw; a failed write must leave the next danmaku able to retry.
-            state = new(roomId, false, lottery) { CanControl = true, Theme = state.Theme, PinnedResults = state.PinnedResults };
-            ResumeDraw();
-            state = state with { Connected = true };
-            Publish();
+            if (!state.Connected || state.RoomId != roomId) Connect(roomId);
+            if (danmaku is not null) Receive(roomId, danmaku);
         }
+        catch (Exception error) when (error is SqliteException or JsonException or IOException)
+        { logger.LogError(error, "抽奖读写数据库失败，弹幕照常接收：{Error}", error.Message); }
+    }
+
+    private void Connect(long roomId)
+    {
+        var lottery = store().Load(roomId);
+        // Who has spoken lives only in memory, so a transport reconnect keeps it and a restart starts over.
+        if (lottery is PoolLottery pool && state.Lottery is PoolLottery previous && previous.Id == pool.Id)
+            lottery = pool with { Viewers = previous.Viewers };
+        drawTimer?.Dispose();
+        // Recovery may write an expired draw; a failed write must leave the next danmaku able to retry.
+        state = new(roomId, false, lottery) { CanControl = true, Theme = state.Theme, PinnedResults = state.PinnedResults };
+        ResumeDraw();
+        state = state with { Connected = true };
+        Publish();
     }
 
     internal void Disconnect(long roomId)
     {
-        lock (gate)
-            if (state.RoomId == roomId) { state = state with { Connected = false }; Publish(); }
+        if (state.RoomId == roomId) { state = state with { Connected = false }; Publish(); }
     }
 
     internal void EndRoom(long roomId)
     {
-        lock (gate)
-            if (state.RoomId == roomId) { state = state with { Connected = false, CanControl = false }; Publish(); }
+        if (state.RoomId == roomId) { state = state with { Connected = false, CanControl = false }; Publish(); }
     }
 
     public static string? ValidatePrize(PoolPrize prize) => string.IsNullOrWhiteSpace(prize.Name) ? "请填写奖品名称。"
@@ -149,21 +134,18 @@ public sealed partial class LotteryController : IDisposable
             if (ValidatePrize(prize) is { } error) throw new ArgumentException(error);
     }
 
-    public void Start(IReadOnlyCollection<PoolPrize> prizes, string stopWord, long? uid = null)
+    internal void Start(IReadOnlyCollection<PoolPrize> prizes, string stopWord, long? uid)
     {
         Validate(prizes);
         if (ValidateStopWord(stopWord) is { } stopWordError) throw new ArgumentException(stopWordError);
         if (uid <= 0) throw new ArgumentException(InvalidUid);
-        lock (gate)
-        {
-            RequireConnection();
-            if (state.Lottery is EntryLottery) throw new InvalidOperationException("请先新开一场奖池抽奖。");
-            RequireNotDrawing();
-            if (state.Lottery is PoolLottery { Phase: PoolLotteryPhase.Spinning }) throw new InvalidOperationException(DrawInProgress);
-            var lottery = state.Lottery is PoolLottery current ? current : NewPoolLottery(prizes, stopWord);
-            Save(lottery with { Prizes = prizes.ToImmutableArray(), StopWord = stopWord.Trim(), Uid = uid, Phase = PoolLotteryPhase.Spinning });
-            logger.LogInformation("奖池抽奖开始：直播间 {RoomId}，抽奖 {LotteryId}，观众 {Uid}", state.RoomId, lottery.Id, uid);
-        }
+        RequireConnection();
+        if (state.Lottery is EntryLottery) throw new InvalidOperationException("请先新开一场奖池抽奖。");
+        RequireNotDrawing();
+        if (state.Lottery is PoolLottery { Phase: PoolLotteryPhase.Spinning }) throw new InvalidOperationException(DrawInProgress);
+        var lottery = state.Lottery is PoolLottery current ? current : NewPoolLottery(prizes, stopWord);
+        Save(lottery with { Prizes = prizes.ToImmutableArray(), StopWord = stopWord.Trim(), Uid = uid, Phase = PoolLotteryPhase.Spinning });
+        logger.LogInformation("奖池抽奖开始：直播间 {RoomId}，抽奖 {LotteryId}，观众 {Uid}", state.RoomId, lottery.Id, uid);
     }
 
     private PoolLottery NewPoolLottery(IReadOnlyCollection<PoolPrize> prizes, string stopWord) =>
@@ -178,7 +160,6 @@ public sealed partial class LotteryController : IDisposable
 
     private void RequireControl()
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
         if (!state.CanControl) throw new InvalidOperationException(ConnectionRequired);
     }
 
@@ -187,69 +168,57 @@ public sealed partial class LotteryController : IDisposable
         if (state.Lottery is { IsDrawing: true }) throw new InvalidOperationException(DrawInProgress);
     }
 
-    public void Cancel()
+    internal void Cancel()
     {
-        lock (gate)
-        {
-            RequireControl();
-            if (state.Lottery is not PoolLottery { Phase: PoolLotteryPhase.Spinning } lottery) throw new InvalidOperationException("当前没有转动中的抽奖。");
-            Save(lottery with { Phase = PoolLotteryPhase.Idle });
-            logger.LogInformation("奖池抽奖取消：抽奖 {LotteryId}", lottery.Id);
-        }
+        RequireControl();
+        if (state.Lottery is not PoolLottery { Phase: PoolLotteryPhase.Spinning } lottery) throw new InvalidOperationException("当前没有转动中的抽奖。");
+        Save(lottery with { Phase = PoolLotteryPhase.Idle });
+        logger.LogInformation("奖池抽奖取消：抽奖 {LotteryId}", lottery.Id);
     }
 
-    public void SetDrawHiddenFromStream(string drawId, bool hidden)
+    internal void SetDrawHiddenFromStream(string drawId, bool hidden)
     {
         ArgumentException.ThrowIfNullOrEmpty(drawId);
         ChangeDrawVisibility(drawId, hidden);
     }
 
-    public void HideAllDrawsFromStream() => ChangeDrawVisibility(null, true);
+    internal void HideAllDrawsFromStream() => ChangeDrawVisibility(null, true);
 
     private void ChangeDrawVisibility(string? drawId, bool hidden)
     {
-        lock (gate)
+        RequireControl();
+        Lottery lottery = state.Lottery switch
         {
-            RequireControl();
-            Lottery lottery = state.Lottery switch
-            {
-                PoolLottery pool => pool with { Draws = [.. pool.Draws.Select(draw =>
-                    drawId is null || draw.Id == drawId ? draw with { HiddenFromStream = hidden } : draw)] },
-                EntryLottery entry => entry with { Draws = [.. entry.Draws.Select(draw =>
-                    drawId is null || draw.Id == drawId ? draw with { HiddenFromStream = hidden } : draw)] },
-                _ => throw new InvalidOperationException("当前没有抽奖。"),
-            };
-            store().SetDrawHiddenFromStream(lottery.Id, drawId, hidden);
+            PoolLottery pool => pool with { Draws = [.. pool.Draws.Select(draw =>
+                drawId is null || draw.Id == drawId ? draw with { HiddenFromStream = hidden } : draw)] },
+            EntryLottery entry => entry with { Draws = [.. entry.Draws.Select(draw =>
+                drawId is null || draw.Id == drawId ? draw with { HiddenFromStream = hidden } : draw)] },
+            _ => throw new InvalidOperationException("当前没有抽奖。"),
+        };
+        store().SetDrawHiddenFromStream(lottery.Id, drawId, hidden);
+        state = state with { Lottery = lottery };
+        Publish();
+    }
+
+    internal void Stop()
+    {
+        RequireControl();
+        if (state.Lottery is not PoolLottery { Phase: PoolLotteryPhase.Spinning }) throw new InvalidOperationException("当前没有转动中的抽奖。");
+        Draw(stoppedByHost: true);
+    }
+
+    private void Receive(long roomId, Danmaku danmaku)
+    {
+        if (state.RoomId == roomId && state.Lottery is EntryLottery) { ReceiveEntry(danmaku); return; }
+        if (state.RoomId != roomId || state.Lottery is not PoolLottery lottery || danmaku.Uid <= 0) return;
+        if (!lottery.Viewers.TryGetValue(danmaku.Uid, out var name) || name != danmaku.Nickname)
+        {
+            lottery = lottery with { Viewers = lottery.Viewers.SetItem(danmaku.Uid, danmaku.Nickname) };
             state = state with { Lottery = lottery };
-            Publish();
+            Broadcast();
         }
-    }
-
-    public void Stop()
-    {
-        lock (gate)
-        {
-            RequireControl();
-            if (state.Lottery is not PoolLottery { Phase: PoolLotteryPhase.Spinning }) throw new InvalidOperationException("当前没有转动中的抽奖。");
-            Draw(stoppedByHost: true);
-        }
-    }
-
-    internal void Receive(long roomId, Danmaku danmaku)
-    {
-        lock (gate)
-        {
-            if (state.RoomId == roomId && state.Lottery is EntryLottery) { ReceiveEntry(danmaku); return; }
-            if (state.RoomId != roomId || state.Lottery is not PoolLottery lottery || danmaku.Uid <= 0) return;
-            if (!lottery.Viewers.TryGetValue(danmaku.Uid, out var name) || name != danmaku.Nickname)
-            {
-                lottery = lottery with { Viewers = lottery.Viewers.SetItem(danmaku.Uid, danmaku.Nickname) };
-                state = state with { Lottery = lottery };
-                Broadcast();
-            }
-            if (lottery.Phase == PoolLotteryPhase.Spinning && lottery.Uid == danmaku.Uid
-                && danmaku.Content.Trim() == lottery.StopWord) Draw(stoppedByHost: false);
-        }
+        if (lottery.Phase == PoolLotteryPhase.Spinning && lottery.Uid == danmaku.Uid
+            && danmaku.Content.Trim() == lottery.StopWord) Draw(stoppedByHost: false);
     }
 
     private void Draw(bool stoppedByHost)
@@ -291,24 +260,23 @@ public sealed partial class LotteryController : IDisposable
         var remaining = until - time.GetUtcNow();
         if (remaining <= TimeSpan.Zero) { FinishDraw(id, until); return; }
         drawTimer?.Dispose();
-        drawTimer = time.CreateTimer(_ =>
+        drawTimer = time.CreateTimer(_ => post(lottery => lottery.TryFinishDraw(id, until)), null, remaining, Timeout.InfiniteTimeSpan);
+    }
+
+    private void TryFinishDraw(string id, DateTimeOffset until)
+    {
+        try { FinishDraw(id, until); }
+        catch (Exception error)
         {
-            lock (gate)
-            {
-                try { FinishDraw(id, until); }
-                catch (Exception error)
-                {
-                    logger.LogError(error, "保存开奖结束状态失败");
-                    // A temporary storage failure must not leave the host stuck in 开奖中.
-                    drawTimer?.Change(TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
-                }
-            }
-        }, null, remaining, Timeout.InfiniteTimeSpan);
+            logger.LogError(error, "保存开奖结束状态失败");
+            // A temporary storage failure must not leave the host stuck in 开奖中.
+            drawTimer?.Change(TimeSpan.FromSeconds(1), Timeout.InfiniteTimeSpan);
+        }
     }
 
     private void FinishDraw(string id, DateTimeOffset until)
     {
-        if (disposed || state.Lottery is not { IsDrawing: true } lottery || lottery.Id != id || lottery.DrawUntil != until) return;
+        if (state.Lottery is not { IsDrawing: true } lottery || lottery.Id != id || lottery.DrawUntil != until) return;
         Save(lottery with { DrawUntil = null });
     }
 
@@ -326,16 +294,14 @@ public sealed partial class LotteryController : IDisposable
         Broadcast();
     }
 
-    private void Broadcast() => subscribers.Publish(new(state, example));
+    private void Broadcast() => Subscribers.Publish(Update);
 
-    public void Dispose()
+    /// <summary>The region's last step: no timer fires again, and every reader's updates end.</summary>
+    internal void Dispose()
     {
-        lock (gate)
-        {
-            disposed = true;
-            drawTimer?.Dispose();
-            ClearExample();
-            subscribers.Complete();
-        }
+        drawTimer?.Dispose();
+        ClearExample();
+        Subscribers.Complete();
+        PrizeSetSubscribers.Complete();
     }
 }

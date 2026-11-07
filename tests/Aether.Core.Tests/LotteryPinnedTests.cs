@@ -13,16 +13,18 @@ public sealed class LotteryPinnedTests
         var lottery = h.Client.Lottery;
         await using var updates = lottery.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.False((await h.NextAsync(updates)).State.PinnedResults);
-        lottery.SetPinnedResults(true);
+        await lottery.SetPinnedResultsAsync(true);
         Assert.True((await h.NextAsync(updates)).State.PinnedResults);
         await h.LoginAsync();
         var watch = await h.WatchConnectedAsync();
+        await h.Client.IdleAsync();
         Assert.True(lottery.State.PinnedResults);
         await watch.DisposeAsync();
         await using var next = await h.WatchConnectedAsync();
+        await h.Client.IdleAsync();
         Assert.True(lottery.State.PinnedResults);
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
-        h.Client.WebService.Lottery.PlayExample();
+        await h.Client.WebService.Lottery.PlayExampleAsync();
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false })
             { BaseAddress = new(h.Client.WebService.Status.Origin) };
         using var response = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
@@ -39,7 +41,7 @@ public sealed class LotteryPinnedTests
     public async Task Live_page_state_contains_the_pinned_results_switch()
     {
         await using var h = new WatchHarness(enableStreamOverlay: true);
-        h.Client.Lottery.SetPinnedResults(true);
+        await h.Client.Lottery.SetPinnedResultsAsync(true);
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false })
             { BaseAddress = new(h.Client.WebService.Status.Origin) };

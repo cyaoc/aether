@@ -29,7 +29,7 @@ public sealed class LotteryThemeTests
                 Assert.Equal("默认关；打开前可以先点‘全部不挂出’", control.FindControl<TextBlock>("Hint")!.Text);
             });
             controls[0].FindControl<ToggleSwitch>("PinnedInput")!.IsChecked = true;
-            GuiHarness.Flush();
+            await h.IdleAsync();
             Assert.True(vm.Lottery.LotteryState.PinnedResults);
             Assert.All(controls, control =>
             {
@@ -37,7 +37,7 @@ public sealed class LotteryThemeTests
                 Assert.Equal("下面没变灰的，就是直播画面上挂着的", control.FindControl<TextBlock>("Hint")!.Text);
             });
             controls[1].FindControl<ToggleSwitch>("PinnedInput")!.IsChecked = false;
-            GuiHarness.Flush();
+            await h.IdleAsync();
             Assert.All(controls, control => Assert.False(control.FindControl<ToggleSwitch>("PinnedInput")!.IsChecked));
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
@@ -69,7 +69,7 @@ public sealed class LotteryThemeTests
             var card = pickers[0].FindControl<RadioButton>($"{theme}Card");
             Assert.NotNull(card);
             card.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            GuiHarness.Flush();
+            await h.IdleAsync();
             Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             Assert.All(pickers, picker =>
             {
@@ -90,7 +90,7 @@ public sealed class LotteryThemeTests
                 Assert.Contains("直播中观众也会看到", picker.FindControl<TextBlock>("ExampleHint")!.Text);
             }
             pickers[0].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            GuiHarness.Flush();
+            await h.IdleAsync();
             Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
             Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             foreach (var picker in pickers)
@@ -105,6 +105,7 @@ public sealed class LotteryThemeTests
             await GuiHarness.WaitForAsync(() => !vm.Lottery.LotteryState.IsExamplePlaying);
             Assert.All(pickers, picker => Assert.True(picker.FindControl<Button>("ExampleButton")!.IsEnabled));
             pickers[1].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await h.IdleAsync();
             Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
             time.Advance(TimeSpan.FromSeconds(21));
             await GuiHarness.WaitForAsync(() => !vm.Lottery.LotteryState.IsExamplePlaying);
@@ -117,7 +118,7 @@ public sealed class LotteryThemeTests
                 Assert.Equal(0L, count.ExecuteScalar());
             }
             pickers[1].FindControl<RadioButton>("StarSummonCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            GuiHarness.Flush();
+            await h.IdleAsync();
             Assert.All(pickers, picker => Assert.True(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked));
             vm.WebService.Apply(new WebServiceStatus(false, 18080, 0, 0, 0, "端口被占用"));
             Assert.All(pickers, picker => Assert.Contains("端口被占用", picker.FindControl<TextBlock>("ExampleHint")!.Text));

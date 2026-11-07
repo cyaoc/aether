@@ -1,23 +1,21 @@
-using System.Text.Json;
-using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
 namespace Aether.Core;
 
 public sealed partial class AetherClient
 {
-    /// <summary>The lottery rides along: its database failing is logged, and danmaku keep coming.</summary>
-    private sealed class LotteryFeature(LotteryController lottery, ILogger logger, long roomId) : IRoomFeature
+    /// <summary>The lottery rides along in its own region, which takes each event without the room waiting for it.</summary>
+    private sealed class LotteryFeature(LotteryFacade lottery, long roomId) : IRoomFeature
     {
         public void Handle(RoomEvent e)
         {
             switch (e)
             {
                 case TransportConnected:
-                    RunLottery();
+                    lottery.Connect(roomId);
                     break;
                 case DanmakuProtocol.DanmakuReceived received:
-                    RunLottery(received.Danmaku);
+                    lottery.Receive(roomId, received.Danmaku);
                     break;
                 case TransportDisconnected:
                     lottery.Disconnect(roomId);
@@ -26,20 +24,6 @@ public sealed partial class AetherClient
                     lottery.EndRoom(roomId);
                     break;
             }
-        }
-
-        private void RunLottery(Danmaku? danmaku = null)
-        {
-            try
-            {
-                // Retry a failed initial load when the next danmaku arrives, without reconnecting the room.
-                // shortcut: loads, entries and stop-word draws hit SQLite on the receive loop; move off it if a busy room lags.
-                var state = lottery.State;
-                if (!state.Connected || state.RoomId != roomId) lottery.Connect(roomId);
-                if (danmaku is not null) lottery.Receive(roomId, danmaku);
-            }
-            catch (Exception error) when (error is SqliteException or JsonException or IOException)
-            { logger.LogError(error, "抽奖读写数据库失败，弹幕照常接收：{Error}", error.Message); }
         }
     }
 

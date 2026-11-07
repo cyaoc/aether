@@ -50,11 +50,11 @@ public sealed class DatabaseUpgradeTests
         TestDatabase.Restore(h.DataDirectory, Sample);
         var lottery = h.Client.Lottery;
 
-        Assert.Equal(["legacy-entry", "legacy-pool"], lottery.GetHistory(Room).Select(history => history.Id));
-        var entry = Assert.IsType<EntryLottery>(lottery.GetHistoryDetails(Room, "legacy-entry"));
+        Assert.Equal(["legacy-entry", "legacy-pool"], (await lottery.GetHistoryAsync(Room)).Select(history => history.Id));
+        var entry = Assert.IsType<EntryLottery>(await lottery.GetHistoryDetailsAsync(Room, "legacy-entry"));
         Assert.Equal([false, true], entry.Draws.Select(draw => draw.HiddenFromStream));
-        Assert.Equal(["键盘", "鼠标"], Assert.Single(lottery.GetPrizeSets(LotteryMode.Pool)).Prizes.Select(prize => prize.Name));
-        Assert.Equal(["一等奖", "参与奖"], Assert.Single(lottery.GetPrizeSets(LotteryMode.Entry)).Awards.Select(award => award.Name));
+        Assert.Equal(["键盘", "鼠标"], Assert.Single(await lottery.PrizeSetsAsync(LotteryMode.Pool)).Prizes.Select(prize => prize.Name));
+        Assert.Equal(["一等奖", "参与奖"], Assert.Single(await lottery.PrizeSetsAsync(LotteryMode.Entry)).Awards.Select(award => award.Name));
         Assert.Equal("legacy-token", TestDatabase.SavedCredential(h.DataDirectory).RefreshToken);
     }
 
@@ -63,11 +63,11 @@ public sealed class DatabaseUpgradeTests
     {
         await using var h = new WatchHarness();
         TestDatabase.Restore(h.DataDirectory, Sample);
-        Assert.NotEmpty(h.Client.Lottery.GetHistory(Room));
+        Assert.NotEmpty(await h.Client.Lottery.GetHistoryAsync(Room));
 
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
 
-        Assert.NotEmpty(restarted.Lottery.GetHistory(Room));
+        Assert.NotEmpty(await restarted.Lottery.GetHistoryAsync(Room));
         Assert.Equal(Database.CurrentVersion, TestDatabase.UserVersion(h.DataDirectory));
     }
 
@@ -90,16 +90,16 @@ public sealed class DatabaseUpgradeTests
         TestDatabase.Restore(h.DataDirectory, "database-v0.5.1.sql");
         var lottery = h.Client.Lottery;
 
-        var pool = lottery.GetPrizeSets(LotteryMode.Pool);
+        var pool = await lottery.PrizeSetsAsync(LotteryMode.Pool);
 
         Assert.Equal(["周末", "周末（直播间 7734200）", "日常"], pool.Select(set => set.Name));
         Assert.Equal(["键盘", "抱枕", "贴纸"], pool.Select(set => set.Prizes.Single().Name));
         Assert.Equal(new DateTimeOffset(2026, 11, 2, 12, 0, 0, TimeSpan.Zero), pool[1].SavedAt);
-        Assert.Equal("日常", Assert.Single(lottery.GetPrizeSets(LotteryMode.Entry)).Name);
+        Assert.Equal("日常", Assert.Single(await lottery.PrizeSetsAsync(LotteryMode.Entry)).Name);
         Assert.Empty(TestDatabase.Columns(h.DataDirectory, "lottery_prize_set").Intersect(["room_id"]));
         Assert.Equal(Database.CurrentVersion, TestDatabase.UserVersion(h.DataDirectory));
         // Everything else stays as it was.
-        Assert.Equal(["legacy-pool"], lottery.GetHistory(Room).Select(history => history.Id));
+        Assert.Equal(["legacy-pool"], (await lottery.GetHistoryAsync(Room)).Select(history => history.Id));
         Assert.Equal(3L, TestDatabase.GiftRecords(h.DataDirectory));
         Assert.Equal([0L, 3L, 0L], TestDatabase.ViewerGuardLevels(h.DataDirectory));
         Assert.Equal("legacy-token", TestDatabase.SavedCredential(h.DataDirectory).RefreshToken);
@@ -125,7 +125,7 @@ public sealed class DatabaseUpgradeTests
                 command.ExecuteNonQuery();
             }
 
-        var pool = h.Client.Lottery.GetPrizeSets(LotteryMode.Pool);
+        var pool = await h.Client.Lottery.PrizeSetsAsync(LotteryMode.Pool);
 
         Assert.Equal(["周末", renamed, "日常", .. names.Take(taken).Reverse()], pool.Select(set => set.Name));
         Assert.Equal(["键盘", "抱枕", "贴纸", .. Enumerable.Repeat("徽章", taken)], pool.Select(set => set.Prizes.Single().Name));

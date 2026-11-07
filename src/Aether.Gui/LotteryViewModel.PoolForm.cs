@@ -122,10 +122,10 @@ public partial class LotteryViewModel
         var prizes = Prizes.Select(row => row.Value).ToArray();
         var word = StopWord ?? "";
         var uid = ParsedUid;
-        return ChangeLotteryAsync(lottery => lottery.Start(prizes, word, uid));
+        return ChangeLotteryAsync(lottery => lottery.StartAsync(prizes, word, uid));
     }
 
-    internal Task StopPoolAsync() => CanStop ? ChangeLotteryAsync(lottery => lottery.Stop()) : Task.CompletedTask;
-    internal Task CancelPoolAsync() => CanCancel ? ChangeLotteryAsync(lottery => lottery.Cancel()) : Task.CompletedTask;
-    internal Task NewLotteryAsync(LotteryMode mode) => CanNew ? ChangeLotteryAsync(lottery => lottery.New(mode)) : Task.CompletedTask;
+    internal Task StopPoolAsync() => CanStop ? ChangeLotteryAsync(lottery => lottery.StopAsync()) : Task.CompletedTask;
+    internal Task CancelPoolAsync() => CanCancel ? ChangeLotteryAsync(lottery => lottery.CancelAsync()) : Task.CompletedTask;
+    internal Task NewLotteryAsync(LotteryMode mode) => CanNew ? ChangeLotteryAsync(lottery => lottery.NewAsync(mode)) : Task.CompletedTask;
 }

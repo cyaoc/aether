@@ -49,20 +49,20 @@ public sealed class SubscriptionTests
         using var stop = new CancellationTokenSource();
         await using var first = lottery.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(stop.Token);
         Assert.Equal(LotteryTheme.StarSummon, (await h.NextAsync(first)).State.Theme);
-        lottery.SelectTheme(LotteryTheme.MechaLock);
+        await lottery.SelectThemeAsync(LotteryTheme.MechaLock);
         await using var second = lottery.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.Equal(LotteryTheme.MechaLock, (await h.NextAsync(second)).State.Theme);
-        lottery.SelectTheme(LotteryTheme.CapsuleGacha);
+        await lottery.SelectThemeAsync(LotteryTheme.CapsuleGacha);
         Assert.Equal(LotteryTheme.MechaLock, (await h.NextAsync(first)).State.Theme);
         Assert.Equal(LotteryTheme.CapsuleGacha, (await h.NextAsync(first)).State.Theme);
         await stop.CancelAsync();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first.MoveNextAsync().AsTask());
-        lottery.SelectTheme(LotteryTheme.StarSummon);
+        await lottery.SelectThemeAsync(LotteryTheme.StarSummon);
         lottery.Dispose();
         Assert.Equal(LotteryTheme.CapsuleGacha, (await h.NextAsync(second)).State.Theme);
         Assert.Equal(LotteryTheme.StarSummon, (await h.NextAsync(second)).State.Theme);
         Assert.False(await second.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         await using var disposed = lottery.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
-        await Assert.ThrowsAsync<ObjectDisposedException>(() => disposed.MoveNextAsync().AsTask());
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => disposed.MoveNextAsync().AsTask());
     }
 }
