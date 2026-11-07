@@ -108,11 +108,20 @@ internal sealed class Region<TState>
 
     private bool Enqueue(Func<TState, Action?> step)
     {
+        // In the poster's context, as the step ran before regions: a room connection's steps log into its room's log.
+        var context = ExecutionContext.Capture();
         // Counted before it is queued, so a step posting to another region keeps the count above zero throughout.
         pending.Add();
-        if (steps.Writer.TryWrite(step)) return true;
+        if (steps.Writer.TryWrite(context is null ? step : state => InContext(context, step, state))) return true;
         pending.Remove();
         return false;
+    }
+
+    private static Action? InContext(ExecutionContext context, Func<TState, Action?> step, TState state)
+    {
+        Action? done = null;
+        ExecutionContext.Run(context, _ => done = step(state), null);
+        return done;
     }
 
     private async Task RunAsync()

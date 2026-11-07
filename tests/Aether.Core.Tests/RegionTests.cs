@@ -80,4 +80,18 @@ public sealed class RegionTests
 
         Assert.True(ran);
     }
+
+    // As a room connection's log scope: what the poster's context carries, its step sees, as it did when it ran on the poster.
+    [Fact]
+    public async Task A_step_runs_in_the_context_it_was_posted_from()
+    {
+        var region = NewRegion();
+
+        var room = new AsyncLocal<long> { Value = 42 };
+        var posted = new TaskCompletionSource<long>();
+        region.Post(_ => posted.SetResult(room.Value));
+
+        Assert.Equal(42, await region.Run(_ => room.Value));
+        Assert.Equal(42, await posted.Task);
+    }
 }
