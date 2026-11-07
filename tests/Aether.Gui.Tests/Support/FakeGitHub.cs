@@ -19,6 +19,8 @@ internal sealed class FakeGitHub : HttpMessageHandler
     public Func<Task>? BeforeRelease { get; set; }
     /// <summary>Set to stop each download after its first <see cref="HeldStream.FirstChunk"/> bytes until the task completes.</summary>
     public Task? DownloadHeld { get; set; }
+    /// <summary>Set to answer downloads through gh-proxy.org with this instead of the asset, given the asset's bytes.</summary>
+    public Func<byte[], HttpResponseMessage>? Proxy { get; set; }
 
     public void Add(string name, byte[] data, string? digest = null) =>
         assets[name] = (data, digest ?? "sha256:" + Convert.ToHexStringLower(SHA256.HashData(data)));
@@ -47,6 +49,7 @@ internal sealed class FakeGitHub : HttpMessageHandler
             return new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(release)) };
         }
         var data = assets[uri[(uri.LastIndexOf('/') + 1)..]].Data;
+        if (Proxy is { } proxy && uri.StartsWith("https://gh-proxy.org/")) return proxy(data);
         return new(HttpStatusCode.OK) { Content = new StreamContent(new HeldStream(data, DownloadHeld)) };
     }
 
