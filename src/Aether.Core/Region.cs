@@ -82,16 +82,9 @@ internal sealed class Region<TState>
     [Obsolete(NoAwait, error: true)]
     public void Post(Func<TState, Task> step) => throw new NotSupportedException(NoAwait);
 
-    /// <summary>A last step ends every reader's updates, after what was reported so far; the steps queued before it still run,
-    /// and later ones are dropped or cancelled.</summary>
-    public void Stop()
-    {
-        Post(_ =>
-        {
-            foreach (var end in readers) end();
-        });
-        steps.Writer.TryComplete();
-    }
+    /// <summary>The steps queued so far still run, later ones are dropped or cancelled; once the last has run, every reader's
+    /// updates end after what was reported, including a reader one of those steps added.</summary>
+    public void Stop() => steps.Writer.TryComplete();
 
     /// <summary>What <paramref name="read"/> gives as the last step left the state (ADR 0017 convention 6), for anyone to read at
     /// any time; a step's Run completes once it shows. Made with the region, before its first step.</summary>
@@ -136,6 +129,8 @@ internal sealed class Region<TState>
                 pending.Remove();
             }
         }
+        // After the queue is closed and drained, so no step can add a reader behind this.
+        foreach (var end in readers) end();
     }
 }
 
