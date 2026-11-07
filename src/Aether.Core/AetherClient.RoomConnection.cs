@@ -253,8 +253,8 @@ public sealed partial class AetherClient
         private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) =>
             RunWhileConnectedAsync(stop, async () =>
             {
-                var queued = await region.Run(s => s.SendQueue.Queued);
-                while (await queued.WaitToReadAsync(stop.Token))
+                var waitForItem = await region.Run(s => s.SendQueue.WaitForItem);
+                while (await waitForItem(stop.Token))
                 {
                     stop.Token.ThrowIfCancellationRequested();
                     var api = client.Api(await client.account.LoadAsync());

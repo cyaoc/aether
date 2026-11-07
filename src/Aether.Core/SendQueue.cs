@@ -55,9 +55,9 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
     private readonly Dictionary<string, long> sendEndedByText = [];
     private bool rateLimitRetryOwed;
 
-    /// <summary>What the sending loop waits on outside the region: a channel is safe across threads, and only steps take items
-    /// off it.</summary>
-    public ChannelReader<Item> Queued => pending.Reader;
+    /// <summary>What the sending loop awaits outside the region until an item is queued. Only the wait goes out: the channel
+    /// is safe across threads, and only steps take items off it.</summary>
+    public Func<CancellationToken, ValueTask<bool>> WaitForItem => pending.Reader.WaitToReadAsync;
 
     /// <summary>Queues a 盲盒查询 reply to <paramref name="trigger"/>'s viewer, unless one for this period is already waiting (the asks merge
     /// into the first).</summary>
