@@ -9,7 +9,7 @@ public sealed class ApplicationIconTests
     {
         using var harness = new GuiHarness();
         var main = new MainWindow(harness.DataDirectory);
-        var logout = new ConfirmLogoutWindow();
+        var logout = PromptWindow.ConfirmLogout();
         main.Show();
         logout.Show(main);
         try
