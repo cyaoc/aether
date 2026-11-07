@@ -62,7 +62,7 @@ public sealed class GiftBoardLeavingTests
         Assert.Equal(before.Period, (await h.Client.GiftBoard.CurrentAsync()).Period);
     });
 
-    // The web service stops first, and its failing does not keep the 期 running, the room connected or the window open.
+    // The web service's failing to stop does not keep the 期 running, the room connected or the window open.
     // Stopping the web service refreshes what its rows show, and that refresh now fails.
     [Fact]
     public Task A_closing_step_that_fails_skips_none_after_it_and_the_window_still_closes() =>

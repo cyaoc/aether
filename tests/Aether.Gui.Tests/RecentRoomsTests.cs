@@ -1,5 +1,6 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Gui.Tests;
@@ -19,6 +20,28 @@ public sealed class RecentRoomsTests
         Assert.Equal(expected, viewModel.RecentRooms);
         Assert.Equal(expected, harness.LoadGuiState().RecentRooms);
         await viewModel.ShutdownAsync();
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    // The database is busy, so the delete is still being written when the window closes.
+    [Fact]
+    public Task The_last_change_before_closing_is_there_on_the_next_start() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var harness = new GuiHarness();
+        harness.SaveRecentRooms("6", "42");
+        var viewModel = harness.CreateViewModel();
+        await harness.IdleAsync();
+        using var busy = new SqliteConnection($"Data Source={Path.Combine(harness.DataDirectory, "aether.db")};Pooling=False");
+        busy.Open();
+        using var command = busy.CreateCommand();
+        command.CommandText = "BEGIN IMMEDIATE";
+        command.ExecuteNonQuery();
+        viewModel.RemoveRecentRoomCommand.Execute("6");
+        var closing = viewModel.ShutdownAsync();
+        command.CommandText = "ROLLBACK";
+        command.ExecuteNonQuery();
+        await closing;
+        Assert.Equal(["42"], harness.LoadGuiState().RecentRooms);
         return true;
     }, TestContext.Current.CancellationToken);
 

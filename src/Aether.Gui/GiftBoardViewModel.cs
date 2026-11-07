@@ -127,8 +127,6 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
         updates.Follow(client.GiftBoard.GetUpdatesAsync, Apply, logger, "礼物榜状态订阅中断");
     }
 
-    internal Task StopAsync() => updates.StopAsync();
-
     internal void Apply(GiftBoardState state)
     {
         Viewers = state.Rows.Select(row => row.Uid).Distinct().Count();

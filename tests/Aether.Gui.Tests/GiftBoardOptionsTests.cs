@@ -119,7 +119,7 @@ public sealed class GiftBoardOptionsTests
 
         await GuiHarness.WaitForAsync(() => board.Threshold == 333);
         board.Volume = 30;
-        await board.StopAsync();
+        await h.IdleAsync();
         Assert.Equal(GiftBoardOptions.Default with { Threshold = 333, Volume = 30 }, (await core.CurrentAsync()).Options);
         return true;
     }, TestContext.Current.CancellationToken);
