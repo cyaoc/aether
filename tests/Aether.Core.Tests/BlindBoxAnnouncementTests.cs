@@ -27,6 +27,7 @@ public sealed class BlindBoxAnnouncementTests
         h.Time.Advance(TimeSpan.FromSeconds(2));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
         await h.WaitForLogAsync("发送弹幕成功：播报观众 测试观众（10001）");
+        await h.Client.IdleAsync();
         h.Time.Advance(TimeSpan.FromSeconds(1));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入100电池 亏70电池", uid: 20002);
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
@@ -45,6 +46,7 @@ public sealed class BlindBoxAnnouncementTests
         }
         AssertAnnouncement(await NextSendAsync(sent), expected, uid: 30003);
         await h.WaitForLogAsync("发送弹幕成功：播报观众 测试观众（30003）");
+        await h.Client.IdleAsync();
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
     }
@@ -65,6 +67,7 @@ public sealed class BlindBoxAnnouncementTests
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入300电池 亏50电池");
         await h.WaitForLogAsync("发送弹幕成功：播报观众 测试观众（10001）");
+        await h.Client.IdleAsync();
 
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await h.PushAndSyncAsync(updates, messages[2]);
@@ -130,6 +133,7 @@ public sealed class BlindBoxAnnouncementTests
         }
         AssertAnnouncement(await NextSendAsync(sent), "本次投入1500电池 亏460电池");
         await h.WaitForLogAsync("发送弹幕成功：播报");
+        await h.Client.IdleAsync();
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
     }
@@ -286,6 +290,7 @@ public sealed class BlindBoxAnnouncementTests
         h.Time.Advance(TimeSpan.FromSeconds(5));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
         await h.WaitForLogAsync("发送弹幕成功：播报");
+        await h.Client.IdleAsync();
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
         Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试观众"));
@@ -309,6 +314,7 @@ public sealed class BlindBoxAnnouncementTests
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
         await h.WaitForLogAsync("发送弹幕失败，已丢弃：播报");
         Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("发送弹幕失败，已丢弃：播报"));
+        await h.Client.IdleAsync();
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
         await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), spend: 7000, price: 9000));
