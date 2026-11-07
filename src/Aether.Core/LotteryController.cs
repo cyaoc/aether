@@ -21,7 +21,7 @@ public sealed partial class LotteryController : IDisposable
     private readonly TimeProvider time;
     private readonly ILogger logger;
     private readonly Random random;
-    private readonly Subscribers<LotteryUpdate> subscribers;
+    private readonly Subscribers<LotteryUpdate> subscribers = new();
     private LotteryState state = new(null, false, null);
     private ITimer? drawTimer;
     private bool disposed;
@@ -32,7 +32,6 @@ public sealed partial class LotteryController : IDisposable
         this.time = time;
         this.logger = logger;
         this.random = random;
-        subscribers = new(gate);
     }
 
     public LotteryState State { get { lock (gate) return state; } }
@@ -93,12 +92,17 @@ public sealed partial class LotteryController : IDisposable
         store().DeletePrizeSet(mode, name);
     }
 
-    public IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync(CancellationToken token = default) =>
-        subscribers.SubscribeAsync(() =>
+    public IAsyncEnumerable<LotteryUpdate> GetUpdatesAsync(CancellationToken token = default) => Subscribers<LotteryUpdate>.ReadAsync(
+        subscriber =>
         {
-            ObjectDisposedException.ThrowIf(disposed, this);
-            return new(state, Example: example);
-        }, token);
+            lock (gate)
+            {
+                ObjectDisposedException.ThrowIf(disposed, this);
+                subscribers.Add(subscriber, new(state, Example: example));
+            }
+            return Task.CompletedTask;
+        },
+        subscriber => { lock (gate) subscribers.Remove(subscriber); }, token);
 
     internal void Connect(long roomId)
     {
@@ -305,15 +309,7 @@ public sealed partial class LotteryController : IDisposable
     private void FinishDraw(string id, DateTimeOffset until)
     {
         if (disposed || state.Lottery is not { IsDrawing: true } lottery || lottery.Id != id || lottery.DrawUntil != until) return;
-        var finished = lottery with { DrawUntil = null };
-        if (!state.CanControl)
-        {
-            // A different process may own the room now; its next load uses the persisted draw deadline.
-            state = state with { Lottery = finished };
-            Publish();
-            return;
-        }
-        Save(finished);
+        Save(lottery with { DrawUntil = null });
     }
 
     private void Save(Lottery lottery, LotteryDraw? draw = null)

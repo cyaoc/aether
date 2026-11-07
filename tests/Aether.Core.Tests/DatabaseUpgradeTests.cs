@@ -137,7 +137,8 @@ public sealed class DatabaseUpgradeTests
         await using var h = new WatchHarness();
         TestDatabase.Restore(h.DataDirectory, "database-v0.5.1.sql");
 
-        var state = h.Client.GuiState.Load();
+        await using var updates = h.Client.GuiState.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        var state = await h.NextAsync(updates);
 
         Assert.True(state.KeepRecentDanmaku);
         Assert.Empty(state.RecentRooms);

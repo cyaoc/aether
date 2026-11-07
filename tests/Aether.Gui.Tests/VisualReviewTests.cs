@@ -364,6 +364,33 @@ public sealed partial class VisualReviewTests
         }, TestContext.Current.CancellationToken);
     }
 
+    // ADR 0018: the notice is the logout confirm's window keeping one button, and its line does not wrap.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task Already_running_prompt_looks_like_the_logout_confirm_on_one_line(bool dark) => HeadlessApp.Session.Dispatch(() =>
+    {
+        var logout = PromptWindow.ConfirmLogout();
+        var running = PromptWindow.AlreadyRunning();
+        logout.RequestedThemeVariant = running.RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light;
+        logout.Show();
+        running.Show();
+        try
+        {
+            GuiHarness.Flush();
+            var message = GuiHarness.FindVisual<TextBlock>(running, "MessageText");
+            Assert.Equal("Aether 已经在运行", message.Text);
+            Assert.Single(message.TextLayout.TextLines);
+            Assert.Equal(["知道了"], running.GetVisualDescendants().OfType<Button>().Where(b => b.IsEffectivelyVisible).Select(b => b.Content));
+            Assert.Equal(logout.Bounds.Width, running.Bounds.Width);
+            if (HeadlessApp.ScreenshotDirectory is null) return true;
+            Save(logout, $"prompt-logout-{(dark ? "dark" : "light")}");
+            Save(running, $"prompt-already-running-{(dark ? "dark" : "light")}");
+        }
+        finally { logout.Close(); running.Close(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task Main_window_has_desktop_default_and_minimum_size() => HeadlessApp.Session.Dispatch(() =>
     {
@@ -840,6 +867,7 @@ public sealed partial class VisualReviewTests
             try
             {
                 await GuiHarness.AccountReadAsync(viewModel);
+                await harness.IdleAsync();
                 Capture(window, "normal");
                 var input = window.FindControl<ComboBox>("RoomInput")!;
                 input.GetVisualDescendants().OfType<TextBox>().Single().Focus();
@@ -855,6 +883,7 @@ public sealed partial class VisualReviewTests
                 popup.MouseMove(remove.TranslatePoint(new Point(12, 12), popup)!.Value);
                 Capture(popup, "delete-hover");
                 foreach (var room in viewModel.RecentRooms.ToArray()) viewModel.RemoveRecentRoomCommand.Execute(room);
+                await harness.IdleAsync();
                 Capture(window, "empty");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }

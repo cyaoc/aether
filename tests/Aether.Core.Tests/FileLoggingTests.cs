@@ -390,23 +390,6 @@ public sealed class FileLoggingTests
     }
 
     [Fact]
-    public async Task Rejected_room_connection_leaves_recording_the_failure_to_the_caller()
-    {
-        await using var h = new WatchHarness();
-        await using var owner = h.Watch();
-        Assert.True(await owner.MoveNextAsync());
-        using (var host = FileLoggingHost(h.DataDirectory))
-        {
-            using var client = new AetherClient(h.Http, h.Server.ConnectAsync, h.Time,
-                host.Services.GetRequiredService<ILogger<AetherClient>>(), h.DataDirectory);
-            await using var rejected = h.Watch(client);
-            await Assert.ThrowsAsync<InvalidOperationException>(async () => await rejected.MoveNextAsync());
-        }
-        // The room is not known as ours yet, so nothing goes near the owner's file or duplicates the caller's record.
-        Assert.False(Directory.Exists(Path.Combine(h.DataDirectory, "logs")));
-    }
-
-    [Fact]
     public async Task Room_connection_logs_keep_real_room_id_through_qr_polling_reconnect_and_messages()
     {
         await using var h = new WatchHarness();

@@ -170,7 +170,7 @@ public partial class MainWindow : Window
     {
         if (DataContext is not MainWindowViewModel viewModel || viewModel.IsLoggingOut) return;
         // Closing the window meanwhile has already started shutdown; a late confirm must not log out under it.
-        if (await new ConfirmLogoutWindow().ShowDialog<bool>(this) && !closing) await viewModel.LogoutCommand.ExecuteAsync(null);
+        if (await PromptWindow.ConfirmLogout().ShowDialog<bool>(this) && !closing) await viewModel.LogoutCommand.ExecuteAsync(null);
     }
 
     private void PauseFollowingForInput()

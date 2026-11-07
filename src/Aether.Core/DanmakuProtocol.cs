@@ -24,7 +24,12 @@ internal static class DanmakuProtocol
     internal abstract record DecodedEvent;
     internal sealed record AuthenticationReply(bool Success) : DecodedEvent;
     internal sealed record DanmakuReceived(Danmaku Danmaku) : RoomEvent;
-    internal sealed record GiftsReceived(Gift[] Gifts, long ReceivedTimestamp) : RoomEvent;
+    internal sealed record GiftsReceived(Gift[] Gifts, long ReceivedTimestamp) : RoomEvent
+    {
+        /// <summary>The 礼物榜 期 each gift was counted in, for its 收礼记录 row: the receive loop asks the 礼物榜 before handing
+        /// the gifts on; none until then.</summary>
+        public Func<Gift, long?> PeriodOf { get; init; } = _ => null;
+    }
     internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : RoomEvent;
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>

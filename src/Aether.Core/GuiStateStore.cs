@@ -17,7 +17,7 @@ public sealed record GuiState(bool KeepRecentDanmaku, ImmutableArray<string> Rec
 }
 
 /// <summary>The single gui_state row: reads and writes never touch another.</summary>
-public sealed class GuiStateStore
+internal sealed class GuiStateStore
 {
     private readonly Database database;
 

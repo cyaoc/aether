@@ -53,7 +53,7 @@ public sealed class RoomInputTests
         {
             await GuiHarness.AccountReadAsync(viewModel);
             var input = window.FindControl<ComboBox>("RoomInput")!;
-            GuiHarness.Flush();
+            await harness.IdleAsync();
             EditorOf(input).Focus();
             input.IsDropDownOpen = true;
             GuiHarness.Flush();
@@ -63,7 +63,7 @@ public sealed class RoomInputTests
             var point = remove.TranslatePoint(new Point(12, 12), popup)!.Value;
             popup.MouseDown(point, MouseButton.Left);
             popup.MouseUp(point, MouseButton.Left);
-            GuiHarness.Flush();
+            await harness.IdleAsync();
             Assert.Equal("6", viewModel.RoomNumber);
             Assert.Equal("6", input.Text);
             Assert.True(input.IsDropDownOpen);
@@ -95,7 +95,7 @@ public sealed class RoomInputTests
         {
             await GuiHarness.AccountReadAsync(viewModel);
             var input = window.FindControl<ComboBox>("RoomInput")!;
-            GuiHarness.Flush();
+            await harness.IdleAsync();
             var arrow = input.TranslatePoint(new Point(input.Bounds.Width - 16, input.Bounds.Height / 2), window)!.Value;
             window.MouseDown(arrow, MouseButton.Left);
             window.MouseUp(arrow, MouseButton.Left);
@@ -145,7 +145,7 @@ public sealed class RoomInputTests
         {
             await GuiHarness.AccountReadAsync(viewModel);
             var input = window.FindControl<ComboBox>("RoomInput")!;
-            GuiHarness.Flush();
+            await harness.IdleAsync();
             Assert.True(input.IsEditable);
             Assert.Equal("6", input.Text);
             input.SelectedIndex = 1;
@@ -160,7 +160,7 @@ public sealed class RoomInputTests
             viewModel.Apply(new Connected(7734200, 24680));
             viewModel.ConnectCommand.Cancel();
             await viewModel.ConnectCommand.ExecutionTask!;
-            GuiHarness.Flush();
+            await harness.IdleAsync();
             Assert.Equal("42", input.Text);
             Assert.Equal(["42", "6"], input.Items.Cast<string>());
         }
@@ -207,7 +207,7 @@ public sealed class RoomInputTests
         {
             await GuiHarness.AccountReadAsync(viewModel);
             var input = window.FindControl<ComboBox>("RoomInput")!;
-            GuiHarness.Flush();
+            await harness.IdleAsync();
             var text = EditorOf(input);
             text.Focus();
             text.SelectAll();
@@ -236,11 +236,11 @@ public sealed class RoomInputTests
         try
         {
             var input = window.FindControl<ComboBox>("RoomInput")!;
-            GuiHarness.Flush();
+            await harness.IdleAsync();
             input.IsDropDownOpen = true;
             GuiHarness.Flush();
             window.KeyPress(Key.Delete, RawInputModifiers.Shift, PhysicalKey.Delete, null);
-            GuiHarness.Flush();
+            await harness.IdleAsync();
             Assert.Equal(["42"], viewModel.RecentRooms);
             Assert.Equal("6", viewModel.RoomNumber);
             Assert.True(input.IsDropDownOpen);
@@ -275,7 +275,7 @@ public sealed class RoomInputTests
         try
         {
             var input = window.FindControl<ComboBox>("RoomInput")!;
-            GuiHarness.Flush();
+            await harness.IdleAsync();
             if (count > 0)
             {
                 input.IsDropDownOpen = true;
@@ -284,7 +284,7 @@ public sealed class RoomInputTests
                     window.KeyPress(Key.Delete, RawInputModifiers.Shift, PhysicalKey.Delete, null);
                 else
                     foreach (var room in viewModel.RecentRooms.ToArray()) viewModel.RemoveRecentRoomCommand.Execute(room);
-                GuiHarness.Flush();
+                await harness.IdleAsync();
                 Assert.Equal("6", input.Text);
                 Assert.Equal("", EditorOf(input).SelectedText);
                 var presenter = EditorOf(input).GetVisualDescendants().OfType<TextPresenter>().Single();
@@ -326,7 +326,7 @@ public sealed class RoomInputTests
         try
         {
             var input = window.FindControl<ComboBox>("RoomInput")!;
-            GuiHarness.Flush();
+            await harness.IdleAsync();
             var text = EditorOf(input);
             text.Focus(NavigationMethod.Tab);
             Assert.Equal("12345", text.SelectedText);

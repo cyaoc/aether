@@ -21,13 +21,13 @@ public sealed class VideoPageBrowserTests
         Assert.True(await updates.MoveNextAsync());
         for (var attempt = 0; attempt < 2; attempt++)
         {
-            h.Client.WelcomeAnimation.TestPlay(10001);
+            await h.Client.WebService.TestPlayWelcomeAsync(10001);
             SourcePlayback playing;
             do { Assert.True(await updates.MoveNextAsync()); }
             while (updates.Current is not SourcePlayback { State: PlaybackState.Playing });
             playing = (SourcePlayback)updates.Current;
             await browser.WaitAsync("document.querySelector('video').style.visibility === 'visible' && !document.querySelector('video').paused");
-            h.Client.WelcomeAnimation.StopTestPlay(playing.Id);
+            await h.Client.WebService.StopTestPlayAsync(playing.Id);
             await browser.WaitAsync("document.querySelector('video').style.visibility === 'hidden' && document.querySelector('video').paused && !document.querySelector('video').hasAttribute('src')");
             do { Assert.True(await updates.MoveNextAsync()); }
             while (updates.Current is not SourcePlayback { State: PlaybackState.Stopped });

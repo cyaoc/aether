@@ -52,14 +52,14 @@ return await root.Parse(args).InvokeAsync(new InvocationConfiguration { Output =
 static async Task<int> RunAsync(Func<AetherClient, Task> action, CancellationToken cancellationToken, bool warnAboutSettings = false)
 {
     var dataDirectory = DataDirectory.Locate();
-    var builder = Host.CreateApplicationBuilder();
-    builder.Logging.ClearProviders();
-    builder.Logging.AddSimpleConsole(options => options.SingleLine = true);
-    builder.Services.Configure<ConsoleLoggerOptions>(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
-    // The CLI prints its own status and errors to stderr; its log records only go to the file.
-    builder.Logging.AddFilter<ConsoleLoggerProvider>("Aether.Cli", LogLevel.None);
-    builder.AddAether(dataDirectory);
-    using var host = builder.Build();
+    // ADR 0018: before the log or the settings file is touched.
+    await using var dataLock = await DataDirectory.LockAsync(dataDirectory, TimeProvider.System);
+    if (dataLock is null)
+    {
+        await Console.Error.WriteLineAsync(DataDirectory.AlreadyRunning);
+        return 1;
+    }
+    using var host = CreateHost(dataDirectory);
     var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Aether.Cli");
     try
     {
@@ -76,6 +76,18 @@ static async Task<int> RunAsync(Func<AetherClient, Task> action, CancellationTok
         await Console.Error.WriteLineAsync($"错误：{error.Message}");
         return 1;
     }
+}
+
+static IHost CreateHost(string dataDirectory)
+{
+    var builder = Host.CreateApplicationBuilder();
+    builder.Logging.ClearProviders();
+    builder.Logging.AddSimpleConsole(options => options.SingleLine = true);
+    builder.Services.Configure<ConsoleLoggerOptions>(options => options.LogToStandardErrorThreshold = LogLevel.Trace);
+    // The CLI prints its own status and errors to stderr; its log records only go to the file.
+    builder.Logging.AddFilter<ConsoleLoggerProvider>("Aether.Cli", LogLevel.None);
+    builder.AddAether(dataDirectory);
+    return builder.Build();
 }
 
 static async Task ShowQrCodeAsync(string content)

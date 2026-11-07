@@ -8,7 +8,7 @@ internal static class GiftBoardStates
     public const long RoomId = 7734200;
 
     /// <summary>The board as it is now: a new subscription starts with the current state.</summary>
-    public static async Task<GiftBoardState> CurrentAsync(this GiftBoardController board, CancellationToken token)
+    public static async Task<GiftBoardState> CurrentAsync(this GiftBoardFacade board, CancellationToken token)
     {
         await foreach (var state in board.GetUpdatesAsync(token)) return state;
         throw new InvalidOperationException("The gift board ended without a state.");
@@ -29,14 +29,14 @@ internal static class GiftBoardStates
         var board = h.Client.GiftBoard;
         var state = await board.CurrentAsync(h.Stop.Token);
         var room = state.RoomId ?? throw new InvalidOperationException("The gift board did not connect.");
-        board.SetOptions(room, GiftBoardOptions.Default with { Threshold = threshold, ThresholdBy = thresholdBy });
-        if (!state.Running) board.StartNewPeriod(room);
+        await board.SetOptionsAsync(room, GiftBoardOptions.Default with { Threshold = threshold, ThresholdBy = thresholdBy });
+        if (!state.Running) await board.StartNewPeriodAsync(room);
         return updates;
     }
 
     /// <summary>Changes some of the board's options, keeping the others.</summary>
     public static async Task SetOptionsAsync(this WatchHarness h, Func<GiftBoardOptions, GiftBoardOptions> change) =>
-        h.Client.GiftBoard.SetOptions(RoomId, change((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Options));
+        await h.Client.GiftBoard.SetOptionsAsync(RoomId, change((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Options));
 
     /// <summary>Like <see cref="WatchWithGiftBoardAsync"/> for the room as <see cref="FakeBilibiliHttp.SetRoom"/> has it, then puts
     /// one gift on the board and disconnects, so that the next connection meets a board with a gift on it.</summary>

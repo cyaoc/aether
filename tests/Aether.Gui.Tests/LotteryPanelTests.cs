@@ -176,7 +176,7 @@ public sealed class LotteryPanelTests
         {
             var pool = TestLottery();
             pool = pool with { Draws = [new("draw", pool.Prizes[0], 42, "小明", true, DateTimeOffset.UnixEpoch, [])] };
-            // The view has a stale connected snapshot; Core correctly refuses its operation without the room lock.
+            // The view has a stale connected snapshot; Core correctly refuses its operation without a room connection.
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, pool)));
             GuiHarness.Flush();
             var row = Assert.Single(vm.Lottery.PoolDraws);

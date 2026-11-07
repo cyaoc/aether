@@ -148,9 +148,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     /// announce, which then joins its viewer's 一轮盲盒.</summary>
     public void Record(IEnumerable<Gift> gifts, long receivedAt, Func<Gift, bool> save)
     {
-        // A SQLite write can wait for another process; neither a deadline nor a send snapshot may split this message.
-        // ponytail: the sender's snapshot and the quiet-window timers wait with the receive loop, up to SQLite's 30 s
-        // busy timeout; mark the message as arriving under the gate and save outside it if that stall ever matters.
+        // Neither a deadline nor a send snapshot may split this message.
         lock (gate)
             foreach (var gift in gifts)
                 if (save(gift)) Add(gift, receivedAt);
@@ -196,7 +194,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     /// gets an announcement's round as it stands (null otherwise) and runs again after each wait, so the text sent is current;
     /// it does the local reads (their failures end the room connection) and returns the text with the send itself, the
     /// only step that can fail it.</summary>
-    public async Task SendAsync(Func<Item, BlindBoxTally?, (string Text, Func<CancellationToken, Task> Send)> prepare,
+    public async Task SendAsync(Func<Item, BlindBoxTally?, Task<(string Text, Func<CancellationToken, Task> Send)>> prepare,
         CancellationToken cancellationToken)
     {
         while (await pending.Reader.WaitToReadAsync(cancellationToken))
@@ -213,7 +211,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
                     var round = rounds[item.Uid];
                     (item, reported) = (round.Item, new Reported(round.Tally, round.Count));
                 }
-            var (text, send) = prepare(item, reported?.Tally);
+            var (text, send) = await prepare(item, reported?.Tally);
             // Waiting can change a query's tally or an announcement's round; prepare and check the new text again.
             if (await WaitedForTurnAsync(text, cancellationToken)) continue;
             if (DiscardExpiredWelcome(item)) continue;
