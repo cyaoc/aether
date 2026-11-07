@@ -19,7 +19,7 @@ internal static class GuiFileUpgrade
         if (!File.Exists(path)) return null;
         string text;
         try { text = File.ReadAllText(path); }
-        // Moved since, as when two windows start together, or unreadable: the settings file decides, as the page shows it.
+        // Unreadable: the settings file decides, as the page shows it.
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
             logger.LogWarning(error, "读取 gui.yml 失败，这次不升级，按设置文件：{Error}", error.Message);
@@ -34,7 +34,6 @@ internal static class GuiFileUpgrade
             Settings.Load(dataDirectory, logger);
             Settings.Save(dataDirectory, new Dictionary<string, string> { ["auto_update.enabled"] = Settings.BooleanText(autoUpdate) });
         }, "自动更新开关") && Try(() => client.GuiState.Save(state), MainWindowViewModel.GuiStateText);
-        // File.Delete ignores a file already gone, as when two windows start together.
         if (moved) Try(() => File.Delete(path), "删除");
         return autoUpdate;
 
