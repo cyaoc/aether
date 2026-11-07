@@ -8,16 +8,12 @@ namespace Aether.Core;
 public sealed class LotteryFacade
 {
     private readonly Region<LotteryController> region;
-    private LotteryState snapshot;
+    private LotteryState snapshot = new(null, false, null);
 
-    internal LotteryFacade(Func<LotteryStore> store, TimeProvider time, Random random, PendingSteps steps, ILogger logger)
-    {
-        var lottery = new LotteryController(store, time, logger, random, Post);
-        snapshot = lottery.State;
-        region = new(lottery, steps, logger);
-    }
+    internal LotteryFacade(Func<LotteryStore> store, TimeProvider time, Random random, PendingSteps steps, ILogger logger) =>
+        region = new(post => new(store, time, logger, random, post, state => Volatile.Write(ref snapshot, state)), steps, logger);
 
-    /// <summary>The state as the last step left it (ADR 0017 convention 6).</summary>
+    /// <summary>The state as last reported (ADR 0017 convention 6).</summary>
     public LotteryState State => Volatile.Read(ref snapshot);
 
     /// <summary>The current state first, then one per change.</summary>
@@ -36,51 +32,51 @@ public sealed class LotteryFacade
 
     public Task<Lottery?> GetHistoryDetailsAsync(long roomId, string id) => region.Run(s => s.GetHistoryDetails(roomId, id));
 
-    public Task SetPinnedResultsAsync(bool enabled) => Run(s => s.SetPinnedResults(enabled));
+    public Task SetPinnedResultsAsync(bool enabled) => region.Run(s => s.SetPinnedResults(enabled));
 
-    public Task SelectThemeAsync(LotteryTheme theme) => Run(s => s.SelectTheme(theme));
+    public Task SelectThemeAsync(LotteryTheme theme) => region.Run(s => s.SelectTheme(theme));
 
     public Task SavePrizeSetAsync(LotteryMode mode, string name, IReadOnlyCollection<PoolPrize> prizes,
-        IReadOnlyCollection<LotteryAward> awards) => Run(s => s.SavePrizeSet(mode, name, prizes, awards));
+        IReadOnlyCollection<LotteryAward> awards) => region.Run(s => s.SavePrizeSet(mode, name, prizes, awards));
 
-    public Task DeletePrizeSetAsync(LotteryMode mode, string name) => Run(s => s.DeletePrizeSet(mode, name));
+    public Task DeletePrizeSetAsync(LotteryMode mode, string name) => region.Run(s => s.DeletePrizeSet(mode, name));
 
-    public Task NewAsync(LotteryMode mode) => Run(s => s.New(mode));
+    public Task NewAsync(LotteryMode mode) => region.Run(s => s.New(mode));
 
     public Task StartAsync(IReadOnlyCollection<PoolPrize> prizes, string stopWord, long? uid = null) =>
-        Run(s => s.Start(prizes, stopWord, uid));
+        region.Run(s => s.Start(prizes, stopWord, uid));
 
     /// <summary>The host stops the spinning 奖池抽奖, which draws.</summary>
-    public Task StopAsync() => Run(s => s.Stop());
+    public Task StopAsync() => region.Run(s => s.Stop());
 
-    public Task CancelAsync() => Run(s => s.Cancel());
+    public Task CancelAsync() => region.Run(s => s.Cancel());
 
-    public Task SetDrawHiddenFromStreamAsync(string drawId, bool hidden) => Run(s => s.SetDrawHiddenFromStream(drawId, hidden));
+    public Task SetDrawHiddenFromStreamAsync(string drawId, bool hidden) => region.Run(s => s.SetDrawHiddenFromStream(drawId, hidden));
 
-    public Task HideAllDrawsFromStreamAsync() => Run(s => s.HideAllDrawsFromStream());
+    public Task HideAllDrawsFromStreamAsync() => region.Run(s => s.HideAllDrawsFromStream());
 
-    public Task StartEntryAsync(IReadOnlyCollection<LotteryAward> awards, string keyword) => Run(s => s.StartEntry(awards, keyword));
+    public Task StartEntryAsync(IReadOnlyCollection<LotteryAward> awards, string keyword) => region.Run(s => s.StartEntry(awards, keyword));
 
-    public Task CloseEntriesAsync() => Run(s => s.CloseEntries());
+    public Task CloseEntriesAsync() => region.Run(s => s.CloseEntries());
 
-    public Task DrawEntryAsync(int awardIndex) => Run(s => s.DrawEntry(awardIndex));
+    public Task DrawEntryAsync(int awardIndex) => region.Run(s => s.DrawEntry(awardIndex));
 
-    public Task EndEntryAsync() => Run(s => s.EndEntry());
+    public Task EndEntryAsync() => region.Run(s => s.EndEntry());
 
-    public Task SetEntryHiddenAsync(bool hidden) => Run(s => s.SetEntryHidden(hidden));
+    public Task SetEntryHiddenAsync(bool hidden) => region.Run(s => s.SetEntryHidden(hidden));
 
-    internal Task PlayExampleAsync() => Run(s => s.PlayExample());
+    internal Task PlayExampleAsync() => region.Run(s => s.PlayExample());
 
-    internal void StopExample() => Post(s => s.StopExample());
+    internal void StopExample() => region.Post(s => s.StopExample());
 
     // The room connection never waits for the lottery's database.
-    internal void Connect(long roomId) => Post(s => s.FollowRoom(roomId, null));
+    internal void Connect(long roomId) => region.Post(s => s.FollowRoom(roomId, null));
 
-    internal void Receive(long roomId, Danmaku danmaku) => Post(s => s.FollowRoom(roomId, danmaku));
+    internal void Receive(long roomId, Danmaku danmaku) => region.Post(s => s.FollowRoom(roomId, danmaku));
 
-    internal void Disconnect(long roomId) => Post(s => s.Disconnect(roomId));
+    internal void Disconnect(long roomId) => region.Post(s => s.Disconnect(roomId));
 
-    internal void EndRoom(long roomId) => Post(s => s.EndRoom(roomId));
+    internal void EndRoom(long roomId) => region.Post(s => s.EndRoom(roomId));
 
     /// <summary>Every reader's updates end, and the timers stop; later commands are cancelled.</summary>
     internal void Dispose()
@@ -88,15 +84,4 @@ public sealed class LotteryFacade
         region.Post(s => s.Dispose());
         region.Stop();
     }
-
-    private Task Run(Action<LotteryController> step) => region.Run(Snapshotting(step));
-
-    private void Post(Action<LotteryController> step) => region.Post(Snapshotting(step));
-
-    // Every step that can change the state leaves its snapshot, also one that fails halfway, as reading under the old lock did.
-    private Action<LotteryController> Snapshotting(Action<LotteryController> step) => s =>
-    {
-        try { step(s); }
-        finally { Volatile.Write(ref snapshot, s.State); }
-    };
 }

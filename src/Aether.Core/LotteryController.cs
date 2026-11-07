@@ -23,22 +23,23 @@ public sealed partial class LotteryController
     private readonly TimeProvider time;
     private readonly ILogger logger;
     private readonly Random random;
-    private readonly Action<Action<LotteryController>> post;
+    private readonly Action<Action> post;
+    private readonly Action<LotteryState> report;
     private LotteryState state = new(null, false, null);
     private ITimer? drawTimer;
 
     /// <param name="post">Queues a step on the lottery region, which the timers do when they fire.</param>
-    internal LotteryController(Func<LotteryStore> store, TimeProvider time, ILogger logger, Random random,
-        Action<Action<LotteryController>> post)
+    /// <param name="report">Takes each state reported, as the snapshot anyone may read.</param>
+    internal LotteryController(Func<LotteryStore> store, TimeProvider time, ILogger logger, Random random, Action<Action> post,
+        Action<LotteryState> report)
     {
         this.store = store;
         this.time = time;
         this.logger = logger;
         this.random = random;
         this.post = post;
+        this.report = report;
     }
-
-    internal LotteryState State => state;
 
     internal LotteryUpdate Update => new(state, example);
 
@@ -260,7 +261,7 @@ public sealed partial class LotteryController
         var remaining = until - time.GetUtcNow();
         if (remaining <= TimeSpan.Zero) { FinishDraw(id, until); return; }
         drawTimer?.Dispose();
-        drawTimer = time.CreateTimer(_ => post(lottery => lottery.TryFinishDraw(id, until)), null, remaining, Timeout.InfiniteTimeSpan);
+        drawTimer = time.CreateTimer(_ => post(() => TryFinishDraw(id, until)), null, remaining, Timeout.InfiniteTimeSpan);
     }
 
     private void TryFinishDraw(string id, DateTimeOffset until)
@@ -294,7 +295,11 @@ public sealed partial class LotteryController
         Broadcast();
     }
 
-    private void Broadcast() => Subscribers.Publish(Update);
+    private void Broadcast()
+    {
+        Subscribers.Publish(Update);
+        report(state);
+    }
 
     /// <summary>The region's last step: no timer fires again, and every reader's updates end.</summary>
     internal void Dispose()
