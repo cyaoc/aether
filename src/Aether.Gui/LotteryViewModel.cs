@@ -26,7 +26,6 @@ public partial class LotteryViewModel : ObservableObject
     }
 
     private readonly LatestRun lotteryUpdates = new();
-    private Task lotteryChange = Task.CompletedTask;
     [ObservableProperty] private bool busy;
     private bool CanBeginOperation => !Busy && LotteryState.Connected;
     private bool CanControlOperation => !Busy && LotteryState.CanControl;
@@ -86,22 +85,17 @@ public partial class LotteryViewModel : ObservableObject
         lotteryUpdates.Follow(client.Lottery.GetUpdatesAsync, Apply, logger, "抽奖状态订阅中断");
     }
 
-    internal Task ChangeLotteryAsync(Action<LotteryController> change)
+    internal async Task ChangeLotteryAsync(Func<LotteryFacade, Task> change)
     {
-        if (Busy) return Task.CompletedTask;
+        if (Busy) return;
         if (shutdown.IsCancellationRequested) throw new InvalidOperationException("程序正在关闭。");
         Busy = true;
-        return lotteryChange = RunAsync();
-
-        async Task RunAsync()
-        {
-            try { await Task.Run(() => change(client.Lottery)); }
-            finally { Busy = false; }
-        }
+        try { await change(client.Lottery); }
+        finally { Busy = false; }
     }
 
     /// <summary>Like <see cref="ChangeLotteryAsync"/>, but a failure shows under the given mode's panel.</summary>
-    internal async Task<bool> TryChangeLotteryAsync(LotteryMode panel, Action<LotteryController> change)
+    internal async Task<bool> TryChangeLotteryAsync(LotteryMode panel, Func<LotteryFacade, Task> change)
     {
         if (Busy) return false;
         SetLotteryError(panel, null);
@@ -115,28 +109,11 @@ public partial class LotteryViewModel : ObservableObject
         else EntryLotteryError = message;
     }
 
-    internal void SelectLotteryTheme(LotteryTheme theme)
-    {
-        client.Lottery.SelectTheme(theme);
-        Apply(new LotteryUpdate(client.Lottery.State));
-    }
+    // Shown once Core reports it, like every other change.
+    internal void SelectLotteryTheme(LotteryTheme theme) => client.Lottery.SelectThemeAsync(theme).RaiseFailure();
 
-    internal void PlayLotteryExample()
-    {
-        if (shutdown.IsCancellationRequested) return;
-        client.WebService.Lottery.PlayExample();
-        Apply(new LotteryUpdate(client.Lottery.State));
-    }
-
-    internal async Task StopAsync()
-    {
-        // The page reports failures; closing still waits until a database write has finished.
-        try { await lotteryChange; }
-        catch { }
-        await lotteryUpdates.StopAsync();
-        await lotteryHistoryRead.StopAsync();
-        await prizeSetsRead.StopAsync();
-    }
+    internal Task PlayLotteryExampleAsync() => shutdown.IsCancellationRequested ? Task.CompletedTask
+        : client.WebService.Lottery.PlayExampleAsync();
 
     private readonly LatestRun lotteryHistoryRead = new();
     private string? lotteryHistorySelection;
@@ -175,17 +152,14 @@ public partial class LotteryViewModel : ObservableObject
             try
             {
                 if (token.IsCancellationRequested || shutdown.IsCancellationRequested) return;
-                var result = await Task.Run(() =>
-                {
-                    var items = (roomId ?? client.Lottery.GetLastLotteryRoom()) is { } room ? client.Lottery.GetHistory(room) : [];
-                    var selected = items.FirstOrDefault(item => item.Id == selectedId) ?? items.FirstOrDefault();
-                    var details = selected is null ? null : client.Lottery.GetHistoryDetails(selected.RoomId, selected.Id);
-                    return (items, details);
-                });
+                var items = (roomId ?? await client.Lottery.GetLastLotteryRoomAsync()) is { } room
+                    ? await client.Lottery.GetHistoryAsync(room) : [];
+                var selected = items.FirstOrDefault(item => item.Id == selectedId) ?? items.FirstOrDefault();
+                var details = selected is null ? null : await client.Lottery.GetHistoryDetailsAsync(selected.RoomId, selected.Id);
                 if (token.IsCancellationRequested || shutdown.IsCancellationRequested) return;
-                LotteryHistory = result.items;
-                SelectedLotteryHistory = result.details;
-                lotteryHistorySelection = result.details?.Id;
+                LotteryHistory = items;
+                SelectedLotteryHistory = details;
+                lotteryHistorySelection = details?.Id;
             }
             catch (Exception error)
             {

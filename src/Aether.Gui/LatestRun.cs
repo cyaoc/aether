@@ -33,11 +33,16 @@ internal sealed class LatestRun
     }
 
     /// <summary>Applies each update Core reports until the next run or a stop; a failure is logged and ends the run.</summary>
-    public Task Follow<T>(Func<CancellationToken, IAsyncEnumerable<T>> updates, Action<T> apply, ILogger logger, string interrupted) => Start(async token =>
+    public Task Follow<T>(Func<CancellationToken, IAsyncEnumerable<T>> updates, Action<T> apply, ILogger logger, string interrupted) =>
+        Follow(updates, apply, error => logger.LogError(error, interrupted));
+
+    /// <summary>Applies each update Core reports until the next run or a stop; a failure goes to <paramref name="failed"/> and
+    /// ends the run.</summary>
+    public Task Follow<T>(Func<CancellationToken, IAsyncEnumerable<T>> updates, Action<T> apply, Action<Exception> failed) => Start(async token =>
     {
         try { await foreach (var update in updates(token)) apply(update); }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        catch (Exception error) { logger.LogError(error, interrupted); }
+        catch (Exception error) { failed(error); }
     });
 
     public async Task StopAsync()

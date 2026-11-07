@@ -31,7 +31,7 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     public FakeTimeProvider Clock { get; }
     public MainWindowViewModel ViewModel { get; }
     public GiftBoardPanel Page { get; }
-    public GiftBoardController Board => harness.Client.GiftBoard;
+    public GiftBoardFacade Board => harness.Client.GiftBoard;
     public string DataDirectory => harness.DataDirectory;
 
     /// <summary>Runs <paramref name="check"/> on the UI thread over a scene with no room connected.</summary>
@@ -66,11 +66,15 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     /// <summary>Connects the board of <paramref name="harness"/>'s client to <paramref name="room"/>, the way a room connection would.</summary>
     public static void ConnectBoard(GuiHarness harness, long room) => harness.Client.GiftBoard.Connect(room);
 
-    /// <summary>Records gifts sent in <paramref name="room"/> through the 收礼记录, the way a room connection with the 盲盒统计
-    /// off would.</summary>
-    public static void Give(GuiHarness harness, long room, IReadOnlyList<Gift> gifts) =>
-        new GiftRecording(new GiftStore(new Database(harness.DataDirectory), NullLogger.Instance), harness.Client.GiftBoard,
-            NullLogger.Instance, room, blindBoxes: false).Record(gifts, write => { foreach (var gift in gifts) write(gift); });
+    /// <summary>Puts gifts sent in <paramref name="room"/> on the board and records them through the 收礼记录, the way a room
+    /// connection with the 盲盒统计 off would.</summary>
+    public static async Task GiveAsync(GuiHarness harness, long room, IReadOnlyList<Gift> gifts)
+    {
+        var periodOf = await harness.Client.GiftBoard.TakeAsync(room, gifts);
+        var store = new GiftStore(new Database(harness.DataDirectory), NullLogger.Instance);
+        new GiftRecording(() => store, NullLogger.Instance, room, blindBoxes: false)
+            .Record(periodOf, write => { foreach (var gift in gifts) write(gift); });
+    }
 
     public void GoToToday() => Clock.SetUtcNow(Today);
 
@@ -83,10 +87,10 @@ internal sealed class GiftBoardScene : IAsyncDisposable
     }
 
     /// <summary>Starts a 期 in the connected room at <paramref name="threshold"/> 电池, as the streamer would in the panel.</summary>
-    public void Start(int threshold = 1)
+    public async Task StartAsync(int threshold = 1)
     {
-        Board.SetOptions(RoomId, GiftBoardOptions.Default with { Threshold = threshold });
-        Board.StartNewPeriod(RoomId);
+        await Board.SetOptionsAsync(RoomId, GiftBoardOptions.Default with { Threshold = threshold });
+        await Board.StartNewPeriodAsync(RoomId);
     }
 
     /// <summary>The streamer clicked 断开.</summary>
@@ -96,7 +100,7 @@ internal sealed class GiftBoardScene : IAsyncDisposable
         Board.EndRoom(RoomId);
     }
 
-    public void Give(params Gift[] gifts) => Give(harness, RoomId, gifts);
+    public Task GiveAsync(params Gift[] gifts) => GiveAsync(harness, RoomId, gifts);
 
     /// <summary>What each line of the 当前榜单 says: its place, nickname, gift and value, as the eye reads them.</summary>
     public string[] Listed() => Page.FindControl<ListBox>("BoardList")!.GetVisualDescendants().OfType<ListBoxItem>()

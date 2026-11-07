@@ -140,6 +140,6 @@ public sealed class WebPageResourceTests
         using var reader = new StreamReader(stream);
         Assert.StartsWith($"HTTP/1.1 {(OperatingSystem.IsWindows() ? windowsStatus : 404)} ", await reader.ReadLineAsync(h.Stop.Token));
         // HttpListener resolves the dot segments or rejects them before the web service, so the check behind it gets the decoded path too.
-        Assert.Null(WebService.PagesFile(Uri.UnescapeDataString(target)));
+        Assert.Null(WebServer.PagesFile(Uri.UnescapeDataString(target)));
     }
 }

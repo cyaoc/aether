@@ -27,6 +27,7 @@ public sealed class BlindBoxAnnouncementTests
         h.Time.Advance(TimeSpan.FromSeconds(2));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
         await h.WaitForLogAsync("发送弹幕成功：播报观众 测试观众（10001）");
+        await h.Client.IdleAsync();
         h.Time.Advance(TimeSpan.FromSeconds(1));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入100电池 亏70电池", uid: 20002);
         await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(4));
@@ -45,6 +46,7 @@ public sealed class BlindBoxAnnouncementTests
         }
         AssertAnnouncement(await NextSendAsync(sent), expected, uid: 30003);
         await h.WaitForLogAsync("发送弹幕成功：播报观众 测试观众（30003）");
+        await h.Client.IdleAsync();
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
     }
@@ -65,6 +67,7 @@ public sealed class BlindBoxAnnouncementTests
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入300电池 亏50电池");
         await h.WaitForLogAsync("发送弹幕成功：播报观众 测试观众（10001）");
+        await h.Client.IdleAsync();
 
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await h.PushAndSyncAsync(updates, messages[2]);
@@ -130,6 +133,7 @@ public sealed class BlindBoxAnnouncementTests
         }
         AssertAnnouncement(await NextSendAsync(sent), "本次投入1500电池 亏460电池");
         await h.WaitForLogAsync("发送弹幕成功：播报");
+        await h.Client.IdleAsync();
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
     }
@@ -286,6 +290,7 @@ public sealed class BlindBoxAnnouncementTests
         h.Time.Advance(TimeSpan.FromSeconds(5));
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
         await h.WaitForLogAsync("发送弹幕成功：播报");
+        await h.Client.IdleAsync();
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
         Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试观众"));
@@ -309,6 +314,7 @@ public sealed class BlindBoxAnnouncementTests
         AssertAnnouncement(await NextSendAsync(sent), "本次投入50电池 亏35电池");
         await h.WaitForLogAsync("发送弹幕失败，已丢弃：播报");
         Assert.Single(h.Logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("发送弹幕失败，已丢弃：播报"));
+        await h.Client.IdleAsync();
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
         await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), spend: 7000, price: 9000));
@@ -533,6 +539,25 @@ public sealed class BlindBoxAnnouncementTests
         Assert.True(await updates.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         Assert.IsType<Reconnecting>(updates.Current);
         Assert.Contains(h.Logger.Entries, e => e.Message.Contains("60 秒未收到任何数据"));
+    }
+
+    [Fact]
+    public async Task A_quiet_window_due_after_the_room_connection_ends_queues_nothing_and_logs_no_error()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await using (var updates = await h.WatchConnectedAsync())
+        {
+            await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow()));
+            // The quiet-window timer is armed later than created; held, it is due as the room connection ends.
+            h.Time.HoldCallbacksFor = Timeout.InfiniteTimeSpan;
+            h.Time.Advance(TimeSpan.FromSeconds(3));
+        }
+        h.Time.HoldCallbacksFor = null;
+        h.Time.RunHeldCallbacks();
+        await h.Client.IdleAsync();
+        Assert.DoesNotContain(h.Logger.Entries, e => e.Message.Contains("盲盒播报] 进队") || e.Level == LogLevel.Error);
+        Assert.Contains(h.Logger.Entries, e => e.Message.Contains("直播间连接结束，发送队列丢掉 1 条待发弹幕"));
     }
 
     private static void AssertAnnouncement(Dictionary<string, string> form, string message, long uid = 10001)

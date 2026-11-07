@@ -1,9 +1,7 @@
-using System.Diagnostics;
 using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Automation.Peers;
 using Avalonia.Automation.Provider;
-using Microsoft.Data.Sqlite;
 using Avalonia.Controls;
 using Microsoft.Extensions.Time.Testing;
 using static Aether.Gui.Tests.Support.GiftBoardScene;
@@ -25,7 +23,7 @@ public sealed class GiftBoardLeavingTests
         {
             await ConnectAsync(h, viewModel);
             var started = clock.GetUtcNow();
-            h.Client.GiftBoard.StartNewPeriod(RoomId);
+            await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
             await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Running);
             clock.Advance(TimeSpan.FromHours(3));
 
@@ -51,8 +49,8 @@ public sealed class GiftBoardLeavingTests
         await ConnectAsync(h, viewModel);
         if (ended)
         {
-            h.Client.GiftBoard.StartNewPeriod(RoomId);
-            h.Client.GiftBoard.EndPeriod(RoomId);
+            await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
+            await h.Client.GiftBoard.EndPeriodAsync(RoomId);
         }
         var before = await h.Client.GiftBoard.CurrentAsync();
         await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Phase == before.Phase);
@@ -64,30 +62,7 @@ public sealed class GiftBoardLeavingTests
         Assert.Equal(before.Period, (await h.Client.GiftBoard.CurrentAsync()).Period);
     });
 
-    [Fact]
-    public Task A_period_a_locked_database_keeps_from_ending_goes_on_running_and_the_room_is_left_at_once() => Run(async (h, clock, viewModel, window) =>
-    {
-        await ConnectAsync(h, viewModel);
-        h.Client.GiftBoard.StartNewPeriod(RoomId);
-        await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Running);
-        // Another program holds the database, longer than leaving may wait for it.
-        using var database = new SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
-        database.Open();
-        using var command = database.CreateCommand();
-        command.CommandText = "BEGIN IMMEDIATE";
-        command.ExecuteNonQuery();
-
-        var leaving = Stopwatch.StartNew();
-        await ClickDisconnectAsync(viewModel, window);
-
-        Assert.InRange(leaving.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(10));
-        Assert.Equal(RoomConnectionState.Disconnected, viewModel.ConnectionState);
-        command.CommandText = "ROLLBACK";
-        command.ExecuteNonQuery();
-        Assert.True((await h.Client.GiftBoard.CurrentAsync()).Running);
-    });
-
-    // The web service stops first, and its failing does not keep the 期 running, the room connected or the window open.
+    // The web service's failing to stop does not keep the 期 running, the room connected or the window open.
     // Stopping the web service refreshes what its rows show, and that refresh now fails.
     [Fact]
     public Task A_closing_step_that_fails_skips_none_after_it_and_the_window_still_closes() =>
@@ -110,7 +85,7 @@ public sealed class GiftBoardLeavingTests
     private static Task ClosesDespite(Action<MainWindowViewModel> fail) => Run(async (h, clock, viewModel, window) =>
     {
         await ConnectAsync(h, viewModel);
-        h.Client.GiftBoard.StartNewPeriod(RoomId);
+        await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
         await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Running);
         fail(viewModel);
 

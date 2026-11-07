@@ -62,7 +62,7 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
         try
         {
             // A prerelease version such as the dev build's 0.0.0-dev does not parse.
-            if (runtimeIdentifier is not { Length: > 0 } rid || !Version.TryParse(version, out var current) || AnotherGuiRuns()) return null;
+            if (runtimeIdentifier is not { Length: > 0 } rid || !Version.TryParse(version, out var current)) return null;
             using var request = Request(latestRelease);
             using var response = await http.SendAsync(request, linked.Token);
             response.EnsureSuccessStatusCode();
@@ -114,14 +114,11 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
                 var archive = await Task.Run(() => DownloadAsync(tag, update.Package, progress, cancellationToken));
                 await Task.Run(() => Unpack(tag, archive, staging, progress));
             }
-            // A GUI opened from here would run a mix of old and new files. Taking the lock before looking for one means a GUI
-            // opening meanwhile either shows up in that look, or finds the lock held and quits (Program.Main).
+            // A GUI opened from here would run a mix of old and new files, and Program.Main quits on finding this held. Since ADR 0018
+            // a GUI from here waits for data/ first, so only an installer from before it is ever found.
             using (new FileStream(InstallLock(programDirectory), new FileStreamOptions
                 { Mode = FileMode.Create, Access = FileAccess.Write, Share = FileShare.None, Options = FileOptions.DeleteOnClose }))
-            {
-                if (AnotherGuiRuns()) throw new IOException("程序目录里又开了一个 GUI，这次不更新");
                 await Task.Run(() => Install(tag, staging, progress));
-            }
             return true;
         }
         catch (Exception error)
@@ -167,8 +164,6 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     /// <summary>Deletes what the last update left: the replaced files (*.old) and .update/. A file the old process still holds stays until next time.</summary>
     public void CleanUp()
     {
-        // Another GUI here may be installing, and these are what it moves in and puts back if that fails.
-        if (AnotherGuiRuns()) return;
         TryDelete(() => Directory.Delete(UpdateDirectory, recursive: true));
         TryDelete(() =>
         {
@@ -374,29 +369,6 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     {
         try { delete(); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
-    }
-
-    // ADR 0003 lets several GUIs run, and replacing the files would have another one load the new version's later.
-    private bool AnotherGuiRuns()
-    {
-        // Both sides go through GetFullPath so Windows expands 8.3 short names alike, as WebService does.
-        var directory = Path.TrimEndingDirectorySeparator(Path.GetFullPath(programDirectory));
-        Process[] processes;
-        try { processes = Process.GetProcessesByName("Aether.Gui"); }
-        // Not knowing counts as one running: nothing gets cleaned up or installed under it.
-        catch (Exception error) when (error is Win32Exception or InvalidOperationException or PlatformNotSupportedException) { return true; }
-        var found = false;
-        foreach (var process in processes)
-            using (process)
-                try
-                {
-                    // Windows can list a process for a moment after it has exited.
-                    found |= process.Id != Environment.ProcessId && !process.HasExited && process.MainModule?.FileName is { } file &&
-                        string.Equals(Path.GetDirectoryName(Path.GetFullPath(file)), directory, StringComparison.OrdinalIgnoreCase);
-                }
-                // A process that has exited or belongs to another user is not one of ours.
-                catch (Exception error) when (error is Win32Exception or InvalidOperationException) { }
-        return found;
     }
 
     private HttpRequestMessage Request(Uri uri) => new(HttpMethod.Get, uri) { Headers = { UserAgent = { new ProductInfoHeaderValue("Aether", version) } } };

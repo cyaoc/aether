@@ -85,14 +85,68 @@ public sealed class LotteryPanelTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task Prize_sets_that_cannot_be_read_say_so_under_both_panels() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        await h.SaveCredentialAsync();
+        using (var connection = h.OpenDatabase())
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = "DROP TABLE lottery_prize_set";
+            command.ExecuteNonQuery();
+        }
+        var vm = h.CreateViewModel();
+        try
+        {
+            vm.Lottery.ObservePrizeSets();
+            await h.IdleAsync();
+            Assert.StartsWith("读取奖品方案失败：", vm.Lottery.PoolLotteryError);
+            Assert.Equal(vm.Lottery.PoolLotteryError, vm.Lottery.EntryLotteryError);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Saving_a_prize_set_reads_the_list_again_after_a_read_failed() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        await h.SaveCredentialAsync();
+        using var connection = h.OpenDatabase();
+        using var command = connection.CreateCommand();
+        command.CommandText = "ALTER TABLE lottery_prize_set RENAME TO hidden";
+        command.ExecuteNonQuery();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        try
+        {
+            vm.Lottery.ObservePrizeSets();
+            await h.IdleAsync();
+            Assert.StartsWith("读取奖品方案失败：", vm.Lottery.PoolLotteryError);
+            command.CommandText = "ALTER TABLE hidden RENAME TO lottery_prize_set";
+            command.ExecuteNonQuery();
+
+            Assert.True(await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末"));
+            await h.IdleAsync();
+
+            Assert.Equal("周末", Assert.Single(vm.Lottery.PrizeSets).Name);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task A_new_lottery_forgets_the_chosen_prize_set() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();
         var vm = h.CreateViewModel();
         vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        // No panel shows a picker here, which would follow the prize sets.
+        vm.Lottery.ObservePrizeSets();
         try
         {
             await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
+            await h.IdleAsync();
             Assert.True(Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Chosen);
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery() with { Id = "next" })));
             Assert.False(Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Chosen);
@@ -110,10 +164,14 @@ public sealed class LotteryPanelTests
         using var h = new GuiHarness();
         var vm = h.CreateViewModel();
         vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        // No panel shows a picker here, which would follow the prize sets.
+        vm.Lottery.ObservePrizeSets();
         try
         {
             await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
+            await h.IdleAsync();
             await Assert.IsType<PrizeSetRow>(vm.Lottery.PoolPrizeSets.Entries[0]).Delete.ExecuteAsync(null);
+            await h.IdleAsync();
             Assert.IsType<PrizeSetMenuFooter>(Assert.Single(vm.Lottery.PoolPrizeSets.Entries));
             vm.Lottery.PoolPrizeSets.StartDraft();
             Assert.Null(vm.Lottery.PoolPrizeSets.DraftName);
@@ -136,17 +194,15 @@ public sealed class LotteryPanelTests
         {
             await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末");
             vm.Lottery.Apply(new LotteryUpdate(new(99, false, TestLottery() with { Id = "other", RoomId = 99 })));
-            await vm.Lottery.RefreshPrizeSetsAsync();
+            await h.IdleAsync();
             Assert.Equal("周末", Assert.Single(vm.Lottery.PrizeSets).Name);
             // Without a room connection the sets still list and load.
             vm.Lottery.Apply(new LotteryUpdate(new(null, false, null)));
-            await vm.Lottery.RefreshPrizeSetsAsync();
             var set = Assert.Single(vm.Lottery.PrizeSets);
             vm.Lottery.Prizes[0].Name = "改过";
             vm.Lottery.LoadPrizeSet(set);
             Assert.Equal(set.Prizes[0].Name, vm.Lottery.Prizes[0].Name);
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, false, TestLottery())));
-            await vm.Lottery.RefreshPrizeSetsAsync();
             Assert.Equal("周末", Assert.Single(vm.Lottery.PrizeSets).Name);
             var picker = page.FindControl<LotteryPrizeSetPicker>("PoolPrizeSets")!;
             var save = picker.FindControl<Button>("SaveButton")!;
@@ -176,7 +232,7 @@ public sealed class LotteryPanelTests
         {
             var pool = TestLottery();
             pool = pool with { Draws = [new("draw", pool.Prizes[0], 42, "小明", true, DateTimeOffset.UnixEpoch, [])] };
-            // The view has a stale connected snapshot; Core correctly refuses its operation without the room lock.
+            // The view has a stale connected snapshot; Core correctly refuses its operation without a room connection.
             vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, pool)));
             GuiHarness.Flush();
             var row = Assert.Single(vm.Lottery.PoolDraws);

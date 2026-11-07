@@ -10,8 +10,8 @@ public sealed class GiftBoardListTests
     public Task The_list_has_the_boards_rows_in_the_boards_order_with_their_value_in_batteries() => Run(async scene =>
     {
         scene.Connect();
-        scene.Start();
-        scene.Give(PaidGift(1, "柚子不酸", "天空之翼", 1000), PaidGift(2, "龍騰雲海", "告白气球", 2000, 5), PaidGift(3, "月下Lily", "次元之城", 12450));
+        await scene.StartAsync();
+        await scene.GiveAsync(PaidGift(1, "柚子不酸", "天空之翼", 1000), PaidGift(2, "龍騰雲海", "告白气球", 2000, 5), PaidGift(3, "月下Lily", "次元之城", 12450));
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 3);
 
         Assert.Equal(["1 月下Lily 次元之城 ×1 12450 电池", "2 龍騰雲海 告白气球 ×5 10000 电池", "3 柚子不酸 天空之翼 ×1 1000 电池"], scene.Listed());
@@ -23,9 +23,9 @@ public sealed class GiftBoardListTests
     {
         scene.GoToToday();
         scene.Connect();
-        scene.Start();
+        await scene.StartAsync();
         // 月下Lily is on the board twice, once for each gift.
-        scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450), PaidGift(2, "龍騰雲海", "告白气球", 2000, 5), PaidGift(1, "月下Lily", "告白气球", 2000));
+        await scene.GiveAsync(PaidGift(1, "月下Lily", "次元之城", 12450), PaidGift(2, "龍騰雲海", "告白气球", 2000, 5), PaidGift(1, "月下Lily", "告白气球", 2000));
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 3);
 
         Assert.Equal("共 2 位", scene.Page.FindControl<TextBlock>("BoardCount")!.Text);
@@ -40,8 +40,8 @@ public sealed class GiftBoardListTests
     public Task An_empty_list_says_why_it_is_empty(bool connected, bool started, bool ended, string text) => Run(async scene =>
     {
         if (connected) scene.Connect();
-        if (started) scene.Start();
-        if (ended) scene.Board.EndPeriod(RoomId);
+        if (started) await scene.StartAsync();
+        if (ended) await scene.Board.EndPeriodAsync(RoomId);
 
         var empty = scene.Page.FindControl<TextBlock>("BoardEmpty")!;
         await GuiHarness.WaitForAsync(() => empty.Text == text);
@@ -55,8 +55,8 @@ public sealed class GiftBoardListTests
     public Task The_list_follows_the_comparison_as_soon_as_it_is_picked() => Run(async scene =>
     {
         scene.Connect();
-        scene.Start(threshold: 100);
-        scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450), PaidGift(2, "星屑Koi", "干杯", 66, 8));
+        await scene.StartAsync(threshold: 100);
+        await scene.GiveAsync(PaidGift(1, "月下Lily", "次元之城", 12450), PaidGift(2, "星屑Koi", "干杯", 66, 8));
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 1);
 
         scene.Page.FindControl<RadioButton>("ByTotalPriceInput")!.IsChecked = true;
@@ -69,8 +69,8 @@ public sealed class GiftBoardListTests
     public Task The_list_stays_as_it_is_while_the_room_reconnects_and_empties_when_the_room_is_left() => Run(async scene =>
     {
         scene.Connect();
-        scene.Start();
-        scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450));
+        await scene.StartAsync();
+        await scene.GiveAsync(PaidGift(1, "月下Lily", "次元之城", 12450));
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 1);
 
         scene.ViewModel.ConnectionState = RoomConnectionState.Reconnecting;

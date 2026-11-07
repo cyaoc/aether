@@ -2,6 +2,7 @@ using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Time.Testing;
 using System.Net;
@@ -11,11 +12,58 @@ namespace Aether.Gui.Tests;
 
 public sealed class LotteryThemeTests
 {
+    // The window does not wait for the change, as the call it replaces was synchronous; what it throws still reaches the UI
+    // thread, where the window logs it.
+    [Fact]
+    public Task A_theme_change_that_fails_is_raised_on_the_UI_thread() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        var raised = new List<Exception>();
+        void Raise(object? sender, DispatcherUnhandledExceptionEventArgs e)
+        {
+            raised.Add(e.Exception);
+            e.Handled = true;
+        }
+        Dispatcher.UIThread.UnhandledException += Raise;
+        try
+        {
+            vm.Lottery.SelectLotteryTheme((LotteryTheme)99);
+            await h.IdleAsync();
+            Assert.Equal("请选择直播画面主题。", Assert.Single(raised).Message);
+        }
+        finally
+        {
+            Dispatcher.UIThread.UnhandledException -= Raise;
+            await vm.ShutdownAsync();
+        }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task Pinned_results_turned_on_and_off_before_Core_reports_end_off() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.ObserveLottery();
+        try
+        {
+            vm.Lottery.PinnedResults = true;
+            vm.Lottery.PinnedResults = false;
+            await h.IdleAsync();
+            Assert.False(vm.Lottery.LotteryState.PinnedResults);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
     [Fact]
     public Task Both_panels_share_pinned_results_and_explain_what_will_be_shown() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();
         var vm = h.CreateViewModel();
+        // No start here, which would follow the lottery.
+        vm.Lottery.ObserveLottery();
         var panel = new LotteryPanel { DataContext = vm };
         var window = new Window { Content = panel, Width = 976, Height = 720 };
         window.Show();
@@ -29,7 +77,7 @@ public sealed class LotteryThemeTests
                 Assert.Equal("默认关；打开前可以先点‘全部不挂出’", control.FindControl<TextBlock>("Hint")!.Text);
             });
             controls[0].FindControl<ToggleSwitch>("PinnedInput")!.IsChecked = true;
-            GuiHarness.Flush();
+            await h.IdleAsync();
             Assert.True(vm.Lottery.LotteryState.PinnedResults);
             Assert.All(controls, control =>
             {
@@ -37,7 +85,7 @@ public sealed class LotteryThemeTests
                 Assert.Equal("下面没变灰的，就是直播画面上挂着的", control.FindControl<TextBlock>("Hint")!.Text);
             });
             controls[1].FindControl<ToggleSwitch>("PinnedInput")!.IsChecked = false;
-            GuiHarness.Flush();
+            await h.IdleAsync();
             Assert.All(controls, control => Assert.False(control.FindControl<ToggleSwitch>("PinnedInput")!.IsChecked));
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
@@ -52,6 +100,8 @@ public sealed class LotteryThemeTests
         var time = new FakeTimeProvider();
         using var h = new GuiHarness(time);
         var vm = h.CreateViewModel();
+        // Picked before the start, which follows the lottery behind the splash where the page cannot be used yet.
+        vm.Lottery.ObserveLottery();
         var page = new LotteryPanel { DataContext = vm };
         var window = new Window { Content = page, Width = 976, Height = 720 };
         window.Show();
@@ -69,7 +119,7 @@ public sealed class LotteryThemeTests
             var card = pickers[0].FindControl<RadioButton>($"{theme}Card");
             Assert.NotNull(card);
             card.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            GuiHarness.Flush();
+            await h.IdleAsync();
             Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             Assert.All(pickers, picker =>
             {
@@ -90,7 +140,7 @@ public sealed class LotteryThemeTests
                 Assert.Contains("直播中观众也会看到", picker.FindControl<TextBlock>("ExampleHint")!.Text);
             }
             pickers[0].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            GuiHarness.Flush();
+            await h.IdleAsync();
             Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
             Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             foreach (var picker in pickers)
@@ -105,6 +155,7 @@ public sealed class LotteryThemeTests
             await GuiHarness.WaitForAsync(() => !vm.Lottery.LotteryState.IsExamplePlaying);
             Assert.All(pickers, picker => Assert.True(picker.FindControl<Button>("ExampleButton")!.IsEnabled));
             pickers[1].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await h.IdleAsync();
             Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
             time.Advance(TimeSpan.FromSeconds(21));
             await GuiHarness.WaitForAsync(() => !vm.Lottery.LotteryState.IsExamplePlaying);
@@ -117,7 +168,7 @@ public sealed class LotteryThemeTests
                 Assert.Equal(0L, count.ExecuteScalar());
             }
             pickers[1].FindControl<RadioButton>("StarSummonCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            GuiHarness.Flush();
+            await h.IdleAsync();
             Assert.All(pickers, picker => Assert.True(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked));
             vm.WebService.Apply(new WebServiceStatus(false, 18080, 0, 0, 0, "端口被占用"));
             Assert.All(pickers, picker => Assert.Contains("端口被占用", picker.FindControl<TextBlock>("ExampleHint")!.Text));

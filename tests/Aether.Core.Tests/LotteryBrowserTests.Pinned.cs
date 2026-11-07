@@ -20,9 +20,9 @@ public sealed partial class LotteryBrowserTests
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
         var lottery = h.Client.Lottery;
-        lottery.SelectTheme(theme);
+        await lottery.SelectThemeAsync(theme);
         await SeedPinnedPoolAsync(page, PinnedPool);
-        lottery.SetPinnedResults(true);
+        await lottery.SetPinnedResultsAsync(true);
         await ReloadAtCoreTimeAsync(page);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'pinned'");
         await FreezePinnedAsync(browser, 3000);
@@ -51,7 +51,7 @@ public sealed partial class LotteryBrowserTests
         Assert.Equal(fullHeight, (await browser.EvaluateAsync("document.getElementById('pinned').offsetHeight")).GetDouble());
         await browser.ScreenshotAsync($"{width}-pinned-page-2");
         var pool = Assert.IsType<PoolLottery>(lottery.State.Lottery);
-        lottery.SetDrawHiddenFromStream(pool.Draws[0].Id, true);
+        await lottery.SetDrawHiddenFromStreamAsync(pool.Draws[0].Id, true);
         await browser.WaitAsync("document.querySelector('.pinnedRow.hiding')");
         await FreezePinnedAsync(browser, 600);
         await browser.ScreenshotAsync($"{width}-pinned-hide");
@@ -60,7 +60,7 @@ public sealed partial class LotteryBrowserTests
         Assert.Equal(theme == LotteryTheme.MechaLock ? "5 次" : theme == LotteryTheme.CapsuleGacha ? "共 5 颗" : "共 5 次", (await browser.EvaluateAsync("document.getElementById('pinnedCount').textContent")).GetString());
         await FreezePinnedAsync(browser, 2000);
         await browser.ScreenshotAsync($"{width}-pinned-filled");
-        lottery.HideAllDrawsFromStream();
+        await lottery.HideAllDrawsFromStreamAsync();
         await browser.WaitAsync("document.querySelector('.hiding')");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "advance", budget = 1400 });
         await browser.WaitAsync("document.getElementById('scene').hidden");
@@ -91,9 +91,9 @@ public sealed partial class LotteryBrowserTests
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
         var lottery = h.Client.Lottery;
-        lottery.SelectTheme(theme);
+        await lottery.SelectThemeAsync(theme);
         await SeedPinnedPoolAsync(page, PinnedPool[..^1]);
-        lottery.SetPinnedResults(true);
+        await lottery.SetPinnedResultsAsync(true);
         await ReloadAtCoreTimeAsync(page);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'pinned'");
         await ArrivePinnedAsync(page, (grade, grade == Grade.Grand ? "机械键盘" : grade == Grade.Second ? "周边抱枕" : "签名照", "柚子不酸"));
@@ -123,12 +123,12 @@ public sealed partial class LotteryBrowserTests
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
         var lottery = h.Client.Lottery;
-        lottery.SelectTheme(theme);
-        lottery.SetPinnedResults(true);
+        await lottery.SelectThemeAsync(theme);
+        await lottery.SetPinnedResultsAsync(true);
         await SeedPinnedEntryAsync(page, PinnedEntryNames(theme));
         await ReloadAtCoreTimeAsync(page);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'winners'");
-        lottery.SetEntryHidden(true);
+        await lottery.SetEntryHiddenAsync(true);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'pinned'");
         await FreezePinnedAsync(browser, 3000);
         Assert.Equal(3, (await browser.EvaluateAsync("document.querySelectorAll('.pinnedGroup').length")).GetInt32());
@@ -137,14 +137,14 @@ public sealed partial class LotteryBrowserTests
         await AssertPinnedLayoutAsync(browser, width, height);
         await browser.ScreenshotAsync($"{width}-pinned-entry");
         var draw = Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws[0];
-        lottery.SetDrawHiddenFromStream(draw.Id, true);
+        await lottery.SetDrawHiddenFromStreamAsync(draw.Id, true);
         await browser.WaitAsync("document.querySelector('.pinnedGroup.hiding')");
         await FreezePinnedAsync(browser, 600);
         await browser.ScreenshotAsync($"{width}-pinned-entry-hide");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "advance", budget = 1400 });
         await browser.WaitAsync("document.querySelectorAll('.pinnedGroup').length === 2");
         await AssertPinnedLayoutAsync(browser, width, height);
-        lottery.SetEntryHidden(false);
+        await lottery.SetEntryHiddenAsync(false);
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'winners'");
         Assert.Empty(browser.Errors);
     }
@@ -174,24 +174,24 @@ public sealed partial class LotteryBrowserTests
 
     private static async Task DrawPinnedAsync(PageSession page, (Grade Grade, string Prize, string? Who) row)
     {
-        page.H.Client.Lottery.Start([new(row.Prize, 1, row.Grade)], "停", row.Who is null ? null : 42);
+        await page.H.Client.Lottery.StartAsync([new(row.Prize, 1, row.Grade)], "停", row.Who is null ? null : 42);
         if (row.Who is not null) await page.H.PushAndCollectAsync(page.Watch, Message(42, row.Who));
-        page.H.Client.Lottery.Stop();
+        await page.H.Client.Lottery.StopAsync();
     }
 
     private static async Task SeedPinnedEntryAsync(PageSession page, string[] names)
     {
         var lottery = page.H.Client.Lottery;
-        lottery.New(LotteryMode.Entry);
-        lottery.StartEntry([new("一等奖", "机械键盘", 1, Grade.Grand), new("二等奖", "周边抱枕", 2, Grade.Second), new("三等奖", "签名照", names.Length - 3, Grade.Third)], "抽奖");
+        await lottery.NewAsync(LotteryMode.Entry);
+        await lottery.StartEntryAsync([new("一等奖", "机械键盘", 1, Grade.Grand), new("二等奖", "周边抱枕", 2, Grade.Second), new("三等奖", "签名照", names.Length - 3, Grade.Third)], "抽奖");
         await page.H.PushAndCollectAsync(page.Watch, names.Select((name, index) => Message(index + 1, name)).ToArray());
-        lottery.CloseEntries();
+        await lottery.CloseEntriesAsync();
         for (var index = 0; index < names.Length; index++)
         {
-            lottery.DrawEntry(index == 0 ? 0 : index < 3 ? 1 : 2);
+            await lottery.DrawEntryAsync(index == 0 ? 0 : index < 3 ? 1 : 2);
             page.H.Time.Advance(LotteryController.DrawDuration);
         }
-        lottery.EndEntry();
+        await lottery.EndEntryAsync();
     }
 
     private static async Task ReloadAtCoreTimeAsync(PageSession page, ChromeBrowser? browser = null)

@@ -92,33 +92,6 @@ public sealed class AutoUpdaterTests : IDisposable
     }
 
     [Fact]
-    public async Task Check_skips_while_another_gui_runs_from_the_program_directory()
-    {
-        SkipUnlessWindows();
-        gitHub.Add("aether-gui-v0.5.0-win-x64.zip", Package("aether-gui-v0.5.0-win-x64.zip", V050));
-        await using (var other = await AnotherGuiAsync())
-        {
-            Assert.Null(await Updater(rid: "win-x64").CheckAsync(TestContext.Current.CancellationToken));
-            Assert.Empty(gitHub.Requests);
-        }
-        Assert.NotNull(await Updater(rid: "win-x64").CheckAsync(TestContext.Current.CancellationToken));
-    }
-
-    [Fact]
-    public async Task Update_stops_before_installing_when_another_gui_opened_meanwhile()
-    {
-        SkipUnlessWindows();
-        const string package = "aether-gui-v0.5.0-win-x64.zip";
-        gitHub.Add(package, Package(package, V050));
-        var updater = Updater(rid: "win-x64");
-        var update = await updater.CheckAsync(TestContext.Current.CancellationToken);
-        await using var other = await AnotherGuiAsync();
-        var before = Snapshot();
-        Assert.False(await updater.UpdateAsync(update!, new Reports(_ => { }), TestContext.Current.CancellationToken));
-        Assert.Equal(before, Snapshot());
-    }
-
-    [Fact]
     public async Task A_gui_opening_during_the_install_finds_it_installing()
     {
         gitHub.Add(MacPackage, Package(MacPackage, V050));
@@ -161,21 +134,6 @@ public sealed class AutoUpdaterTests : IDisposable
         }
         finally { opening?.Dispose(); }
         Assert.Equal(V040, ProgramFiles());
-    }
-
-    [Fact]
-    public async Task Clean_up_leaves_the_last_update_alone_while_another_gui_runs_from_the_program_directory()
-    {
-        SkipUnlessWindows();
-        Write(new Dictionary<string, string> { ["Aether.Core.dll.old"] = "core 0.3.0", [".update/v0.4.0/LICENSE"] = "license" });
-        await using (var other = await AnotherGuiAsync())
-        {
-            var before = Snapshot();
-            Updater().CleanUp();
-            Assert.Equal(before, Snapshot());
-        }
-        Updater().CleanUp();
-        Assert.DoesNotContain(Snapshot().Keys, path => path.EndsWith(".old") || path.StartsWith(".update"));
     }
 
     [Theory]
@@ -404,29 +362,6 @@ public sealed class AutoUpdaterTests : IDisposable
         System.Reflection.Assembly.LoadFile(copy);
         File.Move(copy, copy + ".old");
         Assert.True(File.Exists(copy + ".old"));
-    }
-
-    // macOS kills a copied system program, so only Windows has one to run under the GUI's name.
-    private static void SkipUnlessWindows() => Assert.SkipUnless(OperatingSystem.IsWindows(), "Needs a copy of PING.EXE.");
-
-    /// <summary>A copy of PING.EXE running as Aether.Gui.exe from the program directory; disposing it ends it.</summary>
-    private async Task<RunningGui> AnotherGuiAsync()
-    {
-        var copy = Path.Combine(programDirectory, "Aether.Gui.exe");
-        File.Copy(Path.Combine(Environment.SystemDirectory, "PING.EXE"), copy, overwrite: true);
-        var process = System.Diagnostics.Process.Start(copy, "-n 30 127.0.0.1");
-        await Task.Delay(100, TestContext.Current.CancellationToken);
-        return new(process);
-    }
-
-    private sealed class RunningGui(System.Diagnostics.Process process) : IAsyncDisposable
-    {
-        public async ValueTask DisposeAsync()
-        {
-            process.Kill();
-            await process.WaitForExitAsync();
-            process.Dispose();
-        }
     }
 
     /// <summary>Adds v0.5.0's package and its delta package from v0.4.0.</summary>

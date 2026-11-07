@@ -15,9 +15,9 @@ public sealed class LotteryPageTests
         await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var watch = await h.WatchConnectedAsync();
-        h.Client.Lottery.Start([new("贴纸", 1, Grade.Third)], "停");
-        h.Client.Lottery.Stop();
-        if (hidden) h.Client.Lottery.HideAllDrawsFromStream();
+        await h.Client.Lottery.StartAsync([new("贴纸", 1, Grade.Third)], "停");
+        await h.Client.Lottery.StopAsync();
+        if (hidden) await h.Client.Lottery.HideAllDrawsFromStreamAsync();
         await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
         using var response = await http.GetAsync("lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);

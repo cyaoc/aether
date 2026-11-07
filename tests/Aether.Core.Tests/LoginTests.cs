@@ -3,14 +3,13 @@ using System.Net;
 using System.Text.Json;
 using static Aether.Core.Tests.Support.FakeBilibiliHttp;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Core.Tests;
 
 public sealed class LoginTests : IDisposable
 {
     private readonly string dataDirectory = Path.Combine(Path.GetTempPath(), "aether-tests-" + Guid.NewGuid());
-    private readonly FakeTimeProvider time = new(DateTimeOffset.FromUnixTimeSeconds(1702204169));
+    private readonly RecordingTimeProvider time = new(DateTimeOffset.FromUnixTimeSeconds(1702204169));
     private readonly FakeBilibiliHttp http = new();
     private readonly RecordingLogger logger = new();
     private const string Generate = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate";
@@ -48,12 +47,12 @@ public sealed class LoginTests : IDisposable
     }
 
     [Fact]
-    public void Version_three_database_keeps_lottery_credential_and_blind_boxes_when_opened_as_version_eight()
+    public async Task Version_three_database_keeps_lottery_credential_and_blind_boxes_when_opened_as_version_eight()
     {
         TestDatabase.Restore(dataDirectory, "database-v0.2.1.sql");
 
         using var client = CreateClient();
-        var history = Assert.Single(client.Lottery.GetHistory(7734200));
+        var history = Assert.Single(await client.Lottery.GetHistoryAsync(7734200));
         Assert.Equal("legacy-pool", history.Id);
         Assert.Equal(LotteryMode.Pool, history.Mode);
         Assert.Equal(DateTimeOffset.Parse("2023-12-10T00:00:00Z"), history.StartedAt);
@@ -61,7 +60,7 @@ public sealed class LoginTests : IDisposable
         Assert.Equal("开", history.StopWord);
         Assert.Equal(1, history.DrawCount);
         Assert.Equal(new PoolPrize("键盘", 1, Grade.Grand), Assert.Single(history.Prizes));
-        var lottery = Assert.IsType<PoolLottery>(client.Lottery.GetHistoryDetails(7734200, history.Id));
+        var lottery = Assert.IsType<PoolLottery>(await client.Lottery.GetHistoryDetailsAsync(7734200, history.Id));
         var draw = Assert.Single(lottery.Draws);
         Assert.Equal("legacy-draw", draw.Id);
         Assert.Equal(history.Prizes[0], draw.Prize);
@@ -247,6 +246,16 @@ public sealed class LoginTests : IDisposable
         AssertNoCredential();
     }
 
+    [Fact]
+    public async Task A_database_that_cannot_open_fails_the_logout_without_saying_bilibili_did()
+    {
+        using (var setup = CreateClient()) await setup.LogoutAsync(TestContext.Current.CancellationToken);
+        SetUserVersion(Database.CurrentVersion + 1);
+        using var client = CreateClient();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.LogoutAsync(TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(logger.Entries, e => e.Message.Contains("B站退出登录失败"));
+    }
+
     [Fact, System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
     public async Task Database_files_are_readable_only_by_their_owner()
     {
@@ -389,6 +398,8 @@ public sealed class LoginTests : IDisposable
             next = updates.MoveNextAsync().AsTask();
             time.Advance(TimeSpan.FromSeconds(2));
         }
+        // The first request follows the step that opens the database, so its retry is armed off this thread.
+        else await time.WaitForTimerAsync(TimeSpan.FromSeconds(2));
         Assert.False(next.IsCompleted);
         var warning = Assert.Single(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("2 秒后重试"));
         time.Advance(TimeSpan.FromSeconds(2));

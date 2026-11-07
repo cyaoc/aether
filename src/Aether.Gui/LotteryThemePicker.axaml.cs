@@ -14,11 +14,11 @@ public partial class LotteryThemePicker : UserControl
         StarSummonCard.Click += (_, _) => viewModel?.Lottery.SelectLotteryTheme(LotteryTheme.StarSummon);
         MechaLockCard.Click += (_, _) => viewModel?.Lottery.SelectLotteryTheme(LotteryTheme.MechaLock);
         CapsuleGachaCard.Click += (_, _) => viewModel?.Lottery.SelectLotteryTheme(LotteryTheme.CapsuleGacha);
-        ExampleButton.Click += (_, _) =>
+        ExampleButton.Click += async (_, _) =>
         {
             if (!ExampleButton.IsEnabled || viewModel is null) return;
             ErrorText.IsVisible = false;
-            try { viewModel.Lottery.PlayLotteryExample(); }
+            try { await viewModel.Lottery.PlayLotteryExampleAsync(); }
             catch (Exception error) { ErrorText.Text = error.Message; ErrorText.IsVisible = true; }
             Refresh();
         };

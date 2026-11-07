@@ -37,13 +37,13 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(1920, 1080);
         await using var reference = await OpenPinnedReferenceAsync(page, board, 1920, 1080);
-        page.H.Client.Lottery.SelectTheme(theme);
+        await page.H.Client.Lottery.SelectThemeAsync(theme);
         await SeedPinnedPoolAsync(page, await ReferenceRowsAsync(reference));
-        page.H.Client.Lottery.SetPinnedResults(true);
+        await page.H.Client.Lottery.SetPinnedResultsAsync(true);
         await ReloadAtCoreTimeAsync(page);
         await page.Browser.WaitAsync("document.querySelectorAll('#pinnedRows>.pinnedRow').length === 5");
         var pool = Assert.IsType<PoolLottery>(page.H.Client.Lottery.State.Lottery);
-        page.H.Client.Lottery.SetDrawHiddenFromStream(pool.Draws[^3].Id, true);
+        await page.H.Client.Lottery.SetDrawHiddenFromStreamAsync(pool.Draws[^3].Id, true);
         await page.Browser.WaitAsync("document.querySelector('.pinnedRow.hiding')");
         await MatchReferenceCountAsync(page.Browser, reference);
         var failures = new List<string>();
@@ -72,14 +72,14 @@ public sealed partial class LotteryBrowserTests
         await using var reference = await OpenPinnedReferenceAsync(page, board, 1920, 1080);
         var lottery = page.H.Client.Lottery;
         await SeedPinnedEntryAsync(page, ["柚子不酸", "一只小鹿", "晚风", "阿狸", "Momo", "小鱼干"]);
-        lottery.SetEntryHidden(true); lottery.SetPinnedResults(true);
+        await lottery.SetEntryHiddenAsync(true); await lottery.SetPinnedResultsAsync(true);
         await ReloadAtCoreTimeAsync(page);
         await page.Browser.WaitAsync("document.querySelectorAll('#pinnedRows .pinnedName').length === 6");
         // Draws are random. Only demo names change; original groups, chips and layout remain intact.
         var names = await page.Browser.EvaluateAsync("Array.from(document.querySelectorAll('#pinnedRows .pinnedName'),e=>e.textContent)");
         await reference.EvaluateAsync("document.querySelectorAll('.rb-name').forEach((e,i)=>e.textContent=" + names.GetRawText() + "[i]); true");
         var entry = Assert.IsType<EntryLottery>(lottery.State.Lottery);
-        lottery.SetDrawHiddenFromStream(entry.Draws[2].Id, true);
+        await lottery.SetDrawHiddenFromStreamAsync(entry.Draws[2].Id, true);
         await page.Browser.WaitAsync("document.querySelector('.pinnedName.hiding')");
         await MatchReferenceCountAsync(page.Browser, reference);
         var failures = new List<string>();
@@ -106,9 +106,9 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(1920, 1080);
         await using var reference = await OpenPinnedReferenceAsync(page, board, 1920, 1080);
-        page.H.Client.Lottery.SelectTheme(theme);
+        await page.H.Client.Lottery.SelectThemeAsync(theme);
         await SeedPinnedPoolAsync(page, await ReferenceRowsAsync(reference));
-        page.H.Client.Lottery.SetPinnedResults(true);
+        await page.H.Client.Lottery.SetPinnedResultsAsync(true);
         await ReloadAtCoreTimeAsync(page);
         await page.Browser.WaitAsync("document.getElementById('pinnedPageNumber').textContent === '1 / 2'");
         await MatchReferenceCountAsync(page.Browser, reference);
@@ -142,9 +142,9 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync((int)(width * scale), (int)(height * scale));
         await using var reference = await OpenPinnedReferenceAsync(page, board, width, height);
-        page.H.Client.Lottery.SelectTheme(theme);
+        await page.H.Client.Lottery.SelectThemeAsync(theme);
         await SeedPinnedPoolAsync(page, await ReferenceRowsAsync(reference));
-        page.H.Client.Lottery.SetPinnedResults(true);
+        await page.H.Client.Lottery.SetPinnedResultsAsync(true);
         await ReloadAtCoreTimeAsync(page);
         await page.Browser.WaitAsync("document.getElementById('scene').dataset.view === 'pinned'");
         await MatchReferenceCountAsync(page.Browser, reference);
@@ -188,10 +188,10 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(1920, 1080);
         await using var reference = await OpenPinnedReferenceAsync(page, board, 1920, 1080);
-        page.H.Client.Lottery.SelectTheme(theme);
+        await page.H.Client.Lottery.SelectThemeAsync(theme);
         var rows = await ReferenceRowsAsync(reference);
         await SeedPinnedPoolAsync(page, rows[..^1]);
-        page.H.Client.Lottery.SetPinnedResults(true);
+        await page.H.Client.Lottery.SetPinnedResultsAsync(true);
         await ReloadAtCoreTimeAsync(page);
         await page.Browser.WaitAsync("document.getElementById('scene').dataset.view === 'pinned'");
         await ArrivePinnedAsync(page, rows[^1]);
@@ -216,9 +216,9 @@ public sealed partial class LotteryBrowserTests
         await using var page = await OpenPageAsync(width, height);
         await using var reference = await OpenPinnedReferenceAsync(page, board, width, height);
         var lottery = page.H.Client.Lottery;
-        lottery.SelectTheme(theme);
+        await lottery.SelectThemeAsync(theme);
         await SeedPinnedEntryAsync(page, PinnedEntryNames(theme));
-        lottery.SetEntryHidden(true); lottery.SetPinnedResults(true);
+        await lottery.SetEntryHiddenAsync(true); await lottery.SetPinnedResultsAsync(true);
         await ReloadAtCoreTimeAsync(page);
         await page.Browser.WaitAsync("document.getElementById('scene').dataset.view === 'pinned'");
         await MatchReferenceCountAsync(page.Browser, reference);

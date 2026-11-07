@@ -24,11 +24,13 @@ public sealed class EntryEffectTests
         Directory.CreateDirectory(Settings.VideoDirectory(h.DataDirectory));
         File.WriteAllText(Path.Combine(Settings.VideoDirectory(h.DataDirectory), "entry.mp4"), "video");
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "entry.mp4" });
-        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+        await h.Client.WebService.ApplySettingsAsync(Settings.Load(h.DataDirectory));
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false });
         using var page = await http.GetAsync(h.Client.WebService.Status.VideoAddress + "/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
         var progress = await h.PushAndCollectAsync(updates, Message(first, "先到"), Message(second, "后到"), Message(third, "最后"));
+        // The room connection posts the entry to the web service region, which logs it in a step of its own.
+        await h.Client.IdleAsync();
         Assert.Equal("欢迎舰长先到", Assert.Single(progress.OfType<SendQueueUpdate>(), item => item.State == SendQueueItemState.Queued).Text);
         Assert.Single(h.Logger.Entries, log => log.Message.Contains("[欢迎动画") && log.Message.Contains("排队中"));
         foreach (var command in new[] { second, third })

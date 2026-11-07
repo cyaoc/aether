@@ -2,8 +2,8 @@ using System.Runtime.CompilerServices;
 
 namespace Aether.Core;
 
-/// <summary>The 抽奖页: read-only, it only shows what <see cref="LotteryController"/> reports.</summary>
-public sealed class LotteryPage(WebService service, LotteryController lottery) : WebPage("lottery")
+/// <summary>The 抽奖页: read-only, it only shows what <see cref="LotteryFacade"/> reports.</summary>
+public sealed class LotteryPage(LotteryFacade lottery) : WebPage("lottery")
 {
     /// <summary>SSE events: a state snapshot first, then one per change.</summary>
     internal override async IAsyncEnumerable<SseEvent> EventsAsync([EnumeratorCancellation] CancellationToken token)
@@ -17,20 +17,7 @@ public sealed class LotteryPage(WebService service, LotteryController lottery) :
         }
     }
 
-    public void PlayExample()
-    {
-        lock (service.Gate)
-        {
-            if (!service.Status.Running)
-                throw new InvalidOperationException(service.Status.Error ?? "网页服务没有运行，请先在通用设置中打开网页服务。");
-            lottery.PlayExample();
-        }
-    }
-
-    internal override async Task RunAsync(CancellationToken token)
-    {
-        try { await Task.Delay(Timeout.InfiniteTimeSpan, token); }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
-        finally { lottery.StopExample(); }
-    }
+    /// <summary>Plays the example while the web service serves this page; refused with why not, or while one plays. The
+    /// service stopping stops it.</summary>
+    public Task PlayExampleAsync() => lottery.PlayExampleAsync();
 }

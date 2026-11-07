@@ -6,13 +6,18 @@ using WelcomeResult = Aether.Core.Welcome.Result;
 namespace Aether.Core;
 
 /// <summary>One room connection's 发送队列: blind box queries, announcements and welcomes, paced to avoid B站's rate limits.
-/// Reconnects keep it, pacing included; the end of the room connection clears it.</summary>
-internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan interval, ChannelWriter<WatchUpdate> output)
+/// Reconnects keep it, pacing included; the end of the room connection clears it. Part of the room connection region's state
+/// (ADR 0017): only its steps touch it, the sending loop's included, and its quiet-window <paramref name="timers"/> post theirs.
+/// </summary>
+internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan interval, ChannelWriter<WatchUpdate> output)
 {
     private static readonly TimeSpan SameTextWindow = TimeSpan.FromSeconds(5);
+    // A timer accepts at most uint.MaxValue - 1 milliseconds, even for a valid longer setting.
+    private static readonly TimeSpan MaxWait = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
     private static readonly TimeSpan WelcomeLifetime = TimeSpan.FromSeconds(30);
     // Process-wide, so a shell that keeps items across room connections never sees an id twice.
     private static long nextId;
+    private readonly TimeProvider time = timers.Time;
 
     /// <summary>One queued send, addressed to a viewer.</summary>
     internal abstract record Item(long Id, long Uid, string Nickname);
@@ -25,7 +30,11 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         : Item(Id, Uid, Nickname);
 
     /// <summary>The part of a 一轮盲盒 one announcement reports; a Count, since a box can be worth nothing.</summary>
-    private readonly record struct Reported(BlindBoxTally Tally, long Count);
+    internal readonly record struct Reported(BlindBoxTally Tally, long Count);
+
+    /// <summary>A send's turn: its text as it stands, and how long the pacing rules still hold it back. A turn that waits sends
+    /// nothing; the turn after the wait can bring another text.</summary>
+    internal sealed record Turn(Item Item, Reported? Reported, string Text, TimeSpan Wait);
 
     private sealed class Round(Announcement item)
     {
@@ -39,32 +48,30 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     // ponytail: unbounded in memory; add a capacity policy if keyword floods become a problem.
     private readonly Channel<Item> pending = Channel.CreateUnbounded<Item>(
         new UnboundedChannelOptions { SingleReader = true });
-    // Receiving, quiet-window timers and sending share these under the gate.
-    private readonly object gate = new();
     // Each viewer's waiting 盲盒查询 per period, which later asks for that period merge into.
     private readonly Dictionary<(long Uid, BlindBoxPeriod Period), Query> waitingQueries = [];
     private readonly Dictionary<long, Round> rounds = [];
-    // Only the sender touches these.
     private long? lastSendEnded;
     private readonly Dictionary<string, long> sendEndedByText = [];
     private bool rateLimitRetryOwed;
+
+    /// <summary>What the sending loop awaits outside the region until an item is queued. Only the wait goes out: the channel
+    /// is safe across threads, and only steps take items off it.</summary>
+    public Func<CancellationToken, ValueTask<bool>> WaitForItem => pending.Reader.WaitToReadAsync;
 
     /// <summary>Queues a 盲盒查询 reply to <paramref name="trigger"/>'s viewer, unless one for this period is already waiting (the asks merge
     /// into the first).</summary>
     public void Enqueue(Danmaku trigger, BlindBoxPeriod period)
     {
-        lock (gate)
+        if (waitingQueries.TryGetValue((trigger.Uid, period), out var waiting))
         {
-            if (waitingQueries.TryGetValue((trigger.Uid, period), out var waiting))
-            {
-                logger.LogDebug("[发送队列 {ItemId}，{Kind}] 观众 {Nickname}（{Uid}）再次触发，合并到这一项",
-                    waiting.Id, Describe(waiting).Name, trigger.Nickname, trigger.Uid);
-                return;
-            }
-            var query = new Query(Interlocked.Increment(ref nextId), trigger, period);
-            waitingQueries.Add((trigger.Uid, period), query);
-            Queue(query);
+            logger.LogDebug("[发送队列 {ItemId}，{Kind}] 观众 {Nickname}（{Uid}）再次触发，合并到这一项",
+                waiting.Id, Describe(waiting).Name, trigger.Nickname, trigger.Uid);
+            return;
         }
+        var query = new Query(Interlocked.Increment(ref nextId), trigger, period);
+        waitingQueries.Add((trigger.Uid, period), query);
+        Queue(query);
     }
 
     /// <summary>Reports a rejected 进场欢迎 or queues one whose text is fixed now; welcomes never merge.</summary>
@@ -72,7 +79,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     {
         var item = new Welcome(Interlocked.Increment(ref nextId), uid, nickname, receivedAt, result);
         if (result.RejectionReason is { } reason) Report(item, SendQueueItemState.NotQueued, result.Text, reason: reason);
-        else lock (gate) Queue(item);
+        else Queue(item);
     }
 
     // Report before exposing the item to the sender, so Queued always precedes Sending.
@@ -148,12 +155,9 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     /// announce, which then joins its viewer's 一轮盲盒.</summary>
     public void Record(IEnumerable<Gift> gifts, long receivedAt, Func<Gift, bool> save)
     {
-        // A SQLite write can wait for another process; neither a deadline nor a send snapshot may split this message.
-        // ponytail: the sender's snapshot and the quiet-window timers wait with the receive loop, up to SQLite's 30 s
-        // busy timeout; mark the message as arriving under the gate and save outside it if that stall ever matters.
-        lock (gate)
-            foreach (var gift in gifts)
-                if (save(gift)) Add(gift, receivedAt);
+        // One step, so neither a deadline nor a send's turn splits this message.
+        foreach (var gift in gifts)
+            if (save(gift)) Add(gift, receivedAt);
     }
 
     private void Add(Gift box, long receivedAt)
@@ -162,7 +166,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         {
             round = new(new(Interlocked.Increment(ref nextId), box.Uid, box.Nickname));
             rounds.Add(box.Uid, round);
-            round.Timer = new QuietTimer(time, gate, () =>
+            round.Timer = new QuietTimer(timers, () =>
             {
                 if (!round.Queued)
                 {
@@ -180,70 +184,68 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
     /// <summary>Counts and clears pending queries, welcomes and rounds, including rounds still waiting for silence.</summary>
     public int Clear()
     {
-        lock (gate)
-        {
-            var dropped = waitingQueries.Count + rounds.Count;
-            while (pending.Reader.TryRead(out var item))
-                if (item is Welcome) dropped++;
-            waitingQueries.Clear();
-            foreach (var round in rounds.Values) round.Timer.Dispose();
-            rounds.Clear();
-            return dropped;
-        }
+        var dropped = waitingQueries.Count + rounds.Count;
+        while (pending.Reader.TryRead(out var item))
+            if (item is Welcome) dropped++;
+        waitingQueries.Clear();
+        foreach (var round in rounds.Values) round.Timer.Dispose();
+        rounds.Clear();
+        return dropped;
     }
 
-    /// <summary>Sends queries' replies, announcements and welcomes one at a time until cancelled. <paramref name="prepare"/>
-    /// gets an announcement's round as it stands (null otherwise) and runs again after each wait, so the text sent is current;
-    /// it does the local reads (their failures end the room connection) and returns the text with the send itself, the
-    /// only step that can fail it.</summary>
-    public async Task SendAsync(Func<Item, BlindBoxTally?, (string Text, Func<CancellationToken, Task> Send)> prepare,
-        CancellationToken cancellationToken)
+    /// <summary>The next send's turn, null when there is none or an expired welcome was dropped instead; a turn that need not
+    /// wait is reported as Sending. <paramref name="tally"/> reads a query's 盲盒统计, and its failure ends the room connection.
+    /// </summary>
+    public Turn? TakeTurn(Func<Query, BlindBoxTally?> tally)
     {
-        while (await pending.Reader.WaitToReadAsync(cancellationToken))
+        // Peek, and take the item off only once its send has ended: a reconnect keeps an interrupted one, the end of
+        // the room connection counts it as dropped, and a first rate limit keeps it at the head for its one retry.
+        if (!pending.Reader.TryPeek(out var item) || DiscardExpiredWelcome(item)) return null;
+        Reported? reported = null;
+        if (item is Announcement)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            // Peek, and take the item off only once its send has ended: a reconnect keeps an interrupted one, the end of
-            // the room connection counts it as dropped, and a first rate limit keeps it at the head for its one retry.
-            if (!pending.Reader.TryPeek(out var item)) continue;
-            if (DiscardExpiredWelcome(item)) continue;
-            Reported? reported = null;
-            if (item is Announcement)
-                lock (gate)
-                {
-                    var round = rounds[item.Uid];
-                    (item, reported) = (round.Item, new Reported(round.Tally, round.Count));
-                }
-            var (text, send) = prepare(item, reported?.Tally);
-            // Waiting can change a query's tally or an announcement's round; prepare and check the new text again.
-            if (await WaitedForTurnAsync(text, cancellationToken)) continue;
-            if (DiscardExpiredWelcome(item)) continue;
-            Exception? failure = null;
-            Report(item, SendQueueItemState.Sending, text);
-            try { await send(cancellationToken); }
-            catch (Exception error) when (!cancellationToken.IsCancellationRequested) { failure = error; }
-            // Even failed or interrupted requests may have reached B站; both pacing rules count them.
-            finally
-            {
-                var ended = time.GetTimestamp();
-                lastSendEnded = ended;
-                foreach (var (previousText, previousEnd) in sendEndedByText.ToArray())
-                    if (time.GetElapsedTime(previousEnd, ended) >= SameTextWindow) sendEndedByText.Remove(previousText);
-                sendEndedByText[text] = ended;
-            }
-            // ponytail: one retry, no backoff; back off if B站's limits turn out to outlast both pacing rules.
-            if (failure is DanmakuRateLimitedException && !rateLimitRetryOwed)
-            {
-                rateLimitRetryOwed = true;
-                var retrySeconds = Math.Max(interval.TotalSeconds, SameTextWindow.TotalSeconds);
-                Report(item, SendQueueItemState.WaitingToRetry, reason: failure.Message, retrySeconds: retrySeconds);
-                continue;
-            }
-            rateLimitRetryOwed = false;
-            if (failure is null)
-                Finish(item, reported, SendQueueItemState.Sent, text);
-            else
-                Finish(item, reported, SendQueueItemState.Discarded, text, failure.Message, failure);
+            var round = rounds[item.Uid];
+            (item, reported) = (round.Item, new Reported(round.Tally, round.Count));
         }
+        var text = item switch
+        {
+            Query query => BlindBoxTally.Reply(tally(query), query.Period),
+            Welcome welcome => welcome.Result.Text,
+            _ => BlindBoxTally.Announcement(rounds[item.Uid].Tally)
+        };
+        var wait = TurnWait(text);
+        if (wait == TimeSpan.Zero) Report(item, SendQueueItemState.Sending, text);
+        return new(item, reported, text, wait);
+    }
+
+    /// <summary>Counts a send that has ended: even a failed or interrupted request may have reached B站, so both pacing rules
+    /// count it.</summary>
+    public void CountSend(string text)
+    {
+        var ended = time.GetTimestamp();
+        lastSendEnded = ended;
+        foreach (var (previousText, previousEnd) in sendEndedByText.ToArray())
+            if (time.GetElapsedTime(previousEnd, ended) >= SameTextWindow) sendEndedByText.Remove(previousText);
+        sendEndedByText[text] = ended;
+    }
+
+    /// <summary>Ends the turn of a send that was not interrupted: a first rate limit keeps it at the head for its one retry;
+    /// otherwise it was sent or is given up.</summary>
+    public void EndTurn(Turn turn, Exception? failure)
+    {
+        // ponytail: one retry, no backoff; back off if B站's limits turn out to outlast both pacing rules.
+        if (failure is DanmakuRateLimitedException && !rateLimitRetryOwed)
+        {
+            rateLimitRetryOwed = true;
+            var retrySeconds = Math.Max(interval.TotalSeconds, SameTextWindow.TotalSeconds);
+            Report(turn.Item, SendQueueItemState.WaitingToRetry, reason: failure.Message, retrySeconds: retrySeconds);
+            return;
+        }
+        rateLimitRetryOwed = false;
+        if (failure is null)
+            Finish(turn.Item, turn.Reported, SendQueueItemState.Sent, turn.Text);
+        else
+            Finish(turn.Item, turn.Reported, SendQueueItemState.Discarded, turn.Text, failure.Message, failure);
     }
 
     private bool DiscardExpiredWelcome(Item item)
@@ -255,7 +257,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         return true;
     }
 
-    private async Task<bool> WaitedForTurnAsync(string text, CancellationToken cancellationToken)
+    private TimeSpan TurnWait(string text)
     {
         var remaining = lastSendEnded is { } last ? interval - time.GetElapsedTime(last) : TimeSpan.Zero;
         if (sendEndedByText.TryGetValue(text, out var previousEnd))
@@ -263,42 +265,35 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
             var sameTextRemaining = SameTextWindow - time.GetElapsedTime(previousEnd);
             if (sameTextRemaining > remaining) remaining = sameTextRemaining;
         }
-        if (remaining <= TimeSpan.Zero) return false;
-        // A timer accepts at most uint.MaxValue - 1 milliseconds, even for a valid longer setting.
-        await Task.Delay(TimeSpan.FromMilliseconds(Math.Min(remaining.TotalMilliseconds, uint.MaxValue - 1)),
-            time, cancellationToken);
-        return true;
+        return TimeSpan.FromTicks(Math.Clamp(remaining.Ticks, 0, MaxWait.Ticks));
     }
 
     private void Finish(Item item, Reported? reported, SendQueueItemState outcome, string? text = null, string? reason = null,
         Exception? failure = null)
     {
-        lock (gate)
+        pending.Reader.TryRead(out _);
+        // In the same step, so the outcome precedes the next round's Queued and a later ask gets an item of its own.
+        Report(item, outcome, text, reason, failure: failure);
+        if (reported is { } done)
         {
-            pending.Reader.TryRead(out _);
-            // Under the gate, so the outcome precedes the next round's Queued and a later ask gets an item of its own.
-            Report(item, outcome, text, reason, failure: failure);
-            if (reported is { } done)
+            // Sent or given up, what this attempt reported is over either way; nothing carries into the next round.
+            var round = rounds[item.Uid];
+            round.Count -= done.Count;
+            if (round.Count == 0)
             {
-                // Sent or given up, what this attempt reported is over either way; nothing carries into the next round.
-                var round = rounds[item.Uid];
-                round.Count -= done.Count;
-                if (round.Count == 0)
-                {
-                    round.Timer.Dispose();
-                    rounds.Remove(item.Uid);
-                }
-                else
-                {
-                    // Gifts received while the request was in flight start the next round.
-                    round.Tally = new(round.Tally.Spend - done.Tally.Spend, round.Tally.OpenedValue - done.Tally.OpenedValue);
-                    round.Item = round.Item with { Id = Interlocked.Increment(ref nextId) };
-                    round.Queued = false;
-                    round.Timer.Check();
-                }
-                return;
+                round.Timer.Dispose();
+                rounds.Remove(item.Uid);
             }
-            if (item is Query query) waitingQueries.Remove((query.Uid, query.Period));
+            else
+            {
+                // Gifts received while the request was in flight start the next round.
+                round.Tally = new(round.Tally.Spend - done.Tally.Spend, round.Tally.OpenedValue - done.Tally.OpenedValue);
+                round.Item = round.Item with { Id = Interlocked.Increment(ref nextId) };
+                round.Queued = false;
+                round.Timer.Check();
+            }
+            return;
         }
+        if (item is Query query) waitingQueries.Remove((query.Uid, query.Period));
     }
 }

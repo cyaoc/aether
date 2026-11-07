@@ -26,6 +26,6 @@ public partial class LotteryPrizeSetPicker : UserControl
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        _ = ViewModel?.RefreshAsync();
+        ViewModel?.Observe();
     }
 }

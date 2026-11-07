@@ -15,12 +15,12 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(width, height);
         var lottery = page.H.Client.Lottery;
-        lottery.SelectTheme(theme);
-        lottery.New(LotteryMode.Entry);
-        lottery.StartEntry([new("一等奖", "机械键盘", 2, Grade.Grand), new("二等奖", "周边抱枕", 2, Grade.Second), new("三等奖", "签名照", 3, Grade.Third)], "抽奖");
+        await lottery.SelectThemeAsync(theme);
+        await lottery.NewAsync(LotteryMode.Entry);
+        await lottery.StartEntryAsync([new("一等奖", "机械键盘", 2, Grade.Grand), new("二等奖", "周边抱枕", 2, Grade.Second), new("三等奖", "签名照", 3, Grade.Third)], "抽奖");
         await page.H.PushAndCollectAsync(page.Watch, Enumerable.Range(1, 6).Select(i => Message(i, $"观众{i}")).ToArray());
-        lottery.CloseEntries();
-        for (var i = 0; i < 3; i++) { lottery.DrawEntry(i); page.H.Time.Advance(LotteryController.DrawDuration); }
+        await lottery.CloseEntriesAsync();
+        for (var i = 0; i < 3; i++) { await lottery.DrawEntryAsync(i); page.H.Time.Advance(LotteryController.DrawDuration); }
         await ReloadAtCoreTimeAsync(page);
         await page.Browser.WaitAsync("document.querySelectorAll('.winnerName').length === 3");
         await using var reference = await OpenDesignReferenceAsync(page, board, new { mode = "报名", stage = "中奖名单", fx = "贴图", room = "透明" }, width, height);
@@ -29,7 +29,7 @@ public sealed partial class LotteryBrowserTests
         {
             if (ended)
             {
-                lottery.EndEntry();
+                await lottery.EndEntryAsync();
                 await page.Browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "advance" });
                 await page.Browser.WaitAsync("document.getElementById('remaining').hidden");
             }

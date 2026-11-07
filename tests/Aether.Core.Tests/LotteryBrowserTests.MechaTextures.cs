@@ -15,9 +15,9 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(width, height);
         var (h, browser) = (page.H, page.Browser);
-        h.Client.Lottery.SelectTheme(LotteryTheme.MechaLock);
-        h.Client.Lottery.Start([new("机械键盘", 1, grade)], "停", 42);
-        h.Client.Lottery.Stop();
+        await h.Client.Lottery.SelectThemeAsync(LotteryTheme.MechaLock);
+        await h.Client.Lottery.StartAsync([new("机械键盘", 1, grade)], "停", 42);
+        await h.Client.Lottery.StopAsync();
         // Smiley Sans starts loading only with the lottery's text; a rect measured before it swaps in is 9–12px off the screenshot's emblem.
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing' && document.fonts.status === 'loaded'");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });

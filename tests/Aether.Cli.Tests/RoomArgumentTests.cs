@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace Aether.Cli.Tests;
 
 public sealed class RoomArgumentTests
@@ -13,36 +11,12 @@ public sealed class RoomArgumentTests
     [InlineData("１２３")]
     public async Task Invalid_room_number_fails_during_argument_parsing(string room)
     {
-        var directory = Directory.CreateTempSubdirectory("aether-cli-room-");
-        try
-        {
-            var assembly = typeof(WatchCommand).Assembly.Location;
-            // Debug locates data from the executable, so a parse regression must not reach the repository's data.
-            foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(assembly)!))
-                File.Copy(file, Path.Combine(directory.FullName, Path.GetFileName(file)));
-            var start = new ProcessStartInfo("dotnet")
-            {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-            start.ArgumentList.Add(Path.Combine(directory.FullName, Path.GetFileName(assembly)));
-            start.ArgumentList.Add("watch");
-            start.ArgumentList.Add(room);
-            using var process = Process.Start(start)!;
-            try
-            {
-                var output = process.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
-                var error = process.StandardError.ReadToEndAsync(TestContext.Current.CancellationToken);
-                await process.WaitForExitAsync(TestContext.Current.CancellationToken)
-                    .WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
-                Assert.NotEqual(0, process.ExitCode);
-                Assert.Contains("请输入有效的房间号（正整数）。", await error);
-                Assert.Equal("", await output);
-                Assert.False(Directory.Exists(Path.Combine(directory.FullName, "data")));
-            }
-            finally { if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(CancellationToken.None); } }
-        }
-        finally { directory.Delete(recursive: true); }
+        // A copy, so a parse regression must not reach the repository's data.
+        using var cli = new CliCopy();
+        var (exitCode, output, error) = await cli.RunAsync("watch", room);
+        Assert.NotEqual(0, exitCode);
+        Assert.Contains("请输入有效的房间号（正整数）。", error);
+        Assert.Equal("", output);
+        Assert.False(Directory.Exists(cli.Data));
     }
 }

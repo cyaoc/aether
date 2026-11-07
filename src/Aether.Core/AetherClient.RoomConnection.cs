@@ -23,13 +23,10 @@ public sealed partial class AetherClient
         // Each is set once and kept across reconnects.
         private long? realRoomId;
         private long broadcasterUid;
-        private FileStream? roomLock;
         private IDisposable? roomScope;
         private DanmakuProtocol.Decoder? decoder;
-        private bool readDanmakuLengthLimit;
-        private readonly List<IRoomFeature> features = [];
-        private readonly SendQueue sendQueue =
-            new(client.timeProvider, client.logger, TimeSpan.FromSeconds(settings.SendIntervalSeconds.Value), output);
+        // Made by Start as soon as the room is resolved, before any attempt uses it.
+        private Region<RoomConnectionState> region = null!;
 
         // Why the current attempt was stopped, where its exception would only say it was canceled; cleared before each attempt.
         private string? stopReason;
@@ -48,34 +45,12 @@ public sealed partial class AetherClient
                     try
                     {
                         if (realRoomId is null)
-                            (realRoomId, broadcasterUid) = await client.Api(credential: null)
-                                .ResolveRoomAsync(roomId, cancellationToken);
-                        if (roomLock is null)
                         {
-                            roomLock = AcquireRoomLock(realRoomId.Value);
-                            roomScope = client.logger.BeginRoomScope(realRoomId.Value);
-                            client.logger.LogInformation("直播间连接开始");
-                            if (enableStreamOverlay)
-                            {
-                                features.Add(new LotteryFeature(client.Lottery, client.logger, realRoomId.Value));
-                                features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value, client.logger));
-                            }
-                            if (Settings.BlindBoxEnabled.Value) features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));
-                            features.Add(new GiftRecordFeature(new(client.stores.Value.Gifts, client.GiftBoard, client.logger,
-                                realRoomId.Value, Settings.BlindBoxEnabled.Value), sendQueue, Settings.BlindBoxAnnounce.Value));
-                            if (enableStreamOverlay)
-                            {
-                                features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
-                                    round => { client.GiftAnimation.Enqueue(round, animationStop.Token); output.TryWrite(round); }));
-                                features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop.Token));
-                            }
-                            if (Settings.WelcomeEnabled.Value)
-                            {
-                                features.Add(new WelcomeFeature(Settings, sendQueue));
-                                readDanmakuLengthLimit = true;
-                            }
-                            decoder = new DanmakuProtocol.Decoder(realRoomId.Value, client.logger,
-                                () => Settings.WelcomeEnabled.Value || client.WebService.Video.Settings?.EntryAnimationEnabled.Value == true);
+                            (var resolved, broadcasterUid) = await client.Api(credential: null)
+                                .ResolveRoomAsync(roomId, cancellationToken);
+                            Start(resolved, animationStop.Token);
+                            // Only once Start made the region, which the end of the room connection stops.
+                            realRoomId = resolved;
                         }
                         await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {
@@ -102,7 +77,7 @@ public sealed partial class AetherClient
                             client.logger.LogWarning(exception, "连接弹幕服务器失败，{Seconds} 秒后重试：{Error}", retrySeconds, reason ?? error.Message);
                     }
                     // The caller records every failure for the process; this copy only tells the room's file how it ended.
-                    catch (Exception error) when (roomLock is not null && !cancellationToken.IsCancellationRequested)
+                    catch (Exception error) when (realRoomId is not null && !cancellationToken.IsCancellationRequested)
                     {
                         client.logger.LogError(error, "直播间连接失败");
                         throw;
@@ -118,65 +93,86 @@ public sealed partial class AetherClient
             finally
             {
                 animationStop.Cancel();
-                var discarded = sendQueue.Clear();
-                if (roomLock is not null)
-                    client.logger.LogInformation("直播间连接结束，发送队列丢掉 {Count} 条待发弹幕", discarded);
+                if (realRoomId is not null) await EndAsync();
                 roomScope?.Dispose();
-                if (roomLock is not null) Handle(new RoomConnectionEnded());
-                roomLock?.Dispose();
             }
         }
 
-        private async IAsyncEnumerable<WatchUpdate> AttemptAsync(
-            long realRoomId, [EnumeratorCancellation] CancellationToken cancellationToken)
+        /// <summary>Begins the room's log scope, then the region inside it, so that its steps log to the room's file too.</summary>
+        private void Start(long realRoomId, CancellationToken animationStop)
+        {
+            roomScope = client.logger.BeginRoomScope(realRoomId);
+            client.logger.LogInformation("直播间连接开始");
+            decoder = new DanmakuProtocol.Decoder(realRoomId, client.logger,
+                () => Settings.WelcomeEnabled.Value || client.WebService.Settings?.EntryAnimationEnabled.Value == true);
+            region = client.regions.Create(timers => CreateState(realRoomId, timers, animationStop));
+        }
+
+        /// <summary>The region's state: the 发送队列, and the features in the order they handle each event.</summary>
+        private RoomConnectionState CreateState(long realRoomId, StepTimers timers, CancellationToken animationStop)
+        {
+            var sendQueue = new SendQueue(timers, client.logger, TimeSpan.FromSeconds(Settings.SendIntervalSeconds.Value), output);
+            List<IRoomFeature> features = [];
+            if (enableStreamOverlay)
+            {
+                features.Add(new LotteryFeature(client.Lottery, realRoomId));
+                features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId));
+            }
+            if (Settings.BlindBoxEnabled.Value) features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));
+            features.Add(new GiftRecordFeature(new(() => client.stores.Value.Gifts, client.logger,
+                realRoomId, Settings.BlindBoxEnabled.Value), sendQueue, Settings.BlindBoxAnnounce.Value));
+            if (enableStreamOverlay)
+            {
+                features.Add(new GiftRoundFeature(timers, client.logger, realRoomId,
+                    round => { client.WebService.PlayGiftRound(round, animationStop); output.TryWrite(round); }));
+                features.Add(new EntryAnimationFeature(client.WebService, animationStop));
+            }
+            if (Settings.WelcomeEnabled.Value) features.Add(new WelcomeFeature(Settings, sendQueue));
+            return new(sendQueue, features);
+        }
+
+        /// <summary>Clears the 发送队列 and tells the features the room connection has ended, then stops the region: a timer
+        /// due after that posts to nothing.</summary>
+        private async Task EndAsync()
+        {
+            try
+            {
+                // One step, so no timer queues an item between the clear and the features' end.
+                await region.Run(s =>
+                {
+                    client.logger.LogInformation("直播间连接结束，发送队列丢掉 {Count} 条待发弹幕", s.SendQueue.Clear());
+                    s.Handle(new RoomConnectionEnded());
+                });
+            }
+            finally { region.Stop(); }
+        }
+
+        private async IAsyncEnumerable<WatchUpdate> AttemptAsync(long realRoomId, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var credentials = client.stores.Value.Credentials;
             var credential = await client.RefreshCredentialIfDueAsync(cancellationToken, cancellationToken);
             var api = client.Api(credential);
             while (!await api.IsLoggedInAsync(cancellationToken))
             {
-                await foreach (var update in client.LoginCoreAsync(cancellationToken,
-                    acceptExternalCredential: true, previousToken: credential?.RefreshToken))
+                await foreach (var update in client.LoginCoreAsync(cancellationToken))
                     if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
-                credential = credentials.Load();
+                credential = await client.account.LoadAsync();
                 api = client.Api(credential);
                 if (!await api.IsLoggedInAsync(cancellationToken)) // Cached, so the loop condition sends no second nav.
                     client.logger.LogWarning("新的登录凭据未生效，请重新扫码登录。");
             }
             yield return new Connecting();
-            await foreach (var update in ReceiveUpdatesAsync(realRoomId, api, cancellationToken))
+            await foreach (var update in ReceiveUpdatesAsync(realRoomId, api, credential?.CheckedAt, cancellationToken))
                 yield return update;
         }
 
-        // ponytail: On Unix this is a best-effort flock: .NET silently skips it when DOTNET_SYSTEM_IO_DISABLEFILELOCKING is set
-        // or the filesystem rejects flock (some network mounts). Fine while data/ sits on a local disk, as the README asks.
-        // For OpenOrCreate + FileShare.None + DeleteOnClose, .NET verifies the inode after locking on Unix
-        // and reopens if another owner deleted/replaced the path during handoff.
-        private FileStream AcquireRoomLock(long realRoomId)
-        {
-            Directory.CreateDirectory(client.dataDirectory);
-            var path = Path.Combine(client.dataDirectory, FormattableString.Invariant($"room-{realRoomId}.lock"));
-            try
-            {
-                return new FileStream(path, new FileStreamOptions
-                {
-                    Mode = FileMode.OpenOrCreate, Access = FileAccess.ReadWrite, Share = FileShare.None,
-                    Options = FileOptions.DeleteOnClose,
-                });
-            }
-            catch (IOException error) when (FileLock.IsHeld(error))
-            {
-                throw new InvalidOperationException($"直播间 {realRoomId} 已有直播间连接（可能在另一个 CLI 或 GUI 里）。", error);
-            }
-        }
-
-        private async IAsyncEnumerable<WatchUpdate> ReceiveUpdatesAsync(
-            long realRoomId, BilibiliApi api, [EnumeratorCancellation] CancellationToken cancellationToken)
+        /// <summary>Decodes outside the region; each event is one step of it, which the loop waits for.</summary>
+        private async IAsyncEnumerable<WatchUpdate> ReceiveUpdatesAsync(long realRoomId, BilibiliApi api, DateTimeOffset? checkedAt,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var connection = await api.GetConnectionAsync(realRoomId, cancellationToken);
             var danmakuLengthLimit = FallbackDanmakuLengthLimit;
-            if (readDanmakuLengthLimit)
+            if (Settings.WelcomeEnabled.Value)
             {
                 try
                 {
@@ -215,13 +211,12 @@ public sealed partial class AetherClient
                             {
                                 connected = true;
                                 heartbeat = SendHeartbeatsAsync(socket, connectionStop);
-                                credentialChecks = RefreshCredentialWhileConnectedAsync(connectionStop, cancellationToken);
+                                credentialChecks = RefreshCredentialWhileConnectedAsync(checkedAt, connectionStop, cancellationToken);
                                 client.logger.LogInformation("已连接弹幕服务器 {Server}", connection.Server);
-                                Handle(new TransportConnected(danmakuLengthLimit));
+                                await region.Run(s => s.Handle(new TransportConnected(danmakuLengthLimit)));
                                 yield return new Connected(realRoomId, broadcasterUid);
-                                // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it;
-                                // on the thread pool, as it would otherwise run its first SQLite query right here on the receive loop.
-                                sending = Task.Run(() => SendRepliesAsync(realRoomId, connectionStop), CancellationToken.None);
+                                // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it.
+                                sending = SendRepliesAsync(realRoomId, connectionStop);
                             }
                         }
                         else if (decoded is RoomEvent roomEvent)
@@ -231,7 +226,10 @@ public sealed partial class AetherClient
                                 // Reported first, so a shell sees the keyword before the 盲盒查询 it queues.
                                 yield return danmaku.Danmaku;
                             }
-                            Handle(roomEvent);
+                            // On the board first, and waited for: the database neither delays nor decides what the 礼物榜页 shows.
+                            if (roomEvent is DanmakuProtocol.GiftsReceived gifts)
+                                roomEvent = gifts with { PeriodOf = await client.GiftBoard.TakeAsync(realRoomId, gifts.Gifts) };
+                            await region.Run(s => s.Handle(roomEvent));
                         }
                     }
                 }
@@ -239,9 +237,9 @@ public sealed partial class AetherClient
             finally
             {
                 // Read before teardown, which can outlast the idle deadline; a stop already explained keeps its reason.
-                Handle(new TransportDisconnected());
                 if (idleTimeout.IsCancellationRequested)
                     stopReason ??= FormattableString.Invariant($"{IdleTimeout.TotalSeconds} 秒未收到任何数据，包括心跳回复。");
+                await region.Run(s => s.Handle(new TransportDisconnected()));
                 await connectionStop.CancelAsync();
                 try { await Task.WhenAll(heartbeat, credentialChecks, sending); }
                 finally
@@ -257,42 +255,57 @@ public sealed partial class AetherClient
             }
         }
 
-        private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) => RunWhileConnectedAsync(stop, () =>
-            sendQueue.SendAsync((item, round) =>
-            {
-                var text = item switch
-                {
-                    SendQueue.Query query =>
-                        BlindBoxTally.Reply(client.stores.Value.BlindBoxes.Tally(roomId, item.Uid, query.Trigger.ReceivedAt, query.Period), query.Period),
-                    SendQueue.Welcome queued => queued.Result.Text,
-                    _ => BlindBoxTally.Announcement(round!)
-                };
-                var api = client.Api(client.stores.Value.Credentials.Load());
-                return (text, token => api.SendDanmakuAsync(roomId, item is SendQueue.Welcome { Result.Mention: false } ? null : item.Uid,
-                    (item as SendQueue.Query)?.Trigger.Id, text, token));
-            }, stop.Token));
-
-        // A refresh cut short by the connection ending leaves checked_at unchanged, so the reconnect checks again.
-        private Task RefreshCredentialWhileConnectedAsync(CancellationTokenSource stop, CancellationToken cancellationToken) =>
+        /// <summary>Sends queries' replies, announcements and welcomes one at a time until stopped: waits and requests happen out
+        /// here, and each turn is a step, so the text sent is current.</summary>
+        private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) =>
             RunWhileConnectedAsync(stop, async () =>
+            {
+                var waitForItem = await region.Run(s => s.SendQueue.WaitForItem);
+                while (await waitForItem(stop.Token))
+                {
+                    stop.Token.ThrowIfCancellationRequested();
+                    var api = client.Api(await client.account.LoadAsync());
+                    if (await region.Run(s => s.SendQueue.TakeTurn(query =>
+                            client.stores.Value.BlindBoxes.Tally(roomId, query.Uid, query.Trigger.ReceivedAt, query.Period)))
+                        is not { } turn) continue;
+                    // Waiting can change a query's tally or an announcement's round; the next turn takes the new text.
+                    if (turn.Wait > TimeSpan.Zero)
+                    {
+                        await Task.Delay(turn.Wait, client.timeProvider, stop.Token);
+                        continue;
+                    }
+                    Exception? failure = null;
+                    try
+                    {
+                        await api.SendDanmakuAsync(roomId, turn.Item is SendQueue.Welcome { Result.Mention: false } ? null : turn.Item.Uid,
+                            (turn.Item as SendQueue.Query)?.Trigger.Id, turn.Text, stop.Token);
+                    }
+                    catch (Exception error) when (!stop.IsCancellationRequested) { failure = error; }
+                    finally { await region.Run(s => s.SendQueue.CountSend(turn.Text)); }
+                    await region.Run(s => s.SendQueue.EndTurn(turn, failure));
+                }
+            });
+
+        // A refresh cut short by the connection ending leaves checked_at unchanged, so the reconnect checks again. The first
+        // wait starts from the credential this attempt connected with, so it is armed before Connected is reported.
+        private Task RefreshCredentialWhileConnectedAsync(DateTimeOffset? checkedAt, CancellationTokenSource stop,
+            CancellationToken cancellationToken) => RunWhileConnectedAsync(stop, async () =>
             {
                 while (true)
                 {
-                    var checkedAt = client.stores.Value.Credentials.Load()?.CheckedAt;
                     var delay = checkedAt + CredentialCheckInterval - client.timeProvider.GetUtcNow();
                     // An overdue check failed transiently; give it another opportunity without a busy loop.
                     await Task.Delay(delay is { } remaining && remaining > TimeSpan.Zero
                         ? remaining : TimeSpan.FromSeconds(30), client.timeProvider, stop.Token);
-                    // Signed out elsewhere: this connection keeps going and the next reconnect asks for a scan.
-                    if (client.stores.Value.Credentials.Load() is null) return;
                     // Gone after the check means B站 rejected the refresh and the credential was deleted.
-                    if (await client.RefreshCredentialIfDueAsync(stop.Token, cancellationToken) is null)
+                    if (await client.RefreshCredentialIfDueAsync(stop.Token, cancellationToken) is not { } credential)
                     {
                         if (!stop.IsCancellationRequested)
                             stopReason = "登录凭据已被删除，停止当前连接并重新登录。";
                         await stop.CancelAsync();
                         return;
                     }
+                    checkedAt = credential.CheckedAt;
                 }
             });
 
@@ -302,11 +315,6 @@ public sealed partial class AetherClient
             while (await timer.WaitForNextTickAsync(stop.Token))
                 await socket.SendAsync(DanmakuProtocol.CreateHeartbeat(), WebSocketMessageType.Binary, true, stop.Token);
         });
-
-        private void Handle(RoomEvent e)
-        {
-            foreach (var feature in features) feature.Handle(e);
-        }
 
         /// <summary>Runs one of the room connection's background loops. Anything after the connection stops is just the
         /// connection ending; any other failure stops it too, so the receive loop wakes instead of leaving the room connection hanging.</summary>

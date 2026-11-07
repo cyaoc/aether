@@ -54,7 +54,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             try
             {
                 if (shutdown.IsCancellationRequested) return;
-                await client.ApplyWebSettingsAsync(snapshot);
+                await client.WebService.ApplySettingsAsync(snapshot);
                 failedAnimationVideos.RemoveWhere(video => !snapshot.WelcomeAnimationVideos.TryGetValue(video.Uid, out var saved) || saved.Value != video.FileName);
                 Apply(client.WebService.Status);
             }
@@ -154,28 +154,24 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     {
         if (PlayingAnimation(uid, fileName) is { IsTest: true } playing)
         {
-            client.WelcomeAnimation.StopTestPlay(playing.Id);
+            client.WebService.StopTestPlayAsync(playing.Id).RaiseFailure();
             return;
         }
         if (AnimationReloading || AnimationBusy || !HasVideoConnections || shutdown.IsCancellationRequested
             || !AnimationVideoSaved(uid, fileName)) return;
         PendTestPlay();
-        client.WelcomeAnimation.TestPlay(uid);
+        client.WebService.TestPlayWelcomeAsync(uid).RaiseFailure();
     }
 
     internal void TestAnimation(string source, EntryTier tier, string nickname)
     {
         if (AnimationReloading || AnimationBusy || !HasVideoConnections || shutdown.IsCancellationRequested) return;
         PendTestPlay();
-        Action<EntryTier, string> play = source == PlaybackSource.Gift ? client.GiftAnimation.TestPlay : client.EntryAnimation.TestPlay;
-        play(tier, nickname);
+        Func<EntryTier, string, Task> play = source == PlaybackSource.Gift ? client.WebService.TestPlayGiftAsync : client.WebService.TestPlayEntryAsync;
+        play(tier, nickname).RaiseFailure();
     }
 
-    internal void StopAnimation(string source, string id)
-    {
-        Action<string> stop = source == PlaybackSource.Gift ? client.GiftAnimation.StopTestPlay : client.EntryAnimation.StopTestPlay;
-        stop(id);
-    }
+    internal void StopAnimation(string id) => client.WebService.StopTestPlayAsync(id).RaiseFailure();
 
     // Disable immediately, before the queued update crosses back to the UI thread.
     private void PendTestPlay()

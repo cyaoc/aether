@@ -23,12 +23,12 @@ public sealed class GiftBoardOptionsTests
         Assert.False(status.IsEffectivelyVisible);
 
         GiftBoardScene.ConnectBoard(h, GiftBoardScene.RoomId);
-        h.Client.GiftBoard.StartNewPeriod(GiftBoardScene.RoomId);
+        await h.Client.GiftBoard.StartNewPeriodAsync(GiftBoardScene.RoomId);
         await GuiHarness.WaitForAsync(() => status.IsEffectivelyVisible);
         Assert.Equal("统计中", status.Text);
         Assert.Contains("success", status.Classes);
 
-        h.Client.GiftBoard.EndPeriod(GiftBoardScene.RoomId);
+        await h.Client.GiftBoard.EndPeriodAsync(GiftBoardScene.RoomId);
         await GuiHarness.WaitForAsync(() => !status.IsEffectivelyVisible);
     });
 
@@ -37,7 +37,7 @@ public sealed class GiftBoardOptionsTests
     {
         var page = scene.Page;
         scene.Connect();
-        scene.Start();
+        await scene.StartAsync();
         await GuiHarness.WaitForAsync(() => page.FindControl<StackPanel>("Options")!.IsEffectivelyEnabled);
         Assert.Equal("选项改了立即生效，开始新一期时沿用", page.FindControl<TextBlock>("FooterText")!.Text);
 
@@ -56,8 +56,8 @@ public sealed class GiftBoardOptionsTests
         Assert.True(page.FindControl<RadioButton>("ByTotalPriceInput")!.IsChecked);
         Assert.False(page.FindControl<ToggleSwitch>("MascotInput")!.IsChecked);
         Assert.Equal(25, page.FindControl<Slider>("VolumeInput")!.Value);
-        scene.Board.EndPeriod(GiftBoardScene.RoomId);
-        scene.Board.StartNewPeriod(GiftBoardScene.RoomId);
+        await scene.Board.EndPeriodAsync(GiftBoardScene.RoomId);
+        await scene.Board.StartNewPeriodAsync(GiftBoardScene.RoomId);
         Assert.Equal(changed, (await scene.Board.CurrentAsync()).Options);
     });
 
@@ -68,11 +68,11 @@ public sealed class GiftBoardOptionsTests
     {
         const long other = 24680;
         scene.Board.Connect(other);
-        scene.Board.StartNewPeriod(other);
+        await scene.Board.StartNewPeriodAsync(other);
         var otherState = await scene.Board.CurrentAsync();
         scene.Board.EndRoom(other);
         scene.Connect();
-        scene.Start();
+        await scene.StartAsync();
         await GuiHarness.WaitForAsync(() => scene.Page.FindControl<StackPanel>("Options")!.IsEffectivelyEnabled);
 
         // In one go, so the write for this room has not come back when the panel hears of the other one.
@@ -98,7 +98,7 @@ public sealed class GiftBoardOptionsTests
         using var h = new GuiHarness();
         var core = h.Client.GiftBoard;
         GiftBoardScene.ConnectBoard(h, GiftBoardScene.RoomId);
-        core.StartNewPeriod(GiftBoardScene.RoomId);
+        await core.StartNewPeriodAsync(GiftBoardScene.RoomId);
         var saved = await core.CurrentAsync();
         var board = new GiftBoardViewModel(h.Client, NullLogger.Instance, TimeProvider.System, TestContext.Current.CancellationToken);
         board.Apply(saved);
@@ -119,7 +119,7 @@ public sealed class GiftBoardOptionsTests
 
         await GuiHarness.WaitForAsync(() => board.Threshold == 333);
         board.Volume = 30;
-        await board.StopAsync();
+        await h.IdleAsync();
         Assert.Equal(GiftBoardOptions.Default with { Threshold = 333, Volume = 30 }, (await core.CurrentAsync()).Options);
         return true;
     }, TestContext.Current.CancellationToken);
@@ -141,7 +141,7 @@ public sealed class GiftBoardOptionsTests
     public Task A_threshold_that_is_not_a_positive_integer_is_shown_wrong_and_not_applied(string text) => GiftBoardScene.Run(async scene =>
     {
         scene.Connect();
-        scene.Start(threshold: 7);
+        await scene.StartAsync(threshold: 7);
         var input = scene.Page.FindControl<NumericUpDown>("ThresholdInput")!;
         var error = scene.Page.FindControl<TextBlock>("ThresholdError")!;
         await GuiHarness.WaitForAsync(() => input.Text == "7");

@@ -7,20 +7,19 @@ namespace Aether.Core;
 /// wanted it and the 期 the 礼物榜 counted it in, and not at all when neither did. The 盲盒统计 only wants 盲盒, and only
 /// when it is on for this room connection (<paramref name="blindBoxes"/>; its settings apply from the next one); the board
 /// takes every gift while its 期 is running, before it is written.</summary>
-internal sealed class GiftRecording(GiftStore store, GiftBoardController board, ILogger logger, long roomId, bool blindBoxes)
+internal sealed class GiftRecording(Func<GiftStore> store, ILogger logger, long roomId, bool blindBoxes)
 {
-    /// <summary>Records one message's gifts. <paramref name="writeAll"/> runs the writes, gift by gift, through the function it
-    /// is given, which returns whether that gift was newly recorded as a 盲盒 for the 盲盒统计.</summary>
-    public void Record(IReadOnlyList<Gift> gifts, Action<Func<Gift, bool>> writeAll)
+    /// <summary>Records one message's gifts, each into the 期 <paramref name="periodOf"/> says the board counted it in.
+    /// <paramref name="writeAll"/> runs the writes, gift by gift, through the function it is given, which returns whether that
+    /// gift was newly recorded as a 盲盒 for the 盲盒统计.</summary>
+    public void Record(Func<Gift, long?> periodOf, Action<Func<Gift, bool>> writeAll)
     {
-        // On the board first: the database neither delays nor decides what the 礼物榜页 shows.
-        var periodOf = board.Take(roomId, gifts);
         bool Write(Gift gift)
         {
             var forBlindBox = blindBoxes && gift.Blind is not null;
             var period = periodOf(gift);
             if (!forBlindBox && period is null) return false;
-            try { return store.Save(roomId, gift, forBlindBox, period) && forBlindBox; }
+            try { return store().Save(roomId, gift, forBlindBox, period) && forBlindBox; }
             // A 盲盒 the 盲盒统计 wanted is never lost quietly: its failure ends the room connection, as it always has.
             catch (Exception error) when (!forBlindBox && IsDatabaseFailure(error))
             {

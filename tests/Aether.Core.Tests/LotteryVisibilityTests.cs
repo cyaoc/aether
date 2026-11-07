@@ -11,29 +11,29 @@ public sealed class LotteryVisibilityTests
         await h.LoginAsync();
         await using var watch = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.New(LotteryMode.Entry);
-        lottery.StartEntry([new("幸运奖", "抱枕", 2, Grade.Second)], "参加");
+        await lottery.NewAsync(LotteryMode.Entry);
+        await lottery.StartEntryAsync([new("幸运奖", "抱枕", 2, Grade.Second)], "参加");
         await h.PushAndCollectAsync(watch,
             """{"cmd":"DANMU_MSG","info":[[],"参加",[7,"七七"]]}""",
             """{"cmd":"DANMU_MSG","info":[[],"参加",[42,"小明"]]}""");
-        lottery.CloseEntries();
-        lottery.DrawEntry(0);
+        await lottery.CloseEntriesAsync();
+        await lottery.DrawEntryAsync(0);
         var first = Assert.Single(Assert.IsType<EntryLottery>(lottery.State.Lottery).Draws);
-        lottery.SetDrawHiddenFromStream(first.Id, true);
+        await lottery.SetDrawHiddenFromStreamAsync(first.Id, true);
         h.Time.Advance(LotteryController.DrawDuration);
-        lottery.DrawEntry(0);
+        await lottery.DrawEntryAsync(0);
         var before = Assert.IsType<EntryLottery>(lottery.State.Lottery);
         Assert.NotEqual(first.Winner.Uid, before.Draws[1].Winner.Uid);
-        lottery.HideAllDrawsFromStream();
+        await lottery.HideAllDrawsFromStreamAsync();
         var after = Assert.IsType<EntryLottery>(lottery.State.Lottery);
         Assert.Equal(before.DrawUntil, after.DrawUntil);
         Assert.All(after.Draws, draw => Assert.True(draw.HiddenFromStream));
         Assert.Equal(before.Draws.Select(draw => (draw.Id, draw.Winner, draw.Award, draw.Candidates)),
             after.Draws.Select(draw => (draw.Id, draw.Winner, draw.Award, draw.Candidates)));
-        Assert.Equal(2, Assert.Single(lottery.GetHistory(7734200)).DrawCount);
-        Assert.Equal(2, Assert.IsType<EntryLottery>(lottery.GetHistoryDetails(7734200, after.Id)).Draws.Length);
+        Assert.Equal(2, Assert.Single(await lottery.GetHistoryAsync(7734200)).DrawCount);
+        Assert.Equal(2, Assert.IsType<EntryLottery>(await lottery.GetHistoryDetailsAsync(7734200, after.Id)).Draws.Length);
         h.Time.Advance(LotteryController.DrawDuration);
-        Assert.Throws<InvalidOperationException>(() => lottery.DrawEntry(0));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.DrawEntryAsync(0));
     }
 
     [Fact]
@@ -41,24 +41,24 @@ public sealed class LotteryVisibilityTests
     {
         await using var h = new WatchHarness(enableStreamOverlay: true);
         var lottery = h.Client.Lottery;
-        Assert.Throws<InvalidOperationException>(() => lottery.SetDrawHiddenFromStream("missing", true));
-        Assert.Throws<InvalidOperationException>(lottery.HideAllDrawsFromStream);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.SetDrawHiddenFromStreamAsync("missing", true));
+        await Assert.ThrowsAsync<InvalidOperationException>(lottery.HideAllDrawsFromStreamAsync);
         await h.LoginAsync();
         var watch = await h.WatchConnectedAsync();
-        lottery.Start([new("贴纸", 1, Grade.Third)], "停");
-        lottery.Stop();
+        await lottery.StartAsync([new("贴纸", 1, Grade.Third)], "停");
+        await lottery.StopAsync();
         var original = Assert.Single(Assert.IsType<PoolLottery>(lottery.State.Lottery).Draws);
         h.Time.Advance(LotteryController.DrawDuration);
         var oldId = lottery.State.Lottery!.Id;
-        lottery.New(LotteryMode.Pool);
-        Assert.Throws<ArgumentException>(() => lottery.SetDrawHiddenFromStream(original.Id, true));
-        Assert.Equivalent(original, Assert.Single(Assert.IsType<PoolLottery>(lottery.GetHistoryDetails(7734200, oldId)).Draws));
-        lottery.HideAllDrawsFromStream();
+        await lottery.NewAsync(LotteryMode.Pool);
+        await Assert.ThrowsAsync<ArgumentException>(() => lottery.SetDrawHiddenFromStreamAsync(original.Id, true));
+        Assert.Equivalent(original, Assert.Single(Assert.IsType<PoolLottery>(await lottery.GetHistoryDetailsAsync(7734200, oldId)).Draws));
+        await lottery.HideAllDrawsFromStreamAsync();
         await watch.DisposeAsync();
-        Assert.Throws<InvalidOperationException>(lottery.HideAllDrawsFromStream);
-        Assert.Throws<InvalidOperationException>(() => lottery.SetDrawHiddenFromStream(original.Id, true));
-        lottery.Dispose();
-        Assert.Throws<ObjectDisposedException>(lottery.HideAllDrawsFromStream);
+        await Assert.ThrowsAsync<InvalidOperationException>(lottery.HideAllDrawsFromStreamAsync);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.SetDrawHiddenFromStreamAsync(original.Id, true));
+        lottery.Stop();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(lottery.HideAllDrawsFromStreamAsync);
     }
 
     [Fact]
@@ -68,31 +68,32 @@ public sealed class LotteryVisibilityTests
         await h.LoginAsync();
         var watch = await h.WatchConnectedAsync();
         var lottery = h.Client.Lottery;
-        lottery.Start([new("抱枕", 1, Grade.Grand)], "停");
-        lottery.Stop();
+        await lottery.StartAsync([new("抱枕", 1, Grade.Grand)], "停");
+        await lottery.StopAsync();
         var original = Assert.Single(Assert.IsType<PoolLottery>(lottery.State.Lottery).Draws);
         Assert.False(original.HiddenFromStream);
         await using (var updates = lottery.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token))
         {
             await h.NextAsync(updates);
-            lottery.SetDrawHiddenFromStream(original.Id, true);
+            await lottery.SetDrawHiddenFromStreamAsync(original.Id, true);
             var hidden = Assert.Single(Assert.IsType<PoolLottery>((await h.NextAsync(updates)).State.Lottery).Draws);
             Assert.Equal(original with { HiddenFromStream = true }, hidden);
-            lottery.SetDrawHiddenFromStream(original.Id, false);
+            await lottery.SetDrawHiddenFromStreamAsync(original.Id, false);
             Assert.Equal(original, Assert.Single(Assert.IsType<PoolLottery>((await h.NextAsync(updates)).State.Lottery).Draws));
         }
-        lottery.HideAllDrawsFromStream();
+        await lottery.HideAllDrawsFromStreamAsync();
         h.Time.Advance(LotteryController.DrawDuration);
-        lottery.Start([new("贴纸", 1, Grade.Third)], "停");
-        lottery.Stop();
+        await lottery.StartAsync([new("贴纸", 1, Grade.Third)], "停");
+        await lottery.StopAsync();
         var pool = Assert.IsType<PoolLottery>(lottery.State.Lottery);
         Assert.Equal(new[] { true, false }, pool.Draws.Select(draw => draw.HiddenFromStream));
-        Assert.Equal(2, Assert.Single(lottery.GetHistory(7734200)).DrawCount);
-        Assert.Equal(2, Assert.IsType<PoolLottery>(lottery.GetHistoryDetails(7734200, pool.Id)).Draws.Length);
+        Assert.Equal(2, Assert.Single(await lottery.GetHistoryAsync(7734200)).DrawCount);
+        Assert.Equal(2, Assert.IsType<PoolLottery>(await lottery.GetHistoryDetailsAsync(7734200, pool.Id)).Draws.Length);
         await watch.DisposeAsync();
         h.Client.Dispose();
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
         await using var next = await h.WatchConnectedAsync(restarted);
+        await restarted.IdleAsync();
         Assert.Equal(new[] { true, false }, Assert.IsType<PoolLottery>(restarted.Lottery.State.Lottery).Draws.Select(draw => draw.HiddenFromStream));
     }
 }

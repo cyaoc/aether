@@ -15,9 +15,9 @@ public sealed partial class LotteryBrowserTests
     {
         await using var page = await OpenPageAsync(width, height);
         var browser = page.Browser;
-        page.H.Client.Lottery.SelectTheme(theme);
-        page.H.Client.Lottery.Start([new("机械键盘", 1, Grade.Grand)], "停", 42);
-        page.H.Client.Lottery.Stop();
+        await page.H.Client.Lottery.SelectThemeAsync(theme);
+        await page.H.Client.Lottery.StartAsync([new("机械键盘", 1, Grade.Grand)], "停", 42);
+        await page.H.Client.Lottery.StopAsync();
         await browser.WaitAsync("document.getElementById('scene').dataset.view === 'drawing'");
         await browser.CommandAsync("Emulation.setVirtualTimePolicy", new { policy = "pause" });
         await browser.EvaluateAsync("document.querySelectorAll('.stage,.mechaAlert,.mechaHud,.mechaRadar,.mechaPulse').forEach(e=>e.style.visibility='hidden'); document.getAnimations().forEach(a => { a.pause(); a.effect.updateTiming({delay:0}); a.currentTime=200; }); true");
