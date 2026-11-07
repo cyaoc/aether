@@ -19,21 +19,21 @@ internal static class GuiFileUpgrade
         if (!File.Exists(path)) return null;
         string text;
         try { text = File.ReadAllText(path); }
-        // Moved since, as when two windows start together: the settings file already has its switch.
-        catch (Exception error) when (error is FileNotFoundException or DirectoryNotFoundException) { return null; }
+        // Moved since, as when two windows start together, or unreadable: the settings file decides, as the page shows it.
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            // Its switch is unknown, so this start does not check: it may be someone who turned updates off.
-            logger.LogWarning(error, "读取 gui.yml 失败，这次不升级、不检查更新，下次启动再试：{Error}", error.Message);
-            return false;
+            logger.LogWarning(error, "读取 gui.yml 失败，这次不升级，按设置文件：{Error}", error.Message);
+            return null;
         }
         var (autoUpdate, state) = Parse(text, logger);
+        // The settings file first, the database only once it took the switch: while the file cannot take it, each start
+        // would otherwise put gui.yml's old rooms back over the ones remembered since.
         // Load first, so a file without the group gets the template's section with its comment before the value is set.
         var moved = Try(() =>
         {
             Settings.Load(dataDirectory, logger);
             Settings.Save(dataDirectory, new Dictionary<string, string> { ["auto_update.enabled"] = Settings.BooleanText(autoUpdate) });
-        }, "自动更新开关") & Try(() => client.GuiState.Save(state), MainWindowViewModel.GuiStateText);
+        }, "自动更新开关") && Try(() => client.GuiState.Save(state), MainWindowViewModel.GuiStateText);
         // File.Delete ignores a file already gone, as when two windows start together.
         if (moved) Try(() => File.Delete(path), "删除");
         return autoUpdate;
@@ -67,7 +67,7 @@ internal static class GuiFileUpgrade
             }));
 
             // Both switches default to on: only a readable false turns one off.
-            bool On(string key) => values.GetValueOrDefault(key) is not string text || !bool.TryParse(text, out var on) || on;
+            bool On(string key) => values.GetValueOrDefault(key) is not string value || !bool.TryParse(value, out var on) || on;
         }
         catch (YamlException error)
         {

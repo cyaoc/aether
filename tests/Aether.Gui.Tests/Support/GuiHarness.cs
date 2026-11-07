@@ -93,12 +93,19 @@ internal sealed class GuiHarness : IDisposable
     public static HttpResponseMessage AccountResponse(string nickname = "测试账号") =>
         Json($$$"""{"code":0,"data":{"isLogin":true,"mid":123,"uname":"{{{nickname}}}"}}""");
 
+    /// <summary>The data directory's aether.db, opened beside the client's own connections.</summary>
+    public SqliteConnection OpenDatabase()
+    {
+        var connection = new SqliteConnection($"Data Source={Path.Combine(DataDirectory, "aether.db")};Pooling=False");
+        connection.Open();
+        return connection;
+    }
+
     public async Task SaveCredentialAsync()
     {
         // Seed the real store so tests unrelated to login can enter the main window.
         await client.GetAccountAsync();
-        using var connection = new SqliteConnection($"Data Source={Path.Combine(DataDirectory, "aether.db")};Pooling=False");
-        connection.Open();
+        using var connection = OpenDatabase();
         using var command = connection.CreateCommand();
         command.CommandText = """
             INSERT INTO credential (id, cookies, refresh_token, saved_at, checked_at)
@@ -140,8 +147,7 @@ internal sealed class GuiHarness : IDisposable
     public void BreakGuiState()
     {
         client.GuiState.Load();
-        using var connection = new SqliteConnection($"Data Source={Path.Combine(DataDirectory, "aether.db")};Pooling=False");
-        connection.Open();
+        using var connection = OpenDatabase();
         using var command = connection.CreateCommand();
         command.CommandText = "DROP TABLE gui_state";
         command.ExecuteNonQuery();

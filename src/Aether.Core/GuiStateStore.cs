@@ -38,7 +38,8 @@ public sealed class GuiStateStore
     {
         using var connection = database.Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "UPDATE gui_state SET keep_recent_danmaku = $keep, recent_rooms = $rooms WHERE id = 1";
+        // An upsert, as Load reads a missing row as the defaults: a write is never dropped without a word.
+        command.CommandText = "INSERT OR REPLACE INTO gui_state (id, keep_recent_danmaku, recent_rooms) VALUES (1, $keep, $rooms)";
         command.Parameters.AddWithValue("$keep", state.KeepRecentDanmaku);
         command.Parameters.AddWithValue("$rooms", JsonSerializer.Serialize(state.RecentRooms));
         command.ExecuteNonQuery();

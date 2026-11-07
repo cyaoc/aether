@@ -172,11 +172,11 @@ public partial class MainWindowViewModel : ObservableObject
             // cannot be used means on (ADR 0016).
             var autoUpdate = await Task.Run(() => GuiFileUpgrade.Run(dataDirectory, client, logger)
                 ?? (Settings.Load(dataDirectory, logger) is { Error: null } settings ? settings.AutoUpdateEnabled.Value : true));
+            var check = autoUpdate ? Task.Run(() => updater.CheckAsync(shutdown.Token)) : Task.FromResult<ReleaseUpdate?>(null);
             var shown = guiState;
             var read = await Task.Run(ReadGuiState);
             // A change made while reading is newer than what was read.
             if (ReferenceEquals(guiState, shown)) ShowGuiState(read);
-            var check = autoUpdate ? Task.Run(() => updater.CheckAsync(shutdown.Token)) : Task.FromResult<ReleaseUpdate?>(null);
             nextReadDefersLogin = true;
             try { await ReadAccountCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(3), clock, shutdown.Token); }
             catch (TimeoutException)

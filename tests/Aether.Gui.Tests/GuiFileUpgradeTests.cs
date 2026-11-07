@@ -66,13 +66,13 @@ public sealed class GuiFileUpgradeTests : IDisposable
     }
 
     [Fact, System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
-    public void An_unreadable_gui_yml_stays_and_this_start_does_not_check()
+    public void An_unreadable_gui_yml_stays_and_the_settings_file_decides()
     {
         if (OperatingSystem.IsWindows()) Assert.Skip("Unix file modes only.");
         WriteGuiFile("AutoUpdate: true\nRecentRooms: ['6']");
         File.SetUnixFileMode(harness.LegacyGuiFile, UnixFileMode.None);
 
-        Assert.False(Run());
+        Assert.Null(Run());
 
         Assert.True(File.Exists(harness.LegacyGuiFile));
         Assert.Empty(harness.LoadGuiState().RecentRooms);
@@ -102,6 +102,10 @@ public sealed class GuiFileUpgradeTests : IDisposable
         Assert.False(Run());
         Assert.True(File.Exists(harness.LegacyGuiFile));
         Assert.Equal("web_service:\n  port: invalid\n", File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
+        // Rooms remembered meanwhile are not put back over by every start.
+        harness.SaveRecentRooms("42");
+        Assert.False(Run());
+        Assert.Equal(["42"], harness.LoadGuiState().RecentRooms);
 
         File.WriteAllText(Settings.FilePath(harness.DataDirectory), "web_service:\n  port: 17891\n");
         Assert.False(Run());
