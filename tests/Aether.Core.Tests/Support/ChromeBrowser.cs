@@ -20,7 +20,7 @@ internal sealed class ChromeBrowser : IAsyncDisposable
     public static async Task<ChromeBrowser> OpenVideoPageAsync(WatchHarness harness, IReadOnlyDictionary<string, string>? settings = null)
     {
         Settings.Save(harness.DataDirectory, new Dictionary<string, string>(settings ?? new Dictionary<string, string>()) { ["web_service.port"] = WelcomeAnimationTests.FreePort().ToString() });
-        await harness.Client.ApplyWebSettingsAsync(Settings.Load(harness.DataDirectory));
+        await harness.Client.WebService.ApplySettingsAsync(Settings.Load(harness.DataDirectory));
         var browser = new ChromeBrowser();
         await browser.OpenAsync(harness.DataDirectory, harness.Client.WebService.Status.VideoAddress);
         return browser;

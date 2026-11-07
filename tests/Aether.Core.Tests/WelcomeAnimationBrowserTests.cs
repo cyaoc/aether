@@ -35,7 +35,7 @@ public sealed class WelcomeAnimationBrowserTests
         try
         {
             // As the GUI does: the web service starts on its own, then the room connection runs the 直播画面功能.
-            await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+            await h.Client.WebService.ApplySettingsAsync(Settings.Load(h.DataDirectory));
             await using var updates = await h.WatchConnectedAsync();
             await using var statusUpdates = h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
             Assert.True(await statusUpdates.MoveNextAsync());

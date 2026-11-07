@@ -1,0 +1,276 @@
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.Channels;
+using Aether.Core.Entries;
+using Microsoft.Extensions.Logging;
+using Connection = Aether.Core.WebService.Connection;
+
+namespace Aether.Core;
+
+/// <summary>The web service region's facade (ADR 0017): shells start, stop, apply settings and test-play through its commands, and
+/// read its snapshots or <see cref="GetUpdatesAsync"/>. Accepting requests, writing to each streaming software and heartbeats run
+/// here, outside the region, and hand it a step whenever they touch its state; the shell owns the service lifetime.</summary>
+public sealed class WebServiceFacade
+{
+    internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
+    private const string Retry = "retry: 2000\n\n";
+    private const string Heartbeat = ": heartbeat\n\n";
+    // Both sides go through GetFullPath so Windows expands 8.3 short names in the program directory alike.
+    private static readonly string PagesDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "Pages")) + Path.DirectorySeparatorChar;
+    private readonly WebServiceSnapshot snapshot = new();
+    private readonly Region<WebService> region;
+    private readonly TimeProvider timeProvider;
+    private readonly WebPage[] pages;
+
+    internal WebServiceFacade(string dataDirectory, TimeProvider timeProvider, ILogger logger, PendingSteps steps,
+        LotteryController lottery, GiftBoardFacade giftBoard)
+    {
+        this.timeProvider = timeProvider;
+        // shortcut: pending videos are unbounded; add a capacity if playback sources can flood the queue.
+        var queue = Channel.CreateUnbounded<VideoQueue.Playback>(new UnboundedChannelOptions { SingleReader = true });
+        region = new(new WebService(snapshot, queue.Writer, timeProvider, logger), steps, logger);
+        Lottery = new(this, lottery);
+        pages = [new VideoPage(this, region, queue.Reader, dataDirectory, timeProvider), Lottery, new GiftBoardPage(giftBoard)];
+    }
+
+    public LotteryPage Lottery { get; }
+
+    public WebServiceStatus Status => snapshot.Status;
+
+    /// <inheritdoc cref="WebServiceSnapshot.Settings"/>
+    public Settings? Settings => snapshot.Settings;
+
+    /// <summary>Subscribe independently of WatchAsync. The first update is the current service status.</summary>
+    public IAsyncEnumerable<WebServiceUpdate> GetUpdatesAsync(CancellationToken cancellationToken = default) =>
+        region.SubscribeAsync(s => s.Subscribers, s => s.Status, cancellationToken);
+
+    /// <summary>Applies feature settings immediately; only a port change restarts the web service.</summary>
+    public async Task ApplySettingsAsync(Settings settings)
+    {
+        if (settings.Error is { } error) throw error;
+        await region.Run(s => s.Apply(settings)).ConfigureAwait(false);
+        await StartAsync(settings.WebServicePort.Value).ConfigureAwait(false);
+    }
+
+    /// <summary>Only a changed port restarts existing connections.</summary>
+    public async Task StartAsync(int port)
+    {
+        if (port is < 1 or > 65535) throw new ArgumentOutOfRangeException(nameof(port));
+        if (await region.Run(s => s.Serves(port)).ConfigureAwait(false)) return;
+        await StopAsync().ConfigureAwait(false);
+        await region.Run(s => s.Start(port, ServeAsync)).ConfigureAwait(false);
+    }
+
+    /// <summary>Returns once the listener and every page have stopped, so a shell can wait for it before it exits.</summary>
+    public async Task StopAsync()
+    {
+        // The step hands out the serving it stopped, to wait for here: the step itself does not await.
+        if (await region.Run<Task?>(s => s.Stop()).ConfigureAwait(false) is not { } stopping) return;
+        try { await stopping.ConfigureAwait(false); }
+        finally { await region.Run(s => s.Stopped(stopping)).ConfigureAwait(false); }
+    }
+
+    /// <summary>Plays a file in the videos folder on the video page, after what is already queued.</summary>
+    public Task PlayVideoAsync(string fileName, string source) => region.Run(s => s.Video.Enqueue(fileName, source));
+
+    public Task TestPlayWelcomeAsync(long uid) => region.Run(s => s.WelcomeAnimation.TestPlay(uid));
+
+    public Task TestPlayEntryAsync(EntryTier tier, string nickname) => region.Run(s => s.EntryAnimation.TestPlay(tier, nickname));
+
+    public Task TestPlayGiftAsync(EntryTier tier, string nickname) => region.Run(s => s.GiftAnimation.TestPlay(tier, nickname));
+
+    /// <summary>Stops the test play with this id while it plays; a late click stops nothing else.</summary>
+    public Task StopTestPlayAsync(string id) => region.Run(s => s.StopTestPlay(id));
+
+    /// <summary>Posted from the room connection, which never waits for the web service (ADR 0017).</summary>
+    internal void PlayEntry(Entry entry, long receivedAt, CancellationToken roomStopped) =>
+        region.Post(s => s.EntryAnimation.Enqueue(entry, receivedAt, roomStopped));
+
+    /// <inheritdoc cref="PlayEntry"/>
+    internal void PlayGiftRound(GiftRoundEnded round, CancellationToken roomStopped) => region.Post(s => s.GiftAnimation.Enqueue(round, roomStopped));
+
+    /// <summary>Readers get what was reported so far, then end; later commands are dropped or cancelled.</summary>
+    internal void Stop()
+    {
+        region.Post(s => s.Subscribers.Complete());
+        region.Stop();
+    }
+
+    // Called in the Start step: Task.Run keeps every flow off the region's thread.
+    private Task ServeAsync(HttpListener server, CancellationToken token) => Task.Run(() => Task.WhenAll(
+        pages.Select(page => page.RunAsync(token)).Append(AcceptAsync(server, token)).Append(HeartbeatsAsync(token))));
+
+    private static string Frame(SseEvent message) =>
+        (message.Name is null ? "" : "event: " + message.Name + "\n") + "data: " + JsonSerializer.Serialize(message.Data, Json) + "\n\n";
+
+    internal Task<int> BroadcastAsync(WebPage page, SseEvent message, CancellationToken token) =>
+        BroadcastFrameAsync(Frame(message), token, page);
+
+    private async Task<int> BroadcastFrameAsync(string text, CancellationToken token, WebPage? page = null)
+    {
+        var targets = await region.Run(s => s.Connected(page));
+        var results = await Task.WhenAll(targets.Select(connection => SendAsync(connection, text, token)));
+        return results.Count(sent => sent);
+    }
+
+    /// <summary>The connection's write lock is the one lock left: a stalled streaming software holds up only its own writes, for
+    /// at most 5 seconds, and is then dropped.</summary>
+    private async Task<bool> SendAsync(Connection connection, string text, CancellationToken token)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5), timeProvider);
+        using var sending = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
+        var acquired = false;
+        try
+        {
+            await connection.WriteLock.WaitAsync(sending.Token);
+            acquired = true;
+            await connection.Response.OutputStream.WriteAsync(Encoding.UTF8.GetBytes(text), sending.Token);
+            await connection.Response.OutputStream.FlushAsync(sending.Token);
+            return true;
+        }
+        catch (Exception error) when (error is IOException or HttpListenerException or ObjectDisposedException or OperationCanceledException)
+        {
+            region.Post(s => s.Drop(connection));
+            return false;
+        }
+        finally { if (acquired) connection.WriteLock.Release(); }
+    }
+
+    private async Task HeartbeatsAsync(CancellationToken token)
+    {
+        try
+        {
+            while (true)
+            {
+                await Task.Delay(TimeSpan.FromSeconds(15), timeProvider, token);
+                await BroadcastFrameAsync(Heartbeat, token);
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
+    }
+
+    private async Task AcceptAsync(HttpListener server, CancellationToken token)
+    {
+        var requests = new HashSet<Task>();
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                // Close() ends the pending accept; cancelling only a wrapper would leave its failure unobserved.
+                var context = await server.GetContextAsync();
+                requests.RemoveWhere(task => task.IsCompleted);
+                requests.Add(HandleAsync(context, token));
+            }
+        }
+        // Windows may bind its request-queue handle just as StopAsync closes it, and a loop that comes back for the next request
+        // after the close finds the listener no longer started.
+        catch (Exception error) when (token.IsCancellationRequested && error is HttpListenerException or ObjectDisposedException or OperationCanceledException
+            or InvalidOperationException or ArgumentException { ParamName: "handle" }) { }
+        finally { await Task.WhenAll(requests); }
+    }
+
+    private async Task HandleAsync(HttpListenerContext context, CancellationToken token)
+    {
+        var (request, response) = (context.Request, context.Response);
+        var keepOpen = false;
+        try
+        {
+            response.Headers["Cache-Control"] = "no-store";
+            response.Headers["X-Content-Type-Options"] = "nosniff";
+            if (!IsThisHost(request.Headers["Host"])) { response.StatusCode = 403; return; }
+            IPEndPoint? remoteEndPoint;
+            try { remoteEndPoint = request.RemoteEndPoint; }
+            // The managed listener can clear its socket while a disconnected request is being dispatched.
+            catch (NullReferenceException) { WebService.Abort(response); return; }
+            if (remoteEndPoint is not { Address: var address } || !IPAddress.IsLoopback(address))
+            { response.StatusCode = 403; return; }
+            var path = request.Url!.AbsolutePath;
+            var name = path.Split('/', 3)[1];
+            var page = pages.FirstOrDefault(page => page.Name == name);
+            if (page is null) { response.StatusCode = 404; return; }
+            if (request.HttpMethod == "GET" && path == $"/{page.Name}/events") keepOpen = await ConnectAsync(page, response, token);
+            else if (!await ServeResourceAsync(page, request, response, token)
+                && !await page.HandleAsync(request, response, token)) response.StatusCode = 404;
+        }
+        // On macOS, RemoteEndPoint throws SocketException once the client has reset the connection.
+        catch (Exception error) when (error is IOException or HttpListenerException or SocketException or ObjectDisposedException or OperationCanceledException or UnauthorizedAccessException)
+        { WebService.Abort(response); }
+        finally
+        {
+            // http.sys can still fail the final write here once the client has gone.
+            if (!keepOpen)
+                try { response.Close(); }
+                catch (Exception error) when (error is IOException or HttpListenerException or ObjectDisposedException) { WebService.Abort(response); }
+        }
+    }
+
+    private bool IsThisHost(string? host)
+    {
+        var status = Status;
+        // Browsers omit the default HTTP port from Host even when the URL explicitly contains :80.
+        return string.Equals(host, status.Origin["http://".Length..], StringComparison.OrdinalIgnoreCase)
+            || status.Port == 80 && string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Connects a streaming software to a page's events; true when the response stays open for later broadcasts.</summary>
+    private async Task<bool> ConnectAsync(WebPage page, HttpListenerResponse response, CancellationToken token)
+    {
+        response.ContentType = "text/event-stream";
+        response.SendChunked = true;
+        var connection = new Connection(response, page);
+        if (page.EventsAsync(token) is not { } events)
+        {
+            await region.Run(s => s.Connect(connection, token));
+            return await SendAsync(connection, Retry, token);
+        }
+        using var streamStop = CancellationTokenSource.CreateLinkedTokenSource(token);
+        // Set before the step that shares the connection.
+        connection.StreamStop = streamStop;
+        await region.Run(s => s.Connect(connection, token));
+        try
+        {
+            if (await SendAsync(connection, Retry, token))
+                await foreach (var message in events.WithCancellation(streamStop.Token))
+                    if (!await SendAsync(connection, Frame(message), token)) break;
+        }
+        finally { await region.Run(s => s.EndStream(connection)); }
+        // A page's stream lives in this request, so the response closes when it ends.
+        return false;
+    }
+
+    private static async Task<bool> ServeResourceAsync(WebPage page, HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
+    {
+        if (request.HttpMethod != "GET") return false;
+        var path = request.Url!.AbsolutePath;
+        if (path == $"/{page.Name}") path += "/index.html";
+        var contentType = Path.GetExtension(path) switch
+        {
+            ".html" => "text/html; charset=utf-8",
+            ".css" => "text/css; charset=utf-8",
+            ".js" or ".mjs" => "text/javascript; charset=utf-8",
+            ".json" => "application/json; charset=utf-8",
+            ".ogg" => "audio/ogg",
+            ".woff2" => "font/woff2",
+            ".webp" => "image/webp",
+            ".ttf" => "font/ttf",
+            ".txt" => "text/plain; charset=utf-8",
+            _ => null
+        };
+        if (contentType is null || PagesFile(path) is not { } file) return false;
+        await using var content = File.OpenRead(file);
+        response.ContentType = contentType;
+        response.ContentLength64 = content.Length;
+        await content.CopyToAsync(response.OutputStream, token);
+        return true;
+    }
+
+    /// <summary>The request path is outside input: anything that resolves outside Pages counts as a missing file.</summary>
+    internal static string? PagesFile(string path)
+    {
+        var file = Path.GetFullPath(Path.Join(PagesDirectory, path));
+        return file.StartsWith(PagesDirectory, StringComparison.Ordinal) && File.Exists(file) ? file : null;
+    }
+}

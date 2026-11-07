@@ -100,7 +100,7 @@ public sealed partial class AetherClient
             roomScope = client.logger.BeginRoomScope(realRoomId);
             client.logger.LogInformation("直播间连接开始");
             decoder = new DanmakuProtocol.Decoder(realRoomId, client.logger,
-                () => Settings.WelcomeEnabled.Value || client.WebService.Video.Settings?.EntryAnimationEnabled.Value == true);
+                () => Settings.WelcomeEnabled.Value || client.WebService.Settings?.EntryAnimationEnabled.Value == true);
             return new(post => CreateState(realRoomId, post, animationStop), client.steps, client.logger);
         }
 
@@ -121,8 +121,8 @@ public sealed partial class AetherClient
             if (enableStreamOverlay)
             {
                 features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId,
-                    round => { client.GiftAnimation.Enqueue(round, animationStop); output.TryWrite(round); }, post));
-                features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop));
+                    round => { client.WebService.PlayGiftRound(round, animationStop); output.TryWrite(round); }, post));
+                features.Add(new EntryAnimationFeature(client.WebService, animationStop));
             }
             if (Settings.WelcomeEnabled.Value) features.Add(new WelcomeFeature(Settings, sendQueue));
             return new(sendQueue, features);

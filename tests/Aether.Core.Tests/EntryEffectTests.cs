@@ -24,7 +24,7 @@ public sealed class EntryEffectTests
         Directory.CreateDirectory(Settings.VideoDirectory(h.DataDirectory));
         File.WriteAllText(Path.Combine(Settings.VideoDirectory(h.DataDirectory), "entry.mp4"), "video");
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "entry.mp4" });
-        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+        await h.Client.WebService.ApplySettingsAsync(Settings.Load(h.DataDirectory));
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false });
         using var page = await http.GetAsync(h.Client.WebService.Status.VideoAddress + "/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
         await using var updates = await h.WatchConnectedAsync(includeSendQueueUpdates: true);
