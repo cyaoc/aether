@@ -105,25 +105,30 @@ public sealed class DatabaseUpgradeTests
         Assert.Equal("legacy-token", TestDatabase.SavedCredential(h.DataDirectory).RefreshToken);
     }
 
-    [Fact]
-    public async Task A_set_already_named_like_a_renamed_one_keeps_its_name_and_the_renamed_one_adds_its_save_date()
+    [Theory]
+    [InlineData(1, "周末（直播间 7734200，2）")]
+    [InlineData(2, "周末（直播间 7734200，3）")]
+    public async Task A_renamed_set_takes_the_next_free_name_and_sets_already_named_so_keep_theirs(int taken, string renamed)
     {
         await using var h = new WatchHarness();
         TestDatabase.Restore(h.DataDirectory, "database-v0.5.1.sql");
+        string[] names = ["周末（直播间 7734200）", "周末（直播间 7734200，2）"];
         using (var connection = TestDatabase.Open(h.DataDirectory))
-        using (var command = connection.CreateCommand())
-        {
-            command.CommandText = """
-                INSERT INTO lottery_prize_set VALUES (42, 'pool', '周末（直播间 7734200）', '2026-11-01T11:00:00.0000000+00:00',
-                    '[{"Name":"徽章","Weight":1,"Grade":2}]');
-                """;
-            command.ExecuteNonQuery();
-        }
+            foreach (var (name, index) in names.Take(taken).Select((name, index) => (name, index)))
+            {
+                using var command = connection.CreateCommand();
+                command.CommandText = """
+                    INSERT INTO lottery_prize_set VALUES (42, 'pool', $name, $saved, '[{"Name":"徽章","Weight":1,"Grade":2}]');
+                    """;
+                command.Parameters.AddWithValue("$name", name);
+                command.Parameters.AddWithValue("$saved", $"2026-10-0{index + 1}T12:00:00.0000000+00:00");
+                command.ExecuteNonQuery();
+            }
 
         var pool = h.Client.Lottery.GetPrizeSets(LotteryMode.Pool);
 
-        Assert.Equal(["周末", "周末（直播间 7734200，2026-11-02）", "日常", "周末（直播间 7734200）"], pool.Select(set => set.Name));
-        Assert.Equal(["键盘", "抱枕", "贴纸", "徽章"], pool.Select(set => set.Prizes.Single().Name));
+        Assert.Equal(["周末", renamed, "日常", .. names.Take(taken).Reverse()], pool.Select(set => set.Name));
+        Assert.Equal(["键盘", "抱枕", "贴纸", .. Enumerable.Repeat("徽章", taken)], pool.Select(set => set.Prizes.Single().Name));
     }
 
     [Fact]
