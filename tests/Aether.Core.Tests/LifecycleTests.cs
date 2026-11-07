@@ -108,6 +108,22 @@ public sealed class LifecycleTests
     }
 
     [Fact]
+    public async Task Disposing_the_client_closes_the_web_service_so_its_port_is_free_again()
+    {
+        await using var h = new WatchHarness();
+        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
+        var origin = h.Client.WebService.Status.Origin;
+
+        h.Client.Dispose();
+        await h.Client.IdleAsync();
+
+        using var next = new System.Net.HttpListener();
+        next.Prefixes.Add(origin + "/");
+        next.Start();
+        Assert.False(h.Client.WebService.Status.Running);
+    }
+
+    [Fact]
     public async Task Heartbeats_are_sent_every_thirty_seconds_and_stop_on_cancellation()
     {
         await using var h = new WatchHarness();

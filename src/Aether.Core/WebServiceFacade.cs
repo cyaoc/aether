@@ -59,5 +59,12 @@ public sealed class WebServiceFacade
     /// <inheritdoc cref="PlayEntry"/>
     internal void PlayGiftRound(GiftRoundEnded round, CancellationToken roomStopped) => region.Post(s => s.GiftAnimation.Enqueue(round, roomStopped));
 
-    internal void Stop() => region.Stop();
+    /// <summary>Closes the listener and every connection in a last step, without waiting for the serving to wind down as
+    /// <see cref="StopAsync"/> does, then stops the region.</summary>
+    internal void Stop()
+    {
+        // A block, as s.Stop() returns the serving's task and Post refuses steps that return one.
+        region.Post(s => { s.Stop(); });
+        region.Stop();
+    }
 }
