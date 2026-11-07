@@ -209,6 +209,8 @@ public sealed class ReconnectionTests
         try
         {
             if (polling) h.Time.Advance(TimeSpan.FromSeconds(2));
+            // The first request follows the step that reads the credential, so its retry is armed off this thread.
+            else await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(2));
             Assert.False(next.IsCompleted);
             h.Time.Advance(TimeSpan.FromSeconds(2));
             Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));

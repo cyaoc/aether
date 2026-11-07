@@ -23,6 +23,7 @@ public sealed partial class AetherClient : IDisposable
     public LotteryController Lottery { get; }
     public GiftBoardController GiftBoard { get; }
     public GuiStateFacade GuiState { get; }
+    private readonly AccountFacade account;
     private readonly Lazy<Stores> stores;
     private readonly PendingSteps steps = new();
 
@@ -49,6 +50,7 @@ public sealed partial class AetherClient : IDisposable
         EntryAnimation = new(WebService, WelcomeAnimation, timeProvider, logger);
         GiftAnimation = new(WebService, timeProvider, logger);
         GuiState = new(new GuiStateController(() => stores.Value.GuiStates, logger), steps, logger);
+        account = new(() => stores.Value.Credentials, steps, logger);
     }
 
     /// <summary>Waits until every region has run the steps queued so far, and those they queue for each other (ADR 0017). It does
@@ -90,15 +92,14 @@ public sealed partial class AetherClient : IDisposable
     /// <summary>Reads the saved credential's account; returns null when not logged in. Request failures propagate to the caller.</summary>
     /// <remarks>Read-only: does not refresh or delete the credential.</remarks>
     public async Task<Account?> GetAccountAsync(CancellationToken cancellationToken = default) =>
-        await Api(stores.Value.Credentials.Load()).GetAccountAsync(cancellationToken);
+        await Api(await account.LoadAsync()).GetAccountAsync(cancellationToken);
 
     /// <summary>Signs out on B站 when possible; the local credential is deleted either way unless the caller cancels.</summary>
     public async Task LogoutAsync(CancellationToken cancellationToken = default)
     {
-        var credentials = stores.Value.Credentials;
         try
         {
-            if (credentials.Load() is { } credential)
+            if (await account.LoadAsync() is { } credential)
             {
                 var api = Api(credential);
                 await api.LogoutAsync(cancellationToken);
@@ -108,7 +109,7 @@ public sealed partial class AetherClient : IDisposable
         {
             logger.LogWarning(error, "B站退出登录失败，仍删除本地登录凭据：{Error}", error.Message);
         }
-        credentials.Delete();
+        await account.DeleteAsync();
     }
 
     public IAsyncEnumerable<WatchUpdate> WatchAsync(long roomId, CancellationToken cancellationToken = default) =>
@@ -184,8 +185,8 @@ public sealed partial class AetherClient : IDisposable
 
     private async IAsyncEnumerable<LoginUpdate> LoginCoreAsync([EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        // Everything that can fail on its own runs before the first QR code, so no scan is wasted.
-        var credentials = stores.Value.Credentials;
+        // Everything that can fail on its own runs before the first QR code, so no scan is wasted: this read opens the database.
+        await account.LoadAsync();
         var api = Api(credential: null);
         while (true)
         {
@@ -202,7 +203,7 @@ public sealed partial class AetherClient : IDisposable
                 if (state == QrCodeState.Waiting) continue;
                 if (state == QrCodeState.Expired) break;
                 cancellationToken.ThrowIfCancellationRequested();
-                credentials.Save(credential!);
+                await account.SaveAsync(credential!);
                 yield return new LoggedIn();
                 yield break;
             }
@@ -244,8 +245,7 @@ public sealed partial class AetherClient : IDisposable
     private async Task<Credential?> RefreshCredentialIfDueAsync(
         CancellationToken cancellationToken, CancellationToken refreshCancellation)
     {
-        var credentials = stores.Value.Credentials;
-        var credential = credentials.Load();
+        var credential = await account.LoadAsync();
         if (credential is null || credential.CheckedAt is { } checkedAt
             && timeProvider.GetUtcNow() - checkedAt < CredentialCheckInterval) return credential;
         try
@@ -254,7 +254,7 @@ public sealed partial class AetherClient : IDisposable
             if (await api.GetRefreshTimestampAsync(cancellationToken) is { } timestamp)
             {
                 var refreshed = await api.RefreshCredentialAsync(timestamp, refreshCancellation);
-                if (credentials.Save(refreshed, credential.RefreshToken))
+                if (await account.SaveAsync(refreshed, credential.RefreshToken))
                 {
                     try
                     {
@@ -268,7 +268,7 @@ public sealed partial class AetherClient : IDisposable
                 }
             }
             else
-                credentials.MarkChecked(credential.RefreshToken, timeProvider.GetUtcNow());
+                await account.MarkCheckedAsync(credential.RefreshToken, timeProvider.GetUtcNow());
         }
         catch (Exception error) when (IsRetryable(error, cancellationToken))
         {
@@ -276,7 +276,7 @@ public sealed partial class AetherClient : IDisposable
         }
         catch (CredentialRejectedException error)
         {
-            if (credentials.Delete(credential.RefreshToken))
+            if (await account.DeleteAsync(credential.RefreshToken))
                 logger.LogWarning("{Error} 请重新扫码登录。", error.Message);
         }
         catch (Exception error) when (!cancellationToken.IsCancellationRequested)
@@ -284,9 +284,9 @@ public sealed partial class AetherClient : IDisposable
             // Refresh is upkeep, and nav still vets the credential on every connect, so an unexpected answer
             // (an error code from cookie/info, a changed correspond page) neither deletes it nor ends the room connection.
             logger.LogWarning(error, "检查或刷新登录凭据失败，24 小时后再试：{Error}", error.Message);
-            credentials.MarkChecked(credential.RefreshToken, timeProvider.GetUtcNow());
+            await account.MarkCheckedAsync(credential.RefreshToken, timeProvider.GetUtcNow());
         }
-        return credentials.Load();
+        return await account.LoadAsync();
     }
 
     private static async Task<WebSocket> ConnectWebSocketAsync(Uri uri, CancellationToken cancellationToken)
@@ -298,7 +298,7 @@ public sealed partial class AetherClient : IDisposable
         catch { socket.Dispose(); throw; }
     }
 
-    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); GiftBoard.Dispose(); GuiState.Stop(); http.Dispose(); }
+    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); GiftBoard.Dispose(); GuiState.Stop(); account.Stop(); http.Dispose(); }
 }
 
 public static class AetherHosting
