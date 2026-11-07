@@ -58,10 +58,10 @@ public sealed partial class AetherClient
                             if (enableStreamOverlay)
                             {
                                 features.Add(new LotteryFeature(client.Lottery, client.logger, realRoomId.Value));
-                                features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value, client.logger));
+                                features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value));
                             }
                             if (Settings.BlindBoxEnabled.Value) features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));
-                            features.Add(new GiftRecordFeature(new(client.stores.Value.Gifts, client.GiftBoard, client.logger,
+                            features.Add(new GiftRecordFeature(new(client.stores.Value.Gifts, client.logger,
                                 realRoomId.Value, Settings.BlindBoxEnabled.Value), sendQueue, Settings.BlindBoxAnnounce.Value));
                             if (enableStreamOverlay)
                             {
@@ -207,6 +207,9 @@ public sealed partial class AetherClient
                                 // Reported first, so a shell sees the keyword before the 盲盒查询 it queues.
                                 yield return danmaku.Danmaku;
                             }
+                            // On the board first, and waited for: the database neither delays nor decides what the 礼物榜页 shows.
+                            if (roomEvent is DanmakuProtocol.GiftsReceived gifts)
+                                roomEvent = gifts with { PeriodOf = await client.GiftBoard.TakeAsync(realRoomId, gifts.Gifts) };
                             Handle(roomEvent);
                         }
                     }

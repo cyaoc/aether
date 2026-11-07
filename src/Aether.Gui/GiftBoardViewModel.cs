@@ -16,8 +16,6 @@ public enum GiftBoardConfirmation { None, End, NewPeriod }
 public partial class GiftBoardViewModel(AetherClient client, ILogger logger, TimeProvider clock, CancellationToken shutdown) : ObservableObject
 {
     private readonly LatestRun updates = new();
-    // Core's writes, one after another off the UI thread, so the last option set is the one that stays.
-    private Task change = Task.CompletedTask;
     // The room Core last reported: each write names the room it was asked for in, and Core refuses it once that room is gone.
     private long? roomId;
     private int optionWrites;
@@ -129,13 +127,7 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
         updates.Follow(client.GiftBoard.GetUpdatesAsync, Apply, logger, "礼物榜状态订阅中断");
     }
 
-    internal async Task StopAsync()
-    {
-        // Each write reports its own failure; closing still waits until the last one has finished.
-        try { await change; }
-        catch { }
-        await updates.StopAsync();
-    }
+    internal Task StopAsync() => updates.StopAsync();
 
     internal void Apply(GiftBoardState state)
     {
@@ -175,13 +167,13 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
         Confirmation = GiftBoardConfirmation.None;
         return confirmed switch
         {
-            GiftBoardConfirmation.End => RunAsync(client.GiftBoard.EndPeriod, "结束这一期失败", "已结束这一期，直播画面上的榜已收起"),
+            GiftBoardConfirmation.End => RunAsync(client.GiftBoard.EndPeriodAsync, "结束这一期失败", "已结束这一期，直播画面上的榜已收起"),
             GiftBoardConfirmation.NewPeriod => StartNewPeriodAsync(room),
             _ => Task.CompletedTask,
         };
     }
 
-    internal Task ContinueAsync() => RunAsync(client.GiftBoard.ContinuePeriod, "继续这一期失败", "已继续这一期，画面上重新显示榜");
+    internal Task ContinueAsync() => RunAsync(client.GiftBoard.ContinuePeriodAsync, "继续这一期失败", "已继续这一期，画面上重新显示榜");
 
     /// <summary>Ends a running 期 because the streamer is stopping (断开, closing Aether or logging out; not a reconnect to apply
     /// settings), while its room is still connected (ADR 0014). Core decides once the writes before it are done, so a 期 started
@@ -189,36 +181,24 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
     internal async Task EndBeforeLeavingAsync()
     {
         if (roomId is not { } room) return;
-        try { await Write(() => client.GiftBoard.EndPeriodOnLeaving(room)); }
+        try { await client.GiftBoard.EndPeriodOnLeavingAsync(room); }
         catch (Exception exception) { logger.LogError(exception, "断开时结束礼物榜这一期失败：{Error}", exception.Message); }
     }
 
     private Task StartNewPeriodAsync(string room) =>
-        RunAsync(client.GiftBoard.StartNewPeriod, "开始新一期失败", $"已为直播间 {room} 开始新的一期");
+        RunAsync(client.GiftBoard.StartNewPeriodAsync, "开始新一期失败", $"已为直播间 {room} 开始新的一期");
 
     // Core refuses what the state no longer allows, such as a room left or switched in the meantime, and the failure says why.
-    private async Task RunAsync(Action<long> action, string failed, string done)
+    private async Task RunAsync(Func<long, Task> action, string failed, string done)
     {
         if (roomId is not { } room) return;
         Error = null;
         try
         {
-            await Write(() => action(room));
+            await action(room);
             Message = done;
         }
         catch (Exception exception) { Error = $"{failed}：{exception.Message}"; }
-    }
-
-    private Task Write(Action write)
-    {
-        var previous = change;
-        return change = Task.Run(async () =>
-        {
-            // The one before reported its own failure.
-            try { await previous; }
-            catch { }
-            write();
-        });
     }
 
     partial void OnThresholdChanged(decimal? value) => _ = SetOptionsAsync();
@@ -262,7 +242,8 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
         if (options == shown || roomId is not { } room) return;
         shown = options;
         optionWrites++;
-        try { await Write(() => client.GiftBoard.SetOptions(room, options)); }
+        // Core takes them in the order sent, so the last option set is the one that stays.
+        try { await client.GiftBoard.SetOptionsAsync(room, options); }
         catch (Exception exception) { Error = $"改选项失败：{exception.Message}"; }
         finally
         {

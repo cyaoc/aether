@@ -36,9 +36,9 @@ public sealed class GiftBoardPushTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
         Assert.True((await h.NextAsync(states)).FromGift);
 
-        foreach (var change in new Action[] { () => board.EndPeriod(RoomId), () => board.ContinuePeriod(RoomId), () => board.EndPeriod(RoomId), () => board.StartNewPeriod(RoomId) })
+        foreach (var change in new Func<Task>[] { () => board.EndPeriodAsync(RoomId), () => board.ContinuePeriodAsync(RoomId), () => board.EndPeriodAsync(RoomId), () => board.StartNewPeriodAsync(RoomId) })
         {
-            change();
+            await change();
             Assert.False((await h.NextAsync(states)).FromGift);
         }
         await h.SetOptionsAsync(options => options with { Mascot = false });
@@ -78,7 +78,7 @@ public sealed class GiftBoardPushTests
         await using var updates = await h.WatchWithGiftBoardAsync();
         await using var states = await SubscribeAfterAGiftAsync(h, updates);
 
-        h.Client.GiftBoard.EndPeriod(RoomId);
+        await h.Client.GiftBoard.EndPeriodAsync(RoomId);
 
         var ended = await h.NextAsync(states);
         Assert.False(ended.Running);

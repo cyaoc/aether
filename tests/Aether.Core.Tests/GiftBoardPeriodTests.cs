@@ -32,9 +32,9 @@ public sealed class GiftBoardPeriodTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "before"));
-        h.Client.GiftBoard.SetOptions(RoomId, GiftBoardOptions.Default with { Threshold = 1 });
+        await h.Client.GiftBoard.SetOptionsAsync(RoomId, GiftBoardOptions.Default with { Threshold = 1 });
         var started = h.Time.GetUtcNow();
-        h.Client.GiftBoard.StartNewPeriod(RoomId);
+        await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
 
         var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
@@ -52,7 +52,7 @@ public sealed class GiftBoardPeriodTests
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "during"));
         h.Time.Advance(Step);
         var ended = h.Time.GetUtcNow();
-        h.Client.GiftBoard.EndPeriod(RoomId);
+        await h.Client.GiftBoard.EndPeriodAsync(RoomId);
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
 
         var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
@@ -69,10 +69,10 @@ public sealed class GiftBoardPeriodTests
         await using var updates = await h.WatchWithGiftBoardAsync();
         var started = h.Time.GetUtcNow();
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "before"));
-        h.Client.GiftBoard.EndPeriod(RoomId);
+        await h.Client.GiftBoard.EndPeriodAsync(RoomId);
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "while-ended"));
 
-        h.Client.GiftBoard.ContinuePeriod(RoomId);
+        await h.Client.GiftBoard.ContinuePeriodAsync(RoomId);
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "after"));
 
         var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
@@ -88,9 +88,9 @@ public sealed class GiftBoardPeriodTests
         await using var updates = await h.WatchWithGiftBoardAsync(threshold: 5);
         await h.SetOptionsAsync(options => options with { Mascot = false, Volume = 30 });
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "before"));
-        h.Client.GiftBoard.EndPeriod(RoomId);
+        await h.Client.GiftBoard.EndPeriodAsync(RoomId);
 
-        h.Client.GiftBoard.StartNewPeriod(RoomId);
+        await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
         var state = await h.Client.GiftBoard.CurrentAsync(h.Stop.Token);
         Assert.Empty(state.Rows);
         Assert.Equal(GiftBoardOptions.Default with { Threshold = 5, Mascot = false, Volume = 30 }, state.Options);
@@ -110,9 +110,9 @@ public sealed class GiftBoardPeriodTests
         Gift gift = new(10001, "测试观众", 1000) { GiftId = 1, GiftName = "礼物", Price = 1000, Num = 1, Value = 1000, Tid = "between" };
         await using (var updates = await h.WatchWithGiftBoardAsync())
         {
-            var periodOf = board.Take(RoomId, [gift]);
-            board.EndPeriod(RoomId);
-            board.StartNewPeriod(RoomId);
+            var periodOf = await board.TakeAsync(RoomId, [gift]);
+            await board.EndPeriodAsync(RoomId);
+            await board.StartNewPeriodAsync(RoomId);
             new GiftStore(new Database(h.DataDirectory), h.Logger).Save(RoomId, gift, forBlindBox: false, periodOf(gift));
             Assert.Empty(await h.BoardRowsAsync());
         }
@@ -132,9 +132,9 @@ public sealed class GiftBoardPeriodTests
         await using var updates = await h.WatchWithGiftBoardAsync();
         var board = h.Client.GiftBoard;
 
-        foreach (var action in new Action[] { () => board.EndPeriod(left), () => board.ContinuePeriod(left), () => board.StartNewPeriod(left),
-            () => board.SetOptions(left, GiftBoardOptions.Default with { Threshold = 333 }) })
-            Assert.Equal("没有连着直播间 999。", Assert.Throws<InvalidOperationException>(action).Message);
+        foreach (var action in new Func<Task>[] { () => board.EndPeriodAsync(left), () => board.ContinuePeriodAsync(left), () => board.StartNewPeriodAsync(left),
+            () => board.SetOptionsAsync(left, GiftBoardOptions.Default with { Threshold = 333 }) })
+            Assert.Equal("没有连着直播间 999。", (await Assert.ThrowsAsync<InvalidOperationException>(action)).Message);
 
         var state = await board.CurrentAsync(h.Stop.Token);
         Assert.True(state.Running);
@@ -149,14 +149,14 @@ public sealed class GiftBoardPeriodTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var board = h.Client.GiftBoard;
-        Assert.Equal("没有在统计的一期。", Assert.Throws<InvalidOperationException>(() => board.EndPeriod(RoomId)).Message);
-        Assert.Equal("没有结束的一期可以继续。", Assert.Throws<InvalidOperationException>(() => board.ContinuePeriod(RoomId)).Message);
+        Assert.Equal("没有在统计的一期。", (await Assert.ThrowsAsync<InvalidOperationException>(() => board.EndPeriodAsync(RoomId))).Message);
+        Assert.Equal("没有结束的一期可以继续。", (await Assert.ThrowsAsync<InvalidOperationException>(() => board.ContinuePeriodAsync(RoomId))).Message);
 
-        board.StartNewPeriod(RoomId);
-        Assert.Equal("这一期还在统计，先结束再开始新一期。", Assert.Throws<InvalidOperationException>(() => board.StartNewPeriod(RoomId)).Message);
-        Assert.Throws<InvalidOperationException>(() => board.ContinuePeriod(RoomId));
-        board.EndPeriod(RoomId);
-        Assert.Throws<InvalidOperationException>(() => board.EndPeriod(RoomId));
+        await board.StartNewPeriodAsync(RoomId);
+        Assert.Equal("这一期还在统计，先结束再开始新一期。", (await Assert.ThrowsAsync<InvalidOperationException>(() => board.StartNewPeriodAsync(RoomId))).Message);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => board.ContinuePeriodAsync(RoomId));
+        await board.EndPeriodAsync(RoomId);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => board.EndPeriodAsync(RoomId));
 
         Assert.Equal(1L, TestDatabase.GiftBoardPeriods(h.DataDirectory));
     }
@@ -177,7 +177,7 @@ public sealed class GiftBoardPeriodTests
         await using (var next = await h.WatchConnectedAsync())
         {
             Assert.True((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Running);
-            h.Client.GiftBoard.EndPeriod(RoomId);
+            await h.Client.GiftBoard.EndPeriodAsync(RoomId);
         }
 
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
@@ -201,7 +201,7 @@ public sealed class GiftBoardPeriodTests
         {
             Assert.Empty(await h.BoardRowsAsync());
             await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(uid: 20002));
-            h.Client.GiftBoard.EndPeriod(RoomId);
+            await h.Client.GiftBoard.EndPeriodAsync(RoomId);
         }
 
         h.Http.SetRoom(roomId: 999);
@@ -217,7 +217,7 @@ public sealed class GiftBoardPeriodTests
     {
         await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
-        await using (var gui = await h.WatchConnectedAsync()) h.Client.GiftBoard.StartNewPeriod(RoomId);
+        await using (var gui = await h.WatchConnectedAsync()) await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
 
         h.EnableStreamOverlay = false;
         await using var cli = await h.WatchConnectedAsync();
@@ -232,8 +232,8 @@ public sealed class GiftBoardPeriodTests
     {
         await using var h = new WatchHarness();
 
-        Assert.Throws<InvalidOperationException>(() => h.Client.GiftBoard.StartNewPeriod(RoomId));
-        Assert.Throws<InvalidOperationException>(() => h.Client.GiftBoard.SetOptions(RoomId, GiftBoardOptions.Default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Client.GiftBoard.StartNewPeriodAsync(RoomId));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Client.GiftBoard.SetOptionsAsync(RoomId, GiftBoardOptions.Default));
     }
 
     [Theory]
@@ -245,8 +245,8 @@ public sealed class GiftBoardPeriodTests
         await using var h = new WatchHarness();
         await using var updates = await h.WatchWithGiftBoardAsync();
 
-        var refused = Assert.Throws<ArgumentException>(() =>
-            h.Client.GiftBoard.SetOptions(RoomId, new(threshold, thresholdBy, true, volume)));
+        var refused = await Assert.ThrowsAsync<ArgumentException>(() =>
+            h.Client.GiftBoard.SetOptionsAsync(RoomId, new(threshold, thresholdBy, true, volume)));
 
         Assert.StartsWith(error, refused.Message);
         Assert.Equal(1, (await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Options.Threshold);
