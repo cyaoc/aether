@@ -182,7 +182,7 @@ public sealed class SplashScreenTests
         {
             await GuiHarness.AccountReadAsync(viewModel);
             if (loggedOut) await viewModel.LoginCommand.ExecutionTask!;
-            Flush();
+            await harness.IdleAsync();
             Control target = loggedOut ? window.FindControl<Button>("RetryLoginButton")! : window.RoomInput.GetVisualDescendants().OfType<TextBox>().Single();
             Assert.True(target.IsEffectivelyVisible);
             Assert.False(target.IsEffectivelyEnabled);
@@ -528,6 +528,7 @@ public sealed class SplashScreenTests
             await BeginFadeAsync(clock, viewModel);
             await FinishFadeAsync(clock, viewModel);
             await startup.WaitAsync(TimeSpan.FromSeconds(5));
+            await harness.IdleAsync();
             Assert.Empty(harness.GitHub.Requests);
             Assert.Equal("006", viewModel.RoomNumber);
             Assert.Equal(["006", "42"], viewModel.RecentRooms);

@@ -8,11 +8,12 @@ public sealed class GuiStateTests
     public async Task Saved_state_is_read_back_by_a_new_client()
     {
         await using var h = new WatchHarness();
-        h.Client.GuiState.Save(new(false, ["006", "42"]));
+        await h.Client.GuiState.ReplaceAsync(new(false, ["006", "42"]));
         h.Client.Dispose();
 
         using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
-        var state = restarted.GuiState.Load();
+        await using var updates = restarted.GuiState.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        var state = await h.NextAsync(updates);
 
         Assert.False(state.KeepRecentDanmaku);
         Assert.Equal(["006", "42"], state.RecentRooms);

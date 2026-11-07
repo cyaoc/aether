@@ -50,24 +50,17 @@ public partial class MainWindowViewModel : ObservableObject
     public WebServiceViewModel WebService { get; }
     public LotteryViewModel Lottery { get; }
     public GiftBoardViewModel GiftBoard { get; }
-    // Written as a whole: every change saves the row, and the state's own rule keeps the recent rooms in shape.
-    private GuiState guiState = GuiState.Default;
-    private bool guiStateShown;
+    // What Core last reported (ADR 0017); null until its first report, which fills the room input.
+    private GuiState? guiState;
+    private readonly LatestRun guiStateUpdates = new();
+    /// <summary>A change shows once Core reports it.</summary>
     public bool KeepRecentDanmaku
     {
-        get => guiState.KeepRecentDanmaku;
-        set
-        {
-            if (value == KeepRecentDanmaku) return;
-            guiState = guiState with { KeepRecentDanmaku = value };
-            OnPropertyChanged();
-            // One Reset instead of a RemoveAt(0) event per dropped item after hours unchecked.
-            if (value && Danmaku.Count > RecentDanmakuLimit) Danmaku = new(Danmaku.TakeLast(RecentDanmakuLimit));
-            SaveGuiState();
-        }
+        get => (guiState ?? GuiState.Default).KeepRecentDanmaku;
+        set => _ = SaveGuiStateAsync(client.GuiState.SetKeepRecentDanmakuAsync(value));
     }
     [ObservableProperty] private string roomNumber = "";
-    public ImmutableArray<string> RecentRooms => guiState.RecentRooms;
+    public ImmutableArray<string> RecentRooms => (guiState ?? GuiState.Default).RecentRooms;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Status))]
     [NotifyPropertyChangedFor(nameof(IsConnected))]
@@ -120,7 +113,7 @@ public partial class MainWindowViewModel : ObservableObject
     // The startup read only notes a missing account: the splash decides when the QR login starts.
     private bool nextReadDefersLogin;
     private readonly LatestRun accountRead = new();
-    // The start's move of gui.yml and its state read write data/ off the UI thread; closing waits, so none outlives the window.
+    // The start's move of gui.yml writes the settings file off the UI thread; closing waits, so it never outlives the window.
     private Task startupWrites = Task.CompletedTask;
     private readonly CancellationTokenSource shutdown = new();
 
@@ -172,16 +165,14 @@ public partial class MainWindowViewModel : ObservableObject
             await Task.Run(updater.CleanUp);
             // A close during the clean-up found no startup writes to wait for, so none may start after it.
             shutdown.Token.ThrowIfCancellationRequested();
-            // gui.yml moves before the update check and the state read, which both take what it held. While it is still there
-            // its switch decides, so a broken settings file never updates someone who turned updates off; a settings file
-            // whose values cannot be used means on (ADR 0016).
-            var preparing = Task.Run(() => (
-                AutoUpdate: GuiFileUpgrade.Run(dataDirectory, client, logger)
-                    ?? (Settings.Load(dataDirectory, logger) is { Error: null } settings ? settings.AutoUpdateEnabled.Value : true),
-                State: ReadGuiState()));
+            // gui.yml moves before the update check and before the window follows the GUI state, which both take what it held.
+            // While it is still there its switch decides, so a broken settings file never updates someone who turned updates
+            // off; a settings file whose values cannot be used means on (ADR 0016).
+            var preparing = Task.Run(async () => await GuiFileUpgrade.RunAsync(dataDirectory, client, logger)
+                ?? (Settings.Load(dataDirectory, logger) is { Error: null } settings ? settings.AutoUpdateEnabled.Value : true));
             startupWrites = preparing;
-            var (autoUpdate, read) = await preparing;
-            ShowGuiState(read);
+            var autoUpdate = await preparing;
+            ObserveGuiState();
             var check = autoUpdate ? Task.Run(() => updater.CheckAsync(shutdown.Token)) : Task.FromResult<ReleaseUpdate?>(null);
             nextReadDefersLogin = true;
             try { await ReadAccountCommand.ExecuteAsync(null).WaitAsync(TimeSpan.FromSeconds(3), clock, shutdown.Token); }
@@ -238,32 +229,29 @@ public partial class MainWindowViewModel : ObservableObject
         SendQueue.EndPending();
     }
 
-    internal GuiState ReadGuiState()
+    internal void ObserveGuiState()
     {
-        try { return client.GuiState.Load(); }
-        catch (Exception error)
-        {
-            logger.LogWarning(error, "读取{What}失败，使用默认值", GuiStateText);
-            return GuiState.Default;
-        }
+        if (shutdown.IsCancellationRequested || !guiStateUpdates.Current.IsCompleted) return;
+        guiStateUpdates.Follow(client.GuiState.GetUpdatesAsync, Show, logger, "GUI 状态订阅中断");
     }
 
-    /// <summary>Once per window: the room input stays empty until this fills it with the latest room connected. Later calls,
-    /// such as a read that finishes after a change, are ignored.</summary>
-    internal void ShowGuiState(GuiState state)
+    /// <summary>Core's first report fills the room input while it is still empty; later ones keep what is typed, which a changed
+    /// list could otherwise clear through the editable ComboBox's two-way Text binding.</summary>
+    private void Show(GuiState state)
     {
-        if (guiStateShown) return;
-        guiStateShown = true;
-        // Not through the setters, so showing what was read does not save it back.
+        var input = guiState is null && RoomNumber == "" ? state.RecentRooms.FirstOrDefault() ?? "" : RoomNumber;
         guiState = state;
         OnPropertyChanged(nameof(KeepRecentDanmaku));
         OnPropertyChanged(nameof(RecentRooms));
-        RoomNumber = RecentRooms.FirstOrDefault() ?? "";
+        // One Reset instead of a RemoveAt(0) event per dropped item after hours unchecked.
+        if (state.KeepRecentDanmaku && Danmaku.Count > RecentDanmakuLimit) Danmaku = new(Danmaku.TakeLast(RecentDanmakuLimit));
+        RoomNumber = input;
     }
 
-    private void SaveGuiState()
+    // Core reports a change whether or not saving it works, so a failure is only reported.
+    private async Task SaveGuiStateAsync(Task saving)
     {
-        try { client.GuiState.Save(guiState); }
+        try { await saving; }
         catch (Exception error)
         {
             logger.LogError(error, "保存{What}失败", GuiStateText);
@@ -272,20 +260,7 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void RemoveRecentRoom(string room)
-    {
-        // Removing the selected item can clear the editable ComboBox's two-way Text binding.
-        var input = RoomNumber;
-        SaveRecentRooms([.. RecentRooms.Where(value => value != room)]);
-        RoomNumber = input;
-    }
-
-    private void SaveRecentRooms(ImmutableArray<string> rooms)
-    {
-        guiState = guiState with { RecentRooms = rooms };
-        OnPropertyChanged(nameof(RecentRooms));
-        SaveGuiState();
-    }
+    private void RemoveRecentRoom(string room) => _ = SaveGuiStateAsync(client.GuiState.ForgetRoomAsync(room));
 
     [RelayCommand(CanExecute = nameof(CanConnect))]
     private async Task ConnectAsync(CancellationToken cancellationToken)
@@ -393,9 +368,9 @@ public partial class MainWindowViewModel : ObservableObject
                     if (connectedAt is not null) OnPropertyChanged(nameof(Status));
                 }), null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
                 ConnectionState = RoomConnectionState.Connected;
-                // Auto-reconnects land here too; they leave the room first, so the recent rooms are not rewritten each time.
-                if (activeRoomNumber is { } room && !ConnectCommand.IsCancellationRequested && RecentRooms.FirstOrDefault() != room)
-                    SaveRecentRooms([room, .. RecentRooms]);
+                // Auto-reconnects land here too; Core leaves the latest room as it is.
+                if (activeRoomNumber is { } room && !ConnectCommand.IsCancellationRequested)
+                    _ = SaveGuiStateAsync(client.GuiState.RememberRoomAsync(room));
                 break;
             case Reconnecting:
                 ConnectionState = RoomConnectionState.Reconnecting;
@@ -487,7 +462,8 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     // Stop the web service first so later cleanup cannot hold its port; finish draws, and end a running 礼物榜 期, before
-    // disconnecting the room they require. A step that fails is only logged: the window is closing all the same.
+    // disconnecting the room they require; let Core's regions finish last, so the last change is saved. A step that fails is
+    // only logged: the window is closing all the same.
     public async Task ShutdownAsync()
     {
         RunShutdownStep("取消进行中的操作", shutdown.Cancel);
@@ -508,6 +484,7 @@ public partial class MainWindowViewModel : ObservableObject
         await RunShutdownStepAsync("等重连结束", () => ReconnectCommand.ExecutionTask ?? Task.CompletedTask);
         await RunShutdownStepAsync("等退出登录结束", () => LogoutCommand.ExecutionTask ?? Task.CompletedTask);
         await RunShutdownStepAsync("等登录结束", () => LoginCommand.ExecutionTask ?? Task.CompletedTask);
+        await RunShutdownStepAsync("等所有区域做完", client.IdleAsync);
     }
 
     private async Task RunShutdownStepAsync(string step, Func<Task> run)

@@ -35,7 +35,13 @@ internal sealed class GuiHarness : IDisposable
     /// <summary>Where releases before ADR 0016 kept the GUI's own settings; only the upgrade reads it.</summary>
     public string LegacyGuiFile => Path.Combine(DataDirectory, "gui.yml");
 
-    public GuiState LoadGuiState() => client.GuiState.Load();
+    /// <summary>What the database holds, read beside the client's own region.</summary>
+    public GuiState LoadGuiState() => GuiStates.Load();
+
+    /// <summary>Saves what an earlier run left, before a window follows the GUI state.</summary>
+    public void SaveGuiState(GuiState state) => GuiStates.Save(state);
+
+    private GuiStateStore GuiStates => new(new Database(DataDirectory));
 
     /// <summary>GitHub for the auto-update check, which only a release build makes; see <see cref="ReleaseVersion"/>.</summary>
     public FakeGitHub GitHub { get; } = new();
@@ -51,8 +57,8 @@ internal sealed class GuiHarness : IDisposable
         var viewModel = new MainWindowViewModel(client, NullLogger<MainWindowViewModel>.Instance, clock, updater);
         if (!keepSplashTiming)
         {
-            // What the start reads behind the splash, shown at once: these tests skip the splash, and many open no window.
-            viewModel.ShowGuiState(viewModel.ReadGuiState());
+            // What the start follows behind the splash, followed at once: these tests skip the splash, and many open no window.
+            viewModel.ObserveGuiState();
             viewModel.SplashMinimumDuration = TimeSpan.Zero;
             viewModel.SplashFadeDuration = TimeSpan.Zero;
             viewModel.SplashOpacity = 0;
@@ -141,12 +147,13 @@ internal sealed class GuiHarness : IDisposable
         Settings.Save(DataDirectory, saved);
     }
 
-    public void SaveRecentRooms(params string[] rooms) => client.GuiState.Save(LoadGuiState() with { RecentRooms = [.. rooms] });
+    public void SaveRecentRooms(params string[] rooms) => SaveGuiState(LoadGuiState() with { RecentRooms = [.. rooms] });
 
-    /// <summary>Makes every later read or write of the GUI state fail, as a damaged database would.</summary>
-    public void BreakGuiState()
+    /// <summary>Makes every later write of the GUI state fail, as a damaged database would, once Core has read what it needs.</summary>
+    public async Task BreakGuiStateAsync()
     {
-        client.GuiState.Load();
+        await client.IdleAsync();
+        LoadGuiState();
         using var connection = OpenDatabase();
         using var command = connection.CreateCommand();
         command.CommandText = "DROP TABLE gui_state";
@@ -233,6 +240,13 @@ internal sealed class GuiHarness : IDisposable
         await viewModel.ReadAccountCommand.ExecutionTask!;
     }
 
+    /// <summary>Waits until Core has run every step queued, then lets the window show what they reported.</summary>
+    public async Task IdleAsync()
+    {
+        await client.IdleAsync();
+        Flush();
+    }
+
     public static Task WaitForAsync(Func<bool> condition) => WaitForAsync(() => Task.FromResult(condition()));
 
     public static async Task WaitForAsync(Func<Task<bool>> condition)
@@ -247,6 +261,8 @@ internal sealed class GuiHarness : IDisposable
 
     public void Dispose()
     {
+        // Core's steps write data/, deleted below; steps never need this thread, so waiting here cannot hang.
+        client.IdleAsync().GetAwaiter().GetResult();
         client.Dispose();
         if (Directory.Exists(DataDirectory)) Directory.Delete(DataDirectory, recursive: true);
         if (Directory.Exists(ProgramDirectory)) Directory.Delete(ProgramDirectory, recursive: true);

@@ -13,7 +13,7 @@ internal static class GuiFileUpgrade
     private static readonly IDeserializer Deserializer = new DeserializerBuilder().Build();
 
     /// <summary>The auto-update switch gui.yml held, which this start goes by; null once there is no gui.yml.</summary>
-    public static bool? Run(string dataDirectory, AetherClient client, ILogger logger)
+    public static async Task<bool?> RunAsync(string dataDirectory, AetherClient client, ILogger logger)
     {
         var path = Path.Combine(dataDirectory, "gui.yml");
         if (!File.Exists(path)) return null;
@@ -29,20 +29,25 @@ internal static class GuiFileUpgrade
         // The settings file first, the database only once it took the switch: while the file cannot take it, each start
         // would otherwise put gui.yml's old rooms back over the ones remembered since.
         // Load first, so a file without the group gets the template's section with its comment before the value is set.
-        var moved = Try(() =>
+        var moved = await TryAsync(() =>
         {
             Settings.Load(dataDirectory, logger);
             Settings.Save(dataDirectory, new Dictionary<string, string> { ["auto_update.enabled"] = Settings.BooleanText(autoUpdate) });
-        }, "自动更新开关") && Try(() => client.GuiState.Save(state), MainWindowViewModel.GuiStateText);
+            return Task.CompletedTask;
+        }, "自动更新开关") && await TryAsync(() => client.GuiState.ReplaceAsync(state), MainWindowViewModel.GuiStateText);
         // File.Delete ignores a file already gone, as when two windows start together.
-        if (moved) Try(() => File.Delete(path), "删除");
+        if (moved) await TryAsync(() =>
+        {
+            File.Delete(path);
+            return Task.CompletedTask;
+        }, "删除");
         return autoUpdate;
 
-        bool Try(Action move, string what)
+        async Task<bool> TryAsync(Func<Task> move, string what)
         {
             try
             {
-                move();
+                await move();
                 return true;
             }
             catch (Exception error)
