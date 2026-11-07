@@ -108,6 +108,34 @@ public sealed class LotteryPanelTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task Saving_a_prize_set_reads_the_list_again_after_a_read_failed() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        await h.SaveCredentialAsync();
+        using var connection = h.OpenDatabase();
+        using var command = connection.CreateCommand();
+        command.CommandText = "ALTER TABLE lottery_prize_set RENAME TO hidden";
+        command.ExecuteNonQuery();
+        var vm = h.CreateViewModel();
+        vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, TestLottery())));
+        try
+        {
+            vm.Lottery.ObservePrizeSets();
+            await h.IdleAsync();
+            Assert.StartsWith("读取奖品方案失败：", vm.Lottery.PoolLotteryError);
+            command.CommandText = "ALTER TABLE hidden RENAME TO lottery_prize_set";
+            command.ExecuteNonQuery();
+
+            Assert.True(await vm.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末"));
+            await h.IdleAsync();
+
+            Assert.Equal("周末", Assert.Single(vm.Lottery.PrizeSets).Name);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task A_new_lottery_forgets_the_chosen_prize_set() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();

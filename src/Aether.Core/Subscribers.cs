@@ -22,9 +22,14 @@ internal sealed class Subscribers<T>
         foreach (var subscriber in subscribers) subscriber.TryWrite(update);
     }
 
-    public void Complete()
+    public void Complete() => End(null);
+
+    /// <summary>Ends every reader with <paramref name="error"/>, as when what their updates are read from failed.</summary>
+    public void Fail(Exception error) => End(error);
+
+    private void End(Exception? error)
     {
-        foreach (var subscriber in subscribers) subscriber.TryComplete();
+        foreach (var subscriber in subscribers) subscriber.TryComplete(error);
         subscribers.Clear();
     }
 

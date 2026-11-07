@@ -31,6 +31,26 @@ public sealed class LotteryPrizeSetTests
         Assert.Null(restarted.Lottery.State.RoomId);
     }
 
+    // Saved once written: the list read after it that fails ends its readers with the failure, as a reader's first read does.
+    [Fact]
+    public async Task A_prize_set_stays_saved_when_the_list_cannot_be_read_after_it()
+    {
+        await using var h = new WatchHarness(enableStreamOverlay: true);
+        var token = TestContext.Current.CancellationToken;
+        await using var updates = h.Client.Lottery.GetPrizeSetUpdatesAsync(token).GetAsyncEnumerator(token);
+        Assert.True(await updates.MoveNextAsync());
+        using var database = TestDatabase.Open(h.DataDirectory);
+        using var command = database.CreateCommand();
+        command.CommandText = "INSERT INTO lottery_prize_set(mode, name, saved_at, content) VALUES ('pool', '坏的', '2026-11-08T00:00:00+00:00', '不是 JSON')";
+        command.ExecuteNonQuery();
+
+        await h.Client.Lottery.SavePrizeSetAsync(LotteryMode.Pool, "周末", [new("抱枕", 2, Grade.Grand)], []);
+
+        await Assert.ThrowsAnyAsync<System.Text.Json.JsonException>(async () => await updates.MoveNextAsync());
+        command.CommandText = "SELECT COUNT(*) FROM lottery_prize_set WHERE name = '周末'";
+        Assert.Equal(1L, command.ExecuteScalar());
+    }
+
     [Fact]
     public async Task Prize_set_validation_matches_starting_each_lottery()
     {

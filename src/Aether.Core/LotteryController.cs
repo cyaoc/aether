@@ -71,13 +71,24 @@ public sealed partial class LotteryController
         store().SavePrizeSet(new(mode, name.Trim(), time.GetUtcNow(),
             mode == LotteryMode.Pool ? prizes.ToImmutableArray() : [],
             mode == LotteryMode.Entry ? awards.ToImmutableArray() : []));
-        PrizeSetSubscribers.Publish(PrizeSets);
+        PublishPrizeSets();
     }
 
     internal void DeletePrizeSet(LotteryMode mode, string name)
     {
         store().DeletePrizeSet(mode, name);
-        PrizeSetSubscribers.Publish(PrizeSets);
+        PublishPrizeSets();
+    }
+
+    // The change is saved by now, so a list that cannot be read fails its readers, as their first read would, not the command.
+    private void PublishPrizeSets()
+    {
+        try { PrizeSetSubscribers.Publish(PrizeSets); }
+        catch (Exception error)
+        {
+            logger.LogWarning(error, "读取奖品方案失败：{Error}", error.Message);
+            PrizeSetSubscribers.Fail(error);
+        }
     }
 
     /// <summary>The room connection's lottery rides along: its database failing is logged, and danmaku keep coming. A failed

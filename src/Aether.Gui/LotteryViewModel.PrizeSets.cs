@@ -12,7 +12,8 @@ public partial class LotteryViewModel
 
     internal bool CanEdit(LotteryMode mode) => mode == LotteryMode.Pool ? CanEditPool : CanEditEntry;
 
-    /// <summary>Once a picker shows: Core reports the 奖品方案 now and after each save or delete.</summary>
+    /// <summary>Once a picker shows: Core reports the 奖品方案 now and after each save or delete. A save or delete follows them
+    /// again after a read failed.</summary>
     internal void ObservePrizeSets()
     {
         if (shutdown.IsCancellationRequested || !prizeSetUpdates.Current.IsCompleted) return;
@@ -28,6 +29,7 @@ public partial class LotteryViewModel
         if (!await TryChangeLotteryAsync(mode, lottery => lottery.SavePrizeSetAsync(mode, name, prizes, awards))) return false;
         PrizeSetPicker(mode).Choose(name.Trim(), saved: true);
         OnPropertyChanged(mode == LotteryMode.Pool ? nameof(PoolStatusText) : nameof(EntryStatusText));
+        ObservePrizeSets();
         return true;
     }
 
@@ -40,6 +42,7 @@ public partial class LotteryViewModel
             PrizeSetPicker(set.Mode).Choose(null);
             OnPropertyChanged(set.Mode == LotteryMode.Pool ? nameof(PoolStatusText) : nameof(EntryStatusText));
         }
+        ObservePrizeSets();
     }
 
     internal void LoadPrizeSet(LotteryPrizeSet set)
