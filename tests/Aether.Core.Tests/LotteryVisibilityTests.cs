@@ -57,7 +57,7 @@ public sealed class LotteryVisibilityTests
         await watch.DisposeAsync();
         await Assert.ThrowsAsync<InvalidOperationException>(lottery.HideAllDrawsFromStreamAsync);
         await Assert.ThrowsAsync<InvalidOperationException>(() => lottery.SetDrawHiddenFromStreamAsync(original.Id, true));
-        lottery.Dispose();
+        lottery.Stop();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(lottery.HideAllDrawsFromStreamAsync);
     }
 

@@ -93,12 +93,7 @@ public sealed class WebServiceFacade
     /// <inheritdoc cref="PlayEntry"/>
     internal void PlayGiftRound(GiftRoundEnded round, CancellationToken roomStopped) => region.Post(s => s.GiftAnimation.Enqueue(round, roomStopped));
 
-    /// <summary>Readers get what was reported so far, then end; later commands are dropped or cancelled.</summary>
-    internal void Stop()
-    {
-        region.Post(s => s.Subscribers.Complete());
-        region.Stop();
-    }
+    internal void Stop() => region.Stop();
 
     // Called in the Start step: Task.Run keeps every flow off the region's thread.
     private Task ServeAsync(HttpListener server, CancellationToken token) => Task.Run(() => Task.WhenAll(

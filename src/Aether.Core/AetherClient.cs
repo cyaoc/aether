@@ -283,7 +283,7 @@ public sealed partial class AetherClient : IDisposable
         catch { socket.Dispose(); throw; }
     }
 
-    public void Dispose() { WebService.Stop(); Lottery.Dispose(); GiftBoard.Stop(); GuiState.Stop(); account.Stop(); http.Dispose(); }
+    public void Dispose() { WebService.Stop(); Lottery.Stop(); GiftBoard.Stop(); GuiState.Stop(); account.Stop(); http.Dispose(); }
 }
 
 public static class AetherHosting

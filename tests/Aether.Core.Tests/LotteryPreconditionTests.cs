@@ -18,7 +18,7 @@ public sealed class LotteryPreconditionTests
         var lottery = h.Client.Lottery;
         await lottery.StartAsync(Prizes, "停");
         var before = lottery.State;
-        lottery.Dispose();
+        lottery.Stop();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => stop ? lottery.StopAsync() : lottery.CancelAsync());
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => lottery.StartEntryAsync(Awards, "抽奖"));
         await Assert.ThrowsAnyAsync<OperationCanceledException>(lottery.CloseEntriesAsync);

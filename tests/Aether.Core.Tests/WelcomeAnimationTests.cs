@@ -330,7 +330,7 @@ public sealed class WelcomeAnimationTests
         Assert.Equal("", await reader.ReadLineAsync(h.Stop.Token));
         Assert.Equal(1, h.Client.WebService.Status.LotteryConnections);
 
-        h.Client.Lottery.Dispose();
+        h.Client.Lottery.Stop();
         Assert.Null(await reader.ReadLineAsync(h.Stop.Token).AsTask().WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
         await Eventually.TrueAsync(() => h.Client.WebService.Status.LotteryConnections == 0);
         Assert.Equal(1, h.Client.WebService.Status.VideoConnections);

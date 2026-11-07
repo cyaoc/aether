@@ -80,10 +80,5 @@ public sealed class LotteryFacade
 
     internal void EndRoom(long roomId) => region.Post(s => s.EndRoom(roomId));
 
-    /// <summary>Every reader's updates end, and the timers stop; later commands are cancelled.</summary>
-    internal void Dispose()
-    {
-        region.Post(s => s.Dispose());
-        region.Stop();
-    }
+    internal void Stop() => region.Stop();
 }

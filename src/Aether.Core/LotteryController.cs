@@ -293,13 +293,4 @@ public sealed partial class LotteryController
     }
 
     private void Broadcast() => Subscribers.Publish(Update);
-
-    /// <summary>The region's last step: no timer fires again, and every reader's updates end.</summary>
-    internal void Dispose()
-    {
-        drawTimer?.Dispose();
-        ClearExample();
-        Subscribers.Complete();
-        PrizeSetSubscribers.Complete();
-    }
 }

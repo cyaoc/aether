@@ -29,6 +29,8 @@ internal sealed class Region<TState>
     // A step returns what to do once the snapshots show it, such as completing its Run.
     private readonly Channel<Func<TState, Action?>> steps = Channel.CreateUnbounded<Func<TState, Action?>>(new() { SingleReader = true });
     private readonly List<Action> snapshots = [];
+    // Each kind of update a reader subscribed to, which the stop ends.
+    private readonly HashSet<Action> readers = [];
     private readonly TState state;
     private readonly PendingSteps pending;
     private readonly ILogger logger;
@@ -80,8 +82,16 @@ internal sealed class Region<TState>
     [Obsolete(NoAwait, error: true)]
     public void Post(Func<TState, Task> step) => throw new NotSupportedException(NoAwait);
 
-    /// <summary>The steps already queued still run; later ones are dropped or cancelled.</summary>
-    public void Stop() => steps.Writer.TryComplete();
+    /// <summary>A last step ends every reader's updates, after what was reported so far; the steps queued before it still run,
+    /// and later ones are dropped or cancelled.</summary>
+    public void Stop()
+    {
+        Post(_ =>
+        {
+            foreach (var end in readers) end();
+        });
+        steps.Writer.TryComplete();
+    }
 
     /// <summary>What <paramref name="read"/> gives as the last step left the state (ADR 0017 convention 6), for anyone to read at
     /// any time; a step's Run completes once it shows. Made with the region, before its first step.</summary>
@@ -96,7 +106,11 @@ internal sealed class Region<TState>
     /// neither misses a change nor sees one twice; once it stops reading, a posted step takes it off.</summary>
     public IAsyncEnumerable<T> SubscribeAsync<T>(Func<TState, Subscribers<T>> subscribers, Func<TState, T> current,
         CancellationToken token) => Subscribers<T>.ReadAsync(
-            subscriber => Run(state => subscribers(state).Add(subscriber, current(state))),
+            subscriber => Run(state =>
+            {
+                readers.Add(subscribers(state).Complete);
+                subscribers(state).Add(subscriber, current(state));
+            }),
             subscriber => Post(state => subscribers(state).Remove(subscriber)), token);
 
     private bool Enqueue(Func<TState, Action?> step)
