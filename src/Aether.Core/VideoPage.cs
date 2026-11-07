@@ -6,26 +6,26 @@ namespace Aether.Core;
 
 /// <summary>The video page, outside the web service region: it plays <see cref="VideoQueue"/> one item at a time, serves the file
 /// playing and takes each page's report, handing the server's region a step whenever it touches the queue.</summary>
-internal sealed class VideoPage(ChannelReader<VideoQueue.Playback> queue, string dataDirectory) : WebPage("video")
+internal sealed class VideoPage(WebServer server, ChannelReader<VideoQueue.Playback> queue, string dataDirectory) : WebPage("video")
 {
     private const string FileRoutePrefix = "/video/files/";
 
     private string VideoPath(string fileName) => Settings.VideoFile(dataDirectory, fileName);
 
-    internal override async Task RunAsync(WebServer server, CancellationToken token)
+    internal override async Task RunAsync(CancellationToken token)
     {
         try
         {
-            await foreach (var item in queue.ReadAllAsync(token)) await PlayAsync(server, item, token);
+            await foreach (var item in queue.ReadAllAsync(token)) await PlayAsync(item, token);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }
         finally
         {
-            while (queue.TryRead(out var item)) Report(server, item, PlaybackState.Skipped, "视频页已停止");
+            while (queue.TryRead(out var item)) Report(item, PlaybackState.Skipped, "视频页已停止");
         }
     }
 
-    private async Task PlayAsync(WebServer server, VideoQueue.Playback item, CancellationToken token)
+    private async Task PlayAsync(VideoQueue.Playback item, CancellationToken token)
     {
         var exists = item.Content is not PlaybackContent.Video file || File.Exists(VideoPath(file.FileName));
         var report = new TaskCompletionSource<(PlaybackState State, string? Reason)>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -38,26 +38,25 @@ internal sealed class VideoPage(ChannelReader<VideoQueue.Playback> queue, string
                 ? new { id = item.Id, animation = animation.Identifier, nickname = animation.Nickname, volume }
                 : new { id = item.Id, volume };
             var sent = await server.BroadcastAsync(this, new(null, payload), token);
-            if (sent == 0) { Report(server, item, PlaybackState.Skipped, "没有推流软件连着"); return; }
-            Report(server, item, PlaybackState.Playing);
+            if (sent == 0) { Report(item, PlaybackState.Skipped, "没有推流软件连着"); return; }
+            Report(item, PlaybackState.Playing);
             try
             {
                 var (state, reason) = await report.Task.WaitAsync(TimeSpan.FromMinutes(2), server.Time, token);
                 if (state == PlaybackState.Stopped)
                     await server.BroadcastAsync(this, new("stop", new { id = item.Id }), token);
-                Report(server, item, state, reason);
+                Report(item, state, reason);
             }
-            catch (TimeoutException) { Report(server, item, PlaybackState.NoReport, "等了 2 分钟"); }
+            catch (TimeoutException) { Report(item, PlaybackState.NoReport, "等了 2 分钟"); }
         }
-        catch (OperationCanceledException) when (token.IsCancellationRequested) { Report(server, item, PlaybackState.Skipped, "视频页已停止"); }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { Report(item, PlaybackState.Skipped, "视频页已停止"); }
         finally { server.Region.Post(s => s.Video.Played()); }
     }
 
-    private static void Report(WebServer server, VideoQueue.Playback item, PlaybackState state, string? reason = null) =>
+    private void Report(VideoQueue.Playback item, PlaybackState state, string? reason = null) =>
         server.Region.Post(s => s.Video.Report(item, state, reason));
 
-    internal override async Task<bool> HandleAsync(WebServer server, HttpListenerRequest request, HttpListenerResponse response,
-        CancellationToken token)
+    internal override async Task<bool> HandleAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
     {
         var path = request.Url!.AbsolutePath;
         if (request.HttpMethod == "GET" && path.StartsWith(FileRoutePrefix, StringComparison.Ordinal))
@@ -75,15 +74,14 @@ internal sealed class VideoPage(ChannelReader<VideoQueue.Playback> queue, string
             catch (FileNotFoundException) { response.StatusCode = 404; }
             catch (DirectoryNotFoundException) { response.StatusCode = 404; }
         }
-        else if (request.HttpMethod == "POST" && path == "/video/report") await ReceiveReportAsync(server, request, response, token);
+        else if (request.HttpMethod == "POST" && path == "/video/report") await ReceiveReportAsync(request, response, token);
         else return false;
         return true;
     }
 
     private sealed record PageReport(string? Id, bool? Success, string? Reason);
 
-    private static async Task ReceiveReportAsync(WebServer server, HttpListenerRequest request, HttpListenerResponse response,
-        CancellationToken token)
+    private async Task ReceiveReportAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
     {
         if (request.Headers["Origin"] is { } origin && origin != new Uri(server.Status.Origin).GetLeftPart(UriPartial.Authority))
         { response.StatusCode = 403; return; }

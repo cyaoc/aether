@@ -17,7 +17,7 @@ public sealed class WebServiceFacade
         var queue = Channel.CreateUnbounded<VideoQueue.Playback>(new UnboundedChannelOptions { SingleReader = true });
         region = regions.Create(_ => new WebService(queue.Writer, regions.Time, regions.Logger));
         Lottery = new(this, lottery);
-        server = new(region, regions.Time, [new VideoPage(queue.Reader, dataDirectory), Lottery, new GiftBoardPage(giftBoard)]);
+        server = new(region, regions.Time, web => [new VideoPage(web, queue.Reader, dataDirectory), Lottery, new GiftBoardPage(giftBoard)]);
     }
 
     public LotteryPage Lottery { get; }

@@ -21,13 +21,14 @@ internal sealed class WebServer
     private readonly Func<WebServiceStatus> status;
     private readonly Func<Settings?> settings;
 
-    public WebServer(Region<WebService> region, TimeProvider time, IReadOnlyList<WebPage> pages)
+    /// <param name="pages">Makes the pages this server serves, given the server, which the video page plays through.</param>
+    public WebServer(Region<WebService> region, TimeProvider time, Func<WebServer, IReadOnlyList<WebPage>> pages)
     {
         Region = region;
         Time = time;
-        this.pages = pages;
         status = region.Snapshot(s => s.Status);
         settings = region.Snapshot(s => s.Settings);
+        this.pages = pages(this);
     }
 
     public Region<WebService> Region { get; }
@@ -79,7 +80,7 @@ internal sealed class WebServer
 
     // Called in the Start step: Task.Run keeps every flow off the region's thread.
     private Task ServeAsync(HttpListener server, CancellationToken token) => Task.Run(() => Task.WhenAll(
-        pages.Select(page => page.RunAsync(this, token)).Append(AcceptAsync(server, token)).Append(HeartbeatsAsync(token))));
+        pages.Select(page => page.RunAsync(token)).Append(AcceptAsync(server, token)).Append(HeartbeatsAsync(token))));
 
     private static string Frame(SseEvent message) =>
         (message.Name is null ? "" : "event: " + message.Name + "\n") + "data: " + JsonSerializer.Serialize(message.Data, Json) + "\n\n";
@@ -168,7 +169,7 @@ internal sealed class WebServer
             if (page is null) { response.StatusCode = 404; return; }
             if (request.HttpMethod == "GET" && path == $"/{page.Name}/events") keepOpen = await ConnectAsync(page, response, token);
             else if (!await ServeResourceAsync(page, request, response, token)
-                && !await page.HandleAsync(this, request, response, token)) response.StatusCode = 404;
+                && !await page.HandleAsync(request, response, token)) response.StatusCode = 404;
         }
         // On macOS, RemoteEndPoint throws SocketException once the client has reset the connection.
         catch (Exception error) when (error is IOException or HttpListenerException or SocketException or ObjectDisposedException or OperationCanceledException or UnauthorizedAccessException)
