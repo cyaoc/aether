@@ -19,7 +19,7 @@ public sealed class WebService : IDisposable
     private readonly TimeProvider timeProvider;
     private readonly ILogger logger;
     private readonly WebPage[] pages;
-    private readonly Subscribers<WebServiceUpdate> subscribers;
+    private readonly Subscribers<WebServiceUpdate> subscribers = new();
     private readonly HashSet<Connection> connections = [];
     private WebServiceStatus status = new(false, Settings.WebPort.Initial.Value, 0, 0, 0);
     private HttpListener? listener;
@@ -33,7 +33,6 @@ public sealed class WebService : IDisposable
     {
         this.timeProvider = timeProvider;
         this.logger = logger;
-        subscribers = new(Gate);
         Video = new(this, dataDirectory, timeProvider);
         Lottery = new(this, lottery);
         GiftBoard = new(giftBoard);
@@ -52,8 +51,9 @@ public sealed class WebService : IDisposable
     public WebServiceStatus Status { get { lock (Gate) return status; } }
 
     /// <summary>Subscribe independently of WatchAsync. The first update is the current service status.</summary>
-    public IAsyncEnumerable<WebServiceUpdate> GetUpdatesAsync(CancellationToken cancellationToken = default) =>
-        subscribers.SubscribeAsync(() => status, cancellationToken);
+    public IAsyncEnumerable<WebServiceUpdate> GetUpdatesAsync(CancellationToken cancellationToken = default) => Subscribers<WebServiceUpdate>.ReadAsync(
+        subscriber => { lock (Gate) subscribers.Add(subscriber, status); return Task.CompletedTask; },
+        subscriber => { lock (Gate) subscribers.Remove(subscriber); }, cancellationToken);
 
     /// <summary>Only a changed port restarts existing connections.</summary>
     public async Task StartAsync(int port)
@@ -122,7 +122,11 @@ public sealed class WebService : IDisposable
         }
     }
 
-    internal void Publish(WebServiceUpdate update) => subscribers.Publish(update);
+    // The video page also reports outside the gate.
+    internal void Publish(WebServiceUpdate update)
+    {
+        lock (Gate) subscribers.Publish(update);
+    }
 
     private void ConnectionsChanged()
     {
@@ -319,6 +323,6 @@ public sealed class WebService : IDisposable
     public void Dispose()
     {
         StopAsync().GetAwaiter().GetResult();
-        subscribers.Complete();
+        lock (Gate) subscribers.Complete();
     }
 }

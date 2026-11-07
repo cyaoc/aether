@@ -14,7 +14,7 @@ public sealed class GiftBoardController : IDisposable
     private readonly TimeProvider time;
     private readonly Func<long, Task<string>> faceOf;
     private readonly ILogger logger;
-    private readonly Subscribers<GiftBoardState> subscribers;
+    private readonly Subscribers<GiftBoardState> subscribers = new();
     private long? roomId;
     // The connected room's latest 期, and all its rows whatever the 上榜门槛 (which is applied when showing them), by row Id.
     private GiftBoardSnapshot board = Empty;
@@ -36,12 +36,12 @@ public sealed class GiftBoardController : IDisposable
         this.time = time;
         this.faceOf = faceOf;
         this.logger = logger;
-        subscribers = new(gate);
     }
 
     /// <summary>The current state first, then one per change.</summary>
-    public IAsyncEnumerable<GiftBoardState> GetUpdatesAsync(CancellationToken token = default) =>
-        subscribers.SubscribeAsync(State, token);
+    public IAsyncEnumerable<GiftBoardState> GetUpdatesAsync(CancellationToken token = default) => Subscribers<GiftBoardState>.ReadAsync(
+        subscriber => { lock (gate) subscribers.Add(subscriber, State()); return Task.CompletedTask; },
+        subscriber => { lock (gate) subscribers.Remove(subscriber); }, token);
 
     internal void Connect(long room)
     {

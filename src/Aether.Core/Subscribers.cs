@@ -3,33 +3,42 @@ using System.Threading.Channels;
 
 namespace Aether.Core;
 
-internal sealed class Subscribers<T>(object gate)
+/// <summary>The readers of one kind of update. It has no lock of its own: its owner adds, removes and publishes where it changes
+/// its state, which for a region is in its steps.</summary>
+internal sealed class Subscribers<T>
 {
-    private readonly List<Channel<T>> subscribers = [];
+    private readonly List<ChannelWriter<T>> subscribers = [];
 
-    public async IAsyncEnumerable<T> SubscribeAsync(Func<T> first, [EnumeratorCancellation] CancellationToken token)
+    public void Add(ChannelWriter<T> subscriber, T current)
     {
-        // shortcut: local readers use unbounded streams like WatchAsync; bound these if a stalled shell becomes a problem.
-        var updates = Channel.CreateUnbounded<T>();
-        try
-        {
-            lock (gate) { updates.Writer.TryWrite(first()); subscribers.Add(updates); }
-            await foreach (var update in updates.Reader.ReadAllAsync(token)) yield return update;
-        }
-        finally { lock (gate) subscribers.Remove(updates); }
+        subscriber.TryWrite(current);
+        subscribers.Add(subscriber);
     }
+
+    public void Remove(ChannelWriter<T> subscriber) => subscribers.Remove(subscriber);
 
     public void Publish(T update)
     {
-        lock (gate) foreach (var subscriber in subscribers) subscriber.Writer.TryWrite(update);
+        foreach (var subscriber in subscribers) subscriber.TryWrite(update);
     }
 
     public void Complete()
     {
-        lock (gate)
+        foreach (var subscriber in subscribers) subscriber.TryComplete();
+        subscribers.Clear();
+    }
+
+    /// <summary>One reader's updates: <paramref name="add"/> and <paramref name="remove"/> run where the owner changes the list.</summary>
+    public static async IAsyncEnumerable<T> ReadAsync(Func<ChannelWriter<T>, Task> add, Action<ChannelWriter<T>> remove,
+        [EnumeratorCancellation] CancellationToken token)
+    {
+        // shortcut: local readers use unbounded streams like WatchAsync; bound these if a stalled shell becomes a problem.
+        var updates = Channel.CreateUnbounded<T>();
+        await add(updates.Writer);
+        try
         {
-            foreach (var subscriber in subscribers) subscriber.Writer.TryComplete();
-            subscribers.Clear();
+            await foreach (var update in updates.Reader.ReadAllAsync(token)) yield return update;
         }
+        finally { remove(updates.Writer); }
     }
 }
