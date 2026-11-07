@@ -41,10 +41,29 @@ public sealed class LotteryThemeTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
+    public Task Pinned_results_turned_on_and_off_before_Core_reports_end_off() => HeadlessApp.Session.Dispatch(async () =>
+    {
+        using var h = new GuiHarness();
+        var vm = h.CreateViewModel();
+        vm.Lottery.ObserveLottery();
+        try
+        {
+            vm.Lottery.PinnedResults = true;
+            vm.Lottery.PinnedResults = false;
+            await h.IdleAsync();
+            Assert.False(vm.Lottery.LotteryState.PinnedResults);
+        }
+        finally { await vm.ShutdownAsync(); }
+        return true;
+    }, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task Both_panels_share_pinned_results_and_explain_what_will_be_shown() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var h = new GuiHarness();
         var vm = h.CreateViewModel();
+        // No start here, which would follow the lottery.
+        vm.Lottery.ObserveLottery();
         var panel = new LotteryPanel { DataContext = vm };
         var window = new Window { Content = panel, Width = 976, Height = 720 };
         window.Show();
@@ -81,6 +100,8 @@ public sealed class LotteryThemeTests
         var time = new FakeTimeProvider();
         using var h = new GuiHarness(time);
         var vm = h.CreateViewModel();
+        // Picked before the start, which follows the lottery behind the splash where the page cannot be used yet.
+        vm.Lottery.ObserveLottery();
         var page = new LotteryPanel { DataContext = vm };
         var window = new Window { Content = page, Width = 976, Height = 720 };
         window.Show();

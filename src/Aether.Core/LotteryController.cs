@@ -49,6 +49,7 @@ public sealed partial class LotteryController
 
     internal void SetPinnedResults(bool enabled)
     {
+        if (state.PinnedResults == enabled) return;
         state = state with { PinnedResults = enabled };
         Broadcast();
     }

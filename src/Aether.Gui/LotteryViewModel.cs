@@ -109,17 +109,11 @@ public partial class LotteryViewModel : ObservableObject
         else EntryLotteryError = message;
     }
 
-    internal void SelectLotteryTheme(LotteryTheme theme) => ShowAfterAsync(client.Lottery.SelectThemeAsync(theme)).RaiseFailure();
+    // Shown once Core reports it, like every other change.
+    internal void SelectLotteryTheme(LotteryTheme theme) => client.Lottery.SelectThemeAsync(theme).RaiseFailure();
 
     internal Task PlayLotteryExampleAsync() => shutdown.IsCancellationRequested ? Task.CompletedTask
-        : ShowAfterAsync(client.WebService.Lottery.PlayExampleAsync());
-
-    // Shown as soon as Core has made the change, without waiting for its report.
-    private async Task ShowAfterAsync(Task change)
-    {
-        await change;
-        Apply(new LotteryUpdate(client.Lottery.State));
-    }
+        : client.WebService.Lottery.PlayExampleAsync();
 
     private readonly LatestRun lotteryHistoryRead = new();
     private string? lotteryHistorySelection;

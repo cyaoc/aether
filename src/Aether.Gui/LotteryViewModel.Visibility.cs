@@ -5,13 +5,12 @@ namespace Aether.Gui;
 
 public partial class LotteryViewModel
 {
+    /// <summary>A change shows once Core reports it; Core skips one that changes nothing, so a second click before then counts.
+    /// </summary>
     public bool PinnedResults
     {
         get => LotteryState.PinnedResults;
-        set
-        {
-            if (value != PinnedResults) ShowAfterAsync(client.Lottery.SetPinnedResultsAsync(value)).RaiseFailure();
-        }
+        set => client.Lottery.SetPinnedResultsAsync(value).RaiseFailure();
     }
 
     public string PinnedResultsHint => PinnedResults ? "下面没变灰的，就是直播画面上挂着的" : "默认关；打开前可以先点‘全部不挂出’";
