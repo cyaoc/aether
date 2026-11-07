@@ -12,11 +12,15 @@ internal sealed class Region<TState>
     private readonly PendingSteps pending;
     private readonly ILogger logger;
 
-    public Region(TState state, PendingSteps pending, ILogger logger)
+    public Region(TState state, PendingSteps pending, ILogger logger) : this(_ => state, pending, logger) { }
+
+    /// <summary>For a state that posts steps to its own region, as its timers do when due: <paramref name="state"/> gets the
+    /// way to post one.</summary>
+    public Region(Func<Action<Action>, TState> state, PendingSteps pending, ILogger logger)
     {
         this.pending = pending;
         this.logger = logger;
-        _ = RunAsync(state);
+        _ = RunAsync(state(step => Post(_ => step())));
     }
 
     /// <summary>The step's result, once the steps before it have run; what it throws is thrown here. Cancelled once the region
