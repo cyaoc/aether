@@ -23,7 +23,7 @@ public sealed class GiftBoardLeavingTests
         {
             await ConnectAsync(h, viewModel);
             var started = clock.GetUtcNow();
-            h.Client.GiftBoard.StartNewPeriod(RoomId);
+            await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
             await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Running);
             clock.Advance(TimeSpan.FromHours(3));
 
@@ -49,8 +49,8 @@ public sealed class GiftBoardLeavingTests
         await ConnectAsync(h, viewModel);
         if (ended)
         {
-            h.Client.GiftBoard.StartNewPeriod(RoomId);
-            h.Client.GiftBoard.EndPeriod(RoomId);
+            await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
+            await h.Client.GiftBoard.EndPeriodAsync(RoomId);
         }
         var before = await h.Client.GiftBoard.CurrentAsync();
         await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Phase == before.Phase);
@@ -85,7 +85,7 @@ public sealed class GiftBoardLeavingTests
     private static Task ClosesDespite(Action<MainWindowViewModel> fail) => Run(async (h, clock, viewModel, window) =>
     {
         await ConnectAsync(h, viewModel);
-        h.Client.GiftBoard.StartNewPeriod(RoomId);
+        await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
         await GuiHarness.WaitForAsync(() => viewModel.GiftBoard.Running);
         fail(viewModel);
 

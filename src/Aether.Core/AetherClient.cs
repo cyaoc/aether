@@ -21,7 +21,7 @@ public sealed partial class AetherClient : IDisposable
     public GiftAnimation GiftAnimation { get; }
     public EntryAnimation EntryAnimation { get; }
     public LotteryController Lottery { get; }
-    public GiftBoardController GiftBoard { get; }
+    public GiftBoardFacade GiftBoard { get; }
     public GuiStateFacade GuiState { get; }
     private readonly AccountFacade account;
     private readonly Lazy<Stores> stores;
@@ -43,8 +43,8 @@ public sealed partial class AetherClient : IDisposable
                 new LotteryStore(database), new GiftBoardStore(database), new GuiStateStore(database));
         }, LazyThreadSafetyMode.PublicationOnly);
         Lottery = new(() => stores.Value.Lotteries, timeProvider, logger, random ?? Random.Shared);
-        GiftBoard = new(() => stores.Value.GiftBoards, timeProvider,
-            uid => Api(credential: null).GetFaceAsync(uid, CancellationToken.None), logger);
+        GiftBoard = new(new GiftBoardController(() => stores.Value.GiftBoards, timeProvider, logger),
+            uid => Api(credential: null).GetFaceAsync(uid, CancellationToken.None), steps, logger);
         WebService = new(dataDirectory, timeProvider, logger, Lottery, GiftBoard);
         WelcomeAnimation = new(WebService, timeProvider, logger);
         EntryAnimation = new(WebService, WelcomeAnimation, timeProvider, logger);
@@ -298,7 +298,7 @@ public sealed partial class AetherClient : IDisposable
         catch { socket.Dispose(); throw; }
     }
 
-    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); GiftBoard.Dispose(); GuiState.Stop(); account.Stop(); http.Dispose(); }
+    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); GiftBoard.Stop(); GuiState.Stop(); account.Stop(); http.Dispose(); }
 }
 
 public static class AetherHosting
