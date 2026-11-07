@@ -147,6 +147,8 @@ internal sealed class WatchHarness : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await Stop.CancelAsync();
+        // Core's steps write data/, deleted below.
+        await Client.IdleAsync();
         Client.Dispose();
         await Server.DisposeAsync();
         Stop.Dispose();
