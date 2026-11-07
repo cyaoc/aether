@@ -1,7 +1,6 @@
-using Aether.Core;
 using Aether.Core.Tests.Support;
 
-namespace Aether.Cli.Tests;
+namespace Aether.Core.Tests;
 
 // One at a time: sound cues drop when software rendering falls behind real time.
 [Collection("Animation in Chrome")]

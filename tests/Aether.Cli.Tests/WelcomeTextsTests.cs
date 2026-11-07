@@ -17,7 +17,7 @@ public sealed class WelcomeTextsTests
             ["welcome_danmaku.texts"] = Settings.TextListText(["欢迎{昵称}", "{@}欢迎回家"])
         });
         var sent = CaptureSends(h);
-        var watching = WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,
+        var watching = WatchCommand.RunAsync(h.Client, 6,
             _ => throw new InvalidOperationException("Already logged in"), h.Stop.Token);
         try
         {

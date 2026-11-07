@@ -1,7 +1,6 @@
-using Aether.Core;
 using Aether.Core.Tests.Support;
 
-namespace Aether.Cli.Tests;
+namespace Aether.Core.Tests;
 
 public sealed class VideoPageBrowserTests
 {

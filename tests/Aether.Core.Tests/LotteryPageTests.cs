@@ -12,7 +12,7 @@ public sealed class LotteryPageTests
     [InlineData(true)]
     public async Task State_push_includes_each_draw_visibility(bool hidden)
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var watch = await h.WatchConnectedAsync();
         h.Client.Lottery.Start([new("贴纸", 1, Grade.Third)], "停");

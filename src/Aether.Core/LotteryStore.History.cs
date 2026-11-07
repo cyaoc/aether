@@ -12,6 +12,15 @@ internal sealed partial class LotteryStore
         return ReadHistory(connection, transaction, roomId);
     }
 
+    /// <summary>The room of the lottery begun last, in any room; null before the first.</summary>
+    public long? LastLotteryRoom()
+    {
+        using var connection = database.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT room_id FROM lottery ORDER BY julianday(started_at) DESC, rowid DESC LIMIT 1";
+        return command.ExecuteScalar() is long room ? room : null;
+    }
+
     private static ImmutableArray<LotteryHistory> ReadHistory(SqliteConnection connection, SqliteTransaction transaction,
         long roomId)
     {

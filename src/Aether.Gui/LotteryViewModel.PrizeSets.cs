@@ -6,7 +6,6 @@ namespace Aether.Gui;
 public partial class LotteryViewModel
 {
     private readonly LatestRun prizeSetsRead = new();
-    private long? prizeSetsRoom;
     [ObservableProperty] private IReadOnlyList<LotteryPrizeSet> prizeSets = [];
     public PrizeSetPickerViewModel PoolPrizeSets { get; }
     public PrizeSetPickerViewModel EntryPrizeSets { get; }
@@ -16,15 +15,13 @@ public partial class LotteryViewModel
     internal Task RefreshPrizeSetsAsync()
     {
         if (shutdown.IsCancellationRequested) return Task.CompletedTask;
-        var roomId = CurrentOrLastRoomId;
-        if (prizeSetsRoom != roomId) { prizeSetsRoom = roomId; PrizeSets = []; }
         return prizeSetsRead.Start(async token =>
         {
             try
             {
                 if (token.IsCancellationRequested || shutdown.IsCancellationRequested) return;
-                var sets = await Task.Run<IReadOnlyList<LotteryPrizeSet>>(() => roomId is { } room
-                    ? [.. client.Lottery.GetPrizeSets(room, LotteryMode.Pool), .. client.Lottery.GetPrizeSets(room, LotteryMode.Entry)] : []);
+                var sets = await Task.Run<IReadOnlyList<LotteryPrizeSet>>(() =>
+                    [.. client.Lottery.GetPrizeSets(LotteryMode.Pool), .. client.Lottery.GetPrizeSets(LotteryMode.Entry)]);
                 if (!token.IsCancellationRequested && !shutdown.IsCancellationRequested) PrizeSets = sets;
             }
             catch (Exception error)
@@ -40,11 +37,9 @@ public partial class LotteryViewModel
     internal async Task<bool> SavePrizeSetAsync(LotteryMode mode, string name)
     {
         if (!CanEdit(mode)) return false;
-        var room = CurrentOrLastRoomId;
         var prizes = Prizes.Select(row => row.Value).ToArray();
         var awards = Awards.Select(row => row.Value).ToArray();
-        if (!await TryChangeLotteryAsync(mode, lottery => lottery.SavePrizeSet(
-            room ?? throw new InvalidOperationException("请先连接直播间。"), mode, name, prizes, awards))) return false;
+        if (!await TryChangeLotteryAsync(mode, lottery => lottery.SavePrizeSet(mode, name, prizes, awards))) return false;
         PrizeSetPicker(mode).Choose(name.Trim(), saved: true);
         OnPropertyChanged(mode == LotteryMode.Pool ? nameof(PoolStatusText) : nameof(EntryStatusText));
         await RefreshPrizeSetsAsync();
@@ -53,8 +48,8 @@ public partial class LotteryViewModel
 
     internal async Task DeletePrizeSetAsync(LotteryPrizeSet set)
     {
-        if (!CanEdit(set.Mode) || CurrentOrLastRoomId is not { } room) return;
-        if (!await TryChangeLotteryAsync(set.Mode, lottery => lottery.DeletePrizeSet(room, set.Mode, set.Name))) return;
+        if (!CanEdit(set.Mode)) return;
+        if (!await TryChangeLotteryAsync(set.Mode, lottery => lottery.DeletePrizeSet(set.Mode, set.Name))) return;
         if (PrizeSetPicker(set.Mode).Chosen == set.Name)
         {
             PrizeSetPicker(set.Mode).Choose(null);

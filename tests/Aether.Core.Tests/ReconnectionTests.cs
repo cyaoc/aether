@@ -180,7 +180,7 @@ public sealed class ReconnectionTests
         {
             connection.Open();
             using var command = connection.CreateCommand();
-            command.CommandText = "PRAGMA user_version = 8";
+            command.CommandText = $"PRAGMA user_version = {Database.CurrentVersion + 1}";
             command.ExecuteNonQuery();
         }
         using var client = new AetherClient(h.Http, h.Server.ConnectAsync, h.Time, h.Logger, h.DataDirectory);

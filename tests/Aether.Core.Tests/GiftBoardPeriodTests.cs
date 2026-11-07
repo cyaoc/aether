@@ -13,7 +13,7 @@ public sealed class GiftBoardPeriodTests
     [Fact]
     public async Task Before_the_first_period_nothing_is_recorded_or_shown()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
@@ -28,7 +28,7 @@ public sealed class GiftBoardPeriodTests
     [Fact]
     public async Task A_started_period_records_and_shows_the_gifts_sent_from_then_on()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "before"));
@@ -145,7 +145,7 @@ public sealed class GiftBoardPeriodTests
     [Fact]
     public async Task A_new_period_waits_for_the_running_one_to_end_and_only_an_ended_one_continues()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         var board = h.Client.GiftBoard;
@@ -215,11 +215,11 @@ public sealed class GiftBoardPeriodTests
     [Fact]
     public async Task A_room_connection_without_the_gift_board_records_nothing_for_it()
     {
-        await using var h = new WatchHarness(enableLotteryAndGiftBoard: true);
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using (var gui = await h.WatchConnectedAsync()) h.Client.GiftBoard.StartNewPeriod(RoomId);
 
-        h.EnableLotteryAndGiftBoard = false;
+        h.EnableStreamOverlay = false;
         await using var cli = await h.WatchConnectedAsync();
         await h.PushAndSyncAsync(cli, BlindGiftFixture.Ordinary());
 

@@ -11,7 +11,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Gift_rounds_use_settings_at_completion_and_same_viewer_can_queue_twice()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h);
         using var page = await Page.ConnectAsync(h);
@@ -45,7 +45,7 @@ public sealed class WelcomeAnimationTests
     [InlineData(30001, false)]
     public async Task Gift_queue_timeout_starts_when_round_ends(int milliseconds, bool plays)
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001);
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = "true" });
@@ -71,7 +71,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Gift_animation_test_play_ignores_switch_and_can_stop()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h);
         using var page = await Page.ConnectAsync(h);
         await using var observed = new Observations(h);
@@ -98,7 +98,7 @@ public sealed class WelcomeAnimationTests
 
     private static async Task AssertGiftAnimationAsync(string gift, string? expected)
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h);
         Settings.Save(h.DataDirectory, new Dictionary<string, string> {
@@ -124,7 +124,7 @@ public sealed class WelcomeAnimationTests
     [InlineData(50, null, "general-50", 3)]
     public async Task Entry_animation_uses_list_before_fan_club_level(int level, string? choice, string? expected, int guard)
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h);
         if (choice is not null) Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = choice });
@@ -136,12 +136,30 @@ public sealed class WelcomeAnimationTests
         else { var play = await page.NextAsync(); Assert.Equal(expected, play.Content); await page.ReportAsync(play); }
     }
 
+    [Fact]
+    public async Task A_room_connection_without_the_stream_overlay_plays_no_entry_and_ends_no_gift_round()
+    {
+        // As the CLI watches (ADR 0003): even with the video page up and both animations on, nothing reaches it.
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        await Start(h);
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = "true", ["gift_animation.tier_30_spend"] = "50" });
+        await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+        using var page = await Page.ConnectAsync(h);
+        await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
+        await h.PushAndSyncAsync(updates, EntryEffectFixture.Message("ENTRY_EFFECT", fanClubLevel: 50),
+            BlindGiftFixture.With(data => { data["blind_gift"] = null; data["total_coin"] = 10000; }));
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        await h.PushAndSyncAsync(updates);
+        await page.AssertNoPlayAsync();
+    }
+
     [Theory]
     [InlineData(30000, true)]
     [InlineData(30001, false)]
     public async Task Animation_uses_the_same_queue_timeout(int milliseconds, bool plays)
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         using var page = await Page.ConnectAsync(h);
         await using var observed = new Observations(h);
@@ -162,7 +180,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Animation_and_video_share_queue_reports_stop_and_latest_volume()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         using var page = await Page.ConnectAsync(h);
         var source = new PlaybackSource(h.Client.WebService, h.Time, h.Logger, "进场动画", true);
@@ -189,7 +207,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Enabling_animation_during_connection_applies_to_the_next_entry()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001);
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = "false" });
@@ -207,7 +225,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Disabled_animation_can_still_be_test_played()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = "false" });
         await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
@@ -221,7 +239,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Stopping_a_test_play_clears_every_video_page_advances_the_playback_queue_and_cannot_stop_real_entries()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001, 20002);
         await using var observed = new Observations(h);
@@ -252,7 +270,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Web_service_runs_with_welcome_animation_off_and_root_is_not_a_page()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         using var connected = await Page.ConnectAsync(h);
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.enabled"] = "false" });
@@ -268,7 +286,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Pages_count_separately_and_feature_changes_keep_existing_streams_connected()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
         using var lottery = await http.GetAsync("/lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
@@ -302,7 +320,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Finishing_the_lottery_stream_closes_only_its_connection_and_video_keeps_receiving_broadcasts()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         using var video = await Page.ConnectAsync(h);
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
@@ -327,7 +345,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Event_streams_preserve_retry_heartbeat_and_page_event_bytes()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
         using var lottery = await http.GetAsync("/lottery/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
@@ -364,7 +382,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Changing_the_port_restarts_the_service_and_drops_existing_streams()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
         using var page = await Page.ConnectAsync(h);
@@ -381,7 +399,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Concurrent_port_changes_keep_one_listener_and_stop_releases_every_port()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var time = new PausedTimerProvider(() => { entered.SetResult(); release.Wait(); });
@@ -420,7 +438,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Video_page_plays_an_unmapped_file_by_playback_id_and_retires_it_after_report()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h);
         File.WriteAllText(Path.Combine(h.DataDirectory, "videos", "shared.webm"), "shared bytes");
         using var page = await Page.ConnectAsync(h);
@@ -442,7 +460,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Animation_only_entries_push_mapped_viewers_including_the_bot_account()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001, 9876543210);
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation.fan_club_level"] = "0" });
@@ -462,7 +480,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Saving_the_switch_off_mid_connection_hands_over_nothing_and_logs_no_skips()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001);
         await using var updates = await h.WatchConnectedAsync();
@@ -477,7 +495,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Reentry_while_queued_or_playing_is_skipped_but_can_play_immediately_after_completion()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001, 20002);
         using var page = await Page.ConnectAsync(h);
@@ -500,7 +518,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task No_page_does_not_block_later_entries_or_test_plays()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001);
         await using var observed = new Observations(h);
@@ -525,7 +543,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Test_plays_neither_check_nor_hold_the_viewers_pending_entry()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001);
         using var page = await Page.ConnectAsync(h);
@@ -551,7 +569,7 @@ public sealed class WelcomeAnimationTests
     [InlineData(true)]
     public async Task Failed_or_unreported_entry_releases_the_viewer_immediately(bool timeout)
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001);
         using var page = await Page.ConnectAsync(h);
@@ -576,7 +594,7 @@ public sealed class WelcomeAnimationTests
     [InlineData(30001, false)]
     public async Task Queue_waits_for_report_and_skips_only_after_thirty_seconds(int milliseconds, bool plays)
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001, 20002);
         using var page = await Page.ConnectAsync(h);
@@ -599,7 +617,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Any_page_can_report_failure_and_late_reports_cannot_finish_the_next_playback()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001, 20002);
         await using var observed = new Observations(h);
         using var firstPage = await Page.ConnectAsync(h);
@@ -624,7 +642,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Heartbeats_drop_disconnected_pages_and_release_the_current_playback()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001, 20002);
         await using var observed = new Observations(h);
         var page = await Page.ConnectAsync(h);
@@ -651,7 +669,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Unreported_playback_times_out_after_two_minutes_and_page_can_play_again()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         await using var observed = new Observations(h);
         using var page = await Page.ConnectAsync(h);
@@ -668,7 +686,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task A_new_room_connection_discards_old_pending_entries()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001, 20002);
         using var page = await Page.ConnectAsync(h);
@@ -693,11 +711,11 @@ public sealed class WelcomeAnimationTests
     [InlineData(true)]
     public async Task Port_in_use_reports_warning_but_the_room_still_connects(bool rawSocket)
     {
-        await using var first = new WatchHarness();
+        await using var first = new WatchHarness(enableStreamOverlay: true);
         await Start(first, 10001);
         using var tcp = new TcpListener(Dns.GetHostAddresses("localhost")[0], 0) { ExclusiveAddressUse = true };
         tcp.Start();
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         var port = rawSocket ? ((IPEndPoint)tcp.LocalEndpoint).Port : new Uri(first.Client.WebService.Status.Origin).Port;
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
@@ -715,7 +733,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Missing_video_is_skipped_without_counting_and_page_can_restart_on_the_same_port()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await Start(h, 10001);
         await using var observed = new Observations(h);
@@ -742,7 +760,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Reset_clients_do_not_prevent_the_page_from_restarting_and_playing()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         var address = new Uri(h.Client.WebService.Status.Origin);
         // A bodyless 404 writes its headers in Close(), after the client may have reset the connection.
@@ -766,7 +784,7 @@ public sealed class WelcomeAnimationTests
     [Fact]
     public async Task Http_serves_only_mapped_videos_rejects_other_hosts_and_validates_reports()
     {
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await Start(h, 10001);
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new Uri(h.Client.WebService.Status.Origin) };
         var html = await http.GetStringAsync("/video", h.Stop.Token);

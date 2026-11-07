@@ -6,7 +6,7 @@ namespace Aether.Core;
 internal sealed class Database
 {
     /// <summary>The user_version the last upgrade step below sets; a database above it comes from a newer release.</summary>
-    public const long CurrentVersion = 7;
+    public const long CurrentVersion = 8;
 
     private readonly string connectionString;
 
@@ -160,6 +160,36 @@ internal sealed class Database
                 ALTER TABLE gift_record ADD COLUMN viewer_guard_level INTEGER NOT NULL DEFAULT 0;
                 UPDATE gift_record SET viewer_guard_level = guard_level;
                 PRAGMA user_version = 7;
+                """;
+            command.ExecuteNonQuery();
+        }
+        if (version < 8)
+        {
+            // gui_state: what the GUI keeps between runs (ADR 0016), one row; recent_rooms is a JSON array of the room numbers
+            // as typed, the latest connected first. 奖品方案 stop being kept per room: a name two rooms shared stays with the
+            // set saved last, and each other set gets its room in its name, so none is lost. Should a set already have that
+            // name, its save date goes in too, so the upgrade never fails on the new constraint.
+            command.CommandText = """
+                CREATE TABLE gui_state (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    keep_recent_danmaku INTEGER NOT NULL,
+                    recent_rooms TEXT NOT NULL
+                );
+                INSERT INTO gui_state VALUES (1, 1, '[]');
+                CREATE TABLE lottery_prize_set_v8 (
+                    mode TEXT NOT NULL, name TEXT NOT NULL, saved_at TEXT NOT NULL, content TEXT NOT NULL,
+                    UNIQUE(mode, name)
+                );
+                INSERT INTO lottery_prize_set_v8 (mode, name, saved_at, content)
+                SELECT mode, CASE
+                    WHEN row_number() OVER (PARTITION BY mode, name ORDER BY julianday(saved_at) DESC, rowid DESC) = 1 THEN name
+                    WHEN NOT EXISTS (SELECT 1 FROM lottery_prize_set taken WHERE taken.mode = s.mode
+                        AND taken.name = s.name || '（直播间 ' || s.room_id || '）') THEN name || '（直播间 ' || room_id || '）'
+                    ELSE name || '（直播间 ' || room_id || '，' || substr(saved_at, 1, 10) || '）' END, saved_at, content
+                FROM lottery_prize_set s ORDER BY rowid;
+                DROP TABLE lottery_prize_set;
+                ALTER TABLE lottery_prize_set_v8 RENAME TO lottery_prize_set;
+                PRAGMA user_version = 8;
                 """;
             command.ExecuteNonQuery();
         }

@@ -935,7 +935,7 @@ public sealed class SettingsPageTests
             Assert.Equal("下次连接直播间时生效", GuiHarness.FindVisual<TextBlock>(window, "TimingHint").Text);
             input.IsChecked = false;
             GuiHarness.FindVisual<Button>(window, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(line is null ? before.Replace("  enabled: true\n", "  enabled: true\n  announce: false\n")
+            Assert.Equal(line is null ? before.Replace("blind_box:\n  enabled: true\n", "blind_box:\n  enabled: true\n  announce: false\n")
                 : before.Replace("announce: true", "announce: false"), File.ReadAllText(path));
             Assert.False(Settings.Load(Path.GetDirectoryName(path)!).BlindBoxAnnounce.Value);
         });
@@ -952,7 +952,7 @@ public sealed class SettingsPageTests
             Assert.True(window.FindControl<TextBlock>("AnnounceReadOnly")!.IsVisible);
             window.FindControl<ToggleSwitch>("BlindBoxInput")!.IsChecked = false;
             GuiHarness.FindVisual<Button>(window, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("enabled: true", "enabled: false"), File.ReadAllText(path));
+            Assert.Equal(before.Replace("    false\n  enabled: true", "    false\n  enabled: false"), File.ReadAllText(path));
         });
 
     [Fact]
@@ -991,7 +991,7 @@ public sealed class SettingsPageTests
             yearly.Text = "查年盲盒";
             Dispatcher.UIThread.RunJobs();
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n  yearly_keyword: 查年盲盒\n"), File.ReadAllText(path));
+            Assert.Equal(before.Replace("blind_box:\n  enabled: true\n", "blind_box:\n  enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n  yearly_keyword: 查年盲盒\n"), File.ReadAllText(path));
             ((Window)TopLevel.GetTopLevel(window)!).Content = send;
             GuiHarness.Flush();
             save = GuiHarness.FindVisual<Button>(send, "PART_SaveButton");
@@ -1004,7 +1004,7 @@ public sealed class SettingsPageTests
             Dispatcher.UIThread.RunJobs();
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n  yearly_keyword: 查年盲盒\n")
+            Assert.Equal(before.Replace("blind_box:\n  enabled: true\n", "blind_box:\n  enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n  yearly_keyword: 查年盲盒\n")
                 .Replace("interval_seconds: 1", "interval_seconds: 7"), File.ReadAllText(path));
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
             Assert.Equal("查盲盒", settings.BlindBoxDailyKeyword.Value);
@@ -1075,39 +1075,37 @@ public sealed class SettingsPageTests
         });
 
     [Fact]
-    public Task Auto_update_is_on_without_gui_settings_and_saves_to_them_only_with_the_page() =>
+    public Task Auto_update_is_on_by_default_and_saves_to_the_settings_file_only_with_the_page() =>
         WithSettingsPage(dir => new GeneralSettingsPage(dir), null, (page, path) =>
         {
             var dataDirectory = Path.GetDirectoryName(path)!;
-            var guiSettings = Path.Combine(dataDirectory, "gui.yml");
             var input = page.FindControl<ToggleSwitch>("AutoUpdateInput")!;
             Assert.True(input.IsChecked);
+            Assert.False(page.FindControl<TextBlock>("AutoUpdateReadOnly")!.IsVisible);
             input.IsChecked = false;
             GuiHarness.Flush();
             Assert.Equal("有未保存的修改", GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").Text);
             Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
-            Assert.False(File.Exists(guiSettings));
+            Assert.True(Settings.Load(dataDirectory).AutoUpdateEnabled.Value);
             GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Contains("AutoUpdate: false", File.ReadAllText(guiSettings));
+            Assert.False(Settings.Load(dataDirectory).AutoUpdateEnabled.Value);
             Assert.Equal("已保存。", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
             Assert.False(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
             Assert.False(new GeneralSettingsPage(dataDirectory).FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked);
-            Assert.DoesNotContain("update", File.ReadAllText(path), StringComparison.OrdinalIgnoreCase);
+            Assert.False(File.Exists(Path.Combine(dataDirectory, "gui.yml")));
         });
 
     [Fact]
-    public Task Saving_other_general_settings_leaves_gui_settings_alone() =>
-        WithSettingsPage(dir => new GeneralSettingsPage(dir), null, (page, path) =>
+    public Task Auto_update_written_over_lines_is_read_only() =>
+        WithSettingsPage(dir => new GeneralSettingsPage(dir), "auto_update:\n  enabled: |-\n    false\n", (page, _) =>
         {
-            page.FindControl<NumericUpDown>("RetentionInput")!.Text = "14";
-            Dispatcher.UIThread.RunJobs();
-            GuiHarness.FindVisual<Button>(page, "PART_SaveButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(14, Settings.Load(Path.GetDirectoryName(path)!).LogRetentionDays.Value);
-            Assert.False(File.Exists(Path.Combine(Path.GetDirectoryName(path)!, "gui.yml")));
+            Assert.False(page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked);
+            Assert.False(page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsEnabled);
+            Assert.True(page.FindControl<TextBlock>("AutoUpdateReadOnly")!.IsVisible);
         });
 
     [Fact]
-    public Task Main_window_keeps_saved_auto_update_when_it_saves_gui_settings_itself() =>
+    public Task Saving_the_page_and_the_danmaku_switch_never_writes_gui_yml() =>
         HeadlessApp.Session.Dispatch(async () =>
         {
             using var harness = new GuiHarness();
@@ -1124,36 +1122,9 @@ public sealed class SettingsPageTests
                 page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked = false;
                 await GuiHarness.SaveAsync(page);
                 viewModel.KeepRecentDanmaku = false;
-                Assert.False(harness.LoadSettings().AutoUpdate);
-                Assert.False(harness.LoadSettings().KeepRecentDanmaku);
-            }
-            finally { await viewModel.ShutdownAsync(); main.Close(); Dispatcher.UIThread.RunJobs(); }
-            return true;
-        }, TestContext.Current.CancellationToken);
-
-    [Fact]
-    public Task Auto_update_that_gui_settings_could_not_save_goes_back_to_the_saved_value() =>
-        HeadlessApp.Session.Dispatch(async () =>
-        {
-            using var harness = new GuiHarness();
-            await harness.SaveCredentialAsync();
-            harness.SaveSettings();
-            var viewModel = harness.CreateViewModel();
-            var main = new MainWindow(harness.DataDirectory) { DataContext = viewModel };
-            main.Show();
-            try
-            {
-                main.Navigation.SelectedIndex = 7;
-                GuiHarness.Flush();
-                var page = main.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
-                var input = page.FindControl<ToggleSwitch>("AutoUpdateInput")!;
-                // A directory where gui.yml goes fails its save.
-                Directory.CreateDirectory(harness.SettingsFile);
-                input.IsChecked = false;
-                await GuiHarness.SaveAsync(page);
-                Assert.True(viewModel.GuiSettings.AutoUpdate);
-                Assert.True(input.IsChecked);
-                Assert.NotEqual("已保存。", GuiHarness.FindVisual<TextBlock>(page, "Message").Text);
+                Assert.False(Settings.Load(harness.DataDirectory).AutoUpdateEnabled.Value);
+                Assert.False(harness.LoadGuiState().KeepRecentDanmaku);
+                Assert.False(File.Exists(harness.LegacyGuiFile));
             }
             finally { await viewModel.ShutdownAsync(); main.Close(); Dispatcher.UIThread.RunJobs(); }
             return true;

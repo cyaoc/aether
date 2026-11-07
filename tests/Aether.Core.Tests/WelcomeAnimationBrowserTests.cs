@@ -1,39 +1,20 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
-using Aether.Core;
 using Aether.Core.Tests.Support;
 
-namespace Aether.Cli.Tests;
+namespace Aether.Core.Tests;
 
 public sealed class WelcomeAnimationBrowserTests
 {
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Watch_starts_web_service_for_gift_animation_alone(bool giftEnabled)
-    {
-        await using var h = new WatchHarness();
-        await h.LoginAsync();
-        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = Settings.BooleanText(giftEnabled), ["web_service.port"] = Aether.Core.Tests.WelcomeAnimationTests.FreePort().ToString() });
-        var watching = WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,
-            _ => throw new InvalidOperationException("Already logged in"), h.Stop.Token);
-        try
-        {
-            await h.WaitForLogAsync("已连接弹幕服务器");
-            Assert.Equal(giftEnabled, h.Client.WebService.Status.Running);
-        }
-        finally { await h.Stop.CancelAsync(); await watching; }
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Watch_delivers_an_entry_to_the_production_page_and_Chrome_reports_completed_playback(bool defaultHttpPort)
+    public async Task An_entry_reaches_the_production_page_and_Chrome_reports_completed_playback(bool defaultHttpPort)
     {
         var chrome = Environment.GetEnvironmentVariable("AETHER_TEST_CHROME");
         if (string.IsNullOrEmpty(chrome)) Assert.Skip("Set AETHER_TEST_CHROME to a local Chrome executable for browser acceptance.");
-        await using var h = new WatchHarness();
+        await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         using var availablePort = new TcpListener(Dns.GetHostAddresses("localhost")[0], defaultHttpPort ? 80 : 0) { ExclusiveAddressUse = true };
         try { availablePort.Start(); }
@@ -49,24 +30,21 @@ public sealed class WelcomeAnimationBrowserTests
         Directory.CreateDirectory(videos);
         File.Copy(Path.Combine(AppContext.BaseDirectory, "Fixtures", "welcome.mp4"), Path.Combine(videos, "welcome.mp4"));
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["entry_animation_viewers.10001"] = "welcome.mp4" });
-        var output = Console.Out;
-        using var captured = new StringWriter();
-        Console.SetOut(TextWriter.Synchronized(captured));
-        Task watching = Task.CompletedTask;
         Process? browser = null;
         var browserErrors = new System.Collections.Concurrent.ConcurrentQueue<string>();
         try
         {
-            watching = WatchCommand.RunAsync(h.Client, Settings.Load(h.DataDirectory), 6,
-                _ => throw new InvalidOperationException("Already logged in"), h.Stop.Token);
-            await h.WaitForLogAsync("已连接弹幕服务器");
+            // As the GUI does: the web service starts on its own, then the room connection runs the 直播画面功能.
+            await h.Client.ApplyWebSettingsAsync(Settings.Load(h.DataDirectory));
+            await using var updates = await h.WatchConnectedAsync();
             await using var statusUpdates = h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
             Assert.True(await statusUpdates.MoveNextAsync());
             var status = Assert.IsType<WebServiceStatus>(statusUpdates.Current);
             Assert.True(status.Running, status.Error);
+            Assert.Equal($"http://localhost:{port}/video", status.VideoAddress);
             var start = new ProcessStartInfo(chrome) { UseShellExecute = false, RedirectStandardError = true, RedirectStandardOutput = true };
             foreach (var argument in new[] { "--headless", "--no-first-run", "--no-default-browser-check",
-                "--autoplay-policy=no-user-gesture-required", "--user-data-dir=" + Path.Combine(h.DataDirectory, "chrome"), h.Client.WebService.Status.VideoAddress })
+                "--autoplay-policy=no-user-gesture-required", "--user-data-dir=" + Path.Combine(h.DataDirectory, "chrome"), status.VideoAddress })
                 start.ArgumentList.Add(argument);
             browser = Process.Start(start)!;
             browser.ErrorDataReceived += (_, e) => { if (e.Data is { } line) browserErrors.Enqueue(line); };
@@ -79,15 +57,13 @@ public sealed class WelcomeAnimationBrowserTests
             }
             await h.Server.PushRoomMessageAsync(EntryV2Fixture.Message());
             await h.WaitForLogAsync("已播放");
-            Assert.Contains($"视频页：http://localhost:{port}/video", captured.ToString());
             Assert.DoesNotContain(h.Logger.Entries, entry => entry.Message.Contains("播放失败"));
             Assert.Contains(h.Logger.Entries, entry => entry.Message.Contains("试播=False") && entry.Message.Contains("已播放"));
         }
         finally
         {
             await h.Stop.CancelAsync();
-            await watching;
-            Console.SetOut(output);
+            await h.Client.WebService.StopAsync();
             if (browser is not null)
             {
                 if (!browser.HasExited) browser.Kill(entireProcessTree: true);

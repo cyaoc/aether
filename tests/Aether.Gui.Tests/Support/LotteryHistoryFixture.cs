@@ -21,9 +21,6 @@ internal static class LotteryHistoryFixture
     internal static async Task SeedAsync(GuiHarness h)
     {
         await h.SaveCredentialAsync();
-        var settings = h.LoadSettings();
-        settings.LastLotteryRoomId = 7734200;
-        settings.Save();
         using var connection = new SqliteConnection($"Data Source={Path.Combine(h.DataDirectory, "aether.db")};Pooling=False");
         connection.Open();
         using var transaction = connection.BeginTransaction();
@@ -63,9 +60,10 @@ internal static class LotteryHistoryFixture
             var draw = new PoolDraw($"pool-{index}", prize, uids[index], names[index], true, At.AddDays(-2).AddMinutes(index), []);
             Execute("INSERT INTO lottery_draw (id, lottery_id, result) VALUES ($id, 'pool', $result)", ("$id", draw.Id), ("$result", JsonSerializer.Serialize(draw)));
         }
-        // Other rooms must not leak into the current room's count or selected details.
+        // Other rooms must not leak into the current room's count or selected details. Held before the others, so
+        // without a room connection the history shows 7734200, where the last lottery was held.
         Execute("INSERT INTO lottery (id, room_id, mode, stop_word, started_at, phase) VALUES ('other', 999, 'pool', '开', $at, 0)",
-            ("$at", At.AddDays(1).ToString("O")));
+            ("$at", At.AddDays(-3).ToString("O")));
         transaction.Commit();
     }
 }

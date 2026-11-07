@@ -15,7 +15,7 @@ public sealed class RecentRoomsTests
         var viewModel = harness.CreateViewModel();
         viewModel.RemoveRecentRoomCommand.Execute(room);
         Assert.Equal(expected, viewModel.RecentRooms);
-        Assert.Equal(expected, harness.LoadSettings().RecentRooms);
+        Assert.Equal(expected, harness.LoadGuiState().RecentRooms);
         await viewModel.ShutdownAsync();
     }
 
@@ -25,11 +25,10 @@ public sealed class RecentRoomsTests
         using var harness = new GuiHarness();
         harness.SaveRecentRooms("6", "42");
         var viewModel = harness.CreateViewModel();
-        File.Delete(harness.SettingsFile);
-        Directory.CreateDirectory(harness.SettingsFile);
+        harness.BreakGuiState();
         viewModel.RemoveRecentRoomCommand.Execute("6");
         Assert.Equal(["42"], viewModel.RecentRooms);
-        Assert.StartsWith("保存 GUI 设置失败：", viewModel.Message);
+        Assert.StartsWith("保存最近的房间号和“只保留最近 1000 条”失败：", viewModel.Message);
         await viewModel.ShutdownAsync();
     }
 
@@ -46,11 +45,11 @@ public sealed class RecentRoomsTests
             viewModel.RoomNumber = "006";
             viewModel.ConnectCommand.Execute(null);
             await requested.WaitAsync(TimeSpan.FromSeconds(5));
-            Assert.Empty(harness.LoadSettings().RecentRooms);
+            Assert.Empty(harness.LoadGuiState().RecentRooms);
             viewModel.RoomNumber = "999";
             viewModel.Apply(new Connected(7734200, 24680));
             Assert.Equal(["006"], viewModel.RecentRooms);
-            Assert.Equal(["006"], harness.LoadSettings().RecentRooms);
+            Assert.Equal(["006"], harness.LoadGuiState().RecentRooms);
             var restarted = harness.CreateViewModel();
             Assert.Equal("006", restarted.RoomNumber);
             Assert.False(restarted.HasRoomConnection);
@@ -82,14 +81,14 @@ public sealed class RecentRoomsTests
                 Assert.Equal(room, viewModel.RoomNumber);
             }
             Assert.Equal(["3", "6", "5", "4", "2"], viewModel.RecentRooms);
-            Assert.Equal(viewModel.RecentRooms, harness.LoadSettings().RecentRooms);
+            Assert.Equal(viewModel.RecentRooms, harness.LoadGuiState().RecentRooms);
         }
         finally { await viewModel.ShutdownAsync(); }
         return true;
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task Reconnecting_to_the_latest_room_does_not_rewrite_gui_yml() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Reconnecting_to_the_latest_room_does_not_rewrite_the_recent_rooms() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
@@ -101,10 +100,11 @@ public sealed class RecentRoomsTests
             viewModel.ConnectCommand.Execute(null);
             await requested.WaitAsync(TimeSpan.FromSeconds(5));
             viewModel.Apply(new Connected(7734200, 24680));
-            File.Delete(harness.SettingsFile);
+            // A write would now fail and say so.
+            harness.BreakGuiState();
             viewModel.Apply(new Reconnecting());
             viewModel.Apply(new Connected(7734200, 24680));
-            Assert.False(File.Exists(harness.SettingsFile));
+            Assert.Equal("", viewModel.Message);
             Assert.Equal(["6"], viewModel.RecentRooms);
         }
         finally { await viewModel.ShutdownAsync(); }
@@ -112,11 +112,11 @@ public sealed class RecentRoomsTests
     }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public Task Saving_history_keeps_a_setting_next_to_a_broken_recent_rooms_value() => HeadlessApp.Session.Dispatch(async () =>
+    public Task Saving_history_keeps_the_danmaku_switch() => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         await harness.SaveCredentialAsync();
-        File.WriteAllText(harness.SettingsFile, "KeepRecentDanmaku: false\nRecentRooms: {a: 1}");
+        harness.Client.GuiState.Save(new(false, []));
         var requested = harness.HoldRoomRequest();
         var viewModel = harness.CreateViewModel();
         try
@@ -125,7 +125,7 @@ public sealed class RecentRoomsTests
             viewModel.ConnectCommand.Execute(null);
             await requested.WaitAsync(TimeSpan.FromSeconds(5));
             viewModel.Apply(new Connected(7734200, 24680));
-            var reloaded = harness.LoadSettings();
+            var reloaded = harness.LoadGuiState();
             Assert.False(reloaded.KeepRecentDanmaku);
             Assert.Equal(["6"], reloaded.RecentRooms);
         }
@@ -152,7 +152,7 @@ public sealed class RecentRoomsTests
             Assert.False(viewModel.HasRoomConnection);
             Assert.NotEmpty(viewModel.Message);
             Assert.Equal(["6"], viewModel.RecentRooms);
-            Assert.Equal(["6"], harness.LoadSettings().RecentRooms);
+            Assert.Equal(["6"], harness.LoadGuiState().RecentRooms);
         }
         finally { await viewModel.ShutdownAsync(); }
         return true;
@@ -174,7 +174,7 @@ public sealed class RecentRoomsTests
             viewModel.Apply(new Connected(7734200, 24680));
             await viewModel.ConnectCommand.ExecutionTask!;
             Assert.Empty(viewModel.RecentRooms);
-            Assert.False(File.Exists(harness.SettingsFile));
+            Assert.Empty(harness.LoadGuiState().RecentRooms);
             Assert.Equal("6", viewModel.RoomNumber);
         }
         finally { await viewModel.ShutdownAsync(); }
@@ -188,7 +188,7 @@ public sealed class RecentRoomsTests
         await harness.SaveCredentialAsync();
         var requested = harness.HoldRoomRequest();
         var viewModel = harness.CreateViewModel();
-        Directory.CreateDirectory(harness.SettingsFile);
+        harness.BreakGuiState();
         try
         {
             viewModel.RoomNumber = "6";
@@ -198,7 +198,7 @@ public sealed class RecentRoomsTests
             Assert.True(viewModel.IsConnected);
             Assert.True(viewModel.ConnectCommand.IsRunning);
             Assert.Equal(["6"], viewModel.RecentRooms);
-            Assert.StartsWith("保存 GUI 设置失败：", viewModel.Message);
+            Assert.StartsWith("保存最近的房间号和“只保留最近 1000 条”失败：", viewModel.Message);
         }
         finally { await viewModel.ShutdownAsync(); }
         return true;

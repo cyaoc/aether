@@ -4,7 +4,6 @@ using Avalonia.Controls;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
-using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Aether.Gui;
 
@@ -12,7 +11,6 @@ public partial class GeneralSettingsPage : SettingsPage
 {
     private readonly Dictionary<Button, IDisposable> copyFeedback = [];
     private bool savedPortChanged;
-    private bool savedAutoUpdate;
 
     public GeneralSettingsPage() : this(DataDirectory.Locate()) { }
 
@@ -26,7 +24,7 @@ public partial class GeneralSettingsPage : SettingsPage
         Bind(RetentionInput, RetentionReadOnly, RetentionError, s => s.LogRetentionDays);
         Bind(LogLevelInput, LogLevelReadOnly, LogLevelError, s => s.LogLevel);
         Bind(WebPortInput, WebPortReadOnly, WebPortError, s => s.WebServicePort);
-        ValidateOnToggle(AutoUpdateInput);
+        Bind(AutoUpdateInput, AutoUpdateReadOnly, null, s => s.AutoUpdateEnabled);
         DetachedFromVisualTree += (_, _) =>
         {
             foreach (var (button, timer) in copyFeedback) { timer.Dispose(); button.Classes.Set("copied", false); }
@@ -39,24 +37,10 @@ public partial class GeneralSettingsPage : SettingsPage
     private bool PortChanged => settings.WebServicePort.CanEdit && WebPortInput.Text != original.GetValueOrDefault(settings.WebServicePort.Name);
     protected override string DirtyDescription => PortChanged ? "保存后网页服务换到新端口，直播姬里的地址要跟着改" : base.DirtyDescription;
 
-    // The switch lives in the GUI settings (ADR 0015) but saves with the page. The window's own copy is the one changed,
-    // or its next save of gui.yml would write the old value back.
-    private GuiSettings Gui => viewModel?.GuiSettings ?? GuiSettings.Load(dataDirectory, NullLogger<GuiSettings>.Instance);
-    protected override void LoadRows() => AutoUpdateInput.IsChecked = savedAutoUpdate = Gui.AutoUpdate;
-    protected override bool RowsChanged => AutoUpdateInput.IsChecked != savedAutoUpdate;
-
-    protected override async Task<string> WriteSettings(Dictionary<string, string> changes)
+    protected override Task<string> WriteSettings(Dictionary<string, string> changes)
     {
         savedPortChanged = PortChanged;
-        var result = await base.WriteSettings(changes);
-        // An unchanged switch leaves gui.yml alone, so it cannot fail a save of the settings file.
-        if (!RowsChanged) return result;
-        var gui = Gui;
-        gui.AutoUpdate = AutoUpdateInput.IsChecked == true;
-        // The window's copy must not keep a value gui.yml never got: the reload after a failure would show it as saved.
-        try { gui.Save(); }
-        catch { gui.AutoUpdate = savedAutoUpdate; throw; }
-        return result;
+        return base.WriteSettings(changes);
     }
 
     protected override async Task<string> AfterSave(Settings saved, string result)

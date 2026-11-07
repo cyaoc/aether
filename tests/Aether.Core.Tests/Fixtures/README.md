@@ -162,3 +162,22 @@ V2 的 base64/protobuf 载荷也可能含个人信息，不能只修改外层 JS
 
 `BlindBoxV2Tests` 已接入这五条样本，验证普通礼物不入库、六个盲盒礼物项的数量、金额和 tid。
 这是脱敏样本的离线回放验证，不代表本次新增了现场送礼验证。
+
+## 欢迎动画视频
+
+`welcome.mp4` 是合成的 1 秒 H.264 + AAC 片段，给视频页的 Chrome 播放测试用，不含任何真实用户素材。重新生成：
+
+```sh
+ffmpeg -f lavfi -i 'color=c=orange:s=160x90:r=24:d=1' -f lavfi -i 'sine=f=440:d=1' -c:v libx264 -pix_fmt yuv420p -c:a aac -movflags +faststart -shortest welcome.mp4
+```
+
+把 `AETHER_TEST_CHROME` 设成 Chrome 可执行文件后运行：
+
+```sh
+dotnet test --project tests/Aether.Core.Tests -- --filter-class Aether.Core.Tests.WelcomeAnimationBrowserTests
+```
+
+测试和 GUI 走同一条路：先按设置启动网页服务，再带着直播画面功能连接直播间；页面是内置的正式视频页，HTTP/SSE 走真实的本机回环，视频由 Chrome 解码。
+只有 B站的 HTTP/WebSocket 用 `WatchHarness` / `EntryV2Fixture` 模拟。Chrome 的自动播放参数模拟推流软件里有声音的自动播放。这不是直播间或推流软件的验收测试。
+
+默认 HTTP 端口那一例还需要当前用户能绑定的 80 端口，没有时报跳过；随机端口那一例只要给了 Chrome 就会跑。
