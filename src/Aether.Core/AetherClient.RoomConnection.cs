@@ -25,6 +25,8 @@ public sealed partial class AetherClient
         private long broadcasterUid;
         private IDisposable? roomScope;
         private DanmakuProtocol.Decoder? decoder;
+        // Made by Start as soon as the room is resolved, before any attempt uses it.
+        private Region<RoomConnectionState> region = null!;
 
         // Why the current attempt was stopped, where its exception would only say it was canceled; cleared before each attempt.
         private string? stopReason;
@@ -32,8 +34,6 @@ public sealed partial class AetherClient
         public async Task RunAsync(CancellationToken cancellationToken)
         {
             using var animationStop = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            // Made once the room connection starts, and kept across reconnects.
-            Region<RoomConnectionState>? region = null;
             var reconnecting = false;
             var retrySeconds = 1;
             try
@@ -45,10 +45,12 @@ public sealed partial class AetherClient
                     try
                     {
                         if (realRoomId is null)
+                        {
                             (realRoomId, broadcasterUid) = await client.Api(credential: null)
                                 .ResolveRoomAsync(roomId, cancellationToken);
-                        region ??= Start(realRoomId.Value, animationStop.Token);
-                        await foreach (var update in AttemptAsync(realRoomId.Value, region, cancellationToken))
+                            Start(realRoomId.Value, animationStop.Token);
+                        }
+                        await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {
                             if (reconnecting && update is Connecting) continue;
                             if (update is Connected)
@@ -73,7 +75,7 @@ public sealed partial class AetherClient
                             client.logger.LogWarning(exception, "连接弹幕服务器失败，{Seconds} 秒后重试：{Error}", retrySeconds, reason ?? error.Message);
                     }
                     // The caller records every failure for the process; this copy only tells the room's file how it ended.
-                    catch (Exception error) when (region is not null && !cancellationToken.IsCancellationRequested)
+                    catch (Exception error) when (realRoomId is not null && !cancellationToken.IsCancellationRequested)
                     {
                         client.logger.LogError(error, "直播间连接失败");
                         throw;
@@ -89,19 +91,19 @@ public sealed partial class AetherClient
             finally
             {
                 animationStop.Cancel();
-                if (region is not null) await EndAsync(region);
+                if (realRoomId is not null) await EndAsync();
                 roomScope?.Dispose();
             }
         }
 
         /// <summary>Begins the room's log scope, then the region inside it, so that its steps log to the room's file too.</summary>
-        private Region<RoomConnectionState> Start(long realRoomId, CancellationToken animationStop)
+        private void Start(long realRoomId, CancellationToken animationStop)
         {
             roomScope = client.logger.BeginRoomScope(realRoomId);
             client.logger.LogInformation("直播间连接开始");
             decoder = new DanmakuProtocol.Decoder(realRoomId, client.logger,
                 () => Settings.WelcomeEnabled.Value || client.WebService.Settings?.EntryAnimationEnabled.Value == true);
-            return client.regions.Create(timers => CreateState(realRoomId, timers, animationStop));
+            region = client.regions.Create(timers => CreateState(realRoomId, timers, animationStop));
         }
 
         /// <summary>The region's state: the 发送队列, and the features in the order they handle each event.</summary>
@@ -129,7 +131,7 @@ public sealed partial class AetherClient
 
         /// <summary>Clears the 发送队列 and tells the features the room connection has ended, then stops the region: a timer
         /// due after that posts to nothing.</summary>
-        private async Task EndAsync(Region<RoomConnectionState> region)
+        private async Task EndAsync()
         {
             var discarded = await region.Run(s => s.SendQueue.Clear());
             client.logger.LogInformation("直播间连接结束，发送队列丢掉 {Count} 条待发弹幕", discarded);
@@ -137,8 +139,7 @@ public sealed partial class AetherClient
             region.Stop();
         }
 
-        private async IAsyncEnumerable<WatchUpdate> AttemptAsync(long realRoomId, Region<RoomConnectionState> region,
-            [EnumeratorCancellation] CancellationToken cancellationToken)
+        private async IAsyncEnumerable<WatchUpdate> AttemptAsync(long realRoomId, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var credential = await client.RefreshCredentialIfDueAsync(cancellationToken, cancellationToken);
@@ -153,13 +154,13 @@ public sealed partial class AetherClient
                     client.logger.LogWarning("新的登录凭据未生效，请重新扫码登录。");
             }
             yield return new Connecting();
-            await foreach (var update in ReceiveUpdatesAsync(realRoomId, api, credential?.CheckedAt, region, cancellationToken))
+            await foreach (var update in ReceiveUpdatesAsync(realRoomId, api, credential?.CheckedAt, cancellationToken))
                 yield return update;
         }
 
         /// <summary>Decodes outside the region; each event is one step of it, which the loop waits for.</summary>
         private async IAsyncEnumerable<WatchUpdate> ReceiveUpdatesAsync(long realRoomId, BilibiliApi api, DateTimeOffset? checkedAt,
-            Region<RoomConnectionState> region, [EnumeratorCancellation] CancellationToken cancellationToken)
+            [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var connection = await api.GetConnectionAsync(realRoomId, cancellationToken);
             var danmakuLengthLimit = FallbackDanmakuLengthLimit;
@@ -208,7 +209,7 @@ public sealed partial class AetherClient
                                 yield return new Connected(realRoomId, broadcasterUid);
                                 // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it;
                                 // on the thread pool, as it would otherwise run its first SQLite query right here on the receive loop.
-                                sending = Task.Run(() => SendRepliesAsync(realRoomId, region, connectionStop), CancellationToken.None);
+                                sending = Task.Run(() => SendRepliesAsync(realRoomId, connectionStop), CancellationToken.None);
                             }
                         }
                         else if (decoded is RoomEvent roomEvent)
@@ -249,7 +250,7 @@ public sealed partial class AetherClient
 
         /// <summary>Sends queries' replies, announcements and welcomes one at a time until stopped: waits and requests happen out
         /// here, and each turn is a step, so the text sent is current.</summary>
-        private Task SendRepliesAsync(long roomId, Region<RoomConnectionState> region, CancellationTokenSource stop) =>
+        private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) =>
             RunWhileConnectedAsync(stop, async () =>
             {
                 var queued = await region.Run(s => s.SendQueue.Queued);
