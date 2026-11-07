@@ -19,11 +19,11 @@ public sealed class GiftBoardPeriodTests
         await GuiHarness.WaitForAsync(() => Read(scene).Status == "还没开始");
         Assert.Equal(new Header("还没开始", false, false, true, false), Read(scene));
 
-        scene.Start();
+        await scene.StartAsync();
         await GuiHarness.WaitForAsync(() => Read(scene).Status == "统计中");
         Assert.Equal(new Header("统计中", true, false, false, false), Read(scene));
 
-        scene.Board.EndPeriod(RoomId);
+        await scene.Board.EndPeriodAsync(RoomId);
         await GuiHarness.WaitForAsync(() => Read(scene).Status == "已结束");
         Assert.Equal(new Header("已结束", false, true, true, false), Read(scene));
 
@@ -52,8 +52,8 @@ public sealed class GiftBoardPeriodTests
     {
         scene.GoToToday();
         scene.Connect();
-        scene.Start();
-        scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450));
+        await scene.StartAsync();
+        await scene.GiveAsync(PaidGift(1, "月下Lily", "次元之城", 12450));
         await GuiHarness.WaitForAsync(() => scene.Listed().Length == 1);
 
         GuiHarness.Click(scene.Page, "EndButton");
@@ -79,9 +79,9 @@ public sealed class GiftBoardPeriodTests
     public Task A_new_period_after_an_ended_one_asks_first_and_starts_from_zero() => Run(async scene =>
     {
         scene.Connect();
-        scene.Start();
-        scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450));
-        scene.Board.EndPeriod(RoomId);
+        await scene.StartAsync();
+        await scene.GiveAsync(PaidGift(1, "月下Lily", "次元之城", 12450));
+        await scene.Board.EndPeriodAsync(RoomId);
         await GuiHarness.WaitForAsync(() => Read(scene).Status == "已结束");
 
         GuiHarness.Click(scene.Page, "NewPeriodButton");
@@ -100,9 +100,9 @@ public sealed class GiftBoardPeriodTests
     public Task Continuing_an_ended_period_needs_no_question() => Run(async scene =>
     {
         scene.Connect();
-        scene.Start();
-        scene.Give(PaidGift(1, "月下Lily", "次元之城", 12450));
-        scene.Board.EndPeriod(RoomId);
+        await scene.StartAsync();
+        await scene.GiveAsync(PaidGift(1, "月下Lily", "次元之城", 12450));
+        await scene.Board.EndPeriodAsync(RoomId);
         await GuiHarness.WaitForAsync(() => Read(scene).Continue);
 
         GuiHarness.Click(scene.Page, "ContinueButton");
@@ -117,7 +117,7 @@ public sealed class GiftBoardPeriodTests
     public Task A_question_closes_when_what_it_asks_can_no_longer_be_done() => Run(async scene =>
     {
         scene.Connect();
-        scene.Start();
+        await scene.StartAsync();
         await GuiHarness.WaitForAsync(() => Read(scene).End);
         GuiHarness.Click(scene.Page, "EndButton");
         Assert.NotNull(AskedText(scene));
@@ -155,10 +155,10 @@ public sealed class GiftBoardPeriodTests
     {
         const long other = 24680;
         scene.Board.Connect(other);
-        scene.Board.StartNewPeriod(other);
+        await scene.Board.StartNewPeriodAsync(other);
         scene.Board.EndRoom(other);
         scene.Connect();
-        scene.Start();
+        await scene.StartAsync();
         await GuiHarness.WaitForAsync(() => Read(scene).End);
         GuiHarness.Click(scene.Page, "EndButton");
 

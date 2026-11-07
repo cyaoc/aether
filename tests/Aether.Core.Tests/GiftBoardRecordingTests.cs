@@ -248,8 +248,8 @@ public sealed class GiftBoardRecordingTests
             await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
             command.CommandText = "ALTER TABLE unavailable_record RENAME TO gift_record";
             command.ExecuteNonQuery();
-            h.Client.GiftBoard.EndPeriod(RoomId);
-            h.Client.GiftBoard.StartNewPeriod(RoomId);
+            await h.Client.GiftBoard.EndPeriodAsync(RoomId);
+            await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
 
             await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "a"));
             Assert.Empty(await h.BoardRowsAsync());
@@ -271,9 +271,9 @@ public sealed class GiftBoardRecordingTests
         await using (var updates = await h.WatchWithGiftBoardAsync())
         {
             await h.PushAndSyncAsync(updates, earlier);
-            h.Client.GiftBoard.EndPeriod(RoomId);
+            await h.Client.GiftBoard.EndPeriodAsync(RoomId);
             await h.PushAndSyncAsync(updates, box);
-            h.Client.GiftBoard.StartNewPeriod(RoomId);
+            await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
             await h.PushAndSyncAsync(updates, box);
             Assert.Empty(await h.BoardRowsAsync());
         }
@@ -302,6 +302,7 @@ public sealed class GiftBoardRecordingTests
 
         await using (var updates = await h.WatchConnectedAsync())
         {
+            await h.Client.IdleAsync();
             Assert.Contains(h.Logger.Entries, entry => entry.Level == LogLevel.Error && entry.Message.Contains("礼物榜读数据库失败"));
             Assert.False((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Connected);
             await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(tid: "while-unread"));
@@ -311,6 +312,26 @@ public sealed class GiftBoardRecordingTests
         command.ExecuteNonQuery();
         await using var next = await h.WatchConnectedAsync();
         Assert.Equal(1, Assert.Single(await h.BoardRowsAsync()).Num);
+    }
+
+    // Connecting reads the room's whole 期 in the 礼物榜's region; receiving does not wait for it.
+    [Fact]
+    public async Task Danmaku_reach_the_shell_while_the_board_is_still_being_read()
+    {
+        await using var h = new WatchHarness(enableStreamOverlay: true);
+        await h.LoginAsync();
+        using var connection = TestDatabase.Open(h.DataDirectory);
+        using var command = connection.CreateCommand();
+        command.CommandText = "BEGIN IMMEDIATE";
+        command.ExecuteNonQuery();
+
+        await using var updates = await h.WatchConnectedAsync();
+        await h.PushAndSyncAsync(updates);
+
+        command.CommandText = "ROLLBACK";
+        command.ExecuteNonQuery();
+        await h.Client.IdleAsync();
+        Assert.True((await h.Client.GiftBoard.CurrentAsync(h.Stop.Token)).Connected);
     }
 
     [Fact]
@@ -372,11 +393,11 @@ public sealed class GiftBoardRecordingTests
         var board = h.Client.GiftBoard;
 
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Gift(sentAt));
-        board.EndPeriod(RoomId);
+        await board.EndPeriodAsync(RoomId);
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Gift(sentAt.AddMinutes(1)));
-        board.ContinuePeriod(RoomId);
-        board.EndPeriod(RoomId);
-        board.StartNewPeriod(RoomId);
+        await board.ContinuePeriodAsync(RoomId);
+        await board.EndPeriodAsync(RoomId);
+        await board.StartNewPeriodAsync(RoomId);
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Gift(sentAt.AddMinutes(2)));
 
         // The board has only what its running 期 took: the first and the last went into two different ones.

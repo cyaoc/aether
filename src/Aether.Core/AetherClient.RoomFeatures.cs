@@ -94,18 +94,16 @@ public sealed partial class AetherClient
         }
     }
 
-    /// <summary>The 礼物榜 rides along like the lottery: its database failing is logged, and danmaku keep coming. A reconnect
-    /// is still the same room connection and leaves the board as it is.</summary>
-    private sealed class GiftBoardFeature(GiftBoardController board, long roomId, ILogger logger) : IRoomFeature
+    /// <summary>The 礼物榜 rides along like the lottery: it reads the database in its own region, so danmaku keep coming. A
+    /// reconnect is still the same room connection and leaves the board as it is.</summary>
+    private sealed class GiftBoardFeature(GiftBoardFacade board, long roomId) : IRoomFeature
     {
         public void Handle(RoomEvent e)
         {
             switch (e)
             {
                 case TransportConnected:
-                    try { board.Connect(roomId); }
-                    catch (Exception error) when (GiftRecording.IsDatabaseFailure(error))
-                    { logger.LogError(error, "礼物榜读数据库失败，弹幕照常接收，重连时再读：{Error}", error.Message); }
+                    board.Connect(roomId);
                     break;
                 case RoomConnectionEnded:
                     board.EndRoom(roomId);
@@ -144,8 +142,8 @@ public sealed partial class AetherClient
         {
             // ponytail: a synchronous SQLite write on the receive loop (busy waits up to Microsoft.Data.Sqlite's 30 s
             // command timeout, well inside the 60 s idle deadline); hand it to a background writer if a room ever stalls on it.
-            if (e is DanmakuProtocol.GiftsReceived { Gifts: var gifts, ReceivedTimestamp: var receivedAt })
-                recording.Record(gifts, write => sendQueue.Record(gifts, receivedAt, gift => write(gift) && announce));
+            if (e is DanmakuProtocol.GiftsReceived { Gifts: var gifts, ReceivedTimestamp: var receivedAt, PeriodOf: var periodOf })
+                recording.Record(periodOf, write => sendQueue.Record(gifts, receivedAt, gift => write(gift) && announce));
         }
     }
 

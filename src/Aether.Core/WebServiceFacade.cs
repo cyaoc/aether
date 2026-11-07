@@ -26,7 +26,7 @@ public sealed class WebServiceFacade
     private readonly WebPage[] pages;
 
     internal WebServiceFacade(string dataDirectory, TimeProvider timeProvider, ILogger logger, PendingSteps steps,
-        LotteryController lottery, GiftBoardController giftBoard)
+        LotteryController lottery, GiftBoardFacade giftBoard)
     {
         this.timeProvider = timeProvider;
         // shortcut: pending videos are unbounded; add a capacity if playback sources can flood the queue.

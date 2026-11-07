@@ -108,6 +108,45 @@ public sealed class CredentialRefreshTests
         }
     }
 
+    [Fact]
+    public async Task Logout_during_a_connected_refresh_keeps_the_credential_deleted_and_asks_for_a_scan()
+    {
+        await using var h = new WatchHarness();
+        await h.LoginAsync();
+        h.Time.Advance(TimeSpan.FromDays(1) - TimeSpan.FromSeconds(10));
+        ConfigureRefresh(h);
+        var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Http.Intercept(Refresh, async (_, token, next) =>
+        {
+            requested.SetResult();
+            await release.Task.WaitAsync(token);
+            return await next();
+        });
+        await using var updates = await h.WatchConnectedAsync();
+        var next = updates.MoveNextAsync().AsTask();
+        try
+        {
+            h.Time.Advance(TimeSpan.FromSeconds(10));
+            await requested.Task.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
+            await h.Client.LogoutAsync(h.Stop.Token);
+            release.SetResult();
+            Assert.True(await next.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token));
+            Assert.IsType<Reconnecting>(updates.Current);
+            Assert.Equal(0, TestDatabase.CredentialCount(h.DataDirectory));
+            Assert.DoesNotContain(h.Http.Requests, r => r.Uri.AbsoluteUri == Confirm);
+            Assert.Contains("登录凭据已被删除", Assert.Single(h.Logger.Entries, e => e.Message.Contains("秒后重试")).Message);
+            await h.AdvanceRetryAsync(updates, 1);
+            Assert.IsType<WatchQrCode>(updates.Current);
+        }
+        finally
+        {
+            release.TrySetResult();
+            await h.Stop.CancelAsync();
+            await next;
+        }
+    }
+
     private static async Task LoginElsewhereAsync(WatchHarness h)
     {
         var http = new FakeBilibiliHttp();
