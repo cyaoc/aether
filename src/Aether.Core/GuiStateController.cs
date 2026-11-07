@@ -20,7 +20,11 @@ internal sealed class GuiStateController(Func<GuiStateStore> store, ILogger logg
 
     public void ForgetRoom(string room) => Replace(State with { RecentRooms = [.. State.RecentRooms.Where(value => value != room)] });
 
-    public void SetKeepRecentDanmaku(bool keep) => Replace(State with { KeepRecentDanmaku = keep });
+    /// <summary>Setting it as it is writes and reports nothing.</summary>
+    public void SetKeepRecentDanmaku(bool keep)
+    {
+        if (State.KeepRecentDanmaku != keep) Replace(State with { KeepRecentDanmaku = keep });
+    }
 
     /// <summary>Written as a whole, and reported even when saving it fails, as the window did when it kept its own copy; the
     /// failure goes to the command.</summary>
