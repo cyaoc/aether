@@ -306,12 +306,8 @@ public partial class MainWindowViewModel : ObservableObject
         LoginError = "";
         try
         {
-            // Logging in saves the credential to SQLite, so the stream is read off the UI thread too.
-            await Task.Run(async () =>
-            {
-                await foreach (var update in client.LoginAsync(cancellationToken))
-                    if (update is LoginQrCode qr) await Dispatcher.UIThread.InvokeAsync(() => ShowQrCode(qr.Content));
-            }, cancellationToken);
+            await foreach (var update in client.LoginAsync(cancellationToken))
+                if (update is LoginQrCode qr) ShowQrCode(qr.Content);
             cancellationToken.ThrowIfCancellationRequested(); // Core ends the stream quietly when cancelled.
             // A read that still finds no account brings the login page back with a fresh code.
             _ = ReadAccountAsync();
@@ -398,8 +394,7 @@ public partial class MainWindowViewModel : ObservableObject
         {
             try
             {
-                // Loading the saved credential can open SQLite, so even the synchronous part runs off the UI thread.
-                var result = await Task.Run(() => client.GetAccountAsync(token), token);
+                var result = await client.GetAccountAsync(token);
                 token.ThrowIfCancellationRequested();
                 AccountStatus = AccountStatus.Of(result);
                 if (result is null && startLogin)
@@ -439,7 +434,8 @@ public partial class MainWindowViewModel : ObservableObject
             await GiftBoard.EndBeforeLeavingAsync();
             await StopWatchingAsync();
             if (ReconnectCommand.ExecutionTask is { } restart) await restart;
-            await Task.Run(() => client.LogoutAsync(cancellationToken), cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested(); // Cancelled while the rest stopped: Core is never asked.
+            await client.LogoutAsync(cancellationToken);
             AccountStatus = AccountStatus.LoggedOut;
             loggedOut = true;
         }

@@ -25,7 +25,7 @@ public sealed class EntryLotteryTests
         await controller.DrawEntryAsync(1);
         var lottery = Assert.IsType<EntryLottery>(controller.State.Lottery);
         Assert.False(lottery.HasEligibleEntries);
-        var json = JsonSerializer.SerializeToElement<Lottery>(lottery, WebService.Json);
+        var json = JsonSerializer.SerializeToElement<Lottery>(lottery, WebServiceFacade.Json);
         Assert.False(json.TryGetProperty("hasEligibleEntries", out _));
         h.Time.Advance(LotteryController.DrawDuration);
         Assert.Equal("没有还没中奖的报名观众可抽。", (await Assert.ThrowsAsync<InvalidOperationException>(() => controller.DrawEntryAsync(1))).Message);

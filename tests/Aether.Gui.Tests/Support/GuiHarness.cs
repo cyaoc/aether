@@ -261,7 +261,9 @@ internal sealed class GuiHarness : IDisposable
 
     public void Dispose()
     {
-        // Core's steps write data/, deleted below; steps never need this thread, so waiting here cannot hang.
+        // The shell stops the web service, and Core's steps write data/, deleted below; neither needs this thread, so waiting here
+        // cannot hang.
+        client.WebService.StopAsync().GetAwaiter().GetResult();
         client.IdleAsync().GetAwaiter().GetResult();
         client.Dispose();
         if (Directory.Exists(DataDirectory)) Directory.Delete(DataDirectory, recursive: true);

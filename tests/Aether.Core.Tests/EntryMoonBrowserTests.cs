@@ -16,7 +16,7 @@ public sealed class EntryMoonBrowserTests
         await h.WaitForLogAsync("视频页 1 个推流软件");
         await using var updates=h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
-        h.Client.EntryAnimation.TestPlay(EntryTier.Parse(60)!.Value,"柚子不酸");
+        await h.Client.WebService.TestPlayEntryAsync(EntryTier.Parse(60)!.Value,"柚子不酸");
         do { Assert.True(await updates.MoveNextAsync()); }
         while(updates.Current is not SourcePlayback {State:PlaybackState.Completed or PlaybackState.Failed});
         Assert.Equal(PlaybackState.Completed,((SourcePlayback)updates.Current).State);

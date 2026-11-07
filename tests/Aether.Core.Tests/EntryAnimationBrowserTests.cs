@@ -45,12 +45,12 @@ public sealed class EntryAnimationBrowserTests
         else await browser.EvaluateAsync("window.originalContext=HTMLCanvasElement.prototype.getContext;HTMLCanvasElement.prototype.getContext=function(type,...args){return type.startsWith('webgl')?null:originalContext.call(this,type,...args);};true");
         await using var updates=h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
-        h.Client.EntryAnimation.TestPlay(EntryTier.Parse(30)!.Value,"测试昵称");
+        await h.Client.WebService.TestPlayEntryAsync(EntryTier.Parse(30)!.Value,"测试昵称");
         do { Assert.True(await updates.MoveNextAsync()); }
         while(updates.Current is not SourcePlayback {State:PlaybackState.Failed});
         Assert.Equal(frameFailure ? "frame failed" : "推流软件不支持 WebGL",((SourcePlayback)updates.Current).Reason);
         await browser.EvaluateAsync("if(window.originalContext)HTMLCanvasElement.prototype.getContext=originalContext;document.querySelector('video').muted=true;document.querySelector('video').loop=true;true");
-        h.Client.WelcomeAnimation.TestPlay(10001);
+        await h.Client.WebService.TestPlayWelcomeAsync(10001);
         await browser.WaitAsync("document.querySelector('video').style.visibility==='visible'");
         Assert.Equal(.23,(await browser.EvaluateAsync("document.querySelector('video').volume")).GetDouble());
         Assert.Empty(browser.Errors);

@@ -3,14 +3,13 @@ using System.Net;
 using System.Text.Json;
 using static Aether.Core.Tests.Support.FakeBilibiliHttp;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Time.Testing;
 
 namespace Aether.Core.Tests;
 
 public sealed class LoginTests : IDisposable
 {
     private readonly string dataDirectory = Path.Combine(Path.GetTempPath(), "aether-tests-" + Guid.NewGuid());
-    private readonly FakeTimeProvider time = new(DateTimeOffset.FromUnixTimeSeconds(1702204169));
+    private readonly RecordingTimeProvider time = new(DateTimeOffset.FromUnixTimeSeconds(1702204169));
     private readonly FakeBilibiliHttp http = new();
     private readonly RecordingLogger logger = new();
     private const string Generate = "https://passport.bilibili.com/x/passport-login/web/qrcode/generate";
@@ -389,6 +388,8 @@ public sealed class LoginTests : IDisposable
             next = updates.MoveNextAsync().AsTask();
             time.Advance(TimeSpan.FromSeconds(2));
         }
+        // The first request follows the step that opens the database, so its retry is armed off this thread.
+        else await time.WaitForTimerAsync(TimeSpan.FromSeconds(2));
         Assert.False(next.IsCompleted);
         var warning = Assert.Single(logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("2 秒后重试"));
         time.Advance(TimeSpan.FromSeconds(2));

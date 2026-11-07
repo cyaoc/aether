@@ -58,16 +58,16 @@ public sealed partial class AetherClient
                             if (enableStreamOverlay)
                             {
                                 features.Add(new LotteryFeature(client.Lottery, realRoomId.Value));
-                                features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value, client.logger));
+                                features.Add(new GiftBoardFeature(client.GiftBoard, realRoomId.Value));
                             }
                             if (Settings.BlindBoxEnabled.Value) features.Add(new BlindBoxQueryFeature(Settings, sendQueue, client.logger));
-                            features.Add(new GiftRecordFeature(new(client.stores.Value.Gifts, client.GiftBoard, client.logger,
+                            features.Add(new GiftRecordFeature(new(client.stores.Value.Gifts, client.logger,
                                 realRoomId.Value, Settings.BlindBoxEnabled.Value), sendQueue, Settings.BlindBoxAnnounce.Value));
                             if (enableStreamOverlay)
                             {
                                 features.Add(new GiftRoundFeature(client.timeProvider, client.logger, realRoomId.Value,
-                                    round => { client.GiftAnimation.Enqueue(round, animationStop.Token); output.TryWrite(round); }));
-                                features.Add(new EntryAnimationFeature(client.EntryAnimation, animationStop.Token));
+                                    round => { client.WebService.PlayGiftRound(round, animationStop.Token); output.TryWrite(round); }));
+                                features.Add(new EntryAnimationFeature(client.WebService, animationStop.Token));
                             }
                             if (Settings.WelcomeEnabled.Value)
                             {
@@ -75,7 +75,7 @@ public sealed partial class AetherClient
                                 readDanmakuLengthLimit = true;
                             }
                             decoder = new DanmakuProtocol.Decoder(realRoomId.Value, client.logger,
-                                () => Settings.WelcomeEnabled.Value || client.WebService.Video.Settings?.EntryAnimationEnabled.Value == true);
+                                () => Settings.WelcomeEnabled.Value || client.WebService.Settings?.EntryAnimationEnabled.Value == true);
                         }
                         await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {
@@ -130,25 +130,24 @@ public sealed partial class AetherClient
             long realRoomId, [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var credentials = client.stores.Value.Credentials;
             var credential = await client.RefreshCredentialIfDueAsync(cancellationToken, cancellationToken);
             var api = client.Api(credential);
             while (!await api.IsLoggedInAsync(cancellationToken))
             {
                 await foreach (var update in client.LoginCoreAsync(cancellationToken))
                     if (update is LoginQrCode qr) yield return new WatchQrCode(qr.Content);
-                credential = credentials.Load();
+                credential = await client.account.LoadAsync();
                 api = client.Api(credential);
                 if (!await api.IsLoggedInAsync(cancellationToken)) // Cached, so the loop condition sends no second nav.
                     client.logger.LogWarning("新的登录凭据未生效，请重新扫码登录。");
             }
             yield return new Connecting();
-            await foreach (var update in ReceiveUpdatesAsync(realRoomId, api, cancellationToken))
+            await foreach (var update in ReceiveUpdatesAsync(realRoomId, api, credential?.CheckedAt, cancellationToken))
                 yield return update;
         }
 
-        private async IAsyncEnumerable<WatchUpdate> ReceiveUpdatesAsync(
-            long realRoomId, BilibiliApi api, [EnumeratorCancellation] CancellationToken cancellationToken)
+        private async IAsyncEnumerable<WatchUpdate> ReceiveUpdatesAsync(long realRoomId, BilibiliApi api, DateTimeOffset? checkedAt,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var connection = await api.GetConnectionAsync(realRoomId, cancellationToken);
             var danmakuLengthLimit = FallbackDanmakuLengthLimit;
@@ -191,7 +190,7 @@ public sealed partial class AetherClient
                             {
                                 connected = true;
                                 heartbeat = SendHeartbeatsAsync(socket, connectionStop);
-                                credentialChecks = RefreshCredentialWhileConnectedAsync(connectionStop, cancellationToken);
+                                credentialChecks = RefreshCredentialWhileConnectedAsync(checkedAt, connectionStop, cancellationToken);
                                 client.logger.LogInformation("已连接弹幕服务器 {Server}", connection.Server);
                                 Handle(new TransportConnected(danmakuLengthLimit));
                                 yield return new Connected(realRoomId, broadcasterUid);
@@ -207,6 +206,9 @@ public sealed partial class AetherClient
                                 // Reported first, so a shell sees the keyword before the 盲盒查询 it queues.
                                 yield return danmaku.Danmaku;
                             }
+                            // On the board first, and waited for: the database neither delays nor decides what the 礼物榜页 shows.
+                            if (roomEvent is DanmakuProtocol.GiftsReceived gifts)
+                                roomEvent = gifts with { PeriodOf = await client.GiftBoard.TakeAsync(realRoomId, gifts.Gifts) };
                             Handle(roomEvent);
                         }
                     }
@@ -234,7 +236,7 @@ public sealed partial class AetherClient
         }
 
         private Task SendRepliesAsync(long roomId, CancellationTokenSource stop) => RunWhileConnectedAsync(stop, () =>
-            sendQueue.SendAsync((item, round) =>
+            sendQueue.SendAsync(async (item, round) =>
             {
                 var text = item switch
                 {
@@ -243,30 +245,31 @@ public sealed partial class AetherClient
                     SendQueue.Welcome queued => queued.Result.Text,
                     _ => BlindBoxTally.Announcement(round!)
                 };
-                var api = client.Api(client.stores.Value.Credentials.Load());
+                var api = client.Api(await client.account.LoadAsync());
                 return (text, token => api.SendDanmakuAsync(roomId, item is SendQueue.Welcome { Result.Mention: false } ? null : item.Uid,
                     (item as SendQueue.Query)?.Trigger.Id, text, token));
             }, stop.Token));
 
-        // A refresh cut short by the connection ending leaves checked_at unchanged, so the reconnect checks again.
-        private Task RefreshCredentialWhileConnectedAsync(CancellationTokenSource stop, CancellationToken cancellationToken) =>
-            RunWhileConnectedAsync(stop, async () =>
+        // A refresh cut short by the connection ending leaves checked_at unchanged, so the reconnect checks again. The first
+        // wait starts from the credential this attempt connected with, so it is armed before Connected is reported.
+        private Task RefreshCredentialWhileConnectedAsync(DateTimeOffset? checkedAt, CancellationTokenSource stop,
+            CancellationToken cancellationToken) => RunWhileConnectedAsync(stop, async () =>
             {
                 while (true)
                 {
-                    var checkedAt = client.stores.Value.Credentials.Load()?.CheckedAt;
                     var delay = checkedAt + CredentialCheckInterval - client.timeProvider.GetUtcNow();
                     // An overdue check failed transiently; give it another opportunity without a busy loop.
                     await Task.Delay(delay is { } remaining && remaining > TimeSpan.Zero
                         ? remaining : TimeSpan.FromSeconds(30), client.timeProvider, stop.Token);
                     // Gone after the check means B站 rejected the refresh and the credential was deleted.
-                    if (await client.RefreshCredentialIfDueAsync(stop.Token, cancellationToken) is null)
+                    if (await client.RefreshCredentialIfDueAsync(stop.Token, cancellationToken) is not { } credential)
                     {
                         if (!stop.IsCancellationRequested)
                             stopReason = "登录凭据已被删除，停止当前连接并重新登录。";
                         await stop.CancelAsync();
                         return;
                     }
+                    checkedAt = credential.CheckedAt;
                 }
             });
 

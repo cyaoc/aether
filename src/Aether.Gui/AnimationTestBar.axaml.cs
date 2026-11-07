@@ -31,7 +31,7 @@ public partial class AnimationTestBar : UserControl
     }
     private void Play(object? sender, RoutedEventArgs e)
     {
-        if (viewModel?.WebService.PlayingForSource(Source) is { IsTest: true } playing) viewModel.WebService.StopAnimation(Source, playing.Id);
+        if (viewModel?.WebService.PlayingForSource(Source) is { IsTest: true } playing) viewModel.WebService.StopAnimation(playing.Id);
         else if (TierInput.SelectedItem is EntryTier tier) viewModel?.WebService.TestAnimation(Source, tier, NicknameInput.Text ?? "");
     }
 }

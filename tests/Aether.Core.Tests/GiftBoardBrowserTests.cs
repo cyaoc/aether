@@ -124,7 +124,7 @@ public sealed partial class GiftBoardBrowserTests
 
         // The clock stands still: the cheer and the one waiting behind it give way to the ended 期 without playing out.
         var received = page.Browser.EventSourceMessages.Count;
-        page.H.Client.GiftBoard.EndPeriod(RoomId);
+        await page.H.Client.GiftBoard.EndPeriodAsync(RoomId);
         await page.WaitForStatesAsync(received + 1);
         await page.Browser.EvaluateAsync(TwoFrames);
         Assert.Equal("", await page.PlayingAsync());
@@ -184,7 +184,7 @@ public sealed partial class GiftBoardBrowserTests
         await page.WaitForStatesAsync(received + 1);
         Assert.Equal(0.3, (await page.Browser.EvaluateAsync("gains[0].gain.value")).GetDouble(), 6);
 
-        page.H.Client.GiftBoard.EndPeriod(RoomId);
+        await page.H.Client.GiftBoard.EndPeriodAsync(RoomId);
         await page.WaitForStatesAsync(received + 2);
         await page.Browser.EvaluateAsync(TwoFrames);
         Assert.Equal(1, (await page.Browser.EvaluateAsync("stopped")).GetInt32());
@@ -228,7 +228,7 @@ public sealed partial class GiftBoardBrowserTests
         // Down the middle of the page, through where the mascot, the ribbon, the cards and the pills would be.
         Assert.All(await page.AlphaAsync(Enumerable.Range(0, 50).Select(step => (240, step * 20))), alpha => Assert.Equal(0, alpha));
 
-        h.Client.GiftBoard.StartNewPeriod(RoomId);
+        await h.Client.GiftBoard.StartNewPeriodAsync(RoomId);
 
         // An empty board still has its ribbon.
         await page.WaitForSolidAsync(240, (int)(Mascot + 40));
@@ -240,16 +240,16 @@ public sealed partial class GiftBoardBrowserTests
     {
         await using var page = await StartAsync();
         await page.GiveToAsync(2);
-        page.H.Client.GiftBoard.EndPeriod(RoomId);
+        await page.H.Client.GiftBoard.EndPeriodAsync(RoomId);
         // Down the middle of the page, through the mascot, the ribbon, the cards and the pills.
         var middle = Enumerable.Range(0, 50).Select(step => (240, step * 20)).ToArray();
         await page.OpenAsync(480, 1000);
         await page.Browser.EvaluateAsync(TwoFrames);
         Assert.All(await page.AlphaAsync(middle), alpha => Assert.Equal(0, alpha));
 
-        page.H.Client.GiftBoard.ContinuePeriod(RoomId);
+        await page.H.Client.GiftBoard.ContinuePeriodAsync(RoomId);
         await page.WaitForSolidAsync(100, (int)(Mascot + CardsY + 49));
-        page.H.Client.GiftBoard.EndPeriod(RoomId);
+        await page.H.Client.GiftBoard.EndPeriodAsync(RoomId);
         await page.WaitForTransparentAsync(100, (int)(Mascot + CardsY + 49));
         Assert.All(await page.AlphaAsync(middle), alpha => Assert.Equal(0, alpha));
         Assert.Empty(page.Browser.Errors);

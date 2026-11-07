@@ -33,7 +33,7 @@ public sealed class SubscriptionTests
         await using var second = service.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(Assert.IsType<WebServiceStatus>(await h.NextAsync(second)).Running);
         await service.StopAsync();
-        service.Dispose();
+        service.Stop();
         Assert.True(Assert.IsType<WebServiceStatus>(await h.NextAsync(first)).Running);
         Assert.False(Assert.IsType<WebServiceStatus>(await h.NextAsync(first)).Running);
         Assert.False(Assert.IsType<WebServiceStatus>(await h.NextAsync(second)).Running);

@@ -11,5 +11,4 @@ public abstract class WebPage
     internal virtual IAsyncEnumerable<SseEvent>? EventsAsync(CancellationToken token) => null;
     internal virtual Task<bool> HandleAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token) => Task.FromResult(false);
     internal virtual Task RunAsync(CancellationToken token) => Task.CompletedTask;
-    internal virtual void Disconnected() { }
 }
