@@ -69,7 +69,8 @@ public sealed class LotteryFacade
 
     internal Task PlayExampleAsync() => region.Run(s => s.PlayExample());
 
-    internal void StopExample() => region.Post(s => s.StopExample());
+    /// <summary>Posted by the web service from the step that starts or stops it, so a play queued after a stop is refused.</summary>
+    internal void SetExamplePage(string? unavailable) => region.Post(s => s.SetExamplePage(unavailable));
 
     // The room connection never waits for the lottery's database.
     internal void Connect(long roomId) => region.Post(s => s.FollowRoom(roomId, null));

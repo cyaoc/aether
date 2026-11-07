@@ -7,6 +7,8 @@ public sealed partial class LotteryController
     private LotteryState? example;
     private ITimer? exampleTimer;
     private object? exampleRun;
+    // Why the 抽奖页 cannot show an example now, as the web service last said; null while it serves the page.
+    private string? exampleUnavailable = WebService.NotRunning;
 
     internal void SelectTheme(LotteryTheme theme)
     {
@@ -15,8 +17,15 @@ public sealed partial class LotteryController
         Broadcast();
     }
 
+    internal void SetExamplePage(string? unavailable)
+    {
+        exampleUnavailable = unavailable;
+        if (unavailable is not null) StopExample();
+    }
+
     internal void PlayExample()
     {
+        if (exampleUnavailable is { } reason) throw new InvalidOperationException(reason);
         if (example is not null) throw new InvalidOperationException("示例播放中，请稍后再试。");
         var now = time.GetUtcNow();
         var id = "example-" + Ids.New();
@@ -56,7 +65,7 @@ public sealed partial class LotteryController
         Advance();
     }
 
-    internal void StopExample()
+    private void StopExample()
     {
         if (example is null) return;
         ClearExample();

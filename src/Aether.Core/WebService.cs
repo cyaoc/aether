@@ -9,14 +9,20 @@ namespace Aether.Core;
 /// this.</summary>
 internal sealed class WebService
 {
+    /// <summary>Why the 抽奖页 cannot show an example while the service is not running and reports no error of its own.</summary>
+    public const string NotRunning = "网页服务没有运行，请先在通用设置中打开网页服务。";
+
     private readonly ILogger logger;
+    private readonly Action<string?> examplePage;
     private readonly HashSet<Connection> connections = [];
     private (HttpListener Listener, CancellationTokenSource Stop)? serving;
     private Task running = Task.CompletedTask;
 
-    public WebService(ChannelWriter<VideoQueue.Playback> queue, TimeProvider timeProvider, ILogger logger)
+    /// <param name="examplePage">Tells the lottery region whether the 抽奖页 can show an example, and why not.</param>
+    public WebService(ChannelWriter<VideoQueue.Playback> queue, TimeProvider timeProvider, ILogger logger, Action<string?> examplePage)
     {
         this.logger = logger;
+        this.examplePage = examplePage;
         Video = new(this, queue, timeProvider);
         WelcomeAnimation = new(this, timeProvider, logger);
         EntryAnimation = new(this, WelcomeAnimation, timeProvider, logger);
@@ -147,6 +153,10 @@ internal sealed class WebService
 
     private void Report(WebServiceStatus status)
     {
+        // Posted from the step that starts or stops the service: an example play ordered after a stop is refused, and one before it
+        // is stopped, as when both ran under one lock.
+        if (status.Running != Status.Running || status.Error != Status.Error)
+            examplePage(status.Running ? null : status.Error ?? NotRunning);
         Status = status;
         Subscribers.Publish(status);
     }

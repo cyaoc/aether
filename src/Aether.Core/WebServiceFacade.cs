@@ -15,8 +15,8 @@ public sealed class WebServiceFacade
     {
         // shortcut: pending videos are unbounded; add a capacity if playback sources can flood the queue.
         var queue = Channel.CreateUnbounded<VideoQueue.Playback>(new UnboundedChannelOptions { SingleReader = true });
-        region = regions.Create(_ => new WebService(queue.Writer, regions.Time, regions.Logger));
-        Lottery = new(this, lottery);
+        region = regions.Create(_ => new WebService(queue.Writer, regions.Time, regions.Logger, lottery.SetExamplePage));
+        Lottery = new(lottery);
         server = new(region, regions.Time, web => [new VideoPage(web, queue.Reader, dataDirectory), Lottery, new GiftBoardPage(giftBoard)]);
     }
 
