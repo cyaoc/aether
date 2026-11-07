@@ -124,7 +124,7 @@ public partial class GiftBoardViewModel(AetherClient client, ILogger logger, Tim
     internal void Observe()
     {
         if (shutdown.IsCancellationRequested || !updates.Current.IsCompleted) return;
-        updates.Follow(client.GiftBoard.GetUpdatesAsync, Apply, error => logger.LogError(error, "礼物榜状态订阅中断"));
+        updates.Follow(client.GiftBoard.GetUpdatesAsync, Apply, logger, "礼物榜状态订阅中断");
     }
 
     internal void Apply(GiftBoardState state)

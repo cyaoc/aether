@@ -82,7 +82,7 @@ public partial class LotteryViewModel : ObservableObject
     internal void ObserveLottery()
     {
         if (shutdown.IsCancellationRequested || !lotteryUpdates.Current.IsCompleted) return;
-        lotteryUpdates.Follow(client.Lottery.GetUpdatesAsync, Apply, error => logger.LogError(error, "抽奖状态订阅中断"));
+        lotteryUpdates.Follow(client.Lottery.GetUpdatesAsync, Apply, logger, "抽奖状态订阅中断");
     }
 
     internal async Task ChangeLotteryAsync(Func<LotteryFacade, Task> change)
