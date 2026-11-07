@@ -2,12 +2,18 @@ using System.Globalization;
 
 namespace Aether.Core;
 
-internal enum BlindBoxPeriod { Daily, Monthly }
+internal enum BlindBoxPeriod { Daily, Monthly, Yearly }
 
 internal static class BlindBoxPeriodName
 {
     /// <summary>How replies and logs name the period.</summary>
-    public static string Name(this BlindBoxPeriod period) => period == BlindBoxPeriod.Daily ? "今日" : "本月";
+    public static string Name(this BlindBoxPeriod period) => period switch
+    {
+        BlindBoxPeriod.Daily => "今日",
+        BlindBoxPeriod.Monthly => "本月",
+        BlindBoxPeriod.Yearly => "今年",
+        _ => throw new ArgumentOutOfRangeException(nameof(period)),
+    };
 }
 
 /// <summary>投入 and 开出价值 in 金瓜子: one viewer's 盲盒统计, or the part of a 一轮盲盒 one announcement reports.</summary>
@@ -35,13 +41,21 @@ internal sealed record BlindBoxTally(long Spend, long OpenedValue)
 
 internal sealed class BlindBoxStore(Database database)
 {
-    /// <summary>The viewer's 盲盒统计 in this room for the Beijing day or month containing <paramref name="at"/>: the 盲盒 the
+    /// <summary>The viewer's 盲盒统计 in this room for the Beijing day, month or year containing <paramref name="at"/>: the 盲盒 the
     /// 收礼记录 holds for the 盲盒统计 (ADR 0013). Null when they have none.</summary>
     public BlindBoxTally? Tally(long roomId, long uid, DateTimeOffset at, BlindBoxPeriod period)
     {
         var beijing = at.ToOffset(TimeSpan.FromHours(8));
-        var start = new DateTimeOffset(beijing.Year, beijing.Month, period == BlindBoxPeriod.Daily ? beijing.Day : 1, 0, 0, 0, beijing.Offset);
-        var end = period == BlindBoxPeriod.Daily ? start.AddDays(1) : start.AddMonths(1);
+        var day = new DateTimeOffset(beijing.Date, beijing.Offset);
+        var month = day.AddDays(1 - day.Day);
+        var year = month.AddMonths(1 - month.Month);
+        var (start, end) = period switch
+        {
+            BlindBoxPeriod.Daily => (day, day.AddDays(1)),
+            BlindBoxPeriod.Monthly => (month, month.AddMonths(1)),
+            BlindBoxPeriod.Yearly => (year, year.AddYears(1)),
+            _ => throw new ArgumentOutOfRangeException(nameof(period)),
+        };
         using var connection = database.Open();
         using var command = connection.CreateCommand();
         command.CommandText = """

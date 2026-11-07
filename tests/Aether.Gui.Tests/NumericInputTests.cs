@@ -191,7 +191,7 @@ public sealed class NumericInputTests
         {
             foreach (var (index, name, expectedWidth) in new[]
             {
-                (1, "DailyKeywordInput", 240), (1, "MonthlyKeywordInput", 240), (7, "LogLevelInput", 200),
+                (1, "DailyKeywordInput", 240), (1, "MonthlyKeywordInput", 240), (1, "YearlyKeywordInput", 240), (7, "LogLevelInput", 200),
                 (2, "UidInput", 200), (2, "GuardInput", 132)
             })
             {

@@ -61,6 +61,7 @@ public sealed class SettingsNavigationTests
     [Theory]
     [InlineData(1, "DailyKeywordInput")]
     [InlineData(1, "MonthlyKeywordInput")]
+    [InlineData(1, "YearlyKeywordInput")]
     [InlineData(2, "ValueInput")]
     public Task Enter_connects_only_from_the_room_input(int index, string field) => HeadlessApp.Session.Dispatch(async () =>
     {

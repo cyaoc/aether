@@ -20,6 +20,7 @@ public sealed class SendQueueUpdateTests
         Assert.Equal("今日盲盒", Assert.IsType<Danmaku>(await h.NextAsync(updates)).Content);
         var queued = Assert.IsType<SendQueueUpdate>(await h.NextAsync(updates));
         Assert.Equal(SendQueueItemKind.BlindBoxQuery, queued.Kind);
+        Assert.Equal("今日", queued.QueryPeriod);
         Assert.Equal(SendQueueItemState.Queued, queued.State);
         Assert.Equal(10001, queued.Uid);
     }

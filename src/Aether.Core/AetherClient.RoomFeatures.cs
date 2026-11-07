@@ -118,13 +118,15 @@ public sealed partial class AetherClient
     {
         private readonly string dailyKeyword = settings.BlindBoxDailyKeyword.Value.Trim();
         private readonly string monthlyKeyword = settings.BlindBoxMonthlyKeyword.Value.Trim();
+        private readonly string yearlyKeyword = settings.BlindBoxYearlyKeyword.Value.Trim();
 
         public void Handle(RoomEvent e)
         {
             if (e is not DanmakuProtocol.DanmakuReceived { Danmaku: var danmaku }) return;
             var text = danmaku.Content.Trim();
             BlindBoxPeriod? period = text == dailyKeyword ? BlindBoxPeriod.Daily
-                : text == monthlyKeyword ? BlindBoxPeriod.Monthly : null;
+                : text == monthlyKeyword ? BlindBoxPeriod.Monthly
+                : text == yearlyKeyword ? BlindBoxPeriod.Yearly : null;
             if (period is { } matched)
             {
                 if (danmaku.Uid == 0)

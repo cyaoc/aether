@@ -36,12 +36,13 @@ public sealed class SendQueuePageTests
             {
                 Nickname = nickname, Text = "欢迎回来", WelcomeCondition = WelcomeCondition.Guard, WelcomeValue = "舰长"
             });
-            viewModel.Apply(Update(3, SendQueueItemKind.BlindBoxQuery, SendQueueItemState.Sent) with { Nickname = nickname });
-            viewModel.Apply(Update(4, SendQueueItemKind.BlindBoxAnnouncement, SendQueueItemState.Sent) with { Nickname = nickname });
+            viewModel.Apply(Update(3, SendQueueItemKind.BlindBoxAnnouncement, SendQueueItemState.Sent) with { Nickname = nickname });
+            // The longest fixed kind text goes first, so the single-line check covers it.
+            viewModel.Apply(Update(4, SendQueueItemKind.BlindBoxQuery, SendQueueItemState.Sent) with { Nickname = nickname, QueryPeriod = "今年" });
             foreach (var (index, listName, heading, detail) in new[]
             {
-                (6, "PendingSendsList", "待发", "进场欢迎"), (6, "RecentSendsList", "最近发送", "盲盒播报"),
-                (2, "RecentWelcomesList", "最近欢迎", "舰长"), (1, "RecentQueriesAndAnnouncementsList", "最近回复和播报", "播报")
+                (6, "PendingSendsList", "待发", "进场欢迎"), (6, "RecentSendsList", "最近发送", "今年盲盒查询"),
+                (2, "RecentWelcomesList", "最近欢迎", "舰长"), (1, "RecentQueriesAndAnnouncementsList", "最近回复和播报", "今年查询")
             })
             {
                 var (page, list, header, time) = FirstRecordHeader(window, index, listName, $"{nickname} {detail}");
@@ -402,7 +403,7 @@ public sealed class SendQueuePageTests
             Assert.NotNull(badge);
             Assert.False(badge.IsVisible);
             var welcome = Update(1, SendQueueItemKind.Welcome) with { Text = "欢迎回来", WelcomeCondition = WelcomeCondition.Uid };
-            var query = Update(2, SendQueueItemKind.BlindBoxQuery);
+            var query = Update(2, SendQueueItemKind.BlindBoxQuery) with { QueryPeriod = "今年" };
             var announcement = Update(3, SendQueueItemKind.BlindBoxAnnouncement);
             viewModel.Apply(welcome);
             viewModel.Apply(query);
@@ -429,7 +430,7 @@ public sealed class SendQueuePageTests
             navigation.SelectedIndex = 1;
             GuiHarness.Flush();
             Assert.Contains("最近回复和播报", GuiHarness.VisibleText(window));
-            Assert.Contains("观众2 查询", GuiHarness.VisibleText(window));
+            Assert.Contains("观众2 今年查询", GuiHarness.VisibleText(window));
             Assert.Contains("观众3 播报", GuiHarness.VisibleText(window));
             Assert.Equal(2, GuiHarness.VisibleText(window).Count(text => text == "发送时计算金额"));
             Assert.DoesNotContain(GuiHarness.VisibleText(window), text => text?.StartsWith("观众1") == true);
@@ -449,7 +450,7 @@ public sealed class SendQueuePageTests
             Assert.Contains("待发", GuiHarness.VisibleText(window));
             Assert.Contains("最近发送", GuiHarness.VisibleText(window));
             Assert.Contains("观众3 盲盒播报", GuiHarness.VisibleText(window));
-            Assert.Contains("观众2 盲盒查询", GuiHarness.VisibleText(window));
+            Assert.Contains("观众2 今年盲盒查询", GuiHarness.VisibleText(window));
             Assert.Contains("观众1 进场欢迎", GuiHarness.VisibleText(window));
             Assert.Contains("今日赚 20 电池", GuiHarness.VisibleText(window));
             Assert.Contains("没发出：发送被拒绝", GuiHarness.VisibleText(window));

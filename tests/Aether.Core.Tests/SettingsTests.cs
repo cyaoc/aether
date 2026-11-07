@@ -199,6 +199,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.False(settings.BlindBoxAnnounce.Value);
         Assert.Equal("今天", settings.BlindBoxDailyKeyword.Value);
         Assert.Equal("本月", settings.BlindBoxMonthlyKeyword.Value);
+        Assert.Equal("今年盲盒", settings.BlindBoxYearlyKeyword.Value);
         Assert.Equal(3, settings.SendIntervalSeconds.Value);
         Assert.Equal(17891, settings.WebServicePort.Value);
         // The fixture already ends with a blank line, so the appended group gets no second one.
@@ -435,25 +436,30 @@ public sealed class SettingsTests : IAsyncDisposable
         var template = File.ReadAllText(SettingsPath);
         Assert.Contains("daily_keyword: 今日盲盒", template);
         Assert.Contains("monthly_keyword: 本月盲盒", template);
+        Assert.Contains("yearly_keyword: 今年盲盒", template);
         Assert.Contains("interval_seconds: 1", template);
         // Group comments say when settings apply; each item describes its accepted values.
         var lines = template.ReplaceLineEndings("\n").Split('\n');
         Assert.Equal("# 盲盒统计，下次观看直播间时生效", lines[Array.FindIndex(lines, line => line == "blind_box:") - 1]);
         Assert.Equal("  # 今日查询关键字，非空文字", lines[Array.FindIndex(lines, line => line.Contains("daily_keyword: 今日盲盒")) - 1]);
         Assert.Equal("  # 本月查询关键字，非空文字；和今日关键字相同时只回复今日", lines[Array.FindIndex(lines, line => line.Contains("monthly_keyword: 本月盲盒")) - 1]);
+        Assert.Equal("  # 今年查询关键字，非空文字；和今日或本月关键字相同时只回复今日或本月", lines[Array.FindIndex(lines, line => line.Contains("yearly_keyword: 今年盲盒")) - 1]);
         Assert.Contains("下次观看直播间时生效", lines[Array.FindIndex(lines, line => line == "send:") - 1]);
         Assert.Null(Settings.Validate("blind_box.daily_keyword", "查盲盒"));
         Assert.Null(Settings.Validate("blind_box.monthly_keyword", "查月盲盒"));
+        Assert.Null(Settings.Validate("blind_box.yearly_keyword", "查年盲盒"));
         Assert.Null(Settings.Validate("send.interval_seconds", "7"));
         Write("# 保留\nblind_box:\n  enabled: true\n");
         Settings.Save(harness.DataDirectory, new Dictionary<string, string>
         {
-            ["blind_box.daily_keyword"] = "查盲盒", ["blind_box.monthly_keyword"] = "查月盲盒", ["send.interval_seconds"] = "7",
+            ["blind_box.daily_keyword"] = "查盲盒", ["blind_box.monthly_keyword"] = "查月盲盒", ["blind_box.yearly_keyword"] = "查年盲盒",
+            ["send.interval_seconds"] = "7",
         });
-        Assert.Equal("# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\nsend:\n  interval_seconds: 7\n", File.ReadAllText(SettingsPath));
+        Assert.Equal("# 保留\nblind_box:\n  enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n  yearly_keyword: 查年盲盒\nsend:\n  interval_seconds: 7\n", File.ReadAllText(SettingsPath));
         Assert.Empty(Settings.Load(harness.DataDirectory).UnknownKeys);
         Assert.Equal("查盲盒", Settings.Load(harness.DataDirectory).BlindBoxDailyKeyword.Value);
         Assert.Equal("查月盲盒", Settings.Load(harness.DataDirectory).BlindBoxMonthlyKeyword.Value);
+        Assert.Equal("查年盲盒", Settings.Load(harness.DataDirectory).BlindBoxYearlyKeyword.Value);
         Assert.Equal(7, Settings.Load(harness.DataDirectory).SendIntervalSeconds.Value);
     }
 
@@ -468,6 +474,11 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("blind_box", "monthly_keyword", "")]
     [InlineData("blind_box", "monthly_keyword", "[]")]
     [InlineData("blind_box", "monthly_keyword", "\"两行\\n文字\"")]
+    [InlineData("blind_box", "yearly_keyword", "''")]
+    [InlineData("blind_box", "yearly_keyword", "'   '")]
+    [InlineData("blind_box", "yearly_keyword", "")]
+    [InlineData("blind_box", "yearly_keyword", "[]")]
+    [InlineData("blind_box", "yearly_keyword", "\"两行\\n文字\"")]
     [InlineData("blind_box", "announce", "yes")]
     [InlineData("blind_box", "announce", "True")]
     [InlineData("blind_box", "announce", "0")]
@@ -497,6 +508,9 @@ public sealed class SettingsTests : IAsyncDisposable
     [InlineData("blind_box.monthly_keyword", "")]
     [InlineData("blind_box.monthly_keyword", " \t ")]
     [InlineData("blind_box.monthly_keyword", "两行\n文字")]
+    [InlineData("blind_box.yearly_keyword", "")]
+    [InlineData("blind_box.yearly_keyword", " \t ")]
+    [InlineData("blind_box.yearly_keyword", "两行\n文字")]
     [InlineData("blind_box.announce", "False")]
     [InlineData("send.interval_seconds", "0")]
     [InlineData("send.interval_seconds", "1.5")]
@@ -517,6 +531,7 @@ public sealed class SettingsTests : IAsyncDisposable
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Equal("今日盲盒", settings.BlindBoxDailyKeyword.Value);
         Assert.Equal("本月盲盒", settings.BlindBoxMonthlyKeyword.Value);
+        Assert.Equal("今年盲盒", settings.BlindBoxYearlyKeyword.Value);
         Assert.Equal(1, settings.SendIntervalSeconds.Value);
         Settings.Save(harness.DataDirectory, new Dictionary<string, string>
         {

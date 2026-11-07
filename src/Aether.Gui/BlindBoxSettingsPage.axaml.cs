@@ -13,6 +13,7 @@ public partial class BlindBoxSettingsPage : SettingsPage
         Bind(BlindBoxInput, BlindBoxReadOnly, BlindBoxError, s => s.BlindBoxEnabled);
         Bind(DailyKeywordInput, DailyKeywordReadOnly, DailyKeywordError, s => s.BlindBoxDailyKeyword);
         Bind(MonthlyKeywordInput, MonthlyKeywordReadOnly, MonthlyKeywordError, s => s.BlindBoxMonthlyKeyword);
+        Bind(YearlyKeywordInput, YearlyKeywordReadOnly, YearlyKeywordError, s => s.BlindBoxYearlyKeyword);
         Bind(AnnounceInput, AnnounceReadOnly, AnnounceError, s => s.BlindBoxAnnounce);
         LoadSettings();
     }

@@ -138,6 +138,7 @@ internal sealed class SendQueue(TimeProvider time, ILogger logger, TimeSpan inte
         output.TryWrite(new SendQueueUpdate(item.Id, time.GetLocalNow(), kind, state, item.Uid, item.Nickname)
         {
             Text = state == SendQueueItemState.Discarded ? null : text,
+            QueryPeriod = (item as Query)?.Period.Name(),
             WelcomeCondition = welcome?.Condition, WelcomeValue = welcome?.Value,
             Reason = reason, RetrySeconds = retrySeconds
         });
