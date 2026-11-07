@@ -246,6 +246,16 @@ public sealed class LoginTests : IDisposable
         AssertNoCredential();
     }
 
+    [Fact]
+    public async Task A_database_that_cannot_open_fails_the_logout_without_saying_bilibili_did()
+    {
+        using (var setup = CreateClient()) await setup.LogoutAsync(TestContext.Current.CancellationToken);
+        SetUserVersion(Database.CurrentVersion + 1);
+        using var client = CreateClient();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => client.LogoutAsync(TestContext.Current.CancellationToken));
+        Assert.DoesNotContain(logger.Entries, e => e.Message.Contains("B站退出登录失败"));
+    }
+
     [Fact, System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
     public async Task Database_files_are_readable_only_by_their_owner()
     {

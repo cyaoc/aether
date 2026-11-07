@@ -82,13 +82,11 @@ public sealed partial class AetherClient : IDisposable
     /// <summary>Signs out on B站 when possible; the local credential is deleted either way unless the caller cancels.</summary>
     public async Task LogoutAsync(CancellationToken cancellationToken = default)
     {
+        // Read outside the try, so a database that cannot open fails the logout as it is, not as B站's.
+        var credential = await account.LoadAsync();
         try
         {
-            if (await account.LoadAsync() is { } credential)
-            {
-                var api = Api(credential);
-                await api.LogoutAsync(cancellationToken);
-            }
+            if (credential is not null) await Api(credential).LogoutAsync(cancellationToken);
         }
         catch (Exception error) when (!cancellationToken.IsCancellationRequested)
         {
