@@ -7,29 +7,33 @@ public sealed class DanmakuRetentionTests : IDisposable
     private readonly GuiHarness harness = new();
 
     [Fact]
-    public void Checked_list_drops_the_oldest_beyond_one_thousand()
+    public Task Checked_list_drops_the_oldest_beyond_one_thousand() => HeadlessApp.Session.Dispatch(() =>
     {
         var viewModel = harness.CreateViewModel();
         harness.Receive(viewModel, 1001);
         Assert.Equal(1000, viewModel.Danmaku.Count);
         Assert.Equal("1", viewModel.Danmaku[0].Content);
         Assert.Equal("1000", viewModel.Danmaku[^1].Content);
-    }
+        return true;
+    }, TestContext.Current.CancellationToken);
 
     [Fact]
-    public void Unchecked_list_keeps_everything_and_rechecking_keeps_only_the_latest_thousand()
+    public Task Unchecked_list_keeps_everything_and_rechecking_keeps_only_the_latest_thousand() => HeadlessApp.Session.Dispatch(async () =>
     {
         var viewModel = harness.CreateViewModel();
         viewModel.KeepRecentDanmaku = false;
+        await harness.IdleAsync();
         harness.Receive(viewModel, 1500);
         Assert.Equal(1500, viewModel.Danmaku.Count);
 
         viewModel.KeepRecentDanmaku = true;
+        await harness.IdleAsync();
 
         Assert.Equal(1000, viewModel.Danmaku.Count);
         Assert.Equal("500", viewModel.Danmaku[0].Content);
         Assert.Equal("1499", viewModel.Danmaku[^1].Content);
-    }
+        return true;
+    }, TestContext.Current.CancellationToken);
 
     public void Dispose() => harness.Dispose();
 }

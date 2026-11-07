@@ -867,6 +867,7 @@ public sealed partial class VisualReviewTests
             try
             {
                 await GuiHarness.AccountReadAsync(viewModel);
+                await harness.IdleAsync();
                 Capture(window, "normal");
                 var input = window.FindControl<ComboBox>("RoomInput")!;
                 input.GetVisualDescendants().OfType<TextBox>().Single().Focus();
@@ -882,6 +883,7 @@ public sealed partial class VisualReviewTests
                 popup.MouseMove(remove.TranslatePoint(new Point(12, 12), popup)!.Value);
                 Capture(popup, "delete-hover");
                 foreach (var room in viewModel.RecentRooms.ToArray()) viewModel.RemoveRecentRoomCommand.Execute(room);
+                await harness.IdleAsync();
                 Capture(window, "empty");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }

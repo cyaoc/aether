@@ -22,7 +22,9 @@ public sealed partial class AetherClient : IDisposable
     public EntryAnimation EntryAnimation { get; }
     public LotteryController Lottery { get; }
     public GiftBoardController GiftBoard { get; }
+    public GuiStateFacade GuiState { get; }
     private readonly Lazy<Stores> stores;
+    private readonly PendingSteps steps = new();
 
     public AetherClient(HttpMessageHandler httpHandler, Func<Uri, CancellationToken, Task<WebSocket>> connectWebSocket,
         TimeProvider timeProvider, ILogger<AetherClient> logger, string dataDirectory, Random? random = null)
@@ -46,7 +48,12 @@ public sealed partial class AetherClient : IDisposable
         WelcomeAnimation = new(WebService, timeProvider, logger);
         EntryAnimation = new(WebService, WelcomeAnimation, timeProvider, logger);
         GiftAnimation = new(WebService, timeProvider, logger);
+        GuiState = new(new GuiStateController(() => stores.Value.GuiStates, logger), steps, logger);
     }
+
+    /// <summary>Waits until every region has run the steps queued so far, and those they queue for each other (ADR 0017). It does
+    /// not wait for outside flows, such as a network request.</summary>
+    public Task IdleAsync() => steps.IdleAsync();
 
     /// <summary>Applies feature settings immediately; only a port change restarts the web service.</summary>
     public async Task ApplyWebSettingsAsync(Settings settings)
@@ -58,9 +65,6 @@ public sealed partial class AetherClient : IDisposable
 
     private sealed record Stores(CredentialStore Credentials, BlindBoxStore BlindBoxes, GiftStore Gifts, LotteryStore Lotteries,
         GiftBoardStore GiftBoards, GuiStateStore GuiStates);
-
-    /// <summary>Opens the database on first use, so reading it can throw like any other store call.</summary>
-    public GuiStateStore GuiState => stores.Value.GuiStates;
 
     private static readonly TimeSpan CredentialCheckInterval = TimeSpan.FromHours(24);
 
@@ -294,7 +298,7 @@ public sealed partial class AetherClient : IDisposable
         catch { socket.Dispose(); throw; }
     }
 
-    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); GiftBoard.Dispose(); http.Dispose(); }
+    public void Dispose() { WebService.Dispose(); Lottery.Dispose(); GiftBoard.Dispose(); GuiState.Stop(); http.Dispose(); }
 }
 
 public static class AetherHosting

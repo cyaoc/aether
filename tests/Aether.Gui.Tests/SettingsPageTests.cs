@@ -1122,6 +1122,7 @@ public sealed class SettingsPageTests
                 page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked = false;
                 await GuiHarness.SaveAsync(page);
                 viewModel.KeepRecentDanmaku = false;
+                await harness.IdleAsync();
                 Assert.False(Settings.Load(harness.DataDirectory).AutoUpdateEnabled.Value);
                 Assert.False(harness.LoadGuiState().KeepRecentDanmaku);
                 Assert.False(File.Exists(harness.LegacyGuiFile));
