@@ -78,9 +78,13 @@ internal sealed class WebServer
         return file.StartsWith(PagesDirectory, StringComparison.Ordinal) && File.Exists(file) ? file : null;
     }
 
-    // Called in the Start step: Task.Run keeps every flow off the region's thread.
-    private Task ServeAsync(HttpListener server, CancellationToken token) => Task.Run(() => Task.WhenAll(
-        pages.Select(page => page.RunAsync(token)).Append(AcceptAsync(server, token)).Append(HeartbeatsAsync(token))));
+    // Called in the Start step: Task.Run keeps every flow off the region's thread, and the empty step first lets the Start step
+    // end, so requests are checked against the port it started on, not the snapshot from before it.
+    private Task ServeAsync(HttpListener server, CancellationToken token) => Task.Run(async () =>
+    {
+        await Region.Run(_ => { });
+        await Task.WhenAll(pages.Select(page => page.RunAsync(token)).Append(AcceptAsync(server, token)).Append(HeartbeatsAsync(token)));
+    });
 
     private static string Frame(SseEvent message) =>
         (message.Name is null ? "" : "event: " + message.Name + "\n") + "data: " + JsonSerializer.Serialize(message.Data, Json) + "\n\n";
