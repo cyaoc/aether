@@ -36,6 +36,8 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
     private readonly Lock gate = new();
     private CancellationTokenSource? download;
 
+    // Release downloads from GitHub are slow or blocked in China. Only downloads go through it: the check that gives the digest stays on GitHub.
+    private const string DownloadProxy = "https://gh-proxy.org/";
     private const string UpdateFolder = ".update";
     private string UpdateDirectory => Path.Combine(programDirectory, UpdateFolder);
     // Held only while files are moved in (FileLock).
@@ -197,14 +199,32 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
 
     private async Task<string> DownloadAsync(string tag, ReleaseAsset asset, IProgress<UpdateProgress> progress, CancellationToken cancellationToken)
     {
-        progress.Report(new(tag, Downloading: true, 0, 0, asset.Size));
         Directory.CreateDirectory(UpdateDirectory);
         var path = Path.Combine(UpdateDirectory, asset.Name);
         using var skip = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         lock (gate) download = skip;
         try
         {
-            using var request = Request(asset.Url);
+            try { await FromAsync(new Uri(DownloadProxy + asset.Url.AbsoluteUri)); }
+            // The size and digest still come from GitHub, so a proxy that sends something else fails here too.
+            catch (Exception error) when (!skip.IsCancellationRequested)
+            {
+                logger.LogWarning(error, "从 gh-proxy.org 下载 {Asset} 失败，改直连 GitHub", asset.Name);
+                await FromAsync(asset.Url);
+            }
+        }
+        finally
+        {
+            lock (gate) download = null;
+        }
+        // Checking the digest belongs to the download's last moment; installing starts from 0.
+        progress.Report(new(tag, Downloading: false, 0));
+        return path;
+
+        async Task FromAsync(Uri url)
+        {
+            progress.Report(new(tag, Downloading: true, 0, 0, asset.Size));
+            using var request = Request(url);
             using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, skip.Token);
             response.EnsureSuccessStatusCode();
             await using var source = await response.Content.ReadAsStreamAsync(skip.Token);
@@ -221,13 +241,6 @@ public sealed partial class AutoUpdater(HttpClient http, Uri latestRelease, stri
             }
             if (Convert.ToHexStringLower(sha256.GetHashAndReset()) != asset.Sha256) throw new InvalidDataException($"{asset.Name} 的 sha256 和 GitHub 说的不一样");
         }
-        finally
-        {
-            lock (gate) download = null;
-        }
-        // Checking the digest belongs to the download's last moment; installing starts from 0.
-        progress.Report(new(tag, Downloading: false, 0));
-        return path;
     }
 
     /// <summary>Unpacks the package's files from inside its aether-gui-… directory: the first half of installing.</summary>

@@ -1,3 +1,4 @@
+using System.Net;
 using Aether.Gui.Tests.Support;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
@@ -195,6 +196,26 @@ public sealed class AutoUpdaterTests : IDisposable
         Assert.Equal(1, gitHub.Downloads(package));
     }
 
+    [Theory]
+    [InlineData("working")]
+    [InlineData("down")]
+    [InlineData("tampering")]
+    public async Task Download_goes_through_gh_proxy_then_straight_to_github(string proxy)
+    {
+        gitHub.Add(MacPackage, Package(MacPackage, V050));
+        gitHub.Proxy = proxy switch
+        {
+            "down" => _ => new(HttpStatusCode.BadGateway),
+            "tampering" => data => new(HttpStatusCode.OK) { Content = new ByteArrayContent([.. data.Reverse()]) },
+            _ => null
+        };
+        Assert.True(await UpdateAsync(Updater()));
+        Assert.Equal(V050, ProgramFiles());
+        var github = $"https://github.test/cyaoc/aether/releases/download/v0.5.0/{MacPackage}";
+        string[] downloads = proxy == "working" ? ["https://gh-proxy.org/" + github] : ["https://gh-proxy.org/" + github, github];
+        Assert.Equal(downloads, gitHub.Requests.Where(request => request != LatestRelease));
+    }
+
     [Fact]
     public async Task Installed_program_stays_executable()
     {
@@ -256,6 +277,8 @@ public sealed class AutoUpdaterTests : IDisposable
         var updater = Updater();
         Assert.False(await UpdateAsync(updater, report => { if (report.Downloaded == HeldStream.FirstChunk) updater.Skip(); }));
         Assert.Equal(before, Snapshot());
+        // Skipping the download through the proxy does not start one straight from GitHub.
+        Assert.Equal(1, gitHub.Downloads(MacPackage));
     }
 
     [Fact]
