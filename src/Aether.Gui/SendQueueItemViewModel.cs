@@ -15,15 +15,15 @@ public partial class SendQueueItemViewModel(SendQueueUpdate first) : ObservableO
     public SendQueueItemKind Kind { get; } = first.Kind;
     public string Nickname { get; } = first.Nickname;
     public DateTimeOffset OccurredAt { get; } = first.OccurredAt;
-    public string KindText => Kind switch
+    public string KindText { get; } = first.Kind switch
     {
         SendQueueItemKind.Welcome => "进场欢迎",
-        SendQueueItemKind.BlindBoxQuery => "盲盒查询",
+        SendQueueItemKind.BlindBoxQuery => first.QueryPeriod + "盲盒查询",
         _ => "盲盒播报"
     };
     public string Detail { get; } = first.Kind switch
     {
-        SendQueueItemKind.BlindBoxQuery => "查询",
+        SendQueueItemKind.BlindBoxQuery => first.QueryPeriod + "查询",
         SendQueueItemKind.BlindBoxAnnouncement => "播报",
         _ => first.WelcomeCondition switch
         {

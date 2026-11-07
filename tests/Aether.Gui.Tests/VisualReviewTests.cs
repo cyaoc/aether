@@ -1040,7 +1040,7 @@ public sealed partial class VisualReviewTests
                     WelcomeValue = i % 2 == 0 ? "舰长" : "12", Reason = i == 3 ? "进场超过 30 秒" : null });
                 viewModel.Apply(new SendQueueUpdate(i + 10, time.AddSeconds(-i * 12), i % 2 == 0 ? SendQueueItemKind.BlindBoxQuery : SendQueueItemKind.BlindBoxAnnouncement,
                     i == 1 ? SendQueueItemState.WaitingToRetry : SendQueueItemState.Sent, 1000 + i, nickname)
-                { Text = "@" + nickname + " 投入52电池 亏12.6电池", RetrySeconds = 1 });
+                { Text = "@" + nickname + " 投入52电池 亏12.6电池", RetrySeconds = 1, QueryPeriod = i % 2 == 0 ? "今年" : null });
             }
             var navigation = window.FindControl<ListBox>("Navigation")!;
             for (var i = 0; i < ReviewedPages.Length; i++)

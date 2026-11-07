@@ -36,6 +36,8 @@ public sealed record SendQueueUpdate(long Id, DateTimeOffset OccurredAt, SendQue
 {
     /// <summary>Present on Queued/NotQueued welcomes and on every Sending/Sent update; otherwise null, not a text reset.</summary>
     public string? Text { get; init; }
+    /// <summary>今日、本月 or 今年 on 盲盒查询 only.</summary>
+    public string? QueryPeriod { get; init; }
     /// <summary>Present on welcomes only.</summary>
     public WelcomeCondition? WelcomeCondition { get; init; }
     /// <summary>The viewer's matched level or guard name; null for UID matches and non-welcomes.</summary>

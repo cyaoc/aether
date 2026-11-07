@@ -962,13 +962,16 @@ public sealed class SettingsPageTests
             var before = File.ReadAllText(path);
             var keyword = window.FindControl<TextBox>("DailyKeywordInput");
             var monthly = window.FindControl<TextBox>("MonthlyKeywordInput");
+            var yearly = window.FindControl<TextBox>("YearlyKeywordInput");
             var send = new SendSettingsPage(Path.GetDirectoryName(path)!);
             var interval = send.FindControl<NumericUpDown>("SendIntervalInput");
             Assert.NotNull(keyword);
             Assert.NotNull(monthly);
+            Assert.NotNull(yearly);
             Assert.NotNull(interval);
             Assert.Equal("今日盲盒", keyword.Text);
             Assert.Equal("本月盲盒", monthly.Text);
+            Assert.Equal("今年盲盒", yearly.Text);
             Assert.Equal("1", interval.Text);
             var save = GuiHarness.FindVisual<Button>(window, "PART_SaveButton");
             keyword.Text = " ";
@@ -981,9 +984,14 @@ public sealed class SettingsPageTests
             Assert.False(save.IsEnabled);
             Assert.Contains("blind_box.monthly_keyword", window.FindControl<TextBlock>("MonthlyKeywordError")!.Text);
             monthly.Text = "查月盲盒";
+            yearly.Text = " ";
+            Dispatcher.UIThread.RunJobs();
+            Assert.False(save.IsEnabled);
+            Assert.Contains("blind_box.yearly_keyword", window.FindControl<TextBlock>("YearlyKeywordError")!.Text);
+            yearly.Text = "查年盲盒";
             Dispatcher.UIThread.RunJobs();
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n"), File.ReadAllText(path));
+            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n  yearly_keyword: 查年盲盒\n"), File.ReadAllText(path));
             ((Window)TopLevel.GetTopLevel(window)!).Content = send;
             GuiHarness.Flush();
             save = GuiHarness.FindVisual<Button>(send, "PART_SaveButton");
@@ -996,11 +1004,12 @@ public sealed class SettingsPageTests
             Dispatcher.UIThread.RunJobs();
             Assert.True(save.IsEnabled);
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n")
+            Assert.Equal(before.Replace("enabled: true\n", "enabled: true\n  daily_keyword: 查盲盒\n  monthly_keyword: 查月盲盒\n  yearly_keyword: 查年盲盒\n")
                 .Replace("interval_seconds: 1", "interval_seconds: 7"), File.ReadAllText(path));
             var settings = Settings.Load(Path.GetDirectoryName(path)!);
             Assert.Equal("查盲盒", settings.BlindBoxDailyKeyword.Value);
             Assert.Equal("查月盲盒", settings.BlindBoxMonthlyKeyword.Value);
+            Assert.Equal("查年盲盒", settings.BlindBoxYearlyKeyword.Value);
             Assert.Equal(7, settings.SendIntervalSeconds.Value);
         });
 

@@ -356,13 +356,14 @@ public sealed class BlindBoxReplyTests
     [InlineData("今日盲盒", "今日", 2024, 11, 27)]
     [InlineData("本月盲盒", "本月", 2024, 2, 1)]
     [InlineData("本月盲盒", "本月", 2024, 12, 1)]
+    [InlineData("今年盲盒", "今年", 2024, 1, 1)]
     public async Task Tally_uses_only_this_viewer_this_room_and_the_received_Beijing_period(
         string keyword, string prefix, int year, int month, int day)
     {
         await using var h = new WatchHarness();
         var midnight = new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.FromHours(8));
-        var end = prefix == "今日" ? midnight.AddDays(1) : midnight.AddMonths(1);
-        h.Time.SetUtcNow(midnight.AddDays(prefix == "本月" ? 14 : 0).AddHours(12).AddSeconds(-2));
+        var end = prefix switch { "今日" => midnight.AddDays(1), "本月" => midnight.AddMonths(1), _ => midnight.AddYears(1) };
+        h.Time.SetUtcNow(midnight.AddDays(prefix switch { "本月" => 14, "今年" => 200, _ => 0 }).AddHours(12).AddSeconds(-2));
         h.Time.SetLocalTimeZone(TimeZoneInfo.CreateCustomTimeZone("test", TimeSpan.FromHours(-7), "test", "test"));
         await h.LoginAsync();
         var sent = CaptureSends(h);
@@ -389,6 +390,8 @@ public sealed class BlindBoxReplyTests
     [InlineData("本月盲盒呢", 10001, true)]
     [InlineData("本月盲盒", 0, true)]
     [InlineData("本月盲盒", 10001, false)]
+    [InlineData("今年盲盒呢", 10001, true)]
+    [InlineData("今年盲盒", 10001, false)]
     public async Task Only_exact_keywords_with_known_viewers_and_enabled_tally_trigger(string text, long uid, bool enabled)
     {
         await using var h = new WatchHarness();
@@ -418,6 +421,7 @@ public sealed class BlindBoxReplyTests
     [Theory]
     [InlineData("今日盲盒", "今日")]
     [InlineData("本月盲盒", "本月")]
+    [InlineData("今年盲盒", "今年")]
     public async Task Send_queue_waits_the_configured_interval_and_queries_at_send_time_but_keeps_the_trigger_period(string keyword, string prefix)
     {
         await using var h = new WatchHarness();
@@ -526,6 +530,7 @@ public sealed class BlindBoxReplyTests
     [Theory]
     [InlineData("daily_keyword", "今日")]
     [InlineData("monthly_keyword", "本月")]
+    [InlineData("yearly_keyword", "今年")]
     public async Task Keyword_saved_with_surrounding_spaces_still_matches_the_trimmed_danmaku(string key, string prefix)
     {
         await using var h = new WatchHarness();
@@ -537,19 +542,22 @@ public sealed class BlindBoxReplyTests
         Assert.Equal($"{prefix}没有盲盒记录", (await NextSendAsync(sent))["msg"]);
     }
 
-    [Fact]
-    public async Task Identical_keywords_only_trigger_the_daily_query()
+    [Theory]
+    [InlineData("daily_keyword", "monthly_keyword", "今日")]
+    [InlineData("daily_keyword", "yearly_keyword", "今日")]
+    [InlineData("monthly_keyword", "yearly_keyword", "本月")]
+    public async Task Identical_keywords_only_trigger_the_shorter_period(string shorter, string longer, string prefix)
     {
         await using var h = new WatchHarness();
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
-            ["blind_box.daily_keyword"] = " 查盲盒 ", ["blind_box.monthly_keyword"] = "查盲盒"
+            [$"blind_box.{shorter}"] = " 查盲盒 ", [$"blind_box.{longer}"] = "查盲盒"
         });
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
         await DanmakuAsync(h, updates, "查盲盒");
-        Assert.Equal("今日没有盲盒记录", (await NextSendAsync(sent))["msg"]);
+        Assert.Equal($"{prefix}没有盲盒记录", (await NextSendAsync(sent))["msg"]);
         await h.WaitForLogAsync("发送弹幕成功");
         h.Time.Advance(TimeSpan.FromSeconds(5));
         await AssertNoSendAsync(sent);
