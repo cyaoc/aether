@@ -46,9 +46,11 @@ public sealed partial class AetherClient
                     {
                         if (realRoomId is null)
                         {
-                            (realRoomId, broadcasterUid) = await client.Api(credential: null)
+                            (var resolved, broadcasterUid) = await client.Api(credential: null)
                                 .ResolveRoomAsync(roomId, cancellationToken);
-                            Start(realRoomId.Value, animationStop.Token);
+                            Start(resolved, animationStop.Token);
+                            // Only once Start made the region, which the end of the room connection stops.
+                            realRoomId = resolved;
                         }
                         await foreach (var update in AttemptAsync(realRoomId.Value, cancellationToken))
                         {
@@ -133,10 +135,16 @@ public sealed partial class AetherClient
         /// due after that posts to nothing.</summary>
         private async Task EndAsync()
         {
-            var discarded = await region.Run(s => s.SendQueue.Clear());
-            client.logger.LogInformation("直播间连接结束，发送队列丢掉 {Count} 条待发弹幕", discarded);
-            await region.Run(s => s.Handle(new RoomConnectionEnded()));
-            region.Stop();
+            try
+            {
+                // One step, so no timer queues an item between the clear and the features' end.
+                await region.Run(s =>
+                {
+                    client.logger.LogInformation("直播间连接结束，发送队列丢掉 {Count} 条待发弹幕", s.SendQueue.Clear());
+                    s.Handle(new RoomConnectionEnded());
+                });
+            }
+            finally { region.Stop(); }
         }
 
         private async IAsyncEnumerable<WatchUpdate> AttemptAsync(long realRoomId, [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -207,9 +215,8 @@ public sealed partial class AetherClient
                                 client.logger.LogInformation("已连接弹幕服务器 {Server}", connection.Server);
                                 await region.Run(s => s.Handle(new TransportConnected(danmakuLengthLimit)));
                                 yield return new Connected(realRoomId, broadcasterUid);
-                                // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it;
-                                // on the thread pool, as it would otherwise run its first SQLite query right here on the receive loop.
-                                sending = Task.Run(() => SendRepliesAsync(realRoomId, connectionStop), CancellationToken.None);
+                                // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it.
+                                sending = SendRepliesAsync(realRoomId, connectionStop);
                             }
                         }
                         else if (decoded is RoomEvent roomEvent)
