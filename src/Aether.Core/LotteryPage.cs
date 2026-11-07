@@ -26,7 +26,7 @@ public sealed class LotteryPage(WebServiceFacade service, LotteryFacade lottery)
         await lottery.PlayExampleAsync();
     }
 
-    internal override async Task RunAsync(CancellationToken token)
+    internal override async Task RunAsync(WebServer server, CancellationToken token)
     {
         try { await Task.Delay(Timeout.InfiniteTimeSpan, token); }
         catch (OperationCanceledException) when (token.IsCancellationRequested) { }

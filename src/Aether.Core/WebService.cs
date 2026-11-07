@@ -5,8 +5,8 @@ using Microsoft.Extensions.Logging;
 namespace Aether.Core;
 
 /// <summary>The web service region's state (ADR 0017): the listener, the streaming software connected to each page, the video
-/// queue and the animations feeding it. <see cref="WebServiceFacade"/> runs everything that waits, and hands it a step to touch
-/// any of this.</summary>
+/// queue and the animations feeding it. <see cref="WebServer"/> runs everything that waits, and hands it a step to touch any of
+/// this.</summary>
 internal sealed class WebService
 {
     private readonly ILogger logger;
