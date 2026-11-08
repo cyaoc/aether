@@ -90,12 +90,8 @@
  "e2a516ecc2531d03d5439b767197cd2e": "textures/frames/skiGo.webp",
  "c44fb1549510b4e2b0a9ad04a62bdf87": "textures/frames/skiPop.webp",
  "15d4b2b2af6c0b5321c88fadef2d9270": "textures/frames/skiUp.webp",
- "c167a0a5b31623f68717dcc6a4724b82": "textures/pose-10-gym.webp",
  "d105b2f5cbffa2c4a73ba6af84fd9daf": "textures/frames/curl.webp",
- "f8ff423d1bd27d0f55edaf977c53e280": "textures/frames/curlDrop.webp",
  "12f08db9ce82b8a730814066fd753cd4": "textures/frames/curlIn.webp",
- "1551aa04fb6f4794c58f4bd9133b9192": "textures/frames/gymHop.webp",
- "92b4ff7a2173d956b2c2a11c0f97c696": "textures/frames/hopSit.webp",
  "82c4a5183a9edf19cedcd44fcdf43eec": "textures/frames/mount.webp",
  "9380f54632213afe36af55c5e8b959e4": "textures/frames/pedal.webp",
  "539dc6d90955850b287b73e951eb28a5": "textures/frames/pedalCrash.webp",
@@ -110,5 +106,9 @@
  "4407f867357b3b567e64e958a8161792": "textures/frames/brushUp.webp",
  "d0df4dac956d325ab83b968a29933004": "textures/frames/crashKnee.webp",
  "4a55afde60f57a6f4adeee1bb5ebdb4f": "textures/frames/kneeRise.webp",
- "2e7ed29383858e42dd93fe399b8dbee1": "textures/frames/slipUp.webp"
+ "2e7ed29383858e42dd93fe399b8dbee1": "textures/frames/slipUp.webp",
+ "9e5138e5075b6b6df6e20d9ca2d79eab": "textures/pose-10-gym.webp",
+ "1667896ed2f46c5dd0af29c57f055760": "textures/frames/curlDrop.webp",
+ "d4e5e3b533e1d6606d93b18bae5457de": "textures/frames/gymHop.webp",
+ "37d6036c28b5ac4d76ba54dcde438dcc": "textures/frames/hopSit.webp"
 }
