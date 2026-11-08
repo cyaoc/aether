@@ -18,6 +18,7 @@
 | 7 | 登录页、礼物榜姿势图 | 登录页出两张选 L1（光带从手机流过卡片后面，头离标题更远）并拆层；姿势图每个姿势两张，选截断线最接近的一对 |
 | 8 | 用户说 Q 版身体比例再小点 | 原来那张约 2.8 头身；提示词写明约 2 头身、下巴到腰不到半个头、腰到脚底约半个头，出四张选最矮的 C6（约 2.1）。侧面远侧的手被身体挡住，用 codex 补上指尖，只把那一小块贴回原图 |
 | 9 | 甲方嫌两边飘起的头发毛糙、欢呼两臂开得不够 | 头发规则写进 `sheet-base`、`peek-base` 和人设图的负向词；姿势图、人设图 B 重出（平时 idle-a、欢呼 cheer-c、B-a）。启动页、登录页试过把飘发收成发束，像章鱼的触手，用户否了，保持原样 |
+| 10 | 精灵 | 先按城堡本身做（窗户当眼睛、门当嘴），像房子长脸，被否；查了城堡吉祥物和游戏伙伴的做法，改成戴城堡王冠的云朵小生物，出两张选 puff-a；正式素材先出透明底的平时，再用 `sprite-eyes.sh` 只重画眼睛做眨眼、看右边，`sprite-patch.py` 按椭圆整块贴回 |
 
 ## 生图
 
@@ -30,6 +31,10 @@
 | `gen-scene.sh <目录> <名字> <姿势文件> <天空文件>` | SSR 场景图；启动页用的是 `scene-pose.txt` 和 `scene-sky.txt` | `refs/face-s2b`、人设图 A、`refs/afterglow-s1a` |
 | `gen-login.sh <目录> <名字>` | 登录页，提示词是 `login-base.txt`（场景段去掉启动页的姿势和版式）、`login-pose.txt`、`login-sky.txt`、`login-negative.txt` | `refs/splash-art`、人设图 A |
 | `gen-peek.sh <目录> <名字> idle\|cheer` | 礼物榜姿势图，透明底；提示词照原礼物榜设计包，换成她 | `refs/face-s2b`、人设图 A、对应的旧姿势图（只参考构图） |
+
+| `gen-sprite.sh <目录> <名字> <表文件> <城堡参考图>` | 精灵设定图（`sprite-sheet.txt`），提示词是 `sprite-base.txt`、`sprite-negative.txt` | 城堡截图（不在仓库）、`refs/face-s2b` |
+| `gen-sprite-final.sh <目录> <名字> <城堡参考图> <设定图>` | 精灵正面透明素材（`sprite-final.txt`） | 同上，加定稿设定图 |
+| `sprite-eyes.sh <平时> <目录> <名字> blink\|right` | 只重画精灵的眼睛，再用 `sprite-patch.py` 贴回 | 平时那张 |
 
 `login-windows.py`、`peek-check.py` 分别检查登录页的窗口裁切和姿势图的截断线。
 
@@ -58,6 +63,8 @@
 | 发呆、打哈欠在写实画风下像放电 | `sheet-negative.txt`（sultry、heavy-lidded with parted lips） |
 | 侧面只画出一只手 | `sheet-A.txt` 写明远侧的手在臀后露出指尖；`sheet-negative.txt` |
 | 头发偏棕 | `sheet-base.txt` 写明纯黑；`sheet-negative.txt` |
+| 精灵画成房子长脸（窗户眼睛、拱门嘴、砖纹），丑 | `sprite-base.txt` 改成小生物戴城堡王冠；`sprite-negative.txt` 禁止 a building with a face、windows as eyes、a door as a mouth、brick texture |
+| 眨眼贴回后留一圈淡淡的旧眼眶 | `sprite-patch.py` 改成按椭圆整块取，椭圆要比眼睛轮廓大一圈 |
 | 头发两边炸开、一圈细飘发，显得毛糙（礼物榜姿势图、人设图） | `sheet-base.txt`、`peek-base.txt` 的 HAIR SHAPE 段；`sheet-negative.txt` 加 frizzy、flyaway。场景图不加：启动页、登录页的长飘发收成几大束会像章鱼触手 |
 | 欢呼两臂照着旧欢呼图开得很窄（约 21°） | `gen-peek.sh` 的构图参考一律用旧的平时那张；`peek-cheer.txt` 写明约 30°、手离左右边约 6% |
 | Q 版身体偏长（约 2.8 头身） | `chibi.txt` 写明约 2 头身和躯干、腿各占多少；负向词加上 more than 2.2 heads tall、long legs |
