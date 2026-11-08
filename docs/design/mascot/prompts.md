@@ -15,6 +15,7 @@
 | 4 | 放进启动页的夜空实测：平涂和 SSR 背景不搭，黑色部分和夜空亮度一样 | 定 SSR 为主；出蓝调时刻和原夜空各两张对比（`preview/background-options.webp`） |
 | 5 | 用户喜欢 S2b 的人和星空 | 人以 S2b 为准重出 SSR 人设（A8、B8）；Q 版按原图补全身（C3）；背景是星空加她身后的余晖（F1） |
 | 6 | 把 F1 拆成两层 | 抠图模型抠不好细发丝，改用绿幕，见下文 |
+| 7 | 登录页、礼物榜姿势图 | 登录页出两张选 L1（光带从手机流过卡片后面，头离标题更远）并拆层；姿势图每个姿势两张，选截断线最接近的一对 |
 
 ## 生图
 
@@ -25,6 +26,10 @@
 | `gen-sheet.sh <目录> <名字> A\|B` | SSR 人设图 | `refs/face-s2b`、对应的人设图；B 另加 Q 版九宫格 |
 | `gen-chibi.sh <目录> <名字>` | Q 版全身 | Q 版九宫格、`refs/chibi-neutral`、人设图 A（只参考下半身） |
 | `gen-scene.sh <目录> <名字> <姿势文件> <天空文件>` | SSR 场景图；启动页用的是 `scene-pose.txt` 和 `scene-sky.txt` | `refs/face-s2b`、人设图 A、`refs/afterglow-s1a` |
+| `gen-login.sh <目录> <名字>` | 登录页，提示词是 `login-base.txt`（场景段去掉启动页的姿势和版式）、`login-pose.txt`、`login-sky.txt`、`login-negative.txt` | `refs/splash-art`、人设图 A |
+| `gen-peek.sh <目录> <名字> idle\|cheer` | 礼物榜姿势图，透明底；提示词照原礼物榜设计包，换成她 | `refs/face-s2b`、人设图 A、对应的旧姿势图（只参考构图） |
+
+`login-windows.py`、`peek-check.py` 分别检查登录页的窗口裁切和姿势图的截断线。
 
 固定段落：`sheet-base.txt`、`sheet-anatomy.txt`、`sheet-negative.txt`（人设图）；`scene-base.txt`、`scene-anatomy.txt`、`scene-negative.txt`（场景，人体结构段照抄原启动页）。
 
@@ -32,7 +37,7 @@
 
 1. `clean-plate.sh <整张> <目录> <名字>`：让 codex 把她去掉、补出后面的景色。出两张挑一张，她身后不能留人形。
 2. `greenscreen.sh <整张> <目录> <名字>`：让 codex 把她以外全涂成 `#00FF00`。和整张对位要一致（F1 这张平移 0 时最吻合，人身上平均差 6.9）。
-3. `python split.py <整张> <去人的> <绿幕的> <地平线 y> <目录>`：出 `background.png` 和 `character.png`，并打印叠回去的差。启动页的地平线 y 是 690。
+3. `python split.py <整张> <去人的> <绿幕的> <地平线 y> <目录>`：出 `background.png` 和 `character.png`，并打印叠回去的差。地平线 y 启动页是 690，登录页是 790。
 4. `cwebp`：背景 `-q 80 -m 6`，角色层 `-q 85 -alpha_q 100 -m 6`。
 
 拆层脚本需要 Pillow 和 numpy。试过 isnet-anime 抠图模型：身体轮廓没问题，但细的飘发会断，叠回去发丝之间出现生硬的色块，所以改用绿幕。
