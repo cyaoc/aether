@@ -21,7 +21,7 @@ const BLOB = {
   day: '44e8beefd8e45a42a6db32a53b6a334b',
   common: '42f6d5fefeb6902a1a4dc62b6c0067c8', lottery: '85f32c91efe3a008f7ed1db40b723468', daily1: '1f7f6b869458e1fe8e81a976d8c31c4b',
   daily2: '1280366333103c7aab9ebf8d542ec1d0', moods: '2056e8d40333e68b7ca945c2ca09b123', gifts: '721b9f2f46599b21e7a46be69defe025',
-  castleSheet: '77ad9c1043a788d9481660bca02fc61d', voyage: '2d87401633f8acd040fc4ad45a083fb6',
+  castleSheet: '77ad9c1043a788d9481660bca02fc61d', voyage: '2d87401633f8acd040fc4ad45a083fb6', ski9: 'ee1c422b8456422ef8a33aba40cd879a',
   sp1: '26e419983fd50915beebe9874c8f580f', sp2: '798d2599257e9749035aa3049a19ea28',
   castleClosed: 'a5423ebc571dd5c837a1759c2e34534f', castleOpen: '1fae311556a3e785a50c209107064a25', ship: '64f045ceb5e565290d330780f7c0006f',
   views: '7761f2f7cddf5ed1d69e16c20647f65b',
@@ -36,10 +36,11 @@ const POSE = {
   bored: ['moods', 1], gloomy: ['moods', 2], pout: ['moods', 3], shy: ['moods', 4], awake: ['moods', 5],
   giftBox: ['gifts', 1], shakeBox: ['gifts', 2], openBox: ['gifts', 3], crownV: ['gifts', 4], nod: ['gifts', 5],
   pIdle: ['castleSheet', 0], spin: ['castleSheet', 1], curtsy: ['castleSheet', 2], walkA: ['castleSheet', 3], walkB: ['castleSheet', 4], lookBack: ['castleSheet', 5],
+  skiReady: ['ski9', 1], ski: ['ski9', 2], skiDown: ['ski9', 3], skiPopOut: ['ski9', 4], skiShake: ['ski9', 5],
   capSalute: ['voyage', 1], govJump: ['voyage', 4], spyglass: ['voyage', 2], admSalute: ['voyage', 3], govPoint: ['voyage', 4], govWave: ['voyage', 5]
 };
 // Frame strips (textures/frames/<name>.webp, four frames in a row; tools/gen-frames.sh, tools/frame-patch.py), by blob.
-const FRAMES = {admRaise: '920a18b1f70d454f0d2b884c7d37ffeb', announceIn: '306b48e9115c2f0c13d29aadbf650756', awake: '4f027414161a138c012f61fe2b263359', bandageIn: '4468b7f7d9c64165a920f385d5f47d26', bandageOut: 'b7a0a17f9dec4d9c9ce8c04a11dd37c7', bike: '7206bd613e435e9426609c5552a4c815', bikeCrash: 'a1c683a18d6bb8e93046286341f31b97', bikeIn: 'e8ea46207bf7e4b84d8c726dcc6181e8', bored: 'a4fd757ecae8bdcac080f4e20cb5ccf2', boredGloomy: '98b8ddfe78bd8d6f40c70d1fe0fc2b64', bowIn: '4fd33bac034a8804e1dfd29875241114', boxOpen: 'ef5c7bfd191b3f22568fad0a803b253e', capRaise: '68cbd5c818e1c00ef3a0f9cae1a5344b', cheer: 'c9a119fda6ac63d8f8d472949b98bc35', cheerOut: 'c82759a6fb017322584b5ca4a291444b', clap: 'd7ca70eb6d31d788fa3a7e5ed4420ed7', crackIn: '87a1c1101bb84dcea9ace89cca0207f1', crackOut: 'a0850d3bd42b1d4cd9ce612029f2c6e1', crashUp: '0ad6886907739b5ebf634deb714d844f', crouchGloomy: '5608ce7bb43d12c81bd26f9d62d16942', crownIn: '60d1e736ef9a246e20d23b8711a06846', curtsy: 'a64d8440ff3a36b27ad4080e69db20c6', curtsyTurn: 'a5a3ad7628abc61b7079d2ec88c1774a', dejectedIn: '1ecea02c4aed0231fa402a0dd4882d46', doze: '847586754fb4e20f8cfc149a47469798', dropFoot: 'b21a232f44ceebac8ff1ef53e7e18fb3', dumbbell: '66f4fc15741691537abad54c757b0f4c', dumbbellIn: '172a69a54c88ca6b3aab1bfece198cb9', footHurt: '60b7171dc5901680cbb6fbcf061d8c71', footHurtOut: 'dcdddc6870cccd28e4a08cd600dae692', giftCheer: '327a50da69022e7599e70b0aa250a192', giftIn: '483f875031d6866af8f19372d5497f8c', gloomy: '62c2217eff19c08cbad011553eaa7f4b', gloomyDoze: '5977b9c36e757fa6dd611e60874bb912', govPointWave: '54ab6ea8f985130c8416f093ec54e98d', govWave: '9e3a9fdbcc32c4e3a607a595fac7c1f2', hike: '34df1a1ca19386e51a6db4f7b6c7c429', hikeIn: '140906319f4ef30e12f87e32efe1e358', hopeCheer: 'ad5cf07cda9161a1125c29ec50ff6d14', hopeClap: 'e82b99718817c003396b9211f552e97d', hopeIn: 'af9cf67116d97e77b8715834c1ea3946', hopeNod: '18d396277ea53803aab8025f4b89d334', hum: '5f4ff3fffcd8d3c47430a86da376574a', humIn: '2fdb1e22692896982c3d98cc6b3a8fee', idle: 'b74812427826eaf4098b1fbc4d1a78d4', jump: 'c51cb12468e4afb08561333bba777b51', lookBackIn: 'df3739f496aaa798f63696804b74d473', lookBackOut: '7bba58052852f687a6a473093b05036b', nod: '702f52ca11029fd9fd4ba08f5c01b626', openPout: 'e7845c90f17da61d3298b642c0bc095f', openSurprised: '5bb6d4fb8afe7fdb3772237b8383cd89', pointIn: '8472fc78f8e1f2debd8cd0b0edb2342e', shakeBox: '5beaa7f638ca7c0dbb0bcf90d731ba98', shakeIn: '48a29222f51ca2942ba5facfc09933fe', shy: '6879278a05024f916b5a9b8f8b3d9bf7', shyIn: '29596c210974361d003a980b0633b66a', sitBored: '80867232a5e50ab4272cb19a78ea3dbe', sitDoze: '9998909b0c3bc0a44ee1e17476715e09', slipFall: 'cc616b89034065ad154743b70b94882c', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'bc73c6bf04791daca5a8fb579648cced', spyRaise: '016558ba47cdc5e0e22cfd3120c2666e', spySalute: 'b5e2f2348aa7d42ac902dd0fc888a00a', surprisedCheer: '4afc354d6304b738b6ac2a463217db1b', surprisedIn: 'a76e1f3a09a188648ff99ed5f7d0b7c4', walk: '33afb9a37123ef3e90a974a91049ce57', wave: '39a6cd30e03a020265e6deb6404581a1', waveIn: 'dd074767e81d79dccc80b42cb58d22ab'};
+const FRAMES = {admRaise: '920a18b1f70d454f0d2b884c7d37ffeb', announceIn: '306b48e9115c2f0c13d29aadbf650756', awake: '4f027414161a138c012f61fe2b263359', bandageIn: '4468b7f7d9c64165a920f385d5f47d26', bandageOut: 'b7a0a17f9dec4d9c9ce8c04a11dd37c7', bike: '7206bd613e435e9426609c5552a4c815', bikeCrash: 'a1c683a18d6bb8e93046286341f31b97', bikeIn: 'e8ea46207bf7e4b84d8c726dcc6181e8', bored: 'a4fd757ecae8bdcac080f4e20cb5ccf2', boredGloomy: '98b8ddfe78bd8d6f40c70d1fe0fc2b64', bowIn: '4fd33bac034a8804e1dfd29875241114', boxOpen: 'ef5c7bfd191b3f22568fad0a803b253e', capRaise: '68cbd5c818e1c00ef3a0f9cae1a5344b', cheer: 'c9a119fda6ac63d8f8d472949b98bc35', cheerOut: 'c82759a6fb017322584b5ca4a291444b', clap: 'd7ca70eb6d31d788fa3a7e5ed4420ed7', crackIn: '87a1c1101bb84dcea9ace89cca0207f1', crackOut: 'a0850d3bd42b1d4cd9ce612029f2c6e1', crashUp: '0ad6886907739b5ebf634deb714d844f', crouchGloomy: '5608ce7bb43d12c81bd26f9d62d16942', crownIn: '60d1e736ef9a246e20d23b8711a06846', curtsy: 'a64d8440ff3a36b27ad4080e69db20c6', curtsyTurn: 'a5a3ad7628abc61b7079d2ec88c1774a', dejectedIn: '1ecea02c4aed0231fa402a0dd4882d46', doze: '847586754fb4e20f8cfc149a47469798', dropFoot: 'b21a232f44ceebac8ff1ef53e7e18fb3', dumbbell: '66f4fc15741691537abad54c757b0f4c', dumbbellIn: '172a69a54c88ca6b3aab1bfece198cb9', footHurt: '60b7171dc5901680cbb6fbcf061d8c71', footHurtOut: 'dcdddc6870cccd28e4a08cd600dae692', giftCheer: '327a50da69022e7599e70b0aa250a192', giftIn: '483f875031d6866af8f19372d5497f8c', gloomy: '62c2217eff19c08cbad011553eaa7f4b', gloomyDoze: '5977b9c36e757fa6dd611e60874bb912', govPointWave: '54ab6ea8f985130c8416f093ec54e98d', govWave: '9e3a9fdbcc32c4e3a607a595fac7c1f2', hike: '34df1a1ca19386e51a6db4f7b6c7c429', hikeIn: '140906319f4ef30e12f87e32efe1e358', hopeCheer: 'ad5cf07cda9161a1125c29ec50ff6d14', hopeClap: 'e82b99718817c003396b9211f552e97d', hopeIn: 'af9cf67116d97e77b8715834c1ea3946', hopeNod: '18d396277ea53803aab8025f4b89d334', hum: '5f4ff3fffcd8d3c47430a86da376574a', humIn: '2fdb1e22692896982c3d98cc6b3a8fee', idle: 'b74812427826eaf4098b1fbc4d1a78d4', jump: 'c51cb12468e4afb08561333bba777b51', lookBackIn: 'df3739f496aaa798f63696804b74d473', lookBackOut: '7bba58052852f687a6a473093b05036b', nod: '702f52ca11029fd9fd4ba08f5c01b626', openPout: 'e7845c90f17da61d3298b642c0bc095f', openSurprised: '5bb6d4fb8afe7fdb3772237b8383cd89', pointIn: '8472fc78f8e1f2debd8cd0b0edb2342e', shakeBox: '5beaa7f638ca7c0dbb0bcf90d731ba98', shakeIn: '48a29222f51ca2942ba5facfc09933fe', shakeSnow: '68e683906ab52c85073f189513ae753a', shy: '6879278a05024f916b5a9b8f8b3d9bf7', shyIn: '29596c210974361d003a980b0633b66a', sitBored: '80867232a5e50ab4272cb19a78ea3dbe', sitDoze: '9998909b0c3bc0a44ee1e17476715e09', skiFall: 'cdd6a4797f82513ffcdf9be2a6fcad0d', skiGlide: '3fe5bd0a4f5179defe1adc42d1de8223', skiGo: 'e2a516ecc2531d03d5439b767197cd2e', skiPop: 'c44fb1549510b4e2b0a9ad04a62bdf87', skiUp: '15d4b2b2af6c0b5321c88fadef2d9270', slipFall: 'cc616b89034065ad154743b70b94882c', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'bc73c6bf04791daca5a8fb579648cced', spyRaise: '016558ba47cdc5e0e22cfd3120c2666e', spySalute: 'b5e2f2348aa7d42ac902dd0fc888a00a', surprisedCheer: '4afc354d6304b738b6ac2a463217db1b', surprisedIn: 'a76e1f3a09a188648ff99ed5f7d0b7c4', walk: '33afb9a37123ef3e90a974a91049ce57', wave: '39a6cd30e03a020265e6deb6404581a1', waveIn: 'dd074767e81d79dccc80b42cb58d22ab'};
 // Poses that move: the strip f, drawn from the pose's own cell, as a loop at ms per frame, a loop of [frame, ms] steps, or
 // once: [frame, ms] steps from when the pose begins, holding the last.
 const STRIP = {
@@ -50,6 +51,7 @@ const STRIP = {
   idle: { f: 'idle', loop: [[0, 3400], [1, 50], [2, 70], [3, 50]] }, bored: { f: 'bored', loop: [[0, 2600], [1, 160], [2, 500], [3, 160]] },
   capSalute: { f: 'capRaise', once: [[2, 120], [1, 100], [0, 0]] }, admSalute: { f: 'admRaise', once: [[2, 120], [1, 100], [0, 0]] },
   spyglass: { f: 'spyRaise', once: [[2, 140], [1, 120], [0, 0]] }, curtsy: { f: 'curtsy', once: [[2, 200], [1, 160], [0, 0]] },
+  ski: { f: 'skiGlide', ms: 170 }, skiShake: { f: 'shakeSnow', ms: 110 },
   govJump: { f: 'jump', once: [[0, 60], [1, 140], [2, 300], [3, 160], [0, 0]] }
 };
 // The sprite's drawings that move, [strip, ms per frame]; v1–v3 are its turnaround views flying.
@@ -68,7 +70,8 @@ const TRANS = {
   'idle>dejected': 'dejectedIn', 'idle>dumbbell': 'dumbbellIn', 'dumbbell>footHurt': 'dropFoot', 'footHurt>idle': 'footHurtOut', 'idle>hum': 'humIn',
   'hum>crack': 'crackIn', 'crack>idle': 'crackOut', 'idle>hike': 'hikeIn', 'idle>bike': 'bikeIn', 'slip>bandage': 'bandageIn', 'crash>bandage': 'crashUp',
   'bandage>idle': 'bandageOut', 'curtsy>walkA': 'curtsyTurn', 'walkA>lookBack': 'lookBackIn', 'lookBack>pIdle': 'lookBackOut',
-  'govPoint>govWave': 'govPointWave', 'bored>gloomy': 'boredGloomy', 'gloomy>doze': 'gloomyDoze', 'idle>surprised': 'surprisedIn'
+  'govPoint>govWave': 'govPointWave', 'bored>gloomy': 'boredGloomy', 'gloomy>doze': 'gloomyDoze', 'idle>surprised': 'surprisedIn',
+  'skiReady>ski': 'skiGo', 'ski>skiDown': 'skiFall', 'skiDown>skiPopOut': 'skiPop', 'skiPopOut>skiShake': 'skiUp'
 };
 const SPRITE = { flag: ['sp1', 1], nod: ['sp1', 2], surprised: ['sp1', 3], yawn: ['sp1', 4], sleep: ['sp1', 5], pat: ['sp2', 1], crown: ['sp2', 2], sailor: ['sp2', 3], glow: ['sp2', 4], hide: ['sp2', 5] };
 // The sprite keeps these drawings while it flies, since they carry something.
@@ -111,7 +114,7 @@ const EVENT_FX = {
   没人报名: { fx: [['gloom', 200, 2200], ['rain', 400, 2000], ['leaf', 300]] }
 };
 // Effects drawn behind her (glows, rays, focus lines, rings on the ground, speed lines); the rest go in front.
-const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'speed']);
+const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'speed', 'spray']);
 const TIER = { S: 4, A: 3, B: 2, C: 1, D: 0 };
 const EVENTS = {
   进场: { tier: 'C', dur: 1600 }, 普通礼物: { tier: 'C', dur: 2000, gift: true }, 连着送: { tier: 'C', dur: 2000, gift: true },
@@ -151,13 +154,14 @@ const LINES = {
   冷场后来了人: ['啊！有人来了！', '我、我没睡着！'],
   举哑铃: ['今天也要锻炼！'], 哼歌: ['♪啦啦啦～'], 爬山: ['下次一起去爬山吧！', '山顶的风好舒服～'], 骑车: ['叮铃叮铃～', '骑车去兜风！'],
   砸到脚: ['好痛痛痛！', '又、又砸到了…'], 破音: ['咳、咳…刚才不算！', '破、破音了…'], 摔屁股墩: ['哎呦…屁股好痛…', '山路好滑…'],
-  骑车摔倒: ['车、车子不听话…', '呜…又摔了…'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了']
+  骑车摔倒: ['车、车子不听话…', '呜…又摔了…'],
+  滑雪: ['滑雪好开心～', '看我的！'], 滑雪摔跤: ['噗…全是雪…', '雪、雪好冰！'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了']
 };
 const NAMES = { 普通昵称: '星河', 长昵称: '这是一个非常非常长的昵称啊', 中英混排: 'Lily月下' };
 const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 大礼物: '告白气球', 盲盒开大: '告白气球', 盲盒开亏: '小花花', 城堡: '浪漫城堡' };
 const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
 const SPRITE_H = 76, NAME_MAX = 8;
-const DAILY = { 举哑铃: [3000, 2000], 哼歌: [4000, 1500], 爬山: [4000, 4500], 骑车: [4000, 4500] };  // main, then the mishap and its bandage
+const DAILY = { 举哑铃: [3000, 2000], 哼歌: [4000, 1500], 爬山: [4000, 4500], 骑车: [4000, 4500], 滑雪: [4900, 4300] };  // main, then the mishap and its bandage
 
 const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -196,7 +200,7 @@ class Component extends DCLogic {
     // centred in their thirds, so the cell centre would shift her sideways between poses), and every sheet is scaled by its
     // first cell (the idle ruler).
     this.cells = {};
-    for (const k of ['common', 'lottery', 'daily1', 'daily2', 'moods', 'gifts', 'castleSheet', 'voyage', 'sp1', 'sp2']) {
+    for (const k of ['common', 'lottery', 'daily1', 'daily2', 'moods', 'gifts', 'castleSheet', 'voyage', 'ski9', 'sp1', 'sp2']) {
       const im = img[k], cw = im.width / 3, ch = im.height / 2, list = [];
       for (let i = 0; i < 6; i++) list.push(box(im, (i % 3) * cw, Math.floor(i / 3) * ch, cw, ch));
       const ground = [0, 1].map(r => Math.max(...list.slice(r * 3, r * 3 + 3).filter(Boolean).map(b => b.y + b.h)));
@@ -298,7 +302,7 @@ class Component extends DCLogic {
       }
     }
     if (!this.cur && this.mood(now) === '平静' && !this.lot && now >= this.nextDaily) {
-      const kind = ['举哑铃', '哼歌', '爬山', '骑车'][Math.floor(this.rng() * 4)], mishap = this.rng() < 0.25;
+      const kinds = Object.keys(DAILY), kind = kinds[Math.floor(this.rng() * kinds.length)], mishap = this.rng() < 0.25;
       this.start('日常', { kind, mishap });
     }
   }
@@ -424,6 +428,7 @@ class Component extends DCLogic {
   }
 
   daily(t, st, o) {
+    if (o.kind === '滑雪') return this.ski(t, st, o);
     const main = DAILY[o.kind][0];
     st._t = t;
     const say = (from, key) => { if (t >= from) st.bubble = { text: LINES[key][(o.seed || 0) % LINES[key].length], t: t - from }; };
@@ -457,6 +462,32 @@ class Component extends DCLogic {
       if (u >= 2000) st.bubble.t = u - 2000;
       if (u < 450) { st.sprite = 'surprised'; st.sp = lead; } else if (u < 2000) { st.sprite = 'pat'; st.sp = 'head'; } else { st.sprite = 'nod'; st.sp = ['rel', -0.06, 0.5]; }
     }
+    return st;
+  }
+
+  // Skiing (README 6): the sprite dresses her for the snow and it starts snowing; she pushes off and glides along, the
+  // sprite flying beside her. If it goes wrong she dives head-first into a heap of snow, wriggles out dazed and shakes the
+  // snow off, the sprite patting her. Either way the sprite dresses her back. A dive into soft snow is no scrape: no plaster.
+  ski(t, st, o) {
+    st._t = t;
+    const say = (from, key) => { if (t >= from) st.bubble = { text: LINES[key][(o.seed || 0) % LINES[key].length], t: t - from }; };
+    const end = DAILY.滑雪[0] + (o.mishap ? DAILY.滑雪[1] : 0), back = end - 900, glide = o.mishap ? 3600 : 4100;
+    st.fx.push(['snow', 0, end], ['flash', 700, 0.8], ['flash', back + 700, 0.8]);
+    if (t < 700) { this.dress(st, t, 0, 700); return st; }
+    if (t >= back + 700) { st.sprite = 'sHappy'; return st; }
+    if (t < 1100) { st.pose = 'skiReady'; st.sprite = 'sHappy'; }
+    else if (t < glide) {
+      st.pose = 'ski'; st.x += 10 * Math.sin((t - 1100) / 700); st.sView = 'v2'; st.sp = ['rel', -0.22, 0.3];
+      st.fx.push(['speed', 1100, glide - 1300], ['spray', 1100, glide - 1100]);
+    } else if (!o.mishap) st.pose = 'skiReady';
+    else {
+      st.pose = t < 4600 ? 'skiDown' : t < 5700 ? 'skiPopOut' : 'skiShake';
+      if (t < 4000) { st.sprite = 'surprised'; st.sp = ['rel', -0.22, 0.3]; } else { st.sprite = 'pat'; st.sp = 'head'; }
+      st.fx.push(['snowBurst', 3700], ['impact', 3700, [0.45, 0.85]], ['dizzy', 4700, 1000], ['snowShake', 5800, 2200]);
+      st.shake = [[3700, 3, 260]];
+    }
+    if (t >= back) this.dress(st, t, back, back + 700);
+    say(1300, '滑雪'); if (o.mishap) say(3700, '滑雪摔跤');
     return st;
   }
 
@@ -529,8 +560,8 @@ class Component extends DCLogic {
     const scene = this.cfg.scene, name = this.cfg.name;
     const ev = (n, t, opts = {}) => this.eventState(n, t, opts, this.fill(LINES[n]?.[0], n));
     if (scene === '平时') {
-      const plan = [[2000, '举哑铃', true], [9000, '哼歌', false], [16000, '爬山', true], [27000, '骑车', false]];
-      const t = now % 34000;
+      const plan = [[2000, '举哑铃', true], [9000, '哼歌', false], [16000, '爬山', true], [27000, '骑车', false], [33000, '滑雪', true]];
+      const t = now % 44000;
       for (const [s, kind, mishap] of plan) {
         const dur = DAILY[kind][0] + (mishap ? DAILY[kind][1] : 0);
         if (t >= s && t < s + dur) return this.daily(t - s, this.base(), { kind, mishap, seed: 0 });
@@ -1062,6 +1093,44 @@ class Component extends DCLogic {
         g.save(); g.translate(x, y); g.rotate(-p * 12); g.fillStyle = '#C49A5A'; g.strokeStyle = '#8A6A3A'; g.lineWidth = 1.5;
         g.beginPath(); g.ellipse(0, 0, 10, 5, 0, 0, Math.PI * 2); g.fill(); g.stroke(); g.beginPath(); g.moveTo(-10, 0); g.lineTo(10, 0); g.stroke(); g.restore(); break;
       }
+      // ---- snow
+      case 'snow': {
+        const a = life(t, 500, (f[2] || 5000) - 1000, 500); if (!a) break;
+        g.save(); g.fillStyle = '#fff';
+        for (let i = 0; i < 40; i++) {
+          const fall = 0.04 + r() * 0.05, x0 = r() * PAGE.w, y = (r() * PAGE.h + t * fall) % (PAGE.h + 20) - 10;
+          g.globalAlpha = a * (0.5 + 0.5 * r()); g.beginPath(); g.arc(x0 + 12 * Math.sin(t / 700 + i), y, 1.5 + r() * 2.5, 0, Math.PI * 2); g.fill();
+        }
+        g.restore(); break;
+      }
+      case 'spray': {
+        if (t > (f[2] || 3000)) break;
+        g.save(); g.fillStyle = '#fff';
+        for (let i = 0; i < 14; i++) {
+          const u = (t + i * 70) % 600 / 600, x = her.x + her.w * 0.85 + u * 60 + (i % 4) * 4, y = st.y - 6 - 120 * u * (1 - u) * (0.6 + (i % 3) * 0.2);
+          g.globalAlpha = 0.85 * (1 - u); g.beginPath(); g.arc(x, y, 2 + u * 4, 0, Math.PI * 2); g.fill();
+        }
+        g.restore(); break;
+      }
+      case 'snowBurst': {
+        if (t > 800) break;
+        const p = at(0.45, 0.8);
+        g.save(); g.fillStyle = '#fff'; g.strokeStyle = '#D6E6F5'; g.lineWidth = 1.5;
+        for (let i = 0; i < 12; i++) {
+          const ang = Math.PI * (1.05 + i / 11 * 0.9), dd = 20 + 70 * ease(Math.min(1, t / 500));
+          g.globalAlpha = 1 - k01(t, 400, 800); g.beginPath(); g.arc(p.x + Math.cos(ang) * dd, p.y + Math.sin(ang) * dd * 0.7, 8 + 6 * (i % 3), 0, Math.PI * 2); g.fill(); g.stroke();
+        }
+        g.restore(); break;
+      }
+      case 'snowShake': {
+        if (t > (f[2] || 2000)) break;
+        g.save(); g.fillStyle = '#fff';
+        for (let i = 0; i < 10; i++) {
+          const u = (t + i * 90) % 500, side = i % 2 ? 1 : -1, x = head.x + side * (her.w * 0.25 + u * 0.15), y = her.y + her.h * (0.15 + (i % 4) * 0.08) - u * 0.05 + 0.0005 * u * u;
+          g.globalAlpha = 1 - u / 500; g.beginPath(); g.arc(x, y, 3 + i % 3, 0, Math.PI * 2); g.fill();
+        }
+        g.restore(); break;
+      }
       case 'z': for (let i = 0; i < 3; i++) { const u = (now + i * 900) % 2700; g.save(); g.globalAlpha = Math.sin(Math.PI * u / 2700); g.fillStyle = '#C9D6FF'; g.font = `700 ${16 + i * 5}px sans-serif`; g.fillText('Z', her.x + her.w * 0.75 + u * 0.02, her.y + 10 - u * 0.035); g.restore(); } break;
     }
   }
@@ -1103,7 +1172,8 @@ class Component extends DCLogic {
       ['揭晓·大奖', f('揭晓·大奖')], ['揭晓·二奖', f('揭晓·二奖')], ['揭晓·三奖', f('揭晓·三奖')], ['没人报名', f('没人报名')], ['抽奖结束', () => { this.lot = null; }]]);
     const d = (kind, mishap) => () => this.fire('日常', { kind, mishap });
     group('日常', [['举哑铃', d('举哑铃', false)], ['砸到脚', d('举哑铃', true)], ['哼歌', d('哼歌', false)], ['破音', d('哼歌', true)],
-      ['爬山', d('爬山', false)], ['摔屁股墩', d('爬山', true)], ['骑车', d('骑车', false)], ['骑车摔倒', d('骑车', true)]]);
+      ['爬山', d('爬山', false)], ['摔屁股墩', d('爬山', true)], ['骑车', d('骑车', false)], ['骑车摔倒', d('骑车', true)],
+      ['滑雪', d('滑雪', false)], ['滑雪摔跤', d('滑雪', true)]]);
     group('时间', [['快进 10 分钟', () => this.fastForward(10)], ['快进 30 分钟', () => this.fastForward(30)], ['回到刚有礼物', () => { this.lastGift = this.lastAny = this.now(); }]]);
     const fit = () => { const r = document.getElementById('root'); if (r) r.style.zoom = Math.min(innerWidth / 1920, (innerHeight - bar.offsetHeight) / 1080); };
     addEventListener('resize', fit); setTimeout(fit, 50);
