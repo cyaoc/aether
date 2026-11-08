@@ -115,7 +115,8 @@ const EVENT_FX = {
   '揭晓·大奖': { fx: [['sweat', 600, 1300], ['burst', 2500, 400], ['rays', 2500, 2400, 0.5], ['halo', 2500, 2400, 0.5]], shake: [[2500, 3, 260]] },
   '揭晓·二奖': { fx: [['sweat', 600, 1300], ['halo', 2500, 1800, 0.35], ['confetti', 2500]] },
   '揭晓·三奖': { fx: [['sweat', 600, 1300], ['spark', 2500, 0.5, 0.15, 6], ['hearts', 2700, 2]] },
-  没人报名: { fx: [['gloom', 200, 2200], ['rain', 400, 2000], ['leaf', 300]] }
+  没人报名: { fx: [['gloom', 200, 2200], ['rain', 400, 2000], ['leaf', 300]] },
+  抽奖结束: { fx: [['halo', 0, 2000, 0.3], ['hearts', 300, 3], ['spark', 1450, 0.2, 0.2, 8]] }
 };
 // Effects drawn behind her (glows, rays, focus lines, rings on the ground, speed lines); the rest go in front.
 const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'speed', 'spray']);
@@ -127,7 +128,7 @@ const EVENTS = {
   城堡: { tier: 'S', dur: 11500, gift: true }, 新的第一名: { tier: 'C', dur: 2600 },
   报名开场: { tier: 'A', dur: 2600 }, 报名截止: { tier: 'A', dur: 2000 }, 奖池开场: { tier: 'A', dur: 2600 }, 奖池点名: { tier: 'A', dur: 2000 },
   奖池转动: { tier: 'A', dur: 2000 }, '揭晓·大奖': { tier: 'A', dur: 5200 }, '揭晓·二奖': { tier: 'A', dur: 4600 }, '揭晓·三奖': { tier: 'A', dur: 4600 },
-  没人报名: { tier: 'A', dur: 2800 }, 日常: { tier: 'D' }
+  没人报名: { tier: 'A', dur: 2800 }, 抽奖结束: { tier: 'A', dur: 2600 }, 日常: { tier: 'D' }
 };
 const LINES = {
   进场: ['{昵称}来啦…欢、欢迎！', '啊，是{昵称}！你好呀～', '又见到{昵称}了，嘿嘿', '{昵称}，欢迎光临…（小声）'],
@@ -151,6 +152,7 @@ const LINES = {
   '揭晓·二奖': ['恭喜{昵称}！是{奖项}～', '{昵称}抽到了{奖品}，不错哦～'],
   '揭晓·三奖': ['恭喜{昵称}抽中{奖项}～', '{昵称}抽到了{奖品}～下次会更好！'],
   没人报名: ['没、没有人报名吗…', '呜…再等等吧…'],
+  抽奖结束: ['抽奖结束啦～谢谢大家参与！', '下次抽奖也要来哦～'],
   无聊: ['好安静啊…', '今天的星星好多…', '要不要…举个哑铃？'],
   沮丧: ['是不是没人喜欢我了…', '画个圈圈…', '（偷偷看）有人在吗…'],
   犯困: ['呼…呼…', '唔…再睡五分钟…', '（梦话）哑铃…好重…'],
@@ -295,7 +297,7 @@ class Component extends DCLogic {
     if (name === '奖池开场') this.lot = { kind: '奖池', phase: '点名前' };
     if (name === '报名截止' && this.lot) this.lot.phase = '等待';
     if (name === '奖池转动' && this.lot) this.lot.phase = '转动';
-    if (name === '没人报名') this.lot = null;
+    if (name === '没人报名' || name === '抽奖结束') this.lot = null;
   }
 
   note(s) { this.log = [s, ...this.log].slice(0, 4); }
@@ -439,6 +441,8 @@ class Component extends DCLogic {
         else st.sprite = 'nod';
         say(react); break;
       }
+      // she bows her thanks with the sprite, straightens up and waves goodbye while it waves its flag
+      case '抽奖结束': st.pose = at(t, [[0, 'bow'], [1200, 'idle'], [1450, 'wave']]); st.sprite = t < 1200 ? 'nod' : 'flag'; say(150); break;
       case '没人报名': st.pose = 'dejected'; st.sprite = 'pat'; st.sp = 'head'; say(200); break;
       case '日常': return this.daily(t, st, opts);
     }
@@ -585,8 +589,8 @@ class Component extends DCLogic {
       st.label = '冷场后来了人：惊醒，再演大礼物'; return st;
     }
     const seqs = {
-      报名抽奖: [['报名开场', 2600], ['hold', 2500, '报名中'], ['报名截止', 2000], ['hold', 2500, '等待'], ['揭晓·三奖', 4600], ['揭晓·二奖', 4600], ['揭晓·大奖', 5200]],
-      奖池抽奖: [['奖池开场', 2600], ['奖池点名', 2000], ['奖池转动', 2000], ['揭晓·大奖', 5200]],
+      报名抽奖: [['报名开场', 2600], ['hold', 2500, '报名中'], ['报名截止', 2000], ['hold', 2500, '等待'], ['揭晓·三奖', 4600], ['揭晓·二奖', 4600], ['揭晓·大奖', 5200], ['抽奖结束', 2600]],
+      奖池抽奖: [['奖池开场', 2600], ['奖池点名', 2000], ['奖池转动', 2000], ['揭晓·大奖', 5200], ['抽奖结束', 2600]],
       '大礼物+新第一': [['大礼物', 3000], ['新的第一名', 2600]]
     };
     const seq = seqs[scene] || [[scene, EVENTS[scene]?.dur || 3000]];
@@ -817,7 +821,8 @@ class Component extends DCLogic {
     g.font = '600 18px "PingFang SC", "Hiragino Sans GB", sans-serif';
     const maxW = 230, lines = [];
     let cur = '';
-    for (const ch of [...b.text]) { if (g.measureText(cur + ch).width > maxW) { lines.push(cur); cur = ch; } else cur += ch; }
+    // a line never starts with closing punctuation: it stays on the line before, a little over the width
+    for (const ch of [...b.text]) { if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
     lines.push(cur);
     const w = Math.max(...lines.map(l => g.measureText(l).width)) + 26, h = lines.length * 24 + 16;
     const anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
@@ -1178,7 +1183,7 @@ class Component extends DCLogic {
       ['大礼物+新第一', f('大礼物', { top: true })], ['普通礼物+新第一', f('普通礼物', { top: true })], ['盲盒开大', f('盲盒开大')], ['盲盒开亏', f('盲盒开亏')],
       ['舰长', f('舰长')], ['提督', f('提督')], ['总督', f('总督')], ['城堡', f('城堡')]]);
     group('抽奖', [['报名开场', f('报名开场')], ['报名截止', f('报名截止')], ['奖池开场', f('奖池开场')], ['奖池点名', f('奖池点名')], ['奖池转动', f('奖池转动')],
-      ['揭晓·大奖', f('揭晓·大奖')], ['揭晓·二奖', f('揭晓·二奖')], ['揭晓·三奖', f('揭晓·三奖')], ['没人报名', f('没人报名')], ['抽奖结束', () => { this.lot = null; }]]);
+      ['揭晓·大奖', f('揭晓·大奖')], ['揭晓·二奖', f('揭晓·二奖')], ['揭晓·三奖', f('揭晓·三奖')], ['没人报名', f('没人报名')], ['抽奖结束', f('抽奖结束')]]);
     const d = (kind, mishap) => () => this.fire('日常', { kind, mishap });
     group('日常', [['举哑铃', d('举哑铃', false)], ['砸到脚', d('举哑铃', true)], ['哼歌', d('哼歌', false)], ['破音', d('哼歌', true)],
       ['爬山', d('爬山', false)], ['摔屁股墩', d('爬山', true)], ['骑车', d('骑车', false)], ['骑车摔倒', d('骑车', true)],
