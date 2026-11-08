@@ -1,6 +1,6 @@
 """Turn codex's four animation frames of one drawing into a frame strip that does not boil.
 
-python frame-patch.py [--from-first] [--box x0,y0,x1,y1] <ref> <frames.png> <out.png> [check.png]
+python frame-patch.py [--from-first] [--box x0,y0,x1,y1] [--take x0,y0,x1,y1] <ref> <frames.png> <out.png> [check.png]
 python frame-patch.py --green <ref> <out.png>
 
 <ref> is the drawing the frames were made from: `sheet.webp:3` (cell 3 of a 3 x 2 sheet, counted left to right, top row
@@ -14,7 +14,8 @@ would boil when played, so only where the frames really differ from frame 1 (the
 found automatically, or only inside --box) is taken from them; everywhere else every frame keeps the reference's
 pixels. When codex drew the still parts too differently for that edge to meet the reference (a bike tube showing
 twice), --from-first uses its frame 1 as the base instead. Out: the four frames in one row, each the reference's size,
-transparent, in the reference's own coordinates.
+transparent, in the reference's own coordinates. --take always takes that box from the frames, every frame including the
+first, for a part that moves all the time (walking legs), so nothing of the reference's stays there (a shoe's shadow).
 """
 import sys
 import numpy as np
@@ -44,11 +45,16 @@ if sys.argv[1] == "--green":
 args = sys.argv[1:]
 from_first = "--from-first" in args
 args = [a for a in args if a != "--from-first"]
-box = None
-if "--box" in args:
-    k = args.index("--box")
-    box = tuple(map(int, args[k + 1].split(",")))
+def opt(name):
+    if name not in args:
+        return None
+    k = args.index(name)
+    v = tuple(map(int, args[k + 1].split(",")))
     del args[k:k + 2]
+    return v
+
+
+box, take = opt("--box"), opt("--take")
 ref_spec, grid, out = args[:3]
 
 ref = load_ref(ref_spec)
@@ -147,6 +153,10 @@ if box:
     b = np.zeros((ch, cw), np.float32)
     b[box[1]:box[3], box[0]:box[2]] = 1
     mask = mask * np.asarray(Image.fromarray((b * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(5)), dtype=np.float32) / 255
+if take:
+    b = np.zeros((ch, cw), np.uint8)
+    b[take[1]:take[3], take[0]:take[2]] = 255
+    mask = np.maximum(mask, np.asarray(Image.fromarray(b).filter(ImageFilter.GaussianBlur(5)), dtype=np.float32) / 255)
 print(f"moving part: {int((mask > 0.5).sum())} px of {cw * ch}")
 mask = mask[..., None]
 

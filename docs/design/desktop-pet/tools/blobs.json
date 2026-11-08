@@ -27,7 +27,6 @@
  "60b7171dc5901680cbb6fbcf061d8c71": "textures/frames/footHurt.webp",
  "62c2217eff19c08cbad011553eaa7f4b": "textures/frames/gloomy.webp",
  "9e3a9fdbcc32c4e3a607a595fac7c1f2": "textures/frames/govWave.webp",
- "d7da9b2d7cbe598d5cfa9c84a7e0b53c": "textures/frames/hike.webp",
  "5f4ff3fffcd8d3c47430a86da376574a": "textures/frames/hum.webp",
  "b74812427826eaf4098b1fbc4d1a78d4": "textures/frames/idle.webp",
  "702f52ca11029fd9fd4ba08f5c01b626": "textures/frames/nod.webp",
@@ -97,5 +96,6 @@
  "b5e2f2348aa7d42ac902dd0fc888a00a": "textures/frames/spySalute.webp",
  "4afc354d6304b738b6ac2a463217db1b": "textures/frames/surprisedCheer.webp",
  "a76e1f3a09a188648ff99ed5f7d0b7c4": "textures/frames/surprisedIn.webp",
- "dd074767e81d79dccc80b42cb58d22ab": "textures/frames/waveIn.webp"
+ "dd074767e81d79dccc80b42cb58d22ab": "textures/frames/waveIn.webp",
+ "34df1a1ca19386e51a6db4f7b6c7c429": "textures/frames/hike.webp"
 }
