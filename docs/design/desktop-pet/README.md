@@ -169,9 +169,9 @@
   |---|---|---|---|
   | 举哑铃 | 弯举时一只哑铃滑下来砸到脚：单脚跳、抱着脚、泪目，另一只还在手里 | 坐下揉脚 → 站起来拿毛巾擦汗 → 换回衣服 | 日常·砸到脚 |
   | 哼歌 | 唱破音：捂着嘴、脸通红 | 回到待机 | 日常·破音 |
-  | 爬山 | 脚下一滑，摔了个屁股墩，擦伤膝盖 | 卷起一条裤腿贴膝盖 → 裤腿卷着站起来 → 换回衣服 | 日常·摔屁股墩、日常·贴创可贴 |
-  | 骑车 | 车把一歪连人带车摔倒，画面右边那只膝盖磕地擦伤 | 坐起来往那只膝盖上贴 → 扶车站起来 → 换回衣服 | 日常·骑车摔倒、日常·贴创可贴 |
-  | 创可贴 | 只贴在露出来的皮肤上，不贴在衣服、裤子、鞋上：登山穿长裤，先把一条裤腿卷到膝盖上面再贴膝盖；骑行裤露膝盖，摔倒时磕地的是画面右边那只膝盖，就贴那只（第一次贴在了手肘上，站起来时还把手臂背过去亮出创可贴，用户指出）。磕到哪就贴哪，冲击星也打在那里；站起来手脚自然，不为了亮出创可贴扭手臂 | | |
+  | 爬山 | 脚下一滑，摔了个屁股墩 | 揉着屁股起身、拍拍裤子上的土 → 拄杖站好 → 换回衣服（不贴创可贴） | 日常·摔屁股墩、日常·拍拍土 |
+  | 骑车 | 车把一歪连人带车摔倒，右膝磕地擦伤 | 坐起来往右膝上贴 → 扶车站起来 → 换回衣服 | 日常·骑车摔倒、日常·贴创可贴 |
+  | 创可贴 | 只贴在露出来的皮肤上，不贴在衣服、裤子、鞋上：摔屁股墩不贴（屁股着地不会擦伤，揉一揉、拍拍土站起来；用户指出）；骑行裤露膝盖，摔倒时磕地的是她的右膝，面朝画面时在画面左边，就贴那只（第一次贴在手肘上、站起来还把手臂背过去亮创可贴，第二次贴到了左膝，都是用户指出）。磕到哪就贴哪，冲击星也打在那里；站起来手脚自然，不为了亮出创可贴扭手臂 | | |
   | 滑雪 | 板一绊，一头扎进雪堆，两腿朝天、滑雪板交叉成 X | 钻出来、晕乎乎 → 甩头抖雪 → 换回衣服（扎进软雪不算擦伤，不贴创可贴） | 日常·滑雪摔跤 |
   | 打瞌睡（犯困时，每半分钟一次） | 头一点磕到膝盖 | 惊醒，精灵也吓一跳，接着睡 | 冷场后来了人 |
 - 冷场后来了事件：心情是沮丧或犯困时，先演"惊醒"，说"冷场后来了人"的台词，再接这件事的演出。
@@ -185,6 +185,7 @@
 
 - 每类准备几句，每次随机选一句，同一类不连着重复同一句。
 - 只填 `{昵称}`、`{礼物}`、`{个数}`、`{关键字}`、`{奖项}`、`{奖品}`；后三个是主播自己填的。不念弹幕原文。
+- 台词要和她正在做的事对得上：没贴创可贴就不说创可贴（用户指出）。出事时按时间点换句，跟着姿势走。
 - 台词跟着角色走，写在角色清单里；下面是现在这位的，口吻是社恐、有点结巴、天然呆。
 
 | 类 | 台词 |
@@ -221,7 +222,8 @@
 | 日常·破音 | 咳、咳…刚才不算！／破、破音了… |
 | 日常·摔屁股墩 | 哎呦…屁股好痛…／山路好滑… |
 | 日常·骑车摔倒 | 车、车子不听话…／呜…又摔了… |
-| 日常·贴创可贴 | 贴一下就好啦！／创可贴…又要用完了 |
+| 日常·贴创可贴 | 贴一下就好啦！／创可贴…又要用完了（只有骑车摔倒真的贴了才说） |
+| 日常·拍拍土 | 拍拍土…没事没事！／再来！这次小心点～ |
 | 日常·滑雪摔跤 | 噗…全是雪…／雪、雪好冰！ |
 
 ### 7.1 特效
@@ -295,8 +297,8 @@
 | 7 城堡 | 公主待机（这张的尺子，和平时待机一样高）、转圈变身、屈膝礼、背面走路 A（左脚）、背面走路 B（右脚）、回头挥手；全穿公主装（已出，`textures/pose-7-castle.webp`） |
 | 8 大航海 | 待机（平时衣服，当尺子）、舰长敬礼、提督举望远镜、提督敬礼、总督指向前方、总督挥手（已出，`textures/pose-8-voyage.webp`） |
 | 10 健身 | 待机（平时衣服）、两手各握一只哑铃站好、左右交替弯举、哑铃砸脚单脚跳、坐下揉脚、拿毛巾擦汗（`textures/pose-10-gym.webp`，对比在 `preview/pose-10-sheets.webp`，选 a：b 的眉毛浓） |
-| 11 登山 | 待机、拄双杖站好、走路迈步、摔屁股墩、卷起一条裤腿往露出的膝盖上贴创可贴、裤腿卷着站起来（`textures/pose-11-hike.webp`，对比在 `preview/pose-11-sheets.webp`，选 b：卷起的裤腿和膝盖更清楚） |
-| 12 骑行 | 待机、扶车站好、骑车、连人带车摔倒、坐着往画面右边露出的膝盖上贴创可贴、扶车站起来、创可贴留在膝盖上（`textures/pose-12-cycle.webp`，对比在 `preview/pose-12-sheets.webp`，选 b：a 的摔倒和贴创可贴两格碰到格子边；第 5、6 格后来用 `edit-cell.sh` 重画，原来贴在手臂上） |
+| 11 登山 | 待机、拄双杖站好、走路迈步、摔屁股墩、揉着屁股起身拍土、拄杖站好（`textures/pose-11-hike.webp`，对比在 `preview/pose-11-sheets.webp`，选 b；第 5、6 格后来用 `edit-cell.sh` 重画，原来是卷裤腿贴创可贴） |
+| 12 骑行 | 待机、扶车站好、骑车、连人带车摔倒、坐着往右膝（画面左边那只）上贴创可贴、扶车站起来、创可贴留在右膝上（`textures/pose-12-cycle.webp`，对比在 `preview/pose-12-sheets.webp`，选 b：a 的摔倒和贴创可贴两格碰到格子边；第 5、6 格后来用 `edit-cell.sh` 重画，原来贴在手臂上） |
 | 9 滑雪 | 待机（平时衣服，当尺子）、穿滑雪服踩板拄杖、压低身子滑、一头扎进雪堆、坐在雪堆里钻出来、甩头抖雪（已出，`textures/pose-9-ski.webp`，两版对比在 `preview/pose-9-sheets.webp`，选 a：b 的第一格平时衣服画成了长袖；codex 在透明底边上留了一圈半透明光晕，透明度低于 64 的清掉、其余拉回满范围） |
 
 **精灵的动作**（已出，`textures/sprite-pose-*.webp`，总览在 `preview/sprite-pose-sheets.webp`；平时、眨眼、看向右边、开心另有单张，在 `mascot/textures/`）：
@@ -314,7 +316,7 @@
 |---|---|
 | 她·循环 | walk 城堡背面走路、hum 哼歌摇摆、wave 挥手、clap 鼓掌、nod 点头、cheer 欢呼挥臂、shy 害羞扭动、gloomy 画圈圈、bored 发呆眨眼、doze 打瞌睡呼吸、shakeBox 摇盲盒、govWave 总督挥手、idle 待机眨眼、spin 转圈变身、skiGlide 滑雪左右压板、shakeSnow 甩头抖雪、curl 两手交替弯举、gymHop 砸脚后单脚跳、wipe 拿毛巾擦汗、trek 登山走路、pedal 骑行蹬车 |
 | 她·播一遍 | capRaise 舰长抬手敬礼、admRaise 提督抬手敬礼、spyRaise 举起望远镜、curtsy 屈膝礼、jump 总督跳上船（下蹲、腾空、落地） |
-| 她·过渡（只用中间两帧，倒着播就是反方向） | bowIn 站→鞠躬、sitBored 站→坐下发呆、crouchGloomy 站→蹲下画圈圈、sitDoze 站→抱膝打瞌睡、boxOpen 摇盲盒→打开、giftCheer 捧礼物→欢呼、awake 打瞌睡→惊醒、waveIn 站→挥手、shyIn 站→捂脸、giftIn 礼物盒掉进手里、cheerOut 欢呼→站、crownIn 王冠落到头上、shakeIn 拿起盲盒、openSurprised 打开→惊讶、surprisedCheer 惊讶→欢呼、openPout 打开→鼓腮、spySalute 收起望远镜敬礼、announceIn 举拳宣布、hopeIn 合手期待、hopeCheer 期待→欢呼、hopeClap 期待→鼓掌、hopeNod 期待→点头、pointIn 点名、dejectedIn 失落、humIn 开始哼歌、crackIn 破音、crackOut 破音→站、curtsyTurn 屈膝礼→转身、lookBackIn 停步回头、lookBackOut 回头→转过身、govPointWave 指向→挥手、boredGloomy 发呆→画圈圈、gloomyDoze 画圈圈→打瞌睡、surprisedIn 站→惊讶、skiGo 撑杖出发、skiFall 绊倒扎进雪堆、skiPop 从雪里钻出来、skiUp 站起来、curlIn 开始弯举、curlDrop 哑铃滑下砸脚、hopSit 坐下揉脚、rubUp 站起来擦汗、wipeIn 放下哑铃擦汗、trekIn 拄杖出发、trekSlip 滑倒摔屁股墩、rollKnee 卷裤腿贴膝盖、kneeUp 站起来、mount 跨上车、pedalCrash 连人带车摔倒、crashKnee 坐起贴膝盖、kneeRise 扶车站起来 |
+| 她·过渡（只用中间两帧，倒着播就是反方向） | bowIn 站→鞠躬、sitBored 站→坐下发呆、crouchGloomy 站→蹲下画圈圈、sitDoze 站→抱膝打瞌睡、boxOpen 摇盲盒→打开、giftCheer 捧礼物→欢呼、awake 打瞌睡→惊醒、waveIn 站→挥手、shyIn 站→捂脸、giftIn 礼物盒掉进手里、cheerOut 欢呼→站、crownIn 王冠落到头上、shakeIn 拿起盲盒、openSurprised 打开→惊讶、surprisedCheer 惊讶→欢呼、openPout 打开→鼓腮、spySalute 收起望远镜敬礼、announceIn 举拳宣布、hopeIn 合手期待、hopeCheer 期待→欢呼、hopeClap 期待→鼓掌、hopeNod 期待→点头、pointIn 点名、dejectedIn 失落、humIn 开始哼歌、crackIn 破音、crackOut 破音→站、curtsyTurn 屈膝礼→转身、lookBackIn 停步回头、lookBackOut 回头→转过身、govPointWave 指向→挥手、boredGloomy 发呆→画圈圈、gloomyDoze 画圈圈→打瞌睡、surprisedIn 站→惊讶、skiGo 撑杖出发、skiFall 绊倒扎进雪堆、skiPop 从雪里钻出来、skiUp 站起来、curlIn 开始弯举、curlDrop 哑铃滑下砸脚、hopSit 坐下揉脚、rubUp 站起来擦汗、wipeIn 放下哑铃擦汗、trekIn 拄杖出发、trekSlip 滑倒摔屁股墩、slipUp 揉着屁股起身、brushUp 拍完土站好、mount 跨上车、pedalCrash 连人带车摔倒、crashKnee 坐起贴右膝、kneeRise 扶车站起来 |
 | 精灵·循环 | spIdle 飘浮摆尾、spHappy 开心蹦、spFlag 挥旗、spNod 点头、spSurprised 吓一跳、spYawn 打哈欠、spSleep 睡觉呼吸、spPat 摸头、spGlow 发光、spHide 抱头发抖、spFly1–3 四分之三、侧面、背面飞行摆尾 |
 
 **道具和设定图：**
