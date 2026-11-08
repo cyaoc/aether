@@ -20,7 +20,7 @@
 ## 画风
 
 - **立绘以 SSR 为主**，标准是 `refs/face-s2b.webp` 里的她：干净的线、赛璐璐加柔和的光、头发有光泽、衣褶有明暗。设定图那种平涂只用在人设图上。
-- **Q 版就是用户给的 `textures/chibi-sheet.webp`**，不重新设计、不出候选；只按它补全身（`textures/chibi-turnaround.webp`），脸、画风、彩铅质感都照原图。桌宠用 Q 版。
+- **Q 版就是用户给的 `textures/chibi-sheet.webp`**，不重新设计、不出候选；只按它补全身（`textures/chibi-turnaround.webp`），脸、画风、彩铅质感都照原图，身体约 2 头身：头和下巴以下一样高，腿很短，裙摆接近袜子。桌宠用 Q 版。
 
 ## 文件
 
@@ -29,7 +29,7 @@
 | `textures/sheet-turnaround.webp` | 人设图 A：正面、四分之三、侧面、背面全身，SSR |
 | `textures/sheet-expressions.webp` | 人设图 B：九个表情，和 Q 版九宫格一格一格对应（欢呼、鼓腮、大哭、捂脸吃惊、嫌弃、得意、害羞、平静、犯困） |
 | `textures/chibi-sheet.webp` | Q 版原图（用户给的） |
-| `textures/chibi-turnaround.webp` | Q 版全身四视图 |
+| `textures/chibi-turnaround.webp` | Q 版全身四视图，约 2 头身 |
 | `textures/splash-background.webp` | 启动页背景层，1536×1024 |
 | `textures/splash-character.webp` | 启动页角色层，1536×1024 透明底，含她身后的光晕 |
 | `textures/login-background.webp`、`login-character.webp` | 登录页的两层，同上 |
