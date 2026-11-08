@@ -17,7 +17,8 @@ twice), --from-first uses its frame 1 as the base instead. Out: the four frames 
 transparent, in the reference's own coordinates. --take always takes that box from the frames, every frame including the
 first, for a part that moves all the time (walking legs), so nothing of the reference's stays there (a shoe's shadow).
 
---face locks her face: where her head moves (a sway, a bow, a hop) codex's face is a little different in every frame and
+--face keeps her head: where codex's head did not move, the reference's whole head is kept; where her head moves (a
+sway, a bow, a hop) codex's face is a little different in every frame and
 flickers when played, so the reference's own face is laid over each frame instead, slid, scaled and turned to where that
 frame's head is. With --end (a transition), frames 3 and 4 get the end drawing's face, so her expression only ever
 changes between the two drawn faces. A frame whose face does not match well enough (turned away, hidden) is left alone.
@@ -277,6 +278,50 @@ def lay_face_once(frame, src):
     return out, best[0]
 
 
+def crown(A):
+    """Where the top of her hair is: its highest dark row and the middle of the hair just below it (hands are not dark)."""
+    dark = (A[..., 3] > 200) & (A[..., :3].max(-1) < 110)
+    ys, xs = np.nonzero(dark)
+    if not len(ys):
+        return None
+    by, bx = np.nonzero(dark[ys.min():ys.min() + 60])
+    return bx.mean(), ys.min()
+
+
+def skin(A):
+    return (A[..., 3] > 200) & (A[..., 0] > 200) & (A[..., 1] > 150) & (A[..., 2] > 120) & (A[..., 0] > A[..., 1]) & (A[..., 1] > A[..., 2]) & (A[..., 0] - A[..., 2] > 20)
+
+
+def true_face():
+    """Her face without a hand held against it: of the skin boxes in the reference and the frames, the shortest."""
+    boxes = [b for b in (skin_box(A) for A in [R] + F) if b is not None]
+    return min(boxes, key=lambda b: b[3] - b[1]) if boxes else None
+
+
+FACE = true_face()
+
+
+def still_head(k):
+    """Where codex's head did not move from frame 1 to frame k (the top of her hair stayed put), the reference's whole head
+    (face, bangs, crown) is kept, so a head codex drew a little bigger never shows (a face that goes fat for one frame of a
+    wave). Skin off her face, in the reference or the frame, is a hand: it stays the frame's, so a hand that moved away
+    leaves nothing behind and a hand that came in front of her face shows."""
+    a, b = crown(F[0]), crown(F[k])
+    if FACE is None or a is None or b is None or abs(a[0] - b[0]) > 6 or abs(a[1] - b[1]) > 6:
+        return None
+    x0, y0, x1, y1 = FACE
+    cx, cy, w, h = (x0 + x1) / 2, (y0 + y1) / 2, x1 - x0, y1 - y0
+    oval = Image.new("L", (cw, ch), 0)
+    ImageDraw.Draw(oval).ellipse((cx - 0.62 * w, cy - 0.2 * h - 0.9 * h, cx + 0.62 * w, cy - 0.2 * h + 0.9 * h), fill=255)
+    keep = np.asarray(oval, dtype=np.float32) / 255
+    face_oval = Image.new("L", (cw, ch), 0)
+    ImageDraw.Draw(face_oval).ellipse((x0, y0, x1, y1), fill=255)
+    off_face = ~(np.asarray(face_oval) > 0)
+    hand = np.asarray(Image.fromarray((((skin(R) | skin(F[k])) & off_face) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(13))) > 0
+    keep[hand] = 0
+    return np.asarray(Image.fromarray((keep * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(4)), dtype=np.float32)[..., None] / 255
+
+
 base = F[0] if from_first else R
 strip = Image.new("RGBA", (cw * 4, ch), (0, 0, 0, 0))
 faces = None
@@ -285,8 +330,12 @@ if lock_face:
     end = face_patch(np.asarray(load_ref(end_spec), dtype=np.float32)) if end_spec else start
     faces = [start, start, end, end]
 for k, f in enumerate(F):
-    res = base * (1 - mask) + f * mask
-    if faces and faces[k] is not None:
+    keep = still_head(k) if k and lock_face else None
+    m = mask * (1 - keep) if keep is not None else mask
+    res = base * (1 - m) + f * m
+    if keep is not None:
+        print(f"frame {k + 1}: head kept from the reference")
+    elif faces and faces[k] is not None:
         got = lay_face(res, faces[k])
         print(f"frame {k + 1}: " + (f"face locked (off by {got[1]:.1f})" if got else "face left alone"))
         if got:
