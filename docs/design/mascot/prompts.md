@@ -19,7 +19,7 @@
 | 8 | 用户说 Q 版身体比例再小点 | 原来那张约 2.8 头身；提示词写明约 2 头身、下巴到腰不到半个头、腰到脚底约半个头，出四张选最矮的 C6（约 2.1）。侧面远侧的手被身体挡住，用 codex 补上指尖，只把那一小块贴回原图 |
 | 9 | 甲方嫌两边飘起的头发毛糙、欢呼两臂开得不够 | 头发规则写进 `sheet-base`、`peek-base` 和人设图的负向词；姿势图、人设图 B 重出（平时 idle-a、欢呼 cheer-c、B-a）。启动页、登录页试过把飘发收成发束，像章鱼的触手，用户否了，保持原样 |
 | 10 | 精灵 | 先按城堡本身做（窗户当眼睛、门当嘴），像房子长脸，被否；查了城堡吉祥物和游戏伙伴的做法，改成戴城堡王冠的云朵小生物，出两张选 puff-a；正式素材先出透明底的平时，再用 `sprite-eyes.sh` 只重画眼睛做眨眼、看右边，`sprite-patch.py` 按椭圆整块贴回 |
-| 11 | 精灵和她的位置 | 照原设计的关系重排：启动页飘在她脸边、登录页在她脸前看向二维码、礼物榜挪到肩旁；用户要第一名时精灵更高兴，加了开心那张，欢呼时换上它并弹跳，不再转圈 |
+| 11 | 精灵和她的位置 | 先把精灵素材贴到角色层上：用户说像 P 上去的、离她太疏远；改成和她一起画进画里，坐她肩上、扒手机边：贴得太近有"两个头"、手机的光把它吃掉；最后定为独立的小角色，挨在她身边但不靠着她（启动页 splash-c、登录页 login-c、礼物榜 (358, 飘带上沿 − 70)）。用户要第一名时精灵更高兴，加了开心那张，欢呼时换上它并弹跳，不再转圈 |
 
 ## 生图
 
@@ -30,13 +30,13 @@
 | `gen-sheet.sh <目录> <名字> A\|B` | SSR 人设图 | `refs/face-s2b`、对应的人设图；B 另加 Q 版九宫格 |
 | `gen-chibi.sh <目录> <名字>` | Q 版全身 | Q 版九宫格、`refs/chibi-neutral`、人设图 A（只参考下半身） |
 | `gen-scene.sh <目录> <名字> <姿势文件> <天空文件>` | SSR 场景图；启动页用的是 `scene-pose.txt` 和 `scene-sky.txt` | `refs/face-s2b`、人设图 A、`refs/afterglow-s1a` |
-| `gen-login.sh <目录> <名字>` | 登录页，提示词是 `login-base.txt`（场景段去掉启动页的姿势和版式）、`login-pose.txt`、`login-sky.txt`、`login-negative.txt` | `refs/splash-art`、人设图 A |
+| `gen-login.sh <目录> <名字>` | 登录页，提示词是 `login-base.txt`（场景段去掉启动页的姿势和版式）、`login-pose.txt`、`login-sky.txt`、`login-negative.txt` | `refs/splash-base`、人设图 A |
 | `gen-peek.sh <目录> <名字> idle\|cheer` | 礼物榜姿势图，透明底；提示词照原礼物榜设计包，换成她 | `refs/face-s2b`、人设图 A、对应的旧姿势图（只参考构图） |
 
 | `gen-sprite.sh <目录> <名字> <表文件> <城堡参考图>` | 精灵设定图（`sprite-sheet.txt`），提示词是 `sprite-base.txt`、`sprite-negative.txt` | 城堡截图（不在仓库）、`refs/face-s2b` |
 | `gen-sprite-final.sh <目录> <名字> <城堡参考图> <设定图>` | 精灵正面透明素材（`sprite-final.txt`） | 同上，加定稿设定图 |
 | `sprite-eyes.sh <平时> <目录> <名字> blink\|right\|happy` | 只重画精灵的眼睛，再用 `sprite-patch.py` 贴回；happy 连嘴和小手一起改，不贴回，直接用（和平时那张对齐到 1–2 px） | 平时那张 |
-| `place-sprite.py <角色层> <精灵> <中心x> <中心y> <高> <输出>` | 把精灵画进角色层，带粉白光晕 | — |
+| `scene-add-sprite.sh <整张> <目录> <名字> <位置文件>` | 在定稿的整张图里把精灵和她一起画进去，她和背景不动；位置文件是 `splash-sprite.txt`、`login-sprite.txt` | 整张、精灵设定图、平时那张 |
 
 `login-windows.py`、`peek-check.py` 分别检查登录页的窗口裁切和姿势图的截断线。
 
@@ -66,6 +66,9 @@
 | 侧面只画出一只手 | `sheet-A.txt` 写明远侧的手在臀后露出指尖；`sheet-negative.txt` |
 | 头发偏棕 | `sheet-base.txt` 写明纯黑；`sheet-negative.txt` |
 | 精灵画成房子长脸（窗户眼睛、拱门嘴、砖纹），丑 | `sprite-base.txt` 改成小生物戴城堡王冠；`sprite-negative.txt` 禁止 a building with a face、windows as eyes、a door as a mouth、brick texture |
+| 精灵贴在画上像 P 的（光照、描边对不上） | 改用 `scene-add-sprite.sh` 和她一起画；提示词写明 lit by the same light、不要发光描边 |
+| 精灵贴着她的脸像两个头；躲在手机后被光吃掉；离得太远像不认识 | `splash-sprite.txt`、`login-sprite.txt` 写明它的脸低于她的下巴、离她四分之一到半个头、全身露出、按画面百分比给位置 |
+| 去人时把精灵留在背景里、绿幕时把精灵涂掉 | `clean-plate.sh`、`greenscreen.sh` 写明精灵算她的一部分 |
 | 眨眼贴回后留一圈淡淡的旧眼眶 | `sprite-patch.py` 改成按椭圆整块取，椭圆要比眼睛轮廓大一圈 |
 | 头发两边炸开、一圈细飘发，显得毛糙（礼物榜姿势图、人设图） | `sheet-base.txt`、`peek-base.txt` 的 HAIR SHAPE 段；`sheet-negative.txt` 加 frizzy、flyaway。场景图不加：启动页、登录页的长飘发收成几大束会像章鱼触手 |
 | 欢呼两臂照着旧欢呼图开得很窄（约 21°） | `gen-peek.sh` 的构图参考一律用旧的平时那张；`peek-cheer.txt` 写明约 30°、手离左右边约 6% |

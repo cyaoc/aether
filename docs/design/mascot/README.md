@@ -31,13 +31,13 @@
 | `textures/chibi-sheet.webp` | Q 版原图（用户给的） |
 | `textures/chibi-turnaround.webp` | Q 版全身四视图，约 2 头身 |
 | `textures/splash-background.webp` | 启动页背景层，1536×1024 |
-| `textures/splash-character.webp` | 启动页角色层，1536×1024 透明底，含她身后的光晕和她的精灵 |
+| `textures/splash-character.webp` | 启动页角色层，1536×1024 透明底，含她身后的光晕和她的精灵（和她一起画的） |
 | `textures/login-background.webp`、`login-character.webp` | 登录页的两层，同上，角色层里也有精灵 |
 | `textures/sprite-idle.webp`、`sprite-blink.webp`、`sprite-look-right.webp`、`sprite-happy.webp` | 她的精灵：平时、眨眼、眼睛看向右边（登录页用）、开心（礼物榜新的第一名用），512×512 透明底。前三张只有眼睛不同；开心那张眼睛、嘴、小手都变了，王冠和身体的位置和平时差不到 1 px |
 | `textures/sprite-sheet.webp` | 精灵设定图：四个视角加平时、眨眼、开心、吃惊 |
 | `textures/peek-idle.webp`、`peek-cheer.webp` | 礼物榜从飘带后面探身的平时、欢呼两个姿势，768×1152 透明底，同一张画布、同一比例 |
-| `refs/` | 生图和拆层用的参考：`face-s2b`（脸和画法的标准）、`afterglow-s1a`（只参考头后余晖的打法）、`chibi-neutral`（Q 版平静那格放大）、`splash-art`、`login-art`（拆层前的整张）和它们的 `-plate`、`-green`（拆层的两张中间图） |
-| `preview/` | `sprite-set`（精灵四张素材）、`sprite-board`（礼物榜上精灵的位置，原位置和新位置对比）、`splash-windows`、`login-windows`（三种窗口裁切加界面元素，含精灵）、`splash-old-vs-new`、`split-overview`、`split-hair`、`login-split`、`login-split-hair`（拆层检查）、`peek-vs-old`（姿势图叠在旧姿势图上比构图）、`background-options`（四张背景方案对比） |
+| `refs/` | 生图和拆层用的参考：`face-s2b`（脸和画法的标准）、`afterglow-s1a`（只参考头后余晖的打法）、`chibi-neutral`（Q 版平静那格放大）、`splash-base`、`login-base`（还没有精灵的整张，`scene-add-sprite.sh` 在上面画精灵）、`splash-art`、`login-art`（画上精灵、拆层前的整张）和它们的 `-plate`、`-green`（拆层的两张中间图） |
+| `preview/` | `sprite-set`（精灵四张素材）、`sprite-board`（礼物榜上精灵的位置，平时和欢呼）、`splash-windows`、`login-windows`（三种窗口裁切加界面元素，含精灵）、`splash-old-vs-new`、`split-overview`、`split-hair`、`login-split`、`login-split-hair`（拆层检查）、`peek-vs-old`（姿势图叠在旧姿势图上比构图）、`background-options`（四张背景方案对比） |
 | `tools/` | 生图提示词和脚本、拆层脚本、窗口预览脚本，见 `prompts.md` |
 
 ## 启动页
@@ -108,13 +108,18 @@
 
 ### 精灵和她的位置关系
 
-照原设计"精灵跟在她身边"的关系，按她现在的姿势重排（`tools/place-sprite.py` 画进角色层，带一圈柔和的粉白光）：
+精灵是一个独立的小角色：有自己完整的身体和动作，挨在她身边、和她互动，但不靠在她身上。几条规则：
 
-| 画面 | 位置（中心，原图像素） | 高（旗尖到最低的云尾） | 说明 |
-|---|---|---|---|
-| 启动页 | (880, 295) | 180 | 原设计托在她手心上方；她现在一手挥手、一手按胸，没有摊开的手心，所以飘在她脸左边的空星空里，看着镜头。不碰头发，不压左上的标题和进度条 |
-| 登录页 | (740, 300) | 150 | 照原设计飘在她脸前方、朝着二维码那边，用看向右边那张；光带从手机流出、从它下面经过；三种窗口都在二维码卡片左边 |
-| 礼物榜 | (372, 飘带上沿 − 90)，设计坐标 | 64 | 原来在 (358, 飘带上沿 − 150)，偏高，欢呼时挨着她举起的右手；挪到肩膀旁边，欢呼时离手更远，身边那圈星光也碰不到她（`preview/sprite-board.webp`） |
+- 它的脸比她的下巴低，两张脸不并排（贴着脸会像一个人长了两个头）；
+- 离她约四分之一到半个头，不碰她的脸、肩膀、手，也不躲在东西后面；
+- 整个身体连云尾都露出来，约为她头高的一半，是配角，不抢她的戏；
+- 启动页、登录页里它和她一起画进画里（`tools/scene-add-sprite.sh`），光照一致，不是另外贴上去的；拆层时算她的一部分，在角色层里。
+
+| 画面 | 位置 | 说明 |
+|---|---|---|
+| 启动页 | 她右肩旁（画面左侧），中心约在画面宽 55%、高 46% | 飘在她飘起的发丝前面，离脸颊和肩膀约四分之一个头，小手在身前举着；三种窗口都不压标题和进度条 |
+| 登录页 | 她的手机和二维码卡片之间，中心约在画面宽 50%、高 46%，整个身子不超过画面宽 57% | 小手指着卡片那边，从手机流出的光带穿过它；三种窗口里卡片都盖不到它，最小窗口还隔约 40 px |
+| 礼物榜 | 设计坐标 (358, 飘带上沿 − 70)，高约 76 px | 在她肩膀那一带、比脸低，和她的头发隔约半个头（`preview/sprite-board.webp`）。原来气泡在 (358, 飘带上沿 − 150)、约 64 px，偏高、离她的脸太远 |
 
 礼物榜上的动作按它的设定改：平时照旧上下飘、每 4.5 秒眨眼；新上榜照旧弹一下、发出光胶囊；**新的第一名**不再整圈旋转（王冠会倒过来），改成换上开心那张、连着往上弹两下、左右轻晃一下，身边那圈星光照旧，和她换成欢呼姿势同一时刻开始、同一时刻换回平时。
 
