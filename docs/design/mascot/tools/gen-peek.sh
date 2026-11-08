@@ -2,7 +2,7 @@
 # gen-peek.sh <out-dir> <name> <idle|cheer>: one gift-board pose of her peeking over the title ribbon, transparent.
 set -e
 T=${0:A:h}; P=${T:h}; G=${1:A}; out=$2; pose=$3
-old=$P/../gift-board/textures/mascot-peek-$pose.webp
+old=$P/../gift-board/textures/mascot-peek-idle.webp  # framing only; the old cheer would pull her arms back to its narrow angle
 body="$(cat $T/peek-base.txt) $(cat $T/peek-$pose.txt) $(cat $T/scene-anatomy.txt) $(cat $T/scene-negative.txt)"
 rm -f $G/$out.png
 prompt="Use your built-in image generation tool (not code) to create ONE image, then copy the generated PNG file to $G/$out.png. Do not write any code. Image: $body"

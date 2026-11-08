@@ -17,6 +17,7 @@
 | 6 | 把 F1 拆成两层 | 抠图模型抠不好细发丝，改用绿幕，见下文 |
 | 7 | 登录页、礼物榜姿势图 | 登录页出两张选 L1（光带从手机流过卡片后面，头离标题更远）并拆层；姿势图每个姿势两张，选截断线最接近的一对 |
 | 8 | 用户说 Q 版身体比例再小点 | 原来那张约 2.8 头身；提示词写明约 2 头身、下巴到腰不到半个头、腰到脚底约半个头，出四张选最矮的 C6（约 2.1）。侧面远侧的手被身体挡住，用 codex 补上指尖，只把那一小块贴回原图 |
+| 9 | 甲方嫌两边飘起的头发毛糙、欢呼两臂开得不够 | 头发规则写进 `sheet-base`、`scene-base`、`peek-base` 和负向词；姿势图、人设图 B 重出（平时 idle-a、欢呼 cheer-c、B-a），启动页、登录页另改 |
 
 ## 生图
 
@@ -57,6 +58,8 @@
 | 发呆、打哈欠在写实画风下像放电 | `sheet-negative.txt`（sultry、heavy-lidded with parted lips） |
 | 侧面只画出一只手 | `sheet-A.txt` 写明远侧的手在臀后露出指尖；`sheet-negative.txt` |
 | 头发偏棕 | `sheet-base.txt` 写明纯黑；`sheet-negative.txt` |
+| 头发两边炸开、一圈细飘发，显得毛糙 | `sheet-base.txt`、`scene-base.txt`、`peek-base.txt` 的 HAIR SHAPE 段；两个负向词文件加 frizzy、flyaway |
+| 欢呼两臂照着旧欢呼图开得很窄（约 21°） | `gen-peek.sh` 的构图参考一律用旧的平时那张；`peek-cheer.txt` 写明约 30°、手离左右边约 6% |
 | Q 版身体偏长（约 2.8 头身） | `chibi.txt` 写明约 2 头身和躯干、腿各占多少；负向词加上 more than 2.2 heads tall、long legs |
 | 头顶太靠上、挥手贴近右边 | `scene-pose.txt` 写明头顶约 15%、指尖离右边至少 10% |
 | 裙子短、露大腿 | `scene-negative.txt` |
