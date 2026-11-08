@@ -15,5 +15,6 @@
  "64f045ceb5e565290d330780f7c0006f": "textures/ship.webp",
  "585380a5dabdfface1e97682df6d7b43": "../mascot/textures/sprite-idle.webp",
  "75b906294ec84d94be622e45ecdc3ab2": "../mascot/textures/sprite-blink.webp",
- "c30af21b10ec63511b5f4838e72245e6": "../mascot/textures/sprite-happy.webp"
+ "c30af21b10ec63511b5f4838e72245e6": "../mascot/textures/sprite-happy.webp",
+ "7761f2f7cddf5ed1d69e16c20647f65b": "textures/sprite-views.webp"
 }
