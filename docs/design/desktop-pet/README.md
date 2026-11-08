@@ -216,7 +216,7 @@
 - 城堡：已出，见第 5 节。
 - 公主装：已出，设定图 `textures/princess-sheet.webp`（选的 b，两张对比在 `preview/princess-sheets.webp`）。
 - 舰长、提督、总督三套服装：已出，见第 3 节。
-- 大船：一张透明图，船头朝前、能站人。
+- 大船：已出，`textures/ship.webp`（1536 × 1024 透明底）。圆胖的白蓝船身、金边、金框舷窗、红帷幔，三根桅杆挂金锚白帆，桅顶红旗，船头朝左；船头有一块空甲板让她站（约在船高 66% 处、船宽 26% 处，`preview/ship-on-deck.webp`：船宽 470 px 时她 150 px 高）；船首像是金色锚加皇冠徽章配镂空卷纹，和总督帽徽一套。没有炮口和海盗元素。两张候选在 `preview/ship-options.webp`，选 a；第一次船首像画成了精灵，用户否了，只重画船头那块（`preview/ship-figurehead.webp`），提示词和负向词都写明船首像不是小生物。
 
 **出图工具**（`tools/`）：
 
@@ -227,7 +227,9 @@
 - `gen-princess.sh <目录> <名字> <表文件>`：公主装设定图（`princess-base.txt`、`princess-sheet.txt`、`princess-negative.txt`）；`gen-sheet-princess.sh <目录> <名字> <表号>` 出穿公主装的动作表，提示词是 `princess-pose-base.txt`（`pet-base.txt` 换了服装段）。
 - `gen-fleet.sh <目录> <名字> <表文件>`：大航海服装设定图（`fleet-base.txt`、`fleet-sheet.txt`、`fleet-negative.txt`）；`gen-sheet-fleet.sh <目录> <名字> <表号>` 出穿大航海服装的动作表，提示词是 `fleet-pose-base.txt`（`pet-base.txt` 换了服装段，每格写明穿哪套）。
 - 动作表 7 的"回头挥手"第一次画成一个肩膀伸出两只胳膊，用 `edit-cell.sh` 只重画这一格（`preview/pose-7-wave-fix.webp`），负向词加了这条。
-- `patch-box.py <原图> <改过的> <输出> <x0,y0,x1,y1>`：只把一个方框贴回原图，边缘柔和，框外一个像素不动。
+- `patch-box.py <原图> <改过的> <输出> <x0,y0,x1,y1> [羽化] [alpha]`：只把一个方框贴回原图，边缘柔和，框外一个像素不动；加 `alpha` 时连透明度一起取。
+- `key-box.py <原图> <绿底上改过的> <输出> <x0,y0,x1,y1>`：改动超出轮廓时用。透明底上直接改，codex 会在周围留一圈半透明光晕；先把原图放到纯绿底上改，再按绿色抠回那个方框。
+- `gen-ship.sh <目录> <名字>`：大船，提示词 `ship-base.txt`、`ship-sheet.txt`、`ship-negative.txt`。
 - `sheet-check.py <表> <预览> <六格名字>`：量每格的顶、底、高（和第一格待机比）和是否碰到格子边，出一张带格线、脚底线的预览。
 - 切图按每格里的内容切，不按死格子切：4 号"骑车摔倒"的后轮伸进隔壁格约 8 px。
 - 平时不贴创可贴；出图后有创可贴的，用角色设计包的 `remove-bandage.sh`、`bandage-patch.py` 擦掉，只留 4 号"贴创可贴"那一格。
@@ -239,7 +241,7 @@
 1. 她的动作表 1–6，每张出两次挑一张（已出）。
 2. 精灵动作 1、2（已出）。
 3. 城堡 → 公主装设定图 → 动作表 7（都已出）。
-4. 大航海服装设定图 → 动作表 8（都已出）→ 大船。
+4. 大航海服装设定图 → 动作表 8 → 大船（都已出）。
 5. 在设计稿画布上画角落演出的画板：平时、心情、每个事件、两种抽奖、城堡和总督的整段，定页面尺寸、气泡样式和时长。
 6. 素材、画板源码、截图放进本目录，拆票（#343 的角色框架和迁移排在最前）。
 
