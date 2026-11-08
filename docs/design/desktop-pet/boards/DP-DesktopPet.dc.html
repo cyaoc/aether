@@ -25,7 +25,7 @@ const BLOB = {
   sp1: '26e419983fd50915beebe9874c8f580f', sp2: '798d2599257e9749035aa3049a19ea28',
   castleClosed: 'a5423ebc571dd5c837a1759c2e34534f', castleOpen: '1fae311556a3e785a50c209107064a25', ship: '64f045ceb5e565290d330780f7c0006f',
   views: '7761f2f7cddf5ed1d69e16c20647f65b',
-  sIdle: '585380a5dabdfface1e97682df6d7b43', sBlink: '75b906294ec84d94be622e45ecdc3ab2', sHappy: 'c30af21b10ec63511b5f4838e72245e6'
+  sIdle: '585380a5dabdfface1e97682df6d7b43', sBlink: '75b906294ec84d94be622e45ecdc3ab2', sHappy: 'c30af21b10ec63511b5f4838e72245e6', sLook: '084877c8ff8cd82f8f46591b1346947c'
 };
 // Her poses: [sheet, cell], cells numbered 0–5 left to right, top row first.
 const POSE = {
@@ -36,17 +36,49 @@ const POSE = {
   bored: ['moods', 1], gloomy: ['moods', 2], pout: ['moods', 3], shy: ['moods', 4], awake: ['moods', 5],
   giftBox: ['gifts', 1], shakeBox: ['gifts', 2], openBox: ['gifts', 3], crownV: ['gifts', 4], nod: ['gifts', 5],
   pIdle: ['castleSheet', 0], spin: ['castleSheet', 1], curtsy: ['castleSheet', 2], walkA: ['castleSheet', 3], walkB: ['castleSheet', 4], lookBack: ['castleSheet', 5],
-  capSalute: ['voyage', 1], spyglass: ['voyage', 2], admSalute: ['voyage', 3], govPoint: ['voyage', 4], govWave: ['voyage', 5]
+  capSalute: ['voyage', 1], govJump: ['voyage', 4], spyglass: ['voyage', 2], admSalute: ['voyage', 3], govPoint: ['voyage', 4], govWave: ['voyage', 5]
+};
+// Frame strips (textures/frames/<name>.webp, four frames in a row; tools/gen-frames.sh, tools/frame-patch.py), by blob.
+const FRAMES = {admRaise: '920a18b1f70d454f0d2b884c7d37ffeb', announceIn: '306b48e9115c2f0c13d29aadbf650756', awake: '4f027414161a138c012f61fe2b263359', bandageIn: '4468b7f7d9c64165a920f385d5f47d26', bandageOut: 'b7a0a17f9dec4d9c9ce8c04a11dd37c7', bike: '7206bd613e435e9426609c5552a4c815', bikeCrash: 'a1c683a18d6bb8e93046286341f31b97', bikeIn: 'e8ea46207bf7e4b84d8c726dcc6181e8', bored: 'a4fd757ecae8bdcac080f4e20cb5ccf2', boredGloomy: '98b8ddfe78bd8d6f40c70d1fe0fc2b64', bowIn: '4fd33bac034a8804e1dfd29875241114', boxOpen: 'ef5c7bfd191b3f22568fad0a803b253e', capRaise: '68cbd5c818e1c00ef3a0f9cae1a5344b', cheer: 'c9a119fda6ac63d8f8d472949b98bc35', cheerOut: 'c82759a6fb017322584b5ca4a291444b', clap: 'd7ca70eb6d31d788fa3a7e5ed4420ed7', crackIn: '87a1c1101bb84dcea9ace89cca0207f1', crackOut: 'a0850d3bd42b1d4cd9ce612029f2c6e1', crashUp: '0ad6886907739b5ebf634deb714d844f', crouchGloomy: '5608ce7bb43d12c81bd26f9d62d16942', crownIn: '60d1e736ef9a246e20d23b8711a06846', curtsy: 'a64d8440ff3a36b27ad4080e69db20c6', curtsyTurn: 'a5a3ad7628abc61b7079d2ec88c1774a', dejectedIn: '1ecea02c4aed0231fa402a0dd4882d46', doze: '847586754fb4e20f8cfc149a47469798', dropFoot: 'b21a232f44ceebac8ff1ef53e7e18fb3', dumbbell: '66f4fc15741691537abad54c757b0f4c', dumbbellIn: '172a69a54c88ca6b3aab1bfece198cb9', footHurt: '60b7171dc5901680cbb6fbcf061d8c71', footHurtOut: 'dcdddc6870cccd28e4a08cd600dae692', giftCheer: '327a50da69022e7599e70b0aa250a192', giftIn: '483f875031d6866af8f19372d5497f8c', gloomy: '62c2217eff19c08cbad011553eaa7f4b', gloomyDoze: '5977b9c36e757fa6dd611e60874bb912', govPointWave: '54ab6ea8f985130c8416f093ec54e98d', govWave: '9e3a9fdbcc32c4e3a607a595fac7c1f2', hike: 'd7da9b2d7cbe598d5cfa9c84a7e0b53c', hikeIn: '140906319f4ef30e12f87e32efe1e358', hopeCheer: 'ad5cf07cda9161a1125c29ec50ff6d14', hopeClap: 'e82b99718817c003396b9211f552e97d', hopeIn: 'af9cf67116d97e77b8715834c1ea3946', hopeNod: '18d396277ea53803aab8025f4b89d334', hum: '5f4ff3fffcd8d3c47430a86da376574a', humIn: '2fdb1e22692896982c3d98cc6b3a8fee', idle: 'b74812427826eaf4098b1fbc4d1a78d4', jump: 'c51cb12468e4afb08561333bba777b51', lookBackIn: 'df3739f496aaa798f63696804b74d473', lookBackOut: '7bba58052852f687a6a473093b05036b', nod: '702f52ca11029fd9fd4ba08f5c01b626', openPout: 'e7845c90f17da61d3298b642c0bc095f', openSurprised: '5bb6d4fb8afe7fdb3772237b8383cd89', pointIn: '8472fc78f8e1f2debd8cd0b0edb2342e', shakeBox: '5beaa7f638ca7c0dbb0bcf90d731ba98', shakeIn: '48a29222f51ca2942ba5facfc09933fe', shy: '6879278a05024f916b5a9b8f8b3d9bf7', shyIn: '29596c210974361d003a980b0633b66a', sitBored: '80867232a5e50ab4272cb19a78ea3dbe', sitDoze: '9998909b0c3bc0a44ee1e17476715e09', slipFall: 'cc616b89034065ad154743b70b94882c', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'bc73c6bf04791daca5a8fb579648cced', spyRaise: '016558ba47cdc5e0e22cfd3120c2666e', spySalute: 'b5e2f2348aa7d42ac902dd0fc888a00a', surprisedCheer: '4afc354d6304b738b6ac2a463217db1b', surprisedIn: 'a76e1f3a09a188648ff99ed5f7d0b7c4', walk: '33afb9a37123ef3e90a974a91049ce57', wave: '39a6cd30e03a020265e6deb6404581a1', waveIn: 'dd074767e81d79dccc80b42cb58d22ab'};
+// Poses that move: the strip f, drawn from the pose's own cell, as a loop at ms per frame, a loop of [frame, ms] steps, or
+// once: [frame, ms] steps from when the pose begins, holding the last.
+const STRIP = {
+  bike: { f: 'bike', ms: 110 }, hike: { f: 'hike', ms: 170 }, walkA: { f: 'walk', ms: 200 }, dumbbell: { f: 'dumbbell', ms: 260 },
+  hum: { f: 'hum', ms: 320 }, wave: { f: 'wave', ms: 150 }, clap: { f: 'clap', ms: 110 }, nod: { f: 'nod', ms: 190 }, cheer: { f: 'cheer', ms: 160 },
+  shy: { f: 'shy', ms: 220 }, gloomy: { f: 'gloomy', ms: 260 }, doze: { f: 'doze', ms: 700 }, footHurt: { f: 'footHurt', ms: 140 },
+  shakeBox: { f: 'shakeBox', ms: 90 }, govWave: { f: 'govWave', ms: 170 }, spin: { f: 'spin', ms: 110 },
+  idle: { f: 'idle', loop: [[0, 3400], [1, 50], [2, 70], [3, 50]] }, bored: { f: 'bored', loop: [[0, 2600], [1, 160], [2, 500], [3, 160]] },
+  capSalute: { f: 'capRaise', once: [[2, 120], [1, 100], [0, 0]] }, admSalute: { f: 'admRaise', once: [[2, 120], [1, 100], [0, 0]] },
+  spyglass: { f: 'spyRaise', once: [[2, 140], [1, 120], [0, 0]] }, curtsy: { f: 'curtsy', once: [[2, 200], [1, 160], [0, 0]] },
+  govJump: { f: 'jump', once: [[0, 60], [1, 140], [2, 300], [3, 160], [0, 0]] }
+};
+// The sprite's drawings that move, [strip, ms per frame]; v1–v3 are its turnaround views flying.
+const SSTRIP = {
+  sIdle: ['spIdle', 240], sHappy: ['spHappy', 150], flag: ['spFlag', 130], nod: ['spNod', 170], surprised: ['spSurprised', 90], yawn: ['spYawn', 320],
+  sleep: ['spSleep', 650], pat: ['spPat', 150], glow: ['spGlow', 160], hide: ['spHide', 80], v1: ['spFly1', 120], v2: ['spFly2', 120], v3: ['spFly3', 120]
+};
+// In-betweens: changing pose A>B plays frames 2 and 3 of strip f (drawn from A's cell, ending on B), 90 ms each, instead of
+// fading; B>A plays them backwards.
+const TRANS = {
+  'idle>bow': 'bowIn', 'idle>bored': 'sitBored', 'idle>gloomy': 'crouchGloomy', 'idle>doze': 'sitDoze', 'hike>slip': 'slipFall',
+  'bike>crash': 'bikeCrash', 'shakeBox>openBox': 'boxOpen', 'giftBox>cheer': 'giftCheer', 'doze>awake': 'awake',
+  'idle>wave': 'waveIn', 'idle>shy': 'shyIn', 'idle>giftBox': 'giftIn', 'cheer>idle': 'cheerOut', 'idle>crownV': 'crownIn', 'idle>shakeBox': 'shakeIn',
+  'openBox>surprised': 'openSurprised', 'surprised>cheer': 'surprisedCheer', 'openBox>pout': 'openPout', 'spyglass>admSalute': 'spySalute',
+  'idle>announce': 'announceIn', 'idle>hope': 'hopeIn', 'hope>cheer': 'hopeCheer', 'hope>clap': 'hopeClap', 'hope>nod': 'hopeNod', 'idle>point': 'pointIn',
+  'idle>dejected': 'dejectedIn', 'idle>dumbbell': 'dumbbellIn', 'dumbbell>footHurt': 'dropFoot', 'footHurt>idle': 'footHurtOut', 'idle>hum': 'humIn',
+  'hum>crack': 'crackIn', 'crack>idle': 'crackOut', 'idle>hike': 'hikeIn', 'idle>bike': 'bikeIn', 'slip>bandage': 'bandageIn', 'crash>bandage': 'crashUp',
+  'bandage>idle': 'bandageOut', 'curtsy>walkA': 'curtsyTurn', 'walkA>lookBack': 'lookBackIn', 'lookBack>pIdle': 'lookBackOut',
+  'govPoint>govWave': 'govPointWave', 'bored>gloomy': 'boredGloomy', 'gloomy>doze': 'gloomyDoze', 'idle>surprised': 'surprisedIn'
 };
 const SPRITE = { flag: ['sp1', 1], nod: ['sp1', 2], surprised: ['sp1', 3], yawn: ['sp1', 4], sleep: ['sp1', 5], pat: ['sp2', 1], crown: ['sp2', 2], sailor: ['sp2', 3], glow: ['sp2', 4], hide: ['sp2', 5] };
-// Walking frames cut straight to each other; the sprite keeps these drawings while it flies, since they carry something.
-const CUT = new Set(['walkA', 'walkB']), CARRY = new Set(['crown', 'glow']);
+// The sprite keeps these drawings while it flies, since they carry something.
+const CARRY = new Set(['crown', 'glow']);
 const TIER = { S: 4, A: 3, B: 2, C: 1, D: 0 };
 const EVENTS = {
   进场: { tier: 'C', dur: 1600 }, 普通礼物: { tier: 'C', dur: 2000, gift: true }, 连着送: { tier: 'C', dur: 2000, gift: true },
-  盲盒开亏: { tier: 'C', dur: 2600, gift: true }, 舰长: { tier: 'B', dur: 3000, gift: true }, 盲盒开大: { tier: 'B', dur: 4000, gift: true },
-  大礼物: { tier: 'A', dur: 3000, gift: true }, 提督: { tier: 'A', dur: 4000, gift: true }, 总督: { tier: 'S', dur: 6600, gift: true },
-  城堡: { tier: 'S', dur: 10500, gift: true }, 新的第一名: { tier: 'C', dur: 2600 },
+  盲盒开亏: { tier: 'C', dur: 2600, gift: true }, 舰长: { tier: 'B', dur: 4000, gift: true }, 盲盒开大: { tier: 'B', dur: 4000, gift: true },
+  大礼物: { tier: 'A', dur: 3000, gift: true }, 提督: { tier: 'A', dur: 5300, gift: true }, 总督: { tier: 'S', dur: 7800, gift: true },
+  城堡: { tier: 'S', dur: 11500, gift: true }, 新的第一名: { tier: 'C', dur: 2600 },
   报名开场: { tier: 'A', dur: 2600 }, 报名截止: { tier: 'A', dur: 2000 }, 奖池开场: { tier: 'A', dur: 2600 }, 奖池点名: { tier: 'A', dur: 2000 },
   奖池转动: { tier: 'A', dur: 2000 }, '揭晓·大奖': { tier: 'A', dur: 5200 }, '揭晓·二奖': { tier: 'A', dur: 4600 }, '揭晓·三奖': { tier: 'A', dur: 4600 },
   没人报名: { tier: 'A', dur: 2800 }, 日常: { tier: 'D' }
@@ -109,7 +141,7 @@ class Component extends DCLogic {
     this.booting = true;
     const load = id => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = '/_blob/' + id; });
     const img = {};
-    await Promise.all(Object.entries(BLOB).map(async ([k, id]) => { img[k] = await load(id); }));
+    await Promise.all([...Object.entries(BLOB), ...Object.entries(FRAMES).map(([k, id]) => ['f:' + k, id])].map(async ([k, id]) => { img[k] = await load(id); }));
     const box = (im, x, y, w, h) => {
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       const g = c.getContext('2d'); g.drawImage(im, x, y, w, h, 0, 0, w, h);
@@ -129,13 +161,25 @@ class Component extends DCLogic {
       const im = img[k], cw = im.width / 3, ch = im.height / 2, list = [];
       for (let i = 0; i < 6; i++) list.push(box(im, (i % 3) * cw, Math.floor(i / 3) * ch, cw, ch));
       const ground = [0, 1].map(r => Math.max(...list.slice(r * 3, r * 3 + 3).filter(Boolean).map(b => b.y + b.h)));
-      this.cells[k] = list.map((b, i) => b && { im, ...b, ground: ground[Math.floor(i / 3)], ruler: list[0].h });
+      this.cells[k] = list.map((b, i) => b && { im, ...b, ox: (i % 3) * cw, oy: Math.floor(i / 3) * ch, ground: ground[Math.floor(i / 3)], ruler: list[0].h });
     }
-    for (const k of ['sIdle', 'sBlink', 'sHappy']) { const im = img[k], b = box(im, 0, 0, im.width, im.height); this.cells[k] = [{ im, ...b, ruler: b.h }]; }
+    for (const k of ['sIdle', 'sBlink', 'sHappy', 'sLook']) { const im = img[k], b = box(im, 0, 0, im.width, im.height); this.cells[k] = [{ im, ...b, ox: 0, oy: 0, ruler: b.h }]; }
     // The sprite's four turnaround views in a row: front, three-quarter and side (both facing the viewer's left), back.
     { const im = img.views, cw = im.width / 4, ch = im.height, list = [];
       for (let i = 0; i < 4; i++) list.push(box(im, i * cw, 0, cw, ch));
-      this.cells.views = list.map(b => ({ im, ...b, ruler: list[0].h })); }
+      this.cells.views = list.map((b, i) => ({ im, ...b, ox: i * cw, oy: 0, ruler: list[0].h })); }
+    // a strip's frames keep the anchor, ground and ruler of the cell they were drawn from, so only the moving part moves
+    const framesOf = (f, pose) => {
+      const im = img['f:' + f], fw = im.width / 4, [k, n] = POSE[pose], c = this.cells[k][n];
+      return [0, 1, 2, 3].map(i => ({ im, ...box(im, i * fw, 0, fw, im.height), cx: c.cx - c.ox + i * fw, ground: c.ground - c.oy, ruler: c.ruler }));
+    };
+    this.strips = {}; this.tweens = {}; this.sstrips = {};
+    for (const [pose, s] of Object.entries(STRIP)) if (img['f:' + s.f]) this.strips[pose] = framesOf(s.f, pose);
+    for (const [pair, f] of Object.entries(TRANS)) if (img['f:' + f]) this.tweens[pair] = framesOf(f, pair.split('>')[0]).slice(1, 3);
+    for (const [key, [f]] of Object.entries(SSTRIP)) {
+      const im = img['f:' + f], c = key[0] === 'v' ? this.cells.views[+key[1]] : key in SPRITE ? this.cells[SPRITE[key][0]][SPRITE[key][1]] : this.cells[key][0];
+      if (im) this.sstrips[key] = [0, 1, 2, 3].map(i => ({ im, ...box(im, i * im.width / 4, 0, im.width / 4, im.height), cx: c.cx - c.ox + i * im.width / 4, cy: c.cy - c.oy, ruler: c.ruler }));
+    }
     this.castle = { closed: img.castleClosed, open: img.castleOpen, box: box(img.castleClosed, 0, 0, img.castleClosed.width, img.castleClosed.height) };
     this.ship = { im: img.ship, box: box(img.ship, 0, 0, img.ship.width, img.ship.height) };
     this.day = img.day;
@@ -238,7 +282,8 @@ class Component extends DCLogic {
     const st = this.base();
     if (this.lot && (this.lot.phase === '等待' || this.lot.phase === '转动')) { st.pose = 'hope'; this.talk(st, '等开奖', since); return st; }
     if (mood === '开心') { st.y -= 6 * Math.abs(Math.sin(now / 380)); st.orbit = now; }
-    if (mood === '无聊') { st.pose = 'bored'; st.sprite = 'yawn'; }
+    if (mood === '平静' && now % 7000 > 5800) st.sprite = 'sLook';  // now and then it looks up at her
+    if (mood === '无聊') { st.pose = 'bored'; st.sprite = now % 8000 < 2600 ? 'yawn' : 'sIdle'; st.sp = ['home', 10 * Math.sin(now / 1800), 6 * Math.sin(now / 1300)]; }
     if (mood === '沮丧') { st.pose = 'gloomy'; st.sprite = 'pat'; st.sp = 'head'; }
     if (mood === '犯困') { st.pose = 'doze'; st.sprite = 'sleep'; st.sp = 'knee'; }
     this.talk(st, this.lot?.phase === '报名中' ? '报名中' : mood, since);
@@ -263,42 +308,70 @@ class Component extends DCLogic {
     const say = (from, text = line) => { if (t >= from && text) st.bubble = { text, t: t - from }; };
     const hop = (a, h = 10) => { st.y -= h * bump(t, a, a + 320); };
     switch (name) {
-      case '进场': st.pose = 'wave'; st.sprite = 'flag'; hop(0, 8); say(100); break;
-      case '普通礼物': st.pose = t < 1500 ? 'bow' : 'idle'; st.sprite = t < 1500 ? 'nod' : 'sIdle'; st.fx.push(['hearts', 200, 3]); say(150); break;
-      case '连着送': st.pose = 'shy'; st.sprite = 'sHappy'; st.fx.push(['hearts', 0, 7]); say(150); break;
-      case '大礼物': st.pose = t < 1400 ? 'giftBox' : 'cheer'; hop(0); hop(1400, 14); st.sprite = 'sHappy'; st.orbit = t; st.fx.push(['confetti', 1400], ['sparkles', 1400]); say(200); break;
+      // it looks up at her first, then waves its flag with her
+      case '进场': st.pose = 'wave'; hop(0, 8); st.sprite = t < 350 ? 'sLook' : 'flag'; say(100); break;
+      // they bow together
+      case '普通礼物': st.pose = t < 1500 ? 'bow' : 'idle'; st.sprite = t < 1500 ? 'nod' : 'sHappy'; st.fx.push(['hearts', 200, 3]); say(150); break;
+      // it copies her: up beside her shoulder, hiding its face too
+      case '连着送': st.pose = 'shy'; st.sprite = 'hide'; st.sp = ['rel', -0.04, 0.42]; st.fx.push(['hearts', 0, 7]); say(150); break;
+      // it peeks at the gift box beside her; her cheer tosses it over her head and it circles her
+      case '大礼物':
+        st.pose = t < 1400 ? 'giftBox' : 'cheer'; hop(0); hop(1400, 14);
+        if (t < 1400) { st.sprite = 'sLook'; st.sp = ['rel', 0.04, 0.52]; } else this.toss(st, t, 1400);
+        st.fx.push(['confetti', 1400], ['sparkles', 1400]); say(200); break;
       case '新的第一名':
         st.pose = t < 1300 ? 'idle' : 'crownV';
         st.sprite = t < 1600 ? 'crown' : 'sHappy';
         st.sp = t < 1600 ? ['crown', ease(k01(t, 0, 900)), ease(k01(t, 900, 1300))] : ['home-from-top', ease(k01(t, 1600, 2400))];
         st.fx.push(['ring', 1300], ['sparkles', 1300]); say(1300); break;
+      // it listens at the box with her, is blown back when it opens, then cheers beside her
       case '盲盒开大':
         st.pose = at(t, [[0, 'shakeBox'], [1200, 'openBox'], [2000, 'surprised'], [2600, 'cheer']]);
-        if (t < 1200) st.x += 3 * Math.sin(t / 25);
-        hop(2600, 14); st.sprite = at(t, [[0, 'sIdle'], [2000, 'surprised'], [2600, 'sHappy']]);
+        hop(2600, 14);
+        if (t < 1200) { st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22]; }
+        else if (t < 2600) { st.sprite = 'surprised'; st.sp = ['rel', 1.12, 0.02]; }
+        else { st.sprite = 'sHappy'; st.sp = ['home', 0, -14 * bump(t, 2600, 2920)]; }
         st.fx.push(['beam', 1200], ['sparkles', 2600], ['confetti', 2600]); say(1300); break;
+      // it listens at the box with her, hides from the puff, then pats her pouting head
       case '盲盒开亏':
         st.pose = at(t, [[0, 'shakeBox'], [900, 'openBox'], [1500, 'pout']]);
-        if (t < 900) st.x += 3 * Math.sin(t / 25);
         if (t >= 1500) st.y -= 4 * Math.abs(Math.sin((t - 1500) / 90));
-        st.sprite = t < 1000 ? 'sIdle' : 'hide'; st.fx.push(['puff', 900]); say(1000); break;
-      case '舰长': st.pose = 'capSalute'; hop(0, 8); st.sprite = 'sailor'; st.fx.push(['flash', 0, 0.6], ['seaBubbles', 0]); say(200); break;
+        if (t < 900) { st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22]; }
+        else if (t < 1500) { st.sprite = 'hide'; st.sp = ['rel', 1.1, 0.3]; }
+        else { st.sprite = 'pat'; st.sp = 'head'; }
+        st.fx.push(['puff', 900]); say(1000); break;
+      // the sprite dresses her, salutes beside her in its sailor collar, and dresses her back
+      case '舰长':
+        if (t < 600) this.dress(st, t, 0, 600);
+        else { st.pose = 'capSalute'; hop(600, 8); st.sprite = 'sailor'; st.sp = ['rel', -0.1, 0.42]; }
+        if (t >= 3200) { st.pose = t < 3800 ? 'capSalute' : 'idle'; if (t < 3800) this.dress(st, t, 3200, 3800); else st.sprite = 'sHappy'; }
+        st.fx.push(['flash', 600, 0.6], ['seaBubbles', 600], ['flash', 3800, 0.6]); say(800); break;
       case '提督':
-        // The sprite is her lookout: it flies ahead where she looks, signals with its flag, and comes back to salute with her.
-        st.pose = t < 2400 ? 'spyglass' : 'admSalute';
-        st.sprite = t >= 1200 && t < 2100 ? 'flag' : 'sailor';
-        st.sp = ['scout', ease(k01(t, 400, 1200)) - ease(k01(t, 2100, 2700))];
-        st.fx.push(['flash', 0, 1], ['gulls', 300], ['seaBubbles', 0], ['signal', 1300]); say(300); break;
+        // dressed by the sprite, then it is her lookout: it flies ahead where she looks, signals with its flag, and comes
+        // back to salute with her
+        if (t < 700) this.dress(st, t, 0, 700);
+        else {
+          st.pose = t < 3100 ? 'spyglass' : 'admSalute';
+          st.sprite = t >= 1900 && t < 2800 ? 'flag' : 'sailor';
+          st.sp = t >= 3400 ? ['rel', -0.1, 0.42] : ['scout', ease(k01(t, 1100, 1900)) - ease(k01(t, 2800, 3400))];
+        }
+        if (t >= 4400) { st.pose = t < 5100 ? 'admSalute' : 'idle'; if (t < 5100) this.dress(st, t, 4400, 5100); else st.sprite = 'sHappy'; }
+        st.fx.push(['flash', 700, 1], ['gulls', 1000], ['seaBubbles', 700], ['signal', 2000], ['flash', 5100, 0.8]); say(1000); break;
       case '总督': return this.governor(t, st, say);
       case '城堡': return this.castleShow(t, st, say);
-      case '报名开场': case '奖池开场': st.pose = 'announce'; hop(0, 12); st.sprite = 'flag'; st.fx.push(['sparkles', 0]); say(150); break;
-      case '报名截止': case '奖池转动': st.pose = 'hope'; say(150); break;
-      case '奖池点名': st.pose = 'point'; say(150); break;
+      // it flies up beside her raised fist with its flag
+      case '报名开场': case '奖池开场': st.pose = 'announce'; hop(0, 12); st.sprite = 'flag'; st.sp = ['rel', -0.18, 0.05]; st.fx.push(['sparkles', 0]); say(150); break;
+      // both hold their breath: it looks up at her, trembling
+      case '报名截止': case '奖池转动': st.pose = 'hope'; st.sprite = 'sLook'; st.sp = ['home', 1.5 * Math.sin(t / 30), 0]; say(150); break;
+      // it dashes out the way she points, toward the viewer, waving its flag
+      case '奖池点名': st.pose = 'point'; st.sprite = 'flag'; st.sp = ['rel', 1.0, 0.32]; st.sScale = 1 + 0.3 * bump(t, 200, 1600); say(150); break;
       case '揭晓·大奖': case '揭晓·二奖': case '揭晓·三奖': {
         const react = 2500;
         st.pose = t < react ? 'hope' : { '揭晓·大奖': 'cheer', '揭晓·二奖': 'clap', '揭晓·三奖': 'nod' }[name];
-        if (name === '揭晓·大奖') { hop(react, 14); st.fx.push(['confetti', react]); st.sprite = t < react ? 'sIdle' : 'sHappy'; }
-        if (name === '揭晓·二奖') st.fx.push(['sparkles', react]);
+        if (t < react) { st.sprite = 'sLook'; st.sp = ['home', 1.5 * Math.sin(t / 30), 0]; }
+        else if (name === '揭晓·大奖') { hop(react, 14); st.fx.push(['confetti', react]); this.toss(st, t, react); }
+        else if (name === '揭晓·二奖') { st.sprite = 'sHappy'; st.sp = ['home', 0, -8 * Math.abs(Math.sin(Math.PI * (t - react) / 440))]; st.fx.push(['sparkles', react]); }
+        else st.sprite = 'nod';
         say(react); break;
       }
       case '没人报名': st.pose = 'dejected'; st.sprite = 'pat'; st.sp = 'head'; say(200); break;
@@ -311,56 +384,91 @@ class Component extends DCLogic {
     const main = DAILY[o.kind][0];
     st._t = t;
     const say = (from, key) => { if (t >= from) st.bubble = { text: LINES[key][(o.seed || 0) % LINES[key].length], t: t - from }; };
+    // it joins in: cheers her lifts with its flag, sways to her humming, leads her hike, flies along beside her bike
+    const lead = o.kind === '爬山' ? ['at', 70, FOOT.y - 0.62 * H + 5 * Math.sin(t / 300)] : ['rel', -0.22, 0.3];
     if (t < main) {
-      if (o.kind === '举哑铃') { st.pose = 'dumbbell'; st.x += 1.5 * Math.sin(t / 30); }
-      if (o.kind === '哼歌') { st.pose = 'hum'; st.x += 4 * Math.sin(t / 400); st.fx.push(['notes', 0]); }
-      if (o.kind === '爬山') { st.pose = 'hike'; st.y -= 5 * Math.abs(Math.sin(t / 220)); }
-      if (o.kind === '骑车') { st.pose = 'bike'; st.y -= 2 * Math.abs(Math.sin(t / 90)); st.x += 14 * Math.sin(t / 900); }
+      if (o.kind === '举哑铃') { st.pose = 'dumbbell'; st.sprite = 'flag'; st.sp = ['home', 0, -6 * Math.abs(Math.sin(Math.PI * t / 520))]; }
+      if (o.kind === '哼歌') { st.pose = 'hum'; st.fx.push(['notes', 0]); st.sprite = 'sHappy'; st.sp = ['home', 6 * Math.sin(2 * Math.PI * t / 1280), 0]; }
+      if (o.kind === '爬山') { st.pose = 'hike'; st.sprite = 'flag'; st.sp = lead; }
+      if (o.kind === '骑车') { st.pose = 'bike'; st.y -= 2 * Math.abs(Math.sin(Math.PI * t / 220)); st.x += 14 * Math.sin(t / 900); st.sView = 'v2'; st.sp = lead; }
       say(200, o.kind);
       return st;
     }
+    // when it goes wrong it starts, then comes to her: rubs her foot, hides from the cracked note, pats her after a fall,
+    // nods along while she puts the plaster on
     const u = t - main;
-    if (o.kind === '举哑铃') { st.pose = 'footHurt'; st.y -= 8 * Math.abs(Math.sin(u / 140)); say(main, '砸到脚'); }
-    if (o.kind === '哼歌') { st.pose = 'crack'; say(main, '破音'); }
+    if (o.kind === '举哑铃') { st.pose = 'footHurt'; say(main, '砸到脚'); st.sprite = u < 400 ? 'surprised' : 'pat'; if (u >= 400) st.sp = ['rel', 0.32, 0.86]; }
+    if (o.kind === '哼歌') { st.pose = 'crack'; st.sprite = 'hide'; say(main, '破音'); }
     if (o.kind === '爬山' || o.kind === '骑车') {
       st.pose = u < 2000 ? (o.kind === '爬山' ? 'slip' : 'crash') : 'bandage';
       say(main, u < 2000 ? (o.kind === '爬山' ? '摔屁股墩' : '骑车摔倒') : '贴创可贴');
       if (u >= 2000) st.bubble.t = u - 2000;
+      if (u < 450) { st.sprite = 'surprised'; st.sp = lead; } else if (u < 2000) { st.sprite = 'pat'; st.sp = 'head'; } else { st.sprite = 'nod'; st.sp = ['rel', -0.06, 0.5]; }
     }
     return st;
   }
 
+  // The ship sails in while the sprite dresses her as governor; she jumps aboard, the sprite flies up to the rear mast (the
+  // middle one is under her bubble), and before the ship sails away she jumps back down, waves it off and is dressed back.
   governor(t, st, say) {
-    const sw = 470, s = sw / this.ship.box.w, sh = this.ship.box.h * s;
-    const shipX = t < 1500 ? PAGE.w + sw / 2 - (PAGE.w / 2 + sw / 2) * ease(k01(t, 0, 1500)) : t < 5000 ? PAGE.w / 2 : PAGE.w / 2 - (PAGE.w / 2 + sw / 2) * ease(k01(t, 5000, 6000));
-    st.ship = { x: shipX, y: PAGE.h - 18 - sh / 2, s, a: t < 6000 ? 1 : 0 };
-    const deck = { x: shipX - sw / 2 + this.ship.box.w * 0.26 * s, y: PAGE.h - 18 - sh + this.ship.box.h * 0.66 * s };
-    if (t < 1500) { st.hide = false; st.sprite = 'surprised'; }
-    else if (t < 6000) { st.onDeck = deck; st.pose = t < 3600 ? 'govPoint' : 'govWave'; st.s = 0.6; st.x = deck.x; st.y = deck.y + 4; st.sprite = 'flag'; st.sp = ['mast', shipX - sw / 2 + this.ship.box.w * 0.77 * s, PAGE.h - 18 - sh + 32]; st.sScale = 0.8; }
-    else { st.pose = 'idle'; }
-    st.fx.push(['flash', 1500, 1, deck], ['fireworks', 1700], ['goldConfetti', 1700], ['flash', 6000, 0.8]);
+    const sw = 470, s = sw / this.ship.box.w, sh = this.ship.box.h * s, top = PAGE.h - 18 - sh;
+    const shipX = t < 1800 ? PAGE.w + sw / 2 - (PAGE.w / 2 + sw / 2) * ease(k01(t, 0, 1800)) : t < 6000 ? PAGE.w / 2 : PAGE.w / 2 - (PAGE.w / 2 + sw / 2) * ease(k01(t, 6000, 7200));
+    st.ship = { x: shipX, y: top + sh / 2, s, a: 1 };
+    const deck = { x: shipX - sw / 2 + this.ship.box.w * 0.26 * s, y: top + this.ship.box.h * 0.66 * s + 4 };
+    const aboard = ease(k01(t, 1900, 2500)) - ease(k01(t, 5200, 5800));
+    st.x = FOOT.x + (deck.x - FOOT.x) * aboard; st.y = FOOT.y + (deck.y - FOOT.y) * aboard - 70 * (bump(t, 1900, 2500) + bump(t, 5200, 5800)); st.s = 1 - 0.4 * aboard;
+    st.sScale = 1 - 0.2 * aboard;
+    if (t < 600) { st.pose = 'surprised'; st.sprite = 'surprised'; }
+    else if (t < 1500) this.dress(st, t, 600, 1500);
+    else if (t < 6800) {
+      st.pose = t >= 1900 && t < 2500 || t >= 5200 && t < 5800 ? 'govJump' : t < 3800 ? 'govPoint' : 'govWave';
+      st.sprite = 'flag';
+      if (t >= 1900 && t < 5200) st.sp = ['mast', shipX - sw / 2 + this.ship.box.w * 0.77 * s, top + 32];
+    } else if (t < 7500) { st.pose = 'govWave'; this.dress(st, t, 6800, 7500); }
+    else st.sprite = 'sHappy';
+    st.fx.push(['flash', 1500, 1], ['flash', 7500, 0.8]);
+    if (t < 6000) st.fx.push(['fireworks', 2500], ['goldConfetti', 2500]);
     say(1700);
     return st;
   }
 
+  // Tossed up by her cheer: over her head for a moment, then circling her.
+  toss(st, t, a) { st.sprite = 'sHappy'; if (t < a + 350) st.sp = ['rel', 0.5, -0.28]; else st.orbit = t - a - 350; }
+
+  // The sprite dresses her up (or back): it spirals up round her glowing, leaving a trail, and the caller flashes at b.
+  dress(st, t, a, b) {
+    st.sprite = 'glow'; st.orbit = (t - a) * 2.2; st.orbitR = 90; st.orbitY = FOOT.y - (0.1 + 0.85 * ease(k01(t, a, b))) * H;
+    st.fx.push(['trail', a]);
+  }
+
+  // The sprite turns into the castle behind her; she twirls into the princess gown, curtsies, walks up to the gate and
+  // waves from it, then runs back down the steps to us while the castle shrinks back into the sprite at its spot, and the
+  // sprite circles her to dress her back.
   castleShow(t, st, say) {
-    const b = this.castle.box, cs = 340 / b.h;
-    const rise = ease(k01(t, 900, 1600)), shrink = ease(k01(t, 9000, 10000));
-    const cy = 420 - 230 * rise, cscale = (0.6 + 0.4 * rise) * (1 - 0.8 * shrink);
-    st.castle = { x: PAGE.w / 2, y: cy, s: cs * cscale, a: k01(t, 900, 1500) * (1 - k01(t, 9600, 10000)), open: t >= 7500 ? k01(t, 7500, 7800) : 0 };
-    const gate = { x: PAGE.w / 2 + (this.castle.closed.width * 0.503 - this.castle.closed.width / 2) * cs, y: cy + (this.castle.closed.height * 0.676 - this.castle.closed.height / 2) * cs };
-    st.sprite = t < 1500 ? 'glow' : 'sHappy'; st.sBehind = t < 1500;
-    st.sp = t < 1500 ? ['to-castle', ease(k01(t, 0, 1200)), 1 + 1.6 * k01(t, 300, 1500)] : t < 9800 ? ['gone'] : null;
-    st.sAlpha = t < 1500 ? 1 - k01(t, 900, 1500) : t < 9800 ? 0 : k01(t, 9800, 10300);
+    const b = this.castle.box, cs = 340 / b.h, home = this.home(0);
+    const rise = ease(k01(t, 900, 1600)), back = ease(k01(t, 9600, 10400)), top = 420 - 230 * rise;
+    const cx = PAGE.w / 2 + (home.x - PAGE.w / 2) * back, cy = top + (home.y - top) * back;
+    st.castle = { x: cx, y: cy, s: cs * (0.6 + 0.4 * rise) * (1 - 0.75 * back), a: k01(t, 900, 1500) * (1 - k01(t, 10000, 10400)),
+      open: t < 9000 ? (t >= 7500 ? k01(t, 7500, 7800) : 0) : 1 - k01(t, 9000, 9300) };
+    const gate = { x: PAGE.w / 2 + (this.castle.closed.width * 0.503 - this.castle.closed.width / 2) * cs, y: top + (this.castle.closed.height * 0.676 - this.castle.closed.height / 2) * cs };
+    if (t < 1500) { st.sprite = 'glow'; st.sBehind = true; st.sp = ['to-castle', ease(k01(t, 0, 1200)), 1 + 1.6 * k01(t, 300, 1500)]; st.sAlpha = 1 - k01(t, 900, 1500); }
+    else if (t < 9600) st.sp = ['gone'];
+    else if (t < 10500) { st.sprite = 'sHappy'; st.sp = ['at', cx, cy]; st.sAlpha = k01(t, 10000, 10400); st.sScale = 1.6 - 0.6 * k01(t, 10000, 10500); }
+    else if (t < 11200) this.dress(st, t, 10500, 11200);
+    else st.sprite = 'sHappy';
     if (t < 2200) { st.pose = 'idle'; st.sx = t < 1500 ? 1 : Math.cos((t - 1500) / 90); }
     else if (t < 3000) st.pose = 'spin';
     else if (t < 4500) st.pose = 'curtsy';
-    else if (t < 7500) { st.pose = Math.floor((t - 4500) / 260) % 2 ? 'walkB' : 'walkA'; const w = k01(t, 4500, 7500); st.x = FOOT.x + (gate.x - FOOT.x) * w; st.y = FOOT.y + (gate.y - FOOT.y) * w; st.s = 1 - 0.68 * w; }
-    else if (t < 9300) { st.pose = 'lookBack'; st.x = gate.x; st.y = gate.y; st.s = 0.32; }
-    else st.pose = 'idle';
-    st.fx.push(['rainbowSparkles', 900], ['flash', 2200, 1.2], ['gateGlow', 7500, gate], ['flash', 9300, 1]);
+    else if (t < 7500) { st.pose = 'walkA'; const w = k01(t, 4500, 7500); st.x = FOOT.x + (gate.x - FOOT.x) * w; st.y = FOOT.y + (gate.y - FOOT.y) * w; st.s = 1 - 0.68 * w; }
+    else if (t < 9000) { st.pose = 'lookBack'; st.x = gate.x; st.y = gate.y; st.s = 0.32; }
+    else if (t < 9800) {
+      // three bounding steps down to us, growing as she comes closer
+      const w = ease(k01(t, 9000, 9800));
+      st.pose = 'pIdle'; st.x = gate.x + (FOOT.x - gate.x) * w; st.y = gate.y + (FOOT.y - gate.y) * w - 26 * Math.abs(Math.sin(Math.PI * 3 * w)); st.s = 0.32 + 0.68 * w;
+    } else st.pose = t < 11200 ? 'pIdle' : 'idle';
+    st.fx.push(['rainbowSparkles', 900], ['flash', 2200, 1.2], ['gateGlow', 7500, gate], ['flash', 11200, 1]);
     if (t >= 3000 && t < 4500) say(3000);
-    if (t >= 7600 && t < 9300) st.bubble = { text: this.cur?.gateLine || '欢迎来到我的城堡～', t: t - 7600, at: gate };
+    if (t >= 7600 && t < 9000) st.bubble = { text: this.cur?.gateLine || '欢迎来到我的城堡～', t: t - 7600, at: gate };
     return st;
   }
 
@@ -381,7 +489,7 @@ class Component extends DCLogic {
       const t = now % 58000, moods = ['平静', '无聊', '沮丧', '犯困'];
       if (t < 48000) { const m = moods[Math.floor(t / 12000)], st = this.idleState(now, m, 15000 + t % 12000); st.label = `心情：${m}`; return st; }
       const u = t - 48000, st = u < 1000 ? this.base() : ev('大礼物', u - 1000);
-      if (u < 1000) { st.pose = 'awake'; st.y -= 10 * bump(u, 0, 300); st.bubble = { text: LINES.冷场后来了人[0], t: u }; }
+      if (u < 1000) { st.pose = 'awake'; st.sprite = 'surprised'; st.y -= 10 * bump(u, 0, 300); st.bubble = { text: LINES.冷场后来了人[0], t: u }; }
       st.label = '冷场后来了人：惊醒，再演大礼物'; return st;
     }
     const seqs = {
@@ -397,7 +505,7 @@ class Component extends DCLogic {
       if (t < acc + d) {
         if (n === 'hold') { const st = this.base(); if (phase === '等待') st.pose = 'hope'; this.talk(st, phase === '等待' ? '等开奖' : '报名中', t - acc); return st; }
         const st = ev(n, t - acc);
-        if (n === '城堡' && t - acc >= 7600) st.bubble = { ...st.bubble, text: this.fill(LINES['城堡·门口'][0]) };
+        if (n === '城堡' && st.bubble?.at) st.bubble.text = this.fill(LINES['城堡·门口'][0]);
         return st;
       }
       acc += d;
@@ -424,13 +532,13 @@ class Component extends DCLogic {
       this.master = root.animate([{ outlineColor: 'transparent' }, { outlineColor: 'transparent' }], { duration: 1e9 });
       this.reset(); this.sv = this.hv = this.sc = null;
     }
-    const now = this.now();
+    const now = this.clock = this.now();
     let st;
     if (this.cfg.scene === '手动' || this.cfg.scene === '演示') {
       if (this.cfg.scene === '演示') this.demo(now);
       this.update(now);
       const c = this.cur;
-      if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
+      if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
       else if (c) { st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name)); if (c.name === '城堡' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine || (c.gateLine = this.pick('城堡·门口'))); }
       else {
         const mood = this.mood(now), key = mood + (this.lot?.phase || '');
@@ -467,6 +575,7 @@ class Component extends DCLogic {
     this.rt = rt;
     const her = this.herBox(st);
     const target = this.spritePos(st, her, now), sp = target && this.follow(target, dt, st);
+    if (sp) { this.trail = (this.trail || []).filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     if (!st.hide) this.drawHer(g, st, now);
     if (sp && !st.sBehind) this.drawSprite(g, st, sp, now);
@@ -476,63 +585,90 @@ class Component extends DCLogic {
     if (this.cfg.caption) this.drawCaption(g, st, now, px, py);
   }
 
-  cell(name, set = POSE) { const [k, i] = set[name] || [name, 0]; return this.cells[k][i]; }
+  cell(name, set = POSE) {
+    const f = set === POSE && this.strips?.[name];
+    if (f) {
+      const s = STRIP[name];
+      if (s.ms) return f[Math.floor(this.clock / s.ms) % 4];
+      const steps = s.loop || s.once, total = steps.reduce((a, [, ms]) => a + ms, 0);
+      let t = s.loop ? this.clock % total : this.clock - (this.hv?.pose === name ? this.hv.since : this.clock);
+      for (const [i, ms] of steps) { if (t < ms || !ms) return f[i]; t -= ms; }
+      return f[steps.at(-1)[0]];
+    }
+    const [k, i] = set[name] || [name, 0]; return this.cells[k][i];
+  }
 
-  herBox(st) {
-    const c = this.cell(st.pose), k = H / c.ruler * st.s;
+  herBox(st, c = this.cell(st.pose)) {
+    const k = H / c.ruler * st.s;
     return { x: st.x + (c.x - c.cx) * k, y: st.y + (c.y - c.ground) * k, w: c.w * k, h: c.h * k, k };
   }
 
-  // A pose change is one movement, not a cut: she gathers herself for a beat (the old drawing squashes a little), then the
-  // new drawing rises or sinks out of the old one's height, stretches a touch past it and settles, crossfading on the way.
+  // A pose change is one movement, not a cut. Where the pair has in-between frames (TRANS) she moves through them. Otherwise
+  // she gathers herself for a beat (the old drawing squashes a little), then the new drawing rises or sinks out of the old
+  // one's height, stretches a touch past it and settles; the new one comes in over the old, which only then goes.
   drawHer(g, st, now) {
     const rt = performance.now(), el = t0 => (rt - t0) * this.cfg.speed;
-    const hv = this.hv ??= { pose: st.pose, prev: null, at: -1e9, next: null, ask: 0 };
+    const hv = this.hv ??= { pose: st.pose, prev: null, at: -1e9, next: null, ask: 0, since: this.clock, tween: null };
     if (st.pose === hv.pose) hv.next = null;
-    else if (st.pose !== hv.next) { hv.next = st.pose; hv.ask = rt; }
-    if (hv.next && CUT.has(hv.next) && CUT.has(hv.pose)) { hv.pose = hv.next; hv.next = hv.prev = null; }
-    else if (hv.next && el(hv.ask) >= 90) { hv.prev = hv.pose; hv.pose = hv.next; hv.next = null; hv.at = rt; }
+    else {
+      const fwd = this.tweens[`${hv.pose}>${st.pose}`], back = this.tweens[`${st.pose}>${hv.pose}`];
+      if (fwd || back) Object.assign(hv, { tween: fwd || [...back].reverse(), prev: null, next: null, pose: st.pose, at: rt, since: this.clock });
+      else if (st.pose !== hv.next) { hv.next = st.pose; hv.ask = rt; }
+    }
+    if (hv.next && el(hv.ask) >= 90) Object.assign(hv, { prev: hv.pose, pose: hv.next, next: null, at: rt, since: this.clock, tween: null });
+    // each drawing is scaled at her feet, narrower as it stretches and wider as it squashes
+    const one = (c, alpha, s) => {
+      const b = this.herBox(st, c);
+      g.save(); g.globalAlpha = alpha; g.translate(st.x, st.y); g.scale(st.sx / Math.sqrt(s), s); g.translate(-st.x, -st.y);
+      g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h); g.restore();
+    };
+    const tw = hv.tween?.[Math.floor(el(hv.at) / 90)];
+    if (tw) return one(tw, 1, 1);
     const hOf = pose => { const c = this.cell(pose); return c.h / c.ruler; };
     const p = hv.prev ? k01(el(hv.at), 0, 300) : 1, gather = hv.next ? ease(k01(el(hv.ask), 0, 90)) : 0;
     const from = hv.prev ? clamp(hOf(hv.prev) / hOf(hv.pose), 0.8, 1.25) * 0.94 : 1;
     const breathe = hv.pose === 'idle' || hv.pose === 'pIdle' ? 1 + 0.012 * Math.sin(now / 600) : 1;
     const sy = (from + (1 - from) * ease(p)) * (1 + 0.04 * bump(p, 0.2, 0.8)) * (1 - 0.06 * gather) * breathe;
-    // each drawing is scaled at her feet, narrower as it stretches and wider as it squashes
-    const one = (pose, alpha, s) => {
-      const c = this.cell(pose), b = this.herBox({ ...st, pose });
-      g.save(); g.globalAlpha = alpha; g.translate(st.x, st.y); g.scale(st.sx / Math.sqrt(s), s); g.translate(-st.x, -st.y);
-      g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h); g.restore();
-    };
     const [out, inn] = hv.prev ? xfade(el(hv.at)) : [0, 1];
-    if (out > 0) one(hv.prev, out, sy * hOf(hv.pose) / hOf(hv.prev));
-    one(hv.pose, inn, sy);
+    if (out > 0) one(this.cell(hv.prev), out, sy * hOf(hv.pose) / hOf(hv.prev));
+    one(this.cell(hv.pose), inn, sy);
   }
 
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
   follow(target, dt, st) {
     const sv = this.sv;
-    if (!sv || target.pinned) { this.sv = { ...target, vx: 0, vy: 0, d: 0 }; return this.sv; }
+    if (!sv) { this.sv = { ...target, vx: 0, vy: 0, d: 0 }; return this.sv; }
     const k = 1 - Math.exp(-dt / (st.orbit != null ? 90 : 200)), nx = sv.x + (target.x - sv.x) * k, ny = sv.y + (target.y - sv.y) * k, sec = Math.max(dt, 1) / 1000;
     sv.vx += ((nx - sv.x) / sec - sv.vx) * 0.3; sv.vy += ((ny - sv.y) / sec - sv.vy) * 0.3;
-    sv.x = nx; sv.y = ny; sv.scale = target.scale; sv.pinned = false; sv.d = Math.hypot(target.x - nx, target.y - ny);
+    sv.x = nx; sv.y = ny; sv.scale = target.scale; sv.d = Math.hypot(target.x - nx, target.y - ny);
     return sv;
   }
 
+  // Low in front of her (README 1.1), on her left: a little outside her standing outline, so it overlaps her hair.
+  home(now) { return { x: FOOT.x + this.herLeft - SPRITE_H * 0.22, y: FOOT.y - 0.3 * H + 4 * Math.sin(now / 700) }; }
+
+  // st.sp: null (home), ['home', dx, dy] (home moved by), ['rel', fx, fy] (a point of her drawing's box, as fractions of
+  // it), ['at', x, y] (a page point), or the named spots below.
   spritePos(st, her, now) {
     if (st.sp?.[0] === 'gone') return null;
-    // Low in front of her (README 1.1): her widest point is her hair, so it sits a little inside that to overlap her outline.
-    const home = { x: FOOT.x + this.herLeft - SPRITE_H * 0.22, y: FOOT.y - 0.3 * H + 4 * Math.sin(now / 700) };
+    const home = this.home(now);
     const head = { x: her.x + her.w * 0.3, y: her.y - SPRITE_H * 0.15 };
     // Circling her waist: on the far half of the circle it passes behind her, so it never covers her face.
     // It is a little bigger on the near half, and drawSprite turns it by st.orbitA.
-    if (st.orbit != null) { const a = st.orbitA = st.orbit / 1000 * Math.PI * 1.2; st.sBehind = Math.sin(a) < 0; return { x: FOOT.x + Math.cos(a) * 135, y: FOOT.y - 0.34 * H + Math.sin(a) * 26, scale: 1 + 0.1 * Math.sin(a) }; }
+    if (st.orbit != null) {
+      const a = st.orbitA = st.orbit / 1000 * Math.PI * 1.2; st.sBehind = Math.sin(a) < 0;
+      return { x: st.x + Math.cos(a) * (st.orbitR || 135), y: (st.orbitY ?? FOOT.y - 0.34 * H) + Math.sin(a) * 26, scale: 1 + 0.1 * Math.sin(a) };
+    }
     if (!st.sp) return home;
+    if (st.sp[0] === 'home') return { x: home.x + st.sp[1], y: home.y + st.sp[2] };
+    if (st.sp[0] === 'rel') return { x: her.x + her.w * st.sp[1], y: her.y + her.h * st.sp[2] };
+    if (st.sp[0] === 'at') return { x: st.sp[1], y: st.sp[2] };
     if (st.sp === 'head') return { x: her.x + her.w * 0.25, y: her.y - SPRITE_H * 0.2 + 3 * Math.sin(now / 500) };
     if (st.sp === 'knee') return { x: her.x + her.w * 0.94, y: FOOT.y - 42 + 2 * Math.sin(now / 900) };
     if (st.sp[0] === 'crown') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1], d = st.sp[2]; return { x: home.x + (top.x - home.x) * p, y: home.y + (top.y - home.y) * p + 26 * d }; }
     if (st.sp[0] === 'home-from-top') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1]; return { x: top.x + (home.x - top.x) * p, y: top.y + (home.y - top.y) * p }; }
     if (st.sp[0] === 'to-castle') { const p = st.sp[1]; return { x: home.x + (FOOT.x - home.x) * p, y: home.y + (300 - home.y) * p, scale: st.sp[2] }; }
-    if (st.sp[0] === 'mast') return { x: st.sp[1], y: st.sp[2], pinned: true };
+    if (st.sp[0] === 'mast') return { x: st.sp[1], y: st.sp[2] };
     if (st.sp[0] === 'scout') { const far = { x: 64, y: her.y + 6 + 5 * Math.sin(now / 260) }, p = st.sp[1]; return { x: home.x + (far.x - home.x) * p, y: home.y + (far.y - home.y) * p }; }
     return home;
   }
@@ -541,19 +677,20 @@ class Component extends DCLogic {
   // back in turn; flying somewhere it shows its side or three-quarter, leaning in, and does its action (patting, sleeping,
   // the flag...) only once it has arrived, landing into it with a squash. The views face left and are mirrored for right.
   drawSprite(g, st, p, now) {
-    let key = st.sprite, flip = false, tilt = 0;
-    if (st.orbit != null) {
+    let key = st.sprite, flip = !!st.sFlip, tilt = 0;
+    if (st.sView) key = st.sView;
+    else if (st.orbit != null) {
       const hx = -Math.sin(st.orbitA), d = Math.abs(Math.atan2(hx, Math.cos(st.orbitA)));
-      key = d < Math.PI / 8 ? key : d < 3 * Math.PI / 8 ? 'v1' : d < 5 * Math.PI / 8 ? 'v2' : 'v3'; flip = hx > 0;
-    } else if (p.d > 14 && !p.pinned && !CARRY.has(key)) {
+      key = d < Math.PI / 8 ? key : d < 3 * Math.PI / 8 ? 'v1' : d < 5 * Math.PI / 8 ? 'v2' : 'v3'; flip = key[0] === 'v' && hx > 0;
+    } else if (p.d > 14 && !CARRY.has(key)) {
       key = Math.abs(p.vx) > 2 * Math.abs(p.vy) ? 'v2' : 'v1'; flip = p.vx > 0; tilt = clamp(p.vx / 2500, -0.18, 0.18);
     }
-    const rt = performance.now(), id = key + (flip && key[0] === 'v' ? '<' : ''), sc = this.sc ??= { id, prev: null, at: -1e9, land: false };
+    const rt = performance.now(), id = key + (flip ? '<' : ''), sc = this.sc ??= { id, prev: null, at: -1e9, land: false };
     if (sc.id !== id) { sc.land = st.orbit == null && key[0] !== 'v'; sc.prev = sc.id; sc.id = id; sc.at = rt; }
     const u = (rt - sc.at) * this.cfg.speed, [out, inn] = sc.prev ? xfade(u) : [0, 1], q = k01(u, 0, 320);
     const land = sc.land ? 1 - 0.14 * Math.sin(2 * Math.PI * q) * (1 - q) : 1;
     if (key === 'pat') { tilt = 0.12 * Math.sin(now / 180); }
-    const pick = k => k[0] === 'v' && k.length === 2 ? this.cells.views[+k[1]] : k in SPRITE ? this.cell(k, SPRITE) : this.cells[k][0];
+    const pick = k => this.sstrips[k]?.[Math.floor(now / SSTRIP[k][1]) % 4] ?? (k[0] === 'v' && k.length === 2 ? this.cells.views[+k[1]] : k in SPRITE ? this.cell(k, SPRITE) : this.cells[k][0]);
     const one = (id, alpha) => {
       let k = id.replace('<', '');
       if (k === 'sIdle' && now % 4500 < 140) k = 'sBlink';
@@ -624,6 +761,7 @@ class Component extends DCLogic {
       case 'fireworks': for (let i = 0; i < 4; i++) { const u = (t + i * 700) % 1400, cx = 70 + ((i * 131) % 340), cy = 70 + ((i * 53) % 140); const colors = ['#FFD45E', '#FF7FA8', '#7FD3FF', '#fff']; for (let j = 0; j < 12; j++) { const a = j * Math.PI / 6; g.save(); g.globalAlpha = 1 - u / 1400; g.fillStyle = colors[i]; g.beginPath(); g.arc(cx + Math.cos(a) * u * 0.05, cy + Math.sin(a) * u * 0.05 + u * u * 0.00002, 3, 0, Math.PI * 2); g.fill(); g.restore(); } } break;
       case 'rainbowSparkles': if (t < 8500) for (let i = 0; i < 10; i++) { const u = (t + i * 300) % 1500; star(40 + r() * 400, 30 + r() * 320, 7 + r() * 6, ['#FFE27A', '#FFB3D1', '#B7E4FF', '#fff'][i % 4], Math.sin(Math.PI * u / 1500)); } break;
       case 'gateGlow': { if (t > 1800) break; const p = f[2]; g.save(); g.globalAlpha = Math.sin(Math.PI * Math.min(t, 1500) / 1500) * 0.7; const gr = g.createRadialGradient(p.x, p.y - 20, 0, p.x, p.y - 20, 70); gr.addColorStop(0, 'rgba(255,236,170,1)'); gr.addColorStop(1, 'rgba(255,236,170,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y - 20, 70, 0, Math.PI * 2); g.fill(); g.restore(); break; }
+      case 'trail': for (const q of this.trail || []) { const age = (performance.now() - q.rt) / 420; star(q.x + 18 * Math.sin(q.rt), q.y + 14 * Math.cos(q.rt * 1.3), 9 * (1 - age) + 3, ['#FFE27A', '#FFB3D1', '#fff'][Math.floor(q.rt) % 3], 1 - age); } break;
       case 'signal': { if (t > 900) break; for (let i = 0; i < 5; i++) star(64 + (r() - 0.5) * 70, her.y - 20 + (r() - 0.5) * 60, 8 + r() * 6, i % 2 ? '#FFE27A' : '#fff', Math.sin(Math.PI * ((t + i * 150) % 900) / 900)); break; }
       case 'notes': for (let i = 0; i < 4; i++) { const u = (t + i * 500) % 2000; g.save(); g.globalAlpha = Math.sin(Math.PI * u / 2000); g.fillStyle = '#7C6CF0'; g.font = '700 22px sans-serif'; g.fillText(i % 2 ? '♪' : '♫', head.x + 50 + i * 8 + 10 * Math.sin(u / 300), head.y - u * 0.05); g.restore(); } break;
       case 'z': for (let i = 0; i < 3; i++) { const u = (now + i * 900) % 2700; g.save(); g.globalAlpha = Math.sin(Math.PI * u / 2700); g.fillStyle = '#C9D6FF'; g.font = `700 ${16 + i * 5}px sans-serif`; g.fillText('Z', her.x + her.w * 0.75 + u * 0.02, her.y + 10 - u * 0.035); g.restore(); } break;
