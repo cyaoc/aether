@@ -1,0 +1,19 @@
+{
+ "44e8beefd8e45a42a6db32a53b6a334b": "../entry-animation/textures/day.webp",
+ "42f6d5fefeb6902a1a4dc62b6c0067c8": "textures/pose-1-common.webp",
+ "85f32c91efe3a008f7ed1db40b723468": "textures/pose-2-lottery.webp",
+ "1f7f6b869458e1fe8e81a976d8c31c4b": "textures/pose-3-daily-1.webp",
+ "1280366333103c7aab9ebf8d542ec1d0": "textures/pose-4-daily-2.webp",
+ "2056e8d40333e68b7ca945c2ca09b123": "textures/pose-5-moods.webp",
+ "721b9f2f46599b21e7a46be69defe025": "textures/pose-6-gifts.webp",
+ "77ad9c1043a788d9481660bca02fc61d": "textures/pose-7-castle.webp",
+ "2d87401633f8acd040fc4ad45a083fb6": "textures/pose-8-voyage.webp",
+ "26e419983fd50915beebe9874c8f580f": "textures/sprite-pose-1.webp",
+ "798d2599257e9749035aa3049a19ea28": "textures/sprite-pose-2.webp",
+ "a5423ebc571dd5c837a1759c2e34534f": "textures/castle-closed.webp",
+ "1fae311556a3e785a50c209107064a25": "textures/castle-open.webp",
+ "64f045ceb5e565290d330780f7c0006f": "textures/ship.webp",
+ "585380a5dabdfface1e97682df6d7b43": "../mascot/textures/sprite-idle.webp",
+ "75b906294ec84d94be622e45ecdc3ab2": "../mascot/textures/sprite-blink.webp",
+ "c30af21b10ec63511b5f4838e72245e6": "../mascot/textures/sprite-happy.webp"
+}
