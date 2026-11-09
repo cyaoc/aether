@@ -1,6 +1,6 @@
 """Make the in-between frames of a change from one pose of the board to another.
 
-python inbetween.py <name> <from pose> <to pose> <out dir> [--tries 2] [--end-props]
+python inbetween.py <name> <from pose> <to pose> <out dir> [--tries 2] [--end-props] [--still]
 
 Codex gets one 2 x 2 grid on flat green with frame 1 (the first pose) and frame 4 (the second pose) already in it, both
 drawn just as the board shows them (each scaled from its sheet to the board, standing on the same ground line, lined up
@@ -25,6 +25,10 @@ reverse order and the board plays them backwards. The last line printed is the b
 What lies on the ground stays put: where both poses are at the same spot (the board's SAME_SPOT) frames 2 and 3 take
 the first pose's things; --end-props gives them the second pose's, for things that have landed by frame 2 (the skis
 dropping off her boots as she wriggles out of the snow).
+
+--still: she does not move while the sprite changes her clothes, so frame 2 must stand where the first pose stands and
+frame 3 where the second does (petlib.body_shift, each against the pose in its own clothes); codex once drew frame 3
+in the middle of its quarter, 70 px aside.
 """
 import subprocess
 import sys
@@ -32,9 +36,9 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # petlib sits beside the tools, also under python -I
-from petlib import PKG, bbox, carry_props, codex_frames, eye_ref, face_size, green, loose, pieces, pose, register, spot, standing, warp
+from petlib import PKG, bbox, body_shift, carry_props, codex_frames, eye_ref, face_size, green, loose, pieces, pose, register, spot, standing, warp
 
-GATE = {"height": 0.04, "feet": 6, "overlap": 0.80, "face": 0.04}  # frame 4 against the second pose; faces of frames 2, 3
+GATE = {"height": 0.04, "feet": 6, "overlap": 0.80, "face": 0.04, "still": 6}  # frame 4 against the second pose; faces of frames 2, 3; --still: px
 PROMPT = ("Use your built-in image generation tool (not code) to edit the attached image into ONE new image, then copy "
           "the generated PNG file to {out}. Do not write any code. The attached image is a 2 by 2 grid of FOUR ANIMATION "
           "FRAMES on flat #00FF00 green, in this order: top-left, top-right, bottom-left, bottom-right. Frame 1 (top-left) "
@@ -52,6 +56,9 @@ tries = 2
 end_props = "--end-props" in argv
 if end_props:
     argv.remove("--end-props")
+still = "--still" in argv
+if still:
+    argv.remove("--still")
 if "--tries" in argv:
     k = argv.index("--tries")
     tries = int(argv[k + 1])
@@ -101,10 +108,12 @@ def gate(F):
             m = face_size(F[j].round().astype(np.uint8), REF)
             face = max(face, abs(m / (ends[0] + (ends[1] - ends[0]) * t) - 1) if m else 0)
     return {"height": abs(np.ptp(fy) / np.ptp(by) - 1), "feet": abs(int(fy.max()) - int(by.max())),
-            "overlap": (m4 & mb).sum() / (m4 | mb).sum(), "face": face}
+            "overlap": (m4 & mb).sum() / (m4 | mb).sum(), "face": face,
+            "still": max(abs(body_shift(F[1], A)), abs(body_shift(F[2], B))) if still else 0}
 
 
-fails = lambda g: g["height"] > GATE["height"] or g["feet"] > GATE["feet"] or g["overlap"] < GATE["overlap"] or g["face"] > GATE["face"]
+fails = lambda g: (g["height"] > GATE["height"] or g["feet"] > GATE["feet"] or g["overlap"] < GATE["overlap"] or g["face"] > GATE["face"]
+                   or g["still"] > GATE["still"])
 best = None
 for t in range(tries):
     raw = out / f"{name}-frames.png"
@@ -117,9 +126,10 @@ for t in range(tries):
     F, place = register(codex_frames(raw, side), A)
     g = gate(F)
     print(f"try {t + 1}: frame 1 off the first pose by {place[0]:.1f}; frame 4 height {g['height'] * 100:.1f}% off, feet "
-          f"{g['feet']} px off, outline overlap {g['overlap']:.2f}; in-between faces {g['face'] * 100:.1f}% off" + ("  FAILS" if fails(g) else ""))
-    # among tries that all fail, the face counts first: an outline off by a strand of hair shows less than a face off in size
-    score = lambda g: (fails(g), max(0, g["face"] - GATE["face"]), max(0, GATE["overlap"] - g["overlap"]), g["face"])
+          f"{g['feet']} px off, outline overlap {g['overlap']:.2f}; in-between faces {g['face'] * 100:.1f}% off" + (f"; frames 2, 3 {g['still']} px aside" if still else "") + ("  FAILS" if fails(g) else ""))
+    # among tries that all fail, her standing aside counts first, then the face: an outline off by a strand of hair shows
+    # less than a face off in size
+    score = lambda g: (fails(g), max(0, g["still"] - GATE["still"]), max(0, g["face"] - GATE["face"]), max(0, GATE["overlap"] - g["overlap"]), g["face"])
     if best is None or score(best[1]) > score(g):
         best = (F, g)
         raw.replace(out / f"{name}-frames-best.png")

@@ -16,6 +16,7 @@ POSE = {p: (k, int(i)) for p, k, i in re.findall(r"(\w+): \['(\w+)', (\d)\]", re
 STRIP = dict(re.findall(r"(\w+): \{ f: '(\w+)'", re.search(r"const STRIP = \{(.*?)\n\};", BOARD, re.S).group(1)))
 TRANS = dict(re.findall(r"'(\w+>\w+)': '(\w+)'", re.search(r"const TRANS = \{(.*?)\n\};", BOARD, re.S).group(1)))
 SAME_SPOT = dict(re.findall(r"(\w+): '(\w+)'", re.search(r"const SAME_SPOT = \{(.*?)\};", BOARD).group(1)))
+BODY = {p: int(v) for p, v in re.findall(r"(\w+): (-?\d+)", re.search(r"const BODY = \{(.*?)\};", BOARD).group(1))}
 _BLOB = dict(re.findall(r"(\w+): '([0-9a-f]{32})'", re.search(r"const BLOB = \{(.*?)\};", BOARD, re.S).group(1)))
 _FILES = json.loads((PKG / "tools/blobs.json").read_text())
 SHEET = {k: Path(_FILES[md5]).stem for k, md5 in _BLOB.items() if _FILES.get(md5, "").startswith("textures/pose-")}
@@ -54,11 +55,15 @@ def anchor(a):
     return (w * np.arange(a.shape[1])).sum() / w.sum()
 
 
-def pose(name):
-    """(drawing, board scale, ground, anchor) of a pose of the board; a pose in SAME_SPOT takes its earlier pose's centre."""
+def pose(name, body=True):
+    """(drawing, board scale, ground, anchor) of a pose of the board; a pose in SAME_SPOT takes its earlier pose's centre,
+    and BODY moves a pose (with the poses at its spot) so her body is where the idle pose has it; body=False leaves that
+    out, for measuring it (body-align.py)."""
     k, i = POSE[name]
     a = cells(SHEET[k])[i]
-    return a, scale(k), ground(k, i), anchor(cells(SHEET[k])[POSE[SAME_SPOT[name]][1]] if name in SAME_SPOT else a)
+    x = anchor(cells(SHEET[k])[POSE[SAME_SPOT[name]][1]] if name in SAME_SPOT else a)
+    dx = sum(v for p, v in BODY.items() if spot(p) == spot(name)) if body else 0
+    return a, scale(k), ground(k, i), x - dx / scale(k)
 
 
 def load_ref(spec):
@@ -330,6 +335,13 @@ def carry_props(src, dst):
     a = ta + ua * (1 - ta)
     rgb = (out[..., :3] * ta + under[..., :3] * ua * (1 - ta)) / np.maximum(a, 1e-6)
     return np.dstack([rgb, a * 255])
+
+
+def body_shift(a, b, span=80):
+    """How far her body in drawing a sits to the right of hers in drawing b (same size, px): a's outline, the things lying
+    apart from her left out of both, slid sideways over b's, the shift where they overlap most."""
+    pa, pb = np.where(loose(a), 0, a[..., 3] / 255), np.where(loose(b), 0, b[..., 3] / 255)
+    return -max(range(-span, span + 1), key=lambda dx: np.minimum(np.roll(pa, dx, 1), pb).sum())
 
 
 def spot(name):
