@@ -50,12 +50,12 @@ const POSE = {
   capSalute: ['voyage', 1], govJump: ['voyage', 4], spyglass: ['voyage', 2], admSalute: ['voyage', 3], govPoint: ['voyage', 4], govWave: ['voyage', 5]
 };
 // Frame strips (textures/frames/<name>.webp, four frames in a row; tools/gen-frames.sh, tools/frame-patch.py), by blob.
-const FRAMES = {admOut: '8a8045355a623d68acfc52029c8841a7', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '1cfe277a82440613f6fcd68014743f29', bikeOut: '000db66bd517aa02f03e18662f6f5a30', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: '0eab11425ea2c3573d1d10bfd9092105', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: 'bbc13f8939be672a6d9aa5f8dc980f30', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: '3c91ba6cf61dbb7d27417076a3d1a731', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '5b2591b3d2e7455d0925ca95bfd4ef1a', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: '3c6eb6084d7a3f10ba50a50703cfcdc7', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: 'e526af562be958ed4bce7b34f6e7658c', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'b655cfbb85b4a8caae52676563442c0d', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: '79865866b71f0d6f54357e5a50175edd', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'fe613d5ac8c1424cd4e6553675f88354', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: '2b24f3aa6d2a608407a22d4031f362ae', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '3341dc19940eca3d4e7506d89609e6bb', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', rubUp: 'e5632d8a7dea06e12b915dacf1d179d7', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '8268ccbbdfb89fd21b6029e07fba0f15', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '3dc757df0e22d502063953af3c5ec855', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'fceb2834a0bd33e1dc3e0cfa0a205917', skiOut: '04a7e87a800b3c86f3aa7f45dd9100f3', skiPop: '6ff5bf2b70fe404b060325fef91af6cc', skiUp: '93e827573b0020cc33b933045459dd10', slipUp: '9146b4b71d48ce321f98622980fabf92', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '618dc828f2bb538f4b79c5f87875d702', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '8b403638ceb159d9731227ef6ef51474', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: '425564cb708fb55366cc63907634a992', wipeIn: 'd597045687c668c96935bf4a3dd615e1'};
+const FRAMES = {admOut: '8a8045355a623d68acfc52029c8841a7', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '1cfe277a82440613f6fcd68014743f29', bikeOut: '000db66bd517aa02f03e18662f6f5a30', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: '0eab11425ea2c3573d1d10bfd9092105', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: '91d4dede67df497a08dd2bb2de02df5a', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: '3c91ba6cf61dbb7d27417076a3d1a731', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '5b2591b3d2e7455d0925ca95bfd4ef1a', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: '3c6eb6084d7a3f10ba50a50703cfcdc7', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: 'e526af562be958ed4bce7b34f6e7658c', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'b655cfbb85b4a8caae52676563442c0d', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: '79865866b71f0d6f54357e5a50175edd', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'fe613d5ac8c1424cd4e6553675f88354', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: '2b24f3aa6d2a608407a22d4031f362ae', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '3341dc19940eca3d4e7506d89609e6bb', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', rubUp: 'e5632d8a7dea06e12b915dacf1d179d7', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '8268ccbbdfb89fd21b6029e07fba0f15', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '3dc757df0e22d502063953af3c5ec855', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'fceb2834a0bd33e1dc3e0cfa0a205917', skiOut: '04a7e87a800b3c86f3aa7f45dd9100f3', skiPop: '6ff5bf2b70fe404b060325fef91af6cc', skiUp: '93e827573b0020cc33b933045459dd10', slipUp: '9146b4b71d48ce321f98622980fabf92', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '7aef8a528ed9640410f134f38d867ab0', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '8b403638ceb159d9731227ef6ef51474', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: '425564cb708fb55366cc63907634a992', wipeIn: 'd597045687c668c96935bf4a3dd615e1'};
 // Poses that move: the strip f, drawn from the pose's own cell, as a loop at ms per frame, a loop of [frame, ms] steps, or
 // once: [frame, ms] steps from when the pose begins, holding the last.
 const STRIP = {
   bike: { f: 'pedal', ms: 110 }, hike: { f: 'trek', ms: 170 }, walkA: { f: 'walk', ms: 200 }, curl: { f: 'curl', ms: 200 },
-  hum: { f: 'hum', ms: 320 }, wave: { f: 'wave', ms: 150 }, clap: { f: 'clap', ms: 110 }, nod: { f: 'nod', ms: 190 }, cheer: { f: 'cheer', ms: 220 },
+  hum: { f: 'hum', ms: 320 }, wave: { f: 'wave', ms: 150 }, clap: { f: 'clap', ms: 110 }, nod: { f: 'nod', ms: 190 }, cheer: { f: 'cheer', loop: [[0, 160], [1, 110], [2, 170], [1, 110], [3, 220]] },
   shy: { f: 'shy', ms: 220 }, gloomy: { f: 'gloomy', ms: 260 }, doze: { f: 'doze', ms: 700 }, gymHurt: { f: 'gymHop', ms: 140 }, gymWipe: { f: 'wipe', ms: 200 },
   shakeBox: { f: 'shakeBox', ms: 90 }, govWave: { f: 'govWave', ms: 170 }, spin: { f: 'spin', ms: 110 },
   idle: { f: 'idle', loop: [[0, 3400], [1, 50], [2, 70], [3, 50]] }, bored: { f: 'bored', loop: [[0, 2600], [1, 160], [2, 500], [3, 160]] },
@@ -128,8 +128,8 @@ const EVENT_FX = {
     shake: [[2800, 2, 200], [3400, 3, 260]]
   },
   提督: {
-    fx: [['shockwave', 700], ['splash', 700], ['spark', 4300, 0.55, 0.6, 12], ['rays', 4300, 2400, 0.5], ['flagLine', 4300, 2600], ['confetti', 4400]],
-    shake: [[700, 2, 200], [4300, 3, 240]]
+    fx: [['shockwave', 700], ['splash', 700], ['spark', 3600, 0.2, 0.3, 12], ['rays', 3600, 2600, 0.55], ['burst', 3600, 300], ['confetti', 3700]],
+    shake: [[700, 2, 200], [3600, 3, 240]]
   },
   城堡: {
     fx: [['bang', 300], ['spark', 2200, 0.5, 0.4, 10], ['petals', 2600, 6400], ['halo', 3000, 1500, 0.4], ['stepGlow', 4500, 3000], ['towerSparkles', 7500, 1600],
@@ -156,7 +156,7 @@ const EVENTS = {
   进场: { tier: 'C', dur: 1600 }, 普通礼物: { tier: 'C', dur: 2000, gift: true }, 连着送: { tier: 'C', dur: 2600, gift: true },
   盲盒开亏: { tier: 'C', dur: 2600, gift: true }, 中礼物: { tier: 'B', dur: 3500, gift: true }, 盲盒开中: { tier: 'B', dur: 4000, gift: true },
   舰长: { tier: 'B', dur: 4500, gift: true }, 大礼物: { tier: 'A', dur: 6000, gift: true }, 盲盒开大: { tier: 'A', dur: 6000, gift: true },
-  提督: { tier: 'A', dur: 7000, gift: true }, 总督: { tier: 'SS', dur: 15000, gift: true },
+  提督: { tier: 'A', dur: 8000, gift: true }, 总督: { tier: 'SS', dur: 15000, gift: true },
   城堡: { tier: 'S', dur: 11500, gift: true }, 新的第一名: { tier: 'C', dur: 2600 },
   报名开场: { tier: 'A', dur: 2600 }, 报名截止: { tier: 'A', dur: 2000 }, 奖池开场: { tier: 'A', dur: 2600 }, 奖池点名: { tier: 'A', dur: 2000 },
   奖池转动: { tier: 'A', dur: 2000 }, '揭晓·大奖': { tier: 'A', dur: 5200 }, '揭晓·二奖': { tier: 'A', dur: 4600 }, '揭晓·三奖': { tier: 'A', dur: 4600 },
@@ -200,14 +200,15 @@ const LINES = {
 const NAMES = { 普通昵称: '星河', 长昵称: '这是一个非常非常长的昵称啊', 中英混排: 'Lily月下' };
 const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 中礼物: '告白气球', 大礼物: '小电视飞船', 盲盒开中: '告白气球', 盲盒开大: '小电视飞船', 盲盒开亏: '小花花', 城堡: '浪漫城堡' };
 const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
-const SPRITE_H = 76, NAME_MAX = 8;
+const SPRITE_H = 76, NAME_MAX = 8, SPRITE_SPEED = 0.8;
 // Every pose sheet's cell 1 and every prop are drawn by codex beside the same standing drawing, ANCHOR px tall (gen-sheet.py,
 // gen-prop.py), so one scale, H / ANCHOR, puts all of them on the page at her size. Points of a prop are in its own px: the
 // flagship's bow deck where she stood when it was drawn, and its mainmast top for the sprite.
 const ANCHOR = 360;
 const PROPS = { flagship: { deck: [250, 530], mast: [450, 60] } };
-// The admiral's ship sails across the upper page behind her, farther off (s), its bottom on y; mast: its masthead (prop px).
-const ADM_SHIP = { x: 300, y: 300, s: 0.6, mast: [435, 25] };
+// The admiral's ship stops behind her on the upper page, farther off (s), its bottom on y; mast: the mainmast top, rig: where
+// its flags are strung when it is dressed (prop px).
+const ADM_SHIP = { x: 300, y: 300, s: 0.6, mast: [435, 25], rig: [[690, 356], [435, 30], [200, 108], [60, 352]] };  // rig: bow, mainmast, foremast, stern
 // Where the flagship's bow deck stops on the page: she stands there at her full size.
 const SHIP_DECK = { x: 133, y: 398 };
 // The sports (README 6), each in its own outfit: the sprite dresses her for it, she gets ready and goes for act ms; then
@@ -467,26 +468,7 @@ class Component extends DCLogic {
         else { st.pose = 'capSalute'; hop(600, 8); st.sprite = 'sailor'; st.sp = ['rel', -0.1, 0.42]; }
         if (t >= 3700) { st.pose = t < 4300 ? 'capSalute' : 'idle'; if (t < 4300) this.dress(st, t, 3700, 4300); else st.sprite = 'sHappy'; }
         st.fx.push(['flash', 600, 0.6], ['seaBubbles', 600], ['flash', 4300, 0.6]); say(800); break;
-      case '提督':
-        // dressed by the sprite, then it is her lookout: it flies ahead where she looks, signals with its flag, and comes
-        // back to salute with her
-        // she sights her ship through the spyglass: it sails in from the left across the upper page, behind her; as it
-        // passes, a signal star from its masthead comes down onto her chest and she salutes, the sprite strings signal
-        // flags across the top, and the ship sails on out to the right
-        {
-          const im = this.props.admship, k = H / ANCHOR * ADM_SHIP.s, x = -im.width * k / 2 + (ADM_SHIP.x + im.width * k / 2) * ease(k01(t, 900, 3000)) + (PAGE.w + im.width * k / 2 - ADM_SHIP.x) * ease(k01(t, 4600, 6600));
-          st.admShip = { x, y: ADM_SHIP.y + 4 * Math.sin(t / 450), a: k01(t, 900, 1300) };
-          st.fx.push(['comet', 3100, 1200, { x: x + (ADM_SHIP.mast[0] - im.width / 2) * k, y: ADM_SHIP.y - (im.height - ADM_SHIP.mast[1]) * k }]);
-        }
-        if (t < 700) this.dress(st, t, 0, 700);
-        else {
-          st.pose = t < 3100 ? 'spyglass' : 'admSalute';
-          st.sprite = t >= 1900 && t < 2800 ? 'flag' : 'sailor';
-          st.sp = t >= 4300 && t < 5600 ? ['at', 30 + 420 * ease(k01(t, 4300, 5500)), 40 + 10 * Math.sin(t / 160)]
-            : t >= 3400 ? ['rel', -0.1, 0.42] : ['scout', ease(k01(t, 1100, 1900)) - ease(k01(t, 2800, 3400))];
-        }
-        if (t >= 6200) { st.pose = t < 6900 ? 'admSalute' : 'idle'; if (t < 6900) this.dress(st, t, 6200, 6900); else st.sprite = 'sHappy'; }
-        st.fx.push(['flash', 700, 1], ['gulls', 1000], ['seaBubbles', 700], ['signal', 2000], ['flash', 6900, 0.8]); say(1000); break;
+      case '提督': this.admiral(t, st, say); break;
       case '总督': this.governor(t, st, say); break;
       case '城堡': this.castleShow(t, st, say); break;
       // it flies up beside her raised fist with its flag
@@ -570,7 +552,7 @@ class Component extends DCLogic {
   // The ship sails in while the sprite dresses her as governor; she jumps aboard, the sprite flies up to the rear mast (the
   // middle one is under her bubble), and before the ship sails away she jumps back down, waves it off and is dressed back.
   // The governor (SS, README 3): the page edges glow gold, a sea of gold clouds rolls in and the flagship sails up to us out
-  // of the distance; the sprite plants its flag on the mainmast and dresses her; a stair of light takes her up onto the bow,
+  // of the distance while the sprite dresses her; it flies up to plant its flag on the mainmast; a stair of light takes her up onto the bow,
   // where she points ahead: the emblem rises in front of the sails, three fireworks go up, gold rains over the page; she
   // waves, comes back down the stair, and the ship sails off into the distance leaving a gold wake.
   governor(t, st, say) {
@@ -585,16 +567,18 @@ class Component extends DCLogic {
     if (t >= 5500 && t < 6500) Object.assign(st, climb(5500, 6500, FOOT, deck));
     else if (t >= 6500 && t < 11400) { st.x = deck.x; st.y = deck.y; }
     else if (t >= 11400 && t < 12000) Object.assign(st, climb(11400, 12000, deck, FOOT));
-    if (t < 4000) { st.pose = 'surprised'; st.sprite = t < 2600 ? 'surprised' : 'flag'; if (t >= 2600) st.sp = ['mast', mast.x, mast.y]; }
-    else if (t < 5000) this.dress(st, t, 4000, 5000);
+    // the sprite dresses her while the ship comes in, then flies ahead up to the mainmast with its flag before she
+    // climbs aboard, and flies back down to her when she jumps off
+    if (t < 2900) { st.pose = 'surprised'; st.sprite = 'surprised'; st.sp = ['rel', -0.1, 0.42]; }
+    else if (t < 3900) { st.pose = 'surprised'; this.dress(st, t, 2900, 3900); }
     else if (t < 14000) {
       st.pose = t < 5500 ? 'govPoint' : t < 6500 || t >= 11400 && t < 12000 ? 'govJump' : t < 9600 ? 'govPoint' : 'govWave';
       st.sprite = 'flag';
-      if (t >= 5000 && t < 12000) st.sp = ['mast', mast.x, mast.y];
+      st.sp = t < 11400 ? ['mast', mast.x, mast.y] : ['rel', -0.1, 0.42];
     } else if (t < 14800) { st.pose = 'govWave'; this.dress(st, t, 14000, 14800); }
     else st.sprite = 'sHappy';
     if (t >= 6600 && t < 12000) st.emblem = { x: 355, y: 150 - 40 * ease(k01(t, 6600, 7400)), s: 0.8 * ease(k01(t, 6600, 7200)), a: k01(t, 6600, 6900) * (1 - k01(t, 11400, 12000)) };
-    st.fx.push(['edgeGlow', 0, 15000], ['bang', 200], ['shock', 200], ['cloudSea', 1500, 13000, SHIP_DECK.y + 160], ['gulls', 2400], ['flash', 5000, 1],
+    st.fx.push(['edgeGlow', 0, 15000], ['bang', 200], ['shock', 200], ['cloudSea', 1500, 13000, SHIP_DECK.y + 160], ['gulls', 2400], ['flash', 3900, 1],
       ['lightStairs', 5300, 1400, FOOT, deck], ['pillar', 6600, 3000], ['rays', 6600, 4800, 0.6, { x: 355, y: 110 }], ['burst', 6600, 300],
       ['skyFireworks', 6800, [[0, 70, 90, '#FFD45E'], [600, 240, 46, '#FF9AB5'], [1200, 420, 100, '#9CCFFF'], [6000, 380, 80, '#FFD45E'], [6500, 440, 170, '#FFE9A8']]],
       ['lightStairs', 11200, 1000, FOOT, deck], ['wake', 12000, 3000, [{ x: 440, y: 560 }, { x: 250, y: 330 }, { x: 70, y: 100 }]], ['flash', 14800, 0.8]);
@@ -603,6 +587,32 @@ class Component extends DCLogic {
     say(1700);
     return st;
   }
+
+  // The admiral (A, README 3): dressed by the sprite, she raises her spyglass to the left, where her ship appears far off;
+  // the sprite flies out to meet it and rides in on its mainmast while it sails up to stop behind her; she lowers the glass
+  // and salutes, and the ship answers: it dresses its flags from bow to stern and glows; then it sails off to the right,
+  // the sprite flies back down to her and dresses her back.
+  admiral(t, st, say) {
+    const come = ease(k01(t, 1100, 3400)), go = ease(k01(t, 6000, 7600)), a = ADM_SHIP;
+    const ship = { x: 70 + (a.x - 70) * come + (PAGE.w + 220 - a.x) * go, y: 200 + (a.y - 200) * come - 20 * go + 4 * Math.sin(t / 450),
+      s: a.s * (0.45 + 0.55 * come) * (1 - 0.15 * go), a: k01(t, 1100, 1500) * (1 - k01(t, 7200, 7600)),
+      flags: ease(k01(t, 3600, 4300)), glow: bump(t, 3500, 5600), wake: Math.max(come < 1 ? k01(t, 1100, 1400) : 0, go > 0 ? 1 - go : 0) };
+    st.admShip = ship;
+    const mast = this.admPoint(ship, a.mast);
+    if (t < 700) this.dress(st, t, 0, 700);
+    else if (t < 7200) {
+      st.pose = t < 3500 ? 'spyglass' : 'admSalute';
+      st.sprite = t >= 2300 && t < 6200 ? 'flag' : 'sailor';
+      st.sp = t >= 1500 && t < 6200 ? ['at', mast.x, mast.y - 4] : ['rel', -0.1, 0.42];
+    } else if (t < 7900) { st.pose = 'admSalute'; this.dress(st, t, 7200, 7900); }
+    else { st.pose = 'idle'; st.sprite = 'sHappy'; }
+    st.fx.push(['flash', 700, 1], ['seaBubbles', 700], ['gulls', 1600], ['flash', 7900, 0.8]);
+    say(1000);
+    return st;
+  }
+
+  // Where a point of the admiral's ship (prop px) is on the page, the ship's bottom centre at s.x, s.y.
+  admPoint(s, pt) { const im = this.props.admship, k = H / ANCHOR * s.s; return { x: s.x + (pt[0] - im.width / 2) * k, y: s.y - (im.height - pt[1]) * k }; }
 
   // Where a point of the flagship's picture (prop px) is on the page, the ship's deck at st.ship.x, .y.
   shipPoint(sh, pt) { const k = H / ANCHOR * sh.s, d = PROPS.flagship.deck; return { x: sh.x + (pt[0] - d[0]) * k, y: sh.y + (pt[1] - d[1]) * k }; }
@@ -628,7 +638,7 @@ class Component extends DCLogic {
 
   // The sprite dresses her up (or back): it spirals up round her glowing, leaving a trail, and the caller flashes at b.
   dress(st, t, a, b) {
-    st.sprite = 'glow'; st.orbit = (t - a) * 2.2; st.orbitR = 90; st.orbitY = FOOT.y - (0.1 + 0.85 * ease(k01(t, a, b))) * H;
+    st.sprite = 'glow'; st.orbit = 1000 / 1.2 + (t - a) * 2.2; st.orbitR = 90;  // from her left, where it waits st.orbitY = FOOT.y - (0.1 + 0.85 * ease(k01(t, a, b))) * H;
     st.fx.push(['trail', a]);
   }
 
@@ -763,7 +773,7 @@ class Component extends DCLogic {
     const shake = this.shakeOf(st, now); g.translate(shake.x, shake.y);
     if (st.castle) this.drawCastle(g, st.castle);
     if (st.ship) this.drawShip(g, st.ship);
-    if (st.admShip) this.drawProp(g, this.props.admship, st.admShip.x, st.admShip.y, ADM_SHIP.s, st.admShip.a);
+    if (st.admShip) this.drawAdmShip(g, st.admShip);
     if (st.emblem) this.drawProp(g, this.props.emblem, st.emblem.x, st.emblem.y + this.props.emblem.height * H / ANCHOR * st.emblem.s / 2, st.emblem.s, st.emblem.a);
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt)) * this.cfg.speed;
     this.rt = rt;
@@ -846,7 +856,11 @@ class Component extends DCLogic {
   follow(target, dt, st) {
     const sv = this.sv;
     if (!sv) { this.sv = { ...target, vx: 0, vy: 0, d: 0 }; return this.sv; }
-    const k = 1 - Math.exp(-dt / (st.orbit != null ? 90 : 200)), nx = sv.x + (target.x - sv.x) * k, ny = sv.y + (target.y - sv.y) * k, sec = Math.max(dt, 1) / 1000;
+    const k = 1 - Math.exp(-dt / (st.orbit != null ? 90 : 200)), sec = Math.max(dt, 1) / 1000;
+    let nx = sv.x + (target.x - sv.x) * k, ny = sv.y + (target.y - sv.y) * k;
+    // no faster than SPRITE_SPEED px/ms: a long way (her shoulder up to a masthead and back) is flown, never jumped
+    const step = Math.hypot(nx - sv.x, ny - sv.y), most = SPRITE_SPEED * (st.orbit != null ? 2 : 1) * Math.max(dt, 1);
+    if (step > most) { nx = sv.x + (nx - sv.x) * most / step; ny = sv.y + (ny - sv.y) * most / step; }
     sv.vx += ((nx - sv.x) / sec - sv.vx) * 0.3; sv.vy += ((ny - sv.y) / sec - sv.vy) * 0.3;
     sv.x = nx; sv.y = ny; sv.scale = target.scale; sv.d = Math.hypot(target.x - nx, target.y - ny);
     return sv;
@@ -924,6 +938,37 @@ class Component extends DCLogic {
   drawShip(g, s) {
     const im = this.props.flagship, k = H / ANCHOR * s.s, d = PROPS.flagship.deck;
     g.save(); g.globalAlpha = s.a; g.drawImage(im, s.x - d[0] * k, s.y - d[1] * k, im.width * k, im.height * k); g.restore();
+  }
+
+  // The admiral's ship (bottom centre at s.x, s.y): a purple glow behind it when it answers her salute, a white wake behind
+  // its stern while it sails, and its flags strung bow to mainmast to foremast to stern as it dresses (s.flags 0..1).
+  drawAdmShip(g, s) {
+    const im = this.props.admship, k = H / ANCHOR * s.s, w = im.width * k, h = im.height * k, c = GLOW.A;
+    g.save(); g.globalAlpha = s.a;
+    if (s.glow) {
+      const gr = g.createRadialGradient(s.x, s.y - h * 0.5, 0, s.x, s.y - h * 0.5, w * 0.8); gr.addColorStop(0, `rgba(${c},${0.6 * s.glow})`); gr.addColorStop(1, `rgba(${c},0)`);
+      g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(s.x - w, s.y - h * 1.4, w * 2, h * 1.7); g.globalCompositeOperation = 'source-over';
+    }
+    if (s.wake) {
+      g.strokeStyle = `rgba(255,255,255,${0.75 * s.wake})`; g.lineCap = 'round';
+      for (let i = 0; i < 3; i++) { g.lineWidth = 5 - i * 1.4; g.beginPath(); g.moveTo(s.x - w * 0.42, s.y - h * 0.1 + i * 7); g.quadraticCurveTo(s.x - w * (0.7 + i * 0.12), s.y - h * 0.02 + i * 9, s.x - w * (1 + i * 0.2), s.y - h * 0.12 + i * 8); g.stroke(); }
+    }
+    g.drawImage(im, s.x - w / 2, s.y - h, w, h);
+    if (s.flags) {
+      const pts = ADM_SHIP.rig.map(q => this.admPoint(s, q)), segs = pts.slice(1).map((q, i) => [pts[i], q]), n = 22, cols = ['#FF6B6B', '#FFD45E', '#7FD3FF', '#C4A2FF', '#9DF0C0', '#fff'];
+      const total = segs.reduce((a, [p0, p1]) => a + Math.hypot(p1.x - p0.x, p1.y - p0.y), 0), upto = total * s.flags;
+      g.strokeStyle = '#3A2A26'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
+      let run = 0;
+      for (const [p0, p1] of segs) { const len = Math.hypot(p1.x - p0.x, p1.y - p0.y), u = Math.min(1, Math.max(0, (upto - run) / len)); if (u > 0) g.lineTo(p0.x + (p1.x - p0.x) * u, p0.y + (p1.y - p0.y) * u); run += len; }
+      g.stroke();
+      for (let i = 1; i < n; i++) {
+        let d = total * i / n; if (d > upto) break;
+        let j = 0; while (j < segs.length - 1 && d > Math.hypot(segs[j][1].x - segs[j][0].x, segs[j][1].y - segs[j][0].y)) { d -= Math.hypot(segs[j][1].x - segs[j][0].x, segs[j][1].y - segs[j][0].y); j++; }
+        const [p0, p1] = segs[j], len = Math.hypot(p1.x - p0.x, p1.y - p0.y), fx = p0.x + (p1.x - p0.x) * d / len, fy = p0.y + (p1.y - p0.y) * d / len, sw = 3 * Math.sin(performance.now() / 150 + i);
+        g.fillStyle = cols[i % cols.length]; g.beginPath(); g.moveTo(fx - 6, fy); g.lineTo(fx + 6, fy); g.lineTo(fx + sw, fy + 15); g.closePath(); g.fill(); g.stroke();
+      }
+    }
+    g.restore();
   }
 
   // A prop at her scale times s, its bottom centre at x, y.
@@ -1010,7 +1055,6 @@ class Component extends DCLogic {
       case 'rainbowSparkles': if (t < 8500) for (let i = 0; i < 10; i++) { const u = (t + i * 300) % 1500; star(40 + r() * 400, 30 + r() * 320, 7 + r() * 6, ['#FFE27A', '#FFB3D1', '#B7E4FF', '#fff'][i % 4], Math.sin(Math.PI * u / 1500)); } break;
       case 'gateGlow': { if (t > 1800) break; const p = f[2]; g.save(); g.globalAlpha = Math.sin(Math.PI * Math.min(t, 1500) / 1500) * 0.7; const gr = g.createRadialGradient(p.x, p.y - 20, 0, p.x, p.y - 20, 70); gr.addColorStop(0, glow(1)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y - 20, 70, 0, Math.PI * 2); g.fill(); g.restore(); break; }
       case 'trail': for (const q of this.trail || []) { const age = (performance.now() - q.rt) / 420; star(q.x + 18 * Math.sin(q.rt), q.y + 14 * Math.cos(q.rt * 1.3), 9 * (1 - age) + 3, ['#FFE27A', '#FFB3D1', '#fff'][Math.floor(q.rt) % 3], 1 - age); } break;
-      case 'signal': { if (t > 900) break; for (let i = 0; i < 5; i++) star(64 + (r() - 0.5) * 70, her.y - 20 + (r() - 0.5) * 60, 8 + r() * 6, i % 2 ? '#FFE27A' : '#fff', Math.sin(Math.PI * ((t + i * 150) % 900) / 900)); break; }
       case 'notes': for (let i = 0; i < 4; i++) { const u = (t + i * 500) % 2000; g.save(); g.globalAlpha = Math.sin(Math.PI * u / 2000); g.fillStyle = '#7C6CF0'; g.font = '700 22px sans-serif'; g.fillText(i % 2 ? '♪' : '♫', head.x + 50 + i * 8 + 10 * Math.sin(u / 300), head.y - u * 0.05); g.restore(); } break;
 
       // ---- manga symbols
@@ -1250,23 +1294,6 @@ class Component extends DCLogic {
           else { g.save(); g.globalAlpha = a; giftBox(x, y, 9, u / 200); g.restore(); }
         }
         break;
-      }
-      // a signal star coming down as a comet across the page onto her chest (from the admiral's masthead)
-      case 'comet': {
-        const dur = f[2] || 1200; if (t > dur) break;
-        const p0 = f[3], p1 = at(0.55, 0.6), pos = u => { const p = (u / dur) ** 1.6; return { x: p0.x + (p1.x - p0.x) * p, y: p0.y + (p1.y - p0.y) * p - 60 * Math.sin(Math.PI * p) }; };
-        for (let i = 14; i >= 0; i--) { const q = pos(Math.max(0, t - i * 26)); g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = (1 - i / 15) * 0.8; g.fillStyle = glow(1); g.beginPath(); g.arc(q.x, q.y, 9 * (1 - i / 16), 0, Math.PI * 2); g.fill(); g.restore(); }
-        const h = pos(t); star(h.x, h.y, 14, '#fff', 1); break;
-      }
-      // the sprite strings signal flags across the top of the page, a ship's way of celebrating
-      case 'flagLine': {
-        const dur = f[2] || 2600, a = life(t, 100, dur - 500, 400); if (!a) break;
-        const x0 = 20, x1 = PAGE.w - 20, y0 = 38, sag = 26, shown = Math.min(1, t / 1200), cols = ['#FF6B6B', '#FFD45E', '#7FD3FF', '#C4A2FF', '#9DF0C0'];
-        g.save(); g.globalAlpha = a; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, y0);
-        for (let u = 0; u <= shown + 1e-6; u += 0.05) g.lineTo(x0 + (x1 - x0) * u, y0 + sag * 4 * u * (1 - u)); g.stroke();
-        for (let i = 1; i < 16; i++) { const u = i / 16; if (u > shown) break; const fx = x0 + (x1 - x0) * u, fy = y0 + sag * 4 * u * (1 - u), sw = 4 * Math.sin(now / 140 + i);
-          g.fillStyle = cols[i % 5]; g.strokeStyle = '#3A2A26'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(fx - 9, fy); g.lineTo(fx + 9, fy); g.lineTo(fx + sw, fy + 22); g.closePath(); g.fill(); g.stroke(); }
-        g.restore(); break;
       }
       // the governor's gold: the page's edges glow the whole show
       case 'edgeGlow': {

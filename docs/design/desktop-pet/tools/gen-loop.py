@@ -28,10 +28,11 @@ OPTIONS = {"wave": ["--head"], "clap": ["--head"], "cheer": ["upper", "--head"],
            "govWave": ["--head"], "gymWipe": ["--head"], "capSalute": ["--head"], "admSalute": ["--head"],
            "spyglass": ["--head"], "bike": ["--head", "--from-first"], "idle": ["--ref-first"], "bored": ["--ref-first"],
            "hike": ["legs"], "walkA": ["legs"]}
-# loops whose legs must stride: frame 3 is the other stride and frame 2 passes between, so at least LEGS_GATE of the legs'
-# outline changes from frame 1 in each (codex drew the hiking legs almost the same in every frame: 0.07 in frame 3); the
+# loops whose legs must stride: frame 2 passes between the strides, so at least LEGS_GATE[0] of the legs' outline changes
+# from frame 1, and frame 3 is the other stride, LEGS_GATE[1] (codex drew the hiking legs almost the same in every frame,
+# 0.07 in frame 3, then a frame 3 that changed less than the passing frames, 0.29, and the user still saw no step); the
 # castle walk (feet under a gown) and pedalling change a smaller area and are not held to it
-LEGS_MOVE, LEGS_GATE = {"hike"}, 0.25
+LEGS_MOVE, LEGS_GATE = {"hike"}, (0.25, 0.40)
 
 
 def main():
@@ -51,8 +52,8 @@ def main():
         x0, y0, x1, y1 = bbox(cell)
         if o == "legs":  # the lower 40% of her, across her whole width
             opts += ["--take", f"{x0 - 10},{int(y0 + 0.6 * (y1 - y0))},{x1 + 10},{y1 + 4}"]
-        elif o == "upper":  # her upper 55%, arms and all, so no arm of the drawing's stays beside codex's (four arms)
-            opts += ["--take", f"{x0 - 40},{max(0, y0 - 40)},{x1 + 40},{int(y0 + 0.55 * (y1 - y0))}"]
+        elif o == "upper":  # her upper 62%, arms and all, so no arm of the drawing's stays beside codex's (four arms)
+            opts += ["--take", f"{x0 - 40},{max(0, y0 - 40)},{x1 + 40},{int(y0 + 0.62 * (y1 - y0))}"]
         else:
             opts.append(o)
     face = eye_ref(standing())
@@ -78,10 +79,11 @@ def main():
         if pose in LEGS_MOVE:  # how much of her legs' outline differs from frame 1 in frames 2 and 3
             x0, y0, x1, y1 = bbox(cell)
             legs = [s[int(y0 + 0.6 * (y1 - y0)):y1 + 4, k * w + max(0, x0 - 10):k * w + x1 + 10, 3] > 40 for k in range(4)]
-            moved = min(1 - (legs[0] & legs[k]).sum() / (legs[0] | legs[k]).sum() for k in (1, 2))
-            if moved < LEGS_GATE:
+            change = [1 - (legs[0] & legs[k]).sum() / (legs[0] | legs[k]).sum() for k in (1, 2)]
+            moved = min(c / g for c, g in zip(change, LEGS_GATE))  # 1 or more passes
+            if moved < 1:
                 off = max(off, 1)  # the legs did not stride: drawn again
-        print(f"try {t + 1}: faces " + " ".join("-" if v is None else f"x{v:.2f}" for v in sizes) + ("" if moved is None else f"; legs changed {moved:.2f}"))
+        print(f"try {t + 1}: faces " + " ".join("-" if v is None else f"x{v:.2f}" for v in sizes) + ("" if moved is None else "; legs changed " + " ".join(f"{c:.2f}" for c in change)))
         if best is None or off < best[0]:
             best = (off, name)
         if off <= GATE:
