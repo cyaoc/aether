@@ -1,11 +1,12 @@
 """Turn codex's four frames of one pose moving in place (a loop) into a frame strip that does not boil.
 
-python frame-patch.py [--from-first | --ref-first] [--box x0,y0,x1,y1] [--take x0,y0,x1,y1] [--face] <ref> <frames.png> <out.png> [check.png]
-python frame-patch.py --green <ref> <out.png>
+python frame-patch.py [--from-first | --ref-first] [--box x0,y0,x1,y1] [--take x0,y0,x1,y1] [--head] <ref> <frames.png> <out.png> [check.png]
+python frame-patch.py --grid <ref> <out.png>
 
 <ref> is the drawing the frames were made from (as petlib.load_ref: `sheet.webp:3`, `sheet.webp:2/4x1`, `single.webp`).
---green writes it centred on a square of flat #00FF00, the reference gen-frames.sh hands codex. A change from one pose
-to another is not made here but by inbetween.py.
+--grid writes the 2 x 2 grid gen-frames.sh hands codex: flat #00FF00, the reference already in the top-left quarter as
+frame 1, so codex draws frames 2-4 beside it at its size. A change from one pose to another is not made here but by
+inbetween.py.
 
 <frames.png> is codex's 2 x 2 grid of frames on that green, frame 1 being the reference itself. Each frame is keyed off
 its green and all four are lined up with the reference by frame 1 (petlib.register). Codex redraws everything a little
@@ -18,10 +19,10 @@ including the first, for a part that moves all the time (walking legs), so nothi
 shoe's shadow). --ref-first makes frame 1 the reference itself, for a loop played in place of its drawing (the idle
 blink): the open eyes are then the drawing's own, so leaving the loop does not shift them by codex's pixel.
 
---face keeps her head: where codex's head did not move, the reference's whole head is kept; where her head moves (a
-sway, a hop) codex's face is a little different in every frame and flickers when played, so the reference's own face is
-laid over each frame instead, slid, scaled and turned to where that frame's head is. A frame whose face does not match
-well enough (turned away, hidden) is left alone. Not for loops whose point is the face changing (a blink).
+--head keeps her head: where codex's head did not move, the reference's whole head is kept, so a head codex drew a
+little different never shows. Where her head moves (a sway, a hop) the frames keep codex's own head; nothing is scaled or
+laid over it, and gen-loop.py draws the loop again when a frame's face comes out off size. Not for loops whose point is
+the face changing (a blink).
 """
 import sys
 from pathlib import Path
@@ -30,13 +31,16 @@ from PIL import Image, ImageDraw, ImageFilter
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # petlib sits beside the tools, also under python -I
 from petlib import bbox, codex_frames, green, load_ref, register, skin
 
-if sys.argv[1] == "--green":
-    green(load_ref(sys.argv[2])).save(sys.argv[3])
+if sys.argv[1] == "--grid":
+    q = green(load_ref(sys.argv[2]))
+    grid = Image.new("RGB", (2 * q.width, 2 * q.height), (0, 255, 0))
+    grid.paste(q, (0, 0))
+    grid.save(sys.argv[3])
     sys.exit()
 
 args = sys.argv[1:]
-from_first, ref_first, lock_face = "--from-first" in args, "--ref-first" in args, "--face" in args
-args = [a for a in args if a not in ("--from-first", "--ref-first", "--face")]
+from_first, ref_first, keep_head = "--from-first" in args, "--ref-first" in args, "--head" in args
+args = [a for a in args if a not in ("--from-first", "--ref-first", "--head")]
 
 
 def opt(name):
@@ -97,85 +101,6 @@ def skin_box(A):
     return xs.min() * 2, ys.min() * 2, xs.max() * 2 + 2, ys.max() * 2 + 2
 
 
-def face_patch(A):
-    """The face cut out of a drawing: the pixels round it, an oval mask inside its skin, and its centre and size."""
-    fb = skin_box(A)
-    if fb is None:
-        return None
-    cx, cy, w, h = (fb[0] + fb[2]) / 2, (fb[1] + fb[3]) / 2, fb[2] - fb[0], fb[3] - fb[1]
-    half = int(max(w, h) * 0.75)
-    pad = np.pad(A, ((half, half), (half, half), (0, 0)))
-    crop = pad[int(cy):int(cy) + 2 * half, int(cx):int(cx) + 2 * half]
-    oval = Image.new("L", (2 * half, 2 * half), 0)
-    ImageDraw.Draw(oval).ellipse((half - w * 0.48, half - h * 0.48, half + w * 0.48, half + h * 0.48), fill=255)
-    # only her skin with the eyes, brows and mouth inside it filled in, so no strand of hair comes along
-    filled = Image.fromarray((skin(crop) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(15)).filter(ImageFilter.MinFilter(15)).filter(ImageFilter.MinFilter(3))
-    oval = np.minimum(np.asarray(oval, dtype=np.float32), np.asarray(filled, dtype=np.float32))
-    oval[:int(half - h * 0.2)] = 0  # from the brows down: the bangs over the forehead differ when her head tilts
-    oval = np.asarray(Image.fromarray(oval.astype(np.uint8)).filter(ImageFilter.GaussianBlur(2)), dtype=np.float32) / 255
-    return crop, oval, cx, cy, h
-
-
-def lay_face(frame, src, mirrored=False):
-    """The source face laid over the frame's own, slid, scaled and turned to fit; None when it does not fit. A head
-    swaying the other way may only fit the face mirrored (her face is nearly symmetric), so that is tried too."""
-    if not mirrored:
-        got = lay_face(frame, src, True)
-        plain = lay_face_once(frame, src)
-        if plain and (not got or plain[1] <= got[1]):
-            return plain
-        return got
-    crop, oval, sx, sy, sh = src
-    return lay_face_once(frame, (crop[:, ::-1].copy(), oval[:, ::-1].copy(), sx, sy, sh))
-
-
-def lay_face_once(frame, src):
-    fb = skin_box(frame)
-    if fb is None:
-        return None
-    crop, oval, sx, sy, sh = src
-    tx, ty, th = (fb[0] + fb[2]) / 2, (fb[1] + fb[3]) / 2, fb[3] - fb[1]
-    s0 = min(1.15, max(0.85, th / sh))
-    n = crop.shape[0]
-    cim = Image.fromarray(crop.round().astype(np.uint8)); mim = Image.fromarray((oval * 255).astype(np.uint8))
-
-    def put(s, rot, dx, dy):
-        m = round(n * s)
-        c = np.asarray(cim.rotate(rot, Image.BICUBIC).resize((m, m), Image.LANCZOS), dtype=np.float32)
-        o = np.asarray(mim.rotate(rot, Image.BICUBIC).resize((m, m), Image.LANCZOS), dtype=np.float32) / 255
-        x, y = round(tx + dx - m / 2), round(ty + dy - m / 2)
-        if x < 0 or y < 0 or x + m > cw or y + m > ch:
-            return None
-        return c, o, x, y
-
-    def err(p):
-        c, o, x, y = p
-        f = frame[y:y + c.shape[0], x:x + c.shape[1]]
-        return (np.abs(c[..., :3] - f[..., :3]).mean(-1) * o).sum() / o.sum()
-
-    best = None
-    for rots, ss, ds in ((tuple(range(-20, 21, 4)), (-0.06, -0.03, 0, 0.03, 0.06), (-6, -3, 0, 3, 6)), ((-2, -1, 0, 1, 2), (-0.015, 0, 0.015), (-2, -1, 0, 1, 2))):
-        c0 = best[1:] if best else (0, s0, 0, 0)
-        for rot in rots:
-            for ds_ in ss:
-                for dx in ds:
-                    for dy in ds:
-                        p = put(c0[1] + ds_, c0[0] + rot, c0[2] + dx, c0[3] + dy)
-                        if p is None:
-                            continue
-                        e = err(p)
-                        if best is None or e < best[0]:
-                            best = (e, c0[0] + rot, c0[1] + ds_, c0[2] + dx, c0[3] + dy)
-    if best is None or best[0] > 28:
-        return None
-    c, o, x, y = put(best[2], best[1], best[3], best[4])
-    out = frame.copy()
-    region = out[y:y + c.shape[0], x:x + c.shape[1]]
-    o = o[..., None] * (region[..., 3:] > 200)
-    region[:] = region * (1 - o) + c * o
-    return out, best[0]
-
-
 def crown(A):
     """Where the top of her hair is: its highest dark row and the middle of the hair just below it (hands are not dark)."""
     dark = (A[..., 3] > 200) & (A[..., :3].max(-1) < 110)
@@ -218,20 +143,14 @@ def still_head(k):
 
 base = F[0] if from_first else R
 strip = Image.new("RGBA", (cw * 4, ch), (0, 0, 0, 0))
-face = face_patch(R) if lock_face else None
 for k, f in enumerate(F):
-    keep = still_head(k) if k and lock_face else None
+    keep = still_head(k) if k and keep_head else None
     m = mask * (1 - keep) if keep is not None else mask
     res = base * (1 - m) + f * m
     if k == 0 and ref_first:
         res = R
     elif keep is not None:
         print(f"frame {k + 1}: head kept from the reference")
-    elif face is not None:
-        got = lay_face(res, face)
-        print(f"frame {k + 1}: " + (f"face locked (off by {got[1]:.1f})" if got else "face left alone"))
-        if got:
-            res = got[0]
     strip.paste(Image.fromarray(res.round().astype(np.uint8)), (k * cw, 0))
 strip.save(out)
 if len(args) > 3:

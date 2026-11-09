@@ -14,22 +14,26 @@
   <canvas id="dp-cv" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"scene":{"editor":"enum","options":["手动","演示","平时","心情","进场","普通礼物","连着送","大礼物","大礼物+新第一","盲盒开大","盲盒开亏","舰长","提督","总督","城堡","报名抽奖","奖池抽奖","没人报名"],"default":"手动"},"env":{"editor":"enum","options":["右下角","左下角","小页面"],"default":"右下角"},"room":{"editor":"enum","options":["明亮画面","深色房间","透明"],"default":"明亮画面"},"name":{"editor":"enum","options":["普通昵称","长昵称","中英混排"],"default":"普通昵称"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"caption":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"controls":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"$preview":{"width":1920,"height":1080}}'>
+<script type="text/x-dc" data-dc-script data-props='{"scene":{"editor":"enum","options":["手动","演示","平时","心情","进场","普通礼物","连着送","中礼物","大礼物","大礼物+新第一","盲盒开亏","盲盒开中","盲盒开大","舰长","提督","总督","城堡","报名抽奖","奖池抽奖","没人报名"],"default":"手动"},"env":{"editor":"enum","options":["右下角","左下角","小页面"],"default":"右下角"},"room":{"editor":"enum","options":["明亮画面","深色房间","透明"],"default":"明亮画面"},"name":{"editor":"enum","options":["普通昵称","长昵称","中英混排"],"default":"普通昵称"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"caption":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"controls":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"$preview":{"width":1920,"height":1080}}'>
 // The desktop pet in a live-stream corner (design package desktop-pet, README sections 1–7). The page itself is
 // transparent; the board draws a stand-in stream behind it. Everything is drawn from the pose sheets on one 2D canvas.
 const BLOB = {
   day: '44e8beefd8e45a42a6db32a53b6a334b',
-  common: 'f51fdb444ff2a8883fb51eb3ca139f34', lottery: '066cbe9b873fefd6441bae2e6ce7585c', daily1: '30c5acd15a41a0e05c759cef45885fc5',
-  moods: 'ac1c5c41a23d066e79880fee25729c51', gifts: 'bf87fbe4d559cc7bac571db0809a71aa',
-  castleSheet: 'da0db340d770c7aab448e1a19f8eee7d', voyage: 'e849931214cc57336ee9251600ad48f3', gym10: 'cec9ed5a49b5b1cc1a98a67e612095c1', hike11: '9881bd5c3b4da327f9a3f8328876cc90', cycle12: 'd62efea54f258950f6b602f7796390bc', ski9: 'e6ea2938a3951b261adcc0382b9a2ffe',
+  common: '6b03c9c0ef05d8581408ec43f3eddad4', lottery: '29326eaa6a17475986dffd54414c5b00', daily1: '6a91fac58d13e9490270aeb9bf076c2c',
+  moods: '7711853d22ff8a3455b4e2c90be7913f', gifts: '24729a21b26081119e37c73a8de22ddb',
+  castleSheet: '57b02bef64c40865e127f23c8e607db3', voyage: '8a18fef1feb3c3fb273c74075bcb8bd8', gym10: '0eabfa64430a4b407e4cd971d00687c3', hike11: 'a93096e3e8654a33e5391ed2c9bffcdf', cycle12: '9ffbfa8ad43ddb5427bcf9bc30542e3c', ski9: 'b48e77586ef8acfa5bf1ff6142f7c524',
   sp1: '26e419983fd50915beebe9874c8f580f', sp2: '798d2599257e9749035aa3049a19ea28',
-  castleClosed: 'a5423ebc571dd5c837a1759c2e34534f', castleOpen: '1fae311556a3e785a50c209107064a25', ship: '64f045ceb5e565290d330780f7c0006f',
+  castleClosed: 'a5423ebc571dd5c837a1759c2e34534f', castleOpen: '1fae311556a3e785a50c209107064a25',
   views: '7761f2f7cddf5ed1d69e16c20647f65b',
-  sIdle: '585380a5dabdfface1e97682df6d7b43', sBlink: '75b906294ec84d94be622e45ecdc3ab2', sHappy: 'c30af21b10ec63511b5f4838e72245e6', sLook: '084877c8ff8cd82f8f46591b1346947c'
+  sIdle: '585380a5dabdfface1e97682df6d7b43', sBlink: '75b906294ec84d94be622e45ecdc3ab2', sHappy: 'c30af21b10ec63511b5f4838e72245e6', sLook: '084877c8ff8cd82f8f46591b1346947c',
+  flagship: '8cc0a0aa82e6c5480c824748260b60b0',
+  emblem: '623e361fc77406c9262711ee81b482a5',
+  giftbox: 'd3badcb665d3a5ab947c555dc35711a9',
+  giftboxOpen: '3f6255e58365ab134617bb43ca9b477f',
+  balloons: 'd20bfdca5e26da967ed09c19e2171953'
 };
-// A sheet's first cell is her standing height on it (the ruler). The castle's is also a pose she takes (pIdle), whose
-// head was scaled up to the same face as everywhere else, so its height is kept here as it was before.
-const RULER = { castleSheet: 462 };
+// Every sheet's first cell is the same everyday standing drawing at the same size (gen-sheet.py draws the other cells
+// beside it), so it is every sheet's ruler and one scale fits them all.
 // Her poses: [sheet, cell], cells numbered 0–5 left to right, top row first.
 const POSE = {
   idle: ['common', 0], wave: ['common', 1], bow: ['common', 2], cheer: ['common', 3], surprised: ['common', 4], doze: ['common', 5],
@@ -40,12 +44,12 @@ const POSE = {
   bikeReady: ['cycle12', 1], bike: ['cycle12', 2], crash: ['cycle12', 3], bikePlaster: ['cycle12', 4], bikeUp: ['cycle12', 5],
   bored: ['moods', 1], gloomy: ['moods', 2], pout: ['moods', 3], shy: ['moods', 4], awake: ['moods', 5],
   giftBox: ['gifts', 1], shakeBox: ['gifts', 2], openBox: ['gifts', 3], crownV: ['gifts', 4], nod: ['gifts', 5],
-  pIdle: ['castleSheet', 0], spin: ['castleSheet', 1], curtsy: ['castleSheet', 2], walkA: ['castleSheet', 3], walkB: ['castleSheet', 4], lookBack: ['castleSheet', 5],
+  pIdle: ['castleSheet', 1], spin: ['castleSheet', 2], curtsy: ['castleSheet', 3], walkA: ['castleSheet', 4], lookBack: ['castleSheet', 5],
   skiReady: ['ski9', 1], ski: ['ski9', 2], skiDown: ['ski9', 3], skiPopOut: ['ski9', 4], skiShake: ['ski9', 5],
   capSalute: ['voyage', 1], govJump: ['voyage', 4], spyglass: ['voyage', 2], admSalute: ['voyage', 3], govPoint: ['voyage', 4], govWave: ['voyage', 5]
 };
 // Frame strips (textures/frames/<name>.webp, four frames in a row; tools/gen-frames.sh, tools/frame-patch.py), by blob.
-const FRAMES = {admOut: '377421ad86f8f155b3dde2dc79d0c43b', admRaise: 'dda84c9a9c3f7b7acf291780e8e34abe', announceIn: 'f8c876c83c0db239a64028920d7ab012', announceOut: '94a4985c86d5f2a4340747980e66e58b', awake: 'be2c8dd11882eeab65b0f719cf5a1c05', bikeIn: '9a76d500a57fee28bf6814340e4677f6', bikeOut: 'b2662953ed3ae24a9b1058338c8deb6a', bored: 'f75172b434f18aa210339c4737ad76d6', boredGloomy: 'fb0fa15280d7334b1e3ad11f7ffd338f', bowIn: 'd0da0f63667312ca433321ddab372b58', boxOpen: '7904c85b6a1f7d0d30a4a6abfe043d8a', brushUp: 'ca2d2657df6bb84073b9abada118e76e', capOut: '473f4a8434bf8533964595b64903ce91', capRaise: 'd43902f005ab6986661affe24f47e38a', cheer: '8a5406c3b48552b0dbb982107a82dab5', cheerOut: 'b7186dc690a18f7bbb515f4e22031316', clap: 'becff0e3d49648a3026e883dd88acfe9', clapOut: '5e6d6a4885668e709513175f48b5fdcc', crackIn: '33f9fe42e6eb95ab8aa09450bf3fcfdb', crackOut: '79d3e10ea59e59b0c353f2c25bc88fb9', crashKnee: '68deedb20c8da6fcaef5b1ccec6fbb60', crouchGloomy: '8927ed0673b00fcb478f873b988f7e22', crownIn: '200be4f9982e42fb5d5d3a057932f526', curl: '6863fa4977eeb46793743698a7a19c21', curlDrop: '884af1471db04a272d40972e8edb0c01', curlIn: '07a407902542d95250c512c36a52895b', curtsy: '0c06770db6affb7566a2c483cac45235', curtsyTurn: 'cd28965f919c014ccbdfc8f9755eacba', dejectedIn: '2f7f43d34c73b5061df503e973234d44', doze: '6630b68d0e041f5df8730bf073fee62b', giftCheer: 'fa7f1ed00d677fea2e77b90a2ef6420d', giftIn: '76e1a00cd77079f3d20ed2422239b429', gloomy: 'e2584df6cf1d5e016eebd44d7fd4eb9b', gloomyDoze: '22b248d49494ea78ca88687399350cf9', govIn: 'e90e19394f0b2877a0e5a42bf6de1116', govOut: '066e1f39341f818312b7209374bb21f2', govPointWave: '88563f63255aa13b34dffc7337f8813c', govWave: 'b82c3219f5e5101c6fa7d2001425dca2', gymHop: '7027e23efcf4de9143db2ce85821b271', gymIn: '4e52008295067f758593f69610b2eefc', gymOut: 'ff1c2a9811167f94b31f0fdca23eaf82', hikeIn: 'a0271e61999e7b14dd7044cbedeeaf7c', hikeOut: 'f145ebc87a06dae94312cdbd4065779c', hopSit: '0c963ebdae66361996739938c139daf6', hopeAnnounce: '5098fd9dd501a946174802714688bde9', hopeCheer: 'dcff270836f3ce23a96ceefbf6a5ef63', hopeClap: '3ead93e436d184af15bd2477200f1821', hopeIn: '3666861ba5218d74b258d451bb4b5c25', hopeNod: 'da51251b2d23f0752b845c27faa677c7', hum: 'fb2da034685d0595c2640aac90be1bbb', humIn: '95ced915e5b366cb360e75fe5c58d21c', humWave: 'af0fd72dbaf3746702c4798858d03ff7', idle: '9a7ccf06dc33561bd3e9afbbbd0263af', jump: '11130309c7a18a61081249206af911b2', kneeRise: 'cf8be65371c88fba6de55986b8c8cbd1', lookBackIn: '13afd34c142df43d6d00df0fc7bba322', lookBackOut: '3d8d32dc3b833a1f938101bd737a980a', mount: 'c214711595b09c3d84cb8e14d8e8df35', nod: '4ebe56904068fb75e1a04b23d392e658', nodOut: '144472389de515d1740d2e0a80da5006', openPout: '1b1ff3a242743c455a07fe8509ed178a', openSurprised: '9200eb43192dd7502152df8680d31ba9', pedal: '2f372b9751b2c6a6acdffa0b562e4db6', pedalCrash: 'f623c9d57167990d5669cac06a7863fe', pointIn: 'cba18f971e576e63b47d2c5dd328949a', poutOut: 'b3c3498db5c6643668d46eedc60376fe', rubUp: 'c22d1c75fc2ee417bb00aae7b44c2006', shakeBox: 'f6b12a419a182c3c45d42d97067eec07', shakeIn: 'a81cc38f682768d31c59cf4fb966a90b', shakeSnow: 'd732559e6d896981f215881e1e204b69', shy: '500713f978ac700fe42b15e4cb220bfd', shyIn: 'aa14739d49acfe40390545aed1e9daa3', sitBored: '41646e3e8967b6d4aa2ea9eeaab76e5a', sitDoze: 'd3ca51314f107581edb213f1b4537107', skiFall: 'ada902836ad72c89755c90c49cf41a19', skiGlide: '23108afcbc64d9315e73048d4dfcd7ca', skiGo: '564afffa20575086bc0dbd75047d8c59', skiIn: 'f0288236d8442a26e1cefb3f10965d97', skiOut: '431bdcc08f75211a84634367efa9ddf7', skiPop: '89678ac3fb3f2d9dd211d2ea6edf85f3', skiUp: 'e8b2d03153c1c37c1bf1b702477bb247', slipUp: 'f84f19b885b746093e21bc95d53e46e6', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: '1ce91a3a24ea4df0cb64bd7a7e2e23fe', spinCurtsy: '6a94d2816a10ce6d6d5961c97907fa6b', spyRaise: '16896b2b74bd044618b002ee44bba9f2', spySalute: '14622ebaaa2189996db0bab7001ac428', surprisedCheer: '8b3a40f41cdfae7b8c13ec97ddbfec9a', surprisedIn: '12325e8a8a2723c0aa07862cf7660e0b', surprisedOut: '804800753df393708aaa575dcfc3da23', trek: 'd7ab1a41779594f2a2c17edc06737e1e', trekIn: 'c2901c050ad065f0c3ce39ddf033eef3', trekSlip: '74c6f3461933b48f079344adc8af1b59', walk: 'ede9de25e7ff81baf9111c39fa745cae', wave: '8e3bfdca42aae1e8ca6737800076f318', waveIn: 'd563ff89f07e4be31812539c8d06e2f7', wipe: '24a8198cf68b0a890329e9d3897438f7', wipeIn: '80b80f22e05368e765500d5429a8266c'};
+const FRAMES = {admOut: '8a8045355a623d68acfc52029c8841a7', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '1cfe277a82440613f6fcd68014743f29', bikeOut: '000db66bd517aa02f03e18662f6f5a30', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: '0eab11425ea2c3573d1d10bfd9092105', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: 'd801de0c526dcfd5cdc102eefc1d1d53', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: '3c91ba6cf61dbb7d27417076a3d1a731', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '5b2591b3d2e7455d0925ca95bfd4ef1a', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: '3c6eb6084d7a3f10ba50a50703cfcdc7', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: 'e526af562be958ed4bce7b34f6e7658c', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'b655cfbb85b4a8caae52676563442c0d', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: '79865866b71f0d6f54357e5a50175edd', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'fe613d5ac8c1424cd4e6553675f88354', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: '2b24f3aa6d2a608407a22d4031f362ae', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '3341dc19940eca3d4e7506d89609e6bb', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', rubUp: 'e5632d8a7dea06e12b915dacf1d179d7', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '8268ccbbdfb89fd21b6029e07fba0f15', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '3dc757df0e22d502063953af3c5ec855', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'fceb2834a0bd33e1dc3e0cfa0a205917', skiOut: '04a7e87a800b3c86f3aa7f45dd9100f3', skiPop: '6ff5bf2b70fe404b060325fef91af6cc', skiUp: '93e827573b0020cc33b933045459dd10', slipUp: '9146b4b71d48ce321f98622980fabf92', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '1ae44e2bc4397524321578720f354589', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '8b403638ceb159d9731227ef6ef51474', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: 'd2e4c22d0fbe9a314220264802ca2019', wipeIn: 'd597045687c668c96935bf4a3dd615e1'};
 // Poses that move: the strip f, drawn from the pose's own cell, as a loop at ms per frame, a loop of [frame, ms] steps, or
 // once: [frame, ms] steps from when the pose begins, holding the last.
 const STRIP = {
@@ -75,7 +79,7 @@ const TRANS = {
   'idle>dejected': 'dejectedIn', 'idle>hum': 'humIn',
   'hum>crack': 'crackIn', 'crack>idle': 'crackOut', 'spin>curtsy': 'spinCurtsy', 'curtsy>walkA': 'curtsyTurn', 'walkA>lookBack': 'lookBackIn', 'lookBack>pIdle': 'lookBackOut',
   'govPoint>govWave': 'govPointWave', 'bored>gloomy': 'boredGloomy', 'gloomy>doze': 'gloomyDoze', 'idle>surprised': 'surprisedIn',
-  'ski>skiReady': 'skiGo', 'skiDown>ski': 'skiFall', 'skiDown>skiPopOut': 'skiPop', 'skiPopOut>skiShake': 'skiUp',
+  'skiReady>ski': 'skiGo', 'ski>skiDown': 'skiFall', 'skiDown>skiPopOut': 'skiPop', 'skiPopOut>skiShake': 'skiUp',
   'gymReady>curl': 'curlIn', 'curl>gymHurt': 'curlDrop', 'gymHurt>gymRub': 'hopSit', 'gymRub>gymWipe': 'rubUp', 'gymReady>gymWipe': 'wipeIn',
   'hikeReady>hike': 'trekIn', 'slip>hikeBrush': 'slipUp', 'hikeBrush>hikeUp': 'brushUp',
   'bikeReady>bike': 'mount', 'crash>bikePlaster': 'crashKnee', 'bikePlaster>bikeUp': 'kneeRise',
@@ -85,11 +89,9 @@ const TRANS = {
   // the jump starts and ends on her pointing, the drawing govPointWave starts from
   'govJump>govWave': 'govPointWave',
   // her clothes change under the sprite's flash: frame 2 in the first outfit, frame 3 in the second
-  // (a few on skis do not fit the first pose's cell, the skis sticking out or the pompom hat too tall: inbetween.py drew
-  // them in the other pose's cell, so they are listed the other way round and play backwards)
   'capSalute>idle': 'capOut', 'admSalute>idle': 'admOut', 'idle>govPoint': 'govIn', 'govWave>idle': 'govOut',
   'idle>gymReady': 'gymIn', 'gymWipe>idle': 'gymOut', 'idle>hikeReady': 'hikeIn', 'hikeUp>idle': 'hikeOut',
-  'idle>bikeReady': 'bikeIn', 'bikeUp>idle': 'bikeOut', 'skiReady>idle': 'skiIn', 'skiShake>idle': 'skiOut'
+  'idle>bikeReady': 'bikeIn', 'bikeUp>idle': 'bikeOut', 'idle>skiReady': 'skiIn', 'skiShake>idle': 'skiOut'
 };
 // Changes that need no in-between, so she simply switches, in the direction listed: the same drawing on both sides (the
 // governor's jump starts and ends on her pointing), or a change of clothes at the height of the sprite's flash where the
@@ -104,26 +106,34 @@ const CARRY = new Set(['crown', 'glow']);
 // fx: [type, from ms, ...]; shake: [from ms, px, ms].
 const EVENT_FX = {
   进场: { fx: [['bang', 0], ['spark', 150, 0.2, 0.18, 6], ['halo', 0, 900, 0.25]] },
-  普通礼物: { fx: [['giftRise', 0], ['halo', 300, 900, 0.3]] },
-  连着送: { fx: [['steam', 100, 1700], ['spark', 0, 0.5, 0.3, 10], ['halo', 0, 1500, 0.35]] },
+  普通礼物: { fx: [['giftArc', 0], ['halo', 300, 900, 0.3]] },
+  连着送: { fx: [['giftStack', 0], ['steam', 1300, 1200], ['spark', 1250, 0.5, 0.3, 10], ['halo', 1250, 1300, 0.35]] },
+  中礼物: { fx: [['boxDrop', 200], ['spark', 1300, 0.5, 0.58, 8], ['shockwave', 1200], ['halo', 1200, 2000, 0.4], ['anchors', 1400, 1900, 'hearts']], shake: [[1200, 2, 200]] },
+  盲盒开中: {
+    fx: [['shakeMarks', 0, 0.85, 0.2, 1200], ['seamGlow', 0, 1200, 'shake'], ['coins', 1250, 0.3, 0.5], ['halo', 1200, 2600, 0.45], ['bang', 2000], ['shock', 2000], ['shockwave', 2600]],
+    shake: [[1200, 2, 200]]
+  },
   盲盒开亏: { fx: [['shakeMarks', 0, 0.85, 0.2, 900], ['sweat', 950], ['gloom', 1000, 450], ['anger', 1500, 900]] },
   新的第一名: { fx: [['rays', 1300, 1000, 0.35], ['glint', 1350, 0.5, 0], ['spark', 1300, 0.5, 0.05, 8]] },
-  舰长: { fx: [['shockwave', 600], ['splash', 600], ['anchors', 700, 2400], ['glint', 1000, 0.62, 0.08], ['halo', 600, 2400, 0.3]] },
+  舰长: { fx: [['shockwave', 600], ['splash', 600], ['anchors', 700, 2400], ['glint', 1000, 0.14, 0.3], ['halo', 600, 2400, 0.3]] },
   盲盒开大: {
-    fx: [['shakeMarks', 0, 0.85, 0.2, 1200], ['burst', 1200, 500], ['coins', 1250, 0.2, 0.45], ['halo', 1200, 2600, 0.5], ['bang', 2000], ['shock', 2000], ['shockwave', 2600]],
-    shake: [[1200, 2, 220]]
+    fx: [['shakeMarks', 0, 0.85, 0.2, 1500], ['seamGlow', 0, 1500, 'shake'], ['bang', 2600], ['shock', 2600], ['rays', 3500, 2300, 0.55], ['burst', 3500, 400],
+      ['confetti', 3500], ['shockwave', 3500]],
+    shake: [[2500, 3, 260]]
   },
   大礼物: {
-    fx: [['shockwave', 250], ['halo', 0, 2800, 0.45], ['rays', 1400, 1400, 0.5], ['burst', 1400, 300], ['petals', 1400, 1600], ['hearts', 1600, 4]],
-    shake: [[1400, 3, 260]]
+    fx: [['pillar', 0, 2800, 390, 626, 70], ['shockwave', 2800, null, { x: 390, y: 624 }], ['dust', 2800, null, 6, { x: 390, y: 626 }], ['bang', 2850], ['shock', 2850],
+      ['pillar', 3400, 1300, 390, 470, 100], ['fountain', 3400, 2000, { x: 390, y: 470 }], ['rays', 4400, 1600, 0.55], ['burst', 4400, 300], ['confetti', 4400], ['hearts', 4600, 4]],
+    shake: [[2800, 2, 200], [3400, 3, 260]]
   },
-  提督: { fx: [['shockwave', 700], ['splash', 700], ['rays', 700, 3400, 0.35], ['glint', 1000, 0.15, 0.25], ['glint', 3150, 0.62, 0.08]], shake: [[700, 2, 200]] },
-  总督: {
-    fx: [['bang', 0], ['shock', 0], ['burst', 1500, 300], ['dust', 2500], ['rays', 2500, 2700, 0.4], ['dust', 5800], ['burst', 7500, 300]],
-    shake: [[1800, 4, 320]]
+  提督: {
+    fx: [['shockwave', 700], ['splash', 700], ['distantStar', 1000, 2100, { x: 70, y: 110 }], ['comet', 3100, 1200, { x: 70, y: 110 }], ['spark', 4300, 0.55, 0.6, 12],
+      ['rays', 4300, 2400, 0.5], ['flagLine', 4300, 2600], ['confetti', 4400]],
+    shake: [[700, 2, 200], [4300, 3, 240]]
   },
   城堡: {
-    fx: [['bang', 300], ['spark', 2200, 0.5, 0.4, 10], ['petals', 2600, 6400], ['halo', 3000, 1500, 0.4], ['dust', 9800], ['shockwave', 9800]],
+    fx: [['bang', 300], ['spark', 2200, 0.5, 0.4, 10], ['petals', 2600, 6400], ['halo', 3000, 1500, 0.4], ['stepGlow', 4500, 3000], ['towerSparkles', 7500, 1600],
+      ['dust', 9800], ['shockwave', 9800]],
     shake: [[1600, 2, 240]]
   },
   报名开场: { fx: [['spot', 0, 2200], ['bang', 0], ['confetti', 200]] },
@@ -138,12 +148,15 @@ const EVENT_FX = {
   抽奖结束: { fx: [['halo', 0, 2000, 0.3], ['hearts', 300, 3], ['spark', 1450, 0.2, 0.2, 8]] }
 };
 // Effects drawn behind her (glows, rays, focus lines, rings on the ground, speed lines); the rest go in front.
-const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'speed', 'spray']);
-const TIER = { S: 4, A: 3, B: 2, C: 1, D: 0 };
+const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'speed', 'spray', 'pillar', 'cloudSea', 'lightStairs', 'wake', 'skyFireworks', 'stepGlow']);
+const TIER = { SS: 5, S: 4, A: 3, B: 2, C: 1, D: 0 };
+// Each tier's own glow (README 7.1), like gacha rarity: cool and quiet low, warmer higher; gold is the governor's alone.
+const GLOW = { SS: '254,197,79', S: '253,183,202', A: '180,140,255', B: '124,200,255', C: '255,211,223', D: '255,255,255' };
 const EVENTS = {
-  进场: { tier: 'C', dur: 1600 }, 普通礼物: { tier: 'C', dur: 2000, gift: true }, 连着送: { tier: 'C', dur: 2000, gift: true },
-  盲盒开亏: { tier: 'C', dur: 2600, gift: true }, 舰长: { tier: 'B', dur: 4000, gift: true }, 盲盒开大: { tier: 'B', dur: 4000, gift: true },
-  大礼物: { tier: 'A', dur: 3000, gift: true }, 提督: { tier: 'A', dur: 5300, gift: true }, 总督: { tier: 'S', dur: 7800, gift: true },
+  进场: { tier: 'C', dur: 1600 }, 普通礼物: { tier: 'C', dur: 2000, gift: true }, 连着送: { tier: 'C', dur: 2600, gift: true },
+  盲盒开亏: { tier: 'C', dur: 2600, gift: true }, 中礼物: { tier: 'B', dur: 3500, gift: true }, 盲盒开中: { tier: 'B', dur: 4000, gift: true },
+  舰长: { tier: 'B', dur: 4500, gift: true }, 大礼物: { tier: 'A', dur: 6000, gift: true }, 盲盒开大: { tier: 'A', dur: 6000, gift: true },
+  提督: { tier: 'A', dur: 7000, gift: true }, 总督: { tier: 'SS', dur: 15000, gift: true },
   城堡: { tier: 'S', dur: 11500, gift: true }, 新的第一名: { tier: 'C', dur: 2600 },
   报名开场: { tier: 'A', dur: 2600 }, 报名截止: { tier: 'A', dur: 2000 }, 奖池开场: { tier: 'A', dur: 2600 }, 奖池点名: { tier: 'A', dur: 2000 },
   奖池转动: { tier: 'A', dur: 2000 }, '揭晓·大奖': { tier: 'A', dur: 5200 }, '揭晓·二奖': { tier: 'A', dur: 4600 }, '揭晓·三奖': { tier: 'A', dur: 4600 },
@@ -153,11 +166,13 @@ const LINES = {
   进场: ['{昵称}来啦…欢、欢迎！', '啊，是{昵称}！你好呀～', '又见到{昵称}了，嘿嘿', '{昵称}，欢迎光临…（小声）'],
   普通礼物: ['谢谢{昵称}的{礼物}！', '{昵称}送了{个数}个{礼物}…谢、谢谢！', '收到{礼物}了，好开心…', '{昵称}人真好～'],
   连着送: ['这么多…我会害羞的…', '{昵称}，够、够啦…谢谢你！'],
+  中礼物: ['谢谢{昵称}的{礼物}！接住啦～', '{昵称}送了{礼物}！好漂亮…'],
   大礼物: ['哇！{昵称}送了{礼物}！', '这么贵重的{礼物}…谢谢{昵称}！', '心跳好快…谢谢{昵称}！', '我会好好珍惜的！'],
   新的第一名: ['新的榜一是{昵称}！王冠给你～', '{昵称}登上第一名啦！', '{昵称}好厉害！'],
   舰长: ['欢迎{昵称}上船！舰长好！', '{昵称}成为舰长了！敬礼！', '船员+1！谢谢{昵称}！'],
   提督: ['提督{昵称}驾到！', '全体注意，提督{昵称}登舰！', '{昵称}开了提督…好、好帅！'],
   总督: ['总、总督大人{昵称}！！', '{昵称}开了总督…我是在做梦吗', '起航！为了总督{昵称}！'],
+  盲盒开中: ['开出{礼物}了！{昵称}运气不错～', '哇，是{礼物}！'],
   盲盒开大: ['开出{礼物}了！{昵称}运气好好！', '欧皇{昵称}！是{礼物}！'],
   盲盒开亏: ['呜…{昵称}的盲盒亏了…', '可恶的盲盒！下次一定！'],
   城堡: ['是城堡！{昵称}送了我一座城堡！', '要变成公主了…谢谢{昵称}！'],
@@ -183,9 +198,16 @@ const LINES = {
   滑雪: ['滑雪好开心～', '看我的！'], 滑雪摔跤: ['噗…全是雪…', '雪、雪好冰！'], 拍拍土: ['拍拍土…没事没事！', '再来！这次小心点～'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了']
 };
 const NAMES = { 普通昵称: '星河', 长昵称: '这是一个非常非常长的昵称啊', 中英混排: 'Lily月下' };
-const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 大礼物: '告白气球', 盲盒开大: '告白气球', 盲盒开亏: '小花花', 城堡: '浪漫城堡' };
+const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 中礼物: '告白气球', 大礼物: '小电视飞船', 盲盒开中: '告白气球', 盲盒开大: '小电视飞船', 盲盒开亏: '小花花', 城堡: '浪漫城堡' };
 const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
 const SPRITE_H = 76, NAME_MAX = 8;
+// Every pose sheet's cell 1 and every prop are drawn by codex beside the same standing drawing, ANCHOR px tall (gen-sheet.py,
+// gen-prop.py), so one scale, H / ANCHOR, puts all of them on the page at her size. Points of a prop are in its own px: the
+// flagship's bow deck where she stood when it was drawn, and its mainmast top for the sprite.
+const ANCHOR = 360;
+const PROPS = { flagship: { deck: [250, 530], mast: [450, 60] } };
+// Where the flagship's bow deck stops on the page: she stands there at her full size.
+const SHIP_DECK = { x: 133, y: 398 };
 // The sports (README 6), each in its own outfit: the sprite dresses her for it, she gets ready and goes for act ms; then
 // she stops (calm) or, one time in four, it goes wrong (fall); then the sprite dresses her back. [ms after the stop, pose];
 // lines: [ms after it goes wrong, what she says], each line matching what she does then (no plaster talk without a plaster);
@@ -196,7 +218,7 @@ const SPORTS = {
   爬山: { ready: 'hikeReady', act: ['hike', 3400], calm: [[0, 'hikeReady']], calmMs: 300,
     fall: [[0, 'slip'], [1400, 'hikeBrush'], [2800, 'hikeUp']], fallMs: 3800, lines: [[0, '摔屁股墩'], [1400, '拍拍土']] },
   骑车: { ready: 'bikeReady', act: ['bike', 3400], calm: [[0, 'bikeReady']], calmMs: 300,
-    fall: [[0, 'crash'], [1500, 'bikePlaster'], [3300, 'bikeUp']], fallMs: 4800, lines: [[0, '骑车摔倒'], [1500, '贴创可贴']], plaster: 1500, plasterAt: [0.59, 0.77], hitAt: [0.62, 0.87] },
+    fall: [[0, 'crash'], [1500, 'bikePlaster'], [3300, 'bikeUp']], fallMs: 4800, lines: [[0, '骑车摔倒'], [1500, '贴创可贴']], plaster: 1500, plasterAt: [0.59, 0.79], hitAt: [0.65, 0.82] },
   滑雪: { ready: 'skiReady', act: ['ski', 2500], calm: [[0, 'skiReady']], calmMs: 300,
     fall: [[0, 'skiDown'], [1000, 'skiPopOut'], [2100, 'skiShake']], fallMs: 3300, lines: [[0, '滑雪摔跤']] }
 };
@@ -245,7 +267,7 @@ class Component extends DCLogic {
       const im = img[k], cw = im.width / 3, ch = im.height / 2, list = [];
       for (let i = 0; i < 6; i++) list.push(box(im, (i % 3) * cw, Math.floor(i / 3) * ch, cw, ch));
       const ground = [0, 1].map(r => Math.max(...list.slice(r * 3, r * 3 + 3).filter(Boolean).map(b => b.y + b.h)));
-      this.cells[k] = list.map((b, i) => b && { im, ...b, ox: (i % 3) * cw, oy: Math.floor(i / 3) * ch, ground: ground[Math.floor(i / 3)], ruler: RULER[k] ?? list[0].h });
+      this.cells[k] = list.map((b, i) => b && { im, ...b, ox: (i % 3) * cw, oy: Math.floor(i / 3) * ch, ground: ground[Math.floor(i / 3)], ruler: list[0].h });
     }
     for (const k of ['sIdle', 'sBlink', 'sHappy', 'sLook']) { const im = img[k], b = box(im, 0, 0, im.width, im.height); this.cells[k] = [{ im, ...b, ox: 0, oy: 0, ruler: b.h }]; }
     // The sprite's four turnaround views in a row: front, three-quarter and side (both facing the viewer's left), back.
@@ -265,7 +287,7 @@ class Component extends DCLogic {
       if (im) this.sstrips[key] = [0, 1, 2, 3].map(i => ({ im, ...box(im, i * im.width / 4, 0, im.width / 4, im.height), cx: c.cx - c.ox + i * im.width / 4, cy: c.cy - c.oy, ruler: c.ruler }));
     }
     this.castle = { closed: img.castleClosed, open: img.castleOpen, box: box(img.castleClosed, 0, 0, img.castleClosed.width, img.castleClosed.height) };
-    this.ship = { im: img.ship, box: box(img.ship, 0, 0, img.ship.width, img.ship.height) };
+    this.props = { flagship: img.flagship, emblem: img.emblem, giftbox: img.giftbox, giftboxOpen: img.giftboxOpen, balloons: img.balloons };
     this.day = img.day;
     const idle = this.cells.common[0];
     this.herLeft = (idle.x - idle.cx) * H / idle.ruler;  // her left edge standing idle, from her centre
@@ -300,7 +322,9 @@ class Component extends DCLogic {
     if (ev.gift) this.lastGift = now;
     const curTier = this.cur ? TIER[EVENTS[this.cur.name].tier] : -1, tier = TIER[ev.tier];
     // The fifth gift in a burst takes over the plain thank-you that is still playing, instead of being dropped as busy.
-    if (!this.cur || tier > curTier || name === '连着送' && this.cur.name === '普通礼物') return this.start(name, opts);
+    // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
+    const show = name === '总督' && this.cur?.name === '城堡';
+    if (!this.cur || tier > curTier && !show || name === '连着送' && this.cur.name === '普通礼物') return this.start(name, opts);
     if (tier <= TIER.C) return this.note(`${name}：正忙，丢掉`);
     if (tier < TIER.S && this.queue.filter(q => EVENTS[q.name].tier === ev.tier).length >= 3) return this.note(`${name}：同档已排 3 个，丢掉`);
     this.queue.push({ name, opts }); this.note(`${name}：排队`);
@@ -390,7 +414,7 @@ class Component extends DCLogic {
 
   eventState(name, t, opts, line) {
     const st = this.base();
-    st._t = t;
+    st._t = t; st.glow = GLOW[EVENTS[name]?.tier || 'D'];
     const say = (from, text = line) => { if (t >= from && text) st.bubble = { text, t: t - from }; };
     const hop = (a, h = 10) => { st.y -= h * bump(t, a, a + 320); if (h >= 10) st.fx.push(['dust', a + 300]); };  // a puff where she lands
     switch (name) {
@@ -399,25 +423,34 @@ class Component extends DCLogic {
       // they bow together
       case '普通礼物': st.pose = t < 1500 ? 'bow' : 'idle'; st.sprite = t < 1500 ? 'nod' : 'sHappy'; st.fx.push(['hearts', 200, 3]); say(150); break;
       // it copies her: up beside her shoulder, hiding its face too
-      case '连着送': st.pose = 'shy'; st.sprite = 'hide'; st.sp = ['rel', -0.04, 0.42]; st.fx.push(['hearts', 0, 7]); say(150); break;
-      // it peeks at the gift box beside her; her cheer tosses it over her head and it circles her
-      case '大礼物':
-        st.pose = t < 1400 ? 'giftBox' : 'cheer'; hop(0); hop(1400, 14);
-        if (t < 1400) { st.sprite = 'sLook'; st.sp = ['rel', 0.04, 0.52]; } else this.toss(st, t, 1400);
-        st.fx.push(['confetti', 1400], ['sparkles', 1400]); say(200); break;
+      // little boxes fly in from both sides one after another; at the fifth she hides her face
+      case '连着送':
+        st.pose = t < 1250 ? 'idle' : 'shy'; if (t >= 1250) { st.sprite = 'hide'; st.sp = ['rel', -0.04, 0.42]; } else st.sprite = 'sLook';
+        if (t >= 1250) st.fx.push(['hearts', 1250, 7]); say(1250); break;
+      // the box drops from above her head into her hands; she cheers and tosses the sprite
+      case '中礼物':
+        st.pose = at(t, [[0, 'idle'], [1100, 'giftBox'], [2000, 'cheer']]); hop(1200, 6); hop(2000, 14);
+        if (t < 2000) { st.sprite = 'sLook'; st.sp = ['rel', 0.04, 0.52]; } else this.toss(st, t, 2000);
+        say(1200); break;
+      case '大礼物': this.bigGift(t, st, say); break;
       case '新的第一名':
         st.pose = t < 1300 ? 'idle' : 'crownV';
         st.sprite = t < 1600 ? 'crown' : 'sHappy';
         st.sp = t < 1600 ? ['crown', ease(k01(t, 0, 900)), ease(k01(t, 900, 1300))] : ['home-from-top', ease(k01(t, 1600, 2400))];
         st.fx.push(['ring', 1300], ['sparkles', 1300]); say(1300); break;
-      // it listens at the box with her, is blown back when it opens, then cheers beside her
-      case '盲盒开大':
-        st.pose = at(t, [[0, 'shakeBox'], [1200, 'openBox'], [2000, 'surprised'], [2600, 'cheer']]);
-        hop(2600, 14);
-        if (t < 1200) { st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22]; }
-        else if (t < 2600) { st.sprite = 'surprised'; st.sp = ['rel', 1.12, 0.02]; }
-        else { st.sprite = 'sHappy'; st.sp = ['home', 0, -14 * bump(t, 2600, 2920)]; }
-        st.fx.push(['beam', 1200], ['sparkles', 2600], ['confetti', 2600]); say(1300); break;
+      // it listens at the box with her (its seams glowing in the tier's colour first), is blown back when it opens, then
+      // cheers beside her; a big prize sends a beam up to the top of the page and a star that bursts over it
+      case '盲盒开中': case '盲盒开大': {
+        const big = name === '盲盒开大', o = big ? 1500 : 1200, r = big ? 3500 : 2600;
+        st.pose = at(t, [[0, 'shakeBox'], [o, 'openBox'], [big ? 2600 : 2000, 'surprised'], [r, 'cheer']]);
+        hop(r, 14);
+        if (t < o) { st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22]; }
+        else if (t < r) { st.sprite = 'surprised'; st.sp = ['rel', 1.12, 0.02]; }
+        else { st.sprite = 'sHappy'; st.sp = ['home', 0, -14 * bump(t, r, r + 320)]; }
+        if (big) st.fx.push(['pillar', o, 1100, null, 'box'], ['bigStar', o], ['fountain', 2500, 1800, { x: FOOT.x, y: 200 }]);
+        else st.fx.push(['beam', o], ['sparkles', r], ['confetti', r]);
+        say(o + 100); break;
+      }
       // it listens at the box with her, hides from the puff, then pats her pouting head
       case '盲盒开亏':
         st.pose = at(t, [[0, 'shakeBox'], [900, 'openBox'], [1500, 'pout']]);
@@ -430,19 +463,22 @@ class Component extends DCLogic {
       case '舰长':
         if (t < 600) this.dress(st, t, 0, 600);
         else { st.pose = 'capSalute'; hop(600, 8); st.sprite = 'sailor'; st.sp = ['rel', -0.1, 0.42]; }
-        if (t >= 3200) { st.pose = t < 3800 ? 'capSalute' : 'idle'; if (t < 3800) this.dress(st, t, 3200, 3800); else st.sprite = 'sHappy'; }
-        st.fx.push(['flash', 600, 0.6], ['seaBubbles', 600], ['flash', 3800, 0.6]); say(800); break;
+        if (t >= 3700) { st.pose = t < 4300 ? 'capSalute' : 'idle'; if (t < 4300) this.dress(st, t, 3700, 4300); else st.sprite = 'sHappy'; }
+        st.fx.push(['flash', 600, 0.6], ['seaBubbles', 600], ['flash', 4300, 0.6]); say(800); break;
       case '提督':
         // dressed by the sprite, then it is her lookout: it flies ahead where she looks, signals with its flag, and comes
         // back to salute with her
+        // she sights a star far up at the top left; it comes down as a comet onto her chest and she salutes while the
+        // sprite strings signal flags across the top of the page
         if (t < 700) this.dress(st, t, 0, 700);
         else {
           st.pose = t < 3100 ? 'spyglass' : 'admSalute';
           st.sprite = t >= 1900 && t < 2800 ? 'flag' : 'sailor';
-          st.sp = t >= 3400 ? ['rel', -0.1, 0.42] : ['scout', ease(k01(t, 1100, 1900)) - ease(k01(t, 2800, 3400))];
+          st.sp = t >= 4300 && t < 5600 ? ['at', 30 + 420 * ease(k01(t, 4300, 5500)), 40 + 10 * Math.sin(t / 160)]
+            : t >= 3400 ? ['rel', -0.1, 0.42] : ['scout', ease(k01(t, 1100, 1900)) - ease(k01(t, 2800, 3400))];
         }
-        if (t >= 4400) { st.pose = t < 5100 ? 'admSalute' : 'idle'; if (t < 5100) this.dress(st, t, 4400, 5100); else st.sprite = 'sHappy'; }
-        st.fx.push(['flash', 700, 1], ['gulls', 1000], ['seaBubbles', 700], ['signal', 2000], ['flash', 5100, 0.8]); say(1000); break;
+        if (t >= 6200) { st.pose = t < 6900 ? 'admSalute' : 'idle'; if (t < 6900) this.dress(st, t, 6200, 6900); else st.sprite = 'sHappy'; }
+        st.fx.push(['flash', 700, 1], ['gulls', 1000], ['seaBubbles', 700], ['signal', 2000], ['flash', 6900, 0.8]); say(1000); break;
       case '总督': this.governor(t, st, say); break;
       case '城堡': this.castleShow(t, st, say); break;
       // it flies up beside her raised fist with its flag
@@ -525,25 +561,57 @@ class Component extends DCLogic {
 
   // The ship sails in while the sprite dresses her as governor; she jumps aboard, the sprite flies up to the rear mast (the
   // middle one is under her bubble), and before the ship sails away she jumps back down, waves it off and is dressed back.
+  // The governor (SS, README 3): the page edges glow gold, a sea of gold clouds rolls in and the flagship sails up to us out
+  // of the distance; the sprite plants its flag on the mainmast and dresses her; a stair of light takes her up onto the bow,
+  // where she points ahead: the emblem rises in front of the sails, three fireworks go up, gold rains over the page; she
+  // waves, comes back down the stair, and the ship sails off into the distance leaving a gold wake.
   governor(t, st, say) {
-    const sw = 470, s = sw / this.ship.box.w, sh = this.ship.box.h * s, top = PAGE.h - 18 - sh;
-    const shipX = t < 1800 ? PAGE.w + sw / 2 - (PAGE.w / 2 + sw / 2) * ease(k01(t, 0, 1800)) : t < 6000 ? PAGE.w / 2 : PAGE.w / 2 - (PAGE.w / 2 + sw / 2) * ease(k01(t, 6000, 7200));
-    st.ship = { x: shipX, y: top + sh / 2, s, a: 1 };
-    const deck = { x: shipX - sw / 2 + this.ship.box.w * 0.26 * s, y: top + this.ship.box.h * 0.66 * s + 4 };
-    const aboard = ease(k01(t, 1900, 2500)) - ease(k01(t, 5200, 5800));
-    st.x = FOOT.x + (deck.x - FOOT.x) * aboard; st.y = FOOT.y + (deck.y - FOOT.y) * aboard - 70 * (bump(t, 1900, 2500) + bump(t, 5200, 5800)); st.s = 1 - 0.4 * aboard;
-    st.sScale = 1 - 0.2 * aboard;
-    if (t < 600) { st.pose = 'surprised'; st.sprite = 'surprised'; }
-    else if (t < 1500) this.dress(st, t, 600, 1500);
-    else if (t < 6800) {
-      st.pose = t >= 1900 && t < 2500 || t >= 5200 && t < 5800 ? 'govJump' : t < 3800 ? 'govPoint' : 'govWave';
+    const come = ease(k01(t, 1500, 4000)), go = ease(k01(t, 12000, 14000)), far = { x: 380, y: 170 }, gone = { x: 60, y: 90 };
+    const deck = t < 12000 ? { x: far.x + (SHIP_DECK.x - far.x) * come, y: far.y + (SHIP_DECK.y - far.y) * come + 3 * Math.sin(t / 500) }
+      : { x: SHIP_DECK.x + (gone.x - SHIP_DECK.x) * go, y: SHIP_DECK.y + (gone.y - SHIP_DECK.y) * go };
+    const s = (0.3 + 0.7 * come) * (1 - 0.8 * go);
+    st.ship = { x: deck.x, y: deck.y, s, a: k01(t, 1500, 1900) * (1 - k01(t, 13300, 14000)) };
+    const mast = this.shipPoint(st.ship, PROPS.flagship.mast);
+    // up the stair in three hops, and down again
+    const climb = (a, b, from, to) => { const w = k01(t, a, b), hopN = Math.floor(w * 3), u = w * 3 - hopN; return { x: from.x + (to.x - from.x) * w, y: from.y + (to.y - from.y) * w - 40 * Math.sin(Math.PI * Math.min(1, u)) }; };
+    if (t >= 5500 && t < 6500) Object.assign(st, climb(5500, 6500, FOOT, deck));
+    else if (t >= 6500 && t < 11400) { st.x = deck.x; st.y = deck.y; }
+    else if (t >= 11400 && t < 12000) Object.assign(st, climb(11400, 12000, deck, FOOT));
+    if (t < 4000) { st.pose = 'surprised'; st.sprite = t < 2600 ? 'surprised' : 'flag'; if (t >= 2600) st.sp = ['mast', mast.x, mast.y]; }
+    else if (t < 5000) this.dress(st, t, 4000, 5000);
+    else if (t < 14000) {
+      st.pose = t < 5500 ? 'govPoint' : t < 6500 || t >= 11400 && t < 12000 ? 'govJump' : t < 9600 ? 'govPoint' : 'govWave';
       st.sprite = 'flag';
-      if (t >= 1900 && t < 5200) st.sp = ['mast', shipX - sw / 2 + this.ship.box.w * 0.77 * s, top + 32];
-    } else if (t < 7500) { st.pose = 'govWave'; this.dress(st, t, 6800, 7500); }
+      if (t >= 5000 && t < 12000) st.sp = ['mast', mast.x, mast.y];
+    } else if (t < 14800) { st.pose = 'govWave'; this.dress(st, t, 14000, 14800); }
     else st.sprite = 'sHappy';
-    st.fx.push(['flash', 1500, 1], ['flash', 7500, 0.8]);
-    if (t < 6000) st.fx.push(['fireworks', 2500], ['goldConfetti', 2500]);
+    if (t >= 6600 && t < 12000) st.emblem = { x: 355, y: 150 - 40 * ease(k01(t, 6600, 7400)), s: 0.8 * ease(k01(t, 6600, 7200)), a: k01(t, 6600, 6900) * (1 - k01(t, 11400, 12000)) };
+    st.fx.push(['edgeGlow', 0, 15000], ['bang', 200], ['shock', 200], ['cloudSea', 1500, 13000, SHIP_DECK.y + 160], ['gulls', 2400], ['flash', 5000, 1],
+      ['lightStairs', 5300, 1400, FOOT, deck], ['pillar', 6600, 3000], ['rays', 6600, 4800, 0.6, { x: 355, y: 110 }], ['burst', 6600, 300],
+      ['skyFireworks', 6800, [[0, 70, 90, '#FFD45E'], [600, 240, 46, '#FF9AB5'], [1200, 420, 100, '#9CCFFF'], [6000, 380, 80, '#FFD45E'], [6500, 440, 170, '#FFE9A8']]],
+      ['lightStairs', 11200, 1000, FOOT, deck], ['wake', 12000, 3000, [{ x: 440, y: 560 }, { x: 250, y: 330 }, { x: 70, y: 100 }]], ['flash', 14800, 0.8]);
+    if (t >= 6800 && t < 12000) st.fx.push(['goldConfetti', 6800]);
+    st.shake = [[4000, 3, 300], [6600, 4, 320]];
     say(1700);
+    return st;
+  }
+
+  // Where a point of the flagship's picture (prop px) is on the page, the ship's deck at st.ship.x, .y.
+  shipPoint(sh, pt) { const k = H / ANCHOR * sh.s, d = PROPS.flagship.deck; return { x: sh.x + (pt[0] - d[0]) * k, y: sh.y + (pt[1] - d[1]) * k }; }
+
+  // The big gift (A): a beam from the top of the page lands at her right; the box comes down it under a bunch of balloons,
+  // lands, the balloons float away; the lid flies off, a beam and a fountain of stars and hearts go up to the top; she cheers,
+  // and the box shrinks into a star that flies into her arms.
+  bigGift(t, st, say) {
+    const land = { x: FOOT.x + 150, y: FOOT.y }, fall = 1 - (1 - k01(t, 800, 2800)) ** 2;
+    const y = -20 + (land.y + 20) * fall, x = land.x + 14 * Math.sin(t / 260) * (1 - fall);
+    const into = ease(k01(t, 5300, 5900)), chest = { x: FOOT.x - 10, y: FOOT.y - 0.45 * H };
+    st.gift = { x: x + (chest.x - x) * into, y: y + (chest.y - y) * into, s: 1 - into, open: t >= 3400, lid: t >= 3400 ? t - 3400 : null,
+      balloons: t < 3600 ? { rise: Math.max(0, t - 2800), a: 1 - k01(t, 3200, 3600) } : null };
+    st.pose = at(t, [[0, 'idle'], [2800, 'surprised'], [4400, 'cheer']]);
+    const hop = (a, h) => { st.y -= h * bump(t, a, a + 320); }; hop(4400, 14);
+    if (t < 4400) { st.sprite = t < 2800 ? 'sLook' : 'surprised'; st.sp = ['rel', -0.1, 0.42]; } else this.toss(st, t, 4400);
+    say(2900);
     return st;
   }
 
@@ -610,7 +678,7 @@ class Component extends DCLogic {
     const seqs = {
       报名抽奖: [['报名开场', 2600], ['hold', 2500, '报名中'], ['报名截止', 2000], ['hold', 2500, '等待'], ['揭晓·三奖', 4600], ['揭晓·二奖', 4600], ['揭晓·大奖', 5200], ['抽奖结束', 2600]],
       奖池抽奖: [['奖池开场', 2600], ['奖池点名', 2000], ['奖池转动', 2000], ['揭晓·大奖', 5200], ['抽奖结束', 2600]],
-      '大礼物+新第一': [['大礼物', 3000], ['新的第一名', 2600]]
+      '大礼物+新第一': [['大礼物', 6000], ['新的第一名', 2600]]
     };
     const seq = seqs[scene] || [[scene, EVENTS[scene]?.dur || 3000]];
     const total = seq.reduce((a, s) => a + s[1], 0) + 2500, t = now % total;
@@ -687,6 +755,7 @@ class Component extends DCLogic {
     const shake = this.shakeOf(st, now); g.translate(shake.x, shake.y);
     if (st.castle) this.drawCastle(g, st.castle);
     if (st.ship) this.drawShip(g, st.ship);
+    if (st.emblem) this.drawProp(g, this.props.emblem, st.emblem.x, st.emblem.y + this.props.emblem.height * H / ANCHOR * st.emblem.s / 2, st.emblem.s, st.emblem.a);
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt)) * this.cfg.speed;
     this.rt = rt;
     const her = this.herBox(st);
@@ -696,6 +765,7 @@ class Component extends DCLogic {
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     if (!st.hide) this.drawHer(g, st, now);
     if (sp && !st.sBehind) this.drawSprite(g, st, sp, now);
+    if (st.gift) this.drawGift(g, st.gift);
     for (const f of st.fx) if (!BACK.has(f[0])) this.drawFx(g, f, st, her, now);
     if (st.bubble?.text) this.drawBubble(g, st.bubble, her);
     g.restore();
@@ -841,9 +911,32 @@ class Component extends DCLogic {
     g.restore();
   }
 
+  // The flagship, its bow deck at s.x, s.y.
   drawShip(g, s) {
-    const b = this.ship.box, w = b.w * s.s, h = b.h * s.s;
-    g.save(); g.globalAlpha = s.a; g.drawImage(this.ship.im, b.x, b.y, b.w, b.h, s.x - w / 2, s.y - h / 2, w, h); g.restore();
+    const im = this.props.flagship, k = H / ANCHOR * s.s, d = PROPS.flagship.deck;
+    g.save(); g.globalAlpha = s.a; g.drawImage(im, s.x - d[0] * k, s.y - d[1] * k, im.width * k, im.height * k); g.restore();
+  }
+
+  // A prop at her scale times s, its bottom centre at x, y.
+  drawProp(g, im, x, y, s = 1, a = 1, src) {
+    if (!a || !s) return;
+    const k = H / ANCHOR * s, [sx, sy, sw, sh] = src || [0, 0, im.width, im.height];
+    g.save(); g.globalAlpha = a; g.drawImage(im, sx, sy, sw, sh, x - sw * k / 2, y - sh * k, sw * k, sh * k); g.restore();
+  }
+
+  // The big gift box (bottom centre at b.x, b.y) under its balloons; once open, its lid (the top of the closed box) flies off.
+  drawGift(g, b) {
+    const box = this.props.giftbox, k = H / ANCHOR * b.s, top = b.y - box.height * k;
+    if (b.balloons) {
+      const r = b.balloons.rise;
+      this.drawProp(g, this.props.balloons, b.x + 20 * Math.sin(r / 300) * Math.min(1, r / 400), top - r * 0.35 + 4, 1, b.balloons.a);
+    }
+    this.drawProp(g, b.open ? this.props.giftboxOpen : box, b.x, b.y, b.s);
+    if (b.lid != null && b.lid < 900) {
+      const u = b.lid, lidH = box.height * 0.42;
+      g.save(); g.translate(b.x + u * 0.12, top + lidH * k / 2 - u * 0.55 + 0.0004 * u * u); g.rotate(u / 400);
+      this.drawProp(g, box, 0, lidH * k / 2, b.s, 1 - u / 900, [0, 0, box.width, lidH]); g.restore();
+    }
   }
 
   drawBubble(g, b, her) {
@@ -888,8 +981,11 @@ class Component extends DCLogic {
     const headL = { x: her.x + her.w * 0.14, y: her.y + her.h * 0.06 }, at = (fx, fy) => ({ x: her.x + her.w * fx, y: her.y + her.h * fy });
     const life = (u, inn, hold, out) => u < 0 ? 0 : u < inn ? ease(u / inn) : u < inn + hold ? 1 : Math.max(0, 1 - (u - inn - hold) / out);
     const r = seeded(type.length * 97 + Math.floor(from));
+    const glow = a => `rgba(${st.glow || '255,236,170'},${a})`;
     const star = (x, y, rad, color, a) => { g.save(); g.globalAlpha = a; g.fillStyle = color; g.beginPath(); for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4, rr = i % 2 ? rad * 0.32 : rad; g.lineTo(x + Math.cos(ang) * rr, y + Math.sin(ang) * rr); } g.closePath(); g.fill(); g.restore(); };
     const heart = (x, y, s, a) => { g.save(); g.globalAlpha = a; g.fillStyle = '#FF7FA8'; g.beginPath(); g.moveTo(x, y + s * 0.3); g.bezierCurveTo(x, y, x - s * 0.5, y, x - s * 0.5, y + s * 0.3); g.bezierCurveTo(x - s * 0.5, y + s * 0.6, x, y + s * 0.8, x, y + s); g.bezierCurveTo(x, y + s * 0.8, x + s * 0.5, y + s * 0.6, x + s * 0.5, y + s * 0.3); g.bezierCurveTo(x + s * 0.5, y, x, y, x, y + s * 0.3); g.fill(); g.restore(); };
+    const giftBox = (x, y, b, rot = 0) => { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = '#FF9EB8'; g.strokeStyle = '#4A2E2A'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-b, -b, 2 * b, 2 * b, b * 0.3); g.fill(); g.stroke();
+      g.fillStyle = '#E8454F'; g.fillRect(-b * 0.2, -b, b * 0.4, 2 * b); g.fillRect(-b, -b * 0.2, 2 * b, b * 0.4); g.beginPath(); g.ellipse(-b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, -0.5, 0, Math.PI * 2); g.ellipse(b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, 0.5, 0, Math.PI * 2); g.fill(); g.restore(); };
     switch (type) {
       case 'hearts': for (let i = 0; i < f[2]; i++) { const d = i * 180, u = t - d; if (u < 0 || u > 1400) continue; heart(head.x + (r() - 0.5) * 120, head.y - u * 0.09, 16 + r() * 8, 1 - u / 1400); } break;
       case 'sparkles': for (let i = 0; i < 10; i++) { const a = r() * Math.PI * 2, d = 60 + r() * 90, u = t - r() * 400; if (u < 0 || u > 1200) continue; star(head.x + Math.cos(a) * d, head.y + 30 + Math.sin(a) * d * 0.7, 9 + r() * 7, r() < 0.5 ? '#FFE27A' : '#fff', Math.sin(Math.PI * u / 1200)); } break;
@@ -903,7 +999,7 @@ class Component extends DCLogic {
       case 'gulls': for (let i = 0; i < 3; i++) { const u = t - i * 300; if (u < 0) continue; const x = PAGE.w + 20 - u * 0.16, y = 120 + i * 40 + 6 * Math.sin(u / 200); g.save(); g.strokeStyle = '#fff'; g.lineWidth = 3; g.beginPath(); g.moveTo(x - 12, y - 4 * Math.sin(u / 120)); g.quadraticCurveTo(x - 6, y - 8, x, y); g.quadraticCurveTo(x + 6, y - 8, x + 12, y - 4 * Math.sin(u / 120)); g.stroke(); g.restore(); } break;
       case 'fireworks': for (let i = 0; i < 4; i++) { const u = (t + i * 700) % 1400, cx = 70 + ((i * 131) % 340), cy = 70 + ((i * 53) % 140); const colors = ['#FFD45E', '#FF7FA8', '#7FD3FF', '#fff']; for (let j = 0; j < 12; j++) { const a = j * Math.PI / 6; g.save(); g.globalAlpha = 1 - u / 1400; g.fillStyle = colors[i]; g.beginPath(); g.arc(cx + Math.cos(a) * u * 0.05, cy + Math.sin(a) * u * 0.05 + u * u * 0.00002, 3, 0, Math.PI * 2); g.fill(); g.restore(); } } break;
       case 'rainbowSparkles': if (t < 8500) for (let i = 0; i < 10; i++) { const u = (t + i * 300) % 1500; star(40 + r() * 400, 30 + r() * 320, 7 + r() * 6, ['#FFE27A', '#FFB3D1', '#B7E4FF', '#fff'][i % 4], Math.sin(Math.PI * u / 1500)); } break;
-      case 'gateGlow': { if (t > 1800) break; const p = f[2]; g.save(); g.globalAlpha = Math.sin(Math.PI * Math.min(t, 1500) / 1500) * 0.7; const gr = g.createRadialGradient(p.x, p.y - 20, 0, p.x, p.y - 20, 70); gr.addColorStop(0, 'rgba(255,236,170,1)'); gr.addColorStop(1, 'rgba(255,236,170,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y - 20, 70, 0, Math.PI * 2); g.fill(); g.restore(); break; }
+      case 'gateGlow': { if (t > 1800) break; const p = f[2]; g.save(); g.globalAlpha = Math.sin(Math.PI * Math.min(t, 1500) / 1500) * 0.7; const gr = g.createRadialGradient(p.x, p.y - 20, 0, p.x, p.y - 20, 70); gr.addColorStop(0, glow(1)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y - 20, 70, 0, Math.PI * 2); g.fill(); g.restore(); break; }
       case 'trail': for (const q of this.trail || []) { const age = (performance.now() - q.rt) / 420; star(q.x + 18 * Math.sin(q.rt), q.y + 14 * Math.cos(q.rt * 1.3), 9 * (1 - age) + 3, ['#FFE27A', '#FFB3D1', '#fff'][Math.floor(q.rt) % 3], 1 - age); } break;
       case 'signal': { if (t > 900) break; for (let i = 0; i < 5; i++) star(64 + (r() - 0.5) * 70, her.y - 20 + (r() - 0.5) * 60, 8 + r() * 6, i % 2 ? '#FFE27A' : '#fff', Math.sin(Math.PI * ((t + i * 150) % 900) / 900)); break; }
       case 'notes': for (let i = 0; i < 4; i++) { const u = (t + i * 500) % 2000; g.save(); g.globalAlpha = Math.sin(Math.PI * u / 2000); g.fillStyle = '#7C6CF0'; g.font = '700 22px sans-serif'; g.fillText(i % 2 ? '♪' : '♫', head.x + 50 + i * 8 + 10 * Math.sin(u / 300), head.y - u * 0.05); g.restore(); } break;
@@ -1011,7 +1107,7 @@ class Component extends DCLogic {
       }
       case 'dust': {
         if (t > 600) break;
-        const p = f[2] ? at(...f[2]) : { x: st.x, y: st.y }, n = f[3] || 4;
+        const p = f[4] || (f[2] ? at(...f[2]) : { x: st.x, y: st.y }), n = f[3] || 4;
         g.save(); g.fillStyle = '#EDE3D2'; g.strokeStyle = '#CBBFA9'; g.lineWidth = 1.2;
         for (let i = 0; i < n; i++) { const side = i % 2 ? 1 : -1, d = (14 + i * 8) * ease(t / 600); g.globalAlpha = 0.85 * (1 - t / 600); g.beginPath(); g.arc(p.x + side * d, p.y - 4 - i * 2 - t * 0.01, 6 + i * 1.5 + t * 0.008, 0, Math.PI * 2); g.fill(); g.stroke(); }
         g.restore(); break;
@@ -1042,15 +1138,15 @@ class Component extends DCLogic {
       }
       case 'rays': {
         const a = life(t, 300, f[2] || 1500, 400) * (f[3] || 0.45); if (!a) break;
-        g.save(); g.globalAlpha = a; g.translate(st.x, her.y + her.h * 0.35); g.rotate(now / 3000);
-        const gr = g.createRadialGradient(0, 0, 20, 0, 0, 260); gr.addColorStop(0, 'rgba(255,236,170,0.95)'); gr.addColorStop(1, 'rgba(255,236,170,0)'); g.fillStyle = gr;
+        const c = f[4] || { x: st.x, y: her.y + her.h * 0.35 }; g.save(); g.globalAlpha = a; g.translate(c.x, c.y); g.rotate(now / 3000);
+        const gr = g.createRadialGradient(0, 0, 20, 0, 0, 260); gr.addColorStop(0, glow(0.95)); gr.addColorStop(1, glow(0)); g.fillStyle = gr;
         for (let i = 0; i < 12; i++) { g.rotate(Math.PI / 6); g.beginPath(); g.moveTo(0, 0); g.lineTo(260, -26); g.lineTo(260, 26); g.closePath(); g.fill(); }
         g.restore(); break;
       }
       case 'halo': {
         const a = life(t, 300, f[2] || 1500, 500) * (f[3] || 0.5); if (!a) break;
         const c = { x: st.x, y: her.y + her.h * 0.45 }, rad = her.h * 0.75, gr = g.createRadialGradient(c.x, c.y, 0, c.x, c.y, rad);
-        gr.addColorStop(0, 'rgba(255,214,232,0.9)'); gr.addColorStop(0.5, 'rgba(255,228,170,0.35)'); gr.addColorStop(1, 'rgba(255,228,170,0)');
+        gr.addColorStop(0, glow(0.9)); gr.addColorStop(0.5, glow(0.35)); gr.addColorStop(1, glow(0));
         g.save(); g.globalAlpha = a; g.fillStyle = gr; g.beginPath(); g.arc(c.x, c.y, rad, 0, Math.PI * 2); g.fill(); g.restore(); break;
       }
       case 'spot': {
@@ -1063,8 +1159,9 @@ class Component extends DCLogic {
       case 'shockwave': {
         if (t > 650) break;
         const p = ease(t / 650);
-        g.save(); g.globalAlpha = 0.9 * (1 - p); g.strokeStyle = f[2] || '#fff'; g.lineWidth = 5 * (1 - p) + 1;
-        g.beginPath(); g.ellipse(st.x, st.y - 2, 30 + 150 * p, 8 + 34 * p, 0, 0, Math.PI * 2); g.stroke(); g.restore(); break;
+        const c = f[3] || { x: st.x, y: st.y - 2 };
+        g.save(); g.globalAlpha = 0.9 * (1 - p); g.strokeStyle = f[2] || glow(1); g.lineWidth = 5 * (1 - p) + 1;
+        g.beginPath(); g.ellipse(c.x, c.y, 30 + 150 * p, 8 + 34 * p, 0, 0, Math.PI * 2); g.stroke(); g.restore(); break;
       }
       case 'glint': {
         if (t > 600) break;
@@ -1078,30 +1175,169 @@ class Component extends DCLogic {
         for (let i = 0; i < n; i++) {
           const u = t - i * 30; if (u < 0) continue;
           const ang = i / n * Math.PI * 2 + 0.3, d = 8 + 46 * (1 - (1 - Math.min(1, u / 500)) ** 3);
-          star(p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d, 7 * (1 - u / 700) + 2, i % 2 ? '#FFE27A' : '#fff', 1 - k01(u, 300, 700));
+          star(p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d, 7 * (1 - u / 700) + 2, i % 2 ? glow(1) : '#fff', 1 - k01(u, 300, 700));
         }
         break;
       }
       case 'starRing': {
         const a = life(t, 200, f[2] || 1800, 300); if (!a) break;
-        for (let i = 0; i < 6; i++) { const ang = now / 300 + i * Math.PI / 3, s = Math.sin(ang); star(st.x + Math.cos(ang) * her.w * 0.7, her.y + her.h * 0.55 + s * 14, 6 + 2 * s, i % 2 ? '#FFE27A' : '#B7E4FF', a * (0.5 + 0.5 * s)); }
+        for (let i = 0; i < 6; i++) { const ang = now / 300 + i * Math.PI / 3, s = Math.sin(ang); star(st.x + Math.cos(ang) * her.w * 0.7, her.y + her.h * 0.55 + s * 14, 6 + 2 * s, i % 2 ? glow(1) : '#fff', a * (0.5 + 0.5 * s)); }
+        break;
+      }
+
+      // ---- the tiers' own shows (README 3, 7.1)
+      // a small gift box flies in from the edge of the page along an arc into her arms and turns into a ring of stars
+      case 'giftArc': case 'giftStack': {
+        const hands = at(0.5, 0.58), n = type === 'giftStack' ? 5 : 1;
+        for (let i = 0; i < n; i++) {
+          const side = i % 2 ? -1 : 1, u = t - i * 240; if (u < 0) continue;
+          const from = { x: side > 0 ? PAGE.w + 20 : -20, y: her.y + 30 }, ctl = { x: side > 0 ? PAGE.w - 50 : 50, y: her.y - 120 }, p = Math.min(1, u / 600), q = 1 - p;
+          if (u < 600) { const x = q * q * from.x + 2 * q * p * ctl.x + p * p * hands.x, y = q * q * from.y + 2 * q * p * ctl.y + p * p * (hands.y - i * 6); giftBox(x, y, 12, u / 200); }
+          else if (u < 850) for (let j = 0; j < 8; j++) { const ang = j * Math.PI / 4, d = 10 + (u - 600) * 0.12; star(hands.x + Math.cos(ang) * d, hands.y - i * 6 + Math.sin(ang) * d, 6, j % 2 ? glow(1) : '#FFB3D1', 1 - (u - 600) / 250); }
+        }
+        break;
+      }
+      // the gift box drops from about one of her heights above her head to just over it, where her in-between frames
+      // (giftIn) take it on into her hands
+      case 'boxDrop': {
+        if (t > 900) break;
+        const top = at(0.5, -0.06), p = t / 900, y = top.y - H * 0.9 * (1 - p * p);
+        g.save(); g.globalAlpha = 0.5; g.strokeStyle = '#E8454F'; g.lineWidth = 3; g.beginPath(); g.moveTo(top.x - 8, y - 30); g.quadraticCurveTo(top.x + 10 * Math.sin(t / 90), y - 70, top.x + 4, y - 110); g.stroke(); g.restore();
+        giftBox(top.x, y, 20, Math.sin(t / 160) * 0.2); break;
+      }
+      // the blind box's seams leak the colour of what is inside before it opens
+      case 'seamGlow': {
+        const a = life(t, 200, (f[2] || 1200) - 400, 200); if (!a) break;
+        const c = f[3] === 'shake' ? at(0.86, 0.22) : at(0.4, 0.5), rad = 34 + 6 * Math.sin(t / 70);
+        g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = a; const gr = g.createRadialGradient(c.x, c.y, 0, c.x, c.y, rad); gr.addColorStop(0, glow(0.9)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.beginPath(); g.arc(c.x, c.y, rad, 0, Math.PI * 2); g.fill();
+        g.strokeStyle = glow(0.9); g.lineWidth = 2; for (let i = 0; i < 6; i++) { const ang = i * Math.PI / 3 + t / 300; g.beginPath(); g.moveTo(c.x + Math.cos(ang) * 14, c.y + Math.sin(ang) * 14); g.lineTo(c.x + Math.cos(ang) * (rad + 14), c.y + Math.sin(ang) * (rad + 14)); g.stroke(); }
+        g.restore(); break;
+      }
+      // a beam of light from the top of the page down to a point (her, a gift on the ground, the box in her hands)
+      case 'pillar': {
+        const dur = f[2] || 1200, a = life(t, 150, dur - 450, 300); if (!a) break;
+        const box = f[4] === 'box', x = f[3] ?? (box ? at(0.4, 0.5).x : st.x), y = box ? at(0.4, 0.5).y : f[4] ?? st.y, w = f[5] || 90;
+        const gr = g.createLinearGradient(x - w / 2, 0, x + w / 2, 0); gr.addColorStop(0, glow(0)); gr.addColorStop(0.5, glow(0.75)); gr.addColorStop(1, glow(0));
+        g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = a; g.fillStyle = gr; g.fillRect(x - w / 2, 0, w, y);
+        g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(x - w * 0.08, 0, w * 0.16, y);
+        g.beginPath(); g.ellipse(x, y, w * 0.7, w * 0.16, 0, 0, Math.PI * 2); g.fillStyle = glow(0.6); g.fill(); g.restore(); break;
+      }
+      // a big star rises out of the opened box to the upper page, where the fountain bursts from it
+      case 'bigStar': {
+        if (t > 1050) break;
+        const from = at(0.4, 0.5), p = ease(Math.min(1, t / 1000)), x = from.x + (FOOT.x - from.x) * p, y = from.y + (200 - from.y) * p;
+        g.save(); g.globalCompositeOperation = 'lighter'; const gr = g.createRadialGradient(x, y, 0, x, y, 60); gr.addColorStop(0, glow(0.9)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.beginPath(); g.arc(x, y, 60, 0, Math.PI * 2); g.fill(); g.restore();
+        star(x, y, 22 + 6 * Math.sin(t / 80), '#fff', 1); break;
+      }
+      // stars, hearts and little gifts thrown up to the top of the page, falling back down all over it
+      case 'fountain': {
+        const dur = f[2] || 2000; if (t > dur) break;
+        const c = f[3];
+        for (let i = 0; i < 26; i++) {
+          const u = t - i * 18; if (u < 0) continue;
+          const vx = (r() - 0.5) * 0.55, vy = -0.75 - r() * 0.45, kind = i % 3, x = c.x + vx * u, y = c.y + vy * u + 0.0007 * u * u, a = 1 - k01(t, dur - 500, dur);
+          if (kind === 0) star(x, y, 9 + r() * 6, i % 2 ? glow(1) : '#fff', a);
+          else if (kind === 1) heart(x, y, 14 + r() * 6, a);
+          else { g.save(); g.globalAlpha = a; giftBox(x, y, 9, u / 200); g.restore(); }
+        }
+        break;
+      }
+      // the admiral sights a star far off at the top left through the spyglass ...
+      case 'distantStar': {
+        const dur = f[2] || 2000; if (t > dur) break;
+        const p = f[3], a = life(t, 300, dur - 600, 300);
+        if (t < 500) { g.save(); g.globalAlpha = 1 - t / 500; g.strokeStyle = glow(1); g.lineWidth = 3; g.beginPath(); g.arc(p.x, p.y, 20 + t * 0.08, 0, Math.PI * 2); g.stroke(); g.restore(); }
+        star(p.x, p.y, (12 + 4 * Math.sin(t / 120)) * a, '#fff', a); star(p.x, p.y, 20 * a, glow(1), 0.5 * a); break;
+      }
+      // ... which comes down as a comet across the whole page onto her chest
+      case 'comet': {
+        const dur = f[2] || 1200; if (t > dur) break;
+        const p0 = f[3], p1 = at(0.55, 0.6), pos = u => { const p = (u / dur) ** 1.6; return { x: p0.x + (p1.x - p0.x) * p, y: p0.y + (p1.y - p0.y) * p - 60 * Math.sin(Math.PI * p) }; };
+        for (let i = 14; i >= 0; i--) { const q = pos(Math.max(0, t - i * 26)); g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = (1 - i / 15) * 0.8; g.fillStyle = glow(1); g.beginPath(); g.arc(q.x, q.y, 9 * (1 - i / 16), 0, Math.PI * 2); g.fill(); g.restore(); }
+        const h = pos(t); star(h.x, h.y, 14, '#fff', 1); break;
+      }
+      // the sprite strings signal flags across the top of the page, a ship's way of celebrating
+      case 'flagLine': {
+        const dur = f[2] || 2600, a = life(t, 100, dur - 500, 400); if (!a) break;
+        const x0 = 20, x1 = PAGE.w - 20, y0 = 38, sag = 26, shown = Math.min(1, t / 1200), cols = ['#FF6B6B', '#FFD45E', '#7FD3FF', '#C4A2FF', '#9DF0C0'];
+        g.save(); g.globalAlpha = a; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, y0);
+        for (let u = 0; u <= shown + 1e-6; u += 0.05) g.lineTo(x0 + (x1 - x0) * u, y0 + sag * 4 * u * (1 - u)); g.stroke();
+        for (let i = 1; i < 16; i++) { const u = i / 16; if (u > shown) break; const fx = x0 + (x1 - x0) * u, fy = y0 + sag * 4 * u * (1 - u), sw = 4 * Math.sin(now / 140 + i);
+          g.fillStyle = cols[i % 5]; g.strokeStyle = '#3A2A26'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(fx - 9, fy); g.lineTo(fx + 9, fy); g.lineTo(fx + sw, fy + 22); g.closePath(); g.fill(); g.stroke(); }
+        g.restore(); break;
+      }
+      // the governor's gold: the page's edges glow the whole show
+      case 'edgeGlow': {
+        const dur = f[2] || 15000, a = life(t, 500, dur - 1200, 700) * (0.75 + 0.25 * Math.sin(now / 300)); if (!a) break;
+        g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = a;
+        for (const [x0, y0, x1, y1, rx, ry, rw, rh] of [[0, 0, 0, 44, 0, 0, PAGE.w, 44], [0, PAGE.h, 0, PAGE.h - 44, 0, PAGE.h - 44, PAGE.w, 44], [0, 0, 40, 0, 0, 0, 40, PAGE.h], [PAGE.w, 0, PAGE.w - 40, 0, PAGE.w - 40, 0, 40, PAGE.h]]) {
+          const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, glow(0.9)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.fillRect(rx, ry, rw, rh);
+        }
+        g.restore(); break;
+      }
+      // a band of puffy gold-and-white clouds rolls in from both sides for the flagship to ride on
+      case 'cloudSea': {
+        const dur = f[2], y = f[3], inn = ease(Math.min(1, t / 1200)), out = 1 - k01(t, dur - 600, dur); if (t > dur) break;
+        g.save(); g.globalAlpha = out;
+        for (let i = 0; i < 18; i++) {
+          const side = i % 2 ? 1 : -1, k = Math.floor(i / 2) / 8, x = PAGE.w / 2 + side * (PAGE.w / 2 + 60 - (PAGE.w / 2 + 40) * inn * (1 - k * 0.9)), cy = y + 14 * Math.sin(i * 1.7 + now / 700), rad = 30 + (i * 37 % 16);
+          const gr = g.createRadialGradient(x - rad * 0.3, cy - rad * 0.4, 2, x, cy, rad); gr.addColorStop(0, '#FFFDF4'); gr.addColorStop(0.7, '#FFE9B0'); gr.addColorStop(1, glow(0.2));
+          g.fillStyle = gr; g.beginPath(); g.arc(x, cy, rad, 0, Math.PI * 2); g.fill();
+        }
+        g.restore(); break;
+      }
+      // a stair of light from where she stands up to the bow deck, step by step
+      case 'lightStairs': {
+        const dur = f[2], a0 = f[3], a1 = f[4], a = life(t, 100, dur - 400, 300); if (!a) break;
+        for (let i = 0; i < 6; i++) {
+          const u = (i + 0.5) / 6, x = a0.x + (a1.x - a0.x) * u, y = a0.y + (a1.y - a0.y) * u, on = a * k01(t, i * 60, i * 60 + 160);
+          g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = on; g.fillStyle = glow(0.85); g.beginPath(); g.ellipse(x, y, 34, 8, 0, 0, Math.PI * 2); g.fill();
+          g.fillStyle = 'rgba(255,255,255,0.8)'; g.beginPath(); g.ellipse(x, y - 1, 20, 3, 0, 0, Math.PI * 2); g.fill(); g.restore();
+        }
+        break;
+      }
+      // fireworks going up into the sky one after another: [delay, x, y, colour]
+      case 'skyFireworks': for (const [d, x, y, col] of f[2]) {
+        const u = t - d; if (u < 0 || u > 1700) continue;
+        if (u < 350) { const p = u / 350, yy = PAGE.h * 0.55 + (y - PAGE.h * 0.55) * (1 - (1 - p) ** 2); g.save(); g.fillStyle = col; g.globalAlpha = 0.9; g.beginPath(); g.arc(x, yy, 3, 0, Math.PI * 2); g.fill(); g.restore(); continue; }
+        const v = u - 350, R = 70 * (1 - (1 - Math.min(1, v / 700)) ** 3), a = 1 - k01(v, 600, 1350);
+        if (v < 160) { g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - v / 160; const gr = g.createRadialGradient(x, y, 0, x, y, 60); gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, 60, 0, Math.PI * 2); g.fill(); g.restore(); }
+        for (let j = 0; j < 24; j++) { const ang = j * Math.PI / 12, px = x + Math.cos(ang) * R, py = y + Math.sin(ang) * R + 0.00005 * v * v;
+          g.save(); g.globalAlpha = a; g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(x + Math.cos(ang) * R * 0.75, y + Math.sin(ang) * R * 0.75 + 0.00004 * v * v); g.lineTo(px, py); g.stroke(); g.restore(); if (j % 3 === 0) star(px, py, 5, '#fff', a); }
+      } break;
+      // the gold wake the flagship leaves across the page, breaking into falling sparks
+      case 'wake': {
+        const dur = f[2], [p0, p1, p2] = f[3]; if (t > dur) break;
+        const shown = Math.min(1, t / 2000), fade = 1 - k01(t, dur - 1000, dur), q = u => ({ x: (1 - u) ** 2 * p0.x + 2 * (1 - u) * u * p1.x + u * u * p2.x, y: (1 - u) ** 2 * p0.y + 2 * (1 - u) * u * p1.y + u * u * p2.y });
+        g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.55 * fade; g.strokeStyle = glow(1); g.lineWidth = 16; g.lineCap = 'round'; g.beginPath();
+        for (let u = 0; u <= shown + 1e-6; u += 0.04) { const pt = q(u); u ? g.lineTo(pt.x, pt.y) : g.moveTo(pt.x, pt.y); } g.stroke(); g.restore();
+        for (let i = 0; i < 18; i++) { const u = r() * shown, pt = q(u), age = (t - u * 2000) / 1000; if (age < 0) continue; star(pt.x + 10 * Math.sin(i + age * 3), pt.y + age * 60, 5, i % 2 ? glow(1) : '#fff', fade * Math.max(0, 1 - age / 1.6)); }
+        break;
+      }
+      // the castle's steps light up one by one under her as she walks up
+      case 'stepGlow': {
+        const dur = f[2] || 3000; if (t > dur + 600) break;
+        const gate = st.castle && { x: st.castle.x, y: st.castle.y + this.castle.closed.height * st.castle.s * 0.18 };
+        if (!gate) break;
+        for (let i = 0; i < 8; i++) {
+          const u = i / 8, x = FOOT.x + (gate.x - FOOT.x) * u, y = FOOT.y + (gate.y - FOOT.y) * u, on = k01(t, u * dur, u * dur + 200) * (1 - k01(t, dur, dur + 600));
+          g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = on * 0.8; g.fillStyle = glow(0.9); g.beginPath(); g.ellipse(x, y, 30 * (1 - u * 0.6), 7 * (1 - u * 0.6), 0, 0, Math.PI * 2); g.fill(); g.restore();
+        }
+        break;
+      }
+      // pink stars twinkle up from the castle's tower tips while she waves from the gate
+      case 'towerSparkles': {
+        const dur = f[2] || 1600; if (t > dur || !st.castle) break;
+        const c = st.castle, w = this.castle.closed.width * c.s, h = this.castle.closed.height * c.s;
+        for (let i = 0; i < 14; i++) { const u = (t + i * 140) % 900, x = c.x + (r() - 0.5) * w * 0.7, y = c.y - h * 0.42 + r() * h * 0.25 - u * 0.05; star(x, y, 6 + r() * 5, i % 2 ? glow(1) : '#fff', Math.sin(Math.PI * u / 900)); }
         break;
       }
       // ---- things
-      case 'giftRise': {
-        if (t > 700) break;
-        const end = { x: st.x, y: her.y + her.h * 0.45 };
-        if (t < 450) {
-          const p = ease(t / 450), x = end.x + 40 * (1 - p), y = PAGE.h + 20 + (end.y - PAGE.h - 20) * p, b = 14;
-          g.save(); g.translate(x, y); g.rotate(0.3 * (1 - p)); g.fillStyle = '#FF9EB8'; g.fillRect(-b, -b, 2 * b, 2 * b); g.fillStyle = '#E8454F'; g.fillRect(-3, -b, 6, 2 * b); g.fillRect(-b, -3, 2 * b, 6);
-          g.beginPath(); g.ellipse(-6, -b - 4, 6, 4, -0.5, 0, Math.PI * 2); g.ellipse(6, -b - 4, 6, 4, 0.5, 0, Math.PI * 2); g.fill(); g.restore();
-        } else for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4, d = 10 + (t - 450) * 0.12; star(end.x + Math.cos(ang) * d, end.y + Math.sin(ang) * d, 6, i % 2 ? '#FFE27A' : '#FFB3D1', 1 - (t - 450) / 250); }
-        break;
-      }
       case 'anchors': {
         if (t > (f[2] || 2400)) break;
         for (let i = 0; i < 5; i++) {
           const u = (t + i * 420) % 2100, x = st.x + (r() - 0.5) * 240, y = st.y - 30 - u * 0.15;
+          if (f[3] === 'hearts') { heart(x, y, 16, 0.85 * Math.sin(Math.PI * u / 2100)); continue; }
           g.save(); g.globalAlpha = 0.85 * Math.sin(Math.PI * u / 2100); g.translate(x, y); g.rotate(0.3 * Math.sin(u / 300)); g.strokeStyle = '#F4C542'; g.lineWidth = 2.5; g.lineCap = 'round';
           g.beginPath(); g.moveTo(0, -9); g.lineTo(0, 8); g.moveTo(-5, -5); g.lineTo(5, -5); g.moveTo(-8, 3); g.quadraticCurveTo(0, 13, 8, 3); g.stroke(); g.beginPath(); g.arc(0, -11, 2.5, 0, Math.PI * 2); g.stroke(); g.restore();
         }
@@ -1210,8 +1446,8 @@ class Component extends DCLogic {
       }
     };
     const f = (n, o) => () => this.fire(n, o);
-    group('事件', [['进场', f('进场')], ['普通礼物', f('普通礼物')], ['连送 5 份', () => { for (let i = 0; i < 5; i++) this.fire('普通礼物'); }], ['大礼物', f('大礼物')],
-      ['大礼物+新第一', f('大礼物', { top: true })], ['普通礼物+新第一', f('普通礼物', { top: true })], ['盲盒开大', f('盲盒开大')], ['盲盒开亏', f('盲盒开亏')],
+    group('事件', [['进场', f('进场')], ['普通礼物', f('普通礼物')], ['连送 5 份', () => { for (let i = 0; i < 5; i++) this.fire('普通礼物'); }], ['中礼物', f('中礼物')], ['大礼物', f('大礼物')],
+      ['大礼物+新第一', f('大礼物', { top: true })], ['普通礼物+新第一', f('普通礼物', { top: true })], ['盲盒开亏', f('盲盒开亏')], ['盲盒开中', f('盲盒开中')], ['盲盒开大', f('盲盒开大')],
       ['舰长', f('舰长')], ['提督', f('提督')], ['总督', f('总督')], ['城堡', f('城堡')]]);
     group('抽奖', [['报名开场', f('报名开场')], ['报名截止', f('报名截止')], ['奖池开场', f('奖池开场')], ['奖池点名', f('奖池点名')], ['奖池转动', f('奖池转动')],
       ['揭晓·大奖', f('揭晓·大奖')], ['揭晓·二奖', f('揭晓·二奖')], ['揭晓·三奖', f('揭晓·三奖')], ['没人报名', f('没人报名')], ['抽奖结束', f('抽奖结束')]]);

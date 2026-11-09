@@ -1,6 +1,6 @@
 """Shared pieces of the desktop pet's picture tools, so a fix lands in every tool at once.
 
-The board's tables (POSE, STRIP, TRANS, RULER) and its sheets as the board scales and places them; finding pieces and
+The board's tables (POSE, STRIP, TRANS) and its sheets as the board scales and places them; finding pieces and
 skin in a drawing; keying codex's green; lining a frame up with a drawing; resampling.
 """
 import json
@@ -15,7 +15,6 @@ BOARD = (PKG / "boards/DP-DesktopPet.dc.html").read_text(encoding="utf-8")
 POSE = {p: (k, int(i)) for p, k, i in re.findall(r"(\w+): \['(\w+)', (\d)\]", re.search(r"const POSE = \{(.*?)\};", BOARD, re.S).group(1))}
 STRIP = dict(re.findall(r"(\w+): \{ f: '(\w+)'", re.search(r"const STRIP = \{(.*?)\n\};", BOARD, re.S).group(1)))
 TRANS = dict(re.findall(r"'(\w+>\w+)': '(\w+)'", re.search(r"const TRANS = \{(.*?)\n\};", BOARD, re.S).group(1)))
-RULER = {k: int(v) for k, v in re.findall(r"(\w+): (\d+)", re.search(r"const RULER = \{(.*?)\};", BOARD).group(1))}
 _BLOB = dict(re.findall(r"(\w+): '([0-9a-f]{32})'", re.search(r"const BLOB = \{(.*?)\};", BOARD, re.S).group(1)))
 _FILES = json.loads((PKG / "tools/blobs.json").read_text())
 SHEET = {k: Path(_FILES[md5]).stem for k, md5 in _BLOB.items() if _FILES.get(md5, "").startswith("textures/pose-")}
@@ -37,8 +36,8 @@ def rows(a):
 
 
 def scale(key):
-    """Board px per picture px on a sheet: her standing height (its first cell, or RULER) is 250 on the board."""
-    return 250 / RULER.get(key, np.ptp(rows(cells(SHEET[key])[0])) + 1)
+    """Board px per picture px on a sheet: her standing height (its first cell, the same on every sheet) is 250 on the board."""
+    return 250 / (np.ptp(rows(cells(SHEET[key])[0])) + 1)
 
 
 def ground(key, i):
@@ -238,3 +237,66 @@ def register(frames, R):
                     if best is None or e < best[0]:
                         best = (e, s, dx, dy)
     return [place(f, *best[1:]) for f in frames], best
+
+def gray(a):
+    """The drawing on white, as grey levels."""
+    al = a[..., 3:4].astype(np.float32) / 255
+    return (a[..., :3].astype(np.float32) * al + 255 * (1 - al)).mean(-1)
+
+
+def find_eyes(a, templates, scales=np.arange(0.8, 1.26, 0.05)):
+    """Her two eyes in drawing a, each found by matching one of the standing drawing's eyes (templates, grey) across
+    scales in the upper 60%: [(match 0-1, centre x, centre y, scale)] for her right and left eye."""
+    from numpy.lib.stride_tricks import sliding_window_view
+    g = gray(a)[:int(a.shape[0] * 0.6)]
+    found = []
+    for t in templates:
+        best = (-1, 0, 0, 1)
+        for s in scales:
+            ts = np.asarray(Image.fromarray(t).resize((max(4, round(t.shape[1] * s)), max(4, round(t.shape[0] * s))), Image.BILINEAR), np.float32)
+            th, tw = ts.shape
+            if th >= g.shape[0] or tw >= g.shape[1]:
+                continue
+            win = sliding_window_view(g, (th, tw))[::2, ::2]
+            wz, tz = win - win.mean(axis=(2, 3), keepdims=True), ts - ts.mean()
+            ncc = (wz * tz).sum(axis=(2, 3)) / (np.sqrt((wz ** 2).sum(axis=(2, 3)) * (tz ** 2).sum()) + 1e-6)
+            iy, ix = np.unravel_index(ncc.argmax(), ncc.shape)
+            if ncc[iy, ix] > best[0]:
+                best = (float(ncc[iy, ix]), ix * 2 + tw / 2, iy * 2 + th / 2, float(s))
+        found.append(best)
+    return found
+
+
+ANCHOR_H = 360  # px: her everyday standing drawing, pasted at this height into every sheet and prop picture
+FACE_MATCH = 0.7  # below this the two-eye template did not find her eyes (closed, turned away, behind her hands)
+
+
+def standing():
+    """Her everyday standing drawing (the standing sheet's cell 1), cropped and brought to ANCHOR_H px: the size ruler
+    pasted into every sheet and prop picture."""
+    a = cells(SHEET["common"])[0]
+    x0, y0, x1, y1 = bbox(a)
+    im = Image.fromarray(a[y0:y1, x0:x1])
+    if im.height != ANCHOR_H:
+        im = im.resize((round(im.width * ANCHOR_H / im.height), ANCHOR_H), Image.LANCZOS)
+    return np.asarray(im)
+
+
+def eye_ref(A):
+    """The anchor's two eyes together as one template (an expression or a hand by one eye moves a single eye's match,
+    not the pair's), and how high they are above her feet."""
+    _, boxes = cheek_width(A)
+    x0, x1 = min(b[0] for b in boxes) - 6, max(b[2] for b in boxes) + 6
+    y0, y1 = min(b[1] for b in boxes) - 8, max(b[3] for b in boxes) + 4
+    return {"pair": gray(A)[y0:y1, x0:x1].astype(np.float32), "eyeline": A.shape[0] - (y0 + y1) / 2}
+
+
+def find_face(c, ref, scales=np.arange(0.8, 1.21, 0.02)):
+    """(match, centre x, centre y, scale) of her eyes in drawing c against the anchor's: the scale is her face's size."""
+    return find_eyes(c, [ref["pair"]], scales)[0]
+
+
+def face_size(c, ref):
+    """Her face's size against the anchor's, or None where her eyes are not found."""
+    m, _, _, s = find_face(c, ref)
+    return s if m >= FACE_MATCH else None

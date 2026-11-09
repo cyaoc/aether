@@ -13,8 +13,8 @@ the last frame, and scaling heads frame by frame made her face grow past both po
 
 All four frames are keyed and lined up by one placement, the one that fits frame 1 onto the first pose (petlib.register).
 Frame 4 must then land on the second pose (her height, her feet, her outline), and her face in frames 2 and 3 must be as
-wide as the two poses' faces a third and two thirds of the way (petlib.cheek_width; codex sometimes draws an in-between
-head 5% small, and the face then shrinks and grows back); where either is off by more than GATE, codex drew it wrong and
+big as the two poses' faces a third and two thirds of the way (petlib.face_size, her two eyes found together; codex
+sometimes draws an in-between head 5% small, and the face then shrinks and grows back); where either is off by more than GATE, codex drew it wrong and
 draws it again, up to --tries times; the best try is kept and its gate printed.
 
 Out: <name>-strip.png, the four frames in a row in the first pose's cell, as the board plays them; where the second pose
@@ -28,7 +28,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # petlib sits beside the tools, also under python -I
-from petlib import PKG, bbox, cheek_width, codex_frames, green, pieces, pose, register, warp
+from petlib import PKG, bbox, codex_frames, eye_ref, face_size, green, pieces, pose, register, standing, warp
 
 GATE = {"height": 0.04, "feet": 6, "overlap": 0.80, "face": 0.04}  # frame 4 against the second pose; faces of frames 2, 3
 PROMPT = ("Use your built-in image generation tool (not code) to edit the attached image into ONE new image, then copy "
@@ -79,7 +79,8 @@ prompt = PROMPT.format(out=out / f"{name}-frames.png", what=(PKG / f"tools/frame
                        negative=(PKG / "tools/frames-negative.txt").read_text().strip())
 
 
-ends = [(cheek_width(c) or [None])[0] for c in (A, B)]  # her cheek width in the two poses (None where it does not show)
+REF = eye_ref(standing())
+ends = [face_size(c.round().astype(np.uint8), REF) for c in (A, B)]  # her face's size in the two poses (None where it does not show)
 
 
 def gate(F):
@@ -90,8 +91,8 @@ def gate(F):
     face = 0
     if all(ends):
         for j, t in ((1, 1 / 3), (2, 2 / 3)):
-            m = cheek_width(F[j])
-            face = max(face, abs(m[0] / (ends[0] + (ends[1] - ends[0]) * t) - 1) if m else 0)
+            m = face_size(F[j].round().astype(np.uint8), REF)
+            face = max(face, abs(m / (ends[0] + (ends[1] - ends[0]) * t) - 1) if m else 0)
     return {"height": abs(np.ptp(fy) / np.ptp(by) - 1), "feet": abs(int(fy.max()) - int(by.max())),
             "overlap": (m4 & mb).sum() / (m4 | mb).sum(), "face": face}
 
