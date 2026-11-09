@@ -1,6 +1,6 @@
 """Make her head the same size on every sheet, without making her bigger: enlarge only the head of a drawing.
 
-python head-scale.py <factor> <in.png> <out.png> [--cells 3x2] [--skip 1] [--pad 48]
+python head-scale.py <factor>[,<factor>...] <in.png> <out.png> [--cells 3x2] [--skip 1] [--pad 48]
 
 Codex drew each pose sheet with its own head-to-body ratio: scaled to the same standing height, her eyes sit 37 to 46 px
 apart depending on the sheet, so switching to a pose from another sheet makes her face shrink or swell (the user saw it
@@ -11,7 +11,9 @@ of her face's skin; a frame where her face does not show (seen from behind, head
 the head length of the frames where it does. Each cell or frame gets <pad> transparent pixels on top first, so a bigger
 head never runs out of its cell; the board measures everything from the pictures, so nothing else changes.
 --cells: the grid of the picture (3x2 for a pose sheet, 4x1 for a frame strip); --skip: cells left as they are, counted
-from 1 (a sheet's first cell is the size ruler and is only padded).
+from 1 (a sheet's first cell is the size ruler and is only padded). Several factors, one per cell, scale each cell by
+its own (face-width.py measures them); a factor of 1 leaves a cell as it is, only padded. A head that would reach the
+top of its cell is reported: it needs more --pad.
 """
 import sys
 import numpy as np
@@ -30,7 +32,7 @@ def opt(name, default):
 cols, rows = map(int, opt("--cells", "3x2").split("x"))
 skip = {int(v) for v in opt("--skip", "").split(",") if v}
 pad = int(opt("--pad", "48"))
-factor, src, out = float(sys.argv[1]), sys.argv[2], sys.argv[3]
+factors, src, out = [float(v) for v in sys.argv[1].split(",")], sys.argv[2], sys.argv[3]
 
 
 def pieces(mask):
@@ -55,7 +57,9 @@ def head(a):
     dark = (al > 200) & (np.maximum(np.maximum(r, g), b) < 110)
     dy = np.nonzero(dark)[0]
     crown = dy.min() if len(dy) else y0
-    skin = (al > 200) & (r > 195) & (g > 145) & (b > 115) & (r > g) & (g > b) & (r - b > 18)
+    plain = (r > 195) & (g > 145) & (b > 115) & (r > g) & (g > b) & (r - b > 18)
+    blush = (r > 180) & (g > 90) & (b > 80) & (r - g > 35) & (r - b > 25)  # as face-width.py: a warm-lit face is all blush
+    skin = (al > 200) & (plain | blush)
     skin[int(y0 + 0.6 * (y1 - y0)):] = False
     ps = pieces(skin)
     if not ps or ps[0].sum() < 1500:
@@ -101,20 +105,25 @@ lens = [chin - crown for cx, chin, crown in (f for f in found if f) if chin is n
 head_len = float(np.median(lens)) if lens else None
 done = []
 for i, c in enumerate(cells):
-    f = found[i]
+    f, factor = found[i], factors[i] if len(factors) > 1 else factors[0]
     if i + 1 in skip or f is None or factor == 1:
+        if factor != 1 and i + 1 not in skip:
+            print(f"cell {i + 1}: no head found, left as it is")
         done.append(c)
         continue
     cx, chin, crown = f
     if chin is None:  # no face showing: from the top of the hair and the usual head length
         if head_len is None:
+            print(f"cell {i + 1}: no face anywhere to take a head length from, left as it is")
             done.append(c)
             continue
         dark = (c[..., 3] > 200) & (c[..., :3].max(-1) < 110)
         ys, xs = np.nonzero(dark[crown:crown + 60])
         cx, chin = (xs.mean() if len(xs) else cw / 2), crown + head_len
     done.append(grow(c, cx, chin, factor, 0.35 * (chin - crown)))
-    print(f"cell {i + 1}: chin at {cx:.0f},{chin:.0f}, top of hair {crown}")
+    print(f"cell {i + 1}: x{factor}, chin at {cx:.0f},{chin:.0f}, top of hair {crown}")
+    if (done[-1][:2, :, 3] > 40).any():
+        print(f"cell {i + 1}: her head reaches the top of the cell, give it more --pad")
 sheet = np.zeros((rows * (ch + pad), cols * cw, 4), np.uint8)
 for i, c in enumerate(done):
     sheet[(i // cols) * (ch + pad):(i // cols + 1) * (ch + pad), (i % cols) * cw:(i % cols + 1) * cw] = c
