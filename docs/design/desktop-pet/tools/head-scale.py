@@ -16,8 +16,11 @@ its own (face-width.py measures them); a factor of 1 leaves a cell as it is, onl
 top of its cell is reported: it needs more --pad.
 """
 import sys
+from pathlib import Path
 import numpy as np
-from PIL import Image, ImageDraw
+from PIL import Image
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # petlib sits beside the tools, also under python -I
+from petlib import pieces, skin, warp
 
 
 def opt(name, default):
@@ -35,65 +38,31 @@ pad = int(opt("--pad", "48"))
 factors, src, out = [float(v) for v in sys.argv[1].split(",")], sys.argv[2], sys.argv[3]
 
 
-def pieces(mask):
-    img = Image.fromarray((mask * 255).astype(np.uint8)).copy()
-    found = []
-    for label in range(1, 250):
-        ys, xs = np.nonzero(np.asarray(img) == 255)
-        if not len(xs):
-            break
-        ImageDraw.floodfill(img, (int(xs[0]), int(ys[0])), label)
-        found.append(np.asarray(img) == label)
-    return sorted(found, key=lambda m: -m.sum())
-
-
 def head(a):
     """(chin x, chin y, top of hair y) of a drawing, or None where no face shows."""
-    r, g, b, al = (a[..., i].astype(int) for i in range(4))
-    ys, xs = np.nonzero(al > 40)
+    ys = np.nonzero(a[..., 3] > 40)[0]
     if not len(ys):
         return None
     y0, y1 = ys.min(), ys.max()
-    dark = (al > 200) & (np.maximum(np.maximum(r, g), b) < 110)
+    dark = (a[..., 3] > 200) & (a[..., :3].max(-1) < 110)
     dy = np.nonzero(dark)[0]
     crown = dy.min() if len(dy) else y0
-    plain = (r > 195) & (g > 145) & (b > 115) & (r > g) & (g > b) & (r - b > 18)
-    blush = (r > 180) & (g > 90) & (b > 80) & (r - g > 35) & (r - b > 25)  # as face-width.py: a warm-lit face is all blush
-    skin = (al > 200) & (plain | blush)
-    skin[int(y0 + 0.6 * (y1 - y0)):] = False
-    ps = pieces(skin)
+    s = skin(a)
+    s[int(y0 + 0.6 * (y1 - y0)):] = False
+    ps = pieces(s)
     if not ps or ps[0].sum() < 1500:
         return None, None, crown
     fy, fx = np.nonzero(ps[0])
     return fx.mean(), fy.max(), crown
 
 
-def bilinear(img, sx, sy):
-    h, w = img.shape[:2]
-    x0 = np.clip(np.floor(sx).astype(int), 0, w - 1); y0 = np.clip(np.floor(sy).astype(int), 0, h - 1)
-    x1 = np.clip(x0 + 1, 0, w - 1); y1 = np.clip(y0 + 1, 0, h - 1)
-    fx = np.clip(sx - x0, 0, 1)[..., None]; fy = np.clip(sy - y0, 0, 1)[..., None]
-    top = img[y0, x0] * (1 - fx) + img[y0, x1] * fx
-    bot = img[y1, x0] * (1 - fx) + img[y1, x1] * fx
-    v = top * (1 - fy) + bot * fy
-    outside = (sx < 0) | (sy < 0) | (sx > w - 1) | (sy > h - 1)
-    v[outside] = 0
-    return v
-
-
 def grow(a, cx, chin, f, band):
     """The head above (cx, chin) grown by f, fading back to 1 over band pixels below the chin."""
     h, w = a.shape[:2]
-    pm = a.astype(np.float32)
-    pm[..., :3] *= pm[..., 3:] / 255  # premultiplied, so edges blend right
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     t = np.clip((yy - chin) / band, 0, 1)
     s = f + (1 - f) * (t * t * (3 - 2 * t))
-    sx = cx + (xx - cx) / s
-    sy = chin + (yy - chin) / s
-    v = bilinear(pm, sx, sy)
-    rgb = np.where(v[..., 3:] > 0, v[..., :3] * 255 / np.maximum(v[..., 3:], 1e-3), 0)
-    return np.dstack([np.clip(rgb, 0, 255), np.clip(v[..., 3], 0, 255)]).round().astype(np.uint8)
+    return np.clip(warp(a, cx + (xx - cx) / s, chin + (yy - chin) / s), 0, 255).round().astype(np.uint8)
 
 
 im = np.asarray(Image.open(src).convert("RGBA"))
