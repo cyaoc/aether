@@ -150,7 +150,7 @@ const EVENT_FX = {
   报名截止: { fx: [['shock', 0], ['sweat', 300, 1600]] },
   奖池转动: { fx: [['starRing', 0, 1700], ['sweat', 400, 1600]] },
   奖池点名: { fx: [['spot', 0, 1700], ['bang', 100], ['spark', 300, 0.9, 0.3, 8]] },
-  '揭晓·大奖': { fx: [['sweat', 600, 1300], ['burst', 2500, 400], ['rays', 2500, 2400, 0.5], ['halo', 2500, 2400, 0.5]], shake: [[2500, 3, 260]] },
+  '揭晓·大奖': { fx: [['sweat', 600, 1300], ['burst', 2500, 400], ['rays', 2500, 2400, 0.75], ['halo', 2500, 2400, 0.7]], shake: [[2500, 3, 260]] },
   '揭晓·二奖': { fx: [['sweat', 600, 1300], ['halo', 2500, 1800, 0.35], ['confetti', 2500]] },
   '揭晓·三奖': { fx: [['sweat', 600, 1300], ['spark', 2500, 0.5, 0.15, 6], ['hearts', 2700, 2]] },
   没人报名: { fx: [['gloom', 200, 2200], ['rain', 400, 2000], ['leaf', 300]] },
@@ -159,7 +159,8 @@ const EVENT_FX = {
 // Effects drawn behind her (glows, rays, focus lines, rings on the ground, speed lines); the rest go in front.
 const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'speed', 'spray', 'pillar', 'cloudSea', 'lightStairs', 'wake', 'skyFireworks', 'stepGlow']);
 const TIER = { SS: 5, S: 4, A: 3, B: 2, C: 1, D: 0 };
-// Each tier's own glow (README 7.1), like gacha rarity: cool and quiet low, warmer higher; gold is the governor's alone.
+// Each tier's own glow (README 7.1), like gacha rarity: cool and quiet low, warmer higher; gold is the governor's, and
+// the lottery jackpot's (an event's glow: its reveal is the gold card of a gacha pull, though the show itself is A).
 const GLOW = { SS: '254,197,79', S: '253,183,202', A: '180,140,255', B: '124,200,255', C: '255,211,223', D: '255,255,255' };
 const EVENTS = {
   进场: { tier: 'C', dur: 1600 }, 普通礼物: { tier: 'C', dur: 2000, gift: true }, 连着送: { tier: 'C', dur: 2600, gift: true },
@@ -168,7 +169,7 @@ const EVENTS = {
   提督: { tier: 'A', dur: 8000, gift: true }, 总督: { tier: 'SS', dur: 15000, gift: true },
   城堡: { tier: 'S', dur: 11500, gift: true }, 新的第一名: { tier: 'C', dur: 2600 },
   报名开场: { tier: 'A', dur: 2600 }, 报名截止: { tier: 'A', dur: 2000 }, 奖池开场: { tier: 'A', dur: 2600 }, 奖池点名: { tier: 'A', dur: 2000 },
-  奖池转动: { tier: 'A', dur: 2000 }, '揭晓·大奖': { tier: 'A', dur: 5200 }, '揭晓·二奖': { tier: 'A', dur: 4600 }, '揭晓·三奖': { tier: 'A', dur: 4600 },
+  奖池转动: { tier: 'A', dur: 2000 }, '揭晓·大奖': { tier: 'A', dur: 5200, glow: 'SS' }, '揭晓·二奖': { tier: 'A', dur: 4600 }, '揭晓·三奖': { tier: 'A', dur: 4600 },
   没人报名: { tier: 'A', dur: 2800 }, 抽奖结束: { tier: 'A', dur: 2600 }, 日常: { tier: 'D' }
 };
 const LINES = {
@@ -434,7 +435,7 @@ class Component extends DCLogic {
 
   eventState(name, t, opts, line) {
     const st = this.base();
-    st._t = t; st.glow = GLOW[EVENTS[name]?.tier || 'D'];
+    st._t = t; st.glow = GLOW[EVENTS[name]?.glow || EVENTS[name]?.tier || 'D'];
     const say = (from, text = line) => { if (t >= from && text) st.bubble = { text, t: t - from }; };
     const hop = (a, h = 10) => { st.y -= h * bump(t, a, a + 320); if (h >= 10) st.fx.push(['dust', a + 300]); };  // a puff where she lands
     switch (name) {
