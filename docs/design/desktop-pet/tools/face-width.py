@@ -11,12 +11,18 @@ hands on her cheeks, over her mouth, under her chin) are above her chin, so they
 Cheek width: her face is the biggest piece of skin in the upper half of the drawing (blush counted as skin, or a
 blushing face falls apart), its holes filled column by column; her eyes are the two biggest holes side by side across
 its middle; the width is the widest row from just above her eyes to just below them, where a hand seldom reaches.
-Where her hands cover her cheeks (the measured width falls short of what her eye spacing gives on the standing face),
-the width is judged from her eyes. Poses whose head is turned, bowed or seen from behind (EXCLUDED), and poses where no
-eyes are found, take the middle factor of their sheet (the castle's first cell, the never-scaled ruler, not counted). Frames take their own measure when it is close to what their pose expects (within 10%, 15% for
-an in-between frame: codex drew some in-between heads 10-14% small), else what their pose expects; a frame within 2% of it takes exactly that, so measuring noise never makes a loop's face pulse.
-A loop gets one factor for all four frames (the middle of what its frames measure). An in-between frame of a pose
-change expects a blend of the two poses' factors, and takes just that blend where either pose is turned or bowed. A factor within 1.5% of 1 is left as 1.
+Where both her hands cover her cheeks (COVERED: hiding her face when shy), the cheeks cannot be measured and the gaps
+between her fingers pass for eyes, so the size is judged from her eyes instead: the standing pose's two eyes are found
+in the drawing by template matching, each on its own and at its own scale, and the distance between them (tilt does
+not change it) times the standing pose's cheeks-to-eyes ratio stands for her cheek width (the user saw her face widen
+as she took her hands down: the cheeks-and-finger-gaps reading had made the shy face 8% small).
+Poses whose head is turned, bowed or seen from behind (EXCLUDED), and poses where no eyes are found, take the middle
+factor of their sheet (the castle's first cell, the never-scaled ruler, not counted). Frames take their own measure
+when it is close to what their pose expects (within 10%, 15% for an in-between frame: codex drew some in-between heads
+10-14% small), else what their pose expects; a frame within 2% of it takes exactly that, so measuring noise never makes
+a loop's face pulse. A loop gets one factor for all four frames (the middle of what its frames measure). An in-between
+frame of a pose change expects a blend of the two poses' factors, and takes just that blend where either pose is
+turned or bowed. A factor within 1.5% of 1 is left as 1.
 
 Prints JSON {"sheets": {file: [six factors]}, "frames": {name: [four factors]}}; --show also prints a table.
 """
@@ -36,6 +42,8 @@ FILE = {"common": "pose-1-common", "lottery": "pose-2-lottery", "daily1": "pose-
 EXCLUDED = {"hike", "bike", "spyglass", "bow", "doze", "gloomy", "nod", "curtsy", "walkA", "walkB", "lookBack", "skiDown"}
 # the wave already has the standing head laid over it (head-swap.py)
 KEEP = {"wave"}
+# both hands cover her cheeks: judged from her eyes
+COVERED = {"shy"}
 
 board = (pkg / "boards/DP-DesktopPet.dc.html").read_text(encoding="utf-8")
 POSE = {p: (k, int(i)) for p, k, i in re.findall(r"(\w+): \['(\w+)', (\d)\]", re.search(r"const POSE = \{(.*?)\};", board, re.S).group(1))}
@@ -63,7 +71,7 @@ def skin(a):
 
 
 def cheek_width(a):
-    """(cheek width, eye spacing) in the picture's pixels, or None where her eyes are not found."""
+    """(cheek width, the boxes of her two eyes) in the picture's pixels, or None where her eyes are not found."""
     ys = np.nonzero(a[..., 3] > 40)[0]
     if not len(ys):
         return None
@@ -88,11 +96,12 @@ def cheek_width(a):
         for j in range(i + 1, len(holes)):
             (xa, ya), (xb, yb) = [(np.nonzero(m)[1].mean(), np.nonzero(m)[0].mean()) for m in (holes[i], holes[j])]
             if abs(ya - yb) < 0.25 * abs(xa - xb) and abs(xa - xb) > 40 and (best is None or holes[i].sum() + holes[j].sum() > best[0]):
-                best = (holes[i].sum() + holes[j].sum(), (ya + yb) / 2, abs(xa - xb))
+                best = (holes[i].sum() + holes[j].sum(), (ya + yb) / 2, (holes[i], holes[j]))
     if not best:
         return None
     ey = int(best[1])
-    return max(np.ptp(np.nonzero(filled[y])[0]) + 1 for y in range(ey - 15, ey + 11) if filled[y].any()), best[2]
+    boxes = sorted((np.nonzero(m)[1].min(), np.nonzero(m)[0].min(), np.nonzero(m)[1].max(), np.nonzero(m)[0].max()) for m in best[2])
+    return max(np.ptp(np.nonzero(filled[y])[0]) + 1 for y in range(ey - 15, ey + 11) if filled[y].any()), boxes
 
 
 def cells(file):
@@ -109,18 +118,50 @@ def ruler(cs):
 RULER = dict(re.findall(r"(\w+): (\d+)", re.search(r"const RULER = \{(.*?)\};", board).group(1))) if "const RULER" in board else {}
 sheet_cells = {k: cells(f) for k, f in FILE.items()}
 scale = {k: 250 / int(RULER.get(k, ruler(cs))) for k, cs in sheet_cells.items()}  # board px per picture px
-std_w, std_eyes = cheek_width(sheet_cells["common"][0])
-standard, ratio = std_w * scale["common"], std_w / std_eyes
+def board_gray(a, k):
+    """The drawing on white, 2 px per board px."""
+    im = Image.fromarray(a)
+    im = im.resize((round(im.width * k * 2), round(im.height * k * 2)), Image.LANCZOS)
+    bg = Image.new("RGBA", im.size, (255, 255, 255, 255))
+    bg.alpha_composite(im)
+    return np.asarray(bg.convert("L"), dtype=np.float32)
 
 
-def width(a):
-    """Cheek width; where her hands cover her cheeks (narrower than her eyes allow: both hands held to her face), judged
-    from her eyes instead."""
+std_w, std_boxes = cheek_width(sheet_cells["common"][0])
+standard = std_w * scale["common"]
+_g, _k2 = board_gray(sheet_cells["common"][0], scale["common"]), 2 * scale["common"]
+EYES = [_g[int(y0 * _k2) - 10:int(y1 * _k2) + 4, int(x0 * _k2) - 6:int(x1 * _k2) + 6] for x0, y0, x1, y1 in std_boxes]
+
+
+def eye_gap(a, k):
+    """Board px between her two eyes, each found by matching the standing pose's eye at scales 0.84-1.16."""
+    from numpy.lib.stride_tricks import sliding_window_view
+    g = board_gray(a, k)
+    centres = []
+    for t in EYES:
+        best = None
+        for s in np.arange(0.84, 1.17, 0.03):
+            ts = np.asarray(Image.fromarray(t).resize((round(t.shape[1] * s), round(t.shape[0] * s)), Image.BILINEAR), dtype=np.float32)
+            th, tw = ts.shape
+            win = sliding_window_view(g[:int(g.shape[0] * 0.45)], (th, tw))[::2, ::2]
+            wz, tz = win - win.mean(axis=(2, 3), keepdims=True), ts - ts.mean()
+            ncc = (wz * tz).sum(axis=(2, 3)) / (np.sqrt((wz ** 2).sum(axis=(2, 3)) * (tz ** 2).sum()) + 1e-6)
+            iy, ix = np.unravel_index(ncc.argmax(), ncc.shape)
+            if best is None or ncc[iy, ix] > best[0]:
+                best = (ncc[iy, ix], ix * 2 + tw / 2, iy * 2 + th / 2)
+        centres.append(best[1:])
+    return np.hypot(centres[1][0] - centres[0][0], centres[1][1] - centres[0][1]) / 2
+
+
+std_gap = eye_gap(sheet_cells["common"][0], scale["common"])
+
+
+def width(a, k, covered=False):
+    """Her cheek width in board px; for a face behind her hands, what her eye gap says it is."""
+    if covered:
+        return eye_gap(a, k) * standard / std_gap
     m = cheek_width(a)
-    if not m:
-        return None
-    w, eyes = m
-    return eyes * ratio if w < 0.88 * eyes * ratio else w
+    return m and m[0] * k
 
 
 def snap(f):
@@ -129,8 +170,7 @@ def snap(f):
 
 measured, pose_f = {}, {}
 for p, (k, i) in POSE.items():
-    w = None if p in EXCLUDED or p in KEEP else width(sheet_cells[k][i])
-    measured[p] = w and w * scale[k]
+    measured[p] = None if p in EXCLUDED or p in KEEP else width(sheet_cells[k][i], scale[k], p in COVERED)
     pose_f[p] = 1.0 if p in KEEP else (standard / measured[p] if measured[p] else None)
 for p, (k, i) in POSE.items():
     if pose_f[p] is None:  # the middle of what codex did on this sheet
@@ -141,15 +181,15 @@ for p, (k, i) in POSE.items():
     sheets[FILE[k]][i] = snap(pose_f[p])
 
 
-def frame_factors(name, expect, k, loop=False):
+def frame_factors(name, expect, k, loop=False, covered=False):
     trust = 0.10 if loop else 0.15  # codex drew some in-between heads 10-14% small (standing to crown V)
     im = np.asarray(Image.open(pkg / f"textures/frames/{name}.webp").convert("RGBA"))
     fw = im.shape[1] // 4
     out, notes = [], []
     for j in range(4):
         e = expect[j]
-        w = width(im[:, j * fw:(j + 1) * fw]) if e is not None else None
-        f = standard / (w * scale[k]) if w else None
+        w = width(im[:, j * fw:(j + 1) * fw], scale[k], covered) if e is not None else None
+        f = standard / w if w else None
         if f is None or abs(f / e - 1) > trust:
             out.append(e); notes.append("expected")
         elif abs(f / e - 1) <= 0.02:
@@ -169,7 +209,7 @@ frames, why = {}, {}
 for pose, f in STRIP.items():
     if pose in POSE:
         e = None if pose in EXCLUDED or pose in KEEP else pose_f_frames[pose]
-        frames[f], why[f] = frame_factors(f, [e] * 4, POSE[pose][0], loop=True) if e else ([snap(pose_f_frames[pose])] * 4, ["pose"] * 4)
+        frames[f], why[f] = frame_factors(f, [e] * 4, POSE[pose][0], loop=True, covered=pose in COVERED) if e else ([snap(pose_f_frames[pose])] * 4, ["pose"] * 4)
 for pair, f in TRANS.items():
     a, b = pair.split(">")
     if a not in POSE or b not in POSE:
@@ -182,10 +222,11 @@ for pair, f in TRANS.items():
         frames[f], why[f] = frame_factors(f, e, POSE[a][0])
 
 if "--show" in sys.argv:
-    print(f"standing cheek width {standard:.1f} board px")
+    print(f"standing cheek width {standard:.1f} board px, eye gap {std_gap:.1f}")
     for p in POSE:
         m = measured[p]
-        print(f"  {p:12s} {'%5.1f' % m if m else '    -'}  x{snap(pose_f[p])}" + ("  (turned/bowed/behind: sheet middle)" if p in EXCLUDED else "  (head laid over)" if p in KEEP else "" if m else "  (no eyes found: sheet middle)"))
+        print(f"  {p:12s} {'%5.1f' % m if m else '    -'}  x{snap(pose_f[p])}" + ("  (turned/bowed/behind: sheet middle)" if p in EXCLUDED else "  (head laid over)" if p in KEEP
+                 else "  (behind her hands: from her eyes)" if p in COVERED else "" if m else "  (no eyes found: sheet middle)"))
     for f in frames:
         print(f"  frames {f:16s} {frames[f]}  {why[f]}")
 print(json.dumps({"sheets": sheets, "frames": frames}))

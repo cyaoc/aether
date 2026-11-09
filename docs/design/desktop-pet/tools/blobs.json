@@ -39,7 +39,6 @@
  "d62efea54f258950f6b602f7796390bc": "textures/pose-12-cycle.webp",
  "066cbe9b873fefd6441bae2e6ce7585c": "textures/pose-2-lottery.webp",
  "30c5acd15a41a0e05c759cef45885fc5": "textures/pose-3-daily-1.webp",
- "42b543de8f030c623cf3363370f821a5": "textures/pose-5-moods.webp",
  "bf87fbe4d559cc7bac571db0809a71aa": "textures/pose-6-gifts.webp",
  "da0db340d770c7aab448e1a19f8eee7d": "textures/pose-7-castle.webp",
  "e849931214cc57336ee9251600ad48f3": "textures/pose-8-voyage.webp",
@@ -91,7 +90,6 @@
  "f6b12a419a182c3c45d42d97067eec07": "textures/frames/shakeBox.webp",
  "dfa1156efd32456725b91b8f19b7e78a": "textures/frames/shakeIn.webp",
  "d732559e6d896981f215881e1e204b69": "textures/frames/shakeSnow.webp",
- "d131b99e39a4f9d994df17cf5a3f9e52": "textures/frames/shy.webp",
  "381f029f7f7ec5fc5ae095c7a3fd6b65": "textures/frames/shyIn.webp",
  "d892e5eecb26f4cda73eeb4af87e4cb6": "textures/frames/sitBored.webp",
  "207baba1d91c856af6e90f9a92bec8d3": "textures/frames/sitDoze.webp",
@@ -110,5 +108,7 @@
  "8e3bfdca42aae1e8ca6737800076f318": "textures/frames/wave.webp",
  "c5651071f16360a992c61d806e3b593f": "textures/frames/waveIn.webp",
  "24a8198cf68b0a890329e9d3897438f7": "textures/frames/wipe.webp",
- "a51cc3df30f6af933054a9624eb5e88c": "textures/frames/wipeIn.webp"
+ "a51cc3df30f6af933054a9624eb5e88c": "textures/frames/wipeIn.webp",
+ "ac1c5c41a23d066e79880fee25729c51": "textures/pose-5-moods.webp",
+ "500713f978ac700fe42b15e4cb220bfd": "textures/frames/shy.webp"
 }
