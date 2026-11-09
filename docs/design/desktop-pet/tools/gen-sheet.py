@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # petlib sits beside the tools, also under python -I
-from petlib import FACE_MATCH, PKG, POSE, SHEET, bbox, drop_strays, eye_ref, find_face, key, standing
+from petlib import FACE_MATCH, PKG, POSE, SAME_SPOT, SHEET, bbox, carry_props, drop_strays, eye_ref, find_face, key, standing
 
 T, MASCOT = PKG / "tools", PKG.parent / "mascot/textures"
 CELL, GROUND = 512, 471  # cell side; the anchor's ground line inside its cell
@@ -189,6 +189,12 @@ def main():
         todo = [i for i in range(1, 6) if names[i] and best[i][0]["fails"]]
         print(f"try {t + 1}: " + "; ".join(f"{i + 1} {names[i]} {' '.join(best[i][0]['fails']) or 'ok'}" for i in range(1, 6) if names[i]))
 
+    # what she drops stays where it lands: a pose in the board's SAME_SPOT gets the things on the ground of its earlier pose,
+    # pixel for pixel (petlib.carry_props), so a dumbbell, the skis, the poles or the fallen bike do not move between poses
+    for p, q in SAME_SPOT.items():
+        if POSE[p][0] == key_:
+            i, j = POSE[p][1], POSE[q][1]
+            best[i] = (best[i][0], carry_props(best[j][1], best[i][1]).round().astype(np.uint8))
     sheet = place_anchor(np.zeros((2 * CELL, 3 * CELL, 4), np.uint8), A)
     for i, (_, c) in best.items():
         x, y = canvas_cell(i)

@@ -6,7 +6,8 @@ gen-frames.sh hands codex the cell as frame 1 of a 2 x 2 grid and codex draws fr
 keeps only what moves (OPTIONS per pose). Every frame's face is then measured against the cell's own (petlib.find_face,
 the two eyes together): a frame more than GATE bigger or smaller is drawn again, the whole loop, up to --tries times;
 frames whose eyes cannot be found (closed, turned away) are not measured. A walking loop whose legs hardly change is drawn
-again too (LEGS_MOVE). Nothing is scaled afterwards.
+again too (LEGS_MOVE). What lies on the ground beside her (a dumbbell, skis) is laid into every frame exactly as in her
+cell (petlib.carry_props), so it does not shift from frame to frame. Nothing is scaled afterwards.
 
 Out: <strip>-strip.png (the four frames in a row, each the cell's size, as the board plays them) and <strip>-check.png.
 """
@@ -17,7 +18,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # petlib sits beside the tools, also under python -I
-from petlib import FACE_MATCH, PKG, POSE, SHEET, STRIP, bbox, cells, eye_ref, find_face, standing
+from petlib import FACE_MATCH, PKG, POSE, SHEET, STRIP, bbox, carry_props, cells, eye_ref, find_face, loose, standing
 
 T = PKG / "tools"
 GATE = 0.06
@@ -72,6 +73,9 @@ def main():
             continue
         s = np.asarray(Image.open(out / f"{name}.png").convert("RGBA"))
         w = s.shape[1] // 4
+        if loose(cell).any():  # what lies on the ground beside her stays exactly where it is in her cell, every frame
+            s = np.hstack([carry_props(cell, s[:, k * w:(k + 1) * w]) for k in range(4)]).round().astype(np.uint8)
+            Image.fromarray(s).save(out / f"{name}.png")
         sizes = []
         for k in range(4):
             m, _, _, sc = find_face(s[:, k * w:(k + 1) * w], face)

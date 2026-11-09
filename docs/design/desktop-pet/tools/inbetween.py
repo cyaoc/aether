@@ -1,6 +1,6 @@
 """Make the in-between frames of a change from one pose of the board to another.
 
-python inbetween.py <name> <from pose> <to pose> <out dir> [--tries 2]
+python inbetween.py <name> <from pose> <to pose> <out dir> [--tries 2] [--end-props]
 
 Codex gets one 2 x 2 grid on flat green with frame 1 (the first pose) and frame 4 (the second pose) already in it, both
 drawn just as the board shows them (each scaled from its sheet to the board, standing on the same ground line, lined up
@@ -21,6 +21,10 @@ Out: <name>-strip.png, the four frames in a row in the first pose's cell, as the
 does not fit that cell (skis sticking out, a pompom hat too tall), they go into the second pose's cell in
 reverse order and the board plays them backwards. The last line printed is the board's TRANS entry. Also
 <name>-check.png: the first pose, frames 2 and 3, the second pose, side by side as the board shows them.
+
+What lies on the ground stays put: where both poses are at the same spot (the board's SAME_SPOT) frames 2 and 3 take
+the first pose's things; --end-props gives them the second pose's, for things that have landed by frame 2 (the skis
+dropping off her boots as she wriggles out of the snow).
 """
 import subprocess
 import sys
@@ -28,7 +32,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # petlib sits beside the tools, also under python -I
-from petlib import PKG, bbox, codex_frames, eye_ref, face_size, green, pieces, pose, register, standing, warp
+from petlib import PKG, bbox, carry_props, codex_frames, eye_ref, face_size, green, loose, pieces, pose, register, spot, standing, warp
 
 GATE = {"height": 0.04, "feet": 6, "overlap": 0.80, "face": 0.04}  # frame 4 against the second pose; faces of frames 2, 3
 PROMPT = ("Use your built-in image generation tool (not code) to edit the attached image into ONE new image, then copy "
@@ -45,6 +49,9 @@ PROMPT = ("Use your built-in image generation tool (not code) to edit the attach
 
 argv = sys.argv[1:]
 tries = 2
+end_props = "--end-props" in argv
+if end_props:
+    argv.remove("--end-props")
 if "--tries" in argv:
     k = argv.index("--tries")
     tries = int(argv[k + 1])
@@ -125,6 +132,12 @@ for f in F:  # specks the keying left apart from her
     for p in pieces(f[..., 3] > 0):
         if p.sum() < 30:
             f[p] = 0
+# what lies on the ground (dumbbells, skis, poles, a fallen bike) and is the same at both ends (the board's SAME_SPOT) stays
+# exactly where it lies: frames 2 and 3 get the first pose's, not codex's own copies, which shift a little every frame
+if spot(first) == spot(second) and loose(a).any():
+    F[1], F[2] = carry_props(A, F[1]), carry_props(A, F[2])
+elif end_props:
+    F[1], F[2] = carry_props(B, F[1]), carry_props(B, F[2])
 
 # the first pose's cell if all four frames fit in it; otherwise the second pose's cell, played backwards
 inside = all(not (f[:oy, :, 3] > 40).any() and not (f[:, :ox, 3] > 40).any() and not (f[:, ox + a.shape[1]:, 3] > 40).any() for f in F)

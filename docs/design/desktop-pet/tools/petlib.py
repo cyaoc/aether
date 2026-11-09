@@ -15,6 +15,7 @@ BOARD = (PKG / "boards/DP-DesktopPet.dc.html").read_text(encoding="utf-8")
 POSE = {p: (k, int(i)) for p, k, i in re.findall(r"(\w+): \['(\w+)', (\d)\]", re.search(r"const POSE = \{(.*?)\};", BOARD, re.S).group(1))}
 STRIP = dict(re.findall(r"(\w+): \{ f: '(\w+)'", re.search(r"const STRIP = \{(.*?)\n\};", BOARD, re.S).group(1)))
 TRANS = dict(re.findall(r"'(\w+>\w+)': '(\w+)'", re.search(r"const TRANS = \{(.*?)\n\};", BOARD, re.S).group(1)))
+SAME_SPOT = dict(re.findall(r"(\w+): '(\w+)'", re.search(r"const SAME_SPOT = \{(.*?)\};", BOARD).group(1)))
 _BLOB = dict(re.findall(r"(\w+): '([0-9a-f]{32})'", re.search(r"const BLOB = \{(.*?)\};", BOARD, re.S).group(1)))
 _FILES = json.loads((PKG / "tools/blobs.json").read_text())
 SHEET = {k: Path(_FILES[md5]).stem for k, md5 in _BLOB.items() if _FILES.get(md5, "").startswith("textures/pose-")}
@@ -54,10 +55,10 @@ def anchor(a):
 
 
 def pose(name):
-    """(drawing, board scale, ground, anchor) of a pose of the board."""
+    """(drawing, board scale, ground, anchor) of a pose of the board; a pose in SAME_SPOT takes its earlier pose's centre."""
     k, i = POSE[name]
     a = cells(SHEET[k])[i]
-    return a, scale(k), ground(k, i), anchor(a)
+    return a, scale(k), ground(k, i), anchor(cells(SHEET[k])[POSE[SAME_SPOT[name]][1]] if name in SAME_SPOT else a)
 
 
 def load_ref(spec):
@@ -300,3 +301,37 @@ def face_size(c, ref):
     """Her face's size against the anchor's, or None where her eyes are not found."""
     m, _, _, s = find_face(c, ref)
     return s if m >= FACE_MATCH else None
+
+
+PROP_MIN = 400  # px: a loose piece at least this big is a thing lying on the ground, smaller ones are specks
+
+
+def loose(a):
+    """The things lying apart from her in drawing a (a dumbbell, skis, a fallen bike), as one mask: every piece but the
+    biggest (her, with whatever she holds or sits in), its soft edge included."""
+    ps = pieces(a[..., 3] > 40)
+    m = np.zeros(a.shape[:2], bool)
+    for q in ps[1:]:
+        if q.sum() >= PROP_MIN:
+            m |= q
+    return np.asarray(Image.fromarray((m * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5))) > 0
+
+
+def carry_props(src, dst):
+    """dst with the things lying on the ground taken exactly from src: dst's own copies go and src's are laid behind her,
+    so a dumbbell or a ski does not move between drawings once it has landed. Same size arrays, float or uint8 RGBA."""
+    src, dst = src.astype(np.float32), dst.astype(np.float32)
+    out = dst.copy()
+    out[loose(dst)] = 0
+    m = loose(src)
+    under = np.zeros_like(dst)
+    under[m] = src[m]
+    ta, ua = out[..., 3:] / 255, under[..., 3:] / 255  # her over the things on the ground
+    a = ta + ua * (1 - ta)
+    rgb = (out[..., :3] * ta + under[..., :3] * ua * (1 - ta)) / np.maximum(a, 1e-6)
+    return np.dstack([rgb, a * 255])
+
+
+def spot(name):
+    """The pose whose things on the ground this pose keeps (SAME_SPOT), or the pose itself."""
+    return SAME_SPOT.get(name, name)
