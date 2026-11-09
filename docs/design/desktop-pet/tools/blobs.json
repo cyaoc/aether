@@ -1,6 +1,6 @@
 {
  "44e8beefd8e45a42a6db32a53b6a334b": "../entry-animation/textures/day.webp",
- "42f6d5fefeb6902a1a4dc62b6c0067c8": "textures/pose-1-common.webp",
+ "679629759c543ac84f842dc88a4284e5": "textures/pose-1-common.webp",
  "26e419983fd50915beebe9874c8f580f": "textures/sprite-pose-1.webp",
  "798d2599257e9749035aa3049a19ea28": "textures/sprite-pose-2.webp",
  "a5423ebc571dd5c837a1759c2e34534f": "textures/castle-closed.webp",
@@ -11,7 +11,6 @@
  "c30af21b10ec63511b5f4838e72245e6": "../mascot/textures/sprite-happy.webp",
  "7761f2f7cddf5ed1d69e16c20647f65b": "textures/sprite-views.webp",
  "084877c8ff8cd82f8f46591b1346947c": "../mascot/textures/sprite-look-right.webp",
- "b74812427826eaf4098b1fbc4d1a78d4": "textures/frames/idle.webp",
  "2e0e9fb19d5a8be126b12532f67cb877": "textures/frames/spFlag.webp",
  "83a5a48403903d4f39f9da51e0012294": "textures/frames/spFly1.webp",
  "87600b97c197c44a1cb9fc55cc76b84d": "textures/frames/spFly2.webp",
@@ -44,8 +43,6 @@
  "141fa7fbb5cd8355d0574f8a7c1db116": "textures/frames/sitDoze.webp",
  "b47ad0de1ffe334ed2a2114d1c0d19fa": "textures/frames/surprisedCheer.webp",
  "d6e954a4b6381fbd7e9f6e3dcd3130e9": "textures/frames/surprisedIn.webp",
- "9a0550fe865e4b132046f9ff879a6846": "textures/frames/wave.webp",
- "e78a7c3759c57e02c013caeb8557f710": "textures/frames/waveIn.webp",
  "7d307c895a6312d653cb17b53fcbc458": "textures/pose-2-lottery.webp",
  "ff4d8c48571b2333df40d429b7c05db2": "textures/pose-3-daily-1.webp",
  "90f37dbb2574c5553e806d58770fc459": "textures/pose-5-moods.webp",
@@ -110,5 +107,8 @@
  "5f51364b751399a1c55830e77ad2e38c": "textures/frames/trekSlip.webp",
  "ede9de25e7ff81baf9111c39fa745cae": "textures/frames/walk.webp",
  "4bf96519d625d325173f78bb6f8ed7ca": "textures/frames/wipe.webp",
- "f80838ee3607e0f3f07af8e182ae72e0": "textures/frames/wipeIn.webp"
+ "f80838ee3607e0f3f07af8e182ae72e0": "textures/frames/wipeIn.webp",
+ "8a8ce265a4449d625baac5eaf569add7": "textures/frames/wave.webp",
+ "6903b28511e3475417eed414207ebc70": "textures/frames/waveIn.webp",
+ "5ab114457093c3f03038df11fd113ac4": "textures/frames/idle.webp"
 }

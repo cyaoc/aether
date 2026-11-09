@@ -1,6 +1,6 @@
 """Turn codex's four animation frames of one drawing into a frame strip that does not boil.
 
-python frame-patch.py [--from-first] [--box x0,y0,x1,y1] [--take x0,y0,x1,y1] [--face [--end <end ref>]] <ref> <frames.png> <out.png> [check.png]
+python frame-patch.py [--from-first | --ref-first] [--box x0,y0,x1,y1] [--take x0,y0,x1,y1] [--face [--end <end ref>]] <ref> <frames.png> <out.png> [check.png]
 python frame-patch.py --green <ref> <out.png>
 
 <ref> is the drawing the frames were made from: `sheet.webp:3` (cell 3 of a 3 x 2 sheet, counted left to right, top row
@@ -16,6 +16,9 @@ pixels. When codex drew the still parts too differently for that edge to meet th
 twice), --from-first uses its frame 1 as the base instead. Out: the four frames in one row, each the reference's size,
 transparent, in the reference's own coordinates. --take always takes that box from the frames, every frame including the
 first, for a part that moves all the time (walking legs), so nothing of the reference's stays there (a shoe's shadow).
+--ref-first makes frame 1 the reference itself, for a loop played in place of its drawing (the idle blink): the open eyes
+are then the drawing's own, the same eyes every pose that keeps her drawn head shows, so leaving the loop does not shift
+them by codex's pixel.
 
 --face keeps her head: where codex's head did not move, the reference's whole head is kept; where her head moves (a
 sway, a bow, a hop) codex's face is a little different in every frame and
@@ -50,8 +53,8 @@ if sys.argv[1] == "--green":
     sys.exit()
 
 args = sys.argv[1:]
-from_first, lock_face = "--from-first" in args, "--face" in args
-args = [a for a in args if a not in ("--from-first", "--face")]
+from_first, ref_first, lock_face = "--from-first" in args, "--ref-first" in args, "--face" in args
+args = [a for a in args if a not in ("--from-first", "--ref-first", "--face")]
 end_spec = None
 if "--end" in args:
     k = args.index("--end")
@@ -333,7 +336,9 @@ for k, f in enumerate(F):
     keep = still_head(k) if k and lock_face else None
     m = mask * (1 - keep) if keep is not None else mask
     res = base * (1 - m) + f * m
-    if keep is not None:
+    if k == 0 and ref_first:
+        res = R
+    elif keep is not None:
         print(f"frame {k + 1}: head kept from the reference")
     elif faces and faces[k] is not None:
         got = lay_face(res, faces[k])
