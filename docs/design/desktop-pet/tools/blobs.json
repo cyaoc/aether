@@ -1,6 +1,6 @@
 {
  "44e8beefd8e45a42a6db32a53b6a334b": "../entry-animation/textures/day.webp",
- "679629759c543ac84f842dc88a4284e5": "textures/pose-1-common.webp",
+ "43807c281244c3d7940444b6a1a0f32f": "textures/pose-1-common.webp",
  "26e419983fd50915beebe9874c8f580f": "textures/sprite-pose-1.webp",
  "798d2599257e9749035aa3049a19ea28": "textures/sprite-pose-2.webp",
  "a5423ebc571dd5c837a1759c2e34534f": "textures/castle-closed.webp",
@@ -108,7 +108,7 @@
  "ede9de25e7ff81baf9111c39fa745cae": "textures/frames/walk.webp",
  "4bf96519d625d325173f78bb6f8ed7ca": "textures/frames/wipe.webp",
  "f80838ee3607e0f3f07af8e182ae72e0": "textures/frames/wipeIn.webp",
- "8a8ce265a4449d625baac5eaf569add7": "textures/frames/wave.webp",
- "6903b28511e3475417eed414207ebc70": "textures/frames/waveIn.webp",
- "5ab114457093c3f03038df11fd113ac4": "textures/frames/idle.webp"
+ "5ab114457093c3f03038df11fd113ac4": "textures/frames/idle.webp",
+ "9a032a0de7fb17319e61b3ddca399bbb": "textures/frames/wave.webp",
+ "67299cffa4a93021f47870837f87b345": "textures/frames/waveIn.webp"
 }
