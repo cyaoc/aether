@@ -27,7 +27,8 @@ GATE = 0.04  # how far codex may redraw her bigger or smaller
 PROPS = {"flagship": ((1536, 1024), (170, 990), [], (2.0, 2.45)),
          "emblem": ((1024, 1024), (230, 900), [], None),
          "giftbox": ((1024, 1024), (300, 900), [], None),
-         "balloons": ((1024, 1024), (230, 900), [], None)}
+         "balloons": ((1024, 1024), (230, 900), [], None),
+         "admship": ((1536, 1024), (170, 990), [PKG / "textures/flagship.webp"], (1.5, 1.9))}
 DRAW = ("Use your built-in image generation tool (not code) to edit the LAST attached image into ONE new image, then copy "
         "the generated PNG file to {out}. Do not write any code. The last attached image is a canvas of perfectly flat "
         "solid #00FF00 green with a chibi girl already standing in it: keep her exactly as she is, the same size, in the "

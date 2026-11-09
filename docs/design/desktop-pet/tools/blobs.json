@@ -41,7 +41,6 @@
  "d2d4ed17ed52087444df30293d2696b0": "textures/frames/admRaise.webp",
  "9bde503d05645406b3874e7ce7c5e6f7": "textures/frames/bored.webp",
  "30d30532e32f4da3275ce3bd0d329d73": "textures/frames/capRaise.webp",
- "d801de0c526dcfd5cdc102eefc1d1d53": "textures/frames/cheer.webp",
  "c5a840b398245670381c6e41cc24e575": "textures/frames/clap.webp",
  "4fb4dbdcdf8e689580a0b94d01496ece": "textures/frames/curl.webp",
  "b90cd277e9f93a6e86d355bfd826e163": "textures/frames/curtsy.webp",
@@ -60,10 +59,8 @@
  "2f6ea8efa98be75327342cce66054414": "textures/frames/skiGlide.webp",
  "e4878b3f26f95745cc23b73f1ec071be": "textures/frames/spin.webp",
  "2d3ce641a512560c97e080a3cc39ce28": "textures/frames/spyRaise.webp",
- "1ae44e2bc4397524321578720f354589": "textures/frames/trek.webp",
  "6431ef43dbef6befe72a158e5cccdce7": "textures/frames/walk.webp",
  "273270295ba8e757e80c6e511b3955aa": "textures/frames/wave.webp",
- "d2e4c22d0fbe9a314220264802ca2019": "textures/frames/wipe.webp",
  "8a8045355a623d68acfc52029c8841a7": "textures/frames/admOut.webp",
  "67bd8c1e8793dc668515454c831f01f3": "textures/frames/announceIn.webp",
  "727cbd8779e3cfbeb66e63aea6d52986": "textures/frames/announceOut.webp",
@@ -134,5 +131,9 @@
  "8b403638ceb159d9731227ef6ef51474": "textures/frames/trekSlip.webp",
  "45b35bc2f45fa3bf60405f8d5f4b20e6": "textures/frames/waveIn.webp",
  "d597045687c668c96935bf4a3dd615e1": "textures/frames/wipeIn.webp",
- "8664b6e7ebe4ef626cfcbaff7fd0eb2a": "textures/frames/giftIn.webp"
+ "8664b6e7ebe4ef626cfcbaff7fd0eb2a": "textures/frames/giftIn.webp",
+ "f20551b26d7a6b88d2a1290d07906da5": "textures/admship.webp",
+ "bbc13f8939be672a6d9aa5f8dc980f30": "textures/frames/cheer.webp",
+ "425564cb708fb55366cc63907634a992": "textures/frames/wipe.webp",
+ "618dc828f2bb538f4b79c5f87875d702": "textures/frames/trek.webp"
 }
