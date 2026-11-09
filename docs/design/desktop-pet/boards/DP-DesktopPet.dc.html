@@ -717,6 +717,37 @@ class Component extends DCLogic {
     return { x: st.x + (c.x - c.cx) * k, y: st.y + (c.y - c.ground) * k, w: c.w * k, h: c.h * k, k };
   }
 
+  // In-between frames from pose a to pose b: their own strip, or the other way's played backwards; [] where she simply
+  // switches (CUT); null where there are none.
+  hop(a, b) {
+    if (CUT.has(`${a}>${b}`) || CUT.has(`${b}>${a}`)) return [];
+    const there = this.tweens[`${a}>${b}`], back = this.tweens[`${b}>${a}`];
+    return there || (back && [...back].reverse()) || null;
+  }
+
+  // An event can start, or take over a lesser one, whatever she is doing (humming, sitting bored, lying by her bike),
+  // and most of those pairs have no in-betweens of their own. So she goes the shortest way through poses that have them
+  // (at most five steps; standing is tried first, so it is the usual way through, and a movement played forwards before
+  // one played backwards, so after a fall she gets up rather than the fall running back), playing their frames one
+  // after another; null where there is no way (then the old gather and rise).
+  route(a, b) {
+    const memo = this.routes ??= {}, key = `${a}>${b}`;
+    if (key in memo) return memo[key];
+    const from = { [a]: null }, forwards = (p, n) => this.tweens[`${p}>${n}`] || CUT.has(`${p}>${n}`) || CUT.has(`${n}>${p}`);
+    let ring = [a];
+    for (let depth = 0; depth < 5 && ring.length && !(b in from); depth++) {
+      const next = [];
+      for (const back of [false, true]) for (const p of ring) for (const n of Object.keys(POSE)) {
+        if (!(n in from) && this.hop(p, n) && !forwards(p, n) === back) { from[n] = p; next.push(n); }
+      }
+      ring = next;
+    }
+    if (!(b in from)) return memo[key] = null;
+    const path = [b];
+    while (path[0] !== a) path.unshift(from[path[0]]);
+    return memo[key] = path.slice(1).flatMap((m, i) => this.hop(path[i], m));
+  }
+
   // A pose change is one movement, not a cut. Where the pair has in-between frames (TRANS) she moves through them. Otherwise
   // she gathers herself for a beat (the old drawing squashes a little), then the new drawing rises or sinks out of the old
   // one's height, stretches a touch past it and settles; the new one comes in over the old, which only then goes.
@@ -725,9 +756,8 @@ class Component extends DCLogic {
     const hv = this.hv ??= { pose: st.pose, prev: null, at: -1e9, next: null, ask: 0, since: this.clock, tween: null };
     if (st.pose === hv.pose) hv.next = null;
     else {
-      const fwd = this.tweens[`${hv.pose}>${st.pose}`], back = this.tweens[`${st.pose}>${hv.pose}`];
-      if (CUT.has(`${hv.pose}>${st.pose}`) || CUT.has(`${st.pose}>${hv.pose}`)) Object.assign(hv, { tween: null, prev: null, next: null, pose: st.pose, at: rt, since: this.clock });
-      else if (fwd || back) Object.assign(hv, { tween: fwd || [...back].reverse(), prev: null, next: null, pose: st.pose, at: rt, since: this.clock });
+      const way = this.route(hv.pose, st.pose);
+      if (way) Object.assign(hv, { tween: way, prev: null, next: null, pose: st.pose, at: rt, since: this.clock });
       else if (st.pose !== hv.next) { hv.next = st.pose; hv.ask = rt; }
     }
     if (hv.next && el(hv.ask) >= 90) Object.assign(hv, { prev: hv.pose, pose: hv.next, next: null, at: rt, since: this.clock, tween: null });
