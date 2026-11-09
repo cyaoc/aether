@@ -1,6 +1,6 @@
 """Turn codex's four animation frames of one drawing into a frame strip that does not boil.
 
-python frame-patch.py [--from-first | --ref-first] [--box x0,y0,x1,y1] [--take x0,y0,x1,y1] [--face [--end <end ref>]] <ref> <frames.png> <out.png> [check.png]
+python frame-patch.py [--from-first | --ref-first] [--whole] [--box x0,y0,x1,y1] [--take x0,y0,x1,y1] [--face [--end <end ref>]] <ref> <frames.png> <out.png> [check.png]
 python frame-patch.py --green <ref> <out.png>
 
 <ref> is the drawing the frames were made from: `sheet.webp:3` (cell 3 of a 3 x 2 sheet, counted left to right, top row
@@ -26,6 +26,12 @@ flickers when played, so the reference's own face is laid over each frame instea
 frame's head is. With --end (a transition), frames 3 and 4 get the end drawing's face, so her expression only ever
 changes between the two drawn faces. A frame whose face does not match well enough (turned away, hidden) is left alone.
 Not for loops whose point is the face changing (a blink).
+--whole: frames 2 to 4 are codex's drawing whole, nothing of the reference kept in them, with --face each with a drawn
+face laid over codex's head (the first drawing's in frame 2, the end drawing's in frames 3 and 4). For in-betweens where
+all of her moves: a change of clothes under the sprite's flash (frame 2 still in the first outfit, frame 3 already in
+the second; keeping the first drawing's head would wipe off a cap or a helmet), and any change where her hair, arms and
+feet all shift, since blending codex's moved hair and shoes with the still reference left hair smeared over her cheek
+and a ghost of a shoe under her feet. Two frames shown for 90 ms each between two poses do not boil.
 """
 import sys
 import numpy as np
@@ -53,8 +59,8 @@ if sys.argv[1] == "--green":
     sys.exit()
 
 args = sys.argv[1:]
-from_first, ref_first, lock_face = "--from-first" in args, "--ref-first" in args, "--face" in args
-args = [a for a in args if a not in ("--from-first", "--ref-first", "--face")]
+from_first, ref_first, lock_face, whole = "--from-first" in args, "--ref-first" in args, "--face" in args, "--whole" in args
+args = [a for a in args if a not in ("--from-first", "--ref-first", "--face", "--whole")]
 end_spec = None
 if "--end" in args:
     k = args.index("--end")
@@ -333,8 +339,9 @@ if lock_face:
     end = face_patch(np.asarray(load_ref(end_spec), dtype=np.float32)) if end_spec else start
     faces = [start, start, end, end]
 for k, f in enumerate(F):
-    keep = still_head(k) if k and lock_face else None
-    m = mask * (1 - keep) if keep is not None else mask
+    drawn = whole and k >= 1
+    keep = still_head(k) if k and lock_face and not drawn else None
+    m = np.ones_like(mask) if drawn else mask * (1 - keep) if keep is not None else mask
     res = base * (1 - m) + f * m
     if k == 0 and ref_first:
         res = R
