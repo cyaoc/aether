@@ -593,10 +593,15 @@ class Component extends DCLogic {
   // and salutes, and the ship answers: it dresses its flags from bow to stern and glows; then it sails off to the right,
   // the sprite flies back down to her and dresses her back.
   admiral(t, st, say) {
-    const come = ease(k01(t, 1100, 3400)), go = ease(k01(t, 6000, 7600)), a = ADM_SHIP;
-    const ship = { x: 70 + (a.x - 70) * come + (PAGE.w + 220 - a.x) * go, y: 200 + (a.y - 200) * come - 20 * go + 4 * Math.sin(t / 450),
-      s: a.s * (0.45 + 0.55 * come) * (1 - 0.15 * go), a: k01(t, 1100, 1500) * (1 - k01(t, 7200, 7600)),
-      flags: ease(k01(t, 3600, 4300)), glow: bump(t, 3500, 5600), wake: Math.max(come < 1 ? k01(t, 1100, 1400) : 0, go > 0 ? 1 - go : 0) };
+    // It is drawn side on, so it only ever moves along its heading: in from beyond the left edge, slowing to a stop behind
+    // her (running on a little and settling back, its bow dipping), rocking on the waves, then gathering way out to the
+    // right with its bow lifting. (It used to slide in down a slant while growing, which a ship seen side on cannot do.)
+    const a = ADM_SHIP, w = this.props.admship.width * H / ANCHOR * a.s, from = -w / 2 - 30, to = PAGE.w + w / 2 + 30;
+    const xAt = u => from + (a.x - from) * (1 - (1 - k01(u, 1100, 3400)) ** 3) + 10 * Math.sin(Math.PI * k01(u, 3400, 4300)) + (to - a.x) * k01(u, 6000, 7600) ** 2;
+    const speed = Math.min(1, Math.abs(xAt(t + 20) - xAt(t - 20)) / 40 / 0.45);  // 1 at full way
+    const ship = { x: xAt(t), y: a.y + 4 * Math.sin(t / 450), s: a.s, a: t >= 1100 && t < 7700 ? 1 : 0, speed,
+      rot: 0.015 * Math.sin(t / 650) + 0.035 * Math.sin(Math.PI * k01(t, 3300, 4300)) - 0.03 * Math.sin(Math.PI * k01(t, 6000, 6800)),
+      flags: ease(k01(t, 3600, 4300)), glow: bump(t, 3500, 5600) };
     st.admShip = ship;
     const mast = this.admPoint(ship, a.mast);
     if (t < 700) this.dress(st, t, 0, 700);
@@ -611,8 +616,11 @@ class Component extends DCLogic {
     return st;
   }
 
-  // Where a point of the admiral's ship (prop px) is on the page, the ship's bottom centre at s.x, s.y.
-  admPoint(s, pt) { const im = this.props.admship, k = H / ANCHOR * s.s; return { x: s.x + (pt[0] - im.width / 2) * k, y: s.y - (im.height - pt[1]) * k }; }
+  // Where a point of the admiral's ship (prop px) is on the page, the ship's bottom centre at s.x, s.y, rocked by s.rot.
+  admPoint(s, pt) {
+    const im = this.props.admship, k = H / ANCHOR * s.s, dx = (pt[0] - im.width / 2) * k, dy = -(im.height - pt[1]) * k, c = Math.cos(s.rot || 0), n = Math.sin(s.rot || 0);
+    return { x: s.x + dx * c - dy * n, y: s.y + dx * n + dy * c };
+  }
 
   // Where a point of the flagship's picture (prop px) is on the page, the ship's deck at st.ship.x, .y.
   shipPoint(sh, pt) { const k = H / ANCHOR * sh.s, d = PROPS.flagship.deck; return { x: sh.x + (pt[0] - d[0]) * k, y: sh.y + (pt[1] - d[1]) * k }; }
@@ -940,20 +948,31 @@ class Component extends DCLogic {
     g.save(); g.globalAlpha = s.a; g.drawImage(im, s.x - d[0] * k, s.y - d[1] * k, im.width * k, im.height * k); g.restore();
   }
 
-  // The admiral's ship (bottom centre at s.x, s.y): a purple glow behind it when it answers her salute, a white wake behind
-  // its stern while it sails, and its flags strung bow to mainmast to foremast to stern as it dresses (s.flags 0..1).
+  // The admiral's ship (bottom centre at s.x, s.y, rocked by s.rot): a purple glow behind it when it answers her salute;
+  // while it moves (s.speed 0..1) a white wake trails its stern and spray flies off its bow; its flags strung bow to
+  // mainmast to foremast to stern as it dresses (s.flags 0..1).
   drawAdmShip(g, s) {
-    const im = this.props.admship, k = H / ANCHOR * s.s, w = im.width * k, h = im.height * k, c = GLOW.A;
-    g.save(); g.globalAlpha = s.a;
+    if (!s.a) return;
+    const im = this.props.admship, k = H / ANCHOR * s.s, w = im.width * k, h = im.height * k, c = GLOW.A, now = performance.now();
+    g.save(); g.translate(s.x, s.y); g.rotate(s.rot || 0);
     if (s.glow) {
-      const gr = g.createRadialGradient(s.x, s.y - h * 0.5, 0, s.x, s.y - h * 0.5, w * 0.8); gr.addColorStop(0, `rgba(${c},${0.6 * s.glow})`); gr.addColorStop(1, `rgba(${c},0)`);
-      g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(s.x - w, s.y - h * 1.4, w * 2, h * 1.7); g.globalCompositeOperation = 'source-over';
+      const gr = g.createRadialGradient(0, -h * 0.5, 0, 0, -h * 0.5, w * 0.8); gr.addColorStop(0, `rgba(${c},${0.6 * s.glow})`); gr.addColorStop(1, `rgba(${c},0)`);
+      g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(-w, -h * 1.4, w * 2, h * 1.7); g.globalCompositeOperation = 'source-over';
     }
-    if (s.wake) {
-      g.strokeStyle = `rgba(255,255,255,${0.75 * s.wake})`; g.lineCap = 'round';
-      for (let i = 0; i < 3; i++) { g.lineWidth = 5 - i * 1.4; g.beginPath(); g.moveTo(s.x - w * 0.42, s.y - h * 0.1 + i * 7); g.quadraticCurveTo(s.x - w * (0.7 + i * 0.12), s.y - h * 0.02 + i * 9, s.x - w * (1 + i * 0.2), s.y - h * 0.12 + i * 8); g.stroke(); }
+    if (s.speed > 0.05) {  // lilac-edged so they show against the white cloud waves and the sky
+      g.lineCap = 'round';
+      for (const [col, wd] of [[`rgba(${c},${0.7 * s.speed})`, 4], [`rgba(255,255,255,${0.95 * s.speed})`, 0]]) {
+        g.strokeStyle = col;
+        for (let i = 0; i < 3; i++) { const len = w * (0.3 + 0.4 * s.speed) * (1 - i * 0.2); g.lineWidth = 6 - i * 1.6 + wd; g.beginPath(); g.moveTo(-w * 0.5, -h * 0.07 + i * 9); g.quadraticCurveTo(-w * 0.5 - len * 0.5, -h * 0.01 + i * 10 + 3 * Math.sin(now / 200 + i), -w * 0.5 - len, -h * 0.09 + i * 9); g.stroke(); }
+      }
+      for (let i = 0; i < 8; i++) {
+        const u = (now / 420 + i / 8) % 1, x = w * 0.48 + u * 34 * s.speed, y = -h * 0.08 - Math.sin(Math.PI * u) * 28 * s.speed, r = (4.5 - 2.5 * u) * (0.6 + 0.4 * s.speed);
+        g.fillStyle = `rgba(255,255,255,${0.95 * s.speed})`; g.strokeStyle = `rgba(${c},${0.8 * s.speed})`; g.lineWidth = 1.5; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke();
+      }
     }
-    g.drawImage(im, s.x - w / 2, s.y - h, w, h);
+    g.drawImage(im, -w / 2, -h, w, h);
+    g.restore();
+    g.save();
     if (s.flags) {
       const pts = ADM_SHIP.rig.map(q => this.admPoint(s, q)), segs = pts.slice(1).map((q, i) => [pts[i], q]), n = 22, cols = ['#FF6B6B', '#FFD45E', '#7FD3FF', '#C4A2FF', '#9DF0C0', '#fff'];
       const total = segs.reduce((a, [p0, p1]) => a + Math.hypot(p1.x - p0.x, p1.y - p0.y), 0), upto = total * s.flags;
