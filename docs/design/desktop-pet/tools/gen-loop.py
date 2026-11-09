@@ -24,7 +24,9 @@ GATE = 0.06
 # frame-patch.py options: the head kept where it does not move; frame 1 the drawing itself for a loop played in its place
 # (a blink); codex's frame 1 as the base where its still parts do not meet the drawing (the bike); the legs always taken
 # from the frames for walking (nothing of the drawing's feet left behind)
-OPTIONS = {"wave": ["--head"], "clap": ["--head"], "cheer": ["upper", "--head"], "curl": ["--head"], "shakeBox": ["--head"],
+# (the cheer keeps no head: her raised hands sit beside her head, and keeping the drawing's head kept them too, so her hands
+# never came down)
+OPTIONS = {"wave": ["--head"], "clap": ["--head"], "cheer": ["upper"], "curl": ["--head"], "shakeBox": ["--head"],
            "govWave": ["--head"], "gymWipe": ["--head"], "capSalute": ["--head"], "admSalute": ["--head"],
            "spyglass": ["--head"], "bike": ["--head", "--from-first"], "idle": ["--ref-first"], "bored": ["--ref-first"],
            "hike": ["legs"], "walkA": ["legs"]}

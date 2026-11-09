@@ -84,7 +84,7 @@ def main():
     best = None
     for t in range(tries):
         design = [out / f"{name}-design.png"] if (out / f"{name}-design.png").exists() else []  # an earlier draw to keep
-        pic = codex(DRAW.format(out=out / f"{name}-try{t + 1}.png", what=what + (" Keep the design in the image just before the canvas exactly, only at the size given here." if design else "")),
+        pic = codex(DRAW.format(out=out / f"{name}-try{t + 1}.png", what=what + (" Keep the shape and design of the image just before the canvas, in the colors given here, at the size given here." if design else "")),
                     [CASTLE] + refs + design + [out / f"{name}-canvas.png"], out / f"{name}-try{t + 1}.png")
         if pic is None:
             print(f"try {t + 1}: codex gave no image")
