@@ -44,7 +44,7 @@ const POSE = {
   hikeReady: ['hike11', 1], hike: ['hike11', 2], slip: ['hike11', 3], hikeBrush: ['hike11', 4], hikeUp: ['hike11', 5],
   bikeReady: ['cycle12', 1], bike: ['cycle12', 2], crash: ['cycle12', 3], bikePlaster: ['cycle12', 4], bikeUp: ['cycle12', 5],
   bored: ['moods', 1], gloomy: ['moods', 2], pout: ['moods', 3], shy: ['moods', 4], awake: ['moods', 5],
-  giftBox: ['gifts', 1], shakeBox: ['gifts', 2], openBox: ['gifts', 3], crownV: ['gifts', 4], nod: ['gifts', 5],
+  giftBox: ['gifts', 1], shakeBox: ['gifts', 2], holdBox: ['gifts', 2], openBox: ['gifts', 3], crownV: ['gifts', 4], nod: ['gifts', 5],
   pIdle: ['castleSheet', 1], spin: ['castleSheet', 2], curtsy: ['castleSheet', 3], walkA: ['castleSheet', 4], lookBack: ['castleSheet', 5],
   skiReady: ['ski9', 1], ski: ['ski9', 2], skiDown: ['ski9', 3], skiPopOut: ['ski9', 4], skiShake: ['ski9', 5],
   capSalute: ['voyage', 1], govJump: ['voyage', 4], spyglass: ['voyage', 2], admSalute: ['voyage', 3], govPoint: ['voyage', 4], govWave: ['voyage', 5]
@@ -107,7 +107,8 @@ const TRANS = {
 // governor's jump starts and ends on her pointing), or a change of clothes at the height of the sprite's flash where the
 // pose stays (the captain's and admiral's raise strips start standing; the princess gown back to her uniform) or where
 // she is mid-twirl (into the gown at the castle). The way back from the captain's salute has its own in-betweens.
-const CUT = new Set(['govPoint>govJump', 'govJump>govPoint', 'idle>capSalute', 'idle>spyglass', 'pIdle>idle', 'idle>spin']);
+const CUT = new Set(['govPoint>govJump', 'govJump>govPoint', 'idle>capSalute', 'idle>spyglass', 'pIdle>idle', 'idle>spin', 'shakeBox>holdBox', 'holdBox>shakeBox']);
+// (holdBox is the shaking drawing held still: she stops shaking between the boxes of a round and listens.)
 const SPRITE = { flag: ['sp1', 1], nod: ['sp1', 2], surprised: ['sp1', 3], yawn: ['sp1', 4], sleep: ['sp1', 5], pat: ['sp2', 1], crown: ['sp2', 2], sailor: ['sp2', 3], glow: ['sp2', 4], hide: ['sp2', 5] };
 // The sprite keeps these drawings while it flies, since they carry something.
 const CARRY = new Set(['crown', 'glow']);
@@ -211,6 +212,10 @@ const NAMES = { 普通昵称: '星河', 长昵称: '这是一个非常非常长�
 const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 中礼物: '告白气球', 大礼物: '小电视飞船', '盲盒·小': '棉花糖', '盲盒·中': '爱心抱枕', '盲盒·大': '爱心抱枕', 城堡: '浪漫城堡' };
 // A viewer's gift round ends after this much silence (README 2); the 中礼物 and 大礼物 thresholds, in 电池 (the GUI defaults).
 const ROUND_GAP = 3000, MID = 1000, BIG = 10000;
+// When a blind box show opens its box; after a round she has shaken it already, so the show starts there (start()).
+const BOX_OPEN = { '盲盒·小': 900, '盲盒·中': 1200, '盲盒·大': 1500 };
+// How long she shakes the box for each blind box that comes in during a round, before holding it still to listen.
+const SHAKE_MS = 700;
 // Which lines a blind box's ending says.
 const BOX_LINES = { 赚: '盲盒赚了', 平: '盲盒不赚不亏', 亏: '盲盒亏了', 大奖: '盲盒出大奖' };
 const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
@@ -355,6 +360,8 @@ class Component extends DCLogic {
     if (this.cur) this.note(`${this.cur.name} 被 ${name} 打断`);
     const wake = !!opts.wake, dur = name === '日常' ? DAILY[opts.kind][0] + (opts.mishap ? DAILY[opts.kind][1] : 0) : EVENTS[name].dur;
     this.cur = { name, opts, start: now, pre: wake ? 1000 : 0, dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('冷场后来了人') : null };
+    // a round's blind boxes were shaken as they came in: the show opens the box right away instead of shaking it again
+    if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
     if (name === '日常') this.nextDaily = now + dur + 20000 + this.rng() * 20000;
     if (name === '报名开场') this.lot = { kind: '报名', phase: '报名中' };
     if (name === '奖池开场') this.lot = { kind: '奖池', phase: '点名前' };
@@ -395,13 +402,14 @@ class Component extends DCLogic {
     // a round of both goes by the side it spent more on; its size by the whole round
     if (boxes.length && boxSpend * 2 >= spend) {
       const jackpot = boxes.some(x => x.price >= BIG), result = jackpot ? '大奖' : opened > boxSpend ? '赚' : opened === boxSpend ? '平' : '亏';
-      return this.fire(['盲盒·小', '盲盒·中', '盲盒·大'][jackpot ? 2 : size(spend)], { ...opts, result, gift: best(boxes).gift, count: sum(boxes, x => x.n) });
+      return this.fire(['盲盒·小', '盲盒·中', '盲盒·大'][jackpot ? 2 : size(spend)], { ...opts, result, gift: best(boxes).gift, count: sum(boxes, x => x.n), shaken: true });
     }
     const gifts = items.filter(x => !x.box), count = sum(gifts, x => x.n), kind = ['普通礼物', '中礼物', '大礼物'][size(spend)];
     return this.fire(kind === '普通礼物' && count >= 5 ? '连着送' : kind, { ...opts, gift: best(gifts).gift, count });
   }
 
-  // While a round is still coming in she does not just wait: each gift flies into her arms; blind boxes she shakes.
+  // While a round is still coming in she does not just wait: each gift flies into her arms; each blind box she shakes for
+  // a moment, then holds the box still and listens until the next one or the end of the round.
   roundState(now) {
     const r = this.round, st = this.base(), box = r.items.some(x => x.box);
     st._t = now - r.start;
@@ -410,9 +418,8 @@ class Component extends DCLogic {
       st.bubble = { text: this.fill(r.wakeLine, '冷场后来了人'), t: st._t };
       return st;
     }
-    st.pose = box ? 'shakeBox' : 'giftBox'; st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22];
-    for (const x of r.items) st.fx.push(['giftArc', x.at - r.start]);
-    if (box) st.fx.push(['shakeMarks', 0, 0.85, 0.2, 1e9]);
+    st.pose = !box ? 'giftBox' : now - r.last < SHAKE_MS ? 'shakeBox' : 'holdBox'; st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22];
+    for (const x of r.items) st.fx.push(['giftArc', x.at - r.start], ...(x.box ? [['shakeMarks', x.at - r.start, 0.85, 0.2, SHAKE_MS]] : []));
     return st;
   }
 
@@ -517,7 +524,7 @@ class Component extends DCLogic {
       // breaking even she smiles and nods, a loss pouts and stamps and then bows her thanks while it pats her head
       case '盲盒·小': case '盲盒·中': case '盲盒·大': {
         const size = ['盲盒·小', '盲盒·中', '盲盒·大'].indexOf(name), r = opts.result || '赚', win = r === '赚' || r === '大奖', loss = r === '亏';
-        const o = [900, 1200, 1500][size], wow = [0, 2000, 2600][size];
+        const o = BOX_OPEN[name], wow = [0, 2000, 2600][size];
         const steps = size === 0 ? [[0, 'shakeBox'], [o, 'openBox'], [1500, loss ? 'pout' : 'nod']]
           : loss ? [[0, 'shakeBox'], [o, 'openBox'], [[0, 2000, 3500][size], 'pout'], [[0, 3000, 4700][size], 'bow']]
           : [[0, 'shakeBox'], [o, 'openBox'], [wow, 'surprised'], [[0, 2600, 3500][size], win ? 'cheer' : 'nod']];
