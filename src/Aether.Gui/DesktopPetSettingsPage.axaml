@@ -36,7 +36,7 @@
     <StackPanel Spacing="16">
       <TextBlock x:Name="EnabledReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
       <local:PageStatusBar x:Name="PageStatus" DataContext="{Binding WebService.DesktopPet}" />
-      <Border x:Name="OffNotice" Classes="card notice" Padding="12,10" Background="{DynamicResource Border.Subtle}">
+      <Border x:Name="OffNotice" Classes="card notice" Background="{DynamicResource Border.Subtle}">
         <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
           <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Skip}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
           <TextBlock Grid.Column="1" Classes="secondary singleLine" FontWeight="SemiBold" Foreground="{DynamicResource Text.Secondary}" Text="桌宠关着：桌宠页现在是透明的，她不出现" VerticalAlignment="Center" />
