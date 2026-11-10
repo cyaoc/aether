@@ -40,12 +40,13 @@ Its engine is `engine.mjs` (which show plays when, the 一轮送礼, the 心情 
 moment) and its drawing `pet.mjs` and `effects.mjs`, ported function for function on one Canvas 2D; `page.mjs` hands each
 event above to the engine's handler of the same name. The board's numbers measured on her pictures are the current
 character's `desktopPet` (`../characters/README.md`); the shows' timings, effects and the sprite's ways stay here, the same for
-every character. The page plays the 心情, the 日常小动作 and their mishaps, entries, gifts and blind boxes; a 大航海 only counts
-for her 心情 so far.
+every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps, entries, gifts, blind boxes,
+castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`) and each step of a lottery.
 
 The page is 480 × 640 design px, scaled with the browser source and standing on its bottom edge, and draws her pictures at
-their own resolution. It loads her pictures at once but for each 日常小动作's sheet, which loads when it first plays: all of them
-decoded take about 574 MB. A pose whose sheet is still loading keeps her in the drawing she has.
+their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作, the castle, 大航海 and the
+lottery, each with its strips when it first plays (the lottery's too when she first waits through one): all of them decoded
+take about 574 MB. A pose whose sheet is still loading keeps her in the drawing she has.
 
 `scripts/desktop-pet/` checks the page against the board: `compare.mjs` plays every show, 心情 and round on both from one seed
 and frame by frame on one clock and compares their pixels; `check.mjs` finds changes of pose with no way across, and
@@ -64,6 +65,15 @@ real time.
 - The thresholds, the minutes before each 心情 (0 never), the 日常小动作's interval, which of them she does and their chance of a
   mishap, the shows turned off and her lines are the state's; the board's are fixed. Without a room she stays calm, and her
   quiet-room clocks start when one connects.
+- A castle in a 一轮送礼, sent or opened, stops its gift and blind box shows; one among blind boxes waits for their result as
+  they do. The board played a blind box show after a castle sent in the same round.
+- The lottery is Core's state, so its steps play as its phase changes and she waits through it by that phase (entries open, a
+  draw coming), not by the steps the board's buttons started: a 试演 of a step leaves her as she was. She reacts to a draw at
+  its DrawUntil, when the 抽奖页's effects end; its show, which holds her breath 2.5 s first, starts that much earlier. A pool
+  lottery has no end of its own, so it ends as a new lottery replaces it, and between draws she does her 日常小动作. The viewer a
+  pool calls is named by UID, all its state has, as the 抽奖页 names a winner without a nickname.
+- A new first place on the 礼物榜 is crowned after whatever show plays when the 礼物榜 tells it, not a 日常小动作; the board's
+  gift said it took first place.
 - A 试演 starts its show at once, or holds her in its 心情, until it is stopped.
-- Shows, 心情, 日常小动作, endings and kinds of lines go by their ids in the 演出表 rather than the board's Chinese names, and
-  her lines are picked with `Math.random`, not the board's fixed seed.
+- Shows, 心情, 日常小动作, endings, lottery steps and kinds of lines go by their ids in the 演出表 rather than the board's Chinese
+  names, and her lines are picked with `Math.random`, not the board's fixed seed.

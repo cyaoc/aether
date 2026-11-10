@@ -1,12 +1,13 @@
 // The shows' effects (design package README 7.1), drawn by code on the 桌宠页's canvas, as the board draws them.
 import { FOOT, H, PAGE, ease, k01, seeded } from './engine.mjs';
 
-// Effects drawn behind her (glows, rays, rings on the ground, speed lines); the rest go in front. (seamGlow: the light of a
-// blind box glows out around the box from behind her, so it does not whiten the box itself.)
-export const BACK = new Set(['halo', 'rays', 'burst', 'shockwave', 'speed', 'spray', 'pillar', 'seamGlow']);
+// Effects drawn behind her (glows, rays, focus lines, rings on the ground, speed lines); the rest go in front. (seamGlow: the
+// light of a blind box glows out around the box from behind her, so it does not whiten the box itself.)
+export const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'speed', 'spray', 'pillar', 'cloudSea', 'lightStairs', 'wake', 'skyFireworks', 'stepGlow', 'seamGlow']);
 
-/** Draws effect `f`, `[type, from ms, ...]`, of state `st` around `her` box; `trail` is where the glowing sprite has just been. */
-export function drawFx(g, f, st, her, now, trail) {
+/** Draws effect `f`, `[type, from ms, ...]`, of state `st` around `her` box for `pet`: its trail is where the glowing sprite
+ * has just been, and its castle the picture the castle's effects go by. */
+export function drawFx(g, f, st, her, now, pet) {
   const [type, from] = f, t = st._t == null ? now - from : st._t - from;
   if (t == null || t < 0) return;
   const head = { x: her.x + her.w / 2, y: her.y + her.h * 0.2 };
@@ -23,10 +24,16 @@ export function drawFx(g, f, st, her, now, trail) {
     case 'hearts': for (let i = 0; i < f[2]; i++) { const d = i * 180, u = t - d; if (u < 0 || u > 1400) continue; heart(head.x + (r() - 0.5) * 120, head.y - u * 0.09, 16 + r() * 8, 1 - u / 1400); } break;
     case 'sparkles': for (let i = 0; i < 10; i++) { const a = r() * Math.PI * 2, d = 60 + r() * 90, u = t - r() * 400; if (u < 0 || u > 1200) continue; star(head.x + Math.cos(a) * d, head.y + 30 + Math.sin(a) * d * 0.7, 9 + r() * 7, r() < 0.5 ? '#FFE27A' : '#fff', Math.sin(Math.PI * u / 1200)); } break;
     case 'confetti': { if (t > 2600) break; const colors = ['#FF7FA8', '#FFD45E', '#7FD3FF', '#B9F28A', '#fff']; for (let i = 0; i < 40; i++) { const vx = (r() - 0.5) * 0.5, vy = -0.55 - r() * 0.35, u = t; const x = FOOT.x + vx * u, y = FOOT.y - H * 0.6 + vy * u + 0.00045 * u * u; g.save(); g.globalAlpha = 1 - k01(u, 1800, 2600); g.fillStyle = colors[i % 5]; g.translate(x, y); g.rotate(u / 200 + i); g.fillRect(-4, -2, 8, 4); g.restore(); } break; }
+    case 'goldConfetti': { const u = (t % 2400); for (let i = 0; i < 30; i++) { const x = r() * PAGE.w, y = -20 + ((u * (0.12 + r() * 0.1) + r() * 600) % 680); g.save(); g.fillStyle = r() < 0.6 ? '#FFD45E' : '#fff'; g.translate(x, y); g.rotate(u / 300 + i); g.fillRect(-4, -2, 8, 4); g.restore(); } break; }
+    case 'ring': { if (t > 900) break; g.save(); g.globalAlpha = 1 - t / 900; g.strokeStyle = '#FFD45E'; g.lineWidth = 6 * (1 - t / 900) + 1; g.beginPath(); g.ellipse(FOOT.x, her.y + 10, 30 + t * 0.12, 12 + t * 0.04, 0, 0, Math.PI * 2); g.stroke(); g.restore(); break; }
     case 'beam': { if (t > 900) break; const bx = her.x + her.w * 0.45, by = her.y + her.h * 0.5; g.save(); g.globalAlpha = Math.sin(Math.PI * t / 900) * 0.85; const gr = g.createLinearGradient(bx, by, bx, by - 260); gr.addColorStop(0, glow(1)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.beginPath(); g.moveTo(bx - 18, by); g.lineTo(bx - 70, by - 260); g.lineTo(bx + 70, by - 260); g.lineTo(bx + 18, by); g.fill(); g.restore(); for (let i = 0; i < 6; i++) star(bx + (r() - 0.5) * 100, by - 60 - r() * 160, 8, '#fff', Math.sin(Math.PI * t / 900)); break; }
     case 'puff': { if (t > 900) break; const bx = her.x + her.w * 0.45, by = her.y + her.h * 0.45; for (let i = 0; i < 5; i++) { g.save(); g.globalAlpha = 0.55 * (1 - t / 900); g.fillStyle = '#9A9AA6'; g.beginPath(); g.arc(bx + (i - 2) * 14, by - t * 0.06 - (i % 2) * 10, 10 + t * 0.02, 0, Math.PI * 2); g.fill(); g.restore(); } break; }
     case 'flash': { if (t > 450) break; const p = f[3] || { x: FOOT.x, y: FOOT.y - H * 0.5 }; g.save(); g.globalAlpha = (1 - t / 450) * 0.9; const rad = 60 + t * 0.5 * f[2]; const gr = g.createRadialGradient(p.x, p.y - 60, 0, p.x, p.y - 60, rad); gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y - 60, rad, 0, Math.PI * 2); g.fill(); g.restore(); break; }
-    case 'trail': for (const q of trail) { const age = (performance.now() - q.rt) / 420; star(q.x + 18 * Math.sin(q.rt), q.y + 14 * Math.cos(q.rt * 1.3), 9 * (1 - age) + 3, ['#FFE27A', '#FFB3D1', '#fff'][Math.floor(q.rt) % 3], 1 - age); } break;
+    case 'seaBubbles': for (let i = 0; i < 10; i++) { const u = (t + i * 260) % 2600; g.save(); g.globalAlpha = 0.7 * (1 - u / 2600); g.strokeStyle = '#BFEAFF'; g.lineWidth = 2; g.beginPath(); g.arc(FOOT.x + (r() - 0.5) * 260, FOOT.y - 20 - u * 0.14, 4 + r() * 6, 0, Math.PI * 2); g.stroke(); g.restore(); } break;
+    case 'gulls': for (let i = 0; i < 3; i++) { const u = t - i * 300; if (u < 0) continue; const x = PAGE.w + 20 - u * 0.16, y = 120 + i * 40 + 6 * Math.sin(u / 200); g.save(); g.strokeStyle = '#fff'; g.lineWidth = 3; g.beginPath(); g.moveTo(x - 12, y - 4 * Math.sin(u / 120)); g.quadraticCurveTo(x - 6, y - 8, x, y); g.quadraticCurveTo(x + 6, y - 8, x + 12, y - 4 * Math.sin(u / 120)); g.stroke(); g.restore(); } break;
+    case 'rainbowSparkles': if (t < 8500) for (let i = 0; i < 10; i++) { const u = (t + i * 300) % 1500; star(40 + r() * 400, 30 + r() * 320, 7 + r() * 6, ['#FFE27A', '#FFB3D1', '#B7E4FF', '#fff'][i % 4], Math.sin(Math.PI * u / 1500)); } break;
+    case 'gateGlow': { if (t > 1800) break; const p = f[2]; g.save(); g.globalAlpha = Math.sin(Math.PI * Math.min(t, 1500) / 1500) * 0.7; const gr = g.createRadialGradient(p.x, p.y - 20, 0, p.x, p.y - 20, 70); gr.addColorStop(0, glow(1)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y - 20, 70, 0, Math.PI * 2); g.fill(); g.restore(); break; }
+    case 'trail': for (const q of pet.trail) { const age = (performance.now() - q.rt) / 420; star(q.x + 18 * Math.sin(q.rt), q.y + 14 * Math.cos(q.rt * 1.3), 9 * (1 - age) + 3, ['#FFE27A', '#FFB3D1', '#fff'][Math.floor(q.rt) % 3], 1 - age); } break;
     case 'notes': for (let i = 0; i < 4; i++) { const u = (t + i * 500) % 2000; g.save(); g.globalAlpha = Math.sin(Math.PI * u / 2000); g.fillStyle = '#7C6CF0'; g.font = '700 22px sans-serif'; g.fillText(i % 2 ? '♪' : '♫', head.x + 50 + i * 8 + 10 * Math.sin(u / 300), head.y - u * 0.05); g.restore(); } break;
 
     // ---- manga symbols
@@ -57,6 +64,15 @@ export function drawFx(g, f, st, her, now, trail) {
       const a = 0.4 * life(t, 300, f[2] || 1e9, 300); if (!a) break;
       g.save(); g.globalAlpha = a; g.strokeStyle = '#4B4F80'; g.lineWidth = 3;
       for (let i = 0; i < 7; i++) { const x = her.x + her.w * (0.2 + i * 0.1), y0 = her.y - 6 + (i % 2) * 6; g.beginPath(); g.moveTo(x, y0); g.lineTo(x, y0 + her.h * (0.14 + 0.04 * Math.sin(i * 2.1 + now / 400))); g.stroke(); }
+      g.restore(); break;
+    }
+    case 'rain': {
+      const a = life(t, 400, f[2] || 1e9, 400); if (!a) break;
+      const cx = her.x + her.w * 0.3, cy = her.y - 34;
+      g.save(); g.globalAlpha = a * 0.9; g.fillStyle = '#8A8FB0';
+      for (const [dx, dy, rr] of [[-14, 2, 11], [0, -5, 14], [15, 2, 11]]) { g.beginPath(); g.arc(cx + dx, cy + dy, rr, 0, Math.PI * 2); g.fill(); }
+      g.strokeStyle = '#9ADCFF'; g.lineWidth = 2;
+      for (let i = 0; i < 4; i++) { const u = (now + i * 230) % 700 / 700, x = cx - 14 + i * 9; g.globalAlpha = a * (1 - u); g.beginPath(); g.moveTo(x, cy + 12 + u * 26); g.lineTo(x - 2, cy + 20 + u * 26); g.stroke(); }
       g.restore(); break;
     }
     case 'dots': {
@@ -165,12 +181,25 @@ export function drawFx(g, f, st, her, now, trail) {
       gr.addColorStop(0, glow(0.9)); gr.addColorStop(0.5, glow(0.35)); gr.addColorStop(1, glow(0));
       g.save(); g.globalAlpha = a; g.fillStyle = gr; g.beginPath(); g.arc(c.x, c.y, rad, 0, Math.PI * 2); g.fill(); g.restore(); break;
     }
+    case 'spot': {
+      const a = life(t, 250, f[2] || 2000, 400) * 0.5; if (!a) break;
+      const x = st.x, gr = g.createLinearGradient(0, 0, 0, st.y); gr.addColorStop(0, 'rgba(255,250,230,0.1)'); gr.addColorStop(1, 'rgba(255,250,230,0.85)');
+      g.save(); g.globalAlpha = a; g.fillStyle = gr;
+      g.beginPath(); g.moveTo(x - 30, 0); g.lineTo(x + 30, 0); g.lineTo(x + her.w * 0.75, st.y + 6); g.lineTo(x - her.w * 0.75, st.y + 6); g.closePath(); g.fill();
+      g.beginPath(); g.ellipse(x, st.y, her.w * 0.75, 12, 0, 0, Math.PI * 2); g.fill(); g.restore(); break;
+    }
     case 'shockwave': {
       if (t > 650) break;
       const p = ease(t / 650);
       const c = f[3] || { x: st.x, y: st.y - 2 };
       g.save(); g.globalAlpha = 0.9 * (1 - p); g.strokeStyle = f[2] || glow(1); g.lineWidth = 5 * (1 - p) + 1;
       g.beginPath(); g.ellipse(c.x, c.y, 30 + 150 * p, 8 + 34 * p, 0, 0, Math.PI * 2); g.stroke(); g.restore(); break;
+    }
+    case 'glint': {
+      if (t > 600) break;
+      const p = at(f[2], f[3]), s = Math.sin(Math.PI * t / 600);
+      g.save(); g.globalAlpha = s; g.translate(p.x, p.y); g.rotate(t / 400); g.fillStyle = '#fff';
+      g.beginPath(); for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4, rr = i % 2 ? 2.5 : 14 * s; g.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr); } g.closePath(); g.fill(); g.restore(); break;
     }
     case 'spark': {
       if (t > 700) break;
@@ -180,6 +209,11 @@ export function drawFx(g, f, st, her, now, trail) {
         const ang = i / n * Math.PI * 2 + 0.3, d = 8 + 46 * (1 - (1 - Math.min(1, u / 500)) ** 3);
         star(p.x + Math.cos(ang) * d, p.y + Math.sin(ang) * d, 7 * (1 - u / 700) + 2, i % 2 ? glow(1) : '#fff', 1 - k01(u, 300, 700));
       }
+      break;
+    }
+    case 'starRing': {
+      const a = life(t, 200, f[2] || 1800, 300); if (!a) break;
+      for (let i = 0; i < 6; i++) { const ang = now / 300 + i * Math.PI / 3, s = Math.sin(ang); star(st.x + Math.cos(ang) * her.w * 0.7, her.y + her.h * 0.55 + s * 14, 6 + 2 * s, i % 2 ? glow(1) : '#fff', a * (0.5 + 0.5 * s)); }
       break;
     }
 
@@ -240,6 +274,72 @@ export function drawFx(g, f, st, her, now, trail) {
       }
       break;
     }
+    // the governor's gold: the page's edges glow the whole show
+    case 'edgeGlow': {
+      const dur = f[2] || 15000, a = life(t, 500, dur - 1200, 700) * (0.75 + 0.25 * Math.sin(now / 300)); if (!a) break;
+      g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = a;
+      for (const [x0, y0, x1, y1, rx, ry, rw, rh] of [[0, 0, 0, 44, 0, 0, PAGE.w, 44], [0, PAGE.h, 0, PAGE.h - 44, 0, PAGE.h - 44, PAGE.w, 44], [0, 0, 40, 0, 0, 0, 40, PAGE.h], [PAGE.w, 0, PAGE.w - 40, 0, PAGE.w - 40, 0, 40, PAGE.h]]) {
+        const gr = g.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, glow(0.9)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.fillRect(rx, ry, rw, rh);
+      }
+      g.restore(); break;
+    }
+    // a band of puffy gold-and-white clouds rolls in from both sides for the flagship to ride on
+    case 'cloudSea': {
+      const dur = f[2], y = f[3], inn = ease(Math.min(1, t / 1200)), out = 1 - k01(t, dur - 600, dur); if (t > dur) break;
+      g.save(); g.globalAlpha = out;
+      for (let i = 0; i < 18; i++) {
+        const side = i % 2 ? 1 : -1, k = Math.floor(i / 2) / 8, x = PAGE.w / 2 + side * (PAGE.w / 2 + 60 - (PAGE.w / 2 + 40) * inn * (1 - k * 0.9)), cy = y + 14 * Math.sin(i * 1.7 + now / 700), rad = 30 + (i * 37 % 16);
+        const gr = g.createRadialGradient(x - rad * 0.3, cy - rad * 0.4, 2, x, cy, rad); gr.addColorStop(0, '#FFFDF4'); gr.addColorStop(0.7, '#FFE9B0'); gr.addColorStop(1, glow(0.2));
+        g.fillStyle = gr; g.beginPath(); g.arc(x, cy, rad, 0, Math.PI * 2); g.fill();
+      }
+      g.restore(); break;
+    }
+    // a stair of light from where she stands up to the bow deck, step by step
+    case 'lightStairs': {
+      const dur = f[2], a0 = f[3], a1 = f[4], a = life(t, 100, dur - 400, 300); if (!a) break;
+      for (let i = 0; i < 6; i++) {
+        const u = (i + 0.5) / 6, x = a0.x + (a1.x - a0.x) * u, y = a0.y + (a1.y - a0.y) * u, on = a * k01(t, i * 60, i * 60 + 160);
+        g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = on; g.fillStyle = glow(0.85); g.beginPath(); g.ellipse(x, y, 34, 8, 0, 0, Math.PI * 2); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.8)'; g.beginPath(); g.ellipse(x, y - 1, 20, 3, 0, 0, Math.PI * 2); g.fill(); g.restore();
+      }
+      break;
+    }
+    // fireworks going up into the sky one after another: [delay, x, y, colour]
+    case 'skyFireworks': for (const [d, x, y, col] of f[2]) {
+      const u = t - d; if (u < 0 || u > 1700) continue;
+      if (u < 350) { const p = u / 350, yy = PAGE.h * 0.55 + (y - PAGE.h * 0.55) * (1 - (1 - p) ** 2); g.save(); g.fillStyle = col; g.globalAlpha = 0.9; g.beginPath(); g.arc(x, yy, 3, 0, Math.PI * 2); g.fill(); g.restore(); continue; }
+      const v = u - 350, R = 70 * (1 - (1 - Math.min(1, v / 700)) ** 3), a = 1 - k01(v, 600, 1350);
+      if (v < 160) { g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 1 - v / 160; const gr = g.createRadialGradient(x, y, 0, x, y, 60); gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, 60, 0, Math.PI * 2); g.fill(); g.restore(); }
+      for (let j = 0; j < 24; j++) { const ang = j * Math.PI / 12, px = x + Math.cos(ang) * R, py = y + Math.sin(ang) * R + 0.00005 * v * v;
+        g.save(); g.globalAlpha = a; g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); g.moveTo(x + Math.cos(ang) * R * 0.75, y + Math.sin(ang) * R * 0.75 + 0.00004 * v * v); g.lineTo(px, py); g.stroke(); g.restore(); if (j % 3 === 0) star(px, py, 5, '#fff', a); }
+    } break;
+    // the gold wake the flagship leaves across the page, breaking into falling sparks
+    case 'wake': {
+      const dur = f[2], [p0, p1, p2] = f[3]; if (t > dur) break;
+      const shown = Math.min(1, t / 2000), fade = 1 - k01(t, dur - 1000, dur), q = u => ({ x: (1 - u) ** 2 * p0.x + 2 * (1 - u) * u * p1.x + u * u * p2.x, y: (1 - u) ** 2 * p0.y + 2 * (1 - u) * u * p1.y + u * u * p2.y });
+      g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = 0.55 * fade; g.strokeStyle = glow(1); g.lineWidth = 16; g.lineCap = 'round'; g.beginPath();
+      for (let u = 0; u <= shown + 1e-6; u += 0.04) { const pt = q(u); u ? g.lineTo(pt.x, pt.y) : g.moveTo(pt.x, pt.y); } g.stroke(); g.restore();
+      for (let i = 0; i < 18; i++) { const u = r() * shown, pt = q(u), age = (t - u * 2000) / 1000; if (age < 0) continue; star(pt.x + 10 * Math.sin(i + age * 3), pt.y + age * 60, 5, i % 2 ? glow(1) : '#fff', fade * Math.max(0, 1 - age / 1.6)); }
+      break;
+    }
+    // the castle's steps light up one by one under her as she walks up
+    case 'stepGlow': {
+      const dur = f[2] || 3000; if (t > dur + 600) break;
+      const gate = st.castle && { x: st.castle.x, y: st.castle.y + pet.castle.closed.height * st.castle.s * 0.18 };
+      if (!gate) break;
+      for (let i = 0; i < 8; i++) {
+        const u = i / 8, x = FOOT.x + (gate.x - FOOT.x) * u, y = FOOT.y + (gate.y - FOOT.y) * u, on = k01(t, u * dur, u * dur + 200) * (1 - k01(t, dur, dur + 600));
+        g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = on * 0.8; g.fillStyle = glow(0.9); g.beginPath(); g.ellipse(x, y, 30 * (1 - u * 0.6), 7 * (1 - u * 0.6), 0, 0, Math.PI * 2); g.fill(); g.restore();
+      }
+      break;
+    }
+    // pink stars twinkle up from the castle's tower tips while she waves from the gate
+    case 'towerSparkles': {
+      const dur = f[2] || 1600; if (t > dur || !st.castle) break;
+      const c = st.castle, w = pet.castle.closed.width * c.s, h = pet.castle.closed.height * c.s;
+      for (let i = 0; i < 14; i++) { const u = (t + i * 140) % 900, x = c.x + (r() - 0.5) * w * 0.7, y = c.y - h * 0.42 + r() * h * 0.25 - u * 0.05; star(x, y, 6 + r() * 5, i % 2 ? glow(1) : '#fff', Math.sin(Math.PI * u / 900)); }
+      break;
+    }
     // ---- things
     case 'anchors': {
       if (t > (f[2] || 2400)) break;
@@ -250,6 +350,26 @@ export function drawFx(g, f, st, her, now, trail) {
         g.beginPath(); g.moveTo(0, -9); g.lineTo(0, 8); g.moveTo(-5, -5); g.lineTo(5, -5); g.moveTo(-8, 3); g.quadraticCurveTo(0, 13, 8, 3); g.stroke(); g.beginPath(); g.arc(0, -11, 2.5, 0, Math.PI * 2); g.stroke(); g.restore();
       }
       break;
+    }
+    case 'splash': {
+      if (t > 700) break;
+      g.save(); g.fillStyle = '#BFEAFF';
+      for (let i = 0; i < 10; i++) { const vx = (r() - 0.5) * 0.5, vy = -0.35 - r() * 0.3; g.globalAlpha = 1 - t / 700; g.beginPath(); g.arc(st.x + vx * t, st.y - 6 + vy * t + 0.0011 * t * t, 3 + r() * 2.5, 0, Math.PI * 2); g.fill(); }
+      g.restore(); break;
+    }
+    case 'petals': {
+      const dur = f[2] || 3000; if (t > dur) break;
+      for (let i = 0; i < 16; i++) {
+        const u = (t + r() * 3000) % 3000, x = r() * PAGE.w + 30 * Math.sin(u / 400 + i), y = -20 + u * 0.22;
+        g.save(); g.globalAlpha = Math.min(1, (dur - t) / 400); g.translate(x, y); g.rotate(u / 300 + i); g.fillStyle = i % 3 ? '#FFB3C8' : '#FF8FAE'; g.beginPath(); g.ellipse(0, 0, 6, 3.5, 0, 0, Math.PI * 2); g.fill(); g.restore();
+      }
+      break;
+    }
+    case 'leaf': {
+      if (t > 2400) break;
+      const p = t / 2400, x = PAGE.w + 20 - (PAGE.w + 40) * p, y = st.y - 20 - 18 * Math.abs(Math.sin(p * Math.PI * 3));
+      g.save(); g.translate(x, y); g.rotate(-p * 12); g.fillStyle = '#C49A5A'; g.strokeStyle = '#8A6A3A'; g.lineWidth = 1.5;
+      g.beginPath(); g.ellipse(0, 0, 10, 5, 0, 0, Math.PI * 2); g.fill(); g.stroke(); g.beginPath(); g.moveTo(-10, 0); g.lineTo(10, 0); g.stroke(); g.restore(); break;
     }
     // ---- snow
     case 'snow': {

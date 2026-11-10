@@ -1,15 +1,16 @@
 // The 桌宠 on the 桌宠页's canvas, drawn as the design package's board draws her (DP-DesktopPet.dc.html), from the current
 // character's Q 版 pictures and the numbers in her manifest (characters/README.md, desktopPet).
 import { loadImage } from '../video/animations/toolkit.mjs';
-import { Engine, FOOT, H, PAGE, SPRITE_H, clamp, ease, k01, xfade } from './engine.mjs';
+import { Engine, FOOT, GLOW, H, PAGE, SPRITE_H, clamp, ease, k01, xfade } from './engine.mjs';
 import { BACK, drawFx } from './effects.mjs';
 
 const SPRITE_SPEED = 0.8;
 // The sprite keeps these drawings while it flies, since they carry something.
-const CARRY = new Set(['glow']);
-// The sheets a 日常小动作 needs beyond those she always has: they load when it starts, not with the page, which would decode
-// all her pictures at once (design package README 11).
-const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cycle12'], ski: ['ski9'] };
+const CARRY = new Set(['crown', 'glow']);
+// The sheets a show or 日常小动作 needs beyond those she always has: they load when it starts (the lottery's too as she waits
+// through one), not with the page, which would decode all her pictures at once (design package README 11).
+const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cycle12'], ski: ['ski9'], castle: ['castleSheet'],
+  captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'] };
 
 // The box of what is drawn in a part of a picture, and the centre of its mass.
 const box = (im, x, y, w, h) => {
@@ -27,14 +28,14 @@ const box = (im, x, y, w, h) => {
 /** The 桌宠 drawn on `canvas` from `character`, her manifest; Engine decides what she does. */
 export class Pet extends Engine {
   constructor(canvas, master, shows, character) {
-    super(master, shows);
-    Object.assign(this, { canvas, character, art: character.desktopPet, cells: {}, strips: {}, tweens: {}, sstrips: {}, loads: {}, props: {}, trail: [] });
+    super(master, shows, character.desktopPet);
+    Object.assign(this, { canvas, character, cells: {}, strips: {}, tweens: {}, sstrips: {}, loads: {}, props: {}, trail: [] });
   }
 
   picture(name) { return loadImage('/characters/current/' + name); }
 
-  // Everything she always needs, her sprite's sheets, turnaround views and moving drawings included; not the sheets of the
-  // 日常小动作 (SEGMENTS).
+  // Everything she always needs, her sprite's sheets, turnaround views and moving drawings included, and her props, whose sizes
+  // place the big shows from their first moment; not the sheets of SEGMENTS.
   async boot() {
     const { sheets, views, props, poses: POSE } = this.art, later = Object.values(SEGMENTS).flat(), { idle, blink, happy, lookRight } = this.character.sprite;
     await Promise.all([
@@ -51,6 +52,8 @@ export class Pet extends Engine {
       ...Object.entries(props).map(async ([k, file]) => { this.props[k] = await this.picture(file); })
     ]);
     await this.loadSpriteStrips();
+    const { castleClosed: closed, castleOpen: open } = this.props;
+    this.castle = { closed, open, box: box(closed, 0, 0, closed.width, closed.height) };
     const [k, i] = POSE.idle, c = this.cells[k][i];
     this.herLeft = (c.x - c.cx) * H / c.ruler;  // her left edge standing idle, from her centre
   }
@@ -104,6 +107,11 @@ export class Pet extends Engine {
     super.start(name, opts);
   }
 
+  receive(state) {
+    super.receive(state);
+    if (this.lot) for (const k of SEGMENTS.lottery) this.loadSheet(k);
+  }
+
   // The page scales with the browser source, 3 : 4 as she was designed at 480 × 640, and stands on its bottom edge.
   resize(width, height) {
     Object.assign(this.canvas, { width, height });
@@ -124,6 +132,10 @@ export class Pet extends Engine {
     g.save(); g.translate(this.view.x, this.view.y); g.scale(this.view.k, this.view.k);
     g.beginPath(); g.rect(0, 0, PAGE.w, PAGE.h); g.clip();
     const shake = this.shakeOf(st, now); g.translate(shake.x, shake.y);
+    if (st.castle) this.drawCastle(g, st.castle);
+    if (st.ship) this.drawShip(g, st.ship);
+    if (st.admShip) this.drawAdmShip(g, st.admShip);
+    if (st.emblem) this.drawProp(g, this.props.emblem, st.emblem.x, st.emblem.y + this.props.emblem.height * H / this.art.anchor * st.emblem.s / 2, st.emblem.s, st.emblem.a);
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt));
     this.rt = rt;
     // a pose whose sheet is still loading: she keeps the drawing she has until it is there
@@ -131,12 +143,12 @@ export class Pet extends Engine {
     const her = this.herBox(st);
     const target = this.spritePos(st, her, now), sp = target && this.follow(target, dt, st);
     if (sp) { this.trail = this.trail.filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
-    for (const f of st.fx) if (BACK.has(f[0])) drawFx(g, f, st, her, now, this.trail);
+    for (const f of st.fx) if (BACK.has(f[0])) drawFx(g, f, st, her, now, this);
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     this.drawHer(g, st, now);
     if (sp && !st.sBehind) this.drawSprite(g, st, sp, now);
     if (st.gift) this.drawGift(g, st.gift);
-    for (const f of st.fx) if (!BACK.has(f[0])) drawFx(g, f, st, her, now, this.trail);
+    for (const f of st.fx) if (!BACK.has(f[0])) drawFx(g, f, st, her, now, this);
     if (st.bubble?.text) this.drawBubble(g, st.bubble, her);
     g.restore();
   }
@@ -221,6 +233,7 @@ export class Pet extends Engine {
   // it), ['at', x, y] (a page point), or the named spots below.
   spritePos(st, her, now) {
     if (st.orbit == null) this.orb = null;
+    if (st.sp?.[0] === 'gone') return null;
     const home = this.home(now);
     // Circling her waist: on the far half of the circle it passes behind her, so it never covers her face.
     // It is a little bigger on the near half, and drawSprite turns it by st.orbitA.
@@ -241,6 +254,10 @@ export class Pet extends Engine {
     if (st.sp[0] === 'at') return { x: st.sp[1], y: st.sp[2] };
     if (st.sp === 'head') return { x: her.x + her.w * 0.25, y: her.y - SPRITE_H * 0.2 + 3 * Math.sin(now / 500) };
     if (st.sp === 'knee') return { x: her.x + her.w * 0.94, y: FOOT.y - 42 + 2 * Math.sin(now / 900) };
+    if (st.sp[0] === 'crown') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1], d = st.sp[2]; return { x: home.x + (top.x - home.x) * p, y: home.y + (top.y - home.y) * p + 26 * d }; }
+    if (st.sp[0] === 'home-from-top') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1]; return { x: top.x + (home.x - top.x) * p, y: top.y + (home.y - top.y) * p }; }
+    if (st.sp[0] === 'to-castle') { const p = st.sp[1]; return { x: home.x + (FOOT.x - home.x) * p, y: home.y + (300 - home.y) * p, scale: st.sp[2] }; }
+    if (st.sp[0] === 'mast') return { x: st.sp[1], y: st.sp[2] };
     return home;
   }
 
@@ -274,6 +291,63 @@ export class Pet extends Engine {
     };
     if (out > 0) one(sc.prev, out);
     one(id, inn);
+  }
+
+  // The castle, its centre at c.x, c.y; its gate opens over it as c.open goes to 1.
+  drawCastle(g, c) {
+    const w = this.castle.closed.width * c.s, h = this.castle.closed.height * c.s;
+    g.save(); g.globalAlpha = c.a;
+    g.drawImage(this.castle.closed, c.x - w / 2, c.y - h / 2, w, h);
+    if (c.open) { g.globalAlpha = c.a * c.open; g.drawImage(this.castle.open, c.x - w / 2, c.y - h / 2, w, h); }
+    g.restore();
+  }
+
+  // The flagship, its bow deck at s.x, s.y.
+  drawShip(g, s) {
+    const im = this.props.flagship, k = H / this.art.anchor * s.s, d = this.art.points.flagship.deck;
+    g.save(); g.globalAlpha = s.a; g.drawImage(im, s.x - d[0] * k, s.y - d[1] * k, im.width * k, im.height * k); g.restore();
+  }
+
+  // The admiral's ship (bottom centre at s.x, s.y, rocked by s.rot): a purple glow behind it when it answers her salute;
+  // while it moves (s.speed 0..1) a white wake trails its stern and spray flies off its bow; its flags strung bow to
+  // mainmast to foremast to stern as it dresses (s.flags 0..1).
+  drawAdmShip(g, s) {
+    if (!s.a) return;
+    const im = this.props.admship, k = H / this.art.anchor * s.s, w = im.width * k, h = im.height * k, c = GLOW.A, now = performance.now();
+    g.save(); g.translate(s.x, s.y); g.rotate(s.rot || 0);
+    if (s.glow) {
+      const gr = g.createRadialGradient(0, -h * 0.5, 0, 0, -h * 0.5, w * 0.8); gr.addColorStop(0, `rgba(${c},${0.6 * s.glow})`); gr.addColorStop(1, `rgba(${c},0)`);
+      g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(-w, -h * 1.4, w * 2, h * 1.7); g.globalCompositeOperation = 'source-over';
+    }
+    if (s.speed > 0.05) {  // lilac-edged so they show against the white cloud waves and the sky
+      g.lineCap = 'round';
+      for (const [col, wd] of [[`rgba(${c},${0.7 * s.speed})`, 4], [`rgba(255,255,255,${0.95 * s.speed})`, 0]]) {
+        g.strokeStyle = col;
+        for (let i = 0; i < 3; i++) { const len = w * (0.3 + 0.4 * s.speed) * (1 - i * 0.2); g.lineWidth = 6 - i * 1.6 + wd; g.beginPath(); g.moveTo(-w * 0.5, -h * 0.07 + i * 9); g.quadraticCurveTo(-w * 0.5 - len * 0.5, -h * 0.01 + i * 10 + 3 * Math.sin(now / 200 + i), -w * 0.5 - len, -h * 0.09 + i * 9); g.stroke(); }
+      }
+      for (let i = 0; i < 8; i++) {
+        const u = (now / 420 + i / 8) % 1, x = w * 0.48 + u * 34 * s.speed, y = -h * 0.08 - Math.sin(Math.PI * u) * 28 * s.speed, r = (4.5 - 2.5 * u) * (0.6 + 0.4 * s.speed);
+        g.fillStyle = `rgba(255,255,255,${0.95 * s.speed})`; g.strokeStyle = `rgba(${c},${0.8 * s.speed})`; g.lineWidth = 1.5; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke();
+      }
+    }
+    g.drawImage(im, -w / 2, -h, w, h);
+    g.restore();
+    g.save();
+    if (s.flags) {
+      const pts = this.art.points.admship.rig.map(q => this.admPoint(s, q)), segs = pts.slice(1).map((q, i) => [pts[i], q]), n = 22, cols = ['#FF6B6B', '#FFD45E', '#7FD3FF', '#C4A2FF', '#9DF0C0', '#fff'];
+      const total = segs.reduce((a, [p0, p1]) => a + Math.hypot(p1.x - p0.x, p1.y - p0.y), 0), upto = total * s.flags;
+      g.strokeStyle = '#3A2A26'; g.lineWidth = 1.2; g.beginPath(); g.moveTo(pts[0].x, pts[0].y);
+      let run = 0;
+      for (const [p0, p1] of segs) { const len = Math.hypot(p1.x - p0.x, p1.y - p0.y), u = Math.min(1, Math.max(0, (upto - run) / len)); if (u > 0) g.lineTo(p0.x + (p1.x - p0.x) * u, p0.y + (p1.y - p0.y) * u); run += len; }
+      g.stroke();
+      for (let i = 1; i < n; i++) {
+        let d = total * i / n; if (d > upto) break;
+        let j = 0; while (j < segs.length - 1 && d > Math.hypot(segs[j][1].x - segs[j][0].x, segs[j][1].y - segs[j][0].y)) { d -= Math.hypot(segs[j][1].x - segs[j][0].x, segs[j][1].y - segs[j][0].y); j++; }
+        const [p0, p1] = segs[j], len = Math.hypot(p1.x - p0.x, p1.y - p0.y), fx = p0.x + (p1.x - p0.x) * d / len, fy = p0.y + (p1.y - p0.y) * d / len, sw = 3 * Math.sin(performance.now() / 150 + i);
+        g.fillStyle = cols[i % cols.length]; g.beginPath(); g.moveTo(fx - 6, fy); g.lineTo(fx + 6, fy); g.lineTo(fx + sw, fy + 15); g.closePath(); g.fill(); g.stroke();
+      }
+    }
+    g.restore();
   }
 
   // A prop at her scale times s, its bottom centre at x, y.

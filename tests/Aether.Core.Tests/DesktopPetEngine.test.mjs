@@ -22,7 +22,16 @@ const playing = engine => engine.cur?.name ?? null;
 // A viewer's 一轮送礼 so far, as Core tells it after a gift message.
 const round = (uid, so) => ({ uid, nickname: '观众' + uid, spend: 0, count: 0, topGift: '小花花', topCount: 0, boxSpend: 0, boxes: 0, castle: false, ended: false, ...so });
 const gifts = (uid, spend, count = 1) => round(uid, { spend, count, topCount: count });
+const castle = uid => round(uid, { spend: 2233000, count: 1, topGift: '浪漫城堡', topCount: 1, castle: true });
 const boxResult = (uid, spend, openedValue, bestPrice = 9000) => ({ uid, nickname: '观众' + uid, tally: { spend, openedValue, outcome: ['Loss', 'Even', 'Gain'][Math.sign(openedValue - spend) + 1] }, boxes: 1, bestGift: '棉花糖', bestPrice });
+// The lottery on air, as the 桌宠页's state carries it (LotteryState.cs), and the lottery's steps she plays and has queued.
+const onAir = (engine, lottery) => engine.receive({ enabled: true, roomConnected: true, settings: engine.settings, lines, lottery });
+const entryLottery = so => ({ mode: 'Entry', id: 'E1', keyword: '来了', phase: 'Open', entryCount: 3, draws: [], drawUntil: null, ...so });
+const steps = engine => [engine.cur, ...engine.queue].filter(Boolean).map(show => show.opts.result);
+// The 礼物榜 while its 期 runs, rows [id, count] from the first place down, as the 桌宠页's state carries it (GiftBoardState.cs);
+// null while it is not counting.
+const ranks = (engine, rows, fromGift = true) => engine.receive({ enabled: true, roomConnected: true, settings: engine.settings, lines,
+  giftBoard: rows && { rows: rows.map(([id, num]) => ({ id, nickname: '观众' + id, faceUrl: '', viewerGuardLevel: 0, num })), options: { threshold: 100 }, running: true, fromGift } });
 
 test('a gift round plays at once and moves up at the fifth gift, 1000 电池 and 1 万, never playing one twice', () => {
   const engine = pet();
@@ -165,4 +174,159 @@ test('a 试演 plays a show from its start or holds her in a 心情 until it is 
   assert.equal(engine.stateAt(engine.now()).pose, 'idle');
   engine.testShow({ show: 'bike', variant: 'Mishap', nickname: '星河' });
   assert.deepEqual([playing(engine), engine.cur.opts.mishap], ['bike', true]);
+});
+
+test('a 总督 coming while the castle plays waits for it and then goes first; neither is ever dropped', () => {
+  const engine = pet();
+  engine.gift(castle(1));
+  engine.guard({ uid: 2, nickname: '提督', guardLevel: 2 });
+  engine.guard({ uid: 3, nickname: '总督', guardLevel: 1 });
+  engine.gift(castle(4));
+  assert.equal(playing(engine), 'castle');
+  advance(engine, 11500);
+  assert.deepEqual([playing(engine), engine.cur.opts.nickname], ['governor', '总督']);
+  advance(engine, 15000);
+  assert.deepEqual([playing(engine), engine.cur.opts.nickname], ['castle', '观众4']);
+  advance(engine, 11500);
+  assert.equal(playing(engine), 'admiral');
+});
+
+test('a castle plays instead of the round\'s gifts and blind boxes, and one opened from a blind box when their result comes', () => {
+  const engine = pet();
+  engine.gift(gifts(1, 100));
+  engine.gift({ ...castle(1), spend: 2233100, count: 2 });
+  assert.equal(playing(engine), 'castle');
+  engine.gift({ ...castle(1), spend: 3233100, count: 3 });
+  advance(engine, 11500);
+  assert.equal(playing(engine), null);
+
+  engine.gift(round(2, { boxes: 1, boxSpend: 15000, castle: true }));
+  engine.gift(round(2, { spend: 1000000, count: 1, topCount: 1, boxes: 1, boxSpend: 15000, castle: true }));
+  assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'shakeBox']);
+  engine.blindBox({ ...boxResult(2, 15000, 2233000, 2233000), castle: true });
+  assert.equal(playing(engine), 'castle');
+  advance(engine, 11500);
+  assert.deepEqual([playing(engine), engine.queue], [null, []]);
+});
+
+test('an entry lottery plays each step, and she reacts to a draw only when the 抽奖页\'s effects end, at its DrawUntil', t => {
+  t.mock.method(Date, 'now', () => 0);
+  const engine = pet();
+  onAir(engine, entryLottery({ phase: 'Preparing', entryCount: 0 }));
+  assert.deepEqual(steps(engine), []);
+  onAir(engine, entryLottery({ entryCount: 0 }));
+  assert.deepEqual(steps(engine), ['EntryOpen']);
+  assert.match(engine.fill(engine.cur.line, 'lottery', engine.cur.opts), /来了|报名/);
+  advance(engine, 2600);
+  onAir(engine, entryLottery({ phase: 'Closed' }));
+  assert.deepEqual(steps(engine), ['EntryClosed']);
+  advance(engine, 2000);
+  const draw = { id: 'D1', award: { name: '一等奖', prize: '手办', grade: 'Grand' }, winner: { uid: 1, nickname: '幸运儿' } };
+  onAir(engine, entryLottery({ phase: 'Closed', draws: [draw], drawUntil: new Date(7000).toISOString() }));
+  advance(engine, 4499);
+  assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'hope']);
+  advance(engine, 1);
+  advance(engine, 2499);
+  assert.deepEqual([steps(engine), engine.stateAt(engine.now()).pose], [['RevealGrand'], 'hope']);
+  advance(engine, 1);
+  assert.equal(engine.stateAt(engine.now()).pose, 'cheer');
+  assert.equal(engine.cur.opts.nickname, '幸运儿');
+  advance(engine, 2700);
+  onAir(engine, entryLottery({ phase: 'Ended', draws: [draw] }));
+  assert.deepEqual(steps(engine), ['End']);
+
+  advance(engine, 2600);
+  onAir(engine, entryLottery({ id: 'E2', entryCount: 0 }));
+  advance(engine, 2600);
+  onAir(engine, entryLottery({ id: 'E2', phase: 'Closed', entryCount: 0 }));
+  assert.deepEqual(steps(engine), ['NoEntries']);
+  advance(engine, 2800);
+  onAir(engine, entryLottery({ id: 'E2', phase: 'Ended', entryCount: 0 }));
+  assert.deepEqual([steps(engine), engine.stateAt(engine.now()).pose], [[], 'idle']);
+});
+
+test('a pool lottery opens, calls a viewer and spins, reveals a draw at its DrawUntil and ends as a new lottery opens', t => {
+  t.mock.method(Date, 'now', () => 0);
+  const engine = pet(), pool = so => ({ mode: 'Pool', id: 'P1', phase: 'Idle', uid: null, draws: [], drawUntil: null, ...so });
+  onAir(engine, pool());
+  assert.deepEqual(steps(engine), ['PoolOpen']);
+  advance(engine, 2600);
+  onAir(engine, pool({ phase: 'Spinning', uid: 42 }));
+  assert.deepEqual([steps(engine), engine.cur.opts.nickname], [['PoolCall', 'PoolSpin'], 'UID 42']);
+  advance(engine, 2000);
+  advance(engine, 2000);
+  assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'hope']);
+  const draw = { id: 'D1', prize: { name: '周边', grade: 'Third' }, uid: 42, nickname: '星河' };
+  onAir(engine, pool({ uid: 42, draws: [draw], drawUntil: new Date(7000).toISOString() }));
+  advance(engine, 4500);
+  const { nickname, award, prize } = engine.cur.opts;
+  assert.deepEqual([steps(engine), nickname, award, prize], [['RevealThird'], '星河', '周边', '周边']);
+  advance(engine, 2500);
+  onAir(engine, pool({ uid: 42, draws: [draw] }));
+  advance(engine, 2100);
+  assert.notEqual(engine.stateAt(engine.now()).pose, 'hope');
+  onAir(engine, pool({ id: 'P2' }));
+  assert.deepEqual(steps(engine), ['End', 'PoolOpen']);
+});
+
+test('a gift taking the 礼物榜\'s first place is crowned after its show, and nothing is while the 礼物榜 is not counting', () => {
+  const engine = pet();
+  ranks(engine, [['a', 5]], false);
+  engine.gift(gifts(2, 1000000));
+  ranks(engine, [['b', 1], ['a', 5]]);
+  assert.equal(playing(engine), 'bigGift');
+  advance(engine, 6000);
+  assert.deepEqual([playing(engine), engine.cur.opts.nickname], ['newFirst', '观众b']);
+  advance(engine, 2600);
+
+  ranks(engine, null);
+  engine.gift(gifts(3, 1000000));
+  advance(engine, 6000);
+  assert.notEqual(playing(engine), 'newFirst');
+});
+
+test('the big shows and the lottery turned off do not play, nor a lesser show in their place, nor does she wait through a lottery', () => {
+  const engine = pet({ off: ['castle', 'governor', 'admiral', 'captain', 'newFirst', 'lottery'] });
+  engine.gift(castle(1));
+  engine.gift(round(2, { boxes: 1, boxSpend: 15000, castle: true }));
+  engine.blindBox({ ...boxResult(2, 15000, 2233000, 2233000), castle: true });
+  for (const guardLevel of [1, 2, 3]) engine.guard({ uid: 3, nickname: '大航海', guardLevel });
+  onAir(engine, entryLottery({}));
+  onAir(engine, entryLottery({ phase: 'Closed' }));
+  assert.deepEqual([playing(engine), engine.queue, engine.stateAt(engine.now()).pose], [null, [], 'idle']);
+  ranks(engine, [['a', 5]], false);
+  engine.gift(gifts(4, 1000000));
+  ranks(engine, [['b', 1], ['a', 5]]);
+  advance(engine, 6000);
+  assert.notEqual(playing(engine), 'newFirst');
+});
+
+test('each big show and lottery step plays as a 试演 and ends', () => {
+  const engine = pet();
+  for (const row of shows.filter(row => ['castle', 'guard', 'newFirst', 'lottery'].includes(row.group))) for (const variant of row.tests) {
+    engine.testShow({ show: row.id, variant, nickname: '星河' });
+    assert.deepEqual([playing(engine), engine.cur.opts.result], [row.id, variant]);
+    advance(engine, engine.cur.dur);
+    assert.notEqual(engine.cur?.opts.result, variant);
+  }
+});
+
+test('switched off and on again, she plays nothing of what the lottery did meanwhile', () => {
+  const engine = pet(), settings = engine.settings;
+  onAir(engine, entryLottery({}));
+  advance(engine, 2600);
+  engine.receive({ enabled: false });
+  engine.receive({ enabled: true, roomConnected: true, settings, lines, lottery: entryLottery({ phase: 'Ended' }) });
+  assert.deepEqual(steps(engine), []);
+});
+
+test('a castle cuts a lottery wait short, and once it is over she is back to waiting for the draw', () => {
+  const engine = pet();
+  onAir(engine, entryLottery({ phase: 'Closed' }));
+  advance(engine, 2000);
+  assert.equal(engine.stateAt(engine.now()).pose, 'hope');
+  engine.gift(castle(1));
+  assert.equal(playing(engine), 'castle');
+  advance(engine, 11500);
+  assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'hope']);
 });

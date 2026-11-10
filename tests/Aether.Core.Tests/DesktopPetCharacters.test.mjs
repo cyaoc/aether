@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { DAILY, Engine, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { Engine, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 
 const pages = new URL('../../src/Aether.Core/Pages/', import.meta.url), read = path => JSON.parse(readFileSync(new URL(path, pages), 'utf8'));
 const { shows } = read('desktop-pet/shows.json');
@@ -12,13 +12,15 @@ const SETTINGS = { off: [], midGift: 100000, bigGift: 1000000, boredMinutes: 15,
 // Her sprite's own pictures (the character's sprite section) by the names the shows give them.
 const SINGLES = ['sIdle', 'sBlink', 'sHappy', 'sLook'];
 
-// Every state she can be in: each show the page plays from its start to its end (each blind box ending, each 日常小动作 with
-// and without its mishap, woken up first), each 心情 for half a minute and a round of blind boxes she shakes.
+// Every state she can be in: each show the page plays from its start to its end (each blind box ending, each lottery step,
+// each 日常小动作 with and without its mishap, woken up first), each 心情 for half a minute and a round of blind boxes she shakes.
+// Pet measures the props the big shows are placed by; any size will do for which poses and drawings she takes.
 function everyState(character) {
-  const engine = new Engine({ currentTime: 0 }, shows), states = [];
+  const engine = new Engine({ currentTime: 0 }, shows, character.desktopPet), states = [], size = { width: 1, height: 1 };
+  Object.assign(engine, { props: { admship: size }, castle: { closed: size, box: { h: 1 } } });
   engine.reset(seeded(7));
   engine.receive({ enabled: true, roomConnected: true, settings: SETTINGS, lines: character.lines });
-  for (const row of shows.filter(row => engine.events[row.id].dur || DAILY[row.id])) for (const variant of row.tests) {
+  for (const row of shows.filter(row => row.group !== 'mood')) for (const variant of row.tests) {
     engine.testShow({ show: row.id, variant, nickname: '星河' });
     const { start, dur } = engine.cur = { ...engine.cur, pre: 1000, wakeLine: '' };
     for (let t = 0; t < 1000 + dur; t += 20) { engine.master.currentTime = start + t; states.push(engine.stateAt(engine.now())); }
@@ -33,7 +35,8 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     const character = read(`characters/${folder}/character.json`), art = character.desktopPet, states = everyState(character);
     for (const pose of new Set(states.map(st => st.pose))) assert.ok(art.sheets[art.poses[pose]?.[0]], `pose ${pose}`);
     for (const drawing of new Set(states.flatMap(st => [st.sprite, st.sView ?? 'v1']))) assert.ok(SINGLES.includes(drawing) || art.sprite[drawing] || art.spriteStrips[drawing], `sprite ${drawing}`);
-    if (states.some(st => st.gift)) for (const prop of ['giftbox', 'giftboxOpen', 'balloons']) assert.ok(art.props[prop], `prop ${prop}`);
+    const props = { gift: ['giftbox', 'giftboxOpen', 'balloons'], castle: ['castleClosed', 'castleOpen'], ship: ['flagship'], admShip: ['admship'], emblem: ['emblem'] };
+    for (const [thing, names] of Object.entries(props)) if (states.some(st => st[thing])) for (const prop of names) assert.ok(art.props[prop], `prop ${prop}`);
   });
 
   test(`character ${folder}'s desktop pet strips and placings name her poses, drawings and frames`, () => {
@@ -46,5 +49,7 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     for (const [pose, spot] of Object.entries(art.sameSpot)) assert.equal(art.poses[pose][0], art.poses[spot][0], pose);
     for (const [pose, dx] of Object.entries(art.body)) assert.ok(art.poses[pose] && typeof dx === 'number', pose);
     for (const pair of art.cuts) assert.ok(pair.split('>').every(pose => art.poses[pose]), pair);
+    const { flagship, admship, castleClosed } = art.points;
+    for (const point of [flagship.deck, flagship.mast, admship.mast, ...admship.rig, castleClosed.gate]) assert.ok(point.length === 2 && point.every(Number.isFinite), 'points');
   });
 }

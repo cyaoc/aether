@@ -3,6 +3,7 @@
 // and 日常小动作, and what she and her sprite are doing at any moment. It draws nothing (Pet in pet.mjs does) and reads no
 // picture, so node can run it.
 import { k, smooth as ease } from '../video/animations/toolkit.mjs';
+import { Changes } from '../gift-board/changes.mjs';
 
 export const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -14,7 +15,8 @@ export const xfade = u => [1 - ease(k01(u, 60, 150)), ease(k01(u, 0, 90))];
 const at = (t, list) => { let v = list[0][1]; for (const [s, x] of list) if (t >= s) v = x; return v; };
 
 // Effects on top of each show's own, stronger the higher the tier (design package README 7.1): C a manga symbol and a small
-// burst; B a ring on the ground and things floating up; A light behind her and a shake at the peak.
+// burst; B a ring on the ground and things floating up; A light behind her and a shake at the peak; S the whole page. A
+// lottery's are its steps'.
 // fx: [type, from ms, ...]; shake: [from ms, px, ms].
 const EVENT_FX = {
   entry: { fx: [['bang', 0], ['spark', 150, 0.2, 0.18, 6], ['halo', 0, 900, 0.25]] },
@@ -34,28 +36,70 @@ const EVENT_FX = {
     fx: [['pillar', 0, 2800, 390, 626, 70], ['shockwave', 2800, null, { x: 390, y: 624 }], ['dust', 2800, null, 6, { x: 390, y: 626 }], ['bang', 2850], ['shock', 2850],
       ['pillar', 3400, 1300, 390, 470, 100], ['fountain', 3400, 2000, { x: 390, y: 470 }], ['rays', 4400, 1600, 0.55], ['burst', 4400, 300], ['confetti', 4400], ['hearts', 4600, 4]],
     shake: [[2800, 2, 200], [3400, 3, 260]]
-  }
+  },
+  newFirst: { fx: [['rays', 1300, 1000, 0.35], ['glint', 1350, 0.5, 0], ['spark', 1300, 0.5, 0.05, 8]] },
+  captain: { fx: [['shockwave', 600], ['splash', 600], ['anchors', 700, 2400], ['glint', 1000, 0.14, 0.3], ['halo', 600, 2400, 0.3]] },
+  admiral: {
+    fx: [['shockwave', 700], ['splash', 700], ['spark', 3600, 0.2, 0.3, 12], ['rays', 3600, 2600, 0.55], ['burst', 3600, 300], ['confetti', 3700]],
+    shake: [[700, 2, 200], [3600, 3, 240]]
+  },
+  castle: {
+    fx: [['bang', 300], ['spark', 2200, 0.5, 0.4, 10], ['petals', 2600, 6400], ['halo', 3000, 1500, 0.4], ['stepGlow', 4500, 3000], ['towerSparkles', 7500, 1600],
+      ['dust', 9800], ['shockwave', 9800]],
+    shake: [[1600, 2, 240]]
+  },
+  EntryOpen: { fx: [['spot', 0, 2200], ['bang', 0], ['confetti', 200]] },
+  PoolOpen: { fx: [['spot', 0, 2200], ['bang', 0], ['confetti', 200]] },
+  EntryClosed: { fx: [['shock', 0], ['sweat', 300, 1600]] },
+  PoolSpin: { fx: [['starRing', 0, 1700], ['sweat', 400, 1600]] },
+  PoolCall: { fx: [['spot', 0, 1700], ['bang', 100], ['spark', 300, 0.9, 0.3, 8]] },
+  RevealGrand: { fx: [['sweat', 600, 1300], ['burst', 2500, 400], ['rays', 2500, 2400, 0.75], ['halo', 2500, 2400, 0.7]], shake: [[2500, 3, 260]] },
+  RevealSecond: { fx: [['sweat', 600, 1300], ['halo', 2500, 1800, 0.35], ['confetti', 2500]] },
+  RevealThird: { fx: [['sweat', 600, 1300], ['spark', 2500, 0.5, 0.15, 6], ['hearts', 2700, 2]] },
+  NoEntries: { fx: [['gloom', 200, 2200], ['rain', 400, 2000], ['leaf', 300]] },
+  End: { fx: [['halo', 0, 2000, 0.3], ['hearts', 300, 3], ['spark', 1450, 0.2, 0.2, 8]] }
 };
 export const TIER = { SS: 5, S: 4, A: 3, B: 2, C: 1, D: 0 };
 // Each tier's own glow (README 7.1), like gacha rarity: cool and quiet low, warmer higher; gold is the governor's, and a
 // blind box jackpot's.
 export const GLOW = { SS: '254,197,79', S: '253,183,202', A: '180,140,255', B: '124,200,255', C: '255,211,223', D: '255,255,255' };
-// How long each show lasts and, for a blind box, its endings (a 一轮盲盒's outcome as Core tells it, and Jackpot); its 演出档 is
-// the 演出表's (shows.json).
+// She holds her breath this long in a lottery's reveal before she reacts; a draw is revealed this long before its DrawUntil,
+// so she reacts as the 抽奖页's effects end and steals none of their show (README 4).
+const REVEAL = 2500;
+// The lottery's steps (README 4), each a show of its own on the board, are the 试演 variants of the 演出表's one lottery row:
+// how long each lasts and the kind of line it says; the grand prize shines gold, a gacha's top pull, though it is an A show.
+const LOTTERY = {
+  EntryOpen: { dur: 2600, line: 'lotteryEntryOpen' }, EntryClosed: { dur: 2000, line: 'lotteryEntryClosed' },
+  PoolOpen: { dur: 2600, line: 'lotteryPoolOpen' }, PoolCall: { dur: 2000, line: 'lotteryPoolCall' }, PoolSpin: { dur: 2000, line: 'lotteryPoolSpin' },
+  RevealGrand: { dur: 5200, line: 'lotteryGrand', glow: 'SS' }, RevealSecond: { dur: 4600, line: 'lotterySecond' }, RevealThird: { dur: 4600, line: 'lotteryThird' },
+  NoEntries: { dur: 2800, line: 'lotteryNoEntries' }, End: { dur: 2600, line: 'lotteryEnd' }
+};
+// How long each show lasts and, for a blind box, its endings (a 一轮盲盒's outcome as Core tells it, and Jackpot), for the
+// lottery its steps; its 演出档 is the 演出表's (shows.json).
 const EVENTS = {
   entry: { dur: 1600 }, gift: { dur: 2000 }, giftStreak: { dur: 2600 },
   blindBoxSmall: { dur: 2600, results: ['Gain', 'Even', 'Loss'] }, midGift: { dur: 3500 }, blindBoxMedium: { dur: 4000, results: ['Gain', 'Even', 'Loss'] },
-  bigGift: { dur: 6000 }, blindBoxLarge: { dur: 6000, results: ['Gain', 'Even', 'Loss', 'Jackpot'] }
+  captain: { dur: 4500 }, bigGift: { dur: 6000 }, blindBoxLarge: { dur: 6000, results: ['Gain', 'Even', 'Loss', 'Jackpot'] },
+  admiral: { dur: 8000 }, governor: { dur: 15000 }, castle: { dur: 11500 }, newFirst: { dur: 2600 }, lottery: { steps: LOTTERY }
 };
+// A 大航海 by B站's guard_level: 1 总督, 2 提督, 3 舰长.
+const GUARDS = ['governor', 'admiral', 'captain'];
 // What a 试演 thanks for, where its line names a gift.
-const GIFT = { gift: '小花花', giftStreak: '小花花', midGift: '告白气球', bigGift: '小电视飞船', blindBoxSmall: '棉花糖', blindBoxMedium: '爱心抱枕', blindBoxLarge: '爱心抱枕' };
+const GIFT = { gift: '小花花', giftStreak: '小花花', midGift: '告白气球', bigGift: '小电视飞船', blindBoxSmall: '棉花糖', blindBoxMedium: '爱心抱枕', blindBoxLarge: '爱心抱枕', castle: '浪漫城堡' };
+// What a 试演 of the lottery names as its keyword, award and prize.
+const LOTTERY_TRIAL = { keyword: '抽奖', award: '一等奖', prize: '定制周边' };
+// The admiral's ship stops behind her on the upper page, farther off (s), its bottom on y; her manifest has its mainmast top
+// and where its flags are strung.
+const ADM_SHIP = { x: 300, y: 300, s: 0.6 };
+// Where the flagship's bow deck stops on the page: she stands there at her full size.
+const SHIP_DECK = { x: 133, y: 398 };
 // When a blind box show opens its box; after a round she has shaken it already, so the show starts there (start()).
 const BOX_OPEN = { blindBoxSmall: 900, blindBoxMedium: 1200, blindBoxLarge: 1500 };
 // Where the sprite listens while she shakes a blind box: beside the box at its height, clear of the box and of the shake
 // marks around it (the box is at 0.83, 0.44 of her shakeBox drawing); it used to sit on the box, the marks over it.
 const BOX_EAR = ['rel', 1.28, 0.4];
 // A gift round's shows from small to big: the round plays the one it has grown to, moving up as it grows (README 2).
-const GIFT_SHOWS = ['gift', 'giftStreak', 'midGift', 'bigGift'];
+const GIFT_SHOWS = ['gift', 'giftStreak', 'midGift', 'bigGift', 'castle'], CASTLE = GIFT_SHOWS.indexOf('castle');
 const BLIND_BOXES = ['blindBoxSmall', 'blindBoxMedium', 'blindBoxLarge'];
 // Which lines a blind box's ending says.
 const BOX_LINES = { Gain: 'blindBoxGain', Even: 'blindBoxEven', Loss: 'blindBoxLoss', Jackpot: 'blindBoxJackpot' };
@@ -81,30 +125,85 @@ const SPORTS = {
 export const DAILY = { hum: [4000, 1500] };
 for (const [kind, sp] of Object.entries(SPORTS)) DAILY[kind] = [1100 + sp.act[1] + sp.calmMs + 900, sp.fallMs - sp.calmMs];
 
+// ---- the lottery on air, as Core tells it (LotteryState.cs)
+// A viewer as the 抽奖页 names one: by nickname, else by UID (a pool's called viewer, or one who never sent a danmaku in it).
+const viewer = (nickname, uid) => nickname || (uid ? `UID ${uid}` : '');
+// What she waits through while no show plays: entries open, or a draw coming (entries closed with someone to draw, a pool
+// spinning or its draw on the way to its DrawUntil); a pool between draws is no wait, and has no end.
+const lotOf = l => l?.mode === 'Entry' ? (l.phase === 'Open' ? 'open' : l.phase === 'Closed' && l.entryCount ? 'waiting' : null)
+  : l?.mode === 'Pool' && (l.phase === 'Spinning' || l.drawUntil) ? 'waiting' : null;
+// The steps a new state of a lottery calls for, after the last state of the lottery before it, each [step, what its line
+// fills in]: a lottery opened; entries opened, and closed with or without anyone; a pool calling a viewer and spinning; one
+// with entries ended, or a pool with draws given way to a new lottery.
+function stepsOf(prev, next) {
+  const was = prev?.id === next.id ? prev : null, steps = [];
+  if (!was && prev?.mode === 'Pool' && prev.draws.length) steps.push(['End']);
+  if (!was && next.mode === 'Pool') steps.push(['PoolOpen']);
+  if (next.mode === 'Pool' && next.phase === 'Spinning' && was?.phase !== 'Spinning') {
+    if (next.uid) steps.push(['PoolCall', { nickname: viewer(null, next.uid) }]);
+    steps.push(['PoolSpin']);
+  }
+  const entry = { Open: [['EntryOpen', { keyword: next.keyword }]], Closed: [[next.entryCount ? 'EntryClosed' : 'NoEntries']], Ended: next.entryCount ? [['End']] : [] };
+  if (next.mode === 'Entry' && next.phase !== was?.phase) steps.push(...entry[next.phase] ?? []);
+  return steps;
+}
+// A draw's reveal by its grade, with who won what: an entry lottery's award and prize, a pool's prize as both.
+const revealOf = (lottery, draw) => lottery.mode === 'Entry'
+  ? { result: 'Reveal' + draw.award.grade, nickname: draw.winner.nickname, award: draw.award.name, prize: draw.award.prize }
+  : { result: 'Reveal' + draw.prize.grade, nickname: viewer(draw.nickname, draw.uid), award: draw.prize.name, prize: draw.prize.name };
+
 /** The engine of the 桌宠页: Core tells it what happens (DesktopPet.cs) and it decides what she plays. `master` is the page's
  * one animation, whose currentTime is the time of everything; `shows` are the rows of the 演出表, which give each show its
- * 演出档. */
+ * 演出档; `art` is the current character's desktopPet (characters/README.md), whose props' points place the big shows. Their
+ * pictures' sizes, `props` and `castle`, are Pet's to measure. */
 export class Engine {
-  constructor(master, shows) {
-    this.master = master;
+  constructor(master, shows, art) {
+    Object.assign(this, { master, art });
     this.events = Object.fromEntries(shows.map(row => [row.id, { ...EVENTS[row.id], tier: row.tier, group: row.group }]));
   }
 
   now() { return this.master.currentTime; }
 
   reset(rng) {
-    this.cur = this.seen = this.trial = null; this.queue = []; this.rounds = [];
+    this.cur = this.seen = this.trial = this.lot = this.reveal = null; this.queue = []; this.rounds = []; this.lottery = undefined; this.changes = new Changes();
     this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lastLine = {}; this.rng = rng;
   }
 
-  // The 桌宠页's state: whether she is on, how the streamer set her to play and what she says. Her quiet-room clocks start when
-  // the room connects; while none is she stays calm, and a round she was shaking boxes for will not end.
+  // The 桌宠页's state: whether she is on, how the streamer set her to play and what she says, the lottery on air and the 礼物榜
+  // while its 期 runs. Her quiet-room clocks start when the room connects; while none is she stays calm, and a round she was
+  // shaking boxes for will not end.
   receive(state) {
     const now = this.now();
     Object.assign(this, { on: state.enabled, settings: state.settings, lines: state.lines });
     if (state.roomConnected && !this.room) { this.lastGift = this.lastAny = now; this.recent = []; }
     if (!state.roomConnected) this.rounds = [];
     this.room = state.roomConnected;
+    // switched off she is told nothing more, and back on she starts from what she is told then
+    if (!state.enabled) { this.lottery = undefined; this.reveal = null; this.changes.reset(); return; }
+    this.onAir(state.lottery);
+    this.ranked(state.giftBoard);
+  }
+
+  // The lottery on air (README 4): she plays each step it takes and waits through it while no show plays (lot), and reveals
+  // a draw at its DrawUntil, on the clock of the 抽奖页, which counts down to it the same way. The first state she is told is
+  // where she starts from, and a lottery back on air (the room reconnected) is no new one.
+  onAir(next) {
+    const prev = this.lottery;
+    this.lottery = next ?? prev ?? null;
+    this.lot = this.settings.off.includes('lottery') ? null : lotOf(next);
+    if (prev === undefined || !next) return;
+    for (const [step, opts] of stepsOf(prev, next)) this.fire('lottery', { ...opts, result: step });
+    const draw = next.draws.at(-1);
+    if (draw && next.drawUntil && !(prev?.id === next.id && prev.draws.some(d => d.id === draw.id)))
+      this.reveal = { at: this.now() + Date.parse(next.drawUntil) - Date.now() - REVEAL, opts: revealOf(next, draw) };
+  }
+
+  // The 礼物榜 while its 期 runs, none else: a gift that takes its first place, as changes.mjs tells the 礼物榜页, crowns the
+  // new first after the show playing (update), never on its own.
+  ranked(board) {
+    if (!board) return this.changes.reset();
+    this.changes.receive(board);
+    for (let change; (change = this.changes.take());) if (change.kind === 'top' && this.cur && !DAILY[this.cur.name]) this.cur.opts.top = change.state.rows[0].nickname;
   }
 
   fire(name, opts = {}) {
@@ -127,15 +226,18 @@ export class Engine {
 
   start(name, opts) {
     const now = this.now(), { dailyMinSeconds, dailyMaxSeconds } = this.settings;
-    const wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : this.events[name].dur;
+    const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (ev.steps?.[opts.result] ?? ev).dur;
     this.cur = { name, opts, start: now, pre: wake ? 1000 : 0, dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null };
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
     if (DAILY[name]) this.nextDaily = now + dur + dailyMinSeconds * 1000 + this.rng() * (dailyMaxSeconds - dailyMinSeconds) * 1000;
   }
 
-  // A blind box says the lines of its ending; every other show its own.
-  lineKey(name, opts = {}) { return this.events[name]?.results ? BOX_LINES[opts.result || 'Gain'] : name; }
+  // A blind box says the lines of its ending, the lottery its step's; every other show its own.
+  lineKey(name, opts = {}) {
+    const ev = this.events[name];
+    return ev?.results ? BOX_LINES[opts.result || 'Gain'] : ev?.steps ? ev.steps[opts.result].line : name;
+  }
 
   // ---- what Core tells it (DesktopPet.cs)
   // A gift, a blind box or a 大航海 counts for 开心 and wakes her from 沮丧; anything at all from 犯困.
@@ -159,19 +261,25 @@ export class Engine {
     }
     r.arrivals.push(now); r.boxes = p.boxes;
     this.gifted(now);
-    if (!p.count) return;
+    // a castle in the round, sent or opened, plays once instead of its gifts and blind boxes; among blind boxes it waits for
+    // their result as they do
+    if (p.castle && p.boxes && r.played < CASTLE) { r.castle = true; r.played = CASTLE; }
+    if (!p.count || r.castle) return;
     const { midGift, bigGift } = this.settings;
-    const kind = p.spend >= bigGift ? 'bigGift' : p.spend >= midGift ? 'midGift' : p.count >= 5 ? 'giftStreak' : 'gift';
+    const kind = p.castle ? 'castle' : p.spend >= bigGift ? 'bigGift' : p.spend >= midGift ? 'midGift' : p.count >= 5 ? 'giftStreak' : 'gift';
     if (GIFT_SHOWS.indexOf(kind) <= r.played) return;
     this.fire(kind, { nickname: p.nickname, gift: p.topGift, count: kind === 'giftStreak' ? p.count : p.topCount, wake: r.played < 0 && r.wake });
     r.played = GIFT_SHOWS.indexOf(kind); r.wake = false;
   }
 
   // A 一轮盲盒's result, as its 盲盒播报 reported it (BlindBoxResult): the size by what the boxes cost, the ending by what they
-  // opened; a single gift opened at the 大礼物 threshold is a jackpot and at least the big one.
+  // opened; a single gift opened at the 大礼物 threshold is a jackpot and at least the big one. A castle in the round plays
+  // the castle instead.
   blindBox(b) {
-    const i = this.rounds.findIndex(r => r.uid === b.uid && r.boxes), { midGift, bigGift } = this.settings;
+    const i = this.rounds.findIndex(r => r.uid === b.uid && r.boxes), { midGift, bigGift } = this.settings, r = this.rounds[i];
     if (i >= 0) this.rounds.splice(i, 1);
+    if (r?.castle || !r && b.castle) return this.fire('castle', { nickname: b.nickname });
+    if (r?.played === CASTLE) return;
     const jackpot = b.bestPrice >= bigGift, spend = b.tally.spend;
     this.fire(BLIND_BOXES[jackpot || spend >= bigGift ? 2 : spend >= midGift ? 1 : 0],
       { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes, shaken: i >= 0 });
@@ -182,8 +290,8 @@ export class Engine {
   // a danmaku is not played (README 10), it only tells her someone is there: 犯困 needs an hour with nothing at all
   danmaku() { this.lastAny = this.now(); }
 
-  // A 大航海 is a gift to her 心情.
-  guard() { this.gifted(this.now()); }
+  // A 大航海 plays at once, in no 一轮送礼, and is a gift to her 心情.
+  guard(g) { this.fire(GUARDS[g.guardLevel - 1], { nickname: g.nickname }); this.gifted(this.now()); }
 
   // A 试演 plays the show from its start (a blind box from its shaking), or holds her in the 心情, until it is stopped.
   testShow({ show, variant, nickname }) {
@@ -219,19 +327,23 @@ export class Engine {
   }
 
   update(now) {
+    if (this.reveal && now >= this.reveal.at) { this.fire('lottery', this.reveal.opts); this.reveal = null; }
     const c = this.cur;
     if (c && now >= c.start + c.pre + c.dur) {
       this.cur = this.seen = null;
-      if (this.queue.length) {
+      // the first place taken on the 礼物榜 while it played is crowned next (ranked)
+      if (c.opts.top && !this.settings.off.includes('newFirst')) this.start('newFirst', { nickname: c.opts.top, chained: true });
+      else if (this.queue.length) {
         const best = Math.max(...this.queue.map(q => TIER[this.events[q.name].tier]));
         const i = this.queue.findIndex(q => TIER[this.events[q.name].tier] === best);
         const [q] = this.queue.splice(i, 1);
         this.start(q.name, { ...q.opts, chained: true });
       }
     }
-    // not while she shakes a round's blind boxes either: that lasts until the 盲盒播报 goes out, which may take half a minute
+    // not while she shakes a round's blind boxes either: that lasts until the 盲盒播报 goes out, which may take half a minute;
+    // nor while she waits through a lottery
     const kinds = Object.keys(DAILY).filter(kind => !this.settings.off.includes(kind));
-    if (!this.cur && !this.rounds.some(r => r.boxes) && this.mood(now) === 'calm' && now >= this.nextDaily && kinds.length) {
+    if (!this.cur && !this.rounds.some(r => r.boxes) && !this.lot && this.mood(now) === 'calm' && now >= this.nextDaily && kinds.length) {
       const kind = kinds[Math.floor(this.rng() * kinds.length)], mishap = this.rng() * 100 < this.settings.mishapPercent;
       this.start(kind, { mishap });
     }
@@ -258,11 +370,14 @@ export class Engine {
     const c = this.cur, shaking = this.rounds.find(r => r.boxes);
     let st;
     if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
-    else if (c) st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts));
-    else if (shaking) st = this.roundState(now, shaking);
+    else if (c) {
+      st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts));
+      // she says her line at the castle's gate once she gets there
+      if (c.name === 'castle' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine ??= this.pick('castleGate'), c.name, c.opts);
+    } else if (shaking) st = this.roundState(now, shaking);
     else {
-      const mood = this.mood(now);
-      if (this.seen?.key !== mood) this.seen = { key: mood, at: now };
+      const mood = this.mood(now), key = mood + (this.lot ?? '');
+      if (this.seen?.key !== key) this.seen = { key, at: now };
       st = this.idleState(now, mood, now - this.seen.at);
     }
     for (const r of this.rounds) if (r !== st.round) for (const x of r.arrivals) st.fx.push(['giftArc', st._t == null ? x : st._t - (now - x)]);
@@ -271,9 +386,10 @@ export class Engine {
 
   base() { return { pose: 'idle', x: FOOT.x, y: FOOT.y, s: 1, sx: 1, sprite: 'sIdle', sp: null, sBehind: false, sScale: 1, sAlpha: 1, fx: [], bubble: null }; }
 
-  // since: how long she has been in this mood without an event.
+  // since: how long she has been in this mood (or lottery wait) without an event.
   idleState(now, mood, since = now) {
     const st = this.base();
+    if (this.lot === 'waiting') { st.pose = 'hope'; st.fx.push(['sweat', 0, 2400]); this.talk(st, 'lotteryWaiting', since); return st; }
     if (mood === 'happy') { st.y -= 6 * Math.abs(Math.sin(now / 380)); st.orbit = now; }
     if (mood === 'calm' && now % 7000 > 5800) st.sprite = 'sLook';  // now and then it looks up at her
     if (mood === 'bored') { st.fx.push(['dots', 0, 6000], ['sigh', 0, 7000]); }
@@ -281,7 +397,7 @@ export class Engine {
     if (mood === 'bored') { st.pose = 'bored'; st.sprite = now % 8000 < 2600 ? 'yawn' : 'sIdle'; st.sp = ['home', 10 * Math.sin(now / 1800), 6 * Math.sin(now / 1300)]; }
     if (mood === 'gloomy') { st.pose = 'gloomy'; st.sprite = 'pat'; st.sp = 'head'; }
     if (mood === 'sleepy') { st.pose = 'doze'; st.sprite = 'sleep'; st.sp = 'knee'; }
-    this.talk(st, mood, since);
+    this.talk(st, this.lot === 'open' ? 'lotteryEntryOngoing' : mood, since);
     if (mood === 'sleepy') {
       // every other half minute her head drops onto her knees: she jolts awake, insists she wasn't asleep, and dozes off again
       const u = since % 30000;
@@ -291,18 +407,19 @@ export class Engine {
     return st;
   }
 
-  // A mood says its first line 0.6 s in and the next one every 15 s after (平静 and 开心 say nothing).
+  // A mood or a lottery wait says its first line 0.6 s in and the next one every 15 s after (平静 and 开心 say nothing).
   talk(st, key, since) {
     const lines = this.lines[key], u = since % 15000;
-    if (lines && u >= 600 && u < 4600) st.bubble = { text: this.fill(lines[Math.floor(since / 15000) % lines.length]), t: u - 600 };
+    if (lines && u >= 600 && u < 4600) st.bubble = { text: this.fill(lines[Math.floor(since / 15000) % lines.length], key, { keyword: this.lottery?.keyword }), t: u - 600 };
   }
 
+  // A show's state t ms in; a lottery's is its step's (opts.result).
   eventState(name, t, opts, line) {
-    const st = this.base();
-    st._t = t; st.glow = GLOW[this.events[name]?.glow || this.events[name]?.tier || 'D'];
+    const st = this.base(), step = this.events[name]?.steps?.[opts.result], key = step ? opts.result : name;
+    st._t = t; st.glow = GLOW[step?.glow || this.events[name]?.tier || 'D'];
     const say = (from, text = line) => { if (t >= from && text) st.bubble = { text, t: t - from }; };
     const hop = (a, h = 10) => { st.y -= h * bump(t, a, a + 320); if (h >= 10) st.fx.push(['dust', a + 300]); };  // a puff where she lands
-    switch (name) {
+    switch (key) {
       // it looks up at her first, then waves its flag with her
       case 'entry': st.pose = 'wave'; hop(0, 8); st.sprite = t < 350 ? 'sLook' : 'flag'; say(100); break;
       // they bow together
@@ -345,9 +462,42 @@ export class Engine {
         if (loss) st.fx.push(...(size ? [] : [['puff', o]]), ['sweat', react - 550], ['gloom', react - 500, 450], ['anger', react, 900]);
         say(o + 100); break;
       }
+      // the sprite flies up to her head with a crown and puts it on her, and flies back
+      case 'newFirst':
+        st.pose = t < 1300 ? 'idle' : 'crownV';
+        st.sprite = t < 1600 ? 'crown' : 'sHappy';
+        st.sp = t < 1600 ? ['crown', ease(k01(t, 0, 900)), ease(k01(t, 900, 1300))] : ['home-from-top', ease(k01(t, 1600, 2400))];
+        st.fx.push(['ring', 1300], ['sparkles', 1300]); say(1300); break;
+      // the sprite dresses her, salutes beside her in its sailor collar, and dresses her back
+      case 'captain':
+        if (t < 600) this.dress(st, t, 0);
+        else { st.pose = 'capSalute'; hop(600, 8); st.sprite = 'sailor'; st.sp = ['rel', -0.1, 0.42]; }
+        if (t >= 3700) { st.pose = t < 4300 ? 'capSalute' : 'idle'; if (t < 4300) this.dress(st, t, 3700); else st.sprite = 'sHappy'; }
+        st.fx.push(['flash', 600, 0.6], ['seaBubbles', 600], ['flash', 4300, 0.6]); say(800); break;
+      case 'admiral': this.admiral(t, st, say); break;
+      case 'governor': this.governor(t, st, say); break;
+      case 'castle': this.castleShow(t, st, say); break;
+      // it flies up beside her raised fist with its flag
+      case 'EntryOpen': case 'PoolOpen': st.pose = 'announce'; hop(0, 12); st.sprite = 'flag'; st.sp = ['rel', -0.18, 0.05]; st.fx.push(['sparkles', 0]); say(150); break;
+      // both hold their breath: it looks up at her, trembling
+      case 'EntryClosed': case 'PoolSpin': st.pose = 'hope'; st.sprite = 'sLook'; st.sp = ['home', 1.5 * Math.sin(t / 30), 0]; say(150); break;
+      // it dashes out the way she points, toward the viewer, waving its flag
+      case 'PoolCall': st.pose = 'point'; st.sprite = 'flag'; st.sp = ['rel', 1.0, 0.32]; st.sScale = 1 + 0.3 * bump(t, 200, 1600); say(150); break;
+      case 'RevealGrand': case 'RevealSecond': case 'RevealThird': {
+        const react = REVEAL;
+        st.pose = t < react ? 'hope' : { RevealGrand: 'cheer', RevealSecond: 'clap', RevealThird: 'nod' }[key];
+        if (t < react) { st.sprite = 'sLook'; st.sp = ['home', 1.5 * Math.sin(t / 30), 0]; }
+        else if (key === 'RevealGrand') { hop(react, 14); st.fx.push(['confetti', react]); this.toss(st, t, react); }
+        else if (key === 'RevealSecond') { st.sprite = 'sHappy'; st.sp = ['home', 0, -8 * Math.abs(Math.sin(Math.PI * (t - react) / 440))]; st.fx.push(['sparkles', react]); }
+        else st.sprite = 'nod';
+        say(react); break;
+      }
+      // she bows her thanks with the sprite, straightens up and waves goodbye while it waves its flag
+      case 'End': st.pose = at(t, [[0, 'bow'], [1200, 'idle'], [1450, 'wave']]); st.sprite = t < 1200 ? 'nod' : 'flag'; say(150); break;
+      case 'NoEntries': st.pose = 'dejected'; st.sprite = 'pat'; st.sp = 'head'; say(200); break;
       case 'hum': case 'gym': case 'hike': case 'bike': case 'ski': return this.daily(t, st, { ...opts, kind: name });
     }
-    const extra = EVENT_FX[name];
+    const extra = EVENT_FX[key];
     if (extra) { st.fx.push(...extra.fx); st.shake = extra.shake; }
     return st;
   }
@@ -405,6 +555,111 @@ export class Engine {
     return st;
   }
 
+  // The governor (SS, README 3): the page edges glow gold, a sea of gold clouds rolls in and the flagship sails up to us out
+  // of the distance while the sprite dresses her; it flies up to plant its flag on the mainmast; a stair of light takes her
+  // up onto the bow, where she points ahead: the emblem rises in front of the sails, three fireworks go up, gold rains over
+  // the page; she waves, comes back down the stair, and the ship sails off into the distance leaving a gold wake.
+  governor(t, st, say) {
+    const come = ease(k01(t, 1500, 4000)), go = ease(k01(t, 12000, 14000)), far = { x: 380, y: 170 }, gone = { x: 60, y: 90 };
+    const deck = t < 12000 ? { x: far.x + (SHIP_DECK.x - far.x) * come, y: far.y + (SHIP_DECK.y - far.y) * come + 3 * Math.sin(t / 500) }
+      : { x: SHIP_DECK.x + (gone.x - SHIP_DECK.x) * go, y: SHIP_DECK.y + (gone.y - SHIP_DECK.y) * go };
+    const s = (0.3 + 0.7 * come) * (1 - 0.8 * go);
+    st.ship = { x: deck.x, y: deck.y, s, a: k01(t, 1500, 1900) * (1 - k01(t, 13300, 14000)) };
+    const mast = this.shipPoint(st.ship, this.art.points.flagship.mast);
+    // up the stair in three hops, and down again
+    const climb = (a, b, from, to) => { const w = k01(t, a, b), hopN = Math.floor(w * 3), u = w * 3 - hopN; return { x: from.x + (to.x - from.x) * w, y: from.y + (to.y - from.y) * w - 40 * Math.sin(Math.PI * Math.min(1, u)) }; };
+    if (t >= 5500 && t < 6500) Object.assign(st, climb(5500, 6500, FOOT, deck));
+    else if (t >= 6500 && t < 11400) { st.x = deck.x; st.y = deck.y; }
+    else if (t >= 11400 && t < 12000) Object.assign(st, climb(11400, 12000, deck, FOOT));
+    // the sprite dresses her while the ship comes in, then flies ahead up to the mainmast with its flag before she
+    // climbs aboard, and flies back down to her when she jumps off
+    if (t < 2900) { st.pose = 'surprised'; st.sprite = 'surprised'; st.sp = ['rel', -0.1, 0.42]; }
+    else if (t < 3900) { st.pose = 'surprised'; this.dress(st, t, 2900); }
+    else if (t < 14000) {
+      st.pose = t < 5500 ? 'govPoint' : t < 6500 || t >= 11400 && t < 12000 ? 'govJump' : t < 9600 ? 'govPoint' : 'govWave';
+      st.sprite = 'flag';
+      st.sp = t < 11400 ? ['mast', mast.x, mast.y] : ['rel', -0.1, 0.42];
+    } else if (t < 14800) { st.pose = 'govWave'; this.dress(st, t, 14000); }
+    else st.sprite = 'sHappy';
+    if (t >= 6600 && t < 12000) st.emblem = { x: 355, y: 150 - 40 * ease(k01(t, 6600, 7400)), s: 0.8 * ease(k01(t, 6600, 7200)), a: k01(t, 6600, 6900) * (1 - k01(t, 11400, 12000)) };
+    st.fx.push(['edgeGlow', 0, 15000], ['bang', 200], ['shock', 200], ['cloudSea', 1500, 13000, SHIP_DECK.y + 160], ['gulls', 2400], ['flash', 3900, 1],
+      ['lightStairs', 5300, 1400, FOOT, deck], ['pillar', 6600, 3000], ['rays', 6600, 4800, 0.6, { x: 355, y: 110 }], ['burst', 6600, 300],
+      ['skyFireworks', 6800, [[0, 70, 90, '#FFD45E'], [600, 240, 46, '#FF9AB5'], [1200, 420, 100, '#9CCFFF'], [6000, 380, 80, '#FFD45E'], [6500, 440, 170, '#FFE9A8']]],
+      ['lightStairs', 11200, 1000, FOOT, deck], ['wake', 12000, 3000, [{ x: 440, y: 560 }, { x: 250, y: 330 }, { x: 70, y: 100 }]], ['flash', 14800, 0.8]);
+    if (t >= 6800 && t < 12000) st.fx.push(['goldConfetti', 6800]);
+    st.shake = [[4000, 3, 300], [6600, 4, 320]];
+    say(1700);
+    return st;
+  }
+
+  // The admiral (A, README 3): dressed by the sprite, she raises her spyglass to the left, where her ship appears far off;
+  // the sprite flies out to meet it and rides in on its mainmast while it sails up to stop behind her; she lowers the glass
+  // and salutes, and the ship answers: it dresses its flags from bow to stern and glows; then it sails off to the right,
+  // the sprite flies back down to her and dresses her back.
+  admiral(t, st, say) {
+    // It is drawn side on, so it only ever moves along its heading: in from beyond the left edge, slowing to a stop behind
+    // her (running on a little and settling back, its bow dipping), rocking on the waves, then gathering way out to the
+    // right with its bow lifting. (It used to slide in down a slant while growing, which a ship seen side on cannot do.)
+    const a = { ...ADM_SHIP, ...this.art.points.admship }, w = this.props.admship.width * H / this.art.anchor * a.s, from = -w / 2 - 30, to = PAGE.w + w / 2 + 30;
+    const xAt = u => from + (a.x - from) * (1 - (1 - k01(u, 1100, 3400)) ** 3) + 10 * Math.sin(Math.PI * k01(u, 3400, 4300)) + (to - a.x) * k01(u, 6000, 7600) ** 2;
+    const speed = Math.min(1, Math.abs(xAt(t + 20) - xAt(t - 20)) / 40 / 0.45);  // 1 at full way
+    const ship = { x: xAt(t), y: a.y + 4 * Math.sin(t / 450), s: a.s, a: t >= 1100 && t < 7700 ? 1 : 0, speed,
+      rot: 0.015 * Math.sin(t / 650) + 0.035 * Math.sin(Math.PI * k01(t, 3300, 4300)) - 0.03 * Math.sin(Math.PI * k01(t, 6000, 6800)),
+      flags: ease(k01(t, 3600, 4300)), glow: bump(t, 3500, 5600) };
+    st.admShip = ship;
+    const mast = this.admPoint(ship, a.mast);
+    if (t < 700) this.dress(st, t, 0);
+    else if (t < 7200) {
+      st.pose = t < 3500 ? 'spyglass' : 'admSalute';
+      st.sprite = t >= 2300 && t < 6200 ? 'flag' : 'sailor';
+      st.sp = t >= 1500 && t < 6200 ? ['at', mast.x, mast.y - 4] : ['rel', -0.1, 0.42];
+    } else if (t < 7900) { st.pose = 'admSalute'; this.dress(st, t, 7200); }
+    else { st.pose = 'idle'; st.sprite = 'sHappy'; }
+    st.fx.push(['flash', 700, 1], ['seaBubbles', 700], ['gulls', 1600], ['flash', 7900, 0.8]);
+    say(1000);
+    return st;
+  }
+
+  // Where a point of the admiral's ship (prop px) is on the page, the ship's bottom centre at s.x, s.y, rocked by s.rot.
+  admPoint(s, pt) {
+    const im = this.props.admship, k = H / this.art.anchor * s.s, dx = (pt[0] - im.width / 2) * k, dy = -(im.height - pt[1]) * k, c = Math.cos(s.rot || 0), n = Math.sin(s.rot || 0);
+    return { x: s.x + dx * c - dy * n, y: s.y + dx * n + dy * c };
+  }
+
+  // Where a point of the flagship's picture (prop px) is on the page, the ship's deck at sh.x, .y.
+  shipPoint(sh, pt) { const k = H / this.art.anchor * sh.s, d = this.art.points.flagship.deck; return { x: sh.x + (pt[0] - d[0]) * k, y: sh.y + (pt[1] - d[1]) * k }; }
+
+  // The sprite turns into the castle behind her; she twirls into the princess gown, curtsies, walks up to the gate and
+  // waves from it, then runs back down the steps to us while the castle shrinks back into the sprite at its spot, and the
+  // sprite circles her to dress her back. Her line at the gate is stateAt's.
+  castleShow(t, st, say) {
+    const b = this.castle.box, cs = 340 / b.h, home = this.home(0), [gx, gy] = this.art.points.castleClosed.gate;
+    const rise = ease(k01(t, 900, 1600)), back = ease(k01(t, 9600, 10400)), top = 420 - 230 * rise;
+    const cx = PAGE.w / 2 + (home.x - PAGE.w / 2) * back, cy = top + (home.y - top) * back;
+    st.castle = { x: cx, y: cy, s: cs * (0.6 + 0.4 * rise) * (1 - 0.75 * back), a: k01(t, 900, 1500) * (1 - k01(t, 10000, 10400)),
+      open: t < 9000 ? (t >= 7500 ? k01(t, 7500, 7800) : 0) : 1 - k01(t, 9000, 9300) };
+    const gate = { x: PAGE.w / 2 + (gx - this.castle.closed.width / 2) * cs, y: top + (gy - this.castle.closed.height / 2) * cs };
+    if (t < 1500) { st.sprite = 'glow'; st.sBehind = true; st.sp = ['to-castle', ease(k01(t, 0, 1200)), 1 + 1.6 * k01(t, 300, 1500)]; st.sAlpha = 1 - k01(t, 900, 1500); }
+    else if (t < 9600) st.sp = ['gone'];
+    else if (t < 10500) { st.sprite = 'sHappy'; st.sp = ['at', cx, cy]; st.sAlpha = k01(t, 10000, 10400); st.sScale = 1.6 - 0.6 * k01(t, 10000, 10500); }
+    else if (t < 11200) this.dress(st, t, 10500);
+    else st.sprite = 'sHappy';
+    if (t < 2200) { st.pose = 'idle'; st.sx = t < 1500 ? 1 : Math.cos((t - 1500) / 90); }
+    else if (t < 3000) st.pose = 'spin';
+    else if (t < 4500) st.pose = 'curtsy';
+    else if (t < 7500) { st.pose = 'walkA'; const w = k01(t, 4500, 7500); st.x = FOOT.x + (gate.x - FOOT.x) * w; st.y = FOOT.y + (gate.y - FOOT.y) * w; st.s = 1 - 0.68 * w; }
+    else if (t < 9000) { st.pose = 'lookBack'; st.x = gate.x; st.y = gate.y; st.s = 0.32; }
+    else if (t < 9800) {
+      // three bounding steps down to us, growing as she comes closer
+      const w = ease(k01(t, 9000, 9800));
+      st.pose = 'pIdle'; st.x = gate.x + (FOOT.x - gate.x) * w; st.y = gate.y + (FOOT.y - gate.y) * w - 26 * Math.abs(Math.sin(Math.PI * 3 * w)); st.s = 0.32 + 0.68 * w;
+    } else st.pose = t < 11200 ? 'pIdle' : 'idle';
+    st.fx.push(['rainbowSparkles', 900], ['flash', 2200, 1.2], ['gateGlow', 7500, gate], ['flash', 11200, 1]);
+    if (t >= 3000 && t < 4500) say(3000);
+    if (t >= 7600 && t < 9000) st.bubble = { t: t - 7600, at: gate };
+    return st;
+  }
+
   // The big gift (A): a beam from the top of the page lands at her right; the box comes down it under a bunch of balloons,
   // lands, the balloons float away; the lid flies off, a beam and a fountain of stars and hearts go up to the top; she cheers,
   // and the box shrinks into a star that flies into her arms.
@@ -443,6 +698,7 @@ export class Engine {
     if (!text) return text;
     let nick = opts.nickname ?? '';
     if ([...nick].length > NAME_MAX) nick = [...nick].slice(0, NAME_MAX - 1).join('') + '…';
-    return text.replaceAll('{昵称}', nick).replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3));
+    return text.replaceAll('{昵称}', nick).replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3))
+      .replaceAll('{关键字}', opts.keyword ?? LOTTERY_TRIAL.keyword).replaceAll('{奖项}', opts.award ?? LOTTERY_TRIAL.award).replaceAll('{奖品}', opts.prize ?? LOTTERY_TRIAL.prize);
   }
 }
