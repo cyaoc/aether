@@ -39,9 +39,9 @@ public sealed partial class AetherClient
         }
     }
 
-    /// <summary>Where a 一轮送礼 reports: the 送礼动画 takes its end; the 桌宠 how it stands after each message and as it ends,
-    /// and then its 盲盒 too unless a 盲盒播报 reports them.</summary>
-    private sealed record GiftRoundReports(Action<GiftRoundEnded> Ended, Action<string, object> TellDesktopPet, bool BlindBoxesAnnounced);
+    /// <summary>Where a 一轮送礼 reports: the 送礼动画 takes its end; the 桌宠 how it stands after each message and as it ends; and
+    /// <paramref name="BlindBoxes"/> the result of its 盲盒 as it ends, none while a 盲盒播报 reports them.</summary>
+    private sealed record GiftRoundReports(Action<GiftRoundEnded> Ended, Action<string, object> TellDesktopPet, Action<BlindBoxResult>? BlindBoxes);
 
     private sealed class GiftRoundFeature(StepTimers timers, ILogger logger, long roomId, GiftRoundReports reports) : IRoomFeature
     {
@@ -101,8 +101,7 @@ public sealed partial class AetherClient
             if (round.Gifts.Count == 0) return;
             reports.TellDesktopPet(DesktopPet.Gift, round.Progress(true));
             var boxes = round.Gifts.Where(gift => gift.Blind is not null).ToArray();
-            if (!reports.BlindBoxesAnnounced && boxes.Length > 0)
-                reports.TellDesktopPet(DesktopPet.BlindBox, BlindBoxResult.Of(round.Uid, round.Nickname, boxes));
+            if (boxes.Length > 0) reports.BlindBoxes?.Invoke(BlindBoxResult.Of(round.Uid, round.Nickname, boxes));
         }
     }
 

@@ -125,7 +125,8 @@ public sealed partial class AetherClient
             {
                 features.Add(new GiftRoundFeature(timers, client.logger, realRoomId, new(
                     round => { client.WebService.PlayGiftRound(round, animationStop); output.TryWrite(round); },
-                    client.WebService.TellDesktopPet, Settings.BlindBoxEnabled.Value && Settings.BlindBoxAnnounce.Value)));
+                    client.WebService.TellDesktopPet, Settings.BlindBoxEnabled.Value && Settings.BlindBoxAnnounce.Value ? null
+                        : (BlindBoxResult boxes) => client.WebService.TellDesktopPet(DesktopPet.BlindBox, boxes))));
                 features.Add(new EntryAnimationFeature(client.WebService, animationStop));
                 features.Add(new DesktopPetFeature(client.WebService));
             }
