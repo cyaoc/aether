@@ -1,25 +1,33 @@
 // Run with: node --test tests/Aether.Core.Tests/DesktopPetCharacters.test.mjs
 // Every character is drawn whole for the 桌宠 too (#343): her manifest's desktopPet section has every pose, drawing of her
-// sprite and prop the 桌宠页 plays, and every strip it names; CharacterTests checks every picture it names is there.
+// sprite and prop the 桌宠页 plays, every strip it names, and a way across every change of pose; CharacterTests checks every
+// picture it names is there.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { Engine, MOOD, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { Pet } from '../../src/Aether.Core/Pages/desktop-pet/pet.mjs';
+import { SETTINGS } from './Support/DesktopPetSettings.mjs';
 
 const pages = new URL('../../src/Aether.Core/Pages/', import.meta.url), read = path => JSON.parse(readFileSync(new URL(path, pages), 'utf8'));
 const { shows } = read('desktop-pet/shows.json');
-const SETTINGS = { off: [], midGift: 100000, bigGift: 1000000, boredMinutes: 15, gloomyMinutes: 40, sleepyMinutes: 60, dailyMinSeconds: 20, dailyMaxSeconds: 40, mishapPercent: 25 };
 // Her sprite's own pictures (the character's sprite section) by the names the shows give them.
 const SINGLES = ['sIdle', 'sBlink', 'sHappy', 'sLook'];
 
-// Every state she can be in: each show the page plays from its start to its end (each blind box ending, each lottery step,
-// each 日常小动作 with and without its mishap, woken up first), each 心情 for half a minute and a round of blind boxes she shakes.
-// Pet measures the props the big shows are placed by; any size will do for which poses and drawings she takes.
-function everyState(character) {
-  const engine = new Engine({ currentTime: 0 }, shows, character.desktopPet), states = [], size = { width: 1, height: 1 };
+// Her 桌宠页's engine in a connected room, its clock at 0. Pet measures the props the big shows are placed by; any size will
+// do for which poses and drawings she takes.
+function engineOf(character) {
+  const engine = new Engine({ currentTime: 0 }, shows, character.desktopPet), size = { width: 1, height: 1 };
   Object.assign(engine, { props: { admship: size }, castle: { closed: size, box: { h: 1 } } });
   engine.reset(seeded(7));
   engine.receive({ enabled: true, roomConnected: true, settings: SETTINGS, lines: character.lines });
+  return engine;
+}
+
+// Every state she can be in: each show the page plays from its start to its end (each blind box ending, each lottery step,
+// each 日常小动作 with and without its mishap, woken up first), each 心情 for half a minute and a round of blind boxes she shakes.
+function everyState(character) {
+  const engine = engineOf(character), states = [];
   for (const row of shows.filter(row => row.group !== MOOD)) for (const variant of row.tests) {
     engine.testShow({ show: row.id, variant, nickname: '星河' });
     const { start, dur } = engine.cur = { ...engine.cur, pre: 1000, wakeLine: '' };
@@ -30,6 +38,23 @@ function everyState(character) {
   return states;
 }
 
+// Each change of pose in a show the page plays (each 试演 variant), from standing in and back out to it, with the first show
+// it comes in.
+function poseChanges(character) {
+  const engine = engineOf(character), changes = {};
+  for (const row of shows.filter(row => row.group !== MOOD)) for (const variant of row.tests) {
+    const opts = { result: variant, mishap: variant === 'Mishap' };
+    engine.start(row.id, opts);
+    let pose = 'idle';
+    for (let t = 0; t <= engine.cur.dur + 20; t += 20) {
+      const next = t > engine.cur.dur ? 'idle' : engine.eventState(row.id, t, { ...opts, seed: 0 }, 'x').pose;
+      if (next !== pose) changes[`${pose}>${next}`] ??= row.id + (variant ? '·' + variant : '');
+      pose = next;
+    }
+  }
+  return changes;
+}
+
 for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)) {
   test(`character ${folder} has every pose, sprite drawing and prop the 桌宠页 plays`, () => {
     const character = read(`characters/${folder}/character.json`), art = character.desktopPet, states = everyState(character);
@@ -37,6 +62,14 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     for (const drawing of new Set(states.flatMap(st => [st.sprite, st.sView ?? 'v1']))) assert.ok(SINGLES.includes(drawing) || art.sprite[drawing] || art.spriteStrips[drawing], `sprite ${drawing}`);
     const props = { gift: ['giftbox', 'giftboxOpen', 'balloons'], castle: ['castleClosed', 'castleOpen'], ship: ['flagship'], admShip: ['admship'], emblem: ['emblem'] };
     for (const [thing, names] of Object.entries(props)) if (states.some(st => st[thing])) for (const prop of names) assert.ok(art.props[prop], `prop ${prop}`);
+  });
+
+  test(`character ${folder} has a way across every change of pose in a show: in-between frames, a cut or a route through them`, () => {
+    const character = read(`characters/${folder}/character.json`), pet = new Pet(null, { currentTime: 0 }, shows, character);
+    // what loading her sheets gives the routes: the in-between frames of each of her transitions
+    pet.tweens = Object.fromEntries(Object.keys(character.desktopPet.transitions).map(pair => [pair, [pair, pair]]));
+    const none = Object.entries(poseChanges(character)).filter(([pair]) => pet.route(...pair.split('>')) === null).map(([pair, show]) => `${pair}（${show}）`);
+    assert.deepEqual(none, []);
   });
 
   test(`character ${folder}'s desktop pet strips and placings name her poses, drawings and frames`, () => {

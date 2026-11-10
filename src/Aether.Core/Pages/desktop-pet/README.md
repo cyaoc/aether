@@ -51,10 +51,19 @@ their own resolution. It loads her pictures and props at once but for the sheets
 lottery, each with its strips when it first plays (the lottery's too when she first waits through one): all of them decoded
 take about 574 MB. A pose whose sheet is still loading keeps her in the drawing she has.
 
-`scripts/desktop-pet/` checks the page against the board: `compare.mjs` plays every show, 心情 and round on both from one seed
-and frame by frame on one clock and compares their pixels; `check.mjs` finds changes of pose with no way across, and
-`motion-scan.mjs` the sprite moving more than 20 px in a frame; `play.mjs` grabs the page at moments of a show playing in
-real time.
+The page's checks against the board, for whoever changes it or her pictures. The design package's `tools/server.mjs` serves
+the page beside the board, as the web service serves it, telling it it is on in a connected room with the default settings:
+`node docs/design/desktop-pet/tools/server.mjs 8820`.
+
+- `DesktopPetCharacters.test.mjs` (`node --test`) finds every change of pose in her shows with no way across.
+- `scripts/desktop-pet/compare.mjs --port 8820` plays every show, 心情 and round on the page and the board from one seed, frame
+  by frame on one clock, and compares their pixels. `DesktopPetBrowserTests` runs it, about half a minute, when
+  `AETHER_TEST_CHROME` is set.
+- `node docs/design/desktop-pet/tools/motion-scan.mjs 8820 --page` finds the sprite moving more than 20 px in a frame. It plays
+  every show in real time, about eleven minutes, too long for a test: run it after changing the sprite's flight, its circling, a toss or
+  the pace of a round.
+- `node docs/design/desktop-pet/tools/play.mjs <show[:variant]> <ms,…> <out.png> --page [--line]` grabs the page at moments
+  of a 试演 playing in real time.
 
 ## Deliberate differences from the board
 

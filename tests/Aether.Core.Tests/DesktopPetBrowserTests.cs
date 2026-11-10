@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Aether.Core.Tests.Support;
 
@@ -104,6 +107,36 @@ public sealed class DesktopPetBrowserTests
         Assert.IsType<DesktopPetTestEnded>(updates.Current);
         Assert.Empty(page.Browser.Errors);
     }
+
+    /// <summary>The design package's board and the page, side by side through scripts/desktop-pet/compare.mjs (about half a minute):
+    /// every show, 心情 and round from one seed, frame by frame on one clock, the same pixels.</summary>
+    [Fact]
+    public async Task The_page_draws_every_show_pixel_for_pixel_as_the_design_board_does()
+    {
+        if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("AETHER_TEST_CHROME")))
+            Assert.Skip("Set AETHER_TEST_CHROME for real 桌宠页 browser acceptance.");
+        var port = WelcomeAnimationTests.FreePort().ToString(CultureInfo.InvariantCulture);
+        var differences = Path.Combine(Path.GetTempPath(), "desktop-pet-compare-" + Guid.NewGuid());
+        using var server = Node(RepositoryFile("docs/design/desktop-pet/tools/server.mjs"), port);
+        try
+        {
+            Assert.StartsWith($"http://localhost:{port}/", await server.StandardOutput.ReadLineAsync(TestContext.Current.CancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken));
+            using var compare = Node(RepositoryFile("scripts/desktop-pet/compare.mjs"), "--port", port, "--out", differences);
+            var output = await compare.StandardOutput.ReadToEndAsync(TestContext.Current.CancellationToken);
+            await compare.WaitForExitAsync(TestContext.Current.CancellationToken);
+            Assert.True(compare.ExitCode == 0, $"{output}pictures of the moments that differ: {differences}");
+        }
+        finally { server.Kill(); }
+    }
+
+    private static Process Node(params string[] arguments)
+    {
+        var start = new ProcessStartInfo("node") { UseShellExecute = false, RedirectStandardOutput = true };
+        foreach (var argument in arguments) start.ArgumentList.Add(argument);
+        return Process.Start(start)!;
+    }
+
+    private static string RepositoryFile(string path, [CallerFilePath] string source = "") => Path.GetFullPath(Path.Combine("../..", path), Path.GetDirectoryName(source)!);
 
     /// <summary>A connected room with the 桌宠 <paramref name="on"/>, and a Chrome that is not open yet.</summary>
     private static async Task<PageSession> StartAsync(bool on = true)

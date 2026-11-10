@@ -3,11 +3,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DAILY, Engine, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { SETTINGS } from './Support/DesktopPetSettings.mjs';
 
 const read = path => JSON.parse(readFileSync(new URL('../../src/Aether.Core/Pages/' + path, import.meta.url), 'utf8'));
 const { shows } = read('desktop-pet/shows.json'), { lines } = read('characters/1/character.json');
-// The defaults, as the 桌宠页's state tells them (amounts in 金瓜子).
-const SETTINGS = { off: [], midGift: 100000, bigGift: 1000000, boredMinutes: 15, gloomyMinutes: 40, sleepyMinutes: 60, dailyMinSeconds: 20, dailyMaxSeconds: 40, mishapPercent: 25 };
 const MINUTE = 60000;
 
 // A 桌宠页 connected to a room, its clock at 0.
