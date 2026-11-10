@@ -220,7 +220,7 @@ public sealed partial class Settings
         public static readonly NumberOrder Rising = new(1), NotFalling = new(0);
 
         /// <summary>Whether <paramref name="value"/> may follow <paramref name="before"/>, or come first when that is null.</summary>
-        public bool Follows(int? before, int value) => value >= (before is { } previous ? previous + Rise : 1);
+        public bool Follows(int? before, int value) => value >= (before is { } previous ? (long)previous + Rise : 1);
 
         /// <summary>The index of the first number out of order, or null when all are in order.</summary>
         public int? Invalid(IReadOnlyList<int> values)

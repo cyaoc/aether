@@ -27,6 +27,7 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     [InlineData("daily_max_seconds: 0", "desktop_pet.daily_max_seconds", "必须为正整数。")]
     [InlineData("mishap_percent: 101", "desktop_pet.mishap_percent", "必须是 0–100。")]
     [InlineData("mid_gift_spend: 10000", "desktop_pet.big_gift_spend", "中礼物门槛要小于大礼物门槛。")]
+    [InlineData("mid_gift_spend: 2147483647", "desktop_pet.big_gift_spend", "中礼物门槛要小于大礼物门槛。")]
     [InlineData("lines.1.bigGift: [\"开出{奖品}了\"]", "desktop_pet.lines.1.bigGift", "这一类台词不能用 {奖品}，只能用 {昵称}、{礼物}、{个数}。")]
     [InlineData("lines.1.bigGift: []", "desktop_pet.lines.1.bigGift", "台词列表不能为空。")]
     [InlineData("lines.1.bigGift: [\"好\", \"\"]", "desktop_pet.lines.1.bigGift", "每一句都不能为空。")]
