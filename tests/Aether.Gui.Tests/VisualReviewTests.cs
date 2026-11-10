@@ -832,10 +832,7 @@ public sealed partial class VisualReviewTests
                 GuiHarness.FindVisual<TextBlock>(page, "Message").Text = "";
                 viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, 0));
                 GuiHarness.Flush();
-                // Settle the transition, then redraw its final edges instead of reusing an intermediate frame.
-                await Task.Delay(300, TestContext.Current.CancellationToken);
-                foreach (var visual in page.FindControl<ToggleSwitch>("AnimationInput")!.GetVisualDescendants())
-                    visual.InvalidateVisual();
+                await SettleAsync(page.FindControl<ToggleSwitch>("AnimationInput")!);
                 Capture("empty");
                 page.FindControl<Control>("EmptyAnimations")!.BringIntoView();
                 Capture("empty-list");
@@ -1251,6 +1248,14 @@ public sealed partial class VisualReviewTests
     /// <summary>The stack of a heading with its caption under it, beside a toggle or a slider or inside a radio button.</summary>
     private static bool TitlesAControl(Panel row) => row is StackPanel { Orientation: Orientation.Vertical } stack
         && (stack.Parent is RadioButton || stack.Parent is Grid grid && grid.Children.Any(child => child is ToggleSwitch or Slider));
+
+    /// <summary>Lets <paramref name="toggle"/>'s knob finish sliding, then redraws its final edges instead of reusing a frame from
+    /// partway.</summary>
+    private static async Task SettleAsync(ToggleSwitch toggle)
+    {
+        await Task.Delay(300, TestContext.Current.CancellationToken);
+        foreach (var visual in toggle.GetVisualDescendants()) visual.InvalidateVisual();
+    }
 
     private static void Save(TopLevel topLevel, string fileName)
     {

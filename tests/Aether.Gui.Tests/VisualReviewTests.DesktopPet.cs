@@ -55,8 +55,10 @@ public sealed partial class VisualReviewTests
                 await pet.NextAsync(DesktopPet.Test);
                 Capture("testing");
                 GuiHarness.Click(page, "TestButton");
-                page.FindControl<ToggleSwitch>("EnabledInput")!.IsChecked = false;
+                var enabled = page.FindControl<ToggleSwitch>("EnabledInput")!;
+                enabled.IsChecked = false;
                 await GuiHarness.SaveAsync(page);
+                await SettleAsync(enabled);
                 Capture("off");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
