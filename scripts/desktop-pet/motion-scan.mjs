@@ -2,8 +2,9 @@
 // lottery steps, mishaps) and 日常小动作, once from calm and once from happy (where the sprite circles her), and tracks the
 // sprite frame by frame: any frame it moves more than 20 px (at 60 fps) is printed. The design package's
 // tools/motion-scan.mjs, changed to read the shows from the 演出表 and play them on the page. Speeds are taken on the clock the
-// sprite's speed cap uses (performance.now, as follow() does). server.mjs here must be serving the page on the port (8830); it
-// plays in real time, a few minutes for the whole page.
+// sprite's speed cap uses: the time each frame was drawn at, which follow() takes its step from (a performance.now read after
+// the frame came a few ms late now and then and made a 13 px step look like 22). server.mjs here must be serving the page on
+// the port (8830); it plays in real time, a few minutes for the whole page.
 import { execFileSync } from 'node:child_process';
 
 const here = new URL('.', import.meta.url).pathname;
@@ -25,7 +26,7 @@ const js = `(async () => {
     while (pet.now() < end) {
       await frame(); keepHappy();
       const sv = pet.sv; if (!sv) continue;
-      const p = [performance.now(), sv.x, sv.y];
+      const p = [pet.rt, sv.x, sv.y];
       if (prev && p[0] > prev[0]) { const step = Math.hypot(p[1] - prev[1], p[2] - prev[2]) / (p[0] - prev[0]) * 16.7; if (step > worst) { worst = step; at = pet.now() - t0; } }
       prev = p;
     }
