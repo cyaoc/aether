@@ -74,12 +74,11 @@ const LOTTERY = {
   RevealGrand: { dur: 5200, line: 'lotteryGrand', glow: 'SS' }, RevealSecond: { dur: 4600, line: 'lotterySecond' }, RevealThird: { dur: 4600, line: 'lotteryThird' },
   NoEntries: { dur: 2800, line: 'lotteryNoEntries' }, End: { dur: 2600, line: 'lotteryEnd' }
 };
-// How long each show lasts and, for a blind box, its endings (a 一轮盲盒's outcome as Core tells it, and Jackpot), for the
-// lottery its steps; its 演出档 is the 演出表's (shows.json).
+// How long each show lasts and, for the lottery, its steps; its 演出档 and group are the 演出表's (shows.json).
 const EVENTS = {
   entry: { dur: 1600 }, gift: { dur: 2000 }, giftStreak: { dur: 2600 },
-  blindBoxSmall: { dur: 2600, results: ['Gain', 'Even', 'Loss'] }, midGift: { dur: 3500 }, blindBoxMedium: { dur: 4000, results: ['Gain', 'Even', 'Loss'] },
-  captain: { dur: 4500 }, bigGift: { dur: 6000 }, blindBoxLarge: { dur: 6000, results: ['Gain', 'Even', 'Loss', 'Jackpot'] },
+  blindBoxSmall: { dur: 2600 }, midGift: { dur: 3500 }, blindBoxMedium: { dur: 4000 },
+  captain: { dur: 4500 }, bigGift: { dur: 6000 }, blindBoxLarge: { dur: 6000 },
   admiral: { dur: 8000 }, governor: { dur: 15000 }, castle: { dur: 11500 }, newFirst: { dur: 2600 }, lottery: { steps: LOTTERY }
 };
 // A 大航海 by B站's guard_level: 1 总督, 2 提督, 3 舰长.
@@ -100,8 +99,8 @@ const BOX_OPEN = { blindBoxSmall: 900, blindBoxMedium: 1200, blindBoxLarge: 1500
 const BOX_EAR = ['rel', 1.28, 0.4];
 // A gift round's shows from small to big: the round plays the one it has grown to, moving up as it grows (README 2).
 const GIFT_SHOWS = ['gift', 'giftStreak', 'midGift', 'bigGift', 'castle'], CASTLE = GIFT_SHOWS.indexOf('castle');
-const BLIND_BOXES = ['blindBoxSmall', 'blindBoxMedium', 'blindBoxLarge'];
-// Which lines a blind box's ending says.
+const BLIND_BOXES = ['blindBoxSmall', 'blindBoxMedium', 'blindBoxLarge'], BLIND_BOX = 'blindBox';
+// Which lines a blind box's ending (a 一轮盲盒's outcome as Core tells it, or Jackpot) says.
 const BOX_LINES = { Gain: 'blindBoxGain', Even: 'blindBoxEven', Loss: 'blindBoxLoss', Jackpot: 'blindBoxJackpot' };
 export const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
 export const SPRITE_H = 76;
@@ -246,7 +245,7 @@ export class Engine {
   // A blind box says the lines of its ending, the lottery its step's; every other show its own.
   lineKey(name, opts = {}) {
     const ev = this.events[name];
-    return ev?.results ? BOX_LINES[opts.result || 'Gain'] : ev?.steps ? ev.steps[opts.result].line : name;
+    return ev?.group === BLIND_BOX ? BOX_LINES[opts.result || 'Gain'] : ev?.steps ? ev.steps[opts.result].line : name;
   }
 
   // ---- what Core tells it (DesktopPet.cs)
