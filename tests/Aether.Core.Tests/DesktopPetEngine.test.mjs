@@ -64,6 +64,13 @@ test('a higher tier cuts a lower one short, the same tier queues up to three and
   assert.equal(engine.cur.opts.nickname, '观众3');
 });
 
+test('a gift round reaching five gifts takes over its own thank-you, not another viewer\'s', () => {
+  const engine = pet();
+  engine.gift(gifts(1, 100));
+  engine.gift(gifts(2, 500, 5));
+  assert.deepEqual([playing(engine), engine.cur.opts.nickname], ['gift', '观众1']);
+});
+
 test('an entry plays only while she is idle, over no show nor 日常小动作, and does not queue', () => {
   const engine = pet();
   engine.entry({ uid: 1, nickname: '进场观众' });
@@ -111,6 +118,15 @@ test('犯困 comes after an hour with nothing and ends on an entry or a danmaku;
   assert.equal(engine.mood(engine.now()), 'gloomy');
 });
 
+test('jolting awake from 犯困 every half minute she says a line of its own kind, the one left when only one is', () => {
+  const engine = pet();
+  engine.receive({ enabled: true, roomConnected: true, settings: engine.settings, lines: { ...lines, jolt: ['才没睡！'] } });
+  advance(engine, 60 * MINUTE);
+  engine.stateAt(engine.now());
+  advance(engine, 23500);
+  assert.equal(engine.stateAt(engine.now()).bubble?.text, '才没睡！');
+});
+
 test('the 心情 come after the minutes set, and never for 0', () => {
   const engine = pet({ boredMinutes: 5, gloomyMinutes: 0, sleepyMinutes: 0 });
   advance(engine, 4 * MINUTE);
@@ -147,6 +163,23 @@ test('blind boxes are shaken until their result comes, and the show opens them t
   advance(engine, 4000);
   engine.blindBox(boxResult(3, 15000, 1245000, 1245000));
   assert.deepEqual([playing(engine), engine.cur.opts.result], ['blindBoxLarge', 'Jackpot']);
+});
+
+test('one 盲盒播报 opens the boxes of every 一轮送礼 sent before it went out; boxes sent while it went out wait for their own', () => {
+  const engine = pet();
+  for (const [boxes, boxSpend] of [[2, 30000], [1, 15000]]) {
+    engine.gift(round(1, { boxes, boxSpend }));
+    engine.gift(round(1, { boxes, boxSpend, ended: true }));
+  }
+  engine.gift(round(1, { boxes: 1, boxSpend: 15000 }));
+  engine.blindBox({ ...boxResult(1, 45000, 30000), boxes: 3 });
+  assert.equal(playing(engine), 'blindBoxSmall');
+  advance(engine, 30000);
+  assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'shakeBox']);
+
+  engine.gift(round(1, { boxes: 1, boxSpend: 15000, ended: true }));
+  engine.blindBox(boxResult(1, 15000, 9000));
+  assert.deepEqual([playing(engine), engine.rounds], ['blindBoxSmall', []]);
 });
 
 test('a show turned off does not play, nor a lesser one in its place', () => {

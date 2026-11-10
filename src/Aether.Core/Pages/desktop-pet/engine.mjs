@@ -230,7 +230,8 @@ export class Engine extends EventTarget {
     // A gift round that grows to 5 gifts takes over its own plain thank-you, instead of being dropped as busy.
     // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
     const show = name === 'governor' && this.cur?.name === 'castle';
-    if (!this.cur || tier > curTier && !show || name === 'giftStreak' && this.cur.name === 'gift') return this.start(name, opts);
+    const grown = name === 'giftStreak' && this.cur?.name === 'gift' && this.cur.opts.round === opts.round;
+    if (!this.cur || tier > curTier && !show || grown) return this.start(name, opts);
     if (tier <= TIER.C) return;
     if (tier < TIER.S && this.queue.filter(q => this.events[q.name].tier === ev.tier).length >= 3) return;
     this.queue.push({ name, opts });
@@ -264,13 +265,13 @@ export class Engine extends EventTarget {
     const now = this.now();
     let r = this.rounds.find(round => round.uid === p.uid && !round.ended);
     if (p.ended) {
-      if (r) { r.ended = true; if (!r.boxes) this.rounds.splice(this.rounds.indexOf(r), 1); }
+      if (r) { r.ended = true; if (r.told === r.boxes) this.rounds.splice(this.rounds.indexOf(r), 1); }
       return;
     }
     // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show
     if (!r) {
       const wake = ['gloomy', 'sleepy'].includes(this.mood(now));
-      this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], wake, wakeLine: wake ? this.pick('wake') : null, played: -1, top: this.crowns.get(p.uid) });
+      this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], boxes: 0, told: 0, wake, wakeLine: wake ? this.pick('wake') : null, played: -1, top: this.crowns.get(p.uid) });
       this.crowns.delete(p.uid);
     }
     r.arrivals.push(now); r.boxes = p.boxes;
@@ -290,13 +291,24 @@ export class Engine extends EventTarget {
   // opened; a single gift opened at the 大礼物 threshold is a jackpot and at least the big one. A castle in the round plays
   // the castle instead.
   blindBox(b) {
-    const i = this.rounds.findIndex(r => r.uid === b.uid && r.boxes), { midGift, bigGift } = this.settings, r = this.rounds[i];
-    if (i >= 0) this.rounds.splice(i, 1);
-    if (r?.castle || !r && b.castle) return this.fire('castle', { nickname: b.nickname, round: r });
-    if (r?.played === CASTLE) return;
+    const told = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
+    if (told.some(t => t.castle) || !r && b.castle) return this.fire('castle', { nickname: b.nickname, round: r });
+    if (told.some(t => t.played === CASTLE)) return;
     const jackpot = b.bestPrice >= bigGift, spend = b.tally.spend;
     this.fire(BLIND_BOXES[jackpot || spend >= bigGift ? 2 : spend >= midGift ? 1 : 0],
-      { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes, shaken: i >= 0, round: r });
+      { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes, shaken: !!r, round: r });
+  }
+
+  // The rounds a result tells, oldest first: a 盲盒播报 reports every box sent before it went out, over however many 一轮送礼
+  // they came in, and none sent while it went out, which wait for their own. A round is done once it ended and all is told.
+  tell(b) {
+    const told = [];
+    for (let left = b.boxes, r; left > 0 && (r = this.rounds.find(x => x.uid === b.uid && x.boxes > x.told));) {
+      const n = Math.min(left, r.boxes - r.told);
+      r.told += n; left -= n; told.push(r);
+      if (r.ended && r.told === r.boxes) this.rounds.splice(this.rounds.indexOf(r), 1);
+    }
+    return told;
   }
 
   entry(e) { this.fire('entry', { nickname: e.nickname }); }
@@ -325,7 +337,7 @@ export class Engine extends EventTarget {
   trialOver(show) { if (show?.opts.trial) this.dispatchEvent(new Event('trialended')); }
 
   // The round whose blind boxes she shakes while no show plays.
-  shaking() { return this.rounds.find(r => r.boxes); }
+  shaking() { return this.rounds.find(r => r.boxes > r.told); }
 
   // While a round with blind boxes is still coming in she does not just wait: she shakes the box the whole time, until the
   // 盲盒播报 tells how it came out, and each gift flies into her arms.
@@ -429,7 +441,8 @@ export class Engine extends EventTarget {
     if (mood === 'sleepy') {
       // every other half minute her head drops onto her knees: she jolts awake, insists she wasn't asleep, and dozes off again
       const u = since % 30000;
-      if (u >= 23000 && u < 24400) { st.pose = 'awake'; st.y -= 10 * bump(u, 23000, 23300); st.sprite = 'surprised'; st.bubble = { text: this.lines.wake[1], t: u - 23000 }; st.fx.push(['bang', now - (u - 23000)], ['shock', now - (u - 23000)]); }
+      const jolts = this.lines.jolt;
+      if (u >= 23000 && u < 24400) { st.pose = 'awake'; st.y -= 10 * bump(u, 23000, 23300); st.sprite = 'surprised'; st.bubble = { text: jolts[Math.floor(since / 30000) % jolts.length], t: u - 23000 }; st.fx.push(['bang', now - (u - 23000)], ['shock', now - (u - 23000)]); }
       else st.fx.push(['z', now]);
     }
     return st;

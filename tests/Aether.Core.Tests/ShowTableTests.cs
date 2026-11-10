@@ -52,7 +52,7 @@ public sealed class ShowTableTests
             ("lotteryWaiting", "lottery", ""), ("lotteryPoolOpen", "lottery", ""), ("lotteryPoolCall", "lottery", "昵称"), ("lotteryPoolSpin", "lottery", ""),
             ("lotteryGrand", "lottery", "昵称 奖项 奖品"), ("lotterySecond", "lottery", "昵称 奖项 奖品"), ("lotteryThird", "lottery", "昵称 奖项 奖品"),
             ("lotteryNoEntries", "lottery", ""), ("lotteryEnd", "lottery", ""),
-            ("bored", "mood", ""), ("gloomy", "mood", ""), ("sleepy", "mood", ""),
+            ("bored", "mood", ""), ("gloomy", "mood", ""), ("sleepy", "mood", ""), ("jolt", "mood", ""),
             ("hum", "daily", ""), ("gym", "daily", ""), ("hike", "daily", ""), ("bike", "daily", ""), ("ski", "daily", ""),
             ("voiceCrack", "mishap", ""), ("droppedOnFoot", "mishap", ""), ("slipped", "mishap", ""), ("dustOff", "mishap", ""),
             ("bikeCrash", "mishap", ""), ("plaster", "mishap", ""), ("skiFall", "mishap", ""),

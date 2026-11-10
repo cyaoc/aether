@@ -69,7 +69,9 @@ the page beside the board, as the web service serves it, telling it it is on in 
 
 - Core tells the page what happens, so the board's buttons, scenes, caption, fast-forward, stand-in stream behind the page and
   stand-in 盲盒播报 are gone. A 一轮送礼 is Core's: one for each viewer, several at once, over when Core says, and its blind boxes
-  open when their result comes. The board kept one round and ended it on its own timers.
+  open when their result comes. The board kept one round and ended it on its own timers. One 盲盒播报 reports every box the
+  viewer sent before it went out, over however many rounds, and none sent while it went out: its result opens that many of
+  the viewer's boxes, oldest first, and the rest are shaken on until their own.
 - A gift message, and a 大航海, counts once for 开心. The board counted a round's gifts as they came and its show again when
   it started, so two gifts in a minute made her happy.
 - She does no 日常小动作 while she shakes a round's blind boxes. Waiting for the 盲盒播报 takes up to half a minute; the board's
@@ -90,5 +92,7 @@ the page beside the board, as the web service serves it, telling it it is on in 
 - A 试演 starts its show at once, or holds her in its 心情, until it is stopped; stopping it never stops a show of what happened.
   A show's 试演 played out, or cut short by a show of what happened, is reported with `POST /desktop-pet/report`, as the video
   page reports what it played, and the GUI offers another.
+- Jolting awake from 犯困 every half minute she says a line of its own kind, `jolt`, in turn; the board said the second of
+  冷场后来了人's, which the streamer may now change or take away.
 - Shows, 心情, 日常小动作, endings, lottery steps and kinds of lines go by their ids in the 演出表 rather than the board's Chinese
   names, and her lines are picked with `Math.random`, not the board's fixed seed.
