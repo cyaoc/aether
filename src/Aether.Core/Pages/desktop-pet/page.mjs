@@ -6,6 +6,8 @@ const [character, { shows }] = await Promise.all([read('/characters/current/char
   ...['500', '800'].map(weight => document.fonts.load(`${weight} 18px "Noto Sans SC"`))]);
 // The one clock of every frame is an animation, so a test can stop it at any moment and step it.
 const master = document.documentElement.animate([{ outlineColor: 'transparent' }, { outlineColor: 'transparent' }], { duration: 1000, iterations: Infinity });
+// Exported for the browser tests and the design package's --page tools: what she plays from Core's events is this engine's
+// alone, and her pixels cannot tell which show it is.
 export const pet = new Pet(document.querySelector('canvas'), master, shows, character);
 pet.reset(Math.random);
 await pet.boot();
