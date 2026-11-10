@@ -56,13 +56,9 @@ public sealed class DesktopPetGiftTests
         // Nothing is told of the round being announced until its send ends.
         Assert.Equal([DesktopPet.Gift, DesktopPet.Gift, DesktopPet.Danmaku, DesktopPet.Gift, DesktopPet.Gift, DesktopPet.Danmaku], await pet.NamesAsync(6));
         release.SetResult();
-        var first = await pet.NextAsync(DesktopPet.BlindBox);
-        Assert.Equal(new BlindBoxResult(10001, "测试观众", new(10000, 4000), 2, "小蛋糕", 2500, false), first.Deserialize<BlindBoxResult>(WebServer.Json));
-        Assert.Equal("Loss", first.GetProperty("tally").GetProperty("outcome").GetString());
+        AssertBlindBox(new(10001, "测试观众", new(10000, 4000), 2, "小蛋糕", 2500, false), "Loss", await pet.NextAsync(DesktopPet.BlindBox));
         h.Time.Advance(TimeSpan.FromSeconds(3));
-        var next = await pet.NextAsync(DesktopPet.BlindBox);
-        Assert.Equal(new BlindBoxResult(10001, "测试观众", new(5000, 5000), 1, "小蛋糕", 5000, false), next.Deserialize<BlindBoxResult>(WebServer.Json));
-        Assert.Equal("Even", next.GetProperty("tally").GetProperty("outcome").GetString());
+        AssertBlindBox(new(10001, "测试观众", new(5000, 5000), 1, "小蛋糕", 5000, false), "Even", await pet.NextAsync(DesktopPet.BlindBox));
     }
 
     [Theory]
@@ -84,11 +80,16 @@ public sealed class DesktopPetGiftTests
         Assert.True((await pet.NextAsync<GiftRoundProgress>(DesktopPet.Gift)).Ended);
         var (name, boxes) = await pet.NextAsync();
         Assert.Equal(DesktopPet.BlindBox, name);
-        Assert.Equal(new BlindBoxResult(10001, "测试观众", new(16500, 2234500), 2, "浪漫城堡", 2233000, true), boxes.Deserialize<BlindBoxResult>(WebServer.Json));
-        Assert.Equal("Gain", boxes.GetProperty("tally").GetProperty("outcome").GetString());
+        AssertBlindBox(new(10001, "测试观众", new(16500, 2234500), 2, "浪漫城堡", 2233000, true), "Gain", boxes);
         await h.PushAndSyncAsync(updates, Ordinary(uid: 20002, giftId: 32132, giftName: "浪漫城堡", price: 2233000));
         Assert.Equal(new GiftRoundProgress(20002, "测试观众", 2233000, 1, "浪漫城堡", 1, 0, 0, true, false),
             await pet.NextAsync<GiftRoundProgress>(DesktopPet.Gift));
+    }
+
+    private static void AssertBlindBox(BlindBoxResult expected, string outcome, JsonElement told)
+    {
+        Assert.Equal(expected, told.Deserialize<BlindBoxResult>(WebServer.Json));
+        Assert.Equal(outcome, told.GetProperty("tally").GetProperty("outcome").GetString());
     }
 
     private static GiftRoundProgress Gifts(long spend, long count, string topGift, long topCount) =>
