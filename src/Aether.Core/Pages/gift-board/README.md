@@ -7,8 +7,8 @@ mix and pseudo-random helpers are the ones in its `animations/toolkit.mjs`; none
 
 ## Textures
 
-`textures/banner.webp` is copied from the design package without changes. The mascot's two poses and the numbers measured on them
-are the current character's, from `/characters/current/` (`../characters/README.md`).
+`textures/banner.webp` is copied from the design package without changes. The mascot's two poses, her sprite and the numbers measured
+on them are the current character's, from `/characters/current/` (`../characters/README.md`).
 
 ## Fonts
 
@@ -36,7 +36,10 @@ Original: https://github.com/google/fonts/blob/main/ofl/playfairdisplay/Playfair
 - The rows, the order and the counts come from the pushed state, so the board's fixed `DEMO`, `LONG` and `EVENTS` lists are gone.
   An event is played for the change between two pushed states, one after another; the board's scenes are made to the clock.
 - The page draws as soon as it can and does not wait for the pictures: B站's images appear when they have loaded, and a failed one stays empty.
-- The idle blink of the bubble sprite goes on after a count-increase event; the board stops it for good after the first one.
+- The sprite is the current character's, from her pictures, not the board's drawn chat bubble, and floats where her manifest says.
+  For a new first place it turns happy with her cheer, hops up twice and sways once to each side, where the board's bubble spins
+  round (mascot design package README, 精灵); it turns back when she does.
+- The idle blink of the sprite goes on after a count-increase event; the board stops it for good after the first one.
 - `easeBack` is the board's overshooting ease multiplied out, so that it is exactly 0 at 0. The board's `1 + 2.7 (p - 1)^3 + 1.7 (p - 1)^2`
   leaves -2.2e-16 there, and Pixi keeps the sign of a sprite's scale when it sets its width: an avatar or icon sized with that mirrored
   upside down for good. The board never shows it because its previews jump past the start of an event.

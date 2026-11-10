@@ -23,6 +23,21 @@ test('the mascot cheers only for a new first place and is back to her ordinary p
   assert.equal(ambient(undefined, 1500, 0).cheer, 0);
 });
 
+test('for a new first place the sprite turns happy as she cheers, hops up twice and sways once, and turns back with her', () => {
+  const top = { kind: 'top' }, moments = Array.from({ length: EVENTS.top.duration + 1 }, (_, u) => ambient(top, u, 0));
+  moments.forEach((motion, u) => assert.equal(motion.happy, motion.cheer > 0, `at ${u}`));
+  assert.ok(moments.some(motion => motion.happy));
+  // Up is negative: count the times it leaves its place.
+  assert.equal(moments.filter((motion, u) => u > 0 && motion.spriteHop < 0 && moments[u - 1].spriteHop === 0).length, 2);
+  assert.ok(Math.min(...moments.map(motion => motion.spriteHop)) < -5);
+  // A sway to each side and back, small enough that its crown never turns over: no spin.
+  const sways = moments.map(motion => motion.sway);
+  assert.ok(Math.max(...sways) > 0.1 && Math.min(...sways) < -0.1);
+  assert.ok(sways.every(sway => Math.abs(sway) < 0.3));
+  for (const motion of [moments[0], moments[EVENTS.top.duration], ambient(undefined, 1500, 0), ambient({ kind: 'new' }, 1500, 0)])
+    assert.ok(!motion.happy && motion.spriteHop === 0 && motion.sway === 0);
+});
+
 test('a row that appears in first place is built and made room for as a new row is, and cheered as a new first place', () => {
   const debut = { kind: 'top', debut: true };
   assert.deepEqual([rowKind(debut), rowKind({ kind: 'top' }), rowKind({ kind: 'new' }), rowKind(undefined)], ['new', 'top', 'new', undefined]);

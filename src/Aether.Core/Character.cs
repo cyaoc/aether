@@ -5,7 +5,7 @@ namespace Aether.Core;
 /// <summary>A character (角色): a folder under Pages/characters with her pictures and a manifest, character.json, that names them
 /// and holds the numbers measured from them, in a section for each use. Code knows her pictures by the manifest's names and draws
 /// with its numbers, never by who she is (#343).</summary>
-public sealed record Character(CharacterGiftBoard GiftBoard)
+public sealed record Character(CharacterSprite Sprite, CharacterGiftBoard GiftBoard)
 {
     /// <summary>The current character, said in this one place: #343 fixes her to 1 and a later setting picks her. Pages ask for her
     /// files as /characters/current/.</summary>
@@ -17,6 +17,9 @@ public sealed record Character(CharacterGiftBoard GiftBoard)
     /// <summary>The manifest in <paramref name="folder"/>.</summary>
     public static Character Load(string folder) => JsonSerializer.Deserialize<Character>(File.ReadAllText(Path.Combine(folder, "character.json")), Json)!;
 }
+
+/// <summary>Her sprite (精灵), idle, blinking, looking right and happy, on one canvas at one scale.</summary>
+public sealed record CharacterSprite(string Idle, string Blink, string LookRight, string Happy);
 
 /// <summary>Her two poses on the gift board, idle and cheering, on one canvas at one scale, and what was measured on them in the
 /// board's design pixels: how high a pose is drawn, where the ribbon cuts each off (a fraction of the picture's height), where the

@@ -1,12 +1,18 @@
 {
+  "sprite": {
+    "idle": "sprite-idle.webp",
+    "blink": "sprite-blink.webp",
+    "lookRight": "sprite-look-right.webp",
+    "happy": "sprite-happy.webp"
+  },
   "giftBoard": {
     "idle": "peek-idle.webp",
     "cheer": "peek-cheer.webp",
     "height": 261.12,
-    "idleCut": 0.8802083333333334,
-    "cheerCut": 0.83203125,
-    "shoulder": { "x": 358, "y": -150 },
+    "idleCut": 0.855,
+    "cheerCut": 0.845,
+    "shoulder": { "x": 358, "y": -70 },
     "cheerCenter": { "x": 240, "y": -96 },
-    "spriteSize": 64
+    "spriteSize": 84
   }
 }

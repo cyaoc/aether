@@ -248,9 +248,9 @@ export class Scene {
       this.idle.alpha = 1 - motion.cheer;
       this.cheer.alpha = motion.cheer;
     }
-    this.sprite.texture = motion.blink ? textures.spriteBlink : textures.sprite;
-    this.sprite.position.set(homeX, homeY + (layout.mascot ? 6 * Math.sin(t * 0.0016) + motion.hop : 2 * Math.sin(t * 0.0016)));
-    this.sprite.rotation = 0.08 * Math.sin(t * 0.0011) + motion.spin;
+    this.sprite.texture = motion.happy ? textures.spriteHappy : motion.blink ? textures.spriteBlink : textures.sprite;
+    this.sprite.position.set(homeX, homeY + (layout.mascot ? 6 * Math.sin(t * 0.0016) + motion.spriteHop : 2 * Math.sin(t * 0.0016)));
+    this.sprite.rotation = 0.08 * Math.sin(t * 0.0011) + motion.sway;
     this.sprite.scale.set(giftBoard.spriteSize / textures.sprite.height * (layout.mascot ? 1 : SPRITE_ON_RIBBON) * (1 + 0.25 * motion.spritePulse));
   }
 
