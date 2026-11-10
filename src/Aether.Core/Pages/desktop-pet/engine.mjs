@@ -292,8 +292,10 @@ export class Engine extends EventTarget {
   // the castle instead.
   blindBox(b) {
     const told = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
-    // the castle plays once, with the result that tells the boxes up to it; a result before it is stood in for by it
-    if (b.castle || told.some(t => t.castle && t.told >= t.castleAt)) {
+    // A round's castle plays once: waiting on its 盲盒播报, with the result that tells the boxes up to it (a result before
+    // it plays nothing, the castle standing in for it); opened in a round that already played one, not again.
+    const played = told.some(t => t.played === CASTLE && !t.castle);
+    if (told.some(t => t.castle && t.told >= t.castleAt) || b.castle && !played) {
       for (const t of told) t.castle = false;
       return this.fire('castle', { nickname: b.nickname, round: r });
     }

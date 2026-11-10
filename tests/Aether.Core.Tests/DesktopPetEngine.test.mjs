@@ -194,6 +194,16 @@ test('a castle opened while an earlier 盲盒播报 went out plays once, with th
   assert.deepEqual([playing(engine), engine.queue, engine.rounds], ['castle', [], []]);
 });
 
+test('a round that played its castle does not play it again for one opened from its blind boxes', () => {
+  const engine = pet();
+  engine.gift(castle(1));
+  assert.equal(playing(engine), 'castle');
+  engine.gift(round(1, { ...castle(1), boxes: 1, boxSpend: 15000 }));
+  engine.gift(round(1, { ...castle(1), boxes: 1, boxSpend: 15000, ended: true }));
+  engine.blindBox({ ...boxResult(1, 15000, 2233000, 2233000), castle: true });
+  assert.deepEqual([playing(engine), engine.queue, engine.rounds], ['castle', [], []]);
+});
+
 test('a show turned off does not play, nor a lesser one in its place', () => {
   const engine = pet({ off: ['bigGift', 'entry'] });
   engine.gift(gifts(1, 1000000));
