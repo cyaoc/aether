@@ -436,6 +436,7 @@ open "http://localhost:8820/render.html?board=DP-DesktopPet.dc.html"
   - 无聊、沮丧、犯困各几分钟进入（默认 15、40、60），0 就不进这种心情；
   - 日常隔多久做一个（默认 20–40 秒）、做哪几样（哼歌、举哑铃、爬山、骑车、滑雪）、出事的几率（默认 25%，0 不出事）；
   - 每类台词能改、加、删，可插入昵称、礼物、个数，能恢复默认；只存改过的类，按角色分开记。
+  GUI 桌宠页的画板是 `boards/DP1-DesktopPetSettings.dc.html`（设计稿画布 DP1–DP11 的源码，本地用 `render.html?board=DP1-DesktopPetSettings.dc.html&props=…` 看，props 切 `tab`（演出、心情和日常、台词）、`scene`（有未保存的修改、试演中、桌宠页没连上、桌宠关着）、`dark`、`size`（1040 × 600 最小窗口）、`pk`）；截图 `preview/gui-shows`、`gui-moods`、`gui-lines`、`gui-dark`、`gui-lines-dark`、`gui-min-window`、`gui-off`、`gui-testing`，`gui-pk-groups`、`gui-pk-groups-min` 是以后加 PK 一组时的样子（不在 #343）。演出标签用分组排法；`showsLayout` 的“三列”是没选的对比稿（画布 DP9），不照它做。
   怎么演不开放：动作、特效、档位优先级、精灵的行为、气泡样式都是成套设计、成套验收的。这些设置点“保存”才生效，放设置文件（ADR 0016），改设置文件格式要带升级步骤。
 - 城堡礼物按礼物 ID 识别，直接送的和盲盒开出的都按开出那件礼物的 ID；ID 实现时从 B 站礼物列表查。
 - 弹幕不演，免得违规内容上直播画面；关注、点赞、SC 现在不解析，以后解析了再加。

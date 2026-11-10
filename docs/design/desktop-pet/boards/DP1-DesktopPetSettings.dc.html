@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>DP1 桌宠设置</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#3358D4}a:hover{color:#2A47B0}
+</style>
+</helmet>
+<div style="position: relative; width: {{w}}px; height: {{h}}px; box-sizing: border-box; display: flex; overflow: hidden; background: {{t.content}}; color: {{t.primary}}; font-family: 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif; font-size: 14px">
+
+  <nav aria-label="功能" style="width: 224px; flex-shrink: 0; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; padding: 14px 12px; background: {{t.sidebar}}; border-right: 1px solid {{t.border}}">
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid {{t.border}}; border-radius: 10px; background: {{t.card}}">
+      <span style="font-size: 12px; color: {{t.muted}}">直播间</span>
+      <span style="font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums">1768506153</span>
+      <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: {{t.success}}"><span style="width: 8px; height: 8px; border-radius: 50%; background: #22C55E"></span>已连接 · 42 分钟</span>
+      <button type="button" style="height: 30px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 13px">断开</button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <sc-for list="{{nav}}" as="item" hint-placeholder-count="9">
+        <a href="#" aria-current="{{item.current}}" style="display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 8px; text-decoration: none; background: {{item.bg}}; color: {{item.color}}; font-weight: {{item.weight}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{item.icon}}"></path></svg>
+          <span style="flex: 1; white-space: nowrap">{{item.label}}</span>
+          <span style="font-size: 12px; font-weight: 600; color: {{item.badgeColor}}; white-space: nowrap">{{item.badge}}</span>
+        </a>
+      </sc-for>
+    </div>
+    <div style="flex: 1"></div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 0 4px">
+      <span style="width: 32px; height: 32px; border-radius: 50%; background: {{t.accent}}; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700">测</span>
+      <span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600; font-size: 13px">测试账号</span><span style="font-size: 12px; color: {{t.muted}}">已登录</span></span>
+    </div>
+    <span style="font-size: 12px; color: {{t.muted}}; padding: 0 4px">v0.5.2</span>
+  </nav>
+
+  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column">
+    <header style="height: 60px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-bottom: 1px solid {{t.border}}">
+      <h1 style="margin: 0; font-size: 18px; font-weight: 600; white-space: nowrap">桌宠</h1>
+      <button type="button" role="switch" aria-checked="{{master.on}}" aria-label="桌宠" onClick="{{master.toggle}}" style="position: relative; width: 40px; height: 22px; flex-shrink: 0; border: 0; border-radius: 11px; background: {{master.bg}}; padding: 0; cursor: pointer"><span style="position: absolute; top: 3px; left: {{master.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+      <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">保存后立即生效；什么都不改，就是设计好的样子</span>
+    </header>
+
+    <div style="flex: 1; min-height: 0; overflow: hidden; box-sizing: border-box; padding: 18px 20px; display: flex; flex-direction: column; gap: 16px">
+
+      <sc-if value="{{pageOk}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border: 1px solid {{t.border}}; border-radius: 8px">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.success}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4L12 14.01l-3-3"></path></svg>
+          <span style="font-size: 13px; font-weight: 600; color: {{t.success}}; white-space: nowrap">桌宠页：已有 1 个推流软件连着</span>
+          <span style="flex: 1"></span>
+          <a href="#" style="font-size: 13px; text-decoration: none; white-space: nowrap">地址和宽高在通用设置 ›</a>
+        </div>
+      </sc-if>
+      <sc-if value="{{pageWaiting}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border: 1px solid {{t.warnBorder}}; border-radius: 8px; background: {{t.warnBg}}; color: {{t.warnText}}">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"></path></svg>
+            <span style="font-size: 13px; font-weight: 600; white-space: nowrap">桌宠页：还没有推流软件连着</span>
+            <span style="flex: 1"></span>
+            <a href="#" style="font-size: 13px; text-decoration: none; white-space: nowrap">地址和宽高在通用设置 ›</a>
+          </div>
+          <span style="font-size: 13px; line-height: 18px">在直播姬里添加浏览器素材，地址和宽高照通用设置里“桌宠页”那一行填（480 × 640）；已经加过的，右键素材 → 刷新。</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{pageOff}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border: 1px solid {{t.border}}; border-radius: 8px; background: {{t.subtle}}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.muted}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM8 12h8"></path></svg>
+          <span style="font-size: 13px; font-weight: 600; color: {{t.secondary}}; white-space: nowrap">桌宠关着：桌宠页现在是透明的，她不出现</span>
+          <span style="flex: 1"></span>
+          <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">下面的选项照样能改，打开后按它们演</span>
+        </div>
+      </sc-if>
+
+      <section aria-label="试演" style="display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; align-items: baseline; gap: 8px">
+          <h2 style="margin: 0; font-size: 14px; font-weight: 600; white-space: nowrap">试演</h2>
+          <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">在直播画面上演一段，看位置和大小；不发弹幕，观众也看得到</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px">
+          <label for="dp-show" style="position: absolute; width: 1px; height: 1px; overflow: hidden">试演哪一段</label>
+          <button id="dp-show" type="button" aria-haspopup="listbox" disabled="{{testDisabled}}" style="width: 180px; height: 34px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{testColor}}; font: inherit; font-size: 14px; text-align: left">
+            <span style="flex: 1; white-space: nowrap">大礼物</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg>
+          </button>
+          <label for="dp-nick" style="position: absolute; width: 1px; height: 1px; overflow: hidden">试演昵称</label>
+          <input id="dp-nick" value="柚子不酸" disabled="{{testDisabled}}" style="width: 170px; height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{testColor}}; font: inherit; font-size: 14px; outline: none">
+          <button type="button" onClick="{{play}}" disabled="{{testDisabled}}" aria-label="{{playLabel}}" style="height: 34px; min-width: 88px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 14px; border: 1px solid {{t.control}}; border-radius: 6px; background: {{t.card}}; color: {{testColor}}; font: inherit; font-size: 14px; white-space: nowrap; cursor: pointer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="{{playIcon}}"></path></svg>{{playText}}
+          </button>
+          <span style="font-size: 13px; color: {{playNoteColor}}; white-space: nowrap">{{playNote}}</span>
+        </div>
+      </section>
+
+      <div role="tablist" aria-label="桌宠设置" style="align-self: flex-start; display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: {{t.tabTrack}}">
+        <sc-for list="{{tabs}}" as="tb" hint-placeholder-count="3">
+          <button type="button" role="tab" aria-selected="{{tb.selected}}" onClick="{{tb.pick}}" style="height: 28px; padding: 0 14px; border: 0; border-radius: 6px; background: {{tb.bg}}; color: {{tb.color}}; box-shadow: {{tb.shadow}}; font: inherit; font-size: 13px; font-weight: {{tb.weight}}; white-space: nowrap; cursor: pointer">{{tb.label}}</button>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{isShowsGrouped}}" hint-placeholder-val="{{false}}">
+        <div role="tabpanel" aria-label="演出" style="flex: 1; min-height: 0; display: flex; gap: 16px">
+          <div role="listbox" aria-label="演出分组" style="width: {{listW}}px; flex-shrink: 0; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; gap: 2px; border: 1px solid {{t.border}}; border-radius: 8px; padding: 6px">
+            <sc-for list="{{showGroups}}" as="sg" hint-placeholder-count="8">
+              <button type="button" role="option" aria-selected="{{sg.selected}}" onClick="{{sg.pick}}" style="flex-shrink: 0; height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border: 0; border-radius: 6px; background: {{sg.bg}}; color: {{sg.color}}; font: inherit; font-size: 14px; font-weight: {{sg.weight}}; text-align: left; cursor: pointer">
+                <span style="flex: 1; white-space: nowrap">{{sg.label}}</span>
+                <sc-if value="{{sg.example}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; font-weight: 600; color: {{t.warnText}}; background: {{t.warnBg}}; border-radius: 4px; padding: 1px 6px; white-space: nowrap">以后</span></sc-if>
+                <span style="font-size: 12px; color: {{sg.countColor}}; white-space: nowrap">{{sg.count}}</span>
+              </button>
+            </sc-for>
+          </div>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; flex-direction: column; gap: 3px">
+              <h2 style="margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap">{{sel.label}}</h2>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">{{sel.desc}}</span>
+            </div>
+            <sc-if value="{{sel.thresholds}}" hint-placeholder-val="{{false}}">
+              <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0 6px">
+                <span style="white-space: nowrap">中礼物从</span>
+                <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden"><input aria-label="中礼物门槛（电池）" inputmode="numeric" value="{{mid}}" onChange="{{setMid}}" style="width: 64px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none"></div>
+                <span style="white-space: nowrap">电池起，大礼物从</span>
+                <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden"><input aria-label="大礼物门槛（电池）" inputmode="numeric" value="{{big}}" onChange="{{setBig}}" style="width: 72px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none"></div>
+                <span style="white-space: nowrap">电池起</span>
+              </div>
+            </sc-if>
+            <div style="display: flex; flex-direction: column; border-top: 1px solid {{t.border}}">
+              <sc-for list="{{sel.items}}" as="it" hint-placeholder-count="4">
+                <div style="display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid {{t.border}}">
+                  <span style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                    <span style="font-size: 14px; font-weight: 600; white-space: nowrap; color: {{it.labelColor}}">{{it.label}}</span>
+                    <span style="font-size: 12px; color: {{t.muted}}; white-space: nowrap">{{it.note}}</span>
+                  </span>
+                  <button type="button" role="switch" aria-checked="{{it.checked}}" aria-label="{{it.label}}" onClick="{{it.toggle}}" style="position: relative; width: 40px; height: 22px; flex-shrink: 0; border: 0; border-radius: 11px; background: {{it.bg}}; padding: 0; cursor: pointer"><span style="position: absolute; top: 3px; left: {{it.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isShows}}" hint-placeholder-val="{{true}}">
+        <div role="tabpanel" aria-label="演出" style="display: flex; flex-direction: column; gap: 18px">
+          <section style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap">
+            <h2 style="margin: 0 8px 0 0; font-size: 14px; font-weight: 600; white-space: nowrap">礼物分档</h2>
+            <span style="white-space: nowrap">中礼物从</span>
+            <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden">
+              <label for="dp-mid" style="position: absolute; width: 1px; height: 1px; overflow: hidden">中礼物门槛（电池）</label>
+              <input id="dp-mid" inputmode="numeric" value="{{mid}}" onChange="{{setMid}}" style="width: 64px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none">
+              <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></span>
+              <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
+            </div>
+            <span style="white-space: nowrap">电池起，大礼物从</span>
+            <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden">
+              <label for="dp-big" style="position: absolute; width: 1px; height: 1px; overflow: hidden">大礼物门槛（电池）</label>
+              <input id="dp-big" inputmode="numeric" value="{{big}}" onChange="{{setBig}}" style="width: 72px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none">
+              <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></span>
+              <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
+            </div>
+            <span style="white-space: nowrap">电池起</span>
+            <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap; margin-left: 4px">{{tierHint}}</span>
+          </section>
+
+          <section style="display: flex; flex-direction: column; gap: 8px">
+            <div style="display: flex; align-items: baseline; gap: 8px">
+              <h2 style="margin: 0; font-size: 14px; font-weight: 600; white-space: nowrap">演哪些</h2>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">关掉的那段，这件事来了她不演，也不换成别的</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 32px">
+              <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+                <div role="group" aria-label="{{g.title}}" style="display: flex; flex-direction: column">
+                  <span style="font-size: 12px; font-weight: 600; color: {{t.muted}}; padding: 2px 0 4px; white-space: nowrap">{{g.title}}</span>
+                  <sc-for list="{{g.items}}" as="it" hint-placeholder-count="5">
+                    <div style="display: flex; align-items: center; gap: 10px; padding: 5px 0">
+                      <span style="flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                        <span style="font-size: 14px; font-weight: 600; white-space: nowrap; color: {{it.labelColor}}">{{it.label}}</span>
+                        <span style="font-size: 12px; color: {{t.muted}}; white-space: nowrap">{{it.note}}</span>
+                      </span>
+                      <button type="button" role="switch" aria-checked="{{it.checked}}" aria-label="{{it.label}}" onClick="{{it.toggle}}" style="position: relative; width: 40px; height: 22px; flex-shrink: 0; border: 0; border-radius: 11px; background: {{it.bg}}; padding: 0; cursor: pointer"><span style="position: absolute; top: 3px; left: {{it.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+          </section>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isMoods}}" hint-placeholder-val="{{false}}">
+        <div role="tabpanel" aria-label="心情和日常" style="display: flex; flex-direction: column; gap: 22px">
+          <section style="display: flex; flex-direction: column; gap: 8px">
+            <div style="display: flex; align-items: baseline; gap: 8px">
+              <h2 style="margin: 0; font-size: 14px; font-weight: 600; white-space: nowrap">冷场心情</h2>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">冷场久了她会无聊、沮丧、犯困；填 0 就不进这种心情</span>
+            </div>
+            <sc-for list="{{moods}}" as="m" hint-placeholder-count="3">
+              <div style="display: flex; align-items: center; gap: 10px; height: 42px">
+                <span style="width: 44px; font-weight: 600; white-space: nowrap">{{m.label}}</span>
+                <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden">
+                  <input aria-label="{{m.aria}}" inputmode="numeric" value="{{m.value}}" onChange="{{m.set}}" style="width: 48px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none">
+                  <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></span>
+                  <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
+                </div>
+                <span style="width: 168px; white-space: nowrap">{{m.unit}}</span>
+                <span style="font-size: 13px; color: {{m.noteColor}}; white-space: nowrap">{{m.note}}</span>
+              </div>
+            </sc-for>
+          </section>
+
+          <section style="display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; align-items: baseline; gap: 8px">
+              <h2 style="margin: 0; font-size: 14px; font-weight: 600; white-space: nowrap">日常小动作</h2>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">心情平静、没在演出的时候，隔一阵做一个；运动各穿各的衣服</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="width: 70px; white-space: nowrap">间隔</span>
+              <span style="white-space: nowrap">每隔</span>
+              <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden"><input aria-label="日常最短间隔（秒）" inputmode="numeric" value="{{from}}" onChange="{{setFrom}}" style="width: 44px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none"></div>
+              <span style="white-space: nowrap">到</span>
+              <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden"><input aria-label="日常最长间隔（秒）" inputmode="numeric" value="{{to}}" onChange="{{setTo}}" style="width: 44px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none"></div>
+              <span style="white-space: nowrap">秒，随机做一个</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="width: 70px; white-space: nowrap">做哪几样</span>
+              <div role="group" aria-label="做哪几样" style="display: flex; gap: 24px">
+                <sc-for list="{{acts}}" as="a" hint-placeholder-count="5">
+                  <span style="display: inline-flex; align-items: center; gap: 8px">
+                    <span style="white-space: nowrap; color: {{a.labelColor}}">{{a.label}}</span>
+                    <button type="button" role="switch" aria-checked="{{a.checked}}" aria-label="{{a.label}}" onClick="{{a.toggle}}" style="position: relative; width: 40px; height: 22px; flex-shrink: 0; border: 0; border-radius: 11px; background: {{a.bg}}; padding: 0; cursor: pointer"><span style="position: absolute; top: 3px; left: {{a.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+                  </span>
+                </sc-for>
+              </div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="width: 70px; white-space: nowrap">出事</span>
+              <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden"><input aria-label="出事的几率（%）" inputmode="numeric" value="{{mishap}}" onChange="{{setMishap}}" style="width: 44px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none"></div>
+              <span style="white-space: nowrap">% 的几率出点小事</span>
+              <span style="font-size: 13px; color: {{mishapNoteColor}}; white-space: nowrap; margin-left: 8px">{{mishapNote}}</span>
+            </div>
+          </section>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{isLines}}" hint-placeholder-val="{{false}}">
+        <div role="tabpanel" aria-label="台词" style="flex: 1; min-height: 0; display: flex; gap: 16px">
+          <div role="listbox" aria-label="台词分类" style="width: {{listW}}px; flex-shrink: 0; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; border: 1px solid {{t.border}}; border-radius: 8px; padding: 6px">
+            <sc-for list="{{cats}}" as="c" hint-placeholder-count="14">
+              <sc-if value="{{c.head}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; font-weight: 600; color: {{t.muted}}; padding: 8px 8px 4px; white-space: nowrap">{{c.label}}</span></sc-if>
+              <sc-if value="{{c.item}}" hint-placeholder-val="{{true}}">
+                <button type="button" role="option" aria-selected="{{c.selected}}" onClick="{{c.pick}}" style="flex-shrink: 0; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border: 0; border-radius: 6px; background: {{c.bg}}; color: {{c.color}}; font: inherit; font-size: 14px; font-weight: {{c.weight}}; text-align: left; cursor: pointer">
+                  <span style="flex: 1; white-space: nowrap">{{c.label}}</span>
+                  <sc-if value="{{c.changed}}" hint-placeholder-val="{{false}}"><span style="font-size: 11px; font-weight: 600; color: {{t.accentText}}; background: {{t.accentTint}}; border-radius: 4px; padding: 1px 6px; white-space: nowrap">已改</span></sc-if>
+                </button>
+              </sc-if>
+            </sc-for>
+          </div>
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; align-items: flex-start; gap: 12px">
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px">
+                <h2 style="margin: 0; font-size: 15px; font-weight: 600; white-space: nowrap">{{cat.label}}</h2>
+                <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">{{cat.when}}；每次随机一句，不连着重复</span>
+              </div>
+              <button type="button" onClick="{{restore}}" disabled="{{restoreDisabled}}" style="height: 30px; flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid {{t.control}}; border-radius: 6px; background: transparent; color: {{restoreColor}}; font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"></path></svg>恢复默认
+              </button>
+            </div>
+            <sc-for list="{{lines}}" as="r" hint-placeholder-count="4">
+              <div style="display: flex; align-items: center">
+                <input aria-label="{{r.aria}}" value="{{r.value}}" onChange="{{r.set}}" onFocus="{{r.focus}}" placeholder="再写一句" style="flex: 1; min-width: 0; height: 36px; box-sizing: border-box; padding: 0 12px; border: 1px solid {{r.border}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px; outline: none">
+                <button type="button" aria-label="{{r.removeLabel}}" onClick="{{r.remove}}" disabled="{{r.only}}" style="width: 28px; height: 28px; flex-shrink: 0; margin-left: 8px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: {{r.removeColor}}; display: inline-flex; align-items: center; justify-content: center; cursor: pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12"></path></svg></button>
+              </div>
+            </sc-for>
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: {{t.muted}}">
+              <sc-if value="{{hasChips}}" hint-placeholder-val="{{true}}">
+                <span style="margin-right: 2px; white-space: nowrap">插入</span>
+                <sc-for list="{{chips}}" as="ch" hint-placeholder-count="3">
+                  <button type="button" onClick="{{ch.insert}}" style="height: 26px; padding: 0 10px; border: 1px solid {{t.control}}; border-radius: 13px; background: transparent; color: {{t.secondary}}; font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer">{{ch.label}}</button>
+                </sc-for>
+                <span style="margin-left: 4px; white-space: nowrap">{{insertTarget}}</span>
+              </sc-if>
+              <sc-if value="{{noChips}}" hint-placeholder-val="{{false}}"><span style="white-space: nowrap">这一类没有可插入的内容，台词照写就行</span></sc-if>
+            </div>
+            <button type="button" onClick="{{add}}" style="align-self: flex-start; height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 10px; border: 1px solid {{t.control}}; border-radius: 6px; background: transparent; color: {{t.secondary}}; font: inherit; font-size: 13px; white-space: nowrap; cursor: pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>添加一句
+            </button>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+
+    <footer style="height: 64px; flex-shrink: 0; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 20px; border-top: 1px solid {{t.border}}">
+      <span style="flex: 1; font-size: 13px; color: {{footerColor}}; white-space: nowrap">{{footerText}}</span>
+      <button type="button" onClick="{{save}}" disabled="{{saveDisabled}}" style="height: 34px; min-width: 80px; border: 0; border-radius: 6px; background: {{saveBg}}; color: {{saveFg}}; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer">保存</button>
+    </footer>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["演出","心情和日常","台词"],"default":"演出"},"scene":{"editor":"enum","options":["默认","有未保存的修改","试演中","桌宠页没连上","桌宠关着"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"showsLayout":{"editor":"enum","options":["分组","三列"],"default":"分组"},"pk":{"editor":"boolean","default":false},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
+class Component extends DCLogic {
+  // The app's theme tokens, as on the other GUI boards (GS1).
+  tokens(dark) {
+    return dark ? {
+      content: '#1B1C1F', sidebar: '#141518', card: '#222428', border: '#2E3136', subtle: '#26282C', control: '#3A3E45', tabTrack: '#2E3136',
+      primary: '#E8EAED', secondary: '#C2C6CE', muted: '#9097A3', disabled: '#4A4F57',
+      accent: '#8DA2FB', accentText: '#B4C3FF', accentTint: '#262F52', onAccent: '#141518', success: '#6FD08C',
+      warnBg: '#2A2114', warnBorder: '#5A4318', warnText: '#F2C46D', switchOff: '#4A4F57', saveOffBg: '#262F52', saveOffText: '#6B7591', shadow: '0 1px 2px rgba(0,0,0,.5)'
+    } : {
+      content: '#FFFFFF', sidebar: '#F6F7F9', card: '#FFFFFF', border: '#E3E6EB', subtle: '#EEF0F3', control: '#D5D9E0', tabTrack: '#E3E6EB',
+      primary: '#16181D', secondary: '#3D4350', muted: '#5B6270', disabled: '#B4BAC4',
+      accent: '#3358D4', accentText: '#2A47B0', accentTint: '#E6EBFA', onAccent: '#FFFFFF', success: '#166534',
+      warnBg: '#FEF8EC', warnBorder: '#F5D9A8', warnText: '#78350F', switchOff: '#B4BAC4', saveOffBg: '#C9D3F2', saveOffText: '#FFFFFF', shadow: '0 1px 2px rgba(0,0,0,.12)'
+    };
+  }
+
+  // Each kind of line, in the board's groups; when she says it, and what can go in it.
+  categories() {
+    const n = ['昵称'], g = ['昵称', '礼物', '个数'];
+    return [
+      ['进场', [['进场', '观众进直播间时', n], ['冷场后来了人', '冷场打瞌睡时有人来了，惊醒的那一下', []]]],
+      ['礼物', [['普通礼物', '一轮送了普通礼物时', g], ['连着送', '一轮送了 5 份以上普通礼物时', ['昵称', '个数']], ['中礼物', '一轮送到中礼物时', g], ['大礼物', '一轮送到大礼物时', g], ['新的第一名', '礼物榜换了第一名时', n]]],
+      ['盲盒', [['盲盒赚了', '一轮盲盒开出的比投入多时', g], ['盲盒不赚不亏', '一轮盲盒开出的正好等于投入时', ['昵称', '个数']], ['盲盒亏了', '一轮盲盒开出的比投入少时', ['昵称', '个数']],
+        ['盲盒出大奖', '开出的单件礼物到了大礼物门槛时', ['昵称', '礼物']]]],
+      ['大航海', [['舰长', '有人开通或续费舰长时', n], ['提督', '有人开通或续费提督时', n], ['总督', '有人开通或续费总督时', n]]],
+      ['城堡', [['城堡', '收到城堡时', n], ['城堡门口', '走到城堡门口回头时', n]]],
+      ['抽奖', [['报名开场', '报名抽奖开始时', ['关键字']], ['报名中', '报名抽奖进行中，隔一阵说一句', ['关键字']], ['报名截止', '报名截止时', []], ['等开奖', '等抽奖页揭晓时', []],
+        ['奖池开场', '奖池抽奖开始时', []], ['奖池点名', '主播点到一位观众时', n], ['奖池转动', '奖池转动时', []],
+        ['揭晓·大奖', '揭晓大奖时', ['昵称', '奖项', '奖品']], ['揭晓·二奖', '揭晓二奖时', ['昵称', '奖项', '奖品']], ['揭晓·三奖', '揭晓三奖时', ['昵称', '奖项', '奖品']],
+        ['没人报名', '报名截止时没有人报名', []], ['抽奖结束', '主播关掉这一场抽奖时', []]]],
+      ['心情', [['无聊', '无聊的时候，隔一阵说一句', []], ['沮丧', '沮丧的时候，隔一阵说一句', []], ['犯困', '打瞌睡时说的梦话', []]]],
+      ['日常', [['哼歌', '哼歌时', []], ['举哑铃', '举哑铃时', []], ['爬山', '爬山时', []], ['骑车', '骑车时', []], ['滑雪', '滑雪时', []]]],
+      ['出事', [['破音', '哼歌破音时', []], ['砸到脚', '哑铃砸到脚时', []], ['摔屁股墩', '爬山摔了屁股墩时', []], ['拍拍土', '爬起来拍土时', []],
+        ['骑车摔倒', '骑车摔倒时', []], ['贴创可贴', '摔了膝盖、贴创可贴时', []], ['滑雪摔跤', '滑雪扎进雪堆时', []]]]
+    ];
+  }
+
+  // Her own lines (the character's defaults), as on the desktop pet board.
+  defaults() {
+    return {
+      进场: ['{昵称}来啦…欢、欢迎！', '啊，是{昵称}！你好呀～', '又见到{昵称}了，嘿嘿', '{昵称}，欢迎光临…（小声）'],
+      冷场后来了人: ['啊！有人来了！', '我、我没睡着！'],
+      普通礼物: ['谢谢{昵称}的{礼物}！', '{昵称}送了{个数}个{礼物}…谢、谢谢！', '收到{礼物}了，好开心…', '{昵称}人真好～'],
+      连着送: ['这么多…我会害羞的…', '{昵称}，够、够啦…谢谢你！'],
+      中礼物: ['谢谢{昵称}的{礼物}！接住啦～', '{昵称}送了{礼物}！好漂亮…'],
+      大礼物: ['哇！{昵称}送了{礼物}！', '这么贵重的{礼物}…谢谢{昵称}！', '心跳好快…谢谢{昵称}！', '我会好好珍惜的！'],
+      新的第一名: ['新的榜一是{昵称}！王冠给你～', '{昵称}登上第一名啦！', '{昵称}好厉害！'],
+      盲盒亏了: ['呜…{昵称}的盲盒亏了…', '可恶的盲盒！下次一定！', '亏了也谢谢{昵称}送了{个数}个盲盒！'], 盲盒赚了: ['开出{礼物}了！{昵称}运气不错～', '哇，是{礼物}！'],
+      盲盒出大奖: ['开出{礼物}了！{昵称}运气好好！', '欧皇{昵称}！是{礼物}！'], 盲盒不赚不亏: ['不赚不亏～刚刚好！', '{昵称}，回本啦～'],
+      舰长: ['欢迎{昵称}上船！舰长好！', '{昵称}成为舰长了！敬礼！', '船员+1！谢谢{昵称}！'], 提督: ['提督{昵称}驾到！', '全体注意，提督{昵称}登舰！', '{昵称}开了提督…好、好帅！'],
+      总督: ['总、总督大人{昵称}！！', '{昵称}开了总督…我是在做梦吗', '起航！为了总督{昵称}！'],
+      城堡: ['是城堡！{昵称}送了我一座城堡！', '要变成公主了…谢谢{昵称}！'], 城堡门口: ['欢迎来到我的城堡～', '{昵称}，要一起进来吗？'],
+      报名开场: ['抽奖开始啦！发「{关键字}」就能报名～', '要抽奖了…大家快来报名！'], 报名中: ['发「{关键字}」就能报名哦～', '还在报名中…快来快来！'],
+      报名截止: ['报名结束！要开始抽了…', '会是谁呢…好紧张'], 等开奖: ['会是谁呢…好紧张', '心、心跳好快…'], 奖池开场: ['奖池抽奖开始啦！', '今天的奖池…有好东西哦！'],
+      奖池点名: ['{昵称}，轮到你啦！发口令吧～', '{昵称}，准备好了吗？'], 奖池转动: ['转呀转…', '求求了，出个好的！'],
+      '揭晓·大奖': ['恭喜{昵称}抽中{奖项}！！', '大奖！{昵称}运气爆棚！'], '揭晓·二奖': ['恭喜{昵称}！是{奖项}～', '{昵称}抽到了{奖品}，不错哦～'],
+      '揭晓·三奖': ['恭喜{昵称}抽中{奖项}～', '{昵称}抽到了{奖品}～下次会更好！'], 没人报名: ['没、没有人报名吗…', '呜…再等等吧…'], 抽奖结束: ['抽奖结束啦～谢谢大家参与！', '下次抽奖也要来哦～'],
+      无聊: ['好安静啊…', '今天的星星好多…', '要不要…举个哑铃？'], 沮丧: ['是不是没人喜欢我了…', '画个圈圈…', '（偷偷看）有人在吗…'], 犯困: ['呼…呼…', '唔…再睡五分钟…', '（梦话）哑铃…好重…'],
+      哼歌: ['♪啦啦啦～'], 举哑铃: ['今天也要锻炼！'], 爬山: ['下次一起去爬山吧！', '山顶的风好舒服～'], 骑车: ['叮铃叮铃～', '骑车去兜风！'], 滑雪: ['滑雪好开心～', '看我的！'],
+      破音: ['咳、咳…刚才不算！', '破、破音了…'], 砸到脚: ['好痛痛痛！', '又、又砸到了…'], 摔屁股墩: ['哎呦…屁股好痛…', '山路好滑…'], 拍拍土: ['拍拍土…没事没事！', '再来！这次小心点～'],
+      骑车摔倒: ['车、车子不听话…', '呜…又摔了…'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了'], 滑雪摔跤: ['噗…全是雪…', '雪、雪好冰！']
+    };
+  }
+
+  // The app's only on/off control is the ToggleSwitch, on pages that save with 保存 too (盲盒播报, 自动更新).
+  switchOf(t, on) {
+    return { on, checked: on ? 'true' : 'false', bg: on ? t.accent : t.switchOff, knob: on ? '21px' : '3px', labelColor: on ? t.primary : t.muted };
+  }
+
+  renderVals() {
+    const s = this.state || {};
+    const dark = this.props.dark === true || this.props.dark === 'true';
+    const t = this.tokens(dark);
+    const scene = this.props.scene ?? '默认';
+    const [w, h] = (this.props.size ?? '1200 × 720') === '1040 × 600' ? [1040, 600] : [1200, 720];
+    const tab = s.tab ?? this.props.tab ?? '演出';
+    const masterOn = s.master ?? scene !== '桌宠关着';
+    const pageOk = scene !== '桌宠页没连上';
+    // Any change marks the page; 保存 clears it. The 有未保存的修改 scene starts with one change made.
+    const edited = (patch) => this.setState({ ...patch, dirty: true, saved: false });
+    const dirty = s.dirty ?? scene === '有未保存的修改';
+
+    const icons = {
+      danmaku: 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z',
+      box: 'M20 12v9H4v-9M2 7h20v5H2zM12 21V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z',
+      entry: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3',
+      heart: 'M12 21s-7-4.6-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.4-9 9-9 9z',
+      trophy: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z',
+      pet: 'M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM8.5 3.5L10 6M15.5 3.5L14 6M9 12h.01M15 12h.01M10 15.5s.8 1 2 1 2-1 2-1',
+      ticket: 'M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4zM14 5v2M14 11v2M14 17v2',
+      send: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
+      sliders: 'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6'
+    };
+    // 桌宠 sits after 礼物榜: both are pages on the stream that answer to gifts.
+    const nav = [['弹幕', icons.danmaku, '8'], ['盲盒统计', icons.box, '开'], ['进场欢迎', icons.entry, '开'], ['送礼动画', icons.heart, '开'], ['礼物榜', icons.trophy, '统计中'],
+      ['桌宠', icons.pet, masterOn ? '开' : '关'], ['抽奖', icons.ticket, ''], ['发送队列', icons.send, ''], ['通用设置', icons.sliders, '']].map(([label, icon, badge]) => {
+      const active = label === '桌宠';
+      return { label, icon, badge, current: active ? 'page' : 'false', bg: active ? t.accentTint : 'transparent', color: active ? t.accentText : t.secondary,
+        weight: active ? 600 : 400, badgeColor: badge === '开' || badge === '统计中' ? t.success : t.muted };
+    });
+
+    const tabs = ['演出', '心情和日常', '台词'].map(label => {
+      const on = label === tab;
+      return { label, selected: on ? 'true' : 'false', bg: on ? t.card : 'transparent', color: on ? t.primary : t.secondary, weight: on ? 600 : 400, shadow: on ? t.shadow : 'none',
+        pick: () => this.setState({ tab: label }) };
+    });
+
+    // 演出: the thresholds name the gifts' tiers, so the notes below follow them.
+    const mid = s.mid ?? '1000', big = s.big ?? '10000';
+    const fmt = v => (Number(v) || 0).toLocaleString('zh-CN', { useGrouping: false });
+    const below = fmt(Number(big) - 1);
+    const shows = s.shows ?? (scene === '有未保存的修改' ? { 进场: false } : {});
+    const item = (label, note) => {
+      const on = shows[label] !== false;
+      return { label, note, ...this.switchOf(t, on), toggle: () => edited({ shows: { ...shows, [label]: !on } }) };
+    };
+    const groups = [
+      { title: '进场和礼物', items: [item('进场', '观众进直播间'), item('普通礼物', '这一轮不到 ' + fmt(mid) + ' 电池'), item('连着送', '这一轮送了 5 份以上，不到 ' + fmt(mid) + ' 电池'),
+        item('中礼物', '这一轮 ' + fmt(mid) + ' – ' + below + ' 电池'), item('大礼物', '这一轮 ' + fmt(big) + ' 电池以上')] },
+      { title: '盲盒和城堡', items: [item('盲盒·小', '这一轮投入不到 ' + fmt(mid) + ' 电池'), item('盲盒·中', '这一轮投入 ' + fmt(mid) + ' – ' + below + ' 电池'), item('盲盒·大', '这一轮投入 ' + fmt(big) + ' 电池以上，或开出大奖'),
+        item('城堡', '直接送，或盲盒开出')] },
+      { title: '大航海和其他', items: [item('舰长', '开通或续费'), item('提督', '开通或续费'), item('总督', '开通或续费'), item('新的第一名', '礼物榜换了第一名；礼物榜在统计时才有'), item('抽奖', '开场、点名、揭晓和结束时的反应')] }
+    ];
+    // 分组: the shows one group at a time, beside a list of the groups that only grows a row for a new kind of event (PK
+    // here as the example of one added later); each group has room for its own options, like the gifts' thresholds.
+    const all = Object.fromEntries(groups.flatMap(g => g.items).map(x => [x.label, x]));
+    const pk = this.props.pk === true || this.props.pk === 'true';
+    const grouped = [
+      { label: '进场', desc: '观众进直播间时', items: [all.进场] },
+      { label: '礼物', desc: '第一份就演，这一轮越送越多就接上更大的那段（停手 3 秒算一轮）', items: [all.普通礼物, all.连着送, all.中礼物, all.大礼物], thresholds: true },
+      { label: '盲盒', desc: '按这一轮的投入分；结果跟盲盒播报：赚了欢呼、不赚不亏点头、亏了鼓腮再道谢', items: [all['盲盒·小'], all['盲盒·中'], all['盲盒·大']] },
+      { label: '城堡', desc: '城堡礼物，直接送的或盲盒开出的', items: [all.城堡] },
+      { label: '大航海', desc: '开通或续费大航海，三档各演各的', items: [all.舰长, all.提督, all.总督] },
+      { label: '新的第一名', desc: '这一笔让礼物榜换了第一名，接在主演出后面；礼物榜没在统计时没有榜，不演', items: [all.新的第一名] },
+      { label: '抽奖', desc: '报名抽奖和奖池抽奖的每一步', items: [all.抽奖] },
+      ...(pk ? [{ label: 'PK', example: true, desc: '示例：以后解析了 PK，表里加几行，这里就多一组', items: [item('PK 开始', '和别的直播间开始 PK'), item('PK 赢了', 'PK 结束时赢了'), item('PK 输了', 'PK 结束时输了')] }] : [])
+    ];
+    // 三列 with PK added: the fourth group wraps to a row of its own below the fold.
+    if (pk) groups.push({ title: 'PK（以后）', items: grouped[grouped.length - 1].items });
+    const selGroup = s.group ?? (pk ? 'PK' : '礼物');
+    const showGroups = grouped.map(g => {
+      const on = g.items.filter(x => x.on).length, sel = g.label === selGroup;
+      return { label: g.label, example: !!g.example, selected: sel ? 'true' : 'false', bg: sel ? t.accentTint : 'transparent', color: sel ? t.accentText : t.primary, weight: sel ? 600 : 400,
+        count: g.items.length === 1 ? (on ? '开' : '关') : on === g.items.length ? '全开' : on + '/' + g.items.length + ' 开', countColor: on ? t.success : t.muted,
+        pick: () => this.setState({ group: g.label }) };
+    });
+    const sel = grouped.find(g => g.label === selGroup) || grouped[1];
+
+    // 心情和日常: 0 turns a mood off, the note says so in its place.
+    const moodVals = s.moods ?? { 无聊: '15', 沮丧: '40', 犯困: '60' };
+    const moods = [['无聊', '分钟没收到礼物', '托腮发呆，隔一阵叹口气'], ['沮丧', '分钟没收到礼物', '蹲着画圈圈，头上一片阴影'], ['犯困', '分钟什么事都没有', '抱着膝盖打瞌睡，有人来就惊醒']].map(([label, unit, note]) => {
+      const v = moodVals[label], off = Number(v) === 0;
+      return { label, unit, value: v, aria: label + '：几分钟后进入', note: off ? '填了 0：不会' + label : note, noteColor: off ? t.accentText : t.muted,
+        set: e => edited({ moods: { ...moodVals, [label]: e.target.value } }) };
+    });
+    const actOn = s.acts ?? {};
+    const acts = ['哼歌', '举哑铃', '爬山', '骑车', '滑雪'].map(label => {
+      const on = actOn[label] !== false;
+      return { label, ...this.switchOf(t, on), toggle: () => edited({ acts: { ...actOn, [label]: !on } }) };
+    });
+    const mishap = s.mishap ?? '25';
+    const mishapOff = Number(mishap) === 0;
+
+    // 台词: one kind at a time; a kind the streamer changed carries 已改 and can go back to her own lines.
+    const defs = this.defaults(), custom = s.custom ?? {};
+    const pick = s.cat ?? '大礼物';
+    const cats = [];
+    let cat = null;
+    for (const [group, list] of this.categories()) {
+      cats.push({ head: true, item: false, label: group });
+      for (const [label, when, chipList] of list) {
+        const sel = label === pick;
+        if (sel) cat = { label, when, chipList };
+        cats.push({ head: false, item: true, label, selected: sel ? 'true' : 'false', changed: !!custom[label], bg: sel ? t.accentTint : 'transparent',
+          color: sel ? t.accentText : t.primary, weight: sel ? 600 : 400, pick: () => this.setState({ cat: label, focus: 0 }) });
+      }
+    }
+    const lineList = custom[cat.label] ?? defs[cat.label] ?? [''];
+    const focus = Math.min(s.focus ?? 0, lineList.length - 1);
+    const setLines = list => edited({ custom: { ...custom, [cat.label]: list } });
+    const lines = lineList.map((value, i) => ({
+      value, aria: cat.label + '第 ' + (i + 1) + ' 句', border: i === focus ? t.accent : t.control, only: lineList.length === 1 ? 'true' : null,
+      removeLabel: '删除第 ' + (i + 1) + ' 句', removeColor: lineList.length === 1 ? t.disabled : t.muted,
+      set: e => setLines(lineList.map((x, j) => (j === i ? e.target.value : x))), focus: () => this.setState({ focus: i }),
+      remove: () => { if (lineList.length > 1) setLines(lineList.filter((_, j) => j !== i)); }
+    }));
+    const chips = cat.chipList.map(label => ({ label, insert: () => setLines(lineList.map((x, j) => (j === focus ? x + '{' + label + '}' : x))) }));
+    const changed = !!custom[cat.label];
+    // Only these few rows fit the narrowest window beside the list.
+    const listW = w === 1040 ? 196 : 220;
+
+    const playing = s.playing ?? scene === '试演中';
+    const testDisabled = !masterOn || !pageOk;
+    return {
+      t, w, h, nav, tabs, isMoods: tab === '心情和日常', isLines: tab === '台词',
+      isShows: tab === '演出' && this.props.showsLayout === '三列', isShowsGrouped: tab === '演出' && (this.props.showsLayout ?? '分组') === '分组', showGroups, sel,
+      master: { on: masterOn ? 'true' : 'false', bg: masterOn ? t.accent : t.switchOff, knob: masterOn ? '21px' : '3px', toggle: () => edited({ master: !masterOn }) },
+      pageOk: masterOn && pageOk, pageWaiting: masterOn && !pageOk, pageOff: !masterOn,
+      testDisabled: testDisabled ? 'true' : null, testColor: testDisabled ? t.disabled : t.primary,
+      playText: playing ? '停止' : '试演', playLabel: playing ? '停止试演' : '试演选中的这一段', playIcon: playing ? 'M6 6h12v12H6z' : 'M7 4l13 8-13 8z',
+      play: () => this.setState({ playing: !playing }),
+      playNote: !masterOn ? '先打开桌宠' : !pageOk ? '先在直播姬里加好桌宠页' : playing ? '正在直播画面上演：大礼物，约 6 秒' : '',
+      playNoteColor: playing ? t.accentText : t.muted,
+      mid, big, setMid: e => edited({ mid: e.target.value }), setBig: e => edited({ big: e.target.value }),
+      tierHint: '按一轮的投入，盲盒也一样', groups,
+      moods, from: s.from ?? '20', to: s.to ?? '40', setFrom: e => edited({ from: e.target.value }), setTo: e => edited({ to: e.target.value }), acts,
+      mishap, setMishap: e => edited({ mishap: e.target.value }), mishapNote: mishapOff ? '填了 0：不会出事' : '砸到脚、破音、摔一跤；填 0 就不出事',
+      mishapNoteColor: mishapOff ? t.accentText : t.muted,
+      cats, cat, lines, chips, hasChips: chips.length > 0, noChips: chips.length === 0, insertTarget: lineList.length > 1 ? '到第 ' + (focus + 1) + ' 句' : '', listW,
+      add: () => { setLines([...lineList, '']); this.setState({ focus: lineList.length }); },
+      restore: () => { const next = { ...custom }; delete next[cat.label]; edited({ custom: next }); },
+      restoreDisabled: changed ? null : 'true', restoreColor: changed ? t.secondary : t.disabled,
+      footerText: s.saved ? '已保存' : dirty ? '有未保存的修改' : '没有未保存的修改', footerColor: dirty && !s.saved ? t.accentText : t.muted,
+      saveDisabled: dirty && !s.saved ? null : 'true', saveBg: dirty && !s.saved ? t.accent : t.saveOffBg, saveFg: dirty && !s.saved ? t.onAccent : t.saveOffText,
+      save: () => this.setState({ dirty: false, saved: true })
+    };
+  }
+}
+</script>
+</body>
+</html>
