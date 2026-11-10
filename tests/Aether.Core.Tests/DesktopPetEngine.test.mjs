@@ -228,6 +228,16 @@ test('a castle sent while the round\'s blind boxes wait on their 盲盒播报 pl
   assert.deepEqual([playing(engine), engine.queue, engine.rounds], ['castle', [], []]);
 });
 
+test('a castle sent once the round\'s blind boxes were all reported plays at once', () => {
+  const engine = pet();
+  engine.gift(round(1, { boxes: 1, boxSpend: 15000 }));
+  engine.blindBox(boxResult(1, 15000, 9000));
+  engine.gift(round(1, { ...castle(1), boxes: 1, boxSpend: 15000 }));
+  assert.equal(playing(engine), 'castle');
+  engine.gift(round(1, { ...castle(1), boxes: 1, boxSpend: 15000, ended: true }));
+  assert.deepEqual([engine.queue, engine.rounds], [[], []]);
+});
+
 test('a show turned off does not play, nor a lesser one in its place', () => {
   const engine = pet({ off: ['bigGift', 'entry'] });
   engine.gift(gifts(1, 1000000));

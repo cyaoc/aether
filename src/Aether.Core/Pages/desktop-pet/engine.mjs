@@ -276,9 +276,9 @@ export class Engine extends EventTarget {
     }
     r.arrivals.push(now); r.boxes = p.boxes;
     this.gifted(now);
-    // a castle in the round, sent or opened, plays once instead of its gifts and blind boxes; among blind boxes it waits for
-    // their result as they do
-    if (p.castle && p.boxes && r.played < CASTLE) Object.assign(r, { castle: true, castleAt: p.boxes, played: CASTLE });
+    // a castle in the round, sent or opened, plays once instead of its gifts and blind boxes; while some of them are still to
+    // be reported it waits for their result as they do, and with none it plays at once
+    if (p.castle && p.boxes > r.told && r.played < CASTLE) Object.assign(r, { castle: true, castleAt: p.boxes, played: CASTLE });
     if (!p.count || r.castle) return;
     const { midGift, bigGift } = this.settings;
     const kind = p.castle ? 'castle' : p.spend >= bigGift ? 'bigGift' : p.spend >= midGift ? 'midGift' : p.count >= 5 ? 'giftStreak' : 'gift';
