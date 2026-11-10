@@ -297,10 +297,14 @@ export class Engine {
   testShow({ show, variant, nickname }) {
     this.trial = null;
     if (this.events[show].group === 'mood') { this.trial = show; this.cur = null; return; }
-    this.start(show, { nickname, result: variant, mishap: variant === 'Mishap' });
+    this.start(show, { nickname, result: variant, mishap: variant === 'Mishap', trial: true });
   }
 
-  stopTestShow() { this.trial = this.cur = null; }
+  // Only the 试演: a show of what happened since it plays on.
+  stopTestShow() {
+    this.trial = null;
+    if (this.cur?.opts.trial) this.cur = null;
+  }
 
   // While a round with blind boxes is still coming in she does not just wait: she shakes the box the whole time, until the
   // 盲盒播报 tells how it came out, and each gift flies into her arms.

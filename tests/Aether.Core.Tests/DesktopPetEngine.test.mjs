@@ -176,6 +176,18 @@ test('a 试演 plays a show from its start or holds her in a 心情 until it is 
   assert.deepEqual([playing(engine), engine.cur.opts.mishap], ['bike', true]);
 });
 
+test('stopping a 试演 stops only the 试演: a show of what happened plays on', () => {
+  const engine = pet();
+  engine.testShow({ show: 'gift', variant: null, nickname: '星河' });
+  engine.stopTestShow();
+  assert.equal(playing(engine), null);
+  engine.testShow({ show: 'gift', variant: null, nickname: '星河' });
+  advance(engine, 2000);
+  engine.gift(castle(1));
+  engine.stopTestShow();
+  assert.equal(playing(engine), 'castle');
+});
+
 test('a 总督 coming while the castle plays waits for it and then goes first; neither is ever dropped', () => {
   const engine = pet();
   engine.gift(castle(1));
