@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aether 桌宠页</title>
+  <link rel="icon" href="data:,">
+  <style>html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }</style>
+</head>
+<body>
+<script type="module">
+// Connected, the page takes what Core tells the 桌宠; it plays nothing yet.
+new EventSource('/desktop-pet/events');
+</script>
+</body>
+</html>

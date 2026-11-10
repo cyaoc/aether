@@ -17,7 +17,8 @@ public sealed class WebServiceFacade
         var queue = Channel.CreateUnbounded<VideoQueue.Playback>(new UnboundedChannelOptions { SingleReader = true });
         region = regions.Create(_ => new WebService(queue.Writer, regions.Time, regions.Logger, lottery.SetExamplePage));
         Lottery = new(lottery);
-        server = new(region, regions.Time, web => [new VideoPage(web, queue.Reader, dataDirectory), Lottery, new GiftBoardPage(giftBoard)]);
+        server = new(region, regions.Time, web => [new VideoPage(web, queue.Reader, dataDirectory), Lottery, new GiftBoardPage(giftBoard),
+            new DesktopPetPage(web)]);
     }
 
     public LotteryPage Lottery { get; }
@@ -58,6 +59,12 @@ public sealed class WebServiceFacade
 
     /// <inheritdoc cref="PlayEntry"/>
     internal void PlayGiftRound(GiftRoundEnded round, CancellationToken roomStopped) => region.Post(s => s.GiftAnimation.Enqueue(round, roomStopped));
+
+    /// <inheritdoc cref="PlayEntry"/>
+    internal void SetDesktopPetRoom(bool connected) => region.Post(s => s.DesktopPet.SetRoom(connected));
+
+    /// <inheritdoc cref="PlayEntry"/>
+    internal void TellDesktopPet(string name, object data) => region.Post(s => s.DesktopPet.Tell(name, data));
 
     /// <summary>Closes the listener and every connection in a last step, without waiting for the serving to wind down as
     /// <see cref="StopAsync"/> does, then stops the region.</summary>

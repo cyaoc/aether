@@ -27,6 +27,7 @@ internal sealed class WebService
         WelcomeAnimation = new(this, timeProvider, logger);
         EntryAnimation = new(this, WelcomeAnimation, timeProvider, logger);
         GiftAnimation = new(this, timeProvider, logger);
+        DesktopPet = new(this);
     }
 
     /// <summary>One streaming software's event stream to a page. Only its write lock is taken outside a step.</summary>
@@ -43,13 +44,18 @@ internal sealed class WebService
     public WelcomeAnimation WelcomeAnimation { get; }
     public EntryAnimation EntryAnimation { get; }
     public GiftAnimation GiftAnimation { get; }
+    public DesktopPet DesktopPet { get; }
     public WebServiceStatus Status { get; private set; } = new(false, Settings.WebPort.Initial.Value, 0, 0, 0);
 
     /// <summary>The settings applied last. Playback sources and the room's decoder read these, not their room connection's,
     /// so a save reaches them without reconnecting.</summary>
     public Settings? Settings { get; private set; }
 
-    public void Apply(Settings settings) => Settings = settings;
+    public void Apply(Settings settings)
+    {
+        Settings = settings;
+        DesktopPet.Applied();
+    }
 
     /// <summary>Only a changed port restarts existing connections.</summary>
     public bool Serves(int port) => serving is not null && Status.Port == port;
@@ -90,7 +96,7 @@ internal sealed class WebService
         foreach (var connection in connections) Abort(connection.Response);
         listener.Close();
         connections.Clear();
-        Report(Status with { Running = false, VideoConnections = 0, LotteryConnections = 0, GiftBoardConnections = 0 });
+        Report(Status with { Running = false, VideoConnections = 0, LotteryConnections = 0, GiftBoardConnections = 0, DesktopPetConnections = 0 });
         return running;
     }
 
@@ -142,9 +148,10 @@ internal sealed class WebService
 
     private void ConnectionsChanged()
     {
-        var status = Status with { VideoConnections = Count<VideoPage>(), LotteryConnections = Count<LotteryPage>(), GiftBoardConnections = Count<GiftBoardPage>() };
-        logger.LogInformation("网页服务：视频页 {VideoCount} 个推流软件，抽奖页 {LotteryCount} 个推流软件，礼物榜页 {GiftBoardCount} 个推流软件",
-            status.VideoConnections, status.LotteryConnections, status.GiftBoardConnections);
+        var status = Status with { VideoConnections = Count<VideoPage>(), LotteryConnections = Count<LotteryPage>(),
+            GiftBoardConnections = Count<GiftBoardPage>(), DesktopPetConnections = Count<DesktopPetPage>() };
+        logger.LogInformation("网页服务：视频页 {VideoCount} 个推流软件，抽奖页 {LotteryCount} 个推流软件，礼物榜页 {GiftBoardCount} 个推流软件，桌宠页 {DesktopPetCount} 个推流软件",
+            status.VideoConnections, status.LotteryConnections, status.GiftBoardConnections, status.DesktopPetConnections);
         Report(status);
         if (status.VideoConnections == 0) Video.Disconnected();
     }
