@@ -16,9 +16,11 @@ internal sealed class DesktopPet(WebService service)
 
     private bool Enabled => service.Settings?.DesktopPetEnabled.Value == true;
 
-    public SseEvent State => new("state", Enabled ? new DesktopPetState(true, roomConnected, lottery, giftBoard) : new DesktopPetState(false));
+    public SseEvent State => new("state", service.Settings is { DesktopPetEnabled.Value: true } settings
+        ? new DesktopPetState(true, roomConnected, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines)
+        : new DesktopPetState(false));
 
-    /// <summary>New settings may turn the 桌宠 on or off.</summary>
+    /// <summary>New settings may turn the 桌宠 on or off, and change how she plays and what she says.</summary>
     public void Applied() => Subscribers.Publish(State);
 
     /// <summary>A reconnect is still the same room connection, so only its start and its end change the state.</summary>
@@ -72,8 +74,24 @@ internal sealed class DesktopPet(WebService service)
 }
 
 /// <summary>The 桌宠页's state: whether the 桌宠 is on and, only then, whether a room is connected, which her quiet-room clocks
-/// start from, the lottery as it is on air, whose DrawUntil is when a draw is revealed, and the 礼物榜 while its 期 runs.</summary>
-internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false, Lottery? Lottery = null, GiftBoardState? GiftBoard = null);
+/// start from, the lottery as it is on air, whose DrawUntil is when a draw is revealed, the 礼物榜 while its 期 runs, her settings
+/// and the current character's lines by kind, with the kinds the streamer changed.</summary>
+internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false, Lottery? Lottery = null, GiftBoardState? GiftBoard = null,
+    DesktopPetSettings? Settings = null, IReadOnlyDictionary<string, IReadOnlyList<string>>? Lines = null);
+
+/// <summary>How the streamer set the 桌宠 to play: the 演出表 rows turned off; the 中礼物 and 大礼物 thresholds, in 金瓜子 as the
+/// rounds' amounts are; the quiet minutes before 无聊, 沮丧 and 犯困, 0 for never; the least and most seconds between 日常小动作; and
+/// the percent chance one goes wrong.</summary>
+internal sealed record DesktopPetSettings(IReadOnlyList<string> Off, long MidGift, long BigGift, int BoredMinutes, int GloomyMinutes,
+    int SleepyMinutes, int DailyMinSeconds, int DailyMaxSeconds, int MishapPercent)
+{
+    public static DesktopPetSettings Of(Settings settings)
+    {
+        var (thresholds, moods, daily) = (settings.DesktopPetGiftThresholds, settings.DesktopPetMoodMinutes, settings.DesktopPetDailySeconds);
+        return new(settings.DesktopPetShowsOff.Value, Battery.ToCoins(thresholds[0].Value), Battery.ToCoins(thresholds[1].Value), moods[0].Value,
+            moods[1].Value, moods[2].Value, daily[0].Value, daily[1].Value, settings.DesktopPetMishapPercent.Value);
+    }
+}
 
 /// <summary>A viewer's 一轮送礼 as it stands after a gift message, and once more as it ends: its gifts' 投入, how many, the one
 /// of them priced highest and how many of it; its 盲盒' 投入 and boxes; and whether a 浪漫城堡 came, sent or opened. Its 大航海

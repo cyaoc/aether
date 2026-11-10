@@ -12,8 +12,6 @@ public sealed record ShowTable(IReadOnlyList<ShowGroup> Groups, IReadOnlyList<Sh
     /// <summary>The table in the program's Pages.</summary>
     public static ShowTable Current { get; } = Character.Read<ShowTable>(Path.Combine(WebServer.PagesDirectory, "desktop-pet"), "shows.json");
 
-    public Show Show(string id) => Shows.Single(show => show.Id == id);
-
     public LineKind Line(string id) => Lines.Single(kind => kind.Id == id);
 }
 

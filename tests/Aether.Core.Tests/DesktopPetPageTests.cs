@@ -40,6 +40,30 @@ public sealed class DesktopPetPageTests
     }
 
     [Fact]
+    public async Task The_state_has_the_settings_and_her_lines_with_the_changed_kinds_and_comes_again_once_saved()
+    {
+        await using var h = new WatchHarness();
+        await h.ApplySettingsAsync(("desktop_pet.enabled", "true"), ("desktop_pet.mid_gift_spend", "2000"));
+        using var pet = await DesktopPetEvents.OpenAsync(h);
+        var state = await pet.NextAsync("state");
+        Assert.Equal("""{"off":[],"midGift":200000,"bigGift":1000000,"boredMinutes":15,"gloomyMinutes":40,"sleepyMinutes":60,"dailyMinSeconds":20,"dailyMaxSeconds":40,"mishapPercent":25}""",
+            state.GetProperty("settings").GetRawText());
+        Assert.Equal(["哇！{昵称}送了{礼物}！", "这么贵重的{礼物}…谢谢{昵称}！", "心跳好快…谢谢{昵称}！", "我会好好珍惜的！"], Lines(state, "bigGift"));
+
+        Settings.SaveDesktopPet(h.DataDirectory, new Dictionary<string, string> { ["desktop_pet.shows_off"] = "[entry]" },
+            new Dictionary<string, IReadOnlyList<string>> { ["bigGift"] = ["{昵称}，谢谢你～"] }, Settings.Load(h.DataDirectory));
+        await h.Client.WebService.ApplySettingsAsync(Settings.Load(h.DataDirectory));
+
+        var saved = await pet.NextAsync("state");
+        Assert.Equal(["entry"], saved.GetProperty("settings").GetProperty("off").EnumerateArray().Select(id => id.GetString()));
+        Assert.Equal(["{昵称}，谢谢你～"], Lines(saved, "bigGift"));
+        Assert.Equal(Character.Current.Lines["gift"], Lines(saved, "gift"));
+        Assert.Equal(ShowTable.Current.Lines.Select(kind => kind.Id).Order(), saved.GetProperty("lines").EnumerateObject().Select(kind => kind.Name).Order());
+
+        static string[] Lines(JsonElement state, string kind) => [.. state.GetProperty("lines").GetProperty(kind).EnumerateArray().Select(line => line.GetString()!)];
+    }
+
+    [Fact]
     public async Task While_the_desktop_pet_is_off_the_page_is_told_only_that()
     {
         await using var h = new WatchHarness();
@@ -48,7 +72,7 @@ public sealed class DesktopPetPageTests
         h.EnableStreamOverlay = true;
         await using var updates = await h.WatchConnectedAsync();
         using var pet = await DesktopPetEvents.OpenAsync(h);
-        Assert.Equal("""{"enabled":false,"roomConnected":false,"lottery":null,"giftBoard":null}""", (await pet.NextAsync()).Data.GetRawText());
+        Assert.Equal("""{"enabled":false,"roomConnected":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync()).Data.GetRawText());
 
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(), BlindGiftFixture.Json, UserToastFixture.Message(), EntryV2Fixture.Message());
         h.Time.Advance(TimeSpan.FromSeconds(3));
@@ -60,7 +84,7 @@ public sealed class DesktopPetPageTests
         Assert.True(state.GetProperty("enabled").GetBoolean());
         Assert.True(state.GetProperty("roomConnected").GetBoolean());
         await h.ApplySettingsAsync(("desktop_pet.enabled", "false"));
-        Assert.Equal("""{"enabled":false,"roomConnected":false,"lottery":null,"giftBoard":null}""", (await pet.NextAsync("state")).GetRawText());
+        Assert.Equal("""{"enabled":false,"roomConnected":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync("state")).GetRawText());
     }
 
     [Fact]
