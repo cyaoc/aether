@@ -63,6 +63,8 @@
                 Purpose="报名、开奖和中奖名单" Size="横屏 1920 × 1080 · 竖屏 1080 × 1920" />
               <local:WebPageRow x:Name="GiftBoardRow" Classes="divided" DataContext="{Binding WebService.GiftBoard}" Icon="{StaticResource Icon.Trophy}"
                 Purpose="送礼观众的排行" Size="480 × 1000，可以等比放大" />
+              <local:WebPageRow x:Name="DesktopPetRow" Classes="divided" DataContext="{Binding WebService.DesktopPet}" Icon="{StaticResource Icon.Pet}"
+                Purpose="桌宠在直播画面一角表演" Size="480 × 640" />
             </StackPanel>
           </Border>
         </StackPanel>

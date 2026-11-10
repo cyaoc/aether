@@ -27,4 +27,6 @@ public sealed record WebPageTexts(string Name, string WaitingText, string OffEff
     public static readonly WebPageTexts Lottery = new("抽奖页", "抽奖页：还没有推流软件连着", "抽奖页显示不了");
     public static readonly WebPageTexts GiftBoard = new("礼物榜页", "礼物榜页：还没有推流软件连着", "礼物榜页显示不了",
         "在直播姬里添加浏览器素材，地址和宽高照通用设置里“礼物榜页”那一行填；已经加过的，右键素材 → 刷新。");
+    public static readonly WebPageTexts DesktopPet = new("桌宠页", "桌宠页：还没有推流软件连着", "桌宠页显示不了",
+        "在直播姬里添加浏览器素材，地址和宽高照通用设置里“桌宠页”那一行填；已经加过的，右键素材 → 刷新。");
 }

@@ -30,7 +30,7 @@ internal sealed class GuiHarness : IDisposable
     public AetherClient Client => client;
 
     /// <summary>The navigation items that are settings pages: all but the danmaku, the 礼物榜 and the lottery.</summary>
-    public static readonly int[] SettingsPages = [1, 2, 3, 6, 7];
+    public static readonly int[] SettingsPages = [1, 2, 3, 5, 7, 8];
     public string DataDirectory { get; } = Path.Combine(Path.GetTempPath(), "aether-gui-tests-" + Guid.NewGuid());
     /// <summary>Where releases before ADR 0016 kept the GUI's own settings; only the upgrade reads it.</summary>
     public string LegacyGuiFile => Path.Combine(DataDirectory, "gui.yml");
@@ -180,7 +180,7 @@ internal sealed class GuiHarness : IDisposable
     public static T FindVisual<T>(Visual parent, string name) where T : Control =>
         parent.GetVisualDescendants().OfType<T>().Single(control => control.Name == name);
 
-    /// <summary>A control in one page's row of the general settings' page list; <paramref name="pageName"/> is Video, Lottery or GiftBoard.</summary>
+    /// <summary>A control in one page's row of the general settings' page list; <paramref name="pageName"/> is Video, Lottery, GiftBoard or DesktopPet.</summary>
     public static T FindPageRowControl<T>(Visual page, string pageName, string name) where T : Control =>
         FindVisual<T>(FindVisual<WebPageRow>(page, pageName + "Row"), name);
 
