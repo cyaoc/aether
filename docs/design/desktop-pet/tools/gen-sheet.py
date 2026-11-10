@@ -75,7 +75,7 @@ def on_green(sheet):
 
 def run_codex(prompt, refs, out, log):
     out.unlink(missing_ok=True)
-    cmd = ["codex", "exec", "--skip-git-repo-check", "-s", "workspace-write", "-C", str(out.parent)]
+    cmd = [str(PKG / "tools/codex.sh"), "-C", str(out.parent)]
     for r in refs:
         cmd += ["-i", str(r)]
     subprocess.run(cmd + ["-o", str(log)], input=prompt, text=True, capture_output=True, timeout=900)

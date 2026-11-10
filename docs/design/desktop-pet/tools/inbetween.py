@@ -118,7 +118,7 @@ best = None
 for t in range(tries):
     raw = out / f"{name}-frames.png"
     raw.unlink(missing_ok=True)
-    subprocess.run(["codex", "exec", "--skip-git-repo-check", "-s", "workspace-write", "-C", str(out), "-i", str(out / f"{name}-grid.png"),
+    subprocess.run([str(PKG / "tools/codex.sh"), "-C", str(out), "-i", str(out / f"{name}-grid.png"),
                     "-o", str(out / f"{name}.log.txt")], input=prompt, capture_output=True, text=True)
     if not raw.exists():
         print(f"try {t + 1}: codex gave no frames")

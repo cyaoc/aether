@@ -41,7 +41,7 @@ EDIT = ("Use your built-in image generation tool (not code) to edit the attached
 
 def codex(prompt, refs, out):
     out.unlink(missing_ok=True)
-    cmd = ["codex", "exec", "--skip-git-repo-check", "-s", "workspace-write", "-C", str(out.parent)]
+    cmd = [str(PKG / "tools/codex.sh"), "-C", str(out.parent)]
     for r in refs:
         cmd += ["-i", str(r)]
     subprocess.run(cmd + ["-o", str(out.with_suffix(".log.txt"))], input=prompt, text=True, capture_output=True, timeout=900)
