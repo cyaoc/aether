@@ -161,12 +161,19 @@ public sealed class DesktopPetPageTests
     }
 
     [Fact]
-    public async Task A_test_show_is_refused_with_why_until_a_page_can_play_it_and_can_be_stopped()
+    public async Task A_test_show_is_told_over_with_why_until_a_page_can_play_it_and_can_be_stopped()
     {
         await using var h = new WatchHarness();
         var service = h.Client.WebService;
-        async Task<string> RefusedAsync() =>
-            (await Assert.ThrowsAsync<InvalidOperationException>(() => service.TestShowAsync("castle", null, "星河"))).Message;
+        await using var updates = service.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        Assert.True(await updates.MoveNextAsync());
+        async Task<string?> RefusedAsync()
+        {
+            await service.TestShowAsync("castle", null, "星河");
+            while (await updates.MoveNextAsync())
+                if (updates.Current is DesktopPetTestEnded ended) return ended.Refused;
+            return null;
+        }
 
         Assert.Equal("桌宠没有打开。", await RefusedAsync());
         await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));
@@ -187,23 +194,81 @@ public sealed class DesktopPetPageTests
     }
 
     [Fact]
-    public async Task The_page_reports_a_test_show_that_is_over_only_from_its_own_origin()
+    public async Task A_test_show_is_over_once_every_page_told_it_is_gone_such_as_one_reloaded()
     {
         await using var h = new WatchHarness();
         await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));
+        var first = await DesktopPetEvents.OpenAsync(h);
+        await first.NextAsync("state");
+        await using var updates = h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        Assert.True(await updates.MoveNextAsync());
+        var ended = Task.Run(async () =>
+        {
+            while (await updates.MoveNextAsync())
+                if (updates.Current is DesktopPetTestEnded over) return over;
+            return null;
+        });
+        await h.Client.WebService.TestShowAsync("castle", null, "星河");
+
+        // The streaming software reloads the page: the new one opens before the old one is found gone, and plays no 试演.
+        using var reloaded = await DesktopPetEvents.OpenAsync(h);
+        await Task.Delay(200, h.Stop.Token);
+        Assert.False(ended.IsCompleted);
+        first.Dispose();
+        // The closed client first drains the stream for up to 2 seconds, and TCP may take a few heartbeats to notice the close.
+        for (var i = 0; i < 40 && !ended.IsCompleted; i++)
+        {
+            h.Time.Advance(TimeSpan.FromSeconds(15));
+            await Task.Delay(200, h.Stop.Token);
+        }
+
+        Assert.Null(Assert.IsType<DesktopPetTestEnded>(await ended.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token)).Refused);
+        Assert.Equal(1, h.Client.WebService.Status.DesktopPetConnections);
+    }
+
+    [Fact]
+    public async Task The_page_reports_a_test_show_over_by_its_number_only_from_its_own_origin_and_only_the_one_that_plays_ends()
+    {
+        await using var h = new WatchHarness();
+        await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));
+        using var pet = await DesktopPetEvents.OpenAsync(h);
+        await pet.NextAsync("state");
         await using var updates = h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
-        using var crossOrigin = new HttpRequestMessage(HttpMethod.Post, "/desktop-pet/report");
-        crossOrigin.Headers.Add("Origin", "https://evil.example");
-        using var forbidden = await http.SendAsync(crossOrigin, h.Stop.Token);
-        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        async Task<int> TestShowAsync()
+        {
+            await h.Client.WebService.TestShowAsync("entry", null, "星河");
+            return (await pet.NextAsync(DesktopPet.Test)).GetProperty("id").GetInt32();
+        }
+        async Task<HttpStatusCode> ReportAsync(string query, string? origin = null)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/desktop-pet/report" + query);
+            if (origin is not null) request.Headers.Add("Origin", origin);
+            using var response = await http.SendAsync(request, h.Stop.Token);
+            return response.StatusCode;
+        }
 
-        using var report = await http.PostAsync("/desktop-pet/report", null, h.Stop.Token);
+        var first = await TestShowAsync();
+        Assert.Equal(HttpStatusCode.Forbidden, await ReportAsync($"?trial={first}", "https://evil.example"));
+        Assert.Equal(HttpStatusCode.BadRequest, await ReportAsync(""));
+        Assert.Equal(HttpStatusCode.BadRequest, await ReportAsync("?trial=-1"));
+        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync($"?trial={first}"));
+        // A second page reports the first 试演 after the next one started: that one plays on until it is reported. A page opened
+        // in between marks which report ended it.
+        var second = await TestShowAsync();
+        Assert.NotEqual(first, second);
+        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync($"?trial={first}"));
+        using var another = await DesktopPetEvents.OpenAsync(h);
+        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync($"?trial={second}"));
+        await h.ApplySettingsAsync(("desktop_pet.enabled", "false"));
+        await h.Client.WebService.TestShowAsync("entry", null, "星河");
 
-        Assert.Equal(HttpStatusCode.NoContent, report.StatusCode);
-        Assert.True(await updates.MoveNextAsync());
-        Assert.IsType<DesktopPetTestEnded>(updates.Current);
+        var seen = new List<string>();
+        while (await updates.MoveNextAsync() && updates.Current is not DesktopPetTestEnded { Refused: not null })
+            if (updates.Current is DesktopPetTestEnded) seen.Add("ended");
+            else if (updates.Current is WebServiceStatus { DesktopPetConnections: 2 } && !seen.Contains("opened")) seen.Add("opened");
+        Assert.Equal(["ended", "opened", "ended"], seen);
     }
 
     [Fact]

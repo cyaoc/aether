@@ -156,7 +156,7 @@ const revealOf = (lottery, draw) => lottery.mode === 'Entry'
 /** The engine of the 桌宠页: Core tells it what happens (DesktopPet.cs) and it decides what she plays. `master` is the page's
  * one animation, whose currentTime is the time of everything; `shows` are the rows of the 演出表, which give each show its
  * 演出档; `art` is the current character's desktopPet (characters/README.md), whose props' points place the big shows. Their
- * pictures' sizes, `props` and `castle`, are Pet's to measure. A 试演 that is over raises `trialended` (trialOver). */
+ * pictures' sizes, `props` and `castle`, are Pet's to measure. A 试演 that is over raises `trialended` with its number (trialOver). */
 export class Engine extends EventTarget {
   constructor(master, shows, art) {
     super();
@@ -331,10 +331,10 @@ export class Engine extends EventTarget {
   guard(g) { this.fire(GUARDS[g.guardLevel - 1], { nickname: g.nickname }); this.gifted(this.now()); }
 
   // A 试演 plays the show from its start (a blind box from its shaking), or holds her in the 心情, until it is stopped.
-  testShow({ show, variant, nickname }) {
+  testShow({ show, variant, nickname, id }) {
     this.trial = null;
     if (this.events[show].group === MOOD) { this.trial = show; this.cur = null; return; }
-    this.start(show, { nickname, result: variant, mishap: variant === 'Mishap', trial: true });
+    this.start(show, { nickname, result: variant, mishap: variant === 'Mishap', trial: true, trialId: id });
   }
 
   // Only the 试演: a show of what happened since it plays on.
@@ -343,9 +343,9 @@ export class Engine extends EventTarget {
     if (this.cur?.opts.trial) this.cur = null;
   }
 
-  // A 试演 of a show played out, or cut short by another show, is over, and the page tells Core (page.mjs); one stopped is
-  // Core's own doing.
-  trialOver(show) { if (show?.opts.trial) this.dispatchEvent(new Event('trialended')); }
+  // A 试演 of a show played out, or cut short by another show, is over, and the page tells Core by its number (page.mjs); one
+  // stopped is Core's own doing.
+  trialOver(show) { if (show?.opts.trial) this.dispatchEvent(new CustomEvent('trialended', { detail: show.opts.trialId })); }
 
   // The round whose blind boxes she shakes while no show plays.
   shaking() { return this.rounds.find(r => r.boxes > r.told); }

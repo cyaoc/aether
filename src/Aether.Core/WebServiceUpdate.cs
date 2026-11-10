@@ -31,7 +31,8 @@ public sealed record SourcePlayback(string Id, long Uid, string ContentSummary, 
     };
 }
 
-/// <summary>The 桌宠页 played a 试演 out, or cut it short with a show of what happened.</summary>
-public sealed record DesktopPetTestEnded : WebServiceUpdate;
+/// <summary>The 桌宠页 played a 试演 out, cut it short with a show of what happened or went away; or none was played, and
+/// <paramref name="Refused"/> says why.</summary>
+public sealed record DesktopPetTestEnded(string? Refused = null) : WebServiceUpdate;
 
 public sealed record VideoPlayback(string Id, string ContentSummary, string Source, PlaybackState State, string? Reason = null) : WebServiceUpdate;

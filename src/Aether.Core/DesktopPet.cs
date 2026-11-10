@@ -12,6 +12,10 @@ internal sealed class DesktopPet(WebService service, Character character)
     private bool roomConnected;
     private Lottery? lottery;
     private GiftBoardState? giftBoard;
+    // The 试演 that plays, by the number its page reports it over with, and the pages told it: once none of them is left, none
+    // plays it. A page reports a 试演 it played after another started, so only the one that plays is over.
+    private int trials;
+    private (int Id, WebService.Connection[] Pages)? trial;
 
     public Subscribers<SseEvent> Subscribers { get; } = new();
 
@@ -21,8 +25,12 @@ internal sealed class DesktopPet(WebService service, Character character)
         ? new DesktopPetState(true, roomConnected, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines(character))
         : new DesktopPetState(false));
 
-    /// <summary>New settings may turn the 桌宠 on or off, and change how she plays and what she says.</summary>
-    public void Applied() => Subscribers.Publish(State);
+    /// <summary>New settings may turn the 桌宠 on or off, and change how she plays and what she says; off, she plays no 试演.</summary>
+    public void Applied()
+    {
+        if (!Enabled) trial = null;
+        Subscribers.Publish(State);
+    }
 
     /// <summary>A reconnect is still the same room connection, so only its start and its end change the state.</summary>
     public void SetRoom(bool connected)
@@ -57,19 +65,46 @@ internal sealed class DesktopPet(WebService service, Character character)
 
     public void Tell(string name, object data) => Publish(new(name, data));
 
-    /// <summary>Has the page play <paramref name="show"/> now; refused with why while no page would.</summary>
+    /// <summary>Has the page play <paramref name="show"/> now; while no page would, the GUI is told it ended, with why.</summary>
     public void TestShow(string show, string? variant, string nickname)
     {
         var refused = !Enabled ? "桌宠没有打开。" : WebService.WhyNotRunning(service.Status)
             ?? (service.Status.DesktopPetConnections == 0 ? "桌宠页没有推流软件连着。" : null);
-        if (refused is not null) throw new InvalidOperationException(refused);
-        Tell(Test, new { show, variant, nickname });
+        if (refused is not null)
+        {
+            service.Publish(new DesktopPetTestEnded(refused));
+            return;
+        }
+        trial = (++trials, Pages);
+        Tell(Test, new { show, variant, nickname, id = trials });
     }
 
-    public void StopTestShow() => Tell(StopTest, new());
+    public void StopTestShow()
+    {
+        trial = null;
+        Tell(StopTest, new());
+    }
 
-    /// <summary>The page played its 试演 out, or cut it short: the GUI can offer another.</summary>
-    public void TestShowEnded() => service.Publish(new DesktopPetTestEnded());
+    /// <summary>The page played the 试演 <paramref name="id"/> out, or cut it short: if it is the one that plays, the GUI can
+    /// offer another.</summary>
+    public void TestShowEnded(int id)
+    {
+        if (trial?.Id == id) Ended();
+    }
+
+    /// <summary>A 试演 is over too once every page told it is gone, such as one the streaming software reloaded.</summary>
+    public void ConnectionsChanged()
+    {
+        if (trial is { } playing && !playing.Pages.Intersect(Pages).Any()) Ended();
+    }
+
+    private void Ended()
+    {
+        trial = null;
+        service.Publish(new DesktopPetTestEnded());
+    }
+
+    private WebService.Connection[] Pages => [.. service.Connected(null).Where(connection => connection.Page is DesktopPetPage)];
 
     private void Publish(SseEvent message)
     {

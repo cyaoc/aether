@@ -20,7 +20,7 @@ events.addEventListener('state', message => pet.receive(JSON.parse(message.data)
 for (const name of ['gift', 'blindBox', 'guard', 'entry', 'danmaku', 'testShow', 'stopTestShow'])
   events.addEventListener(name, message => pet[name](JSON.parse(message.data)));
 // A 试演 that is over is reported, as the video page reports what it played, so the GUI offers another (DesktopPetPage.cs).
-pet.addEventListener('trialended', () => fetch('/desktop-pet/report', { method: 'POST' }));
+pet.addEventListener('trialended', event => fetch(`/desktop-pet/report?trial=${event.detail}`, { method: 'POST' }));
 // The next frame is asked for first, so one that throws is lost alone.
 const loop = () => { requestAnimationFrame(loop); pet.frame(); };
 requestAnimationFrame(loop);

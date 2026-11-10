@@ -96,8 +96,9 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
 
     internal void Apply(WebServiceUpdate update)
     {
-        if (update is DesktopPetTestEnded)
+        if (update is DesktopPetTestEnded ended)
         {
+            if (ended.Refused is { } why) logger.LogInformation("桌宠试演没有演：{Reason}", why);
             TestShowEnded?.Invoke();
             return;
         }

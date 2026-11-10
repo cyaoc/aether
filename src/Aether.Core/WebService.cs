@@ -155,6 +155,7 @@ internal sealed class WebService
             status.VideoConnections, status.LotteryConnections, status.GiftBoardConnections, status.DesktopPetConnections);
         Report(status);
         if (status.VideoConnections == 0) Video.Disconnected();
+        DesktopPet.ConnectionsChanged();
     }
 
     private int Count<TPage>() where TPage : WebPage => connections.Count(connection => connection.Page is TPage);

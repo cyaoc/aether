@@ -1,9 +1,10 @@
+using System.Globalization;
 using System.Net;
 
 namespace Aether.Core;
 
-/// <summary>The 桌宠页: it plays what <see cref="DesktopPet"/> tells it, and reports a 试演 that is over, as the video page reports
-/// what it played. While the page is served, the lottery's and the 礼物榜's own updates reach the 桌宠 from here, each in a
+/// <summary>The 桌宠页: it plays what <see cref="DesktopPet"/> tells it, and reports a 试演 that is over by its number, as the video
+/// page reports what it played. While the page is served, the lottery's and the 礼物榜's own updates reach the 桌宠 from here, each in a
 /// step.</summary>
 internal sealed class DesktopPetPage(WebServer server, LotteryFacade lottery, GiftBoardFacade giftBoard) : WebPage("desktop-pet")
 {
@@ -18,9 +19,10 @@ internal sealed class DesktopPetPage(WebServer server, LotteryFacade lottery, Gi
     {
         if (request.HttpMethod != "POST" || request.Url!.AbsolutePath != "/desktop-pet/report") return Task.FromResult(false);
         if (!server.FromItsPage(request)) response.StatusCode = 403;
+        else if (!int.TryParse(request.QueryString["trial"], NumberStyles.None, CultureInfo.InvariantCulture, out var id)) response.StatusCode = 400;
         else
         {
-            server.Region.Post(s => s.DesktopPet.TestShowEnded());
+            server.Region.Post(s => s.DesktopPet.TestShowEnded(id));
             response.StatusCode = 204;
         }
         return Task.FromResult(true);

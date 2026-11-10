@@ -201,9 +201,9 @@ public sealed class DesktopPetSettingsTests
         Assert.Equal(("试演", ""), (page.FindControl<TextBlock>("TestText")!.Text, note.Text));
 
         GuiHarness.Click(page, "TestButton");
-        await pet.NextAsync(DesktopPet.Test);
+        var trial = (await pet.NextAsync(DesktopPet.Test)).GetProperty("id").GetInt32();
         using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(harness.Client.WebService.Status.Origin) };
-        using var over = await http.PostAsync("desktop-pet/report", null);
+        using var over = await http.PostAsync($"desktop-pet/report?trial={trial}", null);
         await GuiHarness.WaitForAsync(() => page.FindControl<TextBlock>("TestText")!.Text == "试演");
         Assert.Equal("", note.Text);
     });

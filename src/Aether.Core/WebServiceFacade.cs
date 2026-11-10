@@ -56,8 +56,8 @@ public sealed class WebServiceFacade
     public Task StopTestPlayAsync(string id) => region.Run(s => s.StopTestPlay(id));
 
     /// <summary>Has the 桌宠页 play a 试演 of <paramref name="show"/>, an id of the 演出表, with its ending or daily action
-    /// (<paramref name="variant"/>) and an example nickname. Refused with why while the 桌宠 is off, the web service is not
-    /// running or no streaming software has the page open.</summary>
+    /// (<paramref name="variant"/>) and an example nickname. While the 桌宠 is off, the web service is not running or no streaming
+    /// software has the page open, none plays, and <see cref="DesktopPetTestEnded"/> says why.</summary>
     public Task TestShowAsync(string show, string? variant, string nickname) => region.Run(s => s.DesktopPet.TestShow(show, variant, nickname));
 
     /// <summary>Has the 桌宠页 stop its 试演; a show of anything that happened plays on.</summary>
