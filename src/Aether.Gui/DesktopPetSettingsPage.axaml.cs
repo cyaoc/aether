@@ -12,8 +12,6 @@ namespace Aether.Gui;
 /// 演出 needs no change here.</summary>
 public partial class DesktopPetSettingsPage : SettingsPage
 {
-    // The group whose 演出 the 中礼物 and 大礼物 thresholds divide, and the 日常小动作', switched on the 心情和日常 tab.
-    private const string GiftGroup = "gift", DailyGroup = "daily";
     private readonly ShowTable shows;
     private readonly DesktopPetShowRow[] showRows;
     private readonly OrderedInputs thresholds, dailySeconds;
@@ -68,9 +66,9 @@ public partial class DesktopPetSettingsPage : SettingsPage
     private void BuildLists()
     {
         ShowGroupList.ItemsSource = shows.Groups.Where(group => group.Note is not null).Select(group =>
-            new DesktopPetShowGroup(group, [.. showRows.Where(row => row.Show.Group == group.Id)], group.Id == GiftGroup)).ToArray();
+            new DesktopPetShowGroup(group, [.. showRows.Where(row => row.Show.Group == group.Id)], group.Id == ShowGroup.Gift)).ToArray();
         ShowGroupList.SelectedIndex = 0;
-        DailyRows.ItemsSource = showRows.Where(row => row.Show.Group == DailyGroup).ToArray();
+        DailyRows.ItemsSource = showRows.Where(row => row.Show.Group == ShowGroup.Daily).ToArray();
         foreach (var row in showRows)
             row.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(DesktopPetShowRow.On)) Validate(); };
         TestShowInput.ItemsSource = shows.Shows.SelectMany(show => show.Tests.Select(variant => new DesktopPetTest(show.Id, variant,

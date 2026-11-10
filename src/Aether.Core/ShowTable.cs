@@ -16,7 +16,12 @@ public sealed record ShowTable(IReadOnlyList<ShowGroup> Groups, IReadOnlyList<Sh
 }
 
 /// <summary>A group the GUI lists 演出 and kinds of lines under, in the table's order; only a group of 演出 has a note.</summary>
-public sealed record ShowGroup(string Id, string Label, string? Note = null);
+public sealed record ShowGroup(string Id, string Label, string? Note = null)
+{
+    /// <summary>The groups code knows by id: the 心情, which no switch turns off; 礼物, which the 中礼物 and 大礼物 thresholds divide;
+    /// and the 日常小动作, switched beside her 心情.</summary>
+    public const string Mood = "mood", Gift = "gift", Daily = "daily";
+}
 
 /// <summary>A row of the 演出表: its id, which settings and the 桌宠页 know it by; its group; its label; its 演出档; the kinds of
 /// lines it says; its 试演, each a variant of <see cref="ShowTable.Variants"/> or null for the row itself; and, for a 演出 the
@@ -25,7 +30,7 @@ public sealed record Show(string Id, string Group, string Label, string Tier, IR
     string? Note = null)
 {
     /// <summary>A 心情 comes of how quiet the room has been, never of a switch.</summary>
-    public bool CanTurnOff => Group != "mood";
+    public bool CanTurnOff => Group != ShowGroup.Mood;
 }
 
 /// <summary>A kind of line: when she says it and the placeholders it may hold, by their names in the braces.</summary>

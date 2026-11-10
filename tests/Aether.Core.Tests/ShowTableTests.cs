@@ -19,7 +19,7 @@ public sealed class ShowTableTests
         ], Table.Shows.Select(show => (show.Id, show.Group, show.Tier)));
         Assert.Equal(["进场", "礼物", "盲盒", "城堡", "大航海", "新的第一名", "抽奖", "心情", "日常", "出事"], Table.Groups.Select(group => group.Label));
         // Moods come of quiet minutes, not of a switch.
-        Assert.Equal(Table.Shows.Where(show => show.Group != "mood"), Table.Shows.Where(show => show.CanTurnOff));
+        Assert.Equal(Table.Shows.Where(show => show.Group != ShowGroup.Mood), Table.Shows.Where(show => show.CanTurnOff));
     }
 
     [Fact]

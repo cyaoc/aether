@@ -100,7 +100,10 @@ const BOX_OPEN = { blindBoxSmall: 900, blindBoxMedium: 1200, blindBoxLarge: 1500
 const BOX_EAR = ['rel', 1.28, 0.4];
 // A gift round's shows from small to big: the round plays the one it has grown to, moving up as it grows (README 2).
 const GIFT_SHOWS = ['gift', 'giftStreak', 'midGift', 'bigGift', 'castle'], CASTLE = GIFT_SHOWS.indexOf('castle');
-const BLIND_BOXES = ['blindBoxSmall', 'blindBoxMedium', 'blindBoxLarge'], BLIND_BOX = 'blindBox';
+const BLIND_BOXES = ['blindBoxSmall', 'blindBoxMedium', 'blindBoxLarge'];
+// The 演出表's groups the engine plays by (shows.json): a 心情 holds her rather than plays, a blind box says its ending's lines.
+export const MOOD = 'mood';
+const BLIND_BOX = 'blindBox';
 // Which lines a blind box's ending (a 一轮盲盒's outcome as Core tells it, or Jackpot) says.
 const BOX_LINES = { Gain: 'blindBoxGain', Even: 'blindBoxEven', Loss: 'blindBoxLoss', Jackpot: 'blindBoxJackpot' };
 export const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
@@ -307,7 +310,7 @@ export class Engine extends EventTarget {
   // A 试演 plays the show from its start (a blind box from its shaking), or holds her in the 心情, until it is stopped.
   testShow({ show, variant, nickname }) {
     this.trial = null;
-    if (this.events[show].group === 'mood') { this.trial = show; this.cur = null; return; }
+    if (this.events[show].group === MOOD) { this.trial = show; this.cur = null; return; }
     this.start(show, { nickname, result: variant, mishap: variant === 'Mishap', trial: true });
   }
 

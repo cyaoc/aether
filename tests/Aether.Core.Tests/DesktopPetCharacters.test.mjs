@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { Engine, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { Engine, MOOD, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 
 const pages = new URL('../../src/Aether.Core/Pages/', import.meta.url), read = path => JSON.parse(readFileSync(new URL(path, pages), 'utf8'));
 const { shows } = read('desktop-pet/shows.json');
@@ -20,7 +20,7 @@ function everyState(character) {
   Object.assign(engine, { props: { admship: size }, castle: { closed: size, box: { h: 1 } } });
   engine.reset(seeded(7));
   engine.receive({ enabled: true, roomConnected: true, settings: SETTINGS, lines: character.lines });
-  for (const row of shows.filter(row => row.group !== 'mood')) for (const variant of row.tests) {
+  for (const row of shows.filter(row => row.group !== MOOD)) for (const variant of row.tests) {
     engine.testShow({ show: row.id, variant, nickname: '星河' });
     const { start, dur } = engine.cur = { ...engine.cur, pre: 1000, wakeLine: '' };
     for (let t = 0; t < 1000 + dur; t += 20) { engine.master.currentTime = start + t; states.push(engine.stateAt(engine.now())); }
