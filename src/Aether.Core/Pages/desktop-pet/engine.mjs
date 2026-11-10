@@ -294,9 +294,9 @@ export class Engine extends EventTarget {
     const told = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
     // A round's castle plays once: waiting on its 盲盒播报, with the result that tells the boxes up to it (a result before
     // it plays nothing, the castle standing in for it); opened in a round that already played one, not again.
-    const played = told.some(t => t.played === CASTLE && !t.castle);
-    if (told.some(t => t.castle && t.told >= t.castleAt) || b.castle && !played) {
-      for (const t of told) t.castle = false;
+    const reached = told.filter(t => t.castle && t.told >= t.castleAt), played = told.some(t => t.played === CASTLE && !t.castle);
+    if (reached.length || b.castle && !played) {
+      for (const t of reached) t.castle = false;
       return this.fire('castle', { nickname: b.nickname, round: r });
     }
     if (told.some(t => t.played === CASTLE)) return;

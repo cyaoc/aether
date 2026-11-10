@@ -204,6 +204,30 @@ test('a round that played its castle does not play it again for one opened from 
   assert.deepEqual([playing(engine), engine.queue, engine.rounds], ['castle', [], []]);
 });
 
+test('a castle a merged 盲盒播报 has not reached yet still plays, with the result that reaches it', () => {
+  const engine = pet();
+  engine.gift(round(1, { boxes: 1, boxSpend: 15000, castle: true }));
+  engine.gift(round(1, { boxes: 1, boxSpend: 15000, castle: true, ended: true }));
+  engine.gift(round(1, { boxes: 1, boxSpend: 15000 }));
+  engine.gift(round(1, { boxes: 2, boxSpend: 30000, castle: true }));
+  engine.blindBox({ ...boxResult(1, 30000, 2245000, 2233000), boxes: 2, castle: true });
+  assert.equal(playing(engine), 'castle');
+
+  engine.gift(round(1, { boxes: 2, boxSpend: 30000, castle: true, ended: true }));
+  engine.blindBox({ ...boxResult(1, 15000, 2233000, 2233000), boxes: 1, castle: true });
+  assert.deepEqual([engine.queue.map(q => q.name), engine.rounds], [['castle'], []]);
+});
+
+test('a castle sent while the round\'s blind boxes wait on their 盲盒播报 plays once, with their result', () => {
+  const engine = pet();
+  engine.gift(round(1, { boxes: 1, boxSpend: 15000 }));
+  engine.gift(round(1, { ...castle(1), boxes: 1, boxSpend: 15000 }));
+  assert.equal(playing(engine), null);
+  engine.gift(round(1, { ...castle(1), boxes: 1, boxSpend: 15000, ended: true }));
+  engine.blindBox(boxResult(1, 15000, 9000));
+  assert.deepEqual([playing(engine), engine.queue, engine.rounds], ['castle', [], []]);
+});
+
 test('a show turned off does not play, nor a lesser one in its place', () => {
   const engine = pet({ off: ['bigGift', 'entry'] });
   engine.gift(gifts(1, 1000000));
