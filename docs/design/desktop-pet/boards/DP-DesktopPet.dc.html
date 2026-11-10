@@ -351,8 +351,12 @@ class Component extends DCLogic {
   fire(name, opts = {}) {
     const now = this.now(), ev = EVENTS[name];
     if (name !== '日常' && !opts.chained) opts = { ...opts, wake: opts.wake ?? ['沮丧', '犯困'].includes(this.mood(now)) };
-    if (name !== '日常') { this.lastAny = now; this.recent = this.recent.filter(r => now - r < 60000).concat(now); }
-    if (ev.gift) this.lastGift = now;
+    // 开心 counts only gifts, 大航海 included: a room viewers keep coming into would otherwise never be calm, and the daily
+    // actions only come when she is calm (README 6). Anyone coming in still counts as something happening for 犯困.
+    if (name !== '日常') this.lastAny = now;
+    if (ev.gift) { this.lastGift = now; this.recent = this.recent.filter(r => now - r < 60000).concat(now); }
+    // she waves at whoever comes in only while she is idle: never over a daily action or any show, and it does not queue
+    if (name === '进场' && this.cur) return this.note('进场：正在演，不演');
     const curTier = this.cur ? TIER[EVENTS[this.cur.name].tier] : -1, tier = TIER[ev.tier];
     // A gift round that grows to 5 gifts takes over its own plain thank-you, instead of being dropped as busy.
     // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
@@ -486,6 +490,9 @@ class Component extends DCLogic {
     if (now - this.lastGift >= 15 * 60000) return '无聊';
     return recent >= 3 ? '开心' : '平静';
   }
+
+  // a danmaku is not played (README 10), it only tells her someone is there: 犯困 needs an hour with nothing at all
+  heard() { this.lastAny = this.now(); }
 
   fastForward(min) { const d = min * 60000; this.lastGift -= d; this.lastAny -= d; this.recent = this.recent.map(r => r - d); this.nextDaily -= d; }
 
@@ -1621,7 +1628,7 @@ class Component extends DCLogic {
     const one = (gift, price, n = 1, x = {}) => ({ gift, price, n, ...x }), g = list => () => this.give(list);
     const heart = (gift, price, n) => ({ gift, price, n, box: '心动盲盒', boxPrice: 150 }), carnival = n => ({ gift: '棉花糖', price: 90, n, box: '狂欢盲盒', boxPrice: 90 });
     const tens = (n, m) => Array.from({ length: n }, () => m);
-    group('事件', [['进场', f('进场')], ['普通礼物', g([one('小花花', 10)])], ['连送 5 份', g(tens(5, one('小花花', 10)))], ['中礼物', g([one('告白气球', 2000)])], ['大礼物', g([one('小电视飞船', 12450)])],
+    group('事件', [['进场', f('进场')], ['弹幕（不演，只算有事）', () => this.heard()], ['普通礼物', g([one('小花花', 10)])], ['连送 5 份', g(tens(5, one('小花花', 10)))], ['中礼物', g([one('告白气球', 2000)])], ['大礼物', g([one('小电视飞船', 12450)])],
       ['大礼物+新第一', g([one('小电视飞船', 12450, 1, { top: true })])], ['普通礼物+新第一', g([one('小花花', 10, 1, { top: true })])],
       ['舰长', f('舰长')], ['提督', f('提督')], ['总督', f('总督')], ['城堡', g([one('浪漫城堡', 22330, 1, { castle: true })])]]);
     // 心动盲盒 150 电池 a box (电影票 20, 棉花糖 90, 爱心抱枕 160, 浪漫城堡 22330); 狂欢盲盒 90 opening a 棉花糖 breaks even
