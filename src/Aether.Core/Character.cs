@@ -5,7 +5,7 @@ namespace Aether.Core;
 /// <summary>A character (角色): a folder under Pages/characters with her pictures and a manifest, character.json, that names them
 /// and holds the numbers measured from them, in a section for each use. Code knows her pictures by the manifest's names and draws
 /// with its numbers, never by who she is (#343).</summary>
-public sealed record Character(CharacterSprite Sprite, CharacterGiftBoard GiftBoard)
+public sealed record Character(CharacterGui Gui, CharacterSprite Sprite, CharacterGiftBoard GiftBoard)
 {
     /// <summary>The current character, said in this one place: #343 fixes her to 1 and a later setting picks her. Pages ask for her
     /// files as /characters/current/.</summary>
@@ -14,9 +14,22 @@ public sealed record Character(CharacterSprite Sprite, CharacterGiftBoard GiftBo
     // A manifest is outside input: one that leaves out a picture or a number does not load.
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { RespectNullableAnnotations = true, RespectRequiredConstructorParameters = true };
 
+    /// <summary>The current character's folder, in the program's Pages.</summary>
+    public static string CurrentFolder { get; } = Path.Combine(WebServer.PagesDirectory, "characters", Current);
+
     /// <summary>The manifest in <paramref name="folder"/>.</summary>
-    public static Character Load(string folder) => JsonSerializer.Deserialize<Character>(File.ReadAllText(Path.Combine(folder, "character.json")), Json)!;
+    public static Character Load(string folder) => Read<Character>(folder, "character.json");
+
+    internal static T Read<T>(string folder, string manifest)
+    {
+        var file = Path.Combine(folder, manifest);
+        return JsonSerializer.Deserialize<T>(File.ReadAllText(file), Json) ?? throw new JsonException($"{file} is null");
+    }
 }
+
+/// <summary>Her layers for the GUI's splash and login page, each as big as the background she picks under it, a folder under
+/// Pages/backgrounds.</summary>
+public sealed record CharacterGui(string Background, string Splash, string Login);
 
 /// <summary>Her sprite (精灵), idle, blinking, looking right and happy, on one canvas at one scale.</summary>
 public sealed record CharacterSprite(string Idle, string Blink, string LookRight, string Happy);
@@ -29,3 +42,15 @@ public sealed record CharacterGiftBoard(string Idle, string Cheer, double Height
 
 /// <summary>A point on the gift board in design pixels, y counted from the ribbon's top.</summary>
 public sealed record BoardPoint(double X, double Y);
+
+/// <summary>A background for the splash and the login page (#343): a folder under Pages/backgrounds with a picture for each,
+/// 1536 × 1024, and background.json, which names them and gives the colour shown until they are drawn. Characters share one
+/// unless it does not suit her.</summary>
+public sealed record Background(string Color, string Splash, string Login)
+{
+    /// <summary>The folder of the background called <paramref name="name"/>, in the program's Pages.</summary>
+    public static string Folder(string name) => Path.Combine(WebServer.PagesDirectory, "backgrounds", name);
+
+    /// <summary>The manifest in <paramref name="folder"/>.</summary>
+    public static Background Load(string folder) => Character.Read<Background>(folder, "background.json");
+}

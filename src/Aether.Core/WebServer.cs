@@ -17,7 +17,7 @@ internal sealed class WebServer
     private const string Heartbeat = ": heartbeat\n\n";
     private const string CurrentCharacter = "/characters/current/";
     // Both sides go through GetFullPath so Windows expands 8.3 short names in the program directory alike.
-    private static readonly string PagesDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "Pages")) + Path.DirectorySeparatorChar;
+    internal static readonly string PagesDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "Pages")) + Path.DirectorySeparatorChar;
     private readonly IReadOnlyList<WebPage> pages;
     private readonly Func<WebServiceStatus> status;
     private readonly Func<Settings?> settings;

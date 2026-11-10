@@ -1,4 +1,9 @@
 {
+  "gui": {
+    "background": "afterglow",
+    "splash": "splash.webp",
+    "login": "login.webp"
+  },
   "sprite": {
     "idle": "sprite-idle.webp",
     "blink": "sprite-blink.webp",

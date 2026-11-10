@@ -12,13 +12,21 @@ public sealed class CharacterTests
 
     [Theory]
     [MemberData(nameof(Folders))]
-    public void A_character_has_every_picture_and_every_number_her_manifest_calls_for(string name)
+    public void A_character_and_her_background_have_every_picture_and_every_number_their_manifests_call_for(string name)
     {
         var folder = Path.Combine(Characters, name);
         // A manifest that leaves out a picture or a number does not load.
-        Character.Load(folder);
-        foreach (var picture in Strings(JsonNode.Parse(File.ReadAllText(Path.Combine(folder, "character.json")))))
-            Assert.True(File.Exists(Path.Combine(folder, picture)), $"{name} has no {picture}");
+        var character = Character.Load(folder);
+        AssertPictures(folder, "character.json");
+        var background = Background.Folder(character.Gui.Background);
+        Background.Load(background);
+        AssertPictures(background, "background.json");
+    }
+
+    private static void AssertPictures(string folder, string manifest)
+    {
+        foreach (var picture in Strings(JsonNode.Parse(File.ReadAllText(Path.Combine(folder, manifest)))).Where(text => text.EndsWith(".webp", StringComparison.Ordinal)))
+            Assert.True(File.Exists(Path.Combine(folder, picture)), $"{folder} has no {picture}");
     }
 
     private static IEnumerable<string> Strings(JsonNode? node) => node switch
