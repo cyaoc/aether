@@ -4,7 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace Aether.Gui;
 
 /// <summary>A kind of line in the 台词 tab's list, and its lines as the streamer edits them, read once the kind is opened.</summary>
-/// <param name="changed">Whether the saved lines are the streamer's own, not the character's.</param>
+/// <param name="changed">Whether the saved lines differ from the character's.</param>
 public sealed partial class DesktopPetLineKind(LineKind kind, bool changed, bool canEdit) : ObservableObject
 {
     public LineKind Kind => kind;

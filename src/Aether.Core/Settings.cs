@@ -207,6 +207,7 @@ public sealed partial class Settings
         var changed = DesktopPetChangedLines;
         return character.Lines.ToDictionary(kind => kind.Key, kind => changed.TryGetValue(kind.Key, out var mine) ? mine.Value : kind.Value);
     }
+    public bool CanEditDesktopPetLines => PetLines.CanEdit(this);
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private static readonly ViewerGroupDefinition AnimationViewers = Register(new ViewerGroupDefinition("entry_animation_viewers"));
     private static readonly Definition<bool> AutoUpdate = Register(Definition.Boolean("auto_update.enabled", true));

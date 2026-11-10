@@ -28,7 +28,9 @@ public partial class DesktopPetSettingsPage
     {
         var changed = settings.DesktopPetChangedLines;
         var selected = LineKindList.SelectedIndex;
-        lineKinds = [.. shows.Lines.Select(kind => new DesktopPetLineKind(kind, changed.ContainsKey(kind.Id), changed.GetValueOrDefault(kind.Id)?.CanEdit ?? true))];
+        lineKinds = [.. shows.Lines.Select(kind => new DesktopPetLineKind(kind,
+            changed.TryGetValue(kind.Id, out var mine) && !mine.Value.SequenceEqual(Character.Current.Lines[kind.Id]),
+            settings.CanEditDesktopPetLines && (mine?.CanEdit ?? true)))];
         foreach (var kind in lineKinds)
         {
             lineTarget.Follow(kind.Rows);

@@ -109,6 +109,35 @@ public sealed class DesktopPetSettingsTests
     });
 
     [Fact]
+    public Task Lines_in_a_group_that_cannot_be_edited_a_line_at_a_time_are_read_only() => WithPage((page, harness) =>
+    {
+        var port = Settings.Load(harness.DataDirectory).WebServicePort.Value;
+        File.WriteAllText(Settings.FilePath(harness.DataDirectory), $"web_service:\n  port: {port}\ndesktop_pet: {{enabled: false}}\n");
+        page.RefreshFileStatus(Settings.Load(harness.DataDirectory));
+        Tab(page, 2);
+        Pick(page, "LineKindList", "大礼物");
+        GuiHarness.Flush();
+        Assert.True(GuiHarness.FindVisual<TextBlock>(page, "LinesReadOnly").IsVisible);
+        Assert.False(GuiHarness.FindVisual<Button>(page, "AddLineButton").IsVisible);
+        Assert.True(Line(page, 1).IsReadOnly);
+        return Task.CompletedTask;
+    });
+
+    [Fact]
+    public Task A_kind_the_file_holds_as_her_own_lines_is_not_marked_changed() => WithPage((page, harness) =>
+    {
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string>
+        {
+            ["desktop_pet.lines.1.bigGift"] = System.Text.Json.JsonSerializer.Serialize(Character.Current.Lines["bigGift"])
+        });
+        page.RefreshFileStatus(Settings.Load(harness.DataDirectory));
+        Tab(page, 2);
+        GuiHarness.Flush();
+        Assert.DoesNotContain("已改", Texts(page));
+        return Task.CompletedTask;
+    });
+
+    [Fact]
     public Task The_daily_actions_least_seconds_may_equal_the_most_but_not_exceed_them() => WithPage(page =>
     {
         Tab(page, 1);
