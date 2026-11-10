@@ -11,13 +11,14 @@ internal sealed class ThresholdInputs(IReadOnlyList<NumericUpDown> inputs, TextB
     /// <summary>Marks what is wrong; null when the thresholds can be saved, otherwise why not, for the save bar.</summary>
     public string? Check()
     {
+        var order = Settings.NumberOrder.Rising;
         var values = inputs.Select(input => int.TryParse(input.Text, out var value) ? value : 0).ToArray();
-        var invalid = Settings.InvalidGiftThreshold(values) is not null;
+        var invalid = order.Invalid(values) is not null;
         var notPositive = values.Any(value => value <= 0);
         error.Text = !invalid ? "" : notPositive ? "门槛要填正整数" : notRising;
         error.IsVisible = invalid;
         foreach (var (input, index) in inputs.Select((input, index) => (input, index)))
-            input.Classes.Set("invalid", values[index] <= (index == 0 ? 0 : values[index - 1]));
+            input.Classes.Set("invalid", !order.Follows(index == 0 ? null : values[index - 1], values[index]));
         return !invalid ? null : notPositive ? "门槛要填正整数，改好后才能保存" : notRisingToSave;
     }
 }

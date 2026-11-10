@@ -76,7 +76,7 @@ public sealed partial class Settings
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
         var document = new YamlStream();
         document.Load(new StringReader(text));
-        if (ValidateThresholds((YamlMappingNode)document.Documents[0].RootNode, path) is { } thresholdError) throw thresholdError;
+        if (ValidateOrder((YamlMappingNode)document.Documents[0].RootNode, path) is { } orderError) throw orderError;
         AtomicFile.Write(path, [.. current.encoding.GetPreamble(), .. current.encoding.GetBytes(text)]);
 
         void EditGroup(string groupName, IEnumerable<(Definition Definition, string Name, string? Value)> groupChanges)
@@ -213,30 +213,42 @@ public sealed partial class Settings
         }
     }
 
-    public const string GiftThresholdRule = "四档投入门槛必须为正整数且逐档递增。";
-    public static int? InvalidGiftThreshold(IReadOnlyList<int> thresholds)
+    /// <summary>How the numbers of one group follow one another, each positive: thresholds each above the one before (rise 1).</summary>
+    public sealed record NumberOrder(int Rise)
     {
-        for (var index = 0; index < thresholds.Count; index++)
-            if (thresholds[index] <= (index == 0 ? 0 : thresholds[index - 1])) return index;
-        return null;
+        public static readonly NumberOrder Rising = new(1);
+
+        /// <summary>Whether <paramref name="value"/> may follow <paramref name="before"/>, or come first when that is null.</summary>
+        public bool Follows(int? before, int value) => value >= (before is { } previous ? previous + Rise : 1);
+
+        /// <summary>The index of the first number out of order, or null when all are in order.</summary>
+        public int? Invalid(IReadOnlyList<int> values)
+        {
+            for (var index = 0; index < values.Count; index++)
+                if (!Follows(index == 0 ? null : values[index - 1], values[index])) return index;
+            return null;
+        }
     }
 
+    public const string GiftThresholdRule = "四档投入门槛必须为正整数且逐档递增。";
+
     // A property: static fields of another part of this class may not have been initialised before this one.
-    /// <summary>Thresholds of one group that must rise one after another, and why.</summary>
-    private static (Definition<int>[] Definitions, string Rule)[] Thresholds =>
-        [(GiftThresholds, GiftThresholdRule), (PetThresholds, "中礼物门槛要小于大礼物门槛。")];
+    /// <summary>Numbers of one group that must follow one another in order, and why.</summary>
+    private static (Definition<int>[] Definitions, NumberOrder Order, string Rule)[] Ordered =>
+        [(GiftThresholds, NumberOrder.Rising, GiftThresholdRule), (PetThresholds, NumberOrder.Rising, "中礼物门槛要小于大礼物门槛。")];
 
-    private static SettingsException? ValidateThresholds(YamlMappingNode root, string path) =>
-        Thresholds.Select(thresholds => ValidateThresholds(root, path, thresholds.Definitions, thresholds.Rule)).FirstOrDefault(error => error is not null);
+    private static SettingsException? ValidateOrder(YamlMappingNode root, string path) =>
+        Ordered.Select(numbers => ValidateOrder(root, path, numbers)).FirstOrDefault(error => error is not null);
 
-    private static SettingsException? ValidateThresholds(YamlMappingNode root, string path, Definition<int>[] definitions, string rule)
+    private static SettingsException? ValidateOrder(YamlMappingNode root, string path, (Definition<int>[] Definitions, NumberOrder Order, string Rule) numbers)
     {
+        var definitions = numbers.Definitions;
         if (!root.Children.TryGetValue(new YamlScalarNode(definitions[0].Group), out var node) || node is not YamlMappingNode group) return null;
         var fields = definitions.Select(definition => group.Children.TryGetValue(new YamlScalarNode(definition.Name.Split('.')[1]), out var field) ? field : null).ToArray();
-        var thresholds = fields.Select((field, index) => field is YamlScalarNode { Value: { } text } && int.TryParse(text, out var value)
+        var values = fields.Select((field, index) => field is YamlScalarNode { Value: { } text } && int.TryParse(text, out var value)
             ? value : definitions[index].Initial.Value).ToArray();
-        return InvalidGiftThreshold(thresholds) is { } invalid
-            ? new(path, fields[invalid]?.Start.Line ?? node.Start.Line, definitions[invalid].Name, rule) : null;
+        return numbers.Order.Invalid(values) is { } invalid
+            ? new(path, fields[invalid]?.Start.Line ?? node.Start.Line, definitions[invalid].Name, numbers.Rule) : null;
     }
 
     internal static string NewlineOf(string source)
@@ -307,7 +319,7 @@ public sealed partial class Settings
             var seenNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var (groupKey, groupValue) in root.Children) LoadGroup(groupKey, groupValue);
             settings.UnknownKeys = unknown.AsReadOnly();
-            settings.Error ??= ValidateThresholds(root, path);
+            settings.Error ??= ValidateOrder(root, path);
             // Written even when a value is invalid: the upgrade never causes one, and its line must match the file on disk.
             if (settings.source != original)
             {
