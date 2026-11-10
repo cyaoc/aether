@@ -76,7 +76,7 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     public void An_old_file_without_the_group_gets_all_of_it_and_keeps_every_other_byte()
     {
         Settings.Load(h.DataDirectory);
-        var template = File.ReadAllText(SettingsPath);
+        var template = File.ReadAllText(SettingsPath).ReplaceLineEndings("\n");
         var group = template[template.IndexOf("# 桌宠，", StringComparison.Ordinal)..template.IndexOf("# 网页服务，", StringComparison.Ordinal)];
         var old = template.Replace(group, "") + "future: 保留\n";
         Write(old);
@@ -93,7 +93,7 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     public void Each_setting_saves_on_its_own_line()
     {
         Settings.Load(h.DataDirectory);
-        var before = File.ReadAllText(SettingsPath);
+        var before = File.ReadAllText(SettingsPath).ReplaceLineEndings("\n");
 
         Settings.Save(h.DataDirectory, new Dictionary<string, string>
         {
@@ -103,7 +103,7 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
         });
 
         Assert.Equal(before.Replace("  shows_off: []\n", "  shows_off: [\"entry\", \"hum\"]\n").Replace("  big_gift_spend: 10000\n", "  big_gift_spend: 20000\n")
-            .Replace("  mishap_percent: 25\n", "  mishap_percent: 0\n"), File.ReadAllText(SettingsPath));
+            .Replace("  mishap_percent: 25\n", "  mishap_percent: 0\n"), File.ReadAllText(SettingsPath).ReplaceLineEndings("\n"));
     }
 
     [Fact]
@@ -112,13 +112,14 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
         var snapshot = Settings.Load(h.DataDirectory);
         var before = File.ReadAllText(SettingsPath);
         IReadOnlyList<string> mine = ["哇！{昵称}送了{礼物}！", "{昵称}，谢谢你～"];
+        var lf = before.ReplaceLineEndings("\n");
 
         Settings.SaveDesktopPet(h.DataDirectory, new Dictionary<string, string> { ["desktop_pet.enabled"] = "true" },
             new Dictionary<string, IReadOnlyList<string>> { ["bigGift"] = mine, ["gift"] = Character.Current.Lines["gift"] }, snapshot);
 
-        Assert.Equal(before.Replace("false 时桌宠页全透明\n  enabled: false", "false 时桌宠页全透明\n  enabled: true")
+        Assert.Equal(lf.Replace("false 时桌宠页全透明\n  enabled: false", "false 时桌宠页全透明\n  enabled: true")
             .Replace("  mishap_percent: 25\n", "  mishap_percent: 25\n  lines.1.bigGift: [\"哇！{昵称}送了{礼物}！\", \"{昵称}，谢谢你～\"]\n"),
-            File.ReadAllText(SettingsPath));
+            File.ReadAllText(SettingsPath).ReplaceLineEndings("\n"));
         var saved = Settings.Load(h.DataDirectory);
         Assert.Equal(["bigGift"], saved.DesktopPetChangedLines.Keys);
         var lines = saved.DesktopPetLines(Character.Current);

@@ -202,11 +202,14 @@ public sealed class DesktopPetPageTests
         await first.NextAsync("state");
         await using var updates = h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
+        // What ended the 试演, and how many pages were left as it did: the status of a change goes out just before it.
         var ended = Task.Run(async () =>
         {
+            var pages = -1;
             while (await updates.MoveNextAsync())
-                if (updates.Current is DesktopPetTestEnded over) return over;
-            return null;
+                if (updates.Current is WebServiceStatus status) pages = status.DesktopPetConnections;
+                else if (updates.Current is DesktopPetTestEnded over) return (over, pages);
+            return default;
         });
         await h.Client.WebService.TestShowAsync("castle", null, "星河");
 
@@ -215,15 +218,18 @@ public sealed class DesktopPetPageTests
         await Task.Delay(200, h.Stop.Token);
         Assert.False(ended.IsCompleted);
         first.Dispose();
-        // The closed client first drains the stream for up to 2 seconds, and TCP may take a few heartbeats to notice the close.
-        for (var i = 0; i < 40 && !ended.IsCompleted; i++)
+        // The closed client first drains the stream for up to 2 seconds, and TCP may take a few heartbeats to notice the close. The
+        // clock moves a second at a time: a write to the reloaded page still in flight when it passed its 5-second timeout would
+        // drop that page too.
+        for (var i = 0; i < 600 && !ended.IsCompleted; i++)
         {
-            h.Time.Advance(TimeSpan.FromSeconds(15));
-            await Task.Delay(200, h.Stop.Token);
+            h.Time.Advance(TimeSpan.FromSeconds(1));
+            await Task.Delay(50, h.Stop.Token);
         }
 
-        Assert.Null(Assert.IsType<DesktopPetTestEnded>(await ended.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token)).Refused);
-        Assert.Equal(1, h.Client.WebService.Status.DesktopPetConnections);
+        var (over, left) = await ended.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
+        Assert.Null(over!.Refused);
+        Assert.Equal(1, left);
     }
 
     [Fact]
