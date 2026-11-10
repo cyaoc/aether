@@ -120,7 +120,7 @@ const EVENT_FX = {
   连着送: { fx: [['giftStack', 0], ['steam', 1300, 1200], ['spark', 1250, 0.5, 0.3, 10], ['halo', 1250, 1300, 0.35]] },
   中礼物: { fx: [['boxDrop', 200], ['spark', 1300, 0.5, 0.58, 8], ['shockwave', 1200], ['halo', 1200, 2000, 0.4], ['anchors', 1400, 1900, 'hearts']], shake: [[1200, 2, 200]] },
   '盲盒·中': {
-    fx: [['shakeMarks', 0, 0.85, 0.2, 1200], ['seamGlow', 0, 1200, 'shake'], ['coins', 1250, 0.3, 0.5], ['halo', 1200, 2600, 0.45], ['shockwave', 2600]],
+    fx: [['shakeMarks', 0, 0.85, 0.2, 1200], ['seamGlow', 0, 1200, 'shake'], ['halo', 1200, 2600, 0.45], ['shockwave', 2600]],
     shake: [[1200, 2, 200]]
   },
   '盲盒·小': { fx: [['shakeMarks', 0, 0.85, 0.2, 900]] },
@@ -537,6 +537,8 @@ class Component extends DCLogic {
       // breaking even she smiles and nods, a loss pouts and stamps and then bows her thanks while it pats her head
       case '盲盒·小': case '盲盒·中': case '盲盒·大': {
         const size = ['盲盒·小', '盲盒·中', '盲盒·大'].indexOf(name), r = opts.result || '赚', win = r === '赚' || r === '大奖', loss = r === '亏';
+        // the light is the tier's (中 sea blue, 大 purple); a jackpot shines gold, the top colour, like the lottery's 大奖
+        if (r === '大奖') st.glow = GLOW.SS;
         const o = BOX_OPEN[name], wow = [0, 2000, 2600][size];
         const steps = size === 0 ? [[0, 'shakeBox'], [o, 'openBox'], [1500, loss ? 'pout' : 'nod']]
           : loss ? [[0, 'shakeBox'], [o, 'openBox'], [[0, 2000, 3500][size], 'pout'], [[0, 3000, 4700][size], 'bow']]
@@ -552,7 +554,7 @@ class Component extends DCLogic {
         else st.sprite = 'nod';
         if (size && !loss) st.fx.push(['bang', wow], ['shock', wow]);
         if (size === 2) st.fx.push(['pillar', o, 1100, null, 'box'], ['bigStar', o], ['fountain', 2500, 1800, { x: FOOT.x, y: 200 }]);
-        if (size === 1) st.fx.push(['beam', o]);
+        if (size === 1) st.fx.push(['beam', o], ['fountain', o + 50, 1300, { x: FOOT.x, y: 500 }]);
         if (win) st.fx.push(['sparkles', react], ...(size ? [['confetti', react]] : []));
         if (loss) st.fx.push(...(size ? [] : [['puff', o]]), ['sweat', react - 550], ['gloom', react - 500, 450], ['anger', react, 900]);
         say(o + 100); break;
@@ -1162,7 +1164,7 @@ class Component extends DCLogic {
       case 'confetti': { if (t > 2600) break; const colors = ['#FF7FA8', '#FFD45E', '#7FD3FF', '#B9F28A', '#fff']; for (let i = 0; i < 40; i++) { const vx = (r() - 0.5) * 0.5, vy = -0.55 - r() * 0.35, u = t; const x = FOOT.x + vx * u, y = FOOT.y - H * 0.6 + vy * u + 0.00045 * u * u; g.save(); g.globalAlpha = 1 - k01(u, 1800, 2600); g.fillStyle = colors[i % 5]; g.translate(x, y); g.rotate(u / 200 + i); g.fillRect(-4, -2, 8, 4); g.restore(); } break; }
       case 'goldConfetti': { const u = (t % 2400); for (let i = 0; i < 30; i++) { const x = r() * PAGE.w, y = -20 + ((u * (0.12 + r() * 0.1) + r() * 600) % 680); g.save(); g.fillStyle = r() < 0.6 ? '#FFD45E' : '#fff'; g.translate(x, y); g.rotate(u / 300 + i); g.fillRect(-4, -2, 8, 4); g.restore(); } break; }
       case 'ring': { if (t > 900) break; g.save(); g.globalAlpha = 1 - t / 900; g.strokeStyle = '#FFD45E'; g.lineWidth = 6 * (1 - t / 900) + 1; g.beginPath(); g.ellipse(FOOT.x, her.y + 10, 30 + t * 0.12, 12 + t * 0.04, 0, 0, Math.PI * 2); g.stroke(); g.restore(); break; }
-      case 'beam': { if (t > 900) break; const bx = her.x + her.w * 0.45, by = her.y + her.h * 0.5; g.save(); g.globalAlpha = Math.sin(Math.PI * t / 900) * 0.85; const gr = g.createLinearGradient(bx, by, bx, by - 260); gr.addColorStop(0, 'rgba(255,230,140,1)'); gr.addColorStop(1, 'rgba(255,230,140,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(bx - 18, by); g.lineTo(bx - 70, by - 260); g.lineTo(bx + 70, by - 260); g.lineTo(bx + 18, by); g.fill(); g.restore(); for (let i = 0; i < 6; i++) star(bx + (r() - 0.5) * 100, by - 60 - r() * 160, 8, '#fff', Math.sin(Math.PI * t / 900)); break; }
+      case 'beam': { if (t > 900) break; const bx = her.x + her.w * 0.45, by = her.y + her.h * 0.5; g.save(); g.globalAlpha = Math.sin(Math.PI * t / 900) * 0.85; const gr = g.createLinearGradient(bx, by, bx, by - 260); gr.addColorStop(0, glow(1)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.beginPath(); g.moveTo(bx - 18, by); g.lineTo(bx - 70, by - 260); g.lineTo(bx + 70, by - 260); g.lineTo(bx + 18, by); g.fill(); g.restore(); for (let i = 0; i < 6; i++) star(bx + (r() - 0.5) * 100, by - 60 - r() * 160, 8, '#fff', Math.sin(Math.PI * t / 900)); break; }
       case 'puff': { if (t > 900) break; const bx = her.x + her.w * 0.45, by = her.y + her.h * 0.45; for (let i = 0; i < 5; i++) { g.save(); g.globalAlpha = 0.55 * (1 - t / 900); g.fillStyle = '#9A9AA6'; g.beginPath(); g.arc(bx + (i - 2) * 14, by - t * 0.06 - (i % 2) * 10, 10 + t * 0.02, 0, Math.PI * 2); g.fill(); g.restore(); } break; }
       case 'flash': { if (t > 450) break; const p = f[3] || { x: FOOT.x, y: FOOT.y - H * 0.5 }; g.save(); g.globalAlpha = (1 - t / 450) * 0.9; const rad = 60 + t * 0.5 * f[2]; const gr = g.createRadialGradient(p.x, p.y - 60, 0, p.x, p.y - 60, rad); gr.addColorStop(0, '#fff'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y - 60, rad, 0, Math.PI * 2); g.fill(); g.restore(); break; }
       case 'seaBubbles': for (let i = 0; i < 10; i++) { const u = (t + i * 260) % 2600; g.save(); g.globalAlpha = 0.7 * (1 - u / 2600); g.strokeStyle = '#BFEAFF'; g.lineWidth = 2; g.beginPath(); g.arc(FOOT.x + (r() - 0.5) * 260, FOOT.y - 20 - u * 0.14, 4 + r() * 6, 0, Math.PI * 2); g.stroke(); g.restore(); } break;
@@ -1493,17 +1495,6 @@ class Component extends DCLogic {
         g.save(); g.fillStyle = '#BFEAFF';
         for (let i = 0; i < 10; i++) { const vx = (r() - 0.5) * 0.5, vy = -0.35 - r() * 0.3; g.globalAlpha = 1 - t / 700; g.beginPath(); g.arc(st.x + vx * t, st.y - 6 + vy * t + 0.0011 * t * t, 3 + r() * 2.5, 0, Math.PI * 2); g.fill(); }
         g.restore(); break;
-      }
-      case 'coins': {
-        if (t > 1300) break;
-        const p = at(f[2], f[3]);
-        for (let i = 0; i < 12; i++) {
-          const vx = (r() - 0.5) * 0.45, vy = -0.5 - r() * 0.35, u = t - i * 25; if (u < 0) continue;
-          const x = p.x + vx * u, y = p.y + vy * u + 0.0009 * u * u, a = 1 - k01(u, 900, 1300);
-          if (i % 3) { g.save(); g.globalAlpha = a; g.fillStyle = '#FFD45E'; g.strokeStyle = '#D9A21E'; g.lineWidth = 2; g.beginPath(); g.ellipse(x, y, 6 * Math.abs(Math.cos(u / 90)) + 1, 6, 0, 0, Math.PI * 2); g.fill(); g.stroke(); g.restore(); }
-          else star(x, y, 8, '#fff', a);
-        }
-        break;
       }
       case 'petals': {
         const dur = f[2] || 3000; if (t > dur) break;
