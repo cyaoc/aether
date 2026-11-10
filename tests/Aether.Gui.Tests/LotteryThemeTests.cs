@@ -120,6 +120,8 @@ public sealed class LotteryThemeTests
             Assert.NotNull(card);
             card.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await h.IdleAsync();
+            // Core's update reaches the page through the dispatcher, which may be after the idle step's flush.
+            await GuiHarness.WaitForAsync(() => pickers.All(picker => picker.FindControl<RadioButton>($"{theme}Card")!.IsChecked == true));
             Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             Assert.All(pickers, picker =>
             {
