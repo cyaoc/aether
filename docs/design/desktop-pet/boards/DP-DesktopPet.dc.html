@@ -221,6 +221,8 @@ const BOX_EAR = ['rel', 1.28, 0.4];
 // own: the send queue takes it some time after the 3 s of silence (here a stand-in), and boxes sent before it goes out
 // join it. With the 盲盒播报 turned off the round ends after the 3 s.
 const ANNOUNCE_AFTER = 800;
+// A gift round's shows from small to big: the round plays the one it has grown to, moving up as it grows (README 2).
+const GIFT_SHOWS = ['普通礼物', '连着送', '中礼物', '大礼物', '城堡'];
 // Which lines a blind box's ending says.
 const BOX_LINES = { 赚: '盲盒赚了', 平: '盲盒不赚不亏', 亏: '盲盒亏了', 大奖: '盲盒出大奖' };
 const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
@@ -348,13 +350,14 @@ class Component extends DCLogic {
 
   fire(name, opts = {}) {
     const now = this.now(), ev = EVENTS[name];
-    if (name !== '日常' && !opts.chained) opts = { ...opts, wake: ['沮丧', '犯困'].includes(this.mood(now)) };
+    if (name !== '日常' && !opts.chained) opts = { ...opts, wake: opts.wake ?? ['沮丧', '犯困'].includes(this.mood(now)) };
     if (name !== '日常') { this.lastAny = now; this.recent = this.recent.filter(r => now - r < 60000).concat(now); }
     if (ev.gift) this.lastGift = now;
     const curTier = this.cur ? TIER[EVENTS[this.cur.name].tier] : -1, tier = TIER[ev.tier];
+    // A gift round that grows to 5 gifts takes over its own plain thank-you, instead of being dropped as busy.
     // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
     const show = name === '总督' && this.cur?.name === '城堡';
-    if (!this.cur || tier > curTier && !show) return this.start(name, opts);
+    if (!this.cur || tier > curTier && !show || name === '连着送' && this.cur.name === '普通礼物') return this.start(name, opts);
     if (tier <= TIER.C) return this.note(`${name}：正忙，丢掉`);
     if (tier < TIER.S && this.queue.filter(q => EVENTS[q.name].tier === ev.tier).length >= 3) return this.note(`${name}：同档已排 3 个，丢掉`);
     this.queue.push({ name, opts }); this.note(`${name}：排队`);
@@ -391,10 +394,20 @@ class Component extends DCLogic {
 
   arrive(x) {
     // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show
-    if (!this.round) { const wake = ['沮丧', '犯困'].includes(this.mood(x.at)); this.round = { start: x.at, items: [], wake, wakeLine: wake ? this.pick('冷场后来了人') : null }; }
+    if (!this.round) { const wake = ['沮丧', '犯困'].includes(this.mood(x.at)); this.round = { start: x.at, items: [], wake, wakeLine: wake ? this.pick('冷场后来了人') : null, played: -1 }; }
     const r = this.round;
     r.items.push(x); r.last = x.at;
     this.lastGift = this.lastAny = x.at; this.recent = this.recent.filter(v => x.at - v < 60000).concat(x.at);
+    // Gifts do not wait for the round to end: she plays at once the show the round's gifts have come to so far, and moves
+    // up when it grows into a bigger one (the fifth gift, 1000 or 10000 电池, a castle); one already played is not played
+    // again. Blind boxes wait for the 盲盒播报 (announce).
+    if (x.box) return;
+    const gifts = r.items.filter(i => !i.box), spend = gifts.reduce((a, i) => a + i.price * i.n, 0), count = gifts.reduce((a, i) => a + i.n, 0);
+    const kind = gifts.some(i => i.castle) ? '城堡' : spend >= BIG ? '大礼物' : spend >= MID ? '中礼物' : count >= 5 ? '连着送' : '普通礼物';
+    if (GIFT_SHOWS.indexOf(kind) <= r.played) return;
+    const best = gifts.reduce((a, i) => (i.price > a.price ? i : a));
+    this.fire(kind, { top: !!x.top, spend, gift: best.gift, count, wake: r.played < 0 && r.wake });
+    r.played = GIFT_SHOWS.indexOf(kind); r.wake = false;
   }
 
   // The bot's 盲盒播报 for the round's blind boxes, worded as BlindBoxTally.Announcement; the show plays its result.
@@ -404,20 +417,16 @@ class Component extends DCLogic {
     this.endRound();
   }
 
+  // The round is over. Its gifts have played already; its blind boxes play now, with the 盲盒播报's result: the size by
+  // what the boxes cost, the ending by what they opened, and a castle among them plays the castle.
   endRound() {
     const items = this.round.items; this.round = null;
-    const sum = (list, f) => list.reduce((a, x) => a + f(x), 0), best = list => list.reduce((a, x) => (x.price > a.price ? x : a));
-    const boxes = items.filter(x => x.box), spend = sum(items, x => (x.box ? x.boxPrice : x.price) * x.n);
-    const boxSpend = sum(boxes, x => x.boxPrice * x.n), opened = sum(boxes, x => x.price * x.n), size = v => (v >= BIG ? 2 : v >= MID ? 1 : 0);
-    const opts = { top: items.some(x => x.top), spend, opened };
-    if (items.some(x => x.castle)) return this.fire('城堡', { ...opts, gift: '浪漫城堡', count: 1 });
-    // a round of both goes by the side it spent more on; its size by the whole round
-    if (boxes.length && boxSpend * 2 >= spend) {
-      const jackpot = boxes.some(x => x.price >= BIG), result = jackpot ? '大奖' : opened > boxSpend ? '赚' : opened === boxSpend ? '平' : '亏';
-      return this.fire(['盲盒·小', '盲盒·中', '盲盒·大'][jackpot ? 2 : size(spend)], { ...opts, result, gift: best(boxes).gift, count: sum(boxes, x => x.n), shaken: true });
-    }
-    const gifts = items.filter(x => !x.box), count = sum(gifts, x => x.n), kind = ['普通礼物', '中礼物', '大礼物'][size(spend)];
-    return this.fire(kind === '普通礼物' && count >= 5 ? '连着送' : kind, { ...opts, gift: best(gifts).gift, count });
+    const boxes = items.filter(x => x.box); if (!boxes.length) return;
+    const sum = f => boxes.reduce((a, x) => a + f(x), 0), best = boxes.reduce((a, x) => (x.price > a.price ? x : a));
+    const spend = sum(x => x.boxPrice * x.n), opened = sum(x => x.price * x.n), count = sum(x => x.n), opts = { top: boxes.some(x => x.top), spend, opened, count };
+    if (boxes.some(x => x.castle)) return this.fire('城堡', { ...opts, gift: '浪漫城堡', count: 1 });
+    const jackpot = best.price >= BIG, result = jackpot ? '大奖' : opened > spend ? '赚' : opened === spend ? '平' : '亏';
+    this.fire(['盲盒·小', '盲盒·中', '盲盒·大'][jackpot || spend >= BIG ? 2 : spend >= MID ? 1 : 0], { ...opts, result, gift: best.gift, shaken: true });
   }
 
   // While a round is still coming in she does not just wait: each gift flies into her arms; a blind box she shakes the
