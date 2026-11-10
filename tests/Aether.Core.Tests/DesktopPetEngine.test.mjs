@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { Engine, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { DAILY, Engine, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 
 const read = path => JSON.parse(readFileSync(new URL('../../src/Aether.Core/Pages/' + path, import.meta.url), 'utf8'));
 const { shows } = read('desktop-pet/shows.json'), { lines } = read('characters/1/character.json');
@@ -28,10 +28,11 @@ const boxResult = (uid, spend, openedValue, bestPrice = 9000) => ({ uid, nicknam
 const onAir = (engine, lottery) => engine.receive({ enabled: true, roomConnected: true, settings: engine.settings, lines, lottery });
 const entryLottery = so => ({ mode: 'Entry', id: 'E1', keyword: '来了', phase: 'Open', entryCount: 3, draws: [], drawUntil: null, ...so });
 const steps = engine => [engine.cur, ...engine.queue].filter(Boolean).map(show => show.opts.result);
-// The 礼物榜 while its 期 runs, rows [id, count] from the first place down, as the 桌宠页's state carries it (GiftBoardState.cs);
-// null while it is not counting.
+// The 礼物榜 while its 期 runs, rows [uid, count] of one gift each from the first place down, as the 桌宠页's state carries it
+// (GiftBoardState.cs); null while it is not counting.
 const ranks = (engine, rows, fromGift = true) => engine.receive({ enabled: true, roomConnected: true, settings: engine.settings, lines,
-  giftBoard: rows && { rows: rows.map(([id, num]) => ({ id, nickname: '观众' + id, faceUrl: '', viewerGuardLevel: 0, num })), options: { threshold: 100 }, running: true, fromGift } });
+  giftBoard: rows && { rows: rows.map(([uid, num]) => ({ id: `${uid}/gift:1`, uid, nickname: '观众' + uid, faceUrl: '', guardLevel: 0, viewerGuardLevel: 0, num })),
+    options: { threshold: 100 }, running: true, fromGift } });
 
 test('a gift round plays at once and moves up at the fifth gift, 1000 电池 and 1 万, never playing one twice', () => {
   const engine = pet();
@@ -290,18 +291,48 @@ test('a pool lottery opens, calls a viewer and spins, reveals a draw at its Draw
 
 test('a gift taking the 礼物榜\'s first place is crowned after its show, and nothing is while the 礼物榜 is not counting', () => {
   const engine = pet();
-  ranks(engine, [['a', 5]], false);
+  ranks(engine, [[9, 5]], false);
   engine.gift(gifts(2, 1000000));
-  ranks(engine, [['b', 1], ['a', 5]]);
+  ranks(engine, [[2, 1], [9, 5]]);
   assert.equal(playing(engine), 'bigGift');
   advance(engine, 6000);
-  assert.deepEqual([playing(engine), engine.cur.opts.nickname], ['newFirst', '观众b']);
+  assert.deepEqual([playing(engine), engine.cur.opts.nickname], ['newFirst', '观众2']);
   advance(engine, 2600);
 
   ranks(engine, null);
   engine.gift(gifts(3, 1000000));
   advance(engine, 6000);
   assert.notEqual(playing(engine), 'newFirst');
+});
+
+test('a first place the 礼物榜 tells before the gift that took it is crowned after that gift\'s show', () => {
+  const engine = pet();
+  ranks(engine, [[9, 5]], false);
+  ranks(engine, [[2, 1], [9, 5]]);
+  engine.gift(gifts(2, 1000000));
+  advance(engine, 6000);
+  assert.deepEqual([playing(engine), engine.cur.opts.nickname], ['newFirst', '观众2']);
+});
+
+test('a first place taken by a round of blind boxes is crowned after the show its 盲盒播报 opens, also over a 日常小动作', () => {
+  const engine = pet();
+  ranks(engine, [[9, 5]], false);
+  engine.gift(round(1, { boxes: 1, boxSpend: 15000 }));
+  ranks(engine, [[1, 9], [9, 5]]);
+  engine.blindBox(boxResult(1, 15000, 18000));
+  advance(engine, 1700);
+  assert.deepEqual([playing(engine), engine.cur.opts.nickname], ['newFirst', '观众1']);
+  advance(engine, 2600);
+
+  advance(engine, 40000);
+  const daily = playing(engine);
+  assert.ok(daily in DAILY);
+  engine.gift(round(2, { boxes: 1, boxSpend: 15000 }));
+  ranks(engine, [[2, 20], [1, 9], [9, 5]]);
+  assert.equal(playing(engine), daily);
+  engine.blindBox(boxResult(2, 15000, 18000));
+  advance(engine, 1700);
+  assert.deepEqual([playing(engine), engine.cur.opts.nickname], ['newFirst', '观众2']);
 });
 
 test('the big shows and the lottery turned off do not play, nor a lesser show in their place, nor does she wait through a lottery', () => {
@@ -313,9 +344,9 @@ test('the big shows and the lottery turned off do not play, nor a lesser show in
   onAir(engine, entryLottery({}));
   onAir(engine, entryLottery({ phase: 'Closed' }));
   assert.deepEqual([playing(engine), engine.queue, engine.stateAt(engine.now()).pose], [null, [], 'idle']);
-  ranks(engine, [['a', 5]], false);
+  ranks(engine, [[9, 5]], false);
   engine.gift(gifts(4, 1000000));
-  ranks(engine, [['b', 1], ['a', 5]]);
+  ranks(engine, [[4, 1], [9, 5]]);
   advance(engine, 6000);
   assert.notEqual(playing(engine), 'newFirst');
 });

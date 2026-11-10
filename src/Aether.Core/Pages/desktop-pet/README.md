@@ -72,8 +72,9 @@ real time.
   its DrawUntil, when the 抽奖页's effects end; its show, which holds her breath 2.5 s first, starts that much earlier. A pool
   lottery has no end of its own, so it ends as a new lottery replaces it, and between draws she does her 日常小动作. The viewer a
   pool calls is named by UID, all its state has, as the 抽奖页 names a winner without a nickname.
-- A new first place on the 礼物榜 is crowned after whatever show plays when the 礼物榜 tells it, not a 日常小动作; the board's
-  gift said it took first place.
+- A new first place on the 礼物榜 is crowned after the show of the 一轮送礼 that took it, its blind boxes' once the 盲盒播报 opens
+  them; the board's gift said it took first place. The 礼物榜 reaches the page another way than that gift and may come first:
+  the crown then waits for the gift's round. As on the board, a 大航海 is not crowned.
 - A 试演 starts its show at once, or holds her in its 心情, until it is stopped.
 - Shows, 心情, 日常小动作, endings, lottery steps and kinds of lines go by their ids in the 演出表 rather than the board's Chinese
   names, and her lines are picked with `Math.random`, not the board's fixed seed.

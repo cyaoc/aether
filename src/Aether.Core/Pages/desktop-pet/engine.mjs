@@ -165,7 +165,8 @@ export class Engine {
   now() { return this.master.currentTime; }
 
   reset(rng) {
-    this.cur = this.seen = this.trial = this.lot = this.reveal = null; this.queue = []; this.rounds = []; this.lottery = undefined; this.changes = new Changes();
+    this.cur = this.seen = this.trial = this.lot = this.reveal = null; this.queue = []; this.rounds = []; this.crowns = new Map(); this.lottery = undefined;
+    this.changes = new Changes();
     this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lastLine = {}; this.rng = rng;
   }
 
@@ -176,7 +177,7 @@ export class Engine {
     const now = this.now();
     Object.assign(this, { on: state.enabled, settings: state.settings, lines: state.lines });
     if (state.roomConnected && !this.room) { this.lastGift = this.lastAny = now; this.recent = []; }
-    if (!state.roomConnected) this.rounds = [];
+    if (!state.roomConnected) { this.rounds = []; this.crowns.clear(); }
     this.room = state.roomConnected;
     // switched off she is told nothing more, and back on she starts from what she is told then
     if (!state.enabled) { this.lottery = undefined; this.reveal = null; this.changes.reset(); return; }
@@ -199,11 +200,19 @@ export class Engine {
   }
 
   // The 礼物榜 while its 期 runs, none else: a gift that takes its first place, as changes.mjs tells the 礼物榜页, crowns the
-  // new first after the show playing (update), never on its own.
+  // new first (crown). A 大航海 plays in no 一轮送礼, and is not crowned.
   ranked(board) {
     if (!board) return this.changes.reset();
     this.changes.receive(board);
-    for (let change; (change = this.changes.take());) if (change.kind === 'top' && this.cur && !DAILY[this.cur.name]) this.cur.opts.top = change.state.rows[0].nickname;
+    for (let change; (change = this.changes.take());) if (change.kind === 'top' && !change.state.rows[0].guardLevel) this.crown(change.state.rows[0]);
+  }
+
+  // The crown is the viewer's 一轮送礼's: it follows the round's show playing or coming next, its blind boxes' once their
+  // 盲盒播报 opens them (update), and with none it is not played on its own (README 2). The 礼物榜 reaches the page another
+  // way than the gift that took its first place, and may come first: the crown then waits for that gift's round.
+  crown({ uid, nickname }) {
+    const r = this.rounds.find(round => round.uid === uid && !round.ended);
+    if (r) r.top = nickname; else this.crowns.set(uid, nickname);
   }
 
   fire(name, opts = {}) {
@@ -258,7 +267,8 @@ export class Engine {
     // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show
     if (!r) {
       const wake = ['gloomy', 'sleepy'].includes(this.mood(now));
-      this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], wake, wakeLine: wake ? this.pick('wake') : null, played: -1 });
+      this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], wake, wakeLine: wake ? this.pick('wake') : null, played: -1, top: this.crowns.get(p.uid) });
+      this.crowns.delete(p.uid);
     }
     r.arrivals.push(now); r.boxes = p.boxes;
     this.gifted(now);
@@ -269,7 +279,7 @@ export class Engine {
     const { midGift, bigGift } = this.settings;
     const kind = p.castle ? 'castle' : p.spend >= bigGift ? 'bigGift' : p.spend >= midGift ? 'midGift' : p.count >= 5 ? 'giftStreak' : 'gift';
     if (GIFT_SHOWS.indexOf(kind) <= r.played) return;
-    this.fire(kind, { nickname: p.nickname, gift: p.topGift, count: kind === 'giftStreak' ? p.count : p.topCount, wake: r.played < 0 && r.wake });
+    this.fire(kind, { nickname: p.nickname, gift: p.topGift, count: kind === 'giftStreak' ? p.count : p.topCount, wake: r.played < 0 && r.wake, round: r });
     r.played = GIFT_SHOWS.indexOf(kind); r.wake = false;
   }
 
@@ -279,11 +289,11 @@ export class Engine {
   blindBox(b) {
     const i = this.rounds.findIndex(r => r.uid === b.uid && r.boxes), { midGift, bigGift } = this.settings, r = this.rounds[i];
     if (i >= 0) this.rounds.splice(i, 1);
-    if (r?.castle || !r && b.castle) return this.fire('castle', { nickname: b.nickname });
+    if (r?.castle || !r && b.castle) return this.fire('castle', { nickname: b.nickname, round: r });
     if (r?.played === CASTLE) return;
     const jackpot = b.bestPrice >= bigGift, spend = b.tally.spend;
     this.fire(BLIND_BOXES[jackpot || spend >= bigGift ? 2 : spend >= midGift ? 1 : 0],
-      { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes, shaken: i >= 0 });
+      { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes, shaken: i >= 0, round: r });
   }
 
   entry(e) { this.fire('entry', { nickname: e.nickname }); }
@@ -339,8 +349,10 @@ export class Engine {
     const c = this.cur;
     if (c && now >= c.start + c.pre + c.dur) {
       this.cur = this.seen = null;
-      // the first place taken on the 礼物榜 while it played is crowned next (ranked)
-      if (c.opts.top && !this.settings.off.includes('newFirst')) this.start('newFirst', { nickname: c.opts.top, chained: true });
+      // the first place its round took on the 礼物榜 is crowned next, once (crown)
+      const round = c.opts.round, top = round?.top;
+      if (round) round.top = null;
+      if (top && !this.settings.off.includes('newFirst')) this.start('newFirst', { nickname: top, chained: true });
       else if (this.queue.length) {
         const best = Math.max(...this.queue.map(q => TIER[this.events[q.name].tier]));
         const i = this.queue.findIndex(q => TIER[this.events[q.name].tier] === best);
