@@ -14,7 +14,7 @@
   <canvas id="dp-cv" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"scene":{"editor":"enum","options":["手动","演示","平时","心情","进场","普通礼物","连着送","中礼物","大礼物","大礼物+新第一","盲盒开亏","盲盒开中","盲盒开大","舰长","提督","总督","城堡","报名抽奖","奖池抽奖","没人报名"],"default":"手动"},"env":{"editor":"enum","options":["右下角","左下角","小页面"],"default":"右下角"},"room":{"editor":"enum","options":["明亮画面","深色房间","透明"],"default":"明亮画面"},"name":{"editor":"enum","options":["普通昵称","长昵称","中英混排"],"default":"普通昵称"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"caption":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"controls":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"$preview":{"width":1920,"height":1080}}'>
+<script type="text/x-dc" data-dc-script data-props='{"scene":{"editor":"enum","options":["手动","演示","平时","心情","进场","普通礼物","连着送","中礼物","大礼物","大礼物+新第一","盲盒·小","盲盒·中","盲盒·大","舰长","提督","总督","城堡","报名抽奖","奖池抽奖","没人报名"],"default":"手动"},"env":{"editor":"enum","options":["右下角","左下角","小页面"],"default":"右下角"},"room":{"editor":"enum","options":["明亮画面","深色房间","透明"],"default":"明亮画面"},"name":{"editor":"enum","options":["普通昵称","长昵称","中英混排"],"default":"普通昵称"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"caption":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"controls":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"$preview":{"width":1920,"height":1080}}'>
 // The desktop pet in a live-stream corner (design package desktop-pet, README sections 1–7). The page itself is
 // transparent; the board draws a stand-in stream behind it. Everything is drawn from the pose sheets on one 2D canvas.
 const BLOB = {
@@ -119,16 +119,15 @@ const EVENT_FX = {
   普通礼物: { fx: [['giftArc', 0], ['halo', 300, 900, 0.3]] },
   连着送: { fx: [['giftStack', 0], ['steam', 1300, 1200], ['spark', 1250, 0.5, 0.3, 10], ['halo', 1250, 1300, 0.35]] },
   中礼物: { fx: [['boxDrop', 200], ['spark', 1300, 0.5, 0.58, 8], ['shockwave', 1200], ['halo', 1200, 2000, 0.4], ['anchors', 1400, 1900, 'hearts']], shake: [[1200, 2, 200]] },
-  盲盒开中: {
-    fx: [['shakeMarks', 0, 0.85, 0.2, 1200], ['seamGlow', 0, 1200, 'shake'], ['coins', 1250, 0.3, 0.5], ['halo', 1200, 2600, 0.45], ['bang', 2000], ['shock', 2000], ['shockwave', 2600]],
+  '盲盒·中': {
+    fx: [['shakeMarks', 0, 0.85, 0.2, 1200], ['seamGlow', 0, 1200, 'shake'], ['coins', 1250, 0.3, 0.5], ['halo', 1200, 2600, 0.45], ['shockwave', 2600]],
     shake: [[1200, 2, 200]]
   },
-  盲盒开亏: { fx: [['shakeMarks', 0, 0.85, 0.2, 900], ['sweat', 950], ['gloom', 1000, 450], ['anger', 1500, 900]] },
+  '盲盒·小': { fx: [['shakeMarks', 0, 0.85, 0.2, 900]] },
   新的第一名: { fx: [['rays', 1300, 1000, 0.35], ['glint', 1350, 0.5, 0], ['spark', 1300, 0.5, 0.05, 8]] },
   舰长: { fx: [['shockwave', 600], ['splash', 600], ['anchors', 700, 2400], ['glint', 1000, 0.14, 0.3], ['halo', 600, 2400, 0.3]] },
-  盲盒开大: {
-    fx: [['shakeMarks', 0, 0.85, 0.2, 1500], ['seamGlow', 0, 1500, 'shake'], ['bang', 2600], ['shock', 2600], ['rays', 3500, 2300, 0.55], ['burst', 3500, 400],
-      ['confetti', 3500], ['shockwave', 3500]],
+  '盲盒·大': {
+    fx: [['shakeMarks', 0, 0.85, 0.2, 1500], ['seamGlow', 0, 1500, 'shake'], ['rays', 3500, 2300, 0.55], ['burst', 3500, 400], ['shockwave', 3500]],
     shake: [[2500, 3, 260]]
   },
   大礼物: {
@@ -164,8 +163,8 @@ const TIER = { SS: 5, S: 4, A: 3, B: 2, C: 1, D: 0 };
 const GLOW = { SS: '254,197,79', S: '253,183,202', A: '180,140,255', B: '124,200,255', C: '255,211,223', D: '255,255,255' };
 const EVENTS = {
   进场: { tier: 'C', dur: 1600 }, 普通礼物: { tier: 'C', dur: 2000, gift: true }, 连着送: { tier: 'C', dur: 2600, gift: true },
-  盲盒开亏: { tier: 'C', dur: 2600, gift: true }, 中礼物: { tier: 'B', dur: 3500, gift: true }, 盲盒开中: { tier: 'B', dur: 4000, gift: true },
-  舰长: { tier: 'B', dur: 4500, gift: true }, 大礼物: { tier: 'A', dur: 6000, gift: true }, 盲盒开大: { tier: 'A', dur: 6000, gift: true },
+  '盲盒·小': { tier: 'C', dur: 2600, gift: true, results: ['赚', '平', '亏'] }, 中礼物: { tier: 'B', dur: 3500, gift: true }, '盲盒·中': { tier: 'B', dur: 4000, gift: true, results: ['赚', '平', '亏'] },
+  舰长: { tier: 'B', dur: 4500, gift: true }, 大礼物: { tier: 'A', dur: 6000, gift: true }, '盲盒·大': { tier: 'A', dur: 6000, gift: true, results: ['赚', '平', '亏', '大奖'] },
   提督: { tier: 'A', dur: 8000, gift: true }, 总督: { tier: 'SS', dur: 15000, gift: true },
   城堡: { tier: 'S', dur: 11500, gift: true }, 新的第一名: { tier: 'C', dur: 2600 },
   报名开场: { tier: 'A', dur: 2600 }, 报名截止: { tier: 'A', dur: 2000 }, 奖池开场: { tier: 'A', dur: 2600 }, 奖池点名: { tier: 'A', dur: 2000 },
@@ -182,9 +181,10 @@ const LINES = {
   舰长: ['欢迎{昵称}上船！舰长好！', '{昵称}成为舰长了！敬礼！', '船员+1！谢谢{昵称}！'],
   提督: ['提督{昵称}驾到！', '全体注意，提督{昵称}登舰！', '{昵称}开了提督…好、好帅！'],
   总督: ['总、总督大人{昵称}！！', '{昵称}开了总督…我是在做梦吗', '起航！为了总督{昵称}！'],
-  盲盒开中: ['开出{礼物}了！{昵称}运气不错～', '哇，是{礼物}！'],
-  盲盒开大: ['开出{礼物}了！{昵称}运气好好！', '欧皇{昵称}！是{礼物}！'],
-  盲盒开亏: ['呜…{昵称}的盲盒亏了…', '可恶的盲盒！下次一定！'],
+  盲盒赚了: ['开出{礼物}了！{昵称}运气不错～', '哇，是{礼物}！'],
+  盲盒不赚不亏: ['不赚不亏～刚刚好！', '{昵称}，回本啦～'],
+  盲盒亏了: ['呜…{昵称}的盲盒亏了…', '可恶的盲盒！下次一定！', '亏了也谢谢{昵称}送了{个数}个盲盒！'],
+  盲盒出大奖: ['开出{礼物}了！{昵称}运气好好！', '欧皇{昵称}！是{礼物}！'],
   城堡: ['是城堡！{昵称}送了我一座城堡！', '要变成公主了…谢谢{昵称}！'],
   '城堡·门口': ['欢迎来到我的城堡～', '{昵称}，要一起进来吗？'],
   报名开场: ['抽奖开始啦！发「{关键字}」就能报名～', '要抽奖了…大家快来报名！'],
@@ -208,7 +208,11 @@ const LINES = {
   滑雪: ['滑雪好开心～', '看我的！'], 滑雪摔跤: ['噗…全是雪…', '雪、雪好冰！'], 拍拍土: ['拍拍土…没事没事！', '再来！这次小心点～'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了']
 };
 const NAMES = { 普通昵称: '星河', 长昵称: '这是一个非常非常长的昵称啊', 中英混排: 'Lily月下' };
-const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 中礼物: '告白气球', 大礼物: '小电视飞船', 盲盒开中: '告白气球', 盲盒开大: '小电视飞船', 盲盒开亏: '小花花', 城堡: '浪漫城堡' };
+const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 中礼物: '告白气球', 大礼物: '小电视飞船', '盲盒·小': '棉花糖', '盲盒·中': '爱心抱枕', '盲盒·大': '爱心抱枕', 城堡: '浪漫城堡' };
+// A viewer's gift round ends after this much silence (README 2); the 中礼物 and 大礼物 thresholds, in 电池 (the GUI defaults).
+const ROUND_GAP = 3000, MID = 1000, BIG = 10000;
+// Which lines a blind box's ending says.
+const BOX_LINES = { 赚: '盲盒赚了', 平: '盲盒不赚不亏', 亏: '盲盒亏了', 大奖: '盲盒出大奖' };
 const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
 const SPRITE_H = 76, NAME_MAX = 8, SPRITE_SPEED = 0.8;
 // Every pose sheet's cell 1 and every prop are drawn by codex beside the same standing drawing, ANCHOR px tall (gen-sheet.py,
@@ -328,24 +332,19 @@ class Component extends DCLogic {
   now() { return (this.master ? this.master.currentTime : 0) * this.cfg.speed; }
 
   reset() {
-    this.cur = this.seen = null; this.queue = []; this.log = []; this.lot = null; this.gifts = [];
+    this.cur = this.seen = null; this.queue = []; this.log = []; this.lot = null; this.pending = []; this.round = null;
     this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lines = {}; this.rng = seeded(7);
   }
 
   fire(name, opts = {}) {
     const now = this.now(), ev = EVENTS[name];
     if (name !== '日常' && !opts.chained) opts = { ...opts, wake: ['沮丧', '犯困'].includes(this.mood(now)) };
-    if (name === '普通礼物') {
-      this.gifts = this.gifts.filter(g => now - g < 30000).concat(now);
-      if (this.gifts.length >= 5) { this.gifts = []; return this.fire('连着送', opts); }
-    }
     if (name !== '日常') { this.lastAny = now; this.recent = this.recent.filter(r => now - r < 60000).concat(now); }
     if (ev.gift) this.lastGift = now;
     const curTier = this.cur ? TIER[EVENTS[this.cur.name].tier] : -1, tier = TIER[ev.tier];
-    // The fifth gift in a burst takes over the plain thank-you that is still playing, instead of being dropped as busy.
     // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
     const show = name === '总督' && this.cur?.name === '城堡';
-    if (!this.cur || tier > curTier && !show || name === '连着送' && this.cur.name === '普通礼物') return this.start(name, opts);
+    if (!this.cur || tier > curTier && !show) return this.start(name, opts);
     if (tier <= TIER.C) return this.note(`${name}：正忙，丢掉`);
     if (tier < TIER.S && this.queue.filter(q => EVENTS[q.name].tier === ev.tier).length >= 3) return this.note(`${name}：同档已排 3 个，丢掉`);
     this.queue.push({ name, opts }); this.note(`${name}：排队`);
@@ -355,7 +354,7 @@ class Component extends DCLogic {
     const now = this.now();
     if (this.cur) this.note(`${this.cur.name} 被 ${name} 打断`);
     const wake = !!opts.wake, dur = name === '日常' ? DAILY[opts.kind][0] + (opts.mishap ? DAILY[opts.kind][1] : 0) : EVENTS[name].dur;
-    this.cur = { name, opts, start: now, pre: wake ? 1000 : 0, dur, line: this.pick(name), wakeLine: wake ? this.pick('冷场后来了人') : null };
+    this.cur = { name, opts, start: now, pre: wake ? 1000 : 0, dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('冷场后来了人') : null };
     if (name === '日常') this.nextDaily = now + dur + 20000 + this.rng() * 20000;
     if (name === '报名开场') this.lot = { kind: '报名', phase: '报名中' };
     if (name === '奖池开场') this.lot = { kind: '奖池', phase: '点名前' };
@@ -366,6 +365,57 @@ class Component extends DCLogic {
 
   note(s) { this.log = [s, ...this.log].slice(0, 4); }
 
+  // A blind box says the lines of its ending; every other show its own.
+  lineKey(name, opts = {}) { return EVENTS[name]?.results ? BOX_LINES[opts.result || '赚'] : name; }
+
+  // The endings a show can have, for checking every pose change (tools/check-board.mjs).
+  eventVariants(name) { return (EVENTS[name]?.results || [null]).map(r => (r ? { result: r } : {})); }
+
+  // ---- gift rounds (README 2): a viewer's gifts and blind boxes gather until ROUND_GAP of silence, then one show plays
+  // for the whole round, chosen by what it spent and, for blind boxes, what they opened. 大航海 purchases do not wait.
+  // give(list): sends one after another, 350 ms apart; an entry is one gift { gift, price, n, box?, boxPrice?, top?, castle? }
+  // or a list of them, one message (B站 sends a batch of blind boxes as one message split by the gift each opened).
+  give(list) { const now = this.now(); list.forEach((m, i) => { for (const x of [].concat(m)) this.pending.push({ ...x, at: now + i * 350 }); }); }
+
+  arrive(x) {
+    // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show
+    if (!this.round) { const wake = ['沮丧', '犯困'].includes(this.mood(x.at)); this.round = { start: x.at, items: [], wake, wakeLine: wake ? this.pick('冷场后来了人') : null }; }
+    const r = this.round;
+    r.items.push(x); r.last = x.at;
+    this.lastGift = this.lastAny = x.at; this.recent = this.recent.filter(v => x.at - v < 60000).concat(x.at);
+  }
+
+  endRound() {
+    const items = this.round.items; this.round = null;
+    const sum = (list, f) => list.reduce((a, x) => a + f(x), 0), best = list => list.reduce((a, x) => (x.price > a.price ? x : a));
+    const boxes = items.filter(x => x.box), spend = sum(items, x => (x.box ? x.boxPrice : x.price) * x.n);
+    const boxSpend = sum(boxes, x => x.boxPrice * x.n), opened = sum(boxes, x => x.price * x.n), size = v => (v >= BIG ? 2 : v >= MID ? 1 : 0);
+    const opts = { top: items.some(x => x.top), spend, opened };
+    if (items.some(x => x.castle)) return this.fire('城堡', { ...opts, gift: '浪漫城堡', count: 1 });
+    // a round of both goes by the side it spent more on; its size by the whole round
+    if (boxes.length && boxSpend * 2 >= spend) {
+      const jackpot = boxes.some(x => x.price >= BIG), result = jackpot ? '大奖' : opened > boxSpend ? '赚' : opened === boxSpend ? '平' : '亏';
+      return this.fire(['盲盒·小', '盲盒·中', '盲盒·大'][jackpot ? 2 : size(spend)], { ...opts, result, gift: best(boxes).gift, count: sum(boxes, x => x.n) });
+    }
+    const gifts = items.filter(x => !x.box), count = sum(gifts, x => x.n), kind = ['普通礼物', '中礼物', '大礼物'][size(spend)];
+    return this.fire(kind === '普通礼物' && count >= 5 ? '连着送' : kind, { ...opts, gift: best(gifts).gift, count });
+  }
+
+  // While a round is still coming in she does not just wait: each gift flies into her arms; blind boxes she shakes.
+  roundState(now) {
+    const r = this.round, st = this.base(), box = r.items.some(x => x.box);
+    st._t = now - r.start;
+    if (r.wake && st._t < 1000) {
+      st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', 0], ['shock', 0], ['sweat', 200]); st.y -= 10 * bump(st._t, 0, 300);
+      st.bubble = { text: this.fill(r.wakeLine, '冷场后来了人'), t: st._t };
+      return st;
+    }
+    st.pose = box ? 'shakeBox' : 'giftBox'; st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22];
+    for (const x of r.items) st.fx.push(['giftArc', x.at - r.start]);
+    if (box) st.fx.push(['shakeMarks', 0, 0.85, 0.2, 1e9]);
+    return st;
+  }
+
   pick(name) {
     const list = LINES[name]; if (!list) return null;
     let i = Math.floor(this.rng() * list.length);
@@ -375,6 +425,9 @@ class Component extends DCLogic {
   }
 
   update(now) {
+    for (const x of this.pending.filter(x => x.at <= now)) this.arrive(x);
+    this.pending = this.pending.filter(x => x.at > now);
+    if (this.round && !this.pending.length && now - this.round.last >= ROUND_GAP) this.endRound();
     const c = this.cur;
     if (c && now >= c.start + c.pre + c.dur) {
       this.cur = this.seen = null;
@@ -459,27 +512,31 @@ class Component extends DCLogic {
         st.sprite = t < 1600 ? 'crown' : 'sHappy';
         st.sp = t < 1600 ? ['crown', ease(k01(t, 0, 900)), ease(k01(t, 900, 1300))] : ['home-from-top', ease(k01(t, 1600, 2400))];
         st.fx.push(['ring', 1300], ['sparkles', 1300]); say(1300); break;
-      // it listens at the box with her (its seams glowing in the tier's colour first), is blown back when it opens, then
-      // cheers beside her; a big prize sends a beam up to the top of the page and a star that bursts over it
-      case '盲盒开中': case '盲盒开大': {
-        const big = name === '盲盒开大', o = big ? 1500 : 1200, r = big ? 3500 : 2600;
-        st.pose = at(t, [[0, 'shakeBox'], [o, 'openBox'], [big ? 2600 : 2000, 'surprised'], [r, 'cheer']]);
-        hop(r, 14);
+      // it listens at the box with her (its seams glowing in the tier's colour first) and is blown back when it opens; then
+      // the round's ending: a win cheers (a big one sends a beam to the top of the page and a star that bursts over it),
+      // breaking even she smiles and nods, a loss pouts and stamps and then bows her thanks while it pats her head
+      case '盲盒·小': case '盲盒·中': case '盲盒·大': {
+        const size = ['盲盒·小', '盲盒·中', '盲盒·大'].indexOf(name), r = opts.result || '赚', win = r === '赚' || r === '大奖', loss = r === '亏';
+        const o = [900, 1200, 1500][size], wow = [0, 2000, 2600][size];
+        const steps = size === 0 ? [[0, 'shakeBox'], [o, 'openBox'], [1500, loss ? 'pout' : 'nod']]
+          : loss ? [[0, 'shakeBox'], [o, 'openBox'], [[0, 2000, 3500][size], 'pout'], [[0, 3000, 4700][size], 'bow']]
+          : [[0, 'shakeBox'], [o, 'openBox'], [wow, 'surprised'], [[0, 2600, 3500][size], win ? 'cheer' : 'nod']];
+        const react = steps[size === 0 ? 2 : loss ? 2 : 3][0], thanks = loss && size ? steps[3][0] : Infinity;
+        st.pose = at(t, steps);
+        if (win && size) hop(react, 14); else if (win) hop(react, 8);
+        if (loss && t >= react && t < thanks) st.y -= 4 * Math.abs(Math.sin((t - react) / 90));
         if (t < o) { st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22]; }
-        else if (t < r) { st.sprite = 'surprised'; st.sp = ['rel', 1.12, 0.02]; }
-        else { st.sprite = 'sHappy'; st.sp = ['home', 0, -14 * bump(t, r, r + 320)]; }
-        if (big) st.fx.push(['pillar', o, 1100, null, 'box'], ['bigStar', o], ['fountain', 2500, 1800, { x: FOOT.x, y: 200 }]);
-        else st.fx.push(['beam', o], ['sparkles', r], ['confetti', r]);
+        else if (t < react) { if (loss && !size) { st.sprite = 'hide'; st.sp = ['rel', 1.1, 0.3]; } else { st.sprite = 'surprised'; st.sp = ['rel', 1.12, 0.02]; } }
+        else if (win) { st.sprite = 'sHappy'; st.sp = ['home', 0, -14 * bump(t, react, react + 320)]; }
+        else if (loss && t < thanks) { st.sprite = 'pat'; st.sp = 'head'; }
+        else st.sprite = 'nod';
+        if (size && !loss) st.fx.push(['bang', wow], ['shock', wow]);
+        if (size === 2) st.fx.push(['pillar', o, 1100, null, 'box'], ['bigStar', o], ['fountain', 2500, 1800, { x: FOOT.x, y: 200 }]);
+        if (size === 1) st.fx.push(['beam', o]);
+        if (win) st.fx.push(['sparkles', react], ...(size ? [['confetti', react]] : []));
+        if (loss) st.fx.push(...(size ? [] : [['puff', o]]), ['sweat', react - 550], ['gloom', react - 500, 450], ['anger', react, 900]);
         say(o + 100); break;
       }
-      // it listens at the box with her, hides from the puff, then pats her pouting head
-      case '盲盒开亏':
-        st.pose = at(t, [[0, 'shakeBox'], [900, 'openBox'], [1500, 'pout']]);
-        if (t >= 1500) st.y -= 4 * Math.abs(Math.sin((t - 1500) / 90));
-        if (t < 900) { st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22]; }
-        else if (t < 1500) { st.sprite = 'hide'; st.sp = ['rel', 1.1, 0.3]; }
-        else { st.sprite = 'pat'; st.sp = 'head'; }
-        st.fx.push(['puff', 900]); say(1000); break;
       // the sprite dresses her, salutes beside her in its sailor collar, and dresses her back
       case '舰长':
         if (t < 600) this.dress(st, t, 0, 600);
@@ -702,7 +759,7 @@ class Component extends DCLogic {
   // ---- scenes: fixed loops that can be frozen for screenshots ---------------------------------------------------------
   sceneState(now) {
     const scene = this.cfg.scene, name = this.cfg.name;
-    const ev = (n, t, opts = {}) => this.eventState(n, t, opts, this.fill(LINES[n]?.[0], n));
+    const ev = (n, t, opts = {}) => this.eventState(n, t, opts, this.fill(LINES[this.lineKey(n, opts)]?.[0], n, opts));
     if (scene === '平时') {
       const plan = [[2000, '举哑铃', true], [11500, '哼歌', false], [16000, '爬山', true], [27000, '骑车', false], [33500, '滑雪', true]];
       const t = now % 43000;
@@ -740,11 +797,11 @@ class Component extends DCLogic {
     return this.idleState(now, '平静');
   }
 
-  fill(text, name) {
+  fill(text, name, opts = {}) {
     if (!text) return text;
     let nick = this.cfg.name;
     if ([...nick].length > NAME_MAX) nick = [...nick].slice(0, NAME_MAX - 1).join('') + '…';
-    return text.replaceAll('{昵称}', nick).replaceAll('{礼物}', GIFT[name] || '小花花').replaceAll('{个数}', '3')
+    return text.replaceAll('{昵称}', nick).replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3))
       .replaceAll('{关键字}', '抽奖').replaceAll('{奖项}', '一等奖').replaceAll('{奖品}', '定制周边');
   }
 
@@ -766,12 +823,14 @@ class Component extends DCLogic {
       this.update(now);
       const c = this.cur;
       if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
-      else if (c) { st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name)); if (c.name === '城堡' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine || (c.gateLine = this.pick('城堡·门口'))); }
+      else if (c) { st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts)); if (c.name === '城堡' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine || (c.gateLine = this.pick('城堡·门口'))); }
+      else if (this.round) st = this.roundState(now);
       else {
         const mood = this.mood(now), key = mood + (this.lot?.phase || '');
         if (this.seen?.key !== key) this.seen = { key, at: now };
         st = this.idleState(now, mood, now - this.seen.at);
       }
+      if (c && this.round && st._t != null) for (const x of this.round.items) st.fx.push(['giftArc', st._t - (now - x.at)]);
     } else st = this.sceneState(now);
     this.draw(canvas.getContext('2d'), st, now);
   }
@@ -781,8 +840,8 @@ class Component extends DCLogic {
     this.lastDemo = t;
     const cross = s => last < s && t >= s || (t < last && s <= t);
     if (cross(3000)) this.fire('进场');
-    if (cross(7000)) this.fire('普通礼物');
-    if (cross(11000)) this.fire('大礼物', { top: true });
+    if (cross(7000)) this.give([{ gift: '小花花', price: 10, n: 1 }]);
+    if (cross(11000)) this.give([{ gift: '小电视飞船', price: 12450, n: 1, top: true }]);
   }
 
   draw(g, st, now) {
@@ -1486,7 +1545,8 @@ class Component extends DCLogic {
     const c = this.cur, mood = this.mood(now);
     const rows = [];
     if (['手动', '演示'].includes(this.cfg.scene)) {
-      rows.push(c ? `演出：${c.name === '日常' ? '日常·' + c.opts.kind + (c.opts.mishap ? '（出事）' : '') : c.name}（${EVENTS[c.name].tier} 档）${((now - c.start) / 1000).toFixed(1)} / ${((c.pre + c.dur) / 1000).toFixed(1)} 秒` : '演出：没有');
+      if (this.round) rows.push(`一轮送礼：${this.round.items.reduce((a, x) => a + x.n, 0)} 份，停手 ${((now - this.round.last) / 1000).toFixed(1)} 秒`);
+      rows.push(c ? `演出：${c.name === '日常' ? '日常·' + c.opts.kind + (c.opts.mishap ? '（出事）' : '') : c.name + (c.opts.result ? '·' + c.opts.result : '')}（${EVENTS[c.name].tier} 档）${((now - c.start) / 1000).toFixed(1)} / ${((c.pre + c.dur) / 1000).toFixed(1)} 秒` : '演出：没有');
       rows.push(`排队：${this.queue.map(q => q.name).join('、') || '空'}`);
       rows.push(`心情：${mood} · 距上次礼物 ${Math.floor((now - this.lastGift) / 60000)} 分 · 距上次事件 ${Math.floor((now - this.lastAny) / 60000)} 分`);
       if (this.lot) rows.push(`抽奖：${this.lot.kind} · ${this.lot.phase}`);
@@ -1512,9 +1572,21 @@ class Component extends DCLogic {
       }
     };
     const f = (n, o) => () => this.fire(n, o);
-    group('事件', [['进场', f('进场')], ['普通礼物', f('普通礼物')], ['连送 5 份', () => { for (let i = 0; i < 5; i++) this.fire('普通礼物'); }], ['中礼物', f('中礼物')], ['大礼物', f('大礼物')],
-      ['大礼物+新第一', f('大礼物', { top: true })], ['普通礼物+新第一', f('普通礼物', { top: true })], ['盲盒开亏', f('盲盒开亏')], ['盲盒开中', f('盲盒开中')], ['盲盒开大', f('盲盒开大')],
-      ['舰长', f('舰长')], ['提督', f('提督')], ['总督', f('总督')], ['城堡', f('城堡')]]);
+    // gifts come as a viewer's round: they gather, then one show plays 3 s after the last (README 2)
+    const one = (gift, price, n = 1, x = {}) => ({ gift, price, n, ...x }), g = list => () => this.give(list);
+    const heart = (gift, price, n) => ({ gift, price, n, box: '心动盲盒', boxPrice: 150 }), carnival = n => ({ gift: '棉花糖', price: 90, n, box: '狂欢盲盒', boxPrice: 90 });
+    const tens = (n, m) => Array.from({ length: n }, () => m);
+    group('事件', [['进场', f('进场')], ['普通礼物', g([one('小花花', 10)])], ['连送 5 份', g(tens(5, one('小花花', 10)))], ['中礼物', g([one('告白气球', 2000)])], ['大礼物', g([one('小电视飞船', 12450)])],
+      ['大礼物+新第一', g([one('小电视飞船', 12450, 1, { top: true })])], ['普通礼物+新第一', g([one('小花花', 10, 1, { top: true })])],
+      ['舰长', f('舰长')], ['提督', f('提督')], ['总督', f('总督')], ['城堡', g([one('浪漫城堡', 22330, 1, { castle: true })])]]);
+    // 心动盲盒 150 电池 a box (电影票 20, 棉花糖 90, 爱心抱枕 160, 浪漫城堡 22330); 狂欢盲盒 90 opening a 棉花糖 breaks even
+    group('盲盒（一轮）', [['小·赚', g([heart('爱心抱枕', 160, 1)])], ['小·不赚不亏', g([carnival(1)])], ['小·亏', g([heart('棉花糖', 90, 1)])],
+      ['中·赚', g([heart('爱心抱枕', 160, 10)])], ['中·不赚不亏', g([carnival(6), carnival(6)])],
+      ['中·亏（10 个）', g([[heart('电影票', 20, 1), heart('爱心抱枕', 160, 3), heart('棉花糖', 90, 6)]])],
+      ['大·赚', g(tens(10, heart('爱心抱枕', 160, 10)))], ['大·不赚不亏', g(tens(12, carnival(10)))],
+      ['100 个亏（15000 开 12990）', g([...tens(6, [heart('爱心抱枕', 160, 6), heart('棉花糖', 90, 4)]), ...tens(3, [heart('爱心抱枕', 160, 6), heart('棉花糖', 90, 3), heart('电影票', 20, 1)]),
+        [heart('爱心抱枕', 160, 6), heart('棉花糖', 90, 4)]])],
+      ['出大奖', g([{ gift: '小电视飞船', price: 12450, n: 1, box: '大航海盲盒', boxPrice: 500 }])], ['开出城堡', g([{ ...heart('浪漫城堡', 22330, 1), castle: true }])]]);
     group('抽奖', [['报名开场', f('报名开场')], ['报名截止', f('报名截止')], ['奖池开场', f('奖池开场')], ['奖池点名', f('奖池点名')], ['奖池转动', f('奖池转动')],
       ['揭晓·大奖', f('揭晓·大奖')], ['揭晓·二奖', f('揭晓·二奖')], ['揭晓·三奖', f('揭晓·三奖')], ['没人报名', f('没人报名')], ['抽奖结束', f('抽奖结束')]]);
     const d = (kind, mishap) => () => this.fire('日常', { kind, mishap });

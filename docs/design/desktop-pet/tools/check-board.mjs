@@ -1,5 +1,6 @@
-// node tools/check-board.mjs [port]: every change of pose in every event and daily action (in from standing, out back to
-// it), and whether the board has a way across it: in-between frames, a cut written in CUT, or a route through them.
+// node tools/check-board.mjs [port]: every change of pose in every event (each ending of a blind box too) and daily action
+// (in from standing, out back to it), and whether the board has a way across it: in-between frames, a cut written in
+// CUT, or a route through them.
 // Prints how many go each way and every change with no way across. server.mjs must be running on the port (8820).
 // Event and daily names come from the board file and durations from the board itself (dc.start), so the check follows
 // the board; an earlier copy with the durations written in kept checking the admiral at 7 s after it grew to 8.
@@ -19,7 +20,9 @@ const js = `(() => {
     let prev = 'idle';
     for (let t = 0; t <= dur + 20; t += 20) { const p = t > dur ? 'idle' : fn(t).pose; if (p !== prev) { pairs[prev + '>' + p] ??= where; prev = p; } }
   };
-  for (const name of EVENTS) { dc.start(name, {}); walk(t => dc.eventState(name, t, { seed: 0 }, 'x'), dc.cur.dur, name); }
+  for (const name of EVENTS) for (const opts of dc.eventVariants(name)) {
+    dc.start(name, opts); walk(t => dc.eventState(name, t, { ...opts, seed: 0 }, 'x'), dc.cur.dur, name + (opts.result ? '·' + opts.result : ''));
+  }
   for (const kind of KINDS) for (const mishap of [false, true]) {
     dc.start('日常', { kind, mishap }); walk(t => dc.daily(t, dc.base(), { kind, mishap, seed: 0 }), dc.cur.dur, kind + (mishap ? '·出事' : ''));
   }

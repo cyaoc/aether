@@ -1,6 +1,6 @@
-// node tools/play.mjs <event | 日常:<kind>[:出事]> <ms,ms,...> <out.png> [--line] [--room 明亮画面|深色房间|透明] [--port 8820]
-// Starts the event (or the daily action, with its mishap) on the board and plays it in real time, grabbing the page at
-// those ms into it, side by side; --line draws a red line at her home x. Time-jumped stills (freeze) are not enough to
+// node tools/play.mjs <event[:ending] | 日常:<kind>[:出事]> <ms,ms,...> <out.png> [--line] [--room 明亮画面|深色房间|透明] [--port 8820]
+// Starts the event (a blind box with its ending: 赚, 平, 亏 or 大奖; or the daily action, with its mishap) on the board
+// and plays it in real time, grabbing the page at those ms into it, side by side; --line draws a red line at her home x. Time-jumped stills (freeze) are not enough to
 // judge motion: the board's pose changes run on real time, and stills taken by jumping the clock showed poses that never
 // play together. server.mjs must be running.
 import { execFileSync } from 'node:child_process';
@@ -12,7 +12,7 @@ const line = args.includes('--line') && args.splice(args.indexOf('--line'), 1);
 const room = opt('--room', '明亮画面'), port = opt('--port', 8820);
 const [what, times, out] = args;
 const [name, kind, mishap] = what.split(':');
-const opts = name === '日常' ? { kind, mishap: mishap === '出事' } : {};
+const opts = name === '日常' ? { kind, mishap: mishap === '出事' } : kind ? { result: kind } : {};
 const props = encodeURIComponent(JSON.stringify({ scene: '手动', controls: '隐藏', caption: '隐藏', room }));
 const js = `(async () => {
   const ts = [${times}], cv = document.querySelector('canvas'), out = document.createElement('canvas');
