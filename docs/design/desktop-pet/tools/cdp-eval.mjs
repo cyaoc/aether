@@ -1,11 +1,11 @@
-// node cdp-eval.mjs "<url>" <waitMs> "<js>": opens the page in headless Chrome, runs js (may return a promise) and prints
-// its JSON result; console errors and exceptions go to stderr.
+// node cdp-eval.mjs "<url>" <waitMs> "<js>" ["<init js>"]: opens the page in headless Chrome, runs js (may return a promise)
+// and prints its JSON result; console errors and exceptions go to stderr. Init js runs before any script of the page.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const [url, wait, js] = process.argv.slice(2);
+const [url, wait, js, init] = process.argv.slice(2);
 const port = 9400 + Math.floor(Math.random() * 500);
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-'));
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
@@ -31,6 +31,7 @@ try {
   const send = (method, params = {}) => new Promise(r => { const i = ++id; pending.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
   await send('Runtime.enable');
   await send('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  if (init) await send('Page.addScriptToEvaluateOnNewDocument', { source: init });
   await send('Page.navigate', { url });
   await sleep(+wait);
   const r = await send('Runtime.evaluate', { expression: js, awaitPromise: true, returnByValue: true });
