@@ -125,8 +125,8 @@ public sealed partial class Settings
         }
     }
 
-    /// <summary>Settings whose keys come from the file, each <c>name.key</c> on a line of its own, as the animation viewers by UID.
-    /// Aliases of a key, such as 007 and 7, name the same item, and null deletes one.</summary>
+    /// <summary>Settings whose keys come from the file, each <c>name.key</c> on a line of its own: the animation viewers by UID, the
+    /// 桌宠's changed lines by character and kind. Aliases of a key, such as 007 and 7, name the same item, and null deletes one.</summary>
     internal abstract class KeyedDefinition<TKey, TValue>(string name, string keyRule, string duplicateRule) : Definition(name)
         where TKey : notnull
     {
