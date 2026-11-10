@@ -1,9 +1,9 @@
 # Characters
 
-One folder for each character (GLOSSARY 角色), named by her number; Core's `Character.Current` says which one is drawn, and pages ask
-for her files as `/characters/current/`. The code knows her pictures only by the names in her `character.json` and draws with its
-numbers, never by who she is; `CharacterTests` checks every character, and the background she picks, has every picture and number
-the manifests call for.
+One folder for each character (GLOSSARY 角色), named by her number; Core's `Character.CurrentNumber` says which one is drawn, and
+pages ask for her files as `/characters/current/`. The code knows her pictures only by the names in her `character.json` and draws
+with its numbers, never by who she is; `CharacterTests` checks every character, and the background she picks, has every picture
+and number the manifests call for, and lines of every kind.
 
 ## character.json
 
@@ -12,6 +12,7 @@ the manifests call for.
 | `gui` | Her layers for the GUI's splash and login page, as big as the background under them, and that background: a folder of `../backgrounds/` |
 | `sprite` | Her sprite, `idle`, `blink`, `lookRight` and `happy`, on one canvas at one scale |
 | `giftBoard` | The gift board's two poses, idle and cheering, on one canvas at one scale, and what was measured on them in the board's design pixels: `height` drawn, the ribbon's cut on each (`idleCut`, `cheerCut`, a fraction of the picture's height), the sprite's place by her shoulder (`shoulder`) and the cheer's rays (`cheerCenter`), y from the ribbon's top, and `spriteSize`, how high the sprite's picture is drawn beside her |
+| `lines` | Her lines for the 桌宠: for every kind of line in the 演出表 (`../desktop-pet/shows.json`), by its id, a list the page picks one from at random, holding only the placeholders that kind may; the streamer's changed kinds replace hers (`desktop_pet` settings) |
 
 ## Backgrounds
 
@@ -27,4 +28,4 @@ The new mascot, from the mascot design package `docs/design/mascot/textures/` (#
 `sprite-idle`, `sprite-blink`, `sprite-look-right`, `sprite-happy`, and `splash-character`, `login-character` as `splash`,
 `login`. The gift board numbers are #343's: the cuts 0.855 and 0.845, the sprite at (358, ribbon's top − 70) with its picture
 84 px high, the creature in it about 76 px; her poses lie over the old ones, so the height and the cheer's centre are the old
-board's.
+board's. Her lines are `LINES` of the desktop pet design package's board, `docs/design/desktop-pet/boards/DP-DesktopPet.dc.html`.

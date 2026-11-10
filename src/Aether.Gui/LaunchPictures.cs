@@ -9,13 +9,12 @@ namespace Aether.Gui;
 /// until they are drawn.</summary>
 internal static class LaunchPictures
 {
-    private static readonly Character Current = Character.Load(Character.CurrentFolder);
-    private static readonly string BackgroundFolder = Background.Folder(Current.Gui.Background);
+    private static readonly string BackgroundFolder = Background.Folder(Character.Current.Gui.Background);
     private static readonly Background Behind = Background.Load(BackgroundFolder);
 
     public static IBrush Color { get; } = Brush.Parse(Behind.Color);
     public static Bitmap SplashBackground { get; } = new(Path.Combine(BackgroundFolder, Behind.Splash));
-    public static Bitmap SplashCharacter { get; } = new(Path.Combine(Character.CurrentFolder, Current.Gui.Splash));
+    public static Bitmap SplashCharacter { get; } = new(Path.Combine(Character.CurrentFolder, Character.Current.Gui.Splash));
     public static Bitmap LoginBackground { get; } = new(Path.Combine(BackgroundFolder, Behind.Login));
-    public static Bitmap LoginCharacter { get; } = new(Path.Combine(Character.CurrentFolder, Current.Gui.Login));
+    public static Bitmap LoginCharacter { get; } = new(Path.Combine(Character.CurrentFolder, Character.Current.Gui.Login));
 }

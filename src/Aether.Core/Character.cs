@@ -3,19 +3,23 @@ using System.Text.Json;
 namespace Aether.Core;
 
 /// <summary>A character (角色): a folder under Pages/characters with her pictures and a manifest, character.json, that names them
-/// and holds the numbers measured from them, in a section for each use. Code knows her pictures by the manifest's names and draws
-/// with its numbers, never by who she is (#343).</summary>
-public sealed record Character(CharacterGui Gui, CharacterSprite Sprite, CharacterGiftBoard GiftBoard)
+/// and holds the numbers measured from them, in a section for each use, and her lines for the 桌宠, by kind of the 演出表. Code
+/// knows her pictures by the manifest's names and draws with its numbers, never by who she is (#343).</summary>
+public sealed record Character(CharacterGui Gui, CharacterSprite Sprite, CharacterGiftBoard GiftBoard,
+    IReadOnlyDictionary<string, IReadOnlyList<string>> Lines)
 {
-    /// <summary>The current character, said in this one place: #343 fixes her to 1 and a later setting picks her. Pages ask for her
-    /// files as /characters/current/.</summary>
-    internal const string Current = "1";
+    /// <summary>The current character's number, said in this one place: #343 fixes her to 1 and a later setting picks her. Pages
+    /// ask for her files as /characters/current/.</summary>
+    internal const string CurrentNumber = "1";
 
     // A manifest is outside input: one that leaves out a picture or a number does not load.
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { RespectNullableAnnotations = true, RespectRequiredConstructorParameters = true };
 
     /// <summary>The current character's folder, in the program's Pages.</summary>
-    public static string CurrentFolder { get; } = Path.Combine(WebServer.PagesDirectory, "characters", Current);
+    public static string CurrentFolder { get; } = Path.Combine(WebServer.PagesDirectory, "characters", CurrentNumber);
+
+    /// <summary>The current character's manifest.</summary>
+    public static Character Current { get; } = Load(CurrentFolder);
 
     /// <summary>The manifest in <paramref name="folder"/>.</summary>
     public static Character Load(string folder) => Read<Character>(folder, "character.json");

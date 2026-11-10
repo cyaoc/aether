@@ -224,7 +224,7 @@ internal sealed class WebServer
 
     // Pages ask for the current character's files by /characters/current/, whoever she is.
     private static string CharacterFile(string path) =>
-        path.StartsWith(CurrentCharacter, StringComparison.Ordinal) ? $"/characters/{Character.Current}/{path[CurrentCharacter.Length..]}" : path;
+        path.StartsWith(CurrentCharacter, StringComparison.Ordinal) ? $"/characters/{Character.CurrentNumber}/{path[CurrentCharacter.Length..]}" : path;
 
     private static async Task<bool> ServeResourceAsync(HttpListenerRequest request, HttpListenerResponse response, string path, CancellationToken token)
     {

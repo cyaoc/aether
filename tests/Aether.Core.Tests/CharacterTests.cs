@@ -23,6 +23,15 @@ public sealed class CharacterTests
         AssertPictures(background, "background.json");
     }
 
+    [Theory]
+    [MemberData(nameof(Folders))]
+    public void A_character_has_lines_of_every_kind_in_the_show_table_with_only_their_placeholders(string name)
+    {
+        var lines = Character.Load(Path.Combine(Characters, name)).Lines;
+        Assert.Equal(ShowTable.Current.Lines.Select(kind => kind.Id).Order(), lines.Keys.Order());
+        Assert.All(ShowTable.Current.Lines, kind => Assert.Null(kind.Check(lines[kind.Id])));
+    }
+
     private static void AssertPictures(string folder, string manifest)
     {
         foreach (var picture in Strings(JsonNode.Parse(File.ReadAllText(Path.Combine(folder, manifest)))).Where(text => text.EndsWith(".webp", StringComparison.Ordinal)))
