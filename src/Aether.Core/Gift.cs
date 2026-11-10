@@ -24,7 +24,7 @@ internal sealed record Gift(long Uid, string Nickname, long Spend)
     public int ViewerGuardLevel { get; init; }
     public bool Shown { get; init; } = true;
 
-    /// <summary>Whether it is a 浪漫城堡, sent directly or opened from a 盲盒. B站 lists four, all worth 22330 电池: 32132, the
+    /// <summary>Whether it is a 浪漫城堡, which B站 gives only out of a 盲盒. B站 lists four, all worth 22330 电池: 32132, the
     /// one a 心动盲盒 opens, and 34632–34634, its 2025-06 restyles (giftConfig?platform=pc and legacy-gift.shuvi.moe's
     /// data.json, read 2026-11-10).</summary>
     public bool IsCastle => GiftId is 32132 or 34632 or 34633 or 34634;

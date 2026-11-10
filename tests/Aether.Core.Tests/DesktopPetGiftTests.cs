@@ -64,7 +64,7 @@ public sealed class DesktopPetGiftTests
     [Theory]
     [InlineData("blind_box.announce")]
     [InlineData("blind_box.enabled")]
-    public async Task Without_an_announcement_the_boxes_are_told_as_the_gift_round_ends_and_a_castle_counts_sent_or_opened(string off)
+    public async Task Without_an_announcement_the_boxes_are_told_as_the_gift_round_ends_and_only_a_castle_opened_is_one(string off)
     {
         await using var h = new WatchHarness();
         var (updates, pet) = await DesktopPetEvents.WatchAsync(h, (off, "false"));
@@ -81,8 +81,9 @@ public sealed class DesktopPetGiftTests
         var (name, boxes) = await pet.NextAsync();
         Assert.Equal(DesktopPet.BlindBox, name);
         AssertBlindBox(new(10001, "测试观众", new(16500, 2234500), 2, "浪漫城堡", 2233000, true), "Gain", boxes);
+        // B站 gives a castle only out of a 盲盒: one sent as a gift would be that gift.
         await h.PushAndSyncAsync(updates, Ordinary(uid: 20002, giftId: 32132, giftName: "浪漫城堡", price: 2233000, tid: "castle-2"));
-        Assert.Equal(new GiftRoundProgress(20002, "测试观众", 2233000, 1, "浪漫城堡", 1, 0, 0, true, false),
+        Assert.Equal(new GiftRoundProgress(20002, "测试观众", 2233000, 1, "浪漫城堡", 1, 0, 0, false, false),
             await pet.NextAsync<GiftRoundProgress>(DesktopPet.Gift));
     }
 

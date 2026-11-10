@@ -131,8 +131,8 @@ internal sealed record DesktopPetSettings(IReadOnlyList<string> Off, long MidGif
 }
 
 /// <summary>A viewer's 一轮送礼 as it stands after a gift message, and once more as it ends: its gifts' 投入, how many, the one
-/// of them priced highest and how many of it; its 盲盒' 投入 and boxes; and whether a 浪漫城堡 came, sent or opened. Its 大航海
-/// play on their own and count in none of it. Amounts are 金瓜子.</summary>
+/// of them priced highest and how many of it; its 盲盒' 投入 and boxes; and whether one of them opened a 浪漫城堡, the only way
+/// B站 gives one: one sent as a gift would be a gift. Its 大航海 play on their own and count in none of it. Amounts are 金瓜子.</summary>
 internal sealed record GiftRoundProgress(long Uid, string Nickname, long Spend, long Count, string TopGift, long TopCount,
     long BoxSpend, long Boxes, bool Castle, bool Ended)
 {
@@ -143,7 +143,7 @@ internal sealed record GiftRoundProgress(long Uid, string Nickname, long Spend, 
         var top = gifts.OrderByDescending(gift => gift.Price).FirstOrDefault();
         return new(uid, nickname, gifts.Sum(gift => gift.Spend), gifts.Sum(gift => gift.Num), top?.GiftName ?? "",
             gifts.Where(gift => gift.GiftId == top?.GiftId).Sum(gift => gift.Num), boxes.Sum(box => box.Spend), boxes.Sum(box => box.Num),
-            sent.Any(gift => gift.IsCastle), ended);
+            boxes.Any(box => box.IsCastle), ended);
     }
 }
 

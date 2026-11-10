@@ -281,12 +281,12 @@ export class Engine extends EventTarget {
     }
     r.arrivals.push(now); r.boxes = p.boxes;
     this.gifted(now);
-    // a castle in the round, sent or opened, plays once instead of its gifts and blind boxes; while some of them are still to
-    // be reported it waits for their result as they do, and with none it plays at once
+    // a castle opened from one of the round's blind boxes, the only way B站 gives one, plays once instead of its gifts and
+    // blind boxes, with the result that reports the box it came from
     if (p.castle && p.boxes > r.told && r.played < CASTLE) Object.assign(r, { castle: true, castleAt: p.boxes, played: CASTLE });
     if (!p.count || r.castle) return;
     const { midGift, bigGift } = this.settings;
-    const kind = p.castle ? 'castle' : p.spend >= bigGift ? 'bigGift' : p.spend >= midGift ? 'midGift' : p.count >= 5 ? 'giftStreak' : 'gift';
+    const kind = p.spend >= bigGift ? 'bigGift' : p.spend >= midGift ? 'midGift' : p.count >= 5 ? 'giftStreak' : 'gift';
     if (GIFT_SHOWS.indexOf(kind) <= r.played) return;
     this.fire(kind, { nickname: p.nickname, gift: p.topGift, count: kind === 'giftStreak' ? p.count : p.topCount, wake: r.played < 0 && r.wake, round: r });
     r.played = GIFT_SHOWS.indexOf(kind); r.wake = false;
@@ -298,7 +298,7 @@ export class Engine extends EventTarget {
   blindBox(b) {
     const told = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
     // A round's castle plays once: waiting on its 盲盒播报, with the result that tells the boxes up to it (a result before
-    // it plays nothing, the castle standing in for it); opened in a round that already played one, not again.
+    // it plays nothing, the castle standing in for it); another opened in a round that already played one, not again.
     const reached = told.filter(t => t.castle && t.told >= t.castleAt), played = told.some(t => t.played === CASTLE && !t.castle);
     if (reached.length || b.castle && !played) {
       for (const t of reached) t.castle = false;
