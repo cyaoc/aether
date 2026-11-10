@@ -1,6 +1,8 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using static Aether.Gui.Tests.Support.DesktopPetForm;
 
 namespace Aether.Gui.Tests;
@@ -103,6 +105,25 @@ public sealed class DesktopPetSettingsTests
         Assert.Empty(Settings.Load(harness.DataDirectory).DesktopPetChangedLines);
         Assert.DoesNotContain("lines.1.", File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
         Assert.DoesNotContain("已改", Texts(page));
+    });
+
+    [Fact]
+    public Task Insert_offers_only_the_kinds_placeholders_and_puts_one_in_the_line_being_edited() => WithPage(page =>
+    {
+        Tab(page, 2);
+        Pick(page, "LineKindList", "冷场后来了人");
+        Assert.Contains("这一类没有可插入的内容，台词照写就行", Texts(page));
+        Pick(page, "LineKindList", "大礼物");
+        var chips = page.GetVisualDescendants().OfType<Button>().Where(button => button.IsEffectivelyVisible && button.Classes.Contains("chip")).ToArray();
+        Assert.Equal(["昵称", "礼物", "个数"], chips.Select(chip => chip.Content));
+        Line(page, 2).Focus();
+        Line(page, 2).CaretIndex = 0;
+        GuiHarness.Flush();
+        Assert.Contains("到第 2 句", Texts(page));
+        chips[1].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        GuiHarness.Flush();
+        Assert.Equal("{礼物}" + Character.Current.Lines["bigGift"][1], Line(page, 2).Text);
+        return Task.CompletedTask;
     });
 
     [Fact]
