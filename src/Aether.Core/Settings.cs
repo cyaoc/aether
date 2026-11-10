@@ -208,6 +208,15 @@ public sealed partial class Settings
         return character.Lines.ToDictionary(kind => kind.Key, kind => changed.TryGetValue(kind.Key, out var mine) ? mine.Value : kind.Value);
     }
     public bool CanEditDesktopPetLines => PetLines.CanEdit(this);
+    /// <summary>Whether the 桌宠页 would be told the same settings and lines as under <paramref name="other"/>.</summary>
+    public bool SameDesktopPet(Settings other)
+    {
+        var (mine, theirs) = (DesktopPetSettings.Of(this), DesktopPetSettings.Of(other));
+        var lines = other.DesktopPetLines(Character.Current);
+        // A record compares its list Off by reference, so Off is compared on its own.
+        return DesktopPetEnabled.Value == other.DesktopPetEnabled.Value && mine.Off.SequenceEqual(theirs.Off) && mine with { Off = theirs.Off } == theirs
+            && DesktopPetLines(Character.Current).All(kind => kind.Value.SequenceEqual(lines[kind.Key]));
+    }
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private static readonly ViewerGroupDefinition AnimationViewers = Register(new ViewerGroupDefinition("entry_animation_viewers"));
     private static readonly Definition<bool> AutoUpdate = Register(Definition.Boolean("auto_update.enabled", true));

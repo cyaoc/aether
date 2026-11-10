@@ -132,6 +132,24 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
         Assert.Equal(before, File.ReadAllText(SettingsPath));
     }
 
+    [Theory]
+    [InlineData("  shows_off: [entry]\n  gloomy_minutes: 30\n")]
+    [InlineData("  shows_off: [entry, hum]\n")]
+    [InlineData("  shows_off: []\n")]
+    [InlineData("  shows_off: [entry]\n  lines.1.bigGift: [\"谢谢{昵称}\"]\n")]
+    public void The_desktop_pet_page_is_told_the_same_only_while_her_settings_and_lines_are(string changed)
+    {
+        Write("desktop_pet:\n  shows_off: [entry]\n");
+        var first = Settings.Load(h.DataDirectory);
+        Assert.Null(first.Error);
+        Assert.True(first.SameDesktopPet(Settings.Load(h.DataDirectory)));
+
+        Write("desktop_pet:\n" + changed);
+        var second = Settings.Load(h.DataDirectory);
+        Assert.Null(second.Error);
+        Assert.False(first.SameDesktopPet(second));
+    }
+
     [Fact]
     public void Saving_wrong_lines_is_refused_with_why_without_writing()
     {

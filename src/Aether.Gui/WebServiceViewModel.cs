@@ -37,24 +37,10 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             && previous.GiftAnimationThresholds.Select(value => value.Value).SequenceEqual(snapshot.GiftAnimationThresholds.Select(value => value.Value))
             && previous.EntryAnimationViewers.Count == snapshot.EntryAnimationViewers.Count
             && previous.EntryAnimationViewers.All(pair => snapshot.EntryAnimationViewers.TryGetValue(pair.Key, out var choice) && choice.Value == pair.Value.Value)
-            && SameDesktopPet(previous, snapshot))
+            && previous.SameDesktopPet(snapshot))
             return animationReload.Current;
         return ApplyWebSettingsAsync(snapshot);
     }
-
-    /// <summary>Whether the 桌宠页 would be told the same settings and lines.</summary>
-    private static bool SameDesktopPet(Settings previous, Settings snapshot)
-    {
-        var lines = snapshot.DesktopPetLines(Character.Current);
-        return previous.DesktopPetEnabled.Value == snapshot.DesktopPetEnabled.Value
-            && previous.DesktopPetShowsOff.Value.SequenceEqual(snapshot.DesktopPetShowsOff.Value)
-            && DesktopPetNumbers(previous).SequenceEqual(DesktopPetNumbers(snapshot))
-            && previous.DesktopPetLines(Character.Current).All(kind => kind.Value.SequenceEqual(lines[kind.Key]));
-    }
-
-    private static IEnumerable<int> DesktopPetNumbers(Settings settings) => new[] { settings.DesktopPetMidGift, settings.DesktopPetBigGift,
-        settings.DesktopPetBoredMinutes, settings.DesktopPetGloomyMinutes, settings.DesktopPetSleepyMinutes, settings.DesktopPetDailyMinSeconds,
-        settings.DesktopPetDailyMaxSeconds, settings.DesktopPetMishapPercent }.Select(setting => setting.Value);
 
     public async Task ApplyWebSettingsAsync(Settings snapshot)
     {
