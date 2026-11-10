@@ -135,5 +135,7 @@
  "def1ececd3228c9dc4b87769d633d2df": "textures/frames/govOut.webp",
  "91e056de5cd4063deb27f4109039d48a": "textures/frames/admOut.webp",
  "f60b51987ea38e68ba0f346d92d1a4e3": "textures/frames/skiIn.webp",
- "4c984499f6067970f582a73d8c2399d1": "textures/frames/skiOut.webp"
+ "4c984499f6067970f582a73d8c2399d1": "textures/frames/skiOut.webp",
+ "48cc515e9c60d77ebe1eda886747bdff": "../../../src/Aether.Core/Pages/gift-board/fonts/NotoSansSC-500.woff2",
+ "41d8525849b7a8d447ae4e7153b45c52": "../../../src/Aether.Core/Pages/gift-board/fonts/NotoSansSC-800.woff2"
 }

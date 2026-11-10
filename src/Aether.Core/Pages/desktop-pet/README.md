@@ -43,6 +43,9 @@ character's `desktopPet` (`../characters/README.md`); the shows' timings, effect
 every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps, entries, gifts, blind boxes,
 castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`) and each step of a lottery.
 
+Her speech bubbles and the effects' marks are in the 礼物榜页's Noto Sans SC (`../gift-board/fonts/noto-sans-sc.css`, `SANS`
+of `../gift-board/paint.mjs`), loaded before she says anything; the stream's PC need not have the board's PingFang SC.
+
 The page is 480 × 640 design px, scaled with the browser source and standing on its bottom edge, and draws her pictures at
 their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作, the castle, 大航海 and the
 lottery, each with its strips when it first plays (the lottery's too when she first waits through one): all of them decoded

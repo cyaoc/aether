@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 const pages = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src/Aether.Core/Pages');
 const port = Number(process.argv[2] ?? 8830);
-const types = { '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript', '.js': 'text/javascript', '.webp': 'image/webp', '.json': 'application/json' };
+const types = { '.html': 'text/html; charset=utf-8', '.mjs': 'text/javascript', '.js': 'text/javascript', '.webp': 'image/webp', '.json': 'application/json', '.css': 'text/css', '.woff2': 'font/woff2' };
 const { lines } = JSON.parse(fs.readFileSync(path.join(pages, 'characters/1/character.json'), 'utf8'));
 const settings = { off: [], midGift: 100000, bigGift: 1000000, boredMinutes: 15, gloomyMinutes: 40, sleepyMinutes: 60, dailyMinSeconds: 20, dailyMaxSeconds: 40, mishapPercent: 25 };
 const state = JSON.stringify({ enabled: true, roomConnected: true, lottery: null, giftBoard: null, settings, lines });

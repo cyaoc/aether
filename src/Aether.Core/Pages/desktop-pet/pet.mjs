@@ -3,6 +3,7 @@
 import { loadImage } from '../video/animations/toolkit.mjs';
 import { Engine, FOOT, GLOW, H, PAGE, SPRITE_H, clamp, ease, k01, xfade } from './engine.mjs';
 import { BACK, drawFx } from './effects.mjs';
+import { SANS } from '../gift-board/paint.mjs';
 
 const SPRITE_SPEED = 0.8;
 // The sprite keeps these drawings while it flies, since they carry something.
@@ -375,7 +376,7 @@ export class Pet extends Engine {
   drawBubble(g, b, her) {
     const pop = 0.6 + 0.4 * ease(k01(b.t, 0, 160)), alpha = k01(b.t, 0, 120);
     g.save();
-    g.font = '600 18px "PingFang SC", "Hiragino Sans GB", sans-serif';
+    g.font = `500 18px ${SANS}`;
     const maxW = 230, lines = [];
     let cur = '';
     // a line never starts with closing punctuation: it stays on the line before, a little over the width

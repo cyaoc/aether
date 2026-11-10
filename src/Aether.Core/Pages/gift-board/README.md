@@ -12,7 +12,8 @@ on them are the current character's, from `/characters/current/` (`../characters
 
 ## Fonts
 
-Noto Sans SC (SIL Open Font License, `fonts/NotoSansSC-OFL.txt`), weights 500 and 800. Original: the variable font `NotoSansSC[wght].ttf`
+Noto Sans SC (SIL Open Font License, `fonts/NotoSansSC-OFL.txt`), weights 500 and 800, declared in `fonts/noto-sans-sc.css` for
+this page and the 桌宠页, which draws her lines in it too. Original: the variable font `NotoSansSC[wght].ttf`
 (version 2.004-H2) from https://github.com/google/fonts/blob/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf, downloaded on 2026-11-04,
 Git blob SHA `fb0637bafbcd804fe32152370a1225990745b4bc` (17,772,300 bytes).
 Each weight is `fontTools.varLib.instancer.instantiateVariableFont(font, {"wght": 500 or 800}, updateFontNames=True)`, then

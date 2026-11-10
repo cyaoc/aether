@@ -1,5 +1,6 @@
 // The shows' effects (design package README 7.1), drawn by code on the 桌宠页's canvas, as the board draws them.
 import { FOOT, H, PAGE, ease, k01, seeded } from './engine.mjs';
+import { SANS } from '../gift-board/paint.mjs';
 
 // Effects drawn behind her (glows, rays, focus lines, rings on the ground, speed lines); the rest go in front. (seamGlow: the
 // light of a blind box glows out around the box from behind her, so it does not whiten the box itself.)
@@ -34,14 +35,14 @@ export function drawFx(g, f, st, her, now, pet) {
     case 'rainbowSparkles': if (t < 8500) for (let i = 0; i < 10; i++) { const u = (t + i * 300) % 1500; star(40 + r() * 400, 30 + r() * 320, 7 + r() * 6, ['#FFE27A', '#FFB3D1', '#B7E4FF', '#fff'][i % 4], Math.sin(Math.PI * u / 1500)); } break;
     case 'gateGlow': { if (t > 1800) break; const p = f[2]; g.save(); g.globalAlpha = Math.sin(Math.PI * Math.min(t, 1500) / 1500) * 0.7; const gr = g.createRadialGradient(p.x, p.y - 20, 0, p.x, p.y - 20, 70); gr.addColorStop(0, glow(1)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y - 20, 70, 0, Math.PI * 2); g.fill(); g.restore(); break; }
     case 'trail': for (const q of pet.trail) { const age = (performance.now() - q.rt) / 420; star(q.x + 18 * Math.sin(q.rt), q.y + 14 * Math.cos(q.rt * 1.3), 9 * (1 - age) + 3, ['#FFE27A', '#FFB3D1', '#fff'][Math.floor(q.rt) % 3], 1 - age); } break;
-    case 'notes': for (let i = 0; i < 4; i++) { const u = (t + i * 500) % 2000; g.save(); g.globalAlpha = Math.sin(Math.PI * u / 2000); g.fillStyle = '#7C6CF0'; g.font = '700 22px sans-serif'; g.fillText(i % 2 ? '♪' : '♫', head.x + 50 + i * 8 + 10 * Math.sin(u / 300), head.y - u * 0.05); g.restore(); } break;
+    case 'notes': for (let i = 0; i < 4; i++) { const u = (t + i * 500) % 2000; g.save(); g.globalAlpha = Math.sin(Math.PI * u / 2000); g.fillStyle = '#7C6CF0'; g.font = `700 22px ${SANS}`; g.fillText(i % 2 ? '♪' : '♫', head.x + 50 + i * 8 + 10 * Math.sin(u / 300), head.y - u * 0.05); g.restore(); } break;
 
     // ---- manga symbols
     case 'bang': {
       const a = life(t, 140, 700, 200); if (!a) break;
       const s = t < 140 ? 0.4 + 0.75 * ease(t / 140) : 1 + 0.15 * Math.max(0, 1 - (t - 140) / 160);
       g.save(); g.globalAlpha = a; g.translate(headL.x - 14, headL.y - 4); g.rotate(-0.2); g.scale(s, s);
-      g.font = '900 34px sans-serif'; g.textAlign = 'center'; g.lineWidth = 6; g.strokeStyle = '#fff'; g.strokeText('!', 0, 0); g.fillStyle = '#FF5A6E'; g.fillText('!', 0, 0);
+      g.font = `900 34px ${SANS}`; g.textAlign = 'center'; g.lineWidth = 6; g.strokeStyle = '#fff'; g.strokeText('!', 0, 0); g.fillStyle = '#FF5A6E'; g.fillText('!', 0, 0);
       g.strokeStyle = '#FF5A6E'; g.lineWidth = 3;
       for (const k of [-1, 0, 1]) { const ang = -Math.PI / 2 + k * 0.6 - 0.2; g.beginPath(); g.moveTo(Math.cos(ang) * 26, Math.sin(ang) * 26 - 10); g.lineTo(Math.cos(ang) * 36, Math.sin(ang) * 36 - 10); g.stroke(); }
       g.restore(); break;
@@ -124,7 +125,7 @@ export function drawFx(g, f, st, her, now, pet) {
     case 'brokenNote': {
       if (t > 900) break;
       const sep = 6 * k01(t, 200, 600), x = her.x + her.w * 0.82, y = her.y + her.h * 0.14 - 10 * ease(k01(t, 0, 200));
-      g.save(); g.globalAlpha = 1 - k01(t, 600, 900); g.font = '700 30px sans-serif'; g.fillStyle = '#7C6CF0';
+      g.save(); g.globalAlpha = 1 - k01(t, 600, 900); g.font = `700 30px ${SANS}`; g.fillStyle = '#7C6CF0';
       for (const side of [-1, 1]) { g.save(); g.beginPath(); g.rect(side < 0 ? x - 20 : x, y - 40, 20, 50); g.clip(); g.fillText('♪', x - 9 + side * sep, y - side * sep * 0.5); g.restore(); }
       g.strokeStyle = '#E8454F'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(x - 4, y - 28); g.lineTo(x + 3, y - 18); g.lineTo(x - 3, y - 10); g.lineTo(x + 4, y); g.stroke();
       g.restore(); break;
@@ -409,6 +410,6 @@ export function drawFx(g, f, st, her, now, pet) {
       }
       g.restore(); break;
     }
-    case 'z': for (let i = 0; i < 3; i++) { const u = (now + i * 900) % 2700; g.save(); g.globalAlpha = Math.sin(Math.PI * u / 2700); g.fillStyle = '#C9D6FF'; g.font = `700 ${16 + i * 5}px sans-serif`; g.fillText('Z', her.x + her.w * 0.75 + u * 0.02, her.y + 10 - u * 0.035); g.restore(); } break;
+    case 'z': for (let i = 0; i < 3; i++) { const u = (now + i * 900) % 2700; g.save(); g.globalAlpha = Math.sin(Math.PI * u / 2700); g.fillStyle = '#C9D6FF'; g.font = `700 ${16 + i * 5}px ${SANS}`; g.fillText('Z', her.x + her.w * 0.75 + u * 0.02, her.y + 10 - u * 0.035); g.restore(); } break;
   }
 }
