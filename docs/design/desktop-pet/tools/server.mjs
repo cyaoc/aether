@@ -16,13 +16,15 @@ const port = Number(process.argv[2] ?? 8820);
 const blobs = JSON.parse(fs.readFileSync(path.join(here, 'blobs.json'), 'utf8'));
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.webp': 'image/webp',
   '.png': 'image/png', '.json': 'application/json', '.woff2': 'font/woff2' };
-const { lines } = JSON.parse(fs.readFileSync(path.join(pages, 'characters/1/character.json'), 'utf8'));
+// Character.CurrentNumber's folder, said once here.
+const current = 'characters/1/';
+const { lines } = JSON.parse(fs.readFileSync(path.join(pages, current, 'character.json'), 'utf8'));
 const state = JSON.stringify({ enabled: true, roomConnected: true, lottery: null, giftBoard: null, settings: SETTINGS, lines });
 
 // The 桌宠页's files, as the web service maps them; anything that resolves outside Pages is missing.
 function pageFile(pathname) {
-  const file = path.join(pages, pathname === '/desktop-pet' ? 'desktop-pet/index.html' : decodeURIComponent(pathname).replace('/characters/current/', '/characters/1/'));
-  return file.startsWith(pages) && fs.existsSync(file) && !fs.statSync(file).isDirectory() ? file : null;
+  const file = path.join(pages, pathname === '/desktop-pet' ? 'desktop-pet/index.html' : decodeURIComponent(pathname).replace('/characters/current/', '/' + current));
+  return file.startsWith(pages + path.sep) && fs.existsSync(file) && !fs.statSync(file).isDirectory() ? file : null;
 }
 
 http.createServer((req, res) => {
