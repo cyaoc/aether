@@ -48,11 +48,11 @@ cases.push({ id: 'round-boxes', ms: at(7000, [3000, 3800, 3900, 4800]),
   page: `pet.gift({ ...${JSON.stringify(flower)}, boxSpend: 15000, boxes: 1 }); later(3000, () => pet.gift({ ...${JSON.stringify(flower)}, boxSpend: 15000, boxes: 1, ended: true }));
     later(3800, () => pet.blindBox({ uid: 1, nickname: '星河', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 }))` });
 // A big gift that takes the 礼物榜's first place, crowned after its show.
-const ranks = rows => JSON.stringify({ rows: rows.map(([id, nickname, num]) => ({ id, nickname, num })), options: {}, running: true, fromGift: true });
+const ranks = rows => JSON.stringify({ rows: rows.map(([uid, nickname, num]) => ({ id: `${uid}/gift:1`, uid, nickname, num })), options: {}, running: true, fromGift: true });
 cases.push({ id: 'bigGift-newFirst', ms: at(8600, [6200, 7000, 7700]),
   board: `dc.give([{ gift: '小电视飞船', price: 12450, n: 1, top: true }])`,
-  page: `pet.ranked(${ranks([['a', '甲', 5]])}); pet.gift({ ...${JSON.stringify(flower)}, topGift: '小电视飞船', spend: 1245000, count: 1, topCount: 1 });
-    pet.ranked(${ranks([['b', '星河', 1], ['a', '甲', 5]])})` });
+  page: `pet.ranked(${ranks([[2, '甲', 5]])}); pet.gift({ ...${JSON.stringify(flower)}, topGift: '小电视飞船', spend: 1245000, count: 1, topCount: 1 });
+    pet.ranked(${ranks([[1, '星河', 1], [2, '甲', 5]])})` });
 const chosen = args.length ? cases.filter(c => args.includes(c.id)) : cases;
 
 // Runs every case on one side and returns, for each, the moments' hashes (and the pictures of `keep`, case:ms).
