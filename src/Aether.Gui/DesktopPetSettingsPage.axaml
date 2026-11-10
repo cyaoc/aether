@@ -1,0 +1,283 @@
+<local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  xmlns:local="using:Aether.Gui" xmlns:core="using:Aether.Core" x:Class="Aether.Gui.DesktopPetSettingsPage" x:DataType="local:MainWindowViewModel">
+  <!-- Canvas DP1: the 演出 and 台词 tabs list their groups in a box on the left, beside what the picked one holds. -->
+  <local:SettingsPage.Styles>
+    <Style Selector="Border.petList">
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="6" />
+    </Style>
+    <Style Selector="ListBox.petList ListBoxItem">
+      <Setter Property="Height" Value="34" />
+      <Setter Property="Padding" Value="8,0" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
+    </Style>
+    <Style Selector="ListBox.lineKinds ListBoxItem">
+      <Setter Property="Height" Value="30" />
+      <Setter Property="Margin" Value="0" />
+    </Style>
+    <Style Selector="ListBox.lineKinds ListBoxItem.heading">
+      <Setter Property="Height" Value="28" />
+      <Setter Property="Padding" Value="8,0,8,4" />
+      <Setter Property="VerticalContentAlignment" Value="Bottom" />
+    </Style>
+    <Style Selector="Border.showRow">
+      <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
+      <Setter Property="BorderThickness" Value="0,0,0,1" />
+      <Setter Property="Padding" Value="0,9" />
+    </Style>
+  </local:SettingsPage.Styles>
+  <local:SettingsPage.HeaderContent>
+    <ToggleSwitch x:Name="EnabledInput" Classes="plain" AutomationProperties.Name="桌宠" />
+  </local:SettingsPage.HeaderContent>
+  <local:SettingsPage.BodyContent>
+    <StackPanel Spacing="16">
+      <TextBlock x:Name="EnabledReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+      <local:PageStatusBar x:Name="PageStatus" DataContext="{Binding WebService.DesktopPet}" />
+      <Border x:Name="OffNotice" Classes="card notice" Background="{DynamicResource Border.Subtle}">
+        <Grid ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+          <Viewbox Classes="icon" Width="16" Height="16"><Path Data="{StaticResource Icon.Skip}" Stroke="{DynamicResource Text.Muted}" StrokeThickness="2" /></Viewbox>
+          <TextBlock Grid.Column="1" Classes="secondary singleLine" FontWeight="SemiBold" Foreground="{DynamicResource Text.Secondary}" Text="桌宠关着：桌宠页现在是透明的，她不出现" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="2" Classes="hint" Text="下面的选项照样能改，打开后按它们演" HorizontalAlignment="Right" VerticalAlignment="Center" />
+        </Grid>
+      </Border>
+      <StackPanel Spacing="8">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <TextBlock Classes="section" Text="试演" />
+          <TextBlock Classes="hint" Text="在直播画面上演一段，看位置和大小；不发弹幕，观众也看得到" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <ComboBox x:Name="TestShowInput" Width="180" AutomationProperties.Name="试演哪一段" />
+          <TextBox x:Name="TestNicknameInput" Text="柚子不酸" Width="170" AutomationProperties.Name="试演昵称" />
+          <Button x:Name="TestButton" MinWidth="88" Padding="14,0" Click="TestOrStop">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Panel>
+                <Viewbox x:Name="PlayIcon" Classes="icon" Width="13" Height="13"><Path Data="{StaticResource Icon.Play}" StrokeThickness="2" /></Viewbox>
+                <Viewbox x:Name="StopIcon" Classes="icon" Width="13" Height="13"><Path Data="{StaticResource Icon.Stop}" StrokeThickness="2" /></Viewbox>
+              </Panel>
+              <TextBlock x:Name="TestText" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <TextBlock x:Name="TestNote" Classes="hint" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+        </StackPanel>
+      </StackPanel>
+      <ListBox x:Name="Tabs" Classes="viewTabs" HorizontalAlignment="Left" SelectedIndex="0" AutomationProperties.Name="桌宠设置">
+        <ListBoxItem Content="演出" />
+        <ListBoxItem Content="心情和日常" />
+        <ListBoxItem Content="台词" />
+      </ListBox>
+    </StackPanel>
+  </local:SettingsPage.BodyContent>
+  <local:SettingsPage.BelowBodyContent>
+    <Panel Margin="20,0,20,18" IsEnabled="{Binding $parent[local:SettingsPage].FileError, Converter={x:Static ObjectConverters.IsNull}}">
+      <Grid x:Name="ShowsTab" ColumnDefinitions="220,*" ColumnSpacing="16">
+        <Border Classes="petList">
+          <ListBox x:Name="ShowGroupList" Classes="nav petList" AutomationProperties.Name="演出分组">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="local:DesktopPetShowGroup">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBlock Classes="singleLine" Text="{Binding Group.Label}" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="1" Classes="caption" Classes.success="{Binding AnyOn}" Classes.muted="{Binding !AnyOn}" Text="{Binding Count}" VerticalAlignment="Center" />
+                </Grid>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Border>
+        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="10" DataContext="{Binding #ShowGroupList.SelectedItem}" x:DataType="local:DesktopPetShowGroup">
+            <StackPanel Spacing="3">
+              <TextBlock x:Name="ShowGroupTitle" Classes="singleLine" FontSize="15" FontWeight="SemiBold" Text="{Binding Group.Label}" />
+              <TextBlock Classes="hint" Text="{Binding Group.Note}" />
+            </StackPanel>
+            <StackPanel Spacing="6" Margin="0,4,0,6" IsVisible="{Binding HasThresholds}">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="中礼物从" VerticalAlignment="Center" />
+                <NumericUpDown x:Name="MidGiftInput" Minimum="1" FormatString="0.############################" AutomationProperties.Name="中礼物门槛（电池）" />
+                <TextBlock Text="电池起，大礼物从" VerticalAlignment="Center" />
+                <NumericUpDown x:Name="BigGiftInput" Minimum="1" FormatString="0.############################" AutomationProperties.Name="大礼物门槛（电池）" />
+                <TextBlock Text="电池起" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="ThresholdError" Classes="error" IsVisible="False" />
+              <TextBlock x:Name="MidGiftReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+              <TextBlock x:Name="BigGiftReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+            </StackPanel>
+            <Border BorderBrush="{DynamicResource Border}" BorderThickness="0,1,0,0">
+              <ItemsControl x:Name="ShowRows" ItemsSource="{Binding Rows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="local:DesktopPetShowRow">
+                    <Border Classes="showRow">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                          <TextBlock Classes="singleLine" Classes.muted="{Binding !On}" FontWeight="SemiBold" Text="{Binding Show.Label}" />
+                          <TextBlock Classes="caption muted singleLine" Text="{Binding Note}" />
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="1" Classes="plain" IsChecked="{Binding On, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" AutomationProperties.Name="{Binding Show.Label}" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+            <TextBlock x:Name="ShowsReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+      <ScrollViewer x:Name="MoodsTab" HorizontalScrollBarVisibility="Disabled" IsVisible="False">
+        <StackPanel Spacing="22">
+          <StackPanel Spacing="8">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="section" Text="冷场心情" />
+              <TextBlock Classes="hint" Text="冷场久了她会无聊、沮丧、犯困；填 0 就不进这种心情" />
+            </StackPanel>
+            <Grid ColumnDefinitions="44,Auto,168,*" RowDefinitions="42,Auto,Auto,42,Auto,Auto,42,Auto,Auto" ColumnSpacing="10">
+              <TextBlock FontWeight="SemiBold" Text="无聊" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Column="1" x:Name="BoredInput" Minimum="0" Classes.invalid="{Binding #BoredError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="无聊：几分钟后进入" />
+              <TextBlock Grid.Column="2" Text="分钟没收到礼物" VerticalAlignment="Center" />
+              <TextBlock Grid.Column="3" x:Name="BoredNote" Classes="hint" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" x:Name="BoredError" Classes="error" />
+              <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="BoredReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+              <TextBlock Grid.Row="3" FontWeight="SemiBold" Text="沮丧" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Row="3" Grid.Column="1" x:Name="GloomyInput" Minimum="0" Classes.invalid="{Binding #GloomyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="沮丧：几分钟后进入" />
+              <TextBlock Grid.Row="3" Grid.Column="2" Text="分钟没收到礼物" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="3" Grid.Column="3" x:Name="GloomyNote" Classes="hint" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" x:Name="GloomyError" Classes="error" />
+              <TextBlock Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" x:Name="GloomyReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+              <TextBlock Grid.Row="6" FontWeight="SemiBold" Text="犯困" VerticalAlignment="Center" />
+              <NumericUpDown Grid.Row="6" Grid.Column="1" x:Name="SleepyInput" Minimum="0" Classes.invalid="{Binding #SleepyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="犯困：几分钟后进入" />
+              <TextBlock Grid.Row="6" Grid.Column="2" Text="分钟什么事都没有" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="6" Grid.Column="3" x:Name="SleepyNote" Classes="hint" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="3" x:Name="SleepyError" Classes="error" />
+              <TextBlock Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="3" x:Name="SleepyReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+            </Grid>
+          </StackPanel>
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="section" Text="日常小动作" />
+              <TextBlock Classes="hint" Text="心情平静、没在演出的时候，隔一阵做一个；运动各穿各的衣服" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Width="70" Text="间隔" VerticalAlignment="Center" />
+              <TextBlock Text="每隔" VerticalAlignment="Center" />
+              <NumericUpDown x:Name="DailyMinInput" Minimum="1" Classes.invalid="{Binding #DailyMinError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日常最短间隔（秒）" />
+              <TextBlock Text="到" VerticalAlignment="Center" />
+              <NumericUpDown x:Name="DailyMaxInput" Minimum="1" Classes.invalid="{Binding #DailyMaxError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日常最长间隔（秒）" />
+              <TextBlock Text="秒，随机做一个" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Margin="78,0,0,0">
+              <TextBlock x:Name="DailyMinError" Classes="error" />
+              <TextBlock x:Name="DailyMaxError" Classes="error" />
+              <TextBlock x:Name="DailyMinReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+              <TextBlock x:Name="DailyMaxReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Width="70" Text="做哪几样" VerticalAlignment="Center" />
+              <ItemsControl x:Name="DailyRows" AutomationProperties.Name="做哪几样">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="24" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="local:DesktopPetShowRow">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Classes.muted="{Binding !On}" Text="{Binding Show.Label}" VerticalAlignment="Center" />
+                      <ToggleSwitch Classes="plain" IsChecked="{Binding On, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" AutomationProperties.Name="{Binding Show.Label}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+            <TextBlock x:Name="DailyReadOnly" Classes="hint" Margin="78,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Width="70" Text="出事" VerticalAlignment="Center" />
+              <NumericUpDown x:Name="MishapInput" Minimum="0" Maximum="100" Classes.invalid="{Binding #MishapError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="出事的几率（%）" />
+              <TextBlock Text="% 的几率出点小事" VerticalAlignment="Center" />
+              <TextBlock x:Name="MishapNote" Classes="hint" Margin="8,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+            <StackPanel Margin="78,0,0,0">
+              <TextBlock x:Name="MishapError" Classes="error" />
+              <TextBlock x:Name="MishapReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+      <Grid x:Name="LinesTab" ColumnDefinitions="220,*" ColumnSpacing="16" IsVisible="False">
+        <Border Classes="petList">
+          <ListBox x:Name="LineKindList" Classes="nav petList lineKinds" AutomationProperties.Name="台词分类">
+            <ListBox.DataTemplates>
+              <DataTemplate DataType="core:ShowGroup" x:DataType="core:ShowGroup">
+                <TextBlock Classes="caption muted" FontWeight="SemiBold" Text="{Binding Label}" />
+              </DataTemplate>
+              <DataTemplate DataType="local:DesktopPetLineKind" x:DataType="local:DesktopPetLineKind">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBlock Classes="singleLine" Text="{Binding Kind.Label}" VerticalAlignment="Center" />
+                  <Border Grid.Column="1" Classes="badge" Background="{DynamicResource Accent.Tint}" VerticalAlignment="Center" IsVisible="{Binding Changed}">
+                    <TextBlock Text="已改" Foreground="{DynamicResource Accent.Text}" FontWeight="SemiBold" />
+                  </Border>
+                </Grid>
+              </DataTemplate>
+            </ListBox.DataTemplates>
+          </ListBox>
+        </Border>
+        <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Spacing="10">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+              <StackPanel Spacing="3">
+                <TextBlock x:Name="LineKindTitle" Classes="singleLine" FontSize="15" FontWeight="SemiBold" />
+                <TextBlock x:Name="LineKindNote" Classes="hint" />
+              </StackPanel>
+              <Button Grid.Column="1" x:Name="RestoreButton" Height="30" Padding="12,0" VerticalAlignment="Top" Click="RestoreLines">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Viewbox Classes="icon" Width="13" Height="13"><Path Data="{StaticResource Icon.Restore}" /></Viewbox>
+                  <TextBlock Text="恢复默认" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+            </Grid>
+            <ItemsControl x:Name="LineRows" Classes="editableRows">
+              <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate><StackPanel Spacing="10" /></ItemsPanelTemplate>
+              </ItemsControl.ItemsPanel>
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="local:WelcomeTextRow">
+                  <local:EditableRowFrame>
+                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
+                      <TextBox x:Name="ValueInput" Classes="rowFocus" PlaceholderText="再写一句"
+                        Text="{Binding Value, Mode=TwoWay}" IsReadOnly="{Binding !CanEdit}"
+                        CaretIndex="{Binding CaretIndex, Mode=TwoWay}" SelectionStart="{Binding SelectionStart, Mode=TwoWay}" SelectionEnd="{Binding SelectionEnd, Mode=TwoWay}"
+                        Classes.invalid="{Binding #ErrorMessage.IsVisible}" AutomationProperties.Name="{Binding Number, StringFormat='第 {0} 句'}" />
+                      <Button Grid.Column="1" x:Name="RemoveButton" Classes="ghost danger" Width="28" VerticalAlignment="Center"
+                        Command="{Binding Remove}" IsEnabled="{Binding CanRemove}" IsVisible="{Binding CanEdit}"
+                        AutomationProperties.Name="{Binding Number, StringFormat='删除第 {0} 句'}">
+                        <Viewbox Classes="icon remove"><Path Data="{StaticResource Icon.Remove}" /></Viewbox>
+                      </Button>
+                      <TextBlock Grid.Row="1" x:Name="ErrorMessage" Classes="error" IsVisible="{Binding VisibleError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" Text="{Binding VisibleError}" />
+                    </Grid>
+                  </local:EditableRowFrame>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock x:Name="LinesReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+            <StackPanel x:Name="InsertBar" Orientation="Horizontal" Spacing="6">
+              <TextBlock Classes="hint" Text="插入" VerticalAlignment="Center" Margin="0,0,2,0" />
+              <ItemsControl x:Name="PlaceholderButtons">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String">
+                    <Button Classes="chip" Content="{Binding}" Tag="{Binding}" Click="InsertPlaceholder" GettingFocus="InsertButtonGettingFocus" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock x:Name="InsertTarget" Classes="hint" Margin="4,0,0,0" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock x:Name="NoPlaceholders" Classes="hint" Text="这一类没有可插入的内容，台词照写就行" />
+            <!-- Click on press, as 添加欢迎语 does: leaving a new row above shows its error and moves this button down before the release. -->
+            <Button x:Name="AddLineButton" Height="30" Padding="10,0,12,0" HorizontalAlignment="Left" ClickMode="Press" Click="AddLine">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <Viewbox Classes="icon" Width="13" Height="13"><Path Data="{StaticResource Icon.Add}" StrokeThickness="2" /></Viewbox>
+                <TextBlock Text="添加一句" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+          </StackPanel>
+        </ScrollViewer>
+      </Grid>
+    </Panel>
+  </local:SettingsPage.BelowBodyContent>
+</local:SettingsPage>

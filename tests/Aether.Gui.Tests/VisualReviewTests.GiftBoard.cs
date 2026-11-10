@@ -59,7 +59,7 @@ public sealed partial class VisualReviewTests
 
     private static Task ShootPageListAsync(BoardShot shoot)
     {
-        shoot.Window.Navigation.SelectedIndex = 7;
+        shoot.Window.Navigation.SelectedIndex = 8;
         shoot.Capture("general-gift-board-pages");
         shoot.ViewModel.WebService.Apply(new WebServiceStatus(true, 17890, 2, 1, GiftBoardConnections: 0));
         shoot.Capture("general-gift-board-waiting");

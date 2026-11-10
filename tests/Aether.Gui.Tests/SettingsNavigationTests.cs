@@ -12,7 +12,7 @@ namespace Aether.Gui.Tests;
 
 public sealed class SettingsNavigationTests
 {
-    private static readonly string[] NavigationNames = ["弹幕", "盲盒统计", "进场欢迎", "送礼动画", "礼物榜", "抽奖", "发送队列", "通用设置"];
+    private static readonly string[] NavigationNames = ["弹幕", "盲盒统计", "进场欢迎", "送礼动画", "礼物榜", "桌宠", "抽奖", "发送队列", "通用设置"];
 
     [Fact]
     public Task An_unfilled_condition_survives_navigation_and_another_pages_save() => HeadlessApp.Session.Dispatch(async () =>
@@ -36,7 +36,7 @@ public sealed class SettingsNavigationTests
             window.KeyPress(Key.Enter, RawInputModifiers.None, PhysicalKey.Enter, "\r");
             Assert.False(viewModel.HasRoomConnection);
             navigation.Focus();
-            navigation.SelectedIndex = 7;
+            navigation.SelectedIndex = 8;
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             general.FindControl<NumericUpDown>("RetentionInput")!.Text = "14";
@@ -103,20 +103,20 @@ public sealed class SettingsNavigationTests
         try
         {
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            navigation.SelectedIndex = 6;
+            navigation.SelectedIndex = 7;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var input = page.FindControl<NumericUpDown>("SendIntervalInput")!;
             Assert.True(input.IsReadOnly);
             navigation.SelectedIndex = 0;
             File.WriteAllText(path, File.ReadAllText(path).Replace("interval_seconds: |-\n    7", "interval_seconds: 8"));
-            navigation.SelectedIndex = 6;
+            navigation.SelectedIndex = 7;
             Assert.False(input.IsReadOnly);
             Assert.Equal("8", input.Text);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
             navigation.SelectedIndex = 0;
             File.WriteAllText(path, File.ReadAllText(path).Replace("interval_seconds: 8", "interval_seconds: |-\n    9"));
-            navigation.SelectedIndex = 6;
+            navigation.SelectedIndex = 7;
             Assert.True(input.IsReadOnly);
             Assert.Equal("9", input.Text);
         }
@@ -138,7 +138,7 @@ public sealed class SettingsNavigationTests
         try
         {
             var navigation = window.FindControl<ListBox>("Navigation")!;
-            navigation.SelectedIndex = 6;
+            navigation.SelectedIndex = 7;
             GuiHarness.Flush();
             var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
             var input = page.FindControl<NumericUpDown>("SendIntervalInput")!;
@@ -146,7 +146,7 @@ public sealed class SettingsNavigationTests
             Dispatcher.UIThread.RunJobs();
             navigation.SelectedIndex = 0;
             File.WriteAllText(path, "send:\n  interval_seconds: 8\n");
-            navigation.SelectedIndex = 6;
+            navigation.SelectedIndex = 7;
             Assert.Equal("8", input.Text);
             Assert.False(GuiHarness.FindVisual<Button>(page, "PART_SaveButton").IsEnabled);
         }
@@ -198,7 +198,7 @@ public sealed class SettingsNavigationTests
         {
             var navigation = window.FindControl<ListBox>("Navigation");
             Assert.NotNull(navigation);
-            Assert.Equal(8, navigation.ItemCount);
+            Assert.Equal(9, navigation.ItemCount);
             Assert.Equal(NavigationNames,
                 navigation.Items.Cast<ListBoxItem>().Select(item => ((Grid)item.Content!).Children.OfType<TextBlock>().First().Text));
             Assert.Null(window.FindControl<Button>("SettingsButton"));

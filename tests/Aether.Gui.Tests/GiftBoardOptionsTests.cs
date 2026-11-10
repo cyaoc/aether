@@ -181,7 +181,7 @@ public sealed class GiftBoardOptionsTests
         GuiHarness.Flush();
         var page = window.GetVisualDescendants().OfType<GiftBoardPanel>().Single();
         GuiHarness.FindVisual<Button>(page, "OpenGeneralSettingsButton").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        Assert.Equal(7, window.Navigation.SelectedIndex);
+        Assert.Equal(8, window.Navigation.SelectedIndex);
         return Task.CompletedTask;
     });
 

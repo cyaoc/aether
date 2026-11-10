@@ -34,10 +34,24 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             && previous.GiftAnimationEnabled.Value == snapshot.GiftAnimationEnabled.Value
             && previous.GiftAnimationThresholds.Select(value => value.Value).SequenceEqual(snapshot.GiftAnimationThresholds.Select(value => value.Value))
             && previous.EntryAnimationViewers.Count == snapshot.EntryAnimationViewers.Count
-            && previous.EntryAnimationViewers.All(pair => snapshot.EntryAnimationViewers.TryGetValue(pair.Key, out var choice) && choice.Value == pair.Value.Value))
+            && previous.EntryAnimationViewers.All(pair => snapshot.EntryAnimationViewers.TryGetValue(pair.Key, out var choice) && choice.Value == pair.Value.Value)
+            && SameDesktopPet(previous, snapshot))
             return animationReload.Current;
         return ApplyWebSettingsAsync(snapshot);
     }
+
+    /// <summary>Whether the 桌宠页 would be told the same settings and lines.</summary>
+    private static bool SameDesktopPet(Settings previous, Settings snapshot)
+    {
+        var lines = snapshot.DesktopPetLines;
+        return previous.DesktopPetEnabled.Value == snapshot.DesktopPetEnabled.Value
+            && previous.DesktopPetShowsOff.Value.SequenceEqual(snapshot.DesktopPetShowsOff.Value)
+            && DesktopPetNumbers(previous).SequenceEqual(DesktopPetNumbers(snapshot))
+            && previous.DesktopPetLines.All(kind => kind.Value.SequenceEqual(lines[kind.Key]));
+    }
+
+    private static IEnumerable<int> DesktopPetNumbers(Settings settings) => settings.DesktopPetGiftThresholds.Concat(settings.DesktopPetMoodMinutes)
+        .Concat(settings.DesktopPetDailySeconds).Append(settings.DesktopPetMishapPercent).Select(setting => setting.Value);
 
     public async Task ApplyWebSettingsAsync(Settings snapshot)
     {
@@ -76,13 +90,14 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Video), nameof(Lottery), nameof(GiftBoard), nameof(HasVideoConnections))]
+    [NotifyPropertyChangedFor(nameof(Video), nameof(Lottery), nameof(GiftBoard), nameof(DesktopPet), nameof(HasVideoConnections))]
     [NotifyPropertyChangedFor(nameof(HasWebServiceError), nameof(IsWebServiceOff), nameof(ServiceStatusText), nameof(ServiceHelpText))]
     private WebServiceStatus webServiceStatus = client.WebService.Status;
 
     public WebPageStatus Video => new(WebServiceStatus, WebServiceStatus.VideoConnections, WebPageTexts.Video) { Address = WebServiceStatus.VideoAddress };
     public WebPageStatus Lottery => new(WebServiceStatus, WebServiceStatus.LotteryConnections, WebPageTexts.Lottery) { Address = WebServiceStatus.LotteryAddress };
     public WebPageStatus GiftBoard => new(WebServiceStatus, WebServiceStatus.GiftBoardConnections, WebPageTexts.GiftBoard) { Address = WebServiceStatus.GiftBoardAddress };
+    public WebPageStatus DesktopPet => new(WebServiceStatus, WebServiceStatus.DesktopPetConnections, WebPageTexts.DesktopPet) { Address = WebServiceStatus.DesktopPetAddress };
     public bool HasVideoConnections => Video.Connected;
     public bool HasWebServiceError => WebServiceStatus.Error is not null;
     public bool IsWebServiceOff => WebServiceStatus is { Running: false, Error: null };
@@ -172,6 +187,10 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     }
 
     internal void StopAnimation(string id) => client.WebService.StopTestPlayAsync(id).RaiseFailure();
+
+    internal void TestShow(string show, string? variant, string nickname) => client.WebService.TestShowAsync(show, variant, nickname).RaiseFailure();
+
+    internal void StopTestShow() => client.WebService.StopTestShowAsync().RaiseFailure();
 
     // Disable immediately, before the queued update crosses back to the UI thread.
     private void PendTestPlay()

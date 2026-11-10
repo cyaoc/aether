@@ -15,7 +15,7 @@ namespace Aether.Gui.Tests;
 public sealed class NumericInputTests
 {
     // The send, general and welcome pages.
-    private static readonly int[] PagesWithNumbers = [6, 7, 2];
+    private static readonly int[] PagesWithNumbers = [7, 8, 2];
 
     private const string SettingsText = """
         web_service:
@@ -46,7 +46,7 @@ public sealed class NumericInputTests
         {
             foreach (var (index, name, unit) in new[]
             {
-                (6, "发送间隔秒数", "秒"), (7, "日志保留天数", "天"),
+                (7, "发送间隔秒数", "秒"), (8, "日志保留天数", "天"),
                 (2, "粉丝团等级门槛", "级"), (2, "荣耀等级门槛", "级")
             })
             {
@@ -191,7 +191,7 @@ public sealed class NumericInputTests
         {
             foreach (var (index, name, expectedWidth) in new[]
             {
-                (1, "DailyKeywordInput", 240), (1, "MonthlyKeywordInput", 240), (1, "YearlyKeywordInput", 240), (7, "LogLevelInput", 200),
+                (1, "DailyKeywordInput", 240), (1, "MonthlyKeywordInput", 240), (1, "YearlyKeywordInput", 240), (8, "LogLevelInput", 200),
                 (2, "UidInput", 200), (2, "GuardInput", 132)
             })
             {

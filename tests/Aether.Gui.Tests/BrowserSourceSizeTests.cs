@@ -10,13 +10,13 @@ namespace Aether.Gui.Tests;
 public sealed class BrowserSourceSizeTests
 {
     private static readonly Regex Size = new(@"\d{3,4}\s*[×x]\s*\d{3,4}");
-    private static readonly string[] Pages = ["Video", "Lottery", "GiftBoard"];
+    private static readonly string[] Pages = ["Video", "Lottery", "GiftBoard", "DesktopPet"];
 
     [Fact]
     public Task Page_list_writes_each_pages_size_on_its_row_and_the_note_sends_the_streamer_there() => OnGeneralSettings(new WebServiceStatus(true, 17890, 1, 1, 0), page =>
     {
         Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "每个页面在直播姬里各加一个浏览器素材，宽高照每行写的填");
-        Assert.Equal(["1920 × 1080", "横屏 1920 × 1080 · 竖屏 1080 × 1920", "480 × 1000，可以等比放大"],
+        Assert.Equal(["1920 × 1080", "横屏 1920 × 1080 · 竖屏 1080 × 1920", "480 × 1000，可以等比放大", "480 × 640"],
             Pages.Select(name => GuiHarness.FindPageRowControl<ContentControl>(page, name, "PageSize").Content));
     });
 
@@ -43,13 +43,16 @@ public sealed class BrowserSourceSizeTests
     public Task Status_bars_send_the_streamer_to_the_general_settings_for_the_address_and_size() => HeadlessApp.Session.Dispatch(() =>
     {
         using var harness = new GuiHarness();
+        // The 桌宠 page shows its status bar only while she is on.
+        harness.SaveSettings(("desktop_pet.enabled", "true"));
         var window = new Window { Width = 1040, Height = 600 };
         window.Show();
         try
         {
             foreach (Control page in new Control[]
             {
-                new AnimationSettingsPage(harness.DataDirectory), new GiftAnimationSettingsPage(harness.DataDirectory), new GiftBoardPanel()
+                new AnimationSettingsPage(harness.DataDirectory), new GiftAnimationSettingsPage(harness.DataDirectory), new GiftBoardPanel(),
+                new DesktopPetSettingsPage(harness.DataDirectory)
             })
             {
                 window.Content = page;
@@ -100,7 +103,7 @@ public sealed class BrowserSourceSizeTests
                     if (index == 2) window.GetVisualDescendants().OfType<WelcomePanel>().Single().Select(tab);
                     GuiHarness.Flush();
                     var sizes = GuiHarness.VisibleText(window).Where(text => text is not null && Size.IsMatch(text)).ToArray();
-                    Assert.Equal(index == 7 ? ["1920 × 1080", "横屏 1920 × 1080 · 竖屏 1080 × 1920", "480 × 1000，可以等比放大"] : [], sizes);
+                    Assert.Equal(index == 8 ? ["1920 × 1080", "横屏 1920 × 1080 · 竖屏 1080 × 1920", "480 × 1000，可以等比放大", "480 × 640"] : [], sizes);
                 }
             }
         }
