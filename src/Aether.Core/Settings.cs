@@ -90,9 +90,25 @@ public sealed partial class Settings
           tier_60_spend: 10000
 
         # 桌宠，只在 GUI 里生效，保存后立即生效；桌宠页 /desktop-pet 加成浏览器素材，放在直播画面一角
+        # 改过的台词跟在分组最后，一类一行：lines.角色编号.台词类的英文 id: ["第一句", "第二句"]，没写的类用角色自带的台词
+        # 写法和欢迎语一样，列表和每一句都不能为空；占位只能用这一类台词能用的，例如 {昵称}、{礼物}、{个数}
         desktop_pet:
           # true 或 false，桌宠按直播间里发生的事表演；false 时桌宠页全透明
           enabled: false
+          # 不演的演出和日常小动作，写演出表里的英文 id，例如 ["entry", "hum"]；[] 表示全都演
+          shows_off: []
+          # 中礼物、大礼物门槛（电池），按一轮的投入比，盲盒也一样；必须为正整数，中礼物门槛要小于大礼物门槛
+          mid_gift_spend: 1000
+          big_gift_spend: 10000
+          # 冷场几分钟进入无聊、沮丧（没收到礼物）和犯困（什么事都没有）；0 表示不进这种心情
+          bored_minutes: 15
+          gloomy_minutes: 40
+          sleepy_minutes: 60
+          # 平静时隔几秒做一个日常小动作，在最少和最多之间随机；必须为正整数
+          daily_min_seconds: 20
+          daily_max_seconds: 40
+          # 日常小动作出事的几率，0 到 100（%），0 表示不出事
+          mishap_percent: 25
 
         # 网页服务，视频页 /video、抽奖页 /lottery、礼物榜页 /gift-board、桌宠页 /desktop-pet 都从这里打开；只在 GUI 里生效，先开 Aether 再开推流软件
         web_service:
@@ -140,7 +156,7 @@ public sealed partial class Settings
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome_danmaku.wealth_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
     private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("entry_animation.enabled", false));
     private static readonly Definition<int> AnimationLevel = Register(Definition.Number("entry_animation.fan_club_level", 30, "必须是 0、30、40、50、60。", value => value == 0 || EntryTier.Parse(value) is not null));
-    private static readonly Definition<int> AnimationVolume = Register(Definition.Volume("entry_animation.volume", 80));
+    private static readonly Definition<int> AnimationVolume = Register(Definition.Percent("entry_animation.volume", 80));
     private static readonly Definition<bool> GiftOn = Register(Definition.Boolean("gift_animation.enabled", false));
     private static readonly Definition<int>[] GiftThresholds = EntryTier.All.Select((tier, index) => Register(Definition.Number($"gift_animation.tier_{tier}_spend", new[] { 100, 500, 2000, 10000 }[index], "必须为正整数。", value => value > 0))).ToArray();
     public Setting<bool> EntryAnimationEnabled => Get(AnimationOn);
@@ -149,7 +165,49 @@ public sealed partial class Settings
     public Setting<bool> GiftAnimationEnabled => Get(GiftOn);
     public IReadOnlyList<Setting<int>> GiftAnimationThresholds => GiftThresholds.Select(Get).ToArray();
     private static readonly Definition<bool> DesktopPetOn = Register(Definition.Boolean("desktop_pet.enabled", false));
+    private static readonly Definition<IReadOnlyList<string>> PetShowsOff = Register(Definition.TextList("desktop_pet.shows_off", [],
+        ids => ids.FirstOrDefault(id => !ShowTable.Current.Shows.Any(show => show.Id == id && show.CanTurnOff)) is { } wrong
+            ? $"演出表里没有能关掉的 {wrong}。" : null));
+    private static readonly Definition<int>[] PetThresholds =
+    [
+        Register(Definition.Number("desktop_pet.mid_gift_spend", 1000, "必须为正整数。", value => value > 0)),
+        Register(Definition.Number("desktop_pet.big_gift_spend", 10000, "必须为正整数。", value => value > 0)),
+    ];
+    private static readonly Definition<int>[] PetMoodMinutes =
+    [
+        Register(Definition.Number("desktop_pet.bored_minutes", 15, "必须为非负整数。", minutes => minutes >= 0)),
+        Register(Definition.Number("desktop_pet.gloomy_minutes", 40, "必须为非负整数。", minutes => minutes >= 0)),
+        Register(Definition.Number("desktop_pet.sleepy_minutes", 60, "必须为非负整数。", minutes => minutes >= 0)),
+    ];
+    private static readonly Definition<int>[] PetDailySeconds =
+    [
+        Register(Definition.Number("desktop_pet.daily_min_seconds", 20, "必须为正整数。", seconds => seconds > 0)),
+        Register(Definition.Number("desktop_pet.daily_max_seconds", 40, "必须为正整数。", seconds => seconds > 0)),
+    ];
+    private static readonly Definition<int> PetMishapPercent = Register(Definition.Percent("desktop_pet.mishap_percent", 25));
+    private static readonly LineDefinition PetLines = Register(new LineDefinition("desktop_pet.lines"));
     public Setting<bool> DesktopPetEnabled => Get(DesktopPetOn);
+    /// <summary>The ids of the 演出表's rows turned off.</summary>
+    public Setting<IReadOnlyList<string>> DesktopPetShowsOff => Get(PetShowsOff);
+    /// <summary>The 中礼物 and 大礼物 thresholds, in 电池.</summary>
+    public IReadOnlyList<Setting<int>> DesktopPetGiftThresholds => PetThresholds.Select(Get).ToArray();
+    /// <summary>Quiet minutes before 无聊, 沮丧 and 犯困.</summary>
+    public IReadOnlyList<Setting<int>> DesktopPetMoodMinutes => PetMoodMinutes.Select(Get).ToArray();
+    /// <summary>The least and the most seconds between 日常小动作.</summary>
+    public IReadOnlyList<Setting<int>> DesktopPetDailySeconds => PetDailySeconds.Select(Get).ToArray();
+    public Setting<int> DesktopPetMishapPercent => Get(PetMishapPercent);
+    /// <summary>The current character's kinds of lines the streamer changed, by kind.</summary>
+    public IReadOnlyDictionary<string, Setting<IReadOnlyList<string>>> DesktopPetChangedLines => PetLines.Items(this)
+        .Where(item => item.Key.Character == Character.CurrentNumber).ToDictionary(item => item.Key.Kind, item => item.Value);
+    /// <summary>The current character's lines, by kind: hers, with each kind the streamer changed replaced.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> DesktopPetLines
+    {
+        get
+        {
+            var changed = DesktopPetChangedLines;
+            return Character.Current.Lines.ToDictionary(kind => kind.Key, kind => changed.TryGetValue(kind.Key, out var mine) ? mine.Value : kind.Value);
+        }
+    }
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private static readonly ViewerGroupDefinition AnimationViewers = Register(new ViewerGroupDefinition("entry_animation_viewers"));
     private static readonly Definition<bool> AutoUpdate = Register(Definition.Boolean("auto_update.enabled", true));

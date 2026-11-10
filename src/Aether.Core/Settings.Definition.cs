@@ -38,8 +38,8 @@ public sealed partial class Settings
             text => text.Trim() switch { "true" => (true, true), "false" => (true, false), _ => default },
             BooleanText);
 
-        /// <summary>A volume from 0 to 100, where 0 is silent.</summary>
-        public static Definition<int> Volume(string name, int initial) =>
+        /// <summary>A percentage from 0 to 100: a volume, where 0 is silent, or a chance, where 0 is never.</summary>
+        public static Definition<int> Percent(string name, int initial) =>
             Number(name, initial, "必须是 0–100。", value => value is >= 0 and <= 100);
 
         /// <summary>One of <paramref name="choices"/>, written exactly as its name.</summary>
@@ -193,6 +193,22 @@ public sealed partial class Settings
             (node, singleLine) => singleLine && node is YamlScalarNode { Value: { } text } && AnimationChoice.Parse(text) is { } choice ? (true, choice) : default,
             text => AnimationChoice.Parse(text) is { } choice ? (true, choice) : default,
             choice => Emit([choice.ToString()])[1..^1]);
+    }
+
+    /// <summary>The 桌宠's lines the streamer changed: <c>lines.character.kind</c> keys in the desktop_pet group, a character's
+    /// number and a kind of the 演出表, each a one-line list like the welcome texts holding only that kind's placeholders.</summary>
+    internal sealed class LineDefinition(string name) : KeyedDefinition<(string Character, string Kind), IReadOnlyList<string>>(name,
+        "必须是 lines.角色编号.台词类，例如 lines.1.bigGift；台词类见演出表。", "这一类台词重复，请只保留一行。")
+    {
+        protected override (bool Valid, (string Character, string Kind) Key) ParseKey(string text) =>
+            text.Split('.') is [var number, var kind] && int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out var character)
+                && character > 0 && ShowTable.Current.Lines.Any(line => line.Id == kind)
+                ? (true, (character.ToString(CultureInfo.InvariantCulture), kind)) : default;
+
+        protected override string KeyText((string Character, string Kind) key) => key.Character + "." + key.Kind;
+
+        protected override Definition<IReadOnlyList<string>> Item((string Character, string Kind) key, string itemName) =>
+            TextList(itemName, [], ShowTable.Current.Line(key.Kind).Check);
     }
 
     /// <param name="check">Why a value that reads and parses is still invalid, such as a welcome text misusing placeholders.</param>

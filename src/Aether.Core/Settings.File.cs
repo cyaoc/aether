@@ -30,6 +30,17 @@ public sealed partial class Settings
         SaveChanges(dataDirectory, Definitions, edits, snapshot);
     }
 
+    /// <summary>Commits the 桌宠 form in one write. <paramref name="lines"/> are the current character's kinds of lines the streamer
+    /// edited; a kind edited back to hers is deleted, so the file keeps only kinds that differ.</summary>
+    public static void SaveDesktopPet(string dataDirectory, IReadOnlyDictionary<string, string> changes,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> lines, Settings snapshot)
+    {
+        var edits = changes.ToDictionary(pair => pair.Key, pair => (string?)pair.Value);
+        foreach (var (kind, list) in lines)
+            edits[PetLines.ItemName((Character.CurrentNumber, kind))] = list.SequenceEqual(Character.Current.Lines[kind]) ? null : TextListText(list);
+        SaveChanges(dataDirectory, Definitions, edits, snapshot);
+    }
+
     /// <param name="definitions">The settings this file may hold; only tests pass anything but <see cref="Definitions"/>.</param>
     internal static void Save(string dataDirectory, IReadOnlyList<Definition> definitions,
         IReadOnlyDictionary<string, string> changes, Settings? snapshot = null) =>
@@ -65,7 +76,7 @@ public sealed partial class Settings
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
         var document = new YamlStream();
         document.Load(new StringReader(text));
-        if (ValidateGiftThresholds((YamlMappingNode)document.Documents[0].RootNode, path) is { } thresholdError) throw thresholdError;
+        if (ValidateThresholds((YamlMappingNode)document.Documents[0].RootNode, path) is { } thresholdError) throw thresholdError;
         AtomicFile.Write(path, [.. current.encoding.GetPreamble(), .. current.encoding.GetBytes(text)]);
 
         void EditGroup(string groupName, IEnumerable<(Definition Definition, string Name, string? Value)> groupChanges)
@@ -210,14 +221,22 @@ public sealed partial class Settings
         return null;
     }
 
-    private static SettingsException? ValidateGiftThresholds(YamlMappingNode root, string path)
+    // A property: static fields of another part of this class may not have been initialised before this one.
+    /// <summary>Thresholds of one group that must rise one after another, and why.</summary>
+    private static (Definition<int>[] Definitions, string Rule)[] Thresholds =>
+        [(GiftThresholds, GiftThresholdRule), (PetThresholds, "中礼物门槛要小于大礼物门槛。")];
+
+    private static SettingsException? ValidateThresholds(YamlMappingNode root, string path) =>
+        Thresholds.Select(thresholds => ValidateThresholds(root, path, thresholds.Definitions, thresholds.Rule)).FirstOrDefault(error => error is not null);
+
+    private static SettingsException? ValidateThresholds(YamlMappingNode root, string path, Definition<int>[] definitions, string rule)
     {
-        if (!root.Children.TryGetValue(new YamlScalarNode("gift_animation"), out var node) || node is not YamlMappingNode group) return null;
-        var fields = GiftThresholds.Select(definition => group.Children.TryGetValue(new YamlScalarNode(definition.Name.Split('.')[1]), out var field) ? field : null).ToArray();
+        if (!root.Children.TryGetValue(new YamlScalarNode(definitions[0].Group), out var node) || node is not YamlMappingNode group) return null;
+        var fields = definitions.Select(definition => group.Children.TryGetValue(new YamlScalarNode(definition.Name.Split('.')[1]), out var field) ? field : null).ToArray();
         var thresholds = fields.Select((field, index) => field is YamlScalarNode { Value: { } text } && int.TryParse(text, out var value)
-            ? value : GiftThresholds[index].Initial.Value).ToArray();
+            ? value : definitions[index].Initial.Value).ToArray();
         return InvalidGiftThreshold(thresholds) is { } invalid
-            ? new(path, fields[invalid]?.Start.Line ?? node.Start.Line, GiftThresholds[invalid].Name, GiftThresholdRule) : null;
+            ? new(path, fields[invalid]?.Start.Line ?? node.Start.Line, definitions[invalid].Name, rule) : null;
     }
 
     internal static string NewlineOf(string source)
@@ -288,7 +307,7 @@ public sealed partial class Settings
             var seenNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var (groupKey, groupValue) in root.Children) LoadGroup(groupKey, groupValue);
             settings.UnknownKeys = unknown.AsReadOnly();
-            settings.Error ??= ValidateGiftThresholds(root, path);
+            settings.Error ??= ValidateThresholds(root, path);
             // Written even when a value is invalid: the upgrade never causes one, and its line must match the file on disk.
             if (settings.source != original)
             {
