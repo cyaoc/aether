@@ -218,13 +218,23 @@ public sealed class DesktopPetPageTests
         await Task.Delay(200, h.Stop.Token);
         Assert.False(ended.IsCompleted);
         first.Dispose();
-        // The closed client first drains the stream for up to 2 seconds, and TCP may take a few heartbeats to notice the close. The
-        // clock moves a second at a time: a write to the reloaded page still in flight when it passed its 5-second timeout would
-        // drop that page too.
-        for (var i = 0; i < 600 && !ended.IsCompleted; i++)
+        // Heartbeats find the closed page gone: its client first drains the stream for up to 2 seconds, and TCP may take a few
+        // heartbeats to notice the close. The clock moves on only once a heartbeat's writes ended, which the next one waiting
+        // shows, so no write to the page that stays is ever in flight past its 5-second timeout; a write to the closed page that
+        // hangs instead is given 2 seconds, then that timeout.
+        var beat = TimeSpan.FromSeconds(15);
+        for (var i = 0; i < 100 && !ended.IsCompleted; i++)
         {
-            h.Time.Advance(TimeSpan.FromSeconds(1));
-            await Task.Delay(50, h.Stop.Token);
+            var beats = h.Time.TimerCount(beat);
+            h.Time.Advance(beat);
+            if (!await NextBeatAsync()) h.Time.Advance(TimeSpan.FromSeconds(5));
+            await NextBeatAsync();
+
+            async Task<bool> NextBeatAsync()
+            {
+                for (var wait = 0; wait < 20 && h.Time.TimerCount(beat) == beats; wait++) await Task.Delay(100, h.Stop.Token);
+                return h.Time.TimerCount(beat) > beats;
+            }
         }
 
         var (over, left) = await ended.WaitAsync(TimeSpan.FromSeconds(5), h.Stop.Token);
