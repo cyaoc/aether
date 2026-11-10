@@ -1,0 +1,448 @@
+// The 桌宠's engine, ported from the design package's board (docs/design/desktop-pet/boards/DP-DesktopPet.dc.html): which
+// show plays when (tiers, the queue, a 一轮送礼 growing into bigger shows, blind boxes waiting for their result), her 心情
+// and 日常小动作, and what she and her sprite are doing at any moment. It draws nothing (Pet in pet.mjs does) and reads no
+// picture, so node can run it.
+import { k, smooth as ease } from '../video/animations/toolkit.mjs';
+
+export const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+export const k01 = (t, a, b) => k(a, b, t);
+export { ease };
+export const bump = (t, a, b) => Math.sin(Math.PI * k01(t, a, b));
+// A drawing swap over 150 ms: the new one comes in over the old, which only then goes, so neither shows through the other.
+export const xfade = u => [1 - ease(k01(u, 60, 150)), ease(k01(u, 0, 90))];
+const at = (t, list) => { let v = list[0][1]; for (const [s, x] of list) if (t >= s) v = x; return v; };
+
+// Effects on top of each show's own, stronger the higher the tier (design package README 7.1): C a manga symbol and a small
+// burst; B a ring on the ground and things floating up; A light behind her and a shake at the peak.
+// fx: [type, from ms, ...]; shake: [from ms, px, ms].
+const EVENT_FX = {
+  entry: { fx: [['bang', 0], ['spark', 150, 0.2, 0.18, 6], ['halo', 0, 900, 0.25]] },
+  gift: { fx: [['giftArc', 0], ['halo', 300, 900, 0.3]] },
+  giftStreak: { fx: [['giftStack', 0], ['steam', 1300, 1200], ['spark', 1250, 0.5, 0.3, 10], ['halo', 1250, 1300, 0.35]] },
+  midGift: { fx: [['boxDrop', 200], ['spark', 1300, 0.5, 0.58, 8], ['shockwave', 1200], ['halo', 1200, 2000, 0.4], ['anchors', 1400, 1900, 'hearts']], shake: [[1200, 2, 200]] },
+  blindBoxMedium: {
+    fx: [['shakeMarks', 0, 0.83, 0.44, 1200], ['seamGlow', 0, 1200, 'shake'], ['halo', 1200, 2600, 0.45], ['shockwave', 2600]],
+    shake: [[1200, 2, 200]]
+  },
+  blindBoxSmall: { fx: [['shakeMarks', 0, 0.83, 0.44, 900]] },
+  blindBoxLarge: {
+    fx: [['shakeMarks', 0, 0.83, 0.44, 1500], ['seamGlow', 0, 1500, 'shake'], ['rays', 3500, 2300, 0.55], ['burst', 3500, 400], ['shockwave', 3500]],
+    shake: [[2500, 3, 260]]
+  },
+  bigGift: {
+    fx: [['pillar', 0, 2800, 390, 626, 70], ['shockwave', 2800, null, { x: 390, y: 624 }], ['dust', 2800, null, 6, { x: 390, y: 626 }], ['bang', 2850], ['shock', 2850],
+      ['pillar', 3400, 1300, 390, 470, 100], ['fountain', 3400, 2000, { x: 390, y: 470 }], ['rays', 4400, 1600, 0.55], ['burst', 4400, 300], ['confetti', 4400], ['hearts', 4600, 4]],
+    shake: [[2800, 2, 200], [3400, 3, 260]]
+  }
+};
+export const TIER = { SS: 5, S: 4, A: 3, B: 2, C: 1, D: 0 };
+// Each tier's own glow (README 7.1), like gacha rarity: cool and quiet low, warmer higher; gold is the governor's, and a
+// blind box jackpot's.
+export const GLOW = { SS: '254,197,79', S: '253,183,202', A: '180,140,255', B: '124,200,255', C: '255,211,223', D: '255,255,255' };
+// How long each show lasts and, for a blind box, its endings (a 一轮盲盒's outcome as Core tells it, and Jackpot); its 演出档 is
+// the 演出表's (shows.json).
+const EVENTS = {
+  entry: { dur: 1600 }, gift: { dur: 2000 }, giftStreak: { dur: 2600 },
+  blindBoxSmall: { dur: 2600, results: ['Gain', 'Even', 'Loss'] }, midGift: { dur: 3500 }, blindBoxMedium: { dur: 4000, results: ['Gain', 'Even', 'Loss'] },
+  bigGift: { dur: 6000 }, blindBoxLarge: { dur: 6000, results: ['Gain', 'Even', 'Loss', 'Jackpot'] }
+};
+// What a 试演 thanks for, where its line names a gift.
+const GIFT = { gift: '小花花', giftStreak: '小花花', midGift: '告白气球', bigGift: '小电视飞船', blindBoxSmall: '棉花糖', blindBoxMedium: '爱心抱枕', blindBoxLarge: '爱心抱枕' };
+// When a blind box show opens its box; after a round she has shaken it already, so the show starts there (start()).
+const BOX_OPEN = { blindBoxSmall: 900, blindBoxMedium: 1200, blindBoxLarge: 1500 };
+// Where the sprite listens while she shakes a blind box: beside the box at its height, clear of the box and of the shake
+// marks around it (the box is at 0.83, 0.44 of her shakeBox drawing); it used to sit on the box, the marks over it.
+const BOX_EAR = ['rel', 1.28, 0.4];
+// A gift round's shows from small to big: the round plays the one it has grown to, moving up as it grows (README 2).
+const GIFT_SHOWS = ['gift', 'giftStreak', 'midGift', 'bigGift'];
+const BLIND_BOXES = ['blindBoxSmall', 'blindBoxMedium', 'blindBoxLarge'];
+// Which lines a blind box's ending says.
+const BOX_LINES = { Gain: 'blindBoxGain', Even: 'blindBoxEven', Loss: 'blindBoxLoss', Jackpot: 'blindBoxJackpot' };
+export const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
+export const SPRITE_H = 76;
+const NAME_MAX = 8;
+// The sports (README 6), each in its own outfit: the sprite dresses her for it, she gets ready and goes for act ms; then
+// she stops (calm) or, now and then, it goes wrong (fall); then the sprite dresses her back. [ms after the stop, pose];
+// lines: [ms after it goes wrong, what she says], each line matching what she does then (no plaster talk without a plaster);
+// hitAt and plasterAt: where she hits the ground and where the plaster goes, the same knee (fractions of her drawing).
+const SPORTS = {
+  gym: { ready: 'gymReady', act: ['curl', 3000], calm: [[0, 'gymReady'], [300, 'gymWipe']], calmMs: 1200,
+    fall: [[0, 'gymHurt'], [1400, 'gymRub'], [2800, 'gymWipe']], fallMs: 3800, lines: [[0, 'droppedOnFoot']] },
+  hike: { ready: 'hikeReady', act: ['hike', 3400], calm: [[0, 'hikeReady']], calmMs: 300,
+    fall: [[0, 'slip'], [1400, 'hikeBrush'], [2800, 'hikeUp']], fallMs: 3800, lines: [[0, 'slipped'], [1400, 'dustOff']] },
+  bike: { ready: 'bikeReady', act: ['bike', 3400], calm: [[0, 'bikeReady']], calmMs: 300,
+    fall: [[0, 'crash'], [1500, 'bikePlaster'], [3300, 'bikeUp']], fallMs: 4800, lines: [[0, 'bikeCrash'], [1500, 'plaster']], plaster: 1500, plasterAt: [0.22, 0.79], hitAt: [0.43, 0.91] },
+  ski: { ready: 'skiReady', act: ['ski', 2500], calm: [[0, 'skiReady']], calmMs: 300,
+    fall: [[0, 'skiDown'], [1000, 'skiPopOut'], [2100, 'skiShake']], fallMs: 3300, lines: [[0, 'skiFall']] }
+};
+// The 日常小动作 by their ids in the 演出表, [main, more when it goes wrong]: dressing 0.7 s, getting ready 0.4 s, the act,
+// the stop, dressing back 0.9 s
+export const DAILY = { hum: [4000, 1500] };
+for (const [kind, sp] of Object.entries(SPORTS)) DAILY[kind] = [1100 + sp.act[1] + sp.calmMs + 900, sp.fallMs - sp.calmMs];
+
+/** The engine of the 桌宠页: Core tells it what happens (DesktopPet.cs) and it decides what she plays. `master` is the page's
+ * one animation, whose currentTime is the time of everything; `shows` are the rows of the 演出表, which give each show its
+ * 演出档. */
+export class Engine {
+  constructor(master, shows) {
+    this.master = master;
+    this.events = Object.fromEntries(shows.map(row => [row.id, { ...EVENTS[row.id], tier: row.tier, group: row.group }]));
+  }
+
+  now() { return this.master.currentTime; }
+
+  reset(rng) {
+    this.cur = this.seen = this.trial = null; this.queue = []; this.rounds = [];
+    this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lastLine = {}; this.rng = rng;
+  }
+
+  // The 桌宠页's state: whether she is on, how the streamer set her to play and what she says. Her quiet-room clocks start when
+  // the room connects; while none is she stays calm, and a round she was shaking boxes for will not end.
+  receive(state) {
+    const now = this.now();
+    Object.assign(this, { on: state.enabled, settings: state.settings, lines: state.lines });
+    if (state.roomConnected && !this.room) { this.lastGift = this.lastAny = now; this.recent = []; }
+    if (!state.roomConnected) this.rounds = [];
+    this.room = state.roomConnected;
+  }
+
+  fire(name, opts = {}) {
+    const now = this.now(), ev = this.events[name];
+    if (!opts.chained) opts = { ...opts, wake: opts.wake ?? ['gloomy', 'sleepy'].includes(this.mood(now)) };
+    // Anyone coming in counts as something happening for 犯困; a show turned off plays nothing, not a lesser one instead.
+    this.lastAny = now;
+    if (this.settings.off.includes(name)) return;
+    // she waves at whoever comes in only while she is idle: never over a daily action or any show, and it does not queue
+    if (name === 'entry' && this.cur) return;
+    const curTier = this.cur ? TIER[this.events[this.cur.name].tier] : -1, tier = TIER[ev.tier];
+    // A gift round that grows to 5 gifts takes over its own plain thank-you, instead of being dropped as busy.
+    // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
+    const show = name === 'governor' && this.cur?.name === 'castle';
+    if (!this.cur || tier > curTier && !show || name === 'giftStreak' && this.cur.name === 'gift') return this.start(name, opts);
+    if (tier <= TIER.C) return;
+    if (tier < TIER.S && this.queue.filter(q => this.events[q.name].tier === ev.tier).length >= 3) return;
+    this.queue.push({ name, opts });
+  }
+
+  start(name, opts) {
+    const now = this.now(), { dailyMinSeconds, dailyMaxSeconds } = this.settings;
+    const wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : this.events[name].dur;
+    this.cur = { name, opts, start: now, pre: wake ? 1000 : 0, dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null };
+    // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
+    if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
+    if (DAILY[name]) this.nextDaily = now + dur + dailyMinSeconds * 1000 + this.rng() * (dailyMaxSeconds - dailyMinSeconds) * 1000;
+  }
+
+  // A blind box says the lines of its ending; every other show its own.
+  lineKey(name, opts = {}) { return this.events[name]?.results ? BOX_LINES[opts.result || 'Gain'] : name; }
+
+  // ---- what Core tells it (DesktopPet.cs)
+  // A gift, a blind box or a 大航海 counts for 开心 and wakes her from 沮丧; anything at all from 犯困.
+  gifted(now) { this.lastGift = this.lastAny = now; this.recent = this.recent.filter(r => now - r < 60000).concat(now); }
+
+  // A viewer's 一轮送礼 as it stands after a gift message, and once more as it ends (GiftRoundProgress). Gifts do not wait for
+  // the round to end: she plays at once the show its gifts have come to so far, and moves up when it grows into a bigger one
+  // (the fifth gift, the 中礼物 and 大礼物 thresholds); one already played is not played again. Its blind boxes wait for their
+  // result (blindBox), and each gift message flies a little box into her arms.
+  gift(p) {
+    const now = this.now();
+    let r = this.rounds.find(round => round.uid === p.uid && !round.ended);
+    if (p.ended) {
+      if (r) { r.ended = true; if (!r.boxes) this.rounds.splice(this.rounds.indexOf(r), 1); }
+      return;
+    }
+    // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show
+    if (!r) {
+      const wake = ['gloomy', 'sleepy'].includes(this.mood(now));
+      this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], wake, wakeLine: wake ? this.pick('wake') : null, played: -1 });
+    }
+    r.arrivals.push(now); r.boxes = p.boxes;
+    this.gifted(now);
+    if (!p.count) return;
+    const { midGift, bigGift } = this.settings;
+    const kind = p.spend >= bigGift ? 'bigGift' : p.spend >= midGift ? 'midGift' : p.count >= 5 ? 'giftStreak' : 'gift';
+    if (GIFT_SHOWS.indexOf(kind) <= r.played) return;
+    this.fire(kind, { nickname: p.nickname, gift: p.topGift, count: kind === 'giftStreak' ? p.count : p.topCount, wake: r.played < 0 && r.wake });
+    r.played = GIFT_SHOWS.indexOf(kind); r.wake = false;
+  }
+
+  // A 一轮盲盒's result, as its 盲盒播报 reported it (BlindBoxResult): the size by what the boxes cost, the ending by what they
+  // opened; a single gift opened at the 大礼物 threshold is a jackpot and at least the big one.
+  blindBox(b) {
+    const i = this.rounds.findIndex(r => r.uid === b.uid && r.boxes), { midGift, bigGift } = this.settings;
+    if (i >= 0) this.rounds.splice(i, 1);
+    const jackpot = b.bestPrice >= bigGift, spend = b.tally.spend;
+    this.fire(BLIND_BOXES[jackpot || spend >= bigGift ? 2 : spend >= midGift ? 1 : 0],
+      { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes, shaken: i >= 0 });
+  }
+
+  entry(e) { this.fire('entry', { nickname: e.nickname }); }
+
+  // a danmaku is not played (README 10), it only tells her someone is there: 犯困 needs an hour with nothing at all
+  danmaku() { this.lastAny = this.now(); }
+
+  // A 大航海 is a gift to her 心情.
+  guard() { this.gifted(this.now()); }
+
+  // A 试演 plays the show from its start (a blind box from its shaking), or holds her in the 心情, until it is stopped.
+  testShow({ show, variant, nickname }) {
+    this.trial = null;
+    if (this.events[show].group === 'mood') { this.trial = show; this.cur = null; return; }
+    this.start(show, { nickname, result: variant, mishap: variant === 'Mishap' });
+  }
+
+  stopTestShow() { this.trial = this.cur = null; }
+
+  // While a round with blind boxes is still coming in she does not just wait: she shakes the box the whole time, until the
+  // 盲盒播报 tells how it came out, and each gift flies into her arms.
+  roundState(now, r) {
+    const st = this.base();
+    st._t = now - r.start; st.round = r;
+    if (r.wake && st._t < 1000) {
+      st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', 0], ['shock', 0], ['sweat', 200]); st.y -= 10 * bump(st._t, 0, 300);
+      st.bubble = { text: this.fill(r.wakeLine), t: st._t };
+      return st;
+    }
+    st.pose = 'shakeBox'; st.sprite = 'sLook'; st.sFlip = true; st.sp = BOX_EAR;
+    for (const x of r.arrivals) st.fx.push(['giftArc', x - r.start]);
+    st.fx.push(['shakeMarks', 0, 0.83, 0.44, 1e9]);
+    return st;
+  }
+
+  pick(name) {
+    const list = this.lines[name]; if (!list) return null;
+    let i = Math.floor(this.rng() * list.length);
+    if (list.length > 1 && i === this.lastLine[name]) i = (i + 1) % list.length;
+    this.lastLine[name] = i;
+    return list[i];
+  }
+
+  update(now) {
+    const c = this.cur;
+    if (c && now >= c.start + c.pre + c.dur) {
+      this.cur = this.seen = null;
+      if (this.queue.length) {
+        const best = Math.max(...this.queue.map(q => TIER[this.events[q.name].tier]));
+        const i = this.queue.findIndex(q => TIER[this.events[q.name].tier] === best);
+        const [q] = this.queue.splice(i, 1);
+        this.start(q.name, { ...q.opts, chained: true });
+      }
+    }
+    // not while she shakes a round's blind boxes either: that lasts until the 盲盒播报 goes out, which may take half a minute
+    const kinds = Object.keys(DAILY).filter(kind => !this.settings.off.includes(kind));
+    if (!this.cur && !this.rounds.some(r => r.boxes) && this.mood(now) === 'calm' && now >= this.nextDaily && kinds.length) {
+      const kind = kinds[Math.floor(this.rng() * kinds.length)], mishap = this.rng() * 100 < this.settings.mishapPercent;
+      this.start(kind, { mishap });
+    }
+  }
+
+  // 开心 counts only gifts, 大航海 included: a room viewers keep coming into would otherwise never be calm, and the daily actions
+  // only come when she is calm (README 6). A 心情 set to 0 minutes never comes.
+  mood(now) {
+    if (this.trial) return this.trial;
+    if (!this.room) return 'calm';
+    const recent = this.recent.filter(r => now - r < 60000).length, { boredMinutes, gloomyMinutes, sleepyMinutes } = this.settings;
+    const quiet = (since, minutes) => minutes > 0 && now - since >= minutes * 60000;
+    if (quiet(this.lastAny, sleepyMinutes)) return 'sleepy';
+    if (quiet(this.lastGift, gloomyMinutes)) return 'gloomy';
+    if (quiet(this.lastGift, boredMinutes)) return 'bored';
+    return recent >= 3 ? 'happy' : 'calm';
+  }
+
+  // ---- what she is doing at a moment --------------------------------------------------------------------------------
+  // The show playing (after waking up, when it woke her), else the round she shakes blind boxes for, else her 心情; a round's
+  // gifts still fly into her arms over whatever she is doing.
+  stateAt(now) {
+    this.update(now);
+    const c = this.cur, shaking = this.rounds.find(r => r.boxes);
+    let st;
+    if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
+    else if (c) st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts));
+    else if (shaking) st = this.roundState(now, shaking);
+    else {
+      const mood = this.mood(now);
+      if (this.seen?.key !== mood) this.seen = { key: mood, at: now };
+      st = this.idleState(now, mood, now - this.seen.at);
+    }
+    for (const r of this.rounds) if (r !== st.round) for (const x of r.arrivals) st.fx.push(['giftArc', st._t == null ? x : st._t - (now - x)]);
+    return st;
+  }
+
+  base() { return { pose: 'idle', x: FOOT.x, y: FOOT.y, s: 1, sx: 1, sprite: 'sIdle', sp: null, sBehind: false, sScale: 1, sAlpha: 1, fx: [], bubble: null }; }
+
+  // since: how long she has been in this mood without an event.
+  idleState(now, mood, since = now) {
+    const st = this.base();
+    if (mood === 'happy') { st.y -= 6 * Math.abs(Math.sin(now / 380)); st.orbit = now; }
+    if (mood === 'calm' && now % 7000 > 5800) st.sprite = 'sLook';  // now and then it looks up at her
+    if (mood === 'bored') { st.fx.push(['dots', 0, 6000], ['sigh', 0, 7000]); }
+    if (mood === 'gloomy') st.fx.push(['gloom', 0]);
+    if (mood === 'bored') { st.pose = 'bored'; st.sprite = now % 8000 < 2600 ? 'yawn' : 'sIdle'; st.sp = ['home', 10 * Math.sin(now / 1800), 6 * Math.sin(now / 1300)]; }
+    if (mood === 'gloomy') { st.pose = 'gloomy'; st.sprite = 'pat'; st.sp = 'head'; }
+    if (mood === 'sleepy') { st.pose = 'doze'; st.sprite = 'sleep'; st.sp = 'knee'; }
+    this.talk(st, mood, since);
+    if (mood === 'sleepy') {
+      // every other half minute her head drops onto her knees: she jolts awake, insists she wasn't asleep, and dozes off again
+      const u = since % 30000;
+      if (u >= 23000 && u < 24400) { st.pose = 'awake'; st.y -= 10 * bump(u, 23000, 23300); st.sprite = 'surprised'; st.bubble = { text: this.lines.wake[1], t: u - 23000 }; st.fx.push(['bang', now - (u - 23000)], ['shock', now - (u - 23000)]); }
+      else st.fx.push(['z', now]);
+    }
+    return st;
+  }
+
+  // A mood says its first line 0.6 s in and the next one every 15 s after (平静 and 开心 say nothing).
+  talk(st, key, since) {
+    const lines = this.lines[key], u = since % 15000;
+    if (lines && u >= 600 && u < 4600) st.bubble = { text: this.fill(lines[Math.floor(since / 15000) % lines.length]), t: u - 600 };
+  }
+
+  eventState(name, t, opts, line) {
+    const st = this.base();
+    st._t = t; st.glow = GLOW[this.events[name]?.glow || this.events[name]?.tier || 'D'];
+    const say = (from, text = line) => { if (t >= from && text) st.bubble = { text, t: t - from }; };
+    const hop = (a, h = 10) => { st.y -= h * bump(t, a, a + 320); if (h >= 10) st.fx.push(['dust', a + 300]); };  // a puff where she lands
+    switch (name) {
+      // it looks up at her first, then waves its flag with her
+      case 'entry': st.pose = 'wave'; hop(0, 8); st.sprite = t < 350 ? 'sLook' : 'flag'; say(100); break;
+      // they bow together
+      case 'gift': st.pose = t < 1500 ? 'bow' : 'idle'; st.sprite = t < 1500 ? 'nod' : 'sHappy'; st.fx.push(['hearts', 200, 3]); say(150); break;
+      // it copies her: up beside her shoulder, hiding its face too
+      // little boxes fly in from both sides one after another; at the fifth she hides her face
+      case 'giftStreak':
+        st.pose = t < 1250 ? 'idle' : 'shy'; if (t >= 1250) { st.sprite = 'hide'; st.sp = ['rel', -0.04, 0.42]; } else st.sprite = 'sLook';
+        if (t >= 1250) st.fx.push(['hearts', 1250, 7]); say(1250); break;
+      // the box drops from above her head into her hands; she cheers and tosses the sprite
+      case 'midGift':
+        st.pose = at(t, [[0, 'idle'], [1100, 'giftBox'], [2000, 'cheer']]); hop(1200, 6); hop(2000, 14);
+        if (t < 2000) { st.sprite = 'sLook'; st.sp = ['rel', 0.04, 0.52]; } else this.toss(st, t, 2000);
+        say(1200); break;
+      case 'bigGift': this.bigGift(t, st, say); break;
+      // it listens at the box with her (its seams glowing in the tier's colour first) and is blown back when it opens; then
+      // the round's ending: a win cheers (a big one sends a beam to the top of the page and a star that bursts over it),
+      // breaking even she smiles and nods, a loss pouts and stamps and then bows her thanks while it pats her head
+      case 'blindBoxSmall': case 'blindBoxMedium': case 'blindBoxLarge': {
+        const size = BLIND_BOXES.indexOf(name), r = opts.result || 'Gain', win = r === 'Gain' || r === 'Jackpot', loss = r === 'Loss';
+        // the light is the tier's (中 sea blue, 大 purple); a jackpot shines gold, the top colour
+        if (r === 'Jackpot') st.glow = GLOW.SS;
+        const o = BOX_OPEN[name], wow = [0, 2000, 2600][size];
+        const steps = size === 0 ? [[0, 'shakeBox'], [o, 'openBox'], [1500, loss ? 'pout' : 'nod']]
+          : loss ? [[0, 'shakeBox'], [o, 'openBox'], [[0, 2000, 3500][size], 'pout'], [[0, 3000, 4700][size], 'bow']]
+          : [[0, 'shakeBox'], [o, 'openBox'], [wow, 'surprised'], [[0, 2600, 3500][size], win ? 'cheer' : 'nod']];
+        const react = steps[size === 0 ? 2 : loss ? 2 : 3][0], thanks = loss && size ? steps[3][0] : Infinity;
+        st.pose = at(t, steps);
+        if (win && size) hop(react, 14); else if (win) hop(react, 8);
+        if (loss && t >= react && t < thanks) st.y -= 4 * Math.abs(Math.sin((t - react) / 90));
+        if (t < o) { st.sprite = 'sLook'; st.sFlip = true; st.sp = BOX_EAR; }
+        else if (t < react) { if (loss && !size) { st.sprite = 'hide'; st.sp = ['rel', 1.1, 0.3]; } else { st.sprite = 'surprised'; st.sp = ['rel', 1.12, 0.02]; } }
+        else if (win) { st.sprite = 'sHappy'; st.sp = ['home', 0, -14 * bump(t, react, react + 320)]; }
+        else if (loss && t < thanks) { st.sprite = 'pat'; st.sp = 'head'; }
+        else st.sprite = 'nod';
+        if (size && !loss) st.fx.push(['bang', wow], ['shock', wow]);
+        if (size === 2) st.fx.push(['pillar', o, 1100, null, 'box'], ['bigStar', o], ['fountain', 2500, 1800, { x: FOOT.x, y: 200 }]);
+        if (size === 1) st.fx.push(['beam', o], ['fountain', o + 50, 1300, { x: FOOT.x, y: 500 }]);
+        if (win) st.fx.push(['sparkles', react], ...(size ? [['confetti', react]] : []));
+        if (loss) st.fx.push(...(size ? [] : [['puff', o]]), ['sweat', react - 550], ['gloom', react - 500, 450], ['anger', react, 900]);
+        say(o + 100); break;
+      }
+      case 'hum': case 'gym': case 'hike': case 'bike': case 'ski': return this.daily(t, st, { ...opts, kind: name });
+    }
+    const extra = EVENT_FX[name];
+    if (extra) { st.fx.push(...extra.fx); st.shake = extra.shake; }
+    return st;
+  }
+
+  daily(t, st, o) {
+    if (SPORTS[o.kind]) return this.sport(t, st, o);
+    // humming: the sprite sways along; when her voice cracks it hides its head
+    const main = DAILY[o.kind][0];
+    st._t = t;
+    const say = (from, key) => { if (t >= from) st.bubble = { text: this.lines[key][(o.seed || 0) % this.lines[key].length], t: t - from }; };
+    if (t < main) { st.pose = 'hum'; st.fx.push(['notes', 0]); st.sprite = 'sHappy'; st.sp = ['home', 6 * Math.sin(2 * Math.PI * t / 1280), 0]; say(200, o.kind); return st; }
+    st.pose = 'crack'; st.sprite = 'hide'; st.fx.push(['brokenNote', main], ['shock', main], ['sweat', main + 300]); say(main, 'voiceCrack');
+    return st;
+  }
+
+  // A sport (SPORTS): the sprite joins in (cheers her lifts with its flag, leads her hike, flies beside her bike or skis); if
+  // it goes wrong it starts, then rubs her foot or pats her head, and nods along while she puts a plaster on bare skin.
+  sport(t, st, o) {
+    st._t = t;
+    const sp = SPORTS[o.kind], go = 1100, stop = go + sp.act[1], end = stop + (o.mishap ? sp.fallMs : sp.calmMs) + 900, back = end - 900;
+    const say = (from, key) => { if (t >= from) st.bubble = { text: this.lines[key][(o.seed || 0) % this.lines[key].length], t: t - from }; };
+    const lead = o.kind === 'hike' ? ['at', 70, FOOT.y - 0.62 * H + 5 * Math.sin(t / 300)] : ['rel', -0.22, 0.3];
+    st.fx.push(['flash', 700, 0.8], ['flash', back + 700, 0.8]);
+    if (o.kind === 'ski') st.fx.push(['snow', 0, end]);
+    if (t < 700) { this.dress(st, t, 0); return st; }
+    if (t >= back + 700) { st.sprite = 'sHappy'; return st; }
+    if (t < go) { st.pose = sp.ready; st.sprite = 'sHappy'; }
+    else if (t < stop) {
+      const u = t - go;
+      st.pose = sp.act[0];
+      if (o.kind === 'gym') { st.sprite = 'flag'; st.sp = ['home', 0, -6 * Math.abs(Math.sin(Math.PI * u / 400))]; st.fx.push(['sweat', go + 300, 800]); }
+      if (o.kind === 'hike') { st.sprite = 'flag'; st.sp = lead; st.fx.push(['sweat', go + 800, 1600]); for (let k = 0; k * 340 < sp.act[1]; k++) st.fx.push(['dust', go + k * 340, null, 2]); }
+      if (o.kind === 'bike') {
+        st.y -= 2 * Math.abs(Math.sin(Math.PI * u / 220)); st.x += 14 * Math.sin(u / 900); st.sView = 'v2'; st.sp = lead;
+        st.fx.push(['speed', go, sp.act[1] - 400]); for (let k = 0; k * 440 < sp.act[1]; k++) st.fx.push(['dust', go + k * 440, [0.78, 0.97], 2]);
+      }
+      if (o.kind === 'ski') { st.x += 10 * Math.sin(u / 700); st.sView = 'v2'; st.sp = lead; st.fx.push(['speed', go, sp.act[1] - 200], ['spray', go, sp.act[1]]); }
+    } else if (!o.mishap) { st.pose = at(t - stop, sp.calm); st.sprite = 'sHappy'; }
+    else {
+      const u = t - stop, hit = stop + (o.kind === 'gym' ? 60 : 150);
+      st.pose = at(u, sp.fall);
+      if (u < 450) { st.sprite = 'surprised'; st.sp = o.kind === 'gym' ? null : lead; }
+      else if (o.kind === 'gym') { st.sprite = u < 2800 ? 'pat' : 'sHappy'; st.sp = u < 2800 ? ['rel', 0.3, 0.8] : null; }
+      else if (sp.lines[1] && u >= sp.lines[1][0]) { st.sprite = sp.plaster ? 'nod' : 'sHappy'; st.sp = ['rel', -0.06, 0.5]; }
+      else { st.sprite = 'pat'; st.sp = 'head'; }
+      if (o.kind === 'gym') st.fx.push(['impact', hit, [0.62, 0.95]], ['tears', stop + 200, 2600]);
+      else if (o.kind === 'ski') st.fx.push(['snowBurst', hit], ['impact', hit, [0.45, 0.85]], ['dizzy', stop + 1100, 1000], ['snowShake', stop + 2200, 1000]);
+      else st.fx.push(['impact', hit, sp.hitAt || [0.45, 0.9]], ['dust', hit, null, 6], ['dizzy', stop + 250, 1200, o.kind === 'bike' ? [0.25, 0.1] : null]);
+      if (sp.plaster) st.fx.push(['spark', stop + sp.plaster + 1700, ...sp.plasterAt, 6]);
+      st.shake = [[hit, o.kind === 'gym' ? 2 : 3, 240]];
+    }
+    if (t >= back) this.dress(st, t, back);
+    if (o.mishap && t >= stop) for (const [ms, key] of sp.lines) say(stop + ms, key);
+    else say(1300, o.kind);
+    return st;
+  }
+
+  // The big gift (A): a beam from the top of the page lands at her right; the box comes down it under a bunch of balloons,
+  // lands, the balloons float away; the lid flies off, a beam and a fountain of stars and hearts go up to the top; she cheers,
+  // and the box shrinks into a star that flies into her arms.
+  bigGift(t, st, say) {
+    const land = { x: FOOT.x + 150, y: FOOT.y }, fall = 1 - (1 - k01(t, 800, 2800)) ** 2;
+    const y = -20 + (land.y + 20) * fall, x = land.x + 14 * Math.sin(t / 260) * (1 - fall);
+    const into = ease(k01(t, 5300, 5900)), chest = { x: FOOT.x - 10, y: FOOT.y - 0.45 * H };
+    st.gift = { x: x + (chest.x - x) * into, y: y + (chest.y - y) * into, s: 1 - into, open: t >= 3400, lid: t >= 3400 ? t - 3400 : null,
+      balloons: t < 3600 ? { rise: Math.max(0, t - 2800), a: 1 - k01(t, 3200, 3600) } : null };
+    st.pose = at(t, [[0, 'idle'], [2800, 'surprised'], [4400, 'cheer']]);
+    const hop = (a, h) => { st.y -= h * bump(t, a, a + 320); }; hop(4400, 14);
+    if (t < 4400) { st.sprite = t < 2800 ? 'sLook' : 'surprised'; st.sp = ['rel', -0.1, 0.42]; } else this.toss(st, t, 4400);
+    say(2900);
+    return st;
+  }
+
+  // She tosses it up over her head: it flies up, hangs there hopping for joy, and only then comes down to circle her. The
+  // toss used to last 350 ms, about the flight up, so it started down the moment it got there (用户：一上头顶就下来了).
+  // It hangs above her speech bubble, two lines of it too, not behind it.
+  toss(st, t, a, hold = 1100) {
+    st.sprite = 'sHappy';
+    if (t < a + 350 + hold) st.sp = ['rel', 0.5, -0.5 - 0.05 * Math.abs(Math.sin(Math.max(0, t - a - 350) / 170))];
+    else st.orbit = t - a - 350 - hold;
+  }
+
+  // The sprite dresses her up (or back) from a: it circles her glowing, leaving a trail, and the caller flashes as it is done.
+  dress(st, t, a) {
+    st.sprite = 'glow'; st.orbit = 1000 / 1.2 + (t - a) * 2.2; st.orbitR = 90;  // from her left, where it waits
+    st.fx.push(['trail', a]);
+  }
+
+  // Low in front of her (README 1.1), on her left: a little outside her standing outline, so it overlaps her hair.
+  home(now) { return { x: FOOT.x + this.herLeft - SPRITE_H * 0.22, y: FOOT.y - 0.3 * H + 4 * Math.sin(now / 700) }; }
+
+  fill(text, name, opts = {}) {
+    if (!text) return text;
+    let nick = opts.nickname ?? '';
+    if ([...nick].length > NAME_MAX) nick = [...nick].slice(0, NAME_MAX - 1).join('') + '…';
+    return text.replaceAll('{昵称}', nick).replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3));
+  }
+}

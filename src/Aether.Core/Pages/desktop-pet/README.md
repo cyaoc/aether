@@ -32,3 +32,38 @@ again whenever settings are saved:
 | `settings.dailyMinSeconds`, `settings.dailyMaxSeconds` | How long she waits, at random between the two, before each 日常小动作 |
 | `settings.mishapPercent` | The chance, 0 to 100, that a 日常小动作 goes wrong |
 | `lines` | The current character's lines by kind: hers, with each kind the streamer changed replaced |
+
+## The page
+
+Design source: the desktop pet design package's board `docs/design/desktop-pet/boards/DP-DesktopPet.dc.html` at `da08028`.
+Its engine is `engine.mjs` (which show plays when, the 一轮送礼, the 心情 and 日常小动作, what she and her sprite do at a
+moment) and its drawing `pet.mjs` and `effects.mjs`, ported function for function on one Canvas 2D; `page.mjs` hands each
+event above to the engine's handler of the same name. The board's numbers measured on her pictures are the current
+character's `desktopPet` (`../characters/README.md`); the shows' timings, effects and the sprite's ways stay here, the same for
+every character. The page plays the 心情, the 日常小动作 and their mishaps, entries, gifts and blind boxes; a 大航海 only counts
+for her 心情 so far.
+
+The page is 480 × 640 design px, scaled with the browser source and standing on its bottom edge, and draws her pictures at
+their own resolution. It loads her pictures at once but for each 日常小动作's sheet, which loads when it first plays: all of them
+decoded take about 574 MB. A pose whose sheet is still loading keeps her in the drawing she has.
+
+`scripts/desktop-pet/` checks the page against the board: `compare.mjs` plays every show, 心情 and round on both from one seed
+and frame by frame on one clock and compares their pixels; `check.mjs` finds changes of pose with no way across, and
+`motion-scan.mjs` the sprite moving more than 20 px in a frame; `play.mjs` grabs the page at moments of a show playing in
+real time.
+
+## Deliberate differences from the board
+
+- Core tells the page what happens, so the board's buttons, scenes, caption, fast-forward, stand-in stream behind the page and
+  stand-in 盲盒播报 are gone. A 一轮送礼 is Core's: one for each viewer, several at once, over when Core says, and its blind boxes
+  open when their result comes. The board kept one round and ended it on its own timers.
+- A gift message, and a 大航海, counts once for 开心. The board counted a round's gifts as they came and its show again when
+  it started, so two gifts in a minute made her happy.
+- She does no 日常小动作 while she shakes a round's blind boxes. Waiting for the 盲盒播报 takes up to half a minute; the board's
+  stand-in took 0.8 s and a 日常小动作 could start in it.
+- The thresholds, the minutes before each 心情 (0 never), the 日常小动作's interval, which of them she does and their chance of a
+  mishap, the shows turned off and her lines are the state's; the board's are fixed. Without a room she stays calm, and her
+  quiet-room clocks start when one connects.
+- A 试演 starts its show at once, or holds her in its 心情, until it is stopped.
+- Shows, 心情, 日常小动作, endings and kinds of lines go by their ids in the 演出表 rather than the board's Chinese names, and
+  her lines are picked with `Math.random`, not the board's fixed seed.
