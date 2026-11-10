@@ -108,6 +108,24 @@ public sealed class DesktopPetSettingsTests
     });
 
     [Fact]
+    public Task The_daily_actions_least_seconds_may_equal_the_most_but_not_exceed_them() => WithPage(page =>
+    {
+        Tab(page, 1);
+        Number(page, "日常最短间隔（秒）").Text = "41";
+        GuiHarness.Flush();
+        Assert.False(page.CanSave);
+        Assert.Equal("最短间隔不能比最长间隔长，改好后才能保存", page.DirtyText);
+        Assert.Contains("最短间隔不能比最长间隔长", Texts(page));
+        Assert.Contains("invalid", Number(page, "日常最长间隔（秒）").Classes);
+
+        Number(page, "日常最短间隔（秒）").Text = "40";
+        GuiHarness.Flush();
+        Assert.True(page.CanSave);
+        Assert.DoesNotContain("invalid", Number(page, "日常最长间隔（秒）").Classes);
+        return Task.CompletedTask;
+    });
+
+    [Fact]
     public Task Insert_offers_only_the_kinds_placeholders_and_puts_one_in_the_line_being_edited() => WithPage(page =>
     {
         Tab(page, 2);

@@ -58,7 +58,7 @@ auto_update:
 
 直播画面功能的分组（`entry_animation`、`entry_animation_viewers`、`gift_animation`、`desktop_pet`、`web_service`）和 `auto_update` 只在 GUI 里生效；CLI 照常读和校验，写错了照样报错（[ADR 0003](adr/0003-one-bot-two-shells.md)、[ADR 0016](adr/0016-config-in-settings-file-and-database.md)）。`auto_update.enabled` 默认 `true`，打开 GUI 时检查并自动更新，在“通用设置”里和其他项一样点“保存”生效。
 
-`desktop_pet` 是桌宠的设置，默认值就是演出设计：`shows_off` 是不演的演出和日常小动作，写演出表（`src/Aether.Core/Pages/desktop-pet/shows.json`）里的英文 id，没写的都演，心情不能写在这里；`mid_gift_spend`、`big_gift_spend` 是中礼物、大礼物门槛（电池，按一轮的投入比，盲盒也一样），正整数，中礼物门槛要小于大礼物门槛；`bored_minutes`、`gloomy_minutes`、`sleepy_minutes` 是冷场几分钟进入无聊、沮丧、犯困，0 表示不进；`daily_min_seconds`、`daily_max_seconds` 是平静时隔几秒做一个日常小动作；`mishap_percent` 是日常小动作出事的几率，0–100。
+`desktop_pet` 是桌宠的设置，默认值就是演出设计：`shows_off` 是不演的演出和日常小动作，写演出表（`src/Aether.Core/Pages/desktop-pet/shows.json`）里的英文 id，没写的都演，心情不能写在这里；`mid_gift_spend`、`big_gift_spend` 是中礼物、大礼物门槛（电池，按一轮的投入比，盲盒也一样），正整数，中礼物门槛要小于大礼物门槛；`bored_minutes`、`gloomy_minutes`、`sleepy_minutes` 是冷场几分钟进入无聊、沮丧、犯困，0 表示不进；`daily_min_seconds`、`daily_max_seconds` 是平静时隔几秒做一个日常小动作，正整数，最少不能比最多大，可以相等；`mishap_percent` 是日常小动作出事的几率，0–100。
 改过的台词也在这一组，一类一行，键是 `lines.角色编号.台词类`（例如 `lines.1.bigGift`），值的写法和欢迎语一样，列表和每一句都不能为空，占位只能用这一类台词能用的；没写的类用角色自带的台词，改回和角色自带的一样时这一行删掉。老的设置文件没有 `desktop_pet` 时，打开后补写整组默认值，其他行不变。
 
 `log.retention_days` 是日志保留天数，必须为正整数，默认 30；`log.level` 是文件日志最低级别，

@@ -16,7 +16,7 @@ public partial class DesktopPetSettingsPage : SettingsPage
     private const string GiftGroup = "gift", DailyGroup = "daily";
     private readonly ShowTable shows;
     private readonly DesktopPetShowRow[] showRows;
-    private readonly ThresholdInputs thresholds;
+    private readonly OrderedInputs thresholds, dailySeconds;
     private string? blocked;
     private bool testing;
     private string playing = "";
@@ -34,7 +34,10 @@ public partial class DesktopPetSettingsPage : SettingsPage
         Title = "桌宠";
         TimingHint = "保存后立即生效；什么都不改，就是设计好的样子";
         showRows = [.. shows.Shows.Where(show => show.CanTurnOff).Select(show => new DesktopPetShowRow(show))];
-        thresholds = new([MidGiftInput, BigGiftInput], ThresholdError, "中礼物门槛要小于大礼物门槛", "中礼物门槛要小于大礼物门槛，改好后才能保存");
+        thresholds = new([MidGiftInput, BigGiftInput], ThresholdError, Settings.NumberOrder.Rising,
+            new("门槛要填正整数", "中礼物门槛要小于大礼物门槛", "中礼物门槛要小于大礼物门槛，改好后才能保存"));
+        dailySeconds = new([DailyMinInput, DailyMaxInput], DailyError, Settings.NumberOrder.NotFalling,
+            new("间隔要填正整数", "最短间隔不能比最长间隔长", "最短间隔不能比最长间隔长，改好后才能保存"));
         BindInputs();
         BuildLists();
         WatchNotes();
@@ -56,8 +59,8 @@ public partial class DesktopPetSettingsPage : SettingsPage
         Bind(BoredInput, BoredReadOnly, BoredError, s => s.DesktopPetMoodMinutes[0]);
         Bind(GloomyInput, GloomyReadOnly, GloomyError, s => s.DesktopPetMoodMinutes[1]);
         Bind(SleepyInput, SleepyReadOnly, SleepyError, s => s.DesktopPetMoodMinutes[2]);
-        Bind(DailyMinInput, DailyMinReadOnly, DailyMinError, s => s.DesktopPetDailySeconds[0]);
-        Bind(DailyMaxInput, DailyMaxReadOnly, DailyMaxError, s => s.DesktopPetDailySeconds[1]);
+        Bind(DailyMinInput, DailyMinReadOnly, null, s => s.DesktopPetDailySeconds[0]);
+        Bind(DailyMaxInput, DailyMaxReadOnly, null, s => s.DesktopPetDailySeconds[1]);
         Bind(MishapInput, MishapReadOnly, MishapError, s => s.DesktopPetMishapPercent);
     }
 
@@ -138,8 +141,9 @@ public partial class DesktopPetSettingsPage : SettingsPage
     protected override bool ShowRowErrors()
     {
         var thresholdError = thresholds.Check();
+        var dailyError = dailySeconds.Check();
         var linesError = CheckLines();
-        blocked = thresholdError ?? linesError;
+        blocked = thresholdError ?? dailyError ?? linesError;
         DirtyBlocked = blocked is not null;
         return blocked is not null;
     }

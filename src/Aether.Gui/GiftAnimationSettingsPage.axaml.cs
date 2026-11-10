@@ -6,7 +6,7 @@ namespace Aether.Gui;
 
 public partial class GiftAnimationSettingsPage : SettingsPage
 {
-    private readonly ThresholdInputs thresholds;
+    private readonly OrderedInputs thresholds;
     private string? thresholdError;
     public event Action? GeneralSettingsRequested;
     public GiftAnimationSettingsPage() : this(DataDirectory.Locate()) { }
@@ -17,7 +17,7 @@ public partial class GiftAnimationSettingsPage : SettingsPage
         TimingHint = "保存后，下一次送礼生效";
         Bind(EnabledInput, EnabledReadOnly, null, settings => settings.GiftAnimationEnabled);
         var inputs = new List<NumericUpDown>();
-        thresholds = new(inputs, ThresholdError, "每一档的门槛要比上一档高", "门槛要一档比一档高，改好后才能保存");
+        thresholds = new(inputs, ThresholdError, Settings.NumberOrder.Rising, new("门槛要填正整数", "每一档的门槛要比上一档高", "门槛要一档比一档高，改好后才能保存"));
         foreach (var (tier, index) in EntryTier.All.Select((tier, index) => (tier, index)))
         {
             var column = new StackPanel { Width = 150, Spacing = 8, Margin = new Thickness(0, 0, 8, 8) };

@@ -104,7 +104,7 @@ public sealed partial class Settings
           bored_minutes: 15
           gloomy_minutes: 40
           sleepy_minutes: 60
-          # 平静时隔几秒做一个日常小动作，在最少和最多之间随机；必须为正整数
+          # 平静时隔几秒做一个日常小动作，在最少和最多之间随机；必须为正整数，最少不能比最多大
           daily_min_seconds: 20
           daily_max_seconds: 40
           # 日常小动作出事的几率，0 到 100（%），0 表示不出事

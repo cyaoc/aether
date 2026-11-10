@@ -160,14 +160,13 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Width="70" Text="间隔" VerticalAlignment="Center" />
               <TextBlock Text="每隔" VerticalAlignment="Center" />
-              <NumericUpDown x:Name="DailyMinInput" Minimum="1" Classes.invalid="{Binding #DailyMinError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日常最短间隔（秒）" />
+              <NumericUpDown x:Name="DailyMinInput" Minimum="1" FormatString="0.############################" AutomationProperties.Name="日常最短间隔（秒）" />
               <TextBlock Text="到" VerticalAlignment="Center" />
-              <NumericUpDown x:Name="DailyMaxInput" Minimum="1" Classes.invalid="{Binding #DailyMaxError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日常最长间隔（秒）" />
+              <NumericUpDown x:Name="DailyMaxInput" Minimum="1" FormatString="0.############################" AutomationProperties.Name="日常最长间隔（秒）" />
               <TextBlock Text="秒，随机做一个" VerticalAlignment="Center" />
             </StackPanel>
             <StackPanel Margin="78,0,0,0">
-              <TextBlock x:Name="DailyMinError" Classes="error" />
-              <TextBlock x:Name="DailyMaxError" Classes="error" />
+              <TextBlock x:Name="DailyError" Classes="error" IsVisible="False" />
               <TextBlock x:Name="DailyMinReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
               <TextBlock x:Name="DailyMaxReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
             </StackPanel>

@@ -213,10 +213,11 @@ public sealed partial class Settings
         }
     }
 
-    /// <summary>How the numbers of one group follow one another, each positive: thresholds each above the one before (rise 1).</summary>
+    /// <summary>How the numbers of one group follow one another, each positive: thresholds each above the one before (rise 1),
+    /// the 日常小动作's least and most seconds, which may be equal (rise 0).</summary>
     public sealed record NumberOrder(int Rise)
     {
-        public static readonly NumberOrder Rising = new(1);
+        public static readonly NumberOrder Rising = new(1), NotFalling = new(0);
 
         /// <summary>Whether <paramref name="value"/> may follow <paramref name="before"/>, or come first when that is null.</summary>
         public bool Follows(int? before, int value) => value >= (before is { } previous ? previous + Rise : 1);
@@ -235,7 +236,8 @@ public sealed partial class Settings
     // A property: static fields of another part of this class may not have been initialised before this one.
     /// <summary>Numbers of one group that must follow one another in order, and why.</summary>
     private static (Definition<int>[] Definitions, NumberOrder Order, string Rule)[] Ordered =>
-        [(GiftThresholds, NumberOrder.Rising, GiftThresholdRule), (PetThresholds, NumberOrder.Rising, "中礼物门槛要小于大礼物门槛。")];
+        [(GiftThresholds, NumberOrder.Rising, GiftThresholdRule), (PetThresholds, NumberOrder.Rising, "中礼物门槛要小于大礼物门槛。"),
+            (PetDailySeconds, NumberOrder.NotFalling, "日常小动作的最短间隔不能比最长间隔长。")];
 
     private static SettingsException? ValidateOrder(YamlMappingNode root, string path) =>
         Ordered.Select(numbers => ValidateOrder(root, path, numbers)).FirstOrDefault(error => error is not null);

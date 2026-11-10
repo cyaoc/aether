@@ -46,6 +46,19 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     }
 
     [Fact]
+    public void The_daily_actions_least_seconds_may_equal_the_most_but_not_exceed_them()
+    {
+        Write("desktop_pet:\n  daily_min_seconds: 30\n  daily_max_seconds: 30\n");
+        Assert.Equal(("", "1000 10000", "15 40 60", "30 30", 25), Values(Settings.Load(h.DataDirectory)));
+
+        Write("desktop_pet:\n  daily_min_seconds: 31\n  daily_max_seconds: 30\n");
+        var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
+
+        Assert.Equal(("desktop_pet.daily_max_seconds", 3), (error.SettingName, error.LineNumber));
+        Assert.EndsWith("）：日常小动作的最短间隔不能比最长间隔长。", error.Message);
+    }
+
+    [Fact]
     public void Saving_a_threshold_that_is_not_below_the_big_one_is_refused_without_writing()
     {
         Settings.Load(h.DataDirectory);
