@@ -41,7 +41,7 @@ public sealed partial class AetherClient
 
     /// <summary>Where a 一轮送礼 reports: the 送礼动画 takes its end; the 桌宠 how it stands after each message and as it ends,
     /// and then its 盲盒 too unless a 盲盒播报 reports them.</summary>
-    private sealed record GiftRoundReports(Action<GiftRoundEnded> Ended, WebServiceFacade DesktopPet, bool BlindBoxesAnnounced);
+    private sealed record GiftRoundReports(Action<GiftRoundEnded> Ended, Action<string, object> TellDesktopPet, bool BlindBoxesAnnounced);
 
     private sealed class GiftRoundFeature(StepTimers timers, ILogger logger, long roomId, GiftRoundReports reports) : IRoomFeature
     {
@@ -79,7 +79,7 @@ public sealed partial class AetherClient
                 round.Spend = checked(round.Spend + viewer.Sum(gift => gift.Spend));
                 var gifts = viewer.Where(gift => gift.GuardLevel == 0).ToArray();
                 round.Gifts.AddRange(gifts);
-                if (gifts.Length > 0) reports.DesktopPet.TellDesktopPet(DesktopPet.Gift, round.Progress(false));
+                if (gifts.Length > 0) reports.TellDesktopPet(DesktopPet.Gift, round.Progress(false));
                 round.Timer.Reset(received.ReceivedTimestamp);
             }
         }
@@ -99,10 +99,10 @@ public sealed partial class AetherClient
             round.Timer.Dispose();
             reports.Ended(new(roomId, round.Uid, round.Nickname, round.Spend, time.GetUtcNow(), time.GetTimestamp()));
             if (round.Gifts.Count == 0) return;
-            reports.DesktopPet.TellDesktopPet(DesktopPet.Gift, round.Progress(true));
+            reports.TellDesktopPet(DesktopPet.Gift, round.Progress(true));
             var boxes = round.Gifts.Where(gift => gift.Blind is not null).ToArray();
             if (!reports.BlindBoxesAnnounced && boxes.Length > 0)
-                reports.DesktopPet.TellDesktopPet(DesktopPet.BlindBox, BlindBoxResult.Of(round.Uid, round.Nickname, boxes));
+                reports.TellDesktopPet(DesktopPet.BlindBox, BlindBoxResult.Of(round.Uid, round.Nickname, boxes));
         }
     }
 
