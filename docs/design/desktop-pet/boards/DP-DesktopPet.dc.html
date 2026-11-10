@@ -120,14 +120,14 @@ const EVENT_FX = {
   连着送: { fx: [['giftStack', 0], ['steam', 1300, 1200], ['spark', 1250, 0.5, 0.3, 10], ['halo', 1250, 1300, 0.35]] },
   中礼物: { fx: [['boxDrop', 200], ['spark', 1300, 0.5, 0.58, 8], ['shockwave', 1200], ['halo', 1200, 2000, 0.4], ['anchors', 1400, 1900, 'hearts']], shake: [[1200, 2, 200]] },
   '盲盒·中': {
-    fx: [['shakeMarks', 0, 0.85, 0.2, 1200], ['seamGlow', 0, 1200, 'shake'], ['halo', 1200, 2600, 0.45], ['shockwave', 2600]],
+    fx: [['shakeMarks', 0, 0.83, 0.44, 1200], ['seamGlow', 0, 1200, 'shake'], ['halo', 1200, 2600, 0.45], ['shockwave', 2600]],
     shake: [[1200, 2, 200]]
   },
-  '盲盒·小': { fx: [['shakeMarks', 0, 0.85, 0.2, 900]] },
+  '盲盒·小': { fx: [['shakeMarks', 0, 0.83, 0.44, 900]] },
   新的第一名: { fx: [['rays', 1300, 1000, 0.35], ['glint', 1350, 0.5, 0], ['spark', 1300, 0.5, 0.05, 8]] },
   舰长: { fx: [['shockwave', 600], ['splash', 600], ['anchors', 700, 2400], ['glint', 1000, 0.14, 0.3], ['halo', 600, 2400, 0.3]] },
   '盲盒·大': {
-    fx: [['shakeMarks', 0, 0.85, 0.2, 1500], ['seamGlow', 0, 1500, 'shake'], ['rays', 3500, 2300, 0.55], ['burst', 3500, 400], ['shockwave', 3500]],
+    fx: [['shakeMarks', 0, 0.83, 0.44, 1500], ['seamGlow', 0, 1500, 'shake'], ['rays', 3500, 2300, 0.55], ['burst', 3500, 400], ['shockwave', 3500]],
     shake: [[2500, 3, 260]]
   },
   大礼物: {
@@ -156,7 +156,8 @@ const EVENT_FX = {
   抽奖结束: { fx: [['halo', 0, 2000, 0.3], ['hearts', 300, 3], ['spark', 1450, 0.2, 0.2, 8]] }
 };
 // Effects drawn behind her (glows, rays, focus lines, rings on the ground, speed lines); the rest go in front.
-const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'speed', 'spray', 'pillar', 'cloudSea', 'lightStairs', 'wake', 'skyFireworks', 'stepGlow']);
+// (seamGlow: the light of a blind box glows out around the box from behind her, so it no longer whitens the box itself.)
+const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'speed', 'spray', 'pillar', 'cloudSea', 'lightStairs', 'wake', 'skyFireworks', 'stepGlow', 'seamGlow']);
 const TIER = { SS: 5, S: 4, A: 3, B: 2, C: 1, D: 0 };
 // Each tier's own glow (README 7.1), like gacha rarity: cool and quiet low, warmer higher; gold is the governor's, and
 // the lottery jackpot's (an event's glow: its reveal is the gold card of a gacha pull, though the show itself is A).
@@ -213,6 +214,9 @@ const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 中礼物: '�
 const ROUND_GAP = 3000, MID = 1000, BIG = 10000;
 // When a blind box show opens its box; after a round she has shaken it already, so the show starts there (start()).
 const BOX_OPEN = { '盲盒·小': 900, '盲盒·中': 1200, '盲盒·大': 1500 };
+// Where the sprite listens while she shakes a blind box: beside the box at its height, clear of the box and of the shake
+// marks around it (the box is at 0.83, 0.44 of her shakeBox drawing); it used to sit on the box, the marks over it.
+const BOX_EAR = ['rel', 1.28, 0.4];
 // A round with blind boxes ends when the bot's 盲盒播报 goes out with its 赚, 亏 or 不赚不亏, not on a timer of the pet's
 // own: the send queue takes it some time after the 3 s of silence (here a stand-in), and boxes sent before it goes out
 // join it. With the 盲盒播报 turned off the round ends after the 3 s.
@@ -426,9 +430,9 @@ class Component extends DCLogic {
       st.bubble = { text: this.fill(r.wakeLine, '冷场后来了人'), t: st._t };
       return st;
     }
-    st.pose = box ? 'shakeBox' : 'giftBox'; st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22];
+    st.pose = box ? 'shakeBox' : 'giftBox'; st.sprite = 'sLook'; st.sFlip = true; st.sp = box ? BOX_EAR : ['rel', 1.02, 0.22];
     for (const x of r.items) st.fx.push(['giftArc', x.at - r.start]);
-    if (box) st.fx.push(['shakeMarks', 0, 0.85, 0.2, 1e9]);
+    if (box) st.fx.push(['shakeMarks', 0, 0.83, 0.44, 1e9]);
     return st;
   }
 
@@ -547,7 +551,7 @@ class Component extends DCLogic {
         st.pose = at(t, steps);
         if (win && size) hop(react, 14); else if (win) hop(react, 8);
         if (loss && t >= react && t < thanks) st.y -= 4 * Math.abs(Math.sin((t - react) / 90));
-        if (t < o) { st.sprite = 'sLook'; st.sFlip = true; st.sp = ['rel', 1.02, 0.22]; }
+        if (t < o) { st.sprite = 'sLook'; st.sFlip = true; st.sp = BOX_EAR; }
         else if (t < react) { if (loss && !size) { st.sprite = 'hide'; st.sp = ['rel', 1.1, 0.3]; } else { st.sprite = 'surprised'; st.sp = ['rel', 1.12, 0.02]; } }
         else if (win) { st.sprite = 'sHappy'; st.sp = ['home', 0, -14 * bump(t, react, react + 320)]; }
         else if (loss && t < thanks) { st.sprite = 'pat'; st.sp = 'head'; }
@@ -1379,7 +1383,7 @@ class Component extends DCLogic {
       // the blind box's seams leak the colour of what is inside before it opens
       case 'seamGlow': {
         const a = life(t, 200, (f[2] || 1200) - 400, 200); if (!a) break;
-        const c = f[3] === 'shake' ? at(0.86, 0.22) : at(0.4, 0.5), rad = 34 + 6 * Math.sin(t / 70);
+        const c = f[3] === 'shake' ? at(0.83, 0.44) : at(0.4, 0.5), rad = 34 + 6 * Math.sin(t / 70);
         g.save(); g.globalCompositeOperation = 'lighter'; g.globalAlpha = a; const gr = g.createRadialGradient(c.x, c.y, 0, c.x, c.y, rad); gr.addColorStop(0, glow(0.9)); gr.addColorStop(1, glow(0)); g.fillStyle = gr; g.beginPath(); g.arc(c.x, c.y, rad, 0, Math.PI * 2); g.fill();
         g.strokeStyle = glow(0.9); g.lineWidth = 2; for (let i = 0; i < 6; i++) { const ang = i * Math.PI / 3 + t / 300; g.beginPath(); g.moveTo(c.x + Math.cos(ang) * 14, c.y + Math.sin(ang) * 14); g.lineTo(c.x + Math.cos(ang) * (rad + 14), c.y + Math.sin(ang) * (rad + 14)); g.stroke(); }
         g.restore(); break;
