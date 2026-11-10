@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Aether.Core.Tests.Support;
+using static Aether.Core.Tests.Support.GiftBoardStates;
 
 namespace Aether.Core.Tests;
 
@@ -46,7 +48,7 @@ public sealed class DesktopPetPageTests
         h.EnableStreamOverlay = true;
         await using var updates = await h.WatchConnectedAsync();
         using var pet = await DesktopPetEvents.OpenAsync(h);
-        Assert.Equal("""{"enabled":false,"roomConnected":false}""", (await pet.NextAsync()).Data.GetRawText());
+        Assert.Equal("""{"enabled":false,"roomConnected":false,"lottery":null,"giftBoard":null}""", (await pet.NextAsync()).Data.GetRawText());
 
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(), BlindGiftFixture.Json, UserToastFixture.Message(), EntryV2Fixture.Message());
         h.Time.Advance(TimeSpan.FromSeconds(3));
@@ -58,7 +60,7 @@ public sealed class DesktopPetPageTests
         Assert.True(state.GetProperty("enabled").GetBoolean());
         Assert.True(state.GetProperty("roomConnected").GetBoolean());
         await h.ApplySettingsAsync(("desktop_pet.enabled", "false"));
-        Assert.Equal("""{"enabled":false,"roomConnected":false}""", (await pet.NextAsync("state")).GetRawText());
+        Assert.Equal("""{"enabled":false,"roomConnected":false,"lottery":null,"giftBoard":null}""", (await pet.NextAsync("state")).GetRawText());
     }
 
     [Fact]
@@ -75,6 +77,62 @@ public sealed class DesktopPetPageTests
         var (name, entry) = await pet.NextAsync();
         Assert.Equal(("entry", 20002L, "进场观众"), (name, entry.GetProperty("uid").GetInt64(), entry.GetProperty("nickname").GetString()));
         Assert.Equal(("danmaku", "{}"), (await pet.NextAsync()) is var (danmaku, data) ? (danmaku, data.GetRawText()) : default);
+    }
+
+    [Fact]
+    public async Task The_state_has_the_lottery_as_on_air_with_when_a_draw_is_revealed_but_no_example_nor_what_is_kept_off_air()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+        await using var __ = updates;
+        var lottery = h.Client.Lottery;
+        await lottery.StartAsync([new("贴纸", 1, Grade.Third)], "停");
+        await lottery.StopAsync();
+        var drawn = (await pet.NextStateAsync(state => state.GetProperty("lottery") is { ValueKind: JsonValueKind.Object } on
+            && on.GetProperty("draws").GetArrayLength() == 1)).GetProperty("lottery");
+        Assert.Equal(lottery.State.Lottery?.DrawUntil, drawn.GetProperty("drawUntil").GetDateTimeOffset());
+
+        await h.Client.WebService.Lottery.PlayExampleAsync();
+        await lottery.HideAllDrawsFromStreamAsync();
+
+        // The example's frames are never told; the change that ends it is, without the draw kept off air.
+        var hidden = (await pet.NextAsync("state")).GetProperty("lottery");
+        Assert.Equal((drawn.GetProperty("id").GetString(), 0), (hidden.GetProperty("id").GetString(), hidden.GetProperty("draws").GetArrayLength()));
+        h.Time.Advance(LotteryController.DrawDuration);
+        await lottery.NewAsync(LotteryMode.Entry);
+        await lottery.StartEntryAsync([new("一等奖", "贴纸", 1, Grade.Grand)], "参加");
+        await lottery.CloseEntriesAsync();
+        await lottery.EndEntryAsync();
+        await lottery.SetEntryHiddenAsync(true);
+        await pet.NextStateAsync(state => state.GetProperty("lottery") is { ValueKind: JsonValueKind.Object } on
+            && on.GetProperty("phase").GetString() == "Ended");
+        Assert.Equal(JsonValueKind.Null, (await pet.NextAsync("state")).GetProperty("lottery").ValueKind);
+    }
+
+    [Fact]
+    public async Task The_state_has_the_gift_board_only_while_it_runs()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+        await using var __ = updates;
+        var board = h.Client.GiftBoard;
+        await board.SetOptionsAsync(RoomId, GiftBoardOptions.Default with { Threshold = 1 });
+        await board.StartNewPeriodAsync(RoomId);
+        await pet.NextStateAsync(state => state.GetProperty("giftBoard").ValueKind == JsonValueKind.Object);
+
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary());
+        var gifted = (await pet.NextAsync("state")).GetProperty("giftBoard");
+        Assert.Equal((1, true), (gifted.GetProperty("rows").GetArrayLength(), gifted.GetProperty("fromGift").GetBoolean()));
+        await board.EndPeriodAsync(RoomId);
+        Assert.Equal(JsonValueKind.Null, (await pet.NextAsync("state")).GetProperty("giftBoard").ValueKind);
+        await h.SetOptionsAsync(options => options with { Mascot = false });
+        await board.StartNewPeriodAsync(RoomId);
+
+        // Nothing is told of the ended board's new options; the next state is the new 期.
+        var next = (await pet.NextAsync("state")).GetProperty("giftBoard");
+        Assert.Equal((true, false), (next.GetProperty("running").GetBoolean(), next.GetProperty("options").GetProperty("mascot").GetBoolean()));
     }
 
     [Fact]

@@ -18,7 +18,7 @@ public sealed class WebServiceFacade
         region = regions.Create(_ => new WebService(queue.Writer, regions.Time, regions.Logger, lottery.SetExamplePage));
         Lottery = new(lottery);
         server = new(region, regions.Time, web => [new VideoPage(web, queue.Reader, dataDirectory), Lottery, new GiftBoardPage(giftBoard),
-            new DesktopPetPage(web)]);
+            new DesktopPetPage(web, lottery, giftBoard)]);
     }
 
     public LotteryPage Lottery { get; }

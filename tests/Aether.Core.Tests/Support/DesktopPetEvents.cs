@@ -34,6 +34,13 @@ internal sealed class DesktopPetEvents(HttpClient http, HttpResponseMessage resp
             if (await NextAsync() is var (next, data) && next == name) return data;
     }
 
+    /// <summary>The next state that <paramref name="match"/>es, past any other event.</summary>
+    public async Task<JsonElement> NextStateAsync(Func<JsonElement, bool> match)
+    {
+        while (true)
+            if (await NextAsync("state") is var state && match(state)) return state;
+    }
+
     /// <inheritdoc cref="NextAsync(string)"/>
     public async Task<T> NextAsync<T>(string name) => Assert.IsType<T>((await NextAsync(name)).Deserialize<T>(WebServer.Json));
 

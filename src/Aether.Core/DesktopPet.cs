@@ -8,12 +8,14 @@ internal sealed class DesktopPet(WebService service)
     public const string Gift = "gift", BlindBox = "blindBox", Guard = "guard", Entry = "entry", Danmaku = "danmaku";
 
     private bool roomConnected;
+    private Lottery? lottery;
+    private GiftBoardState? giftBoard;
 
     public Subscribers<SseEvent> Subscribers { get; } = new();
 
     private bool Enabled => service.Settings?.DesktopPetEnabled.Value == true;
 
-    public SseEvent State => new("state", Enabled ? new DesktopPetState(true, roomConnected) : new DesktopPetState(false));
+    public SseEvent State => new("state", Enabled ? new DesktopPetState(true, roomConnected, lottery, giftBoard) : new DesktopPetState(false));
 
     /// <summary>New settings may turn the 桌宠 on or off.</summary>
     public void Applied() => Subscribers.Publish(State);
@@ -26,6 +28,29 @@ internal sealed class DesktopPet(WebService service)
         Publish(State);
     }
 
+    /// <summary>The 抽奖页's example is no lottery, and what the streamer keeps off air stays off the 桌宠 too.</summary>
+    public void SetLottery(LotteryUpdate update)
+    {
+        Lottery? onAir = update.Live.Lottery switch
+        {
+            EntryLottery { Hidden: true } => null,
+            EntryLottery entry => entry with { Draws = [.. entry.Draws.Where(draw => !draw.HiddenFromStream)] },
+            PoolLottery pool => pool with { Draws = [.. pool.Draws.Where(draw => !draw.HiddenFromStream)] },
+            _ => null
+        };
+        if (update.Example is not null || onAir is null && lottery is null) return;
+        lottery = onAir;
+        Publish(State);
+    }
+
+    /// <summary>Only a running 期 is told: an ended one has no new first place.</summary>
+    public void SetGiftBoard(GiftBoardState state)
+    {
+        if (!state.Running && giftBoard is null) return;
+        giftBoard = state.Running ? state : null;
+        Publish(State);
+    }
+
     public void Tell(string name, object data) => Publish(new(name, data));
 
     private void Publish(SseEvent message)
@@ -35,8 +60,8 @@ internal sealed class DesktopPet(WebService service)
 }
 
 /// <summary>The 桌宠页's state: whether the 桌宠 is on and, only then, whether a room is connected, which her quiet-room clocks
-/// start from.</summary>
-internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false);
+/// start from, the lottery as it is on air, whose DrawUntil is when a draw is revealed, and the 礼物榜 while its 期 runs.</summary>
+internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false, Lottery? Lottery = null, GiftBoardState? GiftBoard = null);
 
 /// <summary>A viewer's 一轮送礼 as it stands after a gift message, and once more as it ends: its gifts' 投入, how many, the one
 /// of them priced highest and how many of it; its 盲盒' 投入 and boxes; and whether a 浪漫城堡 came, sent or opened. Its 大航海
