@@ -4,6 +4,7 @@
 // picture, so node can run it.
 import { k, smooth as ease } from '../video/animations/toolkit.mjs';
 import { Changes } from '../gift-board/changes.mjs';
+import { viewerName } from '../lottery/viewer.mjs';
 
 export const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -125,8 +126,6 @@ export const DAILY = { hum: [4000, 1500] };
 for (const [kind, sp] of Object.entries(SPORTS)) DAILY[kind] = [1100 + sp.act[1] + sp.calmMs + 900, sp.fallMs - sp.calmMs];
 
 // ---- the lottery on air, as Core tells it (LotteryState.cs)
-// A viewer as the 抽奖页 names one: by nickname, else by UID (a pool's called viewer, or one who never sent a danmaku in it).
-const viewer = (nickname, uid) => nickname || (uid ? `UID ${uid}` : '');
 // What she waits through while no show plays: entries open, or a draw coming (entries closed with someone to draw, a pool
 // spinning or its draw on the way to its DrawUntil); a pool between draws is no wait, and has no end.
 const lotOf = l => l?.mode === 'Entry' ? (l.phase === 'Open' ? 'open' : l.phase === 'Closed' && l.entryCount ? 'waiting' : null)
@@ -139,7 +138,7 @@ function stepsOf(prev, next) {
   if (!was && prev?.mode === 'Pool' && prev.draws.length) steps.push(['End']);
   if (!was && next.mode === 'Pool') steps.push(['PoolOpen']);
   if (next.mode === 'Pool' && next.phase === 'Spinning' && was?.phase !== 'Spinning') {
-    if (next.uid) steps.push(['PoolCall', { nickname: viewer(null, next.uid) }]);
+    if (next.uid) steps.push(['PoolCall', { nickname: viewerName({ uid: next.uid }) }]);
     steps.push(['PoolSpin']);
   }
   const entry = { Open: [['EntryOpen', { keyword: next.keyword }]], Closed: [[next.entryCount ? 'EntryClosed' : 'NoEntries']], Ended: next.entryCount ? [['End']] : [] };
@@ -149,7 +148,7 @@ function stepsOf(prev, next) {
 // A draw's reveal by its grade, with who won what: an entry lottery's award and prize, a pool's prize as both.
 const revealOf = (lottery, draw) => lottery.mode === 'Entry'
   ? { result: 'Reveal' + draw.award.grade, nickname: draw.winner.nickname, award: draw.award.name, prize: draw.award.prize }
-  : { result: 'Reveal' + draw.prize.grade, nickname: viewer(draw.nickname, draw.uid), award: draw.prize.name, prize: draw.prize.name };
+  : { result: 'Reveal' + draw.prize.grade, nickname: viewerName(draw), award: draw.prize.name, prize: draw.prize.name };
 
 /** The engine of the 桌宠页: Core tells it what happens (DesktopPet.cs) and it decides what she plays. `master` is the page's
  * one animation, whose currentTime is the time of everything; `shows` are the rows of the 演出表, which give each show its

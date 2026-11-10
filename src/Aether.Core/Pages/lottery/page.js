@@ -1,4 +1,5 @@
-'use strict';
+import { viewerName } from './viewer.mjs';
+
 const byId = id => document.getElementById(id);
 const scene = byId('scene'), summon = byId('summon'), ring = byId('ring');
 const grades = { Grand:'大奖', Second:'二奖', Third:'三奖' };
@@ -237,7 +238,6 @@ function scan(start, winner) {
   };
   scanning = setInterval(update,50); update();
 }
-const viewerName = (draw, fallback = '') => draw.nickname || (draw.uid ? `UID ${draw.uid}` : fallback);
 function drawResult(draw, entry) {
   const grade = entry ? draw.award.grade : draw.prize.grade;
   const elapsed = Math.max(0, Date.now() - Date.parse(draw.drawnAt));
