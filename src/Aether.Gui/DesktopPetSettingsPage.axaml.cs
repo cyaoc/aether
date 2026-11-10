@@ -29,6 +29,7 @@ public partial class DesktopPetSettingsPage : SettingsPage
     {
         this.shows = shows;
         InitializeComponent();
+        lineTarget = new(LineRows, RefreshInsertTarget);
         Title = "桌宠";
         TimingHint = "保存后立即生效；什么都不改，就是设计好的样子";
         showRows = [.. shows.Shows.Where(show => show.CanTurnOff).Select(show => new DesktopPetShowRow(show))];

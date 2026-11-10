@@ -1,4 +1,3 @@
-using System.Collections.Specialized;
 using Aether.Core;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -11,7 +10,7 @@ namespace Aether.Gui;
 public partial class DesktopPetSettingsPage
 {
     private DesktopPetLineKind[] lineKinds = [];
-    private WelcomeTextRow? editedLine;
+    private readonly LineInsertTarget lineTarget;
 
     private void BuildLineKinds()
     {
@@ -23,7 +22,6 @@ public partial class DesktopPetSettingsPage
             e.Container.Classes.Set("heading", heading);
         };
         LineKindList.SelectionChanged += (_, _) => OpenLineKind();
-        LineRows.GotFocus += LineGotFocus;
     }
 
     private void LoadLines()
@@ -33,7 +31,7 @@ public partial class DesktopPetSettingsPage
         lineKinds = [.. shows.Lines.Select(kind => new DesktopPetLineKind(kind, changed.ContainsKey(kind.Id), changed.GetValueOrDefault(kind.Id)?.CanEdit ?? true))];
         foreach (var kind in lineKinds)
         {
-            kind.Rows.CollectionChanged += LinesChanged;
+            lineTarget.Follow(kind.Rows);
             kind.Rows.RowChanged += Validate;
         }
         object[] items = [.. shows.Groups.SelectMany(group => lineKinds.Where(kind => kind.Kind.Group == group.Id).ToArray() is { Length: > 0 } kinds
@@ -47,7 +45,7 @@ public partial class DesktopPetSettingsPage
         if (LineKindList.SelectedItem is not DesktopPetLineKind kind) return;
         kind.Open(settings.DesktopPetLines(Character.Current)[kind.Kind.Id]);
         LineRows.ItemsSource = kind.Rows;
-        editedLine = kind.Rows.FirstOrDefault();
+        lineTarget.Row = kind.Rows.FirstOrDefault();
         LineKindTitle.Text = kind.Kind.Label;
         LineKindNote.Text = kind.Kind.Note + "；每次随机一句，不连着重复";
         PlaceholderButtons.ItemsSource = kind.Kind.Placeholders;
@@ -82,51 +80,31 @@ public partial class DesktopPetSettingsPage
             .ToDictionary(kind => kind.Kind.Id, kind => (IReadOnlyList<string>)[.. kind.Lines]);
     }
 
-    private void LinesChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (sender is not EditableRows<WelcomeTextRow> rows) return;
-        if (e.OldItems?.Contains(editedLine) == true)
-            editedLine = rows.ElementAtOrDefault(Math.Min(e.OldStartingIndex, rows.Count - 1));
-        RefreshInsertTarget();
-    }
-
-    private void LineGotFocus(object? sender, RoutedEventArgs e)
-    {
-        // Only the text box picks the line; pressing another line's × must not retarget the insert buttons.
-        if (e.Source is not TextBox { DataContext: WelcomeTextRow row }) return;
-        editedLine = row;
-        RefreshInsertTarget();
-    }
-
     private void RefreshInsertTarget()
     {
-        InsertTarget.Text = LineRows.ItemsSource is EditableRows<WelcomeTextRow> { Count: > 1 } rows && editedLine is not null
-            ? $"到第 {rows.IndexOf(editedLine) + 1} 句" : "";
+        InsertTarget.Text = LineRows.ItemsSource is EditableRows<WelcomeTextRow> { Count: > 1 } rows && lineTarget.Row is { } row
+            ? $"到第 {rows.IndexOf(row) + 1} 句" : "";
     }
 
     private void InsertPlaceholder(object? sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string name }) editedLine?.Insert("{" + name + "}");
+        if (sender is Button { Tag: string name }) lineTarget.Row?.Insert("{" + name + "}");
     }
 
-    /// <summary>A click on an insert button leaves focus in the line, so inserting does not count as leaving a new line.</summary>
-    private void InsertButtonGettingFocus(object? sender, FocusChangingEventArgs e)
-    {
-        if (e.NavigationMethod == NavigationMethod.Pointer) e.TryCancel();
-    }
+    private void InsertButtonGettingFocus(object? sender, FocusChangingEventArgs e) => LineInsertTarget.KeepFocus(e);
 
     private void AddLine(object? sender, RoutedEventArgs e)
     {
         if (LineKindList.SelectedItem is not DesktopPetLineKind kind) return;
-        editedLine = new("", kind.CanEdit, isNew: true);
-        kind.Rows.AddNew(editedLine);
+        lineTarget.Row = new("", kind.CanEdit, isNew: true);
+        kind.Rows.AddNew(lineTarget.Row);
     }
 
     private void RestoreLines(object? sender, RoutedEventArgs e)
     {
         if (LineKindList.SelectedItem is not DesktopPetLineKind kind) return;
         kind.Fill(Character.Current.Lines[kind.Kind.Id]);
-        editedLine = kind.Rows.FirstOrDefault();
+        lineTarget.Row = kind.Rows.FirstOrDefault();
         RefreshInsertTarget();
     }
 }
