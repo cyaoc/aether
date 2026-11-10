@@ -136,6 +136,32 @@ public sealed class DesktopPetPageTests
     }
 
     [Fact]
+    public async Task A_test_show_is_refused_with_why_until_a_page_can_play_it_and_can_be_stopped()
+    {
+        await using var h = new WatchHarness();
+        var service = h.Client.WebService;
+        async Task<string> RefusedAsync() =>
+            (await Assert.ThrowsAsync<InvalidOperationException>(() => service.TestShowAsync("castle", null, "星河"))).Message;
+
+        Assert.Equal("桌宠没有打开。", await RefusedAsync());
+        await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));
+        Assert.Equal("桌宠页没有推流软件连着。", await RefusedAsync());
+        await service.StopAsync();
+        Assert.Equal(WebService.NotRunning, await RefusedAsync());
+        await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));
+        using var pet = await DesktopPetEvents.OpenAsync(h);
+        await pet.NextAsync("state");
+
+        await service.TestShowAsync("blindBoxLarge", "Loss", "星河");
+        await service.StopTestShowAsync();
+
+        var (name, show) = await pet.NextAsync();
+        Assert.Equal((DesktopPet.Test, "blindBoxLarge", "Loss", "星河"), (name, show.GetProperty("show").GetString(),
+            show.GetProperty("variant").GetString(), show.GetProperty("nickname").GetString()));
+        Assert.Equal(DesktopPet.StopTest, (await pet.NextAsync()).Name);
+    }
+
+    [Fact]
     public async Task The_state_tells_when_the_room_connection_starts_and_ends_but_not_a_reconnect()
     {
         await using var h = new WatchHarness();

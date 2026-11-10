@@ -163,10 +163,13 @@ internal sealed class WebService
         // Posted from the step that starts or stops the service: an example play ordered after a stop is refused, and one before it
         // is stopped, as when both ran under one lock.
         if (status.Running != Status.Running || status.Error != Status.Error)
-            examplePage(status.Running ? null : status.Error ?? NotRunning);
+            examplePage(WhyNotRunning(status));
         Status = status;
         Subscribers.Publish(status);
     }
+
+    /// <summary>Why nothing can be shown on a page while <paramref name="status"/> holds; null while the service runs.</summary>
+    internal static string? WhyNotRunning(WebServiceStatus status) => status.Running ? null : status.Error ?? NotRunning;
 
     /// <summary>A request still finishing after StopAsync closed the listener has nothing left to abort on Windows.</summary>
     internal static void Abort(HttpListenerResponse response)

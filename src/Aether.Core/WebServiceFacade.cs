@@ -53,6 +53,14 @@ public sealed class WebServiceFacade
     /// <summary>Stops the test play with this id while it plays; a late click stops nothing else.</summary>
     public Task StopTestPlayAsync(string id) => region.Run(s => s.StopTestPlay(id));
 
+    /// <summary>Has the 桌宠页 play a 试演 of <paramref name="show"/>, an id of the 演出表, with its ending or daily action
+    /// (<paramref name="variant"/>) and an example nickname. Refused with why while the 桌宠 is off, the web service is not
+    /// running or no streaming software has the page open.</summary>
+    public Task TestShowAsync(string show, string? variant, string nickname) => region.Run(s => s.DesktopPet.TestShow(show, variant, nickname));
+
+    /// <summary>Has the 桌宠页 stop its 试演; a show of anything that happened plays on.</summary>
+    public Task StopTestShowAsync() => region.Run(s => s.DesktopPet.StopTestShow());
+
     /// <summary>Posted from the room connection, which never waits for the web service (ADR 0017).</summary>
     internal void PlayEntry(Entry entry, long receivedAt, CancellationToken roomStopped) =>
         region.Post(s => s.EntryAnimation.Enqueue(entry, receivedAt, roomStopped));

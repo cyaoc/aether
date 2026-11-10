@@ -5,7 +5,8 @@ namespace Aether.Core;
 internal sealed class DesktopPet(WebService service)
 {
     /// <summary>What happens, by the name the page is told it under.</summary>
-    public const string Gift = "gift", BlindBox = "blindBox", Guard = "guard", Entry = "entry", Danmaku = "danmaku";
+    public const string Gift = "gift", BlindBox = "blindBox", Guard = "guard", Entry = "entry", Danmaku = "danmaku",
+        Test = "testShow", StopTest = "stopTestShow";
 
     private bool roomConnected;
     private Lottery? lottery;
@@ -52,6 +53,17 @@ internal sealed class DesktopPet(WebService service)
     }
 
     public void Tell(string name, object data) => Publish(new(name, data));
+
+    /// <summary>Has the page play <paramref name="show"/> now; refused with why while no page would.</summary>
+    public void TestShow(string show, string? variant, string nickname)
+    {
+        var refused = !Enabled ? "桌宠没有打开。" : WebService.WhyNotRunning(service.Status)
+            ?? (service.Status.DesktopPetConnections == 0 ? "桌宠页没有推流软件连着。" : null);
+        if (refused is not null) throw new InvalidOperationException(refused);
+        Tell(Test, new { show, variant, nickname });
+    }
+
+    public void StopTestShow() => Tell(StopTest, new());
 
     private void Publish(SseEvent message)
     {
