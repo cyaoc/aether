@@ -212,8 +212,9 @@ export class Engine {
     // Anyone coming in counts as something happening for 犯困; a show turned off plays nothing, not a lesser one instead.
     this.lastAny = now;
     if (this.settings.off.includes(name)) return;
-    // she waves at whoever comes in only while she is idle: never over a daily action or any show, and it does not queue
-    if (name === 'entry' && this.cur) return;
+    // she waves at whoever comes in only while she is idle: never over a daily action, any show or blind boxes she shakes,
+    // and it does not queue
+    if (name === 'entry' && (this.cur || this.shaking())) return;
     const curTier = this.cur ? TIER[this.events[this.cur.name].tier] : -1, tier = TIER[ev.tier];
     // A gift round that grows to 5 gifts takes over its own plain thank-you, instead of being dropped as busy.
     // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
@@ -306,6 +307,9 @@ export class Engine {
     if (this.cur?.opts.trial) this.cur = null;
   }
 
+  // The round whose blind boxes she shakes while no show plays.
+  shaking() { return this.rounds.find(r => r.boxes); }
+
   // While a round with blind boxes is still coming in she does not just wait: she shakes the box the whole time, until the
   // 盲盒播报 tells how it came out, and each gift flies into her arms.
   roundState(now, r) {
@@ -347,7 +351,7 @@ export class Engine {
     // not while she shakes a round's blind boxes either: that lasts until the 盲盒播报 goes out, which may take half a minute;
     // nor while she waits through a lottery
     const kinds = Object.keys(DAILY).filter(kind => !this.settings.off.includes(kind));
-    if (!this.cur && !this.rounds.some(r => r.boxes) && !this.lot && this.mood(now) === 'calm' && now >= this.nextDaily && kinds.length) {
+    if (!this.cur && !this.shaking() && !this.lot && this.mood(now) === 'calm' && now >= this.nextDaily && kinds.length) {
       const kind = kinds[Math.floor(this.rng() * kinds.length)], mishap = this.rng() * 100 < this.settings.mishapPercent;
       this.start(kind, { mishap });
     }
@@ -371,7 +375,7 @@ export class Engine {
   // gifts still fly into her arms over whatever she is doing.
   stateAt(now) {
     this.update(now);
-    const c = this.cur, shaking = this.rounds.find(r => r.boxes);
+    const c = this.cur, shaking = this.shaking();
     let st;
     if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
     else if (c) {

@@ -80,6 +80,13 @@ test('an entry plays only while she is idle, over no show nor 日常小动作, a
   assert.equal(engine.cur, daily);
 });
 
+test('an entry does not play while she shakes a round\'s blind boxes', () => {
+  const engine = pet();
+  engine.gift(round(1, { boxes: 1, boxSpend: 15000 }));
+  engine.entry({ uid: 2, nickname: '进场观众' });
+  assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'shakeBox']);
+});
+
 test('开心 counts gifts, blind boxes and 大航海, not entries', () => {
   const engine = pet();
   for (const uid of [1, 2, 3]) engine.entry({ uid, nickname: '进场观众' });
