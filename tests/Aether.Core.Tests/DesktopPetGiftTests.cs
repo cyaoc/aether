@@ -86,6 +86,15 @@ public sealed class DesktopPetGiftTests
             await pet.NextAsync<GiftRoundProgress>(DesktopPet.Gift));
     }
 
+    [Theory]
+    [InlineData(32132, true)]
+    [InlineData(34632, true)]
+    [InlineData(34633, true)]
+    [InlineData(34634, true)]
+    [InlineData(31294, false)]
+    public void Every_restyle_of_the_romantic_castle_is_a_castle_and_no_other_castle_is(long giftId, bool castle) =>
+        Assert.Equal(castle, new Gift(10001, "测试观众", 2233000) { GiftId = giftId }.IsCastle);
+
     private static void AssertBlindBox(BlindBoxResult expected, string outcome, JsonElement told)
     {
         Assert.Equal(expected, told.Deserialize<BlindBoxResult>(WebServer.Json));
