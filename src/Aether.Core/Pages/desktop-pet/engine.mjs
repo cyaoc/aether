@@ -278,7 +278,7 @@ export class Engine extends EventTarget {
     this.gifted(now);
     // a castle in the round, sent or opened, plays once instead of its gifts and blind boxes; among blind boxes it waits for
     // their result as they do
-    if (p.castle && p.boxes && r.played < CASTLE) { r.castle = true; r.played = CASTLE; }
+    if (p.castle && p.boxes && r.played < CASTLE) Object.assign(r, { castle: true, castleAt: p.boxes, played: CASTLE });
     if (!p.count || r.castle) return;
     const { midGift, bigGift } = this.settings;
     const kind = p.castle ? 'castle' : p.spend >= bigGift ? 'bigGift' : p.spend >= midGift ? 'midGift' : p.count >= 5 ? 'giftStreak' : 'gift';
@@ -292,7 +292,11 @@ export class Engine extends EventTarget {
   // the castle instead.
   blindBox(b) {
     const told = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
-    if (told.some(t => t.castle) || !r && b.castle) return this.fire('castle', { nickname: b.nickname, round: r });
+    // the castle plays once, with the result that tells the boxes up to it; a result before it is stood in for by it
+    if (b.castle || told.some(t => t.castle && t.told >= t.castleAt)) {
+      for (const t of told) t.castle = false;
+      return this.fire('castle', { nickname: b.nickname, round: r });
+    }
     if (told.some(t => t.played === CASTLE)) return;
     const jackpot = b.bestPrice >= bigGift, spend = b.tally.spend;
     this.fire(BLIND_BOXES[jackpot || spend >= bigGift ? 2 : spend >= midGift ? 1 : 0],

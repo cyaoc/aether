@@ -182,6 +182,18 @@ test('one 盲盒播报 opens the boxes of every 一轮送礼 sent before it went
   assert.deepEqual([playing(engine), engine.rounds], ['blindBoxSmall', []]);
 });
 
+test('a castle opened while an earlier 盲盒播报 went out plays once, with the result that opens it', () => {
+  const engine = pet();
+  engine.gift(round(1, { boxes: 2, boxSpend: 30000 }));
+  engine.gift(round(1, { boxes: 3, boxSpend: 45000, castle: true }));
+  engine.blindBox({ ...boxResult(1, 30000, 18000), boxes: 2 });
+  assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'shakeBox']);
+
+  engine.gift(round(1, { boxes: 3, boxSpend: 45000, castle: true, ended: true }));
+  engine.blindBox({ ...boxResult(1, 15000, 2233000, 2233000), boxes: 1, castle: true });
+  assert.deepEqual([playing(engine), engine.queue, engine.rounds], ['castle', [], []]);
+});
+
 test('a show turned off does not play, nor a lesser one in its place', () => {
   const engine = pet({ off: ['bigGift', 'entry'] });
   engine.gift(gifts(1, 1000000));
