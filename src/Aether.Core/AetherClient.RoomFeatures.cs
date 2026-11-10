@@ -98,7 +98,11 @@ public sealed partial class AetherClient
             rounds.Remove(round.Uid);
             round.Timer.Dispose();
             reports.Ended(new(roomId, round.Uid, round.Nickname, round.Spend, time.GetUtcNow(), time.GetTimestamp()));
-            if (round.Gifts.Count > 0) reports.DesktopPet.TellDesktopPet(DesktopPet.Gift, round.Progress(true));
+            if (round.Gifts.Count == 0) return;
+            reports.DesktopPet.TellDesktopPet(DesktopPet.Gift, round.Progress(true));
+            var boxes = round.Gifts.Where(gift => gift.Blind is not null).ToArray();
+            if (!reports.BlindBoxesAnnounced && boxes.Length > 0)
+                reports.DesktopPet.TellDesktopPet(DesktopPet.BlindBox, BlindBoxResult.Of(round.Uid, round.Nickname, boxes));
         }
     }
 

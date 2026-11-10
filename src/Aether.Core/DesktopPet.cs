@@ -54,3 +54,14 @@ internal sealed record GiftRoundProgress(long Uid, string Nickname, long Spend, 
             sent.Any(gift => gift.IsCastle), ended);
     }
 }
+
+/// <summary>A viewer's 一轮盲盒 as its 盲盒播报 reported it, or without one as the 一轮送礼 ended: the tally, how many boxes, the
+/// gift opened priced highest (one of it) and whether a 浪漫城堡 came out.</summary>
+internal sealed record BlindBoxResult(long Uid, string Nickname, BlindBoxTally Tally, long Boxes, string BestGift, long BestPrice, bool Castle)
+{
+    public static BlindBoxResult Of(long uid, string nickname, IReadOnlyCollection<Gift> boxes)
+    {
+        var best = boxes.OrderByDescending(box => box.Price).First();
+        return new(uid, nickname, BlindBoxTally.Of(boxes), boxes.Sum(box => box.Num), best.GiftName, best.Price, boxes.Any(box => box.IsCastle));
+    }
+}

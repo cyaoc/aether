@@ -34,6 +34,17 @@ internal sealed class DesktopPetEvents(HttpClient http, HttpResponseMessage resp
             if (await NextAsync() is var (next, data) && next == name) return data;
     }
 
+    /// <inheritdoc cref="NextAsync(string)"/>
+    public async Task<T> NextAsync<T>(string name) => Assert.IsType<T>((await NextAsync(name)).Deserialize<T>(WebServer.Json));
+
+    /// <summary>The names of the next <paramref name="count"/> events, in order.</summary>
+    public async Task<string[]> NamesAsync(int count)
+    {
+        var names = new string[count];
+        for (var i = 0; i < count; i++) names[i] = (await NextAsync()).Name;
+        return names;
+    }
+
     public void Dispose()
     {
         reader.Dispose();
