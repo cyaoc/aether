@@ -182,7 +182,12 @@ export class Engine extends EventTarget {
     if (!state.roomConnected) { this.rounds = []; this.crowns.clear(); }
     this.room = state.roomConnected;
     // switched off she is told nothing more, and back on she starts from what she is told then
-    if (!state.enabled) { this.lottery = undefined; this.reveal = null; this.changes.reset(); return; }
+    if (!state.enabled) {
+      this.cur = this.seen = this.trial = null; this.queue = []; this.rounds = []; this.crowns.clear();
+      this.lottery = undefined; this.reveal = null; this.changes.reset(); return;
+    }
+    // a show turned off does not play, even one that was waiting its turn
+    this.queue = this.queue.filter(q => !this.settings.off.includes(q.name));
     this.onAir(state.lottery);
     this.ranked(state.giftBoard);
   }

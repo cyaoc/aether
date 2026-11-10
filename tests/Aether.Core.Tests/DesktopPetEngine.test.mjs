@@ -247,6 +247,16 @@ test('a show turned off does not play, nor a lesser one in its place', () => {
   assert.equal(playing(engine), 'midGift');
 });
 
+test('a show turned off while it waits its turn does not play', () => {
+  const engine = pet();
+  engine.guard({ uid: 1, nickname: '总督', guardLevel: 1 });
+  engine.guard({ uid: 2, nickname: '提督', guardLevel: 2 });
+  engine.receive({ enabled: true, roomConnected: true, settings: { ...engine.settings, off: ['admiral'] }, lines });
+  advance(engine, 30000);
+  assert.notEqual(playing(engine), 'admiral');
+  assert.deepEqual(engine.queue, []);
+});
+
 test('only the 日常小动作 left on come, at the interval set, and none goes wrong at 0 percent', () => {
   const engine = pet({ off: ['hum', 'gym', 'hike', 'bike'], dailyMinSeconds: 60, dailyMaxSeconds: 60, mishapPercent: 0 });
   for (let n = 0; n < 5; n++) {
@@ -476,6 +486,21 @@ test('switched off and on again, she plays nothing of what the lottery did meanw
   engine.receive({ enabled: false });
   engine.receive({ enabled: true, roomConnected: true, settings, lines, lottery: entryLottery({ phase: 'Ended' }) });
   assert.deepEqual(steps(engine), []);
+});
+
+test('switched off and on again, she plays nothing she was playing, had queued or was shaking boxes for before', () => {
+  const engine = pet(), settings = engine.settings;
+  engine.guard({ uid: 1, nickname: '总督', guardLevel: 1 });
+  engine.guard({ uid: 2, nickname: '提督', guardLevel: 2 });
+  engine.gift(round(3, { boxSpend: 5000, boxes: 1 }));
+  engine.receive({ enabled: false });
+  // switched off the page draws nothing, so her engine is not run: only its clock goes on
+  engine.master.currentTime += 60 * MINUTE;
+  engine.receive({ enabled: true, roomConnected: true, settings, lines });
+  advance(engine, 1);
+  // her clocks start again, so a 日常小动作 of her own may come
+  assert.ok(!['governor', 'admiral'].includes(playing(engine)));
+  assert.deepEqual([engine.queue, engine.shaking()], [[], undefined]);
 });
 
 test('a castle cuts a lottery wait short, and once it is over she is back to waiting for the draw', () => {
