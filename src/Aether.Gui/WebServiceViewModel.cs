@@ -34,10 +34,21 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             && previous.GiftAnimationEnabled.Value == snapshot.GiftAnimationEnabled.Value
             && previous.GiftAnimationThresholds.Select(value => value.Value).SequenceEqual(snapshot.GiftAnimationThresholds.Select(value => value.Value))
             && previous.EntryAnimationViewers.Count == snapshot.EntryAnimationViewers.Count
-            && previous.EntryAnimationViewers.All(pair => snapshot.EntryAnimationViewers.TryGetValue(pair.Key, out var choice) && choice.Value == pair.Value.Value))
+            && previous.EntryAnimationViewers.All(pair => snapshot.EntryAnimationViewers.TryGetValue(pair.Key, out var choice) && choice.Value == pair.Value.Value)
+            && SameDesktopPet(previous, snapshot))
             return animationReload.Current;
         return ApplyWebSettingsAsync(snapshot);
     }
+
+    /// <summary>Whether the 桌宠页 would be told the same settings and lines.</summary>
+    private static bool SameDesktopPet(Settings previous, Settings snapshot) =>
+        previous.DesktopPetEnabled.Value == snapshot.DesktopPetEnabled.Value
+        && previous.DesktopPetShowsOff.Value.SequenceEqual(snapshot.DesktopPetShowsOff.Value)
+        && DesktopPetNumbers(previous).SequenceEqual(DesktopPetNumbers(snapshot))
+        && previous.DesktopPetLines.All(kind => kind.Value.SequenceEqual(snapshot.DesktopPetLines[kind.Key]));
+
+    private static IEnumerable<int> DesktopPetNumbers(Settings settings) => settings.DesktopPetGiftThresholds.Concat(settings.DesktopPetMoodMinutes)
+        .Concat(settings.DesktopPetDailySeconds).Append(settings.DesktopPetMishapPercent).Select(setting => setting.Value);
 
     public async Task ApplyWebSettingsAsync(Settings snapshot)
     {
