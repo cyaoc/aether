@@ -93,7 +93,7 @@ public sealed class DesktopPetSettingsTests
         await GuiHarness.SaveAsync(page);
         var saved = Settings.Load(harness.DataDirectory);
         Assert.Equal(["entry", "hum"], saved.DesktopPetShowsOff.Value);
-        Assert.Equal((2000, 0), (saved.DesktopPetGiftThresholds[0].Value, saved.DesktopPetMoodMinutes[0].Value));
+        Assert.Equal((2000, 0), (saved.DesktopPetMidGift.Value, saved.DesktopPetBoredMinutes.Value));
         Assert.Equal(["bigGift"], saved.DesktopPetChangedLines.Keys);
         Assert.Equal(["{昵称}，谢谢你～", .. Character.Current.Lines["bigGift"].Skip(1)], saved.DesktopPetChangedLines["bigGift"].Value);
         Assert.Equal(["entry", "hum"], harness.Client.WebService.Settings!.DesktopPetShowsOff.Value);

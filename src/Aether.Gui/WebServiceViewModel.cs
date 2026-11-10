@@ -52,8 +52,9 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             && previous.DesktopPetLines.All(kind => kind.Value.SequenceEqual(lines[kind.Key]));
     }
 
-    private static IEnumerable<int> DesktopPetNumbers(Settings settings) => settings.DesktopPetGiftThresholds.Concat(settings.DesktopPetMoodMinutes)
-        .Concat(settings.DesktopPetDailySeconds).Append(settings.DesktopPetMishapPercent).Select(setting => setting.Value);
+    private static IEnumerable<int> DesktopPetNumbers(Settings settings) => new[] { settings.DesktopPetMidGift, settings.DesktopPetBigGift,
+        settings.DesktopPetBoredMinutes, settings.DesktopPetGloomyMinutes, settings.DesktopPetSleepyMinutes, settings.DesktopPetDailyMinSeconds,
+        settings.DesktopPetDailyMaxSeconds, settings.DesktopPetMishapPercent }.Select(setting => setting.Value);
 
     public async Task ApplyWebSettingsAsync(Settings snapshot)
     {

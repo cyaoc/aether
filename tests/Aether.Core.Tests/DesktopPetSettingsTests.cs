@@ -147,8 +147,9 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     private static (string, string, string, string, int) Values(Settings settings)
     {
         Assert.Null(settings.Error);
-        return (string.Join(' ', settings.DesktopPetShowsOff.Value), Text(settings.DesktopPetGiftThresholds), Text(settings.DesktopPetMoodMinutes),
-            Text(settings.DesktopPetDailySeconds), settings.DesktopPetMishapPercent.Value);
+        return (string.Join(' ', settings.DesktopPetShowsOff.Value), Text([settings.DesktopPetMidGift, settings.DesktopPetBigGift]),
+            Text([settings.DesktopPetBoredMinutes, settings.DesktopPetGloomyMinutes, settings.DesktopPetSleepyMinutes]),
+            Text([settings.DesktopPetDailyMinSeconds, settings.DesktopPetDailyMaxSeconds]), settings.DesktopPetMishapPercent.Value);
 
         static string Text(IEnumerable<Setting<int>> numbers) => string.Join(' ', numbers.Select(number => number.Value));
     }

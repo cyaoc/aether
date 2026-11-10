@@ -49,18 +49,18 @@ public partial class DesktopPetSettingsPage : SettingsPage
 
     protected override bool AppliesToWebService => true;
     protected override string DirtyDescription => blocked ?? base.DirtyDescription;
-    internal override IEnumerable<string> FieldNames => base.FieldNames.Append("desktop_pet.lines");
+    internal override IEnumerable<string> FieldNames => base.FieldNames.Append(Settings.DesktopPetLinesName);
 
     private void BindInputs()
     {
         Bind(EnabledInput, EnabledReadOnly, null, s => s.DesktopPetEnabled);
-        Bind(MidGiftInput, MidGiftReadOnly, null, s => s.DesktopPetGiftThresholds[0]);
-        Bind(BigGiftInput, BigGiftReadOnly, null, s => s.DesktopPetGiftThresholds[1]);
-        Bind(BoredInput, BoredReadOnly, BoredError, s => s.DesktopPetMoodMinutes[0]);
-        Bind(GloomyInput, GloomyReadOnly, GloomyError, s => s.DesktopPetMoodMinutes[1]);
-        Bind(SleepyInput, SleepyReadOnly, SleepyError, s => s.DesktopPetMoodMinutes[2]);
-        Bind(DailyMinInput, DailyMinReadOnly, null, s => s.DesktopPetDailySeconds[0]);
-        Bind(DailyMaxInput, DailyMaxReadOnly, null, s => s.DesktopPetDailySeconds[1]);
+        Bind(MidGiftInput, MidGiftReadOnly, null, s => s.DesktopPetMidGift);
+        Bind(BigGiftInput, BigGiftReadOnly, null, s => s.DesktopPetBigGift);
+        Bind(BoredInput, BoredReadOnly, BoredError, s => s.DesktopPetBoredMinutes);
+        Bind(GloomyInput, GloomyReadOnly, GloomyError, s => s.DesktopPetGloomyMinutes);
+        Bind(SleepyInput, SleepyReadOnly, SleepyError, s => s.DesktopPetSleepyMinutes);
+        Bind(DailyMinInput, DailyMinReadOnly, null, s => s.DesktopPetDailyMinSeconds);
+        Bind(DailyMaxInput, DailyMaxReadOnly, null, s => s.DesktopPetDailyMaxSeconds);
         Bind(MishapInput, MishapReadOnly, MishapError, s => s.DesktopPetMishapPercent);
     }
 

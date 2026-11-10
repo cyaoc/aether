@@ -88,12 +88,10 @@ internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false,
 internal sealed record DesktopPetSettings(IReadOnlyList<string> Off, long MidGift, long BigGift, int BoredMinutes, int GloomyMinutes,
     int SleepyMinutes, int DailyMinSeconds, int DailyMaxSeconds, int MishapPercent)
 {
-    public static DesktopPetSettings Of(Settings settings)
-    {
-        var (thresholds, moods, daily) = (settings.DesktopPetGiftThresholds, settings.DesktopPetMoodMinutes, settings.DesktopPetDailySeconds);
-        return new(settings.DesktopPetShowsOff.Value, Battery.ToCoins(thresholds[0].Value), Battery.ToCoins(thresholds[1].Value), moods[0].Value,
-            moods[1].Value, moods[2].Value, daily[0].Value, daily[1].Value, settings.DesktopPetMishapPercent.Value);
-    }
+    public static DesktopPetSettings Of(Settings settings) => new(settings.DesktopPetShowsOff.Value, Battery.ToCoins(settings.DesktopPetMidGift.Value),
+        Battery.ToCoins(settings.DesktopPetBigGift.Value), settings.DesktopPetBoredMinutes.Value, settings.DesktopPetGloomyMinutes.Value,
+        settings.DesktopPetSleepyMinutes.Value, settings.DesktopPetDailyMinSeconds.Value, settings.DesktopPetDailyMaxSeconds.Value,
+        settings.DesktopPetMishapPercent.Value);
 }
 
 /// <summary>A viewer's 一轮送礼 as it stands after a gift message, and once more as it ends: its gifts' 投入, how many, the one

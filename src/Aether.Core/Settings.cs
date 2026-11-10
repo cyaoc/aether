@@ -168,33 +168,34 @@ public sealed partial class Settings
     private static readonly Definition<IReadOnlyList<string>> PetShowsOff = Register(Definition.TextList("desktop_pet.shows_off", [],
         ids => ids.FirstOrDefault(id => !ShowTable.Current.Shows.Any(show => show.Id == id && show.CanTurnOff)) is { } wrong
             ? $"演出表里没有能关掉的 {wrong}。" : null));
-    private static readonly Definition<int>[] PetThresholds =
-    [
-        Register(Definition.Number("desktop_pet.mid_gift_spend", 1000, "必须为正整数。", value => value > 0)),
-        Register(Definition.Number("desktop_pet.big_gift_spend", 10000, "必须为正整数。", value => value > 0)),
-    ];
-    private static readonly Definition<int>[] PetMoodMinutes =
-    [
-        Register(Definition.Number("desktop_pet.bored_minutes", 15, "必须为非负整数。", minutes => minutes >= 0)),
-        Register(Definition.Number("desktop_pet.gloomy_minutes", 40, "必须为非负整数。", minutes => minutes >= 0)),
-        Register(Definition.Number("desktop_pet.sleepy_minutes", 60, "必须为非负整数。", minutes => minutes >= 0)),
-    ];
-    private static readonly Definition<int>[] PetDailySeconds =
-    [
-        Register(Definition.Number("desktop_pet.daily_min_seconds", 20, "必须为正整数。", seconds => seconds > 0)),
-        Register(Definition.Number("desktop_pet.daily_max_seconds", 40, "必须为正整数。", seconds => seconds > 0)),
-    ];
+    private static readonly Definition<int> PetMidGift = Register(Definition.Number("desktop_pet.mid_gift_spend", 1000, "必须为正整数。", value => value > 0));
+    private static readonly Definition<int> PetBigGift = Register(Definition.Number("desktop_pet.big_gift_spend", 10000, "必须为正整数。", value => value > 0));
+    private static readonly Definition<int> PetBoredMinutes = Register(Definition.Number("desktop_pet.bored_minutes", 15, "必须为非负整数。", minutes => minutes >= 0));
+    private static readonly Definition<int> PetGloomyMinutes = Register(Definition.Number("desktop_pet.gloomy_minutes", 40, "必须为非负整数。", minutes => minutes >= 0));
+    private static readonly Definition<int> PetSleepyMinutes = Register(Definition.Number("desktop_pet.sleepy_minutes", 60, "必须为非负整数。", minutes => minutes >= 0));
+    private static readonly Definition<int> PetDailyMin = Register(Definition.Number("desktop_pet.daily_min_seconds", 20, "必须为正整数。", seconds => seconds > 0));
+    private static readonly Definition<int> PetDailyMax = Register(Definition.Number("desktop_pet.daily_max_seconds", 40, "必须为正整数。", seconds => seconds > 0));
     private static readonly Definition<int> PetMishapPercent = Register(Definition.Percent("desktop_pet.mishap_percent", 25));
-    private static readonly LineDefinition PetLines = Register(new LineDefinition("desktop_pet.lines"));
+    /// <summary>The name the 桌宠's changed lines go under, a line for each kind, such as desktop_pet.lines.1.bigGift.</summary>
+    public const string DesktopPetLinesName = "desktop_pet.lines";
+    private static readonly LineDefinition PetLines = Register(new LineDefinition(DesktopPetLinesName));
     public Setting<bool> DesktopPetEnabled => Get(DesktopPetOn);
     /// <summary>The ids of the 演出表's rows turned off.</summary>
     public Setting<IReadOnlyList<string>> DesktopPetShowsOff => Get(PetShowsOff);
-    /// <summary>The 中礼物 and 大礼物 thresholds, in 电池.</summary>
-    public IReadOnlyList<Setting<int>> DesktopPetGiftThresholds => PetThresholds.Select(Get).ToArray();
-    /// <summary>Quiet minutes before 无聊, 沮丧 and 犯困.</summary>
-    public IReadOnlyList<Setting<int>> DesktopPetMoodMinutes => PetMoodMinutes.Select(Get).ToArray();
-    /// <summary>The least and the most seconds between 日常小动作.</summary>
-    public IReadOnlyList<Setting<int>> DesktopPetDailySeconds => PetDailySeconds.Select(Get).ToArray();
+    /// <summary>The 中礼物 threshold, in 电池.</summary>
+    public Setting<int> DesktopPetMidGift => Get(PetMidGift);
+    /// <summary>The 大礼物 threshold, in 电池.</summary>
+    public Setting<int> DesktopPetBigGift => Get(PetBigGift);
+    /// <summary>Quiet minutes before 无聊.</summary>
+    public Setting<int> DesktopPetBoredMinutes => Get(PetBoredMinutes);
+    /// <summary>Minutes without a gift before 沮丧.</summary>
+    public Setting<int> DesktopPetGloomyMinutes => Get(PetGloomyMinutes);
+    /// <summary>Minutes with nothing at all before 犯困.</summary>
+    public Setting<int> DesktopPetSleepyMinutes => Get(PetSleepyMinutes);
+    /// <summary>The least seconds between 日常小动作.</summary>
+    public Setting<int> DesktopPetDailyMinSeconds => Get(PetDailyMin);
+    /// <summary>The most seconds between 日常小动作.</summary>
+    public Setting<int> DesktopPetDailyMaxSeconds => Get(PetDailyMax);
     public Setting<int> DesktopPetMishapPercent => Get(PetMishapPercent);
     /// <summary>The current character's kinds of lines the streamer changed, by kind.</summary>
     public IReadOnlyDictionary<string, Setting<IReadOnlyList<string>>> DesktopPetChangedLines => PetLines.Items(this)

@@ -236,8 +236,8 @@ public sealed partial class Settings
     // A property: static fields of another part of this class may not have been initialised before this one.
     /// <summary>Numbers of one group that must follow one another in order, and why.</summary>
     private static (Definition<int>[] Definitions, NumberOrder Order, string Rule)[] Ordered =>
-        [(GiftThresholds, NumberOrder.Rising, GiftThresholdRule), (PetThresholds, NumberOrder.Rising, "中礼物门槛要小于大礼物门槛。"),
-            (PetDailySeconds, NumberOrder.NotFalling, "日常小动作的最短间隔不能比最长间隔长。")];
+        [(GiftThresholds, NumberOrder.Rising, GiftThresholdRule), ([PetMidGift, PetBigGift], NumberOrder.Rising, "中礼物门槛要小于大礼物门槛。"),
+            ([PetDailyMin, PetDailyMax], NumberOrder.NotFalling, "日常小动作的最短间隔不能比最长间隔长。")];
 
     private static SettingsException? ValidateOrder(YamlMappingNode root, string path) =>
         Ordered.Select(numbers => ValidateOrder(root, path, numbers)).FirstOrDefault(error => error is not null);
