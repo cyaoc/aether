@@ -31,7 +31,9 @@ public sealed class SettingsPageTests
             new SendSettingsPage(harness.DataDirectory),
             new GeneralSettingsPage(harness.DataDirectory)
         ];
-        Assert.Equal(Settings.AllDefinitions.Select(definition => definition.Name).Order(), pages.SelectMany(page => page.FieldNames).Order());
+        // The 桌宠 page comes with #362; until then no page edits desktop_pet.*.
+        Assert.Equal(Settings.AllDefinitions.Where(definition => definition.Group != "desktop_pet").Select(definition => definition.Name).Order(),
+            pages.SelectMany(page => page.FieldNames).Order());
     }, TestContext.Current.CancellationToken);
 
     [Theory]

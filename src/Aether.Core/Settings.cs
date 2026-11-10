@@ -89,7 +89,12 @@ public sealed partial class Settings
           tier_50_spend: 2000
           tier_60_spend: 10000
 
-        # 网页服务，视频页 /video、抽奖页 /lottery、礼物榜页 /gift-board 都从这里打开；只在 GUI 里生效，先开 Aether 再开推流软件
+        # 桌宠，只在 GUI 里生效，保存后立即生效；桌宠页 /desktop-pet 加成浏览器素材，放在直播画面一角
+        desktop_pet:
+          # true 或 false，桌宠按直播间里发生的事表演；false 时桌宠页全透明
+          enabled: false
+
+        # 网页服务，视频页 /video、抽奖页 /lottery、礼物榜页 /gift-board、桌宠页 /desktop-pet 都从这里打开；只在 GUI 里生效，先开 Aether 再开推流软件
         web_service:
           # 端口 1–65535；保存后立即生效，所有浏览器素材的地址都要跟着改
           port: 17890
@@ -143,6 +148,8 @@ public sealed partial class Settings
     public Setting<int> EntryAnimationVolume => Get(AnimationVolume);
     public Setting<bool> GiftAnimationEnabled => Get(GiftOn);
     public IReadOnlyList<Setting<int>> GiftAnimationThresholds => GiftThresholds.Select(Get).ToArray();
+    private static readonly Definition<bool> DesktopPetOn = Register(Definition.Boolean("desktop_pet.enabled", false));
+    public Setting<bool> DesktopPetEnabled => Get(DesktopPetOn);
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private static readonly ViewerGroupDefinition AnimationViewers = Register(new ViewerGroupDefinition("entry_animation_viewers"));
     private static readonly Definition<bool> AutoUpdate = Register(Definition.Boolean("auto_update.enabled", true));

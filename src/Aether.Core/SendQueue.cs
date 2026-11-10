@@ -29,18 +29,16 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
     internal sealed record Welcome(long Id, long Uid, string Nickname, long ReceivedAt, WelcomeResult Result)
         : Item(Id, Uid, Nickname);
 
-    /// <summary>The part of a 一轮盲盒 one announcement reports; a Count, since a box can be worth nothing.</summary>
-    internal readonly record struct Reported(BlindBoxTally Tally, long Count);
-
     /// <summary>A send's turn: its text as it stands, and how long the pacing rules still hold it back. A turn that waits sends
-    /// nothing; the turn after the wait can bring another text.</summary>
-    internal sealed record Turn(Item Item, Reported? Reported, string Text, TimeSpan Wait);
+    /// nothing; the turn after the wait can bring another text. An announcement's turn reports the first Reported boxes of its
+    /// 一轮盲盒.</summary>
+    internal sealed record Turn(Item Item, int? Reported, string Text, TimeSpan Wait);
 
     private sealed class Round(Announcement item)
     {
         public Announcement Item = item;
-        public BlindBoxTally Tally = new(0, 0);
-        public long Count;
+        // In the order received: an announcement reports those it found, and boxes received while it was sent come after them.
+        public readonly List<Gift> Boxes = [];
         public QuietTimer Timer = null!;
         public bool Queued;
     }
@@ -176,8 +174,7 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
             });
         }
         round.Item = round.Item with { Nickname = box.Nickname };
-        round.Tally = new(checked(round.Tally.Spend + box.Spend), checked(round.Tally.OpenedValue + box.Value));
-        round.Count++;
+        round.Boxes.Add(box);
         round.Timer.Reset(receivedAt);
     }
 
@@ -201,17 +198,17 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
         // Peek, and take the item off only once its send has ended: a reconnect keeps an interrupted one, the end of
         // the room connection counts it as dropped, and a first rate limit keeps it at the head for its one retry.
         if (!pending.Reader.TryPeek(out var item) || DiscardExpiredWelcome(item)) return null;
-        Reported? reported = null;
+        int? reported = null;
         if (item is Announcement)
         {
             var round = rounds[item.Uid];
-            (item, reported) = (round.Item, new Reported(round.Tally, round.Count));
+            (item, reported) = (round.Item, round.Boxes.Count);
         }
         var text = item switch
         {
             Query query => BlindBoxTally.Reply(tally(query), query.Period),
             Welcome welcome => welcome.Result.Text,
-            _ => BlindBoxTally.Announcement(rounds[item.Uid].Tally)
+            _ => BlindBoxTally.Announcement(BlindBoxTally.Of(rounds[item.Uid].Boxes))
         };
         var wait = TurnWait(text);
         if (wait == TimeSpan.Zero) Report(item, SendQueueItemState.Sending, text);
@@ -230,8 +227,8 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
     }
 
     /// <summary>Ends the turn of a send that was not interrupted: a first rate limit keeps it at the head for its one retry;
-    /// otherwise it was sent or is given up.</summary>
-    public void EndTurn(Turn turn, Exception? failure)
+    /// otherwise it was sent or is given up, and an announcement returns the 一轮盲盒 it reported.</summary>
+    public BlindBoxResult? EndTurn(Turn turn, Exception? failure)
     {
         // ponytail: one retry, no backoff; back off if B站's limits turn out to outlast both pacing rules.
         if (failure is DanmakuRateLimitedException && !rateLimitRetryOwed)
@@ -239,13 +236,12 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
             rateLimitRetryOwed = true;
             var retrySeconds = Math.Max(interval.TotalSeconds, SameTextWindow.TotalSeconds);
             Report(turn.Item, SendQueueItemState.WaitingToRetry, reason: failure.Message, retrySeconds: retrySeconds);
-            return;
+            return null;
         }
         rateLimitRetryOwed = false;
-        if (failure is null)
-            Finish(turn.Item, turn.Reported, SendQueueItemState.Sent, turn.Text);
-        else
-            Finish(turn.Item, turn.Reported, SendQueueItemState.Discarded, turn.Text, failure.Message, failure);
+        return failure is null
+            ? Finish(turn.Item, turn.Reported, SendQueueItemState.Sent, turn.Text)
+            : Finish(turn.Item, turn.Reported, SendQueueItemState.Discarded, turn.Text, failure.Message, failure);
     }
 
     private bool DiscardExpiredWelcome(Item item)
@@ -268,18 +264,19 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
         return TimeSpan.FromTicks(Math.Clamp(remaining.Ticks, 0, MaxWait.Ticks));
     }
 
-    private void Finish(Item item, Reported? reported, SendQueueItemState outcome, string? text = null, string? reason = null,
+    private BlindBoxResult? Finish(Item item, int? reported, SendQueueItemState outcome, string? text = null, string? reason = null,
         Exception? failure = null)
     {
         pending.Reader.TryRead(out _);
         // In the same step, so the outcome precedes the next round's Queued and a later ask gets an item of its own.
         Report(item, outcome, text, reason, failure: failure);
-        if (reported is { } done)
+        if (reported is { } count)
         {
             // Sent or given up, what this attempt reported is over either way; nothing carries into the next round.
             var round = rounds[item.Uid];
-            round.Count -= done.Count;
-            if (round.Count == 0)
+            var done = round.Boxes[..count];
+            round.Boxes.RemoveRange(0, count);
+            if (round.Boxes.Count == 0)
             {
                 round.Timer.Dispose();
                 rounds.Remove(item.Uid);
@@ -287,13 +284,13 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
             else
             {
                 // Gifts received while the request was in flight start the next round.
-                round.Tally = new(round.Tally.Spend - done.Tally.Spend, round.Tally.OpenedValue - done.Tally.OpenedValue);
                 round.Item = round.Item with { Id = Interlocked.Increment(ref nextId) };
                 round.Queued = false;
                 round.Timer.Check();
             }
-            return;
+            return BlindBoxResult.Of(item.Uid, item.Nickname, done);
         }
         if (item is Query query) waitingQueries.Remove((query.Uid, query.Period));
+        return null;
     }
 }

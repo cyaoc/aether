@@ -10,9 +10,7 @@ public sealed class LotteryPage(LotteryFacade lottery) : WebPage("lottery")
     {
         await foreach (var update in lottery.GetUpdatesAsync(token))
         {
-            // Once the room connection ends nobody can stop or hide what is on air, so the page clears until it reconnects.
-            var live = update.State.CanControl ? update.State : update.State with { Lottery = null };
-            var state = (update.Example ?? live) with { Theme = update.State.Theme, IsExamplePlaying = update.State.IsExamplePlaying };
+            var state = (update.Example ?? update.Live) with { Theme = update.State.Theme, IsExamplePlaying = update.State.IsExamplePlaying };
             yield return new("state", state);
         }
     }

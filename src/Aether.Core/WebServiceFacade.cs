@@ -17,7 +17,8 @@ public sealed class WebServiceFacade
         var queue = Channel.CreateUnbounded<VideoQueue.Playback>(new UnboundedChannelOptions { SingleReader = true });
         region = regions.Create(_ => new WebService(queue.Writer, regions.Time, regions.Logger, lottery.SetExamplePage));
         Lottery = new(lottery);
-        server = new(region, regions.Time, web => [new VideoPage(web, queue.Reader, dataDirectory), Lottery, new GiftBoardPage(giftBoard)]);
+        server = new(region, regions.Time, web => [new VideoPage(web, queue.Reader, dataDirectory), Lottery, new GiftBoardPage(giftBoard),
+            new DesktopPetPage(web, lottery, giftBoard)]);
     }
 
     public LotteryPage Lottery { get; }
@@ -52,12 +53,26 @@ public sealed class WebServiceFacade
     /// <summary>Stops the test play with this id while it plays; a late click stops nothing else.</summary>
     public Task StopTestPlayAsync(string id) => region.Run(s => s.StopTestPlay(id));
 
+    /// <summary>Has the 桌宠页 play a 试演 of <paramref name="show"/>, an id of the 演出表, with its ending or daily action
+    /// (<paramref name="variant"/>) and an example nickname. Refused with why while the 桌宠 is off, the web service is not
+    /// running or no streaming software has the page open.</summary>
+    public Task TestShowAsync(string show, string? variant, string nickname) => region.Run(s => s.DesktopPet.TestShow(show, variant, nickname));
+
+    /// <summary>Has the 桌宠页 stop its 试演; a show of anything that happened plays on.</summary>
+    public Task StopTestShowAsync() => region.Run(s => s.DesktopPet.StopTestShow());
+
     /// <summary>Posted from the room connection, which never waits for the web service (ADR 0017).</summary>
     internal void PlayEntry(Entry entry, long receivedAt, CancellationToken roomStopped) =>
         region.Post(s => s.EntryAnimation.Enqueue(entry, receivedAt, roomStopped));
 
     /// <inheritdoc cref="PlayEntry"/>
     internal void PlayGiftRound(GiftRoundEnded round, CancellationToken roomStopped) => region.Post(s => s.GiftAnimation.Enqueue(round, roomStopped));
+
+    /// <inheritdoc cref="PlayEntry"/>
+    internal void SetDesktopPetRoom(bool connected) => region.Post(s => s.DesktopPet.SetRoom(connected));
+
+    /// <inheritdoc cref="PlayEntry"/>
+    internal void TellDesktopPet(string name, object data) => region.Post(s => s.DesktopPet.Tell(name, data));
 
     /// <summary>Closes the listener and every connection in a last step, without waiting for the serving to wind down as
     /// <see cref="StopAsync"/> does, then stops the region.</summary>

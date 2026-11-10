@@ -12,6 +12,7 @@ public sealed class WebPageResourceTests
     [InlineData("video")]
     [InlineData("lottery")]
     [InlineData("gift-board")]
+    [InlineData("desktop-pet")]
     public async Task Page_and_its_recursive_local_references_are_served_with_their_content_types(string name)
     {
         await using var h = new WatchHarness();
@@ -65,6 +66,7 @@ public sealed class WebPageResourceTests
     [InlineData("video")]
     [InlineData("lottery")]
     [InlineData("gift-board")]
+    [InlineData("desktop-pet")]
     public async Task Explicit_index_returns_the_same_page(string name)
     {
         await using var h = new WatchHarness();

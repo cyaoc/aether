@@ -93,7 +93,8 @@ aether logout           # 退出登录，删除本地凭据
 | `entry_animation` | 进场动画和欢迎动画的开关、粉丝团等级门槛、音量 | 关闭 | 保存后立即应用，只在 GUI |
 | `entry_animation_viewers` | 动画名单：观众 UID → 进场档、0（不播）或视频文件名 | 空 | 保存后立即应用，只在 GUI |
 | `gift_animation` | 送礼动画开关、四档投入门槛 | 关闭 | 保存后立即应用，只在 GUI |
-| `web_service` | 视频页、抽奖页、礼物榜页共用端口 | 17890 | 保存后立即重启服务，只在 GUI |
+| `desktop_pet` | 桌宠开关 | 关闭 | 保存后立即应用，只在 GUI |
+| `web_service` | 视频页、抽奖页、礼物榜页、桌宠页共用端口 | 17890 | 保存后立即重启服务，只在 GUI |
 | `send` | 两次发送之间的秒数 | 1 | 下次连接直播间 |
 | `log` | 日志保留天数、日志级别 | 30 天、Information | 重启 |
 | `auto_update` | 打开 GUI 时检查并自动更新 | 开启 | 下次打开 GUI |

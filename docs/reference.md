@@ -38,6 +38,8 @@ gift_animation:
   tier_40_spend: 500
   tier_50_spend: 2000
   tier_60_spend: 10000
+desktop_pet:
+  enabled: false
 web_service:
   port: 17890
 entry_animation_viewers:
@@ -45,7 +47,7 @@ auto_update:
   enabled: true
 ```
 
-直播画面功能的分组（`entry_animation`、`entry_animation_viewers`、`gift_animation`、`web_service`）和 `auto_update` 只在 GUI 里生效；CLI 照常读和校验，写错了照样报错（[ADR 0003](adr/0003-one-bot-two-shells.md)、[ADR 0016](adr/0016-config-in-settings-file-and-database.md)）。`auto_update.enabled` 默认 `true`，打开 GUI 时检查并自动更新，在“通用设置”里和其他项一样点“保存”生效。
+直播画面功能的分组（`entry_animation`、`entry_animation_viewers`、`gift_animation`、`desktop_pet`、`web_service`）和 `auto_update` 只在 GUI 里生效；CLI 照常读和校验，写错了照样报错（[ADR 0003](adr/0003-one-bot-two-shells.md)、[ADR 0016](adr/0016-config-in-settings-file-and-database.md)）。`auto_update.enabled` 默认 `true`，打开 GUI 时检查并自动更新，在“通用设置”里和其他项一样点“保存”生效。
 
 `log.retention_days` 是日志保留天数，必须为正整数，默认 30；`log.level` 是文件日志最低级别，
 可选 Trace、Debug、Information、Warning、Error、Critical，默认 Information。日志设置在进程启动时读取，修改后重启生效。

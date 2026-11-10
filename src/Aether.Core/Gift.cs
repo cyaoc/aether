@@ -24,6 +24,12 @@ internal sealed record Gift(long Uid, string Nickname, long Spend)
     public int ViewerGuardLevel { get; init; }
     public bool Shown { get; init; } = true;
 
+    // 浪漫城堡's id in B站's public gift list (xlive/web-room/v1/giftPanel/giftConfig?platform=pc, read 2026-11-10).
+    private const long RomanticCastleId = 32132;
+
+    /// <summary>Whether it is a 浪漫城堡, sent directly or opened from a 盲盒.</summary>
+    public bool IsCastle => GiftId == RomanticCastleId;
+
     /// <summary>Its 礼物键 on the 礼物榜: an opened gift and the same gift sent directly share one, and a 大航海 has one per level.</summary>
     public string BoardKey => GuardLevel > 0 ? $"guard:{GuardLevel}" : $"gift:{GiftId}";
 
