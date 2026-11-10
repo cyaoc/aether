@@ -7,7 +7,8 @@ mix and pseudo-random helpers are the ones in its `animations/toolkit.mjs`; none
 
 ## Textures
 
-`textures/banner.webp`, `mascot-peek-idle.webp` and `mascot-peek-cheer.webp` are copied from the design package without changes.
+`textures/banner.webp` is copied from the design package without changes. The mascot's two poses and the numbers measured on them
+are the current character's, from `/characters/current/` (`../characters/README.md`).
 
 ## Fonts
 

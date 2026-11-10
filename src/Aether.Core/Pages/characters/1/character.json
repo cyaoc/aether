@@ -1,0 +1,12 @@
+{
+  "giftBoard": {
+    "idle": "peek-idle.webp",
+    "cheer": "peek-cheer.webp",
+    "height": 261.12,
+    "idleCut": 0.8802083333333334,
+    "cheerCut": 0.83203125,
+    "shoulder": { "x": 358, "y": -150 },
+    "cheerCenter": { "x": 240, "y": -96 },
+    "spriteSize": 64
+  }
+}

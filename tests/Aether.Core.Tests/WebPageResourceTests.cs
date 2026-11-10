@@ -55,7 +55,7 @@ public sealed class WebPageResourceTests
         }
         if (name == "gift-board")
         {
-            Assert.Equal(3, visited.Count(uri => uri.AbsolutePath.EndsWith(".webp", StringComparison.Ordinal)));
+            Assert.Equal(1, visited.Count(uri => uri.AbsolutePath.EndsWith(".webp", StringComparison.Ordinal)));
             Assert.Equal(3, visited.Count(uri => uri.AbsolutePath.EndsWith(".woff2", StringComparison.Ordinal)));
             Assert.Equal(12, visited.Count(uri => uri.AbsolutePath.EndsWith(".mjs", StringComparison.Ordinal)));
         }
@@ -75,6 +75,21 @@ public sealed class WebPageResourceTests
         Assert.Equal(HttpStatusCode.OK, index.StatusCode);
         Assert.Equal("text/html; charset=utf-8", index.Content.Headers.ContentType?.ToString());
         Assert.Equal(page, await index.Content.ReadAsByteArrayAsync(h.Stop.Token));
+    }
+
+    [Theory]
+    [InlineData("character.json", "application/json; charset=utf-8")]
+    [InlineData("peek-idle.webp", "image/webp")]
+    public async Task Pages_get_the_current_characters_files_from_characters_current(string file, string contentType)
+    {
+        await using var h = new WatchHarness();
+        await h.Client.WebService.StartAsync(WelcomeAnimationTests.FreePort());
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
+        using var response = await http.GetAsync($"characters/current/{file}", h.Stop.Token);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(contentType, response.Content.Headers.ContentType?.ToString());
+        Assert.Equal(await File.ReadAllBytesAsync(Path.Combine(AppContext.BaseDirectory, "Pages", "characters", "1", file), h.Stop.Token),
+            await response.Content.ReadAsByteArrayAsync(h.Stop.Token));
     }
 
     [Theory]

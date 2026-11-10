@@ -15,6 +15,7 @@ internal sealed class WebServer
     internal static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
     private const string Retry = "retry: 2000\n\n";
     private const string Heartbeat = ": heartbeat\n\n";
+    private const string CurrentCharacter = "/characters/current/";
     // Both sides go through GetFullPath so Windows expands 8.3 short names in the program directory alike.
     private static readonly string PagesDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "Pages")) + Path.DirectorySeparatorChar;
     private readonly IReadOnlyList<WebPage> pages;
@@ -170,9 +171,9 @@ internal sealed class WebServer
             var path = request.Url!.AbsolutePath;
             var name = path.Split('/', 3)[1];
             var page = pages.FirstOrDefault(page => page.Name == name);
-            if (page is null) { response.StatusCode = 404; return; }
-            if (request.HttpMethod == "GET" && path == $"/{page.Name}/events") keepOpen = await ConnectAsync(page, response, token);
-            else if (!await ServeResourceAsync(page, request, response, token)
+            if (page is null) { if (!await ServeResourceAsync(request, response, CharacterFile(path), token)) response.StatusCode = 404; }
+            else if (request.HttpMethod == "GET" && path == $"/{page.Name}/events") keepOpen = await ConnectAsync(page, response, token);
+            else if (!await ServeResourceAsync(request, response, path == $"/{page.Name}" ? path + "/index.html" : path, token)
                 && !await page.HandleAsync(request, response, token)) response.StatusCode = 404;
         }
         // On macOS, RemoteEndPoint throws SocketException once the client has reset the connection.
@@ -221,11 +222,13 @@ internal sealed class WebServer
         return false;
     }
 
-    private static async Task<bool> ServeResourceAsync(WebPage page, HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
+    // Pages ask for the current character's files by /characters/current/, whoever she is.
+    private static string CharacterFile(string path) =>
+        path.StartsWith(CurrentCharacter, StringComparison.Ordinal) ? $"/characters/{Character.Current}/{path[CurrentCharacter.Length..]}" : path;
+
+    private static async Task<bool> ServeResourceAsync(HttpListenerRequest request, HttpListenerResponse response, string path, CancellationToken token)
     {
         if (request.HttpMethod != "GET") return false;
-        var path = request.Url!.AbsolutePath;
-        if (path == $"/{page.Name}") path += "/index.html";
         var contentType = Path.GetExtension(path) switch
         {
             ".html" => "text/html; charset=utf-8",

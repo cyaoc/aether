@@ -6,13 +6,14 @@ import { Entry } from './entry.mjs';
 import { PAD } from './paint.mjs';
 import { canvasOf, k, out } from '../video/animations/toolkit.mjs';
 
-// The pose pictures are 1536 high; the body is cut off at this fraction of it, which goes behind the ribbon.
-const MASCOT = { idleCut: 1352 / 1536, cheerCut: 1278 / 1536, scale: 0.17 };
+// Once she is switched off, the sprite on the ribbon's end is drawn at this much of its size beside her.
+const SPRITE_ON_RIBBON = 0.7;
 // A name that is not taking its turn to scroll shows from its start.
 const STILL_NAME = { offset: 0, alpha: 1 };
 
 export class Scene {
-  /** `rows` are the board's rows in rank order; `kit` is `{ textures, images }`. */
+  /** `rows` are the board's rows in rank order; `kit` is `{ textures, images, giftBoard }`, the last the current character's
+   * gift board numbers. */
   constructor(kit, layout, rows) {
     Object.assign(this, { kit, layout, rows });
     this.slots = slotsOf(rows);
@@ -40,15 +41,16 @@ export class Scene {
     this.mascot = new PIXI.Container();
     this.root.addChild(this.mascot);
     if (!this.layout.mascot) return;
-    const { textures } = this.kit;
-    this.idle = this.pose(textures.idle, MASCOT.idleCut);
-    this.cheer = this.pose(textures.cheer, MASCOT.cheerCut);
+    const { textures, giftBoard } = this.kit;
+    this.idle = this.pose(textures.idle, giftBoard.idleCut);
+    this.cheer = this.pose(textures.cheer, giftBoard.cheerCut);
   }
 
+  // The body is cut off at `cut` of the picture's height, which goes behind the ribbon.
   pose(texture, cut) {
     const sprite = new PIXI.Sprite(texture);
     sprite.anchor.set(0.5, cut);
-    sprite.scale.set(MASCOT.scale * 1536 / texture.height);
+    sprite.scale.set(this.kit.giftBoard.height / texture.height);
     this.mascot.addChild(sprite);
     return sprite;
   }
@@ -239,7 +241,7 @@ export class Scene {
   }
 
   placeMascot(t, motion) {
-    const { layout } = this, { textures } = this.kit, [homeX, homeY] = spriteHome(layout);
+    const { layout } = this, { textures, giftBoard } = this.kit, [homeX, homeY] = spriteHome(layout, giftBoard);
     // She breathes, 1 px up and down; the sprite floats and tilts a little, and floats less once the mascot is hidden.
     this.mascot.position.set(LAYOUT.width / 2, layout.top + 12 + motion.hop + Math.sin(t * 0.0021));
     if (this.idle) {
@@ -249,7 +251,7 @@ export class Scene {
     this.sprite.texture = motion.blink ? textures.spriteBlink : textures.sprite;
     this.sprite.position.set(homeX, homeY + (layout.mascot ? 6 * Math.sin(t * 0.0016) + motion.hop : 2 * Math.sin(t * 0.0016)));
     this.sprite.rotation = 0.08 * Math.sin(t * 0.0011) + motion.spin;
-    this.sprite.scale.set((layout.mascot ? 0.4 : 0.28) * (1 + 0.25 * motion.spritePulse));
+    this.sprite.scale.set(giftBoard.spriteSize / textures.sprite.height * (layout.mascot ? 1 : SPRITE_ON_RIBBON) * (1 + 0.25 * motion.spritePulse));
   }
 
   destroy() {

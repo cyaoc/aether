@@ -4,7 +4,9 @@ import { CheerSound } from './sound.mjs';
 import { createTextures } from './textures.mjs';
 import { loadImage } from '../video/animations/toolkit.mjs';
 
-const [banner, idle, cheer] = await Promise.all(['banner', 'mascot-peek-idle', 'mascot-peek-cheer'].map(name => loadImage(`/gift-board/textures/${name}.webp`)));
+// The current character's poses and the numbers measured on them, whoever she is (characters/README.md).
+const character = await (await fetch('/characters/current/character.json')).json(), { giftBoard } = character;
+const [banner, idle, cheer] = await Promise.all(['/gift-board/textures/banner.webp', ...[giftBoard.idle, giftBoard.cheer].map(name => `/characters/current/${name}`)].map(src => loadImage(src)));
 await Promise.all([
   document.fonts.load('500 28px "Noto Sans SC"', '月下Lily龍'),
   document.fonts.load('800 44px "Noto Sans SC"', '礼物榜×0123456789'),
@@ -12,7 +14,7 @@ await Promise.all([
 ]);
 const app = new PIXI.Application();
 await app.init({ canvas: document.querySelector('canvas'), width: innerWidth, height: innerHeight, backgroundAlpha: 0, antialias: true, preference: 'webgl', resolution: 1 });
-const kit = { textures: createTextures({ banner, idle, cheer }), images: new RemoteImages() };
+const kit = { textures: createTextures({ banner, idle, cheer }), images: new RemoteImages(), giftBoard };
 // The one clock of every frame is an animation, so a test can stop it at any moment and step it.
 const clock = document.documentElement.animate([{ outlineColor: 'transparent' }, { outlineColor: 'transparent' }], { duration: 1000, iterations: Infinity });
 const board = new Board(app, kit, clock, new CheerSound());

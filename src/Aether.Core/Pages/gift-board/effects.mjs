@@ -63,7 +63,7 @@ export class Effects {
   draw(scene, t, landedAgo, event, riser) {
     if (!scene && !this.drawn) return;
     this.drawn = Boolean(scene);
-    if (scene) Object.assign(this, { layout: scene.layout, u: event && t - event.startedAt });
+    if (scene) Object.assign(this, { layout: scene.layout, giftBoard: scene.kit.giftBoard, u: event && t - event.startedAt });
     for (const layer of this.layers) layer.begin(this.layout);
     if (scene) this.flow(scene.cards, t, landedAgo);
     if (event && riser) this.paintEvent(riser, event);
@@ -232,7 +232,7 @@ export class Effects {
 
   // The sprite fires a capsule of light like a danmaku; it arcs down to the slot and unfolds into the row.
   newRow({ g: row }) {
-    const { u, g } = this, [fromX, fromY] = spriteHome(this.layout), toX = LAYOUT.contentX + 30, toY = row.y + row.h / 2;
+    const { u, g } = this, [fromX, fromY] = spriteHome(this.layout, this.giftBoard), toX = LAYOUT.contentX + 30, toY = row.y + row.h / 2;
     const path = q => [mix(fromX, toX, easeInOut(q)), mix(fromY, toY, easeInOut(q)) - 60 * Math.sin(Math.PI * q)];
     const fly = k(200, 640, u), sweep = k(640, 1000, u);
     if (fly > 0 && u < 760) this.comet(path, fly, 0.45, 1 - k(640, 760, u));
@@ -308,7 +308,7 @@ export class Effects {
   cheer() {
     this.rayLight();
     this.confettiShower();
-    const ring = k(950, 1150, this.u) * (1 - k(1500, 1750, this.u)), [x, y] = spriteHome(this.layout);
+    const ring = k(950, 1150, this.u) * (1 - k(1500, 1750, this.u)), [x, y] = spriteHome(this.layout, this.giftBoard);
     if (ring <= 0) return;
     for (let i = 0; i < 6; i++) {
       const angle = i * Math.PI / 3 + this.u * 0.006;
@@ -320,7 +320,7 @@ export class Effects {
     const g = this.rays.context, { u } = this, strength = k(880, 1080, u) * (1 - k(2500, 3100, u));
     if (strength <= 0) return;
     g.save();
-    g.translate(LAYOUT.width / 2, this.layout.top - 96);
+    g.translate(this.giftBoard.cheerCenter.x, this.layout.top + this.giftBoard.cheerCenter.y);
     g.rotate(u * 0.0004);
     for (let i = 0; i < 14; i++) {
       const start = i * Math.PI * 2 / 14, ray = g.createRadialGradient(0, 0, 10, 0, 0, 250);
