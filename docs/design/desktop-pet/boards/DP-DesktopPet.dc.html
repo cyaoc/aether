@@ -982,8 +982,9 @@ class Component extends DCLogic {
     if (!sv) { this.sv = { ...target, vx: 0, vy: 0, d: 0 }; return this.sv; }
     const k = 1 - Math.exp(-dt / (st.orbit != null ? 90 : 200)), sec = Math.max(dt, 1) / 1000;
     let nx = sv.x + (target.x - sv.x) * k, ny = sv.y + (target.y - sv.y) * k;
-    // no faster than SPRITE_SPEED px/ms: a long way (her shoulder up to a masthead and back) is flown, never jumped
-    const step = Math.hypot(nx - sv.x, ny - sv.y), most = SPRITE_SPEED * (st.orbit != null ? 2 : 1) * Math.max(dt, 1);
+    // no faster than SPRITE_SPEED px/ms: a long way (her shoulder up to a masthead and back) is flown, never jumped; on the
+    // circle twice that, to keep up with it, but flying back onto it from afar (down from a toss) at the plain speed
+    const step = Math.hypot(nx - sv.x, ny - sv.y), most = SPRITE_SPEED * (st.orbit != null && Math.hypot(target.x - sv.x, target.y - sv.y) < 40 ? 2 : 1) * Math.max(dt, 1);
     if (step > most) { nx = sv.x + (nx - sv.x) * most / step; ny = sv.y + (ny - sv.y) * most / step; }
     sv.vx += ((nx - sv.x) / sec - sv.vx) * 0.3; sv.vy += ((ny - sv.y) / sec - sv.vy) * 0.3;
     sv.x = nx; sv.y = ny; sv.scale = target.scale; sv.d = Math.hypot(target.x - nx, target.y - ny);
@@ -996,14 +997,22 @@ class Component extends DCLogic {
   // st.sp: null (home), ['home', dx, dy] (home moved by), ['rel', fx, fy] (a point of her drawing's box, as fractions of
   // it), ['at', x, y] (a page point), or the named spots below.
   spritePos(st, her, now) {
+    if (st.orbit == null) this.orb = null;
     if (st.sp?.[0] === 'gone') return null;
     const home = this.home(now);
     const head = { x: her.x + her.w * 0.3, y: her.y - SPRITE_H * 0.15 };
     // Circling her waist: on the far half of the circle it passes behind her, so it never covers her face.
     // It is a little bigger on the near half, and drawSprite turns it by st.orbitA.
+    // It joins the circle where it is and goes round from there (README 1.1): when a circle starts, its angle is the one of
+    // its own place, on the near half in front of her; and when the circle's clock jumps (a show handing over to the happy
+    // idle), the angle carries on instead. It used to take the angle straight from the clock, so the point it flew to sat
+    // anywhere on the circle and it dashed across her to it, up to 29 px a frame, as if it had jumped.
     if (st.orbit != null) {
-      const a = st.orbitA = st.orbit / 1000 * Math.PI * 1.2; st.sBehind = Math.sin(a) < 0;
-      return { x: st.x + Math.cos(a) * (st.orbitR || 135), y: (st.orbitY ?? FOOT.y - 0.34 * H) + Math.sin(a) * 26, scale: 1 + 0.1 * Math.sin(a) };
+      const R = st.orbitR || 135, raw = st.orbit / 1000 * Math.PI * 1.2;
+      if (!this.orb) this.orb = { shift: (this.sv ? Math.acos(clamp((this.sv.x - st.x) / R, -1, 1)) : raw) - raw, raw };
+      else if (Math.abs(raw - this.orb.raw) > 0.6) this.orb.shift = this.orb.a - raw;
+      const a = st.orbitA = this.orb.a = raw + this.orb.shift; this.orb.raw = raw; st.sBehind = Math.sin(a) < 0;
+      return { x: st.x + Math.cos(a) * R, y: (st.orbitY ?? FOOT.y - 0.34 * H) + Math.sin(a) * 26, scale: 1 + 0.1 * Math.sin(a) };
     }
     if (!st.sp) return home;
     if (st.sp[0] === 'home') return { x: home.x + st.sp[1], y: home.y + st.sp[2] };
