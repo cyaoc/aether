@@ -1,19 +1,19 @@
 // node scripts/desktop-pet/motion-scan.mjs [port]: plays every show of the 桌宠页 (each 试演 variant: blind box endings,
-// mishaps) and 日常小动作, once from calm and once from happy (where the sprite circles her), and tracks the sprite frame by
-// frame: any frame it moves more than 20 px (at 60 fps) is printed. The design package's tools/motion-scan.mjs, changed to
-// read the shows from the 演出表 and play them on the page. Speeds are taken on the clock the sprite's speed cap uses
-// (performance.now, as follow() does). server.mjs here must be serving the page on the port (8830); it plays in real time,
-// a few minutes for the whole page.
+// lottery steps, mishaps) and 日常小动作, once from calm and once from happy (where the sprite circles her), and tracks the
+// sprite frame by frame: any frame it moves more than 20 px (at 60 fps) is printed. The design package's
+// tools/motion-scan.mjs, changed to read the shows from the 演出表 and play them on the page. Speeds are taken on the clock the
+// sprite's speed cap uses (performance.now, as follow() does). server.mjs here must be serving the page on the port (8830); it
+// plays in real time, a few minutes for the whole page.
 import { execFileSync } from 'node:child_process';
 
 const here = new URL('.', import.meta.url).pathname;
 const port = process.argv[2] || 8830, LIMIT = 20;
 
 const js = `(async () => {
-  const { pet } = await import('/desktop-pet/page.mjs'), { DAILY, seeded } = await import('/desktop-pet/engine.mjs');
+  const { pet } = await import('/desktop-pet/page.mjs'), { seeded } = await import('/desktop-pet/engine.mjs');
   await Promise.all(Object.keys(pet.art.sheets).map(k => pet.loadSheet(k)));
   const frame = () => new Promise(r => requestAnimationFrame(r)), out = [], runs = [];
-  for (const row of (await (await fetch('/desktop-pet/shows.json')).json()).shows.filter(row => pet.events[row.id].dur || DAILY[row.id]))
+  for (const row of (await (await fetch('/desktop-pet/shows.json')).json()).shows.filter(row => row.group !== 'mood'))
     for (const variant of row.tests) runs.push([row.id + (variant ? '·' + variant : ''), row.id, { result: variant, mishap: variant === 'Mishap' }]);
   for (const happy of [false, true]) for (const [label, name, opts] of runs) {
     pet.reset(seeded(7)); pet.nextDaily = 1e12;

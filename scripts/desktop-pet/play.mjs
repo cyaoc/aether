@@ -1,7 +1,8 @@
 // node scripts/desktop-pet/play.mjs <show[:variant]> <ms,ms,...> <out.png> [--line] [--port 8830]
-// Starts the show on the 桌宠页 (a 试演 variant: a blind box's Gain, Even, Loss or Jackpot, a 日常小动作's Mishap) and plays it
-// in real time, grabbing the page, 480 × 640 on a transparent ground, at those ms into it, side by side; --line draws a red
-// line at her home x. The design package's tools/play.mjs, changed to play the page. server.mjs here must be running.
+// Starts the show on the 桌宠页 (a 试演 variant: a blind box's Gain, Even, Loss or Jackpot, a lottery step, a 日常小动作's
+// Mishap) and plays it in real time, grabbing the page, 480 × 640 on a transparent ground, at those ms into it, side by side;
+// --line draws a red line at her home x. The design package's tools/play.mjs, changed to play the page. server.mjs here must
+// be running.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 

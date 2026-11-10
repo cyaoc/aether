@@ -1,8 +1,8 @@
 // node scripts/desktop-pet/compare.mjs [--out <dir>] [--board 8820] [--page 8830] [case ...]: plays every show of the 桌宠页
-// (each blind box ending, each 日常小动作 with and without its mishap), each 心情, waking up before a show and a 一轮送礼 on
-// the 桌宠页 and on the design package's board, at the same moments from the same random seed, and compares the page's
-// pixels with the board's. The board must be served by docs/design/desktop-pet/tools/server.mjs on its port and the page by
-// server.mjs here on its.
+// (each blind box ending, each lottery step, each 日常小动作 with and without its mishap), each 心情, waking up before a show,
+// a 一轮送礼 and a big gift crowned as the new first on the 桌宠页 and on the design package's board, at the same moments from
+// the same random seed, and compares the page's pixels with the board's. The board must be served by
+// docs/design/desktop-pet/tools/server.mjs on its port and the page by server.mjs here on its.
 // Both are driven frame by frame on one made-up clock (their own clock, performance.now and the frame loop stopped before
 // they start), so what moves on real time (in-between frames, the sprite's flight, cross-fades) moves alike. The page is drawn
 // where the board draws it, at (1400, 420) on a 1920 × 1080 canvas over the board's 透明 room and the dashed outline of the
@@ -14,7 +14,11 @@ import fs from 'node:fs';
 const here = new URL('.', import.meta.url).pathname, eval_ = here + '../../docs/design/desktop-pet/tools/cdp-eval.mjs';
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args.splice(i, 2)[1]; };
 const out = opt('--out', '/tmp/desktop-pet-compare'), boardPort = opt('--board', 8820), pagePort = opt('--page', 8830);
-const NAME = { entry: '进场', gift: '普通礼物', giftStreak: '连着送', midGift: '中礼物', bigGift: '大礼物', blindBoxSmall: '盲盒·小', blindBoxMedium: '盲盒·中', blindBoxLarge: '盲盒·大' };
+const NAME = { entry: '进场', gift: '普通礼物', giftStreak: '连着送', midGift: '中礼物', bigGift: '大礼物', blindBoxSmall: '盲盒·小', blindBoxMedium: '盲盒·中', blindBoxLarge: '盲盒·大',
+  captain: '舰长', admiral: '提督', governor: '总督', castle: '城堡', newFirst: '新的第一名' };
+// The board's show for each step of the lottery, the 试演 variants of its one row.
+const STEP = { EntryOpen: '报名开场', EntryClosed: '报名截止', PoolOpen: '奖池开场', PoolCall: '奖池点名', PoolSpin: '奖池转动',
+  RevealGrand: '揭晓·大奖', RevealSecond: '揭晓·二奖', RevealThird: '揭晓·三奖', NoEntries: '没人报名', End: '抽奖结束' };
 const RESULT = { Gain: '赚', Even: '平', Loss: '亏', Jackpot: '大奖' };
 const KIND = { hum: '哼歌', gym: '举哑铃', hike: '爬山', bike: '骑车', ski: '滑雪' };
 const MOOD = { calm: 0, happy: 0, bored: 15, gloomy: 40, sleepy: 60 };
@@ -24,8 +28,8 @@ const at = (dur, extra = []) => [...new Set([200, 600, Math.round(dur * 0.25), M
 // Each case: what to do on the board and on the page at its start, and the moments to compare, in ms from its start.
 const cases = [];
 for (const row of shows) {
-  if (NAME[row.id]) for (const variant of row.tests) cases.push({ id: row.id + (variant ? '-' + variant : ''),
-    board: `dc.start(${JSON.stringify(NAME[row.id])}, ${JSON.stringify(variant ? { result: RESULT[variant] } : {})})`,
+  for (const variant of row.tests) if (NAME[row.id] ?? STEP[variant]) cases.push({ id: row.id + (variant ? '-' + variant : ''),
+    board: `dc.start(${JSON.stringify(NAME[row.id] ?? STEP[variant])}, ${JSON.stringify(variant ? { result: RESULT[variant] } : {})})`,
     page: `pet.start(${JSON.stringify(row.id)}, { nickname: '星河', result: ${JSON.stringify(variant)} })` });
   if (KIND[row.id]) for (const mishap of [false, true]) cases.push({ id: row.id + (mishap ? '-Mishap' : ''),
     board: `dc.start('日常', { kind: ${JSON.stringify(KIND[row.id])}, mishap: ${mishap} })`, page: `pet.start(${JSON.stringify(row.id)}, { mishap: ${mishap} })` });
@@ -43,6 +47,12 @@ cases.push({ id: 'round-boxes', ms: at(7000, [3000, 3800, 3900, 4800]),
   board: `dc.give([{ gift: '爱心抱枕', price: 160, n: 1, box: '心动盲盒', boxPrice: 150 }])`,
   page: `pet.gift({ ...${JSON.stringify(flower)}, boxSpend: 15000, boxes: 1 }); later(3000, () => pet.gift({ ...${JSON.stringify(flower)}, boxSpend: 15000, boxes: 1, ended: true }));
     later(3800, () => pet.blindBox({ uid: 1, nickname: '星河', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 }))` });
+// A big gift that takes the 礼物榜's first place, crowned after its show.
+const ranks = rows => JSON.stringify({ rows: rows.map(([id, nickname, num]) => ({ id, nickname, num })), options: {}, running: true, fromGift: true });
+cases.push({ id: 'bigGift-newFirst', ms: at(8600, [6200, 7000, 7700]),
+  board: `dc.give([{ gift: '小电视飞船', price: 12450, n: 1, top: true }])`,
+  page: `pet.ranked(${ranks([['a', '甲', 5]])}); pet.gift({ ...${JSON.stringify(flower)}, topGift: '小电视飞船', spend: 1245000, count: 1, topCount: 1 });
+    pet.ranked(${ranks([['b', '星河', 1], ['a', '甲', 5]])})` });
 const chosen = args.length ? cases.filter(c => args.includes(c.id)) : cases;
 
 // Runs every case on one side and returns, for each, the moments' hashes (and the pictures of `keep`, case:ms).

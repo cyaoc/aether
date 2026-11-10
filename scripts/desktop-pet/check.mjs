@@ -1,16 +1,17 @@
 // node scripts/desktop-pet/check.mjs [port]: every change of pose in every show of the 桌宠页 (each 试演 variant: blind box
-// endings, mishaps) and 日常小动作 (in from standing, out back to it), and whether the page has a way across it: in-between
-// frames, a cut written in the manifest's cuts, or a route through them. The design package's tools/check-board.mjs, changed
-// to read the shows from the 演出表 and play them on the page. server.mjs here must be serving the page on the port (8830).
+// endings, lottery steps, mishaps) and 日常小动作 (in from standing, out back to it), and whether the page has a way across
+// it: in-between frames, a cut written in the manifest's cuts, or a route through them. The design package's
+// tools/check-board.mjs, changed to read the shows from the 演出表 and play them on the page. server.mjs here must be serving
+// the page on the port (8830).
 import { execFileSync } from 'node:child_process';
 
 const here = new URL('.', import.meta.url).pathname;
 const port = process.argv[2] || 8830;
 
 const js = `(async () => {
-  const { pet } = await import('/desktop-pet/page.mjs'), { DAILY } = await import('/desktop-pet/engine.mjs');
+  const { pet } = await import('/desktop-pet/page.mjs');
   await Promise.all(Object.keys(pet.art.sheets).map(k => pet.loadSheet(k)));
-  const pairs = {}, rows = (await (await fetch('/desktop-pet/shows.json')).json()).shows.filter(row => pet.events[row.id].dur || DAILY[row.id]);
+  const pairs = {}, rows = (await (await fetch('/desktop-pet/shows.json')).json()).shows.filter(row => row.group !== 'mood');
   const walk = (fn, dur, where) => {
     let prev = 'idle';
     for (let t = 0; t <= dur + 20; t += 20) { const p = t > dur ? 'idle' : fn(t).pose; if (p !== prev) { pairs[prev + '>' + p] ??= where; prev = p; } }
