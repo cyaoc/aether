@@ -429,19 +429,19 @@ class Component extends DCLogic {
     this.fire(['盲盒·小', '盲盒·中', '盲盒·大'][jackpot || spend >= BIG ? 2 : spend >= MID ? 1 : 0], { ...opts, result, gift: best.gift, shaken: true });
   }
 
-  // While a round is still coming in she does not just wait: each gift flies into her arms; a blind box she shakes the
-  // whole time, until the 盲盒播报 tells how it came out.
+  // While a round with blind boxes is still coming in she does not just wait: she shakes the box the whole time, until the
+  // 盲盒播报 tells how it came out, and each gift flies into her arms.
   roundState(now) {
-    const r = this.round, st = this.base(), box = r.items.some(x => x.box);
-    st._t = now - r.start;
+    const r = this.round, st = this.base();
+    st._t = now - r.start; st.round = true;
     if (r.wake && st._t < 1000) {
       st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', 0], ['shock', 0], ['sweat', 200]); st.y -= 10 * bump(st._t, 0, 300);
       st.bubble = { text: this.fill(r.wakeLine, '冷场后来了人'), t: st._t };
       return st;
     }
-    st.pose = box ? 'shakeBox' : 'giftBox'; st.sprite = 'sLook'; st.sFlip = true; st.sp = box ? BOX_EAR : ['rel', 1.02, 0.22];
+    st.pose = 'shakeBox'; st.sprite = 'sLook'; st.sFlip = true; st.sp = BOX_EAR;
     for (const x of r.items) st.fx.push(['giftArc', x.at - r.start]);
-    if (box) st.fx.push(['shakeMarks', 0, 0.83, 0.44, 1e9]);
+    st.fx.push(['shakeMarks', 0, 0.83, 0.44, 1e9]);
     return st;
   }
 
@@ -859,13 +859,17 @@ class Component extends DCLogic {
       const c = this.cur;
       if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
       else if (c) { st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts)); if (c.name === '城堡' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine || (c.gateLine = this.pick('城堡·门口'))); }
-      else if (this.round) st = this.roundState(now);
+      // only blind boxes have a state of their own while the round comes in (she shakes them); gifts have played at once,
+      // and once their show is over she is herself again, not holding the 中礼物's box (she used to pick it up after a
+      // plain thank-you, until the round's 3 s were up)
+      else if (this.round?.items.some(x => x.box)) st = this.roundState(now);
       else {
         const mood = this.mood(now), key = mood + (this.lot?.phase || '');
         if (this.seen?.key !== key) this.seen = { key, at: now };
         st = this.idleState(now, mood, now - this.seen.at);
       }
-      if (c && this.round && st._t != null) for (const x of this.round.items) st.fx.push(['giftArc', st._t - (now - x.at)]);
+      // a round's gifts still fly into her arms over whatever she is doing
+      if (this.round && !st.round) for (const x of this.round.items) st.fx.push(['giftArc', st._t == null ? x.at : st._t - (now - x.at)]);
     } else st = this.sceneState(now);
     this.draw(canvas.getContext('2d'), st, now);
   }
