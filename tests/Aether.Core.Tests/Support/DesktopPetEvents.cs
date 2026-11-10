@@ -5,11 +5,14 @@ namespace Aether.Core.Tests.Support;
 /// <summary>The 桌宠页's events, read as a streaming software that opened the page reads them.</summary>
 internal sealed class DesktopPetEvents(HttpClient http, HttpResponseMessage response, StreamReader reader) : IDisposable
 {
-    public static async Task<DesktopPetEvents> OpenAsync(WatchHarness h)
+    public static Task<DesktopPetEvents> OpenAsync(WatchHarness h) => OpenAsync(h.Client, h.Stop.Token);
+
+    /// <summary>The 桌宠页 of <paramref name="client"/>'s web service, opened as a streaming software opens it.</summary>
+    public static async Task<DesktopPetEvents> OpenAsync(AetherClient client, CancellationToken token)
     {
-        var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
-        var response = await http.GetAsync("desktop-pet/events", HttpCompletionOption.ResponseHeadersRead, h.Stop.Token);
-        return new(http, response, new StreamReader(await response.Content.ReadAsStreamAsync(h.Stop.Token)));
+        var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(client.WebService.Status.Origin) };
+        var response = await http.GetAsync("desktop-pet/events", HttpCompletionOption.ResponseHeadersRead, token);
+        return new(http, response, new StreamReader(await response.Content.ReadAsStreamAsync(token)));
     }
 
     /// <summary>Turns the 桌宠 on, watches room 6 as the GUI does and opens the 桌宠页, read past its first state.</summary>

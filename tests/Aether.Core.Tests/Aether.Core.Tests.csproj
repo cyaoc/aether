@@ -12,6 +12,7 @@
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
     <Using Include="Xunit" />
     <InternalsVisibleTo Include="Aether.Cli.Tests" />
+    <InternalsVisibleTo Include="Aether.Gui.Tests" />
     <None Update="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

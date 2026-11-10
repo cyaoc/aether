@@ -1,4 +1,5 @@
 using Aether.Core;
+using Aether.Core.Tests.Support;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using Avalonia.Styling;
@@ -41,7 +42,7 @@ public sealed partial class VisualReviewTests
                 Pick(page, "ShowGroupList", "礼物");
                 PickTest(page, "大礼物");
                 Capture("waiting");
-                using var pet = await DesktopPetPageConnection.OpenAsync(harness);
+                using var pet = await DesktopPetEvents.OpenAsync(harness.Client, TestContext.Current.CancellationToken);
                 await GuiHarness.WaitForAsync(() => viewModel.WebService.DesktopPet.Connected);
                 Capture("shows");
                 Tab(page, 1);

@@ -1,4 +1,5 @@
 using Aether.Core;
+using Aether.Core.Tests.Support;
 using Aether.Gui.Tests.Support;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -158,7 +159,7 @@ public sealed class DesktopPetSettingsTests
         Assert.Equal((false, "先在直播姬里加好桌宠页"), (button.IsEnabled, note.Text));
         Assert.Contains("桌宠页：还没有推流软件连着", Texts(page));
 
-        using var pet = await DesktopPetPageConnection.OpenAsync(harness);
+        using var pet = await DesktopPetEvents.OpenAsync(harness.Client, TestContext.Current.CancellationToken);
         await GuiHarness.WaitForAsync(() => button.IsEnabled);
         PickTest(page, "盲盒·大：出大奖");
         GuiHarness.Click(page, "TestButton");
