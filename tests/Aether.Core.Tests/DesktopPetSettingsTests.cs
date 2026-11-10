@@ -120,9 +120,10 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
             File.ReadAllText(SettingsPath));
         var saved = Settings.Load(h.DataDirectory);
         Assert.Equal(["bigGift"], saved.DesktopPetChangedLines.Keys);
-        Assert.Equal(Character.Current.Lines.Keys, saved.DesktopPetLines.Keys);
-        Assert.Equal(mine, saved.DesktopPetLines["bigGift"]);
-        Assert.Equal(Character.Current.Lines["gift"], saved.DesktopPetLines["gift"]);
+        var lines = saved.DesktopPetLines(Character.Current);
+        Assert.Equal(Character.Current.Lines.Keys, lines.Keys);
+        Assert.Equal(mine, lines["bigGift"]);
+        Assert.Equal(Character.Current.Lines["gift"], lines["gift"]);
 
         Settings.SaveDesktopPet(h.DataDirectory, new Dictionary<string, string> { ["desktop_pet.enabled"] = "false" },
             new Dictionary<string, IReadOnlyList<string>> { ["bigGift"] = Character.Current.Lines["bigGift"] }, saved);

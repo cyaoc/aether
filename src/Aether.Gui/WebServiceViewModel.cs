@@ -45,11 +45,11 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     /// <summary>Whether the 桌宠页 would be told the same settings and lines.</summary>
     private static bool SameDesktopPet(Settings previous, Settings snapshot)
     {
-        var lines = snapshot.DesktopPetLines;
+        var lines = snapshot.DesktopPetLines(Character.Current);
         return previous.DesktopPetEnabled.Value == snapshot.DesktopPetEnabled.Value
             && previous.DesktopPetShowsOff.Value.SequenceEqual(snapshot.DesktopPetShowsOff.Value)
             && DesktopPetNumbers(previous).SequenceEqual(DesktopPetNumbers(snapshot))
-            && previous.DesktopPetLines.All(kind => kind.Value.SequenceEqual(lines[kind.Key]));
+            && previous.DesktopPetLines(Character.Current).All(kind => kind.Value.SequenceEqual(lines[kind.Key]));
     }
 
     private static IEnumerable<int> DesktopPetNumbers(Settings settings) => new[] { settings.DesktopPetMidGift, settings.DesktopPetBigGift,

@@ -15,7 +15,9 @@ public sealed class WebServiceFacade
     {
         // shortcut: pending videos are unbounded; add a capacity if playback sources can flood the queue.
         var queue = Channel.CreateUnbounded<VideoQueue.Playback>(new UnboundedChannelOptions { SingleReader = true });
-        region = regions.Create(_ => new WebService(queue.Writer, regions.Time, regions.Logger, lottery.SetExamplePage));
+        // Her manifest is read here, as the client is built: no step reads a file (ADR 0017).
+        var character = Character.Current;
+        region = regions.Create(_ => new WebService(queue.Writer, regions.Time, regions.Logger, lottery.SetExamplePage, character));
         Lottery = new(lottery);
         server = new(region, regions.Time, web => [new VideoPage(web, queue.Reader, dataDirectory), Lottery, new GiftBoardPage(giftBoard),
             new DesktopPetPage(web, lottery, giftBoard)]);

@@ -19,7 +19,8 @@ internal sealed class WebService
     private Task running = Task.CompletedTask;
 
     /// <param name="examplePage">Tells the lottery region whether the 抽奖页 can show an example, and why not.</param>
-    public WebService(ChannelWriter<VideoQueue.Playback> queue, TimeProvider timeProvider, ILogger logger, Action<string?> examplePage)
+    /// <param name="character">The current character, whose lines the 桌宠 says.</param>
+    public WebService(ChannelWriter<VideoQueue.Playback> queue, TimeProvider timeProvider, ILogger logger, Action<string?> examplePage, Character character)
     {
         this.logger = logger;
         this.examplePage = examplePage;
@@ -27,7 +28,7 @@ internal sealed class WebService
         WelcomeAnimation = new(this, timeProvider, logger);
         EntryAnimation = new(this, WelcomeAnimation, timeProvider, logger);
         GiftAnimation = new(this, timeProvider, logger);
-        DesktopPet = new(this);
+        DesktopPet = new(this, character);
     }
 
     /// <summary>One streaming software's event stream to a page. Only its write lock is taken outside a step.</summary>

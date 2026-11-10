@@ -45,7 +45,7 @@ public partial class DesktopPetSettingsPage
     private void OpenLineKind()
     {
         if (LineKindList.SelectedItem is not DesktopPetLineKind kind) return;
-        kind.Open(settings.DesktopPetLines[kind.Kind.Id]);
+        kind.Open(settings.DesktopPetLines(Character.Current)[kind.Kind.Id]);
         LineRows.ItemsSource = kind.Rows;
         editedLine = kind.Rows.FirstOrDefault();
         LineKindTitle.Text = kind.Kind.Label;
@@ -77,7 +77,7 @@ public partial class DesktopPetSettingsPage
     /// <summary>The opened kinds whose lines differ from the saved ones.</summary>
     private Dictionary<string, IReadOnlyList<string>> EditedLines()
     {
-        var saved = settings.DesktopPetLines;
+        var saved = settings.DesktopPetLines(Character.Current);
         return lineKinds.Where(kind => kind.Opened && !kind.Lines.SequenceEqual(saved[kind.Kind.Id]))
             .ToDictionary(kind => kind.Kind.Id, kind => (IReadOnlyList<string>)[.. kind.Lines]);
     }

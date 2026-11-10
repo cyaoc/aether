@@ -200,14 +200,12 @@ public sealed partial class Settings
     /// <summary>The current character's kinds of lines the streamer changed, by kind.</summary>
     public IReadOnlyDictionary<string, Setting<IReadOnlyList<string>>> DesktopPetChangedLines => PetLines.Items(this)
         .Where(item => item.Key.Character == Character.CurrentNumber).ToDictionary(item => item.Key.Kind, item => item.Value);
-    /// <summary>The current character's lines, by kind: hers, with each kind the streamer changed replaced.</summary>
-    public IReadOnlyDictionary<string, IReadOnlyList<string>> DesktopPetLines
+    /// <summary>The current character's lines, by kind: <paramref name="character"/>'s, with each kind the streamer changed
+    /// replaced.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> DesktopPetLines(Character character)
     {
-        get
-        {
-            var changed = DesktopPetChangedLines;
-            return Character.Current.Lines.ToDictionary(kind => kind.Key, kind => changed.TryGetValue(kind.Key, out var mine) ? mine.Value : kind.Value);
-        }
+        var changed = DesktopPetChangedLines;
+        return character.Lines.ToDictionary(kind => kind.Key, kind => changed.TryGetValue(kind.Key, out var mine) ? mine.Value : kind.Value);
     }
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private static readonly ViewerGroupDefinition AnimationViewers = Register(new ViewerGroupDefinition("entry_animation_viewers"));

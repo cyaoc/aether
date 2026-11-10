@@ -1,8 +1,9 @@
 namespace Aether.Core;
 
 /// <summary>What the 桌宠页 is told, in the web service region (ADR 0017): a state first and whenever it changes, then each thing
-/// that happens as one event. The page decides what to play; while the 桌宠 is off it is told only that.</summary>
-internal sealed class DesktopPet(WebService service)
+/// that happens as one event. The page decides what to play; while the 桌宠 is off it is told only that. Her lines are
+/// <paramref name="character"/>'s, read before any step.</summary>
+internal sealed class DesktopPet(WebService service, Character character)
 {
     /// <summary>What happens, by the name the page is told it under.</summary>
     public const string Gift = "gift", BlindBox = "blindBox", Guard = "guard", Entry = "entry", Danmaku = "danmaku",
@@ -17,7 +18,7 @@ internal sealed class DesktopPet(WebService service)
     private bool Enabled => service.Settings?.DesktopPetEnabled.Value == true;
 
     public SseEvent State => new("state", service.Settings is { DesktopPetEnabled.Value: true } settings
-        ? new DesktopPetState(true, roomConnected, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines)
+        ? new DesktopPetState(true, roomConnected, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines(character))
         : new DesktopPetState(false));
 
     /// <summary>New settings may turn the 桌宠 on or off, and change how she plays and what she says.</summary>
