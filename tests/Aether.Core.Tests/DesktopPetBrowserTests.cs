@@ -67,6 +67,47 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task A_first_frame_in_a_pose_whose_pictures_still_load_draws_her_idle()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+
+        // As the page opened while a lottery waits for its draw: she hopes, and the lottery's sheet has not loaded yet.
+        var pose = await page.Browser.EvaluateAsync("""
+            (() => {
+              const sheet = pet.art.poses.hope[0], loaded = pet.cells[sheet], st = pet.stateAt(pet.now());
+              delete pet.cells[sheet]; delete pet.hv; st.pose = 'hope';
+              try { pet.draw(document.querySelector('canvas').getContext('2d'), st, pet.now()); return pet.hv.pose; }
+              finally { if (loaded) pet.cells[sheet] = loaded; }
+            })()
+            """);
+
+        Assert.Equal("idle", pose.GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
+    public async Task A_frame_that_throws_loses_only_itself()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+
+        var frames = await page.Browser.EvaluateAsync($$"""
+            (async () => {
+              const frame = pet.frame;
+              let frames = 0;
+              pet.frame = function () { if (++frames === 1) throw new Error('one frame failed'); return frame.call(this); };
+              await {{TwoFrames}}; await {{TwoFrames}};
+              pet.frame = frame;
+              return frames;
+            })()
+            """);
+
+        Assert.True(frames.GetInt32() > 1);
+        Assert.Contains(page.Browser.Errors, error => error.Contains("one frame failed", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task Saved_thresholds_lines_mood_minutes_and_daily_actions_play_without_reloading_the_page()
     {
         await using var page = await StartAsync();

@@ -139,8 +139,8 @@ export class Pet extends Engine {
     if (st.emblem) this.drawProp(g, this.props.emblem, st.emblem.x, st.emblem.y + this.props.emblem.height * H / this.art.anchor * st.emblem.s / 2, st.emblem.s, st.emblem.a);
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt));
     this.rt = rt;
-    // a pose whose sheet is still loading: she keeps the drawing she has until it is there
-    if (!this.cells[this.art.poses[st.pose][0]]) st.pose = this.hv.pose;
+    // a pose whose sheet is still loading: she keeps the drawing she has until it is there, on the first frame idle's (boot)
+    if (!this.cells[this.art.poses[st.pose][0]]) st.pose = this.hv?.pose ?? 'idle';
     const her = this.herBox(st);
     const target = this.spritePos(st, her, now), sp = target && this.follow(target, dt, st);
     if (sp) { this.trail = this.trail.filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
