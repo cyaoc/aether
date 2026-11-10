@@ -153,9 +153,10 @@ const revealOf = (lottery, draw) => lottery.mode === 'Entry'
 /** The engine of the 桌宠页: Core tells it what happens (DesktopPet.cs) and it decides what she plays. `master` is the page's
  * one animation, whose currentTime is the time of everything; `shows` are the rows of the 演出表, which give each show its
  * 演出档; `art` is the current character's desktopPet (characters/README.md), whose props' points place the big shows. Their
- * pictures' sizes, `props` and `castle`, are Pet's to measure. */
-export class Engine {
+ * pictures' sizes, `props` and `castle`, are Pet's to measure. A 试演 that is over raises `trialended` (trialOver). */
+export class Engine extends EventTarget {
   constructor(master, shows, art) {
+    super();
     Object.assign(this, { master, art });
     this.events = Object.fromEntries(shows.map(row => [row.id, { ...EVENTS[row.id], tier: row.tier, group: row.group }]));
   }
@@ -233,6 +234,7 @@ export class Engine {
   }
 
   start(name, opts) {
+    this.trialOver(this.cur);
     const now = this.now(), { dailyMinSeconds, dailyMaxSeconds } = this.settings;
     const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (ev.steps?.[opts.result] ?? ev).dur;
     this.cur = { name, opts, start: now, pre: wake ? 1000 : 0, dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null };
@@ -315,6 +317,10 @@ export class Engine {
     if (this.cur?.opts.trial) this.cur = null;
   }
 
+  // A 试演 of a show played out, or cut short by another show, is over, and the page tells Core (page.mjs); one stopped is
+  // Core's own doing.
+  trialOver(show) { if (show?.opts.trial) this.dispatchEvent(new Event('trialended')); }
+
   // The round whose blind boxes she shakes while no show plays.
   shaking() { return this.rounds.find(r => r.boxes); }
 
@@ -347,6 +353,7 @@ export class Engine {
     const c = this.cur;
     if (c && now >= c.start + c.pre + c.dur) {
       this.cur = this.seen = null;
+      this.trialOver(c);
       // the first place its round took on the 礼物榜 is crowned next, once (crown)
       const round = c.opts.round, top = round?.top;
       if (round) round.top = null;

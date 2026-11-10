@@ -83,8 +83,7 @@ internal sealed class VideoPage(WebServer server, ChannelReader<VideoQueue.Playb
 
     private async Task ReceiveReportAsync(HttpListenerRequest request, HttpListenerResponse response, CancellationToken token)
     {
-        if (request.Headers["Origin"] is { } origin && origin != new Uri(server.Status.Origin).GetLeftPart(UriPartial.Authority))
-        { response.StatusCode = 403; return; }
+        if (!server.FromItsPage(request)) { response.StatusCode = 403; return; }
         if (!request.HasEntityBody || request.ContentLength64 > 4096
             || request.ContentType?.Split(';')[0] != "application/json") { response.StatusCode = 400; return; }
         try

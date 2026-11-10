@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text.Json;
 using Aether.Core.Tests.Support;
 using static Aether.Core.Tests.Support.GiftBoardStates;
@@ -183,6 +184,26 @@ public sealed class DesktopPetPageTests
         Assert.Equal((DesktopPet.Test, "blindBoxLarge", "Loss", "星河"), (name, show.GetProperty("show").GetString(),
             show.GetProperty("variant").GetString(), show.GetProperty("nickname").GetString()));
         Assert.Equal(DesktopPet.StopTest, (await pet.NextAsync()).Name);
+    }
+
+    [Fact]
+    public async Task The_page_reports_a_test_show_that_is_over_only_from_its_own_origin()
+    {
+        await using var h = new WatchHarness();
+        await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));
+        await using var updates = h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
+        Assert.True(await updates.MoveNextAsync());
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
+        using var crossOrigin = new HttpRequestMessage(HttpMethod.Post, "/desktop-pet/report");
+        crossOrigin.Headers.Add("Origin", "https://evil.example");
+        using var forbidden = await http.SendAsync(crossOrigin, h.Stop.Token);
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+
+        using var report = await http.PostAsync("/desktop-pet/report", null, h.Stop.Token);
+
+        Assert.Equal(HttpStatusCode.NoContent, report.StatusCode);
+        Assert.True(await updates.MoveNextAsync());
+        Assert.IsType<DesktopPetTestEnded>(updates.Current);
     }
 
     [Fact]

@@ -127,7 +127,7 @@ public sealed class DesktopPetSettingsTests
     });
 
     [Fact]
-    public Task A_test_show_plays_on_the_desktop_pet_page_until_stopped_and_says_why_it_cannot_play() => WithPage(async (page, harness) =>
+    public Task A_test_show_plays_on_the_desktop_pet_page_until_stopped_or_over_and_says_why_it_cannot_play() => WithPage(async (page, harness) =>
     {
         await ((MainWindowViewModel)page.DataContext!).WebService.ApplyWebSettingsAsync(Settings.Load(harness.DataDirectory));
         var button = page.FindControl<Button>("TestButton")!;
@@ -151,6 +151,13 @@ public sealed class DesktopPetSettingsTests
         GuiHarness.Click(page, "TestButton");
         await pet.NextAsync(DesktopPet.StopTest);
         Assert.Equal(("试演", ""), (page.FindControl<TextBlock>("TestText")!.Text, note.Text));
+
+        GuiHarness.Click(page, "TestButton");
+        await pet.NextAsync(DesktopPet.Test);
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(harness.Client.WebService.Status.Origin) };
+        using var over = await http.PostAsync("desktop-pet/report", null);
+        await GuiHarness.WaitForAsync(() => page.FindControl<TextBlock>("TestText")!.Text == "试演");
+        Assert.Equal("", note.Text);
     });
 
     [Fact]

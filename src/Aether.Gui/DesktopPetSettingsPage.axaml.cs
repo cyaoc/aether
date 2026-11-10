@@ -154,9 +154,17 @@ public partial class DesktopPetSettingsPage : SettingsPage
 
     protected override void OnDataContextChanged(EventArgs e)
     {
-        if (viewModel is not null) viewModel.WebService.PropertyChanged -= OnWebServiceChanged;
+        if (viewModel is not null)
+        {
+            viewModel.WebService.PropertyChanged -= OnWebServiceChanged;
+            viewModel.WebService.TestShowEnded -= OnTestShowEnded;
+        }
         base.OnDataContextChanged(e);
-        if (viewModel is not null) viewModel.WebService.PropertyChanged += OnWebServiceChanged;
+        if (viewModel is not null)
+        {
+            viewModel.WebService.PropertyChanged += OnWebServiceChanged;
+            viewModel.WebService.TestShowEnded += OnTestShowEnded;
+        }
         RefreshTest();
     }
 
@@ -165,7 +173,13 @@ public partial class DesktopPetSettingsPage : SettingsPage
         if (e.PropertyName == nameof(WebServiceViewModel.DesktopPet)) RefreshTest();
     }
 
-    /// <summary>The 桌宠页 never says when a 试演 ends, so one plays until stopped, or until no page could play it.</summary>
+    private void OnTestShowEnded()
+    {
+        testing = false;
+        RefreshTest();
+    }
+
+    /// <summary>A 试演 plays until the 桌宠页 says it is over, it is stopped, or no page could play it.</summary>
     private void RefreshTest()
     {
         var on = settings.Error is null && settings.DesktopPetEnabled.Value;

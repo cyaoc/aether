@@ -15,5 +15,7 @@ const events = new EventSource('/desktop-pet/events');
 events.addEventListener('state', message => pet.receive(JSON.parse(message.data)));
 for (const name of ['gift', 'blindBox', 'guard', 'entry', 'danmaku', 'testShow', 'stopTestShow'])
   events.addEventListener(name, message => pet[name](JSON.parse(message.data)));
+// A 试演 that is over is reported, as the video page reports what it played, so the GUI offers another (DesktopPetPage.cs).
+pet.addEventListener('trialended', () => fetch('/desktop-pet/report', { method: 'POST' }));
 const loop = () => { pet.frame(); requestAnimationFrame(loop); };
 requestAnimationFrame(loop);

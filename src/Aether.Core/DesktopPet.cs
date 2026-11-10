@@ -67,6 +67,9 @@ internal sealed class DesktopPet(WebService service)
 
     public void StopTestShow() => Tell(StopTest, new());
 
+    /// <summary>The page played its 试演 out, or cut it short: the GUI can offer another.</summary>
+    public void TestShowEnded() => service.Publish(new DesktopPetTestEnded());
+
     private void Publish(SseEvent message)
     {
         if (Enabled) Subscribers.Publish(message);

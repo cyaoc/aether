@@ -13,6 +13,8 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     internal bool AnimationReloading => !animationReload.Current.IsCompleted;
     /// <summary>Raised when anything an animation row shows may have changed: page status, playback, failures or a reload.</summary>
     internal event Action? AnimationRowsChanged;
+    /// <summary>Raised when the 桌宠页 has played its 试演 out, or cut it short.</summary>
+    internal event Action? TestShowEnded;
     public RecentItems<PlaybackItem> RecentAnimations { get; } = [];
     public IReadOnlyList<PlaybackItem> RecentEntryAnimations => RecentAnimations.Where(item => item.Playback.Source != PlaybackSource.Gift).ToArray();
     public IReadOnlyList<PlaybackItem> RecentGiftAnimations => RecentAnimations.Where(item => item.Playback.Source == PlaybackSource.Gift).ToArray();
@@ -107,6 +109,11 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
 
     internal void Apply(WebServiceUpdate update)
     {
+        if (update is DesktopPetTestEnded)
+        {
+            TestShowEnded?.Invoke();
+            return;
+        }
         if (update is WebServiceStatus status)
         {
             WebServiceStatus = status;

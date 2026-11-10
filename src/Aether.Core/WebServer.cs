@@ -72,6 +72,11 @@ internal sealed class WebServer
     public Task<int> BroadcastAsync(WebPage page, SseEvent message, CancellationToken token) =>
         BroadcastFrameAsync(Frame(message), token, page);
 
+    /// <summary>Whether a page's report comes from a page of this service: a browser names the site it posts from, and another
+    /// site's page must not end what plays here.</summary>
+    public bool FromItsPage(HttpListenerRequest request) =>
+        request.Headers["Origin"] is not { } origin || origin == new Uri(Status.Origin).GetLeftPart(UriPartial.Authority);
+
     /// <summary>The request path is outside input: anything that resolves outside Pages counts as a missing file.</summary>
     internal static string? PagesFile(string path)
     {

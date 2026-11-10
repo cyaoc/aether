@@ -196,6 +196,26 @@ test('stopping a 试演 stops only the 试演: a show of what happened plays on'
   assert.equal(playing(engine), 'castle');
 });
 
+test('a 试演 played out or cut short by a show of what happened says it is over; one stopped or held in a 心情 does not', () => {
+  const engine = pet();
+  let ended = 0;
+  engine.addEventListener('trialended', () => ended++);
+  engine.testShow({ show: 'gift', variant: null, nickname: '星河' });
+  advance(engine, 1999);
+  assert.equal(ended, 0);
+  advance(engine, 1);
+  assert.equal(ended, 1);
+  engine.testShow({ show: 'gift', variant: null, nickname: '星河' });
+  engine.gift(castle(1));
+  assert.equal(ended, 2);
+  advance(engine, 11500);
+  engine.testShow({ show: 'gift', variant: null, nickname: '星河' });
+  engine.stopTestShow();
+  engine.testShow({ show: 'gloomy', variant: null, nickname: '星河' });
+  advance(engine, 60000);
+  assert.equal(ended, 2);
+});
+
 test('a 总督 coming while the castle plays waits for it and then goes first; neither is ever dropped', () => {
   const engine = pet();
   engine.gift(castle(1));

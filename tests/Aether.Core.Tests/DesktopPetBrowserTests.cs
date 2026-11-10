@@ -87,6 +87,24 @@ public sealed class DesktopPetBrowserTests
         Assert.Empty(page.Browser.Errors);
     }
 
+    [Fact]
+    public async Task A_test_show_played_out_is_reported_for_the_GUI_to_offer_another()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await using var updates = page.H.Client.WebService.GetUpdatesAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
+        Assert.True(await updates.MoveNextAsync());
+
+        await page.H.Client.WebService.TestShowAsync("entry", null, "星河");
+        await page.Browser.WaitAsync("window.pet.cur?.name === 'entry'");
+        await page.Browser.EvaluateAsync($"{Clock}.currentTime += 1600; {TwoFrames}");
+
+        while (await updates.MoveNextAsync() && updates.Current is not DesktopPetTestEnded) { }
+        Assert.IsType<DesktopPetTestEnded>(updates.Current);
+        Assert.Empty(page.Browser.Errors);
+    }
+
     /// <summary>A connected room with the 桌宠 <paramref name="on"/>, and a Chrome that is not open yet.</summary>
     private static async Task<PageSession> StartAsync(bool on = true)
     {
