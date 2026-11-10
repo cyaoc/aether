@@ -6,8 +6,9 @@ import assert from 'node:assert/strict';
 
 import { viewerName } from '../../src/Aether.Core/Pages/lottery/viewer.mjs';
 
-// The page is a module; it runs here as a script after textures.js, given what it imports.
-const script = readFileSync(new URL('../../src/Aether.Core/Pages/lottery/page.js', import.meta.url), 'utf8').replace(/^import .*\n/m, '');
+// The page is a module; it runs here as a script after textures.js, given what it imports. A Windows checkout ends its lines
+// with \r\n, which . does not match.
+const script = readFileSync(new URL('../../src/Aether.Core/Pages/lottery/page.js', import.meta.url), 'utf8').replace(/^import .*\r?\n/m, '');
 function page(width = 1920, height = 1080, loadedTextures = [], withoutToReversed = false) {
   let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0, source, animationFrame;
   const timers = new Map(), elements = new Map(), listeners = new Map();
