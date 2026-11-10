@@ -57,6 +57,9 @@ public sealed partial class AetherClient
             public GiftRoundProgress Progress(bool ended) => GiftRoundProgress.Of(Uid, Nickname, Gifts, ended);
         }
         private readonly Dictionary<long, Round> rounds = [];
+        // A push B站 repeats counts once, as the 收礼记录 writes it once, so a round's boxes are the ones its 盲盒播报 reports.
+        // shortcut: the tids are kept for the whole room connection; forget old ones if a connection lasting days holds too many.
+        private readonly HashSet<string> tids = [];
 
         public void Handle(RoomEvent e)
         {
@@ -64,10 +67,10 @@ public sealed partial class AetherClient
             {
                 foreach (var round in rounds.Values) round.Timer.Dispose();
                 rounds.Clear();
+                tids.Clear();
             }
             if (e is not DanmakuProtocol.GiftsReceived received) return;
-            // shortcut: no tid deduplication; add it if real captures show duplicate gift pushes.
-            foreach (var viewer in received.Gifts.GroupBy(gift => gift.Uid))
+            foreach (var viewer in received.Gifts.Where(gift => gift.Tid is not { } tid || tids.Add(tid)).GroupBy(gift => gift.Uid))
             {
                 if (viewer.Key == 0)
                 {

@@ -11,10 +11,10 @@ public sealed class GiftRoundTests
         await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
-        var gift = BlindGiftFixture.With(d => { d["blind_gift"] = null; d["total_coin"] = 1234; });
-        await h.PushAndSyncAsync(updates, gift);
+        static string Gift(string tid) => BlindGiftFixture.With(d => { d["blind_gift"] = null; d["total_coin"] = 1234; d["tid"] = tid; });
+        await h.PushAndSyncAsync(updates, Gift("t1"));
         h.Time.Advance(TimeSpan.FromSeconds(2));
-        await h.PushAndSyncAsync(updates, gift);
+        await h.PushAndSyncAsync(updates, Gift("t2"));
         h.Time.Advance(TimeSpan.FromMilliseconds(2999));
         await h.PushAndSyncAsync(updates);
         h.Time.Advance(TimeSpan.FromMilliseconds(1));
@@ -89,21 +89,24 @@ public sealed class GiftRoundTests
     }
 
     [Fact]
-    public async Task Gift_rounds_are_independent_by_viewer_and_do_not_deduplicate_tid()
+    public async Task Gift_rounds_are_independent_by_viewer_and_count_a_push_repeated_in_the_room_connection_once()
     {
         await using var h = new WatchHarness(enableStreamOverlay: true);
         await h.LoginAsync();
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.announce"] = "false" });
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Json, BlindGiftFixture.Json,
-            BlindGiftFixture.With(d => d["uid"] = 20002), BlindGiftFixture.With(d => d["uid"] = 0));
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Json, BlindGiftFixture.Json, BlindGiftFixture.With(d => d.Remove("tid")),
+            BlindGiftFixture.With(d => d.Remove("tid")), BlindGiftFixture.With(d => { d["uid"] = 20002; d["tid"] = "t2"; }),
+            BlindGiftFixture.With(d => { d["uid"] = 0; d["tid"] = "t3"; }));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         var rounds = new[] { Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates)),
             Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates)) };
-        Assert.Equal(10000, rounds.Single(r => r.Uid == 10001).Spend);
+        // A push without a tid cannot be told from another, so each counts.
+        Assert.Equal(15000, rounds.Single(r => r.Uid == 10001).Spend);
         Assert.Equal(5000, rounds.Single(r => r.Uid == 20002).Spend);
         await h.PushAndSyncAsync(updates);
-        await h.PushAndSyncAsync(updates, BlindGiftFixture.Json);
+        // Repeated after its round ended, it still counts once: the 收礼记录 wrote it then.
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Json, BlindGiftFixture.With(d => d["tid"] = "t4"));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         Assert.Equal(5000, Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates)).Spend);
     }

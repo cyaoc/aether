@@ -81,7 +81,7 @@ public sealed class DesktopPetGiftTests
         var (name, boxes) = await pet.NextAsync();
         Assert.Equal(DesktopPet.BlindBox, name);
         AssertBlindBox(new(10001, "测试观众", new(16500, 2234500), 2, "浪漫城堡", 2233000, true), "Gain", boxes);
-        await h.PushAndSyncAsync(updates, Ordinary(uid: 20002, giftId: 32132, giftName: "浪漫城堡", price: 2233000));
+        await h.PushAndSyncAsync(updates, Ordinary(uid: 20002, giftId: 32132, giftName: "浪漫城堡", price: 2233000, tid: "castle-2"));
         Assert.Equal(new GiftRoundProgress(20002, "测试观众", 2233000, 1, "浪漫城堡", 1, 0, 0, true, false),
             await pet.NextAsync<GiftRoundProgress>(DesktopPet.Gift));
     }
