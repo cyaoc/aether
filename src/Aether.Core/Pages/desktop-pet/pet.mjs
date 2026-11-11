@@ -6,6 +6,8 @@ import { BACK, drawFx } from './effects.mjs';
 import { SANS } from '../gift-board/paint.mjs';
 
 const SPRITE_SPEED = 0.8;
+// Her speech bubble, all of it, at 28 px text instead of 18, legible on a phone at 1080p (README 7).
+const BUBBLE_SCALE = 28 / 18;
 // The sprite keeps these drawings while it flies, since they carry something.
 const CARRY = new Set(['crown', 'glow']);
 // The sheets a show or 日常小动作 needs beyond those she always has: they load when it starts (the lottery's too as she waits
@@ -373,27 +375,45 @@ export class Pet extends Engine {
     }
   }
 
-  drawBubble(g, b, her) {
-    const pop = 0.6 + 0.4 * ease(k01(b.t, 0, 160)), alpha = k01(b.t, 0, 120);
-    g.save();
-    g.font = `500 18px ${SANS}`;
-    const maxW = 230, lines = [];
-    let cur = '';
+  // Her speech bubble's lines and box, setting g's font: over her head, or, where that runs off the top of the page (her on
+  // the 总督's deck, a long nickname), beside her face on her roomier side from her eye line, clear of her hat and the emblem.
+  // One at a point (the castle's gate) stays over it. side: 0 over her, 1 on her right, -1 on her left.
+  bubbleBox(g, b, her) {
+    const s = BUBBLE_SCALE;
+    g.font = `500 ${18 * s}px ${SANS}`;
     // a line never starts with closing punctuation: it stays on the line before, a little over the width
-    for (const ch of [...b.text]) { if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
-    lines.push(cur);
-    const w = Math.max(...lines.map(l => g.measureText(l).width)) + 26, h = lines.length * 24 + 16;
-    const anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
-    const x = clamp(anchor.x - w / 2 + 30, 10, PAGE.w - w - 10), y = clamp(anchor.y - h - 14, 8, PAGE.h - h - 8);
+    const wrap = maxW => {
+      const lines = [];
+      let cur = '';
+      for (const ch of [...b.text]) { if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
+      lines.push(cur);
+      return { lines, w: Math.max(...lines.map(l => g.measureText(l).width)) + 26 * s, h: (lines.length * 24 + 16) * s };
+    };
+    const up = wrap(230 * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
+    if (b.at || anchor.y - up.h - 14 * s >= 8) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
+    const l = her.x + her.w * 0.15, r = her.x + her.w * 0.85, side = PAGE.w - r >= l ? 1 : -1;  // her head's edges
+    const o = wrap(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
+    return { ...o, x: side > 0 ? r + 14 * s : l - 14 * s - o.w, y: clamp(her.y + her.h * 0.3, 8, PAGE.h - o.h - 8), tip: { x: side > 0 ? r : l, y: her.y + her.h * 0.42 }, side };
+  }
+
+  drawBubble(g, b, her) {
+    const pop = 0.6 + 0.4 * ease(k01(b.t, 0, 160)), alpha = k01(b.t, 0, 120), s = BUBBLE_SCALE;
+    g.save();
+    const { lines, x, y, w, h, tip, side } = this.bubbleBox(g, b, her);
+    // it pops out of its edge by her: its bottom over her head, its side beside her face
+    const ox = x + w * (1 - side) / 2, oy = side ? y + h / 2 : y + h;
     g.globalAlpha = alpha;
-    g.translate(x + w / 2, y + h); g.scale(pop, pop); g.translate(-(x + w / 2), -(y + h));
-    g.fillStyle = '#fff'; g.strokeStyle = '#F0A3C0'; g.lineWidth = 2.5;
-    g.beginPath(); g.roundRect(x, y, w, h, 14); g.fill(); g.stroke();
-    const tx = clamp(anchor.x, x + 22, x + w - 22);
-    g.beginPath(); g.moveTo(tx - 9, y + h - 1); g.lineTo(tx - 4, y + h + 13); g.lineTo(tx + 8, y + h - 1); g.closePath(); g.fill();
-    g.beginPath(); g.moveTo(tx - 9, y + h); g.lineTo(tx - 4, y + h + 13); g.lineTo(tx + 8, y + h); g.stroke();
+    g.translate(ox, oy); g.scale(pop, pop); g.translate(-ox, -oy);
+    g.fillStyle = '#fff'; g.strokeStyle = '#F0A3C0'; g.lineWidth = 2.5 * s;
+    g.beginPath(); g.roundRect(x, y, w, h, 14 * s); g.fill(); g.stroke();
+    // the tail, drawn pointing down from that edge, is turned to point sideways at her cheek beside her face
+    g.save();
+    if (side) g.transform(0, 1, -side, 0, ox, clamp(tip.y, y + 22 * s, y + h - 22 * s)); else g.translate(clamp(tip.x, x + 22 * s, x + w - 22 * s), oy);
+    g.beginPath(); g.moveTo(-9 * s, -1); g.lineTo(-4 * s, 13 * s); g.lineTo(8 * s, -1); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(-9 * s, 0); g.lineTo(-4 * s, 13 * s); g.lineTo(8 * s, 0); g.stroke();
+    g.restore();
     g.fillStyle = '#4A3742'; g.textBaseline = 'top';
-    lines.forEach((l, i) => g.fillText(l, x + 13, y + 9 + i * 24));
+    lines.forEach((l, i) => g.fillText(l, x + 13 * s, y + (9 + i * 24) * s));
     g.restore();
   }
 
