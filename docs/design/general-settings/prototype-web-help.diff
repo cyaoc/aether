@@ -1,0 +1,43 @@
+diff --git a/src/Aether.Gui/GeneralSettingsPage.axaml b/src/Aether.Gui/GeneralSettingsPage.axaml
+index 7183a35..5034fd0 100644
+--- a/src/Aether.Gui/GeneralSettingsPage.axaml
++++ b/src/Aether.Gui/GeneralSettingsPage.axaml
+@@ -32,7 +32,7 @@
+         </Border>
+         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+           <TextBlock Classes="label" Text="页面" VerticalAlignment="Center" />
+-          <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="每个页面在直播姬里各加一个浏览器素材" VerticalAlignment="Center" />
++          <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="每个页面在直播姬里各加一个浏览器素材，地址和宽高照右边填；加过了还没连着，右键素材 → 刷新" VerticalAlignment="Center" />
+         </Grid>
+       </StackPanel>
+       <StackPanel x:Name="UpdateTab" Spacing="8">
+diff --git a/src/Aether.Gui/PageStatusBar.axaml b/src/Aether.Gui/PageStatusBar.axaml
+index b9ec501..fddab51 100644
+--- a/src/Aether.Gui/PageStatusBar.axaml
++++ b/src/Aether.Gui/PageStatusBar.axaml
+@@ -14,8 +14,6 @@
+               <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Next}" StrokeThickness="2" /></Viewbox>
+             </StackPanel>
+           </Button>
+-          <TextBlock Grid.Row="1" Grid.ColumnSpan="3" x:Name="PageSetupSteps" Classes="secondary" LineHeight="18" TextWrapping="Wrap" Margin="0,6,0,0"
+-            Text="{Binding SetupSteps}" IsVisible="{Binding SetupSteps, Converter={x:Static StringConverters.IsNotNullOrEmpty}, FallbackValue=False}" />
+         </Grid>
+       </Border>
+ </UserControl>
+diff --git a/src/Aether.Gui/WebPageDetail.axaml b/src/Aether.Gui/WebPageDetail.axaml
+index 770a09c..8e16856 100644
+--- a/src/Aether.Gui/WebPageDetail.axaml
++++ b/src/Aether.Gui/WebPageDetail.axaml
+@@ -45,12 +45,5 @@
+       <TextBlock Classes="label" Text="宽高" />
+       <TextBlock x:Name="PageSize" Classes="secondary" Text="{Binding Texts.Size}" />
+     </StackPanel>
+-    <Border x:Name="SetupHelp" Classes="card notice warning" IsVisible="{Binding Waiting}">
+-      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+-        <Viewbox Classes="icon" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
+-        <TextBlock Grid.Column="1" Classes="secondary" LineHeight="20" TextWrapping="Wrap"
+-          Text="还没有推流软件连着。在直播姬里添加浏览器素材，地址和宽高照上面填；已经加过的，右键素材 → 刷新。" />
+-      </Grid>
+-    </Border>
+   </StackPanel>
+ </UserControl>
