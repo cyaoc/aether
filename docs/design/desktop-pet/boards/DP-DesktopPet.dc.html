@@ -210,7 +210,7 @@ const LINES = {
   骑车摔倒: ['车、车子不听话…', '呜…又摔了…'],
   滑雪: ['滑雪好开心～', '看我的！'], 滑雪摔跤: ['噗…全是雪…', '雪、雪好冰！'], 拍拍土: ['拍拍土…没事没事！', '再来！这次小心点～'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了']
 };
-const NAMES = { 普通昵称: '星河', 长昵称: '这是一个非常非常长的昵称啊', 中英混排: 'Lily月下' };
+const NAMES = { 普通昵称: '星河', 长昵称: '星河一只很长的昵称啊啊啊啊长长长长长长长', 中英混排: 'Lily月下' };
 const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 中礼物: '告白气球', 大礼物: '小电视飞船', '盲盒·小': '棉花糖', '盲盒·中': '爱心抱枕', '盲盒·大': '爱心抱枕', 城堡: '浪漫城堡' };
 // A viewer's gift round ends after this much silence (README 2); the 中礼物 and 大礼物 thresholds, in 电池 (the GUI defaults).
 const ROUND_GAP = 3000, MID = 1000, BIG = 10000;
@@ -228,7 +228,7 @@ const GIFT_SHOWS = ['普通礼物', '连着送', '中礼物', '大礼物', '城�
 // Which lines a blind box's ending says.
 const BOX_LINES = { 赚: '盲盒赚了', 平: '盲盒不赚不亏', 亏: '盲盒亏了', 大奖: '盲盒出大奖' };
 const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
-const SPRITE_H = 76, NAME_MAX = 8, SPRITE_SPEED = 0.8;
+const SPRITE_H = 76, SPRITE_SPEED = 0.8;
 // Every pose sheet's cell 1 and every prop are drawn by codex beside the same standing drawing, ANCHOR px tall (gen-sheet.py,
 // gen-prop.py), so one scale, H / ANCHOR, puts all of them on the page at her size. Points of a prop are in its own px: the
 // flagship's bow deck where she stood when it was drawn, and its mainmast top for the sprite.
@@ -854,9 +854,7 @@ class Component extends DCLogic {
 
   fill(text, name, opts = {}) {
     if (!text) return text;
-    let nick = this.cfg.name;
-    if ([...nick].length > NAME_MAX) nick = [...nick].slice(0, NAME_MAX - 1).join('') + '…';
-    return text.replaceAll('{昵称}', nick).replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3))
+    return text.replaceAll('{昵称}', this.cfg.name).replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3))
       .replaceAll('{关键字}', '抽奖').replaceAll('{奖项}', '一等奖').replaceAll('{奖品}', '定制周边');
   }
 
