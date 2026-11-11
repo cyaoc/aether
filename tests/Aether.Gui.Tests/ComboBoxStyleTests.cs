@@ -150,7 +150,7 @@ public sealed class ComboBoxStyleTests
         var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
         window.Show();
         await harness.IdleAsync();
-        GeneralSettingsForm.ShowUpdateAndLogs(window);
+        GuiHarness.Tab(GeneralSettingsForm.Of(window), 1);
         try { test(window); }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;

@@ -6,7 +6,7 @@ namespace Aether.Gui.Tests;
 
 public sealed class PageStatusBarTests
 {
-    private static readonly WebPageTexts Sample = new("样板页", "样板页：还没有推流软件连着", "样板页显示不了", "在直播姬里添加浏览器素材。");
+    private static readonly WebPageTexts Sample = new("样板页", "Icon.Info", "样板", "480 × 640", "样板页：还没有推流软件连着", "样板页显示不了", "在直播姬里添加浏览器素材。");
 
     // The sample page has no connections of its own while the video and lottery pages have nine each.
     [Theory]

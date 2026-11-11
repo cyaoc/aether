@@ -800,7 +800,7 @@
     <Setter Property="FontSize" Value="14" />
     <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
   </Style>
-  <!-- A web page's connection: a dot and its words, green while streaming software is connected, orange while none is. -->
+  <!-- A web page's connection: a dot and its words, green while streaming software is connected, orange while none is, grey while the web service is off. -->
   <Style Selector="StackPanel.pageStatus">
     <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
   </Style>

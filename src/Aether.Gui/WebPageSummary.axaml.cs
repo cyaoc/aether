@@ -1,5 +1,4 @@
 using Avalonia.Controls;
-using Avalonia.Media;
 
 namespace Aether.Gui;
 
@@ -8,6 +7,4 @@ namespace Aether.Gui;
 public partial class WebPageSummary : UserControl
 {
     public WebPageSummary() => InitializeComponent();
-
-    public Geometry? Icon { get => IconPath.Data; set => IconPath.Data = value; }
 }

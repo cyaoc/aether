@@ -27,10 +27,11 @@ public sealed class GeneralSettingsPageTests
         Assert.True(page.FindControl<NumericUpDown>("RetentionInput")!.IsEffectivelyVisible);
         Assert.True(page.FindControl<ComboBox>("LogLevelInput")!.IsEffectivelyVisible);
         Assert.False(page.FindControl<NumericUpDown>("WebPortInput")!.IsEffectivelyVisible);
+        return Task.CompletedTask;
     });
 
     [Fact]
-    public Task One_save_bar_saves_what_was_changed_on_both_tabs() => GeneralSettingsForm.Open(1040, 600, Running, (page, harness) =>
+    public Task One_save_bar_saves_what_was_changed_on_both_tabs() => GeneralSettingsForm.Open(1040, 600, Running, async (page, harness) =>
     {
         var port = GuiHarness.FreePort();
         page.FindControl<NumericUpDown>("WebPortInput")!.Text = port.ToString();
@@ -39,7 +40,7 @@ public sealed class GeneralSettingsPageTests
         GuiHarness.Flush();
         Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
 
-        GuiHarness.Click(page, "PART_SaveButton");
+        await GuiHarness.SaveAsync(page);
         var saved = Settings.Load(harness.DataDirectory);
         Assert.Equal(port, saved.WebServicePort.Value);
         Assert.Equal(LogLevel.Warning, saved.LogLevel.Value);
@@ -49,7 +50,7 @@ public sealed class GeneralSettingsPageTests
     public Task The_page_list_names_every_page_and_picking_one_shows_only_its_detail() => GeneralSettingsForm.Open(1040, 600, Running, (page, _) =>
     {
         Assert.Equal(["视频页", "抽奖页", "礼物榜页", "桌宠页"],
-            GeneralSettingsForm.Pages.Select(name => page.FindControl<ListBoxItem>(name + "Item")!.GetVisualDescendants().OfType<TextBlock>().First().Text));
+            GeneralSettingsForm.Pages.Select(name => GeneralSettingsForm.Item(page, name).GetVisualDescendants().OfType<TextBlock>().First().Text));
         Assert.Equal("Video", ShownDetail(page));
         foreach (var name in GeneralSettingsForm.Pages)
         {
@@ -59,7 +60,8 @@ public sealed class GeneralSettingsPageTests
 
         GuiHarness.Tab(page, 1);
         Assert.False(Shown(page.FindControl<ListBox>("PageList")!));
-        Assert.DoesNotContain(GeneralSettingsForm.Pages, name => Shown(page.FindControl<WebPageDetail>(name + "Detail")!));
+        Assert.DoesNotContain(GeneralSettingsForm.Pages, name => Shown(GeneralSettingsForm.Detail(page, name)));
+        return Task.CompletedTask;
     });
 
     [Theory]
@@ -71,7 +73,7 @@ public sealed class GeneralSettingsPageTests
         {
             foreach (var name in GeneralSettingsForm.Pages)
             {
-                var status = page.FindControl<ListBoxItem>(name + "Item")!.GetVisualDescendants().OfType<StackPanel>().Single(panel => panel.Classes.Contains("pageStatus"));
+                var status = GeneralSettingsForm.Item(page, name).GetVisualDescendants().OfType<StackPanel>().Single(panel => panel.Classes.Contains("pageStatus"));
                 Assert.Equal(expected, status.Children.OfType<TextBlock>().Single().Text);
                 Assert.Equal(running && connections > 0, status.Classes.Contains("connected"));
                 Assert.Equal(running && connections == 0, status.Classes.Contains("waiting"));
@@ -80,6 +82,7 @@ public sealed class GeneralSettingsPageTests
             // The picked page's detail says the same thing again; only the list announces a change.
             var heading = GuiHarness.FindVisual<WebPageDetail>(page, "VideoDetail").GetVisualDescendants().OfType<TextBlock>().Single(text => text.Name == "ConnectionsText");
             Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(heading));
+            return Task.CompletedTask;
         });
 
     [Fact]
@@ -134,13 +137,14 @@ public sealed class GeneralSettingsPageTests
         var body = layout.Children.OfType<ScrollViewer>().Single();
         Assert.True(body.Viewport.Height <= layout.Bounds.Height, $"{body.Viewport.Height} tall in {layout.Bounds.Height}");
         Assert.True(body.Extent.Height > body.Viewport.Height);
+        return Task.CompletedTask;
     });
 
     private static void AssertFits(ScrollViewer viewer) =>
         Assert.True(viewer.Extent.Height <= viewer.Viewport.Height, $"{viewer.Extent.Height} tall in {viewer.Viewport.Height}");
 
     private static string ShownDetail(GeneralSettingsPage page) =>
-        Assert.Single(GeneralSettingsForm.Pages, name => Shown(page.FindControl<WebPageDetail>(name + "Detail")!));
+        Assert.Single(GeneralSettingsForm.Pages, name => Shown(GeneralSettingsForm.Detail(page, name)));
 
     // The list and the details leave the page with their tab, and a control off the page still counts itself visible.
     private static bool Shown(Control control) => TopLevel.GetTopLevel(control) is not null && control.IsEffectivelyVisible;
@@ -157,7 +161,7 @@ public sealed class GeneralSettingsPageTests
         try
         {
             await GuiHarness.AccountReadAsync(viewModel);
-            check(window, viewModel, window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single());
+            check(window, viewModel, GeneralSettingsForm.Of(window));
         }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;

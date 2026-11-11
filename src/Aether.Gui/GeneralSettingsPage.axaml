@@ -74,22 +74,18 @@
       <Border Classes="sideList">
         <!-- Each item's Tag names its page: the bound status is not there until the list is first shown. -->
         <ListBox x:Name="PageList" Classes="nav sideList" SelectionMode="AlwaysSelected" SelectedIndex="0" AutomationProperties.Name="页面">
-          <ListBoxItem x:Name="VideoItem" Tag="{x:Static local:WebPageTexts.Video}" DataContext="{Binding WebService.Video}"><local:WebPageSummary Icon="{StaticResource Icon.Animation}" /></ListBoxItem>
-          <ListBoxItem x:Name="LotteryItem" Tag="{x:Static local:WebPageTexts.Lottery}" DataContext="{Binding WebService.Lottery}"><local:WebPageSummary Icon="{StaticResource Icon.Lottery}" /></ListBoxItem>
-          <ListBoxItem x:Name="GiftBoardItem" Tag="{x:Static local:WebPageTexts.GiftBoard}" DataContext="{Binding WebService.GiftBoard}"><local:WebPageSummary Icon="{StaticResource Icon.Trophy}" /></ListBoxItem>
-          <ListBoxItem x:Name="DesktopPetItem" Tag="{x:Static local:WebPageTexts.DesktopPet}" DataContext="{Binding WebService.DesktopPet}"><local:WebPageSummary Icon="{StaticResource Icon.Pet}" /></ListBoxItem>
+          <ListBoxItem x:Name="VideoItem" Tag="{x:Static local:WebPageTexts.Video}" DataContext="{Binding WebService.Video}"><local:WebPageSummary /></ListBoxItem>
+          <ListBoxItem x:Name="LotteryItem" Tag="{x:Static local:WebPageTexts.Lottery}" DataContext="{Binding WebService.Lottery}"><local:WebPageSummary /></ListBoxItem>
+          <ListBoxItem x:Name="GiftBoardItem" Tag="{x:Static local:WebPageTexts.GiftBoard}" DataContext="{Binding WebService.GiftBoard}"><local:WebPageSummary /></ListBoxItem>
+          <ListBoxItem x:Name="DesktopPetItem" Tag="{x:Static local:WebPageTexts.DesktopPet}" DataContext="{Binding WebService.DesktopPet}"><local:WebPageSummary /></ListBoxItem>
         </ListBox>
       </Border>
       <ScrollViewer Grid.Column="1" x:Name="PageDetailScroll" HorizontalScrollBarVisibility="Disabled">
         <Panel Button.Click="CopyPageAddress">
-          <local:WebPageDetail x:Name="VideoDetail" IsVisible="{Binding #VideoItem.IsSelected}" DataContext="{Binding WebService.Video}"
-            Icon="{StaticResource Icon.Animation}" Purpose="欢迎动画、进场动画和送礼动画在这里播放" Size="1920 × 1080" />
-          <local:WebPageDetail x:Name="LotteryDetail" IsVisible="{Binding #LotteryItem.IsSelected}" DataContext="{Binding WebService.Lottery}"
-            Icon="{StaticResource Icon.Lottery}" Purpose="报名、开奖和中奖名单" Size="横屏 1920 × 1080 · 竖屏 1080 × 1920" />
-          <local:WebPageDetail x:Name="GiftBoardDetail" IsVisible="{Binding #GiftBoardItem.IsSelected}" DataContext="{Binding WebService.GiftBoard}"
-            Icon="{StaticResource Icon.Trophy}" Purpose="送礼观众的排行" Size="480 × 1000，可以等比放大" />
-          <local:WebPageDetail x:Name="DesktopPetDetail" IsVisible="{Binding #DesktopPetItem.IsSelected}" DataContext="{Binding WebService.DesktopPet}"
-            Icon="{StaticResource Icon.Pet}" Purpose="桌宠在直播画面一角表演" Size="480 × 640" />
+          <local:WebPageDetail x:Name="VideoDetail" IsVisible="{Binding #VideoItem.IsSelected}" DataContext="{Binding WebService.Video}" />
+          <local:WebPageDetail x:Name="LotteryDetail" IsVisible="{Binding #LotteryItem.IsSelected}" DataContext="{Binding WebService.Lottery}" />
+          <local:WebPageDetail x:Name="GiftBoardDetail" IsVisible="{Binding #GiftBoardItem.IsSelected}" DataContext="{Binding WebService.GiftBoard}" />
+          <local:WebPageDetail x:Name="DesktopPetDetail" IsVisible="{Binding #DesktopPetItem.IsSelected}" DataContext="{Binding WebService.DesktopPet}" />
         </Panel>
       </ScrollViewer>
     </Grid>

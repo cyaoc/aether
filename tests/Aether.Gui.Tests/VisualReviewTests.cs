@@ -438,7 +438,7 @@ public sealed partial class VisualReviewTests
                     if (index == Array.IndexOf(ReviewedPages, "general"))
                     {
                         // One page's detail shows at a time, and the update and log settings are on the other tab, so each is checked.
-                        var settings = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+                        var settings = GeneralSettingsForm.Of(window);
                         var generalTexts = checkedTexts.ToHashSet();
                         foreach (var name in GeneralSettingsForm.Pages)
                         {
@@ -936,7 +936,7 @@ public sealed partial class VisualReviewTests
             try
             {
                 await GuiHarness.AccountReadAsync(viewModel);
-                GeneralSettingsForm.ShowUpdateAndLogs(window);
+                GuiHarness.Tab(GeneralSettingsForm.Of(window), 1);
                 foreach (var (pageIndex, name) in new[] { (8, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
@@ -1102,7 +1102,7 @@ public sealed partial class VisualReviewTests
                 navigation.SelectedIndex = i;
                 if (ReviewedPages[i] == "general")
                 {
-                    var settings = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+                    var settings = GeneralSettingsForm.Of(window);
                     GuiHarness.Tab(settings, 1);
                     Capture("general-update-and-logs");
                     GuiHarness.Tab(settings, 0);
@@ -1146,7 +1146,7 @@ public sealed partial class VisualReviewTests
             File.WriteAllText(path, "log:\n  level: @bad\n");
             navigation.SelectedIndex = 8;
             GuiHarness.Flush();
-            var general = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+            var general = GeneralSettingsForm.Of(window);
             var fileMessage = GuiHarness.FindVisual<TextBlock>(general, "FileMessage");
             Assert.Contains(harness.DataDirectory, fileMessage.Text);
             // Keep the real parse error while removing the per-run temporary directory from its fixture text.
@@ -1254,7 +1254,7 @@ public sealed partial class VisualReviewTests
             {
                 await GuiHarness.AccountReadAsync(viewModel);
                 window.Navigation.SelectedIndex = Array.IndexOf(ReviewedPages, "general");
-                var page = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+                var page = GeneralSettingsForm.Of(window);
                 GuiHarness.Tab(page, 1);
                 Capture("on");
                 page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked = false;

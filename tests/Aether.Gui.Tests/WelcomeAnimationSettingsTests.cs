@@ -561,7 +561,7 @@ public sealed class WelcomeAnimationSettingsTests
             viewModel.WebService.Apply(new WebServiceStatus(true, 17891, 0, 0, 0));
             GuiHarness.Flush();
             GeneralSettingsForm.Pick(page, pageName);
-            var button = GuiHarness.FindPageDetailControl<Button>(page, pageName, "CopyButton");
+            var button = GeneralSettingsForm.DetailControl<Button>(page, pageName, "CopyButton");
             button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             var label = ((StackPanel)button.Content!).Children.OfType<TextBlock>().Single();
             await GuiHarness.WaitForAsync(() => label.Text == "已复制");
@@ -929,9 +929,9 @@ public sealed class WelcomeAnimationSettingsTests
             string Count(int count) => !running ? "服务没打开" : count > 0 ? $"{count} 个推流软件连着" : "还没有连着";
             foreach (var (name, path, connections) in new[] { ("Video", "/video", videos), ("Lottery", "/lottery", lotteries), ("GiftBoard", "/gift-board", giftBoards) })
             {
-                Assert.Equal("http://localhost:17891" + path, GuiHarness.FindPageDetailControl<TextBox>(page, name, "Address").Text);
-                Assert.Equal(Count(connections), GuiHarness.FindVisual<TextBlock>(page.FindControl<ListBoxItem>(name + "Item")!, "ConnectionsText").Text);
-                Assert.Equal(running && connections == 0, GuiHarness.FindPageDetailControl<Control>(page, name, "SetupHelp").IsVisible);
+                Assert.Equal("http://localhost:17891" + path, GeneralSettingsForm.DetailControl<TextBox>(page, name, "Address").Text);
+                Assert.Equal(Count(connections), GuiHarness.FindVisual<TextBlock>(GeneralSettingsForm.Item(page, name), "ConnectionsText").Text);
+                Assert.Equal(running && connections == 0, GeneralSettingsForm.DetailControl<Control>(page, name, "SetupHelp").IsVisible);
             }
             var help = page.FindControl<TextBlock>("WebServiceHelp")!;
             Assert.Equal(running || error is not null, help.IsVisible);

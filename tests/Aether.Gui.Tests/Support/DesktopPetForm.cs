@@ -4,7 +4,7 @@ using Avalonia.VisualTree;
 
 namespace Aether.Gui.Tests.Support;
 
-/// <summary>The 桌宠 page's tabs, lists and inputs, found as the streamer sees them.</summary>
+/// <summary>The 桌宠 page's lists and inputs, found as the streamer sees them.</summary>
 internal static class DesktopPetForm
 {
     /// <summary>Picks the 演出 group or the kind of lines labelled <paramref name="label"/> in the list named <paramref name="list"/>.</summary>

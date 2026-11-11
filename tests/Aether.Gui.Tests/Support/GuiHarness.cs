@@ -187,11 +187,6 @@ internal sealed class GuiHarness : IDisposable
     public static T FindVisual<T>(Visual parent, string name) where T : Control =>
         parent.GetVisualDescendants().OfType<T>().Single(control => control.Name == name);
 
-    /// <summary>A control in one page's detail beside the general settings' page list; <paramref name="pageName"/> is Video, Lottery, GiftBoard or DesktopPet.
-    /// Found by name, not in the visual tree: a detail not picked was never shown, so its content is not there yet.</summary>
-    public static T FindPageDetailControl<T>(Visual page, string pageName, string name) where T : Control =>
-        FindVisual<WebPageDetail>(page, pageName + "Detail").FindControl<T>(name)!;
-
     public static T FindRowControl<T>(Visual parent, object row, string name) where T : Control
     {
         // A folded container has not been measured yet, so its template may not exist.

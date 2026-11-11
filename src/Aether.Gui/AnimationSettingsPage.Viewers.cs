@@ -1,9 +1,8 @@
 using System.Globalization;
 using Aether.Core;
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Platform.Storage;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 
 namespace Aether.Gui;
 
@@ -61,7 +60,7 @@ public partial class AnimationSettingsPage
             invalid |= !row.HasFile;
             var exists = !row.HasFile || File.Exists(row.SourcePath ?? Path.Combine(AnimationDirectory, row.FileName));
             row.Missing = !exists;
-            row.FileIcon = Icon(exists ? "Icon.Animation" : "Icon.Alert");
+            row.FileIcon = Icons.Find(exists ? "Icon.Animation" : "Icon.Alert");
             row.FileNameDecorations = exists ? null : TextDecorations.Strikethrough;
             // Show what blocks saving or playing first, then the last playback failure, then progress.
             var (note, tone, icon) = row.VisibleError is { } error ? (error, "error", "Icon.Alert")
@@ -72,7 +71,7 @@ public partial class AnimationSettingsPage
                 : playing ? (canStop ? "正在直播姬里试播" : "正在直播姬里播放", "playing", "Icon.Wave") : ("", null, "Icon.Info");
             if (!row.CanEdit) note += (note.Length > 0 ? "\n" : "") + "这项不能逐行编辑，请在设置文件里改";
             row.RowMessage = note;
-            row.NoteIcon = Icon(icon);
+            row.NoteIcon = Icons.Find(icon);
             row.NoteError = tone == "error";
             row.NotePlaying = tone == "playing";
             var who = row.Uid is { } owner ? $"{owner} 的" : "";
@@ -83,7 +82,7 @@ public partial class AnimationSettingsPage
             row.RemoveAccessibleName = $"删除{who}欢迎动画";
             row.Playing = playing;
             row.Stoppable = canStop;
-            row.TestIcon = Icon(testIcon);
+            row.TestIcon = Icons.Find(testIcon);
             row.TestText = testText;
             row.CanTest = canStop || row.Error is null && saved && hasPages && exists && row.HasFile && !busy;
         }
@@ -124,8 +123,6 @@ public partial class AnimationSettingsPage
             Message = $"选择视频失败：{error.Message}";
         }
     }
-
-    private static Geometry Icon(string key) => (Geometry)Application.Current!.FindResource(key)!;
 
     private async Task<string?> PickVideoAsync()
     {

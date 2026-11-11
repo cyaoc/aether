@@ -5,7 +5,6 @@ namespace Aether.Gui;
 public partial class AnimationSettingsPage : SettingsPage
 {
     private long[] replaced = [];
-    public event Action<WebPageTexts>? GeneralSettingsRequested;
 
     public AnimationSettingsPage() : this(DataDirectory.Locate()) { }
 
@@ -16,7 +15,6 @@ public partial class AnimationSettingsPage : SettingsPage
         AnimationRows.ItemsSource = Animations;
         Animations.RowChanged += Validate;
         Title = "进场欢迎";
-        PageStatus.GeneralSettingsRequested += page => GeneralSettingsRequested?.Invoke(page);
         TimingHint = "保存后，下一次进场生效";
         FanClubInput.ItemsSource = EntryTier.All.Select(tier => tier.Value).Prepend(0).ToArray();
         FanClubInput.ItemTemplate = new Avalonia.Controls.Templates.FuncDataTemplate<int>((value, _) => new Avalonia.Controls.TextBlock { Text = value == 0 ? "关闭" : $"{value} 级起" });

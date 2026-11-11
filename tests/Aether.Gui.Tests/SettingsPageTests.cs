@@ -1119,7 +1119,7 @@ public sealed class SettingsPageTests
             {
                 main.Navigation.SelectedIndex = 8;
                 GuiHarness.Flush();
-                var page = main.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+                var page = GeneralSettingsForm.Of(main);
                 page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked = false;
                 await GuiHarness.SaveAsync(page);
                 viewModel.KeepRecentDanmaku = false;

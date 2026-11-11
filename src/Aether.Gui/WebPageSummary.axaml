@@ -21,7 +21,7 @@
     </Style>
   </UserControl.Styles>
   <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-    <Viewbox Classes="icon"><Path x:Name="IconPath" /></Viewbox>
+    <Viewbox Classes="icon"><Path x:Name="IconPath" Data="{Binding Texts.Icon}" /></Viewbox>
     <TextBlock Grid.Column="1" x:Name="NameText" Classes="singleLine" Text="{Binding Texts.Name}" VerticalAlignment="Center" />
     <StackPanel Grid.Column="2" Classes="pageStatus" Classes.connected="{Binding Connected}" Classes.waiting="{Binding Waiting}" Orientation="Horizontal" Spacing="6">
       <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
