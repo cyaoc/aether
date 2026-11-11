@@ -800,6 +800,25 @@
     <Setter Property="FontSize" Value="14" />
     <Setter Property="Foreground" Value="{DynamicResource Text.Primary}" />
   </Style>
+  <!-- A web page's connection: a dot and its words, green while streaming software is connected, orange while none is. -->
+  <Style Selector="StackPanel.pageStatus">
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Text.Muted}" />
+  </Style>
+  <Style Selector="StackPanel.pageStatus > Ellipse">
+    <Setter Property="Fill" Value="{DynamicResource Text.Disabled}" />
+  </Style>
+  <Style Selector="StackPanel.pageStatus.connected">
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+  </Style>
+  <Style Selector="StackPanel.pageStatus.connected > Ellipse">
+    <Setter Property="Fill" Value="{DynamicResource Success}" />
+  </Style>
+  <Style Selector="StackPanel.pageStatus.waiting">
+    <Setter Property="TextElement.Foreground" Value="{DynamicResource Warning.Text}" />
+  </Style>
+  <Style Selector="StackPanel.pageStatus.waiting > Ellipse">
+    <Setter Property="Fill" Value="{DynamicResource Warning.Dot}" />
+  </Style>
   <!-- Hover and selected colours come from the ComboBoxItem rule, so every popup list looks the same. -->
   <Style Selector="ListBox.onlineRank ListBoxItem">
     <Setter Property="Height" Value="32" />

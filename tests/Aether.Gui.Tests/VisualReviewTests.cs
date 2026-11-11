@@ -1100,12 +1100,15 @@ public sealed partial class VisualReviewTests
             for (var i = 0; i < ReviewedPages.Length; i++)
             {
                 navigation.SelectedIndex = i;
+                if (ReviewedPages[i] == "general")
+                {
+                    var settings = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+                    GuiHarness.Tab(settings, 1);
+                    Capture("general-update-and-logs");
+                    GuiHarness.Tab(settings, 0);
+                    GeneralSettingsForm.Pick(settings, "GiftBoard");
+                }
                 Capture(ReviewedPages[i]);
-                if (ReviewedPages[i] != "general") continue;
-                var settings = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
-                GuiHarness.Tab(settings, 1);
-                Capture("general-update-and-logs");
-                GuiHarness.Tab(settings, 0);
                 if (i == 2)
                 {
                     var uid = window.GetVisualDescendants().OfType<TextBox>().Single(x => x.IsEffectivelyVisible && x.Text == "1234567890123456");
