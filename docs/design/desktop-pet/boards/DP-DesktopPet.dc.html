@@ -229,8 +229,6 @@ const GIFT_SHOWS = ['普通礼物', '连着送', '中礼物', '大礼物', '城�
 const BOX_LINES = { 赚: '盲盒赚了', 平: '盲盒不赚不亏', 亏: '盲盒亏了', 大奖: '盲盒出大奖' };
 const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
 const SPRITE_H = 76, SPRITE_SPEED = 0.8;
-// Her speech bubble, all of it, at 28 px text instead of 18, legible on a phone at 1080p (README 7).
-const BUBBLE_SCALE = 28 / 18;
 // Every pose sheet's cell 1 and every prop are drawn by codex beside the same standing drawing, ANCHOR px tall (gen-sheet.py,
 // gen-prop.py), so one scale, H / ANCHOR, puts all of them on the page at her size. Points of a prop are in its own px: the
 // flagship's bow deck where she stood when it was drawn, and its mainmast top for the sprite.
@@ -268,6 +266,8 @@ const bump = (t, a, b) => Math.sin(Math.PI * k01(t, a, b));
 const xfade = u => [1 - ease(k01(u, 60, 150)), ease(k01(u, 0, 90))];
 // The 礼物榜页's text font, which the 桌宠页 draws in too.
 const SANS = '"Noto Sans SC", "PingFang SC", sans-serif';
+// Her speech bubble, all of it, at 28 px text instead of 18, legible on a phone at 1080p (README 7).
+const BUBBLE_SCALE = 28 / 18, BUBBLE_FONT = `500 ${18 * BUBBLE_SCALE}px ${SANS}`;
 const at = (t, list) => { let v = list[0][1]; for (const [s, x] of list) if (t >= s) v = x; return v; };
 
 class Component extends DCLogic {
@@ -922,7 +922,8 @@ class Component extends DCLogic {
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt)) * this.cfg.speed;
     this.rt = rt;
     const her = this.herBox(st);
-    const target = this.spritePos(st, her, now, g), sp = target && this.follow(target, dt, st);
+    const bub = st.bubble?.text && this.bubbleBox(g, st.bubble, her);
+    const target = this.spritePos(st, her, now, bub), sp = target && this.follow(target, dt, st);
     if (sp) { this.trail = (this.trail || []).filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) this.drawFx(g, f, st, her, now);
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
@@ -930,7 +931,7 @@ class Component extends DCLogic {
     if (sp && !st.sBehind) this.drawSprite(g, st, sp, now);
     if (st.gift) this.drawGift(g, st.gift);
     for (const f of st.fx) if (!BACK.has(f[0])) this.drawFx(g, f, st, her, now);
-    if (st.bubble?.text) this.drawBubble(g, st.bubble, her);
+    if (bub) this.drawBubble(g, st.bubble, bub);
     g.restore();
     if (this.cfg.caption) this.drawCaption(g, st, now, px, py);
   }
@@ -1015,8 +1016,9 @@ class Component extends DCLogic {
   home(now) { return { x: FOOT.x + this.herLeft - SPRITE_H * 0.22, y: FOOT.y - 0.3 * H + 4 * Math.sin(now / 700) }; }
 
   // st.sp: null (home), ['home', dx, dy] (home moved by), ['rel', fx, fy] (a point of her drawing's box, as fractions of
-  // it), ['at', x, y] (a page point), or the named spots below.
-  spritePos(st, her, now, g) {
+  // it), ['at', x, y] (a page point), ['tossed', hop] (over her head, hopping by hop of her height, and above bub, her
+  // bubble, when that is over her head, however many lines it has), or the named spots below.
+  spritePos(st, her, now, bub) {
     if (st.orbit == null) this.orb = null;
     if (st.sp?.[0] === 'gone') return null;
     const home = this.home(now);
@@ -1036,17 +1038,13 @@ class Component extends DCLogic {
     }
     if (!st.sp) return home;
     if (st.sp[0] === 'home') return { x: home.x + st.sp[1], y: home.y + st.sp[2] };
-    if (st.sp[0] === 'rel') return { x: her.x + her.w * st.sp[1], y: her.y + her.h * st.sp[2] };
+    const rel = (fx, fy) => ({ x: her.x + her.w * fx, y: her.y + her.h * fy });
+    if (st.sp[0] === 'rel') return rel(st.sp[1], st.sp[2]);
     if (st.sp[0] === 'at') return { x: st.sp[1], y: st.sp[2] };
     if (st.sp === 'head') return { x: her.x + her.w * 0.25, y: her.y - SPRITE_H * 0.2 + 3 * Math.sin(now / 500) };
     if (st.sp === 'knee') return { x: her.x + her.w * 0.94, y: FOOT.y - 42 + 2 * Math.sin(now / 900) };
     if (st.sp[0] === 'crown') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1], d = st.sp[2]; return { x: home.x + (top.x - home.x) * p, y: home.y + (top.y - home.y) * p + 26 * d }; }
-    // tossed up over her head, hopping by st.sp[1] of her height, and above her bubble over her head, however many lines it has
-    if (st.sp[0] === 'tossed') {
-      const top = her.y - her.h * 0.5;
-      g.save(); const b = st.bubble?.text && this.bubbleBox(g, st.bubble, her); g.restore();
-      return { x: her.x + her.w * 0.5, y: (b && !b.side ? Math.min(top, b.y - SPRITE_H * 0.55) : top) - her.h * st.sp[1] };
-    }
+    if (st.sp[0] === 'tossed') return rel(0.5, (bub && !bub.side ? Math.min(-0.5, (bub.y - SPRITE_H * 0.55 - her.y) / her.h) : -0.5) - st.sp[1]);
     if (st.sp[0] === 'home-from-top') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1]; return { x: top.x + (home.x - top.x) * p, y: top.y + (home.y - top.y) * p }; }
     if (st.sp[0] === 'to-castle') { const p = st.sp[1]; return { x: home.x + (FOOT.x - home.x) * p, y: home.y + (300 - home.y) * p, scale: st.sp[2] }; }
     if (st.sp[0] === 'mast') return { x: st.sp[1], y: st.sp[2] };
@@ -1163,31 +1161,32 @@ class Component extends DCLogic {
     }
   }
 
-  // Her speech bubble's lines and box, setting g's font: over her head, or, where that runs off the top of the page (her on
-  // the 总督's deck, a long nickname), beside her face on her roomier side from her eye line, clear of her hat and the emblem.
-  // One at a point (the castle's gate) stays over it. side: 0 over her, 1 on her right, -1 on her left.
+  // Her speech bubble's lines and box: over her head, or, where that runs off the top of the page (her on the 总督's deck, a
+  // long nickname), beside her face on her roomier side from her eye line, clear of her hat and the emblem. One at a point
+  // (the castle's gate) stays over it. side: 0 over her, 1 on her right, -1 on her left.
   bubbleBox(g, b, her) {
     const s = BUBBLE_SCALE;
-    g.font = `500 ${18 * s}px ${SANS}`;
     // a line never starts with closing punctuation: it stays on the line before, a little over the width
     const wrap = maxW => {
+      g.save(); g.font = BUBBLE_FONT;
       const lines = [];
       let cur = '';
       for (const ch of [...b.text]) { if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
       lines.push(cur);
-      return { lines, w: Math.max(...lines.map(l => g.measureText(l).width)) + 26 * s, h: (lines.length * 24 + 16) * s };
+      const w = Math.max(...lines.map(l => g.measureText(l).width)) + 26 * s;
+      g.restore();
+      return { lines, w, h: (lines.length * 24 + 16) * s };
     };
     const up = wrap(230 * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
     if (b.at || anchor.y - up.h - 14 * s >= 8) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
     const l = her.x + her.w * 0.15, r = her.x + her.w * 0.85, side = PAGE.w - r >= l ? 1 : -1;  // her head's edges
-    const o = wrap(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
-    return { ...o, x: side > 0 ? r + 14 * s : l - 14 * s - o.w, y: clamp(her.y + her.h * 0.3, 8, PAGE.h - o.h - 8), tip: { x: side > 0 ? r : l, y: her.y + her.h * 0.42 }, side };
+    const beside = wrap(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
+    return { ...beside, x: side > 0 ? r + 14 * s : l - 14 * s - beside.w, y: clamp(her.y + her.h * 0.3, 8, PAGE.h - beside.h - 8), tip: { x: side > 0 ? r : l, y: her.y + her.h * 0.42 }, side };
   }
 
-  drawBubble(g, b, her) {
+  drawBubble(g, b, { lines, x, y, w, h, tip, side }) {
     const pop = 0.6 + 0.4 * ease(k01(b.t, 0, 160)), alpha = k01(b.t, 0, 120), s = BUBBLE_SCALE;
     g.save();
-    const { lines, x, y, w, h, tip, side } = this.bubbleBox(g, b, her);
     // it pops out of its edge by her: its bottom over her head, its side beside her face
     const ox = x + w * (1 - side) / 2, oy = side ? y + h / 2 : y + h;
     g.globalAlpha = alpha;
@@ -1200,7 +1199,7 @@ class Component extends DCLogic {
     g.beginPath(); g.moveTo(-9 * s, -1); g.lineTo(-4 * s, 13 * s); g.lineTo(8 * s, -1); g.closePath(); g.fill();
     g.beginPath(); g.moveTo(-9 * s, 0); g.lineTo(-4 * s, 13 * s); g.lineTo(8 * s, 0); g.stroke();
     g.restore();
-    g.fillStyle = '#4A3742'; g.textBaseline = 'top';
+    g.font = BUBBLE_FONT; g.fillStyle = '#4A3742'; g.textBaseline = 'top';
     lines.forEach((l, i) => g.fillText(l, x + 13 * s, y + (9 + i * 24) * s));
     g.restore();
   }
