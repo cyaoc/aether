@@ -35,7 +35,8 @@ again whenever settings are saved:
 
 ## The page
 
-Design source: the desktop pet design package's board `docs/design/desktop-pet/boards/DP-DesktopPet.dc.html` at `da08028`.
+Design source: the desktop pet design package's board `docs/design/desktop-pet/boards/DP-DesktopPet.dc.html`, kept in step
+with this page (`DesktopPetBrowserTests` compares the two, show by show, pixel for pixel).
 Its engine is `engine.mjs` (which show plays when, the 一轮送礼, the 心情 and 日常小动作, what she and her sprite do at a
 moment) and its drawing `pet.mjs` and `effects.mjs`, ported function for function on one Canvas 2D; `page.mjs` hands each
 event above to the engine's handler of the same name. The board's numbers measured on her pictures are the current
