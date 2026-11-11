@@ -95,7 +95,10 @@ test('her line says a viewer\'s whole nickname, however long', () => {
   const engine = pet(), nickname = '星河一只很长的昵称啊啊啊啊长长长长长长长';
   engine.entry({ uid: 1, nickname });
   advance(engine, 500);
-  assert.ok(engine.stateAt(engine.now()).bubble.text.includes(nickname));
+  const text = engine.stateAt(engine.now()).bubble.text;
+  assert.ok(text.includes(nickname));
+  // her line as written: no … put in for a cut, though her entry lines have their own
+  assert.ok(lines.entry.includes(text.replace(nickname, '{昵称}')));
 });
 
 test('an entry does not play while she shakes a round\'s blind boxes', () => {
