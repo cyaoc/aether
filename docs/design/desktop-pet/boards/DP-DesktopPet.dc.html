@@ -769,10 +769,10 @@ class Component extends DCLogic {
   // Tossed up by her cheer: over her head for a moment, then circling her.
   // She tosses it up over her head: it flies up, hangs there hopping for joy, and only then comes down to circle her. The
   // toss used to last 350 ms, about the flight up, so it started down the moment it got there (用户：一上头顶就下来了).
-  // It hangs above her speech bubble, two lines of it too, not behind it.
+  // It hangs above her speech bubble, however many lines it has, not behind it.
   toss(st, t, a, hold = 1100) {
     st.sprite = 'sHappy';
-    if (t < a + 350 + hold) st.sp = ['rel', 0.5, -0.5 - 0.05 * Math.abs(Math.sin(Math.max(0, t - a - 350) / 170))];
+    if (t < a + 350 + hold) st.sp = ['tossed', 0.05 * Math.abs(Math.sin(Math.max(0, t - a - 350) / 170))];
     else st.orbit = t - a - 350 - hold;
   }
 
@@ -922,7 +922,7 @@ class Component extends DCLogic {
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt)) * this.cfg.speed;
     this.rt = rt;
     const her = this.herBox(st);
-    const target = this.spritePos(st, her, now), sp = target && this.follow(target, dt, st);
+    const target = this.spritePos(st, her, now, g), sp = target && this.follow(target, dt, st);
     if (sp) { this.trail = (this.trail || []).filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) this.drawFx(g, f, st, her, now);
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
@@ -1016,7 +1016,7 @@ class Component extends DCLogic {
 
   // st.sp: null (home), ['home', dx, dy] (home moved by), ['rel', fx, fy] (a point of her drawing's box, as fractions of
   // it), ['at', x, y] (a page point), or the named spots below.
-  spritePos(st, her, now) {
+  spritePos(st, her, now, g) {
     if (st.orbit == null) this.orb = null;
     if (st.sp?.[0] === 'gone') return null;
     const home = this.home(now);
@@ -1041,6 +1041,12 @@ class Component extends DCLogic {
     if (st.sp === 'head') return { x: her.x + her.w * 0.25, y: her.y - SPRITE_H * 0.2 + 3 * Math.sin(now / 500) };
     if (st.sp === 'knee') return { x: her.x + her.w * 0.94, y: FOOT.y - 42 + 2 * Math.sin(now / 900) };
     if (st.sp[0] === 'crown') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1], d = st.sp[2]; return { x: home.x + (top.x - home.x) * p, y: home.y + (top.y - home.y) * p + 26 * d }; }
+    // tossed up over her head, hopping by st.sp[1] of her height, and above her bubble over her head, however many lines it has
+    if (st.sp[0] === 'tossed') {
+      const top = her.y - her.h * 0.5;
+      g.save(); const b = st.bubble?.text && this.bubbleBox(g, st.bubble, her); g.restore();
+      return { x: her.x + her.w * 0.5, y: (b && !b.side ? Math.min(top, b.y - SPRITE_H * 0.55) : top) - her.h * st.sp[1] };
+    }
     if (st.sp[0] === 'home-from-top') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1]; return { x: top.x + (home.x - top.x) * p, y: top.y + (home.y - top.y) * p }; }
     if (st.sp[0] === 'to-castle') { const p = st.sp[1]; return { x: home.x + (FOOT.x - home.x) * p, y: home.y + (300 - home.y) * p, scale: st.sp[2] }; }
     if (st.sp[0] === 'mast') return { x: st.sp[1], y: st.sp[2] };

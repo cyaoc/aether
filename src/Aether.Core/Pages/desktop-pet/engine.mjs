@@ -729,10 +729,10 @@ export class Engine extends EventTarget {
 
   // She tosses it up over her head: it flies up, hangs there hopping for joy, and only then comes down to circle her. The
   // toss used to last 350 ms, about the flight up, so it started down the moment it got there (用户：一上头顶就下来了).
-  // It hangs above her speech bubble, two lines of it too, not behind it.
+  // It hangs above her speech bubble, however many lines it has, not behind it.
   toss(st, t, a, hold = 1100) {
     st.sprite = 'sHappy';
-    if (t < a + 350 + hold) st.sp = ['rel', 0.5, -0.5 - 0.05 * Math.abs(Math.sin(Math.max(0, t - a - 350) / 170))];
+    if (t < a + 350 + hold) st.sp = ['tossed', 0.05 * Math.abs(Math.sin(Math.max(0, t - a - 350) / 170))];
     else st.orbit = t - a - 350 - hold;
   }
 

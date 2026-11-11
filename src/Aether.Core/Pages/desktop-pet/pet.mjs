@@ -144,7 +144,7 @@ export class Pet extends Engine {
     // a pose whose sheet is still loading: she keeps the drawing she has until it is there, on the first frame idle's (boot)
     if (!this.cells[this.art.poses[st.pose][0]]) st.pose = this.hv?.pose ?? 'idle';
     const her = this.herBox(st);
-    const target = this.spritePos(st, her, now), sp = target && this.follow(target, dt, st);
+    const target = this.spritePos(st, her, now, g), sp = target && this.follow(target, dt, st);
     if (sp) { this.trail = this.trail.filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) drawFx(g, f, st, her, now, this);
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
@@ -234,7 +234,7 @@ export class Pet extends Engine {
 
   // st.sp: null (home), ['home', dx, dy] (home moved by), ['rel', fx, fy] (a point of her drawing's box, as fractions of
   // it), ['at', x, y] (a page point), or the named spots below.
-  spritePos(st, her, now) {
+  spritePos(st, her, now, g) {
     if (st.orbit == null) this.orb = null;
     if (st.sp?.[0] === 'gone') return null;
     const home = this.home(now);
@@ -258,6 +258,12 @@ export class Pet extends Engine {
     if (st.sp === 'head') return { x: her.x + her.w * 0.25, y: her.y - SPRITE_H * 0.2 + 3 * Math.sin(now / 500) };
     if (st.sp === 'knee') return { x: her.x + her.w * 0.94, y: FOOT.y - 42 + 2 * Math.sin(now / 900) };
     if (st.sp[0] === 'crown') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1], d = st.sp[2]; return { x: home.x + (top.x - home.x) * p, y: home.y + (top.y - home.y) * p + 26 * d }; }
+    // tossed up over her head, hopping by st.sp[1] of her height, and above her bubble over her head, however many lines it has
+    if (st.sp[0] === 'tossed') {
+      const top = her.y - her.h * 0.5;
+      g.save(); const b = st.bubble?.text && this.bubbleBox(g, st.bubble, her); g.restore();
+      return { x: her.x + her.w * 0.5, y: (b && !b.side ? Math.min(top, b.y - SPRITE_H * 0.55) : top) - her.h * st.sp[1] };
+    }
     if (st.sp[0] === 'home-from-top') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1]; return { x: top.x + (home.x - top.x) * p, y: top.y + (home.y - top.y) * p }; }
     if (st.sp[0] === 'to-castle') { const p = st.sp[1]; return { x: home.x + (FOOT.x - home.x) * p, y: home.y + (300 - home.y) * p, scale: st.sp[2] }; }
     if (st.sp[0] === 'mast') return { x: st.sp[1], y: st.sp[2] };
