@@ -108,6 +108,8 @@ const BLIND_BOX = 'blindBox';
 const BOX_LINES = { Gain: 'blindBoxGain', Even: 'blindBoxEven', Loss: 'blindBoxLoss', Jackpot: 'blindBoxJackpot' };
 export const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
 export const SPRITE_H = 76;
+// How high she rises in each hop up or down the 总督's stair of light (README 3, 7).
+export const HOP = 40;
 // The sports (README 6), each in its own outfit: the sprite dresses her for it, she gets ready and goes for act ms; then
 // she stops (calm) or, now and then, it goes wrong (fall); then the sprite dresses her back. [ms after the stop, pose];
 // lines: [ms after it goes wrong, what she says], each line matching what she does then (no plaster talk without a plaster);
@@ -618,7 +620,7 @@ export class Engine extends EventTarget {
     st.ship = { x: deck.x, y: deck.y, s, a: k01(t, 1500, 1900) * (1 - k01(t, 13300, 14000)) };
     const mast = this.shipPoint(st.ship, this.art.points.flagship.mast);
     // up the stair in three hops, and down again
-    const climb = (a, b, from, to) => { const w = k01(t, a, b), hopN = Math.floor(w * 3), u = w * 3 - hopN; return { x: from.x + (to.x - from.x) * w, y: from.y + (to.y - from.y) * w - 40 * Math.sin(Math.PI * Math.min(1, u)) }; };
+    const climb = (a, b, from, to) => { const w = k01(t, a, b), hopN = Math.floor(w * 3), u = w * 3 - hopN; return { x: from.x + (to.x - from.x) * w, y: from.y + (to.y - from.y) * w - HOP * Math.sin(Math.PI * Math.min(1, u)) }; };
     if (t >= 5500 && t < 6500) Object.assign(st, climb(5500, 6500, FOOT, deck));
     else if (t >= 6500 && t < 11400) { st.x = deck.x; st.y = deck.y; }
     else if (t >= 11400 && t < 12000) Object.assign(st, climb(11400, 12000, deck, FOOT));

@@ -1,7 +1,7 @@
 // The 桌宠 on the 桌宠页's canvas, drawn as the design package's board draws her (DP-DesktopPet.dc.html), from the current
 // character's Q 版 pictures and the numbers in her manifest (characters/README.md, desktopPet).
 import { loadImage } from '../video/animations/toolkit.mjs';
-import { Engine, FOOT, GLOW, H, PAGE, SPRITE_H, clamp, ease, k01, xfade } from './engine.mjs';
+import { Engine, FOOT, GLOW, H, HOP, PAGE, SPRITE_H, clamp, ease, k01, xfade } from './engine.mjs';
 import { BACK, drawFx } from './effects.mjs';
 import { SANS } from '../gift-board/paint.mjs';
 
@@ -144,7 +144,8 @@ export class Pet extends Engine {
     // a pose whose sheet is still loading: she keeps the drawing she has until it is there, on the first frame idle's (boot)
     if (!this.cells[this.art.poses[st.pose][0]]) st.pose = this.hv?.pose ?? 'idle';
     const her = this.herBox(st);
-    const bub = st.bubble?.text && this.bubbleBox(g, st.bubble, her);
+    const bub = st.bubble?.text && this.bubbleBox(g, st, her, this.bubSide);
+    this.bubSide = bub?.side;
     const target = this.spritePos(st, her, now, bub), sp = target && this.follow(target, dt, st);
     if (sp) { this.trail = this.trail.filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) drawFx(g, f, st, her, now, this);
@@ -381,9 +382,12 @@ export class Pet extends Engine {
 
   // Her speech bubble's lines and box: over her head, or, where that runs off the top of the page (her on the 总督's deck, a
   // long nickname), beside her face on her roomier side from her eye line, clear of her hat and the emblem. One at a point
-  // (the castle's gate) stays over it. side: 0 over her, 1 on her right, -1 on her left.
-  bubbleBox(g, b, her) {
-    const s = BUBBLE_SCALE;
+  // (the castle's gate) stays over it. side: 0 over her, 1 on her right, -1 on her left. Whether it fits over her head goes
+  // by the top of her head standing (her feet less H), not of her drawing, which her jump's frames move by 60-70 px; and
+  // once beside her (was, its side the frame before) it goes back only with a HOP more room, or her hops up and down the
+  // 总督's stair would flip it back and forth in the middle of a line. A new bubble after none is placed afresh.
+  bubbleBox(g, st, her, was) {
+    const b = st.bubble, s = BUBBLE_SCALE;
     // a line never starts with closing punctuation: it stays on the line before, a little over the width
     const wrap = maxW => {
       g.save(); g.font = BUBBLE_FONT;
@@ -396,7 +400,7 @@ export class Pet extends Engine {
       return { lines, w, h: (lines.length * 24 + 16) * s };
     };
     const up = wrap(230 * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
-    if (b.at || anchor.y - up.h - 14 * s >= 8) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
+    if (b.at || st.y - H * st.s - 6 - up.h - 14 * s >= 8 + (was ? HOP : 0)) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
     const l = her.x + her.w * 0.15, r = her.x + her.w * 0.85, side = PAGE.w - r >= l ? 1 : -1;  // her head's edges
     const beside = wrap(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
     return { ...beside, x: side > 0 ? r + 14 * s : l - 14 * s - beside.w, y: clamp(her.y + her.h * 0.3, 8, PAGE.h - beside.h - 8), tip: { x: side > 0 ? r : l, y: her.y + her.h * 0.42 }, side };

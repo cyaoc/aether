@@ -229,6 +229,8 @@ const GIFT_SHOWS = ['普通礼物', '连着送', '中礼物', '大礼物', '城�
 const BOX_LINES = { 赚: '盲盒赚了', 平: '盲盒不赚不亏', 亏: '盲盒亏了', 大奖: '盲盒出大奖' };
 const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
 const SPRITE_H = 76, SPRITE_SPEED = 0.8;
+// How high she rises in each hop up or down the 总督's stair of light (README 3, 7).
+const HOP = 40;
 // Every pose sheet's cell 1 and every prop are drawn by codex beside the same standing drawing, ANCHOR px tall (gen-sheet.py,
 // gen-prop.py), so one scale, H / ANCHOR, puts all of them on the page at her size. Points of a prop are in its own px: the
 // flagship's bow deck where she stood when it was drawn, and its mainmast top for the sprite.
@@ -688,7 +690,7 @@ class Component extends DCLogic {
     st.ship = { x: deck.x, y: deck.y, s, a: k01(t, 1500, 1900) * (1 - k01(t, 13300, 14000)) };
     const mast = this.shipPoint(st.ship, PROPS.flagship.mast);
     // up the stair in three hops, and down again
-    const climb = (a, b, from, to) => { const w = k01(t, a, b), hopN = Math.floor(w * 3), u = w * 3 - hopN; return { x: from.x + (to.x - from.x) * w, y: from.y + (to.y - from.y) * w - 40 * Math.sin(Math.PI * Math.min(1, u)) }; };
+    const climb = (a, b, from, to) => { const w = k01(t, a, b), hopN = Math.floor(w * 3), u = w * 3 - hopN; return { x: from.x + (to.x - from.x) * w, y: from.y + (to.y - from.y) * w - HOP * Math.sin(Math.PI * Math.min(1, u)) }; };
     if (t >= 5500 && t < 6500) Object.assign(st, climb(5500, 6500, FOOT, deck));
     else if (t >= 6500 && t < 11400) { st.x = deck.x; st.y = deck.y; }
     else if (t >= 11400 && t < 12000) Object.assign(st, climb(11400, 12000, deck, FOOT));
@@ -869,7 +871,7 @@ class Component extends DCLogic {
       this.root = root; this.boundCfg = this.cfg;
       for (const a of root.getAnimations()) a.cancel();
       this.master = root.animate([{ outlineColor: 'transparent' }, { outlineColor: 'transparent' }], { duration: 1e9 });
-      this.reset(); this.sv = this.hv = this.sc = null;
+      this.reset(); this.sv = this.hv = this.sc = this.bubSide = null;
     }
     const now = this.clock = this.now();
     let st;
@@ -922,7 +924,8 @@ class Component extends DCLogic {
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt)) * this.cfg.speed;
     this.rt = rt;
     const her = this.herBox(st);
-    const bub = st.bubble?.text && this.bubbleBox(g, st.bubble, her);
+    const bub = st.bubble?.text && this.bubbleBox(g, st, her, this.bubSide);
+    this.bubSide = bub?.side;
     const target = this.spritePos(st, her, now, bub), sp = target && this.follow(target, dt, st);
     if (sp) { this.trail = (this.trail || []).filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) this.drawFx(g, f, st, her, now);
@@ -1163,9 +1166,12 @@ class Component extends DCLogic {
 
   // Her speech bubble's lines and box: over her head, or, where that runs off the top of the page (her on the 总督's deck, a
   // long nickname), beside her face on her roomier side from her eye line, clear of her hat and the emblem. One at a point
-  // (the castle's gate) stays over it. side: 0 over her, 1 on her right, -1 on her left.
-  bubbleBox(g, b, her) {
-    const s = BUBBLE_SCALE;
+  // (the castle's gate) stays over it. side: 0 over her, 1 on her right, -1 on her left. Whether it fits over her head goes
+  // by the top of her head standing (her feet less H), not of her drawing, which her jump's frames move by 60-70 px; and
+  // once beside her (was, its side the frame before) it goes back only with a HOP more room, or her hops up and down the
+  // 总督's stair would flip it back and forth in the middle of a line. A new bubble after none is placed afresh.
+  bubbleBox(g, st, her, was) {
+    const b = st.bubble, s = BUBBLE_SCALE;
     // a line never starts with closing punctuation: it stays on the line before, a little over the width
     const wrap = maxW => {
       g.save(); g.font = BUBBLE_FONT;
@@ -1178,7 +1184,7 @@ class Component extends DCLogic {
       return { lines, w, h: (lines.length * 24 + 16) * s };
     };
     const up = wrap(230 * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
-    if (b.at || anchor.y - up.h - 14 * s >= 8) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
+    if (b.at || st.y - H * st.s - 6 - up.h - 14 * s >= 8 + (was ? HOP : 0)) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
     const l = her.x + her.w * 0.15, r = her.x + her.w * 0.85, side = PAGE.w - r >= l ? 1 : -1;  // her head's edges
     const beside = wrap(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
     return { ...beside, x: side > 0 ? r + 14 * s : l - 14 * s - beside.w, y: clamp(her.y + her.h * 0.3, 8, PAGE.h - beside.h - 8), tip: { x: side > 0 ? r : l, y: her.y + her.h * 0.42 }, side };

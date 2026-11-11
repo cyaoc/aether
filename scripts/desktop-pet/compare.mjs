@@ -81,7 +81,7 @@ const SIDES = {
 // each moment's hash (and picture, for the moments of keep) in the first frame at or after it.
 const PLAY = `async (c, keep, res) => {
   const T0 = 100000; x.master.currentTime = fake = T0;
-  reset(); x.sv = x.hv = x.sc = x.orb = null; x.rt = undefined; x.trail = []; x.nextDaily = Infinity;
+  reset(); x.sv = x.hv = x.sc = x.orb = x.bubSide = null; x.rt = undefined; x.trail = []; x.nextDaily = Infinity;
   const timers = [], later = (ms, fn) => timers.push([T0 + ms, fn]);
   c.run(x, x, x, later);
   const dur = c.ms ? null : x.cur.pre + x.cur.dur, ms = c.ms || [200, 600, Math.round(dur * 0.25), Math.round(dur * 0.5), Math.round(dur * 0.75), dur - 150];
