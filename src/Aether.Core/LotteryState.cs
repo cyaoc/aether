@@ -57,4 +57,9 @@ public sealed record LotteryState(long? RoomId, bool Connected, Lottery? Lottery
     public bool PinnedResults { get; init; }
     public bool IsExamplePlaying { get; init; }
 }
-public sealed record LotteryUpdate(LotteryState State, LotteryState? Example = null);
+public sealed record LotteryUpdate(LotteryState State, LotteryState? Example = null)
+{
+    /// <summary>The live state as pages show it: once the room connection ends nobody can stop or hide what is on air, so they
+    /// clear until it reconnects.</summary>
+    internal LotteryState Live => State.CanControl ? State : State with { Lottery = null };
+}

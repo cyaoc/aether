@@ -4,7 +4,11 @@ import vm from 'node:vm';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-const script = readFileSync(new URL('../../src/Aether.Core/Pages/lottery/page.js', import.meta.url), 'utf8');
+import { viewerName } from '../../src/Aether.Core/Pages/lottery/viewer.mjs';
+
+// The page is a module; it runs here as a script after textures.js, given what it imports. A Windows checkout ends its lines
+// with \r\n, which . does not match.
+const script = readFileSync(new URL('../../src/Aether.Core/Pages/lottery/page.js', import.meta.url), 'utf8').replace(/^import .*\r?\n/m, '');
 function page(width = 1920, height = 1080, loadedTextures = [], withoutToReversed = false) {
   let now = Date.parse('2026-10-17T12:00:00Z'), nextId = 0, source, animationFrame;
   const timers = new Map(), elements = new Map(), listeners = new Map();
@@ -29,7 +33,7 @@ function page(width = 1920, height = 1080, loadedTextures = [], withoutToReverse
   const timer = (callback,delay,repeat) => { const id=++nextId; timers.set(id,{callback,at:now+delay,repeat}); return id; };
   const window = {innerWidth:width,innerHeight:height,addEventListener(name,fn){listeners.set(name,fn);}};
   vm.runInNewContext((withoutToReversed ? 'delete Array.prototype.toReversed;\n' : '') +
-    readFileSync(new URL('../../src/Aether.Core/Pages/lottery/textures.js', import.meta.url),'utf8') + '\n' + script, { document, window,
+    readFileSync(new URL('../../src/Aether.Core/Pages/lottery/textures.js', import.meta.url),'utf8') + '\n' + script, { viewerName, document, window,
     Image:class { decode(){return Promise.resolve();} },
     Date:class extends Date { static now(){return now;} }, getComputedStyle:()=>({fontSize:'112px'}),
     EventSource:class { constructor(){source=this;} addEventListener(name,fn){listeners.set(name,fn);} },

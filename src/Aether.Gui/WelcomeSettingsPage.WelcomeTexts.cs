@@ -1,5 +1,4 @@
 using Aether.Core;
-using System.Collections.Specialized;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -8,7 +7,7 @@ namespace Aether.Gui;
 
 public partial class WelcomeSettingsPage
 {
-    private WelcomeTextRow? editedWelcomeText;
+    private readonly LineInsertTarget welcomeTextTarget;
     internal EditableRows<WelcomeTextRow> WelcomeTexts { get; } = new(1);
 
     private void LoadWelcomeTexts()
@@ -16,29 +15,12 @@ public partial class WelcomeSettingsPage
         WelcomeTexts.Clear();
         WelcomeTextFold.IsExpanded = false;
         foreach (var text in settings.WelcomeTexts.Value) WelcomeTexts.Add(new(text, settings.WelcomeTexts.CanEdit));
-        editedWelcomeText = WelcomeTexts.FirstOrDefault();
+        welcomeTextTarget.Row = WelcomeTexts.FirstOrDefault();
         WelcomeTextReadOnly.IsVisible = !settings.WelcomeTexts.CanEdit;
         AddWelcomeTextButton.IsVisible = settings.WelcomeTexts.CanEdit;
         foreach (var button in new[] { InsertAtButton, InsertNicknameButton, InsertGuardButton })
             button.IsEnabled = settings.WelcomeTexts.CanEdit;
         RefreshWelcomeTexts();
-    }
-
-    private void WelcomeTextsChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (e.OldItems?.Contains(editedWelcomeText) == true)
-            editedWelcomeText = WelcomeTexts.ElementAtOrDefault(Math.Min(e.OldStartingIndex, WelcomeTexts.Count - 1));
-        RefreshWelcomeTexts();
-    }
-
-    private void WelcomeTextGotFocus(object? sender, RoutedEventArgs e)
-    {
-        // Only the text box picks the row; pressing another row's × must not retarget the insert buttons.
-        if (e.Source is TextBox { DataContext: WelcomeTextRow row })
-        {
-            editedWelcomeText = row;
-            RefreshWelcomeTexts();
-        }
     }
 
     /// <summary>Updates what depends on which rows exist: the count, the hints, the insert target and the fold.</summary>
@@ -48,7 +30,7 @@ public partial class WelcomeSettingsPage
         WelcomeTextCount.Text = $"{count} 条";
         WelcomeRandomHint.Text = count == 1 ? "写多条时，每次随机发一条" : "每次随机发一条";
         WelcomeInsertTarget.IsVisible = count > 1 && settings.WelcomeTexts.CanEdit;
-        WelcomeInsertTarget.Text = $"到第 {WelcomeTexts.IndexOf(editedWelcomeText!) + 1} 条";
+        WelcomeInsertTarget.Text = $"到第 {WelcomeTexts.IndexOf(welcomeTextTarget.Row!) + 1} 条";
         RefreshWelcomeTextFold();
     }
 
@@ -58,14 +40,14 @@ public partial class WelcomeSettingsPage
     {
         if (!settings.WelcomeTexts.CanEdit) return;
         var row = new WelcomeTextRow("", settings.WelcomeTexts.CanEdit, isNew: true);
-        editedWelcomeText = row;
+        welcomeTextTarget.Row = row;
         WelcomeTextFold.IsExpanded = true;
         WelcomeTexts.AddNew(row);
     }
 
     private void InsertPlaceholder(object? sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string token } && editedWelcomeText is { } row)
+        if (sender is Button { Tag: string token } && welcomeTextTarget.Row is { } row)
         {
             if (!row.IsShown)
             {
@@ -77,11 +59,7 @@ public partial class WelcomeSettingsPage
         Validate();
     }
 
-    /// <summary>A click on an insert button leaves focus in the row, so inserting does not count as leaving a new row.</summary>
-    private void InsertButtonGettingFocus(object? sender, FocusChangingEventArgs e)
-    {
-        if (e.NavigationMethod == NavigationMethod.Pointer) e.TryCancel();
-    }
+    private void InsertButtonGettingFocus(object? sender, FocusChangingEventArgs e) => LineInsertTarget.KeepFocus(e);
 
     /// <summary>Shows each row's error, checked as a one-text list; true when any row cannot be saved.</summary>
     private bool ShowWelcomeTextErrors()

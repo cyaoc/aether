@@ -419,7 +419,7 @@ class Component extends DCLogic {
       { title: '进场和礼物', items: [item('进场', '观众进直播间'), item('普通礼物', '这一轮不到 ' + fmt(mid) + ' 电池'), item('连着送', '这一轮送了 5 份以上，不到 ' + fmt(mid) + ' 电池'),
         item('中礼物', '这一轮 ' + fmt(mid) + ' – ' + below + ' 电池'), item('大礼物', '这一轮 ' + fmt(big) + ' 电池以上')] },
       { title: '盲盒和城堡', items: [item('盲盒·小', '这一轮投入不到 ' + fmt(mid) + ' 电池'), item('盲盒·中', '这一轮投入 ' + fmt(mid) + ' – ' + below + ' 电池'), item('盲盒·大', '这一轮投入 ' + fmt(big) + ' 电池以上，或开出大奖'),
-        item('城堡', '直接送，或盲盒开出')] },
+        item('城堡', '盲盒开出城堡')] },
       { title: '大航海和其他', items: [item('舰长', '开通或续费'), item('提督', '开通或续费'), item('总督', '开通或续费'), item('新的第一名', '礼物榜换了第一名；礼物榜在统计时才有'), item('抽奖', '开场、点名、揭晓和结束时的反应')] }
     ];
     // 分组: the shows one group at a time, beside a list of the groups that only grows a row for a new kind of event (PK
@@ -430,7 +430,7 @@ class Component extends DCLogic {
       { label: '进场', desc: '观众进直播间时', items: [all.进场] },
       { label: '礼物', desc: '第一份就演，这一轮越送越多就接上更大的那段（停手 3 秒算一轮）', items: [all.普通礼物, all.连着送, all.中礼物, all.大礼物], thresholds: true },
       { label: '盲盒', desc: '按这一轮的投入分；结果跟盲盒播报：赚了欢呼、不赚不亏点头、亏了鼓腮再道谢', items: [all['盲盒·小'], all['盲盒·中'], all['盲盒·大']] },
-      { label: '城堡', desc: '城堡礼物，直接送的或盲盒开出的', items: [all.城堡] },
+      { label: '城堡', desc: '盲盒开出的城堡礼物', items: [all.城堡] },
       { label: '大航海', desc: '开通或续费大航海，三档各演各的', items: [all.舰长, all.提督, all.总督] },
       { label: '新的第一名', desc: '这一笔让礼物榜换了第一名，接在主演出后面；礼物榜没在统计时没有榜，不演', items: [all.新的第一名] },
       { label: '抽奖', desc: '报名抽奖和奖池抽奖的每一步', items: [all.抽奖] },

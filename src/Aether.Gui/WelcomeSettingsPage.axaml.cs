@@ -13,8 +13,8 @@ public partial class WelcomeSettingsPage : SettingsPage
         Title = "进场欢迎";
         Bind(WelcomeInput, WelcomeReadOnly, WelcomeError, s => s.WelcomeEnabled);
         WelcomeTextRows.ItemsSource = WelcomeTexts;
-        WelcomeTextRows.GotFocus += WelcomeTextGotFocus;
-        WelcomeTexts.CollectionChanged += WelcomeTextsChanged;
+        welcomeTextTarget = new(WelcomeTextRows, RefreshWelcomeTexts);
+        welcomeTextTarget.Follow(WelcomeTexts);
         WelcomeTexts.RowChanged += Validate;
         WelcomeTextFold.Toggled += RefreshWelcomeTextFold;
         UidRows.ItemsSource = WelcomeUids;

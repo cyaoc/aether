@@ -18,7 +18,7 @@ public sealed class ComboBoxStyleTests
     public Task Dropdown_fits_longest_unselected_item_without_resizing_input(bool dark) => Dispatch(dark, window =>
     {
         const string longest = "1234567890123456789012345678901234567890";
-        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (7, "LogLevelInput") })
+        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (8, "LogLevelInput") })
         {
             var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
             input.ItemsSource = new[] { "1", longest };
@@ -54,7 +54,7 @@ public sealed class ComboBoxStyleTests
     [InlineData(true)]
     public Task All_three_dropdowns_share_the_card_items_and_open_state(bool dark) => Dispatch(dark, window =>
     {
-        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (7, "LogLevelInput"), (2, "GuardInput") })
+        foreach (var (pageIndex, name) in new[] { (0, "RoomInput"), (8, "LogLevelInput"), (2, "GuardInput") })
         {
             var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
             var glyph = input.GetVisualDescendants().OfType<PathIcon>().Single(x => x.Name == "DropDownGlyph");
@@ -149,8 +149,8 @@ public sealed class ComboBoxStyleTests
         var viewModel = harness.CreateViewModel();
         var window = new MainWindow(harness.DataDirectory)
         {
-            // Leave room below the log dropdown now that General also contains the update section and the web service card.
-            DataContext = viewModel, Height = 1100, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
+            // Leave room below the log dropdown now that General also contains the update section, the web service card and its four pages.
+            DataContext = viewModel, Height = 1200, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
         };
         window.Show();
         await harness.IdleAsync();

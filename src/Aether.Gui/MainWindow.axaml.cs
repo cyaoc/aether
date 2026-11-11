@@ -30,14 +30,16 @@ public partial class MainWindow : Window
         var animation = welcome.Animation;
         var gift = new GiftAnimationSettingsPage(dataDirectory);
         var board = new GiftBoardPanel();
+        var pet = new DesktopPetSettingsPage(dataDirectory);
         // Navigation items and PageHost children share one order, after the danmaku page.
-        Control[] pages = [new BlindBoxSettingsPage(dataDirectory), welcome, gift, board, new LotteryPanel(), new SendSettingsPage(dataDirectory), general];
+        Control[] pages = [new BlindBoxSettingsPage(dataDirectory), welcome, gift, board, pet, new LotteryPanel(), new SendSettingsPage(dataDirectory), general];
         foreach (var page in pages) page.IsVisible = false;
         PageHost.Children.AddRange(pages);
         foreach (var page in SettingsPages) page.SaveCompleted += RefreshSettingsStatus;
         animation.GeneralSettingsRequested += ShowGeneralSettings;
         gift.GeneralSettingsRequested += ShowGeneralSettings;
         board.GeneralSettingsRequested += ShowGeneralSettings;
+        pet.GeneralSettingsRequested += ShowGeneralSettings;
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
         // Tab stays on the splash's own controls, only 跳过 while an update downloads: the pages it covers turn enabled as it fades,
@@ -106,6 +108,7 @@ public partial class MainWindow : Window
         ShowEnabled(BlindBoxStatus, current.Error is null ? current.BlindBoxEnabled.Value : null);
         ShowEnabled(WelcomeStatus, current.Error is null ? (current.WelcomeEnabled.Value || current.EntryAnimationEnabled.Value) : null);
         ShowEnabled(GiftAnimationStatus, current.Error is null ? current.GiftAnimationEnabled.Value : null);
+        ShowEnabled(DesktopPetStatus, current.Error is null ? current.DesktopPetEnabled.Value : null);
         if (IsVisible && DataContext is MainWindowViewModel viewModel) _ = viewModel.WebService.RefreshWebServiceAsync(current);
         foreach (var page in SettingsPages) page.RefreshFileStatus(current);
     }

@@ -16,9 +16,17 @@ internal static class BlindBoxPeriodName
     };
 }
 
+/// <summary>How a 一轮盲盒 came out for the 桌宠.</summary>
+internal enum BlindBoxOutcome { Loss = -1, Even, Gain }
+
 /// <summary>投入 and 开出价值 in 金瓜子: one viewer's 盲盒统计, or the part of a 一轮盲盒 one announcement reports.</summary>
 internal sealed record BlindBoxTally(long Spend, long OpenedValue)
 {
+    /// <summary>不赚不亏 only when what was opened is worth exactly what it cost, so 1 电池 either way is 赚 or 亏.</summary>
+    public BlindBoxOutcome Outcome => (BlindBoxOutcome)Math.Sign(OpenedValue - Spend);
+
+    public static BlindBoxTally Of(IReadOnlyCollection<Gift> boxes) => new(boxes.Sum(box => box.Spend), boxes.Sum(box => box.Value));
+
     /// <summary>The 盲盒查询 reply; a null tally means no blind box was recorded.</summary>
     public static string Reply(BlindBoxTally? tally, BlindBoxPeriod period) =>
         period.Name() + (tally is null ? "没有盲盒记录" : Amounts(tally));

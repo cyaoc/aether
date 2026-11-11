@@ -28,6 +28,7 @@ public sealed class SettingsPageTests
             new WelcomeSettingsPage(harness.DataDirectory),
             new AnimationSettingsPage(harness.DataDirectory),
             new GiftAnimationSettingsPage(harness.DataDirectory),
+            new DesktopPetSettingsPage(harness.DataDirectory),
             new SendSettingsPage(harness.DataDirectory),
             new GeneralSettingsPage(harness.DataDirectory)
         ];
@@ -1116,7 +1117,7 @@ public sealed class SettingsPageTests
             main.Show();
             try
             {
-                main.Navigation.SelectedIndex = 7;
+                main.Navigation.SelectedIndex = 8;
                 GuiHarness.Flush();
                 var page = main.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
                 page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked = false;
@@ -1227,7 +1228,7 @@ public sealed class SettingsPageTests
             main.Show();
             try
             {
-                main.FindControl<ListBox>("Navigation")!.SelectedIndex = 7;
+                main.FindControl<ListBox>("Navigation")!.SelectedIndex = 8;
                 GuiHarness.Flush();
                 var window = main.GetVisualDescendants().OfType<SettingsPage>().Single(page => page.IsEffectivelyVisible);
                 Assert.Empty(main.OwnedWindows);

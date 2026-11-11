@@ -1,0 +1,3 @@
+/* Noto Sans SC, weights 500 and 800 (../README.md), for the pages that draw Chinese text in it: the 礼物榜页 and the 桌宠页. */
+@font-face { font-family: 'Noto Sans SC'; font-weight: 500; src: url('/gift-board/fonts/NotoSansSC-500.woff2') format('woff2'); }
+@font-face { font-family: 'Noto Sans SC'; font-weight: 800; src: url('/gift-board/fonts/NotoSansSC-800.woff2') format('woff2'); }

@@ -28,5 +28,8 @@ internal sealed class RecordingTimeProvider(DateTimeOffset start) : FakeTimeProv
     // A background loop can report its status before it arms its delay; advancing sooner shifts the timer's deadline.
     // count includes earlier timers of the same length, such as each room connection's 60 s idle timeout.
     public Task WaitForTimerAsync(TimeSpan dueTime, int count = 1) =>
-        Eventually.TrueAsync(() => timerDelays.Count(delay => delay == dueTime) >= count);
+        Eventually.TrueAsync(() => TimerCount(dueTime) >= count);
+
+    /// <summary>How many timers of <paramref name="dueTime"/> were created so far.</summary>
+    public int TimerCount(TimeSpan dueTime) => timerDelays.Count(delay => delay == dueTime);
 }

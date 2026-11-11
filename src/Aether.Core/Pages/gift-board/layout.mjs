@@ -53,8 +53,9 @@ export const slotsOf = rows => Object.fromEntries(rows.map((row, rank) => [row.i
 /** The same place `dy` design pixels lower. */
 export const shiftedGeometry = (g, dy) => ({ ...g, y: g.y + dy, ay: g.ay + dy, ny: g.ny + dy, iy: g.iy + dy, cy: g.cy + dy });
 
-/** Where the bubble sprite floats: by the mascot's shoulder, or on the ribbon's right end once she is switched off. */
-export const spriteHome = layout => layout.mascot ? [LAYOUT.width / 2 + 118, layout.top - 150] : [448, layout.top + 34];
+/** Where the sprite floats: by the mascot's shoulder, the point measured on her (`giftBoard.shoulder`, y from the ribbon's top),
+ * or on the ribbon's right end once she is switched off. */
+export const spriteHome = (layout, giftBoard) => layout.mascot ? [giftBoard.shoulder.x, layout.top + giftBoard.shoulder.y] : [448, layout.top + 34];
 
 // A card's rim, which the top three's flowing light runs along (design package README, 前三名流光).
 export const RIM_RADIUS = 17;

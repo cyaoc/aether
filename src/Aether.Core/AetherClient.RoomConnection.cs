@@ -103,8 +103,8 @@ public sealed partial class AetherClient
         {
             roomScope = client.logger.BeginRoomScope(realRoomId);
             client.logger.LogInformation("直播间连接开始");
-            decoder = new DanmakuProtocol.Decoder(realRoomId, client.logger,
-                () => Settings.WelcomeEnabled.Value || client.WebService.Settings?.EntryAnimationEnabled.Value == true);
+            decoder = new DanmakuProtocol.Decoder(realRoomId, client.logger, () => Settings.WelcomeEnabled.Value
+                || client.WebService.Settings is { } overlay && (overlay.EntryAnimationEnabled.Value || overlay.DesktopPetEnabled.Value));
             region = client.regions.Create(timers => CreateState(realRoomId, timers, animationStop));
         }
 
@@ -123,9 +123,12 @@ public sealed partial class AetherClient
                 realRoomId, Settings.BlindBoxEnabled.Value), sendQueue, Settings.BlindBoxAnnounce.Value));
             if (enableStreamOverlay)
             {
-                features.Add(new GiftRoundFeature(timers, client.logger, realRoomId,
-                    round => { client.WebService.PlayGiftRound(round, animationStop); output.TryWrite(round); }));
+                features.Add(new GiftRoundFeature(timers, client.logger, realRoomId, new(
+                    round => { client.WebService.PlayGiftRound(round, animationStop); output.TryWrite(round); },
+                    client.WebService.TellDesktopPet, Settings.BlindBoxEnabled.Value && Settings.BlindBoxAnnounce.Value ? null
+                        : (BlindBoxResult boxes) => client.WebService.TellDesktopPet(DesktopPet.BlindBox, boxes))));
                 features.Add(new EntryAnimationFeature(client.WebService, animationStop));
+                features.Add(new DesktopPetFeature(client.WebService));
             }
             if (Settings.WelcomeEnabled.Value) features.Add(new WelcomeFeature(Settings, sendQueue));
             return new(sendQueue, features);
@@ -282,7 +285,8 @@ public sealed partial class AetherClient
                     }
                     catch (Exception error) when (!stop.IsCancellationRequested) { failure = error; }
                     finally { await region.Run(s => s.SendQueue.CountSend(turn.Text)); }
-                    await region.Run(s => s.SendQueue.EndTurn(turn, failure));
+                    if (await region.Run(s => s.SendQueue.EndTurn(turn, failure)) is { } announced)
+                        client.WebService.TellDesktopPet(DesktopPet.BlindBox, announced);
                 }
             });
 

@@ -61,13 +61,19 @@ export const rowKind = event => event?.debut ? 'new' : event?.kind;
 
 const spritePulse = u => Math.sin(Math.PI * k(140, 300, u));
 
-/** The chat-bubble sprite and the mascot: they blink, and pulse, hop and spin with the events. `event` is undefined between events. */
+/** The sprite and the mascot: they blink, and pulse, hop and cheer with the events. `event` is undefined between events. */
 export function ambient(event, u, t) {
-  const idle = { blink: t % 4500 < 140, spritePulse: 0, cheer: 0, hop: 0, spin: 0 };
+  const idle = { blink: t % 4500 < 140, spritePulse: 0, cheer: 0, hop: 0, happy: false, spriteHop: 0, sway: 0 };
   if (event?.kind === 'more') return { ...idle, blink: u < 160 };
   if (event?.kind === 'new') return { ...idle, spritePulse: spritePulse(u) };
   if (event?.kind !== 'top') return idle;
-  return { ...idle, spritePulse: event.debut ? spritePulse(u) : 0, cheer: k(900, 1020, u) * (1 - k(3000, 3150, u)), hop: -10 * Math.sin(Math.PI * k(900, 1300, u)), spin: 2 * Math.PI * easeInOut(k(950, 1550, u)) };
+  const cheer = k(900, 1020, u) * (1 - k(3000, 3150, u));
+  // The sprite is happy for as long as she cheers: it hops up twice as she hops once, then sways to each side and back. `% 1`
+  // lands each hop and the sway on exactly 0, where a sine of π is not.
+  return {
+    ...idle, spritePulse: event.debut ? spritePulse(u) : 0, cheer, hop: -10 * Math.sin(Math.PI * k(900, 1300, u)),
+    happy: cheer > 0, spriteHop: -10 * Math.sin(Math.PI * (2 * k(900, 1700, u) % 1)), sway: 0.2 * Math.sin(2 * Math.PI * (k(1700, 2500, u) % 1))
+  };
 }
 
 /** A new row's own slot stays empty until the row has unfolded there, then its backing appears. */

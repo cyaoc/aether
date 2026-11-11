@@ -13,6 +13,8 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     internal bool AnimationReloading => !animationReload.Current.IsCompleted;
     /// <summary>Raised when anything an animation row shows may have changed: page status, playback, failures or a reload.</summary>
     internal event Action? AnimationRowsChanged;
+    /// <summary>Raised when the 桌宠页 has played its 试演 out, or cut it short.</summary>
+    internal event Action? TestShowEnded;
     public RecentItems<PlaybackItem> RecentAnimations { get; } = [];
     public IReadOnlyList<PlaybackItem> RecentEntryAnimations => RecentAnimations.Where(item => item.Playback.Source != PlaybackSource.Gift).ToArray();
     public IReadOnlyList<PlaybackItem> RecentGiftAnimations => RecentAnimations.Where(item => item.Playback.Source == PlaybackSource.Gift).ToArray();
@@ -34,7 +36,8 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
             && previous.GiftAnimationEnabled.Value == snapshot.GiftAnimationEnabled.Value
             && previous.GiftAnimationThresholds.Select(value => value.Value).SequenceEqual(snapshot.GiftAnimationThresholds.Select(value => value.Value))
             && previous.EntryAnimationViewers.Count == snapshot.EntryAnimationViewers.Count
-            && previous.EntryAnimationViewers.All(pair => snapshot.EntryAnimationViewers.TryGetValue(pair.Key, out var choice) && choice.Value == pair.Value.Value))
+            && previous.EntryAnimationViewers.All(pair => snapshot.EntryAnimationViewers.TryGetValue(pair.Key, out var choice) && choice.Value == pair.Value.Value)
+            && previous.SameDesktopPet(snapshot))
             return animationReload.Current;
         return ApplyWebSettingsAsync(snapshot);
     }
@@ -76,13 +79,14 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Video), nameof(Lottery), nameof(GiftBoard), nameof(HasVideoConnections))]
+    [NotifyPropertyChangedFor(nameof(Video), nameof(Lottery), nameof(GiftBoard), nameof(DesktopPet), nameof(HasVideoConnections))]
     [NotifyPropertyChangedFor(nameof(HasWebServiceError), nameof(IsWebServiceOff), nameof(ServiceStatusText), nameof(ServiceHelpText))]
     private WebServiceStatus webServiceStatus = client.WebService.Status;
 
     public WebPageStatus Video => new(WebServiceStatus, WebServiceStatus.VideoConnections, WebPageTexts.Video) { Address = WebServiceStatus.VideoAddress };
     public WebPageStatus Lottery => new(WebServiceStatus, WebServiceStatus.LotteryConnections, WebPageTexts.Lottery) { Address = WebServiceStatus.LotteryAddress };
     public WebPageStatus GiftBoard => new(WebServiceStatus, WebServiceStatus.GiftBoardConnections, WebPageTexts.GiftBoard) { Address = WebServiceStatus.GiftBoardAddress };
+    public WebPageStatus DesktopPet => new(WebServiceStatus, WebServiceStatus.DesktopPetConnections, WebPageTexts.DesktopPet) { Address = WebServiceStatus.DesktopPetAddress };
     public bool HasVideoConnections => Video.Connected;
     public bool HasWebServiceError => WebServiceStatus.Error is not null;
     public bool IsWebServiceOff => WebServiceStatus is { Running: false, Error: null };
@@ -92,6 +96,12 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
 
     internal void Apply(WebServiceUpdate update)
     {
+        if (update is DesktopPetTestEnded ended)
+        {
+            if (ended.Refused is { } why) logger.LogInformation("桌宠试演没有演：{Reason}", why);
+            TestShowEnded?.Invoke();
+            return;
+        }
         if (update is WebServiceStatus status)
         {
             WebServiceStatus = status;
@@ -172,6 +182,10 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     }
 
     internal void StopAnimation(string id) => client.WebService.StopTestPlayAsync(id).RaiseFailure();
+
+    internal void TestShow(string show, string? variant, string nickname) => client.WebService.TestShowAsync(show, variant, nickname).RaiseFailure();
+
+    internal void StopTestShow() => client.WebService.StopTestShowAsync().RaiseFailure();
 
     // Disable immediately, before the queued update crosses back to the UI thread.
     private void PendTestPlay()

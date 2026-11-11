@@ -89,7 +89,28 @@ public sealed partial class Settings
           tier_50_spend: 2000
           tier_60_spend: 10000
 
-        # 网页服务，视频页 /video、抽奖页 /lottery、礼物榜页 /gift-board 都从这里打开；只在 GUI 里生效，先开 Aether 再开推流软件
+        # 桌宠，只在 GUI 里生效，保存后立即生效；桌宠页 /desktop-pet 加成浏览器素材，放在直播画面一角
+        # 改过的台词跟在分组最后，一类一行：lines.角色编号.台词类的英文 id: ["第一句", "第二句"]，没写的类用角色自带的台词
+        # 写法和欢迎语一样，列表和每一句都不能为空；占位只能用这一类台词能用的，例如 {昵称}、{礼物}、{个数}
+        desktop_pet:
+          # true 或 false，桌宠按直播间里发生的事表演；false 时桌宠页全透明
+          enabled: false
+          # 不演的演出和日常小动作，写演出表里的英文 id，例如 ["entry", "hum"]；[] 表示全都演
+          shows_off: []
+          # 中礼物、大礼物门槛（电池），按一轮的投入比，盲盒也一样；必须为正整数，中礼物门槛要小于大礼物门槛
+          mid_gift_spend: 1000
+          big_gift_spend: 10000
+          # 冷场几分钟进入无聊、沮丧（没收到礼物）和犯困（什么事都没有）；0 表示不进这种心情
+          bored_minutes: 15
+          gloomy_minutes: 40
+          sleepy_minutes: 60
+          # 平静时隔几秒做一个日常小动作，在最少和最多之间随机；必须为正整数，最少不能比最多大
+          daily_min_seconds: 20
+          daily_max_seconds: 40
+          # 日常小动作出事的几率，0 到 100（%），0 表示不出事
+          mishap_percent: 25
+
+        # 网页服务，视频页 /video、抽奖页 /lottery、礼物榜页 /gift-board、桌宠页 /desktop-pet 都从这里打开；只在 GUI 里生效，先开 Aether 再开推流软件
         web_service:
           # 端口 1–65535；保存后立即生效，所有浏览器素材的地址都要跟着改
           port: 17890
@@ -135,7 +156,7 @@ public sealed partial class Settings
     private static readonly Definition<int> WelcomeWealth = Register(Definition.Number("welcome_danmaku.wealth_level", WelcomeLevelOff, "必须为非负整数。", level => level >= 0));
     private static readonly Definition<bool> AnimationOn = Register(Definition.Boolean("entry_animation.enabled", false));
     private static readonly Definition<int> AnimationLevel = Register(Definition.Number("entry_animation.fan_club_level", 30, "必须是 0、30、40、50、60。", value => value == 0 || EntryTier.Parse(value) is not null));
-    private static readonly Definition<int> AnimationVolume = Register(Definition.Volume("entry_animation.volume", 80));
+    private static readonly Definition<int> AnimationVolume = Register(Definition.Percent("entry_animation.volume", 80));
     private static readonly Definition<bool> GiftOn = Register(Definition.Boolean("gift_animation.enabled", false));
     private static readonly Definition<int>[] GiftThresholds = EntryTier.All.Select((tier, index) => Register(Definition.Number($"gift_animation.tier_{tier}_spend", new[] { 100, 500, 2000, 10000 }[index], "必须为正整数。", value => value > 0))).ToArray();
     public Setting<bool> EntryAnimationEnabled => Get(AnimationOn);
@@ -143,6 +164,59 @@ public sealed partial class Settings
     public Setting<int> EntryAnimationVolume => Get(AnimationVolume);
     public Setting<bool> GiftAnimationEnabled => Get(GiftOn);
     public IReadOnlyList<Setting<int>> GiftAnimationThresholds => GiftThresholds.Select(Get).ToArray();
+    private static readonly Definition<bool> DesktopPetOn = Register(Definition.Boolean("desktop_pet.enabled", false));
+    private static readonly Definition<IReadOnlyList<string>> PetShowsOff = Register(Definition.TextList("desktop_pet.shows_off", [],
+        ids => ids.FirstOrDefault(id => !ShowTable.Current.Shows.Any(show => show.Id == id && show.CanTurnOff)) is { } wrong
+            ? $"演出表里没有能关掉的 {wrong}。" : null));
+    private static readonly Definition<int> PetMidGift = Register(Definition.Number("desktop_pet.mid_gift_spend", 1000, "必须为正整数。", value => value > 0));
+    private static readonly Definition<int> PetBigGift = Register(Definition.Number("desktop_pet.big_gift_spend", 10000, "必须为正整数。", value => value > 0));
+    private static readonly Definition<int> PetBoredMinutes = Register(Definition.Number("desktop_pet.bored_minutes", 15, "必须为非负整数。", minutes => minutes >= 0));
+    private static readonly Definition<int> PetGloomyMinutes = Register(Definition.Number("desktop_pet.gloomy_minutes", 40, "必须为非负整数。", minutes => minutes >= 0));
+    private static readonly Definition<int> PetSleepyMinutes = Register(Definition.Number("desktop_pet.sleepy_minutes", 60, "必须为非负整数。", minutes => minutes >= 0));
+    private static readonly Definition<int> PetDailyMin = Register(Definition.Number("desktop_pet.daily_min_seconds", 20, "必须为正整数。", seconds => seconds > 0));
+    private static readonly Definition<int> PetDailyMax = Register(Definition.Number("desktop_pet.daily_max_seconds", 40, "必须为正整数。", seconds => seconds > 0));
+    private static readonly Definition<int> PetMishapPercent = Register(Definition.Percent("desktop_pet.mishap_percent", 25));
+    /// <summary>The name the 桌宠's changed lines go under, a line for each kind, such as desktop_pet.lines.1.bigGift.</summary>
+    public const string DesktopPetLinesName = "desktop_pet.lines";
+    private static readonly LineDefinition PetLines = Register(new LineDefinition(DesktopPetLinesName));
+    public Setting<bool> DesktopPetEnabled => Get(DesktopPetOn);
+    /// <summary>The ids of the 演出表's rows turned off.</summary>
+    public Setting<IReadOnlyList<string>> DesktopPetShowsOff => Get(PetShowsOff);
+    /// <summary>The 中礼物 threshold, in 电池.</summary>
+    public Setting<int> DesktopPetMidGift => Get(PetMidGift);
+    /// <summary>The 大礼物 threshold, in 电池.</summary>
+    public Setting<int> DesktopPetBigGift => Get(PetBigGift);
+    /// <summary>Quiet minutes before 无聊.</summary>
+    public Setting<int> DesktopPetBoredMinutes => Get(PetBoredMinutes);
+    /// <summary>Minutes without a gift before 沮丧.</summary>
+    public Setting<int> DesktopPetGloomyMinutes => Get(PetGloomyMinutes);
+    /// <summary>Minutes with nothing at all before 犯困.</summary>
+    public Setting<int> DesktopPetSleepyMinutes => Get(PetSleepyMinutes);
+    /// <summary>The least seconds between 日常小动作.</summary>
+    public Setting<int> DesktopPetDailyMinSeconds => Get(PetDailyMin);
+    /// <summary>The most seconds between 日常小动作.</summary>
+    public Setting<int> DesktopPetDailyMaxSeconds => Get(PetDailyMax);
+    public Setting<int> DesktopPetMishapPercent => Get(PetMishapPercent);
+    /// <summary>The current character's kinds of lines the streamer changed, by kind.</summary>
+    public IReadOnlyDictionary<string, Setting<IReadOnlyList<string>>> DesktopPetChangedLines => PetLines.Items(this)
+        .Where(item => item.Key.Character == Character.CurrentNumber).ToDictionary(item => item.Key.Kind, item => item.Value);
+    /// <summary>The current character's lines, by kind: <paramref name="character"/>'s, with each kind the streamer changed
+    /// replaced.</summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> DesktopPetLines(Character character)
+    {
+        var changed = DesktopPetChangedLines;
+        return character.Lines.ToDictionary(kind => kind.Key, kind => changed.TryGetValue(kind.Key, out var mine) ? mine.Value : kind.Value);
+    }
+    public bool CanEditDesktopPetLines => PetLines.CanEdit(this);
+    /// <summary>Whether the 桌宠页 would be told the same settings and lines as under <paramref name="other"/>.</summary>
+    public bool SameDesktopPet(Settings other)
+    {
+        var (mine, theirs) = (DesktopPetSettings.Of(this), DesktopPetSettings.Of(other));
+        var lines = other.DesktopPetLines(Character.Current);
+        // A record compares its list Off by reference, so Off is compared on its own.
+        return DesktopPetEnabled.Value == other.DesktopPetEnabled.Value && mine.Off.SequenceEqual(theirs.Off) && mine with { Off = theirs.Off } == theirs
+            && DesktopPetLines(Character.Current).All(kind => kind.Value.SequenceEqual(lines[kind.Key]));
+    }
     internal static readonly Definition<int> WebPort = Register(Definition.Number("web_service.port", 17890, "必须是 1–65535 的端口。", port => port is >= 1 and <= 65535));
     private static readonly ViewerGroupDefinition AnimationViewers = Register(new ViewerGroupDefinition("entry_animation_viewers"));
     private static readonly Definition<bool> AutoUpdate = Register(Definition.Boolean("auto_update.enabled", true));

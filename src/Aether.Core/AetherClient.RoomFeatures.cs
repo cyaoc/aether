@@ -39,17 +39,27 @@ public sealed partial class AetherClient
         }
     }
 
-    private sealed class GiftRoundFeature(StepTimers timers, ILogger logger, long roomId, Action<GiftRoundEnded> ended) : IRoomFeature
+    /// <summary>Where a 一轮送礼 reports: the 送礼动画 takes its end; the 桌宠 how it stands after each message and as it ends; and
+    /// <paramref name="BlindBoxes"/> the result of its 盲盒 as it ends, none while a 盲盒播报 reports them.</summary>
+    private sealed record GiftRoundReports(Action<GiftRoundEnded> Ended, Action<string, object> TellDesktopPet, Action<BlindBoxResult>? BlindBoxes);
+
+    private sealed class GiftRoundFeature(StepTimers timers, ILogger logger, long roomId, GiftRoundReports reports) : IRoomFeature
     {
         private readonly TimeProvider time = timers.Time;
-        private sealed class Round(long uid, string nickname)
+        private sealed class Round(long uid)
         {
             public long Uid = uid;
-            public string Nickname = nickname;
+            public string Nickname = "";
             public long Spend;
+            // The 桌宠's part, in the order received: its 大航海 play on their own.
+            public readonly List<Gift> Gifts = [];
             public QuietTimer Timer = null!;
+            public GiftRoundProgress Progress(bool ended) => GiftRoundProgress.Of(Uid, Nickname, Gifts, ended);
         }
         private readonly Dictionary<long, Round> rounds = [];
+        // A push B站 repeats counts once, as the 收礼记录 writes it once, so a round's boxes are the ones its 盲盒播报 reports.
+        // shortcut: the tids are kept for the whole room connection; forget old ones if a connection lasting days holds too many.
+        private readonly HashSet<string> tids = [];
 
         public void Handle(RoomEvent e)
         {
@@ -57,32 +67,44 @@ public sealed partial class AetherClient
             {
                 foreach (var round in rounds.Values) round.Timer.Dispose();
                 rounds.Clear();
+                tids.Clear();
             }
             if (e is not DanmakuProtocol.GiftsReceived received) return;
-            // shortcut: no tid deduplication; add it if real captures show duplicate gift pushes.
-            foreach (var gift in received.Gifts)
+            foreach (var viewer in received.Gifts.Where(gift => gift.Tid is not { } tid || tids.Add(tid)).GroupBy(gift => gift.Uid))
             {
-                if (gift.Uid == 0)
+                if (viewer.Key == 0)
                 {
                     logger.LogInformation("uid 为 0 的观众送礼，未计入一轮送礼");
                     continue;
                 }
-                if (!rounds.TryGetValue(gift.Uid, out var round))
-                {
-                    round = new(gift.Uid, gift.Nickname);
-                    rounds.Add(gift.Uid, round);
-                    round.Timer = new QuietTimer(timers, () =>
-                    {
-                        rounds.Remove(round.Uid);
-                        round.Timer.Dispose();
-                        ended(new(roomId, round.Uid, round.Nickname, round.Spend,
-                            time.GetUtcNow(), time.GetTimestamp()));
-                    });
-                }
-                round.Nickname = gift.Nickname;
-                round.Spend = checked(round.Spend + gift.Spend);
+                var round = RoundOf(viewer.Key);
+                round.Nickname = viewer.Last().Nickname;
+                round.Spend = checked(round.Spend + viewer.Sum(gift => gift.Spend));
+                var gifts = viewer.Where(gift => gift.GuardLevel == 0).ToArray();
+                round.Gifts.AddRange(gifts);
+                if (gifts.Length > 0) reports.TellDesktopPet(DesktopPet.Gift, round.Progress(false));
                 round.Timer.Reset(received.ReceivedTimestamp);
             }
+        }
+
+        private Round RoundOf(long uid)
+        {
+            if (rounds.TryGetValue(uid, out var round)) return round;
+            round = new(uid);
+            rounds.Add(uid, round);
+            round.Timer = new QuietTimer(timers, () => End(round));
+            return round;
+        }
+
+        private void End(Round round)
+        {
+            rounds.Remove(round.Uid);
+            round.Timer.Dispose();
+            reports.Ended(new(roomId, round.Uid, round.Nickname, round.Spend, time.GetUtcNow(), time.GetTimestamp()));
+            if (round.Gifts.Count == 0) return;
+            reports.TellDesktopPet(DesktopPet.Gift, round.Progress(true));
+            var boxes = round.Gifts.Where(gift => gift.Blind is not null).ToArray();
+            if (boxes.Length > 0) reports.BlindBoxes?.Invoke(BlindBoxResult.Of(round.Uid, round.Nickname, boxes));
         }
     }
 
@@ -145,6 +167,34 @@ public sealed partial class AetherClient
         {
             if (e is DanmakuProtocol.EntryReceived { Entry: var entry, ReceivedTimestamp: var timestamp })
                 service.PlayEntry(entry, timestamp, roomStopped);
+        }
+    }
+
+    /// <summary>Tells the 桌宠 what happens in the room; whether it plays is up to the web service region.</summary>
+    private sealed class DesktopPetFeature(WebServiceFacade service) : IRoomFeature
+    {
+        public void Handle(RoomEvent e)
+        {
+            switch (e)
+            {
+                case TransportConnected:
+                    service.SetDesktopPetRoom(true);
+                    break;
+                case RoomConnectionEnded:
+                    service.SetDesktopPetRoom(false);
+                    break;
+                case DanmakuProtocol.EntryReceived { Entry: var entry }:
+                    service.TellDesktopPet(DesktopPet.Entry, new { entry.Uid, entry.Nickname });
+                    break;
+                // Only that something happened: what a viewer wrote never reaches the stream.
+                case DanmakuProtocol.DanmakuReceived:
+                    service.TellDesktopPet(DesktopPet.Danmaku, new());
+                    break;
+                case DanmakuProtocol.GiftsReceived { Gifts: var gifts }:
+                    foreach (var gift in gifts.Where(gift => gift.GuardLevel > 0))
+                        service.TellDesktopPet(DesktopPet.Guard, new { gift.Uid, gift.Nickname, gift.GuardLevel });
+                    break;
+            }
         }
     }
 

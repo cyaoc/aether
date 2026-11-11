@@ -5,8 +5,9 @@
         Title="Aether" Width="1200" Height="720" MinWidth="1040" MinHeight="600">
   <Panel>
     <!-- The pages under the splash are disabled, not the splash itself: its 跳过 must stay clickable. -->
-    <Grid x:Name="LoginPage" ColumnDefinitions="*,*" Background="#0F1550" ClipToBounds="True" IsVisible="{Binding IsLoggedOut}" IsEnabled="{Binding !IsSplashOpaque}">
-      <Image Grid.ColumnSpan="2" Source="avares://Aether.Gui/Assets/login.webp" Stretch="UniformToFill" AutomationProperties.Name="Aether" />
+    <Grid x:Name="LoginPage" ColumnDefinitions="*,*" Background="{x:Static local:LaunchPictures.Color}" ClipToBounds="True" IsVisible="{Binding IsLoggedOut}" IsEnabled="{Binding !IsSplashOpaque}">
+      <Image Grid.ColumnSpan="2" Source="{x:Static local:LaunchPictures.LoginBackground}" Stretch="UniformToFill" AutomationProperties.Name="Aether" />
+      <Image Grid.ColumnSpan="2" Source="{x:Static local:LaunchPictures.LoginCharacter}" Stretch="UniformToFill" />
       <TextBlock Text="Aether" Margin="44,56,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
                  FontSize="30" FontWeight="Bold" Foreground="White" />
       <TextBlock Grid.Column="1" Classes="caption numeric" Foreground="White" Opacity="0.7" Text="{x:Static local:MainWindowViewModel.AppVersion}"
@@ -101,6 +102,13 @@
                   <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Trophy}" /></Viewbox>
                   <TextBlock Grid.Column="1" Text="礼物榜" VerticalAlignment="Center" />
                   <TextBlock Grid.Column="2" x:Name="GiftBoardStatus" Classes="caption success" Text="{Binding GiftBoard.StatusText}" IsVisible="{Binding GiftBoard.Running}" />
+                </Grid>
+              </ListBoxItem>
+              <ListBoxItem>
+                <Grid ColumnDefinitions="18,*,Auto" ColumnSpacing="10">
+                  <Viewbox Classes="icon"><Path Data="{StaticResource Icon.Pet}" /></Viewbox>
+                  <TextBlock Grid.Column="1" Text="桌宠" VerticalAlignment="Center" />
+                  <TextBlock Grid.Column="2" x:Name="DesktopPetStatus" Classes="caption muted" />
                 </Grid>
               </ListBoxItem>
               <ListBoxItem>
@@ -228,13 +236,14 @@
         </StackPanel>
       </Panel>
     </Grid>
-    <Panel x:Name="SplashScreen" Background="#0F1550" IsVisible="{Binding IsSplashVisible}" Opacity="{Binding SplashOpacity}">
+    <Panel x:Name="SplashScreen" Background="{x:Static local:LaunchPictures.Color}" IsVisible="{Binding IsSplashVisible}" Opacity="{Binding SplashOpacity}">
       <Panel.Transitions>
         <Transitions>
           <DoubleTransition Property="Opacity" Duration="{Binding SplashFadeDuration}" />
         </Transitions>
       </Panel.Transitions>
-      <Image Source="avares://Aether.Gui/Assets/splash.webp" Stretch="UniformToFill" AutomationProperties.Name="Aether" />
+      <Image Source="{x:Static local:LaunchPictures.SplashBackground}" Stretch="UniformToFill" AutomationProperties.Name="Aether" />
+      <Image Source="{x:Static local:LaunchPictures.SplashCharacter}" Stretch="UniformToFill" />
       <TextBlock Text="Aether" Margin="44,56,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"
                  FontSize="30" FontWeight="Bold" Foreground="White" />
       <StackPanel Width="360" Spacing="10" Margin="44,110,0,0" HorizontalAlignment="Left" VerticalAlignment="Top"

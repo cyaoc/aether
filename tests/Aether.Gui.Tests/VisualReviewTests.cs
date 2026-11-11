@@ -22,7 +22,7 @@ namespace Aether.Gui.Tests;
 public sealed partial class VisualReviewTests
 {
     // In navigation order.
-    private static readonly string[] ReviewedPages = ["danmaku", "blind-box", "welcome", "welcome-animation", "gift-board", "lottery", "send-queue", "general"];
+    private static readonly string[] ReviewedPages = ["danmaku", "blind-box", "welcome", "welcome-animation", "gift-board", "desktop-pet", "lottery", "send-queue", "general"];
 
     [Theory]
     [InlineData(false)]
@@ -129,7 +129,7 @@ public sealed partial class VisualReviewTests
                 await h.IdleAsync();
                 vm.Apply(new Connected(7734200, 24680));
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryPanelTests.TestLottery() with { Uid = 1 })));
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 GuiHarness.Flush();
                 var picker = window.GetVisualDescendants().OfType<OnlineRankPicker>().Single(x => x.IsEffectivelyVisible);
                 var button = picker.FindControl<Button>("PickerButton")!;
@@ -175,7 +175,7 @@ public sealed partial class VisualReviewTests
             {
                 await GuiHarness.AccountReadAsync(vm);
                 await h.IdleAsync();
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 Lottery lottery = mode == LotteryMode.Pool ? LotteryPanelTests.TestLottery() : EntryLotteryPanelTests.TestLottery();
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, lottery)));
                 await vm.Lottery.SavePrizeSetAsync(mode, "周末福利");
@@ -224,7 +224,7 @@ public sealed partial class VisualReviewTests
             {
                 await GuiHarness.AccountReadAsync(vm);
                 await h.IdleAsync();
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 vm.Lottery.Apply(new LotteryUpdate(new(7734200, true, LotteryHistoryFixture.Current)));
                 var panel = window.GetVisualDescendants().OfType<LotteryPanel>().Single();
                 var tabs = panel.FindControl<ListBox>("ViewTabs")!;
@@ -263,7 +263,7 @@ public sealed partial class VisualReviewTests
             {
                 await GuiHarness.AccountReadAsync(vm);
                 await h.IdleAsync();
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 var at = new DateTimeOffset(2026, 10, 17, 20, 30, 0, TimeSpan.FromHours(8));
                 string[] names = ["一只小鹿", "柚子不酸", "夜航船", "桃桃乌龙", "番茄炒蛋", "青柠", "橘猫本猫", "南巷"];
                 var lottery = EntryLotteryPanelTests.TestLottery() with
@@ -332,7 +332,7 @@ public sealed partial class VisualReviewTests
             {
                 await GuiHarness.AccountReadAsync(vm);
                 await harness.IdleAsync();
-                window.Navigation.SelectedIndex = 5;
+                window.Navigation.SelectedIndex = 6;
                 // Canvas V1's pool and records: a viewer's stop, a host stop with no UID, and a host stop for a named viewer.
                 PoolPrize[] prizes = [new("机械键盘", 1, Grade.Grand), new("周边抱枕", 3, Grade.Second),
                     new("签名照", 4, Grade.Third), new("贴纸套装", 2, Grade.Third)];
@@ -436,7 +436,14 @@ public sealed partial class VisualReviewTests
                     if (index == Array.IndexOf(ReviewedPages, "gift-board"))
                         Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "上榜门槛", "新的第一名时响一声", "开始新一期", "当前榜单" });
                     if (index == Array.IndexOf(ReviewedPages, "general"))
-                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "礼物榜页", "送礼观众的排行", "480 × 1000，可以等比放大" });
+                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "礼物榜页", "送礼观众的排行", "480 × 1000，可以等比放大", "桌宠页", "480 × 640" });
+                    if (index != Array.IndexOf(ReviewedPages, "desktop-pet")) continue;
+                    // Its tabs show one at a time, so each is checked.
+                    var pet = window.GetVisualDescendants().OfType<DesktopPetSettingsPage>().Single();
+                    DesktopPetForm.Tab(pet, 1);
+                    Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "冷场心情", "托腮发呆，隔一阵叹口气", "% 的几率出点小事" });
+                    DesktopPetForm.Tab(pet, 2);
+                    Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "冷场后来了人", "恢复默认", "添加一句" });
                 }
                 var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);
                 var status = general.FindControl<TextBlock>("WebServiceStatusText")!;
@@ -524,7 +531,7 @@ public sealed partial class VisualReviewTests
             try
             {
                 await GuiHarness.AccountReadAsync(viewModel);
-                window.Navigation.SelectedIndex = 7;
+                window.Navigation.SelectedIndex = 8;
                 GuiHarness.Flush();
                 foreach (var (name, state) in new[]
                 {
@@ -825,10 +832,7 @@ public sealed partial class VisualReviewTests
                 GuiHarness.FindVisual<TextBlock>(page, "Message").Text = "";
                 viewModel.WebService.Apply(new WebServiceStatus(false, 17890, 0, 0, 0));
                 GuiHarness.Flush();
-                // Settle the transition, then redraw its final edges instead of reusing an intermediate frame.
-                await Task.Delay(300, TestContext.Current.CancellationToken);
-                foreach (var visual in page.FindControl<ToggleSwitch>("AnimationInput")!.GetVisualDescendants())
-                    visual.InvalidateVisual();
+                await SettleAsync(page.FindControl<ToggleSwitch>("AnimationInput")!);
                 Capture("empty");
                 page.FindControl<Control>("EmptyAnimations")!.BringIntoView();
                 Capture("empty-list");
@@ -918,7 +922,7 @@ public sealed partial class VisualReviewTests
             try
             {
                 await GuiHarness.AccountReadAsync(viewModel);
-                foreach (var (pageIndex, name) in new[] { (7, "LogLevelInput"), (2, "GuardInput") })
+                foreach (var (pageIndex, name) in new[] { (8, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
                     input.IsDropDownOpen = true;
@@ -959,7 +963,7 @@ public sealed partial class VisualReviewTests
             try
             {
                 await GuiHarness.AccountReadAsync(viewModel);
-                window.Navigation.SelectedIndex = 6;
+                window.Navigation.SelectedIndex = 7;
                 GuiHarness.Flush();
                 var page = window.GetVisualDescendants().OfType<SettingsPage>().Single(x => x.IsEffectivelyVisible);
                 var number = page.FindControl<NumericUpDown>("SendIntervalInput")!;
@@ -979,8 +983,8 @@ public sealed partial class VisualReviewTests
                 Capture("error");
                 text.Text = "1";
                 File.WriteAllText(Settings.FilePath(harness.DataDirectory), "send:\n  interval_seconds: |-\n    1\n");
+                window.Navigation.SelectedIndex = 8;
                 window.Navigation.SelectedIndex = 7;
-                window.Navigation.SelectedIndex = 6;
                 Capture("readonly");
             }
             finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
@@ -1117,7 +1121,7 @@ public sealed partial class VisualReviewTests
                 Add(welcome, kind);
             Capture("welcome-levels");
             File.WriteAllText(path, "log:\n  level: @bad\n");
-            navigation.SelectedIndex = 7;
+            navigation.SelectedIndex = 8;
             GuiHarness.Flush();
             var general = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
             var fileMessage = GuiHarness.FindVisual<TextBlock>(general, "FileMessage");
@@ -1244,6 +1248,14 @@ public sealed partial class VisualReviewTests
     /// <summary>The stack of a heading with its caption under it, beside a toggle or a slider or inside a radio button.</summary>
     private static bool TitlesAControl(Panel row) => row is StackPanel { Orientation: Orientation.Vertical } stack
         && (stack.Parent is RadioButton || stack.Parent is Grid grid && grid.Children.Any(child => child is ToggleSwitch or Slider));
+
+    /// <summary>Lets <paramref name="toggle"/>'s knob finish sliding, then redraws its final edges instead of reusing a frame from
+    /// partway.</summary>
+    private static async Task SettleAsync(ToggleSwitch toggle)
+    {
+        await Task.Delay(300, TestContext.Current.CancellationToken);
+        foreach (var visual in toggle.GetVisualDescendants()) visual.InvalidateVisual();
+    }
 
     private static void Save(TopLevel topLevel, string fileName)
     {

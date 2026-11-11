@@ -16,14 +16,14 @@ public sealed class WelcomeAnimationTests
         await Start(h);
         using var page = await Page.ConnectAsync(h);
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
-        var gift = BlindGiftFixture.With(data => { data["blind_gift"] = null; data["total_coin"] = 10000; });
-        await h.PushAndSyncAsync(updates, gift);
+        static string Gift(string tid) => BlindGiftFixture.With(data => { data["blind_gift"] = null; data["total_coin"] = 10000; data["tid"] = tid; });
+        await h.PushAndSyncAsync(updates, Gift("t1"));
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = "true", ["gift_animation.tier_30_spend"] = "50" });
         await h.Client.WebService.ApplySettingsAsync(Settings.Load(h.DataDirectory));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates));
         var first = await page.NextAsync();
-        await h.PushAndSyncAsync(updates, gift);
+        await h.PushAndSyncAsync(updates, Gift("t2"));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates));
         await page.AssertNoPlayAsync();
@@ -34,7 +34,7 @@ public sealed class WelcomeAnimationTests
         await page.ReportAsync(second);
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["gift_animation.enabled"] = "false" });
         await h.Client.WebService.ApplySettingsAsync(Settings.Load(h.DataDirectory));
-        await h.PushAndSyncAsync(updates, gift);
+        await h.PushAndSyncAsync(updates, Gift("t3"));
         h.Time.Advance(TimeSpan.FromSeconds(3));
         Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates));
         await page.AssertNoPlayAsync();

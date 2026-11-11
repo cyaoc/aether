@@ -5,11 +5,14 @@ public abstract record WebServiceUpdate;
 public sealed record WebServiceStatus(bool Running, int Port, int VideoConnections, int LotteryConnections, int GiftBoardConnections,
     string? Error = null) : WebServiceUpdate
 {
+    public int DesktopPetConnections { get; init; }
+
     /// <summary>What a browser source is given; ADR 0006 binds the page to localhost only.</summary>
     public string Origin => $"http://localhost:{Port}";
     public string VideoAddress => Origin + "/video";
     public string LotteryAddress => Origin + "/lottery";
     public string GiftBoardAddress => Origin + "/gift-board";
+    public string DesktopPetAddress => Origin + "/desktop-pet";
 }
 
 public enum PlaybackState { Queued, Playing, Completed, Failed, Skipped, NoReport, Stopped }
@@ -27,5 +30,9 @@ public sealed record SourcePlayback(string Id, long Uid, string ContentSummary, 
         PlaybackState.NoReport => "没收到播放回报", _ => "没播"
     };
 }
+
+/// <summary>The 桌宠页 played a 试演 out, cut it short with a show of what happened or went away; or none was played, and
+/// <paramref name="Refused"/> says why.</summary>
+public sealed record DesktopPetTestEnded(string? Refused = null) : WebServiceUpdate;
 
 public sealed record VideoPlayback(string Id, string ContentSummary, string Source, PlaybackState State, string? Reason = null) : WebServiceUpdate;

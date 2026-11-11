@@ -352,7 +352,8 @@ public sealed class SplashScreenTests
             Assert.IsAssignableFrom<IInvokeProvider>(ControlAutomationPeer.CreatePeerForElement(skip)).Invoke();
             await WaitForAsync(() => viewModel.SplashOpacity == 0);
             Assert.True(viewModel.LoginCommand.IsRunning);
-            Assert.True(viewModel.WebService.WebServiceStatus.Running);
+            // The web service reports it runs through the dispatcher, which may be after the splash faded.
+            await WaitForAsync(() => viewModel.WebService.WebServiceStatus.Running);
             Assert.False(Directory.Exists(Path.Combine(harness.ProgramDirectory, ".update")));
             // As with no update, the fading splash shows nothing over the title, and Tab finds nothing on it.
             await WaitForAsync(() => viewModel.UpdateProgress is null);

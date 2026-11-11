@@ -38,8 +38,8 @@ public sealed partial class Settings
             text => text.Trim() switch { "true" => (true, true), "false" => (true, false), _ => default },
             BooleanText);
 
-        /// <summary>A volume from 0 to 100, where 0 is silent.</summary>
-        public static Definition<int> Volume(string name, int initial) =>
+        /// <summary>A percentage from 0 to 100: a volume, where 0 is silent, or a chance, where 0 is never.</summary>
+        public static Definition<int> Percent(string name, int initial) =>
             Number(name, initial, "必须是 0–100。", value => value is >= 0 and <= 100);
 
         /// <summary>One of <paramref name="choices"/>, written exactly as its name.</summary>
@@ -125,14 +125,15 @@ public sealed partial class Settings
         }
     }
 
-    /// <summary>The welcome animation videos: a group whose keys are viewer UIDs read from the file, each mapped to a video file name.
-    /// Numeric aliases such as 007 and 7 name the same item, and null deletes one.</summary>
-    internal sealed class ViewerGroupDefinition(string name) : Definition(name)
+    /// <summary>Settings whose keys come from the file, each <c>name.key</c> on a line of its own: the animation viewers by UID, the
+    /// 桌宠's changed lines by character and kind. Aliases of a key, such as 007 and 7, name the same item, and null deletes one.</summary>
+    internal abstract class KeyedDefinition<TKey, TValue>(string name, string keyRule, string duplicateRule) : Definition(name)
+        where TKey : notnull
     {
         private sealed class GroupValues
         {
             public bool CanEdit { get; set; } = true;
-            public Dictionary<long, Setting<AnimationChoice>> Items { get; } = [];
+            public Dictionary<TKey, Setting<TValue>> Items { get; } = [];
         }
 
         private static readonly GroupValues Unread = new();
@@ -146,20 +147,22 @@ public sealed partial class Settings
             return (GroupValues)value;
         }
 
-        public IReadOnlyDictionary<long, Setting<AnimationChoice>> Items(Settings settings) => Read(settings).Items;
-        public string ItemName(long uid) => Name + "." + uid.ToString(CultureInfo.InvariantCulture);
+        /// <summary>The key <paramref name="text"/> spells, if it spells one.</summary>
+        protected abstract (bool Valid, TKey Key) ParseKey(string text);
+        protected abstract string KeyText(TKey key);
+        /// <summary>How the item under <paramref name="key"/>, named <paramref name="itemName"/>, is read, checked and written.</summary>
+        protected abstract Definition<TValue> Item(TKey key, string itemName);
+
+        public IReadOnlyDictionary<TKey, Setting<TValue>> Items(Settings settings) => Read(settings).Items;
+        public string ItemName(TKey key) => Name + "." + KeyText(key);
         public override bool Contains(string name) => name.StartsWith(Name + ".", StringComparison.Ordinal);
-        private bool TryParseUid(string name, out long uid)
+        private (bool Valid, TKey Key) ParseName(string name) => Contains(name) ? ParseKey(name[(Name.Length + 1)..]) : default;
+        public override string? Resolve(string name) => ParseName(name) is (true, var key) ? ItemName(key) : null;
+        private Definition<TValue> Item(string name)
         {
-            uid = 0;
-            return Contains(name) && Viewer.TryParseUid(name[(Name.Length + 1)..], out uid);
+            var key = ParseName(name).Key;
+            return Item(key, ItemName(key));
         }
-        public override string? Resolve(string name) => TryParseUid(name, out var uid) ? ItemName(uid) : null;
-        private Definition<AnimationChoice> Item(string name) => new(Resolve(name)!, AnimationChoice.Off, ChoiceRule,
-            (node, _) => node is YamlScalarNode { Value: { } text } && AnimationChoice.Parse(text) is { } choice ? (true, choice) : default,
-            text => AnimationChoice.Parse(text) is { } choice ? (true, choice) : default,
-            choice => Emit([choice.ToString()])[1..^1]);
-        private const string ChoiceRule = "必须是 0、30、40、50、60 或纯 .mp4、.webm 文件名，不能带路径。";
         public override string? Validate(string name, string? text) => text is null ? null : Item(name).Validate(name, text);
         public override string Format(string name, string text) => Item(name).Format(name, text);
         public override string ValueText(Settings settings, string name) => settings.values.ContainsKey(Resolve(name)!) ? Item(name).ValueText(settings, name) : "";
@@ -170,15 +173,42 @@ public sealed partial class Settings
         public override string? ReadKey(Settings settings, string name, YamlNode key, YamlNode node,
             bool canEdit, bool singleLine, HashSet<string> seenNames)
         {
-            if (!TryParseUid(name, out var uid)) return "UID 必须为 int64 范围内的正整数。";
-            var item = Item(name);
-            string? reason = null;
-            if (!seenNames.Add(item.Name)) reason = "UID 重复，请只保留一项。";
-            else if (!singleLine || item.Read(settings, node, canEdit && key.Anchor.IsEmpty, singleLine) is { })
-                reason = ChoiceRule;
-            Write(settings).Items[uid] = settings.Get(item);
+            if (ParseName(name) is not (true, var parsed)) return keyRule;
+            var item = Item(parsed, ItemName(parsed));
+            var reason = seenNames.Add(item.Name) ? item.Read(settings, node, canEdit && key.Anchor.IsEmpty, singleLine) : duplicateRule;
+            Write(settings).Items[parsed] = settings.Get(item);
             return reason;
         }
+    }
+
+    /// <summary>The animation viewers: a group whose keys are viewer UIDs, each on one line mapped to its tier, 0 or a video file name.</summary>
+    internal sealed class ViewerGroupDefinition(string name)
+        : KeyedDefinition<long, AnimationChoice>(name, "UID 必须为 int64 范围内的正整数。", "UID 重复，请只保留一项。")
+    {
+        private const string ChoiceRule = "必须是 0、30、40、50、60 或纯 .mp4、.webm 文件名，不能带路径。";
+
+        protected override (bool Valid, long Key) ParseKey(string text) => Viewer.TryParseUid(text, out var uid) ? (true, uid) : default;
+        protected override string KeyText(long key) => key.ToString(CultureInfo.InvariantCulture);
+        protected override Definition<AnimationChoice> Item(long key, string itemName) => new(itemName, AnimationChoice.Off, ChoiceRule,
+            (node, singleLine) => singleLine && node is YamlScalarNode { Value: { } text } && AnimationChoice.Parse(text) is { } choice ? (true, choice) : default,
+            text => AnimationChoice.Parse(text) is { } choice ? (true, choice) : default,
+            choice => Emit([choice.ToString()])[1..^1]);
+    }
+
+    /// <summary>The 桌宠's lines the streamer changed: <c>lines.character.kind</c> keys in the desktop_pet group, a character's
+    /// number and a kind of the 演出表, each a one-line list like the welcome texts holding only that kind's placeholders.</summary>
+    internal sealed class LineDefinition(string name) : KeyedDefinition<(string Character, string Kind), IReadOnlyList<string>>(name,
+        "必须是 lines.角色编号.台词类，例如 lines.1.bigGift；台词类见演出表。", "这一类台词重复，请只保留一行。")
+    {
+        protected override (bool Valid, (string Character, string Kind) Key) ParseKey(string text) =>
+            text.Split('.') is [var number, var kind] && int.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out var character)
+                && character > 0 && ShowTable.Current.Lines.Any(line => line.Id == kind)
+                ? (true, (character.ToString(CultureInfo.InvariantCulture), kind)) : default;
+
+        protected override string KeyText((string Character, string Kind) key) => key.Character + "." + key.Kind;
+
+        protected override Definition<IReadOnlyList<string>> Item((string Character, string Kind) key, string itemName) =>
+            TextList(itemName, [], ShowTable.Current.Line(key.Kind).Check);
     }
 
     /// <param name="check">Why a value that reads and parses is still invalid, such as a welcome text misusing placeholders.</param>

@@ -78,7 +78,8 @@ public sealed class LotteryThemeTests
             });
             controls[0].FindControl<ToggleSwitch>("PinnedInput")!.IsChecked = true;
             await h.IdleAsync();
-            Assert.True(vm.Lottery.LotteryState.PinnedResults);
+            // Core's update reaches the page through the dispatcher, which may be after the idle step's flush.
+            await GuiHarness.WaitForAsync(() => vm.Lottery.LotteryState.PinnedResults);
             Assert.All(controls, control =>
             {
                 Assert.True(control.FindControl<ToggleSwitch>("PinnedInput")!.IsChecked);
@@ -86,7 +87,7 @@ public sealed class LotteryThemeTests
             });
             controls[1].FindControl<ToggleSwitch>("PinnedInput")!.IsChecked = false;
             await h.IdleAsync();
-            Assert.All(controls, control => Assert.False(control.FindControl<ToggleSwitch>("PinnedInput")!.IsChecked));
+            await GuiHarness.WaitForAsync(() => controls.All(control => control.FindControl<ToggleSwitch>("PinnedInput")!.IsChecked == false));
         }
         finally { window.Close(); await vm.ShutdownAsync(); }
         return true;
@@ -120,6 +121,8 @@ public sealed class LotteryThemeTests
             Assert.NotNull(card);
             card.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await h.IdleAsync();
+            // Core's update reaches the page through the dispatcher, which may be after the idle step's flush.
+            await GuiHarness.WaitForAsync(() => pickers.All(picker => picker.FindControl<RadioButton>($"{theme}Card")!.IsChecked == true));
             Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             Assert.All(pickers, picker =>
             {
@@ -141,7 +144,7 @@ public sealed class LotteryThemeTests
             }
             pickers[0].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await h.IdleAsync();
-            Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
+            await GuiHarness.WaitForAsync(() => vm.Lottery.LotteryState.IsExamplePlaying);
             Assert.Equal(theme, vm.Lottery.LotteryState.Theme.ToString());
             foreach (var picker in pickers)
             {
@@ -156,7 +159,7 @@ public sealed class LotteryThemeTests
             Assert.All(pickers, picker => Assert.True(picker.FindControl<Button>("ExampleButton")!.IsEnabled));
             pickers[1].FindControl<Button>("ExampleButton")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await h.IdleAsync();
-            Assert.True(vm.Lottery.LotteryState.IsExamplePlaying);
+            await GuiHarness.WaitForAsync(() => vm.Lottery.LotteryState.IsExamplePlaying);
             time.Advance(TimeSpan.FromSeconds(21));
             await GuiHarness.WaitForAsync(() => !vm.Lottery.LotteryState.IsExamplePlaying);
             // The saved credential created aether.db, so check that no example reached the lottery table.
@@ -169,7 +172,7 @@ public sealed class LotteryThemeTests
             }
             pickers[1].FindControl<RadioButton>("StarSummonCard")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await h.IdleAsync();
-            Assert.All(pickers, picker => Assert.True(picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked));
+            await GuiHarness.WaitForAsync(() => pickers.All(picker => picker.FindControl<RadioButton>("StarSummonCard")!.IsChecked == true));
             vm.WebService.Apply(new WebServiceStatus(false, 18080, 0, 0, 0, "端口被占用"));
             Assert.All(pickers, picker => Assert.Contains("端口被占用", picker.FindControl<TextBlock>("ExampleHint")!.Text));
         }
