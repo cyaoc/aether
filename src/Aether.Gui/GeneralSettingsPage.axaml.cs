@@ -60,7 +60,8 @@ public partial class GeneralSettingsPage : SettingsPage
     private void ShowTab()
     {
         var webService = Tabs.SelectedIndex == 0;
-        WebServiceTab.IsVisible = PagesTab.IsVisible = webService;
+        WebServiceTab.IsVisible = webService;
+        BelowBodyContent = webService ? PagesTab : null;
         UpdateTab.IsVisible = !webService;
         TimingHint = webService ? "端口保存后立即生效" : "日志设置重启后生效；自动更新下次打开时生效";
     }

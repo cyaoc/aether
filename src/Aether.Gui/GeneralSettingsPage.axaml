@@ -72,6 +72,7 @@
   <local:SettingsPage.BelowBodyContent>
     <Grid x:Name="PagesTab" Margin="20,0,20,18" ColumnDefinitions="260,*" ColumnSpacing="20">
       <Border Classes="sideList">
+        <!-- Each item's Tag names its page: the bound status is not there until the list is first shown. -->
         <ListBox x:Name="PageList" Classes="nav sideList" SelectionMode="AlwaysSelected" SelectedIndex="0" AutomationProperties.Name="页面">
           <ListBoxItem x:Name="VideoItem" Tag="{x:Static local:WebPageTexts.Video}" DataContext="{Binding WebService.Video}"><local:WebPageSummary Icon="{StaticResource Icon.Animation}" /></ListBoxItem>
           <ListBoxItem x:Name="LotteryItem" Tag="{x:Static local:WebPageTexts.Lottery}" DataContext="{Binding WebService.Lottery}"><local:WebPageSummary Icon="{StaticResource Icon.Lottery}" /></ListBoxItem>

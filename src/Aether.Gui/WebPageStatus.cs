@@ -5,7 +5,7 @@ namespace Aether.Gui;
 /// <summary>What one page's status bar and its entry in the general settings' page list say: the web service's state in that page's words.</summary>
 public sealed record WebPageStatus(WebServiceStatus Service, int Connections, WebPageTexts Texts)
 {
-    /// <summary>What the streamer gives the browser source; only the general settings' page list shows it.</summary>
+    /// <summary>What the streamer gives the browser source; only the page's detail in the general settings shows it.</summary>
     public string Address { get; init; } = "";
     public bool Connected => Service.Running && Connections > 0;
     public bool Waiting => Service.Running && Connections == 0;

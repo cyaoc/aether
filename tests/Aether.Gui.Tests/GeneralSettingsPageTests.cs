@@ -1,5 +1,6 @@
 using Aether.Core;
 using Aether.Gui.Tests.Support;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
 using Microsoft.Extensions.Logging;
@@ -57,8 +58,8 @@ public sealed class GeneralSettingsPageTests
         }
 
         GuiHarness.Tab(page, 1);
-        Assert.False(page.FindControl<ListBox>("PageList")!.IsEffectivelyVisible);
-        Assert.DoesNotContain(GeneralSettingsForm.Pages, name => page.FindControl<WebPageDetail>(name + "Detail")!.IsEffectivelyVisible);
+        Assert.False(Shown(page.FindControl<ListBox>("PageList")!));
+        Assert.DoesNotContain(GeneralSettingsForm.Pages, name => Shown(page.FindControl<WebPageDetail>(name + "Detail")!));
     });
 
     [Theory]
@@ -74,7 +75,11 @@ public sealed class GeneralSettingsPageTests
                 Assert.Equal(expected, status.Children.OfType<TextBlock>().Single().Text);
                 Assert.Equal(running && connections > 0, status.Classes.Contains("connected"));
                 Assert.Equal(running && connections == 0, status.Classes.Contains("waiting"));
+                Assert.Equal(AutomationLiveSetting.Polite, AutomationProperties.GetLiveSetting(status.Children.OfType<TextBlock>().Single()));
             }
+            // The picked page's detail says the same thing again; only the list announces a change.
+            var heading = GuiHarness.FindVisual<WebPageDetail>(page, "VideoDetail").GetVisualDescendants().OfType<TextBlock>().Single(text => text.Name == "ConnectionsText");
+            Assert.Equal(AutomationLiveSetting.Off, AutomationProperties.GetLiveSetting(heading));
         });
 
     [Fact]
@@ -103,7 +108,8 @@ public sealed class GeneralSettingsPageTests
     {
         window.Navigation.SelectedIndex = 8;
         GuiHarness.Flush();
-        var body = GuiHarness.FindVisual<Grid>(general, "PART_BodyLayout").Children.OfType<ScrollViewer>().Single();
+        // On 网页服务 the body takes the height it needs and the list and the detail share the rest, so those two are what must fit.
+        var list = general.FindControl<ListBox>("PageList")!.GetVisualDescendants().OfType<ScrollViewer>().First();
         var detail = general.FindControl<ScrollViewer>("PageDetailScroll")!;
         // Every page has its steps while nobody is connected, the tallest its detail gets.
         foreach (var status in new[] { Running, new WebServiceStatus(true, 17890, 1, 1, 1) { DesktopPetConnections = 1 } })
@@ -112,19 +118,32 @@ public sealed class GeneralSettingsPageTests
             foreach (var name in GeneralSettingsForm.Pages)
             {
                 GeneralSettingsForm.Pick(general, name);
-                AssertFits(body);
+                AssertFits(list);
                 AssertFits(detail);
             }
         }
         GuiHarness.Tab(general, 1);
-        AssertFits(body);
+        AssertFits(GuiHarness.FindVisual<Grid>(general, "PART_BodyLayout").Children.OfType<ScrollViewer>().Single());
+    });
+
+    [Fact]
+    public Task The_update_and_logs_tab_scrolls_when_the_window_is_too_short_for_it() => GeneralSettingsForm.Open(1040, 300, Running, (page, _) =>
+    {
+        GuiHarness.Tab(page, 1);
+        var layout = GuiHarness.FindVisual<Grid>(page, "PART_BodyLayout");
+        var body = layout.Children.OfType<ScrollViewer>().Single();
+        Assert.True(body.Viewport.Height <= layout.Bounds.Height, $"{body.Viewport.Height} tall in {layout.Bounds.Height}");
+        Assert.True(body.Extent.Height > body.Viewport.Height);
     });
 
     private static void AssertFits(ScrollViewer viewer) =>
         Assert.True(viewer.Extent.Height <= viewer.Viewport.Height, $"{viewer.Extent.Height} tall in {viewer.Viewport.Height}");
 
     private static string ShownDetail(GeneralSettingsPage page) =>
-        Assert.Single(GeneralSettingsForm.Pages, name => page.FindControl<WebPageDetail>(name + "Detail")!.IsEffectivelyVisible);
+        Assert.Single(GeneralSettingsForm.Pages, name => Shown(page.FindControl<WebPageDetail>(name + "Detail")!));
+
+    // The list and the details leave the page with their tab, and a control off the page still counts itself visible.
+    private static bool Shown(Control control) => TopLevel.GetTopLevel(control) is not null && control.IsEffectivelyVisible;
 
     /// <summary>The main window of this size, with 桌宠 on so that her page shows its status bar.</summary>
     private static Task OnMainWindow(int width, int height, Action<MainWindow, MainWindowViewModel, GeneralSettingsPage> check) => HeadlessApp.Session.Dispatch(async () =>

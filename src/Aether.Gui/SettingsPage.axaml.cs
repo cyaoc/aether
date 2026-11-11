@@ -21,6 +21,7 @@ public abstract class SettingsPage : TemplatedControl
     private Button? saveButton;
     private Border? recentActivity;
     private Grid? pageLayout;
+    private Grid? bodyLayout;
     internal Task PendingSave => saveCompletion?.Task ?? Task.CompletedTask;
     /// <summary>Raised once Save has written the file or failed to, so other views can reread it.</summary>
     public event Action? SaveCompleted;
@@ -105,12 +106,23 @@ public abstract class SettingsPage : TemplatedControl
         if (saveButton is not null) saveButton.Click += Save;
         recentActivity = e.NameScope.Find<Border>("PART_RecentActivity");
         pageLayout = e.NameScope.Find<Grid>("PART_PageLayout");
-        if (e.NameScope.Find<Grid>("PART_BodyLayout") is { } fields)
-        {
-            fields.RowDefinitions[0].Height = BelowBodyContent is null ? GridLength.Star : GridLength.Auto;
-            fields.RowDefinitions[1].Height = BelowBodyContent is null ? new GridLength(0) : GridLength.Star;
-        }
+        bodyLayout = e.NameScope.Find<Grid>("PART_BodyLayout");
+        ArrangeBody();
         ArrangeActivity();
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == BelowBodyContentProperty) ArrangeBody();
+    }
+
+    // With content below, the body takes the height it needs and that content fills the rest; without, the body scrolls in all of it.
+    private void ArrangeBody()
+    {
+        if (bodyLayout is null) return;
+        bodyLayout.RowDefinitions[0].Height = BelowBodyContent is null ? GridLength.Star : GridLength.Auto;
+        bodyLayout.RowDefinitions[1].Height = BelowBodyContent is null ? new GridLength(0) : GridLength.Star;
     }
 
     private void ArrangeActivity()

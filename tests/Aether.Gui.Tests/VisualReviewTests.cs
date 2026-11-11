@@ -1101,6 +1101,11 @@ public sealed partial class VisualReviewTests
             {
                 navigation.SelectedIndex = i;
                 Capture(ReviewedPages[i]);
+                if (ReviewedPages[i] != "general") continue;
+                var settings = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+                GuiHarness.Tab(settings, 1);
+                Capture("general-update-and-logs");
+                GuiHarness.Tab(settings, 0);
                 if (i == 2)
                 {
                     var uid = window.GetVisualDescendants().OfType<TextBox>().Single(x => x.IsEffectivelyVisible && x.Text == "1234567890123456");
