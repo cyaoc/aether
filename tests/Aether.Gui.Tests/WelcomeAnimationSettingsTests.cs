@@ -914,7 +914,7 @@ public sealed class WelcomeAnimationSettingsTests
     [InlineData(true, 0, 0, 1, null, "运行中", "视频页还没有推流软件连着，先在直播姬里加好再试播")]
     [InlineData(false, 0, 0, 0, "端口 17891 被别的程序占用", "没打开：端口 17891 被别的程序占用", "网页服务没打开：端口 17891 被别的程序占用，试播和进场都播不了")]
     [InlineData(false, 0, 0, 0, null, "未运行", "网页服务没打开，试播和进场都播不了")]
-    public Task Web_service_card_shows_each_page_count_setup_and_errors(bool running, int videos, int lotteries, int giftBoards, string? error, string expected, string videoRow) => HeadlessApp.Session.Dispatch(async () =>
+    public Task Web_service_card_shows_each_page_count_address_and_errors(bool running, int videos, int lotteries, int giftBoards, string? error, string expected, string videoRow) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         var viewModel = harness.CreateViewModel();
@@ -931,7 +931,6 @@ public sealed class WelcomeAnimationSettingsTests
             {
                 Assert.Equal("http://localhost:17891" + path, GeneralSettingsForm.DetailControl<TextBox>(page, name, "Address").Text);
                 Assert.Equal(Count(connections), GuiHarness.FindVisual<TextBlock>(GeneralSettingsForm.Item(page, name), "ConnectionsText").Text);
-                Assert.Equal(running && connections == 0, GeneralSettingsForm.DetailControl<Control>(page, name, "SetupHelp").IsVisible);
             }
             var help = page.FindControl<TextBlock>("WebServiceHelp")!;
             Assert.Equal(running || error is not null, help.IsVisible);

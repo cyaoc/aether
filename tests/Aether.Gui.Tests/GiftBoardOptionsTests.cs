@@ -159,18 +159,18 @@ public sealed class GiftBoardOptionsTests
     });
 
     [Theory]
-    [InlineData(true, 1, null, "礼物榜页：已有 1 个推流软件连着", null)]
-    [InlineData(true, 0, null, "礼物榜页：还没有推流软件连着", "在直播姬里添加浏览器素材，地址和宽高照通用设置里的“礼物榜页”填；已经加过的，右键素材 → 刷新。")]
-    [InlineData(false, 0, "端口 17890 被别的程序占用", "网页服务没打开：端口 17890 被别的程序占用，礼物榜页显示不了", null)]
-    public Task The_status_bar_tells_how_the_gift_board_page_is_connected(bool running, int connections, string? error, string text, string? steps) => GiftBoardScene.Run(scene =>
+    [InlineData(true, 1, null, "礼物榜页：已有 1 个推流软件连着")]
+    [InlineData(true, 0, null, "礼物榜页：还没有推流软件连着")]
+    [InlineData(false, 0, "端口 17890 被别的程序占用", "网页服务没打开：端口 17890 被别的程序占用，礼物榜页显示不了")]
+    public Task The_status_bar_tells_how_the_gift_board_page_is_connected_in_one_line(bool running, int connections, string? error, string text) => GiftBoardScene.Run(scene =>
     {
         // The video and lottery pages have nine connections each, which this page must not count as its own.
         scene.ViewModel.WebService.Apply(new WebServiceStatus(running, 17890, 9, 9, connections, error));
         GuiHarness.Flush();
         Assert.Equal(text, GuiHarness.FindVisual<TextBlock>(scene.Page, "PageStatusText").Text);
-        var help = GuiHarness.FindVisual<TextBlock>(scene.Page, "PageSetupSteps");
-        Assert.Equal(steps is not null, help.IsEffectivelyVisible);
-        Assert.Equal(steps ?? "", help.Text ?? "");
+        // The setup steps are in the general settings, where the link goes.
+        Assert.Equal([text, "地址和宽高在通用设置"], GuiHarness.FindVisual<Border>(scene.Page, "PageStatusCard").GetVisualDescendants().OfType<TextBlock>()
+            .Where(t => t.IsEffectivelyVisible && !string.IsNullOrEmpty(t.Text)).Select(t => t.Text));
         return Task.CompletedTask;
     });
 
