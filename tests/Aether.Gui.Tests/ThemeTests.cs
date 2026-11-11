@@ -26,6 +26,7 @@ public sealed class ThemeTests
         window.Show();
         try
         {
+            GuiHarness.Tab(GeneralSettingsForm.Of(window), 1);
             var retention = Assert.Single(window.GetVisualDescendants().OfType<ToggleSwitch>(), x => x.IsEffectivelyVisible);
             Assert.Equal("只保留最近 1000 条", AutomationProperties.GetName(retention));
             retention.IsChecked = false;

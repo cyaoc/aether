@@ -18,13 +18,14 @@ public partial class GeneralSettingsPage : SettingsPage
     {
         InitializeComponent();
         Title = "通用设置";
-        TimingHint = "端口保存后立即生效；日志设置重启后生效；自动更新下次打开时生效";
         LogLevelInput.ItemsSource = Settings.LogLevels;
         // Save appends missing groups in this order, so log stays ahead of web_service.
         Bind(RetentionInput, RetentionReadOnly, RetentionError, s => s.LogRetentionDays);
         Bind(LogLevelInput, LogLevelReadOnly, LogLevelError, s => s.LogLevel);
         Bind(WebPortInput, WebPortReadOnly, WebPortError, s => s.WebServicePort);
         Bind(AutoUpdateInput, AutoUpdateReadOnly, null, s => s.AutoUpdateEnabled);
+        Tabs.SelectionChanged += (_, _) => ShowTab();
+        ShowTab();
         DetachedFromVisualTree += (_, _) =>
         {
             foreach (var (button, timer) in copyFeedback) { timer.Dispose(); button.Classes.Set("copied", false); }
@@ -49,7 +50,23 @@ public partial class GeneralSettingsPage : SettingsPage
         return savedPortChanged && viewModel?.WebService.WebServiceStatus.Running == true ? "已保存，网页服务已换到新端口" : result;
     }
 
-    // Every page row's copy button, heard here as the click reaches the page list.
+    /// <summary>Opens the 网页服务 tab with <paramref name="page"/> picked in the page list.</summary>
+    public void ShowWebPage(WebPageTexts page)
+    {
+        Tabs.SelectedIndex = 0;
+        PageList.SelectedItem = PageList.Items.OfType<ListBoxItem>().Single(item => page.Equals(item.Tag));
+    }
+
+    private void ShowTab()
+    {
+        var webService = Tabs.SelectedIndex == 0;
+        WebServiceTab.IsVisible = webService;
+        BelowBodyContent = webService ? PagesTab : null;
+        UpdateTab.IsVisible = !webService;
+        TimingHint = webService ? "端口保存后立即生效" : "日志设置重启后生效；自动更新下次打开时生效";
+    }
+
+    // Every page detail's copy button, heard here as the click reaches the details beside the page list.
     private async void CopyPageAddress(object? sender, RoutedEventArgs e)
     {
         if (e.Source is not Button button) return;

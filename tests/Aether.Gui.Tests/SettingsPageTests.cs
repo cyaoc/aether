@@ -1119,7 +1119,7 @@ public sealed class SettingsPageTests
             {
                 main.Navigation.SelectedIndex = 8;
                 GuiHarness.Flush();
-                var page = main.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+                var page = GeneralSettingsForm.Of(main);
                 page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked = false;
                 await GuiHarness.SaveAsync(page);
                 viewModel.KeepRecentDanmaku = false;
@@ -1173,6 +1173,7 @@ public sealed class SettingsPageTests
     public Task Invalid_input_immediately_shows_core_validation_and_disables_save(string input) =>
         WithSettingsPage(dir => new GeneralSettingsPage(dir), null, (window, _) =>
         {
+            GuiHarness.Tab(window, 1);
             var number = window.FindControl<NumericUpDown>("RetentionInput")!;
             var textBox = Assert.Single(number.GetVisualDescendants().OfType<TextBox>());
             textBox.Text = input;

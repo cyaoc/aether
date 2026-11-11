@@ -8,7 +8,6 @@ public partial class GiftAnimationSettingsPage : SettingsPage
 {
     private readonly OrderedInputs thresholds;
     private string? thresholdError;
-    public event Action? GeneralSettingsRequested;
     public GiftAnimationSettingsPage() : this(DataDirectory.Locate()) { }
     public GiftAnimationSettingsPage(string dataDirectory) : base(dataDirectory)
     {
@@ -35,7 +34,6 @@ public partial class GiftAnimationSettingsPage : SettingsPage
             ThresholdRows.Children.Add(column);
             Bind(input, readOnly, null, settings => settings.GiftAnimationThresholds[index]);
         }
-        PageStatus.GeneralSettingsRequested += () => GeneralSettingsRequested?.Invoke();
         LoadSettings();
     }
     protected override bool AppliesToWebService => true;

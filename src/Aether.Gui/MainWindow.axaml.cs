@@ -27,7 +27,6 @@ public partial class MainWindow : Window
         this.dataDirectory = dataDirectory;
         general = new GeneralSettingsPage(dataDirectory);
         var welcome = new WelcomePanel(dataDirectory);
-        var animation = welcome.Animation;
         var gift = new GiftAnimationSettingsPage(dataDirectory);
         var board = new GiftBoardPanel();
         var pet = new DesktopPetSettingsPage(dataDirectory);
@@ -36,10 +35,7 @@ public partial class MainWindow : Window
         foreach (var page in pages) page.IsVisible = false;
         PageHost.Children.AddRange(pages);
         foreach (var page in SettingsPages) page.SaveCompleted += RefreshSettingsStatus;
-        animation.GeneralSettingsRequested += ShowGeneralSettings;
-        gift.GeneralSettingsRequested += ShowGeneralSettings;
-        board.GeneralSettingsRequested += ShowGeneralSettings;
-        pet.GeneralSettingsRequested += ShowGeneralSettings;
+        AddHandler(PageStatusBar.GeneralSettingsRequestedEvent, (_, e) => ShowGeneralSettings(((PageStatusBar)e.Source!).Page));
         RefreshSettingsStatus();
         Navigation.SelectedIndex = 0;
         // Tab stays on the splash's own controls, only 跳过 while an update downloads: the pages it covers turn enabled as it fades,
@@ -90,7 +86,11 @@ public partial class MainWindow : Window
             _ = viewModel.StartAsync(dataDirectory);
     }
 
-    private void ShowGeneralSettings() => Navigation.SelectedIndex = PageHost.Children.IndexOf(general);
+    private void ShowGeneralSettings(WebPageTexts page)
+    {
+        general.ShowWebPage(page);
+        Navigation.SelectedIndex = PageHost.Children.IndexOf(general);
+    }
 
     private void Navigate(object? sender, SelectionChangedEventArgs e)
     {

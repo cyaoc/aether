@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui"
+  x:Class="Aether.Gui.WebPageDetail" x:DataType="local:WebPageStatus">
+  <UserControl.Styles>
+    <Style Selector="Button.copy Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Copy}" />
+    </Style>
+    <Style Selector="Button.copy TextBlock">
+      <Setter Property="Text" Value="复制" />
+    </Style>
+    <Style Selector="Button.copy.copied StackPanel">
+      <Setter Property="TextElement.Foreground" Value="{DynamicResource Success}" />
+    </Style>
+    <Style Selector="Button.copy.copied Path">
+      <Setter Property="Data" Value="{StaticResource Icon.Check}" />
+    </Style>
+    <Style Selector="Button.copy.copied TextBlock">
+      <Setter Property="Text" Value="已复制" />
+    </Style>
+    <Style Selector="TextBox.address">
+      <Setter Property="MinHeight" Value="32" />
+      <Setter Property="Height" Value="32" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="FontFamily" Value="Menlo, Consolas" />
+      <Setter Property="Background" Value="{DynamicResource Border.Subtle}" />
+    </Style>
+  </UserControl.Styles>
+  <StackPanel Spacing="16">
+    <StackPanel Spacing="3">
+      <local:WebPageSummary Classes="heading" />
+      <TextBlock Classes="hint" Text="{Binding Texts.Purpose}" />
+    </StackPanel>
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="地址" />
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+        <TextBox x:Name="Address" Classes="address" Text="{Binding Address, Mode=OneWay}" IsReadOnly="True" AutomationProperties.Name="{Binding Texts.Name, StringFormat='{}{0}地址'}" />
+        <Button Grid.Column="1" x:Name="CopyButton" Classes="copy" Tag="{Binding Address}" Height="32" Padding="10,0,12,0" AutomationProperties.Name="{Binding Texts.Name, StringFormat='复制{0}地址'}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <Viewbox Classes="icon" Width="14" Height="14"><Path StrokeThickness="2" /></Viewbox>
+            <TextBlock VerticalAlignment="Center" />
+          </StackPanel>
+        </Button>
+      </Grid>
+    </StackPanel>
+    <StackPanel Spacing="6">
+      <TextBlock Classes="label" Text="宽高" />
+      <TextBlock x:Name="PageSize" Classes="secondary" Text="{Binding Texts.Size}" />
+    </StackPanel>
+    <Border x:Name="SetupHelp" Classes="card notice warning" IsVisible="{Binding Waiting}">
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+        <Viewbox Classes="icon" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
+        <TextBlock Grid.Column="1" Classes="secondary" LineHeight="20" TextWrapping="Wrap"
+          Text="还没有推流软件连着。在直播姬里添加浏览器素材，地址和宽高照上面填；已经加过的，右键素材 → 刷新。" />
+      </Grid>
+    </Border>
+  </StackPanel>
+</UserControl>

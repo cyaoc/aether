@@ -436,13 +436,27 @@ public sealed partial class VisualReviewTests
                     if (index == Array.IndexOf(ReviewedPages, "gift-board"))
                         Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "上榜门槛", "新的第一名时响一声", "开始新一期", "当前榜单" });
                     if (index == Array.IndexOf(ReviewedPages, "general"))
-                        Assert.Subset(checkedTexts.ToHashSet(), new HashSet<string> { "礼物榜页", "送礼观众的排行", "480 × 1000，可以等比放大", "桌宠页", "480 × 640" });
+                    {
+                        // One page's detail shows at a time, and the update and log settings are on the other tab, so each is checked.
+                        var settings = GeneralSettingsForm.Of(window);
+                        var generalTexts = checkedTexts.ToHashSet();
+                        foreach (var name in GeneralSettingsForm.Pages)
+                        {
+                            GeneralSettingsForm.Pick(settings, name);
+                            generalTexts.UnionWith(CheckFixedText());
+                        }
+                        GuiHarness.Tab(settings, 1);
+                        generalTexts.UnionWith(CheckFixedText());
+                        GuiHarness.Tab(settings, 0);
+                        Assert.Subset(generalTexts, new HashSet<string>
+                            { "礼物榜页", "送礼观众的排行", "480 × 1000，可以等比放大", "桌宠页", "480 × 640", "软件更新", "日志", "日志保留" });
+                    }
                     if (index != Array.IndexOf(ReviewedPages, "desktop-pet")) continue;
                     // Its tabs show one at a time, so each is checked.
                     var pet = window.GetVisualDescendants().OfType<DesktopPetSettingsPage>().Single();
-                    DesktopPetForm.Tab(pet, 1);
+                    GuiHarness.Tab(pet, 1);
                     Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "冷场心情", "托腮发呆，隔一阵叹口气", "% 的几率出点小事" });
-                    DesktopPetForm.Tab(pet, 2);
+                    GuiHarness.Tab(pet, 2);
                     Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "冷场后来了人", "恢复默认", "添加一句" });
                 }
                 var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);
@@ -922,6 +936,7 @@ public sealed partial class VisualReviewTests
             try
             {
                 await GuiHarness.AccountReadAsync(viewModel);
+                GuiHarness.Tab(GeneralSettingsForm.Of(window), 1);
                 foreach (var (pageIndex, name) in new[] { (8, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
@@ -1085,6 +1100,14 @@ public sealed partial class VisualReviewTests
             for (var i = 0; i < ReviewedPages.Length; i++)
             {
                 navigation.SelectedIndex = i;
+                if (ReviewedPages[i] == "general")
+                {
+                    var settings = GeneralSettingsForm.Of(window);
+                    GuiHarness.Tab(settings, 1);
+                    Capture("general-update-and-logs");
+                    GuiHarness.Tab(settings, 0);
+                    GeneralSettingsForm.Pick(settings, "GiftBoard");
+                }
                 Capture(ReviewedPages[i]);
                 if (i == 2)
                 {
@@ -1123,7 +1146,7 @@ public sealed partial class VisualReviewTests
             File.WriteAllText(path, "log:\n  level: @bad\n");
             navigation.SelectedIndex = 8;
             GuiHarness.Flush();
-            var general = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
+            var general = GeneralSettingsForm.Of(window);
             var fileMessage = GuiHarness.FindVisual<TextBlock>(general, "FileMessage");
             Assert.Contains(harness.DataDirectory, fileMessage.Text);
             // Keep the real parse error while removing the per-run temporary directory from its fixture text.
@@ -1231,8 +1254,9 @@ public sealed partial class VisualReviewTests
             {
                 await GuiHarness.AccountReadAsync(viewModel);
                 window.Navigation.SelectedIndex = Array.IndexOf(ReviewedPages, "general");
+                var page = GeneralSettingsForm.Of(window);
+                GuiHarness.Tab(page, 1);
                 Capture("on");
-                var page = window.GetVisualDescendants().OfType<GeneralSettingsPage>().Single();
                 page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked = false;
                 Capture("dirty");
                 await GuiHarness.SaveAsync(page);

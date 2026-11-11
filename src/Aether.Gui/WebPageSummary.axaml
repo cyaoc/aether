@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="using:Aether.Gui"
+  x:Class="Aether.Gui.WebPageSummary" x:DataType="local:WebPageStatus">
+  <!-- Canvas GW1: as the heading of a page's detail, the icon is smaller, the name larger, everything bold, and the list beside it
+       announces the changes. -->
+  <UserControl.Styles>
+    <Style Selector="local|WebPageSummary.heading Viewbox.icon">
+      <Setter Property="Width" Value="16" />
+      <Setter Property="Height" Value="16" />
+    </Style>
+    <Style Selector="local|WebPageSummary.heading Path#IconPath">
+      <Setter Property="Stroke" Value="{DynamicResource Accent.Text}" />
+    </Style>
+    <Style Selector="local|WebPageSummary.heading TextBlock">
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="local|WebPageSummary.heading TextBlock#NameText">
+      <Setter Property="FontSize" Value="15" />
+    </Style>
+    <Style Selector="local|WebPageSummary:not(.heading) TextBlock#ConnectionsText">
+      <Setter Property="AutomationProperties.LiveSetting" Value="Polite" />
+    </Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+    <Viewbox Classes="icon"><Path x:Name="IconPath" Data="{Binding Texts.Icon}" /></Viewbox>
+    <TextBlock Grid.Column="1" x:Name="NameText" Classes="singleLine" Text="{Binding Texts.Name}" VerticalAlignment="Center" />
+    <StackPanel Grid.Column="2" Classes="pageStatus" Classes.connected="{Binding Connected}" Classes.waiting="{Binding Waiting}" Orientation="Horizontal" Spacing="6">
+      <Ellipse Width="7" Height="7" VerticalAlignment="Center" />
+      <TextBlock x:Name="ConnectionsText" Text="{Binding ConnectionsText}" FontSize="12" VerticalAlignment="Center" />
+    </StackPanel>
+  </Grid>
+</UserControl>

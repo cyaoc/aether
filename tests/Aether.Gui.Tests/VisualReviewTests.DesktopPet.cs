@@ -45,12 +45,12 @@ public sealed partial class VisualReviewTests
                 using var pet = await DesktopPetEvents.OpenAsync(harness.Client, TestContext.Current.CancellationToken);
                 await GuiHarness.WaitForAsync(() => viewModel.WebService.DesktopPet.Connected);
                 Capture("shows");
-                Tab(page, 1);
+                GuiHarness.Tab(page, 1);
                 Capture("moods");
-                Tab(page, 2);
+                GuiHarness.Tab(page, 2);
                 Pick(page, "LineKindList", "大礼物");
                 Capture("lines");
-                Tab(page, 0);
+                GuiHarness.Tab(page, 0);
                 GuiHarness.Click(page, "TestButton");
                 await pet.NextAsync(DesktopPet.Test);
                 Capture("testing");
