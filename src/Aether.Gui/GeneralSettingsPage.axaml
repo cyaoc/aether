@@ -32,7 +32,7 @@
         </Border>
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
           <TextBlock Classes="label" Text="页面" VerticalAlignment="Center" />
-          <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="每个页面在直播姬里各加一个浏览器素材" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="每个页面在直播姬里各加一个浏览器素材，地址和宽高照右边填；加过了还没连着，右键素材 → 刷新" VerticalAlignment="Center" />
         </Grid>
       </StackPanel>
       <StackPanel x:Name="UpdateTab" Spacing="8">

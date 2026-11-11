@@ -493,10 +493,9 @@ public sealed partial class VisualReviewTests
                 {
                     // These are multi-sentence help, not single-line captions.
                     if (text.Name is "WelcomeTextHint" or "WebServiceHelp" ||
-                        text.GetVisualAncestors().OfType<Control>().Any(c =>
-                            c.Name is "SetupHelp" or "EmptyConditions")) continue;
-                    // The gift board's empty list and a status bar's steps wrap too, but all of their words show.
-                    if (text.Name is "BoardEmpty" or "PageSetupSteps")
+                        text.GetVisualAncestors().OfType<Control>().Any(c => c.Name is "EmptyConditions")) continue;
+                    // The gift board's empty list wraps too, but all of its words show.
+                    if (text.Name is "BoardEmpty")
                     {
                         Assert.True(text.TextLayout.Height <= text.Bounds.Height + 1 && text.TextLayout.Width <= text.Bounds.Width + 1, $"Clipped help: {text.Text}");
                         continue;

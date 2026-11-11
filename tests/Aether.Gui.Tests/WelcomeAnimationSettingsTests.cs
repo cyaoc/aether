@@ -931,7 +931,6 @@ public sealed class WelcomeAnimationSettingsTests
             {
                 Assert.Equal("http://localhost:17891" + path, GeneralSettingsForm.DetailControl<TextBox>(page, name, "Address").Text);
                 Assert.Equal(Count(connections), GuiHarness.FindVisual<TextBlock>(GeneralSettingsForm.Item(page, name), "ConnectionsText").Text);
-                Assert.Equal(running && connections == 0, GeneralSettingsForm.DetailControl<Control>(page, name, "SetupHelp").IsVisible);
             }
             var help = page.FindControl<TextBlock>("WebServiceHelp")!;
             Assert.Equal(running || error is not null, help.IsVisible);

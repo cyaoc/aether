@@ -15,23 +15,29 @@ public sealed class BrowserSourceSizeTests
         ["Video"] = "1920 × 1080", ["Lottery"] = "横屏 1920 × 1080 · 竖屏 1080 × 1920", ["GiftBoard"] = "480 × 1000，可以等比放大", ["DesktopPet"] = "480 × 640",
     };
 
+    private const string Steps = "每个页面在直播姬里各加一个浏览器素材，地址和宽高照右边填；加过了还没连着，右键素材 → 刷新";
+
     [Fact]
-    public Task Each_pages_detail_writes_its_size_under_a_note_of_one_browser_source_per_page() =>
+    public Task Each_pages_detail_writes_its_size_under_the_setup_steps_on_one_line() =>
         GeneralSettingsForm.Open(1040, 600, new WebServiceStatus(true, 17890, 1, 1, 0), (page, _) =>
         {
-            Assert.Contains(page.GetVisualDescendants().OfType<TextBlock>(), text => text.Text == "每个页面在直播姬里各加一个浏览器素材");
+            var steps = page.GetVisualDescendants().OfType<TextBlock>().Single(text => text.Text == Steps);
+            Assert.False(Assert.Single(steps.TextLayout.TextLines).HasCollapsed);
             foreach (var (name, size) in Sizes)
                 Assert.Equal(size, GeneralSettingsForm.DetailControl<TextBlock>(page, name, "PageSize").Text);
             return Task.CompletedTask;
         });
 
     [Fact]
-    public Task A_page_nobody_is_connected_to_is_told_to_take_its_address_and_size_from_its_own_detail() =>
+    public Task The_setup_steps_are_written_once_whichever_page_nobody_is_connected_to() =>
         GeneralSettingsForm.Open(1040, 600, new WebServiceStatus(true, 17890, 0, 0, 0), (page, _) =>
         {
             foreach (var name in GeneralSettingsForm.Pages)
-                Assert.Equal("还没有推流软件连着。在直播姬里添加浏览器素材，地址和宽高照上面填；已经加过的，右键素材 → 刷新。",
-                    GeneralSettingsForm.DetailControl<Border>(page, name, "SetupHelp").GetVisualDescendants().OfType<TextBlock>().Single().Text);
+            {
+                GeneralSettingsForm.Pick(page, name);
+                Assert.DoesNotContain(GeneralSettingsForm.Detail(page, name).GetVisualDescendants().OfType<TextBlock>(), text => text.Text?.Contains("推流软件") == true);
+                Assert.Single(page.GetVisualDescendants().OfType<TextBlock>(), text => text.IsEffectivelyVisible && text.Text == Steps);
+            }
             return Task.CompletedTask;
         });
 

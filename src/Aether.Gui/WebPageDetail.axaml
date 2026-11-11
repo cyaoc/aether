@@ -45,12 +45,5 @@
       <TextBlock Classes="label" Text="宽高" />
       <TextBlock x:Name="PageSize" Classes="secondary" Text="{Binding Texts.Size}" />
     </StackPanel>
-    <Border x:Name="SetupHelp" Classes="card notice warning" IsVisible="{Binding Waiting}">
-      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-        <Viewbox Classes="icon" Width="14" Height="14" VerticalAlignment="Top" Margin="0,2,0,0"><Path Data="{StaticResource Icon.Alert}" StrokeThickness="2" /></Viewbox>
-        <TextBlock Grid.Column="1" Classes="secondary" LineHeight="20" TextWrapping="Wrap"
-          Text="还没有推流软件连着。在直播姬里添加浏览器素材，地址和宽高照上面填；已经加过的，右键素材 → 刷新。" />
-      </Grid>
-    </Border>
   </StackPanel>
 </UserControl>
