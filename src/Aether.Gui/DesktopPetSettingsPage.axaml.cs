@@ -18,7 +18,7 @@ public partial class DesktopPetSettingsPage : SettingsPage
     private string? blocked;
     private bool testing;
     private string playing = "";
-    public event Action? GeneralSettingsRequested;
+    public event Action<WebPageTexts>? GeneralSettingsRequested;
 
     public DesktopPetSettingsPage() : this(DataDirectory.Locate()) { }
 
@@ -42,7 +42,7 @@ public partial class DesktopPetSettingsPage : SettingsPage
         WatchNotes();
         Tabs.SelectionChanged += (_, _) => ShowTab();
         TestNicknameInput.TextChanged += (_, _) => RefreshTest();
-        PageStatus.GeneralSettingsRequested += () => GeneralSettingsRequested?.Invoke();
+        PageStatus.GeneralSettingsRequested += page => GeneralSettingsRequested?.Invoke(page);
         LoadSettings();
     }
 

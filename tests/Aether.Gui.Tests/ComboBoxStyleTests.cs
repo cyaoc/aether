@@ -147,13 +147,10 @@ public sealed class ComboBoxStyleTests
         await harness.SaveCredentialAsync();
         harness.SaveRecentRooms("12345", "42");
         var viewModel = harness.CreateViewModel();
-        var window = new MainWindow(harness.DataDirectory)
-        {
-            // Leave room below the log dropdown now that General also contains the update section, the web service card and its four pages.
-            DataContext = viewModel, Height = 1200, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light
-        };
+        var window = new MainWindow(harness.DataDirectory) { DataContext = viewModel, RequestedThemeVariant = dark ? ThemeVariant.Dark : ThemeVariant.Light };
         window.Show();
         await harness.IdleAsync();
+        GeneralSettingsForm.ShowUpdateAndLogs(window);
         try { test(window); }
         finally { await viewModel.ShutdownAsync(); window.Close(); GuiHarness.Flush(); }
         return true;

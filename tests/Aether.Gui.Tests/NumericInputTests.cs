@@ -44,6 +44,7 @@ public sealed class NumericInputTests
         window.Show();
         try
         {
+            GeneralSettingsForm.ShowUpdateAndLogs(window);
             foreach (var (index, name, unit) in new[]
             {
                 (7, "发送间隔秒数", "秒"), (8, "日志保留天数", "天"),
@@ -189,6 +190,7 @@ public sealed class NumericInputTests
         window.Show();
         try
         {
+            GeneralSettingsForm.ShowUpdateAndLogs(window);
             foreach (var (index, name, expectedWidth) in new[]
             {
                 (1, "DailyKeywordInput", 240), (1, "MonthlyKeywordInput", 240), (1, "YearlyKeywordInput", 240), (8, "LogLevelInput", 200),

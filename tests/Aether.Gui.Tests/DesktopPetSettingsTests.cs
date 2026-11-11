@@ -52,11 +52,11 @@ public sealed class DesktopPetSettingsTests
             case "switch": page.FindControl<ToggleSwitch>("EnabledInput")!.IsChecked = true; break;
             case "show": Switch(page, "进场").IsChecked = false; break;
             case "threshold": Pick(page, "ShowGroupList", "礼物"); Number(page, "大礼物门槛（电池）").Text = "20000"; break;
-            case "mood": Tab(page, 1); Number(page, "犯困：几分钟后进入").Text = "0"; break;
-            case "daily": Tab(page, 1); Switch(page, "滑雪").IsChecked = false; break;
-            case "mishap": Tab(page, 1); Number(page, "出事的几率（%）").Text = "50"; break;
-            case "line": Tab(page, 2); Line(page, 1).Text = "欢迎{昵称}"; break;
-            case "addLine": Tab(page, 2); GuiHarness.Click(page, "AddLineButton"); break;
+            case "mood": GuiHarness.Tab(page, 1); Number(page, "犯困：几分钟后进入").Text = "0"; break;
+            case "daily": GuiHarness.Tab(page, 1); Switch(page, "滑雪").IsChecked = false; break;
+            case "mishap": GuiHarness.Tab(page, 1); Number(page, "出事的几率（%）").Text = "50"; break;
+            case "line": GuiHarness.Tab(page, 2); Line(page, 1).Text = "欢迎{昵称}"; break;
+            case "addLine": GuiHarness.Tab(page, 2); GuiHarness.Click(page, "AddLineButton"); break;
         }
         GuiHarness.Flush();
         Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsEffectivelyVisible);
@@ -77,12 +77,12 @@ public sealed class DesktopPetSettingsTests
         Number(page, "大礼物门槛（电池）").Text = "10000";
         GuiHarness.Flush();
         Assert.Contains("这一轮 2000 – 9999 电池", Texts(page));
-        Tab(page, 1);
+        GuiHarness.Tab(page, 1);
         Switch(page, "哼歌").IsChecked = false;
         Number(page, "无聊：几分钟后进入").Text = "0";
         GuiHarness.Flush();
         Assert.Contains("填了 0：不会无聊", Texts(page));
-        Tab(page, 2);
+        GuiHarness.Tab(page, 2);
         Pick(page, "LineKindList", "大礼物");
         Line(page, 1).Text = "{昵称}，谢谢你～";
         Pick(page, "LineKindList", "普通礼物");
@@ -114,7 +114,7 @@ public sealed class DesktopPetSettingsTests
         var port = Settings.Load(harness.DataDirectory).WebServicePort.Value;
         File.WriteAllText(Settings.FilePath(harness.DataDirectory), $"web_service:\n  port: {port}\ndesktop_pet: {{enabled: false}}\n");
         page.RefreshFileStatus(Settings.Load(harness.DataDirectory));
-        Tab(page, 2);
+        GuiHarness.Tab(page, 2);
         Pick(page, "LineKindList", "大礼物");
         GuiHarness.Flush();
         Assert.True(GuiHarness.FindVisual<TextBlock>(page, "LinesReadOnly").IsVisible);
@@ -131,7 +131,7 @@ public sealed class DesktopPetSettingsTests
             ["desktop_pet.lines.1.bigGift"] = System.Text.Json.JsonSerializer.Serialize(Character.Current.Lines["bigGift"])
         });
         page.RefreshFileStatus(Settings.Load(harness.DataDirectory));
-        Tab(page, 2);
+        GuiHarness.Tab(page, 2);
         GuiHarness.Flush();
         Assert.DoesNotContain("已改", Texts(page));
         return Task.CompletedTask;
@@ -140,7 +140,7 @@ public sealed class DesktopPetSettingsTests
     [Fact]
     public Task The_daily_actions_least_seconds_may_equal_the_most_but_not_exceed_them() => WithPage(page =>
     {
-        Tab(page, 1);
+        GuiHarness.Tab(page, 1);
         Number(page, "日常最短间隔（秒）").Text = "41";
         GuiHarness.Flush();
         Assert.False(page.CanSave);
@@ -158,7 +158,7 @@ public sealed class DesktopPetSettingsTests
     [Fact]
     public Task Insert_offers_only_the_kinds_placeholders_and_puts_one_in_the_line_being_edited() => WithPage(page =>
     {
-        Tab(page, 2);
+        GuiHarness.Tab(page, 2);
         Pick(page, "LineKindList", "冷场后来了人");
         Assert.Contains("这一类没有可插入的内容，台词照写就行", Texts(page));
         Pick(page, "LineKindList", "大礼物");
@@ -215,7 +215,7 @@ public sealed class DesktopPetSettingsTests
         Assert.True(Switch(page, "PK 赢了").IsEnabled);
         Assert.Contains("PK 结束时赢了", Texts(page));
         Assert.Contains("PK 赢了", page.FindControl<ComboBox>("TestShowInput")!.Items.Cast<DesktopPetTest>().Select(test => test.Label));
-        Tab(page, 2);
+        GuiHarness.Tab(page, 2);
         var kinds = page.FindControl<ListBox>("LineKindList")!;
         kinds.ScrollIntoView(kinds.Items.Count - 1);
         GuiHarness.Flush();

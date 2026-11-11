@@ -2,10 +2,10 @@ using Aether.Core;
 
 namespace Aether.Gui;
 
-/// <summary>What one page's status bar and its row in the page list say: the web service's state in that page's words.</summary>
+/// <summary>What one page's status bar and its entry in the general settings' page list say: the web service's state in that page's words.</summary>
 public sealed record WebPageStatus(WebServiceStatus Service, int Connections, WebPageTexts Texts)
 {
-    /// <summary>What the streamer gives the browser source; only the page list shows it.</summary>
+    /// <summary>What the streamer gives the browser source; only the general settings' page list shows it.</summary>
     public string Address { get; init; } = "";
     public bool Connected => Service.Running && Connections > 0;
     public bool Waiting => Service.Running && Connections == 0;
@@ -26,7 +26,7 @@ public sealed record WebPageTexts(string Name, string WaitingText, string OffEff
     public static readonly WebPageTexts Video = new("视频页", "视频页还没有推流软件连着，先在直播姬里加好再试播", "试播和进场都播不了");
     public static readonly WebPageTexts Lottery = new("抽奖页", "抽奖页：还没有推流软件连着", "抽奖页显示不了");
     public static readonly WebPageTexts GiftBoard = new("礼物榜页", "礼物榜页：还没有推流软件连着", "礼物榜页显示不了",
-        "在直播姬里添加浏览器素材，地址和宽高照通用设置里“礼物榜页”那一行填；已经加过的，右键素材 → 刷新。");
+        "在直播姬里添加浏览器素材，地址和宽高照通用设置里的“礼物榜页”填；已经加过的，右键素材 → 刷新。");
     public static readonly WebPageTexts DesktopPet = new("桌宠页", "桌宠页：还没有推流软件连着", "桌宠页显示不了",
-        "在直播姬里添加浏览器素材，地址和宽高照通用设置里“桌宠页”那一行填；已经加过的，右键素材 → 刷新。");
+        "在直播姬里添加浏览器素材，地址和宽高照通用设置里的“桌宠页”填；已经加过的，右键素材 → 刷新。");
 }

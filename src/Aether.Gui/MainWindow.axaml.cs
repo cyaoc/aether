@@ -90,7 +90,11 @@ public partial class MainWindow : Window
             _ = viewModel.StartAsync(dataDirectory);
     }
 
-    private void ShowGeneralSettings() => Navigation.SelectedIndex = PageHost.Children.IndexOf(general);
+    private void ShowGeneralSettings(WebPageTexts page)
+    {
+        general.ShowWebPage(page);
+        Navigation.SelectedIndex = PageHost.Children.IndexOf(general);
+    }
 
     private void Navigate(object? sender, SelectionChangedEventArgs e)
     {

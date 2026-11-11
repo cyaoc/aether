@@ -1,34 +1,17 @@
 <local:SettingsPage xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
   xmlns:local="using:Aether.Gui" x:DataType="local:MainWindowViewModel" x:Class="Aether.Gui.GeneralSettingsPage">
-  <local:SettingsPage.Styles>
-    <Style Selector="local|WebPageRow.divided">
-      <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
-      <Setter Property="BorderThickness" Value="0,1,0,0" />
-    </Style>
-  </local:SettingsPage.Styles>
+  <!-- Canvas GW1: 网页服务 lists the web pages on the left, beside the picked one's address and size; 更新和日志 holds the rest. -->
+  <local:SettingsPage.HeaderTabs>
+    <ListBox x:Name="Tabs" Classes="viewTabs" SelectedIndex="0" AutomationProperties.Name="通用设置">
+      <ListBoxItem Content="网页服务" />
+      <ListBoxItem Content="更新和日志" />
+    </ListBox>
+  </local:SettingsPage.HeaderTabs>
   <local:SettingsPage.BodyContent>
     <StackPanel Spacing="8">
-      <StackPanel Spacing="10" Margin="0,0,0,14">
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-          <TextBlock Classes="section" Text="软件更新" VerticalAlignment="Center" />
-          <TextBlock Grid.Column="1" Classes="hint numeric" Text="{Binding Source={x:Static local:MainWindowViewModel.AppVersion}, StringFormat=当前版本 {0}}" VerticalAlignment="Center" />
-        </Grid>
-        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-          <StackPanel Spacing="4">
-            <TextBlock Classes="label" Text="打开时自动更新" />
-            <TextBlock Classes="hint" Text="有新版本就在启动页上下载安装；关掉后一直用当前版本" />
-          </StackPanel>
-          <ToggleSwitch Grid.Column="1" x:Name="AutoUpdateInput" Classes="plain" AutomationProperties.Name="打开时自动更新" />
-        </Grid>
-        <TextBlock x:Name="AutoUpdateReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-      </StackPanel>
-      <StackPanel Spacing="10" Margin="0,0,0,14">
-        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-          <TextBlock Classes="section" Text="网页服务" VerticalAlignment="Center" />
-          <TextBlock Grid.Column="1" Classes="hint" Text="直播姬里的浏览器素材从这里打开页面" VerticalAlignment="Center" />
-        </Grid>
+      <StackPanel x:Name="WebServiceTab" Spacing="10">
         <Border Classes="card notice" Classes.error="{Binding WebService.HasWebServiceError}">
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
             <Panel VerticalAlignment="Top" Margin="0,1,0,0">
               <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.WebServiceStatus.Running}"><Path Data="{StaticResource Icon.Ok}" Stroke="{DynamicResource Success}" StrokeThickness="2" /></Viewbox>
               <Viewbox Classes="icon" Width="16" Height="16" IsVisible="{Binding WebService.HasWebServiceError}"><Path Data="{StaticResource Icon.Fail}" StrokeThickness="2" /></Viewbox>
@@ -38,51 +21,76 @@
               <TextBlock x:Name="WebServiceStatusText" Classes="secondary singleLine" Classes.success="{Binding WebService.WebServiceStatus.Running}" Classes.muted="{Binding WebService.IsWebServiceOff}" FontWeight="SemiBold" Text="{Binding WebService.ServiceStatusText}" AutomationProperties.LiveSetting="Polite" />
               <TextBlock x:Name="WebServiceHelp" Classes="caption" Foreground="{DynamicResource Text.Secondary}" LineHeight="18" TextWrapping="Wrap" Text="{Binding WebService.ServiceHelpText}"
                 IsVisible="{Binding WebService.ServiceHelpText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+              <TextBlock x:Name="WebPortError" Classes="error" />
+              <TextBlock x:Name="WebPortReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+            </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Classes="label" Text="端口" VerticalAlignment="Center" />
+              <NumericUpDown x:Name="WebPortInput" Minimum="1" Maximum="65535" Classes.invalid="{Binding #WebPortError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="网页服务端口" />
             </StackPanel>
           </Grid>
         </Border>
-        <StackPanel Spacing="6">
-          <TextBlock Classes="label" Text="端口" />
-          <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-            <NumericUpDown x:Name="WebPortInput" Minimum="1" Maximum="65535" Classes.invalid="{Binding #WebPortError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="网页服务端口" />
-            <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="改了端口，直播姬里所有浏览器素材的地址都要跟着改" VerticalAlignment="Center" IsVisible="{Binding !#WebPortError.IsVisible}" />
-            <TextBlock Grid.Column="1" x:Name="WebPortError" Classes="error" VerticalAlignment="Center" />
-          </Grid>
-          <TextBlock x:Name="WebPortReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-        </StackPanel>
-        <StackPanel Spacing="6">
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+          <TextBlock Classes="label" Text="页面" VerticalAlignment="Center" />
+          <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="每个页面在直播姬里各加一个浏览器素材" VerticalAlignment="Center" />
+        </Grid>
+      </StackPanel>
+      <StackPanel x:Name="UpdateTab" Spacing="8">
+        <StackPanel Spacing="10" Margin="0,0,0,14">
           <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-            <TextBlock Classes="label" Text="页面" VerticalAlignment="Center" />
-            <TextBlock Grid.Column="1" Classes="caption muted singleLine" Text="每个页面在直播姬里各加一个浏览器素材，宽高照每行写的填" VerticalAlignment="Center" />
+            <TextBlock Classes="section" Text="软件更新" VerticalAlignment="Center" />
+            <TextBlock Grid.Column="1" Classes="hint numeric" Text="{Binding Source={x:Static local:MainWindowViewModel.AppVersion}, StringFormat=当前版本 {0}}" VerticalAlignment="Center" />
           </Grid>
-          <Border BorderBrush="{DynamicResource Border}" BorderThickness="1" CornerRadius="8" Grid.IsSharedSizeScope="True" Button.Click="CopyPageAddress">
-            <StackPanel>
-              <local:WebPageRow x:Name="VideoRow" DataContext="{Binding WebService.Video}" Icon="{StaticResource Icon.Animation}"
-                Purpose="欢迎动画、进场动画和送礼动画在这里播放" Size="1920 × 1080" />
-              <local:WebPageRow x:Name="LotteryRow" Classes="divided" DataContext="{Binding WebService.Lottery}" Icon="{StaticResource Icon.Lottery}"
-                Purpose="报名、开奖和中奖名单" Size="横屏 1920 × 1080 · 竖屏 1080 × 1920" />
-              <local:WebPageRow x:Name="GiftBoardRow" Classes="divided" DataContext="{Binding WebService.GiftBoard}" Icon="{StaticResource Icon.Trophy}"
-                Purpose="送礼观众的排行" Size="480 × 1000，可以等比放大" />
-              <local:WebPageRow x:Name="DesktopPetRow" Classes="divided" DataContext="{Binding WebService.DesktopPet}" Icon="{StaticResource Icon.Pet}"
-                Purpose="桌宠在直播画面一角表演" Size="480 × 640" />
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="label" Text="打开时自动更新" />
+              <TextBlock Classes="hint" Text="有新版本就在启动页上下载安装；关掉后一直用当前版本" />
             </StackPanel>
-          </Border>
+            <ToggleSwitch Grid.Column="1" x:Name="AutoUpdateInput" Classes="plain" AutomationProperties.Name="打开时自动更新" />
+          </Grid>
+          <TextBlock x:Name="AutoUpdateReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
         </StackPanel>
+        <TextBlock Classes="section" Text="日志" />
+        <StackPanel Spacing="8">
+          <TextBlock Classes="label" Text="日志保留" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <NumericUpDown x:Name="RetentionInput" Minimum="1" Classes.invalid="{Binding #RetentionError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日志保留天数" />
+            <TextBlock Classes="label" Text="天" VerticalAlignment="Center" />
+          </StackPanel>
+          <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+          <TextBlock x:Name="RetentionError" Classes="error" />
+          <TextBlock Classes="label" Text="级别" Margin="0,8,0,0" />
+          <ComboBox x:Name="LogLevelInput" Width="200" HorizontalAlignment="Left" AutomationProperties.Name="日志级别" />
+          <TextBlock x:Name="LogLevelReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+          <TextBlock x:Name="LogLevelError" Classes="error" />
+        </StackPanel>
+        <Button Content="打开设置文件" Click="OpenFile" />
       </StackPanel>
-
-      <TextBlock Classes="label" Text="日志保留" />
-      <StackPanel Orientation="Horizontal" Spacing="8">
-        <NumericUpDown x:Name="RetentionInput" Minimum="1" Classes.invalid="{Binding #RetentionError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="日志保留天数" />
-        <TextBlock Classes="label" Text="天" VerticalAlignment="Center" />
-      </StackPanel>
-      <TextBlock x:Name="RetentionReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-      <TextBlock x:Name="RetentionError" Classes="error" />
-      <TextBlock Classes="label" Text="级别" Margin="0,8,0,0" />
-      <ComboBox x:Name="LogLevelInput" Width="200" HorizontalAlignment="Left" AutomationProperties.Name="日志级别" />
-      <TextBlock x:Name="LogLevelReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-      <TextBlock x:Name="LogLevelError" Classes="error" />
-      <Button Content="打开设置文件" Click="OpenFile" />
       <TextBlock x:Name="UnknownKeysMessage" Text="{Binding $parent[local:SettingsPage].UnknownKeysText}" IsVisible="{Binding $parent[local:SettingsPage].HasUnknownKeys}" Classes="secondary muted" TextWrapping="Wrap" />
     </StackPanel>
   </local:SettingsPage.BodyContent>
+  <local:SettingsPage.BelowBodyContent>
+    <Grid x:Name="PagesTab" Margin="20,0,20,18" ColumnDefinitions="260,*" ColumnSpacing="20">
+      <Border Classes="sideList">
+        <ListBox x:Name="PageList" Classes="nav sideList" SelectionMode="AlwaysSelected" SelectedIndex="0" AutomationProperties.Name="页面">
+          <ListBoxItem x:Name="VideoItem" Tag="{x:Static local:WebPageTexts.Video}" DataContext="{Binding WebService.Video}"><local:WebPageSummary Icon="{StaticResource Icon.Animation}" /></ListBoxItem>
+          <ListBoxItem x:Name="LotteryItem" Tag="{x:Static local:WebPageTexts.Lottery}" DataContext="{Binding WebService.Lottery}"><local:WebPageSummary Icon="{StaticResource Icon.Lottery}" /></ListBoxItem>
+          <ListBoxItem x:Name="GiftBoardItem" Tag="{x:Static local:WebPageTexts.GiftBoard}" DataContext="{Binding WebService.GiftBoard}"><local:WebPageSummary Icon="{StaticResource Icon.Trophy}" /></ListBoxItem>
+          <ListBoxItem x:Name="DesktopPetItem" Tag="{x:Static local:WebPageTexts.DesktopPet}" DataContext="{Binding WebService.DesktopPet}"><local:WebPageSummary Icon="{StaticResource Icon.Pet}" /></ListBoxItem>
+        </ListBox>
+      </Border>
+      <ScrollViewer Grid.Column="1" x:Name="PageDetailScroll" HorizontalScrollBarVisibility="Disabled">
+        <Panel Button.Click="CopyPageAddress">
+          <local:WebPageDetail x:Name="VideoDetail" IsVisible="{Binding #VideoItem.IsSelected}" DataContext="{Binding WebService.Video}"
+            Icon="{StaticResource Icon.Animation}" Purpose="欢迎动画、进场动画和送礼动画在这里播放" Size="1920 × 1080" />
+          <local:WebPageDetail x:Name="LotteryDetail" IsVisible="{Binding #LotteryItem.IsSelected}" DataContext="{Binding WebService.Lottery}"
+            Icon="{StaticResource Icon.Lottery}" Purpose="报名、开奖和中奖名单" Size="横屏 1920 × 1080 · 竖屏 1080 × 1920" />
+          <local:WebPageDetail x:Name="GiftBoardDetail" IsVisible="{Binding #GiftBoardItem.IsSelected}" DataContext="{Binding WebService.GiftBoard}"
+            Icon="{StaticResource Icon.Trophy}" Purpose="送礼观众的排行" Size="480 × 1000，可以等比放大" />
+          <local:WebPageDetail x:Name="DesktopPetDetail" IsVisible="{Binding #DesktopPetItem.IsSelected}" DataContext="{Binding WebService.DesktopPet}"
+            Icon="{StaticResource Icon.Pet}" Purpose="桌宠在直播画面一角表演" Size="480 × 640" />
+        </Panel>
+      </ScrollViewer>
+    </Grid>
+  </local:SettingsPage.BelowBodyContent>
 </local:SettingsPage>

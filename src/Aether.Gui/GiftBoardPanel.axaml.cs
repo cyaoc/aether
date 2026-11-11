@@ -4,12 +4,12 @@ namespace Aether.Gui;
 
 public partial class GiftBoardPanel : UserControl
 {
-    public event Action? GeneralSettingsRequested;
+    public event Action<WebPageTexts>? GeneralSettingsRequested;
 
     public GiftBoardPanel()
     {
         InitializeComponent();
-        PageStatus.GeneralSettingsRequested += () => GeneralSettingsRequested?.Invoke();
+        PageStatus.GeneralSettingsRequested += page => GeneralSettingsRequested?.Invoke(page);
         EndButton.Click += (_, _) => Board?.AskEnd();
         ContinueButton.Click += async (_, _) => { if (Board is { } board) await board.ContinueAsync(); };
         NewPeriodButton.Click += async (_, _) => { if (DataContext is MainWindowViewModel view) await view.GiftBoard.AskNewPeriodAsync(view.RoomNumber); };
