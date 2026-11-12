@@ -210,7 +210,7 @@ const LINES = {
   骑车摔倒: ['车、车子不听话…', '呜…又摔了…'],
   滑雪: ['滑雪好开心～', '看我的！'], 滑雪摔跤: ['噗…全是雪…', '雪、雪好冰！'], 拍拍土: ['拍拍土…没事没事！', '再来！这次小心点～'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了']
 };
-const NAMES = { 普通昵称: '星河', 长昵称: '这是一个非常非常长的昵称啊', 中英混排: 'Lily月下' };
+const NAMES = { 普通昵称: '星河', 长昵称: '星河一只很长的昵称啊啊啊啊长长长长长长长', 中英混排: 'Lily月下' };
 const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 中礼物: '告白气球', 大礼物: '小电视飞船', '盲盒·小': '棉花糖', '盲盒·中': '爱心抱枕', '盲盒·大': '爱心抱枕', 城堡: '浪漫城堡' };
 // A viewer's gift round ends after this much silence (README 2); the 中礼物 and 大礼物 thresholds, in 电池 (the GUI defaults).
 const ROUND_GAP = 3000, MID = 1000, BIG = 10000;
@@ -228,7 +228,9 @@ const GIFT_SHOWS = ['普通礼物', '连着送', '中礼物', '大礼物', '城�
 // Which lines a blind box's ending says.
 const BOX_LINES = { 赚: '盲盒赚了', 平: '盲盒不赚不亏', 亏: '盲盒亏了', 大奖: '盲盒出大奖' };
 const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
-const SPRITE_H = 76, NAME_MAX = 8, SPRITE_SPEED = 0.8;
+const SPRITE_H = 76, SPRITE_SPEED = 0.8;
+// How high she rises in each hop up or down the 总督's stair of light (README 3, 7).
+const HOP = 40;
 // Every pose sheet's cell 1 and every prop are drawn by codex beside the same standing drawing, ANCHOR px tall (gen-sheet.py,
 // gen-prop.py), so one scale, H / ANCHOR, puts all of them on the page at her size. Points of a prop are in its own px: the
 // flagship's bow deck where she stood when it was drawn, and its mainmast top for the sprite.
@@ -266,6 +268,8 @@ const bump = (t, a, b) => Math.sin(Math.PI * k01(t, a, b));
 const xfade = u => [1 - ease(k01(u, 60, 150)), ease(k01(u, 0, 90))];
 // The 礼物榜页's text font, which the 桌宠页 draws in too.
 const SANS = '"Noto Sans SC", "PingFang SC", sans-serif';
+// Her speech bubble, all of it, at 28 px text instead of 18, legible on a phone at 1080p (README 7).
+const BUBBLE_SCALE = 28 / 18, BUBBLE_FONT = `500 ${18 * BUBBLE_SCALE}px ${SANS}`;
 const at = (t, list) => { let v = list[0][1]; for (const [s, x] of list) if (t >= s) v = x; return v; };
 
 class Component extends DCLogic {
@@ -686,7 +690,7 @@ class Component extends DCLogic {
     st.ship = { x: deck.x, y: deck.y, s, a: k01(t, 1500, 1900) * (1 - k01(t, 13300, 14000)) };
     const mast = this.shipPoint(st.ship, PROPS.flagship.mast);
     // up the stair in three hops, and down again
-    const climb = (a, b, from, to) => { const w = k01(t, a, b), hopN = Math.floor(w * 3), u = w * 3 - hopN; return { x: from.x + (to.x - from.x) * w, y: from.y + (to.y - from.y) * w - 40 * Math.sin(Math.PI * Math.min(1, u)) }; };
+    const climb = (a, b, from, to) => { const w = k01(t, a, b), hopN = Math.floor(w * 3), u = w * 3 - hopN; return { x: from.x + (to.x - from.x) * w, y: from.y + (to.y - from.y) * w - HOP * Math.sin(Math.PI * Math.min(1, u)) }; };
     if (t >= 5500 && t < 6500) Object.assign(st, climb(5500, 6500, FOOT, deck));
     else if (t >= 6500 && t < 11400) { st.x = deck.x; st.y = deck.y; }
     else if (t >= 11400 && t < 12000) Object.assign(st, climb(11400, 12000, deck, FOOT));
@@ -767,10 +771,10 @@ class Component extends DCLogic {
   // Tossed up by her cheer: over her head for a moment, then circling her.
   // She tosses it up over her head: it flies up, hangs there hopping for joy, and only then comes down to circle her. The
   // toss used to last 350 ms, about the flight up, so it started down the moment it got there (用户：一上头顶就下来了).
-  // It hangs above her speech bubble, two lines of it too, not behind it.
+  // It hangs above her speech bubble, however many lines it has, not behind it.
   toss(st, t, a, hold = 1100) {
     st.sprite = 'sHappy';
-    if (t < a + 350 + hold) st.sp = ['rel', 0.5, -0.5 - 0.05 * Math.abs(Math.sin(Math.max(0, t - a - 350) / 170))];
+    if (t < a + 350 + hold) st.sp = ['tossed', 0.05 * Math.abs(Math.sin(Math.max(0, t - a - 350) / 170))];
     else st.orbit = t - a - 350 - hold;
   }
 
@@ -854,9 +858,7 @@ class Component extends DCLogic {
 
   fill(text, name, opts = {}) {
     if (!text) return text;
-    let nick = this.cfg.name;
-    if ([...nick].length > NAME_MAX) nick = [...nick].slice(0, NAME_MAX - 1).join('') + '…';
-    return text.replaceAll('{昵称}', nick).replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3))
+    return text.replaceAll('{昵称}', this.cfg.name).replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3))
       .replaceAll('{关键字}', '抽奖').replaceAll('{奖项}', '一等奖').replaceAll('{奖品}', '定制周边');
   }
 
@@ -869,7 +871,7 @@ class Component extends DCLogic {
       this.root = root; this.boundCfg = this.cfg;
       for (const a of root.getAnimations()) a.cancel();
       this.master = root.animate([{ outlineColor: 'transparent' }, { outlineColor: 'transparent' }], { duration: 1e9 });
-      this.reset(); this.sv = this.hv = this.sc = null;
+      this.reset(); this.sv = this.hv = this.sc = this.bubSide = null;
     }
     const now = this.clock = this.now();
     let st;
@@ -922,7 +924,9 @@ class Component extends DCLogic {
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt)) * this.cfg.speed;
     this.rt = rt;
     const her = this.herBox(st);
-    const target = this.spritePos(st, her, now), sp = target && this.follow(target, dt, st);
+    const bub = st.bubble?.text && this.bubbleBox(g, st, her, this.bubSide);
+    this.bubSide = bub?.side;
+    const target = this.spritePos(st, her, now, bub), sp = target && this.follow(target, dt, st);
     if (sp) { this.trail = (this.trail || []).filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) this.drawFx(g, f, st, her, now);
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
@@ -930,7 +934,7 @@ class Component extends DCLogic {
     if (sp && !st.sBehind) this.drawSprite(g, st, sp, now);
     if (st.gift) this.drawGift(g, st.gift);
     for (const f of st.fx) if (!BACK.has(f[0])) this.drawFx(g, f, st, her, now);
-    if (st.bubble?.text) this.drawBubble(g, st.bubble, her);
+    if (bub) this.drawBubble(g, st.bubble, bub);
     g.restore();
     if (this.cfg.caption) this.drawCaption(g, st, now, px, py);
   }
@@ -1015,8 +1019,9 @@ class Component extends DCLogic {
   home(now) { return { x: FOOT.x + this.herLeft - SPRITE_H * 0.22, y: FOOT.y - 0.3 * H + 4 * Math.sin(now / 700) }; }
 
   // st.sp: null (home), ['home', dx, dy] (home moved by), ['rel', fx, fy] (a point of her drawing's box, as fractions of
-  // it), ['at', x, y] (a page point), or the named spots below.
-  spritePos(st, her, now) {
+  // it), ['at', x, y] (a page point), ['tossed', hop] (over her head, hopping by hop of her height, and above bub, her
+  // bubble, when that is over her head, however many lines it has), or the named spots below.
+  spritePos(st, her, now, bub) {
     if (st.orbit == null) this.orb = null;
     if (st.sp?.[0] === 'gone') return null;
     const home = this.home(now);
@@ -1036,11 +1041,13 @@ class Component extends DCLogic {
     }
     if (!st.sp) return home;
     if (st.sp[0] === 'home') return { x: home.x + st.sp[1], y: home.y + st.sp[2] };
-    if (st.sp[0] === 'rel') return { x: her.x + her.w * st.sp[1], y: her.y + her.h * st.sp[2] };
+    const rel = (fx, fy) => ({ x: her.x + her.w * fx, y: her.y + her.h * fy });
+    if (st.sp[0] === 'rel') return rel(st.sp[1], st.sp[2]);
     if (st.sp[0] === 'at') return { x: st.sp[1], y: st.sp[2] };
     if (st.sp === 'head') return { x: her.x + her.w * 0.25, y: her.y - SPRITE_H * 0.2 + 3 * Math.sin(now / 500) };
     if (st.sp === 'knee') return { x: her.x + her.w * 0.94, y: FOOT.y - 42 + 2 * Math.sin(now / 900) };
     if (st.sp[0] === 'crown') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1], d = st.sp[2]; return { x: home.x + (top.x - home.x) * p, y: home.y + (top.y - home.y) * p + 26 * d }; }
+    if (st.sp[0] === 'tossed') return rel(0.5, (bub && !bub.side ? Math.min(-0.5, (bub.y - SPRITE_H * 0.55 - her.y) / her.h) : -0.5) - st.sp[1]);
     if (st.sp[0] === 'home-from-top') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1]; return { x: top.x + (home.x - top.x) * p, y: top.y + (home.y - top.y) * p }; }
     if (st.sp[0] === 'to-castle') { const p = st.sp[1]; return { x: home.x + (FOOT.x - home.x) * p, y: home.y + (300 - home.y) * p, scale: st.sp[2] }; }
     if (st.sp[0] === 'mast') return { x: st.sp[1], y: st.sp[2] };
@@ -1157,27 +1164,49 @@ class Component extends DCLogic {
     }
   }
 
-  drawBubble(g, b, her) {
-    const pop = 0.6 + 0.4 * ease(k01(b.t, 0, 160)), alpha = k01(b.t, 0, 120);
-    g.save();
-    g.font = `500 18px ${SANS}`;
-    const maxW = 230, lines = [];
-    let cur = '';
+  // Her speech bubble's lines and box: over her head, or, where that runs off the top of the page (her on the 总督's deck, a
+  // long nickname), beside her face on her roomier side from her eye line, clear of her hat and the emblem. One at a point
+  // (the castle's gate) stays over it. side: 0 over her, 1 on her right, -1 on her left. Whether it fits over her head goes
+  // by the top of her head standing (her feet less H), not of her drawing, which her jump's frames move by 60-70 px; and
+  // once beside her (was, its side the frame before) it goes back only with a HOP more room, or her hops up and down the
+  // 总督's stair would flip it back and forth in the middle of a line. A new bubble after none is placed afresh.
+  bubbleBox(g, st, her, was) {
+    const b = st.bubble, s = BUBBLE_SCALE;
     // a line never starts with closing punctuation: it stays on the line before, a little over the width
-    for (const ch of [...b.text]) { if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
-    lines.push(cur);
-    const w = Math.max(...lines.map(l => g.measureText(l).width)) + 26, h = lines.length * 24 + 16;
-    const anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
-    const x = clamp(anchor.x - w / 2 + 30, 10, PAGE.w - w - 10), y = clamp(anchor.y - h - 14, 8, PAGE.h - h - 8);
+    const wrap = maxW => {
+      g.save(); g.font = BUBBLE_FONT;
+      const lines = [];
+      let cur = '';
+      for (const ch of [...b.text]) { if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
+      lines.push(cur);
+      const w = Math.max(...lines.map(l => g.measureText(l).width)) + 26 * s;
+      g.restore();
+      return { lines, w, h: (lines.length * 24 + 16) * s };
+    };
+    const up = wrap(230 * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
+    if (b.at || st.y - H * st.s - 6 - up.h - 14 * s >= 8 + (was ? HOP : 0)) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
+    const l = her.x + her.w * 0.15, r = her.x + her.w * 0.85, side = PAGE.w - r >= l ? 1 : -1;  // her head's edges
+    const beside = wrap(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
+    return { ...beside, x: side > 0 ? r + 14 * s : l - 14 * s - beside.w, y: clamp(her.y + her.h * 0.3, 8, PAGE.h - beside.h - 8), tip: { x: side > 0 ? r : l, y: her.y + her.h * 0.42 }, side };
+  }
+
+  drawBubble(g, b, { lines, x, y, w, h, tip, side }) {
+    const pop = 0.6 + 0.4 * ease(k01(b.t, 0, 160)), alpha = k01(b.t, 0, 120), s = BUBBLE_SCALE;
+    g.save();
+    // it pops out of its edge by her: its bottom over her head, its side beside her face
+    const ox = x + w * (1 - side) / 2, oy = side ? y + h / 2 : y + h;
     g.globalAlpha = alpha;
-    g.translate(x + w / 2, y + h); g.scale(pop, pop); g.translate(-(x + w / 2), -(y + h));
-    g.fillStyle = '#fff'; g.strokeStyle = '#F0A3C0'; g.lineWidth = 2.5;
-    g.beginPath(); g.roundRect(x, y, w, h, 14); g.fill(); g.stroke();
-    const tx = clamp(anchor.x, x + 22, x + w - 22);
-    g.beginPath(); g.moveTo(tx - 9, y + h - 1); g.lineTo(tx - 4, y + h + 13); g.lineTo(tx + 8, y + h - 1); g.closePath(); g.fill();
-    g.beginPath(); g.moveTo(tx - 9, y + h); g.lineTo(tx - 4, y + h + 13); g.lineTo(tx + 8, y + h); g.stroke();
-    g.fillStyle = '#4A3742'; g.textBaseline = 'top';
-    lines.forEach((l, i) => g.fillText(l, x + 13, y + 9 + i * 24));
+    g.translate(ox, oy); g.scale(pop, pop); g.translate(-ox, -oy);
+    g.fillStyle = '#fff'; g.strokeStyle = '#F0A3C0'; g.lineWidth = 2.5 * s;
+    g.beginPath(); g.roundRect(x, y, w, h, 14 * s); g.fill(); g.stroke();
+    // the tail, drawn pointing down from that edge, is turned to point sideways at her cheek beside her face
+    g.save();
+    if (side) g.transform(0, 1, -side, 0, ox, clamp(tip.y, y + 22 * s, y + h - 22 * s)); else g.translate(clamp(tip.x, x + 22 * s, x + w - 22 * s), oy);
+    g.beginPath(); g.moveTo(-9 * s, -1); g.lineTo(-4 * s, 13 * s); g.lineTo(8 * s, -1); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(-9 * s, 0); g.lineTo(-4 * s, 13 * s); g.lineTo(8 * s, 0); g.stroke();
+    g.restore();
+    g.font = BUBBLE_FONT; g.fillStyle = '#4A3742'; g.textBaseline = 'top';
+    lines.forEach((l, i) => g.fillText(l, x + 13 * s, y + (9 + i * 24) * s));
     g.restore();
   }
 

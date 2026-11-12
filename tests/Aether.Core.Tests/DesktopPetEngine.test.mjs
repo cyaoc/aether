@@ -91,6 +91,16 @@ test('an entry plays only while she is idle, over no show nor 日常小动作, a
   assert.equal(engine.cur, daily);
 });
 
+test('her line says a viewer\'s whole nickname, however long', () => {
+  const engine = pet(), nickname = '星河一只很长的昵称啊啊啊啊长长长长长长长';
+  engine.entry({ uid: 1, nickname });
+  advance(engine, 500);
+  const text = engine.stateAt(engine.now()).bubble.text;
+  assert.ok(text.includes(nickname));
+  // her line as written: no … put in for a cut, though her entry lines have their own
+  assert.ok(lines.entry.includes(text.replace(nickname, '{昵称}')));
+});
+
 test('an entry does not play while she shakes a round\'s blind boxes', () => {
   const engine = pet();
   engine.gift(round(1, { boxes: 1, boxSpend: 15000 }));

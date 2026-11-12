@@ -108,7 +108,8 @@ const BLIND_BOX = 'blindBox';
 const BOX_LINES = { Gain: 'blindBoxGain', Even: 'blindBoxEven', Loss: 'blindBoxLoss', Jackpot: 'blindBoxJackpot' };
 export const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
 export const SPRITE_H = 76;
-const NAME_MAX = 8;
+// How high she rises in each hop up or down the 总督's stair of light (README 3, 7).
+export const HOP = 40;
 // The sports (README 6), each in its own outfit: the sprite dresses her for it, she gets ready and goes for act ms; then
 // she stops (calm) or, now and then, it goes wrong (fall); then the sprite dresses her back. [ms after the stop, pose];
 // lines: [ms after it goes wrong, what she says], each line matching what she does then (no plaster talk without a plaster);
@@ -619,7 +620,7 @@ export class Engine extends EventTarget {
     st.ship = { x: deck.x, y: deck.y, s, a: k01(t, 1500, 1900) * (1 - k01(t, 13300, 14000)) };
     const mast = this.shipPoint(st.ship, this.art.points.flagship.mast);
     // up the stair in three hops, and down again
-    const climb = (a, b, from, to) => { const w = k01(t, a, b), hopN = Math.floor(w * 3), u = w * 3 - hopN; return { x: from.x + (to.x - from.x) * w, y: from.y + (to.y - from.y) * w - 40 * Math.sin(Math.PI * Math.min(1, u)) }; };
+    const climb = (a, b, from, to) => { const w = k01(t, a, b), hopN = Math.floor(w * 3), u = w * 3 - hopN; return { x: from.x + (to.x - from.x) * w, y: from.y + (to.y - from.y) * w - HOP * Math.sin(Math.PI * Math.min(1, u)) }; };
     if (t >= 5500 && t < 6500) Object.assign(st, climb(5500, 6500, FOOT, deck));
     else if (t >= 6500 && t < 11400) { st.x = deck.x; st.y = deck.y; }
     else if (t >= 11400 && t < 12000) Object.assign(st, climb(11400, 12000, deck, FOOT));
@@ -730,10 +731,10 @@ export class Engine extends EventTarget {
 
   // She tosses it up over her head: it flies up, hangs there hopping for joy, and only then comes down to circle her. The
   // toss used to last 350 ms, about the flight up, so it started down the moment it got there (用户：一上头顶就下来了).
-  // It hangs above her speech bubble, two lines of it too, not behind it.
+  // It hangs above her speech bubble, however many lines it has, not behind it.
   toss(st, t, a, hold = 1100) {
     st.sprite = 'sHappy';
-    if (t < a + 350 + hold) st.sp = ['rel', 0.5, -0.5 - 0.05 * Math.abs(Math.sin(Math.max(0, t - a - 350) / 170))];
+    if (t < a + 350 + hold) st.sp = ['tossed', 0.05 * Math.abs(Math.sin(Math.max(0, t - a - 350) / 170))];
     else st.orbit = t - a - 350 - hold;
   }
 
@@ -748,9 +749,7 @@ export class Engine extends EventTarget {
 
   fill(text, name, opts = {}) {
     if (!text) return text;
-    let nick = opts.nickname ?? '';
-    if ([...nick].length > NAME_MAX) nick = [...nick].slice(0, NAME_MAX - 1).join('') + '…';
-    return text.replaceAll('{昵称}', nick).replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3))
+    return text.replaceAll('{昵称}', opts.nickname ?? '').replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3))
       .replaceAll('{关键字}', opts.keyword ?? LOTTERY_TRIAL.keyword).replaceAll('{奖项}', opts.award ?? LOTTERY_TRIAL.award).replaceAll('{奖品}', opts.prize ?? LOTTERY_TRIAL.prize);
   }
 }

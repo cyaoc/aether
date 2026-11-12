@@ -1,11 +1,13 @@
 // The 桌宠 on the 桌宠页's canvas, drawn as the design package's board draws her (DP-DesktopPet.dc.html), from the current
 // character's Q 版 pictures and the numbers in her manifest (characters/README.md, desktopPet).
 import { loadImage } from '../video/animations/toolkit.mjs';
-import { Engine, FOOT, GLOW, H, PAGE, SPRITE_H, clamp, ease, k01, xfade } from './engine.mjs';
+import { Engine, FOOT, GLOW, H, HOP, PAGE, SPRITE_H, clamp, ease, k01, xfade } from './engine.mjs';
 import { BACK, drawFx } from './effects.mjs';
 import { SANS } from '../gift-board/paint.mjs';
 
 const SPRITE_SPEED = 0.8;
+// Her speech bubble, all of it, at 28 px text instead of 18, legible on a phone at 1080p (README 7).
+const BUBBLE_SCALE = 28 / 18, BUBBLE_FONT = `500 ${18 * BUBBLE_SCALE}px ${SANS}`;
 // The sprite keeps these drawings while it flies, since they carry something.
 const CARRY = new Set(['crown', 'glow']);
 // The sheets a show or 日常小动作 needs beyond those she always has: they load when it starts (the lottery's too as she waits
@@ -142,7 +144,9 @@ export class Pet extends Engine {
     // a pose whose sheet is still loading: she keeps the drawing she has until it is there, on the first frame idle's (boot)
     if (!this.cells[this.art.poses[st.pose][0]]) st.pose = this.hv?.pose ?? 'idle';
     const her = this.herBox(st);
-    const target = this.spritePos(st, her, now), sp = target && this.follow(target, dt, st);
+    const bub = st.bubble?.text && this.bubbleBox(g, st, her, this.bubSide);
+    this.bubSide = bub?.side;
+    const target = this.spritePos(st, her, now, bub), sp = target && this.follow(target, dt, st);
     if (sp) { this.trail = this.trail.filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) drawFx(g, f, st, her, now, this);
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
@@ -150,7 +154,7 @@ export class Pet extends Engine {
     if (sp && !st.sBehind) this.drawSprite(g, st, sp, now);
     if (st.gift) this.drawGift(g, st.gift);
     for (const f of st.fx) if (!BACK.has(f[0])) drawFx(g, f, st, her, now, this);
-    if (st.bubble?.text) this.drawBubble(g, st.bubble, her);
+    if (bub) this.drawBubble(g, st.bubble, bub);
     g.restore();
   }
 
@@ -231,8 +235,9 @@ export class Pet extends Engine {
   }
 
   // st.sp: null (home), ['home', dx, dy] (home moved by), ['rel', fx, fy] (a point of her drawing's box, as fractions of
-  // it), ['at', x, y] (a page point), or the named spots below.
-  spritePos(st, her, now) {
+  // it), ['at', x, y] (a page point), ['tossed', hop] (over her head, hopping by hop of her height, and above bub, her
+  // bubble, when that is over her head, however many lines it has), or the named spots below.
+  spritePos(st, her, now, bub) {
     if (st.orbit == null) this.orb = null;
     if (st.sp?.[0] === 'gone') return null;
     const home = this.home(now);
@@ -251,11 +256,13 @@ export class Pet extends Engine {
     }
     if (!st.sp) return home;
     if (st.sp[0] === 'home') return { x: home.x + st.sp[1], y: home.y + st.sp[2] };
-    if (st.sp[0] === 'rel') return { x: her.x + her.w * st.sp[1], y: her.y + her.h * st.sp[2] };
+    const rel = (fx, fy) => ({ x: her.x + her.w * fx, y: her.y + her.h * fy });
+    if (st.sp[0] === 'rel') return rel(st.sp[1], st.sp[2]);
     if (st.sp[0] === 'at') return { x: st.sp[1], y: st.sp[2] };
     if (st.sp === 'head') return { x: her.x + her.w * 0.25, y: her.y - SPRITE_H * 0.2 + 3 * Math.sin(now / 500) };
     if (st.sp === 'knee') return { x: her.x + her.w * 0.94, y: FOOT.y - 42 + 2 * Math.sin(now / 900) };
     if (st.sp[0] === 'crown') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1], d = st.sp[2]; return { x: home.x + (top.x - home.x) * p, y: home.y + (top.y - home.y) * p + 26 * d }; }
+    if (st.sp[0] === 'tossed') return rel(0.5, (bub && !bub.side ? Math.min(-0.5, (bub.y - SPRITE_H * 0.55 - her.y) / her.h) : -0.5) - st.sp[1]);
     if (st.sp[0] === 'home-from-top') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1]; return { x: top.x + (home.x - top.x) * p, y: top.y + (home.y - top.y) * p }; }
     if (st.sp[0] === 'to-castle') { const p = st.sp[1]; return { x: home.x + (FOOT.x - home.x) * p, y: home.y + (300 - home.y) * p, scale: st.sp[2] }; }
     if (st.sp[0] === 'mast') return { x: st.sp[1], y: st.sp[2] };
@@ -373,27 +380,49 @@ export class Pet extends Engine {
     }
   }
 
-  drawBubble(g, b, her) {
-    const pop = 0.6 + 0.4 * ease(k01(b.t, 0, 160)), alpha = k01(b.t, 0, 120);
-    g.save();
-    g.font = `500 18px ${SANS}`;
-    const maxW = 230, lines = [];
-    let cur = '';
+  // Her speech bubble's lines and box: over her head, or, where that runs off the top of the page (her on the 总督's deck, a
+  // long nickname), beside her face on her roomier side from her eye line, clear of her hat and the emblem. One at a point
+  // (the castle's gate) stays over it. side: 0 over her, 1 on her right, -1 on her left. Whether it fits over her head goes
+  // by the top of her head standing (her feet less H), not of her drawing, which her jump's frames move by 60-70 px; and
+  // once beside her (was, its side the frame before) it goes back only with a HOP more room, or her hops up and down the
+  // 总督's stair would flip it back and forth in the middle of a line. A new bubble after none is placed afresh.
+  bubbleBox(g, st, her, was) {
+    const b = st.bubble, s = BUBBLE_SCALE;
     // a line never starts with closing punctuation: it stays on the line before, a little over the width
-    for (const ch of [...b.text]) { if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
-    lines.push(cur);
-    const w = Math.max(...lines.map(l => g.measureText(l).width)) + 26, h = lines.length * 24 + 16;
-    const anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
-    const x = clamp(anchor.x - w / 2 + 30, 10, PAGE.w - w - 10), y = clamp(anchor.y - h - 14, 8, PAGE.h - h - 8);
+    const wrap = maxW => {
+      g.save(); g.font = BUBBLE_FONT;
+      const lines = [];
+      let cur = '';
+      for (const ch of [...b.text]) { if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
+      lines.push(cur);
+      const w = Math.max(...lines.map(l => g.measureText(l).width)) + 26 * s;
+      g.restore();
+      return { lines, w, h: (lines.length * 24 + 16) * s };
+    };
+    const up = wrap(230 * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
+    if (b.at || st.y - H * st.s - 6 - up.h - 14 * s >= 8 + (was ? HOP : 0)) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
+    const l = her.x + her.w * 0.15, r = her.x + her.w * 0.85, side = PAGE.w - r >= l ? 1 : -1;  // her head's edges
+    const beside = wrap(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
+    return { ...beside, x: side > 0 ? r + 14 * s : l - 14 * s - beside.w, y: clamp(her.y + her.h * 0.3, 8, PAGE.h - beside.h - 8), tip: { x: side > 0 ? r : l, y: her.y + her.h * 0.42 }, side };
+  }
+
+  drawBubble(g, b, { lines, x, y, w, h, tip, side }) {
+    const pop = 0.6 + 0.4 * ease(k01(b.t, 0, 160)), alpha = k01(b.t, 0, 120), s = BUBBLE_SCALE;
+    g.save();
+    // it pops out of its edge by her: its bottom over her head, its side beside her face
+    const ox = x + w * (1 - side) / 2, oy = side ? y + h / 2 : y + h;
     g.globalAlpha = alpha;
-    g.translate(x + w / 2, y + h); g.scale(pop, pop); g.translate(-(x + w / 2), -(y + h));
-    g.fillStyle = '#fff'; g.strokeStyle = '#F0A3C0'; g.lineWidth = 2.5;
-    g.beginPath(); g.roundRect(x, y, w, h, 14); g.fill(); g.stroke();
-    const tx = clamp(anchor.x, x + 22, x + w - 22);
-    g.beginPath(); g.moveTo(tx - 9, y + h - 1); g.lineTo(tx - 4, y + h + 13); g.lineTo(tx + 8, y + h - 1); g.closePath(); g.fill();
-    g.beginPath(); g.moveTo(tx - 9, y + h); g.lineTo(tx - 4, y + h + 13); g.lineTo(tx + 8, y + h); g.stroke();
-    g.fillStyle = '#4A3742'; g.textBaseline = 'top';
-    lines.forEach((l, i) => g.fillText(l, x + 13, y + 9 + i * 24));
+    g.translate(ox, oy); g.scale(pop, pop); g.translate(-ox, -oy);
+    g.fillStyle = '#fff'; g.strokeStyle = '#F0A3C0'; g.lineWidth = 2.5 * s;
+    g.beginPath(); g.roundRect(x, y, w, h, 14 * s); g.fill(); g.stroke();
+    // the tail, drawn pointing down from that edge, is turned to point sideways at her cheek beside her face
+    g.save();
+    if (side) g.transform(0, 1, -side, 0, ox, clamp(tip.y, y + 22 * s, y + h - 22 * s)); else g.translate(clamp(tip.x, x + 22 * s, x + w - 22 * s), oy);
+    g.beginPath(); g.moveTo(-9 * s, -1); g.lineTo(-4 * s, 13 * s); g.lineTo(8 * s, -1); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(-9 * s, 0); g.lineTo(-4 * s, 13 * s); g.lineTo(8 * s, 0); g.stroke();
+    g.restore();
+    g.font = BUBBLE_FONT; g.fillStyle = '#4A3742'; g.textBaseline = 'top';
+    lines.forEach((l, i) => g.fillText(l, x + 13 * s, y + (9 + i * 24) * s));
     g.restore();
   }
 
