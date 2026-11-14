@@ -59,9 +59,10 @@
     "tug>flat": "pkDeflate",
     "carry>startle": "pkLetGo",
     "tug>startle": "pkLetGoTug",
-    "startle>flee": "pkBolt"
+    "startle>flee": "pkBolt",
+    "laugh>idle": "pkLaughOut"
   },
-  "cuts": ["peek>carry", "carry>fall", "fall>dazed", "tumble>shake", "sit>knocked", "laugh>idle"],
+  "cuts": ["peek>carry", "carry>fall", "fall>dazed", "tumble>shake", "sit>knocked"],
   "frames": {
     "pkBolt": "frames/pkBolt.webp",
     "pkDeflate": "frames/pkDeflate.webp",
@@ -69,6 +70,7 @@
     "pkHaul": "frames/pkHaul.webp",
     "pkHaulIn": "frames/pkHaulIn.webp",
     "pkLaugh": "frames/pkLaugh.webp",
+    "pkLaughOut": "frames/pkLaughOut.webp",
     "pkLetGo": "frames/pkLetGo.webp",
     "pkLetGoTug": "frames/pkLetGoTug.webp",
     "pkOuch": "frames/pkOuch.webp",
