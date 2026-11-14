@@ -17,13 +17,12 @@ internal sealed class DesktopPet(WebService service, Character character)
     // plays it. A page reports a 试演 it played after another started, so only the one that plays is over.
     private int trials;
     private (int Id, WebService.Connection[] Pages)? trial;
-    // 叫它来 told the pages and none has said the 捣蛋鬼 set off; how many said it set off and not yet that it left; and the pages
-    // there as it was told or set off last: once none of them is left, it has not come.
-    // shortcut: reports do not say which page sent them, so with two streaming software open, one reloaded during a 来访 counts it
-    // on until the other goes too; tell the page apart in its reports if that is ever seen.
+    // 叫它来 told the pages and none has said the 捣蛋鬼 set off, and the pages told it: once none of them is left, it has not come.
+    // The pages, by their ids, that said it set off and not yet that it left: one gone, as the streaming software reloaded it,
+    // has it no more.
     private bool summoned;
-    private int visiting;
-    private WebService.Connection[] visitPages = [];
+    private WebService.Connection[] summonPages = [];
+    private readonly HashSet<string> visiting = [];
 
     public Subscribers<SseEvent> Subscribers { get; } = new();
 
@@ -38,13 +37,17 @@ internal sealed class DesktopPet(WebService service, Character character)
 
     /// <summary>Whether the streamer can 叫它来, and where the 捣蛋鬼 is: on the page while any page has it there.</summary>
     public PranksterSummon SummonState => new(WhyNoSummon(),
-        visiting > 0 ? PranksterVisit.OnStage : summoned ? PranksterVisit.OnTheWay : PranksterVisit.Away);
+        visiting.Count > 0 ? PranksterVisit.OnStage : summoned ? PranksterVisit.OnTheWay : PranksterVisit.Away);
 
     /// <summary>New settings may turn the 桌宠 on or off, and change how she plays and what she says; off, she plays no 试演 and the
     /// 捣蛋鬼 is gone.</summary>
     public void Applied()
     {
-        if (!Enabled) (trial, summoned, visiting) = (null, false, 0);
+        if (!Enabled)
+        {
+            (trial, summoned) = (null, false);
+            visiting.Clear();
+        }
         Subscribers.Publish(State);
         PublishSummon();
     }
@@ -130,7 +133,8 @@ internal sealed class DesktopPet(WebService service, Character character)
     public void ConnectionsChanged()
     {
         if (trial is { } playing && Gone(playing.Pages)) Ended();
-        if (Gone(visitPages)) (summoned, visiting) = (false, 0);
+        if (Gone(summonPages)) summoned = false;
+        visiting.RemoveWhere(page => !Pages.Any(connection => connection.Id == page));
         PublishSummon();
     }
 
@@ -140,25 +144,27 @@ internal sealed class DesktopPet(WebService service, Character character)
     {
         if (SummonState.CanSummon)
         {
-            (summoned, visitPages) = (true, Pages);
+            (summoned, summonPages) = (true, Pages);
             Tell(Summon, new());
         }
         PublishSummon();
     }
 
-    /// <summary>A page reports the 捣蛋鬼 set off, called or on its own: it is on the page until each page it set off on says it
-    /// left.</summary>
-    public void VisitStarted()
+    /// <summary>The page <paramref name="page"/> reports the 捣蛋鬼 set off, called or on its own: it is on the page until each
+    /// page still there that it set off on says it left.</summary>
+    public void VisitStarted(string page)
     {
-        (summoned, visitPages) = (false, Pages);
-        visiting++;
+        summoned = false;
+        if (Pages.Any(connection => connection.Id == page)) visiting.Add(page);
         PublishSummon();
     }
 
-    /// <summary>A page reports the 捣蛋鬼 left, or never set off, as when a PK started while it was on its way.</summary>
-    public void VisitEnded()
+    /// <summary>The page <paramref name="page"/> reports the 捣蛋鬼 left, or never set off, as when a PK started while it was on
+    /// its way.</summary>
+    public void VisitEnded(string page)
     {
-        (summoned, visiting) = (false, Math.Max(0, visiting - 1));
+        summoned = false;
+        visiting.Remove(page);
         PublishSummon();
     }
 

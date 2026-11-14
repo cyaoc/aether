@@ -29,11 +29,12 @@ internal sealed class DesktopPetPage(WebServer server, LotteryFacade lottery, Gi
         return Task.FromResult(true);
     }
 
-    /// <summary>The step a report is: a 试演 over by its number, or the 捣蛋鬼's 来访 starting or ending.</summary>
-    private static Action<WebService>? Report(NameValueCollection query) => query["visit"] switch
+    /// <summary>The step a report is: a 试演 over by its number, or the 捣蛋鬼's 来访 starting or ending on the page of the id
+    /// its events were asked for with.</summary>
+    private static Action<WebService>? Report(NameValueCollection query) => (query["visit"], query["page"]) switch
     {
-        "start" => s => s.DesktopPet.VisitStarted(),
-        "end" => s => s.DesktopPet.VisitEnded(),
+        ("start", { } page) => s => s.DesktopPet.VisitStarted(page),
+        ("end", { } page) => s => s.DesktopPet.VisitEnded(page),
         _ => int.TryParse(query["trial"], NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? s => s.DesktopPet.TestShowEnded(id) : null
     };
 

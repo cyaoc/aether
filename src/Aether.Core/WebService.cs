@@ -36,6 +36,8 @@ internal sealed class WebService
     {
         public HttpListenerResponse Response { get; } = response;
         public WebPage Page { get; } = page;
+        /// <summary>The id the page gave itself, which its reports carry: the 桌宠页's, so Core knows which page has the 捣蛋鬼.</summary>
+        public string? Id { get; init; }
         public SemaphoreSlim WriteLock { get; } = new(1);
         public CancellationTokenSource? StreamStop { get; set; }
     }

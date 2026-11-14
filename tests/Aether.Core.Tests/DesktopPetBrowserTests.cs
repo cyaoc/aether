@@ -47,6 +47,22 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task Called_the_捣蛋鬼_sets_off_on_the_page_which_reports_it_by_the_id_its_events_were_asked_for_with()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+
+        await page.H.Client.WebService.SummonAsync();
+
+        await foreach (var summon in page.H.Client.WebService.GetSummonUpdatesAsync(timeout.Token))
+            if (summon.Visit == PranksterVisit.OnStage) break;
+        Assert.Equal("peek", (await page.Browser.EvaluateAsync("window.pet.gm.visit?.phase")).GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
     public async Task A_daily_actions_pictures_load_when_it_first_plays_not_with_the_page()
     {
         await using var page = await StartAsync();

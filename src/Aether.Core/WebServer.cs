@@ -177,7 +177,7 @@ internal sealed class WebServer
             var name = path.Split('/', 3)[1];
             var page = pages.FirstOrDefault(page => page.Name == name);
             if (page is null) { if (!await ServeResourceAsync(request, response, CharacterFile(path), token)) response.StatusCode = 404; }
-            else if (request.HttpMethod == "GET" && path == $"/{page.Name}/events") keepOpen = await ConnectAsync(page, response, token);
+            else if (request.HttpMethod == "GET" && path == $"/{page.Name}/events") keepOpen = await ConnectAsync(page, response, request.QueryString["page"], token);
             else if (!await ServeResourceAsync(request, response, path == $"/{page.Name}" ? path + "/index.html" : path, token)
                 && !await page.HandleAsync(request, response, token)) response.StatusCode = 404;
         }
@@ -201,12 +201,13 @@ internal sealed class WebServer
             || status.Port == 80 && string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase);
     }
 
-    /// <summary>Connects a streaming software to a page's events; true when the response stays open for later broadcasts.</summary>
-    private async Task<bool> ConnectAsync(WebPage page, HttpListenerResponse response, CancellationToken token)
+    /// <summary>Connects a streaming software to a page's events, by the <paramref name="id"/> the page gave itself if it gave
+    /// one; true when the response stays open for later broadcasts.</summary>
+    private async Task<bool> ConnectAsync(WebPage page, HttpListenerResponse response, string? id, CancellationToken token)
     {
         response.ContentType = "text/event-stream";
         response.SendChunked = true;
-        var connection = new Connection(response, page);
+        var connection = new Connection(response, page) { Id = id };
         if (page.EventsAsync(token) is not { } events)
         {
             await Region.Run(s => s.Connect(connection, token));

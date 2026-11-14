@@ -104,11 +104,11 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
         Assert.Equal(PranksterVisit.OnTheWay, (await NextAsync()).Visit);
 
         await pet.ReportAsync("?visit=start");
-        await pet.ReportAsync("?visit=start");
+        await another.ReportAsync("?visit=start");
         await pet.ReportAsync("?visit=end");
         await h.Client.IdleAsync();
         Assert.Equal(PranksterVisit.OnStage, (await LatestAsync()).Visit);
-        await pet.ReportAsync("?visit=end");
+        await another.ReportAsync("?visit=end");
         Assert.Equal(PranksterVisit.Away, (await NextAsync()).Visit);
 
         // A PK starting while it is on its way has the page say it left before it set off.
@@ -116,6 +116,28 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
         Assert.Equal(PranksterVisit.OnTheWay, (await NextAsync()).Visit);
         await pet.ReportAsync("?visit=end");
         Assert.Equal(PranksterVisit.Away, (await NextAsync()).Visit);
+    }
+
+    [Fact]
+    public async Task A_page_reloaded_in_a_来访_no_longer_has_it_there_so_it_is_away_once_the_other_page_says_it_left()
+    {
+        var (updates, pet) = await ConnectedAsync();
+        using var _ = pet;
+        await using var __ = updates;
+        var reloaded = await DesktopPetEvents.OpenAsync(h);
+        await h.Client.WebService.SummonAsync();
+        await pet.ReportAsync("?visit=start");
+        await reloaded.ReportAsync("?visit=start");
+        Assert.Equal(PranksterVisit.OnStage, (await LatestAsync()).Visit);
+
+        // The streaming software reloads it: the new page opens before the old one is found gone.
+        using var again = await DesktopPetEvents.OpenAsync(h);
+        reloaded.Dispose();
+        await DesktopPetEvents.BeatUntilAsync(h, () => h.Client.WebService.Status.DesktopPetConnections == 2);
+        Assert.Equal(PranksterVisit.OnStage, (await LatestAsync()).Visit);
+        await pet.ReportAsync("?visit=end");
+
+        Assert.Equal(new PranksterSummon(null, PranksterVisit.Away), await NextAsync());
     }
 
     [Fact]
