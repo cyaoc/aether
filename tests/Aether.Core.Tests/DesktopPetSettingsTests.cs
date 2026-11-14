@@ -19,7 +19,22 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
         Assert.Equal(("entry hum", "500 5000", "0 30 90", "10 15", 0), Values(Settings.Load(h.DataDirectory)));
     }
 
+    [Fact]
+    public void Without_its_two_lines_the_prankster_comes_every_30_minutes_and_is_helped_with_捣蛋()
+    {
+        Write("desktop_pet:\n  enabled: true\n");
+        var settings = Settings.Load(h.DataDirectory);
+        Assert.Null(settings.Error);
+        Assert.Equal((30, "捣蛋"), (settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetPranksterKeyword.Value));
+
+        Write("desktop_pet:\n  prankster_minutes: 0\n  prankster_keyword: 帮它\n");
+        settings = Settings.Load(h.DataDirectory);
+        Assert.Equal((0, "帮它"), (settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetPranksterKeyword.Value));
+    }
+
     [Theory]
+    [InlineData("prankster_minutes: -1", "desktop_pet.prankster_minutes", "必须为非负整数。")]
+    [InlineData("prankster_keyword: \"\"", "desktop_pet.prankster_keyword", "必须是非空的一行文字。")]
     [InlineData("shows_off: [entry, nope]", "desktop_pet.shows_off", "演出表里没有能关掉的 nope。")]
     [InlineData("shows_off: [bored]", "desktop_pet.shows_off", "演出表里没有能关掉的 bored。")]
     [InlineData("mid_gift_spend: 0", "desktop_pet.mid_gift_spend", "必须为正整数。")]
@@ -57,6 +72,51 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
 
         Assert.Equal(("desktop_pet.daily_max_seconds", 3), (error.SettingName, error.LineNumber));
         Assert.EndsWith("）：日常小动作的最短间隔不能比最长间隔长。", error.Message);
+    }
+
+    [Theory]
+    [InlineData("blind_box:\n  daily_keyword: 捣蛋\n", "blind_box.daily_keyword", 2, Settings.BlindBoxKeywordIsPrankster)]
+    [InlineData("blind_box:\n  monthly_keyword: 帮它\ndesktop_pet:\n  prankster_keyword: \" 帮它 \"\n", "desktop_pet.prankster_keyword", 4,
+        Settings.PranksterKeywordIsBlindBox)]
+    public void A_file_whose_helper_keyword_is_a_blind_box_query_keyword_reports_it(string yaml, string name, long line, string reason)
+    {
+        Write(yaml);
+
+        var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
+
+        Assert.Equal((name, line), (error.SettingName, error.LineNumber));
+        Assert.EndsWith("）：" + reason, error.Message);
+    }
+
+    [Theory]
+    [InlineData("desktop_pet.prankster_keyword", "今年盲盒")]
+    [InlineData("blind_box.yearly_keyword", "捣蛋")]
+    public void Saving_either_group_with_the_same_keyword_as_the_other_is_refused_without_writing(string name, string keyword)
+    {
+        Settings.Load(h.DataDirectory);
+        var before = File.ReadAllText(SettingsPath);
+
+        var error = Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory, new Dictionary<string, string> { [name] = keyword }));
+
+        Assert.EndsWith("（desktop_pet.prankster_keyword）：和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个", error.Message);
+        Assert.Equal(before, File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("捣蛋", null)]
+    [InlineData(" ", "关键字不能空着")]
+    [InlineData(" 参加 ", "和抽奖报名的关键字一样，观众分不清是在报名还是帮它；换一个")]
+    [InlineData("本月盲盒", "和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个")]
+    public void A_helper_keyword_as_typed_is_checked_against_the_next_entry_lotterys_and_the_saved_blind_box_queries(string keyword, string? reason) =>
+        Assert.Equal(reason, Settings.Load(h.DataDirectory).ValidatePranksterKeyword(keyword, "参加"));
+
+    [Fact]
+    public void A_blind_box_query_keyword_as_typed_is_checked_against_the_saved_helper_keyword()
+    {
+        var settings = Settings.Load(h.DataDirectory);
+
+        Assert.Equal(Settings.BlindBoxKeywordIsPrankster, settings.ValidateBlindBoxKeyword(" 捣蛋"));
+        Assert.Null(settings.ValidateBlindBoxKeyword("今日盲盒"));
     }
 
     [Fact]

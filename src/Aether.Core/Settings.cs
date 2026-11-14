@@ -104,6 +104,10 @@ public sealed partial class Settings
           bored_minutes: 15
           gloomy_minutes: 40
           sleepy_minutes: 60
+          # 宝箱小游戏：捣蛋鬼最多每几分钟自己来一次，有人在看、她闲着时才来；0 表示只在主播叫它时来
+          prankster_minutes: 30
+          # 帮它的关键字，观众发了就站到捣蛋鬼那边；非空文字，不能和下一场报名抽奖、盲盒查询的关键字一样
+          prankster_keyword: 捣蛋
           # 平静时隔几秒做一个日常小动作，在最少和最多之间随机；必须为正整数，最少不能比最多大
           daily_min_seconds: 20
           daily_max_seconds: 40
@@ -173,6 +177,8 @@ public sealed partial class Settings
     private static readonly Definition<int> PetBoredMinutes = Register(Definition.Number("desktop_pet.bored_minutes", 15, "必须为非负整数。", minutes => minutes >= 0));
     private static readonly Definition<int> PetGloomyMinutes = Register(Definition.Number("desktop_pet.gloomy_minutes", 40, "必须为非负整数。", minutes => minutes >= 0));
     private static readonly Definition<int> PetSleepyMinutes = Register(Definition.Number("desktop_pet.sleepy_minutes", 60, "必须为非负整数。", minutes => minutes >= 0));
+    private static readonly Definition<int> PetPranksterMinutes = Register(Definition.Number("desktop_pet.prankster_minutes", 30, "必须为非负整数。", minutes => minutes >= 0));
+    private static readonly Definition<string> PetPranksterKeyword = Register(Definition.RequiredText("desktop_pet.prankster_keyword", "捣蛋"));
     private static readonly Definition<int> PetDailyMin = Register(Definition.Number("desktop_pet.daily_min_seconds", 20, "必须为正整数。", seconds => seconds > 0));
     private static readonly Definition<int> PetDailyMax = Register(Definition.Number("desktop_pet.daily_max_seconds", 40, "必须为正整数。", seconds => seconds > 0));
     private static readonly Definition<int> PetMishapPercent = Register(Definition.Percent("desktop_pet.mishap_percent", 25));
@@ -192,6 +198,10 @@ public sealed partial class Settings
     public Setting<int> DesktopPetGloomyMinutes => Get(PetGloomyMinutes);
     /// <summary>Minutes with nothing at all before 犯困.</summary>
     public Setting<int> DesktopPetSleepyMinutes => Get(PetSleepyMinutes);
+    /// <summary>The most minutes between the 捣蛋鬼's own 来访, 0 for only when the streamer 叫它来.</summary>
+    public Setting<int> DesktopPetPranksterMinutes => Get(PetPranksterMinutes);
+    /// <summary>The 帮它的关键字.</summary>
+    public Setting<string> DesktopPetPranksterKeyword => Get(PetPranksterKeyword);
     /// <summary>The least seconds between 日常小动作.</summary>
     public Setting<int> DesktopPetDailyMinSeconds => Get(PetDailyMin);
     /// <summary>The most seconds between 日常小动作.</summary>
