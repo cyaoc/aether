@@ -18,6 +18,8 @@ internal sealed class DesktopPet(WebService service, Character character)
     private (int Id, WebService.Connection[] Pages)? trial;
     // 叫它来 told the pages and none has said the 捣蛋鬼 set off; how many said it set off and not yet that it left; and the pages
     // there as it was told or set off last: once none of them is left, it has not come.
+    // shortcut: reports do not say which page sent them, so with two streaming software open, one reloaded during a 来访 counts it
+    // on until the other goes too; tell the page apart in its reports if that is ever seen.
     private bool summoned;
     private int visiting;
     private WebService.Connection[] visitPages = [];
@@ -33,6 +35,7 @@ internal sealed class DesktopPet(WebService service, Character character)
         ? new DesktopPetState(true, roomConnected, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines(character))
         : new DesktopPetState(false));
 
+    /// <summary>Whether the streamer can 叫它来, and where the 捣蛋鬼 is: on the page while any page has it there.</summary>
     public PranksterSummon SummonState => new(WhyNoSummon(),
         visiting > 0 ? PranksterVisit.OnStage : summoned ? PranksterVisit.OnTheWay : PranksterVisit.Away);
 
