@@ -274,6 +274,35 @@ test('a show taking over from one that scared the 捣蛋鬼 off waits as it did,
   assert.deepEqual([playing(pet), early], ['governor', []]);
 });
 
+test('a show coming while the chest is still going home from a PK that scared the 捣蛋鬼 off waits for it, and her hair', () => {
+  const pet = tugging(), zapped = tugging();
+  zapped.gift(gifts(1, 6000));
+  play(zapped, 3000);
+  for (const p of [pet, zapped]) {
+    p.receive(state(p, { pk: true }));
+    play(p, 500);
+    p.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 });
+  }
+  assert.deepEqual([playing(zapped), zapped.cur.opts.frizz, zapped.gm.fix], ['captain', true, null]);
+  for (const p of [pet, zapped]) {
+    const early = [];
+    play(p, 12000, () => { if (p.gm.out && p.cur && p.now() >= p.cur.start + p.cur.pre) early.push(p.now()); });
+    assert.deepEqual(early, []);
+  }
+});
+
+test('叫它来 right after a PK scared the 捣蛋鬼 off brings it once the chest it let go of is home', () => {
+  const pet = tugging(), told = reports(pet);
+  pet.receive(state(pet, { pk: true }));
+  play(pet, 3000);
+  pet.receive(state(pet, { pk: false }));
+  pet.summon();
+  play(pet, 100);
+  assert.deepEqual([pet.gm.visit, !!pet.gm.out, told], [null, true, ['end']]);
+  play(pet, 8000);
+  assert.deepEqual([!!pet.gm.visit, told], [true, ['end', 'start']]);
+});
+
 test('the 捣蛋鬼 due while a 试演 plays does not come once the room is disconnected, and is reported gone', () => {
   const pet = gamePet(character, { pranksterMinutes: 1 }), told = reports(pet);
   pet.testShow({ show: 'bored', variant: null, nickname: '', id: 1 });

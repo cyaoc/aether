@@ -328,10 +328,14 @@ export class Engine extends EventTarget {
   }
 
   start(name, opts) {
-    const now = this.now(), c = this.cur, { dailyMinSeconds, dailyMaxSeconds } = this.settings;
+    const now = this.now(), c = this.cur, gm = this.gm, { dailyMinSeconds, dailyMaxSeconds } = this.settings;
     this.trialOver(c);
-    // one that takes over from a show still waiting for the chest to go home, or her hair, waits for them too
-    if (c && now < c.start + c.pre) opts = { ...opts, tidy: opts.tidy || c.opts.tidy, frizz: opts.frizz || c.opts.frizz };
+    // one that comes while the chest is still going home, or her hair is still to be patted smooth, waits for them, whether a
+    // show it takes over waited for them or none played (a PK scared the 捣蛋鬼 off); the game's own shows play the chest home
+    if (!opts.game) {
+      opts = { ...opts, tidy: opts.tidy || (gm.out ? TIDY : 0), frizz: opts.frizz || !!gm.fix || !!(c && now < c.start + c.pre && c.opts.frizz) };
+      gm.fix = null;
+    }
     const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (opts.zap && ev.zapDur) || (ev.steps?.[opts.result] ?? ev).dur;
     // one that scared the 捣蛋鬼 off waits, at most FRIZZ, for the chest to go home (and her hair to be smooth): stateAt
     this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null };
@@ -617,7 +621,7 @@ export class Engine extends EventTarget {
   startVisit(now) {
     const gm = this.gm;
     if (gm.due === 'own') gm.came.push(now);
-    gm.due = false; gm.out = null;
+    gm.due = false;
     // loot: there is something in the chest to fight over; helpers: the UIDs on its side in the tug
     gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helpers: new Set(), helped: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
     this.pkSay(gm.brag ? 'pranksterBrag' : gm.grudge ? 'pranksterGrudge' : 'pranksterPeek', now, { nickname: gm.grudge });
@@ -814,8 +818,8 @@ export class Engine extends EventTarget {
   // The 来访's clock. It comes on its own at most once in pranksterMinutes and GAME.hourly times an hour, in a connected room
   // when someone is about, and once called; then, the room still connected, once its pictures are there and she plays
   // nothing, a show, a 试演 or a round's blind boxes shaken for their 盲盒播报 (shaking; a 一轮送礼 of gifts going on does not
-  // keep it waiting), no lottery is drawn (lotOf, whether its show is on or not) and no PK is on. Then each phase runs its
-  // time, and the tug its countdown.
+  // keep it waiting), no lottery is drawn (lotOf, whether its show is on or not), no PK is on and the last 来访 is tidied up
+  // (the chest home, her hair smooth). Then each phase runs its time, and the tug its countdown.
   gameUpdate(now) {
     const gm = this.gm, v = gm.visit, dt = now - (gm.clock ?? now), every = this.settings.pranksterMinutes * 60000;
     gm.clock = now;
@@ -825,7 +829,7 @@ export class Engine extends EventTarget {
     if (!v) {
       gm.came = gm.came.filter(t => now - t < 3600000);
       if (this.room && every && now - gm.last >= every && now - this.lastAny < GAME.about && gm.came.length < GAME.hourly) gm.due ||= 'own';
-      if (gm.due && this.room && this.gameLoaded && !this.cur && !this.trial && !this.shaking() && !lotOf(this.lottery) && !gm.pk) this.startVisit(now);
+      if (gm.due && this.room && this.gameLoaded && !this.cur && !this.trial && !this.shaking() && !lotOf(this.lottery) && !gm.pk && !gm.out && !gm.fix) this.startVisit(now);
       return;
     }
     // what is thrown waits while the chest is in the air, until the 捣蛋鬼 is on its feet again, and while the lightning plays;
