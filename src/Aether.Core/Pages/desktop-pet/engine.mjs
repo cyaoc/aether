@@ -281,10 +281,11 @@ export class Engine extends EventTarget {
 
   // The crown is the viewer's 一轮送礼's: it follows the round's show playing or coming next, its blind boxes' once their
   // 盲盒播报 opens them (update), and with none it is not played on its own (README 2). The 礼物榜 reaches the page another
-  // way than the gift that took its first place, and may come first: the crown then waits for that gift's round.
+  // way than the gift that took its first place, and may come first: the crown then waits for that gift's round. One taken
+  // while gifts are thrown at the 捣蛋鬼 is not played, then or after (threw).
   crown({ uid, nickname }) {
     const r = this.rounds.find(round => round.uid === uid && !round.ended);
-    if (r) r.top = nickname; else this.crowns.set(uid, nickname);
+    if (r) r.top = nickname; else if (!this.throwing()) this.crowns.set(uid, nickname);
   }
 
   fire(name, opts = {}) {
@@ -416,9 +417,10 @@ export class Engine extends EventTarget {
   }
 
   // A gift message thrown at the 捣蛋鬼 counts for her 心情 as any gift; what it held is kept off the viewer's round (notThrown),
-  // and its blind boxes' result opens nothing (blindBox).
+  // the first place it took is not crowned (crown), and its blind boxes' result opens nothing (blindBox).
   threw(p, now) {
     this.gifted(now);
+    this.crowns.delete(p.uid);
     if (!this.thrown.has(p.uid)) this.thrown.set(p.uid, { spend: 0, count: 0, boxes: 0, unopened: 0 });
     const t = this.thrown.get(p.uid);
     for (const item of p.items) if (item.blind) { t.boxes += item.count; t.unopened += item.count; } else { t.spend += item.spend; t.count += item.count; }
@@ -557,10 +559,13 @@ export class Engine extends EventTarget {
   // her, and plays no show of hers: true then.
   gameGift(x) {
     const gm = this.gm, v = gm.visit;
-    if (!v || DONE.has(v.phase)) { gm.chest += x.spend; gm.pile += x.count; return false; }
+    if (!this.throwing()) { gm.chest += x.spend; gm.pile += x.count; return false; }
     v.queue.push({ spend: x.spend, helper: v.helpers.has(x.uid) && v.phase === 'tug', nickname: x.nickname, icon: x.iconUrl });
     return true;
   }
+
+  // Whether a gift now is thrown at the 捣蛋鬼: it is here and not yet on its way off the page.
+  throwing() { return !!this.gm.visit && !DONE.has(this.gm.visit.phase); }
 
   // 叫它来 (Core's summon), or its own time come (gameUpdate): it comes once whatever she plays is over (a 日常小动作 is not cut
   // short).
@@ -670,10 +675,11 @@ export class Engine extends EventTarget {
   // and gives the 捣蛋鬼 that much life back. She lets go of the handle, so the 捣蛋鬼, glad of it, points at her and laughs, and
   // the chest comes a little its way (tumble), while her sprite pulls on alone; then she takes hold again. The fifth of them
   // flattens her: she lies flat while her sprite pulls on, catches the handle lying down and is dragged a little before she
-  // is up. In the fight's last stretch she lies holding on already, and only winces.
+  // is up. In the fight's last stretch she lies holding on already, and only winces. One landing once it is on its way off goes
+  // into her chest, and plays nothing (bank).
   strike(now, { spend, helper, nickname }) {
     const gm = this.gm, v = gm.visit;
-    if (DONE.has(v.phase)) return;
+    if (DONE.has(v.phase)) return this.bank(spend);
     if (!v.loot) {
       Object.assign(gm, { grudge: nickname, chest: spend, pile: 1 });
       this.phase('knocked', now); this.sendHome(now, HOME, true); return this.fire('pranksterKnocked', { game: true, nickname });   // the lid it sat on springs open for the gift
@@ -768,11 +774,19 @@ export class Engine extends EventTarget {
     this.phase('lost', now); this.pkSay('pranksterRobs', now);
   }
 
-  endVisit(now) { this.gm.visit = null; this.gm.last = now; if (!this.gm.walk) this.hopTo(FOOT.x, now, 2); this.visited('end'); }
+  // What the lightning held back from falling when it was scared off goes into her chest too.
+  endVisit(now) {
+    const gm = this.gm;
+    for (const q of gm.visit.queue) this.bank(q.spend);
+    gm.visit = null; gm.last = now; if (!gm.walk) this.hopTo(FOOT.x, now, 2); this.visited('end');
+  }
 
-  // The 来访's clock. It comes on its own at most once in pranksterMinutes, when someone is about, and once called; then once
-  // its pictures are there and nothing plays, no 一轮送礼 goes on, no lottery is drawn (lotOf, whether its show is on or not) and
-  // no PK is on. Then each phase runs its time, and the tug its countdown.
+  // A gift thrown at the 捣蛋鬼 that it no longer fights over: into her chest as any, unplayed.
+  bank(spend) { this.gm.chest += spend; this.gm.pile++; }
+
+  // The 来访's clock. It comes on its own at most once in pranksterMinutes, in a connected room when someone is about, and once
+  // called; then once its pictures are there and nothing plays, no 一轮送礼 goes on, no lottery is drawn (lotOf, whether its
+  // show is on or not) and no PK is on. Then each phase runs its time, and the tug its countdown.
   gameUpdate(now) {
     const gm = this.gm, v = gm.visit, dt = now - (gm.clock ?? now), every = this.settings.pranksterMinutes * 60000;
     gm.clock = now;
@@ -780,7 +794,7 @@ export class Engine extends EventTarget {
     // the chest is home once the sprite has flown it off the page (or, should the sprite never get the rope, a while after)
     if (gm.out && (gm.out.got != null ? now - gm.out.got >= gm.out.ms - gm.out.t2 && !(this.sv?.x > -50) : now - gm.out.at >= gm.out.ms + 6000)) gm.out = null;
     if (!v) {
-      if (every && now - gm.last >= every && now - this.lastAny < GAME.about) gm.due = true;
+      if (this.room && every && now - gm.last >= every && now - this.lastAny < GAME.about) gm.due = true;
       if (gm.due && this.gameLoaded && !this.cur && !this.trial && !this.rounds.length && !lotOf(this.lottery) && !gm.pk) this.startVisit(now);
       return;
     }

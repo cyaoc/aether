@@ -104,3 +104,56 @@ test('gifts and blind boxes thrown at the 捣蛋鬼 play nothing of hers, then o
   pet.gift(gifts(1, 100100, { count: 2, items: [{ spend: 100, count: 1, blind: false, iconUrl: '' }] }));
   assert.equal(playing(pet), 'gift');
 });
+
+test('every gift thrown goes into her chest, those landing after the one that beat the 捣蛋鬼 off too', () => {
+  const empty = visited();
+  for (const [uid, spend] of [[1, 10000], [2, 20000], [3, 30000]]) empty.gift(gifts(uid, spend));
+  play(empty, 20000);
+  const tug = tugging();
+  tug.gift(gifts(1, tug.settings.midGift));
+  tug.gift(gifts(2, 5000));
+  play(tug, 8000);
+  assert.deepEqual([empty.gm.chest, tug.gm.chest], [100 + 200 + 300, 500 + 1000 + 50]);
+});
+
+test('gifts still to fall when the 捣蛋鬼 is scared off go into her chest, during the lightning too', () => {
+  const pet = visited();
+  pet.gift(gifts(1, 100000));
+  pet.receive(state(pet, { pk: true }));
+  play(pet, 6000);
+  const zapped = tugging();
+  zapped.gift(gifts(1, 6000));
+  play(zapped, 3000);
+  assert.notEqual(zapped.gm.visit.cut, null);
+  zapped.gift(gifts(2, 1000));
+  zapped.receive(state(zapped, { pk: true }));
+  play(zapped, 8000);
+  assert.deepEqual([pet.gm.chest, zapped.gm.visit, zapped.gm.chest], [1000, null, 500 + 60 + 10]);
+});
+
+test('a new first place taken by a gift thrown at the 捣蛋鬼 is not crowned after it leaves', () => {
+  for (const crownFirst of [false, true]) {
+    const pet = gamePet(character), seen = new Set();
+    if (crownFirst) pet.crown({ uid: 9, nickname: '观众9' });
+    pet.summon();
+    play(pet, 100);
+    pet.gift(gifts(9, 100));
+    if (!crownFirst) pet.crown({ uid: 9, nickname: '观众9' });
+    pet.receive(state(pet, { pk: true }));
+    play(pet, 8000);
+    pet.receive(state(pet, { pk: false }));
+    pet.gift(round(9, { ended: true }));
+    pet.gift(gifts(9, 200, { count: 2, items: [{ spend: 100, count: 1, blind: false, iconUrl: '' }] }));
+    play(pet, 8000, () => seen.add(playing(pet)));
+    assert.deepEqual([...seen].filter(Boolean), ['gift'], crownFirst ? 'crowned before it came' : 'crowned while it was here');
+  }
+});
+
+test('with the room disconnected the 捣蛋鬼 does not come on its own', () => {
+  const pet = gamePet(character, { pranksterMinutes: 1 }), told = reports(pet);
+  play(pet, 30000);
+  pet.danmaku({ uid: 1, nickname: '观众1', joins: false });
+  pet.receive(state(pet, { roomConnected: false }));
+  play(pet, 40000);
+  assert.deepEqual([pet.gm.visit, told], [null, []]);
+});

@@ -154,6 +154,8 @@ the page beside the board, as the web service serves it, telling it it is on in 
   the board threw boxes. What a viewer threw is kept off their 一轮送礼 when it goes on after the 来访, and a 盲盒播报 of boxes
   thrown opens none; the board's round had them taken out. A castle scares it off when its 盲盒播报 comes; the board's stood in
   for it 3.8 s after the box.
+- Every gift thrown at the 捣蛋鬼 goes into her chest, playing nothing once it is on its way off: one landing after the gift that
+  beat it off or after it was scared off, and one the lightning held back from falling when it is gone. The board's were lost.
 - A viewer is on the 捣蛋鬼's side once they send the 帮它的关键字 in the tug, counted once however often they send it, and
   their gifts are a helper's; the board's buttons made any gift a helper's, and every keyword another helper.
 - A 试演 and a show turned off scare it off too, a PK as the board's button did, and a lottery is drawn, keeping it away, by
