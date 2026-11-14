@@ -160,6 +160,21 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_report_that_comes_late_while_the_桌宠_is_off_says_nothing_once_it_is_on_again()
+    {
+        var (updates, pet) = await ConnectedAsync();
+        using var _ = pet;
+        await using var __ = updates;
+
+        await h.ApplySettingsAsync(("desktop_pet.enabled", "false"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=start"));
+        await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));
+        await h.Client.IdleAsync();
+
+        Assert.Equal(new PranksterSummon(null, PranksterVisit.Away), await LatestAsync());
+    }
+
+    [Fact]
     public async Task One_that_cannot_come_is_not_told_to_the_page()
     {
         await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));

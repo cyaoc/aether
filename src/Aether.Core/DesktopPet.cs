@@ -151,10 +151,11 @@ internal sealed class DesktopPet(WebService service, Character character)
     }
 
     /// <summary>The page <paramref name="page"/> reports the 捣蛋鬼 set off, called or on its own: it is on the page until each
-    /// page still there that it set off on says it left. A page gone says nothing any more, though its report comes late.</summary>
+    /// page still there that it set off on says it left. A page gone, or the 桌宠 turned off, says nothing any more, though its
+    /// report comes late: the page lost its 来访 as it was turned off.</summary>
     public void VisitStarted(string page)
     {
-        if (!Here(page)) return;
+        if (!Enabled || !Here(page)) return;
         summoned = false;
         visiting.Add(page);
         PublishSummon();
@@ -164,7 +165,7 @@ internal sealed class DesktopPet(WebService service, Character character)
     /// its way.</summary>
     public void VisitEnded(string page)
     {
-        if (!Here(page)) return;
+        if (!Enabled || !Here(page)) return;
         summoned = false;
         visiting.Remove(page);
         PublishSummon();
