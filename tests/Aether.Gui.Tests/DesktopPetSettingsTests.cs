@@ -42,6 +42,8 @@ public sealed class DesktopPetSettingsTests
     [InlineData("mood", "有未保存的修改")]
     [InlineData("daily", "有未保存的修改")]
     [InlineData("mishap", "有未保存的修改")]
+    [InlineData("prankster", "有未保存的修改")]
+    [InlineData("keyword", "有未保存的修改")]
     [InlineData("line", "有未保存的修改")]
     [InlineData("addLine", "进场的台词有错，改好后才能保存")]
     public Task Any_edit_shows_unsaved_changes(string edit, string dirty) => WithPage(page =>
@@ -55,8 +57,10 @@ public sealed class DesktopPetSettingsTests
             case "mood": GuiHarness.Tab(page, 1); Number(page, "犯困：几分钟后进入").Text = "0"; break;
             case "daily": GuiHarness.Tab(page, 1); Switch(page, "滑雪").IsChecked = false; break;
             case "mishap": GuiHarness.Tab(page, 1); Number(page, "出事的几率（%）").Text = "50"; break;
-            case "line": GuiHarness.Tab(page, 2); Line(page, 1).Text = "欢迎{昵称}"; break;
-            case "addLine": GuiHarness.Tab(page, 2); GuiHarness.Click(page, "AddLineButton"); break;
+            case "prankster": GuiHarness.Tab(page, 2); Number(page, "它最多每几分钟自己来一次").Text = "10"; break;
+            case "keyword": GuiHarness.Tab(page, 2); Input(page, "帮它的关键字").Text = "捣乱"; break;
+            case "line": GuiHarness.Tab(page, 3); Line(page, 1).Text = "欢迎{昵称}"; break;
+            case "addLine": GuiHarness.Tab(page, 3); GuiHarness.Click(page, "AddLineButton"); break;
         }
         GuiHarness.Flush();
         Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsEffectivelyVisible);
@@ -82,7 +86,7 @@ public sealed class DesktopPetSettingsTests
         Number(page, "无聊：几分钟后进入").Text = "0";
         GuiHarness.Flush();
         Assert.Contains("填了 0：不会无聊", Texts(page));
-        GuiHarness.Tab(page, 2);
+        GuiHarness.Tab(page, 3);
         Pick(page, "LineKindList", "大礼物");
         Line(page, 1).Text = "{昵称}，谢谢你～";
         Pick(page, "LineKindList", "普通礼物");
@@ -109,12 +113,84 @@ public sealed class DesktopPetSettingsTests
     });
 
     [Fact]
+    public Task The_chest_game_tab_saves_how_often_the_prankster_comes_on_its_own_and_its_helper_keyword() => WithPage(async (page, harness) =>
+    {
+        GuiHarness.Tab(page, 2);
+        Assert.Equal(("30", "捣蛋"), (Number(page, "它最多每几分钟自己来一次").Text, Input(page, "帮它的关键字").Text));
+        Assert.Contains("有人在看、她闲着时它自己来；填 0 就只在你叫它时来", Texts(page));
+        Number(page, "它最多每几分钟自己来一次").Text = "0";
+        Input(page, "帮它的关键字").Text = "捣乱";
+        GuiHarness.Flush();
+        Assert.Contains("填了 0：它只在你叫它时来", Texts(page));
+
+        await GuiHarness.SaveAsync(page);
+        var saved = Settings.Load(harness.DataDirectory);
+        Assert.Equal((0, "捣乱"), (saved.DesktopPetPranksterMinutes.Value, saved.DesktopPetPranksterKeyword.Value));
+        Assert.Equal("捣乱", harness.Client.WebService.Settings!.DesktopPetPranksterKeyword.Value);
+    });
+
+    [Theory]
+    [InlineData(" ", "关键字不能空着")]
+    [InlineData(" 抽奖", "和抽奖报名的关键字一样，观众分不清是在报名还是帮它；换一个")]
+    [InlineData("本月盲盒", "和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个")]
+    public Task A_helper_keyword_that_cannot_be_saved_is_marked_with_why_until_it_is_changed(string typed, string why) => WithPage(async (page, harness) =>
+    {
+        GuiHarness.Tab(page, 2);
+        var keyword = Input(page, "帮它的关键字");
+        keyword.Text = typed;
+        await harness.IdleAsync();
+        Assert.Contains(why, Texts(page));
+        Assert.Contains("invalid", keyword.Classes);
+        Assert.Equal((false, "小游戏里帮它的关键字要先改好，才能保存"), (page.CanSave, page.DirtyText));
+
+        keyword.Text = "捣乱";
+        await harness.IdleAsync();
+        Assert.DoesNotContain(why, Texts(page));
+        Assert.DoesNotContain("invalid", keyword.Classes);
+        Assert.Equal((true, "有未保存的修改"), (page.CanSave, page.DirtyText));
+    });
+
+    [Fact]
+    public Task The_chest_game_lines_are_edited_like_hers_and_its_say_its_bubble_is_narrow_while_the_shows_tab_lists_none() => WithPage(async (page, harness) =>
+    {
+        Assert.DoesNotContain("小游戏·她", page.FindControl<ListBox>("ShowGroupList")!.Items.Cast<DesktopPetShowGroup>().Select(group => group.Group.Label));
+        Assert.DoesNotContain("守住了", page.FindControl<ComboBox>("TestShowInput")!.Items.Cast<DesktopPetTest>().Select(test => test.Label));
+        GuiHarness.Tab(page, 3);
+        Pick(page, "LineKindList", "守住了");
+        Assert.Contains("把它打跑、宝箱回家时；每次随机一句，不连着重复", Texts(page));
+        Pick(page, "LineKindList", "招人");
+        Assert.Contains("拉帮手时；它的气泡窄，一行最多 6 个字，空一格换行；每次随机一句，不连着重复", Texts(page));
+        Line(page, 1).Text = "快发「{关键字}」 帮我！";
+        GuiHarness.Flush();
+        Assert.True(page.IsDirty);
+
+        await GuiHarness.SaveAsync(page);
+        Assert.Equal(["快发「{关键字}」 帮我！"], Settings.Load(harness.DataDirectory).DesktopPetChangedLines["pranksterRecruit"].Value);
+    });
+
+    [Fact]
+    public Task A_lottery_that_cannot_be_read_leaves_the_helper_keyword_checked_without_the_next_entry_keyword() => WithPage(page =>
+    {
+        GuiHarness.Tab(page, 2);
+        Input(page, "帮它的关键字").Text = "抽奖";
+        GuiHarness.Flush();
+        Assert.True(page.CanSave);
+        return Task.CompletedTask;
+    }, prepare: harness =>
+    {
+        using var database = harness.OpenDatabase();
+        using var command = database.CreateCommand();
+        command.CommandText = "PRAGMA user_version = 999";
+        command.ExecuteNonQuery();
+    });
+
+    [Fact]
     public Task Lines_in_a_group_that_cannot_be_edited_a_line_at_a_time_are_read_only() => WithPage((page, harness) =>
     {
         var port = Settings.Load(harness.DataDirectory).WebServicePort.Value;
         File.WriteAllText(Settings.FilePath(harness.DataDirectory), $"web_service:\n  port: {port}\ndesktop_pet: {{enabled: false}}\n");
         page.RefreshFileStatus(Settings.Load(harness.DataDirectory));
-        GuiHarness.Tab(page, 2);
+        GuiHarness.Tab(page, 3);
         Pick(page, "LineKindList", "大礼物");
         GuiHarness.Flush();
         Assert.True(GuiHarness.FindVisual<TextBlock>(page, "LinesReadOnly").IsVisible);
@@ -131,7 +207,7 @@ public sealed class DesktopPetSettingsTests
             ["desktop_pet.lines.1.bigGift"] = System.Text.Json.JsonSerializer.Serialize(Character.Current.Lines["bigGift"])
         });
         page.RefreshFileStatus(Settings.Load(harness.DataDirectory));
-        GuiHarness.Tab(page, 2);
+        GuiHarness.Tab(page, 3);
         GuiHarness.Flush();
         Assert.DoesNotContain("已改", Texts(page));
         return Task.CompletedTask;
@@ -158,7 +234,7 @@ public sealed class DesktopPetSettingsTests
     [Fact]
     public Task Insert_offers_only_the_kinds_placeholders_and_puts_one_in_the_line_being_edited() => WithPage(page =>
     {
-        GuiHarness.Tab(page, 2);
+        GuiHarness.Tab(page, 3);
         Pick(page, "LineKindList", "冷场后来了人");
         Assert.Contains("这一类没有可插入的内容，台词照写就行", Texts(page));
         Pick(page, "LineKindList", "大礼物");
@@ -209,13 +285,42 @@ public sealed class DesktopPetSettingsTests
     });
 
     [Fact]
+    public Task Summon_shows_what_core_says_and_calls_the_prankster_at_once_without_saving() => WithPage(async (page, harness) =>
+    {
+        Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["desktop_pet.enabled"] = "true" });
+        await ((MainWindowViewModel)page.DataContext!).WebService.ApplyWebSettingsAsync(Settings.Load(harness.DataDirectory));
+        GuiHarness.Tab(page, 2);
+        var button = page.FindControl<Button>("SummonButton")!;
+        var (text, note) = (page.FindControl<TextBlock>("SummonText")!, page.FindControl<TextBlock>("SummonNote")!);
+        await GuiHarness.WaitForAsync(() => note.Text == "先在直播姬里加好桌宠页");
+        Assert.Equal((false, "叫它来"), (button.IsEnabled, text.Text));
+        using var pet = await DesktopPetEvents.OpenAsync(harness.Client, TestContext.Current.CancellationToken);
+        await GuiHarness.WaitForAsync(() => note.Text == "连上直播间才能叫它来：没人送礼，也没人能帮它");
+        Assert.False(button.IsEnabled);
+
+        harness.Client.WebService.SetDesktopPetRoom(true);
+        await GuiHarness.WaitForAsync(() => button.IsEnabled);
+        Assert.Equal(("叫它来", "点了它马上来，不是试演，观众送的礼物都算；不用保存"), (text.Text, note.Text));
+        GuiHarness.Click(page, "SummonButton");
+        await pet.NextAsync(DesktopPet.Summon);
+        await GuiHarness.WaitForAsync(() => text.Text == "它在路上…");
+        Assert.Equal((false, "她正在演的这段完了它就来", true), (button.IsEnabled, note.Text, note.Classes.Contains("accent")));
+        Assert.False(page.IsDirty);
+
+        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(harness.Client.WebService.Status.Origin) };
+        using var set = await http.PostAsync("desktop-pet/report?visit=start", null);
+        await GuiHarness.WaitForAsync(() => text.Text == "它在场上");
+        Assert.Equal((false, "它走了才能再叫", false), (button.IsEnabled, note.Text, note.Classes.Contains("accent")));
+    });
+
+    [Fact]
     public Task A_new_show_in_the_show_table_brings_its_switch_kind_of_lines_and_test() => WithPage(page =>
     {
         Pick(page, "ShowGroupList", "PK");
         Assert.True(Switch(page, "PK 赢了").IsEnabled);
         Assert.Contains("PK 结束时赢了", Texts(page));
         Assert.Contains("PK 赢了", page.FindControl<ComboBox>("TestShowInput")!.Items.Cast<DesktopPetTest>().Select(test => test.Label));
-        GuiHarness.Tab(page, 2);
+        GuiHarness.Tab(page, 3);
         var kinds = page.FindControl<ListBox>("LineKindList")!;
         kinds.ScrollIntoView(kinds.Items.Count - 1);
         GuiHarness.Flush();
@@ -228,14 +333,17 @@ public sealed class DesktopPetSettingsTests
         Lines = [.. ShowTable.Current.Lines, new("pkWin", "pk", "PK 赢了", "PK 结束时赢了", ["昵称"])]
     });
 
-    private static Task WithPage(Func<DesktopPetSettingsPage, Task> test, ShowTable? shows = null) =>
-        WithPage((page, _) => test(page), shows);
+    private static Task WithPage(Func<DesktopPetSettingsPage, Task> test, ShowTable? shows = null, Action<GuiHarness>? prepare = null) =>
+        WithPage((page, _) => test(page), shows, prepare);
 
-    /// <summary>The page at 1200 × 720, built from <paramref name="shows"/>, or the program's 演出表.</summary>
-    private static Task WithPage(Func<DesktopPetSettingsPage, GuiHarness, Task> test, ShowTable? shows = null) => HeadlessApp.Session.Dispatch(async () =>
+    /// <summary>The page at 1200 × 720, built from <paramref name="shows"/>, or the program's 演出表, over data that
+    /// <paramref name="prepare"/> may change first.</summary>
+    private static Task WithPage(Func<DesktopPetSettingsPage, GuiHarness, Task> test, ShowTable? shows = null,
+        Action<GuiHarness>? prepare = null) => HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         harness.SaveSettings();
+        prepare?.Invoke(harness);
         var viewModel = harness.CreateViewModel();
         var page = new DesktopPetSettingsPage(harness.DataDirectory, shows ?? ShowTable.Current) { DataContext = viewModel };
         var window = new Window { Content = page, Width = 1200, Height = 720 };

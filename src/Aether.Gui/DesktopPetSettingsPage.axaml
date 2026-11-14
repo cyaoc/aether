@@ -11,6 +11,21 @@
       <Setter Property="Padding" Value="8,0,8,4" />
       <Setter Property="VerticalContentAlignment" Value="Bottom" />
     </Style>
+    <!-- 叫它来 acts at once, as 试演 does: an outline apart from the solid 保存, tinted while it can act. -->
+    <Style Selector="Button.summon">
+      <Setter Property="Height" Value="34" />
+      <Setter Property="MinWidth" Value="100" />
+      <Setter Property="Padding" Value="14,0" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+      <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+    </Style>
+    <Style Selector="Button.summon:pointerover /template/ ContentPresenter, Button.summon:pressed /template/ ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource Accent.Tint}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource Accent}" />
+      <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+    </Style>
     <Style Selector="Border.showRow">
       <Setter Property="BorderBrush" Value="{DynamicResource Border}" />
       <Setter Property="BorderThickness" Value="0,0,0,1" />
@@ -54,6 +69,7 @@
       <ListBox x:Name="Tabs" Classes="viewTabs" HorizontalAlignment="Left" SelectedIndex="0" AutomationProperties.Name="桌宠设置">
         <ListBoxItem Content="演出" />
         <ListBoxItem Content="心情和日常" />
+        <ListBoxItem Content="小游戏" />
         <ListBoxItem Content="台词" />
       </ListBox>
     </StackPanel>
@@ -182,6 +198,47 @@
             <StackPanel Margin="78,0,0,0">
               <TextBlock x:Name="MishapError" Classes="error" />
               <TextBlock x:Name="MishapReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+            </StackPanel>
+          </StackPanel>
+        </StackPanel>
+      </ScrollViewer>
+      <ScrollViewer x:Name="GameTab" HorizontalScrollBarVisibility="Disabled" IsVisible="False">
+        <StackPanel Spacing="22">
+          <StackPanel Spacing="10">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Classes="section" Text="捣蛋鬼偷宝箱" />
+              <TextBlock Classes="hint" Text="它偷走她的宝箱，观众送礼帮她抢回来；怎么玩都在直播画面上，观众不用学" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="10">
+              <Button x:Name="SummonButton" Classes="summon" Click="Summon">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Viewbox Classes="icon" Width="14" Height="14"><Path Data="{StaticResource Icon.Bolt}" Fill="{Binding $self.Stroke}" /></Viewbox>
+                  <TextBlock x:Name="SummonText" VerticalAlignment="Center" />
+                </StackPanel>
+              </Button>
+              <TextBlock x:Name="SummonNote" Classes="hint" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
+            </StackPanel>
+          </StackPanel>
+          <StackPanel Spacing="12">
+            <StackPanel Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Width="96" FontWeight="SemiBold" Text="自己来" VerticalAlignment="Center" />
+                <TextBlock Text="最多每" VerticalAlignment="Center" />
+                <NumericUpDown x:Name="PranksterMinutesInput" Minimum="0" Classes.invalid="{Binding #PranksterMinutesError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="它最多每几分钟自己来一次" />
+                <TextBlock Text="分钟来一次" VerticalAlignment="Center" />
+                <TextBlock x:Name="PranksterMinutesNote" Classes="hint" Margin="8,0,0,0" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="PranksterMinutesError" Classes="error" Margin="104,0,0,0" />
+              <TextBlock x:Name="PranksterMinutesReadOnly" Classes="hint" Margin="104,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Width="96" FontWeight="SemiBold" Text="帮它的关键字" VerticalAlignment="Center" />
+                <TextBox x:Name="PranksterKeywordInput" Width="120" Classes.invalid="{Binding #PranksterKeywordError.IsVisible}" AutomationProperties.Name="帮它的关键字" />
+                <TextBlock Classes="hint" Margin="8,0,0,0" Text="观众发这个词就站到它那边，他送的礼物砸她的头；B站 拦了就换一个" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="PranksterKeywordError" Classes="error" Margin="104,0,0,0" />
+              <TextBlock x:Name="PranksterKeywordReadOnly" Classes="hint" Margin="104,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
             </StackPanel>
           </StackPanel>
         </StackPanel>
