@@ -175,7 +175,7 @@ internal sealed class DesktopPet(WebService service, Character character)
     /// streamer turned the lottery's show off does not matter: it scares the 捣蛋鬼 away all the same.</summary>
     private static bool Drawing(Lottery? lottery) => lottery is EntryLottery { Phase: EntryLotteryPhase.Open }
         or EntryLottery { Phase: EntryLotteryPhase.Closed, EntryCount: > 0 } or PoolLottery { Phase: PoolLotteryPhase.Spinning }
-        or PoolLottery { DrawUntil: not null };
+        or PoolLottery { IsDrawing: true };
 
     private void PublishSummon() => SummonSubscribers.Publish(SummonState);
 

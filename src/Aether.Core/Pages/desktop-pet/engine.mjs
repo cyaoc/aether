@@ -583,6 +583,9 @@ export class Engine extends EventTarget {
     return true;
   }
 
+  // The 中礼物 threshold in 电池, as the game counts.
+  get mid() { return this.settings.midGift / COINS; }
+
   // Whether a gift now is thrown at the 捣蛋鬼: it is here and not yet on its way off the page.
   throwing() { return !!this.gm.visit && !DONE.has(this.gm.visit.phase); }
 
@@ -716,14 +719,14 @@ export class Engine extends EventTarget {
     Object.assign(v, { hp: v.hp - spend, hit: now }); gm.grudge = nickname;
     gm.nums.push({ at: now, text: `-${spend} ${nickname}` });
     round.spent += spend;
-    if (v.hp <= 0 || round.spent >= this.settings.midGift / COINS) this.win(now, nickname); else this.herSay('pranksterHit', now, { nickname });
+    if (v.hp <= 0 || round.spent >= this.mid) this.win(now, nickname); else this.herSay('pranksterHit', now, { nickname });
   }
 
   // The chest has landed beside her: she starts back from the crash, then lunges for its handle and pulls. The 捣蛋鬼's life is
   // a fifth of what is in it, a 中礼物 at most, and the minute starts.
   grab(now) {
     const gm = this.gm, v = gm.visit;
-    v.max = v.hp = clamp(Math.round(gm.chest / 5), 1, this.settings.midGift / COINS);
+    v.max = v.hp = clamp(Math.round(gm.chest / 5), 1, this.mid);
     Object.assign(v, { left: GAME.fight, pebbles: 0, grabbed: now });
     this.phase('tug', now); v.say = null; this.herSay('chestFell', now);
     this.hopTo(Math.min(gm.herX, this.ring(LAND, -1).x - this.grip('lunge') - 10), now);   // back far enough to lunge forward
@@ -824,7 +827,7 @@ export class Engine extends EventTarget {
     // then all of it drops
     const away = ['peek', 'carry', 'fall'].includes(v.phase) || v.phase === 'tug' && now - v.grabbed < UP || v.phase === 'peer' && now - v.at < DAZED + 400;
     if (!away && v.cut == null && v.queue.length) {
-      for (const q of v.queue) { gm.drops.push({ at: now, her: q.helper, big: q.spend >= this.settings.midGift / COINS, icon: q.icon }); v.hits.push({ at: now + DROP, ...q }); }
+      for (const q of v.queue) { gm.drops.push({ at: now, her: q.helper, big: q.spend >= this.mid, icon: q.icon }); v.hits.push({ at: now + DROP, ...q }); }
       v.queue = [];
     }
     for (const h of v.hits.filter(h => h.at <= now)) this.strike(now, h);

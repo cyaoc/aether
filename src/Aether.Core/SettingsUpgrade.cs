@@ -35,9 +35,7 @@ internal static class SettingsUpgrade
 
     private static string UpgradeV0(string source, string path)
     {
-        var yaml = new YamlStream();
-        yaml.Load(new StringReader(source));
-        var root = (YamlMappingNode)yaml.Documents[0].RootNode;
+        var root = RootOf(source);
         var renames = new[] { ("welcome", "welcome_danmaku"), ("welcome_animation", "entry_animation"),
             ("welcome_animation_videos", "entry_animation_viewers") };
         var groups = renames.Where(rename => !root.Children.Keys.OfType<YamlScalarNode>().Any(key => key.Value == rename.Item2))
@@ -66,8 +64,8 @@ internal static class SettingsUpgrade
                 if (mapping.Style != MappingStyle.Block || key.Start.Line != Settings.EndOf(tokens, value).Line)
                     throw CannotEdit(path, mapping);
                 var at = LineEnd(source, (int)Settings.EndOf(tokens, value).Index);
-                var indent = new string(' ', (int)tokens.OfType<Tokens.BlockMappingStart>()
-                    .First(token => token.Start.Index >= mapping.Start.Index && token.Start.Index <= key.Start.Index).Start.Column - 1);
+                var indent = IndentOf(tokens.OfType<Tokens.BlockMappingStart>()
+                    .First(token => token.Start.Index >= mapping.Start.Index && token.Start.Index <= key.Start.Index));
                 var added = "";
                 if (!mapping.Children.Keys.OfType<YamlScalarNode>().Any(item => item.Value == "fan_club_level"))
                     added += indent + "fan_club_level: 0" + newline;
@@ -107,24 +105,22 @@ internal static class SettingsUpgrade
     /// is (none is the 报名抽奖's default, 「抽奖」), first in its desktop_pet group, an empty one too, or in a new one.</summary>
     private static string UpgradeV1(string source, string path)
     {
-        var yaml = new YamlStream();
-        yaml.Load(new StringReader(source));
-        var root = (YamlMappingNode)yaml.Documents[0].RootNode;
+        var root = RootOf(source);
         var queries = V1BlindBoxQueries.Select(name => (Settings.ChildOf(Settings.ChildOf(root, "blind_box"), name) as YamlScalarNode)?.Value?.Trim()).ToArray();
         var group = Settings.ChildOf(root, "desktop_pet");
         if (!queries.Contains("捣蛋") || Settings.ChildOf(group, "prankster_keyword") is not null) return source;
         if (root.Style != MappingStyle.Block || !root.Anchor.IsEmpty) throw CannotEdit(path, root);
         var tokens = Settings.Scan(source);
         var newline = Settings.NewlineOf(source);
-        var indent = new string(' ', (int)tokens.OfType<Tokens.BlockMappingStart>().First().Start.Column - 1);
+        var indent = IndentOf(tokens.OfType<Tokens.BlockMappingStart>().First());
         var line = "prankster_keyword: " + V1HelperKeywords.First(keyword => !queries.Contains(keyword)) + newline;
         var (at, text) = group switch
         {
             null => ((int)(tokens.OfType<Tokens.DocumentEnd>().FirstOrDefault()?.Start.Index ?? source.Length), indent + "desktop_pet:" + newline + indent + "  " + line),
             // (every setting of it commented out, which Settings reads as an empty group)
             YamlScalarNode { Style: ScalarStyle.Plain, Value: "" } when group.Anchor.IsEmpty => (AfterGroupKey(), indent + "  " + line),
-            YamlMappingNode { Style: MappingStyle.Block } mapping when mapping.Anchor.IsEmpty => (AfterGroupKey(), new string(' ',
-                (int)tokens.OfType<Tokens.BlockMappingStart>().First(token => token.Start.Index >= mapping.Start.Index).Start.Column - 1) + line),
+            YamlMappingNode { Style: MappingStyle.Block } mapping when mapping.Anchor.IsEmpty =>
+                (AfterGroupKey(), IndentOf(tokens.OfType<Tokens.BlockMappingStart>().First(token => token.Start.Index >= mapping.Start.Index)) + line),
             _ => throw CannotEdit(path, group),
         };
         var lead = at > 0 && !Settings.LineBreaks.Contains(source[at - 1]) ? newline : "";
@@ -137,9 +133,7 @@ internal static class SettingsUpgrade
     /// first group, as in Template, so they stay with the group they describe.</summary>
     private static string WithVersion(string source, string path)
     {
-        var yaml = new YamlStream();
-        yaml.Load(new StringReader(source));
-        var root = (YamlMappingNode)yaml.Documents[0].RootNode;
+        var root = RootOf(source);
         var tokens = Settings.Scan(source);
         var version = CurrentVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
         if (Settings.ChildOf(root, "format_version") is { } current)
@@ -148,7 +142,7 @@ internal static class SettingsUpgrade
             return source.Remove(start, length).Insert(start, value);
         }
         var first = tokens.OfType<Tokens.BlockMappingStart>().First();
-        var indent = new string(' ', (int)first.Start.Column - 1);
+        var indent = IndentOf(first);
         var lead = tokens.IndexOf(first);
         while (lead > 0 && tokens[lead - 1] is Tokens.Comment { IsInline: false }) lead--;
         var at = LineStart(source, (int)tokens[lead].Start.Index);
@@ -167,6 +161,16 @@ internal static class SettingsUpgrade
         if (scalar is null || scalar.Start.Line != scalar.End.Line) throw CannotEdit(path, node);
         return ((int)scalar.Start.Index, (int)(scalar.End.Index - scalar.Start.Index), value);
     }
+
+    private static YamlMappingNode RootOf(string source)
+    {
+        var yaml = new YamlStream();
+        yaml.Load(new StringReader(source));
+        return (YamlMappingNode)yaml.Documents[0].RootNode;
+    }
+
+    /// <summary>The spaces before <paramref name="token"/> on its line, which a line written beside it takes.</summary>
+    private static string IndentOf(Tokens.Token token) => new(' ', (int)token.Start.Column - 1);
 
     private static int LineStart(string source, int at)
     {
