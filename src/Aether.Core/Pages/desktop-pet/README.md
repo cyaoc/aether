@@ -148,8 +148,8 @@ the page beside the board, as the web service serves it, telling it it is on in 
 - The 宝箱小游戏 comes on its own every `pranksterMinutes`, counted from the room connecting, never at 0, or when the streamer
   叫它来; the board's game was on or off and came every 30 minutes. It sets off once its pictures are there and only in a
   connected room: one due when the room disconnects does not come. The page reports it setting off and leaving. What it and
-  she say in a 来访 are her character's lines of the groups `chestGame` and
-  `prankster` (a space breaks the 捣蛋鬼's line), the 帮它的关键字 the saved one; the board said fixed lines.
+  she say in a 来访 are her character's lines of the groups `chestGame` and `prankster` (a space breaks the 捣蛋鬼's line), the
+  帮它的关键字 the saved one; the board said fixed lines.
 - A gift message's gifts are thrown at the 捣蛋鬼 one by one, each with B站's icon, a little box while it loads or has none;
   the board threw boxes. What a viewer threw is kept off their 一轮送礼 when it goes on after the 来访, and a 盲盒播报 of boxes
   thrown opens none; the board's round had them taken out. A viewer's boxes, thrown or not, are told by their 盲盒播报 in the
