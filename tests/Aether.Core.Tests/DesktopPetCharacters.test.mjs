@@ -8,9 +8,11 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { Engine, MOOD, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { Pet } from '../../src/Aether.Core/Pages/desktop-pet/pet.mjs';
 import { SETTINGS } from './Support/DesktopPetSettings.mjs';
+import { gamePet } from './Support/DesktopPetGame.mjs';
+import { NAME, ROUTES, STEP, drive, walk } from '../../scripts/desktop-pet/routes.mjs';
 
 const pages = new URL('../../src/Aether.Core/Pages/', import.meta.url), read = path => JSON.parse(readFileSync(new URL(path, pages), 'utf8'));
-const { shows } = read('desktop-pet/shows.json');
+const { shows } = read('desktop-pet/shows.json'), prankster = read('desktop-pet/prankster/prankster.json');
 // Her sprite's own pictures (the character's sprite section) by the names the shows give them.
 const SINGLES = ['sIdle', 'sBlink', 'sHappy', 'sLook'];
 
@@ -55,6 +57,29 @@ function poseChanges(character) {
   return changes;
 }
 
+// Each change of her pose and the 捣蛋鬼's (facing the same way: turning round it simply switches, its in-betweens drawn facing
+// one way) on the chest game's routes, played on her page as the design package plays them on its board, with the first route
+// it comes on.
+async function gamePoseChanges(character) {
+  const changes = { her: {}, its: {} };
+  for (const [route, steps] of Object.entries(ROUTES)) {
+    const pet = gamePet(character), timers = [];
+    let her = null, its = null;
+    const clock = { t: 0, act: () => { pet.master.currentTime = clock.t; } };
+    clock.frame = async () => {
+      clock.act();
+      for (const [when, fn] of timers.splice(0)) if (when <= clock.t) fn(); else timers.push([when, fn]);
+      const st = pet.stateAt(clock.t), pk = pet.gl.pk;
+      if (her && st.pose !== her) changes.her[`${her}>${st.pose}`] ??= route;
+      if (pk && its && pk.pose !== its.pose && pk.flip === its.flip) changes.its[`${its.pose}>${pk.pose}`] ??= route;
+      [her, its] = [st.pose, pk];
+      clock.t += 1000 / 60;
+    };
+    await walk(steps, drive(pet, (ms, fn) => timers.push([pet.now() + ms, fn]), { NAME, STEP }), clock);
+  }
+  return changes;
+}
+
 for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)) {
   test(`character ${folder} has every pose, sprite drawing and prop the 桌宠页 plays`, () => {
     const character = read(`characters/${folder}/character.json`), art = character.desktopPet, states = everyState(character);
@@ -70,6 +95,13 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     pet.tweens = Object.fromEntries(Object.keys(character.desktopPet.transitions).map(pair => [pair, [pair, pair]]));
     const none = Object.entries(poseChanges(character)).filter(([pair]) => pet.route(...pair.split('>')) === null).map(([pair, show]) => `${pair}（${show}）`);
     assert.deepEqual(none, []);
+  });
+
+  test(`character ${folder} has a way across every change of pose on the 宝箱小游戏's routes, and the 捣蛋鬼 its in-betweens or a cut written down`, async () => {
+    const character = read(`characters/${folder}/character.json`), changes = await gamePoseChanges(character), { transitions, cuts } = prankster;
+    const pet = gamePet(character), none = Object.entries(changes.her).filter(([pair]) => pet.route(...pair.split('>')) === null);
+    const its = Object.entries(changes.its).filter(([pair]) => !transitions[pair] && !transitions[pair.split('>').reverse().join('>')] && !cuts.includes(pair));
+    assert.deepEqual([...none, ...its].map(([pair, route]) => `${pair}（${route}）`), []);
   });
 
   test(`character ${folder}'s desktop pet strips and placings name her poses, drawings and frames`, () => {
