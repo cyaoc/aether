@@ -11,13 +11,13 @@ const { shows } = read('desktop-pet/shows.json'), prankster = read('desktop-pet/
 const CELL = { x: 0, y: 0, w: 100, h: 100, cx: 50, cy: 50, ox: 0, oy: 0, ground: 100, ruler: 100, rope: 0.5, tip: { x: 0, y: 40 } };
 const FRAME = 1000 / 60;
 
-export function gamePet(character, settings = {}) {
+export function gamePet(character, settings = {}, rng = seeded(7)) {
   const art = character.desktopPet, pet = new Pet(null, { currentTime: 0 }, shows, character), size = { width: 1, height: 1 };
   Object.assign(pet, { props: { admship: size }, castle: { closed: size, box: { h: 1 } }, cells: new Proxy({}, { get: () => Array(6).fill(CELL) }), herLeft: -60,
     prankster, chestBox: { w: 72, h: 58, open: 104, k: H / prankster.anchor }, gameLoaded: true,
     tweens: Object.fromEntries(Object.keys(art.transitions).map(pair => [pair, [pair, pair]])) });
   for (const k of [...Object.keys(art.sheets), 'game']) pet.loads[k] = Promise.resolve();
-  pet.reset(seeded(7));
+  pet.reset(rng);
   pet.receive({ enabled: true, roomConnected: true, settings: { ...SETTINGS, ...settings }, lines: character.lines });
   return pet;
 }

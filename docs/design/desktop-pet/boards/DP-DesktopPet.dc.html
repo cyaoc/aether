@@ -236,10 +236,10 @@ const DAZED = 1300, UP = 2200;
 // What it says, in a narrow bubble (a line breaks where it says so). It only bullies her and brags: never a word about
 // gifts or money, and it names only who hit it.
 const PKLINES = {
-  peek: '嘘——\n别告诉她', grudge: '上次砸我的\n{昵称}在吗？', brag: '上次那箱\n真不错～', shrug: '……空的？\n白偷了！',
-  sit: ['我坐这儿等，\n有货再拿～', '这箱子\n归我坐了！', '没人管我吧？\n嘿嘿'], toss: '空的不要，\n还你！',
-  grab: '哎呀，\n被发现了！', recruit: '想看她出糗？\n发「捣蛋」！', zap: '看我的闪电！', sprint: '拜拜咯～',
-  lost: '多谢款待，\n下次再来！', won: '你们给我\n等着——！'
+  peek: ['嘘——\n别告诉她'], grudge: ['上次砸我的\n{昵称}在吗？'], brag: ['上次那箱\n真不错～'], shrug: ['……空的？\n白偷了！'],
+  sit: ['我坐这儿等，\n有货再拿～', '这箱子\n归我坐了！', '没人管我吧？\n嘿嘿'], toss: ['空的不要，\n还你！'],
+  grab: ['哎呀，\n被发现了！'], recruit: ['想看她出糗？\n发「捣蛋」！'], zap: ['看我的闪电！'], sprint: ['拜拜咯～'],
+  lost: ['多谢款待，\n下次再来！'], won: ['你们给我\n等着——！']
 };
 // Effects on top of each event's own, stronger the higher the tier (README 7.1): C a manga symbol and a small burst; B a
 // ring on the ground and things floating up; A light behind her and a shake at the peak; S the whole page.
@@ -339,7 +339,8 @@ const LINES = {
   无聊: ['好安静啊…', '今天的星星好多…', '要不要…举个哑铃？'],
   沮丧: ['是不是没人喜欢我了…', '画个圈圈…', '（偷偷看）有人在吗…'],
   '沮丧·被偷': ['我的宝箱…', '下次一定守住…', '（偷偷看）下次有人帮我守吗…'],
-  犯困: ['呼…呼…', '唔…再睡五分钟…', '（梦话）哑铃…好重…'],
+  犯困: ['呼…呼…', '唔…再睡五分钟…', '（梦话）哑铃…好重…'], 打瞌睡惊醒: ['我、我没睡着！'],
+  宝箱摔下来: ['啊！我的宝箱！'], 打得好: ['{昵称}打得好！'], 怎么砸我: ['{昵称}！怎么砸我呀！'],
   报名中: ['发「{关键字}」就能报名哦～', '还在报名中…快来快来！'], 等开奖: ['会是谁呢…好紧张', '心、心跳好快…'],
   冷场后来了人: ['啊！有人来了！', '我、我没睡着！'],
   举哑铃: ['今天也要锻炼！'], 哼歌: ['♪啦啦啦～'], 爬山: ['下次一起去爬山吧！', '山顶的风好舒服～'], 骑车: ['叮铃叮铃～', '骑车去兜风！'],
@@ -538,7 +539,7 @@ class Component extends DCLogic {
 
   reset() {
     this.cur = this.seen = null; this.queue = []; this.log = []; this.lot = null; this.pending = []; this.round = null; this.announced = null; this.castleDue = null;
-    this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lines = {}; this.rng = seeded(7);
+    this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lines = {}; this.said = null; this.rng = seeded(7);
     this.gm = { chest: 0, pile: 0, drops: [], nums: [], visit: null, due: false, pk: false, last: this.now(), out: null, walk: null, streak: 0, steals: 0, brag: false, grudge: null, say: null, herX: FOOT.x };
     this.gl = null;
   }
@@ -662,12 +663,20 @@ class Component extends DCLogic {
     return st;
   }
 
-  pick(name) {
-    const list = LINES[name]; if (!list) return null;
+  pick(name, lines = LINES) {
+    const list = lines[name]; if (!list) return null;
     let i = Math.floor(this.rng() * list.length);
     if (list.length > 1 && i === this.lines[name]) i = (i + 1) % list.length;
     this.lines[name] = i;
     return list[i];
+  }
+
+  // A line said for a while, a 心情's or a jolt's, is picked as she starts saying it, t ms ago, and kept till she is done; when
+  // she started is rounded, as now less t comes out a hair apart from frame to frame.
+  saying(name, now, t) {
+    const at = Math.round(now - t);
+    if (this.said?.at !== at) this.said = { at, line: this.pick(name) };
+    return this.said.line;
   }
 
   update(now) {
@@ -760,7 +769,7 @@ class Component extends DCLogic {
     gm.due = false; gm.out = null;
     // loot: there is something in the chest to fight over
     gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helpers: 0, helped: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
-    this.pkSay(gm.brag ? PKLINES.brag : gm.grudge ? PKLINES.grudge.replace('{昵称}', gm.grudge) : PKLINES.peek, now);
+    this.pkSay(gm.brag ? 'brag' : gm.grudge ? 'grudge' : 'peek', now, gm.grudge);
     gm.brag = false;
   }
 
@@ -771,9 +780,9 @@ class Component extends DCLogic {
     if (['knocked', 'fled'].includes(p)) v.say = null;
   }
 
-  pkSay(text, now) { this.gm.visit.say = { text, at: now }; }
+  pkSay(kind, now, name) { this.gm.visit.say = { text: this.pick(kind, PKLINES).replace('{昵称}', name), at: now }; }
 
-  herSay(text, now) { this.gm.say = { text: this.fill(text), at: now }; }
+  herSay(kind, now) { this.gm.say = { text: this.fill(this.pick(kind)), at: now }; }
 
   // She hops to x in so many little hops (never a slide).
   hopTo(x, now, hops = 1) { const gm = this.gm; if (Math.abs(x - gm.herX) > 1) gm.walk = { from: gm.herX, to: x, at: now, ms: 300 * hops, hops }; }
@@ -852,11 +861,11 @@ class Component extends DCLogic {
       if (v.sprint != null) { v.wince = now; return; }
       Object.assign(v, { bonk: now, tumble: now, helped: v.helped + 1 });
       if (v.helped % 5 === 0) v.buried = now;
-      return this.herSay('{昵称}！怎么砸我呀！', now);
+      return this.herSay('怎么砸我', now);
     }
     Object.assign(v, { hp: v.hp - spend, hit: now }); gm.grudge = name;
     gm.nums.push({ at: now, text: `-${spend} ${name}` });
-    if (v.hp <= 0 || spend >= MID) this.win(now); else this.herSay('{昵称}打得好！', now);
+    if (v.hp <= 0 || spend >= MID) this.win(now); else this.herSay('打得好', now);
   }
 
   // The chest has landed beside her: she starts back from the crash, then lunges for its handle and pulls. The
@@ -865,7 +874,7 @@ class Component extends DCLogic {
     const gm = this.gm, v = gm.visit;
     v.max = v.hp = clamp(Math.round(gm.chest / 5), 1, MID);
     Object.assign(v, { left: GAME.fight, pebbles: 0, grabbed: now });
-    this.phase('tug', now); v.say = null; this.herSay('啊！我的宝箱！', now);
+    this.phase('tug', now); v.say = null; this.herSay('宝箱摔下来', now);
     this.hopTo(Math.min(gm.herX, this.ring(LAND, -1).x - this.grip('lunge') - 10), now);   // back far enough to lunge forward
   }
 
@@ -917,14 +926,14 @@ class Component extends DCLogic {
   win(now) {
     const gm = this.gm, v = gm.visit;
     gm.streak++; gm.chest += v.spent; gm.pile += v.count;
-    this.phase('won', now); this.sendHome(now); this.hopTo(FOOT.x, now + HOME * 0.6, 3); this.pkSay(PKLINES.won, now);
+    this.phase('won', now); this.sendHome(now); this.hopTo(FOOT.x, now + HOME * 0.6, 3); this.pkSay('won', now);
     this.fire('守住了', { game: true, streak: gm.streak, zap: v.zapped != null });
   }
 
   lose(now) {
     const gm = this.gm;
     Object.assign(gm, { chest: 0, pile: 0, streak: 0, steals: gm.steals + 1, brag: true });   // next time it brags of it
-    this.phase('lost', now); this.pkSay(PKLINES.lost, now);
+    this.phase('lost', now); this.pkSay('lost', now);
   }
 
   endVisit(now) { this.gm.visit = null; this.gm.last = now; if (!this.gm.walk) this.hopTo(FOOT.x, now, 2); }
@@ -968,23 +977,23 @@ class Component extends DCLogic {
         v.chest = { x: LAND }; v.landed = now; v.pos = { x: LAND, y: CHEST.y - this.chestBox.h - PK_H * 0.3 };
         if (v.loot) this.grab(now); else { this.phase('peer', now); this.hopTo(FOOT.x - 60, now + DAZED + 300); }
         break;
-      case 'peer': if (u >= DAZED + 1900) { this.phase('shrug', now); this.pkSay(PKLINES.shrug, now); } break;
-      case 'shrug': if (u >= 2800) { this.phase('sit', now); this.pkSay(PKLINES.sit[0], now); } break;
+      case 'peer': if (u >= DAZED + 1900) { this.phase('shrug', now); this.pkSay('shrug', now); } break;
+      case 'shrug': if (u >= 2800) { this.phase('sit', now); this.pkSay('sit', now); } break;
       case 'sit': {
         const n = Math.floor(u / 20000);
-        if (u >= GAME.loiter) { this.phase('toss', now); this.pkSay(PKLINES.toss, now); }
-        else if (n > (v.heckled || 0)) { v.heckled = n; v.laugh = now; this.pkSay(PKLINES.sit[n % PKLINES.sit.length], now); }
+        if (u >= GAME.loiter) { this.phase('toss', now); this.pkSay('toss', now); }
+        else if (n > (v.heckled || 0)) { v.heckled = n; v.laugh = now; this.pkSay('sit', now); }
         break;
       }
       case 'toss': if (u >= 1700) this.phase('leave', now); break;
       case 'tug':
         if (v.cut != null) { if (now - v.cut >= ZAP) v.cut = null; break; }   // the set piece plays: the countdown waits
-        if (v.zapped == null && v.hp <= v.max / 2) { v.zapped = v.cut = now; this.pkSay(PKLINES.zap, now); break; }
+        if (v.zapped == null && v.hp <= v.max / 2) { v.zapped = v.cut = now; this.pkSay('zap', now); break; }
         // it answers her once her bubble is gone (the two stand close then), and after that calls for helpers
-        if (!v.caught && now - v.grabbed >= 2900) { v.caught = true; this.pkSay(PKLINES.grab, now); }
-        if (!v.recruited && now - v.grabbed >= 6200) { v.recruited = true; this.pkSay(PKLINES.recruit, now); }
+        if (!v.caught && now - v.grabbed >= 2900) { v.caught = true; this.pkSay('grab', now); }
+        if (!v.recruited && now - v.grabbed >= 6200) { v.recruited = true; this.pkSay('recruit', now); }
         v.left -= dt;
-        if (v.left <= GAME.sprint && v.sprint == null) { v.sprint = now; this.pkSay(PKLINES.sprint, now); }
+        if (v.left <= GAME.sprint && v.sprint == null) { v.sprint = now; this.pkSay('sprint', now); }
         if (v.left <= 0) this.lose(now);
         break;
       case 'lost': if (u >= 1600) { this.endVisit(now); this.fire('被偷了', { game: true, zap: v.zapped != null }); } break;
@@ -1426,7 +1435,7 @@ class Component extends DCLogic {
   // since: how long she has been in this mood (or lottery wait) without an event.
   idleState(now, mood, since = now) {
     const st = this.base();
-    if (this.lot && (this.lot.phase === '等待' || this.lot.phase === '转动')) { st.pose = 'hope'; st.fx.push(['sweat', 0, 2400]); this.talk(st, '等开奖', since); return st; }
+    if (this.lot && (this.lot.phase === '等待' || this.lot.phase === '转动')) { st.pose = 'hope'; st.fx.push(['sweat', 0, 2400]); this.talk(st, '等开奖', now, since); return st; }
     if (mood === '开心') { st.y -= 6 * Math.abs(Math.sin(now / 380)); st.orbit = now; }
     if (mood === '平静' && now % 7000 > 5800) st.sprite = 'sLook';  // now and then it looks up at her
     if (mood === '无聊') { st.fx.push(['dots', 0, 6000], ['sigh', 0, 7000]); }
@@ -1434,20 +1443,20 @@ class Component extends DCLogic {
     if (mood === '无聊') { st.pose = 'bored'; st.sprite = now % 8000 < 2600 ? 'yawn' : 'sIdle'; st.sp = ['home', 10 * Math.sin(now / 1800), 6 * Math.sin(now / 1300)]; }
     if (mood === '沮丧') { st.pose = 'gloomy'; st.sprite = 'pat'; st.sp = 'head'; }
     if (mood === '犯困') { st.pose = 'doze'; st.sprite = 'sleep'; st.sp = 'knee'; }
-    this.talk(st, this.lot?.phase === '报名中' ? '报名中' : this.moodHold?.mood === mood && this.moodHold.lines || mood, since);
+    this.talk(st, this.lot?.phase === '报名中' ? '报名中' : this.moodHold?.mood === mood && this.moodHold.lines || mood, now, since);
     if (mood === '犯困') {
       // every other half minute her head drops onto her knees: she jolts awake, insists she wasn't asleep, and dozes off again
       const u = since % 30000;
-      if (u >= 23000 && u < 24400) { st.pose = 'awake'; st.y -= 10 * bump(u, 23000, 23300); st.sprite = 'surprised'; st.bubble = { text: LINES.冷场后来了人[1], t: u - 23000 }; st.fx.push(['bang', now - (u - 23000)], ['shock', now - (u - 23000)]); }
+      if (u >= 23000 && u < 24400) { st.pose = 'awake'; st.y -= 10 * bump(u, 23000, 23300); st.sprite = 'surprised'; st.bubble = { text: this.saying('打瞌睡惊醒', now, u - 23000), t: u - 23000 }; st.fx.push(['bang', now - (u - 23000)], ['shock', now - (u - 23000)]); }
       else st.fx.push(['z', now]);
     }
     return st;
   }
 
-  // A mood or a lottery wait says its first line 0.6 s in and the next one every 15 s after (平静 and 开心 say nothing).
-  talk(st, key, since) {
-    const lines = LINES[key], u = since % 15000;
-    if (lines && u >= 600 && u < 4600) st.bubble = { text: this.fill(lines[Math.floor(since / 15000) % lines.length]), t: u - 600 };
+  // A mood or a lottery wait says a line 0.6 s in and another every 15 s after (平静 and 开心 say nothing).
+  talk(st, key, now, since) {
+    const u = since % 15000;
+    if (LINES[key] && u >= 600 && u < 4600) st.bubble = { text: this.fill(this.saying(key, now, u - 600)), t: u - 600 };
   }
 
   eventState(name, t, opts, line) {
@@ -1823,7 +1832,7 @@ class Component extends DCLogic {
     if (t < acc) return this.idleState(now, '平静');
     for (const [n, d, phase] of seq) {
       if (t < acc + d) {
-        if (n === 'hold') { const st = this.base(); if (phase === '等待') st.pose = 'hope'; this.talk(st, phase === '等待' ? '等开奖' : '报名中', t - acc); return st; }
+        if (n === 'hold') { const st = this.base(); if (phase === '等待') st.pose = 'hope'; this.talk(st, phase === '等待' ? '等开奖' : '报名中', now, t - acc); return st; }
         const st = ev(n, t - acc);
         if (n === '城堡' && st.bubble?.at) st.bubble.text = this.fill(LINES['城堡·门口'][0]);
         return st;

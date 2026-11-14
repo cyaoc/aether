@@ -80,6 +80,20 @@ test('the 捣蛋鬼 comes between a pool lottery\'s draws, not while one is draw
   }
 });
 
+test('what is said in a 来访 is a line of its kind at random, never the same one twice in a row', () => {
+  // every draw in the middle: of three lines the second, and the third rather than the second again
+  const pet = gamePet({ ...character, lines: { ...character.lines, pranksterPeek: ['甲', '乙', '丙'] } }, {}, () => 0.5), said = [];
+  for (const _ of [1, 2]) {
+    pet.summon();
+    play(pet, 100);
+    said.push(pet.gm.visit.say.text);
+    pet.receive(state(pet, { pk: true }));
+    play(pet, 3000);
+    pet.receive(state(pet, { pk: false }));
+  }
+  assert.deepEqual(said, ['乙', '丙']);
+});
+
 test('a viewer sending the 帮它的关键字 twice in the tug is one helper', () => {
   const pet = tugging();
   assert.equal(pet.gm.visit.phase, 'tug');

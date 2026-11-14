@@ -11,9 +11,9 @@ const { shows } = read('desktop-pet/shows.json'), { lines } = read('characters/1
 const MINUTE = 60000;
 
 // A 桌宠页 connected to a room, its clock at 0.
-function pet(settings = {}) {
+function pet(settings = {}, rng = seeded(7)) {
   const engine = new Engine({ currentTime: 0 }, shows);
-  engine.reset(seeded(7));
+  engine.reset(rng);
   engine.receive({ enabled: true, roomConnected: true, settings: { ...SETTINGS, ...settings }, lines });
   return engine;
 }
@@ -130,6 +130,19 @@ test('犯困 comes after an hour with nothing and ends on an entry or a danmaku;
   assert.equal(engine.mood(engine.now()), 'gloomy');
 });
 
+test('a 心情 says a line at random every 15 s, never the same one twice in a row, and keeps it while she says it', () => {
+  // every draw in the middle: of three lines the second, and the third rather than the second again
+  const engine = pet({}, () => 0.5), said = [];
+  engine.receive(state(engine, { lines: { ...lines, bored: ['甲', '乙', '丙'] } }));
+  advance(engine, 16 * MINUTE);
+  engine.stateAt(engine.now());
+  for (const ms of [1000, 3000, 12000]) {
+    advance(engine, ms);
+    said.push(engine.stateAt(engine.now()).bubble?.text);
+  }
+  assert.deepEqual(said, ['乙', '乙', '丙']);
+});
+
 test('jolting awake from 犯困 every half minute she says a line of its own kind, the one left when only one is', () => {
   const engine = pet();
   engine.receive(state(engine, { lines: { ...lines, jolt: ['才没睡！'] } }));
@@ -137,6 +150,19 @@ test('jolting awake from 犯困 every half minute she says a line of its own kin
   engine.stateAt(engine.now());
   advance(engine, 23500);
   assert.equal(engine.stateAt(engine.now()).bubble?.text, '才没睡！');
+});
+
+test('jolting awake she says a line of its kind at random, never the same one twice in a row, and keeps it while she says it', () => {
+  // every draw in the middle: of two lines the second, and the first rather than the second again
+  const engine = pet({}, () => 0.5), said = [];
+  engine.receive(state(engine, { lines: { ...lines, jolt: ['甲', '乙'] } }));
+  advance(engine, 60 * MINUTE);
+  engine.stateAt(engine.now());
+  for (const ms of [23100, 1200, 28800, 1200]) {
+    advance(engine, ms);
+    said.push(engine.stateAt(engine.now()).bubble?.text);
+  }
+  assert.deepEqual(said, ['乙', '乙', '甲', '甲']);
 });
 
 test('the 心情 come after the minutes set, and never for 0', () => {

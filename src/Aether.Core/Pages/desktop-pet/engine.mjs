@@ -228,7 +228,7 @@ export class Engine extends EventTarget {
   reset(rng) {
     this.cur = this.seen = this.trial = this.lot = this.reveal = this.moodHold = null; this.queue = []; this.rounds = []; this.crowns = new Map(); this.lottery = undefined;
     this.changes = new Changes();
-    this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lastLine = {}; this.rng = rng;
+    this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lastLine = {}; this.said = null; this.rng = rng;
     this.gm = this.newGame(this.now()); this.gl = null; this.thrown = new Map();
   }
 
@@ -494,6 +494,14 @@ export class Engine extends EventTarget {
     return list[i];
   }
 
+  // A line said for a while, a 心情's or a jolt's, is picked as she starts saying it, t ms ago, and kept till she is done; when
+  // she started is rounded, as now less t comes out a hair apart from frame to frame.
+  saying(name, now, t) {
+    const at = Math.round(now - t);
+    if (this.said?.at !== at) this.said = { at, line: this.pick(name) };
+    return this.said.line;
+  }
+
   update(now) {
     if (this.reveal && now >= this.reveal.at) { this.fire('lottery', this.reveal.opts); this.reveal = null; }
     const c = this.cur;
@@ -604,12 +612,8 @@ export class Engine extends EventTarget {
     if (['knocked', 'fled'].includes(p)) v.say = null;
   }
 
-  // A line of a kind of the game's, the next in turn as her 心情's are, filled in. The 捣蛋鬼's bubble is narrow: a space in its
-  // line breaks it.
-  gameLine(kind, opts) {
-    const list = this.lines[kind], i = this.lastLine[kind] = ((this.lastLine[kind] ?? -1) + 1) % list.length;
-    return this.fill(list[i], kind, opts);
-  }
+  // A line of a kind of the game's, filled in. The 捣蛋鬼's bubble is narrow: a space in its line breaks it.
+  gameLine(kind, opts) { return this.fill(this.pick(kind), kind, opts); }
 
   pkSay(kind, now, opts) { this.gm.visit.say = { text: this.gameLine(kind, opts).replaceAll(' ', '\n'), at: now }; }
 
@@ -1074,7 +1078,7 @@ export class Engine extends EventTarget {
   // since: how long she has been in this mood (or lottery wait) without an event.
   idleState(now, mood, since = now) {
     const st = this.base();
-    if (this.lot === 'waiting') { st.pose = 'hope'; st.fx.push(['sweat', 0, 2400]); this.talk(st, 'lotteryWaiting', since); return st; }
+    if (this.lot === 'waiting') { st.pose = 'hope'; st.fx.push(['sweat', 0, 2400]); this.talk(st, 'lotteryWaiting', now, since); return st; }
     if (mood === 'happy') { st.y -= 6 * Math.abs(Math.sin(now / 380)); st.orbit = now; }
     if (mood === 'calm' && now % 7000 > 5800) st.sprite = 'sLook';  // now and then it looks up at her
     if (mood === 'bored') { st.fx.push(['dots', 0, 6000], ['sigh', 0, 7000]); }
@@ -1082,21 +1086,20 @@ export class Engine extends EventTarget {
     if (mood === 'bored') { st.pose = 'bored'; st.sprite = now % 8000 < 2600 ? 'yawn' : 'sIdle'; st.sp = ['home', 10 * Math.sin(now / 1800), 6 * Math.sin(now / 1300)]; }
     if (mood === 'gloomy') { st.pose = 'gloomy'; st.sprite = 'pat'; st.sp = 'head'; }
     if (mood === 'sleepy') { st.pose = 'doze'; st.sprite = 'sleep'; st.sp = 'knee'; }
-    this.talk(st, this.lot === 'open' ? 'lotteryEntryOngoing' : this.moodHold?.mood === mood && this.moodHold.lines || mood, since);
+    this.talk(st, this.lot === 'open' ? 'lotteryEntryOngoing' : this.moodHold?.mood === mood && this.moodHold.lines || mood, now, since);
     if (mood === 'sleepy') {
       // every other half minute her head drops onto her knees: she jolts awake, insists she wasn't asleep, and dozes off again
       const u = since % 30000;
-      const jolts = this.lines.jolt;
-      if (u >= 23000 && u < 24400) { st.pose = 'awake'; st.y -= 10 * bump(u, 23000, 23300); st.sprite = 'surprised'; st.bubble = { text: jolts[Math.floor(since / 30000) % jolts.length], t: u - 23000 }; st.fx.push(['bang', now - (u - 23000)], ['shock', now - (u - 23000)]); }
+      if (u >= 23000 && u < 24400) { st.pose = 'awake'; st.y -= 10 * bump(u, 23000, 23300); st.sprite = 'surprised'; st.bubble = { text: this.saying('jolt', now, u - 23000), t: u - 23000 }; st.fx.push(['bang', now - (u - 23000)], ['shock', now - (u - 23000)]); }
       else st.fx.push(['z', now]);
     }
     return st;
   }
 
-  // A mood or a lottery wait says its first line 0.6 s in and the next one every 15 s after (平静 and 开心 say nothing).
-  talk(st, key, since) {
-    const lines = this.lines[key], u = since % 15000;
-    if (lines && u >= 600 && u < 4600) st.bubble = { text: this.fill(lines[Math.floor(since / 15000) % lines.length], key, { keyword: this.lottery?.keyword }), t: u - 600 };
+  // A mood or a lottery wait says a line 0.6 s in and another every 15 s after (平静 and 开心 say nothing).
+  talk(st, key, now, since) {
+    const u = since % 15000;
+    if (this.lines[key] && u >= 600 && u < 4600) st.bubble = { text: this.fill(this.saying(key, now, u - 600), key, { keyword: this.lottery?.keyword }), t: u - 600 };
   }
 
   // A show's state t ms in; a lottery's is its step's (opts.result).

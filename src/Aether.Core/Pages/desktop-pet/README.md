@@ -143,14 +143,12 @@ the page beside the board, as the web service serves it, telling it it is on in 
   A show's 试演 played out, or cut short by a show of what happened, is reported with `POST /desktop-pet/report?trial=` and the
   number Core told it with, as the video page reports what it played, and the GUI offers another; a page reporting one after
   the next started ends nothing, and a 试演 whose pages all went away (the streaming software reloaded it) is over too.
-- Jolting awake from 犯困 every half minute she says a line of its own kind, `jolt`, in turn; the board said the second of
-  冷场后来了人's, which the streamer may now change or take away.
 - Shows, 心情, 日常小动作, endings, lottery steps and kinds of lines go by their ids in the 演出表 rather than the board's Chinese
   names, and her lines are picked with `Math.random`, not the board's fixed seed.
 - The 宝箱小游戏 comes on its own every `pranksterMinutes`, counted from the room connecting, never at 0, or when the streamer
   叫它来; the board's game was on or off and came every 30 minutes. It sets off once its pictures are there, and the page
   reports it setting off and leaving. What it and she say in a 来访 are her character's lines of the groups `chestGame` and
-  `prankster`, each kind in turn (a space breaks the 捣蛋鬼's line), the 帮它的关键字 the saved one; the board said fixed lines.
+  `prankster` (a space breaks the 捣蛋鬼's line), the 帮它的关键字 the saved one; the board said fixed lines.
 - A gift message's gifts are thrown at the 捣蛋鬼 one by one, each with B站's icon, a little box while it loads or has none;
   the board threw boxes. What a viewer threw is kept off their 一轮送礼 when it goes on after the 来访, and a 盲盒播报 of boxes
   thrown opens none; the board's round had them taken out. A castle scares it off when its 盲盒播报 comes; the board's stood in
