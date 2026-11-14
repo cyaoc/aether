@@ -467,8 +467,9 @@ export class Engine extends EventTarget {
     const scare = this.gm.visit ? this.scared(this.now()) : {};
     this.trial = null;
     if (this.events[show].group === MOOD) {
+      this.drop();
       if (scare.frizz) this.gm.fix = { start: this.now() };
-      this.trial = show; this.cur = null; return;
+      this.trial = show; return;
     }
     this.start(show, { nickname, result: variant, mishap: variant === 'Mishap', trial: true, trialId: id, ...scare });
   }
@@ -476,7 +477,15 @@ export class Engine extends EventTarget {
   // Only the 试演: a show of what happened since it plays on.
   stopTestShow() {
     this.trial = null;
-    if (this.cur?.opts.trial) this.cur = null;
+    if (this.cur?.opts.trial) this.drop();
+  }
+
+  // A show dropped while it still waits for her hair leaves the sprite to pat it smooth as with no show after (gm.fix), on
+  // the show's clock, so the pats go on where they were.
+  drop() {
+    const c = this.cur;
+    if (c && this.now() < c.start + c.pre && c.opts.frizz) this.gm.fix = { start: c.start };
+    this.cur = null;
   }
 
   // A 试演 of a show played out, or cut short by another show, is over, and the page tells Core by its number (page.mjs); one

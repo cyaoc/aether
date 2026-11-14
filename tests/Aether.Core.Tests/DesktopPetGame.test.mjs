@@ -291,6 +291,21 @@ test('a show coming while the chest is still going home from a PK that scared th
   }
 });
 
+test('a 试演 stopped, or replaced by a 心情\'s, while it waits for her hair leaves the sprite patting it smooth where it was', () => {
+  for (const next of [p => p.stopTestShow(), p => p.testShow({ show: 'bored', variant: null, nickname: '', id: 2 })]) {
+    const pet = tugging(), poses = [];
+    pet.gift(gifts(1, 6000));
+    play(pet, 3000);
+    pet.testShow({ show: 'captain', variant: null, nickname: '星河', id: 1 });
+    play(pet, 500);
+    const { start } = pet.cur;
+    next(pet);
+    assert.deepEqual([playing(pet), pet.gm.fix], [null, { start }]);
+    play(pet, 9000, st => poses.push(st.pose));
+    assert.deepEqual([poses[0], poses.includes('cheer'), pet.gm.fix], ['cheerZap', true, null]);
+  }
+});
+
 test('叫它来 right after a PK scared the 捣蛋鬼 off brings it once the chest it let go of is home', () => {
   const pet = tugging(), told = reports(pet);
   pet.receive(state(pet, { pk: true }));
