@@ -230,8 +230,11 @@ export class Engine extends EventTarget {
     this.cur = this.seen = this.trial = this.lot = this.reveal = this.moodHold = null; this.queue = []; this.rounds = []; this.crowns = new Map(); this.lottery = undefined;
     this.changes = new Changes();
     this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lastLine = {}; this.said = null; this.rng = rng;
-    this.gm = this.newGame(this.now()); this.gl = null; this.thrown = new Map();
+    this.gm = this.newGame(this.now()); this.gl = null; this.thrown = new Map(); this.unopened = new Map();
   }
+
+  // The viewers' 一轮送礼 and what goes with them, gone with the room or her switched off: no 盲盒播报 is to come for them.
+  forgetRounds() { this.rounds = []; this.crowns.clear(); this.thrown.clear(); this.unopened.clear(); }
 
   // The 桌宠页's state: whether she is on, how the streamer set her to play and what she says, the lottery on air, the 礼物榜
   // while its 期 runs and whether the streamer is in a PK. Her quiet-room clocks start when the room connects, and so do the
@@ -244,11 +247,11 @@ export class Engine extends EventTarget {
       this.lastGift = this.lastAny = now; this.recent = [];
       Object.assign(this.gm, { chest: 0, pile: 0, streak: 0, steals: 0, brag: false, grudge: null, last: now });
     }
-    if (!state.roomConnected) { this.rounds = []; this.crowns.clear(); this.thrown.clear(); }
+    if (!state.roomConnected) { this.forgetRounds(); this.callOff(); }
     this.room = state.roomConnected;
     // switched off she is told nothing more, and back on she starts from what she is told then; Core forgets the 捣蛋鬼 too
     if (!state.enabled) {
-      this.cur = this.seen = this.trial = this.moodHold = null; this.queue = []; this.rounds = []; this.crowns.clear(); this.thrown.clear();
+      this.cur = this.seen = this.trial = this.moodHold = null; this.queue = []; this.forgetRounds();
       this.lottery = undefined; this.reveal = null; this.changes.reset(); this.gm = this.newGame(now); return;
     }
     if (!!state.pk !== this.gm.pk) this.pkOn(!!state.pk);
@@ -368,7 +371,7 @@ export class Engine extends EventTarget {
       this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], boxes: 0, told: 0, wake, wakeLine: wake ? this.pick('wake') : null, played: -1, top: this.crowns.get(p.uid) });
       this.crowns.delete(p.uid);
     }
-    r.arrivals.push(now); r.boxes = p.boxes;
+    r.arrivals.push(now); this.unopen(p.uid, r, p.boxes - r.boxes); r.boxes = p.boxes;
     this.gifted(now);
     // a castle opened from one of the round's blind boxes, the only way B站 gives one, plays once instead of its gifts and
     // blind boxes, with the result that reports the box it came from
@@ -383,12 +386,9 @@ export class Engine extends EventTarget {
 
   // A 一轮盲盒's result, as its 盲盒播报 reported it (BlindBoxResult): the size by what the boxes cost, the ending by what they
   // opened; a single gift opened at the 大礼物 threshold is a jackpot and at least the big one. A castle in the round plays
-  // the castle instead. What it reports beyond the boxes still in her rounds was thrown at the 捣蛋鬼, if the viewer threw any:
-  // those open nothing, though a castle still plays.
+  // the castle instead. Boxes it reports that were thrown at the 捣蛋鬼 (tell) open nothing, though a castle still plays.
   blindBox(b) {
-    const { told, left } = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
-    const thrown = this.thrown.get(b.uid), hit = Math.min(left, thrown?.unopened ?? 0);
-    if (hit) thrown.unopened -= hit;
+    const { told, hit } = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
     if (!told.length && hit && !b.castle) return;
     // A round's castle plays once: waiting on its 盲盒播报, with the result that tells the boxes up to it (a result before
     // it plays nothing, the castle standing in for it); another opened in a round that already played one, not again.
@@ -403,18 +403,29 @@ export class Engine extends EventTarget {
       { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes, shaken: !!r, round: r });
   }
 
-  // The rounds a result tells, oldest first: a 盲盒播报 reports every box sent before it went out, over however many 一轮送礼
-  // they came in, and none sent while it went out, which wait for their own. A round is done once it ended and all is told.
-  // left: how many of its boxes are in none of her rounds.
+  // The rounds a result tells, and how many of its boxes were thrown at the 捣蛋鬼 (hit): a 盲盒播报 reports every box sent
+  // before it went out, in the order they came (unopen), thrown or not and over however many 一轮送礼, and none sent while it
+  // went out, which wait for their own. A round is done once it ended and all is told.
   tell(b) {
-    const told = [];
-    let left = b.boxes;
-    for (let r; left > 0 && (r = this.rounds.find(x => x.uid === b.uid && x.boxes > x.told));) {
-      const n = Math.min(left, r.boxes - r.told);
-      r.told += n; left -= n; told.push(r);
-      if (r.ended && r.told === r.boxes) this.rounds.splice(this.rounds.indexOf(r), 1);
+    const told = [], boxes = this.unopened.get(b.uid) ?? [];
+    let left = b.boxes, hit = 0;
+    for (let s; left > 0 && (s = boxes[0]);) {
+      const n = Math.min(left, s.n);
+      left -= n; s.n -= n;
+      if (!s.n) boxes.shift();
+      if (!s.r) { hit += n; continue; }
+      s.r.told += n;
+      if (!told.includes(s.r)) told.push(s.r);
+      if (s.r.ended && s.r.told === s.r.boxes) this.rounds.splice(this.rounds.indexOf(s.r), 1);
     }
-    return { told, left };
+    return { told, hit };
+  }
+
+  // A viewer's boxes not yet opened, in the order they came: n more in her round r, or thrown at the 捣蛋鬼 (r null).
+  unopen(uid, r, n) {
+    if (!n) return;
+    if (!this.unopened.has(uid)) this.unopened.set(uid, []);
+    this.unopened.get(uid).push({ r, n });
   }
 
   // A gift message thrown at the 捣蛋鬼 counts for her 心情 as any gift; what it held is kept off the viewer's round (notThrown),
@@ -422,9 +433,9 @@ export class Engine extends EventTarget {
   threw(p, now) {
     this.gifted(now);
     this.crowns.delete(p.uid);
-    if (!this.thrown.has(p.uid)) this.thrown.set(p.uid, { spend: 0, count: 0, boxes: 0, unopened: 0 });
+    if (!this.thrown.has(p.uid)) this.thrown.set(p.uid, { spend: 0, count: 0, boxes: 0 });
     const t = this.thrown.get(p.uid);
-    for (const item of p.items) if (item.blind) { t.boxes += item.count; t.unopened += item.count; } else { t.spend += item.spend; t.count += item.count; }
+    for (const item of p.items) if (item.blind) { t.boxes += item.count; this.unopen(p.uid, null, item.count); } else { t.spend += item.spend; t.count += item.count; }
   }
 
   // The viewer's round as it stands, less what was thrown at the 捣蛋鬼 in it.
@@ -580,15 +591,17 @@ export class Engine extends EventTarget {
   // short).
   summon() { if (!this.gm.visit && !this.gm.pk) this.gm.due = true; }
 
-  // A PK is no time for it: it does not come (on its way, it is reported gone), and one here goes as if scared off, with no
-  // show after: she lets go and is herself again; after the lightning she cheers frizzed until the sprite, the chest home,
-  // has patted her hair smooth (gm.fix).
+  // It is not to come after all (a PK, the room disconnected): on its way, it is reported gone.
+  callOff() { if (this.gm.due) this.visited('end'); this.gm.due = false; }
+
+  // A PK is no time for it: it does not come (callOff), and one here goes as if scared off, with no show after: she lets go and
+  // is herself again; after the lightning she cheers frizzed until the sprite, the chest home, has patted her hair smooth
+  // (gm.fix).
   pkOn(on) {
     const gm = this.gm, v = gm.visit, now = this.now();
     gm.pk = on;
     if (!on) return;
-    if (gm.due) this.visited('end');
-    gm.due = false;
+    this.callOff();
     if (!v || DONE.has(v.phase)) return;
     if (this.scared(now).frizz) gm.fix = { start: now };
   }
@@ -790,8 +803,9 @@ export class Engine extends EventTarget {
   bank(spend) { this.gm.chest += spend; this.gm.pile++; }
 
   // The 来访's clock. It comes on its own at most once in pranksterMinutes, in a connected room when someone is about, and once
-  // called; then once its pictures are there and nothing plays, no 一轮送礼 goes on, no lottery is drawn (lotOf, whether its
-  // show is on or not) and no PK is on. Then each phase runs its time, and the tug its countdown.
+  // called; then, the room still connected, once its pictures are there and she plays nothing, a show or a 试演 (a 一轮送礼
+  // going on does not keep it waiting), no lottery is drawn (lotOf, whether its show is on or not) and no PK is on. Then each
+  // phase runs its time, and the tug its countdown.
   gameUpdate(now) {
     const gm = this.gm, v = gm.visit, dt = now - (gm.clock ?? now), every = this.settings.pranksterMinutes * 60000;
     gm.clock = now;
@@ -800,7 +814,7 @@ export class Engine extends EventTarget {
     if (gm.out && (gm.out.got != null ? now - gm.out.got >= gm.out.ms - gm.out.t2 && !(this.sv?.x > -50) : now - gm.out.at >= gm.out.ms + 6000)) gm.out = null;
     if (!v) {
       if (this.room && every && now - gm.last >= every && now - this.lastAny < GAME.about) gm.due = true;
-      if (gm.due && this.gameLoaded && !this.cur && !this.trial && !this.rounds.length && !lotOf(this.lottery) && !gm.pk) this.startVisit(now);
+      if (gm.due && this.room && this.gameLoaded && !this.cur && !this.trial && !lotOf(this.lottery) && !gm.pk) this.startVisit(now);
       return;
     }
     // what is thrown waits while the chest is in the air, until the 捣蛋鬼 is on its feet again, and while the lightning plays;

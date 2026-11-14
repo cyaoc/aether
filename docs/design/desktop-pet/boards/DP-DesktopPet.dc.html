@@ -939,8 +939,9 @@ class Component extends DCLogic {
 
   endVisit(now) { this.gm.visit = null; this.gm.last = now; if (!this.gm.walk) this.hopTo(FOOT.x, now, 2); }
 
-  // The visit's clock. It comes at most once in GAME.every, when someone is about and no PK is on; then each phase runs
-  // its time, and the tug its countdown.
+  // The visit's clock. It comes at most once in GAME.every, when someone is about and no PK is on, once nothing plays: a
+  // round still coming in does not keep it waiting (README 12: 不看礼物停没停). Then each phase runs its time, and the tug
+  // its countdown.
   gameUpdate(now) {
     const gm = this.gm, v = gm.visit, dt = now - (gm.clock ?? now);
     gm.clock = now;
@@ -949,7 +950,7 @@ class Component extends DCLogic {
     if (gm.out && (gm.out.got != null ? now - gm.out.got >= gm.out.ms - gm.out.t2 && !(this.sv?.x > -50) : now - gm.out.at >= gm.out.ms + 6000)) gm.out = null;
     if (!v) {
       if (now - gm.last >= GAME.every && now - this.lastAny < 5 * 60000) gm.due = true;
-      if (gm.due && !this.cur && !this.round && !this.lot && !gm.pk) this.startVisit(now);
+      if (gm.due && !this.cur && !this.lot && !gm.pk) this.startVisit(now);
       return;
     }
     // what is thrown waits while the chest is in the air, until the prankster is on its feet again, and while the lightning plays;

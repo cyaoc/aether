@@ -124,6 +124,21 @@ test('gifts and blind boxes thrown at the 捣蛋鬼 play nothing of hers, then o
   assert.equal(playing(pet), 'gift');
 });
 
+test('盲盒播报 open a viewer\'s boxes in the order they came: the box thrown at the 捣蛋鬼 first, as none, then the one sent after', () => {
+  const pet = visited();
+  pet.gift(box(2, 15000));
+  pet.receive(state(pet, { pk: true }));
+  play(pet, 3000);
+  pet.receive(state(pet, { pk: false }));
+  pet.gift(round(2, { ended: true }));
+  pet.gift(box(2, 15000));
+  const result = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 };
+  pet.blindBox(result);
+  assert.equal(playing(pet), null);
+  pet.blindBox(result);
+  assert.equal(playing(pet), 'blindBoxSmall');
+});
+
 test('every gift thrown goes into her chest, those landing after the one that beat the 捣蛋鬼 off too', () => {
   const empty = visited();
   for (const [uid, spend] of [[1, 10000], [2, 20000], [3, 30000]]) empty.gift(gifts(uid, spend));
@@ -175,4 +190,24 @@ test('with the room disconnected the 捣蛋鬼 does not come on its own', () => 
   pet.receive(state(pet, { roomConnected: false }));
   play(pet, 40000);
   assert.deepEqual([pet.gm.visit, told], [null, []]);
+});
+
+test('the 捣蛋鬼 due while a 试演 plays does not come once the room is disconnected, and is reported gone', () => {
+  const pet = gamePet(character, { pranksterMinutes: 1 }), told = reports(pet);
+  pet.testShow({ show: 'bored', variant: null, nickname: '', id: 1 });
+  play(pet, 61000);
+  pet.receive(state(pet, { roomConnected: false }));
+  pet.stopTestShow();
+  play(pet, 1000);
+  assert.deepEqual([pet.gm.visit, told], [null, ['end']]);
+});
+
+test('叫它来 brings the 捣蛋鬼 once her show is over, the viewer\'s 一轮送礼 going on or not', () => {
+  const pet = gamePet(character), told = reports(pet);
+  pet.summon();
+  for (let n = 1; n <= 4; n++) {
+    pet.gift(gifts(1, 100 * n, { count: n, topCount: n, items: [{ spend: 100, count: 1, blind: false, iconUrl: '' }] }));
+    play(pet, 2000);
+  }
+  assert.deepEqual([playing(pet), told], [null, ['start']]);
 });
