@@ -10,6 +10,7 @@ internal sealed class DesktopPet(WebService service, Character character)
         Test = "testShow", StopTest = "stopTestShow", Summon = "summon";
 
     private bool roomConnected;
+    private bool pk;
     private Lottery? lottery;
     private GiftBoardState? giftBoard;
     // The 试演 that plays, by the number its page reports it over with, and the pages told it: once none of them is left, none
@@ -32,7 +33,7 @@ internal sealed class DesktopPet(WebService service, Character character)
     private bool Enabled => service.Settings?.DesktopPetEnabled.Value == true;
 
     public SseEvent State => new("state", service.Settings is { DesktopPetEnabled.Value: true } settings
-        ? new DesktopPetState(true, roomConnected, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines(character))
+        ? new DesktopPetState(true, roomConnected, pk, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines(character))
         : new DesktopPetState(false));
 
     /// <summary>Whether the streamer can 叫它来, and where the 捣蛋鬼 is: on the page while any page has it there.</summary>
@@ -55,6 +56,13 @@ internal sealed class DesktopPet(WebService service, Character character)
         roomConnected = connected;
         Publish(State);
         PublishSummon();
+    }
+
+    public void SetPk(bool inPk)
+    {
+        if (pk == inPk) return;
+        pk = inPk;
+        Publish(State);
     }
 
     /// <summary>The 抽奖页's example is no lottery, and what the streamer keeps off air stays off the 桌宠 too.</summary>
@@ -190,10 +198,10 @@ internal sealed class DesktopPet(WebService service, Character character)
 }
 
 /// <summary>The 桌宠页's state: whether the 桌宠 is on and, only then, whether a room is connected, which her quiet-room clocks
-/// start from, the lottery as it is on air, whose DrawUntil is when a draw is revealed, the 礼物榜 while its 期 runs, her settings
-/// and the current character's lines by kind, with the kinds the streamer changed.</summary>
-internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false, Lottery? Lottery = null, GiftBoardState? GiftBoard = null,
-    DesktopPetSettings? Settings = null, IReadOnlyDictionary<string, IReadOnlyList<string>>? Lines = null);
+/// start from, whether the streamer is in a PK, the lottery as it is on air, whose DrawUntil is when a draw is revealed, the 礼物榜
+/// while its 期 runs, her settings and the current character's lines by kind, with the kinds the streamer changed.</summary>
+internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false, bool Pk = false, Lottery? Lottery = null,
+    GiftBoardState? GiftBoard = null, DesktopPetSettings? Settings = null, IReadOnlyDictionary<string, IReadOnlyList<string>>? Lines = null);
 
 /// <summary>How the streamer set the 桌宠 to play: the 演出表 rows turned off; the 中礼物 and 大礼物 thresholds, in 金瓜子 as the
 /// rounds' amounts are; the quiet minutes before 无聊, 沮丧 and 犯困, 0 for never; the least and most seconds between 日常小动作; and
@@ -214,6 +222,9 @@ internal sealed record DesktopPetSettings(IReadOnlyList<string> Off, long MidGif
 internal sealed record GiftRoundProgress(long Uid, string Nickname, long Spend, long Count, string TopGift, long TopCount,
     long BoxSpend, long Boxes, bool Castle, bool Ended)
 {
+    /// <summary>The viewer's gifts in the message it is told after, none as it ends.</summary>
+    public IReadOnlyList<GiftItem> Items { get; init; } = [];
+
     public static GiftRoundProgress Of(long uid, string nickname, IReadOnlyCollection<Gift> sent, bool ended)
     {
         var gifts = sent.Where(gift => gift.Blind is null).ToArray();
@@ -223,6 +234,13 @@ internal sealed record GiftRoundProgress(long Uid, string Nickname, long Spend, 
             gifts.Where(gift => gift.GiftId == top?.GiftId).Sum(gift => gift.Num), boxes.Sum(box => box.Spend), boxes.Sum(box => box.Num),
             boxes.Any(box => box.IsCastle), ended);
     }
+}
+
+/// <summary>One of a gift message's gifts: its 投入 in 金瓜子, a 盲盒's the box's price; how many; whether it is a 盲盒; and its
+/// icon, a 盲盒's that of the gift it opened, empty when B站 gave none.</summary>
+internal sealed record GiftItem(long Spend, long Count, bool Blind, string IconUrl)
+{
+    public static GiftItem Of(Gift gift) => new(gift.Spend, gift.Num, gift.Blind is not null, gift.IconUrl);
 }
 
 /// <summary>A viewer's 一轮盲盒 as its 盲盒播报 reported it, sent or given up, or without one as the 一轮送礼 ended: the tally, how

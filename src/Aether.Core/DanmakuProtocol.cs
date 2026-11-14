@@ -31,6 +31,18 @@ internal static class DanmakuProtocol
         public Func<Gift, long?> PeriodOf { get; init; } = _ => null;
     }
     internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : RoomEvent;
+    internal sealed record PkReceived(bool InPk, long ReceivedTimestamp) : RoomEvent;
+
+    // Whether a PK message's command means the streamer is in a PK, read from its name alone: blivedm knows only the names
+    // (handlers.py's logged_unknown_cmds), to which bili_danmu and go-bili-chat add START, START_NEW, SETTLE_NEW and ABNORMAL.
+    // PK_BATTLE_PRE* is matching, which may time out.
+    private static readonly Dictionary<string, bool> PkCommands = new()
+    {
+        ["PK_BATTLE_START"] = true, ["PK_BATTLE_START_NEW"] = true, ["PK_BATTLE_PROCESS"] = true,
+        ["PK_BATTLE_PROCESS_NEW"] = true, ["PK_BATTLE_FINAL_PROCESS"] = true,
+        ["PK_BATTLE_END"] = false, ["PK_BATTLE_SETTLE"] = false, ["PK_BATTLE_SETTLE_V2"] = false,
+        ["PK_BATTLE_SETTLE_NEW"] = false, ["PK_BATTLE_SETTLE_USER"] = false, ["PK_BATTLE_ABNORMAL"] = false
+    };
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
     private sealed class FormatNotices(ILogger logger, Func<bool> parseEntries)
@@ -129,6 +141,8 @@ internal static class DanmakuProtocol
                     decoded = [new GiftsReceived(boxes, receivedTimestamp)];
                 else if (parseEntries() && EntryMessages.Decode(command, root, roomId) is { } entry)
                     decoded = [new EntryReceived(entry, receivedTimestamp)];
+                else if (PkCommands.TryGetValue(command, out var inPk))
+                    decoded = [new PkReceived(inPk, receivedTimestamp)];
             }
             // Only message decoding is inside this boundary; frame errors still end the stream.
             catch (Exception error) when (error is JsonException or KeyNotFoundException

@@ -82,7 +82,8 @@ public sealed partial class AetherClient
                 round.Spend = checked(round.Spend + viewer.Sum(gift => gift.Spend));
                 var gifts = viewer.Where(gift => gift.GuardLevel == 0).ToArray();
                 round.Gifts.AddRange(gifts);
-                if (gifts.Length > 0) reports.TellDesktopPet(DesktopPet.Gift, round.Progress(false));
+                if (gifts.Length > 0)
+                    reports.TellDesktopPet(DesktopPet.Gift, round.Progress(false) with { Items = [.. gifts.Select(GiftItem.Of)] });
                 round.Timer.Reset(received.ReceivedTimestamp);
             }
         }
@@ -196,7 +197,32 @@ public sealed partial class AetherClient
                     break;
                 case DanmakuProtocol.GiftsReceived { Gifts: var gifts }:
                     foreach (var gift in gifts.Where(gift => gift.GuardLevel > 0))
-                        service.TellDesktopPet(DesktopPet.Guard, new { gift.Uid, gift.Nickname, gift.GuardLevel });
+                        service.TellDesktopPet(DesktopPet.Guard, new { gift.Uid, gift.Nickname, gift.GuardLevel, gift.Spend });
+                    break;
+            }
+        }
+    }
+
+    /// <summary>Tells the 桌宠 whether the streamer is in a PK, as the last PK message said. Ten minutes without any end it too,
+    /// so a missed end does not hold one on all night; and a reconnect cannot tell whether one went on meanwhile, so it is off.</summary>
+    private sealed class PkFeature(StepTimers timers, WebServiceFacade service) : IRoomFeature
+    {
+        private static readonly TimeSpan MaxSilence = TimeSpan.FromMinutes(10);
+        private readonly QuietTimer silence = new(timers, MaxSilence, () => service.SetDesktopPetPk(false));
+
+        public void Handle(RoomEvent e)
+        {
+            switch (e)
+            {
+                case DanmakuProtocol.PkReceived { InPk: var inPk, ReceivedTimestamp: var timestamp }:
+                    service.SetDesktopPetPk(inPk);
+                    silence.Reset(timestamp);
+                    break;
+                case TransportDisconnected:
+                    service.SetDesktopPetPk(false);
+                    break;
+                case RoomConnectionEnded:
+                    silence.Dispose();
                     break;
             }
         }

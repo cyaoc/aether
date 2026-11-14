@@ -37,6 +37,14 @@ again whenever settings are saved:
 | `settings.pranksterMinutes` | The most minutes between the 捣蛋鬼's own 来访, counted from the last one's end; 0 only when the streamer 叫它来 |
 | `settings.pranksterKeyword` | The 帮它的关键字, which its 招人 line (`{关键字}`) and the line under the tug's bar say |
 | `lines` | The current character's lines by kind: hers, with each kind the streamer changed replaced |
+| `pk` | Whether the streamer is in a PK, by the PK messages' commands alone (`DanmakuProtocol.cs`). One that ends a PK ends it, as do ten minutes without any PK message and a reconnect, which cannot tell |
+
+Of the events, these carry what the 宝箱小游戏 counts, by what the viewer paid, as the chest does:
+
+| Field | What |
+|---|---|
+| `gift`'s `items` | The viewer's gifts in the message the 一轮送礼 is told after, none as it ends: each its `spend` in 金瓜子 (a 盲盒's is the box's price, not what it opened), `count`, whether it is `blind`, and `iconUrl`, a 盲盒's that of the gift it opened, empty when B站 gave none |
+| `guard`'s `spend` | What the 大航海 cost in 金瓜子, for all its months |
 
 A `danmaku` tells only `uid`, `nickname` and `joins`, whether it is the 帮它的关键字 saved last (Core compares the two trimmed, as
 a 报名抽奖 compares its keyword): what a viewer wrote never reaches the stream. The account's own danmaku, the bot's thanks,
