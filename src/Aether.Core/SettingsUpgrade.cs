@@ -11,8 +11,9 @@ internal static class SettingsUpgrade
     // The 0.2.x spellings, frozen here rather than read from Settings.WelcomeGuards, which may change.
     private static readonly string[] V0Guards = ["关闭", "舰长", "提督", "总督"];
 
-    // The 帮它的关键字 a format 1 file may be given, the first that is no 盲盒查询 keyword; frozen as V0Guards is.
-    private static readonly string[] V1HelperKeywords = ["捣乱", "帮它"];
+    // Format 1's 盲盒查询 keywords, and the 帮它的关键字 such a file may be given, the first that is none of them; frozen as
+    // V0Guards is.
+    private static readonly string[] V1BlindBoxQueries = ["daily_keyword", "monthly_keyword", "yearly_keyword"], V1HelperKeywords = ["捣乱", "帮它"];
 
     internal static string Apply(string source, int version, string path)
     {
@@ -109,8 +110,7 @@ internal static class SettingsUpgrade
         var yaml = new YamlStream();
         yaml.Load(new StringReader(source));
         var root = (YamlMappingNode)yaml.Documents[0].RootNode;
-        var queries = new[] { "daily_keyword", "monthly_keyword", "yearly_keyword" }
-            .Select(name => (Child(Child(root, "blind_box"), name) as YamlScalarNode)?.Value?.Trim()).ToArray();
+        var queries = V1BlindBoxQueries.Select(name => (Child(Child(root, "blind_box"), name) as YamlScalarNode)?.Value?.Trim()).ToArray();
         var group = Child(root, "desktop_pet");
         var keyword = V1HelperKeywords.FirstOrDefault(keyword => !queries.Contains(keyword));
         if (!queries.Contains("捣蛋") || Child(group, "prankster_keyword") is not null || keyword is null) return source;
