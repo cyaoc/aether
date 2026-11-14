@@ -103,7 +103,7 @@ public sealed class DesktopPetGiftTests
         var castle = With(data => { data["giftId"] = 32132; data["giftName"] = "浪漫城堡"; data["price"] = 2233000; data["total_coin"] = 15000; });
         await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), spend: 1500), castle);
         await pet.NextAsync(DesktopPet.Gift);
-        await AssertRoundAsync(pet, new(10001, "测试观众", 0, 0, "", 0, 16500, 2, true, false), new GiftItem(15000, 1, true, V1Icon));
+        await AssertRoundAsync(pet, new(10001, "测试观众", 0, 0, "", 0, 16500, 2, true, false), new GiftItem(15000, 1, true, TestIcon));
 
         h.Time.Advance(TimeSpan.FromSeconds(3));
 
@@ -144,8 +144,5 @@ public sealed class DesktopPetGiftTests
     private static GiftRoundProgress Gifts(long spend, long count, string topGift, long topCount) =>
         new(10001, "测试观众", spend, count, topGift, topCount, 0, 0, false, false);
 
-    // The icon of the V1 fixture, which every gift built from it has.
-    private const string V1Icon = "https://s1.hdslb.com/bfs/live/test-v1.png";
-
-    private static GiftItem Item(long spend, long count) => new(spend, count, false, V1Icon);
+    private static GiftItem Item(long spend, long count) => new(spend, count, false, TestIcon);
 }
