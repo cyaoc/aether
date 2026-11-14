@@ -244,10 +244,48 @@ a{color:#3358D4}a:hover{color:#2A47B0}
         </div>
       </sc-if>
 
+      <sc-if value="{{isGame}}" hint-placeholder-val="{{false}}">
+        <div role="tabpanel" aria-label="小游戏" style="display: flex; flex-direction: column; gap: 22px">
+          <section aria-label="捣蛋鬼偷宝箱" style="display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; align-items: baseline; gap: 8px">
+              <h2 style="margin: 0; font-size: 14px; font-weight: 600; white-space: nowrap">捣蛋鬼偷宝箱</h2>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">它偷走她的宝箱，观众送礼帮她抢回来；怎么玩都在直播画面上，观众不用学</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 10px">
+              <button type="button" onClick="{{call}}" disabled="{{callDisabled}}" aria-describedby="dp-call-note" style="height: 34px; min-width: 100px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 14px; border: 1px solid {{callBorder}}; border-radius: 6px; background: {{callBg}}; color: {{callColor}}; font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: {{callCursor}}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"></path></svg>{{callText}}
+              </button>
+              <span id="dp-call-note" style="font-size: 13px; color: {{callNoteColor}}; white-space: nowrap">{{callNote}}</span>
+            </div>
+          </section>
+          <section aria-label="它什么时候来" style="display: flex; flex-direction: column; gap: 12px">
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="width: 96px; font-weight: 600; white-space: nowrap">自己来</span>
+              <span style="white-space: nowrap">最多每</span>
+              <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden">
+                <input aria-label="它最多每几分钟自己来一次" aria-describedby="dp-every-note" inputmode="numeric" value="{{every}}" onChange="{{setEvery}}" style="width: 48px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none">
+                <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></span>
+                <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
+              </div>
+              <span style="white-space: nowrap">分钟来一次</span>
+              <span id="dp-every-note" style="font-size: 13px; color: {{everyNoteColor}}; white-space: nowrap; margin-left: 8px">{{everyNote}}</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <div style="display: flex; align-items: center; gap: 8px">
+                <span style="width: 96px; font-weight: 600; white-space: nowrap">帮它的关键字</span>
+                <input aria-label="帮它的关键字" aria-invalid="{{kwInvalid}}" aria-describedby="dp-kw-note dp-kw-error" value="{{kw}}" onChange="{{setKw}}" style="width: 120px; height: 34px; box-sizing: border-box; padding: 0 10px; border: 1px solid {{kwBorder}}; border-radius: 6px; background: {{t.card}}; color: {{t.primary}}; font: inherit; font-size: 14px; outline: none">
+                <span id="dp-kw-note" style="font-size: 13px; color: {{t.muted}}; white-space: nowrap; margin-left: 8px">观众发这个词就站到它那边，他送的礼物砸她的头；B站 拦了就换一个</span>
+              </div>
+              <sc-if value="{{kwError}}" hint-placeholder-val="{{false}}"><span id="dp-kw-error" role="alert" style="margin-left: 104px; font-size: 13px; color: {{t.danger}}; white-space: nowrap">{{kwErrorText}}</span></sc-if>
+            </div>
+          </section>
+        </div>
+      </sc-if>
+
       <sc-if value="{{isLines}}" hint-placeholder-val="{{false}}">
         <div role="tabpanel" aria-label="台词" style="flex: 1; min-height: 0; display: flex; gap: 16px">
-          <div role="listbox" aria-label="台词分类" style="width: {{listW}}px; flex-shrink: 0; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; border: 1px solid {{t.border}}; border-radius: 8px; padding: 6px">
-            <sc-for list="{{cats}}" as="c" hint-placeholder-count="14">
+          <div role="listbox" aria-label="台词分类" style="width: {{listW}}px; flex-shrink: 0; box-sizing: border-box; overflow-y: auto; display: flex; flex-direction: column; border: 1px solid {{t.border}}; border-radius: 8px; padding: 6px">
+            <sc-for list="{{catsShown}}" as="c" hint-placeholder-count="14">
               <sc-if value="{{c.head}}" hint-placeholder-val="{{false}}"><span style="font-size: 12px; font-weight: 600; color: {{t.muted}}; padding: 8px 8px 4px; white-space: nowrap">{{c.label}}</span></sc-if>
               <sc-if value="{{c.item}}" hint-placeholder-val="{{true}}">
                 <button type="button" role="option" aria-selected="{{c.selected}}" onClick="{{c.pick}}" style="flex-shrink: 0; height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 8px; border: 0; border-radius: 6px; background: {{c.bg}}; color: {{c.color}}; font: inherit; font-size: 14px; font-weight: {{c.weight}}; text-align: left; cursor: pointer">
@@ -298,7 +336,7 @@ a{color:#3358D4}a:hover{color:#2A47B0}
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["演出","心情和日常","台词"],"default":"演出"},"scene":{"editor":"enum","options":["默认","有未保存的修改","试演中","桌宠页没连上","桌宠关着"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"showsLayout":{"editor":"enum","options":["分组","三列"],"default":"分组"},"pk":{"editor":"boolean","default":false},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
+<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["演出","心情和日常","小游戏","台词"],"default":"演出"},"game":{"editor":"enum","options":["可以叫","它在路上","它在场上","没连直播间","抽奖进行中","PK 中","关键字和抽奖重复","关键字和盲盒查询重复"],"default":"可以叫"},"gameLines":{"editor":"boolean","default":false},"scene":{"editor":"enum","options":["默认","有未保存的修改","试演中","桌宠页没连上","桌宠关着"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"showsLayout":{"editor":"enum","options":["分组","三列"],"default":"分组"},"pk":{"editor":"boolean","default":false},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
 class Component extends DCLogic {
   // The app's theme tokens, as on the other GUI boards (GS1).
   tokens(dark) {
@@ -306,12 +344,12 @@ class Component extends DCLogic {
       content: '#1B1C1F', sidebar: '#141518', card: '#222428', border: '#2E3136', subtle: '#26282C', control: '#3A3E45', tabTrack: '#2E3136',
       primary: '#E8EAED', secondary: '#C2C6CE', muted: '#9097A3', disabled: '#4A4F57',
       accent: '#8DA2FB', accentText: '#B4C3FF', accentTint: '#262F52', onAccent: '#141518', success: '#6FD08C',
-      warnBg: '#2A2114', warnBorder: '#5A4318', warnText: '#F2C46D', switchOff: '#4A4F57', saveOffBg: '#262F52', saveOffText: '#6B7591', shadow: '0 1px 2px rgba(0,0,0,.5)'
+      danger: '#F97066', warnBg: '#2A2114', warnBorder: '#5A4318', warnText: '#F2C46D', switchOff: '#4A4F57', saveOffBg: '#262F52', saveOffText: '#6B7591', shadow: '0 1px 2px rgba(0,0,0,.5)'
     } : {
       content: '#FFFFFF', sidebar: '#F6F7F9', card: '#FFFFFF', border: '#E3E6EB', subtle: '#EEF0F3', control: '#D5D9E0', tabTrack: '#E3E6EB',
       primary: '#16181D', secondary: '#3D4350', muted: '#5B6270', disabled: '#B4BAC4',
       accent: '#3358D4', accentText: '#2A47B0', accentTint: '#E6EBFA', onAccent: '#FFFFFF', success: '#166534',
-      warnBg: '#FEF8EC', warnBorder: '#F5D9A8', warnText: '#78350F', switchOff: '#B4BAC4', saveOffBg: '#C9D3F2', saveOffText: '#FFFFFF', shadow: '0 1px 2px rgba(0,0,0,.12)'
+      danger: '#B42318', warnBg: '#FEF8EC', warnBorder: '#F5D9A8', warnText: '#78350F', switchOff: '#B4BAC4', saveOffBg: '#C9D3F2', saveOffText: '#FFFFFF', shadow: '0 1px 2px rgba(0,0,0,.12)'
     };
   }
 
@@ -332,7 +370,15 @@ class Component extends DCLogic {
       ['心情', [['无聊', '无聊的时候，隔一阵说一句', []], ['沮丧', '沮丧的时候，隔一阵说一句', []], ['犯困', '打瞌睡时说的梦话', []]]],
       ['日常', [['哼歌', '哼歌时', []], ['举哑铃', '举哑铃时', []], ['爬山', '爬山时', []], ['骑车', '骑车时', []], ['滑雪', '滑雪时', []]]],
       ['出事', [['破音', '哼歌破音时', []], ['砸到脚', '哑铃砸到脚时', []], ['摔屁股墩', '爬山摔了屁股墩时', []], ['拍拍土', '爬起来拍土时', []],
-        ['骑车摔倒', '骑车摔倒时', []], ['贴创可贴', '摔了膝盖、贴创可贴时', []], ['滑雪摔跤', '滑雪扎进雪堆时', []]]]
+        ['骑车摔倒', '骑车摔倒时', []], ['贴创可贴', '摔了膝盖、贴创可贴时', []], ['滑雪摔跤', '滑雪扎进雪堆时', []]]],
+      // the chest game: hers, and the prankster's (its bubble is narrow: six to a line, two lines, a space starts the second)
+      ['小游戏·她', [['宝箱摔下来', '有货的宝箱摔下来、她扑上去时', []], ['打得好', '有人送礼砸中它时', n], ['怎么砸我', '帮它的人送礼砸中她时', n],
+        ['守住了', '把它打跑、宝箱回家时', ['昵称', '连守']], ['打跑了', '空箱时有人一下把它打飞', n], ['被偷了', '宝箱被拖走、她跪着哭时', []],
+        ['被偷后沮丧', '被偷以后蹲着画圈圈，隔一阵说一句', []]]],
+      ['小游戏·它', [['探头', '它从左边探进来时', []], ['记仇', '上次砸它的人在直播间时，探头说这句', n], ['炫耀', '上次偷到了，探头说这句', []],
+        ['空箱', '掀开发现是空箱时', []], ['赖着', '坐在空箱上赖着，隔一阵说一句', []], ['扔回去', '空箱扔回去时', []],
+        ['被发现', '她抓住宝箱时', []], ['招人', '拉帮手时', ['关键字']], ['放闪电', '血掉一半放闪电时', []],
+        ['最后 10 秒', '扛起绳子往外拖时', []], ['得手', '把宝箱拖走时', []], ['被打跑', '被礼物打跑时', []]]]
     ];
   }
 
@@ -358,6 +404,11 @@ class Component extends DCLogic {
       '揭晓·三奖': ['恭喜{昵称}抽中{奖项}～', '{昵称}抽到了{奖品}～下次会更好！'], 没人报名: ['没、没有人报名吗…', '呜…再等等吧…'], 抽奖结束: ['抽奖结束啦～谢谢大家参与！', '下次抽奖也要来哦～'],
       无聊: ['好安静啊…', '今天的星星好多…', '要不要…举个哑铃？'], 沮丧: ['是不是没人喜欢我了…', '画个圈圈…', '（偷偷看）有人在吗…'], 犯困: ['呼…呼…', '唔…再睡五分钟…', '（梦话）哑铃…好重…'],
       哼歌: ['♪啦啦啦～'], 举哑铃: ['今天也要锻炼！'], 爬山: ['下次一起去爬山吧！', '山顶的风好舒服～'], 骑车: ['叮铃叮铃～', '骑车去兜风！'], 滑雪: ['滑雪好开心～', '看我的！'],
+      宝箱摔下来: ['啊！我的宝箱！'], 打得好: ['{昵称}打得好！'], 怎么砸我: ['{昵称}！怎么砸我呀！'], 守住了: ['守住啦！最后一下是{昵称}！连守 {连守} 次！'],
+      打跑了: ['谢谢{昵称}！把它打跑啦！', '{昵称}好厉害…它飞走了！'], 被偷了: ['呜…宝箱被拿走了…', '我的宝箱…'], 被偷后沮丧: ['我的宝箱…', '下次一定守住…', '（偷偷看）下次有人帮我守吗…'],
+      探头: ['嘘—— 别告诉她'], 记仇: ['上次砸我的 {昵称}在吗？'], 炫耀: ['上次那箱 真不错～'], 空箱: ['……空的？ 白偷了！'],
+      赖着: ['我坐这儿等， 有货再拿～', '这箱子 归我坐了！', '没人管我吧？ 嘿嘿'], 扔回去: ['空的不要， 还你！'], 被发现: ['哎呀， 被发现了！'],
+      招人: ['想看她出糗？ 发「{关键字}」！'], 放闪电: ['看我的闪电！'], '最后 10 秒': ['拜拜咯～'], 得手: ['多谢款待， 下次再来！'], 被打跑: ['你们给我 等着——！'],
       破音: ['咳、咳…刚才不算！', '破、破音了…'], 砸到脚: ['好痛痛痛！', '又、又砸到了…'], 摔屁股墩: ['哎呦…屁股好痛…', '山路好滑…'], 拍拍土: ['拍拍土…没事没事！', '再来！这次小心点～'],
       骑车摔倒: ['车、车子不听话…', '呜…又摔了…'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了'], 滑雪摔跤: ['噗…全是雪…', '雪、雪好冰！']
     };
@@ -400,7 +451,7 @@ class Component extends DCLogic {
         weight: active ? 600 : 400, badgeColor: badge === '开' || badge === '统计中' ? t.success : t.muted };
     });
 
-    const tabs = ['演出', '心情和日常', '台词'].map(label => {
+    const tabs = ['演出', '心情和日常', '小游戏', '台词'].map(label => {
       const on = label === tab;
       return { label, selected: on ? 'true' : 'false', bg: on ? t.card : 'transparent', color: on ? t.primary : t.secondary, weight: on ? 600 : 400, shadow: on ? t.shadow : 'none',
         pick: () => this.setState({ tab: label }) };
@@ -464,14 +515,15 @@ class Component extends DCLogic {
 
     // 台词: one kind at a time; a kind the streamer changed carries 已改 and can go back to her own lines.
     const defs = this.defaults(), custom = s.custom ?? {};
-    const pick = s.cat ?? '大礼物';
+    const gameLines = this.props.gameLines === true || this.props.gameLines === 'true';
+    const pick = s.cat ?? (gameLines ? '招人' : '大礼物');
     const cats = [];
     let cat = null;
     for (const [group, list] of this.categories()) {
       cats.push({ head: true, item: false, label: group });
       for (const [label, when, chipList] of list) {
         const sel = label === pick;
-        if (sel) cat = { label, when, chipList };
+        if (sel) cat = { label, when: group === '小游戏·它' ? when + '；它的气泡窄，一行最多 6 个字，空一格换行' : when, chipList };
         cats.push({ head: false, item: true, label, selected: sel ? 'true' : 'false', changed: !!custom[label], bg: sel ? t.accentTint : 'transparent',
           color: sel ? t.accentText : t.primary, weight: sel ? 600 : 400, pick: () => this.setState({ cat: label, focus: 0 }) });
       }
@@ -490,10 +542,29 @@ class Component extends DCLogic {
     // Only these few rows fit the narrowest window beside the list.
     const listW = w === 1040 ? 196 : 220;
 
+    // 小游戏: 叫它来 is done at once, like 试演, not on 保存; the keyword is checked as it is typed, beside the field.
+    const gameScene = this.props.game ?? '可以叫';
+    const called = s.called ?? gameScene === '它在路上';
+    const onStage = gameScene === '它在场上', offline = gameScene === '没连直播间';
+    const callBlocked = !masterOn ? '先打开桌宠' : !pageOk ? '先在直播姬里加好桌宠页' : offline ? '连上直播间才能叫它来：没人送礼，也没人能帮它' : gameScene === '抽奖进行中' ? '抽完奖才能叫：抽奖会把它吓跑' : gameScene === 'PK 中' ? 'PK 打完才能叫：PK 时它不出来' : null;
+    const canCall = !callBlocked && !called && !onStage;
+    const every = s.every ?? '30', everyOff = Number(every) === 0;
+    const kw = s.kw ?? (gameScene === '关键字和抽奖重复' ? '抽奖' : gameScene === '关键字和盲盒查询重复' ? '今日盲盒' : '捣蛋');
+    const kwErrorText = kw.trim() === '' ? '关键字不能空着' : kw.trim() === '抽奖' ? '和抽奖报名的关键字一样，观众分不清是在报名还是帮它；换一个'
+      : ['今日盲盒', '本月盲盒', '今年盲盒'].includes(kw.trim()) ? '和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个' : '';
     const playing = s.playing ?? scene === '试演中';
     const testDisabled = !masterOn || !pageOk;
     return {
       t, w, h, nav, tabs, isMoods: tab === '心情和日常', isLines: tab === '台词',
+      isGame: tab === '小游戏',
+      call: () => { if (canCall) this.setState({ called: true }); }, callDisabled: canCall ? null : 'true', callCursor: canCall ? 'pointer' : 'default',
+      callText: onStage ? '它在场上' : called ? '它在路上…' : '叫它来',
+      callBorder: canCall ? t.accent : t.control, callBg: canCall ? t.accentTint : 'transparent', callColor: canCall ? t.accentText : t.disabled,
+      callNote: callBlocked ?? (onStage ? '它走了才能再叫' : called ? '她正在演的这段完了它就来' : '点了它马上来，不是试演，观众送的礼物都算；不用保存'),
+      callNoteColor: called && !callBlocked && !onStage ? t.accentText : t.muted,
+      every, setEvery: e => edited({ every: e.target.value }),
+      everyNote: everyOff ? '填了 0：它只在你叫它时来' : '有人在看、她闲着时它自己来；填 0 就只在你叫它时来', everyNoteColor: everyOff ? t.accentText : t.muted,
+      kw, setKw: e => edited({ kw: e.target.value }), kwError: !!kwErrorText, kwErrorText, kwInvalid: kwErrorText ? 'true' : 'false', kwBorder: kwErrorText ? t.danger : t.control,
       isShows: tab === '演出' && this.props.showsLayout === '三列', isShowsGrouped: tab === '演出' && (this.props.showsLayout ?? '分组') === '分组', showGroups, sel,
       master: { on: masterOn ? 'true' : 'false', bg: masterOn ? t.accent : t.switchOff, knob: masterOn ? '21px' : '3px', toggle: () => edited({ master: !masterOn }) },
       pageOk: masterOn && pageOk, pageWaiting: masterOn && !pageOk, pageOff: !masterOn,
@@ -507,12 +578,14 @@ class Component extends DCLogic {
       moods, from: s.from ?? '20', to: s.to ?? '40', setFrom: e => edited({ from: e.target.value }), setTo: e => edited({ to: e.target.value }), acts,
       mishap, setMishap: e => edited({ mishap: e.target.value }), mishapNote: mishapOff ? '填了 0：不会出事' : '砸到脚、破音、摔一跤；填 0 就不出事',
       mishapNoteColor: mishapOff ? t.accentText : t.muted,
-      cats, cat, lines, chips, hasChips: chips.length > 0, noChips: chips.length === 0, insertTarget: lineList.length > 1 ? '到第 ' + (focus + 1) + ' 句' : '', listW,
+      // the list scrolls in its box; opened on the game's lines it shows them as if scrolled down to the picked one's group
+      catsShown: gameLines && !s.cat ? cats.slice(cats.findLastIndex((c, i) => c.head && i < cats.findIndex(x => x.label === pick))) : cats, cat, lines, chips, hasChips: chips.length > 0, noChips: chips.length === 0, insertTarget: lineList.length > 1 ? '到第 ' + (focus + 1) + ' 句' : '', listW,
       add: () => { setLines([...lineList, '']); this.setState({ focus: lineList.length }); },
       restore: () => { const next = { ...custom }; delete next[cat.label]; edited({ custom: next }); },
       restoreDisabled: changed ? null : 'true', restoreColor: changed ? t.secondary : t.disabled,
-      footerText: s.saved ? '已保存' : dirty ? '有未保存的修改' : '没有未保存的修改', footerColor: dirty && !s.saved ? t.accentText : t.muted,
-      saveDisabled: dirty && !s.saved ? null : 'true', saveBg: dirty && !s.saved ? t.accent : t.saveOffBg, saveFg: dirty && !s.saved ? t.onAccent : t.saveOffText,
+      footerText: kwErrorText ? '小游戏里帮它的关键字要先改好，才能保存' : s.saved ? '已保存' : dirty ? '有未保存的修改' : '没有未保存的修改',
+      footerColor: kwErrorText ? t.danger : dirty && !s.saved ? t.accentText : t.muted,
+      saveDisabled: dirty && !s.saved && !kwErrorText ? null : 'true', saveBg: dirty && !s.saved && !kwErrorText ? t.accent : t.saveOffBg, saveFg: dirty && !s.saved && !kwErrorText ? t.onAccent : t.saveOffText,
       save: () => this.setState({ dirty: false, saved: true })
     };
   }

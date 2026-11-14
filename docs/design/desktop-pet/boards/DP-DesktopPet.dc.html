@@ -16,7 +16,7 @@
   <canvas id="dp-cv" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"scene":{"editor":"enum","options":["手动","演示","平时","心情","进场","普通礼物","连着送","中礼物","大礼物","大礼物+新第一","盲盒·小","盲盒·中","盲盒·大","舰长","提督","总督","城堡","报名抽奖","奖池抽奖","没人报名"],"default":"手动"},"env":{"editor":"enum","options":["右下角","左下角","小页面"],"default":"右下角"},"room":{"editor":"enum","options":["明亮画面","深色房间","透明"],"default":"明亮画面"},"name":{"editor":"enum","options":["普通昵称","长昵称","中英混排"],"default":"普通昵称"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"caption":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"controls":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"$preview":{"width":1920,"height":1080}}'>
+<script type="text/x-dc" data-dc-script data-props='{"scene":{"editor":"enum","options":["手动","演示","平时","心情","进场","普通礼物","连着送","中礼物","大礼物","大礼物+新第一","盲盒·小","盲盒·中","盲盒·大","舰长","提督","总督","城堡","报名抽奖","奖池抽奖","没人报名"],"default":"手动"},"env":{"editor":"enum","options":["右下角","左下角","小页面"],"default":"右下角"},"room":{"editor":"enum","options":["明亮画面","深色房间","透明"],"default":"明亮画面"},"name":{"editor":"enum","options":["普通昵称","长昵称","中英混排"],"default":"普通昵称"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"caption":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"controls":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"game":{"editor":"enum","options":["关","开"],"default":"关"},"$preview":{"width":1920,"height":1080}}'>
 // The desktop pet in a live-stream corner (design package desktop-pet, README sections 1–7). The page itself is
 // transparent; the board draws a stand-in stream behind it. Everything is drawn from the pose sheets on one 2D canvas.
 const BLOB = {
@@ -33,7 +33,21 @@ const BLOB = {
   giftbox: 'd3badcb665d3a5ab947c555dc35711a9',
   giftboxOpen: '3f6255e58365ab134617bb43ca9b477f',
   balloons: 'd20bfdca5e26da967ed09c19e2171953',
-  admship: '1124e6f904524d63ba65fbb4d0742ebd'
+  admship: '1124e6f904524d63ba65fbb4d0742ebd',
+  game13: 'a2457871447245fc2e34b2a767dd35f9',
+  pk1: '69330285f253f054e7bb178b6fff3d39',
+  pk2: '966738786a3974609547ab5e195a7091',
+  pk3: 'c569acd9196f2ef646b70823faf3397b',
+  chest: '1329c4efbcf74a0543e529452fcd0f0c',
+  chestOpen: 'b9b32608a652d2fe0fb06547a524d1a7',
+  game14: '40e9d936b5f72b77c098be48b0142562',
+  game15: '82e4dcaad5711944ee89b183d4c6808d',
+  pk4: 'f0eaea14b9627e67975c523920f897ee',
+  pk5: '2f73ffc680205493fd004b1269dadd9e',
+  sp3: '7f1bdec14fd8c0adb92b1dcda9d9101c',
+  chestRing: '7d5aadb1014a0604dca599322d154b44',
+  game16: 'ee75f111341426b7dc16df2cc423a121',
+  pk6: 'c72fa34aad6ebe07779e51879845917b'
 };
 // Every sheet's first cell is the same everyday standing drawing at the same size (gen-sheet.py draws the other cells
 // beside it), so it is every sheet's ruler and one scale fits them all.
@@ -49,6 +63,10 @@ const POSE = {
   giftBox: ['gifts', 1], shakeBox: ['gifts', 2], openBox: ['gifts', 3], crownV: ['gifts', 4], nod: ['gifts', 5],
   pIdle: ['castleSheet', 1], spin: ['castleSheet', 2], curtsy: ['castleSheet', 3], walkA: ['castleSheet', 4], lookBack: ['castleSheet', 5],
   skiReady: ['ski9', 1], ski: ['ski9', 2], skiDown: ['ski9', 3], skiPopOut: ['ski9', 4], skiShake: ['ski9', 5],
+  bonk: ['game13', 1], flat: ['game13', 2], fallen: ['game13', 5],
+  sorry: ['game14', 1], lookUp: ['game14', 2], bonkZap: ['game14', 3], flatZap: ['game14', 4], fallenZap: ['game14', 5],
+  startled: ['game15', 1], robbed: ['game15', 3], robbedZap: ['game15', 4], cheerZap: ['game15', 5],
+  lunge: ['game16', 1], tug: ['game16', 2], tugZap: ['game16', 3], dragged: ['game16', 4], draggedZap: ['game16', 5],
   capSalute: ['voyage', 1], govJump: ['voyage', 4], spyglass: ['voyage', 2], admSalute: ['voyage', 3], govPoint: ['voyage', 4], govWave: ['voyage', 5]
 };
 // What she drops stays where it lands: these poses have the things lying on the ground exactly where the earlier pose
@@ -61,7 +79,7 @@ const SAME_SPOT = { gymRub: 'gymHurt', gymWipe: 'gymHurt', skiShake: 'skiPopOut'
 // skiDown with skiShake, so the poles lying by the snow heap do not jump either.
 const BODY = { bikeReady: -15, bikeUp: 29, gymWipe: 17, skiShake: 19, skiDown: 19 };
 // Frame strips (textures/frames/<name>.webp, four frames in a row; tools/gen-frames.sh, tools/frame-patch.py), by blob.
-const FRAMES = {admOut: '91e056de5cd4063deb27f4109039d48a', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '9e22c561d15ec993fe800b8bc9c06b3c', bikeOut: 'e2297c45766af454d4883e8db6cc933b', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: 'd7320ffbfefff45ca29f5c5979046635', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: 'bbc46902a152a76619875191c6d32442', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: 'b42d092f81da2c465d6d1d572d521eb0', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '9d37cc7e509a218ab9d99bd6fec8e134', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: 'def1ececd3228c9dc4b87769d633d2df', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: '411357d96cdf7929b3fd56df3eb98734', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'a845ed1aab7d6f83b9f35aedccc54df9', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: 'f0265ab734e46dadad5b6c69aca109a2', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'df5012f4f710a8bd367b03139f6cd062', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: 'a9a36a95a67221dc016c50fc4ff14223', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '9309dfb1f48d0826e46ab427b8603680', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', rubUp: '2b41ac673f265add50298a8f142702a5', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '09a43889115c318f28c176c6d7a2cdcb', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '76512d024c568bd3bd97ffeed0a05b52', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'f60b51987ea38e68ba0f346d92d1a4e3', skiOut: '4c984499f6067970f582a73d8c2399d1', skiPop: '6238ed2d55742a53bcd35bcac40c669d', skiUp: '97ff2e1aa8496fda3ba13fbf4532659e', slipUp: 'd24e5aa8cd55e86e8e58ad8028233ed3', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '7aef8a528ed9640410f134f38d867ab0', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '7ad34d7a11106e89075340758874dd47', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: '3aac87354721601e5c22ad31876fcb68', wipeIn: '8dbc55fe74cf8ad449dbf508ebeb1e5c'};
+const FRAMES = {admOut: '91e056de5cd4063deb27f4109039d48a', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '9e22c561d15ec993fe800b8bc9c06b3c', bikeOut: 'e2297c45766af454d4883e8db6cc933b', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: 'd7320ffbfefff45ca29f5c5979046635', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: 'bbc46902a152a76619875191c6d32442', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: 'b42d092f81da2c465d6d1d572d521eb0', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '9d37cc7e509a218ab9d99bd6fec8e134', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', dragPull: '492f38c8f828816dc515cc4d749739ce', dragPullZap: 'f880e504575602f022897908c7f654ae', gameBonk: 'eae3432f002303f1e8ba32a620846757', gameBonkZap: '039110d316febf9a83aae81dd3fbbc47', gameCheer: 'b3ac0659914339562f7acc3f55b1ccb5', gameCheerZap: 'd6e547817905d40608edb1ed665f4205', gameDraggedUp: 'e88b4ef06a5e43377e5069bf0391026e', gameDraggedUpZap: '377d86b4ed1c73678dd17291703a10b1', gameFlat: 'aee9a626cd4e46b38c11eeac9a33dfaf', gameFlatGrab: '3fa820579fe439433048940134811690', gameFlatGrabZap: 'fe3095b8437c6321fccc631abcb832b5', gameFlatZap: '96e5055bed281acc3753eda32fb1d863', gameKneel: 'c47d6a8ce2dd8bfc51c0cd0d56a998e1', gameKneelZap: 'a94842ef699ff8c3ab75bdf5f276a80b', gameLetGo: 'e2d2e281b192f4d6a1395e3b97cc1196', gameLetGoStand: '97981617b3703213ec50791651349644', gameLetGoZap: '1d71f4fa91f9f5a1d5022f86656ad7ef', gameLookUp: '1a355610d0bff306a902d2fc6bd3456b', gameLunge: 'a3d7bad153ff6cb51afd45432610e681', gameSorry: '8ecbfa420e89b927459c58ef6a97099c', gameSorryOut: '231ce44291e55e737461f4eed07b18a1', gameSorrySurprise: 'ce3a322b40049d0e89ee632c951fdbfe', gameStartle: 'a9fb83c5e59a5feffc5abdf1d48c0bb1', gameTugIn: '7e721c943f781de3748314a2ee71b8dc', gameZapOut: '22b91257fe1d447b801ae9f86426eb4a', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: 'def1ececd3228c9dc4b87769d633d2df', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: '411357d96cdf7929b3fd56df3eb98734', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'a845ed1aab7d6f83b9f35aedccc54df9', hairSmoothCheer: '4537aeecbf13f0f335c7c1a3c0110aff', hairSmoothCry: '9e226b44aa43eb0dac6563b61d629995', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: 'f0265ab734e46dadad5b6c69aca109a2', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'df5012f4f710a8bd367b03139f6cd062', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: 'a9a36a95a67221dc016c50fc4ff14223', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '9309dfb1f48d0826e46ab427b8603680', pkBolt: 'bbbad6efaed5a1b6e180c3f4e9f7049f', pkDeflate: '6a9cc5cb8ed7894264cb420d99e8c38a', pkGrab: '9812f4e37f5d21d9b6d61b573567ebc0', pkHaul: 'f1d2b0835fa0bf7f2636723cd53e7fd9', pkHaulIn: 'e9df47d473e87a1b28e20a44c50e460b', pkLaugh: '94b09e91a7c09f385751ea76298ad818', pkLetGo: 'bd05014303eb4cb660d8c0512b5c0d6f', pkLetGoTug: '08ca4c772fc7fc37c5fe2fe5c3446fad', pkOuch: '34bdc8683cf560994a4864cf2d4c8d59', pkPeer: 'b63a5b950ea4bf6591ebe5fccfb00469', pkShrug: '76f905c2ff79afe2b5211986b3ad09e8', pkSit: '91b54f8c302be3a742c15ec897d3b986', pkSitDown: 'fcf259f2da8f91db57e1dd40ba489b30', pkSitLaugh: 'e997c6c7f62df2e87c43ebaa4f46dd70', pkThrow: 'cb7f75ad408709fb17fbf2a750a801a7', pkThrowLaugh: 'b6d72d6d92b52c56f83b5a3d44ed9b3f', pkThunder: '3ef17acdf3282a7919cea366498d7796', pkTug: '24cc34a1ec5580506aea71c9ae73f4ef', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', robbedGloomy: '7e63873789b76ba43f5260ef7aa95e5f', rubUp: '2b41ac673f265add50298a8f142702a5', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '09a43889115c318f28c176c6d7a2cdcb', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '76512d024c568bd3bd97ffeed0a05b52', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'f60b51987ea38e68ba0f346d92d1a4e3', skiOut: '4c984499f6067970f582a73d8c2399d1', skiPop: '6238ed2d55742a53bcd35bcac40c669d', skiUp: '97ff2e1aa8496fda3ba13fbf4532659e', slipUp: 'd24e5aa8cd55e86e8e58ad8028233ed3', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '7aef8a528ed9640410f134f38d867ab0', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '7ad34d7a11106e89075340758874dd47', tugPull: '563c260a7bd607affe2bf214708eca68', tugPullZap: '010bc17cfac2fa5f8be3188b4b5a056f', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: '3aac87354721601e5c22ad31876fcb68', wipeIn: '8dbc55fe74cf8ad449dbf508ebeb1e5c'};
 // Poses that move: the strip f, drawn from the pose's own cell, as a loop at ms per frame, a loop of [frame, ms] steps, or
 // once: [frame, ms] steps from when the pose begins, holding the last.
 const STRIP = {
@@ -73,6 +91,9 @@ const STRIP = {
   capSalute: { f: 'capRaise', once: [[2, 120], [1, 100], [0, 0]] }, admSalute: { f: 'admRaise', once: [[2, 120], [1, 100], [0, 0]] },
   spyglass: { f: 'spyRaise', once: [[2, 140], [1, 120], [0, 0]] }, curtsy: { f: 'curtsy', once: [[2, 200], [1, 160], [0, 0]] },
   ski: { f: 'skiGlide', ms: 170 }, skiShake: { f: 'shakeSnow', ms: 110 },
+  // the chest game: she heaves at the ring, her feet shuffling back; lying, she is dragged along, legs kicking (her fists
+  // and the ring stay put in every frame: they are on the chest's link)
+  tug: { f: 'tugPull', ms: 190 }, tugZap: { f: 'tugPullZap', ms: 190 }, dragged: { f: 'dragPull', ms: 160 }, draggedZap: { f: 'dragPullZap', ms: 160 },
   govJump: { f: 'jump', once: [[0, 60], [1, 140], [2, 300], [3, 160], [0, 0]] }
 };
 // The sprite's drawings that move, [strip, ms per frame]; v1–v3 are its turnaround views flying.
@@ -83,6 +104,17 @@ const SSTRIP = {
 // In-betweens: changing pose A>B plays frames 2 and 3 of strip f (drawn from A's cell, ending on B), 90 ms each, instead of
 // fading; B>A plays them backwards.
 const TRANS = {
+  // her frizzed hair settling under her sprite's magic (the chest game; played slowly, SLOW)
+  'robbedZap>robbed': 'hairSmoothCry', 'cheerZap>cheer': 'hairSmoothCheer',
+  // having cried over the stolen chest she wipes her tears and curls up to sulk (the chest game, played slowly)
+  'robbed>gloomy': 'robbedGloomy',
+  // the chest game's routes: the crash, the tug and its tricks, letting go, crying, cheering (tools/check-game.mjs finds them)
+  'idle>startled': 'gameStartle', 'startled>lunge': 'gameLunge', 'tug>lunge': 'gameTugIn', 'tug>bonk': 'gameBonk',
+  'tug>flat': 'gameFlat', 'flat>dragged': 'gameFlatGrab', 'tug>dragged': 'gameDraggedUp', 'tugZap>bonkZap': 'gameBonkZap',
+  'flatZap>tugZap': 'gameFlatZap', 'flatZap>draggedZap': 'gameFlatGrabZap', 'draggedZap>tugZap': 'gameDraggedUpZap', 'fallen>dragged': 'gameLetGo',
+  'draggedZap>fallenZap': 'gameLetGoZap', 'fallen>robbed': 'gameKneel', 'fallenZap>robbedZap': 'gameKneelZap', 'tug>cheer': 'gameCheer', 'tug>idle': 'gameLetGoStand',
+  'tugZap>cheerZap': 'gameCheerZap', 'idle>lookUp': 'gameLookUp', 'startled>sorry': 'gameSorry', 'sorry>idle': 'gameSorryOut',
+  'sorry>surprised': 'gameSorrySurprise', 'tugZap>idle': 'gameZapOut',
   'idle>bow': 'bowIn', 'idle>bored': 'sitBored', 'idle>gloomy': 'crouchGloomy', 'idle>doze': 'sitDoze', 'hike>slip': 'trekSlip',
   'bike>crash': 'pedalCrash', 'shakeBox>openBox': 'boxOpen', 'giftBox>cheer': 'giftCheer', 'doze>awake': 'awake',
   'idle>wave': 'waveIn', 'idle>shy': 'shyIn', 'idle>giftBox': 'giftIn', 'cheer>idle': 'cheerOut', 'idle>crownV': 'crownIn', 'idle>shakeBox': 'shakeIn',
@@ -109,10 +141,106 @@ const TRANS = {
 // governor's jump starts and ends on her pointing), or a change of clothes at the height of the sprite's flash where the
 // pose stays (the captain's and admiral's raise strips start standing; the princess gown back to her uniform) or where
 // she is mid-twirl (into the gown at the castle). The way back from the captain's salute has its own in-betweens.
-const CUT = new Set(['govPoint>govJump', 'govJump>govPoint', 'idle>capSalute', 'idle>spyglass', 'pIdle>idle', 'idle>spin']);
-const SPRITE = { flag: ['sp1', 1], nod: ['sp1', 2], surprised: ['sp1', 3], yawn: ['sp1', 4], sleep: ['sp1', 5], pat: ['sp2', 1], crown: ['sp2', 2], sailor: ['sp2', 3], glow: ['sp2', 4], hide: ['sp2', 5] };
+const CUT = new Set(['govPoint>govJump', 'govJump>govPoint', 'idle>capSalute', 'idle>spyglass', 'pIdle>idle', 'idle>spin',
+  'tug>tugZap']);   // (the chest game: her hair frizzes in the lightning's flash)
+const SPRITE = { flag: ['sp1', 1], nod: ['sp1', 2], surprised: ['sp1', 3], yawn: ['sp1', 4], sleep: ['sp1', 5], pat: ['sp2', 1], crown: ['sp2', 2], sailor: ['sp2', 3], glow: ['sp2', 4], hide: ['sp2', 5], hold: ['sp3', 1], hold2: ['sp3', 2], lift: ['sp3', 3], lift2: ['sp3', 4], lid: ['sp3', 5] };
 // The sprite keeps these drawings while it flies, since they carry something.
-const CARRY = new Set(['crown', 'glow']);
+const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid']);
+// ---- The chest game (#372), on when the board's game is 开. Nothing of it is on the page until the prankster comes,
+// and nothing of it stays: her shows are all as they were, and her chest is at home, off the left of the page, where the
+// game only counts what the stream's gifts put in it. When gifts have stopped the prankster comes by with the chest it
+// has stolen, hanging from its hook rope, over her head and down on her right, making for the right edge. An empty
+// chest it opens, mocks and throws back; one with gifts in it she takes by the handle and pulls for home, and the room
+// has a minute to beat the prankster off with gifts (danmaku only scratch it). The tricks played on her are the game's
+// alone: a helper's gift on her head, the fifth flattening her, the prankster's lightning frizzing her hair, and being
+// dragged along in the last stretch.
+// Its poses: [sheet, cell]. Its drawings face the viewer or the viewer's left; haul faces the viewer's right. carry,
+// carryBag and carryCrown hold its hook rope, which hangs straight down from its arms; tug, haul and ouch hold it level.
+const PKPOSE = {
+  idle: ['pk1', 0], peek: ['pk1', 1],
+  peer: ['pk2', 1], shrug: ['pk2', 2], sit: ['pk2', 3], laugh: ['pk2', 4], knocked: ['pk2', 5],
+  tug: ['pk3', 1], thunder: ['pk3', 3], haul: ['pk3', 4], flat: ['pk3', 5],
+  carry: ['pk4', 1], fall: ['pk4', 2], dazed: ['pk4', 3], tumble: ['pk4', 4], ouch: ['pk4', 5],
+  carryBag: ['pk5', 1], carryCrown: ['pk5', 2], throw: ['pk5', 3], flee: ['pk5', 4], shake: ['pk5', 5],
+  startle: ['pk6', 2]
+};
+// Its loops, as her STRIP: pulling its rope, hauling it off, sitting smug on an empty chest (and blinking).
+const PKSTRIP = { tug: { f: 'pkTug', ms: 190 }, haul: { f: 'pkHaul', ms: 170 }, sit: { f: 'pkSit', ms: 260 } };
+// Its in-betweens, as her TRANS: on the empty chest and in the tug, where it changes pose in one place (its disguises
+// pop on, and falling, tumbling and being knocked off it is moving already).
+const PKTRANS = {
+  'shake>peer': 'pkPeer', 'peer>shrug': 'pkShrug', 'shrug>sit': 'pkSitDown', 'sit>laugh': 'pkSitLaugh',
+  'shrug>throw': 'pkThrow', 'throw>laugh': 'pkThrowLaugh', 'shake>tug': 'pkGrab', 'tug>ouch': 'pkOuch',
+  'tug>laugh': 'pkLaugh', 'tug>thunder': 'pkThunder', 'tug>haul': 'pkHaulIn', 'tug>flat': 'pkDeflate',
+  'carry>startle': 'pkLetGo', 'tug>startle': 'pkLetGoTug', 'startle>flee': 'pkBolt'
+};
+// Its idle drawing's height on the page, a little under half of hers; the ground line the chest stands on; where the
+// chest lands, just clear of her right side; where the chest stands in the tug (she stands where the ring in her fists
+// meets the chest, the prankster where its rope runs straight from the other ring into its fists) and how far the
+// three drift with the prankster's life; how the chest hangs from the hook in one of its rings, that end up; how far
+// below the end of the rope in a carrying drawing the chest's link is (a bit of rope, the hook, the ring).
+const PK_H = 112, CHEST = { y: 626 }, LAND = 372, TUG = { chest: 292, drift: 5 }, HANG = -0.32, LINK = 18;
+// The chest's two ring handles are not in its drawings: each is the one ring picture (chestRing), hung from the link on
+// the chest's side and swung toward whatever pulls it. RING, in the drawings' px (K brings them to the page): the link,
+// in from the chest's side and up from its foot; the point of the ring's picture it hangs from; from there to the
+// middle of its band on the far side, where a hook or fists hold it. Her drawings that hold the ring (sheet 16) were
+// drawn with the chest standing in the canvas, so they hold it at its own height; each holds the whole ring and runs on
+// past the link, which is at column GRIP of its cell (the chest is drawn over it there). The hook is HOOK long. The
+// prankster leans back as it pulls (LEAN) and as it hauls the chest off (HAUL), so that its rope runs straight from the
+// ring into its fists; TRIM px of the rope its pulling drawings hold are left undrawn (the page is no wider).
+const RING = { x: 11.5, y: 40, hang: [12.5, 4], reach: 16 }, GRIP = 495.5, HOOK = 6, LEAN = -0.4, HAUL = -0.5, TRIM = 40;
+// Where her sprite takes hold of the open lid to pull with her: its edge on her side, in from the chest's side and up
+// from its foot (the open chest's drawing's px). How far across her drawings lying robbed their heads are, for patting them.
+const LID = { x: 13, y: 133 }, HEAD = { fallen: 0.56, fallenZap: 0.58 };
+// How long the sprite pats her frizzed hair before it is smooth: two pats (smooth); the stars gather round her head for
+// GATHER of it and fall as glitter for SETTLE after; where her head is in the drawings her hair settles into.
+// When she has lost the chest her line goes at ROB.quiet, and she curls up sulking at ROB.curl (被偷了).
+const ROB = { quiet: 4600, curl: 5000 };
+// How long the chest game's end leaves her in a mood: robbed, sad until a gift (at most this long); kept, glad.
+// (robbed was 5 min: 用户“她现在没守住沮丧太久了”)
+const MOOD_HOLD = { robbed: 60000, kept: 60000 };
+// How long after it is beaten off (won), knocked off an empty chest (knocked) or scared off once it runs (fled) the
+// prankster is off the page and the visit is over: it goes slowly enough to be seen (it was gone in a blink).
+const OFF = { won: 3400, knocked: 2600, fled: 2400 };
+const PATS = 900, GATHER = 500, SETTLE = 1000, HAIR = { robbed: [0.5, 0.27], cheer: [0.47, 0.24] };
+// In-betweens played slower than the 90 ms a frame of the rest: her hair settling under the sprite's magic; her
+// curling up to sulk after crying over the chest.
+const SLOW = { 'robbedZap>robbed': 300, 'cheerZap>cheer': 300, 'robbed>gloomy': 260 };
+// A gift falls DROP ms before it lands; a disguise holds FREEZE ms; the lightning set piece lasts ZAP ms (the countdown
+// waits); it and the chest fall FALL ms when it can hold the chest up no longer; the sprite flies the chest home in HOME ms, or in TIDY before a show
+// that scared the prankster off (the show waits that long). Of that time the sprite flies to the chest for GO ms, presses
+// an open lid shut for SHUT ms and takes up the dropped rope for TAKE ms; the rest it lifts the chest and flies it off.
+const DROP = 350, FREEZE = 1800, ZAP = 2400, FALL = 480, HOME = 2600, TIDY = 2300, GO = 400, SHUT = 350, TAKE = 250;
+// The show does not wait a set time but until the chest is home (the sprite waits for the prankster to be clear of the
+// chest first, CLEAR); after the lightning until the sprite, the chest home, has come back and patted her hair smooth
+// (unfrizz). FRIZZ is the most it waits either way.
+const FRIZZ = 9000;
+// The sprite goes for the dropped rope only once the prankster is this far right of where the rope's end is (or gone):
+// it lifts the chest straight up from there, and with the prankster still by the chest the two went up together, the
+// sprite seeming to carry it off (用户：“怎么变得小精灵抬着捣蛋鬼跑了”“还是和小精灵的路线重叠、两者会叠在一起”).
+// Until then it keeps above the shut chest, on her side of it.
+const CLEAR = 150;
+// Scared off, it lets go of everything with a start (its startle drawing, the jump of fled): a chest it was flying with
+// falls straight down (FALL) and lands with a thud; the sprite, by her, starts at it for NOTICE ('!') before it goes
+// for the chest. It used to hold the chest up aghast in mid-air until the sprite took the rope from its hands, the two
+// on top of each other (用户：“换成捣蛋鬼受惊逃走、宝箱掉落、小精灵发现并带走”).
+const NOTICE = 500;
+// every: it comes at most once in this long (whether gifts have stopped is no matter: that would make it a nudge to give); carry (flying over with
+// the chest), loiter (on an empty chest), fight and sprint (the fight's last stretch): how long each lasts; pebbles: the
+// share of its life that all the danmaku together can take; urge: from this much time left the countdown grows anxious.
+const GAME = { every: 30 * 60000, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, pebbles: 0.3, urge: 30000 };
+// The phases in which it is already on its way off the page: a gift then is a gift to her again.
+const DONE = new Set(['knocked', 'toss', 'leave', 'won', 'lost', 'fled']);
+// It lies DAZED ms on the chest's lid where it fell; in the tug it is UP and pulling that long after the chest lands.
+const DAZED = 1300, UP = 2200;
+// What it says, in a narrow bubble (a line breaks where it says so). It only bullies her and brags: never a word about
+// gifts or money, and it names only who hit it.
+const PKLINES = {
+  peek: '嘘——\n别告诉她', grudge: '上次砸我的\n{昵称}在吗？', brag: '上次那箱\n真不错～', shrug: '……空的？\n白偷了！',
+  sit: ['我坐这儿等，\n有货再拿～', '这箱子\n归我坐了！', '没人管我吧？\n嘿嘿'], toss: '空的不要，\n还你！',
+  grab: '哎呀，\n被发现了！', recruit: '想看她出糗？\n发「捣蛋」！', zap: '看我的闪电！', sprint: '拜拜咯～',
+  lost: '多谢款待，\n下次再来！', won: '你们给我\n等着——！'
+};
 // Effects on top of each event's own, stronger the higher the tier (README 7.1): C a manga symbol and a small burst; B a
 // ring on the ground and things floating up; A light behind her and a shake at the peak; S the whole page.
 // fx: [type, from ms, ...]; shake: [from ms, px, ms].
@@ -120,6 +248,9 @@ const EVENT_FX = {
   进场: { fx: [['bang', 0], ['spark', 150, 0.2, 0.18, 6], ['halo', 0, 900, 0.25]] },
   普通礼物: { fx: [['giftArc', 0], ['halo', 300, 900, 0.3]] },
   连着送: { fx: [['giftStack', 0], ['steam', 1300, 1200], ['spark', 1250, 0.5, 0.3, 10], ['halo', 1250, 1300, 0.35]] },
+  打跑了: { fx: [['spark', 450, 0.5, 0.3, 8], ['hearts', 600, 3]] },
+  守住了: { fx: [['confetti', 300], ['halo', 300, 1800, 0.4], ['hearts', 900, 4]] },
+  被偷了: { fx: [['gloom', 400]] },
   中礼物: { fx: [['boxDrop', 200], ['spark', 1300, 0.5, 0.58, 8], ['shockwave', 1200], ['halo', 1200, 2000, 0.4], ['anchors', 1400, 1900, 'hearts']], shake: [[1200, 2, 200]] },
   '盲盒·中': {
     fx: [['shakeMarks', 0, 0.83, 0.44, 1200], ['seamGlow', 0, 1200, 'shake'], ['halo', 1200, 2600, 0.45], ['shockwave', 2600]],
@@ -170,6 +301,8 @@ const EVENTS = {
   舰长: { tier: 'B', dur: 4500, gift: true }, 大礼物: { tier: 'A', dur: 6000, gift: true }, '盲盒·大': { tier: 'A', dur: 6000, gift: true, results: ['赚', '平', '亏', '大奖'] },
   提督: { tier: 'A', dur: 8000, gift: true }, 总督: { tier: 'SS', dur: 15000, gift: true },
   城堡: { tier: 'S', dur: 11500, gift: true }, 新的第一名: { tier: 'C', dur: 2600 },
+  // the chest game's: the prankster knocked away, beaten off, gone with the chest
+  打跑了: { tier: 'B', dur: 4300 }, 守住了: { tier: 'B', dur: 4800, zapDur: 7200 }, 被偷了: { tier: 'C', dur: 5600 },
   报名开场: { tier: 'A', dur: 2600 }, 报名截止: { tier: 'A', dur: 2000 }, 奖池开场: { tier: 'A', dur: 2600 }, 奖池点名: { tier: 'A', dur: 2000 },
   奖池转动: { tier: 'A', dur: 2000 }, '揭晓·大奖': { tier: 'A', dur: 5200, glow: 'SS' }, '揭晓·二奖': { tier: 'A', dur: 4600 }, '揭晓·三奖': { tier: 'A', dur: 4600 },
   没人报名: { tier: 'A', dur: 2800 }, 抽奖结束: { tier: 'A', dur: 2600 }, 日常: { tier: 'D' }
@@ -178,6 +311,9 @@ const LINES = {
   进场: ['{昵称}来啦…欢、欢迎！', '啊，是{昵称}！你好呀～', '又见到{昵称}了，嘿嘿', '{昵称}，欢迎光临…（小声）'],
   普通礼物: ['谢谢{昵称}的{礼物}！', '{昵称}送了{个数}个{礼物}…谢、谢谢！', '收到{礼物}了，好开心…', '{昵称}人真好～'],
   连着送: ['这么多…我会害羞的…', '{昵称}，够、够啦…谢谢你！'],
+  打跑了: ['谢谢{昵称}！把它打跑啦！', '{昵称}好厉害…它飞走了！'],
+  守住了: ['守住啦！最后一下是{昵称}！连守 {连守} 次！'],
+  被偷了: ['呜…宝箱被拿走了…', '我的宝箱…'],
   中礼物: ['谢谢{昵称}的{礼物}！接住啦～', '{昵称}送了{礼物}！好漂亮…'],
   大礼物: ['哇！{昵称}送了{礼物}！', '这么贵重的{礼物}…谢谢{昵称}！', '心跳好快…谢谢{昵称}！', '我会好好珍惜的！'],
   新的第一名: ['新的榜一是{昵称}！王冠给你～', '{昵称}登上第一名啦！', '{昵称}好厉害！'],
@@ -202,6 +338,7 @@ const LINES = {
   抽奖结束: ['抽奖结束啦～谢谢大家参与！', '下次抽奖也要来哦～'],
   无聊: ['好安静啊…', '今天的星星好多…', '要不要…举个哑铃？'],
   沮丧: ['是不是没人喜欢我了…', '画个圈圈…', '（偷偷看）有人在吗…'],
+  '沮丧·被偷': ['我的宝箱…', '下次一定守住…', '（偷偷看）下次有人帮我守吗…'],
   犯困: ['呼…呼…', '唔…再睡五分钟…', '（梦话）哑铃…好重…'],
   报名中: ['发「{关键字}」就能报名哦～', '还在报名中…快来快来！'], 等开奖: ['会是谁呢…好紧张', '心、心跳好快…'],
   冷场后来了人: ['啊！有人来了！', '我、我没睡着！'],
@@ -235,6 +372,7 @@ const HOP = 40;
 // gen-prop.py), so one scale, H / ANCHOR, puts all of them on the page at her size. Points of a prop are in its own px: the
 // flagship's bow deck where she stood when it was drawn, and its mainmast top for the sprite.
 const ANCHOR = 360;
+const K = H / ANCHOR;   // the chest's drawings' px to the page (RING)
 const PROPS = { flagship: { deck: [250, 530], mast: [450, 60] } };
 // The admiral's ship stops behind her on the upper page, farther off (s), its bottom on y; mast: the mainmast top, rig: where
 // its flags are strung when it is dressed (prop px).
@@ -302,7 +440,7 @@ class Component extends DCLogic {
     // centred in their thirds, so the cell centre would shift her sideways between poses), and every sheet is scaled by its
     // first cell (the idle ruler).
     this.cells = {};
-    for (const k of ['common', 'lottery', 'daily1', 'moods', 'gifts', 'castleSheet', 'voyage', 'gym10', 'hike11', 'cycle12', 'ski9', 'sp1', 'sp2']) {
+    for (const k of ['common', 'lottery', 'daily1', 'moods', 'gifts', 'castleSheet', 'voyage', 'gym10', 'hike11', 'cycle12', 'ski9', 'sp1', 'sp2', 'sp3', 'game13', 'game14', 'game15', 'game16', 'pk1', 'pk2', 'pk3', 'pk4', 'pk5', 'pk6']) {
       const im = img[k], cw = im.width / 3, ch = im.height / 2, list = [];
       for (let i = 0; i < 6; i++) list.push(box(im, (i % 3) * cw, Math.floor(i / 3) * ch, cw, ch));
       const ground = [0, 1].map(r => Math.max(...list.slice(r * 3, r * 3 + 3).filter(Boolean).map(b => b.y + b.h)));
@@ -326,7 +464,17 @@ class Component extends DCLogic {
       const im = img['f:' + f], fw = im.width / 4, [k, n] = POSE[pose], c = this.cells[k][n];
       return [0, 1, 2, 3].map(i => ({ im, ...box(im, i * fw, 0, fw, im.height), cx: c.cx - c.ox + i * fw, ground: c.ground - c.oy, ruler: c.ruler }));
     };
-    this.strips = {}; this.tweens = {}; this.sstrips = {};
+    this.strips = {}; this.tweens = {}; this.sstrips = {}; this.pkstrips = {}; this.pkTweens = {};
+    // the prankster's loops, each frame lined up on its cell's centre like her strips
+    for (const [pose, s] of Object.entries(PKSTRIP)) {
+      const im = img['f:' + s.f], c = this.pkCell(pose);
+      if (im) this.pkstrips[pose] = [0, 1, 2, 3].map(i => ({ im, ...box(im, i * im.width / 4, 0, im.width / 4, im.height), cx: c.cx - c.ox + i * im.width / 4, cy: c.cy - c.oy, ruler: c.ruler }));
+    }
+    // its in-betweens: frames 2 and 3 of a strip drawn in the first pose's cell (tools/pk-inbetween.py)
+    for (const [pair, f] of Object.entries(PKTRANS)) {
+      const im = img['f:' + f], c = this.pkCell(pair.split('>')[0]);
+      if (im) this.pkTweens[pair] = [1, 2].map(i => ({ im, ...box(im, i * im.width / 4, 0, im.width / 4, im.height), cx: c.cx - c.ox + i * im.width / 4, cy: c.cy - c.oy, ruler: c.ruler }));
+    }
     for (const [pose, s] of Object.entries(STRIP)) if (img['f:' + s.f]) this.strips[pose] = framesOf(s.f, pose);
     for (const [pair, f] of Object.entries(TRANS)) if (img['f:' + f]) this.tweens[pair] = framesOf(f, pair.split('>')[0]).slice(1, 3);
     for (const [key, [f]] of Object.entries(SSTRIP)) {
@@ -334,7 +482,42 @@ class Component extends DCLogic {
       if (im) this.sstrips[key] = [0, 1, 2, 3].map(i => ({ im, ...box(im, i * im.width / 4, 0, im.width / 4, im.height), cx: c.cx - c.ox + i * im.width / 4, cy: c.cy - c.oy, ruler: c.ruler }));
     }
     this.castle = { closed: img.castleClosed, open: img.castleOpen, box: box(img.castleClosed, 0, 0, img.castleClosed.width, img.castleClosed.height) };
-    this.props = { flagship: img.flagship, admship: img.admship, emblem: img.emblem, giftbox: img.giftbox, giftboxOpen: img.giftboxOpen, balloons: img.balloons };
+    this.props = { flagship: img.flagship, admship: img.admship, emblem: img.emblem, giftbox: img.giftbox, giftboxOpen: img.giftboxOpen, balloons: img.balloons, chest: img.chest, chestOpen: img.chestOpen, chestRing: img.chestRing };
+    // The chest's size on the page (its closed drawing), and where the rope a pulling drawing holds ends (or the sprite's
+    // fists are): the middle of what the drawing shows at its left edge, down its height.
+    this.chestBox = img.chest ? { w: img.chest.width * H / ANCHOR, h: img.chest.height * H / ANCHOR, open: img.chestOpen.height * H / ANCHOR } : { w: 104, h: 84, open: 150 };
+    const pixels = c => {
+      const cv = document.createElement('canvas'); cv.width = c.w; cv.height = c.h;
+      const g = cv.getContext('2d'); g.drawImage(c.im, c.x, c.y, c.w, c.h, 0, 0, c.w, c.h);
+      return g.getImageData(0, 0, c.w, c.h).data;
+    };
+    const ropeEnd = c => {
+      const a = pixels(c);
+      let n = 0, sy = 0;
+      for (let j = 0; j < c.h; j++) for (let k = 0; k < 3; k++) if (a[(j * c.w + k) * 4 + 3] > 40) { n++; sy += j; }
+      c.rope = n ? sy / n / c.h : 0.5;
+    };
+    for (const pose of ['tug', 'haul', 'ouch']) ropeEnd(this.pkCell(pose));
+    for (const pose of ['hold', 'hold2']) ropeEnd(this.cell(pose, SPRITE));
+    // Where the rope in a carrying drawing ends (tip, from the drawing's centre): the lowest thin strand in it that runs
+    // on up a little way (the round end of its tail narrows for a few rows only; the paper bag's rope is free of the
+    // tail for the last twenty rows or so). The chest's hook hangs LINK below it.
+    const ropeTip = c => {
+      const a = pixels(c), thin = c.ruler * 0.11, rows = [];
+      const strands = j => rows[j] ??= (() => {   // the middles of the thin runs of row j
+        const out = []; let s = -1;
+        for (let i = 0; i <= c.w; i++) { const on = i < c.w && a[(j * c.w + i) * 4 + 3] > 40; if (on && s < 0) s = i; if (!on && s >= 0) { if (i - s <= thin) out.push((s + i - 1) / 2); s = -1; } }
+        return out;
+      })();
+      for (let j = c.h - 1; j > 0; j--) for (const mid of strands(j)) {
+        let n = 1, m = mid;
+        for (; j - n >= 0; n++) { const up = strands(j - n).find(q => Math.abs(q - m) < 6); if (up == null) break; m = up; }
+        if (n >= c.ruler * 0.03) return (c.tip = { x: c.x + mid - c.cx, y: c.y + j - c.cy });
+      }
+      throw new Error('a carrying drawing holds no rope');
+    };
+    for (const pose of ['carry', 'carryBag', 'carryCrown']) ropeTip(this.pkCell(pose));
+    for (const pose of ['lift', 'lift2']) ropeTip(this.cell(pose, SPRITE));
     this.day = img.day;
     const idle = this.cells.common[0];
     this.herLeft = (idle.x - idle.cx) * H / idle.ruler;  // her left edge standing idle, from her centre
@@ -345,7 +528,7 @@ class Component extends DCLogic {
     const p = this.props;
     this.cfg = {
       scene: p.scene || '手动', env: p.env || '右下角', room: p.room || '明亮画面', name: NAMES[p.name] || NAMES.普通昵称,
-      speed: { '0.5 倍': 0.5, '0.25 倍': 0.25 }[p.speed] || 1, caption: p.caption !== '隐藏'
+      speed: { '0.5 倍': 0.5, '0.25 倍': 0.25 }[p.speed] || 1, caption: p.caption !== '隐藏', game: p.game === '开'
     };
     return {};
   }
@@ -354,17 +537,24 @@ class Component extends DCLogic {
   now() { return (this.master ? this.master.currentTime : 0) * this.cfg.speed; }
 
   reset() {
-    this.cur = this.seen = null; this.queue = []; this.log = []; this.lot = null; this.pending = []; this.round = null; this.announced = null;
+    this.cur = this.seen = null; this.queue = []; this.log = []; this.lot = null; this.pending = []; this.round = null; this.announced = null; this.castleDue = null;
     this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lines = {}; this.rng = seeded(7);
+    this.gm = { chest: 0, pile: 0, drops: [], nums: [], visit: null, due: false, pk: false, last: this.now(), out: null, walk: null, streak: 0, steals: 0, brag: false, grudge: null, say: null, herX: FOOT.x };
+    this.gl = null;
   }
 
   fire(name, opts = {}) {
     const now = this.now(), ev = EVENTS[name];
-    if (name !== '日常' && !opts.chained) opts = { ...opts, wake: opts.wake ?? ['沮丧', '犯困'].includes(this.mood(now)) };
+    if (name !== '日常' && !opts.chained) opts = { ...opts, wake: opts.wake ?? ['沮丧', '犯困'].includes(this.mood(now, false)) };
     // 开心 counts only gifts, 大航海 included: a room viewers keep coming into would otherwise never be calm, and the daily
     // actions only come when she is calm (README 6). Anyone coming in still counts as something happening for 犯困.
     if (name !== '日常') this.lastAny = now;
-    if (ev.gift) { this.lastGift = now; this.recent = this.recent.filter(r => now - r < 60000).concat(now); }
+    if (ev.gift) { this.lastGift = now; this.recent = this.recent.filter(r => now - r < 60000).concat(now); if (this.moodHold?.mood === '沮丧') this.moodHold = null; }   // a gift cheers her up
+    // while the prankster is here she waves at no one, and a 大航海 or a lottery scares it off; the show then waits while the
+    // sprite takes the chest home (tidy; the game's own shows are opts.game)
+    if (this.cfg.game && this.gm.visit && name !== '日常' && !opts.game) { if (name === '进场') return this.note('进场：捣蛋鬼在，不演'); const v = this.gm.visit, frizz = v.phase === 'tug' && v.zapped != null; opts = { ...opts, tidy: this.scare(now), frizz }; }
+    // a 大航海's 电池 go into the chest like a gift's (after the scare: the chest it saved goes home with them)
+    if (this.cfg.game && opts.price) this.gameGift({ price: opts.price, n: 1 });
     // she waves at whoever comes in only while she is idle: never over a daily action or any show, and it does not queue
     if (name === '进场' && this.cur) return this.note('进场：正在演，不演');
     const curTier = this.cur ? TIER[EVENTS[this.cur.name].tier] : -1, tier = TIER[ev.tier];
@@ -380,11 +570,15 @@ class Component extends DCLogic {
   start(name, opts) {
     const now = this.now();
     if (this.cur) this.note(`${this.cur.name} 被 ${name} 打断`);
-    const wake = !!opts.wake, dur = name === '日常' ? DAILY[opts.kind][0] + (opts.mishap ? DAILY[opts.kind][1] : 0) : EVENTS[name].dur;
-    this.cur = { name, opts, start: now, pre: wake ? 1000 : 0, dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('冷场后来了人') : null };
+    const wake = !!opts.wake, dur = name === '日常' ? DAILY[opts.kind][0] + (opts.mishap ? DAILY[opts.kind][1] : 0) : (opts.zap && EVENTS[name].zapDur) || EVENTS[name].dur;   // zapDur: the longer show after the lightning
+    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('冷场后来了人') : null };
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
     if (name === '日常') this.nextDaily = now + dur + 20000 + this.rng() * 20000;
+    // after the chest game: robbed, she is sad until a gift cheers her up (MOOD_HOLD.robbed at most, its own lines); kept,
+    // glad for MOOD_HOLD.kept (and no 日常 meanwhile: those come only when she is 平静)
+    if (name === '被偷了') this.moodHold = { mood: '沮丧', lines: '沮丧·被偷', until: now + dur + MOOD_HOLD.robbed };
+    if (name === '守住了') this.moodHold = { mood: '开心', until: now + dur + MOOD_HOLD.kept };
     if (name === '报名开场') this.lot = { kind: '报名', phase: '报名中' };
     if (name === '奖池开场') this.lot = { kind: '奖池', phase: '点名前' };
     if (name === '报名截止' && this.lot) this.lot.phase = '等待';
@@ -408,10 +602,19 @@ class Component extends DCLogic {
 
   arrive(x) {
     // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show
-    if (!this.round) { const wake = ['沮丧', '犯困'].includes(this.mood(x.at)); this.round = { start: x.at, items: [], wake, wakeLine: wake ? this.pick('冷场后来了人') : null, played: -1 }; }
+    if (!this.round) { const wake = ['沮丧', '犯困'].includes(this.mood(x.at, false)); this.round = { start: x.at, items: [], wake, wakeLine: wake ? this.pick('冷场后来了人') : null, played: -1 }; }
     const r = this.round;
     r.items.push(x); r.last = x.at;
     this.lastGift = this.lastAny = x.at; this.recent = this.recent.filter(v => x.at - v < 60000).concat(x.at);
+    // the chest game: a gift counts for her chest at home; one thrown while the prankster is here plays no show of hers
+    // A castle comes only out of a blind box (README 10): thrown at it like any box, at the box's price, it still plays
+    // its castle once the 盲盒播报 would have told of it, and that scares the prankster off as a 大航海 does (fire;
+    // 用户：“城堡不是盲盒开出来的么”, it was lost in the game).
+    if (this.cfg.game && this.gameGift(x)) {
+      r.items.pop(); if (!r.items.length) this.round = null;
+      if (x.box && x.castle) this.castleDue = { at: x.at + ROUND_GAP + ANNOUNCE_AFTER, top: !!x.top, spend: x.boxPrice * x.n };
+      return;
+    }
     // Gifts do not wait for the round to end: she plays at once the show the round's gifts have come to so far, and moves
     // up when it grows into a bigger one (the fifth gift, 1000 or 10000 电池, a castle); one already played is not played
     // again. Blind boxes wait for the 盲盒播报 (announce).
@@ -475,6 +678,10 @@ class Component extends DCLogic {
       if (!r.items.some(x => x.box)) this.endRound();
       else if (now - r.last >= ROUND_GAP + ANNOUNCE_AFTER) this.announce(now);
     }
+    if (this.castleDue && now >= this.castleDue.at && !this.pending.length) {
+      const k = this.castleDue; this.castleDue = null;
+      this.fire('城堡', { top: k.top, spend: k.spend, gift: '浪漫城堡', count: 1 });
+    }
     const c = this.cur;
     if (c && now >= c.start + c.pre + c.dur) {
       this.cur = this.seen = null;
@@ -487,13 +694,17 @@ class Component extends DCLogic {
         this.start(q.name, { ...q.opts, chained: true });
       }
     }
-    if (!this.cur && this.mood(now) === '平静' && !this.lot && now >= this.nextDaily) {
+    if (this.cfg.game) this.gameUpdate(now);
+    if (!this.cur && this.mood(now) === '平静' && !this.lot && !this.gm.visit && !this.gm.out && !this.gm.fix && now >= this.nextDaily) {   // (nor while the sprite is still taking the chest home or to pat her hair smooth)
       const kinds = Object.keys(DAILY), kind = kinds[Math.floor(this.rng() * kinds.length)], mishap = this.rng() < 0.25;
       this.start('日常', { kind, mishap });
     }
   }
 
-  mood(now) {
+  // hold: a mood the chest game left her in (moodHold) goes first; the 冷场 rules alone decide whether a gift wakes her
+  // (sad over the chest she has not dozed off nor been left alone: a gift is thanked at once, with no 冷场后来了人)
+  mood(now, hold = true) {
+    if (hold && this.moodHold && now < this.moodHold.until) return this.moodHold.mood;
     const recent = this.recent.filter(r => now - r < 60000).length;
     if (now - this.lastAny >= 60 * 60000) return '犯困';
     if (now - this.lastGift >= 40 * 60000) return '沮丧';
@@ -502,9 +713,712 @@ class Component extends DCLogic {
   }
 
   // a danmaku is not played (README 10), it only tells her someone is there: 犯困 needs an hour with nothing at all
-  heard() { this.lastAny = this.now(); }
+  heard() { this.lastAny = this.now(); if (this.cfg.game) this.pebble(); }
 
-  fastForward(min) { const d = min * 60000; this.lastGift -= d; this.lastAny -= d; this.recent = this.recent.map(r => r - d); this.nextDaily -= d; }
+  fastForward(min) { const d = min * 60000; this.lastGift -= d; this.lastAny -= d; this.recent = this.recent.map(r => r - d); this.nextDaily -= d; this.gm.last -= d; }
+
+  // ---- the chest game (#372) ----------------------------------------------------------------------------------------
+  // Nothing of it is on the page until the prankster comes, and nothing of it stays. Her chest is at home, off the left
+  // of the page, where the game only counts what the stream's gifts put in it. The prankster has stolen it: it flies in
+  // from the left with the chest hanging from its own hook rope, over her head, and sets it down on her right, on its way
+  // out to the right. An empty chest it opens, mocks, and throws back. One with gifts in it springs open as it lands: she
+  // takes hold of the handle at her end and pulls for home, it pulls its rope for the right edge, and the room has a
+  // minute to beat it off. There is one rope in all of it, the prankster's; the chest has two plain handles.
+  // gm: chest (the 电池 in it), pile (the gifts drawn in it), drops and nums (what falls and the numbers that rise, for
+  // drawGame), visit (the prankster while it is here), due (it is to come once nothing plays), last (when it last left),
+  // out (the sprite flying the chest home), walk (her hopping to another place), streak and steals, brag and grudge (what
+  // it opens with next time), say (her line of the game), herX (where she stands).
+
+  // A gift while the game is on. Out of a visit it only counts for the chest at home: her own show plays as ever. While
+  // the prankster is here it is thrown (queue), and plays no show of hers: true then.
+  gameGift(x) {
+    const gm = this.gm, v = gm.visit, spend = (x.box ? x.boxPrice : x.price) * x.n;
+    if (!v || DONE.has(v.phase)) { gm.chest += spend; gm.pile += x.n; return false; }
+    v.queue.push({ spend, helper: !!x.helper && v.phase === 'tug' });
+    return true;
+  }
+
+  // The prankster is to come: once whatever plays is over (a 日常小动作 is not cut short), gameUpdate starts its visit.
+  visit() { if (this.cfg.game && !this.gm.visit && !this.gm.pk) this.gm.due = true; }
+  // A PK (连麦 PK) is no time for it: it does not come, and one here goes as if scared off, with no show after: she lets
+  // go and is herself again; after the lightning she cheers frizzed until the sprite, the chest home, has patted her hair
+  // smooth (gm.fix, unfrizz, as before a show that scared it off). It used to play 守住了 without its line, confetti
+  // and all the moment it ran (用户：“pk开始打断的效果不好、重改”).
+  pkOn(on) {
+    const gm = this.gm, v = gm.visit, now = this.now();
+    gm.pk = on;
+    if (!on) return;
+    gm.due = false;
+    if (!v || DONE.has(v.phase)) return;
+    const frizz = v.phase === 'tug' && v.zapped != null;
+    this.scare(now);
+    if (frizz) gm.fix = { start: now };
+  }
+
+  startVisit(now) {
+    const gm = this.gm;
+    gm.due = false; gm.out = null;
+    // loot: there is something in the chest to fight over
+    gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helpers: 0, helped: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
+    this.pkSay(gm.brag ? PKLINES.brag : gm.grudge ? PKLINES.grudge.replace('{昵称}', gm.grudge) : PKLINES.peek, now);
+    gm.brag = false;
+  }
+
+  // Its next phase; from and fromCx are where it and the chest (standing) were, for the phases that go on from there.
+  phase(p, now) {
+    const v = this.gm.visit;
+    Object.assign(v, { phase: p, at: now, from: { ...v.pos }, fromCx: v.chest?.x ?? LAND });
+    if (['knocked', 'fled'].includes(p)) v.say = null;
+  }
+
+  pkSay(text, now) { this.gm.visit.say = { text, at: now }; }
+
+  herSay(text, now) { this.gm.say = { text: this.fill(text), at: now }; }
+
+  // She hops to x in so many little hops (never a slide).
+  hopTo(x, now, hops = 1) { const gm = this.gm; if (Math.abs(x - gm.herX) > 1) gm.walk = { from: gm.herX, to: x, at: now, ms: 300 * hops, hops }; }
+
+  // The chest it has let go of goes home: the sprite presses the lid shut if it is open, takes up the prankster's dropped
+  // hook rope and flies the chest back over her head, off the left of the page, in ms. t2 is how long it is before the
+  // sprite can have the rope; got (gameState) is when it really has it.
+  sendHome(now, ms = HOME, popped = false) {
+    const v = this.gm.visit, c = v.chest;
+    if (!c) return;
+    const open = popped || !!this.gl?.open;
+    this.gm.out = { at: now, ms, hook: this.ring(c.x, 1), open, t2: GO + (open ? SHUT : 0) + TAKE, got: null };
+    v.chest = null;
+  }
+
+  // Where the rope in the prankster's carrying drawing ends on the page (tip, boot), and how far from the sprite's centre
+  // the rope in its drawing ends.
+  pkTip(p) {
+    const c = this.pkCell(p.pose), s = PK_H / c.ruler * p.scale, x = (p.flip ? -1 : 1) * c.tip.x * s, y = c.tip.y * s, k = Math.cos(p.rot), n = Math.sin(p.rot);
+    return { x: p.x + x * k - y * n, y: p.y + x * n + y * k };
+  }
+
+  spTip(pose) { const c = this.cell(pose, SPRITE), s = SPRITE_H / c.ruler; return { x: c.tip.x * s, y: c.tip.y * s }; }
+
+  // Where its flight with the chest ends: the end of its rope right over where the chest's handle will stand.
+  carryEnd() { const c = this.pkCell('carry'); return { x: this.ring(LAND, 1).x + c.tip.x * PK_H / c.ruler, y: 198 }; }
+
+  // The link the chest's ring on side s (-1 hers, 1 the prankster's) hangs from, when the chest stands at x.
+  ring(x, s) { return { x: x + s * (this.chestBox.w / 2 - RING.x * K), y: CHEST.y - RING.y * K }; }
+
+  // How far in front of her centre the chest's link is in a drawing of hers that holds its ring (GRIP).
+  grip(pose) { const [k, i] = POSE[pose], c = this.cells[k][i]; return (c.ox + GRIP - c.cx) * H / c.ruler; }   // (its cell, not a loop's frame)
+
+  // A ring of the chest, hung from the link at p and swung to point along ux, uy (straight down when nothing holds it).
+  drawRing(g, p, ux = 0, uy = 1) {
+    g.save(); g.translate(p.x, p.y); g.rotate(Math.atan2(uy, ux) - Math.PI / 2); g.scale(K, K);
+    g.drawImage(this.props.chestRing, -RING.hang[0], -RING.hang[1]); g.restore();
+  }
+
+  // Where her sprite pats her head as she lies where the prankster has dragged the chest from her: as 'head' puts it over her standing (a little left of her
+  // head and over it), her head HEAD across her lying drawing.
+  comfort(st, now) { const b = this.herBox(st, this.cell(st.pose)); return ['at', b.x + b.w * HEAD[st.pose] - 36, b.y - 15 + 3 * Math.sin(now / 500)]; }
+
+  // Where the prankster floats to pull at the ring that hangs from p: leaning back by rot, the rope its drawing holds
+  // (less trim) in one line with the hook and the ring. pkEnd: where that rope ends on the page, the prankster at p.
+  pkPull(p, pose, rot, trim) {
+    const c = this.pkCell(pose), s = PK_H / c.ruler, x = (c.x - c.cx + trim) * s, y = (c.y - c.cy + c.h * c.rope) * s;
+    const d = RING.reach * K + HOOK + 2, k = Math.cos(rot), n = Math.sin(rot);
+    return { x: p.x + d * k - x * k + y * n, y: p.y + d * n - x * n - y * k };
+  }
+
+  pkEnd(p) {
+    const c = this.pkCell(p.pose), s = PK_H / c.ruler * p.scale, x = (c.x - c.cx + (p.trim || 0)) * s + 2, y = (c.y - c.cy + c.h * c.rope) * s, k = Math.cos(p.rot), n = Math.sin(p.rot);
+    return { x: p.x + x * k - y * n, y: p.y + x * n + y * k };
+  }
+
+  // A gift lands. Over an empty chest the prankster has one life: any gift knocks it off the page, and is the chest's
+  // first. With gifts in the chest every gift takes its 电池 off the prankster's life; a 中礼物 ends it there. A helper's
+  // gift lands on her head instead and gives the prankster that much life back. She lets go of the handle, so the
+  // prankster, glad of it, points at her and laughs, and the chest comes a little its way (tumble), while her
+  // sprite pulls on alone; then she takes hold again. The fifth of them flattens her: she lies flat while her sprite
+  // pulls on (it lets go, the prankster is off with the chest), catches the handle lying down and is dragged a little
+  // before she is up. In the fight's last stretch she lies holding
+  // on already, and only winces.
+  strike(now, spend, helper) {
+    const gm = this.gm, v = gm.visit, name = this.cfg.name;
+    if (DONE.has(v.phase)) return;
+    if (!v.loot) {
+      Object.assign(gm, { grudge: name, chest: spend, pile: 1 });
+      this.phase('knocked', now); this.sendHome(now, HOME, true); return this.fire('打跑了', { game: true });   // the lid it sat on springs open for the gift
+    }
+    v.spent += spend; v.count++;
+    if (helper) {
+      v.hp = Math.min(v.max, v.hp + spend);
+      gm.nums.push({ at: now, text: `+${spend}`, heal: true });
+      if (v.sprint != null) { v.wince = now; return; }
+      Object.assign(v, { bonk: now, tumble: now, helped: v.helped + 1 });
+      if (v.helped % 5 === 0) v.buried = now;
+      return this.herSay('{昵称}！怎么砸我呀！', now);
+    }
+    Object.assign(v, { hp: v.hp - spend, hit: now }); gm.grudge = name;
+    gm.nums.push({ at: now, text: `-${spend} ${name}` });
+    if (v.hp <= 0 || spend >= MID) this.win(now); else this.herSay('{昵称}打得好！', now);
+  }
+
+  // The chest has landed beside her: she starts back from the crash, then lunges for its handle and pulls. The
+  // prankster's life is a fifth of what is in it, a 中礼物 at most, and the minute starts.
+  grab(now) {
+    const gm = this.gm, v = gm.visit;
+    v.max = v.hp = clamp(Math.round(gm.chest / 5), 1, MID);
+    Object.assign(v, { left: GAME.fight, pebbles: 0, grabbed: now });
+    this.phase('tug', now); v.say = null; this.herSay('啊！我的宝箱！', now);
+    this.hopTo(Math.min(gm.herX, this.ring(LAND, -1).x - this.grip('lunge') - 10), now);   // back far enough to lunge forward
+  }
+
+  // A danmaku while it is here: flying over with the chest, it freezes in a disguise while she looks about (three times
+  // at most); in the tug it is a pebble, and all the pebbles together take no more than GAME.pebbles of its life, never
+  // the last of it.
+  pebble() {
+    const v = this.gm.visit, now = this.now();
+    if (!v) return;
+    if (v.phase === 'carry' && v.freezes < 3 && !(now - v.frozen < FREEZE)) { v.frozen = now; v.freezes++; }
+    if (v.phase === 'tug' && v.cut == null && v.pebbles < GAME.pebbles * v.max && v.hp > 1) {
+      const d = Math.min(v.hp - 1, Math.max(1, Math.round(v.max * 0.02)));
+      v.pebbles += d; v.hp -= d; this.gm.nums.push({ at: now, text: `-${d}`, small: true });
+    }
+  }
+
+  // A viewer sends the keyword and is on its side for this fight: their gifts are a helper's.
+  join() { const v = this.gm.visit; if (v?.phase === 'tug') { v.helpers++; v.joined = this.now(); } }
+
+  // A 大航海, a castle or a lottery scares it off: it drops its rope and flees, and the sprite hurries the chest home
+  // before the show starts (TIDY, the show's wait); out of a tug that is the chest kept. Returns that wait.
+  scare(now) {
+    const gm = this.gm, v = gm.visit;
+    if (DONE.has(v.phase)) return 0;
+    if (v.phase === 'tug') { gm.streak++; gm.chest += v.spent; gm.pile += v.count; }
+    const hung = v.chest && v.chest.x == null && gm.hung;   // flying with it, the chest hanging from its rope
+    this.phase('fled', now);
+    if (!v.chest) return 0;
+    let fall = null;
+    if (hung) {
+      // it falls straight down from where it hung (kept on the page), and stands where it lands
+      const box = this.chestBox, ex = this.ring(0, 1).x, cx = clamp(hung.hook.x - ex, box.w / 2 + 4, PAGE.w - box.w / 2 - 4);
+      fall = { at: now, hook: { ...hung.hook }, rot: hung.rot };
+      v.chest = { x: cx };
+      // were it to come down on her, she hops out from under it first, away from it
+      const reach = box.w / 2 + 50;
+      if (Math.abs(cx - gm.herX) < reach) {
+        let side = gm.herX <= cx ? -1 : 1, to = cx + side * (reach + 20);
+        if (to < 60 || to > PAGE.w - 60) { side = -side; to = cx + side * (reach + 20); }
+        this.hopTo(clamp(to, 60, PAGE.w - 60), now);
+      }
+      v.dodge = now;
+    }
+    this.sendHome(now, TIDY, !!(fall && v.loot)); Object.assign(gm.out, { hop: 2, fall, spot: now + (fall ? FALL : 0) });   // she hops back to the middle once the chest is up out of her way
+    return TIDY;
+  }
+
+  // Beaten off: what was thrown lands in the chest, the sprite flies it home, and she thanks whoever landed the last of it.
+  win(now) {
+    const gm = this.gm, v = gm.visit;
+    gm.streak++; gm.chest += v.spent; gm.pile += v.count;
+    this.phase('won', now); this.sendHome(now); this.hopTo(FOOT.x, now + HOME * 0.6, 3); this.pkSay(PKLINES.won, now);
+    this.fire('守住了', { game: true, streak: gm.streak, zap: v.zapped != null });
+  }
+
+  lose(now) {
+    const gm = this.gm;
+    Object.assign(gm, { chest: 0, pile: 0, streak: 0, steals: gm.steals + 1, brag: true });   // next time it brags of it
+    this.phase('lost', now); this.pkSay(PKLINES.lost, now);
+  }
+
+  endVisit(now) { this.gm.visit = null; this.gm.last = now; if (!this.gm.walk) this.hopTo(FOOT.x, now, 2); }
+
+  // The visit's clock. It comes at most once in GAME.every, when someone is about and no PK is on; then each phase runs
+  // its time, and the tug its countdown.
+  gameUpdate(now) {
+    const gm = this.gm, v = gm.visit, dt = now - (gm.clock ?? now);
+    gm.clock = now;
+    gm.drops = gm.drops.filter(d => now - d.at < 1400); gm.nums = gm.nums.filter(n => now - n.at < 1100);
+    // the chest is home once the sprite has flown it off the page (or, should the sprite never get the rope, a while after)
+    if (gm.out && (gm.out.got != null ? now - gm.out.got >= gm.out.ms - gm.out.t2 && !(this.sv?.x > -50) : now - gm.out.at >= gm.out.ms + 6000)) gm.out = null;
+    if (!v) {
+      if (now - gm.last >= GAME.every && now - this.lastAny < 5 * 60000) gm.due = true;
+      if (gm.due && !this.cur && !this.round && !this.lot && !gm.pk) this.startVisit(now);
+      return;
+    }
+    // what is thrown waits while the chest is in the air, until the prankster is on its feet again, and while the lightning plays;
+    // then all of it drops
+    const away = ['peek', 'carry', 'fall'].includes(v.phase) || v.phase === 'tug' && now - v.grabbed < UP || v.phase === 'peer' && now - v.at < DAZED + 400;
+    if (!away && v.cut == null && v.queue.length) {
+      for (const q of v.queue) { gm.drops.push({ at: now, her: q.helper, big: q.spend >= MID }); v.hits.push({ at: now + DROP, ...q }); }
+      v.queue = [];
+    }
+    for (const h of v.hits.filter(h => h.at <= now)) this.strike(now, h.spend, h.helper);
+    v.hits = v.hits.filter(h => h.at > now);
+    const u = now - v.at;
+    switch (v.phase) {
+      case 'peek': if (u >= 2400) this.phase('carry', now); break;
+      case 'carry':
+        if (now - v.frozen < FREEZE) v.at += dt;   // frozen, its clock stands still
+        else if (u >= GAME.carry) {
+          // the chest is too much for it: over her right it can hold on no longer, and comes down with the chest
+          v.pos = this.carryEnd();   // where the carrying ends, whatever frame drew it last
+          this.phase('fall', now);
+        }
+        break;
+      case 'fall':
+        if (u < FALL) break;
+        // the chest stands on the ground, the prankster in a heap on its lid
+        v.chest = { x: LAND }; v.landed = now; v.pos = { x: LAND, y: CHEST.y - this.chestBox.h - PK_H * 0.3 };
+        if (v.loot) this.grab(now); else { this.phase('peer', now); this.hopTo(FOOT.x - 60, now + DAZED + 300); }
+        break;
+      case 'peer': if (u >= DAZED + 1900) { this.phase('shrug', now); this.pkSay(PKLINES.shrug, now); } break;
+      case 'shrug': if (u >= 2800) { this.phase('sit', now); this.pkSay(PKLINES.sit[0], now); } break;
+      case 'sit': {
+        const n = Math.floor(u / 20000);
+        if (u >= GAME.loiter) { this.phase('toss', now); this.pkSay(PKLINES.toss, now); }
+        else if (n > (v.heckled || 0)) { v.heckled = n; v.laugh = now; this.pkSay(PKLINES.sit[n % PKLINES.sit.length], now); }
+        break;
+      }
+      case 'toss': if (u >= 1700) this.phase('leave', now); break;
+      case 'tug':
+        if (v.cut != null) { if (now - v.cut >= ZAP) v.cut = null; break; }   // the set piece plays: the countdown waits
+        if (v.zapped == null && v.hp <= v.max / 2) { v.zapped = v.cut = now; this.pkSay(PKLINES.zap, now); break; }
+        // it answers her once her bubble is gone (the two stand close then), and after that calls for helpers
+        if (!v.caught && now - v.grabbed >= 2900) { v.caught = true; this.pkSay(PKLINES.grab, now); }
+        if (!v.recruited && now - v.grabbed >= 6200) { v.recruited = true; this.pkSay(PKLINES.recruit, now); }
+        v.left -= dt;
+        if (v.left <= GAME.sprint && v.sprint == null) { v.sprint = now; this.pkSay(PKLINES.sprint, now); }
+        if (v.left <= 0) this.lose(now);
+        break;
+      case 'lost': if (u >= 1600) { this.endVisit(now); this.fire('被偷了', { game: true, zap: v.zapped != null }); } break;
+      default: if (u >= (v.phase === 'fled' ? (v.ran ?? Infinity) + OFF.fled : OFF[v.phase] ?? 1800)) this.endVisit(now);   // leave, knocked, won, fled: it is off the page
+    }
+  }
+
+  // Where the chest and the prankster are at this moment (this.gl, for drawGame), and what she does about it while no
+  // show of hers plays: every phase of a visit has its place and pose, and she stays in her 心情 until the chest lands
+  // beside her.
+  gameState(st, now) {
+    const gm = this.gm, v = gm.visit, box = this.chestBox;
+    const L = this.gl = { chest: null, open: false, pk: null };
+    // she hops to where she is to stand, and everything she plays is played from there
+    let hopY = 0;
+    if (gm.walk) {
+      const k = k01(now, gm.walk.at, gm.walk.at + gm.walk.ms);
+      gm.herX = gm.walk.from + (gm.walk.to - gm.walk.from) * ease(k);
+      if (k > 0 && k < 1) hopY = 10 * Math.abs(Math.sin(k * Math.PI * gm.walk.hops));
+      if (k >= 1) gm.walk = null;
+    }
+    st.x += gm.herX - FOOT.x; st.y -= hopY;
+    if (gm.herX !== FOOT.x && !st.sp) st.sp = ['home', gm.herX - FOOT.x, 0];
+    // The chest going home: the sprite comes down on an open lid and presses it shut, takes up the prankster's dropped hook
+    // rope (its drawing holds the rope from then on), lifts the chest straight up, higher than her bubble, and flies it over
+    // her head off the left of the page. The chest hangs from the end of the sprite's rope, where the sprite really is
+    // (drawGame); out of the air the prankster holds it up until the sprite has the rope (fled).
+    if (gm.out) {
+      const o = gm.out, tip = this.spTip('lift'), home = o.hook.x - this.ring(0, 1).x, sv = this.sv;
+      // it sets off only once the prankster is off the chest (knocked off it, it springs up from the lid), and goes for
+      // the rope only once it is clear of where the chest goes up (CLEAR); its times run from when it sets off (go)
+      // Scared off, the chest it was flying with falls first (fall), landing with a thud; and the sprite starts at it ('!',
+      // NOTICE) from o.spot before it does anything.
+      const fell = !o.fall || now - o.fall.at >= FALL, startle = o.spot != null && now >= o.spot && now < o.spot + NOTICE;
+      if (o.fall && fell && !o.fall.landed) { o.fall.landed = now; if (v) v.landed = now; }
+      if (startle) { st.sprite = 'surprised'; L.notice = now - o.spot; }
+      // (by her it can be where the chest comes down: it darts out from under it to the side of it it is on, not across
+      // her, or to the other side when that is off the page)
+      if (o.fall && o.go == null) {
+        const cx = o.hook.x - this.ring(0, 1).x, d = box.w / 2 + 36, ok = x => x >= 30 && x <= PAGE.w - 30;
+        o.fall.dart ??= (sv ? sv.x : gm.herX) < cx ? (ok(cx - d) ? cx - d : cx + d) : (ok(cx + d) ? cx + d : cx - d);
+        st.sp = ['at', o.fall.dart, CHEST.y - 120];
+      }
+      const away = !v || v.pos.a < 0.05 || v.pos.x > PAGE.w + PK_H / 2 || v.pos.y < -PK_H / 2;
+      if (o.go == null && fell && (o.spot == null || now >= o.spot + NOTICE) && (away || Math.abs(v.pos.x - home) > 110 || v.pos.y < CHEST.y - 300)) o.go = now;
+      const u = o.go == null ? -Infinity : now - o.go;
+      const p0 = { x: o.hook.x - tip.x, y: o.hook.y - tip.y - LINK };   // there the end of the sprite's rope is LINK over the hook
+      // (the prankster's place last frame: v.pos)
+      if (o.clear == null && o.go != null && (away || v.pos.x - p0.x > CLEAR)) o.clear = now;
+      if (o.got == null && o.clear != null && u >= o.t2 && sv && Math.hypot(sv.x - p0.x, sv.y - p0.y) < 8) { o.got = now; if (o.hop) this.hopTo(FOOT.x, now + 400, o.hop); }
+      st.orbit = null; st.sFlip = false;
+      if (o.got != null) {
+        // straight up first, above where her bubble is, then across over her head
+        const q = k01(now - o.got, 0, o.ms - o.t2), up = ease(k01(q, 0, 0.4)), across = ease(k01(q, 0.4, 1));
+        st.sprite = up < 1 ? 'lift' : 'lift2'; st.sp = ['at', p0.x + (-100 - p0.x) * across, p0.y + (56 - p0.y) * up];
+        L.chest = { carried: true, len: LINK, lift: ease(k01(q, 0, 0.25)) };
+      } else {
+        // (it presses at the end of SHUT: the gift that beat the prankster off is still on its way into the chest)
+        const press = o.open && u < GO + SHUT, shut = o.open ? ease(k01(u, GO + SHUT * 0.4, GO + SHUT)) : 1;
+        if (o.go != null) {
+          st.sprite = press && u >= GO ? 'lid' : 'sIdle';
+          st.sp = press ? ['at', home, CHEST.y - box.open + (box.open - box.h) * shut - SPRITE_H * 0.16]
+            : o.clear == null ? ['at', home - 20, CHEST.y - box.h - SPRITE_H * 0.45] : ['at', p0.x, p0.y];
+        }
+        if (!fell) {
+          // falling: from where its ring hung to where it is on the ground, coming level, the dropped rope trailing
+          const k = Math.min(1, ((now - o.fall.at) / FALL) ** 2);
+          L.chest = { still: { x: o.fall.hook.x + (o.hook.x - o.fall.hook.x) * k, y: o.fall.hook.y + (o.hook.y - o.fall.hook.y) * k }, rot: o.fall.rot * (1 - k) }; L.loose = true;
+        } else { L.chest = { x: home, y: CHEST.y }; L.open = o.open && shut < 0.5; L.dropped = true; }
+      }
+    }
+    if (!v) return st;
+    st.slide = true;   // her place goes with her pose while it is here (drawHer)
+    const u = now - v.at, free = !this.cur, bob = 4 * Math.sin(now / 520), low = CHEST.y - 74;
+    if (free && ['peek', 'carry', 'fall'].includes(v.phase)) st.bubble = null;   // her 心情 says nothing while a chest flies past where its bubble is
+    else if (free) { st.orbit = null; st.y = FOOT.y - hopY; }                     // and beside the chest she is no longer in her 心情: no happy bounce
+    const seat = CHEST.y - box.h - PK_H * 0.3, over = CHEST.y - box.open - PK_H * 0.24;   // its height seated on the lid; over the open lid
+    const pk = L.pk = { pose: 'idle', x: v.pos.x, y: v.pos.y, flip: false, rot: 0, scale: 1, a: 1 };
+    const fly = (vx, vy, grav = 0) => { pk.x = v.from.x + vx * u; pk.y = v.from.y + vy * u + grav * u * u; };
+    const hop = (x, y, ms = 400) => { const e = ease(k01(u, 0, ms)); pk.x = v.from.x + (x - v.from.x) * e; pk.y = v.from.y + (y - v.from.y) * e; };
+    let cx = v.chest?.x ?? null;   // the chest standing on the ground, if it does
+    switch (v.phase) {
+      case 'peek': Object.assign(pk, { pose: 'peek', flip: true, x: -70 + 94 * ease(k01(u, 0, 500)), y: 120 + bob }); break;
+      case 'carry': {
+        // It flies in little goes, its arms in front of it holding its hook rope, the chest hanging from the rope by one
+        // handle and swinging as it goes (drawGame); the weight sinks it until it is over her head. Frozen, it is a paper
+        // bag or a paper king with a chest still hanging from it. (Its sneaking drawing faces the viewer's left: flipped.)
+        const p = u / GAME.carry * 9, go = Math.min(1, (Math.floor(p) + ease(k01(p % 1, 0, 0.6))) / 9), frozen = now - v.frozen < FREEZE;
+        const strain = frozen ? 0 : k01(go, 0.72, 1);   // near the end the weight is too much for it: it wobbles, sweats and sinks
+        Object.assign(pk, { pose: frozen ? (v.freezes % 2 ? 'carryBag' : 'carryCrown') : 'carry', flip: !frozen, x: -70 + (this.carryEnd().x + 70) * go,
+          y: 120 + 70 * Math.sin(Math.PI / 2 * Math.min(1, go / 0.6)) + 8 * k01(go, 0.72, 1) + (frozen ? 0 : bob), rot: 0.12 * strain * Math.sin(now / 80) });
+        L.sweat = strain;
+        L.chest = { hang: this.pkTip(pk), len: LINK };
+        if (frozen && free) { if (st.pose === 'idle') st.pose = 'lookUp'; st.sprite = 'sLook'; L.ask = now - v.frozen; }   // she looks up and about
+        break;
+      }
+      case 'fall': {
+        // It can hold on no longer: it and the chest come down together, faster and faster, the chest coming level, and it
+        // lands in a heap on the chest's lid.
+        const k = Math.min(1, (u / FALL) ** 2), r = this.ring(LAND, 1), y0 = this.pkTip({ ...pk, pose: 'carry', flip: true, x: v.from.x, y: v.from.y }).y + LINK;
+        Object.assign(pk, { pose: 'fall', flip: true, x: v.from.x + (LAND - v.from.x) * k, y: v.from.y + (seat - v.from.y) * k, rot: -0.3 * k });
+        L.chest = { still: { x: r.x, y: y0 + (r.y - y0) * k }, rot: HANG * (1 - k) };
+        break;
+      }
+      case 'peer': {
+        // It lies dazed on the lid where it fell (DAZED); then it is up over the chest and has the lid open: empty, and a moth
+        // flies out. She has started at the crash; now she is sorry and embarrassed about her empty chest.
+        const up = ease(k01(u, DAZED, DAZED + 400));
+        Object.assign(pk, { pose: u < DAZED ? 'dazed' : u < DAZED + 400 ? 'shake' : 'peer', flip: u < DAZED, x: cx, y: seat + (over - seat) * up + bob * up });
+        L.open = u >= DAZED + 500; L.moth = u - DAZED - 700; L.ropes = L.slack = true;
+        if (free && u >= 250) st.pose = u < DAZED + 700 ? 'startled' : 'sorry';
+        break;
+      }
+      case 'shrug': Object.assign(pk, { pose: 'shrug', x: cx, y: over + (seat - over) * ease(k01(u, 1900, 2700)) + bob * (1 - k01(u, 1900, 2700)) }); L.open = u < 1900; L.ropes = L.slack = true; if (free) st.pose = 'sorry'; break;
+      // (she is sorry and embarrassed about her empty chest, not angry)
+      case 'sit': Object.assign(pk, { pose: now - v.laugh < 2600 ? 'laugh' : 'sit', x: cx, y: seat }); L.ropes = L.slack = true; if (free) st.pose = 'sorry'; break;
+      case 'toss': {
+        // bored of an empty chest, it gets off and throws the chest back over her head, home
+        pk.pose = u < 450 ? 'shrug' : u < 1200 ? 'throw' : 'laugh'; hop(v.fromCx + 56, low + bob, 400);
+        const w = Math.max(0, u - 500);
+        if (w > 0) { L.chest = { x: v.fromCx - 0.42 * w, y: CHEST.y - 1.6 * w + 0.00145 * w * w, spin: -w / 180 }; cx = null; v.chest = null; }
+        else L.ropes = L.slack = true;   // its hook comes out of the ring as it throws
+        if (free) st.pose = 'sorry';
+        break;
+      }
+      case 'leave': fly(0.16, -0.05); pk.y += bob; break;
+      // knocked off an empty chest it spins up and out of the top; beaten off it zigzags up and out of the top like a balloon
+      // letting its air out (both slowly, and up rather than right: it stands by the right edge, and was gone in a blink)
+      case 'knocked': pk.pose = 'knocked'; fly(0.12, -0.32, 0.00003); pk.rot = u / 260; pk.a = 1 - k01(u, 2100, 2600); break;
+      case 'fled': {
+        // Scared off, it lets go of everything with a start (startle; a chest in the air falls: gm.out.fall), then it is off
+        // to the right, looking back. (Her frizzed hair the sprite pats smooth once the chest is home: unfrizz.)
+        const w = u - (v.ran ??= u);
+        // it jumps with fright first, then runs off bobbing out at the right, at its own height, taking OFF.fled however far
+        // from the edge it was (run). It used to flee straight up, beside the chest the sprite lifts straight up to take
+        // home, and the two went up side by side, the sprite seeming to carry it off (用户：“怎么变得小精灵抬着捣蛋鬼跑了”).
+        const run = Math.max(0, w - 450), vx = Math.max(0.06, (PAGE.w + 60 - v.from.x) / (OFF.fled - 450));
+        // (it starts the way it faced, flying with the chest to the right or pulling toward her, and turns to run)
+        Object.assign(pk, { pose: w < 450 ? 'startle' : 'flee', flip: w < 450 ? v.from.flip ?? true : true, x: v.from.x + vx * run, y: v.from.y - 18 * bump(w, 0, 450) - 6 * Math.abs(Math.sin(run / 110)), a: 1 - k01(run, OFF.fled - 700, OFF.fled - 450) });
+        // a chest it let go of over her head: she hops out from under it, and starts at the thud
+        if (v.dodge != null && (free || now < this.cur.start + this.cur.pre) && now - v.dodge < FALL + 700) st.pose = 'startled';
+        break;
+      }
+      // (it drifts off up and to the right, out of the way of the chest the sprite lifts straight up: it used to drift
+      // straight up, right where the chest went, and the sprite seemed to carry it off)
+      case 'won': pk.pose = 'flat'; fly(0.07, -0.12); pk.x += 24 * Math.sin(u / 95); pk.y += 26 * Math.sin(u / 120); pk.rot = 0.7 * Math.sin(u / 85); pk.a = 1 - k01(u, 2900, 3400); break;
+      // it has the chest: she has lost her hold and lies where she was dragged to
+      // (her lying drawing with empty fists: the ring she held hangs from the chest again)
+      case 'lost': pk.pose = 'haul'; pk.rot = HAUL; fly(0.32, 0); cx = v.fromCx + 0.32 * u; L.open = true; L.ropes = true; if (free) { st.pose = v.zapped != null ? 'fallenZap' : 'fallen'; Object.assign(st, { sprite: 'pat', sp: this.comfort(st, now) }); } break;
+      case 'tug': {
+        // She starts back from the crash, lunges for the chest's handle and pulls the chest back toward her (she backs off
+        // with it, out from under the dazed prankster), and then the three drift with the prankster's life: to its side
+        // while it has most of it, back to hers as it loses it. In the last stretch it hauls the chest off and she is
+        // dragged along.
+        const t = now - v.grabbed, e = ease(k01(t, 850, 2300)), cut = v.cut != null ? now - v.cut : null;
+        const drift = e * (TUG.drift * (v.hp / v.max * 2 - 1) + 1.5 * Math.sin(now / 260)) + (v.sprint != null ? 150 * (now - v.sprint) / GAME.sprint : 0);
+        // A helper's gift on her head (strike): down is how long she has been flattened (flat 1200 ms, then 700 ms holding
+        // the handle lying down), loose whether she has let go. The prankster is glad of it: it points at her and laughs,
+        // and the chest comes a little its way (yank). The bump and the dizzy eyes are for a gift that hits it.
+        const down = now - v.buried < 1900 ? now - v.buried : null, loose = down != null ? down < 1200 : now - v.bonk < 800;
+        const yank = now - v.tumble < 800 ? 10 * bump(now, v.tumble, v.tumble + 800) : 0;
+        cx = v.fromCx + (TUG.chest - v.fromCx) * e + drift + yank;
+        // It lies dazed on the lid where it fell; as she pulls the chest away it tumbles off to the far side, heels over
+        // head (off; its tumbling drawing is upside down), the lid springs open, and it shakes itself and takes up its
+        // rope, still hooked in the handle (UP).
+        // It floats where its rope runs straight from the chest's ring into its fists, leaning back (pkPull).
+        const place = v.sprint != null ? this.pkPull(this.ring(cx, 1), 'haul', HAUL, 0) : this.pkPull(this.ring(cx, 1), 'tug', LEAN, TRIM);
+        const off = ease(k01(t, 900, 1700)), to = { x: place.x + yank * 0.4, y: place.y + bob * 0.5 };
+        pk.x = cx + (to.x - cx) * off; pk.y = seat + (to.y - seat) * off - 26 * Math.sin(Math.PI * off);
+        if (t < 900) Object.assign(pk, { pose: 'dazed', flip: true });
+        else if (t < 1700) Object.assign(pk, { pose: 'tumble', rot: (off - 0.5) * Math.PI * 2 });
+        else if (t < UP) pk.pose = 'shake';
+        else pk.pose = cut != null ? 'thunder' : v.sprint != null ? 'haul' : loose ? 'laugh' : now - v.hit < 450 ? 'ouch' : 'tug';
+        if (pk.pose === 'haul') pk.rot = HAUL; else if (pk.pose === 'tug' || pk.pose === 'ouch') Object.assign(pk, { rot: LEAN, trim: TRIM });
+        L.ropes = true; L.open = t >= 1100; L.slack = !['tug', 'haul', 'ouch'].includes(pk.pose);   // not pulling, its rope hangs slack
+        if (cut != null) L.zap = cut;
+        if (free) {
+          // after the lightning her hair stays frizzed, whatever she does
+          const z = now - v.zapped >= 900 ? 'Zap' : '';
+          st.pose = t < 500 ? 'startled' : t < 850 ? 'lunge' : down != null ? (down < 1200 ? 'flat' : 'dragged') + z : loose ? 'bonk' + z : v.sprint != null ? 'dragged' + z : 'tug' + z;
+          // from her lunge on the ring in her fists is at the chest's link (her drawings hold it; held: the chest's own
+          // ring on her side is then not drawn); where she has let go she stands where she pulled from
+          if (t >= 500) {
+            const holds = POSE[st.pose][0] === 'game16';
+            st.x = gm.herX = this.ring(cx - yank, -1).x - this.grip(holds ? st.pose : 'tug'); gm.walk = null;
+            if (holds) L.held = 'her';
+          }
+          if (now - v.wince < 300) st.y -= 5 * bump(now, v.wince, v.wince + 300);
+          // Her sprite is on her side: once the prankster is up and pulling, it takes hold of the open lid's edge on her
+          // side, over her arms, and pulls with her (its two pulling drawings by turns, its fists over the lid's edge:
+          // sOver), on alone while she has let go or lies flattened: were it to let go, the prankster would be off with
+          // the chest. (While the prankster still lies on the lid it stays by her, startled.)
+          if (t >= UP) {
+            const key = Math.floor(now / 400) % 2 ? 'hold2' : 'hold', hc = this.cell(key, SPRITE), ks = SPRITE_H / hc.ruler;
+            const lid = { x: cx - box.w / 2 + LID.x * K, y: CHEST.y - LID.y * K };
+            Object.assign(st, { sprite: key, sFlip: true, sOver: true, sp: ['at', lid.x + 4 - (hc.cx - hc.x) * ks, lid.y - (hc.y + hc.rope * hc.h - hc.cy) * ks] });
+          } else st.sprite = 'surprised';
+          if (cut != null) st.shake = [[v.cut + 900, 3, 260]];
+        }
+        break;
+      }
+    }
+    v.pos = { x: pk.x, y: pk.y, a: pk.a, flip: pk.flip };
+    if (cx != null) { v.chest = { x: cx }; L.chest = { x: cx, y: CHEST.y }; }
+    else if (L.chest?.hang && !gm.out) v.chest = {};   // hanging in the air
+    if (v.landed != null && now - v.landed < 260 && free) st.shake = [[v.landed, 3, 260]];   // the chest thuds down
+    if (free && gm.say && now - gm.say.at < 2600) st.bubble = { text: gm.say.text, t: now - gm.say.at };
+    return st;
+  }
+
+  // The chest on a rope len long swings like a weight from pivot: it lags when what carries it starts off and swings on
+  // when that stops, and settles. Returns the rope's angle from straight down.
+  swing(pivot, len) {
+    const rt = performance.now(), s = this.sw ??= { a: 0, w: 0, x: pivot.x, vx: 0, rt };
+    const dt = Math.min(40, (rt - s.rt) * this.cfg.speed);
+    s.rt = rt;
+    if (dt > 0) {
+      const vx = clamp((pivot.x - s.x) / dt, -0.6, 0.6), ax = clamp((vx - s.vx) / dt, -0.004, 0.004);
+      s.w += (-1.6e-5 * Math.sin(s.a) - 0.3 * ax / len * Math.cos(s.a) - 0.0016 * s.w) * dt;
+      Object.assign(s, { a: clamp(s.a + s.w * dt, -0.5, 0.5), vx, x: pivot.x });
+    }
+    return s.a;
+  }
+
+  pkCell(pose) { const [k, i] = PKPOSE[pose]; return this.cells[k][i]; }
+
+  // The drawing of it to show now: a loop's frame (PKSTRIP) or its cell. Where its rope ends is the cell's (pkCell): a
+  // loop keeps its fists and rope still.
+  pkFrame(pose) { const f = this.pkstrips?.[pose]; return f ? f[Math.floor(this.clock / PKSTRIP[pose].ms) % 4] : this.pkCell(pose); }
+
+  // The prankster at p, its drawing's centre: every sheet's first cell is its idle drawing, the ruler that brings its
+  // sheets to one size.
+  drawPk(g, p) {
+    // A change of its pose plays the in-betweens drawn for it (PKTRANS; the other way round, backwards), 90 ms each, as
+    // hers do, and the lean it pulls at (rot) goes over to the new one with them.
+    // Turning round (its flip changes) it changes at once: the in-betweens are drawn facing one way.
+    const rt = performance.now(), pv = this.pv ??= { pose: p.pose, at: -1e9, tween: null, rot: p.rot, flip: p.flip };
+    if (p.pose !== pv.pose) {
+      const there = this.pkTweens[`${pv.pose}>${p.pose}`], back = this.pkTweens[`${p.pose}>${pv.pose}`];
+      Object.assign(pv, { tween: !!pv.flip === !!p.flip && (there || back?.slice().reverse()) || null, pose: p.pose, at: rt, from: pv.rot });
+    }
+    pv.flip = p.flip;
+    const i = Math.floor((rt - pv.at) * this.cfg.speed / 90), tw = pv.tween?.[i];
+    const c = tw || this.pkFrame(p.pose), rot = tw ? pv.from + (p.rot - pv.from) * (i + 1) / (pv.tween.length + 1) : p.rot;
+    const s = PK_H / c.ruler * p.scale, t = p.trim || 0;   // trim: that much of the rope it holds, at the drawing's left, is left off
+    pv.rot = rot;
+    g.save(); g.globalAlpha = p.a; g.translate(p.x, p.y); g.rotate(rot); g.scale(p.flip ? -s : s, s);
+    g.drawImage(c.im, c.x + t, c.y, c.w - t, c.h, c.x + t - c.cx, c.y - c.cy, c.w - t, c.h); g.restore();
+  }
+
+  // A little gift box, b its half side.
+  giftIcon(g, x, y, b, rot = 0) {
+    g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = '#FF9EB8'; g.strokeStyle = '#4A2E2A'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-b, -b, 2 * b, 2 * b, b * 0.3); g.fill(); g.stroke();
+    g.fillStyle = '#E8454F'; g.fillRect(-b * 0.2, -b, b * 0.4, 2 * b); g.fillRect(-b, -b * 0.2, 2 * b, b * 0.4); g.beginPath(); g.ellipse(-b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, -0.5, 0, Math.PI * 2); g.ellipse(b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, 0.5, 0, Math.PI * 2); g.fill(); g.restore();
+  }
+
+  // The chest game's drawings, over her and everything of hers: the chest (standing, or hanging by the handle the hook
+  // rope is in, that end up), the prankster and its rope, what drops, the numbers, the fight's board along the top of the
+  // page, and what the prankster says. Nothing of it passes behind her: it flies over her head or stays on her right.
+  drawGame(g, st, now, her, bub) {
+    const gm = this.gm, L = this.gl, v = gm.visit, box = this.chestBox;
+    if (!L) return;
+    const c = L.chest, pk = L.pk, top = CHEST.y - box.h, sv = this.sv;
+    const text = (str, x, y, font, fill) => { g.font = font; g.lineJoin = 'round'; g.lineWidth = 4; g.strokeStyle = 'rgba(40,26,54,0.88)'; g.strokeText(str, x, y); g.fillStyle = fill; g.fillText(str, x, y); };
+    // A rope from a to the ring that hangs from the link at p: a pull on the rope, or the chest's own weight on it, swings
+    // the ring out toward a, and a slack rope leaves it hanging; the rope ends in a hook round the far side of the ring.
+    // It sags by sag of its length, trembles when it is pulled taut, and shows its twist all along.
+    const rope = (a, p, sag = 0, taut = false, pull = taut) => {
+      const far = RING.reach * K, d0 = Math.hypot(a.x - p.x, a.y - p.y) || 1, u = pull ? { x: (a.x - p.x) / d0, y: (a.y - p.y) / d0 } : { x: 0, y: 1 };
+      this.drawRing(g, p, u.x, u.y);
+      const h = { x: p.x + u.x * far, y: p.y + u.y * far };   // the middle of the ring's band on its far side: the hook is round it
+      // the hook's shank lies the way the rope leaves it (w), the rope's end b tied to it
+      const dh = Math.hypot(a.x - h.x, a.y - h.y) || 1, wx = (a.x - h.x) / dh, wy = (a.y - h.y) / dh + 2 * sag, dw = Math.hypot(wx, wy), w = { x: wx / dw, y: wy / dw };
+      const b = { x: h.x + w.x * HOOK, y: h.y + w.y * HOOK };
+      const d = Math.hypot(b.x - a.x, b.y - a.y), m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 + sag * d + (taut ? 0.9 * Math.sin(now / 31) : 0) };
+      const on = q => ({ x: (1 - q) * (1 - q) * a.x + 2 * q * (1 - q) * m.x + q * q * b.x, y: (1 - q) * (1 - q) * a.y + 2 * q * (1 - q) * m.y + q * q * b.y });
+      g.save(); g.lineCap = 'round';
+      for (const [lw, col] of [[7, '#6B4A2A'], [4.5, '#D9AE72']]) { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(a.x, a.y); g.quadraticCurveTo(m.x, m.y, b.x, b.y); g.stroke(); }
+      g.strokeStyle = 'rgba(107,74,42,0.8)'; g.lineWidth = 1.2;
+      for (let s = 5; s < d - 2; s += 6) {
+        const q = on(s / d), n = on(Math.min(1, (s + 1) / d)), ang = Math.atan2(n.y - q.y, n.x - q.x) + 1;
+        g.beginPath(); g.moveTo(q.x - 2.6 * Math.cos(ang), q.y - 2.6 * Math.sin(ang)); g.lineTo(q.x + 2.6 * Math.cos(ang), q.y + 2.6 * Math.sin(ang)); g.stroke();
+      }
+      // the hook: steel, its shank from the rope's end, its bend round the ring's band, its point coming back
+      const th = Math.atan2(w.x, -w.y);
+      for (const [lw, col] of [[4.6, '#3B4050'], [2.4, '#D7DCE6']]) {
+        g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(b.x, b.y);
+        g.lineTo(h.x - w.y * 2.8 + w.x, h.y + w.x * 2.8 + w.y); g.arc(h.x, h.y, 2.8, th, th + Math.PI);
+        g.lineTo(h.x + w.y * 2.8 + w.x * 2.4, h.y - w.x * 2.8 + w.y * 2.4); g.stroke();
+      }
+      g.restore();
+    };
+    // The chest stands or hangs with its foot at O, turned by A (at: a point of it on the page). hook: the link its hooked
+    // ring hangs from; pivot: what a hanging chest hangs from; ropes: the ropes that end in that ring.
+    const ex = box.w / 2 - RING.x * K, ey = RING.y * K, ropes = [];
+    let hook = null, pivot = null, O = null, A = 0;
+    const at = (x, y) => ({ x: O.x + x * Math.cos(A) - y * Math.sin(A), y: O.y + x * Math.sin(A) + y * Math.cos(A) });
+    if (c) {
+      const im = this.props[L.open ? 'chestOpen' : 'chest'], r = seeded(11);
+      // Hanging from the prankster's arms, or from the sprite where the sprite really is, the chest swings on the rope like
+      // a weight (swing), the hooked ring up; let go of in mid-air it waits as it hung for the sprite.
+      if (c.carried && sv) { const t = this.spTip(st.sprite === 'lift2' ? 'lift2' : 'lift'); pivot = { x: sv.x + t.x, y: sv.y + t.y }; } else if (c.hang) pivot = c.hang;
+      if (pivot) {
+        const a = this.swing(pivot, c.len) * (1 - (c.level || 0));
+        hook = { x: pivot.x + c.len * Math.sin(a), y: pivot.y + c.len * Math.cos(a) };
+        A = (HANG * (c.lift ?? 1) + a * 0.8) * (1 - (c.level || 0));
+        gm.hung = { hook, rot: A };
+        ropes.push([pivot, hook, 0, false, true]);
+      } else { this.sw = null; if (c.still) { hook = c.still; A = c.rot; } }
+      if (hook) { O = hook; O = at(-ex, ey); }
+      else if (c.spin) { A = c.spin; O = { x: c.x, y: c.y - box.h / 2 }; O = at(0, box.h / 2); }
+      else {
+        O = { x: c.x, y: c.y };
+        if (L.ropes || L.dropped) hook = at(ex, -ey);
+        // the rope the prankster dropped lies from its hook, still in the ring, along the ground until the sprite takes it up
+        if (L.dropped) ropes.push([{ x: hook.x + 52, y: CHEST.y - 3 }, hook, 0.35]);
+      }
+      g.save(); g.translate(O.x, O.y); g.rotate(A);
+      if (im) this.drawProp(g, im, 0, 0); else { g.fillStyle = '#C98A4B'; g.fillRect(-box.w / 2, -box.h, box.w, box.h); }
+      // the gifts heap up out of it, each where its number puts it
+      if (L.open) for (let i = 0; i < Math.min(gm.pile, 18); i++) this.giftIcon(g, (r() - 0.5) * box.w * 0.62, -box.h + 6 - r() * 10 - Math.floor(i / 5) * 8, 9, (r() - 0.5) * 0.9);
+      g.restore();
+      // its rope to the chest on the ground, or falling with it: from the end of the rope its drawing holds, or from under
+      // its arm on the side the ring is; taut while it pulls, slack while it does not
+      if (L.loose && hook) ropes.push([{ x: hook.x + 30, y: hook.y - 46 }, hook, 0.25]);
+      else if (pk && hook && !pivot && (L.ropes || c.still)) ropes.push([this.pkCell(pk.pose).rope != null ? this.pkEnd(pk) : { x: clamp(hook.x + 20, pk.x - 30, pk.x + 24), y: pk.y + 16 }, hook, L.slack ? 0.3 : 0.03, !L.slack, !L.slack || !!c.still]);
+      // its two rings: hers hangs unless her fists hold it (her drawing's own ring), the other unless a rope's
+      // hook is in it (rope)
+      if (!L.held || c.x == null) this.drawRing(g, at(-ex, -ey));
+      if (!ropes.length) this.drawRing(g, at(ex, -ey));
+      for (const one of ropes) rope(...one);
+    } else this.sw = null;
+    if (pk) this.drawPk(g, pk);
+    // the sprite starts at the chest that came down: a '!' over it
+    if (L.notice != null && sv) {
+      const t = L.notice, a = k01(t, 0, 90) * (1 - k01(t, NOTICE - 150, NOTICE)), s = 0.6 + 0.4 * ease(k01(t, 0, 140));
+      g.save(); g.globalAlpha = a; g.translate(sv.x + 16, sv.y - SPRITE_H * 0.62); g.rotate(0.15); g.scale(s, s);
+      g.font = `900 28px ${SANS}`; g.textAlign = 'center'; g.lineWidth = 5; g.strokeStyle = '#fff'; g.strokeText('!', 0, 0); g.fillStyle = '#FF5A6E'; g.fillText('!', 0, 0);
+      g.restore();
+    }
+    // straining under the chest it sweats
+    if (L.sweat > 0 && pk) for (let i = 0; i < 3; i++) {
+      const w = (now + i * 230) % 700;
+      g.save(); g.globalAlpha = (1 - w / 700) * L.sweat; g.fillStyle = '#BFE6FF'; g.beginPath(); g.ellipse(pk.x - 22 - i * 9 - w * 0.04, pk.y - 44 - w * 0.05, 3, 5, -0.5, 0, Math.PI * 2); g.fill(); g.restore();
+    }
+    // a gift falls on the prankster, or a helper's on her head, and bounces into the chest
+    for (const d of gm.drops) {
+      const u = now - d.at, to = d.her || !pk ? { x: her.x + her.w / 2, y: her.y + 8 } : { x: pk.x, y: pk.y - PK_H * 0.42 }, b = d.big ? 20 : 11, into = c?.x != null ? c : { x: to.x + 60 };
+      if (u < 0) continue;
+      if (u < DROP) this.giftIcon(g, to.x, -30 + (to.y + 30) * (u / DROP) ** 2, b, u / 160);
+      else if (u < DROP + 600) { const p = (u - DROP) / 600; this.giftIcon(g, to.x + (into.x - to.x) * p, to.y + (top - to.y) * p - 70 * Math.sin(Math.PI * p), b, u / 110); }
+      if (u >= DROP && u < DROP + 240) {
+        const q = (u - DROP) / 240;
+        g.save(); g.globalAlpha = 1 - q; g.strokeStyle = '#FFE27A'; g.lineWidth = 3; g.lineCap = 'round';
+        for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3 + 0.3; g.beginPath(); g.moveTo(to.x + Math.cos(a) * (10 + 14 * q), to.y + Math.sin(a) * (10 + 14 * q)); g.lineTo(to.x + Math.cos(a) * (18 + 22 * q), to.y + Math.sin(a) * (18 + 22 * q)); g.stroke(); }
+        g.restore();
+      }
+    }
+    // she looks about at a danmaku; a moth flies out of the empty chest
+    if (L.ask != null && L.ask < 1300) { g.save(); g.globalAlpha = 1 - k01(L.ask, 900, 1300); g.textAlign = 'center'; text('？', her.x + her.w * 0.82, her.y - 2 - 8 * bump(L.ask, 0, 300), `800 30px ${SANS}`, '#B79BE8'); g.restore(); }
+    if (c?.x != null && L.open && L.moth > 0 && L.moth < 2600) {
+      const m = L.moth, x = c.x + 26 * Math.sin(m / 190), y = top - 10 - m * 0.07, w = 4 + 3 * Math.abs(Math.sin(m / 45));
+      g.save(); g.globalAlpha = 1 - k01(m, 2000, 2600); g.fillStyle = '#B9B2A6'; g.beginPath(); g.ellipse(x - w, y, w, 5, -0.4, 0, Math.PI * 2); g.ellipse(x + w, y, w, 5, 0.4, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#7A7468'; g.fillRect(x - 1, y - 4, 2, 8); g.restore();
+    }
+    // the lightning set piece: its cowlick charges, then the bolt jumps to her head and the page flashes
+    if (L.zap != null && pk) {
+      const z = L.zap, tip = { x: pk.x, y: pk.y - PK_H * 0.58 }, head = { x: her.x + her.w / 2, y: her.y + her.h * 0.18 };
+      if (z < 900) {
+        const rad = 8 + 18 * (z / 900) + 3 * Math.sin(now / 40), gr = g.createRadialGradient(tip.x, tip.y, 0, tip.x, tip.y, rad);
+        gr.addColorStop(0, '#FFF7C2'); gr.addColorStop(1, 'rgba(255,226,122,0)');
+        g.save(); g.globalAlpha = 0.4 + 0.5 * (z / 900); g.fillStyle = gr; g.beginPath(); g.arc(tip.x, tip.y, rad, 0, Math.PI * 2); g.fill(); g.restore();
+      } else if (z < 1250) {
+        const q = (z - 900) / 350, r = seeded(Math.floor(z / 60)), pts = [tip];
+        for (let i = 1; i < 6; i++) pts.push({ x: tip.x + (head.x - tip.x) * i / 6 + (r() - 0.5) * 36, y: tip.y + (head.y - tip.y) * i / 6 + (r() - 0.5) * 30 });
+        pts.push(head);
+        g.save(); g.globalAlpha = 1 - q * 0.6; g.lineJoin = 'round'; g.lineCap = 'round';
+        for (const [w, col] of [[9, '#FFD45E'], [4, '#fff']]) { g.strokeStyle = col; g.lineWidth = w; g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y))); g.stroke(); }
+        g.globalAlpha = 0.45 * (1 - q); g.fillStyle = '#fff'; g.fillRect(0, 0, PAGE.w, PAGE.h); g.restore();
+      }
+    }
+    // what a hit took off it, or a helper's gift gave it back, rises under the fight's board
+    gm.nums.forEach((n, i) => {
+      const u = now - n.at, x = PAGE.w / 2, y = 206 - u * 0.03 + (gm.nums.length - 1 - i) * 24;
+      g.save(); g.globalAlpha = 1 - k01(u, 700, 1100); g.textAlign = 'center'; text(n.text, x, y, `800 ${n.small ? 15 : 22}px ${SANS}`, n.heal ? '#9BE8A6' : '#FFE27A'); g.restore();
+    });
+    // the fight's board along the top of the page: the countdown, what its life still asks for, and how to side with it
+    if (v?.phase === 'tug') {
+      // The countdown grows anxious as the minute runs out: from GAME.urge left it beats at each second, harder and
+      // harder, warming from white to amber and growing; in the last 10 s (sprint) it turns red, grows on, beats twice a
+      // second in the last 5, shakes and glows red behind, and what its life still asks for beats with it.
+      const left = Math.max(0, v.left), sec = Math.ceil(left / 1000), w = 220, x = (PAGE.w - w) / 2, y = 92;
+      const urge = k01(GAME.urge - left, 0, GAME.urge - GAME.sprint), last = k01(GAME.sprint - left, 0, GAME.sprint);
+      const since = 1 - (left % 1000) / 1000, beat = urge > 0 ? Math.exp(-(left < 5000 ? since * 2 % 1 : since) * 7) : 0;
+      const s = 1 + beat * (0.07 * urge + 0.16 * last), shake = last * (1 + 2 * last) * Math.sin(now / 23) * (0.4 + 0.6 * beat);
+      const rgb = (p, q, k) => `rgb(${p.map((c, i) => Math.round(c + (q[i] - c) * k))})`;
+      const col = last > 0 ? rgb([255, 177, 74], [255, 59, 92], last) : rgb([255, 255, 255], [255, 177, 74], urge);
+      g.save(); g.textAlign = 'center'; g.textBaseline = 'middle';
+      if (last > 0) {
+        const r = g.createRadialGradient(PAGE.w / 2, 34, 4, PAGE.w / 2, 34, 70);
+        r.addColorStop(0, `rgba(255,59,92,${(0.18 + 0.22 * beat) * last})`); r.addColorStop(1, 'rgba(255,59,92,0)');
+        g.fillStyle = r; g.fillRect(PAGE.w / 2 - 70, 0, 140, 104);
+      }
+      g.save(); g.translate(PAGE.w / 2 + shake, 34); g.scale(s, s); text(`0:${String(sec).padStart(2, '0')}`, 0, 0, `800 ${Math.round(30 + 4 * urge + 12 * last)}px ${SANS}`, col); g.restore();
+      const sh = 1 + 0.08 * beat * last;
+      g.save(); g.translate(PAGE.w / 2, y - 18); g.scale(sh, sh); text(`还差 ${Math.max(1, Math.ceil(v.hp))} 电池`, 0, 0, `800 20px ${SANS}`, '#FFE27A'); g.restore();
+      g.fillStyle = 'rgba(40,26,54,0.75)'; g.beginPath(); g.roundRect(x, y, w, 14, 7); g.fill();
+      g.fillStyle = '#B79BE8'; g.beginPath(); g.roundRect(x + 2, y + 2, Math.max(8, (w - 4) * clamp(v.hp / v.max, 0, 1)), 10, 5); g.fill();
+      text(v.helpers ? `发「捣蛋」帮它 · 已有 ${v.helpers} 人` : '发「捣蛋」帮它', PAGE.w / 2, y + 30, `500 14px ${SANS}`, '#fff');
+      if (now - v.joined < 2000) text(`${this.cfg.name} 入伙了`, PAGE.w / 2, y + 56, `800 16px ${SANS}`, '#D9C7FF');
+      g.restore();
+    }
+    // What it says, in a narrow bubble of its own colour that never covers it: over its head where there is room above
+    // it, else beside it on its roomier side. Hauling the chest off or leaving it shouts from where it was; beaten, knocked
+    // or scared off it goes slowly and its bubble goes with it (left where it was, it hid it as it went). Where her bubble
+    // (bub) is in the way, it waits for hers to go.
+    // (going off the page it takes its bubble with it: left behind in the page, it hung where the sprite lifts the chest)
+    if (pk && v?.say && now - v.say.at < 3000 && !(DONE.has(v.phase) && (pk.x > PAGE.w || pk.y < 0))) {
+      const at = ['leave', 'lost'].includes(v.phase) ? v.from : pk, b = { text: v.say.text, t: now - v.say.at, stroke: '#B79BE8', maxW: 112, at: { x: at.x, y: at.y } };
+      const box = this.bubbleBox(g, { bubble: b, y: 0, s: 1 }, her), top = at.y - PK_H * 0.62, half = PK_H * 0.52;
+      if (top - box.h - 22 >= 8) Object.assign(box, { x: clamp(at.x - box.w / 2 + 40, 10, PAGE.w - box.w - 10), y: top - box.h - 22, tip: { x: at.x + 10, y: top }, side: 0 });
+      else {
+        const side = PAGE.w - (at.x + half) >= box.w + 30 ? 1 : -1;
+        Object.assign(box, { x: side > 0 ? at.x + half + 22 : at.x - half - 22 - box.w, y: clamp(at.y - box.h / 2, 8, PAGE.h - box.h - 8), tip: { x: at.x + side * half, y: at.y - 6 }, side });
+      }
+      if (!(bub && box.x < bub.x + bub.w && bub.x < box.x + box.w && box.y < bub.y + bub.h && bub.y < box.y + box.h)) this.drawBubble(g, b, box);
+    }
+  }
+
+  gameCaption(now) {
+    const gm = this.gm, v = gm.visit;
+    return `小游戏：家里的宝箱 ${gm.chest} 电池 · 连守 ${gm.streak} · 被偷 ${gm.steals} · ` + (gm.pk ? 'PK 中 · ' : '') + (v ? `捣蛋鬼 ${v.phase}` + (v.phase === 'tug' ? `，还差 ${Math.ceil(v.hp)} / ${v.max}，剩 ${Math.ceil(v.left / 1000)} 秒` : '')
+      : gm.due ? '捣蛋鬼等她演完就来' : `上次走后 ${Math.floor((now - gm.last) / 60000)} 分`);
+  }
 
   // ---- what she is doing at a moment --------------------------------------------------------------------------------
   base() { return { pose: 'idle', x: FOOT.x, y: FOOT.y, s: 1, sx: 1, sprite: 'sIdle', sp: null, sBehind: false, sScale: 1, sAlpha: 1, fx: [], bubble: null, hide: false }; }
@@ -520,7 +1434,7 @@ class Component extends DCLogic {
     if (mood === '无聊') { st.pose = 'bored'; st.sprite = now % 8000 < 2600 ? 'yawn' : 'sIdle'; st.sp = ['home', 10 * Math.sin(now / 1800), 6 * Math.sin(now / 1300)]; }
     if (mood === '沮丧') { st.pose = 'gloomy'; st.sprite = 'pat'; st.sp = 'head'; }
     if (mood === '犯困') { st.pose = 'doze'; st.sprite = 'sleep'; st.sp = 'knee'; }
-    this.talk(st, this.lot?.phase === '报名中' ? '报名中' : mood, since);
+    this.talk(st, this.lot?.phase === '报名中' ? '报名中' : this.moodHold?.mood === mood && this.moodHold.lines || mood, since);
     if (mood === '犯困') {
       // every other half minute her head drops onto her knees: she jolts awake, insists she wasn't asleep, and dozes off again
       const u = since % 30000;
@@ -616,6 +1530,30 @@ class Component extends DCLogic {
       // she bows her thanks with the sprite, straightens up and waves goodbye while it waves its flag
       case '抽奖结束': st.pose = at(t, [[0, 'bow'], [1200, 'idle'], [1450, 'wave']]); st.sprite = t < 1200 ? 'nod' : 'flag'; say(150); break;
       case '没人报名': st.pose = 'dejected'; st.sprite = 'pat'; st.sp = 'head'; say(200); break;
+      // the chest game: the prankster knocked off the page; beaten off, and she tosses the sprite; gone with the chest, and the sprite pats her head
+      case '打跑了': st.pose = t < 400 ? 'surprised' : t < 3700 ? 'cheer' : 'idle'; hop(450, 12); st.sprite = 'sHappy'; say(this.chestUp(t, opts)); break;   // (her line waits for the chest, as in 守住了)
+      // (she says her line once the sprite has lifted the chest higher than where her bubble comes, not to have it rise
+      // through it; after the lightning she cheers on with her hair frizzed until the sprite is back from taking the chest
+      // home and has patted it smooth (smooth), and the show is longer for it)
+      case '守住了': {
+        const dur = opts.zap ? EVENTS[name].zapDur : EVENTS[name].dur, fixed = !opts.zap || this.smooth(st, t, opts, 'cheerZap', 'cheer', 0, dur, 'sHappy');
+        st.pose = t >= dur - 700 ? 'idle' : fixed ? 'cheer' : 'cheerZap'; hop(300, 12); hop(1100, 14); say(this.chestUp(t, opts));
+        if (!opts.zap) { if (t >= 900) this.toss(st, t, 900); else st.sprite = 'sHappy'; }
+        break;
+      }
+      // She cries kneeling on the ground with her line up (ROB.quiet: at 2.7 s it was gone before anyone had read it),
+      // and once it is gone curls up into the squat of the 沮丧 that follows (ROB.curl; she stood up only to crouch again a
+      // moment later, and before that with her line still over her head), frizzed or not, the same.
+      // After the lightning she cries frizzed until the sprite patting her head has smoothed it, 3.2 s at the soonest.
+      // The sprite on her head follows it as she kneels up and her hair settles, patting, never turning to fly (sStay).
+      case '被偷了': {
+        const fixed = !opts.zap || this.smooth(st, t, opts, 'robbedZap', 'robbed', 3200, EVENTS[name].dur, 'pat');
+        st.pose = t >= ROB.curl ? 'gloomy' : fixed ? 'robbed' : 'robbedZap';
+        if (!opts.zap) { st.sprite = 'pat'; st.sp = 'head'; }
+        st.sStay = true;
+        if (t < ROB.quiet) say(500);
+        break;
+      }
       case '日常': return this.daily(t, st, opts);
     }
     const extra = EVENT_FX[name];
@@ -768,7 +1706,46 @@ class Component extends DCLogic {
     return st;
   }
 
+  // When her line in 守住了 or 打跑了 may come (show time): once the sprite has lifted the chest higher than where her
+  // bubble comes (it waits for the prankster to be clear of the chest first, CLEAR, so not at a set time), 1.9 s at the soonest.
+  chestUp(t, opts) {
+    const k = this.lineWait?.seed === opts.seed ? this.lineWait : (this.lineWait = { seed: opts.seed, at: null }), o = this.gm.out;
+    if (k.at == null && (!o || o.got != null && this.clock - o.got >= 0.4 * (o.ms - o.t2))) k.at = Math.max(1900, t);
+    return k.at ?? Infinity;
+  }
+
+  // A show that scared the prankster off a tug after the lightning (a 大航海, a castle, a lottery) waits for her hair: she
+  // cheers frizzed while the sprite takes the chest home and comes back to pat it smooth (smooth), and the show starts once
+  // it has settled (c.pre; 用户：“大航海那个也改成精灵摸回来”; it used to go back in a blink as the show began). A PK
+  // that scared it off does the same with no show after (gm.fix).
+  unfrizz(st, t, c) {
+    const fixed = this.smooth(st, t, { seed: -c.start }, 'cheerZap', 'cheer', 0, FRIZZ, 'sHappy');
+    st.pose = fixed ? 'cheer' : 'cheerZap';
+    if (fixed && t >= this.pat.fix + SETTLE) c.pre = t;
+  }
+
   // Tossed up by her cheer: over her head for a moment, then circling her.
+  // After the lightning her hair stays frizzed (pose zap) until her sprite pats it smooth: once the sprite is really on
+  // her head (sTarget, where it was flying to, and not taking the chest home) it pats it, the last two pats harder (PATS),
+  // and as the second lands her hair settles (pose plain, through its slow in-betweens) with a spark under its paw, stars
+  // having gathered round her head (hairMagic) to fall down her hair as glitter; then it does after ('pat'
+  // goes on patting her head, anything else back by her side: nodding on her head it went behind her bubble, which
+  // comes down as the hair does). Not before min, nor later than 700 ms before the show's end (dur) if the
+  // sprite never got there. Returns whether her hair is itself again.
+  smooth(st, t, o, zap, plain, min, dur, after) {
+    const p = this.pat?.seed === o.seed ? this.pat : (this.pat = { seed: o.seed, at: null }), sv = this.sv, to = this.sTarget;
+    if (p.at == null && !this.gm.out && to?.sp === 'head' && sv && Math.hypot(sv.x - to.x, sv.y - to.y) < 12) p.at = t;
+    const fix = p.fix = Math.min(Math.max(min, (p.at ?? Infinity) + PATS), dur - 700 - SETTLE);
+    const b = this.herBox(st, this.cell(zap)), a = this.herBox(st, this.cell(plain)), paw = { x: b.x + b.w * 0.25 + 20, y: b.y - SPRITE_H * 0.2 + 14 };
+    st.fx.push(['spark', fix, (paw.x - a.x) / a.w, (paw.y - a.y) / a.h, 8]);
+    // the stars round her head, given across whichever drawing she is in this frame (they stay at her head as it changes)
+    const h = { x: a.x + a.w * HAIR[plain][0], y: a.y + a.h * HAIR[plain][1] }, now = t < fix ? b : a;
+    st.fx.push(['hairMagic', fix - GATHER, (h.x - now.x) / now.w, (h.y - now.y) / now.h, GATHER]);
+    // its paw comes down on her head (patPhase) just as the hair is fixed
+    Object.assign(st, { sStay: p.at != null && (t < fix || after === 'pat'), sprite: t < fix ? 'pat' : after, sp: t < fix || after === 'pat' ? 'head' : null, patPhase: t - fix + 90 * Math.PI, patHard: t >= fix - PATS && t < fix });
+    return t >= fix;
+  }
+
   // She tosses it up over her head: it flies up, hangs there hopping for joy, and only then comes down to circle her. The
   // toss used to last 350 ms, about the flight up, so it started down the moment it got there (用户：一上头顶就下来了).
   // It hangs above her speech bubble, however many lines it has, not behind it.
@@ -859,7 +1836,7 @@ class Component extends DCLogic {
   fill(text, name, opts = {}) {
     if (!text) return text;
     return text.replaceAll('{昵称}', this.cfg.name).replaceAll('{礼物}', opts.gift || GIFT[name] || '小花花').replaceAll('{个数}', String(opts.count ?? 3))
-      .replaceAll('{关键字}', '抽奖').replaceAll('{奖项}', '一等奖').replaceAll('{奖品}', '定制周边');
+      .replaceAll('{连守}', String(opts.streak ?? 1)).replaceAll('{关键字}', '抽奖').replaceAll('{奖项}', '一等奖').replaceAll('{奖品}', '定制周边');
   }
 
   // ---- drawing -----------------------------------------------------------------------------------------------------
@@ -879,12 +1856,14 @@ class Component extends DCLogic {
       if (this.cfg.scene === '演示') this.demo(now);
       this.update(now);
       const c = this.cur;
-      if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
+      if (c && now < c.start + c.pre && !c.wakeLine) { st = this.base(); if (c.opts.frizz) this.unfrizz(st, now - c.start, c); else if (c.opts.tidy && !this.gm.out) c.pre = now - c.start; }   // the chest game tidies up before the show
+      else if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
       else if (c) { st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts)); if (c.name === '城堡' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine || (c.gateLine = this.pick('城堡·门口'))); }
       // only blind boxes have a state of their own while the round comes in (she shakes them); gifts have played at once,
       // and once their show is over she is herself again, not holding the 中礼物's box (she used to pick it up after a
       // plain thank-you, until the round's 3 s were up)
       else if (this.round?.items.some(x => x.box)) st = this.roundState(now);
+      else if (this.gm.fix) { st = this.base(); this.unfrizz(st, now - this.gm.fix.start, this.gm.fix); if (this.gm.fix.pre != null) this.gm.fix = null; }
       else {
         const mood = this.mood(now), key = mood + (this.lot?.phase || '');
         if (this.seen?.key !== key) this.seen = { key, at: now };
@@ -892,6 +1871,7 @@ class Component extends DCLogic {
       }
       // a round's gifts still fly into her arms over whatever she is doing
       if (this.round && !st.round) for (const x of this.round.items) st.fx.push(['giftArc', st._t == null ? x.at : st._t - (now - x.at)]);
+      if (this.cfg.game) st = this.gameState(st, now);
     } else st = this.sceneState(now);
     this.draw(canvas.getContext('2d'), st, now);
   }
@@ -927,13 +1907,16 @@ class Component extends DCLogic {
     const bub = st.bubble?.text && this.bubbleBox(g, st, her, this.bubSide);
     this.bubSide = bub?.side;
     const target = this.spritePos(st, her, now, bub), sp = target && this.follow(target, dt, st);
+    this.sTarget = target && { ...target, sp: st.sp };   // where it is flying to (smooth: is it on her head yet)
     if (sp) { this.trail = (this.trail || []).filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) this.drawFx(g, f, st, her, now);
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     if (!st.hide) this.drawHer(g, st, now);
-    if (sp && !st.sBehind) this.drawSprite(g, st, sp, now);
+    if (sp && !st.sBehind && !st.sOver) this.drawSprite(g, st, sp, now);
     if (st.gift) this.drawGift(g, st.gift);
     for (const f of st.fx) if (!BACK.has(f[0])) this.drawFx(g, f, st, her, now);
+    if (this.cfg.game) this.drawGame(g, st, now, her, bub);
+    if (sp && st.sOver) this.drawSprite(g, st, sp, now);   // its fists on what the game draws (the chest's lid)
     if (bub) this.drawBubble(g, st.bubble, bub);
     g.restore();
     if (this.cfg.caption) this.drawCaption(g, st, now, px, py);
@@ -992,11 +1975,16 @@ class Component extends DCLogic {
   drawHer(g, st, now) {
     const rt = performance.now(), el = t0 => (rt - t0) * this.cfg.speed;
     const hv = this.hv ??= { pose: st.pose, at: -1e9, since: this.clock, tween: null };
-    if (st.pose !== hv.pose) Object.assign(hv, { tween: this.route(hv.pose, st.pose), pose: st.pose, at: rt, since: this.clock });
+    if (st.pose !== hv.pose) Object.assign(hv, { tween: this.route(hv.pose, st.pose), ms: SLOW[`${hv.pose}>${st.pose}`] || 90, pose: st.pose, at: rt, since: this.clock, fromX: hv.x ?? st.x });
     // she breathes in every pose, in-between frames too (breathing that stopped when she left her idle pose made her head
     // jump up to 3 px at the change): her drawing scaled at her feet, a touch taller and narrower, then shorter and wider
-    const s = 1 + 0.012 * Math.sin(now / 600), c = hv.tween?.[Math.floor(el(hv.at) / 90)] || this.cell(hv.pose), b = this.herBox(st, c);
-    g.save(); g.translate(st.x, st.y); g.scale(st.sx / Math.sqrt(s), s); g.translate(-st.x, -st.y);
+    const i = Math.floor(el(hv.at) / (hv.ms || 90)), s = 1 + 0.012 * Math.sin(now / 600), c = hv.tween?.[i] || this.cell(hv.pose);
+    // In the chest game her place goes with her pose (her fists on the ring, wherever each drawing has them): through the
+    // in-betweens she moves from where the earlier pose stood to the later one's, a share at each frame (st.slide), not
+    // all at once on the first of them.
+    const x = st.x + (st.slide && hv.tween?.[i] ? (hv.fromX - st.x) * (1 - (i + 1) / (hv.tween.length + 1)) : 0), b = this.herBox({ ...st, x }, c);
+    hv.x = st.x;
+    g.save(); g.translate(x, st.y); g.scale(st.sx / Math.sqrt(s), s); g.translate(-x, -st.y);
     g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h); g.restore();
   }
 
@@ -1064,7 +2052,7 @@ class Component extends DCLogic {
     else if (st.orbit != null) {
       const hx = -Math.sin(st.orbitA), d = Math.abs(Math.atan2(hx, Math.cos(st.orbitA)));
       key = d < Math.PI / 8 ? key : d < 3 * Math.PI / 8 ? 'v1' : d < 5 * Math.PI / 8 ? 'v2' : 'v3'; flip = key[0] === 'v' && hx > 0;
-    } else if (p.d > 14 && !CARRY.has(key)) {
+    } else if (p.d > 14 && !CARRY.has(key) && !st.sStay) {   // sStay: it only follows her head (the chest game), it does not fly
       key = Math.abs(p.vx) > 2 * Math.abs(p.vy) ? 'v2' : 'v1'; flip = p.vx > 0; tilt = clamp(p.vx / 2500, -0.18, 0.18);
     }
     const rt = performance.now(), id = key + (flip ? '<' : ''), sc = this.sc ??= { id, prev: null, at: -1e9, land: false };
@@ -1077,7 +2065,7 @@ class Component extends DCLogic {
       let k = id.replace('<', '');
       if (k === 'sIdle' && now % 4500 < 140) k = 'sBlink';
       const c = pick(k), s = SPRITE_H / c.ruler * st.sScale * (p.scale || 1), bottom = (c.y + c.h - c.cy) * s;
-      g.save(); g.globalAlpha = st.sAlpha * alpha; g.translate(p.x, p.y + (key === 'pat' ? 3 * Math.abs(Math.sin(now / 180)) : 0)); g.rotate(tilt);
+      g.save(); g.globalAlpha = st.sAlpha * alpha; g.translate(p.x, p.y + (key === 'pat' ? (st.patHard ? 7 : 3) * Math.abs(Math.sin((st.patPhase ?? now) / 180)) : 0)); g.rotate(tilt);
       g.translate(0, bottom); g.scale((id.endsWith('<') ? -1 : 1) / Math.sqrt(land), land); g.translate(0, -bottom);
       g.drawImage(c.im, c.x, c.y, c.w, c.h, (c.x - c.cx) * s, (c.y - c.cy) * s, c.w * s, c.h * s);
       g.restore();
@@ -1177,13 +2165,13 @@ class Component extends DCLogic {
       g.save(); g.font = BUBBLE_FONT;
       const lines = [];
       let cur = '';
-      for (const ch of [...b.text]) { if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
+      for (const ch of [...b.text]) { if (ch === '\n') { lines.push(cur); cur = ''; continue; } if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
       lines.push(cur);
       const w = Math.max(...lines.map(l => g.measureText(l).width)) + 26 * s;
       g.restore();
       return { lines, w, h: (lines.length * 24 + 16) * s };
     };
-    const up = wrap(230 * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
+    const up = wrap((b.maxW || 230) * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
     if (b.at || st.y - H * st.s - 6 - up.h - 14 * s >= 8 + (was ? HOP : 0)) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
     const l = her.x + her.w * 0.15, r = her.x + her.w * 0.85, side = PAGE.w - r >= l ? 1 : -1;  // her head's edges
     const beside = wrap(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
@@ -1197,7 +2185,7 @@ class Component extends DCLogic {
     const ox = x + w * (1 - side) / 2, oy = side ? y + h / 2 : y + h;
     g.globalAlpha = alpha;
     g.translate(ox, oy); g.scale(pop, pop); g.translate(-ox, -oy);
-    g.fillStyle = '#fff'; g.strokeStyle = '#F0A3C0'; g.lineWidth = 2.5 * s;
+    g.fillStyle = '#fff'; g.strokeStyle = b.stroke || '#F0A3C0'; g.lineWidth = 2.5 * s;
     g.beginPath(); g.roundRect(x, y, w, h, 14 * s); g.fill(); g.stroke();
     // the tail, drawn pointing down from that edge, is turned to point sideways at her cheek beside her face
     g.save();
@@ -1231,9 +2219,22 @@ class Component extends DCLogic {
     const glow = a => `rgba(${st.glow || '255,236,170'},${a})`;
     const star = (x, y, rad, color, a) => { g.save(); g.globalAlpha = a; g.fillStyle = color; g.beginPath(); for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4, rr = i % 2 ? rad * 0.32 : rad; g.lineTo(x + Math.cos(ang) * rr, y + Math.sin(ang) * rr); } g.closePath(); g.fill(); g.restore(); };
     const heart = (x, y, s, a) => { g.save(); g.globalAlpha = a; g.fillStyle = '#FF7FA8'; g.beginPath(); g.moveTo(x, y + s * 0.3); g.bezierCurveTo(x, y, x - s * 0.5, y, x - s * 0.5, y + s * 0.3); g.bezierCurveTo(x - s * 0.5, y + s * 0.6, x, y + s * 0.8, x, y + s); g.bezierCurveTo(x, y + s * 0.8, x + s * 0.5, y + s * 0.6, x + s * 0.5, y + s * 0.3); g.bezierCurveTo(x + s * 0.5, y, x, y, x, y + s * 0.3); g.fill(); g.restore(); };
-    const giftBox = (x, y, b, rot = 0) => { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = '#FF9EB8'; g.strokeStyle = '#4A2E2A'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-b, -b, 2 * b, 2 * b, b * 0.3); g.fill(); g.stroke();
-      g.fillStyle = '#E8454F'; g.fillRect(-b * 0.2, -b, b * 0.4, 2 * b); g.fillRect(-b, -b * 0.2, 2 * b, b * 0.4); g.beginPath(); g.ellipse(-b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, -0.5, 0, Math.PI * 2); g.ellipse(b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, 0.5, 0, Math.PI * 2); g.fill(); g.restore(); };
+    const giftBox = (x, y, b, rot = 0) => this.giftIcon(g, x, y, b, rot);
     switch (type) {
+      // Her frizzed hair smoothed by the sprite's magic (smooth): stars gather and circle her head (at f[2], f[3]),
+      // brightening, for f[4] before its last pat lands; then a soft glow blooms over it and they fall down her hair as glitter.
+      case 'hairMagic': {
+        const c = at(f[2], f[3]), u = t - f[4];
+        if (u > SETTLE) break;
+        const bloom = u < 0 ? 0.25 * t / f[4] : life(u, 120, 200, 650) + 0.25 * (1 - k01(u, 0, 120));
+        if (bloom) { const gr = g.createRadialGradient(c.x, c.y, 6, c.x, c.y, 105); gr.addColorStop(0, `rgba(255,250,244,${0.75 * bloom})`); gr.addColorStop(0.5, `rgba(255,214,236,${0.35 * bloom})`); gr.addColorStop(1, 'rgba(255,214,236,0)'); g.fillStyle = gr; g.fillRect(c.x - 105, c.y - 105, 210, 210); }
+        for (let i = 0; i < 18; i++) {
+          const a0 = i / 18 * Math.PI * 2 + t / 380, tw = 0.65 + 0.35 * Math.sin(t / 70 + i * 1.7), col = ['#fff', '#FFD6EC', '#FFE9A8'][i % 3];
+          if (u < 0) { const k = t / f[4]; star(c.x + Math.cos(a0) * (92 - 26 * k), c.y + Math.sin(a0) * (68 - 18 * k), (5 + 5 * k) * tw, col, 0.35 + 0.65 * k); }
+          else { const k = u / SETTLE; star(c.x + Math.cos(a0) * 66 + 6 * Math.sin(u / 160 + i), c.y + Math.sin(a0) * 50 + 150 * k * k + 30 * k, 10 * tw * (1 - 0.5 * k), col, 1 - k * k); }
+        }
+        break;
+      }
       case 'hearts': for (let i = 0; i < f[2]; i++) { const d = i * 180, u = t - d; if (u < 0 || u > 1400) continue; heart(head.x + (r() - 0.5) * 120, head.y - u * 0.09, 16 + r() * 8, 1 - u / 1400); } break;
       case 'sparkles': for (let i = 0; i < 10; i++) { const a = r() * Math.PI * 2, d = 60 + r() * 90, u = t - r() * 400; if (u < 0 || u > 1200) continue; star(head.x + Math.cos(a) * d, head.y + 30 + Math.sin(a) * d * 0.7, 9 + r() * 7, r() < 0.5 ? '#FFE27A' : '#fff', Math.sin(Math.PI * u / 1200)); } break;
       case 'confetti': { if (t > 2600) break; const colors = ['#FF7FA8', '#FFD45E', '#7FD3FF', '#B9F28A', '#fff']; for (let i = 0; i < 40; i++) { const vx = (r() - 0.5) * 0.5, vy = -0.55 - r() * 0.35, u = t; const x = FOOT.x + vx * u, y = FOOT.y - H * 0.6 + vy * u + 0.00045 * u * u; g.save(); g.globalAlpha = 1 - k01(u, 1800, 2600); g.fillStyle = colors[i % 5]; g.translate(x, y); g.rotate(u / 200 + i); g.fillRect(-4, -2, 8, 4); g.restore(); } break; }
@@ -1637,6 +2638,7 @@ class Component extends DCLogic {
       rows.push(`排队：${this.queue.map(q => q.name).join('、') || '空'}`);
       rows.push(`心情：${mood} · 距上次礼物 ${Math.floor((now - this.lastGift) / 60000)} 分 · 距上次事件 ${Math.floor((now - this.lastAny) / 60000)} 分`);
       if (this.lot) rows.push(`抽奖：${this.lot.kind} · ${this.lot.phase}`);
+      if (this.cfg.game) rows.push(this.gameCaption(now));
       for (const l of this.log) rows.push('· ' + l);
     } else rows.push(`画面：${this.cfg.scene}${st.label ? ' · ' + st.label : ''}`);
     g.save(); g.font = '500 20px "PingFang SC", sans-serif';
@@ -1663,9 +2665,10 @@ class Component extends DCLogic {
     const one = (gift, price, n = 1, x = {}) => ({ gift, price, n, ...x }), g = list => () => this.give(list);
     const heart = (gift, price, n) => ({ gift, price, n, box: '心动盲盒', boxPrice: 150 }), carnival = n => ({ gift: '棉花糖', price: 90, n, box: '狂欢盲盒', boxPrice: 90 });
     const tens = (n, m) => Array.from({ length: n }, () => m);
+    // a 大航海 at its one month's price in 电池 (the app's UserToastV2 has it per purchase)
     group('事件', [['进场', f('进场')], ['弹幕（不演，只算有事）', () => this.heard()], ['普通礼物', g([one('小花花', 10)])], ['连送 5 份', g(tens(5, one('小花花', 10)))], ['中礼物', g([one('告白气球', 2000)])], ['大礼物', g([one('小电视飞船', 12450)])],
       ['大礼物+新第一', g([one('小电视飞船', 12450, 1, { top: true })])], ['普通礼物+新第一', g([one('小花花', 10, 1, { top: true })])],
-      ['舰长', f('舰长')], ['提督', f('提督')], ['总督', f('总督')], ['城堡', g([one('浪漫城堡', 22330, 1, { castle: true })])]]);
+      ['舰长', f('舰长', { price: 1980 })], ['提督', f('提督', { price: 19980 })], ['总督', f('总督', { price: 199980 })], ['城堡', g([one('浪漫城堡', 22330, 1, { castle: true })])]]);
     // 心动盲盒 150 电池 a box (电影票 20, 棉花糖 90, 爱心抱枕 160, 浪漫城堡 22330); 狂欢盲盒 90 opening a 棉花糖 breaks even
     group('盲盒（一轮）', [['小·赚', g([heart('爱心抱枕', 160, 1)])], ['小·不赚不亏', g([carnival(1)])], ['小·亏', g([heart('棉花糖', 90, 1)])],
       ['中·赚', g([heart('爱心抱枕', 160, 10)])], ['中·不赚不亏', g([carnival(6), carnival(6)])],
@@ -1681,6 +2684,9 @@ class Component extends DCLogic {
       ['爬山', d('爬山', false)], ['摔屁股墩', d('爬山', true)], ['骑车', d('骑车', false)], ['骑车摔倒', d('骑车', true)],
       ['滑雪', d('滑雪', false)], ['滑雪摔跤', d('滑雪', true)]]);
     group('时间', [['快进 10 分钟', () => this.fastForward(10)], ['快进 30 分钟', () => this.fastForward(30)], ['回到刚有礼物', () => { this.lastGift = this.lastAny = this.now(); }]]);
+    // the chest game (the board's game 开): the prankster comes at once; a danmaku and the gifts are the 事件 group's buttons
+    group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['送 100 电池', g([one('爱心抱枕', 100)])], ['有人发「捣蛋」', () => this.join()], ['捣蛋的人送礼', g([one('小花花', 10, 1, { helper: true })])],
+      ['捣蛋的人连送 5 份', g(tens(5, one('小花花', 10, 1, { helper: true })))], ['PK 开始', () => this.pkOn(true)], ['PK 结束', () => this.pkOn(false)]]);
     const fit = () => { const r = document.getElementById('root'); if (r) r.style.zoom = Math.min(innerWidth / 1920, (innerHeight - bar.offsetHeight) / 1080); };
     addEventListener('resize', fit); setTimeout(fit, 50);
   }

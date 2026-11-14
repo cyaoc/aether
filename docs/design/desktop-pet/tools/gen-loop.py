@@ -30,7 +30,10 @@ GATE = 0.06
 OPTIONS = {"wave": ["--head"], "clap": ["--head"], "cheer": ["upper"], "curl": ["--head"], "shakeBox": ["--head"],
            "govWave": ["--head"], "gymWipe": ["--head"], "capSalute": ["--head"], "admSalute": ["--head"],
            "spyglass": ["--head"], "bike": ["--head", "--from-first"], "idle": ["--ref-first"], "bored": ["--ref-first"],
-           "hike": ["legs"], "walkA": ["legs"]}
+           "hike": ["legs"], "walkA": ["legs"],
+           # the chest game: codex drew her pulling at the ring in a different place in each quarter, fists and all; each
+           # frame is slid onto frame 1 by her head, body and arms (frame-patch.py --align), and only her shoes and hair move
+           "tug": ["--align", "250,150,500,400"], "tugZap": ["--align", "230,150,500,400"]}
 # loops whose legs must stride: frame 2 passes between the strides, so at least LEGS_GATE[0] of the legs' outline changes
 # from frame 1, and frame 3 is the other stride, LEGS_GATE[1] (codex drew the hiking legs almost the same in every frame,
 # 0.07 in frame 3, then a frame 3 that changed less than the passing frames, 0.29, and the user still saw no step); the
