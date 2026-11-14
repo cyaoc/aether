@@ -117,11 +117,11 @@
 
 ## 五、交付前自查清单
 
-1. **新出的图**：工具全部通过：`gen-sheet.py` 最后一行是 “all measured cells pass”，`gen-loop.py` 没有 “still off”，`inbetween.py` 没有 “GATE FAILED”，`gen-prop.py` 她的大小和道具高度在范围里。量不到的格逐张放大看：动作、左右、手的数量、创可贴、地上的东西。
+1. **新出的图**：她的图放到深色背景上放大看发梢，有绿边用 `tools/despill.py` 去掉（爆炸头的发丝最容易留）；工具全部通过：`gen-sheet.py` 最后一行是 “all measured cells pass”，`gen-loop.py` 没有 “still off”，`inbetween.py` 没有 “GATE FAILED”，`gen-prop.py` 她的大小和道具高度在范围里。量不到的格逐张放大看：动作、左右、手的数量、创可贴、地上的东西。
 2. **对齐**：`python -I tools/body-align.py` 每项运动首尾都是 0，有姿势挪了就重画相连的中间帧。
 3. **换衣服的中间帧**：都用 `--still` 出的。
 4. **安装**：`add-frames.py` 装好，倒着存的 `TRANS` 键翻过来，重启 `server.mjs`。
-5. **全看板**：`node tools/check-board.mjs` 没有 “no way”。
+5. **全看板**：`node tools/check-board.mjs` 没有 “no way”；小游戏再跑 `node tools/check-game.mjs <端口>`，它把游戏各条路线实际跑一遍，同样不能有 “no way”（`check-board.mjs` 只从站姿走她自己的演出，走不到游戏里的姿势）。
 6. **实时播放**：`node tools/play.mjs <事件[:结局] 或 日常:<项目>:出事> <毫秒,…> <输出.png> [--line]` 播每一段改过的演出，包括盲盒的各种结局、出事版和被打断的情况；看位置时加 `--line`。送礼是一轮一轮来的，要连着点画板上的送礼按钮，看一轮进行中和停手 3 秒后的演出。
 7. **精灵运动**：`node tools/motion-scan.mjs` 每段演出（盲盒每种结局、每个日常和出事版）从平静、开心各演一遍，没有一帧挪动超过 20 px。改了精灵、绕圈、抛起、送礼节奏都要跑。
 8. **同类全查**：改了一项运动就查四项，改了一组换衣服就量全部换衣服。
