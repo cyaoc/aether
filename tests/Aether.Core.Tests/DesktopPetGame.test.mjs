@@ -94,6 +94,14 @@ test('what is said in a 来访 is a line of its kind at random, never the same o
   assert.deepEqual(said, ['乙', '丙']);
 });
 
+test('the 捣蛋鬼 peeks in and slides back out as it came, off the page before it flies the chest over, never jumping', () => {
+  const pet = gamePet(character), seen = [];
+  pet.summon();
+  play(pet, 3000, () => seen.push({ ...pet.gl.pk }));
+  const steps = seen.slice(1).map((pk, i) => Math.abs(pk.x - seen[i].x));
+  assert.deepEqual([seen.some(pk => pk.pose === 'peek' && pk.x === 24), seen.at(-1).pose, Math.max(...steps) < 10], [true, 'carry', true]);
+});
+
 test('a viewer sending the 帮它的关键字 twice in the tug is one helper', () => {
   const pet = tugging();
   assert.equal(pet.gm.visit.phase, 'tug');

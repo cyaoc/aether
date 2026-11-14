@@ -178,10 +178,11 @@ const FRIZZ = 9000;
 const CLEAR = 150;
 // Scared off, it lets go of everything with a start: the sprite, by her, starts at the chest that falls for NOTICE ('!').
 export const NOTICE = 500;
-// carry (flying over with the chest), loiter (on an empty chest), fight and sprint (the fight's last stretch): how long each
-// lasts; pebbles: the share of its life that all the danmaku together can take; urge: from this much time left the countdown
-// grows anxious; about: someone is about who wrote or came in this recently, for it to come on its own.
-export const GAME = { carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, pebbles: 0.3, urge: 30000, about: 5 * 60000 };
+// peek (looking in and back out), carry (flying over with the chest), loiter (on an empty chest), fight and sprint (the
+// fight's last stretch): how long each lasts; pebbles: the share of its life that all the danmaku together can take; urge:
+// from this much time left the countdown grows anxious; about: someone is about who wrote or came in this recently, for it to
+// come on its own.
+export const GAME = { peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, pebbles: 0.3, urge: 30000, about: 5 * 60000 };
 // The phases in which it is already on its way off the page: a gift then is a gift to her again.
 export const DONE = new Set(['knocked', 'toss', 'leave', 'won', 'lost', 'fled']);
 // It lies DAZED ms on the chest's lid where it fell; in the tug it is UP and pulling that long after the chest lands.
@@ -813,7 +814,7 @@ export class Engine extends EventTarget {
     v.hits = v.hits.filter(h => h.at > now);
     const u = now - v.at;
     switch (v.phase) {
-      case 'peek': if (u >= 2400) this.phase('carry', now); break;
+      case 'peek': if (u >= GAME.peek) this.phase('carry', now); break;
       case 'carry':
         if (now - v.frozen < FREEZE) v.at += dt;   // frozen, its clock stands still
         else if (u >= GAME.carry) {
@@ -924,7 +925,8 @@ export class Engine extends EventTarget {
     const hop = (x, y, ms = 400) => { const e = ease(k01(u, 0, ms)); pk.x = v.from.x + (x - v.from.x) * e; pk.y = v.from.y + (y - v.from.y) * e; };
     let cx = v.chest?.x ?? null;   // the chest standing on the ground, if it does
     switch (v.phase) {
-      case 'peek': Object.assign(pk, { pose: 'peek', flip: true, x: -70 + 94 * ease(k01(u, 0, 500)), y: 120 + bob }); break;
+      // it slides in and, before it flies the chest over, back out the same way: it takes up its rope off the page
+      case 'peek': Object.assign(pk, { pose: 'peek', flip: true, x: -70 + 94 * ease(k01(Math.min(u, GAME.peek - u), 0, 500)), y: 120 + bob }); break;
       case 'carry': {
         // It flies in little goes, its arms in front of it holding its hook rope, the chest hanging from the rope by one handle
         // and swinging as it goes (drawGame); the weight sinks it until it is over her head. Frozen, it is a paper bag or a
