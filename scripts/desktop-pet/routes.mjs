@@ -1,6 +1,6 @@
 // The 宝箱小游戏's routes on the design package's board (docs/design/desktop-pet/tools/check-game.mjs), played on the 桌宠页 too:
-// compare.mjs plays them on both in Chrome, DesktopPetCharacters.test.mjs on the page's engine in node. drive and walk are whole
-// in themselves, for compare.mjs hands their source to the browser.
+// compare.mjs plays them on both in Chrome, DesktopPetCharacters.test.mjs on the page's engine in node. compare.mjs hands the
+// browser the source of each function below but the board's, so each uses only its arguments and the others.
 export { ROUTES } from '../../docs/design/desktop-pet/tools/check-game.mjs';
 
 // The board's names of the shows, by the page's ids; and of the lottery's steps, by the 试演 variants of its one row.
@@ -10,27 +10,12 @@ export const STEP = { EntryOpen: '报名开场', EntryClosed: '报名截止', Po
   RevealGrand: '揭晓·大奖', RevealSecond: '揭晓·二奖', RevealThird: '揭晓·三奖', NoEntries: '没人报名', End: '抽奖结束' };
 
 /** What a route's steps call x, for the page `pet` in a connected room: what Core would tell it for each, the shows by the
- * board's names (names: NAME and STEP); a 一轮送礼 of a viewer's gifts, ended after 3 s without one, as Core's; a castle's
- * 盲盒播报 when the board's stands in for it; a helper's gift from a viewer the board takes for a helper whether or not they
- * sent the keyword. later(ms, fn) runs fn ms on from the time the step runs at. */
+ * board's names (names: NAME and STEP); a 一轮送礼 of a viewer's gifts, ended after 3 s without one, as Core's (send, end); a
+ * castle's 盲盒播报 when the board's stands in for it. A helper's gifts are viewer 2's, who sent the keyword with x.join().
+ * later(ms, fn) runs fn ms on from the time the step runs at. */
 export function drive(pet, later, { NAME, STEP }) {
-  const GUARD = { 舰长: 3, 提督: 2, 总督: 1 }, rounds = {}, stamps = {};
+  const GUARD = { 舰长: 3, 提督: 2, 总督: 1 }, book = { rounds: {}, last: {} };
   const state = so => ({ enabled: true, roomConnected: true, settings: pet.settings, lines: pet.lines, lottery: null, ...so });
-  const told = (uid, r, so) => pet.gift({ uid, nickname: '星河', ...r, topCount: r.count, castle: false, ended: false, items: [], ...so });
-  const spendOf = g => (g.box ? g.boxPrice : g.price) * 100 * g.n;
-  const send = (uid, list, stamp) => {
-    const r = rounds[uid] ??= { spend: 0, count: 0, boxSpend: 0, boxes: 0 }, items = list.map(g => ({ spend: spendOf(g), count: g.n, blind: !!g.box, iconUrl: '' }));
-    for (const g of list) if (g.box) { r.boxSpend += spendOf(g); r.boxes += g.n; } else { r.spend += spendOf(g); r.count += g.n; }
-    stamps[uid] = stamp;
-    // the board takes a helper's gift for one whether or not they sent the keyword: so is it here, the helpers as they were
-    const v = pet.gm.visit, helped = uid === 2 && v && !v.helpers.has(uid), before = pet.cur;
-    if (helped) v.helpers.add(uid);
-    told(uid, r, { topGift: list[0].gift, castle: list.some(g => g.castle), items });
-    if (helped) v.helpers.delete(uid);
-    // the board counts a gift for 开心 again as its show starts (src/Aether.Core/Pages/desktop-pet/README.md, deliberate differences)
-    if (pet.cur !== before && pet.cur.opts.round) pet.recent.push(pet.now());
-  };
-  const end = (uid, stamp) => { if (stamps[uid] === stamp) { told(uid, rounds[uid], { ended: true }); delete rounds[uid]; } };
   return {
     get gm() { return pet.gm; },
     get cur() { return pet.cur && { name: NAME[pet.cur.name] ?? STEP[pet.cur.opts.result] }; },
@@ -41,17 +26,42 @@ export function drive(pet, later, { NAME, STEP }) {
     fire: (name, opts) => GUARD[name] ? pet.guard({ uid: 1, nickname: '星河', guardLevel: GUARD[name], spend: opts.price * 100 })
       : (pet.receive(state()), pet.receive(state({ lottery: { mode: 'Entry', id: 'E1', keyword: '抽奖', phase: 'Open', entryCount: 0, draws: [], drawUntil: null } }))),
     give: list => list.forEach((m, i) => {
-      const gifts = [].concat(m), uid = gifts[0].helper ? 2 : 1, stamp = {};
-      later(i * 350, () => send(uid, gifts, stamp));
-      later(i * 350 + 3000, () => end(uid, stamp));
+      const gifts = [].concat(m), uid = gifts[0].helper ? 2 : 1;
+      later(i * 350, () => send(pet, book, uid, gifts));
+      later(i * 350 + 3000, () => end(pet, book, uid, gifts));
       for (const g of gifts.filter(g => g.castle)) later(i * 350 + 3800, () => pet.blindBox({ uid, nickname: '星河', tally: { spend: spendOf(g), openedValue: g.price * 100, outcome: 'Gain' }, boxes: g.n, bestGift: g.gift, bestPrice: g.price * 100, castle: true }));
     })
   };
 }
 
-/** Plays a route's steps on the frame grid of clock ({ t, frame(), act() }) as check-game.mjs plays them in real time: wait
- * renders frames for that long, jump moves the clock on without any, do runs its code at the next frame's time (act: what it
- * sends arrives in that frame, as the board takes it sent), until renders frames until its test holds. */
+/** A gift message of viewer uid's, the board's gifts `list`: added to the viewer's round in book and told as it stands, the
+ * round's last message until another comes. */
+export function send(pet, { rounds, last }, uid, list) {
+  const r = rounds[uid] ??= { spend: 0, count: 0, boxSpend: 0, boxes: 0 }, items = list.map(g => ({ spend: spendOf(g), count: g.n, blind: !!g.box, iconUrl: '' }));
+  for (const g of list) if (g.box) { r.boxSpend += spendOf(g); r.boxes += g.n; } else { r.spend += spendOf(g); r.count += g.n; }
+  last[uid] = list;
+  const before = pet.cur;
+  told(pet, uid, r, { topGift: list[0].gift, castle: list.some(g => g.castle), items });
+  // the board counts a gift for 开心 again as its show starts (src/Aether.Core/Pages/desktop-pet/README.md, deliberate differences)
+  if (pet.cur !== before && pet.cur.opts.round) pet.recent.push(pet.now());
+}
+
+/** The viewer's round ends, unless another gift message came after `list`. */
+export function end(pet, { rounds, last }, uid, list) {
+  if (last[uid] === list) { told(pet, uid, rounds[uid], { ended: true }); delete rounds[uid]; }
+}
+
+/** The viewer's 一轮送礼 r as Core tells it. */
+export function told(pet, uid, r, so) {
+  pet.gift({ uid, nickname: '星河', ...r, topCount: r.count, castle: false, ended: false, items: [], ...so });
+}
+
+/** What a gift of the board's cost, in 金瓜子: a 盲盒 its box's price. */
+export function spendOf(g) { return (g.box ? g.boxPrice : g.price) * 100 * g.n; }
+
+/** Plays a route's steps on the frame grid of clock (frames) as check-game.mjs plays them in real time: wait renders frames for
+ * that long, jump moves the clock on without any, do runs its code at the next frame's time (act: what it sends arrives in that
+ * frame, as the board takes it sent), until renders frames until its test holds. */
 export async function walk(steps, x, clock) {
   for (const [kind, arg] of steps) {
     if (kind === 'wait') for (const end = clock.t + arg; clock.t < end;) await clock.frame();
@@ -59,4 +69,19 @@ export async function walk(steps, x, clock) {
     if (kind === 'do') { clock.act(); new Function('x', arg)(x); }
     if (kind === 'until') for (let k = 0, ok = new Function('x', 'return ' + arg); !ok(x); k++) { if (k > 3600) throw new Error('never ' + arg); await clock.frame(); }
   }
+}
+
+/** The frame grid a route is walked on, from time t, 60 frames a second: act sets the time to the frame's (set), later(ms, fn)
+ * runs fn ms from then, and frame runs what is due, has the frame drawn (draw, with its time and number) and moves on. */
+export function frames(t, set, draw) {
+  const timers = [], clock = { t, n: 0 };
+  clock.act = () => set(clock.t);
+  clock.later = (ms, fn) => timers.push([clock.t + ms, fn]);
+  clock.frame = async () => {
+    clock.act();
+    for (const [when, fn] of timers.splice(0)) if (when <= clock.t) fn(); else timers.push([when, fn]);
+    await draw(clock.t, clock.n);
+    clock.n++; clock.t += 1000 / 60;
+  };
+  return clock;
 }

@@ -15,7 +15,7 @@ const EMPTY = [['do', 'x.visit()'], ['wait', 300], ['jump', 2500], ['jump', 9100
 const gift = (price, helper = false) => ['do', `x.give([{ gift: '小花花', price: ${price}, n: 1${helper ? ', helper: true' : ''} }])`];
 const ZAP = [gift(60), ['until', 'x.gm.visit.cut == null && x.gm.visit.zapped != null'], ['wait', 600]];
 const HITS = [gift(10), ['wait', 900], ['do', 'x.join()'], gift(10, true), ['wait', 1500], gift(10, true), gift(10, true), gift(10, true), gift(10, true), ['wait', 3000]];
-const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500], gift(10, true), ['wait', 800], ['jump', 9000],
+const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500], ['do', 'x.join()'], gift(10, true), ['wait', 800], ['jump', 9000],
   ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 1500], gift(10), ['until', 'x.cur'], ['until', '!x.cur'], ['wait', 800]];
 const WIN = [gift(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
 export const ROUTES = {

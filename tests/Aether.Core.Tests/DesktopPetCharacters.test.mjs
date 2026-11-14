@@ -4,12 +4,12 @@
 // picture it names is there.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { Engine, MOOD, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { Pet } from '../../src/Aether.Core/Pages/desktop-pet/pet.mjs';
 import { SETTINGS } from './Support/DesktopPetSettings.mjs';
 import { gamePet } from './Support/DesktopPetGame.mjs';
-import { NAME, ROUTES, STEP, drive, walk } from '../../scripts/desktop-pet/routes.mjs';
+import { NAME, ROUTES, STEP, drive, frames, walk } from '../../scripts/desktop-pet/routes.mjs';
 
 const pages = new URL('../../src/Aether.Core/Pages/', import.meta.url), read = path => JSON.parse(readFileSync(new URL(path, pages), 'utf8'));
 const { shows } = read('desktop-pet/shows.json'), prankster = read('desktop-pet/prankster/prankster.json');
@@ -63,22 +63,23 @@ function poseChanges(character) {
 async function gamePoseChanges(character) {
   const changes = { her: {}, its: {} };
   for (const [route, steps] of Object.entries(ROUTES)) {
-    const pet = gamePet(character), timers = [];
+    const pet = gamePet(character);
     let her = null, its = null;
-    const clock = { t: 0, act: () => { pet.master.currentTime = clock.t; } };
-    clock.frame = async () => {
-      clock.act();
-      for (const [when, fn] of timers.splice(0)) if (when <= clock.t) fn(); else timers.push([when, fn]);
-      const st = pet.stateAt(clock.t), pk = pet.gl.pk;
+    const clock = frames(0, t => { pet.master.currentTime = t; }, t => {
+      const st = pet.stateAt(t), pk = pet.gl.pk;
       if (her && st.pose !== her) changes.her[`${her}>${st.pose}`] ??= route;
       if (pk && its && pk.pose !== its.pose && pk.flip === its.flip) changes.its[`${its.pose}>${pk.pose}`] ??= route;
       [her, its] = [st.pose, pk];
-      clock.t += 1000 / 60;
-    };
-    await walk(steps, drive(pet, (ms, fn) => timers.push([pet.now() + ms, fn]), { NAME, STEP }), clock);
+    });
+    await walk(steps, drive(pet, clock.later, { NAME, STEP }), clock);
   }
   return changes;
 }
+
+test('every picture prankster.json names ships with the 桌宠页', () => {
+  for (const file of [...Object.values(prankster.sheets), ...Object.values(prankster.props), ...Object.values(prankster.frames)])
+    assert.ok(existsSync(new URL('desktop-pet/prankster/' + file, pages)), file);
+});
 
 for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => entry.name)) {
   test(`character ${folder} has every pose, sprite drawing and prop the 桌宠页 plays`, () => {

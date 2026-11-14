@@ -11,7 +11,7 @@
 // as <case>-<ms>-board.png and -page.png in --out (default /tmp/desktop-pet-compare); a route's moments are its frames.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import { NAME, ROUTES, STEP, drive, walk } from './routes.mjs';
+import { NAME, ROUTES, STEP, drive, end, frames, send, spendOf, told, walk } from './routes.mjs';
 
 const here = new URL('.', import.meta.url).pathname, eval_ = here + '../../docs/design/desktop-pet/tools/cdp-eval.mjs';
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args.splice(i, 2)[1]; };
@@ -75,6 +75,7 @@ const SIDES = {
         g.save(); g.setLineDash([10, 8]); g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 2; g.strokeRect(1400, 420, 480, 640); g.restore();
       };
       await Promise.all([...Object.keys(pet.art.sheets).map(k => pet.loadSheet(k)), pet.loadGame()]);
+      ${[send, end, told, spendOf].join('\n')}
       const canvas = pet.canvas, reset = () => x.reset(seeded(7)), drive = later => (${drive})(pet, later, ${JSON.stringify({ NAME, STEP })});`
   }
 };
@@ -107,22 +108,13 @@ const PLAY = `async (c, keep, res) => {
   }
 }`;
 
-// Plays a route's steps on the frame grid (walk, routes.mjs). Every fifteenth frame is a moment.
+// Plays a route's steps on the frame grid (walk and frames, routes.mjs). Every fifteenth frame is a moment.
 const ROUTE = `async (c, keep, res) => {
-  const clock = { t: 100000, n: 0 };
-  x.master.currentTime = fake = clock.t;
+  const clock = frames(100000, t => { x.master.currentTime = fake = t; }, async (t, n) => { x.frame(); if (n % 15 === 0) await snap(c, n, keep, res); });
+  clock.act();
   ${AFRESH}
-  const timers = [], d = drive((ms, fn) => timers.push([fake + ms, fn]));
   res[c.id] = {};
-  clock.act = () => { x.master.currentTime = fake = clock.t; };
-  clock.frame = async () => {
-    clock.act();
-    for (const [when, fn] of timers.splice(0)) if (when <= clock.t) fn(); else timers.push([when, fn]);
-    x.frame();
-    if (clock.n % 15 === 0) await snap(c, clock.n, keep, res);
-    clock.n++; clock.t += 1000 / 60;
-  };
-  await walk(c.steps, d, clock);
+  await walk(c.steps, drive(clock.later), clock);
 }`;
 
 // Each case's start on one side, as a function of the board or page (x, pet, dc) and later.
@@ -136,7 +128,7 @@ function run(side, list, keep = []) {
     ${SIDES[side].setup}
     x.master.pause();
     const crop = document.createElement('canvas'); crop.width = 480; crop.height = 640;
-    const walk = ${walk}, snap = ${SNAP}, play = ${PLAY}, route = ${ROUTE}, runs = ${starts(list, side)}, res = {};
+    const walk = ${walk}, frames = ${frames}, snap = ${SNAP}, play = ${PLAY}, route = ${ROUTE}, runs = ${starts(list, side)}, res = {};
     for (const [i, c] of ${JSON.stringify(list.map(c => ({ id: c.id, ms: c.ms, steps: c.steps })))}.entries()) await (c.steps ? route : play)({ ...c, run: runs[i] }, ${JSON.stringify(keep)}, res);
     return res;
   })()`;
