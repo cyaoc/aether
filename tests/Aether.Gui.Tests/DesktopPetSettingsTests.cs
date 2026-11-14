@@ -281,8 +281,7 @@ public sealed class DesktopPetSettingsTests
 
         GuiHarness.Click(page, "TestButton");
         var trial = (await pet.NextAsync(DesktopPet.Test)).GetProperty("id").GetInt32();
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(harness.Client.WebService.Status.Origin) };
-        using var over = await http.PostAsync($"desktop-pet/report?trial={trial}", null);
+        await pet.ReportAsync($"?trial={trial}");
         await GuiHarness.WaitForAsync(() => page.FindControl<TextBlock>("TestText")!.Text == "试演");
         Assert.Equal("", note.Text);
     });
@@ -310,8 +309,7 @@ public sealed class DesktopPetSettingsTests
         Assert.Equal((false, "她正在演的这段完了它就来", true), (button.IsEnabled, note.Text, note.Classes.Contains("accent")));
         Assert.False(page.IsDirty);
 
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(harness.Client.WebService.Status.Origin) };
-        using var set = await http.PostAsync("desktop-pet/report?visit=start", null);
+        await pet.ReportAsync("?visit=start");
         await GuiHarness.WaitForAsync(() => text.Text == "它在场上");
         Assert.Equal((false, "它走了才能再叫", false), (button.IsEnabled, note.Text, note.Classes.Contains("accent")));
     });

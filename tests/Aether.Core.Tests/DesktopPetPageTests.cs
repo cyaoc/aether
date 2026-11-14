@@ -277,32 +277,24 @@ public sealed class DesktopPetPageTests
         await pet.NextAsync("state");
         await using var updates = h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
         async Task<int> TestShowAsync()
         {
             await h.Client.WebService.TestShowAsync("entry", null, "星河");
             return (await pet.NextAsync(DesktopPet.Test)).GetProperty("id").GetInt32();
         }
-        async Task<HttpStatusCode> ReportAsync(string query, string? origin = null)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "/desktop-pet/report" + query);
-            if (origin is not null) request.Headers.Add("Origin", origin);
-            using var response = await http.SendAsync(request, h.Stop.Token);
-            return response.StatusCode;
-        }
 
         var first = await TestShowAsync();
-        Assert.Equal(HttpStatusCode.Forbidden, await ReportAsync($"?trial={first}", "https://evil.example"));
-        Assert.Equal(HttpStatusCode.BadRequest, await ReportAsync(""));
-        Assert.Equal(HttpStatusCode.BadRequest, await ReportAsync("?trial=-1"));
-        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync($"?trial={first}"));
+        Assert.Equal(HttpStatusCode.Forbidden, await pet.ReportAsync($"?trial={first}", "https://evil.example"));
+        Assert.Equal(HttpStatusCode.BadRequest, await pet.ReportAsync(""));
+        Assert.Equal(HttpStatusCode.BadRequest, await pet.ReportAsync("?trial=-1"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync($"?trial={first}"));
         // A second page reports the first 试演 after the next one started: that one plays on until it is reported. A page opened
         // in between marks which report ended it.
         var second = await TestShowAsync();
         Assert.NotEqual(first, second);
-        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync($"?trial={first}"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync($"?trial={first}"));
         using var another = await DesktopPetEvents.OpenAsync(h);
-        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync($"?trial={second}"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync($"?trial={second}"));
         await h.ApplySettingsAsync(("desktop_pet.enabled", "false"));
         await h.Client.WebService.TestShowAsync("entry", null, "星河");
 

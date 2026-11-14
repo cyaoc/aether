@@ -81,10 +81,10 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
         await service.SummonAsync();
         await pet.NextAsync(DesktopPet.Summon);
         Assert.Equal(new PranksterSummon(null, PranksterVisit.OnTheWay), await NextAsync());
-        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync("start"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=start"));
         Assert.Equal(PranksterVisit.OnStage, (await NextAsync()).Visit);
-        Assert.Equal(HttpStatusCode.BadRequest, await ReportAsync("nope"));
-        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync("end"));
+        Assert.Equal(HttpStatusCode.BadRequest, await pet.ReportAsync("?visit=nope"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=end"));
         Assert.Equal(new PranksterSummon(null, PranksterVisit.Away), await NextAsync());
 
         await service.SummonAsync();
@@ -103,18 +103,18 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
         await h.Client.WebService.SummonAsync();
         Assert.Equal(PranksterVisit.OnTheWay, (await NextAsync()).Visit);
 
-        await ReportAsync("start");
-        await ReportAsync("start");
-        await ReportAsync("end");
+        await pet.ReportAsync("?visit=start");
+        await pet.ReportAsync("?visit=start");
+        await pet.ReportAsync("?visit=end");
         await h.Client.IdleAsync();
         Assert.Equal(PranksterVisit.OnStage, (await LatestAsync()).Visit);
-        await ReportAsync("end");
+        await pet.ReportAsync("?visit=end");
         Assert.Equal(PranksterVisit.Away, (await NextAsync()).Visit);
 
         // A PK starting while it is on its way has the page say it left before it set off.
         await h.Client.WebService.SummonAsync();
         Assert.Equal(PranksterVisit.OnTheWay, (await NextAsync()).Visit);
-        await ReportAsync("end");
+        await pet.ReportAsync("?visit=end");
         Assert.Equal(PranksterVisit.Away, (await NextAsync()).Visit);
     }
 
@@ -174,13 +174,6 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
     {
         next = null;
         return summons!.Current;
-    }
-
-    private async Task<HttpStatusCode> ReportAsync(string visit)
-    {
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
-        using var response = await http.PostAsync("/desktop-pet/report?visit=" + visit, null, h.Stop.Token);
-        return response.StatusCode;
     }
 
     public async ValueTask DisposeAsync()
