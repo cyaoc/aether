@@ -12,7 +12,7 @@ const reports = pet => { const told = []; pet.addEventListener('visit', event =>
 // The 捣蛋鬼 called and on the page, peeking in.
 const visited = settings => { const pet = gamePet(character, settings); pet.summon(); play(pet, 100); return pet; };
 // From peeking in to the tug over a chest with something in it: 2.4 s peeking, 9 s flying it over, its fall.
-const tugging = () => { const pet = gamePet(character); pet.gm.chest = 500; pet.summon(); play(pet, 12500); return pet; };
+const tugging = (chest = 500) => { const pet = gamePet(character); pet.gm.chest = chest; pet.summon(); play(pet, 12500); return pet; };
 
 test('叫它来 brings the 捣蛋鬼 once the show she plays is over, and the page reports it setting off and leaving', () => {
   const pet = gamePet(character), told = reports(pet);
@@ -106,6 +106,15 @@ test('a viewer sending the 帮它的关键字 twice in the tug is one helper', (
   pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
   pet.danmaku({ uid: 6, nickname: '观众6', joins: false });
   assert.deepEqual([...pet.gm.visit.helpers], [5]);
+});
+
+test('danmaku in the tug take no more than three tenths of the 捣蛋鬼\'s life all together, and none of a life too short for one', () => {
+  // its life a fifth of the chest: 2, and 125 that pebbles take 3 at a time
+  for (const [chest, taken, hits] of [[10, 0, 0], [625, 37, 13]]) {
+    const pet = tugging(chest), v = pet.gm.visit;
+    for (let n = 0; n < 50; n++) pet.danmaku({ uid: 1, nickname: '观众1', joins: false });
+    assert.deepEqual([v.max - v.hp, pet.gm.nums.filter(num => num.small).length], [taken, hits], `a chest of ${chest}`);
+  }
 });
 
 test('five gifts in one message from a viewer on the 捣蛋鬼\'s side flatten her, falling as one', () => {

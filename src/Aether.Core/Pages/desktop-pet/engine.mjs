@@ -739,13 +739,13 @@ export class Engine extends EventTarget {
 
   // A danmaku while it is here: flying over with the chest, it freezes in a disguise while she looks about (three times at
   // most); in the tug it is a pebble, and all the pebbles together take no more than GAME.pebbles of its life, never the
-  // last of it.
+  // last of it: one takes at most what is left of that share, and nothing once that is less than one.
   pebble() {
     const v = this.gm.visit, now = this.now();
     if (!v) return;
     if (v.phase === 'carry' && v.freezes < 3 && !(now - v.frozen < FREEZE)) { v.frozen = now; v.freezes++; }
-    if (v.phase === 'tug' && v.cut == null && v.pebbles < GAME.pebbles * v.max && v.hp > 1) {
-      const d = Math.min(v.hp - 1, Math.max(1, Math.round(v.max * 0.02)));
+    if (v.phase === 'tug' && v.cut == null && v.pebbles + 1 <= GAME.pebbles * v.max && v.hp > 1) {
+      const d = Math.min(v.hp - 1, Math.max(1, Math.round(v.max * 0.02)), Math.floor(GAME.pebbles * v.max - v.pebbles));
       v.pebbles += d; v.hp -= d; this.gm.nums.push({ at: now, text: `-${d}`, small: true });
     }
   }
