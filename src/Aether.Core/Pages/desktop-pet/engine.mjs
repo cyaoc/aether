@@ -244,16 +244,18 @@ export class Engine extends EventTarget {
 
   // The 桌宠页's state: whether she is on, how the streamer set her to play and what she says, the lottery on air, the 礼物榜
   // while its 期 runs and whether the streamer is in a PK. Her quiet-room clocks start when the room connects, and so do the
-  // chest game's: her chest, 连守 and what the 捣蛋鬼 remembers start from nothing, and its own 来访 count from then; while
-  // no room is she stays calm, and a round she was shaking boxes for will not end.
+  // 捣蛋鬼's own 来访; while no room is she stays calm, and a round she was shaking boxes for will not end. The chest game's
+  // go with the room: one here runs off as at a PK (callOff), what was thrown at it counts for nothing, and her chest, 连守 and
+  // what it remembers start from nothing.
   receive(state) {
     const now = this.now();
     Object.assign(this, { on: state.enabled, settings: state.settings, lines: state.lines });
-    if (state.roomConnected && !this.room) {
-      this.lastGift = this.lastAny = now; this.recent = [];
-      Object.assign(this.gm, { chest: 0, pile: 0, streak: 0, steals: 0, brag: false, grudge: null, last: now });
+    if (state.roomConnected && !this.room) { this.lastGift = this.lastAny = now; this.recent = []; this.gm.last = now; }
+    if (!state.roomConnected) {
+      this.forgetRounds(); this.callOff(now);
+      if (this.gm.visit) Object.assign(this.gm.visit, { queue: [], hits: [] });
+      Object.assign(this.gm, { chest: 0, pile: 0, streak: 0, steals: 0, brag: false, grudge: null });
     }
-    if (!state.roomConnected) { this.forgetRounds(); this.callOff(); }
     this.room = state.roomConnected;
     // switched off she is told nothing more, and back on she starts from what she is told then; Core forgets the 捣蛋鬼 too
     if (!state.enabled) {
@@ -593,19 +595,20 @@ export class Engine extends EventTarget {
   // short).
   summon() { if (!this.gm.visit && !this.gm.pk) this.gm.due = true; }
 
-  // It is not to come after all (a PK, the room disconnected): on its way, it is reported gone.
-  callOff() { if (this.gm.due) this.visited('end'); this.gm.due = false; }
+  // It is not to come after all, nor to stay (a PK, the room disconnected): on its way, it is reported gone; one here goes as if
+  // scared off, with no show after: she lets go and is herself again; after the lightning she cheers frizzed until the sprite,
+  // the chest home, has patted her hair smooth (gm.fix).
+  callOff(now) {
+    const gm = this.gm, v = gm.visit;
+    if (gm.due) this.visited('end');
+    gm.due = false;
+    if (v && !DONE.has(v.phase) && this.scared(now).frizz) gm.fix = { start: now };
+  }
 
-  // A PK is no time for it: it does not come (callOff), and one here goes as if scared off, with no show after: she lets go and
-  // is herself again; after the lightning she cheers frizzed until the sprite, the chest home, has patted her hair smooth
-  // (gm.fix).
+  // A PK is no time for it (callOff).
   pkOn(on) {
-    const gm = this.gm, v = gm.visit, now = this.now();
-    gm.pk = on;
-    if (!on) return;
-    this.callOff();
-    if (!v || DONE.has(v.phase)) return;
-    if (this.scared(now).frizz) gm.fix = { start: now };
+    this.gm.pk = on;
+    if (on) this.callOff(this.now());
   }
 
   // The 来访 starts, or it is over, as the page reports to Core (page.mjs).

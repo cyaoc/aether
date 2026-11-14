@@ -95,7 +95,7 @@ The 捣蛋鬼's drawings, its loops and in-betweens, and the chest's are the sam
 | `lid` | Where her sprite takes hold of the open lid to pull with her, in from the chest's side and up from its foot |
 
 Her chest at home, 连守 and what the 捣蛋鬼 remembers (who hit it last, whether it got away with the chest) live in the page
-alone: they start from nothing when a room connects and are gone when the page reloads or the 桌宠 is switched off. Amounts
+alone: they start from nothing in a room and are gone when it disconnects, the page reloads or the 桌宠 is switched off. Amounts
 come from Core in 金瓜子 and are counted in 电池, as the board says them.
 
 The page's checks against the board, for whoever changes it or her pictures. The design package's `tools/server.mjs` serves
@@ -149,9 +149,10 @@ the page beside the board, as the web service serves it, telling it it is on in 
   names, and her lines are picked with `Math.random`, not the board's fixed seed.
 - The 宝箱小游戏 comes on its own every `pranksterMinutes`, counted from the room connecting, never at 0, or when the streamer
   叫它来; the board's game was on or off and came every 30 minutes. It sets off once its pictures are there and only in a
-  connected room: one due when the room disconnects does not come. The page reports it setting off and leaving. What it and
-  she say in a 来访 are her character's lines of the groups `chestGame` and `prankster` (a space breaks the 捣蛋鬼's line), the
-  帮它的关键字 the saved one; the board said fixed lines.
+  connected room: one due when the room disconnects does not come, and one here runs off as at a PK, its 来访 counting for
+  nothing, what was still to land too. The page reports it setting off and leaving. What it and she say in a 来访 are her
+  character's lines of the groups `chestGame` and `prankster` (a space breaks the 捣蛋鬼's line), the 帮它的关键字 the saved
+  one; the board said fixed lines.
 - A gift message's gifts are thrown at the 捣蛋鬼 one by one, each with B站's icon, a little box while it loads or has none;
   the board threw boxes. As the board's, a viewer's 一轮送礼 is only what they did not throw, and a first place taken while it is
   here is not crowned; a 盲盒播报 of boxes thrown opens none. A viewer's boxes, thrown or not, are told by their 盲盒播报 in the

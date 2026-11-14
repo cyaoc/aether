@@ -315,3 +315,19 @@ test('a 盲盒播报 of boxes thrown at the 捣蛋鬼 and boxes sent after plays
   assert.deepEqual([playing(pet), pet.cur.opts.count, pet.cur.opts.result], ['blindBoxSmall', 1, 'Gain']);
 });
 
+test('the room disconnected while the 捣蛋鬼 is here, it runs off with nothing said, and nothing of the 来访 is counted after', () => {
+  const pet = gamePet(character), told = reports(pet), shows = new Set();
+  pet.gm.chest = 5000;
+  pet.summon();
+  play(pet, 16000);
+  pet.gift(gifts(1, 20000));
+  play(pet, 1000);
+  pet.gift(gifts(1, 10000));
+  pet.receive(state(pet, { roomConnected: false }));
+  assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.say], ['fled', null]);
+  pet.receive(state(pet));
+  // (no ending of a 来访 plays after it)
+  play(pet, 20000, () => shows.add(pet.events[playing(pet)]?.group));
+  const { chest, pile, streak, grudge } = pet.gm;
+  assert.deepEqual([pet.gm.visit, told, chest, pile, streak, grudge, shows.has('chestGame')], [null, ['start', 'end'], 0, 0, 0, null, false]);
+});
