@@ -198,6 +198,8 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     [InlineData("  shows_off: [entry, hum]\n")]
     [InlineData("  shows_off: []\n")]
     [InlineData("  shows_off: [entry]\n  lines.1.bigGift: [\"谢谢{昵称}\"]\n")]
+    [InlineData("  shows_off: [entry]\n  prankster_minutes: 0\n")]
+    [InlineData("  shows_off: [entry]\n  prankster_keyword: 帮它\n")]
     public void The_desktop_pet_page_is_told_the_same_only_while_her_settings_and_lines_are(string changed)
     {
         Write("desktop_pet:\n  shows_off: [entry]\n");

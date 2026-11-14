@@ -47,7 +47,7 @@ public sealed class DesktopPetPageTests
         await h.ApplySettingsAsync(("desktop_pet.enabled", "true"), ("desktop_pet.mid_gift_spend", "2000"));
         using var pet = await DesktopPetEvents.OpenAsync(h);
         var state = await pet.NextAsync("state");
-        Assert.Equal("""{"off":[],"midGift":200000,"bigGift":1000000,"boredMinutes":15,"gloomyMinutes":40,"sleepyMinutes":60,"dailyMinSeconds":20,"dailyMaxSeconds":40,"mishapPercent":25}""",
+        Assert.Equal("""{"off":[],"midGift":200000,"bigGift":1000000,"boredMinutes":15,"gloomyMinutes":40,"sleepyMinutes":60,"dailyMinSeconds":20,"dailyMaxSeconds":40,"mishapPercent":25,"pranksterMinutes":30,"pranksterKeyword":"\u6363\u86CB"}""",
             state.GetProperty("settings").GetRawText());
         Assert.Equal(["哇！{昵称}送了{礼物}！", "这么贵重的{礼物}…谢谢{昵称}！", "心跳好快…谢谢{昵称}！", "我会好好珍惜的！"], Lines(state, "bigGift"));
 
