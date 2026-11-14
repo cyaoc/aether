@@ -239,8 +239,8 @@ public sealed partial class Settings
         [(GiftThresholds, NumberOrder.Rising, GiftThresholdRule), ([PetMidGift, PetBigGift], NumberOrder.Rising, "中礼物门槛要小于大礼物门槛。"),
             ([PetDailyMin, PetDailyMax], NumberOrder.NotFalling, "日常小动作的最短间隔不能比最长间隔长。")];
 
-    public const string PranksterKeywordIsBlindBox = "和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个";
-    public const string BlindBoxKeywordIsPrankster = "和桌宠宝箱小游戏里帮它的关键字一样，观众查盲盒时就站到它那边了；换一个";
+    internal const string PranksterKeywordIsBlindBox = "和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个";
+    internal const string BlindBoxKeywordIsPrankster = "和桌宠宝箱小游戏里帮它的关键字一样，观众查盲盒时就站到它那边了；换一个";
 
     /// <summary>Whether a danmaku saying <paramref name="said"/> is <paramref name="keyword"/>: exactly it, the spaces around either
     /// aside, as a 报名抽奖 and the 帮它的关键字 take one. Two keywords that are the same take the same danmaku.</summary>
@@ -289,12 +289,12 @@ public sealed partial class Settings
     private static SettingsException? ValidateOrder(YamlMappingNode root, string path, (Definition<int>[] Definitions, NumberOrder Order, string Rule) numbers)
     {
         var definitions = numbers.Definitions;
-        if (!root.Children.TryGetValue(new YamlScalarNode(definitions[0].Group), out var node) || node is not YamlMappingNode) return null;
         var fields = definitions.Select(definition => NodeOf(root, definition)).ToArray();
         var values = fields.Select((field, index) => field is YamlScalarNode { Value: { } text } && int.TryParse(text, out var value)
             ? value : definitions[index].Initial.Value).ToArray();
+        // The defaults are in order, so one the file leaves out is out of order only after one it holds, in the group told of.
         return numbers.Order.Invalid(values) is { } invalid
-            ? new(path, fields[invalid]?.Start.Line ?? node.Start.Line, definitions[invalid].Name, numbers.Rule) : null;
+            ? new(path, (fields[invalid] ?? root.Children[new YamlScalarNode(definitions[0].Group)]).Start.Line, definitions[invalid].Name, numbers.Rule) : null;
     }
 
     internal static string NewlineOf(string source)
