@@ -143,7 +143,8 @@ internal static class SettingsUpgrade
         var root = (YamlMappingNode)yaml.Documents[0].RootNode;
         var tokens = Settings.Scan(source);
         var version = CurrentVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (Child(root, "format_version") is { } current)
+        // (matched as Settings reads it, a tagged key too)
+        if (root.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "format_version" }).Value is { } current)
         {
             var (start, length, value) = ScalarEdit(tokens, current, version, path);
             return source.Remove(start, length).Insert(start, value);
