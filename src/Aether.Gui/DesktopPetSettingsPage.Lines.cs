@@ -50,7 +50,9 @@ public partial class DesktopPetSettingsPage
         lineTarget.Row = kind.Rows.FirstOrDefault();
         LineKindTitle.Text = kind.Kind.Label;
         var narrow = kind.Kind.Group == ShowGroup.Prankster ? "；它的气泡窄，一行最多 6 个字，空一格换行" : "";
-        LineKindNote.Text = kind.Kind.Note + narrow + "；每次随机一句，不连着重复";
+        // A kind no row says is said in a 来访, each in turn as the 桌宠页 says them (gameLine).
+        var order = shows.Shows.Any(show => show.Lines.Contains(kind.Kind.Id)) ? "；每次随机一句，不连着重复" : "；按顺序轮着说";
+        LineKindNote.Text = kind.Kind.Note + narrow + order;
         PlaceholderButtons.ItemsSource = kind.Kind.Placeholders;
         InsertBar.IsVisible = kind.Kind.Placeholders.Count > 0;
         NoPlaceholders.IsVisible = kind.Kind.Placeholders.Count == 0;
