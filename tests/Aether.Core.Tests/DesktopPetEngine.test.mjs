@@ -35,6 +35,16 @@ const ranks = (engine, rows, fromGift = true) => engine.receive(state(engine, {
   giftBoard: rows && { rows: rows.map(([uid, num]) => ({ id: `${uid}/gift:1`, uid, nickname: '观众' + uid, faceUrl: '', guardLevel: 0, viewerGuardLevel: 0, num })),
     options: { threshold: 100 }, running: true, fromGift } }));
 
+// What she says after so many minutes of a quiet room, then again each of ms later, with a kind of her lines these and
+// every draw in the middle: of three lines the second, of two the second, and the next rather than the same again.
+function quietLines(minutes, kind, list, ms) {
+  const engine = pet({}, () => 0.5);
+  engine.receive(state(engine, { lines: { ...lines, [kind]: list } }));
+  advance(engine, minutes * MINUTE);
+  engine.stateAt(engine.now());
+  return ms.map(step => { advance(engine, step); return engine.stateAt(engine.now()).bubble?.text; });
+}
+
 test('a gift round plays at once and moves up at the fifth gift, 1000 电池 and 1 万, never playing one twice', () => {
   const engine = pet();
   engine.gift(gifts(1, 100));
@@ -131,16 +141,7 @@ test('犯困 comes after an hour with nothing and ends on an entry or a danmaku;
 });
 
 test('a 心情 says a line at random every 15 s, never the same one twice in a row, and keeps it while she says it', () => {
-  // every draw in the middle: of three lines the second, and the third rather than the second again
-  const engine = pet({}, () => 0.5), said = [];
-  engine.receive(state(engine, { lines: { ...lines, bored: ['甲', '乙', '丙'] } }));
-  advance(engine, 16 * MINUTE);
-  engine.stateAt(engine.now());
-  for (const ms of [1000, 3000, 12000]) {
-    advance(engine, ms);
-    said.push(engine.stateAt(engine.now()).bubble?.text);
-  }
-  assert.deepEqual(said, ['乙', '乙', '丙']);
+  assert.deepEqual(quietLines(16, 'bored', ['甲', '乙', '丙'], [1000, 3000, 12000]), ['乙', '乙', '丙']);
 });
 
 test('jolting awake from 犯困 every half minute she says a line of its own kind, the one left when only one is', () => {
@@ -153,16 +154,7 @@ test('jolting awake from 犯困 every half minute she says a line of its own kin
 });
 
 test('jolting awake she says a line of its kind at random, never the same one twice in a row, and keeps it while she says it', () => {
-  // every draw in the middle: of two lines the second, and the first rather than the second again
-  const engine = pet({}, () => 0.5), said = [];
-  engine.receive(state(engine, { lines: { ...lines, jolt: ['甲', '乙'] } }));
-  advance(engine, 60 * MINUTE);
-  engine.stateAt(engine.now());
-  for (const ms of [23100, 1200, 28800, 1200]) {
-    advance(engine, ms);
-    said.push(engine.stateAt(engine.now()).bubble?.text);
-  }
-  assert.deepEqual(said, ['乙', '乙', '甲', '甲']);
+  assert.deepEqual(quietLines(60, 'jolt', ['甲', '乙'], [23100, 1200, 28800, 1200]), ['乙', '乙', '甲', '甲']);
 });
 
 test('the 心情 come after the minutes set, and never for 0', () => {
