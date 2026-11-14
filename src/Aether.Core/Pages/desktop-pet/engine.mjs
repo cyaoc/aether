@@ -580,7 +580,7 @@ export class Engine extends EventTarget {
   gameGift(x) {
     const gm = this.gm, v = gm.visit;
     if (!this.throwing()) { gm.chest += x.spend; gm.pile += x.count; return false; }
-    v.queue.push({ spend: x.spend, helper: v.helpers.has(x.uid) && v.phase === 'tug', nickname: x.nickname, icon: x.iconUrl });
+    v.queue.push({ spend: x.spend, count: x.count, helper: v.helpers.has(x.uid) && v.phase === 'tug', nickname: x.nickname, icon: x.iconUrl });
     return true;
   }
 
@@ -691,11 +691,11 @@ export class Engine extends EventTarget {
   // A gift lands. Over an empty chest the 捣蛋鬼 has one life: any gift knocks it off the page, and is the chest's first. With
   // gifts in the chest every gift takes its 电池 off its life; a 中礼物 ends it there. A helper's gift lands on her head instead
   // and gives the 捣蛋鬼 that much life back. She lets go of the handle, so the 捣蛋鬼, glad of it, points at her and laughs, and
-  // the chest comes a little its way (tumble), while her sprite pulls on alone; then she takes hold again. The fifth of them
-  // flattens her: she lies flat while her sprite pulls on, catches the handle lying down and is dragged a little before she
-  // is up. In the fight's last stretch she lies holding on already, and only winces. One landing once it is on its way off goes
-  // into her chest, and plays nothing (bank).
-  strike(now, { spend, helper, nickname }) {
+  // the chest comes a little its way (tumble), while her sprite pulls on alone; then she takes hold again. The fifth of them,
+  // counted by the gift (count, five in one message too), flattens her: she lies flat while her sprite pulls on, catches the
+  // handle lying down and is dragged a little before she is up. In the fight's last stretch she lies holding on already, and
+  // only winces. One landing once it is on its way off goes into her chest, and plays nothing (bank).
+  strike(now, { spend, count, helper, nickname }) {
     const gm = this.gm, v = gm.visit;
     if (DONE.has(v.phase)) return this.bank(spend);
     if (!v.loot) {
@@ -707,8 +707,8 @@ export class Engine extends EventTarget {
       v.hp = Math.min(v.max, v.hp + spend);
       gm.nums.push({ at: now, text: `+${spend}`, heal: true });
       if (v.sprint != null) { v.wince = now; return; }
-      Object.assign(v, { bonk: now, tumble: now, helped: v.helped + 1 });
-      if (v.helped % 5 === 0) v.buried = now;
+      Object.assign(v, { bonk: now, tumble: now, helped: v.helped + count });
+      if (v.helped % 5 < count) v.buried = now;   // one of these was the fifth, the tenth…
       return this.herSay('herHit', now, { nickname });
     }
     Object.assign(v, { hp: v.hp - spend, hit: now }); gm.grudge = nickname;

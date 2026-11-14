@@ -111,6 +111,15 @@ test('a viewer sending the 帮它的关键字 twice in the tug is one helper', (
   assert.deepEqual([...pet.gm.visit.helpers], [5]);
 });
 
+test('five gifts in one message from a viewer on the 捣蛋鬼\'s side flatten her, falling as one', () => {
+  const pet = tugging(), poses = new Set();
+  let drops = 0;
+  pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
+  pet.gift(round(5, { spend: 5000, count: 5, topCount: 5, items: [{ spend: 5000, count: 5, blind: false, iconUrl: '' }] }));
+  play(pet, 4000, st => { poses.add(st.pose); drops = Math.max(drops, pet.gm.drops.length); });
+  assert.deepEqual([poses.has('flat'), drops], [true, 1]);
+});
+
 test('gifts and blind boxes thrown at the 捣蛋鬼 play nothing of hers, then or after it leaves', () => {
   const pet = visited();
   pet.gift(gifts(1, 100000));

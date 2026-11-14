@@ -744,7 +744,7 @@ class Component extends DCLogic {
   gameGift(x) {
     const gm = this.gm, v = gm.visit, spend = (x.box ? x.boxPrice : x.price) * x.n;
     if (!v || DONE.has(v.phase)) { gm.chest += spend; gm.pile += x.n; return false; }
-    v.queue.push({ spend, helper: !!x.helper && v.phase === 'tug' });
+    v.queue.push({ spend, count: x.n, helper: !!x.helper && v.phase === 'tug' });
     return true;
   }
 
@@ -844,11 +844,11 @@ class Component extends DCLogic {
   // first. With gifts in the chest every gift takes its 电池 off the prankster's life; a 中礼物 ends it there. A helper's
   // gift lands on her head instead and gives the prankster that much life back. She lets go of the handle, so the
   // prankster, glad of it, points at her and laughs, and the chest comes a little its way (tumble), while her
-  // sprite pulls on alone; then she takes hold again. The fifth of them flattens her: she lies flat while her sprite
-  // pulls on (it lets go, the prankster is off with the chest), catches the handle lying down and is dragged a little
-  // before she is up. In the fight's last stretch she lies holding
+  // sprite pulls on alone; then she takes hold again. The fifth of them, counted by the gift (count, five in one go
+  // too), flattens her: she lies flat while her sprite pulls on (it lets go, the prankster is off with the chest),
+  // catches the handle lying down and is dragged a little before she is up. In the fight's last stretch she lies holding
   // on already, and only winces.
-  strike(now, spend, helper) {
+  strike(now, spend, helper, count) {
     const gm = this.gm, v = gm.visit, name = this.cfg.name;
     if (DONE.has(v.phase)) return;
     if (!v.loot) {
@@ -860,8 +860,8 @@ class Component extends DCLogic {
       v.hp = Math.min(v.max, v.hp + spend);
       gm.nums.push({ at: now, text: `+${spend}`, heal: true });
       if (v.sprint != null) { v.wince = now; return; }
-      Object.assign(v, { bonk: now, tumble: now, helped: v.helped + 1 });
-      if (v.helped % 5 === 0) v.buried = now;
+      Object.assign(v, { bonk: now, tumble: now, helped: v.helped + count });
+      if (v.helped % 5 < count) v.buried = now;   // one of these was the fifth, the tenth…
       return this.herSay('怎么砸我', now);
     }
     Object.assign(v, { hp: v.hp - spend, hit: now }); gm.grudge = name;
@@ -960,7 +960,7 @@ class Component extends DCLogic {
       for (const q of v.queue) { gm.drops.push({ at: now, her: q.helper, big: q.spend >= MID }); v.hits.push({ at: now + DROP, ...q }); }
       v.queue = [];
     }
-    for (const h of v.hits.filter(h => h.at <= now)) this.strike(now, h.spend, h.helper);
+    for (const h of v.hits.filter(h => h.at <= now)) this.strike(now, h.spend, h.helper, h.count);
     v.hits = v.hits.filter(h => h.at > now);
     const u = now - v.at;
     switch (v.phase) {
