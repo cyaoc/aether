@@ -1,0 +1,5 @@
+# codex's own pictures, tries, canvases and logs stay on the machine that drew them: the art that is kept is in
+# ../textures, and the pictures to look at are webp here
+*.png
+*.log.txt
+*.out.txt

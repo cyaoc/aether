@@ -137,5 +137,21 @@
  "f60b51987ea38e68ba0f346d92d1a4e3": "textures/frames/skiIn.webp",
  "4c984499f6067970f582a73d8c2399d1": "textures/frames/skiOut.webp",
  "48cc515e9c60d77ebe1eda886747bdff": "../../../src/Aether.Core/Pages/gift-board/fonts/NotoSansSC-500.woff2",
- "41d8525849b7a8d447ae4e7153b45c52": "../../../src/Aether.Core/Pages/gift-board/fonts/NotoSansSC-800.woff2"
+ "41d8525849b7a8d447ae4e7153b45c52": "../../../src/Aether.Core/Pages/gift-board/fonts/NotoSansSC-800.woff2",
+ "69330285f253f054e7bb178b6fff3d39": "textures/prankster-pose-1.webp",
+ "966738786a3974609547ab5e195a7091": "textures/prankster-pose-2.webp",
+ "c569acd9196f2ef646b70823faf3397b": "textures/prankster-pose-3.webp",
+ "a6f0e91b410053b07d795eba9aab2156": "textures/pose-13-game.webp",
+ "bbb235ed3f7d36b82d18d5a3594dd3dd": "textures/pose-14-game2.webp",
+ "bdb5eb6af046d86d3bb54721fc9e0375": "textures/pose-15-game3.webp",
+ "f0eaea14b9627e67975c523920f897ee": "textures/prankster-pose-4.webp",
+ "2f73ffc680205493fd004b1269dadd9e": "textures/prankster-pose-5.webp",
+ "1329c4efbcf74a0543e529452fcd0f0c": "textures/chest.webp",
+ "b9b32608a652d2fe0fb06547a524d1a7": "textures/chest-open.webp",
+ "7d5aadb1014a0604dca599322d154b44": "textures/chest-ring.webp",
+ "40f7a969d7b5d309fa335d1b82463aa4": "textures/pose-16-game4.webp",
+ "7f1bdec14fd8c0adb92b1dcda9d9101c": "textures/sprite-pose-3.webp",
+ "fb535ac670df0a16f180c507177f5290": "textures/frames/hairSmoothCry.webp",
+ "f05358293c2d033822557cc82652a21f": "textures/frames/hairSmoothCheer.webp",
+ "c3d90594971051886d496f52158e0599": "textures/frames/robbedGloomy.webp"
 }
