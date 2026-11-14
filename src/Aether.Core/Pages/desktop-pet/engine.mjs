@@ -397,15 +397,16 @@ export class Engine extends EventTarget {
   // the big one. A castle in the round plays the castle instead. Boxes thrown open nothing, though a castle still plays.
   blindBox(b) {
     const { told, hit } = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
-    if (!told.length && hit.n && !b.castle) return;
     // A round's castle plays once: waiting on its 盲盒播报, with the result that tells the boxes up to it (a result before
-    // it plays nothing, the castle standing in for it); another opened in a round that already played one, not again.
-    const reached = told.filter(t => t.castle && t.told >= t.castleAt), played = told.some(t => t.played === CASTLE && !t.castle);
+    // it plays nothing, the castle standing in for it); another opened in a round that already played one, thrown at the
+    // 捣蛋鬼 too (hit.rounds), not again.
+    const reached = told.filter(t => t.castle && t.told >= t.castleAt), played = [...told, ...hit.rounds].some(t => t.played === CASTLE && !t.castle);
     if (reached.length || b.castle && !played) {
       for (const t of reached) t.castle = false;
+      for (const t of hit.rounds) t.played = CASTLE;
       return this.fire('castle', { nickname: b.nickname, round: r });
     }
-    if (told.some(t => t.played === CASTLE)) return;
+    if (!told.length && hit.n || told.some(t => t.played === CASTLE)) return;
     // shortcut: a 盲盒播报 tells what its boxes opened only all together, so the ending, the jackpot and the gift named of those
     // not thrown are the whole report's (its 赚亏 as a share of what it cost); tell each box's opening if they must be apart.
     const jackpot = b.bestPrice >= bigGift, spend = b.tally.spend - hit.spend;
@@ -413,17 +414,18 @@ export class Engine extends EventTarget {
       { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes - hit.n, shaken: !!r, round: r });
   }
 
-  // The rounds a result tells, and how many of its boxes were thrown at the 捣蛋鬼 and what they cost (hit): a 盲盒播报 reports
-  // every box sent before it went out, in the order they came (unopen), thrown or not and over however many 一轮送礼, and none
-  // sent while it went out, which wait for their own. A round is done once it ended and all is told.
+  // The rounds a result tells, and how many of its boxes were thrown at the 捣蛋鬼, what they cost and the 一轮送礼 they were
+  // thrown in (hit): a 盲盒播报 reports every box sent before it went out, in the order they came (unopen), thrown or not and
+  // over however many 一轮送礼, and none sent while it went out, which wait for their own. A round is done once it ended and
+  // all is told.
   tell(b) {
-    const told = [], boxes = this.unopened.get(b.uid) ?? [], hit = { n: 0, spend: 0 };
+    const told = [], boxes = this.unopened.get(b.uid) ?? [], hit = { n: 0, spend: 0, rounds: [] };
     let left = b.boxes;
     for (let s; left > 0 && (s = boxes[0]);) {
       const n = Math.min(left, s.n);
       left -= n; s.n -= n;
       if (!s.n) boxes.shift();
-      if (!s.r) { hit.n += n; hit.spend += n * s.price; continue; }
+      if (!s.r) { hit.n += n; hit.spend += n * s.price; hit.rounds.push(s.thrown); continue; }
       s.r.told += n;
       if (!told.includes(s.r)) told.push(s.r);
       if (s.r.ended && s.r.told === s.r.boxes) this.rounds.splice(this.rounds.indexOf(s.r), 1);
@@ -432,10 +434,10 @@ export class Engine extends EventTarget {
   }
 
   // A viewer's boxes not yet opened, in the order they came: a gift message's (GiftItem), n of them at price each, in her round
-  // r or thrown at the 捣蛋鬼 (r null).
-  unopen(uid, r, { count, spend }) {
+  // r or thrown at the 捣蛋鬼 (r null) in the 一轮送礼 thrown (its v.by).
+  unopen(uid, r, { count, spend }, thrown) {
     if (!this.unopened.has(uid)) this.unopened.set(uid, []);
-    this.unopened.get(uid).push({ r, n: count, price: spend / count });
+    this.unopened.get(uid).push({ r, thrown, n: count, price: spend / count });
   }
 
   // A gift message thrown at the 捣蛋鬼 counts for her 心情 as any gift: the first place it took is not crowned (crown), and its
@@ -443,7 +445,7 @@ export class Engine extends EventTarget {
   threw(p, now) {
     this.gifted(now);
     this.crowns.delete(p.uid);
-    for (const item of p.items) if (item.blind) this.unopen(p.uid, null, item);
+    for (const item of p.items) if (item.blind) this.unopen(p.uid, null, item, this.gm.visit.by.get(p.uid));
   }
 
   entry(e) { this.fire('entry', { nickname: e.nickname }); }

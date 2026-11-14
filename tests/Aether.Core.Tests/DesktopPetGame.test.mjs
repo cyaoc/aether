@@ -289,6 +289,20 @@ test('a castle thrown at the 捣蛋鬼 plays once, and a blind box sent after it
   assert.equal(playing(pet), 'blindBoxSmall');
 });
 
+test('two castles thrown at the 捣蛋鬼 in one 一轮送礼 play the castle once and nothing else, their 盲盒播报 coming apart', () => {
+  // (and no 日常小动作 after)
+  const pet = visited({ off: ['hum', 'gym', 'hike', 'bike', 'ski'] }), shows = new Set(), seen = () => { if (pet.cur) shows.add(pet.cur); };
+  const result = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, boxes: 1, bestGift: '浪漫城堡', bestPrice: 2233000, castle: true };
+  pet.gift(box(2, 1, { name: '浪漫城堡', castle: true }));
+  play(pet, 1000);
+  pet.gift(box(2, 1, { name: '浪漫城堡', castle: true }));
+  pet.blindBox(result);
+  play(pet, 1000, seen);
+  pet.blindBox(result);
+  play(pet, 30000, seen);
+  assert.deepEqual([...shows].map(show => show.name), ['castle']);
+});
+
 test('a new first place taken while the 捣蛋鬼 is here is not crowned after it leaves, in a 一轮送礼 begun before it came too', () => {
   const pet = gamePet(character), seen = new Set();
   pet.gift(gifts(9, 100));
