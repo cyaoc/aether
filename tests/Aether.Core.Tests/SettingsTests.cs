@@ -214,11 +214,13 @@ public sealed class SettingsTests : IAsyncDisposable
 
     // The fixture is the frozen v0.6.1 Template, the last of format 1; keep it unchanged.
     [Theory]
-    [InlineData("本月盲盒", "捣乱")]
-    [InlineData("捣乱", "帮它")]
-    public void Upgrade_gives_a_file_with_a_blind_box_query_of_捣蛋_a_helper_keyword_no_query_is(string monthly, string helper)
+    [InlineData("本月盲盒", "今年盲盒", "捣乱")]
+    [InlineData("捣乱", "今年盲盒", "帮它")]
+    [InlineData("捣乱", "帮它", "帮捣蛋")]
+    public void Upgrade_gives_a_file_with_a_blind_box_query_of_捣蛋_a_helper_keyword_no_query_is(string monthly, string yearly, string helper)
     {
-        var old = Fixture("settings-v0.6.1.yml").Replace("daily_keyword: 今日盲盒", "daily_keyword: 捣蛋").Replace("monthly_keyword: 本月盲盒", "monthly_keyword: " + monthly);
+        var old = Fixture("settings-v0.6.1.yml").Replace("daily_keyword: 今日盲盒", "daily_keyword: 捣蛋").Replace("monthly_keyword: 本月盲盒", "monthly_keyword: " + monthly)
+            .Replace("yearly_keyword: 今年盲盒", "yearly_keyword: " + yearly);
         Write(old);
 
         var settings = Settings.Load(harness.DataDirectory);
@@ -227,6 +229,36 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal((1, helper), (settings.UpgradedFromVersion, settings.DesktopPetPranksterKeyword.Value));
         Assert.Equal(old.Replace("format_version: 1", "format_version: 2").Replace("desktop_pet:\n", "desktop_pet:\n  prankster_keyword: " + helper + "\n"),
             File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("desktop_pet:\n")]
+    [InlineData("desktop_pet:")]
+    public void Upgrade_gives_an_empty_desktop_pet_group_a_helper_keyword(string group)
+    {
+        Write("format_version: 1\nblind_box:\n  daily_keyword: 捣蛋\n" + group);
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Null(settings.Error);
+        Assert.Equal((1, "捣乱"), (settings.UpgradedFromVersion, settings.DesktopPetPranksterKeyword.Value));
+        Assert.StartsWith("format_version: 2\nblind_box:\n  daily_keyword: 捣蛋\ndesktop_pet:\n  prankster_keyword: 捣乱\n", File.ReadAllText(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("!!str blind_box:\n  daily_keyword: 捣蛋\ndesktop_pet:\n  enabled: false\n",
+        "format_version: 2\n!!str blind_box:\n  daily_keyword: 捣蛋\ndesktop_pet:\n  prankster_keyword: 捣乱\n  enabled: false\n", "捣乱")]
+    [InlineData("blind_box:\n  daily_keyword: 捣蛋\n!!str desktop_pet:\n  !!str prankster_keyword: 帮它\n",
+        "format_version: 1\nblind_box:\n  daily_keyword: 捣蛋\n!!str desktop_pet:\n  !!str prankster_keyword: 帮它\n", "帮它")]
+    public void Upgrade_finds_tagged_keys_as_Settings_reads_them(string groups, string upgraded, string helper)
+    {
+        Write("format_version: 1\n" + groups);
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Null(settings.Error);
+        Assert.Equal(helper, settings.DesktopPetPranksterKeyword.Value);
+        Assert.StartsWith(upgraded, File.ReadAllText(SettingsPath));
     }
 
     [Fact]

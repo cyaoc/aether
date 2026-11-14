@@ -79,6 +79,10 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     [InlineData("format_version: 2\nblind_box:\n  daily_keyword: 捣蛋\n", "blind_box.daily_keyword", 3, Settings.BlindBoxKeywordIsPrankster)]
     [InlineData("blind_box:\n  monthly_keyword: 帮它\ndesktop_pet:\n  prankster_keyword: \" 帮它 \"\n", "desktop_pet.prankster_keyword", 4,
         Settings.PranksterKeywordIsBlindBox)]
+    // (keys found by their names, as Settings reads them, a tagged one too)
+    [InlineData("format_version: 2\n!!str blind_box:\n  !!str daily_keyword: 捣蛋\n", "blind_box.daily_keyword", 3, Settings.BlindBoxKeywordIsPrankster)]
+    [InlineData("blind_box:\n  monthly_keyword: 帮它\n!!str desktop_pet:\n  !!str prankster_keyword: 帮它\n", "desktop_pet.prankster_keyword", 4,
+        Settings.PranksterKeywordIsBlindBox)]
     public void A_file_whose_helper_keyword_is_a_blind_box_query_keyword_reports_it(string yaml, string name, long line, string reason)
     {
         Write(yaml);

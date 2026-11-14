@@ -283,8 +283,12 @@ public sealed partial class Settings
 
     /// <summary>The node <paramref name="definition"/> is read from, if <paramref name="root"/> has it.</summary>
     private static YamlNode? NodeOf(YamlMappingNode root, Definition definition) =>
-        root.Children.TryGetValue(new YamlScalarNode(definition.Group), out var node) && node is YamlMappingNode group
-        && group.Children.TryGetValue(new YamlScalarNode(definition.Name.Split('.')[1]), out var field) ? field : null;
+        ChildOf(ChildOf(root, definition.Group), definition.Name.Split('.')[1]);
+
+    /// <summary>The value of <paramref name="node"/>'s first key named <paramref name="key"/>, matched by name as Read matches it, so a
+    /// tagged key such as `!!str blind_box` is found too; null when <paramref name="node"/> is no mapping or has no such key.</summary>
+    internal static YamlNode? ChildOf(YamlNode? node, string key) =>
+        (node as YamlMappingNode)?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: var name } && name == key).Value;
 
     private static SettingsException? ValidateOrder(YamlMappingNode root, string path, (Definition<int>[] Definitions, NumberOrder Order, string Rule) numbers)
     {

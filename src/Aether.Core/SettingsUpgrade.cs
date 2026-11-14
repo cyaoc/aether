@@ -1,3 +1,4 @@
+using YamlDotNet.Core;
 using YamlDotNet.Core.Events;
 using YamlDotNet.RepresentationModel;
 using Tokens = YamlDotNet.Core.Tokens;
@@ -11,9 +12,9 @@ internal static class SettingsUpgrade
     // The 0.2.x spellings, frozen here rather than read from Settings.WelcomeGuards, which may change.
     private static readonly string[] V0Guards = ["关闭", "舰长", "提督", "总督"];
 
-    // Format 1's 盲盒查询 keywords, and the 帮它的关键字 such a file may be given, the first that is none of them; frozen as
-    // V0Guards is.
-    private static readonly string[] V1BlindBoxQueries = ["daily_keyword", "monthly_keyword", "yearly_keyword"], V1HelperKeywords = ["捣乱", "帮它"];
+    // Format 1's 盲盒查询 keywords, and the 帮它的关键字 such a file may be given, the first that is none of them: one of the three
+    // is 「捣蛋」, so the other two take two at most. Frozen as V0Guards is.
+    private static readonly string[] V1BlindBoxQueries = ["daily_keyword", "monthly_keyword", "yearly_keyword"], V1HelperKeywords = ["捣乱", "帮它", "帮捣蛋"];
 
     internal static string Apply(string source, int version, string path)
     {
@@ -103,36 +104,34 @@ internal static class SettingsUpgrade
 
     /// <summary>The 帮它的关键字 came after format 1, 「捣蛋」 where a file leaves it out, and may be no 盲盒查询 keyword. A file that
     /// leaves it out beside a 盲盒查询 keyword of 「捣蛋」 is given the first of <see cref="V1HelperKeywords"/> no 盲盒查询 keyword
-    /// is (neither is the 报名抽奖's default, 「抽奖」), first in its desktop_pet group or in a new one; with none left, the file
-    /// is left to report the clash.</summary>
+    /// is (none is the 报名抽奖's default, 「抽奖」), first in its desktop_pet group, an empty one too, or in a new one.</summary>
     private static string UpgradeV1(string source, string path)
     {
         var yaml = new YamlStream();
         yaml.Load(new StringReader(source));
         var root = (YamlMappingNode)yaml.Documents[0].RootNode;
-        var queries = V1BlindBoxQueries.Select(name => (Child(Child(root, "blind_box"), name) as YamlScalarNode)?.Value?.Trim()).ToArray();
-        var group = Child(root, "desktop_pet");
-        var keyword = V1HelperKeywords.FirstOrDefault(keyword => !queries.Contains(keyword));
-        if (!queries.Contains("捣蛋") || Child(group, "prankster_keyword") is not null || keyword is null) return source;
+        var queries = V1BlindBoxQueries.Select(name => (Settings.ChildOf(Settings.ChildOf(root, "blind_box"), name) as YamlScalarNode)?.Value?.Trim()).ToArray();
+        var group = Settings.ChildOf(root, "desktop_pet");
+        if (!queries.Contains("捣蛋") || Settings.ChildOf(group, "prankster_keyword") is not null) return source;
         if (root.Style != MappingStyle.Block || !root.Anchor.IsEmpty) throw CannotEdit(path, root);
         var tokens = Settings.Scan(source);
         var newline = Settings.NewlineOf(source);
-        var line = "prankster_keyword: " + keyword + newline;
-        if (group is null)
+        var indent = new string(' ', (int)tokens.OfType<Tokens.BlockMappingStart>().First().Start.Column - 1);
+        var line = "prankster_keyword: " + V1HelperKeywords.First(keyword => !queries.Contains(keyword)) + newline;
+        var (at, text) = group switch
         {
-            var end = (int)(tokens.OfType<Tokens.DocumentEnd>().FirstOrDefault()?.Start.Index ?? source.Length);
-            var indent = new string(' ', (int)tokens.OfType<Tokens.BlockMappingStart>().First().Start.Column - 1);
-            var lead = end > 0 && !Settings.LineBreaks.Contains(source[end - 1]) ? newline : "";
-            return source.Insert(end, lead + indent + "desktop_pet:" + newline + indent + "  " + line);
-        }
-        if (group is not YamlMappingNode { Style: MappingStyle.Block } mapping || !mapping.Anchor.IsEmpty) throw CannotEdit(path, group);
-        var key = root.Children.Keys.First(key => key is YamlScalarNode { Value: "desktop_pet" });
-        var column = tokens.OfType<Tokens.BlockMappingStart>().First(token => token.Start.Index >= mapping.Start.Index).Start.Column;
-        return source.Insert(LineEnd(source, (int)key.End.Index), new string(' ', (int)column - 1) + line);
-    }
+            null => ((int)(tokens.OfType<Tokens.DocumentEnd>().FirstOrDefault()?.Start.Index ?? source.Length), indent + "desktop_pet:" + newline + indent + "  " + line),
+            // (every setting of it commented out, which Settings reads as an empty group)
+            YamlScalarNode { Style: ScalarStyle.Plain, Value: "" } when group.Anchor.IsEmpty => (AfterGroupKey(), indent + "  " + line),
+            YamlMappingNode { Style: MappingStyle.Block } mapping when mapping.Anchor.IsEmpty => (AfterGroupKey(), new string(' ',
+                (int)tokens.OfType<Tokens.BlockMappingStart>().First(token => token.Start.Index >= mapping.Start.Index).Start.Column - 1) + line),
+            _ => throw CannotEdit(path, group),
+        };
+        var lead = at > 0 && !Settings.LineBreaks.Contains(source[at - 1]) ? newline : "";
+        return source.Insert(at, lead + text);
 
-    private static YamlNode? Child(YamlNode? node, string key) =>
-        node is YamlMappingNode mapping && mapping.Children.TryGetValue(new YamlScalarNode(key), out var child) ? child : null;
+        int AfterGroupKey() => LineEnd(source, (int)root.Children.Keys.First(key => key is YamlScalarNode { Value: "desktop_pet" }).End.Index);
+    }
 
     /// <summary>Marks a file the steps changed as the current format: its format_version, or one above the comments that lead its
     /// first group, as in Template, so they stay with the group they describe.</summary>
@@ -143,8 +142,7 @@ internal static class SettingsUpgrade
         var root = (YamlMappingNode)yaml.Documents[0].RootNode;
         var tokens = Settings.Scan(source);
         var version = CurrentVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        // (matched as Settings reads it, a tagged key too)
-        if (root.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "format_version" }).Value is { } current)
+        if (Settings.ChildOf(root, "format_version") is { } current)
         {
             var (start, length, value) = ScalarEdit(tokens, current, version, path);
             return source.Remove(start, length).Insert(start, value);
