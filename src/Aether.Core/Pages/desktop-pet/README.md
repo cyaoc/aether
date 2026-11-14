@@ -49,7 +49,7 @@ Of the events, these carry what the 宝箱小游戏 counts, by what the viewer p
 A `danmaku` tells only `uid`, `nickname` and `joins`, whether it is the 帮它的关键字 saved last (Core compares the two trimmed, as
 a 报名抽奖 compares its keyword): what a viewer wrote never reaches the stream. The account's own danmaku, the bot's thanks,
 welcomes and 盲盒播报 coming back from B站, are not told. `summon` is the streamer's 叫它来: the 捣蛋鬼 comes once the show she
-plays is over. The page reports the 捣蛋鬼 setting off, called or on its own, with `POST /desktop-pet/report?visit=start`, and
+plays is over, and the blind boxes she shakes for their 盲盒播报 opened. The page reports the 捣蛋鬼 setting off, called or on its own, with `POST /desktop-pet/report?visit=start`, and
 leaving with `?visit=end`, also when it leaves before it set off, as when a PK starts or the room disconnects; from these Core
 tells the GUI whether it is on its way or on the page.
 

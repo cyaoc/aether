@@ -808,9 +808,9 @@ export class Engine extends EventTarget {
   bank(spend) { this.gm.chest += spend; this.gm.pile++; }
 
   // The 来访's clock. It comes on its own at most once in pranksterMinutes, in a connected room when someone is about, and once
-  // called; then, the room still connected, once its pictures are there and she plays nothing, a show or a 试演 (a 一轮送礼
-  // going on does not keep it waiting), no lottery is drawn (lotOf, whether its show is on or not) and no PK is on. Then each
-  // phase runs its time, and the tug its countdown.
+  // called; then, the room still connected, once its pictures are there and she plays nothing, a show, a 试演 or a round's
+  // blind boxes shaken for their 盲盒播报 (shaking; a 一轮送礼 of gifts going on does not keep it waiting), no lottery is drawn
+  // (lotOf, whether its show is on or not) and no PK is on. Then each phase runs its time, and the tug its countdown.
   gameUpdate(now) {
     const gm = this.gm, v = gm.visit, dt = now - (gm.clock ?? now), every = this.settings.pranksterMinutes * 60000;
     gm.clock = now;
@@ -819,7 +819,7 @@ export class Engine extends EventTarget {
     if (gm.out && (gm.out.got != null ? now - gm.out.got >= gm.out.ms - gm.out.t2 && !(this.sv?.x > -50) : now - gm.out.at >= gm.out.ms + 6000)) gm.out = null;
     if (!v) {
       if (this.room && every && now - gm.last >= every && now - this.lastAny < GAME.about) gm.due = true;
-      if (gm.due && this.room && this.gameLoaded && !this.cur && !this.trial && !lotOf(this.lottery) && !gm.pk) this.startVisit(now);
+      if (gm.due && this.room && this.gameLoaded && !this.cur && !this.trial && !this.shaking() && !lotOf(this.lottery) && !gm.pk) this.startVisit(now);
       return;
     }
     // what is thrown waits while the chest is in the air, until the 捣蛋鬼 is on its feet again, and while the lightning plays;

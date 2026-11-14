@@ -218,6 +218,23 @@ test('with the room disconnected the 捣蛋鬼 does not come on its own', () => 
   assert.deepEqual([pet.gm.visit, told], [null, []]);
 });
 
+test('叫它来 waits while she shakes a viewer\'s blind box for its 盲盒播报, and brings the 捣蛋鬼 once the box\'s show is over', () => {
+  const pet = gamePet(character), told = reports(pet), inTug = new Set();
+  pet.gift(box(2, 15000));
+  pet.summon();
+  play(pet, 3000);
+  pet.gift(round(2, { ended: true }));
+  play(pet, 5000);
+  assert.deepEqual(told, []);
+  pet.blindBox({ uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 });
+  assert.deepEqual([playing(pet), told], ['blindBoxSmall', []]);
+  play(pet, 2000);
+  assert.deepEqual(told, ['start']);
+  // nothing of the round is drawn on her in the tug: no shaking, no gift flying into her arms
+  play(pet, 15000, st => { if (pet.gm.visit?.phase === 'tug') for (const [fx] of st.fx) inTug.add(fx); });
+  assert.deepEqual([...inTug].filter(fx => ['shakeMarks', 'giftArc'].includes(fx)), []);
+});
+
 test('the 捣蛋鬼 due while a 试演 plays does not come once the room is disconnected, and is reported gone', () => {
   const pet = gamePet(character, { pranksterMinutes: 1 }), told = reports(pet);
   pet.testShow({ show: 'bored', variant: null, nickname: '', id: 1 });
