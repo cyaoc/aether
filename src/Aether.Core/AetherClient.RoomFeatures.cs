@@ -129,17 +129,13 @@ public sealed partial class AetherClient
 
     private sealed class BlindBoxQueryFeature(Settings settings, SendQueue sendQueue, ILogger logger) : IRoomFeature
     {
-        private readonly string dailyKeyword = settings.BlindBoxDailyKeyword.Value.Trim();
-        private readonly string monthlyKeyword = settings.BlindBoxMonthlyKeyword.Value.Trim();
-        private readonly string yearlyKeyword = settings.BlindBoxYearlyKeyword.Value.Trim();
-
         public void Handle(RoomEvent e)
         {
             if (e is not DanmakuProtocol.DanmakuReceived { Danmaku: var danmaku }) return;
-            var text = danmaku.Content.Trim();
-            BlindBoxPeriod? period = text == dailyKeyword ? BlindBoxPeriod.Daily
-                : text == monthlyKeyword ? BlindBoxPeriod.Monthly
-                : text == yearlyKeyword ? BlindBoxPeriod.Yearly : null;
+            // By the rule that keeps the 帮它的关键字 apart from these (Settings.ValidateAcross).
+            BlindBoxPeriod? period = Settings.SameKeyword(danmaku.Content, settings.BlindBoxDailyKeyword.Value) ? BlindBoxPeriod.Daily
+                : Settings.SameKeyword(danmaku.Content, settings.BlindBoxMonthlyKeyword.Value) ? BlindBoxPeriod.Monthly
+                : Settings.SameKeyword(danmaku.Content, settings.BlindBoxYearlyKeyword.Value) ? BlindBoxPeriod.Yearly : null;
             if (period is { } matched)
             {
                 if (danmaku.Uid == 0)
