@@ -22,7 +22,7 @@ const boxResult = (uid, spend, openedValue, bestPrice = 9000) => ({ uid, nicknam
 // A viewer's blind box opening a castle, the only way B站 gives one, and its 盲盒播报.
 const castle = (engine, uid) => {
   engine.gift(box(uid, 1, { castle: true }));
-  engine.blindBox({ ...boxResult(uid, 15000, 2233000, 2233000), castle: true });
+  engine.blindBox(boxResult(uid, 15000, 2233000, 2233000));
 };
 // The lottery on air, as the 桌宠页's state carries it (LotteryState.cs), and the lottery's steps she plays and has queued.
 const onAir = (engine, lottery) => engine.receive(state(engine, { lottery }));
@@ -229,7 +229,7 @@ test('a castle opened while an earlier 盲盒播报 went out plays once, with th
   assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'shakeBox']);
 
   engine.gift(round(1, { ended: true }));
-  engine.blindBox({ ...boxResult(1, 15000, 2233000, 2233000), boxes: 1, castle: true });
+  engine.blindBox(boxResult(1, 15000, 2233000, 2233000));
   assert.deepEqual([playing(engine), engine.queue, engine.rounds], ['castle', [], []]);
 });
 
@@ -267,11 +267,11 @@ test('a castle a merged 盲盒播报 has not reached yet still plays, with the r
   engine.gift(round(1, { ended: true }));
   engine.gift(box(1));
   engine.gift(box(1, 1, { castle: true }));
-  engine.blindBox({ ...boxResult(1, 30000, 2245000, 2233000), boxes: 2, castle: true });
+  engine.blindBox({ ...boxResult(1, 30000, 2245000, 2233000), boxes: 2 });
   assert.equal(playing(engine), 'castle');
 
   engine.gift(round(1, { ended: true }));
-  engine.blindBox({ ...boxResult(1, 15000, 2233000, 2233000), boxes: 1, castle: true });
+  engine.blindBox(boxResult(1, 15000, 2233000, 2233000));
   assert.deepEqual([engine.queue.map(q => q.name), engine.rounds], [['castle'], []]);
 });
 
@@ -385,7 +385,7 @@ test('a castle opened from a blind box plays when their result comes, instead of
   engine.gift(box(2, 1, { castle: true }));
   engine.gift(gifts(2, 1000000));
   assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'shakeBox']);
-  engine.blindBox({ ...boxResult(2, 15000, 2233000, 2233000), castle: true });
+  engine.blindBox(boxResult(2, 15000, 2233000, 2233000));
   assert.equal(playing(engine), 'castle');
   advance(engine, 11500);
   assert.deepEqual([playing(engine), engine.queue], [null, []]);
@@ -505,7 +505,7 @@ test('the big shows and the lottery turned off do not play, nor a lesser show in
   const engine = pet({ off: ['castle', 'governor', 'admiral', 'captain', 'newFirst', 'lottery'] });
   castle(engine, 1);
   engine.gift(box(2, 1, { castle: true }));
-  engine.blindBox({ ...boxResult(2, 15000, 2233000, 2233000), castle: true });
+  engine.blindBox(boxResult(2, 15000, 2233000, 2233000));
   for (const guardLevel of [1, 2, 3]) engine.guard({ uid: 3, nickname: '大航海', guardLevel });
   onAir(engine, entryLottery({}));
   onAir(engine, entryLottery({ phase: 'Closed' }));

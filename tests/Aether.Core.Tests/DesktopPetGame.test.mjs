@@ -15,7 +15,7 @@ const visited = settings => { const pet = gamePet(character, settings); pet.summ
 const tugging = (chest = 500) => { const pet = gamePet(character); pet.gm.chest = chest; pet.summon(); play(pet, 12500); return pet; };
 // A viewer's blind box that opens a castle, and its 盲盒播报; the 日常小动作 turned off, for tests that see every show she plays.
 const castleBox = () => box(2, 1, { name: '浪漫城堡', castle: true });
-const castled = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, boxes: 1, bestGift: '浪漫城堡', bestPrice: 2233000, castle: true };
+const castled = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, boxes: 1, bestGift: '浪漫城堡', bestPrice: 2233000 };
 const NO_DAILY = ['hum', 'gym', 'hike', 'bike', 'ski'];
 // Every show she plays from now on, in order.
 const shown = pet => { const shows = new Set(); return [shows, () => { if (pet.cur) shows.add(pet.cur); }]; };
@@ -296,7 +296,7 @@ test('a gift sent after the 来访 is thanked for itself, not for one thrown at 
 test('a castle thrown at the 捣蛋鬼 plays once, and a blind box sent after it in the 一轮送礼 plays as a blind box', () => {
   const pet = visited(), result = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 };
   pet.gift(box(2, 1, { name: '浪漫城堡', castle: true }));
-  pet.blindBox({ ...result, tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, bestGift: '浪漫城堡', bestPrice: 2233000, castle: true });
+  pet.blindBox({ ...result, tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, bestGift: '浪漫城堡', bestPrice: 2233000 });
   assert.equal(playing(pet), 'castle');
   play(pet, 22000);
   pet.gift(box(2));
