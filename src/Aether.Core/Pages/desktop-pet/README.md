@@ -50,8 +50,8 @@ A `danmaku` tells only `uid`, `nickname` and `joins`, whether it is the 帮它�
 a 报名抽奖 compares its keyword): what a viewer wrote never reaches the stream. The account's own danmaku, the bot's thanks,
 welcomes and 盲盒播报 coming back from B站, are not told. `summon` is the streamer's 叫它来: the 捣蛋鬼 comes once the show she
 plays is over. The page reports the 捣蛋鬼 setting off, called or on its own, with `POST /desktop-pet/report?visit=start`, and
-leaving with `?visit=end`, also when it leaves before it set off, as when a PK starts; from these Core tells the GUI whether it is
-on its way or on the page.
+leaving with `?visit=end`, also when it leaves before it set off, as when a PK starts or the room disconnects; from these Core
+tells the GUI whether it is on its way or on the page.
 
 ## The page
 
@@ -146,13 +146,18 @@ the page beside the board, as the web service serves it, telling it it is on in 
 - Shows, 心情, 日常小动作, endings, lottery steps and kinds of lines go by their ids in the 演出表 rather than the board's Chinese
   names, and her lines are picked with `Math.random`, not the board's fixed seed.
 - The 宝箱小游戏 comes on its own every `pranksterMinutes`, counted from the room connecting, never at 0, or when the streamer
-  叫它来; the board's game was on or off and came every 30 minutes. It sets off once its pictures are there, and the page
-  reports it setting off and leaving. What it and she say in a 来访 are her character's lines of the groups `chestGame` and
+  叫它来; the board's game was on or off and came every 30 minutes. It sets off once its pictures are there and only in a
+  connected room: one due when the room disconnects does not come. The page reports it setting off and leaving. What it and
+  she say in a 来访 are her character's lines of the groups `chestGame` and
   `prankster` (a space breaks the 捣蛋鬼's line), the 帮它的关键字 the saved one; the board said fixed lines.
 - A gift message's gifts are thrown at the 捣蛋鬼 one by one, each with B站's icon, a little box while it loads or has none;
   the board threw boxes. What a viewer threw is kept off their 一轮送礼 when it goes on after the 来访, and a 盲盒播报 of boxes
-  thrown opens none; the board's round had them taken out. A castle scares it off when its 盲盒播报 comes; the board's stood in
-  for it 3.8 s after the box.
+  thrown opens none; the board's round had them taken out. A viewer's boxes, thrown or not, are told by their 盲盒播报 in the
+  order they came, so boxes sent after the 来访 wait for their own. A castle scares it off when its 盲盒播报 comes; the board's
+  stood in for it 3.8 s after the box.
+- What a viewer's 一轮送礼 throws at the 捣蛋鬼 beats it off once it comes to the 中礼物 threshold in all, whatever life helpers
+  gave it back; the round's gifts sent before the 来访 do not count. The board has one viewer and no rounds of what it threw:
+  there a single gift of the threshold does it.
 - Every gift thrown at the 捣蛋鬼 goes into her chest, playing nothing once it is on its way off: one landing after the gift that
   beat it off or after it was scared off, and one the lightning held back from falling when it is gone. The board's were lost.
 - A viewer is on the 捣蛋鬼's side once they send the 帮它的关键字 in the tug, counted once however often they send it, and

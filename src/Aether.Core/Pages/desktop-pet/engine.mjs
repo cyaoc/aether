@@ -360,6 +360,7 @@ export class Engine extends EventTarget {
       if (r) { r.ended = true; if (r.told === r.boxes) this.rounds.splice(this.rounds.indexOf(r), 1); }
       const t = this.thrown.get(p.uid);
       if (t) t.spend = t.count = t.boxes = 0;
+      this.gm.visit?.by.delete(p.uid);
       return;
     }
     // (every gift of the message goes into the chest or is thrown, so map rather than some)
@@ -580,7 +581,7 @@ export class Engine extends EventTarget {
   gameGift(x) {
     const gm = this.gm, v = gm.visit;
     if (!this.throwing()) { gm.chest += x.spend; gm.pile += x.count; return false; }
-    v.queue.push({ spend: x.spend, count: x.count, helper: v.helpers.has(x.uid) && v.phase === 'tug', nickname: x.nickname, icon: x.iconUrl });
+    v.queue.push({ spend: x.spend, count: x.count, helper: v.helpers.has(x.uid) && v.phase === 'tug', uid: x.uid, nickname: x.nickname, icon: x.iconUrl });
     return true;
   }
 
@@ -612,8 +613,9 @@ export class Engine extends EventTarget {
   startVisit(now) {
     const gm = this.gm;
     gm.due = false; gm.out = null;
-    // loot: there is something in the chest to fight over; helpers: the UIDs on its side in the tug
-    gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helpers: new Set(), helped: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
+    // loot: there is something in the chest to fight over; helpers: the UIDs on its side in the tug; by: the 电池 each UID's
+    // 一轮送礼 has struck it for
+    gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helpers: new Set(), by: new Map(), helped: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
     this.pkSay(gm.brag ? 'pranksterBrag' : gm.grudge ? 'pranksterGrudge' : 'pranksterPeek', now, { nickname: gm.grudge });
     gm.brag = false;
     this.visited('start');
@@ -689,13 +691,15 @@ export class Engine extends EventTarget {
   }
 
   // A gift lands. Over an empty chest the 捣蛋鬼 has one life: any gift knocks it off the page, and is the chest's first. With
-  // gifts in the chest every gift takes its 电池 off its life; a 中礼物 ends it there. A helper's gift lands on her head instead
-  // and gives the 捣蛋鬼 that much life back. She lets go of the handle, so the 捣蛋鬼, glad of it, points at her and laughs, and
-  // the chest comes a little its way (tumble), while her sprite pulls on alone; then she takes hold again. The fifth of them,
-  // counted by the gift (count, five in one message too), flattens her: she lies flat while her sprite pulls on, catches the
-  // handle lying down and is dragged a little before she is up. In the fight's last stretch she lies holding on already, and
-  // only winces. One landing once it is on its way off goes into her chest, and plays nothing (bank).
-  strike(now, { spend, count, helper, nickname }) {
+  // gifts in the chest every gift takes its 电池 off its life; a viewer's 一轮送礼 that has struck it for a 中礼物 in all (v.by;
+  // what the round sent before the 来访 went into the chest) ends it there, whatever life it was given back. A helper's gift
+  // lands on her head instead and gives the 捣蛋鬼 that much life back. She lets go of the handle, so the 捣蛋鬼, glad of it,
+  // points at her and laughs, and the chest comes a little its way (tumble), while her sprite pulls on alone; then she takes
+  // hold again. The fifth of them, counted by the gift (count, five in one message too), flattens her: she lies flat while her
+  // sprite pulls on, catches the handle lying down and is dragged a little before she is up. In the fight's last stretch she
+  // lies holding on already, and only winces. One landing once it is on its way off goes into her chest, and plays nothing
+  // (bank).
+  strike(now, { spend, count, helper, uid, nickname }) {
     const gm = this.gm, v = gm.visit;
     if (DONE.has(v.phase)) return this.bank(spend);
     if (!v.loot) {
@@ -713,7 +717,8 @@ export class Engine extends EventTarget {
     }
     Object.assign(v, { hp: v.hp - spend, hit: now }); gm.grudge = nickname;
     gm.nums.push({ at: now, text: `-${spend} ${nickname}` });
-    if (v.hp <= 0 || spend >= this.settings.midGift / COINS) this.win(now, nickname); else this.herSay('pranksterHit', now, { nickname });
+    v.by.set(uid, (v.by.get(uid) ?? 0) + spend);
+    if (v.hp <= 0 || v.by.get(uid) >= this.settings.midGift / COINS) this.win(now, nickname); else this.herSay('pranksterHit', now, { nickname });
   }
 
   // The chest has landed beside her: she starts back from the crash, then lunges for its handle and pulls. The 捣蛋鬼's life is

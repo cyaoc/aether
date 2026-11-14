@@ -120,6 +120,23 @@ test('five gifts in one message from a viewer on the 捣蛋鬼\'s side flatten h
   assert.deepEqual([poses.has('flat'), drops], [true, 1]);
 });
 
+test('what a viewer throws at the 捣蛋鬼 in one 一轮送礼 beats it off once it comes to the 中礼物 threshold, its life healed or not', () => {
+  const pet = gamePet(character), phases = [];
+  // (what the viewer sent in the round before it came went into her chest, and does not count)
+  pet.gift(gifts(1, 50000));
+  pet.gm.chest = 5000;
+  pet.summon();
+  play(pet, 20000);
+  pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
+  // the round so far and its message: viewer 1 throws 400, 400 and 200 电池, viewer 5 heals it 400 after each of the first two
+  for (const [uid, spend, thrown] of [[1, 90000, 40000], [5, 40000, 40000], [1, 130000, 40000], [5, 80000, 40000], [1, 150000, 20000]]) {
+    pet.gift(gifts(uid, spend, { items: [{ spend: thrown, count: 1, blind: false, iconUrl: '' }] }));
+    play(pet, 1000);
+    phases.push(pet.gm.visit.phase);
+  }
+  assert.deepEqual(phases, ['tug', 'tug', 'tug', 'tug', 'won']);
+});
+
 test('gifts and blind boxes thrown at the 捣蛋鬼 play nothing of hers, then or after it leaves', () => {
   const pet = visited();
   pet.gift(gifts(1, 100000));
