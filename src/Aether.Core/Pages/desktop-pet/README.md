@@ -172,3 +172,5 @@ the page beside the board, as the web service serves it, telling it it is on in 
   their gifts are a helper's; the board's buttons made any gift a helper's, and every keyword another helper.
 - A 试演 and a show turned off scare it off too, a PK as the board's button did, and a lottery is drawn, keeping it away, by
   `lotOf` whether its show is on or not.
+- A show that takes over from one that scared it off, still waiting for the chest to go home or her hair, waits for them too;
+  the board's started at once, over the chest still on the ground.

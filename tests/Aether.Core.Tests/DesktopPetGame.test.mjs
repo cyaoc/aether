@@ -247,6 +247,21 @@ test('叫它来 waits while she shakes a viewer\'s blind box for its 盲盒播�
   assert.deepEqual([...inTug].filter(fx => ['shakeMarks', 'giftArc'].includes(fx)), []);
 });
 
+test('a show taking over from one that scared the 捣蛋鬼 off waits as it did, for the chest to go home and her hair', () => {
+  const pet = tugging(), zapped = tugging();
+  zapped.gift(gifts(1, 6000));
+  play(zapped, 3000);
+  const early = [];
+  for (const p of [pet, zapped]) {
+    p.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 });
+    play(p, 500);
+    p.guard({ uid: 2, nickname: '总督', guardLevel: 1, spend: 19998000 });
+  }
+  assert.deepEqual([playing(zapped), zapped.cur.opts.frizz], ['governor', true]);
+  play(pet, 12000, () => { if (pet.gm.out && pet.now() >= pet.cur.start + pet.cur.pre) early.push(pet.now()); });
+  assert.deepEqual([playing(pet), early], ['governor', []]);
+});
+
 test('the 捣蛋鬼 due while a 试演 plays does not come once the room is disconnected, and is reported gone', () => {
   const pet = gamePet(character, { pranksterMinutes: 1 }), told = reports(pet);
   pet.testShow({ show: 'bored', variant: null, nickname: '', id: 1 });

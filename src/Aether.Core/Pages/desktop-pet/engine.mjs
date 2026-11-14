@@ -328,8 +328,10 @@ export class Engine extends EventTarget {
   }
 
   start(name, opts) {
-    this.trialOver(this.cur);
-    const now = this.now(), { dailyMinSeconds, dailyMaxSeconds } = this.settings;
+    const now = this.now(), c = this.cur, { dailyMinSeconds, dailyMaxSeconds } = this.settings;
+    this.trialOver(c);
+    // one that takes over from a show still waiting for the chest to go home, or her hair, waits for them too
+    if (c && now < c.start + c.pre) opts = { ...opts, tidy: opts.tidy || c.opts.tidy, frizz: opts.frizz || c.opts.frizz };
     const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (opts.zap && ev.zapDur) || (ev.steps?.[opts.result] ?? ev).dur;
     // one that scared the 捣蛋鬼 off waits, at most FRIZZ, for the chest to go home (and her hair to be smooth): stateAt
     this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null };
