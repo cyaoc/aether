@@ -1,10 +1,14 @@
 // The shows' effects (design package README 7.1), drawn by code on the 桌宠页's canvas, as the board draws them.
-import { FOOT, H, PAGE, ease, k01, seeded } from './engine.mjs';
+import { FOOT, H, PAGE, SETTLE, ease, k01, seeded } from './engine.mjs';
 import { SANS } from '../gift-board/paint.mjs';
 
 // Effects drawn behind her (glows, rays, focus lines, rings on the ground, speed lines); the rest go in front. (seamGlow: the
 // light of a blind box glows out around the box from behind her, so it does not whiten the box itself.)
 export const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'speed', 'spray', 'pillar', 'cloudSea', 'lightStairs', 'wake', 'skyFireworks', 'stepGlow', 'seamGlow']);
+
+/** A little gift box at x, y, b its half side, turned by rot: the gifts the shows fly in, and those the chest game throws. */
+export const giftBox = (g, x, y, b, rot = 0) => { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = '#FF9EB8'; g.strokeStyle = '#4A2E2A'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-b, -b, 2 * b, 2 * b, b * 0.3); g.fill(); g.stroke();
+  g.fillStyle = '#E8454F'; g.fillRect(-b * 0.2, -b, b * 0.4, 2 * b); g.fillRect(-b, -b * 0.2, 2 * b, b * 0.4); g.beginPath(); g.ellipse(-b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, -0.5, 0, Math.PI * 2); g.ellipse(b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, 0.5, 0, Math.PI * 2); g.fill(); g.restore(); };
 
 /** Draws effect `f`, `[type, from ms, ...]`, of state `st` around `her` box for `pet`: its trail is where the glowing sprite
  * has just been, and its castle the picture the castle's effects go by. */
@@ -19,9 +23,21 @@ export function drawFx(g, f, st, her, now, pet) {
   const glow = a => `rgba(${st.glow || '255,236,170'},${a})`;
   const star = (x, y, rad, color, a) => { g.save(); g.globalAlpha = a; g.fillStyle = color; g.beginPath(); for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4, rr = i % 2 ? rad * 0.32 : rad; g.lineTo(x + Math.cos(ang) * rr, y + Math.sin(ang) * rr); } g.closePath(); g.fill(); g.restore(); };
   const heart = (x, y, s, a) => { g.save(); g.globalAlpha = a; g.fillStyle = '#FF7FA8'; g.beginPath(); g.moveTo(x, y + s * 0.3); g.bezierCurveTo(x, y, x - s * 0.5, y, x - s * 0.5, y + s * 0.3); g.bezierCurveTo(x - s * 0.5, y + s * 0.6, x, y + s * 0.8, x, y + s); g.bezierCurveTo(x, y + s * 0.8, x + s * 0.5, y + s * 0.6, x + s * 0.5, y + s * 0.3); g.bezierCurveTo(x + s * 0.5, y, x, y, x, y + s * 0.3); g.fill(); g.restore(); };
-  const giftBox = (x, y, b, rot = 0) => { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = '#FF9EB8'; g.strokeStyle = '#4A2E2A'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-b, -b, 2 * b, 2 * b, b * 0.3); g.fill(); g.stroke();
-    g.fillStyle = '#E8454F'; g.fillRect(-b * 0.2, -b, b * 0.4, 2 * b); g.fillRect(-b, -b * 0.2, 2 * b, b * 0.4); g.beginPath(); g.ellipse(-b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, -0.5, 0, Math.PI * 2); g.ellipse(b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, 0.5, 0, Math.PI * 2); g.fill(); g.restore(); };
   switch (type) {
+    // Her frizzed hair smoothed by the sprite's magic (smooth): stars gather and circle her head (at f[2], f[3]), brightening,
+    // for f[4] before its last pat lands; then a soft glow blooms over it and they fall down her hair as glitter.
+    case 'hairMagic': {
+      const c = at(f[2], f[3]), u = t - f[4];
+      if (u > SETTLE) break;
+      const bloom = u < 0 ? 0.25 * t / f[4] : life(u, 120, 200, 650) + 0.25 * (1 - k01(u, 0, 120));
+      if (bloom) { const gr = g.createRadialGradient(c.x, c.y, 6, c.x, c.y, 105); gr.addColorStop(0, `rgba(255,250,244,${0.75 * bloom})`); gr.addColorStop(0.5, `rgba(255,214,236,${0.35 * bloom})`); gr.addColorStop(1, 'rgba(255,214,236,0)'); g.fillStyle = gr; g.fillRect(c.x - 105, c.y - 105, 210, 210); }
+      for (let i = 0; i < 18; i++) {
+        const a0 = i / 18 * Math.PI * 2 + t / 380, tw = 0.65 + 0.35 * Math.sin(t / 70 + i * 1.7), col = ['#fff', '#FFD6EC', '#FFE9A8'][i % 3];
+        if (u < 0) { const k = t / f[4]; star(c.x + Math.cos(a0) * (92 - 26 * k), c.y + Math.sin(a0) * (68 - 18 * k), (5 + 5 * k) * tw, col, 0.35 + 0.65 * k); }
+        else { const k = u / SETTLE; star(c.x + Math.cos(a0) * 66 + 6 * Math.sin(u / 160 + i), c.y + Math.sin(a0) * 50 + 150 * k * k + 30 * k, 10 * tw * (1 - 0.5 * k), col, 1 - k * k); }
+      }
+      break;
+    }
     case 'hearts': for (let i = 0; i < f[2]; i++) { const d = i * 180, u = t - d; if (u < 0 || u > 1400) continue; heart(head.x + (r() - 0.5) * 120, head.y - u * 0.09, 16 + r() * 8, 1 - u / 1400); } break;
     case 'sparkles': for (let i = 0; i < 10; i++) { const a = r() * Math.PI * 2, d = 60 + r() * 90, u = t - r() * 400; if (u < 0 || u > 1200) continue; star(head.x + Math.cos(a) * d, head.y + 30 + Math.sin(a) * d * 0.7, 9 + r() * 7, r() < 0.5 ? '#FFE27A' : '#fff', Math.sin(Math.PI * u / 1200)); } break;
     case 'confetti': { if (t > 2600) break; const colors = ['#FF7FA8', '#FFD45E', '#7FD3FF', '#B9F28A', '#fff']; for (let i = 0; i < 40; i++) { const vx = (r() - 0.5) * 0.5, vy = -0.55 - r() * 0.35, u = t; const x = FOOT.x + vx * u, y = FOOT.y - H * 0.6 + vy * u + 0.00045 * u * u; g.save(); g.globalAlpha = 1 - k01(u, 1800, 2600); g.fillStyle = colors[i % 5]; g.translate(x, y); g.rotate(u / 200 + i); g.fillRect(-4, -2, 8, 4); g.restore(); } break; }
@@ -225,7 +241,7 @@ export function drawFx(g, f, st, her, now, pet) {
       for (let i = 0; i < n; i++) {
         const side = i % 2 ? -1 : 1, u = t - i * 240; if (u < 0) continue;
         const from = { x: side > 0 ? PAGE.w + 20 : -20, y: her.y + 30 }, ctl = { x: side > 0 ? PAGE.w - 50 : 50, y: her.y - 120 }, p = Math.min(1, u / 600), q = 1 - p;
-        if (u < 600) { const x = q * q * from.x + 2 * q * p * ctl.x + p * p * hands.x, y = q * q * from.y + 2 * q * p * ctl.y + p * p * (hands.y - i * 6); giftBox(x, y, 12, u / 200); }
+        if (u < 600) { const x = q * q * from.x + 2 * q * p * ctl.x + p * p * hands.x, y = q * q * from.y + 2 * q * p * ctl.y + p * p * (hands.y - i * 6); giftBox(g, x, y, 12, u / 200); }
         else if (u < 850) for (let j = 0; j < 8; j++) { const ang = j * Math.PI / 4, d = 10 + (u - 600) * 0.12; star(hands.x + Math.cos(ang) * d, hands.y - i * 6 + Math.sin(ang) * d, 6, j % 2 ? glow(1) : '#FFB3D1', 1 - (u - 600) / 250); }
       }
       break;
@@ -236,7 +252,7 @@ export function drawFx(g, f, st, her, now, pet) {
       if (t > 900) break;
       const top = at(0.5, -0.06), p = t / 900, y = top.y - H * 0.9 * (1 - p * p);
       g.save(); g.globalAlpha = 0.5; g.strokeStyle = '#E8454F'; g.lineWidth = 3; g.beginPath(); g.moveTo(top.x - 8, y - 30); g.quadraticCurveTo(top.x + 10 * Math.sin(t / 90), y - 70, top.x + 4, y - 110); g.stroke(); g.restore();
-      giftBox(top.x, y, 20, Math.sin(t / 160) * 0.2); break;
+      giftBox(g, top.x, y, 20, Math.sin(t / 160) * 0.2); break;
     }
     // the blind box's seams leak the colour of what is inside before it opens
     case 'seamGlow': {
@@ -271,7 +287,7 @@ export function drawFx(g, f, st, her, now, pet) {
         const vx = (r() - 0.5) * 0.55, vy = -0.75 - r() * 0.45, kind = i % 3, x = c.x + vx * u, y = c.y + vy * u + 0.0007 * u * u, a = 1 - k01(t, dur - 500, dur);
         if (kind === 0) star(x, y, 9 + r() * 6, i % 2 ? glow(1) : '#fff', a);
         else if (kind === 1) heart(x, y, 14 + r() * 6, a);
-        else { g.save(); g.globalAlpha = a; giftBox(x, y, 9, u / 200); g.restore(); }
+        else { g.save(); g.globalAlpha = a; giftBox(g, x, y, 9, u / 200); g.restore(); }
       }
       break;
     }

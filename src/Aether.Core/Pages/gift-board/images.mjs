@@ -11,7 +11,7 @@ export const GUARD_FRAME = {
 export const GUARD_BADGE = { 1: BADGE_ROOT + 'icon-guard1.png', 2: BADGE_ROOT + 'icon-guard2.png', 3: BADGE_ROOT + 'icon-guard3.png' };
 
 // The image host answers a Referer from another site with 403, and none with 200 and `Access-Control-Allow-Origin: *`.
-const REMOTE = { referrerPolicy: 'no-referrer', crossOrigin: 'anonymous' };
+export const REMOTE = { referrerPolicy: 'no-referrer', crossOrigin: 'anonymous' };
 // A picture that failed to load is tried again this long after, up to LOADS loads in all.
 export const RETRY_MS = 10000;
 const LOADS = 3;

@@ -62,23 +62,50 @@ moment) and its drawing `pet.mjs` and `effects.mjs`, ported function for functio
 event above to the engine's handler of the same name. The board's numbers measured on her pictures are the current
 character's `desktopPet` (`../characters/README.md`); the shows' timings, effects and the sprite's ways stay here, the same for
 every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps, entries, gifts, blind boxes,
-castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`) and each step of a lottery.
+castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`) and each step of a lottery;
+and the 宝箱小游戏 (below).
 
 Her speech bubbles and the effects' marks are in the 礼物榜页's Noto Sans SC (`../gift-board/fonts/noto-sans-sc.css`, `SANS`
 of `../gift-board/paint.mjs`), loaded before she says anything; the stream's PC need not have the board's PingFang SC.
 
 The page is 480 × 640 design px, scaled with the browser source and standing on its bottom edge, and draws her pictures at
 their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作, the castle, 大航海 and the
-lottery, each with its strips when it first plays (the lottery's too when she first waits through one): all of them decoded
-take about 574 MB. A pose whose sheet is still loading keeps her in the drawing she has.
+lottery, each with its strips when it first plays (the lottery's too when she first waits through one), and the 宝箱小游戏's,
+hers and the 捣蛋鬼's, when it is first to come: all of them decoded take about 574 MB, the game's more. A pose whose sheet is
+still loading keeps her in the drawing she has.
+
+## The 宝箱小游戏
+
+The design package's README 12 and its board with `game` 开 are the game; the page plays it as the board does, its engine in
+`engine.mjs` (the 来访's clock, `gameUpdate`, and where everything is at a moment, `gameState`) and its drawing in `pet.mjs`
+(`drawGame`). Nothing of it is drawn while the 捣蛋鬼 is away, and her shows are as they were.
+
+The 捣蛋鬼's drawings, its loops and in-betweens, and the chest's are the same for every character, in `prankster/`; its
+`prankster.json`:
+
+| Field | What |
+|---|---|
+| `anchor` | How tall the standing drawing the chest was drawn beside is, in the chest's px |
+| `sheets`, `poses`, `strips`, `transitions`, `frames` | Its pose sheets (3 × 2, the first cell its idle drawing, the ruler), its poses' `[sheet, cell]`, its loops and its in-betweens, as a character's |
+| `cuts` | Its changes of pose with no in-betweens, where it simply switches (it ducks out of sight, falls, tumbles, is knocked away; turning round it always switches) |
+| `props` | The chest, shut and open, and the ring picture each of its two handles is |
+| `ring` | In the chest's px: the link a ring hangs from, in from the chest's side and up from its foot; the point of the ring's picture it hangs from; from there to the middle of its band on the far side |
+| `lid` | Where her sprite takes hold of the open lid to pull with her, in from the chest's side and up from its foot |
+
+Her chest at home, 连守 and what the 捣蛋鬼 remembers (who hit it last, whether it got away with the chest) live in the page
+alone: they start from nothing when a room connects and are gone when the page reloads or the 桌宠 is switched off. Amounts
+come from Core in 金瓜子 and are counted in 电池, as the board says them.
 
 The page's checks against the board, for whoever changes it or her pictures. The design package's `tools/server.mjs` serves
 the page beside the board, as the web service serves it, telling it it is on in a connected room with the default settings:
 `node docs/design/desktop-pet/tools/server.mjs 8820`.
 
-- `DesktopPetCharacters.test.mjs` (`node --test`) finds every change of pose in her shows with no way across.
-- `scripts/desktop-pet/compare.mjs --port 8820` plays every show, 心情 and round on the page and the board from one seed, frame
-  by frame on one clock, and compares their pixels. `DesktopPetBrowserTests` runs it, about half a minute, when
+- `DesktopPetCharacters.test.mjs` (`node --test`) finds every change of pose in her shows with no way across, and on the
+  宝箱小游戏's routes every change of hers with none and of the 捣蛋鬼's with neither in-betweens nor a cut written down.
+  `DesktopPetGame.test.mjs` checks when the 捣蛋鬼 comes and goes, what scares it off and what goes into her chest.
+- `scripts/desktop-pet/compare.mjs --port 8820` plays every show, 心情 and round, and the 宝箱小游戏's routes of the design
+  package's `tools/check-game.mjs` (played on the page by `scripts/desktop-pet/routes.mjs`), on the page and the board from one
+  seed, frame by frame on one clock, and compares their pixels. `DesktopPetBrowserTests` runs it, about two minutes, when
   `AETHER_TEST_CHROME` is set.
 - `node docs/design/desktop-pet/tools/motion-scan.mjs 8820 --page` finds the sprite moving more than 20 px in a frame. It plays
   every show in real time, about eleven minutes, too long for a test: run it after changing the sprite's flight, its circling, a toss or
@@ -119,3 +146,15 @@ the page beside the board, as the web service serves it, telling it it is on in 
   冷场后来了人's, which the streamer may now change or take away.
 - Shows, 心情, 日常小动作, endings, lottery steps and kinds of lines go by their ids in the 演出表 rather than the board's Chinese
   names, and her lines are picked with `Math.random`, not the board's fixed seed.
+- The 宝箱小游戏 comes on its own every `pranksterMinutes`, counted from the room connecting, never at 0, or when the streamer
+  叫它来; the board's game was on or off and came every 30 minutes. It sets off once its pictures are there, and the page
+  reports it setting off and leaving. What it and she say in a 来访 are her character's lines of the groups `chestGame` and
+  `prankster`, each kind in turn (a space breaks the 捣蛋鬼's line), the 帮它的关键字 the saved one; the board said fixed lines.
+- A gift message's gifts are thrown at the 捣蛋鬼 one by one, each with B站's icon, a little box while it loads or has none;
+  the board threw boxes. What a viewer threw is kept off their 一轮送礼 when it goes on after the 来访, and a 盲盒播报 of boxes
+  thrown opens none; the board's round had them taken out. A castle scares it off when its 盲盒播报 comes; the board's stood in
+  for it 3.8 s after the box.
+- A viewer is on the 捣蛋鬼's side once they send the 帮它的关键字 in the tug, counted once however often they send it, and
+  their gifts are a helper's; the board's buttons made any gift a helper's, and every keyword another helper.
+- A 试演 and a show turned off scare it off too, a PK as the board's button did, and a lottery is drawn, keeping it away, by
+  `lotOf` whether its show is on or not.

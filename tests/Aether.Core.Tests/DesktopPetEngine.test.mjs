@@ -19,7 +19,7 @@ function pet(settings = {}) {
 const advance = (engine, ms) => { engine.master.currentTime += ms; engine.update(engine.now()); };
 const playing = engine => engine.cur?.name ?? null;
 // A viewer's 一轮送礼 so far, as Core tells it after a gift message.
-const round = (uid, so) => ({ uid, nickname: '观众' + uid, spend: 0, count: 0, topGift: '小花花', topCount: 0, boxSpend: 0, boxes: 0, castle: false, ended: false, ...so });
+const round = (uid, so) => ({ uid, nickname: '观众' + uid, spend: 0, count: 0, topGift: '小花花', topCount: 0, boxSpend: 0, boxes: 0, castle: false, ended: false, items: [], ...so });
 const gifts = (uid, spend, count = 1) => round(uid, { spend, count, topCount: count });
 const boxResult = (uid, spend, openedValue, bestPrice = 9000) => ({ uid, nickname: '观众' + uid, tally: { spend, openedValue, outcome: ['Loss', 'Even', 'Gain'][Math.sign(openedValue - spend) + 1] }, boxes: 1, bestGift: '棉花糖', bestPrice });
 // A viewer's blind box opening a castle, the only way B站 gives one, and its 盲盒播报.
@@ -124,7 +124,7 @@ test('犯困 comes after an hour with nothing and ends on an entry or a danmaku;
   const engine = pet();
   advance(engine, 60 * MINUTE);
   assert.equal(engine.mood(engine.now()), 'sleepy');
-  engine.danmaku();
+  engine.danmaku({ uid: 1, nickname: '观众1', joins: false });
   assert.equal(engine.mood(engine.now()), 'gloomy');
   advance(engine, 60 * MINUTE);
   engine.entry({ uid: 1, nickname: '进场观众' });
