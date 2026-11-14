@@ -149,8 +149,8 @@ public sealed class DesktopPetBrowserTests
         Assert.Empty(page.Browser.Errors);
     }
 
-    /// <summary>The design package's board and the page, side by side through scripts/desktop-pet/compare.mjs (about half a minute):
-    /// every show, 心情 and round from one seed, frame by frame on one clock, the same pixels.</summary>
+    /// <summary>The design package's board and the page, side by side through scripts/desktop-pet/compare.mjs (about a minute):
+    /// every show, 心情 and round and the 宝箱小游戏's routes from one seed, frame by frame on one clock, the same pixels.</summary>
     [Fact]
     public async Task The_page_draws_every_show_pixel_for_pixel_as_the_design_board_does()
     {
