@@ -1,0 +1,1 @@
+[["do","x.gm.chest = 500; x.gm.pile = 6; x.visit()"],["wait",300],["jump",2500],["jump",9100],["until","x.gm.visit?.phase === \"tug\""],["wait",2500],["shot","拔河中"],["do","x.pkOn(true)"],["wait",300],["shot","PK 开始 0.3"],["wait",500],["shot","0.8"],["wait",500],["shot","1.3"],["wait",500],["shot","1.8"],["wait",600],["shot","2.4"],["wait",1000],["shot","3.4"]]

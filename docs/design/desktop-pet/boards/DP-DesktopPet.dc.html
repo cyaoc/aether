@@ -46,7 +46,8 @@ const BLOB = {
   pk5: '2f73ffc680205493fd004b1269dadd9e',
   sp3: '7f1bdec14fd8c0adb92b1dcda9d9101c',
   chestRing: '7d5aadb1014a0604dca599322d154b44',
-  game16: 'ee75f111341426b7dc16df2cc423a121'
+  game16: 'ee75f111341426b7dc16df2cc423a121',
+  pk6: 'c72fa34aad6ebe07779e51879845917b'
 };
 // Every sheet's first cell is the same everyday standing drawing at the same size (gen-sheet.py draws the other cells
 // beside it), so it is every sheet's ruler and one scale fits them all.
@@ -78,7 +79,7 @@ const SAME_SPOT = { gymRub: 'gymHurt', gymWipe: 'gymHurt', skiShake: 'skiPopOut'
 // skiDown with skiShake, so the poles lying by the snow heap do not jump either.
 const BODY = { bikeReady: -15, bikeUp: 29, gymWipe: 17, skiShake: 19, skiDown: 19 };
 // Frame strips (textures/frames/<name>.webp, four frames in a row; tools/gen-frames.sh, tools/frame-patch.py), by blob.
-const FRAMES = {admOut: '91e056de5cd4063deb27f4109039d48a', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '9e22c561d15ec993fe800b8bc9c06b3c', bikeOut: 'e2297c45766af454d4883e8db6cc933b', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: 'd7320ffbfefff45ca29f5c5979046635', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: 'bbc46902a152a76619875191c6d32442', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: 'b42d092f81da2c465d6d1d572d521eb0', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '9d37cc7e509a218ab9d99bd6fec8e134', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', gameBonk: 'eae3432f002303f1e8ba32a620846757', gameBonkZap: '039110d316febf9a83aae81dd3fbbc47', gameCheer: 'b3ac0659914339562f7acc3f55b1ccb5', gameCheerZap: 'd6e547817905d40608edb1ed665f4205', gameDraggedUp: 'e88b4ef06a5e43377e5069bf0391026e', gameDraggedUpZap: '377d86b4ed1c73678dd17291703a10b1', gameFlat: 'aee9a626cd4e46b38c11eeac9a33dfaf', gameFlatGrab: '3fa820579fe439433048940134811690', gameFlatGrabZap: 'fe3095b8437c6321fccc631abcb832b5', gameFlatZap: '96e5055bed281acc3753eda32fb1d863', gameKneel: 'c47d6a8ce2dd8bfc51c0cd0d56a998e1', gameKneelZap: 'a94842ef699ff8c3ab75bdf5f276a80b', gameLetGo: 'e2d2e281b192f4d6a1395e3b97cc1196', gameLetGoZap: '1d71f4fa91f9f5a1d5022f86656ad7ef', gameLookUp: '1a355610d0bff306a902d2fc6bd3456b', gameLunge: 'a3d7bad153ff6cb51afd45432610e681', gameSorry: '8ecbfa420e89b927459c58ef6a97099c', gameSorryOut: '231ce44291e55e737461f4eed07b18a1', gameSorrySurprise: 'ce3a322b40049d0e89ee632c951fdbfe', gameStartle: 'a9fb83c5e59a5feffc5abdf1d48c0bb1', gameTugIn: '7e721c943f781de3748314a2ee71b8dc', gameZapOut: '22b91257fe1d447b801ae9f86426eb4a', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: 'def1ececd3228c9dc4b87769d633d2df', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: '411357d96cdf7929b3fd56df3eb98734', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'a845ed1aab7d6f83b9f35aedccc54df9', hairSmoothCheer: '4537aeecbf13f0f335c7c1a3c0110aff', hairSmoothCry: '9e226b44aa43eb0dac6563b61d629995', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: 'f0265ab734e46dadad5b6c69aca109a2', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'df5012f4f710a8bd367b03139f6cd062', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: 'a9a36a95a67221dc016c50fc4ff14223', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '9309dfb1f48d0826e46ab427b8603680', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', robbedGloomy: '7e63873789b76ba43f5260ef7aa95e5f', rubUp: '2b41ac673f265add50298a8f142702a5', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '09a43889115c318f28c176c6d7a2cdcb', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '76512d024c568bd3bd97ffeed0a05b52', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'f60b51987ea38e68ba0f346d92d1a4e3', skiOut: '4c984499f6067970f582a73d8c2399d1', skiPop: '6238ed2d55742a53bcd35bcac40c669d', skiUp: '97ff2e1aa8496fda3ba13fbf4532659e', slipUp: 'd24e5aa8cd55e86e8e58ad8028233ed3', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '7aef8a528ed9640410f134f38d867ab0', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '7ad34d7a11106e89075340758874dd47', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: '3aac87354721601e5c22ad31876fcb68', wipeIn: '8dbc55fe74cf8ad449dbf508ebeb1e5c'};
+const FRAMES = {admOut: '91e056de5cd4063deb27f4109039d48a', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '9e22c561d15ec993fe800b8bc9c06b3c', bikeOut: 'e2297c45766af454d4883e8db6cc933b', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: 'd7320ffbfefff45ca29f5c5979046635', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: 'bbc46902a152a76619875191c6d32442', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: 'b42d092f81da2c465d6d1d572d521eb0', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '9d37cc7e509a218ab9d99bd6fec8e134', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', dragPull: '492f38c8f828816dc515cc4d749739ce', dragPullZap: 'f880e504575602f022897908c7f654ae', gameBonk: 'eae3432f002303f1e8ba32a620846757', gameBonkZap: '039110d316febf9a83aae81dd3fbbc47', gameCheer: 'b3ac0659914339562f7acc3f55b1ccb5', gameCheerZap: 'd6e547817905d40608edb1ed665f4205', gameDraggedUp: 'e88b4ef06a5e43377e5069bf0391026e', gameDraggedUpZap: '377d86b4ed1c73678dd17291703a10b1', gameFlat: 'aee9a626cd4e46b38c11eeac9a33dfaf', gameFlatGrab: '3fa820579fe439433048940134811690', gameFlatGrabZap: 'fe3095b8437c6321fccc631abcb832b5', gameFlatZap: '96e5055bed281acc3753eda32fb1d863', gameKneel: 'c47d6a8ce2dd8bfc51c0cd0d56a998e1', gameKneelZap: 'a94842ef699ff8c3ab75bdf5f276a80b', gameLetGo: 'e2d2e281b192f4d6a1395e3b97cc1196', gameLetGoStand: '97981617b3703213ec50791651349644', gameLetGoZap: '1d71f4fa91f9f5a1d5022f86656ad7ef', gameLookUp: '1a355610d0bff306a902d2fc6bd3456b', gameLunge: 'a3d7bad153ff6cb51afd45432610e681', gameSorry: '8ecbfa420e89b927459c58ef6a97099c', gameSorryOut: '231ce44291e55e737461f4eed07b18a1', gameSorrySurprise: 'ce3a322b40049d0e89ee632c951fdbfe', gameStartle: 'a9fb83c5e59a5feffc5abdf1d48c0bb1', gameTugIn: '7e721c943f781de3748314a2ee71b8dc', gameZapOut: '22b91257fe1d447b801ae9f86426eb4a', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: 'def1ececd3228c9dc4b87769d633d2df', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: '411357d96cdf7929b3fd56df3eb98734', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'a845ed1aab7d6f83b9f35aedccc54df9', hairSmoothCheer: '4537aeecbf13f0f335c7c1a3c0110aff', hairSmoothCry: '9e226b44aa43eb0dac6563b61d629995', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: 'f0265ab734e46dadad5b6c69aca109a2', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'df5012f4f710a8bd367b03139f6cd062', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: 'a9a36a95a67221dc016c50fc4ff14223', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '9309dfb1f48d0826e46ab427b8603680', pkBolt: 'bbbad6efaed5a1b6e180c3f4e9f7049f', pkDeflate: '6a9cc5cb8ed7894264cb420d99e8c38a', pkGrab: '9812f4e37f5d21d9b6d61b573567ebc0', pkHaul: 'f1d2b0835fa0bf7f2636723cd53e7fd9', pkHaulIn: 'e9df47d473e87a1b28e20a44c50e460b', pkLaugh: '94b09e91a7c09f385751ea76298ad818', pkLetGo: 'bd05014303eb4cb660d8c0512b5c0d6f', pkLetGoTug: '08ca4c772fc7fc37c5fe2fe5c3446fad', pkOuch: '34bdc8683cf560994a4864cf2d4c8d59', pkPeer: 'b63a5b950ea4bf6591ebe5fccfb00469', pkShrug: '76f905c2ff79afe2b5211986b3ad09e8', pkSit: '91b54f8c302be3a742c15ec897d3b986', pkSitDown: 'fcf259f2da8f91db57e1dd40ba489b30', pkSitLaugh: 'e997c6c7f62df2e87c43ebaa4f46dd70', pkThrow: 'cb7f75ad408709fb17fbf2a750a801a7', pkThrowLaugh: 'b6d72d6d92b52c56f83b5a3d44ed9b3f', pkThunder: '3ef17acdf3282a7919cea366498d7796', pkTug: '24cc34a1ec5580506aea71c9ae73f4ef', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', robbedGloomy: '7e63873789b76ba43f5260ef7aa95e5f', rubUp: '2b41ac673f265add50298a8f142702a5', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '09a43889115c318f28c176c6d7a2cdcb', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '76512d024c568bd3bd97ffeed0a05b52', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'f60b51987ea38e68ba0f346d92d1a4e3', skiOut: '4c984499f6067970f582a73d8c2399d1', skiPop: '6238ed2d55742a53bcd35bcac40c669d', skiUp: '97ff2e1aa8496fda3ba13fbf4532659e', slipUp: 'd24e5aa8cd55e86e8e58ad8028233ed3', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '7aef8a528ed9640410f134f38d867ab0', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '7ad34d7a11106e89075340758874dd47', tugPull: '563c260a7bd607affe2bf214708eca68', tugPullZap: '010bc17cfac2fa5f8be3188b4b5a056f', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: '3aac87354721601e5c22ad31876fcb68', wipeIn: '8dbc55fe74cf8ad449dbf508ebeb1e5c'};
 // Poses that move: the strip f, drawn from the pose's own cell, as a loop at ms per frame, a loop of [frame, ms] steps, or
 // once: [frame, ms] steps from when the pose begins, holding the last.
 const STRIP = {
@@ -90,6 +91,9 @@ const STRIP = {
   capSalute: { f: 'capRaise', once: [[2, 120], [1, 100], [0, 0]] }, admSalute: { f: 'admRaise', once: [[2, 120], [1, 100], [0, 0]] },
   spyglass: { f: 'spyRaise', once: [[2, 140], [1, 120], [0, 0]] }, curtsy: { f: 'curtsy', once: [[2, 200], [1, 160], [0, 0]] },
   ski: { f: 'skiGlide', ms: 170 }, skiShake: { f: 'shakeSnow', ms: 110 },
+  // the chest game: she heaves at the ring, her feet shuffling back; lying, she is dragged along, legs kicking (her fists
+  // and the ring stay put in every frame: they are on the chest's link)
+  tug: { f: 'tugPull', ms: 190 }, tugZap: { f: 'tugPullZap', ms: 190 }, dragged: { f: 'dragPull', ms: 160 }, draggedZap: { f: 'dragPullZap', ms: 160 },
   govJump: { f: 'jump', once: [[0, 60], [1, 140], [2, 300], [3, 160], [0, 0]] }
 };
 // The sprite's drawings that move, [strip, ms per frame]; v1–v3 are its turnaround views flying.
@@ -108,7 +112,7 @@ const TRANS = {
   'idle>startled': 'gameStartle', 'startled>lunge': 'gameLunge', 'tug>lunge': 'gameTugIn', 'tug>bonk': 'gameBonk',
   'tug>flat': 'gameFlat', 'flat>dragged': 'gameFlatGrab', 'tug>dragged': 'gameDraggedUp', 'tugZap>bonkZap': 'gameBonkZap',
   'flatZap>tugZap': 'gameFlatZap', 'flatZap>draggedZap': 'gameFlatGrabZap', 'draggedZap>tugZap': 'gameDraggedUpZap', 'fallen>dragged': 'gameLetGo',
-  'draggedZap>fallenZap': 'gameLetGoZap', 'fallen>robbed': 'gameKneel', 'fallenZap>robbedZap': 'gameKneelZap', 'tug>cheer': 'gameCheer',
+  'draggedZap>fallenZap': 'gameLetGoZap', 'fallen>robbed': 'gameKneel', 'fallenZap>robbedZap': 'gameKneelZap', 'tug>cheer': 'gameCheer', 'tug>idle': 'gameLetGoStand',
   'tugZap>cheerZap': 'gameCheerZap', 'idle>lookUp': 'gameLookUp', 'startled>sorry': 'gameSorry', 'sorry>idle': 'gameSorryOut',
   'sorry>surprised': 'gameSorrySurprise', 'tugZap>idle': 'gameZapOut',
   'idle>bow': 'bowIn', 'idle>bored': 'sitBored', 'idle>gloomy': 'crouchGloomy', 'idle>doze': 'sitDoze', 'hike>slip': 'trekSlip',
@@ -157,7 +161,18 @@ const PKPOSE = {
   peer: ['pk2', 1], shrug: ['pk2', 2], sit: ['pk2', 3], laugh: ['pk2', 4], knocked: ['pk2', 5],
   tug: ['pk3', 1], thunder: ['pk3', 3], haul: ['pk3', 4], flat: ['pk3', 5],
   carry: ['pk4', 1], fall: ['pk4', 2], dazed: ['pk4', 3], tumble: ['pk4', 4], ouch: ['pk4', 5],
-  carryBag: ['pk5', 1], carryCrown: ['pk5', 2], throw: ['pk5', 3], flee: ['pk5', 4], shake: ['pk5', 5]
+  carryBag: ['pk5', 1], carryCrown: ['pk5', 2], throw: ['pk5', 3], flee: ['pk5', 4], shake: ['pk5', 5],
+  startle: ['pk6', 2]
+};
+// Its loops, as her STRIP: pulling its rope, hauling it off, sitting smug on an empty chest (and blinking).
+const PKSTRIP = { tug: { f: 'pkTug', ms: 190 }, haul: { f: 'pkHaul', ms: 170 }, sit: { f: 'pkSit', ms: 260 } };
+// Its in-betweens, as her TRANS: on the empty chest and in the tug, where it changes pose in one place (its disguises
+// pop on, and falling, tumbling and being knocked off it is moving already).
+const PKTRANS = {
+  'shake>peer': 'pkPeer', 'peer>shrug': 'pkShrug', 'shrug>sit': 'pkSitDown', 'sit>laugh': 'pkSitLaugh',
+  'shrug>throw': 'pkThrow', 'throw>laugh': 'pkThrowLaugh', 'shake>tug': 'pkGrab', 'tug>ouch': 'pkOuch',
+  'tug>laugh': 'pkLaugh', 'tug>thunder': 'pkThunder', 'tug>haul': 'pkHaulIn', 'tug>flat': 'pkDeflate',
+  'carry>startle': 'pkLetGo', 'tug>startle': 'pkLetGoTug', 'startle>flee': 'pkBolt'
 };
 // Its idle drawing's height on the page, a little under half of hers; the ground line the chest stands on; where the
 // chest lands, just clear of her right side; where the chest stands in the tug (she stands where the ring in her fists
@@ -182,7 +197,8 @@ const LID = { x: 13, y: 133 }, HEAD = { fallen: 0.56, fallenZap: 0.58 };
 // When she has lost the chest her line goes at ROB.quiet, and she curls up sulking at ROB.curl (被偷了).
 const ROB = { quiet: 4600, curl: 5000 };
 // How long the chest game's end leaves her in a mood: robbed, sad until a gift (at most this long); kept, glad.
-const MOOD_HOLD = { robbed: 5 * 60000, kept: 60000 };
+// (robbed was 5 min: 用户“她现在没守住沮丧太久了”)
+const MOOD_HOLD = { robbed: 60000, kept: 60000 };
 // How long after it is beaten off (won), knocked off an empty chest (knocked) or scared off once it runs (fled) the
 // prankster is off the page and the visit is over: it goes slowly enough to be seen (it was gone in a blink).
 const OFF = { won: 3400, knocked: 2600, fled: 2400 };
@@ -195,10 +211,24 @@ const SLOW = { 'robbedZap>robbed': 300, 'cheerZap>cheer': 300, 'robbed>gloomy': 
 // that scared the prankster off (the show waits that long). Of that time the sprite flies to the chest for GO ms, presses
 // an open lid shut for SHUT ms and takes up the dropped rope for TAKE ms; the rest it lifts the chest and flies it off.
 const DROP = 350, FREEZE = 1800, ZAP = 2400, FALL = 480, HOME = 2600, TIDY = 2300, GO = 400, SHUT = 350, TAKE = 250;
-// every: it comes at most once in this long; quiet: and only once gifts have stopped this long; carry (flying over with
+// The show does not wait a set time but until the chest is home (the sprite waits for the prankster to be clear of the
+// chest first, CLEAR); after the lightning until the sprite, the chest home, has come back and patted her hair smooth
+// (unfrizz). FRIZZ is the most it waits either way.
+const FRIZZ = 9000;
+// The sprite goes for the dropped rope only once the prankster is this far right of where the rope's end is (or gone):
+// it lifts the chest straight up from there, and with the prankster still by the chest the two went up together, the
+// sprite seeming to carry it off (用户：“怎么变得小精灵抬着捣蛋鬼跑了”“还是和小精灵的路线重叠、两者会叠在一起”).
+// Until then it keeps above the shut chest, on her side of it.
+const CLEAR = 150;
+// Scared off, it lets go of everything with a start (its startle drawing, the jump of fled): a chest it was flying with
+// falls straight down (FALL) and lands with a thud; the sprite, by her, starts at it for NOTICE ('!') before it goes
+// for the chest. It used to hold the chest up aghast in mid-air until the sprite took the rope from its hands, the two
+// on top of each other (用户：“换成捣蛋鬼受惊逃走、宝箱掉落、小精灵发现并带走”).
+const NOTICE = 500;
+// every: it comes at most once in this long (whether gifts have stopped is no matter: that would make it a nudge to give); carry (flying over with
 // the chest), loiter (on an empty chest), fight and sprint (the fight's last stretch): how long each lasts; pebbles: the
 // share of its life that all the danmaku together can take; urge: from this much time left the countdown grows anxious.
-const GAME = { every: 30 * 60000, quiet: 3 * 60000, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, pebbles: 0.3, urge: 30000 };
+const GAME = { every: 30 * 60000, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, pebbles: 0.3, urge: 30000 };
 // The phases in which it is already on its way off the page: a gift then is a gift to her again.
 const DONE = new Set(['knocked', 'toss', 'leave', 'won', 'lost', 'fled']);
 // It lies DAZED ms on the chest's lid where it fell; in the tug it is UP and pulling that long after the chest lands.
@@ -410,7 +440,7 @@ class Component extends DCLogic {
     // centred in their thirds, so the cell centre would shift her sideways between poses), and every sheet is scaled by its
     // first cell (the idle ruler).
     this.cells = {};
-    for (const k of ['common', 'lottery', 'daily1', 'moods', 'gifts', 'castleSheet', 'voyage', 'gym10', 'hike11', 'cycle12', 'ski9', 'sp1', 'sp2', 'sp3', 'game13', 'game14', 'game15', 'game16', 'pk1', 'pk2', 'pk3', 'pk4', 'pk5']) {
+    for (const k of ['common', 'lottery', 'daily1', 'moods', 'gifts', 'castleSheet', 'voyage', 'gym10', 'hike11', 'cycle12', 'ski9', 'sp1', 'sp2', 'sp3', 'game13', 'game14', 'game15', 'game16', 'pk1', 'pk2', 'pk3', 'pk4', 'pk5', 'pk6']) {
       const im = img[k], cw = im.width / 3, ch = im.height / 2, list = [];
       for (let i = 0; i < 6; i++) list.push(box(im, (i % 3) * cw, Math.floor(i / 3) * ch, cw, ch));
       const ground = [0, 1].map(r => Math.max(...list.slice(r * 3, r * 3 + 3).filter(Boolean).map(b => b.y + b.h)));
@@ -434,7 +464,17 @@ class Component extends DCLogic {
       const im = img['f:' + f], fw = im.width / 4, [k, n] = POSE[pose], c = this.cells[k][n];
       return [0, 1, 2, 3].map(i => ({ im, ...box(im, i * fw, 0, fw, im.height), cx: c.cx - c.ox + i * fw, ground: c.ground - c.oy, ruler: c.ruler }));
     };
-    this.strips = {}; this.tweens = {}; this.sstrips = {};
+    this.strips = {}; this.tweens = {}; this.sstrips = {}; this.pkstrips = {}; this.pkTweens = {};
+    // the prankster's loops, each frame lined up on its cell's centre like her strips
+    for (const [pose, s] of Object.entries(PKSTRIP)) {
+      const im = img['f:' + s.f], c = this.pkCell(pose);
+      if (im) this.pkstrips[pose] = [0, 1, 2, 3].map(i => ({ im, ...box(im, i * im.width / 4, 0, im.width / 4, im.height), cx: c.cx - c.ox + i * im.width / 4, cy: c.cy - c.oy, ruler: c.ruler }));
+    }
+    // its in-betweens: frames 2 and 3 of a strip drawn in the first pose's cell (tools/pk-inbetween.py)
+    for (const [pair, f] of Object.entries(PKTRANS)) {
+      const im = img['f:' + f], c = this.pkCell(pair.split('>')[0]);
+      if (im) this.pkTweens[pair] = [1, 2].map(i => ({ im, ...box(im, i * im.width / 4, 0, im.width / 4, im.height), cx: c.cx - c.ox + i * im.width / 4, cy: c.cy - c.oy, ruler: c.ruler }));
+    }
     for (const [pose, s] of Object.entries(STRIP)) if (img['f:' + s.f]) this.strips[pose] = framesOf(s.f, pose);
     for (const [pair, f] of Object.entries(TRANS)) if (img['f:' + f]) this.tweens[pair] = framesOf(f, pair.split('>')[0]).slice(1, 3);
     for (const [key, [f]] of Object.entries(SSTRIP)) {
@@ -499,7 +539,7 @@ class Component extends DCLogic {
   reset() {
     this.cur = this.seen = null; this.queue = []; this.log = []; this.lot = null; this.pending = []; this.round = null; this.announced = null;
     this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lines = {}; this.rng = seeded(7);
-    this.gm = { chest: 0, pile: 0, drops: [], nums: [], visit: null, due: false, last: this.now(), out: null, walk: null, streak: 0, steals: 0, brag: false, grudge: null, say: null, herX: FOOT.x };
+    this.gm = { chest: 0, pile: 0, drops: [], nums: [], visit: null, due: false, pk: false, last: this.now(), out: null, walk: null, streak: 0, steals: 0, brag: false, grudge: null, say: null, herX: FOOT.x };
     this.gl = null;
   }
 
@@ -512,7 +552,7 @@ class Component extends DCLogic {
     if (ev.gift) { this.lastGift = now; this.recent = this.recent.filter(r => now - r < 60000).concat(now); if (this.moodHold?.mood === '沮丧') this.moodHold = null; }   // a gift cheers her up
     // while the prankster is here she waves at no one, and a 大航海 or a lottery scares it off; the show then waits while the
     // sprite takes the chest home (tidy; the game's own shows are opts.game)
-    if (this.cfg.game && this.gm.visit && name !== '日常' && !opts.game) { if (name === '进场') return this.note('进场：捣蛋鬼在，不演'); opts = { ...opts, tidy: this.scare(now) }; }
+    if (this.cfg.game && this.gm.visit && name !== '日常' && !opts.game) { if (name === '进场') return this.note('进场：捣蛋鬼在，不演'); const v = this.gm.visit, frizz = v.phase === 'tug' && v.zapped != null; opts = { ...opts, tidy: this.scare(now), frizz }; }
     // a 大航海's 电池 go into the chest like a gift's (after the scare: the chest it saved goes home with them)
     if (this.cfg.game && opts.price) this.gameGift({ price: opts.price, n: 1 });
     // she waves at whoever comes in only while she is idle: never over a daily action or any show, and it does not queue
@@ -531,7 +571,7 @@ class Component extends DCLogic {
     const now = this.now();
     if (this.cur) this.note(`${this.cur.name} 被 ${name} 打断`);
     const wake = !!opts.wake, dur = name === '日常' ? DAILY[opts.kind][0] + (opts.mishap ? DAILY[opts.kind][1] : 0) : (opts.zap && EVENTS[name].zapDur) || EVENTS[name].dur;   // zapDur: the longer show after the lightning
-    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy || 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('冷场后来了人') : null };
+    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('冷场后来了人') : null };
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
     if (name === '日常') this.nextDaily = now + dur + 20000 + this.rng() * 20000;
@@ -644,7 +684,7 @@ class Component extends DCLogic {
       }
     }
     if (this.cfg.game) this.gameUpdate(now);
-    if (!this.cur && this.mood(now) === '平静' && !this.lot && !this.gm.visit && now >= this.nextDaily) {
+    if (!this.cur && this.mood(now) === '平静' && !this.lot && !this.gm.visit && !this.gm.out && !this.gm.fix && now >= this.nextDaily) {   // (nor while the sprite is still taking the chest home or to pat her hair smooth)
       const kinds = Object.keys(DAILY), kind = kinds[Math.floor(this.rng() * kinds.length)], mishap = this.rng() < 0.25;
       this.start('日常', { kind, mishap });
     }
@@ -688,7 +728,21 @@ class Component extends DCLogic {
   }
 
   // The prankster is to come: once whatever plays is over (a 日常小动作 is not cut short), gameUpdate starts its visit.
-  visit() { if (this.cfg.game && !this.gm.visit) this.gm.due = true; }
+  visit() { if (this.cfg.game && !this.gm.visit && !this.gm.pk) this.gm.due = true; }
+  // A PK (连麦 PK) is no time for it: it does not come, and one here goes as if scared off, with no show after: she lets
+  // go and is herself again; after the lightning she cheers frizzed until the sprite, the chest home, has patted her hair
+  // smooth (gm.fix, unfrizz, as before a show that scared it off). It used to play 守住了 without its line, confetti
+  // and all the moment it ran (用户：“pk开始打断的效果不好、重改”).
+  pkOn(on) {
+    const gm = this.gm, v = gm.visit, now = this.now();
+    gm.pk = on;
+    if (!on) return;
+    gm.due = false;
+    if (!v || DONE.has(v.phase)) return;
+    const frizz = v.phase === 'tug' && v.zapped != null;
+    this.scare(now);
+    if (frizz) gm.fix = { start: now };
+  }
 
   startVisit(now) {
     const gm = this.gm;
@@ -719,8 +773,8 @@ class Component extends DCLogic {
   sendHome(now, ms = HOME, popped = false) {
     const v = this.gm.visit, c = v.chest;
     if (!c) return;
-    const air = c.x == null, open = !air && (popped || !!this.gl?.open);   // air: the prankster still holds it up, and hands it over
-    this.gm.out = { at: now, ms, hook: air ? { ...this.gm.hung.hook } : this.ring(c.x, 1), air, open, t2: GO + (open ? SHUT : 0) + (air ? 0 : TAKE), got: null };
+    const open = popped || !!this.gl?.open;
+    this.gm.out = { at: now, ms, hook: this.ring(c.x, 1), open, t2: GO + (open ? SHUT : 0) + TAKE, got: null };
     v.chest = null;
   }
 
@@ -740,7 +794,7 @@ class Component extends DCLogic {
   ring(x, s) { return { x: x + s * (this.chestBox.w / 2 - RING.x * K), y: CHEST.y - RING.y * K }; }
 
   // How far in front of her centre the chest's link is in a drawing of hers that holds its ring (GRIP).
-  grip(pose) { const c = this.cell(pose); return (c.ox + GRIP - c.cx) * H / c.ruler; }
+  grip(pose) { const [k, i] = POSE[pose], c = this.cells[k][i]; return (c.ox + GRIP - c.cx) * H / c.ruler; }   // (its cell, not a loop's frame)
 
   // A ring of the chest, hung from the link at p and swung to point along ux, uy (straight down when nothing holds it).
   drawRing(g, p, ux = 0, uy = 1) {
@@ -826,9 +880,25 @@ class Component extends DCLogic {
     const gm = this.gm, v = gm.visit;
     if (DONE.has(v.phase)) return 0;
     if (v.phase === 'tug') { gm.streak++; gm.chest += v.spent; gm.pile += v.count; }
+    const hung = v.chest && v.chest.x == null && gm.hung;   // flying with it, the chest hanging from its rope
     this.phase('fled', now);
     if (!v.chest) return 0;
-    this.sendHome(now, TIDY); this.hopTo(FOOT.x, now + gm.out.t2 + 400, 2);   // once the chest is up out of her way
+    let fall = null;
+    if (hung) {
+      // it falls straight down from where it hung (kept on the page), and stands where it lands
+      const box = this.chestBox, ex = this.ring(0, 1).x, cx = clamp(hung.hook.x - ex, box.w / 2 + 4, PAGE.w - box.w / 2 - 4);
+      fall = { at: now, hook: { ...hung.hook }, rot: hung.rot };
+      v.chest = { x: cx };
+      // were it to come down on her, she hops out from under it first, away from it
+      const reach = box.w / 2 + 50;
+      if (Math.abs(cx - gm.herX) < reach) {
+        let side = gm.herX <= cx ? -1 : 1, to = cx + side * (reach + 20);
+        if (to < 60 || to > PAGE.w - 60) { side = -side; to = cx + side * (reach + 20); }
+        this.hopTo(clamp(to, 60, PAGE.w - 60), now);
+      }
+      v.dodge = now;
+    }
+    this.sendHome(now, TIDY, !!(fall && v.loot)); Object.assign(gm.out, { hop: 2, fall, spot: now + (fall ? FALL : 0) });   // she hops back to the middle once the chest is up out of her way
     return TIDY;
   }
 
@@ -848,17 +918,17 @@ class Component extends DCLogic {
 
   endVisit(now) { this.gm.visit = null; this.gm.last = now; if (!this.gm.walk) this.hopTo(FOOT.x, now, 2); }
 
-  // The visit's clock. It comes at most once in GAME.every, and only when gifts have stopped for GAME.quiet and someone is
-  // about; then each phase runs its time, and the tug its countdown.
+  // The visit's clock. It comes at most once in GAME.every, when someone is about and no PK is on; then each phase runs
+  // its time, and the tug its countdown.
   gameUpdate(now) {
     const gm = this.gm, v = gm.visit, dt = now - (gm.clock ?? now);
     gm.clock = now;
     gm.drops = gm.drops.filter(d => now - d.at < 1400); gm.nums = gm.nums.filter(n => now - n.at < 1100);
     // the chest is home once the sprite has flown it off the page (or, should the sprite never get the rope, a while after)
-    if (gm.out && (gm.out.got != null ? now - gm.out.got >= gm.out.ms - gm.out.t2 && !(this.sv?.x > -50) : now - gm.out.at >= gm.out.ms + 2000)) gm.out = null;
+    if (gm.out && (gm.out.got != null ? now - gm.out.got >= gm.out.ms - gm.out.t2 && !(this.sv?.x > -50) : now - gm.out.at >= gm.out.ms + 6000)) gm.out = null;
     if (!v) {
-      if (now - gm.last >= GAME.every && now - this.lastGift >= GAME.quiet && now - this.lastAny < 5 * 60000) gm.due = true;
-      if (gm.due && !this.cur && !this.round && !this.lot) this.startVisit(now);
+      if (now - gm.last >= GAME.every && now - this.lastAny < 5 * 60000) gm.due = true;
+      if (gm.due && !this.cur && !this.round && !this.lot && !gm.pk) this.startVisit(now);
       return;
     }
     // what is thrown waits while the chest is in the air, until the prankster is on its feet again, and while the lightning plays;
@@ -932,21 +1002,47 @@ class Component extends DCLogic {
     // her head off the left of the page. The chest hangs from the end of the sprite's rope, where the sprite really is
     // (drawGame); out of the air the prankster holds it up until the sprite has the rope (fled).
     if (gm.out) {
-      const o = gm.out, u = now - o.at, tip = this.spTip('lift'), home = o.hook.x - this.ring(0, 1).x, sv = this.sv;
+      const o = gm.out, tip = this.spTip('lift'), home = o.hook.x - this.ring(0, 1).x, sv = this.sv;
+      // it sets off only once the prankster is off the chest (knocked off it, it springs up from the lid), and goes for
+      // the rope only once it is clear of where the chest goes up (CLEAR); its times run from when it sets off (go)
+      // Scared off, the chest it was flying with falls first (fall), landing with a thud; and the sprite starts at it ('!',
+      // NOTICE) from o.spot before it does anything.
+      const fell = !o.fall || now - o.fall.at >= FALL, startle = o.spot != null && now >= o.spot && now < o.spot + NOTICE;
+      if (o.fall && fell && !o.fall.landed) { o.fall.landed = now; if (v) v.landed = now; }
+      if (startle) { st.sprite = 'surprised'; L.notice = now - o.spot; }
+      // (by her it can be where the chest comes down: it darts out from under it to the side of it it is on, not across
+      // her, or to the other side when that is off the page)
+      if (o.fall && o.go == null) {
+        const cx = o.hook.x - this.ring(0, 1).x, d = box.w / 2 + 36, ok = x => x >= 30 && x <= PAGE.w - 30;
+        o.fall.dart ??= (sv ? sv.x : gm.herX) < cx ? (ok(cx - d) ? cx - d : cx + d) : (ok(cx + d) ? cx + d : cx - d);
+        st.sp = ['at', o.fall.dart, CHEST.y - 120];
+      }
+      const away = !v || v.pos.a < 0.05 || v.pos.x > PAGE.w + PK_H / 2 || v.pos.y < -PK_H / 2;
+      if (o.go == null && fell && (o.spot == null || now >= o.spot + NOTICE) && (away || Math.abs(v.pos.x - home) > 110 || v.pos.y < CHEST.y - 300)) o.go = now;
+      const u = o.go == null ? -Infinity : now - o.go;
       const p0 = { x: o.hook.x - tip.x, y: o.hook.y - tip.y - LINK };   // there the end of the sprite's rope is LINK over the hook
-      if (o.got == null && u >= o.t2 && sv && Math.hypot(sv.x - p0.x, sv.y - p0.y) < 8) o.got = now;
+      // (the prankster's place last frame: v.pos)
+      if (o.clear == null && o.go != null && (away || v.pos.x - p0.x > CLEAR)) o.clear = now;
+      if (o.got == null && o.clear != null && u >= o.t2 && sv && Math.hypot(sv.x - p0.x, sv.y - p0.y) < 8) { o.got = now; if (o.hop) this.hopTo(FOOT.x, now + 400, o.hop); }
       st.orbit = null; st.sFlip = false;
       if (o.got != null) {
         // straight up first, above where her bubble is, then across over her head
         const q = k01(now - o.got, 0, o.ms - o.t2), up = ease(k01(q, 0, 0.4)), across = ease(k01(q, 0.4, 1));
         st.sprite = up < 1 ? 'lift' : 'lift2'; st.sp = ['at', p0.x + (-100 - p0.x) * across, p0.y + (56 - p0.y) * up];
-        L.chest = { carried: true, len: LINK, lift: o.air ? 1 : ease(k01(q, 0, 0.25)) };
+        L.chest = { carried: true, len: LINK, lift: ease(k01(q, 0, 0.25)) };
       } else {
         // (it presses at the end of SHUT: the gift that beat the prankster off is still on its way into the chest)
         const press = o.open && u < GO + SHUT, shut = o.open ? ease(k01(u, GO + SHUT * 0.4, GO + SHUT)) : 1;
-        st.sprite = press && u >= GO ? 'lid' : 'sIdle';
-        st.sp = press ? ['at', home, CHEST.y - box.open + (box.open - box.h) * shut - SPRITE_H * 0.16] : ['at', p0.x, p0.y];
-        if (!o.air) { L.chest = { x: home, y: CHEST.y }; L.open = o.open && shut < 0.5; L.dropped = true; }
+        if (o.go != null) {
+          st.sprite = press && u >= GO ? 'lid' : 'sIdle';
+          st.sp = press ? ['at', home, CHEST.y - box.open + (box.open - box.h) * shut - SPRITE_H * 0.16]
+            : o.clear == null ? ['at', home - 20, CHEST.y - box.h - SPRITE_H * 0.45] : ['at', p0.x, p0.y];
+        }
+        if (!fell) {
+          // falling: from where its ring hung to where it is on the ground, coming level, the dropped rope trailing
+          const k = Math.min(1, ((now - o.fall.at) / FALL) ** 2);
+          L.chest = { still: { x: o.fall.hook.x + (o.hook.x - o.fall.hook.x) * k, y: o.fall.hook.y + (o.hook.y - o.fall.hook.y) * k }, rot: o.fall.rot * (1 - k) }; L.loose = true;
+        } else { L.chest = { x: home, y: CHEST.y }; L.open = o.open && shut < 0.5; L.dropped = true; }
       }
     }
     if (!v) return st;
@@ -1006,21 +1102,24 @@ class Component extends DCLogic {
       case 'leave': fly(0.16, -0.05); pk.y += bob; break;
       // knocked off an empty chest it spins up and out of the top; beaten off it zigzags up and out of the top like a balloon
       // letting its air out (both slowly, and up rather than right: it stands by the right edge, and was gone in a blink)
-      case 'knocked': pk.pose = 'knocked'; fly(0.03, -0.32, 0.00003); pk.rot = u / 260; pk.a = 1 - k01(u, 2100, 2600); break;
+      case 'knocked': pk.pose = 'knocked'; fly(0.12, -0.32, 0.00003); pk.rot = u / 260; pk.a = 1 - k01(u, 2100, 2600); break;
       case 'fled': {
-        // Scared off with the chest still in the air, it holds it up aghast until the sprite has the rope; then it is off to
-        // the right, looking back. Her frizzed hair is itself again with a pop.
-        const held = gm.out?.air && gm.out.got == null, w = held ? 0 : u - (v.ran ??= u);
-        // it jumps with fright first, then flees bobbing up out of the top of the page (run; it stands by the right edge,
-        // and running right it was out of the page at once), and is gone by OFF.fled
-        const run = Math.max(0, w - 450);
-        Object.assign(pk, { pose: held ? 'carry' : 'flee', flip: true, x: v.from.x + 0.02 * run, y: v.from.y - 0.3 * run - 18 * bump(w, 0, 450) + 5 * Math.sin(run / 90), a: 1 - k01(run, OFF.fled - 700, OFF.fled - 450) });
-        if (held) L.chest = { hang: this.pkTip(pk), len: LINK };
-        if (v.zapped != null) st.fx.push(['spark', v.at, 0.5, 0.15, 8]);
+        // Scared off, it lets go of everything with a start (startle; a chest in the air falls: gm.out.fall), then it is off
+        // to the right, looking back. (Her frizzed hair the sprite pats smooth once the chest is home: unfrizz.)
+        const w = u - (v.ran ??= u);
+        // it jumps with fright first, then runs off bobbing out at the right, at its own height, taking OFF.fled however far
+        // from the edge it was (run). It used to flee straight up, beside the chest the sprite lifts straight up to take
+        // home, and the two went up side by side, the sprite seeming to carry it off (用户：“怎么变得小精灵抬着捣蛋鬼跑了”).
+        const run = Math.max(0, w - 450), vx = Math.max(0.06, (PAGE.w + 60 - v.from.x) / (OFF.fled - 450));
+        // (it starts the way it faced, flying with the chest to the right or pulling toward her, and turns to run)
+        Object.assign(pk, { pose: w < 450 ? 'startle' : 'flee', flip: w < 450 ? v.from.flip ?? true : true, x: v.from.x + vx * run, y: v.from.y - 18 * bump(w, 0, 450) - 6 * Math.abs(Math.sin(run / 110)), a: 1 - k01(run, OFF.fled - 700, OFF.fled - 450) });
+        // a chest it let go of over her head: she hops out from under it, and starts at the thud
+        if (v.dodge != null && (free || now < this.cur.start + this.cur.pre) && now - v.dodge < FALL + 700) st.pose = 'startled';
         break;
       }
-      // (it goes off to the right, not up through where its own bubble is)
-      case 'won': pk.pose = 'flat'; fly(-0.005, -0.17); pk.x += 24 * Math.sin(u / 95); pk.y += 26 * Math.sin(u / 120); pk.rot = 0.7 * Math.sin(u / 85); pk.a = 1 - k01(u, 2900, 3400); break;
+      // (it drifts off up and to the right, out of the way of the chest the sprite lifts straight up: it used to drift
+      // straight up, right where the chest went, and the sprite seemed to carry it off)
+      case 'won': pk.pose = 'flat'; fly(0.07, -0.12); pk.x += 24 * Math.sin(u / 95); pk.y += 26 * Math.sin(u / 120); pk.rot = 0.7 * Math.sin(u / 85); pk.a = 1 - k01(u, 2900, 3400); break;
       // it has the chest: she has lost her hold and lies where she was dragged to
       // (her lying drawing with empty fists: the ring she held hangs from the chest again)
       case 'lost': pk.pose = 'haul'; pk.rot = HAUL; fly(0.32, 0); cx = v.fromCx + 0.32 * u; L.open = true; L.ropes = true; if (free) { st.pose = v.zapped != null ? 'fallenZap' : 'fallen'; Object.assign(st, { sprite: 'pat', sp: this.comfort(st, now) }); } break;
@@ -1077,7 +1176,7 @@ class Component extends DCLogic {
         break;
       }
     }
-    v.pos = { x: pk.x, y: pk.y };
+    v.pos = { x: pk.x, y: pk.y, a: pk.a, flip: pk.flip };
     if (cx != null) { v.chest = { x: cx }; L.chest = { x: cx, y: CHEST.y }; }
     else if (L.chest?.hang && !gm.out) v.chest = {};   // hanging in the air
     if (v.landed != null && now - v.landed < 260 && free) st.shake = [[v.landed, 3, 260]];   // the chest thuds down
@@ -1101,11 +1200,27 @@ class Component extends DCLogic {
 
   pkCell(pose) { const [k, i] = PKPOSE[pose]; return this.cells[k][i]; }
 
+  // The drawing of it to show now: a loop's frame (PKSTRIP) or its cell. Where its rope ends is the cell's (pkCell): a
+  // loop keeps its fists and rope still.
+  pkFrame(pose) { const f = this.pkstrips?.[pose]; return f ? f[Math.floor(this.clock / PKSTRIP[pose].ms) % 4] : this.pkCell(pose); }
+
   // The prankster at p, its drawing's centre: every sheet's first cell is its idle drawing, the ruler that brings its
   // sheets to one size.
   drawPk(g, p) {
-    const c = this.pkCell(p.pose), s = PK_H / c.ruler * p.scale, t = p.trim || 0;   // trim: that much of the rope it holds, at the drawing's left, is left off
-    g.save(); g.globalAlpha = p.a; g.translate(p.x, p.y); g.rotate(p.rot); g.scale(p.flip ? -s : s, s);
+    // A change of its pose plays the in-betweens drawn for it (PKTRANS; the other way round, backwards), 90 ms each, as
+    // hers do, and the lean it pulls at (rot) goes over to the new one with them.
+    // Turning round (its flip changes) it changes at once: the in-betweens are drawn facing one way.
+    const rt = performance.now(), pv = this.pv ??= { pose: p.pose, at: -1e9, tween: null, rot: p.rot, flip: p.flip };
+    if (p.pose !== pv.pose) {
+      const there = this.pkTweens[`${pv.pose}>${p.pose}`], back = this.pkTweens[`${p.pose}>${pv.pose}`];
+      Object.assign(pv, { tween: !!pv.flip === !!p.flip && (there || back?.slice().reverse()) || null, pose: p.pose, at: rt, from: pv.rot });
+    }
+    pv.flip = p.flip;
+    const i = Math.floor((rt - pv.at) * this.cfg.speed / 90), tw = pv.tween?.[i];
+    const c = tw || this.pkFrame(p.pose), rot = tw ? pv.from + (p.rot - pv.from) * (i + 1) / (pv.tween.length + 1) : p.rot;
+    const s = PK_H / c.ruler * p.scale, t = p.trim || 0;   // trim: that much of the rope it holds, at the drawing's left, is left off
+    pv.rot = rot;
+    g.save(); g.globalAlpha = p.a; g.translate(p.x, p.y); g.rotate(rot); g.scale(p.flip ? -s : s, s);
     g.drawImage(c.im, c.x + t, c.y, c.w - t, c.h, c.x + t - c.cx, c.y - c.cy, c.w - t, c.h); g.restore();
   }
 
@@ -1183,7 +1298,8 @@ class Component extends DCLogic {
       g.restore();
       // its rope to the chest on the ground, or falling with it: from the end of the rope its drawing holds, or from under
       // its arm on the side the ring is; taut while it pulls, slack while it does not
-      if (pk && hook && !pivot && (L.ropes || c.still)) ropes.push([this.pkCell(pk.pose).rope != null ? this.pkEnd(pk) : { x: clamp(hook.x + 20, pk.x - 30, pk.x + 24), y: pk.y + 16 }, hook, L.slack ? 0.3 : 0.03, !L.slack, !L.slack || !!c.still]);
+      if (L.loose && hook) ropes.push([{ x: hook.x + 30, y: hook.y - 46 }, hook, 0.25]);
+      else if (pk && hook && !pivot && (L.ropes || c.still)) ropes.push([this.pkCell(pk.pose).rope != null ? this.pkEnd(pk) : { x: clamp(hook.x + 20, pk.x - 30, pk.x + 24), y: pk.y + 16 }, hook, L.slack ? 0.3 : 0.03, !L.slack, !L.slack || !!c.still]);
       // its two rings: hers hangs unless her fists hold it (her drawing's own ring), the other unless a rope's
       // hook is in it (rope)
       if (!L.held || c.x == null) this.drawRing(g, at(-ex, -ey));
@@ -1191,6 +1307,13 @@ class Component extends DCLogic {
       for (const one of ropes) rope(...one);
     } else this.sw = null;
     if (pk) this.drawPk(g, pk);
+    // the sprite starts at the chest that came down: a '!' over it
+    if (L.notice != null && sv) {
+      const t = L.notice, a = k01(t, 0, 90) * (1 - k01(t, NOTICE - 150, NOTICE)), s = 0.6 + 0.4 * ease(k01(t, 0, 140));
+      g.save(); g.globalAlpha = a; g.translate(sv.x + 16, sv.y - SPRITE_H * 0.62); g.rotate(0.15); g.scale(s, s);
+      g.font = `900 28px ${SANS}`; g.textAlign = 'center'; g.lineWidth = 5; g.strokeStyle = '#fff'; g.strokeText('!', 0, 0); g.fillStyle = '#FF5A6E'; g.fillText('!', 0, 0);
+      g.restore();
+    }
     // straining under the chest it sweats
     if (L.sweat > 0 && pk) for (let i = 0; i < 3; i++) {
       const w = (now + i * 230) % 700;
@@ -1267,7 +1390,8 @@ class Component extends DCLogic {
     // it, else beside it on its roomier side. Hauling the chest off or leaving it shouts from where it was; beaten, knocked
     // or scared off it goes slowly and its bubble goes with it (left where it was, it hid it as it went). Where her bubble
     // (bub) is in the way, it waits for hers to go.
-    if (pk && v?.say && now - v.say.at < 3000) {
+    // (going off the page it takes its bubble with it: left behind in the page, it hung where the sprite lifts the chest)
+    if (pk && v?.say && now - v.say.at < 3000 && !(DONE.has(v.phase) && (pk.x > PAGE.w || pk.y < 0))) {
       const at = ['leave', 'lost'].includes(v.phase) ? v.from : pk, b = { text: v.say.text, t: now - v.say.at, stroke: '#B79BE8', maxW: 112, at: { x: at.x, y: at.y } };
       const box = this.bubbleBox(g, { bubble: b, y: 0, s: 1 }, her), top = at.y - PK_H * 0.62, half = PK_H * 0.52;
       if (top - box.h - 22 >= 8) Object.assign(box, { x: clamp(at.x - box.w / 2 + 40, 10, PAGE.w - box.w - 10), y: top - box.h - 22, tip: { x: at.x + 10, y: top }, side: 0 });
@@ -1281,7 +1405,7 @@ class Component extends DCLogic {
 
   gameCaption(now) {
     const gm = this.gm, v = gm.visit;
-    return `小游戏：家里的宝箱 ${gm.chest} 电池 · 连守 ${gm.streak} · 被偷 ${gm.steals} · ` + (v ? `捣蛋鬼 ${v.phase}` + (v.phase === 'tug' ? `，还差 ${Math.ceil(v.hp)} / ${v.max}，剩 ${Math.ceil(v.left / 1000)} 秒` : '')
+    return `小游戏：家里的宝箱 ${gm.chest} 电池 · 连守 ${gm.streak} · 被偷 ${gm.steals} · ` + (gm.pk ? 'PK 中 · ' : '') + (v ? `捣蛋鬼 ${v.phase}` + (v.phase === 'tug' ? `，还差 ${Math.ceil(v.hp)} / ${v.max}，剩 ${Math.ceil(v.left / 1000)} 秒` : '')
       : gm.due ? '捣蛋鬼等她演完就来' : `上次走后 ${Math.floor((now - gm.last) / 60000)} 分`);
   }
 
@@ -1396,13 +1520,13 @@ class Component extends DCLogic {
       case '抽奖结束': st.pose = at(t, [[0, 'bow'], [1200, 'idle'], [1450, 'wave']]); st.sprite = t < 1200 ? 'nod' : 'flag'; say(150); break;
       case '没人报名': st.pose = 'dejected'; st.sprite = 'pat'; st.sp = 'head'; say(200); break;
       // the chest game: the prankster knocked off the page; beaten off, and she tosses the sprite; gone with the chest, and the sprite pats her head
-      case '打跑了': st.pose = t < 400 ? 'surprised' : t < 3700 ? 'cheer' : 'idle'; hop(450, 12); st.sprite = 'sHappy'; say(1900); break;   // (her line waits for the chest, as in 守住了)
+      case '打跑了': st.pose = t < 400 ? 'surprised' : t < 3700 ? 'cheer' : 'idle'; hop(450, 12); st.sprite = 'sHappy'; say(this.chestUp(t, opts)); break;   // (her line waits for the chest, as in 守住了)
       // (she says her line once the sprite has lifted the chest higher than where her bubble comes, not to have it rise
       // through it; after the lightning she cheers on with her hair frizzed until the sprite is back from taking the chest
       // home and has patted it smooth (smooth), and the show is longer for it)
       case '守住了': {
         const dur = opts.zap ? EVENTS[name].zapDur : EVENTS[name].dur, fixed = !opts.zap || this.smooth(st, t, opts, 'cheerZap', 'cheer', 0, dur, 'sHappy');
-        st.pose = t >= dur - 700 ? 'idle' : fixed ? 'cheer' : 'cheerZap'; hop(300, 12); hop(1100, 14); say(1900);
+        st.pose = t >= dur - 700 ? 'idle' : fixed ? 'cheer' : 'cheerZap'; hop(300, 12); hop(1100, 14); say(this.chestUp(t, opts));
         if (!opts.zap) { if (t >= 900) this.toss(st, t, 900); else st.sprite = 'sHappy'; }
         break;
       }
@@ -1571,6 +1695,24 @@ class Component extends DCLogic {
     return st;
   }
 
+  // When her line in 守住了 or 打跑了 may come (show time): once the sprite has lifted the chest higher than where her
+  // bubble comes (it waits for the prankster to be clear of the chest first, CLEAR, so not at a set time), 1.9 s at the soonest.
+  chestUp(t, opts) {
+    const k = this.lineWait?.seed === opts.seed ? this.lineWait : (this.lineWait = { seed: opts.seed, at: null }), o = this.gm.out;
+    if (k.at == null && (!o || o.got != null && this.clock - o.got >= 0.4 * (o.ms - o.t2))) k.at = Math.max(1900, t);
+    return k.at ?? Infinity;
+  }
+
+  // A show that scared the prankster off a tug after the lightning (a 大航海, a castle, a lottery) waits for her hair: she
+  // cheers frizzed while the sprite takes the chest home and comes back to pat it smooth (smooth), and the show starts once
+  // it has settled (c.pre; 用户：“大航海那个也改成精灵摸回来”; it used to go back in a blink as the show began). A PK
+  // that scared it off does the same with no show after (gm.fix).
+  unfrizz(st, t, c) {
+    const fixed = this.smooth(st, t, { seed: -c.start }, 'cheerZap', 'cheer', 0, FRIZZ, 'sHappy');
+    st.pose = fixed ? 'cheer' : 'cheerZap';
+    if (fixed && t >= this.pat.fix + SETTLE) c.pre = t;
+  }
+
   // Tossed up by her cheer: over her head for a moment, then circling her.
   // After the lightning her hair stays frizzed (pose zap) until her sprite pats it smooth: once the sprite is really on
   // her head (sTarget, where it was flying to, and not taking the chest home) it pats it, the last two pats harder (PATS),
@@ -1582,7 +1724,7 @@ class Component extends DCLogic {
   smooth(st, t, o, zap, plain, min, dur, after) {
     const p = this.pat?.seed === o.seed ? this.pat : (this.pat = { seed: o.seed, at: null }), sv = this.sv, to = this.sTarget;
     if (p.at == null && !this.gm.out && to?.sp === 'head' && sv && Math.hypot(sv.x - to.x, sv.y - to.y) < 12) p.at = t;
-    const fix = Math.min(Math.max(min, (p.at ?? Infinity) + PATS), dur - 700 - SETTLE);
+    const fix = p.fix = Math.min(Math.max(min, (p.at ?? Infinity) + PATS), dur - 700 - SETTLE);
     const b = this.herBox(st, this.cell(zap)), a = this.herBox(st, this.cell(plain)), paw = { x: b.x + b.w * 0.25 + 20, y: b.y - SPRITE_H * 0.2 + 14 };
     st.fx.push(['spark', fix, (paw.x - a.x) / a.w, (paw.y - a.y) / a.h, 8]);
     // the stars round her head, given across whichever drawing she is in this frame (they stay at her head as it changes)
@@ -1703,13 +1845,14 @@ class Component extends DCLogic {
       if (this.cfg.scene === '演示') this.demo(now);
       this.update(now);
       const c = this.cur;
-      if (c && now < c.start + c.pre && !c.wakeLine) st = this.base();   // the chest game tidies up before the show
+      if (c && now < c.start + c.pre && !c.wakeLine) { st = this.base(); if (c.opts.frizz) this.unfrizz(st, now - c.start, c); else if (c.opts.tidy && !this.gm.out) c.pre = now - c.start; }   // the chest game tidies up before the show
       else if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
       else if (c) { st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts)); if (c.name === '城堡' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine || (c.gateLine = this.pick('城堡·门口'))); }
       // only blind boxes have a state of their own while the round comes in (she shakes them); gifts have played at once,
       // and once their show is over she is herself again, not holding the 中礼物's box (she used to pick it up after a
       // plain thank-you, until the round's 3 s were up)
       else if (this.round?.items.some(x => x.box)) st = this.roundState(now);
+      else if (this.gm.fix) { st = this.base(); this.unfrizz(st, now - this.gm.fix.start, this.gm.fix); if (this.gm.fix.pre != null) this.gm.fix = null; }
       else {
         const mood = this.mood(now), key = mood + (this.lot?.phase || '');
         if (this.seen?.key !== key) this.seen = { key, at: now };
@@ -2532,7 +2675,7 @@ class Component extends DCLogic {
     group('时间', [['快进 10 分钟', () => this.fastForward(10)], ['快进 30 分钟', () => this.fastForward(30)], ['回到刚有礼物', () => { this.lastGift = this.lastAny = this.now(); }]]);
     // the chest game (the board's game 开): the prankster comes at once; a danmaku and the gifts are the 事件 group's buttons
     group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['送 100 电池', g([one('爱心抱枕', 100)])], ['有人发「捣蛋」', () => this.join()], ['捣蛋的人送礼', g([one('小花花', 10, 1, { helper: true })])],
-      ['捣蛋的人连送 5 份', g(tens(5, one('小花花', 10, 1, { helper: true })))]]);
+      ['捣蛋的人连送 5 份', g(tens(5, one('小花花', 10, 1, { helper: true })))], ['PK 开始', () => this.pkOn(true)], ['PK 结束', () => this.pkOn(false)]]);
     const fit = () => { const r = document.getElementById('root'); if (r) r.style.zoom = Math.min(innerWidth / 1920, (innerHeight - bar.offsetHeight) / 1080); };
     addEventListener('resize', fit); setTimeout(fit, 50);
   }

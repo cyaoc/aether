@@ -1,6 +1,6 @@
 """Turn codex's four frames of one pose moving in place (a loop) into a frame strip that does not boil.
 
-python frame-patch.py [--from-first | --ref-first] [--box x0,y0,x1,y1] [--take x0,y0,x1,y1] [--head] <ref> <frames.png> <out.png> [check.png]
+python frame-patch.py [--from-first | --ref-first] [--box x0,y0,x1,y1] [--take x0,y0,x1,y1] [--align x0,y0,x1,y1] [--head] <ref> <frames.png> <out.png> [check.png]
 python frame-patch.py --grid <ref> <out.png>
 
 <ref> is the drawing the frames were made from (as petlib.load_ref: `sheet.webp:3`, `sheet.webp:2/4x1`, `single.webp`).
@@ -52,13 +52,38 @@ def opt(name):
     return v
 
 
-box, take = opt("--box"), opt("--take")
+box, take, align = opt("--box"), opt("--take"), opt("--align")
 ref_spec, grid, out = args[:3]
 ref = load_ref(ref_spec)
 cw, ch = ref.size
 R = np.asarray(ref, dtype=np.float32)
 F, best = register(codex_frames(grid, max(cw, ch)), R)
 print(f"placed at scale {best[1]:.3f}, moved {best[2]},{best[3]}; frame 1 off the reference by {best[0]:.1f}")
+
+
+def slid(f, dx, dy):
+    g = np.zeros_like(f)
+    h, w = f.shape[:2]
+    g[max(0, dy):h + min(0, dy), max(0, dx):w + min(0, dx)] = f[max(0, -dy):h - max(0, dy), max(0, -dx):w - max(0, dx)]
+    return g
+
+
+if align:
+    # Codex can put the figure in a different place in each quarter of the grid (the girl pulling at the ring: frames 2
+    # and 4 drawn 35 px to the left, 3 and 4 40 px higher, her fists and the ring with her). Each frame is slid, never
+    # scaled, until what should stay still (align, a box of the reference) lies on frame 1's; then only what really moves
+    # differs from frame 1.
+    x0, y0, x1, y1 = align
+    r = F[0][y0:y1, x0:x1]
+
+    def off(f, dx, dy):
+        g = slid(f, dx, dy)[y0:y1, x0:x1]
+        return (np.abs(g[..., 3] - r[..., 3]) + np.abs(g[..., :3] - r[..., :3]).mean(-1) * np.minimum(g[..., 3], r[..., 3]) / 255).mean()
+    for k in range(1, len(F)):
+        d, dx, dy = min((off(F[k], dx, dy), dx, dy) for dy in range(-64, 65, 4) for dx in range(-64, 65, 4))
+        d, dx, dy = min((off(F[k], x, y), x, y) for y in range(dy - 3, dy + 4) for x in range(dx - 3, dx + 4))
+        F[k] = slid(F[k], dx, dy)
+        print(f"frame {k + 1} slid {dx},{dy} onto frame 1 (off by {d:.1f})")
 
 # where the frames move: a big difference from frame 1, specks dropped, grown so the soft edge lands on still parts
 diff = np.max([np.abs(f[..., 3] - F[0][..., 3]) + np.abs(f[..., :3] - F[0][..., :3]).mean(-1) * np.maximum(f[..., 3], F[0][..., 3]) / 255 for f in F[1:]], axis=0)
