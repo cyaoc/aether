@@ -10,6 +10,7 @@ internal sealed class DesktopPet(WebService service, Character character)
         Test = "testShow", StopTest = "stopTestShow";
 
     private bool roomConnected;
+    private bool pk;
     private Lottery? lottery;
     private GiftBoardState? giftBoard;
     // The 试演 that plays, by the number its page reports it over with, and the pages told it: once none of them is left, none
@@ -22,7 +23,7 @@ internal sealed class DesktopPet(WebService service, Character character)
     private bool Enabled => service.Settings?.DesktopPetEnabled.Value == true;
 
     public SseEvent State => new("state", service.Settings is { DesktopPetEnabled.Value: true } settings
-        ? new DesktopPetState(true, roomConnected, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines(character))
+        ? new DesktopPetState(true, roomConnected, pk, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines(character))
         : new DesktopPetState(false));
 
     /// <summary>New settings may turn the 桌宠 on or off, and change how she plays and what she says; off, she plays no 试演.</summary>
@@ -37,6 +38,13 @@ internal sealed class DesktopPet(WebService service, Character character)
     {
         if (roomConnected == connected) return;
         roomConnected = connected;
+        Publish(State);
+    }
+
+    public void SetPk(bool inPk)
+    {
+        if (pk == inPk) return;
+        pk = inPk;
         Publish(State);
     }
 
@@ -113,10 +121,10 @@ internal sealed class DesktopPet(WebService service, Character character)
 }
 
 /// <summary>The 桌宠页's state: whether the 桌宠 is on and, only then, whether a room is connected, which her quiet-room clocks
-/// start from, the lottery as it is on air, whose DrawUntil is when a draw is revealed, the 礼物榜 while its 期 runs, her settings
-/// and the current character's lines by kind, with the kinds the streamer changed.</summary>
-internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false, Lottery? Lottery = null, GiftBoardState? GiftBoard = null,
-    DesktopPetSettings? Settings = null, IReadOnlyDictionary<string, IReadOnlyList<string>>? Lines = null);
+/// start from, whether the streamer is in a PK, the lottery as it is on air, whose DrawUntil is when a draw is revealed, the 礼物榜
+/// while its 期 runs, her settings and the current character's lines by kind, with the kinds the streamer changed.</summary>
+internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false, bool Pk = false, Lottery? Lottery = null,
+    GiftBoardState? GiftBoard = null, DesktopPetSettings? Settings = null, IReadOnlyDictionary<string, IReadOnlyList<string>>? Lines = null);
 
 /// <summary>How the streamer set the 桌宠 to play: the 演出表 rows turned off; the 中礼物 and 大礼物 thresholds, in 金瓜子 as the
 /// rounds' amounts are; the quiet minutes before 无聊, 沮丧 and 犯困, 0 for never; the least and most seconds between 日常小动作; and

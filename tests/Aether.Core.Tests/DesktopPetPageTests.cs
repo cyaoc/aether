@@ -73,7 +73,7 @@ public sealed class DesktopPetPageTests
         h.EnableStreamOverlay = true;
         await using var updates = await h.WatchConnectedAsync();
         using var pet = await DesktopPetEvents.OpenAsync(h);
-        Assert.Equal("""{"enabled":false,"roomConnected":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync()).Data.GetRawText());
+        Assert.Equal("""{"enabled":false,"roomConnected":false,"pk":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync()).Data.GetRawText());
 
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(), BlindGiftFixture.Json, UserToastFixture.Message(), EntryV2Fixture.Message());
         h.Time.Advance(TimeSpan.FromSeconds(3));
@@ -85,7 +85,7 @@ public sealed class DesktopPetPageTests
         Assert.True(state.GetProperty("enabled").GetBoolean());
         Assert.True(state.GetProperty("roomConnected").GetBoolean());
         await h.ApplySettingsAsync(("desktop_pet.enabled", "false"));
-        Assert.Equal("""{"enabled":false,"roomConnected":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync("state")).GetRawText());
+        Assert.Equal("""{"enabled":false,"roomConnected":false,"pk":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync("state")).GetRawText());
     }
 
     [Fact]
@@ -302,4 +302,85 @@ public sealed class DesktopPetPageTests
 
         Assert.False((await pet.NextAsync("state")).GetProperty("roomConnected").GetBoolean());
     }
+
+    [Theory]
+    [InlineData("PK_BATTLE_START")]
+    [InlineData("PK_BATTLE_START_NEW")]
+    [InlineData("PK_BATTLE_PROCESS")]
+    [InlineData("PK_BATTLE_PROCESS_NEW")]
+    [InlineData("PK_BATTLE_FINAL_PROCESS")]
+    public async Task A_pk_message_by_its_command_alone_puts_the_streamer_in_a_pk(string command)
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+
+        await h.PushAndSyncAsync(updates, Pk(command));
+
+        Assert.True(InPk(await pet.NextAsync("state")));
+    }
+
+    [Theory]
+    [InlineData("PK_BATTLE_END")]
+    [InlineData("PK_BATTLE_SETTLE")]
+    [InlineData("PK_BATTLE_SETTLE_V2")]
+    [InlineData("PK_BATTLE_SETTLE_NEW")]
+    [InlineData("PK_BATTLE_SETTLE_USER")]
+    [InlineData("PK_BATTLE_ABNORMAL")]
+    public async Task A_pk_end_message_by_its_command_alone_ends_the_pk(string command)
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+        await h.PushAndSyncAsync(updates, Pk("PK_BATTLE_START"));
+        Assert.True(InPk(await pet.NextAsync("state")));
+
+        await h.PushAndSyncAsync(updates, Pk(command));
+
+        Assert.False(InPk(await pet.NextAsync("state")));
+    }
+
+    [Fact]
+    public async Task A_reconnect_does_not_know_of_a_pk()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+        await h.PushAndSyncAsync(updates, Pk("PK_BATTLE_PROCESS_NEW"));
+        Assert.True(InPk(await pet.NextAsync("state")));
+
+        await h.Server.DisconnectAsync();
+        Assert.IsType<Reconnecting>(await h.NextAsync(updates));
+        await h.AdvanceRetryAsync(updates, 1);
+        Assert.IsType<Connected>(updates.Current);
+
+        Assert.False(InPk(await pet.NextAsync("state")));
+    }
+
+    [Fact]
+    public async Task Ten_minutes_without_a_pk_message_end_the_pk()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        await h.PushAndSyncAsync(updates, Pk("PK_BATTLE_START_NEW"));
+        Assert.True(InPk(await pet.NextAsync("state")));
+        // Closed while the clock jumps: a write to it still in flight would outlast its 5-second timeout and drop the page.
+        pet.Dispose();
+
+        // A danmaku every half minute keeps the room connected: only a PK message would keep the PK on.
+        for (var i = 1; i <= 20; i++)
+        {
+            h.Time.Advance(i < 20 ? TimeSpan.FromSeconds(30) : TimeSpan.FromSeconds(30) - TimeSpan.FromMilliseconds(1));
+            await h.PushAndSyncAsync(updates);
+        }
+        using var reopened = await DesktopPetEvents.OpenAsync(h);
+        Assert.True(InPk(await reopened.NextAsync("state")));
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
+
+        Assert.False(InPk(await reopened.NextAsync("state")));
+    }
+
+    private static string Pk(string command) => $$"""{"cmd":"{{command}}"}""";
+
+    private static bool InPk(JsonElement state) => state.GetProperty("pk").GetBoolean();
 }

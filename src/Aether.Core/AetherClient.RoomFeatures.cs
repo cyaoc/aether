@@ -199,6 +199,31 @@ public sealed partial class AetherClient
         }
     }
 
+    /// <summary>Tells the 桌宠 whether the streamer is in a PK, as the last PK message said. Ten minutes without any end it too,
+    /// so a missed end does not hold one on all night; and a reconnect cannot tell whether one went on meanwhile, so it is off.</summary>
+    private sealed class PkFeature(StepTimers timers, WebServiceFacade service) : IRoomFeature
+    {
+        private static readonly TimeSpan MaxSilence = TimeSpan.FromMinutes(10);
+        private readonly QuietTimer silence = new(timers, MaxSilence, () => service.SetDesktopPetPk(false));
+
+        public void Handle(RoomEvent e)
+        {
+            switch (e)
+            {
+                case DanmakuProtocol.PkReceived { InPk: var inPk, ReceivedTimestamp: var timestamp }:
+                    service.SetDesktopPetPk(inPk);
+                    silence.Reset(timestamp);
+                    break;
+                case TransportDisconnected:
+                    service.SetDesktopPetPk(false);
+                    break;
+                case RoomConnectionEnded:
+                    silence.Dispose();
+                    break;
+            }
+        }
+    }
+
     private sealed class WelcomeFeature(Settings settings, SendQueue sendQueue) : IRoomFeature
     {
         private readonly Welcome welcome = new(settings);

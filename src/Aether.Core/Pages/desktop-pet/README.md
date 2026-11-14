@@ -32,6 +32,7 @@ again whenever settings are saved:
 | `settings.dailyMinSeconds`, `settings.dailyMaxSeconds` | How long she waits, at random between the two, before each 日常小动作 |
 | `settings.mishapPercent` | The chance, 0 to 100, that a 日常小动作 goes wrong |
 | `lines` | The current character's lines by kind: hers, with each kind the streamer changed replaced |
+| `pk` | Whether the streamer is in a PK, by the PK messages' commands alone (`DanmakuProtocol.cs`). One that ends a PK ends it, as do ten minutes without any PK message and a reconnect, which cannot tell |
 
 Of the events, these carry what the 宝箱小游戏 counts, by what the viewer paid, as the chest does:
 

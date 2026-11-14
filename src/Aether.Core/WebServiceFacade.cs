@@ -74,6 +74,9 @@ public sealed class WebServiceFacade
     internal void SetDesktopPetRoom(bool connected) => region.Post(s => s.DesktopPet.SetRoom(connected));
 
     /// <inheritdoc cref="PlayEntry"/>
+    internal void SetDesktopPetPk(bool inPk) => region.Post(s => s.DesktopPet.SetPk(inPk));
+
+    /// <inheritdoc cref="PlayEntry"/>
     internal void TellDesktopPet(string name, object data) => region.Post(s => s.DesktopPet.Tell(name, data));
 
     /// <summary>Closes the listener and every connection in a last step, without waiting for the serving to wind down as
