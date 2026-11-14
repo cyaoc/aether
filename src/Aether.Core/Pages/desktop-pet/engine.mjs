@@ -187,8 +187,8 @@ export const NOTICE = 500;
 // peek (looking in and back out), carry (flying over with the chest), loiter (on an empty chest), fight and sprint (the
 // fight's last stretch): how long each lasts; pebbles: the share of its life that all the danmaku together can take; urge:
 // from this much time left the countdown grows anxious; about: someone is about who wrote or came in this recently, for it to
-// come on its own.
-export const GAME = { peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, pebbles: 0.3, urge: 30000, about: 5 * 60000 };
+// come on its own; hourly: how many times an hour at most it comes on its own (叫它来 brings it whenever).
+export const GAME = { peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, pebbles: 0.3, urge: 30000, about: 5 * 60000, hourly: 2 };
 // The phases in which it is already on its way off the page: a gift then is a gift to her again.
 export const DONE = new Set(['knocked', 'toss', 'leave', 'won', 'lost', 'fled']);
 // It lies DAZED ms on the chest's lid where it fell; in the tug it is UP and pulling that long after the chest lands.
@@ -566,12 +566,12 @@ export class Engine extends EventTarget {
   // two plain handles. Its drawings, the chest's and their numbers are this.prankster (prankster/prankster.json), measured by
   // Pet (pkCell, chestBox), which also loads them: this.gameLoaded once they are.
   // gm: chest (the 电池 in her chest at home) and pile (the gifts drawn in it), drops and nums (what falls and the numbers
-  // that rise, for drawGame), visit (the 捣蛋鬼 while it is here), due (it is to come once nothing plays), pk, last (when it
-  // last left), out (the sprite flying the chest home), fix (her frizzed hair patted smooth with no show after), walk (her
-  // hopping to another place), streak (连守) and steals, brag and grudge (what it opens with next time), say (her line of the
-  // game), herX (where she stands).
+  // that rise, for drawGame), visit (the 捣蛋鬼 while it is here), due (it is to come once nothing plays: 'called' or on its
+  // 'own'), came (when it came on its own this past hour), pk, last (when it last left), out (the sprite flying the chest
+  // home), fix (her frizzed hair patted smooth with no show after), walk (her hopping to another place), streak (连守) and
+  // steals, brag and grudge (what it opens with next time), say (her line of the game), herX (where she stands).
   newGame(now) {
-    return { chest: 0, pile: 0, drops: [], nums: [], visit: null, due: false, pk: false, last: now, out: null, fix: null, walk: null, streak: 0, steals: 0, brag: false, grudge: null, say: null, herX: FOOT.x };
+    return { chest: 0, pile: 0, drops: [], nums: [], visit: null, due: false, came: [], pk: false, last: now, out: null, fix: null, walk: null, streak: 0, steals: 0, brag: false, grudge: null, say: null, herX: FOOT.x };
   }
 
   // One gift (a gift message's item, or a 大航海 as one; its spend in 电池). Out of a 来访 it only goes into the chest at home:
@@ -593,7 +593,7 @@ export class Engine extends EventTarget {
 
   // 叫它来 (Core's summon), or its own time come (gameUpdate): it comes once whatever she plays is over (a 日常小动作 is not cut
   // short).
-  summon() { if (!this.gm.visit && !this.gm.pk) this.gm.due = true; }
+  summon() { if (!this.gm.visit && !this.gm.pk) this.gm.due = 'called'; }
 
   // It is not to come after all, nor to stay (a PK, the room disconnected): on its way, it is reported gone; one here goes as if
   // scared off, with no show after: she lets go and is herself again; after the lightning she cheers frizzed until the sprite,
@@ -616,6 +616,7 @@ export class Engine extends EventTarget {
 
   startVisit(now) {
     const gm = this.gm;
+    if (gm.due === 'own') gm.came.push(now);
     gm.due = false; gm.out = null;
     // loot: there is something in the chest to fight over; helpers: the UIDs on its side in the tug
     gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helpers: new Set(), helped: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
@@ -810,10 +811,11 @@ export class Engine extends EventTarget {
   // A gift thrown at the 捣蛋鬼 that it no longer fights over: into her chest as any, unplayed.
   bank(spend) { this.gm.chest += spend; this.gm.pile++; }
 
-  // The 来访's clock. It comes on its own at most once in pranksterMinutes, in a connected room when someone is about, and once
-  // called; then, the room still connected, once its pictures are there and she plays nothing, a show, a 试演 or a round's
-  // blind boxes shaken for their 盲盒播报 (shaking; a 一轮送礼 of gifts going on does not keep it waiting), no lottery is drawn
-  // (lotOf, whether its show is on or not) and no PK is on. Then each phase runs its time, and the tug its countdown.
+  // The 来访's clock. It comes on its own at most once in pranksterMinutes and GAME.hourly times an hour, in a connected room
+  // when someone is about, and once called; then, the room still connected, once its pictures are there and she plays
+  // nothing, a show, a 试演 or a round's blind boxes shaken for their 盲盒播报 (shaking; a 一轮送礼 of gifts going on does not
+  // keep it waiting), no lottery is drawn (lotOf, whether its show is on or not) and no PK is on. Then each phase runs its
+  // time, and the tug its countdown.
   gameUpdate(now) {
     const gm = this.gm, v = gm.visit, dt = now - (gm.clock ?? now), every = this.settings.pranksterMinutes * 60000;
     gm.clock = now;
@@ -821,7 +823,8 @@ export class Engine extends EventTarget {
     // the chest is home once the sprite has flown it off the page (or, should the sprite never get the rope, a while after)
     if (gm.out && (gm.out.got != null ? now - gm.out.got >= gm.out.ms - gm.out.t2 && !(this.sv?.x > -50) : now - gm.out.at >= gm.out.ms + 6000)) gm.out = null;
     if (!v) {
-      if (this.room && every && now - gm.last >= every && now - this.lastAny < GAME.about) gm.due = true;
+      gm.came = gm.came.filter(t => now - t < 3600000);
+      if (this.room && every && now - gm.last >= every && now - this.lastAny < GAME.about && gm.came.length < GAME.hourly) gm.due ||= 'own';
       if (gm.due && this.room && this.gameLoaded && !this.cur && !this.trial && !this.shaking() && !lotOf(this.lottery) && !gm.pk) this.startVisit(now);
       return;
     }

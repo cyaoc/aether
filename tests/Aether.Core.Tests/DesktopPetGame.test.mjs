@@ -247,6 +247,18 @@ test('叫它来 waits while she shakes a viewer\'s blind box for its 盲盒播�
   assert.deepEqual([...inTug].filter(fx => ['shakeMarks', 'giftArc'].includes(fx)), []);
 });
 
+test('on its own the 捣蛋鬼 comes at most twice an hour, and 叫它来 brings it all the same', () => {
+  const pet = gamePet(character, { pranksterMinutes: 1 }), told = reports(pet), comes = () => told.filter(t => t === 'start').length;
+  const busy = ms => { for (const end = pet.now() + ms; pet.now() < end;) { pet.danmaku({ uid: 1, nickname: '观众1', joins: false }); play(pet, 20000); } };
+  busy(6 * 60000);
+  assert.equal(comes(), 2);
+  pet.summon();
+  play(pet, 1000);
+  assert.equal(comes(), 3);
+  busy(60 * 60000);
+  assert.equal(comes(), 5);
+});
+
 test('a show taking over from one that scared the 捣蛋鬼 off waits as it did, for the chest to go home and her hair', () => {
   const pet = tugging(), zapped = tugging();
   zapped.gift(gifts(1, 6000));
