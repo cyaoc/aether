@@ -27,6 +27,10 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
         await using var updates = await h.WatchConnectedAsync();
 
         Assert.True((await NextAsync()).CanSummon);
+        await h.PushAndSyncAsync(updates, """{"cmd":"PK_BATTLE_START"}""");
+        Assert.Equal("PK 打完才能叫：PK 时它不出来", (await NextAsync()).Blocked);
+        await h.PushAndSyncAsync(updates, """{"cmd":"PK_BATTLE_END"}""");
+        Assert.True((await NextAsync()).CanSummon);
         await h.Client.WebService.StopAsync();
         Assert.Equal("先在直播姬里加好桌宠页", (await NextAsync()).Blocked);
     }

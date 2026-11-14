@@ -63,6 +63,7 @@ internal sealed class DesktopPet(WebService service, Character character)
         if (pk == inPk) return;
         pk = inPk;
         Publish(State);
+        PublishSummon();
     }
 
     /// <summary>The 抽奖页's example is no lottery, and what the streamer keeps off air stays off the 桌宠 too.</summary>
@@ -167,7 +168,7 @@ internal sealed class DesktopPet(WebService service, Character character)
         : service.Status.DesktopPetConnections == 0 ? "先在直播姬里加好桌宠页"
         : !roomConnected ? "连上直播间才能叫它来：没人送礼，也没人能帮它"
         : Drawing(lottery) ? "抽完奖才能叫：抽奖会把它吓跑"
-        : InPk ? "PK 打完才能叫：PK 时它不出来" : null;
+        : pk ? "PK 打完才能叫：PK 时它不出来" : null;
 
     /// <summary>A lottery she waits through, as the page's lotOf (engine.mjs) has it: entries open, or a draw coming (entries closed
     /// with someone to draw, a pool spinning or its draw on the way to its DrawUntil); a pool between draws is none. Whether the
@@ -175,9 +176,6 @@ internal sealed class DesktopPet(WebService service, Character character)
     private static bool Drawing(Lottery? lottery) => lottery is EntryLottery { Phase: EntryLotteryPhase.Open }
         or EntryLottery { Phase: EntryLotteryPhase.Closed, EntryCount: > 0 } or PoolLottery { Phase: PoolLotteryPhase.Spinning }
         or PoolLottery { DrawUntil: not null };
-
-    // The PK comes with #374; until then the room is never in one.
-    private static bool InPk => false;
 
     private void PublishSummon() => SummonSubscribers.Publish(SummonState);
 
