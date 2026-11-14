@@ -89,10 +89,16 @@ internal sealed class DesktopPetEvents(HttpClient http, string id, HttpResponseM
         return reply.StatusCode;
     }
 
-    public void Dispose()
+    /// <summary>The page goes, as one the streaming software reloaded: its reports can still come, late.</summary>
+    public void Close()
     {
         reader.Dispose();
         response.Dispose();
+    }
+
+    public void Dispose()
+    {
+        Close();
         http.Dispose();
     }
 }

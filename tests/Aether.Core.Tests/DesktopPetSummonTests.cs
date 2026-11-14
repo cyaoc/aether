@@ -141,6 +141,25 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_page_gone_says_nothing_of_it_with_a_report_that_comes_late()
+    {
+        var (updates, pet) = await ConnectedAsync();
+        using var _ = pet;
+        await using var __ = updates;
+        using var old = await DesktopPetEvents.OpenAsync(h);
+        old.Close();
+        await DesktopPetEvents.BeatUntilAsync(h, () => h.Client.WebService.Status.DesktopPetConnections == 1);
+        await h.Client.WebService.SummonAsync();
+        Assert.Equal(PranksterVisit.OnTheWay, (await NextAsync()).Visit);
+
+        Assert.Equal(HttpStatusCode.NoContent, await old.ReportAsync("?visit=start"));
+        Assert.Equal(HttpStatusCode.NoContent, await old.ReportAsync("?visit=end"));
+        await h.Client.IdleAsync();
+
+        Assert.Equal(new PranksterSummon(null, PranksterVisit.OnTheWay), await LatestAsync());
+    }
+
+    [Fact]
     public async Task One_that_cannot_come_is_not_told_to_the_page()
     {
         await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));

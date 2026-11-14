@@ -134,7 +134,7 @@ internal sealed class DesktopPet(WebService service, Character character)
     {
         if (trial is { } playing && Gone(playing.Pages)) Ended();
         if (Gone(summonPages)) summoned = false;
-        visiting.RemoveWhere(page => !Pages.Any(connection => connection.Id == page));
+        visiting.RemoveWhere(page => !Here(page));
         PublishSummon();
     }
 
@@ -151,11 +151,12 @@ internal sealed class DesktopPet(WebService service, Character character)
     }
 
     /// <summary>The page <paramref name="page"/> reports the 捣蛋鬼 set off, called or on its own: it is on the page until each
-    /// page still there that it set off on says it left.</summary>
+    /// page still there that it set off on says it left. A page gone says nothing any more, though its report comes late.</summary>
     public void VisitStarted(string page)
     {
+        if (!Here(page)) return;
         summoned = false;
-        if (Pages.Any(connection => connection.Id == page)) visiting.Add(page);
+        visiting.Add(page);
         PublishSummon();
     }
 
@@ -163,6 +164,7 @@ internal sealed class DesktopPet(WebService service, Character character)
     /// its way.</summary>
     public void VisitEnded(string page)
     {
+        if (!Here(page)) return;
         summoned = false;
         visiting.Remove(page);
         PublishSummon();
@@ -186,6 +188,8 @@ internal sealed class DesktopPet(WebService service, Character character)
     private void PublishSummon() => SummonSubscribers.Publish(SummonState);
 
     private bool Gone(WebService.Connection[] pages) => !pages.Intersect(Pages).Any();
+
+    private bool Here(string page) => Pages.Any(connection => connection.Id == page);
 
     private void Ended()
     {
