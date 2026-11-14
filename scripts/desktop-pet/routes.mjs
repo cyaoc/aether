@@ -54,8 +54,10 @@ export function told(pet, uid, so) {
   pet.gift({ uid, nickname: '星河', ended: false, items: [], ...so });
 }
 
-/** The board's gifts `list` as Core tells a gift message's (GiftItem). */
-export function itemsOf(list) { return list.map(g => ({ name: g.gift, spend: spendOf(g), count: g.n, blind: !!g.box, castle: !!g.castle, iconUrl: '' })); }
+/** The board's gifts `list` as Core tells a gift message's (GiftItem), each gift's name standing in for its id. */
+export function itemsOf(list) {
+  return list.map(g => ({ giftId: g.gift, name: g.gift, price: g.price * 100, spend: spendOf(g), count: g.n, blind: !!g.box, castle: !!g.castle, iconUrl: '' }));
+}
 
 /** What a gift of the board's cost, in 金瓜子: a 盲盒 its box's price. */
 export function spendOf(g) { return (g.box ? g.boxPrice : g.price) * 100 * g.n; }

@@ -105,11 +105,11 @@ const BOX_OPEN = { blindBoxSmall: 900, blindBoxMedium: 1200, blindBoxLarge: 1500
 const BOX_EAR = ['rel', 1.28, 0.4];
 // A gift round's shows from small to big: the round plays the one it has grown to, moving up as it grows (README 2).
 const GIFT_SHOWS = ['gift', 'giftStreak', 'midGift', 'bigGift', 'castle'], CASTLE = GIFT_SHOWS.indexOf('castle');
-// What a round's gifts (GiftItem, none blind) come to: their 投入 and how many, and the one priced highest (the first of those
-// priced alike) and how many of it.
+// What a round's gifts (GiftItem, none blind) come to: their 投入 and how many, and the one priced highest by its price (the
+// first of those priced alike) and how many of it by its gift id, the rule of Core's 一轮送礼 (GiftRoundFeature).
 function giftsOf(gifts) {
-  const many = list => list.reduce((n, g) => n + g.count, 0), top = gifts.reduce((a, g) => g.spend / g.count > a.spend / a.count ? g : a);
-  return { spend: gifts.reduce((n, g) => n + g.spend, 0), count: many(gifts), top: top.name, topCount: many(gifts.filter(g => g.name === top.name)) };
+  const many = list => list.reduce((n, g) => n + g.count, 0), top = gifts.reduce((a, g) => g.price > a.price ? g : a);
+  return { spend: gifts.reduce((n, g) => n + g.spend, 0), count: many(gifts), top: top.name, topCount: many(gifts.filter(g => g.giftId === top.giftId)) };
 }
 const BLIND_BOXES = ['blindBoxSmall', 'blindBoxMedium', 'blindBoxLarge'];
 // The 演出表's groups the engine plays by (shows.json): a 心情 holds her rather than plays, a blind box says its ending's lines.

@@ -45,7 +45,7 @@ paid, as the chest does:
 
 | Field | What |
 |---|---|
-| `gift`'s `items` | The viewer's gifts in the message: each its `name`, `spend` in 金瓜子 (a 盲盒's is the box's price, not what it opened), `count`, whether it is `blind` and whether that opened a 浪漫城堡 (`castle`), and `iconUrl`; a 盲盒's name and icon are those of the gift it opened, the icon empty when B站 gave none |
+| `gift`'s `items` | The viewer's gifts in the message: each its `giftId`, `name` and `price` of one, `spend` in 金瓜子 (a 盲盒's is the box's price, not what it opened), `count`, whether it is `blind` and whether that opened a 浪漫城堡 (`castle`), and `iconUrl`; a 盲盒's id, name, price and icon are those of the gift it opened, the icon empty when B站 gave none. Her round's gift priced highest is the first of those of the highest `price`, and how many of it all of its `giftId`: the same rule as Core's 一轮送礼 (`GiftRoundFeature`) |
 | `guard`'s `spend` | What the 大航海 cost in 金瓜子, for all its months |
 
 A `danmaku` tells only `uid`, `nickname` and `joins`, whether it is the 帮它的关键字 saved last (Core compares the two trimmed, as

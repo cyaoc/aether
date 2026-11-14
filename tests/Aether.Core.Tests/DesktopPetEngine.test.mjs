@@ -82,6 +82,16 @@ test('a gift round reaching five gifts takes over its own thank-you, not another
   assert.deepEqual([playing(engine), engine.cur.opts.nickname], ['gift', '观众1']);
 });
 
+// A round's gift priced highest and how many of it, as Core's 一轮送礼 (GiftRoundFeature) has them: by its price, not by what
+// was paid for it, and counted by its gift id, not its name.
+test('a round thanks for the gift priced highest though it was paid less for, and counts it by its gift id', () => {
+  const discounted = pet();
+  discounted.gift(round(1, { items: [item(800, { giftId: 31164, name: '告白气球' }), item(500, { giftId: 31170, name: '小电视飞船', price: 1000 })] }));
+  const alike = pet();
+  alike.gift(round(1, { items: [item(200, { count: 2 }), item(200, { giftId: 31037, count: 2 })] }));
+  assert.deepEqual([discounted.cur.opts.gift, alike.cur.opts.gift, alike.cur.opts.count], ['小电视飞船', '小花花', 2]);
+});
+
 test('an entry plays only while she is idle, over no show nor 日常小动作, and does not queue', () => {
   const engine = pet();
   engine.entry({ uid: 1, nickname: '进场观众' });

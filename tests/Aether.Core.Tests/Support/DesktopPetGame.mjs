@@ -22,9 +22,10 @@ export function gamePet(character, settings = {}, rng = seeded(7)) {
   return pet;
 }
 
-// One of a gift message's gifts (GiftItem), a 小花花 unless so says otherwise; a viewer's 一轮送礼 as Core tells it after a gift
-// message, with its gifts, or as it ends; one telling count gifts for spend 金瓜子 in all, and one telling n 盲盒 at 150 电池 each.
-export const item = (spend, so) => ({ name: '小花花', spend, count: 1, blind: false, castle: false, iconUrl: '', ...so });
+// One of a gift message's gifts (GiftItem), a 小花花 at what was paid for one unless so says otherwise; a viewer's 一轮送礼 as
+// Core tells it after a gift message, with its gifts, or as it ends; one telling count gifts for spend 金瓜子 in all, and one
+// telling n 盲盒 at 150 电池 each.
+export const item = (spend, so = {}) => ({ giftId: 31036, name: '小花花', price: spend / (so.count ?? 1), spend, count: 1, blind: false, castle: false, iconUrl: '', ...so });
 export const round = (uid, so) => ({ uid, nickname: '观众' + uid, ended: false, items: [], ...so });
 export const gifts = (uid, spend, count = 1) => round(uid, { items: [item(spend, { count })] });
 export const box = (uid, n = 1, so) => round(uid, { items: [item(15000 * n, { name: '棉花糖', count: n, blind: true, ...so })] });
