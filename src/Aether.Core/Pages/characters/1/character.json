@@ -410,6 +410,25 @@
     "dustOff": ["拍拍土…没事没事！", "再来！这次小心点～"],
     "bikeCrash": ["车、车子不听话…", "呜…又摔了…"],
     "plaster": ["贴一下就好啦！", "创可贴…又要用完了"],
-    "skiFall": ["噗…全是雪…", "雪、雪好冰！"]
+    "skiFall": ["噗…全是雪…", "雪、雪好冰！"],
+    "chestFell": ["啊！我的宝箱！"],
+    "pranksterHit": ["{昵称}打得好！"],
+    "herHit": ["{昵称}！怎么砸我呀！"],
+    "chestKept": ["守住啦！最后一下是{昵称}！连守 {连守} 次！"],
+    "pranksterKnocked": ["谢谢{昵称}！把它打跑啦！", "{昵称}好厉害…它飞走了！"],
+    "chestRobbed": ["呜…宝箱被拿走了…", "我的宝箱…"],
+    "chestRobbedGloomy": ["我的宝箱…", "下次一定守住…", "（偷偷看）下次有人帮我守吗…"],
+    "pranksterPeek": ["嘘—— 别告诉她"],
+    "pranksterGrudge": ["上次砸我的 {昵称}在吗？"],
+    "pranksterBrag": ["上次那箱 真不错～"],
+    "pranksterEmpty": ["……空的？ 白偷了！"],
+    "pranksterSits": ["我坐这儿等， 有货再拿～", "这箱子 归我坐了！", "没人管我吧？ 嘿嘿"],
+    "pranksterToss": ["空的不要， 还你！"],
+    "pranksterCaught": ["哎呀， 被发现了！"],
+    "pranksterRecruit": ["想看她出糗？ 发「{关键字}」！"],
+    "pranksterZap": ["看我的闪电！"],
+    "pranksterSprint": ["拜拜咯～"],
+    "pranksterRobs": ["多谢款待， 下次再来！"],
+    "pranksterFlees": ["你们给我 等着——！"]
   }
 }

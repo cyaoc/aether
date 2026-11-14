@@ -11,13 +11,16 @@ character's `character.json`; settings know it by its id and play it unless it i
 
 | Section | What |
 |---|---|
-| `groups` | `id`, `label` and, for a group of 演出, `note`: the groups the GUI lists 演出 and kinds of lines under, in this order (`mood`, `daily` and `mishap` hold 心情, 日常小动作 and their mishaps' lines) |
+| `groups` | `id`, `label` and, for a group of 演出, `note`: the groups the GUI lists 演出 and kinds of lines under, in this order (`mood`, `daily` and `mishap` hold 心情, 日常小动作 and their mishaps' lines; `chestGame` and `prankster` hold hers and the 捣蛋鬼's in a 宝箱小游戏 来访) |
 | `shows` | A row for each 演出, 日常小动作 and 心情: `id`; `group`; `label`; `tier`, its 演出档 (`SS`, `S`, `A`, `B`, `C`, `D`); `lines`, the ids of the kinds of lines it says; `tests`, what a 试演 of it chooses, each a key of `variants` or `null` for the row itself, none for a row that has no 试演; and, for a 演出 the GUI switches by group, `note`, when it plays, where `{mid}`, `{big}` and `{big-1}` stand for the 中礼物 and 大礼物 thresholds in 电池 |
 | `lines` | A row for each kind of line: `id`, which settings and `character.json` key lines by; `group`; `label`; `note`, when she says it; `placeholders`, the names a line may hold in braces |
 | `variants` | The label of each 试演 variant: a blind box's ending (`Gain`, `Even`, `Loss`, as Core tells a 一轮盲盒's result, and `Jackpot`), a 日常小动作's `Mishap`, a lottery's step |
 
 Rows of the group `mood` cannot be turned off: a 心情 comes of how quiet the room has been, and `desktop_pet.*_minutes` of 0
-keeps her out of it. Every other row can, by its id in `desktop_pet.shows_off`.
+keeps her out of it. Nor can the group `chestGame`, the endings of a 宝箱小游戏 来访 (`pranksterKnocked` on an empty chest,
+`chestKept`, `chestRobbed`): a 来访 plays whole or not at all, so they have no 试演 and the GUI's 演出 tab does not list them.
+What she and the 捣蛋鬼 say while it is on the page (`chestFell`, `pranksterHit`, `herHit` and the group `prankster`) is said in
+no row: a 来访 is no 演出. Every other row can be turned off, by its id in `desktop_pet.shows_off`.
 
 ## What the page is told
 
@@ -31,7 +34,16 @@ again whenever settings are saved:
 | `settings.boredMinutes`, `settings.gloomyMinutes`, `settings.sleepyMinutes` | Quiet minutes before 无聊, 沮丧 and 犯困; 0 never |
 | `settings.dailyMinSeconds`, `settings.dailyMaxSeconds` | How long she waits, at random between the two, before each 日常小动作 |
 | `settings.mishapPercent` | The chance, 0 to 100, that a 日常小动作 goes wrong |
+| `settings.pranksterMinutes` | The most minutes between the 捣蛋鬼's own 来访, counted from the last one's end; 0 only when the streamer 叫它来 |
+| `settings.pranksterKeyword` | The 帮它的关键字, which its 招人 line (`{关键字}`) and the line under the tug's bar say |
 | `lines` | The current character's lines by kind: hers, with each kind the streamer changed replaced |
+
+A `danmaku` tells only `uid`, `nickname` and `joins`, whether it is the 帮它的关键字 saved last (Core compares the two trimmed, as
+a 报名抽奖 compares its keyword): what a viewer wrote never reaches the stream. The account's own danmaku, the bot's thanks,
+welcomes and 盲盒播报 coming back from B站, are not told. `summon` is the streamer's 叫它来: the 捣蛋鬼 comes once the show she
+plays is over. The page reports the 捣蛋鬼 setting off, called or on its own, with `POST /desktop-pet/report?visit=start`, and
+leaving with `?visit=end`, also when it leaves before it set off, as when a PK starts; from these Core tells the GUI whether it is
+on its way or on the page.
 
 ## The page
 

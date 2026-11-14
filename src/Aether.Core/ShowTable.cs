@@ -19,8 +19,8 @@ public sealed record ShowTable(IReadOnlyList<ShowGroup> Groups, IReadOnlyList<Sh
 public sealed record ShowGroup(string Id, string Label, string? Note = null)
 {
     /// <summary>The groups code knows by id: the 心情, which no switch turns off; 礼物, which the 中礼物 and 大礼物 thresholds divide;
-    /// and the 日常小动作, switched beside her 心情.</summary>
-    public const string Mood = "mood", Gift = "gift", Daily = "daily";
+    /// the 日常小动作, switched beside her 心情; and her endings of a 宝箱小游戏 来访, which no switch turns off either.</summary>
+    public const string Mood = "mood", Gift = "gift", Daily = "daily", ChestGame = "chestGame";
 }
 
 /// <summary>A row of the 演出表: its id, which settings and the 桌宠页 know it by; its group; its label; its 演出档; the kinds of
@@ -29,8 +29,8 @@ public sealed record ShowGroup(string Id, string Label, string? Note = null)
 public sealed record Show(string Id, string Group, string Label, string Tier, IReadOnlyList<string> Lines, IReadOnlyList<string?> Tests,
     string? Note = null)
 {
-    /// <summary>A 心情 comes of how quiet the room has been, never of a switch.</summary>
-    public bool CanTurnOff => Group != ShowGroup.Mood;
+    /// <summary>A 心情 comes of how quiet the room has been, never of a switch; a 来访 plays whole, so its endings have none.</summary>
+    public bool CanTurnOff => Group is not (ShowGroup.Mood or ShowGroup.ChestGame);
 }
 
 /// <summary>A kind of line: when she says it and the placeholders it may hold, by their names in the braces.</summary>
