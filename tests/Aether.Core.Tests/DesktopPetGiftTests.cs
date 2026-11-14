@@ -67,6 +67,19 @@ public sealed class DesktopPetGiftTests
         Assert.Equal(spend, (await pet.NextAsync(DesktopPet.Guard)).GetProperty("spend").GetInt64());
     }
 
+    [Fact]
+    public async Task A_guard_B站_pushes_again_is_told_once()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+
+        await h.PushAndSyncAsync(updates, UserToastFixture.Message(), UserToastFixture.Message(), UserToastFixture.Message(num: 3, payflowId: "test-payflow-2"));
+
+        Assert.Equal(198000, (await pet.NextAsync(DesktopPet.Guard)).GetProperty("spend").GetInt64());
+        Assert.Equal(594000, (await pet.NextAsync(DesktopPet.Guard)).GetProperty("spend").GetInt64());
+    }
+
     [Theory]
     [InlineData(Accepted)]
     [InlineData("{\"code\":1003212,\"message\":\"超长\"}")]

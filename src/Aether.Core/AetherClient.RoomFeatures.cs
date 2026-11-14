@@ -39,7 +39,8 @@ public sealed partial class AetherClient
         }
     }
 
-    /// <summary>Where a 一轮送礼 reports: the 送礼动画 takes its end; the 桌宠 the gifts of each message and its end; and
+    /// <summary>Where a 一轮送礼 reports: the 送礼动画 takes its end; the 桌宠 the gifts of each message and its end, and each
+    /// 大航海; and
     /// <paramref name="BlindBoxes"/> the result of its 盲盒 as it ends, none while a 盲盒播报 reports them.</summary>
     private sealed record GiftRoundReports(Action<GiftRoundEnded> Ended, Action<string, object> TellDesktopPet, Action<BlindBoxResult>? BlindBoxes);
 
@@ -56,7 +57,8 @@ public sealed partial class AetherClient
             public QuietTimer Timer = null!;
         }
         private readonly Dictionary<long, Round> rounds = [];
-        // A push B站 repeats counts once, as the 收礼记录 writes it once, so a round's boxes are the ones its 盲盒播报 reports.
+        // A push B站 repeats counts once, as the 收礼记录 writes it once, so a round's boxes are the ones its 盲盒播报 reports, and a
+        // 大航海 goes into the 桌宠's chest once.
         // shortcut: the tids are kept for the whole room connection; forget old ones if a connection lasting days holds too many.
         private readonly HashSet<string> tids = [];
 
@@ -69,7 +71,10 @@ public sealed partial class AetherClient
                 tids.Clear();
             }
             if (e is not DanmakuProtocol.GiftsReceived received) return;
-            foreach (var viewer in received.Gifts.Where(gift => gift.Tid is not { } tid || tids.Add(tid)).GroupBy(gift => gift.Uid))
+            var fresh = received.Gifts.Where(gift => gift.Tid is not { } tid || tids.Add(tid)).ToArray();
+            foreach (var guard in fresh.Where(gift => gift.GuardLevel > 0))
+                reports.TellDesktopPet(DesktopPet.Guard, new { guard.Uid, guard.Nickname, guard.GuardLevel, guard.Spend });
+            foreach (var viewer in fresh.GroupBy(gift => gift.Uid))
             {
                 if (viewer.Key == 0)
                 {
@@ -190,10 +195,6 @@ public sealed partial class AetherClient
                 // wrote never reaches the stream.
                 case DanmakuProtocol.DanmakuReceived { Danmaku: var danmaku } when danmaku.Uid != account:
                     service.TellDesktopPetDanmaku(danmaku);
-                    break;
-                case DanmakuProtocol.GiftsReceived { Gifts: var gifts }:
-                    foreach (var gift in gifts.Where(gift => gift.GuardLevel > 0))
-                        service.TellDesktopPet(DesktopPet.Guard, new { gift.Uid, gift.Nickname, gift.GuardLevel, gift.Spend });
                     break;
             }
         }
