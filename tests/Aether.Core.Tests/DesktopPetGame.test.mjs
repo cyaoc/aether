@@ -4,15 +4,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { gamePet, play } from './Support/DesktopPetGame.mjs';
+import { gamePet, play, playing, round, state } from './Support/DesktopPetGame.mjs';
 
 const character = JSON.parse(readFileSync(new URL('../../src/Aether.Core/Pages/characters/1/character.json', import.meta.url), 'utf8'));
-// A viewer's 一轮送礼 so far, as Core tells it after a gift message, with the message's gifts.
-const round = (uid, so) => ({ uid, nickname: '观众' + uid, spend: 0, count: 0, topGift: '小花花', topCount: 0, boxSpend: 0, boxes: 0, castle: false, ended: false, items: [], ...so });
+// A viewer's 一轮送礼 so far with the message's gifts.
 const gifts = (uid, spend, so) => round(uid, { spend, count: 1, topCount: 1, items: [{ spend, count: 1, blind: false, iconUrl: '' }], ...so });
 const box = (uid, boxSpend) => round(uid, { boxSpend, boxes: 1, items: [{ spend: boxSpend, count: 1, blind: true, iconUrl: '' }] });
-const state = (pet, so) => ({ enabled: true, roomConnected: true, settings: pet.settings, lines: pet.lines, ...so });
-const playing = pet => pet.cur?.name ?? null;
 // What the page reports to Core of the 捣蛋鬼 (page.mjs).
 const reports = pet => { const told = []; pet.addEventListener('visit', event => told.push(event.detail)); return told; };
 // The 捣蛋鬼 called and on the page, peeking in.

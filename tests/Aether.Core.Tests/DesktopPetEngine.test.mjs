@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DAILY, Engine, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { SETTINGS } from './Support/DesktopPetSettings.mjs';
+import { playing, round, state } from './Support/DesktopPetGame.mjs';
 
 const read = path => JSON.parse(readFileSync(new URL('../../src/Aether.Core/Pages/' + path, import.meta.url), 'utf8'));
 const { shows } = read('desktop-pet/shows.json'), { lines } = read('characters/1/character.json');
@@ -17,9 +18,6 @@ function pet(settings = {}) {
   return engine;
 }
 const advance = (engine, ms) => { engine.master.currentTime += ms; engine.update(engine.now()); };
-const playing = engine => engine.cur?.name ?? null;
-// A viewer's 一轮送礼 so far, as Core tells it after a gift message.
-const round = (uid, so) => ({ uid, nickname: '观众' + uid, spend: 0, count: 0, topGift: '小花花', topCount: 0, boxSpend: 0, boxes: 0, castle: false, ended: false, items: [], ...so });
 const gifts = (uid, spend, count = 1) => round(uid, { spend, count, topCount: count });
 const boxResult = (uid, spend, openedValue, bestPrice = 9000) => ({ uid, nickname: '观众' + uid, tally: { spend, openedValue, outcome: ['Loss', 'Even', 'Gain'][Math.sign(openedValue - spend) + 1] }, boxes: 1, bestGift: '棉花糖', bestPrice });
 // A viewer's blind box opening a castle, the only way B站 gives one, and its 盲盒播报.
@@ -28,14 +26,14 @@ const castle = (engine, uid) => {
   engine.blindBox({ ...boxResult(uid, 15000, 2233000, 2233000), castle: true });
 };
 // The lottery on air, as the 桌宠页's state carries it (LotteryState.cs), and the lottery's steps she plays and has queued.
-const onAir = (engine, lottery) => engine.receive({ enabled: true, roomConnected: true, settings: engine.settings, lines, lottery });
+const onAir = (engine, lottery) => engine.receive(state(engine, { lottery }));
 const entryLottery = so => ({ mode: 'Entry', id: 'E1', keyword: '来了', phase: 'Open', entryCount: 3, draws: [], drawUntil: null, ...so });
 const steps = engine => [engine.cur, ...engine.queue].filter(Boolean).map(show => show.opts.result);
 // The 礼物榜 while its 期 runs, rows [uid, count] of one gift each from the first place down, as the 桌宠页's state carries it
 // (GiftBoardState.cs); null while it is not counting.
-const ranks = (engine, rows, fromGift = true) => engine.receive({ enabled: true, roomConnected: true, settings: engine.settings, lines,
+const ranks = (engine, rows, fromGift = true) => engine.receive(state(engine, {
   giftBoard: rows && { rows: rows.map(([uid, num]) => ({ id: `${uid}/gift:1`, uid, nickname: '观众' + uid, faceUrl: '', guardLevel: 0, viewerGuardLevel: 0, num })),
-    options: { threshold: 100 }, running: true, fromGift } });
+    options: { threshold: 100 }, running: true, fromGift } }));
 
 test('a gift round plays at once and moves up at the fifth gift, 1000 电池 and 1 万, never playing one twice', () => {
   const engine = pet();
@@ -134,7 +132,7 @@ test('犯困 comes after an hour with nothing and ends on an entry or a danmaku;
 
 test('jolting awake from 犯困 every half minute she says a line of its own kind, the one left when only one is', () => {
   const engine = pet();
-  engine.receive({ enabled: true, roomConnected: true, settings: engine.settings, lines: { ...lines, jolt: ['才没睡！'] } });
+  engine.receive(state(engine, { lines: { ...lines, jolt: ['才没睡！'] } }));
   advance(engine, 60 * MINUTE);
   engine.stateAt(engine.now());
   advance(engine, 23500);
@@ -153,10 +151,10 @@ test('the 心情 come after the minutes set, and never for 0', () => {
 
 test('without a room she stays calm, and her quiet-room clocks start when one connects', () => {
   const engine = pet();
-  engine.receive({ enabled: true, roomConnected: false, settings: SETTINGS, lines });
+  engine.receive(state(engine, { roomConnected: false }));
   advance(engine, 120 * MINUTE);
   assert.equal(engine.mood(engine.now()), 'calm');
-  engine.receive({ enabled: true, roomConnected: true, settings: SETTINGS, lines });
+  engine.receive(state(engine));
   advance(engine, 14 * MINUTE);
   assert.equal(engine.mood(engine.now()), 'calm');
 });
@@ -245,7 +243,7 @@ test('a show turned off while it waits its turn does not play', () => {
   const engine = pet();
   engine.guard({ uid: 1, nickname: '总督', guardLevel: 1 });
   engine.guard({ uid: 2, nickname: '提督', guardLevel: 2 });
-  engine.receive({ enabled: true, roomConnected: true, settings: { ...engine.settings, off: ['admiral'] }, lines });
+  engine.receive(state(engine, { settings: { ...engine.settings, off: ['admiral'] } }));
   advance(engine, 30000);
   assert.notEqual(playing(engine), 'admiral');
   assert.deepEqual(engine.queue, []);

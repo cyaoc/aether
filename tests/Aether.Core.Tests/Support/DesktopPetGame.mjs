@@ -22,6 +22,12 @@ export function gamePet(character, settings = {}) {
   return pet;
 }
 
+// A viewer's 一轮送礼 so far, as Core tells it after a gift message; the 桌宠页's state as Core tells it, in a connected room with
+// what pet was told last; and the show she plays.
+export const round = (uid, so) => ({ uid, nickname: '观众' + uid, spend: 0, count: 0, topGift: '小花花', topCount: 0, boxSpend: 0, boxes: 0, castle: false, ended: false, items: [], ...so });
+export const state = (pet, so) => ({ enabled: true, roomConnected: true, settings: pet.settings, lines: pet.lines, ...so });
+export const playing = pet => pet.cur?.name ?? null;
+
 /** Plays ms of frames on the page's clock, each frame's state passed to seen. */
 export function play(pet, ms, seen = () => {}) {
   for (const end = pet.now() + ms; pet.now() < end;) { pet.master.currentTime += FRAME; seen(pet.stateAt(pet.now())); }
