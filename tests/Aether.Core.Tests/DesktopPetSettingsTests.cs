@@ -75,6 +75,20 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     }
 
     [Theory]
+    [InlineData("desktop_pet:\n  mid_gift_spend: 10000\n")]
+    // (a group found by its name, as Settings reads it, a tagged one too)
+    [InlineData("!!str desktop_pet:\n  mid_gift_spend: 10000\n")]
+    public void A_threshold_out_of_order_with_a_default_the_file_leaves_out_is_reported_in_its_group(string yaml)
+    {
+        Write(yaml);
+
+        var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
+
+        Assert.Equal(("desktop_pet.big_gift_spend", 2), (error.SettingName, error.LineNumber));
+        Assert.EndsWith("）：中礼物门槛要小于大礼物门槛。", error.Message);
+    }
+
+    [Theory]
     // (a file of an older format is given a helper keyword of its own as it is upgraded)
     [InlineData("format_version: 2\nblind_box:\n  daily_keyword: 捣蛋\n", "blind_box.daily_keyword", 3, Settings.BlindBoxKeywordIsPrankster)]
     [InlineData("blind_box:\n  monthly_keyword: 帮它\ndesktop_pet:\n  prankster_keyword: \" 帮它 \"\n", "desktop_pet.prankster_keyword", 4,

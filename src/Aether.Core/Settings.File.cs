@@ -298,7 +298,7 @@ public sealed partial class Settings
             ? value : definitions[index].Initial.Value).ToArray();
         // The defaults are in order, so one the file leaves out is out of order only after one it holds, in the group told of.
         return numbers.Order.Invalid(values) is { } invalid
-            ? new(path, (fields[invalid] ?? root.Children[new YamlScalarNode(definitions[0].Group)]).Start.Line, definitions[invalid].Name, numbers.Rule) : null;
+            ? new(path, (fields[invalid] ?? ChildOf(root, definitions[0].Group))?.Start.Line ?? 1, definitions[invalid].Name, numbers.Rule) : null;
     }
 
     internal static string NewlineOf(string source)
