@@ -280,6 +280,19 @@ test('only the 日常小动作 left on come, at the interval set, and none goes 
   }
 });
 
+test('a 日常小动作 going wrong says a line of its kind at random, never the same one twice in a row, and keeps it while she says it', () => {
+  // every draw in the middle: of three lines the second, and the third rather than the second again
+  const engine = pet({}, () => 0.5), said = [];
+  engine.receive(state(engine, { lines: { ...lines, slipped: ['甲', '乙', '丙'] } }));
+  for (const _ of [1, 2]) {
+    engine.start('hike', { mishap: true });
+    const seen = new Set();
+    for (let t = 0, end = engine.cur.dur; t < end; t += 100) { advance(engine, 100); seen.add(engine.stateAt(engine.now()).bubble?.text); }
+    said.push(['甲', '乙', '丙'].filter(line => seen.has(line)));
+  }
+  assert.deepEqual(said, [['乙'], ['丙']]);
+});
+
 test('a 试演 plays a show from its start or holds her in a 心情 until it is stopped', () => {
   const engine = pet();
   engine.testShow({ show: 'blindBoxLarge', variant: 'Loss', nickname: '星河' });

@@ -495,11 +495,11 @@ export class Engine extends EventTarget {
     return list[i];
   }
 
-  // A line said for a while, a 心情's or a jolt's, is picked as she starts saying it, t ms ago, and kept till she is done; when
-  // she started is rounded, as now less t comes out a hair apart from frame to frame.
-  saying(name, now, t) {
-    const at = Math.round(now - t);
-    if (this.said?.at !== at) this.said = { at, line: this.pick(name) };
+  // A line said for a while, a 心情's, a jolt's or a 日常小动作's going wrong, is picked when she starts saying it (at) and kept
+  // till she is done; at is rounded, as worked out from now it comes out a hair apart from frame to frame.
+  saying(name, at) {
+    const start = Math.round(at);
+    if (this.said?.at !== start) this.said = { at: start, line: this.pick(name) };
     return this.said.line;
   }
 
@@ -1092,7 +1092,7 @@ export class Engine extends EventTarget {
     if (mood === 'sleepy') {
       // every other half minute her head drops onto her knees: she jolts awake, insists she wasn't asleep, and dozes off again
       const u = since % 30000;
-      if (u >= 23000 && u < 24400) { st.pose = 'awake'; st.y -= 10 * bump(u, 23000, 23300); st.sprite = 'surprised'; st.bubble = { text: this.saying('jolt', now, u - 23000), t: u - 23000 }; st.fx.push(['bang', now - (u - 23000)], ['shock', now - (u - 23000)]); }
+      if (u >= 23000 && u < 24400) { st.pose = 'awake'; st.y -= 10 * bump(u, 23000, 23300); st.sprite = 'surprised'; st.bubble = { text: this.saying('jolt', now - u + 23000), t: u - 23000 }; st.fx.push(['bang', now - (u - 23000)], ['shock', now - (u - 23000)]); }
       else st.fx.push(['z', now]);
     }
     return st;
@@ -1101,7 +1101,7 @@ export class Engine extends EventTarget {
   // A mood or a lottery wait says a line 0.6 s in and another every 15 s after (平静 and 开心 say nothing).
   talk(st, key, now, since) {
     const u = since % 15000;
-    if (this.lines[key] && u >= 600 && u < 4600) st.bubble = { text: this.fill(this.saying(key, now, u - 600), key, { keyword: this.lottery?.keyword }), t: u - 600 };
+    if (this.lines[key] && u >= 600 && u < 4600) st.bubble = { text: this.fill(this.saying(key, now - u + 600), key, { keyword: this.lottery?.keyword }), t: u - 600 };
   }
 
   // A show's state t ms in; a lottery's is its step's (opts.result).
@@ -1208,30 +1208,31 @@ export class Engine extends EventTarget {
         if (t < ROB.quiet) say(500);
         break;
       }
-      case 'hum': case 'gym': case 'hike': case 'bike': case 'ski': return this.daily(t, st, { ...opts, kind: name });
+      case 'hum': case 'gym': case 'hike': case 'bike': case 'ski': return this.daily(t, st, { ...opts, kind: name }, line);
     }
     const extra = EVENT_FX[key];
     if (extra) { st.fx.push(...extra.fx); st.shake = extra.shake; }
     return st;
   }
 
-  daily(t, st, o) {
-    if (SPORTS[o.kind]) return this.sport(t, st, o);
+  // line: the show's own line; what she says as it goes wrong is a line of its kind (key).
+  daily(t, st, o, line) {
+    if (SPORTS[o.kind]) return this.sport(t, st, o, line);
     // humming: the sprite sways along; when her voice cracks it hides its head
     const main = DAILY[o.kind][0];
     st._t = t;
-    const say = (from, key) => { if (t >= from) st.bubble = { text: this.lines[key][(o.seed || 0) % this.lines[key].length], t: t - from }; };
-    if (t < main) { st.pose = 'hum'; st.fx.push(['notes', 0]); st.sprite = 'sHappy'; st.sp = ['home', 6 * Math.sin(2 * Math.PI * t / 1280), 0]; say(200, o.kind); return st; }
+    const say = (from, key) => { if (t >= from) st.bubble = { text: key ? this.saying(key, o.seed + from) : line, t: t - from }; };
+    if (t < main) { st.pose = 'hum'; st.fx.push(['notes', 0]); st.sprite = 'sHappy'; st.sp = ['home', 6 * Math.sin(2 * Math.PI * t / 1280), 0]; say(200); return st; }
     st.pose = 'crack'; st.sprite = 'hide'; st.fx.push(['brokenNote', main], ['shock', main], ['sweat', main + 300]); say(main, 'voiceCrack');
     return st;
   }
 
   // A sport (SPORTS): the sprite joins in (cheers her lifts with its flag, leads her hike, flies beside her bike or skis); if
   // it goes wrong it starts, then rubs her foot or pats her head, and nods along while she puts a plaster on bare skin.
-  sport(t, st, o) {
+  sport(t, st, o, line) {
     st._t = t;
     const sp = SPORTS[o.kind], go = 1100, stop = go + sp.act[1], end = stop + (o.mishap ? sp.fallMs : sp.calmMs) + 900, back = end - 900;
-    const say = (from, key) => { if (t >= from) st.bubble = { text: this.lines[key][(o.seed || 0) % this.lines[key].length], t: t - from }; };
+    const say = (from, key) => { if (t >= from) st.bubble = { text: key ? this.saying(key, o.seed + from) : line, t: t - from }; };
     const lead = o.kind === 'hike' ? ['at', 70, FOOT.y - 0.62 * H + 5 * Math.sin(t / 300)] : ['rel', -0.22, 0.3];
     st.fx.push(['flash', 700, 0.8], ['flash', back + 700, 0.8]);
     if (o.kind === 'ski') st.fx.push(['snow', 0, end]);
@@ -1263,8 +1264,9 @@ export class Engine extends EventTarget {
       st.shake = [[hit, o.kind === 'gym' ? 2 : 3, 240]];
     }
     if (t >= back) this.dress(st, t, back);
-    if (o.mishap && t >= stop) for (const [ms, key] of sp.lines) say(stop + ms, key);
-    else say(1300, o.kind);
+    // going wrong, the last of its lines that has come (each picked once)
+    if (o.mishap && t >= stop) { const [ms, key] = sp.lines.findLast(([ms]) => t >= stop + ms); say(stop + ms, key); }
+    else say(1300);
     return st;
   }
 
