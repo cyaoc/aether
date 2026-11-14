@@ -102,7 +102,8 @@ the page beside the board, as the web service serves it, telling it it is on in 
 
 - `DesktopPetCharacters.test.mjs` (`node --test`) finds every change of pose in her shows with no way across, and on the
   宝箱小游戏's routes every change of hers with none and of the 捣蛋鬼's with neither in-betweens nor a cut written down, and
-  any picture `prankster.json` names that is not there. `DesktopPetGame.test.mjs` checks when the 捣蛋鬼 comes and goes, what scares it off and what goes into her chest.
+  any picture `prankster.json` names that is not there. `DesktopPetGame.test.mjs` checks when the 捣蛋鬼 comes and goes, what
+  scares it off and what goes into her chest.
 - `scripts/desktop-pet/compare.mjs --port 8820` plays every show, 心情 and round, and the 宝箱小游戏's routes of the design
   package's `tools/check-game.mjs` (played on the page by `scripts/desktop-pet/routes.mjs`), on the page and the board from one
   seed, frame by frame on one clock, and compares their pixels. `DesktopPetBrowserTests` runs it, about a minute, when
