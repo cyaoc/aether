@@ -306,6 +306,21 @@ test('a 试演 stopped, or replaced by a 心情\'s, while it waits for her hair 
   }
 });
 
+test('after the lightning and a PK, with the chest home and her hair still frizzed, a show and blind boxes wait for her hair', () => {
+  for (const next of [p => p.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 }), p => p.gift(box(2))]) {
+    const pet = tugging(), poses = [];
+    pet.gift(gifts(1, 6000));
+    play(pet, 3000);
+    pet.receive(state(pet, { pk: true }));
+    play(pet, 3000);
+    pet.gm.out = null;   // the chest home (the page's sprite is not drawn here to take it)
+    next(pet);
+    play(pet, 10000, st => { if (!pet.cur || pet.now() < pet.cur.start + pet.cur.pre) poses.push(st.pose); });
+    assert.deepEqual([poses[0], poses.includes('cheer'), pet.gm.fix], ['cheerZap', true, null]);
+    assert.ok(pet.cur || pet.shaking());
+  }
+});
+
 test('叫它来 right after a PK scared the 捣蛋鬼 off brings it once the chest it let go of is home', () => {
   const pet = tugging(), told = reports(pet);
   pet.receive(state(pet, { pk: true }));

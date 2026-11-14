@@ -337,8 +337,9 @@ export class Engine extends EventTarget {
       gm.fix = null;
     }
     const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (opts.zap && ev.zapDur) || (ev.steps?.[opts.result] ?? ev).dur;
-    // one that scared the 捣蛋鬼 off waits, at most FRIZZ, for the chest to go home (and her hair to be smooth): stateAt
-    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null };
+    // one that scared the 捣蛋鬼 off, or came after, waits, at most FRIZZ, for the chest to go home and her hair to be smooth
+    // (stateAt), the chest maybe home already
+    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy || opts.frizz ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null };
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
     if (DAILY[name]) this.nextDaily = now + dur + dailyMinSeconds * 1000 + this.rng() * (dailyMaxSeconds - dailyMinSeconds) * 1000;
@@ -1102,8 +1103,9 @@ export class Engine extends EventTarget {
       st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts));
       // she says her line at the castle's gate once she gets there
       if (c.name === 'castle' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine ??= this.pick('castleGate'), c.name, c.opts);
-    } else if (shaking) st = this.roundState(now, shaking);
-    else if (this.gm.fix) { st = this.base(); this.unfrizz(st, now - this.gm.fix.start, this.gm.fix); if (this.gm.fix.pre != null) this.gm.fix = null; }
+    // her hair is patted smooth before she shakes a round's blind boxes too
+    } else if (this.gm.fix) { st = this.base(); this.unfrizz(st, now - this.gm.fix.start, this.gm.fix); if (this.gm.fix.pre != null) this.gm.fix = null; }
+    else if (shaking) st = this.roundState(now, shaking);
     else {
       const mood = this.mood(now), key = mood + (this.lot ?? '');
       if (this.seen?.key !== key) this.seen = { key, at: now };
