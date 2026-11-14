@@ -9,7 +9,9 @@
     { "id": "lottery", "label": "抽奖", "note": "报名抽奖和奖池抽奖的每一步" },
     { "id": "mood", "label": "心情" },
     { "id": "daily", "label": "日常" },
-    { "id": "mishap", "label": "出事" }
+    { "id": "mishap", "label": "出事" },
+    { "id": "chestGame", "label": "小游戏·她" },
+    { "id": "prankster", "label": "小游戏·它" }
   ],
   "shows": [
     { "id": "entry", "group": "entry", "label": "进场", "note": "观众进直播间", "tier": "C", "lines": ["entry"], "tests": [null] },
@@ -42,7 +44,10 @@
     { "id": "gym", "group": "daily", "label": "举哑铃", "tier": "D", "lines": ["gym", "droppedOnFoot"], "tests": [null, "Mishap"] },
     { "id": "hike", "group": "daily", "label": "爬山", "tier": "D", "lines": ["hike", "slipped", "dustOff"], "tests": [null, "Mishap"] },
     { "id": "bike", "group": "daily", "label": "骑车", "tier": "D", "lines": ["bike", "bikeCrash", "plaster"], "tests": [null, "Mishap"] },
-    { "id": "ski", "group": "daily", "label": "滑雪", "tier": "D", "lines": ["ski", "skiFall"], "tests": [null, "Mishap"] }
+    { "id": "ski", "group": "daily", "label": "滑雪", "tier": "D", "lines": ["ski", "skiFall"], "tests": [null, "Mishap"] },
+    { "id": "pranksterKnocked", "group": "chestGame", "label": "打跑了", "tier": "B", "lines": ["pranksterKnocked"], "tests": [] },
+    { "id": "chestKept", "group": "chestGame", "label": "守住了", "tier": "B", "lines": ["chestKept"], "tests": [] },
+    { "id": "chestRobbed", "group": "chestGame", "label": "被偷了", "tier": "C", "lines": ["chestRobbed", "chestRobbedGloomy"], "tests": [] }
   ],
   "lines": [
     { "id": "entry", "group": "entry", "label": "进场", "note": "观众进直播间时", "placeholders": ["昵称"] },
@@ -88,7 +93,26 @@
     { "id": "dustOff", "group": "mishap", "label": "拍拍土", "note": "爬起来拍土时", "placeholders": [] },
     { "id": "bikeCrash", "group": "mishap", "label": "骑车摔倒", "note": "骑车摔倒时", "placeholders": [] },
     { "id": "plaster", "group": "mishap", "label": "贴创可贴", "note": "摔了膝盖、贴创可贴时", "placeholders": [] },
-    { "id": "skiFall", "group": "mishap", "label": "滑雪摔跤", "note": "滑雪扎进雪堆时", "placeholders": [] }
+    { "id": "skiFall", "group": "mishap", "label": "滑雪摔跤", "note": "滑雪扎进雪堆时", "placeholders": [] },
+    { "id": "chestFell", "group": "chestGame", "label": "宝箱摔下来", "note": "有货的宝箱摔下来、她扑上去时", "placeholders": [] },
+    { "id": "pranksterHit", "group": "chestGame", "label": "打得好", "note": "有人送礼砸中它时", "placeholders": ["昵称"] },
+    { "id": "herHit", "group": "chestGame", "label": "怎么砸我", "note": "帮它的人送礼砸中她时", "placeholders": ["昵称"] },
+    { "id": "chestKept", "group": "chestGame", "label": "守住了", "note": "把它打跑、宝箱回家时", "placeholders": ["昵称", "连守"] },
+    { "id": "pranksterKnocked", "group": "chestGame", "label": "打跑了", "note": "空箱时有人一下把它打飞", "placeholders": ["昵称"] },
+    { "id": "chestRobbed", "group": "chestGame", "label": "被偷了", "note": "宝箱被拖走、她跪着哭时", "placeholders": [] },
+    { "id": "chestRobbedGloomy", "group": "chestGame", "label": "被偷后沮丧", "note": "被偷以后蹲着画圈圈，隔一阵说一句", "placeholders": [] },
+    { "id": "pranksterPeek", "group": "prankster", "label": "探头", "note": "它从左边探进来时", "placeholders": [] },
+    { "id": "pranksterGrudge", "group": "prankster", "label": "记仇", "note": "上次砸它的人在直播间时，探头说这句", "placeholders": ["昵称"] },
+    { "id": "pranksterBrag", "group": "prankster", "label": "炫耀", "note": "上次偷到了，探头说这句", "placeholders": [] },
+    { "id": "pranksterEmpty", "group": "prankster", "label": "空箱", "note": "掀开发现是空箱时", "placeholders": [] },
+    { "id": "pranksterSits", "group": "prankster", "label": "赖着", "note": "坐在空箱上赖着，隔一阵说一句", "placeholders": [] },
+    { "id": "pranksterToss", "group": "prankster", "label": "扔回去", "note": "空箱扔回去时", "placeholders": [] },
+    { "id": "pranksterCaught", "group": "prankster", "label": "被发现", "note": "她抓住宝箱时", "placeholders": [] },
+    { "id": "pranksterRecruit", "group": "prankster", "label": "招人", "note": "拉帮手时", "placeholders": ["关键字"] },
+    { "id": "pranksterZap", "group": "prankster", "label": "放闪电", "note": "血掉一半放闪电时", "placeholders": [] },
+    { "id": "pranksterSprint", "group": "prankster", "label": "最后 10 秒", "note": "扛起绳子往外拖时", "placeholders": [] },
+    { "id": "pranksterRobs", "group": "prankster", "label": "得手", "note": "把宝箱拖走时", "placeholders": [] },
+    { "id": "pranksterFlees", "group": "prankster", "label": "被打跑", "note": "被礼物打跑时", "placeholders": [] }
   ],
   "variants": {
     "Gain": "赚了", "Even": "不赚不亏", "Loss": "亏了", "Jackpot": "出大奖", "Mishap": "出事",

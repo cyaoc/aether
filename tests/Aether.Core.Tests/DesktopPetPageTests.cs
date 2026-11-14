@@ -47,7 +47,7 @@ public sealed class DesktopPetPageTests
         await h.ApplySettingsAsync(("desktop_pet.enabled", "true"), ("desktop_pet.mid_gift_spend", "2000"));
         using var pet = await DesktopPetEvents.OpenAsync(h);
         var state = await pet.NextAsync("state");
-        Assert.Equal("""{"off":[],"midGift":200000,"bigGift":1000000,"boredMinutes":15,"gloomyMinutes":40,"sleepyMinutes":60,"dailyMinSeconds":20,"dailyMaxSeconds":40,"mishapPercent":25}""",
+        Assert.Equal("""{"off":[],"midGift":200000,"bigGift":1000000,"boredMinutes":15,"gloomyMinutes":40,"sleepyMinutes":60,"dailyMinSeconds":20,"dailyMaxSeconds":40,"mishapPercent":25,"pranksterMinutes":30,"pranksterKeyword":"\u6363\u86CB"}""",
             state.GetProperty("settings").GetRawText());
         Assert.Equal(["哇！{昵称}送了{礼物}！", "这么贵重的{礼物}…谢谢{昵称}！", "心跳好快…谢谢{昵称}！", "我会好好珍惜的！"], Lines(state, "bigGift"));
 
@@ -73,7 +73,7 @@ public sealed class DesktopPetPageTests
         h.EnableStreamOverlay = true;
         await using var updates = await h.WatchConnectedAsync();
         using var pet = await DesktopPetEvents.OpenAsync(h);
-        Assert.Equal("""{"enabled":false,"roomConnected":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync()).Data.GetRawText());
+        Assert.Equal("""{"enabled":false,"roomConnected":false,"pk":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync()).Data.GetRawText());
 
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(), BlindGiftFixture.Json, UserToastFixture.Message(), EntryV2Fixture.Message());
         h.Time.Advance(TimeSpan.FromSeconds(3));
@@ -85,11 +85,11 @@ public sealed class DesktopPetPageTests
         Assert.True(state.GetProperty("enabled").GetBoolean());
         Assert.True(state.GetProperty("roomConnected").GetBoolean());
         await h.ApplySettingsAsync(("desktop_pet.enabled", "false"));
-        Assert.Equal("""{"enabled":false,"roomConnected":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync("state")).GetRawText());
+        Assert.Equal("""{"enabled":false,"roomConnected":false,"pk":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync("state")).GetRawText());
     }
 
     [Fact]
-    public async Task Entries_are_told_with_both_welcomes_off_and_a_danmaku_only_as_something_happening()
+    public async Task Entries_are_told_with_both_welcomes_off_and_a_danmaku_without_what_it_says()
     {
         await using var h = new WatchHarness();
         var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
@@ -101,7 +101,33 @@ public sealed class DesktopPetPageTests
 
         var (name, entry) = await pet.NextAsync();
         Assert.Equal(("entry", 20002L, "进场观众"), (name, entry.GetProperty("uid").GetInt64(), entry.GetProperty("nickname").GetString()));
-        Assert.Equal(("danmaku", "{}"), (await pet.NextAsync()) is var (danmaku, data) ? (danmaku, data.GetRawText()) : default);
+        Assert.Equal(("danmaku", """{"uid":30003,"nickname":"\u89C2\u4F17","joins":false}"""),
+            (await pet.NextAsync()) is var (danmaku, data) ? (danmaku, data.GetRawText()) : default);
+    }
+
+    [Fact]
+    public async Task A_danmaku_that_is_the_helper_keyword_joins_as_saved_last_and_the_accounts_own_is_not_told()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+        await using var __ = updates;
+
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[]," 捣蛋 ",[30003,"观众"]]}""");
+        // The bot's own thanks, welcomes and 盲盒播报 come back from B站 as the account's danmaku.
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"捣蛋",[9876543210,"主播的号"]]}""");
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"捣蛋蛋",[30004,"另一位"]]}""");
+
+        Assert.Equal((30003L, true), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
+        Assert.Equal((30004L, false), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
+        await h.ApplySettingsAsync(("desktop_pet.prankster_keyword", "帮它"));
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"捣蛋",[30005,"观众"]]}""");
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"帮它",[30006,"观众"]]}""");
+
+        Assert.Equal((30005L, false), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
+        Assert.Equal((30006L, true), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
+
+        static (long, bool) Joins(JsonElement danmaku) => (danmaku.GetProperty("uid").GetInt64(), danmaku.GetProperty("joins").GetBoolean());
     }
 
     [Fact]
@@ -251,32 +277,24 @@ public sealed class DesktopPetPageTests
         await pet.NextAsync("state");
         await using var updates = h.Client.WebService.GetUpdatesAsync(h.Stop.Token).GetAsyncEnumerator(h.Stop.Token);
         Assert.True(await updates.MoveNextAsync());
-        using var http = new HttpClient(new HttpClientHandler { UseProxy = false }) { BaseAddress = new(h.Client.WebService.Status.Origin) };
         async Task<int> TestShowAsync()
         {
             await h.Client.WebService.TestShowAsync("entry", null, "星河");
             return (await pet.NextAsync(DesktopPet.Test)).GetProperty("id").GetInt32();
         }
-        async Task<HttpStatusCode> ReportAsync(string query, string? origin = null)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "/desktop-pet/report" + query);
-            if (origin is not null) request.Headers.Add("Origin", origin);
-            using var response = await http.SendAsync(request, h.Stop.Token);
-            return response.StatusCode;
-        }
 
         var first = await TestShowAsync();
-        Assert.Equal(HttpStatusCode.Forbidden, await ReportAsync($"?trial={first}", "https://evil.example"));
-        Assert.Equal(HttpStatusCode.BadRequest, await ReportAsync(""));
-        Assert.Equal(HttpStatusCode.BadRequest, await ReportAsync("?trial=-1"));
-        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync($"?trial={first}"));
+        Assert.Equal(HttpStatusCode.Forbidden, await pet.ReportAsync($"?trial={first}", "https://evil.example"));
+        Assert.Equal(HttpStatusCode.BadRequest, await pet.ReportAsync(""));
+        Assert.Equal(HttpStatusCode.BadRequest, await pet.ReportAsync("?trial=-1"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync($"?trial={first}"));
         // A second page reports the first 试演 after the next one started: that one plays on until it is reported. A page opened
         // in between marks which report ended it.
         var second = await TestShowAsync();
         Assert.NotEqual(first, second);
-        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync($"?trial={first}"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync($"?trial={first}"));
         using var another = await DesktopPetEvents.OpenAsync(h);
-        Assert.Equal(HttpStatusCode.NoContent, await ReportAsync($"?trial={second}"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync($"?trial={second}"));
         await h.ApplySettingsAsync(("desktop_pet.enabled", "false"));
         await h.Client.WebService.TestShowAsync("entry", null, "星河");
 
@@ -302,4 +320,85 @@ public sealed class DesktopPetPageTests
 
         Assert.False((await pet.NextAsync("state")).GetProperty("roomConnected").GetBoolean());
     }
+
+    [Theory]
+    [InlineData("PK_BATTLE_START")]
+    [InlineData("PK_BATTLE_START_NEW")]
+    [InlineData("PK_BATTLE_PROCESS")]
+    [InlineData("PK_BATTLE_PROCESS_NEW")]
+    [InlineData("PK_BATTLE_FINAL_PROCESS")]
+    public async Task A_pk_message_by_its_command_alone_puts_the_streamer_in_a_pk(string command)
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+
+        await h.PushAndSyncAsync(updates, Pk(command));
+
+        Assert.True(InPk(await pet.NextAsync("state")));
+    }
+
+    [Theory]
+    [InlineData("PK_BATTLE_END")]
+    [InlineData("PK_BATTLE_SETTLE")]
+    [InlineData("PK_BATTLE_SETTLE_V2")]
+    [InlineData("PK_BATTLE_SETTLE_NEW")]
+    [InlineData("PK_BATTLE_SETTLE_USER")]
+    [InlineData("PK_BATTLE_ABNORMAL")]
+    public async Task A_pk_end_message_by_its_command_alone_ends_the_pk(string command)
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+        await h.PushAndSyncAsync(updates, Pk("PK_BATTLE_START"));
+        Assert.True(InPk(await pet.NextAsync("state")));
+
+        await h.PushAndSyncAsync(updates, Pk(command));
+
+        Assert.False(InPk(await pet.NextAsync("state")));
+    }
+
+    [Fact]
+    public async Task A_reconnect_does_not_know_of_a_pk()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+        await h.PushAndSyncAsync(updates, Pk("PK_BATTLE_PROCESS_NEW"));
+        Assert.True(InPk(await pet.NextAsync("state")));
+
+        await h.Server.DisconnectAsync();
+        Assert.IsType<Reconnecting>(await h.NextAsync(updates));
+        await h.AdvanceRetryAsync(updates, 1);
+        Assert.IsType<Connected>(updates.Current);
+
+        Assert.False(InPk(await pet.NextAsync("state")));
+    }
+
+    [Fact]
+    public async Task Ten_minutes_without_a_pk_message_end_the_pk()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        await h.PushAndSyncAsync(updates, Pk("PK_BATTLE_START_NEW"));
+        Assert.True(InPk(await pet.NextAsync("state")));
+        // Closed while the clock jumps: a write to it still in flight would outlast its 5-second timeout and drop the page.
+        pet.Dispose();
+
+        // A danmaku every half minute keeps the room connected: only a PK message would keep the PK on.
+        for (var i = 1; i <= 20; i++)
+        {
+            h.Time.Advance(i < 20 ? TimeSpan.FromSeconds(30) : TimeSpan.FromSeconds(30) - TimeSpan.FromMilliseconds(1));
+            await h.PushAndSyncAsync(updates);
+        }
+        using var reopened = await DesktopPetEvents.OpenAsync(h);
+        Assert.True(InPk(await reopened.NextAsync("state")));
+        h.Time.Advance(TimeSpan.FromMilliseconds(1));
+
+        Assert.False(InPk(await reopened.NextAsync("state")));
+    }
+
+    private static string Pk(string command) => $$"""{"cmd":"{{command}}"}""";
+
+    private static bool InPk(JsonElement state) => state.GetProperty("pk").GetBoolean();
 }

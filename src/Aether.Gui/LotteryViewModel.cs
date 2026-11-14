@@ -85,6 +85,17 @@ public partial class LotteryViewModel : ObservableObject
         lotteryUpdates.Follow(client.Lottery.GetUpdatesAsync, Apply, logger, "抽奖状态订阅中断");
     }
 
+    /// <summary>The keyword a new 报名抽奖 starts with; none while the lottery cannot be read, as with a newer database.</summary>
+    internal async Task<string?> GetNextEntryKeywordAsync()
+    {
+        try { return await client.Lottery.GetNextEntryKeywordAsync(); }
+        catch (Exception error)
+        {
+            logger.LogError(error, "读取下一场报名抽奖的关键字失败");
+            return null;
+        }
+    }
+
     internal async Task ChangeLotteryAsync(Func<LotteryFacade, Task> change)
     {
         if (Busy) return;

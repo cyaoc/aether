@@ -98,6 +98,7 @@ internal sealed class WebService
         listener.Close();
         connections.Clear();
         Report(Status with { Running = false, VideoConnections = 0, LotteryConnections = 0, GiftBoardConnections = 0, DesktopPetConnections = 0 });
+        DesktopPet.ConnectionsChanged();
         return running;
     }
 

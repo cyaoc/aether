@@ -16,10 +16,12 @@ public sealed class ShowTableTests
             ("captain", "guard", "B"), ("admiral", "guard", "A"), ("governor", "guard", "SS"), ("newFirst", "newFirst", "C"), ("lottery", "lottery", "A"),
             ("happy", "mood", "D"), ("calm", "mood", "D"), ("bored", "mood", "D"), ("gloomy", "mood", "D"), ("sleepy", "mood", "D"), ("wake", "mood", "D"),
             ("hum", "daily", "D"), ("gym", "daily", "D"), ("hike", "daily", "D"), ("bike", "daily", "D"), ("ski", "daily", "D"),
+            ("pranksterKnocked", "chestGame", "B"), ("chestKept", "chestGame", "B"), ("chestRobbed", "chestGame", "C"),
         ], Table.Shows.Select(show => (show.Id, show.Group, show.Tier)));
-        Assert.Equal(["进场", "礼物", "盲盒", "城堡", "大航海", "新的第一名", "抽奖", "心情", "日常", "出事"], Table.Groups.Select(group => group.Label));
-        // Moods come of quiet minutes, not of a switch.
-        Assert.Equal(Table.Shows.Where(show => show.Group != ShowGroup.Mood), Table.Shows.Where(show => show.CanTurnOff));
+        Assert.Equal(["进场", "礼物", "盲盒", "城堡", "大航海", "新的第一名", "抽奖", "心情", "日常", "出事", "小游戏·她", "小游戏·它"],
+            Table.Groups.Select(group => group.Label));
+        // Moods come of quiet minutes, not of a switch; the chest game's endings are a 来访's, which plays whole (#372).
+        Assert.Equal(Table.Shows.Where(show => show.Group is not (ShowGroup.Mood or ShowGroup.ChestGame)), Table.Shows.Where(show => show.CanTurnOff));
     }
 
     [Fact]
@@ -34,6 +36,7 @@ public sealed class ShowTableTests
             ("lottery", ["EntryOpen", "EntryClosed", "PoolOpen", "PoolCall", "PoolSpin", "RevealGrand", "RevealSecond", "RevealThird", "NoEntries", "End"]),
             ("happy", []), ("calm", []), ("bored", [null]), ("gloomy", [null]), ("sleepy", [null]), ("wake", []),
             ("hum", daily), ("gym", daily), ("hike", daily), ("bike", daily), ("ski", daily),
+            ("pranksterKnocked", []), ("chestKept", []), ("chestRobbed", []),
         ], Table.Shows.Select(show => (show.Id, (string?[])[.. show.Tests])));
         Assert.All(Table.Shows.SelectMany(show => show.Tests).OfType<string>(), variant => Assert.Contains(variant, Table.Variants.Keys));
     }
@@ -56,8 +59,15 @@ public sealed class ShowTableTests
             ("hum", "daily", ""), ("gym", "daily", ""), ("hike", "daily", ""), ("bike", "daily", ""), ("ski", "daily", ""),
             ("voiceCrack", "mishap", ""), ("droppedOnFoot", "mishap", ""), ("slipped", "mishap", ""), ("dustOff", "mishap", ""),
             ("bikeCrash", "mishap", ""), ("plaster", "mishap", ""), ("skiFall", "mishap", ""),
+            ("chestFell", "chestGame", ""), ("pranksterHit", "chestGame", "昵称"), ("herHit", "chestGame", "昵称"), ("chestKept", "chestGame", "昵称 连守"),
+            ("pranksterKnocked", "chestGame", "昵称"), ("chestRobbed", "chestGame", ""), ("chestRobbedGloomy", "chestGame", ""),
+            ("pranksterPeek", "prankster", ""), ("pranksterGrudge", "prankster", "昵称"), ("pranksterBrag", "prankster", ""), ("pranksterEmpty", "prankster", ""),
+            ("pranksterSits", "prankster", ""), ("pranksterToss", "prankster", ""), ("pranksterCaught", "prankster", ""), ("pranksterRecruit", "prankster", "关键字"),
+            ("pranksterZap", "prankster", ""), ("pranksterSprint", "prankster", ""), ("pranksterRobs", "prankster", ""), ("pranksterFlees", "prankster", ""),
         ], Table.Lines.Select(kind => (kind.Id, kind.Group, string.Join(' ', kind.Placeholders))));
-        Assert.Equal(Table.Lines.Select(kind => kind.Id).Order(), Table.Shows.SelectMany(show => show.Lines).Distinct().Order());
+        // A 来访 is no 演出 (#372): what she and the 捣蛋鬼 say while it is on the page is said in no row.
+        string[] visit = ["chestFell", "pranksterHit", "herHit", .. Table.Lines.Where(kind => kind.Group == "prankster").Select(kind => kind.Id)];
+        Assert.Equal(Table.Lines.Select(kind => kind.Id).Except(visit).Order(), Table.Shows.SelectMany(show => show.Lines).Distinct().Order());
         Assert.All(Table.Shows.Select(show => show.Group).Concat(Table.Lines.Select(kind => kind.Group)),
             group => Assert.Contains(group, Table.Groups.Select(known => known.Id)));
     }

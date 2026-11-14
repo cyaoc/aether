@@ -47,9 +47,25 @@ public sealed partial class VisualReviewTests
                 Capture("shows");
                 GuiHarness.Tab(page, 1);
                 Capture("moods");
-                GuiHarness.Tab(page, 2);
+                GuiHarness.Tab(page, 3);
                 Pick(page, "LineKindList", "大礼物");
                 Capture("lines");
+                // The design's list scrolled down to its lines.
+                var kinds = page.FindControl<ListBox>("LineKindList")!;
+                Pick(page, "LineKindList", "招人");
+                kinds.ScrollIntoView(kinds.Items.Count - 1);
+                Capture("game-lines");
+                GuiHarness.Tab(page, 2);
+                harness.Client.WebService.SetDesktopPetRoom(true);
+                await GuiHarness.WaitForAsync(() => page.FindControl<Button>("SummonButton")!.IsEnabled);
+                Capture("game");
+                var keyword = Input(page, "帮它的关键字");
+                keyword.Text = "抽奖";
+                Capture("game-keyword");
+                keyword.Text = "捣蛋";
+                GuiHarness.Click(page, "SummonButton");
+                await GuiHarness.WaitForAsync(() => page.FindControl<TextBlock>("SummonText")!.Text == "它在路上…");
+                Capture("game-called");
                 GuiHarness.Tab(page, 0);
                 GuiHarness.Click(page, "TestButton");
                 await pet.NextAsync(DesktopPet.Test);

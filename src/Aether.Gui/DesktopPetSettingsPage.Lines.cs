@@ -49,7 +49,8 @@ public partial class DesktopPetSettingsPage
         LineRows.ItemsSource = kind.Rows;
         lineTarget.Row = kind.Rows.FirstOrDefault();
         LineKindTitle.Text = kind.Kind.Label;
-        LineKindNote.Text = kind.Kind.Note + "；每次随机一句，不连着重复";
+        var narrow = kind.Kind.Group == ShowGroup.Prankster ? "；它的气泡窄，一行最多 6 个字，空一格换行" : "";
+        LineKindNote.Text = kind.Kind.Note + narrow + "；每次随机一句，不连着重复";
         PlaceholderButtons.ItemsSource = kind.Kind.Placeholders;
         InsertBar.IsVisible = kind.Kind.Placeholders.Count > 0;
         NoPlaceholders.IsVisible = kind.Kind.Placeholders.Count == 0;

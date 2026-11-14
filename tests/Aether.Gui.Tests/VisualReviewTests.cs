@@ -457,6 +457,8 @@ public sealed partial class VisualReviewTests
                     GuiHarness.Tab(pet, 1);
                     Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "冷场心情", "托腮发呆，隔一阵叹口气", "% 的几率出点小事" });
                     GuiHarness.Tab(pet, 2);
+                    Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "捣蛋鬼偷宝箱", "分钟来一次", "帮它的关键字" });
+                    GuiHarness.Tab(pet, 3);
                     Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "冷场后来了人", "恢复默认", "添加一句" });
                 }
                 var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);

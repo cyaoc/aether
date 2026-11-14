@@ -76,7 +76,7 @@ public sealed partial class Settings
             text = text.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
         var document = new YamlStream();
         document.Load(new StringReader(text));
-        if (ValidateOrder((YamlMappingNode)document.Documents[0].RootNode, path) is { } orderError) throw orderError;
+        if (ValidateAcross((YamlMappingNode)document.Documents[0].RootNode, path) is { } acrossError) throw acrossError;
         AtomicFile.Write(path, [.. current.encoding.GetPreamble(), .. current.encoding.GetBytes(text)]);
 
         void EditGroup(string groupName, IEnumerable<(Definition Definition, string Name, string? Value)> groupChanges)
@@ -239,18 +239,66 @@ public sealed partial class Settings
         [(GiftThresholds, NumberOrder.Rising, GiftThresholdRule), ([PetMidGift, PetBigGift], NumberOrder.Rising, "中礼物门槛要小于大礼物门槛。"),
             ([PetDailyMin, PetDailyMax], NumberOrder.NotFalling, "日常小动作的最短间隔不能比最长间隔长。")];
 
-    private static SettingsException? ValidateOrder(YamlMappingNode root, string path) =>
-        Ordered.Select(numbers => ValidateOrder(root, path, numbers)).FirstOrDefault(error => error is not null);
+    internal const string PranksterKeywordIsBlindBox = "和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个";
+    internal const string BlindBoxKeywordIsPrankster = "和桌宠宝箱小游戏里帮它的关键字一样，观众查盲盒时就站到它那边了；换一个";
+
+    /// <summary>Whether a danmaku saying <paramref name="said"/> is <paramref name="keyword"/>: exactly it, the spaces around either
+    /// aside, as a 报名抽奖 and the 帮它的关键字 take one. Two keywords that are the same take the same danmaku.</summary>
+    internal static bool SameKeyword(string said, string keyword) => said.Trim() == keyword.Trim();
+
+    /// <summary>Why the 帮它的关键字 cannot be <paramref name="keyword"/> as typed: empty, the next 报名抽奖's
+    /// <paramref name="entryKeyword"/>, or a 盲盒查询 keyword this file holds; null when it can.</summary>
+    public string? ValidatePranksterKeyword(string keyword, string entryKeyword) =>
+        string.IsNullOrWhiteSpace(keyword) ? "关键字不能空着"
+        : SameKeyword(keyword, entryKeyword) ? "和抽奖报名的关键字一样，观众分不清是在报名还是帮它；换一个"
+        : BlindBoxKeywords.Any(query => SameKeyword(Get(query).Value, keyword)) ? PranksterKeywordIsBlindBox : null;
+
+    /// <summary>Why a 盲盒查询 keyword cannot be <paramref name="keyword"/> as typed, beside the 帮它的关键字 this file holds; null
+    /// when it can.</summary>
+    public string? ValidateBlindBoxKeyword(string keyword) => SameKeyword(keyword, DesktopPetPranksterKeyword.Value) ? BlindBoxKeywordIsPrankster : null;
+
+    // A property, as Ordered is.
+    private static Definition<string>[] BlindBoxKeywords => [DailyKeyword, MonthlyKeyword, YearlyKeyword];
+
+    /// <summary>What must hold between settings, which no one of them can check: numbers in order, and keywords apart.</summary>
+    private static SettingsException? ValidateAcross(YamlMappingNode root, string path) =>
+        Ordered.Select(numbers => ValidateOrder(root, path, numbers)).FirstOrDefault(error => error is not null) ?? ValidateKeywords(root, path);
+
+    /// <summary>A 盲盒查询 keyword that is the 帮它的关键字 too, which a viewer asking for a 盲盒查询 would join the 捣蛋鬼 with. It is
+    /// reported on the line of the 帮它的关键字, or of the 盲盒查询 keyword when the file leaves the other out.</summary>
+    private static SettingsException? ValidateKeywords(YamlMappingNode root, string path)
+    {
+        var mine = NodeOf(root, PetPranksterKeyword);
+        foreach (var query in BlindBoxKeywords)
+        {
+            var theirs = NodeOf(root, query);
+            if (!SameKeyword(TextOf(theirs, query), TextOf(mine, PetPranksterKeyword))) continue;
+            var (node, name, rule) = mine is null ? (theirs, query.Name, BlindBoxKeywordIsPrankster) : (mine, PetPranksterKeyword.Name, PranksterKeywordIsBlindBox);
+            return new(path, node?.Start.Line ?? 1, name, rule);
+        }
+        return null;
+
+        static string TextOf(YamlNode? node, Definition<string> definition) => node is YamlScalarNode { Value: { } text } ? text : definition.Initial.Value;
+    }
+
+    /// <summary>The node <paramref name="definition"/> is read from, if <paramref name="root"/> has it.</summary>
+    private static YamlNode? NodeOf(YamlMappingNode root, Definition definition) =>
+        ChildOf(ChildOf(root, definition.Group), definition.Name.Split('.')[1]);
+
+    /// <summary>The value of <paramref name="node"/>'s first key named <paramref name="key"/>, matched by name as Read matches it, so a
+    /// tagged key such as `!!str blind_box` is found too; null when <paramref name="node"/> is no mapping or has no such key.</summary>
+    internal static YamlNode? ChildOf(YamlNode? node, string key) =>
+        (node as YamlMappingNode)?.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: var name } && name == key).Value;
 
     private static SettingsException? ValidateOrder(YamlMappingNode root, string path, (Definition<int>[] Definitions, NumberOrder Order, string Rule) numbers)
     {
         var definitions = numbers.Definitions;
-        if (!root.Children.TryGetValue(new YamlScalarNode(definitions[0].Group), out var node) || node is not YamlMappingNode group) return null;
-        var fields = definitions.Select(definition => group.Children.TryGetValue(new YamlScalarNode(definition.Name.Split('.')[1]), out var field) ? field : null).ToArray();
+        var fields = definitions.Select(definition => NodeOf(root, definition)).ToArray();
         var values = fields.Select((field, index) => field is YamlScalarNode { Value: { } text } && int.TryParse(text, out var value)
             ? value : definitions[index].Initial.Value).ToArray();
+        // The defaults are in order, so one the file leaves out is out of order only after one it holds, in the group told of.
         return numbers.Order.Invalid(values) is { } invalid
-            ? new(path, fields[invalid]?.Start.Line ?? node.Start.Line, definitions[invalid].Name, numbers.Rule) : null;
+            ? new(path, (fields[invalid] ?? ChildOf(root, definitions[0].Group))?.Start.Line ?? 1, definitions[invalid].Name, numbers.Rule) : null;
     }
 
     internal static string NewlineOf(string source)
@@ -321,7 +369,7 @@ public sealed partial class Settings
             var seenNames = new HashSet<string>(StringComparer.Ordinal);
             foreach (var (groupKey, groupValue) in root.Children) LoadGroup(groupKey, groupValue);
             settings.UnknownKeys = unknown.AsReadOnly();
-            settings.Error ??= ValidateOrder(root, path);
+            settings.Error ??= ValidateAcross(root, path);
             // Written even when a value is invalid: the upgrade never causes one, and its line must match the file on disk.
             if (settings.source != original)
             {

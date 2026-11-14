@@ -39,7 +39,7 @@ public sealed partial class AetherClient
         }
     }
 
-    /// <summary>Where a 一轮送礼 reports: the 送礼动画 takes its end; the 桌宠 how it stands after each message and as it ends; and
+    /// <summary>Where a 一轮送礼 reports: the 送礼动画 takes its end; the 桌宠 the gifts of each message and its end; and
     /// <paramref name="BlindBoxes"/> the result of its 盲盒 as it ends, none while a 盲盒播报 reports them.</summary>
     private sealed record GiftRoundReports(Action<GiftRoundEnded> Ended, Action<string, object> TellDesktopPet, Action<BlindBoxResult>? BlindBoxes);
 
@@ -54,7 +54,6 @@ public sealed partial class AetherClient
             // The 桌宠's part, in the order received: its 大航海 play on their own.
             public readonly List<Gift> Gifts = [];
             public QuietTimer Timer = null!;
-            public GiftRoundProgress Progress(bool ended) => GiftRoundProgress.Of(Uid, Nickname, Gifts, ended);
         }
         private readonly Dictionary<long, Round> rounds = [];
         // A push B站 repeats counts once, as the 收礼记录 writes it once, so a round's boxes are the ones its 盲盒播报 reports.
@@ -82,7 +81,9 @@ public sealed partial class AetherClient
                 round.Spend = checked(round.Spend + viewer.Sum(gift => gift.Spend));
                 var gifts = viewer.Where(gift => gift.GuardLevel == 0).ToArray();
                 round.Gifts.AddRange(gifts);
-                if (gifts.Length > 0) reports.TellDesktopPet(DesktopPet.Gift, round.Progress(false));
+                if (gifts.Length > 0)
+                    reports.TellDesktopPet(DesktopPet.Gift,
+                        new GiftRoundProgress(round.Uid, round.Nickname, [.. gifts.Select(GiftItem.Of)], false));
                 round.Timer.Reset(received.ReceivedTimestamp);
             }
         }
@@ -102,7 +103,7 @@ public sealed partial class AetherClient
             round.Timer.Dispose();
             reports.Ended(new(roomId, round.Uid, round.Nickname, round.Spend, time.GetUtcNow(), time.GetTimestamp()));
             if (round.Gifts.Count == 0) return;
-            reports.TellDesktopPet(DesktopPet.Gift, round.Progress(true));
+            reports.TellDesktopPet(DesktopPet.Gift, new GiftRoundProgress(round.Uid, round.Nickname, [], true));
             var boxes = round.Gifts.Where(gift => gift.Blind is not null).ToArray();
             if (boxes.Length > 0) reports.BlindBoxes?.Invoke(BlindBoxResult.Of(round.Uid, round.Nickname, boxes));
         }
@@ -173,11 +174,14 @@ public sealed partial class AetherClient
     /// <summary>Tells the 桌宠 what happens in the room; whether it plays is up to the web service region.</summary>
     private sealed class DesktopPetFeature(WebServiceFacade service) : IRoomFeature
     {
+        private long account;
+
         public void Handle(RoomEvent e)
         {
             switch (e)
             {
-                case TransportConnected:
+                case TransportConnected connected:
+                    account = connected.AccountUid;
                     service.SetDesktopPetRoom(true);
                     break;
                 case RoomConnectionEnded:
@@ -186,13 +190,39 @@ public sealed partial class AetherClient
                 case DanmakuProtocol.EntryReceived { Entry: var entry }:
                     service.TellDesktopPet(DesktopPet.Entry, new { entry.Uid, entry.Nickname });
                     break;
-                // Only that something happened: what a viewer wrote never reaches the stream.
-                case DanmakuProtocol.DanmakuReceived:
-                    service.TellDesktopPet(DesktopPet.Danmaku, new());
+                // The account's own, such as the bot's thanks, is no viewer: it neither wakes her nor joins the 捣蛋鬼. What a viewer
+                // wrote never reaches the stream.
+                case DanmakuProtocol.DanmakuReceived { Danmaku: var danmaku } when danmaku.Uid != account:
+                    service.TellDesktopPetDanmaku(danmaku);
                     break;
                 case DanmakuProtocol.GiftsReceived { Gifts: var gifts }:
                     foreach (var gift in gifts.Where(gift => gift.GuardLevel > 0))
-                        service.TellDesktopPet(DesktopPet.Guard, new { gift.Uid, gift.Nickname, gift.GuardLevel });
+                        service.TellDesktopPet(DesktopPet.Guard, new { gift.Uid, gift.Nickname, gift.GuardLevel, gift.Spend });
+                    break;
+            }
+        }
+    }
+
+    /// <summary>Tells the 桌宠 whether the streamer is in a PK, as the last PK message said. Ten minutes without any end it too,
+    /// so a missed end does not hold one on all night; and a reconnect cannot tell whether one went on meanwhile, so it is off.</summary>
+    private sealed class PkFeature(StepTimers timers, WebServiceFacade service) : IRoomFeature
+    {
+        private static readonly TimeSpan MaxSilence = TimeSpan.FromMinutes(10);
+        private readonly QuietTimer silence = new(timers, MaxSilence, () => service.SetDesktopPetPk(false));
+
+        public void Handle(RoomEvent e)
+        {
+            switch (e)
+            {
+                case DanmakuProtocol.PkReceived { InPk: var inPk, ReceivedTimestamp: var timestamp }:
+                    service.SetDesktopPetPk(inPk);
+                    silence.Reset(timestamp);
+                    break;
+                case TransportDisconnected:
+                    service.SetDesktopPetPk(false);
+                    break;
+                case RoomConnectionEnded:
+                    silence.Dispose();
                     break;
             }
         }
