@@ -252,6 +252,23 @@ test('叫它来 brings the 捣蛋鬼 once her show is over, the viewer\'s 一轮
   assert.deepEqual([playing(pet), told], [null, ['start']]);
 });
 
+test('what a viewer throws counts to the 一轮送礼 it was thrown in: one landing after that round ended adds nothing to the next', () => {
+  const pet = gamePet(character);
+  pet.gm.chest = 5000;
+  pet.summon();
+  play(pet, 3000);
+  // thrown while it flies the chest over, so it lands once the tug is on, after the round it was thrown in ended
+  pet.gift(gifts(1, 40000));
+  pet.gift(round(1, { ended: true }));
+  play(pet, 13000);
+  pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
+  pet.gift(gifts(5, 40000));
+  play(pet, 1000);
+  pet.gift(gifts(1, 60000));
+  play(pet, 1000);
+  assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.hp], ['tug', 400]);
+});
+
 test('a gift sent after the 来访 is thanked for itself, not for one thrown at the 捣蛋鬼 earlier in the 一轮送礼', () => {
   const pet = visited();
   pet.gift(round(1, { items: [item(100000, { name: '告白气球' })] }));

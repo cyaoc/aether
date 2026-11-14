@@ -159,8 +159,8 @@ the page beside the board, as the web service serves it, telling it it is on in 
   what they cost; its ending, jackpot and gift are the whole report's, which tells what its boxes opened only all together.
   A castle scares it off when its 盲盒播报 comes; the board's stood in for it 3.8 s after the box.
 - What a viewer's 一轮送礼 throws at the 捣蛋鬼 beats it off once it comes to the 中礼物 threshold in all, whatever life helpers
-  gave it back; the round's gifts sent before the 来访 do not count. The board has one viewer and no rounds of what it threw:
-  there a single gift of the threshold does it.
+  gave it back; a gift counts to the round it was thrown in however late it lands, and the round's gifts sent before the 来访
+  do not count. The board has one viewer and no rounds of what it threw: there a single gift of the threshold does it.
 - Every gift thrown at the 捣蛋鬼 goes into her chest, playing nothing once it is on its way off: one landing after the gift that
   beat it off or after it was scared off, and one the lightning held back from falling when it is gone. The board's were lost.
 - A viewer is on the 捣蛋鬼's side once they send the 帮它的关键字 in the tug, counted once however often they send it, and
