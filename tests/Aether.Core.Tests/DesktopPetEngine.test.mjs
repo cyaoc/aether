@@ -233,14 +233,32 @@ test('a castle opened while an earlier 盲盒播报 went out plays once, with th
   assert.deepEqual([playing(engine), engine.queue, engine.rounds], ['castle', [], []]);
 });
 
-test('a round that played its castle does not play it again for another opened from its blind boxes', () => {
-  const engine = pet();
+test('a round that played its castle plays another opened from its blind boxes after it', () => {
+  const engine = pet({ off: Object.keys(DAILY) });
   castle(engine, 1);
   assert.equal(playing(engine), 'castle');
   engine.gift(box(1, 1, { castle: true }));
   engine.gift(round(1, { ended: true }));
-  engine.blindBox({ ...boxResult(1, 15000, 2233000, 2233000), castle: true });
-  assert.deepEqual([playing(engine), engine.queue, engine.rounds], ['castle', [], []]);
+  engine.blindBox(boxResult(1, 15000, 2233000, 2233000));
+  assert.deepEqual([playing(engine), engine.queue.map(q => q.name), engine.rounds], ['castle', ['castle'], []]);
+  advance(engine, 11500);
+  assert.equal(playing(engine), 'castle');
+  advance(engine, 11500);
+  assert.equal(playing(engine), null);
+});
+
+test('two castles one 盲盒播报 opens play one after another, a 总督 coming meanwhile waiting for the one playing and going first', () => {
+  const engine = pet({ off: Object.keys(DAILY) });
+  engine.gift(box(1, 2, { castle: true }));
+  engine.blindBox({ ...boxResult(1, 30000, 4466000, 2233000), boxes: 2 });
+  engine.guard({ uid: 2, nickname: '总督', guardLevel: 1 });
+  assert.deepEqual([playing(engine), engine.queue.map(q => q.name)], ['castle', ['castle', 'governor']]);
+  advance(engine, 11500);
+  assert.equal(playing(engine), 'governor');
+  advance(engine, 15000);
+  assert.equal(playing(engine), 'castle');
+  advance(engine, 11500);
+  assert.equal(playing(engine), null);
 });
 
 test('a castle a merged 盲盒播报 has not reached yet still plays, with the result that reaches it', () => {

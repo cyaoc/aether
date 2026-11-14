@@ -304,7 +304,7 @@ test('a castle thrown at the 捣蛋鬼 plays once, and a blind box sent after it
   assert.equal(playing(pet), 'blindBoxSmall');
 });
 
-test('two castles thrown at the 捣蛋鬼 in one 一轮送礼 play the castle once and nothing else, their 盲盒播报 coming apart', () => {
+test('two castles thrown at the 捣蛋鬼 in one 一轮送礼 play the castle twice and nothing else, their 盲盒播报 coming apart', () => {
   const pet = visited({ off: NO_DAILY }), [shows, seen] = shown(pet);
   pet.gift(castleBox());
   play(pet, 1000);
@@ -313,10 +313,19 @@ test('two castles thrown at the 捣蛋鬼 in one 一轮送礼 play the castle on
   play(pet, 1000, seen);
   pet.blindBox(castled);
   play(pet, 30000, seen);
-  assert.deepEqual([...shows].map(show => show.name), ['castle']);
+  assert.deepEqual([...shows].map(show => show.name), ['castle', 'castle']);
 });
 
-test('a castle played in a 一轮送礼 begun before the 捣蛋鬼 came is not played again for one thrown at it in the round', () => {
+test('two castles one 盲盒播报 opens while the 捣蛋鬼 is here: the first scares it off and plays, the second plays after it', () => {
+  const pet = visited({ off: NO_DAILY }), [shows, seen] = shown(pet);
+  pet.gift(box(2, 2, { name: '浪漫城堡', castle: true }));
+  pet.blindBox({ ...castled, boxes: 2 });
+  assert.deepEqual([pet.gm.visit.phase, playing(pet), pet.queue.map(q => q.name)], ['fled', 'castle', ['castle']]);
+  play(pet, 30000, seen);
+  assert.deepEqual([...shows].map(show => show.name), ['castle', 'castle']);
+});
+
+test('a castle played in a 一轮送礼 begun before the 捣蛋鬼 came is played again for one thrown at it in the round', () => {
   const pet = gamePet(character, { off: NO_DAILY }), [shows, seen] = shown(pet);
   pet.gift(castleBox());
   pet.blindBox(castled);
@@ -327,7 +336,7 @@ test('a castle played in a 一轮送礼 begun before the 捣蛋鬼 came is not p
   pet.gift(castleBox());
   pet.blindBox(castled);
   play(pet, 30000, seen);
-  assert.deepEqual([...shows].map(show => show.name).filter(name => name === 'castle'), ['castle']);
+  assert.deepEqual([...shows].map(show => show.name).filter(name => name === 'castle'), ['castle', 'castle']);
 });
 
 test('a new first place taken while the 捣蛋鬼 is here is not crowned after it leaves, in a 一轮送礼 begun before it came too', () => {

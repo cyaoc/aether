@@ -362,7 +362,7 @@ export class Engine extends EventTarget {
   // played again. Its blind boxes wait for their result (blindBox), and each gift message flies a little box into her arms.
   // Every gift goes into her chest at home, and one sent while the 捣蛋鬼 is here is thrown at it (gameGift) and is no part of
   // her shows: it plays nothing of hers, then or after. The round is one, thrown or not: what it threw strikes for it
-  // (spent), and its castle plays once (castled, blindBox).
+  // (spent), and every castle it opened plays (blindBox).
   gift(p) {
     const now = this.now();
     let r = this.rounds.find(round => round.uid === p.uid && !round.ended);
@@ -378,14 +378,14 @@ export class Engine extends EventTarget {
       this.crowns.delete(p.uid);
     }
     // (every gift of the message goes into the chest or is thrown, so map rather than some)
-    if (p.items.map(item => this.gameGift({ ...item, spend: item.spend / COINS, uid: p.uid, nickname: p.nickname, round: r })).includes(true)) return this.threw(p, r, now);
+    if (p.items.map(item => this.gameGift({ ...item, spend: item.spend / COINS, uid: p.uid, nickname: p.nickname, round: r })).includes(true)) return this.threw(p, now);
     r.arrivals.push(now);
     for (const item of p.items) if (item.blind) { this.unopen(p.uid, item, { r }); r.boxes += item.count; } else r.gifts.push(item);
     this.gifted(now);
-    // a castle opened from one of the round's blind boxes, the only way B站 gives one, plays once instead of its gifts and
-    // blind boxes, with the result that reports the box it came from
-    if (p.items.some(item => item.castle) && r.played < CASTLE) Object.assign(r, { castle: true, castleAt: r.boxes, played: CASTLE });
-    if (!r.gifts.length || r.castle) return;
+    // a castle opened from one of the round's blind boxes, the only way B站 gives one, plays instead of its gifts and blind
+    // boxes, with the result that reports the box it came from (blindBox)
+    if (p.items.some(item => item.castle)) r.played = CASTLE;
+    if (!r.gifts.length) return;
     const { spend, count, top, topCount } = giftsOf(r.gifts), { midGift, bigGift } = this.settings;
     const kind = spend >= bigGift ? 'bigGift' : spend >= midGift ? 'midGift' : count >= 5 ? 'giftStreak' : 'gift';
     if (GIFT_SHOWS.indexOf(kind) <= r.played) return;
@@ -395,19 +395,14 @@ export class Engine extends EventTarget {
 
   // A 一轮盲盒's result, as its 盲盒播报 reported it (BlindBoxResult), for its boxes not thrown at the 捣蛋鬼 (tell): the size by
   // what they cost, the ending by what the boxes opened; a single gift opened at the 大礼物 threshold is a jackpot and at least
-  // the big one. A castle in the round plays the castle instead. Boxes thrown open nothing, though a castle still plays.
+  // the big one. Castles among them play the castle instead, one for each. Boxes thrown open nothing, though a castle still
+  // plays.
   blindBox(b) {
-    const { told, hit } = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
-    // A round's castle plays once, from her blind boxes or thrown at the 捣蛋鬼 (hit.rounds): hers waiting on its 盲盒播报,
-    // with the result that tells the boxes up to it (a result before it plays nothing, the castle standing in for it);
-    // another opened in a round that already played one (castled), not again.
-    const reached = told.filter(t => t.castle && t.told >= t.castleAt);
-    for (const t of reached) t.castle = false;
-    if (reached.some(t => !t.castled) || b.castle && ![...told, ...hit.rounds].some(t => t.castled)) {
-      for (const t of [...reached, ...hit.rounds]) t.castled = true;
-      return this.fire('castle', { nickname: b.nickname, round: r });
-    }
-    if (!told.length && hit.n || told.some(t => t.played === CASTLE)) return;
+    const { told, hit, castles } = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
+    // Every castle the boxes opened plays, hers or thrown at the 捣蛋鬼, each after the one before (同档排队); a result before
+    // the castle of a round plays nothing, the castle standing in for it.
+    for (let i = 0; i < castles; i++) this.fire('castle', { nickname: b.nickname, round: r });
+    if (castles || !told.length && hit.n || told.some(t => t.played === CASTLE)) return;
     // shortcut: a 盲盒播报 tells what its boxes opened only all together, so the ending, the jackpot and the gift named of those
     // not thrown are the whole report's (its 赚亏 as a share of what it cost); tell each box's opening if they must be apart.
     const jackpot = b.bestPrice >= bigGift, spend = b.tally.spend - hit.spend;
@@ -415,37 +410,38 @@ export class Engine extends EventTarget {
       { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes - hit.n, shaken: !!r, round: r });
   }
 
-  // The rounds a result tells, and how many of its boxes were thrown at the 捣蛋鬼, what they cost and the 一轮送礼 they were
-  // thrown in (hit): a 盲盒播报 reports every box sent before it went out, in the order they came (unopen), thrown or not and
+  // The rounds a result tells, how many of its boxes were thrown at the 捣蛋鬼 and what they cost (hit), and how many castles
+  // its boxes opened: a 盲盒播报 reports every box sent before it went out, in the order they came (unopen), thrown or not and
   // over however many 一轮送礼, and none sent while it went out, which wait for their own. A round is done once it ended and
   // all is told.
   tell(b) {
-    const told = [], boxes = this.unopened.get(b.uid) ?? [], hit = { n: 0, spend: 0, rounds: [] };
-    let left = b.boxes;
+    const told = [], boxes = this.unopened.get(b.uid) ?? [], hit = { n: 0, spend: 0 };
+    let left = b.boxes, castles = 0;
     for (let s; left > 0 && (s = boxes[0]);) {
       const n = Math.min(left, s.n);
       left -= n; s.n -= n;
       if (!s.n) boxes.shift();
-      if (s.thrown) { hit.n += n; hit.spend += n * s.price; hit.rounds.push(s.thrown); continue; }
+      if (s.castle) castles += n;
+      if (s.thrown) { hit.n += n; hit.spend += n * s.price; continue; }
       s.r.told += n;
       if (!told.includes(s.r)) told.push(s.r);
       if (s.r.ended && s.r.told === s.r.boxes) this.rounds.splice(this.rounds.indexOf(s.r), 1);
     }
-    return { told, hit };
+    return { told, hit, castles };
   }
 
-  // A viewer's boxes not yet opened, in the order they came: a gift message's (GiftItem), n of them at price each, in their
-  // round r for her or thrown at the 捣蛋鬼 in the round thrown.
-  unopen(uid, { count, spend }, round) {
+  // A viewer's boxes not yet opened, in the order they came: a gift message's (GiftItem), n of them at price each, whether
+  // they opened castles, in their round r for her or thrown at the 捣蛋鬼.
+  unopen(uid, { count, spend, castle }, round) {
     if (!this.unopened.has(uid)) this.unopened.set(uid, []);
-    this.unopened.get(uid).push({ ...round, n: count, price: spend / count });
+    this.unopened.get(uid).push({ ...round, n: count, price: spend / count, castle });
   }
 
-  // A gift message of round r thrown at the 捣蛋鬼 counts for her 心情 as any gift, and its blind boxes' result opens nothing
-  // (blindBox).
-  threw(p, r, now) {
+  // A gift message thrown at the 捣蛋鬼 counts for her 心情 as any gift, and its blind boxes' result opens nothing but their
+  // castles (blindBox).
+  threw(p, now) {
     this.gifted(now);
-    for (const item of p.items) if (item.blind) this.unopen(p.uid, item, { thrown: r });
+    for (const item of p.items) if (item.blind) this.unopen(p.uid, item, { thrown: true });
   }
 
   entry(e) { this.fire('entry', { nickname: e.nickname }); }
