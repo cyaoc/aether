@@ -142,16 +142,18 @@ for (const [kind, sp] of Object.entries(SPORTS)) DAILY[kind] = [1100 + sp.act[1]
 // played on her are the game's alone: a helper's gift on her head, the fifth flattening her, the lightning frizzing her hair,
 // and being dragged along in the last stretch. Its drawings and the chest's are the page's own (prankster/prankster.json).
 // 电池 to the 金瓜子 Core tells amounts in (Battery.cs): the game counts in 电池, as its board says them.
-export const COINS = 100;
+const COINS = 100;
 // Its idle drawing's height on the page, a little under half of hers; the ground line the chest stands on; where the chest
 // lands, just clear of her right side; where the chest stands in the tug (she stands where the ring in her fists meets the
 // chest, the 捣蛋鬼 where its rope runs straight from the other ring into its fists) and how far the three drift with
 // its life; how the chest hangs from the hook in one of its rings, that end up; how far below the end of the rope in a
 // carrying drawing the chest's link is (a bit of rope, the hook, the ring).
-export const PK_H = 112, CHEST = { y: 626 }, LAND = 372, TUG = { chest: 292, drift: 5 }, HANG = -0.32, LINK = 18;
+export const PK_H = 112, CHEST = { y: 626 }, HANG = -0.32;
+const LAND = 372, TUG = { chest: 292, drift: 5 }, LINK = 18;
 // The hook is HOOK long. The 捣蛋鬼 leans back as it pulls (LEAN) and as it hauls the chest off (HAUL), so that its rope
 // runs straight from the ring into its fists; TRIM px of the rope its pulling drawings hold are left undrawn.
-export const HOOK = 6, LEAN = -0.4, HAUL = -0.5, TRIM = 40;
+export const HOOK = 6;
+const LEAN = -0.4, HAUL = -0.5, TRIM = 40;
 // When she has lost the chest her line goes at ROB.quiet, and she curls up sulking at ROB.curl (chestRobbed).
 const ROB = { quiet: 4600, curl: 5000 };
 // How long the game's end leaves her in a 心情: robbed, sad until a gift (at most this long); kept, glad.
@@ -161,7 +163,8 @@ const MOOD_HOLD = { robbed: 60000, kept: 60000 };
 const OFF = { won: 3400, knocked: 2600, fled: 2400 };
 // How long the sprite pats her frizzed hair before it is smooth (two pats); the stars gather round her head for GATHER of it
 // and fall as glitter for SETTLE after.
-export const PATS = 900, GATHER = 500, SETTLE = 1000;
+const PATS = 900, GATHER = 500;
+export const SETTLE = 1000;
 // A gift falls DROP ms before it lands; a disguise holds FREEZE ms; the lightning set piece lasts ZAP ms (the countdown
 // waits); it and the chest fall FALL ms when it can hold the chest up no longer; the sprite flies the chest home in HOME ms,
 // or in TIDY before a show that scared the 捣蛋鬼 off. Of that time the sprite flies to the chest for GO ms, presses an
