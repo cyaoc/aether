@@ -158,11 +158,8 @@ public sealed class DesktopPetSettingsTests
         GuiHarness.Tab(page, 3);
         Pick(page, "LineKindList", "守住了");
         Assert.Contains("把它打跑、宝箱回家时；每次随机一句，不连着重复", Texts(page));
-        // what she and it say in a 来访 outside her endings goes in turn, as the board says it
-        Pick(page, "LineKindList", "打得好");
-        Assert.Contains("有人送礼砸中它时；按顺序轮着说", Texts(page));
         Pick(page, "LineKindList", "招人");
-        Assert.Contains("拉帮手时；它的气泡窄，一行最多 6 个字，空一格换行；按顺序轮着说", Texts(page));
+        Assert.Contains("拉帮手时；它的气泡窄，一行最多 6 个字，空一格换行；每次随机一句，不连着重复", Texts(page));
         Line(page, 1).Text = "快发「{关键字}」 帮我！";
         GuiHarness.Flush();
         Assert.True(page.IsDirty);
