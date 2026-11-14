@@ -336,7 +336,7 @@ a{color:#3358D4}a:hover{color:#2A47B0}
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["演出","心情和日常","小游戏","台词"],"default":"演出"},"game":{"editor":"enum","options":["可以叫","它在路上","它在场上","没连直播间","抽奖进行中","PK 中","关键字和抽奖重复"],"default":"可以叫"},"gameLines":{"editor":"boolean","default":false},"scene":{"editor":"enum","options":["默认","有未保存的修改","试演中","桌宠页没连上","桌宠关着"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"showsLayout":{"editor":"enum","options":["分组","三列"],"default":"分组"},"pk":{"editor":"boolean","default":false},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
+<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["演出","心情和日常","小游戏","台词"],"default":"演出"},"game":{"editor":"enum","options":["可以叫","它在路上","它在场上","没连直播间","抽奖进行中","PK 中","关键字和抽奖重复","关键字和盲盒查询重复"],"default":"可以叫"},"gameLines":{"editor":"boolean","default":false},"scene":{"editor":"enum","options":["默认","有未保存的修改","试演中","桌宠页没连上","桌宠关着"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"showsLayout":{"editor":"enum","options":["分组","三列"],"default":"分组"},"pk":{"editor":"boolean","default":false},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
 class Component extends DCLogic {
   // The app's theme tokens, as on the other GUI boards (GS1).
   tokens(dark) {
@@ -549,8 +549,9 @@ class Component extends DCLogic {
     const callBlocked = !masterOn ? '先打开桌宠' : !pageOk ? '先在直播姬里加好桌宠页' : offline ? '连上直播间才能叫它来：没人送礼，也没人能帮它' : gameScene === '抽奖进行中' ? '抽完奖才能叫：抽奖会把它吓跑' : gameScene === 'PK 中' ? 'PK 打完才能叫：PK 时它不出来' : null;
     const canCall = !callBlocked && !called && !onStage;
     const every = s.every ?? '30', everyOff = Number(every) === 0;
-    const kw = s.kw ?? (gameScene === '关键字和抽奖重复' ? '抽奖' : '捣蛋');
-    const kwErrorText = kw.trim() === '' ? '关键字不能空着' : kw.trim() === '抽奖' ? '和抽奖报名的关键字一样，观众分不清是在报名还是帮它；换一个' : '';
+    const kw = s.kw ?? (gameScene === '关键字和抽奖重复' ? '抽奖' : gameScene === '关键字和盲盒查询重复' ? '今日盲盒' : '捣蛋');
+    const kwErrorText = kw.trim() === '' ? '关键字不能空着' : kw.trim() === '抽奖' ? '和抽奖报名的关键字一样，观众分不清是在报名还是帮它；换一个'
+      : ['今日盲盒', '本月盲盒', '今年盲盒'].includes(kw.trim()) ? '和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个' : '';
     const playing = s.playing ?? scene === '试演中';
     const testDisabled = !masterOn || !pageOk;
     return {
@@ -559,7 +560,7 @@ class Component extends DCLogic {
       call: () => { if (canCall) this.setState({ called: true }); }, callDisabled: canCall ? null : 'true', callCursor: canCall ? 'pointer' : 'default',
       callText: onStage ? '它在场上' : called ? '它在路上…' : '叫它来',
       callBorder: canCall ? t.accent : t.control, callBg: canCall ? t.accentTint : 'transparent', callColor: canCall ? t.accentText : t.disabled,
-      callNote: callBlocked ?? (onStage ? '这一场演完才能再叫' : called ? '她正在演的这段完了它就来' : '点了它马上来，是真的一场，观众送的礼物都算；不用保存'),
+      callNote: callBlocked ?? (onStage ? '它走了才能再叫' : called ? '她正在演的这段完了它就来' : '点了它马上来，不是试演，观众送的礼物都算；不用保存'),
       callNoteColor: called && !callBlocked && !onStage ? t.accentText : t.muted,
       every, setEvery: e => edited({ every: e.target.value }),
       everyNote: everyOff ? '填了 0：它只在你叫它时来' : '有人在看、她闲着时它自己来；填 0 就只在你叫它时来', everyNoteColor: everyOff ? t.accentText : t.muted,
