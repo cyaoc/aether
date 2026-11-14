@@ -7,7 +7,7 @@ internal sealed class DesktopPet(WebService service, Character character)
 {
     /// <summary>What happens, by the name the page is told it under.</summary>
     public const string Gift = "gift", BlindBox = "blindBox", Guard = "guard", Entry = "entry", Danmaku = "danmaku",
-        Test = "testShow", StopTest = "stopTestShow";
+        Test = "testShow", StopTest = "stopTestShow", Summon = "summon";
 
     private bool roomConnected;
     private Lottery? lottery;
@@ -16,8 +16,16 @@ internal sealed class DesktopPet(WebService service, Character character)
     // plays it. A page reports a 试演 it played after another started, so only the one that plays is over.
     private int trials;
     private (int Id, WebService.Connection[] Pages)? trial;
+    // 叫它来 told the pages and none has said the 捣蛋鬼 set off; how many said it set off and not yet that it left; and the pages
+    // there as it was told or set off last: once none of them is left, it has not come.
+    private bool summoned;
+    private int visiting;
+    private WebService.Connection[] visitPages = [];
 
     public Subscribers<SseEvent> Subscribers { get; } = new();
+
+    /// <summary>The GUI's 叫它来, told each time anything it depends on may have changed.</summary>
+    public Subscribers<PranksterSummon> SummonSubscribers { get; } = new();
 
     private bool Enabled => service.Settings?.DesktopPetEnabled.Value == true;
 
@@ -25,11 +33,16 @@ internal sealed class DesktopPet(WebService service, Character character)
         ? new DesktopPetState(true, roomConnected, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines(character))
         : new DesktopPetState(false));
 
-    /// <summary>New settings may turn the 桌宠 on or off, and change how she plays and what she says; off, she plays no 试演.</summary>
+    public PranksterSummon SummonState => new(WhyNoSummon(),
+        visiting > 0 ? PranksterVisit.OnStage : summoned ? PranksterVisit.OnTheWay : PranksterVisit.Away);
+
+    /// <summary>New settings may turn the 桌宠 on or off, and change how she plays and what she says; off, she plays no 试演 and the
+    /// 捣蛋鬼 is gone.</summary>
     public void Applied()
     {
-        if (!Enabled) trial = null;
+        if (!Enabled) (trial, summoned, visiting) = (null, false, 0);
         Subscribers.Publish(State);
+        PublishSummon();
     }
 
     /// <summary>A reconnect is still the same room connection, so only its start and its end change the state.</summary>
@@ -38,6 +51,7 @@ internal sealed class DesktopPet(WebService service, Character character)
         if (roomConnected == connected) return;
         roomConnected = connected;
         Publish(State);
+        PublishSummon();
     }
 
     /// <summary>The 抽奖页's example is no lottery, and what the streamer keeps off air stays off the 桌宠 too.</summary>
@@ -53,6 +67,7 @@ internal sealed class DesktopPet(WebService service, Character character)
         if (update.Example is not null || onAir is null && lottery is null) return;
         lottery = onAir;
         Publish(State);
+        PublishSummon();
     }
 
     /// <summary>Only a running 期 is told: an ended one has no new first place.</summary>
@@ -99,11 +114,63 @@ internal sealed class DesktopPet(WebService service, Character character)
         if (trial?.Id == id) Ended();
     }
 
-    /// <summary>A 试演 is over too once every page told it is gone, such as one the streaming software reloaded.</summary>
+    /// <summary>A 试演 is over too once every page told it is gone, such as one the streaming software reloaded; so is a 来访.</summary>
     public void ConnectionsChanged()
     {
-        if (trial is { } playing && !playing.Pages.Intersect(Pages).Any()) Ended();
+        if (trial is { } playing && Gone(playing.Pages)) Ended();
+        if (Gone(visitPages)) (summoned, visiting) = (false, 0);
+        PublishSummon();
     }
+
+    /// <summary>叫它来: the pages have the 捣蛋鬼 come once her show is over. While it cannot, nothing is told them and the GUI is
+    /// told why again.</summary>
+    public void SummonPrankster()
+    {
+        if (SummonState.CanSummon)
+        {
+            (summoned, visitPages) = (true, Pages);
+            Tell(Summon, new());
+        }
+        PublishSummon();
+    }
+
+    /// <summary>A page reports the 捣蛋鬼 set off, called or on its own: it is on the page until each page it set off on says it
+    /// left.</summary>
+    public void VisitStarted()
+    {
+        (summoned, visitPages) = (false, Pages);
+        visiting++;
+        PublishSummon();
+    }
+
+    /// <summary>A page reports the 捣蛋鬼 left, or never set off, as when a PK started while it was on its way.</summary>
+    public void VisitEnded()
+    {
+        (summoned, visiting) = (false, Math.Max(0, visiting - 1));
+        PublishSummon();
+    }
+
+    /// <summary>Why the streamer cannot 叫它来 now, by the 桌宠页's own rules: it has nowhere to come to, nobody to send it gifts or
+    /// help it, or something on the page would scare it away at once.</summary>
+    private string? WhyNoSummon() => !Enabled ? "先打开桌宠"
+        : service.Status.DesktopPetConnections == 0 ? "先在直播姬里加好桌宠页"
+        : !roomConnected ? "连上直播间才能叫它来：没人送礼，也没人能帮它"
+        : Drawing(lottery) ? "抽完奖才能叫：抽奖会把它吓跑"
+        : InPk ? "PK 打完才能叫：PK 时它不出来" : null;
+
+    /// <summary>A lottery she waits through, as the page's lotOf (engine.mjs) has it: entries open, or a draw coming (entries closed
+    /// with someone to draw, a pool spinning or its draw on the way to its DrawUntil); a pool between draws is none. Whether the
+    /// streamer turned the lottery's show off does not matter: it scares the 捣蛋鬼 away all the same.</summary>
+    private static bool Drawing(Lottery? lottery) => lottery is EntryLottery { Phase: EntryLotteryPhase.Open }
+        or EntryLottery { Phase: EntryLotteryPhase.Closed, EntryCount: > 0 } or PoolLottery { Phase: PoolLotteryPhase.Spinning }
+        or PoolLottery { DrawUntil: not null };
+
+    // The PK comes with #374; until then the room is never in one.
+    private static bool InPk => false;
+
+    private void PublishSummon() => SummonSubscribers.Publish(SummonState);
+
+    private bool Gone(WebService.Connection[] pages) => !pages.Intersect(Pages).Any();
 
     private void Ended()
     {
