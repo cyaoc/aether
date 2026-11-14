@@ -29,7 +29,7 @@ export function drive(pet, later, { NAME, STEP }) {
       const gifts = [].concat(m), uid = gifts[0].helper ? 2 : 1;
       later(i * 350, () => send(pet, last, uid, gifts));
       later(i * 350 + 3000, () => end(pet, last, uid, gifts));
-      for (const g of gifts.filter(g => g.castle)) later(i * 350 + 3800, () => pet.blindBox({ uid, nickname: '星河', tally: { spend: spendOf(g), openedValue: g.price * 100, outcome: 'Gain' }, boxes: g.n, bestGift: g.gift, bestPrice: g.price * 100 }));
+      for (const g of gifts.filter(g => g.castle)) later(i * 350 + 3800, () => pet.blindBox({ uid, nickname: '星河', tally: { spend: spendOf(g), openedValue: g.price * 100, outcome: 'Gain' }, boxes: g.n, bestGift: g.gift, bestPrice: g.price * 100, castles: g.n }));
     })
   };
 }

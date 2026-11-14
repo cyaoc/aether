@@ -15,7 +15,7 @@ const visited = settings => { const pet = gamePet(character, settings); pet.summ
 const tugging = (chest = 500) => { const pet = gamePet(character); pet.gm.chest = chest; pet.summon(); play(pet, 12500); return pet; };
 // A viewer's blind box that opens a castle, and its 盲盒播报; the 日常小动作 turned off, for tests that see every show she plays.
 const castleBox = () => box(2, 1, { name: '浪漫城堡', castle: true });
-const castled = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, boxes: 1, bestGift: '浪漫城堡', bestPrice: 2233000 };
+const castled = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, boxes: 1, bestGift: '浪漫城堡', bestPrice: 2233000, castles: 1 };
 const NO_DAILY = ['hum', 'gym', 'hike', 'bike', 'ski'];
 // Every show she plays from now on, in order.
 const shown = pet => { const shows = new Set(); return [shows, () => { if (pet.cur) shows.add(pet.cur); }]; };
@@ -296,7 +296,7 @@ test('a gift sent after the 来访 is thanked for itself, not for one thrown at 
 test('a castle thrown at the 捣蛋鬼 plays once, and a blind box sent after it in the 一轮送礼 plays as a blind box', () => {
   const pet = visited(), result = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 };
   pet.gift(box(2, 1, { name: '浪漫城堡', castle: true }));
-  pet.blindBox({ ...result, tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, bestGift: '浪漫城堡', bestPrice: 2233000 });
+  pet.blindBox({ ...result, tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, bestGift: '浪漫城堡', bestPrice: 2233000, castles: 1 });
   assert.equal(playing(pet), 'castle');
   play(pet, 22000);
   pet.gift(box(2));
@@ -319,7 +319,7 @@ test('two castles thrown at the 捣蛋鬼 in one 一轮送礼 play the castle tw
 test('two castles one 盲盒播报 opens while the 捣蛋鬼 is here: the first scares it off and plays, the second plays after it', () => {
   const pet = visited({ off: NO_DAILY }), [shows, seen] = shown(pet);
   pet.gift(box(2, 2, { name: '浪漫城堡', castle: true }));
-  pet.blindBox({ ...castled, boxes: 2 });
+  pet.blindBox({ ...castled, boxes: 2, castles: 2 });
   assert.deepEqual([pet.gm.visit.phase, playing(pet), pet.queue.map(q => q.name)], ['fled', 'castle', ['castle']]);
   play(pet, 30000, seen);
   assert.deepEqual([...shows].map(show => show.name), ['castle', 'castle']);

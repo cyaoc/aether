@@ -87,9 +87,9 @@ public sealed class DesktopPetGiftTests
         // Nothing is told of the round being announced until its send ends.
         Assert.Equal([DesktopPet.Gift, DesktopPet.Gift, DesktopPet.Danmaku, DesktopPet.Gift, DesktopPet.Gift, DesktopPet.Danmaku], await pet.NamesAsync(6));
         release.SetResult();
-        AssertBlindBox(new(10001, "测试观众", new(10000, 4000), 2, "小蛋糕", 2500), "Loss", await pet.NextAsync(DesktopPet.BlindBox));
+        AssertBlindBox(new(10001, "测试观众", new(10000, 4000), 2, "小蛋糕", 2500, 0), "Loss", await pet.NextAsync(DesktopPet.BlindBox));
         h.Time.Advance(TimeSpan.FromSeconds(3));
-        AssertBlindBox(new(10001, "测试观众", new(5000, 5000), 1, "小蛋糕", 5000), "Even", await pet.NextAsync(DesktopPet.BlindBox));
+        AssertBlindBox(new(10001, "测试观众", new(5000, 5000), 1, "小蛋糕", 5000, 0), "Even", await pet.NextAsync(DesktopPet.BlindBox));
     }
 
     [Theory]
@@ -111,10 +111,24 @@ public sealed class DesktopPetGiftTests
         Assert.True((await pet.NextAsync<GiftRoundProgress>(DesktopPet.Gift)).Ended);
         var (name, boxes) = await pet.NextAsync();
         Assert.Equal(DesktopPet.BlindBox, name);
-        AssertBlindBox(new(10001, "测试观众", new(16500, 2234500), 2, "浪漫城堡", 2233000), "Gain", boxes);
+        AssertBlindBox(new(10001, "测试观众", new(16500, 2234500), 2, "浪漫城堡", 2233000, 1), "Gain", boxes);
         // B站 gives a castle only out of a 盲盒: one sent as a gift would be that gift.
         await h.PushAndSyncAsync(updates, Ordinary(uid: 20002, giftId: 32132, giftName: "浪漫城堡", price: 2233000, tid: "castle-2"));
         await AssertRoundAsync(pet, Round(Item(32132, "浪漫城堡", 2233000, 1)) with { Uid = 20002 });
+    }
+
+    [Fact]
+    public async Task A_blind_box_result_tells_how_many_castles_its_boxes_opened()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h, ("blind_box.announce", "false"));
+        using var _ = pet;
+        var castles = With(data => { data["giftId"] = 32132; data["giftName"] = "浪漫城堡"; data["price"] = 2233000; data["num"] = 2; data["total_coin"] = 30000; });
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), spend: 1500), castles);
+
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+
+        Assert.Equal(2, (await pet.NextAsync(DesktopPet.BlindBox)).GetProperty("castles").GetInt64());
     }
 
     [Theory]

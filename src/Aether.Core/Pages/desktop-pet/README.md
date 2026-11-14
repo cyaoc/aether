@@ -131,8 +131,9 @@ the page beside the board, as the web service serves it, telling it it is on in 
   mishap, the shows turned off and her lines are the state's; the board's are fixed. Without a room she stays calm, and her
   quiet-room clocks start when one connects.
 - A castle in a 一轮送礼 stops its gift and blind box shows and waits for its blind boxes' result as they do, and every castle
-  opened plays, one after another, as many as the gift messages told: B站 gives a castle only out of a 盲盒, so a castle sent
-  as a gift is that gift. The board also played a castle sent directly, and a blind box show after it in the same round.
+  opened plays, one after another, as many as the result says (`castles`, boxes the page never saw too): B站 gives a castle
+  only out of a 盲盒, so a castle sent as a gift is that gift. The board also played a castle sent directly, and a blind box
+  show after it in the same round.
 - The lottery is Core's state, so its steps play as its phase changes and she waits through it by that phase (entries open, a
   draw coming), not by the steps the board's buttons started: a 试演 of a step leaves her as she was. She reacts to a draw at
   its DrawUntil, when the 抽奖页's effects end; its show, which holds her breath 2.5 s first, starts that much earlier. A pool

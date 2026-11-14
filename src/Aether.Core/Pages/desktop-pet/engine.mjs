@@ -395,14 +395,14 @@ export class Engine extends EventTarget {
 
   // A 一轮盲盒's result, as its 盲盒播报 reported it (BlindBoxResult), for its boxes not thrown at the 捣蛋鬼 (tell): the size by
   // what they cost, the ending by what the boxes opened; a single gift opened at the 大礼物 threshold is a jackpot and at least
-  // the big one. Castles among them play the castle instead, one for each. Boxes thrown open nothing, though a castle still
-  // plays.
+  // the big one. The castles they opened play the castle instead, one for each. Boxes thrown open nothing, though a castle
+  // still plays.
   blindBox(b) {
-    const { told, hit, castles } = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
-    // Every castle the boxes opened plays, hers or thrown at the 捣蛋鬼, each after the one before (同档排队); a result before
-    // the castle of a round plays nothing, the castle standing in for it.
-    for (let i = 0; i < castles; i++) this.fire('castle', { nickname: b.nickname, round: r });
-    if (castles || !told.length && hit.n || told.some(t => t.played === CASTLE)) return;
+    const { told, hit } = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
+    // Every castle the report says came out plays, hers or thrown at the 捣蛋鬼, boxes she never saw too (the page reloaded),
+    // each after the one before (同档排队); a result before the castle of a round plays nothing, the castle standing in for it.
+    for (let i = 0; i < b.castles; i++) this.fire('castle', { nickname: b.nickname, round: r });
+    if (b.castles || !told.length && hit.n || told.some(t => t.played === CASTLE)) return;
     // shortcut: a 盲盒播报 tells what its boxes opened only all together, so the ending, the jackpot and the gift named of those
     // not thrown are the whole report's (its 赚亏 as a share of what it cost); tell each box's opening if they must be apart.
     const jackpot = b.bestPrice >= bigGift, spend = b.tally.spend - hit.spend;
@@ -410,31 +410,29 @@ export class Engine extends EventTarget {
       { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes - hit.n, shaken: !!r, round: r });
   }
 
-  // The rounds a result tells, how many of its boxes were thrown at the 捣蛋鬼 and what they cost (hit), and how many castles
-  // its boxes opened: a 盲盒播报 reports every box sent before it went out, in the order they came (unopen), thrown or not and
-  // over however many 一轮送礼, and none sent while it went out, which wait for their own. A round is done once it ended and
-  // all is told.
+  // The rounds a result tells, and how many of its boxes were thrown at the 捣蛋鬼 and what they cost (hit): a 盲盒播报 reports
+  // every box sent before it went out, in the order they came (unopen), thrown or not and over however many 一轮送礼, and none
+  // sent while it went out, which wait for their own. A round is done once it ended and all is told.
   tell(b) {
     const told = [], boxes = this.unopened.get(b.uid) ?? [], hit = { n: 0, spend: 0 };
-    let left = b.boxes, castles = 0;
+    let left = b.boxes;
     for (let s; left > 0 && (s = boxes[0]);) {
       const n = Math.min(left, s.n);
       left -= n; s.n -= n;
       if (!s.n) boxes.shift();
-      if (s.castle) castles += n;
       if (s.thrown) { hit.n += n; hit.spend += n * s.price; continue; }
       s.r.told += n;
       if (!told.includes(s.r)) told.push(s.r);
       if (s.r.ended && s.r.told === s.r.boxes) this.rounds.splice(this.rounds.indexOf(s.r), 1);
     }
-    return { told, hit, castles };
+    return { told, hit };
   }
 
-  // A viewer's boxes not yet opened, in the order they came: a gift message's (GiftItem), n of them at price each, whether
-  // they opened castles, in their round r for her or thrown at the 捣蛋鬼.
-  unopen(uid, { count, spend, castle }, round) {
+  // A viewer's boxes not yet opened, in the order they came: a gift message's (GiftItem), n of them at price each, in their
+  // round r for her or thrown at the 捣蛋鬼.
+  unopen(uid, { count, spend }, round) {
     if (!this.unopened.has(uid)) this.unopened.set(uid, []);
-    this.unopened.get(uid).push({ ...round, n: count, price: spend / count, castle });
+    this.unopened.get(uid).push({ ...round, n: count, price: spend / count });
   }
 
   // A gift message thrown at the 捣蛋鬼 counts for her 心情 as any gift, and its blind boxes' result opens nothing but their
