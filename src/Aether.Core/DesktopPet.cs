@@ -136,6 +136,9 @@ internal sealed record DesktopPetSettings(IReadOnlyList<string> Off, long MidGif
 internal sealed record GiftRoundProgress(long Uid, string Nickname, long Spend, long Count, string TopGift, long TopCount,
     long BoxSpend, long Boxes, bool Castle, bool Ended)
 {
+    /// <summary>The viewer's gifts in the message it is told after, none as it ends.</summary>
+    public IReadOnlyList<GiftItem> Items { get; init; } = [];
+
     public static GiftRoundProgress Of(long uid, string nickname, IReadOnlyCollection<Gift> sent, bool ended)
     {
         var gifts = sent.Where(gift => gift.Blind is null).ToArray();
@@ -145,6 +148,13 @@ internal sealed record GiftRoundProgress(long Uid, string Nickname, long Spend, 
             gifts.Where(gift => gift.GiftId == top?.GiftId).Sum(gift => gift.Num), boxes.Sum(box => box.Spend), boxes.Sum(box => box.Num),
             boxes.Any(box => box.IsCastle), ended);
     }
+}
+
+/// <summary>One of a gift message's gifts: its 投入 in 金瓜子, a 盲盒's the box's price; how many; whether it is a 盲盒; and its
+/// icon, a 盲盒's that of the gift it opened, empty when B站 gave none.</summary>
+internal sealed record GiftItem(long Spend, long Count, bool Blind, string IconUrl)
+{
+    public static GiftItem Of(Gift gift) => new(gift.Spend, gift.Num, gift.Blind is not null, gift.IconUrl);
 }
 
 /// <summary>A viewer's 一轮盲盒 as its 盲盒播报 reported it, sent or given up, or without one as the 一轮送礼 ended: the tally, how

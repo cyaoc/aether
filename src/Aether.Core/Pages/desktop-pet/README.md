@@ -33,6 +33,12 @@ again whenever settings are saved:
 | `settings.mishapPercent` | The chance, 0 to 100, that a 日常小动作 goes wrong |
 | `lines` | The current character's lines by kind: hers, with each kind the streamer changed replaced |
 
+Of the events, these carry what the 宝箱小游戏 counts, by what the viewer paid, as the chest does:
+
+| Field | What |
+|---|---|
+| `gift`'s `items` | The viewer's gifts in the message the 一轮送礼 is told after, none as it ends: each its `spend` in 金瓜子 (a 盲盒's is the box's price, not what it opened), `count`, whether it is `blind`, and `iconUrl`, a 盲盒's that of the gift it opened, empty when B站 gave none |
+
 ## The page
 
 Design source: the desktop pet design package's board `docs/design/desktop-pet/boards/DP-DesktopPet.dc.html`, kept in step

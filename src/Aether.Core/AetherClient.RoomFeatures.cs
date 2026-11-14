@@ -82,7 +82,8 @@ public sealed partial class AetherClient
                 round.Spend = checked(round.Spend + viewer.Sum(gift => gift.Spend));
                 var gifts = viewer.Where(gift => gift.GuardLevel == 0).ToArray();
                 round.Gifts.AddRange(gifts);
-                if (gifts.Length > 0) reports.TellDesktopPet(DesktopPet.Gift, round.Progress(false));
+                if (gifts.Length > 0)
+                    reports.TellDesktopPet(DesktopPet.Gift, round.Progress(false) with { Items = [.. gifts.Select(GiftItem.Of)] });
                 round.Timer.Reset(received.ReceivedTimestamp);
             }
         }
