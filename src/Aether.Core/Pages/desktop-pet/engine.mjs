@@ -361,25 +361,26 @@ export class Engine extends EventTarget {
   // moves up when it grows into a bigger one (the fifth gift, the 中礼物 and 大礼物 thresholds); one already played is not
   // played again. Its blind boxes wait for their result (blindBox), and each gift message flies a little box into her arms.
   // Every gift goes into her chest at home, and one sent while the 捣蛋鬼 is here is thrown at it (gameGift) and is no part of
-  // her round: it plays nothing of hers, then or after.
+  // her shows: it plays nothing of hers, then or after. The round is one, thrown or not: what it threw strikes for it
+  // (spent), and its castle plays once (castled, blindBox).
   gift(p) {
     const now = this.now();
     let r = this.rounds.find(round => round.uid === p.uid && !round.ended);
     if (p.ended) {
       if (r) { r.ended = true; if (r.told === r.boxes) this.rounds.splice(this.rounds.indexOf(r), 1); }
-      this.gm.visit?.by.delete(p.uid);
       return;
     }
-    // (every gift of the message goes into the chest or is thrown, so map rather than some)
-    if (p.items.map(item => this.gameGift({ ...item, spend: item.spend / COINS, uid: p.uid, nickname: p.nickname })).includes(true)) return this.threw(p, now);
-    // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show
+    // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show; one thrown at the 捣蛋鬼
+    // wakes nothing, and a first place it took is not crowned (crown)
     if (!r) {
-      const wake = ['gloomy', 'sleepy'].includes(this.mood(now, false));
-      this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], gifts: [], boxes: 0, told: 0, wake, wakeLine: wake ? this.pick('wake') : null, played: -1, top: this.crowns.get(p.uid) });
+      const mine = !this.throwing(), wake = mine && ['gloomy', 'sleepy'].includes(this.mood(now, false));
+      this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], gifts: [], boxes: 0, told: 0, spent: 0, wake, wakeLine: wake ? this.pick('wake') : null, played: -1, top: mine ? this.crowns.get(p.uid) : null });
       this.crowns.delete(p.uid);
     }
+    // (every gift of the message goes into the chest or is thrown, so map rather than some)
+    if (p.items.map(item => this.gameGift({ ...item, spend: item.spend / COINS, uid: p.uid, nickname: p.nickname, round: r })).includes(true)) return this.threw(p, r, now);
     r.arrivals.push(now);
-    for (const item of p.items) if (item.blind) { this.unopen(p.uid, r, item); r.boxes += item.count; } else r.gifts.push(item);
+    for (const item of p.items) if (item.blind) { this.unopen(p.uid, item, { r }); r.boxes += item.count; } else r.gifts.push(item);
     this.gifted(now);
     // a castle opened from one of the round's blind boxes, the only way B站 gives one, plays once instead of its gifts and
     // blind boxes, with the result that reports the box it came from
@@ -397,13 +398,13 @@ export class Engine extends EventTarget {
   // the big one. A castle in the round plays the castle instead. Boxes thrown open nothing, though a castle still plays.
   blindBox(b) {
     const { told, hit } = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
-    // A round's castle plays once: waiting on its 盲盒播报, with the result that tells the boxes up to it (a result before
-    // it plays nothing, the castle standing in for it); another opened in a round that already played one, thrown at the
-    // 捣蛋鬼 too (hit.rounds), not again.
-    const reached = told.filter(t => t.castle && t.told >= t.castleAt), played = [...told, ...hit.rounds].some(t => t.played === CASTLE && !t.castle);
-    if (reached.length || b.castle && !played) {
-      for (const t of reached) t.castle = false;
-      for (const t of hit.rounds) t.played = CASTLE;
+    // A round's castle plays once, from her blind boxes or thrown at the 捣蛋鬼 (hit.rounds): hers waiting on its 盲盒播报,
+    // with the result that tells the boxes up to it (a result before it plays nothing, the castle standing in for it);
+    // another opened in a round that already played one (castled), not again.
+    const reached = told.filter(t => t.castle && t.told >= t.castleAt);
+    for (const t of reached) t.castle = false;
+    if (reached.some(t => !t.castled) || b.castle && ![...told, ...hit.rounds].some(t => t.castled)) {
+      for (const t of [...reached, ...hit.rounds]) t.castled = true;
       return this.fire('castle', { nickname: b.nickname, round: r });
     }
     if (!told.length && hit.n || told.some(t => t.played === CASTLE)) return;
@@ -425,7 +426,7 @@ export class Engine extends EventTarget {
       const n = Math.min(left, s.n);
       left -= n; s.n -= n;
       if (!s.n) boxes.shift();
-      if (!s.r) { hit.n += n; hit.spend += n * s.price; hit.rounds.push(s.thrown); continue; }
+      if (s.thrown) { hit.n += n; hit.spend += n * s.price; hit.rounds.push(s.thrown); continue; }
       s.r.told += n;
       if (!told.includes(s.r)) told.push(s.r);
       if (s.r.ended && s.r.told === s.r.boxes) this.rounds.splice(this.rounds.indexOf(s.r), 1);
@@ -433,19 +434,18 @@ export class Engine extends EventTarget {
     return { told, hit };
   }
 
-  // A viewer's boxes not yet opened, in the order they came: a gift message's (GiftItem), n of them at price each, in her round
-  // r or thrown at the 捣蛋鬼 (r null) in the 一轮送礼 thrown (its v.by).
-  unopen(uid, r, { count, spend }, thrown) {
+  // A viewer's boxes not yet opened, in the order they came: a gift message's (GiftItem), n of them at price each, in their
+  // round r for her or thrown at the 捣蛋鬼 in the round thrown.
+  unopen(uid, { count, spend }, round) {
     if (!this.unopened.has(uid)) this.unopened.set(uid, []);
-    this.unopened.get(uid).push({ r, thrown, n: count, price: spend / count });
+    this.unopened.get(uid).push({ ...round, n: count, price: spend / count });
   }
 
-  // A gift message thrown at the 捣蛋鬼 counts for her 心情 as any gift: the first place it took is not crowned (crown), and its
-  // blind boxes' result opens nothing (blindBox).
-  threw(p, now) {
+  // A gift message of round r thrown at the 捣蛋鬼 counts for her 心情 as any gift, and its blind boxes' result opens nothing
+  // (blindBox).
+  threw(p, r, now) {
     this.gifted(now);
-    this.crowns.delete(p.uid);
-    for (const item of p.items) if (item.blind) this.unopen(p.uid, null, item, this.gm.visit.by.get(p.uid));
+    for (const item of p.items) if (item.blind) this.unopen(p.uid, item, { thrown: r });
   }
 
   entry(e) { this.fire('entry', { nickname: e.nickname }); }
@@ -585,8 +585,7 @@ export class Engine extends EventTarget {
   gameGift(x) {
     const gm = this.gm, v = gm.visit;
     if (!this.throwing()) { gm.chest += x.spend; gm.pile += x.count; return false; }
-    if (!v.by.has(x.uid)) v.by.set(x.uid, { spent: 0 });
-    v.queue.push({ spend: x.spend, count: x.count, helper: v.helpers.has(x.uid) && v.phase === 'tug', round: v.by.get(x.uid), nickname: x.nickname, icon: x.iconUrl });
+    v.queue.push({ spend: x.spend, count: x.count, helper: v.helpers.has(x.uid) && v.phase === 'tug', round: x.round, nickname: x.nickname, icon: x.iconUrl });
     return true;
   }
 
@@ -619,9 +618,8 @@ export class Engine extends EventTarget {
   startVisit(now) {
     const gm = this.gm;
     gm.due = false; gm.out = null;
-    // loot: there is something in the chest to fight over; helpers: the UIDs on its side in the tug; by: each UID's 一轮送礼 going
-    // on, and the 电池 it has struck it for (spent)
-    gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helpers: new Set(), by: new Map(), helped: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
+    // loot: there is something in the chest to fight over; helpers: the UIDs on its side in the tug
+    gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helpers: new Set(), helped: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
     this.pkSay(gm.brag ? 'pranksterBrag' : gm.grudge ? 'pranksterGrudge' : 'pranksterPeek', now, { nickname: gm.grudge });
     gm.brag = false;
     this.visited('start');

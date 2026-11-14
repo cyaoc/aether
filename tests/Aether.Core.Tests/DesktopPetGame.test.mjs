@@ -13,6 +13,12 @@ const reports = pet => { const told = []; pet.addEventListener('visit', event =>
 const visited = settings => { const pet = gamePet(character, settings); pet.summon(); play(pet, 100); return pet; };
 // From peeking in to the tug over a chest with something in it: 2.4 s peeking, 9 s flying it over, its fall.
 const tugging = (chest = 500) => { const pet = gamePet(character); pet.gm.chest = chest; pet.summon(); play(pet, 12500); return pet; };
+// A viewer's blind box that opens a castle, and its 盲盒播报; the 日常小动作 turned off, for tests that see every show she plays.
+const castleBox = () => box(2, 1, { name: '浪漫城堡', castle: true });
+const castled = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, boxes: 1, bestGift: '浪漫城堡', bestPrice: 2233000, castle: true };
+const NO_DAILY = ['hum', 'gym', 'hike', 'bike', 'ski'];
+// Every show she plays from now on, in order.
+const shown = pet => { const shows = new Set(); return [shows, () => { if (pet.cur) shows.add(pet.cur); }]; };
 
 test('叫它来 brings the 捣蛋鬼 once the show she plays is over, and the page reports it setting off and leaving', () => {
   const pet = gamePet(character), told = reports(pet);
@@ -64,7 +70,7 @@ test('the 捣蛋鬼 comes between a pool lottery\'s draws, not while one is draw
   const pool = so => ({ mode: 'Pool', id: 'P1', phase: 'Idle', uid: null, draws: [], drawUntil: null, ...so });
   // (and no 日常小动作 for it to wait for)
   for (const off of [[], ['lottery']]) {
-    const pet = gamePet(character, { off: [...off, 'hum', 'gym', 'hike', 'bike', 'ski'] });
+    const pet = gamePet(character, { off: [...off, ...NO_DAILY] });
     pet.receive(state(pet, { lottery: pool() }));
     play(pet, 3000);
     pet.receive(state(pet, { lottery: pool({ phase: 'Spinning' }) }));
@@ -299,17 +305,29 @@ test('a castle thrown at the 捣蛋鬼 plays once, and a blind box sent after it
 });
 
 test('two castles thrown at the 捣蛋鬼 in one 一轮送礼 play the castle once and nothing else, their 盲盒播报 coming apart', () => {
-  // (and no 日常小动作 after)
-  const pet = visited({ off: ['hum', 'gym', 'hike', 'bike', 'ski'] }), shows = new Set(), seen = () => { if (pet.cur) shows.add(pet.cur); };
-  const result = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, boxes: 1, bestGift: '浪漫城堡', bestPrice: 2233000, castle: true };
-  pet.gift(box(2, 1, { name: '浪漫城堡', castle: true }));
+  const pet = visited({ off: NO_DAILY }), [shows, seen] = shown(pet);
+  pet.gift(castleBox());
   play(pet, 1000);
-  pet.gift(box(2, 1, { name: '浪漫城堡', castle: true }));
-  pet.blindBox(result);
+  pet.gift(castleBox());
+  pet.blindBox(castled);
   play(pet, 1000, seen);
-  pet.blindBox(result);
+  pet.blindBox(castled);
   play(pet, 30000, seen);
   assert.deepEqual([...shows].map(show => show.name), ['castle']);
+});
+
+test('a castle played in a 一轮送礼 begun before the 捣蛋鬼 came is not played again for one thrown at it in the round', () => {
+  const pet = gamePet(character, { off: NO_DAILY }), [shows, seen] = shown(pet);
+  pet.gift(castleBox());
+  pet.blindBox(castled);
+  play(pet, 14000, seen);
+  pet.summon();
+  play(pet, 100, seen);
+  assert.equal(pet.gm.visit?.phase, 'peek');
+  pet.gift(castleBox());
+  pet.blindBox(castled);
+  play(pet, 30000, seen);
+  assert.deepEqual([...shows].map(show => show.name).filter(name => name === 'castle'), ['castle']);
 });
 
 test('a new first place taken while the 捣蛋鬼 is here is not crowned after it leaves, in a 一轮送礼 begun before it came too', () => {

@@ -158,7 +158,9 @@ the page beside the board, as the web service serves it, telling it it is on in 
   here is not crowned; a 盲盒播报 of boxes thrown opens none. A viewer's boxes, thrown or not, are told by their 盲盒播报 in the
   order they came, so boxes sent after the 来访 wait for their own, and one telling both plays those not thrown, as many and at
   what they cost; its ending, jackpot and gift are the whole report's, which tells what its boxes opened only all together.
-  A castle scares it off when its 盲盒播报 comes; the board's stood in for it 3.8 s after the box.
+  A castle scares it off when its 盲盒播报 comes; the board's stood in for it 3.8 s after the box. A 一轮送礼's castle plays
+  once, thrown or not: one thrown in a round that played a castle before the 来访 plays nothing and lands as any gift. The
+  board's round ends with its 盲盒播报, so there a castle thrown after it plays again.
 - What a viewer's 一轮送礼 throws at the 捣蛋鬼 beats it off once it comes to the 中礼物 threshold in all, whatever life helpers
   gave it back; a gift counts to the round it was thrown in however late it lands, and the round's gifts sent before the 来访
   do not count. The board has one viewer and no rounds of what it threw: there a single gift of the threshold does it.
