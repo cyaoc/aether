@@ -27,7 +27,9 @@ internal static class DesktopPetForm
 
     public static NumericUpDown Number(DesktopPetSettingsPage page, string name) => Shown<NumericUpDown>(page, name);
 
-    public static TextBox Line(DesktopPetSettingsPage page, int number) => Shown<TextBox>(page, $"第 {number} 句");
+    public static TextBox Input(DesktopPetSettingsPage page, string name) => Shown<TextBox>(page, name);
+
+    public static TextBox Line(DesktopPetSettingsPage page, int number) => Input(page, $"第 {number} 句");
 
     public static IEnumerable<string?> Texts(DesktopPetSettingsPage page) =>
         page.GetVisualDescendants().OfType<TextBlock>().Where(text => text.IsEffectivelyVisible).Select(text => text.Text);

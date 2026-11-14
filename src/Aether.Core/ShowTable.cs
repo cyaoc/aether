@@ -19,8 +19,9 @@ public sealed record ShowTable(IReadOnlyList<ShowGroup> Groups, IReadOnlyList<Sh
 public sealed record ShowGroup(string Id, string Label, string? Note = null)
 {
     /// <summary>The groups code knows by id: the 心情, which no switch turns off; 礼物, which the 中礼物 and 大礼物 thresholds divide;
-    /// the 日常小动作, switched beside her 心情; and her endings of a 宝箱小游戏 来访, which no switch turns off either.</summary>
-    public const string Mood = "mood", Gift = "gift", Daily = "daily", ChestGame = "chestGame";
+    /// the 日常小动作, switched beside her 心情; her endings of a 宝箱小游戏 来访, which no switch turns off either; and the 捣蛋鬼's
+    /// lines, whose bubble is narrower than hers.</summary>
+    public const string Mood = "mood", Gift = "gift", Daily = "daily", ChestGame = "chestGame", Prankster = "prankster";
 }
 
 /// <summary>A row of the 演出表: its id, which settings and the 桌宠页 know it by; its group; its label; its 演出档; the kinds of
