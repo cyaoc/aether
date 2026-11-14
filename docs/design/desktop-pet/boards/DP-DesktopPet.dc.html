@@ -537,7 +537,7 @@ class Component extends DCLogic {
   now() { return (this.master ? this.master.currentTime : 0) * this.cfg.speed; }
 
   reset() {
-    this.cur = this.seen = null; this.queue = []; this.log = []; this.lot = null; this.pending = []; this.round = null; this.announced = null;
+    this.cur = this.seen = null; this.queue = []; this.log = []; this.lot = null; this.pending = []; this.round = null; this.announced = null; this.castleDue = null;
     this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lines = {}; this.rng = seeded(7);
     this.gm = { chest: 0, pile: 0, drops: [], nums: [], visit: null, due: false, pk: false, last: this.now(), out: null, walk: null, streak: 0, steals: 0, brag: false, grudge: null, say: null, herX: FOOT.x };
     this.gl = null;
@@ -607,7 +607,14 @@ class Component extends DCLogic {
     r.items.push(x); r.last = x.at;
     this.lastGift = this.lastAny = x.at; this.recent = this.recent.filter(v => x.at - v < 60000).concat(x.at);
     // the chest game: a gift counts for her chest at home; one thrown while the prankster is here plays no show of hers
-    if (this.cfg.game && this.gameGift(x)) { r.items.pop(); if (!r.items.length) this.round = null; return; }
+    // A castle comes only out of a blind box (README 10): thrown at it like any box, at the box's price, it still plays
+    // its castle once the 盲盒播报 would have told of it, and that scares the prankster off as a 大航海 does (fire;
+    // 用户：“城堡不是盲盒开出来的么”, it was lost in the game).
+    if (this.cfg.game && this.gameGift(x)) {
+      r.items.pop(); if (!r.items.length) this.round = null;
+      if (x.box && x.castle) this.castleDue = { at: x.at + ROUND_GAP + ANNOUNCE_AFTER, top: !!x.top, spend: x.boxPrice * x.n };
+      return;
+    }
     // Gifts do not wait for the round to end: she plays at once the show the round's gifts have come to so far, and moves
     // up when it grows into a bigger one (the fifth gift, 1000 or 10000 电池, a castle); one already played is not played
     // again. Blind boxes wait for the 盲盒播报 (announce).
@@ -670,6 +677,10 @@ class Component extends DCLogic {
     if (r && !this.pending.length && now - r.last >= ROUND_GAP) {
       if (!r.items.some(x => x.box)) this.endRound();
       else if (now - r.last >= ROUND_GAP + ANNOUNCE_AFTER) this.announce(now);
+    }
+    if (this.castleDue && now >= this.castleDue.at && !this.pending.length) {
+      const k = this.castleDue; this.castleDue = null;
+      this.fire('城堡', { top: k.top, spend: k.spend, gift: '浪漫城堡', count: 1 });
     }
     const c = this.cur;
     if (c && now >= c.start + c.pre + c.dur) {

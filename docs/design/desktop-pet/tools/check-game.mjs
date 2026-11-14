@@ -31,6 +31,7 @@ const ROUTES = {
   'scare-zap-admiral': [...LOOT, ...ZAP, ['do', 'x.fire("提督", { price: 19980 })'], ['until', 'x.cur?.name === "提督"'], ['until', '!x.cur'], ['wait', 800]],
   'scare-zap-governor': [...LOOT, ...ZAP, ['do', 'x.fire("总督", { price: 199980 })'], ['until', 'x.cur?.name === "总督"'], ['until', '!x.cur'], ['wait', 800]],
   'scare-zap-lottery': [...LOOT, ...ZAP, ['do', 'x.fire("报名开场")'], ['until', 'x.cur?.name === "报名开场"'], ['until', '!x.cur'], ['wait', 800]],
+  'scare-castle': [...LOOT, ['do', 'x.give([{ gift: "浪漫城堡", price: 22330, n: 1, box: "心动盲盒", boxPrice: 10, castle: true }])'], ['until', 'x.cur?.name === "城堡"'], ['until', '!x.cur'], ['wait', 800]],
   'pk-tug': [...LOOT, ['do', 'x.pkOn(true)'], ['until', '!x.gm.visit'], ['wait', 1500]],
   'pk-zap': [...LOOT, ...ZAP, ['do', 'x.pkOn(true)'], ['until', '!x.gm.visit'], ['wait', 1500]],
   'scare-air': [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 3000], ['do', 'x.fire("舰长", { price: 1980 })'],
