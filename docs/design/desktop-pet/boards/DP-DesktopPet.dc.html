@@ -539,7 +539,7 @@ class Component extends DCLogic {
   now() { return (this.master ? this.master.currentTime : 0) * this.cfg.speed; }
 
   reset() {
-    this.cur = this.seen = null; this.queue = []; this.log = []; this.lot = null; this.pending = []; this.round = null; this.announced = null; this.castleDue = null;
+    this.cur = this.seen = null; this.queue = []; this.log = []; this.lot = null; this.pending = []; this.round = null; this.announced = null; this.castleDue = [];
     this.lastGift = this.lastAny = this.now(); this.recent = []; this.nextDaily = this.now() + 6000; this.lines = {}; this.said = null; this.rng = seeded(7);
     this.gm = { chest: 0, pile: 0, drops: [], nums: [], visit: null, due: false, pk: false, last: this.now(), out: null, walk: null, streak: 0, steals: 0, brag: false, grudge: null, say: null, herX: FOOT.x };
     this.gl = null;
@@ -609,12 +609,12 @@ class Component extends DCLogic {
     r.items.push(x); r.last = x.at;
     this.lastGift = this.lastAny = x.at; this.recent = this.recent.filter(v => x.at - v < 60000).concat(x.at);
     // the chest game: a gift counts for her chest at home; one thrown while the prankster is here plays no show of hers
-    // A castle comes only out of a blind box (README 10): thrown at it like any box, at the box's price, it still plays
-    // its castle once the 盲盒播报 would have told of it, and that scares the prankster off as a 大航海 does (fire;
+    // A castle comes only out of a blind box (README 10): thrown at it like any box, at the box's price, each still plays
+    // its castle once the 盲盒播报 would have told of it, and the first scares the prankster off as a 大航海 does (fire;
     // 用户：“城堡不是盲盒开出来的么”, it was lost in the game).
     if (this.cfg.game && this.gameGift(x)) {
       r.items.pop(); if (!r.items.length) this.round = null;
-      if (x.box && x.castle) this.castleDue = { at: x.at + ROUND_GAP + ANNOUNCE_AFTER, top: !!x.top, spend: x.boxPrice * x.n };
+      if (x.box && x.castle) this.castleDue.push({ at: x.at + ROUND_GAP + ANNOUNCE_AFTER, top: !!x.top, spend: x.boxPrice * x.n, n: x.n });
       return;
     }
     // Gifts do not wait for the round to end: she plays at once the show the round's gifts have come to so far, and moves
@@ -637,16 +637,21 @@ class Component extends DCLogic {
   }
 
   // The round is over. Its gifts have played already; its blind boxes play now, with the 盲盒播报's result: the size by
-  // what the boxes cost, the ending by what they opened, and a castle among them plays the castle.
+  // what the boxes cost, the ending by what they opened, and castles among them play the castle, each after the one before
+  // (用户：“出两个城堡只演一段？这可不行”).
   endRound() {
     const items = this.round.items; this.round = null;
     const boxes = items.filter(x => x.box); if (!boxes.length) return;
     const sum = f => boxes.reduce((a, x) => a + f(x), 0), best = boxes.reduce((a, x) => (x.price > a.price ? x : a));
     const spend = sum(x => x.boxPrice * x.n), opened = sum(x => x.price * x.n), count = sum(x => x.n), opts = { top: boxes.some(x => x.top), spend, opened, count };
-    if (boxes.some(x => x.castle)) return this.fire('城堡', { ...opts, gift: '浪漫城堡', count: 1 });
+    const castles = sum(x => (x.castle ? x.n : 0));
+    if (castles) return this.castles(castles, opts);
     const jackpot = best.price >= BIG, result = jackpot ? '大奖' : opened > spend ? '赚' : opened === spend ? '平' : '亏';
     this.fire(['盲盒·小', '盲盒·中', '盲盒·大'][jackpot || spend >= BIG ? 2 : spend >= MID ? 1 : 0], { ...opts, result, gift: best.gift, shaken: true });
   }
+
+  // n castles, each its own show queued after the one before; the first place is crowned after the first.
+  castles(n, opts) { for (let i = 0; i < n; i++) this.fire('城堡', { top: opts.top && !i, spend: opts.spend, gift: '浪漫城堡', count: 1 }); }
 
   // Whether she shakes the round's blind boxes while no show plays.
   shaking() { return this.round?.items.some(x => x.box); }
@@ -691,10 +696,7 @@ class Component extends DCLogic {
       if (!r.items.some(x => x.box)) this.endRound();
       else if (now - r.last >= ROUND_GAP + ANNOUNCE_AFTER) this.announce(now);
     }
-    if (this.castleDue && now >= this.castleDue.at && !this.pending.length) {
-      const k = this.castleDue; this.castleDue = null;
-      this.fire('城堡', { top: k.top, spend: k.spend, gift: '浪漫城堡', count: 1 });
-    }
+    while (this.castleDue[0]?.at <= now && !this.pending.length) { const k = this.castleDue.shift(); this.castles(k.n, k); }
     const c = this.cur;
     if (c && now >= c.start + c.pre + c.dur) {
       this.cur = this.seen = null;
