@@ -76,6 +76,9 @@ public sealed class WebServiceFacade
     /// <inheritdoc cref="PlayEntry"/>
     internal void TellDesktopPet(string name, object data) => region.Post(s => s.DesktopPet.Tell(name, data));
 
+    /// <inheritdoc cref="PlayEntry"/>
+    internal void TellDesktopPetDanmaku(Danmaku danmaku) => region.Post(s => s.DesktopPet.TellDanmaku(danmaku));
+
     /// <summary>Closes the listener and every connection in a last step, without waiting for the serving to wind down as
     /// <see cref="StopAsync"/> does, then stops the region.</summary>
     internal void Stop()

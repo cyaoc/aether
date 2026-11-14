@@ -216,7 +216,7 @@ public sealed partial class AetherClient
                                 heartbeat = SendHeartbeatsAsync(socket, connectionStop);
                                 credentialChecks = RefreshCredentialWhileConnectedAsync(checkedAt, connectionStop, cancellationToken);
                                 client.logger.LogInformation("已连接弹幕服务器 {Server}", connection.Server);
-                                await region.Run(s => s.Handle(new TransportConnected(danmakuLengthLimit)));
+                                await region.Run(s => s.Handle(new TransportConnected(danmakuLengthLimit, connection.Mid)));
                                 yield return new Connected(realRoomId, broadcasterUid);
                                 // After Connected, so a send queue left over from before a reconnect reports nothing ahead of it.
                                 sending = SendRepliesAsync(realRoomId, connectionStop);

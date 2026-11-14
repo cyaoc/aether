@@ -173,11 +173,14 @@ public sealed partial class AetherClient
     /// <summary>Tells the 桌宠 what happens in the room; whether it plays is up to the web service region.</summary>
     private sealed class DesktopPetFeature(WebServiceFacade service) : IRoomFeature
     {
+        private long account;
+
         public void Handle(RoomEvent e)
         {
             switch (e)
             {
-                case TransportConnected:
+                case TransportConnected connected:
+                    account = connected.AccountUid;
                     service.SetDesktopPetRoom(true);
                     break;
                 case RoomConnectionEnded:
@@ -186,9 +189,10 @@ public sealed partial class AetherClient
                 case DanmakuProtocol.EntryReceived { Entry: var entry }:
                     service.TellDesktopPet(DesktopPet.Entry, new { entry.Uid, entry.Nickname });
                     break;
-                // Only that something happened: what a viewer wrote never reaches the stream.
-                case DanmakuProtocol.DanmakuReceived:
-                    service.TellDesktopPet(DesktopPet.Danmaku, new());
+                // The account's own, such as the bot's thanks, is no viewer: it neither wakes her nor joins the 捣蛋鬼. What a viewer
+                // wrote never reaches the stream.
+                case DanmakuProtocol.DanmakuReceived { Danmaku: var danmaku } when danmaku.Uid != account:
+                    service.TellDesktopPetDanmaku(danmaku);
                     break;
                 case DanmakuProtocol.GiftsReceived { Gifts: var gifts }:
                     foreach (var gift in gifts.Where(gift => gift.GuardLevel > 0))

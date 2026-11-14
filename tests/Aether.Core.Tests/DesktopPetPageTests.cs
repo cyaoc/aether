@@ -89,7 +89,7 @@ public sealed class DesktopPetPageTests
     }
 
     [Fact]
-    public async Task Entries_are_told_with_both_welcomes_off_and_a_danmaku_only_as_something_happening()
+    public async Task Entries_are_told_with_both_welcomes_off_and_a_danmaku_without_what_it_says()
     {
         await using var h = new WatchHarness();
         var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
@@ -101,7 +101,33 @@ public sealed class DesktopPetPageTests
 
         var (name, entry) = await pet.NextAsync();
         Assert.Equal(("entry", 20002L, "进场观众"), (name, entry.GetProperty("uid").GetInt64(), entry.GetProperty("nickname").GetString()));
-        Assert.Equal(("danmaku", "{}"), (await pet.NextAsync()) is var (danmaku, data) ? (danmaku, data.GetRawText()) : default);
+        Assert.Equal(("danmaku", """{"uid":30003,"nickname":"\u89C2\u4F17","joins":false}"""),
+            (await pet.NextAsync()) is var (danmaku, data) ? (danmaku, data.GetRawText()) : default);
+    }
+
+    [Fact]
+    public async Task A_danmaku_that_is_the_helper_keyword_joins_as_saved_last_and_the_accounts_own_is_not_told()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+        await using var __ = updates;
+
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[]," 捣蛋 ",[30003,"观众"]]}""");
+        // The bot's own thanks, welcomes and 盲盒播报 come back from B站 as the account's danmaku.
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"捣蛋",[9876543210,"主播的号"]]}""");
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"捣蛋蛋",[30004,"另一位"]]}""");
+
+        Assert.Equal((30003L, true), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
+        Assert.Equal((30004L, false), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
+        await h.ApplySettingsAsync(("desktop_pet.prankster_keyword", "帮它"));
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"捣蛋",[30005,"观众"]]}""");
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"帮它",[30006,"观众"]]}""");
+
+        Assert.Equal((30005L, false), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
+        Assert.Equal((30006L, true), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
+
+        static (long, bool) Joins(JsonElement danmaku) => (danmaku.GetProperty("uid").GetInt64(), danmaku.GetProperty("joins").GetBoolean());
     }
 
     [Fact]

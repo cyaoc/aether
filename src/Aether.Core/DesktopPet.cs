@@ -65,6 +65,13 @@ internal sealed class DesktopPet(WebService service, Character character)
 
     public void Tell(string name, object data) => Publish(new(name, data));
 
+    /// <summary>Only who wrote it and whether it is the 帮它的关键字 saved last: what a viewer wrote never reaches the stream.</summary>
+    public void TellDanmaku(Danmaku danmaku)
+    {
+        if (service.Settings is { } settings)
+            Tell(Danmaku, new { danmaku.Uid, danmaku.Nickname, joins = Settings.SameKeyword(danmaku.Content, settings.DesktopPetPranksterKeyword.Value) });
+    }
+
     /// <summary>Has the page play <paramref name="show"/> now; while no page would, the GUI is told it ended, with why.</summary>
     public void TestShow(string show, string? variant, string nickname)
     {
