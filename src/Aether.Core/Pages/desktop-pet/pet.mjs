@@ -18,8 +18,9 @@ const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cy
   captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'sp3'] };
 // The 捣蛋鬼's drawings and the chest's, the same for every character (prankster/prankster.json).
 const PRANKSTER = '/desktop-pet/prankster/';
-// A gift's icon falling in the chest game covers the little box it stands in for, bow and all: that many of its half sides.
-const ICON = 2.4;
+// A gift's icon falling in the chest game, that many of the little box's half sides it stands in for: 34 px for a gift, 62 for
+// one of 中礼物 or more, about a third and a half of the 捣蛋鬼's height (B站's icons leave a tenth of their square empty).
+const ICON = 3.1;
 
 // The box of what is drawn in a part of a picture, and the centre of its mass.
 const box = (im, x, y, w, h) => {
