@@ -214,31 +214,17 @@ internal sealed record DesktopPetSettings(IReadOnlyList<string> Off, long MidGif
         settings.DesktopPetMishapPercent.Value, settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetPranksterKeyword.Value);
 }
 
-/// <summary>A viewer's 一轮送礼 as it stands after a gift message, and once more as it ends: its gifts' 投入, how many, the one
-/// of them priced highest and how many of it; its 盲盒' 投入 and boxes; and whether one of them opened a 浪漫城堡, the only way
-/// B站 gives one: one sent as a gift would be a gift. Its 大航海 play on their own and count in none of it. Amounts are 金瓜子.</summary>
-internal sealed record GiftRoundProgress(long Uid, string Nickname, long Spend, long Count, string TopGift, long TopCount,
-    long BoxSpend, long Boxes, bool Castle, bool Ended)
-{
-    /// <summary>The viewer's gifts in the message it is told after, none as it ends.</summary>
-    public IReadOnlyList<GiftItem> Items { get; init; } = [];
+/// <summary>A viewer's 一轮送礼, told after each gift message with the viewer's gifts in it, and once more as it ends, with none:
+/// the 桌宠页 makes her round of those it does not throw at the 捣蛋鬼. Its 大航海 play on their own and are in none of it.</summary>
+internal sealed record GiftRoundProgress(long Uid, string Nickname, IReadOnlyList<GiftItem> Items, bool Ended);
 
-    public static GiftRoundProgress Of(long uid, string nickname, IReadOnlyCollection<Gift> sent, bool ended)
-    {
-        var gifts = sent.Where(gift => gift.Blind is null).ToArray();
-        var boxes = sent.Where(gift => gift.Blind is not null).ToArray();
-        var top = gifts.OrderByDescending(gift => gift.Price).FirstOrDefault();
-        return new(uid, nickname, gifts.Sum(gift => gift.Spend), gifts.Sum(gift => gift.Num), top?.GiftName ?? "",
-            gifts.Where(gift => gift.GiftId == top?.GiftId).Sum(gift => gift.Num), boxes.Sum(box => box.Spend), boxes.Sum(box => box.Num),
-            boxes.Any(box => box.IsCastle), ended);
-    }
-}
-
-/// <summary>One of a gift message's gifts: its 投入 in 金瓜子, a 盲盒's the box's price; how many; whether it is a 盲盒; and its
-/// icon, a 盲盒's that of the gift it opened, empty when B站 gave none.</summary>
-internal sealed record GiftItem(long Spend, long Count, bool Blind, string IconUrl)
+/// <summary>One of a gift message's gifts: its name, a 盲盒's that of the gift it opened; its 投入 in 金瓜子, a 盲盒's the box's
+/// price; how many; whether it is a 盲盒, and whether that opened a 浪漫城堡, the only way B站 gives one (one sent as a gift is
+/// that gift); and its icon, a 盲盒's that of the gift it opened, empty when B站 gave none.</summary>
+internal sealed record GiftItem(string Name, long Spend, long Count, bool Blind, bool Castle, string IconUrl)
 {
-    public static GiftItem Of(Gift gift) => new(gift.Spend, gift.Num, gift.Blind is not null, gift.IconUrl);
+    public static GiftItem Of(Gift gift) => new(gift.GiftName, gift.Spend, gift.Num, gift.Blind is not null,
+        gift is { Blind: not null, IsCastle: true }, gift.IconUrl);
 }
 
 /// <summary>A viewer's 一轮盲盒 as its 盲盒播报 reported it, sent or given up, or without one as the 一轮送礼 ended: the tally, how

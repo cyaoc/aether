@@ -39,11 +39,13 @@ again whenever settings are saved:
 | `lines` | The current character's lines by kind: hers, with each kind the streamer changed replaced |
 | `pk` | Whether the streamer is in a PK, by the PK messages' commands alone (`DanmakuProtocol.cs`). One that ends a PK ends it, as do ten minutes without any PK message and a reconnect, which cannot tell |
 
-Of the events, these carry what the 宝箱小游戏 counts, by what the viewer paid, as the chest does:
+A `gift` tells a viewer's 一轮送礼 by the gifts of each message, and once more as it `ended`, with none: the page makes her
+round of those it does not throw at the 捣蛋鬼. Its gifts and a `guard` carry what the 宝箱小游戏 counts, by what the viewer
+paid, as the chest does:
 
 | Field | What |
 |---|---|
-| `gift`'s `items` | The viewer's gifts in the message the 一轮送礼 is told after, none as it ends: each its `spend` in 金瓜子 (a 盲盒's is the box's price, not what it opened), `count`, whether it is `blind`, and `iconUrl`, a 盲盒's that of the gift it opened, empty when B站 gave none |
+| `gift`'s `items` | The viewer's gifts in the message: each its `name`, `spend` in 金瓜子 (a 盲盒's is the box's price, not what it opened), `count`, whether it is `blind` and whether that opened a 浪漫城堡 (`castle`), and `iconUrl`; a 盲盒's name and icon are those of the gift it opened, the icon empty when B站 gave none |
 | `guard`'s `spend` | What the 大航海 cost in 金瓜子, for all its months |
 
 A `danmaku` tells only `uid`, `nickname` and `joins`, whether it is the 帮它的关键字 saved last (Core compares the two trimmed, as
@@ -151,10 +153,11 @@ the page beside the board, as the web service serves it, telling it it is on in 
   she say in a 来访 are her character's lines of the groups `chestGame` and `prankster` (a space breaks the 捣蛋鬼's line), the
   帮它的关键字 the saved one; the board said fixed lines.
 - A gift message's gifts are thrown at the 捣蛋鬼 one by one, each with B站's icon, a little box while it loads or has none;
-  the board threw boxes. What a viewer threw is kept off their 一轮送礼 when it goes on after the 来访, and a 盲盒播报 of boxes
-  thrown opens none; the board's round had them taken out. A viewer's boxes, thrown or not, are told by their 盲盒播报 in the
-  order they came, so boxes sent after the 来访 wait for their own. A castle scares it off when its 盲盒播报 comes; the board's
-  stood in for it 3.8 s after the box.
+  the board threw boxes. As the board's, a viewer's 一轮送礼 is only what they did not throw, and a first place taken while it is
+  here is not crowned; a 盲盒播报 of boxes thrown opens none. A viewer's boxes, thrown or not, are told by their 盲盒播报 in the
+  order they came, so boxes sent after the 来访 wait for their own, and one telling both plays those not thrown, as many and at
+  what they cost; its ending, jackpot and gift are the whole report's, which tells what its boxes opened only all together.
+  A castle scares it off when its 盲盒播报 comes; the board's stood in for it 3.8 s after the box.
 - What a viewer's 一轮送礼 throws at the 捣蛋鬼 beats it off once it comes to the 中礼物 threshold in all, whatever life helpers
   gave it back; the round's gifts sent before the 来访 do not count. The board has one viewer and no rounds of what it threw:
   there a single gift of the threshold does it.

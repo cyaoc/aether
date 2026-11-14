@@ -14,7 +14,7 @@ export const STEP = { EntryOpen: '报名开场', EntryClosed: '报名截止', Po
  * castle's 盲盒播报 when the board's stands in for it. A helper's gifts are viewer 2's, who sent the keyword with x.join().
  * later(ms, fn) runs fn ms on from the time the step runs at. */
 export function drive(pet, later, { NAME, STEP }) {
-  const GUARD = { 舰长: 3, 提督: 2, 总督: 1 }, book = { rounds: {}, last: {} };
+  const GUARD = { 舰长: 3, 提督: 2, 总督: 1 }, last = {};
   const state = so => ({ enabled: true, roomConnected: true, settings: pet.settings, lines: pet.lines, lottery: null, ...so });
   return {
     get gm() { return pet.gm; },
@@ -27,34 +27,35 @@ export function drive(pet, later, { NAME, STEP }) {
       : (pet.receive(state()), pet.receive(state({ lottery: { mode: 'Entry', id: 'E1', keyword: '抽奖', phase: 'Open', entryCount: 0, draws: [], drawUntil: null } }))),
     give: list => list.forEach((m, i) => {
       const gifts = [].concat(m), uid = gifts[0].helper ? 2 : 1;
-      later(i * 350, () => send(pet, book, uid, gifts));
-      later(i * 350 + 3000, () => end(pet, book, uid, gifts));
+      later(i * 350, () => send(pet, last, uid, gifts));
+      later(i * 350 + 3000, () => end(pet, last, uid, gifts));
       for (const g of gifts.filter(g => g.castle)) later(i * 350 + 3800, () => pet.blindBox({ uid, nickname: '星河', tally: { spend: spendOf(g), openedValue: g.price * 100, outcome: 'Gain' }, boxes: g.n, bestGift: g.gift, bestPrice: g.price * 100, castle: true }));
     })
   };
 }
 
-/** A gift message of viewer uid's, the board's gifts `list`: added to the viewer's round in book and told as it stands, the
- * round's last message until another comes. */
-export function send(pet, { rounds, last }, uid, list) {
-  const r = rounds[uid] ??= { spend: 0, count: 0, boxSpend: 0, boxes: 0 }, items = list.map(g => ({ spend: spendOf(g), count: g.n, blind: !!g.box, iconUrl: '' }));
-  for (const g of list) if (g.box) { r.boxSpend += spendOf(g); r.boxes += g.n; } else { r.spend += spendOf(g); r.count += g.n; }
+/** A gift message of viewer uid's, the board's gifts `list`, told with its gifts as Core tells them: the last message of the
+ * viewer's round (last) until another comes. */
+export function send(pet, last, uid, list) {
   last[uid] = list;
   const before = pet.cur;
-  told(pet, uid, r, { topGift: list[0].gift, castle: list.some(g => g.castle), items });
+  told(pet, uid, { items: itemsOf(list) });
   // the board counts a gift for 开心 again as its show starts (src/Aether.Core/Pages/desktop-pet/README.md, deliberate differences)
   if (pet.cur !== before && pet.cur.opts.round) pet.recent.push(pet.now());
 }
 
 /** The viewer's round ends, unless another gift message came after `list`. */
-export function end(pet, { rounds, last }, uid, list) {
-  if (last[uid] === list) { told(pet, uid, rounds[uid], { ended: true }); delete rounds[uid]; }
+export function end(pet, last, uid, list) {
+  if (last[uid] === list) told(pet, uid, { ended: true });
 }
 
-/** The viewer's 一轮送礼 r as Core tells it. */
-export function told(pet, uid, r, so) {
-  pet.gift({ uid, nickname: '星河', ...r, topCount: r.count, castle: false, ended: false, items: [], ...so });
+/** The viewer's 一轮送礼 as Core tells it. */
+export function told(pet, uid, so) {
+  pet.gift({ uid, nickname: '星河', ended: false, items: [], ...so });
 }
+
+/** The board's gifts `list` as Core tells a gift message's (GiftItem). */
+export function itemsOf(list) { return list.map(g => ({ name: g.gift, spend: spendOf(g), count: g.n, blind: !!g.box, castle: !!g.castle, iconUrl: '' })); }
 
 /** What a gift of the board's cost, in 金瓜子: a 盲盒 its box's price. */
 export function spendOf(g) { return (g.box ? g.boxPrice : g.price) * 100 * g.n; }

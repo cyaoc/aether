@@ -39,7 +39,7 @@ public sealed partial class AetherClient
         }
     }
 
-    /// <summary>Where a 一轮送礼 reports: the 送礼动画 takes its end; the 桌宠 how it stands after each message and as it ends; and
+    /// <summary>Where a 一轮送礼 reports: the 送礼动画 takes its end; the 桌宠 the gifts of each message and its end; and
     /// <paramref name="BlindBoxes"/> the result of its 盲盒 as it ends, none while a 盲盒播报 reports them.</summary>
     private sealed record GiftRoundReports(Action<GiftRoundEnded> Ended, Action<string, object> TellDesktopPet, Action<BlindBoxResult>? BlindBoxes);
 
@@ -54,7 +54,6 @@ public sealed partial class AetherClient
             // The 桌宠's part, in the order received: its 大航海 play on their own.
             public readonly List<Gift> Gifts = [];
             public QuietTimer Timer = null!;
-            public GiftRoundProgress Progress(bool ended) => GiftRoundProgress.Of(Uid, Nickname, Gifts, ended);
         }
         private readonly Dictionary<long, Round> rounds = [];
         // A push B站 repeats counts once, as the 收礼记录 writes it once, so a round's boxes are the ones its 盲盒播报 reports.
@@ -83,7 +82,8 @@ public sealed partial class AetherClient
                 var gifts = viewer.Where(gift => gift.GuardLevel == 0).ToArray();
                 round.Gifts.AddRange(gifts);
                 if (gifts.Length > 0)
-                    reports.TellDesktopPet(DesktopPet.Gift, round.Progress(false) with { Items = [.. gifts.Select(GiftItem.Of)] });
+                    reports.TellDesktopPet(DesktopPet.Gift,
+                        new GiftRoundProgress(round.Uid, round.Nickname, [.. gifts.Select(GiftItem.Of)], false));
                 round.Timer.Reset(received.ReceivedTimestamp);
             }
         }
@@ -103,7 +103,7 @@ public sealed partial class AetherClient
             round.Timer.Dispose();
             reports.Ended(new(roomId, round.Uid, round.Nickname, round.Spend, time.GetUtcNow(), time.GetTimestamp()));
             if (round.Gifts.Count == 0) return;
-            reports.TellDesktopPet(DesktopPet.Gift, round.Progress(true));
+            reports.TellDesktopPet(DesktopPet.Gift, new GiftRoundProgress(round.Uid, round.Nickname, [], true));
             var boxes = round.Gifts.Where(gift => gift.Blind is not null).ToArray();
             if (boxes.Length > 0) reports.BlindBoxes?.Invoke(BlindBoxResult.Of(round.Uid, round.Nickname, boxes));
         }

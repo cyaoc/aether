@@ -4,12 +4,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { gamePet, play, playing, round, state } from './Support/DesktopPetGame.mjs';
+import { box, gamePet, gifts, item, play, playing, round, state } from './Support/DesktopPetGame.mjs';
 
 const character = JSON.parse(readFileSync(new URL('../../src/Aether.Core/Pages/characters/1/character.json', import.meta.url), 'utf8'));
-// A viewer's 一轮送礼 so far with the message's gifts.
-const gifts = (uid, spend, so) => round(uid, { spend, count: 1, topCount: 1, items: [{ spend, count: 1, blind: false, iconUrl: '' }], ...so });
-const box = (uid, boxSpend) => round(uid, { boxSpend, boxes: 1, items: [{ spend: boxSpend, count: 1, blind: true, iconUrl: '' }] });
 // What the page reports to Core of the 捣蛋鬼 (page.mjs).
 const reports = pet => { const told = []; pet.addEventListener('visit', event => told.push(event.detail)); return told; };
 // The 捣蛋鬼 called and on the page, peeking in.
@@ -47,7 +44,7 @@ test('a PK keeps the 捣蛋鬼 away: called on its way it is reported gone, and 
 test('大航海 and blind boxes go into her chest at what was paid, a blind box as it comes', () => {
   const pet = gamePet(character);
   pet.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 });
-  pet.gift(box(2, 15000));
+  pet.gift(box(2));
   assert.equal(pet.gm.chest, 1980 + 150);
 });
 
@@ -115,7 +112,7 @@ test('five gifts in one message from a viewer on the 捣蛋鬼\'s side flatten h
   const pet = tugging(), poses = new Set();
   let drops = 0;
   pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
-  pet.gift(round(5, { spend: 5000, count: 5, topCount: 5, items: [{ spend: 5000, count: 5, blind: false, iconUrl: '' }] }));
+  pet.gift(gifts(5, 5000, 5));
   play(pet, 4000, st => { poses.add(st.pose); drops = Math.max(drops, pet.gm.drops.length); });
   assert.deepEqual([poses.has('flat'), drops], [true, 1]);
 });
@@ -128,9 +125,9 @@ test('what a viewer throws at the 捣蛋鬼 in one 一轮送礼 beats it off onc
   pet.summon();
   play(pet, 20000);
   pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
-  // the round so far and its message: viewer 1 throws 400, 400 and 200 电池, viewer 5 heals it 400 after each of the first two
-  for (const [uid, spend, thrown] of [[1, 90000, 40000], [5, 40000, 40000], [1, 130000, 40000], [5, 80000, 40000], [1, 150000, 20000]]) {
-    pet.gift(gifts(uid, spend, { items: [{ spend: thrown, count: 1, blind: false, iconUrl: '' }] }));
+  // viewer 1 throws 400, 400 and 200 电池, viewer 5 heals it 400 after each of the first two
+  for (const [uid, thrown] of [[1, 40000], [5, 40000], [1, 40000], [5, 40000], [1, 20000]]) {
+    pet.gift(gifts(uid, thrown));
     play(pet, 1000);
     phases.push(pet.gm.visit.phase);
   }
@@ -140,24 +137,24 @@ test('what a viewer throws at the 捣蛋鬼 in one 一轮送礼 beats it off onc
 test('gifts and blind boxes thrown at the 捣蛋鬼 play nothing of hers, then or after it leaves', () => {
   const pet = visited();
   pet.gift(gifts(1, 100000));
-  pet.gift(box(2, 15000));
+  pet.gift(box(2));
   pet.receive(state(pet, { pk: true }));
   play(pet, 3000);
   assert.deepEqual([pet.gm.visit, playing(pet)], [null, null]);
   pet.blindBox({ uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 });
   assert.equal(playing(pet), null);
-  pet.gift(gifts(1, 100100, { count: 2, items: [{ spend: 100, count: 1, blind: false, iconUrl: '' }] }));
+  pet.gift(gifts(1, 100));
   assert.equal(playing(pet), 'gift');
 });
 
 test('盲盒播报 open a viewer\'s boxes in the order they came: the box thrown at the 捣蛋鬼 first, as none, then the one sent after', () => {
   const pet = visited();
-  pet.gift(box(2, 15000));
+  pet.gift(box(2));
   pet.receive(state(pet, { pk: true }));
   play(pet, 3000);
   pet.receive(state(pet, { pk: false }));
   pet.gift(round(2, { ended: true }));
-  pet.gift(box(2, 15000));
+  pet.gift(box(2));
   const result = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 };
   pet.blindBox(result);
   assert.equal(playing(pet), null);
@@ -203,7 +200,7 @@ test('a new first place taken by a gift thrown at the 捣蛋鬼 is not crowned a
     play(pet, 8000);
     pet.receive(state(pet, { pk: false }));
     pet.gift(round(9, { ended: true }));
-    pet.gift(gifts(9, 200, { count: 2, items: [{ spend: 100, count: 1, blind: false, iconUrl: '' }] }));
+    pet.gift(gifts(9, 100));
     play(pet, 8000, () => seen.add(playing(pet)));
     assert.deepEqual([...seen].filter(Boolean), ['gift'], crownFirst ? 'crowned before it came' : 'crowned while it was here');
   }
@@ -220,7 +217,7 @@ test('with the room disconnected the 捣蛋鬼 does not come on its own', () => 
 
 test('叫它来 waits while she shakes a viewer\'s blind box for its 盲盒播报, and brings the 捣蛋鬼 once the box\'s show is over', () => {
   const pet = gamePet(character), told = reports(pet), inTug = new Set();
-  pet.gift(box(2, 15000));
+  pet.gift(box(2));
   pet.summon();
   play(pet, 3000);
   pet.gift(round(2, { ended: true }));
@@ -249,8 +246,55 @@ test('叫它来 brings the 捣蛋鬼 once her show is over, the viewer\'s 一轮
   const pet = gamePet(character), told = reports(pet);
   pet.summon();
   for (let n = 1; n <= 4; n++) {
-    pet.gift(gifts(1, 100 * n, { count: n, topCount: n, items: [{ spend: 100, count: 1, blind: false, iconUrl: '' }] }));
+    pet.gift(gifts(1, 100));
     play(pet, 2000);
   }
   assert.deepEqual([playing(pet), told], [null, ['start']]);
 });
+
+test('a gift sent after the 来访 is thanked for itself, not for one thrown at the 捣蛋鬼 earlier in the 一轮送礼', () => {
+  const pet = visited();
+  pet.gift(round(1, { items: [item(100000, { name: '告白气球' })] }));
+  pet.receive(state(pet, { pk: true }));
+  play(pet, 3000);
+  pet.gift(gifts(1, 100));
+  assert.deepEqual([playing(pet), pet.cur.opts.gift, pet.cur.opts.count], ['gift', '小花花', 1]);
+});
+
+test('a castle thrown at the 捣蛋鬼 plays once, and a blind box sent after it in the 一轮送礼 plays as a blind box', () => {
+  const pet = visited(), result = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 };
+  pet.gift(box(2, 1, { name: '浪漫城堡', castle: true }));
+  pet.blindBox({ ...result, tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, bestGift: '浪漫城堡', bestPrice: 2233000, castle: true });
+  assert.equal(playing(pet), 'castle');
+  play(pet, 22000);
+  pet.gift(box(2));
+  pet.blindBox(result);
+  assert.equal(playing(pet), 'blindBoxSmall');
+});
+
+test('a new first place taken while the 捣蛋鬼 is here is not crowned after it leaves, in a 一轮送礼 begun before it came too', () => {
+  const pet = gamePet(character), seen = new Set();
+  pet.gift(gifts(9, 100));
+  pet.summon();
+  play(pet, 2500);
+  assert.equal(pet.gm.visit?.phase, 'peek');
+  pet.gift(gifts(9, 100));
+  pet.crown({ uid: 9, nickname: '观众9' });
+  pet.receive(state(pet, { pk: true }));
+  play(pet, 8000);
+  pet.receive(state(pet, { pk: false }));
+  pet.gift(gifts(9, 100000));
+  play(pet, 8000, () => seen.add(playing(pet)));
+  assert.deepEqual([...seen].filter(Boolean), ['midGift']);
+});
+
+test('a 盲盒播报 of boxes thrown at the 捣蛋鬼 and boxes sent after plays only those sent after: as many, at what they cost', () => {
+  const pet = visited();
+  pet.gift(box(2, 100));
+  pet.receive(state(pet, { pk: true }));
+  play(pet, 3000);
+  pet.gift(box(2));
+  pet.blindBox({ uid: 2, nickname: '观众2', tally: { spend: 1515000, openedValue: 1600000, outcome: 'Gain' }, boxes: 101, bestGift: '爱心抱枕', bestPrice: 16000 });
+  assert.deepEqual([playing(pet), pet.cur.opts.count, pet.cur.opts.result], ['blindBoxSmall', 1, 'Gain']);
+});
+
