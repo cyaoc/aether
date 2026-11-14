@@ -75,7 +75,8 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("blind_box:\n  daily_keyword: 捣蛋\n", "blind_box.daily_keyword", 2, Settings.BlindBoxKeywordIsPrankster)]
+    // (a file of an older format is given a helper keyword of its own as it is upgraded)
+    [InlineData("format_version: 2\nblind_box:\n  daily_keyword: 捣蛋\n", "blind_box.daily_keyword", 3, Settings.BlindBoxKeywordIsPrankster)]
     [InlineData("blind_box:\n  monthly_keyword: 帮它\ndesktop_pet:\n  prankster_keyword: \" 帮它 \"\n", "desktop_pet.prankster_keyword", 4,
         Settings.PranksterKeywordIsBlindBox)]
     public void A_file_whose_helper_keyword_is_a_blind_box_query_keyword_reports_it(string yaml, string name, long line, string reason)

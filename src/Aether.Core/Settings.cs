@@ -21,7 +21,7 @@ public sealed partial class Settings
 {
     private const string Template = """
         # 设置文件格式版本，由程序维护
-        format_version: 1
+        format_version: 2
 
         # 日志设置，修改后重启程序生效
         log:
