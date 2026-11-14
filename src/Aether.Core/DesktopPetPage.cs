@@ -30,11 +30,12 @@ internal sealed class DesktopPetPage(WebServer server, LotteryFacade lottery, Gi
     }
 
     /// <summary>The step a report is: a 试演 over by its number, or the 捣蛋鬼's 来访 starting or ending on the page of the id
-    /// its events were asked for with.</summary>
-    private static Action<WebService>? Report(NameValueCollection query) => (query["visit"], query["page"]) switch
+    /// its events were asked for with, in the run its state told it.</summary>
+    private static Action<WebService>? Report(NameValueCollection query) =>
+        (query["visit"], query["page"], int.TryParse(query["run"], NumberStyles.None, CultureInfo.InvariantCulture, out var run)) switch
     {
-        ("start", { } page) => s => s.DesktopPet.VisitStarted(page),
-        ("end", { } page) => s => s.DesktopPet.VisitEnded(page),
+        ("start", { } page, true) => s => s.DesktopPet.VisitStarted(page, run),
+        ("end", { } page, true) => s => s.DesktopPet.VisitEnded(page, run),
         _ => int.TryParse(query["trial"], NumberStyles.None, CultureInfo.InvariantCulture, out var id) ? s => s.DesktopPet.TestShowEnded(id) : null
     };
 

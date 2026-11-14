@@ -81,10 +81,10 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
         await service.SummonAsync();
         await pet.NextAsync(DesktopPet.Summon);
         Assert.Equal(new PranksterSummon(null, PranksterVisit.OnTheWay), await NextAsync());
-        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=start"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=start&run=0"));
         Assert.Equal(PranksterVisit.OnStage, (await NextAsync()).Visit);
-        Assert.Equal(HttpStatusCode.BadRequest, await pet.ReportAsync("?visit=nope"));
-        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=end"));
+        Assert.Equal(HttpStatusCode.BadRequest, await pet.ReportAsync("?visit=nope&run=0"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=end&run=0"));
         Assert.Equal(new PranksterSummon(null, PranksterVisit.Away), await NextAsync());
 
         await service.SummonAsync();
@@ -103,18 +103,18 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
         await h.Client.WebService.SummonAsync();
         Assert.Equal(PranksterVisit.OnTheWay, (await NextAsync()).Visit);
 
-        await pet.ReportAsync("?visit=start");
-        await another.ReportAsync("?visit=start");
-        await pet.ReportAsync("?visit=end");
+        await pet.ReportAsync("?visit=start&run=0");
+        await another.ReportAsync("?visit=start&run=0");
+        await pet.ReportAsync("?visit=end&run=0");
         await h.Client.IdleAsync();
         Assert.Equal(PranksterVisit.OnStage, (await LatestAsync()).Visit);
-        await another.ReportAsync("?visit=end");
+        await another.ReportAsync("?visit=end&run=0");
         Assert.Equal(PranksterVisit.Away, (await NextAsync()).Visit);
 
         // A PK starting while it is on its way has the page say it left before it set off.
         await h.Client.WebService.SummonAsync();
         Assert.Equal(PranksterVisit.OnTheWay, (await NextAsync()).Visit);
-        await pet.ReportAsync("?visit=end");
+        await pet.ReportAsync("?visit=end&run=0");
         Assert.Equal(PranksterVisit.Away, (await NextAsync()).Visit);
     }
 
@@ -126,8 +126,8 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
         await using var __ = updates;
         var reloaded = await DesktopPetEvents.OpenAsync(h);
         await h.Client.WebService.SummonAsync();
-        await pet.ReportAsync("?visit=start");
-        await reloaded.ReportAsync("?visit=start");
+        await pet.ReportAsync("?visit=start&run=0");
+        await reloaded.ReportAsync("?visit=start&run=0");
         Assert.Equal(PranksterVisit.OnStage, (await LatestAsync()).Visit);
 
         // The streaming software reloads it: the new page opens before the old one is found gone.
@@ -135,7 +135,7 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
         reloaded.Dispose();
         await DesktopPetEvents.BeatUntilAsync(h, () => h.Client.WebService.Status.DesktopPetConnections == 2);
         Assert.Equal(PranksterVisit.OnStage, (await LatestAsync()).Visit);
-        await pet.ReportAsync("?visit=end");
+        await pet.ReportAsync("?visit=end&run=0");
 
         Assert.Equal(new PranksterSummon(null, PranksterVisit.Away), await NextAsync());
     }
@@ -152,26 +152,32 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
         await h.Client.WebService.SummonAsync();
         Assert.Equal(PranksterVisit.OnTheWay, (await NextAsync()).Visit);
 
-        Assert.Equal(HttpStatusCode.NoContent, await old.ReportAsync("?visit=start"));
-        Assert.Equal(HttpStatusCode.NoContent, await old.ReportAsync("?visit=end"));
+        Assert.Equal(HttpStatusCode.NoContent, await old.ReportAsync("?visit=start&run=0"));
+        Assert.Equal(HttpStatusCode.NoContent, await old.ReportAsync("?visit=end&run=0"));
         await h.Client.IdleAsync();
 
         Assert.Equal(new PranksterSummon(null, PranksterVisit.OnTheWay), await LatestAsync());
     }
 
     [Fact]
-    public async Task A_report_that_comes_late_while_the_桌宠_is_off_says_nothing_once_it_is_on_again()
+    public async Task A_report_from_before_the_桌宠_was_turned_off_says_nothing_however_late_it_comes()
     {
         var (updates, pet) = await ConnectedAsync();
         using var _ = pet;
         await using var __ = updates;
 
         await h.ApplySettingsAsync(("desktop_pet.enabled", "false"));
-        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=start"));
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=start&run=0"));
         await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));
+        var run = (await pet.NextStateAsync(state => state.GetProperty("enabled").GetBoolean())).GetProperty("run").GetInt32();
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=start&run=0"));
         await h.Client.IdleAsync();
-
         Assert.Equal(new PranksterSummon(null, PranksterVisit.Away), await LatestAsync());
+
+        // One of the run it is in now is taken.
+        Assert.Equal(1, run);
+        await pet.ReportAsync($"?visit=start&run={run}");
+        Assert.Equal(PranksterVisit.OnStage, (await NextAsync()).Visit);
     }
 
     [Fact]

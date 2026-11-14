@@ -73,7 +73,7 @@ public sealed class DesktopPetPageTests
         h.EnableStreamOverlay = true;
         await using var updates = await h.WatchConnectedAsync();
         using var pet = await DesktopPetEvents.OpenAsync(h);
-        Assert.Equal("""{"enabled":false,"roomConnected":false,"pk":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync()).Data.GetRawText());
+        Assert.Equal("""{"enabled":false,"roomConnected":false,"pk":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null,"run":0}""", (await pet.NextAsync()).Data.GetRawText());
 
         await h.PushAndSyncAsync(updates, BlindGiftFixture.Ordinary(), BlindGiftFixture.Json, UserToastFixture.Message(), EntryV2Fixture.Message());
         h.Time.Advance(TimeSpan.FromSeconds(3));
@@ -85,7 +85,7 @@ public sealed class DesktopPetPageTests
         Assert.True(state.GetProperty("enabled").GetBoolean());
         Assert.True(state.GetProperty("roomConnected").GetBoolean());
         await h.ApplySettingsAsync(("desktop_pet.enabled", "false"));
-        Assert.Equal("""{"enabled":false,"roomConnected":false,"pk":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null}""", (await pet.NextAsync("state")).GetRawText());
+        Assert.Equal("""{"enabled":false,"roomConnected":false,"pk":false,"lottery":null,"giftBoard":null,"settings":null,"lines":null,"run":1}""", (await pet.NextAsync("state")).GetRawText());
     }
 
     [Fact]

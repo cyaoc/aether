@@ -18,13 +18,15 @@ addEventListener('resize', () => pet.resize(innerWidth, innerHeight));
 // its reports come from, so one reloaded no longer has the 捣蛋鬼 there.
 const id = Math.random().toString(36).slice(2);
 const events = new EventSource(`/desktop-pet/events?page=${id}`);
-events.addEventListener('state', message => pet.receive(JSON.parse(message.data)));
+// Its 来访 reports say the run the state told last, so Core takes none from before the 桌宠 was turned off, however late.
+let run;
+events.addEventListener('state', message => { const state = JSON.parse(message.data); run = state.run; pet.receive(state); });
 for (const name of ['gift', 'blindBox', 'guard', 'entry', 'danmaku', 'testShow', 'stopTestShow', 'summon'])
   events.addEventListener(name, message => pet[name](JSON.parse(message.data)));
 // A 试演 that is over is reported, as the video page reports what it played, so the GUI offers another (DesktopPetPage.cs).
 pet.addEventListener('trialended', event => fetch(`/desktop-pet/report?trial=${event.detail}`, { method: 'POST' }));
 // So is the 捣蛋鬼 setting off and leaving, for the GUI's 叫它来 (DesktopPet.cs).
-pet.addEventListener('visit', event => fetch(`/desktop-pet/report?visit=${event.detail}&page=${id}`, { method: 'POST' }));
+pet.addEventListener('visit', event => fetch(`/desktop-pet/report?visit=${event.detail}&page=${id}&run=${run}`, { method: 'POST' }));
 // The next frame is asked for first, so one that throws is lost alone.
 const loop = () => { requestAnimationFrame(loop); pet.frame(); };
 requestAnimationFrame(loop);

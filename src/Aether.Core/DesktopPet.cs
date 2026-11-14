@@ -23,6 +23,10 @@ internal sealed class DesktopPet(WebService service, Character character)
     private bool summoned;
     private WebService.Connection[] summonPages = [];
     private readonly HashSet<string> visiting = [];
+    // How many times the 桌宠 was turned off, the run its state tells the page: the page's 来访 reports say the run they come
+    // from, and one from before it was turned off, which the page forgot, is not taken however late it comes.
+    private int runs;
+    private bool on;
 
     public Subscribers<SseEvent> Subscribers { get; } = new();
 
@@ -32,8 +36,8 @@ internal sealed class DesktopPet(WebService service, Character character)
     private bool Enabled => service.Settings?.DesktopPetEnabled.Value == true;
 
     public SseEvent State => new("state", service.Settings is { DesktopPetEnabled.Value: true } settings
-        ? new DesktopPetState(true, roomConnected, pk, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines(character))
-        : new DesktopPetState(false));
+        ? new DesktopPetState(true, roomConnected, pk, lottery, giftBoard, DesktopPetSettings.Of(settings), settings.DesktopPetLines(character), runs)
+        : new DesktopPetState(false, Run: runs));
 
     /// <summary>Whether the streamer can 叫它来, and where the 捣蛋鬼 is: on the page while any page has it there.</summary>
     public PranksterSummon SummonState => new(WhyNoSummon(),
@@ -43,6 +47,8 @@ internal sealed class DesktopPet(WebService service, Character character)
     /// 捣蛋鬼 is gone.</summary>
     public void Applied()
     {
+        if (on && !Enabled) runs++;
+        on = Enabled;
         if (!Enabled)
         {
             (trial, summoned) = (null, false);
@@ -151,11 +157,11 @@ internal sealed class DesktopPet(WebService service, Character character)
     }
 
     /// <summary>The page <paramref name="page"/> reports the 捣蛋鬼 set off, called or on its own: it is on the page until each
-    /// page still there that it set off on says it left. A page gone, or the 桌宠 turned off, says nothing any more, though its
-    /// report comes late: the page lost its 来访 as it was turned off.</summary>
-    public void VisitStarted(string page)
+    /// page still there that it set off on says it left. A page gone, or a report from the <paramref name="run"/> before the
+    /// 桌宠 was turned off, says nothing any more, however late it comes.</summary>
+    public void VisitStarted(string page, int run)
     {
-        if (!Enabled || !Here(page)) return;
+        if (run != runs || !Here(page)) return;
         summoned = false;
         visiting.Add(page);
         PublishSummon();
@@ -163,9 +169,9 @@ internal sealed class DesktopPet(WebService service, Character character)
 
     /// <summary>The page <paramref name="page"/> reports the 捣蛋鬼 left, or never set off, as when a PK started while it was on
     /// its way.</summary>
-    public void VisitEnded(string page)
+    public void VisitEnded(string page, int run)
     {
-        if (!Enabled || !Here(page)) return;
+        if (run != runs || !Here(page)) return;
         summoned = false;
         visiting.Remove(page);
         PublishSummon();
@@ -208,9 +214,11 @@ internal sealed class DesktopPet(WebService service, Character character)
 
 /// <summary>The 桌宠页's state: whether the 桌宠 is on and, only then, whether a room is connected, which her quiet-room clocks
 /// start from, whether the streamer is in a PK, the lottery as it is on air, whose DrawUntil is when a draw is revealed, the 礼物榜
-/// while its 期 runs, her settings and the current character's lines by kind, with the kinds the streamer changed.</summary>
+/// while its 期 runs, her settings and the current character's lines by kind, with the kinds the streamer changed; and the run,
+/// how many times it was turned off, which the page's 来访 reports say.</summary>
 internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false, bool Pk = false, Lottery? Lottery = null,
-    GiftBoardState? GiftBoard = null, DesktopPetSettings? Settings = null, IReadOnlyDictionary<string, IReadOnlyList<string>>? Lines = null);
+    GiftBoardState? GiftBoard = null, DesktopPetSettings? Settings = null, IReadOnlyDictionary<string, IReadOnlyList<string>>? Lines = null,
+    int Run = 0);
 
 /// <summary>How the streamer set the 桌宠 to play: the 演出表 rows turned off; the 中礼物 and 大礼物 thresholds, in 金瓜子 as the
 /// rounds' amounts are; the quiet minutes before 无聊, 沮丧 and 犯困, 0 for never; the least and most seconds between 日常小动作; and

@@ -55,7 +55,9 @@ plays is over, and the blind boxes she shakes for their 盲盒播报 opened. The
 events with `/desktop-pet/events?page=` and that id, and reports the 捣蛋鬼 setting off, called or on its own, with
 `POST /desktop-pet/report?visit=start&page=` and the id, and leaving with `visit=end`, also when it leaves before it set off,
 as when a PK starts or the room disconnects; from these Core tells the GUI whether it is on its way or on the page. A page
-gone, as the streaming software reloaded it, no longer has it there.
+gone, as the streaming software reloaded it, no longer has it there. Each such report also says `run=`, the `run` of the
+state the page was told last: how many times the 桌宠 was turned off. Core takes none from before it was last turned off,
+however late it comes, as the page forgot that 来访.
 
 ## The page
 

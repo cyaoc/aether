@@ -306,7 +306,7 @@ public sealed class DesktopPetSettingsTests
         Assert.Equal((false, "她正在演的这段完了它就来", true), (button.IsEnabled, note.Text, note.Classes.Contains("accent")));
         Assert.False(page.IsDirty);
 
-        await pet.ReportAsync("?visit=start");
+        await pet.ReportAsync("?visit=start&run=0");
         await GuiHarness.WaitForAsync(() => text.Text == "它在场上");
         Assert.Equal((false, "它走了才能再叫", false), (button.IsEnabled, note.Text, note.Classes.Contains("accent")));
     });
