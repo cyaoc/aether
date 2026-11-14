@@ -193,7 +193,7 @@ public sealed partial class AetherClient
                     break;
                 case DanmakuProtocol.GiftsReceived { Gifts: var gifts }:
                     foreach (var gift in gifts.Where(gift => gift.GuardLevel > 0))
-                        service.TellDesktopPet(DesktopPet.Guard, new { gift.Uid, gift.Nickname, gift.GuardLevel });
+                        service.TellDesktopPet(DesktopPet.Guard, new { gift.Uid, gift.Nickname, gift.GuardLevel, gift.Spend });
                     break;
             }
         }

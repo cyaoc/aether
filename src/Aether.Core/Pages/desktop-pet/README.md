@@ -38,6 +38,7 @@ Of the events, these carry what the 宝箱小游戏 counts, by what the viewer p
 | Field | What |
 |---|---|
 | `gift`'s `items` | The viewer's gifts in the message the 一轮送礼 is told after, none as it ends: each its `spend` in 金瓜子 (a 盲盒's is the box's price, not what it opened), `count`, whether it is `blind`, and `iconUrl`, a 盲盒's that of the gift it opened, empty when B站 gave none |
+| `guard`'s `spend` | What the 大航海 cost in 金瓜子, for all its months |
 
 ## The page
 

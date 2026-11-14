@@ -54,6 +54,20 @@ public sealed class DesktopPetGiftTests
     }
 
     [Theory]
+    [InlineData(1, 198000)]
+    [InlineData(3, 594000)]
+    public async Task A_guard_tells_what_it_cost_for_its_months(long months, long spend)
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+
+        await h.PushAndSyncAsync(updates, UserToastFixture.Message(num: months));
+
+        Assert.Equal(spend, (await pet.NextAsync(DesktopPet.Guard)).GetProperty("spend").GetInt64());
+    }
+
+    [Theory]
     [InlineData(Accepted)]
     [InlineData("{\"code\":1003212,\"message\":\"超长\"}")]
     public async Task With_the_announcement_on_its_result_is_told_once_sent_or_given_up_and_boxes_sent_meanwhile_make_the_next(string response)
