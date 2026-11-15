@@ -399,6 +399,17 @@ test('the game\'s own ending does not wake her: robbed after the room was quiet 
   assert.deepEqual([playing(pet), pet.cur.wakeLine, pet.cur.pre], ['chestRobbed', null, 0]);
 });
 
+test('robbed after the room was quiet, the first gift while she is sad over it cheers her up at once, not waking her first', () => {
+  const pet = tugging();
+  pet.lastGift = pet.lastAny = pet.now() - 46 * 60000;
+  for (let i = 0; i < 1000 && playing(pet) !== 'chestRobbed'; i++) play(pet, 100);
+  play(pet, 7000);
+  assert.deepEqual([playing(pet), pet.mood(pet.now())], [null, 'gloomy']);
+  pet.gift(gifts(1, 100));
+  play(pet, 100);
+  assert.deepEqual([playing(pet), pet.cur.wakeLine, pet.cur.pre], ['gift', null, 0]);
+});
+
 test('叫它来 right after a PK scared the 捣蛋鬼 off brings it once the chest it let go of is home', () => {
   const pet = tugging(), told = reports(pet);
   pet.receive(state(pet, { pk: true }));

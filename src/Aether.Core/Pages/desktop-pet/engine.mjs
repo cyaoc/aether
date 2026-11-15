@@ -304,7 +304,7 @@ export class Engine extends EventTarget {
   fire(name, opts = {}) {
     const now = this.now(), ev = this.events[name];
     // (the game's own shows, its endings, never: she has just been in it)
-    if (!opts.chained && !opts.game) opts = { ...opts, wake: opts.wake ?? ['gloomy', 'sleepy'].includes(this.mood(now, false)) };
+    if (!opts.chained && !opts.game) opts = { ...opts, wake: opts.wake ?? this.drowsy(now) };
     // Anyone coming in counts as something happening for 犯困; a show turned off plays nothing, not a lesser one instead.
     this.lastAny = now;
     // while the 捣蛋鬼 is here she waves at no one, and anything else scares it off, a show turned off too; the show then waits
@@ -362,6 +362,10 @@ export class Engine extends EventTarget {
   }
 
   // ---- what Core tells it (DesktopPet.cs)
+  // Whether someone coming in wakes her first (冷场后来了人): she is in a quiet room's 沮丧 or 犯困, not in a 心情 the game
+  // left her in (moodHold): sad over a stolen chest a gift cheers her up at once, and glad she is awake.
+  drowsy(now) { return !(this.moodHold && now < this.moodHold.until) && ['gloomy', 'sleepy'].includes(this.mood(now, false)); }
+
   // A gift, a blind box or a 大航海 counts for 开心 and wakes her from 沮丧, and cheers her up sad over a stolen chest; anything
   // at all wakes her from 犯困.
   gifted(now) {
@@ -386,7 +390,7 @@ export class Engine extends EventTarget {
     // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show; one thrown at the 捣蛋鬼
     // wakes nothing, and a first place it took is not crowned (crown)
     if (!r) {
-      const mine = !this.throwing(), wake = mine && ['gloomy', 'sleepy'].includes(this.mood(now, false));
+      const mine = !this.throwing(), wake = mine && this.drowsy(now);
       this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], gifts: [], boxes: 0, told: 0, spent: 0, wake, wakeLine: wake ? this.pick('wake') : null, played: -1, top: mine ? this.crowns.get(p.uid) : null });
       this.crowns.delete(p.uid);
     }
