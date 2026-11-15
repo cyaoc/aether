@@ -167,6 +167,15 @@ internal sealed class DesktopPet(WebService service, Character character)
         PublishSummon();
     }
 
+    /// <summary>The page <paramref name="page"/>, its events reconnected, reports the 捣蛋鬼 叫它来 called still on its way there:
+    /// it is, as when 叫它来 told the page, until it sets off, it is called off or the page goes.</summary>
+    public void VisitCalled(string page, int run)
+    {
+        if (run != runs || !Here(page)) return;
+        (summoned, summonPages) = (true, [.. summonPages, .. Pages.Where(connection => connection.Id == page)]);
+        PublishSummon();
+    }
+
     /// <summary>The page <paramref name="page"/> reports the 捣蛋鬼 left, or never set off, as when a PK started while it was on
     /// its way.</summary>
     public void VisitEnded(string page, int run)

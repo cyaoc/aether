@@ -34,13 +34,13 @@ const report = query => { reported = reported.then(() => deliver(`/desktop-pet/r
 let run;
 const visit = what => report(`visit=${what}&page=${id}&run=${run}`);
 // Each time its events (re)connect, Core has forgotten the 捣蛋鬼 here, as a page gone has none (and took no report meanwhile):
-// the first state of the connection has the page tell it again that it set off.
+// the first state of the connection has the page tell it again that it set off, or that the one 叫它来 called is on its way.
 let connected = false;
 events.addEventListener('open', () => { connected = true; });
 events.addEventListener('state', message => {
   const state = JSON.parse(message.data);
   pet.receive(state); run = state.run;
-  if (connected && pet.gm.visit) visit('start');
+  if (connected && pet.gm.visit) visit('start'); else if (connected && pet.gm.due === 'called') visit('called');
   connected = false;
 });
 for (const name of ['gift', 'blindBox', 'guard', 'entry', 'danmaku', 'testShow', 'stopTestShow', 'summon'])

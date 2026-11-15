@@ -146,6 +146,8 @@ public sealed class DesktopPetBrowserTests
         await using var summons = service.GetSummonUpdatesAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
         await service.SummonAsync();
         await UntilAsync(PranksterVisit.OnStage);
+        // (its pictures loaded first: one the restart cut off would not load)
+        await page.Browser.EvaluateAsync("Promise.all(Object.values(window.pet.loads)).then(() => true)");
 
         // the web service restarts on its port: Core finds the page gone, and the page's events reconnect
         var port = new Uri(service.Status.Origin).Port;
@@ -155,6 +157,39 @@ public sealed class DesktopPetBrowserTests
 
         await UntilAsync(PranksterVisit.OnStage);
         Assert.Equal("peek", (await page.Browser.EvaluateAsync("window.pet.gm.visit?.phase")).GetString());
+        Assert.Empty(page.Browser.Errors);
+
+        async Task UntilAsync(PranksterVisit visit)
+        {
+            do Assert.True(await summons.MoveNextAsync());
+            while (summons.Current.Visit != visit);
+        }
+    }
+
+    [Fact]
+    public async Task The_one_called_still_on_its_way_is_told_to_Core_again_once_the_pages_events_reconnect()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        var service = page.H.Client.WebService;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        await using var summons = service.GetSummonUpdatesAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
+        // the 试演 she plays keeps the 捣蛋鬼 called waiting
+        await service.TestShowAsync("captain", null, "星河");
+        await service.SummonAsync();
+        await UntilAsync(PranksterVisit.OnTheWay);
+        await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("String(window.pet.gm.due)")).GetString() == "called");
+        // (its pictures loaded first: one the restart cut off would not load)
+        await page.Browser.EvaluateAsync("Promise.all(Object.values(window.pet.loads)).then(() => true)");
+
+        var port = new Uri(service.Status.Origin).Port;
+        await service.StopAsync();
+        await UntilAsync(PranksterVisit.Away);
+        await service.StartAsync(port);
+
+        await UntilAsync(PranksterVisit.OnTheWay);
+        Assert.Equal(JsonValueKind.Null, (await page.Browser.EvaluateAsync("window.pet.gm.visit")).ValueKind);
         Assert.Empty(page.Browser.Errors);
 
         async Task UntilAsync(PranksterVisit visit)

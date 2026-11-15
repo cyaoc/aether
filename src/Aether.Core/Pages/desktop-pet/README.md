@@ -59,7 +59,8 @@ gone, as the streaming software reloaded it, no longer has it there. Each such r
 state the page was told last: how many times the 桌宠 was turned off. Core takes none from before it was last turned off,
 however late it comes, as the page forgot that 来访. The page sends its reports one after another, each once Core has
 answered the one before, and one that got no answer, or a 5xx, again a second later until it gets one. Each time its events
-reconnect, Core has forgotten the 捣蛋鬼 on it, and the page reports it setting off again with the first state it is told.
+reconnect, Core has forgotten the 捣蛋鬼 on it, and the page reports it setting off again with the first state it is told, or,
+the one 叫它来 called not yet set off, `visit=called`: it is on its way.
 
 ## The page
 

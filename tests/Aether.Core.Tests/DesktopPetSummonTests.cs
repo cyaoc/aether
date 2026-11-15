@@ -181,6 +181,21 @@ public sealed class DesktopPetSummonTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_page_whose_events_reconnected_says_the_one_called_is_on_its_way_until_it_goes()
+    {
+        var (updates, pet) = await ConnectedAsync();
+        using var _ = pet;
+        await using var __ = updates;
+
+        Assert.Equal(HttpStatusCode.NoContent, await pet.ReportAsync("?visit=called&run=0"));
+        Assert.Equal(new PranksterSummon(null, PranksterVisit.OnTheWay), await NextAsync());
+        pet.Dispose();
+        await DesktopPetEvents.BeatUntilAsync(h, () => h.Client.WebService.Status.DesktopPetConnections == 0);
+
+        Assert.Equal(PranksterVisit.Away, (await LatestAsync()).Visit);
+    }
+
+    [Fact]
     public async Task One_that_cannot_come_is_not_told_to_the_page()
     {
         await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));
