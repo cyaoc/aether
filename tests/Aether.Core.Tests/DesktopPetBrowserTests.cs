@@ -63,6 +63,29 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task A_summon_the_page_calls_off_as_the_desktop_pet_is_turned_off_is_reported_in_the_run_it_was_called_in()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        var service = page.H.Client.WebService;
+        // the 试演 she plays keeps the 捣蛋鬼 called waiting; her reports are held back, as ones slow to reach Core
+        await service.TestShowAsync("captain", null, "星河");
+        await page.Browser.EvaluateAsync("""
+            window.held = [];
+            const send = window.fetch.bind(window);
+            window.fetch = (url, o) => String(url).startsWith('/desktop-pet/report') ? (window.held.push(String(url)), Promise.resolve()) : send(url, o);
+            """);
+        await service.SummonAsync();
+        await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("window.pet.gm.due")).ValueKind == JsonValueKind.String);
+
+        await page.ApplyAsync(("desktop_pet.enabled", "false"));
+
+        var held = (await page.Browser.EvaluateAsync("JSON.stringify(window.held)")).GetString()!;
+        Assert.Matches(@"^\[""/desktop-pet/report\?visit=end&page=\w+&run=0""\]$", held);
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
     public async Task A_daily_actions_pictures_load_when_it_first_plays_not_with_the_page()
     {
         await using var page = await StartAsync();

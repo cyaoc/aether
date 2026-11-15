@@ -18,9 +18,10 @@ addEventListener('resize', () => pet.resize(innerWidth, innerHeight));
 // its reports come from, so one reloaded no longer has the 捣蛋鬼 there.
 const id = Math.random().toString(36).slice(2);
 const events = new EventSource(`/desktop-pet/events?page=${id}`);
-// Its 来访 reports say the run the state told last, so Core takes none from before the 桌宠 was turned off, however late.
+// Its 来访 reports say the run the state told last, so Core takes none from before the 桌宠 was turned off, however late. A
+// state's run is hers once she has taken it: what she reports as she does (a 叫它来 it calls off) is of the run before.
 let run;
-events.addEventListener('state', message => { const state = JSON.parse(message.data); run = state.run; pet.receive(state); });
+events.addEventListener('state', message => { const state = JSON.parse(message.data); pet.receive(state); run = state.run; });
 for (const name of ['gift', 'blindBox', 'guard', 'entry', 'danmaku', 'testShow', 'stopTestShow', 'summon'])
   events.addEventListener(name, message => pet[name](JSON.parse(message.data)));
 // A 试演 that is over is reported, as the video page reports what it played, so the GUI offers another (DesktopPetPage.cs).
