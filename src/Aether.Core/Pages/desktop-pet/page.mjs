@@ -35,10 +35,13 @@ let run;
 const visit = what => report(`visit=${what}&page=${id}&run=${run}`);
 // Each time its events (re)connect, Core has forgotten the 捣蛋鬼 here, as a page gone has none (and took no report meanwhile):
 // the first state of the connection has the page tell it again that it set off, or that the one 叫它来 called is on its way.
+// A state of another run than hers means the 桌宠 was turned off while her events were down: she forgets all first, as when
+// it is switched off, so nothing of the run before comes back in the new one.
 let connected = false;
 events.addEventListener('open', () => { connected = true; });
 events.addEventListener('state', message => {
   const state = JSON.parse(message.data);
+  if (run !== undefined && state.run !== run) pet.receive({ ...state, enabled: false });
   pet.receive(state); run = state.run;
   if (connected && pet.gm.visit) visit('start'); else if (connected && pet.gm.due === 'called') visit('called');
   connected = false;

@@ -222,6 +222,42 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task The_desktop_pet_turned_off_and_on_while_the_pages_events_were_down_leaves_nothing_of_the_run_before()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        var service = page.H.Client.WebService;
+        // the 试演 she plays keeps the 捣蛋鬼 called waiting; her reports are kept as she sends them
+        await service.TestShowAsync("captain", null, "星河");
+        await service.SummonAsync();
+        await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("String(window.pet.gm.due)")).GetString() == "called");
+        await page.Browser.EvaluateAsync("Promise.all([window.pet.loadGame(), ...Object.values(window.pet.loads)]).then(() => true)");
+        await page.Browser.EvaluateAsync("""
+            window.sent = [];
+            const send = window.fetch.bind(window);
+            window.fetch = (url, o) => (String(url).startsWith('/desktop-pet/report') && window.sent.push(String(url)), send(url, o));
+            true;
+            """);
+
+        var port = new Uri(service.Status.Origin).Port;
+        await service.StopAsync();
+        await page.H.ApplySettingsAsync(("desktop_pet.enabled", "false"));
+        await page.H.ApplySettingsAsync(("desktop_pet.enabled", "true"));
+        var received = page.Browser.EventSourceMessages.Count;
+        await service.StartAsync(port);
+        await Eventually.TrueAsync(async () =>
+        {
+            await page.Browser.EvaluateAsync("true");
+            return page.Browser.EventSourceMessages.Skip(received).Any(data => data.Contains("\"run\":1", StringComparison.Ordinal));
+        });
+        await page.Browser.EvaluateAsync(TwoFrames);
+
+        Assert.Equal("""[false,null,null,[]]""",
+            (await page.Browser.EvaluateAsync("JSON.stringify([window.pet.gm.due, window.pet.gm.visit, window.pet.cur, window.sent.filter(url => !url.includes('run=0'))])")).GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
     public async Task A_daily_actions_pictures_load_when_it_first_plays_not_with_the_page()
     {
         await using var page = await StartAsync();
