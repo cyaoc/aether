@@ -57,7 +57,8 @@ events with `/desktop-pet/events?page=` and that id, and reports the 捣蛋鬼 s
 as when a PK starts or the room disconnects; from these Core tells the GUI whether it is on its way or on the page. A page
 gone, as the streaming software reloaded it, no longer has it there. Each such report also says `run=`, the `run` of the
 state the page was told last: how many times the 桌宠 was turned off. Core takes none from before it was last turned off,
-however late it comes, as the page forgot that 来访.
+however late it comes, as the page forgot that 来访. The page sends its reports one after another, each once Core has
+answered the one before, and one that got no answer, or a 5xx, again a second later until it gets one.
 
 ## The page
 

@@ -111,6 +111,31 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task A_report_that_does_not_get_to_Core_is_sent_again_before_the_next()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        // its first try at the first report fails, as with Core restarting; what Core answers is kept
+        await page.Browser.EvaluateAsync("""
+            window.tries = [];
+            window.answers = [];
+            const send = window.fetch.bind(window);
+            window.fetch = (url, o) => {
+              if (!String(url).startsWith('/desktop-pet/report')) return send(url, o);
+              window.tries.push(String(url).split('?')[1].split('&')[0]);
+              if (window.tries.length === 1) return Promise.reject(new TypeError('Failed to fetch'));
+              return send(url, o).then(reply => (window.answers.push(reply.status), reply));
+            };
+            window.pet.visited('start'); window.pet.visited('end'); true;
+            """);
+
+        await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("window.answers.length")).GetInt32() == 2);
+        Assert.Equal("""[["visit=start","visit=start","visit=end"],[204,204]]""",
+            (await page.Browser.EvaluateAsync("JSON.stringify([window.tries, window.answers])")).GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
     public async Task A_daily_actions_pictures_load_when_it_first_plays_not_with_the_page()
     {
         await using var page = await StartAsync();

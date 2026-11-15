@@ -25,8 +25,16 @@ events.addEventListener('state', message => { const state = JSON.parse(message.d
 for (const name of ['gift', 'blindBox', 'guard', 'entry', 'danmaku', 'testShow', 'stopTestShow', 'summon'])
   events.addEventListener(name, message => pet[name](JSON.parse(message.data)));
 // Its reports go one after another, each once Core has taken the one before, so Core never takes a 来访's start after its end.
+// One that does not get there (Core restarting, the connection lost, Core failing on it) is sent again a second later until it
+// does; one Core turned down (4xx) never would.
 let reported = Promise.resolve();
-const report = query => { reported = reported.then(() => fetch(`/desktop-pet/report?${query}`, { method: 'POST' })).catch(() => {}); };
+const deliver = async url => {
+  for (;;) {
+    try { if ((await fetch(url, { method: 'POST' })).status < 500) return; } catch { }
+    await new Promise(again => setTimeout(again, 1000));
+  }
+};
+const report = query => { reported = reported.then(() => deliver(`/desktop-pet/report?${query}`)); };
 // A 试演 that is over is reported, as the video page reports what it played, so the GUI offers another (DesktopPetPage.cs).
 pet.addEventListener('trialended', event => report(`trial=${event.detail}`));
 // So is the 捣蛋鬼 setting off and leaving, for the GUI's 叫它来 (DesktopPet.cs).
