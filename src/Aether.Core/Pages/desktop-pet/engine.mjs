@@ -330,10 +330,10 @@ export class Engine extends EventTarget {
   start(name, opts) {
     const now = this.now(), c = this.cur, gm = this.gm, { dailyMinSeconds, dailyMaxSeconds } = this.settings;
     this.trialOver(c);
-    // one that comes while the chest is still going home, or her hair is still to be patted smooth, waits for them, whether a
-    // show it takes over waited for them or none played (a PK scared the 捣蛋鬼 off); the game's own shows play the chest home
+    // one that comes while the chest is still going home, or her hair is still to be patted smooth, waits for them, whether the
+    // show it takes over had them still to do or none played (a PK scared the 捣蛋鬼 off); the game's own shows play the chest home
     if (!opts.game) {
-      opts = { ...opts, tidy: opts.tidy || (gm.out ? TIDY : 0), frizz: opts.frizz || !!gm.fix || !!(c && now < c.start + c.pre && c.opts.frizz) };
+      opts = { ...opts, tidy: opts.tidy || (gm.out ? TIDY : 0), frizz: opts.frizz || !!gm.fix || this.frizzed(c, now) };
       gm.fix = null;
     }
     const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (opts.zap && ev.zapDur) || (ev.steps?.[opts.result] ?? ev).dur;
@@ -481,12 +481,21 @@ export class Engine extends EventTarget {
     if (this.cur?.opts.trial) this.drop();
   }
 
-  // A show dropped while it still waits for her hair leaves the sprite to pat it smooth as with no show after (gm.fix), on
-  // the show's clock, so the pats go on where they were.
+  // A show dropped with her hair still frizzed leaves the sprite to pat it smooth as with no show after (gm.fix): one still
+  // waiting for it on its clock, so the pats go on where they were.
   drop() {
-    const c = this.cur;
-    if (c && this.now() < c.start + c.pre && c.opts.frizz) this.gm.fix = { start: c.start };
+    const c = this.cur, now = this.now();
+    if (this.frizzed(c, now)) this.gm.fix = { start: now < c.start + c.pre ? c.start : now };
     this.cur = null;
+  }
+
+  // Whether her hair is frizzed at now in show c and still to be patted smooth: it waits for that (pre), or it is the game's
+  // own after the lightning (zap: chestKept, chestRobbed) and its sprite has not done it yet (smooth, by the show's seed).
+  frizzed(c, now) {
+    if (!c) return false;
+    if (now < c.start + c.pre) return !!c.opts.frizz;
+    const p = this.pat;
+    return !!c.opts.zap && !(p?.seed === Math.floor(c.start) && now - c.start - c.pre >= p.fix);
   }
 
   // A 试演 of a show played out, or cut short by another show, is over, and the page tells Core by its number (page.mjs); one

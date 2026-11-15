@@ -321,6 +321,24 @@ test('after the lightning and a PK, with the chest home and her hair still frizz
   }
 });
 
+test('a show taking over 守住了 after the lightning waits for her hair if the sprite has not patted it smooth yet, and not after', () => {
+  const won = () => {
+    const pet = tugging();
+    pet.gift(gifts(1, 6000)); play(pet, 3000);
+    pet.gift(gifts(2, 100000)); play(pet, 2500);   // (it waits for the lightning)
+    assert.deepEqual([playing(pet), pet.cur.opts.zap], ['chestKept', true]);
+    return pet;
+  };
+  const governor = { uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 }, early = won(), late = won();
+  early.guard(governor);
+  const poses = [];
+  play(early, 100, st => poses.push(st.pose));
+  assert.deepEqual([playing(early), early.cur.opts.frizz, poses[0]], ['governor', true, 'cheerZap']);
+  play(late, 5000);
+  late.guard(governor);
+  assert.deepEqual([playing(late), late.cur.opts.frizz], ['governor', false]);
+});
+
 test('叫它来 right after a PK scared the 捣蛋鬼 off brings it once the chest it let go of is home', () => {
   const pet = tugging(), told = reports(pet);
   pet.receive(state(pet, { pk: true }));
