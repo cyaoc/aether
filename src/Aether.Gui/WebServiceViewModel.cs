@@ -9,6 +9,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
 {
     private readonly LatestRun animationUpdates = new();
     private readonly LatestRun animationReload = new();
+    private readonly LatestRun summonUpdates = new();
     private Settings? animationSettings;
     internal bool AnimationReloading => !animationReload.Current.IsCompleted;
     /// <summary>Raised when anything an animation row shows may have changed: page status, playback, failures or a reload.</summary>
@@ -47,6 +48,7 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         if (shutdown.IsCancellationRequested) return;
         animationSettings = snapshot;
         if (animationUpdates.Current.IsCompleted) _ = animationUpdates.Follow(client.WebService.GetUpdatesAsync, Apply, logger, "网页服务状态订阅中断");
+        if (summonUpdates.Current.IsCompleted) _ = summonUpdates.Follow(client.WebService.GetSummonUpdatesAsync, summon => Summon = summon, logger, "叫它来的状态订阅中断");
         var reload = animationReload.Start(ReloadAsync);
         NotifyAnimationRows();
         await reload;
@@ -76,12 +78,16 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
         await client.WebService.StopAsync();
         Apply(client.WebService.Status);
         await animationUpdates.StopAsync();
+        await summonUpdates.StopAsync();
     }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(Video), nameof(Lottery), nameof(GiftBoard), nameof(DesktopPet), nameof(HasVideoConnections))]
     [NotifyPropertyChangedFor(nameof(HasWebServiceError), nameof(IsWebServiceOff), nameof(ServiceStatusText), nameof(ServiceHelpText))]
     private WebServiceStatus webServiceStatus = client.WebService.Status;
+
+    /// <summary>Whether the streamer can 叫它来, and where the 捣蛋鬼 is, as Core last said; none before it said.</summary>
+    [ObservableProperty] private PranksterSummon? summon;
 
     public WebPageStatus Video => new(WebServiceStatus, WebServiceStatus.VideoConnections, WebPageTexts.Video) { Address = WebServiceStatus.VideoAddress };
     public WebPageStatus Lottery => new(WebServiceStatus, WebServiceStatus.LotteryConnections, WebPageTexts.Lottery) { Address = WebServiceStatus.LotteryAddress };
@@ -186,6 +192,8 @@ public partial class WebServiceViewModel(AetherClient client, ILogger logger, Ti
     internal void TestShow(string show, string? variant, string nickname) => client.WebService.TestShowAsync(show, variant, nickname).RaiseFailure();
 
     internal void StopTestShow() => client.WebService.StopTestShowAsync().RaiseFailure();
+
+    internal void SummonPrankster() => client.WebService.SummonAsync().RaiseFailure();
 
     // Disable immediately, before the queued update crosses back to the UI thread.
     private void PendTestPlay()

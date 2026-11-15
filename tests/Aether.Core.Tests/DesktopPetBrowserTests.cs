@@ -47,6 +47,219 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task Called_the_捣蛋鬼_sets_off_on_the_page_which_reports_it_by_the_id_its_events_were_asked_for_with()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+
+        await page.H.Client.WebService.SummonAsync();
+
+        await foreach (var summon in page.H.Client.WebService.GetSummonUpdatesAsync(timeout.Token))
+            if (summon.Visit == PranksterVisit.OnStage) break;
+        Assert.Equal("peek", (await page.Browser.EvaluateAsync("window.pet.gm.visit?.phase")).GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
+    public async Task A_summon_the_page_calls_off_as_the_desktop_pet_is_turned_off_is_reported_in_the_run_it_was_called_in()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        var service = page.H.Client.WebService;
+        // the 试演 she plays keeps the 捣蛋鬼 called waiting; her reports are held back, as ones slow to reach Core
+        await service.TestShowAsync("captain", null, "星河");
+        await page.Browser.EvaluateAsync("""
+            window.held = [];
+            const send = window.fetch.bind(window);
+            window.fetch = (url, o) => String(url).startsWith('/desktop-pet/report') ? (window.held.push(String(url)), Promise.resolve()) : send(url, o);
+            """);
+        await service.SummonAsync();
+        await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("window.pet.gm.due")).ValueKind == JsonValueKind.String);
+
+        await page.ApplyAsync(("desktop_pet.enabled", "false"));
+
+        var held = (await page.Browser.EvaluateAsync("JSON.stringify(window.held)")).GetString()!;
+        Assert.Matches(@"^\[""/desktop-pet/report\?visit=end&page=\w+&run=0""\]$", held);
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
+    public async Task The_page_reports_one_after_another_so_Core_never_takes_a_来访s_start_after_its_end()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        // its first report is slow to reach Core
+        await page.Browser.EvaluateAsync("""
+            window.sent = [];
+            const send = window.fetch.bind(window);
+            window.fetch = (url, o) => {
+              if (!String(url).startsWith('/desktop-pet/report')) return send(url, o);
+              window.sent.push(String(url).split('?')[1].split('&')[0]);
+              return window.sent.length > 1 ? send(url, o) : new Promise(done => { window.release = () => done(send(url, o)); });
+            };
+            window.pet.visited('start'); window.pet.visited('end'); true;
+            """);
+        await page.Browser.EvaluateAsync(TwoFrames);
+        Assert.Equal("""["visit=start"]""", (await page.Browser.EvaluateAsync("JSON.stringify(window.sent)")).GetString());
+
+        await page.Browser.EvaluateAsync("window.release(), true");
+        await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("window.sent.length")).GetInt32() == 2);
+        Assert.Equal("""["visit=start","visit=end"]""", (await page.Browser.EvaluateAsync("JSON.stringify(window.sent)")).GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
+    public async Task A_report_that_does_not_get_to_Core_is_sent_again_before_the_next()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        // its first try at the first report fails, as with Core restarting; what Core answers is kept
+        await page.Browser.EvaluateAsync("""
+            window.tries = [];
+            window.answers = [];
+            const send = window.fetch.bind(window);
+            window.fetch = (url, o) => {
+              if (!String(url).startsWith('/desktop-pet/report')) return send(url, o);
+              window.tries.push(String(url).split('?')[1].split('&')[0]);
+              if (window.tries.length === 1) return Promise.reject(new TypeError('Failed to fetch'));
+              return send(url, o).then(reply => (window.answers.push(reply.status), reply));
+            };
+            window.pet.visited('start'); window.pet.visited('end'); true;
+            """);
+
+        await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("window.answers.length")).GetInt32() == 2);
+        Assert.Equal("""[["visit=start","visit=start","visit=end"],[204,204]]""",
+            (await page.Browser.EvaluateAsync("JSON.stringify([window.tries, window.answers])")).GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
+    public async Task The_捣蛋鬼_on_the_page_is_told_to_Core_again_once_the_pages_events_reconnect()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        var service = page.H.Client.WebService;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        await using var summons = service.GetSummonUpdatesAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
+        await service.SummonAsync();
+        await UntilAsync(PranksterVisit.OnStage);
+        // (its pictures loaded first: one the restart cut off would not load)
+        await page.Browser.EvaluateAsync("Promise.all(Object.values(window.pet.loads)).then(() => true)");
+
+        // the web service restarts on its port: Core finds the page gone, and the page's events reconnect
+        var port = new Uri(service.Status.Origin).Port;
+        await service.StopAsync();
+        await UntilAsync(PranksterVisit.Away);
+        await service.StartAsync(port);
+
+        await UntilAsync(PranksterVisit.OnStage);
+        Assert.Equal("peek", (await page.Browser.EvaluateAsync("window.pet.gm.visit?.phase")).GetString());
+        Assert.Empty(page.Browser.Errors);
+
+        async Task UntilAsync(PranksterVisit visit)
+        {
+            do Assert.True(await summons.MoveNextAsync());
+            while (summons.Current.Visit != visit);
+        }
+    }
+
+    [Fact]
+    public async Task The_one_called_still_on_its_way_is_told_to_Core_again_once_the_pages_events_reconnect()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        var service = page.H.Client.WebService;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        await using var summons = service.GetSummonUpdatesAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
+        // the 试演 she plays keeps the 捣蛋鬼 called waiting
+        await service.TestShowAsync("captain", null, "星河");
+        await service.SummonAsync();
+        await UntilAsync(PranksterVisit.OnTheWay);
+        await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("String(window.pet.gm.due)")).GetString() == "called");
+        // (its pictures loaded first, the game's too, which it loads once one is due: one the restart cut off would not load)
+        await page.Browser.EvaluateAsync("Promise.all([window.pet.loadGame(), ...Object.values(window.pet.loads)]).then(() => true)");
+
+        var port = new Uri(service.Status.Origin).Port;
+        await service.StopAsync();
+        await UntilAsync(PranksterVisit.Away);
+        await service.StartAsync(port);
+
+        await UntilAsync(PranksterVisit.OnTheWay);
+        Assert.Equal(JsonValueKind.Null, (await page.Browser.EvaluateAsync("window.pet.gm.visit")).ValueKind);
+        Assert.Empty(page.Browser.Errors);
+
+        async Task UntilAsync(PranksterVisit visit)
+        {
+            do Assert.True(await summons.MoveNextAsync());
+            while (summons.Current.Visit != visit);
+        }
+    }
+
+    [Fact]
+    public async Task The_捣蛋鬼_whose_pictures_failed_to_load_comes_once_they_load_again()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        var service = page.H.Client.WebService;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        // its pictures cannot be had, as while the web service restarts
+        await page.Browser.CommandAsync("Network.setBlockedURLs", new { urls = new[] { "*prankster*" } });
+        await service.SummonAsync();
+        Assert.Equal("failed", (await page.Browser.EvaluateAsync("""
+            new Promise(done => { const wait = () => window.pet.loads.game ? window.pet.loads.game.then(() => done('loaded'), () => done('failed')) : requestAnimationFrame(wait); wait(); })
+            """)).GetString());
+
+        await page.Browser.CommandAsync("Network.setBlockedURLs", new { urls = Array.Empty<string>() });
+
+        await foreach (var summon in service.GetSummonUpdatesAsync(timeout.Token))
+            if (summon.Visit == PranksterVisit.OnStage) break;
+        Assert.Equal("peek", (await page.Browser.EvaluateAsync("window.pet.gm.visit?.phase")).GetString());
+    }
+
+    [Fact]
+    public async Task The_desktop_pet_turned_off_and_on_while_the_pages_events_were_down_leaves_nothing_of_the_run_before()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        var service = page.H.Client.WebService;
+        // the 试演 she plays keeps the 捣蛋鬼 called waiting; her reports are kept as she sends them
+        await service.TestShowAsync("captain", null, "星河");
+        await service.SummonAsync();
+        await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("String(window.pet.gm.due)")).GetString() == "called");
+        await page.Browser.EvaluateAsync("Promise.all([window.pet.loadGame(), ...Object.values(window.pet.loads)]).then(() => true)");
+        // and the room has been quiet for 45 minutes
+        await page.Browser.EvaluateAsync("""
+            window.pet.lastGift = window.pet.lastAny = window.pet.now() - 45 * 60000;
+            window.sent = [];
+            const send = window.fetch.bind(window);
+            window.fetch = (url, o) => (String(url).startsWith('/desktop-pet/report') && window.sent.push(String(url)), send(url, o));
+            true;
+            """);
+
+        var port = new Uri(service.Status.Origin).Port;
+        await service.StopAsync();
+        await page.H.ApplySettingsAsync(("desktop_pet.enabled", "false"));
+        await page.H.ApplySettingsAsync(("desktop_pet.enabled", "true"));
+        var received = page.Browser.EventSourceMessages.Count;
+        await service.StartAsync(port);
+        await Eventually.TrueAsync(async () =>
+        {
+            await page.Browser.EvaluateAsync("true");
+            return page.Browser.EventSourceMessages.Skip(received).Any(data => data.Contains("\"run\":1", StringComparison.Ordinal));
+        });
+        await page.Browser.EvaluateAsync(TwoFrames);
+
+        Assert.Equal("""[false,null,null,[],"calm"]""",
+            (await page.Browser.EvaluateAsync("JSON.stringify([window.pet.gm.due, window.pet.gm.visit, window.pet.cur, window.sent.filter(url => !url.includes('run=0')), window.pet.mood(window.pet.now(), false)])")).GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
     public async Task A_daily_actions_pictures_load_when_it_first_plays_not_with_the_page()
     {
         await using var page = await StartAsync();
@@ -149,8 +362,8 @@ public sealed class DesktopPetBrowserTests
         Assert.Empty(page.Browser.Errors);
     }
 
-    /// <summary>The design package's board and the page, side by side through scripts/desktop-pet/compare.mjs (about half a minute):
-    /// every show, 心情 and round from one seed, frame by frame on one clock, the same pixels.</summary>
+    /// <summary>The design package's board and the page, side by side through scripts/desktop-pet/compare.mjs (about a minute):
+    /// every show, 心情 and round and the 宝箱小游戏's routes from one seed, frame by frame on one clock, the same pixels.</summary>
     [Fact]
     public async Task The_page_draws_every_show_pixel_for_pixel_as_the_design_board_does()
     {

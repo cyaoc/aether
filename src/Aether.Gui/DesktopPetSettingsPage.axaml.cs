@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Globalization;
 using Aether.Core;
+using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -16,6 +17,8 @@ public partial class DesktopPetSettingsPage : SettingsPage
     private readonly DesktopPetShowRow[] showRows;
     private readonly OrderedInputs thresholds, dailySeconds;
     private string? blocked;
+    // What the next 报名抽奖 starts with, as Core last said: the 帮它的关键字 must not be it. Until Core says, it matches nothing typed.
+    private string entryKeyword = "";
     private bool testing;
     private string playing = "";
 
@@ -59,6 +62,8 @@ public partial class DesktopPetSettingsPage : SettingsPage
         Bind(DailyMinInput, DailyMinReadOnly, null, s => s.DesktopPetDailyMinSeconds);
         Bind(DailyMaxInput, DailyMaxReadOnly, null, s => s.DesktopPetDailyMaxSeconds);
         Bind(MishapInput, MishapReadOnly, MishapError, s => s.DesktopPetMishapPercent);
+        Bind(PranksterMinutesInput, PranksterMinutesReadOnly, PranksterMinutesError, s => s.DesktopPetPranksterMinutes);
+        Bind(PranksterKeywordInput, PranksterKeywordReadOnly, null, s => s.DesktopPetPranksterKeyword);
     }
 
     /// <summary>The 演出 groups with their switches, the 日常小动作' switches, the kinds of lines and the 试演, from the 演出表.</summary>
@@ -86,7 +91,8 @@ public partial class DesktopPetSettingsPage : SettingsPage
             (BoredInput, BoredNote, "托腮发呆，隔一阵叹口气", "填了 0：不会无聊"),
             (GloomyInput, GloomyNote, "蹲着画圈圈，头上一片阴影", "填了 0：不会沮丧"),
             (SleepyInput, SleepyNote, "抱着膝盖打瞌睡，有人来就惊醒", "填了 0：不会犯困"),
-            (MishapInput, MishapNote, "砸到脚、破音、摔一跤；填 0 就不出事", "填了 0：不会出事")
+            (MishapInput, MishapNote, "砸到脚、破音、摔一跤；填 0 就不出事", "填了 0：不会出事"),
+            (PranksterMinutesInput, PranksterMinutesNote, "有人在看、她闲着时它自己来；填 0 就只在你叫它时来", "填了 0：它只在你叫它时来")
         })
             OnText(input, () =>
             {
@@ -113,7 +119,8 @@ public partial class DesktopPetSettingsPage : SettingsPage
     {
         ShowsTab.IsVisible = Tabs.SelectedIndex == 0;
         MoodsTab.IsVisible = Tabs.SelectedIndex == 1;
-        LinesTab.IsVisible = Tabs.SelectedIndex == 2;
+        GameTab.IsVisible = Tabs.SelectedIndex == 2;
+        LinesTab.IsVisible = Tabs.SelectedIndex == 3;
     }
 
     protected override void LoadRows()
@@ -139,10 +146,37 @@ public partial class DesktopPetSettingsPage : SettingsPage
     {
         var thresholdError = thresholds.Check();
         var dailyError = dailySeconds.Check();
+        var keywordError = CheckPranksterKeyword();
         var linesError = CheckLines();
-        blocked = thresholdError ?? dailyError ?? linesError;
+        blocked = thresholdError ?? dailyError ?? keywordError ?? linesError;
         DirtyBlocked = blocked is not null;
         return blocked is not null;
+    }
+
+    /// <summary>Marks a 帮它的关键字 Core says cannot be saved, with why under it; why the page cannot be saved, or null.</summary>
+    private string? CheckPranksterKeyword()
+    {
+        var why = settings.DesktopPetPranksterKeyword.CanEdit ? settings.ValidatePranksterKeyword(PranksterKeywordInput.Text ?? "", entryKeyword) : null;
+        PranksterKeywordError.Text = why ?? "";
+        PranksterKeywordError.IsVisible = why is not null;
+        return why is null ? null : "小游戏里帮它的关键字要先改好，才能保存";
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == IsVisibleProperty) ReadEntryKeywordAsync().RaiseFailure();
+    }
+
+    /// <summary>Asks Core each time the page shows, so never under the splash, before the window reads the lottery at all; a
+    /// 报名抽奖 started on its own page may have changed the keyword.</summary>
+    // shortcut: a room connected while the page shows is checked against the keyword it had until it shows again; ask Core on
+    // each lottery change if that is ever seen.
+    private async Task ReadEntryKeywordAsync()
+    {
+        if (viewModel is null || !IsVisible) return;
+        entryKeyword = await viewModel.Lottery.GetNextEntryKeywordAsync() ?? "";
+        Validate();
     }
 
     protected override bool RowsChanged => EditedLines().Count > 0;
@@ -167,11 +201,14 @@ public partial class DesktopPetSettingsPage : SettingsPage
             viewModel.WebService.TestShowEnded += OnTestShowEnded;
         }
         RefreshTest();
+        RefreshSummon();
+        ReadEntryKeywordAsync().RaiseFailure();
     }
 
     private void OnWebServiceChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(WebServiceViewModel.DesktopPet)) RefreshTest();
+        if (e.PropertyName == nameof(WebServiceViewModel.Summon)) RefreshSummon();
     }
 
     private void OnTestShowEnded()
@@ -209,4 +246,21 @@ public partial class DesktopPetSettingsPage : SettingsPage
         testing = !testing;
         RefreshTest();
     }
+
+    /// <summary>叫它来 as Core says it is: why it cannot, else where the 捣蛋鬼 is.</summary>
+    private void RefreshSummon()
+    {
+        var summon = viewModel?.WebService.Summon;
+        SummonButton.IsEnabled = summon?.CanSummon == true;
+        SummonText.Text = summon?.Visit switch { PranksterVisit.OnStage => "它在场上", PranksterVisit.OnTheWay => "它在路上…", _ => "叫它来" };
+        SummonNote.Text = summon?.Blocked ?? summon?.Visit switch
+        {
+            PranksterVisit.OnStage => "它走了才能再叫",
+            PranksterVisit.OnTheWay => "她正在演的这段完了它就来",
+            _ => "点了它马上来，不是试演，观众送的礼物都算；不用保存"
+        };
+        SummonNote.Classes.Set("accent", summon is { Blocked: null, Visit: PranksterVisit.OnTheWay });
+    }
+
+    private void Summon(object? sender, RoutedEventArgs e) => viewModel?.WebService.SummonPrankster();
 }

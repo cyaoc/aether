@@ -956,6 +956,26 @@ public sealed class SettingsPageTests
             Assert.Equal(before.Replace("    false\n  enabled: true", "    false\n  enabled: false"), File.ReadAllText(path));
         });
 
+    [Theory]
+    [InlineData("DailyKeywordInput", "DailyKeywordError")]
+    [InlineData("MonthlyKeywordInput", "MonthlyKeywordError")]
+    [InlineData("YearlyKeywordInput", "YearlyKeywordError")]
+    public Task A_blind_box_query_keyword_that_is_the_helper_keyword_says_why_and_cannot_be_saved(string input, string error) =>
+        WithSettingsPage(dir => new BlindBoxSettingsPage(dir), "desktop_pet:\n  prankster_keyword: 查盲盒\n", (page, _) =>
+        {
+            var keyword = page.FindControl<TextBox>(input)!;
+            var why = page.FindControl<TextBlock>(error)!;
+            keyword.Text = "查盲盒 ";
+            GuiHarness.Flush();
+            Assert.Equal((true, "和桌宠宝箱小游戏里帮它的关键字一样，观众查盲盒时就站到它那边了；换一个"), (why.IsVisible, why.Text));
+            Assert.False(page.CanSave);
+
+            keyword.Text = "查哪个盲盒";
+            GuiHarness.Flush();
+            Assert.False(why.IsVisible);
+            Assert.True(page.CanSave);
+        });
+
     [Fact]
     public Task Blind_box_tally_and_send_queue_fields_load_defaults_validate_and_save_missing_settings() =>
         WithSettingsPage(dir => new BlindBoxSettingsPage(dir), "# 保留\nblind_box:\n  enabled: true\n", (window, path) =>

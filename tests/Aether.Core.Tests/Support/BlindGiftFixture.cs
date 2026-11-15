@@ -6,6 +6,9 @@ namespace Aether.Core.Tests.Support;
 /// see Fixtures/README.md.</summary>
 internal static class BlindGiftFixture
 {
+    /// <summary>The fixture's gift_info.img_basic.</summary>
+    public const string TestIcon = "https://s1.hdslb.com/bfs/live/test-v1.png";
+
     public static string Json => File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "blind-gift-v1.json"));
 
     /// <summary>The fixture with <paramref name="edit"/> applied to its data object.</summary>

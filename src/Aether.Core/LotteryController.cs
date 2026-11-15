@@ -228,7 +228,7 @@ public sealed partial class LotteryController
             Broadcast();
         }
         if (lottery.Phase == PoolLotteryPhase.Spinning && lottery.Uid == danmaku.Uid
-            && danmaku.Content.Trim() == lottery.StopWord) Draw(stoppedByHost: false);
+            && Settings.SameKeyword(danmaku.Content, lottery.StopWord)) Draw(stoppedByHost: false);
     }
 
     private void Draw(bool stoppedByHost)

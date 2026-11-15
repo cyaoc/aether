@@ -15,10 +15,10 @@ const EMPTY = [['do', 'x.visit()'], ['wait', 300], ['jump', 2500], ['jump', 9100
 const gift = (price, helper = false) => ['do', `x.give([{ gift: '小花花', price: ${price}, n: 1${helper ? ', helper: true' : ''} }])`];
 const ZAP = [gift(60), ['until', 'x.gm.visit.cut == null && x.gm.visit.zapped != null'], ['wait', 600]];
 const HITS = [gift(10), ['wait', 900], ['do', 'x.join()'], gift(10, true), ['wait', 1500], gift(10, true), gift(10, true), gift(10, true), gift(10, true), ['wait', 3000]];
-const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500], gift(10, true), ['wait', 800], ['jump', 9000],
+const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500], ['do', 'x.join()'], gift(10, true), ['wait', 800], ['jump', 9000],
   ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 1500], gift(10), ['until', 'x.cur'], ['until', '!x.cur'], ['wait', 800]];
 const WIN = [gift(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
-const ROUTES = {
+export const ROUTES = {
   'hits': [...LOOT, ...HITS],
   'zap-hits': [...LOOT, ...ZAP, ...HITS],
   'lose': [...LOOT, ...LOSE],
@@ -58,17 +58,20 @@ const play = steps => `(async () => {
   }
   return { seen, errors };
 })()`;
-const names = only.length ? only : Object.keys(ROUTES);
-const runs = await Promise.all(names.map(name => new Promise(done => {
-  const p = spawn('node', [path.join(tools, 'cdp-eval.mjs'), url, '5000', play(ROUTES[name])], { stdio: ['ignore', 'pipe', 'ignore'] });
-  let out = ''; p.stdout.on('data', d => { out += d; }); p.on('close', () => { try { done([name, JSON.parse(out)]); } catch { done([name, { seen: {}, errors: ['no result'] }]); } });
-})));
-const all = {};
-for (const [name, r] of runs) {
-  if (r.errors?.length) console.log(`${name}: ERRORS ${r.errors.join(' | ')}`);
-  for (const [pair, how] of Object.entries(r.seen || {})) (all[pair] ??= { how, routes: [] }).routes.push(name);
+// run as a script: compare.mjs imports the routes
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const names = only.length ? only : Object.keys(ROUTES);
+  const runs = await Promise.all(names.map(name => new Promise(done => {
+    const p = spawn('node', [path.join(tools, 'cdp-eval.mjs'), url, '5000', play(ROUTES[name])], { stdio: ['ignore', 'pipe', 'ignore'] });
+    let out = ''; p.stdout.on('data', d => { out += d; }); p.on('close', () => { try { done([name, JSON.parse(out)]); } catch { done([name, { seen: {}, errors: ['no result'] }]); } });
+  })));
+  const all = {};
+  for (const [name, r] of runs) {
+    if (r.errors?.length) console.log(`${name}: ERRORS ${r.errors.join(' | ')}`);
+    for (const [pair, how] of Object.entries(r.seen || {})) (all[pair] ??= { how, routes: [] }).routes.push(name);
+  }
+  const pairs = Object.entries(all).sort((a, b) => a[1].how.localeCompare(b[1].how) || a[0].localeCompare(b[0]));
+  const count = h => pairs.filter(([, v]) => v.how === h).length;
+  console.log(`${names.length} routes: ${pairs.length} changes of her pose, ${count('tween')} with in-betweens, ${count('cut')} cut as written, ${count('none')} with no way across`);
+  for (const [pair, v] of pairs) if (v.how !== 'tween') console.log(`  ${v.how === 'none' ? 'no way' : 'cut'}: ${pair}（${v.routes.join('、')}）`);
 }
-const pairs = Object.entries(all).sort((a, b) => a[1].how.localeCompare(b[1].how) || a[0].localeCompare(b[0]));
-const count = h => pairs.filter(([, v]) => v.how === h).length;
-console.log(`${names.length} routes: ${pairs.length} changes of her pose, ${count('tween')} with in-betweens, ${count('cut')} cut as written, ${count('none')} with no way across`);
-for (const [pair, v] of pairs) if (v.how !== 'tween') console.log(`  ${v.how === 'none' ? 'no way' : 'cut'}: ${pair}（${v.routes.join('、')}）`);

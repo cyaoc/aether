@@ -63,6 +63,15 @@ public sealed class WebServiceFacade
     /// <summary>Has the 桌宠页 stop its 试演; a show of anything that happened plays on.</summary>
     public Task StopTestShowAsync() => region.Run(s => s.DesktopPet.StopTestShow());
 
+    /// <summary>叫它来: the 捣蛋鬼 comes once her show is over, a 来访 like any. While it cannot, <see cref="GetSummonUpdatesAsync"/>
+    /// says why.</summary>
+    public Task SummonAsync() => region.Run(s => s.DesktopPet.SummonPrankster());
+
+    /// <summary>Whether the streamer can 叫它来, with why not, and where the 捣蛋鬼 is: the current first, then again each time any
+    /// of it may have changed.</summary>
+    public IAsyncEnumerable<PranksterSummon> GetSummonUpdatesAsync(CancellationToken cancellationToken = default) =>
+        region.SubscribeAsync(s => s.DesktopPet.SummonSubscribers, s => s.DesktopPet.SummonState, cancellationToken);
+
     /// <summary>Posted from the room connection, which never waits for the web service (ADR 0017).</summary>
     internal void PlayEntry(Entry entry, long receivedAt, CancellationToken roomStopped) =>
         region.Post(s => s.EntryAnimation.Enqueue(entry, receivedAt, roomStopped));
@@ -74,7 +83,13 @@ public sealed class WebServiceFacade
     internal void SetDesktopPetRoom(bool connected) => region.Post(s => s.DesktopPet.SetRoom(connected));
 
     /// <inheritdoc cref="PlayEntry"/>
+    internal void SetDesktopPetPk(bool inPk) => region.Post(s => s.DesktopPet.SetPk(inPk));
+
+    /// <inheritdoc cref="PlayEntry"/>
     internal void TellDesktopPet(string name, object data) => region.Post(s => s.DesktopPet.Tell(name, data));
+
+    /// <inheritdoc cref="PlayEntry"/>
+    internal void TellDesktopPetDanmaku(Danmaku danmaku) => region.Post(s => s.DesktopPet.TellDanmaku(danmaku));
 
     /// <summary>Closes the listener and every connection in a last step, without waiting for the serving to wind down as
     /// <see cref="StopAsync"/> does, then stops the region.</summary>

@@ -35,4 +35,14 @@ public sealed record SourcePlayback(string Id, long Uid, string ContentSummary, 
 /// <paramref name="Refused"/> says why.</summary>
 public sealed record DesktopPetTestEnded(string? Refused = null) : WebServiceUpdate;
 
+/// <summary>Where the 捣蛋鬼 is, as the 桌宠页 reports it: not come, on its way once her show is over, or on the page.</summary>
+public enum PranksterVisit { Away, OnTheWay, OnStage }
+
+/// <summary>Whether the streamer can 叫它来: not while <paramref name="Blocked"/> says why, nor while the 捣蛋鬼 is coming or on
+/// the page.</summary>
+public sealed record PranksterSummon(string? Blocked, PranksterVisit Visit)
+{
+    public bool CanSummon => Blocked is null && Visit == PranksterVisit.Away;
+}
+
 public sealed record VideoPlayback(string Id, string ContentSummary, string Source, PlaybackState State, string? Reason = null) : WebServiceUpdate;
