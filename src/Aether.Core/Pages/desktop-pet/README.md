@@ -174,5 +174,8 @@ the page beside the board, as the web service serves it, telling it it is on in 
   their gifts are a helper's; the board's buttons made any gift a helper's, and every keyword another helper.
 - A 试演 and a show turned off scare it off too, a PK as the board's button did, and a lottery is drawn, keeping it away, by
   `lotOf` whether its show is on or not.
-- A show that takes over from one that scared it off, still waiting for the chest to go home or her hair, waits for them too;
-  the board's started at once, over the chest still on the ground.
+- A show that comes while the chest is still going home or her hair is still frizzed waits for them, whatever it takes over: a
+  show that scared it off and waits, 守住了 or 被偷了 before the sprite has patted her hair smooth, or none (a PK scared it
+  off); the board's started at once, over the chest still on the ground, and her hair came back on its own. She waits
+  cheering on, but after 被偷了 kneeling on as she was, never cheering. Her hair is patted smooth before she shakes a round's
+  blind boxes too, and the 捣蛋鬼 comes again only once the last 来访 is tidied up.

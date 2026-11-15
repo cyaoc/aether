@@ -312,7 +312,7 @@ export class Engine extends EventTarget {
       if (name === 'entry') return;
       opts = { ...opts, ...this.scared(now) };
     }
-    if (this.settings.off.includes(name)) { if (opts.frizz) this.gm.fix = { start: now }; return; }
+    if (this.settings.off.includes(name)) { if (opts.frizz) this.gm.fix = { start: now, pose: opts.frizz }; return; }
     // she waves at whoever comes in only while she is idle: never over a daily action, any show or blind boxes she shakes,
     // and it does not queue
     if (name === 'entry' && (this.cur || this.shaking())) return;
@@ -333,7 +333,7 @@ export class Engine extends EventTarget {
     // one that comes while the chest is still going home, or her hair is still to be patted smooth, waits for them, whether the
     // show it takes over had them still to do or none played (a PK scared the 捣蛋鬼 off); the game's own shows play the chest home
     if (!opts.game) {
-      opts = { ...opts, tidy: opts.tidy || (gm.out ? TIDY : 0), frizz: opts.frizz || !!gm.fix || this.frizzed(c, now) };
+      opts = { ...opts, tidy: opts.tidy || (gm.out ? TIDY : 0), frizz: opts.frizz || gm.fix?.pose || this.frizzed(c, now) };
       gm.fix = null;
     }
     const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (opts.zap && ev.zapDur) || (ev.steps?.[opts.result] ?? ev).dur;
@@ -469,7 +469,7 @@ export class Engine extends EventTarget {
     this.trial = null;
     if (this.events[show].group === MOOD) {
       this.drop();
-      if (scare.frizz) this.gm.fix = { start: this.now() };
+      if (scare.frizz) this.gm.fix = { start: this.now(), pose: scare.frizz };
       this.trial = show; return;
     }
     this.start(show, { nickname, result: variant, mishap: variant === 'Mishap', trial: true, trialId: id, ...scare });
@@ -484,18 +484,19 @@ export class Engine extends EventTarget {
   // A show dropped with her hair still frizzed leaves the sprite to pat it smooth as with no show after (gm.fix): one still
   // waiting for it on its clock, so the pats go on where they were.
   drop() {
-    const c = this.cur, now = this.now();
-    if (this.frizzed(c, now)) this.gm.fix = { start: now < c.start + c.pre ? c.start : now };
+    const c = this.cur, now = this.now(), pose = this.frizzed(c, now);
+    if (pose) this.gm.fix = { start: now < c.start + c.pre ? c.start : now, pose };
     this.cur = null;
   }
 
-  // Whether her hair is frizzed at now in show c and still to be patted smooth: it waits for that (pre), or it is the game's
-  // own after the lightning (zap: chestKept, chestRobbed) and its sprite has not done it yet (smooth, by the show's seed).
+  // Whether her hair is frizzed at now in show c and still to be patted smooth, and then the pose she waits for it in (frizz:
+  // unfrizz): it waits for that (pre), or it is the game's own after the lightning (zap) and its sprite has not done it yet
+  // (smooth, by the show's seed), 守住了 cheering on and 被偷了 kneeling as she was.
   frizzed(c, now) {
-    if (!c) return false;
-    if (now < c.start + c.pre) return !!c.opts.frizz;
-    const p = this.pat;
-    return !!c.opts.zap && !(p?.seed === Math.floor(c.start) && now - c.start - c.pre >= p.fix);
+    if (!c) return null;
+    if (now < c.start + c.pre) return c.opts.frizz;
+    const p = this.pat, done = p?.seed === Math.floor(c.start) && now - c.start - c.pre >= p.fix;
+    return c.opts.zap && !done ? (c.name === 'chestRobbed' ? 'robbed' : 'cheer') : null;
   }
 
   // A 试演 of a show played out, or cut short by another show, is over, and the page tells Core by its number (page.mjs); one
@@ -625,7 +626,8 @@ export class Engine extends EventTarget {
     const gm = this.gm, v = gm.visit;
     if (gm.due) this.visited('end');
     gm.due = false;
-    if (v && !DONE.has(v.phase) && this.scared(now).frizz) gm.fix = { start: now };
+    const frizz = v && !DONE.has(v.phase) && this.scared(now).frizz;
+    if (frizz) gm.fix = { start: now, pose: frizz };
   }
 
   // A PK is no time for it (callOff).
@@ -781,8 +783,8 @@ export class Engine extends EventTarget {
 
   // Something that scares it off came (a 大航海, a castle, a lottery, a 试演, a PK): it lets go and flees, and the sprite hurries
   // the chest home before the show starts; out of a tug that is the chest kept. What the show then waits for: the chest home
-  // (tidy, TIDY at least) and, after the lightning, her hair (frizz).
-  scared(now) { const v = this.gm.visit, frizz = v.phase === 'tug' && v.zapped != null; return { tidy: this.scare(now), frizz }; }
+  // (tidy, TIDY at least) and, after the lightning, her hair, she cheering on frizzed (frizz).
+  scared(now) { const v = this.gm.visit, frizz = v.phase === 'tug' && v.zapped != null ? 'cheer' : null; return { tidy: this.scare(now), frizz }; }
 
   scare(now) {
     const gm = this.gm, v = gm.visit;
@@ -1106,14 +1108,14 @@ export class Engine extends EventTarget {
     const c = this.cur, shaking = this.shaking();
     let st;
     // a show that scared the 捣蛋鬼 off waits for the chest to go home, and her hair (stateAt's tidying up before the show)
-    if (c && now < c.start + c.pre && !c.wakeLine) { st = this.base(); if (c.opts.frizz) this.unfrizz(st, now - c.start, c); else if (c.opts.tidy && !this.gm.out) c.pre = now - c.start; }
+    if (c && now < c.start + c.pre && !c.wakeLine) { st = this.base(); if (c.opts.frizz) this.unfrizz(st, now - c.start, c, c.opts.frizz); else if (c.opts.tidy && !this.gm.out) c.pre = now - c.start; }
     else if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
     else if (c) {
       st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts));
       // she says her line at the castle's gate once she gets there
       if (c.name === 'castle' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine ??= this.pick('castleGate'), c.name, c.opts);
     // her hair is patted smooth before she shakes a round's blind boxes too
-    } else if (this.gm.fix) { st = this.base(); this.unfrizz(st, now - this.gm.fix.start, this.gm.fix); if (this.gm.fix.pre != null) this.gm.fix = null; }
+    } else if (this.gm.fix) { st = this.base(); this.unfrizz(st, now - this.gm.fix.start, this.gm.fix, this.gm.fix.pose); if (this.gm.fix.pre != null) this.gm.fix = null; }
     else if (shaking) st = this.roundState(now, shaking);
     else {
       const mood = this.mood(now), key = mood + (this.lot ?? '');
@@ -1451,10 +1453,12 @@ export class Engine extends EventTarget {
 
   // A show that scared the 捣蛋鬼 off a tug after the lightning waits for her hair: she cheers frizzed while the sprite takes the
   // chest home and comes back to pat it smooth (smooth), and the show starts once it has settled (c.pre). With no show after
-  // (a PK, a show turned off) it is the same (gm.fix).
-  unfrizz(st, t, c) {
-    const fixed = this.smooth(st, t, { seed: -c.start }, 'cheerZap', 'cheer', 0, FRIZZ, 'sHappy');
-    st.pose = fixed ? 'cheer' : 'cheerZap';
+  // (a PK, a show turned off) it is the same (gm.fix). One taking over 被偷了 before her hair was smooth has her go on kneeling
+  // there (pose robbed), the sprite on her head patting it as in 被偷了, never turning to fly.
+  unfrizz(st, t, c, pose) {
+    const robbed = pose === 'robbed', fixed = this.smooth(st, t, { seed: -c.start }, pose + 'Zap', pose, 0, FRIZZ, robbed ? 'pat' : 'sHappy');
+    st.pose = fixed ? pose : pose + 'Zap';
+    if (robbed) st.sStay = true;
     if (fixed && t >= this.pat.fix + SETTLE) c.pre = t;
   }
 

@@ -269,7 +269,7 @@ test('a show taking over from one that scared the 捣蛋鬼 off waits as it did,
     play(p, 500);
     p.guard({ uid: 2, nickname: '总督', guardLevel: 1, spend: 19998000 });
   }
-  assert.deepEqual([playing(zapped), zapped.cur.opts.frizz], ['governor', true]);
+  assert.deepEqual([playing(zapped), zapped.cur.opts.frizz], ['governor', 'cheer']);
   play(pet, 12000, () => { if (pet.gm.out && pet.now() >= pet.cur.start + pet.cur.pre) early.push(pet.now()); });
   assert.deepEqual([playing(pet), early], ['governor', []]);
 });
@@ -283,7 +283,7 @@ test('a show coming while the chest is still going home from a PK that scared th
     play(p, 500);
     p.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 });
   }
-  assert.deepEqual([playing(zapped), zapped.cur.opts.frizz, zapped.gm.fix], ['captain', true, null]);
+  assert.deepEqual([playing(zapped), zapped.cur.opts.frizz, zapped.gm.fix], ['captain', 'cheer', null]);
   for (const p of [pet, zapped]) {
     const early = [];
     play(p, 12000, () => { if (p.gm.out && p.cur && p.now() >= p.cur.start + p.cur.pre) early.push(p.now()); });
@@ -300,7 +300,7 @@ test('a 试演 stopped, or replaced by a 心情\'s, while it waits for her hair 
     play(pet, 500);
     const { start } = pet.cur;
     next(pet);
-    assert.deepEqual([playing(pet), pet.gm.fix], [null, { start }]);
+    assert.deepEqual([playing(pet), pet.gm.fix], [null, { start, pose: 'cheer' }]);
     play(pet, 9000, st => poses.push(st.pose));
     assert.deepEqual([poses[0], poses.includes('cheer'), pet.gm.fix], ['cheerZap', true, null]);
   }
@@ -321,7 +321,7 @@ test('after the lightning and a PK, with the chest home and her hair still frizz
   }
 });
 
-test('a show taking over 守住了 or 被偷了 after the lightning waits for her hair if the sprite has not patted it smooth yet, and not after', () => {
+test('a show taking over 守住了 or 被偷了 after the lightning waits for her hair if the sprite has not patted it smooth yet, cheering on or kneeling as she was, and not after', () => {
   const after = show => {
     const pet = tugging();
     pet.gift(gifts(1, 6000)); play(pet, 3000);
@@ -334,14 +334,14 @@ test('a show taking over 守住了 or 被偷了 after the lightning waits for he
   };
   const governor = { uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 };
   // (the sprite is not drawn here, so her hair is smooth at the latest each show has it: smooth)
-  for (const [show, smooth] of [['chestKept', 5000], ['chestRobbed', 3500]]) {
-    const early = after(show), late = after(show), poses = [];
+  for (const [show, smooth, pose] of [['chestKept', 5000, 'cheer'], ['chestRobbed', 3500, 'robbed']]) {
+    const early = after(show), late = after(show), poses = new Set();
     early.guard(governor);
-    play(early, 100, st => poses.push(st.pose));
-    assert.deepEqual([show, playing(early), early.cur.opts.frizz, poses[0]], [show, 'governor', true, 'cheerZap']);
+    play(early, 9000, st => { if (early.now() < early.cur.start + early.cur.pre) poses.add(st.pose); });
+    assert.deepEqual([show, playing(early), early.cur.opts.frizz, [...poses]], [show, 'governor', pose, [pose + 'Zap', pose]]);
     play(late, smooth);
     late.guard(governor);
-    assert.deepEqual([show, playing(late), late.cur.opts.frizz], [show, 'governor', false]);
+    assert.deepEqual([show, playing(late), late.cur.opts.frizz], [show, 'governor', null]);
   }
 });
 
