@@ -232,7 +232,9 @@ public sealed class DesktopPetBrowserTests
         await service.SummonAsync();
         await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("String(window.pet.gm.due)")).GetString() == "called");
         await page.Browser.EvaluateAsync("Promise.all([window.pet.loadGame(), ...Object.values(window.pet.loads)]).then(() => true)");
+        // and the room has been quiet for 45 minutes
         await page.Browser.EvaluateAsync("""
+            window.pet.lastGift = window.pet.lastAny = window.pet.now() - 45 * 60000;
             window.sent = [];
             const send = window.fetch.bind(window);
             window.fetch = (url, o) => (String(url).startsWith('/desktop-pet/report') && window.sent.push(String(url)), send(url, o));
@@ -252,8 +254,8 @@ public sealed class DesktopPetBrowserTests
         });
         await page.Browser.EvaluateAsync(TwoFrames);
 
-        Assert.Equal("""[false,null,null,[]]""",
-            (await page.Browser.EvaluateAsync("JSON.stringify([window.pet.gm.due, window.pet.gm.visit, window.pet.cur, window.sent.filter(url => !url.includes('run=0'))])")).GetString());
+        Assert.Equal("""[false,null,null,[],"calm"]""",
+            (await page.Browser.EvaluateAsync("JSON.stringify([window.pet.gm.due, window.pet.gm.visit, window.pet.cur, window.sent.filter(url => !url.includes('run=0')), window.pet.mood(window.pet.now(), false)])")).GetString());
         Assert.Empty(page.Browser.Errors);
     }
 
