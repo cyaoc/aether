@@ -339,10 +339,12 @@ export class Engine extends EventTarget {
     const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (opts.zap && ev.zapDur) || (ev.steps?.[opts.result] ?? ev).dur;
     // one that scared the 捣蛋鬼 off, or came after, waits, at most FRIZZ, for the chest to go home and her hair to be smooth
     // (stateAt), the chest maybe home already; meanwhile she says on the line she was saying in the game's show it takes over
-    // (speaking, as stateAt saw it last), until that show would have stopped it: 被偷了 at ROB.quiet, the others at their end
-    const was = this.speaking?.c === c && this.speaking;
-    const carried = opts.tidy || opts.frizz ? c?.carried ?? (was && { text: was.text, from: was.from, until: c.start + c.pre + (c.name === 'chestRobbed' ? ROB.quiet : c.dur) }) : null;
-    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy || opts.frizz ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null, carried };
+    // (speaking, as stateAt saw it last), until that show would have stopped it: 被偷了 at ROB.quiet, the others at their end;
+    // and she waits in the pose she had there (held), as one waiting before it had her
+    const was = this.speaking?.c === c && this.speaking, waits = opts.tidy || opts.frizz;
+    const carried = waits ? c?.carried ?? (was && { text: was.text, from: was.from, until: c.start + c.pre + (c.name === 'chestRobbed' ? ROB.quiet : c.dur) }) : null;
+    const held = !waits || !c ? null : c.opts.game ? this.held(c) : now < c.start + c.pre ? c.held : null;
+    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, waits ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null, carried, held };
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
     if (DAILY[name]) this.nextDaily = now + dur + dailyMinSeconds * 1000 + this.rng() * (dailyMaxSeconds - dailyMinSeconds) * 1000;
@@ -499,8 +501,11 @@ export class Engine extends EventTarget {
     if (!c) return null;
     if (now < c.start + c.pre) return c.opts.frizz;
     const p = this.pat, done = p?.seed === Math.floor(c.start) && now - c.start - c.pre >= p.fix;
-    return c.opts.zap && !done ? (c.name === 'chestRobbed' ? 'robbed' : 'cheer') : null;
+    return c.opts.zap && !done ? this.held(c) : null;
   }
+
+  // The pose she is in through the game's show c, which one taking it over waits in: kneeling after 被偷了, else cheering on.
+  held(c) { return c.name === 'chestRobbed' ? 'robbed' : 'cheer'; }
 
   // A 试演 of a show played out, or cut short by another show, is over, and the page tells Core by its number (page.mjs); one
   // stopped is Core's own doing.
@@ -1111,11 +1116,12 @@ export class Engine extends EventTarget {
     const c = this.cur, shaking = this.shaking();
     let st;
     this.speaking = null;
-    // a show that scared the 捣蛋鬼 off waits for the chest to go home, and her hair (stateAt's tidying up before the show),
-    // saying on the line of the game's show it took over (start)
+    // a show that scared the 捣蛋鬼 off waits for the chest to go home, and her hair (stateAt's tidying up before the show), in
+    // the pose and saying on the line of the game's show it took over (start)
     if (c && now < c.start + c.pre && !c.wakeLine) {
       st = this.base();
-      if (c.opts.frizz) this.unfrizz(st, now - c.start, c, c.opts.frizz); else if (c.opts.tidy && !this.gm.out) c.pre = now - c.start;
+      if (c.opts.frizz) this.unfrizz(st, now - c.start, c, c.opts.frizz);
+      else { if (c.held) st.pose = c.held; if (c.opts.tidy && !this.gm.out) c.pre = now - c.start; }
       if (c.carried && now < c.carried.until) st.bubble = { text: c.carried.text, t: now - c.carried.from };
     }
     else if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }

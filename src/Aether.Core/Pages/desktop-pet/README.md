@@ -176,7 +176,8 @@ the page beside the board, as the web service serves it, telling it it is on in 
   `lotOf` whether its show is on or not.
 - A show that comes while the chest is still going home or her hair is still frizzed waits for them, whatever it takes over: a
   show that scared it off and waits, 守住了 or 被偷了 before the sprite has patted her hair smooth, or none (a PK scared it
-  off); the board's started at once, over the chest still on the ground, and her hair came back on its own. She waits
-  cheering on, but after 被偷了 kneeling on as she was, never cheering, and says on the line of the game's show it took over
-  until that show would have stopped it. Her hair is patted smooth before she shakes a round's blind boxes too, and the
+  off); the board's started at once, over the chest still on the ground, and her hair came back on its own. Taking over
+  one of the game's own shows she waits in the pose she had there, cheering on after 守住了 and 打飞 and kneeling after
+  被偷了, and says on its line until that show would have stopped it; otherwise she waits standing, or cheering frizzed
+  after the lightning. Her hair is patted smooth before she shakes a round's blind boxes too, and the
   捣蛋鬼 comes again only once the last 来访 is tidied up.

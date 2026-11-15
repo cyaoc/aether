@@ -359,6 +359,24 @@ test('a show taking over 被偷了 has her say on its line while it waits, until
   assert.deepEqual([playing(pet), typeof line, new Set(at(1000)), new Set(at(4610))], ['governor', 'string', new Set([line]), new Set([null])]);
 });
 
+test('a show taking over 守住了 or 打飞 waits for the chest cheering on as she was, one that scared the 捣蛋鬼 off standing', () => {
+  const ways = {
+    chestKept: pet => { pet.gm.chest = 500; pet.summon(); play(pet, 12500); pet.gift(gifts(2, 100000)); },
+    pranksterKnocked: pet => { pet.summon(); play(pet, 16000); pet.gift(gifts(1, 6000)); },
+    // the 大航海 that scares it off out of the tug
+    captain: pet => { pet.gm.chest = 500; pet.summon(); play(pet, 12500); pet.guard({ uid: 4, nickname: '舰长', guardLevel: 3, spend: 198000 }); },
+  };
+  for (const [show, way] of Object.entries(ways)) {
+    const pet = gamePet(character), poses = new Set();
+    way(pet);
+    for (let i = 0; i < 100 && playing(pet) !== show; i++) play(pet, 100);
+    play(pet, 500);
+    pet.guard({ uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 });
+    play(pet, 9000, st => { if (pet.now() < pet.cur.start + pet.cur.pre) poses.add(st.pose); });
+    assert.deepEqual([show, playing(pet), pet.cur.opts.tidy > 0, [...poses]], [show, 'governor', true, [show === 'captain' ? 'idle' : 'cheer']]);
+  }
+});
+
 test('叫它来 right after a PK scared the 捣蛋鬼 off brings it once the chest it let go of is home', () => {
   const pet = tugging(), told = reports(pet);
   pet.receive(state(pet, { pk: true }));
