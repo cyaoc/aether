@@ -136,6 +136,35 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task The_捣蛋鬼_on_the_page_is_told_to_Core_again_once_the_pages_events_reconnect()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        var service = page.H.Client.WebService;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        await using var summons = service.GetSummonUpdatesAsync(timeout.Token).GetAsyncEnumerator(timeout.Token);
+        await service.SummonAsync();
+        await UntilAsync(PranksterVisit.OnStage);
+
+        // the web service restarts on its port: Core finds the page gone, and the page's events reconnect
+        var port = new Uri(service.Status.Origin).Port;
+        await service.StopAsync();
+        await UntilAsync(PranksterVisit.Away);
+        await service.StartAsync(port);
+
+        await UntilAsync(PranksterVisit.OnStage);
+        Assert.Equal("peek", (await page.Browser.EvaluateAsync("window.pet.gm.visit?.phase")).GetString());
+        Assert.Empty(page.Browser.Errors);
+
+        async Task UntilAsync(PranksterVisit visit)
+        {
+            do Assert.True(await summons.MoveNextAsync());
+            while (summons.Current.Visit != visit);
+        }
+    }
+
+    [Fact]
     public async Task A_daily_actions_pictures_load_when_it_first_plays_not_with_the_page()
     {
         await using var page = await StartAsync();

@@ -58,7 +58,8 @@ as when a PK starts or the room disconnects; from these Core tells the GUI wheth
 gone, as the streaming software reloaded it, no longer has it there. Each such report also says `run=`, the `run` of the
 state the page was told last: how many times the 桌宠 was turned off. Core takes none from before it was last turned off,
 however late it comes, as the page forgot that 来访. The page sends its reports one after another, each once Core has
-answered the one before, and one that got no answer, or a 5xx, again a second later until it gets one.
+answered the one before, and one that got no answer, or a 5xx, again a second later until it gets one. Each time its events
+reconnect, Core has forgotten the 捣蛋鬼 on it, and the page reports it setting off again with the first state it is told.
 
 ## The page
 
