@@ -7,12 +7,8 @@
 // before they start), so what moves on real time (in-between frames, the sprite's flight, cross-fades) moves alike. The page
 // is drawn where the board draws it, at (1400, 420) on a 1920 × 1080 canvas over the board's 透明 room and the dashed outline
 // of the page, so that both send the canvas the same drawing: Chrome's GPU canvas keeps what it drew before for later
-// drawing, and pages that drew other frames first came out a level or two apart at some edges. Even so, the GPU canvas now and
-// then antialiases a vector edge (a stroke of an effect, say) a few levels apart on a few pixels, as its caches were purged or
-// not, which goes on real time and so comes more under load: drawn again it is as before. So a moment that differs counts only
-// if it differs again when both sides play every case afresh; one that differed once is only listed. Moments that differ are
-// saved, as the second time drew them, as <case>-<ms>-board.png and -page.png in --out (default /tmp/desktop-pet-compare); a
-// route's moments are its frames.
+// drawing, and pages that drew other frames first came out a level or two apart at some edges. Mismatched moments are saved
+// as <case>-<ms>-board.png and -page.png in --out (default /tmp/desktop-pet-compare); a route's moments are its frames.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { NAME, ROUTES, STEP, drive, end, frames, itemsOf, send, spendOf, told, walk } from './routes.mjs';
@@ -148,15 +144,14 @@ const [boardRes, pageRes] = [boardRun(chosen), pageRun(chosen)];
 const mismatched = [];
 for (const c of chosen) for (const m of Object.keys(boardRes[c.id])) if (boardRes[c.id][m].hash !== pageRes[c.id]?.[m]?.hash) mismatched.push(c.id + ':' + m);
 const moments = chosen.reduce((n, c) => n + Object.keys(boardRes[c.id]).length, 0);
-console.log(`${chosen.length} cases, ${moments} moments: ${moments - mismatched.length} identical, ${mismatched.length} different the first time`);
+console.log(`${chosen.length} cases, ${moments} moments: ${moments - mismatched.length} identical, ${mismatched.length} different`);
 if (mismatched.length) {
+  fs.mkdirSync(out, { recursive: true });
   const [b, p] = [boardRun(chosen, mismatched), pageRun(chosen, mismatched)];
   for (const key of mismatched) {
     const [id, m] = key.split(':');
-    if (b[id][m].hash === p[id]?.[m]?.hash) { console.log('  once only (the GPU canvas): ' + key); continue; }
-    fs.mkdirSync(out, { recursive: true });
     for (const [side, res] of [['board', b], ['page', p]]) fs.writeFileSync(`${out}/${id}-${m}-${side}.png`, Buffer.from(res[id][m].png.split(',')[1], 'base64'));
     console.log('  different: ' + key);
-    process.exitCode = 1;
   }
+  process.exitCode = 1;
 }

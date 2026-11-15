@@ -117,9 +117,8 @@ the page beside the board, as the web service serves it, telling it it is on in 
   scares it off and what goes into her chest.
 - `scripts/desktop-pet/compare.mjs --port 8820` plays every show, 心情 and round, and the 宝箱小游戏's routes of the design
   package's `tools/check-game.mjs` (played on the page by `scripts/desktop-pet/routes.mjs`), on the page and the board from one
-  seed, frame by frame on one clock, and compares their pixels. A moment that differs counts only if it differs again when
-  both play afresh: Chrome's GPU canvas now and then antialiases a vector edge a few levels apart, as its caches were purged
-  or not. `DesktopPetBrowserTests` runs it, about a minute, when `AETHER_TEST_CHROME` is set.
+  seed, frame by frame on one clock, and compares their pixels. `DesktopPetBrowserTests` runs it, about a minute, when
+  `AETHER_TEST_CHROME` is set.
 - `node docs/design/desktop-pet/tools/motion-scan.mjs 8820 --page` finds the sprite moving more than 20 px in a frame. It plays
   every show in real time, about eleven minutes, too long for a test: run it after changing the sprite's flight, its circling, a toss or
   the pace of a round.
