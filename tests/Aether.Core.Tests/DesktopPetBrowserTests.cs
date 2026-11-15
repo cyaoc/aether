@@ -200,6 +200,28 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task The_捣蛋鬼_whose_pictures_failed_to_load_comes_once_they_load_again()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        var service = page.H.Client.WebService;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        // its pictures cannot be had, as while the web service restarts
+        await page.Browser.CommandAsync("Network.setBlockedURLs", new { urls = new[] { "*prankster*" } });
+        await service.SummonAsync();
+        Assert.Equal("failed", (await page.Browser.EvaluateAsync("""
+            new Promise(done => { const wait = () => window.pet.loads.game ? window.pet.loads.game.then(() => done('loaded'), () => done('failed')) : requestAnimationFrame(wait); wait(); })
+            """)).GetString());
+
+        await page.Browser.CommandAsync("Network.setBlockedURLs", new { urls = Array.Empty<string>() });
+
+        await foreach (var summon in service.GetSummonUpdatesAsync(timeout.Token))
+            if (summon.Visit == PranksterVisit.OnStage) break;
+        Assert.Equal("peek", (await page.Browser.EvaluateAsync("window.pet.gm.visit?.phase")).GetString());
+    }
+
+    [Fact]
     public async Task A_daily_actions_pictures_load_when_it_first_plays_not_with_the_page()
     {
         await using var page = await StartAsync();

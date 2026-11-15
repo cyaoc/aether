@@ -112,7 +112,14 @@ export class Pet extends Engine {
     this.herLeft = (c.x - c.cx) * H / c.ruler;  // her left edge standing idle, from her centre
   }
 
-  loadSheet(k) { return this.loads[k] ??= this.measureSheet(k); }
+  // A load of pictures, kept once asked for. One that fails (the web service restarting cut it off) is forgotten a second later,
+  // so that the next ask loads it again: the game's, asked for each frame while it is to come, or a sheet's, when its show
+  // next plays.
+  load(k, measure) {
+    return this.loads[k] ??= measure().catch(error => { setTimeout(() => { delete this.loads[k]; }, 1000); throw error; });
+  }
+
+  loadSheet(k) { return this.load(k, () => this.measureSheet(k)); }
 
   // A sheet's cells (sheetCells). Her strips drawn from its poses come with it, and only then is it drawn from.
   async measureSheet(k) {
@@ -154,7 +161,7 @@ export class Pet extends Engine {
   // The chest game's pictures: her sheets of it (SEGMENTS.game) and the 捣蛋鬼's, its loops and in-betweens (frames 2 and 3 of a
   // strip drawn in the first pose's cell) and the chest's, loaded the first time it is to come (update); only then does it set
   // off (gameLoaded). Then where the rope ends in the drawings that pull it and those that carry the chest.
-  loadGame() { return this.loads.game ??= this.measureGame(); }
+  loadGame() { return this.load('game', () => this.measureGame()); }
 
   async measureGame() {
     const prankster = this.prankster = await (await fetch(PRANKSTER + 'prankster.json')).json(), picture = name => loadImage(PRANKSTER + name);

@@ -81,7 +81,8 @@ The page is 480 × 640 design px, scaled with the browser source and standing on
 their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作, the castle, 大航海 and the
 lottery, each with its strips when it first plays (the lottery's too when she first waits through one), and the 宝箱小游戏's,
 hers and the 捣蛋鬼's, when it is first to come: all of them decoded take about 574 MB, the game's more. A pose whose sheet is
-still loading keeps her in the drawing she has.
+still loading keeps her in the drawing she has. A load that fails, as when the web service restarts, is tried again when next
+asked for, at the soonest a second later: the game's while it is still to come, a sheet's when its show next plays.
 
 ## The 宝箱小游戏
 
