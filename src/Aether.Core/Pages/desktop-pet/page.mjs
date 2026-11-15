@@ -24,10 +24,13 @@ let run;
 events.addEventListener('state', message => { const state = JSON.parse(message.data); pet.receive(state); run = state.run; });
 for (const name of ['gift', 'blindBox', 'guard', 'entry', 'danmaku', 'testShow', 'stopTestShow', 'summon'])
   events.addEventListener(name, message => pet[name](JSON.parse(message.data)));
+// Its reports go one after another, each once Core has taken the one before, so Core never takes a 来访's start after its end.
+let reported = Promise.resolve();
+const report = query => { reported = reported.then(() => fetch(`/desktop-pet/report?${query}`, { method: 'POST' })).catch(() => {}); };
 // A 试演 that is over is reported, as the video page reports what it played, so the GUI offers another (DesktopPetPage.cs).
-pet.addEventListener('trialended', event => fetch(`/desktop-pet/report?trial=${event.detail}`, { method: 'POST' }));
+pet.addEventListener('trialended', event => report(`trial=${event.detail}`));
 // So is the 捣蛋鬼 setting off and leaving, for the GUI's 叫它来 (DesktopPet.cs).
-pet.addEventListener('visit', event => fetch(`/desktop-pet/report?visit=${event.detail}&page=${id}&run=${run}`, { method: 'POST' }));
+pet.addEventListener('visit', event => report(`visit=${event.detail}&page=${id}&run=${run}`));
 // The next frame is asked for first, so one that throws is lost alone.
 const loop = () => { requestAnimationFrame(loop); pet.frame(); };
 requestAnimationFrame(loop);

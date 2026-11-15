@@ -86,6 +86,31 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task The_page_reports_one_after_another_so_Core_never_takes_a_来访s_start_after_its_end()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        // its first report is slow to reach Core
+        await page.Browser.EvaluateAsync("""
+            window.sent = [];
+            const send = window.fetch.bind(window);
+            window.fetch = (url, o) => {
+              if (!String(url).startsWith('/desktop-pet/report')) return send(url, o);
+              window.sent.push(String(url).split('?')[1].split('&')[0]);
+              return window.sent.length > 1 ? send(url, o) : new Promise(done => { window.release = () => done(send(url, o)); });
+            };
+            window.pet.visited('start'); window.pet.visited('end'); true;
+            """);
+        await page.Browser.EvaluateAsync(TwoFrames);
+        Assert.Equal("""["visit=start"]""", (await page.Browser.EvaluateAsync("JSON.stringify(window.sent)")).GetString());
+
+        await page.Browser.EvaluateAsync("window.release(), true");
+        await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("window.sent.length")).GetInt32() == 2);
+        Assert.Equal("""["visit=start","visit=end"]""", (await page.Browser.EvaluateAsync("JSON.stringify(window.sent)")).GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
     public async Task A_daily_actions_pictures_load_when_it_first_plays_not_with_the_page()
     {
         await using var page = await StartAsync();
