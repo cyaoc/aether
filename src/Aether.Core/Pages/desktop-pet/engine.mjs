@@ -338,8 +338,11 @@ export class Engine extends EventTarget {
     }
     const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (opts.zap && ev.zapDur) || (ev.steps?.[opts.result] ?? ev).dur;
     // one that scared the 捣蛋鬼 off, or came after, waits, at most FRIZZ, for the chest to go home and her hair to be smooth
-    // (stateAt), the chest maybe home already
-    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy || opts.frizz ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null };
+    // (stateAt), the chest maybe home already; meanwhile she says on the line she was saying in the game's show it takes over
+    // (speaking, as stateAt saw it last), until that show would have stopped it: 被偷了 at ROB.quiet, the others at their end
+    const was = this.speaking?.c === c && this.speaking;
+    const carried = opts.tidy || opts.frizz ? c?.carried ?? (was && { text: was.text, from: was.from, until: c.start + c.pre + (c.name === 'chestRobbed' ? ROB.quiet : c.dur) }) : null;
+    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy || opts.frizz ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null, carried };
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
     if (DAILY[name]) this.nextDaily = now + dur + dailyMinSeconds * 1000 + this.rng() * (dailyMaxSeconds - dailyMinSeconds) * 1000;
@@ -1107,13 +1110,20 @@ export class Engine extends EventTarget {
     this.update(now);
     const c = this.cur, shaking = this.shaking();
     let st;
-    // a show that scared the 捣蛋鬼 off waits for the chest to go home, and her hair (stateAt's tidying up before the show)
-    if (c && now < c.start + c.pre && !c.wakeLine) { st = this.base(); if (c.opts.frizz) this.unfrizz(st, now - c.start, c, c.opts.frizz); else if (c.opts.tidy && !this.gm.out) c.pre = now - c.start; }
+    this.speaking = null;
+    // a show that scared the 捣蛋鬼 off waits for the chest to go home, and her hair (stateAt's tidying up before the show),
+    // saying on the line of the game's show it took over (start)
+    if (c && now < c.start + c.pre && !c.wakeLine) {
+      st = this.base();
+      if (c.opts.frizz) this.unfrizz(st, now - c.start, c, c.opts.frizz); else if (c.opts.tidy && !this.gm.out) c.pre = now - c.start;
+      if (c.carried && now < c.carried.until) st.bubble = { text: c.carried.text, t: now - c.carried.from };
+    }
     else if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
     else if (c) {
       st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts));
       // she says her line at the castle's gate once she gets there
       if (c.name === 'castle' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine ??= this.pick('castleGate'), c.name, c.opts);
+      if (c.opts.game && st.bubble?.text) this.speaking = { c, text: st.bubble.text, from: now - st.bubble.t };
     // her hair is patted smooth before she shakes a round's blind boxes too
     } else if (this.gm.fix) { st = this.base(); this.unfrizz(st, now - this.gm.fix.start, this.gm.fix, this.gm.fix.pose); if (this.gm.fix.pre != null) this.gm.fix = null; }
     else if (shaking) st = this.roundState(now, shaking);

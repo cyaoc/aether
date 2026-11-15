@@ -345,6 +345,20 @@ test('a show taking over 守住了 or 被偷了 after the lightning waits for he
   }
 });
 
+test('a show taking over 被偷了 has her say on its line while it waits, until 被偷了 would have stopped it', () => {
+  const pet = tugging();
+  pet.gift(gifts(1, 6000)); play(pet, 3000);
+  for (let i = 0; i < 1000 && playing(pet) !== 'chestRobbed'; i++) play(pet, 100);
+  const robbed = pet.cur.start;
+  let line;
+  play(pet, 1000, st => { line = st.bubble?.text; });
+  pet.guard({ uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 });
+  const said = [];
+  play(pet, 5000, st => said.push([pet.now() - robbed, st.bubble?.text ?? null]));
+  const at = from => said.filter(([t]) => t >= from && t < from + 1000).map(([, text]) => text);
+  assert.deepEqual([playing(pet), typeof line, new Set(at(1000)), new Set(at(4610))], ['governor', 'string', new Set([line]), new Set([null])]);
+});
+
 test('叫它来 right after a PK scared the 捣蛋鬼 off brings it once the chest it let go of is home', () => {
   const pet = tugging(), told = reports(pet);
   pet.receive(state(pet, { pk: true }));
