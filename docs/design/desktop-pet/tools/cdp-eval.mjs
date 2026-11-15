@@ -1,16 +1,17 @@
-// node cdp-eval.mjs "<url>" <waitMs> "<js>" ["<init js>"]: opens the page in headless Chrome, runs js (may return a promise)
-// and prints its JSON result; console errors and exceptions go to stderr. Init js runs before any script of the page.
+// node cdp-eval.mjs "<url>" <waitMs> "<js>" ["<init js>"] ["<chrome flags>"]: opens the page in headless Chrome, runs js (may
+// return a promise) and prints its JSON result; console errors and exceptions go to stderr. Init js runs before any script of
+// the page; the flags, space-separated, are Chrome's besides its own.
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const [url, wait, js, init] = process.argv.slice(2);
+const [url, wait, js, init, flags = ''] = process.argv.slice(2);
 const port = 9400 + Math.floor(Math.random() * 500);
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cdp-'));
 const chrome = spawn('/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', [
   '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${dir}`, '--window-size=1920,1080', '--hide-scrollbars',
-  '--use-angle=metal', '--no-first-run', 'about:blank'], { stdio: 'ignore' });
+  '--use-angle=metal', '--no-first-run', ...flags.split(' ').filter(Boolean), 'about:blank'], { stdio: 'ignore' });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 try {
   let page;

@@ -6,9 +6,10 @@
 // port. Both are driven frame by frame on one made-up clock (their own clock, performance.now and the frame loop stopped
 // before they start), so what moves on real time (in-between frames, the sprite's flight, cross-fades) moves alike. The page
 // is drawn where the board draws it, at (1400, 420) on a 1920 × 1080 canvas over the board's 透明 room and the dashed outline
-// of the page, so that both send the canvas the same drawing: Chrome's GPU canvas keeps what it drew before for later
-// drawing, and pages that drew other frames first came out a level or two apart at some edges. Mismatched moments are saved
-// as <case>-<ms>-board.png and -page.png in --out (default /tmp/desktop-pet-compare); a route's moments are its frames.
+// of the page, so that both send the canvas the same drawing. Both draw on Chrome's CPU canvas (--disable-accelerated-2d-canvas),
+// which draws what it is told the same every time: its GPU canvas hangs on caches that come and go on real time, and now and
+// then, under load, a moment came out otherwise once. Mismatched moments are saved as <case>-<ms>-board.png and -page.png in
+// --out (default /tmp/desktop-pet-compare); a route's moments are its frames.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { NAME, ROUTES, STEP, drive, end, frames, itemsOf, send, spendOf, told, walk } from './routes.mjs';
@@ -133,7 +134,7 @@ function run(side, list, keep = []) {
     for (const [i, c] of ${JSON.stringify(list.map(c => ({ id: c.id, ms: c.ms, steps: c.steps })))}.entries()) await (c.steps ? route : play)({ ...c, run: runs[i] }, ${JSON.stringify(keep)}, res);
     return res;
   })()`;
-  return JSON.parse(execFileSync('node', [eval_, SIDES[side].url, '8000', js, 'window.requestAnimationFrame = () => 0;'], { encoding: 'utf8', maxBuffer: 1 << 30, timeout: 60 * 60000 }));
+  return JSON.parse(execFileSync('node', [eval_, SIDES[side].url, '8000', js, 'window.requestAnimationFrame = () => 0;', '--disable-accelerated-2d-canvas'], { encoding: 'utf8', maxBuffer: 1 << 30, timeout: 60 * 60000 }));
 }
 // Each side plays her shows and the routes in a page of its own each, so that both drew the same before (see above): the
 // board its game off for her shows as they were, on for its routes.
