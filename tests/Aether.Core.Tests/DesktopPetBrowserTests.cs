@@ -180,8 +180,8 @@ public sealed class DesktopPetBrowserTests
         await service.SummonAsync();
         await UntilAsync(PranksterVisit.OnTheWay);
         await Eventually.TrueAsync(async () => (await page.Browser.EvaluateAsync("String(window.pet.gm.due)")).GetString() == "called");
-        // (its pictures loaded first: one the restart cut off would not load)
-        await page.Browser.EvaluateAsync("Promise.all(Object.values(window.pet.loads)).then(() => true)");
+        // (its pictures loaded first, the game's too, which it loads once one is due: one the restart cut off would not load)
+        await page.Browser.EvaluateAsync("Promise.all([window.pet.loadGame(), ...Object.values(window.pet.loads)]).then(() => true)");
 
         var port = new Uri(service.Status.Origin).Port;
         await service.StopAsync();
