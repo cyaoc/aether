@@ -321,22 +321,28 @@ test('after the lightning and a PK, with the chest home and her hair still frizz
   }
 });
 
-test('a show taking over 守住了 after the lightning waits for her hair if the sprite has not patted it smooth yet, and not after', () => {
-  const won = () => {
+test('a show taking over 守住了 or 被偷了 after the lightning waits for her hair if the sprite has not patted it smooth yet, and not after', () => {
+  const after = show => {
     const pet = tugging();
     pet.gift(gifts(1, 6000)); play(pet, 3000);
-    pet.gift(gifts(2, 100000)); play(pet, 2500);   // (it waits for the lightning)
-    assert.deepEqual([playing(pet), pet.cur.opts.zap], ['chestKept', true]);
+    // beaten off once the lightning is over, or else the countdown runs out
+    if (show === 'chestKept') pet.gift(gifts(2, 100000));
+    for (let i = 0; i < 1000 && playing(pet) !== show; i++) play(pet, 100);
+    play(pet, 1000);
+    assert.deepEqual([playing(pet), pet.cur.opts.zap], [show, true]);
     return pet;
   };
-  const governor = { uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 }, early = won(), late = won();
-  early.guard(governor);
-  const poses = [];
-  play(early, 100, st => poses.push(st.pose));
-  assert.deepEqual([playing(early), early.cur.opts.frizz, poses[0]], ['governor', true, 'cheerZap']);
-  play(late, 5000);
-  late.guard(governor);
-  assert.deepEqual([playing(late), late.cur.opts.frizz], ['governor', false]);
+  const governor = { uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 };
+  // (the sprite is not drawn here, so her hair is smooth at the latest each show has it: smooth)
+  for (const [show, smooth] of [['chestKept', 5000], ['chestRobbed', 3500]]) {
+    const early = after(show), late = after(show), poses = [];
+    early.guard(governor);
+    play(early, 100, st => poses.push(st.pose));
+    assert.deepEqual([show, playing(early), early.cur.opts.frizz, poses[0]], [show, 'governor', true, 'cheerZap']);
+    play(late, smooth);
+    late.guard(governor);
+    assert.deepEqual([show, playing(late), late.cur.opts.frizz], [show, 'governor', false]);
+  }
 });
 
 test('叫它来 right after a PK scared the 捣蛋鬼 off brings it once the chest it let go of is home', () => {
