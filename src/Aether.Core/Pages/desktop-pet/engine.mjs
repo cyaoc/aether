@@ -333,7 +333,7 @@ export class Engine extends EventTarget {
     // one that comes while the chest is still going home, or her hair is still to be patted smooth, waits for them, whether the
     // show it takes over had them still to do or none played (a PK scared the 捣蛋鬼 off); the game's own shows play the chest home
     if (!opts.game) {
-      opts = { ...opts, tidy: opts.tidy || (gm.out ? TIDY : 0), frizz: opts.frizz || gm.fix?.pose || this.frizzed(c, now) };
+      opts = { ...opts, tidy: opts.tidy || (gm.out ? TIDY : 0), frizz: opts.frizz || this.frizzed(gm.fix, now) || this.frizzed(c, now) };
       gm.fix = null;
     }
     const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (opts.zap && ev.zapDur) || (ev.steps?.[opts.result] ?? ev).dur;
@@ -494,15 +494,18 @@ export class Engine extends EventTarget {
     this.cur = null;
   }
 
-  // Whether her hair is frizzed at now in show c and still to be patted smooth, and then the pose she waits for it in (frizz:
-  // unfrizz): it waits for that (pre), or it is the game's own after the lightning (zap) and its sprite has not done it yet
-  // (smooth, by the show's seed), 守住了 cheering on and 被偷了 kneeling as she was.
+  // Whether her hair is frizzed at now in show c, or with no show (gm.fix), and still to be patted smooth, and then the pose she
+  // waits for it in (frizz: unfrizz): c waits for that (pre), or it is the game's own after the lightning (zap), 守住了 cheering
+  // on and 被偷了 kneeling as she was. Once the sprite has patted it smooth it is not, the glitter still settling (SETTLE) or not.
   frizzed(c, now) {
     if (!c) return null;
-    if (now < c.start + c.pre) return c.opts.frizz;
-    const p = this.pat, done = p?.seed === Math.floor(c.start) && now - c.start - c.pre >= p.fix;
-    return c.opts.zap && !done ? this.held(c) : null;
+    if (!c.opts) return this.smoothed(-c.start, now - c.start) ? null : c.pose;
+    if (now < c.start + c.pre) return c.opts.frizz && !this.smoothed(-c.start, now - c.start) ? c.opts.frizz : null;
+    return c.opts.zap && !this.smoothed(Math.floor(c.start), now - c.start - c.pre) ? this.held(c) : null;
   }
+
+  // Whether her sprite has patted her hair smooth by t into what smooth plays by seed.
+  smoothed(seed, t) { const p = this.pat; return p?.seed === seed && t >= p.fix; }
 
   // The pose she is in through the game's show c, which one taking it over waits in: kneeling after 被偷了, else cheering on.
   held(c) { return c.name === 'chestRobbed' ? 'robbed' : 'cheer'; }

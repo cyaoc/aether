@@ -377,6 +377,21 @@ test('a show taking over 守住了 or 打飞 waits for the chest cheering on as 
   }
 });
 
+test('her hair patted smooth stays smooth for a show coming while its glitter settles, after a show waiting for it or a PK', () => {
+  const scares = { captain: p => p.guard({ uid: 4, nickname: '舰长', guardLevel: 3, spend: 198000 }), pk: p => p.receive(state(p, { pk: true })) };
+  for (const [way, scare] of Object.entries(scares)) {
+    const pet = tugging(), after = [];
+    pet.gift(gifts(1, 6000)); play(pet, 3000);
+    scare(pet);
+    let smooth = null;
+    for (let i = 0; i < 1000 && smooth == null; i++) play(pet, 17, st => { if (st.pose === 'cheer') smooth = pet.now(); });
+    play(pet, 800);
+    pet.guard({ uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 });
+    play(pet, 3000, st => after.push(st.pose));
+    assert.deepEqual([way, typeof smooth, playing(pet), pet.cur.opts.frizz, after.includes('cheerZap')], [way, 'number', 'governor', null, false]);
+  }
+});
+
 test('叫它来 right after a PK scared the 捣蛋鬼 off brings it once the chest it let go of is home', () => {
   const pet = tugging(), told = reports(pet);
   pet.receive(state(pet, { pk: true }));
