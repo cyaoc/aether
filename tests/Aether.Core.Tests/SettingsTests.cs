@@ -227,7 +227,9 @@ public sealed class SettingsTests : IAsyncDisposable
 
         Assert.Null(settings.Error);
         Assert.Equal((1, helper), (settings.UpgradedFromVersion, settings.DesktopPetPranksterKeyword.Value));
-        Assert.Equal(old.Replace("format_version: 1", "format_version: 2").Replace("desktop_pet:\n", "desktop_pet:\n  prankster_keyword: " + helper + "\n"),
+        // (in the fixture's own line breaks, which a Windows checkout makes \r\n, and the upgrade keeps)
+        var newline = old.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        Assert.Equal(old.Replace("format_version: 1", "format_version: 2").Replace("desktop_pet:" + newline, "desktop_pet:" + newline + "  prankster_keyword: " + helper + newline),
             File.ReadAllText(SettingsPath));
     }
 
@@ -283,7 +285,7 @@ public sealed class SettingsTests : IAsyncDisposable
 
         Assert.Null(settings.Error);
         Assert.Equal((0, "捣蛋", "捣乱"), (settings.UpgradedFromVersion, settings.BlindBoxDailyKeyword.Value, settings.DesktopPetPranksterKeyword.Value));
-        var text = File.ReadAllText(SettingsPath);
+        var text = File.ReadAllText(SettingsPath).ReplaceLineEndings("\n");
         Assert.StartsWith("# 设置文件格式版本，由程序维护\nformat_version: 2\n\n# 日志设置", text);
         Assert.Contains("  12345: 小明进场.mp4\n\ndesktop_pet:\n  prankster_keyword: 捣乱\n", text);
         var bytes = File.ReadAllBytes(SettingsPath);
