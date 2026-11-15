@@ -303,7 +303,8 @@ export class Engine extends EventTarget {
 
   fire(name, opts = {}) {
     const now = this.now(), ev = this.events[name];
-    if (!opts.chained) opts = { ...opts, wake: opts.wake ?? ['gloomy', 'sleepy'].includes(this.mood(now, false)) };
+    // (the game's own shows, its endings, never: she has just been in it)
+    if (!opts.chained && !opts.game) opts = { ...opts, wake: opts.wake ?? ['gloomy', 'sleepy'].includes(this.mood(now, false)) };
     // Anyone coming in counts as something happening for 犯困; a show turned off plays nothing, not a lesser one instead.
     this.lastAny = now;
     // while the 捣蛋鬼 is here she waves at no one, and anything else scares it off, a show turned off too; the show then waits
