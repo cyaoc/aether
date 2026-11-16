@@ -854,12 +854,14 @@ class Component extends DCLogic {
   }
 
   // Knocked out of the air: it lets go and flees as a 大航海 scares it, the chest falls and the sprite takes it home, and
-  // she cheers as when it is beaten off (守住了).
+  // she cheers as when it is beaten off (守住了) the moment it is knocked down, not once the chest is home (用户：“她看到了
+  // 打下来就欢呼”); her line still waits for the chest to be up past her bubble (chestUp).
   airKnock(now, w) {
-    const gm = this.gm, v = gm.visit, tidy = this.scare(now);
+    const gm = this.gm, v = gm.visit;
+    this.scare(now);
     Object.assign(v, { result: 1, resultAt: now });
     gm.streak++; gm.chest += v.spent; gm.pile += v.count; gm.grudge = w.name;
-    this.fire('守住了', { game: true, streak: gm.streak, tidy, nickname: w.name });
+    this.fire('守住了', { game: true, streak: gm.streak, nickname: w.name });
   }
 
   // Off with it in the air: it flies on over the right of the page with the chest still hanging from its rope (away).
@@ -3018,7 +3020,11 @@ class Component extends DCLogic {
     // a 人气票 or 小花花 comes from one of the board's viewers, rather one on no side yet, so the avatars fill up; a danmaku
     // from one on no side (called out), one that says 1 or 2, or one already on a side (a paper ball)
     const side = (gift, n) => () => this.give([{ gift, price: 1, n, viewer: this.someone() }]), dm = (on, said) => () => this.heard(this.someone(on), said);
-    group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['人气票', side('人气票', 1)], ['人气票 ×10', side('人气票', 10)], ['小花花', side('小花花', 1)], ['小花花 ×5', side('小花花', 5)],
+    // ×100 is a 秒杀 while the chest holds 2000 电池 or less (each end is 100 票 away then); the last stretch is a jump of
+    // the fight's own clock to 10 s left, to see the dragging, the 0:00 wait and a 绝杀 without waiting the minute out
+    const last10 = () => { const v = this.gm.visit; if (v?.phase === 'tug' && v.judge == null) v.left = Math.min(v.left, GAME.sprint + 400); };
+    group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['人气票', side('人气票', 1)], ['人气票 ×10', side('人气票', 10)], ['人气票 ×100', side('人气票', 100)],
+      ['小花花', side('小花花', 1)], ['小花花 ×5', side('小花花', 5)], ['小花花 ×100', side('小花花', 100)], ['跳到最后 10 秒', last10],
       ['路人发弹幕', dm(false)], ['发「1」', dm(null, '1')], ['发「2」', dm(null, '2')], ['站了队的发弹幕', dm(true)],
       ['别的礼物 100 电池', g([one('爱心抱枕', 100)])], ['别的礼物到中礼物', g([one('告白气球', 2000)])], ['PK 开始', () => this.pkOn(true)], ['PK 结束', () => this.pkOn(false)]]);
     const fit = () => { const r = document.getElementById('root'); if (r) r.style.zoom = Math.min(innerWidth / 1920, (innerHeight - bar.offsetHeight) / 1080); };
