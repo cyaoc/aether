@@ -47,6 +47,10 @@ public sealed partial class VisualReviewTests
                 Capture("shows");
                 GuiHarness.Tab(page, 1);
                 Capture("moods");
+                // Design package preview/gui-switches*.webp; switched back on so the scenes after it stay unsaved-free.
+                await TurnAsync(page, false, "沮丧", "出事");
+                Capture("switches");
+                await TurnAsync(page, true, "沮丧", "出事");
                 GuiHarness.Tab(page, 3);
                 Pick(page, "LineKindList", "大礼物");
                 Capture("lines");
@@ -59,6 +63,10 @@ public sealed partial class VisualReviewTests
                 harness.Client.WebService.SetDesktopPetRoom(true);
                 await GuiHarness.WaitForAsync(() => page.FindControl<Button>("SummonButton")!.IsEnabled);
                 Capture("game");
+                // Design package preview/gui-game-switch*.webp.
+                await TurnAsync(page, false, "捣蛋鬼自己来");
+                Capture("game-switch");
+                await TurnAsync(page, true, "捣蛋鬼自己来");
                 var keyword = Input(page, "帮它的关键字");
                 keyword.Text = "抽奖";
                 Capture("game-keyword");
@@ -82,5 +90,12 @@ public sealed partial class VisualReviewTests
 
             void Capture(string scene) => Save(window, $"desktop-pet-{scene}-{width}x{height}-{(dark ? "dark" : "light")}");
         }, TestContext.Current.CancellationToken);
+    }
+
+    private static async Task TurnAsync(DesktopPetSettingsPage page, bool on, params string[] names)
+    {
+        var switches = names.Select(name => Switch(page, name)).ToArray();
+        foreach (var toggle in switches) toggle.IsChecked = on;
+        foreach (var toggle in switches) await SettleAsync(toggle);
     }
 }

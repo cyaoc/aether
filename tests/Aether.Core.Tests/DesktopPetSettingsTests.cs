@@ -138,6 +138,12 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
         Assert.Null(settings.ValidateBlindBoxKeyword("今日盲盒"));
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("  ")]
+    public void A_blind_box_query_keyword_left_empty_says_it_cannot_be(string keyword) =>
+        Assert.Equal("关键字不能空着", Settings.Load(h.DataDirectory).ValidateBlindBoxKeyword(keyword));
+
     [Fact]
     public void Saving_a_threshold_that_is_not_below_the_big_one_is_refused_without_writing()
     {

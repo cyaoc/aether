@@ -56,13 +56,13 @@ public partial class DesktopPetSettingsPage : SettingsPage
         Bind(EnabledInput, EnabledReadOnly, null, s => s.DesktopPetEnabled);
         Bind(MidGiftInput, MidGiftReadOnly, null, s => s.DesktopPetMidGift);
         Bind(BigGiftInput, BigGiftReadOnly, null, s => s.DesktopPetBigGift);
-        Bind(BoredInput, BoredReadOnly, BoredError, s => s.DesktopPetBoredMinutes);
-        Bind(GloomyInput, GloomyReadOnly, GloomyError, s => s.DesktopPetGloomyMinutes);
-        Bind(SleepyInput, SleepyReadOnly, SleepyError, s => s.DesktopPetSleepyMinutes);
+        Bind(BoredOn, BoredInput, BoredReadOnly, BoredError, s => s.DesktopPetBoredMinutes);
+        Bind(GloomyOn, GloomyInput, GloomyReadOnly, GloomyError, s => s.DesktopPetGloomyMinutes);
+        Bind(SleepyOn, SleepyInput, SleepyReadOnly, SleepyError, s => s.DesktopPetSleepyMinutes);
         Bind(DailyMinInput, DailyMinReadOnly, null, s => s.DesktopPetDailyMinSeconds);
         Bind(DailyMaxInput, DailyMaxReadOnly, null, s => s.DesktopPetDailyMaxSeconds);
-        Bind(MishapInput, MishapReadOnly, MishapError, s => s.DesktopPetMishapPercent);
-        Bind(PranksterMinutesInput, PranksterMinutesReadOnly, PranksterMinutesError, s => s.DesktopPetPranksterMinutes);
+        Bind(MishapOn, MishapInput, MishapReadOnly, MishapError, s => s.DesktopPetMishapPercent);
+        Bind(PranksterOn, PranksterMinutesInput, PranksterMinutesReadOnly, PranksterMinutesError, s => s.DesktopPetPranksterMinutes);
         Bind(PranksterKeywordInput, PranksterKeywordReadOnly, null, s => s.DesktopPetPranksterKeyword);
     }
 
@@ -81,25 +81,27 @@ public partial class DesktopPetSettingsPage : SettingsPage
         BuildLineKinds();
     }
 
-    /// <summary>When a 演出 plays follows the thresholds as they are typed; a 心情 or mishap chance of 0 says it never comes.</summary>
+    /// <summary>When a 演出 plays follows the thresholds as they are typed; a 心情, mishap or 捣蛋鬼 turned off says it never comes.</summary>
     private void WatchNotes()
     {
         OnText(MidGiftInput, RefreshShowNotes);
         OnText(BigGiftInput, RefreshShowNotes);
-        foreach (var (input, note, usual, never) in new (NumericUpDown, TextBlock, string, string)[]
+        foreach (var (on, note, usual, never) in new (ToggleSwitch, TextBlock, string, string)[]
         {
-            (BoredInput, BoredNote, "托腮发呆，隔一阵叹口气", "填了 0：不会无聊"),
-            (GloomyInput, GloomyNote, "蹲着画圈圈，头上一片阴影", "填了 0：不会沮丧"),
-            (SleepyInput, SleepyNote, "抱着膝盖打瞌睡，有人来就惊醒", "填了 0：不会犯困"),
-            (MishapInput, MishapNote, "砸到脚、破音、摔一跤；填 0 就不出事", "填了 0：不会出事"),
-            (PranksterMinutesInput, PranksterMinutesNote, "有人在看、她闲着时它自己来；填 0 就只在你叫它时来", "填了 0：它只在你叫它时来")
+            (BoredOn, BoredNote, "托腮发呆，隔一阵叹口气", "不会无聊"),
+            (GloomyOn, GloomyNote, "蹲着画圈圈，头上一片阴影", "不会沮丧"),
+            (SleepyOn, SleepyNote, "抱着膝盖打瞌睡，有人来就惊醒", "不会犯困"),
+            (MishapOn, MishapNote, "砸到脚、破音、摔一跤", "不会出事"),
+            (PranksterOn, PranksterMinutesNote, "有人在看、她闲着时它自己来", "只在你点「叫它来」时来")
         })
-            OnText(input, () =>
+        {
+            // A switch starts off and reading 0 leaves it so without a change, so the note starts as off.
+            note.Text = never;
+            on.PropertyChanged += (_, e) =>
             {
-                var zero = Number(input) == 0;
-                note.Text = zero ? never : usual;
-                note.Classes.Set("accent", zero);
-            });
+                if (e.Property == ToggleSwitch.IsCheckedProperty) note.Text = on.IsChecked == true ? usual : never;
+            };
+        }
     }
 
     private static void OnText(NumericUpDown input, Action changed) =>

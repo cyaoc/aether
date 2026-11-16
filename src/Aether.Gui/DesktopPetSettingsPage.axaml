@@ -133,27 +133,30 @@
           <StackPanel Spacing="8">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Classes="section" Text="冷场心情" />
-              <TextBlock Classes="hint" Text="冷场久了她会无聊、沮丧、犯困；填 0 就不进这种心情" />
+              <TextBlock Classes="hint" Text="冷场久了她会无聊、沮丧、犯困" />
             </StackPanel>
-            <Grid ColumnDefinitions="44,Auto,168,*" RowDefinitions="42,Auto,Auto,42,Auto,Auto,42,Auto,Auto" ColumnSpacing="10">
-              <TextBlock FontWeight="SemiBold" Text="无聊" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Column="1" x:Name="BoredInput" Minimum="0" Classes.invalid="{Binding #BoredError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="无聊：几分钟后进入" />
-              <TextBlock Grid.Column="2" Text="分钟没收到礼物" VerticalAlignment="Center" />
-              <TextBlock Grid.Column="3" x:Name="BoredNote" Classes="hint" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" x:Name="BoredError" Classes="error" />
-              <TextBlock Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" x:Name="BoredReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-              <TextBlock Grid.Row="3" FontWeight="SemiBold" Text="沮丧" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="3" Grid.Column="1" x:Name="GloomyInput" Minimum="0" Classes.invalid="{Binding #GloomyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="沮丧：几分钟后进入" />
-              <TextBlock Grid.Row="3" Grid.Column="2" Text="分钟没收到礼物" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="3" Grid.Column="3" x:Name="GloomyNote" Classes="hint" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" x:Name="GloomyError" Classes="error" />
-              <TextBlock Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" x:Name="GloomyReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-              <TextBlock Grid.Row="6" FontWeight="SemiBold" Text="犯困" VerticalAlignment="Center" />
-              <NumericUpDown Grid.Row="6" Grid.Column="1" x:Name="SleepyInput" Minimum="0" Classes.invalid="{Binding #SleepyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="犯困：几分钟后进入" />
-              <TextBlock Grid.Row="6" Grid.Column="2" Text="分钟什么事都没有" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="6" Grid.Column="3" x:Name="SleepyNote" Classes="hint" VerticalAlignment="Center" />
-              <TextBlock Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="3" x:Name="SleepyError" Classes="error" />
-              <TextBlock Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="3" x:Name="SleepyReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+            <Grid ColumnDefinitions="68,Auto,Auto,168,*" RowDefinitions="42,Auto,Auto,42,Auto,Auto,42,Auto,Auto" ColumnSpacing="10">
+              <TextBlock Grid.Row="0" FontWeight="SemiBold" Classes.muted="{Binding !#BoredOn.IsChecked}" Text="无聊" VerticalAlignment="Center" />
+              <ToggleSwitch Grid.Row="0" Grid.Column="1" x:Name="BoredOn" Classes="plain" AutomationProperties.Name="无聊" />
+              <NumericUpDown Grid.Row="0" Grid.Column="2" x:Name="BoredInput" Minimum="1" IsEnabled="{Binding #BoredOn.IsChecked}" Classes.invalid="{Binding #BoredError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="无聊：几分钟后进入" />
+              <TextBlock Grid.Row="0" Grid.Column="3" Classes.muted="{Binding !#BoredOn.IsChecked}" Text="分钟没收到礼物" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="0" Grid.Column="4" x:Name="BoredNote" Classes="hint" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="3" x:Name="BoredError" Classes="error" />
+              <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="3" x:Name="BoredReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+              <TextBlock Grid.Row="3" FontWeight="SemiBold" Classes.muted="{Binding !#GloomyOn.IsChecked}" Text="沮丧" VerticalAlignment="Center" />
+              <ToggleSwitch Grid.Row="3" Grid.Column="1" x:Name="GloomyOn" Classes="plain" AutomationProperties.Name="沮丧" />
+              <NumericUpDown Grid.Row="3" Grid.Column="2" x:Name="GloomyInput" Minimum="1" IsEnabled="{Binding #GloomyOn.IsChecked}" Classes.invalid="{Binding #GloomyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="沮丧：几分钟后进入" />
+              <TextBlock Grid.Row="3" Grid.Column="3" Classes.muted="{Binding !#GloomyOn.IsChecked}" Text="分钟没收到礼物" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="3" Grid.Column="4" x:Name="GloomyNote" Classes="hint" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="4" Grid.Column="2" Grid.ColumnSpan="3" x:Name="GloomyError" Classes="error" />
+              <TextBlock Grid.Row="5" Grid.Column="2" Grid.ColumnSpan="3" x:Name="GloomyReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+              <TextBlock Grid.Row="6" FontWeight="SemiBold" Classes.muted="{Binding !#SleepyOn.IsChecked}" Text="犯困" VerticalAlignment="Center" />
+              <ToggleSwitch Grid.Row="6" Grid.Column="1" x:Name="SleepyOn" Classes="plain" AutomationProperties.Name="犯困" />
+              <NumericUpDown Grid.Row="6" Grid.Column="2" x:Name="SleepyInput" Minimum="1" IsEnabled="{Binding #SleepyOn.IsChecked}" Classes.invalid="{Binding #SleepyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="犯困：几分钟后进入" />
+              <TextBlock Grid.Row="6" Grid.Column="3" Classes.muted="{Binding !#SleepyOn.IsChecked}" Text="分钟什么事都没有" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="6" Grid.Column="4" x:Name="SleepyNote" Classes="hint" VerticalAlignment="Center" />
+              <TextBlock Grid.Row="7" Grid.Column="2" Grid.ColumnSpan="3" x:Name="SleepyError" Classes="error" />
+              <TextBlock Grid.Row="8" Grid.Column="2" Grid.ColumnSpan="3" x:Name="SleepyReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
             </Grid>
           </StackPanel>
           <StackPanel Spacing="10">
@@ -190,9 +193,10 @@
             </StackPanel>
             <TextBlock x:Name="DailyReadOnly" Classes="hint" Margin="78,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBlock Width="70" Text="出事" VerticalAlignment="Center" />
-              <NumericUpDown x:Name="MishapInput" Minimum="0" Maximum="100" Classes.invalid="{Binding #MishapError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="出事的几率（%）" />
-              <TextBlock Text="% 的几率出点小事" VerticalAlignment="Center" />
+              <TextBlock Width="70" Classes.muted="{Binding !#MishapOn.IsChecked}" Text="出事" VerticalAlignment="Center" />
+              <ToggleSwitch x:Name="MishapOn" Classes="plain" AutomationProperties.Name="出事" />
+              <NumericUpDown x:Name="MishapInput" Minimum="1" Maximum="100" IsEnabled="{Binding #MishapOn.IsChecked}" Classes.invalid="{Binding #MishapError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="出事的几率（%）" />
+              <TextBlock Classes.muted="{Binding !#MishapOn.IsChecked}" Text="% 的几率出点小事" VerticalAlignment="Center" />
               <TextBlock x:Name="MishapNote" Classes="hint" Margin="8,0,0,0" VerticalAlignment="Center" />
             </StackPanel>
             <StackPanel Margin="78,0,0,0">
@@ -222,10 +226,11 @@
           <StackPanel Spacing="12">
             <StackPanel Spacing="4">
               <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Width="96" FontWeight="SemiBold" Text="自己来" VerticalAlignment="Center" />
-                <TextBlock Text="最多每" VerticalAlignment="Center" />
-                <NumericUpDown x:Name="PranksterMinutesInput" Minimum="0" Classes.invalid="{Binding #PranksterMinutesError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="它最多每几分钟自己来一次" />
-                <TextBlock Text="分钟来一次" VerticalAlignment="Center" />
+                <TextBlock Width="96" FontWeight="SemiBold" Classes.muted="{Binding !#PranksterOn.IsChecked}" Text="自己来" VerticalAlignment="Center" />
+                <ToggleSwitch x:Name="PranksterOn" Classes="plain" AutomationProperties.Name="捣蛋鬼自己来" />
+                <TextBlock Classes.muted="{Binding !#PranksterOn.IsChecked}" Text="最多每" VerticalAlignment="Center" />
+                <NumericUpDown x:Name="PranksterMinutesInput" Minimum="1" IsEnabled="{Binding #PranksterOn.IsChecked}" Classes.invalid="{Binding #PranksterMinutesError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="它最多每几分钟自己来一次" />
+                <TextBlock Classes.muted="{Binding !#PranksterOn.IsChecked}" Text="分钟来一次" VerticalAlignment="Center" />
                 <TextBlock x:Name="PranksterMinutesNote" Classes="hint" Margin="8,0,0,0" VerticalAlignment="Center" />
               </StackPanel>
               <TextBlock x:Name="PranksterMinutesError" Classes="error" Margin="104,0,0,0" />

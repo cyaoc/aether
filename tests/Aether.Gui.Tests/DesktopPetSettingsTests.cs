@@ -54,7 +54,7 @@ public sealed class DesktopPetSettingsTests
             case "switch": page.FindControl<ToggleSwitch>("EnabledInput")!.IsChecked = true; break;
             case "show": Switch(page, "进场").IsChecked = false; break;
             case "threshold": Pick(page, "ShowGroupList", "礼物"); Number(page, "大礼物门槛（电池）").Text = "20000"; break;
-            case "mood": GuiHarness.Tab(page, 1); Number(page, "犯困：几分钟后进入").Text = "0"; break;
+            case "mood": GuiHarness.Tab(page, 1); Switch(page, "犯困").IsChecked = false; break;
             case "daily": GuiHarness.Tab(page, 1); Switch(page, "滑雪").IsChecked = false; break;
             case "mishap": GuiHarness.Tab(page, 1); Number(page, "出事的几率（%）").Text = "50"; break;
             case "prankster": GuiHarness.Tab(page, 2); Number(page, "它最多每几分钟自己来一次").Text = "10"; break;
@@ -83,9 +83,10 @@ public sealed class DesktopPetSettingsTests
         Assert.Contains("这一轮 2000 – 9999 电池", Texts(page));
         GuiHarness.Tab(page, 1);
         Switch(page, "哼歌").IsChecked = false;
-        Number(page, "无聊：几分钟后进入").Text = "0";
+        Switch(page, "无聊").IsChecked = false;
         GuiHarness.Flush();
-        Assert.Contains("填了 0：不会无聊", Texts(page));
+        Assert.Contains("不会无聊", Texts(page));
+        Assert.False(Number(page, "无聊：几分钟后进入").IsEnabled);
         GuiHarness.Tab(page, 3);
         Pick(page, "LineKindList", "大礼物");
         Line(page, 1).Text = "{昵称}，谢谢你～";
@@ -117,16 +118,92 @@ public sealed class DesktopPetSettingsTests
     {
         GuiHarness.Tab(page, 2);
         Assert.Equal(("30", "捣蛋"), (Number(page, "它最多每几分钟自己来一次").Text, Input(page, "帮它的关键字").Text));
-        Assert.Contains("有人在看、她闲着时它自己来；填 0 就只在你叫它时来", Texts(page));
-        Number(page, "它最多每几分钟自己来一次").Text = "0";
+        Assert.Contains("有人在看、她闲着时它自己来", Texts(page));
+        Switch(page, "捣蛋鬼自己来").IsChecked = false;
         Input(page, "帮它的关键字").Text = "捣乱";
         GuiHarness.Flush();
-        Assert.Contains("填了 0：它只在你叫它时来", Texts(page));
+        Assert.Contains("只在你点「叫它来」时来", Texts(page));
 
         await GuiHarness.SaveAsync(page);
         var saved = Settings.Load(harness.DataDirectory);
         Assert.Equal((0, "捣乱"), (saved.DesktopPetPranksterMinutes.Value, saved.DesktopPetPranksterKeyword.Value));
         Assert.Equal("捣乱", harness.Client.WebService.Settings!.DesktopPetPranksterKeyword.Value);
+    });
+
+    [Fact]
+    public Task Without_desktop_pet_settings_every_number_that_can_be_turned_off_is_on_at_its_default_and_opening_writes_nothing() =>
+        WithPage((page, harness) =>
+        {
+            var before = File.ReadAllText(Settings.FilePath(harness.DataDirectory));
+            GuiHarness.Tab(page, 1);
+            Assert.Equal([(true, "15"), (true, "40"), (true, "60"), (true, "25")],
+                new[] { ("无聊", "无聊：几分钟后进入"), ("沮丧", "沮丧：几分钟后进入"), ("犯困", "犯困：几分钟后进入"), ("出事", "出事的几率（%）") }
+                    .Select(row => (Switch(page, row.Item1).IsChecked == true, Number(page, row.Item2).Text)));
+            GuiHarness.Tab(page, 2);
+            Assert.Equal((true, "30"), (Switch(page, "捣蛋鬼自己来").IsChecked == true, Number(page, "它最多每几分钟自己来一次").Text));
+            Assert.False(page.IsDirty);
+            Assert.Equal(before, File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
+            return Task.CompletedTask;
+        });
+
+    [Fact]
+    public Task A_number_the_file_holds_as_0_shows_its_switch_off_with_its_default_ready_to_turn_back_on() => WithPage(async (page, harness) =>
+    {
+        GuiHarness.Tab(page, 1);
+        Assert.Equal((false, "40", false), (Switch(page, "沮丧").IsChecked, Number(page, "沮丧：几分钟后进入").Text, Number(page, "沮丧：几分钟后进入").IsEnabled));
+        Assert.Equal((false, "25", false), (Switch(page, "出事").IsChecked, Number(page, "出事的几率（%）").Text, Number(page, "出事的几率（%）").IsEnabled));
+        Assert.Subset(Texts(page).ToHashSet(), new HashSet<string?> { "不会沮丧", "不会出事", "托腮发呆，隔一阵叹口气", "抱着膝盖打瞌睡，有人来就惊醒" });
+        Assert.Equal((true, true), (Switch(page, "无聊").IsChecked, Switch(page, "犯困").IsChecked));
+        GuiHarness.Tab(page, 2);
+        Assert.True(Switch(page, "捣蛋鬼自己来").IsChecked);
+        Assert.False(page.IsDirty);
+
+        GuiHarness.Tab(page, 1);
+        Switch(page, "沮丧").IsChecked = true;
+        GuiHarness.Flush();
+        Assert.Contains("蹲着画圈圈，头上一片阴影", Texts(page));
+        Assert.True(Number(page, "沮丧：几分钟后进入").IsEnabled);
+        await GuiHarness.SaveAsync(page);
+        var saved = Settings.Load(harness.DataDirectory);
+        Assert.Equal((40, 0), (saved.DesktopPetGloomyMinutes.Value, saved.DesktopPetMishapPercent.Value));
+    }, prepare: harness => harness.SaveSettings(("desktop_pet.gloomy_minutes", "0"), ("desktop_pet.mishap_percent", "0")));
+
+    [Fact]
+    public Task No_tab_says_that_0_turns_a_number_off_whether_it_is_on_or_off() => WithPage(page =>
+    {
+        foreach (var (tab, switches) in new[] { (1, new[] { "无聊", "沮丧", "犯困", "出事" }), (2, new[] { "捣蛋鬼自己来" }) })
+        {
+            GuiHarness.Tab(page, tab);
+            foreach (var on in new[] { true, false })
+            {
+                foreach (var name in switches) Switch(page, name).IsChecked = on;
+                GuiHarness.Flush();
+                Assert.DoesNotContain(Texts(page), text => text?.Contains("填 0") == true || text?.Contains("填了 0") == true);
+            }
+        }
+        return Task.CompletedTask;
+    });
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("")]
+    public Task A_number_switched_on_must_be_positive_while_one_switched_off_is_not_checked(string typed) => WithPage(async (page, harness) =>
+    {
+        GuiHarness.Tab(page, 2);
+        var minutes = Number(page, "它最多每几分钟自己来一次");
+        minutes.Text = typed;
+        GuiHarness.Flush();
+        Assert.Equal("要填正整数", page.FindControl<TextBlock>("PranksterMinutesError")!.Text);
+        Assert.True(page.FindControl<TextBlock>("PranksterMinutesError")!.IsVisible);
+        Assert.Contains("invalid", minutes.Classes);
+        Assert.False(page.CanSave);
+
+        Switch(page, "捣蛋鬼自己来").IsChecked = false;
+        GuiHarness.Flush();
+        Assert.False(page.FindControl<TextBlock>("PranksterMinutesError")!.IsVisible);
+        Assert.True(page.CanSave);
+        await GuiHarness.SaveAsync(page);
+        Assert.Equal(0, Settings.Load(harness.DataDirectory).DesktopPetPranksterMinutes.Value);
     });
 
     [Theory]
