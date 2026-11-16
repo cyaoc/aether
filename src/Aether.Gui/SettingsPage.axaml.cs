@@ -223,7 +223,7 @@ public abstract class SettingsPage : TemplatedControl
         on.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Validate(); };
     }
 
-    protected static int? Number(NumericUpDown input) => int.TryParse(input.Text, out var value) ? value : null;
+    internal static int? Number(NumericUpDown input) => int.TryParse(input.Text, out var value) ? value : null;
 
     /// <param name="why">Why the input cannot be saved before Core is asked, or null.</param>
     private void Register<T>(Action<Setting<T>> show, Func<string?> input, TextBlock? error, Func<Settings, Setting<T>> select,

@@ -4,6 +4,7 @@ using Aether.Core;
 using Avalonia;
 using Avalonia.Automation;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 
 namespace Aether.Gui;
@@ -99,7 +100,7 @@ public partial class DesktopPetSettingsPage : SettingsPage
             note.Text = never;
             on.PropertyChanged += (_, e) =>
             {
-                if (e.Property == ToggleSwitch.IsCheckedProperty) note.Text = on.IsChecked == true ? usual : never;
+                if (e.Property == ToggleButton.IsCheckedProperty) note.Text = on.IsChecked == true ? usual : never;
             };
         }
     }
