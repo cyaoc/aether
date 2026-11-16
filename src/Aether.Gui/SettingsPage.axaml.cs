@@ -218,10 +218,12 @@ public abstract class SettingsPage : TemplatedControl
             on.IsChecked = setting.Value != 0;
             on.IsEnabled = setting.CanEdit;
         }, () => on.IsChecked == true ? input.Text : "0", error, select,
-            () => on.IsChecked == true && !(int.TryParse(input.Text, out var number) && number > 0) ? "要填正整数" : null);
+            () => on.IsChecked == true && Number(input) is not > 0 ? "要填正整数" : null);
         input.PropertyChanged += (_, e) => { if (e.Property == NumericUpDown.TextProperty) Validate(); };
         on.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Validate(); };
     }
+
+    protected static int? Number(NumericUpDown input) => int.TryParse(input.Text, out var value) ? value : null;
 
     /// <param name="why">Why the input cannot be saved before Core is asked, or null.</param>
     private void Register<T>(Action<Setting<T>> show, Func<string?> input, TextBlock? error, Func<Settings, Setting<T>> select,

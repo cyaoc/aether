@@ -107,8 +107,6 @@ public partial class DesktopPetSettingsPage : SettingsPage
     private static void OnText(NumericUpDown input, Action changed) =>
         input.PropertyChanged += (_, e) => { if (e.Property == NumericUpDown.TextProperty) changed(); };
 
-    private static int? Number(NumericUpDown input) => int.TryParse(input.Text, out var value) ? value : null;
-
     private void RefreshShowNotes()
     {
         string Battery(int? value) => (value ?? 0).ToString(CultureInfo.InvariantCulture);
