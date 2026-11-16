@@ -12,19 +12,32 @@ const [port, ...only] = process.argv.slice(2);
 const LOOT = [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 1500],
   ['do', 'x.heard()'], ['wait', 2500], ['jump', 9100], ['until', 'x.gm.visit?.phase === "tug"'], ['wait', 2600]];
 const EMPTY = [['do', 'x.visit()'], ['wait', 300], ['jump', 2500], ['jump', 9100], ['until', 'x.gm.visit?.phase === "peer"'], ['wait', 3000]];
-// n 人气票 (her side) or 小花花 (its side) from one of the board's viewers; the chest of 500 电池 makes its life 10 票
+// n 人气票 (her side) or 小花花 (its side) from one of the board's viewers; the chest of 500 电池 puts each end 100 票 from
+// the middle, so 55 of hers set off the lightning and 100 of either side's end the fight there and then (秒杀)
 const tok = (n, side = 1) => ['do', `x.give([{ gift: '${side > 0 ? '人气票' : '小花花'}', price: 1, n: ${n}, viewer: x.someone() }])`];
-const ZAP = [tok(6), ['until', 'x.gm.visit.cut == null && x.gm.visit.zapped != null'], ['wait', 600]];
+const ZAP = [tok(55), ['until', 'x.gm.visit.cut == null && x.gm.visit.zapped != null'], ['wait', 600]];
+const SPRINT = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500]];
+const AIR = [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 1500]];
 const HITS = [tok(1), ['wait', 900], tok(1, -1), ['wait', 1500], tok(1, -1), tok(1, -1), tok(1, -1), tok(1, -1), ['wait', 3000]];
-const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500], tok(1, -1), ['wait', 800], ['jump', 9000],
+// it gets ahead in the last stretch (60 of its: also past her 55 after the lightning) and has it at 0:00
+const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500], tok(60, -1), ['wait', 800], ['jump', 9000],
   ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 1500], ['do', "x.give([{ gift: '爱心抱枕', price: 10, n: 1 }])"], ['until', 'x.cur'], ['until', '!x.cur'], ['wait', 800]];
-const WIN = [tok(10), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
+const WIN = [tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
+// the last stretch: ahead she holds, behind or level she is dragged; at 0:00 and the grace the side the line is on wins
+const BUZZER = [...SPRINT, tok(5), ['wait', 2500], ['jump', 7000], ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
+const FLIP = [...SPRINT, tok(5), ['wait', 2500], tok(10, -1), ['wait', 2500], ['jump', 6000], ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]];
 export const ROUTES = {
   'hits': [...LOOT, ...HITS],
   'zap-hits': [...LOOT, ...ZAP, ...HITS],
   'lose': [...LOOT, ...LOSE],
   'zap-lose': [...LOOT, ...ZAP, ...LOSE],
   'win': [...LOOT, ...WIN],
+  'buzzer-win': [...LOOT, ...BUZZER],
+  'sprint-flip': [...LOOT, ...FLIP],
+  'steal-kill': [...LOOT, tok(100, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
+  'zap-kill': [...LOOT, tok(55), ['until', 'x.gm.visit.cut != null'], ['wait', 900], tok(45), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
+  'air-kill': [...AIR, tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
+  'air-steal': [...AIR, tok(100, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
   'zap-win': [...LOOT, ...ZAP, ...WIN],
   'empty-knocked': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['wait', 500], tok(1), ['until', 'x.cur?.name === "打跑了"'], ['until', '!x.cur'], ['wait', 800]],
   'empty-toss': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['jump', 45100], ['until', '!x.gm.visit'], ['wait', 1200]],
