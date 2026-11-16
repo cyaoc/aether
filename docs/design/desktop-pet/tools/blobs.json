@@ -217,5 +217,9 @@
  "232103fa1a828cf6abfaa0f38f77ee18": "../gift-board/textures/avatars/sky.webp",
  "6d0f7caff30f5aeb137edd01a4566882": "../gift-board/textures/avatars/sunflower.webp",
  "9a8ff6273af0377beb655e5a706329d3": "../gift-board/textures/avatars/sunset.webp",
- "7c06c75d684972b87cea95a8875f334e": "../gift-board/textures/avatars/wave.webp"
+ "7c06c75d684972b87cea95a8875f334e": "../gift-board/textures/avatars/wave.webp",
+ "7eed22425aa2b9205be44a785cc35812": "textures/frames/pkHaulOuch.webp",
+ "5c70e7d3716d4ce5084ce21202892d57": "textures/frames/pkHaulFlat.webp",
+ "fa2690852b1ffc3e83509f30f55538bb": "textures/frames/pkThunderFlat.webp",
+ "b4347ed3d41d244c200f6c9e4805451e": "textures/frames/pkThunderHaul.webp"
 }

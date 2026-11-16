@@ -38,6 +38,10 @@ export const ROUTES = {
   'zap-kill': [...LOOT, tok(55), ['until', 'x.gm.visit.cut != null'], ['wait', 900], tok(45), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
   'air-kill': [...AIR, tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
   'air-steal': [...AIR, tok(100, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
+  // the end coming while it hauls the chest off, while it is still getting up, while it casts its lightning
+  'sprint-kill': [...LOOT, ...SPRINT, tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
+  'up-kill': [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 800], ['jump', 9100], ['until', 'x.gm.visit?.phase === "tug"'], ['wait', 1200], tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
+  'zap-steal': [...LOOT, tok(55), ['until', 'x.gm.visit.cut != null'], ['wait', 900], tok(155, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
   'zap-win': [...LOOT, ...ZAP, ...WIN],
   'empty-knocked': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['wait', 500], tok(1), ['until', 'x.cur?.name === "打跑了"'], ['until', '!x.cur'], ['wait', 800]],
   'empty-toss': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['jump', 45100], ['until', '!x.gm.visit'], ['wait', 1200]],
@@ -54,13 +58,22 @@ export const ROUTES = {
 const props = { scene: '手动', controls: '隐藏', caption: '隐藏', room: '深色房间', game: '开' };
 const url = `http://localhost:${port}/render.html?board=DP-DesktopPet.dc.html&props=${encodeURIComponent(JSON.stringify(props))}`;
 const play = steps => `(async () => {
-  const x = dc, sleep = ms => new Promise(r => setTimeout(r, ms)), seen = {}, errors = [];
+  const x = dc, sleep = ms => new Promise(r => setTimeout(r, ms)), seen = {}, pkSeen = {}, errors = [];
   for (let i = 0; i < 150 && !x.gm; i++) await sleep(100);   // all routes load at once: the board may take a while to boot
   await sleep(600);
   const dh = x.drawHer.bind(x);
   x.drawHer = (g, st, now) => {
     const a = x.hv?.pose, r = dh(g, st, now), b = x.hv?.pose;
     if (a && b && a !== b && !((a + '>' + b) in seen)) { const w = x.route(a, b); seen[a + '>' + b] = w == null ? 'none' : w.length ? 'tween' : 'cut'; }
+    return r;
+  };
+  // the prankster's changes too: a turn round (its in-betweens face one way, so a change that turns it is a plain switch
+  // as written), in-betweens (pkRoute: drawn either way round, or by way of pulling its rope), cut as written (PKCUT), or none
+  const dp = x.drawPk.bind(x);
+  x.drawPk = (g, p) => {
+    const a = x.pv?.pose, af = x.pv?.flip, r = dp(g, p);
+    const cut = x.pkCut, k = a + '>' + p.pose, back = p.pose + '>' + a;
+    if (a && a !== p.pose && !(k in pkSeen)) pkSeen[k] = !!af !== !!p.flip ? 'turn' : x.pkRoute(a, p.pose) ? 'tween' : cut.has(k) || cut.has(back) || p.pose === 'knocked' ? 'cut' : 'none';
     return r;
   };
   for (const [kind, arg] of ${JSON.stringify(steps)}) {
@@ -71,22 +84,27 @@ const play = steps => `(async () => {
       if (kind === 'until') { const ok = new Function('x', 'return ' + arg), t0 = performance.now(); while (!ok(x)) { if (performance.now() - t0 > 30000) throw new Error('never'); await sleep(16); } }
     } catch (e) { errors.push(kind + ' ' + arg + ': ' + e.message); }
   }
-  return { seen, errors };
+  return { seen, pkSeen, errors };
 })()`;
 // run as a script: compare.mjs imports the routes
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const names = only.length ? only : Object.keys(ROUTES);
   const runs = await Promise.all(names.map(name => new Promise(done => {
     const p = spawn('node', [path.join(tools, 'cdp-eval.mjs'), url, '5000', play(ROUTES[name])], { stdio: ['ignore', 'pipe', 'ignore'] });
-    let out = ''; p.stdout.on('data', d => { out += d; }); p.on('close', () => { try { done([name, JSON.parse(out)]); } catch { done([name, { seen: {}, errors: ['no result'] }]); } });
+    const stall = setTimeout(() => p.kill(), 6 * 60000);   // a Chrome that stalls under the load of all of them at once
+    let out = ''; p.stdout.on('data', d => { out += d; }); p.on('close', () => { clearTimeout(stall); try { done([name, JSON.parse(out)]); } catch { done([name, { seen: {}, errors: ['no result (stalled: run it alone)'] }]); } });
   })));
-  const all = {};
+  const all = {}, pk = {};
   for (const [name, r] of runs) {
     if (r.errors?.length) console.log(`${name}: ERRORS ${r.errors.join(' | ')}`);
     for (const [pair, how] of Object.entries(r.seen || {})) (all[pair] ??= { how, routes: [] }).routes.push(name);
+    for (const [pair, how] of Object.entries(r.pkSeen || {})) (pk[pair] ??= { how, routes: [] }).routes.push(name);
   }
   const pairs = Object.entries(all).sort((a, b) => a[1].how.localeCompare(b[1].how) || a[0].localeCompare(b[0]));
   const count = h => pairs.filter(([, v]) => v.how === h).length;
   console.log(`${names.length} routes: ${pairs.length} changes of her pose, ${count('tween')} with in-betweens, ${count('cut')} cut as written, ${count('none')} with no way across`);
   for (const [pair, v] of pairs) if (v.how !== 'tween') console.log(`  ${v.how === 'none' ? 'no way' : 'cut'}: ${pair}（${v.routes.join('、')}）`);
+  const pks = Object.entries(pk).sort((a, b) => a[1].how.localeCompare(b[1].how) || a[0].localeCompare(b[0])), n = h => pks.filter(([, v]) => v.how === h).length;
+  console.log(`the prankster: ${pks.length} changes of its pose, ${n('tween')} with in-betweens, ${n('turn')} turning round, ${n('cut')} cut as written, ${n('none')} with none`);
+  for (const [pair, v] of pks) if (v.how === 'none') console.log(`  none: ${pair}（${v.routes.join('、')}）`);
 }
