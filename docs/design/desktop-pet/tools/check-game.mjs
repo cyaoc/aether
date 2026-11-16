@@ -12,12 +12,13 @@ const [port, ...only] = process.argv.slice(2);
 const LOOT = [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 1500],
   ['do', 'x.heard()'], ['wait', 2500], ['jump', 9100], ['until', 'x.gm.visit?.phase === "tug"'], ['wait', 2600]];
 const EMPTY = [['do', 'x.visit()'], ['wait', 300], ['jump', 2500], ['jump', 9100], ['until', 'x.gm.visit?.phase === "peer"'], ['wait', 3000]];
-const gift = (price, helper = false) => ['do', `x.give([{ gift: '小花花', price: ${price}, n: 1${helper ? ', helper: true' : ''} }])`];
-const ZAP = [gift(60), ['until', 'x.gm.visit.cut == null && x.gm.visit.zapped != null'], ['wait', 600]];
-const HITS = [gift(10), ['wait', 900], ['do', 'x.join()'], gift(10, true), ['wait', 1500], gift(10, true), gift(10, true), gift(10, true), gift(10, true), ['wait', 3000]];
-const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500], ['do', 'x.join()'], gift(10, true), ['wait', 800], ['jump', 9000],
-  ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 1500], gift(10), ['until', 'x.cur'], ['until', '!x.cur'], ['wait', 800]];
-const WIN = [gift(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
+// n 人气票 (her side) or 小花花 (its side) from one of the board's viewers; the chest of 500 电池 makes its life 10 票
+const tok = (n, side = 1) => ['do', `x.give([{ gift: '${side > 0 ? '人气票' : '小花花'}', price: 1, n: ${n}, viewer: x.someone() }])`];
+const ZAP = [tok(6), ['until', 'x.gm.visit.cut == null && x.gm.visit.zapped != null'], ['wait', 600]];
+const HITS = [tok(1), ['wait', 900], tok(1, -1), ['wait', 1500], tok(1, -1), tok(1, -1), tok(1, -1), tok(1, -1), ['wait', 3000]];
+const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500], tok(1, -1), ['wait', 800], ['jump', 9000],
+  ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 1500], ['do', "x.give([{ gift: '爱心抱枕', price: 10, n: 1 }])"], ['until', 'x.cur'], ['until', '!x.cur'], ['wait', 800]];
+const WIN = [tok(10), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
 export const ROUTES = {
   'hits': [...LOOT, ...HITS],
   'zap-hits': [...LOOT, ...ZAP, ...HITS],
@@ -25,7 +26,7 @@ export const ROUTES = {
   'zap-lose': [...LOOT, ...ZAP, ...LOSE],
   'win': [...LOOT, ...WIN],
   'zap-win': [...LOOT, ...ZAP, ...WIN],
-  'empty-knocked': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['wait', 500], gift(100), ['until', 'x.cur?.name === "打跑了"'], ['until', '!x.cur'], ['wait', 800]],
+  'empty-knocked': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['wait', 500], tok(1), ['until', 'x.cur?.name === "打跑了"'], ['until', '!x.cur'], ['wait', 800]],
   'empty-toss': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['jump', 45100], ['until', '!x.gm.visit'], ['wait', 1200]],
   'scare-tug': [...LOOT, ...ZAP, ['do', 'x.fire("舰长", { price: 1980 })'], ['until', 'x.cur?.name === "舰长"'], ['until', '!x.cur'], ['wait', 800]],
   'scare-zap-admiral': [...LOOT, ...ZAP, ['do', 'x.fire("提督", { price: 19980 })'], ['until', 'x.cur?.name === "提督"'], ['until', '!x.cur'], ['wait', 800]],
@@ -41,6 +42,7 @@ const props = { scene: '手动', controls: '隐藏', caption: '隐藏', room: '�
 const url = `http://localhost:${port}/render.html?board=DP-DesktopPet.dc.html&props=${encodeURIComponent(JSON.stringify(props))}`;
 const play = steps => `(async () => {
   const x = dc, sleep = ms => new Promise(r => setTimeout(r, ms)), seen = {}, errors = [];
+  for (let i = 0; i < 150 && !x.gm; i++) await sleep(100);   // all routes load at once: the board may take a while to boot
   await sleep(600);
   const dh = x.drawHer.bind(x);
   x.drawHer = (g, st, now) => {

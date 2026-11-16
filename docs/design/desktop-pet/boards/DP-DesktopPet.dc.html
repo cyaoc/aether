@@ -47,7 +47,11 @@ const BLOB = {
   sp3: '7f1bdec14fd8c0adb92b1dcda9d9101c',
   chestRing: '7d5aadb1014a0604dca599322d154b44',
   game16: 'ee75f111341426b7dc16df2cc423a121',
-  pk6: 'c72fa34aad6ebe07779e51879845917b'
+  pk6: 'c72fa34aad6ebe07779e51879845917b',
+  // the chest game's paper ball (tools/props/paperball.txt), and the 礼物榜's sample avatars for the board's viewers
+  paperball: 'bf18d936f13071d14cb4edf4cebfb3d7',
+  av0: 'c620d7f4bc5af562ce5ffd444676ff76', av1: 'fe74bf47e64cdfb2bcb9e7b82e0b5fb9', av2: '0f4430b615cac01b7810b7521a933def', av3: 'b983e6ae5179fd006a444e444faa6b9f',
+  av4: '6d0f7caff30f5aeb137edd01a4566882', av5: 'e6fca7276cf94c054a7f9f49c542d0c9', av6: '8a343577fdd5c70379a9198a27823463', av7: '9a8ff6273af0377beb655e5a706329d3'
 };
 // Every sheet's first cell is the same everyday standing drawing at the same size (gen-sheet.py draws the other cells
 // beside it), so it is every sheet's ruler and one scale fits them all.
@@ -227,9 +231,9 @@ const CLEAR = 150;
 const NOTICE = 500;
 // every: it comes at most once in this long (whether gifts have stopped is no matter: that would make it a nudge to give); peek (looking in
 // and back out), carry (flying over with the chest), loiter (on an empty chest), fight and sprint (the fight's last stretch):
-// how long each lasts; pebbles: the share of its life that all the danmaku together can take; urge: from this much time left
+// how long each lasts; urge: from this much time left
 // the countdown grows anxious.
-const GAME = { every: 30 * 60000, peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, pebbles: 0.3, urge: 30000 };
+const GAME = { every: 30 * 60000, peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, urge: 30000 };
 // The phases in which it is already on its way off the page: a gift then is a gift to her again.
 const DONE = new Set(['knocked', 'toss', 'leave', 'won', 'lost', 'fled']);
 // It lies DAZED ms on the chest's lid where it fell; in the tug it is UP and pulling that long after the chest lands.
@@ -239,9 +243,35 @@ const DAZED = 1300, UP = 2200;
 const PKLINES = {
   peek: ['嘘——\n别告诉她'], grudge: ['上次砸我的\n{昵称}在吗？'], brag: ['上次那箱\n真不错～'], shrug: ['……空的？\n白偷了！'],
   sit: ['我坐这儿等，\n有货再拿～', '这箱子\n归我坐了！', '没人管我吧？\n嘿嘿'], toss: ['空的不要，\n还你！'],
-  grab: ['哎呀，\n被发现了！'], recruit: ['想看她出糗？\n发「捣蛋」！'], zap: ['看我的闪电！'], sprint: ['拜拜咯～'],
-  lost: ['多谢款待，\n下次再来！'], won: ['你们给我\n等着——！']
+  grab: ['哎呀，\n被发现了！'], recruit: ['想看她出糗？\n发2跟我混！'], zap: ['看我的闪电！'], sprint: ['拜拜咯～'],
+  lost: ['多谢款待，\n下次再来！'], won: ['你们给我\n等着——！'],
+  // to whoever is on no side and says something, by name; to a run of paper balls; to a lucky one, on it or on her
+  // (its bubble holds six characters a line)
+  taunt: ['{昵称}\n发1打我呀～', '{昵称}\n发2跟我混！', '{昵称}\n光看不帮忙？'],
+  retort: ['{昵称}\n挠痒痒呢？', '{昵称}\n人气票才疼！'], dazed: ['哎哟！别送\n人气票啊！'], urge: ['她晕啦！\n快送小花花！'],
+  flower: ['谢谢{昵称}！\n箱子归我了～']
 };
+// The chest game's two sides (2026-11-16, 用户：“血条想改一下、让它更有对抗性、现在扣血加血看不出来、我也想让弹幕参与
+// 进来”): 人气票 pull for her (1), 小花花 for the prankster (-1), one 票 a gift; every other gift goes home to her chest
+// unplayed, and a viewer's round that comes to a 中礼物 plays her show, which scares it off. A danmaku that is just 1 or 2
+// picks a side for one who has sent neither gift this visit; a danmaku of anyone on a side throws a paper ball at the
+// other side (BALL), one in LUCK.chance a lucky one: whoever it hits is open for LUCK.ms, the other side's gift counting
+// twice (no more than LUCK.cap of the fight's life more in all), not again until LUCK.gap after. One on no side is called
+// out by name (TAUNT); a run of RETORT.hits balls in RETORT.ms has the one hit answer back.
+const SIDE_GIFT = { 人气票: 1, 小花花: -1 };
+const LUCK = { chance: 0.1, ms: 5000, gap: 15000, cap: 0.2 }, TAUNT = 8000, RETORT = { hits: 5, ms: 5000, gap: 10000 }, BALL = 650;
+// B站's own icons of the two (giftConfig?platform=pc, 2026-11-16), from B站's CDN as the page draws a gift's icon
+const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', '-1': 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png' };
+const SIDE_COL = { 1: '#FF9EC4', '-1': '#B79BE8' };
+// the tug bar along the top of the page, wider than the old life bar (用户：“扣血加血看不出来”): her pink from the left
+// as far as the line (a little chest), its purple beyond. Under it, two rows: each side's gift icon and how to join it by
+// danmaku (1, 2), then the avatars of who joined it by gift. The game's words are read off a stream shrunk on a phone
+// (用户：“拔河的文字太小了、看不清”), so they keep to her bubbles' size (28 px, BUBBLE_FONT): the countdown above it, what
+// its life still asks for, the numbers and ×2 at it, and the short labels under the bar a step below (24 px). HUD is how
+// far down the page it all reaches, which a mark that follows her or it never enters.
+const BAR = { x: 20, y: 96, w: 440, h: 20 }, ROW = [BAR.y + BAR.h + 22, BAR.y + BAR.h + 62], HUD = BAR.y + BAR.h + 82;
+// the board's viewers in the game, each with one of the 礼物榜's sample avatars (BLOB av0…)
+const VIEWERS = ['星河', '小鱼干', '奶茶不加糖', '今天也要早睡', '柚子', '路过的猫', '阿狸', '晚风'].map((name, i) => ({ uid: 101 + i, name, av: 'av' + i }));
 // Effects on top of each event's own, stronger the higher the tier (README 7.1): C a manga symbol and a small burst; B a
 // ring on the ground and things floating up; A light behind her and a shake at the peak; S the whole page.
 // fx: [type, from ms, ...]; shake: [from ms, px, ms].
@@ -341,7 +371,7 @@ const LINES = {
   沮丧: ['是不是没人喜欢我了…', '画个圈圈…', '（偷偷看）有人在吗…'],
   '沮丧·被偷': ['我的宝箱…', '下次一定守住…', '（偷偷看）下次有人帮我守吗…'],
   犯困: ['呼…呼…', '唔…再睡五分钟…', '（梦话）哑铃…好重…'], 打瞌睡惊醒: ['我、我没睡着！'],
-  宝箱摔下来: ['啊！我的宝箱！'], 打得好: ['{昵称}打得好！'], 怎么砸我: ['{昵称}！怎么砸我呀！'],
+  宝箱摔下来: ['啊！我的宝箱！'], 打得好: ['{昵称}打得好！'], 怎么砸我: ['{昵称}！怎么砸我呀！'], 别丢啦: ['{昵称}！别丢啦～'],
   报名中: ['发「{关键字}」就能报名哦～', '还在报名中…快来快来！'], 等开奖: ['会是谁呢…好紧张', '心、心跳好快…'],
   冷场后来了人: ['啊！有人来了！', '我、我没睡着！'],
   举哑铃: ['今天也要锻炼！'], 哼歌: ['♪啦啦啦～'], 爬山: ['下次一起去爬山吧！', '山顶的风好舒服～'], 骑车: ['叮铃叮铃～', '骑车去兜风！'],
@@ -485,6 +515,15 @@ class Component extends DCLogic {
     }
     this.castle = { closed: img.castleClosed, open: img.castleOpen, box: box(img.castleClosed, 0, 0, img.castleClosed.width, img.castleClosed.height) };
     this.props = { flagship: img.flagship, admship: img.admship, emblem: img.emblem, giftbox: img.giftbox, giftboxOpen: img.giftboxOpen, balloons: img.balloons, chest: img.chest, chestOpen: img.chestOpen, chestRing: img.chestRing };
+    // the chest game: its paper ball, the lucky one the same ball blushing pink (its glow and sparkles are drawn), the
+    // board's viewers' avatars, and the two sides' gift icons, which load from B站 later or never (a gift box then)
+    const lucky = document.createElement('canvas'), lg = lucky.getContext('2d');
+    lucky.width = img.paperball.width; lucky.height = img.paperball.height;
+    lg.drawImage(img.paperball, 0, 0); lg.globalCompositeOperation = 'source-atop'; lg.fillStyle = 'rgba(255,128,180,0.42)'; lg.fillRect(0, 0, lucky.width, lucky.height);
+    this.ball = { plain: img.paperball, lucky };
+    this.avatars = Object.fromEntries(VIEWERS.map(w => [w.av, img[w.av]]));
+    this.sideIcon = {};
+    for (const s of [1, -1]) { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => { this.sideIcon[s] = i; }; i.src = SIDE_ICON[s]; }
     // The chest's size on the page (its closed drawing), and where the rope a pulling drawing holds ends (or the sprite's
     // fists are): the middle of what the drawing shows at its left edge, down its height.
     this.chestBox = img.chest ? { w: img.chest.width * H / ANCHOR, h: img.chest.height * H / ANCHOR, open: img.chestOpen.height * H / ANCHOR } : { w: 104, h: 84, open: 150 };
@@ -612,7 +651,9 @@ class Component extends DCLogic {
     // A castle comes only out of a blind box (README 10): thrown at it like any box, at the box's price, each still plays
     // its castle once the 盲盒播报 would have told of it, and the first scares the prankster off as a 大航海 does (fire;
     // 用户：“城堡不是盲盒开出来的么”, it was lost in the game).
-    if (this.cfg.game && this.gameGift(x)) {
+    const kept = this.cfg.game && this.gameGift(x, r);
+    if (kept === 'quiet') return;   // home to her chest, in the round still, no show while the prankster is here
+    if (kept) {
       r.items.pop(); if (!r.items.length) this.round = null;
       if (x.box && x.castle) this.castleDue.push({ at: x.at + ROUND_GAP + ANNOUNCE_AFTER, top: !!x.top, spend: x.boxPrice * x.n, n: x.n });
       return;
@@ -728,7 +769,7 @@ class Component extends DCLogic {
   }
 
   // a danmaku is not played (README 10), it only tells her someone is there: 犯困 needs an hour with nothing at all
-  heard() { this.lastAny = this.now(); if (this.cfg.game) this.pebble(); }
+  heard(w, said = '') { this.lastAny = this.now(); if (this.cfg.game) this.gameDanmaku(w ?? this.someone(false), said); }
 
   fastForward(min) { const d = min * 60000; this.lastGift -= d; this.lastAny -= d; this.recent = this.recent.map(r => r - d); this.nextDaily -= d; this.gm.last -= d; }
 
@@ -744,13 +785,42 @@ class Component extends DCLogic {
   // out (the sprite flying the chest home), walk (her hopping to another place), streak and steals, brag and grudge (what
   // it opens with next time), say (her line of the game), herX (where she stands).
 
-  // A gift while the game is on. Out of a visit it only counts for the chest at home: her own show plays as ever. While
-  // the prankster is here it is thrown (queue), and plays no show of hers: true then.
-  gameGift(x) {
-    const gm = this.gm, v = gm.visit, spend = (x.box ? x.boxPrice : x.price) * x.n;
+  // A gift while the game is on, in its viewer's round r. Out of a visit it only counts for the chest at home: her own
+  // show plays as ever (false). While the prankster is here a 人气票 or 小花花 is thrown (queue), one 票 each, twice while
+  // the other side is open (luck), and plays nothing ('thrown'); a blind box goes home and plays nothing either, though a
+  // castle out of it still plays and scares it off ('thrown'); any other gift goes home and plays nothing, staying in the
+  // round ('quiet'), until the round comes to a 中礼物: then its show plays (false), which scares it off (fire).
+  gameGift(x, r) {
+    const gm = this.gm, v = gm.visit, spend = (x.box ? x.boxPrice : x.price) * x.n, side = !x.box && SIDE_GIFT[x.gift], now = this.now();
     if (!v || DONE.has(v.phase)) { gm.chest += spend; gm.pile += x.n; return false; }
-    v.queue.push({ spend, count: x.n, helper: !!x.helper && v.phase === 'tug' });
-    return true;
+    if (!side) {
+      if (!x.box && r.items.filter(i => !i.box).reduce((a, i) => a + i.price * i.n, 0) >= MID) { gm.chest += spend; gm.pile += x.n; return false; }
+      gm.chest += spend; gm.pile += x.n;
+      return x.box ? 'thrown' : 'quiet';
+    }
+    const w = x.viewer || this.someone();
+    this.enlist(w, side, 'gift');
+    const luck = v.luck?.side === side && now < v.luck.until ? v.luck : null, more = luck ? Math.min(x.n, Math.max(0, Math.floor(LUCK.cap * v.max) - luck.extra)) : 0;
+    if (luck) luck.extra += more;
+    v.queue.push({ n: x.n + more, count: x.n, side, spend, w, double: more > 0 });
+    return 'thrown';
+  }
+
+  // Whoever sends a 人气票 or 小花花 (by: 'gift') or says 1 or 2 (by: 'dm') is on that side this visit, the newest last; a
+  // gift's side stands, so 1 or 2 after it does not move them (their avatar would hang on one side, their balls fly
+  // from the other). Returns the side they are on.
+  enlist(w, side, by) {
+    const sides = this.gm.visit.sides, s = sides.get(w.uid);
+    if (s?.by === 'gift' && by === 'dm') return s.side;
+    sides.delete(w.uid); sides.set(w.uid, { ...w, side, by, at: this.now() });
+    return side;
+  }
+
+  // One of the board's viewers: on a side (true), on none (false), or anyone, rather one on no side yet (null).
+  someone(on = null) {
+    const sides = this.gm.visit?.sides, pool = VIEWERS.filter(w => on === null ? !sides?.has(w.uid) : !!sides?.has(w.uid) === on);
+    const from = pool.length ? pool : on === null ? VIEWERS : [];
+    return from.length ? from[Math.floor(this.rng() * from.length)] : null;
   }
 
   // The prankster is to come: once whatever plays is over (a 日常小动作 is not cut short), gameUpdate starts its visit.
@@ -774,7 +844,8 @@ class Component extends DCLogic {
     const gm = this.gm;
     gm.due = false; gm.out = null;
     // loot: there is something in the chest to fight over
-    gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helpers: 0, helped: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
+    gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helped: 0,
+      sides: new Map(), balls: [], struck: {}, retorted: {}, taunted: new Set(), taunt: -Infinity, lucked: -Infinity, luck: null, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
     this.pkSay(gm.brag ? 'brag' : gm.grudge ? 'grudge' : 'peek', now, gm.grudge);
     gm.brag = false;
   }
@@ -786,9 +857,12 @@ class Component extends DCLogic {
     if (['knocked', 'fled'].includes(p)) v.say = null;
   }
 
+  // Where the tug's line is across the bar: her share is what she has knocked off its life.
+  lineX(v) { return BAR.x + 2 + (BAR.w - 4) * clamp(1 - v.hp / v.max, 0, 1); }
+
   pkSay(kind, now, name) { this.gm.visit.say = { text: this.pick(kind, PKLINES).replace('{昵称}', name), at: now }; }
 
-  herSay(kind, now) { this.gm.say = { text: this.fill(this.pick(kind)), at: now }; }
+  herSay(kind, now, name = this.cfg.name) { this.gm.say = { text: this.fill(this.pick(kind).replaceAll('{昵称}', name)), at: now }; }
 
   // She hops to x in so many little hops (never a slide).
   hopTo(x, now, hops = 1) { const gm = this.gm; if (Math.abs(x - gm.herX) > 1) gm.walk = { from: gm.herX, to: x, at: now, ms: 300 * hops, hops }; }
@@ -845,60 +919,88 @@ class Component extends DCLogic {
     return { x: p.x + x * k - y * n, y: p.y + x * n + y * k };
   }
 
-  // A gift lands. Over an empty chest the prankster has one life: any gift knocks it off the page, and is the chest's
-  // first. With gifts in the chest every gift takes its 电池 off the prankster's life; a 中礼物 ends it there. A helper's
-  // gift lands on her head instead and gives the prankster that much life back. She lets go of the handle, so the
-  // prankster, glad of it, points at her and laughs, and the chest comes a little its way (tumble), while her
-  // sprite pulls on alone; then she takes hold again. The fifth of them, counted by the gift (count, five in one go
-  // too), flattens her: she lies flat while her sprite pulls on (it lets go, the prankster is off with the chest),
-  // catches the handle lying down and is dragged a little before she is up. In the fight's last stretch she lies holding
-  // on already, and only winces.
-  strike(now, spend, helper, count) {
-    const gm = this.gm, v = gm.visit, name = this.cfg.name;
+  // A 人气票 or 小花花 lands (h: its 票 n, twice in a lucky window, the gifts count, its side, spend and viewer w). Over an
+  // empty chest the prankster has one life: a 人气票 knocks it off the page, and is the chest's first; a 小花花 it takes,
+  // laughing, and sits on (its 电池 go home). With gifts in the chest a 人气票 takes its 票 off the prankster's life, and
+  // the last of it wins. A 小花花 lands on her head instead and gives the prankster that much life back, past full too
+  // (its life grows: a gift is never for nothing). She lets go of the handle, so the prankster, glad of it, points at her
+  // and laughs, and the chest comes a little its way (tumble), while her sprite pulls on alone; then she takes hold
+  // again. The fifth of them, counted by the gift (count, five in one go too), flattens her: she lies flat while her
+  // sprite pulls on (it lets go, the prankster is off with the chest), catches the handle lying down and is dragged a
+  // little before she is up. In the fight's last stretch she lies holding on already, and only winces. Where the line
+  // was before it (ghost) shows a moment on the bar.
+  strike(now, h) {
+    const gm = this.gm, v = gm.visit, name = h.w.name;
     if (DONE.has(v.phase)) return;
     if (!v.loot) {
-      Object.assign(gm, { grudge: name, chest: spend, pile: 1 });
+      if (h.side < 0) { gm.chest += h.spend; gm.pile += h.count; v.laugh = now; return this.pkSay('flower', now, name); }
+      Object.assign(gm, { grudge: name, chest: h.spend, pile: 1 });
       this.phase('knocked', now); this.sendHome(now, HOME, true); return this.fire('打跑了', { game: true });   // the lid it sat on springs open for the gift
     }
-    v.spent += spend; v.count++;
-    if (helper) {
-      v.hp = Math.min(v.max, v.hp + spend);
-      gm.nums.push({ at: now, text: `+${spend}`, heal: true });
+    v.spent += h.spend; v.count += h.count; v.ghost = { hp: v.hp, at: now, n: h.n };
+    if (h.side < 0) {
+      v.hp += h.n; v.max = Math.max(v.max, v.hp);
+      gm.nums.push({ at: now, text: `+${h.n} ${name}`, heal: true, x: this.lineX(v), big: h.double });
       if (v.sprint != null) { v.wince = now; return; }
-      Object.assign(v, { bonk: now, tumble: now, helped: v.helped + count });
-      if (v.helped % 5 < count) v.buried = now;   // one of these was the fifth, the tenth…
-      return this.herSay('怎么砸我', now);
+      Object.assign(v, { bonk: now, tumble: now, helped: v.helped + h.count });
+      if (v.helped % 5 < h.count) v.buried = now;   // one of these was the fifth, the tenth…
+      return this.herSay('怎么砸我', now, name);
     }
-    Object.assign(v, { hp: v.hp - spend, hit: now }); gm.grudge = name;
-    gm.nums.push({ at: now, text: `-${spend} ${name}` });
-    if (v.hp <= 0 || spend >= MID) this.win(now); else this.herSay('打得好', now);
+    Object.assign(v, { hp: v.hp - h.n, hit: now }); gm.grudge = name;
+    gm.nums.push({ at: now, text: `-${h.n} ${name}`, x: this.lineX(v), big: h.double });
+    if (v.hp <= 0) this.win(now); else this.herSay('打得好', now, name);
   }
 
   // The chest has landed beside her: she starts back from the crash, then lunges for its handle and pulls. The
-  // prankster's life is a fifth of what is in it, a 中礼物 at most, and the minute starts.
+  // prankster's life is in 人气票, one for every 50 电池 in the chest, 10 to 50 (to be tuned once it is live), and the
+  // minute starts.
   grab(now) {
     const gm = this.gm, v = gm.visit;
-    v.max = v.hp = clamp(Math.round(gm.chest / 5), 1, MID);
-    Object.assign(v, { left: GAME.fight, pebbles: 0, grabbed: now });
+    v.max = v.hp = clamp(Math.round(gm.chest / 50), 10, 50);
+    Object.assign(v, { left: GAME.fight, grabbed: now });
     this.phase('tug', now); v.say = null; this.herSay('宝箱摔下来', now);
     this.hopTo(Math.min(gm.herX, this.ring(LAND, -1).x - this.grip('lunge') - 10), now);   // back far enough to lunge forward
   }
 
-  // A danmaku while it is here: flying over with the chest, it freezes in a disguise while she looks about (three times
-  // at most); in the tug it is a pebble, and all the pebbles together take no more than GAME.pebbles of its life, never
-  // the last of it: one takes at most what is left of that share, and nothing once that is less than one.
-  pebble() {
+  // A danmaku of w's (said: whether it is just 1 or 2) while it is here. Flying over with the chest, any danmaku freezes it
+  // in a disguise while she looks about (three times at most). 1 or 2 puts w on a side (enlist). On the ground beside her
+  // (the tug, or sitting on an empty chest), and not while the lightning plays: one on a side throws a paper ball at the
+  // other side, a lucky one now and then while they fight; one on no side is called out by name, once a visit, no
+  // sooner than TAUNT after the last and not over another line of its own. A danmaku never moves the bar.
+  gameDanmaku(w, said) {
     const v = this.gm.visit, now = this.now();
-    if (!v) return;
+    if (!v || DONE.has(v.phase) || !w) return;
     if (v.phase === 'carry' && v.freezes < 3 && !(now - v.frozen < FREEZE)) { v.frozen = now; v.freezes++; }
-    if (v.phase === 'tug' && v.cut == null && v.pebbles + 1 <= GAME.pebbles * v.max && v.hp > 1) {
-      const d = Math.min(v.hp - 1, Math.max(1, Math.round(v.max * 0.02)), Math.floor(GAME.pebbles * v.max - v.pebbles));
-      v.pebbles += d; v.hp -= d; this.gm.nums.push({ at: now, text: `-${d}`, small: true });
+    const side = said === '1' || said === '2' ? this.enlist(w, said === '1' ? 1 : -1, 'dm') : v.sides.get(w.uid)?.side;
+    if (!['tug', 'sit'].includes(v.phase) || v.cut != null) return;
+    if (side) {
+      const lucky = v.phase === 'tug' && !v.luck && now - v.lucked >= LUCK.gap && this.rng() < LUCK.chance;
+      return void v.balls.push({ at: now, side, lucky, w, seed: this.rng() });
     }
+    if (v.taunted.has(w.uid) || now - v.taunt < TAUNT || v.say && now - v.say.at < 3000) return;   // (its bubble shows 3 s)
+    v.taunted.add(w.uid); v.taunt = now; this.pkSay('taunt', now, w.name);
   }
 
-  // A viewer sends the keyword and is on its side for this fight: their gifts are a helper's.
-  join() { const v = this.gm.visit; if (v?.phase === 'tug') { v.helpers++; v.joined = this.now(); } }
+  // The paper balls that hit this frame: a lucky one opens whoever it hit, its side's gift counting twice for LUCK.ms (it
+  // says so: hit, it begs nobody to send 人气票 now; her hit, it calls for 小花花); RETORT.hits of one side's in RETORT.ms
+  // has the one hit answer back to whoever threw the last (it to her side, she to its), not over a line just said.
+  ballsLand(now) {
+    const v = this.gm.visit;
+    for (const b of v.balls) {
+      if (b.hit != null || now - b.at < BALL) continue;
+      b.hit = now;
+      const run = v.struck[b.side] = (v.struck[b.side] || []).filter(t => now - t < RETORT.ms).concat(now);
+      if (b.lucky && v.phase === 'tug' && v.cut == null && !v.luck) {
+        v.luck = { side: b.side, at: now, until: now + LUCK.ms, extra: 0 }; v.lucked = now + LUCK.ms;
+        this.pkSay(b.side > 0 ? 'dazed' : 'urge', now);
+      } else if (run.length >= RETORT.hits && now - (v.retorted[b.side] ?? -Infinity) >= RETORT.gap && !(v.say && now - v.say.at < 3000) && !(this.gm.say && now - this.gm.say.at < 2600)) {   // (its bubble 3 s, hers 2.6)
+        v.retorted[b.side] = now;
+        if (b.side > 0) this.pkSay('retort', now, b.w.name); else this.herSay('别丢啦', now, b.w.name);
+      }
+    }
+    v.balls = v.balls.filter(b => b.hit == null || now - b.hit < 450);
+    if (v.luck && now >= v.luck.until) v.luck = null;
+  }
 
   // A 大航海, a castle or a lottery scares it off: it drops its rope and flees, and the sprite hurries the chest home
   // before the show starts (TIDY, the show's wait); out of a tug that is the chest kept. Returns that wait.
@@ -962,10 +1064,11 @@ class Component extends DCLogic {
     // then all of it drops
     const away = ['peek', 'carry', 'fall'].includes(v.phase) || v.phase === 'tug' && now - v.grabbed < UP || v.phase === 'peer' && now - v.at < DAZED + 400;
     if (!away && v.cut == null && v.queue.length) {
-      for (const q of v.queue) { gm.drops.push({ at: now, her: q.helper, big: q.spend >= MID }); v.hits.push({ at: now + DROP, ...q }); }
+      for (const q of v.queue) { gm.drops.push({ at: now, her: q.side < 0, big: q.n >= 10, side: q.side }); v.hits.push({ at: now + DROP, ...q }); }
       v.queue = [];
     }
-    for (const h of v.hits.filter(h => h.at <= now)) this.strike(now, h.spend, h.helper, h.count);
+    for (const h of v.hits.filter(h => h.at <= now)) this.strike(now, h);
+    this.ballsLand(now);
     v.hits = v.hits.filter(h => h.at > now);
     const u = now - v.at;
     switch (v.phase) {
@@ -1347,12 +1450,14 @@ class Component extends DCLogic {
       const w = (now + i * 230) % 700;
       g.save(); g.globalAlpha = (1 - w / 700) * L.sweat; g.fillStyle = '#BFE6FF'; g.beginPath(); g.ellipse(pk.x - 22 - i * 9 - w * 0.04, pk.y - 44 - w * 0.05, 3, 5, -0.5, 0, Math.PI * 2); g.fill(); g.restore();
     }
-    // a gift falls on the prankster, or a helper's on her head, and bounces into the chest
+    // a 人气票 falls on the prankster, or a 小花花 on her head, as B站's own icon (a gift box until it loads), and bounces
+    // into the chest
     for (const d of gm.drops) {
       const u = now - d.at, to = d.her || !pk ? { x: her.x + her.w / 2, y: her.y + 8 } : { x: pk.x, y: pk.y - PK_H * 0.42 }, b = d.big ? 20 : 11, into = c?.x != null ? c : { x: to.x + 60 };
+      const icon = this.sideIcon[d.side], gift = (x, y, r) => { if (!icon) return this.giftIcon(g, x, y, b, r); g.save(); g.translate(x, y); g.rotate(r * 0.3); g.drawImage(icon, -b * 1.4, -b * 1.4, b * 2.8, b * 2.8); g.restore(); };
       if (u < 0) continue;
-      if (u < DROP) this.giftIcon(g, to.x, -30 + (to.y + 30) * (u / DROP) ** 2, b, u / 160);
-      else if (u < DROP + 600) { const p = (u - DROP) / 600; this.giftIcon(g, to.x + (into.x - to.x) * p, to.y + (top - to.y) * p - 70 * Math.sin(Math.PI * p), b, u / 110); }
+      if (u < DROP) gift(to.x, -30 + (to.y + 30) * (u / DROP) ** 2, u / 160);
+      else if (u < DROP + 600) { const p = (u - DROP) / 600; gift(to.x + (into.x - to.x) * p, to.y + (top - to.y) * p - 70 * Math.sin(Math.PI * p), u / 110); }
       if (u >= DROP && u < DROP + 240) {
         const q = (u - DROP) / 240;
         g.save(); g.globalAlpha = 1 - q; g.strokeStyle = '#FFE27A'; g.lineWidth = 3; g.lineCap = 'round';
@@ -1383,17 +1488,44 @@ class Component extends DCLogic {
         g.globalAlpha = 0.45 * (1 - q); g.fillStyle = '#fff'; g.fillRect(0, 0, PAGE.w, PAGE.h); g.restore();
       }
     }
-    // what a hit took off it, or a helper's gift gave it back, rises under the fight's board
+    // Paper balls, thrown from the bottom corner of the thrower's side in an arc at the other side's head (its face, her
+    // head), spinning; one that hits bounces off with a little burst. A lucky one blushes pink, glows and sparkles all the
+    // way; whoever it hits is open: ×2 over their head, a ring running down the window (drawn last, over the bubbles).
+    const target = side => side > 0 ? (pk ? { x: pk.x, y: pk.y - PK_H * 0.42 } : null) : { x: her.x + her.w / 2, y: her.y + her.h * 0.18 };
+    const star = (x, y, r, a) => { g.save(); g.globalAlpha = a; g.fillStyle = '#fff'; g.beginPath(); for (let i = 0; i < 8; i++) { const q = i * Math.PI / 4, d = i % 2 ? r * 0.3 : r; g.lineTo(x + Math.cos(q) * d, y + Math.sin(q) * d); } g.fill(); g.restore(); };
+    for (const b of v?.balls || []) {
+      const to = target(b.side);
+      if (!to) continue;
+      const from = { x: b.side > 0 ? 30 : PAGE.w - 30, y: PAGE.h + 20 }, im = this.ball[b.lucky ? 'lucky' : 'plain'], size = im.height * H / ANCHOR, rot = (now - b.at) / 90 * b.side;
+      let p, a = 1;
+      if (b.hit == null) { const t = clamp((now - b.at) / BALL, 0, 1); p = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t - 110 * Math.sin(Math.PI * t) }; }
+      else { const u = now - b.hit; p = { x: to.x + b.side * u * 0.12, y: to.y - 40 * Math.sin(Math.min(1, u / 300) * Math.PI) + u * u * 0.0004 }; a = 1 - k01(u, 250, 450); }
+      g.save(); g.globalAlpha = a;
+      if (b.lucky) {
+        const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 1.1); gr.addColorStop(0, 'rgba(255,150,195,0.6)'); gr.addColorStop(1, 'rgba(255,150,195,0)');
+        g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, size * 1.1, 0, Math.PI * 2); g.fill();
+        for (let i = 0; i < 3; i++) { const q = now / 300 + i * 2.1; star(p.x + Math.cos(q) * size * 0.85, p.y + Math.sin(q) * size * 0.85, 5, a * (0.6 + 0.4 * Math.sin(now / 80 + i))); }
+      }
+      g.translate(p.x, p.y); g.rotate(rot); g.drawImage(im, -size / 2, -size / 2, size, size); g.restore();
+      if (b.hit != null && now - b.hit < 220) {
+        const q = (now - b.hit) / 220;
+        g.save(); g.globalAlpha = 1 - q; g.strokeStyle = b.lucky ? '#FFB3D1' : '#fff'; g.lineWidth = 2.5; g.lineCap = 'round';
+        for (let i = 0; i < 5; i++) { const an = i * Math.PI * 0.4 + 0.5; g.beginPath(); g.moveTo(to.x + Math.cos(an) * (8 + 8 * q), to.y + Math.sin(an) * (8 + 8 * q)); g.lineTo(to.x + Math.cos(an) * (14 + 14 * q), to.y + Math.sin(an) * (14 + 14 * q)); g.stroke(); }
+        g.restore();
+      }
+    }
+    // what a gift took off it, or a 小花花 gave it back, rises from where the line is, under the fight's board
     gm.nums.forEach((n, i) => {
-      const u = now - n.at, x = PAGE.w / 2, y = 206 - u * 0.03 + (gm.nums.length - 1 - i) * 24;
-      g.save(); g.globalAlpha = 1 - k01(u, 700, 1100); g.textAlign = 'center'; text(n.text, x, y, `800 ${n.small ? 15 : 22}px ${SANS}`, n.heal ? '#9BE8A6' : '#FFE27A'); g.restore();
+      const u = now - n.at, x = clamp(n.x ?? PAGE.w / 2, 130, PAGE.w - 130), y = HUD + 46 - u * 0.03 + (gm.nums.length - 1 - i) * 32;
+      g.save(); g.globalAlpha = 1 - k01(u, 700, 1100); g.textAlign = 'center'; text(n.text, x, y, `800 ${n.big ? 34 : 28}px ${SANS}`, n.heal ? '#D9C7FF' : '#FFE27A'); g.restore();
     });
-    // the fight's board along the top of the page: the countdown, what its life still asks for, and how to side with it
+    // the fight's board along the top of the page: the countdown, what its life still asks for, the tug bar, and under it
+    // each side's gift, its danmaku and who has joined it
     if (v?.phase === 'tug') {
       // The countdown grows anxious as the minute runs out: from GAME.urge left it beats at each second, harder and
       // harder, warming from white to amber and growing; in the last 10 s (sprint) it turns red, grows on, beats twice a
       // second in the last 5, shakes and glows red behind, and what its life still asks for beats with it.
-      const left = Math.max(0, v.left), sec = Math.ceil(left / 1000), w = 220, x = (PAGE.w - w) / 2, y = 92;
+      const left = Math.max(0, v.left), sec = Math.ceil(left / 1000), { x, y, w, h } = BAR;
       const urge = k01(GAME.urge - left, 0, GAME.urge - GAME.sprint), last = k01(GAME.sprint - left, 0, GAME.sprint);
       const since = 1 - (left % 1000) / 1000, beat = urge > 0 ? Math.exp(-(left < 5000 ? since * 2 % 1 : since) * 7) : 0;
       const s = 1 + beat * (0.07 * urge + 0.16 * last), shake = last * (1 + 2 * last) * Math.sin(now / 23) * (0.4 + 0.6 * beat);
@@ -1405,13 +1537,47 @@ class Component extends DCLogic {
         r.addColorStop(0, `rgba(255,59,92,${(0.18 + 0.22 * beat) * last})`); r.addColorStop(1, 'rgba(255,59,92,0)');
         g.fillStyle = r; g.fillRect(PAGE.w / 2 - 70, 0, 140, 104);
       }
-      g.save(); g.translate(PAGE.w / 2 + shake, 34); g.scale(s, s); text(`0:${String(sec).padStart(2, '0')}`, 0, 0, `800 ${Math.round(30 + 4 * urge + 12 * last)}px ${SANS}`, col); g.restore();
+      g.save(); g.translate(PAGE.w / 2 + shake, 34); g.scale(s, s); text(`0:${String(sec).padStart(2, '0')}`, 0, 0, `800 ${Math.round(36 + 4 * urge + 12 * last)}px ${SANS}`, col); g.restore();
       const sh = 1 + 0.08 * beat * last;
-      g.save(); g.translate(PAGE.w / 2, y - 18); g.scale(sh, sh); text(`还差 ${Math.max(1, Math.ceil(v.hp))} 电池`, 0, 0, `800 20px ${SANS}`, '#FFE27A'); g.restore();
-      g.fillStyle = 'rgba(40,26,54,0.75)'; g.beginPath(); g.roundRect(x, y, w, 14, 7); g.fill();
-      g.fillStyle = '#B79BE8'; g.beginPath(); g.roundRect(x + 2, y + 2, Math.max(8, (w - 4) * clamp(v.hp / v.max, 0, 1)), 10, 5); g.fill();
-      text(v.helpers ? `发「捣蛋」帮它 · 已有 ${v.helpers} 人` : '发「捣蛋」帮它', PAGE.w / 2, y + 30, `500 14px ${SANS}`, '#fff');
-      if (now - v.joined < 2000) text(`${this.cfg.name} 入伙了`, PAGE.w / 2, y + 56, `800 16px ${SANS}`, '#D9C7FF');
+      // What is thrown and has not landed yet (waiting, or falling) shows at once, pulsing: her 票 past the line in a light
+      // pink, its 小花花 back from it in a light purple; what it still asks for counts them already (用户：“经常出现观众送了
+      // 礼物后几秒血条才有反应”). A landing shakes the bar, the harder the more it moved, and where the line was stays white
+      // a moment before it closes on the line (the ghost of a fighting game's life bar).
+      const due = [...v.queue, ...v.hits], owed = due.reduce((a, q) => a + (q.side > 0 ? q.n : 0), 0), back = due.reduce((a, q) => a + (q.side < 0 ? q.n : 0), 0);
+      const pulse = 0.75 + 0.25 * Math.sin(now / 90), at = life => x + 2 + (w - 4) * clamp(1 - life / v.max, 0, 1), lx = at(v.hp);
+      const gh = v.ghost, gu = gh ? now - gh.at : Infinity, jolt = gu < 320 ? Math.sin(gu / 18) * (1 - gu / 320) * Math.min(6, 2 + gh.n) : 0;
+      const seg = (a, b, col, al = 1) => { if (b - a < 0.5) return; g.globalAlpha = al; g.fillStyle = col; g.beginPath(); g.roundRect(a, y + 2, b - a, h - 4, (h - 4) / 2); g.fill(); g.globalAlpha = 1; };
+      g.save(); g.translate(PAGE.w / 2, y - 22); g.scale(sh, sh); text(`还差 ${Math.max(0, Math.ceil(v.hp - owed + back))} 票`, 0, 0, `800 28px ${SANS}`, '#FFE27A'); g.restore();
+      g.save(); g.translate(jolt, 0);
+      g.fillStyle = 'rgba(40,26,54,0.75)'; g.beginPath(); g.roundRect(x, y, w, h, h / 2); g.fill();
+      seg(x + 2, lx, SIDE_COL[1]); seg(lx, x + w - 2, SIDE_COL[-1]);
+      if (gu < 700) { const from = at(gh.hp), gx = from + (lx - from) * k01(gu, 400, 700); seg(Math.min(gx, lx), Math.max(gx, lx), '#fff', 0.92); }
+      if (owed) seg(lx, at(v.hp - owed), '#FFD6E6', pulse);
+      if (back) seg(at(v.hp + back), lx, '#E6DBFF', pulse);
+      const cb = this.props.chest, chh = 32, chw = cb.width / cb.height * chh;
+      g.drawImage(cb, lx - chw / 2, y + h / 2 - chh * 0.6, chw, chh);
+      g.restore();
+      // Under the bar, each side from its end inward. The first row: its gift's icon and how to join it by danmaku (发1,
+      // 发2); while that side is open a ring runs down the window round the icon and ×2 stands after it. The second: the
+      // avatars of whoever joined it by gift, the newest first, five at most and +N for the rest; a new one pops in.
+      for (const side of [1, -1]) {
+        const end = side > 0 ? x : x + w, at2 = d => end + side * d, icon = this.sideIcon[side], [r1, r2] = ROW;
+        if (icon) g.drawImage(icon, at2(16) - 16, r1 - 16, 32, 32); else this.giftIcon(g, at2(16), r1, 12);
+        g.save(); g.globalAlpha = 0.95; g.fillStyle = SIDE_COL[side]; g.beginPath(); g.roundRect(at2(38) - (side > 0 ? 0 : 58), r1 - 16, 58, 32, 16); g.fill(); g.restore();
+        g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `800 24px ${SANS}`; g.fillStyle = '#3A2440'; g.fillText(`发${side > 0 ? 1 : 2}`, at2(67), r1 + 1); g.restore();
+        if (v.luck?.side === side) {
+          const k = clamp((v.luck.until - now) / LUCK.ms, 0, 1);
+          g.save(); g.strokeStyle = SIDE_COL[side]; g.lineWidth = 3; g.beginPath(); g.arc(at2(16), r1, 20, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke();
+          g.textAlign = 'center'; g.textBaseline = 'middle'; text('×2', at2(124), r1 + 1, `900 24px ${SANS}`, '#fff'); g.restore();
+        }
+        const joined = [...v.sides.values()].filter(m => m.side === side && m.by === 'gift').reverse();
+        joined.slice(0, 5).forEach((m, i) => {
+          const cx = at2(16 + i * 26), pop = 0.6 + 0.4 * ease(k01(now - m.at, 0, 220)), r = 16 * pop, im = this.avatars[m.av];
+          g.save(); g.beginPath(); g.arc(cx, r2, r + 2, 0, Math.PI * 2); g.fillStyle = SIDE_COL[side]; g.fill();
+          g.beginPath(); g.arc(cx, r2, r, 0, Math.PI * 2); g.clip(); if (im) g.drawImage(im, cx - r, r2 - r, 2 * r, 2 * r); g.restore();
+        });
+        if (joined.length > 5) { g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; text(`+${joined.length - 5}`, at2(16 + 4 * 26 + 46), r2 + 1, `800 24px ${SANS}`, '#fff'); g.restore(); }
+      }
       g.restore();
     }
     // What it says, in a narrow bubble of its own colour that never covers it: over its head where there is room above
@@ -1419,6 +1585,7 @@ class Component extends DCLogic {
     // or scared off it goes slowly and its bubble goes with it (left where it was, it hid it as it went). Where her bubble
     // (bub) is in the way, it waits for hers to go.
     // (going off the page it takes its bubble with it: left behind in the page, it hung where the sprite lifts the chest)
+    let said = null;   // its bubble as drawn this frame, which the ×2 keeps clear of
     if (pk && v?.say && now - v.say.at < 3000 && !(DONE.has(v.phase) && (pk.x > PAGE.w || pk.y < 0))) {
       const at = ['leave', 'lost'].includes(v.phase) ? v.from : pk, b = { text: v.say.text, t: now - v.say.at, stroke: '#B79BE8', maxW: 112, at: { x: at.x, y: at.y } };
       const box = this.bubbleBox(g, { bubble: b, y: 0, s: 1 }, her), top = at.y - PK_H * 0.62, half = PK_H * 0.52;
@@ -1427,13 +1594,24 @@ class Component extends DCLogic {
         const side = PAGE.w - (at.x + half) >= box.w + 30 ? 1 : -1;
         Object.assign(box, { x: side > 0 ? at.x + half + 22 : at.x - half - 22 - box.w, y: clamp(at.y - box.h / 2, 8, PAGE.h - box.h - 8), tip: { x: at.x + side * half, y: at.y - 6 }, side });
       }
-      if (!(bub && box.x < bub.x + bub.w && bub.x < box.x + box.w && box.y < bub.y + bub.h && bub.y < box.y + box.h)) this.drawBubble(g, b, box);
+      if (!(bub && box.x < bub.x + bub.w && bub.x < box.x + box.w && box.y < bub.y + bub.h && bub.y < box.y + box.h)) { this.drawBubble(g, b, box); said = box; }
+    }
+    // The ×2 of whoever is open goes beside their head, the side toward the middle of the page first, else the other,
+    // else lower: never over either bubble (用户：“*2的把对话气泡挡住了、要换个位置”) nor up in the fight's board.
+    if (v?.luck && target(v.luck.side)) {
+      const to = target(v.luck.side), k = clamp((v.luck.until - now) / LUCK.ms, 0, 1), pop = 1 + 0.25 * bump(now - v.luck.at, 0, 260), R = 28, inward = to.x < PAGE.w / 2 ? 1 : -1;
+      const hits = (p, b) => b && p.x + R > b.x && p.x - R < b.x + b.w && p.y + R > b.y && p.y - R < b.y + b.h;
+      const spots = [{ x: to.x + inward * 62, y: to.y }, { x: to.x - inward * 62, y: to.y }, { x: to.x + inward * 62, y: to.y + 56 }, { x: to.x - inward * 62, y: to.y + 56 }];
+      const p = spots.find(q => q.y - R > HUD && q.x - R > 0 && q.x + R < PAGE.w && !hits(q, said) && !hits(q, bub)) ?? spots[2];
+      g.save(); g.translate(p.x, p.y); g.scale(pop, pop);
+      g.strokeStyle = SIDE_COL[v.luck.side]; g.lineWidth = 3.5; g.beginPath(); g.arc(0, 0, R - 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke();
+      g.textAlign = 'center'; g.textBaseline = 'middle'; text('×2', 0, 1, `900 28px ${SANS}`, '#fff'); g.restore();
     }
   }
 
   gameCaption(now) {
     const gm = this.gm, v = gm.visit;
-    return `小游戏：家里的宝箱 ${gm.chest} 电池 · 连守 ${gm.streak} · 被偷 ${gm.steals} · ` + (gm.pk ? 'PK 中 · ' : '') + (v ? `捣蛋鬼 ${v.phase}` + (v.phase === 'tug' ? `，还差 ${Math.ceil(v.hp)} / ${v.max}，剩 ${Math.ceil(v.left / 1000)} 秒` : '')
+    return `小游戏：家里的宝箱 ${gm.chest} 电池 · 连守 ${gm.streak} · 被偷 ${gm.steals} · ` + (gm.pk ? 'PK 中 · ' : '') + (v ? `捣蛋鬼 ${v.phase}` + (v.phase === 'tug' ? `，还差 ${Math.ceil(v.hp)} / ${v.max} 票，剩 ${Math.ceil(v.left / 1000)} 秒` : '') + (v.sides.size ? ` · 站队 ${[...v.sides.values()].map(m => m.name + (m.side > 0 ? '→她' : '→它') + (m.by === 'gift' ? '（礼物）' : '')).join('、')}` : '') + (v.luck ? ` · ${v.luck.side > 0 ? '人气票' : '小花花'}双倍中` : '')
       : gm.due ? '捣蛋鬼等她演完就来' : `上次走后 ${Math.floor((now - gm.last) / 60000)} 分`);
   }
 
@@ -2704,8 +2882,12 @@ class Component extends DCLogic {
       ['滑雪', d('滑雪', false)], ['滑雪摔跤', d('滑雪', true)]]);
     group('时间', [['快进 10 分钟', () => this.fastForward(10)], ['快进 30 分钟', () => this.fastForward(30)], ['回到刚有礼物', () => { this.lastGift = this.lastAny = this.now(); }]]);
     // the chest game (the board's game 开): the prankster comes at once; a danmaku and the gifts are the 事件 group's buttons
-    group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['送 100 电池', g([one('爱心抱枕', 100)])], ['有人发「捣蛋」', () => this.join()], ['捣蛋的人送礼', g([one('小花花', 10, 1, { helper: true })])],
-      ['捣蛋的人连送 5 份', g(tens(5, one('小花花', 10, 1, { helper: true })))], ['PK 开始', () => this.pkOn(true)], ['PK 结束', () => this.pkOn(false)]]);
+    // a 人气票 or 小花花 comes from one of the board's viewers, rather one on no side yet, so the avatars fill up; a danmaku
+    // from one on no side (called out), one that says 1 or 2, or one already on a side (a paper ball)
+    const side = (gift, n) => () => this.give([{ gift, price: 1, n, viewer: this.someone() }]), dm = (on, said) => () => this.heard(this.someone(on), said);
+    group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['人气票', side('人气票', 1)], ['人气票 ×10', side('人气票', 10)], ['小花花', side('小花花', 1)], ['小花花 ×5', side('小花花', 5)],
+      ['路人发弹幕', dm(false)], ['发「1」', dm(null, '1')], ['发「2」', dm(null, '2')], ['站了队的发弹幕', dm(true)],
+      ['别的礼物 100 电池', g([one('爱心抱枕', 100)])], ['别的礼物到中礼物', g([one('告白气球', 2000)])], ['PK 开始', () => this.pkOn(true)], ['PK 结束', () => this.pkOn(false)]]);
     const fit = () => { const r = document.getElementById('root'); if (r) r.style.zoom = Math.min(innerWidth / 1920, (innerHeight - bar.offsetHeight) / 1080); };
     addEventListener('resize', fit); setTimeout(fit, 50);
   }

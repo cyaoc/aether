@@ -200,5 +200,22 @@
  "08ca4c772fc7fc37c5fe2fe5c3446fad": "textures/frames/pkLetGoTug.webp",
  "bbbad6efaed5a1b6e180c3f4e9f7049f": "textures/frames/pkBolt.webp",
  "97981617b3703213ec50791651349644": "textures/frames/gameLetGoStand.webp",
- "ce8b6907b269b8ebbeac1970ee6fdc07": "textures/frames/pkLaughOut.webp"
+ "ce8b6907b269b8ebbeac1970ee6fdc07": "textures/frames/pkLaughOut.webp",
+ "bf18d936f13071d14cb4edf4cebfb3d7": "textures/paperball.webp",
+ "dafde21f1d9c5b68ff7f751f20739923": "../gift-board/textures/avatars/blossom.webp",
+ "e5e91c992fb93d22181fc4360158ffb8": "../gift-board/textures/avatars/cake.webp",
+ "c620d7f4bc5af562ce5ffd444676ff76": "../gift-board/textures/avatars/cat.webp",
+ "0f4430b615cac01b7810b7521a933def": "../gift-board/textures/avatars/cocoa.webp",
+ "fe74bf47e64cdfb2bcb9e7b82e0b5fb9": "../gift-board/textures/avatars/koi.webp",
+ "e222aabd9a0c1c5541a86b7b4d82f942": "../gift-board/textures/avatars/lake.webp",
+ "bcd5c5164273cf384ca19b7a4a0048d8": "../gift-board/textures/avatars/lantern.webp",
+ "4f310e5da043acede3bf691558878db3": "../gift-board/textures/avatars/maple.webp",
+ "b983e6ae5179fd006a444e444faa6b9f": "../gift-board/textures/avatars/moon.webp",
+ "16c73bb7fedd325159647c3d6cc5c0de": "../gift-board/textures/avatars/mountain.webp",
+ "8a343577fdd5c70379a9198a27823463": "../gift-board/textures/avatars/rabbit.webp",
+ "e6fca7276cf94c054a7f9f49c542d0c9": "../gift-board/textures/avatars/shiba.webp",
+ "232103fa1a828cf6abfaa0f38f77ee18": "../gift-board/textures/avatars/sky.webp",
+ "6d0f7caff30f5aeb137edd01a4566882": "../gift-board/textures/avatars/sunflower.webp",
+ "9a8ff6273af0377beb655e5a706329d3": "../gift-board/textures/avatars/sunset.webp",
+ "7c06c75d684972b87cea95a8875f334e": "../gift-board/textures/avatars/wave.webp"
 }

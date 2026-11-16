@@ -31,7 +31,10 @@ PROPS = {"flagship": ((1536, 1024), (170, 990), [], (2.0, 2.45)),
          "admship": ((1536, 1024), (170, 990), [PKG / "textures/flagship.webp"], (1.5, 1.9)),
          # the treasure chest of the chest game (#372): a third of her height closed; open, its lid stands up behind it
          "chest": ((1024, 1024), (300, 900), [], (0.26, 0.38)),
-         "chest-open": ((1024, 1024), (300, 900), [], (0.42, 0.68))}
+         "chest-open": ((1024, 1024), (300, 900), [], (0.42, 0.68)),
+         # what a danmaku throws in the chest game: her fist's size, which codex draws at 0.13 of her height every time
+         # (asked for 0.08, three tries 0.13-0.14), about 33 px on the page (H 250), as big as a small gift's icon
+         "paperball": ((1024, 1024), (300, 900), [], (0.10, 0.15))}
 DRAW = ("Use your built-in image generation tool (not code) to edit the LAST attached image into ONE new image, then copy "
         "the generated PNG file to {out}. Do not write any code. The last attached image is a canvas of perfectly flat "
         "solid #00FF00 green with a chibi girl already standing in it: keep her exactly as she is, the same size, in the "
