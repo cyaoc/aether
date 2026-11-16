@@ -819,17 +819,21 @@ class Component extends DCLogic {
     this.enlist(w, side, 'gift');
     const more = v.luck?.side === side && now < v.luck.until ? x.n : 0;
     v.queue.push({ n: x.n + more, count: x.n, side, spend, w, double: more > 0 });
-    if (v.loot) this.tally(w, side, x.n + more, now);
+    if (v.loot) this.tally(w, side, x.n + more, now, more > 0);
     return 'thrown';
   }
 
-  // The score as the 票 reach the page (red, blue), whose side it now favours (hers only when she is ahead: a tie is its)
-  // and who turned it so, as it stood then (flip: who scored the 绝杀 if it stays so); then, a side with enough on the way to
-  // take the line to its end wins there and then.
-  tally(w, side, n, now) {
-    const v = this.gm.visit;
+  // The score as the 票 reach the page (red, blue), and the bar's line with it there and then: where it was stays white a
+  // moment (ghost), the bar shakes, and +N and the name rise from where it is now (用户：“怎么送了礼物以后、宝箱不按照进度
+  // 移动？反而出现颜色？”: it moved when the gift landed, a light segment showing what was on its way meanwhile). Then
+  // whose side it now favours (hers only when she is ahead: a tie is its) and who turned it so, as it stood then (flip:
+  // who scored the 绝杀 if it stays so); then, a side with enough on the way to take the line to its end wins at once.
+  tally(w, side, n, now, double = false) {
+    const v = this.gm.visit, before = v.red - v.blue;
     v[side > 0 ? 'red' : 'blue'] += n;
     const lead = v.red - v.blue, favours = lead > 0 ? 1 : -1;
+    v.ghost = { lead: before, at: now, n };
+    this.gm.nums.push({ at: now, text: `+${n} ${w.name}`, side, x: this.lineX(v), big: double || Math.abs(lead) >= v.span });
     if (favours !== v.favours) { v.favours = favours; v.flip[favours] = { w, late: v.judge != null || (v.left ?? GAME.fight) <= GAME.sprint }; }
     if (Math.abs(lead) >= v.span) this.finish(now, favours, { w, n, late: v.judge != null || (v.left ?? GAME.fight) <= GAME.sprint });
   }
@@ -844,12 +848,10 @@ class Component extends DCLogic {
     v.hits = []; v.queue = [];
     const buzzer = by.late ? by.w : null;
     if (v.phase !== 'tug') {
-      gm.nums.push({ at: now, text: `+${by.n} ${by.w.name}`, side, x: PAGE.w / 2 + side * 120, big: true });
       v.pos = { x: this.gl?.pk?.x ?? v.pos.x, y: this.gl?.pk?.y ?? v.pos.y };
       return side > 0 ? this.airKnock(now, by.w) : this.airSteal(now, by.w);
     }
-    v.ghost = { net: v.net, at: now, n: by.n }; v.net = side * v.span; v.cut = null;
-    gm.nums.push({ at: now, text: `+${by.n} ${by.w.name}`, side, x: this.lineX(v), big: true });
+    v.net = side * v.span; v.cut = null;
     if (side > 0) this.win(now, by.w, buzzer); else this.lose(now, by.w, buzzer);
   }
 
@@ -925,7 +927,7 @@ class Component extends DCLogic {
   }
 
   // Where the tug's line is across the bar: her share is what she has knocked off its life.
-  lineX(v) { return BAR.x + 2 + (BAR.w - 4) * clamp(0.5 + v.net / (2 * v.span), 0, 1); }
+  lineX(v) { return BAR.x + 2 + (BAR.w - 4) * clamp(0.5 + (v.red - v.blue) / (2 * v.span), 0, 1); }
 
   // In the last stretch, while she is not ahead, it hauls the chest off and she is dragged along; ahead, she holds on.
   dragging(v) { return v.sprint != null && v.net <= 0; }
@@ -1006,9 +1008,8 @@ class Component extends DCLogic {
       Object.assign(gm, { grudge: name, chest: h.spend, pile: 1 });
       this.phase('knocked', now); this.sendHome(now, HOME, true); return this.fire('打跑了', { game: true });   // the lid it sat on springs open for the gift
     }
-    v.spent += h.spend; v.count += h.count; v.ghost = { net: v.net, at: now, n: h.n };
+    v.spent += h.spend; v.count += h.count;
     v.net = clamp(v.net + h.side * h.n, -v.span, v.span);
-    gm.nums.push({ at: now, text: `+${h.n} ${name}`, side: h.side, x: this.lineX(v), big: h.double });
     if (h.side < 0) {
       if (this.dragging(v)) { v.wince = now; return; }
       Object.assign(v, { bonk: now, tumble: now, helped: v.helped + h.count });
@@ -1675,12 +1676,12 @@ class Component extends DCLogic {
       g.strokeStyle = col; g.lineWidth = 4; g.stroke(); g.restore();
     }
     // The score above the bar's two ends, as the 票 reach the page (red hers, blue its; what decides at 0:00), the numbers
-    // alone (用户：“不要文字显示”). What has not landed yet (waiting, or falling) shows on the bar at once, pulsing: hers
-    // past the line in light red, its back from it in light blue (用户：“经常出现观众送了礼物后几秒血条才有反应”). A
-    // landing shakes the bar, the harder the more it moved, and where the line was stays white a moment before it closes
-    // on the line (the ghost of a fighting game's life bar). The line starts in the middle; at either end the fight is over.
-    const due = [...v.queue, ...v.hits], owed = due.reduce((a, q) => a + (q.side > 0 ? q.n : 0), 0), back = due.reduce((a, q) => a + (q.side < 0 ? q.n : 0), 0);
-    const pulse = 0.75 + 0.25 * Math.sin(now / 90), at = net => x + 2 + (w - 4) * clamp(0.5 + net / (2 * v.span), 0, 1), lx = at(v.net);
+    // alone (用户：“不要文字显示”), and the line (the little chest) where the score puts it, the moment the 票 come, whatever
+    // is still to land (用户：“经常出现观众送了礼物后几秒血条才有反应”“送了礼物以后、宝箱不按照进度移动？反而出现颜色？”:
+    // it moved as the gifts landed, a light segment showing meanwhile what was on its way). Its move shakes the bar, the
+    // harder the more it moved, and where the line was stays white a moment before it closes on the line (the ghost of a
+    // fighting game's life bar). The line starts in the middle; at either end the fight is over.
+    const at = lead => x + 2 + (w - 4) * clamp(0.5 + lead / (2 * v.span), 0, 1), lx = at(v.red - v.blue);
     const gh = v.ghost, gu = gh ? now - gh.at : Infinity, jolt = gu < 320 ? Math.sin(gu / 18) * (1 - gu / 320) * Math.min(6, 2 + gh.n / 10) : 0;
     const seg = (a, b, col, al = 1) => { if (b - a < 0.5) return; g.globalAlpha = al; g.fillStyle = col; g.beginPath(); g.roundRect(a, y + 2, b - a, h - 4, (h - 4) / 2); g.fill(); g.globalAlpha = 1; };
     g.save(); g.textBaseline = 'middle';
@@ -1691,10 +1692,8 @@ class Component extends DCLogic {
     g.fillStyle = 'rgba(40,26,54,0.75)'; g.beginPath(); g.roundRect(x, y, w, h, h / 2); g.fill();
     seg(x + 2, lx, SIDE_COL[1]); seg(lx, x + w - 2, SIDE_COL[-1]);
     g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(x + w / 2 - 1, y + 2, 2, h - 4);   // the middle, where it started
-    if (gu < 700) { const from = at(gh.net), gx = from + (lx - from) * k01(gu, 400, 700); seg(Math.min(gx, lx), Math.max(gx, lx), '#fff', 0.92); }
-    if (owed) seg(lx, at(v.net + owed), SIDE_LIGHT[1], pulse);
-    if (back) seg(at(v.net - back), lx, SIDE_LIGHT[-1], pulse);
-      if (v.result) { const f = now - v.resultAt; seg(v.result > 0 ? x + 2 : lx, v.result > 0 ? lx : x + w - 2, '#fff', 0.7 * Math.abs(Math.sin(f / GAME.flash * Math.PI * 2))); }
+    if (gu < 700) { const from = at(gh.lead), gx = from + (lx - from) * k01(gu, 400, 700); seg(Math.min(gx, lx), Math.max(gx, lx), '#fff', 0.92); }
+    if (v.result) { const f = now - v.resultAt; seg(v.result > 0 ? x + 2 : lx, v.result > 0 ? lx : x + w - 2, '#fff', 0.7 * Math.abs(Math.sin(f / GAME.flash * Math.PI * 2))); }
     const cb = this.props.chest, chh = 32, chw = cb.width / cb.height * chh, hop = v.judge != null && !v.result ? 4 * Math.abs(Math.sin((now - v.judge) / 110)) : 0;
     g.drawImage(cb, lx - chw / 2, y + h / 2 - chh * 0.6 - hop, chw, chh);
     g.restore();
