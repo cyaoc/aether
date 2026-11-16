@@ -259,6 +259,7 @@ const PKLINES = {
 // twice (no more than LUCK.cap of the fight's life more in all), not again until LUCK.gap after. One on no side is called
 // out by name (TAUNT); a run of RETORT.hits balls in RETORT.ms has the one hit answer back.
 const SIDE_GIFT = { 人气票: 1, 小花花: -1 };
+// LUCK.chance is the settings' 幸运纸团 % on the 桌宠页 (desktop_pet.lucky_percent, 10 by default, 0 off: no lucky balls)
 const LUCK = { chance: 0.1, ms: 5000, gap: 15000, cap: 0.2 }, TAUNT = 8000, RETORT = { hits: 5, ms: 5000, gap: 10000 }, BALL = 650;
 // B站's own icons of the two (giftConfig?platform=pc, 2026-11-16), from B站's CDN as the page draws a gift's icon
 const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', '-1': 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png' };

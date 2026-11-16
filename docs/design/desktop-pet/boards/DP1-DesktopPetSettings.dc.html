@@ -249,7 +249,7 @@ a{color:#3358D4}a:hover{color:#2A47B0}
           <section aria-label="捣蛋鬼偷宝箱" style="display: flex; flex-direction: column; gap: 10px">
             <div style="display: flex; align-items: baseline; gap: 8px">
               <h2 style="margin: 0; font-size: 14px; font-weight: 600; white-space: nowrap">捣蛋鬼偷宝箱</h2>
-              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">它偷走她的宝箱，观众送礼帮她抢回来；怎么玩都在直播画面上，观众不用学</span>
+              <span style="font-size: 13px; color: {{t.muted}}; white-space: nowrap">它偷走她的宝箱，观众送人气票帮她、送小花花帮它；弹幕发 1、发 2 也能站队，怎么玩都在直播画面上</span>
             </div>
             <div style="display: flex; align-items: center; gap: 10px">
               <button type="button" onClick="{{call}}" disabled="{{callDisabled}}" aria-describedby="dp-call-note" style="height: 34px; min-width: 100px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 14px; border: 1px solid {{callBorder}}; border-radius: 6px; background: {{callBg}}; color: {{callColor}}; font: inherit; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: {{callCursor}}">
@@ -260,15 +260,28 @@ a{color:#3358D4}a:hover{color:#2A47B0}
           </section>
           <section aria-label="它什么时候来" style="display: flex; flex-direction: column; gap: 12px">
             <div style="display: flex; align-items: center; gap: 8px">
-              <span style="width: 96px; font-weight: 600; white-space: nowrap">自己来</span>
-              <span style="white-space: nowrap">最多每</span>
-              <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden">
-                <input aria-label="它最多每几分钟自己来一次" aria-describedby="dp-every-note" inputmode="numeric" value="{{every}}" onChange="{{setEvery}}" style="width: 48px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none">
+              <span style="width: 96px; font-weight: 600; white-space: nowrap; color: {{everySw.labelColor}}">自己来</span>
+              <button type="button" role="switch" aria-checked="{{everySw.checked}}" aria-label="自己来" onClick="{{everyToggle}}" style="position: relative; width: 40px; height: 22px; flex-shrink: 0; border: 0; border-radius: 11px; background: {{everySw.bg}}; padding: 0; cursor: pointer; margin-right: 8px"><span style="position: absolute; top: 3px; left: {{everySw.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+              <span style="width: 56px; white-space: nowrap; color: {{everySw.labelColor}}">最多每</span>
+              <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden; opacity: {{everyDim}}">
+                <input aria-label="它最多每几分钟自己来一次" aria-describedby="dp-every-note" inputmode="numeric" value="{{every}}" onChange="{{setEvery}}" disabled="{{everyDisabled}}" style="width: 48px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none">
                 <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></span>
                 <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
               </div>
-              <span style="white-space: nowrap">分钟来一次</span>
-              <span id="dp-every-note" style="font-size: 13px; color: {{everyNoteColor}}; white-space: nowrap; margin-left: 8px">{{everyNote}}</span>
+              <span style="white-space: nowrap; color: {{everySw.labelColor}}">分钟来一次</span>
+              <span id="dp-every-note" style="font-size: 13px; color: {{t.muted}}; white-space: nowrap; margin-left: 8px">{{everyNote}}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <span style="width: 96px; font-weight: 600; white-space: nowrap; color: {{luckySw.labelColor}}">幸运纸团</span>
+              <button type="button" role="switch" aria-checked="{{luckySw.checked}}" aria-label="幸运纸团" onClick="{{luckyToggle}}" style="position: relative; width: 40px; height: 22px; flex-shrink: 0; border: 0; border-radius: 11px; background: {{luckySw.bg}}; padding: 0; cursor: pointer; margin-right: 8px"><span style="position: absolute; top: 3px; left: {{luckySw.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
+              <span style="width: 56px; white-space: nowrap; color: {{luckySw.labelColor}}">每个纸团</span>
+              <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden; opacity: {{luckyDim}}">
+                <input aria-label="每个纸团是幸运纸团的几率" aria-describedby="dp-lucky-note" inputmode="numeric" value="{{lucky}}" onChange="{{setLucky}}" disabled="{{luckyDisabled}}" style="width: 48px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none">
+                <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 15l6-6 6 6"></path></svg></span>
+                <span style="width: 26px; display: flex; align-items: center; justify-content: center; border-left: 1px solid {{t.control}}; color: {{t.secondary}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span>
+              </div>
+              <span style="white-space: nowrap; color: {{luckySw.labelColor}}">% 的几率是幸运的</span>
+              <span id="dp-lucky-note" style="font-size: 13px; color: {{t.muted}}; white-space: nowrap; margin-left: 8px">{{luckyNote}}</span>
             </div>
           </section>
         </div>
@@ -328,7 +341,7 @@ a{color:#3358D4}a:hover{color:#2A47B0}
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["演出","心情和日常","小游戏","台词"],"default":"演出"},"game":{"editor":"enum","options":["可以叫","它在路上","它在场上","没连直播间","抽奖进行中","PK 中"],"default":"可以叫"},"gameLines":{"editor":"boolean","default":false},"scene":{"editor":"enum","options":["默认","有未保存的修改","试演中","桌宠页没连上","桌宠关着"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"showsLayout":{"editor":"enum","options":["分组","三列"],"default":"分组"},"pk":{"editor":"boolean","default":false},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
+<script type="text/x-dc" data-dc-script data-props='{"tab":{"editor":"enum","options":["演出","心情和日常","小游戏","台词"],"default":"演出"},"game":{"editor":"enum","options":["可以叫","它在路上","它在场上","没连直播间","抽奖进行中","PK 中"],"default":"可以叫"},"switches":{"editor":"enum","options":["开","关"],"default":"开"},"gameLines":{"editor":"boolean","default":false},"scene":{"editor":"enum","options":["默认","有未保存的修改","试演中","桌宠页没连上","桌宠关着"],"default":"默认"},"size":{"editor":"enum","options":["1200 × 720","1040 × 600"],"default":"1200 × 720"},"showsLayout":{"editor":"enum","options":["分组","三列"],"default":"分组"},"pk":{"editor":"boolean","default":false},"dark":{"editor":"boolean","default":false},"$preview":{"width":1200,"height":720}}'>
 class Component extends DCLogic {
   // The app's theme tokens, as on the other GUI boards (GS1).
   tokens(dark) {
@@ -366,13 +379,13 @@ class Component extends DCLogic {
       // the chest game: hers, and the prankster's (its bubble is narrow: six to a line, two lines, a space starts the second)
       ['小游戏·她', [['宝箱摔下来', '有货的宝箱摔下来、她扑上去时', []], ['打得好', '有人送人气票砸中它时', n], ['怎么砸我', '有人送小花花砸中她时', n],
         ['别丢啦', '站它那边的人发弹幕，纸团连着砸中她时', n],
-        ['守住了', '把它打跑、宝箱回家时', ['昵称', '连守']], ['打跑了', '空箱时有人一下把它打飞', n], ['被偷了', '宝箱被拖走、她跪着哭时', []],
+        ['守住了', '把它打跑、宝箱回家时', ['昵称', '连守']], ['打跑了', '空箱时有人送人气票把它打飞', n], ['被偷了', '宝箱被拖走、她跪着哭时', []],
         ['被偷后沮丧', '被偷以后蹲着画圈圈，隔一阵说一句', []]]],
       ['小游戏·它', [['探头', '它从左边探进来时', []], ['记仇', '上次砸它的人在直播间时，探头说这句', n], ['炫耀', '上次偷到了，探头说这句', []],
         ['空箱', '掀开发现是空箱时', []], ['赖着', '坐在空箱上赖着，隔一阵说一句', []], ['扔回去', '空箱扔回去时', []],
         ['被发现', '她抓住宝箱时', []], ['招人', '拉帮手时', []], ['点名', '没站队的人发弹幕时，点他的名', n], ['回嘴', '站她那边的人发弹幕，纸团连着砸中它时', n],
         ['露破绽', '幸运纸团砸中它时（这 5 秒人气票算双倍）', []], ['趁现在', '幸运纸团砸中她时（这 5 秒小花花算双倍）', []], ['收下小花花', '它坐在空箱上收到小花花时', n], ['放闪电', '血掉一半放闪电时', []],
-        ['最后 10 秒', '扛起绳子往外拖时', []], ['得手', '把宝箱拖走时', []], ['被打跑', '被礼物打跑时', []]]]
+        ['最后 10 秒', '扛起绳子往外拖时', []], ['得手', '把宝箱拖走时', []], ['被打跑', '被人气票打跑时', []]]]
     ];
   }
 
@@ -543,7 +556,9 @@ class Component extends DCLogic {
     const onStage = gameScene === '它在场上', offline = gameScene === '没连直播间';
     const callBlocked = !masterOn ? '先打开桌宠' : !pageOk ? '先在直播姬里加好桌宠页' : offline ? '连上直播间才能叫它来：没人送礼，也没人能帮它' : gameScene === '抽奖进行中' ? '抽完奖才能叫：抽奖会把它吓跑' : gameScene === 'PK 中' ? 'PK 打完才能叫：PK 时它不出来' : null;
     const canCall = !callBlocked && !called && !onStage;
-    const every = s.every ?? '30', everyOff = Number(every) === 0;
+    // 自己来 and 幸运纸团 each have a switch in front (第 13 节): off grey and not editable, the file writing 0
+    const everyOn = s.everyOn ?? this.props.switches !== '关', luckyOn = s.luckyOn ?? this.props.switches !== '关';
+    const every = s.every ?? '30', lucky = s.lucky ?? '10';
     const playing = s.playing ?? scene === '试演中';
     const testDisabled = !masterOn || !pageOk;
     return {
@@ -552,10 +567,12 @@ class Component extends DCLogic {
       call: () => { if (canCall) this.setState({ called: true }); }, callDisabled: canCall ? null : 'true', callCursor: canCall ? 'pointer' : 'default',
       callText: onStage ? '它在场上' : called ? '它在路上…' : '叫它来',
       callBorder: canCall ? t.accent : t.control, callBg: canCall ? t.accentTint : 'transparent', callColor: canCall ? t.accentText : t.disabled,
-      callNote: callBlocked ?? (onStage ? '它走了才能再叫' : called ? '她正在演的这段完了它就来' : '点了它马上来，不是试演，观众送的礼物都算；不用保存'),
+      callNote: callBlocked ?? (onStage ? '它走了才能再叫' : called ? '她正在演的这段完了它就来' : '点了它马上来，不是试演，送的礼物都是真的；不用保存'),
       callNoteColor: called && !callBlocked && !onStage ? t.accentText : t.muted,
-      every, setEvery: e => edited({ every: e.target.value }),
-      everyNote: everyOff ? '填了 0：它只在你叫它时来' : '有人在看、她闲着时它自己来；填 0 就只在你叫它时来', everyNoteColor: everyOff ? t.accentText : t.muted,
+      every, setEvery: e => edited({ every: e.target.value }), everySw: this.switchOf(t, everyOn), everyToggle: () => edited({ everyOn: !everyOn }),
+      everyDisabled: everyOn ? null : 'true', everyDim: everyOn ? 1 : 0.5, everyNote: everyOn ? '有人在看、她闲着时它自己来' : '只在你点「叫它来」时来',
+      lucky, setLucky: e => edited({ lucky: e.target.value }), luckySw: this.switchOf(t, luckyOn), luckyToggle: () => edited({ luckyOn: !luckyOn }),
+      luckyDisabled: luckyOn ? null : 'true', luckyDim: luckyOn ? 1 : 0.5, luckyNote: luckyOn ? '砸中谁，对面 5 秒内的礼物算双倍' : '不出幸运纸团',
       isShows: tab === '演出' && this.props.showsLayout === '三列', isShowsGrouped: tab === '演出' && (this.props.showsLayout ?? '分组') === '分组', showGroups, sel,
       master: { on: masterOn ? 'true' : 'false', bg: masterOn ? t.accent : t.switchOff, knob: masterOn ? '21px' : '3px', toggle: () => edited({ master: !masterOn }) },
       pageOk: masterOn && pageOk, pageWaiting: masterOn && !pageOk, pageOff: !masterOn,
