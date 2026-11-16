@@ -572,7 +572,7 @@ class Component extends DCLogic {
       every, setEvery: e => edited({ every: e.target.value }), everySw: this.switchOf(t, everyOn), everyToggle: () => edited({ everyOn: !everyOn }),
       everyDisabled: everyOn ? null : 'true', everyDim: everyOn ? 1 : 0.5, everyNote: everyOn ? '有人在看、她闲着时它自己来' : '只在你点「叫它来」时来',
       lucky, setLucky: e => edited({ lucky: e.target.value }), luckySw: this.switchOf(t, luckyOn), luckyToggle: () => edited({ luckyOn: !luckyOn }),
-      luckyDisabled: luckyOn ? null : 'true', luckyDim: luckyOn ? 1 : 0.5, luckyNote: luckyOn ? '砸中谁，对面 5 秒内的礼物算双倍' : '不出幸运纸团',
+      luckyDisabled: luckyOn ? null : 'true', luckyDim: luckyOn ? 1 : 0.5, luckyNote: luckyOn ? '砸中谁，对面 10 秒内的礼物算双倍' : '不出幸运纸团',
       isShows: tab === '演出' && this.props.showsLayout === '三列', isShowsGrouped: tab === '演出' && (this.props.showsLayout ?? '分组') === '分组', showGroups, sel,
       master: { on: masterOn ? 'true' : 'false', bg: masterOn ? t.accent : t.switchOff, knob: masterOn ? '21px' : '3px', toggle: () => edited({ master: !masterOn }) },
       pageOk: masterOn && pageOk, pageWaiting: masterOn && !pageOk, pageOff: !masterOn,
