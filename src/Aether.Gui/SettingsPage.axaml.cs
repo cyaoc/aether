@@ -296,7 +296,8 @@ public abstract class SettingsPage : TemplatedControl
         if (IsDirty) Message = "";
     }
 
-    /// <summary>Core's reason the input cannot be saved, shown under its own box; read-only settings are never saved.</summary>
+    /// <summary>Why the input cannot be saved, the page's own reason before Core's, shown under its own box; read-only settings
+    /// are never saved.</summary>
     private static string? InputError(Field field) => field.CanEdit ? field.Why ?? Settings.Validate(field.Name, field.Input) : null;
 
     /// <summary>The inputs Save would write; read-only settings keep the snapshot's values.</summary>

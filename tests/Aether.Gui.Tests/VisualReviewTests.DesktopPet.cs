@@ -48,9 +48,9 @@ public sealed partial class VisualReviewTests
                 GuiHarness.Tab(page, 1);
                 Capture("moods");
                 // Design package preview/gui-switches*.webp; switched back on so the scenes after it stay unsaved-free.
-                await TurnAsync(page, false, "沮丧", "出事");
+                await TurnAsync(page, on: false, "沮丧", "出事");
                 Capture("switches");
-                await TurnAsync(page, true, "沮丧", "出事");
+                await TurnAsync(page, on: true, "沮丧", "出事");
                 GuiHarness.Tab(page, 3);
                 Pick(page, "LineKindList", "大礼物");
                 Capture("lines");
@@ -64,9 +64,9 @@ public sealed partial class VisualReviewTests
                 await GuiHarness.WaitForAsync(() => page.FindControl<Button>("SummonButton")!.IsEnabled);
                 Capture("game");
                 // Design package preview/gui-game-switch*.webp.
-                await TurnAsync(page, false, "捣蛋鬼自己来");
+                await TurnAsync(page, on: false, "捣蛋鬼自己来");
                 Capture("game-switch");
-                await TurnAsync(page, true, "捣蛋鬼自己来");
+                await TurnAsync(page, on: true, "捣蛋鬼自己来");
                 var keyword = Input(page, "帮它的关键字");
                 keyword.Text = "抽奖";
                 Capture("game-keyword");

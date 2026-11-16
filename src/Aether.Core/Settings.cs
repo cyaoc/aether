@@ -288,8 +288,7 @@ public sealed partial class Settings
     public static string? Validate(string name, string? value) => Validate(Definitions, name, value);
 
     /// <summary>What <paramref name="setting"/> holds while the file leaves it out, as its definition says.</summary>
-    public static T Initial<T>(Setting<T> setting) =>
-        Definitions.OfType<Definition<T>>().Single(definition => definition.Name == setting.Name).Initial.Value;
+    public static T Initial<T>(Setting<T> setting) => ((Definition<T>)Find(Definitions, setting.Name)!).Initial.Value;
 
     private static string? Validate(IReadOnlyList<Definition> definitions, string name, string? value) =>
         Find(definitions, name) is { } definition ? definition.Validate(name, value) : "未知设置，不能修改。";

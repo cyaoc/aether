@@ -144,6 +144,11 @@ public sealed class DesktopPetSettingsTests
             Assert.False(page.IsDirty);
             Assert.Equal(before, File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
             return Task.CompletedTask;
+        }, prepare: harness =>
+        {
+            // A file from before the 桌宠, as an upgrade finds it.
+            var port = Settings.Load(harness.DataDirectory).WebServicePort.Value;
+            File.WriteAllText(Settings.FilePath(harness.DataDirectory), $"web_service:\n  port: {port}\n");
         });
 
     [Fact]
