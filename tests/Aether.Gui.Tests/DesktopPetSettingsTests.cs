@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Aether.Core;
 using Aether.Core.Tests.Support;
 using Aether.Gui.Tests.Support;
@@ -131,10 +132,12 @@ public sealed class DesktopPetSettingsTests
     });
 
     [Fact]
-    public Task Without_desktop_pet_settings_every_number_that_can_be_turned_off_is_on_at_its_default_and_opening_writes_nothing() =>
-        WithPage((page, harness) =>
+    public Task Numbers_the_file_leaves_out_are_switched_on_at_their_defaults_and_opening_the_page_writes_nothing()
+    {
+        var before = "";
+        return WithPage((page, harness) =>
         {
-            var before = File.ReadAllText(Settings.FilePath(harness.DataDirectory));
+            Assert.DoesNotContain("bored_minutes", before);
             GuiHarness.Tab(page, 1);
             Assert.Equal([(true, "15"), (true, "40"), (true, "60"), (true, "25")],
                 new[] { ("无聊", "无聊：几分钟后进入"), ("沮丧", "沮丧：几分钟后进入"), ("犯困", "犯困：几分钟后进入"), ("出事", "出事的几率（%）") }
@@ -146,10 +149,13 @@ public sealed class DesktopPetSettingsTests
             return Task.CompletedTask;
         }, prepare: harness =>
         {
-            // A file from before the 桌宠, as an upgrade finds it.
-            var port = Settings.Load(harness.DataDirectory).WebServicePort.Value;
-            File.WriteAllText(Settings.FilePath(harness.DataDirectory), $"web_service:\n  port: {port}\n");
+            // Every group is there, so reading the file adds nothing (ADR 0004); without these lines their numbers come from Core.
+            var path = Settings.FilePath(harness.DataDirectory);
+            before = Regex.Replace(File.ReadAllText(path), @"^ *(bored_minutes|gloomy_minutes|sleepy_minutes|prankster_minutes|mishap_percent): \d+\r?\n",
+                "", RegexOptions.Multiline);
+            File.WriteAllText(path, before);
         });
+    }
 
     [Fact]
     public Task A_number_the_file_holds_as_0_shows_its_switch_off_with_its_default_ready_to_turn_back_on() => WithPage(async (page, harness) =>
