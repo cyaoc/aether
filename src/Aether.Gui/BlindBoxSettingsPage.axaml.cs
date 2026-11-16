@@ -11,21 +11,23 @@ public partial class BlindBoxSettingsPage : SettingsPage
         InitializeComponent();
         Title = "盲盒统计";
         Bind(BlindBoxInput, BlindBoxReadOnly, BlindBoxError, s => s.BlindBoxEnabled);
-        Bind(DailyKeywordInput, DailyKeywordReadOnly, DailyKeywordError, s => s.BlindBoxDailyKeyword);
-        Bind(MonthlyKeywordInput, MonthlyKeywordReadOnly, MonthlyKeywordError, s => s.BlindBoxMonthlyKeyword);
-        Bind(YearlyKeywordInput, YearlyKeywordReadOnly, YearlyKeywordError, s => s.BlindBoxYearlyKeyword);
+        Bind(DailyKeywordInput, DailyKeywordReadOnly, null, s => s.BlindBoxDailyKeyword);
+        Bind(MonthlyKeywordInput, MonthlyKeywordReadOnly, null, s => s.BlindBoxMonthlyKeyword);
+        Bind(YearlyKeywordInput, YearlyKeywordReadOnly, null, s => s.BlindBoxYearlyKeyword);
         Bind(AnnounceInput, AnnounceReadOnly, AnnounceError, s => s.BlindBoxAnnounce);
         LoadSettings();
     }
 
-    /// <summary>A query keyword that is the 桌宠's 帮它的关键字 shows Core's why on its own error line, as an invalid one does.</summary>
+    /// <summary>A query keyword left empty or that is the 桌宠's 帮它的关键字 shows Core's why on its own error line, as the
+    /// 帮它的关键字 does.</summary>
     protected override bool ShowRowErrors()
     {
         var invalid = false;
         foreach (var (input, error) in new[] { (DailyKeywordInput, DailyKeywordError), (MonthlyKeywordInput, MonthlyKeywordError), (YearlyKeywordInput, YearlyKeywordError) })
         {
-            if (input.IsReadOnly || error.IsVisible || settings.ValidateBlindBoxKeyword(input.Text ?? "") is not { } why) continue;
-            (error.Text, error.IsVisible, invalid) = (why, true, true);
+            var why = input.IsReadOnly ? null : settings.ValidateBlindBoxKeyword(input.Text ?? "");
+            (error.Text, error.IsVisible) = (why ?? "", why is not null);
+            invalid |= why is not null;
         }
         return invalid;
     }

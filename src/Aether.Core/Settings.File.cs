@@ -241,6 +241,7 @@ public sealed partial class Settings
 
     internal const string PranksterKeywordIsBlindBox = "和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个";
     internal const string BlindBoxKeywordIsPrankster = "和桌宠宝箱小游戏里帮它的关键字一样，观众查盲盒时就站到它那边了；换一个";
+    private const string KeywordIsEmpty = "关键字不能空着";
 
     /// <summary>Whether a danmaku saying <paramref name="said"/> is <paramref name="keyword"/>: exactly it, the spaces around either
     /// aside, as a 报名抽奖 and the 帮它的关键字 take one. Two keywords that are the same take the same danmaku.</summary>
@@ -249,13 +250,15 @@ public sealed partial class Settings
     /// <summary>Why the 帮它的关键字 cannot be <paramref name="keyword"/> as typed: empty, the next 报名抽奖's
     /// <paramref name="entryKeyword"/>, or a 盲盒查询 keyword this file holds; null when it can.</summary>
     public string? ValidatePranksterKeyword(string keyword, string entryKeyword) =>
-        string.IsNullOrWhiteSpace(keyword) ? "关键字不能空着"
+        string.IsNullOrWhiteSpace(keyword) ? KeywordIsEmpty
         : SameKeyword(keyword, entryKeyword) ? "和抽奖报名的关键字一样，观众分不清是在报名还是帮它；换一个"
         : BlindBoxKeywords.Any(query => SameKeyword(Get(query).Value, keyword)) ? PranksterKeywordIsBlindBox : null;
 
-    /// <summary>Why a 盲盒查询 keyword cannot be <paramref name="keyword"/> as typed, beside the 帮它的关键字 this file holds; null
-    /// when it can.</summary>
-    public string? ValidateBlindBoxKeyword(string keyword) => SameKeyword(keyword, DesktopPetPranksterKeyword.Value) ? BlindBoxKeywordIsPrankster : null;
+    /// <summary>Why a 盲盒查询 keyword cannot be <paramref name="keyword"/> as typed: empty, or the 帮它的关键字 this file holds;
+    /// null when it can.</summary>
+    public string? ValidateBlindBoxKeyword(string keyword) =>
+        string.IsNullOrWhiteSpace(keyword) ? KeywordIsEmpty
+        : SameKeyword(keyword, DesktopPetPranksterKeyword.Value) ? BlindBoxKeywordIsPrankster : null;
 
     // A property, as Ordered is.
     private static Definition<string>[] BlindBoxKeywords => [DailyKeyword, MonthlyKeyword, YearlyKeyword];

@@ -208,11 +208,30 @@ public abstract class SettingsPage : TemplatedControl
         input.PropertyChanged += (_, e) => { if (e.Property == RangeBase.ValueProperty) Validate(); };
     }
 
-    private void Register<T>(Action<Setting<T>> show, Func<string?> input, TextBlock? error, Func<Settings, Setting<T>> select) =>
+    /// <summary>A number the file turns off with 0. Off, the switch says so and the box keeps the setting's default to turn it back
+    /// on with; on, the box must hold a positive number.</summary>
+    protected void Bind(ToggleSwitch on, NumericUpDown input, TextBlock readOnly, TextBlock? error, Func<Settings, Setting<int>> select)
+    {
+        Register(setting =>
+        {
+            Show(input, readOnly, setting.Value == 0 ? setting with { Value = Settings.Initial(setting) } : setting);
+            on.IsChecked = setting.Value != 0;
+            on.IsEnabled = setting.CanEdit;
+        }, () => on.IsChecked == true ? input.Text : "0", error, select,
+            () => on.IsChecked == true && Number(input) is not > 0 ? "要填正整数" : null);
+        input.PropertyChanged += (_, e) => { if (e.Property == NumericUpDown.TextProperty) Validate(); };
+        on.PropertyChanged += (_, e) => { if (e.Property == ToggleButton.IsCheckedProperty) Validate(); };
+    }
+
+    internal static int? Number(NumericUpDown input) => int.TryParse(input.Text, out var value) ? value : null;
+
+    /// <param name="why">Why the input cannot be saved before Core is asked, or null.</param>
+    private void Register<T>(Action<Setting<T>> show, Func<string?> input, TextBlock? error, Func<Settings, Setting<T>> select,
+        Func<string?>? why = null) =>
         bindings.Add((() => show(select(settings)), () =>
         {
             var setting = select(settings);
-            return new Field(setting.Name, setting.CanEdit, input(), error);
+            return new Field(setting.Name, setting.CanEdit, input(), error, why?.Invoke());
         }));
 
     // Each control shows its setting; a line that cannot be edited safely leaves it read-only beside its hint.
@@ -253,7 +272,8 @@ public abstract class SettingsPage : TemplatedControl
         readOnly.IsVisible = !setting.CanEdit;
     }
 
-    protected readonly record struct Field(string Name, bool CanEdit, string? Input, TextBlock? Error = null);
+    /// <param name="Why">The page's own reason the input cannot be saved, said before Core's.</param>
+    protected readonly record struct Field(string Name, bool CanEdit, string? Input, TextBlock? Error = null, string? Why = null);
 
     /// <summary>Each setting this page edits; reading, validating and saving share this list.</summary>
     private Field[] Fields() => bindings.Select(binding => binding.Read()).Concat(RowFields()).ToArray();
@@ -278,9 +298,9 @@ public abstract class SettingsPage : TemplatedControl
         if (IsDirty) Message = "";
     }
 
-    /// <summary>Core's reason the input cannot be saved, labelled with the setting; read-only settings are never saved.</summary>
-    private static string? InputError(Field field) =>
-        field.CanEdit && Settings.Validate(field.Name, field.Input) is { } reason ? $"{field.Name}：{reason}" : null;
+    /// <summary>Why the input cannot be saved, the page's own reason before Core's, shown under its own box; read-only settings
+    /// are never saved.</summary>
+    private static string? InputError(Field field) => field.CanEdit ? field.Why ?? Settings.Validate(field.Name, field.Input) : null;
 
     /// <summary>The inputs Save would write; read-only settings keep the snapshot's values.</summary>
     private static Dictionary<string, string> Changes(IEnumerable<Field> fields) =>

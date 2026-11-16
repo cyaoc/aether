@@ -11,7 +11,7 @@ internal sealed class OrderedInputs(IReadOnlyList<NumericUpDown> inputs, TextBlo
     /// <summary>Marks what is wrong; null when the numbers can be saved, otherwise why not, for the save bar.</summary>
     public string? Check()
     {
-        var values = inputs.Select(input => int.TryParse(input.Text, out var value) ? value : 0).ToArray();
+        var values = inputs.Select(input => SettingsPage.Number(input) ?? 0).ToArray();
         var invalid = order.Invalid(values) is not null;
         var notPositive = values.Any(value => value <= 0);
         error.Text = !invalid ? "" : notPositive ? texts.NotPositive : texts.OutOfOrder;

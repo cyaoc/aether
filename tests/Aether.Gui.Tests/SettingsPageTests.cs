@@ -998,17 +998,17 @@ public sealed class SettingsPageTests
             keyword.Text = " ";
             Dispatcher.UIThread.RunJobs();
             Assert.False(save.IsEnabled);
-            Assert.Contains("blind_box.daily_keyword", window.FindControl<TextBlock>("DailyKeywordError")!.Text);
+            Assert.Equal("关键字不能空着", window.FindControl<TextBlock>("DailyKeywordError")!.Text);
             keyword.Text = "查盲盒";
             monthly.Text = " ";
             Dispatcher.UIThread.RunJobs();
             Assert.False(save.IsEnabled);
-            Assert.Contains("blind_box.monthly_keyword", window.FindControl<TextBlock>("MonthlyKeywordError")!.Text);
+            Assert.Equal("关键字不能空着", window.FindControl<TextBlock>("MonthlyKeywordError")!.Text);
             monthly.Text = "查月盲盒";
             yearly.Text = " ";
             Dispatcher.UIThread.RunJobs();
             Assert.False(save.IsEnabled);
-            Assert.Contains("blind_box.yearly_keyword", window.FindControl<TextBlock>("YearlyKeywordError")!.Text);
+            Assert.Equal("关键字不能空着", window.FindControl<TextBlock>("YearlyKeywordError")!.Text);
             yearly.Text = "查年盲盒";
             Dispatcher.UIThread.RunJobs();
             save.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -1020,7 +1020,7 @@ public sealed class SettingsPageTests
             numberText.Text = "1.5";
             Dispatcher.UIThread.RunJobs();
             Assert.False(save.IsEnabled);
-            Assert.Contains("send.interval_seconds", send.FindControl<TextBlock>("SendIntervalError")!.Text);
+            Assert.Equal(Settings.Validate("send.interval_seconds", "1.5"), send.FindControl<TextBlock>("SendIntervalError")!.Text);
             numberText.Text = "7";
             Dispatcher.UIThread.RunJobs();
             Assert.True(save.IsEnabled);
@@ -1199,7 +1199,7 @@ public sealed class SettingsPageTests
             textBox.Text = input;
             Dispatcher.UIThread.RunJobs();
 
-            Assert.Contains(Settings.Validate("log.retention_days", input)!, window.FindControl<TextBlock>("RetentionError")!.Text);
+            Assert.Equal(Settings.Validate("log.retention_days", input), window.FindControl<TextBlock>("RetentionError")!.Text);
             Assert.False(GuiHarness.FindVisual<Button>(window, "PART_SaveButton").IsEnabled);
             textBox.Text = "14";
             Dispatcher.UIThread.RunJobs();
