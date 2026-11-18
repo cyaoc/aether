@@ -16,6 +16,9 @@ internal static class SettingsUpgrade
     // is 「捣蛋」, so the other two take two at most. Frozen as V0Guards is.
     private static readonly string[] V1BlindBoxQueries = ["daily_keyword", "monthly_keyword", "yearly_keyword"], V1HelperKeywords = ["捣乱", "帮它", "帮捣蛋"];
 
+    // The v0.6.2 Template's comment on the 帮它的关键字, the last of format 2. Frozen as V0Guards is.
+    private const string V2HelperComment = "# 帮它的关键字，观众发了就站到捣蛋鬼那边；非空文字，不能和下一场报名抽奖、盲盒查询的关键字一样";
+
     internal static string Apply(string source, int version, string path)
     {
         var original = source;
@@ -130,9 +133,9 @@ internal static class SettingsUpgrade
         int AfterGroupKey() => LineEnd(source, (int)root.Children.Keys.First(key => key is YamlScalarNode { Value: "desktop_pet" }).End.Index);
     }
 
-    /// <summary>Format 3 has no 帮它的关键字: a viewer takes the 捣蛋鬼's side with a 小花花 or a danmaku of 2. Its line goes, and a
-    /// changed 招人 line, of any character, says 2 where it said {关键字}, which that kind of line takes no more. The names are
-    /// frozen here, as V0Guards is.</summary>
+    /// <summary>Format 3 has no 帮它的关键字: a viewer takes the 捣蛋鬼's side with a 小花花 or a danmaku of 2. Its line goes, with
+    /// the Template's comment right above it, and a changed 招人 line, of any character, says 2 where it said {关键字}, which that
+    /// kind of line takes no more. The names are frozen here, as V0Guards is.</summary>
     private static string UpgradeV2(string source, string path)
     {
         if (Settings.ChildOf(RootOf(source), "desktop_pet") is not YamlMappingNode group) return source;
@@ -142,14 +145,22 @@ internal static class SettingsUpgrade
         {
             var name = (key as YamlScalarNode)?.Value ?? "";
             var helper = name == "prankster_keyword";
-            var recruit = name.StartsWith("lines.", StringComparison.Ordinal) && name.EndsWith(".pranksterRecruit", StringComparison.Ordinal);
-            if (!helper && !recruit) continue;
+            if (!helper && !(name.StartsWith("lines.", StringComparison.Ordinal) && name.EndsWith(".pranksterRecruit", StringComparison.Ordinal))) continue;
             var end = Settings.EndOf(tokens, value);
             if (group.Style != MappingStyle.Block || key.Start.Line != end.Line) throw CannotEdit(path, key);
-            var (from, to) = helper ? (LineStart(source, (int)key.Start.Index), LineEnd(source, (int)end.Index)) : ((int)value.Start.Index, (int)end.Index);
-            source = source[..from] + (helper ? "" : source[from..to].Replace("{关键字}", "2")) + source[to..];
+            source = helper ? WithoutHelper(LineStart(source, (int)key.Start.Index), LineEnd(source, (int)end.Index)) : SayingTwo((int)value.Start.Index, (int)end.Index);
         }
         return source;
+
+        // A comment the user changed stays. Only a scanner-recognized one counts, as in UpgradeV0, and tokens after the line have moved.
+        string WithoutHelper(int from, int to)
+        {
+            var comment = tokens.OfType<Tokens.Comment>().FirstOrDefault(token => token.End.Index < from && LineEnd(source, (int)token.End.Index) == from
+                && source[LineStart(source, (int)token.Start.Index)..(int)token.End.Index].TrimStart(' ') == V2HelperComment);
+            return source[..(comment is null ? from : LineStart(source, (int)comment.Start.Index))] + source[to..];
+        }
+
+        string SayingTwo(int from, int to) => source[..from] + source[from..to].Replace("{关键字}", "2") + source[to..];
     }
 
     /// <summary>Marks a file the steps changed as the current format: its format_version, or one above the comments that lead its

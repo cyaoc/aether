@@ -298,9 +298,19 @@ public sealed class SettingsTests : IAsyncDisposable
     [Theory]
     [InlineData("捣蛋")]
     [InlineData("帮它 # 我自己起的")]
-    public void Upgrade_takes_the_helper_keywords_line_out_of_a_format_2_file_and_keeps_every_other_byte(string keyword)
+    public void Upgrade_takes_the_helper_keywords_line_and_the_Templates_comment_on_it_out_of_a_format_2_file_and_keeps_every_other_byte(string keyword) =>
+        AssertUpgradeTakesOut(Fixture("settings-v0.6.2.yml").Replace("prankster_keyword: 捣蛋", "prankster_keyword: " + keyword), HelperComment, "  prankster_keyword: " + keyword);
+
+    [Fact]
+    public void Upgrade_keeps_a_comment_on_the_helper_keyword_that_the_user_changed() =>
+        AssertUpgradeTakesOut(Fixture("settings-v0.6.2.yml").Replace(HelperComment, HelperComment + "，我改过"), "  prankster_keyword: 捣蛋");
+
+    private const string HelperComment = "  # 帮它的关键字，观众发了就站到捣蛋鬼那边；非空文字，不能和下一场报名抽奖、盲盒查询的关键字一样";
+
+    /// <summary>Loading format 2's <paramref name="old"/> leaves it without <paramref name="lines"/>, which it has one after
+    /// another, and with every other byte.</summary>
+    private void AssertUpgradeTakesOut(string old, params string[] lines)
     {
-        var old = Fixture("settings-v0.6.2.yml").Replace("prankster_keyword: 捣蛋", "prankster_keyword: " + keyword);
         Write(old);
 
         var settings = Settings.Load(harness.DataDirectory);
@@ -309,7 +319,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal((2, 30, 10), (settings.UpgradedFromVersion, settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetLuckyPercent.Value));
         // (in the fixture's own line breaks, which a Windows checkout makes \r\n, and the upgrade keeps)
         var newline = old.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
-        Assert.Equal(old.Replace("format_version: 2", "format_version: 3").Replace("  prankster_keyword: " + keyword + newline, ""), File.ReadAllText(SettingsPath));
+        Assert.Equal(old.Replace("format_version: 2", "format_version: 3").Replace(string.Concat(lines.Select(line => line + newline)), ""), File.ReadAllText(SettingsPath));
         var bytes = File.ReadAllBytes(SettingsPath);
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
         Assert.Equal(bytes, File.ReadAllBytes(SettingsPath));
