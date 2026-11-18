@@ -46,7 +46,7 @@ paid, as the chest does:
 | Field | What |
 |---|---|
 | `gift`'s `faceUrl` | The viewer's face as the message carries it, empty when it has none and as the round `ended` |
-| `gift`'s `items` | The viewer's gifts in the message: each its `giftId`, `name` and `price` of one, `spend` in 金瓜子 (a 盲盒's is the box's price, not what it opened), `count`, whether it is `blind` and whether that opened a 浪漫城堡 (`castle`), and `iconUrl`; a 盲盒's id, name, price and icon are those of the gift it opened, the icon empty when B站 gave none. Her round's gift priced highest is the first of those of the highest `price`, and how many of it all of its `giftId`: the same rule as Core's 一轮送礼 (`GiftRoundFeature`) |
+| `gift`'s `items` | The viewer's gifts in the message: each its `giftId`, `name` and `price` of one, `spend` in 金瓜子 (a 盲盒's is the box's price, not what it opened), `count`, whether it is `blind` and whether that opened a 浪漫城堡 (`castle`); a 盲盒's id, name and price are those of the gift it opened. Her round's gift priced highest is the first of those of the highest `price`, and how many of it all of its `giftId`: the same rule as Core's 一轮送礼 (`GiftRoundFeature`) |
 | `guard`'s `spend` | What the 大航海 cost in 金瓜子, for all its months; a push B站 repeats (the same `Tid`) is told once |
 
 A `danmaku` tells only `uid`, `nickname` and `side`, the 站队 it takes: 1, hers, when all of it is "1", -1, the 捣蛋鬼's, when

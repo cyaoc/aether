@@ -250,11 +250,11 @@ internal sealed record GiftRoundProgress(long Uid, string Nickname, string FaceU
 /// <summary>One of a gift message's gifts: its gift id, name and price of one, a 盲盒's those of the gift it opened, by which the
 /// 桌宠页 picks a round's gift priced highest and counts how many of it, as GiftRoundFeature's rounds did; its 投入 in 金瓜子, a
 /// 盲盒's the box's price; how many; whether it is a 盲盒, and whether that opened a 浪漫城堡, the only way B站 gives one (one
-/// sent as a gift is that gift); and its icon, a 盲盒's that of the gift it opened, empty when B站 gave none.</summary>
-internal sealed record GiftItem(long GiftId, string Name, long Price, long Spend, long Count, bool Blind, bool Castle, string IconUrl)
+/// sent as a gift is that gift).</summary>
+internal sealed record GiftItem(long GiftId, string Name, long Price, long Spend, long Count, bool Blind, bool Castle)
 {
     public static GiftItem Of(Gift gift) => new(gift.GiftId, gift.GiftName, gift.Price, gift.Spend, gift.Num, gift.Blind is not null,
-        gift is { Blind: not null, IsCastle: true }, gift.IconUrl);
+        gift is { Blind: not null, IsCastle: true });
 }
 
 /// <summary>A viewer's 一轮盲盒 as its 盲盒播报 reported it, sent or given up, or without one as the 一轮送礼 ended: the tally, how

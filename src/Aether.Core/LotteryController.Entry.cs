@@ -16,8 +16,6 @@ public sealed partial class LotteryController
 
     private const string DefaultKeyword = "抽奖";
 
-    private EntryLottery? PreviousEntry(long roomId) => store().Load(roomId, LotteryMode.Entry) as EntryLottery;
-
     private void RequireNew()
     {
         if (state.Lottery is EntryLottery { Phase: EntryLotteryPhase.Open or EntryLotteryPhase.Closed })
@@ -34,7 +32,7 @@ public sealed partial class LotteryController
         Lottery next;
         if (mode == LotteryMode.Entry)
         {
-            var previous = PreviousEntry(state.RoomId!.Value);
+            var previous = store().Load(state.RoomId!.Value, LotteryMode.Entry) as EntryLottery;
             next = new EntryLottery(Ids.New(), state.RoomId.Value,
                 previous?.Keyword ?? DefaultKeyword, now, previous?.Awards ?? [new("一等奖", "", 1, Grade.Grand)], [], []);
         }

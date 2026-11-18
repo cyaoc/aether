@@ -73,7 +73,7 @@ export function told(pet, who, so) {
 
 /** The board's gifts `list` as Core tells a gift message's (GiftItem), each gift's name standing in for its id. */
 export function itemsOf(list) {
-  return list.map(g => ({ giftId: g.gift, name: g.gift, price: g.price * 100, spend: spendOf(g), count: g.n, blind: !!g.box, castle: !!g.castle, iconUrl: '' }));
+  return list.map(g => ({ giftId: g.gift, name: g.gift, price: g.price * 100, spend: spendOf(g), count: g.n, blind: !!g.box, castle: !!g.castle }));
 }
 
 /** What a gift of the board's cost, in 金瓜子: a 盲盒 its box's price. */
