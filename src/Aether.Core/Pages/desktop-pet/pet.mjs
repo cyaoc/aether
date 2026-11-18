@@ -1,7 +1,7 @@
 // The 桌宠 on the 桌宠页's canvas, drawn as the design package's board draws her (DP-DesktopPet.dc.html), from the current
 // character's Q 版 pictures and the numbers in her manifest (characters/README.md, desktopPet).
-import { loadImage } from '../video/animations/toolkit.mjs';
-import { CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, NOTICE, PAGE, PK_H, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
+import { canvasOf, loadImage } from '../video/animations/toolkit.mjs';
+import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, LUCK, NOTICE, PAGE, PK_H, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
 import { BACK, drawFx, giftBox } from './effects.mjs';
 import { SANS } from '../gift-board/paint.mjs';
 import { REMOTE } from '../gift-board/images.mjs';
@@ -18,9 +18,20 @@ const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cy
   captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'] };
 // The 捣蛋鬼's drawings and the chest's, the same for every character (prankster/prankster.json).
 const PRANKSTER = '/desktop-pet/prankster/';
-// A gift's icon falling in the chest game, that many of the little box's half sides it stands in for: 34 px for a gift, 62 for
-// one of 中礼物 or more, about a third and a half of the 捣蛋鬼's height (B站's icons leave a tenth of their square empty).
-const ICON = 3.1;
+// The tug's two sides, hers 1 and the 捣蛋鬼's -1: B站's own icons of their gifts, 人气票 and 小花花 (giftConfig?platform=pc,
+// 2026-11-16), from B站's CDN; her side red, its blue, each with a light one for its numbers.
+export const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', '-1': 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png' };
+const SIDE_COL = { 1: '#FF4D6D', '-1': '#4D8BFF' }, SIDE_LIGHT = { 1: '#FFB3C1', '-1': '#B3CDFF' };
+// Under the tug bar, two rows: each side's gift icon and how to join it by danmaku (1, 2), then the faces of who joined it by
+// gift. The game's words are read off a stream shrunk on a phone, so they keep to her bubbles' size (28 px): the countdown
+// above it, the score, the numbers and ×2 at it, and the short labels under the bar a step below (24 px). HUD is how far down
+// the page it all reaches.
+const ROW = [BAR.y + BAR.h + 22, BAR.y + BAR.h + 62], HUD = BAR.y + BAR.h + 82;
+// How a double shows: a pink star flies from the one a 幸运纸团 hit to the gaining side's score in DOUBLE.fly, ×2 pops up beside
+// the score (DOUBLE.pop) as that half of the bar flashes white (DOUBLE.flash); for the window light stripes run along that
+// half toward the line and its gift's icon under the bar beats in its countdown ring; the last DOUBLE.hurry both blink
+// faster, and at the end the ×2 shrinks away in DOUBLE.out.
+const DOUBLE = { fly: 450, pop: 220, flash: 260, hurry: 3000, out: 200 };
 
 // The box of what is drawn in a part of a picture, and the centre of its mass.
 const box = (im, x, y, w, h) => {
@@ -172,8 +183,11 @@ export class Pet extends Engine {
       ...Object.entries(prankster.strips).map(async ([pose, s]) => { this.pkstrips[pose] = framesFrom(await picture(prankster.frames[s.f]), this.pkCell(pose)); }),
       ...Object.entries(prankster.transitions).map(async ([pair, f]) => { this.pkTweens[pair] = framesFrom(await picture(prankster.frames[f]), this.pkCell(pair.split('>')[0])).slice(1, 3); })]);
     // the chest's size on the page (its closed drawing), and its drawings' px to the page
-    const { chest, chestOpen } = this.props;
+    const { chest, chestOpen, paperball } = this.props;
     this.chestBox = { w: chest.width * H / prankster.anchor, h: chest.height * H / prankster.anchor, open: chestOpen.height * H / prankster.anchor, k: H / prankster.anchor };
+    // the paper ball, and the lucky one: the same ball blushing pink (its glow and sparkles are drawn)
+    const blush = lg => { lg.drawImage(paperball, 0, 0); lg.globalCompositeOperation = 'source-atop'; lg.fillStyle = 'rgba(255,128,180,0.42)'; lg.fillRect(0, 0, paperball.width, paperball.height); };
+    this.ball = { plain: paperball, lucky: canvasOf(paperball.width, paperball.height, blush) };
     for (const pose of ['tug', 'haul', 'ouch']) ropeEnd(this.pkCell(pose));
     for (const pose of ['hold', 'hold2']) ropeEnd(this.cell(pose, this.art.sprite));
     for (const pose of ['carry', 'carryBag', 'carryCrown']) ropeTip(this.pkCell(pose));
@@ -236,7 +250,7 @@ export class Pet extends Engine {
     if (sp && !st.sBehind && !st.sOver) this.drawSprite(g, st, sp, now);
     if (st.gift) this.drawGift(g, st.gift);
     for (const f of st.fx) if (!BACK.has(f[0])) drawFx(g, f, st, her, now, this);
-    this.drawGame(g, st, now, her, bub);
+    this.drawGame(g, st, now, her, bub); this.drawBuzzer(g, now);
     if (sp && st.sOver) this.drawSprite(g, st, sp, now);   // its fists on what the game draws (the chest's lid)
     if (bub) this.drawBubble(g, st.bubble, bub);
     g.restore();
@@ -489,16 +503,22 @@ export class Pet extends Engine {
   // its fists and rope still.
   pkFrame(pose) { const f = this.pkstrips[pose]; return f ? f[Math.floor(this.clock / this.prankster.strips[pose].ms) % 4] : this.pkCell(pose); }
 
+  // The in-betweens from one of its poses to another: drawn for the two (the other way round backwards), or else by way of
+  // pulling its rope (tug), the in-betweens to it, its drawing and those on, as she goes by her standing (route): a gift
+  // landing just after another, or the fight won while it laughs, chains what is drawn. None: a switch.
+  pkRoute(a, b) {
+    const tw = (x, y) => this.pkTweens[`${x}>${y}`] || this.pkTweens[`${y}>${x}`]?.slice().reverse();
+    if (tw(a, b)) return tw(a, b);
+    return a !== 'tug' && b !== 'tug' && tw(a, 'tug') && tw('tug', b) ? [...tw(a, 'tug'), this.pkCell('tug'), ...tw('tug', b)] : null;
+  }
+
   // The 捣蛋鬼 at p, its drawing's centre: every sheet's first cell is its idle drawing, the ruler that brings its sheets to one
-  // size. A change of its pose plays the in-betweens drawn for it (the other way round, backwards), 90 ms each, as hers do,
-  // and the lean it pulls at (rot) goes over to the new one with them. Turning round (its flip changes) it changes at once:
-  // the in-betweens are drawn facing one way.
+  // size. A change of its pose plays its in-betweens (pkRoute), 90 ms each, as hers do, and the lean it pulls at (rot) goes
+  // over to the new one with them. Turning round (its flip changes) it changes at once: the in-betweens are drawn facing one
+  // way.
   drawPk(g, p) {
     const rt = performance.now(), pv = this.pv ??= { pose: p.pose, at: -1e9, tween: null, rot: p.rot, flip: p.flip };
-    if (p.pose !== pv.pose) {
-      const there = this.pkTweens[`${pv.pose}>${p.pose}`], back = this.pkTweens[`${p.pose}>${pv.pose}`];
-      Object.assign(pv, { tween: !!pv.flip === !!p.flip && (there || back?.slice().reverse()) || null, pose: p.pose, at: rt, from: pv.rot });
-    }
+    if (p.pose !== pv.pose) Object.assign(pv, { tween: !!pv.flip === !!p.flip && this.pkRoute(pv.pose, p.pose) || null, pose: p.pose, at: rt, from: pv.rot });
     pv.flip = p.flip;
     const i = Math.floor((rt - pv.at) / 90), tw = pv.tween?.[i];
     const c = tw || this.pkFrame(p.pose), rot = tw ? pv.from + (p.rot - pv.from) * (i + 1) / (pv.tween.length + 1) : p.rot;
@@ -515,13 +535,22 @@ export class Pet extends Engine {
     g.drawImage(this.props.chestRing, -hang[0], -hang[1]); g.restore();
   }
 
-  // A gift falling in the chest game: its icon (B站's picture, loaded as the 礼物榜页 loads them), or a little box while there
-  // is none or it is not there yet; b its half side.
-  dropGift(g, url, x, y, b, rot) {
+  // One of B站's pictures in the chest game (a side's gift icon, a viewer's face), loaded as the 礼物榜页 loads them: none
+  // while it is not there yet, and for no address.
+  remote(url) {
     if (url && !this.icons.has(url)) { this.icons.set(url, null); loadImage(url, REMOTE).then(im => this.icons.set(url, im), () => {}); }
-    const im = this.icons.get(url);
-    if (!im) return giftBox(g, x, y, b, rot);
-    g.save(); g.translate(x, y); g.rotate(rot); g.drawImage(im, -ICON * b / 2, -ICON * b / 2, ICON * b, ICON * b); g.restore();
+    return this.icons.get(url);
+  }
+
+  // A viewer's face, r its radius, in a ring of their side's colour: the picture their gift message carried, or, with none,
+  // the first character of their name on the side's colour, as the 礼物榜 stands in for a face.
+  drawFace(g, w, side, x, y, r) {
+    const im = this.remote(w.face);
+    g.save(); g.beginPath(); g.arc(x, y, r + 2, 0, Math.PI * 2); g.fillStyle = SIDE_COL[side]; g.fill();
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.clip();
+    if (im) g.drawImage(im, x - r, y - r, 2 * r, 2 * r);
+    else { g.font = `800 ${r}px ${SANS}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText([...w.name][0] ?? '', x, y + r / 16); }
+    g.restore();
   }
 
   // The chest game's drawings, over her and everything of hers: the chest (standing, or hanging by the handle the hook rope
@@ -599,6 +628,7 @@ export class Pet extends Engine {
       if (!ropes.length) this.drawRing(g, at(ex, -ey));
       for (const one of ropes) rope(...one);
     } else this.sw = null;
+    if (v?.loot && ['peek', 'carry', 'fall'].includes(v.phase)) this.drawBoard(g, v, now, text);
     if (pk) this.drawPk(g, pk);
     // the sprite starts at the chest that came down: a '!' over it
     if (L.notice != null && sv) {
@@ -612,12 +642,14 @@ export class Pet extends Engine {
       const w = (now + i * 230) % 700;
       g.save(); g.globalAlpha = (1 - w / 700) * L.sweat; g.fillStyle = '#BFE6FF'; g.beginPath(); g.ellipse(pk.x - 22 - i * 9 - w * 0.04, pk.y - 44 - w * 0.05, 3, 5, -0.5, 0, Math.PI * 2); g.fill(); g.restore();
     }
-    // a gift falls on the 捣蛋鬼, or a helper's on her head, and bounces into the chest
+    // a 人气票 falls on the 捣蛋鬼, or a 小花花 on her head, as B站's own icon (a gift box until it loads), and bounces into
+    // the chest
     for (const d of gm.drops) {
       const u = now - d.at, to = d.her || !pk ? { x: her.x + her.w / 2, y: her.y + 8 } : { x: pk.x, y: pk.y - PK_H * 0.42 }, b = d.big ? 20 : 11, into = c?.x != null ? c : { x: to.x + 60 };
+      const icon = this.remote(SIDE_ICON[d.side]), gift = (x, y, r) => { if (!icon) return giftBox(g, x, y, b, r); g.save(); g.translate(x, y); g.rotate(r * 0.3); g.drawImage(icon, -b * 1.4, -b * 1.4, b * 2.8, b * 2.8); g.restore(); };
       if (u < 0) continue;
-      if (u < DROP) this.dropGift(g, d.icon, to.x, -30 + (to.y + 30) * (u / DROP) ** 2, b, u / 160);
-      else if (u < DROP + 600) { const p = (u - DROP) / 600; this.dropGift(g, d.icon, to.x + (into.x - to.x) * p, to.y + (top - to.y) * p - 70 * Math.sin(Math.PI * p), b, u / 110); }
+      if (u < DROP) gift(to.x, -30 + (to.y + 30) * (u / DROP) ** 2, u / 160);
+      else if (u < DROP + 600) { const p = (u - DROP) / 600; gift(to.x + (into.x - to.x) * p, to.y + (top - to.y) * p - 70 * Math.sin(Math.PI * p), u / 110); }
       if (u >= DROP && u < DROP + 240) {
         const q = (u - DROP) / 240;
         g.save(); g.globalAlpha = 1 - q; g.strokeStyle = '#FFE27A'; g.lineWidth = 3; g.lineCap = 'round';
@@ -648,37 +680,62 @@ export class Pet extends Engine {
         g.globalAlpha = 0.45 * (1 - q); g.fillStyle = '#fff'; g.fillRect(0, 0, PAGE.w, PAGE.h); g.restore();
       }
     }
-    // what a hit took off it, or a helper's gift gave it back, rises under the fight's board
-    gm.nums.forEach((n, i) => {
-      const u = now - n.at, x = PAGE.w / 2, y = 206 - u * 0.03 + (gm.nums.length - 1 - i) * 24;
-      g.save(); g.globalAlpha = 1 - k01(u, 700, 1100); g.textAlign = 'center'; text(n.text, x, y, `800 ${n.small ? 15 : 22}px ${SANS}`, n.heal ? '#9BE8A6' : '#FFE27A'); g.restore();
-    });
-    // the fight's board along the top of the page: the countdown, what its life still asks for, and how to side with it
-    if (v?.phase === 'tug') {
-      // The countdown grows anxious as the minute runs out: from GAME.urge left it beats at each second, harder and harder,
-      // warming from white to amber and growing; in the last 10 s (sprint) it turns red, grows on, beats twice a second in
-      // the last 5, shakes and glows red behind, and what its life still asks for beats with it.
-      const left = Math.max(0, v.left), sec = Math.ceil(left / 1000), w = 220, x = (PAGE.w - w) / 2, y = 92;
-      const urge = k01(GAME.urge - left, 0, GAME.urge - GAME.sprint), last = k01(GAME.sprint - left, 0, GAME.sprint);
-      const since = 1 - (left % 1000) / 1000, beat = urge > 0 ? Math.exp(-(left < 5000 ? since * 2 % 1 : since) * 7) : 0;
-      const s = 1 + beat * (0.07 * urge + 0.16 * last), shake = last * (1 + 2 * last) * Math.sin(now / 23) * (0.4 + 0.6 * beat);
-      const rgb = (p, q, k) => `rgb(${p.map((c, i) => Math.round(c + (q[i] - c) * k))})`;
-      const col = last > 0 ? rgb([255, 177, 74], [255, 59, 92], last) : rgb([255, 255, 255], [255, 177, 74], urge);
-      g.save(); g.textAlign = 'center'; g.textBaseline = 'middle';
-      if (last > 0) {
-        const r = g.createRadialGradient(PAGE.w / 2, 34, 4, PAGE.w / 2, 34, 70);
-        r.addColorStop(0, `rgba(255,59,92,${(0.18 + 0.22 * beat) * last})`); r.addColorStop(1, 'rgba(255,59,92,0)');
-        g.fillStyle = r; g.fillRect(PAGE.w / 2 - 70, 0, 140, 104);
+    // Paper balls, thrown from the bottom corner of the thrower's side in an arc at the other side's head (its face, her
+    // head), spinning; one that hits bounces off with a little burst. A lucky one blushes pink, glows and sparkles all the
+    // way; whoever it hits is open, and a pink star flies from them to the score of the side that gains (DOUBLE).
+    const target = side => side > 0 ? (pk ? { x: pk.x, y: pk.y - PK_H * 0.42 } : null) : { x: her.x + her.w / 2, y: her.y + her.h * 0.18 };
+    const star = (x, y, r, a) => { g.save(); g.globalAlpha = a; g.fillStyle = '#fff'; g.beginPath(); for (let i = 0; i < 8; i++) { const q = i * Math.PI / 4, d = i % 2 ? r * 0.3 : r; g.lineTo(x + Math.cos(q) * d, y + Math.sin(q) * d); } g.fill(); g.restore(); };
+    for (const b of v?.balls || []) {
+      const to = target(b.side);
+      if (!to) continue;
+      const from = { x: b.side > 0 ? 30 : PAGE.w - 30, y: PAGE.h + 20 }, im = this.ball[b.lucky ? 'lucky' : 'plain'], size = im.height * K, rot = (now - b.at) / 90 * b.side;
+      let p, a = 1;
+      if (b.hit == null) { const t = clamp((now - b.at) / BALL, 0, 1); p = { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t - 110 * Math.sin(Math.PI * t) }; }
+      else { const u = now - b.hit; p = { x: to.x + b.side * u * 0.12, y: to.y - 40 * Math.sin(Math.min(1, u / 300) * Math.PI) + u * u * 0.0004 }; a = 1 - k01(u, 250, 450); }
+      g.save(); g.globalAlpha = a;
+      if (b.lucky) {
+        const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, size * 1.1); gr.addColorStop(0, 'rgba(255,150,195,0.6)'); gr.addColorStop(1, 'rgba(255,150,195,0)');
+        g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, size * 1.1, 0, Math.PI * 2); g.fill();
+        for (let i = 0; i < 3; i++) { const q = now / 300 + i * 2.1; star(p.x + Math.cos(q) * size * 0.85, p.y + Math.sin(q) * size * 0.85, 5, a * (0.6 + 0.4 * Math.sin(now / 80 + i))); }
       }
-      g.save(); g.translate(PAGE.w / 2 + shake, 34); g.scale(s, s); text(`0:${String(sec).padStart(2, '0')}`, 0, 0, `800 ${Math.round(30 + 4 * urge + 12 * last)}px ${SANS}`, col); g.restore();
-      const sh = 1 + 0.08 * beat * last;
-      g.save(); g.translate(PAGE.w / 2, y - 18); g.scale(sh, sh); text(`还差 ${Math.max(1, Math.ceil(v.hp))} 电池`, 0, 0, `800 20px ${SANS}`, '#FFE27A'); g.restore();
-      g.fillStyle = 'rgba(40,26,54,0.75)'; g.beginPath(); g.roundRect(x, y, w, 14, 7); g.fill();
-      g.fillStyle = '#B79BE8'; g.beginPath(); g.roundRect(x + 2, y + 2, Math.max(8, (w - 4) * clamp(v.hp / v.max, 0, 1)), 10, 5); g.fill();
-      const join = `发「${this.settings.pranksterKeyword}」帮它`;
-      text(v.helpers.size ? `${join} · 已有 ${v.helpers.size} 人` : join, PAGE.w / 2, y + 30, `500 14px ${SANS}`, '#fff');
-      if (now - v.joined < 2000) text(`${v.joiner} 入伙了`, PAGE.w / 2, y + 56, `800 16px ${SANS}`, '#D9C7FF');
-      g.restore();
+      g.translate(p.x, p.y); g.rotate(rot); g.drawImage(im, -size / 2, -size / 2, size, size); g.restore();
+      if (b.hit != null && now - b.hit < 220) {
+        const q = (now - b.hit) / 220;
+        g.save(); g.globalAlpha = 1 - q; g.strokeStyle = b.lucky ? '#FFB3D1' : '#fff'; g.lineWidth = 2.5; g.lineCap = 'round';
+        for (let i = 0; i < 5; i++) { const an = i * Math.PI * 0.4 + 0.5; g.beginPath(); g.moveTo(to.x + Math.cos(an) * (8 + 8 * q), to.y + Math.sin(an) * (8 + 8 * q)); g.lineTo(to.x + Math.cos(an) * (14 + 14 * q), to.y + Math.sin(an) * (14 + 14 * q)); g.stroke(); }
+        g.restore();
+      }
+    }
+    // a gift that scares it off: its light swells in her, then goes out from her as a ring over the 捣蛋鬼 (giftBurst)
+    const bu = gm.burst && now - gm.burst.at;
+    if (bu != null && bu < BURST.glow + BURST.ms) {
+      const { o, rgb: col } = gm.burst, gl = bump(bu, 0, BURST.glow * 2.4);
+      if (gl > 0) {   // the glow in her: it grows to its brightest as the ring leaves her, and dies down after
+        const gr = g.createRadialGradient(o.x, o.y, 0, o.x, o.y, 150); gr.addColorStop(0, `rgba(255,255,255,${0.75 * gl})`); gr.addColorStop(0.35, `rgba(${col},${0.55 * gl})`); gr.addColorStop(1, `rgba(${col},0)`);
+        g.save(); g.globalCompositeOperation = 'lighter'; g.fillStyle = gr; g.fillRect(o.x - 150, o.y - 150, 300, 300); g.restore();
+      }
+      const k = (bu - BURST.glow) / BURST.ms;
+      if (k > 0) {
+        const r = 30 + BURST.r * (1 - (1 - k) ** 2), a = 1 - k01(k, 0.45, 1);
+        g.save(); g.globalAlpha = a; g.beginPath(); g.arc(o.x, o.y, r, 0, Math.PI * 2);
+        const gr = g.createRadialGradient(o.x, o.y, r * 0.75, o.x, o.y, r); gr.addColorStop(0, `rgba(${col},0)`); gr.addColorStop(1, `rgba(${col},0.32)`); g.fillStyle = gr; g.fill();
+        g.shadowColor = `rgb(${col})`; g.shadowBlur = 20; g.strokeStyle = `rgb(${col})`; g.lineWidth = 4 + 12 * (1 - k); g.stroke();
+        g.shadowBlur = 0; g.strokeStyle = 'rgba(255,255,255,0.9)'; g.lineWidth = 1.5 + 4 * (1 - k); g.stroke(); g.restore();
+      }
+    }
+    // what a side's gift, or its lightning, gave it rises from where the line is, under the fight's board
+    gm.nums.forEach((n, i) => {
+      const u = now - n.at, x = clamp(n.x ?? PAGE.w / 2, 130, PAGE.w - 130), y = HUD + 46 - u * 0.03 + (gm.nums.length - 1 - i) * 32;
+      g.save(); g.globalAlpha = 1 - k01(u, 700, 1100); g.textAlign = 'center'; text(n.text, x, y, `800 ${n.big ? 34 : 28}px ${SANS}`, SIDE_LIGHT[n.side] ?? '#FFE27A'); g.restore();
+    });
+    if (v?.phase === 'tug' || v?.result && now - v.resultAt < GAME.flash) this.drawBoard(g, v, now, text);
+    if (v?.luck && now - v.luck.at < DOUBLE.fly && target(v.luck.side)) {
+      const from = target(v.luck.side), to = this.doubleAt(g, v, v.luck.side), t = ease((now - v.luck.at) / DOUBLE.fly);
+      for (let i = 4; i >= 0; i--) {
+        const q = Math.max(0, t - i * 0.06), p = { x: from.x + (to.x - from.x) * q, y: from.y + (to.y - from.y) * q - 60 * Math.sin(Math.PI * q) };
+        if (!i) { const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, 26); gr.addColorStop(0, 'rgba(255,150,195,0.75)'); gr.addColorStop(1, 'rgba(255,150,195,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, 26, 0, Math.PI * 2); g.fill(); }
+        star(p.x, p.y, 13 - i * 2, 1 - i * 0.18);
+      }
     }
     // What it says, in a narrow bubble of its own colour that never covers it: over its head where there is room above it,
     // else beside it on its roomier side. Hauling the chest off or leaving it shouts from where it was; beaten, knocked or
@@ -694,6 +751,128 @@ export class Pet extends Engine {
       }
       if (!(bub && box.x < bub.x + bub.w && bub.x < box.x + box.w && box.y < bub.y + bub.h && bub.y < box.y + box.h)) this.drawBubble(g, b, box);
     }
+  }
+
+  // Where a side's ×2 stands: beside its score, toward the middle (red after its number, blue before it).
+  doubleAt(g, v, side) {
+    g.save(); g.font = `800 28px ${SANS}`; const sw = g.measureText(`${side > 0 ? v.red : v.blue}`).width; g.restore();
+    return { x: side > 0 ? BAR.x + sw + 34 : BAR.x + BAR.w - sw - 34, y: BAR.y - 22 };
+  }
+
+  // How much of the double's marks shows: all of it, blinking four times a second in its last DOUBLE.hurry.
+  hurry(v, now) { return v.luck && v.luck.until - now < DOUBLE.hurry ? 0.35 + 0.65 * Math.abs(Math.cos(Math.PI * (v.luck.until - now) / 250)) : 1; }
+
+  // The fight's board along the top of the page: the countdown, the score, the tug bar, and under it each side's gift, its
+  // danmaku and who has joined it. It is there from the moment the 捣蛋鬼 flies in with a chest worth fighting over (the clock
+  // waits at 1:00 until the chest is down), so what is sent while it is still in the air shows at once, and may knock it
+  // down; until the chest is down the rows under the bar wait (it flies right through where they go), and it is drawn under
+  // the 捣蛋鬼, which flies in front of it.
+  drawBoard(g, v, now, text) {
+    // The countdown grows anxious as the minute runs out: from GAME.urge left it beats at each second, harder and harder,
+    // warming from white to amber and growing; in the last 10 s (sprint) it turns red, grows on, beats twice a second in the
+    // last 5, shakes and glows red behind.
+    const left = Math.max(0, v.left ?? GAME.fight), sec = Math.ceil(left / 1000), { x, y, w, h } = BAR;
+    const urge = k01(GAME.urge - left, 0, GAME.urge - GAME.sprint), last = k01(GAME.sprint - left, 0, GAME.sprint);
+    const since = 1 - (left % 1000) / 1000, beat = urge > 0 ? Math.exp(-(left < 5000 ? since * 2 % 1 : since) * 7) : 0;
+    const s = 1 + beat * (0.07 * urge + 0.16 * last), shake = last * (1 + 2 * last) * Math.sin(now / 23) * (0.4 + 0.6 * beat);
+    const rgb = (p, q, k) => `rgb(${p.map((c, i) => Math.round(c + (q[i] - c) * k))})`;
+    const col = last > 0 ? rgb([255, 177, 74], [255, 59, 92], last) : rgb([255, 255, 255], [255, 177, 74], urge);
+    g.save(); g.textAlign = 'center'; g.textBaseline = 'middle';
+    if (last > 0) {
+      const r = g.createRadialGradient(PAGE.w / 2, 34, 4, PAGE.w / 2, 34, 70);
+      r.addColorStop(0, `rgba(255,59,92,${(0.18 + 0.22 * beat) * last})`); r.addColorStop(1, 'rgba(255,59,92,0)');
+      g.fillStyle = r; g.fillRect(PAGE.w / 2 - 70, 0, 140, 104);
+    }
+    // through the grace the countdown stays at 0:00 and a fuse under it burns down from both ends: the wait has a known
+    // length, so it shows what is left of it, in no words
+    g.save(); g.translate(PAGE.w / 2 + shake, 34); g.scale(s, s); text(`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, 0, 0, `800 ${Math.round(36 + 4 * urge + 12 * last)}px ${SANS}`, col); g.restore();
+    if (v.judge != null) {
+      const k = 1 - k01(now - v.judge, 0, GAME.grace), half = 46 * k;
+      g.save(); g.lineCap = 'round'; g.strokeStyle = 'rgba(40,26,54,0.88)'; g.lineWidth = 7; g.beginPath(); g.moveTo(PAGE.w / 2 - half, 66); g.lineTo(PAGE.w / 2 + half, 66); g.stroke();
+      g.strokeStyle = col; g.lineWidth = 4; g.stroke(); g.restore();
+    }
+    // The score above the bar's two ends, as the 票 reach the page (red hers, blue its; what decides at 0:00), the numbers
+    // alone, and the line (the little chest) where the score puts it, the moment the 票 come, whatever is still to land. Its
+    // move shakes the bar, the harder the more it moved, and where the line was stays white a moment before it closes on the
+    // line (the ghost of a fighting game's life bar). The line starts in the middle; at either end the fight is over.
+    const at = lead => x + 2 + (w - 4) * clamp(0.5 + lead / (2 * v.span), 0, 1), lx = at(v.swept ? v.span : v.red - v.blue);   // (swept: a gift scared it off, giftBurst)
+    const gh = v.ghost, gu = gh ? now - gh.at : Infinity, jolt = gu < 320 ? Math.sin(gu / 18) * (1 - gu / 320) * Math.min(6, 2 + gh.n / 10) : 0;
+    const seg = (a, b, col, al = 1) => { if (b - a < 0.5) return; g.globalAlpha = al; g.fillStyle = col; g.beginPath(); g.roundRect(a, y + 2, b - a, h - 4, (h - 4) / 2); g.fill(); g.globalAlpha = 1; };
+    g.save(); g.textBaseline = 'middle';
+    g.textAlign = 'left'; text(`${v.red}`, x, y - 22, `800 28px ${SANS}`, SIDE_LIGHT[1]);
+    g.textAlign = 'right'; text(`${v.blue}`, x + w, y - 22, `800 28px ${SANS}`, SIDE_LIGHT[-1]);
+    g.restore();
+    const out = !v.luck && v.luckOut && now - v.luckOut.at < DOUBLE.out ? v.luckOut : null, on = v.luck && now - v.luck.at >= DOUBLE.fly ? v.luck : out;
+    if (on) {
+      const p = this.doubleAt(g, v, on.side), u = now - on.at - DOUBLE.fly;
+      const k = out ? 1 - (now - out.at) / DOUBLE.out : 1 + 0.6 * (1 - ease(k01(u, 0, DOUBLE.pop)));
+      g.save(); g.translate(p.x, p.y); g.scale(k, k); g.globalAlpha = out ? 1 : this.hurry(v, now);
+      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `900 36px ${SANS}`; g.lineJoin = 'round';
+      g.lineWidth = 9; g.strokeStyle = 'rgba(40,26,54,0.88)'; g.strokeText('×2', 0, 1);
+      g.lineWidth = 4.5; g.strokeStyle = SIDE_COL[on.side]; g.strokeText('×2', 0, 1);
+      g.fillStyle = '#fff'; g.fillText('×2', 0, 1); g.restore();
+    }
+    g.save(); g.translate(jolt, 0);
+    g.fillStyle = 'rgba(40,26,54,0.75)'; g.beginPath(); g.roundRect(x, y, w, h, h / 2); g.fill();
+    seg(x + 2, lx, SIDE_COL[1]); seg(lx, x + w - 2, SIDE_COL[-1]);
+    g.fillStyle = 'rgba(255,255,255,0.55)'; g.fillRect(x + w / 2 - 1, y + 2, 2, h - 4);   // the middle, where it started
+    if (gu < 700) { const from = at(gh.lead), gx = from + (lx - from) * k01(gu, 400, 700); seg(Math.min(gx, lx), Math.max(gx, lx), '#fff', 0.92); }
+    if (v.result) { const f = now - v.resultAt; seg(v.result > 0 ? x + 2 : lx, v.result > 0 ? lx : x + w - 2, '#fff', 0.7 * Math.abs(Math.sin(f / GAME.flash * Math.PI * 2))); }
+    const lu = v.luck && now - v.luck.at >= DOUBLE.fly ? now - v.luck.at - DOUBLE.fly : null;
+    if (lu != null) {
+      const sd = v.luck.side, [a, b] = sd > 0 ? [x + 2, lx] : [lx, x + w - 2];
+      if (b - a > 4) {
+        g.save(); g.beginPath(); g.roundRect(a, y + 2, b - a, h - 4, (h - 4) / 2); g.clip();
+        g.fillStyle = `rgba(255,255,255,${0.32 * this.hurry(v, now)})`;
+        for (let sx = a - 48 + (now / 14) % 24 * sd; sx < b + 24; sx += 24) { g.beginPath(); g.moveTo(sx, y + h - 2); g.lineTo(sx + 9, y + h - 2); g.lineTo(sx + 19, y + 2); g.lineTo(sx + 10, y + 2); g.fill(); }
+        g.restore();
+      }
+      if (lu < DOUBLE.flash) seg(a, b, '#fff', 0.85 * (1 - lu / DOUBLE.flash));
+    }
+    const cb = this.props.chest, chh = 32, chw = cb.width / cb.height * chh, hop = v.judge != null && !v.result ? 4 * Math.abs(Math.sin((now - v.judge) / 110)) : 0;
+    g.drawImage(cb, lx - chw / 2, y + h / 2 - chh * 0.6 - hop, chw, chh);
+    g.restore();
+    if (v.phase !== 'tug') return g.restore();   // still in the air: no rows yet, it flies right through where they go
+    // Under the bar, each side from its end inward. The first row: its gift's icon and how to join it by danmaku (发1, 发2);
+    // while that side's gift counts twice the icon beats in a ring running down the window (DOUBLE). The second: the faces
+    // of whoever joined it by gift, the newest first, five at most and +N for the rest; a new one pops in.
+    for (const side of [1, -1]) {
+      const end = side > 0 ? x : x + w, at2 = d => end + side * d, icon = this.remote(SIDE_ICON[side]), [r1, r2] = ROW;
+      const beat = v.luck?.side === side && now - v.luck.at >= DOUBLE.fly ? 1 + 0.14 * Math.max(0, Math.sin((now - v.luck.at) / 1000 * Math.PI * 2 * (v.luck.until - now < DOUBLE.hurry ? 3 : 1.4))) : 1;
+      g.save(); g.translate(at2(16), r1); g.scale(beat, beat);
+      if (icon) g.drawImage(icon, -16, -16, 32, 32); else giftBox(g, 0, 0, 12);
+      g.restore();
+      g.save(); g.globalAlpha = 0.95; g.fillStyle = SIDE_COL[side]; g.beginPath(); g.roundRect(at2(38) - (side > 0 ? 0 : 58), r1 - 16, 58, 32, 16); g.fill(); g.restore();
+      g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `800 24px ${SANS}`; g.fillStyle = '#3A2440'; g.fillText(`发${side > 0 ? 1 : 2}`, at2(67), r1 + 1); g.restore();
+      if (v.luck?.side === side && now - v.luck.at >= DOUBLE.fly) {
+        const k = clamp((v.luck.until - now) / LUCK.ms, 0, 1);
+        g.save(); g.globalAlpha = this.hurry(v, now); g.strokeStyle = SIDE_COL[side]; g.lineWidth = 3; g.beginPath(); g.arc(at2(16), r1, 21, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); g.restore();
+      }
+      const joined = [...v.sides.values()].filter(m => m.side === side && m.by === 'gift').reverse();
+      joined.slice(0, 5).forEach((m, i) => this.drawFace(g, m, side, at2(16 + i * 26), r2, 16 * (0.6 + 0.4 * ease(k01(now - m.at, 0, 220)))));
+      if (joined.length > 5) { g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; text(`+${joined.length - 5}`, at2(16 + 4 * 26 + 46), r2 + 1, `800 24px ${SANS}`, '#fff'); g.restore(); }
+    }
+    g.restore();
+  }
+
+  // A 绝杀 (gm.buzzer) for GAME.buzzer once the fight is decided and the bar has flashed, where the fight's board was (it is
+  // gone by then, and all eyes were on it): 绝杀！ large in the winners' colour, under it the face of whoever scored it and
+  // their name. It is gone again before the sprite flies the chest home across the top of the page; her 守住了 line says the
+  // name once more.
+  drawBuzzer(g, now) {
+    const b = this.gm.buzzer, u = b ? now - b.at : Infinity;
+    if (u < 0 || u >= GAME.buzzer) return;   // (it waits for the bar's flash)
+    const a = k01(u, 0, 150) * (1 - k01(u, GAME.buzzer - 400, GAME.buzzer)), pop = 1 + 0.35 * (1 - ease(k01(u, 0, 260)));
+    const text = (str, x, y, font, fill, lw = 4) => { g.font = font; g.lineJoin = 'round'; g.lineWidth = lw; g.strokeStyle = 'rgba(40,26,54,0.88)'; g.strokeText(str, x, y); g.fillStyle = fill; g.fillText(str, x, y); };
+    g.save(); g.globalAlpha = a; g.textAlign = 'center'; g.textBaseline = 'middle';
+    const glow = g.createRadialGradient(PAGE.w / 2, 60, 10, PAGE.w / 2, 60, 150);
+    glow.addColorStop(0, SIDE_COL[b.side] + '66'); glow.addColorStop(1, SIDE_COL[b.side] + '00');
+    g.fillStyle = glow; g.fillRect(0, 0, PAGE.w, 160);
+    g.save(); g.translate(PAGE.w / 2, 60); g.scale(pop, pop); text('绝杀！', 0, 0, `900 56px ${SANS}`, SIDE_COL[b.side], 7); g.restore();
+    const name = b.w.name, nw = (g.font = `800 28px ${SANS}`, g.measureText(name).width), nx = PAGE.w / 2 - (44 + nw) / 2;
+    this.drawFace(g, b.w, b.side, nx + 18, 118, 18);
+    g.textAlign = 'left'; text(name, nx + 44, 119, `800 28px ${SANS}`, '#fff');
+    g.restore();
   }
 
   // Her speech bubble's lines and box: over her head, or, where that runs off the top of the page (her on the 总督's deck, a
