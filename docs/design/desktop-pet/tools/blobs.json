@@ -221,5 +221,11 @@
  "7eed22425aa2b9205be44a785cc35812": "textures/frames/pkHaulOuch.webp",
  "5c70e7d3716d4ce5084ce21202892d57": "textures/frames/pkHaulFlat.webp",
  "fa2690852b1ffc3e83509f30f55538bb": "textures/frames/pkThunderFlat.webp",
- "b4347ed3d41d244c200f6c9e4805451e": "textures/frames/pkThunderHaul.webp"
+ "b4347ed3d41d244c200f6c9e4805451e": "textures/frames/pkThunderHaul.webp",
+ "d4faadae32942fe650b8b89e02893320": "textures/pose-17-game5.webp",
+ "4b425527c21339261b1373dd15f238fa": "textures/frames/gameReachUp.webp",
+ "65ea507af41884cedb6fff103002f609": "textures/frames/gameReachKneel.webp",
+ "bdff47d79cf61d6dd614b19073af2f83": "textures/frames/pkPeerLaugh.webp",
+ "f5c1542d45330452c122c7d29b266ce3": "textures/frames/pkShrugLaugh.webp",
+ "dd20cba4b9c72c0f31325c9e53530303": "textures/frames/pkLift.webp"
 }

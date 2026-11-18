@@ -44,12 +44,35 @@ export const ROUTES = {
   'zap-steal': [...LOOT, tok(55), ['until', 'x.gm.visit.cut != null'], ['wait', 900], tok(155, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
   'zap-win': [...LOOT, ...ZAP, ...WIN],
   'empty-knocked': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['wait', 500], tok(1), ['until', 'x.cur?.name === "打跑了"'], ['until', '!x.cur'], ['wait', 800]],
+  // one 小花花 over the empty chest: it laughs its thanks and is off with the chest, she cries (from sitting, and from
+  // peering into it: the 小花花 waits till it is up, then it laughs from where it is)
+  'empty-snatch': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['wait', 500], tok(1, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
+  'empty-snatch-peer': [['do', 'x.visit()'], ['wait', 300], ['jump', 2500], ['jump', 9100], ['until', 'x.gm.visit?.phase === "peer"'], ['wait', 1500], tok(1, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
   'empty-toss': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['jump', 45100], ['until', '!x.gm.visit'], ['wait', 1200]],
   'scare-tug': [...LOOT, ...ZAP, ['do', 'x.fire("舰长", { price: 1980 })'], ['until', 'x.cur?.name === "舰长"'], ['until', '!x.cur'], ['wait', 800]],
   'scare-zap-admiral': [...LOOT, ...ZAP, ['do', 'x.fire("提督", { price: 19980 })'], ['until', 'x.cur?.name === "提督"'], ['until', '!x.cur'], ['wait', 800]],
   'scare-zap-governor': [...LOOT, ...ZAP, ['do', 'x.fire("总督", { price: 199980 })'], ['until', 'x.cur?.name === "总督"'], ['until', '!x.cur'], ['wait', 800]],
   'scare-zap-lottery': [...LOOT, ...ZAP, ['do', 'x.fire("报名开场")'], ['until', 'x.cur?.name === "报名开场"'], ['until', '!x.cur'], ['wait', 800]],
+  'scare-big': [...LOOT, ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
+  'scare-big-zap': [...LOOT, ...ZAP, ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
+  // (2026-11-18 review) a 小花花 late from its spam as she is robbed; one just after a big gift; an empty chest decided in
+  // the air; a big gift while it flies in with a full one; a lottery in the tug; a round of blind boxes to a 中礼物
+  'late-gift': [...LOOT, tok(100, -1), ['wait', 500], tok(1, -1), ['until', 'x.cur?.name === "被偷了" && x.now() >= x.cur.start + x.cur.pre'], ['until', '!x.cur'], ['wait', 800]],
+  'burst-race': [...LOOT, ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['wait', 500], tok(100, -1), ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
+  'empty-air-kill': [['do', 'x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 1500], tok(1), ['until', 'x.cur?.name === "打跑了"'], ['until', '!x.cur'], ['wait', 800]],
+  'empty-air-steal': [['do', 'x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 1500], tok(1, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
+  'scare-air-big': [...AIR, ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
+  'scare-lottery': [...LOOT, ['do', 'x.fire("报名开场")'], ['until', 'x.cur?.name === "报名开场"'], ['until', '!x.cur'], ['wait', 800]],
+  'box-mid': [...LOOT, ['do', "x.give([{ gift: '爱心抱枕', price: 160, n: 10, box: '心动盲盒', boxPrice: 150 }])"], ['until', 'x.cur?.name === "盲盒·中"'], ['until', '!x.cur'], ['wait', 800]],
   'scare-castle': [...LOOT, ['do', 'x.give([{ gift: "浪漫城堡", price: 22330, n: 1, box: "心动盲盒", boxPrice: 10, castle: true }])'], ['until', 'x.cur?.name === "城堡"'], ['until', '!x.cur'], ['wait', 800]],
+  // (2026-11-18 second review) a big gift just after it wins, just after it steals; a gift after a PK scared it off a
+  // frizzed tug; a 总督 just after a 舰长 that scared it off; a 小花花 and a 秒杀 while it only peeks in
+  'win-big': [...LOOT, tok(100), ['until', 'x.cur?.name === "守住了"'], ['wait', 1000], ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
+  'lose-big': [...LOOT, tok(100, -1), ['wait', 800], ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
+  'pk-zap-gift': [...LOOT, ...ZAP, ['do', 'x.pkOn(true)'], ['wait', 300], ['do', 'x.give([{ gift: "爱心抱枕", price: 1000, n: 1 }])'], ['until', 'x.cur?.name === "中礼物"'], ['until', '!x.cur'], ['wait', 800]],
+  'guard-gov': [...LOOT, ...ZAP, ['do', 'x.fire("舰长", { price: 1980 })'], ['until', 'x.cur?.name === "舰长"'], ['wait', 500], ['do', 'x.fire("总督", { price: 199980 })'], ['until', 'x.cur?.name === "总督"'], ['until', '!x.cur'], ['wait', 800]],
+  'peek-steal': [['do', 'x.visit()'], ['wait', 400], tok(1, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
+  'peek-kill': [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 400], tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
   'pk-tug': [...LOOT, ['do', 'x.pkOn(true)'], ['until', '!x.gm.visit'], ['wait', 1500]],
   'pk-zap': [...LOOT, ...ZAP, ['do', 'x.pkOn(true)'], ['until', '!x.gm.visit'], ['wait', 1500]],
   'scare-air': [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 3000], ['do', 'x.fire("舰长", { price: 1980 })'],
