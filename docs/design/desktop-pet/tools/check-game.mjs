@@ -35,7 +35,8 @@ export const ROUTES = {
   'buzzer-win': [...LOOT, ...BUZZER],
   'sprint-flip': [...LOOT, ...FLIP],
   'steal-kill': [...LOOT, tok(100, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
-  'zap-kill': [...LOOT, tok(55), ['until', 'x.gm.visit.cut != null'], ['wait', 900], tok(45), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
+  // (her 45 more before its bolt strikes, 900 ms into the lightning: struck, it has 25 票 more, and 45 are no 秒杀)
+  'zap-kill': [...LOOT, tok(55), ['until', 'x.gm.visit.cut != null'], ['wait', 600], tok(45), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
   'air-kill': [...AIR, tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
   'air-steal': [...AIR, tok(100, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
   // the end coming while it hauls the chest off, while it is still getting up, while it casts its lightning
