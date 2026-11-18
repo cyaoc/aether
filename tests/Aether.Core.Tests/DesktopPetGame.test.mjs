@@ -113,7 +113,7 @@ test('scared off while the bar is up, in the tug or still in the air, it is her 
     assert.deepEqual([v.phase, v.swept, v.result, pet.gm.streak, pet.gm.chest, playing(pet), pet.cur.opts.kept, [...names], [...poses]],
       ['fled', true, 1, 1, 500 + 3 + 1980, 'captain', true, ['舰长 460'], ['cheer']]);
   }
-  // (an empty chest is no fight)
+  // (an empty chest is no tug)
   const empty = visited();
   empty.guard(captain);
   play(empty, 1500);
@@ -287,7 +287,7 @@ test('a 人气票 or 小花花 sent while it only peeks in counts once it flies 
   assert.deepEqual([empty.gm.visit.phase, playing(empty)], ['away', 'chestRobbed']);
 });
 
-test('at 0:00 the fight waits five seconds for what is late on the way, then the side the line is on wins, a tie the 捣蛋鬼\'s', () => {
+test('at 0:00 the tug waits five seconds for what is late on the way, then the side the line is on wins, a tie the 捣蛋鬼\'s', () => {
   const outcome = sent => {
     const pet = tugging();
     countdown(pet, 0);
@@ -303,7 +303,7 @@ test('at 0:00 the fight waits five seconds for what is late on the way, then the
   assert.deepEqual(outcome(pet => pet.gift(flowers(2))), ['lost', 'chestRobbed'], '0 : 1');
 });
 
-test('a 绝杀 is a fight decided by a gift that came in its last ten seconds or the grace, not by a lead held from before', () => {
+test('a 绝杀 is a tug decided by a gift that came in its last ten seconds or the grace, not by a lead held from before', () => {
   // each gift at so much of the countdown left (the grace 1 s in: -1000), then on to the result
   const ended = (...sent) => {
     const pet = tugging();
@@ -430,7 +430,7 @@ test('a castle played in a 一轮送礼 begun before the 捣蛋鬼 came is playe
   assert.deepEqual([...shows].map(show => show.name).filter(name => name === 'castle'), ['castle', 'castle']);
 });
 
-test('every 人气票 and 小花花 thrown goes into her chest, those still to land when the fight ends too', () => {
+test('every 人气票 and 小花花 thrown goes into her chest, those still to land when the tug ends too', () => {
   const empty = visited();
   for (const [uid, n] of [[1, 1], [2, 2], [3, 3]]) empty.gift(tickets(uid, n));
   play(empty, 20000);

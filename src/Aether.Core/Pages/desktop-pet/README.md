@@ -91,7 +91,7 @@ asked for, at the soonest a second later: the game's while it is still to come, 
 
 The design package's README 12 and its board with `game` 开 are the game; the page plays it as the board does, its engine in
 `engine.mjs` (the 来访's clock, `gameUpdate`, where everything is at a moment, `gameState`, and the tug bar's rules, from
-`gameGift` on) and its drawing in `pet.mjs` (`drawGame`, the fight's board `drawBoard`, a 绝杀 `drawBuzzer`). Nothing of it is
+`gameGift` on) and its drawing in `pet.mjs` (`drawGame`, the tug's board `drawBoard`, a 绝杀 `drawBuzzer`). Nothing of it is
 drawn while the 捣蛋鬼 is away, and her shows are as they were.
 
 The 捣蛋鬼's drawings, its loops and in-betweens, and the chest's are the same for every character, in `prankster/`; its
@@ -180,7 +180,9 @@ the page beside the board, as the web service serves it, telling it it is on in 
   blind boxes sent while it is here wait, unshaken, for Core's 盲盒播报: one that cost less than a 中礼物 in all plays nothing
   while it is here, a bigger one, or a castle, plays and scares it off. The board's stood in for the 盲盒播报 3.8 s after
   the round's last gift.
-- A first place taken while it is here is crowned once it has gone and the chest is home, as the board's; the 礼物榜 tells
+- A first place taken while it is here is crowned once it has gone and the chest is home. Taken by a gift whose own show
+  scares it off (a round come to a 中礼物), the board crowns it right after that show, before the shows that waited; the
+  page, told of it while the 捣蛋鬼 is still here, crowns it as any other taken then, after them (`gm.top`). The 礼物榜 tells
   the page of it apart from the gift, before it or after, where the board's gift said so itself.
 - A 试演 and a show turned off scare it off too: a gift's show turned off sends its ring of light all the same and plays
   nothing, and a 试演 scares it at once, with no light and no name rising from the bar. A PK does as the board's button

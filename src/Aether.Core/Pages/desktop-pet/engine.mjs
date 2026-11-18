@@ -374,6 +374,7 @@ export class Engine extends EventTarget {
     this.trialOver(c);
     // one that comes while the chest is still going home, or her hair is still to be patted smooth, waits for them, whether the
     // show it takes over had them still to do or none played (a PK scared the 捣蛋鬼 off); the game's own shows play the chest home
+    // (only a 试演 still comes so, and has a line carried and a pose held below: what happened waits its turn, wrapping in fire)
     if (!opts.game) {
       opts = { ...opts, tidy: opts.tidy || (gm.out ? TIDY : 0), frizz: opts.frizz || this.frizzed(gm.fix, now) || this.frizzed(c, now) };
       gm.fix = null;
