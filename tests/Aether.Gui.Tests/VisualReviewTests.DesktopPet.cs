@@ -54,10 +54,10 @@ public sealed partial class VisualReviewTests
                 GuiHarness.Tab(page, 3);
                 Pick(page, "LineKindList", "大礼物");
                 Capture("lines");
-                // The design's list scrolled down to its lines.
+                // The design's list scrolled down to its lines, 露破绽 the last it shows.
                 var kinds = page.FindControl<ListBox>("LineKindList")!;
                 Pick(page, "LineKindList", "招人");
-                kinds.ScrollIntoView(kinds.Items.Count - 1);
+                kinds.ScrollIntoView(kinds.Items.OfType<DesktopPetLineKind>().Single(kind => kind.Kind.Label == "露破绽"));
                 Capture("game-lines");
                 GuiHarness.Tab(page, 2);
                 harness.Client.WebService.SetDesktopPetRoom(true);

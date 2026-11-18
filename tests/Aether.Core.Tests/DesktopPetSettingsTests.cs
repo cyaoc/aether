@@ -114,11 +114,13 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     public void A_file_whose_blind_box_query_keyword_is_1_reads_and_saves_all_the_same()
     {
         Write("blind_box:\n  daily_keyword: 1\n");
-        Assert.Equal((null, "1"), (Settings.Load(h.DataDirectory).Error, Settings.Load(h.DataDirectory).BlindBoxDailyKeyword.Value));
+        var settings = Settings.Load(h.DataDirectory);
+        Assert.Equal((null, "1"), (settings.Error, settings.BlindBoxDailyKeyword.Value));
 
         Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.monthly_keyword"] = "2" });
 
-        Assert.Equal((null, "2"), (Settings.Load(h.DataDirectory).Error, Settings.Load(h.DataDirectory).BlindBoxMonthlyKeyword.Value));
+        settings = Settings.Load(h.DataDirectory);
+        Assert.Equal((null, "2"), (settings.Error, settings.BlindBoxMonthlyKeyword.Value));
     }
 
     [Theory]

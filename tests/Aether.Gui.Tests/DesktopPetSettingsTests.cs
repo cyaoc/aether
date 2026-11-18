@@ -188,10 +188,13 @@ public sealed class DesktopPetSettingsTests
         Assert.Equal((40, 0), (saved.DesktopPetGloomyMinutes.Value, saved.DesktopPetMishapPercent.Value));
     }, prepare: harness => harness.SaveSettings(("desktop_pet.gloomy_minutes", "0"), ("desktop_pet.mishap_percent", "0")));
 
+    // The switches in front of a number, by the tab they are on.
+    private static readonly (int Tab, string[] Switches)[] NumberSwitches = [(1, ["无聊", "沮丧", "犯困", "出事"]), (2, ["捣蛋鬼自己来", "幸运纸团"])];
+
     [Fact]
     public Task No_tab_says_that_0_turns_a_number_off_whether_it_is_on_or_off() => WithPage(page =>
     {
-        foreach (var (tab, switches) in new[] { (1, new[] { "无聊", "沮丧", "犯困", "出事" }), (2, new[] { "捣蛋鬼自己来", "幸运纸团" }) })
+        foreach (var (tab, switches) in NumberSwitches)
         {
             GuiHarness.Tab(page, tab);
             foreach (var on in new[] { true, false })

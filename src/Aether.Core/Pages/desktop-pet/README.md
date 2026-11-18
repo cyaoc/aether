@@ -50,7 +50,8 @@ paid, as the chest does:
 | `guard`'s `spend` | What the 大航海 cost in 金瓜子, for all its months; a push B站 repeats (the same `Tid`) is told once |
 
 A `danmaku` tells only `uid`, `nickname` and `side`, the 站队 it takes: 1, hers, when all of it is "1", -1, the 捣蛋鬼's, when
-it is "2", else 0 (Core compares it trimmed, as a 报名抽奖 compares its keyword): what a viewer wrote never reaches the stream. The account's own danmaku, the bot's thanks,
+it is "2", else 0 (Core compares it trimmed, as a 报名抽奖 compares its keyword): what a viewer wrote never reaches the
+stream. The account's own danmaku, the bot's thanks,
 welcomes and 盲盒播报 coming back from B站, are not told. `summon` is the streamer's 叫它来: the 捣蛋鬼 comes once the show she
 plays is over, and the blind boxes she shakes for their 盲盒播报 opened. The page gives itself an id as it loads, asks for its
 events with `/desktop-pet/events?page=` and that id, and reports the 捣蛋鬼 setting off, called or on its own, with

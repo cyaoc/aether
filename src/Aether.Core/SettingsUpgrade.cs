@@ -142,12 +142,12 @@ internal static class SettingsUpgrade
         {
             var name = (key as YamlScalarNode)?.Value ?? "";
             var helper = name == "prankster_keyword";
-            if (!helper && !(name.StartsWith("lines.", StringComparison.Ordinal) && name.EndsWith(".pranksterRecruit", StringComparison.Ordinal))) continue;
+            var recruit = name.StartsWith("lines.", StringComparison.Ordinal) && name.EndsWith(".pranksterRecruit", StringComparison.Ordinal);
+            if (!helper && !recruit) continue;
             var end = Settings.EndOf(tokens, value);
             if (group.Style != MappingStyle.Block || key.Start.Line != end.Line) throw CannotEdit(path, key);
-            var start = helper ? LineStart(source, (int)key.Start.Index) : (int)value.Start.Index;
-            var length = (helper ? LineEnd(source, (int)end.Index) : (int)end.Index) - start;
-            source = source.Remove(start, length).Insert(start, helper ? "" : source.Substring(start, length).Replace("{关键字}", "2"));
+            var (from, to) = helper ? (LineStart(source, (int)key.Start.Index), LineEnd(source, (int)end.Index)) : ((int)value.Start.Index, (int)end.Index);
+            source = source[..from] + (helper ? "" : source[from..to].Replace("{关键字}", "2")) + source[to..];
         }
         return source;
     }
