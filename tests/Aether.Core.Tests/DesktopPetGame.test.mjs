@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { box, gamePet, gifts, item, play, playing, round, state } from './Support/DesktopPetGame.mjs';
+import { box, flowers, gamePet, gifts, item, other, play, playing, round, state, tickets } from './Support/DesktopPetGame.mjs';
 
 const character = JSON.parse(readFileSync(new URL('../../src/Aether.Core/Pages/characters/1/character.json', import.meta.url), 'utf8'));
 // What the page reports to Core of the 捣蛋鬼 (page.mjs).
@@ -12,10 +12,23 @@ const reports = pet => { const told = []; pet.addEventListener('visit', event =>
 // The 捣蛋鬼 called and on the page, peeking in.
 const visited = settings => { const pet = gamePet(character, settings); pet.summon(); play(pet, 100); return pet; };
 // From peeking in to the tug over a chest with something in it: 2.4 s peeking, 9 s flying it over, its fall.
-const tugging = (chest = 500) => { const pet = gamePet(character); pet.gm.chest = chest; pet.summon(); play(pet, 12500); return pet; };
+const tugging = (chest = 500, settings) => { const pet = gamePet(character, settings); pet.gm.chest = chest; pet.summon(); play(pet, 12500); return pet; };
+// Halfway there: it flies the chest over her head.
+const flying = (chest = 500) => { const pet = gamePet(character); pet.gm.chest = chest; pet.summon(); play(pet, 5000); return pet; };
+// In the tug with 55 人气票 landed, past halfway to its end: its lightning has struck her and still plays.
+const zapped = settings => { const pet = tugging(500, settings); pet.gift(tickets(1, 55)); play(pet, 3000); assert.notEqual(pet.gm.visit.cut, null); return pet; };
+// Plays the tug on until its countdown is down to left ms.
+const countdown = (pet, left) => { while (pet.gm.visit.left > left) play(pet, 100); };
+// Plays on until she plays show, past what it waits for first.
+const until = (pet, show) => { for (let i = 0; i < 1000 && !(playing(pet) === show && pet.now() >= pet.cur.start + pet.cur.pre); i++) play(pet, 100); };
+// A 试演 of the 总督, which takes over whatever she plays; and a 舰长 for a month, 1980 电池.
+const governor = { show: 'governor', variant: null, nickname: '总督', id: 9 };
+const captain = { uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 };
 // A viewer's blind box that opens a castle, and its 盲盒播报; the 日常小动作 turned off, for tests that see every show she plays.
 const castleBox = () => box(2, 1, { name: '浪漫城堡', castle: true });
 const castled = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, boxes: 1, bestGift: '浪漫城堡', bestPrice: 2233000, castles: 1 };
+// The 盲盒播报 of a viewer's n boxes at 150 电池 each, a little to the good.
+const opened = (uid, n) => ({ uid, nickname: '观众' + uid, tally: { spend: 15000 * n, openedValue: 16000 * n, outcome: 'Gain' }, boxes: n, bestGift: '爱心抱枕', bestPrice: 16000 });
 const NO_DAILY = ['hum', 'gym', 'hike', 'bike', 'ski'];
 // Every show she plays from now on, in order.
 const shown = pet => { const shows = new Set(); return [shows, () => { if (pet.cur) shows.add(pet.cur); }]; };
@@ -49,15 +62,80 @@ test('a PK keeps the 捣蛋鬼 away: called on its way it is reported gone, and 
 
 test('大航海 and blind boxes go into her chest at what was paid, a blind box as it comes', () => {
   const pet = gamePet(character);
-  pet.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 });
+  pet.guard(captain);
   pet.gift(box(2));
   assert.equal(pet.gm.chest, 1980 + 150);
 });
 
 test('a 大航海 whose show is off scares the 捣蛋鬼 off all the same and plays nothing', () => {
   const pet = visited({ off: ['captain'] });
-  pet.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 });
+  pet.guard(captain);
+  play(pet, 1500);
   assert.deepEqual([pet.gm.visit.phase, playing(pet)], ['fled', null]);
+});
+
+test('a gift that scares the 捣蛋鬼 off sends a ring of light out from her first: until it gets there the countdown, its lightning and what is thrown stand still, and a 人气票 or 小花花 is only a gift', () => {
+  const pet = tugging(), v = pet.gm.visit;
+  play(pet, 3000);
+  // 55 人气票 already falling, which land past halfway to its end, and 2 more still to fall
+  pet.gift(tickets(3, 55));
+  play(pet, 100);
+  pet.gift(tickets(4, 2));
+  pet.guard(captain);
+  const left = v.left;
+  assert.deepEqual([v.phase, playing(pet), pet.gm.burst.due > pet.now()], ['tug', null, true]);
+  // (a hundred 小花花 would have been its 秒杀)
+  pet.gift(flowers(2, 100));
+  play(pet, 400);
+  assert.deepEqual([v.phase, playing(pet), v.left, v.blue, v.net, v.cut ?? null, v.queue.length, pet.gm.aside], ['tug', null, left, 0, 55, null, 1, 100]);
+  play(pet, 1500);
+  assert.deepEqual([v.phase, playing(pet), pet.gm.burst.due], ['fled', 'captain', null]);
+});
+
+test('its lightning cast as the light sets out strikes her all the same, but gives it nothing', () => {
+  const pet = tugging(), v = pet.gm.visit;
+  pet.gift(tickets(1, 55));
+  play(pet, 2500);
+  pet.guard(captain);
+  play(pet, 400);
+  assert.deepEqual([v.bolted, v.blue, v.phase], [true, 0, 'tug']);
+  play(pet, 1500);
+  assert.deepEqual([v.blue, v.phase, pet.cur.opts.frizz], [0, 'fled', 'cheer']);
+});
+
+test('scared off while the bar is up, in the tug or still in the air, it is her 秒杀: the line runs to her end, the sender\'s name rises from there, 连守 goes up and she cheers until the show starts', () => {
+  for (const pet of [tugging(), flying()]) {
+    const v = pet.gm.visit, names = new Set(), poses = new Set();
+    pet.gift(tickets(2, 3));
+    pet.guard(captain);
+    play(pet, 2500, st => { for (const num of pet.gm.nums) if (num.big) names.add(`${num.text} ${num.x}`); if (pet.cur) poses.add(st.pose); });
+    assert.deepEqual([v.phase, v.swept, v.result, pet.gm.streak, pet.gm.chest, playing(pet), pet.cur.opts.kept, [...names], [...poses]],
+      ['fled', true, 1, 1, 500 + 3 + 1980, 'captain', true, ['舰长 460'], ['cheer']]);
+  }
+  // (an empty chest is no fight)
+  const empty = visited();
+  empty.guard(captain);
+  play(empty, 1500);
+  assert.deepEqual([empty.gm.visit.swept ?? false, empty.gm.streak, empty.cur.opts.kept], [false, 0, false]);
+});
+
+test('a lottery scares it off at once, with no light: in the tug the line runs to her end all the same, and no name rises', () => {
+  const pet = tugging(), v = pet.gm.visit;
+  pet.receive(state(pet, { lottery: { mode: 'Entry', id: 'E1', keyword: '抽奖', phase: 'Open', entryCount: 0, draws: [], drawUntil: null } }));
+  assert.deepEqual([v.phase, pet.gm.burst ?? null, v.swept, pet.gm.nums, pet.gm.streak, playing(pet), pet.cur.opts.kept], ['fled', null, true, [], 1, 'lottery', true]);
+});
+
+test('scared off by a gift after the lightning, her sprite pats her hair smooth before it takes the chest home, and the show starts once both are done', () => {
+  const pet = zapped(), waiting = new Set(), early = [];
+  pet.guard(captain);
+  play(pet, 1500);
+  assert.deepEqual([playing(pet), pet.cur.opts.frizz, pet.cur.opts.kept, pet.gm.out.wait], ['captain', 'cheer', true, true]);
+  // while the chest waits she is frizzed, and it may go once her hair is smooth; the show waits for the chest on (the sprite
+  // is not drawn here to take it: it is home when the page gives up on it)
+  play(pet, 10000, st => {
+    if (pet.now() < pet.cur.start + pet.cur.pre) waiting.add(`${st.pose} ${pet.gm.out.wait}`); else if (pet.gm.out) early.push(pet.now());
+  });
+  assert.deepEqual([[...waiting], early, pet.gm.out], [['cheerZap true', 'cheer false'], [], null]);
 });
 
 test('a 试演 scares the 捣蛋鬼 off as what happened would, and plays once the chest is home', () => {
@@ -105,126 +183,366 @@ test('the 捣蛋鬼 peeks in and slides back out as it came, off the page before
   assert.deepEqual([seen.some(pk => pk.pose === 'peek' && pk.x === 24), seen.at(-1).pose, Math.max(...steps) < 10], [true, 'carry', true]);
 });
 
-test('a viewer sending the 帮它的关键字 twice in the tug is one helper', () => {
+test('the tug\'s line starts in the middle, a 人气票 pushes it toward the 捣蛋鬼\'s end and a 小花花 toward hers, each side\'s score counting them as they reach the page', () => {
+  const pet = tugging(), v = pet.gm.visit, bar = () => [v.red, v.blue, Math.round(pet.lineX(v) * 10) / 10, v.net];
+  // a chest of 500 电池 puts each end 100 票 from the middle of the bar, 436 px wide from x 22
+  assert.deepEqual([v.span, ...bar()], [100, 0, 0, 240, 0]);
+  pet.gift(tickets(1, 10));
+  assert.deepEqual(bar(), [10, 0, 261.8, 0]);
+  pet.gift(flowers(2, 30));
+  assert.deepEqual(bar(), [10, 30, 196.4, 0]);
+  // (the chest on the ground goes by what has landed: once it is up and they drop)
+  play(pet, 3000);
+  assert.deepEqual(bar(), [10, 30, 196.4, -20]);
+});
+
+test('each end is a twentieth of the chest\'s 电池 from the middle, 100 票 at the least and 500 at the most', () => {
+  assert.deepEqual([500, 4000, 20000].map(chest => tugging(chest).gm.visit.span), [100, 200, 500]);
+});
+
+test('a side whose gifts reaching the page take the line to its end wins there and then: nothing waits to land, and the lightning is cut short', () => {
   const pet = tugging();
-  assert.equal(pet.gm.visit.phase, 'tug');
-  pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
-  pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
-  pet.danmaku({ uid: 6, nickname: '观众6', joins: false });
-  assert.deepEqual([...pet.gm.visit.helpers], [5]);
+  pet.gift(tickets(1, 55));
+  play(pet, 2200);
+  assert.notEqual(pet.gm.visit.cut, null);
+  pet.gift(tickets(2, 45));
+  assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.cut, playing(pet), pet.gm.streak, pet.gm.chest], ['won', null, 'chestKept', 1, 600]);
+  const stolen = tugging();
+  stolen.gift(flowers(1, 100));
+  assert.deepEqual([stolen.gm.visit.phase, stolen.gm.streak, stolen.gm.chest, stolen.gm.brag], ['lost', 0, 0, true]);
 });
 
-test('danmaku in the tug take no more than three tenths of the 捣蛋鬼\'s life all together, and none of a life too short for one', () => {
-  // its life a fifth of the chest: 2, and 125 that pebbles take 3 at a time
-  for (const [chest, taken, hits] of [[10, 0, 0], [625, 37, 13]]) {
-    const pet = tugging(chest), v = pet.gm.visit;
-    for (let n = 0; n < 50; n++) pet.danmaku({ uid: 1, nickname: '观众1', joins: false });
-    assert.deepEqual([v.max - v.hp, pet.gm.nums.filter(num => num.small).length], [taken, hits], `a chest of ${chest}`);
+test('its lightning\'s bolt gives the 捣蛋鬼 a quarter of the way to an end, shown as a gift is; cut short before it strikes, her hair is not frizzed', () => {
+  const pet = tugging(), v = pet.gm.visit;
+  pet.gift(tickets(1, 55));
+  play(pet, 2200);
+  assert.deepEqual([v.cut != null, v.blue, v.net], [true, 0, 55]);
+  play(pet, 1000);
+  assert.deepEqual([v.blue, v.net, pet.gm.nums.at(-1).text, pet.gm.nums.at(-1).side, v.bolted], [25, 30, '+25 捣蛋鬼', -1, true]);
+  const spared = tugging(), poses = new Set();
+  spared.gift(tickets(1, 55));
+  play(spared, 2200);
+  spared.gift(tickets(2, 45));
+  play(spared, 3000, st => poses.add(st.pose));
+  assert.deepEqual([spared.gm.visit.blue, spared.cur.opts.zap, [...poses].filter(pose => pose.endsWith('Zap'))], [0, false, []]);
+});
+
+test('beaten while it is still getting up from its fall, the 捣蛋鬼 is knocked flying off the lid', () => {
+  const pet = tugging();
+  pet.gift(tickets(1, 100));
+  assert.deepEqual([pet.gm.visit.phase, playing(pet)], ['knocked', 'chestKept']);
+});
+
+test('while it still flies the chest in, enough 人气票 knock it out of the air and she cheers at once, and enough 小花花 have it off with the chest', () => {
+  const kept = flying(), poses = new Set();
+  kept.gift(tickets(1, 100));
+  assert.deepEqual([kept.gm.visit.phase, playing(kept), kept.cur.pre, kept.gm.streak, kept.gm.chest], ['fled', 'chestKept', 0, 1, 600]);
+  const stolen = flying();
+  stolen.gift(flowers(1, 100));
+  assert.deepEqual([stolen.gm.visit.phase, stolen.gm.streak, stolen.gm.chest], ['away', 0, 0]);
+  // she starts, reaches up after it until it is off the page, and only then kneels crying
+  play(stolen, 2300, st => poses.add(st.pose));
+  assert.deepEqual([...poses], ['startled', 'reachUp']);
+  play(stolen, 300, st => poses.add(st.pose));
+  assert.deepEqual([stolen.gm.visit, playing(stolen), [...poses].at(-1)], [null, 'chestRobbed', 'robbed']);
+});
+
+test('over an empty chest one 小花花 has the 捣蛋鬼 take the chest: 连守 goes, she cries once it is off with it, and it has nothing to brag of next time', () => {
+  const pet = gamePet(character), poses = new Set();
+  pet.gm.streak = 2;
+  pet.summon();
+  play(pet, 20000);
+  assert.equal(pet.gm.visit.phase, 'sit');
+  pet.gift(flowers(1));
+  play(pet, 1000);
+  assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.say.text, pet.gm.streak, pet.gm.steals, pet.gm.brag, pet.gm.chest, playing(pet)],
+    ['snatch', '谢谢观众1！\n箱子归我了～', 0, 1, false, 0, 'chestRobbed']);
+  // sorry about her empty chest till it is up and away with it, she starts, reaches after it, and kneels crying
+  play(pet, 5000, st => poses.add(st.pose));
+  assert.deepEqual([pet.gm.visit, [...poses]], [null, ['sorry', 'startled', 'reachUp', 'robbed']]);
+});
+
+test('over an empty chest still in the air one gift decides it there and then: a 人气票 knocks it down and off, a 小花花 has it fly off with the chest', () => {
+  const knocked = flying(0);
+  knocked.gift(tickets(1));
+  assert.deepEqual([knocked.gm.visit.phase, playing(knocked), knocked.cur.opts.nickname, knocked.gm.chest, knocked.gm.streak], ['fled', 'pranksterKnocked', '观众1', 1, 0]);
+  const taken = flying(0);
+  taken.gm.streak = 2;
+  taken.gift(flowers(1));
+  assert.deepEqual([taken.gm.visit.phase, taken.gm.visit.say.text, playing(taken), taken.gm.streak, taken.gm.brag], ['away', '谢谢观众1！\n箱子归我了～', 'chestRobbed', 0, false]);
+});
+
+test('a 人气票 or 小花花 sent while it only peeks in counts once it flies in with the chest on its rope', () => {
+  const pet = gamePet(character), empty = gamePet(character);
+  pet.gm.chest = 500;
+  for (const [p, gift] of [[pet, tickets(1, 100)], [empty, flowers(1)]]) {
+    p.summon();
+    play(p, 1000);
+    p.gift(gift);
+    assert.deepEqual([p.gm.visit.phase, p.gm.visit.red, p.gm.visit.chest, playing(p)], ['peek', 0, null, null]);
+    play(p, 2000);
   }
+  assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.red, playing(pet)], ['fled', 100, 'chestKept']);
+  assert.deepEqual([empty.gm.visit.phase, playing(empty)], ['away', 'chestRobbed']);
 });
 
-test('five gifts in one message from a viewer on the 捣蛋鬼\'s side flatten her, falling as one', () => {
+test('at 0:00 the fight waits five seconds for what is late on the way, then the side the line is on wins, a tie the 捣蛋鬼\'s', () => {
+  const outcome = sent => {
+    const pet = tugging();
+    countdown(pet, 0);
+    play(pet, 4000);
+    assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.left], ['tug', 0]);
+    sent(pet);
+    play(pet, 1500);
+    return [pet.gm.visit.phase, playing(pet)];
+  };
+  assert.deepEqual(outcome(() => {}), ['lost', 'chestRobbed'], '0 : 0');
+  assert.deepEqual(outcome(pet => pet.gift(tickets(1))), ['won', 'chestKept'], '1 : 0, the one sent in the grace');
+  assert.deepEqual(outcome(pet => { pet.gift(tickets(1, 3)); pet.gift(flowers(2, 3)); }), ['lost', 'chestRobbed'], '3 : 3');
+  assert.deepEqual(outcome(pet => pet.gift(flowers(2))), ['lost', 'chestRobbed'], '0 : 1');
+});
+
+test('a 绝杀 is a fight decided by a gift that came in its last ten seconds or the grace, not by a lead held from before', () => {
+  // each gift at so much of the countdown left (the grace 1 s in: -1000), then on to the result
+  const ended = (...sent) => {
+    const pet = tugging();
+    for (const [left, gift] of sent) { countdown(pet, Math.max(0, left)); play(pet, Math.max(0, -left)); pet.gift(gift); }
+    for (let i = 0; i < 1000 && !pet.gm.visit.result; i++) play(pet, 100);
+    // who scored it, on which side, the kind of line she says of it and what the 捣蛋鬼 says
+    const kind = ['chestKept', 'chestKeptBuzzer', 'chestRobbed'].find(k => character.lines[k].includes(pet.cur.line));
+    return [pet.gm.visit.phase, pet.gm.buzzer?.side ?? null, pet.gm.buzzer?.w.name ?? null, kind, pet.gm.visit.say.text];
+  };
+  const flees = '你们给我\n等着——！';
+  assert.deepEqual(ended([30000, tickets(1, 5)]), ['won', null, null, 'chestKept', flees], 'ahead since half a minute before');
+  assert.deepEqual(ended([5000, tickets(1, 5)]), ['won', 1, '观众1', 'chestKeptBuzzer', flees], 'put ahead 5 s before the end');
+  assert.deepEqual(ended([30000, flowers(3, 5)], [-1000, tickets(2, 6)]), ['won', 1, '观众2', 'chestKeptBuzzer', flees], 'turned in the grace');
+  assert.deepEqual(ended([30000, tickets(1, 5)], [5000, flowers(2, 6)]), ['lost', -1, '观众2', 'chestRobbed', '多谢观众2！\n箱子归我啦～'], 'turned its way 5 s before the end');
+  assert.deepEqual(ended([5000, tickets(3, 100)]), ['won', 1, '观众3', 'chestKeptBuzzer', flees], 'a 秒杀 5 s before the end');
+  assert.deepEqual(ended([30000, flowers(2, 5)]), ['lost', null, null, 'chestRobbed', '多谢款待，\n下次再来！'], 'behind since half a minute before');
+});
+
+test('in the last ten seconds the 捣蛋鬼 hauls the chest off and she is dragged along while she is not ahead; ahead, they pull on as before', () => {
+  const pet = tugging(), now = () => { let her; play(pet, 2000, st => { her = st.pose; }); return [her, pet.gl.pk.pose]; };
+  pet.gift(tickets(1, 5));
+  countdown(pet, 9000);
+  // (its bye is for the first time it really hauls the chest off)
+  assert.deepEqual([...now(), pet.gm.visit.bye ?? false], ['tug', 'tug', false]);
+  pet.gift(flowers(2, 6));
+  assert.deepEqual([...now(), pet.gm.visit.say.text], ['dragged', 'haul', character.lines.pranksterSprint[0]]);
+  pet.gift(tickets(1, 2));
+  assert.deepEqual(now(), ['tug', 'tug']);
+});
+
+test('five 小花花 in one message flatten her, falling as one', () => {
   const pet = tugging(), poses = new Set();
   let drops = 0;
-  pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
-  pet.gift(gifts(5, 5000, 5));
+  pet.gift(flowers(5, 5));
   play(pet, 4000, st => { poses.add(st.pose); drops = Math.max(drops, pet.gm.drops.length); });
   assert.deepEqual([poses.has('flat'), drops], [true, 1]);
 });
 
-test('what a viewer throws at the 捣蛋鬼 in one 一轮送礼 beats it off once it comes to the 中礼物 threshold, its life healed or not', () => {
-  const pet = gamePet(character), phases = [];
-  // (what the viewer sent in the round before it came went into her chest, and does not count)
-  pet.gift(gifts(1, 50000));
-  pet.gm.chest = 5000;
-  pet.summon();
-  play(pet, 20000);
-  pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
-  // viewer 1 throws 400, 400 and 200 电池, viewer 5 heals it 400 after each of the first two
-  for (const [uid, thrown] of [[1, 40000], [5, 40000], [1, 40000], [5, 40000], [1, 20000]]) {
-    pet.gift(gifts(uid, thrown));
-    play(pet, 1000);
-    phases.push(pet.gm.visit.phase);
-  }
-  assert.deepEqual(phases, ['tug', 'tug', 'tug', 'tug', 'won']);
-});
-
-test('gifts and blind boxes thrown at the 捣蛋鬼 play nothing of hers, then or after it leaves', () => {
+test('人气票 and 小花花 thrown at the 捣蛋鬼 play nothing of hers, then or after it leaves', () => {
   const pet = visited();
-  pet.gift(gifts(1, 100000));
-  pet.gift(box(2));
+  pet.gift(tickets(1, 3));
+  pet.gift(flowers(2));
   pet.receive(state(pet, { pk: true }));
   play(pet, 3000);
   assert.deepEqual([pet.gm.visit, playing(pet)], [null, null]);
-  pet.blindBox({ uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 });
-  assert.equal(playing(pet), null);
   pet.gift(gifts(1, 100));
   assert.equal(playing(pet), 'gift');
 });
 
-test('盲盒播报 open a viewer\'s boxes in the order they came: the box thrown at the 捣蛋鬼 first, as none, then the one sent after', () => {
-  const pet = visited();
-  pet.gift(box(2));
+test('any other gift plays nothing while the 捣蛋鬼 is here, and its 电池 go into her chest only once it has gone', () => {
+  const pet = tugging();
+  pet.gift(other(1, 30000));
+  play(pet, 1000);
+  assert.deepEqual([playing(pet), pet.gm.visit.phase, pet.gm.chest, pet.gm.visit.red, pet.gm.drops.length], [null, 'tug', 500, 0, 0]);
   pet.receive(state(pet, { pk: true }));
   play(pet, 3000);
-  pet.receive(state(pet, { pk: false }));
-  pet.gift(round(2, { ended: true }));
+  assert.deepEqual([pet.gm.visit, pet.gm.chest], [null, 500 + 300]);
+});
+
+test('a viewer\'s 一轮送礼 that comes to a 中礼物 with such gifts plays its show, which scares the 捣蛋鬼 off, what the round sent before the 来访 counting too', () => {
+  const pet = gamePet(character);
+  // 400 电池 before it comes, thanked as ever; then 300 and 300 more of the same round while it is here
+  pet.gift(other(1, 40000));
+  pet.summon();
+  play(pet, 15000);
+  assert.deepEqual([playing(pet), pet.gm.visit.phase], [null, 'tug']);
+  pet.gift(other(1, 30000));
+  pet.gift(other(2, 90000));
+  play(pet, 2000);
+  assert.deepEqual([playing(pet), pet.gm.visit.phase], [null, 'tug']);
+  pet.gift(other(1, 30000));
+  play(pet, 2000);
+  assert.deepEqual([playing(pet), pet.cur.opts.nickname, pet.gm.visit.phase], ['midGift', '观众1', 'fled']);
+});
+
+test('blind boxes sent while the 捣蛋鬼 is here wait unshaken for their 盲盒播报: short of a 中礼物 they play nothing, at one they play and scare it off', () => {
+  const marks = new Set(), seen = st => { for (const [fx] of st.fx) marks.add(fx); };
+  const small = tugging();
+  small.gift(box(2, 3));
+  play(small, 1000, seen);
+  small.blindBox(opened(2, 3));
+  play(small, 1000, seen);
+  assert.deepEqual([playing(small), small.gm.visit.phase, marks.has('shakeMarks'), small.gm.chest], [null, 'tug', false, 500]);
+  const mid = tugging();
+  mid.gift(box(2, 10));
+  mid.blindBox(opened(2, 10));
+  play(mid, 2000);
+  assert.deepEqual([playing(mid), mid.gm.visit.phase], ['blindBoxMedium', 'fled']);
+});
+
+test('boxes whose 盲盒播报 has not come when the 捣蛋鬼 is gone she shakes then, and they open as ever', () => {
+  const pet = tugging(), poses = new Set();
   pet.gift(box(2));
-  const result = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 };
-  pet.blindBox(result);
-  assert.equal(playing(pet), null);
-  pet.blindBox(result);
+  pet.receive(state(pet, { pk: true }));
+  play(pet, 2000, st => poses.add(st.pose));
+  assert.deepEqual([pet.gm.visit?.phase, poses.has('shakeBox')], ['fled', false]);
+  play(pet, 8000, st => poses.add(st.pose));
+  assert.deepEqual([pet.gm.visit, poses.has('shakeBox'), pet.gm.chest], [null, true, 500 + 150]);
+  pet.blindBox(opened(2, 1));
   assert.equal(playing(pet), 'blindBoxSmall');
 });
 
-test('every gift thrown goes into her chest, those landing after the one that beat the 捣蛋鬼 off too', () => {
+test('a castle out of a blind box sent while the 捣蛋鬼 is here scares it off when its 盲盒播报 comes and plays, as each castle after it does', () => {
+  const pet = visited({ off: NO_DAILY }), [shows, seen] = shown(pet);
+  pet.gift(box(2, 2, { name: '浪漫城堡', castle: true }));
+  play(pet, 500, seen);
+  assert.equal(playing(pet), null);
+  pet.blindBox({ ...castled, boxes: 2, castles: 2 });
+  play(pet, 30000, seen);
+  assert.deepEqual([pet.gm.visit, [...shows].map(show => show.name)], [null, ['castle', 'castle']]);
+});
+
+test('a castle played in a 一轮送礼 begun before the 捣蛋鬼 came is played again for one sent in the round while it is here', () => {
+  const pet = gamePet(character, { off: NO_DAILY }), [shows, seen] = shown(pet);
+  pet.gift(castleBox());
+  pet.blindBox(castled);
+  play(pet, 14000, seen);
+  pet.summon();
+  play(pet, 100, seen);
+  assert.equal(pet.gm.visit?.phase, 'peek');
+  pet.gift(castleBox());
+  pet.blindBox(castled);
+  play(pet, 30000, seen);
+  assert.deepEqual([...shows].map(show => show.name).filter(name => name === 'castle'), ['castle', 'castle']);
+});
+
+test('every 人气票 and 小花花 thrown goes into her chest, those still to land when the fight ends too', () => {
   const empty = visited();
-  for (const [uid, spend] of [[1, 10000], [2, 20000], [3, 30000]]) empty.gift(gifts(uid, spend));
+  for (const [uid, n] of [[1, 1], [2, 2], [3, 3]]) empty.gift(tickets(uid, n));
   play(empty, 20000);
   const tug = tugging();
-  tug.gift(gifts(1, tug.settings.midGift));
-  tug.gift(gifts(2, 5000));
+  tug.gift(flowers(2, 5));
+  tug.gift(tickets(1, 105));
   play(tug, 8000);
-  assert.deepEqual([empty.gm.chest, tug.gm.chest], [100 + 200 + 300, 500 + 1000 + 50]);
+  assert.deepEqual([empty.gm.chest, tug.gm.chest], [1 + 2 + 3, 500 + 5 + 105]);
 });
 
-test('gifts still to fall when the 捣蛋鬼 is scared off go into her chest, during the lightning too', () => {
+test('what is thrown and still to fall when the 捣蛋鬼 is scared off goes into her chest, during the lightning too', () => {
   const pet = visited();
-  pet.gift(gifts(1, 100000));
+  pet.gift(tickets(1, 10));
   pet.receive(state(pet, { pk: true }));
   play(pet, 6000);
-  const zapped = tugging();
-  zapped.gift(gifts(1, 6000));
-  play(zapped, 3000);
-  assert.notEqual(zapped.gm.visit.cut, null);
-  zapped.gift(gifts(2, 1000));
-  zapped.receive(state(zapped, { pk: true }));
-  play(zapped, 8000);
-  assert.deepEqual([pet.gm.chest, zapped.gm.visit, zapped.gm.chest], [1000, null, 500 + 60 + 10]);
+  const struck = zapped();
+  struck.gift(flowers(2, 10));
+  struck.receive(state(struck, { pk: true }));
+  play(struck, 8000);
+  assert.deepEqual([pet.gm.chest, struck.gm.visit, struck.gm.chest], [10, null, 500 + 55 + 10]);
 });
 
-test('a new first place taken by a gift thrown at the 捣蛋鬼 is not crowned after it leaves', () => {
+test('a new first place taken by a gift thrown at the 捣蛋鬼 is crowned once it has gone and the chest is home, the 礼物榜 telling of it before the gift or after', () => {
   for (const crownFirst of [false, true]) {
-    const pet = gamePet(character), seen = new Set();
+    const pet = gamePet(character, { off: NO_DAILY }), [shows, seen] = shown(pet);
     if (crownFirst) pet.crown({ uid: 9, nickname: '观众9' });
     pet.summon();
     play(pet, 100);
-    pet.gift(gifts(9, 100));
+    pet.gift(tickets(9));
     if (!crownFirst) pet.crown({ uid: 9, nickname: '观众9' });
-    pet.receive(state(pet, { pk: true }));
-    play(pet, 8000);
-    pet.receive(state(pet, { pk: false }));
-    pet.gift(round(9, { ended: true }));
-    pet.gift(gifts(9, 100));
-    play(pet, 8000, () => seen.add(playing(pet)));
-    assert.deepEqual([...seen].filter(Boolean), ['gift'], crownFirst ? 'crowned before it came' : 'crowned while it was here');
+    let crowned = null;
+    play(pet, 20000, () => { seen(); if (playing(pet) === 'newFirst') crowned ??= [pet.gm.visit, pet.gm.out]; });
+    assert.deepEqual([[...shows].map(show => [show.name, show.opts.nickname]), crowned], [[['pranksterKnocked', '观众9'], ['newFirst', '观众9']], [null, null]],
+      crownFirst ? 'the 礼物榜 before it came' : 'the 礼物榜 while it was here');
   }
+});
+
+test('a new first place taken by blind boxes that play nothing while the 捣蛋鬼 is here is crowned once it has gone', () => {
+  // (the 礼物榜 telling of it before the 捣蛋鬼 came, the boxes' message after)
+  const pet = gamePet(character, { off: NO_DAILY }), [shows, seen] = shown(pet);
+  pet.gm.chest = 500;
+  pet.crown({ uid: 9, nickname: '观众9' });
+  pet.summon();
+  play(pet, 12500);
+  pet.gift(box(9, 2));
+  pet.blindBox(opened(9, 2));
+  pet.receive(state(pet, { pk: true }));
+  play(pet, 20000, seen);
+  assert.deepEqual([...shows].map(show => [show.name, show.opts.nickname]), [['newFirst', '观众9']]);
+});
+
+test('while a 来访 is wound up the shows that come wait their turn and cut in on nothing, then play the highest first: just after she wins, just after she is robbed, after a PK scared the 捣蛋鬼 off, and after a 舰长 did', () => {
+  const ends = {
+    'chestKept': pet => pet.gift(tickets(1, 100)),
+    'chestRobbed': pet => pet.gift(flowers(1, 200)),
+    'a PK': pet => pet.receive(state(pet, { pk: true })),
+    'captain': pet => { pet.guard(captain); play(pet, 1500); }
+  };
+  // (each after the lightning, so that her hair is to be smoothed too)
+  for (const [first, end] of Object.entries(ends)) {
+    const pet = zapped({ off: NO_DAILY }), [shows, seen] = shown(pet);
+    end(pet);
+    play(pet, 500, seen);
+    // a 中礼物 and then a 总督, and a plain gift, which is let go
+    pet.gift(other(4, 100000));
+    pet.guard({ uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 });
+    pet.gift(other(5, 100));
+    const waits = [pet.queue.map(q => q.name), pet.cur !== null && !pet.cur.opts.game && pet.now() >= pet.cur.start + pet.cur.pre], tidying = [];
+    play(pet, 45000, () => { seen(); if (['governor', 'midGift'].includes(playing(pet)) && (pet.gm.visit || pet.gm.out || pet.gm.fix)) tidying.push(pet.now()); });
+    const played = [...shows], whole = played.slice(1).every((show, i) => show.start >= played[i].start + played[i].pre + played[i].dur - 20);
+    assert.deepEqual([waits, played.map(show => show.name), whole, tidying],
+      [[['midGift', 'governor'], false], [...first === 'a PK' ? [] : [first], 'governor', 'midGift'], true, []], first);
+  }
+});
+
+test('a gift let go while she is busy being robbed does not cheer her up; one whose show plays does', () => {
+  const pet = tugging(500, { off: NO_DAILY });
+  pet.gift(flowers(1, 100));
+  play(pet, 500);
+  pet.gift(flowers(2));
+  until(pet, 'chestRobbed');
+  play(pet, 6000);
+  assert.deepEqual([playing(pet), pet.mood(pet.now())], [null, 'gloomy']);
+  pet.gift(flowers(3));
+  assert.deepEqual([playing(pet), pet.mood(pet.now()) === 'gloomy'], ['gift', false]);
+});
+
+test('while the 捣蛋鬼 is here nothing wakes her first, though the room was quiet before it came', () => {
+  const pet = tugging();
+  pet.lastGift = pet.lastAny = pet.now() - 46 * 60000;
+  pet.receive(state(pet, { lottery: { mode: 'Entry', id: 'E1', keyword: '抽奖', phase: 'Open', entryCount: 0, draws: [], drawUntil: null } }));
+  assert.deepEqual([playing(pet), pet.cur.wakeLine], ['lottery', null]);
+});
+
+test('what the 捣蛋鬼 opens with tells of its last 来访 only: whoever hit it then is named once', () => {
+  const pet = tugging(500, { off: NO_DAILY }), said = [];
+  pet.gift(tickets(4, 3));
+  play(pet, 3000);
+  for (const _ of [1, 2]) {
+    pet.receive(state(pet, { pk: true }));
+    play(pet, 9000);
+    pet.receive(state(pet, { pk: false }));
+    pet.summon();
+    play(pet, 100);
+    said.push(pet.gm.visit.say.text);
+  }
+  assert.deepEqual(said, ['上次砸我的\n观众4在吗？', '嘘——\n别告诉她']);
 });
 
 test('with the room disconnected the 捣蛋鬼 does not come on its own', () => {
   const pet = gamePet(character, { pranksterMinutes: 1 }), told = reports(pet);
   play(pet, 30000);
-  pet.danmaku({ uid: 1, nickname: '观众1', joins: false });
+  pet.danmaku({ uid: 1, nickname: '观众1', side: 0 });
   pet.receive(state(pet, { roomConnected: false }));
   play(pet, 40000);
   assert.deepEqual([pet.gm.visit, told], [null, []]);
@@ -249,7 +567,7 @@ test('叫它来 waits while she shakes a viewer\'s blind box for its 盲盒播�
 
 test('on its own the 捣蛋鬼 comes at most twice an hour, and 叫它来 brings it all the same', () => {
   const pet = gamePet(character, { pranksterMinutes: 1 }), told = reports(pet), comes = () => told.filter(t => t === 'start').length;
-  const busy = ms => { for (const end = pet.now() + ms; pet.now() < end;) { pet.danmaku({ uid: 1, nickname: '观众1', joins: false }); play(pet, 20000); } };
+  const busy = ms => { for (const end = pet.now() + ms; pet.now() < end;) { pet.danmaku({ uid: 1, nickname: '观众1', side: 0 }); play(pet, 20000); } };
   busy(6 * 60000);
   assert.equal(comes(), 2);
   pet.summon();
@@ -259,32 +577,27 @@ test('on its own the 捣蛋鬼 comes at most twice an hour, and 叫它来 brings
   assert.equal(comes(), 5);
 });
 
-test('a show taking over from one that scared the 捣蛋鬼 off waits as it did, for the chest to go home and her hair', () => {
-  const pet = tugging(), zapped = tugging();
-  zapped.gift(gifts(1, 6000));
-  play(zapped, 3000);
-  const early = [];
-  for (const p of [pet, zapped]) {
-    p.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 });
+test('a 试演 taking over a show that scared the 捣蛋鬼 off waits as it did, for the chest to go home and her hair', () => {
+  const pet = tugging(), struck = zapped(), early = [];
+  for (const p of [pet, struck]) {
+    p.testShow({ show: 'captain', variant: null, nickname: '舰长', id: 1 });
     play(p, 500);
-    p.guard({ uid: 2, nickname: '总督', guardLevel: 1, spend: 19998000 });
+    p.testShow(governor);
   }
-  assert.deepEqual([playing(zapped), zapped.cur.opts.frizz], ['governor', 'cheer']);
+  assert.deepEqual([playing(struck), struck.cur.opts.frizz], ['governor', 'cheer']);
   play(pet, 12000, () => { if (pet.gm.out && pet.now() >= pet.cur.start + pet.cur.pre) early.push(pet.now()); });
   assert.deepEqual([playing(pet), early], ['governor', []]);
 });
 
-test('a show coming while the chest is still going home from a PK that scared the 捣蛋鬼 off waits for it, and her hair', () => {
-  const pet = tugging(), zapped = tugging();
-  zapped.gift(gifts(1, 6000));
-  play(zapped, 3000);
-  for (const p of [pet, zapped]) {
+test('a 试演 coming while the chest is still going home from a PK that scared the 捣蛋鬼 off waits for it, and her hair', () => {
+  const pet = tugging(), struck = zapped();
+  for (const p of [pet, struck]) {
     p.receive(state(p, { pk: true }));
     play(p, 500);
-    p.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 });
+    p.testShow({ show: 'captain', variant: null, nickname: '舰长', id: 1 });
   }
-  assert.deepEqual([playing(zapped), zapped.cur.opts.frizz, zapped.gm.fix], ['captain', 'cheer', null]);
-  for (const p of [pet, zapped]) {
+  assert.deepEqual([playing(struck), struck.cur.opts.frizz, struck.gm.fix], ['captain', 'cheer', null]);
+  for (const p of [pet, struck]) {
     const early = [];
     play(p, 12000, () => { if (p.gm.out && p.cur && p.now() >= p.cur.start + p.cur.pre) early.push(p.now()); });
     assert.deepEqual(early, []);
@@ -293,9 +606,7 @@ test('a show coming while the chest is still going home from a PK that scared th
 
 test('a 试演 stopped, or replaced by a 心情\'s, while it waits for her hair leaves the sprite patting it smooth where it was', () => {
   for (const next of [p => p.stopTestShow(), p => p.testShow({ show: 'bored', variant: null, nickname: '', id: 2 })]) {
-    const pet = tugging(), poses = [];
-    pet.gift(gifts(1, 6000));
-    play(pet, 3000);
+    const pet = zapped(), poses = [];
     pet.testShow({ show: 'captain', variant: null, nickname: '星河', id: 1 });
     play(pet, 500);
     const { start } = pet.cur;
@@ -307,10 +618,8 @@ test('a 试演 stopped, or replaced by a 心情\'s, while it waits for her hair 
 });
 
 test('after the lightning and a PK, with the chest home and her hair still frizzed, a show and blind boxes wait for her hair', () => {
-  for (const next of [p => p.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 198000 }), p => p.gift(box(2))]) {
-    const pet = tugging(), poses = [];
-    pet.gift(gifts(1, 6000));
-    play(pet, 3000);
+  for (const next of [p => p.guard(captain), p => p.gift(box(2))]) {
+    const pet = zapped(), poses = [];
     pet.receive(state(pet, { pk: true }));
     play(pet, 3000);
     pet.gm.out = null;   // the chest home (the page's sprite is not drawn here to take it)
@@ -321,88 +630,86 @@ test('after the lightning and a PK, with the chest home and her hair still frizz
   }
 });
 
-test('a show taking over 守住了 or 被偷了 after the lightning waits for her hair if the sprite has not patted it smooth yet, cheering on or kneeling as she was, and not after', () => {
+test('a 试演 taking over 守住了 or 被偷了 after the lightning waits for her hair if the sprite has not patted it smooth yet, cheering on or kneeling as she was, and not after', () => {
   const after = show => {
-    const pet = tugging();
-    pet.gift(gifts(1, 6000)); play(pet, 3000);
-    // beaten off once the lightning is over, or else the countdown runs out
-    if (show === 'chestKept') pet.gift(gifts(2, 100000));
-    for (let i = 0; i < 1000 && playing(pet) !== show; i++) play(pet, 100);
+    const pet = zapped();
+    // beaten off there and then, or else the countdown runs out with the 捣蛋鬼 ahead
+    pet.gift(show === 'chestKept' ? tickets(2, 100) : flowers(3, 60));
+    until(pet, show);
     play(pet, 1000);
     assert.deepEqual([playing(pet), pet.cur.opts.zap], [show, true]);
     return pet;
   };
-  const governor = { uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 };
   // (the sprite is not drawn here, so her hair is smooth at the latest each show has it: smooth)
   for (const [show, smooth, pose] of [['chestKept', 5000, 'cheer'], ['chestRobbed', 3500, 'robbed']]) {
     const early = after(show), late = after(show), poses = new Set();
-    early.guard(governor);
+    early.testShow(governor);
     play(early, 9000, st => { if (early.now() < early.cur.start + early.cur.pre) poses.add(st.pose); });
     assert.deepEqual([show, playing(early), early.cur.opts.frizz, [...poses]], [show, 'governor', pose, [pose + 'Zap', pose]]);
     play(late, smooth);
-    late.guard(governor);
+    late.testShow(governor);
     assert.deepEqual([show, playing(late), late.cur.opts.frizz], [show, 'governor', null]);
   }
 });
 
-test('a show taking over 被偷了 has her say on its line while it waits, until 被偷了 would have stopped it', () => {
-  const pet = tugging();
-  pet.gift(gifts(1, 6000)); play(pet, 3000);
-  for (let i = 0; i < 1000 && playing(pet) !== 'chestRobbed'; i++) play(pet, 100);
-  const robbed = pet.cur.start;
+test('a 试演 taking over 被偷了 has her say on its line while it waits, until 被偷了 would have stopped it', () => {
+  const pet = zapped();
+  pet.gift(flowers(3, 60));
+  until(pet, 'chestRobbed');
+  const robbed = pet.cur.start + pet.cur.pre;
   let line;
   play(pet, 1000, st => { line = st.bubble?.text; });
-  pet.guard({ uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 });
+  pet.testShow(governor);
   const said = [];
   play(pet, 5000, st => said.push([pet.now() - robbed, st.bubble?.text ?? null]));
   const at = from => said.filter(([t]) => t >= from && t < from + 1000).map(([, text]) => text);
-  assert.deepEqual([playing(pet), typeof line, new Set(at(1000)), new Set(at(4610))], ['governor', 'string', new Set([line]), new Set([null])]);
+  assert.deepEqual([playing(pet), typeof line, new Set(at(1100)), new Set(at(4610))], ['governor', 'string', new Set([line]), new Set([null])]);
 });
 
-test('a show taking over 守住了 or 打飞 waits for the chest cheering on as she was, one that scared the 捣蛋鬼 off standing', () => {
+test('a 试演 taking over 守住了 or 打飞 waits for the chest cheering on as she was, one over a show that scared the 捣蛋鬼 off standing', () => {
   const ways = {
-    chestKept: pet => { pet.gm.chest = 500; pet.summon(); play(pet, 12500); pet.gift(gifts(2, 100000)); },
-    pranksterKnocked: pet => { pet.summon(); play(pet, 16000); pet.gift(gifts(1, 6000)); },
-    // the 大航海 that scares it off out of the tug
-    captain: pet => { pet.gm.chest = 500; pet.summon(); play(pet, 12500); pet.guard({ uid: 4, nickname: '舰长', guardLevel: 3, spend: 198000 }); },
+    chestKept: pet => { pet.gm.chest = 500; pet.summon(); play(pet, 12500); pet.gift(tickets(2, 100)); },
+    pranksterKnocked: pet => { pet.summon(); play(pet, 16000); pet.gift(tickets(1)); },
+    // the 试演 that scares it off out of the tug
+    captain: pet => { pet.gm.chest = 500; pet.summon(); play(pet, 12500); pet.testShow({ show: 'captain', variant: null, nickname: '舰长', id: 1 }); },
   };
   for (const [show, way] of Object.entries(ways)) {
     const pet = gamePet(character), poses = new Set();
     way(pet);
     for (let i = 0; i < 100 && playing(pet) !== show; i++) play(pet, 100);
     play(pet, 500);
-    pet.guard({ uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 });
+    pet.testShow(governor);
     play(pet, 9000, st => { if (pet.now() < pet.cur.start + pet.cur.pre) poses.add(st.pose); });
     assert.deepEqual([show, playing(pet), pet.cur.opts.tidy > 0, [...poses]], [show, 'governor', true, [show === 'captain' ? 'idle' : 'cheer']]);
   }
 });
 
-test('her hair patted smooth stays smooth for a show coming while its glitter settles, after a show waiting for it or a PK', () => {
-  const scares = { captain: p => p.guard({ uid: 4, nickname: '舰长', guardLevel: 3, spend: 198000 }), pk: p => p.receive(state(p, { pk: true })) };
+test('her hair patted smooth stays smooth for a 试演 coming while its glitter settles, after a show waiting for it or a PK', () => {
+  const scares = { captain: p => p.testShow({ show: 'captain', variant: null, nickname: '舰长', id: 1 }), pk: p => p.receive(state(p, { pk: true })) };
   for (const [way, scare] of Object.entries(scares)) {
-    const pet = tugging(), after = [];
-    pet.gift(gifts(1, 6000)); play(pet, 3000);
+    const pet = zapped(), after = [];
     scare(pet);
     let smooth = null;
     for (let i = 0; i < 1000 && smooth == null; i++) play(pet, 17, st => { if (st.pose === 'cheer') smooth = pet.now(); });
     play(pet, 800);
-    pet.guard({ uid: 3, nickname: '总督', guardLevel: 1, spend: 19998000 });
+    pet.testShow(governor);
     play(pet, 3000, st => after.push(st.pose));
     assert.deepEqual([way, typeof smooth, playing(pet), pet.cur.opts.frizz, after.includes('cheerZap')], [way, 'number', 'governor', null, false]);
   }
 });
 
-test('the game\'s own ending does not wake her: robbed after the room was quiet she kneels crying at once', () => {
-  const pet = tugging();
+test('the game\'s own ending does not wake her: robbed after the room was quiet she kneels crying once it is off with the chest', () => {
+  const pet = tugging(), poses = new Set();
   pet.lastGift = pet.lastAny = pet.now() - 46 * 60000;
-  for (let i = 0; i < 1000 && playing(pet) !== 'chestRobbed'; i++) play(pet, 100);
-  assert.deepEqual([playing(pet), pet.cur.wakeLine, pet.cur.pre], ['chestRobbed', null, 0]);
+  until(pet, 'chestRobbed');
+  play(pet, 100, st => poses.add(st.pose));
+  assert.deepEqual([pet.cur.wakeLine, pet.gm.visit, [...poses]], [null, null, ['robbed']]);
 });
 
 test('robbed after the room was quiet, the first gift while she is sad over it cheers her up at once, not waking her first', () => {
   const pet = tugging();
   pet.lastGift = pet.lastAny = pet.now() - 46 * 60000;
-  for (let i = 0; i < 1000 && playing(pet) !== 'chestRobbed'; i++) play(pet, 100);
+  until(pet, 'chestRobbed');
   play(pet, 7000);
   assert.deepEqual([playing(pet), pet.mood(pet.now())], [null, 'gloomy']);
   pet.gift(gifts(1, 100));
@@ -442,117 +749,123 @@ test('叫它来 brings the 捣蛋鬼 once her show is over, the viewer\'s 一轮
   assert.deepEqual([playing(pet), told], [null, ['start']]);
 });
 
-test('what a viewer throws counts to the 一轮送礼 it was thrown in: one landing after that round ended adds nothing to the next', () => {
-  const pet = gamePet(character);
-  pet.gm.chest = 5000;
-  pet.summon();
-  play(pet, 3000);
-  // thrown while it flies the chest over, so it lands once the tug is on, after the round it was thrown in ended
-  pet.gift(gifts(1, 40000));
-  pet.gift(round(1, { ended: true }));
-  play(pet, 13000);
-  pet.danmaku({ uid: 5, nickname: '观众5', joins: true });
-  pet.gift(gifts(5, 40000));
-  play(pet, 1000);
-  pet.gift(gifts(1, 60000));
-  play(pet, 1000);
-  assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.hp], ['tug', 400]);
-});
-
 test('a gift sent after the 来访 is thanked for itself, not for one thrown at the 捣蛋鬼 earlier in the 一轮送礼', () => {
   const pet = visited();
-  pet.gift(round(1, { items: [item(100000, { name: '告白气球' })] }));
+  pet.gift(tickets(1, 5));
   pet.receive(state(pet, { pk: true }));
   play(pet, 3000);
   pet.gift(gifts(1, 100));
   assert.deepEqual([playing(pet), pet.cur.opts.gift, pet.cur.opts.count], ['gift', '小花花', 1]);
 });
 
-test('a castle thrown at the 捣蛋鬼 plays once, and a blind box sent after it in the 一轮送礼 plays as a blind box', () => {
-  const pet = visited(), result = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 };
-  pet.gift(box(2, 1, { name: '浪漫城堡', castle: true }));
-  pet.blindBox({ ...result, tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, bestGift: '浪漫城堡', bestPrice: 2233000, castles: 1 });
-  assert.equal(playing(pet), 'castle');
-  play(pet, 22000);
-  pet.gift(box(2));
-  pet.blindBox(result);
-  assert.equal(playing(pet), 'blindBoxSmall');
-});
-
-test('two castles thrown at the 捣蛋鬼 in one 一轮送礼 play the castle twice and nothing else, their 盲盒播报 coming apart', () => {
-  const pet = visited({ off: NO_DAILY }), [shows, seen] = shown(pet);
-  pet.gift(castleBox());
-  play(pet, 1000);
-  pet.gift(castleBox());
-  pet.blindBox(castled);
-  play(pet, 1000, seen);
-  pet.blindBox(castled);
-  play(pet, 30000, seen);
-  assert.deepEqual([...shows].map(show => show.name), ['castle', 'castle']);
-});
-
-test('two castles one 盲盒播报 opens while the 捣蛋鬼 is here: the first scares it off and plays, the second plays after it', () => {
-  const pet = visited({ off: NO_DAILY }), [shows, seen] = shown(pet);
-  pet.gift(box(2, 2, { name: '浪漫城堡', castle: true }));
-  pet.blindBox({ ...castled, boxes: 2, castles: 2 });
-  assert.deepEqual([pet.gm.visit.phase, playing(pet), pet.queue.map(q => q.name)], ['fled', 'castle', ['castle']]);
-  play(pet, 30000, seen);
-  assert.deepEqual([...shows].map(show => show.name), ['castle', 'castle']);
-});
-
-test('a castle played in a 一轮送礼 begun before the 捣蛋鬼 came is played again for one thrown at it in the round', () => {
+test('a new first place taken while the 捣蛋鬼 is here in a 一轮送礼 begun before it came is crowned once it has gone, and not again after the round\'s next show', () => {
   const pet = gamePet(character, { off: NO_DAILY }), [shows, seen] = shown(pet);
-  pet.gift(castleBox());
-  pet.blindBox(castled);
-  play(pet, 14000, seen);
-  pet.summon();
-  play(pet, 100, seen);
-  assert.equal(pet.gm.visit?.phase, 'peek');
-  pet.gift(castleBox());
-  pet.blindBox(castled);
-  play(pet, 30000, seen);
-  assert.deepEqual([...shows].map(show => show.name).filter(name => name === 'castle'), ['castle', 'castle']);
-});
-
-test('a new first place taken while the 捣蛋鬼 is here is not crowned after it leaves, in a 一轮送礼 begun before it came too', () => {
-  const pet = gamePet(character), seen = new Set();
   pet.gift(gifts(9, 100));
   pet.summon();
-  play(pet, 2500);
+  play(pet, 2500, seen);
   assert.equal(pet.gm.visit?.phase, 'peek');
-  pet.gift(gifts(9, 100));
+  pet.gift(tickets(9));
   pet.crown({ uid: 9, nickname: '观众9' });
   pet.receive(state(pet, { pk: true }));
-  play(pet, 8000);
+  play(pet, 8000, seen);
   pet.receive(state(pet, { pk: false }));
-  pet.gift(gifts(9, 100000));
-  play(pet, 8000, () => seen.add(playing(pet)));
-  assert.deepEqual([...seen].filter(Boolean), ['midGift']);
+  pet.gift(other(9, 100000));
+  play(pet, 8000, seen);
+  assert.deepEqual([...shows].map(show => show.name), ['gift', 'newFirst', 'midGift']);
 });
 
-test('a 盲盒播报 of boxes thrown at the 捣蛋鬼 and boxes sent after plays only those sent after: as many, at what they cost', () => {
-  const pet = visited();
-  pet.gift(box(2, 100));
-  pet.receive(state(pet, { pk: true }));
-  play(pet, 3000);
-  pet.gift(box(2));
-  pet.blindBox({ uid: 2, nickname: '观众2', tally: { spend: 1515000, openedValue: 1600000, outcome: 'Gain' }, boxes: 101, bestGift: '爱心抱枕', bestPrice: 16000 });
-  assert.deepEqual([playing(pet), pet.cur.opts.count, pet.cur.opts.result], ['blindBoxSmall', 1, 'Gain']);
-});
-
-test('the room disconnected while the 捣蛋鬼 is here, it runs off with nothing said, and nothing of the 来访 is counted after', () => {
-  const pet = gamePet(character), told = reports(pet), shows = new Set();
+test('the room disconnected while the 捣蛋鬼 is here, it runs off with nothing said, and nothing of the 来访 is counted or played after', () => {
+  const pet = gamePet(character, { off: NO_DAILY }), told = reports(pet), shows = new Set();
   pet.gm.chest = 5000;
   pet.summon();
   play(pet, 16000);
-  pet.gift(gifts(1, 20000));
+  pet.gift(tickets(1, 20));
   play(pet, 1000);
-  pet.gift(gifts(1, 10000));
+  pet.gift(tickets(1, 10));
+  pet.gift(other(2, 30000));
+  pet.crown({ uid: 2, nickname: '观众2' });
   pet.receive(state(pet, { roomConnected: false }));
   assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.say], ['fled', null]);
   pet.receive(state(pet));
-  // (no ending of a 来访 plays after it)
-  play(pet, 20000, () => shows.add(pet.events[playing(pet)]?.group));
+  play(pet, 20000, () => shows.add(playing(pet)));
   const { chest, pile, streak, grudge } = pet.gm;
-  assert.deepEqual([pet.gm.visit, told, chest, pile, streak, grudge, shows.has('chestGame')], [null, ['start', 'end'], 0, 0, 0, null, false]);
+  assert.deepEqual([pet.gm.visit, told, chest, pile, streak, grudge, [...shows]], [null, ['start', 'end'], 0, 0, 0, null, [null]]);
+});
+
+test('a danmaku that is just 1 or 2 puts its viewer on a side, the last one said standing; one who sent a 人气票 or 小花花 stays where the gift put them', () => {
+  const pet = tugging(), sides = () => Object.fromEntries([...pet.gm.visit.sides].map(([uid, on]) => [uid, `${on.side} by ${on.by}`]));
+  pet.danmaku({ uid: 5, nickname: '观众5', side: 1 });
+  pet.danmaku({ uid: 6, nickname: '观众6', side: -1 });
+  pet.danmaku({ uid: 5, nickname: '观众5', side: -1 });
+  pet.gift(tickets(7));
+  pet.danmaku({ uid: 7, nickname: '观众7', side: -1 });
+  // (one B站 tells with no UID is nobody to put on a side, a danmaku that is neither 1 nor 2 picks none)
+  pet.danmaku({ uid: 0, nickname: '', side: 1 });
+  pet.danmaku({ uid: 8, nickname: '观众8', side: 0 });
+  assert.deepEqual(sides(), { 5: '-1 by dm', 6: '-1 by dm', 7: '1 by gift' });
+});
+
+test('in the tug a danmaku of one on a side throws a paper ball at the other side, and one on no side is called out by name, once a 来访 and eight seconds apart; none moves the line', () => {
+  const pet = tugging(500, { luckyPercent: 0 }), v = pet.gm.visit, named = () => ['观众5', '观众6', '观众0'].find(name => v.say.text.startsWith(name));
+  // (past what it says of its own as the tug begins)
+  play(pet, 10000);
+  pet.danmaku({ uid: 0, nickname: '观众0', side: 0 });
+  assert.equal(named(), undefined);
+  pet.danmaku({ uid: 5, nickname: '观众5', side: 0 });
+  pet.danmaku({ uid: 6, nickname: '观众6', side: 0 });
+  assert.deepEqual([named(), character.lines.pranksterTaunt.map(line => line.replace('{昵称}', '观众5').replace(' ', '\n')).includes(v.say.text)], ['观众5', true]);
+  play(pet, 9000);
+  pet.danmaku({ uid: 5, nickname: '观众5', side: 0 });
+  assert.equal(named(), '观众5');
+  pet.danmaku({ uid: 6, nickname: '观众6', side: 0 });
+  assert.equal(named(), '观众6');
+  pet.danmaku({ uid: 6, nickname: '观众6', side: 1 });
+  pet.danmaku({ uid: 6, nickname: '观众6', side: 0 });
+  pet.danmaku({ uid: 5, nickname: '观众5', side: -1 });
+  assert.deepEqual([v.balls.map(ball => ball.side), v.red, v.blue, v.net, pet.lineX(v)], [[1, 1, -1], 0, 0, 0, 240]);
+});
+
+test('five paper balls of one side\'s landing within five seconds have the one they hit answer back to whoever threw the last', () => {
+  const pelted = side => {
+    const pet = tugging(500, { luckyPercent: 0 });
+    play(pet, 10000);
+    for (let uid = 1; uid <= 5; uid++) { pet.danmaku({ uid, nickname: '观众' + uid, side }); play(pet, 200); }
+    play(pet, 600);
+    return pet;
+  };
+  const it = pelted(1), her = pelted(-1);
+  assert.ok(character.lines.pranksterRetort.map(line => line.replace('{昵称}', '观众5').replace(' ', '\n')).includes(it.gm.visit.say.text), it.gm.visit.say.text);
+  assert.equal(her.gm.say.text, '观众5！别丢啦～');
+});
+
+test('a 幸运纸团 opens whoever it hits for ten seconds, the other side\'s gifts counting twice with no cap, and the next comes no sooner than five seconds after', () => {
+  // (every ball a lucky one; each end 200 票 off, so that what is thrown here sets off no lightning)
+  const pet = tugging(4000, { luckyPercent: 100 }), v = pet.gm.visit, thrown = () => { pet.danmaku({ uid: 5, nickname: '观众5', side: 1 }); return v.balls.at(-1).lucky; };
+  play(pet, 3000);
+  assert.equal(thrown(), true);
+  play(pet, 700);
+  assert.deepEqual([v.luck.side, Math.round(v.luck.until - v.luck.at), v.say.text], [1, 10000, '哎哟！别送\n人气票啊！']);
+  pet.gift(tickets(6, 30));
+  pet.gift(flowers(7, 4));
+  assert.deepEqual([v.red, v.blue, thrown()], [60, 4, false]);
+  play(pet, 10000);
+  pet.gift(tickets(6));
+  assert.deepEqual([v.luck, v.red, thrown()], [null, 61, false]);
+  play(pet, 5000);
+  assert.equal(thrown(), true);
+});
+
+test('with the 幸运纸团 turned off, at 0 %, paper balls are thrown as ever, none of them lucky, and no double opens', () => {
+  const lucky = luckyPercent => {
+    const pet = tugging(500, { luckyPercent }), v = pet.gm.visit;
+    let balls = 0, lucky = 0, opened = 0;
+    play(pet, 3000);
+    for (let n = 0; n < 60; n++) {
+      pet.danmaku({ uid: 5, nickname: '观众5', side: 1 });
+      balls++; lucky += v.balls.at(-1).lucky;
+      play(pet, 500, () => { opened += !!v.luck; });
+    }
+    return [balls, lucky > 0, opened > 0];
+  };
+  assert.deepEqual([lucky(0), lucky(10)], [[60, false, false], [60, true, true]]);
 });

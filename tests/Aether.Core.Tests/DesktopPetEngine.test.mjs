@@ -141,7 +141,7 @@ test('犯困 comes after an hour with nothing and ends on an entry or a danmaku;
   const engine = pet();
   advance(engine, 60 * MINUTE);
   assert.equal(engine.mood(engine.now()), 'sleepy');
-  engine.danmaku({ uid: 1, nickname: '观众1', joins: false });
+  engine.danmaku({ uid: 1, nickname: '观众1', side: 0 });
   assert.equal(engine.mood(engine.now()), 'gloomy');
   advance(engine, 60 * MINUTE);
   engine.entry({ uid: 1, nickname: '进场观众' });

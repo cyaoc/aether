@@ -26,9 +26,13 @@ export function gamePet(character, settings = {}, rng = seeded(7)) {
 // Core tells it after a gift message, with its gifts, or as it ends; one telling count gifts for spend 金瓜子 in all, and one
 // telling n 盲盒 at 150 电池 each.
 export const item = (spend, so = {}) => ({ giftId: 31036, name: '小花花', price: spend / (so.count ?? 1), spend, count: 1, blind: false, castle: false, iconUrl: '', ...so });
-export const round = (uid, so) => ({ uid, nickname: '观众' + uid, ended: false, items: [], ...so });
+export const round = (uid, so) => ({ uid, nickname: '观众' + uid, faceUrl: '', ended: false, items: [], ...so });
 export const gifts = (uid, spend, count = 1) => round(uid, { items: [item(spend, { count })] });
 export const box = (uid, n = 1, so) => round(uid, { items: [item(15000 * n, { name: '棉花糖', count: n, blind: true, ...so })] });
+// The 宝箱小游戏's 入伙礼物, 1 电池 each: n 人气票, her side's, or 小花花, the 捣蛋鬼's; and a gift that is neither, for spend 金瓜子.
+export const tickets = (uid, n = 1) => round(uid, { items: [item(100 * n, { giftId: 33988, name: '人气票', count: n })] });
+export const flowers = (uid, n = 1) => gifts(uid, 100 * n, n);
+export const other = (uid, spend) => round(uid, { items: [item(spend, { giftId: 31039, name: '牛哇牛哇' })] });
 // The 桌宠页's state as Core tells it, in a connected room with what pet was told last; and the show she plays.
 export const state = (pet, so) => ({ enabled: true, roomConnected: true, settings: pet.settings, lines: pet.lines, ...so });
 export const playing = pet => pet.cur?.name ?? null;
