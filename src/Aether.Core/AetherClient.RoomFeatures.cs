@@ -88,7 +88,7 @@ public sealed partial class AetherClient
                 round.Gifts.AddRange(gifts);
                 if (gifts.Length > 0)
                     reports.TellDesktopPet(DesktopPet.Gift,
-                        new GiftRoundProgress(round.Uid, round.Nickname, [.. gifts.Select(GiftItem.Of)], false));
+                        new GiftRoundProgress(round.Uid, round.Nickname, gifts[^1].FaceUrl, [.. gifts.Select(GiftItem.Of)], false));
                 round.Timer.Reset(received.ReceivedTimestamp);
             }
         }
@@ -108,7 +108,7 @@ public sealed partial class AetherClient
             round.Timer.Dispose();
             reports.Ended(new(roomId, round.Uid, round.Nickname, round.Spend, time.GetUtcNow(), time.GetTimestamp()));
             if (round.Gifts.Count == 0) return;
-            reports.TellDesktopPet(DesktopPet.Gift, new GiftRoundProgress(round.Uid, round.Nickname, [], true));
+            reports.TellDesktopPet(DesktopPet.Gift, new GiftRoundProgress(round.Uid, round.Nickname, "", [], true));
             var boxes = round.Gifts.Where(gift => gift.Blind is not null).ToArray();
             if (boxes.Length > 0) reports.BlindBoxes?.Invoke(BlindBoxResult.Of(round.Uid, round.Nickname, boxes));
         }

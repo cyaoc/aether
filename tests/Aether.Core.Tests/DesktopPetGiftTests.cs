@@ -33,7 +33,19 @@ public sealed class DesktopPetGiftTests
         h.Time.Advance(TimeSpan.FromSeconds(3));
 
         Assert.Equal(1198000, Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates)).Spend);
-        await AssertRoundAsync(pet, Round() with { Ended = true });
+        await AssertRoundAsync(pet, Round() with { FaceUrl = "", Ended = true });
+    }
+
+    [Fact]
+    public async Task A_gift_message_without_the_viewers_face_tells_an_empty_one()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+
+        await h.PushAndSyncAsync(updates, BlindGiftV2Fixture.Message(BlindGiftV2Fixture.Broadcast(face: null)));
+
+        Assert.Equal("", (await pet.NextAsync(DesktopPet.Gift)).GetProperty("faceUrl").GetString());
     }
 
     [Fact]
@@ -50,7 +62,7 @@ public sealed class DesktopPetGiftTests
             BlindGiftV2Fixture.Item(35207, "幸运泡泡", 1, 1500, 5000, "box-3", icon: null)])));
 
         await AssertRoundAsync(pet, Round(new(35311, "好运柚叶", 2500, 5000, 1, true, false, BlindGiftV2Fixture.TestIcon),
-            new(35208, "星光铃铛", 5200, 40000, 8, true, false, bell), new(35207, "幸运泡泡", 1500, 5000, 1, true, false, "")));
+            new(35208, "星光铃铛", 5200, 40000, 8, true, false, bell), new(35207, "幸运泡泡", 1500, 5000, 1, true, false, "")) with { FaceUrl = BlindGiftV2Fixture.TestFace });
     }
 
     [Theory]
@@ -167,8 +179,8 @@ public sealed class DesktopPetGiftTests
         Assert.Equal(round, told with { Items = round.Items });
     }
 
-    /// <summary>The test viewer's 一轮送礼 told after a message of these gifts.</summary>
-    private static GiftRoundProgress Round(params GiftItem[] items) => new(10001, "测试观众", items, false);
+    /// <summary>The test viewer's 一轮送礼 told after a message of these gifts, with the face the V1 fixture's messages carry.</summary>
+    private static GiftRoundProgress Round(params GiftItem[] items) => new(10001, "测试观众", TestFace, items, false);
 
     /// <summary>A gift sent as itself, <paramref name="count"/> of it at <paramref name="price"/> each.</summary>
     private static GiftItem Item(long giftId, string name, long price, long count) =>
