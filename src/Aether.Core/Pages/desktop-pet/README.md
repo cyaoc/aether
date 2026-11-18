@@ -19,8 +19,8 @@ character's `character.json`; settings know it by its id and play it unless it i
 Rows of the group `mood` cannot be turned off: a 心情 comes of how quiet the room has been, and `desktop_pet.*_minutes` of 0
 keeps her out of it. Nor can the group `chestGame`, the endings of a 宝箱小游戏 来访 (`pranksterKnocked` on an empty chest,
 `chestKept`, `chestRobbed`): a 来访 plays whole or not at all, so they have no 试演 and the GUI's 演出 tab does not list them.
-What she and the 捣蛋鬼 say while it is on the page (`chestFell`, `pranksterHit`, `herHit` and the group `prankster`) is said in
-no row: a 来访 is no 演出. Every other row can be turned off, by its id in `desktop_pet.shows_off`.
+What she and the 捣蛋鬼 say while it is on the page (`chestFell`, `pranksterHit`, `herHit`, `herPelted` and the group
+`prankster`) is said in no row: a 来访 is no 演出. Every other row can be turned off, by its id in `desktop_pet.shows_off`.
 
 ## What the page is told
 
@@ -35,7 +35,7 @@ again whenever settings are saved:
 | `settings.dailyMinSeconds`, `settings.dailyMaxSeconds` | How long she waits, at random between the two, before each 日常小动作 |
 | `settings.mishapPercent` | The chance, 0 to 100, that a 日常小动作 goes wrong |
 | `settings.pranksterMinutes` | The most minutes between the 捣蛋鬼's own 来访, counted from the last one's end; 0 only when the streamer 叫它来 |
-| `settings.pranksterKeyword` | The 帮它的关键字, which its 招人 line (`{关键字}`) and the line under the tug's bar say |
+| `settings.luckyPercent` | The chance, 0 to 100, that a 纸团 thrown in the tug is a 幸运纸团; 0 never |
 | `lines` | The current character's lines by kind: hers, with each kind the streamer changed replaced |
 | `pk` | Whether the streamer is in a PK, by the PK messages' commands alone (`DanmakuProtocol.cs`). One that ends a PK ends it, as do ten minutes without any PK message and a reconnect, which cannot tell |
 

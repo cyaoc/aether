@@ -18,14 +18,14 @@ public partial class BlindBoxSettingsPage : SettingsPage
         LoadSettings();
     }
 
-    /// <summary>A query keyword left empty or that is the 桌宠's 帮它的关键字 shows Core's why on its own error line, as the
-    /// 帮它的关键字 does.</summary>
+    /// <summary>A query keyword left empty, or that is the 1 or 2 a viewer takes a 站队 with in the 桌宠's 宝箱小游戏, shows Core's why
+    /// on its own error line.</summary>
     protected override bool ShowRowErrors()
     {
         var invalid = false;
         foreach (var (input, error) in new[] { (DailyKeywordInput, DailyKeywordError), (MonthlyKeywordInput, MonthlyKeywordError), (YearlyKeywordInput, YearlyKeywordError) })
         {
-            var why = input.IsReadOnly ? null : settings.ValidateBlindBoxKeyword(input.Text ?? "");
+            var why = input.IsReadOnly ? null : Settings.ValidateBlindBoxKeyword(input.Text ?? "");
             (error.Text, error.IsVisible) = (why ?? "", why is not null);
             invalid |= why is not null;
         }

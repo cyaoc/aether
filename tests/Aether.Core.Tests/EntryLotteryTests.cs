@@ -31,39 +31,21 @@ public sealed class EntryLotteryTests
         Assert.Equal("没有还没中奖的报名观众可抽。", (await Assert.ThrowsAsync<InvalidOperationException>(() => controller.DrawEntryAsync(1))).Message);
     }
 
-    [Fact]
-    public async Task The_next_entry_lottery_takes_the_keyword_of_the_rooms_last_one_or_抽奖_even_without_a_room_connection()
+    [Theory]
+    [InlineData("捣蛋")]
+    [InlineData("1")]
+    public async Task An_entry_lottery_opens_with_what_was_the_helper_keyword_or_a_viewer_takes_a_side_with(string keyword)
     {
         await using var h = new WatchHarness(enableStreamOverlay: true);
-        Assert.Equal("抽奖", await h.Client.Lottery.GetNextEntryKeywordAsync());
-        await h.LoginAsync();
-        var updates = await h.WatchConnectedAsync();
-        var lottery = h.Client.Lottery;
-        await lottery.NewAsync(LotteryMode.Entry);
-        await lottery.StartEntryAsync(Awards, " 参加 ");
-        await lottery.CloseEntriesAsync();
-        await lottery.EndEntryAsync();
-        await lottery.NewAsync(LotteryMode.Pool);
-
-        Assert.Equal("参加", await lottery.GetNextEntryKeywordAsync());
-        await updates.DisposeAsync();
-        using var restarted = h.ClientSharingData(h.Server.ConnectAsync);
-        Assert.Equal("参加", await restarted.Lottery.GetNextEntryKeywordAsync());
-    }
-
-    [Fact]
-    public async Task An_entry_lottery_cannot_open_with_the_helper_keyword()
-    {
-        await using var h = new WatchHarness(enableStreamOverlay: true);
-        await h.ApplySettingsAsync(("desktop_pet.prankster_keyword", "参加"));
+        await h.ApplySettingsAsync(("desktop_pet.enabled", "true"));
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
         await h.Client.Lottery.NewAsync(LotteryMode.Entry);
 
-        var error = await Assert.ThrowsAsync<ArgumentException>(() => h.Client.Lottery.StartEntryAsync(Awards, " 参加"));
+        await h.Client.Lottery.StartEntryAsync(Awards, keyword);
 
-        Assert.Equal("和桌宠宝箱小游戏里帮它的关键字一样，观众分不清是在报名还是帮它；换一个", error.Message);
-        Assert.Equal(EntryLotteryPhase.Preparing, Assert.IsType<EntryLottery>(h.Client.Lottery.State.Lottery).Phase);
+        var lottery = Assert.IsType<EntryLottery>(h.Client.Lottery.State.Lottery);
+        Assert.Equal((EntryLotteryPhase.Open, keyword), (lottery.Phase, lottery.Keyword));
     }
 
     [Theory]

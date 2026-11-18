@@ -137,7 +137,7 @@ public sealed partial class AetherClient
         public void Handle(RoomEvent e)
         {
             if (e is not DanmakuProtocol.DanmakuReceived { Danmaku: var danmaku }) return;
-            // By the rule that keeps the 帮它的关键字 apart from these (Settings.ValidateAcross).
+            // By the rule that keeps a 站队's 1 and 2 apart from these (Settings.ValidateBlindBoxKeyword).
             BlindBoxPeriod? period = Settings.SameKeyword(danmaku.Content, settings.BlindBoxDailyKeyword.Value) ? BlindBoxPeriod.Daily
                 : Settings.SameKeyword(danmaku.Content, settings.BlindBoxMonthlyKeyword.Value) ? BlindBoxPeriod.Monthly
                 : Settings.SameKeyword(danmaku.Content, settings.BlindBoxYearlyKeyword.Value) ? BlindBoxPeriod.Yearly : null;
@@ -191,7 +191,7 @@ public sealed partial class AetherClient
                 case DanmakuProtocol.EntryReceived { Entry: var entry }:
                     service.TellDesktopPet(DesktopPet.Entry, new { entry.Uid, entry.Nickname });
                     break;
-                // The account's own, such as the bot's thanks, is no viewer: it neither wakes her nor joins the 捣蛋鬼. What a viewer
+                // The account's own, such as the bot's thanks, is no viewer: it neither wakes her nor takes a side. What a viewer
                 // wrote never reaches the stream.
                 case DanmakuProtocol.DanmakuReceived { Danmaku: var danmaku } when danmaku.Uid != account:
                     service.TellDesktopPetDanmaku(danmaku);

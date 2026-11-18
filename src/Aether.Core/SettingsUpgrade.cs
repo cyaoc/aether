@@ -7,7 +7,7 @@ namespace Aether.Core;
 
 internal static class SettingsUpgrade
 {
-    internal const int CurrentVersion = 2;
+    internal const int CurrentVersion = 3;
 
     // The 0.2.x spellings, frozen here rather than read from Settings.WelcomeGuards, which may change.
     private static readonly string[] V0Guards = ["关闭", "舰长", "提督", "总督"];
@@ -25,6 +25,7 @@ internal static class SettingsUpgrade
             {
                 0 => UpgradeV0(source, path),
                 1 => UpgradeV1(source, path),
+                2 => UpgradeV2(source, path),
                 _ => throw new InvalidOperationException("缺少设置文件升级步骤。"),
             };
             version++;
@@ -127,6 +128,28 @@ internal static class SettingsUpgrade
         return source.Insert(at, lead + text);
 
         int AfterGroupKey() => LineEnd(source, (int)root.Children.Keys.First(key => key is YamlScalarNode { Value: "desktop_pet" }).End.Index);
+    }
+
+    /// <summary>Format 3 has no 帮它的关键字: a viewer takes the 捣蛋鬼's side with a 小花花 or a danmaku of 2. Its line goes, and a
+    /// changed 招人 line, of any character, says 2 where it said {关键字}, which that kind of line takes no more. The names are
+    /// frozen here, as V0Guards is.</summary>
+    private static string UpgradeV2(string source, string path)
+    {
+        if (Settings.ChildOf(RootOf(source), "desktop_pet") is not YamlMappingNode group) return source;
+        var tokens = Settings.Scan(source);
+        // Last line first, so the lines before keep their places.
+        foreach (var (key, value) in group.Children.Reverse())
+        {
+            var name = (key as YamlScalarNode)?.Value ?? "";
+            var helper = name == "prankster_keyword";
+            if (!helper && !(name.StartsWith("lines.", StringComparison.Ordinal) && name.EndsWith(".pranksterRecruit", StringComparison.Ordinal))) continue;
+            var end = Settings.EndOf(tokens, value);
+            if (group.Style != MappingStyle.Block || key.Start.Line != end.Line) throw CannotEdit(path, key);
+            var start = helper ? LineStart(source, (int)key.Start.Index) : (int)value.Start.Index;
+            var length = (helper ? LineEnd(source, (int)end.Index) : (int)end.Index) - start;
+            source = source.Remove(start, length).Insert(start, helper ? "" : source.Substring(start, length).Replace("{关键字}", "2"));
+        }
+        return source;
     }
 
     /// <summary>Marks a file the steps changed as the current format: its format_version, or one above the comments that lead its

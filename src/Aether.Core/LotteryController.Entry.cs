@@ -16,11 +16,6 @@ public sealed partial class LotteryController
 
     private const string DefaultKeyword = "抽奖";
 
-    /// <summary>The keyword a new 报名抽奖 starts with: its room's last one's, or 抽奖. The room is the one followed, or where the
-    /// last lottery was held.</summary>
-    internal string NextEntryKeyword => (state.RoomId ?? store().LastLotteryRoom()) is { } room && PreviousEntry(room) is { } previous
-        ? previous.Keyword : DefaultKeyword;
-
     private EntryLottery? PreviousEntry(long roomId) => store().Load(roomId, LotteryMode.Entry) as EntryLottery;
 
     private void RequireNew()
@@ -63,12 +58,9 @@ public sealed partial class LotteryController
             if (ValidateAward(award) is { } error) throw new ArgumentException(error);
     }
 
-    /// <param name="helperKeyword">The 帮它的关键字 applied last, which a viewer entering must not join the 捣蛋鬼 with.</param>
-    internal void StartEntry(IReadOnlyCollection<LotteryAward> awards, string keyword, string? helperKeyword)
+    internal void StartEntry(IReadOnlyCollection<LotteryAward> awards, string keyword)
     {
         if (ValidateKeyword(keyword) is { } keywordError) throw new ArgumentException(keywordError);
-        if (helperKeyword is not null && Settings.SameKeyword(keyword, helperKeyword))
-            throw new ArgumentException("和桌宠宝箱小游戏里帮它的关键字一样，观众分不清是在报名还是帮它；换一个");
         Validate(awards);
         RequireConnection();
         var lottery = RequireEntry(EntryLotteryPhase.Preparing);

@@ -44,7 +44,7 @@ public sealed class DesktopPetSettingsTests
     [InlineData("daily", "有未保存的修改")]
     [InlineData("mishap", "有未保存的修改")]
     [InlineData("prankster", "有未保存的修改")]
-    [InlineData("keyword", "有未保存的修改")]
+    [InlineData("lucky", "有未保存的修改")]
     [InlineData("line", "有未保存的修改")]
     [InlineData("addLine", "进场的台词有错，改好后才能保存")]
     public Task Any_edit_shows_unsaved_changes(string edit, string dirty) => WithPage(page =>
@@ -59,7 +59,7 @@ public sealed class DesktopPetSettingsTests
             case "daily": GuiHarness.Tab(page, 1); Switch(page, "滑雪").IsChecked = false; break;
             case "mishap": GuiHarness.Tab(page, 1); Number(page, "出事的几率（%）").Text = "50"; break;
             case "prankster": GuiHarness.Tab(page, 2); Number(page, "它最多每几分钟自己来一次").Text = "10"; break;
-            case "keyword": GuiHarness.Tab(page, 2); Input(page, "帮它的关键字").Text = "捣乱"; break;
+            case "lucky": GuiHarness.Tab(page, 2); Number(page, "每个纸团是幸运纸团的几率").Text = "20"; break;
             case "line": GuiHarness.Tab(page, 3); Line(page, 1).Text = "欢迎{昵称}"; break;
             case "addLine": GuiHarness.Tab(page, 3); GuiHarness.Click(page, "AddLineButton"); break;
         }
@@ -115,20 +115,28 @@ public sealed class DesktopPetSettingsTests
     });
 
     [Fact]
-    public Task The_chest_game_tab_saves_how_often_the_prankster_comes_on_its_own_and_its_helper_keyword() => WithPage(async (page, harness) =>
+    public Task The_chest_game_tab_saves_how_often_the_prankster_comes_on_its_own_and_a_paper_ball_is_lucky_and_has_no_helper_keyword() => WithPage(async (page, harness) =>
     {
         GuiHarness.Tab(page, 2);
-        Assert.Equal(("30", "捣蛋"), (Number(page, "它最多每几分钟自己来一次").Text, Input(page, "帮它的关键字").Text));
-        Assert.Contains("有人在看、她闲着时它自己来", Texts(page));
+        var lucky = Number(page, "每个纸团是幸运纸团的几率");
+        Assert.Equal(("30", "10"), (Number(page, "它最多每几分钟自己来一次").Text, lucky.Text));
+        Assert.Subset(Texts(page).ToHashSet(), new HashSet<string?> { "有人在看、她闲着时它自己来", "砸中谁，对面 10 秒内的礼物算双倍" });
+        Assert.DoesNotContain("帮它的关键字", Texts(page));
         Switch(page, "捣蛋鬼自己来").IsChecked = false;
-        Input(page, "帮它的关键字").Text = "捣乱";
+        Switch(page, "幸运纸团").IsChecked = false;
         GuiHarness.Flush();
-        Assert.Contains("只在你点「叫它来」时来", Texts(page));
+        Assert.Subset(Texts(page).ToHashSet(), new HashSet<string?> { "只在你点「叫它来」时来", "不出幸运纸团" });
+        Assert.False(lucky.IsEnabled);
 
         await GuiHarness.SaveAsync(page);
         var saved = Settings.Load(harness.DataDirectory);
-        Assert.Equal((0, "捣乱"), (saved.DesktopPetPranksterMinutes.Value, saved.DesktopPetPranksterKeyword.Value));
-        Assert.Equal("捣乱", harness.Client.WebService.Settings!.DesktopPetPranksterKeyword.Value);
+        Assert.Equal((0, 0), (saved.DesktopPetPranksterMinutes.Value, saved.DesktopPetLuckyPercent.Value));
+        Assert.Equal(0, harness.Client.WebService.Settings!.DesktopPetLuckyPercent.Value);
+        Assert.DoesNotContain("prankster_keyword", File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
+
+        Switch(page, "幸运纸团").IsChecked = true;
+        GuiHarness.Flush();
+        Assert.Equal((true, "10"), (lucky.IsEnabled, lucky.Text));
     });
 
     [Fact]
@@ -144,6 +152,7 @@ public sealed class DesktopPetSettingsTests
                     .Select(row => (Switch(page, row.Item1).IsChecked == true, Number(page, row.Item2).Text)));
             GuiHarness.Tab(page, 2);
             Assert.Equal((true, "30"), (Switch(page, "捣蛋鬼自己来").IsChecked == true, Number(page, "它最多每几分钟自己来一次").Text));
+            Assert.Equal((true, "10"), (Switch(page, "幸运纸团").IsChecked == true, Number(page, "每个纸团是幸运纸团的几率").Text));
             Assert.False(page.IsDirty);
             Assert.Equal(before, File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
             return Task.CompletedTask;
@@ -151,7 +160,7 @@ public sealed class DesktopPetSettingsTests
         {
             // Every group is there, so reading the file adds nothing (ADR 0004); without these lines their numbers come from Core.
             var path = Settings.FilePath(harness.DataDirectory);
-            before = Regex.Replace(File.ReadAllText(path), @"^ *(bored_minutes|gloomy_minutes|sleepy_minutes|prankster_minutes|mishap_percent): \d+\r?\n",
+            before = Regex.Replace(File.ReadAllText(path), @"^ *(bored_minutes|gloomy_minutes|sleepy_minutes|prankster_minutes|mishap_percent|lucky_percent): \d+\r?\n",
                 "", RegexOptions.Multiline);
             File.WriteAllText(path, before);
         });
@@ -182,7 +191,7 @@ public sealed class DesktopPetSettingsTests
     [Fact]
     public Task No_tab_says_that_0_turns_a_number_off_whether_it_is_on_or_off() => WithPage(page =>
     {
-        foreach (var (tab, switches) in new[] { (1, new[] { "无聊", "沮丧", "犯困", "出事" }), (2, new[] { "捣蛋鬼自己来" }) })
+        foreach (var (tab, switches) in new[] { (1, new[] { "无聊", "沮丧", "犯困", "出事" }), (2, new[] { "捣蛋鬼自己来", "幸运纸团" }) })
         {
             GuiHarness.Tab(page, tab);
             foreach (var on in new[] { true, false })
@@ -217,59 +226,24 @@ public sealed class DesktopPetSettingsTests
         Assert.Equal(0, Settings.Load(harness.DataDirectory).DesktopPetPranksterMinutes.Value);
     });
 
-    [Theory]
-    [InlineData(" ", "关键字不能空着")]
-    [InlineData(" 抽奖", "和抽奖报名的关键字一样，观众分不清是在报名还是帮它；换一个")]
-    [InlineData("本月盲盒", "和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个")]
-    public Task A_helper_keyword_that_cannot_be_saved_is_marked_with_why_until_it_is_changed(string typed, string why) => WithPage(async (page, harness) =>
-    {
-        GuiHarness.Tab(page, 2);
-        var keyword = Input(page, "帮它的关键字");
-        keyword.Text = typed;
-        await harness.IdleAsync();
-        Assert.Contains(why, Texts(page));
-        Assert.Contains("invalid", keyword.Classes);
-        Assert.Equal((false, "小游戏里帮它的关键字要先改好，才能保存"), (page.CanSave, page.DirtyText));
-
-        keyword.Text = "捣乱";
-        await harness.IdleAsync();
-        Assert.DoesNotContain(why, Texts(page));
-        Assert.DoesNotContain("invalid", keyword.Classes);
-        Assert.Equal((true, "有未保存的修改"), (page.CanSave, page.DirtyText));
-    });
-
     [Fact]
     public Task The_chest_game_lines_are_edited_like_hers_and_its_say_its_bubble_is_narrow_while_the_shows_tab_lists_none() => WithPage(async (page, harness) =>
     {
         Assert.DoesNotContain("小游戏·她", page.FindControl<ListBox>("ShowGroupList")!.Items.Cast<DesktopPetShowGroup>().Select(group => group.Group.Label));
         Assert.DoesNotContain("守住了", page.FindControl<ComboBox>("TestShowInput")!.Items.Cast<DesktopPetTest>().Select(test => test.Label));
         GuiHarness.Tab(page, 3);
+        Assert.Subset(page.FindControl<ListBox>("LineKindList")!.Items.OfType<DesktopPetLineKind>().Select(kind => kind.Kind.Label).ToHashSet(),
+            new HashSet<string> { "别丢啦", "绝杀守住", "点名", "回嘴", "露破绽", "趁现在", "收下小花花", "绝杀得手" });
         Pick(page, "LineKindList", "守住了");
         Assert.Contains("把它打跑、宝箱回家时；每次随机一句，不连着重复", Texts(page));
         Pick(page, "LineKindList", "招人");
         Assert.Contains("拉帮手时；它的气泡窄，一行最多 6 个字，空一格换行；每次随机一句，不连着重复", Texts(page));
-        Line(page, 1).Text = "快发「{关键字}」 帮我！";
+        Line(page, 1).Text = "快发2 帮我！";
         GuiHarness.Flush();
         Assert.True(page.IsDirty);
 
         await GuiHarness.SaveAsync(page);
-        Assert.Equal(["快发「{关键字}」 帮我！"], Settings.Load(harness.DataDirectory).DesktopPetChangedLines["pranksterRecruit"].Value);
-    });
-
-    [Fact]
-    public Task A_lottery_that_cannot_be_read_leaves_the_helper_keyword_checked_without_the_next_entry_keyword() => WithPage(page =>
-    {
-        GuiHarness.Tab(page, 2);
-        Input(page, "帮它的关键字").Text = "抽奖";
-        GuiHarness.Flush();
-        Assert.True(page.CanSave);
-        return Task.CompletedTask;
-    }, prepare: harness =>
-    {
-        using var database = harness.OpenDatabase();
-        using var command = database.CreateCommand();
-        command.CommandText = "PRAGMA user_version = 999";
-        command.ExecuteNonQuery();
+        Assert.Equal(["快发2 帮我！"], Settings.Load(harness.DataDirectory).DesktopPetChangedLines["pranksterRecruit"].Value);
     });
 
     [Fact]
@@ -387,7 +361,7 @@ public sealed class DesktopPetSettingsTests
 
         harness.Client.WebService.SetDesktopPetRoom(true);
         await GuiHarness.WaitForAsync(() => button.IsEnabled);
-        Assert.Equal(("叫它来", "点了它马上来，不是试演，观众送的礼物都算；不用保存"), (text.Text, note.Text));
+        Assert.Equal(("叫它来", "点了它马上来，不是试演，送的礼物都是真的；不用保存"), (text.Text, note.Text));
         GuiHarness.Click(page, "SummonButton");
         await pet.NextAsync(DesktopPet.Summon);
         await GuiHarness.WaitForAsync(() => text.Text == "它在路上…");
@@ -419,8 +393,8 @@ public sealed class DesktopPetSettingsTests
         Lines = [.. ShowTable.Current.Lines, new("pkWin", "pk", "PK 赢了", "PK 结束时赢了", ["昵称"])]
     });
 
-    private static Task WithPage(Func<DesktopPetSettingsPage, Task> test, ShowTable? shows = null, Action<GuiHarness>? prepare = null) =>
-        WithPage((page, _) => test(page), shows, prepare);
+    private static Task WithPage(Func<DesktopPetSettingsPage, Task> test, ShowTable? shows = null) =>
+        WithPage((page, _) => test(page), shows);
 
     /// <summary>The page at 1200 × 720, built from <paramref name="shows"/>, or the program's 演出表, over data that
     /// <paramref name="prepare"/> may change first.</summary>

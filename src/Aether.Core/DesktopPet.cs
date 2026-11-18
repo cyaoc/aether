@@ -232,14 +232,14 @@ internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false,
 /// <summary>How the streamer set the 桌宠 to play: the 演出表 rows turned off; the 中礼物 and 大礼物 thresholds, in 金瓜子 as the
 /// rounds' amounts are; the quiet minutes before 无聊, 沮丧 and 犯困, 0 for never; the least and most seconds between 日常小动作; and
 /// the percent chance one goes wrong; the most minutes between the 捣蛋鬼's own 来访, 0 for only when the streamer 叫它来; and the
-/// 帮它的关键字, which its 招人 line says.</summary>
+/// percent chance a 纸团 is a 幸运纸团, 0 for never.</summary>
 internal sealed record DesktopPetSettings(IReadOnlyList<string> Off, long MidGift, long BigGift, int BoredMinutes, int GloomyMinutes,
-    int SleepyMinutes, int DailyMinSeconds, int DailyMaxSeconds, int MishapPercent, int PranksterMinutes, string PranksterKeyword)
+    int SleepyMinutes, int DailyMinSeconds, int DailyMaxSeconds, int MishapPercent, int PranksterMinutes, int LuckyPercent)
 {
     public static DesktopPetSettings Of(Settings settings) => new(settings.DesktopPetShowsOff.Value, Battery.ToCoins(settings.DesktopPetMidGift.Value),
         Battery.ToCoins(settings.DesktopPetBigGift.Value), settings.DesktopPetBoredMinutes.Value, settings.DesktopPetGloomyMinutes.Value,
         settings.DesktopPetSleepyMinutes.Value, settings.DesktopPetDailyMinSeconds.Value, settings.DesktopPetDailyMaxSeconds.Value,
-        settings.DesktopPetMishapPercent.Value, settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetPranksterKeyword.Value);
+        settings.DesktopPetMishapPercent.Value, settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetLuckyPercent.Value);
 }
 
 /// <summary>A viewer's 一轮送礼, told after each gift message with the viewer's gifts in it, and once more as it ends, with none:
