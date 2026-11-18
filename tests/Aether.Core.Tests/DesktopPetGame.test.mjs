@@ -1,10 +1,10 @@
 // Run with: node --test tests/Aether.Core.Tests/DesktopPetGame.test.mjs
-// The 宝箱小游戏 (#372) on the 桌宠页: when the 捣蛋鬼 comes and goes, what scares it off, what goes into her chest, and what
-// a 来访 leaves of her shows.
+// The 宝箱小游戏 (#372, #382) on the 桌宠页: when the 捣蛋鬼 comes and goes, the tug bar's rules (the two sides' gifts, 秒杀,
+// time-up and 绝杀, what danmaku do), what scares it off, what goes into her chest, and what a 来访 leaves of her shows.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { box, flowers, gamePet, gifts, item, other, play, playing, round, state, tickets } from './Support/DesktopPetGame.mjs';
+import { box, flowers, gamePet, gifts, other, play, playing, round, state, tickets } from './Support/DesktopPetGame.mjs';
 
 const character = JSON.parse(readFileSync(new URL('../../src/Aether.Core/Pages/characters/1/character.json', import.meta.url), 'utf8'));
 // What the page reports to Core of the 捣蛋鬼 (page.mjs).
