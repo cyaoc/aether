@@ -328,7 +328,7 @@ export class Engine extends EventTarget {
     if (r) r.top = nickname; else this.crowns.set(uid, nickname);
   }
 
-  // The new first place is crowned now, after the show that came with it, unless the crowning is turned off.
+  // The new first place is crowned now, unless the crowning is turned off.
   crowned(nickname) { if (!this.settings.off.includes('newFirst')) this.start('newFirst', { nickname, chained: true }); }
 
   fire(name, opts = {}) {
@@ -706,7 +706,7 @@ export class Engine extends EventTarget {
     v.ghost = { lead: before, at: now, n };
     this.gm.nums.push({ at: now, text: `+${n} ${w.name}`, side, x: this.lineX(v), big: double || Math.abs(lead) >= v.span });
     if (favours !== v.favours) { v.favours = favours; v.flip[favours] = { w, late: v.judge != null || (v.left ?? GAME.fight) <= GAME.sprint }; }
-    if (Math.abs(lead) >= v.span) this.finish(now, favours, { w, n, late: v.judge != null || (v.left ?? GAME.fight) <= GAME.sprint });
+    if (Math.abs(lead) >= v.span) this.finish(now, favours, { w, late: v.judge != null || (v.left ?? GAME.fight) <= GAME.sprint });
   }
 
   // The fight ends with side's 秒杀 (by: the gift that did it). In the tug what is on its way lands at once, the lightning cut
