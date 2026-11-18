@@ -11,7 +11,8 @@
   "props": {
     "chest": "chest.webp",
     "chestOpen": "chest-open.webp",
-    "chestRing": "chest-ring.webp"
+    "chestRing": "chest-ring.webp",
+    "paperball": "paperball.webp"
   },
   "ring": { "x": 11.5, "y": 40, "hang": [12.5, 4], "reach": 16 },
   "lid": { "x": 13, "y": 133 },
@@ -60,28 +61,42 @@
     "carry>startle": "pkLetGo",
     "tug>startle": "pkLetGoTug",
     "startle>flee": "pkBolt",
-    "laugh>idle": "pkLaughOut"
+    "laugh>idle": "pkLaughOut",
+    "haul>ouch": "pkHaulOuch",
+    "haul>flat": "pkHaulFlat",
+    "thunder>flat": "pkThunderFlat",
+    "thunder>haul": "pkThunderHaul",
+    "peer>laugh": "pkPeerLaugh",
+    "shrug>laugh": "pkShrugLaugh",
+    "laugh>carry": "pkLift"
   },
-  "cuts": ["peek>carry", "carry>fall", "fall>dazed", "tumble>shake", "sit>knocked"],
+  "cuts": ["carry>carryBag", "carry>carryCrown", "carryBag>carryCrown", "carryBag>startle", "carryCrown>startle", "carry>fall", "fall>dazed", "dazed>tumble", "tumble>shake", "peek>carry"],
   "frames": {
     "pkBolt": "frames/pkBolt.webp",
     "pkDeflate": "frames/pkDeflate.webp",
     "pkGrab": "frames/pkGrab.webp",
     "pkHaul": "frames/pkHaul.webp",
+    "pkHaulFlat": "frames/pkHaulFlat.webp",
     "pkHaulIn": "frames/pkHaulIn.webp",
+    "pkHaulOuch": "frames/pkHaulOuch.webp",
     "pkLaugh": "frames/pkLaugh.webp",
     "pkLaughOut": "frames/pkLaughOut.webp",
     "pkLetGo": "frames/pkLetGo.webp",
     "pkLetGoTug": "frames/pkLetGoTug.webp",
+    "pkLift": "frames/pkLift.webp",
     "pkOuch": "frames/pkOuch.webp",
     "pkPeer": "frames/pkPeer.webp",
+    "pkPeerLaugh": "frames/pkPeerLaugh.webp",
     "pkShrug": "frames/pkShrug.webp",
+    "pkShrugLaugh": "frames/pkShrugLaugh.webp",
     "pkSit": "frames/pkSit.webp",
     "pkSitDown": "frames/pkSitDown.webp",
     "pkSitLaugh": "frames/pkSitLaugh.webp",
     "pkThrow": "frames/pkThrow.webp",
     "pkThrowLaugh": "frames/pkThrowLaugh.webp",
     "pkThunder": "frames/pkThunder.webp",
+    "pkThunderFlat": "frames/pkThunderFlat.webp",
+    "pkThunderHaul": "frames/pkThunderHaul.webp",
     "pkTug": "frames/pkTug.webp"
   }
 }

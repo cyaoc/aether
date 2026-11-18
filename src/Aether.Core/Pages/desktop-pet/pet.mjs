@@ -15,7 +15,7 @@ const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid']);
 // through one, the chest game's when the 捣蛋鬼 is to come), not with the page, which would decode all her pictures at once
 // (design package README 11).
 const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cycle12'], ski: ['ski9'], castle: ['castleSheet'],
-  captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'sp3'] };
+  captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'] };
 // The 捣蛋鬼's drawings and the chest's, the same for every character (prankster/prankster.json).
 const PRANKSTER = '/desktop-pet/prankster/';
 // A gift's icon falling in the chest game, that many of the little box's half sides it stands in for: 34 px for a gift, 62 for
