@@ -170,8 +170,8 @@ the page beside the board, as the web service serves it, telling it it is on in 
 - The viewers of a 来访 are the room's. Whoever sends a 人气票 or 小花花 is on its side with the face their gift message
   carried, or, with none, the first character of their name on the side's colour; the board's are eight sample viewers with
   avatars of their own. A gift message's gifts are each taken as the board takes one, so one message may throw some and keep
-  others for her 一轮送礼. Each side's gift falls, and stands under the bar, as B站's icon of it, loaded when it is first drawn;
-  the board has them from its start. The 站队 a danmaku takes is Core's to tell, and a viewer B站 tells with no UID takes
+  others for her 一轮送礼. The page lets the faces go when the 来访 is over, but for one a 绝杀 still shows; the board keeps its
+  eight. The 站队 a danmaku takes is Core's to tell, and a viewer B站 tells with no UID takes
   none and is not called out (flying over, any danmaku still freezes the 捣蛋鬼); the board's buttons say 1 or 2 for one of
   its viewers.
 - Any other gift is kept aside for her chest, playing nothing, until its viewer's 一轮送礼 comes to the 中礼物 threshold, when

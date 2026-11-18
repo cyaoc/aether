@@ -58,9 +58,9 @@ const chosen = args.length ? cases.filter(c => args.includes(c.id)) : cases;
 
 // The board ready to play as x, or the page as x, drawn over the board's room where the board draws it, with every sheet
 // loaded; then the canvas both are drawn on, and drive(later): what a route's steps call x, the board itself, and for the
-// page what Core would tell it for each (routes.mjs). B站's pictures the 宝箱小游戏 draws, each side's gift icon, and on the page
-// the viewers' faces (the board has them from its start), are waited for on both, 10 s at most: with none to be had both draw
-// their stand-ins.
+// page what Core would tell it for each (routes.mjs). B站's pictures the 宝箱小游戏 draws are waited for on both, 10 s at most
+// (with none to be had both draw their stand-ins): each side's gift icon, which both ask for as they load, and on the page the
+// viewers' faces before each route, as it lets them go when a 来访 is over (the board has them from its start).
 const SETTLED = `const settled = ok => new Promise(done => { const from = Date.now(), t = setInterval(() => { if (ok() || Date.now() - from > 10000) { clearInterval(t); done(); } }, 50); });`;
 const board = game => ({
   url: `http://localhost:${port}/render.html?board=DP-DesktopPet.dc.html&props=` + encodeURIComponent(JSON.stringify({ scene: '手动', room: '透明', caption: '隐藏', controls: '隐藏', game })),
@@ -82,13 +82,12 @@ const SIDES = {
         g.save(); g.setLineDash([10, 8]); g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 2; g.strokeRect(1400, 420, 480, 640); g.restore();
       };
       await Promise.all([...Object.keys(pet.art.sheets).map(k => pet.loadSheet(k)), pet.loadGame()]);
-      const names = ${JSON.stringify({ NAME, STEP, VIEWERS, STAR })}, { STAR } = names, { SIDE_ICON } = await import('/desktop-pet/pet.mjs');
-      const pictures = [...Object.values(SIDE_ICON), ...names.VIEWERS.map(viewer => viewer.faceUrl)];
+      const names = ${JSON.stringify({ NAME, STEP, VIEWERS, STAR })}, { STAR } = names, faces = names.VIEWERS.map(viewer => viewer.faceUrl);
       ${SETTLED}
-      for (const url of pictures) pet.remote(url);
-      await settled(() => pictures.every(url => pet.icons.get(url)));
+      await settled(() => [...pet.icons.values()].every(Boolean));
       ${[send, end, told, itemsOf, spendOf, announced].join('\n')}
-      const canvas = pet.canvas, reset = () => x.reset(seeded(7)), drive = later => (${drive})(pet, later, names);`
+      const canvas = pet.canvas, reset = () => x.reset(seeded(7));
+      const drive = async later => { for (const url of faces) pet.remote(url); await settled(() => faces.every(url => pet.icons.get(url))); return (${drive})(pet, later, names); };`
   }
 };
 
@@ -126,7 +125,7 @@ const ROUTE = `async (c, keep, res) => {
   clock.act();
   ${AFRESH}
   res[c.id] = {};
-  await walk(c.steps, drive(clock.later), clock);
+  await walk(c.steps, await drive(clock.later), clock);
 }`;
 
 // Each case's start on one side, as a function of the board or page (x, pet, dc) and later.

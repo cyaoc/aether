@@ -1,6 +1,7 @@
 // Run with: node --test tests/Aether.Core.Tests/DesktopPetGame.test.mjs
 // The 宝箱小游戏 (#372, #382) on the 桌宠页: when the 捣蛋鬼 comes and goes, the tug bar's rules (the two sides' gifts, 秒杀,
-// time-up and 绝杀, what danmaku do), what scares it off, what goes into her chest, and what a 来访 leaves of her shows.
+// time-up and 绝杀, what danmaku do), what scares it off, what goes into her chest, what a 来访 leaves of her shows, and which
+// of B站's pictures the page keeps after it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -868,4 +869,28 @@ test('with the 幸运纸团 turned off, at 0 %, paper balls are thrown as ever, 
     return [balls, lucky > 0, opened > 0];
   };
   assert.deepEqual([lucky(0), lucky(10)], [[60, false, false], [60, true, true]]);
+});
+
+// B站's pictures (pet.remote), each arriving once asked for: the two sides' gift icons, 人气票's and 小花花's, asked for with the
+// game's pictures, and a viewer's face, asked for as the bar draws who sent the gift.
+globalThis.Image = class { set src(url) { queueMicrotask(() => this.onload()); } };
+const ICONS = ['https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png'];
+const pictured = () => { const pet = tugging(); for (const url of ICONS) pet.remote(url); return pet; };
+const faced = (pet, gift) => { pet.gift({ ...gift, faceUrl: '/face/' + gift.uid }); pet.remote('/face/' + gift.uid); };
+// The pictures the page still holds once those asked for have arrived and the 来访 is over.
+const left = async pet => { await new Promise(resolve => setImmediate(resolve)); while (pet.gm.visit) play(pet, 100); return [...pet.icons.keys()]; };
+
+test('a 来访 over, the page lets go of the faces of who joined it and keeps each side\'s gift icon', async () => {
+  const pet = pictured();
+  faced(pet, flowers(2, 5));
+  faced(pet, tickets(1, 105));
+  assert.deepEqual(await left(pet), ICONS);
+});
+
+test('a 绝杀 that lost her the chest is written up past the 来访\'s end, and the face of whoever scored it is kept for it', async () => {
+  const pet = pictured();
+  faced(pet, tickets(1, 5));
+  countdown(pet, 5000);
+  faced(pet, flowers(2, 6));
+  assert.deepEqual([await left(pet), pet.gm.buzzer.w.name], [[...ICONS, '/face/2'], '观众2']);
 });

@@ -20,7 +20,7 @@ const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cy
 const PRANKSTER = '/desktop-pet/prankster/';
 // The tug's two sides, hers 1 and the 捣蛋鬼's -1: B站's own icons of their gifts, 人气票 and 小花花 (giftConfig?platform=pc,
 // 2026-11-16), from B站's CDN; her side red, its blue, each with a light one for its numbers.
-export const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', '-1': 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png' };
+const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', '-1': 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png' };
 const SIDE_COL = { 1: '#FF4D6D', '-1': '#4D8BFF' }, SIDE_LIGHT = { 1: '#FFB3C1', '-1': '#B3CDFF' };
 // Under the tug bar, two rows: each side's gift icon and how to join it by danmaku (1, 2), then the faces of who joined it by
 // gift. The game's words are read off a stream shrunk on a phone, so they keep to her bubbles' size (28 px): the countdown
@@ -175,6 +175,7 @@ export class Pet extends Engine {
   loadGame() { return this.load('game', () => this.measureGame()); }
 
   async measureGame() {
+    for (const url of Object.values(SIDE_ICON)) this.remote(url);   // (not waited for: with none to be had a side's gift is a small box)
     const prankster = this.prankster = await (await fetch(PRANKSTER + 'prankster.json')).json(), picture = name => loadImage(PRANKSTER + name);
     await Promise.all([...SEGMENTS.game.map(k => this.loadSheet(k)),
       ...Object.entries(prankster.sheets).map(async ([k, file]) => { this.cells[k] = sheetCells(await picture(file)); }),
@@ -540,6 +541,14 @@ export class Pet extends Engine {
   remote(url) {
     if (url && !this.icons.has(url)) { this.icons.set(url, null); loadImage(url, REMOTE).then(im => this.icons.set(url, im), () => {}); }
     return this.icons.get(url);
+  }
+
+  // Its viewers' faces go with the 来访, or a long stream would keep every one; each side's icon stays, and the face of a 绝杀
+  // still written up (drawBuzzer: it outlasts a 来访 she lost).
+  endVisit(now) {
+    super.endVisit(now);
+    const b = this.gm.buzzer, kept = [...Object.values(SIDE_ICON), ...(b && now < b.at + GAME.buzzer ? [b.w.face] : [])];
+    for (const url of this.icons.keys()) if (!kept.includes(url)) this.icons.delete(url);
   }
 
   // A viewer's face, r its radius, in a ring of their side's colour: the picture their gift message carried, or, with none,
