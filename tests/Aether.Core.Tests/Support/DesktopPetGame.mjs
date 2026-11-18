@@ -1,6 +1,6 @@
 // A 桌宠页 for the node tests of the 宝箱小游戏 (#372): Pet in a connected room with the default settings, its clock at 0 and
 // every picture stood in for by one box (each cell, the chest at its size), so that where she and the 捣蛋鬼 are can be worked
-// out without drawing; her in-betweens are named by their transitions, for her routes.
+// out without drawing; her in-betweens and the 捣蛋鬼's are named by their transitions, for their routes.
 import { readFileSync } from 'node:fs';
 import { H, seeded } from '../../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { Pet } from '../../../src/Aether.Core/Pages/desktop-pet/pet.mjs';
@@ -15,7 +15,8 @@ export function gamePet(character, settings = {}, rng = seeded(7)) {
   const art = character.desktopPet, pet = new Pet(null, { currentTime: 0 }, shows, character), size = { width: 1, height: 1 };
   Object.assign(pet, { props: { admship: size }, castle: { closed: size, box: { h: 1 } }, cells: new Proxy({}, { get: () => Array(6).fill(CELL) }), herLeft: -60,
     prankster, chestBox: { w: 72, h: 58, open: 104, k: H / prankster.anchor }, gameLoaded: true,
-    tweens: Object.fromEntries(Object.keys(art.transitions).map(pair => [pair, [pair, pair]])) });
+    tweens: Object.fromEntries(Object.keys(art.transitions).map(pair => [pair, [pair, pair]])),
+    pkTweens: Object.fromEntries(Object.keys(prankster.transitions).map(pair => [pair, [pair, pair]])) });
   for (const k of [...Object.keys(art.sheets), 'game']) pet.loads[k] = Promise.resolve();
   pet.reset(rng);
   pet.receive({ enabled: true, roomConnected: true, settings: { ...SETTINGS, ...settings }, lines: character.lines });

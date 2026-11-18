@@ -12,7 +12,7 @@
 // --out (default /tmp/desktop-pet-compare); a route's moments are its frames.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import { NAME, ROUTES, STEP, drive, end, frames, itemsOf, send, spendOf, told, walk } from './routes.mjs';
+import { NAME, ROUTES, STAR, STEP, VIEWERS, announced, drive, end, frames, itemsOf, send, spendOf, told, walk } from './routes.mjs';
 
 const here = new URL('.', import.meta.url).pathname, eval_ = here + '../../docs/design/desktop-pet/tools/cdp-eval.mjs';
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args.splice(i, 2)[1]; };
@@ -41,16 +41,16 @@ cases.push({ id: 'wake-entry', set: 'x.lastGift = x.lastAny = x.now() - 41 * 600
 const flower = JSON.stringify([{ gift: '小花花', price: 10, n: 1 }]), heart = JSON.stringify([{ gift: '爱心抱枕', price: 160, n: 1, box: '心动盲盒', boxPrice: 150 }]);
 cases.push({ id: 'round-gifts', ms: at(5000, [380, 1450, 1500]),
   board: `dc.give(Array.from({ length: 5 }, () => ${flower}[0]))`,
-  page: `for (let n = 1; n <= 5; n++) later(n * 350 - 350, () => told(pet, 1, { items: itemsOf(${flower}) }))` });
+  page: `for (let n = 1; n <= 5; n++) later(n * 350 - 350, () => told(pet, STAR, { items: itemsOf(${flower}) }))` });
 cases.push({ id: 'round-boxes', ms: at(7000, [3000, 3800, 3900, 4800]),
   board: `dc.give(${heart})`,
-  page: `told(pet, 1, { items: itemsOf(${heart}) }); later(3000, () => told(pet, 1, { ended: true }));
+  page: `told(pet, STAR, { items: itemsOf(${heart}) }); later(3000, () => told(pet, STAR, { ended: true }));
     later(3800, () => pet.blindBox({ uid: 1, nickname: '星河', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 }))` });
 // A big gift that takes the 礼物榜's first place, crowned after its show.
 const ranks = rows => JSON.stringify({ rows: rows.map(([uid, nickname, num]) => ({ id: `${uid}/gift:1`, uid, nickname, num })), options: {}, running: true, fromGift: true });
 cases.push({ id: 'bigGift-newFirst', ms: at(8600, [6200, 7000, 7700]),
   board: `dc.give([{ gift: '小电视飞船', price: 12450, n: 1, top: true }])`,
-  page: `pet.ranked(${ranks([[2, '甲', 5]])}); told(pet, 1, { items: itemsOf([{ gift: '小电视飞船', price: 12450, n: 1 }]) });
+  page: `pet.ranked(${ranks([[2, '甲', 5]])}); told(pet, STAR, { items: itemsOf([{ gift: '小电视飞船', price: 12450, n: 1 }]) });
     pet.ranked(${ranks([[1, '星河', 1], [2, '甲', 5]])})` });
 // The 宝箱小游戏's routes: the board's own steps, which the page plays through drive (routes.mjs).
 for (const [route, steps] of Object.entries(ROUTES)) cases.push({ id: 'game-' + route, steps });
@@ -58,10 +58,15 @@ const chosen = args.length ? cases.filter(c => args.includes(c.id)) : cases;
 
 // The board ready to play as x, or the page as x, drawn over the board's room where the board draws it, with every sheet
 // loaded; then the canvas both are drawn on, and drive(later): what a route's steps call x, the board itself, and for the
-// page what Core would tell it for each (routes.mjs).
+// page what Core would tell it for each (routes.mjs). B站's pictures the 宝箱小游戏 draws, each side's gift icon, and on the page
+// the viewers' faces (the board has them from its start), are waited for on both, 10 s at most: with none to be had both draw
+// their stand-ins.
+const SETTLED = `const settled = ok => new Promise(done => { const from = Date.now(), t = setInterval(() => { if (ok() || Date.now() - from > 10000) { clearInterval(t); done(); } }, 50); });`;
 const board = game => ({
   url: `http://localhost:${port}/render.html?board=DP-DesktopPet.dc.html&props=` + encodeURIComponent(JSON.stringify({ scene: '手动', room: '透明', caption: '隐藏', controls: '隐藏', game })),
   setup: `const x = dc; await new Promise(r => { const t = setInterval(() => { x.frame(); if (x.ready && x.master) { clearInterval(t); r(); } }, 50); });
+    ${SETTLED}
+    await settled(() => x.sideIcon[1] && x.sideIcon[-1]);
     const canvas = document.getElementById('dp-cv'), reset = () => x.reset(), drive = () => x;`
 });
 const SIDES = {
@@ -77,8 +82,13 @@ const SIDES = {
         g.save(); g.setLineDash([10, 8]); g.strokeStyle = 'rgba(255,255,255,0.7)'; g.lineWidth = 2; g.strokeRect(1400, 420, 480, 640); g.restore();
       };
       await Promise.all([...Object.keys(pet.art.sheets).map(k => pet.loadSheet(k)), pet.loadGame()]);
-      ${[send, end, told, itemsOf, spendOf].join('\n')}
-      const canvas = pet.canvas, reset = () => x.reset(seeded(7)), drive = later => (${drive})(pet, later, ${JSON.stringify({ NAME, STEP })});`
+      const names = ${JSON.stringify({ NAME, STEP, VIEWERS, STAR })}, { STAR } = names, { SIDE_ICON } = await import('/desktop-pet/pet.mjs');
+      const pictures = [...Object.values(SIDE_ICON), ...names.VIEWERS.map(viewer => viewer.faceUrl)];
+      ${SETTLED}
+      for (const url of pictures) pet.remote(url);
+      await settled(() => pictures.every(url => pet.icons.get(url)));
+      ${[send, end, told, itemsOf, spendOf, announced].join('\n')}
+      const canvas = pet.canvas, reset = () => x.reset(seeded(7)), drive = later => (${drive})(pet, later, names);`
   }
 };
 
