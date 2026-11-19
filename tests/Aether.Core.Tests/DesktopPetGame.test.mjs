@@ -214,6 +214,18 @@ test('a side whose gifts reaching the page take the line to its end wins there a
   assert.deepEqual([stolen.gm.visit.phase, stolen.gm.streak, stolen.gm.chest, stolen.gm.brag], ['lost', 0, 0, true]);
 });
 
+test('time up, the side the score favours wins, though what landed took the line past an end on the way', () => {
+  const pet = tugging(500), v = pet.gm.visit;
+  pet.gift(tickets(1, 90));
+  while (v.cut == null) play(pet, 100);
+  pet.gift(flowers(2, 180));
+  pet.gift(tickets(3, 110));
+  while (!v.bolted) play(pet, 100);
+  countdown(pet, 0);
+  while (v.result == null) play(pet, 100);
+  assert.deepEqual([v.red, v.blue, v.net, v.result], [200, 205, -5, -1]);
+});
+
 test('its lightning\'s bolt gives the 捣蛋鬼 a quarter of the way to an end, shown as a gift is; cut short before it strikes, her hair is not frizzed', () => {
   const pet = tugging(), v = pet.gm.visit;
   pet.gift(tickets(1, 55));

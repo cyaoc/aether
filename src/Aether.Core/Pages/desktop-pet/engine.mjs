@@ -734,7 +734,7 @@ export class Engine extends EventTarget {
   // its way (tumble). Who turned it stays a viewer's: the lightning is no one's 绝杀.
   zapBack(now) {
     const v = this.gm.visit, n = Math.round(v.span / 4), before = v.red - v.blue;
-    v.blue += n; v.net = clamp(v.net - n, -v.span, v.span); v.tumble = now;
+    v.blue += n; v.net -= n; v.tumble = now;
     v.ghost = { lead: before, at: now, n };
     this.gm.nums.push({ at: now, text: `+${n} 捣蛋鬼`, side: -1, x: this.lineX(v) });
     const lead = v.red - v.blue, favours = lead > 0 ? 1 : -1;
@@ -918,7 +918,7 @@ export class Engine extends EventTarget {
       this.phase('knocked', now); this.sendHome(now, HOME, true); return this.fire('pranksterKnocked', { game: true, nickname: name });   // the lid it sat on springs open for the gift
     }
     v.spent += h.spend; v.count += h.count;
-    v.net = clamp(v.net + h.side * h.n, -v.span, v.span);
+    v.net += h.side * h.n;   // as it is, so time up judges it right: only the chest's drift stops at an end
     if (h.side < 0) {
       if (this.dragging(v)) { v.wince = now; return; }
       Object.assign(v, { bonk: now, tumble: now, helped: v.helped + h.count });
@@ -1346,7 +1346,7 @@ export class Engine extends EventTarget {
         // it is ahead, back to hers as she gets ahead. In the last stretch, while she is not ahead, it hauls the chest off and
         // she is dragged along (drag).
         const t = now - v.grabbed, e = ease(k01(t, 850, 2300)), cut = v.cut != null ? now - v.cut : null;
-        const drift = e * (TUG.drift * (-v.net / v.span) + 1.5 * Math.sin(now / 260)) + v.drag, drag = this.dragging(v);
+        const drift = e * (TUG.drift * clamp(-v.net / v.span, -1, 1) + 1.5 * Math.sin(now / 260)) + v.drag, drag = this.dragging(v);
         // A 小花花 on her head (strike): down is how long she has been flattened (flat 1200 ms, then 700 ms holding the
         // handle lying down), loose whether she has let go. The 捣蛋鬼 is glad of it: it points at her and laughs, and the chest
         // comes a little its way (yank). The bump and the dizzy eyes are for a gift that hits it.
