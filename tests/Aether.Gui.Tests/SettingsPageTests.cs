@@ -960,14 +960,14 @@ public sealed class SettingsPageTests
     [InlineData("DailyKeywordInput", "DailyKeywordError")]
     [InlineData("MonthlyKeywordInput", "MonthlyKeywordError")]
     [InlineData("YearlyKeywordInput", "YearlyKeywordError")]
-    public Task A_blind_box_query_keyword_that_is_the_helper_keyword_says_why_and_cannot_be_saved(string input, string error) =>
-        WithSettingsPage(dir => new BlindBoxSettingsPage(dir), "desktop_pet:\n  prankster_keyword: 查盲盒\n", (page, _) =>
+    public Task A_blind_box_query_keyword_that_a_viewer_takes_a_side_with_says_why_and_cannot_be_saved(string input, string error) =>
+        WithSettingsPage(dir => new BlindBoxSettingsPage(dir), null, (page, _) =>
         {
             var keyword = page.FindControl<TextBox>(input)!;
             var why = page.FindControl<TextBlock>(error)!;
-            keyword.Text = "查盲盒 ";
+            keyword.Text = "1 ";
             GuiHarness.Flush();
-            Assert.Equal((true, "和桌宠宝箱小游戏里帮它的关键字一样，观众查盲盒时就站到它那边了；换一个"), (why.IsVisible, why.Text));
+            Assert.Equal((true, "观众发 1、2 是在小游戏里站队；换一个"), (why.IsVisible, why.Text));
             Assert.False(page.CanSave);
 
             keyword.Text = "查哪个盲盒";

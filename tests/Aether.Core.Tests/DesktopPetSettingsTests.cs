@@ -20,27 +20,41 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Without_its_two_lines_the_prankster_comes_every_30_minutes_and_is_helped_with_捣蛋()
+    public void Without_its_line_the_prankster_comes_every_30_minutes()
     {
         Write("desktop_pet:\n  enabled: true\n");
         var settings = Settings.Load(h.DataDirectory);
         Assert.Null(settings.Error);
-        Assert.Equal((30, "捣蛋"), (settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetPranksterKeyword.Value));
+        Assert.Equal(30, settings.DesktopPetPranksterMinutes.Value);
 
-        Write("desktop_pet:\n  prankster_minutes: 0\n  prankster_keyword: 帮它\n");
-        settings = Settings.Load(h.DataDirectory);
-        Assert.Equal((0, "帮它"), (settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetPranksterKeyword.Value));
+        Write("desktop_pet:\n  prankster_minutes: 0\n");
+        Assert.Equal(0, Settings.Load(h.DataDirectory).DesktopPetPranksterMinutes.Value);
+    }
+
+    [Fact]
+    public void Without_its_line_one_paper_ball_in_ten_is_lucky_and_the_file_is_left_alone()
+    {
+        Settings.Load(h.DataDirectory);
+        var old = File.ReadAllText(SettingsPath).ReplaceLineEndings("\n").Replace("  lucky_percent: 10\n", "");
+        Assert.DoesNotContain("lucky_percent", old);
+        Write(old);
+
+        var settings = Settings.Load(h.DataDirectory);
+
+        Assert.Equal((null, 10), (settings.Error, settings.DesktopPetLuckyPercent.Value));
+        Assert.Equal(old, File.ReadAllText(SettingsPath));
     }
 
     [Theory]
     [InlineData("prankster_minutes: -1", "desktop_pet.prankster_minutes", "必须为非负整数。")]
-    [InlineData("prankster_keyword: \"\"", "desktop_pet.prankster_keyword", "必须是非空的一行文字。")]
     [InlineData("shows_off: [entry, nope]", "desktop_pet.shows_off", "演出表里没有能关掉的 nope。")]
     [InlineData("shows_off: [bored]", "desktop_pet.shows_off", "演出表里没有能关掉的 bored。")]
     [InlineData("mid_gift_spend: 0", "desktop_pet.mid_gift_spend", "必须为正整数。")]
     [InlineData("bored_minutes: -1", "desktop_pet.bored_minutes", "必须为非负整数。")]
     [InlineData("daily_max_seconds: 0", "desktop_pet.daily_max_seconds", "必须为正整数。")]
     [InlineData("mishap_percent: 101", "desktop_pet.mishap_percent", "必须是 0–100。")]
+    [InlineData("lucky_percent: 101", "desktop_pet.lucky_percent", "必须是 0–100。")]
+    [InlineData("lucky_percent: -1", "desktop_pet.lucky_percent", "必须是 0–100。")]
     [InlineData("mid_gift_spend: 10000", "desktop_pet.big_gift_spend", "中礼物门槛要小于大礼物门槛。")]
     [InlineData("mid_gift_spend: 2147483647", "desktop_pet.big_gift_spend", "中礼物门槛要小于大礼物门槛。")]
     [InlineData("lines.1.bigGift: [\"开出{奖品}了\"]", "desktop_pet.lines.1.bigGift", "这一类台词不能用 {奖品}，只能用 {昵称}、{礼物}、{个数}。")]
@@ -89,60 +103,31 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    // (a file of an older format is given a helper keyword of its own as it is upgraded)
-    [InlineData("format_version: 2\nblind_box:\n  daily_keyword: 捣蛋\n", "blind_box.daily_keyword", 3, Settings.BlindBoxKeywordIsPrankster)]
-    [InlineData("blind_box:\n  monthly_keyword: 帮它\ndesktop_pet:\n  prankster_keyword: \" 帮它 \"\n", "desktop_pet.prankster_keyword", 4,
-        Settings.PranksterKeywordIsBlindBox)]
-    // (keys found by their names, as Settings reads them, a tagged one too)
-    [InlineData("format_version: 2\n!!str blind_box:\n  !!str daily_keyword: 捣蛋\n", "blind_box.daily_keyword", 3, Settings.BlindBoxKeywordIsPrankster)]
-    [InlineData("blind_box:\n  monthly_keyword: 帮它\n!!str desktop_pet:\n  !!str prankster_keyword: 帮它\n", "desktop_pet.prankster_keyword", 4,
-        Settings.PranksterKeywordIsBlindBox)]
-    public void A_file_whose_helper_keyword_is_a_blind_box_query_keyword_reports_it(string yaml, string name, long line, string reason)
-    {
-        Write(yaml);
-
-        var error = Assert.IsType<SettingsException>(Settings.Load(h.DataDirectory).Error);
-
-        Assert.Equal((name, line), (error.SettingName, error.LineNumber));
-        Assert.EndsWith("）：" + reason, error.Message);
-    }
-
-    [Theory]
-    [InlineData("desktop_pet.prankster_keyword", "今年盲盒")]
-    [InlineData("blind_box.yearly_keyword", "捣蛋")]
-    public void Saving_either_group_with_the_same_keyword_as_the_other_is_refused_without_writing(string name, string keyword)
-    {
-        Settings.Load(h.DataDirectory);
-        var before = File.ReadAllText(SettingsPath);
-
-        var error = Assert.Throws<SettingsException>(() => Settings.Save(h.DataDirectory, new Dictionary<string, string> { [name] = keyword }));
-
-        Assert.EndsWith("（desktop_pet.prankster_keyword）：和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个", error.Message);
-        Assert.Equal(before, File.ReadAllText(SettingsPath));
-    }
-
-    [Theory]
+    [InlineData("1", "观众发 1、2 是在小游戏里站队；换一个")]
+    [InlineData(" 2 ", "观众发 1、2 是在小游戏里站队；换一个")]
+    [InlineData("12", null)]
     [InlineData("捣蛋", null)]
-    [InlineData(" ", "关键字不能空着")]
-    [InlineData(" 参加 ", "和抽奖报名的关键字一样，观众分不清是在报名还是帮它；换一个")]
-    [InlineData("本月盲盒", "和盲盒查询的关键字一样，观众查盲盒时就站到它那边了；换一个")]
-    public void A_helper_keyword_as_typed_is_checked_against_the_next_entry_lotterys_and_the_saved_blind_box_queries(string keyword, string? reason) =>
-        Assert.Equal(reason, Settings.Load(h.DataDirectory).ValidatePranksterKeyword(keyword, "参加"));
+    public void A_blind_box_query_keyword_as_typed_cannot_be_what_a_viewer_takes_a_side_with(string keyword, string? reason) =>
+        Assert.Equal(reason, Settings.ValidateBlindBoxKeyword(keyword));
 
     [Fact]
-    public void A_blind_box_query_keyword_as_typed_is_checked_against_the_saved_helper_keyword()
+    public void A_file_whose_blind_box_query_keyword_is_1_reads_and_saves_all_the_same()
     {
+        Write("blind_box:\n  daily_keyword: 1\n");
         var settings = Settings.Load(h.DataDirectory);
+        Assert.Equal((null, "1"), (settings.Error, settings.BlindBoxDailyKeyword.Value));
 
-        Assert.Equal(Settings.BlindBoxKeywordIsPrankster, settings.ValidateBlindBoxKeyword(" 捣蛋"));
-        Assert.Null(settings.ValidateBlindBoxKeyword("今日盲盒"));
+        Settings.Save(h.DataDirectory, new Dictionary<string, string> { ["blind_box.monthly_keyword"] = "2" });
+
+        settings = Settings.Load(h.DataDirectory);
+        Assert.Equal((null, "2"), (settings.Error, settings.BlindBoxMonthlyKeyword.Value));
     }
 
     [Theory]
     [InlineData("")]
     [InlineData("  ")]
     public void A_blind_box_query_keyword_left_empty_says_it_cannot_be(string keyword) =>
-        Assert.Equal("关键字不能空着", Settings.Load(h.DataDirectory).ValidateBlindBoxKeyword(keyword));
+        Assert.Equal("关键字不能空着", Settings.ValidateBlindBoxKeyword(keyword));
 
     [Fact]
     public void Saving_a_threshold_that_is_not_below_the_big_one_is_refused_without_writing()
@@ -224,7 +209,7 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     [InlineData("  shows_off: []\n")]
     [InlineData("  shows_off: [entry]\n  lines.1.bigGift: [\"谢谢{昵称}\"]\n")]
     [InlineData("  shows_off: [entry]\n  prankster_minutes: 0\n")]
-    [InlineData("  shows_off: [entry]\n  prankster_keyword: 帮它\n")]
+    [InlineData("  shows_off: [entry]\n  lucky_percent: 0\n")]
     public void The_desktop_pet_page_is_told_the_same_only_while_her_settings_and_lines_are(string changed)
     {
         Write("desktop_pet:\n  shows_off: [entry]\n");

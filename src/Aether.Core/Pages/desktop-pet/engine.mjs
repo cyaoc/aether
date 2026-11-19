@@ -115,6 +115,9 @@ const BLIND_BOXES = ['blindBoxSmall', 'blindBoxMedium', 'blindBoxLarge'];
 // The 演出表's groups the engine plays by (shows.json): a 心情 holds her rather than plays, a blind box says its ending's lines.
 export const MOOD = 'mood';
 const BLIND_BOX = 'blindBox';
+// The groups whose shows thank for a gift, a 大航海 too (the board's EVENTS' gift): such a show cheers her up over a stolen
+// chest, and scares the 捣蛋鬼 off with a ring of light.
+const GIFTS = ['gift', BLIND_BOX, 'castle', 'guard'];
 // Which lines a blind box's ending (a 一轮盲盒's outcome as Core tells it, or Jackpot) says.
 const BOX_LINES = { Gain: 'blindBoxGain', Even: 'blindBoxEven', Loss: 'blindBoxLoss', Jackpot: 'blindBoxJackpot' };
 export const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
@@ -140,19 +143,20 @@ const SPORTS = {
 export const DAILY = { hum: [4000, 1500] };
 for (const [kind, sp] of Object.entries(SPORTS)) DAILY[kind] = [1100 + sp.act[1] + sp.calmMs + 900, sp.fallMs - sp.calmMs];
 
-// ---- The 宝箱小游戏 (#372; design package README 12). Nothing of it is on the page until the 捣蛋鬼 comes, and nothing of it
-// stays: her shows are all as they were, and her chest is at home, off the left of the page, where the game only counts what
-// the stream's gifts put in it. It comes by with the chest it has stolen, hanging from its hook rope, over her head and down
-// on her right, making for the right edge. An empty chest it opens, mocks and throws back; one with gifts in it she takes by
-// the handle and pulls for home, and the room has a minute to beat it off with gifts (danmaku only scratch it). The tricks
-// played on her are the game's alone: a helper's gift on her head, the fifth flattening her, the lightning frizzing her hair,
-// and being dragged along in the last stretch. Its drawings and the chest's are the page's own (prankster/prankster.json).
+// ---- The 宝箱小游戏 (#372, #382; design package README 12). Nothing of it is on the page until the 捣蛋鬼 comes, and nothing of
+// it stays: her shows are all as they were, and her chest is at home, off the left of the page, where the game only counts
+// what the stream's gifts put in it. It comes by with the chest it has stolen, hanging from its hook rope, over her head and
+// down on her right, making for the right edge. An empty chest it opens, mocks and throws back; one with gifts in it she takes
+// by the handle and pulls for home, and the room has a minute to pull the tug bar's line her way with 人气票, or its way with
+// 小花花 (danmaku only pick a side and throw paper balls). The tricks played on her are the game's alone: a 小花花 on her head,
+// the fifth flattening her, the lightning frizzing her hair, and being dragged along in the last stretch. Its drawings and the
+// chest's are the page's own (prankster/prankster.json).
 // 电池 to the 金瓜子 Core tells amounts in (Battery.cs): the game counts in 电池, as its board says them.
 const COINS = 100;
 // Its idle drawing's height on the page, a little under half of hers; the ground line the chest stands on; where the chest
 // lands, just clear of her right side; where the chest stands in the tug (she stands where the ring in her fists meets the
 // chest, the 捣蛋鬼 where its rope runs straight from the other ring into its fists) and how far the three drift with
-// its life; how the chest hangs from the hook in one of its rings, that end up; how far below the end of the rope in a
+// the line; how the chest hangs from the hook in one of its rings, that end up; how far below the end of the rope in a
 // carrying drawing the chest's link is (a bit of rope, the hook, the ring).
 export const PK_H = 112, CHEST = { y: 626 }, HANG = -0.32;
 const LAND = 372, TUG = { chest: 292, drift: 5 }, LINK = 18;
@@ -172,11 +176,12 @@ const OFF = { won: 3400, knocked: 2600, fled: 2400 };
 const PATS = 900, GATHER = 500;
 export const SETTLE = 1000;
 // A gift falls DROP ms before it lands; a disguise holds FREEZE ms; the lightning set piece lasts ZAP ms (the countdown
-// waits); it and the chest fall FALL ms when it can hold the chest up no longer; the sprite flies the chest home in HOME ms,
-// or in TIDY before a show that scared the 捣蛋鬼 off. Of that time the sprite flies to the chest for GO ms, presses an
-// open lid shut for SHUT ms and takes up the dropped rope for TAKE ms; the rest it lifts the chest and flies it off.
+// waits), its bolt hitting her BOLT ms in; it and the chest fall FALL ms when it can hold the chest up no longer; the sprite
+// flies the chest home in HOME ms, or in TIDY before a show that scared the 捣蛋鬼 off. Of that time the sprite flies to the
+// chest for GO ms, presses an open lid shut for SHUT ms and takes up the dropped rope for TAKE ms; the rest it lifts the chest
+// and flies it off.
 export const DROP = 350;
-const FREEZE = 1800, ZAP = 2400, FALL = 480, HOME = 2600, TIDY = 2300, GO = 400, SHUT = 350, TAKE = 250;
+const FREEZE = 1800, ZAP = 2400, BOLT = 900, FALL = 480, HOME = 2600, TIDY = 2300, GO = 400, SHUT = 350, TAKE = 250;
 // The show does not wait a set time but until the chest is home; after the lightning until the sprite has come back and
 // patted her hair smooth (unfrizz). FRIZZ is the most it waits either way.
 const FRIZZ = 9000;
@@ -185,14 +190,36 @@ const CLEAR = 150;
 // Scared off, it lets go of everything with a start: the sprite, by her, starts at the chest that falls for NOTICE ('!').
 export const NOTICE = 500;
 // peek (looking in and back out), carry (flying over with the chest), loiter (on an empty chest), fight and sprint (the
-// fight's last stretch): how long each lasts; pebbles: the share of its life that all the danmaku together can take; urge:
-// from this much time left the countdown grows anxious; about: someone is about who wrote or came in this recently, for it to
-// come on its own; hourly: how many times an hour at most it comes on its own (叫它来 brings it whenever).
-export const GAME = { peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, pebbles: 0.3, urge: 30000, about: 5 * 60000, hourly: 2 };
+// fight's last stretch): how long each lasts; urge: from this much time left the countdown grows anxious; grace: at 0:00 the
+// fight waits this long for 票 sent before 0 that are late on the way; flash: the winning half of the bar flashes this long;
+// buzzer: a 绝杀 is written up this long; about: someone is about who wrote or came in this recently, for it to come on its
+// own; hourly: how many times an hour at most it comes on its own (叫它来 brings it whenever).
+export const GAME = { peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, urge: 30000, grace: 5000, buzzer: 1700, flash: 600, about: 5 * 60000, hourly: 2 };
 // The phases in which it is already on its way off the page: a gift then is a gift to her again.
-export const DONE = new Set(['knocked', 'toss', 'leave', 'won', 'lost', 'fled']);
+export const DONE = new Set(['knocked', 'toss', 'leave', 'won', 'lost', 'fled', 'away', 'snatch']);
+// Off with the chest in the air (away): she starts for AWAY.spot ms, then reaches up after it.
+const AWAY = { spot: 500 };
+// A gift that scares it off: light in its tier's colour swells in her for BURST.glow, and a ring of it goes out from her, out
+// to BURST.r px in BURST.ms, slowing as it goes (giftBurst).
+export const BURST = { glow: 260, ms: 1500, r: 540 };
+// Off with an empty chest for a 小花花 (snatch): it laughs its thanks on the lid till SNATCH.laugh, hops off over the chest's
+// ring by SNATCH.hop after, and rises SNATCH.rise px with the chest on its rope by SNATCH.up; then it is away, slowly up and
+// right (SNATCH.fly px/ms), out of the page as she drops to her knees.
+const SNATCH = { laugh: 1200, hop: 350, up: 1900, rise: 110, fly: [0.07, -0.17] };
 // It lies DAZED ms on the chest's lid where it fell; in the tug it is UP and pulling that long after the chest lands.
 const DAZED = 1300, UP = 2200;
+// The tug's two sides, by the gift's name (B站 has several ids of each): 人气票 pull for her (1), 小花花 for the 捣蛋鬼 (-1), one
+// 票 a gift. The line starts in the middle of the bar, span 票 from either end; the 票 count the moment they reach the page,
+// and enough of one side's to take the line to its end ends the fight there and then (秒杀). At 0:00 the side the line is on
+// wins, a tie the 捣蛋鬼's; one decided by a gift that came in the last GAME.sprint or the grace is a 绝杀.
+const SIDE_GIFT = { 人气票: 1, 小花花: -1 };
+// A danmaku of one on a side throws a paper ball that flies BALL ms; a lucky one opens whoever it hits for LUCK.ms, the other
+// side's gift counting twice, not again until LUCK.gap after. One on no side is called out by name, no sooner than TAUNT
+// after the last; RETORT.hits balls of one side's in RETORT.ms have the one hit answer back, RETORT.gap apart at least.
+export const LUCK = { ms: 10000, gap: 5000 }, BALL = 650;
+const TAUNT = 8000, RETORT = { hits: 5, ms: 5000, gap: 10000 };
+// The tug bar along the top of the page.
+export const BAR = { x: 20, y: 96, w: 440, h: 20 };
 
 // ---- the lottery on air, as Core tells it (LotteryState.cs)
 // What she waits through while no show plays: entries open, or a draw coming (entries closed with someone to draw, a pool
@@ -227,7 +254,7 @@ export class Engine extends EventTarget {
   constructor(master, shows, art) {
     super();
     Object.assign(this, { master, art });
-    this.events = Object.fromEntries(shows.map(row => [row.id, { ...EVENTS[row.id], tier: row.tier, group: row.group }]));
+    this.events = Object.fromEntries(shows.map(row => [row.id, { ...EVENTS[row.id], tier: row.tier, group: row.group, gift: GIFTS.includes(row.group) }]));
   }
 
   now() { return this.master.currentTime; }
@@ -254,7 +281,9 @@ export class Engine extends EventTarget {
     if (!state.roomConnected) {
       this.forgetRounds(); this.callOff(now);
       if (this.gm.visit) Object.assign(this.gm.visit, { queue: [], hits: [] });
-      Object.assign(this.gm, { chest: 0, pile: 0, streak: 0, steals: 0, brag: false, grudge: null });
+      // a gift whose light is on its way plays now, and what waited behind it, as after a PK; their 电池 go with the room's
+      if (this.gm.burst?.due != null) this.burstIn();
+      Object.assign(this.gm, { chest: 0, pile: 0, streak: 0, steals: 0, brag: false, grudge: null, aside: 0, asidePile: 0, top: null });
     }
     this.room = state.roomConnected;
     // switched off she is told nothing more, and back on she starts from what she is told then; Core forgets the 捣蛋鬼 too
@@ -294,25 +323,37 @@ export class Engine extends EventTarget {
   // The crown is the viewer's 一轮送礼's: it follows the round's show playing or coming next, its blind boxes' once their
   // 盲盒播报 opens them (update), and with none it is not played on its own (README 2). The 礼物榜 reaches the page another
   // way than the gift that took its first place, and may come first: the crown then waits for that gift's round. One taken
-  // while gifts are thrown at the 捣蛋鬼 is theirs, and is not played, then or after (threw).
+  // while the 捣蛋鬼 is here waits for it to be gone and the chest home (gm.top, update): what is thrown at it plays no show.
   crown({ uid, nickname }) {
-    if (this.throwing()) return;
+    if (this.throwing()) return void (this.gm.top = nickname);
     const r = this.rounds.find(round => round.uid === uid && !round.ended);
     if (r) r.top = nickname; else this.crowns.set(uid, nickname);
   }
 
+  // The new first place is crowned now, unless the crowning is turned off.
+  crowned(nickname) { if (!this.settings.off.includes('newFirst')) this.start('newFirst', { nickname, chained: true }); }
+
   fire(name, opts = {}) {
-    const now = this.now(), ev = this.events[name];
-    // (the game's own shows, its endings, never: she has just been in it)
-    if (!opts.chained && !opts.game) opts = { ...opts, wake: opts.wake ?? this.drowsy(now) };
+    const now = this.now(), ev = this.events[name], vis = this.gm.visit, live = this.throwing();
+    // a gift while the 捣蛋鬼 is here (not on its way off): its light goes out from her first, and it is scared off, and the
+    // show goes on, once the light reaches it (gameUpdate fires it again, burst); what comes meanwhile waits behind
+    if (ev.gift && !opts.burst && !opts.game && live) {
+      if (this.gm.burst?.due != null) return void this.gm.burst.more.push([name, opts]);
+      return this.giftBurst(now, ev, name, opts);
+    }
+    // (the game's own shows, its endings, never: she has just been in it; nor anything while the 捣蛋鬼 is here: the room is
+    // not quiet then, though no gift has come for long)
+    if (!opts.chained && !opts.game) opts = { ...opts, wake: opts.wake ?? (!vis && this.drowsy(now)) };
     // Anyone coming in counts as something happening for 犯困; a show turned off plays nothing, not a lesser one instead.
     this.lastAny = now;
     // while the 捣蛋鬼 is here she waves at no one, and anything else scares it off, a show turned off too; the show then waits
-    // while the sprite takes the chest home (scared; the game's own shows are opts.game)
-    if (this.gm.visit && !opts.game) {
+    // while the sprite takes the chest home (scared, a gift's sender named; the game's own shows are opts.game)
+    if (vis && !opts.game) {
       if (name === 'entry') return;
-      opts = { ...opts, ...this.scared(now) };
+      opts = { ...opts, ...this.scared(now, ev.gift && opts.nickname) };
     }
+    // a 大航海's 电池 go into the chest like a gift's (after the scare: the chest it saved goes home with them)
+    if (opts.spend) this.gameGift({ spend: opts.spend, count: 1 });
     if (this.settings.off.includes(name)) { if (opts.frizz) this.gm.fix = { start: now, pose: opts.frizz }; return; }
     // she waves at whoever comes in only while she is idle: never over a daily action, any show or blind boxes she shakes,
     // and it does not queue
@@ -322,7 +363,9 @@ export class Engine extends EventTarget {
     // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
     const show = name === 'governor' && this.cur?.name === 'castle';
     const grown = name === 'giftStreak' && this.cur?.name === 'gift' && this.cur.opts.round === opts.round;
-    if (!this.cur || tier > curTier && !show || grown) return this.start(name, opts);
+    // While the 宝箱小游戏 is wound up she is busy (wrapping): nothing cuts in, save the show that scared it off (live)
+    const wait = !opts.game && !live && this.wrapping(now);
+    if (!wait && (!this.cur || tier > curTier && !show || grown)) return this.start(name, opts);
     if (tier <= TIER.C) return;
     if (tier < TIER.S && this.queue.filter(q => this.events[q.name].tier === ev.tier).length >= 3) return;
     this.queue.push({ name, opts });
@@ -333,6 +376,7 @@ export class Engine extends EventTarget {
     this.trialOver(c);
     // one that comes while the chest is still going home, or her hair is still to be patted smooth, waits for them, whether the
     // show it takes over had them still to do or none played (a PK scared the 捣蛋鬼 off); the game's own shows play the chest home
+    // (only a 试演 still comes so, and has a line carried and a pose held below: what happened waits its turn, wrapping in fire)
     if (!opts.game) {
       opts = { ...opts, tidy: opts.tidy || (gm.out ? TIDY : 0), frizz: opts.frizz || this.frizzed(gm.fix, now) || this.frizzed(c, now) };
       gm.fix = null;
@@ -345,20 +389,23 @@ export class Engine extends EventTarget {
     const was = this.speaking?.c === c && this.speaking, waits = opts.tidy || opts.frizz;
     const carried = waits ? c?.carried ?? (was && { text: was.text, from: was.from, until: c.start + c.pre + (c.name === 'chestRobbed' ? ROB.quiet : c.dur) }) : null;
     const held = !waits || !c ? null : c.opts.game ? this.held(c) : now < c.start + c.pre ? c.held : null;
-    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, waits ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null, carried, held };
+    // (robbed: 被偷了 waits while it makes off with the chest, the 来访's last moments; endVisit starts it)
+    this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, waits || opts.robbed ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null, carried, held };
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
     if (DAILY[name]) this.nextDaily = now + dur + dailyMinSeconds * 1000 + this.rng() * (dailyMaxSeconds - dailyMinSeconds) * 1000;
     // after the chest game: robbed, she is sad until a gift cheers her up (MOOD_HOLD.robbed at most, its own lines); kept, glad
     // for MOOD_HOLD.kept (and no 日常小动作 meanwhile: those come only when she is calm)
     if (name === 'chestRobbed') this.moodHold = { mood: 'gloomy', lines: 'chestRobbedGloomy', until: now + dur + MOOD_HOLD.robbed };
+    // a gift cheers her up: one whose show plays, not one let go while she is busy
+    else if (ev.gift && this.moodHold?.mood === 'gloomy') this.moodHold = null;
     if (name === 'chestKept') this.moodHold = { mood: 'happy', until: now + dur + MOOD_HOLD.kept };
   }
 
-  // A blind box says the lines of its ending, the lottery its step's; every other show its own.
+  // A blind box says the lines of its ending, the lottery its step's, 守住了 by a 绝杀 that one's; every other show its own.
   lineKey(name, opts = {}) {
     const ev = this.events[name];
-    return ev?.group === BLIND_BOX ? BOX_LINES[opts.result || 'Gain'] : ev?.steps ? ev.steps[opts.result].line : name;
+    return ev?.group === BLIND_BOX ? BOX_LINES[opts.result || 'Gain'] : ev?.steps ? ev.steps[opts.result].line : name === 'chestKept' && opts.buzzer ? 'chestKeptBuzzer' : name;
   }
 
   // ---- what Core tells it (DesktopPet.cs)
@@ -366,20 +413,15 @@ export class Engine extends EventTarget {
   // left her in (moodHold): sad over a stolen chest a gift cheers her up at once, and glad she is awake.
   drowsy(now) { return !(this.moodHold && now < this.moodHold.until) && ['gloomy', 'sleepy'].includes(this.mood(now, false)); }
 
-  // A gift, a blind box or a 大航海 counts for 开心 and wakes her from 沮丧, and cheers her up sad over a stolen chest; anything
-  // at all wakes her from 犯困.
-  gifted(now) {
-    this.lastGift = this.lastAny = now; this.recent = this.recent.filter(r => now - r < 60000).concat(now);
-    if (this.moodHold?.mood === 'gloomy') this.moodHold = null;
-  }
+  // A gift, a blind box or a 大航海 counts for 开心 and wakes her from 沮丧; anything at all wakes her from 犯困.
+  gifted(now) { this.lastGift = this.lastAny = now; this.recent = this.recent.filter(r => now - r < 60000).concat(now); }
 
   // A viewer's 一轮送礼, told after each gift message with the gifts in it (GiftItem), and once more as it ends
   // (GiftRoundProgress). Gifts do not wait for the round to end: she plays at once the show its gifts have come to so far, and
   // moves up when it grows into a bigger one (the fifth gift, the 中礼物 and 大礼物 thresholds); one already played is not
   // played again. Its blind boxes wait for their result (blindBox), and each gift message flies a little box into her arms.
-  // Every gift goes into her chest at home, and one sent while the 捣蛋鬼 is here is thrown at it (gameGift) and is no part of
-  // her shows: it plays nothing of hers, then or after. The round is one, thrown or not: what it threw strikes for it
-  // (spent), and every castle it opened plays (blindBox).
+  // Every gift goes into her chest at home. While the 捣蛋鬼 is here a 人气票 or 小花花 is thrown (arrive) and is no part of her
+  // round, and what else comes plays nothing until the round comes to a 中礼物.
   gift(p) {
     const now = this.now();
     let r = this.rounds.find(round => round.uid === p.uid && !round.ended);
@@ -387,22 +429,23 @@ export class Engine extends EventTarget {
       if (r) { r.ended = true; if (r.told === r.boxes) this.rounds.splice(this.rounds.indexOf(r), 1); }
       return;
     }
-    // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show; one thrown at the 捣蛋鬼
-    // wakes nothing, and a first place it took is not crowned (crown)
+    // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show (not while the 捣蛋鬼 is
+    // here: fire)
     if (!r) {
-      const mine = !this.throwing(), wake = mine && this.drowsy(now);
-      this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], gifts: [], boxes: 0, told: 0, spent: 0, wake, wakeLine: wake ? this.pick('wake') : null, played: -1, top: mine ? this.crowns.get(p.uid) : null });
+      const wake = !this.gm.visit && this.drowsy(now);
+      this.rounds.push(r = { uid: p.uid, start: now, arrivals: [], gifts: [], boxes: 0, told: 0, held: false, wake, wakeLine: wake ? this.pick('wake') : null, played: -1, top: this.crowns.get(p.uid) });
       this.crowns.delete(p.uid);
     }
-    // (every gift of the message goes into the chest or is thrown, so map rather than some)
-    if (p.items.map(item => this.gameGift({ ...item, spend: item.spend / COINS, uid: p.uid, nickname: p.nickname, round: r })).includes(true)) return this.threw(p, now);
-    r.arrivals.push(now);
-    for (const item of p.items) if (item.blind) { this.unopen(p.uid, item, { r }); r.boxes += item.count; } else r.gifts.push(item);
     this.gifted(now);
+    const kept = p.items.map(item => this.arrive(item, r, { uid: p.uid, name: p.nickname, face: p.faceUrl }));
+    // a new first place they took, none of them playing a show now, is crowned once the 捣蛋鬼 has gone (update)
+    if (r.top && kept.every(Boolean)) { this.gm.top = r.top; r.top = null; }
+    if (kept.every(k => k === 'thrown')) return;
+    r.arrivals.push(now);
     // a castle opened from one of the round's blind boxes, the only way B站 gives one, plays instead of its gifts and blind
     // boxes, with the result that reports the box it came from (blindBox)
     if (p.items.some(item => item.castle)) r.played = CASTLE;
-    if (!r.gifts.length) return;
+    if (!p.items.some((item, i) => !item.blind && !kept[i])) return;
     const { spend, count, top, topCount } = giftsOf(r.gifts), { midGift, bigGift } = this.settings;
     const kind = spend >= bigGift ? 'bigGift' : spend >= midGift ? 'midGift' : count >= 5 ? 'giftStreak' : 'gift';
     if (GIFT_SHOWS.indexOf(kind) <= r.played) return;
@@ -410,67 +453,67 @@ export class Engine extends EventTarget {
     r.played = GIFT_SHOWS.indexOf(kind); r.wake = false;
   }
 
-  // A 一轮盲盒's result, as its 盲盒播报 reported it (BlindBoxResult), for its boxes not thrown at the 捣蛋鬼 (tell): the size by
-  // what they cost, the ending by what the boxes opened; a single gift opened at the 大礼物 threshold is a jackpot and at least
-  // the big one. The castles they opened play the castle instead, one for each. Boxes thrown open nothing, though a castle
-  // still plays.
-  blindBox(b) {
-    const { told, hit } = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
-    // Every castle the report says came out plays, hers or thrown at the 捣蛋鬼, boxes she never saw too (the page reloaded),
-    // each after the one before (同档排队); a result before the castle of a round plays nothing, the castle standing in for it.
-    for (let i = 0; i < b.castles; i++) this.fire('castle', { nickname: b.nickname, round: r });
-    if (b.castles || !told.length && hit.n || told.some(t => t.played === CASTLE)) return;
-    // shortcut: a 盲盒播报 tells what its boxes opened only all together, so the ending, the jackpot and the gift named of those
-    // not thrown are the whole report's (its 赚亏 as a share of what it cost); tell each box's opening if they must be apart.
-    const jackpot = b.bestPrice >= bigGift, spend = b.tally.spend - hit.spend;
-    this.fire(BLIND_BOXES[jackpot || spend >= bigGift ? 2 : spend >= midGift ? 1 : 0],
-      { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes - hit.n, shaken: !!r, round: r });
+  // One gift of viewer w's message comes into its round r, as the game takes it (gameGift): hers (false), kept in the round
+  // with no show while the 捣蛋鬼 is here ('quiet'), or thrown and no part of the round ('thrown'). A blind box waits in the
+  // round for its 盲盒播报, held while the 捣蛋鬼 is here: she does not shake those (shaking).
+  arrive(item, r, w) {
+    if (item.blind) { this.unopen(w.uid, item, r); r.boxes += item.count; r.held = false; } else r.gifts.push(item);
+    const kept = this.gameGift(item, r, w);
+    if (kept === 'thrown') r.gifts.pop();
+    return kept;
   }
 
-  // The rounds a result tells, and how many of its boxes were thrown at the 捣蛋鬼 and what they cost (hit): a 盲盒播报 reports
-  // every box sent before it went out, in the order they came (unopen), thrown or not and over however many 一轮送礼, and none
-  // sent while it went out, which wait for their own. A round is done once it ended and all is told.
+  // A 一轮盲盒's result, as its 盲盒播报 reported it (BlindBoxResult): the size by what the boxes cost, the ending by what they
+  // opened; a single gift opened at the 大礼物 threshold is a jackpot and at least the big one. The castles they opened play
+  // the castle instead, one for each.
+  blindBox(b) {
+    const told = this.tell(b), { midGift, bigGift } = this.settings, r = told.find(t => t.top) ?? told[0];
+    // Every castle the report says came out plays, boxes she never saw too (the page reloaded), each after the one before
+    // (同档排队); a result before the castle of a round plays nothing, the castle standing in for it.
+    for (let i = 0; i < b.castles; i++) this.fire('castle', { nickname: b.nickname, round: r });
+    if (b.castles || told.some(t => t.played === CASTLE)) return;
+    const jackpot = b.bestPrice >= bigGift, size = jackpot || b.tally.spend >= bigGift ? 2 : b.tally.spend >= midGift ? 1 : 0;
+    // While the 捣蛋鬼 is here a 盲盒·小 only goes in her chest, as a gift short of a 中礼物 does (gameGift); a bigger one
+    // plays, and scares it off, as castles do.
+    if (!size && this.throwing()) { if (r?.top) { this.gm.top = r.top; r.top = null; } return; }
+    this.fire(BLIND_BOXES[size], { nickname: b.nickname, result: jackpot ? 'Jackpot' : b.tally.outcome, gift: b.bestGift, count: b.boxes, shaken: !!r, round: r });
+  }
+
+  // The rounds a result tells: a 盲盒播报 reports every box sent before it went out, in the order they came (unopen), over
+  // however many 一轮送礼, and none sent while it went out, which wait for their own. A round is done once it ended and all is
+  // told.
   tell(b) {
-    const told = [], boxes = this.unopened.get(b.uid) ?? [], hit = { n: 0, spend: 0 };
+    const told = [], boxes = this.unopened.get(b.uid) ?? [];
     let left = b.boxes;
     for (let s; left > 0 && (s = boxes[0]);) {
       const n = Math.min(left, s.n);
       left -= n; s.n -= n;
       if (!s.n) boxes.shift();
-      if (s.thrown) { hit.n += n; hit.spend += n * s.price; continue; }
       s.r.told += n;
       if (!told.includes(s.r)) told.push(s.r);
       if (s.r.ended && s.r.told === s.r.boxes) this.rounds.splice(this.rounds.indexOf(s.r), 1);
     }
-    return { told, hit };
+    return told;
   }
 
-  // A viewer's boxes not yet opened, in the order they came: a gift message's (GiftItem), n of them at price each, in their
-  // round r for her or thrown at the 捣蛋鬼.
-  unopen(uid, { count, spend }, round) {
+  // A viewer's boxes not yet opened, in the order they came: a gift message's (GiftItem), n of them in their round r.
+  unopen(uid, { count }, r) {
     if (!this.unopened.has(uid)) this.unopened.set(uid, []);
-    this.unopened.get(uid).push({ ...round, n: count, price: spend / count });
-  }
-
-  // A gift message thrown at the 捣蛋鬼 counts for her 心情 as any gift, and its blind boxes' result opens nothing but their
-  // castles (blindBox).
-  threw(p, now) {
-    this.gifted(now);
-    for (const item of p.items) if (item.blind) this.unopen(p.uid, item, { thrown: true });
+    this.unopened.get(uid).push({ r, n: count });
   }
 
   entry(e) { this.fire('entry', { nickname: e.nickname }); }
 
-  // a danmaku is not played (README 10), it tells her someone is there (犯困 needs an hour with nothing at all), and is a
-  // pebble the 捣蛋鬼 here dodges or takes; one with the 帮它的关键字 in the tug sides with it instead (join)
+  // a danmaku is not played (README 10), it tells her someone is there (犯困 needs an hour with nothing at all), and is its
+  // viewer's in the 宝箱小游戏 (gameDanmaku): the 站队 it takes is Core's to tell (side), what it says never leaves Core
   danmaku(d) {
     this.lastAny = this.now();
-    if (d.joins && this.gm.visit?.phase === 'tug') this.join(d); else this.pebble();
+    this.gameDanmaku({ uid: d.uid, name: d.nickname }, d.side);
   }
 
   // A 大航海 plays at once, in no 一轮送礼, and is a gift to her 心情; what it cost goes into her chest, the one it saved if it
-  // scared the 捣蛋鬼 off.
-  guard(g) { this.fire(GUARDS[g.guardLevel - 1], { nickname: g.nickname }); this.gifted(this.now()); this.gameGift({ spend: g.spend / COINS, count: 1 }); }
+  // scared the 捣蛋鬼 off (fire).
+  guard(g) { this.fire(GUARDS[g.guardLevel - 1], { nickname: g.nickname, spend: g.spend }); this.gifted(this.now()); }
 
   // A 试演 plays the show from its start (a blind box from its shaking), or holds her in the 心情, until it is stopped. It
   // scares the 捣蛋鬼 off as what happened would.
@@ -519,8 +562,8 @@ export class Engine extends EventTarget {
   // stopped is Core's own doing.
   trialOver(show) { if (show?.opts.trial) this.dispatchEvent(new CustomEvent('trialended', { detail: show.opts.trialId })); }
 
-  // The round whose blind boxes she shakes while no show plays.
-  shaking() { return this.rounds.find(r => r.boxes > r.told); }
+  // The round whose blind boxes she shakes while no show plays: not over boxes held for the 捣蛋鬼 here (arrive).
+  shaking() { return this.rounds.find(r => r.boxes > r.told && !(r.held && this.gm.visit)); }
 
   // While a round with blind boxes is still coming in she does not just wait: she shakes the box the whole time, until the
   // 盲盒播报 tells how it came out, and each gift flies into her arms.
@@ -563,19 +606,24 @@ export class Engine extends EventTarget {
       // the first place its round took on the 礼物榜 is crowned next, once (crown)
       const round = c.opts.round, top = round?.top;
       if (round) round.top = null;
-      if (top && !this.settings.off.includes('newFirst')) this.start('newFirst', { nickname: top, chained: true });
-      else if (this.queue.length) {
-        const best = Math.max(...this.queue.map(q => TIER[this.events[q.name].tier]));
-        const i = this.queue.findIndex(q => TIER[this.events[q.name].tier] === best);
-        const [q] = this.queue.splice(i, 1);
-        this.start(q.name, { ...q.opts, chained: true });
-      }
+      if (top) this.crowned(top);
+    }
+    // what waited, the best first; while the 宝箱小游戏 is wound up it waits on (wrapping)
+    if (!this.cur && this.queue.length && !this.wrapping(now)) {
+      const best = Math.max(...this.queue.map(q => TIER[this.events[q.name].tier]));
+      const i = this.queue.findIndex(q => TIER[this.events[q.name].tier] === best);
+      const [q] = this.queue.splice(i, 1);
+      this.start(q.name, { ...q.opts, chained: true });
     }
     this.gameUpdate(now);
+    const gm = this.gm;
+    // a first place taken while the 捣蛋鬼 was here, where what is thrown plays no show, waits for it to be gone and the chest
+    // home
+    if (gm.top && !this.cur && !gm.visit && !gm.out && !gm.fix && !this.shaking()) { this.crowned(gm.top); gm.top = null; }
     // not while she shakes a round's blind boxes either: that lasts until the 盲盒播报 goes out, which may take half a minute;
     // nor while she waits through a lottery, nor while the 捣蛋鬼 is here or the sprite still takes the chest home or pats her
     // hair smooth
-    const kinds = Object.keys(DAILY).filter(kind => !this.settings.off.includes(kind)), gm = this.gm;
+    const kinds = Object.keys(DAILY).filter(kind => !this.settings.off.includes(kind));
     if (!this.cur && !this.shaking() && !this.lot && !gm.visit && !gm.out && !gm.fix && this.mood(now) === 'calm' && now >= this.nextDaily && kinds.length) {
       const kind = kinds[Math.floor(this.rng() * kinds.length)], mishap = this.rng() * 100 < this.settings.mishapPercent;
       this.start(kind, { mishap });
@@ -609,24 +657,132 @@ export class Engine extends EventTarget {
   // that rise, for drawGame), visit (the 捣蛋鬼 while it is here), due (it is to come once nothing plays: 'called' or on its
   // 'own'), came (when it came on its own this past hour), pk, last (when it last left), out (the sprite flying the chest
   // home), fix (her frizzed hair patted smooth with no show after), walk (her hopping to another place), streak (连守) and
-  // steals, brag and grudge (what it opens with next time), say (her line of the game), herX (where she stands).
+  // steals, brag and grudge (what it opens with next time), say (her line of the game), herX (where she stands), aside and
+  // asidePile (what came while it had the chest, for the chest once it has gone), top (a new first place to crown then);
+  // and, once there is one, burst (a gift's light on its way to scare it off) and buzzer (the 绝杀 to write up).
   newGame(now) {
-    return { chest: 0, pile: 0, drops: [], nums: [], visit: null, due: false, came: [], pk: false, last: now, out: null, fix: null, walk: null, streak: 0, steals: 0, brag: false, grudge: null, say: null, herX: FOOT.x };
+    return { chest: 0, pile: 0, drops: [], nums: [], visit: null, due: false, came: [], pk: false, last: now, out: null, fix: null, walk: null, streak: 0, steals: 0, brag: false, grudge: null, say: null, herX: FOOT.x,
+      aside: 0, asidePile: 0, top: null };
   }
 
-  // One gift (a gift message's item, or a 大航海 as one; its spend in 电池). Out of a 来访 it only goes into the chest at home:
-  // her own show plays as ever. While the 捣蛋鬼 is here it is thrown (queue), at it or, from a viewer on its side in the tug, at
-  // her, and plays no show of hers: true then. It strikes for the viewer's 一轮送礼 it was thrown in (round), however late it
-  // lands.
-  gameGift(x) {
+  // One gift x of viewer w's (a gift message's item, or a 大航海 as one) in the viewer's round r. Out of a 来访 it only goes
+  // into the chest at home: her own show plays as ever (false). While the 捣蛋鬼 is here a 人气票 or 小花花 is thrown (queue),
+  // one 票 each, twice while the other side is open (luck), and plays nothing ('thrown'). Any other gift plays nothing,
+  // staying in the round ('quiet'), until the round, what it sent before the 来访 too, comes to a 中礼物: then its show plays
+  // (false), which scares it off (fire); a blind box stays in its round for the 盲盒播报 (held, blindBox). Those it is not
+  // fought over: they are kept aside for her chest at home, which it has on the page, and go in once it has gone, however it
+  // went (endVisit). Once a gift's light is on its way the fight is decided: a 人气票 or 小花花 then is only a gift (giftBurst).
+  gameGift(x, r, w) {
+    const gm = this.gm, v = gm.visit, spend = x.spend / COINS, side = !x.blind && SIDE_GIFT[x.name], now = this.now();
+    if (!this.throwing()) { gm.chest += spend; gm.pile += x.count; return false; }
+    if (!side || gm.burst?.due != null) {
+      gm.aside += spend; gm.asidePile += x.count;
+      if (x.blind) { r.held = true; return false; }
+      return side || giftsOf(r.gifts).spend >= this.settings.midGift ? false : 'quiet';
+    }
+    this.enlist(w, side, 'gift');
+    const more = v.luck?.side === side && now < v.luck.until ? x.count : 0, q = { n: x.count + more, count: x.count, side, spend, w, double: more > 0, early: v.phase === 'peek' };
+    v.queue.push(q);
+    if (!q.early) this.reckon(q, now);
+    return 'thrown';
+  }
+
+  // A 人气票 or 小花花 counts the moment it comes: on the bar (tally), or over an empty chest in the air it decides it there
+  // and then (finish). One while it only peeks in counts once the chest hangs from its rope on its way in (early, gameUpdate).
+  reckon(q, now) {
+    const v = this.gm.visit;
+    if (v.loot) this.tally(q.w, q.side, q.n, now, q.double);
+    else if (['carry', 'fall'].includes(v.phase)) this.finish(now, q.side, { w: q.w });
+  }
+
+  // Whether the fight is on: the chest has something in it, and it is flying in with it or they are pulling (the bar is up).
+  contested(v) { return v.loot && ['peek', 'carry', 'fall', 'tug'].includes(v.phase); }
+
+  // The score as the 票 reach the page (red, blue), and the bar's line with it there and then: where it was stays white a
+  // moment (ghost), the bar shakes, and +N and the name rise from where it is now. Then whose side it now favours (hers only
+  // when she is ahead: a tie is its) and who turned it so, as it stood then (flip: who scored the 绝杀 if it stays so); then,
+  // a side with enough on the way to take the line to its end wins at once.
+  tally(w, side, n, now, double = false) {
+    const v = this.gm.visit, before = v.red - v.blue;
+    v[side > 0 ? 'red' : 'blue'] += n;
+    const lead = v.red - v.blue, favours = lead > 0 ? 1 : -1;
+    v.ghost = { lead: before, at: now, n };
+    this.gm.nums.push({ at: now, text: `+${n} ${w.name}`, side, x: this.lineX(v), big: double || Math.abs(lead) >= v.span });
+    if (favours !== v.favours) { v.favours = favours; v.flip[favours] = { w, late: v.judge != null || (v.left ?? GAME.fight) <= GAME.sprint }; }
+    if (Math.abs(lead) >= v.span) this.finish(now, favours, { w, late: v.judge != null || (v.left ?? GAME.fight) <= GAME.sprint });
+  }
+
+  // The fight ends with side's 秒杀 (by: the gift that did it). In the tug what is on its way lands at once, the lightning cut
+  // short; in the air she knocks it down (it lets go as if scared off, the chest falls and goes home) or it gets away with the
+  // chest over the right of the page.
+  finish(now, side, by) {
     const gm = this.gm, v = gm.visit;
-    if (!this.throwing()) { gm.chest += x.spend; gm.pile += x.count; return false; }
-    v.queue.push({ spend: x.spend, count: x.count, helper: v.helpers.has(x.uid) && v.phase === 'tug', round: x.round, nickname: x.nickname, icon: x.iconUrl });
-    return true;
+    if (DONE.has(v.phase)) return;
+    for (const q of [...v.hits, ...v.queue]) { v.spent += q.spend; v.count += q.count; }
+    v.hits = []; v.queue = [];
+    const buzzer = by.late ? by.w : null;
+    if (v.phase !== 'tug') {
+      v.pos = { x: this.gl?.pk?.x ?? v.pos.x, y: this.gl?.pk?.y ?? v.pos.y };
+      return side > 0 ? this.airKnock(now, by.w) : this.airSteal(now, by.w);
+    }
+    v.net = side * v.span; v.cut = null;
+    if (side > 0) this.win(now, by.w, buzzer); else this.lose(now, buzzer);
   }
 
-  // The 中礼物 threshold in 电池, as the game counts.
-  get mid() { return this.settings.midGift / COINS; }
+  // Its lightning's bolt hits her (BOLT into it): its side gains a quarter of the way to an end at once, shown as a gift
+  // reaching the page is (the line back her way, where it was white a moment, the jolt, +N in its colour), and the chest jerks
+  // its way (tumble). Who turned it stays a viewer's: the lightning is no one's 绝杀.
+  zapBack(now) {
+    const v = this.gm.visit, n = Math.round(v.span / 4), before = v.red - v.blue;
+    v.blue += n; v.net -= n; v.tumble = now;
+    v.ghost = { lead: before, at: now, n };
+    this.gm.nums.push({ at: now, text: `+${n} 捣蛋鬼`, side: -1, x: this.lineX(v) });
+    const lead = v.red - v.blue, favours = lead > 0 ? 1 : -1;
+    if (favours !== v.favours) { v.favours = favours; v.flip[favours] = null; }
+    if (lead <= -v.span) this.finish(now, -1, { w: null });
+  }
+
+  // Knocked out of the air: it lets go and flees as a 大航海 scares it, the chest falls and the sprite takes it home, and she
+  // cheers as when it is beaten off (守住了) the moment it is knocked down, not once the chest is home; her line still waits
+  // for the chest to be up past her bubble (chestUp). (scare puts what was thrown in the chest and counts it kept.) An empty
+  // chest knocked down is as one knocked off on the ground: 打跑了, and no bar.
+  airKnock(now, w) {
+    const gm = this.gm, v = gm.visit;
+    this.scare(now); gm.grudge = w.name;
+    if (!v.loot) return this.fire('pranksterKnocked', { game: true, nickname: w.name });
+    Object.assign(v, { result: 1, resultAt: now });
+    this.fire('chestKept', { game: true, streak: gm.streak, nickname: w.name });
+  }
+
+  // Off with an empty chest for a 小花花: it laughs its thanks, gets up with the chest on its rope and is away with it, and she
+  // cries over it (被偷了, once it is off: she is sorry, then reaches after it). She has lost her chest, so 连守 goes; there
+  // was nothing in it, so it has nothing to brag of next time.
+  snatch(now, w) {
+    const gm = this.gm;
+    Object.assign(gm, { chest: 0, pile: 0, streak: 0, steals: gm.steals + 1 });
+    this.phase('snatch', now); this.pkSay('pranksterFlower', now, w.name); gm.visit.snatched = true;
+    this.fire('chestRobbed', { game: true, robbed: true });
+  }
+
+  // Off with it in the air: it flies on over the right of the page with the chest still hanging from its rope (away). (An
+  // empty chest, given it by a 小花花 in the air, it thanks them for, as for one on the ground: snatch.)
+  airSteal(now, w) {
+    const gm = this.gm, v = gm.visit;
+    Object.assign(gm, { chest: 0, pile: 0, streak: 0, steals: gm.steals + 1, brag: v.loot });
+    if (v.loot) Object.assign(v, { result: -1, resultAt: now });
+    this.phase('away', now); this.pkSay(v.loot ? 'pranksterRobs' : 'pranksterFlower', now, w.name);
+    this.fire('chestRobbed', { game: true, robbed: true });
+  }
+
+  // Whoever sends a 人气票 or 小花花 (by: 'gift') or says 1 or 2 (by: 'dm') is on that side this 来访, the newest last; a
+  // gift's side stands, so 1 or 2 after it does not move them (their face would hang on one side, their balls fly from the
+  // other). Returns the side they are on.
+  enlist(w, side, by) {
+    const sides = this.gm.visit.sides, s = sides.get(w.uid);
+    if (s?.by === 'gift' && by === 'dm') return s.side;
+    sides.delete(w.uid); sides.set(w.uid, { ...w, side, by, at: this.now() });
+    return side;
+  }
 
   // Whether a gift now is thrown at the 捣蛋鬼: it is here and not yet on its way off the page.
   throwing() { return !!this.gm.visit && !DONE.has(this.gm.visit.phase); }
@@ -642,8 +798,10 @@ export class Engine extends EventTarget {
     const gm = this.gm, v = gm.visit;
     if (gm.due) this.visited('end');
     gm.due = false;
-    const frizz = v && !DONE.has(v.phase) && this.scared(now).frizz;
-    if (frizz) gm.fix = { start: now, pose: frizz };
+    if (!this.throwing()) return;
+    const frizz = v.phase === 'tug' && v.bolted;
+    this.scare(now);
+    if (frizz) gm.fix = { start: now, pose: 'cheer' };
   }
 
   // A PK is no time for it (callOff).
@@ -659,10 +817,12 @@ export class Engine extends EventTarget {
     const gm = this.gm;
     if (gm.due === 'own') gm.came.push(now);
     gm.due = false;
-    // loot: there is something in the chest to fight over; helpers: the UIDs on its side in the tug
-    gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helpers: new Set(), helped: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
-    this.pkSay(gm.brag ? 'pranksterBrag' : gm.grudge ? 'pranksterGrudge' : 'pranksterPeek', now, { nickname: gm.grudge });
-    gm.brag = false;
+    // loot: there is something in the chest to fight over; span: how many 票 each end of the bar is from the middle
+    gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helped: 0,
+      sides: new Map(), balls: [], struck: {}, retorted: {}, taunted: new Set(), taunt: -Infinity, lucked: -Infinity, luck: null,
+      span: clamp(Math.round(gm.chest / 20), 100, 500), net: 0, red: 0, blue: 0, favours: -1, flip: {}, drag: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
+    this.pkSay(gm.brag ? 'pranksterBrag' : gm.grudge ? 'pranksterGrudge' : 'pranksterPeek', now, gm.grudge);
+    gm.brag = false; gm.grudge = null;   // (said once: it tells of its last 来访)
     this.visited('start');
   }
 
@@ -673,12 +833,18 @@ export class Engine extends EventTarget {
     if (['knocked', 'fled'].includes(p)) v.say = null;
   }
 
-  // A line of a kind of the game's, filled in. The 捣蛋鬼's bubble is narrow: a space in its line breaks it.
-  gameLine(kind, opts) { return this.fill(this.pick(kind), kind, opts); }
+  // Where the tug's line is across the bar, by the score: in the middle while it is level.
+  lineX(v) { return BAR.x + 2 + (BAR.w - 4) * clamp(0.5 + (v.red - v.blue) / (2 * v.span), 0, 1); }
 
-  pkSay(kind, now, opts) { this.gm.visit.say = { text: this.gameLine(kind, opts).replaceAll(' ', '\n'), at: now }; }
+  // In the last stretch, while she is not ahead, it hauls the chest off and she is dragged along; ahead, she holds on.
+  dragging(v) { return v.sprint != null && v.net <= 0; }
 
-  herSay(kind, now, opts) { this.gm.say = { text: this.gameLine(kind, opts), at: now }; }
+  // A line of a kind of the game's, naming a viewer. The 捣蛋鬼's bubble is narrow: a space in its line breaks it.
+  gameLine(kind, nickname) { return this.fill(this.pick(kind), kind, { nickname }); }
+
+  pkSay(kind, now, name) { this.gm.visit.say = { text: this.gameLine(kind, name).replaceAll(' ', '\n'), at: now }; }
+
+  herSay(kind, now, name) { this.gm.say = { text: this.gameLine(kind, name), at: now }; }
 
   // She hops to x in so many little hops (never a slide).
   hopTo(x, now, hops = 1) { const gm = this.gm; if (Math.abs(x - gm.herX) > 1) gm.walk = { from: gm.herX, to: x, at: now, ms: 300 * hops, hops }; }
@@ -735,77 +901,129 @@ export class Engine extends EventTarget {
     return { x: p.x + x * k - y * n, y: p.y + x * n + y * k };
   }
 
-  // A gift lands. Over an empty chest the 捣蛋鬼 has one life: any gift knocks it off the page, and is the chest's first. With
-  // gifts in the chest every gift takes its 电池 off its life; a viewer's 一轮送礼 that has struck it for a 中礼物 in all (round;
-  // what the round sent before the 来访 went into the chest) ends it there, whatever life it was given back. A helper's gift
-  // lands on her head instead and gives the 捣蛋鬼 that much life back. She lets go of the handle, so the 捣蛋鬼, glad of it,
+  // A 人气票 or 小花花 lands (h: its 票 n, twice in a lucky window, the gifts count, its side, spend and viewer w). Over an
+  // empty chest one gift decides it: a 人气票 knocks it off the page, and is the chest's first; a 小花花 goes in the chest, and
+  // it is off with the chest (snatch). In the tug a 人气票 moves the line its 票 toward
+  // the 捣蛋鬼's end, a 小花花 its 票 toward hers, landing on her head: she lets go of the handle, so the 捣蛋鬼, glad of it,
   // points at her and laughs, and the chest comes a little its way (tumble), while her sprite pulls on alone; then she takes
   // hold again. The fifth of them, counted by the gift (count, five in one message too), flattens her: she lies flat while her
-  // sprite pulls on, catches the handle lying down and is dragged a little before she is up. In the fight's last stretch she
-  // lies holding on already, and only winces. One landing once it is on its way off goes into her chest, and plays nothing
-  // (bank).
-  strike(now, { spend, count, helper, round, nickname }) {
-    const gm = this.gm, v = gm.visit;
-    if (DONE.has(v.phase)) return this.bank(spend);
+  // sprite pulls on, catches the handle lying down and is dragged a little before she is up. While she is dragged in the last
+  // stretch she only winces. One that lands once the fight is over goes home to her chest.
+  strike(now, h) {
+    const gm = this.gm, v = gm.visit, name = h.w.name;
+    if (DONE.has(v.phase)) { gm.chest += h.spend; gm.pile += h.count; return; }
     if (!v.loot) {
-      Object.assign(gm, { grudge: nickname, chest: spend, pile: 1 });
-      this.phase('knocked', now); this.sendHome(now, HOME, true); return this.fire('pranksterKnocked', { game: true, nickname });   // the lid it sat on springs open for the gift
+      if (h.side < 0) return this.snatch(now, h.w);
+      gm.grudge = name; gm.chest += h.spend; gm.pile += h.count;
+      this.phase('knocked', now); this.sendHome(now, HOME, true); return this.fire('pranksterKnocked', { game: true, nickname: name });   // the lid it sat on springs open for the gift
     }
-    v.spent += spend; v.count++;
-    if (helper) {
-      v.hp = Math.min(v.max, v.hp + spend);
-      gm.nums.push({ at: now, text: `+${spend}`, heal: true });
-      if (v.sprint != null) { v.wince = now; return; }
-      Object.assign(v, { bonk: now, tumble: now, helped: v.helped + count });
-      if (v.helped % 5 < count) v.buried = now;   // one of these was the fifth, the tenth…
-      return this.herSay('herHit', now, { nickname });
+    v.spent += h.spend; v.count += h.count;
+    v.net += h.side * h.n;   // as it is, so time up judges it right: only the chest's drift stops at an end
+    if (h.side < 0) {
+      if (this.dragging(v)) { v.wince = now; return; }
+      Object.assign(v, { bonk: now, tumble: now, helped: v.helped + h.count });
+      if (v.helped % 5 < h.count) v.buried = now;   // one of these was the fifth, the tenth…
+      return this.herSay('herHit', now, name);
     }
-    Object.assign(v, { hp: v.hp - spend, hit: now }); gm.grudge = nickname;
-    gm.nums.push({ at: now, text: `-${spend} ${nickname}` });
-    round.spent += spend;
-    if (v.hp <= 0 || round.spent >= this.mid) this.win(now, nickname); else this.herSay('pranksterHit', now, { nickname });
+    v.hit = now; gm.grudge = name;
+    this.herSay('pranksterHit', now, name);
   }
 
-  // The chest has landed beside her: she starts back from the crash, then lunges for its handle and pulls. The 捣蛋鬼's life is
-  // a fifth of what is in it, a 中礼物 at most, and the minute starts.
+  // The chest has landed beside her: she starts back from the crash, then lunges for its handle and pulls, and the minute
+  // starts. (How far each end is, span, was set as it came: the bar shows from then on.)
   grab(now) {
     const gm = this.gm, v = gm.visit;
-    v.max = v.hp = clamp(Math.round(gm.chest / 5), 1, this.mid);
-    Object.assign(v, { left: GAME.fight, pebbles: 0, grabbed: now });
+    Object.assign(v, { left: GAME.fight, grabbed: now });
     this.phase('tug', now); v.say = null; this.herSay('chestFell', now);
     this.hopTo(Math.min(gm.herX, this.ring(LAND, -1).x - this.grip('lunge') - 10), now);   // back far enough to lunge forward
   }
 
-  // A danmaku while it is here: flying over with the chest, it freezes in a disguise while she looks about (three times at
-  // most); in the tug it is a pebble, and all the pebbles together take no more than GAME.pebbles of its life, never the
-  // last of it: one takes at most what is left of that share, and nothing once that is less than one.
-  pebble() {
+  // A danmaku of w's (said: the side it picks, 1 or -1, or none) while it is here. Flying over with the chest, any danmaku
+  // freezes it in a disguise while she looks about (three times at most). 1 or 2 puts w on a side (enlist); a viewer B站 tells
+  // with no UID is nobody to put on one. On the ground beside her (the tug, or sitting on an empty chest), and not while the
+  // lightning plays: one on a side throws a paper ball at the other side, a lucky one now and then while they fight, as often
+  // as the streamer set; one on no side is called out by name, once a 来访, no sooner than TAUNT after the last and not over
+  // another line of its own. A danmaku never moves the bar.
+  gameDanmaku(w, said) {
     const v = this.gm.visit, now = this.now();
-    if (!v) return;
+    if (!v || DONE.has(v.phase)) return;
     if (v.phase === 'carry' && v.freezes < 3 && !(now - v.frozen < FREEZE)) { v.frozen = now; v.freezes++; }
-    if (v.phase === 'tug' && v.cut == null && v.pebbles + 1 <= GAME.pebbles * v.max && v.hp > 1) {
-      const d = Math.min(v.hp - 1, Math.max(1, Math.round(v.max * 0.02)), Math.floor(GAME.pebbles * v.max - v.pebbles));
-      v.pebbles += d; v.hp -= d; this.gm.nums.push({ at: now, text: `-${d}`, small: true });
+    if (!w.uid) return;
+    const side = said ? this.enlist(w, said, 'dm') : v.sides.get(w.uid)?.side;
+    if (!['tug', 'sit'].includes(v.phase) || v.cut != null) return;
+    if (side) {
+      const lucky = v.phase === 'tug' && !v.luck && now - v.lucked >= LUCK.gap && this.rng() < this.settings.luckyPercent / 100;
+      return void v.balls.push({ at: now, side, lucky, w, seed: this.rng() });   // (seed: the board's draw, which its routes are compared by)
     }
+    if (v.taunted.has(w.uid) || now - v.taunt < TAUNT || v.say && now - v.say.at < 3000) return;   // (its bubble shows 3 s)
+    v.taunted.add(w.uid); v.taunt = now; this.pkSay('pranksterTaunt', now, w.name);
   }
 
-  // A viewer sends the 帮它的关键字 in the tug and is on its side for this 来访, once however often they send it: their gifts are
-  // a helper's.
-  join({ uid, nickname }) {
+  // The paper balls that hit this frame: a lucky one opens whoever it hit, its side's gift counting twice for LUCK.ms (it says
+  // so: hit, it begs nobody to send 人气票 now; her hit, it calls for 小花花); RETORT.hits of one side's in RETORT.ms has the
+  // one hit answer back to whoever threw the last (it to her side, she to its), not over a line just said.
+  ballsLand(now) {
     const v = this.gm.visit;
-    if (v.helpers.has(uid)) return;
-    v.helpers.add(uid); Object.assign(v, { joined: this.now(), joiner: nickname });
+    for (const b of v.balls) {
+      if (b.hit != null || now - b.at < BALL) continue;
+      b.hit = now;
+      const run = v.struck[b.side] = (v.struck[b.side] || []).filter(t => now - t < RETORT.ms).concat(now);
+      if (b.lucky && v.phase === 'tug' && v.cut == null && !v.luck) {
+        v.luck = { side: b.side, at: now, until: now + LUCK.ms }; v.lucked = now + LUCK.ms;
+        this.pkSay(b.side > 0 ? 'pranksterDazed' : 'pranksterUrge', now);
+      } else if (run.length >= RETORT.hits && now - (v.retorted[b.side] ?? -Infinity) >= RETORT.gap && !(v.say && now - v.say.at < 3000) && !(this.gm.say && now - this.gm.say.at < 2600)) {   // (its bubble 3 s, hers 2.6)
+        v.retorted[b.side] = now;
+        if (b.side > 0) this.pkSay('pranksterRetort', now, b.w.name); else this.herSay('herPelted', now, b.w.name);
+      }
+    }
+    v.balls = v.balls.filter(b => b.hit == null || now - b.hit < 450);
+    if (v.luck && now >= v.luck.until) { v.luckOut = { side: v.luck.side, at: now }; v.luck = null; }
   }
 
-  // Something that scares it off came (a 大航海, a castle, a lottery, a 试演, a PK): it lets go and flees, and the sprite hurries
-  // the chest home before the show starts; out of a tug that is the chest kept. What the show then waits for: the chest home
-  // (tidy, TIDY at least) and, after the lightning, her hair, she cheering on frizzed (frizz).
-  scared(now) { const v = this.gm.visit, frizz = v.phase === 'tug' && v.zapped != null ? 'cheer' : null; return { tidy: this.scare(now), frizz }; }
+  // A gift that scares it off (a 大航海, a 中礼物 or bigger, a castle; not a lottery or a PK) does it before everyone's eyes:
+  // light in the colour of the gift's tier swells in her and goes out as a ring (drawGame); due is when the ring, slowing as
+  // it goes, reaches the edge of the 捣蛋鬼 where it is now (her middle o, its v.pos), and then it is scared off.
+  giftBurst(now, ev, name, opts) {
+    const gm = this.gm, p = gm.visit.pos, o = { x: gm.herX, y: FOOT.y - H * 0.5 };
+    const k = clamp((Math.hypot(p.x - o.x, p.y - o.y) - PK_H * 0.35 - 30) / BURST.r, 0, 0.9);
+    gm.burst = { at: now, o, rgb: GLOW[ev.tier], due: now + BURST.glow + BURST.ms * (1 - Math.sqrt(1 - k)), name, opts, more: [] };
+  }
 
+  // The light has reached it: the gift's show goes on, and what waited behind it.
+  burstIn() {
+    const b = this.gm.burst;
+    b.due = null; this.fire(b.name, { ...b.opts, burst: true });
+    for (const [n, o] of b.more) this.fire(n, o);
+  }
+
+  // While the fight is on it is her 秒杀: the line runs to its end, her half flashes as when she wins, and the name of whoever
+  // sent the gift rises from that end (a lottery, a 试演 has none).
+  sweep(now, name) {
+    const gm = this.gm, v = gm.visit;
+    Object.assign(v, { result: 1, resultAt: now, swept: true, ghost: { lead: v.red - v.blue, at: now, n: 30 } });
+    if (name) gm.nums.push({ at: now, text: name, side: 1, x: BAR.x + BAR.w, big: true });
+  }
+
+  // Something that scares it off came (a 大航海, a gift's show, a castle, a lottery, a 试演): it lets go and flees, and the sprite
+  // hurries the chest home before the show starts; while the fight is on that is the chest kept, and she cheers, saved (kept,
+  // sweep). What the show then waits for: the chest home (tidy, TIDY at least) and, after the lightning, her hair, she
+  // cheering on frizzed (frizz), which her sprite, right by her, smooths before it takes the chest (wait).
+  scared(now, name) {
+    const v = this.gm.visit, frizz = v.phase === 'tug' && v.bolted ? 'cheer' : null, kept = this.contested(v);
+    if (kept) this.sweep(now, name);
+    const tidy = this.scare(now);
+    if (kept && frizz && this.gm.out) this.gm.out.wait = true;
+    return { tidy, frizz, kept };
+  }
+
+  // What is thrown and not yet landed goes in the chest there and then.
   scare(now) {
     const gm = this.gm, v = gm.visit;
     if (DONE.has(v.phase)) return 0;
-    if (v.phase === 'tug') { gm.streak++; gm.chest += v.spent; gm.pile += v.count; }
+    for (const q of [...v.hits, ...v.queue]) { v.spent += q.spend; v.count += q.count; }
+    v.hits = []; v.queue = [];
+    if (this.contested(v)) gm.streak++;
+    gm.chest += v.spent; gm.pile += v.count;
     const hung = v.chest && v.chest.x == null && gm.hung;   // flying with it, the chest hanging from its rope
     this.phase('fled', now);
     if (!v.chest) return 0;
@@ -828,29 +1046,54 @@ export class Engine extends EventTarget {
     return TIDY;
   }
 
-  // Beaten off: what was thrown lands in the chest, the sprite flies it home, and she thanks whoever landed the last of it.
-  win(now, nickname) {
+  // Beaten off: what was thrown lands in the chest, the sprite flies it home, and she thanks whoever landed the last of it
+  // (w), or whoever scored the 绝杀 (buzzer), if it was one.
+  win(now, w, buzzer) {
     const gm = this.gm, v = gm.visit;
     gm.streak++; gm.chest += v.spent; gm.pile += v.count;
-    this.phase('won', now); this.sendHome(now); this.hopTo(FOOT.x, now + HOME * 0.6, 3); this.pkSay('pranksterFlees', now);
-    this.fire('chestKept', { game: true, streak: gm.streak, zap: v.zapped != null, nickname });
+    if (buzzer) gm.buzzer = { at: now + GAME.flash, side: 1, w: buzzer };
+    Object.assign(v, { result: 1, resultAt: now });
+    // beaten while it is still getting up from its fall it is knocked flying off the lid, as off an empty chest
+    this.phase(v.phase === 'tug' && now - v.grabbed < UP ? 'knocked' : 'won', now); this.sendHome(now); this.hopTo(FOOT.x, now + HOME * 0.6, 3); this.pkSay('pranksterFlees', now);
+    this.fire('chestKept', { game: true, streak: gm.streak, zap: !!v.bolted, nickname: (buzzer ?? w)?.name, buzzer: !!buzzer });
   }
 
-  lose(now) {
+  // It has the chest, and she cries once it is off the page with it (robbed: endVisit).
+  lose(now, buzzer) {
     const gm = this.gm;
     Object.assign(gm, { chest: 0, pile: 0, streak: 0, steals: gm.steals + 1, brag: true });   // next time it brags of it
-    this.phase('lost', now); this.pkSay('pranksterRobs', now);
+    if (buzzer) gm.buzzer = { at: now + GAME.flash, side: -1, w: buzzer };
+    Object.assign(gm.visit, { result: -1, resultAt: now });
+    this.phase('lost', now); this.pkSay(buzzer ? 'pranksterBuzzer' : 'pranksterRobs', now, buzzer?.name);
+    this.fire('chestRobbed', { game: true, zap: !!gm.visit.bolted, robbed: true });
   }
 
-  // What the lightning held back from falling when it was scared off goes into her chest too.
+  // 0:00 and the grace are over: what is on its way lands, and the side the line is on wins, a tie the 捣蛋鬼's. It is a 绝杀
+  // when whoever put the winners ahead did so in the last stretch or the grace.
+  settle(now) {
+    const v = this.gm.visit;
+    for (const q of [...v.hits, ...v.queue]) this.strike(now, q);
+    v.hits = []; v.queue = [];
+    if (DONE.has(v.phase)) return;
+    const side = v.net > 0 ? 1 : -1, f = v.flip[side], buzzer = f?.late ? f.w : null;
+    if (side > 0) this.win(now, f?.w, buzzer); else this.lose(now, buzzer);
+  }
+
+  // It is off the page: what came while it was here goes in her chest (gameGift), and, robbed, she cries now (被偷了).
   endVisit(now) {
-    const gm = this.gm;
-    for (const q of gm.visit.queue) this.bank(q.spend);
+    const gm = this.gm, c = this.cur;
+    gm.chest += gm.aside; gm.pile += gm.asidePile; gm.aside = gm.asidePile = 0;
     gm.visit = null; gm.last = now; if (!gm.walk) this.hopTo(FOOT.x, now, 2); this.visited('end');
+    if (c?.opts.robbed && now < c.start + c.pre) c.pre = now - c.start;
   }
 
-  // A gift thrown at the 捣蛋鬼 that it no longer fights over: into her chest as any, unplayed.
-  bank(spend) { this.gm.chest += spend; this.gm.pile++; }
+  // The 宝箱小游戏 is still being wound up: the 捣蛋鬼 is still on the page, the chest is on its way home, her hair is still to be
+  // smoothed, the game's own last show plays (守住了, 打跑了, 被偷了), or the show that scared it off waits for those. Meanwhile
+  // she is busy: a show that comes waits its turn (a C one is let go), and none cuts in.
+  wrapping(now) {
+    const gm = this.gm, c = this.cur;
+    return !!(gm.visit || gm.out || gm.fix || c && (c.opts.game || (c.opts.tidy || c.opts.frizz) && now < c.start + c.pre));
+  }
 
   // The 来访's clock. It comes on its own at most once in pranksterMinutes and GAME.hourly times an hour, in a connected room
   // when someone is about, and once called; then, the room still connected, once its pictures are there and she plays
@@ -858,6 +1101,7 @@ export class Engine extends EventTarget {
   // keep it waiting), no lottery is drawn (lotOf, whether its show is on or not), no PK is on and the last 来访 is tidied up
   // (the chest home, her hair smooth). Then each phase runs its time, and the tug its countdown.
   gameUpdate(now) {
+    if (this.gm.burst?.due != null && now >= this.gm.burst.due) this.burstIn();
     const gm = this.gm, v = gm.visit, dt = now - (gm.clock ?? now), every = this.settings.pranksterMinutes * 60000;
     gm.clock = now;
     gm.drops = gm.drops.filter(d => now - d.at < 1400); gm.nums = gm.nums.filter(n => now - n.at < 1100);
@@ -871,17 +1115,21 @@ export class Engine extends EventTarget {
     }
     // what is thrown waits while the chest is in the air, until the 捣蛋鬼 is on its feet again, and while the lightning plays;
     // then all of it drops
-    const away = ['peek', 'carry', 'fall'].includes(v.phase) || v.phase === 'tug' && now - v.grabbed < UP || v.phase === 'peer' && now - v.at < DAZED + 400;
+    const away = ['peek', 'carry', 'fall'].includes(v.phase) || v.phase === 'tug' && now - v.grabbed < UP || v.phase === 'peer' && now - v.at < DAZED + 400 || gm.burst?.due != null;
     if (!away && v.cut == null && v.queue.length) {
-      for (const q of v.queue) { gm.drops.push({ at: now, her: q.helper, big: q.spend >= this.mid, icon: q.icon }); v.hits.push({ at: now + DROP, ...q }); }
+      for (const q of v.queue) { gm.drops.push({ at: now, her: q.side < 0 && v.loot, big: q.n >= 10, side: q.side }); v.hits.push({ at: now + DROP, ...q }); }   // over an empty chest a 小花花 is for it
       v.queue = [];
     }
     for (const h of v.hits.filter(h => h.at <= now)) this.strike(now, h);
+    this.ballsLand(now);
     v.hits = v.hits.filter(h => h.at > now);
     const u = now - v.at;
     switch (v.phase) {
       case 'peek': if (u >= GAME.peek) this.phase('carry', now); break;
       case 'carry':
+        // what came while it peeked counts now, the chest hanging from its rope (drawn: v.chest) on its way in
+        if (v.chest) for (const q of v.queue.filter(q => q.early)) { q.early = false; if (!DONE.has(v.phase)) this.reckon(q, now); }
+        if (DONE.has(v.phase)) break;
         if (now - v.frozen < FREEZE) v.at += dt;   // frozen, its clock stands still
         else if (u >= GAME.carry) {
           // the chest is too much for it: over her right it can hold on no longer, and comes down with the chest
@@ -905,16 +1153,31 @@ export class Engine extends EventTarget {
       }
       case 'toss': if (u >= 1700) this.phase('leave', now); break;
       case 'tug':
-        if (v.cut != null) { if (now - v.cut >= ZAP) v.cut = null; break; }   // the set piece plays: the countdown waits
-        if (v.zapped == null && v.hp <= v.max / 2) { v.zapped = v.cut = now; this.pkSay('pranksterZap', now); break; }
-        // it answers her once her bubble is gone (the two stand close then), and after that calls for helpers
+        if (v.cut != null) {   // the set piece plays: the countdown waits; its bolt knocks her lead back (zapBack)
+          if (!v.bolted && now - v.cut >= BOLT) { v.bolted = true; if (gm.burst?.due == null) this.zapBack(now); }
+          if (v.cut != null && now - v.cut >= ZAP) v.cut = null;
+          break;
+        }
+        // a gift's light is on its way to scare it off: the fight is decided, so the countdown and the lightning wait, and no
+        // 秒杀 comes first
+        if (gm.burst?.due != null) break;
+        if (v.zapped == null && v.judge == null && v.net >= v.span / 2) { v.zapped = v.cut = now; this.pkSay('pranksterZap', now); break; }
+        // it answers her once her bubble is gone (the two stand close then), and after that calls viewers to its side
         if (!v.caught && now - v.grabbed >= 2900) { v.caught = true; this.pkSay('pranksterCaught', now); }
-        if (!v.recruited && now - v.grabbed >= 6200) { v.recruited = true; this.pkSay('pranksterRecruit', now, { keyword: this.settings.pranksterKeyword }); }
-        v.left -= dt;
-        if (v.left <= GAME.sprint && v.sprint == null) { v.sprint = now; this.pkSay('pranksterSprint', now); }
-        if (v.left <= 0) this.lose(now);
+        if (!v.recruited && now - v.grabbed >= 6200) { v.recruited = true; this.pkSay('pranksterRecruit', now); }
+        if (v.judge == null) {
+          v.left -= dt;
+          if (v.left <= GAME.sprint && v.sprint == null) v.sprint = now;
+          if (v.left <= 0) Object.assign(v, { left: 0, judge: now });   // GAME.grace for what is late on the way
+        } else if (now - v.judge >= GAME.grace) { this.settle(now); break; }
+        // its bye the first time it hauls the chest off
+        if (this.dragging(v) && !v.bye) { v.bye = true; this.pkSay('pranksterSprint', now); }
+        // dragged in the last stretch while she is not ahead, held while she is: the chest comes back as smoothly as it went
+        v.drag += clamp((this.dragging(v) ? 150 * k01(now, v.sprint, v.sprint + GAME.sprint) : 0) - v.drag, -dt * 0.06, dt * 0.06);
         break;
-      case 'lost': if (u >= 1600) { this.endVisit(now); this.fire('chestRobbed', { game: true, zap: v.zapped != null }); } break;
+      case 'snatch': if (u >= SNATCH.up) { this.phase('away', now); v.from.x += 2 * this.pkTip({ pose: 'carry', flip: false, x: 0, y: 0, rot: 0, scale: 1 }).x; } break;
+      case 'lost': if (u >= 1600) this.endVisit(now); break;
+      case 'away': if (u >= 2400) this.endVisit(now); break;
       default: if (u >= (v.phase === 'fled' ? (v.ran ?? Infinity) + OFF.fled : OFF[v.phase] ?? 1800)) this.endVisit(now);   // leave, knocked, won, fled: it is off the page
     }
   }
@@ -953,7 +1216,7 @@ export class Engine extends EventTarget {
         st.sp = ['at', o.fall.dart, CHEST.y - 120];
       }
       const away = !v || v.pos.a < 0.05 || v.pos.x > PAGE.w + PK_H / 2 || v.pos.y < -PK_H / 2;
-      if (o.go == null && fell && (o.spot == null || now >= o.spot + NOTICE) && (away || Math.abs(v.pos.x - home) > 110 || v.pos.y < CHEST.y - 300)) o.go = now;
+      if (o.go == null && !o.wait && fell && (o.spot == null || now >= o.spot + NOTICE) && (away || Math.abs(v.pos.x - home) > 110 || v.pos.y < CHEST.y - 300)) o.go = now;   // (wait: her hair first, unfrizz)
       const u = o.go == null ? -Infinity : now - o.go;
       const p0 = { x: o.hook.x - tip.x, y: o.hook.y - tip.y - LINK };   // there the end of the sprite's rope is LINK over the hook
       // (the 捣蛋鬼's place last frame: v.pos)
@@ -982,7 +1245,8 @@ export class Engine extends EventTarget {
     }
     if (!v) return st;
     st.slide = true;   // her place goes with her pose while it is here (drawHer)
-    const u = now - v.at, free = !this.cur, bob = 4 * Math.sin(now / 520), low = CHEST.y - 74;
+    // (free: no show of hers plays, or 被偷了 waits for it to be off with the chest and she is still the game's)
+    const u = now - v.at, free = !this.cur || this.cur.opts.robbed && now < this.cur.start + this.cur.pre, bob = 4 * Math.sin(now / 520), low = CHEST.y - 74;
     if (free && ['peek', 'carry', 'fall'].includes(v.phase)) st.bubble = null;   // her 心情 says nothing while a chest flies past where its bubble is
     else if (free) { st.orbit = null; st.y = FOOT.y - hopY; }                     // and beside the chest she is no longer in her 心情: no happy bounce
     const seat = CHEST.y - box.h - PK_H * 0.3, over = CHEST.y - box.open - PK_H * 0.24;   // its height seated on the lid; over the open lid
@@ -1036,6 +1300,25 @@ export class Engine extends EventTarget {
         break;
       }
       case 'leave': fly(0.16, -0.05); pk.y += bob; break;
+      // Off with the empty chest (snatch): it settles on the lid and laughs its thanks at her, hops off to the right till its
+      // rope hangs straight down to the chest's ring, and rises, the chest coming off the ground by that handle and tilting as
+      // it comes up; she stays sorry till it is off (away).
+      case 'snatch': {
+        const tip = this.pkTip({ pose: 'carry', flip: false, x: 0, y: 0, rot: 0, scale: 1 }), r = this.ring(v.fromCx, 1), need = r.y - LINK - tip.y;   // (the chest's place as it began: once up, it stands nowhere)
+        const e = ease(k01(u, 0, 300)), a = ease(k01(u, SNATCH.laugh, SNATCH.laugh + SNATCH.hop)), b = ease(k01(u, SNATCH.laugh + SNATCH.hop, SNATCH.up));
+        const bx = v.from.x + (v.fromCx - v.from.x) * e, by = v.from.y + (seat - v.from.y) * e;
+        Object.assign(pk, { pose: u < SNATCH.laugh ? 'laugh' : 'carry', x: bx + (r.x - tip.x - bx) * a, y: by + (need - by) * a - SNATCH.rise * b });
+        if (b > 0) { L.chest = { hang: this.pkTip(pk), len: LINK, lift: clamp(SNATCH.rise * b / 40, 0, 1) }; cx = null; v.chest = null; }
+        else L.ropes = L.slack = true;
+        if (free) st.pose = 'sorry';
+        break;
+      }
+      // Off with her chest in the air: she starts, sees it go and reaches up after it on her toes until it is off the page;
+      // then she drops to her knees crying (被偷了).
+      case 'away':
+        Object.assign(pk, { pose: 'carry', flip: true }); fly(...(v.snatched ? SNATCH.fly : [0.3, -0.03])); pk.y += bob; L.chest = { hang: this.pkTip(pk), len: LINK };
+        if (free) { st.pose = u < AWAY.spot ? 'startled' : 'reachUp'; st.sprite = 'surprised'; }
+        break;
       // knocked off an empty chest it spins up and out of the top; beaten off it zigzags up and out of the top like a balloon
       // letting its air out (both slowly)
       case 'knocked': pk.pose = 'knocked'; fly(0.12, -0.32, 0.00003); pk.rot = u / 260; pk.a = 1 - k01(u, 2100, 2600); break;
@@ -1056,14 +1339,15 @@ export class Engine extends EventTarget {
       case 'won': pk.pose = 'flat'; fly(0.07, -0.12); pk.x += 24 * Math.sin(u / 95); pk.y += 26 * Math.sin(u / 120); pk.rot = 0.7 * Math.sin(u / 85); pk.a = 1 - k01(u, 2900, 3400); break;
       // it has the chest: she has lost her hold and lies where she was dragged to (her lying drawing with empty fists: the
       // ring she held hangs from the chest again)
-      case 'lost': pk.pose = 'haul'; pk.rot = HAUL; fly(0.32, 0); cx = v.fromCx + 0.32 * u; L.open = true; L.ropes = true; if (free) { st.pose = v.zapped != null ? 'fallenZap' : 'fallen'; Object.assign(st, { sprite: 'pat', sp: this.comfort(st, now) }); } break;
+      case 'lost': pk.pose = 'haul'; pk.rot = HAUL; fly(0.32, 0); cx = v.fromCx + 0.32 * u; L.open = true; L.ropes = true; if (free) { st.pose = v.bolted ? 'fallenZap' : 'fallen'; Object.assign(st, { sprite: 'pat', sp: this.comfort(st, now) }); } break;
       case 'tug': {
         // She starts back from the crash, lunges for the chest's handle and pulls the chest back toward her (she backs off with
-        // it, out from under the dazed 捣蛋鬼), and then the three drift with its life: to its side while it has most of it,
-        // back to hers as it loses it. In the last stretch it hauls the chest off and she is dragged along.
+        // it, out from under the dazed 捣蛋鬼), and then the three drift with the line, by what has landed: to its side while
+        // it is ahead, back to hers as she gets ahead. In the last stretch, while she is not ahead, it hauls the chest off and
+        // she is dragged along (drag).
         const t = now - v.grabbed, e = ease(k01(t, 850, 2300)), cut = v.cut != null ? now - v.cut : null;
-        const drift = e * (TUG.drift * (v.hp / v.max * 2 - 1) + 1.5 * Math.sin(now / 260)) + (v.sprint != null ? 150 * (now - v.sprint) / GAME.sprint : 0);
-        // A helper's gift on her head (strike): down is how long she has been flattened (flat 1200 ms, then 700 ms holding the
+        const drift = e * (TUG.drift * clamp(-v.net / v.span, -1, 1) + 1.5 * Math.sin(now / 260)) + v.drag, drag = this.dragging(v);
+        // A 小花花 on her head (strike): down is how long she has been flattened (flat 1200 ms, then 700 ms holding the
         // handle lying down), loose whether she has let go. The 捣蛋鬼 is glad of it: it points at her and laughs, and the chest
         // comes a little its way (yank). The bump and the dizzy eyes are for a gift that hits it.
         const down = now - v.buried < 1900 ? now - v.buried : null, loose = down != null ? down < 1200 : now - v.bonk < 800;
@@ -1072,20 +1356,20 @@ export class Engine extends EventTarget {
         // It lies dazed on the lid where it fell; as she pulls the chest away it tumbles off to the far side, heels over head,
         // the lid springs open, and it shakes itself and takes up its rope, still hooked in the handle (UP). It floats where its
         // rope runs straight from the chest's ring into its fists, leaning back (pkPull).
-        const place = v.sprint != null ? this.pkPull(this.ring(cx, 1), 'haul', HAUL, 0) : this.pkPull(this.ring(cx, 1), 'tug', LEAN, TRIM);
+        const place = drag ? this.pkPull(this.ring(cx, 1), 'haul', HAUL, 0) : this.pkPull(this.ring(cx, 1), 'tug', LEAN, TRIM);
         const off = ease(k01(t, 900, 1700)), to = { x: place.x + yank * 0.4, y: place.y + bob * 0.5 };
         pk.x = cx + (to.x - cx) * off; pk.y = seat + (to.y - seat) * off - 26 * Math.sin(Math.PI * off);
         if (t < 900) Object.assign(pk, { pose: 'dazed', flip: true });
         else if (t < 1700) Object.assign(pk, { pose: 'tumble', rot: (off - 0.5) * Math.PI * 2 });
         else if (t < UP) pk.pose = 'shake';
-        else pk.pose = cut != null ? 'thunder' : v.sprint != null ? 'haul' : loose ? 'laugh' : now - v.hit < 450 ? 'ouch' : 'tug';
+        else pk.pose = cut != null ? 'thunder' : drag ? 'haul' : loose ? 'laugh' : now - v.hit < 450 ? 'ouch' : 'tug';
         if (pk.pose === 'haul') pk.rot = HAUL; else if (pk.pose === 'tug' || pk.pose === 'ouch') Object.assign(pk, { rot: LEAN, trim: TRIM });
         L.ropes = true; L.open = t >= 1100; L.slack = !['tug', 'haul', 'ouch'].includes(pk.pose);   // not pulling, its rope hangs slack
         if (cut != null) L.zap = cut;
         if (free) {
           // after the lightning her hair stays frizzed, whatever she does
-          const z = now - v.zapped >= 900 ? 'Zap' : '';
-          st.pose = t < 500 ? 'startled' : t < 850 ? 'lunge' : down != null ? (down < 1200 ? 'flat' : 'dragged') + z : loose ? 'bonk' + z : v.sprint != null ? 'dragged' + z : 'tug' + z;
+          const z = now - v.zapped >= BOLT ? 'Zap' : '';
+          st.pose = t < 500 ? 'startled' : t < 850 ? 'lunge' : down != null ? (down < 1200 ? 'flat' : 'dragged') + z : loose ? 'bonk' + z : drag ? 'dragged' + z : 'tug' + z;
           // from her lunge on, the ring in her fists is at the chest's link (her drawings hold it; held: the chest's own ring on
           // her side is then not drawn); where she has let go she stands where she pulled from
           if (t >= 500) {
@@ -1103,7 +1387,7 @@ export class Engine extends EventTarget {
             const at = { x: cx - box.w / 2 + lid.x * k, y: CHEST.y - lid.y * k };
             Object.assign(st, { sprite: key, sFlip: true, sOver: true, sp: ['at', at.x + 4 - (hc.cx - hc.x) * ks, at.y - (hc.y + hc.rope * hc.h - hc.cy) * ks] });
           } else st.sprite = 'surprised';
-          if (cut != null) st.shake = [[v.cut + 900, 3, 260]];
+          if (cut != null) st.shake = [[v.cut + BOLT, 3, 260]];
         }
         break;
       }
@@ -1125,11 +1409,13 @@ export class Engine extends EventTarget {
     let st;
     this.speaking = null;
     // a show that scared the 捣蛋鬼 off waits for the chest to go home, and her hair (stateAt's tidying up before the show), in
-    // the pose and saying on the line of the game's show it took over (start)
+    // the pose and saying on the line of the game's show it took over (start); saved by it while the fight was on, she cheers
+    // (kept)
     if (c && now < c.start + c.pre && !c.wakeLine) {
       st = this.base();
       if (c.opts.frizz) this.unfrizz(st, now - c.start, c, c.opts.frizz);
-      else { if (c.held) st.pose = c.held; if (c.opts.tidy && !this.gm.out) c.pre = now - c.start; }
+      else { if (c.opts.kept) Object.assign(st, { pose: 'cheer', sprite: 'sHappy' }); else if (c.held) st.pose = c.held; if (c.opts.tidy && !this.gm.out) c.pre = now - c.start; }
+      if (c.opts.kept) for (const a of [300, 1100]) st.y -= 12 * bump(now - c.start, a, a + 320);
       if (c.carried && now < c.carried.until) st.bubble = { text: c.carried.text, t: now - c.carried.from };
     }
     else if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
@@ -1478,12 +1764,15 @@ export class Engine extends EventTarget {
   // A show that scared the 捣蛋鬼 off a tug after the lightning waits for her hair: she cheers frizzed while the sprite takes the
   // chest home and comes back to pat it smooth (smooth), and the show starts once it has settled (c.pre). With no show after
   // (a PK, a show turned off) it is the same (gm.fix). One taking over 被偷了 before her hair was smooth has her go on kneeling
-  // there (pose robbed), the sprite on her head patting it as in 被偷了, never turning to fly.
+  // there (pose robbed), the sprite on her head patting it as in 被偷了, never turning to fly. A gift's has it the other way
+  // round (kept): the sprite, right by her, smooths her hair first while the 捣蛋鬼 runs off (the chest waits, gm.out.wait),
+  // then takes the chest home, and the show starts once both are done.
   unfrizz(st, t, c, pose) {
-    const robbed = pose === 'robbed', fixed = this.smooth(st, t, { seed: -c.start }, pose + 'Zap', pose, 0, FRIZZ, robbed ? 'pat' : 'sHappy');
+    const robbed = pose === 'robbed', fixed = this.smooth(st, t, { seed: -c.start }, pose + 'Zap', pose, 0, FRIZZ, robbed ? 'pat' : 'sHappy'), o = this.gm.out;
     st.pose = fixed ? pose : pose + 'Zap';
     if (robbed) st.sStay = true;
-    if (fixed && t >= this.pat.fix + SETTLE) c.pre = t;
+    if (fixed && o?.wait) o.wait = false;
+    if (fixed && t >= this.pat.fix + SETTLE && !(c.opts?.kept && o)) c.pre = t;
   }
 
   // After the lightning her hair stays frizzed (pose zap) until her sprite pats it smooth: once the sprite is really on her
@@ -1494,7 +1783,7 @@ export class Engine extends EventTarget {
   // got there. Returns whether her hair is itself again.
   smooth(st, t, o, zap, plain, min, dur, after) {
     const p = this.pat?.seed === o.seed ? this.pat : (this.pat = { seed: o.seed, at: null }), sv = this.sv, to = this.sTarget;
-    if (p.at == null && !this.gm.out && to?.sp === 'head' && sv && Math.hypot(sv.x - to.x, sv.y - to.y) < 12) p.at = t;
+    if (p.at == null && (!this.gm.out || this.gm.out.wait) && to?.sp === 'head' && sv && Math.hypot(sv.x - to.x, sv.y - to.y) < 12) p.at = t;
     const fix = p.fix = Math.min(Math.max(min, (p.at ?? Infinity) + PATS), dur - 700 - SETTLE);
     const b = this.herBox(st, this.cell(zap)), a = this.herBox(st, this.cell(plain)), paw = { x: b.x + b.w * 0.25 + 20, y: b.y - SPRITE_H * 0.2 + 14 };
     st.fx.push(['spark', fix, (paw.x - a.x) / a.w, (paw.y - a.y) / a.h, 8]);

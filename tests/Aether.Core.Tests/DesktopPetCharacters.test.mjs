@@ -9,7 +9,7 @@ import { Engine, MOOD, seeded } from '../../src/Aether.Core/Pages/desktop-pet/en
 import { Pet } from '../../src/Aether.Core/Pages/desktop-pet/pet.mjs';
 import { SETTINGS } from './Support/DesktopPetSettings.mjs';
 import { gamePet } from './Support/DesktopPetGame.mjs';
-import { NAME, ROUTES, STEP, drive, frames, walk } from '../../scripts/desktop-pet/routes.mjs';
+import { NAME, ROUTES, STAR, STEP, VIEWERS, drive, frames, walk } from '../../scripts/desktop-pet/routes.mjs';
 
 const pages = new URL('../../src/Aether.Core/Pages/', import.meta.url), read = path => JSON.parse(readFileSync(new URL(path, pages), 'utf8'));
 const { shows } = read('desktop-pet/shows.json'), prankster = read('desktop-pet/prankster/prankster.json');
@@ -71,7 +71,7 @@ async function gamePoseChanges(character) {
       if (pk && its && pk.pose !== its.pose && pk.flip === its.flip) changes.its[`${its.pose}>${pk.pose}`] ??= route;
       [her, its] = [st.pose, pk];
     });
-    await walk(steps, drive(pet, clock.later, { NAME, STEP }), clock);
+    await walk(steps, drive(pet, clock.later, { NAME, STEP, VIEWERS, STAR }), clock);
   }
   return changes;
 }
@@ -99,9 +99,13 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
   });
 
   test(`character ${folder} has a way across every change of pose on the 宝箱小游戏's routes, and the 捣蛋鬼 its in-betweens or a cut written down`, async () => {
-    const character = read(`characters/${folder}/character.json`), changes = await gamePoseChanges(character), { transitions, cuts } = prankster;
+    const character = read(`characters/${folder}/character.json`), changes = await gamePoseChanges(character), { cuts } = prankster;
     const pet = gamePet(character), none = Object.entries(changes.her).filter(([pair]) => pet.route(...pair.split('>')) === null);
-    const its = Object.entries(changes.its).filter(([pair]) => !transitions[pair] && !transitions[pair.split('>').reverse().join('>')] && !cuts.includes(pair));
+    // (its in-betweens as the page plays them, pkRoute; a cut is written either way round, and knocked flying it always switches)
+    const its = Object.entries(changes.its).filter(([pair]) => {
+      const [from, to] = pair.split('>');
+      return !pet.pkRoute(from, to) && !cuts.includes(pair) && !cuts.includes(`${to}>${from}`) && to !== 'knocked';
+    });
     assert.deepEqual([...none, ...its].map(([pair, route]) => `${pair}（${route}）`), []);
   });
 

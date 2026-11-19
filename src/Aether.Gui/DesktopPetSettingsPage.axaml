@@ -211,7 +211,7 @@
           <StackPanel Spacing="10">
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock Classes="section" Text="捣蛋鬼偷宝箱" />
-              <TextBlock Classes="hint" Text="它偷走她的宝箱，观众送礼帮她抢回来；怎么玩都在直播画面上，观众不用学" />
+              <TextBlock Classes="hint" Text="它偷走她的宝箱，观众送人气票帮她、送小花花帮它；弹幕发 1、发 2 也能站队，怎么玩都在直播画面上" />
             </StackPanel>
             <StackPanel Orientation="Horizontal" Spacing="10">
               <Button x:Name="SummonButton" Classes="summon" Click="Summon">
@@ -228,7 +228,7 @@
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock Width="96" FontWeight="SemiBold" Classes.muted="{Binding !#PranksterOn.IsChecked}" Text="自己来" VerticalAlignment="Center" />
                 <ToggleSwitch x:Name="PranksterOn" Classes="plain" AutomationProperties.Name="捣蛋鬼自己来" />
-                <TextBlock Classes.muted="{Binding !#PranksterOn.IsChecked}" Text="最多每" VerticalAlignment="Center" />
+                <TextBlock Width="56" Classes.muted="{Binding !#PranksterOn.IsChecked}" Text="最多每" VerticalAlignment="Center" />
                 <NumericUpDown x:Name="PranksterMinutesInput" Minimum="1" IsEnabled="{Binding #PranksterOn.IsChecked}" Classes.invalid="{Binding #PranksterMinutesError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="它最多每几分钟自己来一次" />
                 <TextBlock Classes.muted="{Binding !#PranksterOn.IsChecked}" Text="分钟来一次" VerticalAlignment="Center" />
                 <TextBlock x:Name="PranksterMinutesNote" Classes="hint" Margin="8,0,0,0" VerticalAlignment="Center" />
@@ -238,12 +238,15 @@
             </StackPanel>
             <StackPanel Spacing="4">
               <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Width="96" FontWeight="SemiBold" Text="帮它的关键字" VerticalAlignment="Center" />
-                <TextBox x:Name="PranksterKeywordInput" Width="120" Classes.invalid="{Binding #PranksterKeywordError.IsVisible}" AutomationProperties.Name="帮它的关键字" />
-                <TextBlock Classes="hint" Margin="8,0,0,0" Text="观众发这个词就站到它那边，他送的礼物砸她的头；B站 拦了就换一个" VerticalAlignment="Center" />
+                <TextBlock Width="96" FontWeight="SemiBold" Classes.muted="{Binding !#LuckyOn.IsChecked}" Text="幸运纸团" VerticalAlignment="Center" />
+                <ToggleSwitch x:Name="LuckyOn" Classes="plain" AutomationProperties.Name="幸运纸团" />
+                <TextBlock Width="56" Classes.muted="{Binding !#LuckyOn.IsChecked}" Text="每个纸团" VerticalAlignment="Center" />
+                <NumericUpDown x:Name="LuckyInput" Minimum="1" Maximum="100" IsEnabled="{Binding #LuckyOn.IsChecked}" Classes.invalid="{Binding #LuckyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="每个纸团是幸运纸团的几率" />
+                <TextBlock Classes.muted="{Binding !#LuckyOn.IsChecked}" Text="% 的几率是幸运的" VerticalAlignment="Center" />
+                <TextBlock x:Name="LuckyNote" Classes="hint" Margin="8,0,0,0" VerticalAlignment="Center" />
               </StackPanel>
-              <TextBlock x:Name="PranksterKeywordError" Classes="error" Margin="104,0,0,0" />
-              <TextBlock x:Name="PranksterKeywordReadOnly" Classes="hint" Margin="104,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
+              <TextBlock x:Name="LuckyError" Classes="error" Margin="104,0,0,0" />
+              <TextBlock x:Name="LuckyReadOnly" Classes="hint" Margin="104,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
             </StackPanel>
           </StackPanel>
         </StackPanel>

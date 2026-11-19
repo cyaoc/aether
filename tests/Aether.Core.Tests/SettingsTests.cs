@@ -50,7 +50,7 @@ public sealed class SettingsTests : IAsyncDisposable
         var settings = Settings.Load(harness.DataDirectory);
         Assert.Null(settings.Error);
         Assert.Equal(2, settings.WelcomeGuard.Value);
-        var expected = original.Replace("  !!str 'welcome':", "  # 设置文件格式版本，由程序维护" + newline + "  format_version: 2" + newline + newline + "  !!str welcome_danmaku:")
+        var expected = original.Replace("  !!str 'welcome':", "  # 设置文件格式版本，由程序维护" + newline + "  format_version: 3" + newline + newline + "  !!str welcome_danmaku:")
             .Replace("guard: 提督", "guard: 2").Replace("welcome_animation:", "entry_animation:")
             .Replace("enabled: true" + newline, "enabled: true" + newline + "    fan_club_level: 0" + newline + "    volume: 100" + newline);
         Assert.Equal(encoding.GetPreamble().Concat(encoding.GetBytes(expected)), File.ReadAllBytes(SettingsPath));
@@ -94,7 +94,7 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("3")]
+    [InlineData("4")]
     [InlineData("-1")]
     [InlineData("word")]
     [InlineData("1.5")]
@@ -127,7 +127,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(before, File.ReadAllBytes(SettingsPath));
         Write("welcome:\n  guard: 提督\n");
         Assert.Equal(2, Settings.Load(harness.DataDirectory).WelcomeGuard.Value);
-        Assert.Contains("format_version: 2", File.ReadAllText(SettingsPath));
+        Assert.Contains("format_version: 3", File.ReadAllText(SettingsPath));
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed class SettingsTests : IAsyncDisposable
         }
         finally { File.SetUnixFileMode(harness.DataDirectory, mode); }
         Assert.True(Settings.Load(harness.DataDirectory).WelcomeEnabled.Value);
-        Assert.Contains("format_version: 2", File.ReadAllText(SettingsPath));
+        Assert.Contains("format_version: 3", File.ReadAllText(SettingsPath));
     }
 
     [Fact]
@@ -205,19 +205,20 @@ public sealed class SettingsTests : IAsyncDisposable
         // The fixture already ends with a blank line, so the appended group gets no second one.
         Assert.Contains("  12345: 小明进场.mp4\n\n# 送礼动画", File.ReadAllText(SettingsPath).ReplaceLineEndings("\n"));
         // The version goes where Template has it, above the log group's own comment.
-        Assert.StartsWith("# 设置文件格式版本，由程序维护\nformat_version: 2\n\n# 日志设置，修改后重启程序生效\nlog:",
+        Assert.StartsWith("# 设置文件格式版本，由程序维护\nformat_version: 3\n\n# 日志设置，修改后重启程序生效\nlog:",
             File.ReadAllText(SettingsPath).ReplaceLineEndings("\n"));
         var bytes = File.ReadAllBytes(SettingsPath);
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
         Assert.Equal(bytes, File.ReadAllBytes(SettingsPath));
     }
 
-    // The fixture is the frozen v0.6.1 Template, the last of format 1; keep it unchanged.
+    // The fixture is the frozen v0.6.1 Template, the last of format 1; keep it unchanged. Format 2 gave such a file a helper
+    // keyword no 盲盒查询 keyword was, and format 3 takes it away again: through both steps it is as it was.
     [Theory]
-    [InlineData("本月盲盒", "今年盲盒", "捣乱")]
-    [InlineData("捣乱", "今年盲盒", "帮它")]
-    [InlineData("捣乱", "帮它", "帮捣蛋")]
-    public void Upgrade_gives_a_file_with_a_blind_box_query_of_捣蛋_a_helper_keyword_no_query_is(string monthly, string yearly, string helper)
+    [InlineData("本月盲盒", "今年盲盒")]
+    [InlineData("捣乱", "今年盲盒")]
+    [InlineData("捣乱", "帮它")]
+    public void Upgrade_leaves_a_format_1_file_with_a_blind_box_query_of_捣蛋_as_it_was(string monthly, string yearly)
     {
         var old = Fixture("settings-v0.6.1.yml").Replace("daily_keyword: 今日盲盒", "daily_keyword: 捣蛋").Replace("monthly_keyword: 本月盲盒", "monthly_keyword: " + monthly)
             .Replace("yearly_keyword: 今年盲盒", "yearly_keyword: " + yearly);
@@ -226,40 +227,38 @@ public sealed class SettingsTests : IAsyncDisposable
         var settings = Settings.Load(harness.DataDirectory);
 
         Assert.Null(settings.Error);
-        Assert.Equal((1, helper), (settings.UpgradedFromVersion, settings.DesktopPetPranksterKeyword.Value));
-        // (in the fixture's own line breaks, which a Windows checkout makes \r\n, and the upgrade keeps)
-        var newline = old.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
-        Assert.Equal(old.Replace("format_version: 1", "format_version: 2").Replace("desktop_pet:" + newline, "desktop_pet:" + newline + "  prankster_keyword: " + helper + newline),
-            File.ReadAllText(SettingsPath));
+        Assert.Equal((null, "捣蛋"), (settings.UpgradedFromVersion, settings.BlindBoxDailyKeyword.Value));
+        Assert.Equal(old, File.ReadAllText(SettingsPath));
     }
 
     [Theory]
-    [InlineData("desktop_pet:\n")]
-    [InlineData("desktop_pet:")]
-    public void Upgrade_gives_an_empty_desktop_pet_group_a_helper_keyword(string group)
+    [InlineData("desktop_pet:\n", null, "format_version: 1\nblind_box:\n  daily_keyword: 捣蛋\ndesktop_pet:\n")]
+    // (the group's line had no end, and keeps the one the helper keyword's line was written after)
+    [InlineData("desktop_pet:", 1, "format_version: 3\nblind_box:\n  daily_keyword: 捣蛋\ndesktop_pet:\n")]
+    public void Upgrade_leaves_an_empty_desktop_pet_group_empty(string group, int? from, string upgraded)
     {
         Write("format_version: 1\nblind_box:\n  daily_keyword: 捣蛋\n" + group);
 
         var settings = Settings.Load(harness.DataDirectory);
 
         Assert.Null(settings.Error);
-        Assert.Equal((1, "捣乱"), (settings.UpgradedFromVersion, settings.DesktopPetPranksterKeyword.Value));
-        Assert.StartsWith("format_version: 2\nblind_box:\n  daily_keyword: 捣蛋\ndesktop_pet:\n  prankster_keyword: 捣乱\n", File.ReadAllText(SettingsPath));
+        Assert.Equal(from, settings.UpgradedFromVersion);
+        Assert.StartsWith(upgraded, File.ReadAllText(SettingsPath));
+        Assert.DoesNotContain("prankster_keyword", File.ReadAllText(SettingsPath));
     }
 
     [Theory]
     [InlineData("!!str blind_box:\n  daily_keyword: 捣蛋\ndesktop_pet:\n  enabled: false\n",
-        "format_version: 2\n!!str blind_box:\n  daily_keyword: 捣蛋\ndesktop_pet:\n  prankster_keyword: 捣乱\n  enabled: false\n", "捣乱")]
-    [InlineData("blind_box:\n  daily_keyword: 捣蛋\n!!str desktop_pet:\n  !!str prankster_keyword: 帮它\n",
-        "format_version: 1\nblind_box:\n  daily_keyword: 捣蛋\n!!str desktop_pet:\n  !!str prankster_keyword: 帮它\n", "帮它")]
-    public void Upgrade_finds_tagged_keys_as_Settings_reads_them(string groups, string upgraded, string helper)
+        "format_version: 1\n!!str blind_box:\n  daily_keyword: 捣蛋\ndesktop_pet:\n  enabled: false\n")]
+    [InlineData("blind_box:\n  daily_keyword: 捣蛋\n!!str desktop_pet:\n  !!str prankster_keyword: 帮它\n  enabled: false\n",
+        "format_version: 3\nblind_box:\n  daily_keyword: 捣蛋\n!!str desktop_pet:\n  enabled: false\n")]
+    public void Upgrade_finds_tagged_keys_as_Settings_reads_them(string groups, string upgraded)
     {
         Write("format_version: 1\n" + groups);
 
         var settings = Settings.Load(harness.DataDirectory);
 
         Assert.Null(settings.Error);
-        Assert.Equal(helper, settings.DesktopPetPranksterKeyword.Value);
         Assert.StartsWith(upgraded, File.ReadAllText(SettingsPath));
     }
 
@@ -277,20 +276,121 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Upgrade_from_v023_through_every_step_gives_a_blind_box_query_of_捣蛋_a_helper_keyword_and_marks_the_file_current()
+    public void Upgrade_from_v023_through_every_step_keeps_a_blind_box_query_of_捣蛋_and_marks_the_file_current()
     {
         Write(Fixture("settings-v0.2.3.yml").Replace("daily_keyword: 今天", "daily_keyword: 捣蛋"));
 
         var settings = Settings.Load(harness.DataDirectory);
 
         Assert.Null(settings.Error);
-        Assert.Equal((0, "捣蛋", "捣乱"), (settings.UpgradedFromVersion, settings.BlindBoxDailyKeyword.Value, settings.DesktopPetPranksterKeyword.Value));
+        Assert.Equal((0, "捣蛋"), (settings.UpgradedFromVersion, settings.BlindBoxDailyKeyword.Value));
         var text = File.ReadAllText(SettingsPath).ReplaceLineEndings("\n");
-        Assert.StartsWith("# 设置文件格式版本，由程序维护\nformat_version: 2\n\n# 日志设置", text);
-        Assert.Contains("  12345: 小明进场.mp4\n\ndesktop_pet:\n  prankster_keyword: 捣乱\n", text);
+        Assert.StartsWith("# 设置文件格式版本，由程序维护\nformat_version: 3\n\n# 日志设置", text);
+        // (the group format 2 wrote the helper keyword in stays, empty)
+        Assert.Contains("  12345: 小明进场.mp4\n\ndesktop_pet:\n", text);
+        Assert.DoesNotContain("prankster_keyword", text);
         var bytes = File.ReadAllBytes(SettingsPath);
         Assert.Null(Settings.Load(harness.DataDirectory).Error);
         Assert.Equal(bytes, File.ReadAllBytes(SettingsPath));
+    }
+
+    // The fixture is the frozen v0.6.2 Template, the last of format 2; keep it unchanged.
+    [Theory]
+    [InlineData("捣蛋")]
+    [InlineData("帮它 # 我自己起的")]
+    public void Upgrade_takes_the_helper_keywords_line_and_the_Templates_comment_on_it_out_of_a_format_2_file_and_keeps_every_other_byte(string keyword) =>
+        AssertUpgradeTakesOut(Fixture("settings-v0.6.2.yml").Replace("prankster_keyword: 捣蛋", "prankster_keyword: " + keyword), HelperComment, "  prankster_keyword: " + keyword);
+
+    [Fact]
+    public void Upgrade_keeps_a_comment_on_the_helper_keyword_that_the_user_changed() =>
+        AssertUpgradeTakesOut(Fixture("settings-v0.6.2.yml").Replace(HelperComment, HelperComment + "，我改过"), "  prankster_keyword: 捣蛋");
+
+    private const string HelperComment = "  # 帮它的关键字，观众发了就站到捣蛋鬼那边；非空文字，不能和下一场报名抽奖、盲盒查询的关键字一样";
+
+    /// <summary>Loading format 2's <paramref name="old"/> leaves it without <paramref name="lines"/>, which it has one after
+    /// another, and with every other byte.</summary>
+    private void AssertUpgradeTakesOut(string old, params string[] lines)
+    {
+        Write(old);
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Null(settings.Error);
+        Assert.Equal((2, 30, 10), (settings.UpgradedFromVersion, settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetLuckyPercent.Value));
+        // (in the fixture's own line breaks, which a Windows checkout makes \r\n, and the upgrade keeps)
+        var newline = old.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
+        Assert.Equal(old.Replace("format_version: 2", "format_version: 3").Replace(string.Concat(lines.Select(line => line + newline)), ""), File.ReadAllText(SettingsPath));
+        var bytes = File.ReadAllBytes(SettingsPath);
+        Assert.Null(Settings.Load(harness.DataDirectory).Error);
+        Assert.Equal(bytes, File.ReadAllBytes(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_has_a_changed_recruit_line_say_2_where_it_said_the_helper_keyword()
+    {
+        Write("format_version: 2\ndesktop_pet:\n  # 我的注释\n  lines.1.pranksterRecruit: [\"发「{关键字}」！\", \"跟我混\", '发{关键字}{关键字}']  # 招人\n"
+            + "  lines.2.pranksterRecruit: [\"{关键字}\"]\n  lines.1.lotteryEntryOpen: [\"发「{关键字}」报名\"]\n");
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Null(settings.Error);
+        Assert.Equal(2, settings.UpgradedFromVersion);
+        Assert.Equal(["发「2」！", "跟我混", "发22"], settings.DesktopPetChangedLines["pranksterRecruit"].Value);
+        Assert.StartsWith("format_version: 3\ndesktop_pet:\n  # 我的注释\n  lines.1.pranksterRecruit: [\"发「2」！\", \"跟我混\", '发22']  # 招人\n"
+            + "  lines.2.pranksterRecruit: [\"2\"]\n  lines.1.lotteryEntryOpen: [\"发「{关键字}」报名\"]\n", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_has_a_recruit_line_say_2_where_the_helper_keyword_is_written_escaped()
+    {
+        Write("format_version: 2\ndesktop_pet:\n  lines.1.pranksterRecruit: [\"发\\u007b关键字}\", '发{关键字}', \"\\x7b关键字\\u007d和{关键字}\"]  # 招人\n");
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Null(settings.Error);
+        Assert.Equal(["发2", "发2", "2和2"], settings.DesktopPetChangedLines["pranksterRecruit"].Value);
+        // (a line that spells the placeholder out keeps its own quotes; one that escapes it is written again as Settings writes a line)
+        Assert.StartsWith("format_version: 3\ndesktop_pet:\n  lines.1.pranksterRecruit: [\"发2\", '发2', \"2和2\"]  # 招人\n", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_has_a_recruit_line_over_several_lines_say_2_where_it_said_the_helper_keyword_and_leaves_one_that_never_did()
+    {
+        Write("format_version: 2\ndesktop_pet:\n  lines.1.pranksterRecruit:\n    - 跟我混\n  lines.2.pranksterRecruit:\n    - 发{关键字}\n    - 跟我混\n");
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Null(settings.Error);
+        Assert.StartsWith("format_version: 3\ndesktop_pet:\n  lines.1.pranksterRecruit:\n    - 跟我混\n  lines.2.pranksterRecruit:\n    - 发2\n    - 跟我混\n",
+            File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_leaves_a_format_2_file_with_neither_as_it_was()
+    {
+        var old = Fixture("settings-v0.6.2.yml");
+        Write(old[..old.IndexOf("  prankster_keyword:", StringComparison.Ordinal)] + old[old.IndexOf("  # 平静时隔几秒", StringComparison.Ordinal)..]);
+        var before = File.ReadAllBytes(SettingsPath);
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Null(settings.Error);
+        Assert.Null(settings.UpgradedFromVersion);
+        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+    }
+
+    [Theory]
+    [InlineData("desktop_pet: { prankster_keyword: 帮它, enabled: false }\n", 2)]
+    [InlineData("desktop_pet:\n  prankster_keyword: >\n    帮它\n", 3)]
+    public void Upgrade_refuses_a_helper_keyword_it_cannot_take_out_as_one_line_and_leaves_the_file(string group, long line)
+    {
+        var yaml = "format_version: 2\n" + group;
+        Write(yaml);
+
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+
+        Assert.Equal(("升级", line), (error.SettingName, error.LineNumber));
+        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
     }
 
     [Fact]
@@ -490,7 +590,7 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Null(fromTemplate.Error);
         Assert.Empty(fromTemplate.UnknownKeys);
         Assert.Null(fromTemplate.UpgradedFromVersion);
-        Assert.Contains("format_version: 2", File.ReadAllText(SettingsPath));
+        Assert.Contains("format_version: 3", File.ReadAllText(SettingsPath));
         // A definition without its line in Template would read its own default on both sides below.
         string? templateGroup = null;
         var templateNames = new List<string>();

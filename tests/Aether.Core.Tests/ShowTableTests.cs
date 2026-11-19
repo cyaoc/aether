@@ -16,7 +16,7 @@ public sealed class ShowTableTests
             ("captain", "guard", "B"), ("admiral", "guard", "A"), ("governor", "guard", "SS"), ("newFirst", "newFirst", "C"), ("lottery", "lottery", "A"),
             ("happy", "mood", "D"), ("calm", "mood", "D"), ("bored", "mood", "D"), ("gloomy", "mood", "D"), ("sleepy", "mood", "D"), ("wake", "mood", "D"),
             ("hum", "daily", "D"), ("gym", "daily", "D"), ("hike", "daily", "D"), ("bike", "daily", "D"), ("ski", "daily", "D"),
-            ("pranksterKnocked", "chestGame", "B"), ("chestKept", "chestGame", "B"), ("chestRobbed", "chestGame", "C"),
+            ("pranksterKnocked", "chestGame", "B"), ("chestKept", "chestGame", "B"), ("chestRobbed", "chestGame", "B"),
         ], Table.Shows.Select(show => (show.Id, show.Group, show.Tier)));
         Assert.Equal(["进场", "礼物", "盲盒", "城堡", "大航海", "新的第一名", "抽奖", "心情", "日常", "出事", "小游戏·她", "小游戏·它"],
             Table.Groups.Select(group => group.Label));
@@ -59,14 +59,17 @@ public sealed class ShowTableTests
             ("hum", "daily", ""), ("gym", "daily", ""), ("hike", "daily", ""), ("bike", "daily", ""), ("ski", "daily", ""),
             ("voiceCrack", "mishap", ""), ("droppedOnFoot", "mishap", ""), ("slipped", "mishap", ""), ("dustOff", "mishap", ""),
             ("bikeCrash", "mishap", ""), ("plaster", "mishap", ""), ("skiFall", "mishap", ""),
-            ("chestFell", "chestGame", ""), ("pranksterHit", "chestGame", "昵称"), ("herHit", "chestGame", "昵称"), ("chestKept", "chestGame", "昵称 连守"),
+            ("chestFell", "chestGame", ""), ("pranksterHit", "chestGame", "昵称"), ("herHit", "chestGame", "昵称"), ("herPelted", "chestGame", "昵称"),
+            ("chestKeptBuzzer", "chestGame", "昵称"), ("chestKept", "chestGame", "昵称 连守"),
             ("pranksterKnocked", "chestGame", "昵称"), ("chestRobbed", "chestGame", ""), ("chestRobbedGloomy", "chestGame", ""),
             ("pranksterPeek", "prankster", ""), ("pranksterGrudge", "prankster", "昵称"), ("pranksterBrag", "prankster", ""), ("pranksterEmpty", "prankster", ""),
-            ("pranksterSits", "prankster", ""), ("pranksterToss", "prankster", ""), ("pranksterCaught", "prankster", ""), ("pranksterRecruit", "prankster", "关键字"),
+            ("pranksterSits", "prankster", ""), ("pranksterToss", "prankster", ""), ("pranksterCaught", "prankster", ""), ("pranksterRecruit", "prankster", ""),
+            ("pranksterTaunt", "prankster", "昵称"), ("pranksterRetort", "prankster", "昵称"), ("pranksterDazed", "prankster", ""), ("pranksterUrge", "prankster", ""),
+            ("pranksterFlower", "prankster", "昵称"), ("pranksterBuzzer", "prankster", "昵称"),
             ("pranksterZap", "prankster", ""), ("pranksterSprint", "prankster", ""), ("pranksterRobs", "prankster", ""), ("pranksterFlees", "prankster", ""),
         ], Table.Lines.Select(kind => (kind.Id, kind.Group, string.Join(' ', kind.Placeholders))));
         // A 来访 is no 演出 (#372): what she and the 捣蛋鬼 say while it is on the page is said in no row.
-        string[] visit = ["chestFell", "pranksterHit", "herHit", .. Table.Lines.Where(kind => kind.Group == "prankster").Select(kind => kind.Id)];
+        string[] visit = ["chestFell", "pranksterHit", "herHit", "herPelted", .. Table.Lines.Where(kind => kind.Group == "prankster").Select(kind => kind.Id)];
         Assert.Equal(Table.Lines.Select(kind => kind.Id).Except(visit).Order(), Table.Shows.SelectMany(show => show.Lines).Distinct().Order());
         Assert.All(Table.Shows.Select(show => show.Group).Concat(Table.Lines.Select(kind => kind.Group)),
             group => Assert.Contains(group, Table.Groups.Select(known => known.Id)));

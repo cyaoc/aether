@@ -43,9 +43,10 @@ def scale(key):
 
 
 def ground(key, i):
-    """The ground line of cell i, as the board takes it: the lowest of her in that row of the sheet."""
+    """The ground line of cell i, as the board takes it: the lowest of her in that row of the sheet (empty cells left out,
+    as the board leaves them out: sheet 17 has only two drawings)."""
     cs = cells(SHEET[key])
-    return max(rows(cs[j]).max() for j in range((i // 3) * 3, (i // 3) * 3 + 3))
+    return max(rows(cs[j]).max() for j in range((i // 3) * 3, (i // 3) * 3 + 3) if rows(cs[j]).size)
 
 
 def anchor(a):

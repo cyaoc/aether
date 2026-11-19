@@ -4,12 +4,12 @@
 
 ## 设置文件
 
-顶层 `format_version` 是程序维护的格式版本，当前为 `2`，不是设置项，GUI 不显示。缺失时按版本 0 检查：0.2.x 的旧分组和大航海身份写法会自动升级；版本 1 的文件没写帮它的关键字、某个盲盒查询关键字又是「捣蛋」（帮它的关键字的默认值）时，写入帮它的关键字「捣乱」，它也是盲盒查询关键字就写「帮它」。升级保留用户值、注释、未知键、编码和 BOM，改过的文件版本记为当前版本；不用改的文件不加版本、不改写。缺少的新分组仍自动补写。升级失败时文件不动，日志和设置页显示原因，连接直播间前需修正，下次读取会重试。版本无效或高于当前程序时拒绝读取且不改写，请修正版本或使用更新程序。
+顶层 `format_version` 是程序维护的格式版本，当前为 `3`，不是设置项，GUI 不显示。缺失时按版本 0 检查：0.2.x 的旧分组和大航海身份写法会自动升级；版本 2 的文件删掉帮它的关键字 `desktop_pet.prankster_keyword` 那一行和它上面模板自带的那行注释（注释改过的留着），改过的「招人」台词里 `{关键字}` 换成 `2`：宝箱小游戏改成送礼或发 1、2 站队，不再有帮它的关键字。升级保留用户值、注释、未知键、编码和 BOM，改过的文件版本记为当前版本；不用改的文件不加版本、不改写。缺少的新分组仍自动补写。升级失败时文件不动，日志和设置页显示原因，连接直播间前需修正，下次读取会重试。版本无效或高于当前程序时拒绝读取且不改写，请修正版本或使用更新程序。
 
 CLI 和 GUI 共用 bot 设置文件 `data/aether.yml`（数据目录位置见下文“数据目录与数据库”）。首次运行时自动生成带中文注释的模板，默认值是生效的行：
 
 ```yaml
-format_version: 2
+format_version: 3
 log:
   retention_days: 30
   level: Information
@@ -46,6 +46,8 @@ desktop_pet:
   bored_minutes: 15
   gloomy_minutes: 40
   sleepy_minutes: 60
+  prankster_minutes: 30
+  lucky_percent: 10
   daily_min_seconds: 20
   daily_max_seconds: 40
   mishap_percent: 25
@@ -58,7 +60,7 @@ auto_update:
 
 直播画面功能的分组（`entry_animation`、`entry_animation_viewers`、`gift_animation`、`desktop_pet`、`web_service`）和 `auto_update` 只在 GUI 里生效；CLI 照常读和校验，写错了照样报错（[ADR 0003](adr/0003-one-bot-two-shells.md)、[ADR 0016](adr/0016-config-in-settings-file-and-database.md)）。`auto_update.enabled` 默认 `true`，打开 GUI 时检查并自动更新，在“通用设置”里和其他项一样点“保存”生效。
 
-`desktop_pet` 是桌宠的设置，默认值就是演出设计：`shows_off` 是不演的演出和日常小动作，写演出表（`src/Aether.Core/Pages/desktop-pet/shows.json`）里的英文 id，没写的都演，心情不能写在这里；`mid_gift_spend`、`big_gift_spend` 是中礼物、大礼物门槛（电池，按一轮的投入比，盲盒也一样），正整数，中礼物门槛要小于大礼物门槛；`bored_minutes`、`gloomy_minutes`、`sleepy_minutes` 是冷场几分钟进入无聊、沮丧、犯困，0 表示不进；`daily_min_seconds`、`daily_max_seconds` 是平静时隔几秒做一个日常小动作，正整数，最少不能比最多大，可以相等；`mishap_percent` 是日常小动作出事的几率，0–100。
+`desktop_pet` 是桌宠的设置，默认值就是演出设计：`shows_off` 是不演的演出和日常小动作，写演出表（`src/Aether.Core/Pages/desktop-pet/shows.json`）里的英文 id，没写的都演，心情不能写在这里；`mid_gift_spend`、`big_gift_spend` 是中礼物、大礼物门槛（电池，按一轮的投入比，盲盒也一样），正整数，中礼物门槛要小于大礼物门槛；`bored_minutes`、`gloomy_minutes`、`sleepy_minutes` 是冷场几分钟进入无聊、沮丧、犯困，0 表示不进；`prankster_minutes` 是宝箱小游戏里捣蛋鬼最多每几分钟自己来一次，非负整数，0 表示只在主播叫它时来；`lucky_percent` 是拔河时每个纸团是幸运纸团的几率，0–100，0 表示不出幸运纸团；`daily_min_seconds`、`daily_max_seconds` 是平静时隔几秒做一个日常小动作，正整数，最少不能比最多大，可以相等；`mishap_percent` 是日常小动作出事的几率，0–100。
 改过的台词也在这一组，一类一行，键是 `lines.角色编号.台词类`（例如 `lines.1.bigGift`），值的写法和欢迎语一样，列表和每一句都不能为空，占位只能用这一类台词能用的；没写的类用角色自带的台词，改回和角色自带的一样时这一行删掉。老的设置文件没有 `desktop_pet` 时，打开后补写整组默认值，其他行不变。
 
 `log.retention_days` 是日志保留天数，必须为正整数，默认 30；`log.level` 是文件日志最低级别，

@@ -101,12 +101,12 @@ internal sealed class DesktopPet(WebService service, Character character)
 
     public void Tell(string name, object data) => Publish(new(name, data));
 
-    /// <summary>Only who wrote it and whether it is the 帮它的关键字 saved last: what a viewer wrote never reaches the stream.</summary>
-    public void TellDanmaku(Danmaku danmaku)
-    {
-        if (service.Settings is { } settings)
-            Tell(Danmaku, new { danmaku.Uid, danmaku.Nickname, joins = Settings.SameKeyword(danmaku.Content, settings.DesktopPetPranksterKeyword.Value) });
-    }
+    /// <summary>Only who wrote it and the 站队 it takes: what a viewer wrote never reaches the stream.</summary>
+    public void TellDanmaku(Danmaku danmaku) => Tell(Danmaku, new { danmaku.Uid, danmaku.Nickname, side = SideOf(danmaku.Content) });
+
+    /// <summary>The 站队 a danmaku saying <paramref name="said"/> takes in a 来访: 1, hers, when all of it is "1"; -1, the 捣蛋鬼's,
+    /// when it is "2"; else 0, none.</summary>
+    public static int SideOf(string said) => Settings.SameKeyword(said, "1") ? 1 : Settings.SameKeyword(said, "2") ? -1 : 0;
 
     /// <summary>Has the page play <paramref name="show"/> now; while no page would, the GUI is told it ended, with why.</summary>
     public void TestShow(string show, string? variant, string nickname)
@@ -232,28 +232,29 @@ internal sealed record DesktopPetState(bool Enabled, bool RoomConnected = false,
 /// <summary>How the streamer set the 桌宠 to play: the 演出表 rows turned off; the 中礼物 and 大礼物 thresholds, in 金瓜子 as the
 /// rounds' amounts are; the quiet minutes before 无聊, 沮丧 and 犯困, 0 for never; the least and most seconds between 日常小动作; and
 /// the percent chance one goes wrong; the most minutes between the 捣蛋鬼's own 来访, 0 for only when the streamer 叫它来; and the
-/// 帮它的关键字, which its 招人 line says.</summary>
+/// percent chance a 纸团 is a 幸运纸团, 0 for never.</summary>
 internal sealed record DesktopPetSettings(IReadOnlyList<string> Off, long MidGift, long BigGift, int BoredMinutes, int GloomyMinutes,
-    int SleepyMinutes, int DailyMinSeconds, int DailyMaxSeconds, int MishapPercent, int PranksterMinutes, string PranksterKeyword)
+    int SleepyMinutes, int DailyMinSeconds, int DailyMaxSeconds, int MishapPercent, int PranksterMinutes, int LuckyPercent)
 {
     public static DesktopPetSettings Of(Settings settings) => new(settings.DesktopPetShowsOff.Value, Battery.ToCoins(settings.DesktopPetMidGift.Value),
         Battery.ToCoins(settings.DesktopPetBigGift.Value), settings.DesktopPetBoredMinutes.Value, settings.DesktopPetGloomyMinutes.Value,
         settings.DesktopPetSleepyMinutes.Value, settings.DesktopPetDailyMinSeconds.Value, settings.DesktopPetDailyMaxSeconds.Value,
-        settings.DesktopPetMishapPercent.Value, settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetPranksterKeyword.Value);
+        settings.DesktopPetMishapPercent.Value, settings.DesktopPetPranksterMinutes.Value, settings.DesktopPetLuckyPercent.Value);
 }
 
 /// <summary>A viewer's 一轮送礼, told after each gift message with the viewer's gifts in it, and once more as it ends, with none:
-/// the 桌宠页 makes her round of those it does not throw at the 捣蛋鬼. Its 大航海 play on their own and are in none of it.</summary>
-internal sealed record GiftRoundProgress(long Uid, string Nickname, IReadOnlyList<GiftItem> Items, bool Ended);
+/// the 桌宠页 makes her round of those it does not throw at the 捣蛋鬼. Its 大航海 play on their own and are in none of it. The
+/// viewer's face is the one that message carries, empty when it has none and as the round ends.</summary>
+internal sealed record GiftRoundProgress(long Uid, string Nickname, string FaceUrl, IReadOnlyList<GiftItem> Items, bool Ended);
 
 /// <summary>One of a gift message's gifts: its gift id, name and price of one, a 盲盒's those of the gift it opened, by which the
 /// 桌宠页 picks a round's gift priced highest and counts how many of it, as GiftRoundFeature's rounds did; its 投入 in 金瓜子, a
 /// 盲盒's the box's price; how many; whether it is a 盲盒, and whether that opened a 浪漫城堡, the only way B站 gives one (one
-/// sent as a gift is that gift); and its icon, a 盲盒's that of the gift it opened, empty when B站 gave none.</summary>
-internal sealed record GiftItem(long GiftId, string Name, long Price, long Spend, long Count, bool Blind, bool Castle, string IconUrl)
+/// sent as a gift is that gift).</summary>
+internal sealed record GiftItem(long GiftId, string Name, long Price, long Spend, long Count, bool Blind, bool Castle)
 {
     public static GiftItem Of(Gift gift) => new(gift.GiftId, gift.GiftName, gift.Price, gift.Spend, gift.Num, gift.Blind is not null,
-        gift is { Blind: not null, IsCastle: true }, gift.IconUrl);
+        gift is { Blind: not null, IsCastle: true });
 }
 
 /// <summary>A viewer's 一轮盲盒 as its 盲盒播报 reported it, sent or given up, or without one as the 一轮送礼 ended: the tally, how

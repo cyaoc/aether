@@ -47,7 +47,7 @@ public sealed class DesktopPetPageTests
         await h.ApplySettingsAsync(("desktop_pet.enabled", "true"), ("desktop_pet.mid_gift_spend", "2000"));
         using var pet = await DesktopPetEvents.OpenAsync(h);
         var state = await pet.NextAsync("state");
-        Assert.Equal("""{"off":[],"midGift":200000,"bigGift":1000000,"boredMinutes":15,"gloomyMinutes":40,"sleepyMinutes":60,"dailyMinSeconds":20,"dailyMaxSeconds":40,"mishapPercent":25,"pranksterMinutes":30,"pranksterKeyword":"\u6363\u86CB"}""",
+        Assert.Equal("""{"off":[],"midGift":200000,"bigGift":1000000,"boredMinutes":15,"gloomyMinutes":40,"sleepyMinutes":60,"dailyMinSeconds":20,"dailyMaxSeconds":40,"mishapPercent":25,"pranksterMinutes":30,"luckyPercent":10}""",
             state.GetProperty("settings").GetRawText());
         Assert.Equal(["哇！{昵称}送了{礼物}！", "这么贵重的{礼物}…谢谢{昵称}！", "心跳好快…谢谢{昵称}！", "我会好好珍惜的！"], Lines(state, "bigGift"));
 
@@ -101,33 +101,27 @@ public sealed class DesktopPetPageTests
 
         var (name, entry) = await pet.NextAsync();
         Assert.Equal(("entry", 20002L, "进场观众"), (name, entry.GetProperty("uid").GetInt64(), entry.GetProperty("nickname").GetString()));
-        Assert.Equal(("danmaku", """{"uid":30003,"nickname":"\u89C2\u4F17","joins":false}"""),
+        Assert.Equal(("danmaku", """{"uid":30003,"nickname":"\u89C2\u4F17","side":0}"""),
             (await pet.NextAsync()) is var (danmaku, data) ? (danmaku, data.GetRawText()) : default);
     }
 
     [Fact]
-    public async Task A_danmaku_that_is_the_helper_keyword_joins_as_saved_last_and_the_accounts_own_is_not_told()
+    public async Task A_danmaku_that_is_all_1_or_2_takes_her_side_or_the_pranksters_and_the_accounts_own_is_not_told()
     {
         await using var h = new WatchHarness();
         var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
         using var _ = pet;
         await using var __ = updates;
 
-        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[]," 捣蛋 ",[30003,"观众"]]}""");
         // The bot's own thanks, welcomes and 盲盒播报 come back from B站 as the account's danmaku.
-        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"捣蛋",[9876543210,"主播的号"]]}""");
-        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"捣蛋蛋",[30004,"另一位"]]}""");
+        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"1",[9876543210,"主播的号"]]}""");
+        foreach (var (uid, said) in new[] { (30003, "1"), (30004, "2"), (30005, " 1 "), (30006, "111") })
+            await h.Server.PushRoomMessageAsync($$"""{"cmd":"DANMU_MSG","info":[[],"{{said}}",[{{uid}},"观众"]]}""");
 
-        Assert.Equal((30003L, true), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
-        Assert.Equal((30004L, false), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
-        await h.ApplySettingsAsync(("desktop_pet.prankster_keyword", "帮它"));
-        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"捣蛋",[30005,"观众"]]}""");
-        await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"帮它",[30006,"观众"]]}""");
+        foreach (var told in new[] { (30003L, 1), (30004L, -1), (30005L, 1), (30006L, 0) })
+            Assert.Equal(told, Side(await pet.NextAsync(DesktopPet.Danmaku)));
 
-        Assert.Equal((30005L, false), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
-        Assert.Equal((30006L, true), Joins(await pet.NextAsync(DesktopPet.Danmaku)));
-
-        static (long, bool) Joins(JsonElement danmaku) => (danmaku.GetProperty("uid").GetInt64(), danmaku.GetProperty("joins").GetBoolean());
+        static (long, int) Side(JsonElement danmaku) => (danmaku.GetProperty("uid").GetInt64(), danmaku.GetProperty("side").GetInt32());
     }
 
     [Fact]

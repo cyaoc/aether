@@ -8,12 +8,9 @@ public sealed class LotteryFacade
 {
     private readonly Region<LotteryController> region;
     private readonly Func<LotteryState> state;
-    private readonly Func<string?> helperKeyword;
 
-    /// <param name="helperKeyword">The 帮它的关键字 the web service applied last, none before it applied any.</param>
-    internal LotteryFacade(Regions regions, Func<LotteryStore> store, Random random, Func<string?> helperKeyword)
+    internal LotteryFacade(Regions regions, Func<LotteryStore> store, Random random)
     {
-        this.helperKeyword = helperKeyword;
         region = regions.Create(timers => new LotteryController(store, timers, regions.Logger, random));
         state = region.Snapshot(s => s.State);
     }
@@ -60,15 +57,7 @@ public sealed class LotteryFacade
 
     public Task HideAllDrawsFromStreamAsync() => region.Run(s => s.HideAllDrawsFromStream());
 
-    /// <summary>Opens the 报名抽奖's entries with <paramref name="keyword"/>, which is not to be the 帮它的关键字.</summary>
-    public Task StartEntryAsync(IReadOnlyCollection<LotteryAward> awards, string keyword)
-    {
-        var helper = helperKeyword();
-        return region.Run(s => s.StartEntry(awards, keyword, helper));
-    }
-
-    /// <summary>The keyword a new 报名抽奖 starts with, which the 帮它的关键字 must not be.</summary>
-    public Task<string> GetNextEntryKeywordAsync() => region.Run(s => s.NextEntryKeyword);
+    public Task StartEntryAsync(IReadOnlyCollection<LotteryAward> awards, string keyword) => region.Run(s => s.StartEntry(awards, keyword));
 
     public Task CloseEntriesAsync() => region.Run(s => s.CloseEntries());
 

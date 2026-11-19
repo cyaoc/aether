@@ -33,24 +33,35 @@ public sealed class DesktopPetGiftTests
         h.Time.Advance(TimeSpan.FromSeconds(3));
 
         Assert.Equal(1198000, Assert.IsType<GiftRoundEnded>(await h.NextAsync(updates)).Spend);
-        await AssertRoundAsync(pet, Round() with { Ended = true });
+        await AssertRoundAsync(pet, Round() with { FaceUrl = "", Ended = true });
     }
 
     [Fact]
-    public async Task A_gift_message_tells_each_of_the_viewers_gifts_in_it_a_blind_box_at_its_price_with_the_name_and_icon_of_what_it_opened()
+    public async Task A_gift_message_without_the_viewers_face_tells_an_empty_one()
     {
         await using var h = new WatchHarness();
         var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
         using var _ = pet;
-        const string bell = "https://s1.hdslb.com/bfs/live/test-bell.png";
+
+        await h.PushAndSyncAsync(updates, BlindGiftV2Fixture.Message(BlindGiftV2Fixture.Broadcast(face: null)));
+
+        Assert.Equal("", (await pet.NextAsync(DesktopPet.Gift)).GetProperty("faceUrl").GetString());
+    }
+
+    [Fact]
+    public async Task A_gift_message_tells_each_of_the_viewers_gifts_in_it_a_blind_box_at_its_price_with_the_name_of_what_it_opened()
+    {
+        await using var h = new WatchHarness();
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
 
         await h.PushAndSyncAsync(updates, BlindGiftV2Fixture.Message(BlindGiftV2Fixture.Broadcast([
             BlindGiftV2Fixture.Item(35311, "好运柚叶", 1, 2500, 5000, "box-1"),
-            BlindGiftV2Fixture.Item(35208, "星光铃铛", 8, 5200, 40000, "box-2", icon: bell),
-            BlindGiftV2Fixture.Item(35207, "幸运泡泡", 1, 1500, 5000, "box-3", icon: null)])));
+            BlindGiftV2Fixture.Item(35208, "星光铃铛", 8, 5200, 40000, "box-2"),
+            BlindGiftV2Fixture.Item(35207, "幸运泡泡", 1, 1500, 5000, "box-3")])));
 
-        await AssertRoundAsync(pet, Round(new(35311, "好运柚叶", 2500, 5000, 1, true, false, BlindGiftV2Fixture.TestIcon),
-            new(35208, "星光铃铛", 5200, 40000, 8, true, false, bell), new(35207, "幸运泡泡", 1500, 5000, 1, true, false, "")));
+        await AssertRoundAsync(pet, Round(new(35311, "好运柚叶", 2500, 5000, 1, true, false),
+            new(35208, "星光铃铛", 5200, 40000, 8, true, false), new(35207, "幸运泡泡", 1500, 5000, 1, true, false)) with { FaceUrl = BlindGiftV2Fixture.TestFace });
     }
 
     [Theory]
@@ -116,7 +127,7 @@ public sealed class DesktopPetGiftTests
         var castle = With(data => { data["giftId"] = 32132; data["giftName"] = "浪漫城堡"; data["price"] = 2233000; data["total_coin"] = 15000; });
         await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), spend: 1500), castle);
         await pet.NextAsync(DesktopPet.Gift);
-        await AssertRoundAsync(pet, Round(new GiftItem(32132, "浪漫城堡", 2233000, 15000, 1, true, true, TestIcon)));
+        await AssertRoundAsync(pet, Round(new GiftItem(32132, "浪漫城堡", 2233000, 15000, 1, true, true)));
 
         h.Time.Advance(TimeSpan.FromSeconds(3));
 
@@ -167,10 +178,10 @@ public sealed class DesktopPetGiftTests
         Assert.Equal(round, told with { Items = round.Items });
     }
 
-    /// <summary>The test viewer's 一轮送礼 told after a message of these gifts.</summary>
-    private static GiftRoundProgress Round(params GiftItem[] items) => new(10001, "测试观众", items, false);
+    /// <summary>The test viewer's 一轮送礼 told after a message of these gifts, with the face the V1 fixture's messages carry.</summary>
+    private static GiftRoundProgress Round(params GiftItem[] items) => new(10001, "测试观众", TestFace, items, false);
 
     /// <summary>A gift sent as itself, <paramref name="count"/> of it at <paramref name="price"/> each.</summary>
     private static GiftItem Item(long giftId, string name, long price, long count) =>
-        new(giftId, name, price, price * count, count, false, false, TestIcon);
+        new(giftId, name, price, price * count, count, false, false);
 }

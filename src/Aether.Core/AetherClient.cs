@@ -40,15 +40,12 @@ public sealed partial class AetherClient : IDisposable
                 new LotteryStore(database), new GiftBoardStore(database), new GuiStateStore(database));
         }, LazyThreadSafetyMode.PublicationOnly);
         regions = new(timeProvider, logger);
-        Lottery = new(regions, () => stores.Value.Lotteries, random ?? Random.Shared, HelperKeyword);
+        Lottery = new(regions, () => stores.Value.Lotteries, random ?? Random.Shared);
         GiftBoard = new(regions, () => stores.Value.GiftBoards, uid => Api(credential: null).GetFaceAsync(uid, CancellationToken.None));
         WebService = new(regions, dataDirectory, Lottery, GiftBoard);
         GuiState = new(regions, () => stores.Value.GuiStates);
         account = new(regions, () => stores.Value.Credentials);
     }
-
-    /// <summary>The 帮它的关键字 the web service applied last: an 报名抽奖 must not open with it.</summary>
-    private string? HelperKeyword() => WebService.Settings?.DesktopPetPranksterKeyword.Value;
 
     /// <inheritdoc cref="Regions.IdleAsync"/>
     public Task IdleAsync() => regions.IdleAsync();

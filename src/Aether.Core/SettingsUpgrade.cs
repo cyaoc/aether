@@ -7,7 +7,7 @@ namespace Aether.Core;
 
 internal static class SettingsUpgrade
 {
-    internal const int CurrentVersion = 2;
+    internal const int CurrentVersion = 3;
 
     // The 0.2.x spellings, frozen here rather than read from Settings.WelcomeGuards, which may change.
     private static readonly string[] V0Guards = ["关闭", "舰长", "提督", "总督"];
@@ -15,6 +15,11 @@ internal static class SettingsUpgrade
     // Format 1's 盲盒查询 keywords, and the 帮它的关键字 such a file may be given, the first that is none of them: one of the three
     // is 「捣蛋」, so the other two take two at most. Frozen as V0Guards is.
     private static readonly string[] V1BlindBoxQueries = ["daily_keyword", "monthly_keyword", "yearly_keyword"], V1HelperKeywords = ["捣乱", "帮它", "帮捣蛋"];
+
+    // The v0.6.2 Template's comment on the 帮它的关键字, the last of format 2, and the placeholder a 招人 line took for it.
+    // Frozen as V0Guards is.
+    private const string V2HelperComment = "# 帮它的关键字，观众发了就站到捣蛋鬼那边；非空文字，不能和下一场报名抽奖、盲盒查询的关键字一样";
+    private const string V2Placeholder = "{关键字}";
 
     internal static string Apply(string source, int version, string path)
     {
@@ -25,6 +30,7 @@ internal static class SettingsUpgrade
             {
                 0 => UpgradeV0(source, path),
                 1 => UpgradeV1(source, path),
+                2 => UpgradeV2(source, path),
                 _ => throw new InvalidOperationException("缺少设置文件升级步骤。"),
             };
             version++;
@@ -127,6 +133,51 @@ internal static class SettingsUpgrade
         return source.Insert(at, lead + text);
 
         int AfterGroupKey() => LineEnd(source, (int)root.Children.Keys.First(key => key is YamlScalarNode { Value: "desktop_pet" }).End.Index);
+    }
+
+    /// <summary>Format 3 has no 帮它的关键字: a viewer takes the 捣蛋鬼's side with a 小花花 or a danmaku of 2. Its line goes, with
+    /// the Template's comment right above it, and a changed 招人 line, of any character, says 2 where it said {关键字}, which that
+    /// kind of line takes no more. The names are frozen here, as V0Guards is.</summary>
+    private static string UpgradeV2(string source, string path)
+    {
+        if (Settings.ChildOf(RootOf(source), "desktop_pet") is not YamlMappingNode group) return source;
+        var tokens = Settings.Scan(source);
+        // Last line first, so the lines before keep their places.
+        foreach (var (key, value) in group.Children.Reverse())
+        {
+            var name = (key as YamlScalarNode)?.Value ?? "";
+            if (name == "prankster_keyword") source = WithoutHelper(key, value);
+            else if (name.StartsWith("lines.", StringComparison.Ordinal) && name.EndsWith(".pranksterRecruit", StringComparison.Ordinal)) source = SayingTwo(value);
+        }
+        return source;
+
+        // A comment the user changed stays. Only a scanner-recognized one counts, as in UpgradeV0, and tokens after the line have moved.
+        string WithoutHelper(YamlNode key, YamlNode value)
+        {
+            var end = Settings.EndOf(tokens, value);
+            if (group.Style != MappingStyle.Block || key.Start.Line != end.Line) throw CannotEdit(path, key);
+            int from = LineStart(source, (int)key.Start.Index), to = LineEnd(source, (int)end.Index);
+            var comment = tokens.OfType<Tokens.Comment>().FirstOrDefault(token => token.End.Index < from && LineEnd(source, (int)token.End.Index) == from
+                && source[LineStart(source, (int)token.Start.Index)..(int)token.End.Index].TrimStart(' ') == V2HelperComment);
+            return source[..(comment is null ? from : LineStart(source, (int)comment.Start.Index))] + source[to..];
+        }
+
+        // The placeholder is found in what each line reads as: "\u007b关键字}" is one too. A line that spells every one out keeps
+        // its own quotes; one that escapes any is written again as Settings writes a line. Each is edited where it stands, so a
+        // list over several lines is no matter, and one with no placeholder is not touched. Last line first, as above.
+        string SayingTwo(YamlNode lines)
+        {
+            foreach (var line in lines.AllNodes.OfType<YamlScalarNode>().Reverse())
+            {
+                if (line.Value is not { } said || !said.Contains(V2Placeholder, StringComparison.Ordinal)) continue;
+                var (start, length, _) = ScalarEdit(tokens, line, "", path);
+                var written = source.Substring(start, length);
+                var spelled = written.Split(V2Placeholder).Length == said.Split(V2Placeholder).Length;
+                source = source.Remove(start, length).Insert(start, spelled ? written.Replace(V2Placeholder, "2")
+                    : Settings.TextListText([said.Replace(V2Placeholder, "2")])[1..^1]);
+            }
+            return source;
+        }
     }
 
     /// <summary>Marks a file the steps changed as the current format: its format_version, or one above the comments that lead its
