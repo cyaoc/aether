@@ -16,8 +16,10 @@ internal static class SettingsUpgrade
     // is 「捣蛋」, so the other two take two at most. Frozen as V0Guards is.
     private static readonly string[] V1BlindBoxQueries = ["daily_keyword", "monthly_keyword", "yearly_keyword"], V1HelperKeywords = ["捣乱", "帮它", "帮捣蛋"];
 
-    // The v0.6.2 Template's comment on the 帮它的关键字, the last of format 2. Frozen as V0Guards is.
+    // The v0.6.2 Template's comment on the 帮它的关键字, the last of format 2, and the placeholder a 招人 line took for it.
+    // Frozen as V0Guards is.
     private const string V2HelperComment = "# 帮它的关键字，观众发了就站到捣蛋鬼那边；非空文字，不能和下一场报名抽奖、盲盒查询的关键字一样";
+    private const string V2Placeholder = "{关键字}";
 
     internal static string Apply(string source, int version, string path)
     {
@@ -148,7 +150,7 @@ internal static class SettingsUpgrade
             if (!helper && !(name.StartsWith("lines.", StringComparison.Ordinal) && name.EndsWith(".pranksterRecruit", StringComparison.Ordinal))) continue;
             var end = Settings.EndOf(tokens, value);
             if (group.Style != MappingStyle.Block || key.Start.Line != end.Line) throw CannotEdit(path, key);
-            source = helper ? WithoutHelper(LineStart(source, (int)key.Start.Index), LineEnd(source, (int)end.Index)) : SayingTwo((int)value.Start.Index, (int)end.Index);
+            source = helper ? WithoutHelper(LineStart(source, (int)key.Start.Index), LineEnd(source, (int)end.Index)) : SayingTwo(value);
         }
         return source;
 
@@ -160,7 +162,21 @@ internal static class SettingsUpgrade
             return source[..(comment is null ? from : LineStart(source, (int)comment.Start.Index))] + source[to..];
         }
 
-        string SayingTwo(int from, int to) => source[..from] + source[from..to].Replace("{关键字}", "2") + source[to..];
+        // The placeholder is found in what each line reads as: "\u007b关键字}" is one too. A line that spells every one out keeps
+        // its own quotes; one that escapes any is written again as Settings writes a line. Last line first, as above.
+        string SayingTwo(YamlNode lines)
+        {
+            foreach (var line in lines.AllNodes.OfType<YamlScalarNode>().Reverse())
+            {
+                if (line.Value is not { } said || !said.Contains(V2Placeholder, StringComparison.Ordinal)) continue;
+                var (start, length, _) = ScalarEdit(tokens, line, "", path);
+                var written = source.Substring(start, length);
+                var spelled = written.Split(V2Placeholder).Length == said.Split(V2Placeholder).Length;
+                source = source.Remove(start, length).Insert(start, spelled ? written.Replace(V2Placeholder, "2")
+                    : Settings.TextListText([said.Replace(V2Placeholder, "2")])[1..^1]);
+            }
+            return source;
+        }
     }
 
     /// <summary>Marks a file the steps changed as the current format: its format_version, or one above the comments that lead its

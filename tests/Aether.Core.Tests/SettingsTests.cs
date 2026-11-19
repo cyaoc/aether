@@ -341,6 +341,19 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Fact]
+    public void Upgrade_has_a_recruit_line_say_2_where_the_helper_keyword_is_written_escaped()
+    {
+        Write("format_version: 2\ndesktop_pet:\n  lines.1.pranksterRecruit: [\"发\\u007b关键字}\", '发{关键字}', \"\\x7b关键字\\u007d和{关键字}\"]  # 招人\n");
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Null(settings.Error);
+        Assert.Equal(["发2", "发2", "2和2"], settings.DesktopPetChangedLines["pranksterRecruit"].Value);
+        // (a line that spells the placeholder out keeps its own quotes; one that escapes it is written again as Settings writes a line)
+        Assert.StartsWith("format_version: 3\ndesktop_pet:\n  lines.1.pranksterRecruit: [\"发2\", '发2', \"2和2\"]  # 招人\n", File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
     public void Upgrade_leaves_a_format_2_file_with_neither_as_it_was()
     {
         var old = Fixture("settings-v0.6.2.yml");
