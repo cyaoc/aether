@@ -793,6 +793,17 @@ test('the room disconnected while the 捣蛋鬼 is here, it runs off with nothin
   assert.deepEqual([pet.gm.visit, told, chest, pile, streak, grudge, [...shows]], [null, ['start', 'end'], 0, 0, 0, null, [null]]);
 });
 
+test('the room disconnected while a gift\'s light is on its way to the 捣蛋鬼, the gift and what waited behind it play nothing after and put nothing in the chest', () => {
+  const pet = tugging(500, { off: NO_DAILY }), shows = new Set();
+  pet.guard(captain);
+  pet.guard(captain);
+  assert.deepEqual([pet.gm.burst.due > pet.now(), pet.gm.burst.more.length], [true, 1]);
+  pet.receive(state(pet, { roomConnected: false }));
+  pet.receive(state(pet));
+  play(pet, 20000, () => shows.add(playing(pet)));
+  assert.deepEqual([pet.gm.chest, pet.gm.pile, [...shows]], [0, 0, [null]]);
+});
+
 test('a danmaku that is just 1 or 2 puts its viewer on a side, the last one said standing; one who sent a 人气票 or 小花花 stays where the gift put them', () => {
   const pet = tugging(), sides = () => Object.fromEntries([...pet.gm.visit.sides].map(([uid, on]) => [uid, `${on.side} by ${on.by}`]));
   pet.danmaku({ uid: 5, nickname: '观众5', side: 1 });

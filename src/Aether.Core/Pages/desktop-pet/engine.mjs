@@ -281,7 +281,8 @@ export class Engine extends EventTarget {
     if (!state.roomConnected) {
       this.forgetRounds(); this.callOff(now);
       if (this.gm.visit) Object.assign(this.gm.visit, { queue: [], hits: [] });
-      Object.assign(this.gm, { chest: 0, pile: 0, streak: 0, steals: 0, brag: false, grudge: null, aside: 0, asidePile: 0, top: null });
+      // (a gift whose light was still on its way, and what waited behind it, are of that room too: burst)
+      Object.assign(this.gm, { chest: 0, pile: 0, streak: 0, steals: 0, brag: false, grudge: null, aside: 0, asidePile: 0, top: null, burst: null });
     }
     this.room = state.roomConnected;
     // switched off she is told nothing more, and back on she starts from what she is told then; Core forgets the 捣蛋鬼 too
