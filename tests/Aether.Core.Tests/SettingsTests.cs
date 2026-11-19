@@ -354,6 +354,18 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Fact]
+    public void Upgrade_has_a_recruit_line_over_several_lines_say_2_where_it_said_the_helper_keyword_and_leaves_one_that_never_did()
+    {
+        Write("format_version: 2\ndesktop_pet:\n  lines.1.pranksterRecruit:\n    - 跟我混\n  lines.2.pranksterRecruit:\n    - 发{关键字}\n    - 跟我混\n");
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Null(settings.Error);
+        Assert.StartsWith("format_version: 3\ndesktop_pet:\n  lines.1.pranksterRecruit:\n    - 跟我混\n  lines.2.pranksterRecruit:\n    - 发2\n    - 跟我混\n",
+            File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
     public void Upgrade_leaves_a_format_2_file_with_neither_as_it_was()
     {
         var old = Fixture("settings-v0.6.2.yml");

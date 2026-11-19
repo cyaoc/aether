@@ -146,24 +146,25 @@ internal static class SettingsUpgrade
         foreach (var (key, value) in group.Children.Reverse())
         {
             var name = (key as YamlScalarNode)?.Value ?? "";
-            var helper = name == "prankster_keyword";
-            if (!helper && !(name.StartsWith("lines.", StringComparison.Ordinal) && name.EndsWith(".pranksterRecruit", StringComparison.Ordinal))) continue;
-            var end = Settings.EndOf(tokens, value);
-            if (group.Style != MappingStyle.Block || key.Start.Line != end.Line) throw CannotEdit(path, key);
-            source = helper ? WithoutHelper(LineStart(source, (int)key.Start.Index), LineEnd(source, (int)end.Index)) : SayingTwo(value);
+            if (name == "prankster_keyword") source = WithoutHelper(key, value);
+            else if (name.StartsWith("lines.", StringComparison.Ordinal) && name.EndsWith(".pranksterRecruit", StringComparison.Ordinal)) source = SayingTwo(value);
         }
         return source;
 
         // A comment the user changed stays. Only a scanner-recognized one counts, as in UpgradeV0, and tokens after the line have moved.
-        string WithoutHelper(int from, int to)
+        string WithoutHelper(YamlNode key, YamlNode value)
         {
+            var end = Settings.EndOf(tokens, value);
+            if (group.Style != MappingStyle.Block || key.Start.Line != end.Line) throw CannotEdit(path, key);
+            int from = LineStart(source, (int)key.Start.Index), to = LineEnd(source, (int)end.Index);
             var comment = tokens.OfType<Tokens.Comment>().FirstOrDefault(token => token.End.Index < from && LineEnd(source, (int)token.End.Index) == from
                 && source[LineStart(source, (int)token.Start.Index)..(int)token.End.Index].TrimStart(' ') == V2HelperComment);
             return source[..(comment is null ? from : LineStart(source, (int)comment.Start.Index))] + source[to..];
         }
 
         // The placeholder is found in what each line reads as: "\u007b关键字}" is one too. A line that spells every one out keeps
-        // its own quotes; one that escapes any is written again as Settings writes a line. Last line first, as above.
+        // its own quotes; one that escapes any is written again as Settings writes a line. Each is edited where it stands, so a
+        // list over several lines is no matter, and one with no placeholder is not touched. Last line first, as above.
         string SayingTwo(YamlNode lines)
         {
             foreach (var line in lines.AllNodes.OfType<YamlScalarNode>().Reverse())
