@@ -793,15 +793,17 @@ test('the room disconnected while the 捣蛋鬼 is here, it runs off with nothin
   assert.deepEqual([pet.gm.visit, told, chest, pile, streak, grudge, [...shows]], [null, ['start', 'end'], 0, 0, 0, null, [null]]);
 });
 
-test('the room disconnected while a gift\'s light is on its way to the 捣蛋鬼, the gift and what waited behind it play nothing after and put nothing in the chest', () => {
-  const pet = tugging(500, { off: NO_DAILY }), shows = new Set();
+test('the room disconnected while a gift\'s light is on its way to the 捣蛋鬼, the gift and what waited behind it play as after a PK and put nothing in the chest', () => {
+  const pet = tugging(500, { off: NO_DAILY });
   pet.guard(captain);
   pet.guard(captain);
   assert.deepEqual([pet.gm.burst.due > pet.now(), pet.gm.burst.more.length], [true, 1]);
   pet.receive(state(pet, { roomConnected: false }));
+  assert.deepEqual(pet.queue.map(q => q.name), ['captain', 'captain']);
   pet.receive(state(pet));
+  const shows = new Set();
   play(pet, 20000, () => shows.add(playing(pet)));
-  assert.deepEqual([pet.gm.chest, pet.gm.pile, [...shows]], [0, 0, [null]]);
+  assert.deepEqual([pet.gm.chest, pet.gm.pile, shows.has('captain')], [0, 0, true]);
 });
 
 test('a danmaku that is just 1 or 2 puts its viewer on a side, the last one said standing; one who sent a 人气票 or 小花花 stays where the gift put them', () => {

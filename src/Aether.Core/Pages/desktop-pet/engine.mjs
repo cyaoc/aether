@@ -281,8 +281,9 @@ export class Engine extends EventTarget {
     if (!state.roomConnected) {
       this.forgetRounds(); this.callOff(now);
       if (this.gm.visit) Object.assign(this.gm.visit, { queue: [], hits: [] });
-      // (a gift whose light was still on its way, and what waited behind it, are of that room too: burst)
-      Object.assign(this.gm, { chest: 0, pile: 0, streak: 0, steals: 0, brag: false, grudge: null, aside: 0, asidePile: 0, top: null, burst: null });
+      // a gift whose light is on its way plays now, and what waited behind it, as after a PK; their 电池 go with the room's
+      if (this.gm.burst?.due != null) this.burstIn();
+      Object.assign(this.gm, { chest: 0, pile: 0, streak: 0, steals: 0, brag: false, grudge: null, aside: 0, asidePile: 0, top: null });
     }
     this.room = state.roomConnected;
     // switched off she is told nothing more, and back on she starts from what she is told then; Core forgets the 捣蛋鬼 too
@@ -988,6 +989,13 @@ export class Engine extends EventTarget {
     gm.burst = { at: now, o, rgb: GLOW[ev.tier], due: now + BURST.glow + BURST.ms * (1 - Math.sqrt(1 - k)), name, opts, more: [] };
   }
 
+  // The light has reached it: the gift's show goes on, and what waited behind it.
+  burstIn() {
+    const b = this.gm.burst;
+    b.due = null; this.fire(b.name, { ...b.opts, burst: true });
+    for (const [n, o] of b.more) this.fire(n, o);
+  }
+
   // While the fight is on it is her 秒杀: the line runs to its end, her half flashes as when she wins, and the name of whoever
   // sent the gift rises from that end (a lottery, a 试演 has none).
   sweep(now, name) {
@@ -1093,8 +1101,7 @@ export class Engine extends EventTarget {
   // keep it waiting), no lottery is drawn (lotOf, whether its show is on or not), no PK is on and the last 来访 is tidied up
   // (the chest home, her hair smooth). Then each phase runs its time, and the tug its countdown.
   gameUpdate(now) {
-    const b = this.gm.burst;
-    if (b?.due != null && now >= b.due) { b.due = null; this.fire(b.name, { ...b.opts, burst: true }); for (const [n, o] of b.more) this.fire(n, o); }   // the light has reached it
+    if (this.gm.burst?.due != null && now >= this.gm.burst.due) this.burstIn();
     const gm = this.gm, v = gm.visit, dt = now - (gm.clock ?? now), every = this.settings.pranksterMinutes * 60000;
     gm.clock = now;
     gm.drops = gm.drops.filter(d => now - d.at < 1400); gm.nums = gm.nums.filter(n => now - n.at < 1100);
