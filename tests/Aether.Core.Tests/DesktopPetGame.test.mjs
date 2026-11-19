@@ -6,6 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { box, flowers, gamePet, gifts, other, play, playing, round, state, tickets } from './Support/DesktopPetGame.mjs';
+import { SIDE_ICON } from '../../src/Aether.Core/Pages/desktop-pet/pet.mjs';
 
 const character = JSON.parse(readFileSync(new URL('../../src/Aether.Core/Pages/characters/1/character.json', import.meta.url), 'utf8'));
 // What the page reports to Core of the 捣蛋鬼 (page.mjs).
@@ -557,7 +558,7 @@ test('叫它来 waits while she shakes a viewer\'s blind box for its 盲盒播�
   pet.gift(round(2, { ended: true }));
   play(pet, 5000);
   assert.deepEqual(told, []);
-  pet.blindBox({ uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 });
+  pet.blindBox(opened(2, 1));
   assert.deepEqual([playing(pet), told], ['blindBoxSmall', []]);
   play(pet, 2000);
   assert.deepEqual(told, ['start']);
@@ -887,7 +888,7 @@ test('with the 幸运纸团 turned off, at 0 %, paper balls are thrown as ever, 
 // B站's pictures (pet.remote), each arriving once asked for: the two sides' gift icons, 人气票's and 小花花's, asked for with the
 // game's pictures, and a viewer's face, asked for as the bar draws who sent the gift.
 globalThis.Image = class { set src(url) { queueMicrotask(() => this.onload()); } };
-const ICONS = ['https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png'];
+const ICONS = Object.values(SIDE_ICON);
 const pictured = () => { const pet = tugging(); for (const url of ICONS) pet.remote(url); return pet; };
 const faced = (pet, gift) => { pet.gift({ ...gift, faceUrl: '/face/' + gift.uid }); pet.remote('/face/' + gift.uid); };
 // The pictures the page still holds once those asked for have arrived and the 来访 is over.

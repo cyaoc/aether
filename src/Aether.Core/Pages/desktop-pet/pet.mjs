@@ -20,7 +20,7 @@ const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cy
 const PRANKSTER = '/desktop-pet/prankster/';
 // The tug's two sides, hers 1 and the 捣蛋鬼's -1: B站's own icons of their gifts, 人气票 and 小花花 (giftConfig?platform=pc,
 // 2026-11-16), from B站's CDN; her side red, its blue, each with a light one for its numbers.
-const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', '-1': 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png' };
+export const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', '-1': 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png' };
 const SIDE_COL = { 1: '#FF4D6D', '-1': '#4D8BFF' }, SIDE_LIGHT = { 1: '#FFB3C1', '-1': '#B3CDFF' };
 // Under the tug bar, two rows: each side's gift icon and how to join it by danmaku (1, 2), then the faces of who joined it by
 // gift. The game's words are read off a stream shrunk on a phone, so they keep to her bubbles' size (28 px): the countdown

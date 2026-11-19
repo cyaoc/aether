@@ -45,7 +45,7 @@ cases.push({ id: 'round-gifts', ms: at(5000, [380, 1450, 1500]),
 cases.push({ id: 'round-boxes', ms: at(7000, [3000, 3800, 3900, 4800]),
   board: `dc.give(${heart})`,
   page: `told(pet, STAR, { items: itemsOf(${heart}) }); later(3000, () => told(pet, STAR, { ended: true }));
-    later(3800, () => pet.blindBox({ uid: 1, nickname: '星河', tally: { spend: 15000, openedValue: 16000, outcome: 'Gain' }, boxes: 1, bestGift: '爱心抱枕', bestPrice: 16000 }))` });
+    later(3800, () => pet.blindBox(announced(STAR, ${heart})))` });
 // A big gift that takes the 礼物榜's first place, crowned after its show.
 const ranks = rows => JSON.stringify({ rows: rows.map(([uid, nickname, num]) => ({ id: `${uid}/gift:1`, uid, nickname, num })), options: {}, running: true, fromGift: true });
 cases.push({ id: 'bigGift-newFirst', ms: at(8600, [6200, 7000, 7700]),
