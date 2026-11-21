@@ -228,9 +228,9 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
     }
 
     /// <summary>Ends the turn of a send that was not interrupted: a first rate limit keeps it at the head for its one retry;
-    /// otherwise it was sent or is given up, and returns what the 桌宠 is told of it, by the event's name: an announcement the
-    /// 一轮盲盒 it reported, a query its 账单卡.</summary>
-    public (string Name, object Data)? EndTurn(Turn turn, Exception? failure)
+    /// otherwise it was sent or is given up, and returns what the 桌宠 is told of it: an announcement the 一轮盲盒 it reported
+    /// (BlindBoxResult), a query its 账单卡 (BlindBoxQueryResult).</summary>
+    public object? EndTurn(Turn turn, Exception? failure)
     {
         // ponytail: one retry, no backoff; back off if B站's limits turn out to outlast both pacing rules.
         if (failure is DanmakuRateLimitedException && !rateLimitRetryOwed)
@@ -244,8 +244,8 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
         var announced = failure is null
             ? Finish(turn.Item, turn.Reported, SendQueueItemState.Sent, turn.Text)
             : Finish(turn.Item, turn.Reported, SendQueueItemState.Discarded, turn.Text, failure.Message, failure);
-        return announced is not null ? (DesktopPet.BlindBox, announced)
-            : turn.Item is Query query ? (DesktopPet.BlindBoxQuery, BlindBoxQueryResult.Of(query, turn.Tally)) : null;
+        if (announced is not null) return announced;
+        return turn.Item is Query query ? BlindBoxQueryResult.Of(query, turn.Tally) : null;
     }
 
     private bool DiscardExpiredWelcome(Item item)

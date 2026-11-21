@@ -286,8 +286,11 @@ public sealed partial class AetherClient
                     }
                     catch (Exception error) when (!stop.IsCancellationRequested) { failure = error; }
                     finally { await region.Run(s => s.SendQueue.CountSend(turn.Text)); }
-                    if (await region.Run(s => s.SendQueue.EndTurn(turn, failure)) is (var name, var data))
-                        client.WebService.TellDesktopPet(name, data);
+                    switch (await region.Run(s => s.SendQueue.EndTurn(turn, failure)))
+                    {
+                        case BlindBoxResult announced: client.WebService.TellDesktopPet(DesktopPet.BlindBox, announced); break;
+                        case BlindBoxQueryResult asked: client.WebService.TellDesktopPet(DesktopPet.BlindBoxQuery, asked); break;
+                    }
                 }
             });
 

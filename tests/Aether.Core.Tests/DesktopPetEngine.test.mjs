@@ -141,6 +141,10 @@ test('a 盲盒查询 plays only while she is idle, over no show nor blind boxes 
   engine.gift(box(3));
   engine.blindBoxQuery(query(4));
   assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'shakeBox']);
+  engine.blindBox(boxResult(3, 15000, 9000));
+  assert.equal(playing(engine), 'blindBoxSmall');
+  advance(engine, 2600);
+  assert.equal(playing(engine), null);
 });
 
 test('a gift cuts a 盲盒查询 short, its 账单卡 gone at once and never played again', () => {
