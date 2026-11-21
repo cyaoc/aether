@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>DP 盲盒账单卡</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>body{margin:0}
+@font-face{font-family:'Noto Sans SC';font-weight:500;src:url('/_blob/48cc515e9c60d77ebe1eda886747bdff') format('woff2')}
+@font-face{font-family:'Noto Sans SC';font-weight:800;src:url('/_blob/41d8525849b7a8d447ae4e7153b45c52') format('woff2')}</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden">
+  <canvas id="bq-cv" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"view":{"editor":"enum","options":["样式一览","画面上"],"default":"样式一览"},"room":{"editor":"enum","options":["明亮画面","深色房间","透明"],"default":"明亮画面"},"result":{"editor":"enum","options":["赚","回本","亏","没有记录"],"default":"赚"},"period":{"editor":"enum","options":["今日","本月","今年"],"default":"今日"},"name":{"editor":"enum","options":["普通昵称","长昵称","中英混排"],"default":"普通昵称"},"amount":{"editor":"enum","options":["小数字","大数字"],"default":"小数字"},"$preview":{"width":1920,"height":1080}}'>
+// 盲盒账单卡: what a 盲盒查询 shows on the 桌宠页, the same tally the bot's reply danmaku says. Page px (1080p stream, 1:1).
+// Drawn the way pet.mjs draws her bubble (canvas, Noto Sans SC 500/800), so the page can take it as it is.
+const BLOB = { day: '44e8beefd8e45a42a6db32a53b6a334b', idle: '528beadfc04d1d591ee7057771afab95' };
+const PAGE = { x: 1400, y: 420, w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
+const NAMES = { 普通昵称: '星河', 长昵称: '星河一只很长的昵称啊啊啊啊长长长长长长长', 中英混排: 'Lily月下' };
+// Her words at the foot of the card, where a receipt says 谢谢惠顾: two per kind, in her voice (社恐、有点结巴、天然呆).
+const LINES = { 赚: ['欧、欧气满满！', '今天的你闪闪发光～'], 回本: ['刚刚好…稳！', '稳稳的，也很棒～'],
+  亏: ['呜…下次一定！', '可恶的盲盒！抱抱你…'], 没有记录: ['要、要开一个试试吗？', '还没开过哦…'] };
+const AMOUNTS = { 小数字: { 赚: [15, 4.5], 回本: [15, 0], 亏: [45, -12.5] }, 大数字: { 赚: [1314520, 88888.8], 回本: [300000, 0], 亏: [1314520, -987654.3] } };
+// The card: paper, the period's ribbon, the ink. Each result has its own colour and its own word (pill, stamp), never the
+// colour alone: 赚 red as luck is in China, 亏 the blue of her tears, 回本 violet.
+const W = 356, PAD = 20, IN = W - 2 * PAD, HEAD = 52, TEETH = 9;
+const INK = '#4A3742', MUTED = '#8B6B7B', PAPER = '#FFFDF9', EDGE = '#F0A3C0', RULE = '#F2BFD2';
+const RESULT = { 赚: { ink: '#E23A5E', pill: '赚', stamp: '赚' }, 回本: { ink: '#8456D8', stamp: '回本' }, 亏: { ink: '#3D74E0', pill: '亏', stamp: '亏' }, 没有记录: { ink: MUTED } };
+const F = (w, px) => `${w} ${px}px "Noto Sans SC"`;
+
+// As BlindBoxTally.Amounts: one decimal, rounded away from zero, whole numbers without ".0".
+const batteries = v => { const r = Math.sign(v) * Math.round(Math.abs(v) * 10) / 10; return Math.abs(r) % 1 === 0 ? Math.abs(r).toFixed(0) : Math.abs(r).toFixed(1); };
+// The reply danmaku for the same query (BlindBoxTally.Reply), @ the viewer.
+const danmaku = c => `@${c.name} ${c.period}` + (c.result === '没有记录' ? '没有盲盒记录'
+  : `投入${batteries(c.spend)}电池 ${c.result === '回本' ? '不赚不亏' : (c.result === '赚' ? '赚' : '亏') + batteries(c.profit) + '电池'}`);
+
+// As pet.mjs's bubble: a line never starts with closing punctuation.
+function wrap(g, text, maxW) {
+  const lines = []; let cur = '';
+  for (const ch of [...text]) { if (cur && g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
+  lines.push(cur); return lines;
+}
+function star(g, x, y, r, color) {
+  g.save(); g.fillStyle = color; g.beginPath();
+  for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, d = i % 2 ? r * 0.32 : r; g.lineTo(x + Math.cos(a) * d, y + Math.sin(a) * d); }
+  g.fill(); g.restore();
+}
+
+function layout(g, c) {
+  g.font = F(500, 28); const name = wrap(g, c.name, IN);
+  g.font = F(500, 24); const foot = wrap(g, c.line, IN);
+  let y = HEAD + 16; const nameY = y; y += name.length * 38 + 10; const rule1 = y; y += 14;
+  const rowsY = y; y += c.result === '没有记录' ? 56 : 100; y += 10; const rule2 = y; y += 12;
+  const footY = y; y += foot.length * 32 + 14;
+  return { name, foot, nameY, rule1, rowsY, rule2, footY, h: y + TEETH };
+}
+
+function drawCard(g, c, x, y) {
+  const L = layout(g, c), R = RESULT[c.result], h = L.h;
+  g.save(); g.translate(x, y);
+  const paper = new Path2D();
+  paper.moveTo(0, 18); paper.arcTo(0, 0, 18, 0, 18); paper.lineTo(W - 18, 0); paper.arcTo(W, 0, W, 18, 18); paper.lineTo(W, h - TEETH);
+  const n = Math.round(W / 16), tw = W / n;
+  for (let i = 0; i < n; i++) { paper.lineTo(W - (i + 0.5) * tw, h); paper.lineTo(W - (i + 1) * tw, h - TEETH); }
+  paper.closePath();
+  g.save(); g.shadowColor = 'rgba(60,30,50,0.32)'; g.shadowBlur = 16; g.shadowOffsetY = 6; g.fillStyle = PAPER; g.fill(paper); g.restore();
+  // the period's ribbon, pink into violet like her bubble's edge into the 盲盒's light, a shine on its top half
+  g.save(); g.clip(paper);
+  const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, '#E0558E'); gr.addColorStop(1, '#8E6AE6');
+  g.fillStyle = gr; g.fillRect(0, 0, W, HEAD); g.globalAlpha = 0.16; g.fillStyle = '#fff'; g.fillRect(0, 0, W, HEAD * 0.45);
+  g.restore();
+  g.lineWidth = 3; g.strokeStyle = EDGE; g.stroke(paper);
+  const title = c.period + '盲盒账单';
+  g.font = F(800, 26); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff';
+  g.save(); g.shadowColor = 'rgba(90,30,70,0.4)'; g.shadowBlur = 4; g.fillText(title, W / 2, HEAD / 2 + 1); g.restore();
+  const tw2 = g.measureText(title).width;
+  star(g, W / 2 - tw2 / 2 - 18, HEAD / 2, 8, '#fff'); star(g, W / 2 + tw2 / 2 + 18, HEAD / 2, 8, '#fff');
+  // who asked, in full
+  g.textAlign = 'left'; g.textBaseline = 'top'; g.font = F(500, 28); g.fillStyle = INK;
+  L.name.forEach((l, i) => g.fillText(l, PAD, L.nameY + i * 38));
+  const rule = y0 => { g.save(); g.strokeStyle = RULE; g.lineWidth = 2; g.setLineDash([7, 6]); g.beginPath(); g.moveTo(PAD, y0); g.lineTo(W - PAD, y0); g.stroke(); g.restore(); };
+  rule(L.rule1); rule(L.rule2);
+  // the rows: a muted label on the left, the amount on the right, its number largest
+  g.textBaseline = 'alphabetic';
+  // a row's label: muted words, or the result's own word on its colour (赚, 亏), which says it without the colour
+  const label = (text, base, pill) => {
+    g.textAlign = 'left';
+    if (!pill) { g.font = F(500, 24); g.fillStyle = MUTED; g.fillText(text, PAD, base); return; }
+    g.font = F(800, 24); const pw = g.measureText(text).width + 24;
+    g.fillStyle = pill; g.beginPath(); g.roundRect(PAD, base - 30, pw, 36, 18); g.fill();
+    g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(text, PAD + 12, base - 11); g.textBaseline = 'alphabetic';
+  };
+  const amount = (base, num, color) => {
+    g.textAlign = 'left';
+    g.font = F(500, 24); const uw = g.measureText(' 电池').width;
+    g.font = F(800, 36); const nw = g.measureText(num).width, x0 = W - PAD - uw - nw;
+    g.fillStyle = color; g.fillText(num, x0, base);
+    g.font = F(500, 24); g.fillStyle = MUTED; g.fillText(' 电池', x0 + nw, base);
+  };
+  const base = L.rowsY + 36;
+  if (c.result === '没有记录') {
+    g.font = F(500, 28); g.textAlign = 'center'; g.fillStyle = MUTED; g.fillText('没有盲盒记录', W / 2, L.rowsY + 38);
+  } else {
+    label('投入', base); amount(base, batteries(c.spend), INK);
+    if (c.result === '回本') { label('盈亏', base + 52); g.font = F(800, 30); g.textAlign = 'right'; g.fillStyle = R.ink; g.fillText('不赚不亏', W - PAD, base + 52); }
+    else { label(R.pill, base + 52, R.ink); amount(base + 52, batteries(c.profit), R.ink); }
+  }
+  // her words at the foot
+  g.font = F(500, 24); g.textAlign = 'center'; g.textBaseline = 'top'; g.fillStyle = R.ink;
+  L.foot.forEach((l, i) => g.fillText(l, W / 2, L.footY + i * 32));
+  // the stamp slapped on the top right corner, clear of the name however long: the sprite stamps it in the show
+  if (R.stamp) {
+    const sx = W - 6, sy = 6, r = 38;
+    g.save(); g.translate(sx, sy); g.rotate(-0.22);
+    g.shadowColor = 'rgba(60,30,50,0.3)'; g.shadowBlur = 8; g.shadowOffsetY = 3; g.fillStyle = '#fff';
+    g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill(); g.shadowColor = 'transparent';
+    g.strokeStyle = R.ink; g.lineWidth = 4; g.stroke();
+    g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, r - 7, 0, Math.PI * 2); g.stroke();
+    g.fillStyle = R.ink; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = F(800, R.stamp.length > 1 ? 22 : 30);
+    g.fillText(R.stamp, 0, 1); g.restore();
+    if (c.result === '赚') { star(g, sx + 34, sy - 30, 9, '#FF8FB1'); star(g, sx - 48, sy - 30, 6, '#FFB3C8'); star(g, sx + 36, sy + 36, 6, '#FF8FB1'); }
+    if (c.result === '亏') { g.save(); g.fillStyle = '#9FCBFF'; g.strokeStyle = '#3D74E0'; g.lineWidth = 1.5; g.beginPath(); const dx = sx - 50, dy = sy - 22;
+      g.moveTo(dx, dy - 11); g.bezierCurveTo(dx + 7, dy - 2, dx + 8, dy + 6, dx, dy + 8); g.bezierCurveTo(dx - 8, dy + 6, dx - 7, dy - 2, dx, dy - 11); g.fill(); g.stroke(); g.restore(); }
+    if (c.result === '回本') star(g, sx + 36, sy - 28, 7, '#B9A2F0');
+  }
+  g.restore();
+  return h;
+}
+
+function tag(g, lines, x, y, maxW) {
+  g.save(); g.font = F(500, 18); g.textAlign = 'left'; g.textBaseline = 'top';
+  const all = lines.flatMap(l => wrap(g, l, maxW - 20)), w = Math.max(...all.map(l => g.measureText(l).width)) + 20;
+  g.fillStyle = 'rgba(20,16,28,0.72)'; g.beginPath(); g.roundRect(x, y, w, all.length * 26 + 12, 8); g.fill();
+  g.fillStyle = '#fff'; all.forEach((l, i) => g.fillText(l, x + 10, y + 6 + i * 26)); g.restore();
+  return all.length * 26 + 12;
+}
+
+function sample(result, period, nameKey, amountKey, which) {
+  const [spend, profit] = AMOUNTS[amountKey][result] || [0, 0];
+  return { result, period, name: NAMES[nameKey], spend, profit, line: LINES[result][which] };
+}
+
+class Component extends DCLogic {
+  renderVals() { return {}; }
+  async componentDidMount() {
+    const load = id => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = '/_blob/' + id; });
+    const [day, idle] = await Promise.all([load(BLOB.day), load(BLOB.idle), document.fonts.load(F(500, 18)), document.fonts.load(F(800, 18))]);
+    const g = document.getElementById('bq-cv').getContext('2d'), p = this.props;
+    const room = p.room || '明亮画面';
+    if (room === '明亮画面') { const r = Math.max(1920 / day.width, 1080 / day.height); g.drawImage(day, 0, 0, day.width * r, day.height * r); }
+    else if (room === '深色房间') { const gr = g.createLinearGradient(0, 0, 0, 1080); gr.addColorStop(0, '#2b3048'); gr.addColorStop(1, '#151826'); g.fillStyle = gr; g.fillRect(0, 0, 1920, 1080); }
+    if ((p.view || '样式一览') === '样式一览') this.sheet(g); else this.onStream(g, idle, p);
+  }
+
+  // Every result, a short name and small numbers today, then the longest name and large numbers this year; under each,
+  // the reply danmaku it goes with.
+  sheet(g) {
+    tag(g, ['盲盒账单卡 · 样式一览（1:1，1080p 直播画面上的大小）', '上排：今日、普通昵称、小数字；下排：今年、20 字长昵称、大数字。每张下面是同一次查询的回复弹幕。'], 60, 40, 1200);
+    const cols = ['赚', '回本', '亏', '没有记录'], x0 = 158, pitch = 420;
+    const rows = [['今日', '普通昵称', '小数字', 0, 150], ['今年', '长昵称', '大数字', 1, 590]];
+    for (const [period, nameKey, amountKey, which, y] of rows) cols.forEach((result, i) => {
+      const c = sample(result, period, nameKey, amountKey, which), h = drawCard(g, c, x0 + i * pitch, y);
+      tag(g, ['弹幕：' + danmaku(c)], x0 + i * pitch - 10, y + h + 14, 380);
+    });
+  }
+
+  // The card where it hangs over her head on the page in the stream's bottom right corner (the sprite prints it there:
+  // the 盲盒查询 buttons on DP-DesktopPet play the show); her standing drawing, faint, is the ruler for its size and place.
+  onStream(g, idle, p) {
+    const c = sample(p.result || '赚', p.period || '今日', p.name || '普通昵称', p.amount || '小数字', 0);
+    g.save(); g.translate(PAGE.x, PAGE.y);
+    g.save(); g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 2; g.setLineDash([10, 8]); g.strokeRect(0, 0, PAGE.w, PAGE.h); g.restore();
+    // her standing drawing (the idle strip's first frame), its drawn part scaled to her height, feet on FOOT
+    const cw = idle.height, off = new OffscreenCanvas(cw, cw), o = off.getContext('2d'); o.drawImage(idle, 0, 0, cw, cw, 0, 0, cw, cw);
+    const a = o.getImageData(0, 0, cw, cw).data; let top = cw, bottom = 0, left = cw, right = 0;
+    for (let yy = 0; yy < cw; yy++) for (let xx = 0; xx < cw; xx++) if (a[(yy * cw + xx) * 4 + 3] > 40) { top = Math.min(top, yy); bottom = Math.max(bottom, yy); left = Math.min(left, xx); right = Math.max(right, xx); }
+    const k = H / (bottom - top), bw = (right - left) * k;
+    g.globalAlpha = 0.4; g.drawImage(idle, left, top, right - left, bottom - top, FOOT.x - bw / 2, FOOT.y - H, bw, H); g.globalAlpha = 1;
+    const h = layout(g, c).h, cardY = Math.max(40, FOOT.y - H - 4 - h);   // as DP-DesktopPet's billSpot
+    drawCard(g, c, FOOT.x - W / 2, cardY);
+    g.restore();
+    tag(g, ['盲盒账单卡 · 画面上（页面 480 × 640，放在直播画面右下角）',
+      '精灵飞到她头顶，从卡的右上角把小票吐出来、就地盖章；卡停在她头顶上方。半透明的站姿只当尺子，',
+      '动起来的样子在 DP-DesktopPet 画板的「盲盒查询」按钮。这段不出气泡：卡占了她头顶，台词写在卡底下。',
+      `卡顶离页面顶 ${Math.round(cardY)} px，卡高 ${h} px。`, '', '同一次查询的回复弹幕：', danmaku(c)], 60, 40, 760);
+  }
+}
+</script>
+</body>
+</html>

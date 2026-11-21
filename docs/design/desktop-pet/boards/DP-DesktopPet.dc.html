@@ -379,7 +379,9 @@ const EVENTS = {
   打跑了: { tier: 'B', dur: 4300 }, 守住了: { tier: 'B', dur: 4800, zapDur: 7200 }, 被偷了: { tier: 'B', dur: 5600 },
   报名开场: { tier: 'A', dur: 2600 }, 报名截止: { tier: 'A', dur: 2000 }, 奖池开场: { tier: 'A', dur: 2600 }, 奖池点名: { tier: 'A', dur: 2000 },
   奖池转动: { tier: 'A', dur: 2000 }, '揭晓·大奖': { tier: 'A', dur: 5200, glow: 'SS' }, '揭晓·二奖': { tier: 'A', dur: 4600 }, '揭晓·三奖': { tier: 'A', dur: 4600 },
-  没人报名: { tier: 'A', dur: 2800 }, 抽奖结束: { tier: 'A', dur: 2600 }, 日常: { tier: 'D' }
+  没人报名: { tier: 'A', dur: 2800 }, 抽奖结束: { tier: 'A', dur: 2600 }, 日常: { tier: 'D' },
+  // a viewer's 盲盒查询: only while she is idle, never queued, and any gift cuts in (DP-BlindBoxCard.dc.html is its card)
+  盲盒查询: { tier: 'D', dur: 6000, results: ['赚', '回本', '亏', '没有记录'] }
 };
 const LINES = {
   进场: ['{昵称}来啦…欢、欢迎！', '啊，是{昵称}！你好呀～', '又见到{昵称}了，嘿嘿', '{昵称}，欢迎光临…（小声）'],
@@ -417,12 +419,110 @@ const LINES = {
   宝箱摔下来: ['啊！我的宝箱！'], 打得好: ['{昵称}打得好！'], 怎么砸我: ['{昵称}！怎么砸我呀！'], 别丢啦: ['{昵称}！别丢啦～'], 绝杀守住: ['{昵称}绝杀！守住啦！'],
   报名中: ['发「{关键字}」就能报名哦～', '还在报名中…快来快来！'], 等开奖: ['会是谁呢…好紧张', '心、心跳好快…'],
   冷场后来了人: ['啊！有人来了！', '我、我没睡着！'],
+  // 盲盒查询: no bubble, her words are at the foot of the 账单卡, where a receipt says 谢谢惠顾
+  '账单·赚': ['欧、欧气满满！', '今天的你闪闪发光～'], '账单·回本': ['刚刚好…稳！', '稳稳的，也很棒～'],
+  '账单·亏': ['呜…下次一定！', '可恶的盲盒！抱抱你…'], '账单·没有记录': ['要、要开一个试试吗？', '还没开过哦…'],
   举哑铃: ['今天也要锻炼！'], 哼歌: ['♪啦啦啦～'], 爬山: ['下次一起去爬山吧！', '山顶的风好舒服～'], 骑车: ['叮铃叮铃～', '骑车去兜风！'],
   砸到脚: ['好痛痛痛！', '又、又砸到了…'], 破音: ['咳、咳…刚才不算！', '破、破音了…'], 摔屁股墩: ['哎呦…屁股好痛…', '山路好滑…'],
   骑车摔倒: ['车、车子不听话…', '呜…又摔了…'],
   滑雪: ['滑雪好开心～', '看我的！'], 滑雪摔跤: ['噗…全是雪…', '雪、雪好冰！'], 拍拍土: ['拍拍土…没事没事！', '再来！这次小心点～'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了']
 };
 const NAMES = { 普通昵称: '星河', 长昵称: '星河一只很长的昵称啊啊啊啊长长长长长长长', 中英混排: 'Lily月下' };
+// 盲盒查询: the 账单卡 (the same drawing as boards/DP-BlindBoxCard.dc.html) and the show's steps (ms). The sprite flies up
+// to the card's top right corner and, glowing, prints the card out of itself; it stamps the result right there, comes
+// down the card's right edge (clear of its words) and home to answer it with her; the card rolls itself up at the end.
+// Her poses are ones she has: hope while it prints, then BILL_POSE; the sprite's BILL_SPRITE once it is home.
+const QUERY = { print: [800, 1500], stamp: 1900, react: 2100, down: 2200, side: 3000, roll: [5200, 5700], done: 5600 };
+const BILL_POSE = { 赚: 'cheer', 回本: 'nod', 亏: 'pout', 没有记录: 'point' }, BILL_SPRITE = { 赚: 'sHappy', 回本: 'nod', 亏: 'hide', 没有记录: 'flag' };
+const BILL = (() => {
+  const W = 356, PAD = 20, IN = W - 2 * PAD, HEAD = 52, TEETH = 9;
+  const INK = '#4A3742', MUTED = '#8B6B7B', PAPER = '#FFFDF9', EDGE = '#F0A3C0', RULE = '#F2BFD2';
+  // each result its colour and its own word (pill, stamp), never the colour alone: 赚 red as luck is, 亏 her tears' blue
+  const RESULT = { 赚: { ink: '#E23A5E', pill: '赚', stamp: '赚' }, 回本: { ink: '#8456D8', stamp: '回本' }, 亏: { ink: '#3D74E0', pill: '亏', stamp: '亏' }, 没有记录: { ink: MUTED } };
+  const F = (w, px) => `${w} ${px}px "Noto Sans SC"`;
+  // as BlindBoxTally.Amounts: one decimal, rounded away from zero, whole numbers without ".0"
+  const batteries = v => { const r = Math.round(Math.abs(v) * 10) / 10; return r % 1 === 0 ? r.toFixed(0) : r.toFixed(1); };
+  const danmaku = c => `@${c.name} ${c.period}` + (c.result === '没有记录' ? '没有盲盒记录'
+    : `投入${batteries(c.spend)}电池 ${c.result === '回本' ? '不赚不亏' : c.result + batteries(c.profit) + '电池'}`);
+  const wrap = (g, text, maxW) => { const lines = []; let cur = ''; for (const ch of [...text]) { if (cur && g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; } lines.push(cur); return lines; };
+  const star = (g, x, y, r, color) => { g.save(); g.fillStyle = color; g.beginPath(); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 - Math.PI / 2, d = i % 2 ? r * 0.32 : r; g.lineTo(x + Math.cos(a) * d, y + Math.sin(a) * d); } g.fill(); g.restore(); };
+  function layout(g, c) {
+    g.save(); g.font = F(500, 28); const name = wrap(g, c.name, IN); g.font = F(500, 24); const foot = wrap(g, c.line || '', IN); g.restore();
+    let y = HEAD + 16; const nameY = y; y += name.length * 38 + 10; const rule1 = y; y += 14;
+    const rowsY = y; y += c.result === '没有记录' ? 56 : 100; y += 10; const rule2 = y; y += 12;
+    const footY = y; y += foot.length * 32 + 14;
+    return { name, foot, nameY, rule1, rowsY, rule2, footY, h: y + TEETH };
+  }
+  // stampT: ms since the sprite stamped it, null before (or none, no record): the stamp lands big and settles
+  function draw(g, c, x, y, stampT) {
+    const L = layout(g, c), R = RESULT[c.result], h = L.h;
+    g.save(); g.translate(x, y);
+    const paper = new Path2D();
+    paper.moveTo(0, 18); paper.arcTo(0, 0, 18, 0, 18); paper.lineTo(W - 18, 0); paper.arcTo(W, 0, W, 18, 18); paper.lineTo(W, h - TEETH);
+    const n = Math.round(W / 16), tw = W / n;
+    for (let i = 0; i < n; i++) { paper.lineTo(W - (i + 0.5) * tw, h); paper.lineTo(W - (i + 1) * tw, h - TEETH); }
+    paper.closePath();
+    g.save(); g.shadowColor = 'rgba(60,30,50,0.32)'; g.shadowBlur = 16; g.shadowOffsetY = 6; g.fillStyle = PAPER; g.fill(paper); g.restore();
+    g.save(); g.clip(paper);
+    const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, '#E0558E'); gr.addColorStop(1, '#8E6AE6');
+    g.fillStyle = gr; g.fillRect(0, 0, W, HEAD); g.globalAlpha = 0.16; g.fillStyle = '#fff'; g.fillRect(0, 0, W, HEAD * 0.45);
+    g.restore();
+    g.lineWidth = 3; g.strokeStyle = EDGE; g.stroke(paper);
+    const title = c.period + '盲盒账单';
+    g.font = F(800, 26); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff';
+    g.save(); g.shadowColor = 'rgba(90,30,70,0.4)'; g.shadowBlur = 4; g.fillText(title, W / 2, HEAD / 2 + 1); g.restore();
+    const tw2 = g.measureText(title).width;
+    star(g, W / 2 - tw2 / 2 - 18, HEAD / 2, 8, '#fff'); star(g, W / 2 + tw2 / 2 + 18, HEAD / 2, 8, '#fff');
+    g.textAlign = 'left'; g.textBaseline = 'top'; g.font = F(500, 28); g.fillStyle = INK;
+    L.name.forEach((l, i) => g.fillText(l, PAD, L.nameY + i * 38));
+    const rule = y0 => { g.save(); g.strokeStyle = RULE; g.lineWidth = 2; g.setLineDash([7, 6]); g.beginPath(); g.moveTo(PAD, y0); g.lineTo(W - PAD, y0); g.stroke(); g.restore(); };
+    rule(L.rule1); rule(L.rule2);
+    g.textBaseline = 'alphabetic';
+    const label = (text, base, pill) => {
+      g.textAlign = 'left';
+      if (!pill) { g.font = F(500, 24); g.fillStyle = MUTED; g.fillText(text, PAD, base); return; }
+      g.font = F(800, 24); const pw = g.measureText(text).width + 24;
+      g.fillStyle = pill; g.beginPath(); g.roundRect(PAD, base - 30, pw, 36, 18); g.fill();
+      g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(text, PAD + 12, base - 11); g.textBaseline = 'alphabetic';
+    };
+    const amount = (base, num, color) => {
+      g.textAlign = 'left'; g.font = F(500, 24); const uw = g.measureText(' 电池').width;
+      g.font = F(800, 36); const nw = g.measureText(num).width, x0 = W - PAD - uw - nw;
+      g.fillStyle = color; g.fillText(num, x0, base); g.font = F(500, 24); g.fillStyle = MUTED; g.fillText(' 电池', x0 + nw, base);
+    };
+    const base = L.rowsY + 36;
+    if (c.result === '没有记录') { g.font = F(500, 28); g.textAlign = 'center'; g.fillStyle = MUTED; g.fillText('没有盲盒记录', W / 2, L.rowsY + 38); }
+    else {
+      label('投入', base); amount(base, batteries(c.spend), INK);
+      if (c.result === '回本') { label('盈亏', base + 52); g.font = F(800, 30); g.textAlign = 'right'; g.fillStyle = R.ink; g.fillText('不赚不亏', W - PAD, base + 52); }
+      else { label(R.pill, base + 52, R.ink); amount(base + 52, batteries(c.profit), R.ink); }
+    }
+    g.font = F(500, 24); g.textAlign = 'center'; g.textBaseline = 'top'; g.fillStyle = R.ink;
+    L.foot.forEach((l, i) => g.fillText(l, W / 2, L.footY + i * 32));
+    if (R.stamp && stampT != null) {
+      const sx = W - 6, sy = 6, r = 38, k = 1 + 0.6 * (1 - ease(k01(stampT, 0, 160)));
+      // the lines of the stamp hitting the paper, for a moment
+      if (stampT < 260) { g.save(); g.strokeStyle = R.ink; g.lineWidth = 3; g.globalAlpha = 1 - k01(stampT, 120, 260);
+        for (let i = 0; i < 6; i++) { const a = Math.PI * (0.55 + i * 0.18), d0 = r + 8 + 10 * k01(stampT, 0, 260); g.beginPath(); g.moveTo(sx + Math.cos(a) * d0, sy + Math.sin(a) * d0); g.lineTo(sx + Math.cos(a) * (d0 + 12), sy + Math.sin(a) * (d0 + 12)); g.stroke(); }
+        g.restore(); }
+      g.save(); g.globalAlpha = k01(stampT, 0, 80); g.translate(sx, sy); g.rotate(-0.22); g.scale(k, k);
+      g.shadowColor = 'rgba(60,30,50,0.3)'; g.shadowBlur = 8; g.shadowOffsetY = 3; g.fillStyle = '#fff';
+      g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill(); g.shadowColor = 'transparent';
+      g.strokeStyle = R.ink; g.lineWidth = 4; g.stroke(); g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, r - 7, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = R.ink; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = F(800, R.stamp.length > 1 ? 22 : 30);
+      g.fillText(R.stamp, 0, 1); g.restore();
+      if (stampT >= 160) {
+        if (c.result === '赚') { star(g, sx + 34, sy - 30, 9, '#FF8FB1'); star(g, sx - 48, sy - 30, 6, '#FFB3C8'); star(g, sx + 36, sy + 36, 6, '#FF8FB1'); }
+        if (c.result === '亏') { g.save(); g.fillStyle = '#9FCBFF'; g.strokeStyle = '#3D74E0'; g.lineWidth = 1.5; g.beginPath(); const dx = sx - 50, dy = sy - 22;
+          g.moveTo(dx, dy - 11); g.bezierCurveTo(dx + 7, dy - 2, dx + 8, dy + 6, dx, dy + 8); g.bezierCurveTo(dx - 8, dy + 6, dx - 7, dy - 2, dx, dy - 11); g.fill(); g.stroke(); g.restore(); }
+        if (c.result === '回本') star(g, sx + 36, sy - 28, 7, '#B9A2F0');
+      }
+    }
+    g.restore();
+    return h;
+  }
+  return { W, layout, draw, danmaku };
+})();
 const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 中礼物: '告白气球', 大礼物: '小电视飞船', '盲盒·小': '棉花糖', '盲盒·中': '爱心抱枕', '盲盒·大': '爱心抱枕', 城堡: '浪漫城堡' };
 // A viewer's gift round ends after this much silence (README 2); the 中礼物 and 大礼物 thresholds, in 电池 (the GUI defaults).
 const ROUND_GAP = 3000, MID = 1000, BIG = 10000;
@@ -649,7 +749,7 @@ class Component extends DCLogic {
     // lottery's too, with no name; 用户 review: in the air the bar was gone in a blink, the lottery's in the tug as well);
     // after the lightning her sprite smooths her hair before it takes the chest (wait).
     if (this.cfg.game && this.gm.visit && name !== '日常' && !opts.game) {
-      if (name === '进场') return this.note('进场：捣蛋鬼在，不演');
+      if (name === '进场' || name === '盲盒查询') return this.note(`${name}：捣蛋鬼在，不演`);
       const v = this.gm.visit, frizz = v.phase === 'tug' && !!v.bolted, kept = this.contested(v);
       if (kept) this.sweep(now, ev.gift ? opts.nickname ?? this.cfg.name : null);
       opts = { ...opts, tidy: this.scare(now), frizz, kept };
@@ -697,7 +797,7 @@ class Component extends DCLogic {
   note(s) { this.log = [s, ...this.log].slice(0, 4); }
 
   // A blind box says the lines of its ending, a 日常 its kind's; every other show its own.
-  lineKey(name, opts = {}) { return EVENTS[name]?.results ? BOX_LINES[opts.result || '赚'] : name === '日常' ? opts.kind : name === '守住了' && opts.buzzer ? '绝杀守住' : name; }
+  lineKey(name, opts = {}) { return name === '盲盒查询' ? '账单·' + (opts.result || '赚') : EVENTS[name]?.results ? BOX_LINES[opts.result || '赚'] : name === '日常' ? opts.kind : name === '守住了' && opts.buzzer ? '绝杀守住' : name; }
 
   // The endings a show can have, for checking every pose change (tools/check-board.mjs).
   eventVariants(name) { return (EVENTS[name]?.results || [null]).map(r => (r ? { result: r } : {})); }
@@ -2011,6 +2111,7 @@ class Component extends DCLogic {
     switch (name) {
       // it looks up at her first, then waves its flag with her
       case '进场': st.pose = 'wave'; hop(0, 8); st.sprite = t < 350 ? 'sLook' : 'flag'; say(100); break;
+      case '盲盒查询': this.queryShow(t, st, opts, line, hop); break;
       // they bow together
       case '普通礼物': st.pose = t < 1500 ? 'bow' : 'idle'; st.sprite = t < 1500 ? 'nod' : 'sHappy'; st.fx.push(['hearts', 200, 3]); say(150); break;
       // it copies her: up beside her shoulder, hiding its face too
@@ -2248,6 +2349,40 @@ class Component extends DCLogic {
   // The big gift (A): a beam from the top of the page lands at her right; the box comes down it under a bunch of balloons,
   // lands, the balloons float away; the lid flies off, a beam and a fountain of stars and hearts go up to the top; she cheers,
   // and the box shrinks into a star that flies into her arms.
+  // 盲盒查询 (QUERY): the card hangs just over her head, centred on her, never so high that its stamp leaves the page; a
+  // long one comes down behind her hair a little. No bubble: the card is where it would go, and her words are on it.
+  billOf(opts, line) { return { result: opts.result || '赚', period: opts.period || '今日', name: opts.nickname ?? this.cfg.name, spend: opts.spend ?? 15, profit: opts.profit ?? 4.5, line }; }
+  billSpot(st, c) {
+    const h = BILL.layout(this.measureG ??= document.createElement('canvas').getContext('2d'), c).h;
+    return { x: st.x - BILL.W / 2, y: Math.max(40, FOOT.y - H - 4 - h), h };
+  }
+  queryShow(t, st, opts, line, hop) {
+    const q = QUERY, c = this.billOf(opts, line), r = c.result, spot = this.billSpot(st, c), stamped = r !== '没有记录';
+    st.pose = at(t, [[0, 'hope'], [q.react, BILL_POSE[r]], [q.done, 'idle']]);
+    if (r === '赚') { hop(q.react, 14); st.fx.push(['sparkles', q.react]); }
+    if (r === '亏') { if (t >= q.react && t < q.react + 1200) st.y -= 4 * Math.abs(Math.sin((t - q.react) / 90)); st.fx.push(['sweat', q.react - 100], ['anger', q.react, 900]); }
+    // it prints and stamps at the card's top right corner (kept on the page), then comes down beside the card's right edge,
+    // where no words are, on down past her side to her waist, and home to her low in front (never across her face)
+    const corner = ['at', spot.x + BILL.W - 6, Math.max(SPRITE_H / 2 + 4, spot.y - 4)];
+    if (t < q.print[1]) { st.sprite = t < q.print[0] ? 'sLook' : 'glow'; st.sp = corner; }
+    else if (t < q.down) { st.sprite = stamped ? 'nod' : 'sLook'; st.sp = corner; }
+    else if (t < q.side) { st.sprite = 'sLook'; st.sp = ['at', spot.x + BILL.W + 22, FOOT.y - 0.34 * H]; }
+    else st.sprite = t < q.side + 500 ? 'sLook' : BILL_SPRITE[r];
+    const reveal = t < q.print[0] ? 0 : t < q.print[1] ? ease(k01(t, q.print[0], q.print[1])) : 1 - ease(k01(t, q.roll[0], q.roll[1]));
+    if (reveal > 0) st.bill = { c, x: spot.x, y: spot.y + 2 * Math.sin(t / 500) + 3 * bump(t, q.stamp, q.stamp + 200), h: spot.h, reveal, stampT: stamped && t >= q.stamp ? t - q.stamp : null };
+  }
+
+  // The card as far as it has come out (reveal), its top first; a curl of paper at the edge while it unrolls or rolls up.
+  drawBill(g, b) {
+    const edge = b.y + b.h * b.reveal;
+    g.save(); g.beginPath(); g.rect(b.x - 80, b.y - 80, BILL.W + 160, edge - b.y + 80); g.clip();
+    BILL.draw(g, b.c, b.x, b.y, b.stampT); g.restore();
+    if (b.reveal < 1) {
+      g.save(); g.fillStyle = '#FFFDF9'; g.strokeStyle = '#F0A3C0'; g.lineWidth = 2; g.shadowColor = 'rgba(60,30,50,0.3)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
+      g.beginPath(); g.roundRect(b.x - 4, edge - 8, BILL.W + 8, 16, 8); g.fill(); g.stroke(); g.restore();
+    }
+  }
+
   bigGift(t, st, say) {
     const land = { x: FOOT.x + 150, y: FOOT.y }, fall = 1 - (1 - k01(t, 800, 2800)) ** 2;
     const y = -20 + (land.y + 20) * fall, x = land.x + 14 * Math.sin(t / 260) * (1 - fall);
@@ -2473,6 +2608,7 @@ class Component extends DCLogic {
     this.sTarget = target && { ...target, sp: st.sp };   // where it is flying to (smooth: is it on her head yet)
     if (sp) { this.trail = (this.trail || []).filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) this.drawFx(g, f, st, her, now);
+    if (st.bill) this.drawBill(g, st.bill);   // behind her: a long card comes down behind her hair
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     if (!st.hide) this.drawHer(g, st, now);
     if (sp && !st.sBehind && !st.sOver) this.drawSprite(g, st, sp, now);
@@ -3240,6 +3376,13 @@ class Component extends DCLogic {
       ['100 个亏（15000 开 12990）', g([...tens(6, [heart('爱心抱枕', 160, 6), heart('棉花糖', 90, 4)]), ...tens(3, [heart('爱心抱枕', 160, 6), heart('棉花糖', 90, 3), heart('电影票', 20, 1)]),
         [heart('爱心抱枕', 160, 6), heart('棉花糖', 90, 4)]])],
       ['出大奖', g([{ gift: '小电视飞船', price: 12450, n: 1, box: '大航海盲盒', boxPrice: 500 }])], ['开出城堡', g([{ ...heart('浪漫城堡', 22330, 1), castle: true }])]]);
+    // 盲盒查询: the bot's reply danmaku goes out whether or not she shows it (正忙、捣蛋鬼在 drop the show only)
+    const ask = (result, period, spend, profit) => () => {
+      const opts = { result, period, spend, profit };
+      this.note('弹幕：' + BILL.danmaku(this.billOf(opts, ''))); this.fire('盲盒查询', opts);
+    };
+    group('盲盒查询', [['今日·赚', ask('赚', '今日', 15, 4.5)], ['今日·回本', ask('回本', '今日', 15, 0)], ['今日·亏', ask('亏', '今日', 45, -12.5)],
+      ['今日·没有记录', ask('没有记录', '今日')], ['本月·赚（大数字）', ask('赚', '本月', 131452, 8888.8)], ['今年·亏（大数字）', ask('亏', '今年', 1314520, -987654.3)]]);
     group('抽奖', [['报名开场', f('报名开场')], ['报名截止', f('报名截止')], ['奖池开场', f('奖池开场')], ['奖池点名', f('奖池点名')], ['奖池转动', f('奖池转动')],
       ['揭晓·大奖', f('揭晓·大奖')], ['揭晓·二奖', f('揭晓·二奖')], ['揭晓·三奖', f('揭晓·三奖')], ['没人报名', f('没人报名')], ['抽奖结束', f('抽奖结束')]]);
     const d = (kind, mishap) => () => this.fire('日常', { kind, mishap });
