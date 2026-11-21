@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { DAILY, Engine, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { SETTINGS } from './Support/DesktopPetSettings.mjs';
-import { box, gifts, item, playing, round, state } from './Support/DesktopPetGame.mjs';
+import { box, gifts, item, play, playing, round, state } from './Support/DesktopPetGame.mjs';
 
 const read = path => JSON.parse(readFileSync(new URL('../../src/Aether.Core/Pages/' + path, import.meta.url), 'utf8'));
 const { shows } = read('desktop-pet/shows.json'), { lines } = read('characters/1/character.json');
@@ -123,6 +123,73 @@ test('an entry does not play while she shakes a round\'s blind boxes', () => {
   engine.gift(box(1));
   engine.entry({ uid: 2, nickname: '进场观众' });
   assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'shakeBox']);
+});
+
+// A viewer's 盲盒查询 as its reply went out (BlindBoxQueryResult).
+const query = (uid, so) => ({ uid, nickname: '观众' + uid, period: '本月', result: 'Loss', spend: '45', profit: '12.5', ...so });
+
+test('a 盲盒查询 plays only while she is idle, over no show nor blind boxes she shakes, and does not queue', () => {
+  const engine = pet();
+  engine.blindBoxQuery(query(1));
+  assert.equal(playing(engine), 'blindBoxQuery');
+  advance(engine, 6000);
+  engine.gift(gifts(1, 100));
+  engine.blindBoxQuery(query(2));
+  assert.deepEqual([playing(engine), engine.queue], ['gift', []]);
+  advance(engine, 2000);
+  assert.equal(playing(engine), null);
+  engine.gift(box(3));
+  engine.blindBoxQuery(query(4));
+  assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'shakeBox']);
+  engine.blindBox(boxResult(3, 15000, 9000));
+  assert.equal(playing(engine), 'blindBoxSmall');
+  advance(engine, 2600);
+  assert.equal(playing(engine), null);
+});
+
+test('a gift cuts a 盲盒查询 short, its 账单卡 gone at once and never played again', () => {
+  const engine = pet();
+  engine.blindBoxQuery(query(1));
+  advance(engine, 3000);
+  assert.ok(engine.stateAt(engine.now()).bill);
+  engine.gift(gifts(2, 100));
+  assert.deepEqual([playing(engine), engine.stateAt(engine.now()).bill], ['gift', undefined]);
+  advance(engine, 2000);
+  assert.equal(playing(engine), null);
+});
+
+test('a gift that plays nothing yet cuts a 盲盒查询 short all the same: blind boxes, which she shakes at once, and a round\'s gift short of moving it up, a 试演\'s too', () => {
+  const engine = pet();
+  engine.blindBoxQuery(query(1));
+  advance(engine, 2200);
+  engine.gift(box(2));
+  const st = engine.stateAt(engine.now());
+  assert.deepEqual([playing(engine), st.bill, st.pose], [null, undefined, 'shakeBox']);
+
+  const again = pet(), ended = [];
+  again.addEventListener('trialended', event => ended.push(event.detail));
+  again.gift(gifts(3, 100));
+  advance(again, 2000);
+  again.testShow({ show: 'blindBoxQuery', variant: 'Gain', nickname: '星河', id: 7 });
+  again.gift(gifts(3, 100));
+  assert.deepEqual([playing(again), again.stateAt(again.now()).bill, ended], [null, undefined, [7]]);
+});
+
+test('a 盲盒查询\'s 账单卡 says what the reply said, her line of its result at its foot, and she says nothing in a bubble', () => {
+  const engine = pet();
+  engine.blindBoxQuery(query(1));
+  const seen = [];
+  play(engine, 6000, st => seen.push(st));
+  assert.deepEqual(seen.filter(st => st.bubble), []);
+  const { result, period, name, spend, profit, line } = seen.find(st => st.bill).bill;
+  assert.deepEqual({ result, period, name, spend, profit }, { result: 'Loss', period: '本月', name: '观众1', spend: '45', profit: '12.5' });
+  assert.ok(lines.queryLoss.includes(line));
+});
+
+test('a 盲盒查询 turned off does not play', () => {
+  const engine = pet({ off: ['blindBoxQuery'] });
+  engine.blindBoxQuery(query(1));
+  assert.equal(playing(engine), null);
 });
 
 test('开心 counts gifts, blind boxes and 大航海, not entries', () => {

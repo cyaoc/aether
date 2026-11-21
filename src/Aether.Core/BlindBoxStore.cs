@@ -16,14 +16,26 @@ internal static class BlindBoxPeriodName
     };
 }
 
-/// <summary>How a 一轮盲盒 came out for the 桌宠.</summary>
-internal enum BlindBoxOutcome { Loss = -1, Even, Gain }
+/// <summary>How a 一轮盲盒 came out for the 桌宠; None is a 盲盒查询's with no blind box recorded.</summary>
+internal enum BlindBoxOutcome { Loss = -1, Even, Gain, None }
 
 /// <summary>投入 and 开出价值 in 金瓜子: one viewer's 盲盒统计, or the part of a 一轮盲盒 one announcement reports.</summary>
 internal sealed record BlindBoxTally(long Spend, long OpenedValue)
 {
     /// <summary>不赚不亏 only when what was opened is worth exactly what it cost, so 1 电池 either way is 赚 or 亏.</summary>
     public BlindBoxOutcome Outcome => (BlindBoxOutcome)Math.Sign(OpenedValue - Spend);
+
+    /// <summary>投入 and 盈亏 in 电池 as replies and the 账单卡 write them, the 盈亏 without its sign, and how it came out by the
+    /// 盈亏 shown, so the words always match the number. A method, so the tally a 盲盒播报 tells the 桌宠 does not carry it.</summary>
+    public (string Spend, string Profit, BlindBoxOutcome Outcome) Shown()
+    {
+        var profit = Batteries(OpenedValue - Spend);
+        return (Text(Batteries(Spend)), Text(Math.Abs(profit)), (BlindBoxOutcome)Math.Sign(profit));
+
+        // Round to one decimal first, so whole numbers drop the ".0".
+        static decimal Batteries(long coins) => Math.Round(Battery.FromCoins(coins), 1, MidpointRounding.AwayFromZero);
+        static string Text(decimal batteries) => batteries.ToString(batteries % 1 == 0 ? "0" : "0.0", CultureInfo.InvariantCulture);
+    }
 
     public static BlindBoxTally Of(IReadOnlyCollection<Gift> boxes) => new(boxes.Sum(box => box.Spend), boxes.Sum(box => box.Value));
 
@@ -36,14 +48,13 @@ internal sealed record BlindBoxTally(long Spend, long OpenedValue)
 
     private static string Amounts(BlindBoxTally tally)
     {
-        var spend = Batteries(tally.Spend);
-        var profit = Batteries(tally.OpenedValue - tally.Spend);
-        var result = profit == 0 ? "不赚不亏" : $"{(profit > 0 ? "赚" : "亏")}{Text(Math.Abs(profit))}电池";
-        return $"投入{Text(spend)}电池 {result}";
-
-        // Round to one decimal first, so whole numbers drop the ".0" and the words always match the number shown.
-        static decimal Batteries(long coins) => Math.Round(Battery.FromCoins(coins), 1, MidpointRounding.AwayFromZero);
-        static string Text(decimal batteries) => batteries.ToString(batteries % 1 == 0 ? "0" : "0.0", CultureInfo.InvariantCulture);
+        var (spend, profit, outcome) = tally.Shown();
+        return $"投入{spend}电池 " + outcome switch
+        {
+            BlindBoxOutcome.Gain => $"赚{profit}电池",
+            BlindBoxOutcome.Loss => $"亏{profit}电池",
+            _ => "不赚不亏"
+        };
     }
 }
 

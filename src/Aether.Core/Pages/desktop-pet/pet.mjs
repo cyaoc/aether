@@ -2,7 +2,7 @@
 // character's Q 版 pictures and the numbers in her manifest (characters/README.md, desktopPet).
 import { canvasOf, loadImage } from '../video/animations/toolkit.mjs';
 import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, LUCK, NOTICE, PAGE, PK_H, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
-import { BACK, drawFx, giftBox } from './effects.mjs';
+import { BACK, drawFx, drawStar, giftBox } from './effects.mjs';
 import { SANS } from '../gift-board/paint.mjs';
 import { REMOTE } from '../gift-board/images.mjs';
 
@@ -32,6 +32,101 @@ const ROW = [BAR.y + BAR.h + 22, BAR.y + BAR.h + 62], HUD = BAR.y + BAR.h + 82;
 // half toward the line and its gift's icon under the bar beats in its countdown ring; the last DOUBLE.hurry both blink
 // faster, and at the end the ×2 shrinks away in DOUBLE.out.
 const DOUBLE = { fly: 450, pop: 220, flash: 260, hurry: 3000, out: 200 };
+// text's lines in g's font, maxW wide and broken at its line breaks (her bubble's, the 账单卡's): a line never starts with
+// closing punctuation, which stays on the line before, a little over the width
+const wrap = (g, text, maxW) => {
+  const lines = [];
+  let cur = '';
+  for (const ch of [...text]) {
+    if (ch === '\n') { lines.push(cur); cur = ''; } else if (cur && g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch;
+  }
+  lines.push(cur);
+  return lines;
+};
+// A 盲盒查询's 账单卡 (design package README 14: the board's BILL, which DP-BlindBoxCard.dc.html draws too), in page px, 1 : 1 at
+// 1080p: a receipt W wide and as tall as its words (layout), the 投入 and 盈亏 as the reply wrote them (Core's text), and her
+// line at its foot where a receipt says 谢谢惠顾. stampT: ms since the sprite stamped it, null before (or none, no record).
+const BILL = (() => {
+  const W = 356, PAD = 20, IN = W - 2 * PAD, HEAD = 52, TEETH = 9;
+  const INK = '#4A3742', MUTED = '#8B6B7B', PAPER = '#FFFDF9', EDGE = '#F0A3C0', RULE = '#F2BFD2';
+  // each result its colour and its own word (pill, stamp), never the colour alone: 赚 red as luck is, 亏 her tears' blue
+  const RESULT = { Gain: { ink: '#E23A5E', pill: '赚', stamp: '赚' }, Even: { ink: '#8456D8', stamp: '回本' }, Loss: { ink: '#3D74E0', pill: '亏', stamp: '亏' }, None: { ink: MUTED } };
+  const F = (w, px) => `${w} ${px}px ${SANS}`;
+  function layout(g, c) {
+    g.save(); g.font = F(500, 28); const name = wrap(g, c.name, IN); g.font = F(500, 24); const foot = wrap(g, c.line || '', IN); g.restore();
+    let y = HEAD + 16; const nameY = y; y += name.length * 38 + 10; const rule1 = y; y += 14;
+    const rowsY = y; y += c.result === 'None' ? 56 : 100; y += 10; const rule2 = y; y += 12;
+    const footY = y; y += foot.length * 32 + 14;
+    return { name, foot, nameY, rule1, rowsY, rule2, footY, h: y + TEETH };
+  }
+  function draw(g, c, x, y, stampT) {
+    const L = layout(g, c), R = RESULT[c.result], h = L.h;
+    g.save(); g.translate(x, y);
+    const paper = new Path2D();
+    paper.moveTo(0, 18); paper.arcTo(0, 0, 18, 0, 18); paper.lineTo(W - 18, 0); paper.arcTo(W, 0, W, 18, 18); paper.lineTo(W, h - TEETH);
+    const n = Math.round(W / 16), tw = W / n;
+    for (let i = 0; i < n; i++) { paper.lineTo(W - (i + 0.5) * tw, h); paper.lineTo(W - (i + 1) * tw, h - TEETH); }
+    paper.closePath();
+    g.save(); g.shadowColor = 'rgba(60,30,50,0.32)'; g.shadowBlur = 16; g.shadowOffsetY = 6; g.fillStyle = PAPER; g.fill(paper); g.restore();
+    g.save(); g.clip(paper);
+    const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, '#E0558E'); gr.addColorStop(1, '#8E6AE6');
+    g.fillStyle = gr; g.fillRect(0, 0, W, HEAD); g.globalAlpha = 0.16; g.fillStyle = '#fff'; g.fillRect(0, 0, W, HEAD * 0.45);
+    g.restore();
+    g.lineWidth = 3; g.strokeStyle = EDGE; g.stroke(paper);
+    const title = c.period + '盲盒账单';
+    g.font = F(800, 26); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#fff';
+    g.save(); g.shadowColor = 'rgba(90,30,70,0.4)'; g.shadowBlur = 4; g.fillText(title, W / 2, HEAD / 2 + 1); g.restore();
+    const tw2 = g.measureText(title).width;
+    drawStar(g, W / 2 - tw2 / 2 - 18, HEAD / 2, 8, '#fff'); drawStar(g, W / 2 + tw2 / 2 + 18, HEAD / 2, 8, '#fff');
+    g.textAlign = 'left'; g.textBaseline = 'top'; g.font = F(500, 28); g.fillStyle = INK;
+    L.name.forEach((l, i) => g.fillText(l, PAD, L.nameY + i * 38));
+    const rule = y0 => { g.save(); g.strokeStyle = RULE; g.lineWidth = 2; g.setLineDash([7, 6]); g.beginPath(); g.moveTo(PAD, y0); g.lineTo(W - PAD, y0); g.stroke(); g.restore(); };
+    rule(L.rule1); rule(L.rule2);
+    g.textBaseline = 'alphabetic';
+    const label = (text, base, pill) => {
+      g.textAlign = 'left';
+      if (!pill) { g.font = F(500, 24); g.fillStyle = MUTED; g.fillText(text, PAD, base); return; }
+      g.font = F(800, 24); const pw = g.measureText(text).width + 24;
+      g.fillStyle = pill; g.beginPath(); g.roundRect(PAD, base - 30, pw, 36, 18); g.fill();
+      g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(text, PAD + 12, base - 11); g.textBaseline = 'alphabetic';
+    };
+    const amount = (base, num, color) => {
+      g.textAlign = 'left'; g.font = F(500, 24); const uw = g.measureText(' 电池').width;
+      g.font = F(800, 36); const nw = g.measureText(num).width, x0 = W - PAD - uw - nw;
+      g.fillStyle = color; g.fillText(num, x0, base); g.font = F(500, 24); g.fillStyle = MUTED; g.fillText(' 电池', x0 + nw, base);
+    };
+    const base = L.rowsY + 36;
+    if (c.result === 'None') { g.font = F(500, 28); g.textAlign = 'center'; g.fillStyle = MUTED; g.fillText('没有盲盒记录', W / 2, L.rowsY + 38); }
+    else {
+      label('投入', base); amount(base, c.spend, INK);
+      if (c.result === 'Even') { label('盈亏', base + 52); g.font = F(800, 30); g.textAlign = 'right'; g.fillStyle = R.ink; g.fillText('不赚不亏', W - PAD, base + 52); }
+      else { label(R.pill, base + 52, R.ink); amount(base + 52, c.profit, R.ink); }
+    }
+    g.font = F(500, 24); g.textAlign = 'center'; g.textBaseline = 'top'; g.fillStyle = R.ink;
+    L.foot.forEach((l, i) => g.fillText(l, W / 2, L.footY + i * 32));
+    if (R.stamp && stampT != null) {
+      const sx = W - 6, sy = 6, r = 38, k = 1 + 0.6 * (1 - ease(k01(stampT, 0, 160)));
+      // the lines of the stamp hitting the paper, for a moment
+      if (stampT < 260) { g.save(); g.strokeStyle = R.ink; g.lineWidth = 3; g.globalAlpha = 1 - k01(stampT, 120, 260);
+        for (let i = 0; i < 6; i++) { const a = Math.PI * (0.55 + i * 0.18), d0 = r + 8 + 10 * k01(stampT, 0, 260); g.beginPath(); g.moveTo(sx + Math.cos(a) * d0, sy + Math.sin(a) * d0); g.lineTo(sx + Math.cos(a) * (d0 + 12), sy + Math.sin(a) * (d0 + 12)); g.stroke(); }
+        g.restore(); }
+      g.save(); g.globalAlpha = k01(stampT, 0, 80); g.translate(sx, sy); g.rotate(-0.22); g.scale(k, k);
+      g.shadowColor = 'rgba(60,30,50,0.3)'; g.shadowBlur = 8; g.shadowOffsetY = 3; g.fillStyle = '#fff';
+      g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill(); g.shadowColor = 'transparent';
+      g.strokeStyle = R.ink; g.lineWidth = 4; g.stroke(); g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, r - 7, 0, Math.PI * 2); g.stroke();
+      g.fillStyle = R.ink; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = F(800, R.stamp.length > 1 ? 22 : 30);
+      g.fillText(R.stamp, 0, 1); g.restore();
+      if (stampT >= 160) {
+        if (c.result === 'Gain') { drawStar(g, sx + 34, sy - 30, 9, '#FF8FB1'); drawStar(g, sx - 48, sy - 30, 6, '#FFB3C8'); drawStar(g, sx + 36, sy + 36, 6, '#FF8FB1'); }
+        if (c.result === 'Loss') { g.save(); g.fillStyle = '#9FCBFF'; g.strokeStyle = '#3D74E0'; g.lineWidth = 1.5; g.beginPath(); const dx = sx - 50, dy = sy - 22;
+          g.moveTo(dx, dy - 11); g.bezierCurveTo(dx + 7, dy - 2, dx + 8, dy + 6, dx, dy + 8); g.bezierCurveTo(dx - 8, dy + 6, dx - 7, dy - 2, dx, dy - 11); g.fill(); g.stroke(); g.restore(); }
+        if (c.result === 'Even') drawStar(g, sx + 36, sy - 28, 7, '#B9A2F0');
+      }
+    }
+    g.restore();
+  }
+  return { W, PAPER, EDGE, layout, draw };
+})();
 
 // The box of what is drawn in a part of a picture, and the centre of its mass.
 const box = (im, x, y, w, h) => {
@@ -242,10 +337,12 @@ export class Pet extends Engine {
     const her = this.herBox(st);
     const bub = st.bubble?.text && this.bubbleBox(g, st, her, this.bubSide);
     this.bubSide = bub?.side;
-    const target = this.spritePos(st, her, now, bub), sp = target && this.follow(target, dt, st);
+    const bill = st.bill && this.billSpot(g, st);
+    const target = this.spritePos(st, her, now, bub, bill), sp = target && this.follow(target, dt, st);
     this.sTarget = target && { ...target, sp: st.sp };   // where it is flying to (smooth: is it on her head yet)
     if (sp) { this.trail = this.trail.filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) drawFx(g, f, st, her, now, this);
+    if (st.bill?.reveal > 0) this.drawBill(g, st.bill, bill);   // behind her: a long card comes down behind her hair
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     this.drawHer(g, st, now);
     if (sp && !st.sBehind && !st.sOver) this.drawSprite(g, st, sp, now);
@@ -341,8 +438,10 @@ export class Pet extends Engine {
 
   // st.sp: null (home), ['home', dx, dy] (home moved by), ['rel', fx, fy] (a point of her drawing's box, as fractions of
   // it), ['at', x, y] (a page point), ['tossed', hop] (over her head, hopping by hop of her height, and above bub, her
-  // bubble, when that is over her head, however many lines it has), or the named spots below.
-  spritePos(st, her, now, bub) {
+  // bubble, when that is over her head, however many lines it has), ['bill', 'corner' or 'side'] (at the 账单卡's top right
+  // corner, where it prints and stamps it, or beside its right edge at her waist; bill is where the card hangs), or the named
+  // spots below.
+  spritePos(st, her, now, bub, bill) {
     if (st.orbit == null) this.orb = null;
     if (st.sp?.[0] === 'gone') return null;
     const home = this.home(now);
@@ -364,6 +463,7 @@ export class Pet extends Engine {
     const rel = (fx, fy) => ({ x: her.x + her.w * fx, y: her.y + her.h * fy });
     if (st.sp[0] === 'rel') return rel(st.sp[1], st.sp[2]);
     if (st.sp[0] === 'at') return { x: st.sp[1], y: st.sp[2] };
+    if (st.sp[0] === 'bill') return st.sp[1] === 'corner' ? { x: bill.x + BILL.W - 6, y: Math.max(SPRITE_H / 2 + 4, bill.y - 4) } : { x: bill.x + BILL.W + 22, y: FOOT.y - 0.34 * H };
     if (st.sp === 'head') return { x: her.x + her.w * 0.25, y: her.y - SPRITE_H * 0.2 + 3 * Math.sin(now / 500) };
     if (st.sp === 'knee') return { x: her.x + her.w * 0.94, y: FOOT.y - 42 + 2 * Math.sin(now / 900) };
     if (st.sp[0] === 'crown') { const top = { x: FOOT.x, y: her.y - SPRITE_H * 0.55 }; const p = st.sp[1], d = st.sp[2]; return { x: home.x + (top.x - home.x) * p, y: home.y + (top.y - home.y) * p + 26 * d }; }
@@ -461,6 +561,25 @@ export class Pet extends Engine {
       }
     }
     g.restore();
+  }
+
+  // Where a 盲盒查询's 账单卡 hangs: centred on her, its bottom just over her head, never so high that its stamp leaves the page
+  // (a long one comes down behind her hair a little).
+  billSpot(g, st) {
+    const h = BILL.layout(g, st.bill).h;
+    return { x: st.x - BILL.W / 2, y: Math.max(40, FOOT.y - H - 4 - h), h };
+  }
+
+  // The card b as far as it has come out (reveal), its top first, where it hangs (spot) bobbing by b.dy; a curl of paper at the
+  // edge while it unrolls or rolls up.
+  drawBill(g, b, spot) {
+    const y = spot.y + b.dy, edge = y + spot.h * b.reveal;
+    g.save(); g.beginPath(); g.rect(spot.x - 80, y - 80, BILL.W + 160, edge - y + 80); g.clip();
+    BILL.draw(g, b, spot.x, y, b.stampT); g.restore();
+    if (b.reveal < 1) {
+      g.save(); g.fillStyle = BILL.PAPER; g.strokeStyle = BILL.EDGE; g.lineWidth = 2; g.shadowColor = 'rgba(60,30,50,0.3)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
+      g.beginPath(); g.roundRect(spot.x - 4, edge - 8, BILL.W + 8, 16, 8); g.fill(); g.stroke(); g.restore();
+    }
   }
 
   // A prop at her scale times s, its bottom centre at x, y.
@@ -892,21 +1011,16 @@ export class Pet extends Engine {
   // 总督's stair would flip it back and forth in the middle of a line. A new bubble after none is placed afresh.
   bubbleBox(g, st, her, was) {
     const b = st.bubble, s = BUBBLE_SCALE;
-    // a line never starts with closing punctuation: it stays on the line before, a little over the width
-    const wrap = maxW => {
+    const lay = maxW => {
       g.save(); g.font = BUBBLE_FONT;
-      const lines = [];
-      let cur = '';
-      for (const ch of [...b.text]) { if (ch === '\n') { lines.push(cur); cur = ''; continue; } if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
-      lines.push(cur);
-      const w = Math.max(...lines.map(l => g.measureText(l).width)) + 26 * s;
+      const lines = wrap(g, b.text, maxW), w = Math.max(...lines.map(l => g.measureText(l).width)) + 26 * s;
       g.restore();
       return { lines, w, h: (lines.length * 24 + 16) * s };
     };
-    const up = wrap((b.maxW || 230) * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
+    const up = lay((b.maxW || 230) * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
     if (b.at || st.y - H * st.s - 6 - up.h - 14 * s >= 8 + (was ? HOP : 0)) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
     const l = her.x + her.w * 0.15, r = her.x + her.w * 0.85, side = PAGE.w - r >= l ? 1 : -1;  // her head's edges
-    const beside = wrap(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
+    const beside = lay(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
     return { ...beside, x: side > 0 ? r + 14 * s : l - 14 * s - beside.w, y: clamp(her.y + her.h * 0.3, 8, PAGE.h - beside.h - 8), tip: { x: side > 0 ? r : l, y: her.y + her.h * 0.42 }, side };
   }
 

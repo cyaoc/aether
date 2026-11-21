@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Aether.Core.Tests.Support;
+using Microsoft.Extensions.Logging;
 using static Aether.Core.Tests.Support.BlindGiftFixture;
 using static Aether.Core.Tests.Support.SentDanmaku;
 
@@ -156,6 +157,105 @@ public sealed class DesktopPetGiftTests
     }
 
     [Theory]
+    [InlineData(1950L, "今日投入15电池 赚4.5电池", "Gain", "15", "4.5")]
+    [InlineData(1504L, "今日投入15电池 不赚不亏", "Even", "15", "0")]
+    [InlineData(1000L, "今日投入15电池 亏5电池", "Loss", "15", "5")]
+    [InlineData(null, "今日没有盲盒记录", "None", null, null)]
+    public async Task A_query_reply_going_out_tells_the_tally_card_its_viewer_period_and_the_replys_numbers(long? opened, string reply,
+        string result, string? spend, string? profit)
+    {
+        await using var h = new WatchHarness();
+        var sent = CaptureSends(h);
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h, ("blind_box.announce", "false"));
+        using var _ = pet;
+        if (opened is { } value) await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), spend: 1500, price: value));
+
+        await DanmakuAsync(h, updates);
+
+        Assert.Equal(reply, (await NextSendAsync(sent))["msg"]);
+        Assert.Equal(new BlindBoxQueryResult(10001, "观众", "今日", Enum.Parse<BlindBoxOutcome>(result), spend, profit),
+            (await pet.NextAsync(DesktopPet.BlindBoxQuery)).Deserialize<BlindBoxQueryResult>(WebServer.Json));
+    }
+
+    [Fact]
+    public async Task A_query_reply_given_up_is_told_all_the_same()
+    {
+        await using var h = new WatchHarness();
+        var sent = CaptureSends(h, "{\"code\":1003212,\"message\":\"超长\"}");
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+
+        await DanmakuAsync(h, updates);
+
+        await NextSendAsync(sent);
+        Assert.Equal(10001, (await pet.NextAsync(DesktopPet.BlindBoxQuery)).GetProperty("uid").GetInt64());
+    }
+
+    [Fact]
+    public async Task A_query_rate_limited_at_first_is_told_once_as_its_retry_goes_out()
+    {
+        await using var h = new WatchHarness();
+        var sent = CaptureSends(h, "{\"code\":10031,\"message\":\"太快\"}", Accepted);
+        var release = HoldSends(h, attempt: 2);
+        // The retry waits the 7-second send interval: each write to the page is a timer too, timing out at 5 seconds.
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h, ("send.interval_seconds", "7"));
+        using var _ = pet;
+        await DanmakuAsync(h, updates);
+        Assert.Equal(DesktopPet.Danmaku, (await pet.NextAsync()).Name);
+        await NextSendAsync(sent);
+        await h.WaitForLogAsync(LogLevel.Warning, "7 秒后重试");
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(7));
+        h.Time.Advance(TimeSpan.FromSeconds(7));
+        await NextSendAsync(sent); // The retry, held: the first attempt's turn is over.
+        await DanmakuAsync(h, updates, "啊");
+
+        Assert.Equal(DesktopPet.Danmaku, (await pet.NextAsync()).Name);
+        release.SetResult();
+        Assert.Equal(10001, (await pet.NextAsync(DesktopPet.BlindBoxQuery)).GetProperty("uid").GetInt64());
+        await DanmakuAsync(h, updates, "啊");
+        Assert.Equal(DesktopPet.Danmaku, (await pet.NextAsync()).Name);
+    }
+
+    [Fact]
+    public async Task A_query_from_uid_0_gets_no_reply_and_tells_nothing()
+    {
+        await using var h = new WatchHarness();
+        CaptureSends(h);
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        using var _ = pet;
+
+        await DanmakuAsync(h, updates, uid: 0);
+        await DanmakuAsync(h, updates, uid: 20002);
+
+        Assert.Equal(20002, (await pet.NextAsync(DesktopPet.BlindBoxQuery)).GetProperty("uid").GetInt64());
+    }
+
+    [Fact]
+    public async Task While_the_desktop_pet_is_off_a_query_reply_tells_it_nothing()
+    {
+        await using var h = new WatchHarness();
+        var sent = CaptureSends(h);
+        await h.LoginAsync();
+        await h.ApplySettingsAsync(("blind_box.announce", "false"));
+        h.EnableStreamOverlay = true;
+        await using var updates = await h.WatchConnectedAsync();
+        using var pet = await DesktopPetEvents.OpenAsync(h);
+        Assert.False((await pet.NextAsync("state")).GetProperty("enabled").GetBoolean());
+        await h.PushAndSyncAsync(updates, Gift(h.Time.GetUtcNow(), uid: 20002));
+        await DanmakuAsync(h, updates);
+        await DanmakuAsync(h, updates, uid: 20002);
+        await NextSendAsync(sent);
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(1));
+        h.Time.Advance(TimeSpan.FromSeconds(1));
+        // The second reply goes out only once the first was told to the 桌宠 while it was off.
+        Assert.Equal("20002", (await NextSendAsync(sent))["reply_mid"]);
+
+        await h.ApplySettingsAsync(("blind_box.announce", "false"), ("desktop_pet.enabled", "true"));
+
+        Assert.Equal("state", (await pet.NextAsync()).Name);
+    }
+
+    [Theory]
     [InlineData(32132, true)]
     [InlineData(34632, true)]
     [InlineData(34633, true)]
@@ -168,6 +268,7 @@ public sealed class DesktopPetGiftTests
     {
         Assert.Equal(expected, told.Deserialize<BlindBoxResult>(WebServer.Json));
         Assert.Equal(outcome, told.GetProperty("tally").GetProperty("outcome").GetString());
+        Assert.Equal(["spend", "openedValue", "outcome"], told.GetProperty("tally").EnumerateObject().Select(field => field.Name));
     }
 
     /// <summary>The next 一轮送礼 told is <paramref name="round"/>, the gifts of the message it was told after too.</summary>

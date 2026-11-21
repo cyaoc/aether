@@ -7,6 +7,7 @@
     { "id": "guard", "label": "大航海", "note": "开通或续费大航海，三档各演各的" },
     { "id": "newFirst", "label": "新的第一名", "note": "这一笔让礼物榜换了第一名，接在主演出后面；礼物榜没在统计时没有榜，不演" },
     { "id": "lottery", "label": "抽奖", "note": "报名抽奖和奖池抽奖的每一步" },
+    { "id": "blindBoxQuery", "label": "盲盒查询", "note": "观众查盲盒时精灵吐出账单卡；她闲着才演，没开盲盒统计时不演" },
     { "id": "mood", "label": "心情" },
     { "id": "daily", "label": "日常" },
     { "id": "mishap", "label": "出事" },
@@ -34,6 +35,8 @@
       "lines": ["lotteryEntryOpen", "lotteryEntryOngoing", "lotteryEntryClosed", "lotteryWaiting", "lotteryPoolOpen", "lotteryPoolCall", "lotteryPoolSpin",
         "lotteryGrand", "lotterySecond", "lotteryThird", "lotteryNoEntries", "lotteryEnd"],
       "tests": ["EntryOpen", "EntryClosed", "PoolOpen", "PoolCall", "PoolSpin", "RevealGrand", "RevealSecond", "RevealThird", "NoEntries", "End"] },
+    { "id": "blindBoxQuery", "group": "blindBoxQuery", "label": "盲盒查询", "note": "bot 回复观众的盲盒查询时", "tier": "D",
+      "lines": ["queryGain", "queryEven", "queryLoss", "queryNone"], "tests": ["Gain", "Even", "Loss", "None"] },
     { "id": "happy", "group": "mood", "label": "开心", "tier": "D", "lines": [], "tests": [] },
     { "id": "calm", "group": "mood", "label": "平静", "tier": "D", "lines": [], "tests": [] },
     { "id": "bored", "group": "mood", "label": "无聊", "tier": "D", "lines": ["bored"], "tests": [null] },
@@ -78,6 +81,10 @@
     { "id": "lotteryThird", "group": "lottery", "label": "揭晓·三奖", "note": "揭晓三奖时", "placeholders": ["昵称", "奖项", "奖品"] },
     { "id": "lotteryNoEntries", "group": "lottery", "label": "没人报名", "note": "报名截止时没有人报名", "placeholders": [] },
     { "id": "lotteryEnd", "group": "lottery", "label": "抽奖结束", "note": "主播关掉这一场抽奖时", "placeholders": [] },
+    { "id": "queryGain", "group": "blindBoxQuery", "label": "查询赚了", "note": "查到赚了时，印在账单卡底下", "placeholders": [] },
+    { "id": "queryEven", "group": "blindBoxQuery", "label": "查询不赚不亏", "note": "查到不赚不亏时，印在账单卡底下", "placeholders": [] },
+    { "id": "queryLoss", "group": "blindBoxQuery", "label": "查询亏了", "note": "查到亏了时，印在账单卡底下", "placeholders": [] },
+    { "id": "queryNone", "group": "blindBoxQuery", "label": "查询没有记录", "note": "查到没有盲盒记录时，印在账单卡底下", "placeholders": [] },
     { "id": "bored", "group": "mood", "label": "无聊", "note": "无聊的时候，隔一阵说一句", "placeholders": [] },
     { "id": "gloomy", "group": "mood", "label": "沮丧", "note": "沮丧的时候，隔一阵说一句", "placeholders": [] },
     { "id": "sleepy", "group": "mood", "label": "犯困", "note": "打瞌睡时说的梦话", "placeholders": [] },
@@ -123,7 +130,7 @@
     { "id": "pranksterFlees", "group": "prankster", "label": "被打跑", "note": "被人气票打跑时", "placeholders": [] }
   ],
   "variants": {
-    "Gain": "赚了", "Even": "不赚不亏", "Loss": "亏了", "Jackpot": "出大奖", "Mishap": "出事",
+    "Gain": "赚了", "Even": "不赚不亏", "Loss": "亏了", "None": "没有记录", "Jackpot": "出大奖", "Mishap": "出事",
     "EntryOpen": "报名开场", "EntryClosed": "报名截止", "PoolOpen": "奖池开场", "PoolCall": "奖池点名", "PoolSpin": "奖池转动",
     "RevealGrand": "揭晓·大奖", "RevealSecond": "揭晓·二奖", "RevealThird": "揭晓·三奖", "NoEntries": "没人报名", "End": "抽奖结束"
   }

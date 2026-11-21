@@ -106,6 +106,22 @@ public sealed class DesktopPetPageTests
     }
 
     [Fact]
+    public async Task A_query_reply_tells_the_tally_card_with_the_result_by_name_and_the_numbers_as_text()
+    {
+        await using var h = new WatchHarness();
+        SentDanmaku.CaptureSends(h);
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h, ("blind_box.announce", "false"));
+        using var _ = pet;
+        await using var __ = updates;
+        await h.PushAndSyncAsync(updates, BlindGiftFixture.Gift(h.Time.GetUtcNow(), spend: 1500, price: 1950));
+
+        await SentDanmaku.DanmakuAsync(h, updates);
+
+        Assert.Equal("""{"uid":10001,"nickname":"\u89C2\u4F17","period":"\u4ECA\u65E5","result":"Gain","spend":"15","profit":"4.5"}""",
+            (await pet.NextAsync(DesktopPet.BlindBoxQuery)).GetRawText());
+    }
+
+    [Fact]
     public async Task A_danmaku_that_is_all_1_or_2_takes_her_side_or_the_pranksters_and_the_accounts_own_is_not_told()
     {
         await using var h = new WatchHarness();

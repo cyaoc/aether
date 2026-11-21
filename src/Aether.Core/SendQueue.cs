@@ -31,8 +31,8 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
 
     /// <summary>A send's turn: its text as it stands, and how long the pacing rules still hold it back. A turn that waits sends
     /// nothing; the turn after the wait can bring another text. An announcement's turn reports the first Reported boxes of its
-    /// 一轮盲盒.</summary>
-    internal sealed record Turn(Item Item, int? Reported, string Text, TimeSpan Wait);
+    /// 一轮盲盒; a query's text is of the Tally it read.</summary>
+    internal sealed record Turn(Item Item, int? Reported, string Text, TimeSpan Wait, BlindBoxTally? Tally);
 
     private sealed class Round(Announcement item)
     {
@@ -204,15 +204,16 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
             var round = rounds[item.Uid];
             (item, reported) = (round.Item, round.Boxes.Count);
         }
+        var tallied = item is Query asked ? tally(asked) : null;
         var text = item switch
         {
-            Query query => BlindBoxTally.Reply(tally(query), query.Period),
+            Query query => BlindBoxTally.Reply(tallied, query.Period),
             Welcome welcome => welcome.Result.Text,
             _ => BlindBoxTally.Announcement(BlindBoxTally.Of(rounds[item.Uid].Boxes))
         };
         var wait = TurnWait(text);
         if (wait == TimeSpan.Zero) Report(item, SendQueueItemState.Sending, text);
-        return new(item, reported, text, wait);
+        return new(item, reported, text, wait, tallied);
     }
 
     /// <summary>Counts a send that has ended: even a failed or interrupted request may have reached B站, so both pacing rules
@@ -227,8 +228,9 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
     }
 
     /// <summary>Ends the turn of a send that was not interrupted: a first rate limit keeps it at the head for its one retry;
-    /// otherwise it was sent or is given up, and an announcement returns the 一轮盲盒 it reported.</summary>
-    public BlindBoxResult? EndTurn(Turn turn, Exception? failure)
+    /// otherwise it was sent or is given up, and returns what the 桌宠 is told of it: an announcement the 一轮盲盒 it reported
+    /// (BlindBoxResult), a query its 账单卡 (BlindBoxQueryResult).</summary>
+    public object? EndTurn(Turn turn, Exception? failure)
     {
         // ponytail: one retry, no backoff; back off if B站's limits turn out to outlast both pacing rules.
         if (failure is DanmakuRateLimitedException && !rateLimitRetryOwed)
@@ -239,9 +241,11 @@ internal sealed class SendQueue(StepTimers timers, ILogger logger, TimeSpan inte
             return null;
         }
         rateLimitRetryOwed = false;
-        return failure is null
+        var announced = failure is null
             ? Finish(turn.Item, turn.Reported, SendQueueItemState.Sent, turn.Text)
             : Finish(turn.Item, turn.Reported, SendQueueItemState.Discarded, turn.Text, failure.Message, failure);
+        if (announced is not null) return announced;
+        return turn.Item is Query query ? BlindBoxQueryResult.Of(query, turn.Tally) : null;
     }
 
     private bool DiscardExpiredWelcome(Item item)
