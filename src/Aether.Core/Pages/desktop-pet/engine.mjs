@@ -440,6 +440,9 @@ export class Engine extends EventTarget {
       if (r) { r.ended = true; if (r.told === r.boxes) this.rounds.splice(this.rounds.indexOf(r), 1); }
       return;
     }
+    // any gift cuts a 盲盒查询 short, its card gone at once: blind boxes and a round's gift short of moving it up play no show to
+    // take it over (a 试演's is over, as one cut short by a show)
+    if (this.cur?.name === 'blindBoxQuery') { this.trialOver(this.cur); this.drop(); }
     // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show (not while the 捣蛋鬼 is
     // here: fire)
     if (!r) {

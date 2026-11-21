@@ -51,9 +51,10 @@ paid, as the chest does:
 
 A `blindBoxQuery` tells a viewer's 盲盒查询 as its reply went out, sent or given up (a first rate limit waits for its retry),
 for the 账单卡: `uid`, `nickname`, `period` (今日, 本月 or 今年), `result` (`Gain`, `Even`, `Loss`, or `None` with no blind box
-recorded) and `spend` and `profit`, the 投入 and the 盈亏 without its sign as the reply writes them (`BlindBoxTally.Shown`),
+recorded) and `spend` and `profit`, the 投入 and the 盈亏 without its sign as the reply writes them (`BlindBoxTally.Shown()`),
 null for `None`. She shows it only while she is idle, as she waves at an entry: never over a show or blind boxes she shakes,
-never queued, never while the 捣蛋鬼 is here.
+never queued, never while the 捣蛋鬼 is here; and any gift cuts it short at once, blind boxes and a round's gift that plays
+nothing too.
 
 A `danmaku` tells only `uid`, `nickname` and `side`, the 站队 it takes: 1, hers, when all of it is "1", -1, the 捣蛋鬼's, when
 it is "2", else 0 (Core compares it trimmed, as a 报名抽奖 compares its keyword): what a viewer wrote never reaches the

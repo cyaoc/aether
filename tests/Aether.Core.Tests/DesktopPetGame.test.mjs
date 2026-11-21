@@ -76,6 +76,13 @@ test('a 大航海 whose show is off scares the 捣蛋鬼 off all the same and pl
   assert.deepEqual([pet.gm.visit.phase, playing(pet)], ['fled', null]);
 });
 
+test('a 盲盒查询 plays nothing while the 捣蛋鬼 is here, nor scares it off', () => {
+  const pet = visited();
+  pet.blindBoxQuery({ uid: 1, nickname: '观众1', period: '今日', result: 'Gain', spend: '15', profit: '4.5' });
+  play(pet, 1500);
+  assert.deepEqual([pet.gm.visit.phase, playing(pet), pet.stateAt(pet.now()).bill], ['peek', null, undefined]);
+});
+
 test('a gift that scares the 捣蛋鬼 off sends a ring of light out from her first: until it gets there the countdown, its lightning and what is thrown stand still, and a 人气票 or 小花花 is only a gift', () => {
   const pet = tugging(), v = pet.gm.visit;
   play(pet, 3000);
