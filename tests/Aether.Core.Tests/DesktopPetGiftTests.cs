@@ -197,17 +197,19 @@ public sealed class DesktopPetGiftTests
         await using var h = new WatchHarness();
         var sent = CaptureSends(h, "{\"code\":10031,\"message\":\"太快\"}", Accepted);
         var release = HoldSends(h, attempt: 2);
-        var (updates, pet) = await DesktopPetEvents.WatchAsync(h);
+        // The retry waits the 7-second send interval: each write to the page is a timer too, timing out at 5 seconds.
+        var (updates, pet) = await DesktopPetEvents.WatchAsync(h, ("send.interval_seconds", "7"));
         using var _ = pet;
         await DanmakuAsync(h, updates);
+        Assert.Equal(DesktopPet.Danmaku, (await pet.NextAsync()).Name);
         await NextSendAsync(sent);
-        await h.WaitForLogAsync(LogLevel.Warning, "5 秒后重试");
-        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(5));
-        h.Time.Advance(TimeSpan.FromSeconds(5));
+        await h.WaitForLogAsync(LogLevel.Warning, "7 秒后重试");
+        await h.Time.WaitForTimerAsync(TimeSpan.FromSeconds(7));
+        h.Time.Advance(TimeSpan.FromSeconds(7));
         await NextSendAsync(sent); // The retry, held: the first attempt's turn is over.
         await DanmakuAsync(h, updates, "啊");
 
-        Assert.Equal([DesktopPet.Danmaku, DesktopPet.Danmaku], await pet.NamesAsync(2));
+        Assert.Equal(DesktopPet.Danmaku, (await pet.NextAsync()).Name);
         release.SetResult();
         Assert.Equal(10001, (await pet.NextAsync(DesktopPet.BlindBoxQuery)).GetProperty("uid").GetInt64());
         await DanmakuAsync(h, updates, "啊");
