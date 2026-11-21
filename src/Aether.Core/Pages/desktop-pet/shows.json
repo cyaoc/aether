@@ -7,7 +7,7 @@
     { "id": "guard", "label": "大航海", "note": "开通或续费大航海，三档各演各的" },
     { "id": "newFirst", "label": "新的第一名", "note": "这一笔让礼物榜换了第一名，接在主演出后面；礼物榜没在统计时没有榜，不演" },
     { "id": "lottery", "label": "抽奖", "note": "报名抽奖和奖池抽奖的每一步" },
-    { "id": "blindBoxQuery", "label": "盲盒查询", "note": "观众查今日、本月、今年的盲盒，bot 回复时精灵吐出账单卡；她闲着才演，不排队；没开盲盒统计时没人能查" },
+    { "id": "blindBoxQuery", "label": "盲盒查询", "note": "观众查盲盒时精灵吐出账单卡；她闲着才演，没开盲盒统计时不演" },
     { "id": "mood", "label": "心情" },
     { "id": "daily", "label": "日常" },
     { "id": "mishap", "label": "出事" },
