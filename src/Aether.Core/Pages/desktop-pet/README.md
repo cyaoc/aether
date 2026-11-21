@@ -14,7 +14,7 @@ character's `character.json`; settings know it by its id and play it unless it i
 | `groups` | `id`, `label` and, for a group of 演出, `note`: the groups the GUI lists 演出 and kinds of lines under, in this order (`mood`, `daily` and `mishap` hold 心情, 日常小动作 and their mishaps' lines; `chestGame` and `prankster` hold hers and the 捣蛋鬼's in a 宝箱小游戏 来访) |
 | `shows` | A row for each 演出, 日常小动作 and 心情: `id`; `group`; `label`; `tier`, its 演出档 (`SS`, `S`, `A`, `B`, `C`, `D`); `lines`, the ids of the kinds of lines it says; `tests`, what a 试演 of it chooses, each a key of `variants` or `null` for the row itself, none for a row that has no 试演; and, for a 演出 the GUI switches by group, `note`, when it plays, where `{mid}`, `{big}` and `{big-1}` stand for the 中礼物 and 大礼物 thresholds in 电池 |
 | `lines` | A row for each kind of line: `id`, which settings and `character.json` key lines by; `group`; `label`; `note`, when she says it; `placeholders`, the names a line may hold in braces |
-| `variants` | The label of each 试演 variant: a blind box's ending (`Gain`, `Even`, `Loss`, as Core tells a 一轮盲盒's result, and `Jackpot`), a 日常小动作's `Mishap`, a lottery's step |
+| `variants` | The label of each 试演 variant: a blind box's ending (`Gain`, `Even`, `Loss`, as Core tells a 一轮盲盒's result, and `Jackpot`), a 盲盒查询's result (the same three and `None`, no record), a 日常小动作's `Mishap`, a lottery's step |
 
 Rows of the group `mood` cannot be turned off: a 心情 comes of how quiet the room has been, and `desktop_pet.*_minutes` of 0
 keeps her out of it. Nor can the group `chestGame`, the endings of a 宝箱小游戏 来访 (`pranksterKnocked` on an empty chest,
@@ -49,6 +49,12 @@ paid, as the chest does:
 | `gift`'s `items` | The viewer's gifts in the message: each its `giftId`, `name` and `price` of one, `spend` in 金瓜子 (a 盲盒's is the box's price, not what it opened), `count`, whether it is `blind` and whether that opened a 浪漫城堡 (`castle`); a 盲盒's id, name and price are those of the gift it opened. Her round's gift priced highest is the first of those of the highest `price`, and how many of it all of its `giftId`: the same rule as Core's 一轮送礼 (`GiftRoundFeature`) |
 | `guard`'s `spend` | What the 大航海 cost in 金瓜子, for all its months; a push B站 repeats (the same `Tid`) is told once |
 
+A `blindBoxQuery` tells a viewer's 盲盒查询 as its reply went out, sent or given up (a first rate limit waits for its retry),
+for the 账单卡: `uid`, `nickname`, `period` (今日, 本月 or 今年), `result` (`Gain`, `Even`, `Loss`, or `None` with no blind box
+recorded) and `spend` and `profit`, the 投入 and the 盈亏 without its sign as the reply writes them (`BlindBoxTally.Shown`),
+null for `None`. She shows it only while she is idle, as she waves at an entry: never over a show or blind boxes she shakes,
+never queued, never while the 捣蛋鬼 is here.
+
 A `danmaku` tells only `uid`, `nickname` and `side`, the 站队 it takes: 1, hers, when all of it is "1", -1, the 捣蛋鬼's, when
 it is "2", else 0 (Core compares it trimmed, as a 报名抽奖 compares its keyword): what a viewer wrote never reaches the
 stream. The account's own danmaku, the bot's thanks,
@@ -74,7 +80,8 @@ moment) and its drawing `pet.mjs` and `effects.mjs`, ported function for functio
 event above to the engine's handler of the same name. The board's numbers measured on her pictures are the current
 character's `desktopPet` (`../characters/README.md`); the shows' timings, effects and the sprite's ways stay here, the same for
 every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps, entries, gifts, blind boxes,
-castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`) and each step of a lottery;
+castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery and
+a 盲盒查询's 账单卡;
 and the 宝箱小游戏 (below).
 
 Her speech bubbles and the effects' marks are in the 礼物榜页's Noto Sans SC (`../gift-board/fonts/noto-sans-sc.css`, `SANS`

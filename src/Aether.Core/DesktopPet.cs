@@ -6,8 +6,8 @@ namespace Aether.Core;
 internal sealed class DesktopPet(WebService service, Character character)
 {
     /// <summary>What happens, by the name the page is told it under.</summary>
-    public const string Gift = "gift", BlindBox = "blindBox", Guard = "guard", Entry = "entry", Danmaku = "danmaku",
-        Test = "testShow", StopTest = "stopTestShow", Summon = "summon";
+    public const string Gift = "gift", BlindBox = "blindBox", BlindBoxQuery = "blindBoxQuery", Guard = "guard", Entry = "entry",
+        Danmaku = "danmaku", Test = "testShow", StopTest = "stopTestShow", Summon = "summon";
 
     private bool roomConnected;
     private bool pk;
@@ -268,4 +268,14 @@ internal sealed record BlindBoxResult(long Uid, string Nickname, BlindBoxTally T
         return new(uid, nickname, BlindBoxTally.Of(boxes), boxes.Sum(box => box.Num), best.GiftName, best.Price,
             boxes.Where(box => box.IsCastle).Sum(box => box.Num));
     }
+}
+
+/// <summary>A viewer's 盲盒查询 as its reply went out, sent or given up, for the 账单卡: the period as the reply names it, and the
+/// 投入, 盈亏 and how it came out as the reply writes them (BlindBoxTally.Shown); None and no numbers when no blind box was
+/// recorded.</summary>
+internal sealed record BlindBoxQueryResult(long Uid, string Nickname, string Period, BlindBoxOutcome Result, string? Spend, string? Profit)
+{
+    public static BlindBoxQueryResult Of(SendQueue.Query query, BlindBoxTally? tally) => tally?.Shown is (var spend, var profit, var outcome)
+        ? new(query.Uid, query.Nickname, query.Period.Name(), outcome, spend, profit)
+        : new(query.Uid, query.Nickname, query.Period.Name(), BlindBoxOutcome.None, null, null);
 }

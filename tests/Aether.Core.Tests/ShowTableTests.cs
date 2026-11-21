@@ -14,11 +14,11 @@ public sealed class ShowTableTests
             ("entry", "entry", "C"), ("gift", "gift", "C"), ("giftStreak", "gift", "C"), ("midGift", "gift", "B"), ("bigGift", "gift", "A"),
             ("blindBoxSmall", "blindBox", "C"), ("blindBoxMedium", "blindBox", "B"), ("blindBoxLarge", "blindBox", "A"), ("castle", "castle", "S"),
             ("captain", "guard", "B"), ("admiral", "guard", "A"), ("governor", "guard", "SS"), ("newFirst", "newFirst", "C"), ("lottery", "lottery", "A"),
-            ("happy", "mood", "D"), ("calm", "mood", "D"), ("bored", "mood", "D"), ("gloomy", "mood", "D"), ("sleepy", "mood", "D"), ("wake", "mood", "D"),
+            ("blindBoxQuery", "blindBoxQuery", "D"), ("happy", "mood", "D"), ("calm", "mood", "D"), ("bored", "mood", "D"), ("gloomy", "mood", "D"), ("sleepy", "mood", "D"), ("wake", "mood", "D"),
             ("hum", "daily", "D"), ("gym", "daily", "D"), ("hike", "daily", "D"), ("bike", "daily", "D"), ("ski", "daily", "D"),
             ("pranksterKnocked", "chestGame", "B"), ("chestKept", "chestGame", "B"), ("chestRobbed", "chestGame", "B"),
         ], Table.Shows.Select(show => (show.Id, show.Group, show.Tier)));
-        Assert.Equal(["进场", "礼物", "盲盒", "城堡", "大航海", "新的第一名", "抽奖", "心情", "日常", "出事", "小游戏·她", "小游戏·它"],
+        Assert.Equal(["进场", "礼物", "盲盒", "城堡", "大航海", "新的第一名", "抽奖", "盲盒查询", "心情", "日常", "出事", "小游戏·她", "小游戏·它"],
             Table.Groups.Select(group => group.Label));
         // Moods come of quiet minutes, not of a switch; the chest game's endings are a 来访's, which plays whole (#372).
         Assert.Equal(Table.Shows.Where(show => show.Group is not (ShowGroup.Mood or ShowGroup.ChestGame)), Table.Shows.Where(show => show.CanTurnOff));
@@ -34,7 +34,7 @@ public sealed class ShowTableTests
             ("blindBoxSmall", boxes), ("blindBoxMedium", boxes), ("blindBoxLarge", [.. boxes, "Jackpot"]), ("castle", [null]),
             ("captain", [null]), ("admiral", [null]), ("governor", [null]), ("newFirst", [null]),
             ("lottery", ["EntryOpen", "EntryClosed", "PoolOpen", "PoolCall", "PoolSpin", "RevealGrand", "RevealSecond", "RevealThird", "NoEntries", "End"]),
-            ("happy", []), ("calm", []), ("bored", [null]), ("gloomy", [null]), ("sleepy", [null]), ("wake", []),
+            ("blindBoxQuery", ["Gain", "Even", "Loss", "None"]), ("happy", []), ("calm", []), ("bored", [null]), ("gloomy", [null]), ("sleepy", [null]), ("wake", []),
             ("hum", daily), ("gym", daily), ("hike", daily), ("bike", daily), ("ski", daily),
             ("pranksterKnocked", []), ("chestKept", []), ("chestRobbed", []),
         ], Table.Shows.Select(show => (show.Id, (string?[])[.. show.Tests])));
@@ -55,6 +55,7 @@ public sealed class ShowTableTests
             ("lotteryWaiting", "lottery", ""), ("lotteryPoolOpen", "lottery", ""), ("lotteryPoolCall", "lottery", "昵称"), ("lotteryPoolSpin", "lottery", ""),
             ("lotteryGrand", "lottery", "昵称 奖项 奖品"), ("lotterySecond", "lottery", "昵称 奖项 奖品"), ("lotteryThird", "lottery", "昵称 奖项 奖品"),
             ("lotteryNoEntries", "lottery", ""), ("lotteryEnd", "lottery", ""),
+            ("queryGain", "blindBoxQuery", ""), ("queryEven", "blindBoxQuery", ""), ("queryLoss", "blindBoxQuery", ""), ("queryNone", "blindBoxQuery", ""),
             ("bored", "mood", ""), ("gloomy", "mood", ""), ("sleepy", "mood", ""), ("jolt", "mood", ""),
             ("hum", "daily", ""), ("gym", "daily", ""), ("hike", "daily", ""), ("bike", "daily", ""), ("ski", "daily", ""),
             ("voiceCrack", "mishap", ""), ("droppedOnFoot", "mishap", ""), ("slipped", "mishap", ""), ("dustOff", "mishap", ""),

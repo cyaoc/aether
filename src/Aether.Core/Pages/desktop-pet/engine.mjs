@@ -85,8 +85,18 @@ const EVENTS = {
   captain: { dur: 4500 }, bigGift: { dur: 6000 }, blindBoxLarge: { dur: 6000 },
   admiral: { dur: 8000 }, governor: { dur: 15000 }, castle: { dur: 11500 }, newFirst: { dur: 2600 }, lottery: { steps: LOTTERY },
   // the chest game's: the 捣蛋鬼 knocked away, beaten off (zapDur: the longer show after the lightning), gone with the chest
-  pranksterKnocked: { dur: 4300 }, chestKept: { dur: 4800, zapDur: 7200 }, chestRobbed: { dur: 5600 }
+  pranksterKnocked: { dur: 4300 }, chestKept: { dur: 4800, zapDur: 7200 }, chestRobbed: { dur: 5600 },
+  blindBoxQuery: { dur: 6000 }
 };
+// Shown only while she is idle: never over a show, a 日常小动作 or blind boxes she shakes, never queued, and not while the
+// 捣蛋鬼 is here, which they do not scare off (fire).
+const IDLE_ONLY = ['entry', 'blindBoxQuery'];
+// 盲盒查询 (queryShow): the show's steps (ms); her pose and the sprite's once it is home, by the result; and what a 试演 of each
+// result says, the board's buttons' (今日).
+const QUERY = { print: [800, 1500], stamp: 1900, react: 2100, down: 2200, side: 3000, roll: [5200, 5700], done: 5600 };
+const BILL_POSE = { Gain: 'cheer', Even: 'nod', Loss: 'pout', None: 'point' }, BILL_SPRITE = { Gain: 'sHappy', Even: 'nod', Loss: 'hide', None: 'flag' };
+const QUERY_TRIAL = { Gain: { period: '今日', spend: '15', profit: '4.5' }, Even: { period: '今日', spend: '15', profit: '0' },
+  Loss: { period: '今日', spend: '45', profit: '12.5' }, None: { period: '今日' } };
 // A 大航海 by B站's guard_level: 1 总督, 2 提督, 3 舰长.
 const GUARDS = ['governor', 'admiral', 'captain'];
 // What a 试演 thanks for, where its line names a gift.
@@ -349,15 +359,14 @@ export class Engine extends EventTarget {
     // while the 捣蛋鬼 is here she waves at no one, and anything else scares it off, a show turned off too; the show then waits
     // while the sprite takes the chest home (scared, a gift's sender named; the game's own shows are opts.game)
     if (vis && !opts.game) {
-      if (name === 'entry') return;
+      if (IDLE_ONLY.includes(name)) return;
       opts = { ...opts, ...this.scared(now, ev.gift && opts.nickname) };
     }
     // a 大航海's 电池 go into the chest like a gift's (after the scare: the chest it saved goes home with them)
     if (opts.spend) this.gameGift({ spend: opts.spend, count: 1 });
     if (this.settings.off.includes(name)) { if (opts.frizz) this.gm.fix = { start: now, pose: opts.frizz }; return; }
-    // she waves at whoever comes in only while she is idle: never over a daily action, any show or blind boxes she shakes,
-    // and it does not queue
-    if (name === 'entry' && (this.cur || this.shaking())) return;
+    // she waves at whoever comes in, or shows a 账单卡, only while she is idle
+    if (IDLE_ONLY.includes(name) && (this.cur || this.shaking())) return;
     const curTier = this.cur ? TIER[this.events[this.cur.name].tier] : -1, tier = TIER[ev.tier];
     // A gift round that grows to 5 gifts takes over its own plain thank-you, instead of being dropped as busy.
     // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
@@ -402,10 +411,12 @@ export class Engine extends EventTarget {
     if (name === 'chestKept') this.moodHold = { mood: 'happy', until: now + dur + MOOD_HOLD.kept };
   }
 
-  // A blind box says the lines of its ending, the lottery its step's, 守住了 by a 绝杀 that one's; every other show its own.
+  // A blind box says the lines of its ending, a 盲盒查询 its result's, the lottery its step's, 守住了 by a 绝杀 that one's; every
+  // other show its own.
   lineKey(name, opts = {}) {
     const ev = this.events[name];
-    return ev?.group === BLIND_BOX ? BOX_LINES[opts.result || 'Gain'] : ev?.steps ? ev.steps[opts.result].line : name === 'chestKept' && opts.buzzer ? 'chestKeptBuzzer' : name;
+    return ev?.group === BLIND_BOX ? BOX_LINES[opts.result || 'Gain'] : name === 'blindBoxQuery' ? 'query' + (opts.result || 'Gain')
+      : ev?.steps ? ev.steps[opts.result].line : name === 'chestKept' && opts.buzzer ? 'chestKeptBuzzer' : name;
   }
 
   // ---- what Core tells it (DesktopPet.cs)
@@ -503,6 +514,10 @@ export class Engine extends EventTarget {
   }
 
   entry(e) { this.fire('entry', { nickname: e.nickname }); }
+
+  // A viewer's 盲盒查询 as its reply went out (BlindBoxQueryResult): its 账单卡 says what the reply said. Its 投入 is no gift, so
+  // it is kept out of opts.spend, which goes in her chest (fire).
+  blindBoxQuery({ nickname, result, period, spend, profit }) { this.fire('blindBoxQuery', { nickname, result, bill: { period, spend, profit } }); }
 
   // a danmaku is not played (README 10), it tells her someone is there (犯困 needs an hour with nothing at all), and is its
   // viewer's in the 宝箱小游戏 (gameDanmaku): the 站队 it takes is Core's to tell (side), what it says never leaves Core
@@ -1569,11 +1584,31 @@ export class Engine extends EventTarget {
         if (t < ROB.quiet) say(500);
         break;
       }
+      case 'blindBoxQuery': this.queryShow(t, st, opts, line, hop); break;
       case 'hum': case 'gym': case 'hike': case 'bike': case 'ski': return this.daily(t, st, { ...opts, kind: name }, line);
     }
     const extra = EVENT_FX[key];
     if (extra) { st.fx.push(...extra.fx); st.shake = extra.shake; }
     return st;
+  }
+
+  // 盲盒查询 (QUERY): the 账单卡 hangs just over her head, where Pet places it (billSpot), with her words on it, so no bubble. The
+  // sprite flies up to the card's top right corner and, glowing, prints the card out of itself; it stamps the result right
+  // there, comes down beside the card's right edge (clear of its words) to her waist and home to her low in front (never
+  // across her face) to answer it with her; the card rolls itself up at the end.
+  queryShow(t, st, opts, line, hop) {
+    const q = QUERY, r = opts.result || 'Gain', stamped = r !== 'None';
+    st.pose = at(t, [[0, 'hope'], [q.react, BILL_POSE[r]], [q.done, 'idle']]);
+    if (r === 'Gain') { hop(q.react, 14); st.fx.push(['sparkles', q.react]); }
+    if (r === 'Loss') { if (t >= q.react && t < q.react + 1200) st.y -= 4 * Math.abs(Math.sin((t - q.react) / 90)); st.fx.push(['sweat', q.react - 100], ['anger', q.react, 900]); }
+    if (t < q.print[1]) { st.sprite = t < q.print[0] ? 'sLook' : 'glow'; st.sp = ['bill', 'corner']; }
+    else if (t < q.down) { st.sprite = stamped ? 'nod' : 'sLook'; st.sp = ['bill', 'corner']; }
+    else if (t < q.side) { st.sprite = 'sLook'; st.sp = ['bill', 'side']; }
+    else st.sprite = t < q.side + 500 ? 'sLook' : BILL_SPRITE[r];
+    // how much of the card has come out, top first; it bobs, and gives a little as the stamp lands
+    const reveal = t < q.print[0] ? 0 : t < q.print[1] ? ease(k01(t, q.print[0], q.print[1])) : 1 - ease(k01(t, q.roll[0], q.roll[1]));
+    st.bill = { result: r, name: opts.nickname ?? '', line, ...(opts.bill ?? QUERY_TRIAL[r]), reveal,
+      dy: 2 * Math.sin(t / 500) + 3 * bump(t, q.stamp, q.stamp + 200), stampT: stamped && t >= q.stamp ? t - q.stamp : null };
   }
 
   // line: the show's own line; what she says as it goes wrong is a line of its kind (key).

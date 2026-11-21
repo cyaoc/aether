@@ -5,7 +5,8 @@ export { ROUTES } from '../../docs/design/desktop-pet/tools/check-game.mjs';
 
 // The board's names of the shows, by the page's ids; and of the lottery's steps, by the 试演 variants of its one row.
 export const NAME = { entry: '进场', gift: '普通礼物', giftStreak: '连着送', midGift: '中礼物', bigGift: '大礼物', blindBoxSmall: '盲盒·小', blindBoxMedium: '盲盒·中', blindBoxLarge: '盲盒·大',
-  captain: '舰长', admiral: '提督', governor: '总督', castle: '城堡', newFirst: '新的第一名', pranksterKnocked: '打跑了', chestKept: '守住了', chestRobbed: '被偷了' };
+  captain: '舰长', admiral: '提督', governor: '总督', castle: '城堡', newFirst: '新的第一名', pranksterKnocked: '打跑了', chestKept: '守住了', chestRobbed: '被偷了',
+  blindBoxQuery: '盲盒查询' };
 export const STEP = { EntryOpen: '报名开场', EntryClosed: '报名截止', PoolOpen: '奖池开场', PoolCall: '奖池点名', PoolSpin: '奖池转动',
   RevealGrand: '揭晓·大奖', RevealSecond: '揭晓·二奖', RevealThird: '揭晓·三奖', NoEntries: '没人报名', End: '抽奖结束' };
 // The board's viewers in the game (its VIEWERS), as Core tells of a viewer: each one's face the 礼物榜's sample avatar the

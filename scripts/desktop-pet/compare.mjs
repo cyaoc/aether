@@ -18,6 +18,9 @@ const here = new URL('.', import.meta.url).pathname, eval_ = here + '../../docs/
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args.splice(i, 2)[1]; };
 const out = opt('--out', '/tmp/desktop-pet-compare'), port = opt('--port', 8820);
 const RESULT = { Gain: '赚', Even: '平', Loss: '亏', Jackpot: '大奖' };
+// A 盲盒查询's 试演 on the board: its result as the board names it, with the page's numbers where they are not the board's own
+// (投入 15, 赚 4.5).
+const QUERY = { Gain: { result: '赚' }, Even: { result: '回本', profit: 0 }, Loss: { result: '亏', spend: 45, profit: -12.5 }, None: { result: '没有记录' } };
 const KIND = { hum: '哼歌', gym: '举哑铃', hike: '爬山', bike: '骑车', ski: '滑雪' };
 const MOOD = { calm: 0, happy: 0, bored: 15, gloomy: 40, sleepy: 60 };
 const { shows } = JSON.parse(fs.readFileSync(here + '../../src/Aether.Core/Pages/desktop-pet/shows.json', 'utf8'));
@@ -27,7 +30,7 @@ const at = (dur, extra = []) => [...new Set([200, 600, Math.round(dur * 0.25), M
 const cases = [];
 for (const row of shows) {
   for (const variant of row.tests) if (NAME[row.id] ?? STEP[variant]) cases.push({ id: row.id + (variant ? '-' + variant : ''),
-    board: `dc.start(${JSON.stringify(NAME[row.id] ?? STEP[variant])}, ${JSON.stringify(variant ? { result: RESULT[variant] } : {})})`,
+    board: `dc.start(${JSON.stringify(NAME[row.id] ?? STEP[variant])}, ${JSON.stringify(row.id === 'blindBoxQuery' ? QUERY[variant] : variant ? { result: RESULT[variant] } : {})})`,
     page: `pet.start(${JSON.stringify(row.id)}, { nickname: '星河', result: ${JSON.stringify(variant)} })` });
   if (KIND[row.id]) for (const mishap of [false, true]) cases.push({ id: row.id + (mishap ? '-Mishap' : ''),
     board: `dc.start('日常', { kind: ${JSON.stringify(KIND[row.id])}, mishap: ${mishap} })`, page: `pet.start(${JSON.stringify(row.id)}, { mishap: ${mishap} })` });

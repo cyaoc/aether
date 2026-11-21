@@ -10,6 +10,9 @@ export const BACK = new Set(['halo', 'rays', 'burst', 'spot', 'shockwave', 'spee
 export const giftBox = (g, x, y, b, rot = 0) => { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = '#FF9EB8'; g.strokeStyle = '#4A2E2A'; g.lineWidth = 1.5; g.beginPath(); g.roundRect(-b, -b, 2 * b, 2 * b, b * 0.3); g.fill(); g.stroke();
   g.fillStyle = '#E8454F'; g.fillRect(-b * 0.2, -b, b * 0.4, 2 * b); g.fillRect(-b, -b * 0.2, 2 * b, b * 0.4); g.beginPath(); g.ellipse(-b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, -0.5, 0, Math.PI * 2); g.ellipse(b * 0.45, -b - b * 0.28, b * 0.42, b * 0.28, 0.5, 0, Math.PI * 2); g.fill(); g.restore(); };
 
+// A four-pointed sparkle of radius rad at x, y (the 账单卡's too).
+export const drawStar = (g, x, y, rad, color, a = 1) => { g.save(); g.globalAlpha = a; g.fillStyle = color; g.beginPath(); for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4, rr = i % 2 ? rad * 0.32 : rad; g.lineTo(x + Math.cos(ang) * rr, y + Math.sin(ang) * rr); } g.closePath(); g.fill(); g.restore(); };
+
 /** Draws effect `f`, `[type, from ms, ...]`, of state `st` around `her` box for `pet`: its trail is where the glowing sprite
  * has just been, and its castle the picture the castle's effects go by. */
 export function drawFx(g, f, st, her, now, pet) {
@@ -21,7 +24,7 @@ export function drawFx(g, f, st, her, now, pet) {
   const life = (u, inn, hold, out) => u < 0 ? 0 : u < inn ? ease(u / inn) : u < inn + hold ? 1 : Math.max(0, 1 - (u - inn - hold) / out);
   const r = seeded(type.length * 97 + Math.floor(from));
   const glow = a => `rgba(${st.glow || '255,236,170'},${a})`;
-  const star = (x, y, rad, color, a) => { g.save(); g.globalAlpha = a; g.fillStyle = color; g.beginPath(); for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4, rr = i % 2 ? rad * 0.32 : rad; g.lineTo(x + Math.cos(ang) * rr, y + Math.sin(ang) * rr); } g.closePath(); g.fill(); g.restore(); };
+  const star = (x, y, rad, color, a) => drawStar(g, x, y, rad, color, a);
   const heart = (x, y, s, a) => { g.save(); g.globalAlpha = a; g.fillStyle = '#FF7FA8'; g.beginPath(); g.moveTo(x, y + s * 0.3); g.bezierCurveTo(x, y, x - s * 0.5, y, x - s * 0.5, y + s * 0.3); g.bezierCurveTo(x - s * 0.5, y + s * 0.6, x, y + s * 0.8, x, y + s); g.bezierCurveTo(x, y + s * 0.8, x + s * 0.5, y + s * 0.6, x + s * 0.5, y + s * 0.3); g.bezierCurveTo(x + s * 0.5, y, x, y, x, y + s * 0.3); g.fill(); g.restore(); };
   switch (type) {
     // Her frizzed hair smoothed by the sprite's magic (smooth): stars gather and circle her head (at f[2], f[3]), brightening,
